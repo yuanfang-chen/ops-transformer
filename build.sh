@@ -1134,8 +1134,7 @@ if [ -n "${TEST}" ];then
         echo "Operators that need to run UT: $TEST"
         if [ -z "${TEST}" ];then
             log "Info: This PR didn't trigger any UTest."
-            TEST="incre_flash_attention"
-            #exit 0
+            exit 0
         fi
         if [ "$TEST" != "all" ];then
             TEST="${TEST%;}"
@@ -1399,7 +1398,7 @@ function process_ci_smoke_with_changed_list()
     echo "Operators that need to run examples: $TEST"
     if [[ -z "$TEST" ]];then
         echo "No related unit tests found. Skipping CI test execution."
-        TEST="incre_flash_attention"
+        exit 0
     fi
     IFS=';' read -ra OPS_ARRAY <<< "$TEST"
     for op in "${OPS_ARRAY[@]}";do
