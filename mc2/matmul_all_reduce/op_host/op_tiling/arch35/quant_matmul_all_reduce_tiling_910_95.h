@@ -16,30 +16,9 @@
 #define QUANT_MATMUL_ALL_REDUCE_TILING_910_95_H
 
 #include "../matmul_all_reduce_tiling_base.h"
-namespace optiling {
-BEGIN_TILING_DATA_DEF(QuantMatmulAllReduceTilingDataA5)
-TILING_DATA_FIELD_DEF(uint32_t, version);
-TILING_DATA_FIELD_DEF(uint32_t, hcommCnt);
-TILING_DATA_FIELD_DEF_STRUCT(MC2ServerCfg, serverCfg);
-TILING_DATA_FIELD_DEF_STRUCT(MC2HcommCfg, hcommCfg);
-TILING_DATA_FIELD_DEF_STRUCT(MC2HcommCfg, hcommInt8Cfg);
-TILING_DATA_FIELD_DEF_STRUCT(Mc2Msg, msg);
-TILING_DATA_FIELD_DEF_STRUCT(RCSTiling, param);
-TILING_DATA_FIELD_DEF_STRUCT(Mc2QuantBatchMatmulV3TilingData, tilematmulTiling);
-TILING_DATA_FIELD_DEF_STRUCT(Mc2QuantBatchMatmulV3TilingData, tailmatmulTiling);
-END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000000, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000001, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002000, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002001, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000010, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000011, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002010, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002011, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000004000, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000004001, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(QuantMatmulAllReduceTilingDataOp, QuantMatmulAllReduceTilingDataA5);
+#include "../../../op_kernel/arch35/matmul_all_reduce_tiling_struct_ar35.h"
 
+namespace optiling {
 class QuantMatmulAllReduceTilingA5 : public MatmulAllReduceTilingBase
 {
     friend class QuantTilingTransferHelperA5;
@@ -47,7 +26,7 @@ class QuantMatmulAllReduceTilingA5 : public MatmulAllReduceTilingBase
 public:
     explicit QuantMatmulAllReduceTilingA5(gert::TilingContext* context);
     QuantMatmulAllReduceTilingA5(
-        gert::TilingContext* context, MMRCtxInfo* mmrCtxInfo, QuantMatmulAllReduceTilingDataA5* out);
+        gert::TilingContext* context, MMRCtxInfo* mmrCtxInfo, Mc2Tiling::QuantMatmulAllReduceTilingDataA5* out);
     ~QuantMatmulAllReduceTilingA5() override = default;
 
 protected:
@@ -61,13 +40,13 @@ protected:
 
     ge::graphStatus PostTiling() override;
 
-    Mc2Msg& MutableMc2MsgData() override;
+    Mc2Tiling::Mc2Msg& MutableMc2MsgData() override;
 
-    RCSTiling& MutableRCSTilingData() override;
+    Mc2Tiling::RCSTiling& MutableRCSTilingData() override;
 
-    TCubeTiling& MutableTCubeTileTilingData() override;
+    ::TCubeTiling& MutableTCubeTileTilingData() override;
 
-    TCubeTiling& MutableTCubeTailTilingData() override;
+    ::TCubeTiling& MutableTCubeTailTilingData() override;
 
     void PrintExtendMatmulTiling(bool isTail) override;
 
@@ -88,8 +67,8 @@ protected:
 
 private:
     ge::graphStatus CheckAxisSize();
-    QuantMatmulAllReduceTilingDataA5 quantMatmulAllReduceTilingDataSelf_;
-    QuantMatmulAllReduceTilingDataA5& quantMatmulAllReduceTilingData_;
+    Mc2Tiling::QuantMatmulAllReduceTilingDataA5 quantMatmulAllReduceTilingDataSelf_{};
+    Mc2Tiling::QuantMatmulAllReduceTilingDataA5& quantMatmulAllReduceTilingData_;
     uint64_t myWorkSpaceSize_{0U};
     bool isCommInt8Enable_ = false;
     bool isCommFp8Enable_ = false;

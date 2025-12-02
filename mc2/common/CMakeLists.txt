@@ -8,7 +8,7 @@
  # See LICENSE in the root of the software repository for the full text of the License.
  # ----------------------------------------------------------------------------
 if(BUILD_OPEN_PROJECT)
-  file(GLOB OPTILING_SRCS 
+  file(GLOB OPTILING_SRCS
     src/context_transfer.cpp
     src/hccl_formulaic_tiling.cpp
     src/hccl_performance.cpp
@@ -16,7 +16,6 @@ if(BUILD_OPEN_PROJECT)
     src/matmul_formulaic_tiling.cpp
     src/matmul_performance.cpp
     src/mc2_common_infershape.cpp
-    src/mc2_copy_quant_matmul_params.cpp
     src/mc2_gen_task_ops_utils.cpp
     src/mc2_hcom_topo_info.cpp
     src/mc2_log.cpp

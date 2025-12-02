@@ -25,7 +25,7 @@ class KernelAddRmsNormMergeN
 public:
     __aicore__ inline KernelAddRmsNormMergeN()
     {}
-    __aicore__ inline void Init(GM_ADDR gammaGM, AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t blockDim)
+    __aicore__ inline void Init(GM_ADDR gammaGM, Mc2Tiling::AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t blockDim)
     {
         ASSERT(blockDim != 0 && "Block dim can not be zero!");
         this->blockDim_ = blockDim;
@@ -48,8 +48,8 @@ public:
         this->gmBlockSize_ = rowWork_ * numCol_;
 
         // get start index for current core, core parallel
-        gamma_.SetGlobalBuffer((__gm__ T*)gammaGM, numCol_);        
-        
+        gamma_.SetGlobalBuffer((__gm__ T*)gammaGM, numCol_);
+
         // pipe alloc memory to queue, the unit is Bytes
         pipe->InitBuffer(inQueueX_, DOUBLE_BUFFER_QUEUE, ubFactor_ * sizeof(T));
         pipe->InitBuffer(inQueueGamma_, 1, ubFactor_ * sizeof(T));
@@ -61,7 +61,7 @@ public:
     }
 
     __aicore__ inline void ComputeProcess(
-        GM_ADDR normOutGM, GM_ADDR residualGM, GM_ADDR yGM, AddRMSNormTilingData& tilingData, uint32_t addRmsNormCount,
+        GM_ADDR normOutGM, GM_ADDR residualGM, GM_ADDR yGM, Mc2Tiling::AddRMSNormTilingData& tilingData, uint32_t addRmsNormCount,
         uint32_t rcvCnt)
     {
         uint64_t cOffset = CalcShapeOffset(sizeof(T), tilingData.num_row, tilingData.num_col); // 偏移*size

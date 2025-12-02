@@ -35,7 +35,7 @@ public:
         : MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR>(
               addrs, quantAddrs, arnAddrs, tilingData, tPipe)
     {
-        mc2TilingData_ = (WeightQuantMatmulAllReduceA5Fp8TilingData*)tilingData;
+        mc2TilingData_ = (Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData*)tilingData;
         this->tailInfo_.mmTiling = &mc2TilingData_->tailMmASTiling.matmulTiling;
         this->tileInfo_.mmTiling = &mc2TilingData_->tileMmASTiling.matmulTiling;
     }
@@ -66,12 +66,12 @@ protected:
     }
 
 private:
-    WeightQuantMatmulAllReduceA5Fp8TilingData* mc2TilingData_;
+    Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData* mc2TilingData_;
 };
 
 #define INVOKE_MC2_WEIGHT_QUANT_ADAPTIVE_SPLIT_KERNEL(bTransFlag, offsetFlag, quantType, biasType, vecAntiQuantConfig) \
     do {                                                                                                               \
-        GET_TILING_DATA_WITH_STRUCT(WeightQuantMatmulAllReduceA5Fp8TilingData, tilingData, tilingGM);                  \
+        GET_TILING_DATA(tilingData, tilingGM);                                                          \
         static constexpr Mc2WeightQuantBatchMatmulV2::Arch35::WqmmConfig wqmmCfg = {                                      \
             false, bTransFlag, quantType, offsetFlag, Mc2QuantType::NONE, CubeFormat::ND};                                \
         using OpType = Mc2WeightQuantBatchMatmulV2::Arch35::WeightQuantBatchMatmulV2BasicBlockController<                 \

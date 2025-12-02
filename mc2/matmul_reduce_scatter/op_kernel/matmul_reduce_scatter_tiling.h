@@ -19,8 +19,10 @@
 
 #if __has_include("../../common/inc/kernel/mc2_tiling_struct.h")
 #include "../../common/inc/kernel/mc2_tiling_struct.h"
+#include "../../3rd/mat_mul_v3/op_kernel/mat_mul_v3_tiling_data.h"
 #else
 #include "../common/inc/kernel/mc2_tiling_struct.h"
+#include "../3rd/mat_mul_v3/op_kernel/mat_mul_v3_tiling_data.h"
 #endif
 using namespace Mc2Tiling;
 
@@ -31,10 +33,6 @@ struct ReduceScatterSoc {
     uint32_t isND2NZ;
     uint32_t baseBD;
     uint32_t baseBN;
-};
-
-struct Mc2L2cacheUseInfo {
-    uint32_t l2CacheFlag;
 };
 
 class MatmulReduceScatterTilingData {

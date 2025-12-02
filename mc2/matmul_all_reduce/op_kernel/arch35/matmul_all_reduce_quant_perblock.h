@@ -34,7 +34,7 @@ public:
         MC2GmAddrs* addrs, QuantGmAddrs* quantAddrs, ArnGmAddrs* arnAddrs, MC2TilingHeader* tilingData, TPipe* tPipe)
         : MatmulAllReduceBase<XType, YType, CoreType>(addrs, quantAddrs, arnAddrs, tilingData, tPipe)
     {
-        mc2TilingData_ = (QuantMatmulAllReduceTilingDataA5*)tilingData;
+        mc2TilingData_ = (Mc2Tiling::QuantMatmulAllReduceTilingDataA5*)tilingData;
         this->tileInfo_.mmTiling = &mc2TilingData_->tilematmulTiling.matmulTiling;
         this->tailInfo_.mmTiling = &mc2TilingData_->tailmatmulTiling.matmulTiling;
     }
@@ -54,7 +54,7 @@ public:
 protected:
     __aicore__ inline void InnerProcess(MmType& mmOp, bool tailFlag, uint32_t turnCnt, const MC2TileInfo& tileInfo)
     {
-        const Mc2QuantBatchMatmulV3TilingData* tiling =
+        const DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tiling =
             (tailFlag ? &mc2TilingData_->tailmatmulTiling : &mc2TilingData_->tilematmulTiling);
         // CeilDiv
         const uint64_t mOfscale = (tiling->matmulTiling.M + 128 - 1) / 128;
@@ -76,12 +76,13 @@ protected:
     }
 
 private:
-    QuantMatmulAllReduceTilingDataA5* mc2TilingData_;
+    Mc2Tiling::QuantMatmulAllReduceTilingDataA5* mc2TilingData_;
 };
 
 #define INVOKE_MC2_QUANT_PERBLOCK_910_OP_IMPL(templateClass, coreType, ...)                                      \
     do {                                                                                                         \
-        GET_TILING_DATA_WITH_STRUCT(QuantMatmulAllReduceTilingDataA5, tilingData, tilingGM);                     \
+        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantMatmulAllReduceTilingDataA5);                     \
+        GET_TILING_DATA(tilingData, tilingGM);                                                          \
         MC2GmAddrs addrs = {aGM, bGM, biasGM, addGM, cGM, workspaceGM, cGM};                                     \
         QuantGmAddrs quantAddrs = {nullptr, nullptr, nullptr, dequantGM, pertokenGM};                            \
         using OpType =                                                                                           \

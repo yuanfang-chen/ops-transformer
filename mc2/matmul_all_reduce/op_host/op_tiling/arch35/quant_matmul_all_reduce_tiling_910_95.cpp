@@ -18,9 +18,9 @@
 #include "op_mc2.h"
 #include "mc2_log.h"
 #include "util/math_util.h"
-#include "new_mc2_copy_quant_matmul_params.h"
 
 using namespace Mc2Log;
+using namespace Mc2Tiling;
 namespace optiling {
 constexpr uint64_t HCOMM_CNT = 2;
 constexpr uint64_t INT8_WORKSPACE_CNT = 3;
@@ -62,43 +62,43 @@ void QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
         VECTOR_INNER_ERR_REPORT_TILING(
             opName_, "cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
         return );
-    quantMatmulAllReduceTilingData_.set_version(mc2tiling::COMM_VERSION3); // 新版本
-    if (MutableRCSTilingData().get_isInputCommQuantScale() == 1) {
-        quantMatmulAllReduceTilingData_.hcommCfg.set_opType(
+    quantMatmulAllReduceTilingData_.version = mc2tiling::COMM_VERSION3; // 新版本
+    if (MutableRCSTilingData().isInputCommQuantScale == 1) {
+        quantMatmulAllReduceTilingData_.hcommCfg.opType = (
             static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER));
-        quantMatmulAllReduceTilingData_.hcommCfg.set_srcDataType(
+        quantMatmulAllReduceTilingData_.hcommCfg.srcDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_INT8)));
-        quantMatmulAllReduceTilingData_.hcommCfg.set_dstDataType(
+        quantMatmulAllReduceTilingData_.hcommCfg.dstDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_FLOAT)));
-        quantMatmulAllReduceTilingData_.hcommInt8Cfg.set_opType(
+        quantMatmulAllReduceTilingData_.hcommInt8Cfg.opType = (
             static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER));
-        quantMatmulAllReduceTilingData_.hcommInt8Cfg.set_srcDataType(
+        quantMatmulAllReduceTilingData_.hcommInt8Cfg.srcDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_INT8)));
-        quantMatmulAllReduceTilingData_.hcommInt8Cfg.set_dstDataType(
+        quantMatmulAllReduceTilingData_.hcommInt8Cfg.dstDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_INT8)));
-        quantMatmulAllReduceTilingData_.set_hcommCnt(HCOMM_CNT);
-    } else if (MutableRCSTilingData().get_isInputCommQuantScale() == QUANT_MODE_FP8) {
-        quantMatmulAllReduceTilingData_.hcommCfg.set_opType(
+        quantMatmulAllReduceTilingData_.hcommCnt = HCOMM_CNT;
+    } else if (MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8) {
+        quantMatmulAllReduceTilingData_.hcommCfg.opType = (
             static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL));
-        quantMatmulAllReduceTilingData_.hcommCfg.set_srcDataType(
+        quantMatmulAllReduceTilingData_.hcommCfg.srcDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-        quantMatmulAllReduceTilingData_.hcommCfg.set_dstDataType(
+        quantMatmulAllReduceTilingData_.hcommCfg.dstDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-        quantMatmulAllReduceTilingData_.hcommInt8Cfg.set_opType(
+        quantMatmulAllReduceTilingData_.hcommInt8Cfg.opType = (
             static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER));
-        quantMatmulAllReduceTilingData_.hcommInt8Cfg.set_srcDataType(
+        quantMatmulAllReduceTilingData_.hcommInt8Cfg.srcDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-        quantMatmulAllReduceTilingData_.hcommInt8Cfg.set_dstDataType(
+        quantMatmulAllReduceTilingData_.hcommInt8Cfg.dstDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-        quantMatmulAllReduceTilingData_.set_hcommCnt(HCOMM_CNT);
+        quantMatmulAllReduceTilingData_.hcommCnt = HCOMM_CNT;
     } else {
-        quantMatmulAllReduceTilingData_.hcommCfg.set_opType(
+        quantMatmulAllReduceTilingData_.hcommCfg.opType = (
             static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLREDUCE));
-        quantMatmulAllReduceTilingData_.hcommCfg.set_srcDataType(
+        quantMatmulAllReduceTilingData_.hcommCfg.srcDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-        quantMatmulAllReduceTilingData_.hcommCfg.set_dstDataType(
+        quantMatmulAllReduceTilingData_.hcommCfg.dstDataType = (
             static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-        quantMatmulAllReduceTilingData_.set_hcommCnt(1);
+        quantMatmulAllReduceTilingData_.hcommCnt = 1;
     }
 }
 
@@ -109,12 +109,12 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::DoOpTiling()
     DoRCSTiling();
     DoSplitMTiling();
     GE_ASSERT_GRAPH_SUCCESS(DoQuantTiling());
-    if (MutableRCSTilingData().get_isInputCommQuantScale() == 1) {
+    if (MutableRCSTilingData().isInputCommQuantScale == 1) {
         isCommInt8Enable_ = true;
     }
     SetMc2Hcomm();
     DoAllReduceTiling(true);
-    if (MutableRCSTilingData().get_isInputCommQuantScale() == QUANT_MODE_FP8) {
+    if (MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8) {
         isCommFp8Enable_ = true;
         GE_ASSERT_GRAPH_SUCCESS(GetDynamicQuantTempBuffSize());
     }
@@ -129,7 +129,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::GetDynamicQuantTempBuffSize()
                     return ge::GRAPH_FAILED);
     auto aivNum = ascendcPlatform.GetCoreNumAiv() > 0 ? ascendcPlatform.GetCoreNumAiv() : 1;
     int64_t procRowsRaw =
-        MutableTCubeTileTilingData().get_M() < aivNum ? 1 : MutableTCubeTileTilingData().get_M() / aivNum;
+        MutableTCubeTileTilingData().M < aivNum ? 1 : MutableTCubeTileTilingData().M / aivNum;
     uint64_t ubSize = static_cast<uint64_t>(aicoreParams_.ubSize);
     uint64_t fp8Size = 1;
     uint64_t outSize = args_.geCType == ge::DataType::DT_FLOAT ? sizeof(float) : 2;
@@ -160,7 +160,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::GetDynamicQuantTempBuffSize()
                                        maxValBroadCast, minValBroadCastDequant); // Dequant 广播Scale计算反量化
     uint32_t tempBuffSize = std::max(minValBroadCast, minValBroadCastDequant);
     tempBuffSize = Ops::Base::CeilDiv(tempBuffSize, ALIGN_DATA_SIZE) * ALIGN_DATA_SIZE;
-    MutableRCSTilingData().set_dynamicQuantTempBuffSize(tempBuffSize);
+    MutableRCSTilingData().dynamicQuantTempBuffSize = tempBuffSize;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -187,48 +187,48 @@ void QuantMatmulAllReduceTilingA5::PrintExtendMatmulTiling(bool isTail)
         tiling = quantMatmulAllReduceTilingData_.tailmatmulTiling;
     }
 
-    OP_LOGD(opName_, "QuantBmmV3Params.batchA=%u.", tiling.params.get_batchA());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchB=%u.", tiling.params.get_batchB());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchC=%u.", tiling.params.get_batchC());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchA1=%u.", tiling.params.get_batchA1());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchA2=%u.", tiling.params.get_batchA2());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchA3=%u.", tiling.params.get_batchA3());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchA4=%u.", tiling.params.get_batchA4());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchB1=%u.", tiling.params.get_batchB1());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchB2=%u.", tiling.params.get_batchB2());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchB3=%u.", tiling.params.get_batchB3());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchB4=%u.", tiling.params.get_batchB4());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchC1=%u.", tiling.params.get_batchC1());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchC2=%u.", tiling.params.get_batchC2());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchC3=%u.", tiling.params.get_batchC3());
-    OP_LOGD(opName_, "QuantBmmV3Params.batchC4=%u.", tiling.params.get_batchC4());
-    OP_LOGD(opName_, "QuantBmmV3Params.singleCoreBatch=%u.", tiling.params.get_singleCoreBatch());
-    OP_LOGD(opName_, "QuantBmmV3Params.isPerTensor=%u.", tiling.params.get_isPerTensor());
-    OP_LOGD(opName_, "QuantBmmV3Params.isPertoken=%u.", tiling.params.get_isPertoken());
-    OP_LOGD(opName_, "QuantBmmV3Params.isDoubleScale=%u.", tiling.params.get_isDoubleScale());
-    OP_LOGD(opName_, "QuantBmmV3Params.biasThreeDim=%u.", tiling.params.get_biasThreeDim());
-    OP_LOGD(opName_, "QuantBmmV3Params.ubCalcM=%u.", tiling.params.get_ubCalcM());
-    OP_LOGD(opName_, "QuantBmmV3Params.ubCalcN=%u.", tiling.params.get_ubCalcN());
-    OP_LOGD(opName_, "QuantBmmV3Params.needUbBuffer=%u.", tiling.params.get_needUbBuffer());
-    OP_LOGD(opName_, "QuantBmmV3Params.realSingleCoreM=%u.", tiling.params.get_realSingleCoreM());
-    OP_LOGD(opName_, "QuantBmmV3Params.realSingleCoreN=%u.", tiling.params.get_realSingleCoreN());
-    OP_LOGD(opName_, "QuantBmmV3Params.biasDtype=%u.", tiling.params.get_biasDtype());
-    OP_LOGD(opName_, "QuantBmmV3Params.ubSize=%u.", tiling.params.get_ubSize());
-    OP_LOGD(opName_, "QuantBmmV3Params.isMClash=%u.", tiling.params.get_isMClash());
-    OP_LOGD(opName_, "QuantBmmV3Params.isNClash=%u.", tiling.params.get_isNClash());
-    OP_LOGD(opName_, "QuantBmmV3Params.groupSizeM=%u.", tiling.params.get_groupSizeM());
-    OP_LOGD(opName_, "QuantBmmV3Params.groupSizeK=%u.", tiling.params.get_groupSizeK());
-    OP_LOGD(opName_, "QuantBmmV3Params.groupSizeN=%u.", tiling.params.get_groupSizeN());
+    OP_LOGD(opName_, "QuantBmmV3Params.batchA=%u.", tiling.params.batchA);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchB=%u.", tiling.params.batchB);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchC=%u.", tiling.params.batchC);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchA1=%u.", tiling.params.batchA1);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchA2=%u.", tiling.params.batchA2);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchA3=%u.", tiling.params.batchA3);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchA4=%u.", tiling.params.batchA4);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchB1=%u.", tiling.params.batchB1);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchB2=%u.", tiling.params.batchB2);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchB3=%u.", tiling.params.batchB3);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchB4=%u.", tiling.params.batchB4);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchC1=%u.", tiling.params.batchC1);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchC2=%u.", tiling.params.batchC2);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchC3=%u.", tiling.params.batchC3);
+    OP_LOGD(opName_, "QuantBmmV3Params.batchC4=%u.", tiling.params.batchC4);
+    OP_LOGD(opName_, "QuantBmmV3Params.singleCoreBatch=%u.", tiling.params.singleCoreBatch);
+    OP_LOGD(opName_, "QuantBmmV3Params.isPerTensor=%u.", tiling.params.isPerTensor);
+    OP_LOGD(opName_, "QuantBmmV3Params.isPertoken=%u.", tiling.params.isPertoken);
+    OP_LOGD(opName_, "QuantBmmV3Params.isDoubleScale=%u.", tiling.params.isDoubleScale);
+    OP_LOGD(opName_, "QuantBmmV3Params.biasThreeDim=%u.", tiling.params.biasThreeDim);
+    OP_LOGD(opName_, "QuantBmmV3Params.ubCalcM=%u.", tiling.params.ubCalcM);
+    OP_LOGD(opName_, "QuantBmmV3Params.ubCalcN=%u.", tiling.params.ubCalcN);
+    OP_LOGD(opName_, "QuantBmmV3Params.needUbBuffer=%u.", tiling.params.needUbBuffer);
+    OP_LOGD(opName_, "QuantBmmV3Params.realSingleCoreM=%u.", tiling.params.realSingleCoreM);
+    OP_LOGD(opName_, "QuantBmmV3Params.realSingleCoreN=%u.", tiling.params.realSingleCoreN);
+    OP_LOGD(opName_, "QuantBmmV3Params.biasDtype=%u.", tiling.params.biasDtype);
+    OP_LOGD(opName_, "QuantBmmV3Params.ubSize=%u.", tiling.params.ubSize);
+    OP_LOGD(opName_, "QuantBmmV3Params.isMClash=%u.", tiling.params.isMClash);
+    OP_LOGD(opName_, "QuantBmmV3Params.isNClash=%u.", tiling.params.isNClash);
+    OP_LOGD(opName_, "QuantBmmV3Params.groupSizeM=%u.", tiling.params.groupSizeM);
+    OP_LOGD(opName_, "QuantBmmV3Params.groupSizeK=%u.", tiling.params.groupSizeK);
+    OP_LOGD(opName_, "QuantBmmV3Params.groupSizeN=%u.", tiling.params.groupSizeN);
 
-    OP_LOGD(opName_, "TileL2cacheTiling.mTileCntL2=%u.", tiling.tileL2cacheTiling.get_mTileCntL2());
-    OP_LOGD(opName_, "TileL2cacheTiling.nTileCntL2=%u.", tiling.tileL2cacheTiling.get_nTileCntL2());
-    OP_LOGD(opName_, "TileL2cacheTiling.mTileBlock=%u.", tiling.tileL2cacheTiling.get_mTileBlock());
-    OP_LOGD(opName_, "TileL2cacheTiling.nTileBlock=%u.", tiling.tileL2cacheTiling.get_nTileBlock());
-    OP_LOGD(opName_, "TileL2cacheTiling.calOrder=%u.", tiling.tileL2cacheTiling.get_calOrder());
-    OP_LOGD(opName_, "TileL2cacheTiling.isBasicTiling=%u.", tiling.tileL2cacheTiling.get_isBasicTiling());
+    OP_LOGD(opName_, "TileL2cacheTiling.mTileCntL2=%u.", tiling.tileL2cacheTiling.mTileCntL2);
+    OP_LOGD(opName_, "TileL2cacheTiling.nTileCntL2=%u.", tiling.tileL2cacheTiling.nTileCntL2);
+    OP_LOGD(opName_, "TileL2cacheTiling.mTileBlock=%u.", tiling.tileL2cacheTiling.mTileBlock);
+    OP_LOGD(opName_, "TileL2cacheTiling.nTileBlock=%u.", tiling.tileL2cacheTiling.nTileBlock);
+    OP_LOGD(opName_, "TileL2cacheTiling.calOrder=%u.", tiling.tileL2cacheTiling.calOrder);
+    OP_LOGD(opName_, "TileL2cacheTiling.isBasicTiling=%u.", tiling.tileL2cacheTiling.isBasicTiling);
 
-    OP_LOGD(opName_, "AdaptiveSlidingWin.mTailTile=%u.", tiling.adaptiveSlidingWin.get_mTailTile());
-    OP_LOGD(opName_, "AdaptiveSlidingWin.nTailTile=%u.", tiling.adaptiveSlidingWin.get_nTailTile());
+    OP_LOGD(opName_, "AdaptiveSlidingWin.mTailTile=%u.", tiling.adaptiveSlidingWin.mTailTile);
+    OP_LOGD(opName_, "AdaptiveSlidingWin.nTailTile=%u.", tiling.adaptiveSlidingWin.nTailTile);
 }
 
 ge::graphStatus QuantMatmulAllReduceTilingA5::GetWorkspaceSize()
@@ -236,40 +236,40 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::GetWorkspaceSize()
     size_t* workspaces = context_->GetWorkspaceSizes(1); // set workspace
     uint64_t commInt8WorkSpace = 0UL;
     uint64_t commFp32WorkSpace = 0UL;
-    uint64_t gmcFloat = static_cast<uint64_t>(MutableRCSTilingData().get_rankM()) *
-                        static_cast<uint64_t>(MutableRCSTilingData().get_rankN()) *
+    uint64_t gmcFloat = static_cast<uint64_t>(MutableRCSTilingData().rankM) *
+                        static_cast<uint64_t>(MutableRCSTilingData().rankN) *
                         static_cast<uint64_t>(args_.outputDtypeSize);
-    bool isFp8 = MutableRCSTilingData().get_isInputCommQuantScale() == QUANT_MODE_FP8;
-    if (MutableRCSTilingData().get_isInputCommQuantScale() == 1 || isFp8) {
-        uint64_t padTileM = MutableTCubeTileTilingData().get_M();
-        uint64_t padTailM = MutableTCubeTailTilingData().get_M();
+    bool isFp8 = MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8;
+    if (MutableRCSTilingData().isInputCommQuantScale == 1 || isFp8) {
+        uint64_t padTileM = MutableTCubeTileTilingData().M;
+        uint64_t padTailM = MutableTCubeTailTilingData().M;
         if (padTileM % args_.rankDim != 0) {
             padTileM += args_.rankDim - (padTileM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
         }
-        uint64_t tempPadTileM = padTileM * MutableTCubeTileTilingData().get_N() * sizeof(int8_t);
+        uint64_t tempPadTileM = padTileM * MutableTCubeTileTilingData().N * sizeof(int8_t);
         if (padTailM % args_.rankDim != 0) {
             padTailM += args_.rankDim - (padTailM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
         }
-        uint64_t tempPadTailM = padTailM * MutableTCubeTailTilingData().get_N() * sizeof(int8_t);
-        commFp32WorkSpace = (tempPadTileM * MutableRCSTilingData().get_tileCnt() +
-                             tempPadTailM * MutableRCSTilingData().get_tailCnt()) * sizeof(float);
+        uint64_t tempPadTailM = padTailM * MutableTCubeTailTilingData().N * sizeof(int8_t);
+        commFp32WorkSpace = (tempPadTileM * MutableRCSTilingData().tileCnt +
+                             tempPadTailM * MutableRCSTilingData().tailCnt) * sizeof(float);
         if (isFp8) {
-            uint64_t tileN = MutableTCubeTileTilingData().get_N();
-            uint64_t tailN = MutableTCubeTailTilingData().get_N();
+            uint64_t tileN = MutableTCubeTileTilingData().N;
+            uint64_t tailN = MutableTCubeTailTilingData().N;
             tileN += Ops::Base::CeilDiv(tileN, PERTILE_TILELEN);
             tailN += Ops::Base::CeilDiv(tailN, PERTILE_TILELEN);
             tempPadTileM = padTileM * tileN;
             tempPadTailM = padTailM * tailN;
         }
         commInt8WorkSpace =
-            tempPadTileM * MutableRCSTilingData().get_tileCnt() + tempPadTailM * MutableRCSTilingData().get_tailCnt();
+            tempPadTileM * MutableRCSTilingData().tileCnt + tempPadTailM * MutableRCSTilingData().tailCnt;
         commInt8WorkSpace *= isFp8 ? sizeof(float) : sizeof(int8_t);
         OP_LOGI(opName_, "Set commInt8WorkSpace size=%lu, commFp32WorkSpace size=%lu to context.", commInt8WorkSpace,
                 commFp32WorkSpace);
     }
     uint64_t commWorkSpace = myWorkSpaceSize_ - libApiWorkSpaceSize_;
-    MutableRCSTilingData().set_commWorkSpaceSize(commWorkSpace); // myWorkSpaceSize_去除系统空间后剩余大小
-    MutableRCSTilingData().set_commInt8WorkSpace(commInt8WorkSpace); // int8 通信用于存放reduceScatter输入 workspace 的开销
+    MutableRCSTilingData().commWorkSpaceSize = (commWorkSpace); // myWorkSpaceSize_去除系统空间后剩余大小
+    MutableRCSTilingData().commInt8WorkSpace = (commInt8WorkSpace); // int8 通信用于存放reduceScatter输入 workspace 的开销
     if (isFp8) {
         // 存放Matmul输出+quant输出+alltoall输出+(dequant+reduce+quant)混合输出+allgather输出+dequant输出
         myWorkSpaceSize_ = myWorkSpaceSize_ + PERTILE_FP8_WORKSPACE_CNT * commInt8WorkSpace +
@@ -286,33 +286,40 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::PostTiling()
 {
     OP_LOGD(
         opName_, "Final tiling data size=%zu and context capacity size=%zu.",
-        quantMatmulAllReduceTilingData_.GetDataSize(), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(quantMatmulAllReduceTilingData_.GetDataSize());
+        sizeof(QuantMatmulAllReduceTilingDataA5), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(sizeof(QuantMatmulAllReduceTilingDataA5));
 
     OP_TILING_CHECK(
-        quantMatmulAllReduceTilingData_.GetDataSize() % sizeof(uint64_t) != 0,
+        (sizeof(QuantMatmulAllReduceTilingDataA5) % sizeof(uint64_t)) != 0,
         VECTOR_INNER_ERR_REPORT_TILING(
-            opName_, "Tiling data size=%zu not aligned to 8.", quantMatmulAllReduceTilingData_.GetDataSize()),
+            opName_, "Tiling data size=%zu not aligned to 8.", sizeof(QuantMatmulAllReduceTilingDataA5)),
         return ge::GRAPH_FAILED);
-    PrintTilingData();
 
+    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
+        reinterpret_cast<void *>(&quantMatmulAllReduceTilingData_), sizeof(QuantMatmulAllReduceTilingDataA5));
+    if (ret != EOK){
+        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
+        return ge::GRAPH_FAILED;
+    }
+
+    PrintTilingData();
     context_->SetBlockDim(args_.aicCoreNum);
     return ge::GRAPH_SUCCESS;
 }
 
-Mc2Msg& QuantMatmulAllReduceTilingA5::MutableMc2MsgData()
+Mc2Tiling::Mc2Msg& QuantMatmulAllReduceTilingA5::MutableMc2MsgData()
 {
     return quantMatmulAllReduceTilingData_.msg;
 }
-RCSTiling& QuantMatmulAllReduceTilingA5::MutableRCSTilingData()
+Mc2Tiling::RCSTiling& QuantMatmulAllReduceTilingA5::MutableRCSTilingData()
 {
     return quantMatmulAllReduceTilingData_.param;
 }
-TCubeTiling& QuantMatmulAllReduceTilingA5::MutableTCubeTileTilingData()
+::TCubeTiling& QuantMatmulAllReduceTilingA5::MutableTCubeTileTilingData()
 {
     return quantMatmulAllReduceTilingData_.tilematmulTiling.matmulTiling;
 }
-TCubeTiling& QuantMatmulAllReduceTilingA5::MutableTCubeTailTilingData()
+::TCubeTiling& QuantMatmulAllReduceTilingA5::MutableTCubeTailTilingData()
 {
     return quantMatmulAllReduceTilingData_.tailmatmulTiling.matmulTiling;
 }
@@ -320,24 +327,19 @@ TCubeTiling& QuantMatmulAllReduceTilingA5::MutableTCubeTailTilingData()
 ge::graphStatus QuantMatmulAllReduceTilingA5::DoQuantTiling()
 {
     args_.mValue = tileMValue_;
-    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams tileQuantBatchMatmulParams;
-    QuantTilingTransferHelperA5 mmTile(*this, tileQuantBatchMatmulParams);
+    QuantTilingTransferHelperA5 mmTile(*this, quantMatmulAllReduceTilingData_.tilematmulTiling);
     if (args_.enableSplitK) {
         OP_LOGD(opName_, "Enable SplitK Tiling.");
         GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
-        NewCopyQuantBatchMatmulParams(tileQuantBatchMatmulParams, quantMatmulAllReduceTilingData_.tilematmulTiling);
         return ge::GRAPH_SUCCESS;
     } else {
-        GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
-        NewCopyQuantBatchMatmulParams(tileQuantBatchMatmulParams, quantMatmulAllReduceTilingData_.tilematmulTiling);
-        if (MutableRCSTilingData().get_tailCnt() == 0) {
+        GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());;
+        if (MutableRCSTilingData().tailCnt == 0) {
             return ge::GRAPH_SUCCESS;
         }
         args_.mValue = tailMValue_;
-        DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams tailQuantBatchMatmulParams;
-        QuantTilingTransferHelperA5 mmTail(*this, tailQuantBatchMatmulParams);
+        QuantTilingTransferHelperA5 mmTail(*this, quantMatmulAllReduceTilingData_.tailmatmulTiling);
         GE_ASSERT_GRAPH_SUCCESS(mmTail.DoTiling());
-        NewCopyQuantBatchMatmulParams(tailQuantBatchMatmulParams, quantMatmulAllReduceTilingData_.tailmatmulTiling);
         return ge::GRAPH_SUCCESS;
     }
 }
@@ -653,9 +655,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::CheckInput()
 
 QuantMatmulAllReduceTilingA5::QuantMatmulAllReduceTilingA5(gert::TilingContext* context)
     : MatmulAllReduceTilingBase(context), quantMatmulAllReduceTilingData_(quantMatmulAllReduceTilingDataSelf_)
-{
-    quantMatmulAllReduceTilingData_.SetDataPtr(context_->GetRawTilingData()->GetData());
-}
+{}
 
 // 使用外部传入的tilingdata和ctxinfo
 QuantMatmulAllReduceTilingA5::QuantMatmulAllReduceTilingA5(
@@ -672,7 +672,7 @@ const gert::Shape QuantTilingTransferHelperA5::GetX1Shape(const size_t index)
     if (tilingProcesser_.isPerBlock_ && isNotBatchOne && !is128Aligned) {
         return gert::Shape(
             {static_cast<int64_t>(tilingProcesser_.args_.batchValue),
-            static_cast<int64_t>(tilingProcesser_.args_.mValue) / static_cast<int64_t>(tilingProcesser_.args_.batchValue), 
+            static_cast<int64_t>(tilingProcesser_.args_.mValue) / static_cast<int64_t>(tilingProcesser_.args_.batchValue),
             static_cast<int64_t>(tilingProcesser_.args_.kValue)});
     } else {
         return gert::Shape(

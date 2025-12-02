@@ -59,6 +59,7 @@ namespace MatmulAllReduceImpl {}
 
 using namespace AscendC;
 using namespace MatmulAllReduceImpl;
+using namespace Mc2Tiling;
 
 extern "C" __global__ __aicore__ void matmul_all_reduce(
     GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR addGM, GM_ADDR antiquantScaleGM, GM_ADDR antiquantOffsetGM,
@@ -79,7 +80,7 @@ extern "C" __global__ __aicore__ void matmul_all_reduce(
 
     TPipe tPipe;
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
-    
+
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
     // 910非量化
     if (TILING_KEY_IS(11000000000000001100UL)) {
@@ -94,6 +95,11 @@ extern "C" __global__ __aicore__ void matmul_all_reduce(
 #endif
     // 除非量化以外，david的tiling均来源于对应的mmv3算子，在其基础上增加对应偏移，具体参看tiling
 #if defined(WEIGHT_W4_W8) || defined(WEIGHT_F8)
+REGISTER_TILING_DEFAULT(Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR > 2000000000000000000UL && TILING_KEY_VAR != 11000000000000000008UL", 
+                                       Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR < 2000000000000000000UL || TILING_KEY_VAR == 11000000000000000008UL", 
+                                       Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData);
 #if defined(WEIGHT_W4_W8)
 #undef DTYPE_BIAS
 #define DTYPE_BIAS DTYPE_X1

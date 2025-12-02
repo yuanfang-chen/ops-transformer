@@ -39,18 +39,24 @@ struct BMMRSATAType { // Batch_Mat_Mul_Reduce_Scatter_All_to_All_Type
 #define INVOKE_BMMRSATA_OP_IMPL(templateClass, ...)                             \
     do {                                                                        \
         templateClass<BMMRSATAType<__VA_ARGS__>> op;                            \
-        op.Init(xGM, weightGM, biasGM, yGM, userWorkspace, &tilingData, &pipe); \
+        op.Init(xGM, weightGM, biasGM, yGM, userWorkspace, &tilingData, &pipe,  \
+            hcclInitTiling, reduceScatterCcTiling, alltoAllCcTiling);           \
         op.Process();                                                           \
     } while (0)
 
 extern "C" __global__ __aicore__ void batch_mat_mul_reduce_scatter_allto_all(GM_ADDR xGM, GM_ADDR weightGM,
                                                                              GM_ADDR biasGM, GM_ADDR yGM,
                                                                              GM_ADDR workspaceGM, GM_ADDR tilingGM) {
+    REGISTER_TILING_DEFAULT(BatchMatMulReduceScatterAlltoAllTilingData);
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2); // 强制kernelCV核配比1:2
     if (workspaceGM == nullptr) {return;}
     GM_ADDR userWorkspace = GetUserWorkspace(workspaceGM);
     if (userWorkspace == nullptr) {return;}
     GET_TILING_DATA(tilingData, tilingGM);
+    auto tiling = (__gm__ BatchMatMulReduceScatterAlltoAllTilingData*)tilingGM;
+    __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
+    __gm__ void* reduceScatterCcTiling = (__gm__ void*)(&(tiling->reduceScatterCcTiling));
+    __gm__ void* alltoAllCcTiling = (__gm__ void*)(&(tiling->alltoAllCcTiling));
     TPipe pipe;
 
 #if (ORIG_DTYPE_X == DT_FLOAT16)

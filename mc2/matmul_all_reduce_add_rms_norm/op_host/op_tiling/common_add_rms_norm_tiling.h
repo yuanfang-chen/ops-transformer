@@ -22,6 +22,7 @@
 #include "tiling/tiling_api.h"
 #include "util/math_util.h"
 #include "mc2_log.h"
+#include "../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
 
 namespace optiling {
 constexpr uint32_t SYS_WORKSPACE_SIZE = 16 * 1024 * 1024; // 16M
@@ -54,17 +55,9 @@ struct TilingOut {
     uint32_t blockDim;
 };
 struct AddRMSNormTilingOutput {
-    AddRMSNormTilingData& addRmsNormTilingData;
+    Mc2Tiling::AddRMSNormTilingData& addRmsNormTilingData;
     TilingOut& tilingOut;
 };
-REGISTER_TILING_DATA_CLASS(AddRMSNormTilingDataOp, AddRMSNormTilingData)
-BEGIN_TILING_DATA_DEF(AddRMSNormTilingeKeyData)
-TILING_DATA_FIELD_DEF(uint32_t, ARNKeyTile);
-TILING_DATA_FIELD_DEF(uint32_t, ARNKeyTail);
-TILING_DATA_FIELD_DEF(uint32_t, ARNBlockDimTile);
-TILING_DATA_FIELD_DEF(uint32_t, ARNBlockDimTail);
-END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(AddRMSNormTilingeKeyDataOp, AddRMSNormTilingeKeyData)
 
 namespace CommonAddResNormTiling {
 enum ModeKey : uint32_t
