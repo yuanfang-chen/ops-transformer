@@ -244,7 +244,8 @@ struct QSFATilingInfo {
     uint32_t n2Size = 0;
     uint32_t s1Size = 0;
     int64_t s2Size = 0;
-    uint32_t qkHeadDim = 0;
+    uint32_t qHeadDim = 0;
+    uint32_t kHeadDim = 0;
     uint32_t vHeadDim = 0;
     uint32_t gSize = 0;
     uint32_t ropeHeadDim = 0;
@@ -417,12 +418,6 @@ private:
     ge::graphStatus CheckSinglePara() const;
     ge::graphStatus CheckMultiParaConsistency() const;
     ge::graphStatus CheckDequantScaleNotExistence();
-    ge::graphStatus CheckExists(const void *pointer, const std::string &name) const;
-    ge::graphStatus CheckNotExists(const void *pointer, const std::string &name) const;
-    ge::graphStatus CheckExistsByMap(const std::map<std::string, const void *> &paramMap) const;
-    ge::graphStatus CheckNotExistsByMap(const std::map<std::string, const void *> &paramMap) const;
-    ge::graphStatus CheckExistenceByMap(std::map<std::string, const void *> &existMap,
-        std::map<std::string, const void *> &notExistMap) const;
     template <typename T> ge::graphStatus CheckAttrValueByMap(
         std::map<std::string, std::pair<const T *, T>> &attrMap) const;
     ge::graphStatus CheckParaExistenceMlaAntiquant() const;
@@ -475,9 +470,9 @@ private:
     uint32_t gSize_ = 0;
     uint32_t s1Size_ = 0;
     int64_t s2Size_ = 0;
-    uint32_t qkHeadDim_ = 0;
+    uint32_t qHeadDim_ = 0;
+    uint32_t kHeadDim_ = 0;
     uint32_t vHeadDim_ = 0;
-    uint32_t ropeHeadDim_ = 0;
     uint32_t qTSize_ = 0; // 仅TND时生效
     uint32_t kvTSize_ = 0; // 仅TND时生效
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;
@@ -490,6 +485,7 @@ private:
     int64_t tileSize_ = 0;
     int64_t preTokens_ = 0;
     int64_t nextTokens_ = 0;
+    int32_t ropeHeadDim_ = 0;
 
     QSFALayout qLayout_ = QSFALayout::BSND;
     QSFALayout topkLayout_ = QSFALayout::BSND;
@@ -540,7 +536,8 @@ public:
     ge::graphStatus GetBatchSize();
     ge::graphStatus GetQTSize();
     ge::graphStatus GetKVTSize();
-    ge::graphStatus GetQkHeadDim();
+    ge::graphStatus GetQHeadDim();
+    ge::graphStatus GetKHeadDim();
     ge::graphStatus GetS1Size();
     ge::graphStatus GetKvStorageMode();
     ge::graphStatus GetKvLayout();
@@ -580,9 +577,10 @@ public:
     uint32_t gSize_ = 0;
     uint32_t s1Size_ = 0;
     int64_t s2Size_ = 0;
-    uint32_t qkHeadDim_ = 0;
+    uint32_t qHeadDim_ = 0;
+    uint32_t kHeadDim_ = 0;
     uint32_t vHeadDim_ = 0;
-    uint32_t ropeHeadDim_ = 0;
+    int32_t ropeHeadDim_ = 0;
     uint32_t qTSize_ = 0; // 仅TND时生效
     uint32_t kvTSize_ = 0; // 仅TND时生效
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;
