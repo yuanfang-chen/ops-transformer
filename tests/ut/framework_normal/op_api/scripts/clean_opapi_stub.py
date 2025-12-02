@@ -31,7 +31,7 @@ def main():
         logging.info("No valid op names provided.")
         sys.exit(0)
 
-    config_path = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", "config", chip_name, "binary_info_config.json")
+    config_path = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", "config", chip_name, "ops_legacy", "binary_info_config.json")
     if not os.path.exists(config_path):
         logging.error("binary_info_config.json not found at %s", config_path)
         sys.exit(1)
@@ -43,7 +43,7 @@ def main():
             logging.error("Failed to parse JSON file: %s", config_path)
             return
 
-    ascend910b_dir = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", chip_name)
+    ascend910b_dir = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", chip_name, "ops_legacy")
     if not os.path.exists(ascend910b_dir):
         logging.warning("Base directory not found: %s", ascend910b_dir)
         sys.exit(0)
@@ -90,4 +90,5 @@ def main():
     logging.info("Cleanup finished.")
 
 if __name__ == "__main__":
+    logging.basicConfig(format='[%(asctime)s][%(filename)s:%(lineno)d] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     main()

@@ -195,7 +195,6 @@ class Parser:
                 for opt in new_options:
                     if opt not in ops_test_option_lst:
                         ops_test_option_lst.append(opt)
-                        logging.info("OPs [%s] UT is trigger!", opt)
         if len(ops_test_option_lst) == 0:
             logging.info("Don't trigger any UT.")
             return ""
@@ -207,6 +206,7 @@ class Parser:
                 if opt not in cls._UTExcludes:
                     ops_test_ut_str += f"{opt};"
         ops_test_ut_str = f"{ops_test_ut_str}"
+        logging.info(f"Trigger UT: {ops_test_ut_str}")
         return ops_test_ut_str
 
     @classmethod
@@ -218,7 +218,6 @@ class Parser:
                 for opt in new_options:
                     if opt not in ops_test_option_lst:
                         ops_test_option_lst.append(opt)
-                        logging.info("OPs [%s] examples is trigger!", opt)
         return ops_test_option_lst
 
     @classmethod
@@ -235,6 +234,7 @@ class Parser:
                 if opt not in cls._ExamplesExcludes:
                     ops_test_examples_str += f"{opt};"
         ops_test_examples_str = f"{ops_test_examples_str}"
+        logging.info(f"Trigger examples: {ops_test_examples_str}")
         return ops_test_examples_str
 
     @classmethod
@@ -283,5 +283,6 @@ class Parser:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
+    logging.basicConfig(format='[%(asctime)s][%(filename)s:%(lineno)d] %(message)s', datefmt='%Y-%m-%d %H:%M:%S',
+                        level=logging.INFO)
     print(Parser.main())

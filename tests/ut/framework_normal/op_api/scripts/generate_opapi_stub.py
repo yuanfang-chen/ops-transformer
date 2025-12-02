@@ -32,7 +32,7 @@ def main():
         logging.error("no valid op names provided.")
         sys.exit(1)
 
-    config_path = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", "config", chip_name, "binary_info_config.json")
+    config_path = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", "config", chip_name, "ops_legacy", "binary_info_config.json")
     if not os.path.exists(config_path):
         logging.error("binary_info_config.json not found at %s", config_path)
         sys.exit(1)
@@ -44,7 +44,7 @@ def main():
         logging.error(f"Error reading JSON: {e}")
         sys.exit(1)
 
-    kernel_base_dir = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", chip_name)
+    kernel_base_dir = os.path.join(base_path, "opp", "built-in", "op_impl", "ai_core", "tbe", "kernel", chip_name, "ops_legacy")
 
     # 生成打桩.o .json
     for op in op_names:
@@ -473,4 +473,5 @@ def main():
     logging.info("All done.")
 
 if __name__ == "__main__":
+    logging.basicConfig(format='[%(asctime)s][%(filename)s:%(lineno)d] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     main()
