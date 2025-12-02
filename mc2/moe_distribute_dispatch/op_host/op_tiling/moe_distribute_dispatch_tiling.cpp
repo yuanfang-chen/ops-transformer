@@ -35,6 +35,7 @@
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
 #include "../../op_kernel/moe_distribute_dispatch_tiling.h"
+#include "../../op_kernel/moe_distribute_dispatch_tiling_key.h"
 
 #include "tiling/moe_tiling_base.h"
 #include "arch35/moe_distribute_dispatch_tiling_arch35.h"
@@ -43,6 +44,7 @@
 #include "mc2_hcom_topo_info.h"
 
 using namespace Ops::Transformer::OpTiling;
+using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
 namespace {
@@ -400,14 +402,27 @@ static ge::graphStatus CheckTensorShape(gert::TilingContext *context, const char
     return ge::GRAPH_SUCCESS;
 }
 
-static void CalTilingKey(uint64_t &tilingKey, const bool isScales, const uint32_t quantMode, const uint32_t tpWorldSize)
+static uint64_t CalTilingKey(const bool isScales, const uint32_t quantMode, const uint32_t tpWorldSize)
 {
-    tilingKey += static_cast<uint64_t>(quantMode);
-    tilingKey += static_cast<uint64_t>((isScales ? NUM_10 : 0));
+    bool tp = false;
+    bool staticQuant = false;
+    bool dynamicQuant = false;
+    bool scaleMode = false;   // A2 & A3
+    bool layeredMode = false; // A2
     if (tpWorldSize == MAX_TP_WORLD_SIZE) {
-        tilingKey += static_cast<uint64_t>(NUM_100);
+        tp = true;
     }
-    return;
+    if (quantMode == STATIC_QUANT_MODE) {
+        staticQuant = true;
+    } else if (quantMode == DYNAMIC_QUANT_MODE) {
+        dynamicQuant = true;
+    }
+    if (isScales) {
+        scaleMode = true;
+    }
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(tp, staticQuant, dynamicQuant, 
+                                                  scaleMode, layeredMode, TILINGKEY_TPL_A3);
+    return tilingKey;
 }
 
 static void SetHcommCfg(const gert::TilingContext *context, MoeDistributeDispatchTilingData *tiling,
@@ -556,8 +571,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
         OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
     SetHcommCfg(context, tilingData, groupEp, groupTp);
     uint32_t tpWorldSize = tilingData->moeDistributeDispatchInfo.tpWorldSize;
-    uint64_t tilingKey = INIT_TILINGKEY;
-    CalTilingKey(tilingKey, isScales, quantMode, tpWorldSize);
+    uint64_t tilingKey = CalTilingKey(isScales, quantMode, tpWorldSize);
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
     uint32_t blockDim = 1U;
@@ -735,20 +749,19 @@ static bool MoeDistributeDispatchA2IsLayered()
 
 static uint64_t MoeDistributeDispatchA2CalcTilingKey(gert::TilingContext *context, const bool isLayered)
 {
-    uint64_t tilingKey = TILING_KEY_BASE_A2 + INIT_TILINGKEY;
+    bool tp = false;
+    bool staticQuant = false;
+    bool dynamicQuant = false;
+    bool scaleMode = false;   // A2 & A3
+    bool layeredMode = false; // A2
 
     if (isLayered) {
-        tilingKey += TILING_KEY_LAYERED_COMM_A2;
+        layeredMode = true;
     }
-
-    auto attrs = context->GetAttrs();
-    auto quantModePtr = attrs->GetAttrPointer<int>(ATTR_QUANT_MODE_INDEX);
-    tilingKey += static_cast<uint64_t>(*quantModePtr);
-
     const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
-    bool isScales = (scalesStorageShape != nullptr);
-    tilingKey += static_cast<uint64_t>((isScales ? NUM_10 : 0));
-
+    scaleMode = (scalesStorageShape != nullptr);
+  
+    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, staticQuant, dynamicQuant, scaleMode, layeredMode, TILINGKEY_TPL_A2);
     OP_LOGD(K_INNER_DEBUG, "tilingKey=%lu", tilingKey);
 
     return tilingKey;
