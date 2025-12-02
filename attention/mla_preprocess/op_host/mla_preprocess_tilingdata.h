@@ -94,8 +94,10 @@ TILING_DATA_FIELD_DEF(int64_t, maxWorkspaceSize);
 TILING_DATA_FIELD_DEF(float, epsilon);
 // others
 TILING_DATA_FIELD_DEF(bool, doRmsNorm);
+TILING_DATA_FIELD_DEF(bool, qDownOutFlag);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(MlaPreprocess, MlaTilingData)
+REGISTER_TILING_DATA_CLASS(MlaPreprocessV2, MlaTilingData)
 
 } // namespace optiling
 

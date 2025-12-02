@@ -332,26 +332,6 @@ void PpMatmulTilingApi::Swizzle()
     }
 }
 
-class MlaPreprocessTiling {
-public:
-    optiling::MlaTilingData mlaTilingData;
-
-    ge::graphStatus Init(gert::TilingContext *context);
-
-    void RmsNormQuantTiling(const uint64_t numTokens, const uint64_t numVectorCore, const uint64_t hiddtenState);
-    void RopeConcatTiling(const OpParam::MlaPreprocessParam &param, const uint64_t &aicNum);
-    void EinSumQuantTiling(const OpParam::MlaPreprocessParam &param, const uint64_t &aicNum,
-                           const ge::DataType inDtype, const bool doRmsQuant);
-    void SetTilingKey(const ge::DataType inDtype, const OpParam::MlaPreprocessParam &param, const bool doRmsQuant,
-                      gert::TilingContext *context);
-    void SetMlapoWorkSpace(const ge::DataType inDtype, const OpParam::MlaPreprocessParam &param,
-                           uint32_t sysWorkSpaceSize, gert::TilingContext *context);
-    void PrintTilingData(gert::TilingContext *context);
-    void PrintFirstTilingData(gert::TilingContext *context);
-    void PrintLastTilingData(gert::TilingContext *context);
-    OpParam::MlaPreprocessParam GetParam(gert::TilingContext *context);
-};
-
 void MlaPreprocessTiling::RmsNormQuantTiling(const uint64_t numTokens, const uint64_t numVectorCore, const uint64_t hiddtenState)
 {
     mlaTilingData.set_rmsNumCore1(numVectorCore);
@@ -630,7 +610,7 @@ ge::graphStatus MlaPreprocessTiling::Init(gert::TilingContext *context)
 
     bool doRmsNorm = *(context->GetAttrs()->GetAttrPointer<bool>(ATTR_DO_RMS_NORM_IDX));
     mlaTilingData.set_doRmsNorm(doRmsNorm);
-
+    mlaTilingData.set_qDownOutFlag(false);
     uint64_t hiddtenState = static_cast<uint64_t>(context->GetInputShape(INDEX_INPUT)->GetStorageShape().GetDim(DIM_1)); //hiddtenState
     mlaTilingData.set_hiddtenState(hiddtenState);
     
@@ -685,9 +665,6 @@ ge::graphStatus MlaPreprocessTiling::Init(gert::TilingContext *context)
     SetTilingKey(inDtype, param, doRmsNormQuant, context);
     PrintTilingData(context);
 
-    mlaTilingData.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
-    context->GetRawTilingData()->SetDataSize(mlaTilingData.GetDataSize());
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -712,6 +689,8 @@ ASCENDC_EXTERN_C ge::graphStatus TilingMLAPreprocess(gert::TilingContext *contex
 {
     MlaPreprocessTiling mlaTiling;
     mlaTiling.Init(context);
+    mlaTiling.mlaTilingData.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
+    context->GetRawTilingData()->SetDataSize(mlaTiling.mlaTilingData.GetDataSize());
     return ge::GRAPH_SUCCESS;
 }
 
@@ -721,7 +700,6 @@ ge::graphStatus TilingPrepareForMlaPreprocess(gert::TilingParseContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-struct MlaPreProcessCompileInfo {};
 
 IMPL_OP_OPTILING(MlaPreprocess)
     .Tiling(TilingMLAPreprocess)

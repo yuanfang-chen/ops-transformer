@@ -18,6 +18,9 @@
 #include <cstdint>
 #include <string>
 #include <sstream>
+#include "mla_preprocess_tilingdata.h"
+#include "tiling_base/tiling_base.h"
+#include "register/op_impl_registry.h"
 
 namespace optiling {
 namespace OpParam {
@@ -38,6 +41,29 @@ struct MlaPreprocessParam {
     }
 };
 } // namespace OpParam
+
+struct MlaPreProcessCompileInfo {};
+
+class MlaPreprocessTiling {
+public:
+    optiling::MlaTilingData mlaTilingData;
+
+    ge::graphStatus Init(gert::TilingContext *context);
+
+    void RmsNormQuantTiling(const uint64_t numTokens, const uint64_t numVectorCore, const uint64_t hiddtenState);
+    void RopeConcatTiling(const OpParam::MlaPreprocessParam &param, const uint64_t &aicNum);
+    void EinSumQuantTiling(const OpParam::MlaPreprocessParam &param, const uint64_t &aicNum,
+                           const ge::DataType inDtype, const bool doRmsQuant);
+    void SetTilingKey(const ge::DataType inDtype, const OpParam::MlaPreprocessParam &param, const bool doRmsQuant,
+                      gert::TilingContext *context);
+    void SetMlapoWorkSpace(const ge::DataType inDtype, const OpParam::MlaPreprocessParam &param,
+                           uint32_t sysWorkSpaceSize, gert::TilingContext *context);
+    void PrintTilingData(gert::TilingContext *context);
+    void PrintFirstTilingData(gert::TilingContext *context);
+    void PrintLastTilingData(gert::TilingContext *context);
+    OpParam::MlaPreprocessParam GetParam(gert::TilingContext *context);
+};
+
 } // namespace optiling
 
 #endif // OPTILING_PARAMS_MLA_PRE_H

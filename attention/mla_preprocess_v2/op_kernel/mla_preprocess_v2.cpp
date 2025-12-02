@@ -15,21 +15,34 @@
 #include "kernel_operator.h"
 
 #if ORIG_DTYPE_INPUT == DT_FLOAT16
-#include "mla_preprocess_fp16.h"
+
+#if __has_include("../../mla_preprocess/op_kernel/mla_preprocess_fp16.h")
+#include "../../mla_preprocess/op_kernel/mla_preprocess_fp16.h"
+#else
+#include "../mla_preprocess/mla_preprocess_fp16.h"
+#endif
+
 #elif ORIG_DTYPE_INPUT == DT_BF16
-#include "mla_preprocess_bf16.h"
-#include "mla_preprocess_no_quant.h"
+
+#if __has_include("../../mla_preprocess/op_kernel/mla_preprocess_bf16.h")
+#include "../../mla_preprocess/op_kernel/mla_preprocess_bf16.h"
+#include "../../mla_preprocess/op_kernel/mla_preprocess_no_quant.h"
+#else
+#include "../mla_preprocess/mla_preprocess_bf16.h"
+#include "../mla_preprocess/mla_preprocess_no_quant.h"
+#endif
+
 #endif
 
 using namespace MlaPreprocess;
 
 extern "C" __global__ __aicore__ void
-mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR quantScale1Gm, GM_ADDR quantOffset1Gm,
+mla_preprocess_v2(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR quantScale1Gm, GM_ADDR quantOffset1Gm,
                GM_ADDR wdqkvGm, GM_ADDR descale1Gm, GM_ADDR bias1Gm, GM_ADDR gamma2Gm, GM_ADDR beta2Gm,
                GM_ADDR quantScale2Gm, GM_ADDR quantOffset2Gm, GM_ADDR wuqGm, GM_ADDR descale2Gm, GM_ADDR bias2Gm,
                GM_ADDR gamma3Gm, GM_ADDR cos1Gm, GM_ADDR sin1Gm, GM_ADDR wukGm, GM_ADDR keycacheGm,
                GM_ADDR keycacheRopeGm, GM_ADDR slotMappingGm, GM_ADDR gmCtkvScale, GM_ADDR gmQnopeScale, GM_ADDR qGm,
-               GM_ADDR keycacheOutGm, GM_ADDR qGm2, GM_ADDR keycacheOutGm2, GM_ADDR workspace, GM_ADDR tiling)
+               GM_ADDR keycacheOutGm, GM_ADDR qGm2, GM_ADDR keycacheOutGm2, GM_ADDR qDownGm, GM_ADDR workspace, GM_ADDR tiling)
 {
     SetAtomicnone();
     SetMasknorm();
@@ -48,7 +61,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(4)) {
@@ -56,7 +69,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(8)) {
@@ -64,7 +77,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(12)) {
@@ -72,7 +85,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(16)) {
@@ -80,7 +93,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(20)) {
@@ -88,7 +101,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(24)) {
@@ -96,7 +109,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(28)) {
@@ -104,7 +117,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(32)) {
@@ -112,7 +125,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(36)) {
@@ -120,7 +133,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(40)) {
@@ -128,7 +141,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(44)) {
@@ -136,7 +149,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(48)) {
@@ -144,7 +157,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(52)) {
@@ -152,7 +165,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(56)) {
@@ -160,7 +173,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(60)) {
@@ -168,7 +181,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(64)) {
@@ -176,7 +189,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(68)) {
@@ -184,7 +197,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(72)) {
@@ -192,7 +205,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(76)) {
@@ -200,7 +213,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(80)) {
@@ -208,7 +221,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(84)) {
@@ -216,7 +229,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(88)) {
@@ -224,7 +237,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(92)) {
@@ -232,7 +245,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(96)) {
@@ -240,7 +253,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(100)) {
@@ -248,7 +261,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(104)) {
@@ -256,7 +269,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(108)) {
@@ -264,7 +277,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(112)) {
@@ -272,7 +285,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(116)) {
@@ -280,7 +293,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(120)) {
@@ -288,7 +301,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(124)) {
@@ -296,7 +309,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     }
@@ -312,7 +325,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(5)) { // fp16_cm0_nd_nd_nz_qm1
@@ -321,7 +334,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(9)) { // fp16_cm0_nd_nz_nd_qm1
@@ -330,7 +343,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(13)) { // fp16_cm0_nd_nz_nz_qm1
@@ -339,7 +352,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(17)) { // fp16_cm0_nz_nd_nd_qm1
@@ -348,7 +361,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(21)) { // fp16_cm0_nz_nd_nz_qm1
@@ -357,7 +370,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(25)) { // fp16_cm0_nz_nz_nd_qm1
@@ -366,7 +379,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(29)) { // fp16_cm0_nz_nz_nz_qm1
@@ -375,7 +388,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(33)) { // fp16_cm1_nd_nd_nd_qm1
@@ -384,7 +397,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(37)) { // fp16_cm1_nd_nd_nz_qm1
@@ -393,7 +406,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(41)) { // fp16_cm1_nd_nz_nd_qm1
@@ -402,7 +415,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(45)) { // fp16_cm1_nd_nz_nz_qm1
@@ -411,7 +424,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(49)) { // fp16_cm1_nz_nd_nd_qm1
@@ -420,7 +433,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(53)) { // fp16_cm1_nz_nd_nz_qm1
@@ -429,7 +442,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(57)) { // fp16_cm1_nz_nz_nd_qm1
@@ -438,7 +451,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(61)) { // fp16_cm1_nz_nz_nz_qm1
@@ -447,7 +460,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(65)) { // fp16_cm2_nd_nd_nd_qm1
@@ -456,7 +469,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(69)) { // fp16_cm2_nd_nd_nz_qm1
@@ -465,7 +478,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(73)) { // fp16_cm2_nd_nz_nd_qm1
@@ -474,7 +487,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(77)) { // fp16_cm2_nd_nz_nz_qm1
@@ -483,7 +496,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(81)) { // fp16_cm2_nz_nd_nd_qm1
@@ -492,7 +505,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(85)) { // fp16_cm2_nz_nd_nz_qm1
@@ -501,7 +514,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(89)) { // fp16_cm2_nz_nz_nd_qm1
@@ -510,7 +523,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(93)) { // fp16_cm2_nz_nz_nz_qm1
@@ -519,7 +532,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(97)) { // fp16_cm3_nd_nd_nd_qm1
@@ -528,7 +541,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(101)) { // fp16_cm3_nd_nd_nz_qm1
@@ -537,7 +550,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(105)) { // fp16_cm3_nd_nz_nd_qm1
@@ -546,7 +559,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(109)) { // fp16_cm3_nd_nz_nz_qm1
@@ -555,7 +568,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(113)) { // fp16_cm3_nz_nd_nd_qm1
@@ -564,7 +577,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(117)) { // fp16_cm3_nz_nd_nz_qm1
@@ -573,7 +586,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(121)) { // fp16_cm3_nz_nz_nd_qm1
@@ -582,7 +595,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(125)) { // fp16_cm3_nz_nz_nz_qm1
@@ -591,7 +604,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(128)) { // bf16_cm0_nd_nd_nd_qm0
@@ -600,7 +613,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(129)) { // bf16_cm0_nd_nd_nd_qm1
@@ -609,7 +622,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(132)) { // bf16_cm0_nd_nd_nz_qm0
@@ -618,7 +631,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(133)) { // bf16_cm0_nd_nd_nz_qm1
@@ -627,7 +640,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(136)) { // bf16_cm0_nd_nz_nd_qm0
@@ -636,7 +649,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(137)) { // bf16_cm0_nd_nz_nd_qm1
@@ -645,7 +658,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(140)) { // bf16_cm0_nd_nz_nz_qm0
@@ -654,7 +667,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(141)) { // bf16_cm0_nd_nz_nz_qm1
@@ -663,7 +676,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(144)) { // bf16_cm0_nz_nd_nd_qm0
@@ -672,7 +685,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(145)) { // bf16_cm0_nz_nd_nd_qm1
@@ -681,7 +694,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(148)) { // bf16_cm0_nz_nd_nz_qm0
@@ -690,7 +703,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(149)) { // bf16_cm0_nz_nd_nz_qm1
@@ -699,7 +712,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(152)) { // bf16_cm0_nz_nz_nd_qm0
@@ -708,7 +721,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(153)) { // bf16_cm0_nz_nz_nd_qm1
@@ -717,7 +730,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(156)) { // bf16_cm0_nz_nz_nz_qm0
@@ -726,7 +739,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(157)) { // bf16_cm0_nz_nz_nz_qm1
@@ -735,7 +748,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(160)) { // bf16_cm1_nd_nd_nd_qm0
@@ -744,7 +757,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(161)) { // bf16_cm1_nd_nd_nd_qm1
@@ -753,7 +766,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(164)) { // bf16_cm1_nd_nd_nz_qm0
@@ -762,7 +775,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(165)) { // bf16_cm1_nd_nd_nz_qm1
@@ -771,7 +784,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(168)) { // bf16_cm1_nd_nz_nd_qm0
@@ -780,7 +793,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(169)) { // bf16_cm1_nd_nz_nd_qm1
@@ -789,7 +802,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(172)) { // bf16_cm1_nd_nz_nz_qm0
@@ -798,7 +811,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(173)) { // bf16_cm1_nd_nz_nz_qm1
@@ -807,7 +820,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(176)) { // bf16_cm1_nz_nd_nd_qm0
@@ -816,7 +829,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(177)) { // bf16_cm1_nz_nd_nd_qm1
@@ -825,7 +838,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(180)) { // bf16_cm1_nz_nd_nz_qm0
@@ -834,7 +847,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(181)) { // bf16_cm1_nz_nd_nz_qm1
@@ -843,7 +856,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(184)) { // bf16_cm1_nz_nz_nd_qm0
@@ -852,7 +865,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(185)) { // bf16_cm1_nz_nz_nd_qm1
@@ -861,7 +874,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(188)) { // bf16_cm1_nz_nz_nz_qm0
@@ -870,7 +883,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(189)) { // bf16_cm1_nz_nz_nz_qm1
@@ -879,7 +892,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(192)) { // bf16_cm2_nd_nd_nd_qm0
@@ -888,7 +901,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(193)) { // bf16_cm2_nd_nd_nd_qm1
@@ -897,7 +910,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(196)) { // bf16_cm2_nd_nd_nz_qm0
@@ -906,7 +919,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(197)) { // bf16_cm2_nd_nd_nz_qm1
@@ -915,7 +928,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(200)) { // bf16_cm2_nd_nz_nd_qm0
@@ -924,7 +937,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(201)) { // bf16_cm2_nd_nz_nd_qm1
@@ -933,7 +946,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(204)) { // bf16_cm2_nd_nz_nz_qm0
@@ -942,7 +955,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(205)) { // bf16_cm2_nd_nz_nz_qm1
@@ -951,7 +964,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(208)) { // bf16_cm2_nz_nd_nd_qm0
@@ -960,7 +973,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(209)) { // bf16_cm2_nz_nd_nd_qm1
@@ -969,7 +982,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(212)) { // bf16_cm2_nz_nd_nz_qm0
@@ -978,7 +991,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(213)) { // bf16_cm2_nz_nd_nz_qm1
@@ -987,7 +1000,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(216)) { // bf16_cm2_nz_nz_nd_qm0
@@ -996,7 +1009,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(217)) { // bf16_cm2_nz_nz_nd_qm1
@@ -1005,7 +1018,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(220)) { // bf16_cm2_nz_nz_nz_qm0
@@ -1014,7 +1027,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(221)) { // bf16_cm2_nz_nz_nz_qm1
@@ -1023,7 +1036,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(224)) { // bf16_cm3_nd_nd_nd_qm0
@@ -1032,7 +1045,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(225)) { // bf16_cm3_nd_nd_nd_qm1
@@ -1041,7 +1054,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(228)) { // bf16_cm3_nd_nd_nz_qm0
@@ -1050,7 +1063,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(229)) { // bf16_cm3_nd_nd_nz_qm1
@@ -1059,7 +1072,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(232)) { // bf16_cm3_nd_nz_nd_qm0
@@ -1068,7 +1081,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(233)) { // bf16_cm3_nd_nz_nd_qm1
@@ -1077,7 +1090,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(236)) { // bf16_cm3_nd_nz_nz_qm0
@@ -1086,7 +1099,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(237)) { // bf16_cm3_nd_nz_nz_qm1
@@ -1095,7 +1108,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(240)) { // bf16_cm3_nz_nd_nd_qm0
@@ -1104,7 +1117,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(241)) { // bf16_cm3_nz_nd_nd_qm1
@@ -1113,7 +1126,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(244)) { // bf16_cm3_nz_nd_nz_qm0
@@ -1122,7 +1135,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(245)) { // bf16_cm3_nz_nd_nz_qm1
@@ -1131,7 +1144,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(248)) { // bf16_cm3_nz_nz_nd_qm0
@@ -1140,7 +1153,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(249)) { // bf16_cm3_nz_nz_nd_qm1
@@ -1149,7 +1162,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(252)) { // bf16_cm3_nz_nz_nz_qm0
@@ -1158,7 +1171,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(253)) { // bf16_cm3_nz_nz_nz_qm1
@@ -1167,7 +1180,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, s4Gm, s5Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(1184)) {
@@ -1175,7 +1188,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(1152)) {
@@ -1183,7 +1196,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(1188)) {
@@ -1191,7 +1204,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     } else if (TILING_KEY_IS(1156)) {
@@ -1199,7 +1212,7 @@ mla_preprocess(GM_ADDR hiddenStateGm, GM_ADDR gamma1Gm, GM_ADDR beta1Gm, GM_ADDR
         op.Init(hiddenStateGm, gamma1Gm, beta1Gm, quantScale1Gm, quantOffset1Gm, wdqkvGm, bias1Gm, gamma2Gm, beta2Gm,
                 quantScale2Gm, quantOffset2Gm, gamma3Gm, sin1Gm, cos1Gm, sin1Gm, cos1Gm, keycacheGm, slotMappingGm,
                 wuqGm, bias2Gm, wukGm, descale1Gm, descale2Gm, gmCtkvScale, gmQnopeScale, qGm, keycacheOutGm, qGm2,
-                keycacheOutGm2, s1Gm, s2Gm, s3Gm, nullptr);
+                keycacheOutGm2, s1Gm, s2Gm, s3Gm, qDownGm);
         op.ProcessCube();
         op.ProcessVector();
     }

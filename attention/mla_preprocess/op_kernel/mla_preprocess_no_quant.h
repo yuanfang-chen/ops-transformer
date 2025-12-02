@@ -16,7 +16,6 @@
 #ifndef MLA_PREPROCESS_NO_QUANT_H
 #define MLA_PREPROCESS_NO_QUANT_H
 
-#include "mla_preprocess.h"
 #include "lib/matmul_intf.h"
 #include "mla_common.h"
 #include "mla_iterator.h"
@@ -25,7 +24,6 @@
 #include "mla_utils.h"
 #include "mla_simd.h"
 #include "mla_kernel_utils.h"
-
 namespace MlaPreprocess {
 // sync
 constexpr int32_t MM1 = 2;
@@ -1927,6 +1925,7 @@ public:
         this->num_row = mlaParams_.n;
         this->epsilon_ = 1e-6;
         this->hiddten_state = mlaParams_.hiddtenState;
+        this->q_down_out_flag = mlaParams_.qDownOutFlag;
         this->mlaParams = mlaParams_;
     }
 
@@ -1937,7 +1936,7 @@ public:
                                 GM_ADDR slotMappingGm, GM_ADDR wuqGm, GM_ADDR bias2Gm, GM_ADDR wukGm,
                                 GM_ADDR descale1Gm, GM_ADDR descale2Gm, GM_ADDR gmCtkvScale, GM_ADDR gmQnopeScale,
                                 GM_ADDR qGm, GM_ADDR keycacheOutGm, GM_ADDR qGm2, GM_ADDR keycacheOutGm2, GM_ADDR s1Gm,
-                                GM_ADDR s2Gm, GM_ADDR s3Gm)
+                                GM_ADDR s2Gm, GM_ADDR s3Gm, GM_ADDR qDownGm)
     {
         s1GmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t *>(s1Gm));
         wdqkvGmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t *>(wdqkvGm));
@@ -1945,6 +1944,7 @@ public:
         descale1gmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ uint64_t *>(descale1Gm));
         s3GmTensor.SetGlobalBuffer(
             reinterpret_cast<__gm__ bfloat16_t *>(s3Gm)); // 元素个数的偏移，而非大小偏移，s1GM、s3GM偏移的数据类型不一样
+        this->q_down_out_flag &= (qDownGm != nullptr);
 
 #ifdef __DAV_C220_CUBE__
         mm_1.Init(hiddenStateGm, wdqkvGm, s3Gm, mlaParams, 0);
@@ -1974,11 +1974,19 @@ public:
         qGmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ qOutDtype *>(qGm));
         qGmTensor2.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t *>(qGm2));
         bias2gmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(bias2Gm));
+        if(q_down_out_flag){
+            qDownGmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ bfloat16_t *>(qDownGm));
+        }
 
         beta1GmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ half *>(beta1Gm));
         beta2GmTensor.SetGlobalBuffer(reinterpret_cast<__gm__ half *>(beta2Gm));
 #ifdef __DAV_C220_CUBE__
-        mm_2.Init(s1Gm, wuqGm, s2Gm, mlaParams, 1);
+        if (q_down_out_flag) {
+            mm_2.Init(qDownGm, wuqGm, s2Gm, mlaParams, 1);
+        } else {
+            mm_2.Init(s1Gm, wuqGm, s2Gm, mlaParams, 1);
+        }
+        
         if constexpr (cacheMode == CACHE_MODE_INT8_NZCACHE) {
             mm_ein_sum.Init(s2Gm, wukGm, s1Gm, mlaParams, CONST_2);
         } else {
@@ -2001,10 +2009,17 @@ public:
         this->splitN = mlaParams.perTaskNum;
 
         const float FACTOR = 0.000651041666;
-        rmsNormQuant2.Init(gamma2GmTensor, beta2GmTensor, quantScale2GmTensor, quantOffset2GmTensor, s3GmTensor,
+        if (q_down_out_flag) {
+            rmsNormQuant2.Init(gamma2GmTensor, beta2GmTensor, quantScale2GmTensor, quantOffset2GmTensor, s3GmTensor,
+                           qDownGmTensor, SPLIT_SIZE_ONE, num_col_2, FACTOR,
+                           vectorBlockIdx * static_cast<uint64_t>(row_work) * num_col_2,
+                           vectorBlockIdx * static_cast<uint64_t>(row_work) * SPLIT_SIZE_TWO, row_work_, mlaParams);
+        } else {
+            rmsNormQuant2.Init(gamma2GmTensor, beta2GmTensor, quantScale2GmTensor, quantOffset2GmTensor, s3GmTensor,
                            s1GmTensor, SPLIT_SIZE_ONE, num_col_2, FACTOR,
                            vectorBlockIdx * static_cast<uint64_t>(row_work) * num_col_2,
                            vectorBlockIdx * static_cast<uint64_t>(row_work) * SPLIT_SIZE_TWO, row_work_, mlaParams);
+        }
         ropeBf16.RopeInit(s2GmTensor, cos2GmTensor, sin2GmTensor, qGmTensor, qGmTensor2, mlaParams);
         ubTensor = buf.GetBuffer<BufferType::ASCEND_UB, half>(0);
         ub8Tensor = buf.GetBuffer<BufferType::ASCEND_UB, int8_t>(0);
@@ -2199,6 +2214,7 @@ private:
     uint32_t row_work;
     uint32_t row_work_;
     uint32_t hiddten_state;
+    bool q_down_out_flag;
 
     AsdopsBuffer<ArchType::ASCEND_V220> buf;
     AscendC::LocalTensor<half> ubTensor;
@@ -2239,6 +2255,7 @@ private:
 
     AscendC::GlobalTensor<int32_t> bias1gmTensor;
     AscendC::GlobalTensor<int32_t> bias2gmTensor;
+    AscendC::GlobalTensor<bfloat16_t> qDownGmTensor;
 
 #ifdef __DAV_C220_CUBE__
     PpMatmulEinSum_no_quant<weightFormat1, true, 0, 0, 0, false> mm_1;
