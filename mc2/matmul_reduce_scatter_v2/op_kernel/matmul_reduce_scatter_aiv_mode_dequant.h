@@ -105,7 +105,9 @@ public:
 
         BlockEpilogue blockEpilogue(resource);
         layout::RowMajor layoutBlock{m0, n0};
-        __gm__ OutputType *gmD = reinterpret_cast<__gm__ OutputType *>(output);
+        layout::RowMajor layoutOutput{finalM, finalN};
+        __gm__ OutputType *gmPeerMem = reinterpret_cast<__gm__ OutputType *>(peerMem);
+        __gm__ OutputType *gmOutput = reinterpret_cast<__gm__ OutputType *>(output);
         for (int32_t p = 0;p < pValue; p++) {
             int32_t loopIdx = loopSt + p * coreNum + coreIdx;
             if (loopIdx >= totalLoop) {
@@ -120,20 +122,28 @@ public:
             layout::VectorLayout layoutPerChannelScale{blockSizeCoord.n()};
             layout::VectorLayout layoutPerTokenScale{blockSizeCoord.m()};
             uint32_t dataBlockOffset = dstRankIdx * peerMemBlockSize + (loopIdx - loopSt) / rankSize * blockSize;
+            layout::RowMajor layoutDst = layoutBlock;
+            __gm__ OutputType *gmDst = gmPeerMem + dataBlockOffset;
+            if (dstRankIdx == rankIdx) {
+                MatrixCoord offsetC{blockLocCoord.m(), blockLocCoord.n()};
+                layoutDst = layoutOutput;
+                gmDst = gmOutput + layoutOutput.GetOffset(offsetC);
+            }
             if (needPerChannel && needPerToken) {
                 blockEpilogue(perChannelScale + blockLocCoord.n(), layoutPerChannelScale,
                               perTokenScale + dstRankIdx * finalM + blockLocCoord.m(), layoutPerTokenScale,
                               workspace + dataBlockOffset, layoutBlock,
-                              gmD + dataBlockOffset, layoutBlock,
+                              gmDst, layoutDst,
                               blockSizeCoord);
             } else if (needPerChannel) {
                 blockEpilogue(perChannelScale + blockLocCoord.n(), layoutPerChannelScale,
                               workspace + dataBlockOffset, layoutBlock,
-                              gmD + dataBlockOffset, layoutBlock,
+                              gmDst, layoutDst,
                               blockSizeCoord);
             } else if (needPerToken) {
                 blockEpilogue(perTokenScale + dstRankIdx * finalM + blockLocCoord.m(), layoutPerTokenScale,
-                              gmD + dataBlockOffset, layoutBlock,
+                              gmPeerMem + dataBlockOffset, layoutBlock,
+                              gmDst, layoutDst,
                               blockSizeCoord);
             }
         }

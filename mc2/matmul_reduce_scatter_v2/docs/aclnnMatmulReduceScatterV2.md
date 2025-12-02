@@ -76,9 +76,9 @@
     -   groupSize（int64_t，计算输入）：用于表示反量化中x1Scale/x2Scale输入的一个数在其所在的对应维度方向上可以用于该方向x1/x2输入的多少个数的反量化。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。
         -   <term>昇腾910_95 AI处理器</term>：当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT32时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，当前版本仅支持输入0。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：当前版本仅支持输入为0。
-    -   commMode (char\*，计算输入)：Host侧的整型，通信模式。
-        -   <term>昇腾910_95 AI处理器</term>：当前仅支持ccu模式，该模式下使用集合通信单元完成通信任务。
-        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：当前支持两种模式：aicpu和aiv。aicpu模式下使用aicpu完成通信功能，功能等同于aclnnMatmulReduceScatter算子；aiv模式下使用AI VECTOR核完成通信任务。
+    -   commMode (char\*，计算输入)：Host侧的char，通信模式。数据类型支持String。
+        -   <term>昇腾910_95 AI处理器</term>：当前仅支持集合通信单元ccu完成通信任务。**当前版本仅支持输入“ccu”**。
+        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：当前仅支持aiv模式。aiv模式下使用AI VECTOR核完成通信任务。**当前版本仅支持输入“aiv”**。
     -   output（aclTensor\*，计算输出）：Device侧的aclTensor，MatMul计算+ReduceScatter通信的结果。
         -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT，数据格式支持ND。如果x1数据类型为FLOAT16、BFLOAT16时，output数据类型与x1一致。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16，数据格式支持ND。如果x1数据类型为FLOAT16、BFLOAT16时，output数据类型与x1一致。
@@ -281,7 +281,7 @@ int LaunchOneThreadMmReduceScatterV2(Args &args)
 
     // 调用第一阶段接口
     ret = aclnnMatmulReduceScatterV2GetWorkspaceSize(
-        x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, hcomName, "sum", commTurn, streamMode, groupSize, "ccu"
+        x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, hcomName, "sum", commTurn, streamMode, groupSize, "ccu",
         out, amaxOut, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,
         LOG_PRINT("[ERROR] aclnnMatmulReduceScatterV2GetWorkspaceSize failed. ret = %d \n", ret); return ret);

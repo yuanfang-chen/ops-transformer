@@ -154,6 +154,14 @@ int32_t GetValueFromMKNConditionMap(int32_t m, int32_t k, int32_t n, int32_t def
     return value;
 }
 
+int32_t CeilDev(int32_t num, int32_t div)
+{
+    if (div == 0) {
+        return 0;
+    }
+    return (num + div - 1) / div;
+}
+
 void CalTilingParam(CoCTiling &cocTilingData, const std::map<int*, MatmulReduceScatterV2AivModeTilingValue>& TilingParamMap, MatmulReduceScatterV2AivModeInfo &info)
 {
     int32_t m = static_cast<int32_t>(info.M);
@@ -177,41 +185,177 @@ void CalTilingParam(CoCTiling &cocTilingData, const std::map<int*, MatmulReduceS
     }
 }
 
-void ReduceScatterFourRankTiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+void ReduceScatterV2DecodeTilingData(int32_t code, CoCTiling &tilingData, MatmulReduceScatterV2AivModeInfo &info)
 {
+    int32_t m = static_cast<int32_t>(info.M);
+    int32_t k = static_cast<int32_t>(info.K);
+    int32_t n = static_cast<int32_t>(info.N);
+    tilingData.commDataSplit = code & COMMDATASPLIT_MASK;
+    code >>= COMMDATASPLIT_BNUM;
+    tilingData.commNpuSplit = code & COMMNPUSPLIT_MASK;
+    code >>= COMMNPUSPLIT_BNUM;
+    tilingData.commDirect = code & COMMDIRECT_MASK;
+    code >>= COMMDIRECT_BNUM;
+    tilingData.ubMoveNum = (code & UBMOVENUM_MASK) * HALF_KBYTE;
+    code >>= UBMOVENUM_BNUM;
+    tilingData.pValue = code & PVALUE_MASK;
+    code >>= PVALUE_BNUM;
+    tilingData.swizzlCount = code & SWIZZLCOUNT_MASK;
+    code >>= SWIZZLCOUNT_BNUM;
+    tilingData.swizzlDirect = code & SWIZZLDIRECT_MASK;
+    code >>= SWIZZLDIRECT_BNUM;
+    tilingData.m0 = (code & M0_MASK) * DEFAULT_ROW + DEFAULT_ROW;
+    tilingData.k0 = DEFAULT_COL;
+    tilingData.n0 = tilingData.m0 == DEFAULT_ROW ? DEFAULT_COL : DEFAULT_ROW;
+    tilingData.mLoop = CeilDev(m, tilingData.m0);
+    tilingData.nLoop = CeilDev(n, tilingData.n0);
+    tilingData.kLoop = CeilDev(k, tilingData.k0);
+}
+
+void MatmulReduceScatterA2FourRankINT8Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+{
+    int32_t code = MATMUL_REDUCESCATTER_A2_FOUR_RANK_INT8_CODE_DEFAULT;
     std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
-    TilingParamMap[&cocTilingData.pValue] = MatmulReduceScatterV2AivModeTilingValue(REDUCESCATTER_FOUR_RANK_PVALUE, g_reducescatterFourRankPvalueMap);
-    TilingParamMap[&cocTilingData.commDataSplit] = MatmulReduceScatterV2AivModeTilingValue(COMMDATASPLIT_SIXTEEN);
-    TilingParamMap[&cocTilingData.ubMoveNum] = MatmulReduceScatterV2AivModeTilingValue(REDUCESCATTER_FOUR_RANK_UBMOVENUM, g_reducescatterFourRankUbmovenumMap);
-    TilingParamMap[&cocTilingData.m0] = MatmulReduceScatterV2AivModeTilingValue(REDUCESCATTER_M0_DEFAULT, g_reducescatterFourRankM0Map);
-    TilingParamMap[&cocTilingData.swizzlDirect] = MatmulReduceScatterV2AivModeTilingValue(SWIZZLE_DIRECT_ONE);
-    TilingParamMap[&cocTilingData.swizzlCount] = MatmulReduceScatterV2AivModeTilingValue(DEFAULT_SWIZZLE_COUNT);
-    TilingParamMap[&cocTilingData.commNpuSplit] = MatmulReduceScatterV2AivModeTilingValue(COMMNPUSPLIT_ONE);
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A2_FOUR_RANK_INT8_CODE_DEFAULT,
+            g_matmulReduceScatterA2FourRankINT8CodeMap);
+
     CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
     cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
 }
 
-void ReduceScatterDeafultTiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+void MatmulReduceScatterA2FourRankFP16Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
 {
+    int32_t code = MATMUL_REDUCESCATTER_A2_FOUR_RANK_FP16_CODE_DEFAULT;
     std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
-    TilingParamMap[&cocTilingData.pValue] = MatmulReduceScatterV2AivModeTilingValue(REDUCESCATTER_PVALUE_DEFAULT, g_reducescatterPvalueMap);
-    TilingParamMap[&cocTilingData.commDataSplit] = MatmulReduceScatterV2AivModeTilingValue(REDUCESCATTER_COMMDATASPLIT_DEFAULT, g_reducescatterCommdatasplitMap);
-    TilingParamMap[&cocTilingData.ubMoveNum] = MatmulReduceScatterV2AivModeTilingValue(REDUCESCATTER_UBMOVENUM_DEFAULT, g_reducescatterUbmovenumMap);
-    TilingParamMap[&cocTilingData.m0] = MatmulReduceScatterV2AivModeTilingValue(REDUCESCATTER_M0_DEFAULT, g_reducescatterM0Map);
-    TilingParamMap[&cocTilingData.swizzlDirect] = MatmulReduceScatterV2AivModeTilingValue(SWIZZLE_DIRECT_ONE);
-    TilingParamMap[&cocTilingData.swizzlCount] = MatmulReduceScatterV2AivModeTilingValue(SWIZZLE_COUNT_FOUR);
-    TilingParamMap[&cocTilingData.commNpuSplit] = MatmulReduceScatterV2AivModeTilingValue(COMMNPUSPLIT_ONE);
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A2_FOUR_RANK_FP16_CODE_DEFAULT,
+            g_matmulReduceScatterA2FourRankFP16CodeMap);
+
     CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
+    cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
+}
+
+void MatmulReduceScatterA2EightRankINT8Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+{
+    int32_t code = MATMUL_REDUCESCATTER_A2_EIGHT_RANK_INT8_CODE_DEFAULT;
+    std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A2_EIGHT_RANK_INT8_CODE_DEFAULT,
+            g_matmulReduceScatterA2EightRankINT8CodeMap);
+
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
+    cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
+}
+
+void MatmulReduceScatterA2EightRankFP16Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+{
+    int32_t code = MATMUL_REDUCESCATTER_A2_EIGHT_RANK_FP16_CODE_DEFAULT;
+    std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A2_EIGHT_RANK_FP16_CODE_DEFAULT,
+            g_matmulReduceScatterA2EightRankFP16CodeMap);
+
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
+    cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
+}
+
+void MatmulReduceScatterA3EightRankINT8Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+{
+    int32_t code = MATMUL_REDUCESCATTER_A3_EIGHT_RANK_INT8_CODE_DEFAULT;
+    std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A3_EIGHT_RANK_INT8_CODE_DEFAULT,
+            g_matmulReduceScatterA3EightRankINT8CodeMap);
+
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
+    cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
+}
+
+void MatmulReduceScatterA3EightRankFP16Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+{
+    int32_t code = MATMUL_REDUCESCATTER_A3_EIGHT_RANK_FP16_CODE_DEFAULT;
+    std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A3_EIGHT_RANK_FP16_CODE_DEFAULT,
+            g_matmulReduceScatterA3EightRankFP16CodeMap);
+
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
+    cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
+}
+
+void MatmulReduceScatterA3FourRankINT8Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+{
+    int32_t code = MATMUL_REDUCESCATTER_A3_FOUR_RANK_INT8_CODE_DEFAULT;
+    std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A3_FOUR_RANK_INT8_CODE_DEFAULT,
+            g_matmulReduceScatterA3FourRankINT8CodeMap);
+
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
+    cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
+}
+
+void MatmulReduceScatterA3FourRankFP16Tiling(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info)
+{
+    int32_t code = MATMUL_REDUCESCATTER_A3_FOUR_RANK_FP16_CODE_DEFAULT;
+    std::map<int*, MatmulReduceScatterV2AivModeTilingValue> TilingParamMap;
+    TilingParamMap[&code] = MatmulReduceScatterV2AivModeTilingValue(
+            MATMUL_REDUCESCATTER_A3_FOUR_RANK_FP16_CODE_DEFAULT,
+            g_matmulReduceScatterA3FourRankFP16CodeMap);
+
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    ReduceScatterV2DecodeTilingData(code, cocTilingData, info);
     cocTilingData.lenPerLoop = cocTilingData.ubMoveNum;
 }
 
 void SetTilingData(CoCTiling &cocTilingData, MatmulReduceScatterV2AivModeInfo &info, int64_t rankSize)
 {
-    if (rankSize == RANKSIZE_FOUR) {
-        ReduceScatterFourRankTiling(cocTilingData, info);
+    if (info.is910C) {
+        if (rankSize == RANKSIZE_FOUR && info.quantFlag) {
+            MatmulReduceScatterA3FourRankINT8Tiling(cocTilingData, info);
+            return;
+        } else if (rankSize == RANKSIZE_FOUR && !info.quantFlag) {
+            MatmulReduceScatterA3FourRankFP16Tiling(cocTilingData, info);
+            return;
+        } else if (rankSize == RANKSIZE_EIGHT && info.quantFlag) {
+            MatmulReduceScatterA3EightRankINT8Tiling(cocTilingData, info);
+            return;
+        } else if (rankSize == RANKSIZE_EIGHT && !info.quantFlag) {
+            MatmulReduceScatterA3EightRankFP16Tiling(cocTilingData, info);
+            return;
+        }
     } else {
-        ReduceScatterDeafultTiling(cocTilingData, info);
+        if (rankSize == RANKSIZE_FOUR && info.quantFlag) {
+            MatmulReduceScatterA2FourRankINT8Tiling(cocTilingData, info);
+            return;
+        } else if (rankSize == RANKSIZE_FOUR && !info.quantFlag) {
+            MatmulReduceScatterA2FourRankFP16Tiling(cocTilingData, info);
+            return;
+        } else if (rankSize == RANKSIZE_EIGHT && info.quantFlag) {
+            MatmulReduceScatterA2EightRankINT8Tiling(cocTilingData, info);
+            return;
+        } else if (rankSize == RANKSIZE_EIGHT && !info.quantFlag) {
+            MatmulReduceScatterA2EightRankFP16Tiling(cocTilingData, info);
+            return;
+        }
     }
+    MatmulReduceScatterA2EightRankFP16Tiling(cocTilingData, info);
 }
 
 void GetUsrWorkSpaceSize(uint32_t elementSize, uint32_t blockDim, uint64_t &userWorkSpaceSize,
@@ -289,7 +433,7 @@ static void PrintTilingDataInfo(MatmulReduceScatterV2AivModeInfo& info, CoCTilin
     OP_LOGD("MatmulReduceScatterV2AivModeTiling", " tiling.bAlignSize %lu", info.bAlignSize);
     OP_LOGD("MatmulReduceScatterV2AivModeTiling", " tiling.quantFlag %d", info.quantFlag);
     OP_LOGD("MatmulReduceScatterV2AivModeTiling", " tiling.is910C %d", info.is910C);
-    OP_LOGD("MatmulReduceScatterV2AivModeTiling", " tiling.isX2ScaleTypeInt64 %d", info.isX2ScaleTypeInt64);
+    OP_LOGD("MatmulReduceScatterV2AivModeTiling", " tiling.isX2ScaleTypeInt64 %d", info.isX2ScaleTypeInt64);    
 
     OP_LOGD("MatmulReduceScatterV2AivModeTiling", " tiling.m0 %d", cocTilingInfo.m0); 
     OP_LOGD("MatmulReduceScatterV2AivModeTiling", " tiling.k0 %d", cocTilingInfo.k0); 
@@ -324,9 +468,9 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
     const char* opName = context->GetNodeName();
+
     int64_t rankSize = 0;
     mc2tiling::GetRankSize(opName, group, rankSize);
-    SetTilingData(tilingData->cocTiling, info, rankSize);
 
     // 2. set blockDim
     uint32_t blockDim = 1U;
@@ -358,11 +502,6 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
         }
     }
 
-    uint32_t elementSize = D_TYPE_SIZE_MAP.at(aType);
-    uint64_t userWorkSpaceSize = 0;
-    GetUsrWorkSpaceSize(elementSize, blockDim, userWorkSpaceSize, info, tilingData->cocTiling);
-    workSpaces[0] = SYSTEM_NEED_WORKSPACE + userWorkSpaceSize;
-
     info.is910C = false;
     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
     fe::PlatFormInfos &platformInfo = *platformInfoPtr;
@@ -372,6 +511,15 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
     if (socVersion == "Ascend910_93") {
         info.is910C = true;
     }
+
+    // Tiling
+    SetTilingData(tilingData->cocTiling, info, rankSize);
+
+    uint32_t elementSize = D_TYPE_SIZE_MAP.at(aType);
+    uint64_t userWorkSpaceSize = 0;
+    GetUsrWorkSpaceSize(elementSize, blockDim, userWorkSpaceSize, info, tilingData->cocTiling);
+    workSpaces[0] = SYSTEM_NEED_WORKSPACE + userWorkSpaceSize;
+
     PrintTilingDataInfo(info, tilingData->cocTiling);
 
     // 5. communication

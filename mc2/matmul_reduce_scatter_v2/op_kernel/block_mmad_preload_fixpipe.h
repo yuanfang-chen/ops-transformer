@@ -58,12 +58,8 @@ public:
     using TileMmad = Gemm::Tile::TileMmad<ArchTag, AType, BType, void>;
     struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType, CType, void> {
         using Base = Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType, CType, void>;
-        using ElementA = typename Base::ElementA;
-        using ElementB = typename Base::ElementB;
-        using ElementAccumulator = typename Base::ElementAccumulator;
         using CopyGmToL1A = typename Base::CopyGmToL1A;
         using CopyGmToL1B = typename Base::CopyGmToL1B;
-
         using CopyL1ToL0A = typename Base::CopyL1ToL0A;
         using CopyL1ToL0B = typename Base::CopyL1ToL0B;
     };
@@ -174,6 +170,7 @@ public:
         auto layoutInL0C = LayoutCInL0::MakeLayoutInL0C(MakeCoord(mRound, nRound));
 
         uint32_t kTileCount = CeilDiv<L1TileShape::K>(actualShape.k());
+        uint32_t kTileCountNext = CeilDiv<L1TileShape::K>(actualShapeNext.k());
 
         if constexpr (!ENABLE_UNIT_FLAG) {
             AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
@@ -186,6 +183,7 @@ public:
         uint32_t lastTileIdx = (startTileIdx + kTileCount - 1) % kTileCount;
         uint32_t kActual =
             (firstTileIdx < kTileCount - 1) ? L1TileShape::K : (actualShape.k() - firstTileIdx * L1TileShape::K);
+        uint32_t firstTileIdxNext = startTileIdx % kTileCountNext;
 
         uint32_t mPartLoop = CeilDiv<L0TileShape::M>(mRound);
         uint32_t nPartLoop = CeilDiv<L0TileShape::N>(nRound);
@@ -246,10 +244,10 @@ public:
                 auto l1ATensor = l1ATensorList[l1ListIdNext];
                 auto l1BTensor = l1BTensorList[l1ListIdNext];
                 // Get GM tensor for next stage
-                kActualNext = (firstTileIdx < kTileCount - 1) ?
-                    L1TileShape::K : (actualShape.k() - firstTileIdx * L1TileShape::K);
-                MatrixCoord gmTileAOffset{0, firstTileIdx * L1TileShape::K};
-                MatrixCoord gmTileBOffset{firstTileIdx * L1TileShape::K, 0};
+                kActualNext = (firstTileIdxNext < kTileCountNext - 1) ?
+                    L1TileShape::K : (actualShapeNext.k() - firstTileIdxNext * L1TileShape::K);
+                MatrixCoord gmTileAOffset{0, firstTileIdxNext * L1TileShape::K};
+                MatrixCoord gmTileBOffset{firstTileIdxNext * L1TileShape::K, 0};
                 auto gmTileA = gmNextBlockA[layoutA.GetOffset(gmTileAOffset)];
                 auto gmTileB = gmNextBlockB[layoutB.GetOffset(gmTileBOffset)];
                 // load next matrix A tile from GM to L1

@@ -26,15 +26,15 @@ namespace matmulReduceScatterV2_util{
     gmA, gmB, gmAAlign, gmBAlign
 
 #define DEQUANT_ARGS_CALL() \
-    rowNum, colNum, perChannelScale, perTokenScale, workspace, reinterpret_cast<GM_ADDR>(output), \
-    tileM0, tileN0, pValue, swizzlDirect, swizzlCount, \
-    coreIdx, coreNum, rankSize, calIdx, needPerChannel, needPerToken
+    rowNum, colNum, perChannelScale, perTokenScale, workspace, reinterpret_cast<GM_ADDR>(peerMem), \
+    reinterpret_cast<GM_ADDR>(output), tileM0, tileN0, pValue, swizzlDirect, swizzlCount, \
+    coreIdx, coreNum, rankIdx, rankSize, calIdx, needPerChannel, needPerToken
 
 #define DEQUANT_ARGS_FUN() \
     uint32_t rowNum, uint32_t colNum, __gm__ float32_t *perChannelScale, __gm__ float32_t *perTokenScale, \
-    __gm__ int32_t *workspace, GM_ADDR output,                                                            \
+    __gm__ int32_t *workspace, GM_ADDR peerMem, GM_ADDR output,                                           \
     uint32_t tileM0, uint32_t tileN0, uint32_t pValue, uint32_t swizzlDirect, uint32_t swizzlCount,       \
-    uint32_t coreIdx, uint32_t coreNum, uint32_t rankSize, uint32_t calIdx,                               \
+    uint32_t coreIdx, uint32_t coreNum, uint32_t rankIdx, uint32_t rankSize, uint32_t calIdx,             \
     bool needPerChannel = false, bool needPerToken = false
 
 constexpr int32_t MAX_BLOCK_COUNT = 2;
@@ -49,6 +49,7 @@ constexpr uint32_t BLOCK_SIZE_16 = 16;
 constexpr uint32_t TILE_SHAPE_64 = 64;
 constexpr uint32_t TILE_SHAPE_128 = 128;
 constexpr uint32_t TILE_SHAPE_256 = 256;
+constexpr uint32_t TILE_SHAPE_512 = 512;
 constexpr uint32_t UB_BUFFER_NUM = 2;
 
 template <typename T, size_t SIZE>
@@ -126,7 +127,7 @@ __aicore__ inline void GetBlockIdx(int32_t loop_idx, int32_t m_loop, int32_t n_l
         if (tile_block_idx % UB_BUFFER_NUM != 0) {
             m_idx = m_loop - m_idx - 1;
         }
-    }    
+    }
 }
 
 class CommBase {
@@ -238,6 +239,20 @@ public:
         CopyUbufToGmAlignB16(buff, ubTensor, 1, sizeof(int32_t), 0, 0);
     }
 
+    __aicore__ inline void SetBuffFlagByAdd(__gm__ int32_t *buff, int32_t flag)
+    {
+        PipeBarrier<PIPE_ALL>();
+        LocalTensor<int32_t> ubTensor = uBuf_.AllocTensor<int32_t>();
+        ubTensor(0) = flag;
+        PipeBarrier<PIPE_ALL>();
+        SetAtomicAdd<int32_t>();
+        PipeBarrier<PIPE_ALL>();
+        CopyUbufToGmAlignB16(buff, ubTensor, 1, sizeof(int32_t), 0, 0);
+        PipeBarrier<PIPE_ALL>();
+        SetAtomicNone();
+        PipeBarrier<PIPE_ALL>();
+    }
+
     __aicore__ inline void CheckBuffFlag(__gm__ int32_t *buff, int32_t flag)
     {
         SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
@@ -341,11 +356,10 @@ public:
 
     __aicore__ inline void CrossRankSyncV1(int32_t flag_idx, int32_t flag_data)
     {
-        if (core_idx == 0 && aiv_idx == 0) {
-            SetBuffFlag((__gm__ int32_t *)buff[rank] + FLAG_OFFSET + flag_idx, flag_data);
-        }
-        if (core_idx < rank_size && aiv_idx == 0) {
-            CheckBuffFlag((__gm__ int32_t *)buff[core_idx] + FLAG_OFFSET + flag_idx, flag_data);
+        if (core_idx == rank && aiv_idx == 0) {
+            SetBuffFlagByAdd((__gm__ int32_t *)buff[rank] + FLAG_OFFSET + flag_idx, FLAG_VALUE);
+        } else if (core_idx < rank_size && aiv_idx == 0) {
+            CheckBuffFlag((__gm__ int32_t *)buff[core_idx] + FLAG_OFFSET + flag_idx, FLAG_VALUE * flag_data);
         }
     }
 
@@ -387,7 +401,7 @@ public:
     __aicore__ inline void CrossRankSyncV2(int32_t flag_idx, int32_t flag_data)
     {
         if (aiv_idx == 0 && core_idx < rank_size) {
-            SetBuffFlag((__gm__ int32_t *)buff[core_idx] + FLAG_OFFSET + flag_idx, FLAG_VALUE);
+            SetBuffFlagByAdd((__gm__ int32_t *)buff[core_idx] + FLAG_OFFSET + flag_idx, FLAG_VALUE);
         }
         if (aiv_idx == 0 && core_idx == rank) {
             CheckBuffFlag((__gm__ int32_t *)buff[rank] + FLAG_OFFSET + flag_idx,

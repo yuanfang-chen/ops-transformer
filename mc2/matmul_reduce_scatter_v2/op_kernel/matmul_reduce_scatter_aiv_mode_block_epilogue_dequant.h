@@ -180,6 +180,7 @@ public:
         uint32_t tileLoops = epilogueTileSwizzle.GetLoops();
         uint32_t subblockIdx = AscendC::GetSubBlockIdx();
         uint32_t subblockNum = AscendC::GetSubBlockNum();
+
         InitFlag();
         for (uint32_t loopIdx = subblockIdx; loopIdx < tileLoops; loopIdx += subblockNum) {
             auto tileCoord = epilogueTileSwizzle.GetTileCoord(loopIdx);
@@ -191,6 +192,7 @@ public:
 
             auto &ubC = ubCList[ubListId];
             LayoutC layoutUbC{actualTileShape, ubTileStride};
+
             // 把 C 从GM拷贝到UB
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbCVMTE2List[ubListId]);
             copyGmToUbC(ubC, gmTileC, layoutUbC, layoutGmTileC);
@@ -204,6 +206,7 @@ public:
 
             auto &ubScale = ubScaleList[ubListId];
             auto layoutUbScale = LayoutScale::template MakeLayoutInUb<ElementScale>(scaleTileShape);
+
             // 把 scale 从GM拷贝到UB
             copyGmToUbScale(ubScale, gmTileScale, layoutUbScale, layoutGmTileScale);
             AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbScaleMTE2VList[ubListId]);
@@ -217,6 +220,7 @@ public:
             auto &ubPerTokenScale = ubPerTokenScaleList[ubListId];
             auto layoutUbPerTokenScale = LayoutScale::template MakeLayoutInUb<ElementPerTokenScale>(
                 perTokenScaleTileShape);
+
             // 把 perTokenScale 从GM拷贝到UB
             copyGmToUbPerTokenScale(ubPerTokenScale, gmTilePerTokenScale, layoutUbPerTokenScale,
                 layoutGmTilePerTokenScale);
@@ -248,6 +252,7 @@ public:
 
             auto gmTileD = gmD[layoutD.GetOffset(tileOffset)];
             auto layoutGmTileD = layoutD.GetTileLayout(actualTileShape);
+
             // 把乘法结果从UB拷贝到GM
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventUbDVMTE3List[ubListId]);
             copyUbToGmD(gmTileD, ubD, layoutGmTileD, layoutUbD);
@@ -344,13 +349,17 @@ public:
     // perToken
     CATLASS_DEVICE
     void operator() (__gm__ ElementPerTokenScale *ptrPerTokenScale, LayoutPerTokenScale layoutPerTokenScale,
-                     __gm__ ElementD *ptrD, LayoutD layoutD, GemmCoord problemShape)
+                     __gm__ ElementD *ptrIn, LayoutD layoutIn, __gm__ ElementD *ptrOut, LayoutD layoutOut,
+                     GemmCoord problemShape)
     {
         // Calculate the offset of the current block
         MatrixCoord actualBlockShape = problemShape.GetCoordMN();
 
+        AscendC::GlobalTensor<ElementD> gmIn;
+        AscendC::GlobalTensor<ElementD> gmOut;
         gmPerTokenScale.SetGlobalBuffer(ptrPerTokenScale);
-        gmD.SetGlobalBuffer(ptrD);
+        gmIn.SetGlobalBuffer(ptrIn);
+        gmOut.SetGlobalBuffer(ptrOut);
 
         auto ubTileStride = MakeCoord(static_cast<int64_t>(TileShape::COLUMN), 1L);
         auto tileShape = TileShape::ToCoord();
@@ -358,22 +367,24 @@ public:
         uint32_t tileLoops = epilogueTileSwizzle.GetLoops();
         uint32_t subblockIdx = AscendC::GetSubBlockIdx();
         uint32_t subblockNum = AscendC::GetSubBlockNum();
+
         InitFlag();
         for (uint32_t loopIdx = subblockIdx; loopIdx < tileLoops; loopIdx += subblockNum) {
-            int32_t coreIdx = AscendC::GetBlockIdx();
-
             auto tileCoord = epilogueTileSwizzle.GetTileCoord(loopIdx);
             auto actualTileShape = epilogueTileSwizzle.GetActualTileShape(tileCoord);
             auto tileOffset = tileCoord * tileShape;
 
-            auto gmTileD = gmD[layoutD.GetOffset(tileOffset)];
-            auto layoutGmTileD = layoutD.GetTileLayout(actualTileShape);
+            auto gmTileIn = gmIn[layoutIn.GetOffset(tileOffset)];
+            auto gmTileOut = gmOut[layoutOut.GetOffset(tileOffset)];
+            auto layoutGmTileIn = layoutIn.GetTileLayout(actualTileShape);
+            auto layoutGmTileOut = layoutOut.GetTileLayout(actualTileShape);
 
-            auto &ubD = ubDList[ubListId];
-            LayoutD layoutUbD{actualTileShape, ubTileStride};
-            // 把 C 从GM拷贝到UB
+            auto &ubIn = ubDList[ubListId];
+            LayoutD layoutUbIn{actualTileShape, ubTileStride};
+
+            // 把 D 从GM拷贝到UB
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbCVMTE2List[ubListId]);
-            copyGmToUbD(ubD, gmTileD, layoutUbD, layoutGmTileD);
+            copyGmToUbD(ubIn, gmTileIn, layoutUbIn, layoutGmTileIn);
             AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbCMTE2VList[ubListId]);
 
             auto perTokenScaleTileOffset = tileOffset.template GetCoordByAxis<0>();
@@ -385,6 +396,7 @@ public:
             auto &ubPerTokenScale = ubPerTokenScaleList[ubListId];
             auto layoutUbPerTokenScale = LayoutScale::template MakeLayoutInUb<ElementPerTokenScale>(
                 perTokenScaleTileShape);
+
             // 把 perTokenScale 从GM拷贝到UB
             copyGmToUbPerTokenScale(ubPerTokenScale, gmTilePerTokenScale, layoutUbPerTokenScale,
                 layoutGmTilePerTokenScale);
@@ -392,10 +404,11 @@ public:
 
             // 在UB上把D cast到FP32
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbCMTE2VList[ubListId]);
-            AscendC::Cast(ubCFp32, ubD, AscendC::RoundMode::CAST_NONE, TileShape::COUNT);
+            AscendC::Cast(ubCFp32, ubIn, AscendC::RoundMode::CAST_NONE, TileShape::COUNT);
             AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbCVMTE2List[ubListId]);
 
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbPerTokenScaleMTE2VList[ubListId]);
+
             // 在UB上做广播乘法
             AscendC::PipeBarrier<PIPE_V>();
             tileBroadcastOneBlk(ubPerTokenScaleBrcb, ubPerTokenScale);
@@ -405,12 +418,14 @@ public:
 
             // 将乘法结果从UB cast到D
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventUbDMTE3VList[ubListId]);
-            AscendC::Cast(ubD, ubPerTokenMul, AscendC::RoundMode::CAST_RINT, TileShape::COUNT);
+            AscendC::Cast(ubIn, ubPerTokenMul, AscendC::RoundMode::CAST_RINT, TileShape::COUNT);
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventUbDVMTE3List[ubListId]);
+
             // 把乘法结果从UB拷贝到GM
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventUbDVMTE3List[ubListId]);
-            copyUbToGmD(gmTileD, ubD, layoutGmTileD, layoutUbD);
+            copyUbToGmD(gmTileOut, ubIn, layoutGmTileOut, layoutUbIn);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventUbDMTE3VList[ubListId]);
+
             ubListId = (ubListId + 1) % UB_STAGES;
         }
         WaitFlag();

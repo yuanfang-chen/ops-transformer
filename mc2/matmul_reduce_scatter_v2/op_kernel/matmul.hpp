@@ -82,7 +82,7 @@ public:
         int32_t pValue;
         int32_t swizzlCount;
         int32_t swizzlDirect;
-        DequantType dequant_type;
+        DequantType dequantType;
         int32_t rankIdx;
         int32_t rankSize;
         bool needFixpipe;
@@ -95,12 +95,12 @@ public:
         Params(GemmCoord const &problemShape_,
                GM_ADDR ptrA_, LayoutA layoutA_, GM_ADDR ptrB_, LayoutB layoutB_, GM_ADDR ptrC_,
                LayoutC layoutC_, GM_ADDR ptrScale_, LayoutScale layoutScale_, GM_ADDR ptrPeerMem_, LayoutC layoutPeerMem_,
-               GM_ADDR ptrWorkSpace_, int32_t pValue_, int32_t swizzlCount_, int32_t swizzlDirect_, DequantType dequant_type_,
+               GM_ADDR ptrWorkSpace_, int32_t pValue_, int32_t swizzlCount_, int32_t swizzlDirect_, DequantType dequantType_,
                int32_t rankIdx_, int32_t rankSize_, bool needFixpipe_)
             : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_),
               ptrC(ptrC_), layoutC(layoutC_), ptrScale(ptrScale_), layoutScale(layoutScale_), ptrPeerMem(ptrPeerMem_), layoutPeerMem(layoutPeerMem_),
               ptrWorkSpace(ptrWorkSpace_),
-              pValue(pValue_), swizzlCount(swizzlCount_), swizzlDirect(swizzlDirect_), dequant_type(dequant_type_),
+              pValue(pValue_), swizzlCount(swizzlCount_), swizzlDirect(swizzlDirect_), dequantType(dequantType_),
               rankIdx(rankIdx_), rankSize(rankSize_), needFixpipe(needFixpipe_) {}
     };
 
@@ -169,7 +169,9 @@ public:
         int32_t blockSize = L1TileShape::M * L1TileShape::N;
         for (int32_t calIdx = 0; calIdx < calCount; calIdx++) {
             int32_t flagIdx = calIdx % MAX_BLOCK_COUNT;
-            WaitEvent(flagIdx);
+            if (calIdx >= MAX_BLOCK_COUNT) {
+                WaitEvent(flagIdx);
+            }
             for (int32_t p = 0;p < params.pValue; p++) {
                 int32_t loopIdx = calIdx * loopNumPerComm + p * coreNum + coreIdx;
                 if (loopIdx >= coreLoops) {
@@ -193,7 +195,7 @@ public:
                 int64_t gmOffsetC;
                 LayoutC layoutGmDst;
                 AscendC::GlobalTensor<ElementCHalf> gmDstHalf;
-                if (dstRankIdx == params.rankIdx && params.dequant_type == DequantType::PER_CHANNEL) {
+                if (dstRankIdx == params.rankIdx && params.dequantType == DequantType::PER_CHANNEL) {
                     layoutGmDst = params.layoutC;
                     gmDstHalf = gmCHalf;
                     gmOffsetC = params.layoutC.GetOffset(offsetC);
@@ -204,6 +206,7 @@ public:
                             dstRankIdx * (loopNumPerComm / params.rankSize) +
                             (loopIdx % loopNumPerComm) / params.rankSize) * blockSize;
                 }
+
                 bool isFirstBlock = loopIdx == coreIdx;
                 bool hasNextBlock = false;
                 GemmCoord nextBlockIdCoord;
@@ -257,7 +260,9 @@ public:
         int32_t blockSize = L1TileShape::M * L1TileShape::N;
         for (int32_t calIdx = 0; calIdx < calCount; calIdx++) {
             int32_t flagIdx = calIdx % MAX_BLOCK_COUNT;
-            WaitEvent(flagIdx);
+            if (calIdx >= MAX_BLOCK_COUNT) {
+                WaitEvent(flagIdx);
+            }
             for (int32_t p = 0; p < params.pValue; p++) {
                 int32_t loopIdx = calIdx * loopNumPerComm + p * coreNum + coreIdx;
                 if (loopIdx >= coreLoops) {
@@ -321,6 +326,7 @@ public:
                 MatrixCoord offsetNextB{nextBlockLocCoord.k(), nextBlockLocCoord.n()};
                 int64_t gmOffsetNextA = nextGmABlockSt + params.layoutA.GetOffset(offsetNextA);
                 int64_t gmOffsetNextB = params.layoutB.GetOffset(offsetNextB);
+
                 blockMmad(
                     gmA[gmOffsetA], params.layoutA,
                     gmB[gmOffsetB], params.layoutB,
