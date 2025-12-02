@@ -3486,25 +3486,11 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
         if (s2VecLoop == 1) {
             DataCopy(vecClc1Buffer, mm1WorkspaceGm[pingpongIdx * cubeBaseMN + curS1Idx * s1VecSize * s2ExtendAlign],
                      s1ExtendSubGraph * s2ExtendAlign);
-            if (has_sink) {
-                AscendC::PipeBarrier<PIPE_ALL>();
-                DataCopy(dyvBuffer, mm1WorkspaceGm[pingpongIdx * cubeBaseMN + curS1Idx * s1VecSize * s2ExtendAlign],
-                        s1ExtendSubGraph * s2ExtendAlign);
-                AscendC::PipeBarrier<PIPE_ALL>();
-            }
         } else {
             DataCopyPad(vecClc1Buffer, mm1WorkspaceGm[pingpongIdx * cubeBaseMN + curS1Idx * s1VecSize * dbParam.s2CvExtendAlign + curS2Idx * s2VecSize],
                         {static_cast<uint16_t>(s1ExtendSubGraph), static_cast<uint16_t>(s2ExtendAlign * sizeof(float)),
                          static_cast<uint16_t>((dbParam.s2CvExtendAlign - s2ExtendAlign) * sizeof(float)), 0},
-                        {false, 0, 0, 0});
-            if (has_sink) { 
-                AscendC::PipeBarrier<PIPE_ALL>();
-                DataCopyPad(dyvBuffer, mm1WorkspaceGm[pingpongIdx * cubeBaseMN + curS1Idx * s1VecSize * dbParam.s2CvExtendAlign + curS2Idx * s2VecSize],
-                            {static_cast<uint16_t>(s1ExtendSubGraph), static_cast<uint16_t>(s2ExtendAlign * sizeof(float)),
-                            static_cast<uint16_t>((dbParam.s2CvExtendAlign - s2ExtendAlign) * sizeof(float)), 0},
-                            {false, 0, 0, 0});
-                AscendC::PipeBarrier<PIPE_ALL>();
-            }            
+                        {false, 0, 0, 0});      
         }
         event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
         AscendC::SetFlag<HardEvent::MTE2_V>(static_cast<int32_t>(vWaitMte2));
@@ -3533,6 +3519,12 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
         ComputeDropMask<T2, true>(vecClc1Buffer, vecClc1Buffer, vecInDropBuffer, tmpDropBuffer, this->dropMaskInfo);
     }
     AscendC::PipeBarrier<PIPE_V>();
+
+    if (has_sink) { 
+        AscendC::PipeBarrier<PIPE_ALL>();
+        DataCopy(dyvBuffer, vecClc1Buffer,s1ExtendSubGraph * s2ExtendAlign);
+        AscendC::PipeBarrier<PIPE_ALL>();
+    }          
     //
     ///////////////////////////////////////////////////////////////
     // sub to improve

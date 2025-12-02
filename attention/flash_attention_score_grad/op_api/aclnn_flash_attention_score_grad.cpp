@@ -1905,7 +1905,7 @@ static aclnnStatus FlashAttentionScoreGradV5GetWorkspace(
         attentionInOptionalCngs, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional,
         kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, queryRopeCngs, keyRopeCngs, sinkInOptional,
         scaleValue, keepProb, preTokens, nextTokens, headNum,
-        inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, defaultSoftmaxInLayout, executor);
+        inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, softmaxInLayout, executor);
 
     if (queryRope != nullptr && keyRope != nullptr) {
         CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr && fagRes[4] != nullptr && fagRes[5] != nullptr,  // 0: dqOut 1: dkOut 2:dvOut
