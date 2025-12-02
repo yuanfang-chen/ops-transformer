@@ -1451,6 +1451,8 @@ TEST_F(Ts_Pfa_Ascend910_9591, case_empty_key)
     cs.mParam.numHeads = 40;
     cs.mParam.scaleValue = 1.0f;
     cs.mParam.qDataType = ge::DataType::DT_BF16;
+    cs.mParam.kvDataType = ge::DataType::DT_BF16;
+    cs.mParam.outDataType = ge::DataType::DT_BF16;
     cs.mOpInfo.mExp.mSuccess = true;
     ASSERT_TRUE(cs.Init());
     cs.key = Tensor("key", {cs.mParam.b, cs.mParam.n, 0, cs.mParam.d}, "BNSD", cs.mParam.kvDataType, ge::FORMAT_ND);

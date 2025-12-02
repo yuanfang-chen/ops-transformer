@@ -59,7 +59,28 @@ constexpr uint32_t MASKDIM_B1SS = 4;
 constexpr uint32_t SPARSE_OPTIMIZE_ATTENTION_SIZE = 2048;
 constexpr int64_t SLOPE_N_DIM_NUM = 1L;
 
-class IFATilingV2 : public FiaTilingBase{
+const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> inOutDtypeSupported = {
+  {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16},
+  {ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT16},
+  {ge::DT_FLOAT16, ge::DT_HIFLOAT8, ge::DT_FLOAT16},
+  {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16},
+  {ge::DT_FLOAT16, ge::DT_FLOAT4_E2M1, ge::DT_FLOAT16},
+  {ge::DT_FLOAT16, ge::DT_FLOAT4_E1M2, ge::DT_FLOAT16},
+  {ge::DT_BF16, ge::DT_INT8, ge::DT_BF16},
+  {ge::DT_BF16, ge::DT_FLOAT8_E4M3FN, ge::DT_BF16},
+  {ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_BF16},
+  {ge::DT_BF16, ge::DT_INT4, ge::DT_BF16},
+  {ge::DT_BF16, ge::DT_FLOAT4_E2M1, ge::DT_BF16},
+  {ge::DT_BF16, ge::DT_FLOAT4_E1M2, ge::DT_BF16},
+  {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_INT8},
+  {ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN},
+  {ge::DT_FLOAT16, ge::DT_HIFLOAT8, ge::DT_HIFLOAT8},
+  {ge::DT_BF16, ge::DT_INT8, ge::DT_INT8},
+  {ge::DT_BF16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN},
+  {ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_HIFLOAT8}
+};
+
+class IFATilingV2 : public FiaTilingBase {
  public:
   IFATilingV2(gert::TilingContext *context) : FiaTilingBase(context) {}
   ~IFATilingV2() override = default;

@@ -139,6 +139,23 @@ static auto CalcTailSizefaRun(T num1, T num2) -> T
     return mod != 0 ? mod : num2;
 }
 
+template <typename vecT, typename T>
+static bool VecContains(const vecT& vec, const T& value)
+{
+    return std::find(vec.begin(), vec.end(), value) != vec.end();
+}
+
+std::string DataTypeToString(ge::DataType type)
+{
+    const auto it = DATATYPE_TO_STRING_MAP.find(type);
+    if (it != DATATYPE_TO_STRING_MAP.end()) {
+    	return it->second;
+    } else {
+		OP_LOGE("IncreFlashAttention", "datatype %d not support", type);
+		return "UNDEFINED";
+    }
+}
+
 enum class LayoutTypefaRun : uint8_t {
     NONE = 0,
     LAYOUT_BSH = 1,
@@ -375,6 +392,15 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
   inputQType_ = ifaContext_->query.desc->GetDataType();
   inputKvType_ = ifaContext_->key.desc->GetDataType();
   outputType_ = ifaContext_->attenOut.desc->GetDataType();
+
+  std::tuple<ge::DataType, ge::DataType, ge::DataType> inOutDtypeTuple = {inputQType_, inputKvType_, outputType_};
+  OP_CHECK_IF(!VecContains(inOutDtypeSupported, inOutDtypeTuple),
+      OP_LOGE(ifaContext_->opName,
+              "Query dtype(%s), key/value dtype(%s), attentionOut dype(%s) is not currently supported.",
+              DataTypeToString(inputQType_).c_str(), DataTypeToString(inputKvType_).c_str(),
+              DataTypeToString(outputType_).c_str()),
+      return ge::GRAPH_FAILED);
+
   blockTypeSize_ = sizeof(float);  // 默认按照float计算
   nNumOfQInOneGroup_ = numHeads_ / numKvHeads_;
 
@@ -706,17 +732,6 @@ ge::graphStatus IFATilingV2::CheckQKOutShape() const
       queryShape->GetStorageShape().GetDim(NUM3), keyShape->GetStorageShape().GetDim(NUM3)),return ge::GRAPH_FAILED);
   }
   return ge::GRAPH_SUCCESS;
-}
-
-std::string DataTypeToString(ge::DataType type)
-{
-    const auto it = DATATYPE_TO_STRING_MAP.find(type);
-    if (it != DATATYPE_TO_STRING_MAP.end()) {
-    	return it->second;
-    } else {
-		OP_LOGE("IncreFlashAttention", "datatype %d not support", type);
-		return "UNDEFINED";
-    }
 }
 
 ge::graphStatus IFATilingV2::CheckLse() const
@@ -1168,10 +1183,14 @@ bool IFATilingV2::SetQKVStartIdx()
 bool IFATilingV2::CheckAlibiPseShiftTypeAndShape()
 {
     auto pseShape = ifaContext_->pseShift.tensor;
+    OP_CHECK_IF(pseShape == nullptr, OP_LOGE(ifaContext_->opName, "When pseType = 2/3, pseShift shape is null."),
+                return false);
+    OP_CHECK_IF(ifaContext_->pseShift.desc == nullptr, OP_LOGE(ifaContext_->opName, "Desc of pseShift tensor is null."),
+                return false);
     auto pseShiftDataType = ifaContext_->pseShift.desc->GetDataType();
 
     OP_CHECK_IF((pseShiftDataType != ge::DT_FLOAT),
-                OP_LOGE(ifaContext_->opName, "When pseType = 2/3, pse shift type must be float, but pse shift type = %s",
+                OP_LOGE(ifaContext_->opName, "When pseType = 2/3, pse shift type must be float, but pse shift type = %s.",
                         DataTypeToString(pseShiftDataType).c_str()),
                 return false);
 
@@ -1201,8 +1220,7 @@ bool IFATilingV2::AlibiCheckSeqLength()
         GetActualSeqLength(actSeqLenData, actSeqLenDataKV, i);
         OP_CHECK_IF(actSeqLenData != actSeqLenDataKV,
                     OP_LOGE(ifaContext_->opName,
-                            "When pseType = 2/3, actualSeqLengths[%u](seq size of query)=%ld must be equal to \
-                            actualSeqLengthsKv[%u](seq size of key)=%ld",
+                            "When pseType = 2/3, actualSeqLengths[%u](seq size of query)=%ld must be equal to actualSeqLengthsKv[%u](seq size of key)=%ld.",
                             i, actSeqLenData, i, actSeqLenDataKV),
                     return false);
     }
@@ -1220,13 +1238,6 @@ bool IFATilingV2::CheckAlibiPseShift()
 ge::graphStatus IFATilingV2::ProcessPseShift() {
   // get pse shift data
   auto pseShiftInput = ifaContext_->pseShift.tensor;
-  if (pseShiftInput == nullptr) {
-    return ge::GRAPH_SUCCESS;
-  }
-  OP_CHECK_IF(ifaContext_->pseShift.desc == nullptr, OP_LOGE(ifaContext_->opName, "Desc of pseShift tensor is null."),
-              return ge::GRAPH_FAILED);
-
-  auto pseShiftDataType = ifaContext_->pseShift.desc->GetDataType();
   auto pseType = ifaContext_->pseType;
   if (pseType != nullptr) {
       pseType_ = *pseType;
@@ -1235,23 +1246,31 @@ ge::graphStatus IFATilingV2::ProcessPseShift() {
                       (pseType_ != static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_SQRT_TYPE)),
                   OP_LOGE(ifaContext_->opName, "PseType(%ld) is not support, pseType must be 0/2/3.", pseType_),
                   return ge::GRAPH_FAILED);
-      if (pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_TYPE) ||
-          pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_SQRT_TYPE)) {
-          enableAlibiPse_ = true;
-          pseShiftFlag_ = false;
-          if (!CheckAlibiPseShift()) {
-              return ge::GRAPH_FAILED;
-          }
-          return ge::GRAPH_SUCCESS;
-      }
   }
+
+  if (pseShiftInput == nullptr && pseType_ == static_cast<int64_t>(IfaPseType::PSE_OUTER_MUL_ADD_TYPE)) {
+      return ge::GRAPH_SUCCESS;
+  }
+
+  if (pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_TYPE) ||
+      pseType_ == static_cast<int64_t>(IfaPseType::PSE_INNER_MUL_ADD_SQRT_TYPE)) {
+      enableAlibiPse_ = true;
+      if (!CheckAlibiPseShift()) {
+          return ge::GRAPH_FAILED;
+      }
+      return ge::GRAPH_SUCCESS;
+  }
+
   OP_CHECK_IF(inputLayout_ == IfaLayout::TND, OP_LOGE(ifaContext_->opName,
              "TND not support pse."), return ge::GRAPH_FAILED);
 
+  OP_CHECK_IF(ifaContext_->pseShift.desc == nullptr, OP_LOGE(ifaContext_->opName, "Desc of pseShift tensor is null."),
+              return ge::GRAPH_FAILED);
+  auto pseShiftDataType = ifaContext_->pseShift.desc->GetDataType();
   switch (pseShiftDataType) {
     case ge::DT_FLOAT16:
     case ge::DT_BF16:
-      OP_CHECK_IF( inputQType_ != pseShiftDataType,
+      OP_CHECK_IF(inputQType_ != pseShiftDataType,
                   OP_LOGE(ifaContext_->opName,
                   "Datatype of pseShift is %s, which does not match datatype of query: %s.",
                   DataTypeToString(pseShiftDataType).c_str(), DataTypeToString(inputQType_).c_str()),
@@ -3941,10 +3960,10 @@ void IFATilingV2::IFATilingDataconvert() {
   inputParams.set_s2SparseValidSize(0); // 临时默认值
   inputParams.set_seed(0); // 默认值
   inputParams.set_offset(0); // 默认值
-  inputParams.set_pseShapeType(static_cast<uint8_t>(pseShapeType)); // 对应训练 PSE_B_N2_G_S1_S2
-  inputParams.set_pseType(pseType_); // 对应训练 PSE_OUTER_MUL_ADD_TYPE
+  inputParams.set_pseShapeType(static_cast<uint8_t>(pseShapeType));
+  inputParams.set_pseType(pseType_);
   inputParams.set_qStartIdx(qStartIdx_);
-  inputParams.set_kvStartIdx(kvStartIdx_);  //暂不支持
+  inputParams.set_kvStartIdx(kvStartIdx_);
 
   // PFA
   // 伪量化用到的PA相关的有

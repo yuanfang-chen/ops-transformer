@@ -127,7 +127,25 @@ constexpr uint32_t ATTR_INNER_PRECISE = 7;
 constexpr int64_t PSE_TYPE_2_TILING_V2 = 2;
 constexpr int64_t PSE_TYPE_3_TILING_V2 = 3;
 constexpr uint32_t QUERY_SHAPE_DIM_D_128_TILING_V2 = 128;
-constexpr int32_t ROPE_DIMENSION_SIZE_TILING_V2 = 64; 
+constexpr int32_t ROPE_DIMENSION_SIZE_TILING_V2 = 64;
+
+const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> inOutDtypeSupported = {
+    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
+    {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_BF16},
+    {ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT16},
+    {ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_BF16},
+    {ge::DT_HIFLOAT8, ge::DT_HIFLOAT8, ge::DT_FLOAT16},
+    {ge::DT_HIFLOAT8, ge::DT_HIFLOAT8, ge::DT_BF16},
+    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8},
+    {ge::DT_BF16, ge::DT_BF16, ge::DT_INT8},
+    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN},
+    {ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT8_E4M3FN},
+    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_HIFLOAT8},
+    {ge::DT_BF16, ge::DT_BF16, ge::DT_HIFLOAT8},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_INT8}
+};
 
 template <typename T>
 static auto AlignUp(T num1, T num2) -> T
@@ -167,6 +185,12 @@ static auto CeilDiv(const T n1, const T n2) -> T
         return 0;
     }
     return (n2 != 0) ? (((n1 - 1) / n2) + 1) : n1;
+}
+
+template <typename vecT, typename T>
+static bool VecContains(const vecT& vec, const T& value)
+{
+    return std::find(vec.begin(), vec.end(), value) != vec.end();
 }
 
 enum class LayoutType : uint8_t {
@@ -3536,6 +3560,15 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
             "when data type of query is bf16 and data type of key/value is int8"),
             return ge::GRAPH_FAILED);
     }
+    std::tuple<ge::DataType, ge::DataType, ge::DataType> inOutDtypeTuple = {
+        contextKeyParams.inputDataType, contextKeyParams.kDataType, contextKeyParams.outputDataType};
+    OP_CHECK_IF(!VecContains(inOutDtypeSupported, inOutDtypeTuple),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "Query dtype(%s), key/value dtype(%s), attentionOut dype(%s) is not currently supported.",
+                    GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str(),
+                    GetPfaDataTypeStr(contextKeyParams.kDataType).c_str(),
+                    GetPfaDataTypeStr(contextKeyParams.outputDataType).c_str()),
+                return ge::GRAPH_FAILED);
 
     // prefix check
     isKVHasPrefix = (contextKeyParams.keySharedPrefix != nullptr) &&
