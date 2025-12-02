@@ -899,7 +899,7 @@ static aclnnStatus CheckFunctionQuantParams(const gmm::GroupedMatmulParams &gmmP
                "output tensorlist has different data type, y[0] data type is %s, and y[%zu] data type id %s.",
                gmm::dTypeToString(yDtypeOrg), i, gmm::dTypeToString(yDtype));
     if (!(yDtype == DataType::DT_INT8 || yDtype == DataType::DT_BF16 || yDtype == DataType::DT_FLOAT16 || yDtype == DataType::DT_INT32)) {
-      OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Expect yDtype is int8, int32, float16 or bfloat16 in quant case, "
+      OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Expect y dtype is int8, int32, float16 or bfloat16 in quant case, "
               "but now y[%zu] dtype is %s", i, gmm::dTypeToString(yDtype));
       return ACLNN_ERR_PARAM_INVALID;
     }

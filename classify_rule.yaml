@@ -214,18 +214,18 @@ attention:
       - prompt_flash_attention
       # - fused_infer_attention_score
 
-gmm:
-  grouped_matmul:
-    module: True
-    src:
-      - gmm/grouped_matmul
-    exclude:
-      - gmm/grouped_matmul/docs
-      - gmm/grouped_matmul/README.md
-    ut_cov_exclude:
-      - gmm/grouped_matmul
-    options:
-      - grouped_matmul
+# gmm:
+#   grouped_matmul:
+#     module: True
+#     src:
+#       - gmm/grouped_matmul
+#     exclude:
+#       - gmm/grouped_matmul/docs
+#       - gmm/grouped_matmul/README.md
+#     ut_cov_exclude:
+#       - gmm/grouped_matmul
+#     options:
+#       - grouped_matmul
 
   grouped_matmul_swiglu_quant:
     module: True

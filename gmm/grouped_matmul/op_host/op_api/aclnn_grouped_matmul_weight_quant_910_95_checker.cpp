@@ -324,13 +324,13 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckYDtype() const
 {
     if (IsMxA8W4NZ() || IsS8S4NZ()) {
         CHECK_COND(yDtype_ == DataType::DT_BF16 || yDtype_ == DataType::DT_FLOAT16, ACLNN_ERR_PARAM_INVALID,
-                   "When xDtype-weightDtype is float8_e4m3fn-float4_e2m1 or int8-int4, yDtype can only be float16 or "
-                   "bfloat16 but the actual yDtype is [%s]",
+                   "When xDtype-weightDtype is float8_e4m3fn-float4_e2m1 or int8-int4, y dtype can only be float16 or "
+                   "bfloat16 but the actual y dtype is [%s]",
                    op::ToString(yDtype_).GetString());
     } else {
         CHECK_COND(
             yDtype_ == xDtype_, ACLNN_ERR_PARAM_INVALID,
-            "In weight quant case, yDtype should be equal to xDtype but the actual yDtype is [%s], xDtype is [%s].",
+            "In weight quant case, y dtype should be equal to x dtype but the actual y dtype is [%s], x dtype is [%s].",
             op::ToString(yDtype_).GetString(), op::ToString(xDtype_).GetString());
     }
 
@@ -344,16 +344,16 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckBiasDtype()
         if (xDtype_ == DataType::DT_BF16) {
             CHECK_COND(
                 biasDtype_ == DataType::DT_BF16 || biasDtype_ == DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
-                "When xDtype is bfloat16, the bias dtype should be bfloat16 or float32, but the actual dtype is [%s].",
+                "When x dtype is bfloat16, the bias dtype should be bfloat16 or float32, but the actual dtype is [%s].",
                 op::ToString(biasDtype_).GetString());
         } else if (xDtype_ == DataType::DT_FLOAT16) {
             CHECK_COND(biasDtype_ == DataType::DT_FLOAT16, ACLNN_ERR_PARAM_INVALID,
-                       "When xDtype is float16, the bias dtype should be float16, but the actual dtype is [%s].",
+                       "When x dtype is float16, the bias dtype should be float16, but the actual dtype is [%s].",
                        op::ToString(biasDtype_).GetString());
         } else if (IsMxA8W4NZ()) {
             CHECK_COND(biasDtype_ == yDtype_, ACLNN_ERR_PARAM_INVALID,
-                       "When xDtype-weightDtype is fp8_e4m3fn-fp4_e2m1, the biasdtype must be equal to ydtype, but the "
-                       "actual biasdtype is [%s], ydtype is [%s].",
+                       "When xDtype-weightDtype is fp8_e4m3fn-fp4_e2m1, the bias dtype must be equal to y dtype, but the "
+                       "actual bias dtype is [%s], y dtype is [%s].",
                        op::ToString(biasDtype_).GetString(), op::ToString(yDtype_).GetString());
         } else if (IsS8S4NZ()) {
             CHECK_COND(
@@ -397,16 +397,16 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckQuantDtype() const
     if (IsMxA8W4NZ()) {
         auto pertokenScaleDtype = (*gmmParams_.perTokenScaleOptional)[0]->GetDataType();
         CHECK_COND(pertokenScaleDtype == ge::DT_FLOAT8_E8M0, ACLNN_ERR_PARAM_INVALID,
-                   "pertokenScaleDtype must be float8_e8m0 when xDtype-weightDtype is float8_e4m3fn-float4_e2m1.");
+                   "PertokenScale dtype must be float8_e8m0 when xDtype-weightDtype is float8_e4m3fn-float4_e2m1.");
     }
 
     if (IsS8S4NZ()) {
         auto pertokenScaleDtype = (*gmmParams_.perTokenScaleOptional)[0]->GetDataType();
         CHECK_COND(pertokenScaleDtype == ge::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
-                   "pertokenScaleDtype must be DT_FLOAT when xDtype-weightDtype is int8-int4.");
+                   "PertokenScale dtype must be DT_FLOAT when xDtype-weightDtype is int8-int4.");
         auto scaleDtype = (*gmmParams_.scaleOptional)[0]->GetDataType();
         CHECK_COND(scaleDtype == ge::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
-                   "scaleDtype must be DT_FLOAT when xDtype-weightDtype is int8-int4.");
+                   "Scale dtype must be DT_FLOAT when xDtype-weightDtype is int8-int4.");
     }
     return ACLNN_SUCCESS;
 }
@@ -528,7 +528,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() 
                    gmmParams_.groupType);
     } else {
         CHECK_COND(gmmParams_.groupType == SPLIT_M, ACLNN_ERR_PARAM_INVALID,
-                   "Weight quant cases with xDtype [%s] and weightDtype [%s] only support groupType 0 (split M), but "
+                   "Weight quant cases with x dtype [%s] and weight dtype [%s] only support groupType 0 (split M), but "
                    "the actual groupType is [%ld].",
                    op::ToString(xDtype_).GetString(), op::ToString(weightDtype_).GetString(), gmmParams_.groupType);
     }
@@ -536,10 +536,10 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() 
     if (gmmParams_.groupType == NO_SPLIT) {
         if (gmmParams_.apiVersion == GMMApiVersion::V2) {
             CHECK_COND(gmmParams_.groupListOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
-                       "groupListOptional should be nullptr when groupType is -1.");
+                       "GroupListOptional should be nullptr when groupType is -1.");
         } else if (gmmParams_.apiVersion != GMMApiVersion::V1) {
             CHECK_COND(gmmParams_.groupTensorOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
-                       "groupListOptional(groupTensorOptional) should be nullptr when groupType is -1.");
+                       "GroupListOptional(groupTensorOptional) should be nullptr when groupType is -1.");
         }
         CHECK_COND(gmmParams_.splitItem == X_Y_SEPARATED || gmmParams_.splitItem == Y_SEPARATED,
                    ACLNN_ERR_PARAM_INVALID,
@@ -547,10 +547,10 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() 
     } else {
         if (gmmParams_.apiVersion == gmm::GMMApiVersion::V1 || gmmParams_.apiVersion == gmm::GMMApiVersion::V2) {
             CHECK_COND(gmmParams_.groupListOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
-                       "groupListOptional should not be nullptr when splited axis is M.");  // V1 没有groupType参数
+                       "GroupListOptional should not be nullptr when splited axis is M.");  // V1 没有groupType参数
         } else {
             CHECK_COND(gmmParams_.groupTensorOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
-                       "groupListOptional should not be nullptr when groupType is 0.");
+                       "GroupListOptional should not be nullptr when groupType is 0.");
         }
 
         CHECK_COND(gmmParams_.splitItem == X_SEPARATED || gmmParams_.splitItem == NO_SEPARATED, ACLNN_ERR_PARAM_INVALID,
@@ -577,24 +577,24 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorListSize() con
     }
 
     CHECK_COND(gmmParams_.antiquantScaleOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
-               "antiquantScaleOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
+               "AntiquantScaleOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
                gmmParams_.antiquantScaleOptional->Size(), gmmParams_.weight->Size());
 
     if (gmmParams_.antiquantOffsetOptional != nullptr) {
         CHECK_COND(gmmParams_.antiquantOffsetOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
-                   "antiquantOffsetOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
+                   "AntiquantOffsetOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
                    gmmParams_.antiquantOffsetOptional->Size(), gmmParams_.weight->Size());
     }
 
     if (gmmParams_.biasOptional != nullptr) {
         CHECK_COND(gmmParams_.biasOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
-                   "biasOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
+                   "BiasOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
                    gmmParams_.biasOptional->Size(), gmmParams_.weight->Size());
     }
 
     if (gmmParams_.perTokenScaleOptional != nullptr) {
         CHECK_COND(gmmParams_.perTokenScaleOptional->Size() == gmmParams_.x->Size(), ACLNN_ERR_PARAM_INVALID,
-                   "perTokenScaleOptional size should be equal to x size, actual sizes are [%zu], [%zu]",
+                   "PerTokenScaleOptional size should be equal to x size, actual sizes are [%zu], [%zu]",
                    gmmParams_.perTokenScaleOptional->Size(), gmmParams_.x->Size());
     }
 
