@@ -3695,11 +3695,11 @@ void IFATilingV2::UpdateTilingKeyConfig() {
 }
 
 void IFATilingV2::UpdateTilingKeyPseMode() {
-	if (pseShiftFlag_ == false) {
+	if (!pseShiftFlag_ && !enableAlibiPse_) {
 		pseMode = PSE_MODE_PSE_NONE_TYPE;
 	}
 	else {
-		pseMode = PSE_MODE_PSE_OUTER_MUL_ADD_TYPE;
+		pseMode = pseType_;
 	}
 }
 
