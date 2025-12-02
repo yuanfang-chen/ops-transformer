@@ -88,7 +88,6 @@ function(pack_built_in)
       ${CMAKE_SOURCE_DIR}/scripts/package/common/sh/common_interface.csh
       ${CMAKE_SOURCE_DIR}/scripts/package/common/sh/common_interface.fish
       ${CMAKE_SOURCE_DIR}/scripts/package/common/sh/version_compatiable.inc
-      ${CMAKE_SOURCE_DIR}/scripts/package/common/py/merge_binary_info_config.py
   )
 
   install(FILES ${SCRIPTS_FILES}

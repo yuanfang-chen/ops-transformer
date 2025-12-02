@@ -320,17 +320,10 @@ create_softlink_for_files_and_dirs() {
 install_opp() {
   logandprint "[INFO]: Begin install opp module."
   local version_mod=""
-  local module_mod=""
   if [ -d ${TARGET_VERSION_DIR} ]; then
     version_mod=$(stat -c %a ${TARGET_VERSION_DIR})
     if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_VERSION_DIR}" ]; then
       chmod u+w "${TARGET_VERSION_DIR}" 2>/dev/null
-    fi
-  fi
-  if [ -d ${TARGET_MOULDE_DIR} ]; then
-    module_mod=$(stat -c %a ${TARGET_MOULDE_DIR})
-    if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_MOULDE_DIR}" ]; then
-      chmod u+w "${TARGET_MOULDE_DIR}" 2>/dev/null
     fi
   fi
   local opp_builtin_mod=""
@@ -341,7 +334,6 @@ install_opp() {
     fi
   fi
   comm_create_dir "${TARGET_VERSION_DIR}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
-  comm_create_dir "${TARGET_MOULDE_DIR}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
   comm_create_dir "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
 
   setenv
@@ -363,9 +355,6 @@ install_opp() {
   cp -f "${VERSION_INFO_FILE}" "${TARGET_MOULDE_DIR}"
   log_with_errorlevel "$?" "error" "[ERROR]: ERR_NO:${INSTALL_FAILED};ERR_DES:Copy version.info file failed."
 
-  if [ -n "${module_mod}" ]; then
-    chmod ${module_mod} "${TARGET_MOULDE_DIR}" 2>/dev/null
-  fi
   if [ -n "${version_mod}" ]; then
     chmod ${version_mod} "${TARGET_VERSION_DIR}" 2>/dev/null
   fi
@@ -393,25 +382,14 @@ main() {
 
   install_opp
 
-  #chmod to support copy
-  if [ -d "${TARGET_MOULDE_DIR}/vendors" ] && [ "$(id -u)" != "0" ]; then
-    chmod -R "${CUSTOM_PERM}" ${TARGET_MOULDE_DIR}/vendors
-  fi
-
   # change log dir and file owner and rights
   chmod "${LOG_PATH_PERM}" "${COMM_LOG_DIR}" 2>/dev/null
   chmod "${LOG_FILE_PERM}" "${COMM_LOGFILE}" 2>/dev/null
   chmod "${LOG_FILE_PERM}" "${COMM_OPERATION_LOGFILE}" 2>/dev/null
 
-  # change installed folder's permission except aicpu
-  chmod -R "${BUILTIN_PERM}" "${TARGET_MOULDE_DIR}/built-in/op_impl/ai_core/tbe/op_tiling/lib" 2>/dev/null
-  chmod -R "${BUILTIN_PERM}" "${TARGET_MOULDE_DIR}/built-in/op_proto/lib" 2>/dev/null
-
   if [ "$(id -u)" = "0" ]; then
-    chmod "${CUSTOM_PERM}" "${TARGET_MOULDE_DIR}" 2>/dev/null
     chmod "${CUSTOM_PERM}" -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
   else
-    chmod "${BUILTIN_PERM}" "${TARGET_MOULDE_DIR}" 2>/dev/null
     chmod "${BUILTIN_PERM}" -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
   fi
 
@@ -420,20 +398,19 @@ main() {
   chmod "${ONLYREAD_PERM}" "${INSTALL_INFO_FILE}" 2>/dev/null
 
   # change installed folder's owner and group except aicpu
-  chown "${TARGET_USERNAME}":"${TARGET_USERGROUP}" "${TARGET_MOULDE_DIR}" 2>/dev/null
   log_with_errorlevel "$?" "error" "[ERROR]: ERR_NO:${INSTALL_FAILED};ERR_DES:Change opp onwership failed.."
 
   logandprint "[INFO]: upgradePercentage:100%"
 
   logandprint "[INFO]: Installation information listed below:"
-  logandprint "[INFO]: Install path: (${TARGET_MOULDE_DIR})"
+  logandprint "[INFO]: Install path: (${TARGET_VERSION_DIR}/opp)"
   logandprint "[INFO]: Install log file path: (${COMM_LOGFILE})"
   logandprint "[INFO]: Operation log file path: (${COMM_OPERATION_LOGFILE})"
 
   if [ "${IS_SETENV}" != "y" ]; then
     logandprint "[INFO]: Using requirements: when opp module install finished or \
     before you run the opp module, execute the command \
-    [ export ASCEND_OPP_PATH=${TARGET_INSTALL_PATH}/latest/opp ] to set the environment path."
+    [ export ASCEND_OPP_PATH=${TARGET_INSTALL_PATH}/cann/opp ] to set the environment path."
   fi
 
   logandprint "[INFO]: Opp package installed successfully! The new version takes effect immediately."

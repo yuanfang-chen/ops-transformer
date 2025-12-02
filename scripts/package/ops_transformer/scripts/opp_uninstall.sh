@@ -122,7 +122,6 @@ check_installed_files() {
 
   check_file_exist "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/bin/setenv.fish"
 
-  check_directory_exist "${TARGET_MOULDE_DIR}"
 }
 
 check_installed_type() {
@@ -178,18 +177,6 @@ remove_module() {
     "${FILELIST_FILE}" "${IN_FEATURE}" --recreate-softlink
   log_with_errorlevel "$?" "error" "[ERROR]: ERR_NO:${OPERATE_FAILED};ERR_DES:Uninstall opp module failed."
 
-  local pyc_path=$(find "${TARGET_MOULDE_DIR}/built-in/op_impl/ai_core/tbe/impl" -name "__pycache__" 2>/dev/null)
-  for var in ${pyc_path}; do
-    rm -rf -d "${var}" 2>/dev/null
-  done
-
-  # remove empty dir, even though has softlink
-  local remain_dir_list=$(find ${TARGET_MOULDE_DIR} -mindepth 1 -maxdepth 1 -type d)
-  for remain_dir in ${remain_dir_list}; do
-    if [ "$(find "${remain_dir}" -type f 2>&1)" = "" ]; then
-      rm -rf ${remain_dir}
-    fi
-  done
  local remain_opp_dir_list=$(find ${TARGET_OPP_BUILT_IN} -mindepth 1 -maxdepth 1 -type d)
   for remain_dir in ${remain_opp_dir_list}; do
     if [ "$(find "${remain_dir}" -type f 2>&1)" = "" ]; then
@@ -199,9 +186,6 @@ remove_module() {
 }
 
 remove_ops_transformer() {
-  if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_MOULDE_DIR}" ]; then
-    chmod u+w -R "${TARGET_MOULDE_DIR}" 2>/dev/null
-  fi
   if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_OPP_BUILT_IN}" ]; then
     chmod u+w -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
   fi
@@ -214,10 +198,6 @@ remove_ops_transformer() {
     rm -f "${INSTALL_INFO_FILE}"
     log_with_errorlevel "$?" "warn" "[WARNING] Delete ops install info file failed, please delete it by yourself."
   fi
-
-  for file in $(ls -A ${TARGET_MOULDE_DIR}/* 2>/dev/null); do
-    logandprint "[WARNING]: ${file}, has files changed by users, cannot be delete."
-  done
 }
 
 logandprint "[INFO]: Begin uninstall the opp module."

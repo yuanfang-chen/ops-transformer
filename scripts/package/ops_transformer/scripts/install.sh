@@ -112,7 +112,7 @@ get_installed_info() {
 
 clean_before_reinstall() {
   local installed_path=$(get_installed_info "${KEY_INSTALLED_PATH}")
-  local existed_files=$(find ${TARGET_MOULDE_DIR} -type f -print 2>/dev/null)
+  local existed_files=$(find ${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR} -type f -print 2>/dev/null)
   if [ -z "${existed_files}" ]; then
     logandprint "[INFO]: Directory is empty, directly install opp module."
     return 0
@@ -643,11 +643,11 @@ install_package() {
     comm_log_operation "Install" "${IN_INSTALL_TYPE}" "OpsTransformer" "$?" "${CMD_LIST}"
   fi
   if [ $(id -u) -eq 0 ]; then
-    chown -R "root":"root" "${TARGET_MOULDE_DIR}/script" 2>/dev/null
-    chown "root":"root" "${TARGET_MOULDE_DIR}" 2>/dev/null
+    chown -R "root":"root" "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script" 2>/dev/null
+    chown "root":"root" "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}" 2>/dev/null
   else
-    chmod -R 550 "${TARGET_MOULDE_DIR}/script" 2>/dev/null
-    chmod 440 "${TARGET_MOULDE_DIR}/script/filelist.csv" 2>/dev/null
+    chmod -R 550 "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script" 2>/dev/null
+    chmod 440 "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script/filelist.csv" 2>/dev/null
   fi
   comm_log_operation "Install" "${IN_INSTALL_TYPE}" "OpsTransformer" "$?" "${CMD_LIST}"
 }
