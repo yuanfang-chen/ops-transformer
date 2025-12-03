@@ -36,10 +36,8 @@
 #include "../../../moe_distribute_combine/op_kernel/moe_distribute_combine_tiling.h"
 #include "../../../moe_distribute_combine/op_host/op_tiling/arch35/moe_distribute_combine_tiling_arch35.h"
 #include "../../op_kernel/moe_distribute_combine_v2_tiling.h"
-#include "../../op_kernel/moe_distribute_combine_v2_tiling_key.h"
 #include "mc2_hcom_topo_info.h"
 
-using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
 
@@ -999,19 +997,14 @@ static ge::graphStatus SetWorkspace(gert::TilingContext *context, const char *no
     return ge::GRAPH_SUCCESS;
 }
 
-static uint64_t CalTilingKey(const uint64_t tpWorldSize, uint32_t commQuantMode)
+static void CalTilingKey(uint64_t &tilingKey, const uint64_t tpWorldSize, uint32_t commQuantMode)
 {
-    bool tp = false;
-    bool quantMode = false;
-    bool layeredMode = false;  // A2
-    if (tpWorldSize == MAX_TP_WORLD_SIZE) {
-        tp = true;
+    if (tpWorldSize == TP_WORLD_SIZE_TWO) {
+        tilingKey += TILINGKEY_TP_WORLD_SIZE;
     }
     if (commQuantMode == INT8_COMM_QUANT) {
-        quantMode = true;
+        tilingKey += TILINGKEY_INT8_COMM_QUANT;
     }
-    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, quantMode, layeredMode, TILINGKEY_TPL_A3);
-    return tilingKey;
 }
 
 static void SetHCommCfg(const gert::TilingContext *context, MoeDistributeCombineV2TilingData *tiling,
@@ -1218,7 +1211,8 @@ static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(gert::TilingContext*
     SetHCommCfg(context, tilingData, groupEp, groupTp);
 
     uint64_t tpWorldSize = static_cast<uint64_t>(tilingData->moeDistributeCombineV2Info.tpWorldSize);
-    uint64_t tilingKey = CalTilingKey(tpWorldSize, commQuantMode);
+    uint64_t tilingKey = INIT_TILINGKEY;
+    CalTilingKey(tilingKey, tpWorldSize, commQuantMode);
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
     uint32_t blockDim = 1U;
@@ -1583,18 +1577,13 @@ static ge::graphStatus MoeDistributeCombineCheckCommAlg(const gert::TilingContex
 
 static uint64_t MoeDistributeCombineA2CalcTilingKey(const bool isLayered, const int32_t commQuantMode)
 {
-    bool tp = false;
-    bool quantMode = false;
-    bool layeredMode = false;  // A2
-
+    uint64_t tilingKey = TILING_KEY_BASE_A2;
     if (isLayered) {
-        layeredMode = true;
+        tilingKey = TILING_KEY_LAYERED_COMM_A2;
         if (commQuantMode == static_cast<CommQuantModeType>(CommQuantMode::INT8_QUANT)) {
-            quantMode = true;
+            tilingKey += TILING_KEY_INT8_COMM_QUANT_A2;
         }
     }
-    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, quantMode, layeredMode, TILINGKEY_TPL_A2);
-    
     OP_LOGD(K_INNER_DEBUG, "tilingKey=%lu", tilingKey);
     return tilingKey;
 }

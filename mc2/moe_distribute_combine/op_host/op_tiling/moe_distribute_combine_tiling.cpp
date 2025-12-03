@@ -42,10 +42,8 @@
 #include "moe_distribute_combine_tiling_a2a3.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "mc2_hcom_topo_info.h"
-#include "../../op_kernel/moe_distribute_combine_tiling_key.h"
 
 using namespace Ops::Transformer::OpTiling;
-using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
 
@@ -275,17 +273,15 @@ static uint64_t MoeDistributeCombineA2CalcTilingKey(gert::TilingContext *context
     const char *nodeName = context->GetNodeName();
     OP_LOGI(nodeName, "Enter MoeDistributeCombineA2 calc tiling func.");
 
-    bool quantMode = false;  // A2 & A3
-    bool layeredMode = false;  // A2
+    uint64_t tilingKey = TILING_KEY_BASE_A2;
 
     if (isLayered) {
-        layeredMode = true;
+        tilingKey = TILING_KEY_LAYERED_COMM_A2;
         if (commQuantMode == static_cast<CommQuantModeType>(CommQuantMode::INT8_QUANT)) {
-            quantMode = true;
+            tilingKey += TILING_KEY_INT8_COMM_QUANT_A2;
         }
     }
 
-    uint64_t tilingKey = GET_TPL_TILING_KEY(false, quantMode, layeredMode, TILINGKEY_TPL_A2);
     OP_LOGD(K_INNER_DEBUG, "tilingKey=%lu", tilingKey);
 
     return tilingKey;
@@ -776,16 +772,13 @@ static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(gert::TilingContext 
     SetHCommCfg(context, tilingData, groupEp, groupTp);
 
     uint32_t tpWorldSize = tilingData->moeDistributeCombineInfo.tpWorldSize;
-    bool tp = false;
-    bool quantMode = false;
-    bool layeredMode = false;  // A2
-    if (tpWorldSize == MAX_TP_WORLD_SIZE) {
-        tp = true;
+    uint64_t tilingKey = INIT_TILINGKEY_TP_2;
+    if (tpWorldSize != MAX_TP_WORLD_SIZE) {
+        tilingKey = INIT_TILINGKEY_TP_1;
     }
     if (commQuantMode == INT8_COMM_QUANT) {
-        quantMode = true;
+        tilingKey += TILINGKEY_INT8_COMM_QUANT;
     }
-    const uint64_t tilingKey = GET_TPL_TILING_KEY(tp, quantMode, layeredMode, TILINGKEY_TPL_A3);
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
     uint32_t blockDim = 1U;
