@@ -141,7 +141,8 @@ bool MatmulAllReduceCheckDtypeValid(
 // 检查传入的reduction数值是否在可选范围内
 bool MatmulAllReduceCheckAttr(const char* reduceOp, int64_t streamMode)
 {
-    if (strcmp(reduceOp, REDUCE_OP_SUM)) {
+    bool flag = (strcmp(reduceOp, REDUCE_OP_SUM) == 0);
+    if (!flag) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Expected reduceOp to be sum, but got %s.", reduceOp);
         return false;
     }
@@ -443,7 +444,8 @@ const aclTensor* QuantMatmulAllReduceTransTensor(const aclTensor* x2)
     aclGetDataType(x2, &dataType);
     std::vector<int64_t> stride(viewDimsNum);
     auto transStride = x2->GetViewStrides();
-    // x2和perblock情形的scale只有二维，已校验
+    stride = std::vector<int64_t>(transStride.begin(), transStride.end());
+    // transpose the two dimensions
     stride[0] = transStride[1];
     stride[1] = transStride[0];
 

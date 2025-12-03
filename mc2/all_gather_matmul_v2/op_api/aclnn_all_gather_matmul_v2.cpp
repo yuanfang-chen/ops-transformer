@@ -332,7 +332,8 @@ static const aclTensor *TransX2Tensor(const aclTensor *x2)
   aclGetDataType(x2, &dataType);
   std::vector<int64_t> stride(viewDimsNum);
   auto transStride = x2->GetViewStrides();
-  //transpose the two dimensions
+  stride = std::vector<int64_t>(transStride.begin(), transStride.end());
+  // transpose the two dimensions
   stride[0] = transStride[1];
   stride[1] = transStride[0];
   auto offset = x2->GetViewOffset();

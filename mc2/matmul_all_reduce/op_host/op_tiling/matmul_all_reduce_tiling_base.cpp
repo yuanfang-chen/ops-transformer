@@ -1132,8 +1132,11 @@ bool MatmulAllReduceTilingBase::HasAntiQuantOffset() const
 bool MatmulAllReduceTilingBase::CheckMXScenarioScaleShape(const uint64_t dimZeroValue, const uint64_t kValue,
     const gert::StorageShape* scaleShape, const bool isPertoken, const bool isMXfp4) const
 {
+    const auto x2Shape = mmrCtxInfo_.x2_shape;
     uint64_t scaleDimNum = scaleShape->GetStorageShape().GetDimNum();
     const char dimZeroName = isPertoken ? 'm' : 'n';
+    uint64_t MN = 0;
+    uint64_t K = 0;
     uint64_t scaleMN = 0;
     uint64_t kOverMaxGroupsize = 0;
     const std::string scaleName = isPertoken ? "pertokenScale(x1Scale)" : "dequantScale(x2Scale)";
@@ -1148,9 +1151,23 @@ bool MatmulAllReduceTilingBase::CheckMXScenarioScaleShape(const uint64_t dimZero
             opName_, "scaleDim[3] K must be 2, but got: %lu", scaleDim3),
         return false);
     // 仅支持x1非转置x2转置
-    scaleMN = scaleShape->GetStorageShape().GetDim(scaleDimNum - 3U);
-    kOverMaxGroupsize = scaleShape->GetStorageShape().GetDim(scaleDimNum - 2U);
-
+    if (isPertoken) {
+        MN = scaleDimNum - 3U;
+        K = scaleDimNum - 2U;
+    } else {
+        uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(0);
+        uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
+        bool isTransB = mmrCtxInfo_.isTransB;
+        bool nIsOne = isTransB ? (x2Dim0 == 1U) : (x2Dim1 == 1U);
+        if (!nIsOne) {
+            MN = args_.isBTrans ? scaleDimNum - 3U : scaleDimNum - 2U;
+            K = args_.isBTrans ? scaleDimNum - 2U : scaleDimNum - 3U;
+        }
+    }
+    scaleMN = scaleShape->GetStorageShape().GetDim(MN);
+    kOverMaxGroupsize = scaleShape->GetStorageShape().GetDim(K);
+    
+    //此时只支持转置，支持非转置后拦截信息需要修改
     OP_TILING_CHECK(
         scaleMN != dimZeroValue,
         VECTOR_INNER_ERR_REPORT_TILING(
