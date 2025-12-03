@@ -196,6 +196,7 @@ private:
     ge::graphStatus CheckFeatureActualSeqLensQData();
     ge::graphStatus CheckFeatureActualSeqLensKvData();
     ge::graphStatus CheckFeatureActualSeqLens();
+    ge::graphStatus CheckFeatureHeadDim() const;
     ge::graphStatus CheckFeatureMlaNoQuantShape() const;
     ge::graphStatus CheckFeatureMlaNoQuantLayout() const;
     ge::graphStatus CheckFeatureNoQuantDtype() const;

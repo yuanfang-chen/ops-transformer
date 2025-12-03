@@ -27,13 +27,47 @@ using std::pair;
 using namespace ge;
 using namespace AscendC;
 namespace optiling {
+ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
+{
+    // queryRope和keyRope必须同时存在/不存在，不同时存在情况在check existence被提前拦截
+    if (opParamInfo_.queryRope.tensor != nullptr && opParamInfo_.keyRope.tensor != nullptr) {
+        if (qkHeadDim_ == vHeadDim_) { // rope spilt
+            OP_CHECK_IF((qkHeadDim_ != 128U || vHeadDim_ != 128U) && (qkHeadDim_ != 512U || vHeadDim_ != 512U),
+                OP_LOGE(opName_,
+                    "In %s situation, qkHeadDim = vHeadDim and rope exits, headDim only support 512 and 128, but got %u",
+                    QuantModeToSerialString(quantMode_).c_str(), vHeadDim_),
+                return ge::GRAPH_FAILED);
+
+            OP_CHECK_IF(ropeHeadDim_ != 64U,
+                OP_LOGE(opName_,
+                    "In %s situation, qkHeadDim = vHeadDim and rope exits, rope's headDim only suppory 64, but got %u",
+                    QuantModeToSerialString(quantMode_).c_str(), ropeHeadDim_),
+                return ge::GRAPH_FAILED);
+        } else {
+            OP_LOGE(opName_, "In %s situation, rope exsists, qkHeadDim(%u) should be equal to vHeadDim(%u)",
+                QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_, vHeadDim_);
+            return ge::GRAPH_FAILED;
+        }
+    } else {
+        if (qkHeadDim_ == vHeadDim_) { // no rope
+            OP_CHECK_IF((qkHeadDim_ != 128U || vHeadDim_ != 128U) && (qkHeadDim_ != 64U || vHeadDim_ != 64U),
+                OP_LOGE(opName_,
+                    "In %s situation, qkHeadDim = vHeadDim and rope not exits, headDim only support 128 and 64, but got %u",
+                    QuantModeToSerialString(quantMode_).c_str(), vHeadDim_),
+                return ge::GRAPH_FAILED);
+        } else { // rope combine
+            OP_CHECK_IF(qkHeadDim_ != 192U || vHeadDim_ != 128U,
+                OP_LOGE(opName_,
+                    "In %s situation, qkHeadDim != vHeadDim and rope not exits, qkHeadDim(%u) only support 192, vHeadDim(%u) only support 128.",
+                    QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_, vHeadDim_),
+                return ge::GRAPH_FAILED);
+        }
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoQuantShape() const
 {
-    OP_CHECK_IF(qkHeadDim_ != 512U && qkHeadDim_ != 128U,
-        OP_LOGE(opName_, "In %s situation, rope exsists, the query/key's head dim only support 128 and 512, but got %u",
-            QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_),
-        return ge::GRAPH_FAILED);
-
     if (vHeadDim_ == 512U) {
         OP_CHECK_IF(opParamInfo_.keyRope.tensor->GetStorageShape().GetShapeSize() == 0,
             OP_LOGE(opName_, "In %s situation, %s tensor should not be empty",
@@ -54,14 +88,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoQuantShape() const
         OP_CHECK_IF(std::find(gSizeSupportList.begin(), gSizeSupportList.end(), gSize_) == gSizeSupportList.end(),
             OP_LOGE(opName_, "In %s situation, rope exsists and query/key head dim = %u, group num should be in 1, 2, 4, 8, 16, 32, 64, 128, but got %u",
                 QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_, gSize_), return ge::GRAPH_FAILED);
-
-        OP_CHECK_IF(qkHeadDim_ != vHeadDim_,
-            OP_LOGE(opName_, "In %s situation, rope exsists, the query/key's head dim(%u) should be equal to the value's head dim(%u)",
-                QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_, vHeadDim_), return ge::GRAPH_FAILED);
-
-        OP_CHECK_IF(ropeHeadDim_ != 64,
-            OP_LOGE(opName_, "In %s situation, rope exsists and query/key head dim = %u, the rope's head dim should be 64, but got %u",
-                QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_, ropeHeadDim_), return ge::GRAPH_FAILED);
     } else {
         return CheckFeatureGqaNoQuantShape();
     }
@@ -231,7 +257,8 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoquant()
         OP_LOGE(opName_, "In %s %s situation, Ascend310P is not supported",
             RopeModeToSerialString(ropeMode_).c_str(), QuantModeToSerialString(quantMode_).c_str()),
         return ge::GRAPH_FAILED);
-    if (ge::GRAPH_SUCCESS != CheckFeatureMlaNoquantUnsupported() ||
+    if (ge::GRAPH_SUCCESS != CheckFeatureHeadDim() ||
+        ge::GRAPH_SUCCESS != CheckFeatureMlaNoquantUnsupported() ||
         ge::GRAPH_SUCCESS != CheckFeatureNoquantBlockSize() ||
         ge::GRAPH_SUCCESS != CheckFeatureInOutDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureActualSeqLens() ||
@@ -284,21 +311,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquantUnsupported() const
                 QuantModeToSerialString(quantMode_).c_str()),
             return ge::GRAPH_FAILED);
     }
-
-    uint32_t valueDimNum = opParamInfo_.value.shape->GetStorageShape().GetDimNum();
-    const std::set<std::pair<uint32_t, uint32_t>> qkvDList = {
-        {64, 64}, {128, 128}, {192, 128}
-    };
-    pair<uint32_t, uint32_t> qkvD = {qkHeadDim_, vHeadDim_};
-    OP_CHECK_IF(valueDimNum == DIM_NUM_FIVE && !(qkvDList.count(qkvD) != 0U),
-        OP_LOGE(opName_, "In %s %s situation and kv is NZ(valuedim = 5), only support (qkHeadDim, vHeadDim):(64, 64),(192, 128),(128, 128), but got (%d, %d).",
-            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), qkHeadDim_, vHeadDim_),
-        return ge::GRAPH_FAILED);
-
-    OP_CHECK_IF((qkHeadDim_ != 128 || vHeadDim_ != 128) && (opParamInfo_.queryRope.tensor != nullptr || opParamInfo_.keyRope.tensor != nullptr),
-        OP_LOGE(opName_, "In %s %s situation and (qkHeadDim(%d), vHeadDim(%d)) != (128, 128), rope should be null.",
-            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), qkHeadDim_, vHeadDim_),
-        return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -569,7 +581,8 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
         OP_LOGE(opName_, "In %s %s situation, Ascend310P is not supported",
             RopeModeToSerialString(ropeMode_).c_str(), QuantModeToSerialString(quantMode_).c_str()),
         return ge::GRAPH_FAILED);
-    if (ge::GRAPH_SUCCESS != CheckFeatureGqaNoquantUnsupported() ||
+    if (ge::GRAPH_SUCCESS != CheckFeatureHeadDim() ||
+        ge::GRAPH_SUCCESS != CheckFeatureGqaNoquantUnsupported() ||
         ge::GRAPH_SUCCESS != CheckFeatureNoquantBlockSize() ||
         ge::GRAPH_SUCCESS != CheckFeatureInOutDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureActualSeqLens() ||
