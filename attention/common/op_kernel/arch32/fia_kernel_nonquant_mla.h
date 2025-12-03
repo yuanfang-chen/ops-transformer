@@ -137,11 +137,11 @@ public:
     uint64_t actSeqLensQ = 0;
     ActualSeqLensParser<Q_MODE> qActSeqLensParser;
     ActualSeqLensParser<KV_MODE> kvActSeqLensParser;
-
     uint32_t curS2Start;
     uint32_t curS2End;
-    uint32_t lastBN2;
-    uint32_t lastGS1;
+    uint32_t prevBIdx;
+    uint32_t prevBN2Idx;
+    uint32_t prevGS1Idx;
     // ================================Util functions==================================
     template <typename T> __aicore__ inline T Align(T num, T rnd)
     {
@@ -802,15 +802,19 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType> 
 __aicore__ inline TASK_DEAL_MODE FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, FdBlockType>::GetTaskDealMode(uint32_t bN2Cur, uint32_t gS1Cur, uint32_t s2Cur)
 {
+    bool isFirstTask = (bN2Cur == constInfo.bN2Start) && (gS1Cur == constInfo.gS1Start) && (s2Cur == constInfo.s2Start);
     uint32_t bIdx = GetBIdx(bN2Cur);
-    if (constInfo.actualLenDims == 0 && !constInfo.batchContinuous) {
-        actSeqLensKv = fa_base_kernel::SeqLenFromTensorList<LAYOUT_T>(keyPtr, bIdx);
-    } else {
-        actSeqLensKv = kvActSeqLensParser.GetActualSeqLength(bIdx);
+    if (isFirstTask || prevBIdx != bIdx) {
+        prevBIdx = bIdx;
+        if (constInfo.actualLenDims == 0 && !constInfo.batchContinuous) {
+            actSeqLensKv = fa_base_kernel::SeqLenFromTensorList<LAYOUT_T>(keyPtr, bIdx);
+        } else {
+            actSeqLensKv = kvActSeqLensParser.GetActualSeqLength(bIdx);
+        }
+        actSeqLensQ = qActSeqLensParser.GetActualSeqLength(bIdx);
     }
-    uint64_t s2LoopTimes = (actSeqLensKv + constInfo.s2BaseSize - 1) / constInfo.s2BaseSize;
 
-    actSeqLensQ = qActSeqLensParser.GetActualSeqLength(bIdx);
+    uint64_t s2LoopTimes = (actSeqLensKv + constInfo.s2BaseSize - 1) / constInfo.s2BaseSize;
     uint64_t gS1Size = actSeqLensQ * constInfo.gSize;
     uint64_t gS1LoopTimes = (gS1Size + constInfo.mBaseSize - 1) / constInfo.mBaseSize;
 
@@ -821,15 +825,14 @@ __aicore__ inline TASK_DEAL_MODE FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBl
         return TASK_DEAL_MODE::SKIP;
     }
 
-    bool isFirstTask = (bN2Cur == constInfo.bN2Start) && (gS1Cur == constInfo.gS1Start) && (s2Cur == constInfo.s2Start);
-    if (isFirstTask || bN2Cur != lastBN2 || gS1Cur != lastGS1) {
+    if (isFirstTask || bN2Cur != prevBN2Idx || gS1Cur != prevGS1Idx) {
         if (constInfo.attenMaskFlag == 0U) {
             CalcCurS2StartEndNoSparse(bN2Cur, gS1Cur);
         } else {
             CalcCurS2StartEndWithSparse(bN2Cur, gS1Cur);
         }
-        lastBN2 = bN2Cur;
-        lastGS1 = gS1Cur;
+        prevBN2Idx = bN2Cur;
+        prevGS1Idx = gS1Cur;
     }
 
     if (s2Cur < curS2Start || s2Cur >= curS2End) {
@@ -934,8 +937,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
     uint32_t bN2Cur = constInfo.bN2Start;
     uint32_t gS1Cur = constInfo.gS1Start;
     uint32_t s2Cur = constInfo.s2Start;
-    lastBN2 = bN2Cur;
-    lastGS1 = gS1Cur;
+    prevBIdx = GetBIdx(bN2Cur);
+    prevBN2Idx = bN2Cur;
+    prevGS1Idx = gS1Cur;
 
     uint64_t createdTaskCount = 0;
     uint64_t executedTaskCount = 0;

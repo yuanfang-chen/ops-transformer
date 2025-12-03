@@ -1789,6 +1789,117 @@ private:
     }
 };
 
+template <typename KV_T, GmFormat GM_FORMAT, L1Format L1_FORMAT = L1Format::NZ>
+class CopyKKropePAGmToL1
+{
+public:
+    __aicore__ inline void operator()(FaL1Tensor<KV_T, L1_FORMAT> &dstTensorK,
+                                      FaL1Tensor<KV_T, L1_FORMAT> &dstTensorKrope,
+                                      FaGmTensor<KV_T, GM_FORMAT> &srcTensorK,
+                                      FaGmTensor<KV_T, GM_FORMAT> &srcTensorKrope,
+                                      GmKvCoord &gmCoordK,
+                                      GmKvCoord &gmCoordKrope)
+    {
+        if constexpr (GM_FORMAT == GmFormat::PA_NZ || GM_FORMAT == GmFormat::PA_BnNBsD || GM_FORMAT == GmFormat::PA_BnBsND) {
+            ProcessPageAttention(dstTensorK, dstTensorKrope, srcTensorK, srcTensorKrope, gmCoordK, gmCoordKrope);
+        }
+    }
+
+private:
+
+    __aicore__ inline uint64_t GetBlockIdx(FaGmTensor<KV_T, GM_FORMAT> &srcKTensor, uint64_t blockIdxInBatch, uint32_t bIdx)
+    {
+        return srcKTensor.offsetCalculator.blockTableParser.GetBlockIdx(bIdx, blockIdxInBatch);
+    }
+
+    __aicore__ inline uint64_t GetOffset(FaGmTensor<KV_T, GM_FORMAT> &srcTensor,
+                                              int32_t blockIdx,
+                                              uint32_t n2Idx,
+                                              uint32_t s2Idx,
+                                              uint32_t dIdx)
+    {
+        OffsetCalculator<GM_FORMAT> &offsetCalculator = srcTensor.offsetCalculator;
+        uint64_t bsIdx = s2Idx % offsetCalculator.GetBlockSize();
+        uint64_t offset = 0;
+        if constexpr (GM_FORMAT == GmFormat::PA_NZ) {
+            uint32_t d1Idx = dIdx / offsetCalculator.GetD0();
+            uint32_t d0Idx = dIdx % offsetCalculator.GetD0();
+            offset =
+                blockIdx * offsetCalculator.GetStrideBlockNum() +
+                n2Idx * offsetCalculator.GetStrideN2() +
+                d1Idx * offsetCalculator.GetStrideD1() +
+                bsIdx * offsetCalculator.GetStrideBlockSize() +
+                d0Idx * offsetCalculator.GetStrideD0();
+        } else {
+            offset =
+                blockIdx * offsetCalculator.GetStrideBlockNum() + 
+                n2Idx * offsetCalculator.GetStrideN2() + 
+                bsIdx * offsetCalculator.GetStrideBlockSize() + 
+                dIdx * offsetCalculator.GetStrideD();
+        }
+        
+        return offset;
+    }
+
+    __aicore__ inline void ProcessPageAttention(FaL1Tensor<KV_T, L1_FORMAT> &dstTensorK,
+                                                FaL1Tensor<KV_T, L1_FORMAT> &dstTensorKrope,
+                                                FaGmTensor<KV_T, GM_FORMAT> &srcTensorK,
+                                                FaGmTensor<KV_T, GM_FORMAT> &srcTensorKrope,
+                                                GmKvCoord &gmCoordK,
+                                                GmKvCoord &gmCoordKrope)
+    {
+        OffsetCalculator<GM_FORMAT> &offsetCalculatorK = srcTensorK.offsetCalculator;
+        OffsetCalculator<GM_FORMAT> &offsetCalculatorKrope = srcTensorKrope.offsetCalculator;
+        uint32_t curS2Idx = gmCoordK.s2Idx;
+        uint32_t copyFinishRowCnt = 0;
+        uint32_t blockElementCnt = 32 / sizeof(KV_T);
+        if constexpr (IsSameType<KV_T, int4b_t>::value) {
+            blockElementCnt = 64; // int4b时32B可以存64个元素
+        }
+
+        while (copyFinishRowCnt < gmCoordK.s2DealSize) {
+            // 获取需要拷贝的行数
+            uint32_t copyRowCnt = offsetCalculatorK.GetBlockSize() - curS2Idx % offsetCalculatorK.GetBlockSize();
+            if (copyFinishRowCnt + copyRowCnt > gmCoordK.s2DealSize) {
+                copyRowCnt = gmCoordK.s2DealSize - copyFinishRowCnt;  //一个block未拷满
+            }
+
+            // 计算offset
+            uint64_t blockIdxInBatch = curS2Idx / offsetCalculatorK.GetBlockSize(); // 获取block table上的索引
+            uint32_t blockIdx = GetBlockIdx(srcTensorK, blockIdxInBatch, gmCoordK.bIdx);
+            uint64_t gmOffsetK = GetOffset(srcTensorK, blockIdx, gmCoordK.n2Idx, curS2Idx, gmCoordK.dIdx);
+            uint64_t gmOffsetKrope = GetOffset(srcTensorKrope, blockIdx, gmCoordKrope.n2Idx, curS2Idx, gmCoordKrope.dIdx);
+            uint64_t l1Offset = copyFinishRowCnt * blockElementCnt;
+
+            // 拷贝数据
+            if constexpr (GM_FORMAT == GmFormat::PA_NZ) {
+                DataCopyParams intriParamsK;
+                intriParamsK.blockCount = gmCoordK.dDealSize / blockElementCnt;
+                intriParamsK.blockLen = copyRowCnt;
+                intriParamsK.dstStride =  dstTensorK.rowCount - copyRowCnt;
+                intriParamsK.srcStride = offsetCalculatorK.GetBlockSize() - copyRowCnt;
+                DataCopy(dstTensorK.tensor[l1Offset], srcTensorK.gmTensor[gmOffsetK], intriParamsK);
+
+                DataCopyParams intriParamsKrope;
+                intriParamsKrope.blockCount = gmCoordKrope.dDealSize / blockElementCnt;
+                intriParamsKrope.blockLen = copyRowCnt;
+                intriParamsKrope.dstStride =  dstTensorKrope.rowCount - copyRowCnt;
+                intriParamsKrope.srcStride = offsetCalculatorKrope.GetBlockSize() - copyRowCnt;
+                DataCopy(dstTensorKrope.tensor[l1Offset], srcTensorKrope.gmTensor[gmOffsetKrope], intriParamsKrope);
+            } else {
+                CopySingleMatrixNDToNZ(dstTensorK.tensor[l1Offset], srcTensorK.gmTensor[gmOffsetK], copyRowCnt,
+                                       gmCoordK.dDealSize, offsetCalculatorK.GetStrideBlockSize(), dstTensorK.rowCount);
+                CopySingleMatrixNDToNZ(dstTensorKrope.tensor[l1Offset], srcTensorKrope.gmTensor[gmOffsetKrope], copyRowCnt,
+                                       gmCoordKrope.dDealSize, offsetCalculatorKrope.GetStrideBlockSize(), dstTensorKrope.rowCount);
+            }
+
+            // 更新完成拷贝的行数和s2Idx
+            copyFinishRowCnt += copyRowCnt;
+            curS2Idx += copyRowCnt;
+        }
+    }
+};
+
 template <FIA_LAYOUT LAYOUT_T>
 __aicore__ inline constexpr GmFormat GetQueryGmFormat() {
     static_assert((LAYOUT_T == FIA_LAYOUT::BSH) ||

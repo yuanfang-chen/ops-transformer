@@ -135,6 +135,7 @@ private:
     FaGmTensor<KV_T, KV_FORMAT> keyRopeGmTensor;
     FaGmTensor<KV_T, KV_FORMAT> valueGmTensor;
     CopyKvGmToL1<KV_T, KV_FORMAT> copyKvGmToL1;
+    CopyKKropePAGmToL1<KV_T, KV_FORMAT> copyKKropePAGmToL1;
 
     static constexpr uint32_t M_L1_SPLIT_SIZE = 128; // m方向切分
     static constexpr uint32_t N_L1_SPLIT_SIZE = 128; // n方向切分
@@ -585,8 +586,12 @@ __aicore__ inline void FiaBlockCubeNonQuantMla<FIAT>::ProcessMm1(const Attention
                     .s2DealSize = nL1Size,
                     .dDealSize = 32U // D方向上切32
                 };
-                copyKvGmToL1(dstTensor, keyGmTensor, gmCoord);
-                copyKvGmToL1(dstRopeTensor, keyRopeGmTensor, gmCoordKRope);
+                if (PAGE_ATTENTION) {
+                    copyKKropePAGmToL1(dstTensor, dstRopeTensor, keyGmTensor, keyRopeGmTensor, gmCoord, gmCoordKRope);
+                } else {
+                    copyKvGmToL1(dstTensor, keyGmTensor, gmCoord);
+                    copyKvGmToL1(dstRopeTensor, keyRopeGmTensor, gmCoordKRope);
+                }
             } else {
                 FaL1Tensor<KV_T, L1Format::NZ> dstRopeTensor {
                     .tensor = bL1Tensor,
@@ -600,8 +605,6 @@ __aicore__ inline void FiaBlockCubeNonQuantMla<FIAT>::ProcessMm1(const Attention
                     .s2DealSize = nL1Size,
                     .dDealSize = 32U // D方向上切32
                 };
-                copyKvGmToL1(dstRopeTensor, keyRopeGmTensor, gmCoordKRope);
-
                 FaL1Tensor<KV_T, L1Format::NZ> dstTensor {
                     .tensor = bL1Tensor[32U * nL1SizeAlign],
                     .rowCount = nL1SizeAlign
@@ -614,7 +617,12 @@ __aicore__ inline void FiaBlockCubeNonQuantMla<FIAT>::ProcessMm1(const Attention
                     .s2DealSize = nL1Size,
                     .dDealSize = 256U // D方向上切32
                 };
-                copyKvGmToL1(dstTensor, keyGmTensor, gmCoord);
+                if (PAGE_ATTENTION) {
+                    copyKKropePAGmToL1(dstTensor, dstRopeTensor, keyGmTensor, keyRopeGmTensor, gmCoord, gmCoordKRope);
+                } else {
+                    copyKvGmToL1(dstRopeTensor, keyRopeGmTensor, gmCoordKRope);
+                    copyKvGmToL1(dstTensor, keyGmTensor, gmCoord);
+                }
             }
 #ifdef BASE_MM
             mm1B.Set<HardEvent::MTE2_MTE1>();
