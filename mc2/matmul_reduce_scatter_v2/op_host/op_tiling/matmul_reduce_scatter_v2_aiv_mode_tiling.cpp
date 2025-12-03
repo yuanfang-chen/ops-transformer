@@ -21,18 +21,17 @@
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "../../op_kernel/matmul_reduce_scatter_v2_aiv_mode_tiling.h"
-#include "../../op_kernel/matmul_reduce_scatter_v2_aiv_tiling_key.h"
 
 
 using namespace AscendC;
 using namespace ge;
-using namespace MatmulReduceScatterv2TilingKey;
 using namespace matmulReduceScatterV2_aivmode_tiling;
 namespace{
     const char *K_INNER_DEBUG = "MatmulReduceScatterV2AivMode Tiling Debug";
     constexpr uint32_t ATTR_GROUP_INDEX = 0;
     constexpr uint32_t ATTR_IS_TRANS_A = 2;
     constexpr uint32_t ATTR_IS_TRANS_B = 3;
+    constexpr uint64_t INIT_TILINGKEY = 10000U;
     constexpr uint32_t A_INDEX = 0;
     constexpr uint32_t B_INDEX = 1;
     constexpr uint32_t BIAS_INDEX = 2;
@@ -41,6 +40,9 @@ namespace{
     constexpr uint32_t C_INDEX = 0;
     constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16 * 1024 * 1024;
     constexpr uint32_t USER_WORKSPACE_A2 = 1 * 1024 * 1024; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
+    constexpr uint64_t TILINGKEY_BIAS = 1U;
+    constexpr uint64_t TILINGKEY_TRANS_A = 100U;
+    constexpr uint64_t TILINGKEY_TRANS_B = 10U;
     constexpr uint32_t OP_TYPE_REDUCE_SCATTER = 7U;
 }
 
@@ -128,7 +130,9 @@ static void GetTilingKey(uint64_t& tilingKey, MatmulReduceScatterV2AivModeInfo& 
 {
     const gert::StorageShape *matrix_bias = context->GetOptionalInputShape(BIAS_INDEX);
     bool isBias = (matrix_bias == nullptr) ? false : true;
-    tilingKey = GET_TPL_TILING_KEY(isBias, info.isTransposeA, info.isTransposeB);
+    tilingKey += isBias ? TILINGKEY_BIAS : 0;
+    tilingKey += info.isTransposeB ? TILINGKEY_TRANS_B : 0;
+    tilingKey += info.isTransposeA ? TILINGKEY_TRANS_A : 0;
     return;
 }
 
@@ -477,7 +481,7 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
     context->SetBlockDim(blockDim);
 
     // 3. set tilingKey
-    uint64_t tilingKey = 0;
+    uint64_t tilingKey = INIT_TILINGKEY;
     GetTilingKey(tilingKey, info, context);
     context->SetTilingKey(tilingKey);
 
