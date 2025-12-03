@@ -28,6 +28,7 @@ if (BUILD_OPS_RTY_KERNEL)
     add_ops_compile_options(
             OP_NAME FlashAttentionScoreGrad
             OPTIONS --cce-auto-sync=off
+                    --cce-long-call=true
                     -Wno-deprecated-declarations
                     -Werror
     )
@@ -35,6 +36,7 @@ else()
     add_ops_compile_options(
             OP_NAME FlashAttentionScoreGrad
             OPTIONS --cce-auto-sync=off
+                    --cce-long-call=true
                     -Wno-deprecated-declarations
                     -Werror
     )

@@ -567,6 +567,32 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_TILING_STRUCT_SEL(FlashAttentionGradMlaTilingData)
     ),
     //////////////////////////////////////////////////////////// END BASIC /////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////// BEGIN BASIC DET////////////////////////////////////////////////////////////
+    ASCENDC_TPL_ARGS_SEL(
+        ASCENDC_TPL_UINT_SEL(UB0,ASCENDC_TPL_UI_LIST,9),
+        ASCENDC_TPL_UINT_SEL(UB1,ASCENDC_TPL_UI_LIST,9),
+        ASCENDC_TPL_UINT_SEL(Block,ASCENDC_TPL_UI_LIST,9),
+        ASCENDC_TPL_UINT_SEL(IsSameAb,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(DataType,ASCENDC_TPL_UI_LIST,3),
+        ASCENDC_TPL_UINT_SEL(Layout,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(Sparse,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(MatmulConfig,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(Mm12IsNZOut,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(Mm345IsNZOut,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(HasDropOut,ASCENDC_TPL_UI_LIST,0,1),
+        ASCENDC_TPL_UINT_SEL(HasPse,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(HasAttenMask,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(EnableL1Reuse,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(TNDS1Pingpong,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(S1TemplateType,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(S2TemplateType,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(DTemplateType,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(IsDeterministic,ASCENDC_TPL_UI_LIST,1),
+        ASCENDC_TPL_UINT_SEL(HasRope,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_TILING_STRUCT_SEL(FlashAttentionGradBasicDetTilingData)
+    ),
+    //////////////////////////////////////////////////////////// END BASIC DET //////////////////////////////////////////////////////////////
 #endif
 
 #if (ORIG_DTYPE_QUERY == -1) || (ORIG_DTYPE_QUERY == DT_BF16)
@@ -1364,6 +1390,32 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_TILING_STRUCT_SEL(FlashAttentionGradMlaTilingData)
     ),
     //////////////////////////////////////////////////////////// END BASIC /////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////// BEGIN BASIC DET ///////////////////////////////////////////////////////////////
+    ASCENDC_TPL_ARGS_SEL(
+        ASCENDC_TPL_UINT_SEL(UB0,ASCENDC_TPL_UI_LIST,9),
+        ASCENDC_TPL_UINT_SEL(UB1,ASCENDC_TPL_UI_LIST,9),
+        ASCENDC_TPL_UINT_SEL(Block,ASCENDC_TPL_UI_LIST,9),
+        ASCENDC_TPL_UINT_SEL(IsSameAb,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(DataType,ASCENDC_TPL_UI_LIST,2),
+        ASCENDC_TPL_UINT_SEL(Layout,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(Sparse,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(MatmulConfig,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(Mm12IsNZOut,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(Mm345IsNZOut,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(HasDropOut,ASCENDC_TPL_UI_LIST,0,1),
+        ASCENDC_TPL_UINT_SEL(HasPse,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(HasAttenMask,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(EnableL1Reuse,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(TNDS1Pingpong,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(S1TemplateType,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(S2TemplateType,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(DTemplateType,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_UINT_SEL(IsDeterministic,ASCENDC_TPL_UI_LIST,1),
+        ASCENDC_TPL_UINT_SEL(HasRope,ASCENDC_TPL_UI_LIST,0),
+        ASCENDC_TPL_TILING_STRUCT_SEL(FlashAttentionGradBasicDetTilingData)
+    ),
+    //////////////////////////////////////////////////////////// END BASIC DET /////////////////////////////////////////////////////////////////
 #endif
 
 #if (ORIG_DTYPE_QUERY == -1) || (ORIG_DTYPE_QUERY == DT_FLOAT)

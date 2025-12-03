@@ -4561,6 +4561,298 @@ public:
     }
 };
 
+class BasicDetTensorTilingData {
+public:
+    uint32_t coreNum = 0;
+    float scaleValue = 0;
+    int64_t b = 0;
+    int64_t t1 = 0;
+    int64_t t2 = 0;
+    int64_t n2 = 0;
+    int64_t g = 0;
+    int64_t d = 0;
+    int64_t qSize = 0;
+    int64_t kvSize = 0;
+    int64_t sfmgSize = 0;
+    float keepProb = 0;
+    int64_t preTockens = 0;
+    int64_t nextTockens = 0;
+    uint32_t dqPostAbsorb = 0;
+    uint32_t sparseMode = 0;
+    uint8_t dqWorkSpaceOffsetPH[4] = {};
+    int64_t dqWorkSpaceOffset = 0;
+    int64_t dkWorkSpaceOffset = 0;
+    int64_t dvWorkSpaceOffset = 0;
+    int64_t sfmgWorkspaceOffset = 0;
+    int64_t mm1WorkspaceOffset = 0;
+    int64_t mm2WorkspaceOffset = 0;
+    int64_t pWorkspaceOffset = 0;
+    int64_t dsWorkspaceOffset = 0;
+    int64_t dqDetWorkspaceOffset = 0;
+    int64_t dkDetWorkspaceOffset = 0;
+    int64_t dvDetWorkspaceOffset = 0;
+    uint8_t tndSoftmaxIn = 0;
+    uint8_t softmaxTilingDataPH[7] = {};
+    SoftMaxTiling softmaxTilingData;
+    SoftMaxTiling softmaxGradTilingData;
+
+    uint32_t get_coreNum() const
+    {
+        return coreNum;
+    }
+    void set_coreNum(uint32_t coreNum_val)
+    {
+        this->coreNum = coreNum_val;
+    }
+
+    float get_scaleValue() const
+    {
+        return scaleValue;
+    }
+    void set_scaleValue(float scaleValue_val)
+    {
+        this->scaleValue = scaleValue_val;
+    }
+
+    // keepProb
+    float get_keepProb() const
+    {
+        return keepProb;
+    }
+    void set_keepProb(float keepProb_val)
+    {
+        this->keepProb = keepProb_val;
+    }
+
+    // preTockens
+    int64_t get_preTockens() const
+    {
+        return preTockens;
+    }
+    void set_preTockens(int64_t preTockens_val)
+    {
+        this->preTockens = preTockens_val;
+    }
+
+    // nextTockens
+    int64_t get_nextTockens() const
+    {
+        return nextTockens;
+    }
+    void set_nextTockens(int64_t nextTockens_val)
+    {
+        this->nextTockens = nextTockens_val;
+    }
+
+    // dqPostAbsorb
+    uint32_t get_dqPostAbsorb() const
+    {
+        return dqPostAbsorb;
+    }
+    void set_dqPostAbsorb(uint32_t dqPostAbsorb_val)
+    {
+        this->dqPostAbsorb = dqPostAbsorb_val;
+    }
+
+    uint64_t get_b() const
+    {
+        return b;
+    }
+    void set_b(uint64_t b_val)
+    {
+        this->b = b_val;
+    }
+
+    uint64_t get_t1() const
+    {
+        return t1;
+    }
+    void set_t1(uint64_t t1_val)
+    {
+        this->t1 = t1_val;
+    }
+
+    uint64_t get_t2() const
+    {
+        return t2;
+    }
+    void set_t2(uint64_t t2_val)
+    {
+        this->t2 = t2_val;
+    }
+
+    uint64_t get_n2() const
+    {
+        return n2;
+    }
+    void set_n2(uint64_t n2_val)
+    {
+        this->n2 = n2_val;
+    }
+
+    uint64_t get_g() const
+    {
+        return g;
+    }
+    void set_g(uint64_t g_val)
+    {
+        this->g = g_val;
+    }
+
+    uint64_t get_d() const
+    {
+        return d;
+    }
+    void set_d(uint64_t d_val)
+    {
+        this->d = d_val;
+    }
+
+    uint64_t get_qSize() const
+    {
+        return qSize;
+    }
+    void set_qSize(uint64_t qSize_val)
+    {
+        this->qSize = qSize_val;
+    }
+
+    uint64_t get_kvSize() const
+    {
+        return kvSize;
+    }
+    void set_kvSize(uint64_t kvSize_val)
+    {
+        this->kvSize = kvSize_val;
+    }
+
+    uint64_t get_sfmgSize() const
+    {
+        return sfmgSize;
+    }
+    void set_sfmgSize(uint64_t sfmgSize_val)
+    {
+        this->sfmgSize = sfmgSize_val;
+    }
+
+    uint32_t get_sparseMode() const
+    {
+        return sparseMode;
+    }
+    void set_sparseMode(uint32_t sparseMode_val)
+    {
+        this->sparseMode = sparseMode_val;
+    }
+
+    uint64_t get_dqWorkSpaceOffset() const
+    {
+        return dqWorkSpaceOffset;
+    }
+    void set_dqWorkSpaceOffset(uint64_t dqWorkSpaceOffset_val)
+    {
+        this->dqWorkSpaceOffset = dqWorkSpaceOffset_val;
+    }
+
+    uint64_t get_dkWorkSpaceOffset() const
+    {
+        return dkWorkSpaceOffset;
+    }
+    void set_dkWorkSpaceOffset(uint64_t dkWorkSpaceOffset_val)
+    {
+        this->dkWorkSpaceOffset = dkWorkSpaceOffset_val;
+    }
+
+    uint64_t get_dvWorkSpaceOffset() const
+    {
+        return dvWorkSpaceOffset;
+    }
+    void set_dvWorkSpaceOffset(uint64_t dvWorkSpaceOffset_val)
+    {
+        this->dvWorkSpaceOffset = dvWorkSpaceOffset_val;
+    }
+
+    uint64_t get_sfmgWorkspaceOffset() const
+    {
+        return sfmgWorkspaceOffset;
+    }
+    void set_sfmgWorkspaceOffset(uint64_t sfmgWorkspaceOffset_val)
+    {
+        this->sfmgWorkspaceOffset = sfmgWorkspaceOffset_val;
+    }
+
+    uint64_t get_mm1WorkspaceOffset() const
+    {
+        return mm1WorkspaceOffset;
+    }
+    void set_mm1WorkspaceOffset(uint64_t mm1WorkspaceOffset_val)
+    {
+        this->mm1WorkspaceOffset = mm1WorkspaceOffset_val;
+    }
+
+    uint64_t get_mm2WorkspaceOffset() const
+    {
+        return mm2WorkspaceOffset;
+    }
+    void set_mm2WorkspaceOffset(uint64_t mm2WorkspaceOffset_val)
+    {
+        this->mm2WorkspaceOffset = mm2WorkspaceOffset_val;
+    }
+
+    uint64_t get_pWorkspaceOffset() const
+    {
+        return pWorkspaceOffset;
+    }
+    void set_pWorkspaceOffset(uint64_t pWorkspaceOffset_val)
+    {
+        this->pWorkspaceOffset = pWorkspaceOffset_val;
+    }
+
+    uint64_t get_dsWorkspaceOffset() const
+    {
+        return dsWorkspaceOffset;
+    }
+    void set_dsWorkspaceOffset(uint64_t dsWorkspaceOffset_val)
+    {
+        this->dsWorkspaceOffset = dsWorkspaceOffset_val;
+    }
+
+    uint64_t get_dqDetWorkspaceOffset() const
+    {
+        return dqDetWorkspaceOffset;
+    }
+    void set_dqDetWorkspaceOffset(uint64_t dqDetWorkspaceOffset_val)
+    {
+        this->dqDetWorkspaceOffset = dqDetWorkspaceOffset_val;
+    }
+
+    uint64_t get_dkDetWorkspaceOffset() const
+    {
+        return dkDetWorkspaceOffset;
+    }
+    void set_dkDetWorkspaceOffset(uint64_t dkDetWorkspaceOffset_val)
+    {
+        this->dkDetWorkspaceOffset = dkDetWorkspaceOffset_val;
+    }
+
+    uint64_t get_dvDetWorkspaceOffset() const
+    {
+        return dvDetWorkspaceOffset;
+    }
+    void set_dvDetWorkspaceOffset(uint64_t dvDetWorkspaceOffset_val)
+    {
+        this->dvDetWorkspaceOffset = dvDetWorkspaceOffset_val;
+    }
+
+    uint8_t get_tndSoftmaxIn() const
+    {
+        return tndSoftmaxIn;
+    }
+    void set_tndSoftmaxIn(uint8_t tndSoftmaxIn_val)
+    {
+        this->tndSoftmaxIn = tndSoftmaxIn_val;
+    }
+};
+
 // begin def of all tiling struct
 class FlashAttentionScoreGradTilingDataS1s2Bn2gs1s2SameAb {
 public:
@@ -4685,5 +4977,10 @@ public:
 class FlashAttentionGradMlaTilingData {
 public:
     MLATensorTilingData mlaTensorTilingData;
+};
+
+class FlashAttentionGradBasicDetTilingData {
+public:
+    BasicDetTensorTilingData basicDetTensorTilingData;
 };
 #endif

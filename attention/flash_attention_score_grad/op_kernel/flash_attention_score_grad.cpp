@@ -35,6 +35,7 @@ using namespace AscendC;
 #include "arch32/flash_attention_score_grad_bngs1s2_b.h"
 #include "arch32/flash_attention_score_grad_s1s2_bn2gs1s2_sab.h"
 #include "arch32/flash_attention_score_grad_s1s2_bn2gs1s2_basic.h"
+#include "arch32/flash_attention_score_grad_s1s2_bn2gs1s2_basic_det.h"
 
 constexpr MatmulConfig MM_CFG_EXCEED = GetNormalConfig(true);
 constexpr MatmulConfig MM_CFG_NORMAL = GetNormalConfig(false);
@@ -474,6 +475,16 @@ constexpr static const uint32_t TND = 3;
                       actual_seq_qlen, actual_seq_kvlen, dq, dk, dv, user, mlaTilingData);                             \
     } while (0)
 
+#define INVOKE_FAG_DETERMINISTIC_BASIC_IMPL(INPUT_TYPE, SEQLEN_TYPE, DROP_ENABLE, DETERMINISTIC_ENABLE)                                                                      \
+    do {                                                                                                               \
+        GET_TILING_DATA_WITH_STRUCT(FlashAttentionGradBasicDetTilingData, det_tiling_data, tiling_data);                    \
+        const FlashAttentionGradBasicDetTilingData *__restrict detTilingData = &det_tiling_data;                            \
+        FlashAttentionScoreGradBasicDet<FAG_TYPE<INPUT_TYPE, FlashAttentionGradBasicDetTilingData, SEQLEN_TYPE, DROP_ENABLE, DETERMINISTIC_ENABLE>> opDet;                               \
+        pipeIn.Destroy();                                                                                              \
+        opDet.Process(query, key ,value, dy, drop_mask, atten_mask, softmax_max, softmax_sum, attention_in,                       \
+                      actual_seq_qlen, actual_seq_kvlen, dq, dk, dv, user, detTilingData);                             \
+    } while (0)
+
 
 // implementation of kernel function
 template<uint8_t UB0, uint8_t UB1, uint8_t Block, bool IsSameAB, uint8_t DataType, uint8_t Layout, uint8_t Sparse, uint8_t MatmulCfg, uint8_t Mm12IsNZOut,
@@ -608,6 +619,9 @@ __global__ __aicore__ void flash_attention_score_grad(
                                         mm12Format, mm345Format, S1TemplateType::NotAligned, S2TemplateType::NotAligned, DTemplateType::NotAligned);
                 }
             }
+        } else if constexpr (UB0 == 9 && UB1 == 9 && Block == 9 && IsDeterministic == 1) { // basic det
+            REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR & 0xFFF = 0x1999", FlashAttentionGradBasicDetTilingData);
+            INVOKE_FAG_DETERMINISTIC_BASIC_IMPL(half, int64_t, false, true);
         } else if constexpr (UB0 == 9 && UB1 == 9 && Block == 9) { // basic
             REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR & 0xFFF = 0x999", FlashAttentionGradMlaTilingData);
             INVOKE_FAG_GENERAL_BASIC_IMPL(half);
@@ -791,6 +805,9 @@ __global__ __aicore__ void flash_attention_score_grad(
                                         mm12Format, mm345Format, S1TemplateType::NotAligned, S2TemplateType::NotAligned, DTemplateType::NotAligned);
                 }
             }
+        } else if constexpr (UB0 == 9 && UB1 == 9 && Block == 9 && IsDeterministic == 1) { // basic det
+            REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR & 0xFFF = 0x1999", FlashAttentionGradBasicDetTilingData);
+            INVOKE_FAG_DETERMINISTIC_BASIC_IMPL(bfloat16_t, int64_t, false, true);
         } else if constexpr (UB0 == 9 && UB1 == 9 && Block == 9) { // basic
             REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR & 0xFFF = 0x999", FlashAttentionGradMlaTilingData);
             INVOKE_FAG_GENERAL_BASIC_IMPL(bfloat16_t);
