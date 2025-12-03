@@ -23,14 +23,14 @@ using namespace regbaseutil;
 namespace AscendC {
 // no update, originN <= 64
 template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 128, uint32_t s2BaseSize = 128,
-    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool isMlaSgd = false>
+    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool isMlaSgd = false, bool isMlaFullQuant = false>
 __aicore__ inline void ProcessVec1NoUpdateImpl64(
     const LocalTensor<T2>& dstTensor, const LocalTensor<uint8_t>& indexesTensor, const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor,
     const LocalTensor<T>& srcTensor, const LocalTensor<T>& expMaxTensor, const LocalTensor<T>& inExpSumTensor,
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m,
     const uint32_t originN, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, float keepProb)
+    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f)
 {
     __ubuf__ T2 * expUb = (__ubuf__ T2*)dstTensor.GetPhyAddr();
     __ubuf__ pseShiftType * pseUb = (__ubuf__ pseShiftType*)pseTensor.GetPhyAddr();
@@ -38,6 +38,7 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     __ubuf__ T * maxUb = (__ubuf__ T*)maxTensor.GetPhyAddr();
     __ubuf__ T * maxUbStart = (__ubuf__ T*)maxTensor.GetPhyAddr();
     __ubuf__ T * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
+    __ubuf__ T * qScaleUb = (__ubuf__ T*)queryScaleUb.GetPhyAddr();
 
     uint64_t maskUb = maskTensor.GetPhyAddr();
     uint64_t dropMaskUb = dropTensor.GetPhyAddr();
@@ -68,6 +69,8 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
         RegTensor<float> vreg_alibi;
         RegTensor<float> vreg_sel_drop;
         RegTensor<float> vreg_zero;
+        RegTensor<float> vreg_rowmax_p;
+        RegTensor<float> vreg_scale_qk;
         // bfloat16_t
         RegTensor<bfloat16_t> vreg_exp_even_bf16;
         RegTensor<bfloat16_t> vreg_exp_bf16;
@@ -115,12 +118,19 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
         // x_max = max(src, axis=-1, keepdims=True)
         for (uint16_t i = 0; i < m; ++i) {
             DataCopy(vreg_input_x, srcUb + i * s2BaseSize);
-            if constexpr (pseMode != PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-                Muls(vreg_input_x, vreg_input_x, dScale, preg_ori_src_n);  // Muls(scale)
+            if constexpr (isMlaFullQuant) {
+                DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_scale_qk, qScaleUb + i);
+                Muls(vreg_scale_qk, vreg_scale_qk, scale, preg_ori_src_n);
+                Muls(vreg_scale_qk, vreg_scale_qk, deSCaleKValue, preg_ori_src_n);
+                Mul(vreg_input_x, vreg_input_x, vreg_scale_qk, preg_ori_src_n);
             } else {
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                              IsSameType<T2, hifloat8_t>::value) {
-                    Muls(vreg_input_x, vreg_input_x, dScaleQK, preg_ori_src_n);  // Muls(dScaleQK)
+                if constexpr (pseMode != PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
+                    Muls(vreg_input_x, vreg_input_x, dScale, preg_ori_src_n);  // Muls(scale)
+                } else {
+                    if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
+                                IsSameType<T2, hifloat8_t>::value) {
+                        Muls(vreg_input_x, vreg_input_x, dScaleQK, preg_ori_src_n);  // Muls(dScaleQK)
+                    }
                 }
             }
             if constexpr (pseMode != PseTypeEnum::PSE_NONE_TYPE) {
@@ -184,6 +194,9 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
             ReduceSum(vreg_exp_sum, vreg_exp, preg_ori_src_n);
             DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
                 ((__ubuf__ T *&)expSumUb), vreg_exp_sum, ureg_exp_sum, 1);
+            if constexpr (isMlaFullQuant) {
+                Muls(vreg_exp, vreg_exp, fp8e4m3MaxValue, preg_ori_src_n);
+            }
             // dropmask compute
             if constexpr (hasDrop == 1) {
                 DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(

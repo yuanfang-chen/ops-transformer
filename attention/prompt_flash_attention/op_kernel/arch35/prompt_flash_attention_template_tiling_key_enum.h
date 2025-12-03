@@ -177,6 +177,7 @@ static constexpr ConfigParams ConfigValue[] ={
 #define AntiquantMode_PER_TOKEN_PAGE_ATTENTION 4
 #define AntiquantMode_PER_TOKEN_HEAD_PAGE_ATTENTION 5
 #define PerBlock 17
+#define FULLQUANT_MODE_PER_TOKEN_HEAD 18
 #define FullQuantMode 30
 #define NoQuantMode 31
 

@@ -37,7 +37,9 @@ public:
     static constexpr uint32_t gSplitMax = 16;
     static constexpr uint32_t preloadTimes = 3;
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
-
+    static constexpr bool isFp8 = IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value;
+    static constexpr bool isMlaFullQuant = isFp8 && hasRope;
+    
     /* =====================GM变量========================== */
     GlobalTensor<float> softmaxLseGm;
 
@@ -327,6 +329,13 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitUniqueLocalBuffer(Con
             this->tPipe->InitBuffer(postQuantOffsetQue, 1, 2048); // 2K
         }
     }
+    if constexpr (isMlaFullQuant) {
+        this->tPipe->InitBuffer(BaseClass::queryScaleQue[0], 1, BaseClass::s1BaseSize / 2 * sizeof(float));
+        this->tPipe->InitBuffer(BaseClass::queryScaleQue[1], 1, BaseClass::s1BaseSize / 2 * sizeof(float));
+        this->tPipe->InitBuffer(BaseClass::pScaleBuf[0], 256);
+        this->tPipe->InitBuffer(BaseClass::pScaleBuf[1], 256);
+        this->tPipe->InitBuffer(BaseClass::pScaleBuf[2], 256);
+    }
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -452,6 +461,13 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
         }
     } else {
         intriParams1.dstStride = 0;
+    }
+    if constexpr (isMlaFullQuant) {
+        if (layout == LayOutTypeEnum::LAYOUT_BSH) {
+            intriParams1.dstStride = sizeof(float) * (constInfo.s1Size - 1);
+        } else {
+            intriParams1.dstStride = 0;
+        }
     }
     DataCopyPad(this->softmaxLseGm[runInfo.softmaxLseOffset], lseUb, intriParams1);
     softmaxLseQueue.FreeTensor(lseUb);

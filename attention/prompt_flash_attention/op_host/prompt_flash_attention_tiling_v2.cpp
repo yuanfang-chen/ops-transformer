@@ -1611,6 +1611,122 @@ bool PromptFlashAttentionTilingV2::CheckQuant(ContextParamsForPFATiling& context
     return true;
 }
 
+bool PromptFlashAttentionTilingV2::CheckQScaleShape4MLAFullQuant(ContextParamsForPFATiling& contextKeyParams)
+{
+    auto queryInputShape = contextKeyParams.queryInputShape->GetStorageShape();
+    int32_t qDimNum = static_cast<int32_t>(queryInputShape.GetDimNum());
+    auto dequantScaleQueryShape = contextKeyParams.dequantScaleQueryShape->GetStorageShape();
+    int32_t qScaleDimNum = static_cast<int32_t>(dequantScaleQueryShape.GetDimNum());
+    std::string layoutStr(contextKeyParams.layout);
+    if (layoutStr == "BSH") {
+        OP_CHECK_IF((qDimNum != qScaleDimNum),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When MLAFullQuant enables and the layout of query is %s, dim num of dequantScaleQuery(%d) should be equal to queryDimNum(%d).",
+                layoutStr.c_str(), qScaleDimNum, qDimNum),
+            return false);
+        OP_CHECK_IF((queryInputShape.GetDim(0) != dequantScaleQueryShape.GetDim(0)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When MLAFullQuant enables and the layout of query is %s, the %drd dim of dequantScaleQuery(%d) should be equal to queryInputShape(%d).",
+                layoutStr.c_str(), 0, static_cast<int32_t>(dequantScaleQueryShape.GetDim(0)), static_cast<int32_t>(queryInputShape.GetDim(0))),
+            return false);
+        OP_CHECK_IF((queryInputShape.GetDim(1) != dequantScaleQueryShape.GetDim(1)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When MLAFullQuant enables and the layout of query is %s, the %drd dim of dequantScaleQuery(%d) should be equal to queryInputShape(%d).",
+                layoutStr.c_str(), 1, static_cast<int32_t>(dequantScaleQueryShape.GetDim(1)),static_cast<int32_t>(queryInputShape.GetDim(1))),
+            return false);
+        OP_CHECK_IF((*contextKeyParams.headsNumber != dequantScaleQueryShape.GetDim(2)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When MLAFullQuant enables and the layout of query is %s, the %drd dim of dequantScaleQuery(%d) should be equal to numHeads(%d).",
+                layoutStr.c_str(), 2, static_cast<int32_t>(dequantScaleQueryShape.GetDim(2)), *contextKeyParams.headsNumber),
+            return false);
+    } else if (layoutStr == "BSND" || layoutStr == "BNSD" || layoutStr == "TND") {
+        OP_CHECK_IF((qScaleDimNum != qDimNum - 1),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When MLAFullQuant enables and the layout of query is %s, dim num of dequantScaleQuery(%d) should be equal to [queryDimNum - 1(%d)].",
+                layoutStr.c_str(), qScaleDimNum, qDimNum - 1),
+            return false);
+        for (uint32_t i = 0; i < qScaleDimNum; i++) {
+            OP_CHECK_IF((queryInputShape.GetDim(i) != dequantScaleQueryShape.GetDim(i)),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "When MLAFullQuant enables and the layout of query is %s, the %urd dim of dequantScaleQuery(%d) should be equal to queryInputShape(%d).",
+                    layoutStr.c_str(), i, static_cast<int32_t>(dequantScaleQueryShape.GetDim(i)), static_cast<int32_t>(queryInputShape.GetDim(i))),
+                return false);
+        }
+    }
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckKVScaleShape4MLAFullQuant(ContextParamsForPFATiling& contextKeyParams)
+{
+    const gert::StorageShape* keyAntiquantScaleShape = contextKeyParams.KeyAntiquantScaleShape;
+    const gert::StorageShape* valueAntiquantScaleShape = contextKeyParams.valueAntiquantScaleShape;
+
+    OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDimNum() != 1 || valueAntiquantScaleShape->GetStorageShape().GetDimNum() != 1),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, dim num of keyAntiquantScaleShape(%zu) or valueAntiquantScaleShape(%zu) must be 1.",
+            static_cast<int32_t>(keyAntiquantScaleShape->GetStorageShape().GetDimNum()),
+            static_cast<int32_t>(valueAntiquantScaleShape->GetStorageShape().GetDimNum())),
+        return false);
+    OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != 1 || valueAntiquantScaleShape->GetStorageShape().GetDim(0) != 1),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, the %drd dim of keyAntiquantScaleShape(%d) or valueAntiquantScaleShape(%d) must be 1.",
+            0, keyAntiquantScaleShape->GetStorageShape().GetDim(0), valueAntiquantScaleShape->GetStorageShape().GetDim(0)),
+        return false);
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& contextKeyParams)
+{
+    //check QKV dtype for fp8_e4m3, output dtype for bf16, QK Rope Type for bf16
+    OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.kDataType != ge::DT_FLOAT8_E4M3FN ||
+        contextKeyParams.vDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.outputDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, dataType of Q(%s), K(%s) and V(%s) must be fp8_e4m3, datatype of output(%s) must be bf16.",
+            GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.kDataType).c_str(),
+            GetPfaDataTypeStr(contextKeyParams.vDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.outputDataType).c_str()),
+        return false);
+    OP_CHECK_IF((contextKeyParams.qRopeDataType != ge::DT_BF16 || contextKeyParams.kRopeDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, dataType of queryRope(%s) and keyRope(%s) must be bf16.",
+            GetPfaDataTypeStr(contextKeyParams.qRopeDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.kRopeDataType).c_str()),
+        return false);
+    //check QKV QuantMode
+    OP_CHECK_IF((*contextKeyParams.queryQuantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_TOKEN_HEAD)),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, queryQuantMode (%ld) is InValid! Only support Per-Token-Head(3).",
+            *contextKeyParams.queryQuantMode), return false);
+    OP_CHECK_IF((*contextKeyParams.keyAntiquantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_CHANNEL)||
+        *contextKeyParams.valueAntiquantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_CHANNEL)),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, keyAntiquantMode (%ld) or valueQuantMode (%ld) is InValid! Only support Per-Tensor(0).",
+            *contextKeyParams.keyAntiquantMode, *contextKeyParams.valueAntiquantMode), return false);
+    //check QKV scale
+    OP_CHECK_IF((contextKeyParams.dequantScaleQuery == nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When MLAFullQuant enables, dequantScaleQuery should not be nullptr."),
+        return false);
+    OP_CHECK_IF((contextKeyParams.keyAntiquantScale == nullptr || contextKeyParams.valueAntiquantScale == nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, keyAntiQuantScale or valueAntiquantScale should not be nullptr."), return false);
+    OP_CHECK_IF((contextKeyParams.dequantScaleQueryType != ge::DT_FLOAT || contextKeyParams.KeyAntiquantScaleType != ge::DT_FLOAT ||
+        contextKeyParams.valueAntiquantScaleType != ge::DT_FLOAT),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, dataType of dequantScaleQuery(%s), KeyAntiquantScale(%s) and valueAntiquantScale(%s) must be float32.",
+            GetPfaDataTypeStr(contextKeyParams.dequantScaleQueryType).c_str(), GetPfaDataTypeStr(contextKeyParams.KeyAntiquantScaleType).c_str(),
+            GetPfaDataTypeStr(contextKeyParams.valueAntiquantScaleType).c_str()), return false);
+    OP_CHECK_IF((!CheckQScaleShape4MLAFullQuant(contextKeyParams) && !CheckKVScaleShape4MLAFullQuant(contextKeyParams)),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, check dequantScaleQuery, keyAntiQuantScale or valueAntiquantScale shape failed."), return false);
+    //全量化暂不支持 keyAntiquantOffset, valueAntiquantOffset, quantScale1, dequantScale1, dequantScale2
+    OP_CHECK_IF((contextKeyParams.KeyAntiquantOffsetShape != nullptr) || (contextKeyParams.valueAntiquantOffsetShape != nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, keyAntiquantOffset and valueAntiquantOffset should be null."), return false);
+    OP_CHECK_IF((contextKeyParams.deqScale1Shape != nullptr || contextKeyParams.scale1Shape != nullptr ||
+        contextKeyParams.deqScale2Shape != nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, quantScale1, dequantScale1 and dequantScale2 should be null."), return false);
+    return true;
+}
+
 bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo,
     PromptFlashAttentionTilingData& tilingData) {
@@ -3334,6 +3450,8 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyQuantMode(ge::DataType inputDa
         quantMode = NoQuantMode;
     } else if (enablePerblockQuant) {
         quantMode = PerBlock;
+    } else if (enableIFAMLAFullQuant) {
+        quantMode = FULLQUANT_MODE_PER_TOKEN_HEAD;
     } else {
         quantMode = FullQuantMode;
     }    
@@ -3341,7 +3459,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyQuantMode(ge::DataType inputDa
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDataType) {
     // perblock采用新模板
-	if (!enablePerblockQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
+	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
        inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         hasAttenMask = 0;
         return;
@@ -3354,12 +3472,12 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDa
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputDataType) {
-	if (!enablePerblockQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
+	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
        inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         hasRope = 0;
         return;
     }
-    if (enablePFARope) {
+    if (enablePFARope || enableIFAMLAFullQuant) {
         hasRope = true;
     } else {
         hasRope = false;
@@ -3367,7 +3485,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputData
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataType) {
-	if (!enablePerblockQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
+	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
        inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         isPa = 0;
         return;
@@ -3380,7 +3498,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataTyp
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsFd(ge::DataType inputDataType) {
-	if (!enablePerblockQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
+	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
        inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         isFd = 0;
         return;
@@ -3397,7 +3515,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyEmptyTensor() {
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMask(PromptFlashAttentionTilingData &tilingData, ge::DataType inputDataType) {
-	if (enablePerblockQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
+	if (enablePerblockQuant || enableIFAMLAFullQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
         PFAMask = 0;
         return;
     }
@@ -3412,7 +3530,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMask(PromptFlashAttentionTi
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMatMulType(PromptFlashAttentionTilingData &tilingData, ge::DataType inputDataType) {
-	if (enablePerblockQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
+	if (enablePerblockQuant || enableIFAMLAFullQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
         pFAMatMulType = 0;
         return;
     }
@@ -3641,7 +3759,14 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
     if (contextKeyParams.inputDataType == ge::DT_INT8) {
         enablePertensorQuant = true;
     }
-    
+
+    // mla fullquant check
+    if((contextKeyParams.queryRopeInputShape != nullptr && contextKeyParams.keyRopeInputShape != nullptr) &&
+        (contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN && contextKeyParams.kDataType == ge::DT_FLOAT8_E4M3FN &&
+        contextKeyParams.vDataType == ge::DT_FLOAT8_E4M3FN)) {
+        enableIFAMLAFullQuant = true;
+    }
+
     const int64_t *keyAntiquantMode = contextKeyParams.keyAntiquantMode;
     const int64_t *queryQuantMode = contextKeyParams.queryQuantMode;
     const int64_t *valueAntiquantMode = contextKeyParams.valueAntiquantMode;
@@ -3650,10 +3775,11 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
         if (*keyAntiquantMode == 7 && *queryQuantMode ==7 && *valueAntiquantMode ==7) { // 7: FP8 perblock quant
             enablePerblockQuant = true;
         } else {
-            enablePertensorQuant = true;
+            if (!enableIFAMLAFullQuant) {
+                enablePertensorQuant = true;
+            }
         }
     }
-
     if (enablePertensorQuant) {
         faRunFlag_ = false;
     }
@@ -3755,6 +3881,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
         return ge::GRAPH_FAILED;
     }
     if (!isMaxWorkspace && enableIFAMLA && (!CheckIFAMLA(contextKeyParams, queryShapeInfo))) {
+        return ge::GRAPH_FAILED;
+    }
+    if (enableIFAMLAFullQuant && (!CheckMLAFullQuant(contextKeyParams))) {
         return ge::GRAPH_FAILED;
     }
     // print shape info

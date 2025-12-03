@@ -387,6 +387,8 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
         if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
             runParam.attentionOutOffset = attentionOutSeqOffset + runParam.n2oIdx * constInfo.gDv * actualSeqLen +
                 runParam.sOuterOffset * constInfo.dSizeV;
+            runParam.tensorQOffset = runParam.qBOffset + runParam.n2oIdx * constInfo.gD * actualSeqLen +
+                runParam.cubeSOuterOffset * constInfo.dSize;
         } else {
             if (constInfo.isGqa && constInfo.s1Size > 1) { // PFA
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH){

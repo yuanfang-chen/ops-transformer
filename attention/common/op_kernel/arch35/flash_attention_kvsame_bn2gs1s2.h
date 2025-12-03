@@ -1679,19 +1679,19 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
         if (runInfo.s2RealSize == 128) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, false, hasRope && (dTemplateType == DTemplateType::Aligned576) && layout != LayOutTypeEnum::LAYOUT_BNSD>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, stage1PongTensor, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 this->constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 64) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, hasAtten, pseMode, false, hasRope && (dTemplateType == DTemplateType::Aligned576) && layout != LayOutTypeEnum::LAYOUT_BNSD>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, stage1PongTensor, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 this->constInfo.keepProb);
         } else {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, hasAtten, pseMode, false, hasRope && (dTemplateType == DTemplateType::Aligned576) && layout != LayOutTypeEnum::LAYOUT_BNSD>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, stage1PongTensor, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 this->constInfo.keepProb);
         }
@@ -1699,19 +1699,19 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
          if (runInfo.s2RealSize == 128) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, true, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, false, hasRope && (dTemplateType == DTemplateType::Aligned576) && layout != LayOutTypeEnum::LAYOUT_BNSD>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, stage1PongTensor, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 this->constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 64) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, hasAtten, pseMode, false, hasRope && (dTemplateType == DTemplateType::Aligned576) && layout != LayOutTypeEnum::LAYOUT_BNSD>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, stage1PongTensor, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 this->constInfo.keepProb);
         } else {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, hasAtten, pseMode, false, hasRope && (dTemplateType == DTemplateType::Aligned576) && layout != LayOutTypeEnum::LAYOUT_BNSD>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, stage1PongTensor, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 this->constInfo.keepProb);
         }
@@ -1942,24 +1942,24 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
         float deSCalePreVValue = 1.0f;
         if (runInfo.s2LoopCount < runInfo.s2LoopLimit) {
             if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx + 1) {
-                FlashUpdateNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, true>(
-                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, true, false>(
+                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             } else {
-                FlashUpdateNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, false>(
-                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, false, false>(
+                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             }
         } else {
             if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx + 1) {
                 LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-                FlashUpdateLastNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, true>(
-                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateLastNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, true, false>(
+                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             } else {
                 LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-                FlashUpdateLastNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, false>(
-                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateLastNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, false, false>(
+                    vec2ResUb, bmm2Ub, vec2ResUb, expUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             }
         }
@@ -1968,7 +1968,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
     if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
         if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
             LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-            LastDivNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64>(
+            LastDivNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, false>(
                 vec2ResUb, vec2ResUb, sumUb, runInfo.vec2S1RealSize, (uint16_t)dTemplateAlign64, 1.0);
         }
 

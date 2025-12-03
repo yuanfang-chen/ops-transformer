@@ -1375,37 +1375,37 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<CHILD_SPEC_TEMPLATE_AR
         if (runInfo.s2RealSize == 128) {  // 128 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 64) { // 64 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 128 && runInfo.s2RealSize > 64) {  // 64 and 128 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 256 && runInfo.s2RealSize > 128) {  // 128 and 256 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_128_AND_LTE_256, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 512 && runInfo.s2RealSize > 256) {  // 256 and 512 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 1024 && runInfo.s2RealSize > 512) {  // 512 and 1024 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_512_AND_LTE_1024, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         }
@@ -1413,37 +1413,37 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<CHILD_SPEC_TEMPLATE_AR
          if (runInfo.s2RealSize == 128) { // 128 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 64) { // 64 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_0_AND_LTE_64, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 128 && runInfo.s2RealSize > 64) { // 64 and 128 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_64_AND_LTE_128, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 256 && runInfo.s2RealSize > 128) { // 128 and 256 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_128_AND_LTE_256, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 512 && runInfo.s2RealSize > 256) { // 256 and 512 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         } else if (runInfo.s2RealSize <= 1024 && runInfo.s2RealSize > 512) { // 512 and 1024 is s2RealSize
             ProcessVec1Vf<T, Q_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_512_AND_LTE_1024, hasAtten, pseMode, false>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, inputTensorVec, expUb, sumUb, maxUb,
-                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, expUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfo.pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), 1.0, negativeFloatScalar,
                 constInfo.keepProb);
         }
@@ -1521,24 +1521,24 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<CHILD_SPEC_TEMPLATE_AR
         float deSCalePreVValue = 1.0f;
         if (runInfo.s2LoopCount < runInfo.s2LoopLimit) {
             if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx + 1) {
-                FlashUpdateNew<T, Q_T, OUTPUT_T, dTemplateAlign64, true>(
-                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateNew<T, Q_T, OUTPUT_T, dTemplateAlign64, true, false>(
+                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             } else {
-                FlashUpdateNew<T, Q_T, OUTPUT_T, dTemplateAlign64, false>(
-                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateNew<T, Q_T, OUTPUT_T, dTemplateAlign64, false, false>(
+                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             }
         } else {
             if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx + 1) {
                 LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-                FlashUpdateLastNew<T, Q_T, OUTPUT_T, dTemplateAlign64, true>(
-                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateLastNew<T, Q_T, OUTPUT_T, dTemplateAlign64, true, false>(
+                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             } else {
                 LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-                FlashUpdateLastNew<T, Q_T, OUTPUT_T, dTemplateAlign64, false>(
-                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
+                FlashUpdateLastNew<T, Q_T, OUTPUT_T, dTemplateAlign64, false, false>(
+                    vec2ResUb, inputTensorVec, vec2ResUb, expUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
             }
         }
@@ -1546,7 +1546,7 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<CHILD_SPEC_TEMPLATE_AR
     if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
         if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
             LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-            LastDivNew<T, Q_T, OUTPUT_T, dTemplateAlign64>(
+            LastDivNew<T, Q_T, OUTPUT_T, dTemplateAlign64, false>(
                 vec2ResUb, vec2ResUb, sumUb, runInfo.vec2S1RealSize, (uint16_t)dTemplateAlign64, 1.0);
         }
 

@@ -175,6 +175,8 @@ inline aclDataType GetConvertType(const gert::Tensor* ge_tensor) {
     dataType = aclDataType::ACL_UINT8;
   } else if (dataType_ge == DT_INT4) {
     dataType = aclDataType::ACL_INT4;
+  } else if (dataType_ge == DT_FLOAT8_E4M3FN) {
+    dataType = aclDataType::ACL_FLOAT8_E4M3FN;
   } else {
     dataType = aclDataType::ACL_FLOAT16;
   }

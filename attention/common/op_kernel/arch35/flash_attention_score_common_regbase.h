@@ -87,6 +87,8 @@ constexpr uint64_t MM2_RES_INTRA_EVENT[2] = {7, 8}; // mm2ResIntraEvent
 constexpr uint64_t MM1_RES_INTRA_EVENT[2] = {9, 10}; //mm1ResIntraEvent
 constexpr uint64_t KB_TO_BYTES = 1024;
 constexpr uint64_t L0C_SIZE = 256;
+constexpr uint64_t MLA_L0A_SIZE = 64;
+constexpr uint64_t MLA_L0B_SIZE = 64; 
 constexpr uint64_t BASE_SIZE_128 = 128;
 constexpr uint64_t FLOAT_BYTES = 4;
 enum class SparseModeEnum {
@@ -119,6 +121,17 @@ static constexpr uint32_t FA_BYTE_BLOCK = 32;
 
 __aicore__ constexpr uint16_t Align64Func(uint16_t data) {
     return (data + ADD_NUM_63) >> SHIFT_NUM_6 << SHIFT_NUM_6;
+}
+
+template <typename INPUT_T>
+__aicore__ constexpr bool IsFp8WithRope(bool hasRope) {
+    if constexpr (!IsSameType<INPUT_T, fp8_e4m3fn_t>::value) {
+        return false;
+    }
+    if (hasRope) {
+        return true;
+    }
+    return false;
 }
 
 template <typename INPUT_T>
@@ -157,7 +170,10 @@ __aicore__ constexpr bool IsDn(
 
 template <typename INPUT_T>
 __aicore__ constexpr bool UbOutCondition(
-    bool isFp32, regbaseutil::PseTypeEnum pseMode, bool hasAtten, bool hasDrop, bool isS2Base64) {
+    bool isFp32, regbaseutil::PseTypeEnum pseMode, bool hasAtten, bool hasDrop, bool hasRope, bool isS2Base64) {
+    if (IsFp8WithRope<INPUT_T>(hasRope)) {
+        return true;
+    }
     if (IsFp8OnlyWithAttenMask<INPUT_T>(pseMode, hasAtten, hasDrop)) {
         return true;
     }
@@ -169,9 +185,10 @@ __aicore__ constexpr bool UbOutCondition(
     return false;
 }
 
-__aicore__ constexpr TPosition GetC2Position(regbaseutil::DTemplateType dTemplateType, bool ubOutCondition, bool isNdS2Size256) {
+__aicore__ constexpr TPosition GetC2Position(regbaseutil::DTemplateType dTemplateType, bool ubOutCondition, bool isNdS2Size256, bool isMlaFullQuant) {
     if ((uint16_t)dTemplateType <= (uint16_t)regbaseutil::DTemplateType::Aligned128 ||
         (ubOutCondition && (uint16_t)dTemplateType <= (uint16_t)regbaseutil::DTemplateType::Aligned192) ||
+        (ubOutCondition && isMlaFullQuant) ||
         isNdS2Size256) {
         return TPosition::VECCALC;
     } else {

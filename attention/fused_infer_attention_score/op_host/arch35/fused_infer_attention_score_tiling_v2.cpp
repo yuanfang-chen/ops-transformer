@@ -361,7 +361,9 @@ ge::graphStatus ConvertQuantOptionalInputs(const gert::TilingContext* context, C
         context->GetOptionalInputDesc(QUANT_OFFSET2_INDEX)->GetDataType() : ge::DT_FLOAT;
     contextKeyParams.dequantScaleQueryShape = context->GetOptionalInputShape(DEQUANT_SCALE_QUERY_INDEX);
     contextKeyParams.KeyAntiquantScaleShape = context->GetOptionalInputShape(KEY_ANTIQUANT_SCALE_INDEX);
+    contextKeyParams.KeyAntiquantOffsetShape = context->GetOptionalInputShape(KEY_ANTIQUANT_OFFSET_INDEX);
     contextKeyParams.valueAntiquantScaleShape = context->GetOptionalInputShape(VALUE_ANTIQUANT_SCALE_INDEX);
+    contextKeyParams.valueAntiquantOffsetShape = context->GetOptionalInputShape(VALUE_ANTIQUANT_OFFSET_INDEX);
 
     contextKeyParams.dequantScaleQueryType = (context->GetOptionalInputDesc(DEQUANT_SCALE_QUERY_INDEX) != nullptr) ?
         context->GetOptionalInputDesc(DEQUANT_SCALE_QUERY_INDEX)->GetDataType() : ge::DT_FLOAT;

@@ -23,14 +23,14 @@ using namespace regbaseutil;
 namespace AscendC {
 // update, originN <= 64
 template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 128, uint32_t s2BaseSize = 128,
-    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool isMlaSgd = false>
+    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool isMlaSgd = false, bool isMlaFullQuant = false>
 __aicore__ inline void ProcessVec1UpdateImpl64(
     const LocalTensor<T2>& dstTensor, const LocalTensor<uint8_t>& indexesTensor, const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor,
     const LocalTensor<T>& srcTensor, const LocalTensor<T>& expMaxTensor, const LocalTensor<T>& inExpSumTensor,
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
-    const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m,
+    const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const LocalTensor<T>& pScaleTensor, const uint16_t m,
     const uint32_t originN, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
-    const T minValue, float keepProb)
+    const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f)
 {
     constexpr uint32_t nPadding = (s2BaseSize + blockBytesU8 - 1) / blockBytesU8 * blockBytesU8;
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
@@ -51,6 +51,8 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
     __ubuf__ T * tmpExpSumUb = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr();
     __ubuf__ T * tmpMaxUb = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
     __ubuf__ T * tmpMaxUb2 = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
+    __ubuf__ T * qScaleUb = (__ubuf__ T*)queryScaleUb.GetPhyAddr();
+    __ubuf__ T * pScaleUb = (__ubuf__ T*)pScaleTensor.GetPhyAddr();
     uint64_t maskUb = maskTensor.GetPhyAddr();
     uint64_t dropMaskUb = dropTensor.GetPhyAddr();
 
@@ -71,6 +73,8 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
         RegTensor<float> vreg_pse;
         RegTensor<float> vreg_alibi;
         RegTensor<float> vreg_sel_drop;
+        RegTensor<float> vreg_rowmax_p;
+        RegTensor<float> vreg_scale_qk;
 
         // bfloat16_t
         RegTensor<bfloat16_t> vreg_exp_even_bf16;
@@ -118,12 +122,19 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
         // x_max = max(src, axis=-1, keepdims=True)
         for (uint16_t i = 0; i < m; ++i) {
             DataCopy(vreg_input_x, srcUb + i * s2BaseSize);
-            if constexpr (pseMode != PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-                Muls(vreg_input_x, vreg_input_x, dScale, preg_ori_src_n);  // Muls(scale)
+            if constexpr (isMlaFullQuant) {
+                DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_scale_qk, qScaleUb + i);
+                Muls(vreg_scale_qk, vreg_scale_qk, scale, preg_ori_src_n);
+                Muls(vreg_scale_qk, vreg_scale_qk, deSCaleKValue, preg_ori_src_n);
+                Mul(vreg_input_x, vreg_input_x, vreg_scale_qk, preg_ori_src_n);
             } else {
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                              IsSameType<T2, hifloat8_t>::value) {
-                    Muls(vreg_input_x, vreg_input_x, dScaleQK, preg_ori_src_n);  // Muls(dScaleQK)
+                if constexpr (pseMode != PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
+                    Muls(vreg_input_x, vreg_input_x, dScale, preg_ori_src_n);  // Muls(scale)
+                } else {
+                    if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
+                                IsSameType<T2, hifloat8_t>::value) {
+                        Muls(vreg_input_x, vreg_input_x, dScaleQK, preg_ori_src_n);  // Muls(dScaleQK)
+                    }
                 }
             }
             if constexpr (pseMode != PseTypeEnum::PSE_NONE_TYPE) {
@@ -179,6 +190,13 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
         Max(vreg_max_new, vreg_input_max, vreg_in_max, preg_all); // 计算新、旧的最大值
         DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
             (__ubuf__ T *&)tmpMaxUb2, vreg_max_new, preg_all);
+        if constexpr (isMlaFullQuant) {
+            FusedExpSub(vreg_rowmax_p, vreg_input_max, vreg_max_new, preg_all);
+            Adds(vreg_rowmax_p, vreg_rowmax_p, floatEps, preg_all);
+            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ T *&)pScaleUb, vreg_rowmax_p, preg_all);
+        }
+
         if constexpr (hasDrop == 1) {
             Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vreg_zero, 0.0f, preg_all);
         }
@@ -194,7 +212,10 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
             ReduceSum(vreg_exp_sum, vreg_exp, preg_ori_src_n);
             DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
                 ((__ubuf__ T *&)tmpExpSumUb), vreg_exp_sum, ureg_exp_sum, 1);
-
+            if constexpr (isMlaFullQuant) {
+                DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_rowmax_p, pScaleUb + i);
+                USE_MLA_FULLQUANT_V1_P(vreg_exp, vreg_rowmax_p, preg_ori_src_n);
+            }
             // dropmask compute
             if constexpr (hasDrop == 1) {
                 DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(

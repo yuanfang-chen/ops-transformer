@@ -78,6 +78,15 @@ static std::string GetPfaDataTypeStr(ge::DataType type) {
     return g_strDataTypePfa.at(findDype);
 }
 
+enum class AntiquantTypeEnum : uint8_t {
+    PER_CHANNEL = 0,
+    PER_TOKEN = 1,
+    K_PER_CHANNEL_V_PER_TOKEN = 2,
+    PER_TOKEN_HEAD = 3,
+    PER_TOKEN_PAGE_ATTENTION = 4,
+    PER_TOKEN_HEAD_PAGE_ATTENTION = 5
+};
+
 class PromptFlashAttentionTilingV2 : public FiaTilingBase{
 public:
     explicit PromptFlashAttentionTilingV2(gert::TilingContext *context) : FiaTilingBase(context) {}
@@ -154,6 +163,9 @@ protected:
         PFAShapeInfo& keyShapeInfo, PFAShapeInfo& queryRopeShapeInfo);
     bool CheckIFAMLA(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo);
     bool CheckQuant(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo, const PFAShapeInfo& valueShapeInfo);
+    bool CheckQScaleShape4MLAFullQuant(ContextParamsForPFATiling& contextKeyParams);
+    bool CheckKVScaleShape4MLAFullQuant(ContextParamsForPFATiling& contextKeyParams);
+    bool CheckMLAFullQuant(ContextParamsForPFATiling& contextKeyParams);
     bool CheckPrefix(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo, 
         PromptFlashAttentionTilingData& tilingData);
     bool CheckActSeq(const ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const;
@@ -298,6 +310,7 @@ protected:
     bool isBandMode = false;
     bool enableIFAMLA = false;
     bool enableIFA = false;
+    bool enableIFAMLAFullQuant = false;
     // MLPerf合轴优化
     bool enablePFAMerge = false;
     uint32_t pfaMergeGLimit = 16;

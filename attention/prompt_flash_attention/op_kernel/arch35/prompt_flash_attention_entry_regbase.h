@@ -22,6 +22,7 @@
 #include "prompt_flash_attention_tiling_regbase.h"
 #include "prompt_flash_attention_template_tiling_key_enum.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h"
+#include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
 #include "../../../common/op_kernel/arch35/flash_attention_kvsame_bn2gs1s2.h"
 #else
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_regbase_v2.h"
@@ -609,6 +610,12 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
             INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+                static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd);
+        } else if constexpr (quantMode == FULLQUANT_MODE_PER_TOKEN_HEAD) { // mla fullquant
+            constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dVTemplateType) >> 1),
+                static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dVTemplateType) >> 1)) * 2;
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInferMlaFullquant, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
                 ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd);
         } else {

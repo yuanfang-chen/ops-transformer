@@ -20,6 +20,8 @@
 namespace AscendC {
 constexpr uint32_t floatRepSize = 64;
 constexpr uint32_t blockBytesU8 = 32;
+constexpr float fp8e4m3MaxValue = 448.0f;
+constexpr float floatEps = 2.220446049250313e-16;
 /* **************************************************************************************************
  * Muls + Select(optional) + SoftmaxFlashV2 + Cast(fp32->fp16/bf16) + ND2NZ
  * ************************************************************************************************* */
@@ -80,6 +82,12 @@ constexpr static AscendC::MicroAPI::CastTrait castTraitRintThree = {
     AscendC::MicroAPI::MaskMergeMode::ZEROING,
     AscendC::RoundMode::CAST_RINT,
 };
+
+#define USE_MLA_FULLQUANT_V1_P(vreg_exp, vreg_rowmax_p, MaskReg)    \
+    do {                                                            \
+        Muls(vreg_exp, vreg_exp, fp8e4m3MaxValue, MaskReg);         \
+        Div(vreg_exp, vreg_exp, vreg_rowmax_p, MaskReg);            \
+    } while (0)
 } // namespace
 
 #endif // VF_BASIC_BLOCK_UTILS_H

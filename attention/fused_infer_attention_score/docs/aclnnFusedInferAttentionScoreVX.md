@@ -110,6 +110,7 @@
 
     - dequantScaleQueryOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32。[数据格式](common/数据格式.md)支持ND，query的反量化参数，全量化场景涉及。如不使用该功能时可传入nullptr。
         -  <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持per-token叠加per-head。
+        -  <term>昇腾910_95 AI处理器</term>：支持per-token叠加per-head，per-block模式。
 
     - qStartIdxOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，数据类型支持INT64，内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。代表外切场景，当前分块的query的sequence在全局中的起始索引，[数据格式](common/数据格式.md)支持ND；综合约束请见[约束说明](#约束说明)。当pseType为2、3时，不传入该参数按照0处理。
 
@@ -254,10 +255,16 @@
             - 当query的d等于512时：
                 - queryRope配置时要求query的s为1-16、n为32、64、128，d为512，queryRope的shape中b、n、s与query一致，d为64；
                 - keyRope配置时要求key的n为1，d为512，keyRope的shape中b、n、s与key一致，d为64；
-                - sparse：Q_S等于1时只支持sparse=0且不传mask，Q_S大于1时只支持sparse=3且传入mask；
+                - sparse：Q_S等于1时只支持sparse=0且不传mask，Q_S大于1时支持sparse=3且传入mask，和sparse=0且不传mask；
                 - key&value支持ND输入。
                 - inputLayout：BSH、BSND、BNSD、TND。
                 - 支持actualSeqLengths、actualSeqLengthsKv参数; 当配置Q_S大于1（即MTP）且key&value的normal部分复用同一份数据场景下，仅inputLayout为TND时支持配置actualSeqLengths参数，其他layout不支持。
+                - 不支持左padding、tensorlist、pse、prefix、伪量化、后量化；
+                - 支持全量化场景，即输入query/key/value全为FLOAT8_E4M3FN，queryRope和keyRope为BFLOAT16，输出为BFLOAT16的场景：
+                    - 入参dequantScaleQuery、keyAntiquantScale、valueAntiquantScale需要同时存在，且数据类型仅支持FP32.
+                    - 不支持传入deqScale1、quantScale1、deqScale2、quantScale2、quantOffset2、keyAntiquantOffset、valueAntiquantOffset(即不为nullptr)，否则报错并返回。
+                    - queryQuantMode仅支持per-token叠加per-head模式，keyAntiquantMode和valueAntiquantMode仅支持per-tensor模式。
+                    - key&value&keyRope支持ND输入。
             - 当query的d等于128时：
                 - queryRope配置时要求queryRope的shape中b、n、s与query一致，d为64；
                 - keyRope配置时要求keyRope的shape中b、n、s与key一致，d为64；

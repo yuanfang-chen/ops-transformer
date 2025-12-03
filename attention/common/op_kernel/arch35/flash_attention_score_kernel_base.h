@@ -588,6 +588,11 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     runInfo.actualS1Size = runParam.actualS1Size;
     runInfo.actualS2Size = runParam.actualS2Size;
     runInfo.attentionOutOffset = runParam.attentionOutOffset;
+    runInfo.queryOffset = runParam.tensorQOffset;
+    runInfo.qRopeOffset = runParam.qRopeNBGOffset;
+    if constexpr (isInfer) {
+        runInfo.sOuterOffset = runParam.sOuterOffset;
+    }
     this->ComputeBmm1Tail(runInfo, runParam);
     GetDerived()->InitUniqueRunInfo(runParam, runInfo);
 }
