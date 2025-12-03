@@ -68,56 +68,6 @@
   2. paddedMode等于true时，每个专家固定能够处理capacity个token。输入routingMapOptional的第1维是experts_num，即专家个数，输入outIndex的第0维是experts_num * capacity，根据这两个维度可以算出capacity。
   3. paddedMode等于false时，每个token固定被topK_num个专家处理。输入unpermutedTokensGrad的第0维是tokens_num，即token的个数，输入outIndex的第0维是tokens_num * capacity，根据这两个维度可以算出topK_num。
 
-
-  
-  $$
-  dequantX = Dequant(x,weightScaleOptional,activationScaleOptional,biasOptional)
-  $$
-  
-  $$
-  q,k,vOut = SplitTensor(dequantX,dim=-1,`sizeSplits`)
-  $$
-  
-  $$
-  qOut,kOut = ApplyRotaryPosEmb(q,k,cos,sin)
-  $$
-  
-  $$
-  quantK = Quant(kOut,scaleK,offsetKOptional)
-  $$
-  
-  $$
-  quantV = Quant(vOut,scaleV,offsetVOptional)
-  $$
-  
-  如果cacheModeOptional为contiguous则：
-  
-  $$
-  kCacheRef[i][indice[i]]=quantK[i]
-  $$
-  
-  $$
-  vCacheRef[i][indice[i]]=quantV[i]
-  $$
-  
-  如果cacheModeOptional为page则：
-  
-  $$
-  kCacheRefView=kCacheRef.view(-1,kCacheRef[-2],kCacheRef[-1])
-  $$
-  
-  $$
-  vCacheRefView=vCacheRef.view(-1,vCacheRef[-2],vCacheRef[-1])
-  $$
-  
-  $$
-  kCacheRefView[indices[i]]=quantK[i]
-  $$
-  
-  $$
-  vCacheRefView[indices[i]]=quantV[i]
-  $$
-
 ## 参数说明
 
 <table style="table-layout: auto; width: 100%">
