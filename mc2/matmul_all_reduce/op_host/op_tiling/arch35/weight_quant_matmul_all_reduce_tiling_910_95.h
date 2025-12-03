@@ -16,9 +16,81 @@
 #define WEIGHT_QUANT_MATMUL_ALL_REDUCE_TILING_910_95_H
 #include "../matmul_all_reduce_tiling_base.h"
 #include "weight_quant_batch_matmul_v2/op_host/op_tiling/weight_quant_batch_matmul_v2_tiling_custom.h"
-#include "../../../op_kernel/arch35/matmul_all_reduce_tiling_struct_ar35.h"
 
 namespace optiling {
+using Mc2weight_quant_batch_matmul_v2::Mc2WeightQuantBatchMatmulV2ASTilingData;
+using Mc2weight_quant_batch_matmul_v2::Mc2WeightQuantBatchMatmulV2TilingAS;
+
+BEGIN_TILING_DATA_DEF(WeightQuantMatmulAllReduceA5TilingData)
+TILING_DATA_FIELD_DEF(uint32_t, version);
+TILING_DATA_FIELD_DEF(uint32_t, hcommCnt);
+TILING_DATA_FIELD_DEF_STRUCT(MC2ServerCfg, serverCfg);
+TILING_DATA_FIELD_DEF_STRUCT(MC2HcommCfg, hcommCfg);
+TILING_DATA_FIELD_DEF_STRUCT(Mc2Msg, msg);
+TILING_DATA_FIELD_DEF_STRUCT(RCSTiling, param);
+TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2RegBaseTilingData, tileRegBaseMmTiling);
+TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2RegBaseTilingData, tailRegBaseMmTiling);
+END_TILING_DATA_DEF;
+// weight int8
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100200, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101200, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100210, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101210, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100300, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100310, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101300, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101310, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100100, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100110, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101100, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101110, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000000008, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(WeightQuantMatmulAllReduceA5TilingDataOp, WeightQuantMatmulAllReduceA5TilingData);
+
+BEGIN_TILING_DATA_DEF(WeightQuantMatmulAllReduceA5Fp8TilingData)
+TILING_DATA_FIELD_DEF(uint32_t, version);
+TILING_DATA_FIELD_DEF(uint32_t, hcommCnt);
+TILING_DATA_FIELD_DEF_STRUCT(MC2ServerCfg, serverCfg);
+TILING_DATA_FIELD_DEF_STRUCT(MC2HcommCfg, hcommCfg);
+TILING_DATA_FIELD_DEF_STRUCT(Mc2Msg, msg);
+TILING_DATA_FIELD_DEF_STRUCT(RCSTiling, param);
+TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2ASTilingData, tileMmASTiling);
+TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2ASTilingData, tailMmASTiling);
+END_TILING_DATA_DEF;
+// weight fp8/hif8
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001100, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001120, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011140, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(WeightQuantMatmulAllReduceA5Fp8TilingDataOp, WeightQuantMatmulAllReduceA5Fp8TilingData);
 
 class WeightQuantMatmulAllReduceTilingA5 : public MatmulAllReduceTilingBase
 {
@@ -40,7 +112,7 @@ protected:
 
     ge::graphStatus PostTiling() override;
 
-    Mc2Tiling::Mc2Msg& MutableMc2MsgData() override
+    Mc2Msg& MutableMc2MsgData() override
     {
         if (antiQuantType_ != AntiQuantType::PER_GROUP) {
             return weightQuantMatmulAllReduceA5Fp8TilingData_.msg;
@@ -48,7 +120,7 @@ protected:
         return weightQuantMatmulAllReduceA5TilingData_.msg;
     }
 
-    Mc2Tiling::RCSTiling& MutableRCSTilingData() override
+    RCSTiling& MutableRCSTilingData() override
     {
         if (antiQuantType_ != AntiQuantType::PER_GROUP) {
             return weightQuantMatmulAllReduceA5Fp8TilingData_.param;
@@ -56,7 +128,7 @@ protected:
         return weightQuantMatmulAllReduceA5TilingData_.param;
     }
 
-    ::TCubeTiling& MutableTCubeTileTilingData() override
+    TCubeTiling& MutableTCubeTileTilingData() override
     {
         if (antiQuantType_ != AntiQuantType::PER_GROUP) {
             return weightQuantMatmulAllReduceA5Fp8TilingData_.tileMmASTiling.matmulTiling;
@@ -64,7 +136,7 @@ protected:
         return weightQuantMatmulAllReduceA5TilingData_.tileRegBaseMmTiling.matmulTiling;
     }
 
-    ::TCubeTiling& MutableTCubeTailTilingData() override
+    TCubeTiling& MutableTCubeTailTilingData() override
     {
         if (antiQuantType_ != AntiQuantType::PER_GROUP) {
             return weightQuantMatmulAllReduceA5Fp8TilingData_.tailMmASTiling.matmulTiling;
@@ -87,11 +159,11 @@ protected:
 private:
     ge::graphStatus CheckBiasInput();
     ge::graphStatus CheckAxisSize();
-    Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData weightQuantMatmulAllReduceA5TilingDataSelf_{};
-    Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData weightQuantMatmulAllReduceA5Fp8TilingDataSelf_{};
+    WeightQuantMatmulAllReduceA5TilingData weightQuantMatmulAllReduceA5TilingDataSelf_;
+    WeightQuantMatmulAllReduceA5Fp8TilingData weightQuantMatmulAllReduceA5Fp8TilingDataSelf_;
 
-    Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData& weightQuantMatmulAllReduceA5TilingData_;
-    Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData& weightQuantMatmulAllReduceA5Fp8TilingData_;
+    WeightQuantMatmulAllReduceA5TilingData& weightQuantMatmulAllReduceA5TilingData_;
+    WeightQuantMatmulAllReduceA5Fp8TilingData& weightQuantMatmulAllReduceA5Fp8TilingData_;
     uint64_t myWorkSpaceSize_{0U};
     bool isWeightFp8Hif8_{false};
 };
@@ -118,43 +190,43 @@ public:
         if (DoTiling() != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        data_.cubeBlockDimN = tilingData_->cubeBlockDimN;
-        data_.cubeBlockDimM = tilingData_->cubeBlockDimM;
-        data_.reserve1 = tilingData_->reserve1;
-        data_.vecCoreParallel = tilingData_->vecCoreParallel;
-        data_.AL1Pingpong = tilingData_->AL1Pingpong;
-        data_.BL1Pingpong = tilingData_->BL1Pingpong;
-        data_.kSize = tilingData_->kSize;
-        data_.nSize = tilingData_->nSize;
-        data_.groupSize = tilingData_->groupSize;
-        data_.mSize = tilingData_->mSize;
-        data_.nBubSize = tilingData_->nBubSize;
-        data_.kBubSize = tilingData_->kBubSize;
+        data_.set_cubeBlockDimN(tilingData_->get_cubeBlockDimN());
+        data_.set_cubeBlockDimM(tilingData_->get_cubeBlockDimM());
+        data_.set_reserve1(tilingData_->get_reserve1());
+        data_.set_vecCoreParallel(tilingData_->get_vecCoreParallel());
+        data_.set_AL1Pingpong(tilingData_->get_AL1Pingpong());
+        data_.set_BL1Pingpong(tilingData_->get_BL1Pingpong());
+        data_.set_kSize(tilingData_->get_kSize());
+        data_.set_nSize(tilingData_->get_nSize());
+        data_.set_groupSize(tilingData_->get_groupSize());
+        data_.set_mSize(tilingData_->get_mSize());
+        data_.set_nBubSize(tilingData_->get_nBubSize());
+        data_.set_kBubSize(tilingData_->get_kBubSize());
 
-        data_.matmulTiling.M = tilingData_->matmulTiling.M;
-        data_.matmulTiling.Ka = tilingData_->matmulTiling.Ka;
-        data_.matmulTiling.N = tilingData_->matmulTiling.N;
-        data_.matmulTiling.Kb = tilingData_->matmulTiling.Kb;
-        data_.matmulTiling.singleCoreM = tilingData_->matmulTiling.singleCoreM;
-        data_.matmulTiling.singleCoreN = tilingData_->matmulTiling.singleCoreN;
-        data_.matmulTiling.singleCoreK = tilingData_->matmulTiling.singleCoreK;
-        data_.matmulTiling.baseM = tilingData_->matmulTiling.baseM;
-        data_.matmulTiling.baseN = tilingData_->matmulTiling.baseN;
-        data_.matmulTiling.baseK = tilingData_->matmulTiling.baseK;
-        data_.matmulTiling.dbL0A = tilingData_->matmulTiling.dbL0A;
-        data_.matmulTiling.dbL0B = tilingData_->matmulTiling.dbL0B;
-        data_.matmulTiling.dbL0C = tilingData_->matmulTiling.dbL0C;
-        data_.matmulTiling.stepM = tilingData_->matmulTiling.stepM;
-        data_.matmulTiling.stepN = tilingData_->matmulTiling.stepN;
-        data_.matmulTiling.stepKa = tilingData_->matmulTiling.stepKa;
-        data_.matmulTiling.stepKb = tilingData_->matmulTiling.stepKb;
-        data_.matmulTiling.depthA1 = tilingData_->matmulTiling.depthA1;
-        data_.matmulTiling.depthB1 = tilingData_->matmulTiling.depthB1;
-        data_.matmulTiling.iterateOrder = tilingData_->matmulTiling.iterateOrder;
-        data_.matmulTiling.isBias = tilingData_->matmulTiling.isBias;
-        data_.matmulTiling.shareMode = tilingData_->matmulTiling.shareMode;
-        data_.matmulTiling.shareL1Size = tilingData_->matmulTiling.shareMode;
-        data_.matmulTiling.shareL0CSize = tilingData_->matmulTiling.shareL0CSize;
+        data_.matmulTiling.set_M(tilingData_->matmulTiling.get_M());
+        data_.matmulTiling.set_Ka(tilingData_->matmulTiling.get_Ka());
+        data_.matmulTiling.set_N(tilingData_->matmulTiling.get_N());
+        data_.matmulTiling.set_Kb(tilingData_->matmulTiling.get_Kb());
+        data_.matmulTiling.set_singleCoreM(tilingData_->matmulTiling.get_singleCoreM());
+        data_.matmulTiling.set_singleCoreN(tilingData_->matmulTiling.get_singleCoreN());
+        data_.matmulTiling.set_singleCoreK(tilingData_->matmulTiling.get_singleCoreK());
+        data_.matmulTiling.set_baseM(tilingData_->matmulTiling.get_baseM());
+        data_.matmulTiling.set_baseN(tilingData_->matmulTiling.get_baseN());
+        data_.matmulTiling.set_baseK(tilingData_->matmulTiling.get_baseK());
+        data_.matmulTiling.set_dbL0A(tilingData_->matmulTiling.get_dbL0A());
+        data_.matmulTiling.set_dbL0B(tilingData_->matmulTiling.get_dbL0B());
+        data_.matmulTiling.set_dbL0C(tilingData_->matmulTiling.get_dbL0C());
+        data_.matmulTiling.set_stepM(tilingData_->matmulTiling.get_stepM());
+        data_.matmulTiling.set_stepN(tilingData_->matmulTiling.get_stepN());
+        data_.matmulTiling.set_stepKa(tilingData_->matmulTiling.get_stepKa());
+        data_.matmulTiling.set_stepKb(tilingData_->matmulTiling.get_stepKb());
+        data_.matmulTiling.set_depthA1(tilingData_->matmulTiling.get_depthA1());
+        data_.matmulTiling.set_depthB1(tilingData_->matmulTiling.get_depthB1());
+        data_.matmulTiling.set_iterateOrder(tilingData_->matmulTiling.get_iterateOrder());
+        data_.matmulTiling.set_isBias(tilingData_->matmulTiling.get_isBias());
+        data_.matmulTiling.set_shareMode(tilingData_->matmulTiling.get_shareMode());
+        data_.matmulTiling.set_shareL1Size(tilingData_->matmulTiling.get_shareMode());
+        data_.matmulTiling.set_shareL0CSize(tilingData_->matmulTiling.get_shareL0CSize());
         return ge::GRAPH_SUCCESS;
     }
 
@@ -163,7 +235,7 @@ private:
     Mc2WeightQuantBatchMatmulV2RegBaseTilingData& data_;
 };
 
-class WeightQuantAsTilingTransferHelper : public Mc2weight_quant_batch_matmul_v2::Mc2WeightQuantBatchMatmulV2TilingAS
+class WeightQuantAsTilingTransferHelper : public Mc2WeightQuantBatchMatmulV2TilingAS
 {
 public:
     WeightQuantAsTilingTransferHelper(
@@ -187,47 +259,47 @@ public:
             return ge::GRAPH_FAILED;
         }
 
-        mmASTilingdata_.cubeBlockDimM = tilingData_->cubeBlockDimM;
-        mmASTilingdata_.cubeBlockDimN = tilingData_->cubeBlockDimN;
-        mmASTilingdata_.hasBias = tilingData_->hasBias;
-        mmASTilingdata_.firstTailBlockCount = tilingData_->firstTailBlockCount;
-        mmASTilingdata_.secondTailBlockCount = tilingData_->secondTailBlockCount;
-        mmASTilingdata_.weightL2Cacheable = tilingData_->weightL2Cacheable;
-        mmASTilingdata_.mainBlockL1Size = tilingData_->mainBlockL1Size;
-        mmASTilingdata_.firstTailBlockL1Size = tilingData_->firstTailBlockL1Size;
-        mmASTilingdata_.secondTailBlockL1Size = tilingData_->secondTailBlockL1Size;
-        mmASTilingdata_.aPreloadSize = tilingData_->aPreloadSize;
-        mmASTilingdata_.groupSize = tilingData_->groupSize;
-        mmASTilingdata_.mainBlockCount = tilingData_->mainBlockCount;
-        mmASTilingdata_.mSize = tilingData_->mSize;
-        mmASTilingdata_.kSize = tilingData_->kSize;
-        mmASTilingdata_.nSize = tilingData_->nSize;
+        mmASTilingdata_.set_cubeBlockDimM(tilingData_->get_cubeBlockDimM());
+        mmASTilingdata_.set_cubeBlockDimN(tilingData_->get_cubeBlockDimN());
+        mmASTilingdata_.set_hasBias(tilingData_->get_hasBias());
+        mmASTilingdata_.set_firstTailBlockCount(tilingData_->get_firstTailBlockCount());
+        mmASTilingdata_.set_secondTailBlockCount(tilingData_->get_secondTailBlockCount());
+        mmASTilingdata_.set_weightL2Cacheable(tilingData_->get_weightL2Cacheable());
+        mmASTilingdata_.set_mainBlockL1Size(tilingData_->get_mainBlockL1Size());
+        mmASTilingdata_.set_firstTailBlockL1Size(tilingData_->get_firstTailBlockL1Size());
+        mmASTilingdata_.set_secondTailBlockL1Size(tilingData_->get_secondTailBlockL1Size());
+        mmASTilingdata_.set_aPreloadSize(tilingData_->get_aPreloadSize());
+        mmASTilingdata_.set_groupSize(tilingData_->get_groupSize());
+        mmASTilingdata_.set_mainBlockCount(tilingData_->get_mainBlockCount());
+        mmASTilingdata_.set_mSize(tilingData_->get_mSize());
+        mmASTilingdata_.set_kSize(tilingData_->get_kSize());
+        mmASTilingdata_.set_nSize(tilingData_->get_nSize());
 
-        mmASTilingdata_.matmulTiling.usedCoreNum = tilingData_->matmulTiling.usedCoreNum;
-        mmASTilingdata_.matmulTiling.M = tilingData_->matmulTiling.M;
-        mmASTilingdata_.matmulTiling.Ka = tilingData_->matmulTiling.Ka;
-        mmASTilingdata_.matmulTiling.N = tilingData_->matmulTiling.N;
-        mmASTilingdata_.matmulTiling.Kb = tilingData_->matmulTiling.Kb;
-        mmASTilingdata_.matmulTiling.singleCoreM = tilingData_->matmulTiling.singleCoreM;
-        mmASTilingdata_.matmulTiling.singleCoreN = tilingData_->matmulTiling.singleCoreN;
-        mmASTilingdata_.matmulTiling.singleCoreK = tilingData_->matmulTiling.singleCoreK;
-        mmASTilingdata_.matmulTiling.baseM = tilingData_->matmulTiling.baseM;
-        mmASTilingdata_.matmulTiling.baseN = tilingData_->matmulTiling.baseN;
-        mmASTilingdata_.matmulTiling.baseK = tilingData_->matmulTiling.baseK;
-        mmASTilingdata_.matmulTiling.dbL0A = tilingData_->matmulTiling.dbL0A;
-        mmASTilingdata_.matmulTiling.dbL0B = tilingData_->matmulTiling.dbL0B;
-        mmASTilingdata_.matmulTiling.dbL0C = tilingData_->matmulTiling.dbL0C;
-        mmASTilingdata_.matmulTiling.stepM = tilingData_->matmulTiling.stepM;
-        mmASTilingdata_.matmulTiling.stepN = tilingData_->matmulTiling.stepN;
-        mmASTilingdata_.matmulTiling.stepKa = tilingData_->matmulTiling.stepKa;
-        mmASTilingdata_.matmulTiling.stepKb = tilingData_->matmulTiling.stepKb;
-        mmASTilingdata_.matmulTiling.depthA1 = tilingData_->matmulTiling.depthA1;
-        mmASTilingdata_.matmulTiling.depthB1 = tilingData_->matmulTiling.depthB1;
-        mmASTilingdata_.matmulTiling.iterateOrder = tilingData_->matmulTiling.iterateOrder;
-        mmASTilingdata_.matmulTiling.isBias = tilingData_->matmulTiling.isBias;
-        mmASTilingdata_.matmulTiling.shareMode = tilingData_->matmulTiling.shareMode;
-        mmASTilingdata_.matmulTiling.shareL1Size = tilingData_->matmulTiling.shareMode;
-        mmASTilingdata_.matmulTiling.shareL0CSize = tilingData_->matmulTiling.shareL0CSize;
+        mmASTilingdata_.matmulTiling.set_usedCoreNum(tilingData_->matmulTiling.get_usedCoreNum());
+        mmASTilingdata_.matmulTiling.set_M(tilingData_->matmulTiling.get_M());
+        mmASTilingdata_.matmulTiling.set_Ka(tilingData_->matmulTiling.get_Ka());
+        mmASTilingdata_.matmulTiling.set_N(tilingData_->matmulTiling.get_N());
+        mmASTilingdata_.matmulTiling.set_Kb(tilingData_->matmulTiling.get_Kb());
+        mmASTilingdata_.matmulTiling.set_singleCoreM(tilingData_->matmulTiling.get_singleCoreM());
+        mmASTilingdata_.matmulTiling.set_singleCoreN(tilingData_->matmulTiling.get_singleCoreN());
+        mmASTilingdata_.matmulTiling.set_singleCoreK(tilingData_->matmulTiling.get_singleCoreK());
+        mmASTilingdata_.matmulTiling.set_baseM(tilingData_->matmulTiling.get_baseM());
+        mmASTilingdata_.matmulTiling.set_baseN(tilingData_->matmulTiling.get_baseN());
+        mmASTilingdata_.matmulTiling.set_baseK(tilingData_->matmulTiling.get_baseK());
+        mmASTilingdata_.matmulTiling.set_dbL0A(tilingData_->matmulTiling.get_dbL0A());
+        mmASTilingdata_.matmulTiling.set_dbL0B(tilingData_->matmulTiling.get_dbL0B());
+        mmASTilingdata_.matmulTiling.set_dbL0C(tilingData_->matmulTiling.get_dbL0C());
+        mmASTilingdata_.matmulTiling.set_stepM(tilingData_->matmulTiling.get_stepM());
+        mmASTilingdata_.matmulTiling.set_stepN(tilingData_->matmulTiling.get_stepN());
+        mmASTilingdata_.matmulTiling.set_stepKa(tilingData_->matmulTiling.get_stepKa());
+        mmASTilingdata_.matmulTiling.set_stepKb(tilingData_->matmulTiling.get_stepKb());
+        mmASTilingdata_.matmulTiling.set_depthA1(tilingData_->matmulTiling.get_depthA1());
+        mmASTilingdata_.matmulTiling.set_depthB1(tilingData_->matmulTiling.get_depthB1());
+        mmASTilingdata_.matmulTiling.set_iterateOrder(tilingData_->matmulTiling.get_iterateOrder());
+        mmASTilingdata_.matmulTiling.set_isBias(tilingData_->matmulTiling.get_isBias());
+        mmASTilingdata_.matmulTiling.set_shareMode(tilingData_->matmulTiling.get_shareMode());
+        mmASTilingdata_.matmulTiling.set_shareL1Size(tilingData_->matmulTiling.get_shareMode());
+        mmASTilingdata_.matmulTiling.set_shareL0CSize(tilingData_->matmulTiling.get_shareL0CSize());
         return ge::GRAPH_SUCCESS;
     }
 

@@ -34,7 +34,7 @@ public:
         : MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR>(
               addrs, quantAddrs, arnAddrs, tilingData, tPipe)
     {
-        mc2TilingData_ = (Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData*)tilingData;
+        mc2TilingData_ = (WeightQuantMatmulAllReduceA5TilingData*)tilingData;
         this->tileInfo_.mmTiling = &mc2TilingData_->tileRegBaseMmTiling.matmulTiling;
         this->tailInfo_.mmTiling = &mc2TilingData_->tailRegBaseMmTiling.matmulTiling;
     }
@@ -65,12 +65,12 @@ protected:
     }
 
 private:
-    Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData* mc2TilingData_;
+    WeightQuantMatmulAllReduceA5TilingData* mc2TilingData_;
 };
 
 #define INVOKE_MC2_WEIGHT_QUANT_KERNEL(bTransFlag, quantType, offsetFlag, weightNz)                       \
     do {                                                                                                  \
-        GET_TILING_DATA(tilingData, tilingGM);                                                          \
+        GET_TILING_DATA_WITH_STRUCT(WeightQuantMatmulAllReduceA5TilingData, tilingData, tilingGM);        \
         using OpType = Mc2WeightQuantBatchMatmulV2::Arch35::Mc2WeightQuantBatchMatmulV2RegBaseKernel<           \
             DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y, false, bTransFlag, offsetFlag, quantType, weightNz>; \
         MC2GmAddrs addrs = {aGM, bGM, biasGM, addGM, cGM, workspaceGM, cGM};                              \

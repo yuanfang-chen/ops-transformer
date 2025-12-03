@@ -47,21 +47,21 @@ public:
 
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR addGM, GM_ADDR dequantScaleGM,
                                 GM_ADDR pertokenGM, GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM, 
-                                GM_ADDR workspaceGM, Mc2Tiling::QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe);
+                                GM_ADDR workspaceGM, QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe);
     __aicore__ inline void Process();
 
 private:
     __aicore__ inline void InnerProcess(MmType &mmOp, MatmulAllReduceDynamicQuantPertile<XType, float> &quantOp,
-                                        uint32_t tileCnt, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams *mmTiling, uint32_t curPadM,
+                                        uint32_t tileCnt, Mc2QuantBatchMatmulV3TilingData *mmTiling, uint32_t curPadM,
                                         uint32_t isAdd, bool isTail);
     __aicore__ inline void StepOneTurn(MmType &mmOp, MatmulAllReduceDynamicQuantPertile<XType, float> &quantOp,
-                                       DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams *mmTiling, uint32_t curPadM, bool isTail,
+                                       Mc2QuantBatchMatmulV3TilingData *mmTiling, uint32_t curPadM, bool isTail,
                                        bool isFirst);
     __aicore__ inline void ProcessLast(MatmulAllReduceDynamicQuantPertile<XType, YType> &quantOp);
     __aicore__ inline void PrepareInit();
     __aicore__ inline void InitCommTasks();
     __aicore__ inline uint32_t SendCountCheck(uint32_t prepareIndex);
-    Mc2Tiling::QuantMatmulAllReduceTilingDataA5* tilingData_;
+    QuantMatmulAllReduceTilingDataA5* tilingData_;
 
     TPipe* tPipe_;
     GM_ADDR aGM_;
@@ -117,7 +117,7 @@ template <typename XType, typename WType, typename YType, class MmType, Mc2CoreT
 __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, MmType, CoreType>::Init(
     GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR addGM, GM_ADDR dequantScaleGM, GM_ADDR pertokenGM,
     GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM, GM_ADDR workspaceGM,
-    Mc2Tiling::QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe)
+    QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe)
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
@@ -255,7 +255,7 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
 template <typename XType, typename WType, typename YType, class MmType, Mc2CoreType CoreType>
 __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, MmType, CoreType>::InnerProcess(
     MmType &mmOp, MatmulAllReduceDynamicQuantPertile<XType, float> &quantOp, uint32_t tileCnt,
-    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams *mmTiling, uint32_t curPadM, uint32_t isAdd, bool isTail)
+    Mc2QuantBatchMatmulV3TilingData *mmTiling, uint32_t curPadM, uint32_t isAdd, bool isTail)
 {
     uint32_t oneLineSCnt = isTail ? tailOneLineSCnt_ : tileOneLineSCnt_;
     uint32_t quantNandSLen = mmTiling->matmulTiling.N * sizeof(XType) + oneLineSCnt * sizeof(float);
@@ -297,7 +297,7 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
 
 template <typename XType, typename WType, typename YType, class MmType, Mc2CoreType CoreType>
 __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, MmType, CoreType>::StepOneTurn(
-    MmType &mmOp, MatmulAllReduceDynamicQuantPertile<XType, float> &quantOp, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams *mmTiling,
+    MmType &mmOp, MatmulAllReduceDynamicQuantPertile<XType, float> &quantOp, Mc2QuantBatchMatmulV3TilingData *mmTiling,
     uint32_t curPadM, bool isTail, bool isFirst)
 {
     if ASCEND_IS_AIC {
@@ -405,8 +405,7 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
 
 #define INVOKE_MC2_QUANT_PERTILE_COMM_FP8_910_OP_IMPL(templateClass, coreType, isATrans, isBTrans...)                  \
     do {                                                                                                               \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantMatmulAllReduceTilingDataA5);                               \
-        GET_TILING_DATA(tilingData, tilingGM);                                                          \
+        GET_TILING_DATA_WITH_STRUCT(QuantMatmulAllReduceTilingDataA5, tilingData, tilingGM);                           \
         MC2GmAddrs addrs = {aGM, bGM, biasGM, addGM, cGM, workspaceGM, cGM};                                           \
         QuantGmAddrs quantAddrs = {nullptr, nullptr, nullptr, dequantGM, pertokenGM};                                  \
         using OpType = templateClass<DTYPE_X1, DTYPE_X2, float, DTYPE_BIAS, float, float, X1_FORMAT, X2_FORMAT,        \

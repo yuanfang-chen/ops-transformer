@@ -8,30 +8,16 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
- /*!
- * \file unquant_matmul_all_reduce_tiling_data.h
+/*!
+ * \file inplace_matmul_all_reduce_add_rms_norm_tiling.h
  * \brief
  */
+#ifndef _INPLACE_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
+#define _INPLACE_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
+#include "../../../matmul_all_reduce_add_rms_norm/op_host/op_tiling/matmul_all_reduce_add_rms_norm_tiling.h"
 
-#ifndef QUANT_MATMUL_ALL_REDUCE_TILING_DATA_H
-#define QUANT_MATMUL_ALL_REDUCE_TILING_DATA_H
+namespace optiling {
+REGISTER_TILING_DATA_CLASS(InplaceMatmulAllReduceAddRmsNorm, MatmulAllReduceAddRmsNormTilingData)
+}
 
-#include "kernel_tiling/kernel_tiling.h"
-
-#include "../../common/inc/kernel/mc2_tiling_struct.h"
-#include "../../3rd/quant_batch_matmul_v3/op_kernel/quant_batch_matmul_v3_tiling_data.h"
-
-namespace Mc2Tiling {
-
-#pragma pack(push, 8)
-// 8 means 8 bytes aligned
-struct alignas(8) QuantMatmulAllReduceTilingData{
-    Mc2Tiling::Mc2Msg msg;
-    Mc2Tiling::RCSTiling param;
-    Mc2QuantBatchMatmulV3TilingData tilematmulTiling;
-    Mc2QuantBatchMatmulV3TilingData tailmatmulTiling;
-};
-#pragma pack(pop)
-
-}  // namespace Mc2Tiling
-#endif
+#endif // _INPLACE_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_

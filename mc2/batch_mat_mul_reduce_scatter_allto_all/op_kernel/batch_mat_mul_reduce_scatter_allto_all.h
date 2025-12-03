@@ -23,11 +23,9 @@
 #else
 #include "../3rd/batch_mat_mul_v3/op_kernel/batch_mat_mul_v3.h"
 #endif
-#include "batch_mat_mul_reduce_scatter_allto_all_tiling_struct.h"
 
 using namespace AscendC;
 using namespace matmul;
-using namespace optiling;
 
 struct Tile {
     uint64_t tileLen;
@@ -42,9 +40,7 @@ public:
     __aicore__ inline BatchMatMulReduceScatterAlltoAll(){};
     __aicore__ inline void Init(__gm__ uint8_t* xGM, __gm__ uint8_t* weightGM, __gm__ uint8_t* biasGM,
                                 __gm__ uint8_t* yGM, __gm__ uint8_t* workspaceGM,
-                                const BatchMatMulReduceScatterAlltoAllTilingData* tiling, TPipe* tPipe,
-                                __gm__ void* hcclInitTiling, __gm__ void* reduceScatterCcTiling,
-                                __gm__ void* alltoAllCcTiling);
+                                const BatchMatMulReduceScatterAlltoAllTilingData* tiling, TPipe* tPipe);
     __aicore__ inline void Process();
 
     using X_T = typename BMMRSATAT::xType;
@@ -229,10 +225,10 @@ private:
     uint64_t alltoallVSendStride[MAX_TP_SIZE];
     uint64_t alltoallVRecvStride[MAX_TP_SIZE];
 
-    struct BMM_TileInfo localE; // 无tail
-    struct BMM_TileInfo localC; // 有tail
-    struct BMM_TileInfo nonLocalE; // 无tail
-    struct BMM_TileInfo nonLocalC; // 有tail
+    struct Tile localE; // 无tail
+    struct Tile localC; // 有tail
+    struct Tile nonLocalE; // 无tail
+    struct Tile nonLocalC; // 有tail
 
     TQue<TPosition::VECIN, 1> rsOutInQue;
     TQue<TPosition::VECIN, 1> biasInQue;
@@ -251,8 +247,7 @@ private:
 template <typename BMMRSATAT>
 __aicore__ inline void BatchMatMulReduceScatterAlltoAll<BMMRSATAT>::Init(__gm__ uint8_t* x, __gm__ uint8_t* weight,
     __gm__ uint8_t* bias, __gm__ uint8_t* y, __gm__ uint8_t* workspace,
-    const BatchMatMulReduceScatterAlltoAllTilingData* tiling, TPipe* tPipe,
-    __gm__ void* hcclInitTiling, __gm__ void* reduceScatterCcTiling, __gm__ void* alltoAllCcTiling)
+    const BatchMatMulReduceScatterAlltoAllTilingData* tiling, TPipe* tPipe)
 {
     tmpBlockIdx = GetBlockIdx(); // 用于vector分核
 
@@ -263,10 +258,8 @@ __aicore__ inline void BatchMatMulReduceScatterAlltoAll<BMMRSATAT>::Init(__gm__ 
     // HCCL初始化 --- aic需要获取epRankId
     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     auto contextGM1 = AscendC::GetHcclContext<1>();
-    hcclAlltoAll.Init(contextGM0, hcclInitTiling);
-    hcclAlltoAll.SetCcTiling(alltoAllCcTiling);
-    hcclReduceScatter.Init(contextGM1, hcclInitTiling);
-    hcclReduceScatter.SetCcTiling(reduceScatterCcTiling);
+    hcclAlltoAll.Init(contextGM0);
+    hcclReduceScatter.Init(contextGM1);
     epRankId = hcclAlltoAll.GetRankId();
     InitOffset();
 

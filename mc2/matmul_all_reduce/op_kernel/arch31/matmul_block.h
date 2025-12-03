@@ -14,7 +14,6 @@
  */
 #ifndef MC2_MATMUL_BLOCK_H
 #define MC2_MATMUL_BLOCK_H
-#include "../arch32/unquant_matmul_all_reduce_tiling_data.h"
 
 namespace AscendC {
 
@@ -33,8 +32,7 @@ class MatmulBlock
 public:
     __aicore__ inline MatmulBlock()
     {}
-    __aicore__ inline void Init(AscendC::tiling::TCubeTiling& tiling, Mc2Tiling::RCSTiling& cfg,
-        Mc2Tiling::Mc2L2cacheTilePara& tileL2cacheTiling);
+    __aicore__ inline void Init(TCubeTiling& tiling, RCSTiling& cfg, Mc2L2cacheTilePara& tileL2cacheTiling);
     __aicore__ inline void UpdateBlockIndex();
     __aicore__ inline void InitBlockIndex();
     __aicore__ inline uint32_t LCM(uint32_t m, uint32_t n); // 计算最小公倍数
@@ -52,9 +50,9 @@ public:
     bool isAtomic;
     bool isTransposeA;
     bool isTransposeB;
-    Mc2Tiling::RCSTiling cfg;
+    RCSTiling cfg;
 
-    AscendC::tiling::TCubeTiling tiling;
+    TCubeTiling tiling;
     bool isRowOrder;
     uint32_t preCoreNum; // 需要多计算一次的核数
     uint32_t mBlockCnt;  // M方向的基本块个数
@@ -68,8 +66,7 @@ public:
     uint32_t blockCurN; // 当前block块N轴大小
 };
 
-__aicore__ inline void MatmulBlock::Init(AscendC::tiling::TCubeTiling& tiling, Mc2Tiling::RCSTiling& cfg,
-    Mc2Tiling::Mc2L2cacheTilePara& tileL2cacheTiling)
+__aicore__ inline void MatmulBlock::Init(TCubeTiling& tiling, RCSTiling& cfg, Mc2L2cacheTilePara& tileL2cacheTiling)
 {
     (void)tileL2cacheTiling;
     this->tiling = tiling;

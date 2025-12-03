@@ -340,56 +340,6 @@ ge::graphStatus MatmulFormulaicTiling::GetCubeTiling(
   return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MatmulFormulaicTiling::GetCubeTiling(
-    TilingArgs &args, AscendC::tiling::TCubeTiling &cubeTiling) {
-  // 1.设置默认BaseM/N/K
-  InitBaseBlockTiling();
-  InitTilingArgs(args);
-  // 2.小Shape的BaseM/N/K计算
-  uint32_t usedCoreNum = MathCeil(args_.rankTileM, runInfo_.baseM) *
-                         MathCeil(args_.nValue, runInfo_.baseN);
-  if (args_.nValue == 0) {
-    usedCoreNum = MathCeil(args_.rankTileM, runInfo_.baseM) *
-                  MathCeil(args_.kValue, runInfo_.baseK);
-  }
-  if (usedCoreNum <= args_.aicCoreNum * FOMUL_AIC_NUM_THRESHOLD) {
-    CalcBaseBlockTiling();
-  }
-  // 3.计算Depth&Step数据
-  UpdateDepth();
-  runInfo_.stepKa = runInfo_.depthA1 / DB_ON;
-  runInfo_.stepKb = runInfo_.depthB1 / DB_ON;
-
-  // 4.计算L2Cache切分的TilingData
-  bool enableL2Tile = DoL2CacheTiling();
-
-  // 5.设置TilingData
-  if (args_.nValue == 0) {
-    usedCoreNum = MathCeil(args_.rankTileM, runInfo_.baseM) *
-                  MathCeil(args_.kValue, runInfo_.baseK);
-  } else {
-    usedCoreNum = MathCeil(args_.rankTileM, runInfo_.baseM) *
-                  MathCeil(args_.nValue, runInfo_.baseN);
-  }
-  usedCoreNum = std::min(usedCoreNum, args_.aicCoreNum);
-  OP_LOGD(opName_, "usedCoreNum is %u.", usedCoreNum);
-  cubeTiling.usedCoreNum = usedCoreNum;
-  cubeTiling.singleCoreM = runInfo_.baseM;
-  cubeTiling.singleCoreN = runInfo_.baseN;
-  cubeTiling.singleCoreK = args.kValue;
-  cubeTiling.baseM = runInfo_.baseM;
-  cubeTiling.baseN = runInfo_.baseN;
-  cubeTiling.baseK = runInfo_.baseK;
-  cubeTiling.depthA1 = runInfo_.depthA1;
-  cubeTiling.depthB1 = runInfo_.depthB1;
-  cubeTiling.stepM = 1;
-  cubeTiling.stepN = 1;
-  cubeTiling.stepKa = runInfo_.stepKa;
-  cubeTiling.stepKb = runInfo_.stepKb;
-  cubeTiling.dbL0C = 1;  // 这里是关闭L0C的double buffer，需要适配打开
-  return ge::GRAPH_SUCCESS;
-}
-
 uint32_t MatmulFormulaicTiling::GetRankSize(const char *group) {
   uint32_t rankSize = 8;
   if (Mc2Hcom::MC2HcomTopology::CommGetInstSizeByGroup(group, &rankSize)!=HCCL_SUCCESS) {
@@ -453,8 +403,8 @@ void MatmulFormulaicTiling::InitTilingArgs(TilingArgs &args) {
   args_.cDtypeSize = args.outputDtypeSize;
   args_.rankDim = args.rankDim;
   args_.rankM = args.mValue * args.rankDim;
-  if (args.commAlg == Mc2Tiling::COMM_ALG_DOUBLE_RING && !args.isLocal) {
-    args_.rankM *= Mc2Tiling::DOUBLE_RING_FACTOR;
+  if (args.commAlg == optiling::COMM_ALG_DOUBLE_RING && !args.isLocal) {
+    args_.rankM *= optiling::DOUBLE_RING_FACTOR;
   }
   OP_LOGD(opName_, " args_.rankM: %u.", args_.rankM);
   args_.rankTileM = args.rankTileNum * args.mValue;

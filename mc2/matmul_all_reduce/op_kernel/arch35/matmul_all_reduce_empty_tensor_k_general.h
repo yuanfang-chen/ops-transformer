@@ -34,9 +34,9 @@ public:
         cOffset_ = (uint64_t)param_->rankN * (uint64_t)param_->rankM;
 #if (defined MC2_WEIGHT_QUANT) || (defined WEIGHT_F8)
         biasFlag_ =
-            (((Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData*)tilingData)->tileMmASTiling.matmulTiling.isBias != 0U);
+            (((WeightQuantMatmulAllReduceA5Fp8TilingData*)tilingData)->tileMmASTiling.matmulTiling.isBias != 0U);
 #else
-        biasFlag_ = (((Mc2Tiling::MatmulAllReduce910TilingDataA5*)tilingData)->mC2Mmv3TileTilingData.tCubeTiling.isBias != 0U);
+        biasFlag_ = (((MatmulAllReduce910TilingDataA5*)tilingData)->mC2Mmv3TileTilingData.matmulTiling.isBias != 0U);
 #endif
     }
 
@@ -140,7 +140,7 @@ private:
     }
 
     MC2GmAddrs* addrs_;
-    Mc2Tiling::RCSTiling* param_;
+    RCSTiling* param_;
     bool biasFlag_{false};
     uint64_t cOffset_;
     TPipe* tPipe_;
@@ -151,15 +151,14 @@ private:
 
 #if (defined MC2_WEIGHT_QUANT) || (defined WEIGHT_F8)
 #define GET_TILING_DATA_FOR_EMPTY_TENSOR() \
-    REGISTER_TILING_DEFAULT(Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData)
+    GET_TILING_DATA_WITH_STRUCT(WeightQuantMatmulAllReduceA5Fp8TilingData, tilingData, tilingGM)
 #else
 #define GET_TILING_DATA_FOR_EMPTY_TENSOR() \
-    REGISTER_TILING_DEFAULT(Mc2Tiling::MatmulAllReduce910TilingDataA5)
+    GET_TILING_DATA_WITH_STRUCT(MatmulAllReduce910TilingDataA5, tilingData, tilingGM)
 #endif
 
 #define INVOKE_MC2_EMPTY_TENSOR_OP_IMPL()                                                              \
     do {                                                                                               \
-        GET_TILING_DATA(tilingData, tilingGM);                                                          \
         GET_TILING_DATA_FOR_EMPTY_TENSOR();                                                            \
         MC2GmAddrs addrs = {nullptr, nullptr, biasGM, addGM, cGM, nullptr, cGM};                       \
         MatmulAllReduceEmptyTensorKGeneral<DTYPE_Y> op(&addrs, (MC2TilingHeader*)&tilingData, &tPipe); \

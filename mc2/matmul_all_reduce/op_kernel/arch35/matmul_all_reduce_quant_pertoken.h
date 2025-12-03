@@ -35,7 +35,7 @@ public:
         MC2GmAddrs* addrs, QuantGmAddrs* quantAddrs, ArnGmAddrs* arnAddrs, MC2TilingHeader* tilingData, TPipe* tPipe)
         : MatmulAllReduceBase<XType, YType, CoreType>(addrs, quantAddrs, arnAddrs, tilingData, tPipe)
     {
-        mc2TilingData_ = (Mc2Tiling::QuantMatmulAllReduceTilingDataA5*)tilingData;
+        mc2TilingData_ = (QuantMatmulAllReduceTilingDataA5*)tilingData;
         this->tileInfo_.mmTiling = &mc2TilingData_->tilematmulTiling.matmulTiling;
         this->tailInfo_.mmTiling = &mc2TilingData_->tailmatmulTiling.matmulTiling;
     }
@@ -54,7 +54,7 @@ protected:
     __aicore__ inline void InnerProcess(bool tailFlag, uint32_t turnCnt, const MC2TileInfo& tileInfo)
     {
         MmType mmOp;
-        const DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tiling =
+        const Mc2QuantBatchMatmulV3TilingData* tiling =
             (tailFlag ? &mc2TilingData_->tailmatmulTiling : &mc2TilingData_->tilematmulTiling);
         const uint64_t pertokenOffset = sizeof(float) * tiling->matmulTiling.M;
         for (uint32_t i = 0U; i < turnCnt; ++i) {
@@ -78,13 +78,12 @@ protected:
     }
 
 private:
-    Mc2Tiling::QuantMatmulAllReduceTilingDataA5* mc2TilingData_;
+    QuantMatmulAllReduceTilingDataA5* mc2TilingData_;
 };
 
 #define INVOKE_BATCH_MATMUL_QUANT_PERTOKEN_IMPL(templateClass, coreType, scaleType, isATrans, isBTrans, ...)                      \
     do {                                                                                                               \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantMatmulAllReduceTilingDataA5);                                           \
-        GET_TILING_DATA(tilingData, tilingGM);                                                                          \
+        GET_TILING_DATA_WITH_STRUCT(QuantMatmulAllReduceTilingDataA5, tilingData, tilingGM);                           \
         MC2GmAddrs addrs = {aGM, bGM, biasGM, addGM, cGM, workspaceGM, cGM};                                           \
         QuantGmAddrs quantAddrs = {nullptr, nullptr, nullptr, dequantGM, pertokenGM};                                  \
         using OpType = templateClass<                                                                                  \

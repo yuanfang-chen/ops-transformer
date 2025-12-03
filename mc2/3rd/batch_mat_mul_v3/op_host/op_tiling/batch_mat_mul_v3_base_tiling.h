@@ -47,21 +47,21 @@ enum class Mc2TilingCalcSelect  //选择不同的计算Tiling的方法
 };
 
 enum class Mc2TilingEnableMultiBatchL1FullLoad : int32_t // 互斥flag, 对应不同全载模板选择
-{
+{ 
     IS_FALSE = 0,
     IS_TRUE = 1,
     MAX = 10 //模板类别不能超过10个
 };
 
 enum class Mc2TilingEnableMultiBatch : int32_t // 互斥flag, 对应不同全载模板选择
-{
+{ 
     IS_FALSE = 0,
     IS_TRUE = 1,
     MAX = 10 //模板类别不能超过10个
 };
 
 enum class Mc2TilingEnableLoadMode : int32_t // 互斥flag, 对应不同全载模板选择
-{
+{ 
     BASE = 0,
     AL1_FULL_LOAD = 1,
     BL1_FULL_LOAD = 2,
@@ -69,14 +69,14 @@ enum class Mc2TilingEnableLoadMode : int32_t // 互斥flag, 对应不同全载�
 };
 
 enum class Mc2TilingEnableMultiBatchOut : int32_t // 互斥flag, 对应不同全载模板选择
-{
+{ 
     IS_FALSE = 0,
     IS_TRUE = 1,
     MAX = 10 //模板类别不能超过10个
 };
 
 enum class Mc2TilingEnableMixNd2Nz : int32_t // 互斥flag, 对应不同全载模板选择
-{
+{ 
     IS_TRUE = 0,
     IS_FALSE = 1,
     MAX = 10 //模板类别不能超过10个
@@ -141,7 +141,7 @@ protected:
     Mc2BatchMatmulTilingData &bmmTilingData_;
     Mc2TilingCalcSelect tilingSelect_ = Mc2TilingCalcSelect::ALL;
 private:
-    Mc2BatchMatmulTilingData bmmTilingDataSelf_{};
+    Mc2BatchMatmulTilingData bmmTilingDataSelf_;
     uint64_t aBatchDimAll_{1};
     uint64_t bBatchDimAll_{1};
     uint64_t cBatchDimAll_{1};

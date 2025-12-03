@@ -17,7 +17,6 @@
 #include "mc2_log.h"
 #include "op_mc2.h"
 using namespace Mc2Log;
-using namespace Mc2Tiling;
 
 namespace optiling {
 bool WeightQuantMatmulAllReduceTiling310P::IsCapable()
@@ -51,16 +50,16 @@ void WeightQuantMatmulAllReduceTiling310P::UpdateCommOffset()
         columnNum = args_.orgKValue;
     }
     // AllReduce
-    args.sendOff = tileMValue_ * args_.orgNValue * args_.outputDtypeSize;
-    args.recvOff = tileMValue_ * columnNum * args_.outputDtypeSize;
-    args.sendCnt = tileMValue_ * args_.orgNValue;
-    args.recvCnt = tileMValue_ * columnNum;
+    args.set_sendOff(tileMValue_ * args_.orgNValue * args_.outputDtypeSize);
+    args.set_recvOff(tileMValue_ * columnNum * args_.outputDtypeSize);
+    args.set_sendCnt(tileMValue_ * args_.orgNValue);
+    args.set_recvCnt(tileMValue_ * columnNum);
 
     // 通信公式化Tiling计算中，可能有多个尾块
-    args.tailSendOff = tailMValue_ * args_.orgNValue * args_.outputDtypeSize;
-    args.tailRecvOff = tailMValue_ * columnNum * args_.outputDtypeSize;
-    args.tailSendCnt = tailMValue_ * args_.orgNValue;
-    args.tailRecvCnt = tailMValue_ * columnNum;
+    args.set_tailSendOff(tailMValue_ * args_.orgNValue * args_.outputDtypeSize);
+    args.set_tailRecvOff(tailMValue_ * columnNum * args_.outputDtypeSize);
+    args.set_tailSendCnt(tailMValue_ * args_.orgNValue);
+    args.set_tailRecvCnt(tailMValue_ * columnNum);
 }
 
 ge::graphStatus WeightQuantMatmulAllReduceTiling310P::DoOpTiling()
@@ -68,12 +67,12 @@ ge::graphStatus WeightQuantMatmulAllReduceTiling310P::DoOpTiling()
     GE_ASSERT_GRAPH_SUCCESS(CheckA16W8());
     DoRCSTiling();
     DoSplitMTiling();
-    weightQuantMatmulAllReduceTilingData_.tilematmulTiling.cubeBlockDimM = 1;
-    weightQuantMatmulAllReduceTilingData_.tilematmulTiling.cubeBlockDimN = 1;
+    weightQuantMatmulAllReduceTilingData_.tilematmulTiling.set_cubeBlockDimM(1);
+    weightQuantMatmulAllReduceTilingData_.tilematmulTiling.set_cubeBlockDimN(1);
     if (isKZero_) {
-        MutableTCubeTileTilingData().M = args_.orgMValue;
-        MutableTCubeTileTilingData().isBias = args_.isBias;
-        MutableTCubeTileTilingData().usedCoreNum = 1;
+        MutableTCubeTileTilingData().set_M(args_.orgMValue);
+        MutableTCubeTileTilingData().set_isBias(args_.isBias);
+        MutableTCubeTileTilingData().set_usedCoreNum(1);
         DoAllReduceTiling();
         return ge::GRAPH_SUCCESS;
     }
@@ -139,38 +138,30 @@ ge::graphStatus WeightQuantMatmulAllReduceTiling310P::GetWorkspaceSize()
 
 ge::graphStatus WeightQuantMatmulAllReduceTiling310P::PostTiling()
 {
-    size_t tilingDataSize = sizeof(WeightQuantMatmulAllReduceNzTilingData);
     OP_LOGD(
         opName_, "final tiling data size: %zu and context capacity size: %zu ",
-        tilingDataSize, context_->GetRawTilingData()->GetCapacity());
+        weightQuantMatmulAllReduceTilingData_.GetDataSize(), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(weightQuantMatmulAllReduceTilingData_.GetDataSize());
 
     OP_TILING_CHECK(
-        tilingDataSize % sizeof(uint64_t) != 0,
+        weightQuantMatmulAllReduceTilingData_.GetDataSize() % sizeof(uint64_t) != 0,
         VECTOR_INNER_ERR_REPORT_TILING(
-            opName_, "tiling data size[%zu] not aligned to 8", tilingDataSize),
+            opName_, "tiling data size[%zu] not aligned to 8", weightQuantMatmulAllReduceTilingData_.GetDataSize()),
         return ge::GRAPH_FAILED);
-    context_->GetRawTilingData()->SetDataSize(tilingDataSize);
-
-    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
-        reinterpret_cast<void *>(&weightQuantMatmulAllReduceTilingData_), tilingDataSize);
-    if (ret != EOK){
-        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
-        return ge::GRAPH_FAILED;
-    }
-    if (MutableRCSTilingData().rankID == 0) {
+    if (MutableRCSTilingData().get_rankID() == 0) {
         PrintRCSTilingData(context_->GetNodeName(), MutableRCSTilingData());
         PrintTCubeTilingData(context_->GetNodeName(), MutableTCubeTileTilingData());
         PrintMc2MsgData(context_->GetNodeName(), MutableMc2MsgData());
-        if (MutableRCSTilingData().tailM > 0) {
+        if (MutableRCSTilingData().get_tailM() > 0) {
             OP_LOGD(opName_, "have tail");
             PrintTCubeTilingData(context_->GetNodeName(), MutableTCubeTailTilingData());
         }
     }
 
-    int32_t tile_core_num = weightQuantMatmulAllReduceTilingData_.tilematmulTiling.cubeBlockDimM *
-                            weightQuantMatmulAllReduceTilingData_.tilematmulTiling.cubeBlockDimN;
-    int32_t tail_core_num = weightQuantMatmulAllReduceTilingData_.tailmatmulTiling.cubeBlockDimM *
-                            weightQuantMatmulAllReduceTilingData_.tailmatmulTiling.cubeBlockDimN;
+    int32_t tile_core_num = weightQuantMatmulAllReduceTilingData_.tilematmulTiling.get_cubeBlockDimM() *
+                            weightQuantMatmulAllReduceTilingData_.tilematmulTiling.get_cubeBlockDimN();
+    int32_t tail_core_num = weightQuantMatmulAllReduceTilingData_.tailmatmulTiling.get_cubeBlockDimM() *
+                            weightQuantMatmulAllReduceTilingData_.tailmatmulTiling.get_cubeBlockDimN();
     int32_t max_core_num = tile_core_num > tail_core_num ? tile_core_num : tail_core_num;
     OP_LOGI(
         opName_, " PostTiling tile_core_num:%d tail_core_num:%d max_core_num:%d", tile_core_num, tail_core_num,
@@ -179,22 +170,22 @@ ge::graphStatus WeightQuantMatmulAllReduceTiling310P::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-Mc2Tiling::Mc2Msg& WeightQuantMatmulAllReduceTiling310P::MutableMc2MsgData()
+Mc2Msg& WeightQuantMatmulAllReduceTiling310P::MutableMc2MsgData()
 {
     return weightQuantMatmulAllReduceTilingData_.msg;
 }
 
-Mc2Tiling::RCSTiling& WeightQuantMatmulAllReduceTiling310P::MutableRCSTilingData()
+RCSTiling& WeightQuantMatmulAllReduceTiling310P::MutableRCSTilingData()
 {
     return weightQuantMatmulAllReduceTilingData_.param;
 }
 
-AscendC::tiling::TCubeTiling& WeightQuantMatmulAllReduceTiling310P::MutableTCubeTileTilingData()
+TCubeTiling& WeightQuantMatmulAllReduceTiling310P::MutableTCubeTileTilingData()
 {
     return weightQuantMatmulAllReduceTilingData_.tilematmulTiling.matmulTiling;
 }
 
-AscendC::tiling::TCubeTiling& WeightQuantMatmulAllReduceTiling310P::MutableTCubeTailTilingData()
+TCubeTiling& WeightQuantMatmulAllReduceTiling310P::MutableTCubeTailTilingData()
 {
     return weightQuantMatmulAllReduceTilingData_.tailmatmulTiling.matmulTiling;
 }
@@ -230,7 +221,7 @@ ge::graphStatus WeightQuantMatmulAllReduceTiling310P::DoWeightQuantTiling()
             static_cast<uint64_t>(FORMAT_B_NZ));
         OP_LOGI(opName_, " tilematmulTiling tilingKey %lu. AntiQuantType %lu, hasAntiquantOffset %lu, transA %lu.", tileTilingKey_,
             weightQuantMatmul310TPLParam_.antiQuantType, weightQuantMatmul310TPLParam_.hasAntiquantOffset, weightQuantMatmul310TPLParam_.transA);
-        if (MutableRCSTilingData().tailCnt == 0) {
+        if (MutableRCSTilingData().get_tailCnt() == 0) {
             return ge::GRAPH_SUCCESS;
         }
         args_.mValue = tailMValue_;

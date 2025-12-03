@@ -28,7 +28,6 @@
 #include "matmul_all_reduce_quant_perchannel.h"
 #include "matmul_all_reduce_dequant_perchannel.h"
 #include "matmul_all_reduce_quant_reduce_sum.h"
-#include "quant_matmul_all_reduce_tiling_data.h"
 
 constexpr uint32_t MAX_HANDLE_ID_NUM = 16;
 constexpr uint32_t NUM_TWO_PERTOKEN = 2;
@@ -49,7 +48,7 @@ public:
     __aicore__ inline void Init(
         GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR addGM, GM_ADDR dequantScaleGM, GM_ADDR pertokenScaleGM,
         GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM, GM_ADDR workspaceGM,
-        Mc2Tiling::QuantMatmulAllReduceTilingData* tilingData, TPipe* tPipe);
+        QuantMatmulAllReduceTilingData* tilingData, TPipe* tPipe);
     __aicore__ inline void Process(
         BmmDequantPertoken<xType, wType, fFormat, wFormat, scaleType, yType, aTrans, bTrans, true>& opTile,
         BmmDequantPertoken<xType, wType, fFormat, wFormat, scaleType, yType, aTrans, bTrans, true>& opTail);
@@ -62,7 +61,7 @@ private:
     __aicore__ inline void PrepareInit();
     __aicore__ inline uint32_t SendCountCheck(uint32_t prepareIndex);
 
-    Mc2Tiling::QuantMatmulAllReduceTilingData* tilingData_;
+    QuantMatmulAllReduceTilingData* tilingData_;
     TPipe* tPipe_;
     GM_ADDR aGM_;
     GM_ADDR bGM_;
@@ -170,7 +169,7 @@ __aicore__ inline void
 MatmulAllReduceQuantPertokenInt8<xType, wType, fFormat, wFormat, scaleType, yType, commType, aTrans, bTrans>::Init(
     GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR addGM, GM_ADDR dequantScaleGM, GM_ADDR pertokenScaleGM,
     GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM, GM_ADDR workspaceGM,
-    Mc2Tiling::QuantMatmulAllReduceTilingData* tilingData, TPipe* tPipe)
+    QuantMatmulAllReduceTilingData* tilingData, TPipe* tPipe)
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);

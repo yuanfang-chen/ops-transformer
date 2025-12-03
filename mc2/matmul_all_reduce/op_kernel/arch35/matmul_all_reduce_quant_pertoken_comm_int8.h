@@ -44,17 +44,17 @@ public:
     __aicore__ inline void Init(
         GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR addGM, GM_ADDR dequantScaleGM, GM_ADDR pertokenScaleGM,
         GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM, GM_ADDR workspaceGM,
-        Mc2Tiling::QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe);
+        QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe);
     __aicore__ inline void Process();
 
 private:
     __aicore__ inline void InnerProcess(
-        MmType& mmOp, uint32_t tileCnt, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* mmTiling, uint32_t isAdd, uint32_t needUbBuffer,
+        MmType& mmOp, uint32_t tileCnt, Mc2QuantBatchMatmulV3TilingData* mmTiling, uint32_t isAdd, uint32_t needUbBuffer,
         uint32_t padM, bool isTailFlag);
     __aicore__ inline void PrepareInit();
     __aicore__ inline uint32_t SendCountCheck(uint32_t prepareIndex);
 
-    Mc2Tiling::QuantMatmulAllReduceTilingDataA5* tilingData_;
+    QuantMatmulAllReduceTilingDataA5* tilingData_;
     TPipe* tPipe_;
     GM_ADDR aGM_;
     GM_ADDR bGM_;
@@ -100,7 +100,7 @@ template <typename xType, typename WType, typename YType, class MmType, Mc2CoreT
 __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType, MmType, CoreType>::Init(
     GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR addGM, GM_ADDR dequantScaleGM, GM_ADDR pertokenScaleGM,
     GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM, GM_ADDR workspaceGM,
-    Mc2Tiling::QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe)
+    QuantMatmulAllReduceTilingDataA5* tilingData, TPipe* tPipe)
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
@@ -225,7 +225,7 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
 
 template <typename xType, typename WType, typename YType, class MmType, Mc2CoreType CoreType>
 __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType, MmType, CoreType>::InnerProcess(
-    MmType& mmOp, uint32_t tileCnt, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* mmTiling, uint32_t isAdd, uint32_t needUbBuffer,
+    MmType& mmOp, uint32_t tileCnt, Mc2QuantBatchMatmulV3TilingData* mmTiling, uint32_t isAdd, uint32_t needUbBuffer,
     uint32_t padM, bool isTailFlag)
 {
     const uint64_t aOffset = CalcShapeOffset(sizeof(xType), mmTiling->matmulTiling.M, mmTiling->matmulTiling.Ka);
@@ -348,8 +348,7 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
 
 #define INVOKE_BATCH_MATMUL_QUANT_PERTOKEN_COMM_INT8_IMPL(templateClass, coreType, scaleType, isATrans, isBTrans, ...)            \
     do {                                                                                                               \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantMatmulAllReduceTilingDataA5);                           \
-        GET_TILING_DATA(tilingData, tilingGM);                                                          \
+        GET_TILING_DATA_WITH_STRUCT(QuantMatmulAllReduceTilingDataA5, tilingData, tilingGM);                           \
         MC2GmAddrs addrs = {aGM, bGM, biasGM, addGM, cGM, workspaceGM, cGM};                                           \
         QuantGmAddrs quantAddrs = {nullptr, nullptr, nullptr, dequantGM, pertokenGM};                                  \
         using OpType = templateClass<                                                                                  \

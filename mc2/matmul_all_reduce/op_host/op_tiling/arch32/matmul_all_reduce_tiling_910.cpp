@@ -16,7 +16,6 @@
 #include "op_mc2.h"
 
 namespace optiling {
-using namespace Mc2Tiling;
 bool MatmulAllReduceTiling910::IsCapable()
 {
     OP_LOGI(opName_, "start with MatmulAllReduceTiling910 tiling.");
@@ -25,10 +24,10 @@ bool MatmulAllReduceTiling910::IsCapable()
 
 void MatmulAllReduceTiling910::DoEmptyTensorTiling()
 {
-    MutableTCubeTileTilingData().M = args_.orgMValue;
-    MutableTCubeTileTilingData().N = args_.orgNValue;
-    MutableTCubeTileTilingData().isBias = args_.isBias;
-    MutableTCubeTileTilingData().usedCoreNum = 1;
+    MutableTCubeTileTilingData().set_M(args_.orgMValue);
+    MutableTCubeTileTilingData().set_N(args_.orgNValue);
+    MutableTCubeTileTilingData().set_isBias(args_.isBias);
+    MutableTCubeTileTilingData().set_usedCoreNum(1);
 }
 
 ge::graphStatus MatmulAllReduceTiling910::DoOpTiling()
@@ -65,7 +64,7 @@ uint64_t MatmulAllReduceTiling910::GetTilingKey() const
     }
 
     uint64_t MM_type = (matmulTPLParam_.disableMixNd2nz == MAT_MUL_V3_MIXND2NZ_FALSE &&
-        !enableBiasConvert_ && !matmulAllReduce910TilingData_.param.isAdd) ?
+        !enableBiasConvert_ && !matmulAllReduce910TilingData_.param.get_isAdd()) ?
         MATMUL_ALLREDUCE_MM_TYPE_FP_MM_CUBE_ONLY :
         MATMUL_ALLREDUCE_MM_TYPE_FP_MM;
 
@@ -98,25 +97,17 @@ ge::graphStatus MatmulAllReduceTiling910::GetWorkspaceSize()
 
 ge::graphStatus MatmulAllReduceTiling910::PostTiling()
 {
-    size_t tilingDataSize = sizeof(MatmulAllReduce910TilingData);
     OP_LOGD(
         opName_, "final tiling data size: %zu and context capacity size: %zu ",
-        tilingDataSize, context_->GetRawTilingData()->GetCapacity());
+        matmulAllReduce910TilingData_.GetDataSize(), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(matmulAllReduce910TilingData_.GetDataSize());
+
     OP_TILING_CHECK(
-        tilingDataSize % sizeof(uint64_t) != 0,
+        matmulAllReduce910TilingData_.GetDataSize() % sizeof(uint64_t) != 0,
         VECTOR_INNER_ERR_REPORT_TILING(
-            opName_, "tiling data size[%zu] not aligned to 8", tilingDataSize),
+            opName_, "tiling data size[%zu] not aligned to 8", matmulAllReduce910TilingData_.GetDataSize()),
         return ge::GRAPH_FAILED);
-    context_->GetRawTilingData()->SetDataSize(tilingDataSize);
-
-    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
-        reinterpret_cast<void *>(&matmulAllReduce910TilingData_), tilingDataSize);
-    if (ret != EOK){
-        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
-        return ge::GRAPH_FAILED;
-    }
     PrintTilingData();
-
     context_->SetBlockDim(args_.aicCoreNum);
     return ge::GRAPH_SUCCESS;
 }
@@ -132,7 +123,7 @@ ge::graphStatus MatmulAllReduceTiling910::Do910Tiling()
         return res;
     } else {
         GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
-        if (MutableRCSTilingData().tailCnt == 0) {
+        if (MutableRCSTilingData().get_tailCnt() == 0) {
             matmulTPLParam_ = mmTile.GetMatmulTPLParam();
             return ge::GRAPH_SUCCESS;
         }
@@ -144,22 +135,22 @@ ge::graphStatus MatmulAllReduceTiling910::Do910Tiling()
     }
 }
 
-Mc2Tiling::Mc2Msg& MatmulAllReduceTiling910::MutableMc2MsgData()
+Mc2Msg& MatmulAllReduceTiling910::MutableMc2MsgData()
 {
     return matmulAllReduce910TilingData_.msg;
 }
 
-Mc2Tiling::RCSTiling& MatmulAllReduceTiling910::MutableRCSTilingData()
+RCSTiling& MatmulAllReduceTiling910::MutableRCSTilingData()
 {
     return matmulAllReduce910TilingData_.param;
 }
 
-AscendC::tiling::TCubeTiling& MatmulAllReduceTiling910::MutableTCubeTileTilingData()
+TCubeTiling& MatmulAllReduceTiling910::MutableTCubeTileTilingData()
 {
     return matmulAllReduce910TilingData_.tilematmulTiling.matmulTiling;
 }
 
-AscendC::tiling::TCubeTiling& MatmulAllReduceTiling910::MutableTCubeTailTilingData()
+TCubeTiling& MatmulAllReduceTiling910::MutableTCubeTailTilingData()
 {
     return matmulAllReduce910TilingData_.tailmatmulTiling.matmulTiling;
 }
@@ -286,7 +277,10 @@ ge::graphStatus MatmulAllReduceTiling910::CheckInput()
 }
 
 MatmulAllReduceTiling910::MatmulAllReduceTiling910(gert::TilingContext* context)
-    : MatmulAllReduceTilingBase(context), matmulAllReduce910TilingData_(matmulAllReduce910TilingDataSelf_) {}
+    : MatmulAllReduceTilingBase(context), matmulAllReduce910TilingData_(matmulAllReduce910TilingDataSelf_)
+{
+    matmulAllReduce910TilingData_.SetDataPtr(context_->GetRawTilingData()->GetData());
+}
 
 MatmulAllReduceTiling910::MatmulAllReduceTiling910(
     gert::TilingContext* context, MMRCtxInfo* mmrCtxInfo, MatmulAllReduce910TilingData* out)

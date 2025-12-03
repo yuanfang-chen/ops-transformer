@@ -17,7 +17,6 @@
 #include "quant_matmul_all_reduce_tiling.h"
 #include "op_mc2.h"
 
-using namespace Mc2Tiling;
 namespace optiling {
 namespace {
 const gert::Shape defaultShape = gert::Shape();
@@ -39,7 +38,7 @@ ge::graphStatus QuantMatmulAllReduceTiling::DoOpTiling()
     DoRCSTiling();
     DoSplitMTiling();
     GE_ASSERT_GRAPH_SUCCESS(DoQuantTiling());
-    if (MutableRCSTilingData().isInputCommQuantScale == 1) {
+    if (MutableRCSTilingData().get_isInputCommQuantScale() == 1) {
         isCommInt8Enable_ = true;
     }
     DoAllReduceTiling(true);
@@ -65,23 +64,23 @@ ge::graphStatus QuantMatmulAllReduceTiling::GetWorkspaceSize()
 {
     size_t* workspaces = context_->GetWorkspaceSizes(1); // set workspace
     uint64_t int8WorkSpace = 0UL;
-    if (MutableRCSTilingData().isInputCommQuantScale == 1) {
-        uint64_t padTileM = MutableTCubeTileTilingData().M;
-        uint64_t padTailM = MutableTCubeTailTilingData().M;
+    if (MutableRCSTilingData().get_isInputCommQuantScale() == 1) {
+        uint64_t padTileM = MutableTCubeTileTilingData().get_M();
+        uint64_t padTailM = MutableTCubeTailTilingData().get_M();
         if (padTileM % args_.rankDim != 0) {
             padTileM += args_.rankDim - (padTileM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
         }
-        uint64_t tempPadTileM = padTileM * MutableTCubeTileTilingData().N * sizeof(uint8_t);
+        uint64_t tempPadTileM = padTileM * MutableTCubeTileTilingData().get_N() * sizeof(uint8_t);
         if (padTailM % args_.rankDim != 0) {
             padTailM += args_.rankDim - (padTailM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
         }
-        uint64_t tempPadTailM = padTailM * MutableTCubeTailTilingData().N * sizeof(uint8_t);
+        uint64_t tempPadTailM = padTailM * MutableTCubeTailTilingData().get_N() * sizeof(uint8_t);
         int8WorkSpace =
-            tempPadTileM * MutableRCSTilingData().tileCnt + tempPadTailM * MutableRCSTilingData().tailCnt;
+            tempPadTileM * MutableRCSTilingData().get_tileCnt() + tempPadTailM * MutableRCSTilingData().get_tailCnt();
         OP_LOGI(opName_, " set int8WorkSpace size %lu to context", int8WorkSpace);
     }
     uint64_t commWorkSpace = myWorkSpaceSize_ - libApiWorkSpaceSize_;
-    MutableRCSTilingData().commWorkSpaceSize = commWorkSpace; // myWorkSpaceSize_去除系统空间后剩余大小
+    MutableRCSTilingData().set_commWorkSpaceSize(commWorkSpace); // myWorkSpaceSize_去除系统空间后剩余大小
     myWorkSpaceSize_ = myWorkSpaceSize_ + int8WorkSpace;
     OP_LOGI(opName_, " set max workspace size %lu to context", myWorkSpaceSize_);
     workspaces[0] = myWorkSpaceSize_;
@@ -89,41 +88,34 @@ ge::graphStatus QuantMatmulAllReduceTiling::GetWorkspaceSize()
 }
 ge::graphStatus QuantMatmulAllReduceTiling::PostTiling()
 {
-    size_t tilingDataSize = sizeof(QuantMatmulAllReduceTilingData);
     OP_LOGD(
         opName_, "final tiling data size: %zu and context capacity size: %zu ",
-        tilingDataSize, context_->GetRawTilingData()->GetCapacity());
-    OP_TILING_CHECK(
-        tilingDataSize % sizeof(uint64_t) != 0,
-        VECTOR_INNER_ERR_REPORT_TILING(
-            opName_, "tiling data size[%zu] not aligned to 8", tilingDataSize),
-        return ge::GRAPH_FAILED);
-    context_->GetRawTilingData()->SetDataSize(tilingDataSize);
+        quantMatmulAllReduceTilingData_.GetDataSize(), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(quantMatmulAllReduceTilingData_.GetDataSize());
 
-    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
-        reinterpret_cast<void *>(&quantMatmulAllReduceTilingData_), tilingDataSize);
-    if (ret != EOK){
-        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
-        return ge::GRAPH_FAILED;
-    }
+    OP_TILING_CHECK(
+        quantMatmulAllReduceTilingData_.GetDataSize() % sizeof(uint64_t) != 0,
+        VECTOR_INNER_ERR_REPORT_TILING(
+            opName_, "tiling data size[%zu] not aligned to 8", quantMatmulAllReduceTilingData_.GetDataSize()),
+        return ge::GRAPH_FAILED);
     PrintTilingData();
 
     context_->SetBlockDim(args_.aicCoreNum);
     return ge::GRAPH_SUCCESS;
 }
-Mc2Tiling::Mc2Msg& QuantMatmulAllReduceTiling::MutableMc2MsgData()
+Mc2Msg& QuantMatmulAllReduceTiling::MutableMc2MsgData()
 {
     return quantMatmulAllReduceTilingData_.msg;
 }
-Mc2Tiling::RCSTiling& QuantMatmulAllReduceTiling::MutableRCSTilingData()
+RCSTiling& QuantMatmulAllReduceTiling::MutableRCSTilingData()
 {
     return quantMatmulAllReduceTilingData_.param;
 }
-AscendC::tiling::TCubeTiling& QuantMatmulAllReduceTiling::MutableTCubeTileTilingData()
+TCubeTiling& QuantMatmulAllReduceTiling::MutableTCubeTileTilingData()
 {
     return quantMatmulAllReduceTilingData_.tilematmulTiling.matmulTiling;
 }
-AscendC::tiling::TCubeTiling& QuantMatmulAllReduceTiling::MutableTCubeTailTilingData()
+TCubeTiling& QuantMatmulAllReduceTiling::MutableTCubeTailTilingData()
 {
     return quantMatmulAllReduceTilingData_.tailmatmulTiling.matmulTiling;
 }
@@ -138,7 +130,7 @@ ge::graphStatus QuantMatmulAllReduceTiling::DoQuantTiling()
         return res;
     } else {
         GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
-        if (MutableRCSTilingData().tailCnt == 0) {
+        if (MutableRCSTilingData().get_tailCnt() == 0) {
             quantMatmulTPLParam_ = mmTile.GetQuantMatmulTPLParam();
             return ge::GRAPH_SUCCESS;
         }
@@ -272,7 +264,10 @@ ge::graphStatus QuantMatmulAllReduceTiling::CheckInput()
     return CheckAxisSize();
 }
 QuantMatmulAllReduceTiling::QuantMatmulAllReduceTiling(gert::TilingContext* context)
-    : MatmulAllReduceTilingBase(context), quantMatmulAllReduceTilingData_(quantMatmulAllReduceTilingDataSelf_) {}
+    : MatmulAllReduceTilingBase(context), quantMatmulAllReduceTilingData_(quantMatmulAllReduceTilingDataSelf_)
+{
+    quantMatmulAllReduceTilingData_.SetDataPtr(context_->GetRawTilingData()->GetData());
+}
 const gert::Shape QuantTilingTransferHelper::GetX1Shape(const size_t index)
 {
     (void)index;

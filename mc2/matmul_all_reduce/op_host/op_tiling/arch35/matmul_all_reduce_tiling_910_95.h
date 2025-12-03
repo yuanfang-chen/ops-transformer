@@ -22,22 +22,36 @@
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_common_advanced.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_tiling_registry.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_tiling_strategy.h"
-#include "mc2_matmul_tiling_cfg.h"
-#include "../../../op_kernel/arch35/matmul_all_reduce_tiling_struct_ar35.h"
+#include "new_mc2_matmul_tiling_cfg.h"
 
 namespace optiling {
 using namespace mc2_matmul_v3_advanced;
+using namespace Mc2Tiling;
+
+BEGIN_TILING_DATA_DEF(MatmulAllReduce910TilingDataA5)
+    TILING_DATA_FIELD_DEF(uint32_t, version);
+    TILING_DATA_FIELD_DEF(uint32_t, hcommCnt);
+    TILING_DATA_FIELD_DEF_STRUCT(MC2ServerCfg, serverCfg);
+    TILING_DATA_FIELD_DEF_STRUCT(MC2HcommCfg, hcommCfg);
+    TILING_DATA_FIELD_DEF_STRUCT(Mc2Msg, msg);
+    TILING_DATA_FIELD_DEF_STRUCT(RCSTiling, param);
+    TILING_DATA_FIELD_DEF_STRUCT(MC2MatmulV3TilingData, mC2Mmv3TileTilingData);
+    TILING_DATA_FIELD_DEF_STRUCT(MC2MatmulV3TilingData, mC2Mmv3TailTilingData);
+END_TILING_DATA_DEF;
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000000001, MatmulAllReduce910TilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000001100, MatmulAllReduce910TilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000000009, MatmulAllReduce910TilingDataA5);
 
 class MatmulAllReduceTilingA5 : public MatmulAllReduceTilingBase
 {
 public:
     explicit MatmulAllReduceTilingA5(gert::TilingContext* context);
-    MatmulAllReduceTilingA5(gert::TilingContext* context, MMRCtxInfo* mmrCtxInfo, Mc2Tiling::MatmulAllReduce910TilingDataA5* out);
+    MatmulAllReduceTilingA5(gert::TilingContext* context, MMRCtxInfo* mmrCtxInfo, MatmulAllReduce910TilingDataA5* out);
     ~MatmulAllReduceTilingA5() override = default;
 
 protected:
-    ge::graphStatus DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg, Mc2MMRegisterCfg &registerCfg,
-                                     Mc2MatMulV3TilingData &tilingData);
+    ge::graphStatus DoMatmulV3Tiling(Mc2MatmulHelper::NewMc2MatmulTilingCfg &tilingCfg, Mc2MMRegisterCfg &registerCfg,
+                                     optiling::MC2MatmulV3TilingData &tilingData);
     bool IsCapable() override;
 
     ge::graphStatus DoOpTiling() override;
@@ -50,26 +64,26 @@ protected:
 
     ge::graphStatus Do910Tiling();
 
-    Mc2Tiling::Mc2Msg& MutableMc2MsgData() override;
+    Mc2Msg& MutableMc2MsgData() override;
 
-    Mc2Tiling::RCSTiling& MutableRCSTilingData() override;
+    RCSTiling& MutableRCSTilingData() override;
 
-    ::TCubeTiling &MutableTCubeTileTilingData() override
+    TCubeTiling &MutableTCubeTileTilingData() override
     {
-        return matmulAllReduce910TilingData_.mC2Mmv3TileTilingData.tCubeTiling;
+        return matmulAllReduce910TilingData_.mC2Mmv3TileTilingData.matmulTiling;
     }
 
-    ::TCubeTiling &MutableTCubeTailTilingData() override
+    TCubeTiling &MutableTCubeTailTilingData() override
     {
-        return matmulAllReduce910TilingData_.mC2Mmv3TailTilingData.tCubeTiling;
+        return matmulAllReduce910TilingData_.mC2Mmv3TailTilingData.matmulTiling;
     }
 
-    inline Mc2MatMulV3TilingData &MutableMC2MmV3TileTilingData()
+    inline optiling::MC2MatmulV3TilingData &MutableMC2MmV3TileTilingData()
     {
         return matmulAllReduce910TilingData_.mC2Mmv3TileTilingData;
     }
 
-    inline Mc2MatMulV3TilingData &MutableMC2MmV3TailTilingData()
+    inline optiling::MC2MatmulV3TilingData &MutableMC2MmV3TailTilingData()
     {
         return matmulAllReduce910TilingData_.mC2Mmv3TailTilingData;
     }
@@ -82,8 +96,8 @@ protected:
 private:
     ge::graphStatus CheckAxisSize();
     ge::graphStatus CheckX1X2();
-    Mc2Tiling::MatmulAllReduce910TilingDataA5 matmulAllReduce910TilingDataSelf_{};
-    Mc2Tiling::MatmulAllReduce910TilingDataA5& matmulAllReduce910TilingData_;
+    MatmulAllReduce910TilingDataA5 matmulAllReduce910TilingDataSelf_;
+    MatmulAllReduce910TilingDataA5& matmulAllReduce910TilingData_;
     uint64_t myWorkSpaceSize_{0U};
     Mc2MatMulV3Args mmV3Args_;
     Mc2MatmulV3CompileInfo compileInfo_;

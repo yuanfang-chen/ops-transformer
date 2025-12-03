@@ -121,7 +121,7 @@ template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, class BLOCK
 __aicore__ inline void Mc2BatchMatMulUnalignedKernel<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BLOCK_TYPE, MM_CFG>::Process()
 {
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
-    const AscendC::tiling::TCubeTiling &tiling = tilingPtr_->matmulTiling.matmulTiling;
+    const TCubeTiling &tiling = tilingPtr_->matmulTiling.matmulTiling;
     const uint32_t &batchA1 = tilingPtr_->Mc2multiBatchInfo.aBatchDim0;
     const uint32_t &batchA2 = tilingPtr_->Mc2multiBatchInfo.aBatchDim1;
     const uint32_t &batchA3 = tilingPtr_->Mc2multiBatchInfo.aBatchDim2;

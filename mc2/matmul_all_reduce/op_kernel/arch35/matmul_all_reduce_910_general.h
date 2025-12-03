@@ -31,9 +31,9 @@ public:
         MC2GmAddrs* addrs, ArnGmAddrs* arnAddrs, MC2TilingHeader* tilingData, TPipe* tPipe)
         : MatmulAllReduceBase<XType, YType, CoreType>(addrs, nullptr, arnAddrs, tilingData, tPipe)
     {
-        mc2TilingData_ = (Mc2Tiling::MatmulAllReduce910TilingDataA5*)tilingData;
-        this->tileInfo_.mmTiling = &mc2TilingData_->mC2Mmv3TileTilingData.tCubeTiling;
-        this->tailInfo_.mmTiling = &mc2TilingData_->mC2Mmv3TailTilingData.tCubeTiling;
+        mc2TilingData_ = (MatmulAllReduce910TilingDataA5*)tilingData;
+        this->tileInfo_.mmTiling = &mc2TilingData_->mC2Mmv3TileTilingData.matmulTiling;
+        this->tailInfo_.mmTiling = &mc2TilingData_->mC2Mmv3TailTilingData.matmulTiling;
     }
 
     __aicore__ inline void Process()
@@ -49,12 +49,12 @@ public:
 protected:
     __aicore__ inline void InnerProcess(bool tailFlag, uint32_t turnCnt, const MC2TileInfo& tileInfo)
     {
-        const Mc2MatMulV3TilingData* tiling =
+        const MC2MatmulV3TilingData* tiling =
             (tailFlag ? &mc2TilingData_->mC2Mmv3TailTilingData : &mc2TilingData_->mC2Mmv3TileTilingData);
 
         MmType mmOp;
         for (uint32_t i = 0U; i < turnCnt; ++i) {
-            if (block_idx < tiling->tCubeTiling.usedCoreNum) {
+            if (block_idx < tiling->matmulTiling.usedCoreNum) {
                 this->tPipe_->Reset();
                 mmOp.Init(
                     this->addrs_->aGM, this->addrs_->bGM, this->addrs_->cGM, this->addrs_->biasGM, nullptr,
@@ -67,7 +67,7 @@ protected:
     }
 
 private:
-    Mc2Tiling::MatmulAllReduce910TilingDataA5* mc2TilingData_;
+    MatmulAllReduce910TilingDataA5* mc2TilingData_;
 };
 
 #define INVOKE_MC2_910_OP_IMPL_HELPER(opTemplateClass, bTransFlag, coreType)                                     \
@@ -87,8 +87,7 @@ private:
 
 #define INVOKE_MC2_910_OP_IMPL(opTemplateClass, coreType)                                  \
     do {                                                                                   \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::MatmulAllReduce910TilingDataA5);                 \
-        GET_TILING_DATA(tilingData, tilingGM);                                               \
+        GET_TILING_DATA_WITH_STRUCT(MatmulAllReduce910TilingDataA5, tilingData, tilingGM); \
         if (tilingData.param.isTransposeB != 0U) {                                         \
             INVOKE_MC2_910_OP_IMPL_HELPER(opTemplateClass, true, coreType);                \
         } else {                                                                           \

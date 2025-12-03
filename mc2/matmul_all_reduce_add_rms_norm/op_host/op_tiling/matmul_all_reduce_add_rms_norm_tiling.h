@@ -18,9 +18,16 @@
 #include "../../../matmul_all_reduce/op_host/op_tiling/arch32/matmul_all_reduce_tiling_910.h"
 #include "common_add_rms_norm_tiling.h"
 #include "context_transfer.h"
-#include "../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
 
 namespace optiling {
+BEGIN_TILING_DATA_DEF(MatmulAllReduceAddRmsNormTilingData)
+TILING_DATA_FIELD_DEF_STRUCT(MatmulAllReduce910TilingData, matmulAllReduceTilingData);
+TILING_DATA_FIELD_DEF_STRUCT(AddRMSNormTilingData, addRMSNormTileTilingData);
+TILING_DATA_FIELD_DEF_STRUCT(AddRMSNormTilingData, addRMSNormTailTilingData);
+TILING_DATA_FIELD_DEF_STRUCT(AddRMSNormTilingeKeyData, addRmsNormTilingeKeyData);
+END_TILING_DATA_DEF;
+REGISTER_TILING_DATA_CLASS(MatmulAllReduceAddRmsNorm, MatmulAllReduceAddRmsNormTilingData)
+
 class MMNTilingTransferHelper;
 class MatmulAllReduceAddRmsNormTiling : public TilingBaseClass
 {
@@ -44,7 +51,7 @@ protected:
 private:
     bool HasTail() const;
     MRNCtxInfo mrnCtxInfo_;
-    Mc2Tiling::MatmulAllReduceAddRmsNormTilingData tilingData_;
+    MatmulAllReduceAddRmsNormTilingData tilingData_;
     bool hasTail_;
     TilingOut tilingOutAddRmsNormTile_;
     TilingOut tilingOutAddRmsNormTail_;
@@ -56,7 +63,7 @@ class MMNTilingTransferHelper : public MatmulAllReduceTiling910
 public:
     MMNTilingTransferHelper(
         MatmulAllReduceAddRmsNormTiling& MatmulAllReduceAddRmsNormTiling,
-        Mc2Tiling::MatmulAllReduce910TilingData& data);
+        MatmulAllReduce910TilingData& data);
     ge::graphStatus GetShapeAttrsInfo() override;
 
 private:

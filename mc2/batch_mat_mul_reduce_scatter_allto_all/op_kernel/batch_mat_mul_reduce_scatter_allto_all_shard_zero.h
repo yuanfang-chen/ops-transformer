@@ -23,7 +23,6 @@
 #else
 #include "../3rd/batch_mat_mul_v3/op_kernel/batch_mat_mul_v3.h"
 #endif
-#include "batch_mat_mul_reduce_scatter_allto_all_tiling_struct.h"
 
 using namespace AscendC;
 using namespace matmul;
@@ -34,9 +33,7 @@ public:
     __aicore__ inline BatchMatMulReduceScatterAlltoAllShard0(){};
     __aicore__ inline void Init(__gm__ uint8_t* xGM, __gm__ uint8_t* weightGM, __gm__ uint8_t* biasGM,
                                 __gm__ uint8_t* yGM, __gm__ uint8_t* workspaceGM,
-                                const BatchMatMulReduceScatterAlltoAllTilingData* tiling, TPipe* tPipe,
-                                __gm__ void* hcclInitTiling, __gm__ void* reduceScatterCcTiling,
-                                __gm__ void* alltoAllCcTiling);
+                                const BatchMatMulReduceScatterAlltoAllTilingData* tiling, TPipe* tPipe);
     __aicore__ inline void Process();
 
     using X_T = typename BMMRSATAT::xType;
@@ -148,10 +145,10 @@ private:
     uint64_t alltoallVSendStride[MAX_TP_SIZE];
     uint64_t alltoallVRecvStride[MAX_TP_SIZE];
 
-    BMM_TileInfo localE; // 有tail
-    BMM_TileInfo localC; // 无tail
-    BMM_TileInfo nonLocalE; // 有tail
-    BMM_TileInfo nonLocalC; // 有tail
+    TileInfo localE; // 有tail
+    TileInfo localC; // 无tail
+    TileInfo nonLocalE; // 有tail
+    TileInfo nonLocalC; // 有tail
 
     TBuf<> tBuf;
 
@@ -165,8 +162,8 @@ private:
 template <typename BMMRSATAT>
 __aicore__ inline void BatchMatMulReduceScatterAlltoAllShard0<BMMRSATAT>::Init(__gm__ uint8_t* x,
     __gm__ uint8_t* weight, __gm__ uint8_t* bias, __gm__ uint8_t* y,
-    __gm__ uint8_t* workspace, const BatchMatMulReduceScatterAlltoAllTilingData* tiling, TPipe* tPipe,
-    __gm__ void* hcclInitTiling, __gm__ void* reduceScatterCcTiling, __gm__ void* alltoAllCcTiling)
+    __gm__ uint8_t* workspace, const BatchMatMulReduceScatterAlltoAllTilingData* tiling,
+    TPipe* tPipe)
 {
     tmpBlockIdx = GetBlockIdx(); // 用于vector分核
 
@@ -177,10 +174,8 @@ __aicore__ inline void BatchMatMulReduceScatterAlltoAllShard0<BMMRSATAT>::Init(_
     // HCCL初始化 --- aic需要获取epRankId
     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     auto contextGM1 = AscendC::GetHcclContext<1>();
-    hcclAlltoAll.Init(contextGM0, hcclInitTiling);
-    hcclAlltoAll.SetCcTiling(alltoAllCcTiling);
-    hcclReduceScatter.Init(contextGM1, hcclInitTiling);
-    hcclReduceScatter.SetCcTiling(reduceScatterCcTiling);
+    hcclAlltoAll.Init(contextGM0);
+    hcclReduceScatter.Init(contextGM1);
     epRankId = hcclAlltoAll.GetRankId();
     tpRankId = hcclReduceScatter.GetRankId();
 
