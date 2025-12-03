@@ -19,6 +19,7 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
+#include "platform/platform_infos_def.h"
 
 using namespace AscendC;
 using namespace ge;
@@ -28,8 +29,24 @@ namespace optiling
 REGISTER_TILING_TEMPLATE("AllGatherMatmulV2", AllGatherMatmulTilingV2, 0);
 REGISTER_TILING_TEMPLATE("AllGatherMatmulV2", AllGatherQuantBmmTiling, 1);
 
+constexpr uint32_t ATTR_COMMMODE = 11;
+
 ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
 {
+    fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
+    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+
+    std::string socVersion;
+    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersion);
+    if (socVersion == "Ascend910B" || socVersion == "Ascend910_93") {
+        auto attrs = context->GetAttrs();
+        auto commModePtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMMMODE));
+        OP_TILING_CHECK((commModePtr == nullptr || !(std::strcmp(commModePtr, "aiv") == 0)),
+            OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is invalid. commMode is %s", commModePtr), return ge::GRAPH_FAILED);
+        if (std::strcmp(commModePtr, "aiv") == 0) {
+            return AllGatherMatmulTilingAIVModeFunc(context);
+        }
+    }
     return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 

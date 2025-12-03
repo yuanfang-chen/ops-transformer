@@ -13,6 +13,7 @@
  * \brief
  */
 
+#ifdef __DAV_C310__
 #include "lib/matmul_intf.h"
 #include "common.h"
 
@@ -27,8 +28,19 @@
 #include "all_gather_quant_bmm_perblock.h"
 #endif
 
+#else
+#include "lib/matmul_intf.h"
+#include "kernel_operator.h"
+#include "all_gather_matmul_aiv_mode.h"
+#include "all_gather_matmul_aiv_mode_tiling.h"
+#endif
+
+#ifdef __DAV_C310__
 using namespace Mc2Tiling;
 using namespace AllGatherMatmulImpl;
+#else
+using namespace AllGatherMatmulAIVModeImpl;
+#endif
 using namespace AscendC;
 
 #define INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(templateClass, isTransB, ...)                                     \
@@ -79,6 +91,7 @@ extern "C" __global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR 
                                                            GM_ADDR gatherOut, GM_ADDR amax, GM_ADDR workspaceGM,
                                                            GM_ADDR tilingGM)
 {
+#ifdef __DAV_C310__
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
@@ -121,6 +134,28 @@ extern "C" __global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR 
         INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(AllGatherMatmulFP16BF16, false);
     } else if(TILING_KEY_IS(1000000000002000100UL)) {
         INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(AllGatherMatmulFP16BF16, true);
+    }
+#endif
+
+#else
+//aiv算子模板
+
+    #define INVOKE_ALLGATHERMATMUL_AIV_MODE_OP_IMPL(templateClass, ...)                                              \
+    do {                                                                                                    \
+        GET_TILING_DATA_WITH_STRUCT(AllGatherMatmulAIVModeTilingData, tilingData, tilingGM);          \
+        templateClass<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X2_SCALE, DTYPE_Y, __VA_ARGS__> op;                             \
+        op.Init(aGM, bGM, biasGM, scaleInv1, scaleInv2, cGM, gatherOut, workspaceGM, tilingGM);                        \
+        op.Process();                                                                                       \
+    } while (0)
+
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    REGISTER_TILING_DEFAULT(AllGatherMatmulAIVModeTilingData);
+    if (TILING_KEY_IS(10000)) {
+        //aivMode，非transB
+        INVOKE_ALLGATHERMATMUL_AIV_MODE_OP_IMPL(AllGatherMatmulAIVMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, false);
+    } else if (TILING_KEY_IS(10010)) {
+        //aivMode，transB
+        INVOKE_ALLGATHERMATMUL_AIV_MODE_OP_IMPL(AllGatherMatmulAIVMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, true);
     }
 #endif
 }

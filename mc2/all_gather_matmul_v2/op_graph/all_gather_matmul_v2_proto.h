@@ -76,6 +76,7 @@ REG_OP(AllGatherMatmulV2)
     .ATTR(is_gather_out, Bool, true)
     .ATTR(is_amax_out, Bool, false)
     .ATTR(y_dtype, Int, 0)
+    .ATTR(comm_mode, String, "aicpu")
     .OP_END_FACTORY_REG(AllGatherMatmulV2)
 }  // namespace ge
 

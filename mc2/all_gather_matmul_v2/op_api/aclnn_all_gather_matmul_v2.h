@@ -35,6 +35,7 @@ extern "C" {
  * @param [in] commTurn: 通信数据切分数，即总数据量/单次通信量。
  * @param [in] streamMode: acl流模式的枚举，类型支持：0/1。
  * @param [in] groupSize: 一个反量化系数在x1/x2中不同轴对应的值的数量, 默认值：0。
+ * @param [in] commMode: 通信模式。当前支持两种模式: ccu/aiv。
  * @param [out] output: 计算+通信的结果，数据类型支持：float16, bf16, float32。
  * @param [out] gatherOut: 仅gather通信操作的结果，数据类型：同输入。
  * @param [out] amaxOut: matmul输出的最大值，数据类型：float32。
@@ -46,7 +47,7 @@ ACLNN_API aclnnStatus aclnnAllGatherMatmulV2GetWorkspaceSize(const aclTensor* x1
                                                    const aclTensor* x1Scale, const aclTensor* x2Scale,
                                                    const aclTensor* quantScale, int64_t blockSize, const char* group,
                                                    int64_t gatherIndex, int64_t commTurn, int64_t streamMode,
-                                                   int64_t groupSize, aclTensor* output, aclTensor* gatherOut,
+                                                   int64_t groupSize, const char* commMode, aclTensor* output, aclTensor* gatherOut,
                                                    aclTensor* amaxOut, uint64_t* workspaceSize,
                                                    aclOpExecutor** executor);
 

@@ -194,8 +194,9 @@ aclnnStatus aclnnAllGatherMatmulGetWorkspaceSize(const aclTensor *x1, const aclT
                                                  const aclTensor *gatherOut,
                                                  uint64_t *workspaceSize, aclOpExecutor **executor) {
   if (IsAscend910A5()) {
+    const char *commMode = "ccu";
     return aclnnAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, nullptr, nullptr, nullptr, 0, group, gatherIndex,
-                                                  commTurn, streamMode, 0, const_cast<aclTensor *>(output),
+                                                  commTurn, streamMode, 0, commMode, const_cast<aclTensor *>(output),
                                                   const_cast<aclTensor *>(gatherOut), nullptr, workspaceSize, executor);
   }
   uint64_t timeStamp = NnopbaseMsprofSysTime();

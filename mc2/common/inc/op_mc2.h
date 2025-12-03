@@ -107,7 +107,8 @@ enum class AllGatherMMV2AttrIdx : size_t {
     K_GROUP_SIZE,
     K_IS_GATHER_OUT,
     K_IS_AMAX_OUT,
-    K_Y_DTYPE
+    K_Y_DTYPE,
+    K_COMM_MODE
 };
 
 enum class MmReduceScatterAttrIdx : size_t {
