@@ -19,22 +19,29 @@
 
 - **算子功能**：aclnnMoeTokenPermuteWithEp的反向传播计算。
 - **计算公式**：
+    
+  - 首先计算tokenGradOut：
+    - 当rangeOptional[0] <= sortedIndices[i] < rangeOptional[1]时：
 
-  $$
-  sortedIndices = sortedIndices[rangeOptional[0]<=i<rangeOptional[1]]
-  $$
+      $$
+      tokenGradOut[i] = permutedTokensOutputGrad[sortedIndices[i]-rangeOptional[0]]
+      $$
 
-  $$
-  tokenGradOut = permutedTokensOutputGrad.indexSelect(0, sortedIndices)
-  $$
+    - 否则：
+      
+      $$
+      tokenGradOut[i] = 0
+      $$
 
-  $$
-  tokenGradOut = tokenGradOut.reshape(-1, topK, hiddenSize)
-  $$
+  - 接着计算：
 
-  $$
-  tokenGradOut = tokenGradOut.sum(dim = 1)
-  $$
+    $$
+    tokenGradOut = tokenGradOut.reshape(-1, topK, hiddenSize)
+    $$
+
+    $$
+    tokenGradOut = tokenGradOut.sum(dim = 1)
+    $$
 
 ## 函数原型
 

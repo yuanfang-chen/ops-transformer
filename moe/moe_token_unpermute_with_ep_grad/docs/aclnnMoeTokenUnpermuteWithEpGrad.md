@@ -16,39 +16,49 @@
 
 ## 功能说明
 
-- **算子功能**：aclnnMoeTokenUnpermuteWithEp的反向传播。
+- **接口功能**：aclnnMoeTokenUnpermuteWithEp的反向传播。
 - **计算公式**：
 
-  $$
-  sortedIndices= sortedIndices[sortedIndices[rangeOptional[0]]<=i<sortedIndices[rangeOptional[1]]]
-  $$
+  - probs非None计算公式如下，其中$i \in {0, 1, 2, ..., num\_tokens - 1}$：
+    - 首先计算unpermutedTokens：
+      - 当rangeOptional[0] <= sortedIndices[i] < rangeOptional[1]时：
+      
+        $$
+        unpermutedTokens[i] = permutedTokensOptional[sortedIndices[i]-rangeOptional[0]]
+        $$
 
-- probs非None：
-  
-  $$
-  unpermutedTokens[i] = permutedTokensOptional[sortedIndices[i]]
-  $$
-  
-  $$
-  unpermutedTokens = unpermutedTokens.reshape(-1, topkNum, hiddenSize)
-  $$
-  
-  $$
-  unpermutedTokens = unpermutedTokensGrad.unsqueeze(1) * unpermutedTokens
-  $$
-  
-  $$
-  probsGrad = \sum_{k=0}^{topkNum}(unpermutedTokens_{i,j,k})
-  $$
-  
-  $$
-  permutedTokensGradOut[sortedIndices[i]] = ((unpermutedTokensGrad.unsqueeze(1) * probs.unsqueeze(-1)).reshape(-1, hiddenSize))[i]
-  $$
-- probs为None：
-  
-  $$
-  permutedTokensGradOut[sortedIndices[i]] = unpermutedOutputGrad[i]
-  $$
+      - 否则：
+        
+        $$
+        unpermutedTokens[i] = 0
+        $$
+    
+    - 接着计算：
+
+      $$
+      unpermutedTokens = unpermutedTokens.reshape(-1, topkNum, hiddenSize)
+      $$
+      
+      $$
+      unpermutedTokens = unpermutedTokensGrad.unsqueeze(1) * unpermutedTokens
+      $$
+      
+      $$
+      probsGrad = \sum_{k=0}^{topkNum}(unpermutedTokens_{i,j,k})
+      $$
+    
+    -  最后，当rangeOptional[0] <= sortedIndices[i] < rangeOptional[1]时：
+      
+      $$
+      permutedTokensGradOut[sortedIndices[i]] = ((unpermutedTokensGrad.unsqueeze(1) * probs.unsqueeze(-1)).reshape(-1, hiddenSize))[i]
+      $$
+
+  - probs为None计算公式如下，其中$i \in {0, 1, 2, ..., num\_tokens - 1}$：
+    -  当rangeOptional[0] <= sortedIndices[i] < rangeOptional[1]时：
+    
+    $$
+    permutedTokensGradOut[sortedIndices[i]-rangeOptional[0]] = unpermutedOutputGrad[i]
+    $$
 
 ## 函数原型
 
