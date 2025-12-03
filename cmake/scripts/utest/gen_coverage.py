@@ -156,6 +156,9 @@ class GenCoverage:
         logging.debug("Generate origin coverage file, cmd=`%s`", cmd)
         ret = subprocess.run(cmd.split(), capture_output=False, check=True, encoding='utf-8')
         ret.check_returncode()
+        if param.info_file.stat().st_size == 0:
+            logging.critical("No file found in origin coverage file.")
+            return
         logging.debug("Generated origin coverage file %s", param.info_file)
         # 滤掉某些文件/路径的覆盖率信息
         cmd = f"lcov --remove {param.info_file} {param.filter_str} -o {param.info_file_filtered} {lcov_log_tag}"
