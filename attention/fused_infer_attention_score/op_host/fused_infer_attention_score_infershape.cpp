@@ -115,7 +115,7 @@ static ge::graphStatus GetQueryAndOutLayout(std::string& queryLayout,
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus GetQueryBSND(const gert::Shape *queryShape,
+static void GetQueryBSND(const gert::Shape *queryShape,
                                    const std::string queryLayout,
                                    const int64_t *numHeadsPtr,
                                    int64_t& b, int64_t& s1, int64_t& n1, int64_t& d1)
@@ -140,14 +140,11 @@ static ge::graphStatus GetQueryBSND(const gert::Shape *queryShape,
         s1 = (*queryShape)[FIA_LAYOUT_DIM1];
         n1 = (*queryShape)[FIA_LAYOUT_DIM0];
         d1 = (*queryShape)[FIA_LAYOUT_DIM2];
-    } else {
-        OP_LOGE("FusedInferAttentionScore", "Layout %s is not supported in GetQueryBSND function!", queryLayout.c_str());
-        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus GetQueryTND(const gert::Shape *queryShape,
+static void GetQueryTND(const gert::Shape *queryShape,
                                   const std::string queryLayout,
                                   int64_t& t, int64_t& n1, int64_t& d1)
 {
@@ -159,9 +156,6 @@ static ge::graphStatus GetQueryTND(const gert::Shape *queryShape,
         t = (*queryShape)[FIA_LAYOUT_DIM1];
         n1 = (*queryShape)[FIA_LAYOUT_DIM0];
         d1 = (*queryShape)[FIA_LAYOUT_DIM2];
-    } else {
-        OP_LOGE("FusedInferAttentionScore", "Layout %s is not supported in GetQueryTND function!", queryLayout.c_str());
-        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -201,7 +195,7 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus InferAttentionOutShape(std::string attentionOutLayout,
+static void InferAttentionOutShape(std::string attentionOutLayout,
                                               gert::Shape *attentionOutShape,
                                               const gert::Shape *queryShape,
                                               const gert::Shape *valueShape,
@@ -258,10 +252,9 @@ static ge::graphStatus InferAttentionOutShape(std::string attentionOutLayout,
         outD = (outD == 0 || d1 == 0) ? d1 : outD;
         *attentionOutShape = {n1, s1, outD};   
     }
-    return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus InferLseOutShape(const char *inputLayoutPtr,
+static void InferLseOutShape(const char *inputLayoutPtr,
                                         gert::Shape *softmaxLseShape,
                                         const gert::Shape *queryShape,
                                         const std::string queryLayout,
@@ -282,7 +275,6 @@ static ge::graphStatus InferLseOutShape(const char *inputLayoutPtr,
         GetQueryBSND(queryShape, queryLayout, numHeadsPtr, b, s1, n1, d1);
         *softmaxLseShape = {b, n1, s1, NUM_1};
     }
-    return ge::GRAPH_SUCCESS;
 }
 
 static ge::graphStatus InferShapeFusedInferAttentionScore(gert::InferShapeContext *context)
@@ -343,10 +335,11 @@ static ge::graphStatus InferShapeFusedInferAttentionScore(gert::InferShapeContex
 
     std::string queryLayout = "BSH";
     std::string attentionOutLayout = "BSH";
-    GetQueryAndOutLayout(queryLayout, attentionOutLayout, queryShape, inputLayoutPtr);
-
     int64_t valueD = 0;
-    GetValueD(isPageAttention, valueD, valueShape, queryShape, queryLayout, numKeyValueHeads);
+    if (GetQueryAndOutLayout(queryLayout, attentionOutLayout, queryShape, inputLayoutPtr) != ge::GRAPH_SUCCESS ||
+        GetValueD(isPageAttention, valueD, valueShape, queryShape, queryLayout, numKeyValueHeads) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
 
     InferAttentionOutShape(attentionOutLayout, attentionOutShape, queryShape, valueShape, queryLayout, numHeadsPtr, valueD);
 
