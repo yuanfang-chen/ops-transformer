@@ -35,7 +35,8 @@ extern "C" __global__ __aicore__ void moe_distribute_dispatch(
     GM_ADDR tpSendCountsOut, GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
 #if defined(__DAV_C310__)
-    GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingDataA5, tilingData, tilingGM);
+    REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
+    GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
 #else
     REGISTER_TILING_DEFAULT(MoeDistributeDispatchA2TilingData);
     REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR < 2000000000", MoeDistributeDispatchTilingData);

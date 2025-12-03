@@ -14,6 +14,7 @@
  */
 
 #include "moe_distribute_combine_tiling_helper.h"
+#include "mc2_log.h"
 
 using namespace ge;
 
@@ -265,7 +266,7 @@ ge::graphStatus MoeDistributeCombineTilingHelper::TilingCheckMoeDistributeCombin
 }
 
 ge::graphStatus MoeDistributeCombineTilingHelper::TilingCheckMoeDistributeCombineA5(gert::TilingContext *context,
-    const char *nodeName, const uint32_t isTokenMask)
+    const char *nodeName, const bool isTokenMask)
 {
     // 检查参数shape信息
     OP_TILING_CHECK(!CheckTensorDim(context, nodeName), OP_LOGE(nodeName, "param shape is invalid"),

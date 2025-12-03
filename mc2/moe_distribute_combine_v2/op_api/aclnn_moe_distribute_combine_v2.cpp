@@ -111,40 +111,43 @@ aclnnStatus aclnnMoeDistributeCombineV2GetWorkspaceSize(const aclTensor* expandX
                                                             aclOpExecutor** executor)
 {
     const static bool is910B = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
+    const static bool is910_95 = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95;
     auto ret_param = CheckParams(expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales, groupEp,
         groupTp, xOut);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
 
+    aclnnStatus getWorkspaceSizesRes;
     if (is910B) {
-        return aclnnInnerMoeDistributeCombineV2GetWorkspaceSize(expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales,
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV2GetWorkspaceSize(expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales,
             tpSendCountsOptional, xActiveMaskOptional, activationScaleOptional, weightScaleOptional, groupListOptional, expandScalesOptional,
             sharedExpertXOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
             groupEp, epWorldSize, epRankId, moeExpertNum, "", tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
             sharedExpertRankNum, globalBs, outDtype, commQuantMode, groupListType, commAlg, 0, 0 , 0,
             xOut, workspaceSize, executor);
+    } else {
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV2GetWorkspaceSize(expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales,
+            tpSendCountsOptional, xActiveMaskOptional, activationScaleOptional, weightScaleOptional, groupListOptional, expandScalesOptional,
+            sharedExpertXOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+            groupEp, epWorldSize, epRankId, moeExpertNum, groupTp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+            sharedExpertRankNum, globalBs, outDtype, commQuantMode, groupListType, commAlg, 0, 0, 0,
+            xOut, workspaceSize, executor);
     }
 
-    return aclnnInnerMoeDistributeCombineV2GetWorkspaceSize(expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales,
-        tpSendCountsOptional, xActiveMaskOptional, activationScaleOptional, weightScaleOptional, groupListOptional, expandScalesOptional,
-        sharedExpertXOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        groupEp, epWorldSize, epRankId, moeExpertNum, groupTp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
-        sharedExpertRankNum, globalBs, outDtype, commQuantMode, groupListType, commAlg, 0, 0, 0,
-        xOut, workspaceSize, executor);
+    if (NnopbaseSetHcclServerType) {
+        if (is910B) {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
+        } else if (is910_95 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        } else {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        }
+    }
+    return getWorkspaceSizesRes;
 }
 
 aclnnStatus aclnnMoeDistributeCombineV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                                   aclrtStream stream)
 {
-    if (NnopbaseSetHcclServerType) {
-        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
-            NnopbaseSetHcclServerType(executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
-        } else if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
-            NnopbaseSetHcclServerType(executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
-        } else {
-            NnopbaseSetHcclServerType(executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
-        }
-    }
-
     return aclnnInnerMoeDistributeCombineV2(workspace, workspaceSize, executor, stream);
 }
 

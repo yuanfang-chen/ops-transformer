@@ -18,6 +18,7 @@
 #include "lib/hccl/hccl.h"
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
+#include "../../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h"
 
 
 namespace MoeDistributeCombineA5Impl {
@@ -64,7 +65,7 @@ public:
     __aicore__ inline void Init(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx, GM_ADDR epSendCount,
                                 GM_ADDR tpSendCount, GM_ADDR xActiveMask, GM_ADDR scales, GM_ADDR sharedExpertX,
                                 GM_ADDR XOut, GM_ADDR workspaceGM, TPipe *pipe,
-                                const MoeDistributeCombineTilingDataA5 *tilingData);
+                                const MoeDistributeCombineV2TilingData *tilingData);
     __aicore__ inline void Process();
 private:
     // 按照rank分核逻辑，得到每个核的起始和数量
@@ -92,7 +93,7 @@ private:
 
     __aicore__ inline void HandleSharedExpertX(uint32_t &tokenIndex, uint32_t &tokenOffset, uint32_t &processLen);
 
-    __aicore__ inline void CalculateRecvBufAndRecvOffset();
+    __aicore__ inline void CalculateRecvBufAndRecvOffset(const MoeDistributeCombineV2TilingData *tilingData);
 
     __aicore__ inline void TokenMaskCalCnt();
 
@@ -181,11 +182,13 @@ __aicore__ inline void MoeDistributeCombineA5<TemplateMC2TypeFunc>::TokenMaskCal
 }
 
 template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineA5<TemplateMC2TypeFunc>::CalculateRecvBufAndRecvOffset()
+__aicore__ inline void MoeDistributeCombineA5<TemplateMC2TypeFunc>::CalculateRecvBufAndRecvOffset(const MoeDistributeCombineV2TilingData *tilingData)
 {
     GlobalTensor<int32_t> statusGT;
     __gm__ HcclCombineOpParam *context = (__gm__ HcclCombineOpParam *)(GetHcclContext<0>());
-    hccl_.Init((GM_ADDR)context);
+    // 结构体切换后，V1版本初始化方法不可用（已废弃），改用V2版本
+    hccl_.InitV2((GM_ADDR)context, tilingData);
+    hccl_.SetCcTilingV2(offsetof(MoeDistributeCombineV2TilingData, mc2CcTiling1));
     GM_ADDR cclBuf = (GM_ADDR)context->windowsOut[0];
     uint64_t statusSize = aivNum_ * COUNT_OFFSET;
     statusGT.SetGlobalBuffer((__gm__ int32_t*)(cclBuf + aivId_ * COUNT_OFFSET));
@@ -207,26 +210,26 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineA5<TemplateMC2TypeFunc>::Init(GM_ADDR expandX,
     GM_ADDR expertIds, GM_ADDR expandIdx, GM_ADDR epSendCount, GM_ADDR tpSendCount,
     GM_ADDR xActiveMask, GM_ADDR scales, GM_ADDR sharedExpertX, GM_ADDR XOut, GM_ADDR workspaceGM,
-    TPipe *pipe, const MoeDistributeCombineTilingDataA5 *tilingData)
+    TPipe *pipe, const MoeDistributeCombineV2TilingData *tilingData)
 {
     pipe_ = pipe;
     aivId_ = GetBlockIdx();
-    epRankId_ = tilingData->combineTilingInfo.epRankId;
-    axisBS_ = tilingData->combineTilingInfo.bs;
-    axisH_ = tilingData->combineTilingInfo.h;
-    axisK_ = tilingData->combineTilingInfo.k;
-    aivNum_ = tilingData->combineTilingInfo.aivNum;
-    sharedExpertNum_ = tilingData->combineTilingInfo.sharedExpertNum;
-    sharedExpertRankNum_ = tilingData->combineTilingInfo.sharedExpertRankNum;
+    epRankId_ = tilingData->moeDistributeCombineV2Info.epRankId;
+    axisBS_ = tilingData->moeDistributeCombineV2Info.bs;
+    axisH_ = tilingData->moeDistributeCombineV2Info.h;
+    axisK_ = tilingData->moeDistributeCombineV2Info.k;
+    aivNum_ = tilingData->moeDistributeCombineV2Info.aivNum;
+    sharedExpertNum_ = tilingData->moeDistributeCombineV2Info.sharedExpertNum;
+    sharedExpertRankNum_ = tilingData->moeDistributeCombineV2Info.sharedExpertRankNum;
     if (sharedExpertNum_ > 0) {
         rankNumPerSharedExpert_ = sharedExpertRankNum_ / sharedExpertNum_;
     }
-    epWorldSize_ = tilingData->combineTilingInfo.epWorldSize;
-    moeExpertNum_ = tilingData->combineTilingInfo.moeExpertNum;
-    hasSharedExpertX_ = tilingData->combineTilingInfo.hasSharedExpertX;
+    epWorldSize_ = tilingData->moeDistributeCombineV2Info.epWorldSize;
+    moeExpertNum_ = tilingData->moeDistributeCombineV2Info.moeExpertNum;
+    hasSharedExpertX_ = tilingData->moeDistributeCombineV2Info.hasSharedExpertX;
     moeExpertRankNum_ = epWorldSize_ - sharedExpertRankNum_;
-    isInputTokenMaskFlag_ = tilingData->combineTilingInfo.isTokenMask;
-    axisMaxBS_ = tilingData->combineTilingInfo.globalBs / epWorldSize_;
+    isInputTokenMaskFlag_ = tilingData->moeDistributeCombineV2Info.isTokenMask;
+    axisMaxBS_ = tilingData->moeDistributeCombineV2Info.globalBs / epWorldSize_;
     localExpertNum_ = moeExpertNum_ / moeExpertRankNum_;
     isShareExpertRank_ = epRankId_ < sharedExpertRankNum_;
     bskNum_ = axisMaxBS_ * axisK_;
@@ -246,7 +249,7 @@ __aicore__ inline void MoeDistributeCombineA5<TemplateMC2TypeFunc>::Init(GM_ADDR
     sendSizeGM_ = sendBufGM_ + epWorldSize_ * perRankDataSize_;
     sendOffsetGM_ = sendSizeGM_ + epWorldSize_ * sizeof(uint64_t) * DUAL_DATA;
 
-    CalculateRecvBufAndRecvOffset();
+    CalculateRecvBufAndRecvOffset(tilingData);
 }
 
 template <TemplateMC2TypeClass>

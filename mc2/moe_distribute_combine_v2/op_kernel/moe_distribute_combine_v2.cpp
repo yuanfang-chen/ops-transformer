@@ -14,12 +14,10 @@
  */
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
+
 #ifdef __DAV_C310__
 #include "../moe_distribute_combine/arch35/moe_distribute_combine_arch35.h"
 #else
-#include "moe_distribute_combine_v2_tiling.h"
-#include "moe_distribute_combine_v2.h"
-
 #if __has_include("../moe_distribute_combine/moe_distribute_combine_a2.h")
 #include "../moe_distribute_combine/moe_distribute_combine_a2.h"
 #include "../moe_distribute_combine/moe_distribute_combine_a2_layered.h"
@@ -28,15 +26,18 @@
 #include "../../moe_distribute_combine/op_kernel/moe_distribute_combine_a2.h"
 #include "../../moe_distribute_combine/op_kernel/moe_distribute_combine_a2_layered.h"
 #include "../../moe_distribute_combine/op_kernel/moe_distribute_combine_a2_layered_aicpu.h"
-#endif
-using namespace MoeDistributeCombineV2Impl;
+#endif // __has_include
+#endif // __DAV_C310__
+#include "moe_distribute_combine_v2_tiling.h"
+#include "moe_distribute_combine_v2.h"
+
+#ifndef __DAV_C310__
 using namespace MoeDistributeCombineA2Impl;
-#endif
+#endif // __DAV_C310__
+using namespace MoeDistributeCombineV2Impl;
 using namespace AscendC;
 
 namespace {
-#ifdef __DAV_C310__
-#else
 template <TemplateMC2TypeClass>
 __aicore__ inline void ExecMoeDistributeCombineV2(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR assistInfoForCombine,
                                                 GM_ADDR epSendCount, GM_ADDR tpSendCount, GM_ADDR scales,
@@ -51,7 +52,6 @@ __aicore__ inline void ExecMoeDistributeCombineV2(GM_ADDR expandX, GM_ADDR exper
         sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, pipePtr, &tilingData);
     op.Process();
 }
-#endif
 }
 
 /*
@@ -75,10 +75,8 @@ extern "C" __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX,
                                                              GM_ADDR workspaceGM, GM_ADDR tilingGM)
 
 {
-#ifdef __DAV_C310__
-    GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineTilingDataA5, tilingData, tilingGM);
-#else
     REGISTER_TILING_DEFAULT(MoeDistributeCombineV2TilingData);
+#ifndef __DAV_C310__
     REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR < 10000", MoeDistributeCombineA2TilingData);
 #endif
     TPipe pipe;
@@ -86,27 +84,12 @@ extern "C" __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX,
 #if (ORIG_DTYPE_EXPAND_X == DT_BF16 || ORIG_DTYPE_EXPAND_X == DT_FLOAT16)
 #ifdef __DAV_C310__
     if (TILING_KEY_IS(1000000000000000000)) {
+        GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
         MoeDistributeCombineA5Impl::MoeDistributeCombineA5<DTYPE_EXPAND_X, int32_t> op;
         op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, xActiveMask, scales, sharedExpertX, XOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     }
 #else
-    if (TILING_KEY_IS(10100)) { // tp=2 IsInt8Quant=0
-        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, true, false>(expandX, expertIds, assistInfoForCombine,
-            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
-    }
-    if (TILING_KEY_IS(10000)) { // tp=1 IsInt8Quant=0
-        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, false, false>(expandX, expertIds, assistInfoForCombine,
-            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
-    }
-    if (TILING_KEY_IS(10120)) { // tp=2 IsInt8Quant=1
-        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, true, true>(expandX, expertIds, assistInfoForCombine,
-            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
-    }
-    if (TILING_KEY_IS(10020)) { // tp=1 IsInt8Quant=1
-        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, false, true>(expandX, expertIds, assistInfoForCombine,
-            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
-    }
     if (TILING_KEY_IS(2000)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineA2TilingData, tilingData, tilingGM);
         MoeDistributeCombineA2<DTYPE_EXPAND_X, int32_t> op;
@@ -144,5 +127,21 @@ extern "C" __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX,
         }
     }
 #endif
+    if (TILING_KEY_IS(10100)) { // tp=2 IsInt8Quant=0
+        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, true, false>(expandX, expertIds, assistInfoForCombine,
+            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
+    }
+    if (TILING_KEY_IS(10000)) { // tp=1 IsInt8Quant=0
+        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, false, false>(expandX, expertIds, assistInfoForCombine,
+            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
+    }
+    if (TILING_KEY_IS(10120)) { // tp=2 IsInt8Quant=1
+        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, true, true>(expandX, expertIds, assistInfoForCombine,
+            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
+    }
+    if (TILING_KEY_IS(10020)) { // tp=1 IsInt8Quant=1
+        ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, false, true>(expandX, expertIds, assistInfoForCombine,
+            epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
+    }
 #endif
 }

@@ -36,7 +36,7 @@ extern "C" __global__ __aicore__ void moe_distribute_combine(GM_ADDR expandX, GM
 
 {
 #ifdef __DAV_C310__
-  GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineTilingDataA5, tilingData, tilingGM);
+  REGISTER_TILING_DEFAULT(MoeDistributeCombineV2TilingData);
 #else
   REGISTER_TILING_DEFAULT(MoeDistributeCombineA2TilingData);
   REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR < 2000", MoeDistributeCombineTilingData);
@@ -47,6 +47,7 @@ extern "C" __global__ __aicore__ void moe_distribute_combine(GM_ADDR expandX, GM
 #if (ORIG_DTYPE_EXPAND_X == DT_BF16 || ORIG_DTYPE_EXPAND_X == DT_FLOAT16)
 #ifdef __DAV_C310__
   if (TILING_KEY_IS(1000000000000000000)) {
+    GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
     MoeDistributeCombineA5Impl::MoeDistributeCombineA5<DTYPE_EXPAND_X, int32_t> op;
     op.Init(expandX, expertIds, expandIdx, epSendCount, tpSendCount, nullptr, scales, nullptr, XOut, workspaceGM,
             &pipe, &tilingData);

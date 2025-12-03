@@ -547,13 +547,15 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     OP_TILING_CHECK((*expertTokenNumsTypePtr != 0) && (*expertTokenNumsTypePtr != 1),
         OP_LOGE(nodeName, "expertTokenNumsType only support 0 or 1, but got expertTokenNumsType=%ld.",
         *expertTokenNumsTypePtr), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((strlen(commAlgPtr) != 0) && (strcmp(commAlgPtr, "fullmesh_v1") != 0) && (strcmp(commAlgPtr, "fullmesh_v2") != 0),
-        OP_LOGE(nodeName, "Attr commAlg is invalid, current only support fullmesh_v1 and fullmesh_v2, but got commAlg = %s.", commAlgPtr), 
-        return ge::GRAPH_FAILED);
+    if (mc2tiling::GetSocVersion(context) != "Ascend910_95") {
+        OP_TILING_CHECK((strlen(commAlgPtr) != 0) && (strcmp(commAlgPtr, "fullmesh_v1") != 0) && (strcmp(commAlgPtr, "fullmesh_v2") != 0),
+            OP_LOGE(nodeName, "Attr commAlg is invalid, current only support fullmesh_v1 and fullmesh_v2, but got commAlg = %s.", commAlgPtr), 
+            return ge::GRAPH_FAILED);
+        isSetCommAlg = ((strcmp(commAlgPtr, "fullmesh_v2") == 0) ? true : false);
+        OP_LOGD(nodeName, "MoeDistributeDispatchV2 isSetCommAlg = %d\n", isSetCommAlg);
+    }
 
     groupEp = std::string(groupEpPtr);
-    isSetCommAlg = ((strcmp(commAlgPtr, "fullmesh_v2") == 0) ? true : false);
-    OP_LOGD(nodeName, "MoeDistributeDispatchV2 isSetCommAlg = %d\n", isSetCommAlg);
     tilingData.moeDistributeDispatchV2Info.epWorldSize = static_cast<uint32_t>(epWorldSize);
     tilingData.moeDistributeDispatchV2Info.tpWorldSize = static_cast<uint32_t>(*tpWorldSizePtr);
     tilingData.moeDistributeDispatchV2Info.epRankId = static_cast<uint32_t>(*epRankIdPtr);
@@ -574,14 +576,17 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
         tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum);
     uint32_t localMoeExpertNum = static_cast<uint32_t>(moeExpertNum) / (static_cast<uint32_t>(epWorldSize) - static_cast<uint32_t>(sharedExpertRankNum));
     uint32_t lastDim = localMoeExpertNum * static_cast<uint32_t>(epWorldSize);
-    std::vector<int64_t> srcShapeDim = {1, lastDim};
-    auto srcShape = ge::Shape(srcShapeDim);
-    uint32_t CumSumUBMaxValue = 0;
-    uint32_t CumSumUBMinValue = 0;
-    AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, CumSumUBMaxValue, CumSumUBMinValue);
-    tilingData.moeDistributeDispatchV2Info.CumSumUBMinValue = static_cast<uint32_t>(CumSumUBMinValue);    
-    OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 CumSumUBMinValue = %d\n", lastDim,
-        tilingData.moeDistributeDispatchV2Info.CumSumUBMinValue);
+    
+    if (mc2tiling::GetSocVersion(context) != "Ascend910_95") {
+        std::vector<int64_t> srcShapeDim = {1, lastDim};
+        auto srcShape = ge::Shape(srcShapeDim);
+        uint32_t CumSumUBMaxValue = 0;
+        uint32_t CumSumUBMinValue = 0;
+        AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, CumSumUBMaxValue, CumSumUBMinValue);
+        tilingData.moeDistributeDispatchV2Info.CumSumUBMinValue = static_cast<uint32_t>(CumSumUBMinValue);    
+        OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 CumSumUBMinValue = %d\n", lastDim,
+            tilingData.moeDistributeDispatchV2Info.CumSumUBMinValue);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -613,7 +618,7 @@ static bool CheckCommAlgAttrs(const char *nodeName,
     const MoeDistributeDispatchV2TilingData &tilingData, bool isActiveMask, bool isSetCommAlg)
 {
     uint32_t tpWorldSize = tilingData.moeDistributeDispatchV2Info.tpWorldSize;
-    uint32_t hasElasticInfo = tilingData.moeDistributeDispatchV2Info.hasElasticInfo;
+    bool hasElasticInfo = tilingData.moeDistributeDispatchV2Info.hasElasticInfo;
     int32_t zeroComputeExpertNum = tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum;
 
     // 校验动态缩容和FullMesh_v2不能同时启用
@@ -901,9 +906,11 @@ static void SetHcommCfg(const gert::TilingContext *context, MoeDistributeDispatc
     uint32_t opType2 = OP_TYPE_ALL_GATHER;
     std::string algConfigAllToAllStr = "AlltoAll=level0:fullmesh;level1:pairwise";
     std::string algConfigAllGatherStr = "AllGather=level0:ring";
+    uint8_t aivEngineValue = mc2tiling::GetSocVersion(context) == "Ascend910_95" ?
+                             mc2tiling::A5_AIV_ENGINE : mc2tiling::AIV_ENGINE;
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupEp, opType1, algConfigAllToAllStr);
-    mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE);   // 通过不拉起AICPU，提高算子退出性能
+    mc2CcTilingConfig.SetCommEngine(aivEngineValue);   // 通过不拉起AICPU，提高算子退出性能
     mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling);
     mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling1);
 
@@ -918,10 +925,15 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
 {
     auto attrs = context->GetAttrs();
     uint64_t maxWindowSizeEp = 0;
-    auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-    OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &maxWindowSizeEp, nodeName) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
-        return ge::GRAPH_FAILED);
+    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
+        // A5 暂不支持 Hccl CommGetCCLBufSizeCfg 接口，此处暂作规避
+        maxWindowSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+    } else {
+        auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
+        OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &maxWindowSizeEp, nodeName) != ge::GRAPH_SUCCESS,
+            OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
+            return ge::GRAPH_FAILED);
+    }
     uint32_t sharedExpertNum = tilingData.moeDistributeDispatchV2Info.sharedExpertNum;
     uint64_t h = static_cast<uint64_t>(tilingData.moeDistributeDispatchV2Info.h);
     uint64_t k = static_cast<uint64_t>(tilingData.moeDistributeDispatchV2Info.k);
@@ -1035,7 +1047,6 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
         OP_LOGE(nodeName, "Check attr failed."), return ge::GRAPH_FAILED);
 
     uint32_t epRankId = tilingData->moeDistributeDispatchV2Info.epRankId;
-    uint32_t sharedExpertNum = tilingData->moeDistributeDispatchV2Info.sharedExpertNum;
     uint32_t sharedExpertRankNum = tilingData->moeDistributeDispatchV2Info.sharedExpertRankNum;
     bool isSharedExpert = (epRankId < sharedExpertRankNum);
 
@@ -1405,18 +1416,39 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
     return ge::GRAPH_SUCCESS;
 }
 
+static ge::graphStatus MoeDistributeDispatchA5TilingFuncImpl(gert::TilingContext* context)
+{
+    auto attrs = context->GetAttrs();
+    const char *nodeName = context->GetNodeName();
+    auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMM_ALG_INDEX));
+    // 检查 commAlg 参数合法性校验
+    bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
+    bool isMte = std::strcmp(commAlgPtr, "mte") == 0;
+    bool isCcu = std::strcmp(commAlgPtr, "ccu") == 0;
+    OP_TILING_CHECK(!(isNullOrEmpty || isMte || isCcu),
+        OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. Only 'mte' and 'ccu' are supported."
+            "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
+        return ge::GRAPH_FAILED);
+    if (isCcu) {
+        // CCU 调用 A5 tiling 实现
+        return MoeDistributeDispatchTilingImpl(context, OP_VERSION_2);
+    }
+    // 默认空指针和空字符走 MTE 方式
+    if (isNullOrEmpty) {
+        OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
+    }
+    // MTE 调用 A3 tiling 实现
+    return MoeDistributeDispatchA3TilingFuncImpl(context);
+}
+
 static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* context)
 {
-    fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
-    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
-
-    std::string socVersion;
-    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersion);
+    std::string socVersion = mc2tiling::GetSocVersion(context);
     ge::graphStatus ret;
     if (socVersion == "Ascend910B") {
         ret = MoeDistributeDispatchA2TilingFuncImpl(context);
     } else if (socVersion == "Ascend910_95") {
-        ret = MoeDistributeDispatchTilingImpl(context, OP_VERSION_2);   
+        ret = MoeDistributeDispatchA5TilingFuncImpl(context);
     } else {
         ret = MoeDistributeDispatchA3TilingFuncImpl(context);
     }

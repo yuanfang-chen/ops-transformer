@@ -20,6 +20,7 @@
 #include "common.h"
 #include "../quantize_functions.h"
 #include "kernel_operator.h"
+#include "../../moe_distribute_dispatch_v2/moe_distribute_dispatch_v2_tiling.h"
 
 namespace MoeDistributeDispatchA5Impl {
 constexpr uint8_t BUFFER_NUM = 2;
@@ -61,13 +62,13 @@ public:
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR expandXOut, GM_ADDR xActiveMask,
                                 GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut,
                                 GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR workspaceGM, TPipe* pipe,
-                                const MoeDistributeDispatchTilingDataA5* tilingData);
+                                const MoeDistributeDispatchV2TilingData* tilingData);
     __aicore__ inline void Process();
 
 private:
-    __aicore__ inline void InitGlobalAttrs(const MoeDistributeDispatchTilingDataA5* tilingData);
+    __aicore__ inline void InitGlobalAttrs(const MoeDistributeDispatchV2TilingData* tilingData);
     __aicore__ inline void InitBuf();
-    __aicore__ inline void InitCommAndStatus(GM_ADDR workspaceGM);
+    __aicore__ inline void InitCommAndStatus(GM_ADDR workspaceGM, const MoeDistributeDispatchV2TilingData *tilingData);
     __aicore__ inline void CalcTokenActiveMask();
     __aicore__ inline uint32_t CalcToSharedRankId(uint32_t sendCnt);
     __aicore__ inline void TokenGatherProcess(int32_t sharedExpertRankNum, int32_t localExpertNum);
@@ -202,20 +203,20 @@ private:
 
 template <TemplateMC2TypeClass>
 __aicore__ inline void
-MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitGlobalAttrs(const MoeDistributeDispatchTilingDataA5 *tilingData)
+MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitGlobalAttrs(const MoeDistributeDispatchV2TilingData *tilingData)
 {
-    axisBS_ = tilingData->dispatchTilingInfo.bs;
-    axisH_ = tilingData->dispatchTilingInfo.h;
-    axisK_ = tilingData->dispatchTilingInfo.k;
-    epWorldSize_ = tilingData->dispatchTilingInfo.epWorldSize;
-    moeExpertNum_ = tilingData->dispatchTilingInfo.moeExpertNum;
-    sharedExpertRankNum_ = tilingData->dispatchTilingInfo.sharedExpertRankNum;
-    aivNum_ = tilingData->dispatchTilingInfo.aivNum;
-    expertTokenNumsType_ = tilingData->dispatchTilingInfo.expertTokenNumsType;
-    scalesCount_ = tilingData->dispatchTilingInfo.scalesCount;
+    axisBS_ = tilingData->moeDistributeDispatchV2Info.bs;
+    axisH_ = tilingData->moeDistributeDispatchV2Info.h;
+    axisK_ = tilingData->moeDistributeDispatchV2Info.k;
+    epWorldSize_ = tilingData->moeDistributeDispatchV2Info.epWorldSize;
+    moeExpertNum_ = tilingData->moeDistributeDispatchV2Info.moeExpertNum;
+    sharedExpertRankNum_ = tilingData->moeDistributeDispatchV2Info.sharedExpertRankNum;
+    aivNum_ = tilingData->moeDistributeDispatchV2Info.aivNum;
+    expertTokenNumsType_ = tilingData->moeDistributeDispatchV2Info.expertTokenNumsType;
+    scalesCount_ = tilingData->moeDistributeDispatchV2Info.scalesCount;
     moeExpertRankNum_ = epWorldSize_ - sharedExpertRankNum_;
     localExpertNum_ = moeExpertNum_ / moeExpertRankNum_;
-    sharedExpertNum_ = tilingData->dispatchTilingInfo.sharedExpertNum;
+    sharedExpertNum_ = tilingData->moeDistributeDispatchV2Info.sharedExpertNum;
     if (sharedExpertRankNum_ != 0) {
         sharedUsedAivNum_ = aivNum_ / (axisK_ + 1);  // 均等分， 取整
         if (sharedUsedAivNum_ == 0) {
@@ -236,11 +237,11 @@ MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitGlobalAttrs(const MoeDistribut
 
     axisMaxBs_ = axisBS_;
     maxBsKNum_ = bskNum_;
-    if (tilingData->dispatchTilingInfo.globalBs != 0) {
-        axisMaxBs_ = tilingData->dispatchTilingInfo.globalBs / epWorldSize_;
+    if (tilingData->moeDistributeDispatchV2Info.globalBs != 0) {
+        axisMaxBs_ = tilingData->moeDistributeDispatchV2Info.globalBs / epWorldSize_;
         maxBsKNum_ = axisMaxBs_ * axisK_;
     }
-    isTokenMaskFlag_ = tilingData->dispatchTilingInfo.isTokenMask;
+    isTokenMaskFlag_ = tilingData->moeDistributeDispatchV2Info.isTokenMask;
     activeBs_ = axisBS_;
     activeBsKNum_ = bskNum_;
 }
@@ -285,10 +286,13 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitBuf()
 }
 
 template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitCommAndStatus(GM_ADDR workspaceGM)
+__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitCommAndStatus(GM_ADDR workspaceGM,
+                                                                                       const MoeDistributeDispatchV2TilingData *tilingData)
 {
     __gm__ HcclCombineOpParam* context = (__gm__ HcclCombineOpParam*)(GetHcclContext<0>());
-    hccl_.Init((GM_ADDR)context);
+    // 结构体切换后，V1版本初始化方法不可用（已废弃），改用V2版本
+    hccl_.InitV2((GM_ADDR)context, tilingData);
+    hccl_.SetCcTilingV2(offsetof(MoeDistributeDispatchV2TilingData, mc2CcTiling1));
     
     sendBufGM_ = workspaceGM;
     sendSizeGM_ = sendBufGM_ + perRankDataSize_ * epWorldSize_;
@@ -363,11 +367,11 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::Init(
     GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut,
     GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut,
-    GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchTilingDataA5 *tilingData)
+    GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
 {
     pipe_ = pipe;
 
-    epRankId_ = tilingData->dispatchTilingInfo.epRankId;
+    epRankId_ = tilingData->moeDistributeDispatchV2Info.epRankId;
     aivId_ = GetBlockIdx();
 
     InitGlobalAttrs(tilingData);
@@ -391,11 +395,11 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::Init(
     perTokenInSize_ = axisH_ * sizeof(XType);
     perTokenOutSize_ = axisH_ * sizeof(ExpandXOutType);
     perTokenMergeSize_ = Align32(axisH_) * sizeof(ExpandXOutType);
-    scaleInBytes_ = tilingData->dispatchTilingInfo.scalesCol * tilingData->dispatchTilingInfo.scalesTypeSize;
+    scaleInBytes_ = tilingData->moeDistributeDispatchV2Info.scalesCol * tilingData->moeDistributeDispatchV2Info.scalesTypeSize;
     scaleOutBytes_ = 0;
     QuantInit();
 
-    InitCommAndStatus(workspaceGM);
+    InitCommAndStatus(workspaceGM, tilingData);
 }
 
 template <TemplateMC2TypeClass>

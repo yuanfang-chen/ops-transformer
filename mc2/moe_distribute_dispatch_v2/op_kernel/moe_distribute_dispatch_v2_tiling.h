@@ -35,13 +35,17 @@ struct MoeDistributeDispatchV2Info {
     bool isTokenMask;                    // input active mask 1dims or not
     bool isExpertMask;                   // input active mask 2dims or not
     bool hasElasticInfo;                 // has elasticinfo or not
-    bool reserved3;                      // reserved
+    bool isQuant;                        // whether quant or not
     uint64_t totalUbSize;                // epWorldSize
     uint64_t totalWinSizeEp;
     uint64_t totalWinSizeTp;
     uint32_t expertTokenNumsType;        // expert token nums type, support 0: cumsum mode, 1: count mode
-    int32_t zeroComputeExpertNum;       // sum of zero、copy and const expert nums
+    int32_t zeroComputeExpertNum;       // sum of zero, copy and const expert nums
     uint32_t CumSumUBMinValue;           // Minimum value for CumSum remainder（in UB）
+    uint64_t scalesRow;
+    uint64_t scalesCol;
+    uint32_t scalesTypeSize;
+    uint64_t scalesCount;
 };
 
 struct MoeDistributeDispatchV2TilingData {

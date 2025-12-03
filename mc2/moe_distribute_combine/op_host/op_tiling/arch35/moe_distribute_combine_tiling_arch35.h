@@ -23,42 +23,6 @@ namespace optiling {
 
 ge::graphStatus MoeDistributeCombineTilingImpl(gert::TilingContext* context, const uint32_t opVersion);
 
-BEGIN_TILING_DATA_DEF(MoeDistributeCombineInfo)
-    TILING_DATA_FIELD_DEF(uint32_t, epWorldSize);
-    TILING_DATA_FIELD_DEF(uint32_t, tpWorldSize);
-    TILING_DATA_FIELD_DEF(uint32_t, epRankId);
-    TILING_DATA_FIELD_DEF(uint32_t, tpRankId);
-    TILING_DATA_FIELD_DEF(uint32_t, expertShardType);
-    TILING_DATA_FIELD_DEF(uint32_t, sharedExpertRankNum);
-    TILING_DATA_FIELD_DEF(uint32_t, sharedExpertNum);
-    TILING_DATA_FIELD_DEF(uint32_t, moeExpertNum);
-    TILING_DATA_FIELD_DEF(uint32_t, moeExpertPerRankNum);
-    TILING_DATA_FIELD_DEF(uint32_t, globalBs);
-    TILING_DATA_FIELD_DEF(uint32_t, bs);
-    TILING_DATA_FIELD_DEF(uint32_t, k);
-    TILING_DATA_FIELD_DEF(uint32_t, h);
-    TILING_DATA_FIELD_DEF(uint32_t, aivNum);
-    TILING_DATA_FIELD_DEF(uint64_t, totalUbSize);
-    TILING_DATA_FIELD_DEF(uint64_t, totalWinSize);
-    TILING_DATA_FIELD_DEF(uint32_t, hasSharedExpertX);
-    TILING_DATA_FIELD_DEF(bool, isTokenMask);
-    TILING_DATA_FIELD_DEF(bool, reserved1);
-    TILING_DATA_FIELD_DEF(bool, reserved2);
-    TILING_DATA_FIELD_DEF(bool, reserved3);
-END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(MoeDistributeCombineInfoOp, MoeDistributeCombineInfo);
-
-BEGIN_TILING_DATA_DEF(MoeDistributeCombineTilingDataA5)
-    TILING_DATA_FIELD_DEF(uint32_t, version);
-    TILING_DATA_FIELD_DEF(uint32_t, hcommCnt);
-    TILING_DATA_FIELD_DEF_STRUCT(MC2ServerCfg, serverCfg);
-    TILING_DATA_FIELD_DEF_STRUCT(MC2HcommCfg, hcommCfgATA);
-    TILING_DATA_FIELD_DEF_STRUCT(MoeDistributeCombineInfo, combineTilingInfo);
-END_TILING_DATA_DEF;
-// Register for all but only used by A5.
-REGISTER_TILING_DATA_CLASS(MoeDistributeCombine, MoeDistributeCombineTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MoeDistributeCombineV2, MoeDistributeCombineTilingDataA5);
-
 class MoeDistributeCombineTilingA5 : public MoeTilingBase {
 public:
     explicit MoeDistributeCombineTilingA5(gert::TilingContext *context) : MoeTilingBase(context) {};
@@ -67,8 +31,6 @@ protected:
     ge::graphStatus DoOpTiling() override;
     uint64_t GetTilingKey() const override;
     bool IsCapable() override;
-
-    MoeDistributeCombineTilingDataA5 tilingData_;
 };
 } // namespace optiling
 
