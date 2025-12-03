@@ -17,20 +17,12 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
 #include "grouped_matmul_swiglu_quant_spilit_fusion.h"
 #include "grouped_matmul_swiglu_quant_v2_pipeline.h"
 #include "grouped_matmul_swiglu_quant_v2_utils.h"
-#endif
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
-#include "arch35/grouped_matmul_swiglu_quant_v2_mxquant.h"
-#endif
 using namespace AscendC;
 using namespace matmul;
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
 using namespace GroupedMatmulDequantSwigluQuant;
-#endif
-
 extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, GM_ADDR xScale, GM_ADDR groupList,
                                                                      GM_ADDR weight, GM_ADDR weightScale,
                                                                      GM_ADDR weightAssistanceMatrix, GM_ADDR bias,
@@ -40,7 +32,6 @@ extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, 
     TPipe tPipe;
     GM_ADDR userWorkspace = GetUserWorkspace(workspace);
 
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
 #if defined(GMM_SWIGLU_QUANT_V2_A8W4_MSD)
     if (TILING_KEY_IS(2)) {
         KERNEL_TASK_TYPE(2, KERNEL_TYPE_MIX_AIC_1_2);
@@ -75,20 +66,4 @@ extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, 
         op.Init(x, weight, weightScale, xScale, weightAssistanceMatrix, groupList, y, yScale, userWorkspace);
         op.Process();
     }
-#endif
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
-    if (TILING_KEY_IS(20000000000)) { // transX = false, transW = false
-        KERNEL_TASK_TYPE(20000000000, KERNEL_TYPE_MIX_AIC_1_2);
-        GmmSwigluAswt<Act::Gemm::layout::RowMajor, Act::Gemm::layout::RowMajor>(x, weight, weightScale,
-                                                                                xScale, weightAssistanceMatrix,
-                                                                                smoothScale, groupList, y,
-                                                                                yScale, workspace, tiling);
-    } else if (TILING_KEY_IS(20000000001)) { // transX = false, transW = true
-        KERNEL_TASK_TYPE(20000000001, KERNEL_TYPE_MIX_AIC_1_2);
-        GmmSwigluAswt<Act::Gemm::layout::RowMajor, Act::Gemm::layout::ColumnMajor>(x, weight, weightScale,
-                                                                                   xScale, weightAssistanceMatrix,
-                                                                                   smoothScale, groupList, y,
-                                                                                   yScale, workspace, tiling);
-    }
-#endif
 }

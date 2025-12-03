@@ -16,7 +16,6 @@
 #ifndef OP_KERNEL_GROUPED_MATMUL_DEQUANT_SWIGLU_QUANT_V2_UTILS_H
 #define OP_KERNEL_GROUPED_MATMUL_DEQUANT_SWIGLU_QUANT_V2_UTILS_H
 
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
 // A8W4 MSD场景
 #if defined(ORIG_DTYPE_X) && defined(DT_INT8) && ORIG_DTYPE_X == DT_INT8 && defined(ORIG_DTYPE_WEIGHT) &&              \
     defined(DT_INT4) && ORIG_DTYPE_WEIGHT == DT_INT4
@@ -34,7 +33,6 @@
     constexpr CubeFormat wFormat = CubeFormat::ND;
 #endif // weight格式分类
 
-#endif // 芯片型号分类
 
 namespace GroupedMatmulDequantSwigluQuant {
 using namespace AscendC;

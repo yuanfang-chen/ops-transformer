@@ -19,7 +19,7 @@
 #include <graph/utils/type_utils.h>
 #include "../../../grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h"
 #include "../quant_grouped_matmul_inplace_add_host_utils.h"
-#include "../../op_kernel/quant_grouped_matmul_inplace_add_tiling_data.h"
+#include "../../op_kernel/arch35/quant_grouped_matmul_inplace_add_tiling_data.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "tiling_base/tiling_base.h"

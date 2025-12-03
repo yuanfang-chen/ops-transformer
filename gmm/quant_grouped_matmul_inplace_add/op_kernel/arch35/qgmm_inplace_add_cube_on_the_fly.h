@@ -19,8 +19,8 @@
 #include "act/matmul/kernel/kernel_qgmm_inplace_add.h"
 #include "act/matmul/block/block_quant_matmul_builder.h"
 #include "act/matmul/block/block_scheduler_gmm_aswt_with_tail_split.h"
-#include "../qgmm_inplace_add_utils.h"
-#include "../quant_grouped_matmul_inplace_add_tiling_data.h"
+#include "qgmm_inplace_add_utils.h"
+#include "quant_grouped_matmul_inplace_add_tiling_data.h"
 
 using namespace Act::Gemm;
 using namespace Act::Gemm::Kernel;

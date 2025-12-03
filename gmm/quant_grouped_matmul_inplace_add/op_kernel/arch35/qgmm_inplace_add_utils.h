@@ -19,12 +19,10 @@
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
 #if defined(ORIG_DTYPE_SCALE2) && defined(DT_FLOAT8_E8M0) && ORIG_DTYPE_SCALE2 == DT_FLOAT8_E8M0
 #define V310_QGMM_QUANT_MX
 #else
 #define V310_QGMM_QUANT_MIX
-#endif
 #endif
 
 #if defined(CONST_TILING)

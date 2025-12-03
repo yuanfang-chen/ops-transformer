@@ -9,18 +9,16 @@
  */
 
 /*!
- * \file quant_grouped_matmul_inplace_add.cpp
+ * \file quant_grouped_matmul_inplace_add_apt.cpp
  * \brief
  */
-#include "qgmm_inplace_add_utils.h"
-#include "quant_grouped_matmul_inplace_add_tiling_data.h"
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
+#include "arch35/qgmm_inplace_add_utils.h"
+#include "arch35/quant_grouped_matmul_inplace_add_tiling_data.h"
 #if defined(V310_QGMM_QUANT_MX)
 #include "arch35/qgmm_inplace_add_cube_on_the_fly.h"
 #endif
 #if defined(V310_QGMM_QUANT_MIX)
 #include "arch35/qgmm_inplace_add_mix_online_dynamic.h"
-#endif
 #endif
 
 using namespace AscendC;
@@ -36,7 +34,6 @@ extern "C" __global__ __aicore__ void quant_grouped_matmul_inplace_add(GM_ADDR x
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIC_ONLY);
     GM_ADDR user1 = GetUserWorkspace(workspace);
 
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
 #ifndef __CCE_KT_TEST__
 #if defined(V310_QGMM_QUANT_MX)       // mxfpx
     if (TILING_KEY_IS(20000000010)) { // transX = true, transW = false
@@ -51,7 +48,6 @@ extern "C" __global__ __aicore__ void quant_grouped_matmul_inplace_add(GM_ADDR x
         QGmmInplaceAddMixAswt<Act::Gemm::layout::ColumnMajor, Act::Gemm::layout::RowMajor>(x1, x2, scale2, groupList,
                                                                                            scale1, y, tiling);
     }
-#endif
 #endif
 #endif
 }
