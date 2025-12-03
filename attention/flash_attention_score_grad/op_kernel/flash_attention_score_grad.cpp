@@ -505,6 +505,27 @@ __global__ __aicore__ void flash_attention_score_grad(
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
 
     REGISTER_TILING_DEFAULT(FlashAttentionScoreGradTilingDataS1s2Bn2gs1s2);
+
+    if constexpr (UB0 == 0 && UB1 == 0 && Block == 0) {
+        REGISTER_TILING_FOR_TILINGKEY("(TILING_KEY_VAR & 0x0)", FlashAttentionScoreGradTilingData);
+        GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreGradTilingData, tiling_data_in, tiling_data);
+        const FlashAttentionScoreGradTilingData *__restrict empty_tensor_tiling_data = &tiling_data_in;
+        #if (ORIG_DTYPE_QUERY == DT_FLOAT16)
+            FlashAttentionScoreGradEmptyTensor<half> op;
+            op.Init(dq, dk, dv, dpse, empty_tensor_tiling_data);
+            op.Process();
+        #elif (ORIG_DTYPE_QUERY == DT_FLOAT)
+            FlashAttentionScoreGradEmptyTensor<float> op;
+            op.Init(dq, dk, dv, dpse, empty_tensor_tiling_data);
+            op.Process();
+        #elif (ORIG_DTYPE_QUERY == DT_BF16)
+            FlashAttentionScoreGradEmptyTensor<bfloat16_t> op;
+            op.Init(dq, dk, dv, dpse, empty_tensor_tiling_data);
+            op.Process();
+        #endif
+        return;
+    }
+
     constexpr CubeFormat mm12Format = bool(Mm12IsNZOut) ? MM_NZ_OUT_FORMAT : MM_ND_OUT_NOALIGN;
     constexpr CubeFormat mm345Format = bool(Mm345IsNZOut) ? MM_NZ_OUT_FORMAT : MM_ND_OUT_NOALIGN;
     

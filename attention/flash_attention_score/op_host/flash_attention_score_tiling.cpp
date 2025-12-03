@@ -19,11 +19,16 @@
 #include <register/op_impl_registry.h>
 #include "log/log.h"
 #include "../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
-#include "../op_kernel/arch35/flash_attention_score_template_tiling_key.h"
 #include "tiling_base/data_copy_transpose_tiling.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "flash_attention_score_tiling_common.h"
 #include "../op_kernel/arch32/flash_attention_score_tiling.h"
+#if __CCE_AICORE__ != 310
+#include "../op_kernel/arch32/flash_attention_score_template_tiling_key.h"
+#else
+#include "../op_kernel/arch35/flash_attention_score_template_tiling_key.h"
+#endif
+
 
 using namespace ge;
 using namespace AscendC;
@@ -75,24 +80,8 @@ public:
 
     void FlashAttentionScoreSetEmptyInputTilingData(gert::TilingContext *context,
                                                     FlashAttentionScoreTilingData &faTilingData);
-    void GetTilingKeyAttentionScore4EmptyInput(uint64_t &tilingKey, const gert::TilingContext *context);
 };
 
-void FlashAttentionScoreEmptyInputTiling::GetTilingKeyAttentionScore4EmptyInput(uint64_t &tilingKey,
-                                                                                const gert::TilingContext *context)
-{
-    OP_CHECK_IF(context->GetInputDesc(KEY_INPUT_INDEX) == nullptr,
-        OP_LOGE(context, "GetTilingKeyAttentionScore4EmptyInput occurs nullptr!"),
-        return);
-    auto kernelType = context->GetInputDesc(KEY_INPUT_INDEX)->GetDataType();
-    if (kernelType == ge::DT_FLOAT16) {
-        tilingKey = 90ULL;
-    } else if (kernelType == ge::DT_FLOAT) {
-        tilingKey = 92ULL;
-    } else {
-        tilingKey = 94ULL;
-    }
-}
 
 void FlashAttentionScoreEmptyInputTiling::FlashAttentionScoreSetEmptyInputTilingData(
     gert::TilingContext *context, [[maybe_unused]] FlashAttentionScoreTilingData &faTilingData)
@@ -341,6 +330,7 @@ static bool IsEmptyInput(gert::TilingContext *context)
         |--------n*(blocks/coreNum+1)-------|-----m*(blocks/coreNum)------|<32Byte|
         */
         FlashAttentionScoreEmptyInputTiling emptyInputTiling;
+        FlashAttentionScoreEmptyInputTilingData* emptyInputTilingData = context->GetTilingData<FlashAttentionScoreEmptyInputTilingData>();
         auto compileInfoPtr = reinterpret_cast<const FlashAttentionScoreCompileInfo *>(context->GetCompileInfo());
         OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context, "compileInfoPtr is null"),
                    return false);
@@ -348,20 +338,21 @@ static bool IsEmptyInput(gert::TilingContext *context)
         if (!GetEmptyArgs(emptyArgs, context, compileInfoPtr->aivNum, attentionOutShapeSize, softmaxSumShapeSize)){
             return false;
         }
-        emptyInputTiling.tilingData.emptyInputTilingData.set_coreNum(emptyArgs.coreNum);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_attentionOutFormerNum(emptyArgs.attentionOutFormerNum);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_attentionOutTailNum(emptyArgs.attentionOutTailNum);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_softmaxMaxFormerNum(emptyArgs.softmaxMaxFormerNum);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_softmaxMaxTailNum(emptyArgs.softmaxMaxTailNum);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_attentionOutSingleCoreDataSize(emptyArgs.attentionOutSingleCoreDataSize);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_attentionOutTailCoreDataSize(emptyArgs.attentionOutTailCoreDataSize);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_softmaxMaxSingleCoreDataSize(emptyArgs.softmaxMaxSingleCoreDataSize);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_softmaxMaxTailCoreDataSize(emptyArgs.softmaxMaxTailCoreDataSize);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_attentionOutLastCoreDataSize(emptyArgs.attentionOutLastCoreDataSize);
-        emptyInputTiling.tilingData.emptyInputTilingData.set_attentionOutLastCoreIndex(emptyArgs.attentionOutLastCoreIndex);
+        emptyInputTilingData->set_coreNum(emptyArgs.coreNum);
+        emptyInputTilingData->set_attentionOutFormerNum(emptyArgs.attentionOutFormerNum);
+        emptyInputTilingData->set_attentionOutTailNum(emptyArgs.attentionOutTailNum);
+        emptyInputTilingData->set_softmaxMaxFormerNum(emptyArgs.softmaxMaxFormerNum);
+        emptyInputTilingData->set_softmaxMaxTailNum(emptyArgs.softmaxMaxTailNum);
+        emptyInputTilingData->set_attentionOutSingleCoreDataSize(emptyArgs.attentionOutSingleCoreDataSize);
+        emptyInputTilingData->set_attentionOutTailCoreDataSize(emptyArgs.attentionOutTailCoreDataSize);
+        emptyInputTilingData->set_softmaxMaxSingleCoreDataSize(emptyArgs.softmaxMaxSingleCoreDataSize);
+        emptyInputTilingData->set_softmaxMaxTailCoreDataSize(emptyArgs.softmaxMaxTailCoreDataSize);
+        emptyInputTilingData->set_attentionOutLastCoreDataSize(emptyArgs.attentionOutLastCoreDataSize);
+        emptyInputTilingData->set_attentionOutLastCoreIndex(emptyArgs.attentionOutLastCoreIndex);
         emptyInputTiling.FlashAttentionScoreSetEmptyInputTilingData(context, emptyInputTiling.tilingData);
-        emptyInputTiling.GetTilingKeyAttentionScore4EmptyInput(emptyArgs.tilingKey, context);
-        context->SetTilingKey(emptyArgs.tilingKey);
+        context->SetTilingKey(GET_TPL_TILING_KEY(1, 0, 0, 0, 0, 0, 0,
+                             0, 0, 0, 0, 0, 0, 0, 0, 0,
+                             0, 0, 0, 0));
         auto platformInfoPtr = context->GetPlatformInfo();
         OP_CHECK_IF(platformInfoPtr == nullptr, OP_LOGE(context, "platformInfoPtr is null"), return false);
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);

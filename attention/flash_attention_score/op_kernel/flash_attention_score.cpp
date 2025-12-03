@@ -395,7 +395,7 @@ flash_attention_score(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t
     AscendC::SetMaskNorm();
     REGISTER_TILING_DEFAULT(FlashAttentionScoreGeneralTilingData);
     if constexpr (KernelTypeKey == 1) {
-        REGISTER_TILING_FOR_TILINGKEY("(TILING_KEY_VAR == 0x0)", FlashAttentionScoreTilingData);
+        REGISTER_TILING_FOR_TILINGKEY("(TILING_KEY_VAR == 0x1)", FlashAttentionScoreTilingData);
         GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreTilingData, tiling_data_in, tiling);
         const FlashAttentionScoreTilingData *__restrict tiling_data = &tiling_data_in;
         if (ORIG_DTYPE_QUERY == DT_FLOAT16) {
