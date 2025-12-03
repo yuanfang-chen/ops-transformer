@@ -508,7 +508,7 @@ ge::graphStatus ScatterPaKvCacheTiling::GetShapeAttrsInfo()
                     OP_LOGE(context_, "the dim num of inputKey and inputValue are not the same."),
                     return ge::GRAPH_FAILED;);
     }
-    OP_CHECK_IF(inputKeyDimNum != static_cast<size_t>(DIM3) || inputKeyDimNum != static_cast<size_t>(DIM4),
+    OP_CHECK_IF(inputKeyDimNum != static_cast<size_t>(DIM3) && inputKeyDimNum != static_cast<size_t>(DIM4),
                 OP_LOGE(context_, "the dim num of inputKey must be 3 or 4."), return ge::GRAPH_FAILED;);
     // entering template normal
     OP_CHECK_IF(inputKeyDimNum == static_cast<size_t>(DIM3), OP_LOGI(context_, "the dim num of inputKey is 3."),
