@@ -1,4 +1,4 @@
-# FlashAttentionScoreGradVX
+# aclnnFlashAttentionScoreGradVX
 
 
 ## 产品支持情况
@@ -15,10 +15,11 @@
 
 ## 功能说明
 
-- 算子功能：训练场景下计算注意力的反向输出，即[FlashAttentionScoreVX](./FlashAttentionScoreVX.md)的反向计算。**该接口query、key、value参数支持多个长度相等或者长度不相等的sequence**
+- 接口功能：训练场景下计算注意力的反向输出，即[FlashAttentionScoreVX](./FlashAttentionScoreVX.md)的反向计算。**该接口query、key、value参数支持多个长度相等或者长度不相等的sequence**
   - **该接口合并了[FlashAttentionScoreGradV2](./FlashAttentionScoreGradV2.md)接口和[FlashAttentionUnpaddingScoreGradV2](./FlashAttentionUnpaddingScoreGradV2.md)接口，并调整了Dropout功能**：
     -   <term>昇腾910_95 AI处理器</term>：keepProb小于1.0时，若没有外部传入的DropoutMask，则使用新增参数生成DropoutMask；若有外部传入的DropoutMask，则使用外部传入的DropoutMask
-  
+- 计算公式：
+
   - pseType=1时，与[FlashAttentionScoreGrad](./FlashAttentionScoreGrad.md)计算公式相同
   - pseType=其他取值时，公式如下：
 
@@ -26,19 +27,21 @@
   Y=Dropout(Softmax(Mask(\frac{QK^T}{\sqrt{d}}+pse),atten\_mask),keep\_prob)V
   $$
 
-  为方便表达，以变量$S$和$P$表示计算公式：
+    为方便表达，以变量$S$和$P$表示计算公式：
 
   $$
   S=Mask(\frac{QK^T}{\sqrt{d}}+pse),atten\_mask
   $$
+
   $$
   P=Dropout(Softmax(S),keep\_prob)
   $$
+
   $$
   Y=PV
   $$
 
-  则注意力的反向计算公式为：
+    则注意力的反向计算公式为：
 
   $$
   dV=P^TdY
@@ -52,8 +55,8 @@
   dK=\frac{((dS)^T*Q)}{\sqrt{d}}
   $$
 
-  **说明：**
-  query、keyIn、value数据排布格式支持从多种维度解读，其中T (Total S Length) 表示所有batch对应的S的总长、B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、d（Head-Dim）表示隐藏层最小的单元尺寸，且满足d=H/N。
+    **说明：**
+    query、keyIn、value数据排布格式支持从多种维度解读，其中T (Total S Length) 表示所有batch对应的S的总长、B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、d（Head-Dim）表示隐藏层最小的单元尺寸，且满足d=H/N。
 
 ## 函数原型
 
@@ -120,7 +123,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
 ## aclnnFlashAttentionScoreGradVXGetWorkspaceSize
 
 - **参数说明：**
-<table style="undefined;table-layout: fixed; width: 1565px">
+  <table style="undefined;table-layout: fixed; width: 1565px">
   <colgroup>
     <col style="width: 146px">
     <col style="width: 135px">
@@ -147,7 +150,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>query</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的Q。</td>
+      <td>公式中的Q。</td>
       <td>数据类型与keyIn/value一致。</td>
       <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -157,7 +160,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>keyIn</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的K。</td>
+      <td>公式中的K。</td>
       <td>数据类型与query/value一致。</td>
       <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -167,7 +170,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>keyRopeOptional</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的输入K的rope部分。</td>
+      <td>公式中的输入K的rope部分。</td>
       <td>数据类型与keyIn一致。</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -177,7 +180,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>value</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的V。</td>
+      <td>公式中的V。</td>
       <td>数据类型与query/keyIn一致。</td>
       <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -187,7 +190,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>dy</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的dY。</td>
+      <td>公式中的dY。</td>
       <td>-</td>
       <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -197,7 +200,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>pseShiftOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，公式中的pse，表示位置编码。</td>
+      <td>公式中的pse，表示位置编码。</td>
       <td>支持[B,N,S,S]、[B,N,1,S]、[1,N,S,S]、[B,N,H,S]、[1,N,H,S]。</td>
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -207,7 +210,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>dropMaskOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，公式中的Dropout。</td>
+      <td>公式中的Dropout。</td>
       <td>-</td>
       <td>UINT8</td>
       <td>ND</td>
@@ -217,7 +220,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>paddingMaskOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，预留参数暂未使用。</td>
+      <td>预留参数暂未使用。</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -227,7 +230,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>qStartIdxOptional</td>
       <td>可选输入</td>
-      <td>Host侧的aclIntArray，代表外切场景，当前分块Q的sequence在全局中的起始索引。</td>
+      <td>代表外切场景，当前分块Q的sequence在全局中的起始索引。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -237,7 +240,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>kvStartIdxOptional</td>
       <td>可选输入</td>
-      <td>Host侧的aclIntArray，代表外切场景，当前分块KV的sequence在全局中的起始索引。</td>
+      <td>代表外切场景，当前分块KV的sequence在全局中的起始索引。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -247,7 +250,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>attenMaskOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，公式中的atten_mask。</td>
+      <td>公式中的atten_mask。</td>
       <td>
         <ul>
           <li>取值1表示该位不参与计算，0表示参与计算。</li>
@@ -262,7 +265,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>softmaxMaxOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，注意力正向计算的中间输出。</td>
+      <td>注意力正向计算的中间输出。</td>
       <td>shape=[B,N,Sq,8]。</td>
       <td>FLOAT</td>
       <td>ND</td>
@@ -272,7 +275,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>softmaxSumOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，注意力正向计算的中间输出。</td>
+      <td>注意力正向计算的中间输出。</td>
       <td>shape=[B,N,Sq,8]。</td>
       <td>FLOAT</td>
       <td>ND</td>
@@ -282,7 +285,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>softmaxInOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，注意力正向计算的中间输出。预留参数暂未使用。</td>
+      <td>注意力正向计算的中间输出。预留参数暂未使用。</td>
       <td>shape=[B,N,Sq,8]。</td>
       <td>FLOAT</td>
       <td>ND</td>
@@ -292,57 +295,57 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>attentionInOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，注意力正向的最终输出。</td>
+      <td>注意力正向的最终输出。</td>
       <td>数据类型和shape与query一致。</td>
       <td>FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>0、3、4</td>
       <td>√</td>
     </tr>
-	  <tr>
+    <tr>
       <td>dScaleQOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，是query输入的反量化参数。</td>
+      <td>是query输入的反量化参数。</td>
       <td>支持[B,N2,G,Sq/128,1]</td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td>0、1</td>
       <td>√</td>
     </tr>
-	  <tr>
+    <tr>
       <td>dScaleKOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，是key输入的反量化参数。</td>
+      <td>是key输入的反量化参数。</td>
       <td>支持[B,N2,1,Skv/128,1]</td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td>0、1</td>
       <td>√</td>
     </tr>
-	  <tr>
+    <tr>
       <td>dScaleVOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，是value输入的反量化参数。</td>
+      <td>是value输入的反量化参数。</td>
       <td>支持[B,N2,1,Skv/128,1]</td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td>0、1</td>
       <td>√</td>
     </tr>
-	  <tr>
+    <tr>
       <td>dScaleDyOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，是dy输入的反量化参数。</td>
+      <td>是dy输入的反量化参数。</td>
       <td>支持[B,N2,G,Sq/128,1]</td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td>0、1</td>
       <td>√</td>
     </tr>
-	  <tr>
+    <tr>
       <td>dScaleOOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，是attentionOptional输入的反量化参数。</td>
+      <td>是attentionOptional输入的反量化参数。</td>
       <td>支持[B,N2,G,Sq/128,1]</td>
       <td>FLOAT32</td>
       <td>ND</td>
@@ -352,7 +355,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>prefixOptional</td>
       <td>可选输入</td>
-      <td>Host侧的aclIntArray，prefix稀疏场景每个Batch的N。</td>
+      <td>prefix稀疏场景每个Batch的N。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -362,7 +365,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>actualSeqQLenOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，表示每个Batch的query序列长度。</td>
+      <td>表示每个Batch的query序列长度。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -372,7 +375,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>actualSeqKvLenOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，表示每个Batch的kv序列长度。</td>
+      <td>表示每个Batch的kv序列长度。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -382,7 +385,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>scaleValueOptional</td>
       <td>输入</td>
-      <td>Host侧的double，公式中的scale缩放系数。</td>
+      <td>公式中的scale缩放系数。</td>
       <td>-</td>
       <td>DOUBLE</td>
       <td>-</td>
@@ -392,7 +395,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>keepProbOptional</td>
       <td>输入</td>
-      <td>Host侧的double，dropMask中1的比例。</td>
+      <td>dropMask中1的比例。</td>
       <td>-</td>
       <td>DOUBLE</td>
       <td>-</td>
@@ -402,7 +405,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>preTokensOptional</td>
       <td>输入</td>
-      <td>Host侧的int64_t，稀疏计算窗口左边界。</td>
+      <td>稀疏计算窗口左边界。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -412,7 +415,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>nextTokensOptional</td>
       <td>输入</td>
-      <td>Host侧的int64_t，稀疏计算窗口右边界。</td>
+      <td>稀疏计算窗口右边界。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -422,7 +425,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>headNum</td>
       <td>输入</td>
-      <td>Host侧的int64_t，单卡head个数，对应query的N轴。</td>
+      <td>单卡head个数，对应query的N轴。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -432,7 +435,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>inputLayout</td>
       <td>输入</td>
-      <td>Host侧的string，query/key/value的数据排布格式。</td>
+      <td>query/key/value的数据排布格式。</td>
       <td>支持BSH、SBH、BSND、BNSD。</td>
       <td>String</td>
       <td>-</td>
@@ -452,7 +455,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>sparseModeOptional</td>
       <td>输入</td>
-      <td>Host侧的int64_t，稀疏模式。</td>
+      <td>稀疏模式。</td>
       <td>支持配置值0~8。</td>
       <td>INT64</td>
       <td>-</td>
@@ -472,7 +475,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>seedOptional</td>
       <td>输入</td>
-      <td>Host侧的整型。keepProbOptional小于1.0时，根据seedOptional和offsetOptional生成DropoutMask。</td>
+      <td>keepProbOptional小于1.0时，根据seedOptional和offsetOptional生成DropoutMask。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -492,7 +495,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>outDtypeOptional</td>
       <td>输入</td>
-      <td>Host侧的整型。值为0表示dqOut等输出是FLOAT16，为1表示是BFLOAT16。</td>
+      <td>值为0表示dqOut等输出是FLOAT16，为1表示是BFLOAT16。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -512,7 +515,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>dqRopeOut</td>
       <td>输出</td>
-      <td>公式中的dqRope，表示queryRope的梯度。</td>
+      <td>表示queryRope的梯度。</td>
       <td>-</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -580,16 +583,19 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
       <td>-</td>
     </tr>
   </tbody>
-</table>
+  </table>
 
   
 - **返回值：**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
-  <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
-  <col style="width: 319px">
-  <col style="width: 144px">
-  <col style="width: 671px">
+
+  第一段接口完成入参校验，出现以下场景时报错：
+
+  <table style="undefined;table-layout: fixed; width: 1166px"><colgroup>
+  <col style="width: 267px">
+  <col style="width: 124px">
+  <col style="width: 775px">
   </colgroup>
   <thead>
     <tr>
@@ -614,11 +620,12 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
 
 ## aclnnFlashAttentionScoreGradVX
 
--   **参数说明：**
-  <table style="undefined;table-layout: fixed; width: 598px"><colgroup>
-  <col style="width: 144px">
-  <col style="width: 125px">
-  <col style="width: 700px">
+- **参数说明：**
+
+  <table style="undefined;table-layout: fixed; width: 1166px"><colgroup>
+  <col style="width: 173px">
+  <col style="width: 133px">
+  <col style="width: 860px"> 
   </colgroup>
   <thead>
     <tr>
@@ -657,9 +664,10 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
 
 ## 约束说明<a name="1"></a>
 
-- 输入query、key、value、dy的B：batchsize必须相等。
-- 输入query、key、value、dy的inputLayout必须一致。
-- 输入query、key、value、dy的D：Head-Dim必须满足query和key的D相等，value和dy的D相等，并且query和key的D大于等于value和dy的D。
+- 输入query、key、value、dy的约束如下：
+  - B：batchsize必须相等。
+  - inputLayout必须一致。
+  - D：Head-Dim必须满足query和key的D相等，value和dy的D相等，并且query和key的D大于等于value和dy的D。
 - 支持输入query/dy的N和key/value的N不相等，但必须成比例关系，即Nq/Nkv必须是非0整数，Nq取值范围1~256。
 - 关于数据shape的约束，以inputLayout的TND为例，其中：
 
