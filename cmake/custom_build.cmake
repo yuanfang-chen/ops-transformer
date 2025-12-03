@@ -670,6 +670,10 @@ install(DIRECTORY ${OPS_ADV_DIR}/common/act
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
+install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
+)
+
 foreach (op_dir ${OP_DIR_LIST})
     get_filename_component(_op_name "${op_dir}" NAME)
     set(CURRENT_KERNEL_DIR "${op_dir}/op_kernel")
