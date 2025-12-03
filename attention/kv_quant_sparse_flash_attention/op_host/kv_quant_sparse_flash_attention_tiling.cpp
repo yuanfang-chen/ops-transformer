@@ -475,7 +475,7 @@ ge::graphStatus TilingKvQuantSparseFlashAttention(gert::TilingContext *context)
     return tiling.DoOpTiling(&sfaaInfo);
 }
 
-ge::graphStatus TilingPrepareForKvQuantSparseFlashAttention(gert::TilingParseContext *context)
+ge::graphStatus TilingPrepareForKvQuantSparseFlashAttention(gert::TilingParseContext* const context)
 {
     (void)context;
     return ge::GRAPH_SUCCESS;

@@ -490,7 +490,7 @@ ge::graphStatus TilingSparseFlashAttention(gert::TilingContext *context)
     return tiling.DoOpTiling(&sfaInfo);
 }
 
-ge::graphStatus TilingPrepareForSparseFlashAttention(gert::TilingParseContext *context)
+ge::graphStatus TilingPrepareForSparseFlashAttention(gert::TilingParseContext* const context)
 {
     (void)context;
     return ge::GRAPH_SUCCESS;
@@ -1445,7 +1445,7 @@ ge::graphStatus SFAInfoParser::CheckRequiredParaExistence() const
 }
 
 ge::graphStatus SFAInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
-    SFALayout &layout, const std::string &name)
+    SFALayout &layout, const std::string &name) const
 {
     if ((tensor == nullptr)) {
         OP_LOGE(opName_, "when layout of query is %s, %s must be provided.",

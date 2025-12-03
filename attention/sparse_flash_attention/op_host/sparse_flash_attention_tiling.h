@@ -518,7 +518,7 @@ public:
     ge::graphStatus CheckRequiredParaExistence() const;
 
     ge::graphStatus GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
-        SFALayout &layout, const std::string &name);
+        SFALayout &layout, const std::string &name) const;
     ge::graphStatus GetActualSeqLenQSize(uint32_t &size);
     ge::graphStatus GetOpName();
     ge::graphStatus GetNpuInfo();
