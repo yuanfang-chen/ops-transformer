@@ -99,6 +99,7 @@ function(gen_opapi_symbol)
     ge_common_base
     ascend_dump
     ascendalog
+    opapi
     dl
   )
 endfunction()
