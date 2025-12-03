@@ -1,5 +1,7 @@
 # aclnnMoeInitRoutingV2Grad
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_init_routing_v2_grad)
+
 ## 产品支持情况
 
 | 产品                                                         |  是否支持   |

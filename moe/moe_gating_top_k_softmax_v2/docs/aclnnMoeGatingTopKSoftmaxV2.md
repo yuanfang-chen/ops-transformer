@@ -1,5 +1,7 @@
 # aclnnMoeGatingTopKSoftmaxV2
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_gating_top_k_softmax_v2)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |

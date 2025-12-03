@@ -1,5 +1,7 @@
 # aclnnMoeTokenUnpermute
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_token_unpermute)
+
 
 ## 产品支持情况
 

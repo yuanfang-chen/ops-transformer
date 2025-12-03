@@ -1,5 +1,7 @@
 # aclnnMoeTokenPermuteWithEp
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_token_permute_with_ep)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |

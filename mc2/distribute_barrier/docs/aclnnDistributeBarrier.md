@@ -1,5 +1,7 @@
 # aclnnDistributeBarrier
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/mc2/distribute_barrier)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |

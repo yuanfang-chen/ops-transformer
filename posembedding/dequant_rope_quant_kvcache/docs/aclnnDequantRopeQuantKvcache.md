@@ -1,5 +1,7 @@
 # aclnnDequantRopeQuantKvcache
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/posembedding/dequant_rope_quant_kvcache)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |

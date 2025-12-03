@@ -1,5 +1,7 @@
 # aclnnBatchMatMulReduceScatterAlltoAll
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/mc2/batch_mat_mul_reduce_scatter_allto_all)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |

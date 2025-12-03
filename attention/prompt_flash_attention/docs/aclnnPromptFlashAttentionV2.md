@@ -1,5 +1,7 @@
 # aclnnPromptFlashAttentionV2
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/prompt_flash_attention)
+
 ## 产品支持情况
 
 <table style="undefined;table-layout: fixed; width: 700px"><colgroup>
