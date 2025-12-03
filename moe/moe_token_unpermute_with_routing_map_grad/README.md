@@ -70,16 +70,21 @@
 
 ## 参数说明
 
-<table style="table-layout: auto; width: 100%">
+<table style="undefined;table-layout: fixed; width: 1296px"><colgroup>
+<col style="width: 212px">
+<col style="width: 151px">
+<col style="width: 541px">
+<col style="width: 273px">
+<col style="width: 119px">
+  </colgroup>
   <thead>
     <tr>
-      <th style="white-space: nowrap">参数名</th>
-      <th style="white-space: nowrap">输入/输出/属性</th>
-      <th style="white-space: nowrap">描述</th>
-      <th style="white-space: nowrap">数据类型</th>
-      <th style="white-space: nowrap">数据格式</th>
-    </tr>
-  </thead>
+      <th>参数名</th>
+      <th>输入/输出/属性</th>
+      <th>描述</th>
+      <th>数据类型</th>
+      <th>数据格式</th>
+    </tr></thead>
   <tbody>
     <tr>
       <td>unpermutedTokensGrad</td>
@@ -134,7 +139,7 @@
       <td>restoreShapeOptional</td>
       <td>属性</td>
       <td>host侧的aclIntArray。</td>
-      <td>INT32</td>
+      <td>INT64</td>
       <td>-</td>
     </tr>
     <tr>
