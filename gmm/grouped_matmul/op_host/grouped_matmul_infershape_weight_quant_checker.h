@@ -43,7 +43,7 @@ private:
                                         const ge::DataType antiquantOffsetDtype) const;
     ge::graphStatus CheckTensorListDataType(const gert::InferDataTypeContext *context, uint32_t index,
                                             const ge::DataType dtype) const;
-    ge::graphStatus CheckShapeForXAndWeight(const gert::InferShapeContext *context, const GMMAttrs &gmmAttrs) const;
+    ge::graphStatus CheckShapeForXAndWeight(const gert::InferShapeContext *context) const;
     ge::graphStatus CheckDimNumNoSplit(const gert::InferShapeContext *context,
                                        const GMMInputParamsInfo &paramsInputInfo) const;
     ge::graphStatus CheckXWeightYGroupSizeMultiScenario(const gert::InferShapeContext *context,

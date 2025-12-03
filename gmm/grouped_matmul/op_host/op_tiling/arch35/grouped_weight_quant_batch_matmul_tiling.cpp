@@ -456,7 +456,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckGroupList(const gert::TilingConte
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckRequiredInputs(const gert::TilingContext *context)
+bool GroupedWeightQuantBatchMatmulTiling::CheckRequiredInputs(const gert::TilingContext *context) const
 {
     auto xShape = context->GetDynamicInputShape(X_IDX, 0);
     OP_CHECK_IF(!IsNonEmpty(xShape), OP_LOGE(context->GetNodeName(), "x should not be null, but is null."),

@@ -255,7 +255,7 @@ protected:
     bool CheckXAndWeightShape(const gert::TilingContext *context) const;
     bool CheckEveryTensor(const gert::TilingContext *context) const;
     bool CheckGroupList(const gert::TilingContext *context) const;
-    bool CheckRequiredInputs(const gert::TilingContext *context);
+    bool CheckRequiredInputs(const gert::TilingContext *context) const;
     bool AnalyzeAttr(const gert::TilingContext *context);
     bool AnalyzeInput(const gert::TilingContext *context);
     bool CalcResplitTiling(const gert::TilingContext *context);
