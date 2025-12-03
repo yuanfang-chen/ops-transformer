@@ -48,6 +48,9 @@ void PrintOutResult(std::vector<int64_t> &shape, void **deviceAddr)
                            size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return);
     for (int64_t i = 0; i < size; i++) {
+        if (i >= 5) { // print the first five data
+            break;
+        }
         LOG_PRINT("mean result[%ld] is: %f\n", i, aclFloat16ToFloat(resultData[i]));
     }
 }
@@ -86,6 +89,7 @@ int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &
                               shape.size(), *deviceAddr);
     return ACL_SUCCESS;
 }
+
 int main()
 {
     // 1.device/context/stream初始化，参考AscendCL对外接口列表
@@ -192,8 +196,7 @@ int main()
     aclOpExecutor *executor;
     // 调用aclnnRecurrentGatedDeltaRuleGetWorkspaceSize第一段接口
     ret = aclnnRecurrentGatedDeltaRuleGetWorkspaceSize(query, key, value, beta, stateRef, actSeqLen, ssmStaId, gama,
-                                                       gamak, numAccTok, scale, attnOut, &workspaceSize,
-                                                       &executor);
+                                                       gamak, numAccTok, scale, attnOut, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnRecurrentGatedDeltaRuleGetWorkspaceSize failed. ERROR: %d\n", ret);
               return ret);
 
