@@ -611,14 +611,15 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SendToMoe
 template <TemplateMC2TypeA2Class>
 __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::WaitDispatch()
 {
+    if (unlikely(needPerformanceInfo_)) {
+        // 避免没有被分配任务的核未初始化performanceInfoI32Tensor_
+        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoSize_ * sizeof(int64_t) / sizeof(int32_t));
+        SyncFunc<AscendC::HardEvent::V_S>();
+    }
+
     if (worldTaskInfo_.taskNum == 0) {
         SyncAll<true>();
         return;
-    }
-
-    if (unlikely(needPerformanceInfo_)) {
-        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoSize_ * sizeof(int64_t) / sizeof(int32_t));
-        SyncFunc<AscendC::HardEvent::V_S>();
     }
 
     DataCopyExtParams copyFlagParams{1, static_cast<uint32_t>(sizeof(int32_t)), 0, 0, 0};
