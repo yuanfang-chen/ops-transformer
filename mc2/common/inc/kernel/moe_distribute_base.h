@@ -23,7 +23,7 @@ constexpr uint32_t LOCAL_STREAM_MAX_NUM = 19U;
 constexpr uint32_t AICPU_OP_NOTIFY_MAX_NUM = 2;
 constexpr uint32_t AICPU_MAX_RANK_NUM = 128 * 1024;
 constexpr uint32_t TIME_CYCLE = 50; // 系统cycle数转换成时间的基准单位，固定为50
-constexpr uint32_t HCCL_MAX_RANK_NUM = 32;
+constexpr uint32_t HCCL_MTE_MAX_RANK_NUM = 32;
 
 struct HcclSignalInfo {
     uint64_t resId; // 在代表event时为eventid，notify时为notifyid
@@ -145,8 +145,8 @@ struct HcclCombinOpParam {
     uint32_t rankId; // 当前卡rankId
     uint32_t rankDim; // 总卡数
     uint64_t winSize; // ccu不使用
-    uint64_t windowsIn[HCCL_MAX_RANK_NUM]; // ccu不使用, MTE 数据区
-    uint64_t windowsOut[HCCL_MAX_RANK_NUM]; // ccu不使用，MTE 状态区
+    uint64_t windowsIn[HCCL_MTE_MAX_RANK_NUM]; // ccu不使用, MTE 数据区
+    uint64_t windowsOut[HCCL_MTE_MAX_RANK_NUM]; // ccu不使用，MTE 状态区
 
     // for ccu
     uint64_t xnAddr; // Xn寄存器起始地址
