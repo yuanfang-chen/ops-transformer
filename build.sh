@@ -10,7 +10,7 @@
 
 set -e
 RELEASE_TARGETS=("ophost" "opapi" "opgraph")
-UT_TARGETS=("ophost_test" "opapi_test" "opgraph_test" "opkernel_test")
+UT_TARGETS=()
 ########################################################################################################################
 # 预定义变量
 ########################################################################################################################
@@ -1328,19 +1328,26 @@ build_ut() {
   fi
 
   if [ $(cmake -LA -N . | grep 'UTEST_FRAMEWORK_NEW:BOOL=' | cut -d'=' -f2) == "TRUE" ]; then
+    local has_valid_target="FALSE"
     for UT_TARGET in ${UT_TARGETS[@]} ; do
-      if cmake --build . --target help | grep -w "$UT_TARGET"; then
-        echo "Building target: $UT_TARGET."
-        if ! cmake --build . --target ${UT_TARGET} -j $CORE_NUMS; then
-          echo "[ERROR] Build failed for target: $UT_TARGET."
-          exit 1
+        if cmake --build . --target help | grep -w "$UT_TARGET"; then
+            echo "Building target: $UT_TARGET."
+            if ! cmake --build . --target ${UT_TARGET} -j $CORE_NUMS; then
+                echo "[ERROR] Build failed for target: $UT_TARGET."
+                exit 1
+            fi
+            has_valid_target="TRUE"
+        else
+            echo "Target $UT_TARGET not found, skipping build." 
         fi
-      else
-          echo "Target $UT_TARGET not found, skipping build." 
-      fi
     done
-    if [[ "$cov" =~ "TRUE" ]]; then
-        cmake --build . --target generate_ops_cpp_cov -- -j $CORE_NUMS
+    if [[ "$COV" == "true" && "$ENABLE_UT_EXEC" == "TRUE" && "$has_valid_target" == "TRUE" ]]; then
+        python3 ${BASE_PATH}/cmake/scripts/utest/gen_coverage.py\
+            -s=${BASE_PATH}\
+            -c=${BUILD_PATH}\
+            -f="/usr/include/*"\
+            -f="$(realpath $ASCEND_HOME_PATH/../)/*"\
+            -y=${BASE_PATH}/classify_rule.yaml
     fi
   fi
   exit 0

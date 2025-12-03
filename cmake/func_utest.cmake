@@ -1007,19 +1007,15 @@ function(OpsTest_GenerateCoverage)
             else ()
                 get_filename_component(SYS_ROOT "${_SUFFIX}/usr/include" REALPATH)
             endif ()
-            set(_FilterCmds
-                    "-f=${SYS_ROOT}"
-                    "-f=${GTEST_GTEST_INC}"
-                    "-f=${OPS_ADV_DIR}/tests"
-                    "-f=${ASCEND_CANN_PACKAGE_PATH_PARENT}"
-            )
-            foreach (_dir ${TMP_FILTER_DIRECTORIES})
-                list(APPEND _FilterCmds "-f=${_dir}")
-            endforeach ()
             list(REMOVE_DUPLICATES _FilterCmds)
             add_custom_command(
                     TARGET ${TMP_TARGET} POST_BUILD
-                    COMMAND ${HI_PYTHON} ${GEN_COV_PY} "-s=${OPS_ADV_DIR}" "-c=${GEM_COV_DATA_DIR}" ${_FilterCmds}
+                    COMMAND ${HI_PYTHON} ${GEN_COV_PY}
+                        "-s=${OPS_ADV_DIR}"
+                        "-c=${GEM_COV_DATA_DIR}"
+                        "-f=/usr/include/*"
+                        "-f=${ASCEND_CANN_PACKAGE_PATH_PARENT}/*"
+                        "-y=${OPS_ADV_DIR}/classify_rule.yaml"
                     COMMENT "Generate coverage for ${TMP_TARGET}"
             )
         endif ()

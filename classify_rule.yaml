@@ -43,6 +43,8 @@
 
 global_config:
   module: True
+  src:
+    - global_config.cpp # ci不允许屏蔽完后没有文件，暂时先放一个不影响的文件在这
   ut_cov_exclude:
     - "*/tests/*"
     - "*/third_party/*"

@@ -15,28 +15,24 @@
 function(add_infer_modules)
   if (NOT TARGET ${OPHOST_NAME}_infer_obj)
     add_library(${OPHOST_NAME}_infer_obj OBJECT)
-    set(BUILD_UT OFF CACHE BOOL "No UT Compilation" FORCE)
-    if(UT_TEST_ALL OR PROTO_UT OR PASS_UT OR PLUGIN_UT OR ONNX_PLUGIN_UT)
-      set(BUILD_UT ON CACHE BOOL "Build InferShape UT Compilation" FORCE)
-    endif()
     target_include_directories(${OPHOST_NAME}_infer_obj
       PRIVATE ${OP_PROTO_INCLUDE}
     )
     target_compile_definitions(${OPHOST_NAME}_infer_obj
       PRIVATE
       OPS_UTILS_LOG_SUB_MOD_NAME="OP_PROTO"
-      $<$<BOOL:${BUILD_UT}>:ASCEND_OPSPROTO_UT>
+      $<$<BOOL:${ENABLE_TEST}>:ASCEND_OPSPROTO_UT>
       LOG_CPP
     )
     target_compile_options(${OPHOST_NAME}_infer_obj
       PRIVATE
-      $<$<NOT:$<BOOL:${BUILD_UT}>>:-DDISABLE_COMPILE_V1>
+      $<$<NOT:$<BOOL:${ENABLE_TEST}>>:-DDISABLE_COMPILE_V1>
       -Dgoogle=ascend_private
       -fvisibility=hidden
     )
     target_link_libraries(${OPHOST_NAME}_infer_obj
       PRIVATE
-      $<BUILD_INTERFACE:$<IF:$<BOOL:${BUILD_UT}>, intf_llt_pub_asan_cxx17, intf_pub_cxx17>>
+      $<BUILD_INTERFACE:$<IF:$<BOOL:${ENABLE_TEST}>,intf_llt_pub_asan_cxx17,intf_pub_cxx17>>
       $<BUILD_INTERFACE:dlog_headers>
       $<$<TARGET_EXISTS:ops_base_util_objs>:$<TARGET_OBJECTS:ops_base_util_objs>>
       $<$<TARGET_EXISTS:ops_base_infer_objs>:$<TARGET_OBJECTS:ops_base_infer_objs>>
@@ -52,29 +48,25 @@ endfunction()
 function(add_tiling_modules)
   if (NOT TARGET ${OPHOST_NAME}_tiling_obj)
     add_library(${OPHOST_NAME}_tiling_obj OBJECT)
-    set(BUILD_UT OFF CACHE BOOL "No UT Compilation" FORCE)
-    if(UT_TEST_ALL OR TILING_UT)
-      set(BUILD_UT ON CACHE BOOL "Build OpTiling UT Compilation" FORCE)
-    endif()
     target_include_directories(${OPHOST_NAME}_tiling_obj
       PRIVATE ${OP_TILING_INCLUDE}
     )
     target_compile_definitions(${OPHOST_NAME}_tiling_obj
       PRIVATE
       OPS_UTILS_LOG_SUB_MOD_NAME="OP_TILING"
-      $<$<BOOL:${BUILD_UT}>:ASCEND_OPTILING_UT>
+      $<$<BOOL:${ENABLE_TEST}>:ASCEND_OPTILING_UT>
       LOG_CPP
     )
     target_compile_options(${OPHOST_NAME}_tiling_obj
       PRIVATE
-      $<$<NOT:$<BOOL:${BUILD_UT}>>:-DDISABLE_COMPILE_V1>
+      $<$<NOT:$<BOOL:${ENABLE_TEST}>>:-DDISABLE_COMPILE_V1>
       -Dgoogle=ascend_private
       -fvisibility=hidden
       -fno-strict-aliasing
     )
     target_link_libraries(${OPHOST_NAME}_tiling_obj
       PRIVATE
-      $<BUILD_INTERFACE:$<IF:$<BOOL:${BUILD_UT}>, intf_llt_pub_asan_cxx17, intf_pub_cxx17>>
+      $<BUILD_INTERFACE:$<IF:$<BOOL:${ENABLE_TEST}>,intf_llt_pub_asan_cxx17,intf_pub_cxx17>>
       $<BUILD_INTERFACE:dlog_headers>
       $<$<TARGET_EXISTS:${COMMON_NAME}_obj>:$<TARGET_OBJECTS:${COMMON_NAME}_obj>>
       $<$<TARGET_EXISTS:ops_base_util_objs>:$<TARGET_OBJECTS:ops_base_util_objs>>
@@ -88,10 +80,6 @@ endfunction()
 function(add_opapi_modules)
   if (NOT TARGET ${OPHOST_NAME}_opapi_obj)
     add_library(${OPHOST_NAME}_opapi_obj OBJECT)
-    set(BUILD_UT OFF CACHE BOOL "No UT Compilation" FORCE)
-    if(UT_TEST_ALL OR OP_API_UT)
-      set(BUILD_UT ON CACHE BOOL "Build OpApi UT Compilation" FORCE)
-    endif()
     target_include_directories(${OPHOST_NAME}_opapi_obj
       PRIVATE
       ${OPAPI_INCLUDE}
@@ -107,7 +95,7 @@ function(add_opapi_modules)
     )
     target_link_libraries(${OPHOST_NAME}_opapi_obj
       PUBLIC
-      $<BUILD_INTERFACE:$<IF:$<BOOL:${BUILD_UT}>, intf_llt_pub_asan_cxx17, intf_pub_cxx17>>
+      $<BUILD_INTERFACE:$<IF:$<BOOL:${ENABLE_TEST}>,intf_llt_pub_asan_cxx17,intf_pub_cxx17>>
       PRIVATE
       $<BUILD_INTERFACE:adump_headers>
       $<BUILD_INTERFACE:dlog_headers>)
@@ -119,7 +107,6 @@ function(add_opmaster_ct_gentask_modules)
   message(STATUS "add_opmaster_ct_gentask_modules start")
   if (NOT TARGET ${OPHOST_NAME}_opmaster_ct_gentask_obj)
     add_library(${OPHOST_NAME}_opmaster_ct_gentask_obj OBJECT)
-    set(BUILD_UT OFF CACHE BOOL "No UT Compilation" FORCE)
 
     #如果protobuf还没生成的话，要生成.h
     if(NOT TARGET ops_proto_gen)
@@ -146,7 +133,7 @@ function(add_opmaster_ct_gentask_modules)
     )
     target_compile_options(${OPHOST_NAME}_opmaster_ct_gentask_obj
       PRIVATE
-      $<$<NOT:$<BOOL:${BUILD_UT}>>:-DDISABLE_COMPILE_V1>
+      $<$<NOT:$<BOOL:${ENABLE_TEST}>>:-DDISABLE_COMPILE_V1>
       -Dgoogle=ascend_private
       -fvisibility=hidden
       -fno-strict-aliasing
