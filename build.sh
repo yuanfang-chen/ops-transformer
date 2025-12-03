@@ -372,7 +372,7 @@ export EAGER_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 export GRAPH_LIBRARY_STUB_PATH="${ASCEND_HOME_PATH}/compiler/lib64/stub:${ASCEND_HOME_PATH}/lib64/stub"
 export GRAPH_LIBRARY_PATH="${ASCEND_HOME_PATH}/compiler/lib64:${ASCEND_HOME_PATH}/lib64"
 
-export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_OPP_PATH}/include/aclnnop"
+export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_OPP_PATH}/${ARCH_INFO}-linux/include/aclnnop"
 
 function build_example()
 {

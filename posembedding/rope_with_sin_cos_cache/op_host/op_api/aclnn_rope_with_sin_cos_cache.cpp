@@ -41,9 +41,9 @@ extern "C" {
 static const int64_t QUERY_OUT_INDEX = 0;
 static const int64_t KEY_OUT_INDEX = 1;
 
-static const int64_t DIM_ONE = 0;
-static const int64_t DIM_TWO = 1;
-static const int64_t DIM_MUM = 2;
+static const int64_t DIM_ZERO = 0;
+static const int64_t DIM_ONE = 1;
+static const int64_t DIM_NUM = 2;
 
 static const std::initializer_list<op::DataType> ASCEND910B_DTYPE_SUPPORT_LIST = {
     op::DataType::DT_FLOAT16,
@@ -101,12 +101,11 @@ static bool CheckDtypeValid(
     return true;
 }
 
-static bool CheckShape(
-    const aclTensor* queryIn, const aclTensor* keyIn, const aclTensor* cosSinCache,
-    const aclTensor* queryOut, const aclTensor* keyOut)
+static bool CheckShape(const aclTensor *positions, const aclTensor *queryIn, const aclTensor *keyIn,
+                       const aclTensor *cosSinCache, const aclTensor *queryOut, const aclTensor *keyOut)
 {
     // 检查输入的所有shape是不是2维；
-    if (queryIn->GetViewShape().GetDimNum() != DIM_MUM) {
+    if (queryIn->GetViewShape().GetDimNum() != DIM_NUM) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID,
             "Expected queryIn to be a vector of size 2, "
@@ -115,7 +114,7 @@ static bool CheckShape(
         return false;
     }
 
-    if (keyIn->GetViewShape().GetDimNum() != DIM_MUM) {
+    if (keyIn->GetViewShape().GetDimNum() != DIM_NUM) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID,
             "Expected keyIn to be a vector of size 2, "
@@ -124,7 +123,7 @@ static bool CheckShape(
         return false;
     }
 
-    if (cosSinCache->GetViewShape().GetDimNum() != DIM_MUM) {
+    if (cosSinCache->GetViewShape().GetDimNum() != DIM_NUM) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID,
             "Expected cosSinCache to be a vector of size 2, "
@@ -132,6 +131,14 @@ static bool CheckShape(
             op::ToString(cosSinCache->GetViewShape()).GetString());
         return false;
     }
+    
+    // 检查是否有维度为0
+    if (queryIn->IsEmpty() || keyIn->IsEmpty() || cosSinCache->IsEmpty() || positions->IsEmpty()) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "RopeWithSinCosCache not support to process empty tensor currently",
+                op::ToString(positions->GetViewShape()).GetString());
+        return false;
+    }
+
     // 检查keyIn的1维度是不是等于queryIn的一维
     OP_CHECK(
         keyIn->GetViewShape()[0] == queryIn->GetViewShape()[0],
@@ -166,7 +173,7 @@ static aclnnStatus CheckParams(const aclTensor *positions, const aclTensor *quer
     CHECK_RET(CheckDtypeValid(positions, queryIn, keyIn, cosSinCache, queryOut, keyOut), ACLNN_ERR_PARAM_INVALID);
 
     // 3. 检查shape是否支持
-    CHECK_RET(CheckShape(queryIn, keyIn, cosSinCache, queryOut, keyOut), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckShape(positions, queryIn, keyIn, cosSinCache, queryOut, keyOut), ACLNN_ERR_PARAM_INVALID);
 
     // 4. 检查mrope模式下是否满足mropeSection[0] + mropeSection[1] + mropeSection[2] == rotaryDim/2
     if (mropeSection != nullptr) {
