@@ -66,7 +66,7 @@ constexpr uint32_t ATTR_NEXT_TOKEN_INDEX = 3;
 constexpr uint32_t ATTR_INPUT_LAYOUT_INDEX = 4;
 constexpr uint32_t ATTR_NUM_KV_HEADS_INDEX = 5;
 constexpr uint32_t INPUT_QKV_SHAPE_MIN_DIMS = 3;
-constexpr uint32_t INPUT_QKV_SHAPE_MAX_DIMS = 4;
+constexpr uint32_t INPUT_QKV_SHAPE_MAX_DIMS = 5;
 #ifndef ASCEND_OPTILING_UT
 constexpr uint32_t BYTE_BLOCK = 32; // The block size of datacopy, which moves data at the block granularity.
 
