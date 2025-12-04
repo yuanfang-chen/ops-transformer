@@ -112,6 +112,7 @@ static ge::graphStatus GetQueryAndOutLayout(std::string& queryLayout,
                 "BSND_BNSD, NTD_TND, BSH_NBSD, BSND_NBSD, BNSD_NBSD, TND_NTD, but got %s.", *inputLayoutPtr);
         return ge::GRAPH_FAILED;
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 static ge::graphStatus GetQueryBSND(const gert::Shape *queryShape,
@@ -197,6 +198,7 @@ static ge::graphStatus GetValueD(bool isPageAttention, int64_t& valueD,
             valueD = (*valueShape)[FIA_LAYOUT_DIM2];
         }
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 static ge::graphStatus InferAttentionOutShape(std::string attentionOutLayout,
