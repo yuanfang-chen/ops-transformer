@@ -3279,7 +3279,6 @@ void PromptFlashAttentionTilingV2::ComputeSplitNBSeq(PromptFlashAttentionTilingD
     seqParams->set_coreSeqPosEnd(coreSposEnd.data());
     faTilingAdapter.multiCoreParamsRegbase.set_bnStartIdx(bnStartIdx.data());
     faTilingAdapter.multiCoreParamsRegbase.set_sparseStartIdx(gS1StartIdx.data());
-    OP_LOGE("PromptFlashAttentionTilingV2::ComputeSplitNBSeq", "PromptFlashAttentionTilingV2::ComputeSplitNBSeq Function END!!!");
 }
 
 void PromptFlashAttentionTilingV2::SetMultiCoreParamsRegbase(int64_t totalSize, int64_t actualUsedCoreNum)
@@ -4491,7 +4490,6 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
         return ge::GRAPH_FAILED;
     }
 
-    // PFATilingDataconvert(tilingData);
     if (SetQKVStartIdx(contextKeyParams) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
