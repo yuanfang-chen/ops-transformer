@@ -412,9 +412,9 @@ aclnnStatus aclnnRopeWithSinCosCache(
 - queryIn、keyIn、cosSinCache只支持2维shape输入。
 - queryIn、keyIn、cosSinCache输入的数据类型需要保持一致。
 - headSize：数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数。
-- rotaryDim：始终小于等于headSize；数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数;mrope模式下应满足rotaryDim = mropeSection[0] + mropeSection[1] + mropeSection[2]。
+- rotaryDim：始终小于等于headSize；数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数;mrope模式下应满足 mropeSection[0] + mropeSection[1] + mropeSection[2] = rotaryDim/2。
 - 输入tensor positions的取值应小于cosSinCache的0维maxSeqLen。
-- mrope模式下，mropeSection：取值限制为[16, 24, 24]，rotaryDim的取值为128。
+- mrope模式下，mropeSection：取值当前仅支持[16, 24, 24]、[24, 20, 20]和[8, 12, 12]。
 
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
