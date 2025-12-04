@@ -27,7 +27,7 @@
     $$
     AllToAllScales=AllToAll(scales)
     $$
-    其中的Reduce计算是将来自不同rank的数据进行reduce计算
+    其中的Reduce计算是将来自不同rank的数据进行reduce计算。
     $$
 
 ## 函数原型
@@ -83,7 +83,7 @@ aclnnStatus aclnnQuantReduceScatter(
         <td>x</td>
         <td>输入</td>
         <td>公式中的输入x</td>
-        <td><li>不支持空Tensor。</li><li>支持的shape为(BS,H)，当前版本输入x的H只支持7168和5120。</li></td>
+        <td><ul><li>不支持空Tensor。</li><li>支持的shape为(BS,H)，当前版本输入x的H只支持7168和5120。</li></td>
         <td>INT8, HIFLOAT8, FLOAT8_E4M3FN, FLOAT8_E5M2</td>
         <td>ND</td>
         <td>2</td>
@@ -93,7 +93,7 @@ aclnnStatus aclnnQuantReduceScatter(
         <td>scales</td>
         <td>输入</td>
         <td>公式中的输入scales</td>
-        <td><li>不支持空Tensor。</li><li>当scales的数据类型为FLOAT8_E8M0时，x的数据类型必须为FLOAT8_E5M2，FLOAT8_E4M3FN，x的shape为(BS,H)，scales的shape必须为(BS,H/64,2)</li><li>当scales的数据类型为FLOAT时，x的数据类型必须为INT8, HIFLOAT8, FLOAT8_E4M3FN, FLOAT8_E5M2，x的shape为(BS,H)，scales的shape必须为(BS,H/128)</li></td>
+        <td><ul><li>不支持空Tensor。</li><li>当scales的数据类型为FLOAT8_E8M0时，x的数据类型必须为FLOAT8_E5M2，FLOAT8_E4M3FN，x的shape为(BS,H)，scales的shape必须为(BS,H/64,2)</li><li>当scales的数据类型为FLOAT时，x的数据类型必须为INT8, HIFLOAT8, FLOAT8_E4M3FN, FLOAT8_E5M2，x的shape为(BS,H)，scales的shape必须为(BS,H/128)</li></td>
         <td>FLOAT, FLOAT8_E8M0</td>
         <td>ND</td>
         <td>2-3</td>
@@ -103,7 +103,7 @@ aclnnStatus aclnnQuantReduceScatter(
         <td>group</td>
         <td>输入</td>
         <td>通信域标识</td>
-        <td>通信域标识</td>
+        <td><ul><li>通信域标识</li></td>
         <td>String</td>
         <td>-</td>
         <td>-</td>
@@ -113,7 +113,7 @@ aclnnStatus aclnnQuantReduceScatter(
         <td>reduceOp</td>
         <td>输入</td>
         <td>公式中的reduce操作类型。</td>
-        <td>当前仅支持"sum"</td>
+        <td><ul><li>当前仅支持"sum"</li></td>
         <td>string</td>
         <td>-</td>
         <td>-</td>
@@ -123,7 +123,7 @@ aclnnStatus aclnnQuantReduceScatter(
         <td>output</td>
         <td>输出</td>
         <td>公式中的输出output。</td>
-        <td><li>不支持空Tensor。</li><li>x的shape为(BS,H)，output的shape必须为(BS/rankNum,H)。rankNum表示通信域大小。</li></td>
+        <td><ul><li>不支持空Tensor。</li><li>x的shape为(BS,H)，output的shape必须为(BS/rankNum,H)。rankNum表示通信域大小。</li></td>
         <td>FLOAT、FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
@@ -188,7 +188,7 @@ aclnnStatus aclnnQuantReduceScatter(
 
 ## aclnnQuantReduceScatter
 -   **参数说明：**
-    <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
+    <table style="undefined;table-layout: fixed; width: 1312px">
     <col style="width: 158px">
     <col style="width: 120px">
     <col style="width: 750px">
@@ -241,7 +241,10 @@ aclnnStatus aclnnQuantReduceScatter(
     #include <thread>
     #include <iostream>
     #include <vector>
-    #include "../op_host/op_api/aclnn_quant_reduce_scatter.h"
+    #include <string>
+    #include <cstring>
+    #include <getopt.h>
+    #include "aclnnop/aclnn_quant_reduce_scatter.h"
     
     #define CHECK_RET(cond, return_expr) \
         do {                             \
@@ -256,9 +259,10 @@ aclnnStatus aclnnQuantReduceScatter(
         } while (0)
 
     constexpr int DEV_NUM = 2;
-    constexpr int INTERNET_LEN = 10;
+    constexpr int INTERNAL_LEN = 10;
     int g_rankId = 0;
     int streamWithTimeout = 10000;
+    int64_t g_hcclBufferSize = 200;
     void GetOption(int argc, char **argv)
     {
         while (true) {
@@ -328,9 +332,9 @@ aclnnStatus aclnnQuantReduceScatter(
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret = %d\n", ret);
                 return -1);
         LOG_PRINT("[INFO] rank = %d, hcomName = %s, stream = %p\n", args.rankId, hcomName, args.stream);
-        std::vector<int64_t> xShape = {48, 5120};
-        std::vector<int64_t> scalesShape = {48, 40};
-        std::vector<int64_t> outputShape = {48 / DEV_NUM, 5120};
+        std::vector<int64_t> xShape = {1024, 5120};
+        std::vector<int64_t> scalesShape = {1024, 40};
+        std::vector<int64_t> outputShape = {1024 / DEV_NUM, 5120};
         void *xDeviceAddr = nullptr;
         void *scalesDeviceAddr = nullptr;
         void *outputDeviceAddr = nullptr;
@@ -339,7 +343,6 @@ aclnnStatus aclnnQuantReduceScatter(
         aclTensor *x = nullptr;
         aclTensor *scales = nullptr;
         aclTensor *output = nullptr;
-        string reduceOp = "sum";
         uint64_t workspaceSize = 0;
         aclOpExecutor *executor = nullptr;
 
@@ -354,14 +357,14 @@ aclnnStatus aclnnQuantReduceScatter(
         // 创建tensor
         ret = CreateAclTensor(xHostData, xShape, &xDeviceAddr, aclDataType::ACL_FLOAT8_E5M2, &x);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
-        ret = CreateAclTensor(scalesHostData, scalesShape, &scalesDeviceAddr, aclDataType::ACL_FLOAT8_E8M0, &scales);
+        ret = CreateAclTensor(scalesHostData, scalesShape, &scalesDeviceAddr, aclDataType::ACL_FLOAT, &scales);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
         ret = CreateAclTensor(outputHostData, outputShape, &outputDeviceAddr, aclDataType::ACL_FLOAT16, &output);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
 
         // 调用第一阶段接口
         ret = aclnnQuantReduceScatterGetWorkspaceSize(
-            x, scales, hcomName, reduceOp, output, &workspaceSize, &executor);
+            x, scales, hcomName, "sum", output, &workspaceSize, &executor);
         CHECK_RET(ret == ACL_SUCCESS,
             LOG_PRINT("[ERROR] aclnnQuantReduceScatterGetWorkspaceSize failed. ret = %d \n", ret);
                     return ret);
@@ -406,13 +409,13 @@ aclnnStatus aclnnQuantReduceScatter(
         ret = aclrtDestroyStream(args.stream);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyStream failed. ret = %d \n", ret);
                 return ret);
+        
+        ret = HcclCommDestroy(args.hcclComm);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret);
+                return ret);
 
         ret = aclrtDestroyContext(args.context);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyContext failed. ret = %d \n", ret);
-                return ret);
-
-        ret = HcclCommDestroy(args.hcclComm);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret);
                 return ret);
 
         ret = aclrtResetDevice(args.rankId);
@@ -429,6 +432,7 @@ aclnnStatus aclnnQuantReduceScatter(
                 return ret);
         aclrtStream stream;
         aclrtContext context;
+        HcclComm comms;
         ret = aclrtSetDevice(g_rankId);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret);
                 return ret);
@@ -439,14 +443,15 @@ aclnnStatus aclnnQuantReduceScatter(
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret);
                 return ret);
         // 初始化集合通信域
-        HcclComm comms;
-        HcclRootInfo hcclRootInfo;
-        for (uint32_t i = 0; i < INTERNAL_LEN; i++) {
-            hcclRootInfo.internal[i] = 'a';
-        }
-        hcclRootInfo.internal[INTERNAL_LEN] = '\0';
-        ret = HcclCommInitRootInfo(DEV_NUM, &hcclRootInfo, g_rankId, &comms);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitRootInfo failed. ret = %d \n", ret);
+        HcclCommConfig config;
+        HcclCommConfigInit(&config);
+        
+        config.hcclDeterministic = 1;
+        config.hcclBufferSize = g_hcclBufferSize;
+        strncpy(config.hcclCommName, "hccl_comm_test", COMM_NAME_MAX_LENGTH - 1);
+        std::string rankTableFile = getenv("RANK_TABLE_FILE");
+        ret = HcclCommInitClusterInfoConfig(rankTableFile.c_str(), g_rankId, &config, &comms);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitClusterInfoConfig failed. ret = %d \n", ret);
                 return ret);
 
         Args args;

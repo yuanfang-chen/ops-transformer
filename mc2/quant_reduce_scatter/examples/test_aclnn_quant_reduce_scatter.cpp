@@ -15,8 +15,10 @@
 #include <thread>
 #include <iostream>
 #include <vector>
+#include <string>
+#include <cstring>
 #include <getopt.h>
-#include "../op_api/aclnn_quant_reduce_scatter.h"
+#include "aclnnop/aclnn_quant_reduce_scatter.h"
  
 #define CHECK_RET(cond, return_expr) \
     do {                             \
@@ -34,6 +36,7 @@ constexpr int DEV_NUM = 2;
 constexpr int INTERNAL_LEN = 10;
 int g_rankId = 0;
 int streamWithTimeout = 10000;
+int64_t g_hcclBufferSize = 200;
 void GetOption(int argc, char **argv)
 {
     while (true) {
@@ -128,7 +131,7 @@ int LaunchOneThreadQtReduceScatter(Args &args)
     // 创建tensor
     ret = CreateAclTensor(xHostData, xShape, &xDeviceAddr, aclDataType::ACL_FLOAT8_E5M2, &x);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(scalesHostData, scalesShape, &scalesDeviceAddr, aclDataType::ACL_FLOAT8_E8M0, &scales);
+    ret = CreateAclTensor(scalesHostData, scalesShape, &scalesDeviceAddr, aclDataType::ACL_FLOAT, &scales);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(outputHostData, outputShape, &outputDeviceAddr, aclDataType::ACL_FLOAT16, &output);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -180,13 +183,13 @@ int LaunchOneThreadQtReduceScatter(Args &args)
     ret = aclrtDestroyStream(args.stream);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyStream failed. ret = %d \n", ret);
               return ret);
+    
+    ret = HcclCommDestroy(args.hcclComm);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret);
+              return ret);
 
     ret = aclrtDestroyContext(args.context);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyContext failed. ret = %d \n", ret);
-              return ret);
-
-    ret = HcclCommDestroy(args.hcclComm);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret);
               return ret);
 
     ret = aclrtResetDevice(args.rankId);
@@ -203,6 +206,7 @@ int main(int argc, char *argv[])
               return ret);
     aclrtStream stream;
     aclrtContext context;
+    HcclComm comms;
     ret = aclrtSetDevice(g_rankId);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret);
               return ret);
@@ -213,14 +217,17 @@ int main(int argc, char *argv[])
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret);
               return ret);
     // 初始化集合通信域
-    HcclComm comms;
-    HcclRootInfo hcclRootInfo;
-    for (uint32_t i = 0; i < INTERNAL_LEN; i++) {
-        hcclRootInfo.internal[i] = 'a';
-    }
-    hcclRootInfo.internal[INTERNAL_LEN] = '\0';
-    ret = HcclCommInitRootInfo(DEV_NUM, &hcclRootInfo, g_rankId, &comms);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitRootInfo failed. ret = %d \n", ret);
+    HcclCommConfig config;
+    HcclCommConfigInit(&config);
+    
+    config.hcclDeterministic = 1;
+    config.hcclBufferSize = g_hcclBufferSize;
+    strncpy(config.hcclCommName, "hccl_comm_test", COMM_NAME_MAX_LENGTH - 1);
+    const char* rankTableFile = getenv("RANK_TABLE_FILE");
+    CHECK_RET(rankTableFile != nullptr, LOG_PRINT("[ERROR] get rankTableFile failed.\n");
+              return -1);
+    ret = HcclCommInitClusterInfoConfig(rankTableFile.c_str(), g_rankId, &config, &comms);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitClusterInfoConfig failed. ret = %d \n", ret);
               return ret);
 
     Args args;
