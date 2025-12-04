@@ -34,11 +34,11 @@
     - paddedMode为false时
   
   $$
-  probsGradOut = masked\_scatter(routingMapOptional.T,probsGradExpertOrder)
+  probsGradOut = masked\_scatter(routingMapOptional^T,probsGradExpertOrder)
   $$
   
   $$
-  permutedProbs = probsOptional.T.masked\_select(routingMapOptional.T)
+  permutedProbs = probsOptional^T.masked\_select(routingMapOptional^T)
   $$
 
   $$
@@ -160,7 +160,8 @@
 
 ## 约束说明
 
--   topkNum <= 512。
+- 当输入probsOptional非空，且paddedMode为false时，要求topK_num <= 512且topK_num <= experts_num。
+- 当输入probsOptional非空，且paddedMode为true时，要求capacity <= tokens_num。
 
 ## 调用说明
 

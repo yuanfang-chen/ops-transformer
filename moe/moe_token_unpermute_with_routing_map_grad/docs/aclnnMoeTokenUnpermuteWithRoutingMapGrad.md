@@ -37,11 +37,11 @@
     - paddedMode为false时
   
   $$
-  probsGradOut = masked\_scatter(routingMapOptional.T,probsGradExpertOrder)
+  probsGradOut = masked\_scatter(routingMapOptional^T,probsGradExpertOrder)
   $$
   
   $$
-  permutedProbs = probsOptional.T.masked\_select(routingMapOptional.T)
+  permutedProbs = probsOptional^T.masked\_select(routingMapOptional^T)
   $$
 
   $$
@@ -279,13 +279,13 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
             <tr>
             <td rowspan="4"> ACLNN_ERR_INNER_TILING_ERROR </td>
             <td rowspan="4"> 561002 </td>
-            <td>topK_num > 512。</td>
+            <td>输入probsOptional非空，且paddedMode为false时，topK_num > 512。</td>
             </tr>
             <tr>
-            <td>topK_num大于experts_num。</td>
+            <td>输入probsOptional非空，且paddedMode为false时，topK_num大于experts_num。</td>
             </tr>
             <tr>
-            <td>capacity大于tokens_num。</td>
+            <td>输入probsOptional非空，且paddedMode为true时，capacity大于tokens_num。</td>
             </tr>
             <tr>
             <td>输入或输出的shape不符合要求。</td>
@@ -337,7 +337,8 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
 ## 约束说明
 
 - 确定性说明：aclnnMoeTokenUnpermuteWithRoutingMapGrad默认确定性实现。
-- topkNum <= 512
+- 当输入probsOptional非空，且paddedMode为false时，要求topK_num <= 512且topK_num <= experts_num。
+- 当输入probsOptional非空，且paddedMode为true时，要求capacity <= tokens_num。
 
 ## 调用示例
 
