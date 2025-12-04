@@ -132,7 +132,7 @@ aclnnStatus aclnnIncreFlashAttentionV2(
         <td>输入</td>
         <td>公式中的输入K。</td>
         <td>key、value 中对应tensor的shape需要完全一致。</td>
-        <td>FLOAT16、BFLOAT16、INT8</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td><ul><li>(B, N, S, D)</li><li>(B, S, N, D)</li><li>(B, S, H)</li></ul></td>
         <td>×</td>
@@ -142,7 +142,7 @@ aclnnStatus aclnnIncreFlashAttentionV2(
         <td>输入</td>
         <td>公式中的输入V。</td>
         <td>key、value 中对应tensor的shape需要完全一致。</td>
-        <td>FLOAT16、BFLOAT16、INT8</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td><ul><li>(B, N, S, D)</li><li>(B, S, N, D)</li><li>(B, S, H)</li></ul></td>
         <td>×</td>
@@ -388,7 +388,7 @@ aclnnStatus aclnnIncreFlashAttentionV2(
 
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：
   - 支持B轴小于等于65536，N轴小于等于256，D轴小于等于512。
-  - query数据类型支持FLOAT16、BFLOAT16，attentionOut、key和value数据类型支持FLOAT16、INT8、BFLOAT16。
+  - query数据类型支持FLOAT16、BFLOAT16，attentionOut、key和value数据类型支持FLOAT16、BFLOAT16。
   - dequantScale1、dequantScale2数据类型支持UINT64、FLOAT32。
   - quantScale1、quantScale2和quantOffset2数据类型支持FLOAT32
   - numKeyValueHeads数据类型支持INT64。

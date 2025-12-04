@@ -1186,8 +1186,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - per-token叠加per-head模式并使用page attention管理scale/offset模式：两个参数的shape均为(blocknum, N, blocksize)，数据类型固定为FLOAT32，当key、value数据类型为INT8时支持。
       - 当伪量化参数 和 KV分离量化参数同时传入时，以KV分离量化参数为准。
       - INT4（INT32）伪量化场景仅支持KV伪量化参数分离，具体包括：
+        - per-tensor模式；
         - per-channel模式；
         - per-token模式；
+        - per-tensor叠加per-head模式；
         - per-token叠加per-head模式；
         - key支持per-channel叠加value支持per-token模式。
       - INT4（INT32）伪量化场景不支持后量化。
@@ -1260,8 +1262,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - per-token叠加per-head模式并使用page attention管理scale/offset模式：两个参数的shape均为(blocknum, N, blocksize)，数据类型固定为FLOAT32，当key、value数据类型为INT8时支持。
       - 当伪量化参数 和 KV分离量化参数同时传入时，以KV分离量化参数为准。
       - INT4（INT32）伪量化场景仅支持KV伪量化参数分离，具体包括：
+        - per-tensor模式；
         - per-channel模式；
         - per-token模式；
+        - per-tensor叠加per-head模式；
         - per-token叠加per-head模式；
         - key支持per-channel叠加value支持per-token模式。
       - INT4（INT32）伪量化场景不支持后量化。
