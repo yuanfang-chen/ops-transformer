@@ -16,7 +16,7 @@
 #include <iostream>
 #include <vector>
 #include <getopt.h>
-#include "../op_api/aclnn_quant_all_reduce.h"
+#include "aclnnop/aclnn_quant_all_reduce.h"
 
 #define CHECK_RET(cond, return_expr) \
     do {                             \

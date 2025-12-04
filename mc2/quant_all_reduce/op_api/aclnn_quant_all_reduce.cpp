@@ -145,18 +145,9 @@ static bool QuantAllReduceCheckAllFormatValid(const aclTensor* x, const aclTenso
     return true;
 }
 
-static bool QuantAllReduceCheckAttr(const char* reduceOp)
-{
-    if (strcmp(reduceOp, op::REDUCE_OP_SUM)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Expected reduceOp to be sum, but got %s.", reduceOp);
-        return false;
-    }
-    return true;
-}
-
 // 参数综合校验
 static aclnnStatus QuantAllReduceCheckParams(const aclTensor* x, const aclTensor* scales,
-                                             const aclTensor* output, const char* reduceOp)
+                                             const aclTensor* output)
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(QuantAllReduceCheckNotNull(x, scales, output), ACLNN_ERR_PARAM_NULLPTR);
@@ -166,9 +157,6 @@ static aclnnStatus QuantAllReduceCheckParams(const aclTensor* x, const aclTensor
 
     // 3. 检查参数数据格式是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(QuantAllReduceCheckAllFormatValid(x, scales, output), ACLNN_ERR_PARAM_INVALID);
-
-    // 4. 检查reduce_op是否在支持范围内
-    CHECK_RET(QuantAllReduceCheckAttr(reduceOp), ACLNN_ERR_PARAM_INVALID);
 
     return ACLNN_SUCCESS;
 }
@@ -189,7 +177,7 @@ extern "C" aclnnStatus aclnnQuantAllReduceGetWorkspaceSize(const aclTensor* x, c
                                                            aclTensor* output, uint64_t* workspaceSize,
                                                            aclOpExecutor** executor)
 {
-    aclnnStatus retParam = QuantAllReduceCheckParams(x, scales, output, reduceOp);
+    aclnnStatus retParam = QuantAllReduceCheckParams(x, scales, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
     aclnnStatus ret = aclnnInnerQuantAllReduceGetWorkspaceSize(x, scales, group, reduceOp, yDtype,

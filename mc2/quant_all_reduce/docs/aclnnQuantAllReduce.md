@@ -237,7 +237,7 @@ aclnnStatus aclnnQuantAllReduce(
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
-- <term>Atlas A5 训练系列产品/Atlas A5 推理系列产品</term>：
+- <term>昇腾910_95 AI处理器系列</term>：
     ```Cpp
     #include <thread>
     #include <iostream>
