@@ -5,7 +5,8 @@
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>昇腾910_95 AI处理器</term>|      ×     |
-|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
+|<term>Atlas A3 推理系列产品</term>|      ×     |
+|<term>Atlas A3 训练系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品</term>|      √     |
 |<term>Atlas 800I A2 推理产品</term>|      ×     |
 |<term>A200I A2 Box 异构组件</term>|      ×     |
@@ -414,17 +415,15 @@ int64_t GetShapeSize(const std::vector<int64_t> &shape)
     return shapeSize;
 }
 
-template <typename T> void CopyOutResult(int64_t outIndex, std::vector<int64_t> &shape, void **deviceAddr)
-{
+template <typename T> 
+void PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
     auto size = GetShapeSize(shape);
-    std::vector<T> resultData(size, 0);
-    auto ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), *deviceAddr,
-                           size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
+    std::vector<float> resultData(size, 0);
+    auto ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]),
+                            *deviceAddr, size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return);
-    if(outIndex == 2) {
-        for (int64_t i = 0; i < size; i++) {
-            LOG_PRINT("attention out result is: %f\n", i, resultData[i]);
-        }
+    for (int64_t i = 0; i < 10; i++) {
+        LOG_PRINT("mean result[%ld] is: %f\n", i, resultData[i]);
     }
 }
 
@@ -473,7 +472,7 @@ int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &
 }
 
 
-void FreeResouce(aclTensor *q, aclTensor *k, aclTensor *dy, aclTensor *sparseIndices, aclTensor *weights, 
+void FreeResource(aclTensor *q, aclTensor *k, aclTensor *dy, aclTensor *sparseIndices, aclTensor *weights, 
                   aclTensor *dQuery, aclTensor *dKey, aclTensor *dWeights, void *qDeviceAddr, void *kDeviceAddr, 
                   void *dyDeviceAddr, void *sparseIndicesDeviceAddr, void *weightsDeviceAddr, void *dQueryAddr, 
                   void *dKeyAddr, void *dWeightsAddr, uint64_t workspaceSize, void *workspaceAddr, int32_t deviceId, 
@@ -554,7 +553,6 @@ int main()
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Init acl failed. ERROR: %d\n", ret); return ret);
 
     // 2. 构造输入与输出，需要根据API的接口自定义构造
-    // 如果需要修改shape值，需要同步修改../scripts/fa_generate_data.py中 test_lightning_indexer_grad 分支下生成
     // query、key、dy、sparseIndices、weights对应的shape值，并重新gen data，再执行
     int64_t batch = 2;
     int64_t s1 = 3;
@@ -566,17 +564,19 @@ int main()
 
     std::vector<int64_t> qShape = {batch, s1, n2 * g, d};
     std::vector<int64_t> kShape = {batch, s2, n2, d};
-    std::vector<int64_t> dyShape = {batch, s1, n2 * g, d2};
+    std::vector<int64_t> dyShape = {batch, s1, n2 * g, d};
     std::vector<int64_t> sparseIndicesShape = {batch, s1, topK};
     std::vector<int64_t> weightsShape = {batch, s1, n2 * g};
-    std::vector<int64_t> dQueryShape = {batch, s1, n2 * g};
+    std::vector<int64_t> dQueryShape = {batch, s1, n2 * g, d};
     std::vector<int64_t> dKeyShape = {batch, s2, n2, d};
     std::vector<int64_t> dWeightsShape = {batch, s1, n2 * g};
 
     int64_t headNum = 64;
-    int64_t sparseMod = 3;
-    char layOut[] = "TND";
+    int64_t sparseMode = 3;
+    char layoutStr[] = "BSND";
     bool deteminstic = true;
+    int64_t preToken = 65536;
+    int64_t nextToken = 65536;
 
     void *qDeviceAddr = nullptr;
     void *kDeviceAddr = nullptr;
@@ -594,16 +594,16 @@ int main()
     aclTensor *weights = nullptr;
     aclTensor *dQuery = nullptr;
     aclTensor *dKey = nullptr;
-    aclTensor *dWeightsHostData = nullptr;
+    aclTensor *dWeights = nullptr;
 
-    std::vector<aclFloat16> qHostData(GetShapeSize(qShape), 1);
-    std::vector<aclFloat16> kHostData(GetShapeSize(kShape), 1);
-    std::vector<aclFloat16> dyHostData(GetShapeSize(dyShape), 1);
-    std::vector<int32_t> sparseIndicesHostData(GetShapeSize(sparseIndicesShape), 0);
-    std::vector<aclFloat16> weightsHostData(GetShapeSize(weightsShape), 1);
-    std::vector<aclFloat16> dQueryHostData(GetShapeSize(dQueryShape), 0);
-    std::vector<aclFloat16> dKeyHostData(GetShapeSize(dKeyShape), 0);
-    std::vector<aclFloat16> dWeightsHostData(GetShapeSize(dWeightsShape), 0);
+    std::vector<aclFloat16> qHostData(GetShapeSize(qShape), 1.0);
+    std::vector<aclFloat16> kHostData(GetShapeSize(kShape), 1.0);
+    std::vector<aclFloat16> dyHostData(GetShapeSize(dyShape), 1.0);
+    std::vector<int32_t> sparseIndicesHostData(GetShapeSize(sparseIndicesShape), 1);
+    std::vector<aclFloat16> weightsHostData(GetShapeSize(weightsShape), 1.0);
+    std::vector<aclFloat16> dQueryHostData(GetShapeSize(dQueryShape), 1.0);
+    std::vector<aclFloat16> dKeyHostData(GetShapeSize(dKeyShape), 1.0);
+    std::vector<aclFloat16> dWeightsHostData(GetShapeSize(dWeightsShape), 1.0);
 
     uint64_t workspaceSize = 0;
     void *workspaceAddr = nullptr;
@@ -665,7 +665,7 @@ int main()
     // 调用aclnnLightningIndexerGrad第一段接口
     ret = aclnnLightningIndexerGradGetWorkspaceSize(
         q, k, dy, sparseIndices, weights, nullptr, nullptr, headNum,
-        layOut, sparseMod, preToken, nextTokens, deteminstic, dQuery, dKey, dWeights, &workspaceSize, &executor);
+        layoutStr, sparseMode, preToken, nextToken, deteminstic, dQuery, dKey, dWeights, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnLightningIndexerGradGetWorkspaceSize failed. ERROR: %d\n", ret);
               FreeResource(q, k, dy, sparseIndices, weights, dQuery, dKey, dWeights, qDeviceAddr, kDeviceAddr, dyDeviceAddr,
                 sparseIndicesDeviceAddr, weightsDeviceAddr, dQueryAddr, dKeyAddr, dWeightsAddr, workspaceSize, workspaceAddr,
@@ -699,9 +699,9 @@ int main()
               return ret);
 
     // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
-    CopyOutResult<aclFloat16>(0, dQueryShape, &dQueryAddr);
-    CopyOutResult<aclFloat16>(1, dKeyShape, &dKeyAddr);
-    CopyOutResult<aclFloat16>(2, dWeightsShape, &dWeightsAddr);
+    PrintOutResult<aclFloat16>(dQueryShape, &dQueryAddr);
+    PrintOutResult<aclFloat16>(dKeyShape, &dKeyAddr);
+    PrintOutResult<aclFloat16>(dWeightsShape, &dWeightsAddr);
 
     // 6. 释放aclTensor和aclScalar，需要根据具体API的接口定义修改; 释放device资源
     FreeResource(q, k, dy, sparseIndices, weights, dQuery, dKey, dWeights, qDeviceAddr, kDeviceAddr, dyDeviceAddr,
