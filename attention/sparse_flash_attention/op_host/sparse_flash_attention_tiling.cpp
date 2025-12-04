@@ -1738,6 +1738,11 @@ ge::graphStatus SFAInfoParser::GetValueHeadDim()
 
 ge::graphStatus SFAInfoParser::GetRopeHeadDim()
 {
+    if (queryShape_.GetDimNum() != queryRopeShape_.GetDimNum()) {
+        OP_LOGE(opName_, "The dimensions of query and query_rope should be equal, but query has dimension %zu while query_rope has dimension %zu.",
+                queryShape_.GetDimNum(), queryRopeShape_.GetDimNum());
+        return ge::GRAPH_PARAM_INVALID;
+    }
     ropeHeadDim_ = GetAxisNum(queryRopeShape_, SFAAxis::D, qLayout_);
     return ge::GRAPH_SUCCESS;
 }
