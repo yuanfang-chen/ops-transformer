@@ -278,7 +278,7 @@ public:
             int64_t k = Get<K_VALUE>(problemShape_);
             CoordClass coord(m, n, k, baseM, baseN, baseK);
             BlockSchedulerOp bs(m, n, k, baseM, baseN, baseK, curBlockIdx, blockNum, params.gmmParams.mTailCnt,
-                                params.gmmParams.nTailCnt);
+                                params.gmmParams.nTailCnt, true);
             blockMmadOp.SetOrgShape(m, n, k);
             uint64_t curCount = count + bs.GetTileNum();
             uint64_t curBlock = curBlockIdx >= count ? curBlockIdx : curBlockIdx + blockNum;
@@ -292,7 +292,9 @@ public:
                                                    Get<NUM_THREE>(singleShape));
                 int64_t cOffset = coord.GetCOffset(Get<NUM_ZERO>(tileIdx), Get<NUM_ONE>(tileIdx), 0,
                                                    Get<NUM_TWO>(singleShape), Get<NUM_THREE>(singleShape));
-
+                if (Get<NUM_ZERO>(singleShape) <= 0 || Get<NUM_ONE>(singleShape) <= 0) {
+                    continue;
+                }
                 blockMmadOp.SetSingleShape(Get<NUM_ZERO>(singleShape), Get<NUM_ONE>(singleShape), k);
                 blockMmadOp.SetTensorA(aGlobal_[aOffset], transA);
                 blockMmadOp.SetTensorB(bGlobal_[bOffset], transB);

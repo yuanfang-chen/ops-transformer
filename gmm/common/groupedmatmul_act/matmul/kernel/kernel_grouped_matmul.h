@@ -4,7 +4,8 @@
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -57,11 +58,16 @@ class KernelGroupedMatmul {
 };
 
 template <class ProblemShape_, class BlockMmadBuilder_, class BlockEpilogue_, class BlockScheduler_>
-class KernelGroupedMatmul<ProblemShape_, BlockMmadBuilder_, BlockEpilogue_, BlockScheduler_,
+class KernelGroupedMatmul<
+    ProblemShape_, BlockMmadBuilder_, BlockEpilogue_, BlockScheduler_,
     AscendC::Std::enable_if_t<AscendC::Std::is_same_v<BlockScheduler_, GroupedMatmulAswtScheduler>>> {
 public:
-    __aicore__ inline KernelGroupedMatmul() {}
-    __aicore__ inline ~KernelGroupedMatmul() {}
+    __aicore__ inline KernelGroupedMatmul()
+    {
+    }
+    __aicore__ inline ~KernelGroupedMatmul()
+    {
+    }
 
     using BlockEpilogue = BlockEpilogue_;
     using BlockMmadBuilder = BlockMmadBuilder_;
@@ -107,10 +113,12 @@ public:
     TupleShape problemShape_{};
     BlockOffset baseOffset_{0, 0, 0, 0, 0};
     int64_t preOffset_{0};
-    TILING_TYPE* mListGm_;
-    TILING_TYPE* kListGm_;
-    TILING_TYPE* nListGm_;
+    TILING_TYPE *mListGm_;
+    TILING_TYPE *kListGm_;
+    TILING_TYPE *nListGm_;
     bool weightNzFlag_{false};
+    bool tailSplit_{true};
+    int64_t blockNum_{0};
 
     struct GMMTiling {
         uint32_t groupNum;
@@ -126,15 +134,17 @@ public:
         uint32_t hasBias;
         uint64_t mTailCnt;
         uint64_t nTailCnt;
-        const TCubeTiling* __restrict matmulTiling;
-        TILING_TYPE* gmmArrayAddrIn;
-        __aicore__ GMMTiling() {}
+        const TCubeTiling *__restrict matmulTiling;
+        TILING_TYPE *gmmArrayAddrIn;
+        __aicore__ GMMTiling()
+        {
+        }
         __aicore__ GMMTiling(uint32_t groupNum_, int32_t groupType_, uint32_t groupListType_, int32_t baseM_,
                              int32_t baseN_, int32_t baseK_, uint64_t singleX_, uint64_t singleWeight_,
-                             uint64_t singleY_, uint32_t hasBias_ = 0, uint64_t mTailCnt_ = 1, uint64_t nTailCnt_ = 1) :
-            groupNum(groupNum_), groupType(groupType_), groupListType(groupListType_), baseM(baseM_), baseN(baseN_),
-            baseK(baseK_), singleX(singleX_), singleWeight(singleWeight_), singleY(singleY_), hasBias(hasBias_),
-            mTailCnt(mTailCnt_), nTailCnt(nTailCnt_)
+                             uint64_t singleY_, uint32_t hasBias_ = 0, uint64_t mTailCnt_ = 1, uint64_t nTailCnt_ = 1)
+            : groupNum(groupNum_), groupType(groupType_), groupListType(groupListType_), baseM(baseM_), baseN(baseN_),
+              baseK(baseK_), singleX(singleX_), singleWeight(singleWeight_), singleY(singleY_), hasBias(hasBias_),
+              mTailCnt(mTailCnt_), nTailCnt(nTailCnt_)
         {
             singleTensor = singleX == 1 && singleWeight == 1 && singleY == 1;
         }
@@ -172,13 +182,13 @@ public:
     }
 
     template <typename T>
-    __aicore__ inline __gm__ T* GetTensorAddr(uint64_t groupIdx, GM_ADDR tensorPtr)
+    __aicore__ inline __gm__ T *GetTensorAddr(uint64_t groupIdx, GM_ADDR tensorPtr)
     {
-        AscendC::ListTensorDesc listTensorDesc(reinterpret_cast<__gm__ void*>(tensorPtr));
+        AscendC::ListTensorDesc listTensorDesc(reinterpret_cast<__gm__ void *>(tensorPtr));
         return listTensorDesc.GetDataPtr<T>(groupIdx);
     }
 
-    __aicore__ inline void SetMKN(Params const& params, const int32_t splitValue, const uint32_t groupIdx)
+    __aicore__ inline void SetMKN(Params const &params, const int32_t splitValue, const uint32_t groupIdx)
     {
         uint32_t valueIdx = params.gmmParams.singleTensor ? 0 : groupIdx;
         if (params.gmmParams.groupType == SPLIT_M) {
@@ -201,7 +211,7 @@ public:
         return;
     }
 
-    __aicore__ inline void InitGlobalBuffer(Params const& params, uint64_t groupIdx)
+    __aicore__ inline void InitGlobalBuffer(Params const &params, uint64_t groupIdx)
     {
         if (params.gmmParams.singleX == 0) {
             aGlobal_.SetGlobalBuffer(GetTensorAddr<AType>(groupIdx, params.mmadParams.aGmAddr));
@@ -257,13 +267,17 @@ public:
         Get<NUM_FOUR>(baseOffset_) = Get<NUM_FOUR>(baseOffset_) + m * n;
     }
 
-    __aicore__ inline bool Init(Params const& params, uint64_t groupIdx)
+    __aicore__ inline bool Init(Params const &params, uint64_t groupIdx)
     {
         weightNzFlag_ = BlockMmadBuilder::formatB == CubeFormat::NZ;
         UpdateOffset();
         int64_t splitValue =
             GetSplitValueFromGroupList(groupIdx, params.gmmParams.groupListType, params.gmmParams.groupType);
         SetMKN(params, splitValue, groupIdx);
+        // when group num equal 1 and split m less than shape m , revert aswt tail split
+        if (params.gmmParams.groupType == SPLIT_M && params.gmmParams.groupNum == 1) {
+            tailSplit_ = Get<M_VALUE>(problemShape_) == params.gmmParams.matmulTiling->M;
+        }
         // Group along m-axis: skip current group and continue when m=0c
         if (params.gmmParams.groupType == SPLIT_M && Get<M_VALUE>(problemShape_) <= 0) {
             return false;
@@ -276,14 +290,14 @@ public:
         return true;
     }
 
-    __aicore__ inline void setMKNGm(Params const& params)
+    __aicore__ inline void setMKNGm(Params const &params)
     {
         mListGm_ = params.gmmParams.gmmArrayAddrIn;
         kListGm_ = params.gmmParams.gmmArrayAddrIn + MKN_LIST_LEN;
         nListGm_ = params.gmmParams.gmmArrayAddrIn + MKN_LIST_LEN * NUM_TWO;
     }
 
-    __host_aicore__ static Status CheckShape(ProblemShape const& shape)
+    __host_aicore__ static Status CheckShape(ProblemShape const &shape)
     {
         int64_t m = shape.m;
         int64_t n = shape.n;
@@ -314,7 +328,7 @@ public:
         return Status::success;
     }
 
-    __host_aicore__ static Status CanImplement(Arguments const& args)
+    __host_aicore__ static Status CanImplement(Arguments const &args)
     {
         // Check shape in kernel
         CHECK_AND_RETURN(CheckShape(args.problemShape));
@@ -339,7 +353,7 @@ public:
         return workSpaceSize;
     }
 
-    __host_aicore__ static Params InitParams(Arguments const& args, GM_ADDR workspace)
+    __host_aicore__ static Params InitParams(Arguments const &args, GM_ADDR workspace)
     {
         BlockMmadParams mmadParams = BlockMmadBuilder::InitParams(args.mmadArgs);
         // mmad params with epiligue takes workspaceGm as output
@@ -357,7 +371,43 @@ public:
         return BlockSchedulerOp::GetBlockNum(shape);
     }
 
-    __aicore__ inline void operator()(Params const& params)
+    __aicore__ inline uint64_t IterateOneGroup(Params const &params, BlockMmadOp &blockMmadOp, int64_t curBlockIdx,
+                                               uint64_t count)
+    {
+        int64_t m = Get<M_VALUE>(problemShape_);
+        int64_t n = Get<N_VALUE>(problemShape_);
+        int64_t k = Get<K_VALUE>(problemShape_);
+        CoordClass coord(m, n, k, params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
+        BlockSchedulerOp bs(m, n, k, params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK,
+                            curBlockIdx, blockNum_, params.gmmParams.mTailCnt, params.gmmParams.nTailCnt, tailSplit_);
+        blockMmadOp.SetOrgShape(m, n, k);
+        uint64_t curCount = count + bs.GetTileNum();
+        uint64_t curBlock = curBlockIdx >= count ? curBlockIdx : curBlockIdx + blockNum_;
+        for (; curBlock < curCount; curBlock += blockNum_) {
+            BlockShape tileIdx = bs.GetTileIdx(curBlock, count);
+            BlockShape singleShape = bs.GetBlockShape(Get<NUM_ZERO>(tileIdx), Get<NUM_ONE>(tileIdx), curBlock,
+                                                      BLOCK_BYTE_SIZE / sizeof(BType), weightNzFlag_);
+            if (Get<NUM_ZERO>(singleShape) <= 0 || Get<NUM_ONE>(singleShape) <= 0) {
+                continue;
+            }
+            int64_t aOffset = coord.GetAOffset(Get<NUM_ZERO>(tileIdx), 0, 0, Get<NUM_TWO>(singleShape));
+            int64_t bOffset = coord.GetBOffset(Get<NUM_ONE>(tileIdx), 0, 0, BLOCK_BYTE_SIZE / sizeof(BType),
+                                               Get<NUM_THREE>(singleShape));
+            int64_t cOffset = coord.GetCOffset(Get<NUM_ZERO>(tileIdx), Get<NUM_ONE>(tileIdx), 0,
+                                               Get<NUM_TWO>(singleShape), Get<NUM_THREE>(singleShape));
+            blockMmadOp.SetSingleShape(Get<NUM_ZERO>(singleShape), Get<NUM_ONE>(singleShape), k);
+            blockMmadOp.SetTensorA(aGlobal_[aOffset], transA);
+            blockMmadOp.SetTensorB(bGlobal_[bOffset], transB);
+            if (params.gmmParams.hasBias != 0) {
+                int64_t biasOffset = coord.GetBiasOffset(Get<NUM_ONE>(tileIdx), Get<NUM_THREE>(singleShape));
+                blockMmadOp.SetBias(biasGlobal_[biasOffset]);
+            }
+            blockMmadOp.IterateAll(cGlobal_[cOffset]);
+        }
+        return curCount % blockNum_;
+    }
+
+    __aicore__ inline void operator()(Params const &params)
     {
         if ASCEND_IS_AIV {
             return;
@@ -366,50 +416,20 @@ public:
         BlockMmadOp blockMmadOp;
         // Get blockIdx
         int64_t curBlockIdx = AscendC::GetBlockIdx();
-        int64_t blockNum = AscendC::GetBlockNum();
-        if (curBlockIdx >= blockNum || blockNum == 0) {
+        blockNum_ = AscendC::GetBlockNum();
+        if (curBlockIdx >= blockNum_ || blockNum_ == 0) {
             return;
         }
         if (params.mmadParams.groupListGmAddr != nullptr) {
-            groupListGm_.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t*>(params.mmadParams.groupListGmAddr));
+            groupListGm_.SetGlobalBuffer(reinterpret_cast<__gm__ int64_t *>(params.mmadParams.groupListGmAddr));
         }
         setMKNGm(params);
-        blockMmadOp.Init(const_cast<TCubeTiling* __restrict>(params.gmmParams.matmulTiling), GetTPipePtr());
-        uint64_t groupNum = params.gmmParams.groupNum;
-        for (uint64_t groupIdx = 0, count = 0; groupIdx < groupNum; groupIdx++) {
+        blockMmadOp.Init(const_cast<TCubeTiling *__restrict>(params.gmmParams.matmulTiling), GetTPipePtr());
+        for (uint64_t groupIdx = 0, count = 0; groupIdx < params.gmmParams.groupNum; groupIdx++) {
             if (!Init(params, groupIdx)) {
                 continue;
             }
-            int64_t m = Get<M_VALUE>(problemShape_);
-            int64_t n = Get<N_VALUE>(problemShape_);
-            int64_t k = Get<K_VALUE>(problemShape_);
-            CoordClass coord(m, n, k, params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
-            BlockSchedulerOp bs(m, n, k, params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK,
-                                curBlockIdx, blockNum, params.gmmParams.mTailCnt, params.gmmParams.nTailCnt);
-            blockMmadOp.SetOrgShape(m, n, k);
-            uint64_t curCount = count + bs.GetTileNum();
-            uint64_t curBlock = curBlockIdx >= count ? curBlockIdx : curBlockIdx + blockNum;
-            for (; curBlock < curCount; curBlock += blockNum) {
-                BlockShape tileIdx = bs.GetTileIdx(curBlock, count);
-                BlockShape singleShape = bs.GetBlockShape(Get<NUM_ZERO>(tileIdx), Get<NUM_ONE>(tileIdx), curBlock,
-                                                          BLOCK_BYTE_SIZE / sizeof(BType), weightNzFlag_);
-
-                int64_t aOffset = coord.GetAOffset(Get<NUM_ZERO>(tileIdx), 0, 0, Get<NUM_TWO>(singleShape));
-                int64_t bOffset = coord.GetBOffset(Get<NUM_ONE>(tileIdx), 0, 0, BLOCK_BYTE_SIZE / sizeof(BType),
-                                                   Get<NUM_THREE>(singleShape));
-                int64_t cOffset = coord.GetCOffset(Get<NUM_ZERO>(tileIdx), Get<NUM_ONE>(tileIdx), 0,
-                                                   Get<NUM_TWO>(singleShape), Get<NUM_THREE>(singleShape));
-
-                blockMmadOp.SetSingleShape(Get<NUM_ZERO>(singleShape), Get<NUM_ONE>(singleShape), k);
-                blockMmadOp.SetTensorA(aGlobal_[aOffset], transA);
-                blockMmadOp.SetTensorB(bGlobal_[bOffset], transB);
-                if (params.gmmParams.hasBias != 0) {
-                    int64_t biasOffset = coord.GetBiasOffset(Get<NUM_ONE>(tileIdx), Get<NUM_THREE>(singleShape));
-                    blockMmadOp.SetBias(biasGlobal_[biasOffset]);
-                }
-                blockMmadOp.IterateAll(cGlobal_[cOffset]);
-            }
-            count = curCount % blockNum;
+            count = IterateOneGroup(params, blockMmadOp, curBlockIdx, count);
         }
     }
 };

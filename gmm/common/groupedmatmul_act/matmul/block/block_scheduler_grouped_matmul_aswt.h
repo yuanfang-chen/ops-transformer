@@ -4,7 +4,8 @@
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -58,6 +59,7 @@ public:
     int64_t mainWindow_{0};
     int64_t tailWindow_{0};
     int64_t mainRow_{0};
+    bool tailSplit_{false};
 
     using BlockShape = AscendC::Shape<int64_t, int64_t, int64_t, int64_t>;
     using BlockCoord = AscendC::Coord<int64_t, int64_t, int64_t, int64_t>;
@@ -71,17 +73,17 @@ public:
     static constexpr int64_t l0K = GetIntegralConstant<MNK_K, L0TileShape_>();
 
 public:
-    __aicore__ inline BlockSchedulerGroupedMatmulAswt(int64_t m, int64_t n, int64_t k, int32_t baseM,
-                                                      int32_t baseN, int32_t baseK, int64_t blockIdx,
-                                                      int64_t blockNum, uint64_t mTailCnt, uint64_t nTailCnt) :
-        m_(m), n_(n), k_(k), baseM_(baseM), baseN_(baseN), baseK_(baseK), blockNum_(blockNum), blockIdx_(blockIdx),
-        mTailCnt_(mTailCnt), nTailCnt_(nTailCnt)
+    __aicore__ inline BlockSchedulerGroupedMatmulAswt(int64_t m, int64_t n, int64_t k, int32_t baseM, int32_t baseN,
+                                                      int32_t baseK, int64_t blockIdx, int64_t blockNum,
+                                                      uint64_t mTailCnt, uint64_t nTailCnt, bool tailSplit)
+        : m_(m), n_(n), k_(k), baseM_(baseM), baseN_(baseN), baseK_(baseK), blockNum_(blockNum), blockIdx_(blockIdx),
+          mTailCnt_(mTailCnt), nTailCnt_(nTailCnt), tailSplit_(tailSplit)
     {
         mTileNum_ = Act::Gemm::CeilDiv(m_, baseM_);
         nTileNum_ = Act::Gemm::CeilDiv(n_, baseN_);
         perCoreBlockNum_ = GetPerBlockNum(blockNum_, mTileNum_, nTileNum_, b_);
         totalTileNum_ = mTileNum_ * nTileNum_;
-        if ((mTailCnt_ > 1 || nTailCnt_ > 1)) {
+        if ((mTailCnt_ > 1 || nTailCnt_ > 1) && tailSplit) {
             tailCnt_ = mTailCnt_ * nTailCnt_;
             totalTileNum_ += (tailCnt_ - 1) * (totalTileNum_ % blockNum_);
         }
@@ -134,7 +136,7 @@ public:
         int64_t singleCoreMSplit = Act::Gemm::CeilDiv(blockShapeM, static_cast<int64_t>(mTailCnt_));
         int64_t singleCoreNSplit = Act::Gemm::CeilDiv(blockShapeN, static_cast<int64_t>(nTailCnt_));
         if (weightNzFlag) {
-            singleCoreNSplit = Act::Gemm::CeilDiv(singleCoreNSplit, c0);
+            singleCoreNSplit = Act::Gemm::CeilAlign(singleCoreNSplit, c0);
         }
         mTailCnt_ = Act::Gemm::CeilDiv(blockShapeM, singleCoreMSplit);
         nTailCnt_ = Act::Gemm::CeilDiv(blockShapeN, singleCoreNSplit);
