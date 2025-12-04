@@ -323,6 +323,9 @@ ffn:
       - ffn/swin_transformer_ln_qkv_quant/README.md
     ut_cov_exclude:
       - ffn/swin_transformer_ln_qkv_quant
+    test:
+        examples: False
+        ut: True
     options:
       - swin_transformer_ln_qkv_quant
 

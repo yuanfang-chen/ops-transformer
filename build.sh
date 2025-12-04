@@ -889,12 +889,12 @@ while [[ $# -gt 0 ]]; do
         ;;
     --PR_PKG)
         PR_CHANGED_FILES="$2"
-        ops_names=$(python3 "$CURRENT_DIR"/cmake/scripts/parse_changed_files.py -c "$CURRENT_DIR"/classify_rule.yaml -f "$PR_CHANGED_FILES" get_related_ut)
+        ops_names=$(python3 "$CURRENT_DIR"/cmake/scripts/parse_changed_files.py -c "$CURRENT_DIR"/classify_rule.yaml -f "$PR_CHANGED_FILES" get_related_examples)
         echo "Operators that need custom package compilation:$ops_names"
         if [ -z "${ops_names}" ];then
             log "Info: No custom packages to build for this PR."
-            ops_names="incre_flash_attention"
-            #exit 0
+            # ops_names="incre_flash_attention"
+            exit 200
         fi 
         ops_names="${ops_names%;}"
         ops_names="${ops_names//;/,}"
