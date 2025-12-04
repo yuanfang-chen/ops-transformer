@@ -57,7 +57,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForSparseFlashAttentionGrad(gert::
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP(SparseFlashAttentionGrad)
+IMPL_OP_OPTILING(SparseFlashAttentionGrad)
     .Tiling(TilingSparseFlashAttentionGrad)
     .TilingParse<SparseFlashAttentionGradCompileInfo>(TilingPrepareForSparseFlashAttentionGrad); // 向框架注册入口函数
 } // namespace sfag

@@ -115,7 +115,7 @@ ge::graphStatus InferDataType4SparseFlashAttentionGrad(gert::InferDataTypeContex
     return GRAPH_SUCCESS;
 }
 
-IMPL_OP(SparseFlashAttentionGrad)
+IMPL_OP_INFERSHAPE(SparseFlashAttentionGrad)
     .InferShape(InferShape4SparseFlashAttentionGrad)
     .InferDataType(InferDataType4SparseFlashAttentionGrad);
 } // namespace sfag

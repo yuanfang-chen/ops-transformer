@@ -86,6 +86,6 @@ ge::graphStatus InferDataTypeSparseLightningIndexerGradKLLoss(gert::InferDataTyp
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP(SparseLightningIndexerGradKLLoss).InferShape(InferShapeSparseLightningIndexerGradKLLoss).InferDataType(InferDataTypeSparseLightningIndexerGradKLLoss);
+IMPL_OP_INFERSHAPE(SparseLightningIndexerGradKLLoss).InferShape(InferShapeSparseLightningIndexerGradKLLoss).InferDataType(InferDataTypeSparseLightningIndexerGradKLLoss);
 } // namespace ops
   

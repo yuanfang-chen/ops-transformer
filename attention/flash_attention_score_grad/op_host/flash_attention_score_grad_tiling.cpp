@@ -399,7 +399,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForFlashAttentionScoreGrad(gert::T
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP(FlashAttentionScoreGrad)
+IMPL_OP_OPTILING(FlashAttentionScoreGrad)
     .Tiling(TilingFlashAttentionGradScore)
     .TilingInputsDataDependency({12, 13, 14, 15, 16})
     .TilingParse<FlashAttentionScoreGradCompileInfo>(TilingPrepareForFlashAttentionScoreGrad); // 向框架注册入口函数
