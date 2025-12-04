@@ -197,7 +197,7 @@ int main() {
   int64_t batchNum = 1;
   int64_t headNum = 1;
   int64_t seqSize = 2;
-  int64_t headDim = 4;
+  int64_t headDim = 64;
   int64_t headSize = headNum * headDim;
 
   std::vector<int64_t> prevAttnOutShape = {seqSize, batchNum, headSize};
