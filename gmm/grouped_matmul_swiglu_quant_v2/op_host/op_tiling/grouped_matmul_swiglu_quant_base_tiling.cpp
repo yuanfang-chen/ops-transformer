@@ -170,7 +170,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
 
     auto wScaleDimNum = wScaleTensor->GetStorageShape().GetDimNum();
     if (dequantMode == 1) { // perGroup量化模式：单tensor场景[E, KGroupCount, N]，多tensor场景[KGroupCount, N]
-        quantGroupNum_ = wScaleTensor->GetStorageShape().GetDim(wScaleDimNum - 2);
+        quantGroupNum_ = wScaleTensor->GetStorageShape().GetDim(wScaleDimNum - DIM_2);
     } else { // perChannel量化模式
         quantGroupNum_ = 1;
     }

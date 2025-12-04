@@ -118,11 +118,11 @@ void CreateContiguousTensorList(const aclTensorList *tensorList, std::vector<acl
     }
 }
 
-const char* dTypeToString(const ge::DataType &dtype) {
-    if(DTYPE_STRING.count(dtype)) {
-        return DTYPE_STRING.at(dtype).c_str();
+std::string dTypeToString(const ge::DataType &dtype) {
+    if(DTYPE_STRING.count(dtype) != 0) {
+        return DTYPE_STRING.at(dtype);
     } else {
-        return op::ToString(dtype).GetString();
+        return std::string(op::ToString(dtype).GetString());
     }
 }
 
