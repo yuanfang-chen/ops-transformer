@@ -109,6 +109,7 @@ __aicore__ inline void SLIKLLossVector2Service<SLIT>::InitBuffers(TPipe *pipe)
     pipe->Reset();
     pipe->InitBuffer(mm3TBuf, SLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_32K * 2);  // 2:pingpong
     pipe->InitBuffer(castOutTBuf, SLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_16K * 2);  // 2:pingpong
+
     mm3ResUb = mm3TBuf.Get<MM3_OUT_T>();
     castOutUb = castOutTBuf.Get<OUT_T>();
 }

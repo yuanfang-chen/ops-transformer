@@ -30,6 +30,7 @@ using std::pair;
 
 using namespace ge;
 using namespace AscendC;
+
 namespace optiling {
 
 constexpr uint32_t PRE_LOAD_NUM = 2;

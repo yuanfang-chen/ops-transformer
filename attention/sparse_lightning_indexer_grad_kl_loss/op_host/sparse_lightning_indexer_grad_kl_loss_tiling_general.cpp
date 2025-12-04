@@ -16,23 +16,36 @@
 #include <tiling/tiling_api.h>
 using namespace ge;
 using namespace AscendC;
+
 namespace optiling {
 
-// 新添加的
 static const int64_t PING_PONG_VALUE = 2L;
 static const int64_t GM_ALIGN = 512;
 static const int32_t FRACTAL_NUM = 16L;
 static constexpr size_t WORK_SPACE_RESERVE_SIZE = 16 * 1024 * 1024;
 
-enum AttenMaskCompressMode : uint8_t {
-    NO_COMPRESS_MODE = 0,
-    LEFT_UP_CAUSAL_MODE,
-    RIGHT_DOWN_CAUSAL_MODE, // 当前只有这里
-    BAND_MODE,
-    PREFIX_MODE,
-    RIGHT_DOWN_CAUSAL_BAND_MODE = 5,
-    BAND_LEFT_UP_CAUSAL_MODE
-};
+static constexpr uint32_t BUFFER_SIZE_BYTE_1K = 1024;
+static constexpr uint32_t BUFFER_SIZE_BYTE_2K = 2 * 1024;
+static constexpr uint32_t BUFFER_SIZE_BYTE_8K = 8 * 1024;
+static constexpr uint32_t BUFFER_SIZE_BYTE_32K = 32 * 1024;
+static constexpr uint32_t BUFFER_SIZE_BYTE_33K = 33 * 1024;
+
+static constexpr uint32_t NQUERY_SIZE_8   = 8;
+static constexpr uint32_t NQUERY_SIZE_16  = 16;
+static constexpr uint32_t NQUERY_SIZE_32  = 32;
+static constexpr uint32_t NQUERY_SIZE_64  = 64;
+static constexpr uint32_t NQUERY_SIZE_128 = 128;
+
+static constexpr uint32_t NQUERYINDEX_SIZE_8  = 8;
+static constexpr uint32_t NQUERYINDEX_SIZE_16 = 16;
+static constexpr uint32_t NQUERYINDEX_SIZE_32 = 32;
+static constexpr uint32_t NQUERYINDEX_SIZE_64 = 64;
+
+static constexpr uint32_t N2_SIZE_1 = 1;
+static constexpr uint32_t D_SIZE_512 = 512;
+static constexpr uint32_t DINDEX_SIZE_128 = 128;
+static constexpr uint32_t DROPE_SIZE_64 = 64;
+static constexpr uint32_t TOPK_SIZE_2048 = 2048;
 
 template <typename T>
 static auto AlignUp(T num1, T num2) -> T
@@ -92,22 +105,25 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::CheckContext()
     auto scaleValuePtr = attrs->GetAttrPointer<float>(idx++);
     auto inputLayoutPtr = attrs->GetAttrPointer<char>(idx++);
     auto sparseModePtr = attrs->GetAttrPointer<int64_t>(idx++);
+    // idx++跳过pretoken和nexttoken
     idx++;
     idx++;
-    auto deterministicPtr = attrs->GetAttrPointer<bool>(idx++);
     size_t *workspaces = context_->GetWorkspaceSizes(1);
 
     OP_CHECK_NULL_WITH_CONTEXT(context_, scaleValuePtr);
     OP_CHECK_NULL_WITH_CONTEXT(context_, inputLayoutPtr);
     OP_CHECK_NULL_WITH_CONTEXT(context_, sparseModePtr);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, deterministicPtr);
     OP_CHECK_NULL_WITH_CONTEXT(context_, workspaces);
 
     // 输入shape验证
-    auto queryShape = context_->GetInputShape(0);
-    auto keyShape = context_->GetInputShape(1);
-    auto queryIndexShape = context_->GetInputShape(2);
-    auto keyIndexShape = context_->GetInputShape(3);
+    auto queryShape = context_->GetInputShape(QUERY_INPUT_INDEX);
+    auto keyShape = context_->GetInputShape(KEY_INPUT_INDEX);
+    auto queryIndexShape = context_->GetInputShape(QUERY_INDEX_INPUT_INDEX);
+    auto keyIndexShape = context_->GetInputShape(KEY_INDEX_INPUT_INDEX);
+    auto weightsShape = context_->GetInputShape(WEIGHT_INPUT_INDEX);
+    auto sparseIndicesShape = context_->GetInputShape(SPARSE_INDICES_INPUT_INDEX);
+    auto softmaxMaxShape = context_->GetInputShape(SOFTMAX_MAX_INPUT_INDEX);
+    auto softmaxSumShape = context_->GetInputShape(SOFTMAX_SUM_INPUT_INDEX);
     // 输出shape验证
     auto dQueryIndexShape = context_->GetOutputShape(D_QUERY_INDEX_OUTPUT_INDEX);
     auto dkeyIndexShape = context_->GetOutputShape(D_KEY_INDEX_OUTPUT_INDEX);
@@ -118,7 +134,10 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::CheckContext()
     OP_CHECK_NULL_WITH_CONTEXT(context_, keyShape);
     OP_CHECK_NULL_WITH_CONTEXT(context_, queryIndexShape);
     OP_CHECK_NULL_WITH_CONTEXT(context_, keyIndexShape);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, queryIndexShape);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, weightsShape);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, sparseIndicesShape);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, softmaxMaxShape);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, softmaxSumShape);
     OP_CHECK_NULL_WITH_CONTEXT(context_, dQueryIndexShape);
     OP_CHECK_NULL_WITH_CONTEXT(context_, dkeyIndexShape);
     OP_CHECK_NULL_WITH_CONTEXT(context_, dWeightsShape);
@@ -136,21 +155,19 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeAttrs()
     auto scaleValuePtr = attrs->GetAttrPointer<float>(idx++);
     auto inputLayoutPtr = attrs->GetAttrPointer<char>(idx++);
     auto sparseModePtr = attrs->GetAttrPointer<int64_t>(idx++);
+    // idx++跳过pretoken和nexttoken
     idx++;
     idx++;
-    auto deterministicPtr = attrs->GetAttrPointer<bool>(idx++);
     scaleValue = *scaleValuePtr;
     inputLayout = inputLayoutPtr;
     sparseMode = *sparseModePtr;
-    deterministic = *deterministicPtr;
 
     OP_LOGD(context_, "attrs: scaleValue[%f] input_layout[%s] sparse_mode[%ld].",
             scaleValue, inputLayout, sparseMode);
     return true;
 }
 
-void SparseLightningIndexerGradKLLossTilingBase::GetActualSeqLenData(int64_t inputIdx, std::array<int64_t, MAX_VAR_LEN_SEQ_LEN> &res,
-                                                        int64_t &actualLen) const
+void SparseLightningIndexerGradKLLossTilingBase::GetActualSeqLenData(int64_t inputIdx, std::vector<int64_t> &res, int64_t &actualLen) const
 {
     auto actualSeqLenTensor = context_->GetOptionalInputTensor(inputIdx);
     if (actualSeqLenTensor == nullptr) {
@@ -169,17 +186,25 @@ void SparseLightningIndexerGradKLLossTilingBase::GetActualSeqLenData(int64_t inp
         OP_LOGW(context_, "[%s]actualSeqLenTensor data is null pointer", templateName);
         return;
     }
-    res[0] = value[0];
+    int64_t seqLen = actualSeqLenShape.GetDim(0);
+    try{
+        res.reserve(seqLen);
+    } catch (...) {
+        OPS_REPORT_VECTOR_INNER_ERR(opName, "Init actual_seq_len failed, array is too long.");
+        return;
+    }
+    res.emplace_back(value[0]);
     actualLen++;
-    for (int64_t i = 1; i < actualSeqLenShape.GetDim(0); ++i) {
+    for (int64_t i = 1; i < seqLen; ++i) {
         auto qLen = value[i] - value[i - 1]; // value[i]代表偏移位置的索引
-        res[i] = qLen < 0 ? 0 : qLen;
+        qLen = qLen < 0 ? 0 : qLen;
+        res.emplace_back(qLen);
         actualLen++;
     }
 }
 
-bool SparseLightningIndexerGradKLLossTilingBase::Analyze3DimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape, const gert::Shape &queryIndexShape,
-                                                    size_t layoutLen, const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShape)
+bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape, const gert::Shape &queryIndexShape, const gert::Shape &topKShape,
+                                                                    size_t layoutLen, const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShape)
 {
     // dRopeSize的确定，有queryRopeShape 和 keyRopeShape
     if (layoutLen == 3UL) {
@@ -229,6 +254,11 @@ bool SparseLightningIndexerGradKLLossTilingBase::Analyze3DimLayout(const gert::S
             gSizeQueryIndex = queryIndexShape.GetDim(1) / n2Size;
             dSizeQuery = queryShape.GetDim(2);
             dSizeQueryIndex = queryIndexShape.GetDim(2);
+            kSize = topKShape.GetDim(2);
+            OP_CHECK_IF(kSize > BUFFER_SIZE_BYTE_8K || kSize % BUFFER_SIZE_BYTE_1K > 0,
+                OP_LOGE(opName, "topK(%d) should be small than 8192, and should be an integer multiple of 1024.", kSize),
+                return false);
+            topKRange = (kSize <= BUFFER_SIZE_BYTE_2K) ? TopKRange::RANGE_0_2K : TopKRange::RANGE_2K_8K;           
             if (hasRope) {
                 dQueryRopeSize = queryRopeShape.GetDim(2);
                 dKeyRopeSize = keyRopeShape.GetDim(2);
@@ -254,6 +284,11 @@ bool SparseLightningIndexerGradKLLossTilingBase::Analyze3DimLayout(const gert::S
             gSizeQueryIndex = queryIndexShape.GetDim(2) / n2Size;
             dSizeQuery = queryShape.GetDim(3);
             dSizeQueryIndex = queryIndexShape.GetDim(3);
+            kSize = topKShape.GetDim(3);
+            OP_CHECK_IF(kSize > BUFFER_SIZE_BYTE_8K || kSize % BUFFER_SIZE_BYTE_1K > 0,
+                OP_LOGE(opName, "topK(%d) should be small than 8192, and should be an integer multiple of 1024.", kSize),
+                return false);
+            topKRange = (kSize <= BUFFER_SIZE_BYTE_2K) ? TopKRange::RANGE_0_2K : TopKRange::RANGE_2K_8K;
             if (hasRope) {
                 dQueryRopeSize = queryRopeShape.GetDim(3);
                 dKeyRopeSize = keyRopeShape.GetDim(3);
@@ -272,17 +307,35 @@ bool SparseLightningIndexerGradKLLossTilingBase::Analyze3DimLayout(const gert::S
 bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDtype()
 {
     // 对8个必须输入的参数进行参数类型判断
-    // 以下5个保持一致
-    auto queryDtype = context_->GetInputDesc(QUERY_INPUT_INDEX)->GetDataType();
-    auto keyDtype = context_->GetInputDesc(KEY_INPUT_INDEX)->GetDataType();
-    auto queryIndexDtype = context_->GetInputDesc(QUERY_INDEX_INPUT_INDEX)->GetDataType();
-    auto keyIndexDtype = context_->GetInputDesc(KEY_INDEX_INPUT_INDEX)->GetDataType();
-    auto weightsDtype = context_->GetInputDesc(WEIGHT_INPUT_INDEX)->GetDataType();
+    // 输入空指针校验
+    auto queryDesc = context_->GetInputDesc(QUERY_INPUT_INDEX);
+    auto keyDesc = context_->GetInputDesc(KEY_INPUT_INDEX);
+    auto queryIndexDesc = context_->GetInputDesc(QUERY_INDEX_INPUT_INDEX);
+    auto keyIndexDesc = context_->GetInputDesc(KEY_INDEX_INPUT_INDEX);
+    auto weightsDesc = context_->GetInputDesc(WEIGHT_INPUT_INDEX);
+    auto sparseIndicesDesc = context_->GetInputDesc(SPARSE_INDICES_INPUT_INDEX);
+    auto softmaxMaxDesc = context_->GetInputDesc(SOFTMAX_MAX_INPUT_INDEX);
+    auto softmaxSumDesc = context_->GetInputDesc(SOFTMAX_SUM_INPUT_INDEX); 
+    OP_CHECK_NULL_WITH_CONTEXT(context_, queryDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, keyDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, queryIndexDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, keyIndexDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, weightsDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, sparseIndicesDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, softmaxMaxDesc);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, softmaxSumDesc);
+
+    // 以下5个为16类型保持一致
+    auto queryDtype = queryDesc->GetDataType();
+    auto keyDtype = keyDesc->GetDataType();
+    auto queryIndexDtype = queryIndexDesc->GetDataType();
+    auto keyIndexDtype = keyIndexDesc->GetDataType();
+    auto weightsDtype = weightsDesc->GetDataType();
 
     // 以下3个为32类型
-    auto sparseIndicesDtype = context_->GetInputDesc(SPARSE_INDICES_INPUT_INDEX)->GetDataType();
-    auto softmaxMaxDtype = context_->GetInputDesc(SOFTMAX_MAX_INPUT_INDEX)->GetDataType();
-    auto softmaxSumDtype = context_->GetInputDesc(SOFTMAX_SUM_INPUT_INDEX)->GetDataType();
+    auto sparseIndicesDtype = sparseIndicesDesc->GetDataType();
+    auto softmaxMaxDtype = softmaxMaxDesc->GetDataType();
+    auto softmaxSumDtype = softmaxSumDesc->GetDataType();
 
     bool same16 = false; // 判断输入为fp16或者部分16的是否一致
     bool same32 = false; // 判断输入为int32或者fp32的类型是否正确
@@ -293,30 +346,166 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDtype()
                             keyIndexDtype == ge::DT_BF16 && weightsDtype == ge::DT_BF16) {
         same16 = true;
     } else {
-        OP_LOGE(opName, "inputDtype is not same.");
+        OP_LOGW(context_, "InputDtype is not same.: queryDtype[%s], keyDtype[%s], queryIndexDtype[%s], keyIndexDtype[%s], weightsDtype[%s]",
+            ge::TypeUtils::DataTypeToSerialString(queryDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(keyDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(queryIndexDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(keyIndexDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(weightsDtype).c_str());
         same16 = false;
-    }
-
+    } 
     if (sparseIndicesDtype == ge::DT_INT32 && softmaxMaxDtype == ge::DT_FLOAT && softmaxSumDtype == ge::DT_FLOAT) {
         same32 = true;
     } else {
-        OP_LOGE(opName, "inputDtype is not same.");
+        OP_LOGW(context_, "InputDtype is fault: sparseIndicesDtype must be int32, but[%s]; softmaxMaxDtype must be float32, but[%s]; softmaxSumDtype must be float32, but[%s].",
+            ge::TypeUtils::DataTypeToSerialString(sparseIndicesDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(softmaxMaxDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(softmaxSumDtype).c_str());
         same32 = false;
     }
     // 所有类型不满足返回false
     if(same16 == false || same32 == false) {
         return false;
     }
+    OP_LOGW(context_, "InputDtype: queryDtype[%s], keyDtype[%s], queryIndexDtype[%s], keyIndexDtype[%s], weightsDtype[%s],",
+        ge::TypeUtils::DataTypeToSerialString(queryDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(keyDtype).c_str(),
+        ge::TypeUtils::DataTypeToSerialString(queryIndexDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(keyIndexDtype).c_str(),
+        ge::TypeUtils::DataTypeToSerialString(weightsDtype).c_str());
+    OP_LOGW(context_, "sparseIndicesDtype[%s], softmaxMaxDtype[%s], softmaxSumDtype[%s].",
+        ge::TypeUtils::DataTypeToSerialString(sparseIndicesDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(softmaxMaxDtype).c_str(),
+        ge::TypeUtils::DataTypeToSerialString(softmaxSumDtype).c_str());
+    return true;
+}
 
+// 输入shape进行交叉验证，防止数据错误输入
+bool SparseLightningIndexerGradKLLossTilingBase::CrossShapeVerify(const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShape)
+{
+    auto queryShape = context_->GetInputShape(QUERY_INPUT_INDEX)->GetStorageShape();
+    auto keyShape = context_->GetInputShape(KEY_INPUT_INDEX)->GetStorageShape();
+    auto queryIndexShape = context_->GetInputShape(QUERY_INDEX_INPUT_INDEX)->GetStorageShape();
+    auto keyIndexShape = context_->GetInputShape(KEY_INDEX_INPUT_INDEX)->GetStorageShape();
+    auto weightsShape = context_->GetInputShape(WEIGHT_INPUT_INDEX)->GetStorageShape();
+    auto sparseIndicesShape = context_->GetInputShape(SPARSE_INDICES_INPUT_INDEX)->GetStorageShape();
+    auto softmaxMaxShape = context_->GetInputShape(SOFTMAX_MAX_INPUT_INDEX)->GetStorageShape();
+    auto softmaxSumShape = context_->GetInputShape(SOFTMAX_SUM_INPUT_INDEX)->GetStorageShape();
+    // 下面数字对应shape输入位置
+    if (inputLayout[0] == 'T' && inputLayout[1] == 'N' && inputLayout[2] == 'D') {
+        int64_t t1Len = queryShape[0];
+        int64_t n1Len = queryShape[1];
+        int64_t n1indexLen = queryIndexShape[1];
+        int64_t t2Len = keyShape[0];
+        int64_t n2Len = keyShape[1];
+        
+        // 验证T1
+        OP_CHECK_IF(queryIndexShape[0] != t1Len || weightsShape[0] != t1Len || softmaxMaxShape[1] != t1Len || softmaxSumShape[1] != t1Len,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify T1 is Failed"), return false);
+        // 验证N Query数字是否正确
+        OP_CHECK_IF(n1Len != NQUERY_SIZE_8 && n1Len != NQUERY_SIZE_16 && n1Len != NQUERY_SIZE_32 && n1Len != NQUERY_SIZE_64 && n1Len != NQUERY_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query must be one of the {8, 16, 32, 64, 128}"), return false);        
+        // 验证N Index数字是否正确
+        OP_CHECK_IF(n1indexLen != NQUERYINDEX_SIZE_8 && n1indexLen != NQUERYINDEX_SIZE_16 && n1indexLen != NQUERYINDEX_SIZE_32 && n1indexLen != NQUERYINDEX_SIZE_64,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query Index must be one of the {8, 16, 32, 64}"), return false);
+        // 验证N Index
+        OP_CHECK_IF(n1indexLen != weightsShape[1],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N Index is Failed"), return false);
+        // 验证T2
+        OP_CHECK_IF(keyIndexShape[0] != t2Len,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify T2 is Failed"), return false);
+        // 验证N2 数字是否正确
+        OP_CHECK_IF(n2Len != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1"), return false);
+        // 验证N2
+        OP_CHECK_IF(keyIndexShape[1] != n2Len || softmaxMaxShape[0] != n2Len || softmaxSumShape[0] != n2Len,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N2 is Failed"), return false);
+        // 验证D 数字是否正确
+        OP_CHECK_IF(keyShape[2] != D_SIZE_512,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-key must be 512"), return false);
+        OP_CHECK_IF(queryIndexShape[2] != DINDEX_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-keyIndexShape must be 128"), return false);
+        // 验证D
+        OP_CHECK_IF(keyShape[2] != queryShape[2],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyShape D is Failed"), return false);
+        OP_CHECK_IF(queryIndexShape[2] != keyIndexShape[2],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyIndexShape D is Failed"), return false);
+        if (hasRope) {
+            // 验证queryrope
+            OP_CHECK_IF(queryRopeShape[0] != t1Len || queryRopeShape[1] != n1Len,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope is Failed"), return false);
+            // 验证keyrope
+            OP_CHECK_IF(keyRopeShape[0] != t2Len || keyRopeShape[1] != n2Len,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify keyrope is Failed"), return false);
+            // 验证rope D 数字是否正确
+            OP_CHECK_IF(queryRopeShape[2] != DROPE_SIZE_64,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, queryrope must be 64"), return false);
+            // 验证rope D
+            OP_CHECK_IF(queryRopeShape[2] != keyRopeShape[2],
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope is not equal to keyrope"), return false);
+        }           
+    } else if (inputLayout[0] == 'B' && inputLayout[1] == 'S' && inputLayout[2] == 'N' && inputLayout[3] == 'D') {
+        int64_t bLen = queryShape[0];
+        int64_t s1Len = queryShape[1];
+        int64_t n1Len = queryShape[2];
+        int64_t n1indexLen = queryIndexShape[2];
+        int64_t s2Len = keyShape[1];
+        int64_t n2Len = keyShape[2];
+        
+        // 验证B
+        OP_CHECK_IF(queryIndexShape[0] != bLen || weightsShape[0] != bLen || softmaxMaxShape[0] != bLen || softmaxSumShape[0] != bLen ||
+                    keyShape[0] != bLen || keyIndexShape[0] != bLen || sparseIndicesShape[0] != bLen,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify B is Failed"), return false);
+        // 验证s1
+        OP_CHECK_IF(queryIndexShape[1] != s1Len || weightsShape[1] != s1Len || softmaxMaxShape[2] != s1Len || softmaxSumShape[2] != s1Len,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify S1 is Failed"), return false);
+        // 验证s2
+        OP_CHECK_IF(keyIndexShape[1] != s2Len,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify S2 is Failed"), return false);
+        // 验证N Query数字是否正确
+        OP_CHECK_IF(n1Len != NQUERY_SIZE_8 && n1Len != NQUERY_SIZE_16 && n1Len != NQUERY_SIZE_32 && n1Len != NQUERY_SIZE_64 && n1Len != NQUERY_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query must be one of the {8, 16, 32, 64, 128}"), return false);        
+        // 验证N Index数字是否正确
+        OP_CHECK_IF(n1indexLen != NQUERYINDEX_SIZE_8 && n1indexLen != NQUERYINDEX_SIZE_16 && n1indexLen != NQUERYINDEX_SIZE_32 && n1indexLen != NQUERYINDEX_SIZE_64,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query Index must be one of the {8, 16, 32, 64}"), return false);        
+        // 验证N Index
+        OP_CHECK_IF(n1indexLen != weightsShape[2],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N Index is Failed"), return false);
+        // 验证N2 数字是否正确
+        OP_CHECK_IF(n2Len != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1"), return false);        
+        // 验证N2
+        OP_CHECK_IF(keyIndexShape[2] != n2Len || softmaxMaxShape[1] != n2Len || softmaxSumShape[1] != n2Len,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N2 is Failed"), return false);
+        // 验证D 数字是否正确
+        OP_CHECK_IF(keyShape[3] != D_SIZE_512,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-key must be 512"), return false);
+        OP_CHECK_IF(queryIndexShape[3] != DINDEX_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-keyIndexShape must be 128"), return false);        
+        // 验证D
+        OP_CHECK_IF(keyShape[3] != queryShape[3],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyShape D is Failed"), return false);
+        OP_CHECK_IF(queryIndexShape[3] != keyIndexShape[3],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyIndexShape D is Failed"), return false);
+        if (hasRope) {
+            // 验证queryrope
+            OP_CHECK_IF(queryRopeShape[0] != bLen || queryRopeShape[1] != s1Len || queryRopeShape[2] != n1Len,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope is Failed"), return false);
+            // 验证keyrope
+            OP_CHECK_IF(keyRopeShape[0] != bLen || keyRopeShape[1] != s2Len || keyRopeShape[2] != n2Len,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify keyrope is Failed"), return false);
+            // 验证rope D 数字是否正确
+            OP_CHECK_IF(queryRopeShape[3] != DROPE_SIZE_64,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, queryrope must be 64"), return false);            
+            // 验证rope D
+            OP_CHECK_IF(queryRopeShape[3] != keyRopeShape[3],
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope D is not equal to keyrope D"), return false);
+        }
+    }
     return true;
 }
 
 bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeLayout()
 {
-    auto &queryShape = context_->GetInputShape(0)->GetStorageShape();
-    auto &keyShape = context_->GetInputShape(1)->GetStorageShape();
-    auto &queryIndexShape = context_->GetInputShape(2)->GetStorageShape();
-    auto &keyIndexShape = context_->GetInputShape(3)->GetStorageShape();
+    auto &queryShape = context_->GetInputShape(QUERY_INPUT_INDEX)->GetStorageShape();
+    auto &keyShape = context_->GetInputShape(KEY_INPUT_INDEX)->GetStorageShape();
+    auto &queryIndexShape = context_->GetInputShape(QUERY_INDEX_INPUT_INDEX)->GetStorageShape();
+    auto &keyIndexShape = context_->GetInputShape(KEY_INDEX_INPUT_INDEX)->GetStorageShape();
+    auto &topKShape = context_->GetInputShape(SPARSE_INDICES_INPUT_INDEX)->GetStorageShape();
 
     auto queryRope = context_->GetOptionalInputShape(QUERY_ROPE_INPUT_INDEX); 
     bool hasQueryRope = queryRope != nullptr && queryRope->GetStorageShape().GetDimNum() != 0;
@@ -334,8 +523,10 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeLayout()
     size_t layoutLen = strlen(inputLayout);
     OP_CHECK_IF(queryShape.GetDimNum() != layoutLen || keyShape.GetDimNum() != layoutLen ||
         queryIndexShape.GetDimNum() != layoutLen || keyIndexShape.GetDimNum() != layoutLen, OP_LOGE(opName, "Invalid layout[%s].", inputLayout), return false);
-    OP_CHECK_IF(!Analyze3DimLayout(queryShape, keyShape, queryIndexShape, layoutLen, queryRopeShape, keyRopeShape),
+    OP_CHECK_IF(!CrossShapeVerify(queryRopeShape, keyRopeShape), OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed"), return false);    
+    OP_CHECK_IF(!AnalyzeDimLayout(queryShape, keyShape, queryIndexShape, topKShape, layoutLen, queryRopeShape, keyRopeShape),
                OP_LOGE(opName, "Layout: %s, Run Failed", inputLayout), return false);
+    OP_CHECK_IF(kSize != TOPK_SIZE_2048, OPS_REPORT_VECTOR_INNER_ERR(opName, "topk size must be 2048 now"), return false);
     OP_CHECK_IF(gSizeQuery == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "gSizeQuery is zero"), return false);
     OP_CHECK_IF(n2Size == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "n2Size is zero"), return false);
     OP_CHECK_IF(dSizeQuery <= 0,
@@ -390,7 +581,7 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::GetShapeAttrsInfo()
     sliGradkllossBaseParams_->set_s2Size(s2Size);
     sliGradkllossBaseParams_->set_dSizeQuery(dSizeQuery);
     sliGradkllossBaseParams_->set_dSizeQueryIndex(dSizeQueryIndex);
-    sliGradkllossBaseParams_->set_kSize(2048);  // 目前是确定的数值为2048
+    sliGradkllossBaseParams_->set_kSize(kSize);
     sliGradkllossBaseParams_->set_sparseMode(sparseMode);
     sliGradkllossBaseParams_->set_scaleValue(scaleValue);
     
@@ -410,7 +601,8 @@ int64_t SparseLightningIndexerGradKLLossTilingBase::GetS2RealSize(int32_t sparse
             s2RealSize = static_cast<int64_t>(s2Size);
         }
     }
-    return s2RealSize;
+    s2RealSize = AlignUp(s2RealSize, 512L);
+    return std::min(s2RealSize, (int64_t)sliGradkllossBaseParams_->get_kSize());
 }
 
 bool SparseLightningIndexerGradKLLossTilingBase::InitSparseValidArray(std::vector<int64_t> &sparseValidArray)
@@ -447,7 +639,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::InitSparseValidArray(std::vecto
 }
 
 inline bool SparseLightningIndexerGradKLLossTilingBase::InitLoadValue(const std::vector<int64_t> &sparseValidArray, int64_t validAicNum, int64_t totalSize,
-                            const std::vector<int64_t> &sparseStartIdx, std::vector<int64_t> &localValue)
+                                                                      const std::vector<int64_t> &sparseStartIdx, std::vector<int64_t> &localValue)
 {
     for (int64_t idx = 0; idx < validAicNum; ++idx) {
         int64_t start = sparseStartIdx[idx];
@@ -462,8 +654,8 @@ inline bool SparseLightningIndexerGradKLLossTilingBase::InitLoadValue(const std:
     return true;
 }
 
-bool SparseLightningIndexerGradKLLossTilingBase::BalanceLoad(const std::vector<int64_t> &sparseValidArray,
-                     std::vector<int64_t> &localValue, std::vector<int64_t> &sparseStartIdx)
+bool SparseLightningIndexerGradKLLossTilingBase::BalanceLoad(const std::vector<int64_t> &sparseValidArray, std::vector<int64_t> &localValue,
+                                                                std::vector<int64_t> &sparseStartIdx)
 {
     // to avoid buffer overflow, or maybe sometimes we want to only verify single core
     int64_t validAicNum = std::min(static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()),
@@ -512,7 +704,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::BalanceLoad(const std::vector<i
 }
 
 bool SparseLightningIndexerGradKLLossTilingBase::Balance4DLoad(std::vector<int64_t> &tmpSparseValue, const std::vector<int64_t> sparseValidArray, 
-                    const int64_t balanceNum)
+                                                                const int64_t balanceNum)
 {
     int64_t tmpIndex = 0;
     tmpSparseValue[tmpIndex] = 0;
@@ -548,8 +740,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::Balance4DLoad(std::vector<int64
 }
 
 // 负载均衡
-bool SparseLightningIndexerGradKLLossTilingBase::SetSparseStartIdx(const std::vector<int64_t> &sparseValidArray,
-                       int64_t maxCoreNum)
+bool SparseLightningIndexerGradKLLossTilingBase::SetSparseStartIdx(const std::vector<int64_t> &sparseValidArray, int64_t maxCoreNum)
 {
     // to avoid buffer overflow, or maybe sometimes we want to only verify single core
     int64_t validAicNum = static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum());
@@ -684,9 +875,13 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::DoOpTiling()
     SetMultiCoreParamsRegbase(totalSize, static_cast<int64_t>(aicNum));
     context_->SetBlockDim(sliGradkllossMultiCoreParams_->get_coreNum()); // 使用的核数确定
 
-    std::vector<int64_t> shapeVec = {1,2048};
+    std::vector<int64_t> shapeVec = {1, kSize};
     ge::Shape srcShape(shapeVec);
-    SoftMaxTilingFunc(srcShape, 4, 32*1024, tilingData->vectorParams.softmaxYTilingData);
+    int64_t softmaxTmpBufferSize = BUFFER_SIZE_BYTE_32K; // 需要32KB
+    if (kSize > BUFFER_SIZE_BYTE_2K) {
+        softmaxTmpBufferSize = BUFFER_SIZE_BYTE_33K; //kSize >2048 需要33kB
+    }
+    SoftMaxTilingFunc(srcShape, 4, softmaxTmpBufferSize, tilingData->vectorParams.softmaxYTilingData);
 
     SetSparseParamsRegbase(static_cast<int64_t>(aicNum));
     InitOutputSplit(); // output分核
@@ -696,29 +891,29 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::DoOpTiling()
 
 uint64_t SparseLightningIndexerGradKLLossTilingBase::GetTilingKey() const
 {
-    return GET_TPL_TILING_KEY(static_cast<uint8_t>(hasRope), static_cast<uint8_t>(tilingKeyLayout), 
+    return GET_TPL_TILING_KEY(static_cast<uint8_t>(hasRope), static_cast<uint8_t>(topKRange), static_cast<uint8_t>(tilingKeyLayout), 
         static_cast<uint8_t>(tilingKeyLayout), static_cast<uint8_t>(sparseMode), static_cast<uint8_t>(deterministic));
 }
 
 ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::GetWorkspaceSize()
 {
     size_t *workspaces = context_->GetWorkspaceSizes(1);
-    int64_t pSize = 2048 * 576 * 2; // 2代表half大小
-    int64_t sySize = 2048 * 128 * 2; // 使用DB
-    int64_t bmm1Size = gSizeQuery * 2048 * sizeof(float);
-    int64_t bmm2Size = gSizeQueryIndex * 2048 * sizeof(float);
-    int64_t reluGradSize = gSizeQueryIndex * 2048 * sizeof(float);
-    int64_t psySyncSize = 2048 * 2 * sizeof(float);
-    int64_t bmm3Size;
+    int64_t pSize = kSize * (dSizeQuery + dQueryRopeSize) * 2; // 2代表half大小
+    int64_t sySize = kSize * dSizeQueryIndex * 2; // 2使用DB
+    int64_t bmm1Size = gSizeQuery * kSize * sizeof(float);
+    int64_t bmm2Size = gSizeQueryIndex * kSize * sizeof(float);
+    int64_t reluGradSize = gSizeQueryIndex * kSize * sizeof(float);
+    int64_t psySyncSize = kSize * 2 * sizeof(float); // 2使用DB
+    int64_t bmm3Size = kSize * dSizeQueryIndex * sizeof(float);
+    int64_t scatterAddOutSize;
     if (tilingKeyLayout == LayoutType::LAYOUT_TND) {
-        bmm3Size = accumS2 * 128 * sizeof(float); //batch
+        scatterAddOutSize = accumS2 * dSizeQueryIndex * sizeof(float); //batch
     } else {
-        bmm3Size = bSize * s2Size * 128 * sizeof(float); //batch
+        scatterAddOutSize = bSize * s2Size * dSizeQueryIndex * sizeof(float); //batch
     }
 
-    int64_t singlecoreTotalSize = PING_PONG_VALUE * (pSize + bmm1Size + bmm2Size + reluGradSize + sySize + psySyncSize);
-    int64_t multicoreTotalsize = singlecoreTotalSize * static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()) + bmm3Size;
-
+    int64_t singlecoreTotalSize = PING_PONG_VALUE * (pSize + bmm1Size + bmm2Size + reluGradSize + sySize + psySyncSize + bmm3Size);
+    int64_t multicoreTotalsize = singlecoreTotalSize * static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()) + scatterAddOutSize;
     workspaces[0] = static_cast<size_t>(multicoreTotalsize) + WORK_SPACE_RESERVE_SIZE; // 预留16M空间必须加;
     OP_LOGW(context_, "workspace size:[%ld], multicoreTotalsize:[%ld]", workspaces[0], multicoreTotalsize);
     return ge::GRAPH_SUCCESS;

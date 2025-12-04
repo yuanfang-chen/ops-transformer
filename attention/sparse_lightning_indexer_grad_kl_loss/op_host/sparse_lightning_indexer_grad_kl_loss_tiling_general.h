@@ -20,7 +20,6 @@
 #include <algorithm>
 #include "../op_kernel/sparse_lightning_indexer_grad_kl_loss_template_tiling_key.h"
 #include "../op_kernel/sparse_lightning_indexer_grad_kl_loss_tiling.h"
-
 #include "err/ops_err.h"
 
 // tiling_base 需要
@@ -34,7 +33,6 @@
 #else
 #define ASCENDC_EXTERN_C
 #endif
-
 
 using namespace ge;
 using namespace AscendC;
@@ -50,7 +48,6 @@ struct AiCoreParams {
     uint64_t l0bSize = 0;
     uint64_t l0cSize = 0;
 };
-
 
 class TilingBaseClass {
 public:
@@ -103,18 +100,14 @@ protected:
     virtual ge::graphStatus GetShapeAttrsInfo() = 0;
     // 3、计算数据切分TilingData
     virtual ge::graphStatus DoOpTiling() = 0;
-    // // 4、计算高阶API的TilingData
-    // virtual ge::graphStatus DoLibApiTiling() = 0;
-    // 5、计算TilingKey
+    // 4、计算TilingKey
     [[nodiscard]] virtual uint64_t GetTilingKey() const = 0;
-    // 6、计算Workspace 大小
+    // 5、计算Workspace 大小
     virtual ge::graphStatus GetWorkspaceSize() = 0;
-    // // 7、保存Tiling数据
-    // virtual ge::graphStatus PostTiling() = 0;
-    // 8、Dump Tiling数据
+    // 6、Dump Tiling数据
     virtual void DumpTilingInfo()
     {
-        int32_t enable = 1; 
+        int32_t enable = 1;
         if (enable != 1) {
             return;
         }
@@ -213,12 +206,9 @@ protected:
     AiCoreParams aicoreParams_;
 };
 
-// 具体SFAGtiling定义 继承上面的TilingBaseClass 
-static const int64_t MAX_VAR_LEN_SEQ_LEN = 4096L;
-
+// SLIGKLLOSS tiling类定义 继承TilingBaseClass
 struct SparseLightningIndexerGradKLLossCompileInfo {
     int64_t core_num;
-
     uint32_t aivNum;
     uint32_t aicNum;
     uint64_t ubSize;
@@ -257,6 +247,8 @@ protected:
         accumS2 = 0;
         sparseMode = 3;
         scaleValue = 1.0f;
+        dQueryRopeSize = 0;
+        dKeyRopeSize = 0;
 
         deterministic = false;
 
@@ -284,11 +276,12 @@ protected:
     // 6、计算Workspace 大小
     ge::graphStatus GetWorkspaceSize() override;
     // 7、保存Tiling数据
-    void GetActualSeqLenData(int64_t inputIdx, std::array<int64_t, MAX_VAR_LEN_SEQ_LEN> &res, int64_t &actualLen) const;
+    void GetActualSeqLenData(int64_t inputIdx, std::vector<int64_t> &res, int64_t &actualLen) const;
     ge::graphStatus CheckContext();
     bool AnalyzeAttrs();
-    bool Analyze3DimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape, const gert::Shape &queryIndexShape,
-                            size_t layoutLen, const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShape);
+    bool CrossShapeVerify(const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShap);
+    bool AnalyzeDimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape, const gert::Shape &queryIndexShape,
+                         const gert::Shape &topKShape, size_t layoutLen, const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShape);
     bool AnalyzeDtype();
     bool AnalyzeLayout();
     int64_t GetS2RealSize(int32_t sparseMode, int32_t s1Size, int32_t s2Size, int32_t s1Idx);
@@ -313,17 +306,17 @@ protected:
     int32_t gSizeQueryIndex;
     int32_t s1Size;
     int32_t s2Size;
-    int32_t dSizeQuery = 0;
+    int32_t dSizeQuery;
     int32_t dSizeQueryIndex;
     int32_t kSize;
     int32_t sparseMode;
     int32_t rsvd;
     float scaleValue;
 
-    // 新增的一些参数
     const char *templateName = "slikbase";
 
     LayoutType tilingKeyLayout;
+    TopKRange topKRange;
     uint32_t aivNum;
     uint32_t aicNum;
     uint64_t l2CacheSize;
@@ -343,8 +336,8 @@ protected:
     const char *opName;
     const char *inputLayout;
 
-    std::array<int64_t, MAX_VAR_LEN_SEQ_LEN> actualSeqLenData;
-    std::array<int64_t, MAX_VAR_LEN_SEQ_LEN> actualSeqLenKData;
+    std::vector<int64_t> actualSeqLenData;
+    std::vector<int64_t> actualSeqLenKData;
 
     SparseLightningIndexerGradKLLossTilingData *tilingData = context_->GetTilingData<SparseLightningIndexerGradKLLossTilingData>();
     SLIGradKLLossBaseParams *sliGradkllossBaseParams_ = &tilingData->baseParams;
