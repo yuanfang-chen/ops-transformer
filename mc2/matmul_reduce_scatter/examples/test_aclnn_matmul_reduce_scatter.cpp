@@ -63,12 +63,13 @@ struct Args {
     int rankId;
     HcclComm hcclComm;
     aclrtStream stream;
+    aclrtContext context;
 };
 
 int launchOneThread_MmReduceScatter(Args &args)
 {
-    int ret = aclrtSetDevice(args.rankId);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
+    int ret = aclrtSetCurrentContext(args.context);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret = %d \n", ret); return ret);
 
     char hcomName[128] = {0};
     ret = HcclGetCommName(args.hcclComm, hcomName);
@@ -156,10 +157,14 @@ int launchOneThread_MmReduceScatter(Args &args)
     if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);
     }
+    ret = HcclCommDestroy(args.hcclComm);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret); return ret);
     ret = aclrtDestroyStream(args.stream);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyStream failed. ret = %d \n", ret); return ret);
     ret = aclrtResetDevice(args.rankId);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtResetDevice failed. ret = %d \n", ret); return ret);
+    ret = aclrtDestroyContext(args.context);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyContext failed. ret = %d \n", ret); return ret);
     return 0;
 }
 
@@ -169,9 +174,12 @@ int main(int argc, char *argv[])
     int ret = aclInit(nullptr);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret); return ret);
     aclrtStream stream[DEV_NUM];
+    aclrtContext context[DEV_NUM];
     for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
         ret = aclrtSetDevice(rankId);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
+        ret = aclrtCreateContext(&context[rankId], rankId);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateContext failed. ERROR: %d\n", ret); return ret);
         ret = aclrtCreateStream(&stream[rankId]);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
     }
@@ -190,15 +198,12 @@ int main(int argc, char *argv[])
     for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
         args[rankId].rankId = rankId;
         args[rankId].hcclComm = comms[rankId];
+        args[rankId].context = context[rankId];
         args[rankId].stream = stream[rankId];
-        threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThread_MmReduceScatter, std::ref(args [rankId])));
+        threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThread_MmReduceScatter, std::ref(args[rankId])));
     }
     for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
         threads[rankId]->join();
-    }
-    for (int i = 0; i < DEV_NUM; i++) {
-        auto hcclRet = HcclCommDestroy(comms[i]);
-        CHECK_RET(hcclRet == HCCL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret); return -1);
     }
     aclFinalize();
     return 0;

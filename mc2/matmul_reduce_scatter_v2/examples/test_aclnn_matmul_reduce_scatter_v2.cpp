@@ -15,7 +15,7 @@
 
 #include <iostream>
 #include <vector>
-#include <getopt.h>
+#include <thread>
 #include "aclnnop/aclnn_matmul_reduce_scatter_v2.h"
 
 #define CHECK_RET(cond, return_expr) \
@@ -31,31 +31,6 @@
     } while(0)
 
 constexpr int DEV_NUM = 4;
-constexpr int INTERNAL_LEN = 10;
-int g_rankId = 0;
-
-void GetOption(int argc, char **argv)
-{
-    while (1) {
-        int optionIndex = 0;
-        struct option longOptions[] = {
-            {"rank_id", 1, 0, 'a'},
-            {0, 0, 0, 0}
-        };
-        int c = getopt_long(argc, argv, "a:", longOptions, &optionIndex);
-        if (c == -1) {
-            break;
-        }
-
-        switch (c) {
-            case 'a':
-                g_rankId = atoi(optarg);
-                LOG_PRINT("[INFO] rankId = %d\n", g_rankId);
-            default:
-                break;
-        }
-    }
-}
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape)
 {
@@ -157,7 +132,7 @@ int LaunchOneThreadMmReduceScatterV2(Args &args)
 
     // 调用第一阶段接口
     ret = aclnnMatmulReduceScatterV2GetWorkspaceSize(
-        x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, hcomName, "sum", commTurn, streamMode, groupSize, "ccu"
+        x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, hcomName, "sum", commTurn, streamMode, groupSize, "ccu",
         out, amaxOut, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,
         LOG_PRINT("[ERROR] aclnnMatmulReduceScatterV2GetWorkspaceSize failed. ret = %d \n", ret); return ret);
@@ -220,48 +195,53 @@ int LaunchOneThreadMmReduceScatterV2(Args &args)
     if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);
     }
-    ret = aclrtDestroyStream(args.stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyStream failed. ret = %d \n", ret); return ret);
-    ret = aclrtDestroyContext(args.context);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyContext failed. ret = %d \n", ret); return ret);
     ret = HcclCommDestroy(args.hcclComm);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret); return ret);
+    ret = aclrtDestroyStream(args.stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyStream failed. ret = %d \n", ret); return ret);
     ret = aclrtResetDevice(args.rankId);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtResetDevice failed. ret = %d \n", ret); return ret);
+    ret = aclrtDestroyContext(args.context);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyContext failed. ret = %d \n", ret); return ret);
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
-    GetOption(argc, argv);
     int ret = aclInit(nullptr);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret); return ret);
-    aclrtStream stream;
-    aclrtContext context;
-    ret = aclrtSetDevice(g_rankId);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
-    ret = aclrtCreateContext(&context, g_rankId);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateContext failed. ret = %d \n", ret); return ret);
-    ret = aclrtCreateStream(&stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
-    // 初始化集合通信域
-    HcclComm comms;
-    HcclRootInfo hcclRootInfo;
-    for (uint32_t i = 0; i < INTERNAL_LEN; i++) {
-        hcclRootInfo.internal[i] = 'a';
+    aclrtStream stream[DEV_NUM];
+    aclrtContext context[DEV_NUM];
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        ret = aclrtSetDevice(rankId);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
+        ret = aclrtCreateContext(&context[rankId], rankId);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateContext failed. ERROR: %d\n", ret); return ret);
+        ret = aclrtCreateStream(&stream[rankId]);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
     }
-    hcclRootInfo.internal[INTERNAL_LEN] = '\0';
-    ret = HcclCommInitRootInfo(DEV_NUM, &hcclRootInfo, g_rankId, &comms);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitRootInfo failed. ret = %d \n", ret); return ret);
+    int32_t devices[DEV_NUM];
+    for (int i = 0; i < DEV_NUM; i++) {
+        devices[i] = i;
+    }
+    // 初始化集合通信域
+    HcclComm comms[DEV_NUM];
+    ret = HcclCommInitAll(DEV_NUM, devices, comms);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitAll failed. ret = %d \n", ret); return ret);
 
-    Args args;
+    Args args[DEV_NUM];
     // 启动多线程
-    args.rankId = g_rankId;
-    args.hcclComm = comms;
-    args.stream = stream;
-    args.context = context;
-    ret = LaunchOneThreadMmReduceScatterV2(args);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] LaunchOneThreadMmReduceScatterV2 failed. ret = %d \n", ret); return ret);
+    std::vector<std::unique_ptr<std::thread>> threads(DEV_NUM);
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        args[rankId].rankId = rankId;
+        args[rankId].hcclComm = comms[rankId];
+        args[rankId].context = context[rankId];
+        args[rankId].stream = stream[rankId];
+        threads[rankId].reset(new(std::nothrow) std::thread(&LaunchOneThreadMmReduceScatterV2, std::ref(args[rankId])));
+    }
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        threads[rankId]->join();
+    }
     aclFinalize();
     return 0;
 }

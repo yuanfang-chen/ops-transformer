@@ -20,7 +20,6 @@
   功能可分为以下5种情形：  
     - 如果x1和x2数据类型为FLOAT16/BFLOAT16时，入参x1进行allgather后，对x1、x2进行matmul计算；
     - 如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，不输出amaxOut，入参x1进行allgather后，对x1、x2进行matmul计算，然后进行dequant操作；
-    - 如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，且输出amaxOut，入参x1进行allgather后，对x1、x2进行matmul计算，然后进行dequant操作，最后进行quant操作， 当前版本暂不支持；
     - 如果groupSize取值为有效值，入参x1进行allgather后，对x1、x2进行perblock量化matmul计算，然后进行dequant操作。
     - 如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2，x1 shape为(a0, a1, 2), x2 shape 为(b1, b0, 2),且x1Scale shape为(a0, ceilDiv(a1, 64), 2)，x2Scale shape为(b1, ceilDiv(b0, 64), 2), x1不转置，x2转置，x1Scale不转置， x2Scale转置，入参x1进行allgather后，对x1、x2进行matmul计算，然后进行dequant操作；
 
@@ -46,17 +45,7 @@
     $$
 
     - 情形3：
-    $$
-    output=(x1Scale*x2Scale)*(quantScale)*(allgather(x1)@x2 + bias)
-    $$
-    $$
-    gatherOut=allgather(x1)
-    $$
-    $$
-    amaxOut=amax((x1Scale*x2Scale)*(allgather(x1)@x2 + bias))
-    $$
 
-    - 情形4：
     $$
     \begin{align*}
     & output[r(i), r(j)] = \sum_{k=1}^{\frac{K}{groupSizeK}} x1Scale[i, k] * x2Scale[k, j] * (allgather(x1)[r(i), r(j)] @ x2[r(k), r(j)]) \\
@@ -69,13 +58,15 @@
     \end{bmatrix}
     \end{align*}
     $$
-    
-      其中$output\left[r(y), r(z)\right]$表示从output矩阵中取出第$(groupSizeM*(y-1)+1)$到$(groupSizeM*y)$行和$(groupSizeN*(z-1)+1)$到$(groupSizeN*z)$列构成的块。
 
-    - 情形5：
+    其中$output\left[r(y), r(z)\right]$表示从output矩阵中取出第$(groupSizeM*(y-1)+1)$到$(groupSizeM*y)$行和$(groupSizeN*(z-1)+1)$到$(groupSizeN*z)$列构成的块。
+
+    - 情形4：
+
     $$
     gatherOut=append(allgather(x1), allgather(x1Scale))
     $$
+
     $$
     output=\sum_{0}^{\left \lfloor \frac{k}{blockSize=32} \right \rfloor} (allgather(x1)_{pr}@x2_{rq}*(allgather(x1Scale)_{pr}*x2Scale_{rq}))
     $$
@@ -144,12 +135,14 @@
 
 ## 调用示例
 
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
+
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```c++
 #include <iostream>
 #include <vector>
-#include <getopt.h>
+#include <thread>
 #include "aclnnop/aclnn_all_gather_matmul_v2.h"
 
 #define CHECK_RET(cond, return_expr) \
@@ -165,8 +158,6 @@
     } while(0)
 
 constexpr int DEV_NUM = 4;
-constexpr int INTERNAL_LEN = 10;
-int g_rankId = 0;
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape)
 {
@@ -175,29 +166,6 @@ int64_t GetShapeSize(const std::vector<int64_t> &shape)
         shape_size *= i;
     }
     return shape_size;
-}
-
-void GetOption(int argc, char **argv)
-{
-    while (1) {
-        int optionIndex = 0;
-        struct option longOptions[] = {
-            {"rank_id", 1, 0, 'a'},
-            {0, 0, 0, 0}
-        };
-        int c = getopt_long(argc, argv, "a:", longOptions, &optionIndex);
-        if (c == -1) {
-            break;
-        }
-
-        switch (c) {
-            case 'a':
-                g_rankId = atoi(optarg);
-                LOG_PRINT("[INFO] rankId = %d\n", g_rankId);
-            default:
-                break;
-        }
-    }
 }
 
 template<typename T>
@@ -225,7 +193,7 @@ struct Args {
     aclrtContext context;
 };
 
-int LaunchOneThreadAllGatherMm(Args &args)
+int LaunchOneThreadAllGatherMmV2(Args &args)
 {
     int ret = aclrtSetCurrentContext(args.context);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret: %d\n", ret); return ret);
@@ -294,7 +262,7 @@ int LaunchOneThreadAllGatherMm(Args &args)
     ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_FLOAT16, &out);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(gatherOutHostData, gatherOutShape, &gatherOutDeviceAddr,
-                        aclDataType::ACL_FLOAT8_E4M3FN, &gatherOut);
+                          aclDataType::ACL_FLOAT8_E4M3FN, &gatherOut);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
 
     // 调用第一阶段接口
@@ -368,45 +336,53 @@ int LaunchOneThreadAllGatherMm(Args &args)
     if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);
     }
-    aclrtDestroyStream(args.stream);
-    aclrtDestroyContext(args.context);
-    HcclCommDestroy(args.hcclComm);
-    aclrtResetDevice(args.rankId);
+    ret = HcclCommDestroy(args.hcclComm);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret); return ret);
+    ret = aclrtDestroyStream(args.stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyStream failed. ret = %d \n", ret); return ret);
+    ret = aclrtResetDevice(args.rankId);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtResetDevice failed. ret = %d \n", ret); return ret);
+    ret = aclrtDestroyContext(args.context);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyContext failed. ret = %d \n", ret); return ret);
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
-    GetOption(argc, argv);
     int ret = aclInit(nullptr);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret); return ret);
-    aclrtStream stream;
-    aclrtContext context;
-
-    ret = aclrtSetDevice(g_rankId);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
-    ret = aclrtCreateContext(&context, g_rankId);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateContext failed. ret = %d \n", ret); return ret);
-    ret = aclrtCreateStream(&stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
-
-    // 初始化集合通信域
-    HcclComm comms;
-    HcclRootInfo hcclRootInfo;
-    for (uint32_t i = 0; i < INTERNAL_LEN; i++) {
-        hcclRootInfo.internal[i] = 'a';
+    aclrtStream stream[DEV_NUM];
+    aclrtContext context[DEV_NUM];
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        ret = aclrtSetDevice(rankId);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
+        ret = aclrtCreateContext(&context[rankId], rankId);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateContext failed. ret = %d \n", ret); return ret);
+        ret = aclrtCreateStream(&stream[rankId]);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
     }
-    hcclRootInfo.internal[INTERNAL_LEN] = '\0';
-    ret = HcclCommInitRootInfo(DEV_NUM, &hcclRootInfo, g_rankId, &comms);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitRootInfo failed. ret = %d \n", ret); return ret);
+    int32_t devices[DEV_NUM];
+    for (int i = 0; i < DEV_NUM; i++) {
+        devices[i] = i;
+    }
+    // 初始化集合通信域
+    HcclComm comms[DEV_NUM];
+    ret = HcclCommInitAll(DEV_NUM, devices, comms);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitAll failed. ret = %d \n", ret); return ret);
 
-    Args args;
-    args.rankId = g_rankId;
-    args.hcclComm = comms;
-    args.stream = stream;
-    args.context = context;
-    ret = LaunchOneThreadAllGatherMm(args);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] LaunchOneThreadAllGatherMm failed. ret = %d \n", ret); return ret);
+    Args args[DEV_NUM];
+    // 启动多线程
+    std::vector<std::unique_ptr<std::thread>> threads(DEV_NUM);
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        args[rankId].rankId = rankId;
+        args[rankId].hcclComm = comms[rankId];
+        args[rankId].context = context[rankId];
+        args[rankId].stream = stream[rankId];
+        threads[rankId].reset(new(std::nothrow) std::thread(&LaunchOneThreadAllGatherMmV2, std::ref(args[rankId])));
+    }
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        threads[rankId]->join();
+    }
     aclFinalize();
     return 0;
 }

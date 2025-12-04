@@ -420,10 +420,12 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
+
 ```Cpp
 #include <iostream>
 #include <vector>
-#include <getopt.h>
+#include <thread>
 #include "aclnnop/aclnn_trans_matmul_weight.h"
 #include "aclnnop/aclnn_quant_matmul_all_reduce_v4.h"
 
@@ -449,31 +451,6 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
     } while(0)
 
 constexpr int DEV_NUM = 4;
-constexpr int INTERNAL_LEN = 10;
-int g_rankId = 0;
-
-void GetOption(int argc, char **argv)
-{
-    while (1) {
-        int optionIndex = 0;
-        struct option longOptions[] = {
-            {"rank_id", 1, 0, 'a'},
-            {0, 0, 0, 0}
-        };
-        int c = getopt_long(argc, argv, "a:", longOptions, &optionIndex);
-        if (c == -1) {
-            break;
-        }
-
-        switch (c) {
-            case 'a':
-                g_rankId = atoi(optarg);
-                LOG_PRINT("[INFO] rankId = %d\n", g_rankId);
-            default:
-                break;
-        }
-    }
-}
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape)
 {
@@ -729,35 +706,45 @@ int launchOneThreadQuantMatmulAllReduce(Args &args) {
 
 int main(int argc, char *argv[])
 {
-    GetOption(argc, argv);
-    int ret = aclInit(nullptr);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret); return ret);
-    aclrtStream stream;
-    aclrtContext context;
-    ret = aclrtSetDevice(g_rankId);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
-    ret = aclrtCreateContext(&context, g_rankId);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateContext failed. ret = %d \n", ret); return ret);
-    ret = aclrtCreateStream(&stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
-
-    // 初始化集合通信域
-    HcclComm comms;
-    HcclRootInfo hcclRootInfo;
-    for (uint32_t i = 0; i < INTERNAL_LEN; i++) {
-        hcclRootInfo.internal[i] = 'a';
+    int ret;
+    int32_t devices[DEV_NUM];
+    for (int i = 0; i < DEV_NUM; i++) {
+        devices[i] = i;
     }
-    hcclRootInfo.internal[INTERNAL_LEN] = '\0';
-    ret = HcclCommInitRootInfo(DEV_NUM, &hcclRootInfo, g_rankId, &comms);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitRootInfo failed. ret = %d \n", ret); return ret);
-
-    Args args;
-    args.rankId = g_rankId;
-    args.hcclComm = comms;
-    args.stream = stream;
-    args.context = context;
-    ret = launchOneThreadQuantMatmulAllReduce(args);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] launchOneThreadQuantMatmulAllReduce failed. ret = %d \n", ret); return ret);
+    HcclComm comms[128];
+    ret = aclInit(nullptr);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclInit failed. ERROR: %d\n", ret); return ret);
+    // 初始化集合通信域
+    for (int i = 0; i < DEV_NUM; i++) {
+        ret = aclrtSetDevice(devices[i]);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSetDevice failed. ERROR: %d\n", ret); return ret);
+    }
+    ret = HcclCommInitAll(DEV_NUM, devices, comms);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("HcclCommInitAll failed. ERROR: %d\n", ret); return ret);
+    Args args[DEV_NUM];
+    aclrtStream stream[DEV_NUM];
+    aclrtContext context[DEV_NUM];
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        ret = aclrtSetDevice(rankId);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSetDevice failed. ERROR: %d\n", ret); return ret);
+        ret = aclrtCreateContext(&context[rankId], rankId);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateContext failed. ERROR: %d\n", ret); return ret);
+        ret = aclrtCreateStream(&stream[rankId]);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateStream failed. ERROR: %d\n", ret); return ret);
+    }
+    // 启动多线程
+    std::vector<std::unique_ptr<std::thread>> threads(DEV_NUM);
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        args[rankId].rankId = rankId;
+        args[rankId].hcclComm = comms[rankId];
+        args[rankId].stream = stream[rankId];
+        args[rankId].context = context[rankId];
+        threads[rankId].reset(
+                new(std::nothrow) std::thread(&launchOneThreadQuantMatmulAllReduce, std::ref(args[rankId])));
+    }
+    for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+        threads[rankId]->join();
+    }
     aclFinalize();
     return 0;
 }
