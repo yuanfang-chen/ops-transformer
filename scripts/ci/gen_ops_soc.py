@@ -18,9 +18,30 @@ def should_skip_directory(dir_name):
     """
     skip_dirs = {
         'build', 'cmake', 'common', 'docs', 'examples', 
-        'experimental', 'scripts', 'tests', 'third_party'
+        'experimental', 'scripts', 'tests', 'third_party', '3rd'
     }
     return dir_name in skip_dirs
+
+
+def should_skip_op(op_name):
+    """
+    判断是否应该跳过该算子
+    """
+    skip_ops = [
+        "mla_prolog", "mla_prolog_v2", "mla_prolog_v3", "grouped_matmul_finalize_routing", "grouped_matmul", 
+        "grouped_matmul_add", "grouped_matmul_swiglu_quant_v2", "quant_grouped_matmul_inplace_add", 
+        "all_gather_matmul", "all_gather_matmul_v2", "allto_all_all_gather_batch_mat_mul", "allto_allv_grouped_mat_mul", 
+        "batch_mat_mul_reduce_scatter_allto_all", "distribute_barrier", "elastic_receivable_info_collect", 
+        "elastic_receivable_test", "grouped_mat_mul_all_reduce", "grouped_mat_mul_allto_allv", 
+        "inplace_matmul_all_reduce_add_rms_norm", "matmul_all_reduce", "matmul_all_reduce_add_rms_norm", 
+        "matmul_reduce_scatter", "matmul_reduce_scatter_v2", "moe_distribute_buffer_reset", "moe_distribute_combine", 
+        "moe_distribute_combine_add_rms_norm", "moe_distribute_combine_v2", "moe_distribute_dispatch", 
+        "moe_distribute_dispatch_v2", "moe_update_expert", "quant_all_reduce", "quant_reduce_scatter", 
+        "moe_finalize_routing_v2", "moe_finalize_routing_v2_grad", "moe_gating_top_k", "moe_gating_top_k_softmax", 
+        "moe_gating_top_k_softmax_v2", "moe_init_routing", "moe_init_routing_quant_v2", "moe_init_routing_v2", 
+        "moe_init_routing_v2_grad", "moe_init_routing_v3", "moe_re_routing", "moe_token_permute_with_routing_map"
+    ]
+    return op_name in skip_ops
 
 
 def parse_foreach_config(config_str):
@@ -185,6 +206,12 @@ def extract_ai_core_configs(file_path):
         return []
 
 
+def update_ai_core_configs(op_name, ai_core_configs):
+    if should_skip_op(op_name) and "ascend910_95" in ai_core_configs:
+        ai_core_configs.remove("ascend910_95")
+    return ai_core_configs
+
+
 def main(repository_path):
     result = []
     for root, dirs, files in os.walk(repository_path):
@@ -198,6 +225,7 @@ def main(repository_path):
                 
                 # 提取 AICore 配置
                 ai_core_configs = extract_ai_core_configs(full_path)
+                ai_core_configs = update_ai_core_configs(op_name, ai_core_configs)
                 
                 # 创建字典
                 op_dict = {
