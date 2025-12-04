@@ -871,7 +871,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       std::vector<int64_t> dequantScaleWDqShape = {1, 1536};      // 1, Hcq
       std::vector<int64_t> dequantScaleWUqQrShape = {1, 6144};    // 1, N*(D+Dr)
       std::vector<int64_t> dequantScaleWDkvKrShape = {1, 576};    // 1, Hckv+Dr
-      std::vector<int64_t> quantScaleCkvShape = {1, 512};         // 1, Hckv
+      std::vector<int64_t> quantScaleCkvShape = {1};              // 1
       std::vector<int64_t> smoothScalesCqShape = {1, 1536};       // 1, Hcq
       std::vector<int64_t> queryShape = {8, 1, 32, 512};          // B,S,N,Hckv
       std::vector<int64_t> queryRopeShape = {8, 1, 32, 64};       // B,S,N,Dr
@@ -943,9 +943,9 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       aclTensor* quantScaleCkv = nullptr;
       aclTensor* smoothScalesCq = nullptr;
       bool queryNormFlag = false;
-      int64_t weightQuantMode = 0;
-      int64_t kvQuantMode = 0;
-      int64_t queryQuantMode = 0;
+      int64_t weightQuantMode = 2;
+      int64_t kvQuantMode = 1;
+      int64_t queryQuantMode = 1;
       int64_t ckvkrRepoMode = 0;
       int64_t quantScaleRepoMode = 0;
       int64_t tileSize = 128;
@@ -1035,8 +1035,8 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       aclOpExecutor* executor = nullptr;
       // 调用aclnnMlaPrologV3WeightNz第一段接口
       ret = aclnnMlaPrologV3WeightNzGetWorkspaceSize(tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin, ropeCos, kvCache, krCache, cacheIndex,
-        dequantScaleX, dequantScaleWDq, dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, nullptr, smoothScalesCq, nullptr, rmsnormEpsilonCq, rmsnormEpsilonCkv, cacheMode,
-        queryNormFlag, weightQuantMode, kvQuantMode, queryQuantMode, ckvkrRepoMode, quantScaleRepoMode, tileSize, kNopeClipAlpha, qcQrScale, kcScale,
+        dequantScaleX, dequantScaleWDq, dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, nullptr, smoothScalesCq, nullptr, nullptr,rmsnormEpsilonCq, rmsnormEpsilonCkv, cacheMode,
+        weightQuantMode, kvQuantMode, queryQuantMode, ckvkrRepoMode, quantScaleRepoMode, tileSize, qcQrScale, kcScale,
         query, queryRope, dequantScaleQNope, nullptr, nullptr, &workspaceSize, &executor);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnMlaPrologV3WeightNzGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
       // 根据第一段接口计算出的workspaceSize申请device内存
