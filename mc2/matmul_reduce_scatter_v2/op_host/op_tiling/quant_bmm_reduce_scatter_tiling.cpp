@@ -20,6 +20,7 @@
 #include "mc2_log.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "quant_bmm_reduce_scatter_tiling.h"
+#include "../../op_kernel/matmul_reduce_scatter_v2_tiling_key.h"
 
 using namespace Mc2Log;
 using namespace Mc2Tiling;
@@ -458,11 +459,15 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
     bool isPerBlock = quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE;
     // 1、x1、x2均不转置：0; 2、x1转置：1; 3、x2转置：2; 4、x1和x2均转置：3;
     uint8_t transpose = static_cast<uint8_t>(args_.isATrans) + (static_cast<uint8_t>(args_.isBTrans) << 1);
-    uint64_t tilingKey = mc2tiling::MC2_TILINGKEY_OFFSET + RecursiveSum(isCastBias, enableNd2Nz, commAlgorithm,
-                                                                        inputIsfp8, outputType, isPerBlock, transpose,
-                                                                        scaleType);
-
-    OP_LOGD(opName_, "tilingKey is %lu", tilingKey);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(                            \
+        SET_NOT_USE_AIV_MODE_TILING,                                    \
+        isCastBias, enableNd2Nz, commAlgorithm, isPerBlock, transpose,  \
+        SET_NOT_USE_BASE_TILING,                                        \
+        inputIsfp8, outputType, scaleType);
+    OP_LOGD(opName_, "isCastBias, enableNd2Nz, commAlgorithm, isPerBlock, transpose is: [%d, %d, %u, %d, %u]", \
+            isCastBias, enableNd2Nz, commAlgorithm, isPerBlock, transpose);
+    OP_LOGD(opName_, "inputIsfp8, outputType, scaleType is: [%d, %u, %u]", \
+            inputIsfp8, outputType, scaleType);
     return tilingKey;
 }
 

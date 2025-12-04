@@ -13,6 +13,7 @@
  * \brief
  */
 
+#include "matmul_reduce_scatter_v2_tiling_key.h"
 #ifdef __DAV_C310__
 #include "lib/matmul_intf.h"
 #include "common_def.h"
@@ -101,7 +102,8 @@ using namespace MatmulReduceScatterV2Impl;
         }                                                                                                             \
     } while (0)
 
-extern "C" __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM,
+template<TPL_AIV_MODE_TILING_PARAMS_COMM, TPL_PARAMS_COMM, TPL_BASE_TILING_PARAMS_COMM, TPL_QUANT_BMM_TILING_PARAMS_COMM> 
+__global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM,
                                                                GM_ADDR x1ScaleGM, GM_ADDR x2ScaleGM,
                                                                GM_ADDR quantScaleGM, GM_ADDR cGM, GM_ADDR amaxOutGM,
                                                                GM_ADDR workspaceGM, GM_ADDR tilingGM)
@@ -115,10 +117,10 @@ extern "C" __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_A
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
     // bf16/fp16 场景
     using BiasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, typename BiasType<BIAS_DTYPE>::type>;
-    if (TILING_KEY_IS(1000000000000000100UL)) {  // david + fullmesh + no nd2nz + bais not cast
+    if constexpr (TPL_COMMALG == TPL_COMM_ALG_FULL_MESH && TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE) {  // david + fullmesh + no nd2nz + bais not cast
         using BType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, false>;
         INVOKE_MMREDUCESCATTER_FP16_BF16_OP_IMPL(MatmulReduceScatterFP16BF16);
-    } else if (TILING_KEY_IS(1000000000002000100UL)) {    //  david + transb + fullmesh + no nd2nz + bais not cast
+    } else if constexpr (TPL_COMMALG == TPL_COMM_ALG_FULL_MESH && TPL_TRANSPOSE == TPL_X2_TRANSPOSE) {    //  david + transb + fullmesh + no nd2nz + bais not cast
         using BType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, true>;
         INVOKE_MMREDUCESCATTER_FP16_BF16_OP_IMPL(MatmulReduceScatterFP16BF16);
     }
@@ -127,27 +129,35 @@ extern "C" __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_A
         ((ORIG_DTYPE_X2 == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_X2 == DT_FLOAT8_E5M2))))
     // float8/hif8
     #if (ORIG_DTYPE_X1 != DT_HIFLOAT8)
-        if (TILING_KEY_IS(1000000000012021100UL) || TILING_KEY_IS(1000000000012001100UL)) {
+        if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_FP8E8M0 && TPL_TRANSPOSE == TPL_X2_TRANSPOSE) {
             INVOKE_QUANT_BATCHMM_PERTENSOR_MXFP8_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, true);
-        } else if (TILING_KEY_IS(1000000000010021100UL) || TILING_KEY_IS(1000000000010001100UL)) {
+        } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_FP8E8M0 && TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE) {
             INVOKE_QUANT_BATCHMM_PERTENSOR_MXFP8_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, false);
         }
     #endif
-    if (TILING_KEY_IS(1000000000000001100UL) || TILING_KEY_IS(1000000000000021100UL)) {
+    if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE && !TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, false);
-    } else if (TILING_KEY_IS(1000000000001001100UL) || TILING_KEY_IS(1000000000001021100UL)) {
+    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                        TPL_TRANSPOSE == TPL_X1_TRANSPOSE && !TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, false);
-    } else if (TILING_KEY_IS(1000000000002001100UL) || TILING_KEY_IS(1000000000002021100UL)) {
+    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                        TPL_TRANSPOSE == TPL_X2_TRANSPOSE && !TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, true);
-    } else if (TILING_KEY_IS(1000000000003001100UL) || TILING_KEY_IS(1000000000003021100UL)) {
+    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                        TPL_TRANSPOSE == TPL_X1_X2_TRANSPOSE && !TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, true);
-    } else if (TILING_KEY_IS(1000000000000101100UL) || TILING_KEY_IS(1000000000000121100UL)) {
+    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                        TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE && TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, false);
-    } else if (TILING_KEY_IS(1000000000001101100UL) || TILING_KEY_IS(1000000000001121100UL)) {
+    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                        TPL_TRANSPOSE == TPL_X1_TRANSPOSE && TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, false);
-    } else if (TILING_KEY_IS(1000000000002101100UL) || TILING_KEY_IS(1000000000002121100UL)) {
+    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                        TPL_TRANSPOSE == TPL_X2_TRANSPOSE && TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, true);
-    } else if (TILING_KEY_IS(1000000000003101100UL) || TILING_KEY_IS(1000000000003121100UL)) {
+    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
+                        TPL_TRANSPOSE == TPL_X1_X2_TRANSPOSE && TPL_ISPERBLOCK) {
         INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, true);
     }
 #endif
@@ -165,10 +175,10 @@ extern "C" __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_A
 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     REGISTER_TILING_DEFAULT(MatmulReduceScatterV2AivModeTilingData);
-    if (TILING_KEY_IS(10000)) {
+    if constexpr (!TPL_IS_TRANSPOSE_B) {
         //aivMode，非transB
         INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, false);
-    } else if (TILING_KEY_IS(10010)) {
+    } else if constexpr (TPL_IS_TRANSPOSE_B) {
         //aivMode，transB
         INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, true);
     }

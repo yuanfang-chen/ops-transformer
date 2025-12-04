@@ -31,6 +31,7 @@
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "matmul_reduce_scatter_tiling_base.h"
+#include "../../op_kernel/matmul_reduce_scatter_v2_tiling_key.h"
 
 using namespace AscendC;
 using namespace ge;
@@ -192,9 +193,13 @@ uint64_t MatmulReduceScatterTilingBase::GetTilingKey() const
     bool outputIsFp8 = false;
     // 1、x1、x2均不转置：0; 2、x1转置：1; 3、x2转置：2; 4、x1和x2均转置：3;
     uint8_t transpose = static_cast<uint8_t>(args_.isATrans) + (static_cast<uint8_t>(args_.isBTrans) << 1);
-    uint64_t tilingKey = mc2tiling::MC2_TILINGKEY_OFFSET +
-                         RecursiveSum(false, false, args_.commAlg, !inputIsBf16Fp16, outputIsFp8, false, transpose);
-    OP_LOGD(opName_, "tilingKey is %lu", tilingKey);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(            \
+        SET_NOT_USE_AIV_MODE_TILING,                    \
+        false, false, args_.commAlg, false, transpose,  \
+        !inputIsBf16Fp16, outputIsFp8,                  \
+        SET_NOT_USE_QUANT_BMM_TILING);
+    OP_LOGD(opName_, "args_.commAlg, transpose, !inputIsBf16Fp16, outputIsFp8 is: [%u, %u, %d, %d]", \
+            args_.commAlg, transpose, !inputIsBf16Fp16, outputIsFp8);
     return tilingKey;
 }
 

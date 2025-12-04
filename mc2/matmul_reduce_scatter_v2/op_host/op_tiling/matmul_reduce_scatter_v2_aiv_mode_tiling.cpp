@@ -21,11 +21,13 @@
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "../../op_kernel/matmul_reduce_scatter_v2_aiv_mode_tiling.h"
+#include "../../op_kernel/matmul_reduce_scatter_v2_tiling_key.h"
 
 
 using namespace AscendC;
 using namespace ge;
 using namespace matmulReduceScatterV2_aivmode_tiling;
+using namespace Mc2Tiling;
 namespace{
     const char *K_INNER_DEBUG = "MatmulReduceScatterV2AivMode Tiling Debug";
     constexpr uint32_t ATTR_GROUP_INDEX = 0;
@@ -130,9 +132,11 @@ static void GetTilingKey(uint64_t& tilingKey, MatmulReduceScatterV2AivModeInfo& 
 {
     const gert::StorageShape *matrix_bias = context->GetOptionalInputShape(BIAS_INDEX);
     bool isBias = (matrix_bias == nullptr) ? false : true;
-    tilingKey += isBias ? TILINGKEY_BIAS : 0;
-    tilingKey += info.isTransposeB ? TILINGKEY_TRANS_B : 0;
-    tilingKey += info.isTransposeA ? TILINGKEY_TRANS_A : 0;
+    tilingKey = GET_TPL_TILING_KEY(                     \
+        isBias, info.isTransposeA, info.isTransposeB,   \
+        false, false, 0UL, false, 0UL,                  \
+        SET_NOT_USE_BASE_TILING,                        \
+        SET_NOT_USE_QUANT_BMM_TILING);
     return;
 }
 
