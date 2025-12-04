@@ -20,9 +20,13 @@
 * 计算公式：
   注意力的正向计算公式如下：
   
-  $$
-  Attention\_out=Dropout(Softmax(Mask(scale*(query*key^T) + pse),atten\_mask),keep\_prob)*value
-  $$
+     - psetype=1时，与[aclnnFlashAttentionScore](./aclnnFlashAttentionScore.md)计算公式相同。
+  
+     - psetype=其他取值时，公式如下：
+  
+       $$
+       attention\_out=Dropout(Softmax(Mask(scale*(query*key^T) + pse),atten\_mask),keep\_prob)*value
+       $$
   
   其中增加**sink**之后计算逻辑见下，主要修改相关softmax_max和softmax_sum逻辑计算部分
   
@@ -640,7 +644,6 @@ int main() {
   
   // 调用aclnnFlashAttentionScoreV3第二段接口
   ret = aclnnFlashAttentionScoreV3(workspaceAddr, workspaceSize, executor, stream);
-  aclRecentErrMsg = aclGetRecentErrMsg();
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreV3 failed. ERROR: %d\n", ret); return ret);
   
   // 4. （固定写法）同步等待任务执行结束

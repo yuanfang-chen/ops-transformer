@@ -7,19 +7,19 @@
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>昇腾910_95 AI处理器</term>|      ×     |
-|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品</term>|      √     |
 |<term>Atlas 800I A2 推理产品</term>|      ×     |
 |<term>A200I A2 Box 异构组件</term>|      ×     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
+|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 
 ## 功能说明
 
-- 算子功能：训练场景下计算注意力的反向输出，即[aclnnFlashAttentionVarLenScoreV2](../../flash_attention_score/docs/aclnnFlashAttentionVarLenScoreV2.md)的反向计算。**该接口相较于[aclnnFlashAttentionUnpaddingScoreGrad](./aclnnFlashAttentionUnpaddingScoreGrad.md)接口，新增psetype参数**：
+- 接口功能：训练场景下计算注意力的反向输出，即[aclnnFlashAttentionVarLenScoreV2](../../flash_attention_score/docs/aclnnFlashAttentionVarLenScoreV2.md)的反向计算。**该接口相较于[aclnnFlashAttentionUnpaddingScoreGrad](./aclnnFlashAttentionUnpaddingScoreGrad.md)接口，新增psetype参数**：
 
   -   psetype=1时，与[aclnnFlashAttentionUnpaddingScoreGrad](./aclnnFlashAttentionUnpaddingScoreGrad.md)实现相同。
   -   psetype=其他取值时，需要先mul再add。
@@ -110,15 +110,15 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
 ## aclnnFlashAttentionUnpaddingScoreGradV2GetWorkspaceSize
 
 - **参数说明：**
-  <table style="undefined;table-layout: fixed; width: 1565px"><colgroup>
-  <col style="width: 146px">
-  <col style="width: 135px">
-  <col style="width: 326px">
-  <col style="width: 246px">
-  <col style="width: 275px">
-  <col style="width: 101px">
-  <col style="width: 190px">
-  <col style="width: 146px">
+  <table style="undefined;table-layout: fixed; width: 1529px"><colgroup>
+    <col style="width: 198px">
+    <col style="width: 120px">
+    <col style="width: 289px">
+    <col style="width: 302px">
+    <col style="width: 238px">
+    <col style="width: 106px">
+    <col style="width: 130px">
+    <col style="width: 146px">
   </colgroup>
   <thead>
     <tr>
@@ -135,7 +135,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>query</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的Q。</td>
+      <td>公式中的Q。</td>
       <td>数据类型与keyIn/value一致。</td>
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -145,7 +145,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>keyIn</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的K。</td>
+      <td>公式中的K。</td>
       <td>数据类型与query/value一致。</td>
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -155,7 +155,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>value</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的V。</td>
+      <td>公式中的V。</td>
       <td>数据类型与query/keyIn一致。</td>
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -165,7 +165,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>dy</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的dY。</td>
+      <td>公式中的dY。</td>
       <td>-</td>
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -175,7 +175,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>pseShiftOptional</td>
       <td>可选输入</td>
-      <td>Device侧的aclTensor，公式中的pse，位置编码。</td>
+      <td>公式中的pse，位置编码。</td>
       <td>支持[B,N,S,S]、[B,N,1,S]、[1,N,S,S]、[B,N,H,S]、[1,N,H,S]。</td>
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -185,7 +185,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>dropMaskOptional</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，Dropout掩码。</td>
+      <td>Dropout掩码。</td>
       <td>-</td>
       <td>UINT8</td>
       <td>ND</td>
@@ -195,7 +195,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>paddingMaskOptional</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，padding掩码。</td>
+      <td>padding掩码。</td>
       <td>-</td>
       <td>UINT8、BOOL</td>
       <td>ND</td>
@@ -225,7 +225,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>attenMaskOptional</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，atten_mask。</td>
+      <td>atten_mask。</td>
       <td>
         <ul>
           <li>1表示不参与计算，0表示参与计算。</li>
@@ -260,7 +260,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>softmaxInOptional</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，softmax计算输入。</td>
+      <td>softmax计算输入。</td>
       <td>-</td>
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
@@ -280,7 +280,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>prefixOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，prefix稀疏场景每个Batch的N。</td>
+      <td>prefix稀疏场景每个Batch的N。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -290,7 +290,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>actualSeqQLenOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，实际Query序列长度。</td>
+      <td>实际Query序列长度。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -300,7 +300,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>actualSeqKvLenOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，实际Key/Value序列长度。</td>
+      <td>实际Key/Value序列长度。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -350,7 +350,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>scaleValue</td>
       <td>输入</td>
-      <td>Host侧double，scale缩放系数。</td>
+      <td>scale缩放系数。</td>
       <td>-</td>
       <td>DOUBLE</td>
       <td>-</td>
@@ -360,7 +360,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>keepProb</td>
       <td>输入</td>
-      <td>Host侧double，dropMaskOptional中1的比例。</td>
+      <td>dropMaskOptional中1的比例。</td>
       <td>-</td>
       <td>DOUBLE</td>
       <td>-</td>
@@ -370,7 +370,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>preTokens</td>
       <td>输入</td>
-      <td>Host侧int64_t，稀疏计算时滑窗左边界。</td>
+      <td>稀疏计算时滑窗左边界。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -380,7 +380,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>nextTokens</td>
       <td>输入</td>
-      <td>Host侧int64_t，稀疏计算时滑窗右边界。</td>
+      <td>稀疏计算时滑窗右边界。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -390,7 +390,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>headNum</td>
       <td>输入</td>
-      <td>Host侧int64_t，单卡head数量，即Query的N轴长度。</td>
+      <td>单卡head数量，即Query的N轴长度。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -400,7 +400,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>inputLayout</td>
       <td>输入</td>
-      <td>Host侧string，输入Q/K/V数据排布。</td>
+      <td>输入Q/K/V数据排布。</td>
       <td>支持TND。</td>
       <td>String</td>
       <td>-</td>
@@ -410,7 +410,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>innerPrecise</td>
       <td>输入</td>
-      <td>Host侧int64_t，内部计算精度控制。</td>
+      <td>内部计算精度控制。</td>
       <td>暂未使用。</td>
       <td>INT64</td>
       <td>-</td>
@@ -420,8 +420,8 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>sparseMode</td>
       <td>输入</td>
-      <td>Host侧int64_t，稀疏模式。</td>
-      <td>支持配置0~8。</td>
+      <td>稀疏模式。</td>
+      <td>支持配置0~8。不支持5。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -430,7 +430,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>pseType</td>
       <td>输入</td>
-      <td>Host侧的int64_t，数据类型支持INT64。</td>
+      <td>数据类型支持INT64。</td>
       <td>支持配置值为0、1、2、3。</td>
       <td>INT64</td>
       <td>-</td>
@@ -462,73 +462,75 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
 
 - **返回值：**
 
-返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
-<table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
-<col style="width: 319px">
-<col style="width: 144px">
-<col style="width: 671px">
-</colgroup>
-<thead>
-  <tr>
-    <th>返回码</th>
-    <th>错误码</th>
-    <th>描述</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td>ACLNN_ERR_PARAM_NULLPTR</td>
-    <td>161001</td>
-    <td>传入参数是必选输入，输出或者必选属性，且是空指针。</td>
-  </tr>
-  <tr>
-    <td rowspan="2">ACLNN_ERR_PARAM_INVALID</td>
-    <td rowspan="2">161002</td>
-    <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、dqOut、dkOut、dvOut 的数据类型不在支持的范围内。</td>
-  </tr>
-  <tr>
-    <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、dqOut、dkOut、dvOut 的数据格式不在支持的范围内。</td>
-  </tr>
-</tbody>
-</table>
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+  第一段接口完成入参校验，出现以下场景时报错：
+  <table style="undefined;table-layout: fixed;width: 1202px"><colgroup>
+  <col style="width: 262px">
+  <col style="width: 121px">
+  <col style="width: 819px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>返回码</th>
+      <th>错误码</th>
+      <th>描述</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
+      <td>161001</td>
+      <td>传入参数是必选输入，输出或者必选属性，且是空指针。</td>
+    </tr>
+    <tr>
+      <td rowspan="2">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="2">161002</td>
+      <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、dqOut、dkOut、dvOut 的数据类型不在支持的范围内。</td>
+    </tr>
+    <tr>
+      <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、dqOut、dkOut、dvOut 的数据格式不在支持的范围内。</td>
+    </tr>
+  </tbody>
+  </table>
 
 ## aclnnFlashAttentionUnpaddingScoreGradV2
 
 -   **参数说明：**
-  <table style="undefined;table-layout: fixed; width: 598px"><colgroup>
-  <col style="width: 144px">
-  <col style="width: 125px">
-  <col style="width: 700px">
-  </colgroup>
-  <thead>
-    <tr>
-      <th>参数名</th>
-      <th>输入/输出</th>
-      <th>描述</th>
-    </tr></thead>
-  <tbody>
-    <tr>
-      <td>workspace</td>
-      <td>输入</td>
-      <td>在Device侧申请的workspace内存地址。</td>
-    </tr>
-    <tr>
-      <td>workspaceSize</td>
-      <td>输入</td>
-      <td>在Device侧申请的workspace大小，由第一段接口aclnnFlashAttentionUnpaddingScoreGradV2GetWorkspaceSize获取。</td>
-    </tr>
-    <tr>
-      <td>executor</td>
-      <td>输入</td>
-      <td>op执行器，包含了算子计算流程。</td>
-    </tr>
-    <tr>
-      <td>stream</td>
-      <td>输入</td>
-      <td>指定执行任务的Stream。</td>
-    </tr>
-  </tbody>
-  </table>
+    <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
+    <col style="width: 153px">
+    <col style="width: 121px">
+    <col style="width: 880px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>参数名</th>
+        <th>输入/输出</th>
+        <th>描述</th>
+      </tr></thead>
+    <tbody>
+      <tr>
+        <td>workspace</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace内存地址。</td>
+      </tr>
+      <tr>
+        <td>workspaceSize</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace大小，由第一段接口aclnnFlashAttentionUnpaddingScoreGradV2GetWorkspaceSize获取。</td>
+      </tr>
+      <tr>
+        <td>executor</td>
+        <td>输入</td>
+        <td>op执行器，包含了算子计算流程。</td>
+      </tr>
+      <tr>
+        <td>stream</td>
+        <td>输入</td>
+        <td>指定执行任务的Stream。</td>
+      </tr>
+    </tbody>
+    </table>
 
 - **返回值：**
 
@@ -536,8 +538,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
 ## 约束说明
 
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
-- 输入query、key、value、dy的B：batchsize必须相等。
-- 输入query、key、value、dy的inputLayout必须一致。
+- 输入query、key、value、dy的B：batchsize必须相等；inputLayout必须一致。
 - 输入query、key、value的D：Head-Dim必须满足(qD == kD && kD >= vD)。
 - 输入query、key、value、pseShiftOptional的数据类型必须一致。
 - 输入key/value的shape除D外必须一致，在query/key/value的D大小相同的情况下，query/dy的shape必须一致。
@@ -555,12 +556,17 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     | 1           | 外部传入pse 先add再mul              | 跟[FlashAttentionUnpaddingScoreGrad](./aclnnFlashAttentionUnpaddingScoreGrad.md)实现一致。 |
     | 2           | 内部生成pse 先mul再add              | - |
     | 3           | 内部生成pse 先mul再add再sqrt         | - |
-- sparseMode: 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量；sparseMode配置为1、2、3、5时，用户配置的preTokens、nextTokens不会生效；sparseMode配置为0、4时，须保证attenMaskOptional与preTokens、nextTokens的范围一致。用户不特意指定时建议传入0。sparse不同模式的详细说明请参见[sparse模式说明](../../../docs/zh/context/sparse_mode参数说明.md)。
-- 不同数据格式详情请参见[数据格式](../../../docs/zh/context/数据格式.md)。
+- sparseMode的约束如下:
+  - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量；
+  - 配置为1、2、3、5时，用户配置的preTokens、nextTokens不会生效；
+  - 配置为0、4时，须保证attenMaskOptional与preTokens、nextTokens的范围一致。
+  - 用户不特意指定时建议传入0。
+  - sparse不同模式的详细说明请参见[sparse模式说明](../../../docs/zh/context/sparse_mode参数说明.md)。
+  - 配置为7时，不支持可选输入realShiftOptional。
+  - 配置为8时，当每个sequence的q、kv等长时支持可选输入realShiftOptional，针对全局做pse生成。支持q方向进行外切，需要外切前每个sequence的q、kv等长，外切后传入的actualSeqQLenOptional。
 - 部分场景下，如果计算量过大可能会导致算子执行超时(aicore error类型报错，errorStr为：timeout or trap error)，此时建议做轴切分处理，注：这里的计算量会受B、S、N、D等参数的影响，值越大计算量越大。
 - prefixOptional稀疏计算仅支持压缩场景，sparseMode=6，当Sq > Skv时，prefix的N值取值范围\[0, Skv\]，当Sq <= Skv时，prefix的N值取值范围\[Skv-Sq, Skv\]。
-- sparseMode=7时，不支持可选输入realShiftOptional。
-- sparseMode=8时，当每个sequence的q、kv等长时支持可选输入realShiftOptional，针对全局做pse生成。支持q方向进行外切，需要外切前每个sequence的q、kv等长，外切后传入的actualSeqQLenOptional[0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。
+[0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。
 - actualSeqQLenOptional输入支持某个Batch上的S长度为0，此时不支持可选输入pseShiftOptional。actualSeqQLenOptional的长度取值范围为1\~2K。当存在prefixOptional输入的时候，其长度最大支持1K。
 - 关于softmaxMax与softmaxSum参数的约束：输入格式固定为\[B, N, S, 8\]，TND的输入格式除外，此时为\[T, N, 8\]，注：T=B*S。
 - headNum的取值必须和传入的Query中的N值保持一致。

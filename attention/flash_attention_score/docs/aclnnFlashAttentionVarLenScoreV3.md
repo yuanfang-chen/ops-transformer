@@ -304,7 +304,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV3(
         <td>sparseMode</td>
         <td>输入</td>
         <td>表示sparse的模式。</td>
-        <td>支持配置值为0、1、2、3、4、5、6。</td>
+        <td>支持配置值为0、1、2、3、4、7、8。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
