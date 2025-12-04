@@ -271,11 +271,12 @@ static aclnnStatus isSupportMultiInput(const aclTensor *query, const aclTensor *
                 op::ToString(DataType(vDtype)).GetString());
         return ACLNN_ERR_PARAM_INVALID;
         }
+        if (sparseMode == 6) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Invalid input, do not support query_rope and key_rope when sparseMode is 6.");
+            return ACLNN_ERR_PARAM_INVALID;
+        }
     }
-    if (sparseMode == 6) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Invalid input, do not support query_rope and key_rope when sparseMode is 6.");
-        return ACLNN_ERR_PARAM_INVALID;
-    }
+
     if (queryRope != nullptr) {
         if (attenMaskOptional == nullptr ||
             attenMaskOptional->GetViewShape().GetDimNum() == 0) {
