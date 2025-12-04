@@ -750,6 +750,7 @@ mc2:
       module: True
       src:
         - mc2/all_gather_matmul
+        - mc2/all_gather_matmul_v2
         - mc2/common
         - mc2/3rd
       exclude:
@@ -759,10 +760,8 @@ mc2:
         - mc2/all_gather_matmul
       test:
         examples: False
-        ut: False
       options:
         - all_gather_matmul
-        - all_gather_matmul_v2
 
     all_gather_matmul_v2:
       module: True
@@ -922,6 +921,7 @@ mc2:
       module: True
       src:
         - mc2/matmul_reduce_scatter
+        - mc2/matmul_reduce_scatter_v2
         - mc2/common
         - mc2/3rd
       exclude:
