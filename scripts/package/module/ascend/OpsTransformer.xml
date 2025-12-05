@@ -25,11 +25,11 @@
             file_type="shared"
             install_softlink="$(TARGET_ENV)/lib64/libophost_transformer.so"/>
     </file_info>
-    <file_info value="rtkb" copy_type="source" src_path="" dst_path="built-in/data" install_path="ops_transformer/built-in/data">
+    <file_info value="rtkb" copy_type="source" src_path="" dst_path="built-in/data" install_path="opp/built-in/data">
         <file value="op" entity="true" optional="true"/>
     </file_info>
-    <dir_info value="opsTransformer" install_mod="555" install_type="all">
-        <path value="ops_transformer/built-in/data"/>
-        <path value="ops_transformer/built-in/data/op"/>
+    <dir_info value="rtkb_path" install_mod="750" install_type="all">
+        <path value="opp/built-in/data"/>
+        <path value="opp/built-in/data/op"/>
     </dir_info>
 </block>
