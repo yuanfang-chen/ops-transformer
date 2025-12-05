@@ -869,18 +869,37 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     LocalTensor<INPUT_T> mm2AL1Tensor = outputBuf.GetTensor<INPUT_T>();
     if (likely(runInfo.halfS1RealSize != 0)) {
         if constexpr (IsSameType<INPUT_T, float>::value) {
-            DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlockFp32], stage1CastTensor,
+            if constexpr (isMlaFullQuant) {
+                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlockFp32], stage1CastTensor,
                     {16, (uint16_t)runInfo.halfS1RealSize, (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
                     (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+            } else {
+                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (blockBytes / sizeof(INPUT_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
+                    {16, (uint16_t)runInfo.halfS1RealSize, (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
+                    (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+            }
         } else if constexpr (isFp8) {
-            DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlockFp8], stage1CastTensor,
+            if constexpr (isMlaFullQuant) {
+                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlockFp8], stage1CastTensor,
                     {s2BaseSize / 32, (uint16_t)runInfo.halfS1RealSize, (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
                     (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+            } else {
+                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (blockBytes / sizeof(INPUT_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
+                    {s2BaseSize / 32, (uint16_t)runInfo.halfS1RealSize, (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
+                    (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+            }
         } else {
-            DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlock], stage1CastTensor,
+            if constexpr (isMlaFullQuant) {
+                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * vec1ScmBlock], stage1CastTensor,
                     {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
                     (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
                     (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+            } else {
+                DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (blockBytes / sizeof(INPUT_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
+                    {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
+                    (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
+                    (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+            }
         }
     }
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
@@ -1067,7 +1086,11 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2DSplit(
         SetFlag<HardEvent::V_MTE2>(vToMte2);
         WaitFlag<HardEvent::V_MTE2>(vToMte2);
         if (constInfo.dSizeV == dTemplateAlign64) {
-            DataCopy(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset], vec2CalcSize);
+            if constexpr (useDn || isMlaFullQuant) {
+                DataCopy(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset], vec2CalcSize);
+            } else {
+                DataCopy(bmm2Ub, mmRes[constInfo.subBlockIdx * (runInfo.s1RealSize - runInfo.halfS1RealSize) * (int64_t)dVTemplateType + mm2ResInnerOffset], vec2CalcSize);
+            }
         } else {
             DataCopyParams dataCopyParams;
             DataCopyPadParams dataCopyPadParams;
@@ -1075,8 +1098,13 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2DSplit(
             dataCopyParams.dstStride = (constInfo.dBasicBlock - constInfo.dSizeV) * sizeof(T) / blockBytes;
             dataCopyParams.srcStride = (dTemplateAlign64 - constInfo.dSizeV) * sizeof(T);
             dataCopyParams.blockLen = constInfo.dSizeV * sizeof(T);
-            DataCopyPad(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset],
+            if constexpr (useDn || isMlaFullQuant) {
+                DataCopyPad(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset],
                         dataCopyParams, dataCopyPadParams);
+            } else {
+                DataCopyPad(bmm2Ub, mmRes[constInfo.subBlockIdx * (runInfo.s1RealSize - runInfo.halfS1RealSize) * (int64_t)dVTemplateType + mm2ResInnerOffset],
+                        dataCopyParams, dataCopyPadParams);
+            }
         }
 
         // 经过了跳读，UB上每行是按照dTemplateAlign64对齐的
@@ -1084,7 +1112,11 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2DSplit(
         if (vec2LoopLimit > 1) {
             SetFlag<HardEvent::MTE3_MTE2>(mte3ToMte2);
             WaitFlag<HardEvent::MTE3_MTE2>(mte3ToMte2);
-            DataCopy(vec2ResUb, this->vec2ResGm[runInfo.multiCoreIdxMod3][vec2SubBlockOffset + vec2ResInnerOffset], vec2CalcSize);
+            if constexpr (useDn || isMlaFullQuant) {
+                DataCopy(vec2ResUb, this->vec2ResGm[runInfo.multiCoreIdxMod3][vec2SubBlockOffset + vec2ResInnerOffset], vec2CalcSize);
+            } else {
+                DataCopy(vec2ResUb, this->vec2ResGm[runInfo.multiCoreIdxMod3][constInfo.subBlockIdx * (runInfo.s1RealSize - runInfo.halfS1RealSize) * constInfo.dBasicBlock + vec2ResInnerOffset], vec2CalcSize);
+            }
         }
         SetFlag<HardEvent::MTE2_V>(mte2ToV);
         WaitFlag<HardEvent::MTE2_V>(mte2ToV);
@@ -1147,7 +1179,11 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2DSplit(
         } else if (vec2LoopLimit > 1) {
             SetFlag<HardEvent::V_MTE3>(vToMte3Id[0]);
             WaitFlag<HardEvent::V_MTE3>(vToMte3Id[0]);
-            DataCopy(this->vec2ResGm[runInfo.multiCoreIdxMod3][vec2SubBlockOffset + vec2ResInnerOffset], vec2ResUb, vec2CalcSize);
+            if constexpr (useDn || isMlaFullQuant) {
+                DataCopy(this->vec2ResGm[runInfo.multiCoreIdxMod3][vec2SubBlockOffset + vec2ResInnerOffset], vec2ResUb, vec2CalcSize);
+            } else {
+                DataCopy(this->vec2ResGm[runInfo.multiCoreIdxMod3][constInfo.subBlockIdx * (runInfo.s1RealSize - runInfo.halfS1RealSize) * constInfo.dBasicBlock + vec2ResInnerOffset], vec2ResUb, vec2CalcSize);
+            }   
         }
     }
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
@@ -1197,7 +1233,11 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2(
             SetFlag<HardEvent::V_MTE2>(vToMte2);
             WaitFlag<HardEvent::V_MTE2>(vToMte2);
             if (constInfo.dSizeV == dTemplateAlign64) {
-                DataCopy(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset], vec2CalcSize);
+                if constexpr (useDn || isMlaFullQuant) {
+                    DataCopy(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset], vec2CalcSize);
+                } else {
+                    DataCopy(bmm2Ub, mmRes[constInfo.subBlockIdx * (runInfo.s1RealSize - runInfo.halfS1RealSize) * constInfo.dSizeV + mm2ResInnerOffset], vec2CalcSize);
+                }
             } else {
                 DataCopyParams dataCopyParams;
                 DataCopyPadParams dataCopyPadParams;
@@ -1205,8 +1245,13 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2(
                 dataCopyParams.dstStride = (dTemplateAlign64 - constInfo.dSizeV) * sizeof(T) / blockBytes;
                 dataCopyParams.srcStride = 0;
                 dataCopyParams.blockLen = constInfo.dSizeV * sizeof(T);
-                DataCopyPad(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset],
+                if constexpr (useDn || isMlaFullQuant) {
+                    DataCopyPad(bmm2Ub, mmRes[bmm2SubBlockOffset + mm2ResInnerOffset],
                             dataCopyParams, dataCopyPadParams);
+                } else {
+                    DataCopyPad(bmm2Ub, mmRes[constInfo.subBlockIdx * (runInfo.s1RealSize - runInfo.halfS1RealSize) * constInfo.dSizeV + mm2ResInnerOffset],
+                            dataCopyParams, dataCopyPadParams);
+                }
             }
             SetFlag<HardEvent::MTE2_V>(mte2ToV);
             WaitFlag<HardEvent::MTE2_V>(mte2ToV);

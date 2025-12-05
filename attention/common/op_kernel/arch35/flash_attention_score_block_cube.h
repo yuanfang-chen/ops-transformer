@@ -620,6 +620,9 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos
                           useDn,    // isLeftTranspose
                           false     // isRightTranspose
                         };
+        if constexpr (!useDn) {
+            param.realM = (uint32_t)runInfo.s1RealSize;
+        }
         mm2B.Wait<HardEvent::MTE2_MTE1>(); // 等待
         MatmulFull<INPUT_T, INPUT_T, T, 128, baseN, 128, ABLayout::MK, ABLayout::KN>(
             mm2A.GetTensor<INPUT_T>(),
@@ -641,6 +644,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos
         }
         fixpipeParams.mSize = s1BaseSize; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小; 同mmadParams.m
         fixpipeParams.srcStride = ((s1BaseSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
+        if constexpr (!useDn) {
+            fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
+            fixpipeParams.srcStride = ((fixpipeParams.mSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
+        }
         if constexpr (bmm2Write2Ub || splitD) {
             fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
         } else {
@@ -722,6 +729,9 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                             useDn,    // isLeftTranspose
                             false     // isRightTranspose
                             };
+            if constexpr (!useDn) {
+                param.realM = (uint32_t)runInfo.s1RealSize;
+            }
             mm2B.Wait<HardEvent::MTE2_MTE1>(); // 等待
             if constexpr (isFp8) {
     #if (__NPU_ARCH__ == 5102)
@@ -813,6 +823,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
 
             fixpipeParams.mSize = s1BaseSize; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小; 同mmadParams.m
             fixpipeParams.srcStride = ((s1BaseSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
+            if constexpr (!useDn) {
+                fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
+                fixpipeParams.srcStride = ((fixpipeParams.mSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
+            }
             if constexpr (bmm2Write2Ub) {
                 fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
             } else {
