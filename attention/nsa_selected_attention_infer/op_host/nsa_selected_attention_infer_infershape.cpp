@@ -89,6 +89,6 @@
      return ge::GRAPH_SUCCESS;
  }
  
- IMPL_OP(NsaSelectedAttentionInfer).InferShape(InferShapeNsaSelectAttentionInfer).InferDataType(InferDataTypeNsaSelectAttentionInfer);
+IMPL_OP_INFERSHAPE(NsaSelectedAttentionInfer).InferShape(InferShapeNsaSelectAttentionInfer).InferDataType(InferDataTypeNsaSelectAttentionInfer);
  } // namespace ops
   
