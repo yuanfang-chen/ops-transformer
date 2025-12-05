@@ -40,6 +40,14 @@ namespace optiling
 const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64};
 constexpr uint64_t BLOCK_SIZE_INDEX = 6;
 
+static const std::initializer_list<ge::DataType> FP8_DTYPE_SUPPORT_LIST = {
+    ge::DataType::DT_FLOAT8_E4M3FN, ge::DataType::DT_FLOAT8_E5M2, ge::DataType::DT_HIFLOAT8};
+
+static bool CheckSupportDtype(const ge::DataType x1DataType, const std::initializer_list<ge::DataType> &supportTypes)
+{
+    return std::find(supportTypes.begin(), supportTypes.end(), x1DataType) != supportTypes.end();
+}
+
 bool AllGatherMatmulTilingBase::CheckInputParaEmptyPointer()
 {
     const gert::StorageShape* x1Shape = context_->GetInputShape(INPUT_X1);
@@ -124,11 +132,13 @@ bool AllGatherMatmulTilingBase::CheckInputParaArraySize()
     int64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(0);
     int64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
 
-    OP_TILING_CHECK(
-        (x1Dim0 == 0) || (x1Dim1 == 0) || (x2Dim0 == 0) || (x2Dim1 == 0),
-        VECTOR_INNER_ERR_REPORT_TILING(opName_, "the value is invalid. x1Dim0 %ld, x1Dim1 %ld, x2Dim0 %ld, x2Dim1 %ld",
-                                        x1Dim0, x1Dim1, x2Dim0, x2Dim1),
-        return false);
+    if (CheckSupportDtype(context_->GetInputDesc(INPUT_X1)->GetDataType(), FP8_DTYPE_SUPPORT_LIST)) {
+        OP_TILING_CHECK(
+            (x1Dim0 == 0) || (x1Dim1 == 0) || (x2Dim0 == 0) || (x2Dim1 == 0),
+            VECTOR_INNER_ERR_REPORT_TILING(opName_, "the value is invalid. x1Dim0 %ld, x1Dim1 %ld, x2Dim0 %ld, x2Dim1 %ld",
+                                            x1Dim0, x1Dim1, x2Dim0, x2Dim1),
+            return false);
+    }
 
     OP_TILING_CHECK(
         (x1Dim1 < KVALUE_MIN) || (x1Dim1 >= KVALUE_MAX),

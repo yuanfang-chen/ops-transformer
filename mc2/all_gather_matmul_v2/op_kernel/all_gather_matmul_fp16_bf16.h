@@ -99,7 +99,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
         workspaceGM_ += cfg.gatherLen;
     }
 
-    // 只有在0核的时候通知即可
+    // 全核通信
     if ASCEND_IS_AIC {
         if (debugMode_ != MC2_DEBUG_ONLY_CUBE) {
             notifyFlag_ = true;
@@ -120,7 +120,12 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::S
         uint32_t tilingM = tilingData_->mc2MmV3TileTilingData.tCubeTiling.M / (cfg.rankDim - 1);
         uint32_t tilingka = tilingData_->mc2MmV3TileTilingData.tCubeTiling.Ka;
         uint32_t tailM = tilingData_->mc2MmV3TailTilingData.tCubeTiling.M / (cfg.rankDim - 1);
-
+        // 当x2为空tensor时只做通信
+        if (cfg.rankN == 0) {
+            tileCnt = 1;
+            tailCnt = 0;
+            tilingka = cfg.rankK;
+        }
         uint64_t tileSendCount = static_cast<uint64_t>(tilingM) * static_cast<uint64_t>(tilingka);
         uint64_t tailSendCount = static_cast<uint64_t>(tailM) * static_cast<uint64_t>(tilingka);
         uint64_t stride = (tileSendCount * static_cast<uint64_t>(tileCnt) + tailSendCount * static_cast<uint64_t>(tailCnt));
@@ -199,10 +204,12 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
     using C_T = typename CType::T;
     cLocalGM += (uint64_t)rankId_ * (uint64_t)cfg.rankM * (uint64_t)tiling.tCubeTiling.N * sizeof(C_T);
 
-    Mc2MatmulV3Advanced::Mc2MatmulAswKernel<AType, BType, CType, BiasType> mmv3;
-    mmv3.Init(aLocalGM, bGM_, cLocalGM, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr());
-    mmv3.Process();
-    mmv3.End();
+    if (cfg.rankN != 0) {
+        Mc2MatmulV3Advanced::Mc2MatmulAswKernel<AType, BType, CType, BiasType> mmv3;
+        mmv3.Init(aLocalGM, bGM_, cLocalGM, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr());
+        mmv3.Process();
+        mmv3.End();
+    }
 }
 
 template <typename AType, typename BType, typename BiasType, typename CType>
@@ -242,7 +249,7 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::M
     auto&& cfg = tilingData_->param;
     cfg.rankID = rankId_;
     uint32_t shift = isTail ? cfg.tileCnt : 0;
-    if (GetBlockIdx() >= tiling.tCubeTiling.usedCoreNum) {
+    if ((GetBlockIdx() >= tiling.tCubeTiling.usedCoreNum) || (cfg.rankN == 0)) {
         for (uint32_t i = 0; i < count; i++) {
             if (debugMode_ != MC2_DEBUG_ONLY_CUBE) {
                 hccl_.Wait(hHandles_[i + shift]);

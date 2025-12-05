@@ -405,6 +405,23 @@ static const aclTensor *TransX2Tensor(const aclTensor *x2)
                           storageDimsNum, x2->GetTensor()->GetAddr());
 }
 
+static bool checkInputEmptyTensor(const aclTensor *x1, const aclTensor *x2) {
+  if (CheckSupportDtype(x1, FP8_DTYPE_SUPPORT_LIST)) {
+    CHECK_RET(DealEmptyTensor(x1, x2), ACLNN_ERR_PARAM_INVALID);
+  } else {
+    const auto kValX1 = x1->GetViewShape().GetDim(1);
+    if (kValX1 != 0) {
+      if (x1->IsEmpty()) {
+        return true;
+      }
+    } else {
+      OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+            "Does not support the case where x1 and x2 are empty tensors when k is 0.");
+    }
+  }
+  return false;
+}
+
 aclnnStatus allGatherMatmulV2GetWorkspaceSizeCCUMode(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
                                                    const aclTensor* x1Scale, const aclTensor* x2Scale,
                                                    const aclTensor* quantScale, int64_t blockSize, const char* group,
@@ -417,13 +434,8 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeCCUMode(const aclTensor* x1, const 
   auto retParam = CheckParams(x1, x2, bias, streamMode, output);
   CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
   // bf16/fp16 处理空tensor 如果x1不为空 x2为空 需要进行gatherOut
-  if (CheckSupportDtype(x1, FP8_DTYPE_SUPPORT_LIST)) {
-     CHECK_RET(DealEmptyTensor(x1, x2), ACLNN_ERR_PARAM_INVALID);
-  } else {
-    if (x1->IsEmpty()) {
-      return DealWithX1Empty(workspaceSize, executor);
-    }
-  }
+  if (checkInputEmptyTensor(x1, x2))
+    return DealWithX1Empty(workspaceSize, executor);
 
   OP_LOGD("X1 is %s.", x1->ToString().GetString());
   OP_LOGD("X2 is %s.", x2->ToString().GetString());

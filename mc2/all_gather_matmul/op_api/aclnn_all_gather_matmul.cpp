@@ -193,12 +193,6 @@ aclnnStatus aclnnAllGatherMatmulGetWorkspaceSize(const aclTensor *x1, const aclT
                                                  int64_t streamMode, const aclTensor *output,
                                                  const aclTensor *gatherOut,
                                                  uint64_t *workspaceSize, aclOpExecutor **executor) {
-  if (IsAscend910A5()) {
-    const char *commMode = "ccu";
-    return aclnnAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, nullptr, nullptr, nullptr, 0, group, gatherIndex,
-                                                  commTurn, streamMode, 0, commMode, const_cast<aclTensor *>(output),
-                                                  const_cast<aclTensor *>(gatherOut), nullptr, workspaceSize, executor);
-  }
   uint64_t timeStamp = NnopbaseMsprofSysTime();
   auto retParam = CheckParams(x1, x2, bias, streamMode, output);
   CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
@@ -221,6 +215,12 @@ aclnnStatus aclnnAllGatherMatmulGetWorkspaceSize(const aclTensor *x1, const aclT
   OP_LOGD("AllGatherMatmul, aclnnInnerGetWorkspaceSize ret = %d.", ret);
   static NnopbaseDfxId dfxId = {0x60000, __func__, false};
   NnopbaseReportApiInfo(timeStamp, dfxId);
+  if (IsAscend910A5()) {
+    const char *commMode = "ccu";
+    return aclnnAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, nullptr, nullptr, nullptr, 0, group, gatherIndex,
+                                                  commTurn, streamMode, 0, commMode, const_cast<aclTensor *>(output),
+                                                  const_cast<aclTensor *>(gatherOut), nullptr, workspaceSize, executor);
+  }
   return ret;
 }
 

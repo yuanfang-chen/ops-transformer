@@ -186,12 +186,6 @@ aclnnStatus aclnnMatmulReduceScatterGetWorkspaceSize(const aclTensor *x1, const 
                                                  const char *group, const char *reduce_op, int64_t commTurn,
                                                  int64_t streamMode, const aclTensor *output,
                                                  uint64_t *workspaceSize, aclOpExecutor **executor) {
-  if (IsAscend910A5()) {
-    const char *commMode = "ccu";
-    return aclnnMatmulReduceScatterV2GetWorkspaceSize(x1, x2, bias, nullptr, nullptr, nullptr, 0, group, reduce_op,
-                                                      commTurn, streamMode, 0, commMode, const_cast<aclTensor *>(output),
-                                                      nullptr, workspaceSize, executor);
-  }
   uint64_t timeStamp = NnopbaseMsprofSysTime();
   // 固定写法，参数检查
   auto retParam = CheckParams(x1, x2, bias, streamMode, output);
@@ -220,6 +214,12 @@ aclnnStatus aclnnMatmulReduceScatterGetWorkspaceSize(const aclTensor *x1, const 
   OP_LOGD("MatmulReduceScatter, aclnnnGetWorkspaceSize ret %d.", ret);
   static NnopbaseDfxId dfxId = {0x60000, __func__, false};
   NnopbaseReportApiInfo(timeStamp, dfxId);
+  if (IsAscend910A5()) {
+    const char *commMode = "ccu";
+    return aclnnMatmulReduceScatterV2GetWorkspaceSize(x1, x2, bias, nullptr, nullptr, nullptr, 0, group, reduce_op,
+                                                      commTurn, streamMode, 0, commMode, const_cast<aclTensor *>(output),
+                                                      nullptr, workspaceSize, executor);
+  }
   return ret;
 }
 
