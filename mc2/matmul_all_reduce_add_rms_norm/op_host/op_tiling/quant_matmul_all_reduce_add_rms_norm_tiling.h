@@ -21,8 +21,8 @@
 namespace optiling {
 BEGIN_TILING_DATA_DEF(QuantMatmulAllReduceAddRmsNormTilingData)
 TILING_DATA_FIELD_DEF_STRUCT(QuantMatmulAllReduceTilingData, qunatMatmulAllReduceTilingData);
-TILING_DATA_FIELD_DEF_STRUCT(AddRMSNormTilingData, addRMSNormTileTilingData);
-TILING_DATA_FIELD_DEF_STRUCT(AddRMSNormTilingData, addRMSNormTailTilingData);
+TILING_DATA_FIELD_DEF_STRUCT(MC2AddRMSNormTilingData, addRMSNormTileTilingData);
+TILING_DATA_FIELD_DEF_STRUCT(MC2AddRMSNormTilingData, addRMSNormTailTilingData);
 TILING_DATA_FIELD_DEF_STRUCT(AddRMSNormTilingeKeyData, addRmsNormTilingeKeyData);
 END_TILING_DATA_DEF;
 

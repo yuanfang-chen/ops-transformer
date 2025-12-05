@@ -54,10 +54,10 @@ struct TilingOut {
     uint32_t blockDim;
 };
 struct AddRMSNormTilingOutput {
-    AddRMSNormTilingData& addRmsNormTilingData;
+    MC2AddRMSNormTilingData& addRmsNormTilingData;
     TilingOut& tilingOut;
 };
-REGISTER_TILING_DATA_CLASS(AddRMSNormTilingDataOp, AddRMSNormTilingData)
+REGISTER_TILING_DATA_CLASS(AddRMSNormTilingDataOp, MC2AddRMSNormTilingData)
 BEGIN_TILING_DATA_DEF(AddRMSNormTilingeKeyData)
 TILING_DATA_FIELD_DEF(uint32_t, ARNKeyTile);
 TILING_DATA_FIELD_DEF(uint32_t, ARNKeyTail);

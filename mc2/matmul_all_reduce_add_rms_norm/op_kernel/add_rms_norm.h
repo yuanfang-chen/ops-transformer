@@ -24,7 +24,7 @@ class KernelAddRmsNorm
 public:
     __aicore__ inline KernelAddRmsNorm()
     {}
-    __aicore__ inline void Init(GM_ADDR gamma, AddRMSNormTilingData& tilingData, TPipe* Ppipe, uint32_t blockDim)
+    __aicore__ inline void Init(GM_ADDR gamma, MC2AddRMSNormTilingData& tilingData, TPipe* Ppipe, uint32_t blockDim)
     {
         ASSERT(blockDim != 0 && "Block dim can not be zero!");
         this->blockDim = blockDim;
@@ -70,7 +70,7 @@ public:
     }
 
     __aicore__ inline void ComputeProcess(
-        GM_ADDR normOut, GM_ADDR residual, GM_ADDR y, AddRMSNormTilingData& tilingData, uint32_t addRmsNormCount,
+        GM_ADDR normOut, GM_ADDR residual, GM_ADDR y, MC2AddRMSNormTilingData& tilingData, uint32_t addRmsNormCount,
         uint32_t rcvCnt)
     {
         auto x1Addr = normOut;

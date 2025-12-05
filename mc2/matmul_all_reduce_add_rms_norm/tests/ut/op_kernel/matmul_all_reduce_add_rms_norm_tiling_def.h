@@ -37,7 +37,7 @@
 
 #pragma pack(1)
 
-struct AddRMSNormTilingData {
+struct MC2AddRMSNormTilingData {
     uint32_t num_row;
     uint32_t num_col;
     uint32_t block_factor;
@@ -57,8 +57,8 @@ struct AddRMSNormTilingData {
     CONVERT_TILING_DATA(tilingStruct, tilingDataPointer, tilingPointer);
 
 #define GET_TILING_DATA(tilingData, tilingPointer)                            \
-    AddRMSNormTilingData tilingData;                                               \
-    INIT_TILING_DATA(AddRMSNormTilingData, tilingDataPointer, tilingPointer);  \
+    MC2AddRMSNormTilingData tilingData;                                               \
+    INIT_TILING_DATA(MC2AddRMSNormTilingData, tilingDataPointer, tilingPointer);  \
     (tilingData).num_row = tilingDataPointer->num_row;                              \
     (tilingData).num_col = tilingDataPointer->num_col;                          \
     (tilingData).block_factor = tilingDataPointer->block_factor;                  \
@@ -213,8 +213,8 @@ struct AddRMSNormTilingeKeyData
 struct MatmulAllReduceAddRmsNormTilingData
 {
     MatmulAllReduceTilingData matmulAllReduceTilingData;
-    AddRMSNormTilingData addRMSNormTileTilingData;
-    AddRMSNormTilingData addRMSNormTailTilingData;
+    MC2AddRMSNormTilingData addRMSNormTileTilingData;
+    MC2AddRMSNormTilingData addRMSNormTailTilingData;
     AddRMSNormTilingeKeyData addRmsNormTilingeKeyData;
 };
 

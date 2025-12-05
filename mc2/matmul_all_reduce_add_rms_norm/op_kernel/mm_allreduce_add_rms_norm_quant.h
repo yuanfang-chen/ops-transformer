@@ -63,8 +63,8 @@ public:
 
 private:
     AddRMSNormTilingeKeyData* arnTilineKey_;
-    AddRMSNormTilingData* arnTile_;
-    AddRMSNormTilingData* arnTail_;
+    MC2AddRMSNormTilingData* arnTile_;
+    MC2AddRMSNormTilingData* arnTail_;
 };
 
 #define REG_MM_OBJ_FOR_ARN(opTile, opTail)                                                     \

@@ -25,7 +25,7 @@ class KernelAddRmsNormMergeN
 public:
     __aicore__ inline KernelAddRmsNormMergeN()
     {}
-    __aicore__ inline void Init(GM_ADDR gammaGM, AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t blockDim)
+    __aicore__ inline void Init(GM_ADDR gammaGM, MC2AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t blockDim)
     {
         ASSERT(blockDim != 0 && "Block dim can not be zero!");
         this->blockDim_ = blockDim;
@@ -61,7 +61,7 @@ public:
     }
 
     __aicore__ inline void ComputeProcess(
-        GM_ADDR normOutGM, GM_ADDR residualGM, GM_ADDR yGM, AddRMSNormTilingData& tilingData, uint32_t addRmsNormCount,
+        GM_ADDR normOutGM, GM_ADDR residualGM, GM_ADDR yGM, MC2AddRMSNormTilingData& tilingData, uint32_t addRmsNormCount,
         uint32_t rcvCnt)
     {
         uint64_t cOffset = CalcShapeOffset(sizeof(T), tilingData.num_row, tilingData.num_col); // 偏移*size

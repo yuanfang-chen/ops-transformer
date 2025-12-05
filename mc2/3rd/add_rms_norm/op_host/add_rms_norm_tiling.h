@@ -19,7 +19,7 @@
 #include "tiling/platform/platform_ascendc.h"
 
 namespace optiling {
-    BEGIN_TILING_DATA_DEF(AddRMSNormTilingData)
+    BEGIN_TILING_DATA_DEF(MC2AddRMSNormTilingData)
     TILING_DATA_FIELD_DEF(uint32_t, num_row);
     TILING_DATA_FIELD_DEF(uint32_t, num_col);
     TILING_DATA_FIELD_DEF(uint32_t, block_factor);
@@ -51,8 +51,8 @@ namespace optiling {
         platform_ascendc::SocVersion socVersion = platform_ascendc::SocVersion::ASCEND910_95;
     };
 
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm, AddRMSNormTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm, AddRMSNormTilingData)
+    REGISTER_TILING_DATA_CLASS(AddRmsNorm, MC2AddRMSNormTilingData)
+    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm, MC2AddRMSNormTilingData)
 
     REGISTER_TILING_DATA_CLASS(AddRmsNorm_1, AddRMSNormRegbaseTilingData)
     REGISTER_TILING_DATA_CLASS(AddRmsNorm_2, AddRMSNormRegbaseTilingData)

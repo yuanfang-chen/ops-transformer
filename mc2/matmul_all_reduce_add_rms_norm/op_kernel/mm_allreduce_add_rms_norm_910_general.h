@@ -76,8 +76,8 @@ public:
 
 private:
     AddRMSNormTilingeKeyData* arnTilineKey_;
-    AddRMSNormTilingData* arnTile_;
-    AddRMSNormTilingData* arnTail_;
+    MC2AddRMSNormTilingData* arnTile_;
+    MC2AddRMSNormTilingData* arnTail_;
 };
 
 #define INVOKE_MC2_ARN_910_OP_IMPL_HELPER(opTemplateClass, bTransFlag)                                     \

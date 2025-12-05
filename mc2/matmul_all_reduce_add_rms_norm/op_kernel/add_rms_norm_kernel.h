@@ -50,7 +50,7 @@ public:
     {}
 
     __aicore__ inline void ComputeAddRmsNorm(
-        AddRMSNormTilingData& addRMSNormTileTilingData, AddRMSNormTilingData& addRMSNormTailTilingData,
+        MC2AddRMSNormTilingData& addRMSNormTileTilingData, MC2AddRMSNormTilingData& addRMSNormTailTilingData,
         AddRMSNormTilingeKeyData& addRmsNormTilingeKeyData, GM_ADDR rcvCntGM)
     {
         uint32_t lastCnt = 0;
@@ -106,7 +106,7 @@ private:
     } while (0)
 
     __aicore__ inline void AddRmsNorm(
-        AddRMSNormTilingData& rmsTilingData, uint32_t keyTile, uint32_t blockDim, uint32_t rcvCnt,
+        MC2AddRMSNormTilingData& rmsTilingData, uint32_t keyTile, uint32_t blockDim, uint32_t rcvCnt,
         uint32_t addRmsNormCount)
     {
         if (GetBlockIdx() >= blockDim) {
@@ -136,7 +136,7 @@ private:
     }
 
     __aicore__ inline void ComputeAddRmsNormInner(
-        AddRMSNormTilingData& addRMSNormTilingData, uint32_t ARNKey, uint32_t ARNBlockDim, uint32_t rcvCnt,
+        MC2AddRMSNormTilingData& addRMSNormTilingData, uint32_t ARNKey, uint32_t ARNBlockDim, uint32_t rcvCnt,
         uint32_t& addRmsNormCount)
     {
         uint64_t offset = CalcShapeOffset(dataSize_, addRMSNormTilingData.num_row, addRMSNormTilingData.num_col);
