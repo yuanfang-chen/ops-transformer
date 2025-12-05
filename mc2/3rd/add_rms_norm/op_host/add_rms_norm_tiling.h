@@ -29,7 +29,7 @@ namespace optiling {
     TILING_DATA_FIELD_DEF(float, avg_factor);
     END_TILING_DATA_DEF;
 
-    BEGIN_TILING_DATA_DEF(AddRMSNormRegbaseTilingData)
+    BEGIN_TILING_DATA_DEF(MC2AddRMSNormRegbaseTilingData)
     TILING_DATA_FIELD_DEF(uint32_t, numRow);
     TILING_DATA_FIELD_DEF(uint32_t, numCol);
     TILING_DATA_FIELD_DEF(uint32_t, numColAlign);
@@ -51,21 +51,6 @@ namespace optiling {
         platform_ascendc::SocVersion socVersion = platform_ascendc::SocVersion::ASCEND910_95;
     };
 
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm, MC2AddRMSNormTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm, MC2AddRMSNormTilingData)
-
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm_1, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm_2, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm_3, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm_1001, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm_1002, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(AddRmsNorm_1003, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm_1, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm_2, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm_3, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm_1001, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm_1002, AddRMSNormRegbaseTilingData)
-    REGISTER_TILING_DATA_CLASS(InplaceAddRmsNorm_1003, AddRMSNormRegbaseTilingData)
     }  // namespace optiling
 
 #endif  // OPS_BUILT_IN_OP_TILING_RUNTIME_ADD_RMS_NORM_H_
