@@ -1111,6 +1111,8 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::VectorLoss(SLIGradKLLossRun
             reduceSumYResTmpUb = reduceSumYResTmpUb[kLoopOffset + coreOffset];
         }
         PipeBarrier<PIPE_V>();
+        AscendC::Maxs<T>(reduceSumPTmpUb, reduceSumPTmpUb, MIN_VALUE, calcSize);
+        PipeBarrier<PIPE_V>();
         AscendC::Maxs<T>(reduceSumYResTmpUb, reduceSumYResTmpUb, MIN_VALUE, calcSize);
         PipeBarrier<PIPE_V>();
         
