@@ -313,13 +313,13 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::Init(
     epRankId_ = tilingData->moeDistributeDispatchV2Info.epRankId;
     epRankIdOriginal_ = tilingData->moeDistributeDispatchV2Info.epRankId;
     winContext_[COMM_EP_IDX] = (__gm__ HcclOpParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
-    winContext_[COMM_TP_IDX] = (__gm__ HcclOpParam*)AscendC::GetHcclContext<1>();  // 没有相关公共宏
 
     // 检查hcclwinsize是否越界
     totalWinSizeEp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeEp);
     totalWinSizeTp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeTp);
     CheckWindowSize(totalWinSizeEp_, GetWinSize(winContext_[COMM_EP_IDX]), tpipe_, expandXOut);
     if constexpr (IsNeedAllgather) {
+        winContext_[COMM_TP_IDX] = (__gm__ HcclOpParam*)AscendC::GetHcclContext<1>();  // 没有相关公共宏
         CheckWindowSize(totalWinSizeTp_, winContext_[COMM_TP_IDX]->winSize, tpipe_, expandXOut);
     }
 
