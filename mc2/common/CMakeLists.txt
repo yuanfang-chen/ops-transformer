@@ -53,10 +53,7 @@ if(BUILD_OPEN_PROJECT)
       add_infer_modules()
       target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${OPPROTO_SRCS})
     endif()
-    file(GLOB OPAPI_SRC
-      src/mc2_hcom_topo_info.cpp
-      src/mc2_common_infershape.cpp
-    )
+    file(GLOB OPAPI_SRC)
     if(OPAPI_SRC)
       add_opapi_modules()
       target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OPAPI_SRC})
