@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
     const char* rankTableFile = getenv("RANK_TABLE_FILE");
     CHECK_RET(rankTableFile != nullptr, LOG_PRINT("[ERROR] get rankTableFile failed.\n");
               return -1);
-    ret = HcclCommInitClusterInfoConfig(rankTableFile.c_str(), g_rankId, &config, &comms);
+    ret = HcclCommInitClusterInfoConfig(rankTableFile, g_rankId, &config, &comms);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitClusterInfoConfig failed. ret = %d \n", ret);
               return ret);
 

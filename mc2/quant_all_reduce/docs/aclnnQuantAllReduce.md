@@ -242,8 +242,11 @@ aclnnStatus aclnnQuantAllReduce(
     #include <thread>
     #include <iostream>
     #include <vector>
+    #include <string>
+    #include <cstring>
     #include <getopt.h>
-    #include "../op_api/aclnn_quant_all_reduce.h"
+    #include "aclnnop/aclnn_quant_all_reduce.h"
+    using namespace std;
 
     #define CHECK_RET(cond, return_expr) \
         do {                             \
@@ -258,9 +261,9 @@ aclnnStatus aclnnQuantAllReduce(
         } while (0)
 
     constexpr int DEV_NUM = 2; // 设备数量
-    constexpr int INTERNAL_LEN = 10;
-    int g_rankId = 0;
+    int rankId = 0;
     int streamWithTimeout = 10000;
+    int64_t g_hcclBufferSize = 200;
     void GetOption(int argc, char **argv)
     {
         while (true) {
@@ -276,8 +279,8 @@ aclnnStatus aclnnQuantAllReduce(
 
             switch (c) {
                 case 'a':
-                    g_rankId = atoi(optarg);
-                    LOG_PRINT("[INFO] rankId = %d\n", g_rankId);
+                    rankId = atoi(optarg);
+                    LOG_PRINT("[INFO] rankId = %d\n", rankId);
                 default:
                     break;
             }
@@ -300,10 +303,10 @@ aclnnStatus aclnnQuantAllReduce(
         auto size = GetShapeSize(shape) * sizeof(T);
         auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc failed. ret: %d\n", ret);
-                  return ret);
+                return ret);
         ret = aclrtMemcpy(*deviceAddr, size, hostData.data(), size, ACL_MEMCPY_HOST_TO_DEVICE);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMemcpy failed. ret: %d\n", ret);
-                  return ret);
+                return ret);
         std::vector<int64_t> strides(shape.size(), 1);
         for (int64_t i = shape.size() - 2; i >= 0; i--) {
             strides[i] = shape[i +1] * strides[i + 1];
@@ -314,7 +317,7 @@ aclnnStatus aclnnQuantAllReduce(
     }
 
     struct Args {
-        int rankId;
+        uint32_t rankId;
         HcclComm hcclComm;
         aclrtStream stream;
         aclrtContext context;
@@ -324,11 +327,11 @@ aclnnStatus aclnnQuantAllReduce(
     {
         int ret = aclrtSetCurrentContext(args.context);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret = %d\n", ret);
-                  return ret);
+                return ret);
         char hcomName[128] = {0};
         ret = HcclGetCommName(args.hcclComm, hcomName);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret = %d\n", ret);
-                  return -1);
+                return -1);
         LOG_PRINT("[INFO] rank = %d, hcomName = %s, stream = %p\n", args.rankId, hcomName, args.stream);
         std::vector<int64_t> xShape = {1024, 5120}; // (bs, H)
         std::vector<int64_t> scalesShape = {1024, 80, 2}; // (bs, H/64, 2)
@@ -341,7 +344,6 @@ aclnnStatus aclnnQuantAllReduce(
         aclTensor *x = nullptr;
         aclTensor *scales = nullptr;
         aclTensor *output = nullptr;
-        string reduceOp = "sum";
         uint64_t workspaceSize = 0;
         aclOpExecutor *executor = nullptr;
 
@@ -363,24 +365,23 @@ aclnnStatus aclnnQuantAllReduce(
 
         // 调用第一阶段接口
         ret = aclnnQuantAllReduceGetWorkspaceSize(
-            x, scales, hcomName, reduceOp, output, &workspaceSize, &executor);
+            x, scales, hcomName, "sum", output, &workspaceSize, &executor);
         CHECK_RET(ret == ACL_SUCCESS,
             LOG_PRINT("[ERROR] aclnnQuantAllReduceGetWorkspaceSize failed. ret = %d \n", ret);
-                      return ret);
+                    return ret);
         // 根据第一阶段接口计算出的workspaceSize申请device内存
         if (workspaceSize > 0) {
             ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
             CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc workspace failed. ret = %d \n", ret);
-                      return ret);
+                    return ret);
         }
         // 调用第二阶段接口
         ret = aclnnQuantAllReduce(workspaceAddr, workspaceSize, executor, args.stream);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnQuantAllReduce failed. ret = %d \n", ret);
-                  return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnQuantAllReduce failed. ret = %d \n", ret); return ret);
         // （固定写法）同步等待任务执行结束
         ret = aclrtSynchronizeStreamWithTimeout(args.stream, streamWithTimeout);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSynchronizeStreamWithTimeout failed. ret = %d \n", ret);
-                  return ret);
+                return ret);
         LOG_PRINT("[INFO] device_%d aclnnQuantAllReduce execute successfully.\n", args.rankId);
         // 释放device资源，需要根据具体API的接口定义修改
         if (x != nullptr) {
@@ -406,21 +407,9 @@ aclnnStatus aclnnQuantAllReduce(
             aclrtFree(workspaceAddr);
         }
         ret = aclrtDestroyStream(args.stream);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyStream failed. ret = %d \n", ret);
-                  return ret);
-
         ret = aclrtDestroyContext(args.context);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtDestroyContext failed. ret = %d \n", ret);
-                  return ret);
-
         ret = HcclCommDestroy(args.hcclComm);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommDestroy failed. ret = %d \n", ret);
-                  return ret);
-
         ret = aclrtResetDevice(args.rankId);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtResetDevice failed. ret = %d \n", ret);
-                  return ret);
-
         return 0;
     }
 
@@ -429,37 +418,38 @@ aclnnStatus aclnnQuantAllReduce(
         GetOption(argc, argv);
         int ret = aclInit(nullptr);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret);
-                  return ret);
+                return ret);
         aclrtStream stream;
         aclrtContext context;
-        ret = aclrtSetDevice(g_rankId);
+        HcclComm comms;
+        ret = aclrtSetDevice(rankId);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret);
-                  return ret);
-        ret = aclrtCreateContext(&context, g_rankId);
+                return ret);
+        ret = aclrtCreateContext(&context, rankId);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateContext failed. ret = %d \n", ret);
-                  return ret);
+                return ret);
         ret = aclrtCreateStream(&stream);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret);
-                  return ret);
-        // 初始化集合通信域
-        HcclComm comms;
-        HcclRootInfo hcclRootInfo;
-        for (uint32_t i = 0; i < INTERNAL_LEN; i++) {
-            hcclRootInfo.internal[i] = 'a';
-        }
-        hcclRootInfo.internal[INTERNAL_LEN] = '\0';
-        ret = HcclCommInitRootInfo(DEV_NUM, &hcclRootInfo, g_rankId, &comms);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitRootInfo failed. ret = %d \n", ret);
-                  return ret);
-
+                return ret);
+        HcclCommConfig config;
+        HcclCommConfigInit(&config);
+        config.hcclDeterministic = 1;
+        config.hcclBufferSize = g_hcclBufferSize;
+        strncpy(config.hcclCommName, "hccl_comm_test", COMM_NAME_MAX_LENGTH - 1);
+        const char* rankTableFile = getenv("RANK_TABLE_FILE");
+        CHECK_RET(rankTableFile != nullptr, LOG_PRINT("[ERROR] get rankTableFile failed.\n");
+                return -1);
+        ret = HcclCommInitClusterInfoConfig(rankTableFile, rankId, &config, &comms);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitClusterInfoConfig failed. ret = %d \n", ret);
+                return ret);
         Args args;
-        args.rankId = g_rankId;
+        args.rankId = rankId;
         args.hcclComm = comms;
         args.stream = stream;
         args.context = context;
         ret = LaunchOneThreadQuantAllReduce(args);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] LaunchOneThreadQtReduceScatter failed. ret = %d \n", ret);
-                  return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] LaunchOneThreadQuantAllReduce failed. ret = %d \n", ret);
+                return ret);
         aclFinalize();
         return 0;
     }
