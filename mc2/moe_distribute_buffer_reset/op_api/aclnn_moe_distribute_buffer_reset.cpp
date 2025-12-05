@@ -25,7 +25,7 @@ using namespace op;
 extern "C" {
 #endif
 
-enum NnopbaseHcclServerType:uint32_t {
+enum NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
     NNOPBASE_HCCL_SERVER_TYPE_MTE,
     NNOPBASE_HCCL_SERVER_TYPE_END

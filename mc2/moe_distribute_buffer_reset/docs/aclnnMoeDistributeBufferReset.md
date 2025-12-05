@@ -26,8 +26,8 @@
 aclnnStatus aclnnMoeDistributeBufferResetGetWorkspaceSize(
     const aclTensor *elasticInfo,
     const char      *groupEp,
-    int32_t          epWorldSize,
-    int32_t          needSync,
+    int64_t          epWorldSize,
+    int64_t          needSync,
     uint64_t        *workspaceSize,
     aclOpExecutor  **executor);
 ```
@@ -93,7 +93,7 @@ aclnnStatus aclnnMoeDistributeBufferReset(
     <td>输入</td>
     <td>通信域大小。</td>
     <td>取值支持[16, 128]内16整数倍的数值</td>
-    <td>INT32</td>
+    <td>INT64</td>
     <td>-</td>
     <td>-</td>
     <td>-</td>
@@ -103,7 +103,7 @@ aclnnStatus aclnnMoeDistributeBufferReset(
     <td>输入</td>
     <td>是否需要全卡同步。</td>
     <td>取值支持0或1，0表示不需要，1表示需要。</td>
-    <td>INT32</td>
+    <td>INT64</td>
     <td>-</td>
     <td>-</td>
     <td>-</td>

@@ -14,6 +14,7 @@
  */
 #ifndef ELASTIC_RECEIVABLE_TEST_TILING_H
 #define ELASTIC_RECEIVABLE_TEST_TILING_H
+#include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
 
 struct ElasticReceivableTestInfo {

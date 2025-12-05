@@ -14,6 +14,7 @@
  */
 #ifndef ELASTIC_RECEIVABLE_INFO_COLLECT_TILING_H
 #define ELASTIC_RECEIVABLE_INFO_COLLECT_TILING_H
+#include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
 
 struct ElasticReceivableInfoCollectInfo {

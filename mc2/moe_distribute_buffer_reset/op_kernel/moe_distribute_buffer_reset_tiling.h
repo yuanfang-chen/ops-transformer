@@ -14,6 +14,7 @@
  */
 #ifndef MOE_DISTRIBUTE_BUFFER_RESET_TILING_H
 #define MOE_DISTRIBUTE_BUFFER_RESET_TILING_H
+#include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
 
 struct MoeDistributeBufferResetInfo {

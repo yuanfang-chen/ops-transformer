@@ -29,7 +29,6 @@
 #include "tiling/mc2_tiling_utils.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
-#include "mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
@@ -66,7 +65,7 @@ static void PrintTilingDataInfo(const char *nodeName, ElasticReceivableInfoColle
     OP_LOGD(nodeName, "totalUbSize is %lu.", tilingData.elasticReceivableInfoCollectInfo.totalUbSize);
 }
 
-static bool CheckTensorDim(gert::TilingContext *context, const char *nodeName)
+static bool CheckTensorDim(const gert::TilingContext *context, const char *nodeName)
 {
     auto attrs = context->GetAttrs();
     auto worldSizePtr = attrs->GetAttrPointer<int>(ATTR_WORLD_SIZE_INDEX);
@@ -74,36 +73,38 @@ static bool CheckTensorDim(gert::TilingContext *context, const char *nodeName)
     const gert::StorageShape *yStorageShape = context->GetOutputShape(Y_INDEX);
     OP_TILING_CHECK(yStorageShape == nullptr, OP_LOGE(nodeName, "yShape is null."), return false);
     OP_TILING_CHECK(yStorageShape->GetStorageShape().GetDimNum() != TWO_DIM,
-        OP_LOGE(nodeName, "yShape dim must be 2, but current dim num is %lu.",
-        yStorageShape->GetStorageShape().GetDimNum()), return false);
+                    OP_LOGE(nodeName, "yShape dim must be 2, but current dim num is %lu.",
+                            yStorageShape->GetStorageShape().GetDimNum()),
+                    return false);
     int64_t yDim0 = yStorageShape->GetStorageShape().GetDim(0);
     int64_t yDim1 = yStorageShape->GetStorageShape().GetDim(1);
     OP_TILING_CHECK(yDim0 != *worldSizePtr,
-        OP_LOGE(nodeName, "yDim0 is invalid. Should be %d, but got yDim0=%ld.", *worldSizePtr,
-            yDim0), return false);
+                    OP_LOGE(nodeName, "yDim0 is invalid. Should be %d, but got yDim0=%ld.", *worldSizePtr, yDim0),
+                    return false);
     OP_TILING_CHECK(yDim1 != *worldSizePtr,
-        OP_LOGE(nodeName, "yDim1 is invalid. Should be %d, but got yDim1=%ld.", *worldSizePtr,
-            yDim1), return false);
+                    OP_LOGE(nodeName, "yDim1 is invalid. Should be %d, but got yDim1=%ld.", *worldSizePtr, yDim1),
+                    return false);
     return true;
 }
 
 static ge::graphStatus TilingCheckInputTensor(gert::TilingContext *context, const char *nodeName)
 {
-    OP_TILING_CHECK(!CheckTensorDim(context, nodeName),
-        OP_LOGE(nodeName, "params shape is invalid."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!CheckTensorDim(context, nodeName), OP_LOGE(nodeName, "params shape is invalid."),
+                    return ge::GRAPH_FAILED);
     auto yDesc = context->GetOutputDesc(Y_INDEX);
     OP_TILING_CHECK(yDesc == nullptr, OP_LOGE(nodeName, "yDesc is null."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(yDesc->GetDataType() != ge::DT_INT32,
-        OP_LOGE(nodeName, "y dataType is invalid, dataType should be int32, but is %s.",
-        Ops::Base::ToString(yDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName, "y dataType is invalid, dataType should be int32, but is %s.",
+                            Ops::Base::ToString(yDesc->GetDataType()).c_str()),
+                    return ge::GRAPH_FAILED);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(yDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
-        OP_LOGE(nodeName, "y format is invalid."), return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName, "y format is invalid."), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus CheckAndSetAttrs(const char *nodeName, const gert::TilingContext* context,
-                             ElasticReceivableInfoCollectTilingData &tilingData, std::string &group)
+static ge::graphStatus CheckAndSetAttrs(const char *nodeName, const gert::TilingContext *context,
+                                        ElasticReceivableInfoCollectTilingData &tilingData, std::string &group)
 {
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName, "GetAttrs returned nullptr!"), return ge::GRAPH_FAILED);
@@ -116,18 +117,21 @@ static ge::graphStatus CheckAndSetAttrs(const char *nodeName, const gert::Tiling
     OP_TILING_CHECK(worldSizePtr == nullptr, OP_LOGE(nodeName, "worldSizePtr is null!"), return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*worldSizePtr < MIN_WORLD_SIZE) || (*worldSizePtr > MAX_WORLD_SIZE),
-        OP_LOGE(nodeName, "WorldSize is invalid, only support [%d, %d], but got worldSize=%d.", 
-            MIN_WORLD_SIZE, MAX_WORLD_SIZE, *worldSizePtr), return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName, "WorldSize is invalid, only support [%d, %d], but got worldSize=%d.",
+                            MIN_WORLD_SIZE, MAX_WORLD_SIZE, *worldSizePtr),
+                    return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*worldSizePtr % RANK_NUM_PER_SEVER != 0),
-        OP_LOGE(nodeName, "WorldSize is invalid, only support WorldSize be a multiple of 16, but got worldSize=%d.", 
-        *worldSizePtr), return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName,
+                            "WorldSize is invalid, only support WorldSize be a multiple of 16, but got worldSize=%d.",
+                            *worldSizePtr),
+                    return ge::GRAPH_FAILED);
 
     tilingData.elasticReceivableInfoCollectInfo.worldSize = *worldSizePtr;
 
     OP_TILING_CHECK((strnlen(groupPtr, MAX_GROUP_NAME_LENGTH) == 0) ||
-        (strnlen(groupPtr, MAX_GROUP_NAME_LENGTH) == MAX_GROUP_NAME_LENGTH),
-        OP_LOGE(nodeName, "group's length is invalid."), return ge::GRAPH_FAILED);
+                        (strnlen(groupPtr, MAX_GROUP_NAME_LENGTH) == MAX_GROUP_NAME_LENGTH),
+                    OP_LOGE(nodeName, "group's length is invalid."), return ge::GRAPH_FAILED);
 
     OP_LOGD(nodeName, "group = %s", groupPtr);
     group = string(groupPtr);
@@ -138,8 +142,7 @@ static ge::graphStatus CheckAndSetAttrs(const char *nodeName, const gert::Tiling
 static ge::graphStatus SetWorkSpace(const char *nodeName, gert::TilingContext *context)
 {
     size_t *workSpaces = context->GetWorkspaceSizes(1);
-    OP_TILING_CHECK(workSpaces == nullptr, OP_LOGE(nodeName, "workSpaces is nullptr."),
-        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(workSpaces == nullptr, OP_LOGE(nodeName, "workSpaces is nullptr."), return ge::GRAPH_FAILED);
     workSpaces[0] = SYSTEM_NEED_WORKSPACE;
     return ge::GRAPH_SUCCESS;
 }
@@ -152,12 +155,12 @@ static void SetHcommCfg(const char *nodeName, [[maybe_unused]] gert::TilingConte
     std::string algConfigAllToAllStr = "AlltoAll=level0:fullmesh;level1:pairwise";
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType1, algConfigAllToAllStr);
-    mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE);   // 通过不拉起AICPU，提高算子退出性能
+    mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE); // 通过不拉起AICPU，提高算子退出性能
     mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling);
     mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling1);
 }
 
-ge::graphStatus ElasticReceivableInfoCollectTilingFunc(gert::TilingContext* context)
+ge::graphStatus ElasticReceivableInfoCollectTilingFunc(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
     ElasticReceivableInfoCollectTilingData *tilingData =
@@ -165,9 +168,8 @@ ge::graphStatus ElasticReceivableInfoCollectTilingFunc(gert::TilingContext* cont
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(nodeName, "tilingData is nullptr."), return ge::GRAPH_FAILED);
     std::string group = "";
 
-    OP_TILING_CHECK(
-        TilingCheckInputTensor(context, nodeName) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Tiling check param failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(TilingCheckInputTensor(context, nodeName) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(nodeName, "Tiling check param failed."), return ge::GRAPH_FAILED);
 
     // Function that get check and set Attrs
     OP_TILING_CHECK(CheckAndSetAttrs(nodeName, context, *tilingData, group) != ge::GRAPH_SUCCESS,
@@ -175,7 +177,7 @@ ge::graphStatus ElasticReceivableInfoCollectTilingFunc(gert::TilingContext* cont
 
     // Set WorkSpace
     OP_TILING_CHECK(SetWorkSpace(nodeName, context) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
 
     // Set HcommCfg
     SetHcommCfg(nodeName, context, tilingData, group);
@@ -203,16 +205,6 @@ ge::graphStatus ElasticReceivableInfoCollectTilingFunc(gert::TilingContext* cont
     return ge::GRAPH_SUCCESS;
 }
 
-struct ElasticReceivableInfoCollectCompileInfo {};
-ge::graphStatus TilingParseForElasticReceivableInfoCollect(gert::TilingParseContext *context) { 
-    const gert::TilingParseContext* const_context = context;
-    //避免未使用变量警告
-    (void)const_context;
-    (void)context;
-	return ge::GRAPH_SUCCESS; 
-}
-
 IMPL_OP_OPTILING(ElasticReceivableInfoCollect)
-    .Tiling(ElasticReceivableInfoCollectTilingFunc)
-    .TilingParse<ElasticReceivableInfoCollectCompileInfo>(TilingParseForElasticReceivableInfoCollect);
-}  // end of namespace optiling
+    .Tiling(ElasticReceivableInfoCollectTilingFunc);
+} // end of namespace optiling

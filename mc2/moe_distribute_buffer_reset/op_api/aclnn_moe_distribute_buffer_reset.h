@@ -36,8 +36,9 @@ extern "C" {
  * @param [out] executor: 返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnMoeDistributeBufferResetGetWorkspaceSize(const aclTensor* elasticInfo, const char* groupEp,
-    int64_t epWorldSize, int64_t needSync, uint64_t* workspaceSize, aclOpExecutor** executor);
+ACLNN_API aclnnStatus aclnnMoeDistributeBufferResetGetWorkspaceSize(const aclTensor *elasticInfo, const char *groupEp,
+                                                                    int64_t epWorldSize, int64_t needSync,
+                                                                    uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
  * @brief aclnnMoeDistributeBufferReset的第二段接口，用于执行计算。
@@ -47,11 +48,11 @@ ACLNN_API aclnnStatus aclnnMoeDistributeBufferResetGetWorkspaceSize(const aclTen
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnMoeDistributeBufferReset(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
-                                               aclrtStream stream);
+ACLNN_API aclnnStatus aclnnMoeDistributeBufferReset(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                    aclrtStream stream);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // OP_API_INC_MOE_DISTRIBUTE_BUFFER_RESET_
+#endif // OP_API_INC_MOE_DISTRIBUTE_BUFFER_RESET_

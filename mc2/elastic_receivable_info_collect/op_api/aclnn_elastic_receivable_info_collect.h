@@ -31,8 +31,9 @@ extern "C" {
  * @return aclnnStatus: 返回值，返回状态码。
  *
  */
-ACLNN_API aclnnStatus aclnnElasticReceivableInfoCollectGetWorkspaceSize(const char* group, int64_t worldSize,
-    aclTensor* y, uint64_t* workspaceSize, aclOpExecutor** executor);
+ACLNN_API aclnnStatus aclnnElasticReceivableInfoCollectGetWorkspaceSize(const char *group, int64_t worldSize,
+                                                                        const aclTensor *y, uint64_t *workspaceSize,
+                                                                        aclOpExecutor **executor);
 
 /**
  * @brief aclnnElasticReceivableInfoCollect的第二段接口，用于执行计算。
@@ -42,11 +43,11 @@ ACLNN_API aclnnStatus aclnnElasticReceivableInfoCollectGetWorkspaceSize(const ch
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnElasticReceivableInfoCollect
-    (void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream);
+ACLNN_API aclnnStatus aclnnElasticReceivableInfoCollect(void *workspace, uint64_t workspaceSize,
+                                                        aclOpExecutor *executor, aclrtStream stream);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // OP_API_INC_ELASTIC_RECEIVABLE_INFO_COLLECT_H_
+#endif // OP_API_INC_ELASTIC_RECEIVABLE_INFO_COLLECT_H_

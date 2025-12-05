@@ -23,7 +23,6 @@
 #include <cmath>
 #include <cstdint>
 #include <string>
-#include "mc2_log.h"
 #include "mc2_hcom_topo_info.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
@@ -49,7 +48,7 @@ constexpr uint32_t OP_TYPE_ALL_TO_ALL = 8;
 constexpr uint32_t BATCH_MODE_NEED_SYNC = 1;
 constexpr uint32_t BATCH_MODE_NO_NEED_SYNC = 0;
 
-const char* A_INNER_DEBUG_BUFFER_RESET = "MoeDistributeBufferReset Tiling Debug";
+const char *A_INNER_DEBUG_BUFFER_RESET = "MoeDistributeBufferReset Tiling Debug";
 
 const int MIN_WORLD_SIZE = 16;
 const int MAX_WORLD_SIZE = 128;
@@ -64,36 +63,41 @@ static void PrintTilingDataInfo(MoeDistributeBufferResetTilingData &tilingData)
     OP_LOGD(A_INNER_DEBUG_BUFFER_RESET, "totalUbSize is %lu.", tilingData.moeDistributeBufferReset.totalUbSize);
 }
 
-static ge::graphStatus CheckAndSetAttrs(const gert::TilingContext* context, MoeDistributeBufferResetTilingData &tilingData, 
-    std::string &group)
+static ge::graphStatus CheckAndSetAttrs(const gert::TilingContext *context,
+                                        MoeDistributeBufferResetTilingData &tilingData, std::string &group)
 {
     auto attrs = context->GetAttrs();
-    OP_TILING_CHECK(attrs == nullptr,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "GetAttrs returned nullptr!"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "GetAttrs returned nullptr!"),
+                    return ge::GRAPH_FAILED);
 
     auto groupPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
     auto worldSizePtr = attrs->GetAttrPointer<int>(ATTR_WORLD_SIZE_INDEX);
     auto needSyncPtr = attrs->GetAttrPointer<int>(ATTR_NEED_SYNC_INDEX);
 
     // 当前仅对必选属性进行校空
-    OP_TILING_CHECK(groupPtr == nullptr,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "groupPtr is null!"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(worldSizePtr == nullptr,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "worldSizePtr is null!"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(needSyncPtr == nullptr,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "needSyncPtr is null!"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(groupPtr == nullptr, OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "groupPtr is null!"),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(worldSizePtr == nullptr, OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "worldSizePtr is null!"),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(needSyncPtr == nullptr, OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "needSyncPtr is null!"),
+                    return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*worldSizePtr < MIN_WORLD_SIZE) || (*worldSizePtr > MAX_WORLD_SIZE),
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "WorldSize is invalid, only support [%d, %d], but got worldSize=%d.",
-            MIN_WORLD_SIZE, MAX_WORLD_SIZE, *worldSizePtr), return ge::GRAPH_FAILED);
+                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET,
+                            "WorldSize is invalid, only support [%d, %d], but got worldSize=%d.", MIN_WORLD_SIZE,
+                            MAX_WORLD_SIZE, *worldSizePtr),
+                    return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*worldSizePtr % RANK_NUM_PER_SEVER != 0),
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "WorldSize only support WorldSize divisible by 16, but got worldSize=%d.",
-        *worldSizePtr), return ge::GRAPH_FAILED);
+                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET,
+                            "WorldSize only support WorldSize divisible by 16, but got worldSize=%d.", *worldSizePtr),
+                    return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*needSyncPtr != NO_NEED_SYNC) && (*needSyncPtr != NEED_SYNC),
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "needSync is invalid, only support %d or %d, but got needSync=%d.",
-            NO_NEED_SYNC, NEED_SYNC, *needSyncPtr), return ge::GRAPH_FAILED);
+                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET,
+                            "needSync is invalid, only support %d or %d, but got needSync=%d.", NO_NEED_SYNC, NEED_SYNC,
+                            *needSyncPtr),
+                    return ge::GRAPH_FAILED);
 
     tilingData.moeDistributeBufferReset.worldSize = *worldSizePtr;
     tilingData.moeDistributeBufferReset.needSync = *needSyncPtr;
@@ -102,14 +106,16 @@ static ge::graphStatus CheckAndSetAttrs(const gert::TilingContext* context, MoeD
     group = string(groupPtr);
 
     const gert::StorageShape *elasticInfoStorageShape = context->GetInputShape(INPUT_ELASTIC_INFO_INDEX);
-    OP_TILING_CHECK(elasticInfoStorageShape == nullptr,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "input is null."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(elasticInfoStorageShape == nullptr, OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "input is null."),
+                    return ge::GRAPH_FAILED);
     OP_TILING_CHECK(elasticInfoStorageShape->GetStorageShape().GetDimNum() != ONE_DIM,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Input must be 1-dimension, but got %lu dim",
-        elasticInfoStorageShape->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Input must be 1-dimension, but got %lu dim",
+                            elasticInfoStorageShape->GetStorageShape().GetDimNum()),
+                    return ge::GRAPH_FAILED);
     OP_TILING_CHECK(elasticInfoStorageShape->GetStorageShape().GetDim(0) != *worldSizePtr,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Input length must be ep worldsize:%d, but got %ld dim",
-        *worldSizePtr, elasticInfoStorageShape->GetStorageShape().GetDim(0)), return ge::GRAPH_FAILED);
+                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Input length must be ep worldsize:%d, but got %ld dim",
+                            *worldSizePtr, elasticInfoStorageShape->GetStorageShape().GetDim(0)),
+                    return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -118,25 +124,25 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
 {
     size_t *workSpaces = context->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workSpaces == nullptr, OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "workSpaces is nullptr."),
-        return ge::GRAPH_FAILED);
+                    return ge::GRAPH_FAILED);
     workSpaces[0] = SYSTEM_NEED_WORKSPACE;
     return ge::GRAPH_SUCCESS;
 }
 
-static void SetHcommCfg([[maybe_unused]] gert::TilingContext *context, MoeDistributeBufferResetTilingData *tiling, 
-    const std::string group)
+static void SetHcommCfg([[maybe_unused]] gert::TilingContext *context, MoeDistributeBufferResetTilingData *tiling,
+                        const std::string group)
 {
     OP_LOGD(A_INNER_DEBUG_BUFFER_RESET, "MoeDistributeBufferReset group = %s", group.c_str());
     uint32_t opType1 = OP_TYPE_ALL_TO_ALL;
     std::string algConfigAllToAllStr = "AlltoAll=level0:fullmesh;level1:pairwise";
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType1, algConfigAllToAllStr);
-    mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE);   // 通过不拉起AICPU，提高算子退出性能
+    mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE); // 通过不拉起AICPU，提高算子退出性能
     mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling);
     mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling);
 }
 
-ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext* context)
+ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
     MoeDistributeBufferResetTilingData *tilingData = context->GetTilingData<MoeDistributeBufferResetTilingData>();
@@ -145,12 +151,11 @@ ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext* context)
 
     // Function that get check and set Attrs
     OP_TILING_CHECK(CheckAndSetAttrs(context, *tilingData, group) != ge::GRAPH_SUCCESS,
-                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Check and set attributes failed!"),
-                    return ge::GRAPH_FAILED);
+                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Check and set attributes failed!"), return ge::GRAPH_FAILED);
 
     // Set WorkSpace
     OP_TILING_CHECK(SetWorkSpace(context) != ge::GRAPH_SUCCESS,
-        OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
+                    OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
 
     // Set HcommCfg
     SetHcommCfg(context, tilingData, group);
@@ -183,16 +188,6 @@ ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext* context)
     return ge::GRAPH_SUCCESS;
 }
 
-struct MoeDistributeBufferResetCompileInfo {};
-ge::graphStatus TilingParseForMoeDistributeBufferReset(gert::TilingParseContext *context) { 
-    const gert::TilingParseContext* const_context = context;
-    //避免未使用变量警告
-    (void)const_context;
-    (void)context;
-	return ge::GRAPH_SUCCESS; 
-}
-
 IMPL_OP_OPTILING(MoeDistributeBufferReset)
-    .Tiling(MoeDistributeBufferResetTilingFunc)
-    .TilingParse<MoeDistributeBufferResetCompileInfo>(TilingParseForMoeDistributeBufferReset);
-}  // end of namespace optiling
+    .Tiling(MoeDistributeBufferResetTilingFunc);
+} // end of namespace optiling
