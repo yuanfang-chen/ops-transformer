@@ -111,6 +111,7 @@ set(OPAPI_INCLUDE
   ${OPS_TRANSFORMER_DIR}/common/include
   ${OPS_TRANSFORMER_DIR}/common/include/external
   ${OPS_TRANSFORMER_DIR}/common/include/common
+  ${OPS_TRANSFORMER_DIR}/common/include/static
   ${OPS_TRANSFORMER_DIR}/common/stub/op_api
   $<$<NOT:$<BOOL:${BUILD_OPEN_PROJECT}>>:${TOP_DIR}/output/${PRODUCT}/aclnnop_resource>
 
@@ -139,6 +140,8 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/ops-base/include
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_fallback
   )
+else()
+  list(APPEND OPAPI_INCLUDE ${OPBASE_INC_DIRS})
 endif()
 
 set(OP_TILING_INCLUDE

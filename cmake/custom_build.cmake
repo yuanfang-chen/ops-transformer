@@ -425,6 +425,7 @@ if (BUILD_OPEN_PROJECT)
     )
     target_include_directories(ops_aclnn PRIVATE
             ${PROJECT_SOURCE_DIR}/common/include/common
+            ${PROJECT_SOURCE_DIR}/common/include/static
     )
     target_compile_options(ops_aclnn PRIVATE
             $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++1z>

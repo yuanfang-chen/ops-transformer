@@ -294,6 +294,7 @@ const OP_RUNTIME_KB_RES& {op_type}TuningResource() {{
 #include <tuple>
 #include <map>
 #include <graph/ascend_string.h>
+#include <static_space.h>
 
 using OP_HOST_FUNC_HANDLE = std::vector<void *>;
 using OP_RES = std::tuple<const uint8_t *, const uint8_t *>;
@@ -301,6 +302,9 @@ using OP_BINARY_RES = std::vector<OP_RES>;
 using OP_RUNTIME_KB_RES = std::vector<OP_RES>;
 using OP_RESOURCES  = std::map<ge::AscendString,
     std::tuple<OP_HOST_FUNC_HANDLE, OP_BINARY_RES, OP_RUNTIME_KB_RES>>;
+namespace {op_type} {{
+    auto initializer = StaticSpaceInitializer::GetInstance();;
+}}
 
 // 资源声明
 // Tiling
