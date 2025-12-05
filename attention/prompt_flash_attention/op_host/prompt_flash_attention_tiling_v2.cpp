@@ -717,6 +717,11 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
         return true;
     }
 
+    if (nQ % nKV != 0) {
+        OP_LOGE(contextKeyParams.opName, "numHeads(%d) must be divisible by numKeyValueHeads(%d)!", nQ, nKV);
+        return false;
+    }
+
     if (enableIFAMLA || enableIFA) {
         tilingData.promptAttentionBaseParams.set_headNumRatio(1);
         tilingData.promptAttentionBaseParams.set_gOfMla(gSize);
@@ -725,17 +730,12 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
         tilingData.promptAttentionBaseParams.set_gOfMla(1);
     }
 
-    if (nQ % nKV != 0) {
-        OP_LOGE(contextKeyParams.opName, "numHeads(%d) must be divisible by numKeyValueHeads(%d)!", nQ, nKV);
+    if (nQ / nKV > 64 && (!enablePFAMLA)) { // G cannot be greater than 64.
+        OP_LOGE(contextKeyParams.opName, "numHeads / numKeyValueHeads = %d, cannot be larger than 64.", nQ / nKV);
         return false;
-    } else {
-        if (nQ / nKV > 64 && (!enablePFAMLA)) { // G cannot be greater than 64.
-            OP_LOGE(contextKeyParams.opName, "numHeads / numKeyValueHeads = %d, cannot be larger than 64.", nQ / nKV);
-            return false;
-        }
-        tilingData.promptAttentionBaseParams.set_headNumRatio(nQ / nKV);
-        return true;
     }
+    tilingData.promptAttentionBaseParams.set_headNumRatio(nQ / nKV);
+    return true;
 }
 
 bool PromptFlashAttentionTilingV2::CheckPostQuantShape(const ContextParamsForPFATiling& contextKeyParams, uint32_t quantD,
@@ -4435,11 +4435,13 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
         tilingData.promptAttentionBaseParams.set_headNumRatio(1);
         tilingData.promptAttentionBaseParams.set_gOfMla(gSize);
     }
+    OP_CHECK_IF(gSize == 0, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "calculate gSize = 0"), return ge::GRAPH_FAILED);
+
     if (enableIFAMLA || enableIFA || enablePFAMerge) {
         queryShapeInfo.n = queryShapeInfo.n / gSize;
         queryShapeInfo.s = queryShapeInfo.s * gSize;
     }
-    
+
     // multi feature crossover check
     std::vector<int64_t> actualSeqLengths(queryShapeInfo.b);
     std::vector<int64_t> actualSeqLengthsKV(queryShapeInfo.b);
@@ -4513,6 +4515,7 @@ void PromptFlashAttentionTilingV2::SetTilingKey(){
 ge::graphStatus PromptFlashAttentionTilingV2::DoSubOpTiling(PromptFlashAttentionTilingData& tilingData, ContextParamsForPFATiling& contextParamsForPFATiling) {
     uint32_t blockDimToBeSet;
     auto ret = RunBigKernelTilingWithParams(contextParamsForPFATiling, blockDimToBeSet, tilingData);
+    OP_CHECK_IF(ret == ge::GRAPH_FAILED, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "fail to parse tiling params!"), return ge::GRAPH_FAILED);
     context_->SetBlockDim(blockDimToBeSet);
     OP_CHECK_IF(memset_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
         0, context_->GetRawTilingData()->GetCapacity()) != EOK,
