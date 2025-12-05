@@ -361,7 +361,7 @@ __aicore__ inline void QuantAllReduceMte<TemplateQuantAllReduceType>::ReadRomote
             if constexpr (AscendC::IsSameType<OutputType, float>::value) {
                 DataCopy(xOutTensor_, sumTensor_, SINGLE_NUM);
             } else {
-                Cast(xOutTensor_, sumTensor_, RoundMode::CAST_ROUND, SINGLE_NUM);
+                Cast(xOutTensor_, sumTensor_, RoundMode::CAST_RINT, SINGLE_NUM);
             }
             xOutQueue_.EnQue(xOutTensor_);
             xOutTensor_ = xOutQueue_.DeQue<OutputType>();
