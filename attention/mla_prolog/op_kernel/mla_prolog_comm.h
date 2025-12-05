@@ -99,6 +99,7 @@ constexpr uint32_t QR_CORE_NUM = 4; // 算力分组方案QR占用4核
 constexpr uint32_t INT8_AFULLLOAD_MAX_MSIZE = 64; // 计算mmQcQr时，int8类型的A矩阵在msize小于等于64可以全载L1
 constexpr uint32_t BF16_AFULLLOAD_MAX_MSIZE = 32; // 计算mmQcQr时，bf16类型的A矩阵在msize小于等于32可以全载L1
 constexpr uint32_t DEQUANT_SCALES_CQ_SIZE = 48; // RmsNormCq输出的动态量化系数大小
+constexpr uint32_t ONE_BYTE_TYPE_SIZE = 1; // 数据类型int8_t fp8大小为1字节
 
 constexpr int SYNC_MODE_ALL_CUBE = 0x0;
 constexpr int SYNC_MODE_CUBE_VEC = 0x2;
@@ -321,7 +322,7 @@ struct AivOffset {
   int64_t curVecToken = 0;
   int64_t curBlockTokenOffset = 0;
   int64_t rmsNormCqOffset = 0;
-    int64_t rmsNormCqResOffset = 0;
+  int64_t rmsNormCqResOffset = 0;
   int64_t rmsNormCkvOffset = 0;
   int64_t ropeKrOffset = 0;
   int64_t mmQnPreDequantOffset = 0;
@@ -364,6 +365,15 @@ struct RopeQrSplitNParams {
 struct DequantQcQrSplitNParams {
   int64_t mmQnPreDequantOffset;
   int64_t mmQnPreDequantResOffset;
+  uint32_t inputOffset;
+  uint32_t outputOffset;
+  uint32_t srcStride;
+  uint32_t dstStride;
+};
+
+struct CastQcQrSplitNParams {
+  int64_t mmQnPreCastOffset;
+  int64_t mmQnPreCastResOffset;
   uint32_t inputOffset;
   uint32_t outputOffset;
   uint32_t srcStride;

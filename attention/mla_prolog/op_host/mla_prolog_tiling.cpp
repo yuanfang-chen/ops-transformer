@@ -397,8 +397,9 @@ ge::graphStatus MlaPrologTiling::ProcessBaseInputs()
         enableGroupComputeOpt_ = true;
         aivNum_ = 32U;
         aicNum_ = 16U;
-    } else if (context_->weightUqQr.desc->GetDataType() == ge::DT_INT8 &&
-               baseShapeInfo_.nSize >= GROUP_COMPUTE_N_SIZE) {
+    } else if ((context_->weightUqQr.desc->GetDataType() == ge::DT_INT8 || 
+                context_->weightUqQr.desc->GetDataType() == ge::DT_FLOAT8_E4M3FN) &&
+                baseShapeInfo_.nSize >= GROUP_COMPUTE_N_SIZE) {
         // N大于等于8时通过切N处理MM3，MM4之后的操作例如Rope，DynamicQuant等会有性能收益
         enableDequantOpt_ = true;
     }

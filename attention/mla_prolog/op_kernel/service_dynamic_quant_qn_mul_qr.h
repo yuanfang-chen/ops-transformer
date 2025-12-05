@@ -18,6 +18,9 @@
 
 #include "mla_prolog_comm.h"
 #include "mla_prolog_vector_comm.h"
+#if __CCE_AICORE__ == 310
+#include "arch35/vf/vf_mul_qr.h"
+#endif
 
 namespace MlaProlog {
 
@@ -113,6 +116,9 @@ __aicore__ inline void MulQr(const GlobalTensor<T>& outputGmRope, const GlobalTe
 
         Cast(qrFp32Local, qrInputLocal[inputLocalRopeOffset], RoundMode::CAST_NONE, computeSizeRope);
         AscendC::PipeBarrier<PIPE_V>();
+#if __CCE_AICORE__ == 310
+        MulQr_VF(qrFp32Local, qrFp32Local, dequantScaleBrcbLocal, quantScaleCkvRope, computeSizeRope, computeBlockAlign);
+#else
         Duplicate(reciprocalLocal, quantScaleCkvRope, subRowRope * computeBlockAlign);
         AscendC::PipeBarrier<PIPE_V>();
         // cal: quantScaleCkv / dequantScaleQn
@@ -121,6 +127,7 @@ __aicore__ inline void MulQr(const GlobalTensor<T>& outputGmRope, const GlobalTe
         // cal: x * quantScaleCkv / dequantScaleQn
         RowMuls(qrFp32Local, qrFp32Local, reciprocalLocal, Rectangle{(uint32_t)subRowRope, (uint32_t)colRope, (uint32_t)colRope});
         AscendC::PipeBarrier<PIPE_V>();
+#endif
         Cast(outputLocalRope, qrFp32Local, RoundMode::CAST_RINT, computeSizeRope);
         AscendC::PipeBarrier<PIPE_V>();
 
