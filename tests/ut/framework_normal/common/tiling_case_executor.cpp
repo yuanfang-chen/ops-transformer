@@ -218,7 +218,7 @@ void ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
     DO_TILING(tilingContextPara);
 
     // check tiling func
-    EXPECT_EQ(tilingRet, expectResult);
+    ASSERT_EQ(tilingRet, expectResult);
     if (expectResult == ge::GRAPH_FAILED) {
         return;
     }
