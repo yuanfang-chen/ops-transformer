@@ -23,11 +23,7 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "flash_attention_score_tiling_common.h"
 #include "../op_kernel/arch32/flash_attention_score_tiling.h"
-#if __CCE_AICORE__ != 310
-#include "../op_kernel/arch32/flash_attention_score_template_tiling_key.h"
-#else
 #include "../op_kernel/arch35/flash_attention_score_template_tiling_key.h"
-#endif
 
 
 using namespace ge;
@@ -46,6 +42,7 @@ constexpr size_t MIN_COPY_UINT_SIZE = 32;
 constexpr size_t VALUE_100 = 100;
 constexpr size_t VALUE_1024 = 1024;
 constexpr uint32_t TILING_KEY_1 = 1U;
+constexpr uint32_t FA_EMPTY_TILING_KEY = 1;
 
 struct EmptyArgs
 {
@@ -350,9 +347,7 @@ static bool IsEmptyInput(gert::TilingContext *context)
         emptyInputTilingData->set_attentionOutLastCoreDataSize(emptyArgs.attentionOutLastCoreDataSize);
         emptyInputTilingData->set_attentionOutLastCoreIndex(emptyArgs.attentionOutLastCoreIndex);
         emptyInputTiling.FlashAttentionScoreSetEmptyInputTilingData(context, emptyInputTiling.tilingData);
-        context->SetTilingKey(GET_TPL_TILING_KEY(1, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 0));
+        context->SetTilingKey(FA_EMPTY_TILING_KEY);
         auto platformInfoPtr = context->GetPlatformInfo();
         OP_CHECK_IF(platformInfoPtr == nullptr, OP_LOGE(context, "platformInfoPtr is null"), return false);
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
