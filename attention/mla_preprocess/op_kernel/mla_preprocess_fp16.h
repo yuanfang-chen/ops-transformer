@@ -1138,18 +1138,20 @@ template <DataFormat formatB, bool transB, uint32_t swizzleDirect, uint64_t spli
 __aicore__ inline void PpMatmulEinSum<formatB, transB, swizzleDirect, splitGapA, splitGapC>::PreloadB()
 {
 #ifdef __DAV_C220_CUBE__
-    uint64_t batch_idx = core_idx / tdim.n / tdim.m;
-    uint64_t shuffle_k = en_shuffle_k ? (core_idx % tdim.k) : 0;
-    MatCoord tidx{0};
-    GetBaseBlockIdx(core_idx, tidx);
-    uint64_t offset_b = GetOffsetB(batch_idx, shuffle_k, tidx.n);
-    uint64_t n_actual = (tidx.n == (tdim.n - 1)) ? (n - tidx.n * n0) : n0;
-    uint64_t n_round = RoundUp<CONST_16>(n_actual);
-    uint64_t k_actual = (shuffle_k == tdim.k - 1) ? k - shuffle_k * k0 : k0;
-    uint64_t k_round = (k_actual + CONST_16 - 1) / CONST_16 * CONST_16;
-    SET_FLAG(MTE1, MTE2, EVENT_ID0);
-    WAIT_FLAG(MTE1, MTE2, EVENT_ID0);
-    CopyTileB(l1_base_b, gm_b[offset_b], k_actual, k_round, n_actual, n_round);
+    if (core_idx < num_core) {
+        uint64_t batch_idx = core_idx / tdim.n / tdim.m;
+        uint64_t shuffle_k = en_shuffle_k ? (core_idx % tdim.k) : 0;
+        MatCoord tidx{0};
+        GetBaseBlockIdx(core_idx, tidx);
+        uint64_t offset_b = GetOffsetB(batch_idx, shuffle_k, tidx.n);
+        uint64_t n_actual = (tidx.n == (tdim.n - 1)) ? (n - tidx.n * n0) : n0;
+        uint64_t n_round = RoundUp<CONST_16>(n_actual);
+        uint64_t k_actual = (shuffle_k == tdim.k - 1) ? k - shuffle_k * k0 : k0;
+        uint64_t k_round = (k_actual + CONST_16 - 1) / CONST_16 * CONST_16;
+        SET_FLAG(MTE1, MTE2, EVENT_ID0);
+        WAIT_FLAG(MTE1, MTE2, EVENT_ID0);
+        CopyTileB(l1_base_b, gm_b[offset_b], k_actual, k_round, n_actual, n_round);
+    }
 #endif
 }
 

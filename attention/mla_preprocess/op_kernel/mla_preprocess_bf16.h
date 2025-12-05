@@ -2346,20 +2346,25 @@ __aicore__ inline void PpMatmulW8a8Aiv<OutDtype, withSyncAll, quantMode>::Proces
         WAIT_FLAG(MTE2, V, EVENT_ID0);
 
         WAIT_FLAG(MTE3, V, EVENT_ID0);
-        uint32_t nRepeatCnt = CeilDiv<CONST_64>(n_actual);
+        uint32_t nRepeatCnt = CeilDiv<CONST_64>(n_round);
         if constexpr (quantMode == QuantMode::PER_TENSOR_ASYMM_QUANT) {
-            for (uint32_t i = 0; i < m_actual_per_vec; ++i) {
-                add_v<ArchType::ASCEND_V220, BiasDtype>(ubInput_[i * n_round], ubInput_[i * n_round],
-                                                        ubPerTensorScale_.ReinterpretCast<BiasDtype>(),
-                                                        (uint8_t)(nRepeatCnt), // repeat
-                                                        (uint8_t)1,            // dstBlockStride
-                                                        (uint8_t)1,            // src0BlockStride
-                                                        (uint8_t)1,            // src1BlockStride
-                                                        (uint8_t)8,            // dstRepeatStride
-                                                        (uint8_t)8,            // src0RepeatStride
-                                                        (uint8_t)8             // src1RepeatStride
-                );
+            uint32_t rptStride = CeilDiv<CONST_32>(n_round * sizeof(BiasDtype));
+            for (uint32_t i = 0; i < nRepeatCnt; ++i) {
+                uint64_t mask = (i == nRepeatCnt - 1 ? (n_round - i * CONST_64) : CONST_64);
+                AscendC::Add<BiasDtype, true>(ubInput_[i * CONST_64],                                       // dst
+                                              ubInput_[i * CONST_64],                                       // src0
+                                              ubPerTensorScale_.ReinterpretCast<BiasDtype>()[i * CONST_64], // src1
+                                              mask,                                                         // mask
+                                              m_actual_per_vec,                                             // repeat
+                                              AscendC::BinaryRepeatParams(1,         // dstBlockStride
+                                                                          1,         // src0BlockStride
+                                                                          1,         // src1BlockStride
+                                                                          rptStride, // dstRepeatStride
+                                                                          rptStride, // src0RepeatStride
+                                                                          0));       // src1RepeatStride
+                AscendC::PipeBarrier<PIPE_V>();
             }
+            AscendC::SetVectorMask<uint8_t>((uint64_t)-1, (uint64_t)-1);
             SET_FLAG(V, MTE2, EVENT_ID0);
             WAIT_FLAG(V, MTE2, EVENT_ID0);
             if (aligned_s32) {
@@ -2445,22 +2450,16 @@ __aicore__ inline void PpMatmulW8a8Aiv<OutDtype, withSyncAll, quantMode>::Proces
                 }
             }
         } else {
-            for (uint32_t i = 0; i < m_actual_per_vec; i++) {
-                if constexpr (std::is_same_v<OutDtype, bfloat16_t>) {
-                    convr_v<ArchType::ASCEND_V220, float, OutDtype>(ubOutput_[n_round_16 * i], ubTempFp32_[n_round * i],
-                                                                    (uint8_t)nRepeatCnt, // repeat
-                                                                    (uint16_t)1,         // dstBlockStride
-                                                                    (uint16_t)1,         // srcBlockStride
-                                                                    (uint16_t)4,         // dstRepeatStride
-                                                                    (uint16_t)8);        // srcRepeatStride
-                } else {
-                    conv_v<ArchType::ASCEND_V220, float, OutDtype>(ubOutput_[n_round_16 * i], ubTempFp32_[n_round * i],
-                                                                   (uint8_t)nRepeatCnt, // repeat
-                                                                   (uint16_t)1,         // dstBlockStride
-                                                                   (uint16_t)1,         // srcBlockStride
-                                                                   (uint16_t)4,         // dstRepeatStride
-                                                                   (uint16_t)8);        // srcRepeatStride
-                }
+            if constexpr (std::is_same_v<OutDtype, __bf16>) {
+                AscendC::Cast<OutDtype, float>(ubOutput_,                     // dst
+                                               ubTempFp32_,                   // src
+                                               AscendC::RoundMode::CAST_RINT, // roundMode
+                                               m_actual_per_vec * n_round);   // count
+            } else {
+                AscendC::Cast<OutDtype, float>(ubOutput_,                     // dst
+                                               ubTempFp32_,                   // src
+                                               AscendC::RoundMode::CAST_NONE, // roundMode
+                                               m_actual_per_vec * n_round);   // count
             }
         }
         SET_FLAG(V, MTE3, EVENT_ID0);
