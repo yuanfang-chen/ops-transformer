@@ -148,8 +148,8 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | rmsnormGammaCkv | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\gamma$参数，Device侧的aclTensor。      | - 不支持空Tensor | BFLOAT16       | ND         | (Hckv)                        |×   |
   | ropeSin         | 输入      | 用于计算旋转位置编码的正弦参数矩阵，Device侧的aclTensor。              | - 支持B=0,S=0,T=0的空Tensor | BFLOAT16       | ND         | - BS合轴：(T,Dr) <br>- BS非合轴：(B,S,Dr)         |×   |
   | ropeCos         | 输入      | 用于计算旋转位置编码的余弦参数矩阵，Device侧的aclTensor。           | - 支持B=0,S=0,T=0的空Tensor  | BFLOAT16       | ND         | - BS合轴：(T,Dr) <br>- BS非合轴：(B,S,Dr)         |×   |
-  | kvCacheRef      | 输入      | 用于cache索引的aclTensor，计算结果原地更新（对应公式中的$k^C$）。  | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持dim=0  | BFLOAT16、INT8 | ND   | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Hckv) <br> - CacheMode="BSND": (B,S,Nkv,Hckv) <br> - CacheMode="TND": (T,Nkv,Hckv) |×   |
-  | krCacheRef      | 输入      | 用于key位置编码的cache，计算结果原地更新（对应公式中的$k^R$），Device侧的aclTensor。    | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持dim=0| BFLOAT16、INT8 | ND         | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Dtile) <br> - CacheMode="BSND": (B,S,Nkv,Dtile) <br> - CacheMode="TND"时: (T,Nkv,Dtile)   |×   |
+  | kvCacheRef      | 输入      | 用于cache索引的aclTensor，计算结果原地更新（对应公式中的$k^C$）。  | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持dim=0  | BFLOAT16、INT8 | ND   | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Dtile) <br> - CacheMode="BSND": (B,S,Nkv,Dtile) <br> - CacheMode="TND": (T,Nkv,Dtile) |×   |
+  | krCacheRef      | 输入      | 用于key位置编码的cache，计算结果原地更新（对应公式中的$k^R$），Device侧的aclTensor。    | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持dim=0| BFLOAT16、INT8 | ND         | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Dr) <br> - CacheMode="BSND": (B,S,Nkv,Dr) <br> - CacheMode="TND"时: (T,Nkv,Dr)   |×   |
   | cacheIndexOptional | 输入      | 用于存储kvCache和krCache的索引，Device侧的aclTensor。| - 支持B=0,S=0,T=0的空Tensor <br>- cacheMode="PA_BSND"/"PA_NZ": 取值范围需在[0,BlockNum*BlockSize)内 <br>- cacheMode="PA_BLK_BSND"/"PA_BLK_NZ": 取值范围需在[0,BlockNum)内 <br>- cacheMode="TND"/"BSND": nullptr | INT64   | ND  | CacheMode="PA_BSND"/"PA_NZ": <br>1. BS合轴：(T) <br>2. BS非合轴：(B,S) <br>- CacheMode="PA_BLK_BSND"/"PA_BLK_NZ": <br> 1. BS合轴：(Sum(Ceil(S_i/BlockSize)))，S_i为每个Batch中的S的长度 <br> 2. BS非合轴：(B,Ceil(S/BlockSize)) <br>- CacheMode="TND"/"BSND": nullptr |×   |
   | dequantScaleXOptional      | 输入      | token_x的反量化参数。 | - 支持B=0,S=0,T=0的空Tensor   | FLOAT          | ND         | - BS合轴：(T) <br>- BS非合轴：(B*S,1)                                  |×   |
   | dequantScaleWDqOptional    | 输入      | weight_dq的反量化参数。   | -     | FLOAT          | ND          | (1,Hcq)                                 |×   |
@@ -222,7 +222,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | BlockNum     | PagedAttention 场景下的块数    | 1. 当CacheMode="PA_BSND"/"PA_NZ"时，取值大于或等于 `(B*S)/BlockSize` 向上取整的结果。<br> 2. 当CacheMode="PA_BLK_BSND"/"PA_BLK_NZ"时，取值大于或等于`B` * `(S / BlockSize)`向上取整的结果（即`B * Ceil(S/BlockSize)`）。注：BS合轴场景，每个Batch中的S长度可以不同，因此BlockNum的取值需大于或等于各Batch中S长度除以BlockSize后的向上取整结果相加。 |
   | BlockSize    | PagedAttention 场景下的块大小  | 取值范围：16~1024，且为16的倍数                                              |
   | T            | BS 合轴后的大小                | 取值范围：不限制；注：若采用 BS 合轴，此时 tokenX、ropeSin、ropeCos 均为 2 维，cacheIndex 为 1 维，queryOut、queryRopeOut 为 3 维 |
-  | Dtile        | krCache的D维度的大小           | - Per-tile量化场景下，取值固定为128 <br> - 其他场景下，取值固定为Hckv（512）                                                       |
+  | Dtile        | krCache的D维度的大小           | - Per-tile量化场景下，取值固定为656 <br> - 其他场景下，取值固定为Hckv（512）                                                       |
 
 -   shape约束
     -   若tokenX的维度采用BS合轴，即(T, He)
