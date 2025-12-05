@@ -552,8 +552,8 @@ ge::graphStatus MlaPrologTiling::GenTilingKey() const
             static_cast<uint8_t>(scenarioInfo_.splitMFlag_),
             cvMode
         );
-        OP_LOGI(context_->opName, "MlaProlog tilingKey args:"
-            "CACHE_MODE:%u, SCENARIO:%u, QUANT_MODE:%u, ENABLE_DEQUANT_OPTIONAL:%u, ENABLE_GROUP_COMPUTE_OPTIONAL:%u,"
+        OP_LOGI(context_->opName, "MlaProlog tilingKey args: "
+            "CACHE_MODE:%u, SCENARIO:%u, QUANT_MODE:%u, ENABLE_DEQUANT_OPTIONAL:%u, ENABLE_GROUP_COMPUTE_OPTIONAL:%u, "
             "EMPTY_TENSOR_MODE:%u, ACTUAL_SEQ_LEN_MODE:%u, SPLIT_M_MODE:%u, CV_MODE:%u",
             static_cast<uint8_t>(cacheMode), typeValue, quantType, enableDequantOpt_, enableGroupComputeOpt_,
             static_cast<uint8_t>(scenarioInfo_.emptyTensorMode_), static_cast<uint8_t>(scenarioInfo_.actualSeqMode_),

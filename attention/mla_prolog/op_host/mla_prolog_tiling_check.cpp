@@ -353,12 +353,20 @@ void MlaPrologTilingCheck::FillRequiredParamShapeWithDims()
 
 void MlaPrologTilingCheck::FillOptionalOutputParamShapeWithDims()
 {
-    if (std::strncmp(context_.opType, V1_OP_NAME, OP_NAME_LEN) != 0) {
+    if (std::strncmp(context_.opType, V2_OP_NAME, OP_NAME_LEN) == 0) {
         // 仅校验dequantScaleQNope有传入
         expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, context_.dequantScaleQNope);
     }
 
     if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
+        if (scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR ||
+            scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
+            expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, std::vector<uint32_t>{baseShapeInfo_.tSize, baseShapeInfo_.nSize, 1});
+        } else {
+            expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, std::vector<uint32_t>{0});
+        }
+        expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME].dtype = ge::DT_FLOAT;
+
         if (*(context_.queryNormFlag)) {
             if (scenarioInfo_.batchSeqFusedFlag_) {
                 expectedParamInfo_.emplace(QUERY_NORM_NAME,
@@ -367,19 +375,23 @@ void MlaPrologTilingCheck::FillOptionalOutputParamShapeWithDims()
                 expectedParamInfo_.emplace(QUERY_NORM_NAME,
                     std::vector<uint32_t>{baseShapeInfo_.bSize, baseShapeInfo_.s1Size, baseShapeInfo_.hcqSize});
             }
-
             if (scenarioInfo_.quantMode_ == QUANT_MODE::NO_QUANT) {
                 expectedParamInfo_[QUERY_NORM_NAME].dtype = ge::DT_BF16;
-                expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NORM_NAME, context_.dequantScaleQNorm);
+                expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NORM_NAME, std::vector<uint32_t>{0});
             } else {
                 expectedParamInfo_[QUERY_NORM_NAME].dtype = ge::DT_INT8;
                 expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NORM_NAME, std::vector<uint32_t>{baseShapeInfo_.tSize, 1});
-                expectedParamInfo_[DEQUANT_SCALE_Q_NORM_NAME].dtype = ge::DT_FLOAT;
             }
+            expectedParamInfo_[DEQUANT_SCALE_Q_NORM_NAME].dtype = ge::DT_FLOAT;
         } else {
-            // 仅校验queryNorm和dequantScaleQNorm有传入
-            expectedParamInfo_.emplace(QUERY_NORM_NAME, context_.queryNorm);
-            expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NORM_NAME, context_.dequantScaleQNorm);
+            expectedParamInfo_.emplace(QUERY_NORM_NAME, std::vector<uint32_t>{0});
+            expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NORM_NAME, std::vector<uint32_t>{0});
+            if (scenarioInfo_.quantMode_ == QUANT_MODE::NO_QUANT) {
+                expectedParamInfo_[QUERY_NORM_NAME].dtype = ge::DT_BF16;
+            } else {
+                expectedParamInfo_[QUERY_NORM_NAME].dtype = ge::DT_INT8;
+            }
+            expectedParamInfo_[DEQUANT_SCALE_Q_NORM_NAME].dtype = ge::DT_FLOAT;
         }
     }
 }
@@ -505,16 +517,11 @@ void MlaPrologTilingCheck::FillFullKVQuantParamInfo()
     } else {
         expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1, baseShapeInfo_.hckvSize});
     }
-    expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME] =
-        ParamInfo(std::vector<uint32_t>{baseShapeInfo_.tSize, baseShapeInfo_.nSize, 1});
 
     expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_INT8;
     expectedParamInfo_[KV_CACHE_OUT_NAME].dtype = ge::DT_INT8;
     expectedParamInfo_[QUANT_SCALE_CKV_NAME].dtype = ge::DT_FLOAT;
     expectedParamInfo_[QUERY_NAME].dtype = ge::DT_INT8;
-    expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME].dtype = ge::DT_FLOAT;
-
-    expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME].isValid = true;
 }
 
 void MlaPrologTilingCheck::FillFullKVPertileQuantParamInfo()
@@ -554,15 +561,10 @@ void MlaPrologTilingCheck::FillMxfp8FullKVQuantParamInfo()
     FillMxfp8FullQuantParamInfo();
 
     expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1, baseShapeInfo_.hckvSize});
-    expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME] =
-        ParamInfo(std::vector<uint32_t>{baseShapeInfo_.tSize, baseShapeInfo_.nSize, 1});
 
     expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
     expectedParamInfo_[QUANT_SCALE_CKV_NAME].dtype = ge::DT_FLOAT;
     expectedParamInfo_[QUERY_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
-    expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME].dtype = ge::DT_FLOAT;
-
-    expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME].isValid = true;
 }
 
 void MlaPrologTilingCheck::GenActualParamInfo()
