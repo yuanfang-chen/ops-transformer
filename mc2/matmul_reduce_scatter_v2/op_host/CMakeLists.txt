@@ -13,6 +13,7 @@ if (BUILD_OPEN_PROJECT)  # custom
     )
     add_mc2_modules_sources(OPTYPE matmul_reduce_scatter_v2 matmul_reduce_scatter_v2 ACLNNTYPE aclnn aclnn_inner)
     set(MC2_OPT ON PARENT_SCOPE)
+    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE) 
     set(matmul_reduce_scatter_v2_depends mc2/common mc2/3rd PARENT_SCOPE)
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE matmul_reduce_scatter_v2 matmul_reduce_scatter_v2 ACLNNTYPE aclnn aclnn_inner)
