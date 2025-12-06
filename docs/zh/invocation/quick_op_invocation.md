@@ -108,6 +108,7 @@
 
 - 自定义算子包：选择部分算子编译生成的包称为自定义算子包，以**挂载**形式作用于CANN包，不改变原始包内容。注意自定义算子包优先级高于原始CANN包。
 - ops-transformer包：选择整个项目编译生成的包称为ops-transformer包，可**完整替换**CANN包对应部分。
+- ops-transformer静态库：选择整个项目编译为一个静态库文件，并将libcann-transformer-static.a文件和aclnn接口头文件打包为压缩文件形式。
 
 ### 自定义算子包
 
@@ -175,6 +176,51 @@
     ```
 
     \$\{install\_path\}：表示指定安装路径，需要与toolkit包安装在相同路径，默认安装在`/usr/local/Ascend`目录。
+
+### ops-transformer静态库
+
+1. **编译ops-transformer静态库压缩包**
+
+    进入项目根目录，执行如下编译命令：
+
+    ```bash
+    bash build.sh --pkg --static --soc=${soc_version}
+    ```
+    - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件使用"ascend910b"（默认），Atlas A3 训练系列产品/Atlas A3 推理系列产品使用"ascend910_93"。
+
+    若提示如下信息，说明编译并压缩成功。
+
+    ```bash
+    [SUCCESS] Build static lib success!
+    Successfully created compressed package: ${repo_path}/build_out/cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}.tar.gz
+    ```
+
+   \$\{repo\_path\}表示项目根目录绝对路径，\$\{soc\_name\}表示NPU型号名称，即\$\{soc\_version\}删除“ascend”后剩余的内容。编译成功后，压缩包存放于build_out目录下。
+
+2. **解压ops-transformer静态库压缩包**
+
+    进入到build_out目录下，执行解压命令：
+
+    ```bash
+    tar --zxvf ./cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}.tar.gz -C ${static_lib_path}
+    ```
+
+    \$\{static\_lib\_path\}：表示静态库解压路径。解压后目录格式如下：
+    ```
+    ├── cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}
+    │   ├── lib64
+    │   │   ├── libcann-transformer-static.a               # 静态库文件
+    │   └── include
+    |       ├── ...                               # aclnn接口头文件
+    ```
+3. **静态库测试方法**
+    ```bash
+    g++ ${file} -I ${TEST_PATH}/include -L ${TEST_PATH} -L ${ASCEND_HOME_PATH}/lib64 -Wl,--allow-multiple-definition \
+    -Wl,--start-group -lcann_transformer_static -lcann_math_static -lcann_legacy_static -Wl,--end-group -lgraph -lgraph_base \
+    -lpthread -lmmpa -lmetadef -lascendalog -lregister -lopp_registry -lops_base -lascendcl -ltiling_api -lplatform \
+    -ldl -lnnopbase -lc_sec -lunified_dlog -lruntime -o ${exec_name}
+    ```
+    \$\{file\}表示aclnn测试代码源文件，\$\{TEST\_PATH\}表示静态库解压路径，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/latest，\$\{exec\_name\}表示最终可执行文件的名字。
 
 ## 本地验证 
 
