@@ -226,7 +226,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>INT64</td>
             <td>-</td>
             <td>（1）或（B）或（>B）</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>actualSeqLengthsKvOptional</td>
@@ -245,7 +245,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>INT64</td>
             <td>-</td>
             <td>（1）或（B）或（>B）</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>deqScale1Optional</td>
@@ -256,7 +256,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>UINT64、FLOAT32</td>
             <td>ND</td>
             <td>见<a href="#INT8">int8量化场景</a></td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>quantScale1Optional</td>
@@ -267,7 +267,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>FLOAT32</td>
             <td>ND</td>
             <td>见<a href="#INT8">int8量化场景</a></td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>deqScale2Optional</td>
@@ -278,7 +278,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>UINT64、FLOAT32</td>
             <td>ND</td>
             <td>见<a href="#INT8">int8量化场景</a></td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>quantScale2Optional</td>
@@ -289,7 +289,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>FLOAT32、BFLOAT16</td>
             <td>ND</td>
             <td>输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D]</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>quantOffset2Optional</td>
@@ -300,7 +300,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>FLOAT32、BFLOAT16</td>
             <td>ND</td>
             <td>与quantScale2Optional保持一致</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>antiquantScaleOptional</td>
@@ -311,7 +311,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>Q_S=1：FLOAT16、BFLOAT16、FLOAT32Q_S&gt;1：FLOAT16</td>
             <td>ND</td>
             <td>见<a href="#AntiQuant">伪量化参数</a></td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>antiquantOffsetOptional</td>
@@ -322,7 +322,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>与antiquantScaleOptional保持一致</td>
             <td>ND</td>
             <td>与antiquantScaleOptional保持一致</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>blockTableOptional</td>
@@ -333,7 +333,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>INT32</td>
             <td>ND</td>
             <td>第一维长度需等于B，第二维长度不能小于maxBlockNumPerSeq（maxBlockNumPerSeq为不同batch中最大actualSeqLengthsKv对应的block数量）</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>queryPaddingSizeOptional</td>
@@ -351,7 +351,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>INT64</td>
             <td>ND</td>
             <td>（1）</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>kvPaddingSizeOptional</td>
@@ -369,7 +369,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>INT64</td>
             <td>ND</td>
             <td>（1）</td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>keyAntiquantScaleOptional</td>
@@ -379,13 +379,13 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <ul>
                 <li>不支持空Tensor。</li>
                 <li>keyAntiquantScaleOptional和valueAntiquantScaleOptional要么都为空，要么都不为空。</li>
-                <li>其余约束见<a href="#AntiQuant">伪量化参数约束</a>。</li>
+                <li>其余约束见<a href="#AntiQuant">伪量化参数约束</a>和见<a href="#MLA">MLA场景全量化参数约束</a>。</li>
             </ul>
             </td>
             <td>FLOAT16、BFLOAT16、FLOAT32</td>
             <td>ND</td>
-            <td>见<a href="#AntiQuant">伪量化参数</a></td>
-            <td>-</td>
+            <td>见<a href="#AntiQuant">伪量化参数</a>和见<a href="#MLA">MLA场景全量化参数</a></td>
+            <td>×</td>
         </tr>
         <tr>
             <td>keyAntiquantOffsetOptional</td>
@@ -401,7 +401,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>与keyAntiquantOffsetOptional保持一致</td>
             <td>ND</td>
             <td>见<a href="#AntiQuant">伪量化参数</a></td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>valueAntiquantScaleOptional</td>
@@ -411,13 +411,13 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <ul>
                 <li>不支持空Tensor。</li>
                 <li>keyAntiquantScaleOptional和valueAntiquantScaleOptional要么都为空，要么都不为空。</li>
-                <li>其余约束见<a href="#AntiQuant">伪量化参数约束</a>。</li>
+                <li>其余约束见<a href="#AntiQuant">伪量化参数约束</a>和见<a href="#MLA">MLA场景全量化参数约束</a>。</li>
             </ul>
             </td>
             <td>FLOAT16、BFLOAT16、FLOAT32</td>
             <td>ND</td>
-            <td>见<a href="#AntiQuant">伪量化参数</a></td>
-            <td>-</td>
+            <td>见<a href="#AntiQuant">伪量化参数</a>和见<a href="#MLA">MLA场景全量化参数</a></td>
+            <td>×</td>
         </tr>
         <tr>
             <td>valueAntiquantOffsetOptional</td>
@@ -433,7 +433,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>与valueAntiquantOffsetOptional保持一致</td>
             <td>ND</td>
             <td>见<a href="#AntiQuant">伪量化参数</a></td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>keySharedPrefixOptional</td>
@@ -548,7 +548,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>FLOAT32</td>
             <td>ND</td>
             <td>见<a href="#AntiQuant">伪量化参数</a></td>
-            <td>-</td>
+            <td>×</td>
         </tr>
         <tr>
             <td>numHeads</td>
@@ -1545,7 +1545,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>-</td>
         </tr>
         <tr>
-            <td rowspan="6">全量化</td>
+            <td rowspan="8">全量化</td>
             <td>query</td>
             <td>INT8</td>
             <td>-</td>
@@ -1574,6 +1574,16 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>keyRope</td>
             <td>BFLOAT16，仅支持shape为五维</td>
             <td>shape为五维时，各维度约束为[blockNum, N, D/16, blockSize, 16]</td>
+        </tr>
+        <tr>
+            <td>keyAntiquantScaleOptional</td>
+            <td>FLOAT32; 需与dequantScaleQueryOptional, valueAntiquantScaleOptional同时存在，不支持传入keyAntiquantOffsetOptional和valueAntiquantOffsetOptional; 仅支持pertensor模式</td>
+            <td>shape为(1)</td>
+        </tr>
+        <tr>
+            <td>valueAntiquantScaleOptional</td>
+            <td>FLOAT32; 需与dequantScaleQueryOptional, keyAntiquantScaleOptional同时存在，不支持传入keyAntiquantOffsetOptional和valueAntiquantOffsetOptional; 仅支持pertensor模式</td>
+            <td>shape为(1)</td>
         </tr>
         <tr>
             <td rowspan="2">PagedAttention</td>

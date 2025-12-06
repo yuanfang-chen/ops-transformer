@@ -172,11 +172,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | tileSize     | 输入      | 表示per-tile量化时每个tile的大小，仅在kv_cache_quant_mode为3时有效，Host侧参数。  | - 默认值为128 | int64 | -- | --    |-   |
   | qcQrScale     | 输入      |   表示Query的尺度矫正系数，用户不特意指定时需要传入1.0  | --| double | -   | -  |- |
   | kcScale     | 输入      |   表示Key的尺度矫正系数，用户不特意指定时需要传入1.0  | --| double | -    | -  |- |
-  | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$），Device侧的aclTensor。     | - 不支持空Tensor  | BFLOAT16、INT8 | ND         | - BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv) |-   |
-  | queryRopeOut               | 输出      | 公式中Query位置编码的输出tensor（对应$q^R$），Device侧的aclTensor。  | - 不支持空Tensor | BFLOAT16       | ND         | - BS合轴：(T,N,Dr) <br>- BS非合轴：(B,S,N,Dr)     |-   |
-  | dequantScaleQNopeOutOptional  | 输出           | 公式中Query输出的量化参数，Device侧的aclTensor。  | - 不支持空Tensor     | FLOAT      | ND   | - BS合轴：(T,N,1) <br>- BS非合轴：(B*S,N,1)   |-   |
-  | queryNormOutOptional     | 输出      | 公式中tokenX做rmsNorm后的输出tensor（对应$c^Q$），Device侧的aclTensor。  | - 不支持空Tensor <br> - A5暂不支持该输出，传入nullptr即可 | BFLOAT16、INT8  | ND | - BS合轴：(T,Hcq) <br> - BS非合轴：(B*S,Hcq)    |-   |
-  | dequantScaleQNormOutOptional     | 输出      | query_norm的输出tensor的量化参数，Device侧的aclTensor。  | - 不支持空Tensor <br> - A5暂不支持该输出，传入nullptr即可 | FLOAT  | ND | - BS合轴：（T,1）<br> - BS非合轴：（B*S,1）   |-   |
+  | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$），Device侧的aclTensor。     | - 不支持空Tensor  | BFLOAT16、INT8 | ND         | - BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv) |×   |
+  | queryRopeOut               | 输出      | 公式中Query位置编码的输出tensor（对应$q^R$），Device侧的aclTensor。  | - 不支持空Tensor | BFLOAT16       | ND         | - BS合轴：(T,N,Dr) <br>- BS非合轴：(B,S,N,Dr)     |×   |
+  | dequantScaleQNopeOutOptional  | 输出           | 公式中Query输出的量化参数，Device侧的aclTensor。  | - 不支持空Tensor     | FLOAT      | ND   | - BS合轴：(T,N,1) <br>- BS非合轴：(B*S,N,1)   |×   |
+  | queryNormOutOptional     | 输出      | 公式中tokenX做rmsNorm后的输出tensor（对应$c^Q$），Device侧的aclTensor。  | - 不支持空Tensor <br> - A5暂不支持该输出，传入nullptr即可 | BFLOAT16、INT8  | ND | - BS合轴：(T,Hcq) <br> - BS非合轴：(B*S,Hcq)    |×   |
+  | dequantScaleQNormOutOptional     | 输出      | query_norm的输出tensor的量化参数，Device侧的aclTensor。  | - 不支持空Tensor <br> - A5暂不支持该输出，传入nullptr即可 | FLOAT  | ND | - BS合轴：（T,1）<br> - BS非合轴：（B*S,1）   |×   |
   | workspaceSize              | 输出      | 返回需在Device侧申请的workspace大小。  | - 仅用于输出结果，无需输入配置 - 数据类型为uint64_t* | -              | -          | -                                  |-   |
   | executor                   | 输出      | 返回op执行器，包含算子计算流程。        | - 仅用于输出结果，无需输入配置 - 数据类型为aclOpExecutor**    | -              | -          | -                                  |-   |
 
