@@ -211,92 +211,6 @@ check_opp_version_file() {
   return
 }
 
-check_relation() {
-  opp_ver_info_val="$1"
-  req_pkg_name="$2"
-  req_pkg_version="$3"
-  if [ -f "${COMMON_INC_FILE}" ]; then
-    . "${COMMON_INC_FILE}"
-    check_pkg_ver_deps "${opp_ver_info_val}" "${req_pkg_name}" "${req_pkg_version}"
-    ret_situation=$ver_check_status
-  else
-    logandprint "[ERROR]: ERR_NO:${FILE_NOT_EXIST}; The ${COMMON_INC_FILE} not exists."
-    exitlog
-    exit 1
-  fi
-  return
-}
-
-show_relation() {
-  relation_situation="$1"
-  req_pkg_name_val="$2"
-  req_pkg_path="$3"
-  if [ "$relation_situation" = "SUCC" ]; then
-    logandprint "[INFO]: Relationship of opp with ${req_pkg_name_val} in path ${req_pkg_path} checked successfully"
-  else
-    logandprint "[WARNING]: Relationship of opp with ${req_pkg_name_val} in path ${req_pkg_path} checked failed."
-  fi
-  return
-}
-
-# find_version_check() {
-#   if [ "$(id -u)" != "0" ]; then
-#     atc_res=$(find ${HOME} -name "ccec_compiler" | grep Ascend | grep atc)
-#     fwk_res=$(find ${HOME} -name "ccec_compiler" | grep Ascend | grep fwk)
-#     comp_res=$(find ${HOME} -name "ccec_compiler" | grep Ascend | grep Ascend/compiler)
-#     ccec_compiler_path="$atc_res $fwk_res $comp_res"
-#   else
-#     atc_res=$(find /usr/local -name "ccec_compiler" | grep Ascend | grep atc)
-#     fwk_res=$(find /usr/local -name "ccec_compiler" | grep Ascend | grep fwk)
-#     comp_res=$(find /usr/local -name "ccec_compiler" | grep Ascend | grep Ascend/compiler)
-#     ccec_compiler_path="$atc_res $fwk_res $comp_res"
-#   fi
-#   check_opp_version_file
-#   ret_check_opp_version_file=$opp_ver_info
-#   for var in ${ccec_compiler_path}; do
-#     run_pkg_path_val=$(dirname "${var}")
-#     # find run pkg name
-#     select_last_dir_component "${run_pkg_path_val}"
-#     ret_pkg_name=$last_component
-#     #get check version
-#     check_version_file "${run_pkg_path_val}" "${ret_pkg_name}"
-#     ret_check_version_file=$version_file
-#     #check relation
-#     check_relation "${ret_check_opp_version_file}" "${ret_pkg_name}" "${ret_check_version_file}"
-#     ret_check_relation_val=$ret_situation
-#     #show relation
-#     show_relation "${ret_check_relation_val}" "${ret_pkg_name}" "${run_pkg_path_val}"
-#   done
-#   return
-# }
-
-# path_version_check() {
-#   path_env_list="$1"
-#   check_opp_version_file
-#   ret_check_opp_version_file_name=$opp_ver_info
-#   path_list=$(echo "${path_env_list}" | cut -d"=" -f2)
-#   array=$(echo ${path_list} | awk '{split($0,arr,":");for(i in arr) print arr[i]}')
-#   for var in ${array}; do
-#     path_ccec_compile=$(echo ${var} | grep -w "ccec_compiler")
-#     if [ "${path_ccec_compile}" != "" ]; then
-#       pkg_path_val=$(dirname $(dirname "${path_ccec_compile}"))
-#       # find run pkg name
-#       select_last_dir_component "${pkg_path_val}"
-#       ret_pkg_name_val=$last_component
-#       #get check version
-#       check_version_file "${pkg_path_val}" "${ret_pkg_name_val}"
-#       ret_check_version_file_val=$version_file
-#       #check relation
-#       check_relation "${ret_check_opp_version_file_name}" "${ret_pkg_name}" "${ret_check_version_file_val}"
-#       ret_check_relation=$ret_situation
-#       #show relation
-#       show_relation "${ret_check_relation}" "${ret_pkg_name}" "${pkg_path_val}"
-#     else
-#       echo "the var_case does not contains ccec_compiler" 2 >>/dev/null
-#     fi
-#   done
-#   return
-# }
 
 check_docker_path() {
   docker_path="$1"
@@ -556,36 +470,12 @@ init_env() {
 }
 
 check_pre_install() {
-#   if [ "${IS_CHECK}" = "y" ] && [ "${check_path}" = "" ]; then
-#     path_env_list_val=$(env | grep -w PATH)
-#     path_ccec_compile_val=$(echo ${path_env_list} | grep -w "ccec_compiler")
-#     if [ "${path_ccec_compile_val}" != "" ]; then
-#       path_version_check "${path_env_list_val}"
-#     else
-#       find_version_check
-#     fi
-#     exitlog
-#     exit 0
-#   fi
-
-#   if [ "${IS_CHECK}"="y" ] && [ "${check_path}" != "" ]; then
-#     VERCHECK_FILE="${CURR_PATH}""/ver_check.sh"
-#     if [ ! -f "${VERCHECK_FILE}" ]; then
-#       logandprint "[ERROR]: ERR_NO:${FILE_NOT_EXIST};ERR_DES:${FILE_NOT_EXIST_DES}.\
-#       The file (${VERCHECK_FILE}) not exists.\
-#  Please make sure that the opp module installed in (${VERCHECK_FILE}) and then set the correct install path."
-#     fi
-#     bash "${VERCHECK_FILE}" "${check_path}"
-#     exitlog
-#     exit 0
-#   fi
-
   local installed_user=$(get_installed_info "${KEY_INSTALLED_UNAME}")
   local installed_group=$(get_installed_info "${KEY_INSTALLED_UGROUP}")
   if [ "${installed_user}" != "" ] || [ "${installed_group}" != "" ]; then
     if [ "${installed_user}" != "${TARGET_USERNAME}" ] || [ "${installed_group}" != "${TARGET_USERGROUP}" ]; then
       logandprint "[ERROR]: The user and group are not same with last installation,\
- do not support overwriting installation!"
+  do not support overwriting installation!"
       exitlog
       exit 1
     fi
@@ -645,6 +535,8 @@ install_package() {
   if [ $(id -u) -eq 0 ]; then
     chown -R "root":"root" "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script" 2>/dev/null
     chown "root":"root" "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}" 2>/dev/null
+    chmod -R 555 "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script" 2>/dev/null
+    chmod 444 "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script/filelist.csv" 2>/dev/null
   else
     chmod -R 550 "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script" 2>/dev/null
     chmod 440 "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script/filelist.csv" 2>/dev/null

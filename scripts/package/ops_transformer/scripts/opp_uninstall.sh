@@ -171,7 +171,7 @@ remove_module() {
 
   logandprint "[INFO]: Delete the installed opp source files in (${TARGET_VERSION_DIR})."
 
-  bash "${COMMON_PARSER_FILE}" --package="${OPP_PLATFORM_DIR}" --uninstall --recreate-softlink \
+  bash "${COMMON_PARSER_FILE}" --package="${OPP_PLATFORM_DIR}" --uninstall --remove-install-info \
     --username="${TARGET_USERNAME}" --usergroup="${TARGET_USERGROUP}" --version=$RUN_PKG_VERSION \
     --use-share-info --version-dir=$PKG_VERSION_DIR ${UNINSTALL_OPTION} "${INSTALLED_TYPE}" "${TARGET_INSTALL_PATH}" \
     "${FILELIST_FILE}" "${IN_FEATURE}" --recreate-softlink
@@ -185,6 +185,14 @@ remove_module() {
   done
 }
 
+remove_init_py() {
+  local built_in_impl_path=${TARGET_OPP_BUILT_IN}/op_impl/ai_core/tbe/impl/ops_transformer
+
+  [ -e ${built_in_impl_path}/__init__.py ] && rm ${built_in_impl_path}/__init__.py > /dev/null 2>&1
+
+  [ -e ${built_in_impl_path}/dynamic/__init__.py ] && rm ${built_in_impl_path}/dynamic/__init__.py > /dev/null 2>&1
+}
+
 remove_ops_transformer() {
   if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_OPP_BUILT_IN}" ]; then
     chmod u+w -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
@@ -192,9 +200,10 @@ remove_ops_transformer() {
 
   remove_module
 
+  remove_init_py
+
   if [ "${UNINSTALL_MODE}" != "upgrade" ]; then
     logandprint "[INFO]: Delete the install info file (${INSTALL_INFO_FILE})."
-    chmod u+w -R "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}"
     rm -f "${INSTALL_INFO_FILE}"
     log_with_errorlevel "$?" "warn" "[WARNING] Delete ops install info file failed, please delete it by yourself."
   fi

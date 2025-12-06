@@ -38,9 +38,11 @@
         <path value="share/info/ops_transformer/script" install_mod="550"/>
     </dir_info>
     <dir_info value="opp" install_path="opp" install_type="all">
+        <path value="opp" install_mod="750"/>
         <path value="opp/script" install_mod="550"/>
         <path value="opp/bin" install_mod="550"/>
         <path value="opp/include" install_mod="550"/>
         <path value="opp/lib64" install_mod="550"/>
+        <path value="opp/built-in" install_mod="550"/>
     </dir_info>
 </config>
