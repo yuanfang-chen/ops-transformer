@@ -44,6 +44,8 @@ namespace optiling {
     TILING_DATA_FIELD_DEF(uint32_t, isNddma);
     END_TILING_DATA_DEF;
 
+    REGISTER_TILING_DATA_CLASS(MC2AddRMSNormTilingDataOp, MC2AddRMSNormTilingData)
+
     struct AddRmsNormCompileInfo
     {
         uint32_t totalCoreNum = 0;
