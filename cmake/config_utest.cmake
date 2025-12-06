@@ -19,10 +19,10 @@ set(OPS_ADV_UTEST_OPS_TEST_ASCEND_PRODUCT_TYPE ascend910B1)
 # 环境检查
 ########################################################################################################################
 
-if (EXISTS ${ASCEND_CANN_PACKAGE_PATH}/toolkit/tools/tikicpulib/lib/cmake)
-    list(APPEND CMAKE_PREFIX_PATH ${ASCEND_CANN_PACKAGE_PATH}/toolkit/tools/tikicpulib/lib/cmake)
-else()
+if (EXISTS ${ASCEND_CANN_PACKAGE_PATH}/tools/tikicpulib/lib/cmake)
     list(APPEND CMAKE_PREFIX_PATH ${ASCEND_CANN_PACKAGE_PATH}/tools/tikicpulib/lib/cmake)
+else()
+    list(APPEND CMAKE_PREFIX_PATH ${ASCEND_CANN_PACKAGE_PATH}/toolkit/tools/tikicpulib/lib/cmake)
 endif()
 find_package(tikicpulib REQUIRED)
 

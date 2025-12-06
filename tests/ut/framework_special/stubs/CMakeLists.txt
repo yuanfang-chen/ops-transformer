@@ -25,6 +25,7 @@ add_library(${_Target} SHARED)
 target_sources(${_Target} PRIVATE ${_Sources})
 
 target_include_directories(${_Target} PRIVATE
+        ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc
         ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/runtime
         ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/profiling
 )
