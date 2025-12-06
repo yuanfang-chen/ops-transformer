@@ -1051,7 +1051,10 @@ __aicore__ inline void
 
         LocalTensor<T1> castedDvDropResPad = vecInQue1.AllocTensor<T1>();
         castedDvDropResPad.SetSize(innerMatResNum);
+        AscendC::PipeBarrier<PIPE_V>();
         Cast(castedDvDropResPad, dvDropResInner, RoundMode::CAST_ROUND, innerMatResNum);
+        AscendC::SetFlag<HardEvent::V_MTE3>(mte3WaitV);
+        AscendC::WaitFlag<HardEvent::V_MTE3>(mte3WaitV);
 
         DataCopyPad(dropWorkSpaceGm[pingpongIdx * pingPongDropOffset + offset], castedDvDropResPad,
                     {static_cast<uint16_t>(nIn * g * sQ), static_cast<uint16_t>(sKV * inputDTypeSize), 0, 0});
