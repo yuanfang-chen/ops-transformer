@@ -389,7 +389,7 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
         if constexpr (FLASH_DECODE) {
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm,
-                                       actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
+                                       actualSeqLengthsGmQ, actualSeqLengthsGm);
         }
         vectorService.InitParams(constInfo);
         vectorService.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths,

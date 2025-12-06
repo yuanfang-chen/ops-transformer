@@ -931,16 +931,6 @@ ge::graphStatus FiaInfoParser::GetActualSeqInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetPostQuantInfo()
-{
-    if (opParamInfo_.quantScale2.tensor != nullptr && opParamInfo_.quantScale2.desc != nullptr) {
-        isPostQuantEnable_ = true;
-        isOutQuantPerChnOut_ = opParamInfo_.quantScale2.tensor->GetStorageShape().GetShapeSize() != 1;
-        isOutQuantTypeBf16_ = opParamInfo_.quantScale2.desc->GetDataType() == DT_BF16;
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
 TilingKeyLayout FiaInfoParser::MapStringToLayout(FiaLayout &layoutString) const
 {
     const std::map<FiaLayout, TilingKeyLayout> layoutMap = {
@@ -1001,10 +991,6 @@ void FiaInfoParser::GenerateFeatureInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.sysPrefixFlag = systemPrefixFlag_;
     fiaInfo.systemPrefixLen = systemPrefixLen_;
     fiaInfo.systemPrefixMaxLen = systemPrefixMaxLen_;
-    //postquant
-    fiaInfo.isOutQuantPerChnOut = isOutQuantPerChnOut_;
-    fiaInfo.isOutQuantTypeBf16 = isOutQuantTypeBf16_;
-    fiaInfo.isOutQuantEnable = isPostQuantEnable_;
 }
  
 void FiaInfoParser::GenerateLayoutInfo(FiaTilingInfo &fiaInfo)
@@ -1150,8 +1136,7 @@ ge::graphStatus FiaInfoParser::ParseFeatureInfo()
         ge::GRAPH_SUCCESS != GetMaxWorkspaceFlag() ||
         ge::GRAPH_SUCCESS != GetActualSeqInfo() ||
         ge::GRAPH_SUCCESS != GetSystemPrefix() ||
-        ge::GRAPH_SUCCESS != GetPseShiftFlag()||
-        ge::GRAPH_SUCCESS != GetPostQuantInfo()) {
+        ge::GRAPH_SUCCESS != GetPseShiftFlag()) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
