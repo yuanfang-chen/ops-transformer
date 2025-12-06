@@ -832,6 +832,24 @@ __aicore__ inline void FiaBlockVecNonQuantMla<FIAT>::ProcessVec1L(const Attentio
                 } else {
                     fa_base_vector::ComputeSoftMaxLse(totalLseUb, sumTensor, maxTensor, mSplitInfo.vecDealM);
                 }
+
+                bool isInvalidRows = fa_base_vector::IsExistInvalidRows(info.nextTokensPerBatch, info.preTokensPerBatch, 
+                    constInfo.sparseMode, constInfo.attenMaskFlag, constInfo.isRowInvalid);
+
+                if (isInvalidRows) { // 存在行无效场景
+                    SoftMaxShapeInfo softmaxShapeInfo{
+                    static_cast<uint32_t>(mSplitInfo.vecDealM), static_cast<uint32_t>(brcbNum),
+                    static_cast<uint32_t>(mSplitInfo.vecDealM), static_cast<uint32_t>(brcbNum)};
+
+                    if constexpr (SOFTMAX_WITH_BRC) {
+                        AdjustSoftMaxRes<COMPUTE_T, COMPUTE_T>(totalLseUb, maxTensor, negativeIntScalar, 
+                            (COMPUTE_T)3e+99, softmaxShapeInfo);
+                    } else {
+                        AdjustSoftMaxRes<COMPUTE_T, COMPUTE_T, false, 1>(totalLseUb, maxTensor, negativeIntScalar, 
+                            (COMPUTE_T)3e+99, softmaxShapeInfo);
+                    }
+                }
+
                 LocalTensor<COMPUTE_T> tmpLseResCastTensor = outputBuff2.Get<COMPUTE_T>();
                 WaitFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
                 DataCopy(tmpLseResCastTensor, totalLseUb, mSplitInfo.vecDealM * brcbNum);
