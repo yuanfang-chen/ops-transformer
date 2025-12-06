@@ -375,19 +375,19 @@ static bool CheckTensorFormat(const gert::TilingContext *context)
     ge::Format xFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(xDesc->GetStorageFormat()));
     OP_TILING_CHECK(
         xFormat != ge::FORMAT_ND,
-        OP_LOGE(nodeName, "x format should be NZ, but actual value is %s.", Ops::Base::ToString(xFormat).c_str()),
+        OP_LOGE(nodeName, "x format should be ND, but actual value is %s.", Ops::Base::ToString(xFormat).c_str()),
         return false);
     auto scalesDesc = context->GetInputDesc(SCALES_INDEX);
     ge::Format scalesFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(scalesDesc->GetStorageFormat()));
     OP_TILING_CHECK(scalesFormat != ge::FORMAT_ND,
-                    OP_LOGE(nodeName, "scale format should be NZ, but actual value is %s.",
+                    OP_LOGE(nodeName, "scale format should be ND, but actual value is %s.",
                             Ops::Base::ToString(scalesFormat).c_str()),
                     return false);
     // context->GetOutputDesc在CheckTensorDataType函数中已经校验
     auto outputDesc = context->GetOutputDesc(OUTPUT_INDEX);
     ge::Format outPutFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(outputDesc->GetStorageFormat()));
     OP_TILING_CHECK(outPutFormat != ge::FORMAT_ND,
-                    OP_LOGE(nodeName, "output format should be NZ, but actual value is %s.",
+                    OP_LOGE(nodeName, "output format should be ND, but actual value is %s.",
                             Ops::Base::ToString(outPutFormat).c_str()),
                     return false);
     return true;

@@ -25,10 +25,13 @@
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "hccl_util.h"
-
-using namespace op;
+#include "aclnn_kernels/transdata.h"
 
 namespace {
+
+using namespace op;
+using namespace l0op;
+
 enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
     NNOPBASE_HCCL_SERVER_TYPE_MTE,
@@ -110,38 +113,19 @@ static bool  QuantAllReduceCheckAllDtypesValid(const aclTensor* x, const aclTens
     return isAllDtypesValid;
 }
 
-// 数据格式检查
-static bool QuantAllReduceIsAllFormatND(aclFormat xFormat, aclFormat scalesFormat, aclFormat outputFormat)
+static bool QuantAllReduceCheckAllFormatValid(const aclTensor *x, const aclTensor *scales, const aclTensor *output)
 {
-    if (xFormat == aclFormat::ACL_FORMAT_ND &&      \
-        scalesFormat == aclFormat::ACL_FORMAT_ND && \
-        outputFormat == aclFormat::ACL_FORMAT_ND) {
-        return true;
-    } else {
-        return false;
-    }
-}
+    OP_LOGD("x/scales/output origin format is %s, %s, %s.", op::ToString(x->GetStorageFormat()).GetString(),
+            op::ToString(scales->GetStorageFormat()).GetString(), op::ToString(output->GetStorageFormat()).GetString());
 
-static bool QuantAllReduceCheckAllFormatValid(const aclTensor* x, const aclTensor* scales,
-                                              const aclTensor* output)
-{
-    aclFormat xFormat, scalesFormat, outputFormat;
-    if (aclGetFormat(x, &xFormat) != ACLNN_SUCCESS) {
-        OP_LOGD("QuantAllReduce, aclGetFormat failed for x !");
-        return false;
-    }
-    if (aclGetFormat(scales, &scalesFormat) != ACLNN_SUCCESS) {
-        OP_LOGD("QuantAllReduce, aclGetFormat failed for scales !");
-        return false;
-    }
-    if (aclGetFormat(output, &outputFormat) != ACLNN_SUCCESS) {
-        OP_LOGD("QuantAllReduce, aclGetFormat failed for output !");
-        return false;
-    }
-    if (!QuantAllReduceIsAllFormatND(xFormat, scalesFormat, outputFormat)) {
-        OP_LOGD("QuantAllReduce, Recieved tensor format is not ND !");
-        return false;
-    }
+    // 内部只处理ND格式，这里做reformat操作
+    x = l0op::ReFormat(x, op::Format::FORMAT_ND);
+    CHECK_RET(x != nullptr, false);
+    scales = l0op::ReFormat(scales, op::Format::FORMAT_ND);
+    CHECK_RET(scales != nullptr, false);
+    output = l0op::ReFormat(output, op::Format::FORMAT_ND);
+    CHECK_RET(output != nullptr, false);
+
     return true;
 }
 
@@ -160,7 +144,7 @@ static aclnnStatus QuantAllReduceCheckParams(const aclTensor* x, const aclTensor
 
     return ACLNN_SUCCESS;
 }
-}
+} // namespace
 
 extern "C" aclnnStatus aclnnInnerQuantAllReduceGetWorkspaceSize(const aclTensor* x, const aclTensor* scales,
                                                                 const char* group, const char* reduceOp,
