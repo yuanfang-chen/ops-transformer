@@ -110,6 +110,12 @@ ge::graphStatus FiaTilingNonQuant::GetPlatformInfo()
     cvRatio_ = aivNum_ / aicNum_;
     OP_LOGI(fiaInfo_->opName, "FIA aicNum: %u, aivNum:%u, cvRatio:%u.", aicNum_, aivNum_, cvRatio_);
 
+    OP_CHECK_IF(cvRatio_ == 1,
+        OPS_REPORT_VECTOR_INNER_ERR(fiaInfo_->opName, 
+            "when CV 1:1, only support MLA non-quantization(QKV type both are FP16 or BF16) "
+            "and MLA fully quantization(QKV type both are int8)"), 
+            return GRAPH_FAILED);
+
     return ge::GRAPH_SUCCESS;
 }
 

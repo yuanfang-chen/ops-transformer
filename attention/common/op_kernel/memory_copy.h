@@ -2708,14 +2708,14 @@ __aicore__ inline void DealActSeqLenIsZero(uint32_t bIdx, uint32_t n2Idx, Offset
         uint32_t s1Count = offsetCalculator.actualSeqLensQParser.GetActualSeqLength(bIdx);
         for (int s1Idx = 0; s1Idx < s1Count; s1Idx++) {
             uint64_t attenOutOffset = offsetCalculator.GetOffset(bIdx, n2Idx, 0, s1Idx, 0);
-            matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], offsetCalculator.GetStrideG(), 0);
+            matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], offsetCalculator.GetStrideN2(), 0);
         }
     }  else if constexpr (FORMAT == GmFormat::NGTD) {
         uint32_t s1Count = offsetCalculator.actualSeqLensQParser.GetActualSeqLength(bIdx);
         uint32_t gSize = offsetCalculator.GetDimG();
         for (int gIdx = 0; gIdx < gSize; gIdx++) {
             uint64_t attenOutOffset = offsetCalculator.GetOffset(bIdx, n2Idx, gIdx, 0, 0);
-            matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], s1Count * offsetCalculator.GetStrideD(), 0);
+            matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], s1Count * offsetCalculator.GetDimD(), 0);
         }
     }  else if constexpr (FORMAT == GmFormat::BNGSD) {
         uint64_t attenOutOffset = offsetCalculator.GetOffset(bIdx, n2Idx, 0, 0, 0); 

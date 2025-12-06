@@ -1766,12 +1766,13 @@ ge::graphStatus IFATiling::ProcessSharedPrefixLen()
 }
 
 ge::graphStatus IFATiling::ProcessCvRatio(){
-    // CV1:1 只支持全量化
+    // CV1:1 只支持MLA 全量化和非量化 
     if ((cvRatio_ == 1) && (!quantFlag_ || !ropeFlag_)) {
-        OP_LOGE(ifaContext_->opName, "when CV 1:1, the dtype of query should be int8");
+        OP_LOGE(ifaContext_->opName, 
+            "when CV 1:1, only support MLA non-quantization(QKV type both are FP16 or BF16) "
+            "and MLA fully quantization(QKV type both are int8)");
         return ge::GRAPH_FAILED;
     }
-
     return ge::GRAPH_SUCCESS;
 }
 
