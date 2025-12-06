@@ -9,7 +9,7 @@
  */
 
  /*!
- * \file grouped_matmul_swiglu_quant_v2_tiling.cpp
+ * \file grouped_matmul_swiglu_quant_v2_basic_tiling.cpp
  * \brief
  */
 
@@ -19,7 +19,7 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "tiling_base/tiling_type.h"
 #include "register/op_impl_registry.h"
-#include "grouped_matmul_swiglu_quant_v2_tiling.h"
+#include "grouped_matmul_swiglu_quant_v2_basic_tiling.h"
 using namespace Ops::Transformer::OpTiling;
 using namespace GroupedMatmulSwigluQuantParamsV2;
 using namespace optiling::GmmConstant;
@@ -161,7 +161,7 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeInputs()
     auto bInnerSize = inputParams_.transB ? inputParams_.kSize : inputParams_.nSize;
     OP_CHECK_IF(
         IsFp4Input() && (aInnerSize % B4_DATACOPY_MIN_NUM != 0 || bInnerSize % B4_DATACOPY_MIN_NUM != 0),
-        OP_LOGE(inputParams_.opName, "When inputs are FLOAT4，x and weight inner axis element number shoud be even."),
+        OP_LOGE(inputParams_.opName, "When inputs are FLOAT4, x and weight inner axis element number shoud be even."),
         return false);
     OP_CHECK_IF(inputParams_.nSize % GmmConstant::BASIC_BLOCK_SIZE_128 != 0,
                 OP_LOGE(inputParams_.opName, "Weight n axis element number shoud be an integer multiple of 128."),

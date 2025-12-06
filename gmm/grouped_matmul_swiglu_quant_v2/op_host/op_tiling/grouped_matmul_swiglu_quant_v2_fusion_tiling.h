@@ -9,13 +9,13 @@
  */
 
 /*!
- * \file grouped_matmul_swiglu_quant_fusion_tiling.h
+ * \file grouped_matmul_swiglu_quant_v2_fusion_tiling.h
  * \brief
  */
-#ifndef __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_FUSION_TILING_H__
-#define __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_FUSION_TILING_H__
+#ifndef __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_V2_FUSION_TILING_H__
+#define __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_V2_FUSION_TILING_H__
 
-#include "grouped_matmul_swiglu_quant_tiling.h"
+#include "grouped_matmul_swiglu_quant_v2_tiling.h"
 #include "tiling_base/tiling_base.h"
 #include "err/ops_err.h"
 
@@ -55,4 +55,4 @@ private:
 
 }
 }
-#endif // __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_FUSION_TILING_H__
+#endif // __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_V2_FUSION_TILING_H__

@@ -18,9 +18,9 @@
 
 #include <gtest/gtest.h>
 
-#include "../../../op_host/op_tiling/grouped_matmul_swiglu_quant_base_tiling.h"
-#include "../../../op_host/op_tiling/grouped_matmul_swiglu_quant_fusion_tiling.h"
-#include "../../../op_host/op_tiling/grouped_matmul_swiglu_quant_tiling.h"
+#include "../../../op_host/op_tiling/grouped_matmul_swiglu_quant_v2_base_tiling.h"
+#include "../../../op_host/op_tiling/grouped_matmul_swiglu_quant_v2_fusion_tiling.h"
+#include "../../../op_host/op_tiling/grouped_matmul_swiglu_quant_v2_tiling.h"
 #include "tiling_context_faker.h"
 #include "tiling_case_executor.h"
 

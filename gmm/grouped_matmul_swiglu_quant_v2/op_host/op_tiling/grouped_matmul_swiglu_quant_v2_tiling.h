@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file grouped_matmul_swiglu_quant_tiling.h
+ * \file grouped_matmul_swiglu_quant_v2_tiling.h
  * \brief
  */
-#ifndef __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_TILING_H__
-#define __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_TILING_H__
+#ifndef __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_V2_TILING_H__
+#define __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_V2_TILING_H__
 
 #include <set>
 #include "tiling_base/tiling_base.h"
@@ -156,4 +156,4 @@ protected:
 } // namespace GroupedMatmulSwigluQuantV2Tiling
 } // namespace optiling
 
-#endif // __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_TILING_H__
+#endif // __OP_HOST_OP_TILING_GROUPED_MATMUL_SWIGLU_QUANT_V2_TILING_H__

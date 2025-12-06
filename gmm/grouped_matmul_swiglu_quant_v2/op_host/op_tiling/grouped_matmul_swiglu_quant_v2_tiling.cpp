@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file grouped_matmul_swiglu_quant_tiling.cpp
+ * \file grouped_matmul_swiglu_quant_v2_tiling.cpp
  * \brief
  */
 
-#include "grouped_matmul_swiglu_quant_tiling.h"
+#include "grouped_matmul_swiglu_quant_v2_tiling.h"
 #include <climits>
 #include <graph/utils/type_utils.h>
 #include "register/op_impl_registry.h"
@@ -22,8 +22,8 @@
 #include "tiling_base/tiling_base.h"
 #include "register/op_def_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "grouped_matmul_swiglu_quant_fusion_tiling.h"
-#include "grouped_matmul_swiglu_quant_base_tiling.h"
+#include "grouped_matmul_swiglu_quant_v2_fusion_tiling.h"
+#include "grouped_matmul_swiglu_quant_v2_base_tiling.h"
 #include "platform/platform_infos_def.h"
 
 using namespace ge;

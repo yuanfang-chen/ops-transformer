@@ -9,10 +9,10 @@
  */
 
 /* !
- * \file grouped_matmul_swiglu_quant_fusion_tiling.cpp
+ * \file grouped_matmul_swiglu_quant_v2_fusion_tiling.cpp
  * \brief
  */
-#include "grouped_matmul_swiglu_quant_fusion_tiling.h"
+#include "grouped_matmul_swiglu_quant_v2_fusion_tiling.h"
 #include "util/math_util.h"
 #include "err/ops_err.h"
 

@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file grouped_matmul_swiglu_quant_v2_tiling.h
+ * \file grouped_matmul_swiglu_quant_v2_basic_tiling.h
  * \brief
  */
 
-#ifndef GROUPED_MATMUL_SWIGLU_QUANT_V2_TILING_H
-#define GROUPED_MATMUL_SWIGLU_QUANT_V2_TILING_H
+#ifndef GROUPED_MATMUL_SWIGLU_QUANT_V2_BASIC_TILING_H
+#define GROUPED_MATMUL_SWIGLU_QUANT_V2_BASIC_TILING_H
 
 #include <exe_graph/runtime/tiling_context.h>
 #include <graph/utils/type_utils.h>
@@ -23,7 +23,7 @@
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "tiling_base/tiling_base.h"
-#include "../grouped_matmul_swiglu_quant_tiling.h"
+#include "../grouped_matmul_swiglu_quant_v2_tiling.h"
 
 namespace optiling {
 using namespace Ops::Transformer::OpTiling;
