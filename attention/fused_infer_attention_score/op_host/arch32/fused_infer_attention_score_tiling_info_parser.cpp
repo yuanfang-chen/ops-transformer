@@ -142,13 +142,19 @@ ge::graphStatus FiaInfoParser::GetMaxWorkspaceFlag()
 
 ge::graphStatus FiaInfoParser::GetLegacyIfaFlag()
 {
+    uint32_t querySize = 0;
     std::string layout(opParamInfo_.layOut);
-    if ((layout == "BSH" || layout == "BSND" || layout == "BNSD") &&
-        s1Size_ == 1U &&
-        qkHeadDim_ == vHeadDim_ &&
-        opParamInfo_.queryRope.tensor == nullptr &&
-        opParamInfo_.keyRope.tensor == nullptr) {
-        isLegacyIfa_ = true;
+    if (layout == "BSH" || layout == "BSND" || layout == "BNSD") {
+        if (queryShape_->CheckHasS(__func__) != ge::GRAPH_SUCCESS) {
+            return ge::GRAPH_FAILED;
+        }
+        querySize = static_cast<uint32_t>(queryShape_->GetS());
+        if (querySize == 1U &&
+            qkHeadDim_ == vHeadDim_ &&
+            opParamInfo_.queryRope.tensor == nullptr &&
+            opParamInfo_.keyRope.tensor == nullptr) {
+            isLegacyIfa_ = true;
+        }
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -215,12 +221,11 @@ ge::graphStatus FiaInfoParser::GetNpuInfo()
 
 void FiaInfoParser::GetOptionalInputParaInfo()
 {
+    // actualSeqLengthsQ和queryPaddingSize在GetUpdateInfo()中获取
     opParamInfo_.pseShift.tensor = context_->GetOptionalInputTensor(PSE_SHIFT_INDEX);
     opParamInfo_.pseShift.desc = context_->GetOptionalInputDesc(PSE_SHIFT_INDEX);
     opParamInfo_.attenMask.tensor = context_->GetOptionalInputTensor(ATTEN_MASK_INDEX);
     opParamInfo_.attenMask.desc = context_->GetOptionalInputDesc(ATTEN_MASK_INDEX);
-    opParamInfo_.actualSeqLengthsQ.tensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
-    opParamInfo_.actualSeqLengthsQ.desc = context_->GetOptionalInputDesc(ACTUAL_SEQ_Q_INDEX);
     opParamInfo_.actualSeqLengths.tensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     opParamInfo_.actualSeqLengths.desc = context_->GetOptionalInputDesc(ACTUAL_SEQ_KV_INDEX);
     opParamInfo_.deqScale1.tensor = context_->GetOptionalInputTensor(DEQUANT_SCALE1_INDEX);
@@ -236,8 +241,6 @@ void FiaInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.antiquantOffset.desc = context_->GetOptionalInputDesc(ANTIQUANT_OFFSET_INDEX);
     opParamInfo_.blockTable.tensor = context_->GetOptionalInputTensor(BLOCK_TABLE_INDEX);
     opParamInfo_.blockTable.desc = context_->GetOptionalInputDesc(BLOCK_TABLE_INDEX);
-    opParamInfo_.queryPaddingSize.tensor = context_->GetOptionalInputTensor(QUERY_PADDING_SIZE_INDEX);
-    opParamInfo_.queryPaddingSize.desc = context_->GetOptionalInputDesc(QUERY_PADDING_SIZE_INDEX);
     opParamInfo_.kvPaddingSize.tensor = context_->GetOptionalInputTensor(KV_PADDING_SIZE_INDEX);
     opParamInfo_.kvPaddingSize.desc = context_->GetOptionalInputDesc(KV_PADDING_SIZE_INDEX);
     opParamInfo_.keyAntiquantScale.tensor = context_->GetOptionalInputTensor(KEY_ANTIQUANT_SCALE_INDEX);
@@ -309,6 +312,7 @@ ge::graphStatus FiaInfoParser::GetAttrParaInfo()
     OP_CHECK_IF(attrs == nullptr, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "attrs got from ge is nullptr"),
                return ge::GRAPH_FAILED);
 
+    // sparseMode,preToken,nextToken在GetUpdateInfo()中获取
     opParamInfo_.numHeads = attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX);
     opParamInfo_.scaleValue = attrs->GetAttrPointer<float>(ATTR_SCALE_INDEX);
     opParamInfo_.layOut = attrs->GetStr(ATTR_INPUT_LAYOUT_INDEX);
@@ -324,16 +328,28 @@ ge::graphStatus FiaInfoParser::GetAttrParaInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaInfoParser::GetSparseMode()
+ge::graphStatus FiaInfoParser::GetUpdateInfo()
 {
     auto attrs = context_->GetAttrs();
     static int32_t SPARSE_ZERO = 0U;
+    static int64_t TOKEN_MAX = 2147483647;
     if (isLegacyIfa_) {
         opParamInfo_.sparseMode = &SPARSE_ZERO;
+        opParamInfo_.preToken = &TOKEN_MAX;
+        opParamInfo_.nextToken = &TOKEN_MAX;
+        opParamInfo_.actualSeqLengthsQ.tensor = nullptr;
+        opParamInfo_.actualSeqLengthsQ.desc = nullptr;
+        opParamInfo_.queryPaddingSize.tensor = nullptr;
+        opParamInfo_.queryPaddingSize.desc = nullptr;
     } else {
         opParamInfo_.sparseMode = attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX);
+        opParamInfo_.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
+        opParamInfo_.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
+        opParamInfo_.actualSeqLengthsQ.tensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
+        opParamInfo_.actualSeqLengthsQ.desc = context_->GetOptionalInputDesc(ACTUAL_SEQ_Q_INDEX);
+        opParamInfo_.queryPaddingSize.tensor = context_->GetOptionalInputTensor(QUERY_PADDING_SIZE_INDEX);
+        opParamInfo_.queryPaddingSize.desc = context_->GetOptionalInputDesc(QUERY_PADDING_SIZE_INDEX);
     }
-
     OP_CHECK_IF(opParamInfo_.sparseMode == nullptr, OP_LOGE(opName_, "attr sparseMode is nullptr"),
                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
@@ -341,17 +357,6 @@ ge::graphStatus FiaInfoParser::GetSparseMode()
 
 ge::graphStatus FiaInfoParser::GetPreNextToken()
 {
-    auto attrs = context_->GetAttrs();
-    static int64_t TOKEN_MAX = 2147483647;
-
-    if (isLegacyIfa_) {
-        opParamInfo_.preToken = &TOKEN_MAX;
-        opParamInfo_.nextToken = &TOKEN_MAX;
-    } else {
-        opParamInfo_.preToken = attrs->GetAttrPointer<int64_t>(ATTR_PRE_TOKEN_INDEX);
-        opParamInfo_.nextToken = attrs->GetAttrPointer<int64_t>(ATTR_NEXT_TOKEN_INDEX);
-    }
-
     // 从输入读取参数值
     preToken_ = opParamInfo_.preToken == nullptr ? 0 : *opParamInfo_.preToken;
     nextToken_ = opParamInfo_.nextToken == nullptr ? 0 : *opParamInfo_.nextToken;
@@ -1115,10 +1120,13 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
         return ge::GRAPH_FAILED;
     }
     SetFiaShape();
-    if (ge::GRAPH_SUCCESS != GetBatchSize() ||
+    if (ge::GRAPH_SUCCESS != GetQkHeadDim() ||
+        ge::GRAPH_SUCCESS != GetValueHeadDim() ||
+        ge::GRAPH_SUCCESS != GetLegacyIfaFlag() ||
+        ge::GRAPH_SUCCESS != GetUpdateInfo() ||
+        ge::GRAPH_SUCCESS != GetBatchSize() ||
         ge::GRAPH_SUCCESS != GetQTSize() ||
-        ge::GRAPH_SUCCESS != GetS1Size() ||
-        ge::GRAPH_SUCCESS != GetValueHeadDim()) {
+        ge::GRAPH_SUCCESS != GetS1Size()) {
         return ge::GRAPH_FAILED;
     }
     if (emptyTensorFlag_) {
@@ -1126,7 +1134,6 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
     }
     if (ge::GRAPH_SUCCESS != GetGSize() ||
         ge::GRAPH_SUCCESS != GetKTSize() ||
-        ge::GRAPH_SUCCESS != GetQkHeadDim() ||
         ge::GRAPH_SUCCESS != GetS2Size() ||
         ge::GRAPH_SUCCESS != GetRopeHeadDim()) {
         return ge::GRAPH_FAILED;
@@ -1136,10 +1143,8 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
 
 ge::graphStatus FiaInfoParser::ParseFeatureInfo()
 {
-    if (ge::GRAPH_SUCCESS != GetLegacyIfaFlag() ||
-        ge::GRAPH_SUCCESS != GetPaddingSizeFlag() ||
+    if (ge::GRAPH_SUCCESS != GetPaddingSizeFlag() ||
         ge::GRAPH_SUCCESS != GetMaskFlag() ||
-        ge::GRAPH_SUCCESS != GetSparseMode() || 
         ge::GRAPH_SUCCESS != GetPreNextToken() ||
         ge::GRAPH_SUCCESS != GetAttenMaskInfo() ||
         ge::GRAPH_SUCCESS != GetMaxWorkspaceFlag() ||

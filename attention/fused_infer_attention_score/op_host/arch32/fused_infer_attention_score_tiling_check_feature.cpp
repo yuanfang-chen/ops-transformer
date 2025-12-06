@@ -518,7 +518,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureActualSeqLensExistence() const
                 ACTUAL_SEQ_Q_LEN_NAME.c_str()),
             return ge::GRAPH_FAILED);
         OP_CHECK_IF(opParamInfo_.actualSeqLengths.tensor == nullptr,
-            OP_LOGE(opName_, "when %s's layout is %s, %s should not be null.", KEY_NAME.c_str(), LayoutToSerialString(qLayout_).c_str(),
+            OP_LOGE(opName_, "when %s's layout is %s, %s should not be null.", KEY_NAME.c_str(), LayoutToSerialString(kvLayout_).c_str(),
                 ACTUAL_SEQ_KV_LEN_NAME.c_str()),
             return ge::GRAPH_FAILED);
 
@@ -528,7 +528,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureActualSeqLensExistence() const
                     ACTUAL_SEQ_Q_LEN_NAME.c_str()),
                 return ge::GRAPH_FAILED);
             OP_CHECK_IF(opParamInfo_.actualSeqLengths.tensor->GetData<int64_t>() == nullptr,
-                OP_LOGE(opName_, "when %s's layout is %s, %s data should not be null.", KEY_NAME.c_str(), LayoutToSerialString(qLayout_).c_str(),
+                OP_LOGE(opName_, "when %s's layout is %s, %s data should not be null.", KEY_NAME.c_str(), LayoutToSerialString(kvLayout_).c_str(),
                     ACTUAL_SEQ_KV_LEN_NAME.c_str()),
                 return ge::GRAPH_FAILED);
         }

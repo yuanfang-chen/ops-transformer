@@ -4147,7 +4147,7 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
     bool isEmptyDataKV = (tempDataKV == nullptr) || (actualLenDimsKV == 0); // empty tensor
 
     OP_CHECK_IF(InputLayoutIsTNDLike() && (isDataTilingSink || isDataKVTilingSink),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD_TND, not support tiling_schedule_optimize = True or config mode is reduce-overhead!"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD_TND and value's headDim = 192, not support tiling_schedule_optimize = True or config mode is reduce-overhead!"),
         return ge::GRAPH_FAILED);
     OP_CHECK_IF(enablePA && isEmptyDataKV,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "actual seq length kv can't be null when blockTable is not null"),
