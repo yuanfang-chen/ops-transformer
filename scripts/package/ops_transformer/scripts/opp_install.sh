@@ -425,8 +425,8 @@ main() {
 
   if [ "${IS_SETENV}" != "y" ]; then
     logandprint "[INFO]: Using requirements: when opp module install finished or \
-    before you run the opp module, execute the command \
-    [ export ASCEND_OPP_PATH=${TARGET_INSTALL_PATH}/cann/opp ] to set the environment path."
+before you run the opp module, execute the command \
+[ export ASCEND_OPP_PATH=${TARGET_INSTALL_PATH}/cann/opp ] to set the environment path."
   fi
 
   logandprint "[INFO]: Opp package installed successfully! The new version takes effect immediately."

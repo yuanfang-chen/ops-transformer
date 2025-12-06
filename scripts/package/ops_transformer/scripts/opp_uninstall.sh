@@ -198,9 +198,9 @@ remove_ops_transformer() {
     chmod u+w -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
   fi
 
-  remove_module
-
   remove_init_py
+
+  remove_module
 
   if [ "${UNINSTALL_MODE}" != "upgrade" ]; then
     logandprint "[INFO]: Delete the install info file (${INSTALL_INFO_FILE})."
