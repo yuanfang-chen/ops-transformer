@@ -162,6 +162,7 @@ public:
     __aicore__ inline void InitCalcParamsEach();
     __aicore__ inline void InitActualSeqLenQ(__gm__ uint8_t *actualSeqLengthsQ);
     __aicore__ inline void InitActualSeqLenKV(__gm__ uint8_t *actualSeqLengths);
+    __aicore__ inline bool IsInitAttentionOutGm();
     __aicore__ inline void InitOutputSingleCore();
     // ================================Tool============================================
     __aicore__ inline uint32_t GetBIdx(uint32_t bN2Idx);
@@ -263,6 +264,19 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType> 
+__aicore__ inline bool FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, FdBlockType>::IsInitAttentionOutGm()
+{
+    // TND、NTD场景且无attentionMask,不需要初始化
+    if constexpr (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
+        if (!constInfo.attenMaskFlag) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType> 
 __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, FdBlockType>::
     InitOutputSingleCore()
 {
@@ -275,7 +289,7 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
             tSize = qActSeqLensParser.GetTSize();
         }
         // TND、NTD场景,S1和actualSeq相等,不需要初始化
-        if constexpr (LAYOUT_T != FIA_LAYOUT::TND && LAYOUT_T != FIA_LAYOUT::NTD) {
+        if (IsInitAttentionOutGm()) {
             uint64_t totalOutputSize = tSize * constInfo.qHeadNum * constInfo.headDim;
             uint64_t singleCoreSize = (totalOutputSize + aivCoreNum - 1) / aivCoreNum;
             uint64_t tailSize = totalOutputSize - tmpBlockIdx * singleCoreSize;
