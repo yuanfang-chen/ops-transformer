@@ -30,6 +30,8 @@ const std::unordered_map<ge::DataType, uint32_t> DTYPE_TO_SIZE {
     {ge::DT_BF16, 2},
     {ge::DT_FLOAT16, 2},
     {ge::DT_INT8, 1},
+    {ge::DT_FLOAT8_E4M3FN, 1},
+    {ge::DT_FLOAT8_E8M0, 1},
     {ge::DT_INT32, 4},
     {ge::DT_FLOAT, 4}};
 
@@ -38,7 +40,9 @@ const std::unordered_map<ge::DataType, matmul_tiling::DataType> GE_TO_MM_DTYPE {
     {ge::DT_BF16, matmul_tiling::DataType::DT_BF16},
     {ge::DT_INT8, matmul_tiling::DataType::DT_INT8},
     {ge::DT_INT4, matmul_tiling::DataType::DT_INT4},
-    {ge::DT_FLOAT, matmul_tiling::DataType::DT_FLOAT}};
+    {ge::DT_FLOAT, matmul_tiling::DataType::DT_FLOAT},
+    {ge::DT_FLOAT8_E4M3FN, matmul_tiling::DataType::DT_FLOAT8_E4M3FN},
+    {ge::DT_FLOAT8_E8M0, matmul_tiling::DataType::DT_FLOAT8_E8M0}};
 
 template <typename T>
 inline auto CeilDiv(T a, T b) -> T
@@ -53,6 +57,13 @@ template <typename T>
 inline auto Align(T num, T rnd) -> T
 {
     return (((rnd) == 0) ? 0 : (((num) + (rnd) - 1) / (rnd) * (rnd)));
+}
+
+platform_ascendc::SocVersion MlaPrologTiling::GetSocVersionShortName() const
+{
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->platformInfo);
+    auto socShortName = ascendcPlatform.GetSocVersion();
+    return socShortName;
 }
 
 ge::graphStatus MlaPrologTiling::GetNpuInfo()
@@ -105,7 +116,15 @@ QUANT_MODE MlaPrologTiling::GetQuantizationModeV3() const
         } else {
             OP_LOGE(context_->opName, "When weightQuantMode == 2, kvQuantMode must be within {0, 1, 3}, actually is %d.", *(context_->kvQuantMode)); 
         }
-    } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::MXFP8_FULL_QUANT)) {
+    } else {
+        OP_LOGE(context_->opName, "WeightQuantMode must be within {0, 1, 2}, actually is %d.", *(context_->weightQuantMode));
+    }
+    return QUANT_MODE::ERROR_MODE;
+}
+
+QUANT_MODE MlaPrologTiling::GetQuantizationModeV3Mxfp8() const
+{
+    if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::MXFP8_FULL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
                 return QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT;
         } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TENSOR)) {
@@ -114,7 +133,7 @@ QUANT_MODE MlaPrologTiling::GetQuantizationModeV3() const
             OP_LOGE(context_->opName, "When weightQuantMode == 3, kvQuantMode must be within {0, 1}, actually is %d.", *(context_->kvQuantMode)); 
         }
     } else {
-        OP_LOGE(context_->opName, "WeightQuantMode must be within {0, 1, 2}, actually is %d.", *(context_->weightQuantMode));
+        OP_LOGE(context_->opName, "weightQuantMode must be 3, actually is %d.", *(context_->weightQuantMode)); 
     }
     return QUANT_MODE::ERROR_MODE;
 }
@@ -122,7 +141,11 @@ QUANT_MODE MlaPrologTiling::GetQuantizationModeV3() const
 QUANT_MODE MlaPrologTiling::GetQuantizationMode() const
 {
     if (std::strncmp(context_->opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
-        return GetQuantizationModeV3();
+        if (GetSocVersionShortName() == platform_ascendc::SocVersion::ASCEND910_95){
+            return GetQuantizationModeV3Mxfp8();
+        } else {
+            return GetQuantizationModeV3();
+        }
     } else {
         if (context_->tokenX.desc->GetDataType() == ge::DT_INT8) {
             if (context_->kvCache.desc->GetDataType() == ge::DT_INT8) {
@@ -140,6 +163,7 @@ QUANT_MODE MlaPrologTiling::GetQuantizationMode() const
         }
         return QUANT_MODE::NO_QUANT;
     }
+    return QUANT_MODE::ERROR_MODE;
 }
 
 ge::graphStatus MlaPrologTiling::SetShapeInfo()
@@ -472,7 +496,9 @@ ge::graphStatus MlaPrologTiling::CalcWorkSpace()
     workspaceSize_ = libapiSize_;
     if (scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_NO_QUANT ||
         scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR ||
-        scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TILE) {
+        scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TILE ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
         workspaceSize_ += static_cast<size_t>(stepBatchSize_) * static_cast<size_t>(baseShapeInfo_.hcqSize) *
                           static_cast<size_t>(NUM_BYTES_INT32);
         workspaceSize_ += static_cast<size_t>(stepBatchSize_) * static_cast<size_t>(baseShapeInfo_.hcqSize) *
@@ -480,7 +506,9 @@ ge::graphStatus MlaPrologTiling::CalcWorkSpace()
         workspaceSize_ += static_cast<size_t>(stepBatchSize_) *
                           static_cast<size_t>(baseShapeInfo_.hckvSize + baseShapeInfo_.drSize) *
                           static_cast<size_t>(NUM_BYTES_INT32);
-        if (scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR) {
+        if (scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR ||
+            scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT ||
+            scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
             // 全量化场景mmQnRes输出到workspace, B, S1, N, Hckv, BF16
             workspaceSize_ += static_cast<size_t>(stepBatchSize_) * static_cast<size_t>(baseShapeInfo_.nSize) * 
                               static_cast<size_t>(baseShapeInfo_.hckvSize) * static_cast<size_t>(NUM_BYTES_BF16);

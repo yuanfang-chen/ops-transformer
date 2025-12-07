@@ -316,6 +316,7 @@ private:
     ge::graphStatus SetAttrInfo();
     QUANT_MODE GetQuantizationMode() const;
     QUANT_MODE GetQuantizationModeV3() const;
+    QUANT_MODE GetQuantizationModeV3Mxfp8() const;
     ge::graphStatus SetShapeInfo();
     ge::graphStatus ProcessBaseInputs();
     ge::graphStatus FillTiling();
@@ -327,6 +328,8 @@ private:
     bool GetMatmulType(ge::DataType getype, matmul_tiling::DataType *mmType);
     ge::graphStatus CalcWorkSpace();
     ge::graphStatus GenTilingKey() const;
+
+    platform_ascendc::SocVersion GetSocVersionShortName() const;
 
     MlaPrologBaseShapeInfo baseShapeInfo_;
     MlaPrologScenarioInfo scenarioInfo_;

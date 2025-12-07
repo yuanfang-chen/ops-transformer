@@ -126,6 +126,15 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     uint64_t *workspaceSize,
     aclOpExecutor **executor)
 {
+    const int WEIGHT_QUANT_MODE_NO_QUANT = 0;
+    const int WEIGHT_QUANT_MODE_PARTIAL_QUANT = 1;
+    const int WEIGHT_QUANT_MODE_FULL_QUANT = 2;
+    const int WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT = 3;
+    const int KV_CACHE_QUANT_MODE_NO_QUANT = 0;
+    const int KV_CACHE_QUANT_MODE_PER_TENSOR = 1;
+    const int KV_CACHE_QUANT_MODE_PER_CHANNEL = 2;
+    const int KV_CACHE_QUANT_MODE_PER_TILE = 3;
+
     auto dequantScaleQNopeHolder = TensorHolder(dequantScaleQNopeOutOptional, aclDataType::ACL_FLOAT, std::string("dequantScaleQNopeOut"));
     aclDataType queryNormDataType = weightQuantMode == 0 ? aclDataType::ACL_BF16 : aclDataType::ACL_INT8;
     auto queryNormHolder = TensorHolder(queryNormOutOptional, queryNormDataType, std::string("queryNormOut"));
@@ -142,11 +151,11 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Failed to create the holder of tensor dequantScaleQNormOut!");
         return ge::GRAPH_FAILED;
     }
-    // weightQuantMode == 2:全量化场景, kvCacheQuantMode == 1:KV_PER_TENSOR量化场景
-    dequantScaleQNopeHolder.CheckTensorConditionalNotNull(weightQuantMode == 2 && kvCacheQuantMode == 1); 
+    // weightQuantMode == 2:全量化场景, weightQuantMode == 3:mxfp8全量化场景, kvCacheQuantMode == 1:KV_PER_TENSOR量化场景
+    dequantScaleQNopeHolder.CheckTensorConditionalNotNull((weightQuantMode == WEIGHT_QUANT_MODE_FULL_QUANT || weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT) && kvCacheQuantMode == KV_CACHE_QUANT_MODE_PER_TENSOR); 
     bool queryNormFlag = queryNormHolder.IsTensorNotNull();
     // weightQuantMode != 0:量化场景
-    dequantScaleQNormHolder.CheckTensorConditionalNotNull(weightQuantMode != 0 && queryNormFlag);
+    dequantScaleQNormHolder.CheckTensorConditionalNotNull(weightQuantMode != WEIGHT_QUANT_MODE_NO_QUANT && queryNormFlag);
     return aclnnInnerMlaPrologV3GetWorkspaceSize(
         tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin, ropeCos, kvCacheRef, krCacheRef,
         cacheIndexOptional, dequantScaleXOptional, dequantScaleWDqOptional, dequantScaleWUqQrOptional,

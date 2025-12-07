@@ -31,6 +31,7 @@ constexpr uint32_t NKV_SIZE = 1U;
 constexpr uint32_t MIN_BLOCK_SIZE = 16U;
 constexpr uint32_t MAX_BLOCK_SIZE = 1024U;
 constexpr uint32_t ALIGN_BLOCK_SIZE = 16U;
+constexpr uint32_t MXFP8_BLOCK_SIZE = 32U;
 
 constexpr int64_t  NZ_H0_SIZE = 16U;
 
@@ -134,6 +135,8 @@ public:
     ge::graphStatus CheckCkvkrRepoMode();
     ge::graphStatus CheckScenarParam();
     ge::graphStatus CheckAttrs() const;
+
+    platform_ascendc::SocVersion GetSocVersionShortName() const;
 
 private:
     bool CheckAttrsNotNull() const;
