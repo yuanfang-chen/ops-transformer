@@ -628,6 +628,15 @@ void SplitCore(uint32_t coreNum, const BaseInfo &baseInfo, const SplitParam &par
 
     // 1、划分基本块，统计信息
     CalcSplitInfo(splitContext);
+    // 全空case
+    if (splitContext.splitInfo.isKvSeqAllZero) {
+        result.usedCoreNum = 1U;
+        result.bN2End[0] = baseInfo.bSize * baseInfo.n2Size;
+        result.gS1End[0] = 0U;
+        result.s2End[0] = 0U;
+        return;
+    }
+
     CalcCostInfo(splitContext);
 
     // 2、获取每个核的分配方案
