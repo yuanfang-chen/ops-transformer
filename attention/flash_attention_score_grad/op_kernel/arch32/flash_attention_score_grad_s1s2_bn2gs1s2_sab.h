@@ -164,7 +164,7 @@ public:
     __aicore__ inline void SubGrapA(int64_t curIdx, int64_t curS1Idx, int64_t curS2Idx, DBParams& dbParam,
                                     event_t mte2WaitMte3A);
     __aicore__ inline void SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLoop, int64_t curS1Idx, int64_t curS2Idx, DBParams& dbParam,
-                                    event_t mte2WaitMte3B);
+                                    event_t mte2WaitMte3B, float* dsinkSumLocal);
     __aicore__ inline void ComputeVec(DBParams& dbParam);
     __aicore__ inline void SyncALLCores();
     __aicore__ inline void GetSeqQlenKvlenByBidx(int64_t bIdx, int64_t &actualSeqQlen, int64_t &actualSeqKvlen);
@@ -3451,7 +3451,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapA(int64_t curIdx, int64_
 template <typename FAGT>
 __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_t s1VecLoop, int64_t s2VecLoop,
-                                     int64_t curS1Idx, int64_t curS2Idx, DBParams& dbParam, event_t mte2WaitMte3B)
+                                     int64_t curS1Idx, int64_t curS2Idx, DBParams& dbParam, event_t mte2WaitMte3B, float* dsinkSumLocal)
 {
     pingpongIdx = dbParam.taskId % 2;
     uint32_t ubBufferOffset = DbBegin;
@@ -3654,20 +3654,12 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
         int s1Pad = (TilingData->s1s2BNGS1S2BaseParams.s1 + 255)/256*256;
         int s2Pad = (TilingData->s1s2BNGS1S2BaseParams.s2 + 255)/256*256; 
 
-        int dsinksumLoc = curS2Idx;
-        dsinksumLoc += s2VecLoop * curS1Idx;
-        dsinksumLoc += s2VecLoop * s1VecLoop * dbParam.s2oIdx;
-        dsinksumLoc += s2VecLoop * s1VecLoop * s2Outer * dbParam.s1oIdx;
-        dsinksumLoc += s2VecLoop * s1VecLoop * s2Outer * s1Outer * dbParam.bIdx;   
-        int dataSizePerN1 = b * s1Pad * s2Pad / baseMN;
-
-        dsinksumLoc += dataSizePerN1 * dbParam.gIdx;
-        dsinksumLoc += dataSizePerN1 * g * dbParam.n2Idx;
+        int dataSizePerN1 = b * s2Outer * s1Outer;
 
         AscendC::PipeBarrier<PIPE_ALL>();
         dsinksumDataSizeGm.SetValue(0, dataSizePerN1 * n2 * g);
         AscendC::PipeBarrier<PIPE_ALL>();
-        DataCopyPad(dsinksumWorkSpaceGm[dsinksumLoc], localDsink, {1,sizeof(float),0,0});
+        *dsinkSumLocal += localDsink.GetValue(0);
         AscendC::PipeBarrier<PIPE_ALL>();
     }
 }
@@ -3680,7 +3672,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
 
     s2VecSize = dbParam.s2CvExtend > VEC_S2_LEN ? VEC_S2_LEN : dbParam.s2CvExtend;
     s2VecLoop = s2VecSize == 0 ? 0 : CeilDiv(dbParam.s2CvExtend, s2VecSize);
-    if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
+   if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
         if (dbParam.s2CvExtend < VEC_S2_LEN * 2) {
             s2VecSize = AlignUp(CeilDiv(dbParam.s2CvExtend, 2), C0_SIZE);
             s2VecLoop = 2;
@@ -3690,7 +3682,6 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
             s2VecLoop = 1;
         }
     }
-
     uint32_t s2AlignFactor = BLOCK_SIZE / 2;   // float32 also align to 16.
     if constexpr (IS_DROP == ENABLE || IS_ATTEN_MASK == ENABLE) {
         // last dim 32B align
@@ -3701,7 +3692,6 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
     s1VecSize = s1VecSize > dbParam.s1CvExtend ? dbParam.s1CvExtend : s1VecSize;
     s1VecSize = s1VecSize > 128 ? 128 : s1VecSize;
     s1VecLoop = s1VecSize == 0 ? 0 : CeilDiv(dbParam.s1CvExtend, s1VecSize);
-
     dropMaskInfo.splitS1BaseSize = s1VecSize;
     if constexpr (INPUT_LAYOUT == TND) {
         UpdateToken(dbParam.bIdx);
@@ -3744,7 +3734,6 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
     } else {
         sfmgOffset = (((dbParam.bIdx * n2 + dbParam.n2Idx) * g + dbParam.gIdx) * s1 + dbParam.s1oIdx * s1CvInner) * 8;
     }
-
     int32_t loopSize = s1VecLoop * s2VecLoop;
     int32_t halfLoop = 0;
     if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
@@ -3755,11 +3744,11 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
 
     vecLoopStart = cSubIdx ? halfLoop : 0;
     vecLoopEnd = cSubIdx ? loopSize : halfLoop;
-
     preS1Idx = -1;
     event_t mte2WaitMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
     AscendC::SetFlag<HardEvent::MTE3_MTE2>(static_cast<int32_t>(mte2WaitMte3));
     AscendC::WaitFlag<HardEvent::MTE3_MTE2>(static_cast<int32_t>(mte2WaitMte3));
+    float dsinkSumLocal = 0.0f;
     for (int32_t i = vecLoopStart, loopCnt = 0; i < vecLoopEnd; i++, loopCnt++) {
         int32_t curS1Idx;
         int32_t curS2Idx;
@@ -3781,10 +3770,30 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
         event_t mte2WaitMte3A = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
         event_t mte2WaitMte3B = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
         SubGrapA(loopCnt, curS1Idx, curS2Idx, dbParam, mte2WaitMte3A);
-        SubGrapB(loopCnt, s1VecLoop, s2VecLoop, curS1Idx, curS2Idx, dbParam, mte2WaitMte3B);
+        SubGrapB(loopCnt, s1VecLoop, s2VecLoop, curS1Idx, curS2Idx, dbParam, mte2WaitMte3B, &dsinkSumLocal);
+
         GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3A);
         GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3B);
     }
+
+    int dsinksumLoc = cSubIdx;
+    dsinksumLoc += 2 * dbParam.s2oIdx;
+    dsinksumLoc +=  2 * s2Outer * dbParam.s1oIdx;
+    dsinksumLoc +=  2 * s2Outer * s1Outer * dbParam.bIdx;   
+
+    int s1Pad = (TilingData->postTilingData.s1 + 255)/256*256;
+    int s2Pad = (TilingData->postTilingData.s2 + 255)/256*256;
+    int dataSizePerN1 = TilingData->postTilingData.b *s1Pad * s2Pad / TilingData->postTilingData.baseMN;
+
+    dsinksumLoc += dataSizePerN1 * dbParam.gIdx;
+    dsinksumLoc += dataSizePerN1 * g * dbParam.n2Idx;
+
+    LocalTensor<float> localDsink = unifiedBuffer.GetWithOffset<float>(8, DbBegin + 1024);
+    AscendC::PipeBarrier<PIPE_ALL>();
+    localDsink.SetValue(0, dsinkSumLocal);
+    AscendC::PipeBarrier<PIPE_ALL>();
+    DataCopyPad(dsinksumWorkSpaceGm[dsinksumLoc], localDsink, {1,sizeof(float),0,0});
+    AscendC::PipeBarrier<PIPE_ALL>();
 }
 
 template <typename FAGT>

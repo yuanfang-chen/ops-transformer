@@ -2020,8 +2020,8 @@ ge::graphStatus FlashAttentionScoreGradTilingS1s2Bn2gs1s2SameAb::DoPostTiling()
         (workspaceOffsets + vectorCoreNum * fBaseParams.s1CvInner * fBaseParams.s2CvInner * FP32_BYTES * MATMUL_INPUT_NUM +
          GM_ALIGN) /
         GM_ALIGN * GM_ALIGN;
-    tilingData->postTilingData.set_dsinksumWorkSpaceOffset(workspaceOffsets);
 
+    tilingData->postTilingData.set_dsinksumWorkSpaceOffset(workspaceOffsets);
 
     size_t s1Pad = (fBaseParams.s1 + 255)/256 * 256;
     size_t s2Pad = (fBaseParams.s2 + 255)/256 * 256;

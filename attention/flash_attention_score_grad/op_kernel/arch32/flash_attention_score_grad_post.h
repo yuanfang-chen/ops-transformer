@@ -803,7 +803,6 @@ public:
             dvWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace +
                                         tilingData->postTilingData.dvWorkSpaceOffset / sizeof(float));
         }
-
         dsinksumWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace +
                     tilingData->postTilingData.dsinksumWorkSpaceOffset / sizeof(float));
         dsinksumDataSizeGm.SetGlobalBuffer((__gm__ uint32_t *)workspace +
@@ -1030,35 +1029,53 @@ public:
             AscendC::LocalTensor<float> vecIn = inQueue.template AllocTensor<float>();
             AscendC::LocalTensor<float> vecOut = outQueue.template AllocTensor<float>();
             int s1Pad = (tilingData->postTilingData.s1 + 255)/256*256;
-            int s2Pad = (tilingData->postTilingData.s2 + 255)/256*256; 
+            int s2Pad = (tilingData->postTilingData.s2 + 255)/256*256;
             int dataSizePerN1 = tilingData->postTilingData.b *s1Pad * s2Pad / tilingData->postTilingData.baseMN;
-            
             int N1 = tilingData->postTilingData.n2 * tilingData->postTilingData.g;
-            AscendC::PipeBarrier<PIPE_ALL>();
-            DataCopy(vecIn, dsinksumWorkSpaceGm, dataSizePerN1 * N1 * sizeof(float));
-            AscendC::PipeBarrier<PIPE_ALL>();
 
-            for (int n1temp = 0; n1temp < N1; n1temp++)
-            {
-                inQueue.EnQue(vecIn);
-                inQueue.template DeQue<float>();
+            int dsinkSumMaxCopyTimePerN1 = (dataSizePerN1 * sizeof(float) + 2 * ubBaseSize -1) / ( 2 * ubBaseSize);
+            int tailDsinkSumSize = (dataSizePerN1 * sizeof(float)) % (2 * ubBaseSize);
+            int copyOffset = 0;
+            for (int n1temp = 0; n1temp < N1; n1temp++) {
+                float dsinkCalc = 0.0;
+                for (int dsinkSumDataCopyLoop = 0; dsinkSumDataCopyLoop < dsinkSumMaxCopyTimePerN1; dsinkSumDataCopyLoop++) {
+                    int currentCopyDataSize = (dsinkSumDataCopyLoop ==  dsinkSumMaxCopyTimePerN1-1) ? tailDsinkSumSize : 2 * ubBaseSize;
+                    int itemNum = currentCopyDataSize/ sizeof(float);
+                    DataCopyExtParams copyParams;
+                    copyParams.blockCount = 1;
+                    copyParams.blockLen = currentCopyDataSize;
+                    copyParams.srcStride = 0;
+                    copyParams.dstStride = 0;
+                    copyParams.rsv = 0;
+                    DataCopyPadExtParams<float> copyPadParams;
+                    copyPadParams.isPad = true;
+                    copyPadParams.leftPadding = 0;
+                    copyPadParams.rightPadding = 8;
+                    copyPadParams.paddingValue = 0;
+                    AscendC::PipeBarrier<PIPE_ALL>();
+                    DataCopyPad(vecIn, dsinksumWorkSpaceGm[copyOffset], copyParams,copyPadParams);
+                    AscendC::PipeBarrier<PIPE_ALL>();
 
-                AscendC::PipeBarrier<PIPE_ALL>();
+                    inQueue.EnQue(vecIn);
+                    inQueue.template DeQue<float>();
 
-                AscendC::ReduceSum<float>(vecOut, vecIn[dataSizePerN1*n1temp], vecIn[dataSizePerN1*n1temp], dataSizePerN1);
-                AscendC::PipeBarrier<PIPE_ALL>();
 
-                outQueue.EnQue(vecOut);
-                outQueue.template DeQue<float>();
+                    AscendC::PipeBarrier<PIPE_ALL>();
+                    AscendC::ReduceSum<float>(vecOut, vecIn[0], vecIn[0], itemNum);
+                    AscendC::PipeBarrier<PIPE_ALL>();
 
-                AscendC::PipeBarrier<PIPE_ALL>();
-                float dsinkCalc = - vecOut.GetValue(0);
+                    outQueue.EnQue(vecOut);
+                    outQueue.template DeQue<float>();
+
+                    AscendC::PipeBarrier<PIPE_ALL>();
+                    dsinkCalc = - vecOut.GetValue(0);
+                    AscendC::PipeBarrier<PIPE_ALL>();
+                    copyOffset += itemNum;
+                }
                 AscendC::PipeBarrier<PIPE_ALL>();
                 dsinkGm.SetValue(n1temp, dsinkCalc);
                 AscendC::PipeBarrier<PIPE_ALL>();
             }
-
-
             inQueue.FreeTensor(vecIn);
             outQueue.FreeTensor(vecOut);
         }
