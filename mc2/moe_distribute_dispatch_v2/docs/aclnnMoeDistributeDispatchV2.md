@@ -6,7 +6,7 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    ×     |
+| <term>昇腾910_95 AI处理器</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
@@ -118,7 +118,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
   <tr>
    <td>scalesOptional</td>
    <td>输入</td>
-   <td>每个专家的量化平滑参数，Device侧的aclTensor，要求为2D Tensor，shape为 (sharedExpertNum + moeExpertNum, H)；非量化场景传空指针，动态量化可传有效数据或空指针；支持非连续的Tensor。</td>
+   <td>每个专家的量化平滑参数，Device侧的aclTensor，支持非连续的Tensor。</td>
    <td>FLOAT32</td>
    <td>ND</td>
   </tr>
@@ -139,7 +139,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
   <tr>
    <td>groupEp</td>
    <td>输入</td>
-   <td>EP通信域名称（专家并行通信域），字符串长度范围为[1, 128)。</td>
+   <td>EP通信域名称（专家并行通信域），字符串长度范围为[1, 128)，要求和groupTp互不相同。</td>
    <td>STRING</td>
    <td>ND</td>
   </tr>
@@ -167,7 +167,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
   <tr>
    <td>groupTp</td>
    <td>输入</td>
-   <td>TP通信域名称（数据并行通信域）。</td>
+   <td>TP通信域名称（数据并行通信域），要求和groupEp互不相同。。</td>
    <td>STRING</td>
    <td>ND</td>
   </tr>
@@ -181,7 +181,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
   <tr>
    <td>tpRankId</td>
    <td>输入</td>
-   <td>TP域本卡Id。</td>
+   <td>TP域本卡Id，同一个EP通信域中各卡的tpRankId不重复。</td>
    <td>INT64</td>
    <td>ND</td>
   </tr>
@@ -209,7 +209,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
   <tr>
    <td>quantMode</td>
    <td>输入</td>
-   <td>表示量化模式，支持0（非量化）、2（动态量化）。</td>
+   <td>表示量化模式。</td>
    <td>INT64</td>
    <td>ND</td>
   </tr>
@@ -312,6 +312,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     - epRecvCountsOut 的shape为(moeExpertNum + 2globalBsK*serverNum,)（前moeExpertNum个为接收token数，剩余为通信前reduce相关信息）。
     - 当前不支持TP域通信。
     - expandScalesOut 要求为1D Tensor，shape为(A,)。
+    - quantMode 支持0（非量化）、2（动态量化）。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
     - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(Bs, )，2D时shape为(Bs, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
@@ -328,6 +329,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     - epRecvCountsOut 的shape为(epWorldSize * max(tpWorldSize, 1) * localExpertNum,)。
     - 有TP域通信时为1D Tensor，tpRecvCountsOut 的shape为(tpWorldSize,)；支持非连续的Tensor。
     - expandScalesOut 当前版本不支持该输出。
+    - quantMode 支持0（非量化）、2（动态量化）。
 
 - <term>昇腾910_95 AI处理器</term>：
     - xActiveMaskOptional 要求为1D Tensor，shape为(Bs, )；true需排在false前（例：{true, false, true}非法）。
@@ -344,6 +346,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     - epRecvCountsOut 的shape为(epWorldSize * max(tpWorldSize, 1) * localExpertNum,)。
     - 当前不支持TP域通信。
     - expandScalesOut 当前版本不支持该输出。
+    - quantMode 支持0（非量化）、1（静态量化）、2（pertoken动态量化）、3（pergroup动态量化）、4（mxfp8动态量化）。
 
 ### 返回值
 
@@ -453,19 +456,21 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     - **localExpertNum**：表示本卡专家数量：
       - 对于共享专家卡，(localExpertNum = 1)。
       - 对于MoE专家卡，(localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum))；当(localExpertNum > 1)时，不支持TP域通信。
-    
+
 6. **quantMode相关约束**：
     - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+        - `quantMode`取值为0时，表示非量化场景，输入`scales`传空指针。
         - `quantMode`取值为2时，表示pertoken动态量化场景，`expandX`的数据类型支持`INT8`。
             - 输入`scales`可传入空指针。
             - 若输入`scales`传入有效数据时，其shape为 (`moeExpertNum`, `H`)。
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+        - `quantMode`取值为0时，表示非量化场景，输入`scales`传空指针。
         - `quantMode`取值为2时，表示pertoken动态量化场景，`expandX`的数据类型支持`INT8`。
             - 输入`scales`可传入空指针。
             - 若输入`scales`传入有效数据且存在共享专家卡时，其shape为 (`sharedExpertNum` + `moeExpertNum`, `H`)。
             - 若输入`scales`传入有效数据且不存在共享专家卡时，其shape为 (`moeExpertNum`, `H`)。
     - <term>昇腾910_95 AI处理器</term>：
-        - `quantMode`取值为0时，表示非量化场景，`expandX`的数据类型支持`FLOAT16`、`BFLOAT16`、`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`。
+        - `quantMode`取值为0时，表示非量化场景，`expandX`的数据类型支持`FLOAT16`、`BFLOAT16`。
             - `expandX`的数据类型为`FLOAT16`、`BFLOAT16`时，输入`scales`必须传入空指针。
             - `expandX`的数据类型为`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`时，输入`scales`必须传入有效数据，且输入`scales`的shape第1维必须等于`BS`。
         - `quantMode`取值为1时，表示静态量化场景，`expandX`的数据类型支持`INT8`、`HIFLOAT8`。
@@ -479,7 +484,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
             - 输入`scales`可传入空指针。
             - 若输入`scales`传入有效数据且存在共享专家卡时，其shape为 (`sharedExpertNum` + `moeExpertNum`, `H`)。
             - 若输入`scales`传入有效数据且不存在共享专家卡时，其shape为 (`moeExpertNum`, `H`)。
-        - `quantMode`取值为4时，表示mx量化场景，`expandX`的数据类型支持`FLOAT8_E4M3FN`、`FLOAT8_E5M2`，输入`scales`必须传入空指针。
+        - `quantMode`取值为4时，表示mxfp8量化场景，`expandX`的数据类型支持`FLOAT8_E4M3FN`、`FLOAT8_E5M2`，输入`scales`必须传入空指针。
 
 7. **HCCL_BUFFSIZE**：
 

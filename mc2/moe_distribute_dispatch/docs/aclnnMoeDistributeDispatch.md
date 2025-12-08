@@ -87,14 +87,14 @@ aclnnStatus aclnnMoeDistributeDispatch(
   <tr>
    <td>x</td>
    <td>输入</td>
-   <td>本卡发送的token数据，Device侧的aclTensor，要求为2D Tensor。</td>
+   <td>本卡发送的token数据，Device侧的aclTensor，要求为2D Tensor，shape为 (Bs, H)（Bs为batch size，H为隐藏层大小）。</td>
    <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
    <td>ND</td>
   </tr>
   <tr>
    <td>expertIds</td>
    <td>输入</td>
-   <td>每个token的topK个专家索引，Device侧的aclTensor，要求为2D Tensor。</td>
+   <td>每个token的topK个专家索引，Device侧的aclTensor，要求为2D Tensor，shape为 (Bs, K)。</td>
    <td>INT32</td>
    <td>ND</td>
   </tr>
@@ -150,7 +150,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
   <tr>
    <td>groupTp</td>
    <td>输入</td>
-   <td>TP通信域名称（数据并行通信域）。</td>
+   <td>TP通信域名称（数据并行通信域），不能和groupEp相同。</td>
    <td>STRING</td>
    <td>ND</td>
   </tr>
@@ -164,7 +164,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
   <tr>
    <td>tpRankId</td>
    <td>输入</td>
-   <td>TP域本卡Id。</td>
+   <td>TP域本卡Id，同一个EP通信域中各卡的tpRankId不重复。</td>
    <td>INT64</td>
    <td>ND</td>
   </tr>
@@ -429,11 +429,11 @@ aclnnStatus aclnnMoeDistributeDispatch(
     - 参数说明里shape格式说明：
         - `H`：表示hidden size隐藏层大小，取值为7168。
         - `BS`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 512]。
-        - `K`：表示选取topK个专家，需满足0 < `K` ≤ moeExpertNum，取值范围为[1, 8]。
-    - `epWorldSize`：取值支持4、8、16、32、64、128、144、256、288。
+        - `K`：表示选取topK个专家，取值范围为[1, 8]，且需要满足0 < `K` ≤ moeExpertNum。
+    - `epWorldSize`：取值支持2、4、8、16、32、64、128、144、256、288。
     - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB，要求 >= `aivNum` * 512 + 2 * `epWorldSize` * (`BS` * `H` * 2 * `localExpertNum` + 512)，`aivNum`表示核数，`localExpertNum`需使用MoE专家卡的本卡专家数。
     - `quantMode`相关约束：
-        - `quantMode`取值为0时，表示非量化场景，`expandX`的数据类型支持`FLOAT16`、`BFLOAT16`、`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`。
+        - `quantMode`取值为0时，表示非量化场景，`expandX`的数据类型支持`FLOAT16`、`BFLOAT16`。
             - `expandX`的数据类型为`FLOAT16`、`BFLOAT16`时，输入`scales`必须传入空指针。
             - `expandX`的数据类型为`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、`HIFLOAT8`时，输入`scales`必须传入有效数据，且输入`scales`的shape第1维必须等于`BS`。
         - `quantMode`取值为1时，表示静态量化场景，`expandX`的数据类型支持`INT8`、`HIFLOAT8`。

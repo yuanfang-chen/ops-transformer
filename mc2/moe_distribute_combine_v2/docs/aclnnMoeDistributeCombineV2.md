@@ -6,7 +6,7 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    ×     |
+| <term>昇腾910_95 AI处理器</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
@@ -187,7 +187,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
   <tr>
    <td>groupEp</td>
    <td>输入</td>
-   <td>EP通信域名称（专家并行通信域），字符串长度范围为[1, 128)。</td>
+   <td>EP通信域名称（专家并行通信域），字符串长度范围为[1, 128)，不能和groupTp相同。</td>
    <td>STRING</td>
    <td>ND</td>
   </tr>
@@ -215,7 +215,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
   <tr>
    <td>groupTp</td>
    <td>输入</td>
-   <td>TP通信域名称（数据并行通信域）。</td>
+   <td>TP通信域名称（数据并行通信域），不能和groupEp相同。</td>
    <td>STRING</td>
    <td>ND</td>
   </tr>
@@ -229,7 +229,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
   <tr>
    <td>tpRankId</td>
    <td>输入</td>
-   <td>TP域本卡Id。</td>
+   <td>TP域本卡Id，同一个TP通信域中各卡的tpRankId不重复。</td>
    <td>INT64</td>
    <td>ND</td>
   </tr>
@@ -271,7 +271,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
   <tr>
    <td>commQuantMode</td>
    <td>输入</td>
-   <td>通信量化类型，取值范围0或2（0表示不量化，2表示int8量化）。</td>
+   <td>通信量化类型。</td>
    <td>INT64</td>
    <td>ND</td>
   </tr>
@@ -328,7 +328,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
     - expertShardType 当前版本不支持，传0即可。
     - sharedExpertNum 当前版本不支持，传0即可。
     - sharedExpertRankNum 当前版本不支持，传0即可。
-    - commQuantMode 取值为2仅当commAlg为"hierarchy"或HCCL_INTRA_PCIE_ENABLE=1且HCCL_INTRA_ROCE_ENABLE=0且驱动版本≥25.0.RC1.1时支持。
+    - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化），取值为2仅当commAlg为"hierarchy"或HCCL_INTRA_PCIE_ENABLE=1且HCCL_INTRA_ROCE_ENABLE=0且驱动版本≥25.0.RC1.1时支持。
     - commAlg 支持nullptr、""、"fullmesh"、"hierarchy"；推荐配置"hierarchy"并搭配≥25.0.RC1.1版本驱动；nullptr和""依HCCL环境变量选择算法（不推荐）；"fullmesh"通过RDMA直传token；"hierarchy"经机内、跨机两次发送减少跨机数据量。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
@@ -345,7 +345,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
     - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
     - sharedExpertNum 当前取值范围[0, 4]。
     - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-    - commQuantMode 取值为2仅当tpWorldSize < 2时可使能。
+    - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化），取值为2仅当tpWorldSize < 2时可使能。
     - commAlg 当前版本不支持，传空指针即可。
 
 - <term>昇腾910_95 AI处理器</term>：
@@ -362,7 +362,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
     - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
     - sharedExpertNum 当前取值范围[0, 4]。
     - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-    - commQuantMode 取值为2仅当tpWorldSize < 2时可使能。
+    - commQuantMode 当前版本不支持，传0即可。
     - commAlg 当前版本不支持，传空指针即可。
 
 ### 返回值
