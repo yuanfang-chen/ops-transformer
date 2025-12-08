@@ -1687,7 +1687,7 @@ bool PromptFlashAttentionTilingV2::CheckKVScaleShape4MLAFullQuant(ContextParamsF
 
 bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& contextKeyParams)
 {
-    //check QKV dtype for fp8_e4m3, output dtype for bf16, QK Rope Type for bf16
+    // check QKV dtype for fp8_e4m3, output dtype for bf16, QK Rope Type for bf16
     OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.kDataType != ge::DT_FLOAT8_E4M3FN ||
         contextKeyParams.vDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.outputDataType != ge::DT_BF16),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -1700,7 +1700,7 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
             "When MLAFullQuant enables, dataType of queryRope(%s) and keyRope(%s) must be bf16.",
             GetPfaDataTypeStr(contextKeyParams.qRopeDataType).c_str(), GetPfaDataTypeStr(contextKeyParams.kRopeDataType).c_str()),
         return false);
-    //check QKV QuantMode
+    // check QKV QuantMode
     OP_CHECK_IF((*contextKeyParams.queryQuantMode != static_cast<int64_t>(AntiquantTypeEnum::PER_TOKEN_HEAD)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, queryQuantMode (%ld) is InValid! Only support Per-Token-Head(3).",
@@ -1710,7 +1710,7 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, keyAntiquantMode (%ld) or valueQuantMode (%ld) is InValid! Only support Per-Tensor(0).",
             *contextKeyParams.keyAntiquantMode, *contextKeyParams.valueAntiquantMode), return false);
-    //check QKV scale
+    // check QKV scale
     OP_CHECK_IF((contextKeyParams.dequantScaleQuery == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When MLAFullQuant enables, dequantScaleQuery should not be nullptr."),
         return false);
@@ -1726,7 +1726,7 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
     OP_CHECK_IF((!CheckQScaleShape4MLAFullQuant(contextKeyParams) && !CheckKVScaleShape4MLAFullQuant(contextKeyParams)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, check dequantScaleQuery, keyAntiQuantScale or valueAntiquantScale shape failed."), return false);
-    //全量化暂不支持 keyAntiquantOffset, valueAntiquantOffset, quantScale1, dequantScale1, dequantScale2
+    // 全量化暂不支持 keyAntiquantOffset, valueAntiquantOffset, quantScale1, dequantScale1, dequantScale2
     OP_CHECK_IF((contextKeyParams.KeyAntiquantOffsetShape != nullptr) || (contextKeyParams.valueAntiquantOffsetShape != nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, keyAntiquantOffset and valueAntiquantOffset should be null."), return false);
@@ -3781,7 +3781,8 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
     const int64_t *valueAntiquantMode = contextKeyParams.valueAntiquantMode;
     if (contextKeyParams.inputDataType == ge::DT_HIFLOAT8 || contextKeyParams.inputDataType == ge::DT_FLOAT8_E5M2 || 
         contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN) {
-        if (*keyAntiquantMode == 7 && *queryQuantMode ==7 && *valueAntiquantMode ==7) { // 7: FP8 perblock quant
+        if (*keyAntiquantMode == static_cast<int64_t>(AntiquantTypeEnum::PER_BLOCK) && *queryQuantMode == static_cast<int64_t>(AntiquantTypeEnum::PER_BLOCK)
+            && *valueAntiquantMode == static_cast<int64_t>(AntiquantTypeEnum::PER_BLOCK)) { // 7: FP8 perblock quant
             enablePerblockQuant = true;
         } else {
             if (!enableIFAMLAFullQuant) {

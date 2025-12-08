@@ -330,11 +330,12 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitUniqueLocalBuffer(Con
         }
     }
     if constexpr (isMlaFullQuant) {
-        this->tPipe->InitBuffer(BaseClass::queryScaleQue[0], 1, BaseClass::s1BaseSize / 2 * sizeof(float));
-        this->tPipe->InitBuffer(BaseClass::queryScaleQue[1], 1, BaseClass::s1BaseSize / 2 * sizeof(float));
-        this->tPipe->InitBuffer(BaseClass::pScaleBuf[0], 256);
-        this->tPipe->InitBuffer(BaseClass::pScaleBuf[1], 256);
-        this->tPipe->InitBuffer(BaseClass::pScaleBuf[2], 256);
+        constexpr uint32_t softmaxRowmaxBufSize = 256;
+        this->tPipe->InitBuffer(BaseClass::queryScaleQue[0], 1, BaseClass::s1BaseSize / CV_RATIO * sizeof(float));
+        this->tPipe->InitBuffer(BaseClass::queryScaleQue[1], 1, BaseClass::s1BaseSize / CV_RATIO * sizeof(float));
+        this->tPipe->InitBuffer(BaseClass::pScaleBuf[0], softmaxRowmaxBufSize);
+        this->tPipe->InitBuffer(BaseClass::pScaleBuf[1], softmaxRowmaxBufSize);
+        this->tPipe->InitBuffer(BaseClass::pScaleBuf[2], softmaxRowmaxBufSize); // 2: pScaleBuf index
     }
 }
 

@@ -1550,19 +1550,19 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::InitLocalBuffer(TPipe
                 }
 
                 if constexpr (hasAtten) {
-                    tPipe->InitBuffer(attenMaskInQue[0], 1, 4096);
-                    tPipe->InitBuffer(attenMaskInQue[1], 1, 4096);
+                    tPipe->InitBuffer(attenMaskInQue[0], 1, 4096); // 4096: GS1方向需要循环处理，一个vector计算softmax的数据量最大为32*128，对应mask(bool/int8/uint8)的数据量为4096Bytes
+                    tPipe->InitBuffer(attenMaskInQue[1], 1, 4096); // 4096：同上
                 }
 
-                tPipe->InitBuffer(commonTBuf, 512);
+                tPipe->InitBuffer(commonTBuf, 512); // 实际只需512Bytes
             }
             if constexpr (bmm2Write2Ub) {
-                tPipe->InitBuffer(stage2OutBuf, 64 / 2 * dTemplateAlign64 * sizeof(T));
+                tPipe->InitBuffer(stage2OutBuf, 64 / CV_RATIO * dTemplateAlign64 * sizeof(T)); // 64: s1RealSize
             } else {
                 tPipe->InitBuffer(stage2OutBuf, 32768);
             }
-            tPipe->InitBuffer(stage1OutQue[0], 1, 4224);
-            tPipe->InitBuffer(stage1OutQue[1], 1, 4224);
+            tPipe->InitBuffer(stage1OutQue[0], 1, 4224); // 4224: (s1BaseSize / CV_RATIO + 1) * s2BaseSize * sizeof(INPUT_T)
+            tPipe->InitBuffer(stage1OutQue[1], 1, 4224); // 4224: 同上
         } else {
             if constexpr (!useDn) {
                 if constexpr (hasPseOuter) {

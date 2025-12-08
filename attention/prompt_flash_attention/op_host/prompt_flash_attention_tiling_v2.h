@@ -84,7 +84,8 @@ enum class AntiquantTypeEnum : uint8_t {
     K_PER_CHANNEL_V_PER_TOKEN = 2,
     PER_TOKEN_HEAD = 3,
     PER_TOKEN_PAGE_ATTENTION = 4,
-    PER_TOKEN_HEAD_PAGE_ATTENTION = 5
+    PER_TOKEN_HEAD_PAGE_ATTENTION = 5,
+    PER_BLOCK = 7
 };
 
 class PromptFlashAttentionTilingV2 : public FiaTilingBase{
