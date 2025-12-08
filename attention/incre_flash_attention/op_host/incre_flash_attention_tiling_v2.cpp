@@ -882,12 +882,20 @@ ge::graphStatus IFATilingV2::CheckKvCacheValue(uint32_t kDimNum) const {
       OP_CHECK_IF((blockSize != blockSize_),
               OP_LOGE(ifaContext_->opName, "When Page Attention is enabled, blockSize of kvCache[%u] should be %u", blockSize, blockSize_),
               return ge::GRAPH_FAILED);
-      OP_CHECK_IF((d0OfKey != BLOCK_SIZE),
-              OP_LOGE(ifaContext_->opName,
-              "When Page Attention is enabled, if input kv dataType is INT32, d0OfKey of kvCache[%u] should be %u; "
-              "if input kv dataType is INT4, d0OfKey of kvCache[%u] should be %u",
-              d0OfKey, BLOCK_SIZE / NUM8, d0OfKey, BLOCK_SIZE),
-              return ge::GRAPH_FAILED);
+      if (inputKvType_ == ge::DT_INT4) {
+        OP_CHECK_IF((d0OfKey != BLOCK_SIZE),
+                    OP_LOGE(ifaContext_->opName,
+                    "When PA_NZ is enabled, if input kv dataType is INT32, the last dim (D0) of kvCache[%u] should be %u; "
+                    "if input kv dataType is INT4, the last dim (D0) of kvCache[%u] should be %u",
+                    d0OfKey / NUM8, BLOCK_SIZE / NUM8, d0OfKey, BLOCK_SIZE),
+                    return ge::GRAPH_FAILED);
+      } else {
+        OP_CHECK_IF((d0OfKey != BLOCK_SIZE),
+                    OP_LOGE(ifaContext_->opName,
+                    "When PA_NZ is enabled, the last dim (D0) of kvCache[%u] should be %u",
+                    d0OfKey, BLOCK_SIZE),
+                    return ge::GRAPH_FAILED);
+      }
       uint32_t dimOfKey = d1OfKey * d0OfKey;
       if (inputKvType_ == ge::DT_INT4) {
         OP_CHECK_IF((dimOfKey != headDim_),
