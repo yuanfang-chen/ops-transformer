@@ -109,38 +109,56 @@ Range<uint32_t> CalcS2Range(uint32_t s1GIdx, const BaseInfo &baseInfo, const Spl
     uint32_t s2Start = 0U;
     uint32_t s2End = 0U;
 
+    // actual seq == 0
     if (batchCache.s1Size == 0U || batchCache.s2Size == 0U) {
         return std::make_pair(s2Start, s2End);
     }
 
+    // no mask
     if (!baseInfo.attenMaskFlag) {
         s2Start = 0U;
         s2End = (batchCache.s2Size + splitParam.s2BaseSize - 1U) / splitParam.s2BaseSize;
         return std::make_pair(s2Start, s2End);
     }
 
-    int64_t s1GOffset = static_cast<int64_t>(s1GIdx) * static_cast<int64_t>(splitParam.mBaseSize);
-    int64_t s1Idx = 0;
-    uint32_t s1BaseSize = 0U;
-    if (baseInfo.isS1G) { // SG:
-        s1Idx = s1GOffset / static_cast<int64_t>(baseInfo.gSize);
-        s1BaseSize = splitParam.mBaseSize / baseInfo.gSize + 1;
-    } else { // GS
-        s1Idx = s1GOffset % static_cast<int64_t>(batchCache.s1Size);
-        s1BaseSize = batchCache.s1Size > splitParam.mBaseSize ? splitParam.mBaseSize : batchCache.s1Size;
+    // 1. calc index of s2FirstToken, s2LastToken by index of s1GFirstToken, s1GLastToken
+    int64_t s1GFirstToken = static_cast<int64_t>(s1GIdx) * static_cast<int64_t>(splitParam.mBaseSize);
+    int64_t s1GLastToken = std::min(s1GFirstToken + static_cast<int64_t>(splitParam.mBaseSize),
+        static_cast<int64_t>(batchCache.s1Size) * static_cast<int64_t>(baseInfo.gSize)) - 1;
+    
+    int64_t s1FirstToken = 0;
+    int64_t s1LastToken = 0;
+    if (baseInfo.isS1G) {
+        s1FirstToken = s1GFirstToken / static_cast<int64_t>(baseInfo.gSize);
+        s1LastToken = s1GLastToken / static_cast<int64_t>(baseInfo.gSize);
+    } else {
+        if (s1GFirstToken / batchCache.s1Size == s1GLastToken / batchCache.s1Size) {
+            // start and end locate in one G
+            s1FirstToken = s1GFirstToken % static_cast<int64_t>(batchCache.s1Size);
+            s1LastToken = s1GLastToken % static_cast<int64_t>(batchCache.s1Size);
+        } else {
+            // start and end locate in tow or more G, but working same as crossing a complete block
+            s1FirstToken = 0;
+            s1LastToken = batchCache.s1Size;
+        }
     }
 
-    if (s1Idx + static_cast<int64_t>(s1BaseSize) > static_cast<int64_t>(batchCache.s1Size)) {
-        s1Idx = 0;
-        s1BaseSize = batchCache.s1Size;
+    int64_t s2FirstToken = s1FirstToken - batchCache.preTokenLeftUp;
+    int64_t s2LastToken = s1LastToken + batchCache.nextTokenLeftUp;
+
+    // 2. trans index of token to index of block
+    // no valid token
+    if (s2FirstToken >= batchCache.s2Size || s2LastToken < 0 || s2LastToken < s2FirstToken) {
+        s2Start = 0U;
+        s2End = 0U;
+        return std::make_pair(s2Start, s2End);
     }
-    int64_t s2FirstToken = Clip(s1Idx - batchCache.preTokenLeftUp, static_cast<int64_t>(0),
-        static_cast<int64_t>(batchCache.s2Size));
+
+    // get valid range
+    s2FirstToken = Clip(s2FirstToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size -1U));
+    s2LastToken = Clip(s2LastToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size -1U));
     s2Start = static_cast<uint32_t>(s2FirstToken) / splitParam.s2BaseSize;
-
-    int64_t s2LastToken = Clip(s1Idx + batchCache.nextTokenLeftUp + static_cast<int64_t>(s1BaseSize),
-        static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size));
-    s2End = (static_cast<uint32_t>(s2LastToken) + splitParam.s2BaseSize - 1U) / splitParam.s2BaseSize;
+    s2End = static_cast<uint32_t>(s2LastToken) / splitParam.s2BaseSize + 1U; // end of block index, +1 for Right-open interval
 
     return std::make_pair(s2Start, s2End);
 }
@@ -193,6 +211,14 @@ void CalcS1GCache(uint32_t s1GIdx, const SplitContext &splitContext, const Batch
     auto s2Range = CalcS2Range(s1GIdx, baseInfo, splitParam, batchCache);
     s1GCache.s2Start = s2Range.first;
     s1GCache.s2End = s2Range.second;
+
+    if (s1GCache.s2Start >= s1GCache.s2End) {
+        s1GCache.s1GBlock = 0;
+        s1GCache.s1GCost = 0;
+        s1GCache.s1GLastBlockCost = 0;
+        s1GCache.s1GNormalBlockCost = 0;
+        return;
+    }
 
     // 计算S2方向满块、尾块数量
     s1GCache.s1GBlock = s1GCache.s2End - s1GCache.s2Start;
@@ -282,9 +308,11 @@ void CalcBatchCost(uint32_t bIdx, const SplitContext &splitContext, CostInfo &co
         CalcS1GCache(s1GIdx, splitContext, bCache, s1GCache);
         costInfo.bN2CostOfEachBatch[bIdx] += s1GCache.s1GCost;
         costInfo.bN2BlockOfEachBatch[bIdx] += s1GCache.s1GBlock;
-    }
 
-    costInfo.bN2LastBlockCostOfEachBatch[bIdx] = s1GCache.s1GLastBlockCost;
+        if (s1GCache.s1GBlock > 0) {
+            costInfo.bN2LastBlockCostOfEachBatch[bIdx] = s1GCache.s1GLastBlockCost;
+        }
+    }
 }
 
 void CalcCostInfo(SplitContext &splitContext)
@@ -407,14 +435,16 @@ void AssignByRow(const SplitContext &splitContext, AssignContext &assignContext)
         assignContext.coreCache.cost += assignContext.s1GCache.s1GCost;
         assignContext.coreCache.block += assignContext.s1GCache.s1GBlock;
 
-        assignContext.curS1GIdx++;
         // 当前batch被分配一行出去，更新剩余负载
         assignContext.bN2Cost = assignContext.bN2Cost > assignContext.s1GCache.s1GCost ?
                                 assignContext.bN2Cost - assignContext.s1GCache.s1GCost : 0;
         assignContext.bN2Block = assignContext.bN2Block > assignContext.s1GCache.s1GBlock ?
                                  assignContext.bN2Block - assignContext.s1GCache.s1GBlock : 0U;
         // 计算新一行的信息
-        CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
+        do {
+            assignContext.curS1GIdx++;
+            CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
+        } while (assignContext.s1GCache.s1GBlock == 0);
         assignContext.curS2Idx = assignContext.s1GCache.s2Start;
     }
 }
@@ -533,7 +563,7 @@ void CalcSplitPlan(uint32_t coreNum, int64_t costLimit, const SplitContext &spli
     assignContext.curS2Idx = assignContext.s1GCache.s2Start;
 
     for (uint32_t i = 0; i < coreNum; ++i) {
-        if (result.maxCost >= costLimit) {
+        if (result.maxCost > costLimit) {
             return;
         }
         if (assignContext.isFinished || assignContext.unassignedCost <= 0) {

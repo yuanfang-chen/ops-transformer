@@ -952,46 +952,61 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBlockType>::CalcCurS2StartEndWithSparse(uint32_t bN2Cur, uint32_t gS1Cur)
-{  
+{
     // 1. Calc preTokenLeftUp, nextTokenLeftUp
     int64_t preTokenLeftUp = 0;
     int64_t nextTokenLeftUp = 0;
     GetPreNextTokenLeftUp(actSeqLensQ, actSeqLensKv, preTokenLeftUp, nextTokenLeftUp);
 
-    // 2. Calc sIdx, s1BaseSize
-    uint32_t gs1Idx = gS1Cur * constInfo.mBaseSize;
-    int64_t sIdx = 0;
-    uint32_t s1BaseSize = 0U;
+    // 2. calc index of s2FirstToken, s2LastToken by index of s1GFirstToken, s1GLastToken
+    int64_t s1GFirstToken = static_cast<int64_t>(gS1Cur) * static_cast<int64_t>(constInfo.mBaseSize);
+    int64_t s1GLastToken = Min(s1GFirstToken + static_cast<int64_t>(constInfo.mBaseSize),
+        static_cast<int64_t>(actSeqLensQ) * static_cast<int64_t>(constInfo.gSize)) - 1;
+
+    int64_t s1FirstToken = 0;
+    int64_t s1LastToken = 0;
     if constexpr (GetOutUbFormat<LAYOUT_T>() == UbFormat::S1G) {
-        sIdx = static_cast<int64_t>(gs1Idx / constInfo.gSize);
-        s1BaseSize = constInfo.mBaseSize / constInfo.gSize + 1;
+        s1FirstToken = static_cast<int64_t>(s1GFirstToken / constInfo.gSize);
+        s1LastToken = static_cast<int64_t>(s1GLastToken / constInfo.gSize);
     } else {
-        sIdx = static_cast<int64_t>(gs1Idx % actSeqLensQ);
-        s1BaseSize = actSeqLensQ > constInfo.mBaseSize ? constInfo.mBaseSize : actSeqLensQ;
+        if (s1GFirstToken / static_cast<int64_t>(actSeqLensQ) == s1GLastToken / static_cast<int64_t>(actSeqLensQ)) {
+            // start and end locate in one G
+            s1FirstToken = s1GFirstToken % static_cast<int64_t>(actSeqLensQ);
+            s1LastToken = s1GLastToken % static_cast<int64_t>(actSeqLensQ);
+        } else {
+            // start and end locate in tow or more G, but working same as crossing one complete block
+            s1FirstToken = 0;
+            s1LastToken = static_cast<int64_t>(actSeqLensQ);
+        }
     }
 
-    // 3. Calc s2StartWithSparse, s2EndWithSparse
+    // 3. trans index of token to index of block
     uint32_t s2StartWithSparse = 0U;
     uint32_t s2EndWithSparse = 0U;
-    if (sIdx + static_cast<int64_t>(s1BaseSize) > static_cast<int64_t>(actSeqLensQ)) {
-        sIdx = 0;
-        s1BaseSize = static_cast<uint32_t>(actSeqLensQ);
+    int64_t s2FirstToken = s1FirstToken - preTokenLeftUp;
+    int64_t s2LastToken = s1LastToken + nextTokenLeftUp;
+    // no valid token
+    if (s2FirstToken >= static_cast<int64_t>(actSeqLensKv) || s2LastToken < 0 || s2LastToken < s2FirstToken) {
+        curS2Start = 0U;
+        curS2End = 0U;
+        return;
     }
-    int64_t s2FirstToken = ClipSInnerToken(sIdx - preTokenLeftUp, 0, static_cast<int64_t>(actSeqLensKv));
-    s2StartWithSparse = static_cast<uint32_t>(s2FirstToken) / constInfo.s2BaseSize;
+    // get valid range
+    s2FirstToken = ClipSInnerToken(s2FirstToken, 0, static_cast<int64_t>(actSeqLensKv - 1));
+    s2LastToken = ClipSInnerToken(s2LastToken, 0, static_cast<int64_t>(actSeqLensKv - 1));
 
-    int64_t s2LastToken = ClipSInnerToken(sIdx + nextTokenLeftUp + static_cast<int64_t>(s1BaseSize), 0, 
-        static_cast<int64_t>(actSeqLensKv));
-    s2EndWithSparse = (static_cast<uint32_t>(s2LastToken) + constInfo.s2BaseSize - 1) / constInfo.s2BaseSize;
+    s2StartWithSparse = static_cast<uint32_t>(s2FirstToken) / constInfo.s2BaseSize;
+    s2EndWithSparse = static_cast<uint32_t>(s2LastToken) / constInfo.s2BaseSize + 1U;
 
     // 4. Calc curS2Start, curS2End
     curS2Start = s2StartWithSparse;
     curS2End = s2EndWithSparse;
-    if (bN2Cur == constInfo.bN2Start && gS1Cur == constInfo.gS1Start) {
-        constInfo.headS2Split = constInfo.s2Start > curS2Start ? true : false;
+    
+    if (bN2Cur == constInfo.bN2Start && gS1Cur == constInfo.gS1Start) { // first line
+        constInfo.headS2Split = constInfo.s2Start > s2StartWithSparse ? true : false;
         curS2Start = Max(s2StartWithSparse, constInfo.s2Start);
     }
-    if (bN2Cur == constInfo.bN2End && gS1Cur == constInfo.gS1End) {
+    if (bN2Cur == constInfo.bN2End && gS1Cur == constInfo.gS1End) {  // last line
         constInfo.tailS2Split = constInfo.s2End > 0U ? true : false;
         curS2End = constInfo.s2End > 0U ? Min(s2EndWithSparse, constInfo.s2End) : s2EndWithSparse;
     }
