@@ -3716,9 +3716,9 @@ void IFATilingV2::UpdateTilingKeyConfig() {
 	} else if (sInner == 128 && sOuter == 16 && dSize <= 512 && dVsize <= 512) {
 		config = Config_S1Aligned16_S2Aligned128_DAligned512_DVAligned512;
 	} else {
-        OP_LOGE("IncreFlashAttentionTilingV2::UpdateTilingKeyConfig", "S1, S2, D, DV Wrong!");
+        OP_LOGE(ifaContext_->opName, "The combination of parameters S1, S2, D, DV is not supported!");
     }
-	OP_LOGI("IFATilingV2::DoOpTiling", "sInner is %llu. sOuter is %llu. dSize is %llu. dVsize is %llu.", sInner, sOuter, dSize, dVsize);
+	OP_LOGI(ifaContext_->opName, "sInner is %llu. sOuter is %llu. dSize is %llu. dVsize is %llu.", sInner, sOuter, dSize, dVsize);
 }
 
 void IFATilingV2::UpdateTilingKeyPseMode() {
@@ -3881,7 +3881,6 @@ ge::graphStatus IFATilingV2::RunBigKernelTiling(IncreFlashAttentionContext& cont
     return ge::GRAPH_FAILED;
   }
   if (tilingData_ != nullptr) {
-    OP_LOGI("IFATilingV2::DoOpTiling", "TILINGDATA is not null!!!");
     IFATilingDataconvert();
   }
   return ge::GRAPH_SUCCESS;
@@ -4051,7 +4050,7 @@ void TilingGetTempCompileInfo(platform_ascendc::PlatformAscendC& ascendcPlatform
 	ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfo.l0BSize);
 	compileInfo.socShortName = ascendcPlatform.GetSocVersion();
 	if (compileInfo.socShortName == platform_ascendc::SocVersion::ASCEND310P) {
-		compileInfo.defaultSysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();		
+		compileInfo.defaultSysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
 	} else {
 		compileInfo.defaultSysWorkspaceSize = 0U;
 	}
@@ -4068,12 +4067,12 @@ ge::graphStatus IFATilingV2::DoOpTiling()
     uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
                                             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
                                             static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType));
-    context_->SetTilingKey(tiling_key);                            
-    OP_LOGI("IFATilingV2::DoOpTiling", "new template tilingkey V2 is %llu.", tiling_key);
-    OP_LOGI("IFATilingV2::DoOpTiling", "new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu,quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.", 
-            static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config), 
+    context_->SetTilingKey(tiling_key);
+    OP_LOGI(ifaContext.opName, "The new template tilingkey is %llu.", tiling_key);
+    OP_LOGI(ifaContext.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu,quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.", 
+            static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
-            static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType));    
+            static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType));
     return ret;
 }
 
@@ -4095,7 +4094,7 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
                     OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "fail to convert to PFAParams"),
                     return ge::GRAPH_FAILED);
         PromptFlashAttentionTilingData tilingData;
-        ret = flashTilingV2.DoSubOpTiling(tilingData, contextParamsForPFATiling);        
+        ret = flashTilingV2.DoSubOpTiling(tilingData, contextParamsForPFATiling);
         inOutLayoutType = flashTilingV2.inOutLayoutType;
         config = flashTilingV2.config;
         pseMode = flashTilingV2.pseMode;
@@ -4106,13 +4105,13 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
         isFd = flashTilingV2.isFd;
         emptyTensor = flashTilingV2.emptyTensor;
         PFAMask = flashTilingV2.PFAMask;
-        pFAMatMulType = flashTilingV2.pFAMatMulType;        
-        OP_LOGI("PromptFlashAttentionTilingV2::DoOpTiling", "Tiling ALL WORK FINISHED!!!");
+        pFAMatMulType = flashTilingV2.pFAMatMulType;
+        OP_LOGI(contextParamsForPFATiling.opName, , "All the PFATiling work is done.");
         return ret;
     } else {
         IncreFlashAttentionTilingDataV2 tilingData;
         auto ret = RunBigKernelTiling(ifaContext, tilingData);
-        context_->SetBlockDim(ifaContext.blockDim);        
+        context_->SetBlockDim(ifaContext.blockDim);
         FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
         *tiling = faRunTilingAdapter;
         return ret;

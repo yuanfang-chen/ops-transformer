@@ -190,19 +190,6 @@ TILING_DATA_FIELD_DEF(uint32_t, antiqSeqSize)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionAntiqParamsOp, FusedInferAttentionAntiqParams)
 
-ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context);
-
-class FusedInferAttentionScoreTiling : public FiaTilingBase {
-public:
-    explicit FusedInferAttentionScoreTiling(gert::TilingContext *context) : FiaTilingBase(context) {}
-    ~FusedInferAttentionScoreTiling() override = default;
-
-protected:
-    void InitTilingInfo(TilingInfo *tilingInfo) override {}
-    bool IsCapable() override {}
-    ge::graphStatus DoOpTiling() override;
-};
-
 extern "C" {
 ge::graphStatus DeviceDoOpTilingIncreFlashAttention(gert::TilingContext *context);
 ge::graphStatus DeviceDoOpTilingFusedInferAttentionScore(gert::TilingContext *context);

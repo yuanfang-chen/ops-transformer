@@ -265,7 +265,7 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
 #if (__CCE_AICORE__ == 310) && (!defined (__DAV_310R6__))
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     REGISTER_TILING_DEFAULT(PFAFullQuantTilingData);
-    REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 24) & 0x1f) == 31", PromptFlashAttentionTilingData);
+    REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) == 31", FlashAttentionScoreSimplifiedTilingData);
     if constexpr (emptyTensor == true) {
         INVOKE_PFA_ZERO_OP_IMPL_V2();
         return;

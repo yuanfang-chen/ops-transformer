@@ -100,7 +100,7 @@ public:
         const std::string &sName) const;
     ge::graphStatus DoSubOpTiling(PromptFlashAttentionTilingData& tilingData, ContextParamsForPFATiling& contextParamsForPFATiling);
     ge::graphStatus ConvertContextToPFAParams(ContextParamsForPFATiling& contextKeyParams);
-    void SetTilingKey();
+    void SetTilingKey(ContextParamsForPFATiling& contextKeyParams);
 protected:
     void InitializeMaxWorkspace(PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo,
         std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV);
@@ -263,7 +263,7 @@ protected:
     void GetMaxWorkspaceFlag(ContextParamsForPFATiling& contextKeyParams);
 
     void UpdateTilingKeyLayoutType();
-    void UpdateTilingKeyConfig(PromptFlashAttentionTilingData& tilingData);
+    void UpdateTilingKeyConfig(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData);
     void UpdateTilingKeyPseMode();
     void UpdateTilingKeyQuantMode(ge::DataType inputDataType);
     void UpdateTilingKeyAttenMask(ge::DataType inputDataType);

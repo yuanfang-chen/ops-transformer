@@ -6507,7 +6507,6 @@ ge::graphStatus PromptFlashAttentionTiling::AdjustCVTilingCVDiff(int64_t ubSize,
 }
 
 ge::graphStatus TilingPromptFlashAttention(gert::TilingContext* context) {
-    OP_LOGI("---PromptFlashAttentionEntryInfo", "TilingPromptFlashAttentionFunctionEntry!---");
     if (context == nullptr) {
             OP_LOGE("PromptFlashAttention", "tiling context is nullptr!");
             return ge::GRAPH_FAILED;

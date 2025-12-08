@@ -38,7 +38,7 @@ else()
     add_modules_sources_with_soc(OPTYPE prompt_flash_attention ACLNNTYPE aclnn_inner)
 endif()
 
-if(NOT BUILD_OPS_RTY_KERNEL) #    
+if(NOT BUILD_OPS_RTY_KERNEL) #
     if("${CONDITION_UNIT}" STREQUAL "ascend910_95")
         add_ops_compile_options(
             OP_NAME PromptFlashAttention

@@ -16,7 +16,6 @@
 #define PROMPT_FLASH_ATTENTION_COMM_H
 #include <type_traits>
 #include "lib/matmul_intf.h"
-// #include "lib/../../impl/adv_api/detail/matmul/policy/matmul_policy.h"
 #include "kernel_tiling/kernel_tiling.h"
 // PFATODO ConstPolicySelector放到matmul_modules后，可以不include这些头文件
 #include "../matmul_modules/pfa_matmul_policy.h"

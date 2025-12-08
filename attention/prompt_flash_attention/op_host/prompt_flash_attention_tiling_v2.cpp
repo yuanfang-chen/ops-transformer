@@ -3387,7 +3387,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyLayoutType() {
 		inOutLayoutType = InOutLayoutType_BSH_BSH;	
 }
 
-void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(PromptFlashAttentionTilingData &tilingData) {
+void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) {
     auto sInner = tilingData.promptAttentionSingleCoreParams.get_singleProcessSInnerSize();
 	auto sOuter = tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * 2;	
 	auto dSize = tilingData.promptAttentionBaseParams.get_qkHeadSize();
@@ -3436,10 +3436,10 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(PromptFlashAttentionTil
     } else if (sOuter == 128 && sInner == 256 && dSize == 128 && dVsize == 128) {
         config = Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128;
     } else {
-        OP_LOGE("PromptFlashAttentionTilingV2::UpdateTilingKeyConfig", "S1, S2, D, DV Wrong!");
+        OP_LOGE(contextKeyParams.opName, "The combination of parameters S1, S2, D, DV is not supported!");
     }
 
-	OP_LOGI("PromptFlashAttentionTilingV2::UpdateTilingKeyConfig", "sInner is %d, sOuter is %d, dSize is %d, dVsize is %d, config is %d.", sInner, sOuter, dSize, dVsize, config);
+	OP_LOGI(contextKeyParams.opName, "sInner is %d, sOuter is %d, dSize is %d, dVsize is %d, config is %d.", sInner, sOuter, dSize, dVsize, config);
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyPseMode() {
@@ -3563,7 +3563,7 @@ bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextPar
     auto outputDataType = contextKeyParams.outputDataType; // output tensor
     tilingData.promptAttentionBaseParams.set_attenMaskElemType(attenMaskElemType);
     UpdateTilingKeyLayoutType();
-    UpdateTilingKeyConfig(tilingData);
+    UpdateTilingKeyConfig(contextKeyParams, tilingData);
     UpdateTilingKeyPseMode();
     UpdateTilingKeyQuantMode(inputDataType);
     UpdateTilingKeyAttenMask(inputDataType);
@@ -3572,7 +3572,7 @@ bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextPar
     UpdateTilingKeyIsFd(inputDataType);
     UpdateTilingKeyEmptyTensor();
     UpdateTilingKeyPFAMask(tilingData, inputDataType);
-    UpdateTilingKeyPFAMatMulType(tilingData, inputDataType);   
+    UpdateTilingKeyPFAMatMulType(tilingData, inputDataType);
     return true;
 }
 
@@ -4510,14 +4510,14 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
     return ge::GRAPH_SUCCESS;
 }
 
-void PromptFlashAttentionTilingV2::SetTilingKey(){
+void PromptFlashAttentionTilingV2::SetTilingKey(ContextParamsForPFATiling& contextKeyParams){
     uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
                                                 static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask,
                                                 hasRope, isPa, isFd, emptyTensor,
                                                 static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType));
     context_->SetTilingKey(gen_tilingkey);
-    OP_LOGI("PromptFlashAttentionTilingV2::DoOpTiling", "new template tilingkey V2 is %llu.", gen_tilingkey);
-    OP_LOGI("PromptFlashAttentionTilingV2::DoOpTiling", "new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.",
+    OP_LOGI(contextKeyParams.opName, "The new template tilingkey is %llu.", gen_tilingkey);
+    OP_LOGI(contextKeyParams.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.",
             static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config), static_cast<uint64_t>(pseMode),
             static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, static_cast<uint64_t>(PFAMask),
             static_cast<uint64_t>(pFAMatMulType));
@@ -4537,16 +4537,16 @@ ge::graphStatus PromptFlashAttentionTilingV2::DoSubOpTiling(PromptFlashAttention
             PFATilingDataconvert(tilingData);
         }        
         uint64_t cap = context_->GetRawTilingData()->GetCapacity();
-        OP_LOGI("PromptFlashAttentionTilingV2::DoOpTiling", "Tiling Data context GetCapacity: %lu.", cap);
+        OP_LOGI(contextParamsForPFATiling.opName, "Tiling Data context GetCapacity: %lu.", cap);
 		FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
         if (tiling == nullptr) {
-            OP_LOGE("PromptFlashAttentionTilingV2::DoOpTiling", "tiling get is nullptr");
+            OP_LOGE(contextParamsForPFATiling.opName, "tiling get is nullptr");
             return ge::GRAPH_FAILED;
         }
 		*tiling = faTilingAdapter;
 	} else {
         uint64_t cap = context_->GetRawTilingData()->GetCapacity();
-        OP_LOGI("PromptFlashAttentionTilingV2::DoOpTiling", "TilingData context GetCapacity: %lu, faRunFlag_ is %d", cap, faRunFlag_);
+        OP_LOGI(contextParamsForPFATiling.opName, "TilingData context GetCapacity: %lu, faRunFlag_ is %d", cap, faRunFlag_);
         if (contextParamsForPFATiling.inputDataType != ge::DT_BF16 && contextParamsForPFATiling.inputDataType != ge::DT_FLOAT16) {
             PFAFullQuantTilingData* tiling = context_->GetTilingData<PFAFullQuantTilingData>();
             tiling->MigrateFromLegacyFormat(tilingData);
@@ -4564,9 +4564,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::DoOpTiling()
     ContextParamsForPFATiling contextParamsForPFATiling;
     auto ret = ConvertContextToPFAParams(contextParamsForPFATiling);
     OP_CHECK_IF(ret == ge::GRAPH_FAILED, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "fail to convert to PFAParams"),return ge::GRAPH_FAILED);
-    ret = DoSubOpTiling(tilingData, contextParamsForPFATiling);    
-    SetTilingKey();
-    OP_LOGI("PromptFlashAttentionTilingV2::DoOpTiling", "Tiling ALL WORK FINISHED!!!");
+    ret = DoSubOpTiling(tilingData, contextParamsForPFATiling);
+    SetTilingKey(contextParamsForPFATiling);
+    OP_LOGI(contextParamsForPFATiling.opName, "All the PFATiling work is done.");
 	return ret;
 }
 

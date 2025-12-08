@@ -1281,7 +1281,7 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
 
     bool usingFAI = false;
     if (inputLayoutStr == "TND" && !isLearnableSink && !isRopeSplitMla &&
-        sparseModeSupported && (nonMhaConditions || mhaConditions)) {        
+        sparseModeSupported && (nonMhaConditions || mhaConditions)) {
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);
             int64_t tempVD = tempV->GetStorageShape().GetDim(DIM_2);
@@ -1897,7 +1897,7 @@ FIA_EXTERN_C ge::graphStatus DoOpTilingFusedInferAttentionScore(gert::TilingCont
         return TilingFusedInferAttentionScoreV2(context);
     } else {
         return TilingFusedInferAttentionScore(context);
-    }    
+    }
     return ge::GRAPH_SUCCESS;
 }
 
