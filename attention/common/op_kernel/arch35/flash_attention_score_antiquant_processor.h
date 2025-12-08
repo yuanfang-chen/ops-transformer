@@ -19,12 +19,18 @@
 #include "../../../incre_flash_attention/op_kernel/arch35/vector_api/vf_antiquant_w8.h"
 
 using namespace AscendC;
-using namespace AscendC::Impl::Detail;
-using namespace regbaseutil;
 using namespace fa_base_matmul;
-using matmul::MatmulType;
-using namespace optiling;
+
+enum class AntiquantTypeEnum : uint8_t {
+    PER_CHANNEL = 0, // enable per-channel antiquant mode，include per-tensor
+    PER_TOKEN = 1,  // enable per-token antiquant mode
+    K_PER_CHANNEL_V_PER_TOKEN = 2, // enable split antiquant mode, k per-channel and v per-token
+    PER_TOKEN_HEAD = 3, // enable both per-token and per-head antiquant mode
+    PER_TOKEN_PAGE_ATTENTION = 4, // enable per-token antiquant mode, and enable PA for memory management
+    PER_TOKEN_HEAD_PAGE_ATTENTION = 5, // enable both per-token and per-head antiquant mode, and enable PA for memory management
+};
 namespace BaseApi {
+
 __aicore__ constexpr uint16_t GetRealDealSize(uint16_t realSize) {
     uint16_t dealSize = ((realSize >> 1) + 31) >> 5 << 5;      // 31 & 5 is Alighup 32
     return (dealSize > realSize) ? realSize : dealSize;
@@ -33,11 +39,13 @@ __aicore__ constexpr uint16_t GetRealDealSize(uint16_t realSize) {
 __aicore__ constexpr uint16_t AlignUp32(uint16_t size) {
     return (size + 31) >> 5 << 5;      // 31 & 5 is Alignup 32
 }
+
 enum class KvCacheLayout : uint32_t {
     KV_CACHE_BSH = 0,
     KV_CACHE_BNSD = 1,
     KV_CACHE_NZ = 2,
 };
+
 struct AntiquantTaskParamBaseAPI {
     uint32_t batchSize;
     uint32_t seqSize;
@@ -70,6 +78,8 @@ struct AntiquantTaskParamBaseAPI {
     uint32_t paKvShapeType;
     uint64_t kvPaddingBeginOffset;
 };
+
+
 template <ANTIQUANT_PROCESSOR_TEMPLATE_DEF, const bool ANTIQUANT_PER_TOKEN>
 class AntiquantProcessorBaseAPI
 {

@@ -24,15 +24,6 @@ const int VC_L1_EVENT[2] = {6, 7};
 const int VC_MM1RES_EVENT[2] = {8, 9};
 const int VC_MM2RES_EVENT[2] = {10, 15};
 
-enum class AntiquantTypeEnum : uint8_t {
-    PER_CHANNEL = 0, // enable per-channel antiquant mode，include per-tensor
-    PER_TOKEN = 1,  // enable per-token antiquant mode
-    K_PER_CHANNEL_V_PER_TOKEN = 2, // enable split antiquant mode, k per-channel and v per-token
-    PER_TOKEN_HEAD = 3, // enable both per-token and per-head antiquant mode
-    PER_TOKEN_PAGE_ATTENTION = 4, // enable per-token antiquant mode, and enable PA for memory management
-    PER_TOKEN_HEAD_PAGE_ATTENTION = 5, // enable both per-token and per-head antiquant mode, and enable PA for memory management
-};
-
 #include "../../../common/op_kernel/arch35/util_regbase.h"
 #include "../../../common/op_kernel/matmul.h"
 #include "../../../common/op_kernel/FixpipeOut.h"

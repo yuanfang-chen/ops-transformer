@@ -18,7 +18,8 @@
 
 #include "kernel/incre_flash_attention_normal_Bbn2s2_Us2_regbase.h"
 #include "kernel/incre_flash_attention_antiquant_Bbn2s2_Us2_regbase.h"
-#include "../../../common/op_kernel/arch35/flash_attention_score_antiquant_baseapi.h"
+namespace optiling {};
+#include "../../../common/op_kernel/arch35/flash_attention_score_antiquant_kernel.h"
 #include "incre_flash_attention_dummy.h"
 #include "../../../prompt_flash_attention/op_kernel/arch35/prompt_flash_attention_template_tiling_key_enum.h"
 
@@ -30,14 +31,18 @@ using namespace AscendC;
 
 #define INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(templateClass, ...)                                                          \
   do {                                                                                                                                \
+    if (query == nullptr) {return;}                                                                                                   \
+    REGBASE_COPY_TILING_DATA_ASCEND910_95_ANTIQUANT_BASEAPI(tiling);                                                                  \
     TPipe tPipe;                                                                                                                      \
     __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                                               \
-    REGBASE_COPY_TILING_DATA_ASCEND910_95_ANTIQUANT_BASEAPI(tiling);                                                                  \
-    templateClass<__VA_ARGS__> op;                                                                                                    \
+    using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                                                       \
+    BaseApi::FABlockCubeAntiquant<__VA_ARGS__>, BaseApi::FABlockCubeAntiquantDummy<__VA_ARGS__>>::type;                               \
+    using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                                                        \
+    BaseApi::FABlockVecAntiquantDummy<__VA_ARGS__>, BaseApi::FABlockVecAntiquant<__VA_ARGS__>>::type;                                 \
+    templateClass<CubeBlockType, VecBlockType> op;                                                                                    \
     op.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, blocktable,                                  \
-      queryPaddingSize, kvPaddingSize, softmaxLse, attentionOut, user, tilingData, &tPipe);                                           \
-    op.InitQuant(antiquantScale, antiquantOffset, keyAntiquantScale, keyAntiquantOffset,                                              \
-        valueAntiquantScale, valueAntiquantOffset, quantScale2, quantOffset2);  \
+      queryPaddingSize, kvPaddingSize, softmaxLse, attentionOut, user, tilingData, &tPipe, antiquantScale, antiquantOffset,           \
+      keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset, quantScale2, quantOffset2);                   \
     op.Process();                                                                                                                     \
   } while(0)
 
