@@ -1,4 +1,4 @@
-# aclnnFlashAttentionScoreVX
+# aclnnFlashAttentionScoreV4
 
 ## 产品支持情况
 
@@ -40,10 +40,10 @@
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnFlashAttentionScoreVXGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnFlashAttentionScoreVX”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnFlashAttentionScoreV4GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnFlashAttentionScoreV4”接口执行计算。
 
 ```c++
-aclnnStatus aclnnFlashAttentionScoreVXGetWorkspaceSize(
+aclnnStatus aclnnFlashAttentionScoreV4GetWorkspaceSize(
   const aclTensor   *query,
   const aclTensor   *key,
   const aclTensor   *value,
@@ -56,6 +56,7 @@ aclnnStatus aclnnFlashAttentionScoreVXGetWorkspaceSize(
   const aclTensor   *dScaleQOptional,
   const aclTensor   *dScaleKOptional,
   const aclTensor   *dScaleVOptional,
+  const aclTensor   *sinkOptional,
   const aclIntArray *prefixOptional,
   const aclIntArray *actualSeqQLenOptional,
   const aclIntArray *actualSeqKvLenOptional,
@@ -71,6 +72,7 @@ aclnnStatus aclnnFlashAttentionScoreVXGetWorkspaceSize(
   int64_t            sparseMode,
   int64_t            outDtype,
   int64_t            pseType,
+  char              *softmaxOutLayout,
   int64_t            seed,
   int64_t            offset,
   const aclTensor   *softmaxMaxOut,
@@ -81,7 +83,7 @@ aclnnStatus aclnnFlashAttentionScoreVXGetWorkspaceSize(
   aclOpExecutor    **executor)
 ```
 ```c++
-aclnnStatus aclnnFlashAttentionScoreVX(
+aclnnStatus aclnnFlashAttentionScoreV4(
   void             *workspace, 
   uint64_t          workspaceSize, 
   aclOpExecutor    *executor, 
@@ -89,7 +91,7 @@ aclnnStatus aclnnFlashAttentionScoreVX(
 ```
 
 
-## aclnnFlashAttentionScoreVXGetWorkspaceSize
+## aclnnFlashAttentionScoreV4GetWorkspaceSize
 
 - **参数说明：**
   <table style="undefined;table-layout: fixed; width: 1573px"><colgroup>
@@ -153,6 +155,16 @@ aclnnStatus aclnnFlashAttentionScoreVX(
         <td>ND</td>
         <td>[B,N,S,S]、[B,N,1,Skv]、[1,N,S,S]</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>dropMaskOptional</td>
@@ -223,6 +235,16 @@ aclnnStatus aclnnFlashAttentionScoreVX(
         <td>ND</td>
         <td>0、3、4</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>sinkOptional</td>
+        <td>输入</td>
+        <td>保留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>prefixOptional</td>
@@ -365,6 +387,16 @@ aclnnStatus aclnnFlashAttentionScoreVX(
         <td>-</td>
       </tr>
       <tr>
+        <td>softmaxOutLayout</td>
+        <td>输入</td>
+        <td>保留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>pseType</td>
         <td>输入</td>
         <td>Host侧的int64_t。</td>
@@ -479,7 +511,7 @@ aclnnStatus aclnnFlashAttentionScoreVX(
   </tbody>
   </table>
 
-## aclnnFlashAttentionScoreVX
+## aclnnFlashAttentionScoreV4
 
 - **参数说明：**
 
@@ -682,6 +714,7 @@ int main() {
   aclTensor* dScaleQ = nullptr;
   aclTensor* dScaleK = nullptr;
   aclTensor* dScaleV = nullptr;
+  aclTensor* sink = nullptr;
   aclTensor* actualSeqQLen = nullptr;
   aclTensor* actualSeqKVLen = nullptr;
   aclTensor* attentionOut = nullptr;
@@ -730,18 +763,18 @@ int main() {
   int64_t seed = 0;
   int64_t offset = 0;
   char layOut[5] = {'S', 'B', 'H', 0};
+  char *softmaxLayout = nullptr;
 
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
   uint64_t workspaceSize = 0;
   aclOpExecutor* executor;
 
-  // 调用aclnnFlashAttentionScoreVX第一段接口
-  ret = aclnnFlashAttentionScoreVXGetWorkspaceSize(
-            q, k, v, pse, dropMask, padding, attenmask, queryRope, keyRope, dScaleQ, dScaleK, dScaleV, prefix,
+  // 调用aclnnFlashAttentionScoreV4第一段接口
+  ret = aclnnFlashAttentionScoreV4GetWorkspaceSize(
+            q, k, v, pse, dropMask, padding, attenmask, queryRope, keyRope, dScaleQ, dScaleK, dScaleV, sink, prefix,
             actualSeqQLen, actualSeqKVLen, qStartIdx, kvStartIdx, scaleValue, keepProb, preTokens, nextTokens,
-            headNum, layOut, innerPrecise, sparseMode, outDtype, pseType, seed, offset, softmaxMax, softmaxSum,
-            softmaxOut, attentionOut, &workspaceSize, &executor);
-  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreVXGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+            headNum, layOut, innerPrecise, sparseMode, outDtype, pseType, softmaxLayout, seed, offset, softmaxMax, softmaxSum, softmaxOut, attentionOut, &workspaceSize, &executor);
+  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreV4GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
 
   // 根据第一段接口计算出的workspaceSize申请device内存
   void* workspaceAddr = nullptr;
@@ -750,9 +783,9 @@ int main() {
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
   }
 
-  // 调用aclnnFlashAttentionScoreVX第二段接口
-  ret = aclnnFlashAttentionScoreVX(workspaceAddr, workspaceSize, executor, stream);
-  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreVX failed. ERROR: %d\n", ret); return ret);
+  // 调用aclnnFlashAttentionScoreV4第二段接口
+  ret = aclnnFlashAttentionScoreV4(workspaceAddr, workspaceSize, executor, stream);
+  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreV4 failed. ERROR: %d\n", ret); return ret);
 
   // 4. （固定写法）同步等待任务执行结束
   ret = aclrtSynchronizeStream(stream);
