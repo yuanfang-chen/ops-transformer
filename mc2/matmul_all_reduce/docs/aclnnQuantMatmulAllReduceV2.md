@@ -13,11 +13,12 @@
 | <term>Atlas 推理系列产品 </term>                             |    ×    |
 | <term>Atlas 训练系列产品</term>                              |    ×    |
 | <term>Atlas 200/300/500 推理产品</term>                      |    ×    |
+
 **说明：** 使用该接口时，请确保驱动固件包和CANN包都为配套的8.0.RC2版本或者配套的更高版本，否则将会引发报错，比如BUS ERROR等。
 
 ## 功能说明
 
-- **算子功能**：aclnnQuantMatmulAllReduceV2接口是对aclnnQuantMatmulAllReduce接口的功能扩展，新增支持pertensor量化方式。aclnnQuantMatmulAllReduceV2共支持pertensor、perchannel、pertoken[量化方式](../../../docs/zh/context/量化介绍.md)。
+- **接口功能**：aclnnQuantMatmulAllReduceV2接口是对aclnnQuantMatmulAllReduce接口的功能扩展，新增支持pertensor量化方式。aclnnQuantMatmulAllReduceV2共支持pertensor、perchannel、pertoken[量化方式](../../../docs/zh/context/量化介绍.md)。
 
 - **计算公式**：
 
@@ -36,7 +37,7 @@
   $$
 ## 函数原型
 
-每个算子分为两段式接口，必须先调用“aclnnQuantMatmulAllReduceV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantMatmulAllReduceV2”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnQuantMatmulAllReduceV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantMatmulAllReduceV2”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnQuantMatmulAllReduceV2GetWorkspaceSize(
@@ -90,8 +91,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>x1</td>
           <td>输入</td>
-          <td>device侧的aclTensor，MatMul计算的左矩阵，即计算公式中的x1。</td>
-          <td><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></td>
+          <td>MatMul计算的左矩阵，即计算公式中的x1。</td>
+          <td><ul><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></ul></td>
           <td>INT8</td>
           <td>ND</td>
           <td>2-3</td>
@@ -100,8 +101,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>x2</td>
           <td>输入</td>
-          <td>device侧的aclTensor，MatMul计算的右矩阵，即计算公式中的x2。</td>
-          <td><li>当前版本仅支持二维输入。</li><li>支持转置/不转置场景。</li></td>
+          <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
+          <td><ul><li>当前版本仅支持二维输入。</li><li>支持转置/不转置场景。</li></ul></td>
           <td>INT8</td>
           <td>ND</td>
           <td>2</td>
@@ -110,7 +111,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>biasOptional</td>
           <td>输入</td>
-          <td>device侧的aclTensor，即计算公式中的biasOptional。</td>
+          <td>计算公式中的biasOptional。</td>
           <td>当前版本仅支持一维输入。</td>
           <td>INT32</td>
           <td>ND</td>
@@ -120,7 +121,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>x3Optional</td>
           <td>输入</td>
-          <td>device侧的aclTensor，MatMul计算后的add计算，即计算公式中的x3Optional。</td>
+          <td>MatMul计算后的add计算，即计算公式中的x3Optional。</td>
           <td>shape与MatMul计算后的shape一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -130,8 +131,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>dequantScale</td>
           <td>输入</td>
-          <td>device侧的aclTensor，MatMul计算后的去量化系数，即计算公式中的dequantScale。</td>
-          <td><li>shape在pertensor场景为(1)，PerChannel场景为(n)/(1, n)</li><li>输出为BFLOAT16时，直接将BFLOAT16类型的dequantScale传入本接口。</li><li>输出为FLOAT16时，如果pertokenScaleOptional不为空，可直接将FLOAT32类型的dequantScale传入本接口，如果pertokenScaleOptional为空，则需提前调用TransQuantParamV2算子的aclnn接口来将dequantScale转成INT64/UINT64数据类型。</li></td>
+          <td>MatMul计算后的去量化系数，即计算公式中的dequantScale。</td>
+          <td><ul><li>shape在pertensor场景为(1)，PerChannel场景为(n)/(1, n)</li><li>输出为BFLOAT16时，直接将BFLOAT16类型的dequantScale传入本接口。</li><li>输出为FLOAT16时，如果pertokenScaleOptional不为空，可直接将FLOAT32类型的dequantScale传入本接口，如果pertokenScaleOptional为空，则需提前调用TransQuantParamV2算子的aclnn接口来将dequantScale转成INT64/UINT64数据类型。</li></ul></td>
           <td>INT64、UINT64、FLOAT32、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>
@@ -140,7 +141,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>pertokenScaleOptional</td>
           <td>输入</td>
-          <td>device侧的aclTensor，MatMul计算后的pertoken去量化系数，即计算公式中的pertokenScaleOptional。</td>
+          <td>MatMul计算后的pertoken去量化系数，即计算公式中的pertokenScaleOptional。</td>
           <td>x1为(b, s, k)时，shape为(b*s)；x1为(m, k)时shape为(m)。</td>
           <td>FLOAT32</td>
           <td>ND</td>
@@ -150,7 +151,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>group</td>
           <td>输入</td>
-          <td>Host侧标识列组的字符串，通信域名称。</td>
+          <td>通信域名称。</td>
           <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
           <td>String</td>
           <td>-</td>
@@ -170,7 +171,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>commTurn</td>
           <td>输入</td>
-          <td>Host侧的整型，通信数据切分数，即总数据量/单次通信量。</td>
+          <td>通信数据切分数，即总数据量/单次通信量。</td>
           <td>当前版本仅支持输入0。</td>
           <td>INT64</td>
           <td>-</td>
@@ -180,7 +181,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>streamMode</td>
           <td>输入</td>
-          <td>Host侧的整型，AscendCL流模式的枚举。</td>
+          <td>流模式的枚举。</td>
           <td>当前版本仅支持枚举值1。</td>
           <td>INT64</td>
           <td>-</td>
@@ -190,7 +191,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <tr>
           <td>output</td>
           <td>输出</td>
-          <td>device侧的aclTensor，MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
+          <td>MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
           <td>output的维数与x1一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -225,7 +226,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
 
 - **返回值：**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
     第一段接口完成入参校验，出现以下场景时报错：
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
@@ -294,7 +296,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
     </tbody></table>
 - **返回值：**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 

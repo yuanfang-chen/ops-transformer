@@ -16,7 +16,7 @@
 
 ## 功能说明
 
-- **算子功能**：兼容aclnnQuantMatmulAllReduce、aclnnQuantMatmulAllReduceV2、aclnnQuantMatmulAllReduceV3支持的功能，在此基础上新增perblock量化方式的支持。新增x1，x2输入支持dtype为FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E2M1、FLOAT4_E1M2。
+- **接口功能**：兼容aclnnQuantMatmulAllReduce、aclnnQuantMatmulAllReduceV2、aclnnQuantMatmulAllReduceV3支持的功能，在此基础上新增perblock量化方式的支持。新增x1，x2输入支持dtype为FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E2M1、FLOAT4_E1M2。
 - **计算公式**：
 
   - commQuantScale1Optional, commQuantScale2Optional不为空时:
@@ -77,7 +77,7 @@
     $$
     alltoallOutput_{fp8} = (alotoall(quantOut_{fp8}));
     $$
-  
+
     $$
     dequantOutput_{fp32} = (alltoallOutput_{fp8} / scaleOut_{fp32});
     $$
@@ -100,37 +100,37 @@
 
     $$
     output = (cast(allGatherOutput_{fp32} / preAllGatherQuantScale_{fp32}));
-    $$ 
+    $$
 
 ## 函数原型
 
-每个算子分为两段式接口，必须先调用“aclnnQuantMatmulAllReduceV4GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantMatmulAllReduceV4”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnQuantMatmulAllReduceV4GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantMatmulAllReduceV4”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnQuantMatmulAllReduceV4GetWorkspaceSize(
     const aclTensor *x1,
-    const aclTensor *x2, 
-    const aclTensor *biasOptional, 
-    const aclTensor *x3Optional, 
-    const aclTensor *x1ScaleOptional, 
-    const aclTensor *x2Scale, 
-    const aclTensor *commQuantScale1Optional, 
-    const aclTensor *commQuantScale2Optional, 
-    const char      *group, 
-    const char      *reduceOp, 
-    int64_t          commTurn, 
-    int64_t          streamMode, 
-    int64_t          groupSize, 
+    const aclTensor *x2,
+    const aclTensor *biasOptional,
+    const aclTensor *x3Optional,
+    const aclTensor *x1ScaleOptional,
+    const aclTensor *x2Scale,
+    const aclTensor *commQuantScale1Optional,
+    const aclTensor *commQuantScale2Optional,
+    const char      *group,
+    const char      *reduceOp,
+    int64_t          commTurn,
+    int64_t          streamMode,
+    int64_t          groupSize,
     int64_t          commQuantMode,
-    const aclTensor *output, 
-    uint64_t        *workspaceSize, 
+    const aclTensor *output,
+    uint64_t        *workspaceSize,
     aclOpExecutor  **executor)
 ```
 ```cpp
 aclnnStatus aclnnQuantMatmulAllReduceV4(
-    void          *workspace, 
-    uint64_t       workspaceSize, 
-    aclOpExecutor *executor, 
+    void          *workspace,
+    uint64_t       workspaceSize,
+    aclOpExecutor *executor,
     aclrtStream    stream)
 ```
 
@@ -140,10 +140,10 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
-      <col style="width: 300px">  
-      <col style="width: 330px">  
-      <col style="width: 212px">  
-      <col style="width: 100px"> 
+      <col style="width: 300px">
+      <col style="width: 330px">
+      <col style="width: 212px">
+      <col style="width: 100px">
       <col style="width: 190px">
       <col style="width: 145px">
       </colgroup>
@@ -162,8 +162,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>x1</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的左矩阵，即计算公式中的x1。</td>
-          <td><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></td>
+          <td>MatMul计算的左矩阵，即计算公式中的x1。</td>
+          <td><ul><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></ul></td>
           <td>INT8、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E2M1、FLOAT4_E1M2。</td>
           <td>ND</td>
           <td>2-3</td>
@@ -172,8 +172,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>x2</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的右矩阵，即计算公式中的x2。</td>
-          <td><li>当前版本仅支持两维输入。</li><li>支持转置/不转置场景。</li></td>
+          <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
+          <td><ul><li>当前版本仅支持两维输入。</li><li>支持转置/不转置场景。</li></ul></td>
           <td>INT8、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E2M1、FLOAT4_E1M2。</td>
           <td>ND</td>
           <td>2</td>
@@ -182,7 +182,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>biasOptional</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，bias偏移，即计算公式中的biasOptional。</td>
+          <td>bias偏移，即计算公式中的biasOptional。</td>
           <td>当前版本仅支持一维输入。</td>
           <td>INT32、FLOAT32</td>
           <td>ND</td>
@@ -192,7 +192,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>x3Optional</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算后的add计算，即计算公式中的x3Optional。</td>
+          <td>MatMul计算后的add计算，即计算公式中的x3Optional。</td>
           <td>低比特通信场景下仅支持输出为BFLOAT16场景，且仅支持非空输入，要求维度与output的维度一致。</td>
           <td>FLOAT16、BFLOAT16、FLOAT32</td>
           <td>ND</td>
@@ -202,7 +202,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>x1ScaleOptional</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算后的pertoken去量化系数，即计算公式中的x1ScaleOptional。</td>
+          <td>MatMul计算后的pertoken去量化系数，即计算公式中的x1ScaleOptional。</td>
           <td>x1为(b, s, k)时shape为(b*s)，x1为(m, k)时shape为(m)。perblock场景下，x1为(b, s, k)时shape为[b, ceilDiv(s, 128), ceilDiv(k, 128)]，x1为(m, k)时shape为[ceilDiv(m, 128), ceilDiv(k, 128)]。数据类型为FLOAT8_E8M0时，shape为[m, ceilDiv(k, 64), 2], x1为FLOAT4_E2M1、FLOAT4_E1M2时，必须保证ceilDiv(k, 32)为偶数。</td>
           <td>FLOAT32、FLOAT8_E8M0</td>
           <td>ND</td>
@@ -212,8 +212,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>x2Scale</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算后的去量化系数，即计算公式中的x2Scale。</td>
-          <td><li>shape在pertensor场景为(1)，perchannel场景为(n)/(1, n)。</li><li>输出为BFLOAT16时，直接将BFLOAT16类型的dequantScale传入本接口。</li><li>输出为FLOAT16且输入为INT8时，x1ScaleOptional不为空，可直接将FLOAT32类型的x2Scale传入本接口，如果x1ScaleOptional为空，则需提前调用TransQuantParamV2算子的aclnn接口来将x2Scale转成INT64/UINT64数据类型。数据类型为FLOAT8_E8M0时，仅支持转置，shape为[n, ceilDiv(k, 64), 2], x2为FLOAT4_E2M1、FLOAT4_E1M2时，必须保证ceilDiv(k, 32)为偶数。perblock场景下，x2的shape为[ceilDiv(k, 128), ceilDiv(n, 128)]，x2转置时，x2Scale的shape为[ceilDiv(n, 128), ceilDiv(k, 128)]。</li></td>
+          <td>MatMul计算后的去量化系数，即计算公式中的x2Scale。</td>
+          <td><ul><li>shape在pertensor场景为(1)，perchannel场景为(n)/(1, n)。</li><li>输出为BFLOAT16时，直接将BFLOAT16类型的dequantScale传入本接口。</li><li>输出为FLOAT16且输入为INT8时，x1ScaleOptional不为空，可直接将FLOAT32类型的x2Scale传入本接口，如果x1ScaleOptional为空，则需提前调用TransQuantParamV2算子的aclnn接口来将x2Scale转成INT64/UINT64数据类型。数据类型为FLOAT8_E8M0时，仅支持转置，shape为[n, ceilDiv(k, 64), 2], x2为FLOAT4_E2M1、FLOAT4_E1M2时，必须保证ceilDiv(k, 32)为偶数。perblock场景下，x2的shape为[ceilDiv(k, 128), ceilDiv(n, 128)]，x2转置时，x2Scale的shape为[ceilDiv(n, 128), ceilDiv(k, 128)]。</li></ul></td>
           <td>ND</td>
           <td>1-2</td>
           <td>√</td>
@@ -221,7 +221,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>commQuantScale1Optional</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul+Add计算后的perchannel量化系数，即计算公式中的commQuantScale1Optional。</td>
+          <td>MatMul+Add计算后的perchannel量化系数，即计算公式中的commQuantScale1Optional。</td>
           <td>x2为(k, n)时, shape可为(n)或者(1,n)</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -231,7 +231,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>commQuantScale2Optional</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，AllGather计算后的perchannel量化系数，即计算公式中的commQuantScale2Optional。</td>
+          <td>AllGather计算后的perchannel量化系数，即计算公式中的commQuantScale2Optional。</td>
           <td>x2为(k, n)时, shape可为(n)或者(1,n)</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -241,7 +241,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>group</td>
           <td>输入</td>
-          <td>Host侧标识通信域的字符串，通信域名称。</td>
+          <td>通信域名称。</td>
           <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
           <td>String</td>
           <td>-</td>
@@ -251,7 +251,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>reduceOp</td>
           <td>输入</td>
-          <td>Host侧标识列组的字符串，reduce操作类型。</td>
+          <td>reduce操作类型。</td>
           <td>当前版本仅支持输入"sum"。</td>
           <td>String</td>
           <td>-</td>
@@ -261,7 +261,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>commTurn</td>
           <td>输入</td>
-          <td>Host侧的整型，通信数据切分数，即总数据量/单次通信量。</td>
+          <td>通信数据切分数，即总数据量/单次通信量。</td>
           <td>当前版本仅支持输入0。</td>
           <td>INT64</td>
           <td>-</td>
@@ -271,7 +271,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>streamMode</td>
           <td>输入</td>
-          <td>Host侧的整型，AscendCL流模式的枚举。</td>
+          <td>流模式的枚举。</td>
           <td>当前版本仅支持枚举值1。</td>
           <td>INT64</td>
           <td>-</td>
@@ -333,7 +333,10 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 
 
 - **返回值：**
-  第一段接口完成入参校验，出现以下场景时报错：
+
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+    第一段接口完成入参校验，出现以下场景时报错：
   <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
   <col style="width: 250px">
   <col style="width: 130px">
@@ -400,7 +403,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
   </tr>
   </tbody></table>
 - **返回值：**
-  返回aclnnStatus状态码，具体参见aclnn返回码。
+
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
@@ -494,12 +498,12 @@ int CreateWeightNzAclTensor(const std::vector<T> &hostData, const std::vector<in
     // 调用aclCreateTensor接口创建aclTensor
     *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, strides.data(), 0, aclFormat::ACL_FORMAT_ND,
                               shape.data(), shape.size(), *deviceAddr);
-  
+
     uint64_t transWorkspaceSize;
     aclOpExecutor *executor;
     void *transWorkspaceAddr = nullptr;
     ret = aclnnTransMatmulWeightGetWorkspaceSize(*tensor, &transWorkspaceSize, &executor);
-    CHECK_RET(ret == ACL_SUCCESS && transWorkspaceSize > 0, 
+    CHECK_RET(ret == ACL_SUCCESS && transWorkspaceSize > 0,
               printf("[ERROR] aclnnTransMatmulWeightGetWorkspaceSize failed. ret = %d \n", ret); return ret);
     ACL_CHECK(aclrtMalloc(&transWorkspaceAddr, transWorkspaceSize, ACL_MEM_MALLOC_HUGE_FIRST));
     ret = aclnnTransMatmulWeight(transWorkspaceAddr, transWorkspaceSize, executor, args.stream);

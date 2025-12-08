@@ -18,7 +18,7 @@
 
 ## 功能说明
 
-- **算子功能**：完成MatMul计算与AllReduce通信融合。
+- **接口功能**：完成MatMul计算与AllReduce通信融合。
 - **计算公式**：
 
     $$
@@ -27,27 +27,27 @@
 
 ## 函数原型
 
-每个算子分为两段式接口，必须先调用“aclnnMatmulAllReduceV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMatmulAllReduceV2”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnMatmulAllReduceV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMatmulAllReduceV2”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnMatmulAllReduceV2GetWorkspaceSize(
-    const aclTensor *x1, 
-    const aclTensor *x2, 
-    const aclTensor *bias, 
-    const aclTensor *x3, 
-    const char      *group, 
-    const char      *reduceOp, 
-    int64_t          commTurn, 
-    int64_t          streamMode, 
-    const aclTensor *output, 
-    uint64_t        *workspaceSize, 
+    const aclTensor *x1,
+    const aclTensor *x2,
+    const aclTensor *bias,
+    const aclTensor *x3,
+    const char      *group,
+    const char      *reduceOp,
+    int64_t          commTurn,
+    int64_t          streamMode,
+    const aclTensor *output,
+    uint64_t        *workspaceSize,
     aclOpExecutor  **executor)
 ```
 ```cpp
 aclnnStatus aclnnMatmulAllReduceV2(
-    void              *workspace, 
-    uint64_t           workspaceSize, 
-    aclOpExecutor     *executor, 
+    void              *workspace,
+    uint64_t           workspaceSize,
+    aclOpExecutor     *executor,
     const aclrtStream  stream)
 ```
 
@@ -57,10 +57,10 @@ aclnnStatus aclnnMatmulAllReduceV2(
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
-      <col style="width: 300px">  
-      <col style="width: 330px">  
-      <col style="width: 212px">  
-      <col style="width: 100px"> 
+      <col style="width: 300px">
+      <col style="width: 330px">
+      <col style="width: 212px">
+      <col style="width: 100px">
       <col style="width: 190px">
       <col style="width: 145px">
       </colgroup>
@@ -79,8 +79,8 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>x1</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的左矩阵，即计算公式中的x1。</td>
-          <td><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></td>
+          <td>MatMul计算的左矩阵，即计算公式中的x1。</td>
+          <td><ul><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2-3</td>
@@ -89,8 +89,8 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>x2</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的右矩阵，即计算公式中的x2。</td>
-          <td><li>当前版本仅支持两维输入。</li><li>支持转置/不转置场景。</li><li>支持最后两轴转置情况下的非连续的tensor</li></td>
+          <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
+          <td><ul><li>当前版本仅支持两维输入。</li><li>支持转置/不转置场景。</li><li>支持最后两轴转置情况下的非连续的tensor</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>
@@ -99,7 +99,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>x3</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算后的add计算，即计算公式中的x3。</td>
+          <td>MatMul计算后的add计算，即计算公式中的x3。</td>
           <td>shape与MatMul计算后的shape一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -109,7 +109,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>bias</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，对应计算公式中的bias偏移。</td>
+          <td>对应计算公式中的bias偏移。</td>
           <td>当前版本仅支持一维输入。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -119,7 +119,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>group</td>
           <td>输入</td>
-          <td>Host侧标识列组的字符串，通信域名称。</td>
+          <td>通信域名称。</td>
           <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
           <td>String</td>
           <td>-</td>
@@ -139,7 +139,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>commTurn</td>
           <td>输入</td>
-          <td>Host侧的整型，通信数据切分数，即总数据量/单次通信量。</td>
+          <td>通信数据切分数，即总数据量/单次通信量。</td>
           <td>当前版本仅支持输入0。</td>
           <td>INT64</td>
           <td>-</td>
@@ -149,7 +149,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>streamMode</td>
           <td>输入</td>
-          <td>Host侧的整型，AscendCL流模式的枚举。</td>
+          <td>AscendCL流模式的枚举。</td>
           <td>当前版本仅支持枚举值1。</td>
           <td>INT64</td>
           <td>-</td>
@@ -159,7 +159,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <tr>
           <td>output</td>
           <td>输出</td>
-          <td>Device侧的aclTensor，MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
+          <td>MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
           <td>output的维数与x1一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -190,6 +190,9 @@ aclnnStatus aclnnMatmulAllReduceV2(
     </table>
 
 - **返回值：**
+
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
     第一段接口完成入参校验，出现以下场景时报错：
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
@@ -258,7 +261,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
     </tbody></table>
 - **返回值：**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 

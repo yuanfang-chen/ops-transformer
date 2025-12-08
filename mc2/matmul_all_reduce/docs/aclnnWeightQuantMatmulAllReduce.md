@@ -4,14 +4,22 @@
 
 ## 产品支持情况
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>。
-- <term>昇腾910_95 AI处理器</term>。
+| 产品                                                         | 是否支持 |
+| :----------------------------------------------------------- | :------: |
+| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
+| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
+| <term>Atlas 推理系列产品 </term>                             |    ×     |
+| <term>Atlas 训练系列产品</term>                              |    ×     |
+| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
+
 
 **说明：** 使用该接口时，请确保驱动固件包和CANN包都为配套的8.0.RC2版本或者配套的更高版本，否则将会引发报错，比如BUS ERROR等。
 
 ## 功能说明
 
-- **算子功能**：对入参x2进行伪量化计算后，完成Matmul和AllReduce计算。支持pertensor、perchannel、pergroup量化方式。
+- **接口功能**：对入参x2进行伪量化计算后，完成Matmul和AllReduce计算。支持pertensor、perchannel、pergroup量化方式。
 
 - **计算公式**：
 
@@ -21,30 +29,30 @@
 
 ## 函数原型
 
-每个算子分为两段式接口，必须先调用“aclnnWeightQuantMatmulAllReduceGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnWeightQuantMatmulAllReduce”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnWeightQuantMatmulAllReduceGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnWeightQuantMatmulAllReduce”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnWeightQuantMatmulAllReduceGetWorkspaceSize(
-    const aclTensor  *x1, 
-    const aclTensor  *x2, 
-    const aclTensor  *bias, 
-    const aclTensor  *antiquantScale,  
-    const aclTensor  *antiquantOffset,  
-    const aclTensor  *x3, 
-    const char       *group, 
-    const char       *reduceOp, 
-    int64_t          commTurn, 
-    int64_t          streamMode, 
-    int64_t          antiquantGroupSize, 
-    const aclTensor *output, 
-    uint64_t        *workspaceSize, 
+    const aclTensor  *x1,
+    const aclTensor  *x2,
+    const aclTensor  *bias,
+    const aclTensor  *antiquantScale,
+    const aclTensor  *antiquantOffset,
+    const aclTensor  *x3,
+    const char       *group,
+    const char       *reduceOp,
+    int64_t          commTurn,
+    int64_t          streamMode,
+    int64_t          antiquantGroupSize,
+    const aclTensor *output,
+    uint64_t        *workspaceSize,
     aclOpExecutor **executor)
 ```
 ```cpp
 aclnnStatus aclnnWeightQuantMatmulAllReduce(
-    void             *workspace, 
-    uint64_t          workspaceSize, 
-    aclOpExecutor    *executor, 
+    void             *workspace,
+    uint64_t          workspaceSize,
+    aclOpExecutor    *executor,
     const aclrtStream stream)
 ```
 
@@ -54,10 +62,10 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
-      <col style="width: 300px">  
-      <col style="width: 330px">  
-      <col style="width: 212px">  
-      <col style="width: 100px"> 
+      <col style="width: 300px">
+      <col style="width: 330px">
+      <col style="width: 212px">
+      <col style="width: 100px">
       <col style="width: 190px">
       <col style="width: 145px">
       </colgroup>
@@ -76,8 +84,8 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>x1</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的左矩阵，即计算公式中的x1。</td>
-          <td><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></td>
+          <td>MatMul计算的左矩阵，即计算公式中的x1。</td>
+          <td><ul><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></ul></td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
           <td>2-3</td>
@@ -86,8 +94,8 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>x2</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的右矩阵，即计算公式中的x2。</td>
-          <td><li>当前版本仅支持二维输入。</li><li>支持转置/不转置场景。</li></td>
+          <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
+          <td><ul><li>当前版本仅支持二维输入。</li><li>支持转置/不转置场景。</li></ul></td>
           <td>-</td>
           <td>ND</td>
           <td>2</td>
@@ -96,7 +104,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>bias</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，对应计算公式中bias偏移，即计算公式中的biasOptional。</td>
+          <td>对应计算公式中bias偏移，即计算公式中的biasOptional。</td>
           <td>支持传入空指针，非空时当前版本仅支持一维输入。</td>
           <td>-</td>
           <td>ND</td>
@@ -106,7 +114,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>antiquantScale</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，即计算公式中的antiquantScale。</td>
+          <td>即计算公式中的antiquantScale。</td>
           <td>pertensor场景shape为(1)；per_channel场景shape为(n)/(1,n)，n为x2最后一维的大小；pergroup场景shape为(ceil(k,antiquantGroupSize),n)。</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -116,7 +124,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>antiquantOffset</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，对x2进行伪量化计算的offset参数，即计算公式中的x1ScaleOptional。</td>
+          <td>对x2进行伪量化计算的offset参数，即计算公式中的x1ScaleOptional。</td>
           <td>支持传入空指针，非空时shape与antiquantScale一致。当x1是FLOAT16或者BFLOAT16，同时weight是FLOAT8_E5M2、FLOAT8_E4M3FN或者HIFLOAT8时，不支持该参数，填空指针。</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -126,7 +134,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>x3</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算后的add计算，即计算公式中的x3Optional。</td>
+          <td>MatMul计算后的add计算，即计算公式中的x3Optional。</td>
           <td>支持传入空指针，非空时shape与mm计算后的shape相同。</td>
           <td>-</td>
           <td>ND</td>
@@ -136,7 +144,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>group</td>
           <td>输入</td>
-          <td>Host侧标识列组的字符串，通信域名称。</td>
+          <td>通信域名称。</td>
           <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
           <td>String</td>
           <td>-</td>
@@ -156,7 +164,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>commTurn</td>
           <td>输入</td>
-          <td>Host侧的整型，通信数据切分数，即总数据量/单次通信量。</td>
+          <td>通信数据切分数，即总数据量/单次通信量。</td>
           <td>当前版本仅支持输入0。</td>
           <td>INT64</td>
           <td>-</td>
@@ -166,7 +174,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>streamMode</td>
           <td>输入</td>
-          <td>Host侧的整型，AscendCL流模式的枚举。</td>
+          <td>流模式的枚举。</td>
           <td>当前版本仅支持枚举值1。</td>
           <td>INT64</td>
           <td>-</td>
@@ -186,7 +194,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>commQuantMode</td>
           <td>输入</td>
-          <td>Host侧的整型，静态量化和动态量化的标志位。</td>
+          <td>静态量化和动态量化的标志位。</td>
           <td>数值为0和1。</td>
           <td>INT64</td>
           <td>-</td>
@@ -196,7 +204,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>output</td>
           <td>输出</td>
-          <td>Device侧的aclTensor，MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
+          <td>MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
           <td>output的维度与x1一致。</td>
           <td>-</td>
           <td>ND</td>
@@ -238,6 +246,9 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
       - 输出output的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
 
 - **返回值：**
+
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
     第一段接口完成入参校验，出现以下场景时报错：
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
@@ -306,7 +317,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
     </tbody></table>
 - **返回值：**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
