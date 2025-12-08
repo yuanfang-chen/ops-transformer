@@ -16,6 +16,8 @@
 
 namespace MC2Tiling {
 
+using namespace ops;
+
 /**
  * @brief 工具函数：判断指定value是否存在于list中
  * @param list: 有效值列表
@@ -407,23 +409,42 @@ static bool CheckWindowSize(const gert::TilingContext *context, const TilingRunI
     uint64_t xValueTwo = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
     uint64_t scalesValueOne = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t scalesValueTwo = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ONE);
-    uint64_t xDataSize =
-        ((xValueOne * xValueTwo * X_DTYPE_SIZE_ONE + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
-    uint64_t actualWinSize = 0UL;
-    if (runInfo.quantMode == TG_QUANT_MOD) {
-        uint64_t scalesSize = scalesValueOne * scalesValueTwo * SCALE_DTYPE_SIZE_FOUR;
-        uint64_t scalesDataSize = ((scalesSize + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
-        // 数据区（x和scales）+ 状态区（1Mb）
-        actualWinSize = xDataSize + scalesDataSize + MB_SIZE;
-    } else if (runInfo.quantMode == MX_QUANT_MOD) {
+
+    // 计算xDataSize
+    uint64_t xValue = xValueOne * xValueTwo;
+    uint64_t scalesValue = scalesValueOne * scalesValueTwo;
+    uint32_t scalesLastDim = DIM_TWO;
+    size_t xDimNum = context->GetInputShape(X_INDEX)->GetStorageShape().GetDimNum();
+    if (xDimNum == THREE_DIMS) {
+        uint64_t xValueThree = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
+        xValue = xValue * xValueThree;
         uint64_t scalesValueThree = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
-        uint64_t scalesSize = scalesValueOne * scalesValueTwo * scalesValueThree * SCALE_DTYPE_SIZE_ONE;
-        uint64_t scalesDataSize = ((scalesSize + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
-        actualWinSize = xDataSize + scalesDataSize + MB_SIZE;
+        scalesValue = scalesValue * scalesValueThree;
+        scalesLastDim = DIM_THREE;
     }
+    uint64_t xDataSize =
+        ((xValue * X_DTYPE_SIZE_ONE + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
+    OP_LOGD(nodeName, "current xDataSize is: [%lu]MB.", ops::CeilDiv(xDataSize, MB_SIZE));
+
+    // 计算scalesDataSize
+    uint64_t scalesSize = 0UL;
+    if (runInfo.quantMode == TG_QUANT_MOD) {
+        scalesSize = scalesValue * SCALE_DTYPE_SIZE_FOUR;
+    } else if (runInfo.quantMode == MX_QUANT_MOD) {
+        // scales的最后一维一定为2
+        uint64_t scalesValueLast = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(scalesLastDim);
+        scalesSize = scalesValue * scalesValueLast * SCALE_DTYPE_SIZE_ONE;
+    }
+    uint64_t scalesDataSize = ((scalesSize + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
+    OP_LOGD(nodeName, "current scalesDataSize is: [%lu]MB.", ops::CeilDiv(scalesDataSize, MB_SIZE));
+
+    // 实际的windowSize = 数据区（x和scales）+ 状态区（1Mb）
+    uint64_t actualWinSize = xDataSize + scalesDataSize + MB_SIZE;
     uint64_t maxWinSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
-    OP_TILING_CHECK(actualWinSize > maxWinSize,
-                    OP_LOGE(nodeName, "actual winSize %lu is bigger than max winSize %lu.", actualWinSize, maxWinSize),
+    OP_TILING_CHECK(HCCL_BUFFSIZE_FACTOR * actualWinSize > maxWinSize,
+                    OP_LOGE(nodeName, "factor[%u] * actual winSize[%lu]MB is bigger than max winSize[%lu]MB.",
+                            HCCL_BUFFSIZE_FACTOR, ops::CeilDiv(actualWinSize, MB_SIZE),
+                            ops::CeilDiv(maxWinSize, MB_SIZE)),
                     return false);
     return true;
 }

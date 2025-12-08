@@ -12,6 +12,7 @@
 #define QUANT_REDECE_SCATTER_UTIL_TILING_H
 
 #include "tiling/mc2_tiling_utils.h"
+#include "util/math_util.h"
 
 namespace MC2Tiling {
 
@@ -62,6 +63,7 @@ constexpr uint32_t SCALE_DTYPE_SIZE_ONE = 1;
 constexpr uint32_t SCALE_DTYPE_SIZE_FOUR = 4;
 constexpr uint32_t AIV_TYPE = 3;
 constexpr uint32_t OP_TYPE_ALL_TO_ALL = 8;
+constexpr uint32_t HCCL_BUFFSIZE_FACTOR = 2;
 
 // op类型
 enum OpType : size_t {
