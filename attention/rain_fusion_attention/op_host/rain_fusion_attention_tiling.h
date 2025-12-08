@@ -49,6 +49,10 @@ TILING_DATA_FIELD_DEF(uint32_t, queryLayout);
 // KV Cache Layout: 0=TND, 1=BNSD
 TILING_DATA_FIELD_DEF(uint32_t, kvCacheLayout);
 
+// BNSD格式的最大序列长度（用于计算stride）
+TILING_DATA_FIELD_DEF(uint32_t, maxQSeqlen);  // BNSD格式Q的第三维（S维度）
+TILING_DATA_FIELD_DEF(uint32_t, maxKvSeqlen);  // BNSD格式KV的第三维（S维度）
+
 // TilingKey for kernel dispatch (生成在tiling层)
 TILING_DATA_FIELD_DEF(uint64_t, tilingKey);
 
@@ -89,15 +93,14 @@ struct OptionalParaInfo {
 
 // KVCache Layout枚举
 enum RFAKvCacheLayout : uint32_t {
-    TND = 0   // [T, N, D] format (当前唯一支持的格式)
-    // BNSD = 1   // [B, N, S, D] format (计划未来支持)
+    TND = 0,   // [T, N, D] format
+    BNSD = 1   // [B, N, S, D] format
 };
 
 // Q Input Layout枚举
 enum RFAQInputLayout : uint32_t {
-    BSH = 0,    // [B, S, H] format
-    TND_Q = 1   // [T, N, D] format
-    // BNSD_Q = 2  // [B, N, S, D] format (计划未来支持)
+    TND_Q = 0,  // [T, N, D] format
+    BNSD_Q = 1  // [B, N, S, D] format
 };
 
 // Tiling类
@@ -125,6 +128,12 @@ private:
     ge::graphStatus ParseKvInputLayout(gert::TilingContext *rfaContext);
     ge::graphStatus ValidateTNDFormat(gert::TilingContext *rfaContext);
     ge::graphStatus ValidateBNSDFormat(gert::TilingContext *rfaContext);
+    
+    ge::graphStatus ProcessQueryShape(gert::TilingContext *rfaContext);
+    ge::graphStatus ProcessSelectIdx(gert::TilingContext *rfaContext);
+    ge::graphStatus ProcessActualSeqLengths(gert::TilingContext *rfaContext);
+    ge::graphStatus ProcessBlockShape(gert::TilingContext *rfaContext);
+    ge::graphStatus ValidateConfiguration(gert::TilingContext *rfaContext);
     
 private:
     uint32_t batch_ = 0;
@@ -164,6 +173,9 @@ private:
     uint64_t ubSize_ = 0;
     uint64_t workSpaceSize_ = 0;
     uint64_t libapiSize_ = 0;
+    
+    uint32_t maxQSeqlen_ = 0;  // BNSD格式Q的第三维（S维度）
+    uint32_t maxKvSeqlen_ = 0;  // BNSD格式KV的第三维（S维度）
     
     RainFusionAttentionTilingData *tilingData_ = nullptr;
 };

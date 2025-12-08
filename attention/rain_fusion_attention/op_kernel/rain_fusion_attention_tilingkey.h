@@ -17,11 +17,11 @@
  * 
  * TilingKey编码规则 (64-bit):
  * 位域: AAAABBBBCCCCDDDDEEEE
- * - [0-1]   Q Layout: 0=BSH, 2=TND, 3=BNSD
+ * - [0-1]   Q Layout: 2=TND, 3=BNSD
  * - [2-4]   Mask Type: 0=NoMask, 3=CausalMask
  * - [5-7]   Softmax Precision: 0=Float, 1=Half
  * - [8-10]  PagedCache Flag: 0=NoCache, 1=WithCache
- * - [11-13] KV Layout: 00=TND, 10=BSH, 20=BNSD
+ * - [11-13] KV Layout: 00=TND, 20=BNSD
  * - [14-15] Data Type: 00=FP16, 22=BF16
  * - [16-18] Operator Category: 900=RainFusionAttention
  */
@@ -36,6 +36,15 @@
 
 // BF16, Q=TND, KV=TND, No PagedCache, Float Softmax, No Mask
 #define QBF16_KVBF16_TND_TND_NOCACHE_FLOATSM_NOMASK_RFA_TILING 9000000030022222
+
+// FP16, Q=BNSD, KV=BNSD, No PagedCache, Float Softmax, No Mask
+#define QF16_KVF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING 9000000050000003
+
+// FP16, Q=BNSD, KV=BNSD, No PagedCache, Half Softmax, No Mask
+#define QF16_KVF16_BNSD_BNSD_NOCACHE_HALFSM_NOMASK_RFA_TILING 9000000050100003
+
+// BF16, Q=BNSD, KV=BNSD, No PagedCache, Float Softmax, No Mask
+#define QBF16_KVBF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING 9000000050022223
 
 #endif  // RAIN_FUSION_ATTENTION_TILINGKEY_H_
 

@@ -18,14 +18,16 @@
  using namespace NpuArch;
  
  namespace RainFusion {
-     // Rain Fusion Attention Infer Interface
-     // This template provides the entry point for rain fusion attention kernels
-     // where attention is computed only on selected KV blocks based on selectIdx
-     template <
-        typename InputDtype = half,
-        typename SoftmaxDtype = float,
-        Epilogue::LseMode lseMode = Epilogue::LseMode::NONE>
-    __global__ __aicore__ void RainFusionAttentionInfer(
+    // Rain Fusion Attention Infer Interface
+    // This template provides the entry point for rain fusion attention kernels
+    // where attention is computed only on selected KV blocks based on selectIdx
+    template <
+       typename InputDtype = half,
+       typename SoftmaxDtype = float,
+       Epilogue::LseMode lseMode = Epilogue::LseMode::NONE,
+       uint32_t QueryLayout = 0,      // 0=TND, 1=BNSD
+       uint32_t KvCacheLayout = 0>    // 0=TND, 1=BNSD
+   __global__ __aicore__ void RainFusionAttentionInfer(
         GM_ADDR q,
         GM_ADDR k,
         GM_ADDR v,
@@ -98,7 +100,9 @@
         using RainFusionAttentionKernelType = RainFusionAttentionKernel<BlockMmadQK, BlockMmadPV, 
                                                                         EpilogueOnlineSoftmax, 
                                                                         EpilogueRescaleO, 
-                                                                        false>;
+                                                                        false,           // PAGED_CACHE_FLAG
+                                                                        QueryLayout,     // QUERY_LAYOUT
+                                                                        KvCacheLayout>;  // KV_CACHE_LAYOUT
         RainFusionAttentionKernelParams params{q, k, v, mask, blockTables, actualQseqlen, actualKvseqlen, 
                                     selectIdx, selectNumIdx, o, lse, workspace, tiling};
 

@@ -34,13 +34,17 @@ namespace RainFusion {
      * @tparam EpilogueOnlineSoftmax Online softmax epilogue
      * @tparam EpilogueRescaleO Output rescaling epilogue
      * @tparam PAGED_CACHE_FLAG Whether to use paged KV cache
+     * @tparam QUERY_LAYOUT Query tensor layout (0=TND, 1=BNSD)
+     * @tparam KV_CACHE_LAYOUT KV cache layout (0=TND, 1=BNSD)
      */
     template <
         class BlockMmadQK,
         class BlockMmadPV,
         class EpilogueOnlineSoftmax,
         class EpilogueRescaleO,
-        bool PAGED_CACHE_FLAG>
+        bool PAGED_CACHE_FLAG,
+        uint32_t QUERY_LAYOUT,
+        uint32_t KV_CACHE_LAYOUT>
     class RainFusionAttentionKernel {
     public:
         using ArchTag = typename BlockMmadQK::ArchTag;
@@ -101,6 +105,8 @@ namespace RainFusion {
             uint32_t qBlockNum = totalQBlocks / qBlockX;
             uint32_t qBlockInX = (qBlockX + BASIC_BLOCK_SIZE - 1) / BASIC_BLOCK_SIZE; // CeilDiv
             uint32_t firstQBlockNum = rainFusionAttentionTilingData->firstQBlockNum;
+            uint32_t maxQSeqlen = rainFusionAttentionTilingData->maxQSeqlen;
+            uint32_t maxKvSeqlen = rainFusionAttentionTilingData->maxKvSeqlen;
 
             // Initialize global tensors
             AscendC::GlobalTensor<ElementQ> gQ;
@@ -185,8 +191,41 @@ namespace RainFusion {
             coreIdx = AscendC::GetBlockIdx() / AscendC::GetSubBlockNum();
 #endif
 
-            uint64_t strideQO = qHeads * embed;
-            uint64_t strideKV = kvHeads * embed;
+            // Calculate strides based on layout (compile-time optimization)
+            // For TND: [T, N, D], stride = N * D
+            // For BNSD: [B, N, S, D], strideB = N * S * D, strideN = S * D, strideS = D
+            uint64_t strideQO = 0;
+            uint64_t strideKV = 0;
+            uint64_t strideQOB = 0;  // BNSD batch stride for Q
+            uint64_t strideQON = 0;  // BNSD head stride for Q
+            uint64_t strideQOS = 0;  // BNSD seq stride for Q
+            uint64_t strideKVB = 0;  // BNSD batch stride for KV
+            uint64_t strideKVN = 0;  // BNSD head stride for KV
+            uint64_t strideKVS = 0;  // BNSD seq stride for KV
+            
+            if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q
+                // BNSD: [B, N, S, D]
+                // strideB = N * S * D, strideN = S * D, strideS = D
+                // maxQSeqlen is the third dimension (S) of query shape, set in tiling
+                strideQOB = qHeads * maxQSeqlen * embed;  // batch stride
+                strideQON = maxQSeqlen * embed;  // head stride
+                strideQOS = embed;  // seq stride
+            } else {
+                // TND: [T, N, D]
+                strideQO = qHeads * embed;
+            }
+            
+            if constexpr (KV_CACHE_LAYOUT == 1) {  // BNSD
+                // BNSD: [B, N, S, D]
+                // maxKvSeqlen is the third dimension (S) of value shape, set in tiling
+                strideKVB = kvHeads * maxKvSeqlen * embed;  // batch stride
+                strideKVN = maxKvSeqlen * embed;  // head stride
+                strideKVS = embed;  // seq stride
+            } else {
+                // TND: [T, N, D]
+                strideKV = kvHeads * embed;
+            }
+            
             uint32_t embedRound = AlignUp<uint32_t>(embed, BLOCK_SIZE);
             uint32_t groupSize = qHeads / kvHeads;
 
@@ -217,14 +256,31 @@ namespace RainFusion {
                     ++curBatch;
                     preTotalTaskNum = curTotalTaskNum;
                     preTotalQBlockNum = curTotalQBlockNum;
-                    qBOffset += qSeqlen * strideQO;
+                    
+                    // Update offsets based on layout (compile-time optimization)
+                    if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q
+                        // BNSD: [B, N, S, D], offset = batch * strideB
+                        qBOffset = curBatch * strideQOB;
+                        oBOffset = curBatch * strideQOB;
+                    } else {
+                        // TND
+                        qBOffset += qSeqlen * strideQO;
+                        oBOffset += qSeqlen * strideQO;
+                    }
+                    
                     if constexpr (!PAGED_CACHE_FLAG) {
-                        kBOffset += kvSeqlen * strideKV;
-                        vBOffset += kvSeqlen * strideKV;
+                        if constexpr (KV_CACHE_LAYOUT == 1) {  // BNSD
+                            // BNSD: [B, N, S, D], offset = batch * strideB
+                            kBOffset = curBatch * strideKVB;
+                            vBOffset = curBatch * strideKVB;
+                        } else {
+                            // TND
+                            kBOffset += kvSeqlen * strideKV;
+                            vBOffset += kvSeqlen * strideKV;
+                        }
                     } else {
                         blockBOffset += maxNumBlocksPerBatch;
                     }
-                    oBOffset += qSeqlen * strideQO;
                     
                     qSeqlen = static_cast<int64_t>(gActualQseqlen.GetValue(curBatch));
                     kvSeqlen = static_cast<int64_t>(gActualKvseqlen.GetValue(curBatch));
@@ -251,21 +307,46 @@ namespace RainFusion {
                 uint32_t kvHeadIdx = qNBlockIdx / qNBlockNumPerGroup;
                 uint32_t qHeadIdx = kvHeadIdx * groupSize + qNBlockIdxCurGroup * curQNBlockTile;
                 uint32_t curSelectIdx = preTotalQBlockNum + qXIdx * qHeads + qHeadIdx;
-                uint32_t curSelectNum = static_cast<int32_t>(gSelectNumIdx.GetValue(curSelectIdx));
+                uint32_t curSelectNum = static_cast<uint32_t>(gSelectNumIdx.GetValue(curSelectIdx));
+                // In this case, the output should be zero, so we skip this task
+                if (curSelectNum == 0) {
+                    continue;
+                }
+                
                 uint32_t lastSelectIdx = static_cast<int32_t>(
                     gSelectIdx.GetValue(curSelectIdx * maxKvBlockNum + curSelectNum - 1));
                 uint32_t kvYBlockNum = (kvSeqlen + qBlockY - 1) / qBlockY; // CeilDiv
                 uint32_t curKvSeqLen = (lastSelectIdx == kvYBlockNum - 1 && kvSeqlen % qBlockY != 0) ? 
                     qBlockY * (curSelectNum - 1) + kvSeqlen % qBlockY : qBlockY * curSelectNum;
                 
-                // Q offset += (XIdx * X + XInnerIdx * BASIC_BLOCK_SIZE) * embed
-                uint64_t gmOffsetQ = qBOffset + (qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE) * strideQO + 
-                    qHeadIdx * embed;
-
-                uint64_t gmOffsetK = kBOffset + kvHeadIdx * embed;
-                uint64_t gmOffsetV = vBOffset + kvHeadIdx * embed;
-                uint64_t gmOffsetO = oBOffset + (qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE) * strideQO + 
-                    qHeadIdx * embed;
+                // Calculate offsets based on layout (compile-time optimization)
+                uint64_t gmOffsetQ = 0;
+                uint64_t gmOffsetK = 0;
+                uint64_t gmOffsetV = 0;
+                uint64_t gmOffsetO = 0;
+                
+                if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q: [B, N, S, D]
+                    // offset = batch * strideB + head * strideN + seq * strideS
+                    uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
+                    gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
+                    gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
+                } else {
+                    // TND: [T, N, D]
+                    uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
+                    gmOffsetQ = qBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
+                    gmOffsetO = oBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
+                }
+                
+                if constexpr (KV_CACHE_LAYOUT == 1) {  // BNSD: [B, N, S, D]
+                    // offset = batch * strideB + head * strideN
+                    // seq offset will be handled in blockMmadQK/blockMmadPV based on selectIdx
+                    gmOffsetK = kBOffset + kvHeadIdx * strideKVN;
+                    gmOffsetV = vBOffset + kvHeadIdx * strideKVN;
+                } else {
+                    // TND: [T, N, D]
+                    gmOffsetK = kBOffset + kvHeadIdx * embed;
+                    gmOffsetV = vBOffset + kvHeadIdx * embed;
+                }
 
                 uint32_t qSBlockSize = (qXIdx == xBlockNum) ? 
                     (qXInnerIdx == xTailNum / curQSBlockTile ? 
@@ -288,9 +369,23 @@ namespace RainFusion {
 
 #ifdef __DAV_C220_CUBE__
                 LayoutQ layoutQTemp(rowNum, embed);
-                LayoutK layoutKTemp(strideKV, blockStackNum * pagedBlockSize);
-                LayoutV layoutVTemp(blockStackNum * pagedBlockSize, strideKV);
-                blockMmadQK.loadQGM(gQ[gmOffsetQ], layoutQTemp, rowNum, qNBlockSize, qHeads);
+                // For BNSD format, use strideKVS; for TND, use strideKV (compile-time)
+                uint64_t actualStrideKV = 0;
+                if constexpr (KV_CACHE_LAYOUT == 1) {
+                    actualStrideKV = strideKVS;
+                } else {
+                    actualStrideKV = strideKV;
+                }
+                LayoutK layoutKTemp(actualStrideKV, blockStackNum * pagedBlockSize);
+                LayoutV layoutVTemp(blockStackNum * pagedBlockSize, actualStrideKV);
+                // Pass correct Q stride based on data format
+                uint64_t qGmStride = 0;
+                if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
+                    qGmStride = strideQOS;  // embed
+                } else {  // TND: [T, N, D]
+                    qGmStride = strideQO;  // qHeads * embed
+                }
+                blockMmadQK.loadQGM(gQ[gmOffsetQ], layoutQTemp, rowNum, qNBlockSize, qGmStride);
 #endif
                 // Main computation loop: QK matmul -> Softmax -> PV matmul
                 for (uint32_t kvSIdx = 0; kvSIdx < kvSLoopNumTotal + preKVNum; kvSIdx += blockStackNum) {
@@ -306,6 +401,13 @@ namespace RainFusion {
                         GemmCoord actualBlockShapeQK{rowNum, stackSeqTile, embed};
                         LayoutS layOutS(rowNum, stackSeqTile, stackSeqTilePad);
 #ifdef __DAV_C220_CUBE__
+                        // For BNSD format, pass strideKVS; for TND, pass strideKV (compile-time)
+                        uint64_t actualStrideKVForQK = 0;
+                        if constexpr (KV_CACHE_LAYOUT == 1) {
+                            actualStrideKVForQK = strideKVS;
+                        } else {
+                            actualStrideKVForQK = strideKV;
+                        }
                         blockMmadQK(gQ[gmOffsetQ],
                             gK[gmOffsetK],
                             gS[gmOffsetS],
@@ -318,7 +420,7 @@ namespace RainFusion {
                             kvSIdx,
                             kvSLoopNumTotal,
                             pagedBlockSize,
-                            strideKV,
+                            actualStrideKVForQK,
                             qBlockY,
                             curSelectNum,
                             kvYBlockNum,
@@ -361,6 +463,13 @@ namespace RainFusion {
                         LayoutP layoutPTemp(rowNum, stackSeqTile, stackSeqTilePad);
                         uint64_t gmOffsetP = coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1) +
                             curStackTileMod * WORKSPACE_BLOCK_SIZE_DB;
+                        // For BNSD format, pass strideKVS; for TND, pass strideKV (compile-time)
+                        uint64_t actualStrideKVForPV = 0;
+                        if constexpr (KV_CACHE_LAYOUT == 1) {
+                            actualStrideKVForPV = strideKVS;
+                        } else {
+                            actualStrideKVForPV = strideKV;
+                        }
                         blockMmadPV(gP[gmOffsetP],
                             gV[gmOffsetV],
                             gOTmp[gmOffsetOTmp],
@@ -374,7 +483,7 @@ namespace RainFusion {
                             kvSLoopNumTotal,
                             pagedBlockSize,
                             kvSeqlen,
-                            strideKV,
+                            actualStrideKVForPV,
                             blockStackNum,
                             softmaxReady,
                             qBlockY,
@@ -383,7 +492,15 @@ namespace RainFusion {
                         NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(pvReady);
 #endif
 #ifdef __DAV_C220_VEC__
-                        LayoutO layoutO(qSeqlen, embed * qHeads);
+                        // Setup layoutO based on data format
+                        LayoutO layoutO;
+                        if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
+                            // BNSD format: stride[0] = embed (strideQOS)
+                            layoutO = LayoutO(qSeqlen, embed);
+                        } else {  // TND: [T, N, D]
+                            // TND format: stride[0] = qHeads * embed (strideQO)
+                            layoutO = LayoutO(qSeqlen, qHeads * embed);
+                        }
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
 

@@ -115,7 +115,7 @@ public:
 
     __aicore__ inline
     void loadQGM(AscendC::GlobalTensor<ElementA> gA, LayoutA layoutA, uint32_t rowNum, uint32_t &singleGroupHeads,
-        uint32_t &qHeads)
+        uint64_t qStride)
     {
         uint32_t embed = layoutA.shape(1);
         uint32_t rowNumRound = RoundUp<L1AAlignHelper::M_ALIGNED>(rowNum);
@@ -130,7 +130,7 @@ public:
             layoutAInL1,
             layoutSingleANd,
             tokenNumPerGroup,
-            qHeads * embed,
+            qStride,
             tokenNumPerGroup,
             BLOCK_SIZE,
             rowNumRound);

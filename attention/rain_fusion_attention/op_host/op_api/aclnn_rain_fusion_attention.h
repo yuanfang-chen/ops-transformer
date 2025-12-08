@@ -32,7 +32,7 @@ extern "C" {
  * @param [in] actualSeqLengthsOptional: 实际序列长度Q (可选)
  * @param [in] actualSeqLengthsKvOptional: 实际序列长度KV (可选)
  * @param [in] blockTableOptional: Block表用于PagedAttention (可选)
- * @param [in] qInputLayout: Query输入layout ("BSH", "TND", "BNSD")
+ * @param [in] qInputLayout: Query输入layout ("TND", "BNSD")
  * @param [in] kvInputLayout: KV输入layout ("TND", "BNSD")
  * @param [in] numKeyValueHeads: KV头数
  * @param [in] maskType: Mask类型
