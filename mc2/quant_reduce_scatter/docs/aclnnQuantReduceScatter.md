@@ -231,6 +231,7 @@ aclnnStatus aclnnQuantReduceScatter(
 - 只在Ascend910_95系列平台使能。
 - 不支持空tensor输入。
 - 通信域大小支持2、4、8。
+- `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。要求满足`HCCL_BUFFSIZE`>= 2 * (`xDataSize` + `scalesDataSize`)，`xDataSize`为输入`x`的数据大小，单位MB，`scalesDataSize`为`scales`的数据大小，单位MB。
 
 ## 调用示例
 
@@ -449,8 +450,10 @@ aclnnStatus aclnnQuantReduceScatter(
         config.hcclDeterministic = 1;
         config.hcclBufferSize = g_hcclBufferSize;
         strncpy(config.hcclCommName, "hccl_comm_test", COMM_NAME_MAX_LENGTH - 1);
-        std::string rankTableFile = getenv("RANK_TABLE_FILE");
-        ret = HcclCommInitClusterInfoConfig(rankTableFile.c_str(), g_rankId, &config, &comms);
+        const char* rankTableFile = getenv("RANK_TABLE_FILE");
+        CHECK_RET(rankTableFile != nullptr, LOG_PRINT("[ERROR] get rankTableFile failed.\n");
+                return -1);
+        ret = HcclCommInitClusterInfoConfig(rankTableFile, g_rankId, &config, &comms);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitClusterInfoConfig failed. ret = %d \n", ret);
                 return ret);
 
