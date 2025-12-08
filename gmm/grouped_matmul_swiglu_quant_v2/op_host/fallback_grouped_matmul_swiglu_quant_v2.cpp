@@ -173,7 +173,7 @@ static graphStatus PrepareAclTensor(const OpExecuteContext *host_api_ctx, const 
     return GRAPH_SUCCESS;
 }
 
-static graphStatus PrepareAclTensorVector(OpExecuteContext *host_api_ctx, std::vector<const aclTensor *> &tensorVector,
+static graphStatus PrepareAclTensorVector(const OpExecuteContext *host_api_ctx, std::vector<const aclTensor *> &tensorVector,
                                           size_t index, bool enableTranspose, bool enableNZ)
 {
     size_t cnt = 0;
@@ -191,7 +191,7 @@ static graphStatus PrepareAclTensorVector(OpExecuteContext *host_api_ctx, std::v
     return GRAPH_SUCCESS;
 }
 
-static graphStatus PrepareOutputTensor(OpExecuteContext *host_api_ctx,
+static graphStatus PrepareOutputTensor(const OpExecuteContext *host_api_ctx,
                                              const gert::Tensor* &tensor, size_t index)
 {
     tensor = host_api_ctx->GetOutputTensor(index);

@@ -182,7 +182,7 @@ static inline aclTensor *GeTensor2AclTensor(const gert::Tensor *geTensor, bool e
   return out;
 }
 
-static graphStatus PrepareGeTensorVector(OpExecuteContext *host_api_ctx,
+static graphStatus PrepareGeTensorVector(const OpExecuteContext *host_api_ctx,
                                          std::vector<const gert::Tensor *> &tensorVector, size_t index)
 {
   size_t cnt = 0;
@@ -197,7 +197,7 @@ static graphStatus PrepareGeTensorVector(OpExecuteContext *host_api_ctx,
   return GRAPH_SUCCESS;
 }
 
-static graphStatus PrepareAclTensorVector(OpExecuteContext *host_api_ctx, std::vector<const aclTensor *> &tensorVector,
+static graphStatus PrepareAclTensorVector(const OpExecuteContext *host_api_ctx, std::vector<const aclTensor *> &tensorVector,
                                           size_t index, bool enableTranspose, bool enableNZ)
 {
   size_t cnt = 0;
@@ -213,7 +213,7 @@ static graphStatus PrepareAclTensorVector(OpExecuteContext *host_api_ctx, std::v
   return GRAPH_SUCCESS;
 }
 
-static graphStatus PrepareOutputTensorVector(OpExecuteContext *host_api_ctx,
+static graphStatus PrepareOutputTensorVector(const OpExecuteContext *host_api_ctx,
                                              std::vector<const gert::Tensor *> &tensorVector, size_t index,
                                              size_t numGeWeight, int32_t splitItem)
 {
