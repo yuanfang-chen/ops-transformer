@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file grouped_matmul_finalize_routing_tiling.h
+ * \file grouped_matmul_finalize_routing_quant_tiling.h
  * \brief
  */
 
-#ifndef ARCH35_GROUPED_MATMUL_FINALIZE_ROUTING_TILING_H
-#define ARCH35_GROUPED_MATMUL_FINALIZE_ROUTING_TILING_H
+#ifndef ARCH35_GROUPED_MATMUL_FINALIZE_ROUTING_QUANT_TILING_H
+#define ARCH35_GROUPED_MATMUL_FINALIZE_ROUTING_QUANT_TILING_H
 
 #include "../../../../grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h"
 #include "../../../op_kernel/arch35/grouped_matmul_finalize_routing_tiling_data.h"
@@ -51,15 +51,21 @@ constexpr uint32_t ATTR_INDEX_TRANSPOSE_W = 4;
 constexpr uint32_t ATTR_INDEX_OUTPUT_BS = 5;
 constexpr uint32_t ATTR_INDEX_GROUP_LIST_TYPE = 6;
 constexpr uint32_t ATTR_INDEX_TUNING_CONFIG = 7;
+
+constexpr uint32_t DIM_NUM_X = 2;
+constexpr uint32_t DIM_NUM_PERTOKENSCALE = 3;
+constexpr uint32_t DIM_NUM_WEIGHT = 3;
+constexpr uint32_t DIM_NUM_SCALE = 4;
+constexpr uint32_t DIM_NUM_Y = 2;
 } // namespace GroupedMatmulFinalizeRoutingArch35TilingConstant
 
-class GroupedMatmulFinalizeRoutingTiling : public GroupedQbmmTiling {
+class GroupedMatmulFinalizeRoutingQuantTiling : public GroupedQbmmTiling {
 public:
-    explicit GroupedMatmulFinalizeRoutingTiling(gert::TilingContext *context) : GroupedQbmmTiling(context)
+    explicit GroupedMatmulFinalizeRoutingQuantTiling(gert::TilingContext *context) : GroupedQbmmTiling(context)
     {
         Reset();
     }
-    ~GroupedMatmulFinalizeRoutingTiling() override = default;
+    ~GroupedMatmulFinalizeRoutingQuantTiling() override = default;
 
     void Reset(gert::TilingContext *context) override
     {
@@ -85,7 +91,9 @@ private:
     void PrintQuantParams() override;
     void PrintMatmulParams();
     bool SetQuantModeForGMMFinalizeRouting();
-    bool CheckShapeForMxQuant(const gert::Shape &x1ScaleShape, const gert::Shape &x2ScaleShape);
+    bool CheckShapeForMxQuant(const gert::Shape &xShape, const gert::Shape &wShape,
+                              const gert::Shape &pertokenScaleShape, const gert::Shape &scaleShape,
+                              const gert::Shape &yShape);
     bool CheckDtype();
     bool IsFp4Dtype(ge::DataType dtype);
     bool IsFp8Dtype(ge::DataType dtype);
