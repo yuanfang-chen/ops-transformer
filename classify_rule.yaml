@@ -776,7 +776,6 @@ mc2:
         - mc2/all_gather_matmul_v2
       test:
         examples: False
-        ut: False
       options:
         - all_gather_matmul_v2
 
