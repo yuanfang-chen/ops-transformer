@@ -301,6 +301,7 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
 </table>
 
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+    - commAlg 支持nullptr、""、"fullmesh"、"hierarchy"；推荐配置"hierarchy"并搭配≥25.0.RC1.1版本驱动；nullptr和""依HCCL环境变量选择算法（不推荐）；"fullmesh"通过RDMA直传token；"hierarchy"经跨机、机内两次发送优化通信。
     - commAlg为"hierarchy"或HCCL_INTRA_PCIE_ENABLE=1且HCCL_INTRA_ROCE_ENABLE=0时，scalesOptional 需传nullptr。
     - xActiveMaskOptional 依commAlg取值，"fullmesh"要求为1D Tensor，shape为(Bs, )；true需排在false前（例：{true, false, true}非法）；"hierarchy"当前版本不支持，传空指针即可。
     - expertScalesOptional 要求为2D Tensor，shape为(Bs, K)。
@@ -308,13 +309,13 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     - moeExpertNum 取值范围(0, 512]，还需满足moeExpertNum / (epWorldSize - sharedExpertRankNum) <= 24。
     - groupTp 当前版本不支持，传空字符即可。
     - tpWorldSize、tpRankId、expertShardType、sharedExpertNum、sharedExpertRankNum 当前版本不支持，传0即可。
-    - commAlg 支持nullptr、""、"fullmesh"、"hierarchy"；推荐配置"hierarchy"并搭配≥25.0.RC1.1版本驱动；nullptr和""依HCCL环境变量选择算法（不推荐）；"fullmesh"通过RDMA直传token；"hierarchy"经跨机、机内两次发送优化通信。
     - epRecvCountsOut 的shape为(moeExpertNum + 2globalBsK*serverNum,)（前moeExpertNum个为接收token数，剩余为通信前reduce相关信息）。
     - 当前不支持TP域通信。
     - expandScalesOut 要求为1D Tensor，shape为(A,)。
     - quantMode 支持0（非量化）、2（动态量化）。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+    - commAlg 当前版本不支持，传空指针即可。
     - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(Bs, )，2D时shape为(Bs, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
     - expertScalesOptional 当前版本不支持，传空指针即可。
     - epWorldSize 取值范围[2, 768]。
@@ -325,26 +326,25 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
     - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
     - sharedExpertNum 当前取值范围[0, 4]。
     - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-    - commAlg 当前版本不支持，传空指针即可。
     - epRecvCountsOut 的shape为(epWorldSize * max(tpWorldSize, 1) * localExpertNum,)。
     - 有TP域通信时为1D Tensor，tpRecvCountsOut 的shape为(tpWorldSize,)；支持非连续的Tensor。
     - expandScalesOut 当前版本不支持该输出。
     - quantMode 支持0（非量化）、2（动态量化）。
 
 - <term>昇腾910_95 AI处理器</term>：
-    - xActiveMaskOptional 要求为1D Tensor，shape为(Bs, )；true需排在false前（例：{true, false, true}非法）。
+    - commAlg 当前支持"mte"（UB-MEM通信方式）和"ccu"(CCU通信方式)，传空默认走UB-MEM通信方式。
+    - xActiveMaskOptional UB-MEM通信方式下要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信；CCU通信方式下要求为1D Tensor，shape为(Bs, )；true需排在false前。
     - expertScalesOptional 当前版本不支持，传空指针即可。
     - epWorldSize 取值范围[2, 768]。
     - moeExpertNum 取值范围(0, 1024]。
-    - groupTp 当前版本不支持，传空字符即可。
-    - tpWorldSize 当前版本不支持，传1即可。
-    - tpRankId 当前版本不支持，传0即可。
+    - groupTp UB-MEM通信方式下字符串长度范围为[1, 128)，不能和groupEp相同；当前版本CCU通信方式不支持TP域通信，传空字符即可。
+    - tpWorldSize UB-MEM通信方式下取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2；当前版本CCU通信方式不支持TP域通信，传1即可。
+    - tpRankId UB-MEM通信方式下取值范围[0, 1]，同一个TP通信域中各卡的tpRankId不重复；无TP域通信时传0即可；当前版本CCU通信方式不支持TP域通信，传0即可。
     - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
     - sharedExpertNum 当前取值范围[0, 4]。
     - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-    - commAlg 当前版本不支持，传空指针即可。
     - epRecvCountsOut 的shape为(epWorldSize * max(tpWorldSize, 1) * localExpertNum,)。
-    - 当前不支持TP域通信。
+    - tpRecvCountsOut UB-MEM通信方式下有TP域通信时为1D Tensor，tpRecvCountsOut 的shape为(tpWorldSize,)；支持非连续的Tensor；当前版本CCU通信方式不支持TP域通信。
     - expandScalesOut 当前版本不支持该输出。
     - quantMode 支持0（非量化）、1（静态量化）、2（pertoken动态量化）、3（pergroup动态量化）、4（mxfp8动态量化）。
 

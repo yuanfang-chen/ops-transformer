@@ -314,6 +314,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 </table>
 
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+    - commAlg 支持nullptr、""、"fullmesh"、"hierarchy"；推荐配置"hierarchy"并搭配≥25.0.RC1.1版本驱动；nullptr和""依HCCL环境变量选择算法（不推荐）；"fullmesh"通过RDMA直传token；"hierarchy"经机内、跨机两次发送减少跨机数据量。
     - 不支持共享专家场景。
     - epSendCounts 的shape为 (moeExpertNum + 2 * globalBs * K * serverNum, )，前moeExpertNum个数表示从EP通信域各卡接收的token数，后2 * globalBs * K * serverNum个数用于存储机间/机内通信前，combine可提前做reduce的token个数和通信区偏移，globalBs=0时按Bs * epWorldSize计算。
     - 当前不支持TP域通信。
@@ -329,9 +330,9 @@ aclnnStatus aclnnMoeDistributeCombineV2(
     - sharedExpertNum 当前版本不支持，传0即可。
     - sharedExpertRankNum 当前版本不支持，传0即可。
     - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化），取值为2仅当commAlg为"hierarchy"或HCCL_INTRA_PCIE_ENABLE=1且HCCL_INTRA_ROCE_ENABLE=0且驱动版本≥25.0.RC1.1时支持。
-    - commAlg 支持nullptr、""、"fullmesh"、"hierarchy"；推荐配置"hierarchy"并搭配≥25.0.RC1.1版本驱动；nullptr和""依HCCL环境变量选择算法（不推荐）；"fullmesh"通过RDMA直传token；"hierarchy"经机内、跨机两次发送减少跨机数据量。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+    - commAlg 当前版本不支持，传空指针即可。
     - epSendCounts 的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
     - 有TP域通信时 tpSendCountsOptional 为1D Tensor，shape为 (tpWorldSize, )；支持非连续的Tensor。
     - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
@@ -346,24 +347,23 @@ aclnnStatus aclnnMoeDistributeCombineV2(
     - sharedExpertNum 当前取值范围[0, 4]。
     - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
     - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化），取值为2仅当tpWorldSize < 2时可使能。
-    - commAlg 当前版本不支持，传空指针即可。
 
 - <term>昇腾910_95 AI处理器</term>：
+    - commAlg 当前支持"mte"（UB-MEM通信方式）和"ccu"(CCU通信方式)，传空默认走UB-MEM通信方式。
     - epSendCounts 的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
-    - 当前不支持TP域通信。
-    - xActiveMaskOptional 要求为1D Tensor，shape为(Bs, )；true需排在false前（例：{true, false, true}非法）。
+    - tpSendCountsOptional UB-MEM通信方式下为1D Tensor，shape为 (tpWorldSize, )；支持非连续的Tensor；当前版本CCU通信方式不支持TP域通信。
+    - xActiveMaskOptional UB-MEM通信方式下要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信；CCU通信方式下要求为1D Tensor，shape为(Bs, )；true需排在false前。
     - exapndScalesOptional 预留参数，当前版本不支持，传空指针即可。
     - sharedExpertXOptional 要求为2D或3D Tensor（2D时shape为 (Bs, H)；3D时前两位乘积等于Bs、第三维等于H）；可传或不传，传入时sharedExpertRankNum需为0。
     - epWorldSize 取值支持[2, 768]。
     - moeExpertNum 取值范围(0, 1024]。
-    - groupTp 当前版本不支持，传空字符即可。
-    - tpWorldSize 当前版本不支持，传1即可。
-    - tpRankId 当前版本不支持，传0即可。
+    - groupTp UB-MEM通信方式下字符串长度范围为[1, 128)，不能和groupEp相同；当前版本CCU通信方式不支持TP域通信，传空字符即可。
+    - tpWorldSize UB-MEM通信方式下取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2；当前版本CCU通信方式不支持TP域通信，传1即可。
+    - tpRankId UB-MEM通信方式下取值范围[0, 1]，同一个TP通信域中各卡的tpRankId不重复；无TP域通信时传0即可；当前版本CCU通信方式不支持TP域通信，传0即可。
     - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
     - sharedExpertNum 当前取值范围[0, 4]。
     - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-    - commQuantMode 当前版本不支持，传0即可。
-    - commAlg 当前版本不支持，传空指针即可。
+    - commQuantMode UB-MEM通信方式下取值范围0或2（0表示不量化，2表示int8量化），取值为2仅当tpWorldSize < 2时可使能；当前版本CCU通信方式不支持该参数，传0即可。
 
 ### 返回值
 
