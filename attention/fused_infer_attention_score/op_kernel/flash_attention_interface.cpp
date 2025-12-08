@@ -29,12 +29,14 @@ namespace SplitFuse {
         GM_ADDR q,
         GM_ADDR k,
         GM_ADDR v,
+        GM_ADDR pseShift,
         GM_ADDR mask,
         GM_ADDR blockTables,
         GM_ADDR o,
         GM_ADDR lse,
         GM_ADDR actualQseqlen,
         GM_ADDR actualKvseqlen,
+        GM_ADDR alibiCoeff,
         GM_ADDR workspace,
         GM_ADDR tiling)
     {
@@ -72,8 +74,9 @@ namespace SplitFuse {
         using DispatchPolicyOnlineSoftmax = Epilogue::EpilogueAtlasA2OnlineSoftmax<lseMode, IntermCalcPrec>;
         using PType = Gemm::GemmType<ElementP, LayoutP>;
         using maskType = Gemm::GemmType<ElementMask, LayoutMask>;
+        using pseShiftType = Gemm::GemmType<ElementQ, LayoutQ>;  // 类型和Q一致
         using EpilogueOnlineSoftmax =
-            Epilogue::Block::BlockEpilogue<DispatchPolicyOnlineSoftmax, PType, SType, maskType>;
+            Epilogue::Block::BlockEpilogue<DispatchPolicyOnlineSoftmax, PType, SType, maskType, pseShiftType>;
 
         using L1TileShapePV = GemmShape<128, 128, 256>;
         using L0TileShapePV = GemmShape<128, 128, 128>;
@@ -92,7 +95,7 @@ namespace SplitFuse {
 
         using FAInferKernel = FAInferKernel<BlockMmadQK, BlockMmadPV, EpilogueOnlineSoftmax, EpilogueRescaleO,
                                             PagedCacheFlag, maskCategory, inLayout>;
-        FAIKernelParams params{q, k, v, mask, blockTables, actualQseqlen, actualKvseqlen, o, lse, workspace, tiling};
+        FAIKernelParams params{q, k, v, pseShift, mask, blockTables, actualQseqlen, actualKvseqlen, alibiCoeff, o, lse,  workspace, tiling};
         FAInferKernel flashAttnInfer;
         flashAttnInfer(params);
     }

@@ -25,12 +25,14 @@ template <
     class OutputType_,
     class InputType_,
     class MaskType_,
+    class AlibiMaskType_,
     LseMode LSE_MODE_>
 class BlockEpilogue<
     EpilogueAtlasA2OnlineSoftmax<LSE_MODE_, half>,
     OutputType_,
     InputType_,
-    MaskType_>
+    MaskType_,
+    AlibiMaskType_>
 {
 public:
     using DispatchPolicy = EpilogueAtlasA2OnlineSoftmax<LSE_MODE_, half>;

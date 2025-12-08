@@ -69,10 +69,12 @@ extern aclnnStatus aclnnInnerFusedInferAttentionScoreGetWorkspaceSize(
     const aclIntArray *actualSharedPrefixLen, const aclTensor *query_rope,
     const aclTensor *key_rope, const aclTensor *keyRopeAntiquantScale,
     const aclTensor *dequantScaleQuery, const aclTensor *learnableSinkOptional, 
-    const aclIntArray *qStartIdxOptional, const aclIntArray *kvStartIdxOptional, int64_t numHeads, double scaleValue, int64_t preTokens,
+    const aclIntArray *qStartIdxOptional, const aclIntArray *kvStartIdxOptional, const aclTensor *alibi_coeff,
+    int64_t numHeads, double scaleValue, int64_t preTokens,
     int64_t nextTokens, char *inputLayout, int64_t numKeyValueHeads, int64_t sparseMode, int64_t innerPrecise,
     int64_t blockSize, int64_t antiquantMode, bool softmaxLseFlag,
     int64_t keyAntiquantMode, int64_t valueAntiquantMode, int64_t queryQuantMode, int64_t pseType, int64_t outType,
+    bool alibi_left_align, bool is_alibi_mask_sqrt,
     const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor);
 
 extern aclnnStatus aclnnInnerFusedInferAttentionScore(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
@@ -284,8 +286,8 @@ aclnnStatus aclnnFusedInferAttentionScoreVXGetMaxWorkspaceSize(
         valueAntiquantScaleOptional, valueAntiquantOffsetOptional, tensorKeySharedPrefixOptional,
         tensorValueSharedPrefixOptional, fakeActualSharedPrefixLenOptional, queryRopeOptional,
         keyRopeOptional, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, learnableSinkOptional, fakeQStartIdxOptional, fakeKVStartIdxOptional, 
-        numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads, sparseMode, innerPrecise, 
-        blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode, valueAntiquantMode, queryQuantMode, pseType, 0,
+        nullptr, numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads, sparseMode, innerPrecise, 
+        blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode, valueAntiquantMode, queryQuantMode, pseType, 0, false, false,
         attentionOut, placeHolder, workspaceSize, executor);
     if (softmaxLseFlag == false) {
         aclDestroyTensor(tempTensor);
@@ -360,8 +362,8 @@ aclnnStatus aclnnFusedInferAttentionScoreVXGetWorkspaceSize(
         valueAntiquantScaleOptional, valueAntiquantOffsetOptional, tensorKeySharedPrefixOptional,
         tensorValueSharedPrefixOptional, actualSharedPrefixLenOptional, queryRopeOptional,
         keyRopeOptional, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, learnableSinkOptional, qStartIdxOptional, kvStartIdxOptional,
-        numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads, sparseMode, innerPrecise, blockSize, 
-        antiquantMode, softmaxLseFlag, keyAntiquantMode, valueAntiquantMode, queryQuantMode, pseType, 0, attentionOut, 
+        nullptr, numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads, sparseMode, innerPrecise, blockSize, 
+        antiquantMode, softmaxLseFlag, keyAntiquantMode, valueAntiquantMode, queryQuantMode, pseType, 0, false, false, attentionOut,
         placeHolder, workspaceSize, executor);
     if (softmaxLseFlag == false) {
         aclDestroyTensor(tempTensor);

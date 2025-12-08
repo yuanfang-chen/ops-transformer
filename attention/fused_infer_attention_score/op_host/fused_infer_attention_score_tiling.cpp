@@ -49,6 +49,14 @@ REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201200, FAInfer
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201203, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201200, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201203, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000200104, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010200104, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201104, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201104, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000200204, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010200204, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201204, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201204, FAInferTilingData)
 
 // Test purposes - using old key
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore, IncreFlashAttentionTilingDataV2)
@@ -1066,6 +1074,35 @@ ge::graphStatus CheckFAIMaskShape(const gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus CheckFAIAlibiMaskShape(gert::TilingContext *context)
+{
+    auto tempAttnAlibiMaskShape = context->GetOptionalInputShape(PSE_SHIFT_INDEX);
+    auto alibiMaskDimNum = tempAttnAlibiMaskShape->GetStorageShape().GetDimNum();
+    constexpr int64_t OPT_ATTEN_MASK_LEN = 2048;
+    constexpr int64_t EFFECTIVE_CAUSAL_DIMS = 2;
+    int64_t dimCountDown = alibiMaskDimNum;
+    while (dimCountDown > 0) {
+        int64_t revOrderDim = tempAttnAlibiMaskShape->GetStorageShape().GetDim(dimCountDown - 1);
+        if (alibiMaskDimNum - dimCountDown < EFFECTIVE_CAUSAL_DIMS) {
+            OP_CHECK_IF(revOrderDim != OPT_ATTEN_MASK_LEN,
+                OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                    "In split fuse senario, when sparseMode is 3, "
+                    "the input mask has %ld dims in total, "
+                    "maskDim %ld shall be 2048", alibiMaskDimNum, (dimCountDown - 1)),
+                    return ge::GRAPH_FAILED);
+        } else {
+            OP_CHECK_IF(revOrderDim != 1,
+                OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                    "In split fuse senario, when sparseMode is 3, "
+                    "the input mask has %ld dims in total, "
+                    "maskDim %ld shall be 1", alibiMaskDimNum, (dimCountDown - 1)),
+                    return ge::GRAPH_FAILED);
+        }
+        dimCountDown--;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus CheckFAIMask(gert::TilingContext *context)
 {
     auto tempAttnMaskShape = context->GetOptionalInputShape(ATTEN_MASK_INDEX);
@@ -1090,6 +1127,43 @@ ge::graphStatus CheckFAIMask(gert::TilingContext *context)
         if (CheckFAIMaskShape(context) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CheckFAIAlibiMask(gert::TilingContext *context)
+{
+    auto tempAttnAlibiMaskShape = context->GetOptionalInputShape(PSE_SHIFT_INDEX);
+    auto tempAttnMaskShape = context->GetOptionalInputShape(ATTEN_MASK_INDEX);
+    auto tempAlibiCoeffShape = context->GetOptionalInputShape(ALIBI_COEFF_INDEX);
+    auto attrs = context->GetAttrs();
+    int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
+    bool alibiLeftAlign = *(attrs->GetAttrPointer<bool>(ALIBI_LEFT_ALIGN_INDEX));
+    bool isSqrt = *(attrs->GetAttrPointer<bool>(IS_ALIBI_MASK_SQRT_INDEX));
+    if (tempAlibiCoeffShape != nullptr) {
+        OP_CHECK_IF((sparseMode != 3U),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "In split fuse alibi mask senario, sparseMode shall be 3"),
+                return ge::GRAPH_FAILED);
+        OP_CHECK_IF(tempAttnMaskShape == nullptr,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "When alibicoeff is provided,attnMask must be provided"),
+                return ge::GRAPH_FAILED);
+        OP_CHECK_IF(tempAttnAlibiMaskShape == nullptr,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "When alibicoeff is provided,pse shift must be provided"),
+                return ge::GRAPH_FAILED);
+        auto alibiMaskDimNum = tempAttnAlibiMaskShape->GetStorageShape().GetDimNum();
+        OP_CHECK_IF(alibiMaskDimNum != 4U,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "When attnAlibiMask is provided, it must be 4 dims"),
+                return ge::GRAPH_FAILED);
+        if (CheckFAIAlibiMaskShape(context) != ge::GRAPH_SUCCESS) {
+            return ge::GRAPH_FAILED;
+        }
+    } else {
+        OP_CHECK_IF((alibiLeftAlign != false),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "In split fuse not alibi mask senario, alibiLeftAlign shall be false"),
+                return ge::GRAPH_FAILED);
+        OP_CHECK_IF((isSqrt != false),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "In split fuse not alibi mask senario, isSqrt shall be false"),
+                return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1120,6 +1194,7 @@ ge::graphStatus CheckFAIAvailability(gert::TilingContext *context)
     bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
     if (CheckFAIQKV(context, isPageAttention) != ge::GRAPH_SUCCESS ||
         CheckFAIMask(context) != ge::GRAPH_SUCCESS ||
+        CheckFAIAlibiMask(context) != ge::GRAPH_SUCCESS ||
         CheckFAISinglePara(context, isPageAttention) != ge::GRAPH_SUCCESS ||
         CheckFAILseOutput(context) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
@@ -1135,6 +1210,7 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
     auto actualQSeq = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
     auto actualKvSeq = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     auto blockTable = context->GetOptionalInputShape(BLOCK_TABLE_INDEX);
+    auto tempAlibiCoeffShape = context->GetOptionalInputShape(ALIBI_COEFF_INDEX);
     auto attrs = context->GetAttrs();
     faInfo.pagedCacheFlag = blockTable != nullptr;
     faInfo.numHeads = *(attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX));
@@ -1145,6 +1221,8 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
     string inputLayoutStr = string(attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX));
     bool lseFlag = *(attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX));
     int32_t innerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
+    bool alibiLeftAlign = *(attrs->GetAttrPointer<bool>(ALIBI_LEFT_ALIGN_INDEX));
+    bool isSqrt = *(attrs->GetAttrPointer<bool>(IS_ALIBI_MASK_SQRT_INDEX));
     faInfo.numBlocks = tempK->GetStorageShape().GetDim(DIM_0);
     faInfo.blockSize = tmpBlkSize;
     faInfo.kvHeads = tmpNKv;
@@ -1152,6 +1230,8 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
     faInfo.layout = inputLayoutStr;
     faInfo.lseFlag = lseFlag;
     faInfo.innerPrecise = innerPrecise;
+    faInfo.alibiLeftAlign = alibiLeftAlign;
+    faInfo.isAlibiMaskSqrt = isSqrt;
     if (faInfo.pagedCacheFlag) {
         faInfo.maxNumBlocksPerBatch = blockTable->GetStorageShape().GetDim(DIM_1);
     }
@@ -1159,7 +1239,7 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         faInfo.embeddingSize = tempQ->GetStorageShape().GetDim(DIM_2);
         faInfo.embeddingSizeV = faInfo.embeddingSize;
     }
-    faInfo.maskType = static_cast<MaskType>(sparseMode == DIM_3);
+    faInfo.maskType = tempAlibiCoeffShape != nullptr ? MaskType::ALIBI_MASK : static_cast<MaskType>(sparseMode == DIM_3);
     faInfo.dataType = static_cast<DataType>(qDataType == ge::DT_BF16);
     int32_t batch = actualQSeq->GetShapeSize();
     faInfo.batch = batch;
