@@ -57,7 +57,7 @@ static bool CheckNotNull(const aclTensor* expandX, const aclTensor* expertIds, c
                          const aclTensor* epSendCounts, const aclTensor* expertScales,
                          const char* groupEp, aclTensor* x)
 {
-    OP_LOGD("aclnn_moe_distribute_combine_v3 CheckNotNull start");
+    OP_LOGD("aclnn_moe_distribute_combine_v4 CheckNotNull start");
     OP_CHECK_NULL(expandX, return false);
     OP_CHECK_NULL(expertIds, return false);
     OP_CHECK_NULL(assistInfoForCombine, return false);
@@ -68,7 +68,7 @@ static bool CheckNotNull(const aclTensor* expandX, const aclTensor* expertIds, c
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Required groupEp name is Empty.");
         return false;
     }
-    OP_LOGD("aclnn_moe_distribute_combine_v3 CheckNotNull success");
+    OP_LOGD("aclnn_moe_distribute_combine_v4 CheckNotNull success");
     return true;
 }
 
@@ -78,7 +78,7 @@ static aclnnStatus CheckParams(const aclTensor* expandX, const aclTensor* expert
                                const aclTensor* expertScales, const char* groupEp, const char* groupTp,
                                aclTensor* x)
 {
-    OP_LOGD("aclnn_moe_distribute_combine_v3 checkparams start");
+    OP_LOGD("aclnn_moe_distribute_combine_v4 checkparams start");
     CHECK_RET(CheckNotNull(expandX, expertIds, expandIdx, epSendCounts, expertScales, groupEp,
                            x), ACLNN_ERR_PARAM_NULLPTR);
 
@@ -90,7 +90,7 @@ static aclnnStatus CheckParams(const aclTensor* expandX, const aclTensor* expert
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Required groupTp name exceeds %zu.", HCCL_GROUP_NAME_MAX);
         return ACLNN_ERR_PARAM_INVALID;
     }
-    OP_LOGD("aclnn_moe_distribute_combine_v3 checkparams success");
+    OP_LOGD("aclnn_moe_distribute_combine_v4 checkparams success");
     return ACLNN_SUCCESS;
 }
 

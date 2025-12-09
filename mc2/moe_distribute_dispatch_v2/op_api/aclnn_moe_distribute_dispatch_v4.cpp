@@ -49,7 +49,7 @@ extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, 
 static bool CheckNotNull(const aclTensor* x, const aclTensor* expertIds, const char* groupEp, [[maybe_unused]] const char* groupTp, aclTensor* expandX, [[maybe_unused]] aclTensor* dynamicScales,
                          aclTensor* assistInfoForCombine, aclTensor* expertTokensNums, aclTensor* epRecvCounts, aclTensor* tpRecvCounts)
 {
-    OP_LOGD("aclnn_moe_distribute_dispatch_v3 CheckNotNull start");
+    OP_LOGD("aclnn_moe_distribute_dispatch_v4 CheckNotNull start");
     OP_CHECK_NULL(x, return false);
     OP_CHECK_NULL(expertIds, return false);
     OP_CHECK_NULL(expandX, return false);
@@ -57,7 +57,7 @@ static bool CheckNotNull(const aclTensor* x, const aclTensor* expertIds, const c
     OP_CHECK_NULL(expertTokensNums, return false);
     OP_CHECK_NULL(tpRecvCounts, return false);
     OP_CHECK_NULL(epRecvCounts, return false);
-    OP_LOGD("aclnn_moe_distribute_dispatch_v3 CheckNotNull success");
+    OP_LOGD("aclnn_moe_distribute_dispatch_v4 CheckNotNull success");
     if ((groupEp == nullptr)||(strnlen(groupEp, HCCL_GROUP_NAME_MAX) == 0)) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "group groupEp name is Empty");
         return false;
@@ -72,7 +72,7 @@ static aclnnStatus CheckParams(const aclTensor* x, const aclTensor* expertIds,
                                aclTensor* expandX, aclTensor* dynamicScales, aclTensor* assistInfoForCombine, aclTensor* expertTokensNums,
                                aclTensor* epRecvCounts, aclTensor* tpRecvCounts)
 {
-    OP_LOGD("aclnn_moe_distribute_dispatch_v3 CheckParams start");
+    OP_LOGD("aclnn_moe_distribute_dispatch_v4 CheckParams start");
     CHECK_RET(CheckNotNull(x, expertIds, groupEp, groupTp, expandX, dynamicScales, assistInfoForCombine,
         expertTokensNums, epRecvCounts, tpRecvCounts), ACLNN_ERR_PARAM_NULLPTR);
 
@@ -88,7 +88,7 @@ static aclnnStatus CheckParams(const aclTensor* x, const aclTensor* expertIds,
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Required groupTp name exceeds %zu", HCCL_GROUP_NAME_MAX);
         return ACLNN_ERR_PARAM_NULLPTR;
     }
-    OP_LOGD("aclnn_moe_distribute_dispatch_v3 CheckParams success");
+    OP_LOGD("aclnn_moe_distribute_dispatch_v4 CheckParams success");
     return ACLNN_SUCCESS;
 }
 
@@ -103,7 +103,7 @@ aclnnStatus aclnnMoeDistributeDispatchV4GetWorkspaceSize(const aclTensor* x, con
                                                                         aclTensor* tpRecvCountsOut, aclTensor* expandScalesOut,
                                                                         uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    OP_LOGD("aclnnMoeDistributeDispatchV3GetWorkspaceSize start");
+    OP_LOGD("aclnnMoeDistributeDispatchv4GetWorkspaceSize start");
     const static bool is910B = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
     auto ret_param = CheckParams(x, expertIds, groupEp, groupTp,
                                  quantMode, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut, epRecvCountsOut, tpRecvCountsOut);
