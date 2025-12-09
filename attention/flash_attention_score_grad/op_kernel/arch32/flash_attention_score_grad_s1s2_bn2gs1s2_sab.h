@@ -238,8 +238,10 @@ public:
     __aicore__ inline void CalckvReduce(DBParams& dbParam, GlobalTensor<float> &srcTensor,
                                         GlobalTensor<float> &dstTensor);
     __aicore__ inline void GetIndex(int64_t baseIdx, IndexParams& idx);
-    __aicore__ inline void CalcDqReduce(DBParams& dbParam, GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor, int64_t d, int64_t dAlign);
-    __aicore__ inline void CalcDkvReduce(DBParams& dbParam, GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor, int64_t d, int64_t dAlign);
+    __aicore__ inline void CalcDqReduce(DBParams& dbParam, GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor,
+        int64_t d, int64_t dAlign, uint32_t vecCalBlockNum);
+    __aicore__ inline void CalcDkvReduce(DBParams& dbParam, GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor,
+        int64_t d, int64_t dAlign, uint32_t vecCalBlockNum);
     __aicore__ inline void ComputeVecAdd(DBParams& dbParam);
     __aicore__ inline void CopyGmToL1(const LocalTensor<T1> &l1Tensor, const GlobalTensor<T1> &gmSrcTensor, uint32_t srcN, uint32_t srcD, uint32_t srcDstride);
 
@@ -2366,11 +2368,11 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::GetIndex
 
 template <typename FAGT>
 __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvReduce(DBParams& dbParam,
-                                             GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor, int64_t d, int64_t dAlign)
+    GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor, int64_t d, int64_t dAlign, uint32_t vecCalBlockNum)
 {
     pingpongIdx = dbParam.taskId % 2;
     // 整块切分
-    uint32_t s2CalcInner = (s2CvInner + vecBlockNum - 1) / vecBlockNum;
+    uint32_t s2CalcInner = (s2CvInner + vecCalBlockNum - 1) / vecCalBlockNum;
     int64_t singleCoreDataNum = s2CalcInner * dAlign;
 
     LocalTensor<float> resBuf = unifiedBuffer.GetWithOffset<float>(singleCoreDataNum, 0);
@@ -2398,11 +2400,11 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
             if (groupId == dbParam.kvGroupId[coreId]) {
                 blockId = dbParam.blockIdArr[coreId];
                 uint32_t usedCoreNum = (dbParam.s2CvExtendArr[coreId] + s2CalcInner - 1) / s2CalcInner;
-                if (cBlockIdx % vecBlockNum >= usedCoreNum) {
+                if (cBlockIdx % vecCalBlockNum >= usedCoreNum) {
                     continue;
                 }
                 uint32_t s2CalcTail = dbParam.s2CvExtendArr[coreId] - s2CalcInner * (usedCoreNum - 1);
-                uint32_t s2CalcExtend = (cBlockIdx % vecBlockNum == usedCoreNum - 1) ? s2CalcTail : s2CalcInner;
+                uint32_t s2CalcExtend = (cBlockIdx % vecCalBlockNum == usedCoreNum - 1) ? s2CalcTail : s2CalcInner;
                 maxS2Extend = maxS2Extend > s2CalcExtend ? maxS2Extend : s2CalcExtend;
 
                 if constexpr (MM2_OUT_FORMAT == CubeFormat::NZ) {
@@ -2414,7 +2416,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
                         AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
                     }
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s2CvInner * dAlign + coreId * s2CvInner * dAlign +
-                                     cBlockIdx % vecBlockNum * s2CalcInner * C0_SIZE;
+                                     cBlockIdx % vecCalBlockNum * s2CalcInner * C0_SIZE;
                     AscendC::DataCopyExtParams intriParams;
                     intriParams.blockCount = dAlign / C0_SIZE;
                     intriParams.blockLen = s2CalcExtend * C0_SIZE * sizeof(float);
@@ -2433,7 +2435,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
 
                 } else {
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s2CvInner * dAlign + coreId * s2CvInner * dAlign +
-                                     cBlockIdx % vecBlockNum * s2CalcInner * d;
+                                     cBlockIdx % vecCalBlockNum * s2CalcInner * d;
                     DataCopy(inBuf, srcTensor[srcOffset], s2CalcExtend * d);
 
                     event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
@@ -2460,10 +2462,10 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
                     if (idx.bIdx > 0) {
                         dstOffset = ((__gm__ int64_t *)actual_seq_kvlen_addr)[idx.bIdx - 1] * n2 * dAlign;
                     }
-                    dstOffset += (idx.n2Idx * actualS2Len) * dAlign + (idx.s2oIdx * s2CvInner + cBlockIdx % vecBlockNum * s2CalcInner) * C0_SIZE;
+                    dstOffset += (idx.n2Idx * actualS2Len) * dAlign + (idx.s2oIdx * s2CvInner + cBlockIdx % vecCalBlockNum * s2CalcInner) * C0_SIZE;
                     copyOutDstStride = (actualS2Len - maxS2Extend) * C0_SIZE;
                 } else {  // Other Nz
-                    dstOffset = ((idx.bIdx * n2 + idx.n2Idx) * s2) * dAlign + (idx.s2oIdx * s2CvInner  + cBlockIdx % vecBlockNum * s2CalcInner) * C0_SIZE;
+                    dstOffset = ((idx.bIdx * n2 + idx.n2Idx) * s2) * dAlign + (idx.s2oIdx * s2CvInner  + cBlockIdx % vecCalBlockNum * s2CalcInner) * C0_SIZE;
                     copyOutDstStride = (s2 - maxS2Extend) * C0_SIZE;
                 }
             } else {
@@ -2471,15 +2473,15 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
                 if (idx.bIdx > 0) {
                     dstOffset = ((__gm__ int64_t *)actual_seq_kvlen_addr)[idx.bIdx - 1] * n2 * d;
                 }
-                    dstOffset += ((idx.s2oIdx * s2CvInner + cBlockIdx % vecBlockNum * s2CalcInner) * n2 + idx.n2Idx) * d;
+                    dstOffset += ((idx.s2oIdx * s2CvInner + cBlockIdx % vecCalBlockNum * s2CalcInner) * n2 + idx.n2Idx) * d;
                     copyOutDstStride = n2 * d - d;
                 } else if constexpr (INPUT_LAYOUT == BNGSD) {
-                    dstOffset = ((idx.bIdx * n2 + idx.n2Idx) * s2 + idx.s2oIdx * s2CvInner + cBlockIdx % vecBlockNum * s2CalcInner) * d;
+                    dstOffset = ((idx.bIdx * n2 + idx.n2Idx) * s2 + idx.s2oIdx * s2CvInner + cBlockIdx % vecCalBlockNum * s2CalcInner) * d;
                 } else if constexpr (INPUT_LAYOUT == SBNGD) {
-                    dstOffset = (((idx.s2oIdx * s2CvInner + cBlockIdx % vecBlockNum * s2CalcInner) * b + idx.bIdx) * n2 + idx.n2Idx) * d;
+                    dstOffset = (((idx.s2oIdx * s2CvInner + cBlockIdx % vecCalBlockNum * s2CalcInner) * b + idx.bIdx) * n2 + idx.n2Idx) * d;
                     copyOutDstStride = b * n2 * d - d;
                 } else if constexpr (INPUT_LAYOUT == BSNGD) {
-                    dstOffset = ((idx.bIdx * s2 + idx.s2oIdx * s2CvInner + cBlockIdx % vecBlockNum * s2CalcInner) * n2 + idx.n2Idx) * d;
+                    dstOffset = ((idx.bIdx * s2 + idx.s2oIdx * s2CvInner + cBlockIdx % vecCalBlockNum * s2CalcInner) * n2 + idx.n2Idx) * d;
                     copyOutDstStride = n2 * d - d;
                 }
             }
@@ -2504,11 +2506,12 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
 }
 
 template <typename FAGT>
- __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDqReduce(DBParams& dbParam, GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor, int64_t d, int64_t dAlign)
+ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDqReduce(DBParams& dbParam,
+    GlobalTensor<float> &srcTensor, GlobalTensor<float> &dstTensor, int64_t d, int64_t dAlign, uint32_t vecCalBlockNum)
 {
     pingpongIdx = dbParam.taskId % 2;
     // 整块切分
-    uint32_t s1CalcInner = (s1CvInner + vecBlockNum - 1) / vecBlockNum;
+    uint32_t s1CalcInner = (s1CvInner + vecCalBlockNum - 1) / vecCalBlockNum;
     int64_t singleCoreDataNum = s1CalcInner * dAlign;
 
     LocalTensor<float> dqRes = unifiedBuffer.GetWithOffset<float>(singleCoreDataNum, 0);
@@ -2535,11 +2538,11 @@ template <typename FAGT>
             if (groupId == dbParam.dqGroupId[coreId]) {
                 blockId = dbParam.blockIdArr[coreId];
                 uint32_t usedCoreNum = (dbParam.s1CvExtendArr[coreId] + s1CalcInner - 1) / s1CalcInner;
-                if (cBlockIdx % vecBlockNum >= usedCoreNum) {
+                if (cBlockIdx % vecCalBlockNum >= usedCoreNum) {
                     continue;
                 }
                 uint32_t s1CalcTail = dbParam.s1CvExtendArr[coreId] - s1CalcInner * (usedCoreNum - 1);
-                uint32_t s1CalcExtend = (cBlockIdx % vecBlockNum == usedCoreNum - 1) ? s1CalcTail : s1CalcInner;
+                uint32_t s1CalcExtend = (cBlockIdx % vecCalBlockNum == usedCoreNum - 1) ? s1CalcTail : s1CalcInner;
                 maxS1Extend = maxS1Extend > s1CalcExtend ? maxS1Extend : s1CalcExtend;
 
                 //copyOut & add
@@ -2552,7 +2555,7 @@ template <typename FAGT>
                         AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
                     }
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s1CvInner * dAlign + coreId * s1CvInner * dAlign +
-                                     cBlockIdx % vecBlockNum * s1CalcInner * C0_SIZE;
+                                     cBlockIdx % vecCalBlockNum * s1CalcInner * C0_SIZE;
                     AscendC::DataCopyExtParams intriParams;
                     intriParams.blockCount = dAlign / C0_SIZE;
                     intriParams.blockLen = s1CalcExtend * C0_SIZE * sizeof(float);
@@ -2570,7 +2573,7 @@ template <typename FAGT>
 
                 } else {
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s1CvInner * dAlign + coreId * s1CvInner * dAlign +
-                                     cBlockIdx % vecBlockNum * s1CalcInner * d;
+                                     cBlockIdx % vecCalBlockNum * s1CalcInner * d;
                     DataCopy(inBuf, srcTensor[srcOffset], s1CalcExtend * d);
 
                     event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
@@ -2598,11 +2601,11 @@ template <typename FAGT>
                         dstOffset = ((__gm__ int64_t *)actual_seq_qlen_addr)[idx.bIdx - 1] * n2 * g * dAlign;
                     }
                     dstOffset += ((idx.n2Idx * g + idx.gIdx) * actualS1Len) * dAlign + 
-                                 (idx.s1oIdx * s1CvInner + cBlockIdx % vecBlockNum * s1CalcInner) * C0_SIZE;
+                                 (idx.s1oIdx * s1CvInner + cBlockIdx % vecCalBlockNum * s1CalcInner) * C0_SIZE;
                     copyOutDstStride = (actualS1Len - maxS1Extend) * C0_SIZE;
                 } else {  // Other Nz
                     dstOffset = (((idx.bIdx * n2 + idx.n2Idx) * g + idx.gIdx) * s1) * dAlign + 
-                                (idx.s1oIdx * s1CvInner + cBlockIdx % vecBlockNum * s1CalcInner) * C0_SIZE;
+                                (idx.s1oIdx * s1CvInner + cBlockIdx % vecCalBlockNum * s1CalcInner) * C0_SIZE;
                     copyOutDstStride = (s1 - maxS1Extend) * C0_SIZE;
                 }
             } else {
@@ -2610,15 +2613,15 @@ template <typename FAGT>
                     if (idx.bIdx > 0) {
                         dstOffset = ((__gm__ int64_t *)actual_seq_qlen_addr)[idx.bIdx - 1] * n2 * g * d;
                     }
-                    dstOffset += (((idx.s1oIdx * s1CvInner + cBlockIdx % vecBlockNum * s1CalcInner) * n2 + idx.n2Idx) * g + idx.gIdx) * d;
+                    dstOffset += (((idx.s1oIdx * s1CvInner + cBlockIdx % vecCalBlockNum * s1CalcInner) * n2 + idx.n2Idx) * g + idx.gIdx) * d;
                     copyOutDstStride = n2 * g * d - d;
                 } else if constexpr (INPUT_LAYOUT == BNGSD) {
-                    dstOffset = (((idx.bIdx * n2 + idx.n2Idx) * g + idx.gIdx) * s1 + idx.s1oIdx * s1CvInner + cBlockIdx % vecBlockNum * s1CalcInner) * d;
+                    dstOffset = (((idx.bIdx * n2 + idx.n2Idx) * g + idx.gIdx) * s1 + idx.s1oIdx * s1CvInner + cBlockIdx % vecCalBlockNum * s1CalcInner) * d;
                 } else if constexpr (INPUT_LAYOUT == SBNGD) {
-                    dstOffset = ((((idx.s1oIdx * s1CvInner + cBlockIdx % vecBlockNum * s1CalcInner) * b + idx.bIdx) * n2 + idx.n2Idx) * g + idx.gIdx) * d;
+                    dstOffset = ((((idx.s1oIdx * s1CvInner + cBlockIdx % vecCalBlockNum * s1CalcInner) * b + idx.bIdx) * n2 + idx.n2Idx) * g + idx.gIdx) * d;
                     copyOutDstStride = b * n2 * g * d - d;
                 } else if constexpr (INPUT_LAYOUT == BSNGD) {
-                    dstOffset = (((idx.bIdx * s1 + idx.s1oIdx * s1CvInner + cBlockIdx % vecBlockNum * s1CalcInner) * n2 + idx.n2Idx) * g + idx.gIdx) * d;
+                    dstOffset = (((idx.bIdx * s1 + idx.s1oIdx * s1CvInner + cBlockIdx % vecCalBlockNum * s1CalcInner) * n2 + idx.n2Idx) * g + idx.gIdx) * d;
                     copyOutDstStride = n2 * g * d - d;
                 }
             }
@@ -2648,29 +2651,31 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
 {
     int64_t s1CalcInner = (s1CvInner + vecBlockNum - 1) / vecBlockNum;
     int64_t s2CalcInner = (s2CvInner + vecBlockNum - 1) / vecBlockNum;
+
+    // When workspace is insufficient, fall back to a full-core reduction, and use
+    // coreNum` as vecCalBlockNum to ensure global deterministic accumulation and stable numerical precision.
     if (unlikely(s1CalcInner * dAlign * sizeof(float) * 2 > TOTAL_SIZE ||
         s2CalcInner * dAlign * sizeof(float) * 2 > TOTAL_SIZE)) {
-        vecBlockNum = coreNum;
-        CalcDqReduce(dbParam, dqDtmWsGm, dqWorkSpaceGm, d, dAlign);
-        CalcDkvReduce(dbParam, dkDtmWsGm, dkWorkSpaceGm, d, dAlign);
-        CalcDkvReduce(dbParam, dvDtmWsGm, dvWorkSpaceGm, value_d, value_dAlign);
+        CalcDqReduce(dbParam, dqDtmWsGm, dqWorkSpaceGm, d, dAlign, coreNum);
+        CalcDkvReduce(dbParam, dkDtmWsGm, dkWorkSpaceGm, d, dAlign, coreNum);
+        CalcDkvReduce(dbParam, dvDtmWsGm, dvWorkSpaceGm, value_d, value_dAlign, coreNum);
         if constexpr (HAS_ROPE == ENABLE) {
-            CalcDqReduce(dbParam, dqRopeDtmWsGm, dqRopeWorkSpaceGm, rope_d, rope_dAlign);
-            CalcDkvReduce(dbParam, dkRopeDtmWsGm, dkRopeWorkSpaceGm, rope_d, rope_dAlign);
-         }
+            CalcDqReduce(dbParam, dqRopeDtmWsGm, dqRopeWorkSpaceGm, rope_d, rope_dAlign, coreNum);
+            CalcDkvReduce(dbParam, dkRopeDtmWsGm, dkRopeWorkSpaceGm, rope_d, rope_dAlign, coreNum);
+        }
     } else {
         if (cBlockIdx < vecBlockNum) {
-            CalcDqReduce(dbParam, dqDtmWsGm, dqWorkSpaceGm, d, dAlign);
+            CalcDqReduce(dbParam, dqDtmWsGm, dqWorkSpaceGm, d, dAlign, vecBlockNum);
             if constexpr (HAS_ROPE == ENABLE) {
-               CalcDqReduce(dbParam, dqRopeDtmWsGm, dqRopeWorkSpaceGm, rope_d, rope_dAlign);
+               CalcDqReduce(dbParam, dqRopeDtmWsGm, dqRopeWorkSpaceGm, rope_d, rope_dAlign, vecBlockNum);
             }
         } else if (cBlockIdx < 2 * vecBlockNum) {
-            CalcDkvReduce(dbParam, dkDtmWsGm, dkWorkSpaceGm, d, dAlign);
+            CalcDkvReduce(dbParam, dkDtmWsGm, dkWorkSpaceGm, d, dAlign, vecBlockNum);
             if constexpr (HAS_ROPE == ENABLE) {
-               CalcDkvReduce(dbParam, dkRopeDtmWsGm, dkRopeWorkSpaceGm, rope_d, rope_dAlign);
+               CalcDkvReduce(dbParam, dkRopeDtmWsGm, dkRopeWorkSpaceGm, rope_d, rope_dAlign, vecBlockNum);
             }
         } else if (cBlockIdx < 3 * vecBlockNum) {
-            CalcDkvReduce(dbParam, dvDtmWsGm, dvWorkSpaceGm, value_d, value_dAlign);
+            CalcDkvReduce(dbParam, dvDtmWsGm, dvWorkSpaceGm, value_d, value_dAlign, vecBlockNum);
         }
     }
 }
