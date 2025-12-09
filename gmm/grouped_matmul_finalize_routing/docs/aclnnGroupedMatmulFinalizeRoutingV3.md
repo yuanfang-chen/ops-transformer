@@ -389,6 +389,9 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+
 **伪量化场景支持类型**
 输入和输出支持以下数据类型组合：
 

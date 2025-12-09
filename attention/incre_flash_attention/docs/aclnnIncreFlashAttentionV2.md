@@ -386,6 +386,8 @@ aclnnStatus aclnnIncreFlashAttentionV2(
 
 ##   约束说明
 
+- 确定性计算：
+  - aclnnIncreFlashAttentionV2默认确定性实现。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：
   - 支持B轴小于等于65536，N轴小于等于256，D轴小于等于512。
   - query数据类型支持FLOAT16、BFLOAT16，attentionOut、key和value数据类型支持FLOAT16、BFLOAT16。

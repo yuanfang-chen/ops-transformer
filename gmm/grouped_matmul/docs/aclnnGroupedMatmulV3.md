@@ -363,6 +363,8 @@ aclnnStatus aclnnGroupedMatmulV3(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnGroupedMatmulV3默认确定性实现。
 - 如果传入groupListOptional，groupListOptional必须为非负递增数列，groupListOptional长度不能为1。
 - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：

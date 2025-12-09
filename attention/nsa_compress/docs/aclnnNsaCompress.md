@@ -297,6 +297,8 @@ aclnnStatus aclnnNsaCompress(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnNsaCompress默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 - input和weight需要满足broadcast关系，input.shape[1]=weight.shape[1]，不支持input、weight为空输入。
 - actSeqLenType目前仅支持取值0，即actSeqLenOptional需要是前缀和模式。

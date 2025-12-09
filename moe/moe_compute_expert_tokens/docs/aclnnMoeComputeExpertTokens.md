@@ -187,8 +187,11 @@ aclnnStatus aclnnMoeComputeExpertTokens(
 
 ## 约束说明
 
-1. 确定性计算：默认确定性实现。
-2. 输入shape大小不要超过device可分配的内存上限，否则会导致异常终止。
+
+- 确定性计算：
+  - aclnnMoeComputeExpertTokens默认确定性实现。
+
+- 输入shape大小不要超过device可分配的内存上限，否则会导致异常终止。
 
 ## 调用示例
 

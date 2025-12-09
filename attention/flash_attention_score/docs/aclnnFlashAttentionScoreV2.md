@@ -395,6 +395,8 @@ aclnnStatus aclnnFlashAttentionScoreV2(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnFlashAttentionScoreV2默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 - 输入query、key、value的约束：
   - B：batchsize必须相等。

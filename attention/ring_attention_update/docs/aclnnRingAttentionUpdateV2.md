@@ -116,6 +116,8 @@ aclnnRingAttentionUpdateV2(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnRingAttentionUpdateV2默认确定性实现。
 - 当inputLayoutOptional为“TND”时，prevAttnOut的最后一个维度需要为64的倍数。
 - 当inputLayoutOptional为“TND”时，actualSeqQlenOptional为必填。
 - 当inputLayoutOptional为“TND”时，请注意N和D的大小，限制为：N<=256, D<=768。

@@ -455,7 +455,7 @@
     <tr>
       <td>workspaceSize</td>
       <td>输入</td>
-      <td>在Device侧申请的workspace大小，由第一段接口aclnnFlashAttentionScoreGetWorkspaceSize获取。</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnNormRopeConcatBackwardGetWorkspaceSize获取。</td>
     </tr>
     <tr>
       <td>executor</td>
@@ -476,7 +476,8 @@
 
 ## 约束说明
 
-- 无
+- 确定性计算：
+  - aclnnNormRopeConcatBackward默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 
 
 ## 调用示例

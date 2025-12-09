@@ -138,6 +138,8 @@
     返回aclnnStatus状态码，具体参见[aclnn返回码](common/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnAllGatherMatmulV2默认确定性实现。
 - <term>昇腾910_95 AI处理器</term>：
     - 输入x1为2维，其维度为\(m, k\)。x2必须是2维，其维度为\(k, n\)，轴满足mm算子入参要求，k轴相等，且k轴取值范围为\[256, 65535\)。bias为1维，shape为\(n,\)。
     - 输出output为2维，其维度为\(m*rank\_size, n\)，rank\_size为卡数。

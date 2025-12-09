@@ -80,6 +80,8 @@ $$
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnRingAttentionUpdate默认确定性实现。
   - 当inputLayoutOptional为“TND”时，prevAttnOut的最后一个维度需要为64的倍数。
   - 当inputLayoutOptional为“TND”时，actualSeqQlenOptional为必填。
   - 当inputLayoutOptional为“TND”时，请注意N和D的大小，限制为：N<=256, D<=768。

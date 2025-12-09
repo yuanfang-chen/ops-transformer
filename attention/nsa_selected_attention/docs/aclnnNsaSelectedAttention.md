@@ -361,6 +361,8 @@ aclnnStatus aclnnNsaSelectedAttention(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnNsaSelectedAttention默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 - 输入query、key、value的batchsize必须相等，即要求传入的actualSeqQLenOptional和actualSeqKvLenOptional具有相同的长度。
 - 输入query、key、value的D：Head-Dim必须满足（D_q == D_k && D_k >= D_v）。

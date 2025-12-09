@@ -435,6 +435,8 @@ aclnnStatus aclnnNsaCompressAttention(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnNsaCompressAttention默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 - compressBlockSize、compressStride、selectBlockSize必须是16的整数倍，并且满足：compressBlockSize>=compressStride && selectBlockSize>=compressBlockSize && selectBlockSize%compressStride==0
 - compressBlockSize：16对齐，支持到128

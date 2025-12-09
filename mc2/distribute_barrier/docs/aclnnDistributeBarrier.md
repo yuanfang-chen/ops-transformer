@@ -170,6 +170,9 @@ aclnnStatus aclnnDistributeBarrier(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnDistributeBarrier默认确定性实现。
+
 - 通信域使用约束：
     - 一个模型中的aclnnDistributeBarrier需要使用单独通信域，该通信域中不允许有其他算子。
 

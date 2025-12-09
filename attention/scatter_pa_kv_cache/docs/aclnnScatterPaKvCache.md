@@ -158,6 +158,8 @@
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+    - aclnnScatterPaKvCache默认确定性实现。
 - 除了key和value，输入参数不支持非连续；
 - key、value、keyCacheRef、valueCacheRef的数据类型必须一致；
 - slotMapping、compressLensOptional、compressSeqOffsetOptional、seqLensOptional的数据类型必须一致；

@@ -329,6 +329,9 @@ aclnnStatus aclnnQuantGroupedMatmulDequant(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnQuantGroupedMatmulDequant默认确定性实现。
+
 - n，k都需要是16的整数倍。
 - 当weightScale数据类型为INT64时，必须要求xScaleOptional数据类型为FLOAT16，且xQuantMode值为pertensor；当xScaleOptional数据类型为FLOAT16时，必须要求weightScale数据类型为INT64，且xQuantMode值为pertensor。
 

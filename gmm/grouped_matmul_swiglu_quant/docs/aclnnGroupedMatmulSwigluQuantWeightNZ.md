@@ -202,6 +202,9 @@
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnGroupedMatmulSwigluQuantWeightNZ默认确定性实现。
+
 <details>
 <summary>A8W8场景（`A`指激活矩阵（左矩阵），`W`指权重矩阵（右矩阵），`8`指数据类型为`INT8`）</summary>
 

@@ -232,8 +232,11 @@ aclnnStatus aclnnMoeGatingTopKSoftmax(
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
-  - <term>昇腾910_95 AI处理器</term>：
-    - x最后一维的大小（即专家数）取值范围为[1, 2048]。
+- 确定性计算：
+  - aclnnMoeGatingTopKSoftmax默认确定性实现。
+
+- <term>昇腾910_95 AI处理器</term>：
+  - x最后一维的大小（即专家数）取值范围为[1, 2048]。
 
 ## 调用示例
 

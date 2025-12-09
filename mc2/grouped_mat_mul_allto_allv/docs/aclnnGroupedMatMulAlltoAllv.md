@@ -268,6 +268,9 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnGroupedMatMulAlltoAllv默认确定性实现。
+
 - 参数说明里shape使用的变量：
   - BSK：本卡接收的token数，是recvCounts参数累加之和，取值范围(0, 52428800)。
   - H1：表示路由专家hidden size隐藏层大小，取值范围(0, 65536)。

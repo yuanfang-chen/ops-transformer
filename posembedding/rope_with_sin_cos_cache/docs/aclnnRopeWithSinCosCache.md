@@ -408,7 +408,9 @@ aclnnStatus aclnnRopeWithSinCosCache(
 
 ## 约束说明
 
-- aclnnRopeWithSinCosCache默认确定性实现。
+- 确定性计算：
+  - aclnnNormRopeConcatBackward默认确定性实现。
+
 - queryIn、keyIn、cosSinCache只支持2维shape输入。
 - queryIn、keyIn、cosSinCache输入的数据类型需要保持一致。
 - headSize：数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数。

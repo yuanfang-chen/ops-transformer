@@ -210,7 +210,8 @@ aclnnStatus aclnnMoeDistributeBufferReset(
 
 ## 约束说明
 
-无
+- 确定性计算：
+  - aclnnMoeDistributeBufferReset默认确定性实现。
 
 ## 调用示例
 

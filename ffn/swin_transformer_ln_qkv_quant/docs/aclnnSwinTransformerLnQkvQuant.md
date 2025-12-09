@@ -66,6 +66,8 @@
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnSwinTransformerLnQkvQuant默认确定性实现。
 - seqLength只支持32/64。
 - oriHeight*oriWeight=输入x Tensor的第二维度，且oriHeight为hWinSize的整数倍，oriWeight为wWinSize的整数倍。
 - hWinSize和wWinSize范围只支持7~32。

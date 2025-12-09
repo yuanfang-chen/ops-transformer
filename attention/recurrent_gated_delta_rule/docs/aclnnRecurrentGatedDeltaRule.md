@@ -305,6 +305,8 @@ aclnnStatus aclnnRecurrentGatedDeltaRule(
 
 
 ## 约束说明
+- 确定性计算：
+  - aclnnRecurrentGatedDeltaRule默认确定性实现。
 - 输入shape大小需满足约束：$L_i \le 8$，$N_k \le 256$，$N_v \le 256$，$D_k \le 256$，$D_v \le 256$。
 
 

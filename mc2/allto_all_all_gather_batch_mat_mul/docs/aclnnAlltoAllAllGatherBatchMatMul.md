@@ -254,6 +254,9 @@ aclnnStatus aclnnAlltoAllAllGatherBatchMatMul(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnAlltoAllAllGatherBatchMatMul默认确定性实现。
+
 因为集合通信及BatchMatMul计算所需，输入输出shape需满足以下数学关系：（其中ep=epWorldSize，tp=tpWorldSize）
 
 按H轴进行AllGather场景，即xShardType为0场景：

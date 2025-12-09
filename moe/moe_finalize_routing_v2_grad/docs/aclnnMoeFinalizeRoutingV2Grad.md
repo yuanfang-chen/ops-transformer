@@ -116,7 +116,9 @@
     返回aclnnStatus状态码，具体参见[aclnn返回码](./common/aclnn返回码.md)。
 
 ## 约束说明
-无
+
+- 确定性计算：
+  - aclnnMoeFinalizeRoutingV2Grad默认确定性实现。
 
 ## 调用示例
 

@@ -436,6 +436,8 @@ aclnnStatus aclnnNsaSelectedAttentionInfer(
 
 # 约束说明
 
+- 确定性计算：
+  - aclnnNsaSelectedAttentionInfer默认确定性实现。
 - 支持B轴小于等于3072。
 - 仅支持paged attention。
 - 多token推理场景下，仅支持query的S轴最大等于4，并且此时要求每个batch单独的actualQSeqLen <= actualSelKvSeqLen。

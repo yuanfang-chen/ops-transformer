@@ -383,6 +383,9 @@ aclnnStatus aclnnNormRopeConcat(void *workspace, uint64_t workspaceSize, aclOpEx
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnNormRopeConcat默认确定性实现。
+
 - headDim长度在[1~1024]间，且为偶数。
 - seqRope长度大小在[1~Min(seqQuery+seqEncoderQuery, seqKey+seqEncoderKey)]之间。
 

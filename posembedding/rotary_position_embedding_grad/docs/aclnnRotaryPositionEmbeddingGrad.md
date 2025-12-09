@@ -384,6 +384,9 @@ aclnnStatus aclnnRotaryPositionEmbeddingGrad(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnRotaryPositionEmbeddingGrad默认确定性实现。
+
   - <term>昇腾910_95 AI处理器</term>：
 
     输入张量x共有四维，各参数的shape约束可以描述如下：

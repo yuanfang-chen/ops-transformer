@@ -473,6 +473,9 @@ aclnnStatus aclnnMoeDistributeCombineV3(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMoeDistributeCombineV3默认确定性实现。
+
 - **接口配套约束**：
   - `aclnnMoeDistributeDispatchV3`与`aclnnMoeDistributeCombineV3`必须配套使用，前者输出的`assistInfoForCombineOut`、`epRecvCountsOut`、`tpRecvCountsOut`、`expandScalesOut`需直接传入后者对应参数，业务逻辑不可依赖这些Tensor的具体值。
 

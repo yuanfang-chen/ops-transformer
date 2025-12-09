@@ -234,6 +234,9 @@ aclnnStatus aclnnGroupedMatMulAllReduce(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnGroupedMatMulAllReduce默认确定性实现。
+
 - 数据类型组合约束：x、weight、bias支持的数据类型组合为：
   - “x-FLOAT16、weight-FLOAT16、bias-FLOAT16”
   - “x-BFLOAT16、weight-BFLOAT16、bias-FLOAT32”

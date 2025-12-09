@@ -259,8 +259,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
 
 
 ## 约束说明
-无
 
+- 确定性计算：
+  - aclnnMoeFinalizeRouting默认确定性实现。
 
 ## 调用示例
 

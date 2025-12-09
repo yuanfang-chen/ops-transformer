@@ -99,6 +99,9 @@
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnMoeFusedTopk默认确定性实现。
+
 - expertNum必须为groupNum的整数倍。
 - groupTopk小于等于groupNum。
 - maxMappingNum小于等于128。

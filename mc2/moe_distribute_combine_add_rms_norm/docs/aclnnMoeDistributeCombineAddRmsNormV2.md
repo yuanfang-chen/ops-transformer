@@ -515,6 +515,9 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMoeDistributeCombineAddRmsNormV2默认确定性实现。
+
 - aclnnMoeDistributeDispatchV3接口与aclnnMoeDistributeCombineAddRmsNormV2接口必须配套使用，具体参考[调用示例](#调用示例)。
 
 - 调用接口过程中使用的expertIds、xActiveMaskOptional、elasticInfoOptional、groupEp、epWorldSize、moeExpertNum、groupTp、tpWorldSize、expertShardType、sharedExpertNum、sharedExpertRankNum、globalBs、commAlg、zeroExpertNum、copyExpertNum、constExpertNum参数、HCCL_BUFFSIZE取值所有卡需保持一致，网络中不同层中也需保持一致，且和DispatchV3对应参数也保持一致。

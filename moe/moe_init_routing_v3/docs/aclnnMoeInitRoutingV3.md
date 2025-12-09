@@ -424,6 +424,9 @@ aclnnStatus aclnnMoeInitRoutingV3(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMoeInitRoutingV3默认确定性实现。
+
 - 输入值域限制：
   - activeNum 当前未使用，校验需等于NUM_ROWS*K。
   - expertCapacity 当前未使用，仅校验非空。

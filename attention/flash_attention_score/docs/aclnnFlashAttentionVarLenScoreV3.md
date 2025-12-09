@@ -451,6 +451,8 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV3(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnFlashAttentionVarLenScoreV3默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配
 - 输入query、queryRope、key、keyRope、value的B：batchsize必须相等。
 - 输入query、key、value的D：Head-Dim必须满足(qD == kD && kD >= vD)，D必须是8的整数倍。

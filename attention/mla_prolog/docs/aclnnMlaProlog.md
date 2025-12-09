@@ -165,6 +165,9 @@ aclnnStatus aclnnMlaProlog(
 
 
 ## 约束说明
+
+- 确定性计算：
+  - aclnnMlaProlog默认确定性实现。
 当前A5暂未完全支持A2、A3上MlaProlog的入参泛化范围及接口支持场景，具体说明如下
 -  shape 格式字段含义说明
     | 字段名       | 英文全称/含义                  | 取值规则与说明                                                                 |

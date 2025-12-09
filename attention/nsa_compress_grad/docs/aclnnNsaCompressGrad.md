@@ -346,6 +346,8 @@ aclnnStatus aclnnNsaCompressGrad(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnNsaCompressGrad默认确定性实现。
 - compressBlockSize和compressStride要是16的整数倍，且compressBlockSize > compressStride
 
 

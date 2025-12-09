@@ -346,17 +346,20 @@ aclnnStatus aclnnMoeGatingTopK(
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
-  * 输入shape限制：
-      * x最后一维（即专家数）要求不大于2048。 
-  * 输入值域限制：
-      * 要求1 <= k <= x_shape[-1] / groupCount * kGroup。
-      * 要求1 <= kGroup <= groupCount，并且kGroup * x_shape[-1] / groupCount的值要大于等于k。
-      * 要求groupCount > 0，x_shape[-1]能够被groupCount整除且整除后的结果大于groupSelectMode，并且整除的结果按照32个数对齐后乘groupCount的结果不大于2048。
-      * renorm仅支持0，表示先进行norm操作，再计算topk。
-  * 其他限制：
-      * groupSelectMode取值0和1，0表示使用最大值对group进行排序, 1表示使用topk2的sum值对group进行排序。
-      * normType取值0和1，0表示使用Softmax函数，1表示使用Sigmoid函数。
-      * outFlag取值true和false，true表示输出，false表示不输出。
+- 确定性计算：
+  - aclnnMoeGatingTopK默认确定性实现。
+
+* 输入shape限制：
+    * x最后一维（即专家数）要求不大于2048。 
+* 输入值域限制：
+    * 要求1 <= k <= x_shape[-1] / groupCount * kGroup。
+    * 要求1 <= kGroup <= groupCount，并且kGroup * x_shape[-1] / groupCount的值要大于等于k。
+    * 要求groupCount > 0，x_shape[-1]能够被groupCount整除且整除后的结果大于groupSelectMode，并且整除的结果按照32个数对齐后乘groupCount的结果不大于2048。
+    * renorm仅支持0，表示先进行norm操作，再计算topk。
+* 其他限制：
+    * groupSelectMode取值0和1，0表示使用最大值对group进行排序, 1表示使用topk2的sum值对group进行排序。
+    * normType取值0和1，0表示使用Softmax函数，1表示使用Sigmoid函数。
+    * outFlag取值true和false，true表示输出，false表示不输出。
 
 ## 调用示例
 

@@ -209,6 +209,9 @@
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnGroupedMatmulSwigluQuant默认确定性实现。
+
 <details>
 <summary>A8W8场景</summary>
 

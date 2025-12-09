@@ -321,6 +321,9 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnWeightQuantMatmulAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+
 - 增量场景不使能MC2，全量场景使能MC2。
 - 输入x1可为二维或者三维，其shape为(b, s, k)或者(m, k)。
 - x2必须是二维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等，m的范围为[1, 2147483647]，k、n的范围为[1, 65535]。

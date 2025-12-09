@@ -336,7 +336,9 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
 
 ## 约束说明
 
-- 确定性说明：aclnnMoeTokenUnpermuteWithRoutingMapGrad默认确定性实现。
+- 确定性计算：
+  - aclnnMoeTokenUnpermuteWithRoutingMapGrad默认确定性实现。
+
 - 当输入probsOptional非空，且paddedMode为false时，要求topK_num <= 512且topK_num <= experts_num。
 - 当输入probsOptional非空，且paddedMode为true时，要求capacity <= tokens_num。
 

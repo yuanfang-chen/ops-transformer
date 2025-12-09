@@ -175,6 +175,8 @@ y = FFN(x, weight1, weight2, tokens, bias1, bias2, activateType)  # 具体参数
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnFFNV3默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - 所有场景下需满足K1=N2, K1<65536, K2<65536, M轴在32Byte对齐后小于INT32的最大值。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
   - 含BFLOAT16数据类型的场景仅支持Atlas 800I A2推理产品。

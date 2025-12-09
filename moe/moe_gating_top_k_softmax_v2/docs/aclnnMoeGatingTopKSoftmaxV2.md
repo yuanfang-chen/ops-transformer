@@ -267,7 +267,8 @@ aclnnStatus aclnnMoeGatingTopKSoftmaxV2(
 
 ## 约束说明
 
-无
+- 确定性计算：
+  - aclnnMoeGatingTopKSoftmaxV2默认确定性实现。
 
 ## 调用示例
 

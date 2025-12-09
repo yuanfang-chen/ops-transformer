@@ -206,6 +206,9 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+
+- 确定性计算：
+  - aclnnMlaPrologV3WeightNz默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - shape 格式字段含义说明
 
   | 字段名       | 英文全称/含义                  | 取值规则与说明                                                                 |

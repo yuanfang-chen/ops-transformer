@@ -306,9 +306,12 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
 
 ## 约束说明
 
-1.非dropPaddedMode 场景topK_num <= 512
+- 确定性计算：
+  - aclnnMoeTokenPermuteWithRoutingMapGrad默认确定性实现。
 
-2.不支持混合精度输入，即permutedTokenOutputGrad、permutedProbsOutputGradOptional、tokensGradOut、probsGradOutOptional需要保持相同的数据类型
+- 非dropPaddedMode 场景topK_num <= 512
+
+- 不支持混合精度输入，即permutedTokenOutputGrad、permutedProbsOutputGradOptional、tokensGradOut、probsGradOutOptional需要保持相同的数据类型
 
 ## 调用示例
 

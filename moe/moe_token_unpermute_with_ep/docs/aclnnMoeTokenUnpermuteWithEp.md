@@ -284,6 +284,9 @@ aclnnStatus aclnnMoeTokenUnpermuteWithEp(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMoeTokenUnpermuteWithEp默认确定性实现。
+
 - topK_num <= 512。
 - 不支持paddedMode为`True`。
 - 当rangeOptional为空时，忽略numTopk，执行逻辑回退到[aclnnMoeTokenUnpermute](aclnnMoeTokenUnpermute.md)。

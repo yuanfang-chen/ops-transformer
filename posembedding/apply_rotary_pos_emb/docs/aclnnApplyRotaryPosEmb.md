@@ -272,6 +272,9 @@ aclnnStatus aclnnApplyRotaryPosEmb(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnApplyRotaryPosEmb默认确定性实现。
+
   - layout为1时，queryRef、keyRef、cos、sin输入shape的前2维（B、S）必须相等；layout为4时，第1维（T）必须相等。
   - queryRef、keyRef、cos、sin输入shape的最后一维（D）必须相等。
   - 输入张量queryRef、keyRef、cos、sin的dtype必须相同。

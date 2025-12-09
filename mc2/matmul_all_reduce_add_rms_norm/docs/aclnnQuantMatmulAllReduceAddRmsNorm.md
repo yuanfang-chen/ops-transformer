@@ -321,6 +321,9 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnQuantMatmulAllReduceAddRmsNorm默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+
 - 使用场景同融合算子aclnnQuantMatmulAllReduce一致：增量场景不使能MC2，全量场景使能MC2。
 - 输入x1可为二维或者三维，其shape为(b, s, k)或者(m, k)。x2必须是二维，其shape为(k, n)，轴满足mm算子入参要求，k轴相等。bias若非空，bias为一维，其shape为(n)。
 - m大小不超过2147483647，x1与x2的最后一维大小不超过65535，x1的最后一维指k，x2的最后一维指转置时的k或非转置时的n。

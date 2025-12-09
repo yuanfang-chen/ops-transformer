@@ -470,6 +470,8 @@ aclnnStatus aclnnGroupedMatmulV4(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnGroupedMatmulV4默认确定性实现。
 - 确定性说明：aclnnGroupedMatmulV4默认确定性实现。
 - 如果传入groupListOptional，当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列；groupListType为2时，groupListOptional的第二列数据必须为非负数列，且长度不能为1。
 - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。

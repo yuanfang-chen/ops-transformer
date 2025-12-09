@@ -249,9 +249,11 @@ aclnnStatus aclnnAttentionUpdate(
 
 ## 约束说明
 
-* 序列并行的并行度sp取值范围[1, 16]。
-* headDim取值范围[8, 512]且是8的倍数。
-* 支持空Tensor。
+- 确定性计算：
+  - aclnnAttentionUpdate默认确定性实现。
+- 序列并行的并行度sp取值范围[1, 16]。
+- headDim取值范围[8, 512]且是8的倍数。
+- 支持空Tensor。
 
 ## 调用示例
 

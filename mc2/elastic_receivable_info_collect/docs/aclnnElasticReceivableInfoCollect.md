@@ -199,7 +199,9 @@ aclnnStatus aclnnElasticReceivableInfoCollect(
 
 ## 约束说明
 
-无
+- 确定性计算：
+  - aclnnElasticReceivableInfoCollect默认确定性实现。
+
 
 ## 调用示例
 

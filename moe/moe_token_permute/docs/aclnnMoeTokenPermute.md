@@ -85,6 +85,9 @@
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMoeTokenPermute默认确定性实现。
+
 - indices 要求元素个数小于`16777215`，值大于等于`0`小于`16777215`(单点支持int32或int64的最大或最小值，其余不在范围内的排序结果不正确)。
 - 不支持paddedMode为`True`。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：topK小于等于512。

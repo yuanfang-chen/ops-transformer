@@ -341,6 +341,8 @@ aclnnStatus aclnnGroupedMatmul(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnGroupedMatmul默认确定性实现。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
   - 非量化场景支持的输入类型为：
     - x为FLOAT16、weight为FLOAT16、biasOptional为FLOAT16、scaleOptional为 空、offsetOptional为空、antiquantScaleOptional为空、 antiquantOffsetOptional为空、y为FLOAT16；

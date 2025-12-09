@@ -339,8 +339,10 @@ aclnnStatus aclnnNsaCompressWithCache(
 
 ## 约束说明
 
-* outputCache的N和D和input一致，而且要满足result_len>(blockNum*pageBlockSize-compressBlockSize)/compressStride。
-* page attention场景下input的shape支持[blockNum,pageBlockSize,N,D]，其余场景下input的shape支持[T,N,D]。
+- 确定性计算：
+  - aclnnNsaCompressWithCache默认确定性实现。
+- outputCache的N和D和input一致，而且要满足result_len>(blockNum*pageBlockSize-compressBlockSize)/compressStride。
+- page attention场景下input的shape支持[blockNum,pageBlockSize,N,D]，其余场景下input的shape支持[T,N,D]。
 
 ## 调用示例
 

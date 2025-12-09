@@ -706,6 +706,9 @@ aclnnStatus aclnnMlaPreprocess(
 
 
 ## 约束说明
+
+- 确定性计算：
+  - aclnnMlaPreprocess默认确定性实现。
 -   shape格式字段含义及约束
     -  tokenNum：tokenNum 表示输入样本批量大小，取值范围：0~256
     -  hiddenSize：hiddenSize 表示隐藏层的大小，取值固定为：2048-10240，为256的倍数

@@ -230,6 +230,9 @@ aclnnStatus aclnnBatchMatMulReduceScatterAlltoAll(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnBatchMatMulReduceScatterAlltoAll默认确定性实现。
+
 因为集合通信及BatchMatMul计算所需，输入输出shape需满足以下数学关系：（其中ep=epWorldSize，tp=tpWorldSize）
 - 按H轴进行ReduceScatter场景，即yShardType为0场景：
   - x: (E/ep, ep*C, M/tp) 

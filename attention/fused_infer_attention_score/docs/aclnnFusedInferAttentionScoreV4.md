@@ -854,6 +854,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnFusedInferAttentionScoreV4默认确定性实现。
 - 公共约束
     - 入参为空的场景处理：
         - 空Tensor指必选输入和输出的shapeSize为0。在空Tensor场景下，若attentionOut为空，返回空，否则返回全0；若有lse且lse为空时返回空，lse不为空则返回全inf。非空Tensor时输入正常拦截。

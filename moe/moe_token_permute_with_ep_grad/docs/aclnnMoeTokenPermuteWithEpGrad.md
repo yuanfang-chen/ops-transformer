@@ -275,6 +275,9 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMoeTokenPermuteWithEpGrad默认确定性实现。
+
  - top_k <= 512。
  - 不支持paddedMode为`True`。
  - 当rangeOptional为空时，忽略permutedProbsOutputGradOptional和probsGradOut，执行逻辑回退到[aclnnMoeTokenPermuteGrad](aclnnMoeTokenPermuteGrad.md)。
