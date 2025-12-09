@@ -209,6 +209,7 @@ __aicore__ inline void FlashAttentionScoreKernelInferRegbaseV2<CubeBlockType, Ve
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
                     this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
+                    // SetFlag<HardEvent::FIX_V>(BaseClass::SYNC_C1_V1_FLAG[runInfo1.taskIdMod2]);
                 }
                 if (taskId > 0 && notLastTwoLoop) {
                     auto &runInfo3 = runInfo[(taskId + 3) & 3];

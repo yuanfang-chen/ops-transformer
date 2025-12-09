@@ -21,8 +21,6 @@
 using namespace regbaseutil;
 
 namespace AscendC {
-constexpr uint32_t floatRepSize = 64;
-constexpr uint32_t blockBytesU8 = 32;
 /* **************************************************************************************************
  * only 128*128 support
  * only high performance support (expSum expMax use fp32)************************************************************************************************* */

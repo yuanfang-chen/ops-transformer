@@ -597,7 +597,6 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
     } else {
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> mm2A = inputBuf.GetCube();
         Buffer<BufferType::L1> mm2B = l1VBuffers.Get();
-        mm2A.WaitCrossCore();
         mm2B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
         LocalTensor<INPUT_T> mm2BTensor = mm2B.GetTensor<INPUT_T>();
         if constexpr (isPa) {
@@ -1294,7 +1293,6 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
     Fixpipe<T, int32_t, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<int32_t>(),
         fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放L0C
-    outputBuf.SetCrossCore();
 }
 
 TEMPLATES_DEF

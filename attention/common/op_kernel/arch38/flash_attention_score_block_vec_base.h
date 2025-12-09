@@ -18,6 +18,7 @@
 #include "infer_flash_attention_comm.h"
 #include "flash_attention_score_common_regbase.h"
 #include "kernel_operator_list_tensor_intf.h"
+#include "vf/vf_mul_sel_softmaxflashv2_cast_nz.h"
 #include "vf/vf_mul_sel_softmaxflashv2_cast_nz_regbase_v2.h"
 #include "vf/vf_mul_sel_softmaxflashv2_cast_nz_dn_regbase_v2.h"
 #include "vf/vf_flashupdate_new_regbase_v2.h"
@@ -271,6 +272,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1DnRegbaseV
     return;
 }
 
+TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUbRegbaseV2(
     LocalTensor<T> mmRes, RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo) {
     if (unlikely(runInfo.vec2S1BaseSize == 0)) {
@@ -492,8 +494,6 @@ TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2(
     mm2ResPos &bmm2ResBuf, RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo)
 {
-    bmm2ResBuf.WaitCrossCore();
-
     if constexpr (bmm2Write2Ub) {
         LocalTensor<T> mmRes = bmm2ResBuf.template GetTensor<T>();
         ProcessVec2OnUbRegbaseV2(mmRes, runInfo, constInfo);

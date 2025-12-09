@@ -1799,6 +1799,10 @@ bool PromptFlashAttentionTilingArch38::CheckInnerPrecise(ContextParamsForPFATili
     // Determine the bit0 bit of innerPrecise, high-performance or high-precision mode.
     innerPrecise = HIGH_PRECISION; // High-precision contains high-performance and high-precision mode.
 
+    if (contextKeyParams.compileInfoPtr->socShortName == platform_ascendc::SocVersion::MC62CM12A) {
+        innerPrecise = HIGH_PERFORMANCE;
+    }
+
     // FP16 pse is forced to enter high-precision mode.
     if ((contextKeyParams.pseShift != nullptr) && (inputType == ge::DT_FLOAT16) && (innerPrecise == HIGH_PERFORMANCE)) {
         innerPrecise = HIGH_PRECISION;
@@ -3399,9 +3403,10 @@ ge::graphStatus PromptFlashAttentionTilingArch38::SetAttributeInfo(ContextParams
         }
     }
 
-    if (enablePertensorQuant) {
+    if (enablePertensorQuant && contextKeyParams.compileInfoPtr->socShortName != platform_ascendc::SocVersion::MC62CM12A) {
         faRunFlag_ = false;
     }
+
     return ge::GRAPH_SUCCESS;
 }
 
