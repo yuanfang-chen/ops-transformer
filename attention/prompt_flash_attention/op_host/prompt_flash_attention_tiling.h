@@ -539,7 +539,7 @@ public:
 
 class PromptFlashAttentionTiling : public FiaTilingBase {
 public:    
-    explicit PromptFlashAttentionTiling(gert::TilingContext *context) : ascendcPlatform(nullptr), FiaTilingBase(context) {}
+    explicit PromptFlashAttentionTiling(gert::TilingContext *context) : FiaTilingBase(context), ascendcPlatform(nullptr) {}
     ~PromptFlashAttentionTiling() override = default;
     ge::graphStatus RunBigKernelTilingWithParams(ContextParamsForPFATiling& contextKeyParams,
                                                 uint64_t& tilingKey, uint32_t& blockDimToBeSet,

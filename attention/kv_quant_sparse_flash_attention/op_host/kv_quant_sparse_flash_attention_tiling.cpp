@@ -681,7 +681,7 @@ ge::graphStatus QSFATilingCheck::CheckSingleParaSparseMode() const
 ge::graphStatus QSFATilingCheck::CheckSingleParaSparseBlockSize() const
 {
     OP_CHECK_IF(((*opParamInfo_.sparseBlockSize <= 0 || *opParamInfo_.sparseBlockSize > 16) ||
-        (*opParamInfo_.sparseBlockSize & (*opParamInfo_.sparseBlockSize - 1)) != 0),
+        (static_cast<uint64_t>(*opParamInfo_.sparseBlockSize) & static_cast<uint64_t>(*opParamInfo_.sparseBlockSize - 1L)) != 0UL),
         OP_LOGE(opName_, "sparseBlockSize should be in range [1, 16] and be a power of 2, but got: %ld.",
             *opParamInfo_.sparseBlockSize),
         return ge::GRAPH_FAILED);
