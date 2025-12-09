@@ -71,10 +71,8 @@ private:
     __aicore__ inline void SetTilingDataAndCal(const MoeDistributeDispatchV2TilingData *tilingData);
     __aicore__ inline void SendToSharedExpert(TQue<QuePosition::VECIN, 1> inQueue, TBuf<> outBuf);
     __aicore__ inline void SendToMoeExpert(TQue<QuePosition::VECIN, 1> inQueue, TBuf<> expertMaskBuf, TBuf<> outBuf);
-    __aicore__ inline void CalAndSendToken(TQue<QuePosition::VECIN, 1> inQueue, TBuf<> outBuf, TBuf<> expertMaskBuf,
-                                           uint32_t delCurExpertGroupNum, uint32_t groupIdx);
     __aicore__ inline void CalExpertSendNum(TBuf<> outBuf, TBuf<> expertMaskBuf);
-    __aicore__ inline void AlltoAllDispatch();
+    __aicore__ inline void AllToAllDispatch();
     __aicore__ inline void CalCumSum();
     __aicore__ inline void WaitCumSumFlag();
     __aicore__ inline void CalAndSendCnt();
@@ -90,6 +88,7 @@ private:
     __aicore__ inline void UpdataTokenNumsOut(LocalTensor<int32_t> cumSumTensor);
     __aicore__ inline void SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t &startTokenId,
                                        uint32_t &endTokenId, uint32_t &sendTokenNum, bool isFront = true);
+    __aicore__ inline void SplitExpertNumToCore(uint32_t &delCurExpertGroupNum, uint32_t &groupIdx);
     __aicore__ inline void FillTriple(LocalTensor<ExpandXOutType> &xOutTensor, uint32_t tokenIndex, uint32_t k);
     __aicore__ inline void CalTokenSendExpertCnt(uint32_t dstExpertId, int32_t calCnt, int32_t &curExpertCnt);
     __aicore__ inline void TokenToExpertInQuant(GlobalTensor<ExpandXOutType> dstWinGMTensor, TQue<QuePosition::VECIN, 1> inQueue,
@@ -222,6 +221,8 @@ private:
     uint32_t cumSumTimes_{0};
     uint32_t delLastExpertId_{0};
     uint32_t remainderExpertNum_{0};
+    uint32_t aivUsedCumSum_{0};
+    uint32_t aivUsedAllToAll_{0};
     __gm__ HcclOpResParam *winContext_[COMM_NUM]{nullptr, nullptr};
 
     DataCopyExtParams expandXCopyParams_;
@@ -249,10 +250,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Set
     axisK_ = tilingData->moeDistributeDispatchV2Info.k;
     aivNum_ = tilingData->moeDistributeDispatchV2Info.aivNum;
     cumSumUBMinValue_ = tilingData->moeDistributeDispatchV2Info.CumSumUBMinValue;
-    
-    if (epRankId_ < sharedExpertRankNum_) {
-        isShareExpertRankFlag_ = true;
-    }
+    isShareExpertRankFlag_ = (epRankId_ < sharedExpertRankNum_);
     if (sharedExpertNum_ > 0) {
         rankNumPerSharedExpert_ = sharedExpertRankNum_ / sharedExpertNum_;
     }
@@ -270,13 +268,17 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Set
     expertPerSizeOnWin_ = axisMaxBS_ * hCommuSize_;
     totalExpertNum_ = sharedExpertRankNum_ + moeExpertNum_;
     statusCntAlign_ = Ceil(totalExpertNum_, 8) * 8;   // 8 = UB_ALIGN / sizeof(int32_t)
+    aivUsedCumSum_ = totalExpertNum_ / 32; // 单核处理32个专家cnt发送
+    aivUsedCumSum_ = (aivUsedCumSum_ == 0) ? 1 : aivUsedCumSum_;
+    aivUsedCumSum_ = (aivUsedCumSum_ >= aivNum_) ? (aivNum_ / 2) : aivUsedCumSum_;
+    aivUsedAllToAll_ = aivNum_ - aivUsedCumSum_;
     if (sharedExpertRankNum_ != 0U) {
-        sharedUsedAivNum_ = ((aivNum_ - 1) * sharedExpertNum_) / (axisK_ + sharedExpertNum_);
+        sharedUsedAivNum_ = (aivUsedAllToAll_ * sharedExpertNum_) / (axisK_ + sharedExpertNum_);
         if (sharedUsedAivNum_ == 0) {
             sharedUsedAivNum_ = 1;
         }
     }
-    moeUsedAivNum_ = (aivNum_ - 1) - sharedUsedAivNum_;
+    moeUsedAivNum_ = aivUsedAllToAll_ - sharedUsedAivNum_;
     rscvStatusNum_ = isShareExpertRankFlag_ ? epWorldSize_ : (epWorldSize_ * moeExpertNumPerRank_);
 }
 
@@ -469,8 +471,10 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Spl
     uint32_t newAivId;
     if (isFront) {
         newAivId = aivId_;
+    } else if (aivId_ >= aivUsedAllToAll_) { // aiv中后面aivUsedCumSum_个核给cusum计算使用
+        newAivId = aivId_ - aivUsedAllToAll_;
     } else {
-        newAivId = aivId_ - moeUsedAivNum_;  // 由于是后面的核作为发送的共享专家，因此需要换算
+        newAivId = aivId_ - moeUsedAivNum_; // aivUsedAllToAll_中后面的核发送给共享专家
     }
     startTokenId = sendTokenNum * newAivId;  // 每个aiv发送时的起始rankid
     if (newAivId < remainderTokenNum) {      // 前remainderRankNum个aiv需要多发1个卡的数据
@@ -539,11 +543,33 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cal
 }
 
 template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::CalAndSendToken(TQue<QuePosition::VECIN, 1> inQueue, TBuf<> outBuf,
-    TBuf<> expertMaskBuf, uint32_t delCurExpertGroupNum, uint32_t groupIdx)
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::SplitExpertNumToCore(uint32_t &delCurExpertGroupNum, uint32_t &groupIdx)
 {
+    sendNum_ = moeExpertNum_ / moeUsedAivNum_;
+    remainderExpertNum_ = moeExpertNum_ % moeUsedAivNum_;
+    startId_ = sendNum_ * aivId_;
+    if (remainderExpertNum_ != 0) {
+        int32_t remainderGroupSize = remainderExpertNum_;
+        delLastExpertId_ = aivId_ % remainderExpertNum_;
+        delCurExpertGroupNum = moeUsedAivNum_ / remainderGroupSize;
+        if (delLastExpertId_ < moeUsedAivNum_ % remainderGroupSize) {
+            delCurExpertGroupNum++;
+        }
+        groupIdx = aivId_ / remainderGroupSize;
+        delLastExpertId_ += moeUsedAivNum_ * sendNum_;
+        sendNum_ += 1;
+    }
+}
+
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::SendToMoeExpert(TQue<QuePosition::VECIN, 1> inQueue,
+    TBuf<> expertMaskBuf, TBuf<> outBuf)
+{
+    // 分核
+    uint32_t delCurExpertGroupNum, groupIdx;
+    SplitExpertNumToCore(delCurExpertGroupNum, groupIdx);
+    // 计算专家发送数据量 && 发送
     CalExpertSendNum(outBuf, expertMaskBuf);
-    int32_t expertIndex, dstExpertId;
     uint32_t maskN64Num = Ceil(expertIdsCnt_, 64); // 64：ScalarGetSFFValue按照64长度一次计算
     GlobalTensor<ExpandXOutType> dstWinGMTensor;
     LocalTensor<uint64_t> expertMaskTensorU64 = expertMaskBuf.Get<uint64_t>();
@@ -555,9 +581,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cal
             continue;
         }
         int32_t dstExpertId = expertIndex + startId_;
-        if ((expertIndex == sendNum_ - 1) && (remainderExpertNum_ != 0)) {
-            dstExpertId = delLastExpertId_;
-        }
+        dstExpertId = ((expertIndex == sendNum_ - 1) && (remainderExpertNum_ != 0)) ? delLastExpertId_ : dstExpertId;
         for (int32_t maskIndex = 0; maskIndex < maskN64Num; maskIndex++) {
             uint64_t dstExpInfoMask = expertMaskTensorU64(maskIndex + maskExpertU64Cnt);
             int64_t curValidIdx = ScalarGetSFFValue<1>(dstExpInfoMask);
@@ -591,31 +615,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cal
 }
 
 template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::SendToMoeExpert(TQue<QuePosition::VECIN, 1> inQueue,
-    TBuf<> expertMaskBuf, TBuf<> outBuf)
-{
-    // 分核
-    uint32_t delCurExpertGroupNum, groupIdx;
-    sendNum_ = moeExpertNum_ / moeUsedAivNum_;
-    remainderExpertNum_ = moeExpertNum_ % moeUsedAivNum_;
-    startId_ = sendNum_ * aivId_;
-    if (remainderExpertNum_ != 0) {
-        int32_t remainderGroupSize = remainderExpertNum_;
-        delLastExpertId_ = aivId_ % remainderExpertNum_;
-        delCurExpertGroupNum = moeUsedAivNum_ / remainderGroupSize;
-        if (delLastExpertId_ < moeUsedAivNum_ % remainderGroupSize) {
-            delCurExpertGroupNum++;
-        }
-        groupIdx = aivId_ / remainderGroupSize;
-        delLastExpertId_ += moeUsedAivNum_ * sendNum_;
-        sendNum_ += 1;
-    }
-    // 计算专家发送数据量 && 发送
-    CalAndSendToken(inQueue, outBuf, expertMaskBuf, delCurExpertGroupNum, groupIdx);
-}
-
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::AlltoAllDispatch()
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::AllToAllDispatch()
 {
     // 使用的全局参数
     TQue<QuePosition::VECIN, 1> inQueue;
@@ -640,9 +640,8 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::All
     if (isSendShared) {
         SendToSharedExpert(inQueue, outBuf);
     } else {
-        uint32_t expertIdCntAlign256 = Ceil(expertIdsCnt_, SIZE_ALIGN_256) * SIZE_ALIGN_256;
-        maskSizePerExpert_ = expertIdCntAlign256 / 8; // 8 is 1byte->8bit
         expertIdsBufSize_ = Ceil(expertIdsCnt_ * sizeof(int32_t), SIZE_ALIGN_256) * SIZE_ALIGN_256; // 支持compareScalar
+        maskSizePerExpert_ = Ceil((expertIdsBufSize_ / sizeof(int32_t)) / 8, UB_ALIGN) * UB_ALIGN; // 8 is 1byte->8bit
         uint32_t expertMaskBufSize = maskSizePerExpert_ * Ceil(moeExpertNum_, moeUsedAivNum_);
         tpipe_->InitBuffer(expertIdsBuf, expertIdsBufSize_);
         tpipe_->InitBuffer(expertMaskBuf, expertMaskBufSize);
@@ -688,6 +687,10 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cal
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::CalAndSendCnt()
 {
+    uint32_t startExpertId, endExpertId, sendExpertNum;
+    SplitToCore(totalExpertNum_, aivUsedCumSum_, startExpertId, endExpertId, sendExpertNum, false);
+    if (startExpertId >= totalExpertNum_) {return;}
+
     DataCopyExtParams expertIdsCntParams{1U, static_cast<uint32_t>(expertIdsCnt_ * sizeof(uint32_t)), 0U, 0U, 0U};
     DataCopyPadExtParams<int32_t> expertIdsCntCopyPadParams{false, 0U, 0U, 0U};
     DataCopyPad(expertIdsTensor_, expertIdsGMTensor_, expertIdsCntParams, expertIdsCntCopyPadParams);
@@ -698,9 +701,9 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cal
     PipeBarrier<PIPE_ALL>();
 
     GlobalTensor<int32_t> rankGMTensor;
-    for (uint32_t curExpertId = 0; curExpertId < totalExpertNum_; ++curExpertId) {
+    for (uint32_t curExpertId = startExpertId; curExpertId < endExpertId; ++curExpertId) {
         int32_t curExpertCnt = 0;
-        int32_t cntPosIndex = curExpertId * 8 + 1;                 // 一个block有8个int32的元素，第一个元素为flag位，第二个为发送token数
+        int32_t cntPosIndex = (curExpertId - startExpertId) * 8 + 1;               // 一个block有8个int32的元素，第一个元素为flag位，第二个为发送token数
         if ((curExpertId < sharedExpertRankNum_) && (axisBS_ > 0)) {     // 当前处理专家id为共享专家
             if (curExpertId % rankNumPerSharedExpert_ == epRankId_ % rankNumPerSharedExpert_) {
                 curExpertCnt = axisBS_;
@@ -719,7 +722,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cal
         }
         GM_ADDR rankGM = (__gm__ uint8_t*)(GetWindStateAddrByRankId(dstRankId) + offset);
         rankGMTensor.SetGlobalBuffer((__gm__ int32_t*)rankGM);
-        DataCopy<int32_t>(rankGMTensor, statusTensor_[curExpertId * 8], 8UL);  // 8 = UB_ALIGN / sizeof(int32_t)
+        DataCopy<int32_t>(rankGMTensor, statusTensor_[(curExpertId - startExpertId) * 8], 8UL);  // 8 = UB_ALIGN / sizeof(int32_t)
     }
     SyncFunc<AscendC::HardEvent::MTE3_S>();
 }
@@ -806,7 +809,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Wai
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::CalCumSum()
 {
-    // 统计当前卡上发送给各专家的token总数发送
+    // 进来的核统一做发送，各专家的token总数发送
     TBuf<> statusBuf, dstExpBuf, subExpBuf, expertIdsBuf, gatherMaskTBuf;
     uint32_t expertIdsSize = expertIdsCnt_ * sizeof(int32_t);
     tpipe_->InitBuffer(statusBuf, statusCntAlign_ * UB_ALIGN);
@@ -821,7 +824,10 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cal
     expertIdsTensor_ = expertIdsBuf.Get<int32_t>();
     CalAndSendCnt();
 
-    // 接收发给当前卡上专家的token数
+    // 最后一个核接收发给当前卡上专家的token数
+    if (aivId_ != lastCore_) {
+        return;
+    }
     tpipe_->Reset();                
     TBuf<> sharedTmpBuf, gatherMaskOutBuf, cumSumTensorBuf;
     uint64_t gatherMaskOutSize = Ceil(rscvStatusNum_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
@@ -1074,10 +1080,10 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Process()
 {
     if ASCEND_IS_AIV {          // 全aiv处理
-        if (aivId_ == lastCore_) {
-            CalCumSum();        // 最后一个核发送当前卡给每个专家的tokenCnt，输出epRecvCnt/exportTokenNums
+        if (aivId_ < aivUsedAllToAll_) {
+            AllToAllDispatch(); // 前面核all2all发送
         } else {
-            AlltoAllDispatch(); // all2all发送
+            CalCumSum();        // 后面核发送当前卡给每个专家的tokenCnt，输出epRecvCnt/exportTokenNums
         }
         LocalWindowCopy();      // 本卡上专家数据连续化，输出expandX/scales/expandIdx
     }
