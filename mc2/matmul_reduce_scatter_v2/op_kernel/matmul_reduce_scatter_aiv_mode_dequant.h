@@ -34,7 +34,7 @@
 #include "matmul_reduce_scatter_aiv_mode_util.h"
 
 using namespace matmulReduceScatterV2_util;
-namespace dequant {
+namespace dequant{
 template <typename OutputType>
 class DequantRunner {
 public:
@@ -48,30 +48,29 @@ public:
     using OneBlkColumnBroadcastMulType = Gemm::GemmType<float, layout::RowMajor>;
 
     using EpilogueTileShape = MatrixShape<TILE_SHAPE_64, TILE_SHAPE_128>;
-    using TileRowBroadcastMul = Epilogue::Tile::TileRowBroadcastMul<ArchTag, RowBroadcastMulType, EpilogueTileShape>;
-    using TileBroadcastOneBlk =
-        Epilogue::Tile::TileBroadcastOneBlk<ArchTag, BroadcastOneBlkType, EpilogueTileShape::ROW>;
-    using TileOneBlkColumnBroadcastMul =
-        Epilogue::Tile::TileOneBlkColumnBroadcastMul<ArchTag, OneBlkColumnBroadcastMulType, EpilogueTileShape>;
+    using TileRowBroadcastMul = Epilogue::Tile::TileRowBroadcastMul<ArchTag, RowBroadcastMulType, EpilogueTileShape>; 
+    using TileBroadcastOneBlk = Epilogue::Tile::TileBroadcastOneBlk<ArchTag, BroadcastOneBlkType,
+    EpilogueTileShape::ROW>;
+    using TileOneBlkColumnBroadcastMul = Epilogue::Tile::TileOneBlkColumnBroadcastMul<ArchTag,
+    OneBlkColumnBroadcastMulType, EpilogueTileShape>;
     using TileCopy = Epilogue::Tile::TileCopy<ArchTag, CType, ScaleType, PerTokenScaleType, DType>;
     using TileScheduler = Epilogue::Tile::EpilogueHorizontalTileSwizzle;
 
-    using BlockEpilogue =
-        Epilogue::Block::BlockEpilogue<ArchTag, CType, ScaleType, PerTokenScaleType, DType, TileRowBroadcastMul,
-                                       TileBroadcastOneBlk, TileOneBlkColumnBroadcastMul, TileCopy, TileScheduler>;
+    using BlockEpilogue = Epilogue::Block::BlockEpilogue<ArchTag, CType, ScaleType, PerTokenScaleType,
+    DType, TileRowBroadcastMul, TileBroadcastOneBlk, TileOneBlkColumnBroadcastMul, TileCopy, TileScheduler>;
 
     uint32_t DefaultSwizzleDirect = 0;
     uint32_t DefaultSwizzleCount = 3;
 
     __aicore__ explicit DequantRunner() = default;
 
-    __aicore__ inline GemmCoord GetBlockIdCoord(int32_t loopOffset, int32_t mLoop, int32_t nLoop, int32_t swizzlDirect,
-                                                int32_t swizzlCount)
+    __aicore__ inline GemmCoord GetBlockIdCoord(int32_t loopOffset, int32_t mLoop, int32_t nLoop,
+                                                  int32_t swizzlDirect, int32_t swizzlCount)
     {
         uint32_t kIdx = 0;
         int64_t mIdx, nIdx;
-        GetSwizzledBlockIdx(loopOffset, mLoop, nLoop, swizzlDirect, swizzlCount, mIdx, nIdx);
-        return GemmCoord{static_cast<uint32_t>(mIdx), static_cast<uint32_t>(nIdx), kIdx}; // idx在uint32_t范围内
+        GetBlockIdx(loopOffset, mLoop, nLoop, swizzlDirect, swizzlCount, mIdx, nIdx);
+        return GemmCoord{static_cast<uint32_t>(mIdx), static_cast<uint32_t>(nIdx), kIdx}; // idx在uint32_t范围内        
     }
 
     __aicore__ inline GemmCoord GetBlockLocCoord(GemmCoord blockIdxCoord)
@@ -79,8 +78,9 @@ public:
         return GemmCoord{blockIdxCoord.m() * m0, blockIdxCoord.n() * n0, 0};
     }
 
-    __aicore__ inline GemmCoord GetBlockSizeCoord(GemmCoord blockIdxCoord, GemmCoord blockLocCoord, int32_t mLoop,
-                                                  int32_t mSize, int32_t nLoop, int32_t nSize, int32_t kSize)
+    __aicore__ inline GemmCoord GetBlockSizeCoord(GemmCoord blockIdxCoord, GemmCoord blockLocCoord,
+                                                    int32_t mLoop, int32_t mSize,
+                                                    int32_t nLoop, int32_t nSize, int32_t kSize)
     {
         uint32_t mActual = (blockIdxCoord.m() == (mLoop - 1)) ? (mSize - blockLocCoord.m()) : m0;
         uint32_t nActual = (blockIdxCoord.n() == (nLoop - 1)) ? (nSize - blockLocCoord.n()) : n0;
@@ -108,7 +108,7 @@ public:
         layout::RowMajor layoutOutput{finalM, finalN};
         __gm__ OutputType *gmPeerMem = reinterpret_cast<__gm__ OutputType *>(peerMem);
         __gm__ OutputType *gmOutput = reinterpret_cast<__gm__ OutputType *>(output);
-        for (int32_t p = 0; p < pValue; p++) {
+        for (int32_t p = 0;p < pValue; p++) {
             int32_t loopIdx = loopSt + p * coreNum + coreIdx;
             if (loopIdx >= totalLoop) {
                 break;
@@ -152,6 +152,7 @@ public:
 private:
     uint32_t m0;
     uint32_t n0;
+    Arch::Resource<ArchTag> resource;
 };
-} // namespace dequant
-#endif // MATMUL_REDUCE_SCATTER_AIV_MODE_DEQUANT_H
+}
+#endif //MATMUL_REDUCE_SCATTER_AIV_MODE_DEQUANT_H

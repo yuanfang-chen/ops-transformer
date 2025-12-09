@@ -310,12 +310,12 @@ bool MatmulReduceScatterTilingBase::CheckAttrInfoValid(uint64_t kValue)
     auto commTurn = *context_->GetAttrs()->GetAttrPointer<int>(COMMTURN_INDEX);
     OP_TILING_CHECK(
         commTurn != 0,
-        VECTOR_INNER_ERR_REPORT_TILING(opName_, "commTurn should be 0, but the actual value is %d.", commTurn),
+        VECTOR_INNER_ERR_REPORT_TILING(opName_, "commTurn should be 0, but the actual value is %u.", commTurn),
         return false);
     auto blockSize = *context_->GetAttrs()->GetAttrPointer<int>(BLOCKSIZE_INDEX);
     OP_TILING_CHECK(
         blockSize != 0,
-        VECTOR_INNER_ERR_REPORT_TILING(opName_, "blockSize should be 0, but the actual value is %d.", blockSize),
+        VECTOR_INNER_ERR_REPORT_TILING(opName_, "blockSize should be 0, but the actual value is %u.", blockSize),
         return false);
     return CheckInputScale();
 }

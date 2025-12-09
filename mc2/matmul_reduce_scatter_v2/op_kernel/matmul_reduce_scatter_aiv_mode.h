@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef MATMUL_REDUCE_SCATTER_AIV_MODE_H
-#define MATMUL_REDUCE_SCATTER_AIV_MODE_H
+ #ifndef MATMUL_REDUCE_SCATTER_AIV_MODE_H
+ #define MATMUL_REDUCE_SCATTER_AIV_MODE_H
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
@@ -41,74 +41,63 @@ using namespace dequant;
 using namespace padding;
 namespace MatmulReduceScatterV2Impl {
 
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
+template<AscendC::HardEvent event>
+__aicore__ inline void SyncFunc() {
     int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
     AscendC::SetFlag<event>(eventID);
     AscendC::WaitFlag<event>(eventID);
 }
 
 // MMA2A : MatmulAllToAll
-#define TemplateMMReduceScatterV2Class                                                                                 \
-    typename AType, typename BType, typename biasType, typename x2ScaleType, typename cType, bool weight_nz, bool TA,  \
-        bool TB
+#define TemplateMMReduceScatterV2Class typename AType, typename BType, typename biasType, typename x2ScaleType, typename cType, bool weight_nz, bool TA, bool TB
 #define TemplateMMReduceScatterV2Func AType, BType, biasType, x2ScaleType, cType, weight_nz, TA, TB
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-class MatmulReduceScatterAivMode : public CommBase {
-public:
-    __aicore__ inline MatmulReduceScatterAivMode(){};
-    __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR perTokenScale,
-                                GM_ADDR perChannelScale, GM_ADDR cGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
-    __aicore__ inline void Process();
-
-protected:
+template <TemplateMMReduceScatterV2Class>
+class MatmulReduceScatterAivMode : public CommBase{
     static constexpr bool quantFlag = (std::is_same<AType, int8_t>::value) && (std::is_same<BType, int8_t>::value);
-    __aicore__ inline void Padding();
-    __aicore__ inline void StartBeforeFirstStep();
-    __aicore__ inline void EndFirstStep();
+public:
+    __aicore__ inline MatmulReduceScatterAivMode() {};
+    __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR perTokenScale, GM_ADDR perChannelScale, GM_ADDR cGM,
+                                GM_ADDR workspaceGM, GM_ADDR tilingGM);
+    __aicore__ inline void Process();
 
 private:
     __aicore__ inline void AIVInit();
     __aicore__ inline void AICInit();
     __aicore__ inline void CatlassMatmul();
-    __aicore__ inline void AIVComm();
+    __aicore__ inline void Padding();
     __aicore__ inline void Dequant(int32_t calIdx, uint64_t flagIdx);
-    __aicore__ inline void FirstStepInOut(int32_t actual_move_size, __gm__ cType *input, int32_t move_offset,
-                                          int32_t loop_idx_st);
-    __aicore__ inline void FirstStepInOutWithSplit(int32_t rank_data_offset, int32_t loop_idx_st,
-                                                   int32_t data_loop_idx);
-
-protected:
-    int32_t m_align;
-    int64_t k_align;
-    int32_t n_align;
-    int32_t core_loop;
-    int32_t cal_count;
-
-    __gm__ cType *gm_peer_mem;
-    __gm__ AType *gm_a_src;
-    __gm__ BType *gm_b_src;
-    __gm__ int32_t *gm_accum;
+    __aicore__ inline void StartBeforeFirstStep();
+    __aicore__ inline void EndFirstStep();
+    __aicore__ inline void FirstStepInOut(int32_t actual_move_size, __gm__ cType *input,
+                                          int32_t move_offset, int32_t loop_idx_st);
+    __aicore__ inline void FirstStepInOutWithSplit(int32_t rank_data_offset,
+                                                   int32_t loop_idx_st, int32_t data_loop_idx);
 
 private:
     bool aligned_a;
     bool aligned_b;
+    int32_t core_loop;
+    int32_t cal_count;
     int32_t len_per_rank;
+    int32_t m_align;
+    int64_t k_align;
+    int32_t n_align;
     int32_t pingpong_idx;
     int32_t tile_block_size;
 
+    __gm__ cType* gm_peer_mem;
     GM_ADDR gm_a_align;
     GM_ADDR gm_b_align;
+    __gm__ AType* gm_a_src;
+    __gm__ BType* gm_b_src;
+    __gm__ int32_t* gm_accum;
     DequantRunner<cType> dequant_runner;
-    Arch::Resource<Arch::AtlasA2> resource;
 };
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::Init(
-    GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR perTokenScale, GM_ADDR perChannelScale, GM_ADDR cGM,
-    GM_ADDR workspaceGM, GM_ADDR tilingGM)
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR perTokenScale,
+                                                                                  GM_ADDR perChannelScale, GM_ADDR cGM, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(MatmulReduceScatterV2AivModeTilingData);
     GET_TILING_DATA(tilingData, tilingGM);
@@ -121,45 +110,42 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     perTokenScaleGM_ = perTokenScale;
     CommBase::SetArgs(tilingData);
     hasBAlign = weight_nz ? false : hasBAlign;
-    gm_a_align = reinterpret_cast<GM_ADDR>(hasAAlign ? workspaceGM : 0);
+    gm_a_align = reinterpret_cast<GM_ADDR>(hasAAlign ? workspaceGM  : 0);
     gm_b_align = reinterpret_cast<GM_ADDR>(hasBAlign ? workspaceGM + aAlignSize : 0);
     gm_accum = reinterpret_cast<__gm__ int32_t *>(quantFlag ? workspaceGM + aAlignSize + bAlignSize : 0);
     gm_a_src = reinterpret_cast<__gm__ AType *>(hasAAlign ? gm_a_align : aGM_);
     gm_b_src = reinterpret_cast<__gm__ BType *>(hasBAlign ? gm_b_align : bGM_);
-
-    if constexpr (!std::is_same_v<Derived, void>) {
-        m_loop = CeilDev(m, m0);
-    }
 
     m_align = Block512B<AType>::AlignUp(m);
     k_align = Block512B<AType>::AlignUp(k);
     n_align = Block512B<AType>::AlignUp(n);
     aligned_a = hasAAlign;
     aligned_b = hasBAlign;
-    MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::AICInit();
-    MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::AIVInit();
+    //输出为FP16，且perChannel量化时，通过fixPipe方式，不走AIV
+    MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::AICInit();
+    MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::AIVInit();
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::AICInit()
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::AICInit()
 {
     if ASCEND_IS_AIC {
         SetLoadDataPaddingValue(0);
         SetAtomicNone();
         SetFixpipeNz2ndFlag(1, 0, 0);
-        gm_peer_mem = reinterpret_cast<__gm__ cType *>(buff[rank]);
+        gm_peer_mem = reinterpret_cast<__gm__ cType*>(buff[rank]);
     }
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::AIVInit()
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::AIVInit()
 {
     if ASCEND_IS_AIV {
         SetAtomicNone();
         SetMaskNormImpl();
         SetVectorMask<int32_t>((uint64_t)-1, (uint64_t)-1);
 
-        max_ub_ping_pong_size = max_ub_single_dma_size / 2; // double buffer的方式
+        max_ub_ping_pong_size = max_ub_single_dma_size / 2; //double buffer的方式
         max_ub_ping_pong_size = max_ub_ping_pong_size / n0 * n0;
         core_loop = m_loop * n_loop;
         cal_count = (core_loop + loop_num_per_comm - 1) / loop_num_per_comm;
@@ -168,8 +154,8 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     }
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::CatlassMatmul()
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::CatlassMatmul()
 {
     if ASCEND_IS_AIC {
         bool need_fixpipe = quantFlag && isX2ScaleTypeInt64 && std::is_same<cType, half>::value;
@@ -227,16 +213,15 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                 using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy,
                                  L1TileShape, L0TileShape, AType_, BType_, CType_, void, TileCopy>;
                 using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivMode<void, void, BlockMmadOpt>;
-                typename MatmulKernel::Params params{processSize,   reinterpret_cast<GM_ADDR>(gm_a_src),
-                                                     layoutA,       reinterpret_cast<GM_ADDR>(gm_b_src),
-                                                     layoutBNZ,     reinterpret_cast<GM_ADDR>(cGM_),
-                                                     layoutC,       reinterpret_cast<GM_ADDR>(perChannelScaleGM_),
-                                                     layoutScale,   reinterpret_cast<GM_ADDR>(gm_peer_mem),
-                                                     layoutPeerMem, reinterpret_cast<GM_ADDR>(gm_accum),
-                                                     p_value,       swizzl_count,
-                                                     swizzl_direct, dequant_type,
-                                                     rank,          rank_size,
-                                                     need_fixpipe};
+                typename MatmulKernel::Params params{processSize,
+                                                 reinterpret_cast<GM_ADDR>(gm_a_src), layoutA,
+                                                 reinterpret_cast<GM_ADDR>(gm_b_src), layoutBNZ,
+                                                 reinterpret_cast<GM_ADDR>(cGM_), layoutC,
+                                                 reinterpret_cast<GM_ADDR>(perChannelScaleGM_), layoutScale,
+                                                 reinterpret_cast<GM_ADDR>(gm_peer_mem), layoutPeerMem,
+                                                 reinterpret_cast<GM_ADDR>(gm_accum),
+                                                 p_value, swizzl_count, swizzl_direct, dequant_type, rank,
+                                                 rank_size, need_fixpipe};
                 MatmulKernel matmul_op;
                 matmul_op(params);
             } else {
@@ -245,16 +230,15 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                 using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy,
                                     L1TileShape, L0TileShape, AType_, BType_, CType_, void, TileCopy>;
                 using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivMode<void, void, BlockMmadOpt>;
-                typename MatmulKernel::Params params{processSize,   reinterpret_cast<GM_ADDR>(gm_a_src),
-                                                     layoutA,       reinterpret_cast<GM_ADDR>(gm_b_src),
-                                                     layoutBNZ,     reinterpret_cast<GM_ADDR>(cGM_),
-                                                     layoutC,       reinterpret_cast<GM_ADDR>(perChannelScaleGM_),
-                                                     layoutScale,   reinterpret_cast<GM_ADDR>(gm_peer_mem),
-                                                     layoutPeerMem, reinterpret_cast<GM_ADDR>(gm_accum),
-                                                     p_value,       swizzl_count,
-                                                     swizzl_direct, dequant_type,
-                                                     rank,          rank_size,
-                                                     need_fixpipe};
+                typename MatmulKernel::Params params{processSize,
+                                                 reinterpret_cast<GM_ADDR>(gm_a_src), layoutA,
+                                                 reinterpret_cast<GM_ADDR>(gm_b_src), layoutBNZ,
+                                                 reinterpret_cast<GM_ADDR>(cGM_), layoutC,
+                                                 reinterpret_cast<GM_ADDR>(perChannelScaleGM_), layoutScale,
+                                                 reinterpret_cast<GM_ADDR>(gm_peer_mem), layoutPeerMem,
+                                                 reinterpret_cast<GM_ADDR>(gm_accum),
+                                                 p_value, swizzl_count, swizzl_direct, dequant_type, rank,
+                                                 rank_size, need_fixpipe};
                 MatmulKernel matmul_op;
                 matmul_op(params);
             }
@@ -288,16 +272,15 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                 using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy,
                                         L1TileShape, L0TileShape, AType_, BType_, CType_, void, TileCopy>;
                 using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivMode<void, void, BlockMmadOpt>;
-                typename MatmulKernel::Params params{processSize,   reinterpret_cast<GM_ADDR>(gm_a_src),
-                                                     layoutA,       reinterpret_cast<GM_ADDR>(gm_b_src),
-                                                     layoutB,       reinterpret_cast<GM_ADDR>(cGM_),
-                                                     layoutC,       reinterpret_cast<GM_ADDR>(perChannelScaleGM_),
-                                                     layoutScale,   reinterpret_cast<GM_ADDR>(gm_peer_mem),
-                                                     layoutPeerMem, reinterpret_cast<GM_ADDR>(gm_accum),
-                                                     p_value,       swizzl_count,
-                                                     swizzl_direct, dequant_type,
-                                                     rank,          rank_size,
-                                                     need_fixpipe};
+                typename MatmulKernel::Params params{processSize,
+                                                 reinterpret_cast<GM_ADDR>(gm_a_src), layoutA,
+                                                 reinterpret_cast<GM_ADDR>(gm_b_src), layoutB,
+                                                 reinterpret_cast<GM_ADDR>(cGM_), layoutC,
+                                                 reinterpret_cast<GM_ADDR>(perChannelScaleGM_), layoutScale,
+                                                 reinterpret_cast<GM_ADDR>(gm_peer_mem), layoutPeerMem,
+                                                 reinterpret_cast<GM_ADDR>(gm_accum),
+                                                 p_value, swizzl_count, swizzl_direct, dequant_type, rank,
+                                                 rank_size, need_fixpipe};
                 MatmulKernel matmul_op;
                 matmul_op(params);
             } else {
@@ -306,16 +289,15 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                 using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy,
                                     L1TileShape, L0TileShape, AType_, BType_, CType_, void, TileCopy>;
                 using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivMode<void, void, BlockMmadOpt>;
-                typename MatmulKernel::Params params{processSize,   reinterpret_cast<GM_ADDR>(gm_a_src),
-                                                     layoutA,       reinterpret_cast<GM_ADDR>(gm_b_src),
-                                                     layoutB,       reinterpret_cast<GM_ADDR>(cGM_),
-                                                     layoutC,       reinterpret_cast<GM_ADDR>(perChannelScaleGM_),
-                                                     layoutScale,   reinterpret_cast<GM_ADDR>(gm_peer_mem),
-                                                     layoutPeerMem, reinterpret_cast<GM_ADDR>(gm_accum),
-                                                     p_value,       swizzl_count,
-                                                     swizzl_direct, dequant_type,
-                                                     rank,          rank_size,
-                                                     need_fixpipe};
+                typename MatmulKernel::Params params{processSize,
+                                                 reinterpret_cast<GM_ADDR>(gm_a_src), layoutA,
+                                                 reinterpret_cast<GM_ADDR>(gm_b_src), layoutB,
+                                                 reinterpret_cast<GM_ADDR>(cGM_), layoutC,
+                                                 reinterpret_cast<GM_ADDR>(perChannelScaleGM_), layoutScale,
+                                                 reinterpret_cast<GM_ADDR>(gm_peer_mem), layoutPeerMem,
+                                                 reinterpret_cast<GM_ADDR>(gm_accum),
+                                                 p_value, swizzl_count, swizzl_direct, dequant_type, rank,
+                                                 rank_size, need_fixpipe};
                 MatmulKernel matmul_op;
                 matmul_op(params);
             }
@@ -323,14 +305,11 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     }
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::Dequant(int32_t calIdx,
-                                                                                                   uint64_t flagIdx)
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::Dequant(int32_t calIdx, uint64_t flagIdx)
 {
-    // 仅在x2ScaleType为INT64,输出为FP16时走fixPipe，其余场景均需要AIV做反量化
-    bool needPerChannel = quantFlag && !(isX2ScaleTypeInt64 && std::is_same<cType, float16_t>::value);
-    // 可简化为只校验dequant_type；host侧校验，只有输入为quant场景，dequantType才能传有效值。
-    bool needPerToken =  quantFlag && dequant_type == DequantType::PER_TOKEN; 
+    bool needPerChannel = quantFlag && !(isX2ScaleTypeInt64 && std::is_same<cType, float16_t>::value); //仅在x2ScaleType为INT64,输出为FP16时走fixPipe，其余场景均需要AIV做反量化
+    bool needPerToken =  quantFlag && dequant_type == DequantType::PER_TOKEN; //可简化为只校验dequant_type；host侧校验，只有输入为quant场景，dequantType才能传有效值。
     if (!needPerChannel && !needPerToken) {
         return;
     }
@@ -360,8 +339,8 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     SetAndWaitAivSync(flagIdx);
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::Padding()
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::Padding()
 {
     if (!aligned_a && !aligned_b) {
         Catlass::Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
@@ -369,7 +348,7 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
         Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flagAivFinishPadding);
         return;
     }
-    bool transA = TA; // 当前暂未支持A矩阵转置
+    bool transA = TA; //当前暂未支持A矩阵转置
     bool transB = TB;
     bool alignedA = aligned_a;
     bool alignedB = aligned_b;
@@ -389,8 +368,8 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     padding_runner.Run(PADDING_ARGS_CALL());
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::StartBeforeFirstStep()
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::StartBeforeFirstStep()
 {
     SetAtomicAdd<cType>();
     PipeBarrier<PIPE_ALL>();
@@ -398,20 +377,20 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1); // MTE2等MTE3
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::EndFirstStep()
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::EndFirstStep()
 {
     WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0); // MTE2等MTE3
     WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1); // MTE2等MTE3
-    SetFlag<HardEvent::MTE3_S>(EVENT_ID0);     // Scalar等MTE3
+    SetFlag<HardEvent::MTE3_S>(EVENT_ID0); // Scalar等MTE3
     WaitFlag<HardEvent::MTE3_S>(EVENT_ID0);
     SetAtomicNone();
     PipeBarrier<PIPE_ALL>();
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::FirstStepInOut(
-    int32_t actual_move_size, __gm__ cType *input, int32_t move_offset, int32_t loop_idx_st)
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::FirstStepInOut(
+        int32_t actual_move_size, __gm__ cType *input, int32_t move_offset, int32_t loop_idx_st)
 {
     auto ub_offset = USED_UB_SIZE / 2 / sizeof(cType);
     LocalTensor<cType> ubTensor = uBuf_.AllocTensor<cType>();
@@ -436,7 +415,7 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
         int32_t in_batch_idx = loop_idx % (m_loop * n_loop);
         int32_t in_rank_idx = in_batch_idx / rank_size;
         int64_t m_idx, n_idx;
-        GetSwizzledBlockIdx(in_rank_idx, m_loop / rank_size, n_loop, swizzl_direct, swizzl_count, m_idx, n_idx);
+        GetBlockIdx(in_rank_idx, m_loop / rank_size, n_loop, swizzl_direct, swizzl_count, m_idx, n_idx);
         int32_t actual_m = (m_idx == (m_loop / rank_size - 1)) ? (m / rank_size - m_idx * m0) : m0;
         int32_t actual_n = (n_idx == (n_loop - 1)) ? (n - n_idx * n0) : n0;
         int32_t m_offset = (move_num_offset % tile_block_size) / n0; // 当前一块起点对应的m，在当前块的位置
@@ -447,9 +426,8 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
             // left_m较大，则该块copy完，下次再copy下一块；
             // left_m较小，则只copy left_m的部分
             int64_t out_buff_offset = batch_idx * m * n / rank_size + (m_idx * m0 + m_offset) * n + n_idx * n0;
-            CopyUbufToGmUnknown(nAlign16, reinterpret_cast<__gm__ cType *>(cGM_) + out_buff_offset,
-                                ub_buff[ub_buff_offset], actual_move_m, actual_n * sizeof(cType),
-                                (n0 - actual_n) * sizeof(cType) / 32, (n - actual_n) * sizeof(cType));
+            CopyUbufToGmUnknown(nAlign16, reinterpret_cast<__gm__ cType*>(cGM_) + out_buff_offset, ub_buff[ub_buff_offset], actual_move_m,
+                                actual_n * sizeof(cType), (n0 - actual_n) * sizeof(cType) / 32, (n - actual_n) * sizeof(cType));
         }
         left_m -= actual_move_m;
         move_num_offset += actual_move_m * n0;
@@ -459,9 +437,9 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     pingpong_idx = 1 - pingpong_idx;
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::FirstStepInOutWithSplit(
-    int32_t rank_data_offset, int32_t loop_idx_st, int32_t data_loop_idx)
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::FirstStepInOutWithSplit(int32_t rank_data_offset,
+                                                     int32_t loop_idx_st, int32_t data_loop_idx)
 {
     int32_t rank_per_core = rank_size / comm_npu_split;
     // data_loop_idx：data方向的第几个loop；
@@ -483,9 +461,10 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
     }
 }
 
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::AIVComm()
+template <TemplateMMReduceScatterV2Class>
+__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func>::Process()
 {
+    CatlassMatmul();
     if ASCEND_IS_AIV {
         Padding();
 
@@ -533,17 +512,5 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
         PipeBarrier<PIPE_ALL>();
     }
 }
-
-template <TemplateMMReduceScatterV2Class, typename Derived>
-__aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func, Derived>::Process()
-{
-    if constexpr (std::is_same_v<Derived, void>) {
-        CatlassMatmul();
-        AIVComm();
-    } else {
-        static_cast<Derived *>(this)->CatlassMatmul();
-        static_cast<Derived *>(this)->AIVComm();
-    }
-}
-} // namespace MatmulReduceScatterV2Impl
+} // MatmulReduceScatterV2Impl
 #endif // MATMUL_REDUCE_SCATTER_V2_H
