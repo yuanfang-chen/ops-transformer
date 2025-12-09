@@ -632,7 +632,7 @@ protected:
                              uint32_t sQ, uint32_t sK, uint32_t batchSize);
     bool CheckPAAntiquantSupportScenarios(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData);
     bool CheckPerchannelAntiquantParamsShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* antiquantScaleShape, const gert::StorageShape* antiquantOffsetShape, 
-                                             const uint32_t n, const uint32_t d, const uint32_t h, uint32_t paramFirstDim);
+                                             const uint32_t n, const uint32_t d, const uint32_t h, uint32_t paramFirstDim) const;
     bool CheckPerchannelBSNDParamsShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* antiquantScaleShape, const gert::StorageShape* antiquantOffsetShape, 
                                         const uint32_t n, const uint32_t d, uint32_t paramFirstDim) const;
     bool CheckAntiquantParamsShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* antiquantScaleShape,
@@ -684,17 +684,17 @@ protected:
                                 std::vector<int64_t>& actualSeqLengthsKV);
 
     ge::graphStatus CheckBaseApiMaskBasic(ContextParamsForPFATiling &contextKeyParams,
-                                          const gert::StorageShape *pseShiftShape, bool isLongSeq, uint32_t batchSize);
+                                          const gert::StorageShape *pseShiftShape, bool isLongSeq, uint32_t batchSize) const;
     ge::graphStatus CheckBaseApiMaskVal(ContextParamsForPFATiling &contextKeyParams,
                                         const gert::StorageShape *pseShiftShape,
                                         const std::pair<std::vector<int64_t>, std::string> maskShape) const;
     ge::graphStatus CheckBaseApiAlibiMask(ContextParamsForPFATiling &contextKeyParams,
                                           const gert::StorageShape *pseShiftShape, uint32_t batchSize,
                                           int32_t maxSeqLen, int32_t maxKvSeqLen, uint32_t kvHead,
-                                          bool compressHead);
+                                          bool compressHead) const;
     ge::graphStatus CheckBaseApiNormMask(ContextParamsForPFATiling &contextKeyParams,
                                          const gert::StorageShape *pseShiftShape, int32_t maskType, uint32_t batchSize,
-                                         int32_t maxSeqLen, int32_t maxKvSeqLen, bool compressHead);
+                                         int32_t maxSeqLen, int32_t maxKvSeqLen, bool compressHead) const;
 
     ge::graphStatus SetBaseApiPseInfo(ContextParamsForPFATiling &contextKeyParams,
                                       const gert::StorageShape *pseShiftShape);
@@ -735,13 +735,13 @@ protected:
     void SetMultiCoreParamsTND();
     void SetSparseParamsTND();
     void InitSparseValidArrayTND(std::vector<int64_t> &sparseValidArray);
-    bool SetSparseStartIdxTND(const std::vector<int64_t> &sparseValidArray, PFAMultiCoreParams &multiCoreParams);
+    bool SetSparseStartIdxTND(const std::vector<int64_t> &sparseValidArray, PFAMultiCoreParams &multiCoreParams) const;
     int64_t GetS2RealSize(uint8_t sparseType, int32_t bOutIdx, int64_t s1OutIdx);
     bool BalanceLoad(const std::vector<int64_t> &sparseValidArray, PFAMultiCoreParams &multiCoreParams,
                      std::vector<int64_t> &localValue, std::vector<int64_t> &sparseStartIdx) const;
     void InitLoadValue(const std::vector<int64_t> &sparseValidArray, int64_t validAivNum, int64_t totalSize,
                       const std::vector<int64_t> &sparseStartIdx, std::vector<int64_t> &localValue) const;
-    ge::graphStatus CheckInputShapeWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams);
+    ge::graphStatus CheckInputShapeWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) const;
     ge::graphStatus CheckActSeqWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) const;
 
     ge::graphStatus CheckVarLenPreNextToken(ContextParamsForPFATiling& contextKeyParams,

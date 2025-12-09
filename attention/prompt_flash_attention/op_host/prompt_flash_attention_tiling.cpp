@@ -2411,7 +2411,7 @@ bool PromptFlashAttentionTiling::CheckAttenMaskShape(ContextParamsForPFATiling& 
 }
 
 bool PromptFlashAttentionTiling::CheckPAAntiquantSupportScenarios(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData) {
-    OP_CHECK_IF(!tilingData.promptAttentionBaseParams.get_isAntiPerchannel(),
+    OP_CHECK_IF(tilingData.promptAttentionBaseParams.get_isAntiPerchannel() != 1U,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "not support antiquant when blockTable is not null and antiquant mode is not perchannel"), return false);
     OP_CHECK_IF(contextKeyParams.inputDataType != ge::DT_FLOAT16 || contextKeyParams.kDataType != ge::DT_INT8,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "not support antiquant when q(%s) is not fp16 or kv(%s) is not int8",
@@ -2435,7 +2435,7 @@ bool PromptFlashAttentionTiling::CheckPAAntiquantSupportScenarios(ContextParamsF
 }
 
 bool PromptFlashAttentionTiling::CheckPerchannelAntiquantParamsShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* antiquantScaleShape, const gert::StorageShape* antiquantOffsetShape,
-        const uint32_t n, const uint32_t d, const uint32_t h, uint32_t paramFirstDim) {
+        const uint32_t n, const uint32_t d, const uint32_t h, uint32_t paramFirstDim) const {
     OP_CHECK_IF(antiquantScaleShape == nullptr, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "antiquant scale is nullptr"), return false);
     if ((inputLayout == InputLayout::BNSD) || (inputLayout == InputLayout::NSD)) {
         OP_CHECK_IF(antiquantScaleShape->GetStorageShape().GetDimNum() != 4,
@@ -3224,7 +3224,7 @@ void PromptFlashAttentionTiling::InitLoadValue(const std::vector<int64_t> &spars
     }
 }
 
-bool PromptFlashAttentionTiling::SetSparseStartIdxTND(const std::vector<int64_t> &sparseValidArray, PFAMultiCoreParams &multiCoreParams)
+bool PromptFlashAttentionTiling::SetSparseStartIdxTND(const std::vector<int64_t> &sparseValidArray, PFAMultiCoreParams &multiCoreParams) const
 {
     // to avoid buffer overflow, or maybe sometimes we want to only verify single core
     int64_t validAiCoreNum = isSameAB ? std::min(static_cast<int64_t>(multiCoreParams.get_coreNum() / 2), MAX_AIC_NUM)
@@ -3574,7 +3574,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckLearnableSinkWhenLayoutIsTND(Co
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus PromptFlashAttentionTiling::CheckInputShapeWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) {
+ge::graphStatus PromptFlashAttentionTiling::CheckInputShapeWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) const {
     std::string layoutStr(contextKeyParams.layout);
     const gert::Tensor* actSeqLenData = contextKeyParams.actualSequenceLengthQ;
     const gert::Tensor* actSeqLenDataKV = contextKeyParams.actualSequenceLengthKV;
@@ -5505,7 +5505,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckMaskType(ContextParamsForPFATil
                 g_strDataTypePfa.at(ValidPfaDataType(maskDataType)).c_str()),
             return ge::GRAPH_FAILED);
         // FP16 mask type does not support invalid line correction.
-        OP_CHECK_IF((maskDataType == ge::DT_FLOAT16 && tilingData.promptAttentionBaseParams.get_isRowInvalid()),
+        OP_CHECK_IF((maskDataType == ge::DT_FLOAT16 && (tilingData.promptAttentionBaseParams.get_isRowInvalid() == 1U)),
             OPS_REPORT_VECTOR_INNER_ERR(
                 contextKeyParams.opName,
                 "invalid maskType dtype[%s], maskType should not be float16 when innerPrecise = 2 or 3",
@@ -5552,7 +5552,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiMaskVal(ContextParamsFor
 ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiAlibiMask(ContextParamsForPFATiling& contextKeyParams,
     const gert::StorageShape* pseShiftShape,
     uint32_t batchSize, int32_t maxSeqLen, int32_t maxKvSeqLen,
-    uint32_t kvHead, bool compressHead) {
+    uint32_t kvHead, bool compressHead) const {
     uint32_t maskDim = pseShiftShape->GetStorageShape().GetDimNum();
     uint32_t headNum = *contextKeyParams.headsNumber;
     OP_CHECK_IF(maskDim < NUM_2 || maskDim > NUM_4,
@@ -5597,7 +5597,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiNormMask(ContextParamsFo
     const gert::StorageShape* pseShiftShape,
     int32_t maskType, uint32_t batchSize,
     int32_t maxSeqLen, int32_t maxKvSeqLen,
-    bool compressHead) {
+    bool compressHead) const {
     if (maskType == SPARSE_MODE_NORM) {
         OP_CHECK_IF(pseShiftShape->GetStorageShape().GetDimNum() != NUM_4 &&
             pseShiftShape->GetStorageShape().GetDimNum() != NUM_3 &&
@@ -5618,7 +5618,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiNormMask(ContextParamsFo
 
 ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiMaskBasic(ContextParamsForPFATiling& contextKeyParams,
     const gert::StorageShape* pseShiftShape, bool isLongSeq,
-    uint32_t batchSize)
+    uint32_t batchSize) const
 {
     OP_CHECK_IF(contextKeyParams.pseShift == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "maskType is not no mask, but mask is nullptr."),
@@ -5746,7 +5746,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiPse(ContextParamsForPFAT
     }
     if (*sparseMode >= SPARSE_MODE_NORM) {
         uint32_t maskDim = pseShiftShape->GetStorageShape().GetDimNum();
-        bool isLongSeq = (baseParams->get_isTriuMask())
+        bool isLongSeq = (baseParams->get_isTriuMask() == 1U)
             && (pseShiftShape->GetStorageShape().GetDim(maskDim - 1) == LONG_SEQ_LEN);
         OP_CHECK_IF(baseParams->get_maxSeqLen() > UINT32_MAX, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "maxseq more than UINT32_MAX."),
             return ge::GRAPH_FAILED);
@@ -6541,5 +6541,5 @@ PFA_EXTERN_C ge::graphStatus PromptFlashAttentionTiling::DoOpTiling() {
         PromptFlashAttentionSetTilingData(context_, tilingData);
         return ret;
 }
-REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTiling, std::vector<int32_t>({(int32_t)platform_ascendc::SocVersion::ASCEND910B, (int32_t)platform_ascendc::SocVersion::ASCEND310P}), 91);
+REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTiling, std::vector<int32_t>({static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND310P)}), 91);
 }
