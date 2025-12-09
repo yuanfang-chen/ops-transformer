@@ -29,4 +29,5 @@ class BlockEpilogue {
 #include "../../../attn_infra/epilogue/block/block_epilogue_online_softmax_low_prec.hpp"
 #include "../../../attn_infra/epilogue/block/block_epilogue_rescale_o.hpp"
 #include "../../../attn_infra/epilogue/block/block_epilogue_rescale_o_low_prec.hpp"
+#include "../../../attn_infra/epilogue/block/block_epilogue_init_outputs.hpp"
 #endif  // EPILOGUE_BLOCK_BLOCK_EPILOGUE_HPP

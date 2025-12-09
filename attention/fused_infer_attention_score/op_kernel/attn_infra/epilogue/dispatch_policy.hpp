@@ -34,6 +34,13 @@ struct EpilogueAtlasA2RescaleO {
     static constexpr LseMode LSE_MODE = LSE_MODE_;
 };
 
+// For AtlasA2, FA Infer Deal kv-len=0
+template <LseMode LSE_MODE_>
+struct EpilogueAtlasA2InitOutWhenZero {
+    using ArchTag = Arch::AtlasA2;
+    static constexpr LseMode LSE_MODE = LSE_MODE_;
+};
+
 }  // namespace NpuArch::Epilogue
 
 #endif  // EPILOGUE_DISPATCH_POLICY_HPP

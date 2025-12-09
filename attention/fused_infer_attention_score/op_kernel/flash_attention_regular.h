@@ -26,6 +26,7 @@ namespace SplitFuse {
         class BlockMmadPV,
         class EpilogueOnlineSoftmax,
         class EpilogueRescaleO,
+        class EpilogueInitOut,
         bool PAGED_CACHE_FLAG,
         FaiKenel::MaskType MASK_TYPE = FaiKenel::MaskType::NO_MASK,
         FaiKenel::inputLayout INPUT_LAYOUT = FaiKenel::inputLayout::BSND>
@@ -161,6 +162,8 @@ namespace SplitFuse {
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID2);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID6);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID7);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID2);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID3);
@@ -175,6 +178,7 @@ namespace SplitFuse {
 
             EpilogueOnlineSoftmax epilogueOnlineSoftmax(resource, scaleValue);
             EpilogueRescaleO epilogueRescaleO(resource);
+            EpilogueInitOut epilogueInitOut(resource);
 
             coreIdx = AscendC::GetBlockIdx() / AscendC::GetSubBlockNum();
 #endif
@@ -277,11 +281,12 @@ namespace SplitFuse {
                 uint32_t rowNum = qSBlockSize * qNBlockSize;
                 uint32_t rowNumRound = NpuArch::Detail::Alignment::RoundUp(rowNum, FaiKenel::BLOCK_SIZE);
 
-                uint32_t noSkipKvS = kvSeqlen;
+                int64_t noSkipKvS = static_cast<int64_t>(kvSeqlen);
                 if (maskType != 0U) {
-                    uint32_t diffS = kvSeqlen - qSeqlen;
+                    int64_t diffS = kvSeqlen - qSeqlen;
+                    diffS = (diffS < 0) ? 0 : diffS;
                     noSkipKvS = (qSBlockIdx + 1U) * curQSBlockTile + diffS;
-                    noSkipKvS = AscendC::Std::min((uint32_t)kvSeqlen, noSkipKvS);
+                    noSkipKvS = AscendC::Std::min(static_cast<int64_t>(kvSeqlen), noSkipKvS);
                 }
                 uint32_t kvSLoopNumTotal = NpuArch::Detail::Alignment::CeilDiv(noSkipKvS, pagedBlockSize);
 
@@ -290,7 +295,13 @@ namespace SplitFuse {
                 uint32_t stackSeqTilePad = blockStackNum * pagedBlockSize;
                 uint32_t preKVNum = PRE_LAUNCH * blockStackNum;
                 int32_t stackSeqCount = 0;
-
+#ifdef __DAV_C220_VEC__
+                if (kvSLoopNumTotal <= 0) {
+                    LayoutO layoutO(qSeqlen, embed * qHeads);
+                    LayoutLse layoutLse(totalQTokens, qHeads);
+                    epilogueInitOut(gO[gmOffsetO], gLse[gmOffsetLse], layoutO, layoutLse, qSBlockSize, qNBlockSize);
+                }
+#endif
 #ifdef __DAV_C220_CUBE__
                 LayoutQ layoutQTemp(rowNum, embed);
                 LayoutK layoutKTemp(strideK, blockStackNum * pagedBlockSize);
@@ -515,6 +526,8 @@ namespace SplitFuse {
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID2);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID6);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID7);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID2);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID3);

@@ -51,7 +51,7 @@ namespace SplitFuse {
         using LayoutP = layout::RowMajor;
         using ElementO = InputDtypeQ;
         using LayoutO = layout::RowMajor;
-        using ElementLse = float; 
+        using ElementLse = float;
         using LayoutLse = layout::RowMajor;
         using ElementMask = int8_t;
         using LayoutMask = layout::RowMajor;
@@ -90,7 +90,14 @@ namespace SplitFuse {
         using EpilogueRescaleO =
             Epilogue::Block::BlockEpilogue<DispatchPolicyRescaleO, OType, OTmpType, OUpdateType, LseType>;
 
-        using FAInferKernel = FAInferKernel<BlockMmadQK, BlockMmadPV, EpilogueOnlineSoftmax, EpilogueRescaleO,
+        using DispatchPolicyInitOutWhenZero = Epilogue::EpilogueAtlasA2InitOutWhenZero<lseMode>;
+        using OType = Gemm::GemmType<ElementO, LayoutO>;
+        using LseType = Gemm::GemmType<ElementLse, LayoutLse>;
+        using EpilogueInitOut =
+            Epilogue::Block::BlockEpilogue<DispatchPolicyInitOutWhenZero, OType, LseType>;
+
+        using FAInferKernel = FAInferKernel<BlockMmadQK, BlockMmadPV,
+                                            EpilogueOnlineSoftmax, EpilogueRescaleO, EpilogueInitOut,
                                             PagedCacheFlag, maskCategory, inLayout>;
         FAIKernelParams params{q, k, v, mask, blockTables, actualQseqlen, actualKvseqlen, o, lse, workspace, tiling};
         FAInferKernel flashAttnInfer;
