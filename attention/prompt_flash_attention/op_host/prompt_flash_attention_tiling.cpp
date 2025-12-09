@@ -350,7 +350,7 @@ std::string GetPfaDataTypeStr(ge::DataType type) {
 }
 } // namespace arch38
 
-ge::graphStatus PromptFlashAttentionTiling::ConvertContextToPFAParams(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams)
+ge::graphStatus PromptFlashAttentionTiling::ConvertContextToPFAParams(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) const
 {
     contextKeyParams.opName = context->GetNodeName();
     bool inputOutputIsNullPtr = (context->GetInputDesc(QUERY_INDEX) == nullptr) || (context->GetInputDesc(KEY_INDEX) == nullptr) ||
@@ -405,7 +405,7 @@ ge::graphStatus PromptFlashAttentionTiling::ConvertContextToPFAParams(gert::Tili
     contextKeyParams.layout = attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX);
     contextKeyParams.numKeyValueHeads = attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX);
     contextKeyParams.workspaceSize = context->GetWorkspaceSizes(1);
-    contextKeyParams.compileInfoPtr = reinterpret_cast<const PromptFlashAttentionCompileInfo *>(context->GetCompileInfo());
+    contextKeyParams.compileInfoPtr = static_cast<const PromptFlashAttentionCompileInfo *>(context->GetCompileInfo());
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1U : 0U;
     contextKeyParams.fromFused = NUM_0;
 
@@ -425,7 +425,7 @@ ge::graphStatus PromptFlashAttentionTiling::ConvertContextToPFAParams(gert::Tili
     return ge::GRAPH_SUCCESS;
 }
 
-void PromptFlashAttentionTiling::UpdateTilingKeyFlag(ContextParamsForPFATiling& contextKeyParams, uint64_t& tilingKey)
+void PromptFlashAttentionTiling::UpdateTilingKeyFlag(const ContextParamsForPFATiling& contextKeyParams, uint64_t& tilingKey)
 {
     uint64_t binaryFlag = 0;
     auto queryDtype = contextKeyParams.inputDataType;
@@ -512,7 +512,7 @@ size_t PromptFlashAttentionTiling::GetPFAWorkSpaceSize(PromptFlashAttentionTilin
     }
 }
 
-size_t PromptFlashAttentionTiling::GetPFABaseApiWorkSpaceSize(uint32_t& blockDimToBeSet) {
+size_t PromptFlashAttentionTiling::GetPFABaseApiWorkSpaceSize(const uint32_t& blockDimToBeSet) {
     size_t sysWorkspaceSize, workspaceSize;
     const uint64_t defaultSysWorkspaceSize910B = 16U * 1024U * 1024U;
     if (curShortSocName == platform_ascendc::SocVersion::ASCEND310P) {
@@ -647,9 +647,9 @@ ge::graphStatus PromptFlashAttentionTiling::TilingGetBaseApiTilingKeyAttentionAs
     return ge::GRAPH_SUCCESS;
 }
 
-void PromptFlashAttentionTiling::PromptFlashAttentionSplitNS(ContextParamsForPFATiling& contextKeyParams,
+void PromptFlashAttentionTiling::PromptFlashAttentionSplitNS(const ContextParamsForPFATiling& contextKeyParams,
     PromptFlashAttentionTilingData& tilingData,
-    uint32_t curCoreNum, std::vector<int64_t>& actualSeqLengths) {
+    uint32_t curCoreNum, const std::vector<int64_t>& actualSeqLengths) {
     if (contextKeyParams.fromTilingSink != 0U) {
         return;
     }
@@ -743,8 +743,8 @@ void PromptFlashAttentionTiling::PromptFlashAttentionInitSoftmaxLseOutputSplit(u
 }
 
 void PromptFlashAttentionTiling::PromptFlashAttentionSplitNSNew(
-    ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData,
-    uint32_t curCoreNum, std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV, int64_t actualSharedPrefixLen, bool useBalanceTiling) {
+    const ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData,
+    uint32_t curCoreNum, const std::vector<int64_t>& actualSeqLengths, const std::vector<int64_t>& actualSeqLengthsKV, int64_t actualSharedPrefixLen, bool useBalanceTiling) {
     if (contextKeyParams.fromTilingSink != 0U) {
         return;
     }
@@ -894,10 +894,10 @@ void PromptFlashAttentionTiling::GetPreNextTokensLeftUp(PromptFlashAttentionTili
     int64_t sparseNextTokens = baseParams->get_nextTokens();
     if (baseParams->get_sparseMode() == SPARSE_MODE_RIGHT_DOWN) {
         preTokensLeftUp = static_cast<int64_t>(SPARSE_MODE_INT_MAX);
-        nextTokensLeftUp = (int64_t)actualSeqLengthKV - (int64_t)actualSeqLength;
+        nextTokensLeftUp = static_cast<int64_t>(actualSeqLengthKV) - static_cast<int64_t>(actualSeqLength);
     } else if (baseParams->get_sparseMode() == SPARSE_MODE_BAND) {
-        preTokensLeftUp = sparsePreTokens - (int64_t)actualSeqLengthKV + (int64_t)actualSeqLength;
-        nextTokensLeftUp = sparseNextTokens + (int64_t)actualSeqLengthKV - (int64_t)actualSeqLength;
+        preTokensLeftUp = sparsePreTokens - static_cast<int64_t>(actualSeqLengthKV) + static_cast<int64_t>(actualSeqLength);
+        nextTokensLeftUp = sparseNextTokens + static_cast<int64_t>(actualSeqLengthKV) - static_cast<int64_t>(actualSeqLength);
     } else {
         preTokensLeftUp = sparsePreTokens;
         nextTokensLeftUp = sparseNextTokens;
@@ -2476,7 +2476,7 @@ bool PromptFlashAttentionTiling::CheckPerchannelAntiquantParamsShape(ContextPara
 }
 
 bool PromptFlashAttentionTiling::CheckPerchannelBSNDParamsShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* antiquantScaleShape, const gert::StorageShape* antiquantOffsetShape,
-    const uint32_t n, const uint32_t d, uint32_t paramFirstDim) {
+    const uint32_t n, const uint32_t d, uint32_t paramFirstDim) const {
     OP_CHECK_IF(antiquantScaleShape->GetStorageShape().GetDimNum() != 3,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "antiquant scale dim num[%zu] should be 3 if layout is BSND!", antiquantScaleShape->GetStorageShape().GetDimNum()),
         return false);
@@ -3115,7 +3115,7 @@ int64_t PromptFlashAttentionTiling::GetNFromOutputShape(const gert::StorageShape
 }
 
 void PromptFlashAttentionTiling::GetActualSeqLenData(int64_t inputIdx,
-    std::array<int64_t, MAX_VAR_LEN_SEQ_LEN> &res, int64_t &actualLen)
+    std::array<int64_t, MAX_VAR_LEN_SEQ_LEN> &res, int64_t &actualLen) const
 {
     auto actualSeqLenTensor = contextKeyParamsPtr->actualSequenceLengthQ;
     if (inputIdx == ACTUAL_SEQ_KV_INDEX) {
@@ -3160,7 +3160,7 @@ void PromptFlashAttentionTiling::GetActualSeqLenData(int64_t inputIdx,
 
 bool PromptFlashAttentionTiling::BalanceLoad(const std::vector<int64_t> &sparseValidArray,
     PFAMultiCoreParams &multiCoreParams, std::vector<int64_t> &localValue,
-    std::vector<int64_t> &sparseStartIdx)
+    std::vector<int64_t> &sparseStartIdx) const
 {
     // to avoid buffer overflow, or maybe sometimes we want to only verify single core
     int64_t validAiCoreNum = isSameAB ? std::min(static_cast<int64_t>(multiCoreParams.get_coreNum() / 2), MAX_AIC_NUM)
@@ -3210,7 +3210,7 @@ bool PromptFlashAttentionTiling::BalanceLoad(const std::vector<int64_t> &sparseV
 
 void PromptFlashAttentionTiling::InitLoadValue(const std::vector<int64_t> &sparseValidArray, int64_t validAivNum,
     int64_t totalSize, const std::vector<int64_t> &sparseStartIdx,
-    std::vector<int64_t> &localValue)
+    std::vector<int64_t> &localValue) const
 {
     for (int64_t idx = 0; idx < validAivNum; ++idx) {
         int64_t start = sparseStartIdx[idx];
@@ -3340,7 +3340,7 @@ void PromptFlashAttentionTiling::SetSparseParamsTND()
     coreParams.set_s2SparseValidSize(s2SparseValidSize);
 }
 
-uint32_t PromptFlashAttentionTiling::CalcTschBlockDim(uint32_t sliceNum, uint32_t aicCoreNum, uint32_t aivCoreNum)
+uint32_t PromptFlashAttentionTiling::CalcTschBlockDim(uint32_t sliceNum, uint32_t aicCoreNum, uint32_t aivCoreNum) const
 {
     uint32_t ration;
     if (aicCoreNum == 0 || aivCoreNum == 0 || aicCoreNum > aivCoreNum) {
@@ -3501,7 +3501,7 @@ int64_t PromptFlashAttentionTiling::CalcMaxS2BasicBlockSize(const BufferNum &buf
     return std::min(AlignDown(tmpS2BasicBlock, FRACTAL_NUM), alignedS2);
 }
 
-bool PromptFlashAttentionTiling::IsBasicBlockInSoftMax(const ge::Shape &shape)
+bool PromptFlashAttentionTiling::IsBasicBlockInSoftMax(const ge::Shape &shape) const
 {
     // 2 axes at least
     if (shape.GetDimNum() < 2) {
@@ -3525,7 +3525,7 @@ bool PromptFlashAttentionTiling::IsBasicBlockInSoftMax(const ge::Shape &shape)
     return preAxes % 8 == 0;
 }
 
-void PromptFlashAttentionTiling::GetBufferNum(BufferNum &bufferNum)
+void PromptFlashAttentionTiling::GetBufferNum(BufferNum &bufferNum) const
 {
     bufferNum.bufferS1S2Num = HIGH_PERF_BUFFER_NUM;
 }
@@ -3547,7 +3547,7 @@ void PromptFlashAttentionTiling::MatchTemplate(uint32_t valueD)
     CalcUBSize();
 }
 
-ge::graphStatus PromptFlashAttentionTiling::CheckLearnableSinkWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) {
+ge::graphStatus PromptFlashAttentionTiling::CheckLearnableSinkWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) const {
     const gert::StorageShape* queryShape = contextKeyParams.queryInputShape;
     const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
     int64_t queryN = GetNFromInputShape(QUERY_INDEX, queryShape);
@@ -3713,7 +3713,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckInputShapeWhenLayoutIsTND(Conte
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus PromptFlashAttentionTiling::CheckActSeqWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) {
+ge::graphStatus PromptFlashAttentionTiling::CheckActSeqWhenLayoutIsTND(ContextParamsForPFATiling& contextKeyParams) const {
     std::string layoutStr(contextKeyParams.layout);
     const gert::Tensor* actSeqLen = contextKeyParams.actualSequenceLengthQ;
     const gert::Tensor* actSeqLenKV = contextKeyParams.actualSequenceLengthKV;
@@ -3894,14 +3894,11 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
         OP_LOGW(contextKeyParams.opName, "innerPrecise [%lu] should be 0,1,2,3,4 please check.", innerPrecise);
     }
     // Determine if the bit1 bit of innerPrecise requires invalid correction.
-    if ((innerPrecise >> 1U) & 1U) {
-        tilingData.promptAttentionBaseParams.set_isRowInvalid(1U);
-    } else {
-        tilingData.promptAttentionBaseParams.set_isRowInvalid(0U);
-    }
+    tilingData.promptAttentionBaseParams.set_isRowInvalid((innerPrecise >> 1U) & 1U);
+
     // Determine the bit0 bit of innerPrecise, high-performance or high-precision mode.
     if (innerPrecise != APPROXIMATE_COMPUTATION) {
-        innerPrecise = ((innerPrecise >> 0U) & 1U) ? static_cast<decltype(innerPrecise)>(HIGH_PERFORMANCE) : static_cast<decltype(innerPrecise)>(HIGH_PRECISION);
+        innerPrecise = (((innerPrecise >> 0U) & 1U) != 0U) ? static_cast<decltype(innerPrecise)>(HIGH_PERFORMANCE) : static_cast<decltype(innerPrecise)>(HIGH_PRECISION);
     }
     OP_CHECK_IF(((innerPrecise != HIGH_PERFORMANCE) && (innerPrecise != HIGH_PRECISION) && (innerPrecise != APPROXIMATE_COMPUTATION)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -4578,29 +4575,29 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
                 }
             }
             OP_CHECK_IF(isDefaultMode && sparsePreTokens < 0 &&
-                (sparsePreTokens * (-1) >= (actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen)),
+                (sparsePreTokens * (-1) >= (actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen))),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "preToken absolute value should be smaller than actual length of k and v "
                 "(actual length of k and v + length of prefix when enable prefix), preToken = %ld, actual length of k and v = %ld, actual prefix len = %u.",
                 sparsePreTokens, actualSeqLengthsKV[i], actualSharedPrefixLen),
                 return ge::GRAPH_FAILED);
             if (sparseModeVal == SPARSE_MODE_RIGHT_DOWN) {
                 preTokensPerbatch = static_cast<int64_t>(SPARSE_MODE_INT_MAX);
-                nextTokensPerbatch = actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen - actualSeqLengths[i];
+                nextTokensPerbatch = actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) - actualSeqLengths[i];
             } else if (sparseModeVal == SPARSE_MODE_BAND) {
-                preTokensPerbatch = sparsePreTokens - actualSeqLengthsKV[i] - (int64_t)actualSharedPrefixLen + actualSeqLengths[i];
-                nextTokensPerbatch = sparseNextTokens + actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen - actualSeqLengths[i];
+                preTokensPerbatch = sparsePreTokens - actualSeqLengthsKV[i] - static_cast<int64_t>(actualSharedPrefixLen) + actualSeqLengths[i];
+                nextTokensPerbatch = sparseNextTokens + actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) - actualSeqLengths[i];
             } else {
                 preTokensPerbatch = sparsePreTokens;
                 nextTokensPerbatch = sparseNextTokens;
             }
             if ((nextTokensPerbatch < 0) ||
-                (actualSeqLengths[i] > (actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen + preTokensPerbatch))) {
+                (actualSeqLengths[i] > (actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) + preTokensPerbatch))) {
                 needInit = 1U;
             }
             // If (preTokensPerbatch + actualSeqLengthsKV[i] + actualSharedPrefixLen - actualSeqLengths[i]) < 0 or nextTokensPerbatch < 0,
             // the last few lines or the first few lines of the QKt matrix are not computed.
             OP_CHECK_IF((checkQuantValue &&
-                ((preTokensPerbatch + actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen - actualSeqLengths[i] < 0) || (nextTokensPerbatch < 0))),
+                ((preTokensPerbatch + actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) - actualSeqLengths[i] < 0) || (nextTokensPerbatch < 0))),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "When sparse mode = %d, output dtype is int8, the output's dequant offset is not null or empty tensor, "
                 "preTokens = %ld and nextTokens = %ld, some rows of the matrix do not participate in the calculation, "
@@ -4609,11 +4606,11 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
                 return ge::GRAPH_FAILED);
             OP_LOGI(contextKeyParams.opName, "preTokensPerbatch[%lu] is %ld, nextTokensPerbatch[%lu] is %ld",
                 i, preTokensPerbatch, i, nextTokensPerbatch);
-            if (!isBandMode && actualSeqLengths[i] > actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen + (int64_t)sparsePreTokens) {
-                actualSeqLengths[i] = actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen + (int64_t)sparsePreTokens;
+            if (!isBandMode && actualSeqLengths[i] > actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) + static_cast<int64_t>(sparsePreTokens)) {
+                actualSeqLengths[i] = actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) + static_cast<int64_t>(sparsePreTokens);
             }
 
-            OP_CHECK_IF((isBandMode && (*nextTokens < 0) && (*nextTokens * (-1) >= actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen)),
+            OP_CHECK_IF((isBandMode && (*nextTokens < 0) && (*nextTokens * (-1) >= actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen))),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "nextTokens absolute value should be smaller than actual length of k and v in band mode (actual length of k and v + length of "
                 "prefix when enable prefix), nextTokens = %ld, actual length of k and v = %ld, prefix length = %u",
@@ -4626,8 +4623,8 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
                 "the query's actual sequence lengths = %ld", *preTokens, actualSeqLengths[i]),
                 return ge::GRAPH_FAILED);
 
-            if (isBandMode && actualSeqLengths[i] > actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen + preTokensPerbatch) {
-                actualSeqLengths[i] = actualSeqLengthsKV[i] + (int64_t)actualSharedPrefixLen + preTokensPerbatch;
+            if (isBandMode && actualSeqLengths[i] > actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) + preTokensPerbatch) {
+                actualSeqLengths[i] = actualSeqLengthsKV[i] + static_cast<int64_t>(actualSharedPrefixLen) + preTokensPerbatch;
             }
 
             OP_LOGI(contextKeyParams.opName, "the query's actual sequence lengths [%lu] is %ld, "
@@ -5419,7 +5416,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckDimNums(ContextParamsForPFATili
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus PromptFlashAttentionTiling::CheckD(ContextParamsForPFATiling& contextKeyParams) {
+ge::graphStatus PromptFlashAttentionTiling::CheckD(ContextParamsForPFATiling& contextKeyParams) const {
     std::string layoutStr(contextKeyParams.layout);
     if (layoutStr == "TND" || layoutStr == "NTD_TND" || layoutStr == "SH" || layoutStr == "NSD") {
         return ge::GRAPH_SUCCESS;
@@ -5471,7 +5468,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckD(ContextParamsForPFATiling& co
 
 ge::graphStatus PromptFlashAttentionTiling::CheckMaskType(ContextParamsForPFATiling &contextKeyParams,
     PromptFlashAttentionTilingData &tilingData,
-    uint32_t &maskElemSize) {
+    uint32_t &maskElemSize) const {
     if (contextKeyParams.attentionMask != nullptr) {
         auto maskDataType = contextKeyParams.maskDataType;
         if (maskDataType == ge::DT_FLOAT16) {
@@ -5528,7 +5525,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckMaskType(ContextParamsForPFATil
 
 ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiMaskVal(ContextParamsForPFATiling& contextKeyParams,
     const gert::StorageShape* pseShiftShape,
-    const std::pair<std::vector<int64_t>, std::string> maskShape) {
+    const std::pair<std::vector<int64_t>, std::string> maskShape) const {
     int32_t maskDim = static_cast<int32_t>(pseShiftShape->GetStorageShape().GetDimNum());
     std::vector<int64_t> supportShape = maskShape.first;
     string maskTypeName = maskShape.second;
@@ -5771,7 +5768,7 @@ ge::graphStatus PromptFlashAttentionTiling::CheckBaseApiPse(ContextParamsForPFAT
     return ge::GRAPH_SUCCESS;
 }
 
-void PromptFlashAttentionTiling::SetMaskSize(const gert::StorageShape* attenMaskShape, PromptFlashAttentionTilingData& tilingData) {
+void PromptFlashAttentionTiling::SetMaskSize(const gert::StorageShape* attenMaskShape, PromptFlashAttentionTilingData& tilingData) const {
     auto maskKVsSize = 2048; // 2048 : default the last frist dim.
     auto maskQsSize = 2048; // 2048 : default the last second dim.
     if (attenMaskShape != nullptr) {
