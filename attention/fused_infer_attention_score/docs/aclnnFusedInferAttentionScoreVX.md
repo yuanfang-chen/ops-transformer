@@ -295,9 +295,9 @@
         -   page attention的使能必要条件是blockTable存在且有效，同时key、value是按照blockTable中的索引在一片连续内存中排布，在该场景下key、value的inputLayout参数无效。blockTable中填充的是blockid，当前不会对blockid的合法性进行校验，需用户自行保证。
             -  <term>昇腾910_95 AI处理器</term>：支持key、value dtype为FLOAT16/BFLOAT16/INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT8_E5M2/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。
         -   blockSize是用户自定义的参数，该参数的取值会影响page attention的性能，在使能page attention场景下，blockSize最小为128, 最大为512，且要求是128的倍数。通常情况下，page attention可以提高吞吐量，但会带来性能上的下降。
-        -   page attention场景下，当输入kv cache排布格式为（blocknum, blocksize, H），且 KV_N * D 超过65535时，受硬件指令约束，会被拦截报错。可通过使能GQA（减小 KV_N）或调整kv cache排布格式为（blocknum, KV_N, blocksize, D）解决。当query的inputLayout为BNSD、TND时，kv cache排布支持（blocknum, blocksize, H）和（blocknum, KV_N, blocksize, D）两种格式，当query的inputLayout为BSH、BSND时，kv cache排布只支持（blocknum, blocksize, H）一种格式。blocknum不能小于根据actualSeqLengthsKv和blockSize计算的每个batch的block数量之和。且key和value的shape需保证一致。
+        -   page attention场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N, blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式。当输入kv cache排布格式为BnBsH，且 KV_N * D 超过65535时，受硬件指令约束，会被拦截报错。可通过使能GQA（减小 KV_N）或调整kv cache排布格式为BnNBsD解决。blocknum不能小于根据actualSeqLengthsKv和blockSize计算的每个batch的block数量之和。且key和value的shape需保证一致。
         -   page attention 伪量化场景
-            - <term>昇腾910_95 AI处理器</term>：支持query为FLOAT16/BFLOAT16，支持key、value dtype为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT8_E5M2/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。
+            - <term>昇腾910_95 AI处理器</term>：支持query为FLOAT16/BFLOAT16，支持key、value dtype为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT8_E5M2/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv cache排布为（blocknum，KV_N，D/2，blocksize，2）。
         -   page attention 全量化场景
             - <term>昇腾910_95 AI处理器</term>：支持query和kv cache全部为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT8_E5M2。
         -   page attention 不支持tensorlist场景，不支持左padding场景。
@@ -386,11 +386,11 @@
           -  <term>昇腾910_95 AI处理器</term>：支持key、value dtype为FLOAT16/BFLOAT16/INT8/HIFLOAT8/FLOAT8_E5M2/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。
       -   blockSize是用户自定义的参数，该参数的取值会影响page attention的性能，在使能page attention场景下，blockSize需要传入非0值, 且blocksize最大不超过512。通常情况下，page attention可以提高吞吐量，但会带来性能上的下降。
           -  <term>昇腾910_95 AI处理器</term>：key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；key、value 输入类型为INT8/HIFLOAT8/FLOAT8_E5M2/FLOAT8_E4M3FN时需要32对齐；key、value输入类型为FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）时需要64对齐。
-      -   page attention场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）和BnNBsD（blocknum, KV_N, blocksize, D）两种格式，当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH一种格式。blocknum不能小于根据actualSeqLengthsKv和blockSize计算的每个batch的block数量之和。且key和value的shape需保证一致。
+      -   page attention场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N, blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式。blocknum不能小于根据actualSeqLengthsKv和blockSize计算的每个batch的block数量之和。且key和value的shape需保证一致。
       -   page attention场景下，kv cache排布为（blocknum, KV_N, blocksize, D）时性能通常优于kv cache排布为（blocknum, blocksize, H）时的性能，建议优先选择（blocknum, KV_N, blocksize, D）格式。
       -   page attention使能场景下，当输入kv cache排布格式为（blocknum, blocksize, H），且 numKvHeads * headDim 超过64k时，受硬件指令约束，会被拦截报错。可通过使能GQA（减小 numKvHeads）或调整kv cache排布格式为（blocknum, numKvHeads, blocksize, D）解决。
       -   page attention不支持tensorlist场景，不支持左padding场景。
-            -  <term>昇腾910_95 AI处理器</term>：支持Q为BF16/FP16、KV为INT4（INT32）的场景。
+            -  <term>昇腾910_95 AI处理器</term>：支持Q为BF16/FP16、KV为INT4（INT32）的场景。伪量化场景下，当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv cache排布为（blocknum，KV_N，D/2，blocksize，2）。
       -   page attention场景下，必须传入actualSeqLengthsKv。
       -   page attention场景下，blockTable必须为二维，第一维长度需等于B，第二维长度不能小于maxBlockNumPerSeq（maxBlockNumPerSeq为每个batch中最大actualSeqLengthsKv对应的block数量）。
       -   page attention的使能场景下，以下场景输入S需要大于等于blockTable的第二维 * blockSize。
