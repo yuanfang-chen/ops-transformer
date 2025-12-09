@@ -4111,8 +4111,14 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
     } else {
         IncreFlashAttentionTilingDataV2 tilingData;
         auto ret = RunBigKernelTiling(ifaContext, tilingData);
+        OP_CHECK_IF(ret == ge::GRAPH_FAILED,
+                    OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in IFA RunBigKernelTiling"),
+                    return ge::GRAPH_FAILED);
         context_->SetBlockDim(ifaContext.blockDim);
         FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
+        OP_CHECK_IF(tiling == nullptr,
+                    OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "tilingdata ptr should not be null"),
+                    return ge::GRAPH_FAILED);
         *tiling = faRunTilingAdapter;
         return ret;
     }

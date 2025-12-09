@@ -869,6 +869,9 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         }
         IFATilingV2 ifaTilingV2(context_);
         ret = ifaTilingV2.DoSubOpTiling(ifaContext);
+        OP_CHECK_IF(ret == ge::GRAPH_FAILED,
+                    OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in FIA DoSubOpTiling"),
+                    return ge::GRAPH_FAILED);
         uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(ifaTilingV2.inOutLayoutType), static_cast<uint64_t>(ifaTilingV2.config), static_cast<uint64_t>(ifaTilingV2.pseMode),
                                                 static_cast<uint64_t>(ifaTilingV2.quantMode), ifaTilingV2.hasAttenMask, ifaTilingV2.hasRope, ifaTilingV2.isPa, ifaTilingV2.isFd, ifaTilingV2.emptyTensor,
                                                 static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType));
@@ -970,6 +973,9 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 return ge::GRAPH_FAILED);
         }        
         ret = pfa_tiling.DoSubOpTiling(pfaTilingData, contextParamsForPFATiling);
+        OP_CHECK_IF(ret == ge::GRAPH_FAILED,
+                    OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "failed in FIA DoSubOpTiling"),
+                    return ge::GRAPH_FAILED);
         uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
                                                 pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), 
                                                 static_cast<uint64_t>(pfa_tiling.pFAMatMulType));
