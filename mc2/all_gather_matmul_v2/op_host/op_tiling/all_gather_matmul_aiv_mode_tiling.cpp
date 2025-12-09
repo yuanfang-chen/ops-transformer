@@ -471,6 +471,7 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
     const char* opName = context->GetNodeName();
     int64_t rankSize = 0;
     mc2tiling::GetRankSize(opName, group, rankSize);
+    coctiling.rankSize = rankSize;
 
     // 2. set blockDim
     uint32_t blockDim = 1U;
