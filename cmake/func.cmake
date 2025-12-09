@@ -444,6 +444,7 @@ function(add_ops_src_copy)
         "inplace_matmul_all_reduce_add_rms_norm;"
         "quant_reduce_scatter;"
         "quant_all_reduce;"
+        "matmul_allto_all;"
     ) # mc2算子列表
 
     get_filename_component(FOLDER_NAME "${SRC_COPY_DST}" NAME_WE)
