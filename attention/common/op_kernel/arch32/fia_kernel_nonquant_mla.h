@@ -404,6 +404,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm,
                                        actualSeqLengthsGmQ, actualSeqLengthsGm);
+            if (constInfo.softmaxLseFlag) {
+                fdService.InitSoftmaxLseGm(softmaxLseGm);
+            }
         }
         vectorService.InitParams(constInfo);
         vectorService.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths,
