@@ -145,10 +145,10 @@ ge::graphStatus FiaInfoParser::GetLegacyIfaFlag()
     uint32_t querySize = 0;
     std::string layout(opParamInfo_.layOut);
     if (layout == "BSH" || layout == "BSND" || layout == "BNSD") {
-        if (queryShape_->CheckHasS(__func__) != ge::GRAPH_SUCCESS) {
+        if (queryShape_->CheckHasShapeS(__func__) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        querySize = static_cast<uint32_t>(queryShape_->GetS());
+        querySize = static_cast<uint32_t>(queryShape_->GetShapeS());
         if (querySize == 1U &&
             qkHeadDim_ == vHeadDim_ &&
             opParamInfo_.queryRope.tensor == nullptr &&
@@ -454,10 +454,10 @@ ge::graphStatus FiaInfoParser::GetBatchSize()
     if ((qLayout_ == FiaLayout::TND) || (qLayout_ == FiaLayout::NTD)) {
         return GetActualSeqLenQSize(bSize_);
     } else { // BSH/BSND/BNSD
-        if (queryShape_->CheckHasB(__func__) != ge::GRAPH_SUCCESS) {
+        if (queryShape_->CheckHasShapeB(__func__) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        bSize_ = queryShape_->GetB();
+        bSize_ = queryShape_->GetShapeB();
         return ge::GRAPH_SUCCESS;
     }
 }
@@ -467,13 +467,13 @@ ge::graphStatus FiaInfoParser::GetQTSize()
     // 获取query的T基准值
     // 1、非TND/NTD时, 以query的batch_size维度为基准;
     // 2、TND/NTD时, actual_seq_lens_q必须传入, 以actual_seq_lens_q数组的长度为B轴大小
-    qTSize_ = (queryShape_->HasT()) ? static_cast<uint32_t>(queryShape_->GetT()) : 0;
+    qTSize_ = (queryShape_->HasShapeT()) ? static_cast<uint32_t>(queryShape_->GetShapeT()) : 0;
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus FiaInfoParser::GetKTSize()
 {
-    kTSize_ = (keyShape_->HasT()) ? static_cast<uint32_t>(keyShape_->GetT()) : 0;
+    kTSize_ = (keyShape_->HasShapeT()) ? static_cast<uint32_t>(keyShape_->GetShapeT()) : 0;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -481,11 +481,11 @@ ge::graphStatus FiaInfoParser::GetQkHeadDim()
 {
     // 获取qkHeadDim基准值
     // 以query的D维度为基准
-    if (queryShape_->CheckHasD(__func__) != ge::GRAPH_SUCCESS) {
+    if (queryShape_->CheckHasShapeD(__func__) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
 
-    qkHeadDim_ = static_cast<uint32_t>(queryShape_->GetD()); // 后面需要把qkHeadDim_改成uint64
+    qkHeadDim_ = static_cast<uint32_t>(queryShape_->GetShapeD()); // 后面需要把qkHeadDim_改成uint64
     return ge::GRAPH_SUCCESS;
 }
 
@@ -497,10 +497,10 @@ ge::graphStatus FiaInfoParser::GetS1Size()
     if ((qLayout_ == FiaLayout::TND) || (qLayout_ == FiaLayout::NTD)) {
         const int64_t *actualSeqQ = opParamInfo_.actualSeqLengthsQ.tensor->GetData<int64_t>();
         if (actualSeqQ == nullptr) {
-            if (queryShape_->CheckHasT(__func__) != ge::GRAPH_SUCCESS) {
+            if (queryShape_->CheckHasShapeT(__func__) != ge::GRAPH_SUCCESS) {
                 return ge::GRAPH_FAILED;
             }
-            s1Size_ = static_cast<uint32_t>(queryShape_->GetT());
+            s1Size_ = static_cast<uint32_t>(queryShape_->GetShapeT());
             return ge::GRAPH_SUCCESS;
         }
 
@@ -517,10 +517,10 @@ ge::graphStatus FiaInfoParser::GetS1Size()
         }
         s1Size_ = static_cast<uint32_t>(qActualSeqMax);
     } else { // BSH/BSND/BNSD
-        if (queryShape_->CheckHasS(__func__) != ge::GRAPH_SUCCESS) {
+        if (queryShape_->CheckHasShapeS(__func__) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        s1Size_ = static_cast<uint32_t>(queryShape_->GetS());
+        s1Size_ = static_cast<uint32_t>(queryShape_->GetShapeS());
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -595,10 +595,10 @@ ge::graphStatus FiaInfoParser::GetS2SizeForBatchContinuous()
     if ((kvLayout_ == FiaLayout::TND) || (kvLayout_ == FiaLayout::NTD)) {
         return GetS2SizeFromActualSeqLens();
     } else { // BSH/BSND/BNSD
-        if (keyShape_->CheckHasS(__func__) != ge::GRAPH_SUCCESS) {
+        if (keyShape_->CheckHasShapeS(__func__) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        s2Size_ = keyShape_->GetS();
+        s2Size_ = keyShape_->GetShapeS();
         kvListSeqLens_.push_back(s2Size_);
     }
     return ge::GRAPH_SUCCESS;
@@ -609,7 +609,7 @@ ge::graphStatus FiaInfoParser::GetS2SizeForTensorList()
     if ((kvLayout_ == FiaLayout::TND) || (kvLayout_ == FiaLayout::NTD)) {
         return GetS2SizeFromActualSeqLens();
     } else { // BSH/BSND/BNSD
-        if (keyShape_->CheckHasS(__func__) != ge::GRAPH_SUCCESS) {
+        if (keyShape_->CheckHasShapeS(__func__) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
 
@@ -617,13 +617,13 @@ ge::graphStatus FiaInfoParser::GetS2SizeForTensorList()
         for (uint32_t i = 0; i < kCache_.size(); i++) {
             auto keyShape= std::make_shared<FiaTilingShape>(kCache_[i]->GetStorageShape(),
                 kvLayout_, KEY_NAME, opName_, n1Size_);
-            if (keyShape->GetS() > s2Size_) {
-                s2Size_ = keyShape->GetS();
+            if (keyShape->GetShapeS() > s2Size_) {
+                s2Size_ = keyShape->GetShapeS();
             }
-            if (keyShape->GetS() != keyShape_->GetS()) {
+            if (keyShape->GetShapeS() != keyShape_->GetShapeS()) {
                 isSameSeqAllKVTensor_ = false;
             }
-            kvListSeqLens_.push_back(keyShape->GetS());
+            kvListSeqLens_.push_back(keyShape->GetShapeS());
         }
     }
     return ge::GRAPH_SUCCESS;
@@ -678,10 +678,10 @@ ge::graphStatus FiaInfoParser::GetValueHeadDim()
 {
     // 获取vHeadDim基准值
     // 以value的D维度为基准
-    if (valueShape_->CheckHasD(__func__) != ge::GRAPH_SUCCESS) {
+    if (valueShape_->CheckHasShapeD(__func__) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    vHeadDim_ = static_cast<uint32_t>(valueShape_->GetD()); // 后面需要把vHeadDim_改成uint64
+    vHeadDim_ = static_cast<uint32_t>(valueShape_->GetShapeD()); // 后面需要把vHeadDim_改成uint64
     return ge::GRAPH_SUCCESS;
 }
 
@@ -722,10 +722,10 @@ ge::graphStatus FiaInfoParser::GetRopeHeadDim()
     } else {
         queryRopeShape_ = std::make_shared<FiaTilingShape>(opParamInfo_.queryRope.tensor->GetStorageShape(),
             qLayout_, QUERY_ROPE_NAME, opName_, n1Size_);
-        if (queryRopeShape_->CheckHasD(__func__) != ge::GRAPH_SUCCESS) {
+        if (queryRopeShape_->CheckHasShapeD(__func__) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        ropeHeadDim_ = static_cast<uint32_t>(queryRopeShape_->GetD());
+        ropeHeadDim_ = static_cast<uint32_t>(queryRopeShape_->GetShapeD());
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -869,7 +869,7 @@ ge::graphStatus FiaInfoParser::GetSystemPrefix()
     if (opParamInfo_.keySharedPrefix.tensor != nullptr && opParamInfo_.valueSharedPrefix.tensor != nullptr) {
         keyPrefixShape_ = std::make_shared<FiaTilingShape>(opParamInfo_.keySharedPrefix.tensor->GetStorageShape(),
         kvLayout_, KEY_SHARED_PREFIX_NAME, opName_, n2Size_);
-        systemPrefixMaxLen_ = keyPrefixShape_->GetS();
+        systemPrefixMaxLen_ = keyPrefixShape_->GetShapeS();
         systemPrefixFlag_ = true;
         systemPrefixLen_ = systemPrefixMaxLen_;
         if (opParamInfo_.actualSharedPrefixLen.tensor != nullptr && opParamInfo_.actualSharedPrefixLen.tensor->GetStorageShape().GetShapeSize() != 0)  {

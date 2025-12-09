@@ -167,9 +167,9 @@ ge::graphStatus FiaTilingShape::CheckHasAxis(const FiaAxis &axis, const std::str
     }
 
     if ((axis == FiaAxis::D)) {
-        if (HasD()) {
+        if (HasShapeD()) {
             return ge::GRAPH_SUCCESS;
-        } else if (!HasH()) {
+        } else if (!HasShapeH()) {
             OP_LOGE(opName_, "[%s] %s's layout is %s, do not have D and H.",
                 funcName.c_str(), name_.c_str(), LayoutToSerialString(layout_).c_str());
             return ge::GRAPH_FAILED;
@@ -179,9 +179,9 @@ ge::graphStatus FiaTilingShape::CheckHasAxis(const FiaAxis &axis, const std::str
         } else if (N_ == 0) {
             OP_LOGE(opName_, "[%s] %s's N is 0.", funcName.c_str(), name_.c_str());
             return ge::GRAPH_FAILED;
-        } else if (GetH() % N_ != 0) {
+        } else if (GetShapeH() % N_ != 0) {
             OP_LOGE(opName_, "[%s] %s's H(%ld) should be an integer multiple of N(%ld).",
-            funcName.c_str(), name_.c_str(), GetH(), N_);
+            funcName.c_str(), name_.c_str(), GetShapeH(), N_);
             return ge::GRAPH_FAILED;
         }
     } else if (HasAxis(axis)) {

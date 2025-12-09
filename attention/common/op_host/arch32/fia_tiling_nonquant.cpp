@@ -481,6 +481,7 @@ void FiaTilingNonQuant::FillTilingBaseParams()
     tilingData_.baseParams.set_usedCoreNum(usedCoreNum_);
     l2CacheOffFlag_ = GetL2CacheOffFlag();
     tilingData_.baseParams.set_l2CacheOffFlag(l2CacheOffFlag_);
+    tilingData_.baseParams.set_isLegacyIfa(fiaInfo_->isLegacyIfa);
 }
  
 void FiaTilingNonQuant::FillTilingPageAttenParams()

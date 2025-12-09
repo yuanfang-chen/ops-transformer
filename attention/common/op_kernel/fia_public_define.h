@@ -135,7 +135,6 @@ struct ConstInfo {
     static constexpr float FLOAT_ZERO = 0;
     static constexpr float FLOAT_MAX = 3.402823466e+38F;
     static constexpr float FLOAT_INF = 3e+99;
-
     // 整个AICORE的任务信息, 左闭右开区间[ (bN2Start, gS1Start, s2Start), (bN2End, gS1End, s2End) )
     uint32_t bN2Start = 0U;
     uint32_t gS1Start = 0U;
@@ -204,7 +203,7 @@ struct ConstInfo {
     bool ropeSplitMode = false;
 
     bool softmaxLseFlag = false;
-
+    bool isLegacyIfa = false;
     uint32_t l2CacheOffFlag = 0;
     
     //left padding

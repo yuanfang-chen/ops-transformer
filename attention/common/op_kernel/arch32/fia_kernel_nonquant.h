@@ -101,7 +101,7 @@ protected:
     static constexpr int64_t fdPrefetchLen = 2;
 
     static constexpr bool POST_QUANT = IsSameType<OUT_T, int8_t>::value;
-
+    static constexpr float FLOAT_MIN = -3.4e+38F;
     // ==============================TilingData&TPipe==============================
     const FusedInferAttentionScoreTilingData *__restrict tilingData = nullptr;
     TPipe *pipe = nullptr;
@@ -239,7 +239,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.preToken = tilingData->maskParams.preToken;
     constInfo.nextToken = tilingData->maskParams.nextToken;
     constInfo.isRowInvalid = (tilingData->maskParams.isRowInvalid != 0);
-
+    constInfo.isLegacyIfa = tilingData->baseParams.isLegacyIfa;
     constInfo.softmaxLseFlag = tilingData->baseParams.softmaxLseFlag;
 
     constInfo.pseShiftFlag = tilingData->pseParams.pseShiftFlag;
@@ -313,7 +313,8 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
         }
 
         if (constInfo.softmaxLseFlag) {
-            float lseInitValue = constInfo.FLOAT_INF;
+            // 兼容性考虑，IFA的LSE初值设置为-3.4e38，PFA设置为3e+99
+            float lseInitValue = constInfo.isLegacyIfa ? static_cast<float>(FLOAT_MIN) : static_cast<float>(constInfo.FLOAT_INF);
             uint64_t totalLseSize = tSize * constInfo.qHeadNum;
             uint64_t singleCoreLseSize = (totalLseSize + (2 * usedCoreNum) - 1) / (2 * usedCoreNum); // 2 means c:v = 1:2;
             uint64_t tailLseSize = totalLseSize - tmpBlockIdx * singleCoreLseSize;

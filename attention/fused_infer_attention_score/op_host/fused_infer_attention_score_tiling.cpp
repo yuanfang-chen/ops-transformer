@@ -816,7 +816,6 @@ static ge::graphStatus SetPlatformInfo(gert::TilingContext &context, PromptFlash
                 "when CV 1:1, only support MLA non-quantization(QKV type both are FP16 or BF16) "
                 "and MLA fully quantization(QKV type both are int8)"), 
             return GRAPH_FAILED);
-
     }
 
     return ge::GRAPH_SUCCESS;
