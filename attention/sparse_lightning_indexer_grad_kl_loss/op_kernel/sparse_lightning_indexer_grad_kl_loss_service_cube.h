@@ -404,7 +404,7 @@ template <typename SLIT>
 __aicore__ inline void SLITMatmulService<SLIT>::MmadInner(LocalTensor<MM_OUT_T> &l0cTensor, LocalTensor<Q_T> &l1QPTensor, LocalTensor<KV_T> &kTensor,
                                                           struct MMParam &mmParam) {
     MmadParams mmadParams;
-    mmadParams.m = mmParam.singleM;
+    mmadParams.m = mmParam.singleM == 1 ? 16 : mmParam.singleM;
     mmadParams.n = mmParam.singleN;
     mmadParams.k = mmParam.singleK;
     mmadParams.cmatrixInitVal = mmParam.isOutKFisrt;
