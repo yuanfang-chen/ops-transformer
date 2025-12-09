@@ -125,7 +125,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>antiquantOffset</td>
           <td>输入</td>
           <td>对x2进行伪量化计算的offset参数，即计算公式中的x1ScaleOptional。</td>
-          <td>支持传入空指针，非空时shape与antiquantScale一致。当x1是FLOAT16或者BFLOAT16，同时weight是FLOAT8_E5M2、FLOAT8_E4M3FN或者HIFLOAT8时，不支持该参数，填空指针。</td>
+          <td>支持传入空指针，非空时shape与antiquantScale一致。当weight的数据格式为FLOAT8_E5M2、FLOAT8_E4M3FN或者HIFLOAT8时，不支持该参数，填空指针。</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
           <td>1-2</td>
@@ -240,7 +240,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
       - 输入x3的数据类型支持BFLOAT16、FLOAT16。
       - 输出output的数据类型支持BFLOAT16、FLOAT16。
     - <term>昇腾910_95 AI处理器</term>：
-      - 输入x2的数据类型支持INT8、INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8。数据格式支持ND（仅支持2D输入）。
+      - 输入x2的数据类型支持INT8、INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8。数据格式支持ND（仅支持2D输入）。当前版本，当数据类型为INT8时，要求N、K为32B对齐；当数据类型为INT4时，要求N、K为64B对齐；pergroup场景下数据类型不支持FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8。
       - 对于输入bias，当x2为FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8，且x1为BFLOAT16时，bias数据类型支持BFLOAT16、FLOAT32；其他场景下，数据类型与x1保持一致。
       - 输入x3的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
       - 输出output的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
