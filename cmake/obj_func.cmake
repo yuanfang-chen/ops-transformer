@@ -57,24 +57,25 @@ macro(add_modules_sources)
   endif()
 
   # 是否编译该算子已经由op_add_subdirectory和每个二级目录判断完毕，默认走到这里全编
+
   file(GLOB OPINFER_SRCS ${SOURCE_DIR}/*_infershape*.cpp)
-  add_infer_modules()
-  set(PROTO_STUB_FILE ${CMAKE_CURRENT_BINARY_DIR}/proto_stub.cpp)
-
-  if(NOT EXISTS ${PROTO_STUB_FILE})
-      file(WRITE ${PROTO_STUB_FILE} "// Auto-generated stub file\n")
-  endif()
-
-  # 标记为生成的文件
-  set_source_files_properties(
-      ${PROTO_STUB_FILE}
-      PROPERTIES GENERATED TRUE
-  )
-
   if (OPINFER_SRCS)
-      target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${OPINFER_SRCS})
+    # proto
+    add_infer_modules()
+    target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${OPINFER_SRCS})
   else()
-      target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${PROTO_STUB_FILE})
+    if (NOT TARGET ${OPHOST_NAME}_infer_obj)
+      add_library(${OPHOST_NAME}_infer_obj OBJECT)
+      target_include_directories(${OPHOST_NAME}_infer_obj
+        PRIVATE ${INFER_OBJ_INCLUDE}
+      )
+      add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/proto_stub.cpp
+          COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/proto_stub.cpp
+      )
+      target_sources(${OPHOST_NAME}_infer_obj PRIVATE
+            ${CMAKE_CURRENT_BINARY_DIR}/proto_stub.cpp
+      )
+    endif()
   endif()
 
   file(GLOB_RECURSE SUB_OPTILING_SRC ${SOURCE_DIR}/op_tiling/*.cpp)

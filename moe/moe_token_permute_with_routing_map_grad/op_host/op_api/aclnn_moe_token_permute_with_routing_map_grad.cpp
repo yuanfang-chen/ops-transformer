@@ -9,6 +9,7 @@
  */
 
 #include "moe_token_permute_with_routing_map_grad.h"
+#include "level0/inplace_index_add.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/reshape.h"
 #include "aclnn_kernels/transpose.h"
@@ -25,8 +26,7 @@
 #include "aclnn_moe_token_permute_with_routing_map_grad.h"
 #include "level0/sort.h"
 #include "level0/zero_op.h"
-#include "../../../moe/3rd/moe_masked_scatter/op_host/op_api/moe_masked_scatter.h"
-#include "../../../moe/3rd/moe_inplace_index_add_with_sorted/op_host/op_api/moe_inplace_index_add.h"
+#include "level0/masked_scatter.h"
 
 using namespace op;
 #ifdef __cplusplus
@@ -300,7 +300,7 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGradGetWorkspaceSize(
             CHECK_RET(zeroPermutedProbsOutputGrad != nullptr, ACLNN_ERR_INNER_NULLPTR);
             maskBool = l0op::Transpose(maskBool, perm, uniqueExecutor.get());
             CHECK_RET(maskBool != nullptr, ACLNN_ERR_INNER_NULLPTR);
-            auto maskedScatterOpOut = l0op::moe3rd::MoeMaskedScatter(
+            auto maskedScatterOpOut = l0op::MaskedScatter(
                 zeroPermutedProbsOutputGrad, maskBool, permutedProbsOutputGradOptionalContiguous, uniqueExecutor.get());
             CHECK_RET(maskedScatterOpOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
             maskedScatterOpOut = l0op::Transpose(maskedScatterOpOut, perm, uniqueExecutor.get());
@@ -344,11 +344,15 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGradGetWorkspaceSize(
                 sortValues, sortedIndicesContiguous->GetViewShape(), sortValues->GetViewOffset());
             ViewDataType(sortValuesI32, op::DataType::DT_INT32);
             // inplace index add
-            indexAddOut = l0op::moe3rd::MoeInplaceIndexAddWithSorted(
+            indexAddOut = l0op::InplaceIndexAddWithSorted(
                 zeroTokensGradOut, 0, sortValuesI32, sortIndex, permutedTokenOutputGradContiguous, nullptr,
                 uniqueExecutor.get());
+        } else if (IsAICoreSupport(zeroTokensGradOut)) {
+            indexAddOut = l0op::InplaceIndexAddAiCore(
+                zeroTokensGradOut, 0, sortedIndicesContiguous, permutedTokenOutputGradContiguous, nullptr,
+                uniqueExecutor.get());
         } else {
-            indexAddOut = l0op::moe3rd::MoeInplaceIndexAddAiCore(
+            indexAddOut = l0op::InplaceIndexAddAiCpu(
                 zeroTokensGradOut, 0, sortedIndicesContiguous, permutedTokenOutputGradContiguous, nullptr,
                 uniqueExecutor.get());
         }

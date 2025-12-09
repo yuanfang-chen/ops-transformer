@@ -22,11 +22,12 @@
 #include "aclnn_kernels/common/op_error_check.h"
 #include "level0/sort.h"
 #include "level0/zero_op.h"
+#include "level0/masked_scatter.h"
+#include "level0/inplace_index_add.h"
 #include "level0/mul.h"
 
 #include "moe_token_unpermute_with_routing_map.h"
 #include "aclnn_moe_token_unpermute_with_routing_map.h"
-#include "../../../moe/3rd/moe_inplace_index_add_with_sorted/op_host/op_api/moe_inplace_index_add.h"
 
 using namespace op;
 #ifdef __cplusplus
@@ -288,12 +289,16 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGetWorkspaceSize(const aclTensor
                         (unpermutedTokensOut->GetDataType() == op::DataType::DT_BF16 || unpermutedTokensOut->GetDataType() == op::DataType::DT_FLOAT16);
         if (useNewOp) {
             indexAddRes =
-                l0op::moe3rd::MoeInplaceIndexAddWithSorted(unpermutedTokensOut, 0, sortValuesI32, sortIndex,
+                l0op::InplaceIndexAddWithSorted(unpermutedTokensOut, 0, sortValuesI32, sortIndex,
                                                 source, nullptr, uniqueExecutor.get());
+        } else if (IsAICoreSupport(unpermutedTokensOut)) {
+            indexAddRes =
+                l0op::InplaceIndexAddAiCore(unpermutedTokensOut, 0, sortedIndicesContiguous,
+                                            source, nullptr, uniqueExecutor.get());
         } else {
             indexAddRes =
-                l0op::moe3rd::MoeInplaceIndexAddAiCore(unpermutedTokensOut, 0, sortedIndicesContiguous,
-                                            source, nullptr, uniqueExecutor.get());
+                l0op::InplaceIndexAddAiCpu(unpermutedTokensOut, 0, sortedIndicesContiguous,
+                                           source, nullptr, uniqueExecutor.get());
         }
         CHECK_RET(indexAddRes != nullptr, ACLNN_ERR_INNER_NULLPTR);
         // 固定写法，将计算结果拷贝到输出out上，out可能是非连续的tensor
