@@ -519,10 +519,14 @@ build_static_lib() {
         cmake --build . --target ophost_transformer_static ${JOB_NUM}
     fi
     cmake --build . --target opapi_transformer_static ${JOB_NUM}
+    local jit_command=""
+    if [[ "$ENABLE_BUILT_JIT" == "TRUE" ]]; then
+        jit_command="-j"
+    fi
 
     rm -fr ${BUILD_PATH}/autogen/${unit}
-    python3 "${BASE_PATH}/scripts/util/build_opp_kernel_static.py" GenStaticOpResourceIni -s ${unit} -b ${BUILD_PATH}    
-    python3 "${BASE_PATH}/scripts/util/build_opp_kernel_static.py" StaticCompile -s ${unit} -b ${BUILD_PATH} -n=0 -a=${ARCH_INFO}
+    python3 "${BASE_PATH}/scripts/util/build_opp_kernel_static.py" GenStaticOpResourceIni -s ${unit} -b ${BUILD_PATH} ${jit_command}   
+    python3 "${BASE_PATH}/scripts/util/build_opp_kernel_static.py" StaticCompile -s ${unit} -b ${BUILD_PATH} -n=0 -a=${ARCH_INFO} ${jit_command}
 
     cd "${BUILD_PATH}" && cmake ${CUSTOM_OPTION} .. -DENABLE_STATIC=ON -DASCEND_COMPUTE_UNIT=${unit}
     cmake --build . --target cann_transformer_static ${JOB_NUM}
@@ -1431,8 +1435,10 @@ elif [[ "$ENABLE_STATIC" == "TRUE" ]]; then
     for soc in "${SOC_ARRAY[@]}"; do
         soc=$(echo "${soc}" | xargs)  # 去除前后空格
         if [[ -n "${soc}" ]]; then  # 检查非空
-            cmake_config -DASCEND_COMPUTE_UNIT=${soc}
-            build_kernel
+            if [[ "$ENABLE_BUILT_JIT" == "FALSE" ]]; then
+                cmake_config -DASCEND_COMPUTE_UNIT=${soc}
+                build_kernel
+            fi
             build_static_lib ${soc}
             if [[ "$ENABLE_BUILD_PKG" == "TRUE" ]]; then
                 package_static ${soc}

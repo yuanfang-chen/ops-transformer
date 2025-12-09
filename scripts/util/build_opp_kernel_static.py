@@ -117,10 +117,11 @@ class CompileOpStaticLib:
             with open(file_path, 'r', encoding='UTF-8') as json_fd:
                 json_dict = json.load(json_fd)
                 soc = str(file_path).split("/binary/")[-1].split("/bin/")[0]
-                json_dict["filePath"] = os.path.join(soc, str(file_path).split("/bin/")[-1].split("/kernel/")[-1])
+                json_dict["filePath"] = os.path.join(soc, str(file_path).split("/bin/")[-1].split("/kernel/")[-1]).replace("/ops_transformer", "")
                 file_path = os.path.join(out_path, os.path.basename(file_path))
                 with open(file_path, 'w', encoding='UTF-8') as new_json_fd:
                     new_json_fd.write(json.dumps(json_dict, indent=4))
+        file_path = os.path.realpath(file_path)
         self.compile_link_single(file_path, path_o_prefix)
         return
 
@@ -182,7 +183,7 @@ def compile_static_library(args):
     if cpu_aarch not in [Const.x86, Const.arm]:
         raise Exception(f"Input cpu_aarch<{cpu_aarch}> Error, Please input parase.")
 
-    ops_compile_files = GenOpResourceIni(args.soc_version, args.build_dir).analyze_ops_files()
+    ops_compile_files = GenOpResourceIni(args.soc_version, args.build_dir, args.jit).analyze_ops_files()
 
     csl = CompileOpStaticLib(ops_compile_files,
                             os.path.join(args.build_dir, f"bin_tmp/{args.soc_version}"), index_num, cpu_aarch)
@@ -198,6 +199,8 @@ def parser_compile_static_library(subparsers):
                                     help="Operator Name, eg: ascend910b, ascend310p")
     compile_lib_parser.add_argument('-b', '--build_dir', type=str, required=True, dest="build_dir",
                                     help="Input build dir for this project")
+    compile_lib_parser.add_argument('-j', '--jit', action='store_true', dest="jit",
+                                    help="Compile static libraries(.a) with cann package")
     compile_lib_parser.add_argument('-n', '--index_num', type=int, required=True, dest="index_num",
                                     help="Please input distributed compilation idx")
     compile_lib_parser.add_argument('-a', '--cpu_aarch', type=str, required=True, dest="cpu_aarch",
@@ -210,6 +213,7 @@ class OpResource:
     """算子资源"""
     # tiling 注册函数
     tiling_register: str = field(default=None)
+    extend_register: str = field(default_factory=list)
     # InferShape 注册函数
     infer_shape_register: str = field(default=None)
     # 知识库注册
@@ -225,15 +229,24 @@ class OpResource:
 
 
 class GenOpResourceIni:
-    def __init__(self, soc_version: str, build_dir: str):
+    def __init__(self, soc_version: str, build_dir: str, build_with_package: bool):
         self._soc_version = soc_version
         self._build_dir = Path(build_dir)
-        self._binary_path = self._build_dir / "binary" / self._soc_version / "bin"
-        self._tuning_basic_path = self._build_dir / "tbe/config" / self._soc_version
-        # transformer aic*.json 适配
-        ops_info = self._build_dir / "custom/op_impl/ai_core/tbe/config" / self._soc_version
-        ops_info = list(ops_info.glob(f"aic-{self._soc_version}-ops-info*.json"))
-        self._ops_info = ops_info[0] if len(ops_info) != 0 else None
+        opp_path = os.environ.get('ASCEND_OPP_PATH')
+        if build_with_package and opp_path:
+            opp_path = Path(opp_path)
+            self._binary_path = opp_path / "built-in/op_impl/ai_core/tbe/kernel"
+            self._tuning_basic_path = opp_path / "built-in/data/op"
+            ops_info = opp_path / "built-in/op_impl/ai_core/tbe/config" / self._soc_version
+            ops_info = list(ops_info.glob(f"aic-{self._soc_version}-ops-info-transformer.json"))
+            self._ops_info = ops_info[0] if len(ops_info) != 0 else None
+        else:
+            self._binary_path = self._build_dir / "binary" / self._soc_version / "bin"
+            self._tuning_basic_path = self._build_dir / "tbe/config" / self._soc_version
+            # transformer aic*.json 适配
+            ops_info = self._build_dir / "custom/op_impl/ai_core/tbe/config" / self._soc_version
+            ops_info = list(ops_info.glob(f"aic-{self._soc_version}-ops-info*.json"))
+            self._ops_info = ops_info[0] if len(ops_info) != 0 else None        
         self._op_resource_path = self._build_dir / "autogen" / self._soc_version / "aclnnop_resource"
         self._op_res: Dict[str, OpResource] = defaultdict(OpResource)
         self._l0op_list = []
@@ -242,6 +255,11 @@ class GenOpResourceIni:
     TILING_REG_DECL_FMT = """
 namespace {namespace} {{
     extern gert::OpImplRegisterV2 {func_name};
+}}
+"""
+    EXTEND_REG_DECL_FMT = """
+namespace {namespace} {{
+    extern uint32_t {func_name};
 }}
 """
     TILING_REG_RES_FUNC_FMT = """
@@ -263,6 +281,12 @@ void * {op_type}InferShapeRegisterResource() {{
 namespace {namespace} {{
     class {class_type};
     extern {class_type} {func_name};
+}}
+"""
+    EXTLEND_REG_RES_FUNC_FMT = """
+void * {op_type}ExtendRegisterResource() {{
+    static std::vector<void *> resource = {{{reference_code}}};
+    return &resource;
 }}
 """
     TUNING_REG_RES_FUNC_FMT = """
@@ -307,6 +331,8 @@ namespace {op_type} {{
 }}
 
 // 资源声明
+// extend resource
+{extend_declaration}
 // Tiling
 {tiling_declaration}
 // InferShape
@@ -335,6 +361,9 @@ namespace l0op {{
 {tuning_kb_resource}
 }}
 
+// extend resource func
+{extend_reg_func}
+
 """
 
 
@@ -352,7 +381,22 @@ namespace l0op {{
             if suffix:
                 op_type = op_type[:-len(suffix)]
             yield op_type, symbol
-    
+
+
+    @staticmethod
+    def _extract_op_symbol_pair_v2(symbol_file: str, search_key: str, prefix: str):
+        symbol_ret = shell_checkout_key_func(symbol_file, search_key)
+        for symbol in symbol_ret.splitlines():
+            symbol_name = symbol.split("::")[-1]
+            if not (symbol_name.startswith(prefix)):
+                log.warning(f"symbol not satisfied with the format:{prefix}, skip")
+                continue
+            op_type = symbol_name
+            if prefix:
+                op_type = op_type[len(prefix):]
+            op_type = op_type.split("_")[0]
+            yield op_type, symbol
+
 
     @staticmethod
     def _extract_register_symbol(register_symbol: str):
@@ -442,14 +486,17 @@ const OP_BINARY_RES& {op_type}KernelResource() {{
                 continue
             with open(json_path, "r") as op_json_fd:
                 op_json_content = json.load(op_json_fd)
+            if "binList" not in op_json_content or len(op_json_content["binList"]) == 0:
+                continue
             # 算子.json内 kernel json路径适配
             bin_json_file = self._binary_path / op_json_content["binList"][0]["binInfo"]["jsonFilePath"].split("/", 1)[1]
             ops_path = os.path.dirname(bin_json_file)
             self._op_res[ops].binary_config_files.append(json_path)
             self._op_res[ops].kernel_files.extend(sorted(Path(ops_path).iterdir()))
 
-            for kb_json in list(Path(self._tuning_basic_path).rglob(f"*_AiCore_{ops}_runtime_kb.json")):
-                self._op_res[ops].runtime_kb_files.append(kb_json)
+        for kb_json in list(Path(self._tuning_basic_path).rglob(f"*_AiCore_*_runtime_kb.json")):
+            ops = kb_json.name.split("_AiCore_")[-1].split("_runtime_kb")[0]
+            self._op_res[ops].runtime_kb_files.append(kb_json)
             self._op_res[ops].runtime_kb_files.sort(key=lambda p: p.name)
         return self._op_res
     
@@ -491,6 +538,10 @@ const OP_BINARY_RES& {op_type}KernelResource() {{
                 ophost_symbol, "op_impl_register_optiling_", "op_impl_register_optiling_", ""
             ):
             self._op_res[op_type].tiling_register = symbol
+        for op_type, symbol in self._extract_op_symbol_pair_v2(
+                ophost_symbol, "op_impl_register_template_", "op_impl_register_template_"
+            ):
+            self._op_res[op_type].extend_register.append(symbol)
         # 知识库
         for op_type, symbol in self._extract_op_symbol_pair(
                 ophost_symbol, "BankKeyRegistryInterf", "g_", "BankKeyRegistryInterf"
@@ -519,6 +570,16 @@ const OP_BINARY_RES& {op_type}KernelResource() {{
         tiling_declaration = self.TILING_REG_DECL_FMT.format_map(symbol_map) if func_name else ""
         tiling_reg_func = self.TILING_REG_RES_FUNC_FMT.format_map(symbol_map) if func_name else ""
 
+        reference_code_list = []
+        extend_declaration = ""
+        for symbol in self._op_res[op_type].extend_register:
+            namespace, func_name, reference_code = self._extract_register_symbol(symbol)
+            if func_name:
+                extend_declaration += self.EXTEND_REG_DECL_FMT.format(namespace = namespace, func_name = func_name)
+                reference_code_list.append(reference_code)
+        reference_code = ", ".join(reference_code_list)
+        extend_reg_func = self.EXTLEND_REG_RES_FUNC_FMT.format(op_type = op_type, reference_code = reference_code)
+
         # InferShape
         namespace, func_name, reference_code = self._extract_register_symbol(self._op_res[op_type].infer_shape_register)
         symbol_map = {
@@ -535,6 +596,8 @@ const OP_BINARY_RES& {op_type}KernelResource() {{
             "infer_shape_declaration": infer_shape_declaration,
             "tiling_reg_func": tiling_reg_func,
             "infer_shape_reg_func": infer_shape_reg_func,
+            "extend_reg_func": extend_reg_func,
+            "extend_declaration": extend_declaration
         }
 
     def _gen_tuning_register_resouce_code(self, op_type: str):
@@ -608,7 +671,7 @@ def generate_op_resource_h_file(args):
     soc_version: str = args.soc_version
     build_dir = args.build_dir
 
-    gen_ini = GenOpResourceIni(soc_version, build_dir)
+    gen_ini = GenOpResourceIni(soc_version, build_dir, args.jit)
     gen_ini.gen_ops_ini_files()
     return
 
@@ -620,6 +683,8 @@ def parser_generate_op_resource_h_file(subparsers):
                                          help="Operator Name, eg: ascend910b, ascend310p")
     gen_resource_ini_parser.add_argument('-b', '--build_dir', type=str, required=True, dest="build_dir",
                                          help="Input build dir for this project")
+    gen_resource_ini_parser.add_argument('-j', '--jit', action='store_true', dest="jit",
+                                        help="Generate xxx_op_resource.h  with cann package")
     gen_resource_ini_parser.set_defaults(func=generate_op_resource_h_file)
 
 
