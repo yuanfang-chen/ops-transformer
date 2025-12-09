@@ -18,7 +18,8 @@
 template <typename T1>
 __aicore__ inline __attribute__((always_inline)) void
 CubeOp<T1>::cube5Process(const int64_t pGmOffset, const int64_t dyGmOffset, const int64_t indicesGmOffset,
-                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx)
+                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx, 
+                         const int64_t lastBlockSize, const bool isLastBasicBlock)
 {
     uint32_t dLoopTimes = (dimDv + 127) / N_SPLIT_SIZE;
     uint32_t perLoopDSize = N_SPLIT_SIZE;
@@ -41,6 +42,7 @@ CubeOp<T1>::cube5Process(const int64_t pGmOffset, const int64_t dyGmOffset, cons
 
         mmParam.singleM = min(selectedBlockSize * blockOffset, selectedCntOffset * selectedBlockSize - (mIdx - blkCntOffset) * selectedBlockSize);
 
+        bool isLast = isLastBasicBlock && (mIdx + blockOffset >= blkCntOffset + selectedCntOffset);
         WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
         CopyGmToL1(l1_p_tensor, pWorkspaceGm[pGmOffset + (mIdx - blkCntOffset) * selectedBlockSize], dimG, mmParam.singleM, 512);
         for (int32_t dIdx = 0; dIdx < dLoopTimes; dIdx++) {
@@ -53,7 +55,7 @@ CubeOp<T1>::cube5Process(const int64_t pGmOffset, const int64_t dyGmOffset, cons
             MmadInnerWithSync<T1, false, true>(l0cTensor, l1_p_tensor, current_l1_dy_tensor,
                     aL0TensorPingPong, bL0TensorPingPong,
                     mmParam, l0a_ping_pong_flag, ping_pong_flag_l0b_, ping_pong_flag_l0c_, dIdx == 0, dvWorkspaceGm[currentOutGmOffset]);
-            ScatterFixOutWithSync<true>(dvWorkspaceGm[currentOutGmOffset], topkIndicesGm[indicesGmOffset + mIdx], l0cTensor, mmParam, selectedBlockSize, blockOffset, dimN2, L0C_EVENTS[ping_pong_flag_l0c_]);
+            ScatterFixOutWithSync<true>(dvWorkspaceGm[currentOutGmOffset], topkIndicesGm[indicesGmOffset + mIdx], l0cTensor, mmParam, selectedBlockSize, blockOffset, dimN2, L0C_EVENTS[ping_pong_flag_l0c_], lastBlockSize, isLast);
             UpdatePingPongFlag(ping_pong_flag_l0c_);
         }
         SetFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);

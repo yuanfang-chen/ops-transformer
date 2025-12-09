@@ -66,6 +66,7 @@ private:
     int64_t t2Offset{0};
     int64_t curS1;
     int64_t curS2;
+    int64_t curMaxS2;
     int64_t dimS1;
     // attr
     uint32_t selectedBlockCount;
@@ -109,8 +110,10 @@ private:
     uint32_t mmPingPongIdx{0};
     uint32_t selectdKPPPidx{0};
     constexpr static const int32_t BLOCK_FP32 = 32 / sizeof(float);
+    // selectBlock相关
     int32_t selectedCountOffset{0};
     int32_t actualSelectedBlockCount{0};
+    int32_t selectedBlockSize{0};
     // flag
     constexpr static uint32_t CUBE_WAIT_VEC = 0;
     constexpr static uint32_t VEC_WAIT_CUBE = 1;
@@ -167,6 +170,7 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::Init(const TILING_CLAS
     if (tilingData->opInfo.selectedBlockSize * tilingData->opInfo.selectedBlockCount <= 512) {
         selectedCountOffset = tilingData->opInfo.selectedBlockCount;
     }
+    selectedBlockSize = tilingData->opInfo.selectedBlockSize;
 }
 
 template <typename SFAGT>
@@ -268,7 +272,7 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::VecCompute(VecOp<SFAGT
 
     CrossCoreWaitFlag(VEC_WAIT_CUBE);
     if (subBlockIdx == 0) {
-        vecOp.Process(dyGmOffset, sumGmOffset, indicesGmOffset, s1Index, blkCntOffset, mm12GmOffset, mm345GmOffset);
+        vecOp.Process(dyGmOffset, sumGmOffset, indicesGmOffset, s1Index, blkCntOffset, mm12GmOffset, mm345GmOffset, runInfo[mmPingPongIdx].lastBlockSize, runInfo[mmPingPongIdx].isLastBasicBlock);
     }
     CrossCoreSetFlag<2, PIPE_MTE3>(CUBE_WAIT_VEC);
     mmPingPongIdx = 1 - mmPingPongIdx;
@@ -304,6 +308,8 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::UpdateGmOffset()
     keyRopeGmOffset = t2Offset * (dimN2 * dimRope) + n2Index * dimRope;
     valueGmOffset = t2Offset * (dimN2 * dimDv) + n2Index * dimDv;
 
+    curMaxS2 = ATTEN_ENABLE ? (s1Index + curS2 - curS1 + 1) : curS2;
+
     // worksapce
     mm12GmOffset = mmPingPongIdx * mm12WorkspaceLen;
     mm345GmOffset = mmPingPongIdx * mm345WorkspaceLen;
@@ -321,6 +327,8 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::UpdateGmOffset()
     runInfo[mmPingPongIdx].mm4OutGmOffset = keyGmOffset + keyRopeGmOffset;
     runInfo[mmPingPongIdx].mm5OutGmOffset = valueGmOffset;
     runInfo[mmPingPongIdx].actualSelCntOffset = blkCntOffset + selectedCountOffset <= actualSelectedBlockCount ? selectedCountOffset : actualSelectedBlockCount - blkCntOffset;
+    runInfo[mmPingPongIdx].lastBlockSize = curMaxS2 % selectedBlockSize != 0 ? curMaxS2 % selectedBlockSize : selectedBlockSize;
+    runInfo[mmPingPongIdx].isLastBasicBlock = (blkCntOffset + selectedCountOffset >= actualSelectedBlockCount);
 }
 
 template <typename SFAGT>

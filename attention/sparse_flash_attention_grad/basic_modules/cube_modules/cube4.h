@@ -19,7 +19,8 @@
 template <typename T1>
 __aicore__ inline __attribute__((always_inline)) void
 CubeOp<T1>::cube4Process(const int64_t dsGmOffset, const int64_t queryGmOffset, const int64_t queryRopeGmOffset, const int64_t indicesGmOffset,
-                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx)
+                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx, 
+                         const int64_t lastBlockSize, const bool isLastBasicBlock)
 {
     uint32_t dLoopTimes = (dimDTotal + 127) / N_SPLIT_SIZE;
     uint32_t perLoopDSize = N_SPLIT_SIZE;
@@ -48,6 +49,7 @@ CubeOp<T1>::cube4Process(const int64_t dsGmOffset, const int64_t queryGmOffset, 
         current_l1_ds_tensor = l1_ds_tensor[l1Offset];
         int64_t currentQueryOffset;
         
+        bool isLast = isLastBasicBlock && (mIdx + blockOffset >= blkCntOffset + selectedCntOffset);
         for (uint32_t dIdx = 0;dIdx < dLoopTimes - 1; dIdx++) {
             LocalTensor<float> l0cTensor = cL0TensorPingPong[ping_pong_flag_l0c_];
             l1_query_tensor = l1_query_tensors[ping_pong_flag_l1_query_];
@@ -63,7 +65,7 @@ CubeOp<T1>::cube4Process(const int64_t dsGmOffset, const int64_t queryGmOffset, 
             MmadInnerWithSync<T1, false, true>(l0cTensor, current_l1_ds_tensor, l1_query_tensor,
                     aL0TensorPingPong, bL0TensorPingPong,
                     mmParam, l0a_ping_pong_flag, ping_pong_flag_l0b_, ping_pong_flag_l0c_, dIdx == 0, dkWorkspaceGm[currentOutGmOffset]);
-            ScatterFixOutWithSync<true>(dkWorkspaceGm[currentOutGmOffset], topkIndicesGm[indicesGmOffset + mIdx], l0cTensor, mmParam, selectedBlockSize, blockOffset, dimN2, L0C_EVENTS[ping_pong_flag_l0c_]);
+            ScatterFixOutWithSync<true>(dkWorkspaceGm[currentOutGmOffset], topkIndicesGm[indicesGmOffset + mIdx], l0cTensor, mmParam, selectedBlockSize, blockOffset, dimN2, L0C_EVENTS[ping_pong_flag_l0c_], lastBlockSize, isLast);
             SetFlag<HardEvent::MTE1_MTE2>(MM_L1_QUERY_EVENTS[ping_pong_flag_l1_query_]);
             UpdatePingPongFlag(ping_pong_flag_l0c_);
             UpdatePingPongFlag(ping_pong_flag_l1_query_);
@@ -84,7 +86,7 @@ CubeOp<T1>::cube4Process(const int64_t dsGmOffset, const int64_t queryGmOffset, 
         MmadInnerWithSync<T1, false, true>(l0cTensor, current_l1_ds_tensor, l1_query_tensor,
                 aL0TensorPingPong, bL0TensorPingPong,
                 mmParam, ping_pong_flag_l0a_, ping_pong_flag_l0b_, ping_pong_flag_l0c_, true, dkWorkspaceGm[currentOutGmOffset]);
-        ScatterFixOutWithSync<true>(dkWorkspaceGm[currentOutGmOffset], topkIndicesGm[indicesGmOffset + mIdx], l0cTensor, mmParam, selectedBlockSize, blockOffset, dimN2, L0C_EVENTS[ping_pong_flag_l0c_]);
+        ScatterFixOutWithSync<true>(dkWorkspaceGm[currentOutGmOffset], topkIndicesGm[indicesGmOffset + mIdx], l0cTensor, mmParam, selectedBlockSize, blockOffset, dimN2, L0C_EVENTS[ping_pong_flag_l0c_], lastBlockSize, isLast);
         SetFlag<HardEvent::MTE1_MTE2>(MM_L1_QUERY_EVENTS[ping_pong_flag_l1_query_]);
         UpdatePingPongFlag(ping_pong_flag_l0c_);
         UpdatePingPongFlag(ping_pong_flag_l1_query_);

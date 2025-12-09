@@ -32,6 +32,8 @@ struct RunInfo {
     int64_t mm4OutGmOffset;
     int64_t mm5OutGmOffset;
     int64_t actualSelCntOffset;
+    int64_t lastBlockSize;
+    bool isLastBasicBlock;
 };
 
 template <typename SFAGT>
@@ -78,7 +80,9 @@ private:
                                                                        const int64_t indicesGmOffset,
                                                                        const int64_t outGmOffset,
                                                                        const int32_t blkCntOffset,
-                                                                       const int32_t mmPingPongIdx);
+                                                                       const int32_t mmPingPongIdx,
+                                                                       const int64_t lastBlockSize,
+                                                                       const bool isLastBasicBlock);
 
     __aicore__ inline __attribute__((always_inline)) void cube4Process(const int64_t dsGmOffset,
                                                                        const int64_t queryGmOffset,
@@ -86,14 +90,18 @@ private:
                                                                        const int64_t indicesGmOffset,
                                                                        const int64_t outGmOffset,
                                                                        const int32_t blkCntOffset,
-                                                                       const int32_t mmPingPongIdx);
+                                                                       const int32_t mmPingPongIdx,
+                                                                       const int64_t lastBlockSize,
+                                                                       const bool isLastBasicBlock);
 
     __aicore__ inline __attribute__((always_inline)) void cube5Process(const int64_t pGmOffset,
                                                                        const int64_t dyGmOffset,
                                                                        const int64_t indicesGmOffset,
                                                                        const int64_t outGmOffset, 
                                                                        const int32_t blkCntOffset,
-                                                                       const int32_t mmPingPongIdx);
+                                                                       const int32_t mmPingPongIdx,
+                                                                       const int64_t lastBlockSize,
+                                                                       const bool isLastBasicBlock);
     __aicore__ inline __attribute__((always_inline)) void LoadBData(const int64_t dsGmOffset, 
                                                                     const int64_t keyGmOffset,
                                                                     const int64_t indicesGmOffset,
@@ -288,12 +296,12 @@ CubeOp<SFAGT>::cube345Process(const RunInfo &runInfo,
                               const int32_t blkCntOffset, const int32_t mmPingPongIdx)
 {
     selectedCntOffset = runInfo.actualSelCntOffset;
-    cube5Process(runInfo.mm345GmOffset, runInfo.dyGmOffset, runInfo.indicesGmOffset, runInfo.mm5OutGmOffset, blkCntOffset, mmPingPongIdx);
+    cube5Process(runInfo.mm345GmOffset, runInfo.dyGmOffset, runInfo.indicesGmOffset, runInfo.mm5OutGmOffset, blkCntOffset, mmPingPongIdx, runInfo.lastBlockSize, runInfo.isLastBasicBlock);
     SetFlag<HardEvent::MTE1_MTE2>(MM_L1_DY_EVENTS[mmPingPongIdx]);
 
     WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_DS_EVENT);
-    cube4Process(runInfo.mm345GmOffset, runInfo.queryGmOffset, runInfo.queryRopeGmOffset, runInfo.indicesGmOffset, runInfo.mm4OutGmOffset, blkCntOffset, mmPingPongIdx);
-    cube3Process(runInfo.mm345GmOffset, runInfo.keyGmOffset, runInfo.indicesGmOffset, runInfo.mm3OutGmOffset, blkCntOffset, mmPingPongIdx);
+    cube4Process(runInfo.mm345GmOffset, runInfo.queryGmOffset, runInfo.queryRopeGmOffset, runInfo.indicesGmOffset, runInfo.mm4OutGmOffset, blkCntOffset, mmPingPongIdx, runInfo.lastBlockSize, runInfo.isLastBasicBlock);
+    cube3Process(runInfo.mm345GmOffset, runInfo.keyGmOffset, runInfo.indicesGmOffset, runInfo.mm3OutGmOffset, blkCntOffset, mmPingPongIdx, runInfo.lastBlockSize, runInfo.isLastBasicBlock);
     SetFlag<HardEvent::MTE1_MTE2>(MM_L1_DS_EVENT);
 }
 

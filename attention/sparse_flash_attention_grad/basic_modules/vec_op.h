@@ -43,7 +43,7 @@ public:
                                 const TILING_CLASS *__restrict ordTilingData, TPipe *pipe);
     __aicore__ inline void Process(int64_t dyGmOffset, int64_t sumGmOffset, const uint64_t indicesGmOffset,
                                    const int64_t s1Index, const int32_t blkCntOffset, int64_t mm12Addr,
-                                   int64_t mm345Addr);
+                                   int64_t mm345Addr, const int64_t lastBlockSize, const bool isLastBasicBlock);
     __aicore__ inline void GatherKV(const int32_t blkCntOffset, const int64_t s1Index, const int64_t n2Index, 
                                    uint64_t currentS1Offset, uint64_t kSelectedWsAddr, uint64_t vSelectedWsAddr, 
                                    uint64_t keyGmOffset, uint64_t valueGmOffset, uint64_t keyRopeGmOffset, 
@@ -152,6 +152,10 @@ protected:
     uint32_t selectedCountOffset;
     uint32_t actualSelectedCount;
     int64_t dimRope;
+
+    bool isLastBasicBlock;
+    int64_t lastBlockSize;
+
     // workspace
     uint32_t mm12WorkspaceLen;
     int64_t dqWorkspaceLen;
@@ -488,7 +492,7 @@ __aicore__ inline void VecOp<SFAGT>::CalAttenMsk(const uint64_t indicesGmOffset,
         // 处于对角线上的block
         if (topkIdx * selectedBlockSize <= valid_col_end && (topkIdx + 1) * selectedBlockSize > valid_col_end) {
             attenMskRsv = valid_col_end - (topkIdx * selectedBlockSize) + 1;
-            attenMskEnd = selectedBlockSize;
+            attenMskEnd = (i == blkCntOffset + actualSelectedCount - 1 && isLastBasicBlock) ? lastBlockSize : selectedBlockSize;
             attenMskStartIdx = i * selectedBlockSize + attenMskRsv - blkCntOffset * selectedBlockSize;
         }
     }
@@ -507,7 +511,10 @@ __aicore__ inline void VecOp<SFAGT>::CalAttenMsk(const uint64_t indicesGmOffset,
         for (int32_t i = 0; i < processM; i++) { // selectedBlockSize need <= 64
             int32_t pOffset = i * actualSelS2Align;
             tmpTensor = pTensor[selectBlkStartOffsetAlign + pOffset];
-            mask[0] = ((1ULL << attenMskEnd) - 1) & ~((1ULL << attenMskRsv) - 1); // attenMskRsv ~ attenMskEnd位置1
+            // attenMskRsv ~ attenMskEnd位置1
+            uint64_t maskEnd = (attenMskEnd == 64) ? UINT64_MAX : (1ULL << attenMskEnd) - 1;
+            uint64_t maskRsv = (attenMskRsv == 64) ? UINT64_MAX : (1ULL << attenMskRsv) - 1;
+            mask[0] = maskEnd & ~maskRsv;
             Duplicate(tmpTensor, scalar, mask, 1, 0, 0);
         }
     }
@@ -669,8 +676,11 @@ __aicore__ inline void VecOp<SFAGT>::Gather(GlobalTensor<T1> &inGmTensor, Global
 template <typename SFAGT>
 __aicore__ inline void VecOp<SFAGT>::Process(int64_t dyGmOffset, int64_t sumGmOffset,
                                              const uint64_t indicesGmOffset, const int64_t s1Index,
-                                             const int32_t blkCntOffset, int64_t mm12Addr, int64_t mm345Addr)
+                                             const int32_t blkCntOffset, int64_t mm12Addr, int64_t mm345Addr,
+                                             const int64_t lastBlockSize, const bool isLastBasicBlock)
 {
+    this->lastBlockSize = lastBlockSize;
+    this->isLastBasicBlock = isLastBasicBlock;
     int32_t loop = (params.singleM + params.sftBaseM - 1) / params.sftBaseM;
     int32_t processM = params.sftBaseM;
     int32_t tailM = params.singleM % params.sftBaseM;

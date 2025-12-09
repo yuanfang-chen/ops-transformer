@@ -18,7 +18,8 @@
 template <typename T1>
 __aicore__ inline __attribute__((always_inline)) void
 CubeOp<T1>::cube3Process(const int64_t dsGmOffset, const int64_t keyGmOffset, const int64_t indicesGmOffset,
-                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx)
+                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx, 
+                         const int64_t lastBlockSize, const bool isLastBasicBlock)
 {
     uint32_t dLoopTimes = (dimDTotal + 127) / N_SPLIT_SIZE;
     uint32_t perLoopDSize = N_SPLIT_SIZE;
@@ -48,7 +49,11 @@ CubeOp<T1>::cube3Process(const int64_t dsGmOffset, const int64_t keyGmOffset, co
             bool isFirstLoop = (nIdx == blkCntOffset);
             bool isLastLoop = (nIdx + blockOffset >= blkCntOffset + selectedCntOffset);
 
-            mmParam.singleK = min(selectedBlockSize * blockOffset, selectedCntOffset * selectedBlockSize - (nIdx - blkCntOffset) * selectedBlockSize);
+            uint32_t totalSel = selectedCntOffset * selectedBlockSize;
+            if (isLastBasicBlock && isLastLoop) {
+                totalSel = totalSel - selectedBlockSize + lastBlockSize;
+            }
+            mmParam.singleK = min(selectedBlockSize * blockOffset, totalSel - (nIdx - blkCntOffset) * selectedBlockSize);
 
             current_l1_ds_tensor = l1_ds_tensor[l1Offset];
             l1_key_tensor = l1_common_tensors[ping_pong_flag_l1_common_];
