@@ -3775,25 +3775,26 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
         GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3A);
         GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3B);
     }
+    if (TilingData->s1s2BNGS1S2BaseParams.sink == 1) {
+        int dsinksumLoc = cSubIdx;
+        dsinksumLoc += 2 * dbParam.s2oIdx;
+        dsinksumLoc +=  2 * s2Outer * dbParam.s1oIdx;
+        dsinksumLoc +=  2 * s2Outer * s1Outer * dbParam.bIdx;   
 
-    int dsinksumLoc = cSubIdx;
-    dsinksumLoc += 2 * dbParam.s2oIdx;
-    dsinksumLoc +=  2 * s2Outer * dbParam.s1oIdx;
-    dsinksumLoc +=  2 * s2Outer * s1Outer * dbParam.bIdx;   
+        int s1Pad = (TilingData->postTilingData.s1 + 255)/256*256;
+        int s2Pad = (TilingData->postTilingData.s2 + 255)/256*256;
+        int dataSizePerN1 = TilingData->postTilingData.b *s1Pad * s2Pad / TilingData->postTilingData.baseMN;
 
-    int s1Pad = (TilingData->postTilingData.s1 + 255)/256*256;
-    int s2Pad = (TilingData->postTilingData.s2 + 255)/256*256;
-    int dataSizePerN1 = TilingData->postTilingData.b *s1Pad * s2Pad / TilingData->postTilingData.baseMN;
+        dsinksumLoc += dataSizePerN1 * dbParam.gIdx;
+        dsinksumLoc += dataSizePerN1 * g * dbParam.n2Idx;
 
-    dsinksumLoc += dataSizePerN1 * dbParam.gIdx;
-    dsinksumLoc += dataSizePerN1 * g * dbParam.n2Idx;
-
-    LocalTensor<float> localDsink = unifiedBuffer.GetWithOffset<float>(8, DbBegin + 1024);
-    AscendC::PipeBarrier<PIPE_ALL>();
-    localDsink.SetValue(0, dsinkSumLocal);
-    AscendC::PipeBarrier<PIPE_ALL>();
-    DataCopyPad(dsinksumWorkSpaceGm[dsinksumLoc], localDsink, {1,sizeof(float),0,0});
-    AscendC::PipeBarrier<PIPE_ALL>();
+        LocalTensor<float> localDsink = unifiedBuffer.GetWithOffset<float>(8, DbBegin + 1024);
+        AscendC::PipeBarrier<PIPE_ALL>();
+        localDsink.SetValue(0, dsinkSumLocal);
+        AscendC::PipeBarrier<PIPE_ALL>();
+        DataCopyPad(dsinksumWorkSpaceGm[dsinksumLoc], localDsink, {1,sizeof(float),0,0});
+        AscendC::PipeBarrier<PIPE_ALL>();
+    }
 }
 
 template <typename FAGT>
