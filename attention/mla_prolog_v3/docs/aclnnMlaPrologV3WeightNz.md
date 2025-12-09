@@ -12,10 +12,10 @@
 
 ## 功能说明
 -  **功能更新**：（相对于aclnnMlaPrologV2weightNz的差异）
-    -  新增query与key的尺度矫正因子，分别对应qcQrScale（$\alpha_q$）与kcScale（$\alpha_{kv}$）。
-    -  新增可选输入与参数（例如actualSeqLenOptional、kNopeClipAlphaOptional、queryNormFlag、weightQuantMode、kvCacheQuantMode、queryQuantMode、ckvkrRepoMode、quantScaleRepoMode、tileSize、queryNormOptional和dequantScaleQNormOptional等），将cache_mode由必选改为可选。
+    -  新增Query与Key的尺度矫正因子，分别对应qcQrScale（$\alpha_q$）与kcScale（$\alpha_{kv}$）。
+    -  新增可选输入参数（例如actualSeqLenOptional、kNopeClipAlphaOptional、queryNormFlag、weightQuantMode、kvCacheQuantMode、queryQuantMode、ckvkrRepoMode、quantScaleRepoMode、tileSize、queryNormOptional和dequantScaleQNormOptional等），将cache_mode由必选改为可选。
     -  调整cacheIndex参数的名称与位置，对应当前的cacheIndexOptional。
--  **接口功能**：推理场景，Multi-Head Latent Attention前处理的计算。主要计算过程分为五路；
+-  **接口功能**：推理场景，Multi-Head Latent Attention前处理的计算。主要计算过程分为五路:
     -  首先对输入$x$乘以$W^{DQ}$进行下采样和RmsNorm后分为两路，第一路乘以$W^{UQ}$和$W^{UK}$经过两次上采样后，再乘以Query尺度矫正因子$\alpha_q$得到$q^N$；第二路乘以$W^{QR}$后经过旋转位置编码（ROPE）得到$q^R$。
     -  第三路是输入$x$乘以$W^{DKV}$进行下采样和RmsNorm后，乘以Key尺度矫正因子$\alpha_{kv}$传入Cache中得到$k^C$；
     -  第四路是输入$x$乘以$W^{KR}$后经过旋转位置编码后传入另一个Cache中得到$k^R$；
@@ -34,7 +34,7 @@
     \text{RMS}(x) = \sqrt{\frac{1}{N} \sum_{i=1}^{N} x_i^2 + \epsilon}
     $$
 
-    Query在计算公式，包括下采样，RmsNorm和两次上采样
+    Query的计算公式，包括下采样、RmsNorm和两次上采样
 
     $$
     c^Q = \alpha_q\cdot\mathrm{RmsNorm}(x \cdot W^{DQ})
@@ -48,13 +48,13 @@
     q^N = q^C \cdot W^{UK}
     $$
 
-    对Query的进行ROPE旋转位置编码
+    对Query进行ROPE旋转位置编码
 
     $$
     q^R = \mathrm{ROPE}(c^Q \cdot W^{QR})
     $$
 
-    Key计算公式，包括下采样和RmsNorm，将计算结果存入cache
+    Key的计算公式，包括下采样和RmsNorm，将计算结果存入cache
 
     $$
     c^{KV} = \alpha_{kv}\cdot\mathrm{RmsNorm}(x \cdot W^{DKV})
@@ -70,7 +70,7 @@
     k^R = \mathrm{Cache}(\mathrm{ROPE}(x \cdot W^{KR}))
     $$
 
-    Dequant Scale Query Nope 计算公式：
+    Dequant Scale Query Nope 计算公式
 
     $$
     \mathrm{dequantScaleQNope} = {\mathrm{RowMax}(\mathrm{abs}(q^{N})) / 127}
@@ -148,30 +148,30 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | rmsnormGammaCkv | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\gamma$参数，Device侧的aclTensor。      | - 不支持空Tensor | BFLOAT16       | ND         | (Hckv)                        |×   |
   | ropeSin         | 输入      | 用于计算旋转位置编码的正弦参数矩阵，Device侧的aclTensor。              | - 支持B=0,S=0,T=0的空Tensor | BFLOAT16       | ND         | - BS合轴：(T,Dr) <br>- BS非合轴：(B,S,Dr)         |×   |
   | ropeCos         | 输入      | 用于计算旋转位置编码的余弦参数矩阵，Device侧的aclTensor。           | - 支持B=0,S=0,T=0的空Tensor  | BFLOAT16       | ND         | - BS合轴：(T,Dr) <br>- BS非合轴：(B,S,Dr)         |×   |
-  | kvCacheRef      | 输入      | 用于cache索引的aclTensor，计算结果原地更新（对应公式中的$k^C$）。  | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持dim=0  | BFLOAT16、INT8 | ND   | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Dtile) <br> - CacheMode="BSND": (B,S,Nkv,Dtile) <br> - CacheMode="TND": (T,Nkv,Dtile) |×   |
-  | krCacheRef      | 输入      | 用于key位置编码的cache，计算结果原地更新（对应公式中的$k^R$），Device侧的aclTensor。    | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持dim=0| BFLOAT16、INT8 | ND         | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Dr) <br> - CacheMode="BSND": (B,S,Nkv,Dr) <br> - CacheMode="TND"时: (T,Nkv,Dr)   |×   |
+  | kvCacheRef      | 输入      | 用于cache索引的aclTensor，计算结果原地更新（对应公式中的$k^C$）。  | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持等于0  | BFLOAT16、INT8 | ND   | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Dtile) <br> - CacheMode="BSND": (B,S,Nkv,Dtile) <br> - CacheMode="TND": (T,Nkv,Dtile) |×   |
+  | krCacheRef      | 输入      | 用于key位置编码的cache，计算结果原地更新（对应公式中的$k^R$），Device侧的aclTensor。    | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持等于0 | BFLOAT16、INT8 | ND         | - CacheMode="PA_BSND"/"PA_NZ"/"PA_BLK_BSND"/"PA_BLK_NZ": (BlockNum,BlockSize,Nkv,Dr) <br> - CacheMode="BSND": (B,S,Nkv,Dr) <br> - CacheMode="TND"时: (T,Nkv,Dr)   |×   |
   | cacheIndexOptional | 输入      | 用于存储kvCache和krCache的索引，Device侧的aclTensor。| - 支持B=0,S=0,T=0的空Tensor <br>- cacheMode="PA_BSND"/"PA_NZ": 取值范围需在[0,BlockNum*BlockSize)内 <br>- cacheMode="PA_BLK_BSND"/"PA_BLK_NZ": 取值范围需在[0,BlockNum)内 <br>- cacheMode="TND"/"BSND": nullptr | INT64   | ND  | CacheMode="PA_BSND"/"PA_NZ": <br>1. BS合轴：(T) <br>2. BS非合轴：(B,S) <br>- CacheMode="PA_BLK_BSND"/"PA_BLK_NZ": <br> 1. BS合轴：(Sum(Ceil(S_i/BlockSize)))，S_i为每个Batch中的S的长度 <br> 2. BS非合轴：(B,Ceil(S/BlockSize)) <br>- CacheMode="TND"/"BSND": nullptr |×   |
   | dequantScaleXOptional      | 输入      | token_x的反量化参数。 | - 支持B=0,S=0,T=0的空Tensor   | FLOAT          | ND         | - BS合轴：(T) <br>- BS非合轴：(B*S,1)                                  |×   |
-  | dequantScaleWDqOptional    | 输入      | weight_dq的反量化参数。   | -     | FLOAT          | ND          | (1,Hcq)                                 |×   |
+  | dequantScaleWDqOptional    | 输入      | weight_dq的反量化参数。   | - 支持非空Tensor（仅INT8 dtype场景需传）    | FLOAT          | ND          | (1,Hcq)                                 |×   |
   | dequantScaleWUqQrOptional  | 输入      | 用于MatmulQcQr矩阵乘后反量化操作的per-channel参数，Device侧的aclTensor。 | - 支持非空Tensor（仅INT8 dtype场景需传）  | FLOAT          | ND         | (1,N*(D+Dr))     |×   |
-  | dequantScaleWDkvKrOptional | 输入      | weight_dkv_kr的反量化参数。   | -    | FLOAT          | ND         | (1,Hckv+Dr)  |×   |
-  | quantScaleCkvOptional      | 输入      | 用于对KVCache输出数据做量化操作的参数，Device侧的aclTensor。 | - 支持非空Tensor（仅INT8 dtype量化输出场景需传）  | FLOAT          | ND         | - 部分量化场景：(1,Hckv) <br> - 全量化场景：(1)  |×   |
-  | quantScaleCkrOptional      | 输入      | 用于对KRCache输出数据做量化操作的参数，Device侧的aclTensor。| - 支支持非空Tensor（仅INT8 dtype量化输出场景需传）    | FLOAT    | ND   | (1,Dr)     |×   |
+  | dequantScaleWDkvKrOptional | 输入      | weight_dkv_kr的反量化参数。   | - 支持非空Tensor（仅INT8 dtype场景需传）   | FLOAT          | ND         | (1,Hckv+Dr)  |×   |
+  | quantScaleCkvOptional      | 输入      | 用于对kvCache输出数据做量化操作的参数，Device侧的aclTensor。 | - 支持非空Tensor（仅INT8 dtype量化输出场景需传）  | FLOAT          | ND         | - 部分量化场景：(1,Hckv) <br> - 全量化场景：(1)  |×   |
+  | quantScaleCkrOptional      | 输入      | 用于对krCache输出数据做量化操作的参数，Device侧的aclTensor。| - 支支持非空Tensor（仅INT8 dtype量化输出场景需传）    | FLOAT    | ND   | (1,Dr)     |×   |
   | smoothScalesCqOptional     | 输入      | 用于对RmsNormCq输出做动态量化操作的参数，Device侧的aclTensor。   | - 支持非空Tensor（仅INT8 dtype场景可选传）| FLOAT  | ND | (1,Hcq)                       |×   |
-  | actualSeqLenOptional     | 输入      | 用于BS合轴且CacheMode="PA_BLK_BSND"/"PA_BLK_NZ"时，以前缀和的形式储存每个batch中的序列长度，Device侧的aclTensor。 | -  | INT64    | ND   | (B)     |×   |
-  | kNopeClipAlphaOptional     | 输入      | 表示对kv_cache做clip操作时的缩放因子，Device侧的aclTensor。  | - 不支持空Tensor | FLOAT  | ND | (1)    |×   |
-  | rmsnormEpsilonCq           | 输入      | 计算$c^Q$的RmsNorm公式中的$\epsilon$参数，Host侧参数。        | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型 | double         | -          | - |-   |
-  | rmsnormEpsilonCkv          | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\epsilon$参数，Host侧参数。   | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型   | double         | -          | -  |-   |
-  | cacheModeOptional          | 输入      | 表示kvCache的模式，Host侧参数。| - 用户未特意指定时，建议传入"PA_BSND" <br> - 仅支持char*类型 <br> - 可选值为："PA_BSND"、"PA_NZ"、"PA_BLK_BSND"、"PA_BLK_NZ"、"BSND"、"TND" | char*          | -          | - |-   |
-  | queryNormFlag     | 输入      | 表示是否输出query_norm，Host侧参数。  | - False表示不输出query_norm，true表示输出queryNormOptional，默认值为false | bool  | -- | --    |-   |
-  | weightQuantMode     | 输入      | 表示weight_dq、weight_uq_qr、weight_uk、weight_dkv_kr的量化模式，Host侧参数。  | - 0表示非量化，1表示weight_uq_qr量化，2表示weight_dq、weight_uq_qr、weight_dkv_kr量化，默认值为0 | int  | -- | --    |-   |
-  | kvCacheQuantMode     | 输入      | 表示kv_cache的量化模式，Host侧参数。  | - 0表示非量化，1表示per-tensor量化，2表示per-channel量化，3-表示per-tile量化，默认值为0| int64  | -- | --    |-   |
-  | queryQuantMode     | 输入      | 表示query的量化模式，Host侧参数。  | - 0表示非量化，1表示per-token-head量化，默认值为0| int64  | -- | --    |-   |
-  | ckvkrRepoMode     | 输入      | 表示kv_cache和kr_cache的存储模式，Host侧参数。  | - 0表示kv_cache和kr_cache分别存储，1表示kv_cache和kr_cache合并存储，默认值为0| int64  | -- | --    |-   |
-  | quantScaleRepoMode     | 输入      | 表示量化scale的存储模式，Host侧参数。  | - 0表示量化scale和数据分别存储，1表示量化scale和数据合并存储，默认值为0| int64  | -- | --    |-   |
-  | tileSize     | 输入      | 表示per-tile量化时每个tile的大小，仅在kv_cache_quant_mode为3时有效，Host侧参数。  | - 默认值为128 | int64 | -- | --    |-   |
-  | qcQrScale     | 输入      |   表示Query的尺度矫正系数，用户不特意指定时需要传入1.0  | --| double | -   | -  |- |
-  | kcScale     | 输入      |   表示Key的尺度矫正系数，用户不特意指定时需要传入1.0  | --| double | -    | -  |- |
+  | actualSeqLenOptional     | 输入      | 表示每个batch中的序列长度，以前缀和的形式储存，Device侧的aclTensor。 | - BS合轴且CacheMode="PA_BLK_BSND"/"PA_BLK_NZ"时需传  | INT64    | ND   | (B)     |×   |
+  | kNopeClipAlphaOptional     | 输入      | 表示对kvCache做clip操作时的缩放因子，Device侧的aclTensor。  | - 不支持空Tensor | FLOAT  | ND | (1)    |×   |
+  | rmsnormEpsilonCq           | 输入      | 计算$c^Q$的RmsNorm公式中的$\epsilon$参数，Host侧参数。        | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型 | DOUBLE         | -          | - |-   |
+  | rmsnormEpsilonCkv          | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\epsilon$参数，Host侧参数。   | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型   | DOUBLE         | -          | -  |-   |
+  | cacheModeOptional          | 输入      | 表示kvCache的模式，Host侧参数。| - 用户未特意指定时，建议传入"PA_BSND" <br> - 仅支持char*类型 <br> - 可选值为："PA_BSND"、"PA_NZ"、"PA_BLK_BSND"、"PA_BLK_NZ"、"BSND"、"TND" | CHAR*          | -          | - |-   |
+  | queryNormFlag     | 输入      | 表示是否输出query_norm，Host侧参数。  | - False表示不输出query_norm，true表示输出queryNormOptional，默认值为false | BOOL  | -- | --    |-   |
+  | weightQuantMode     | 输入      | 表示weight_dq、weight_uq_qr、weight_uk、weight_dkv_kr的量化模式，Host侧参数。  | - 0表示非量化，1表示weight_uq_qr量化，2表示weight_dq、weight_uq_qr、weight_dkv_kr量化，默认值为0 | INT  | -- | --    |-   |
+  | kvCacheQuantMode     | 输入      | 表示kv_cache的量化模式，Host侧参数。  | - 0表示非量化，1表示per-tensor量化，2表示per-channel量化，3-表示per-tile量化，默认值为0| INT64  | -- | --    |-   |
+  | queryQuantMode     | 输入      | 表示query的量化模式，Host侧参数。  | - 0表示非量化，1表示per-token-head量化，默认值为0| INT64  | -- | --    |-   |
+  | ckvkrRepoMode     | 输入      | 表示kv_cache和kr_cache的存储模式，Host侧参数。  | - 0表示kv_cache和kr_cache分别存储，1表示kv_cache和kr_cache合并存储，默认值为0| INT64  | -- | --    |-   |
+  | quantScaleRepoMode     | 输入      | 表示量化scale的存储模式，Host侧参数。  | - 0表示量化scale和数据分别存储，1表示量化scale和数据合并存储，默认值为0| INT64  | -- | --    |-   |
+  | tileSize     | 输入      | 表示per-tile量化时每个tile的大小，仅在kv_cache_quant_mode为3时有效，Host侧参数。  | - 默认值为128 | INT64 | -- | --    |-   |
+  | qcQrScale     | 输入      |   表示Query的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | -   | -  |- |
+  | kcScale     | 输入      |   表示Key的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | -    | -  |- |
   | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$），Device侧的aclTensor。     | - 不支持空Tensor  | BFLOAT16、INT8 | ND         | - BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv) |×   |
   | queryRopeOut               | 输出      | 公式中Query位置编码的输出tensor（对应$q^R$），Device侧的aclTensor。  | - 不支持空Tensor | BFLOAT16       | ND         | - BS合轴：(T,N,Dr) <br>- BS非合轴：(B,S,N,Dr)     |×   |
   | dequantScaleQNopeOutOptional  | 输出           | 公式中Query输出的量化参数，Device侧的aclTensor。  | - 不支持空Tensor     | FLOAT      | ND   | - BS合轴：(T,N,1) <br>- BS非合轴：(B*S,N,1)   |×   |
@@ -230,7 +230,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
 -   shape约束
     -   若tokenX的维度采用BS合轴，即(T, He)
         - ropeSin和ropeCos的shape为(T, Dr)
-        - cacheIndex的shape为(T,)
+        - cacheIndex的shape为(T)
         - dequantScaleXOptional的shape为(T, 1)
         - queryOut的shape为(T, N, Hckv)
         - queryRopeOut的shape为(T, N, Dr)
@@ -456,27 +456,27 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     </tr>
     <tr>
       <td> dequantScaleXOptional </td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
     </tr>
     <tr>
       <td> dequantScaleWDqOptional </td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
     </tr>
     <tr>
       <td> dequantScaleWUqQrOptional </td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
@@ -486,37 +486,37 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     </tr>
     <tr>
       <td> dequantScaleWDkvKrOptional </td>
-      <td> nullptr </td>
-      <td> nullptr </td>
-      <td> nullptr </td>
-      <td> nullptr </td>
+      <td> NULLPTR </td>
+      <td> NULLPTR </td>
+      <td> NULLPTR </td>
+      <td> NULLPTR </td>
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
     </tr>
     <tr>
       <td> quantScaleCkvOptional </td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> quantScaleCkrOptional </td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> smoothScalesCqOptional </td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
@@ -526,22 +526,22 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     </tr>
     <tr>
       <td> actualSeqLenOptional </td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> kNopeClipAlphaOptional </td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
     </tr>
     <tr>
@@ -566,13 +566,13 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     </tr>
     <tr>
       <td> dequantScaleQNopeOutOptional </td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> queryNormOutOptional </td>
@@ -586,7 +586,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     </tr>
     <tr>
       <td> dequantScaleQNopeOutOptional </td>
-      <td>nullptr</td>
+      <td>NULLPTR</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
