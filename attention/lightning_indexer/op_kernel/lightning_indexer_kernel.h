@@ -571,9 +571,17 @@ __aicore__ inline void LIPreload<LIT>::ProcessInvalid()
             GlobalTensor<OUT_T> output = indiceOutGm[baseSize];
             AscendC::InitGlobalMemory(output, dealSize, constInfo.INVALID_IDX);
             if (constInfo.returnValue) {
-                GlobalTensor<K_T> valueOut = valueOutGm[baseSize];
-                K_T invalidValue = 0;
-                AscendC::InitGlobalMemory(valueOut, dealSize, invalidValue);
+                GlobalTensor<uint16_t> valueOutGmTmp;
+                valueOutGmTmp.SetGlobalBuffer((__gm__ uint16_t *)valueOutGm.GetPhyAddr());
+                GlobalTensor<uint16_t> valueOut = valueOutGmTmp[baseSize];
+
+                uint16_t negInf = 0;
+                if constexpr(std::is_same<K_T, float16_t>::value) {
+                    negInf = 0xFC00;
+                } else {
+                    negInf = 0xFF80;
+                }
+                AscendC::InitGlobalMemory(valueOut, dealSize, negInf);
             }
         }
     }

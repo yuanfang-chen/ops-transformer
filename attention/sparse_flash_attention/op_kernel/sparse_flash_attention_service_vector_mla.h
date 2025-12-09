@@ -354,20 +354,26 @@ __aicore__ inline void SFAVectorService<SFAT>::CopyFALseToGm(const RunInfo &info
     }
 
     if (info.actualSingleProcessSInnerSize != 0) {
+        DataCopyExtParams dataCopyParams;
+        dataCopyParams.blockCount = 1;
+        dataCopyParams.blockLen = sizeof(T) * size;
+        dataCopyParams.srcStride = 0;
+        dataCopyParams.dstStride = 0;
+        size_t alignedSize = (sizeof(T) * size + 31) / 32 * 32 / sizeof(T);
         LocalTensor<T> tmp = outputBuff2.Get<T>();
         WaitFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
-        DataCopy(tmp, softmaxMaxUb[baseOffset], size);
+        DataCopy(tmp, softmaxMaxUb[baseOffset], alignedSize);
         SetFlag<AscendC::HardEvent::V_MTE3>(SYNC_OUTPUT_BUF2_FLAG);
         WaitFlag<AscendC::HardEvent::V_MTE3>(SYNC_OUTPUT_BUF2_FLAG);
-        DataCopy(softmaxMaxGm[offset], tmp, size);
+        DataCopyPad(softmaxMaxGm[offset], tmp, dataCopyParams);
         SetFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
 
         tmp = outputBuff2.Get<T>();
         WaitFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
-        DataCopy(tmp, softmaxSumUb[baseOffset], size);
+        DataCopy(tmp, softmaxSumUb[baseOffset], alignedSize);
         SetFlag<AscendC::HardEvent::V_MTE3>(SYNC_OUTPUT_BUF2_FLAG);
         WaitFlag<AscendC::HardEvent::V_MTE3>(SYNC_OUTPUT_BUF2_FLAG);
-        DataCopy(softmaxSumGm[offset], tmp, size);
+        DataCopyPad(softmaxSumGm[offset], tmp, dataCopyParams);
         SetFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
     } else {
         matmul::InitOutput<T>(softmaxSumGm[offset], size, ConstInfo::FLOAT_ZERO);
