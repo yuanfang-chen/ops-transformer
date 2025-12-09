@@ -94,10 +94,9 @@ aclnnRingAttentionUpdateV2(
   ```
   第一段接口完成入参校验，出现以下场景时报错：
   161001(ACLNN_ERR_PARAM_NULLPTR)：1. 传入的prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut是空指针。
-  161002(ACLNN_ERR_PARAM_INVALID)：1. prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut数据类型不在支持的范围之内。
-                                   2. prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut的shape不支持。
-  561002 (ACLNN_ERR_INNER_TILING_ERROR)：1. 当actualSeqQlenOptional有输入时，输入数据格式不在支持的范围之内。
-                                         2. 当inputSoftmaxLayoutOptional输入值不在支持范围之内。
+                                  2. 当inputLayoutOptional为“TND”时，传入的actualSeqQlenOptional为空。
+  161002(ACLNN_ERR_PARAM_INVALID)：1. prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut数据类型和数据格式不在支持的范围之内。
+  561002 (ACLNN_ERR_INNER_TILING_ERROR)：1. prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut的shape为空或不支持。
   ```
 
 ## aclnnRingAttentionUpdateV2
