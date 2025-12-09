@@ -52,7 +52,6 @@ constexpr uint32_t DEQUANT_SCALE_QUERY_INDEX = 27;
 constexpr uint32_t LEARNABLE_SINK_INDEX = 28;
 constexpr uint32_t Q_START_IDX_INDEX = 29;
 constexpr uint32_t KV_START_IDX_INDEX = 30;
-constexpr uint32_t ALIBI_COEFF_INDEX = 31;
 
 // Attributes Index
 constexpr uint32_t ATTR_N_INDEX = 0;
@@ -72,8 +71,6 @@ constexpr uint32_t QUERY_QUANT_MODE_INDEX = 13;
 constexpr uint32_t PSE_TYPE_INDEX = 14;
 constexpr uint32_t PSE_SHIFT_S1_INDEX = 2;
 constexpr uint32_t PSE_SHIFT_S2_INDEX = 3;
-constexpr uint32_t ALIBI_LEFT_ALIGN_INDEX = 16;
-constexpr uint32_t IS_ALIBI_MASK_SQRT_INDEX = 17;
 
 // Output Index
 constexpr uint32_t ATTENTION_OUT_INDEX = 0;

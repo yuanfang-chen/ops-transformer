@@ -131,9 +131,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV4GetMaxWorkspaceSize(
         valueAntiquantScaleOptional, valueAntiquantOffsetOptional, tensorKeySharedPrefixOptional,
         tensorValueSharedPrefixOptional, fakeActualSharedPrefixLenOptional, queryRopeOptional,
         keyRopeOptional, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, learnableSinkOptional, nullptr, nullptr,
-        nullptr, numHeads, scaleValue, preTokens, nextTokens,
+        numHeads, scaleValue, preTokens, nextTokens,
         inputLayout, numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag,
-        keyAntiquantMode, valueAntiquantMode, queryQuantMode, 0, 0, false, false, attentionOut, placeHolder, workspaceSize, executor);
+        keyAntiquantMode, valueAntiquantMode, queryQuantMode, 0, 0, attentionOut, placeHolder, workspaceSize, executor);
     if (softmaxLseFlag == false) {
         aclDestroyTensor(tempTensor);
     }
@@ -198,9 +198,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV4GetWorkspaceSize(
         valueAntiquantScaleOptional, valueAntiquantOffsetOptional, tensorKeySharedPrefixOptional,
         tensorValueSharedPrefixOptional, actualSharedPrefixLenOptional, queryRopeOptional,
         keyRopeOptional, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, learnableSinkOptional, nullptr, nullptr,
-        nullptr, numHeads, scaleValue, preTokens, nextTokens,
+        numHeads, scaleValue, preTokens, nextTokens,
         inputLayout, numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag,
-        keyAntiquantMode, valueAntiquantMode, queryQuantMode, 0, 0, false, false, attentionOut, placeHolder, workspaceSize, executor);
+        keyAntiquantMode, valueAntiquantMode, queryQuantMode, 0, 0, attentionOut, placeHolder, workspaceSize, executor);
     if (softmaxLseFlag == false) {
         aclDestroyTensor(tempTensor);
     }
@@ -208,7 +208,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV4GetWorkspaceSize(
         if (NnopbaseDisableOptionalInput != nullptr) {
             NnopbaseDisableOptionalInput(*executor, 29U); // 29 is input irIndex，占位符
             NnopbaseDisableOptionalInput(*executor, 30U); // 30 is input irIndex，占位符
-            NnopbaseDisableOptionalInput(*executor, 31U); // 31 is input irIndex，占位符
         }
     }
     return ret;

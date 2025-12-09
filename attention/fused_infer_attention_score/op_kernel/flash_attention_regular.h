@@ -85,8 +85,7 @@ namespace SplitFuse {
             uint32_t blockSize = fATilingData->blockSize;
             uint32_t maskType = fATilingData->maskType;
             float scaleValue = fATilingData->scaleValue;
-            bool alibiLeftAlign = fATilingData->alibiLeftAlign;
-            bool isAlibiSqrt = fATilingData->isAlibiMaskSqrt;
+
             AscendC::GlobalTensor<ElementQ> gQ;
             gQ.SetGlobalBuffer((__gm__ ElementQ *)params.q);
             AscendC::ListTensorDesc keyListTensorDescInit((__gm__ void*)params.k);
@@ -97,8 +96,6 @@ namespace SplitFuse {
             gK.SetGlobalBuffer((__gm__ ElementK *)currentKey);
             AscendC::GlobalTensor<ElementK> gV;
             gV.SetGlobalBuffer((__gm__ ElementK *)currentValue);
-            AscendC::GlobalTensor<ElementQ> gPseShift; // 类型和Q一致
-            gPseShift.SetGlobalBuffer((__gm__ ElementQ *)params.pseShift);
             AscendC::GlobalTensor<ElementMask> gMask;
             gMask.SetGlobalBuffer((__gm__ ElementMask *)params.mask);
             AscendC::GlobalTensor<int32_t> gBlockTable;
@@ -111,8 +108,6 @@ namespace SplitFuse {
             gO.SetGlobalBuffer((__gm__ ElementO *)params.o);
             AscendC::GlobalTensor<ElementLse> gLse;
             gLse.SetGlobalBuffer((__gm__ ElementLse *)params.lse);
-            AscendC::GlobalTensor<ElementLse> gAlibiCoeff; // 类型和lse一致
-            gAlibiCoeff.SetGlobalBuffer((__gm__ ElementLse *)params.alibiCoeff);
             AscendC::GlobalTensor<ElementS> gS;
             gS.SetGlobalBuffer((__gm__ ElementS *)(params.workSpace));
             AscendC::GlobalTensor<ElementP> gP;
@@ -394,29 +389,6 @@ namespace SplitFuse {
                                     qNBlockSize,
                                     curStackTileMod);
                             }
-                        } else if constexpr (MASK_TYPE == FaiKenel::MaskType::ALIBI_MASK) {
-                            epilogueOnlineSoftmax(
-                                gP[gmOffsetP],
-                                gS[gmOffsetS],
-                                gPseShift,
-                                gAlibiCoeff,
-                                gMask,
-                                layOutP,
-                                layOutS,
-                                layOutMask,
-                                actualBlockShapeQK,
-                                (stackSeqCount == 0),
-                                qSBlockSize,
-                                qNBlockSize,
-                                curStackTileMod,
-                                qkReady,
-                                triUp,
-                                kvSStartIdx,
-                                kvSEndIdx,
-                                qNStartIdx,
-                                alibiLeftAlign,
-                                isAlibiSqrt,
-                                doTriUMask);
                         } else {
                             Arch::CrossCoreWaitFlag(qkReady);
                             epilogueOnlineSoftmax(
