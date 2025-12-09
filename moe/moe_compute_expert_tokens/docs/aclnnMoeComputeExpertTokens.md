@@ -16,8 +16,8 @@
 
 ## 功能说明
 
--   **接口功能**：MoE计算中，通过二分查找的方式查找每个专家处理的最后一行的位置。
--   **计算公式**：
+-   接口功能：MoE计算中，通过二分查找的方式查找每个专家处理的最后一行的位置。
+-   计算公式：
 
     $$
     for\: i\: in\: range(numExperts)
@@ -126,14 +126,14 @@ aclnnStatus aclnnMoeComputeExpertTokens(
     </tr>
     </tbody></table>
 
--   **返回值：**
+-   **返回值**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     第一段接口完成入参校验，出现以下场景时报错：
 
     <table style="undefined;table-layout: fixed; width: 1155px"><colgroup>
-    <col style="width: 253px">
+    <col style="width: 330px">
     <col style="width: 140px">
     <col style="width: 762px">
     </colgroup>
@@ -167,7 +167,7 @@ aclnnStatus aclnnMoeComputeExpertTokens(
 
 ## aclnnMoeComputeExpertTokens
 
--   **参数说明：**
+-   **参数说明**
 
     <table>
             <thead>
@@ -175,7 +175,7 @@ aclnnStatus aclnnMoeComputeExpertTokens(
             </thead>
             <tbody>
                 <tr><td>workspace</td><td>输入</td><td>在Device侧申请的workspace内存地址。</td></tr>
-                <tr><td>workspaceSize</td><td>输入</td><td>在Device侧申请的workspace大小，由第一段接口aclnnInplaceAddGetWorkspaceSize获取。</td></tr>
+                <tr><td>workspaceSize</td><td>输入</td><td>在Device侧申请的workspace大小，由第一段接口aclnnMoeComputeExpertTokensGetWorkspaceSize获取。</td></tr>
                 <tr><td>executor</td><td>输入</td><td> op执行器，包含了算子计算流程。 </td></tr>
                 <tr><td>stream</td><td>输入</td><td> 指定执行任务的Stream。 </td></tr>
             </tbody>
