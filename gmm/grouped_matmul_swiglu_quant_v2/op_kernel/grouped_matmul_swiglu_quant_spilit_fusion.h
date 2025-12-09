@@ -29,7 +29,8 @@ constexpr float DYNAMIC_QUANT_FACTOR = 1.0 / static_cast<float>(127.0);
 constexpr uint64_t MAX_CALC_NUM = 64;
 constexpr uint64_t REDUCEMAX_CALC_NUM = 64;
 constexpr uint64_t SPILI_NUM = 2;
-constexpr uint64_t VC_SYNC_MAX_TIMES = 15;
+constexpr uint64_t VC_SYNC_MAX_TIMES = 14;
+constexpr uint64_t RESRERVE_MEM_SIZE = 192;
 
 class GroupedMatmulDequantSwigluQuantFusion {
 public:
@@ -76,7 +77,7 @@ public:
         if ASCEND_IS_AIV {
             pipe_->InitBuffer(xActQueue_, 1, (tilingData_->ubFactorDimx * (tilingData_->N / SPILI_NUM) * SWI_FACTOR + tilingData_->ubFactorDimx * BLOCK_ELEM) * sizeof(int32_t));
             pipe_->InitBuffer(inScaleQueue_, 1, ((tilingData_->N / SPILI_NUM) * SWI_FACTOR + (tilingData_->N / SPILI_NUM)) * sizeof(float));
-            pipe_->InitBuffer(outQueue_, 1, tilingData_->ubFactorDimx * (tilingData_->N / SPILI_NUM) * sizeof(int8_t) + tilingData_->ubFactorDimx * sizeof(float) + BLOCK_SIZE);
+            pipe_->InitBuffer(outQueue_, 1, tilingData_->ubFactorDimx * (tilingData_->N / SPILI_NUM) * sizeof(int8_t) + tilingData_->ubFactorDimx * sizeof(float) + RESRERVE_MEM_SIZE);
             pipe_->InitBuffer(tmpBuf1_, tilingData_->ubFactorDimx * (tilingData_->N / SPILI_NUM) * SWI_FACTOR * sizeof(float));
         }
     }
@@ -103,7 +104,7 @@ public:
             realMSize = tokens - currentBasicBlockMId * matmulTilingData_->baseM;
         }
         realNSize = matmulTilingData_->baseN;
-        if (currentBasicBlockNId * matmulTilingData_->baseN + realMSize > tilingData_->N) {
+        if (currentBasicBlockNId * matmulTilingData_->baseN + realNSize > tilingData_->N) {
             realNSize = tilingData_->N - currentBasicBlockNId * matmulTilingData_->baseN;
         }
     }
@@ -160,15 +161,13 @@ public:
             uint32_t globalMOffset = 0;
             uint32_t processedBasicBlock = 0;
             uint32_t currentGroupId = 0;
+            uint32_t realSyncId = 0;
             while (currentBlockId < totalBasicBlocks) {
                 cvTimes = CeilDiv(nBasicsBlocks - rsvBlockNum, tilingData_->cubeBlockDim);
                 calcBlockNum += cvTimes * tilingData_->cubeBlockDim;
                 rsvBlockNum = calcBlockNum % nBasicsBlocks;
 
                 for (uint32_t cvId = 0; cvId < cvTimes; cvId++) {
-                    if (syncId > 0 && syncId % VC_SYNC_MAX_TIMES == 0) {
-                        AscendC::CrossCoreWaitFlag(0x9);
-                    }
                     uint32_t basicBlockIdxInGlobal = currentBlockId;
                     if (basicBlockIdxInGlobal >= totalBasicBlocks) {
                         break;
@@ -178,6 +177,11 @@ public:
                     syncId += 1;
                 }
                 AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8);
+
+                realSyncId += 1;
+                if (realSyncId > 0 && realSyncId % VC_SYNC_MAX_TIMES == 0) {
+                    AscendC::CrossCoreWaitFlag(0x9);
+                }
             }
             FinalizeCubeSync(syncId);
         }
@@ -218,10 +222,6 @@ public:
     }
 
     __aicore__ inline void ProcessVectorBlock(uint32_t syncId, bool& isSyncAll, uint32_t& globalMOffset) {
-        if (syncId > 0 && (syncId % VC_SYNC_MAX_TIMES == 0)) {
-            AscendC::CrossCoreSetFlag<0x2, PIPE_MTE2>(0x9);
-        }
-
         int startBasicBlockId = syncId * tilingData_->cubeBlockDim;
         int endBasicBlockId = startBasicBlockId + tilingData_->cubeBlockDim;
         if (totalBasicBlocks < endBasicBlockId) {
@@ -246,6 +246,7 @@ public:
             uint32_t globalMOffset = 0;
             uint32_t processedBasicBlock = 0;
             uint32_t currentGroupId = 0;
+            uint32_t realSyncId = 0;
             bool isSyncAll = false;
             while (syncId < totalSyncTimes) {
                 cvTimes = CeilDiv(nBasicsBlocks - rsvBlockNum, tilingData_->cubeBlockDim);
@@ -257,6 +258,11 @@ public:
                     ProcessVectorBlock(syncId, isSyncAll, globalMOffset);
                     currentBlockId += tilingData_->cubeBlockDim;
                     syncId += 1;
+                }
+
+                realSyncId += 1;
+                if (realSyncId > 0 && (realSyncId % VC_SYNC_MAX_TIMES == 0)) {
+                    AscendC::CrossCoreSetFlag<0x2, PIPE_MTE2>(0x9);
                 }
             }
         }
@@ -446,8 +452,10 @@ public:
             Abs(tmpUbF32Gate, tmpUbF32Act, tilingData_->ubFactorDimy * proDimsx);
 
             LocalTensor<float> outLocal = outQueue_.AllocTensor<float>();
-            LocalTensor<float> scaleOut = 
-                outLocal[tilingData_->ubFactorDimx * (tilingData_->N / SPILI_NUM) * sizeof(int8_t) / sizeof(float)];
+
+            uint64_t scaleOutOffset = tilingData_->ubFactorDimx * (tilingData_->N / SPILI_NUM) * sizeof(int8_t) / sizeof(float);
+            uint64_t alignScaleOutOffset = Ceil(scaleOutOffset, uint32_t(8)) * 8; // 8: num int32_t in 32B ub block
+            LocalTensor<float> scaleOut = outLocal[alignScaleOutOffset];
             LocalTensor<int8_t> yOut = outLocal.template ReinterpretCast<int8_t>();
             PipeBarrier<PIPE_V>();
 
@@ -455,8 +463,13 @@ public:
                 ComputeReduceMax(tmpUbF32Gate[i * tilingData_->ubFactorDimy], tilingData_->ubFactorDimy);
             }
 
-            WholeReduceMax(tmpUbF32Gate, tmpUbF32Gate, REDUCEMAX_CALC_NUM,  proDimsx, 1, 1,
-                tilingData_->ubFactorDimy / REDUCEMAX_CALC_NUM * 0x8, ReduceOrder::ORDER_ONLY_VALUE);
+            uint64_t realReduceMaxCalcNum = REDUCEMAX_CALC_NUM;
+            if (tilingData_->ubFactorDimy < REDUCEMAX_CALC_NUM) {
+                realReduceMaxCalcNum = tilingData_->ubFactorDimy;
+            }
+
+            WholeReduceMax(tmpUbF32Gate, tmpUbF32Gate, realReduceMaxCalcNum,  proDimsx, 1, 1,
+                tilingData_->ubFactorDimy / BLOCK_ELEM, ReduceOrder::ORDER_ONLY_VALUE);
             PipeBarrier<PIPE_V>();
 
             Muls(scaleOut, tmpUbF32Gate, DYNAMIC_QUANT_FACTOR, proDimsx);
@@ -491,7 +504,7 @@ public:
             tmpBuf1_.FreeTensor(tmpUbF32);
             outQueue_.EnQue<float>(outLocal);
             outLocal = outQueue_.DeQue<float>();
-            scaleOut = outLocal[tilingData_->ubFactorDimx * (tilingData_->N / SPILI_NUM) * sizeof(int8_t) / sizeof(float)];
+            scaleOut = outLocal[alignScaleOutOffset];
             yOut = outLocal.template ReinterpretCast<int8_t>();
 
             DataCopyParams dataCopyOutScaleParams;

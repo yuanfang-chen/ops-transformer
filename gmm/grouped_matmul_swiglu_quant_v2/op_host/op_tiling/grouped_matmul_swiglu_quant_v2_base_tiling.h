@@ -42,7 +42,7 @@ protected:
     void SetTilingKeyAndScheMode(void);
     ge::graphStatus ParseInputAndAttr();
     int64_t CalMaxRowInUbA8W4(const uint64_t ubSize, const uint64_t n);
-    int64_t CalMaxRowInUb(const uint64_t ubSize, const uint64_t n);
+    int64_t CalMaxRowInUb(const uint64_t ubSize, const uint64_t n) const;
 
 private:
     GMMSwigluQuantV2TilingData tilingData_;
