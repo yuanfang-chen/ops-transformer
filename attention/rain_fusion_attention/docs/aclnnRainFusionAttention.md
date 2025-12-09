@@ -136,7 +136,7 @@ aclnnStatus aclnnRainFusionAttention(
         <ul>
           <li>shape为[QBlockNum, headNum, maxKvBlockNum]。</li>
           <li>QBlockNum为所有batch中Q方向切块的总数。</li>
-          <li>存储每个Q块选择的KV块索引，无效位置用-1填充。</li>
+          <li>存储每个Q块选择的KV块索引，有效索引放数组前，升序排列，无效位置放数组后，用-1填充。</li>
         </ul>
       </td>
       <td>INT64</td>
