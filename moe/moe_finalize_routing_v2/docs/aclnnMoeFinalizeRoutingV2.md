@@ -10,7 +10,7 @@
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
-| <term>Atlas 推理系列产品 </term>                             |    √     |
+| <term>Atlas 推理系列产品</term>                             |    √     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 | <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
@@ -198,7 +198,7 @@ aclnnStatus aclnnMoeFinalizeRoutingV2(
     - <term>昇腾910_95 AI处理器</term>：
       - expandedX要求是一个2D/3D的Tensor，支持的数据类型为FLOAT16、BFLOAT16、FLOAT32，支持drop less和drop pad场景。
       - scalesOptional数据类型可以与expandedX不一致。
-    - <term>Atlas 推理系列产品 </term>：
+    - <term>Atlas 推理系列产品</term>：
       - expandedX要求是一个2D的Tensor，数据类型支持FLOAT16、FLOAT32，shape要求尾轴H为32对齐。
       - x1Optional、x2Optional、biasOptional、expertIdxOptional仅支持传入nullptr
       - 仅支持dropPadMode传入2。

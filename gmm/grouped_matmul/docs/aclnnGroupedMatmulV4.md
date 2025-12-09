@@ -353,7 +353,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     </tr>
   </tbody></table>
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件、Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
     - x支持FLOAT16、BFLOAT16、FLOAT32、INT8、INT4
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8、INT4，格式支持ND、FRACTAL_NZ
     - biasOptional支持FLOAT16、FLOAT32、INT32
