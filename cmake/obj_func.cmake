@@ -64,9 +64,11 @@ macro(add_modules_sources)
     add_infer_modules()
     target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${OPINFER_SRCS})
   else()
-    add_infer_modules()
     if (NOT TARGET ${OPHOST_NAME}_infer_obj)
       add_library(${OPHOST_NAME}_infer_obj OBJECT)
+      target_include_directories(${OPHOST_NAME}_infer_obj
+        PRIVATE ${INFER_OBJ_INCLUDE}
+      )
       add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/proto_stub.cpp
           COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/proto_stub.cpp
       )
@@ -403,21 +405,26 @@ function(add_opapi_modules)
   endif()
 endfunction()
 
+set(INFER_OBJ_INCLUDE
+  ${OP_PROTO_INCLUDE}
+  $<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include>
+  $<BUILD_INTERFACE:${OPS_TRANSFORMER_DIR}/common/include>
+  $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
+  $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/${SYSTEM_PREFIX}/include/op_common>>
+  $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment/hccl/external>>
+  $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment/metadef/common/util>>
+  $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/external>>
+  $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/base>>
+  ${OPS_TRANSFORMER_DIR}/mc2/common/inc
+  ${OPS_TRANSFORMER_DIR}/mc2/3rd
+)
+
 # 添加infer object
 function(add_infer_modules)
   if (NOT TARGET ${OPHOST_NAME}_infer_obj)
     add_library(${OPHOST_NAME}_infer_obj OBJECT)
     target_include_directories(${OPHOST_NAME}_infer_obj
-      PRIVATE ${OP_PROTO_INCLUDE}
-      $<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include>
-      $<BUILD_INTERFACE:${OPS_TRANSFORMER_DIR}/common/include>
-      $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
-      $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/${SYSTEM_PREFIX}/include/op_common>>
-      $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment/hccl/external>>
-      $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment/metadef/common/util>>
-      $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/external>>
-      ${OPS_TRANSFORMER_DIR}/mc2/common/inc
-      ${OPS_TRANSFORMER_DIR}/mc2/3rd
+      PRIVATE ${INFER_OBJ_INCLUDE}
     )
     target_compile_definitions(${OPHOST_NAME}_infer_obj
       PRIVATE
