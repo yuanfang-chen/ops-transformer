@@ -7,36 +7,51 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
 operator_group_1:
-#mla_prolog
-#mla_prolog_v2
-#mla_prolog_v3
-operator_group_2:
+  - mla_prolog
+  - mla_prolog_v2
+  - mla_prolog_v3
   - gather_pa_kv_cache
   - scatter_pa_kv_cache
   - attention_update
+operator_group_2:
+  - grouped_matmul
+  - grouped_matmul_add
+  - grouped_matmul_finalize_routing
+  - grouped_matmul_swiglu_quant_v2
+  - quant_grouped_matmul_inplace_add
 operator_group_3:
   - incre_flash_attention
 operator_group_4:
-  - flash_attention_score
+  - moe_finalize_routing
+  # - moe_finalize_routing_v2
+  # - moe_finalize_routing_v2_grad
+  # - moe_gating_top_k
+  # - moe_gating_top_k_softmax
+  # - moe_gating_top_k_softmax_v2
+  - moe_init_routing
+  - moe_init_routing_quant_v2
+  - moe_init_routing_v2
+  # - moe_init_routing_v2_grad
+  # - moe_init_routing_v3
+  # - moe_re_routing
+  - moe_compute_expert_tokens
+  - apply_rotary_pos_emb
+  - rotary_position_embedding
+  - rotary_position_embedding_grad
 operator_group_5:
+  - flash_attention_score
   - flash_attention_score_grad
 operator_group_6:
   - prompt_flash_attention
 operator_group_7:
-  - fused_infer_attention_score_4_0
+  - fused_infer_attention_score;4-1
 operator_group_8:
-  - fused_infer_attention_score_4_1
+  - fused_infer_attention_score;4-2
 operator_group_9:
-  - fused_infer_attention_score_4_2
+  - fused_infer_attention_score;4-3
 operator_group_10:
-  - fused_infer_attention_score_4_3
+  - fused_infer_attention_score;4-4
 
-
-#grouped_matmul
-#grouped_matmul_add
-#grouped_matmul_finalize_routing
-#grouped_matmul_swiglu_quant_v2
-#quant_grouped_matmul_inplace_add
 
 #allto_allv_grouped_mat_mul
 #all_gather_matmul
@@ -52,19 +67,6 @@ operator_group_10:
 #quant_all_reduce
 #quant_reduce_scatter
 
-
-#moe_finalize_routing
-#moe_finalize_routing_v2
-#moe_finalize_routing_v2_grad
-#moe_gating_top_k
-#moe_gating_top_k_softmax
-#moe_gating_top_k_softmax_v2
-#moe_init_routing
-#moe_init_routing_quant_v2
-#moe_init_routing_v2
-#moe_init_routing_v2_grad
-#moe_init_routing_v3
-#moe_re_routing
 
 # operator_group_2:
 #   - incre_flash_attention
