@@ -59,6 +59,7 @@ target_compile_options(intf_pub
             $<$<COMPILE_LANGUAGE:C>:-Wnested-externs>
             $<$<CONFIG:Debug>:-g>
             $<IF:$<VERSION_GREATER:${CMAKE_C_COMPILER_VERSION},4.8.5>,-fstack-protector-strong,-fstack-protector-all>
+            $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
 )
 target_compile_definitions(intf_pub
         INTERFACE
@@ -72,6 +73,8 @@ target_link_options(intf_pub
             -Wl,-z,relro
             -Wl,-z,now
             -Wl,-z,noexecstack
+            $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
+
 )
 
 # intf_pub_cxx14 for c++14
@@ -82,6 +85,7 @@ target_compile_options(intf_pub_cxx14 INTERFACE
   $<IF:$<VERSION_GREATER:${CMAKE_C_COMPILER_VERSION},4.8.5>,-fstack-protector-strong,-fstack-protector-all>
   $<$<CONFIG:Debug>:-g>
   $<$<COMPILE_LANGUAGE:CXX>:-std=c++14>
+  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
 )
 target_compile_definitions(intf_pub_cxx14 INTERFACE
   _GLIBCXX_USE_CXX11_ABI=0
@@ -95,20 +99,23 @@ target_link_options(intf_pub_cxx14 INTERFACE
   -Wl,-z,now
   -Wl,-z,noexecstack
   $<$<CONFIG:Release>:-Wl,--build-id=none>
+  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage> 
 )
 target_link_directories(intf_pub_cxx14 INTERFACE)
 target_link_libraries(intf_pub_cxx14 INTERFACE
   -lpthread
 )
 
-# intf_pub_cxx14 for c++17
+# intf_pub_cxx17 for c++17
 add_library(intf_pub_cxx17 INTERFACE)
 target_compile_options(intf_pub_cxx17 INTERFACE
     -Wall
     -fPIC
     $<IF:$<VERSION_GREATER:${CMAKE_C_COMPILER_VERSION},4.8.5>,-fstack-protector-strong,-fstack-protector-all>
     $<$<CONFIG:Debug>:-g>
-    $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
+    $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>
+    $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>  
+  )
 target_compile_definitions(intf_pub_cxx17 INTERFACE
     _GLIBCXX_USE_CXX11_ABI=0
     $<$<CONFIG:Release>:CFG_BUILD_NDEBUG>
@@ -119,7 +126,9 @@ target_link_options(intf_pub_cxx17 INTERFACE
     -Wl,-z,relro
     -Wl,-z,now
     -Wl,-z,noexecstack
-    $<$<CONFIG:Release>:-Wl,--build-id=none>)
+    $<$<CONFIG:Release>:-Wl,--build-id=none>
+    $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>   
+  )
 target_link_directories(intf_pub_cxx17 INTERFACE)
 target_link_libraries(intf_pub_cxx17 INTERFACE
   -lpthread)
@@ -132,6 +141,7 @@ target_compile_options(intf_pub_aicpu INTERFACE
   $<IF:$<VERSION_GREATER:${CMAKE_C_COMPILER_VERSION},4.8.5>,-fstack-protector-strong,-fstack-protector-all>
   $<$<CONFIG:Debug>:-g>
   $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>
+  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage> 
 )
 target_compile_definitions(intf_pub_aicpu INTERFACE
   $<$<NOT:$<STREQUAL:${PRODUCT_SIDE},device>>:_GLIBCXX_USE_CXX11_ABI=0>
@@ -146,6 +156,7 @@ target_link_options(intf_pub_aicpu INTERFACE
   -Wl,-z,now
   -Wl,-z,noexecstack
   $<$<CONFIG:Release>:-Wl,--build-id=none>
+  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
 )
 target_link_directories(intf_pub_aicpu INTERFACE)
 target_link_libraries(intf_pub_aicpu INTERFACE

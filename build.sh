@@ -1179,15 +1179,15 @@ if [ -n "${TEST}" ];then
         CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_UBSAN=true"
     fi
 
-    if [ "${COV}" == "true" ];then
-        if [ "${CLANG}" == "true" ];then
-            log "Warning: GCOV only supported in gnu compiler."
-        else
-            CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_GCOV=true"
-        fi
-    fi
-
     BUILD=ops_test_utest
+fi
+
+if [ "${COV}" == "true" ];then
+    if [ "${CLANG}" == "true" ];then
+        log "Warning: GCOV only supported in gnu compiler."
+    else
+        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_GCOV=true"
+    fi
 fi
 
 if [ -n "${EXAMPLE}" ];then

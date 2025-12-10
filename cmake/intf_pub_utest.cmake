@@ -57,6 +57,7 @@ target_compile_options(intf_pub_utest
             $<$<CXX_COMPILER_ID:GNU>:-Wreturn-local-addr> -Wextra
             -Wredundant-decls -Wfloat-conversion
             $<$<CXX_COMPILER_ID:Clang>:-Wno-tautological-unsigned-enum-zero-compare>
+            $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
 )
 target_include_directories(intf_pub_utest
         INTERFACE
