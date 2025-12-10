@@ -134,6 +134,7 @@ namespace {
     constexpr uint32_t MAX_HIDDEN_SIZE_A2 = 7168;
     constexpr uint32_t LAYERED_MAX_HIDDEN_SIZE_A2 = 10240;
     constexpr int32_t MAX_EP_WORLD_SIZE_A2 = 384;
+    constexpr int32_t MAX_EP_WORLD_SIZE_A2_LAYERED = 64;
     constexpr int32_t MAX_MOE_EXPERT_NUMS_A2 = 512;
     constexpr int32_t UNLAYERED_EXP_NUM_PER_RANK_A2 = 24;
     constexpr uint32_t MAX_BATCH_SIZE_A2 = 256;
@@ -1130,7 +1131,11 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(const gert::
     OP_TILING_CHECK((groupEpPtr == nullptr) || (strnlen(groupEpPtr, MAX_GROUP_NAME_LENGTH) == 0) ||
         (strnlen(groupEpPtr, MAX_GROUP_NAME_LENGTH) == MAX_GROUP_NAME_LENGTH),
         OP_LOGE(K_INNER_DEBUG, "groupEp is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(epWorldSizePtr == nullptr || *epWorldSizePtr <= 0 || *epWorldSizePtr > MAX_EP_WORLD_SIZE_A2 ||
+    int32_t maxEpWorldSizeA2 = MAX_EP_WORLD_SIZE_A2;
+    if (isLayered) {
+        maxEpWorldSizeA2 = MAX_EP_WORLD_SIZE_A2_LAYERED;
+    }
+    OP_TILING_CHECK(epWorldSizePtr == nullptr || *epWorldSizePtr <= 0 || *epWorldSizePtr > maxEpWorldSizeA2 ||
         *epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0,
         OP_LOGE(K_INNER_DEBUG, "epWorldSize is invalid."), return GRAPH_FAILED);
     OP_TILING_CHECK(epRankIdPtr == nullptr || *epRankIdPtr < 0 || *epRankIdPtr >= *epWorldSizePtr,
