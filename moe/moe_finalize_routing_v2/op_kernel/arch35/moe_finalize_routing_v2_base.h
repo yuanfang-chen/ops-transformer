@@ -16,8 +16,8 @@
 #ifndef MOE_FINALIZE_ROUTING_V2_BASE_H_
 #define MOE_FINALIZE_ROUTING_V2_BASE_H_
 #include "kernel_operator.h"
-#include "../../inc/platform.h"	
-#include "../../inc/kernel_utils.h"
+#include "op_kernel/platform_util.h"	
+#include "op_kernel/math_util.h"
 
 namespace MoeFinalizeRoutingV2Regbase {
 using namespace AscendC;
@@ -32,7 +32,7 @@ constexpr int32_t DROPLESS_ROW = 2;    // 按行读取
 constexpr int32_t DROP_PAD_ROW = 3;    // 按行读取
 constexpr int32_t INVALID_IDX = -1;
 constexpr int32_t DOUBLE_BUFFER = 2;
-constexpr int32_t VL_FP32 = platform::GetVRegSize() / sizeof(float);
+constexpr int32_t VL_FP32 = Ops::Base::GetVRegSize() / sizeof(float);
 
 constexpr AscendC::MicroAPI::CastTrait castTraitB162B32Even = {
     AscendC::MicroAPI::RegLayout::ZERO,
@@ -51,8 +51,8 @@ constexpr AscendC::MicroAPI::CastTrait castTraitB322B16Even = {
 template <typename T>
 __aicore__ inline int32_t RoundUp(int32_t num)
 {
-    int32_t elemNum = platform::GetUbBlockSize() / sizeof(T);	
-    return ops::CeilAlign(num, elemNum);
+    int32_t elemNum = Ops::Base::GetUbBlockSize() / sizeof(T);	
+    return Ops::Base::CeilAlign(num, elemNum);
 }
 
 template <typename T>
@@ -117,7 +117,7 @@ __aicore__ inline void VFProcessX1AndX2(
     __local_mem__ float* yLocalAddr = (__local_mem__ float*)yLocal.GetPhyAddr();
     __local_mem__ T* x1LocalAddr = (__local_mem__ T*)x1Local.GetPhyAddr();
     __local_mem__ T* x2LocalAddr = (__local_mem__ T*)x2Local.GetPhyAddr();
-    uint16_t loopCount = ops::Ceil<uint16_t>(processLen, VL_FP32);	
+    uint16_t loopCount = Ops::Base::CeilDiv<uint16_t>(processLen, VL_FP32);	
     __VEC_SCOPE__
     {
         RegTensor<float> x1;
@@ -165,7 +165,7 @@ __aicore__ inline void VFProcessExpandXBiasScale(
 
     uint16_t loopCount = processLen / VL_FP32;
     uint16_t tailNum = processLen - loopCount * VL_FP32;
-    uint16_t tailLoop = ops::Ceil<uint16_t>(tailNum, VL_FP32);	
+    uint16_t tailLoop = Ops::Base::CeilDiv<uint16_t>(tailNum, VL_FP32);	
     __VEC_SCOPE__
     {
         RegTensor<float> expandedX;
@@ -256,7 +256,7 @@ __aicore__ inline void VFProcessExpandXBiasScaleOptimized(
 
     uint16_t loopCount = processLen / VL_FP32;
     uint16_t tailNum = processLen - loopCount * VL_FP32;
-    uint16_t tailLoop = ops::Ceil<uint16_t>(tailNum, VL_FP32);	
+    uint16_t tailLoop = Ops::Base::CeilDiv<uint16_t>(tailNum, VL_FP32);	
     uint16_t processLenAlign = RoundUp<T>(processLen);
     __VEC_SCOPE__
     {

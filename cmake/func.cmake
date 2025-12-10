@@ -38,8 +38,6 @@ set(A5_OPS_BLACK_LIST
     "quant_all_reduce;"
     "quant_reduce_scatter;"
 
-    "moe_finalize_routing_v2;"
-    "moe_finalize_routing_v2_grad;"
     "moe_gating_top_k;"
     "moe_gating_top_k_softmax;"
     "moe_gating_top_k_softmax_v2;"

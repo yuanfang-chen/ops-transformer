@@ -16,16 +16,16 @@
 #define MOE_FINALIZE_ROUTING_V2_GRAD_REGBASE_H
 
 #include "kernel_operator.h"
-#include "../../inc/platform.h"	
-#include "../../inc/kernel_utils.h"
-#include "../../inc/load_store_utils.h"
+#include "op_kernel/platform_util.h"	
+#include "op_kernel/math_util.h"
+#include "op_kernel/load_store_utils.h"
 
 namespace MoeFinalizeRoutingV2Grad {
 using namespace AscendC;
 constexpr int64_t DOUBLE_BUFFER = 2;
 constexpr int64_t BINARY_ADD_COF = 2;
-constexpr uint32_t BLOCK_BYTE_SIZE = platform::GetUbBlockSize();	
-constexpr uint32_t VL_FLOAT32_SIZE = static_cast<uint32_t>(platform::GetVRegSize()) / sizeof(float);
+constexpr uint32_t BLOCK_BYTE_SIZE = Ops::Base::GetUbBlockSize();	
+constexpr uint32_t VL_FLOAT32_SIZE = static_cast<uint32_t>(Ops::Base::GetVRegSize()) / sizeof(float);
 
 constexpr AscendC::MicroAPI::CastTrait castTraitB322B16 = {
     AscendC::MicroAPI::RegLayout::ZERO,
@@ -142,9 +142,9 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegbase<T1, T2, T3, IsBiasExist>:
     int64_t binaryAddKLoop = binAddParams.binaryAddk;
     int64_t binaryAddLastNum = binAddParams.binaryAddLastNum;
     uint32_t binaryAddRemainder = reduceNum % binaryAddQuotient;
-    uint16_t remainderLoop = ops::CeilDiv(binaryAddRemainder, VL_FLOAT32_SIZE);	
-    uint16_t remainderGeneral = remainderLoop == 0 ? 0 : remainderLoop - 1;	
-    uint16_t quotientLoop = ops::CeilDiv(binaryAddQuotient, static_cast<int64_t>(VL_FLOAT32_SIZE));
+    uint16_t remainderLoop = Ops::Base::CeilDiv(binaryAddRemainder, VL_FLOAT32_SIZE);
+    uint16_t remainderGeneral = remainderLoop == 0 ? 0 : remainderLoop - 1;
+    uint16_t quotientLoop = Ops::Base::CeilDiv(binaryAddQuotient, static_cast<int64_t>(VL_FLOAT32_SIZE));
     uint16_t binaryAddLoop = ((binaryAddQuotient / VL_FLOAT32_SIZE) / VL_FLOAT32_SIZE);
 
     __VEC_SCOPE__

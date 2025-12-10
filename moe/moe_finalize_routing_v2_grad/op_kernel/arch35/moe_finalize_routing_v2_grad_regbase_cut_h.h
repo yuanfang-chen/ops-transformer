@@ -271,7 +271,7 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegBaseCutH<T1, T2, T3, IsBiasExi
         DataCopy(gradYUb, this->gradYGm_[gmOffset + mainOffset], foldFactor_);
         DataCopy(
             gradYUb[foldFactor_], this->gradYGm_[gmOffset + foldOffset],
-            ops::CeilAlign(foldTailFactor, typeAlignFactor_));
+            Ops::Base::CeilAlign(foldTailFactor, typeAlignFactor_));
         this->gradYInQueue_.template EnQue<T1>(gradYUb);
         gradYUb = this->gradYInQueue_.template DeQue<T1>();
         if (foldFactor_ + foldTailFactor < tilingData_->mainBinAddParams.binaryAddQuotient) {
@@ -285,7 +285,8 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegBaseCutH<T1, T2, T3, IsBiasExi
             biasUb = this->biasInQueue_.template AllocTensor<T1>();
             DataCopy(biasUb, this->biasGm_[biasMainOffset], foldFactor_);
             DataCopy(
-                biasUb[foldFactor_], this->biasGm_[biasFoldOffset], ops::CeilAlign(foldTailFactor, typeAlignFactor_));
+                biasUb[foldFactor_], this->biasGm_[biasFoldOffset],
+                Ops::Base::CeilAlign(foldTailFactor, typeAlignFactor_));
         }
         if (this->rowIdx_ >= 0 && this->rowIdx_ < tilingData_->baseParams.expandedXDim0) {
             int64_t xMainOffset = this->rowIdx_ * this->h_ + mainOffset;
@@ -295,7 +296,7 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegBaseCutH<T1, T2, T3, IsBiasExi
             DataCopy(expandedXUb, this->expandedXGm_[xMainOffset], foldFactor_);
             DataCopy(
                 expandedXUb[foldFactor_], this->expandedXGm_[xFoldOffset],
-                ops::CeilAlign(foldTailFactor, typeAlignFactor_));
+                Ops::Base::CeilAlign(foldTailFactor, typeAlignFactor_));
             this->expandedXInQueue_.template EnQue<T1>(expandedXUb);
             expandedXUb = this->expandedXInQueue_.template DeQue<T1>();
             if constexpr (IsBiasExist) {
@@ -335,7 +336,8 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegBaseCutH<T1, T2, T3, IsBiasExi
     LocalTensor<T1> gradYUb = this->gradYInQueue_.template AllocTensor<T1>();
     DataCopy(gradYUb, this->gradYGm_[gmOffset + mainOffset], foldFactor_);
     DataCopy(
-        gradYUb[foldFactor_], this->gradYGm_[gmOffset + foldOffset], ops::CeilAlign(foldTailFactor, typeAlignFactor_));
+        gradYUb[foldFactor_], this->gradYGm_[gmOffset + foldOffset],
+        Ops::Base::CeilAlign(foldTailFactor, typeAlignFactor_));
     this->gradYInQueue_.template EnQue<T1>(gradYUb);
     gradYUb = this->gradYInQueue_.template DeQue<T1>();
     if constexpr (IsBiasExist) {
@@ -343,7 +345,8 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegBaseCutH<T1, T2, T3, IsBiasExi
         int64_t biasFoldOffset = this->expertIdx_ * this->h_ + foldOffset;
         biasUb = this->biasInQueue_.template AllocTensor<T1>();
         DataCopy(biasUb, this->biasGm_[biasMainOffset], foldFactor_);
-        DataCopy(biasUb[foldFactor_], this->biasGm_[biasFoldOffset], ops::CeilAlign(foldTailFactor, typeAlignFactor_));
+        DataCopy(biasUb[foldFactor_], this->biasGm_[biasFoldOffset],
+                 Ops::Base::CeilAlign(foldTailFactor, typeAlignFactor_));
     }
     BinAddParams binAddParams = {
         tilingData_->mainBinAddParams.binaryAddQuotient, tilingData_->mainBinAddParams.binaryAddk,
@@ -361,7 +364,7 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegBaseCutH<T1, T2, T3, IsBiasExi
         DataCopy(expandedXUb, this->expandedXGm_[xMainOffset], foldFactor_);
         DataCopy(
             expandedXUb[foldFactor_], this->expandedXGm_[xFoldOffset],
-            ops::CeilAlign(foldTailFactor, typeAlignFactor_));
+            Ops::Base::CeilAlign(foldTailFactor, typeAlignFactor_));
         this->expandedXInQueue_.template EnQue<T1>(expandedXUb);
         expandedXUb = this->expandedXInQueue_.template DeQue<T1>();
         if constexpr (IsBiasExist) {
