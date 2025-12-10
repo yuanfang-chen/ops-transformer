@@ -117,7 +117,9 @@ class CompileOpStaticLib:
             with open(file_path, 'r', encoding='UTF-8') as json_fd:
                 json_dict = json.load(json_fd)
                 soc = str(file_path).split("/binary/")[-1].split("/bin/")[0]
-                json_dict["filePath"] = os.path.join(soc, str(file_path).split("/bin/")[-1].split("/kernel/")[-1]).replace("/ops_transformer", "")
+                json_dict["filePath"] = os.path.join(soc, str(file_path).split("/bin/")[-1].split("/kernel/")[-1])
+                if "opp/built-in/" in str(file_path):
+                    json_dict["filePath"] = str(file_path).split("/bin/")[-1].split("/kernel/")[-1].replace("/ops_transformer", "")
                 file_path = os.path.join(out_path, os.path.basename(file_path))
                 with open(file_path, 'w', encoding='UTF-8') as new_json_fd:
                     new_json_fd.write(json.dumps(json_dict, indent=4))
@@ -482,6 +484,8 @@ const OP_BINARY_RES& {op_type}KernelResource() {{
                     json_file = f"{os.path.basename(os.path.dirname(o_lists[0]))}.json"
             # json_path = self._binary_path / "config" / self._soc_version / json_file
             json_path = self._binary_path / json_file
+            if "opp/built-in/" in str(self._binary_path):
+                json_path = self._binary_path / "config" / self._soc_version / "ops_transformer" / json_file
             if not os.path.exists(json_path):
                 continue
             with open(json_path, "r") as op_json_fd:
@@ -490,10 +494,11 @@ const OP_BINARY_RES& {op_type}KernelResource() {{
                 continue
             # 算子.json内 kernel json路径适配
             bin_json_file = self._binary_path / op_json_content["binList"][0]["binInfo"]["jsonFilePath"].split("/", 1)[1]
+            if "opp/built-in/" in str(self._binary_path):
+                bin_json_file = self._binary_path / self._soc_version / "ops_transformer" / op_json_content["binList"][0]["binInfo"]["jsonFilePath"].split("/", 1)[1]
             ops_path = os.path.dirname(bin_json_file)
             self._op_res[ops].binary_config_files.append(json_path)
             self._op_res[ops].kernel_files.extend(sorted(Path(ops_path).iterdir()))
-
         for kb_json in list(Path(self._tuning_basic_path).rglob(f"*_AiCore_*_runtime_kb.json")):
             ops = kb_json.name.split("_AiCore_")[-1].split("_runtime_kb")[0]
             self._op_res[ops].runtime_kb_files.append(kb_json)

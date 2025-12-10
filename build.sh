@@ -536,9 +536,14 @@ build_static_lib() {
 package_static() {
     local unit="$1"
     if [[ "$ENABLE_BUILT_CUSTOM" == "TRUE" ]]; then
-        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_BUILT_IN=OFF -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON -DENABLE_BUILD_PKG=ON"
+        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_BUILT_IN=OFF -DENABLE_OPS_HOST=ON -DENABLE_BUILD_PKG=ON"
     else
-        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON -DENABLE_BUILD_PKG=ON"
+        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_BUILD_PKG=ON"
+    fi
+    if [[ "$ENABLE_BUILT_JIT" == "TRUE" ]]; then
+        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_OPS_KERNEL=OFF"
+    else
+        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_OPS_KERNEL=ON"
     fi
     cmake_config -DASCEND_COMPUTE_UNIT=${unit}
     build_package
@@ -1444,6 +1449,7 @@ elif [[ "$ENABLE_STATIC" == "TRUE" ]]; then
                 package_static ${soc}
             fi
         fi
+        make clean
     done
 elif [[ "$ENABLE_OPKERNEL" == "TRUE" ]]; then
     set_compute_unit_option
