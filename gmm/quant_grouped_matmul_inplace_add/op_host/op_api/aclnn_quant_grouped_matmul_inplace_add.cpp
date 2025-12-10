@@ -279,6 +279,14 @@ static aclnnStatus ParamsDataContiguous(QGmmInPlaceAdd::QuantGroupedMatmulInplac
     return ACLNN_SUCCESS;
 }
 
+static bool IsSpecialTranspose(const aclTensor* const inputTensor)
+{
+    const auto inputShape = inputTensor->GetViewShape();
+    int64_t dim1 = inputShape.GetDimNum() - gmm::LAST_FIRST_DIM_INDEX;
+    int64_t dim2 = inputShape.GetDimNum() - gmm::LAST_SECOND_DIM_INDEX;
+    return inputShape.GetDim(dim1) == 1 && inputShape.GetDim(dim2) == 1;
+}
+
 static aclnnStatus aclnnQuantGroupedMatmulInplaceAddGetWorkspaceSizeCommon(QGmmInPlaceAdd::QuantGroupedMatmulInplaceAddParams params,
                                                         uint64_t *workspaceSize, aclOpExecutor **executor)
 {
@@ -290,14 +298,21 @@ static aclnnStatus aclnnQuantGroupedMatmulInplaceAddGetWorkspaceSizeCommon(QGmmI
     auto ret = CheckParams(params);
     CHECK_RET(ret == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
-    if (gmm::IsTransposeLastTwoDims(params.x1)) {
+    bool transposeX = gmm::IsTransposeLastTwoDims(params.x1);      // check is transpose x
+    bool transposeWeight = gmm::IsTransposeLastTwoDims(params.x2); // check is transpose weight
+    // when the last two dims of weight are (1, 1), consider tranB as false
+    transposeWeight = transposeWeight && !IsSpecialTranspose(params.x2);
+    CHECK_COND(transposeX == true && transposeWeight == false, ACLNN_ERR_PARAM_INVALID,
+               "Only support when transpose of x1 is true and transpose of x2 is false.");
+
+    if (transposeX) {
         SetTransViewShape(params.x1, executorPtr);
         if (params.scale1Optional->GetDataType() == DataType::DT_FLOAT8_E8M0) {
             CHECK_RET(SetTransViewShapeForPertoken(params.scale1Optional, executorPtr) == ACLNN_SUCCESS,
                       ACLNN_ERR_PARAM_INVALID);
         }
     }
-    if (gmm::IsTransposeLastTwoDims(params.x2)) {
+    if (transposeWeight) {
         SetTransViewShape((params.x2), executorPtr);
         if (params.scale2->GetDataType() == DataType::DT_FLOAT8_E8M0) {
             CHECK_RET(SetTransViewShapeForPertoken(params.scale2, executorPtr) == ACLNN_SUCCESS,
