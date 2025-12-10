@@ -470,6 +470,16 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>-</td>
       </tr>
       <tr>
+        <td>pseType</td>
+        <td>输入</td>
+        <td>pse类型。</td>
+        <td>支持配置值0~3。</td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>softmaxInLayout</td>
         <td>输入</td>
         <td>控制softmaxMax、softmaxSum的实际数据排布。</td>
@@ -529,10 +539,10 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
     <tr>
       <td rowspan="2">ACLNN_ERR_PARAM_INVALID</td>
       <td rowspan="2">161002</td>
-      <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、dqOut、dkOut、dvOut、softmaxInLayout 的数据类型不在支持的范围内。</td>
+      <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、sinkInOptional、dqOut、dkOut、dvOut、dsinkOut、softmaxInLayout 的数据类型不在支持的范围内。</td>
     </tr>
     <tr>
-      <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、dqOut、dkOut、dvOut、softmaxInLayout 的数据格式不在支持的范围内。</td>
+      <td>query、keyIn、value、dy、pseShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、softmaxMaxOptional、softmaxSumOptional、softmaxInOptional、attentionInOptional、sinkInOptional、dqOut、dkOut、dvOut、dsinkOut、softmaxInLayout 的数据格式不在支持的范围内。</td>
     </tr>
   </tbody>
   </table>
@@ -600,6 +610,13 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
     -   D：取值范围为1\~512。
     -   KeepProb: 取值范围为(0, 1]。
 - query、key、value数据排布格式仅支持TND，T是B和S合轴紧密排列的数据（每个batch的SeqLenQ和SeqLenKV），其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N。
+- pseType 各个取值含义
+  | pseType | 含义 | 备注 |
+  | ----------- | --------------------------------- | ----------|
+  | 0 | 外部传入pse 先mul再add | - |
+  | 1 | 外部传入pse 先add再mul | 跟[FlashAttentionScoreGrad](./aclnnFlashAttentionScoreGrad.md)实现一致。 |
+  | 2 | 内部生成pse 先mul再add | - |
+  | 3 | 内部生成pse 先mul再add再sqrt | - |
 - sparseMode的约束如下: 
   - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量；
   - 配置为1、2、3、5时，用户配置的preTokens、nextTokens不会生效；
@@ -795,13 +812,16 @@ int main() {
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(dsinkHostData, dsinkShape, &dsinkDeviceAddr, aclDataType::ACL_FLOAT, &dsink);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-
   std::vector<int64_t> prefixOp = {0};
   aclIntArray* prefix = aclCreateIntArray(prefixOp.data(), 1);
   std::vector<int64_t>  acSeqQLenOp = {256};
   std::vector<int64_t>  acSeqKvLenOp = {256};
   aclIntArray* acSeqQLen = aclCreateIntArray(acSeqQLenOp.data(), acSeqQLenOp.size());
   aclIntArray* acSeqKvLen = aclCreateIntArray(acSeqKvLenOp.data(), acSeqKvLenOp.size());
+  std::vector<int64_t> qStartIdxOp = {0};
+  std::vector<int64_t> kvStartIdxOp = {0};
+  aclIntArray *qStartIdx = aclCreateIntArray(qStartIdxOp.data(), 1);
+  aclIntArray *kvStartIdx = aclCreateIntArray(kvStartIdxOp.data(), 1);
   double scaleValue = 0.088388;
   double keepProb = 1;
   int64_t preTokens = 65536;
@@ -809,8 +829,8 @@ int main() {
   int64_t headNum = 1;
   int64_t innerPrecise = 0;
   int64_t sparseMode = 0;
+  int64_t pseType = 1;
   char softmaxInLayoutArr[] = "same_as_input";
-
   char layOut[5] = {'T', 'N', 'D', 0};
 
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
@@ -818,10 +838,10 @@ int main() {
   aclOpExecutor* executor;
 
   // 调用aclnnFlashAttentionUnpaddingScoreGradV5第一段接口
-  ret = aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(q, k, v, dx, pse, dropMask, padding,
+  ret = aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(q, nullptr, k, nullptr, v, dx, pse, dropMask, padding,
               attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, sinkInOptional, prefix, acSeqQLen, acSeqKvLen,
-              scaleValue, keepProb, preTokens, nextTokens, headNum, layOut, innerPrecise, sparseMode,
-              softmaxInLayoutArr, dq, dk, dv, dpse, dsink, &workspaceSize, &executor);
+              qStartIdx, kvStartIdx, scaleValue, keepProb, preTokens, nextTokens, headNum, layOut, innerPrecise, sparseMode,
+              pseType, softmaxInLayoutArr, dq, nullptr, dk, nullptr, dv, dpse, dsink, &workspaceSize, &executor);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
 
   // 根据第一段接口计算出的workspaceSize申请device内存

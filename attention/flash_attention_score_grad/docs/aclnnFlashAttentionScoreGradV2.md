@@ -371,7 +371,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV2(
         <td>sparseMode</td>
         <td>输入</td>
         <td>稀疏模式。</td>
-        <td>支持配置值0~8。</td>
+        <td>支持配置值0~6。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
