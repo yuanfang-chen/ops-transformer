@@ -34,6 +34,7 @@ constexpr uint32_t QUERY_DIM_3 = 3;
 constexpr uint32_t QUERY_DIM_4 = 4;
 constexpr uint32_t VALUE_DIM_2 = 2;
 constexpr uint32_t VALUE_DIM_3 = 3;
+constexpr uint32_t KV_DIM_0 = 0;
 constexpr uint32_t KV_DIM_2 = 2;
 constexpr uint32_t KV_DIM_3 = 3;
 constexpr uint32_t OUT_DIM_2 = 2;
@@ -468,19 +469,19 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     int64_t batchOfQ = 1;
     if (layoutStr != "NSD") {
         if (layoutStr != "TND") {
-            batchOfQ = contextKeyParams.queryInputShape->GetStorageShape().GetDim(0);
+            batchOfQ = contextKeyParams.queryInputShape->GetStorageShape().GetDim(QUERY_DIM_0);
         } else {
             if (!isMaxWorkspace) {
                 const gert::Tensor* actSeqLenData = contextKeyParams.actualSequenceLengthQ;
                 int64_t actSeqLenDims = (actSeqLenData != nullptr) ? actSeqLenData->GetShapeSize() : 0;
                 OP_CHECK_IF(((actSeqLenData == nullptr) || (actSeqLenDims == 0) || (actSeqLenData->GetData<int64_t>() == nullptr)),
-                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthQ is required"),
-                return ge::GRAPH_FAILED);
+                    OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthQ is required"),
+                    return ge::GRAPH_FAILED);
                 const gert::Tensor* actSeqLenDataKV = contextKeyParams.actualSequenceLengthKV;
                 int64_t actSeqLenKVDims = (actSeqLenDataKV != nullptr) ? actSeqLenDataKV->GetShapeSize() : 0;
                 OP_CHECK_IF(((actSeqLenDataKV == nullptr) || (actSeqLenKVDims == 0) || (actSeqLenDataKV->GetData<int64_t>() == nullptr)),
-                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthKV is required"),
-                return ge::GRAPH_FAILED);
+                    OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthKV is required"),
+                    return ge::GRAPH_FAILED);
                 batchOfQ = actSeqLenDims;
             }
         }
@@ -609,13 +610,13 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
   auto batchOfKey = 1;
   std::string layoutStr(ifaContext.layOut);
   if (layoutStr != "TND") {
-    batchOfQuery = ifaContext.query.shape->GetStorageShape().GetDim(0);
-    batchOfKey = ifaContext.key.shape->GetStorageShape().GetDim(0);
+    batchOfQuery = ifaContext.query.shape->GetStorageShape().GetDim(QUERY_DIM_0);
+    batchOfKey = ifaContext.key.shape->GetStorageShape().GetDim(KV_DIM_0);
   } else {
     if (isMaxWorkspace) {
       if (ifaContext.blockTable.tensor != nullptr) {
-        batchOfQuery = ifaContext.blockTable.tensor->GetStorageShape().GetDim(0);
-        batchOfKey = ifaContext.blockTable.tensor->GetStorageShape().GetDim(0);
+        batchOfQuery = ifaContext.blockTable.tensor->GetStorageShape().GetDim(QUERY_DIM_0);
+        batchOfKey = ifaContext.blockTable.tensor->GetStorageShape().GetDim(KV_DIM_0);
       }
     } else {
       OP_CHECK_IF((ifaContext.actualSeqLengthsQ.tensor == nullptr || ifaContext.actualSeqLengths.tensor == nullptr),
@@ -648,12 +649,9 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
 }
 
 static bool GetMaxWorkspaceFlag(gert::TilingContext& context) {
-    if ((context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX) && !context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX)->GetData<int64_t>()) || 
-        (context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX) && !context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX)->GetData<int64_t>())) {
-        return true;
-    } else {
-        return false;
-    }
+    bool res = (context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX) != nullptr && context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX)->GetData<int64_t>()  == nullptr) || 
+        (context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX) != nullptr && context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX)->GetData<int64_t>() == nullptr);
+    return res;
 }
 
 ge::graphStatus TilingFusedInferAttentionScoreV2(gert::TilingContext *context) {
@@ -713,7 +711,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
     }
     const string inputLayoutStr = string(attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX));
     int64_t s = 0;
-    int64_t b = tempQ->GetStorageShape().GetDim(0);
+    int64_t b = tempQ->GetStorageShape().GetDim(QUERY_DIM_0);
     int64_t t = 0;
     bool lseFlag = *attrs->GetAttrPointer<bool>(SOFTMAX_LSE_FLAG_INDEX);
     bool usingIFA = false;

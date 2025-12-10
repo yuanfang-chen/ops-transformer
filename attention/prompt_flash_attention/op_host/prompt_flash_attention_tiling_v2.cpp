@@ -3920,7 +3920,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
     }
 
     // actSeq check
-    if (!CheckActSeq(contextKeyParams, queryShapeInfo)) {
+    if (!isMaxWorkspace && !CheckActSeq(contextKeyParams, queryShapeInfo)) {
         OP_LOGE(contextKeyParams.opName, "Check actual sequence failed!");
         return ge::GRAPH_FAILED;
     }
@@ -4389,12 +4389,12 @@ ge::graphStatus PromptFlashAttentionTilingV2::PromptFlashAttentionSetTilingData(
 }
 
 void PromptFlashAttentionTilingV2::GetMaxWorkspaceFlag(ContextParamsForPFATiling& contextKeyParams) {
-  if ((contextKeyParams.actualSequenceLengthQ && !contextKeyParams.actualSequenceLengthQ->GetData<int64_t>()) || 
-    (contextKeyParams.actualSequenceLengthKV && !contextKeyParams.actualSequenceLengthKV->GetData<int64_t>())) {
-    isMaxWorkspace = true;
-  } else {
-    isMaxWorkspace = false;
-  }
+    if ((contextKeyParams.actualSequenceLengthQ != nullptr && contextKeyParams.actualSequenceLengthQ->GetData<int64_t>() == nullptr) || 
+        (contextKeyParams.actualSequenceLengthKV != nullptr && contextKeyParams.actualSequenceLengthKV->GetData<int64_t>() == nullptr)) {
+        isMaxWorkspace = true;
+    } else {
+        isMaxWorkspace = false;
+    }
 }
 
 void PromptFlashAttentionTilingV2::InitializeMaxWorkspace(PFAShapeInfo& queryShapeInfo,

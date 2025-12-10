@@ -3860,7 +3860,8 @@ ge::graphStatus IFATilingV2::ConvertContext(gert::TilingContext& context,
 }
 
 void IFATilingV2::GetMaxWorkspaceFlag() {
-  if ((ifaContext_->actualSeqLengthsQ.tensor && !ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>()) || (ifaContext_->actualSeqLengths.tensor && !ifaContext_->actualSeqLengths.tensor->GetData<int64_t>())) {
+  if ((ifaContext_->actualSeqLengthsQ.tensor != nullptr && ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>() == nullptr) ||
+    (ifaContext_->actualSeqLengths.tensor != nullptr && ifaContext_->actualSeqLengths.tensor->GetData<int64_t>() == nullptr)) {
     isMaxWorkspace_ = true;
   } else {
     isMaxWorkspace_ = false;
