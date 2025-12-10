@@ -707,6 +707,8 @@ __aicore__ inline void VecOpDet<FAGT>::OrderAccumDq(
     // end process
     if (detGrop.existLastBlock) {
         if (!detGrop.existFirstBlock) {
+            SET_FLAG(MTE3, MTE2, EVENT_ID0);
+            WAIT_FLAG(MTE3, MTE2, EVENT_ID0);
             // 最后一块，从临时GM上读取之前的累加数据，直接做post操作并输出
             LocalTensor<float> copyTensor = (detGrop.accumNum % 2) ? copyPingTensor : copyPongTensor;
             uint32_t eventId = (detGrop.accumNum % 2) ? eventIdBPing : eventIdBPong;

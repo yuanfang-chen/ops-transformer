@@ -63,7 +63,7 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetAttrsInfo()
     fBaseParams.preTockens = *context_->GetAttrs()->GetAttrPointer<int64_t>(PRE_TOKENS);
     fBaseParams.nextTockens = *context_->GetAttrs()->GetAttrPointer<int64_t>(NEXT_TOKENS);
     fBaseParams.sparseMode = *context_->GetAttrs()->GetAttrPointer<int>(SPARSE_MODE);
-    fBaseParams.dqPostAbsorb = ((context_->GetDeterministic() == 1) && (fBaseParams.sparseMode != 4)) ? 1 : 0;
+    fBaseParams.dqPostAbsorb = 0;
 
     OP_CHECK_IF((fBaseParams.keepProb <= 0.0 || fBaseParams.keepProb > 1.0),
                OP_LOGE(context_, "keepProb is illegal."), return ge::GRAPH_FAILED);
@@ -216,8 +216,7 @@ bool FlashAttentionScoreGraTilingBasicDet::IsAttenMskCapable()
                 (attenMaskDim0 != ATTEN_MASK_NUM || attenMaskDim1 != ATTEN_MASK_NUM)){
         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet not support current shape of attenMask.");
         return false;
-    } else if (fBaseParams.sparseMode == BAND &&
-                (attenMaskDim0 != ATTEN_MASK_NUM || attenMaskDim1 != ATTEN_MASK_NUM)){
+    } else if (fBaseParams.sparseMode == BAND){
         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet not support current shape of attenMask.");
         return false;
     }
@@ -282,7 +281,7 @@ bool FlashAttentionScoreGraTilingBasicDet::IsDropMskCapable()
         return false;
     }
 
-    return true;;
+    return false;
 }
 
 bool FlashAttentionScoreGraTilingBasicDet::IsShapeCapable()
