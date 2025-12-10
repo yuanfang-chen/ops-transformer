@@ -79,14 +79,14 @@ public:
 
         this->Input("actual_seq_lengths_query")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_INT64, ge::DT_INT64})
+            .DataType({ge::DT_INT32, ge::DT_INT32})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
 
         this->Input("actual_seq_lengths_kv")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_INT64, ge::DT_INT64})
+            .DataType({ge::DT_INT32, ge::DT_INT32})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();

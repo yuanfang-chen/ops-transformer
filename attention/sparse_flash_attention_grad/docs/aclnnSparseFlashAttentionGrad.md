@@ -255,7 +255,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
                 <li>累加和与T1保持一致。</li>
             </ul>
             </td>
-            <td>INT64</td>
+            <td>INT32</td>
             <td>ND</td>
             <td>(B,)</td>
             <td>-</td>
@@ -271,7 +271,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
                 <li>累加和与T2保持一致。</li>
             </ul>
             </td>
-            <td>INT64</td>
+            <td>INT32</td>
             <td>ND</td>
             <td>(B,)</td>
             <td>-</td>

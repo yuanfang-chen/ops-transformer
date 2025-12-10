@@ -354,21 +354,21 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::GetTndSeqLen(const GM_
                                                                        const int64_t t1Idx, int64_t &bIdx)
 {
     if constexpr (IS_BSND == false) {
-        int64_t curT1 = ((__gm__ int64_t *)actual_seq_qlen_addr)[bIndex];
+        int64_t curT1 = ((__gm__ int32_t *)actual_seq_qlen_addr)[bIndex];
         while (t1Idx >= curT1) {
-            curT1 = ((__gm__ int64_t *)actual_seq_qlen_addr)[++bIndex];
+            curT1 = ((__gm__ int32_t *)actual_seq_qlen_addr)[++bIndex];
         }
 
         if (unlikely(bIndex == 0)) {
             t1Offset = 0;
             t2Offset = 0;
-            curS1 = ((__gm__ int64_t *)actual_seq_qlen_addr)[bIndex];
-            curS2 = ((__gm__ int64_t *)actual_seq_kvlen_addr)[bIndex];
+            curS1 = ((__gm__ int32_t *)actual_seq_qlen_addr)[bIndex];
+            curS2 = ((__gm__ int32_t *)actual_seq_kvlen_addr)[bIndex];
         } else {
-            t1Offset = ((__gm__ int64_t *)actual_seq_qlen_addr)[bIndex - 1];
-            t2Offset = ((__gm__ int64_t *)actual_seq_kvlen_addr)[bIndex - 1];
-            curS1 = ((__gm__ int64_t *)actual_seq_qlen_addr)[bIndex] - ((__gm__ int64_t *)actual_seq_qlen_addr)[bIndex - 1];
-            curS2 = ((__gm__ int64_t *)actual_seq_kvlen_addr)[bIndex] - ((__gm__ int64_t *)actual_seq_kvlen_addr)[bIndex - 1];
+            t1Offset = ((__gm__ int32_t *)actual_seq_qlen_addr)[bIndex - 1];
+            t2Offset = ((__gm__ int32_t *)actual_seq_kvlen_addr)[bIndex - 1];
+            curS1 = ((__gm__ int32_t *)actual_seq_qlen_addr)[bIndex] - ((__gm__ int32_t *)actual_seq_qlen_addr)[bIndex - 1];
+            curS2 = ((__gm__ int32_t *)actual_seq_kvlen_addr)[bIndex] - ((__gm__ int32_t *)actual_seq_kvlen_addr)[bIndex - 1];
         }
 
         s1Index = t1Idx - t1Offset;
