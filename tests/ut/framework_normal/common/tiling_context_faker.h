@@ -20,12 +20,18 @@ class TilingContextPara {
 public:
     class TensorDescription {
     public:
-        TensorDescription(const gert::StorageShape& shape, ge::DataType dtype, ge::Format format) :
-            shape_(shape), dtype_(dtype), format_(format) {}
+        TensorDescription(const gert::StorageShape& shape, 
+                          ge::DataType dtype, 
+                          ge::Format format, 
+                          bool isConst = false, 
+                          void* constValue = nullptr) :
+            shape_(shape), dtype_(dtype), format_(format), isConst_(isConst), constValue_(constValue) {}
     public:
         gert::StorageShape shape_;
         ge::DataType dtype_ = ge::DT_FLOAT;
         ge::Format format_ = ge::FORMAT_ND;
+        bool isConst_ = false;
+        void* constValue_ = nullptr;
     };
 
     class OpAttr {

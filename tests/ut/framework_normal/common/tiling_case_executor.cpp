@@ -21,21 +21,27 @@
     size_t outputNum = tilingContextPara.outputTensorDesc_.size();                                                     \
     std::vector<uint32_t> inputIrInstance = {};                                                                        \
     std::vector<uint32_t> outputIrInstance = {};                                                                       \
-    std::vector<gert::Tensor> inputTensors = {};                                                                       \
-    std::vector<gert::Tensor> outputTensors = {};                                                                      \
-    std::vector<gert::Tensor *> inputTensorsPtr = {};                                                                  \
-    std::vector<gert::Tensor *> outputTensorsPtr = {};                                                                 \
+    std::vector<gert::Tensor *> inputTensors = {};                                                                     \
+    std::vector<gert::Tensor *> outputTensors = {};                                                                    \
+    std::vector<std::unique_ptr<gert::Tensor>> inputTensorsKeepAlive = {};                                             \
+    std::vector<std::unique_ptr<gert::Tensor>> outputTensorsKeepAlive = {};                                            \
     for (size_t index = 0; index < inputNum; index++) {                                                                \
         if (tilingContextPara.inputTensorDesc_[index].shape_.GetStorageShape().GetDimNum() == 0){                      \
             inputIrInstance.push_back(0);                                                                              \
         } else {                                                                                                       \
             inputIrInstance.push_back(1);                                                                              \
-            inputTensors.push_back(gert::Tensor());                                                                    \
-            inputTensors[inputTensors.size() - 1].SetDataType(tilingContextPara.inputTensorDesc_[index].dtype_);       \
-            inputTensors[inputTensors.size() - 1].SetOriginFormat(tilingContextPara.inputTensorDesc_[index].format_);  \
-            inputTensors[inputTensors.size() - 1].SetStorageFormat(tilingContextPara.inputTensorDesc_[index].format_); \
-            inputTensors[inputTensors.size() - 1].MutableStorageShape() = tilingContextPara.inputTensorDesc_[index].shape_.GetStorageShape();\
-            inputTensors[inputTensors.size() - 1].MutableOriginShape() = tilingContextPara.inputTensorDesc_[index].shape_.GetOriginShape();\
+            std::unique_ptr<gert::Tensor> curTensor = std::make_unique<gert::Tensor>(                                  \
+                tilingContextPara.inputTensorDesc_[index].shape_,                                                      \
+                gert::StorageFormat(tilingContextPara.inputTensorDesc_[index].format_,                                 \
+                tilingContextPara.inputTensorDesc_[index].format_,                                                     \
+                gert::ExpandDimsType()),                                                                               \
+                gert::TensorPlacement::kOnHost,                                                                        \
+                tilingContextPara.inputTensorDesc_[index].dtype_,                                                      \
+                tilingContextPara.inputTensorDesc_[index].isConst_ ?                                                   \
+                tilingContextPara.inputTensorDesc_[index].constValue_:                                                 \
+                nullptr);                                                                                              \
+            inputTensors.push_back(curTensor.get());                                                                   \
+            inputTensorsKeepAlive.push_back(std::move(curTensor));                                                     \
         }                                                                                                              \
     }                                                                                                                  \
     for (size_t index = 0; index < outputNum; index++) {                                                               \
@@ -43,26 +49,26 @@
             outputIrInstance.push_back(0);                                                                             \
         } else {                                                                                                       \
             outputIrInstance.push_back(1);                                                                             \
-            outputTensors.push_back(gert::Tensor());                                                                   \
-            outputTensors[outputTensors.size() - 1].SetDataType(tilingContextPara.outputTensorDesc_[index].dtype_);    \
-            outputTensors[outputTensors.size() - 1].SetOriginFormat(tilingContextPara.outputTensorDesc_[index].format_);\
-            outputTensors[outputTensors.size() - 1].SetStorageFormat(tilingContextPara.outputTensorDesc_[index].format_);\
-            outputTensors[outputTensors.size() - 1].MutableStorageShape() = tilingContextPara.outputTensorDesc_[index].shape_.GetStorageShape();\
-            outputTensors[outputTensors.size() - 1].MutableOriginShape() = tilingContextPara.outputTensorDesc_[index].shape_.GetOriginShape();\
+            std::unique_ptr<gert::Tensor> curTensor = std::make_unique<gert::Tensor>(                                  \
+                tilingContextPara.outputTensorDesc_[index].shape_,                                                     \
+                gert::StorageFormat(tilingContextPara.outputTensorDesc_[index].format_,                                \
+                tilingContextPara.outputTensorDesc_[index].format_,                                                    \
+                gert::ExpandDimsType()),                                                                               \
+                gert::TensorPlacement::kOnHost,                                                                        \
+                tilingContextPara.outputTensorDesc_[index].dtype_,                                                     \
+                tilingContextPara.outputTensorDesc_[index].isConst_ ?                                                  \
+                tilingContextPara.outputTensorDesc_[index].constValue_:                                                \
+                nullptr);                                                                                              \
+            outputTensors.push_back(curTensor.get());                                                                  \
+            outputTensorsKeepAlive.push_back(std::move(curTensor));                                                    \
         }                                                                                                              \
-    }                                                                                                                  \
-    for (size_t index = 0; index < inputTensors.size(); index++) {                                                     \
-        inputTensorsPtr.push_back(&(inputTensors[index]));                                                             \
-    }                                                                                                                  \
-    for (size_t index = 0; index < outputTensors.size(); index++) {                                                    \
-        outputTensorsPtr.push_back(&(outputTensors[index]));                                                           \
     }                                                                                                                  \
     if (tilingContextPara.inputInstanceNum_.size() != 0 || tilingContextPara.outputInstanceNum_.size() != 0) {         \
         contextFaker.IrInstanceNum(tilingContextPara.inputInstanceNum_, tilingContextPara.outputInstanceNum_);         \
     } else {                                                                                                           \
         contextFaker.IrInstanceNum(inputIrInstance, outputIrInstance);                                                 \
     }                                                                                                                  \
-    contextFaker.InputTensors(inputTensorsPtr).OutputTensors(outputTensorsPtr);                                        \
+    contextFaker.InputTensors(inputTensors).OutputTensors(outputTensors);                                              \
     for (auto& attrInfo : tilingContextPara.attrs_) {                                                                  \
         switch (attrInfo.attr_.type_) {                                                                                \
             case Ops::Transformer::AnyValue::ValueType::VT_BOOL: {                                                            \
