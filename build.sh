@@ -28,6 +28,7 @@ UBSAN="false"
 COV="false"
 CLANG="false"
 VERBOSE="false"
+OOM="false"
 THREAD_NUM=$(grep -c ^processor /proc/cpuinfo)
 ENABLE_VALGRIND=FALSE
 ENABLE_CREATE_LIB=FALSE
@@ -94,11 +95,13 @@ function help_info() {
                 echo "    --experimental         Build experimental version"
                 echo "    --cann_3rd_lib_path=<PATH>"
                 echo "                           Set ascend third_party package install path, default ./third_party"
+                echo "    --oom                  Build with oom mode on the kernel side, with options: '-g --cce-enable-oom'"
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --pkg --soc=ascend910b --vendor_name=customize -j16 -O3"
                 echo "    bash build.sh --pkg --ops=add,sub"
                 echo "    bash build.sh --pkg --experimental --soc=ascend910b"
+                echo "    bash build.sh --pkg --experimental --soc=ascend910b --ops=abs --oom"
                 return
                 ;;
             test)
@@ -176,9 +179,11 @@ function help_info() {
                 echo "    --opkernel             Build binary kernel"
                 echo "    --soc=soc_version      Compile for specified Ascend SoC (comma-separated for multiple)"
                 echo "    --ops=op1,op2,...      Compile specified operators (comma-separated for multiple)"
+                echo "    --oom                  Build with oom mode on the kernel side, with options: '-g --cce-enable-oom'"
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --opkernel --soc=ascend310p --ops=add,sub"
+                echo "    bash build.sh --opkernel --soc=ascend310p --ops=add,sub --oom"
                 return
                 ;;
             ophost_test)
@@ -1075,6 +1080,10 @@ while [[ $# -gt 0 ]]; do
         CANN_3RD_LIB_PATH="$(realpath ${OPTARG#*=})"
         shift
         ;;
+    --oom)
+        OOM="true"
+        shift
+        ;;
     *)
         help_info
         exit 1
@@ -1193,6 +1202,10 @@ if [ "${COV}" == "true" ];then
     else
         CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_GCOV=true"
     fi
+fi
+
+if [ "${OOM}" == "true" ];then
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_OOM=true"
 fi
 
 if [ -n "${EXAMPLE}" ];then
