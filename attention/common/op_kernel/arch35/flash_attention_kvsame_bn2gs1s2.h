@@ -2052,10 +2052,10 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
         DataCopyPad(postQuantOffsetUb, postQuantOffsetGm[perChannelQuantOffset], copyInParams, copyInPadParams);
         this->postQuantOffsetQue.template EnQue(postQuantOffsetUb);
         this->postQuantOffsetQue.template DeQue<POSTQUANT_PARAMS_T>();
-        PostQuantPerChnlVF<T, OUTPUT_T, POSTQUANT_PARAMS_T>(attenOut[splitOffset], vec2ResUb[splitOffset], postQuantScaleUb, postQuantOffsetUb, gSplitSize, s1RowCount, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
+        PostQuantPerChnlImpl<T, OUTPUT_T, POSTQUANT_PARAMS_T>(attenOut[splitOffset], vec2ResUb[splitOffset], postQuantScaleUb, postQuantOffsetUb, gSplitSize, s1RowCount, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
         this->postQuantOffsetQue.FreeTensor(postQuantOffsetUb);
     } else {
-        PostQuantPerChnlVF<T, OUTPUT_T, POSTQUANT_PARAMS_T>(attenOut[splitOffset], vec2ResUb[splitOffset], postQuantScaleUb, gSplitSize, s1RowCount, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
+        PostQuantPerChnlImpl<T, OUTPUT_T, POSTQUANT_PARAMS_T>(attenOut[splitOffset], vec2ResUb[splitOffset], postQuantScaleUb, gSplitSize, s1RowCount, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
     }
     this->postQuantScaleQue.FreeTensor(postQuantScaleUb);
 
@@ -2082,7 +2082,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
             }
         }
     } else {     
-        PostQuantPerTensorVF<T, OUTPUT_T, true>(attenOut, vec2ResUb, this->constInfo.postQuantScaleValue, this->constInfo.postQuantOffsetValue, runInfo.vec2S1RealSize, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
+        PostQuantPerTensorImpl<T, OUTPUT_T, true>(attenOut, vec2ResUb, this->constInfo.postQuantScaleValue, this->constInfo.postQuantOffsetValue, runInfo.vec2S1RealSize, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
     }
 }
 
@@ -2096,7 +2096,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::F
             PostQuantPerChnl(attenOut, accumOutLocal, perChannelQuantOffset, dealRowCount, 1U, 0U, postQuantScaleGm, postQuantOffsetGm); // q_s = 1
         }
     } else {
-        PostQuantPerTensorVF<T, OUTPUT_T, true>(attenOut, accumOutLocal, this->constInfo.postQuantScaleValue, this->constInfo.postQuantOffsetValue, dealRowCount, 1U, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
+        PostQuantPerTensorImpl<T, OUTPUT_T, true>(attenOut, accumOutLocal, this->constInfo.postQuantScaleValue, this->constInfo.postQuantOffsetValue, dealRowCount, 1U, this->constInfo.dSizeV, (uint16_t)dVTemplateType);
     }
 }
 

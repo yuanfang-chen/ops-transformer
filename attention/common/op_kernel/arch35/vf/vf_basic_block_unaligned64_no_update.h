@@ -21,6 +21,220 @@
 using namespace regbaseutil;
 
 namespace AscendC {
+template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 128, uint32_t s2BaseSize = 128,
+    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool isMlaSgd = false, bool isMlaFullQuant = false>
+__simd_vf__ void ProcessVec1NoUpdateImpl64VF(
+    __ubuf__ T2 * expUb, __ubuf__ pseShiftType * pseUb, __ubuf__ T * expSumUb, 
+    __ubuf__ T * maxUb, __ubuf__ T * maxUbStart, __ubuf__ T * srcUb, __ubuf__ T * qScaleUb, __ubuf__ uint8_t * indexesUb, 
+    uint64_t maskUb, uint64_t dropMaskUb, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t nPadding, 
+    uint32_t pltOriginalN, float divValue, uint32_t pltSrcN, uint32_t pltSrcN16, const float dScale, 
+    const uint16_t m, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
+    const T minValue, const float deSCaleKValue = 1.0f)
+{
+    RegTensor<float> vreg_min;
+    RegTensor<float> vreg_sel;
+    RegTensor<float> vreg_input_x;
+    RegTensor<float> vreg_input_max;
+    RegTensor<float> vreg_max_brc;
+    RegTensor<float> vreg_exp;
+    RegTensor<float> vreg_exp_sum;
+    RegTensor<float> vreg_pse;
+    RegTensor<float> vreg_alibi;
+    RegTensor<float> vreg_sel_drop;
+    RegTensor<float> vreg_zero;
+    RegTensor<float> vreg_rowmax_p;
+    RegTensor<float> vreg_scale_qk;
+    // bfloat16_t
+    RegTensor<bfloat16_t> vreg_exp_even_bf16;
+    RegTensor<bfloat16_t> vreg_exp_bf16;
+    RegTensor<bfloat16_t> vreg_dst_even_bf16;
+    RegTensor<bfloat16_t> vreg_dst_odd_bf16;
+    RegTensor<bfloat16_t> vreg_pse_bf16_src;
+    RegTensor<bfloat16_t> vreg_pse_bf16;
+    RegTensor<bfloat16_t> vreg_pse_bf16_unroll;
+    // half
+    RegTensor<half> vreg_exp_even_f16;
+    RegTensor<half> vreg_exp_f16;
+    RegTensor<half> vreg_dst_even_f16;
+    RegTensor<half> vreg_dst_odd_f16;
+    RegTensor<half> vreg_pse_f16_src;
+    RegTensor<half> vreg_pse_f16;
+    RegTensor<half> vreg_pse_f16_unroll;
+
+    UnalignReg ureg_max;
+    UnalignReg ureg_exp_sum;
+
+    MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
+    MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
+    MaskReg preg_src_n = UpdateMask<float>(pltSrcN);
+    MaskReg preg_src_n_b16 = UpdateMask<uint16_t>(pltSrcN16);
+
+    MaskReg preg_ori_src_n = UpdateMask<T>(pltOriginalN);
+    MaskReg preg_reduce_n = CreateMask<float, MaskPattern::VL8>();
+    MaskReg preg_compare;
+    MaskReg preg1;
+    MaskReg preg2 = CreateMask<int8_t, MaskPattern::ALLF>();
+    MaskReg preg3;
+    MaskReg preg4;
+
+    if constexpr (hasAtten == 1) {
+        Duplicate(vreg_min, minValue);
+        if constexpr (isMlaSgd) {
+            MicroAPI::DataCopy<uint32_t, MicroAPI::MaskDist::DIST_DS>
+                (preg_compare, ((__ubuf__ uint32_t*)(maskUb)));
+        }
+    }
+    if constexpr (pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
+                    pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
+        Arange(vreg_alibi, posShift);
+    }
+    // x_max = max(src, axis=-1, keepdims=True)
+    for (uint16_t i = 0; i < m; ++i) {
+        DataCopy(vreg_input_x, srcUb + i * s2BaseSize);
+        if constexpr (isMlaFullQuant) {
+            DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_scale_qk, qScaleUb + i);
+            Muls(vreg_scale_qk, vreg_scale_qk, scale, preg_ori_src_n);
+            Muls(vreg_scale_qk, vreg_scale_qk, deSCaleKValue, preg_ori_src_n);
+            Mul(vreg_input_x, vreg_input_x, vreg_scale_qk, preg_ori_src_n);
+        } else {
+            if constexpr (pseMode != PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
+                Muls(vreg_input_x, vreg_input_x, dScale, preg_ori_src_n);  // Muls(scale)
+            } else {
+                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
+                            IsSameType<T2, hifloat8_t>::value) {
+                    Muls(vreg_input_x, vreg_input_x, dScaleQK, preg_ori_src_n);  // Muls(dScaleQK)
+                }
+            }
+        }
+        if constexpr (pseMode != PseTypeEnum::PSE_NONE_TYPE) {
+            if constexpr (pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
+                            pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
+                Abs(vreg_pse, vreg_alibi, preg_all);
+                if constexpr (pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
+                    Sqrt(vreg_pse, vreg_pse, preg_all);
+                }
+                Muls(vreg_pse, vreg_pse, slopes, preg_all);
+                Adds(vreg_alibi, vreg_alibi, -1.0f, preg_all);
+            } else {
+                if constexpr (IsSameType<pseShiftType, float>::value) {
+                    DataCopy(vreg_pse, pseUb + i * pseStride);
+                } else if constexpr (IsSameType<pseShiftType, bfloat16_t>::value) {
+                    DataCopy(vreg_pse_bf16_src, pseUb + i * pseStride);
+                    Interleave(vreg_pse_bf16, vreg_pse_bf16_unroll, vreg_pse_bf16_src, vreg_pse_bf16_src);
+                    Cast<T, pseShiftType, castTraitZero>(vreg_pse, vreg_pse_bf16, preg_all_b16);
+                } else {
+                    DataCopy(vreg_pse_f16_src, pseUb + i * pseStride);
+                    Interleave(vreg_pse_f16, vreg_pse_f16_unroll, vreg_pse_f16_src, vreg_pse_f16_src);
+                    Cast<T, pseShiftType, castTraitZero>(vreg_pse, vreg_pse_f16, preg_all_b16);
+                }
+            }
+            Add(vreg_input_x, vreg_input_x, vreg_pse, preg_ori_src_n);
+        }
+        if constexpr (pseMode == PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
+            Muls(vreg_input_x, vreg_input_x, scale, preg_ori_src_n);  // Muls(scale)
+        }
+        if constexpr (hasAtten == 1) {
+            // atten mask
+            if constexpr (!isMlaSgd) {
+                DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
+                    preg_compare, (__ubuf__ uint32_t *&)maskUb, nPadding);
+            }
+            Select(vreg_sel, vreg_min, vreg_input_x, preg_compare);
+            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ T *&)srcUb + i * s2BaseSize, vreg_sel, preg_src_n);
+            ReduceMax(vreg_input_max, vreg_sel, preg_ori_src_n);
+        } else {
+            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ T *&)srcUb + i * s2BaseSize, vreg_input_x, preg_src_n);
+            ReduceMax(vreg_input_max, vreg_input_x, preg_ori_src_n);
+        }
+        DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
+    }
+    vstas(ureg_max, maxUb, 0, POST_UPDATE);
+    if constexpr (hasDrop == 1) {
+        Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vreg_zero, 0.0f, preg_all);
+    }
+    LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
+
+    for (uint16_t i = 0; i < m; ++i) {
+        DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(
+            vreg_max_brc, maxUbStart + i);
+        DataCopy(vreg_input_x, srcUb + i * s2BaseSize);
+        FusedExpSub(vreg_exp, vreg_input_x, vreg_max_brc, preg_ori_src_n);
+
+        // x_sum = sum(x_exp, axis=-1, keepdims=True)
+        ReduceSum(vreg_exp_sum, vreg_exp, preg_ori_src_n);
+        DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            ((__ubuf__ T *&)expSumUb), vreg_exp_sum, ureg_exp_sum, 1);
+        if constexpr (isMlaFullQuant) {
+            Muls(vreg_exp, vreg_exp, fp8e4m3MaxValue, preg_ori_src_n);
+        }
+        // dropmask compute
+        if constexpr (hasDrop == 1) {
+            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
+                preg1, (__ubuf__ uint32_t *&)dropMaskUb, s2BaseSize >> 3);
+
+            MaskInterleave<half>(preg3, preg4, preg1, preg2);
+            Select(vreg_sel_drop, vreg_exp, vreg_zero, preg3);
+            Muls(vreg_exp, vreg_sel_drop, divValue, preg_all);
+        }
+
+        if constexpr (IsSameType<T2, float>::value) {
+            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                ((__ubuf__ T2 *&)expUb), vreg_exp, blockStride, repeatStride, preg_all);
+        } else if constexpr (IsSameType<T2, bfloat16_t>::value) {
+            Cast<T2, T, castTraitZero>(vreg_exp_bf16, vreg_exp, preg_all_b16);
+            DeInterleave(vreg_dst_even_bf16, vreg_dst_odd_bf16,
+                    vreg_exp_bf16, vreg_exp_bf16);
+            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                ((__ubuf__ T2 *&)expUb), vreg_dst_even_bf16, blockStride, repeatStride, preg_src_n_b16);
+        } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value) {
+            RegTensor<fp8_e5m2_t> vreg_exp_f8e5m2;
+            RegTensor<uint8_t> vreg_exp_merge_f8e5m2_indexes;
+            RegTensor<fp8_e5m2_t> vreg_exp_merge_f8e5m2;
+            MaskReg preg_src_n_b8 = CreateMask<T2, MaskPattern::ALL>();
+            uint32_t maskLen = 128;
+            MaskReg preg_all_b8_128 = UpdateMask<T2>(maskLen);
+            Cast<T2, T, castTraitRintZero>(vreg_exp_f8e5m2, vreg_exp, preg_all);
+            DataCopy(vreg_exp_merge_f8e5m2_indexes, indexesUb);
+            Gather(vreg_exp_merge_f8e5m2, vreg_exp_f8e5m2, vreg_exp_merge_f8e5m2_indexes);
+            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                ((__ubuf__ T2 *&)expUb), vreg_exp_merge_f8e5m2, blockStride, repeatStride, preg_all_b8_128);
+        } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
+            RegTensor<fp8_e4m3fn_t> vreg_exp_f8e4m3;
+            RegTensor<uint8_t> vreg_exp_merge_f8e4m3_indexes;
+            RegTensor<fp8_e4m3fn_t> vreg_exp_merge_f8e4m3;
+            MaskReg preg_src_n_b8 = CreateMask<T2, MaskPattern::ALL>();
+            uint32_t maskLen = 128;
+            MaskReg preg_all_b8_128 = UpdateMask<T2>(maskLen);
+            Cast<T2, T, castTraitRintZero>(vreg_exp_f8e4m3, vreg_exp, preg_all);
+            DataCopy(vreg_exp_merge_f8e4m3_indexes, indexesUb);
+            Gather(vreg_exp_merge_f8e4m3, vreg_exp_f8e4m3, vreg_exp_merge_f8e4m3_indexes);
+            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                ((__ubuf__ T2 *&)expUb), vreg_exp_merge_f8e4m3, blockStride, repeatStride, preg_all_b8_128);
+        } else if constexpr (IsSameType<T2, hifloat8_t>::value) {
+            RegTensor<hifloat8_t> vreg_exp_hif8;
+            RegTensor<uint8_t> vreg_exp_merge_hif8_indexes;
+            RegTensor<hifloat8_t> vreg_exp_merge_hif8;
+            MaskReg preg_src_n_b8 = CreateMask<T2, MaskPattern::ALL>();
+            uint32_t maskLen = 128;
+            MaskReg preg_all_b8_128 = UpdateMask<T2>(maskLen);
+            Cast<T2, T, castTraitZero>(vreg_exp_hif8, vreg_exp, preg_all);
+            DataCopy(vreg_exp_merge_hif8_indexes, indexesUb);
+            Gather(vreg_exp_merge_hif8, vreg_exp_hif8, vreg_exp_merge_hif8_indexes);
+            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                ((__ubuf__ T2 *&)expUb), vreg_exp_merge_hif8, blockStride, repeatStride, preg_all_b8_128);
+        } else {
+            Cast<T2, T, castTraitZero>(vreg_exp_f16, vreg_exp, preg_all_b16);
+            DeInterleave(vreg_dst_even_f16, vreg_dst_odd_f16, vreg_exp_f16, vreg_exp_f16);
+            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                ((__ubuf__ T2 *&)expUb), vreg_dst_even_f16, blockStride, repeatStride, preg_src_n_b16);
+        }
+    }
+    vstas(ureg_exp_sum, expSumUb, 0, POST_UPDATE);
+}
+
 // no update, originN <= 64
 template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 128, uint32_t s2BaseSize = 128,
     bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool isMlaSgd = false, bool isMlaFullQuant = false>
@@ -39,6 +253,7 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     __ubuf__ T * maxUbStart = (__ubuf__ T*)maxTensor.GetPhyAddr();
     __ubuf__ T * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
     __ubuf__ T * qScaleUb = (__ubuf__ T*)queryScaleUb.GetPhyAddr();
+    __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
 
     uint64_t maskUb = maskTensor.GetPhyAddr();
     uint64_t dropMaskUb = dropTensor.GetPhyAddr();
@@ -46,9 +261,9 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
 
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
     // stride, high 16bits: blockStride (m*16*2/32), low 16bits: repeatStride (1)
-    constexpr uint32_t blockStride = s1BaseSize >> 1 | 0x1;
-    constexpr uint32_t repeatStride = 1;
-    constexpr uint32_t nPadding = (s2BaseSize + blockBytesU8 - 1) / blockBytesU8 * blockBytesU8;
+    const uint32_t blockStride = s1BaseSize >> 1 | 0x1;
+    const uint32_t repeatStride = 1;
+    const uint32_t nPadding = (s2BaseSize + blockBytesU8 - 1) / blockBytesU8 * blockBytesU8;
     uint32_t pltOriginalN = originN;
 
     float divValue = 1.0f / keepProb;
@@ -56,214 +271,9 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     uint32_t pltSrcN16 = s2BaseSize;
     const float dScale = scale * dScaleQK;
 
-    __VEC_SCOPE__
-    {
-        RegTensor<float> vreg_min;
-        RegTensor<float> vreg_sel;
-        RegTensor<float> vreg_input_x;
-        RegTensor<float> vreg_input_max;
-        RegTensor<float> vreg_max_brc;
-        RegTensor<float> vreg_exp;
-        RegTensor<float> vreg_exp_sum;
-        RegTensor<float> vreg_pse;
-        RegTensor<float> vreg_alibi;
-        RegTensor<float> vreg_sel_drop;
-        RegTensor<float> vreg_zero;
-        RegTensor<float> vreg_rowmax_p;
-        RegTensor<float> vreg_scale_qk;
-        // bfloat16_t
-        RegTensor<bfloat16_t> vreg_exp_even_bf16;
-        RegTensor<bfloat16_t> vreg_exp_bf16;
-        RegTensor<bfloat16_t> vreg_dst_even_bf16;
-        RegTensor<bfloat16_t> vreg_dst_odd_bf16;
-        RegTensor<bfloat16_t> vreg_pse_bf16_src;
-        RegTensor<bfloat16_t> vreg_pse_bf16;
-        RegTensor<bfloat16_t> vreg_pse_bf16_unroll;
-        // half
-        RegTensor<half> vreg_exp_even_f16;
-        RegTensor<half> vreg_exp_f16;
-        RegTensor<half> vreg_dst_even_f16;
-        RegTensor<half> vreg_dst_odd_f16;
-        RegTensor<half> vreg_pse_f16_src;
-        RegTensor<half> vreg_pse_f16;
-        RegTensor<half> vreg_pse_f16_unroll;
-
-        UnalignReg ureg_max;
-        UnalignReg ureg_exp_sum;
-
-        MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
-        MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
-        MaskReg preg_src_n = UpdateMask<float>(pltSrcN);
-        MaskReg preg_src_n_b16 = UpdateMask<uint16_t>(pltSrcN16);
-
-        MaskReg preg_ori_src_n = UpdateMask<T>(pltOriginalN);
-        MaskReg preg_reduce_n = CreateMask<float, MaskPattern::VL8>();
-        MaskReg preg_compare;
-        MaskReg preg1;
-        MaskReg preg2 = CreateMask<int8_t, MaskPattern::ALLF>();
-        MaskReg preg3;
-        MaskReg preg4;
-
-        if constexpr (hasAtten == 1) {
-            Duplicate(vreg_min, minValue);
-            if constexpr (isMlaSgd) {
-                MicroAPI::DataCopy<uint32_t, MicroAPI::MaskDist::DIST_DS>
-                    (preg_compare, ((__ubuf__ uint32_t*)(maskUb)));
-            }
-        }
-        if constexpr (pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
-                      pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
-            Arange(vreg_alibi, posShift);
-        }
-        // x_max = max(src, axis=-1, keepdims=True)
-        for (uint16_t i = 0; i < m; ++i) {
-            DataCopy(vreg_input_x, srcUb + i * s2BaseSize);
-            if constexpr (isMlaFullQuant) {
-                DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_scale_qk, qScaleUb + i);
-                Muls(vreg_scale_qk, vreg_scale_qk, scale, preg_ori_src_n);
-                Muls(vreg_scale_qk, vreg_scale_qk, deSCaleKValue, preg_ori_src_n);
-                Mul(vreg_input_x, vreg_input_x, vreg_scale_qk, preg_ori_src_n);
-            } else {
-                if constexpr (pseMode != PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-                    Muls(vreg_input_x, vreg_input_x, dScale, preg_ori_src_n);  // Muls(scale)
-                } else {
-                    if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
-                                IsSameType<T2, hifloat8_t>::value) {
-                        Muls(vreg_input_x, vreg_input_x, dScaleQK, preg_ori_src_n);  // Muls(dScaleQK)
-                    }
-                }
-            }
-            if constexpr (pseMode != PseTypeEnum::PSE_NONE_TYPE) {
-                if constexpr (pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_TYPE ||
-                              pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
-                    Abs(vreg_pse, vreg_alibi, preg_all);
-                    if constexpr (pseMode == PseTypeEnum::PSE_INNER_MUL_ADD_SQRT_TYPE) {
-                        Sqrt(vreg_pse, vreg_pse, preg_all);
-                    }
-                    Muls(vreg_pse, vreg_pse, slopes, preg_all);
-                    Adds(vreg_alibi, vreg_alibi, -1.0f, preg_all);
-                } else {
-                    if constexpr (IsSameType<pseShiftType, float>::value) {
-                        DataCopy(vreg_pse, pseUb + i * pseStride);
-                    } else if constexpr (IsSameType<pseShiftType, bfloat16_t>::value) {
-                        DataCopy(vreg_pse_bf16_src, pseUb + i * pseStride);
-                        Interleave(vreg_pse_bf16, vreg_pse_bf16_unroll, vreg_pse_bf16_src, vreg_pse_bf16_src);
-                        Cast<T, pseShiftType, castTraitZero>(vreg_pse, vreg_pse_bf16, preg_all_b16);
-                    } else {
-                        DataCopy(vreg_pse_f16_src, pseUb + i * pseStride);
-                        Interleave(vreg_pse_f16, vreg_pse_f16_unroll, vreg_pse_f16_src, vreg_pse_f16_src);
-                        Cast<T, pseShiftType, castTraitZero>(vreg_pse, vreg_pse_f16, preg_all_b16);
-                    }
-                }
-                Add(vreg_input_x, vreg_input_x, vreg_pse, preg_ori_src_n);
-            }
-            if constexpr (pseMode == PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-                Muls(vreg_input_x, vreg_input_x, scale, preg_ori_src_n);  // Muls(scale)
-            }
-            if constexpr (hasAtten == 1) {
-                // atten mask
-                if constexpr (!isMlaSgd) {
-                    DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
-                        preg_compare, (__ubuf__ uint32_t *&)maskUb, nPadding);
-                }
-                Select(vreg_sel, vreg_min, vreg_input_x, preg_compare);
-                DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                    (__ubuf__ T *&)srcUb + i * s2BaseSize, vreg_sel, preg_src_n);
-                ReduceMax(vreg_input_max, vreg_sel, preg_ori_src_n);
-            } else {
-                DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                    (__ubuf__ T *&)srcUb + i * s2BaseSize, vreg_input_x, preg_src_n);
-                ReduceMax(vreg_input_max, vreg_input_x, preg_ori_src_n);
-            }
-            DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
-        }
-        vstas(ureg_max, maxUb, 0, POST_UPDATE);
-        if constexpr (hasDrop == 1) {
-            Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vreg_zero, 0.0f, preg_all);
-        }
-        LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
-
-        for (uint16_t i = 0; i < m; ++i) {
-            DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(
-                vreg_max_brc, maxUbStart + i);
-            DataCopy(vreg_input_x, srcUb + i * s2BaseSize);
-            FusedExpSub(vreg_exp, vreg_input_x, vreg_max_brc, preg_ori_src_n);
-
-            // x_sum = sum(x_exp, axis=-1, keepdims=True)
-            ReduceSum(vreg_exp_sum, vreg_exp, preg_ori_src_n);
-            DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                ((__ubuf__ T *&)expSumUb), vreg_exp_sum, ureg_exp_sum, 1);
-            if constexpr (isMlaFullQuant) {
-                Muls(vreg_exp, vreg_exp, fp8e4m3MaxValue, preg_ori_src_n);
-            }
-            // dropmask compute
-            if constexpr (hasDrop == 1) {
-                DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
-                    preg1, (__ubuf__ uint32_t *&)dropMaskUb, s2BaseSize >> 3);
-
-                MaskInterleave<half>(preg3, preg4, preg1, preg2);
-                Select(vreg_sel_drop, vreg_exp, vreg_zero, preg3);
-                Muls(vreg_exp, vreg_sel_drop, divValue, preg_all);
-            }
-
-            if constexpr (IsSameType<T2, float>::value) {
-                DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    ((__ubuf__ T2 *&)expUb), vreg_exp, blockStride, repeatStride, preg_all);
-            } else if constexpr (IsSameType<T2, bfloat16_t>::value) {
-                Cast<T2, T, castTraitZero>(vreg_exp_bf16, vreg_exp, preg_all_b16);
-                DeInterleave(vreg_dst_even_bf16, vreg_dst_odd_bf16,
-                        vreg_exp_bf16, vreg_exp_bf16);
-                DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    ((__ubuf__ T2 *&)expUb), vreg_dst_even_bf16, blockStride, repeatStride, preg_src_n_b16);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value) {
-                RegTensor<fp8_e5m2_t> vreg_exp_f8e5m2;
-                RegTensor<uint8_t> vreg_exp_merge_f8e5m2_indexes;
-                RegTensor<fp8_e5m2_t> vreg_exp_merge_f8e5m2;
-                MaskReg preg_src_n_b8 = CreateMask<T2, MaskPattern::ALL>();
-                uint32_t maskLen = 128;
-                MaskReg preg_all_b8_128 = UpdateMask<T2>(maskLen);
-                __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
-                Cast<T2, T, castTraitRintZero>(vreg_exp_f8e5m2, vreg_exp, preg_all);
-                DataCopy(vreg_exp_merge_f8e5m2_indexes, indexesUb);
-                Gather(vreg_exp_merge_f8e5m2, vreg_exp_f8e5m2, vreg_exp_merge_f8e5m2_indexes);
-                DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    ((__ubuf__ T2 *&)expUb), vreg_exp_merge_f8e5m2, blockStride, repeatStride, preg_all_b8_128);
-            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
-                RegTensor<fp8_e4m3fn_t> vreg_exp_f8e4m3;
-                RegTensor<uint8_t> vreg_exp_merge_f8e4m3_indexes;
-                RegTensor<fp8_e4m3fn_t> vreg_exp_merge_f8e4m3;
-                MaskReg preg_src_n_b8 = CreateMask<T2, MaskPattern::ALL>();
-                uint32_t maskLen = 128;
-                MaskReg preg_all_b8_128 = UpdateMask<T2>(maskLen);
-                __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
-                Cast<T2, T, castTraitRintZero>(vreg_exp_f8e4m3, vreg_exp, preg_all);
-                DataCopy(vreg_exp_merge_f8e4m3_indexes, indexesUb);
-                Gather(vreg_exp_merge_f8e4m3, vreg_exp_f8e4m3, vreg_exp_merge_f8e4m3_indexes);
-                DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    ((__ubuf__ T2 *&)expUb), vreg_exp_merge_f8e4m3, blockStride, repeatStride, preg_all_b8_128);
-            } else if constexpr (IsSameType<T2, hifloat8_t>::value) {
-                RegTensor<hifloat8_t> vreg_exp_hif8;
-                RegTensor<uint8_t> vreg_exp_merge_hif8_indexes;
-                RegTensor<hifloat8_t> vreg_exp_merge_hif8;
-                MaskReg preg_src_n_b8 = CreateMask<T2, MaskPattern::ALL>();
-                uint32_t maskLen = 128;
-                MaskReg preg_all_b8_128 = UpdateMask<T2>(maskLen);
-                __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
-                Cast<T2, T, castTraitZero>(vreg_exp_hif8, vreg_exp, preg_all);
-                DataCopy(vreg_exp_merge_hif8_indexes, indexesUb);
-                Gather(vreg_exp_merge_hif8, vreg_exp_hif8, vreg_exp_merge_hif8_indexes);
-                DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    ((__ubuf__ T2 *&)expUb), vreg_exp_merge_hif8, blockStride, repeatStride, preg_all_b8_128);
-            } else {
-                Cast<T2, T, castTraitZero>(vreg_exp_f16, vreg_exp, preg_all_b16);
-                DeInterleave(vreg_dst_even_f16, vreg_dst_odd_f16, vreg_exp_f16, vreg_exp_f16);
-                DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    ((__ubuf__ T2 *&)expUb), vreg_dst_even_f16, blockStride, repeatStride, preg_src_n_b16);
-            }
-        }
-        vstas(ureg_exp_sum, expSumUb, 0, POST_UPDATE);
-    }
+    ProcessVec1NoUpdateImpl64VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant>(
+        expUb, pseUb, expSumUb, maxUb, maxUbStart, srcUb, qScaleUb, indexesUb, maskUb, dropMaskUb, blockStride, repeatStride, 
+        nPadding, pltOriginalN, divValue, pltSrcN, pltSrcN16, dScale, m, pseStride, slopes, posShift, scale, dScaleQK, minValue, deSCaleKValue);
 }
 } // namespace
 

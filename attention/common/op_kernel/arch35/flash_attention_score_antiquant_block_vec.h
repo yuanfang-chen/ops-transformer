@@ -1117,12 +1117,12 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::PostQuantPe
         this->postQuantOffsetQue.template EnQue(postQuantOffsetUb);
         this->postQuantOffsetQue.template DeQue<POSTQUANT_PARAMS_T>();
 
-        PostQuantPerChnlVF<T, OUTPUT_T, POSTQUANT_PARAMS_T>(
+        PostQuantPerChnlImpl<T, OUTPUT_T, POSTQUANT_PARAMS_T>(
             attenOut[splitOffset], vec2ResUb[splitOffset], postQuantScaleUb, postQuantOffsetUb, gSplitSize, s1RowCount,
             constInfo.dSizeV, dSizeAligned64);
         this->postQuantOffsetQue.FreeTensor(postQuantOffsetUb);
     } else {
-        PostQuantPerChnlVF<T, OUTPUT_T, POSTQUANT_PARAMS_T>(
+        PostQuantPerChnlImpl<T, OUTPUT_T, POSTQUANT_PARAMS_T>(
             attenOut[splitOffset], vec2ResUb[splitOffset], postQuantScaleUb, gSplitSize, s1RowCount, constInfo.dSizeV, dSizeAligned64);
     }
     this->postQuantScaleQue.FreeTensor(postQuantScaleUb);
@@ -1163,7 +1163,7 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::PostQuant(C
             }
         }                                 
     } else {
-        PostQuantPerTensorVF<T, OUTPUT_T, true>(
+        PostQuantPerTensorImpl<T, OUTPUT_T, true>(
             attenOut, vec2ResUb, constInfo.postQuantScaleValue, constInfo.postQuantOffsetValue, runInfo.vec2S1RealSize,
             constInfo.dSizeV, dSizeAligned64);
     }
@@ -1182,7 +1182,7 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::FDPostQuant
                 postQuantScaleGm, postQuantOffsetGm);
         }
     } else {
-        PostQuantPerTensorVF<T, OUTPUT_T, true>(
+        PostQuantPerTensorImpl<T, OUTPUT_T, true>(
             attenOut, accumOutLocal, constInfo.postQuantScaleValue, constInfo.postQuantOffsetValue, dealRowCount,
             constInfo.dSizeV, dSizeAligned64);
     }
