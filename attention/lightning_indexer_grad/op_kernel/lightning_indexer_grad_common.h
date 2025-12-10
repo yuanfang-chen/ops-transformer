@@ -33,6 +33,7 @@ struct RunInfo {
     uint64_t prefixSumS2;
     uint64_t loopTimes;
     uint64_t taskId;
+    uint64_t realTopk;
 };
 
 struct ConstInfo {
@@ -51,6 +52,7 @@ struct ConstInfo {
     int64_t reluInWorkspaceOffset;
     int64_t reluGradWorkspaceOffset;
     int64_t scatterAddWorkspaceOffset;
+    uint64_t sparseMode;
 };
 
 template <typename TYPE, LIG_LAYOUT LAYOUT_T = LIG_LAYOUT::BSND, typename... Args>

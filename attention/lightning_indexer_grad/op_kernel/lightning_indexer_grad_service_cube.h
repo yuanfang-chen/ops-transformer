@@ -201,7 +201,7 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube1(GlobalTensor<dataType> leftMatrixG
 {
     uint32_t singleM = constInfo.groupNum;
     uint32_t singleK = constInfo.headDim;
-    uint32_t singleN = constInfo.topK;
+    uint32_t singleN = runInfo.realTopk;
     uint32_t baseM = constInfo.groupNum;
     uint32_t baseN = BASIC_BLOCK_LENGTH;
     uint32_t baseK = constInfo.headDim;
@@ -245,17 +245,20 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube1(GlobalTensor<dataType> leftMatrixG
     SetFlag<HardEvent::MTE1_MTE2>(A_FLAG_SHIFT);
     SetFlag<HardEvent::MTE1_M>(A_FLAG_SHIFT);
 
-    for (uint32_t i = 0; i < LIGCommon::Align(singleN, baseN) / baseN; i++) {
+    uint64_t loopN = LIGCommon::Align(singleN, baseN) / baseN;
+    uint32_t baseNTail = (singleN % baseN == 0) ? baseN : singleN % baseN;
+    for (uint32_t i = 0; i < loopN; i++) {
         LocalTensor<dataType> rightMatrixL1Tensor = (rightMatrixPingPong & 1) ? rightMatrixL1PingTensor : rightMatrixL1PongTensor;
         LocalTensor<dataType> rightMatrixL0BTensor = (rightMatrixPingPong & 1) ? rightMatrixL0BPingTensor : rightMatrixL0BPongTensor;
         LocalTensor<float> outputMatrixL0CTensor = (rightMatrixPingPong & 1) ? outputMatrixL0CPingTensor : outputMatrixL0CPongTensor;
-        
+
+        uint32_t realN = (i == loopN - 1) ? baseNTail : baseN;
         // load B matrix(keyGather) from GM to L1
         WaitFlag<HardEvent::MTE1_MTE2>(B_FLAG_SHIFT + rightMatrixPingPong);
-        commonNd2NzParams.nValue = baseN;
+        commonNd2NzParams.nValue = realN;
         commonNd2NzParams.dValue = baseK;
         commonNd2NzParams.srcDValue = constInfo.headDim;
-        commonNd2NzParams.dstNzC0Stride = RoundUp(baseN, C0_SIZE);
+        commonNd2NzParams.dstNzC0Stride = RoundUp(realN, C0_SIZE);
         AscendC::DataCopy(
             rightMatrixL1Tensor, 
             rightMatrixGmTensor[i * baseN * constInfo.headDim], 
@@ -266,12 +269,12 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube1(GlobalTensor<dataType> leftMatrixG
         // load B matrix from L1 -> l0B
         WaitFlag<HardEvent::MTE2_MTE1>(B_FLAG_SHIFT + rightMatrixPingPong);
         WaitFlag<HardEvent::M_MTE1>(B_CONFLICT_FLAG_SHIFT + rightMatrixPingPong);
-        commonLoadData2dParamsNoTranspose.repeatTimes = RoundUp(baseN, C0_SIZE) / C0_SIZE;
+        commonLoadData2dParamsNoTranspose.repeatTimes = RoundUp(realN, C0_SIZE) / C0_SIZE;
         commonLoadData2dParamsNoTranspose.srcStride = 1;
         for (int i = 0; i < baseK / C0_SIZE; i++) {
             AscendC::LoadData(
-                rightMatrixL0BTensor[i * RoundUp(baseN, C0_SIZE) * C0_SIZE], 
-                rightMatrixL1Tensor[i * RoundUp(baseN, C0_SIZE) * C0_SIZE],
+                rightMatrixL0BTensor[i * RoundUp(realN, C0_SIZE) * C0_SIZE], 
+                rightMatrixL1Tensor[i * RoundUp(realN, C0_SIZE) * C0_SIZE],
                 commonLoadData2dParamsNoTranspose
             );
         }
@@ -284,7 +287,7 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube1(GlobalTensor<dataType> leftMatrixG
         }
         WaitFlag<HardEvent::MTE1_M>(B_FLAG_SHIFT + rightMatrixPingPong);
         commonMadParams.m = baseM;
-        commonMadParams.n = baseN;
+        commonMadParams.n = realN;
         commonMadParams.k = baseK;
         commonMadParams.unitFlag = 3;
         commonMadParams.cmatrixInitVal = true;
@@ -296,15 +299,15 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube1(GlobalTensor<dataType> leftMatrixG
         );
 
         SetFlag<HardEvent::M_MTE1>(B_CONFLICT_FLAG_SHIFT + rightMatrixPingPong);
-        if (i == (LIGCommon::Align(singleN, baseN) / baseN - 1)) {
+        if (i == (loopN - 1)) {
             SetFlag<HardEvent::M_MTE1>(A_CONFLICT_FLAG_SHIFT);
         }
         
         // FixPipe  L0C -> GM
         commonFixpipeParamsV220.mSize = baseM;
-        commonFixpipeParamsV220.nSize = baseN;
+        commonFixpipeParamsV220.nSize = realN;
         commonFixpipeParamsV220.srcStride = RoundUp(baseM, C0_SIZE);
-        commonFixpipeParamsV220.dstStride = constInfo.topK;
+        commonFixpipeParamsV220.dstStride = runInfo.realTopk;
         commonFixpipeParamsV220.reluEn = true;
         commonFixpipeParamsV220.quantPre = QuantMode_t::NoQuant;
         commonFixpipeParamsV220.unitFlag = 3;
@@ -319,14 +322,14 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube1(GlobalTensor<dataType> leftMatrixG
     
 }
 
-// (G, 1) @ (1, 2048) -> (G, 2048) 
+// (G, 1) @ (1, K) -> (G, K) 
 template <typename LIGT>
 __aicore__ inline void LIGMatmul<LIGT>::Cube2(GlobalTensor<dataType> leftMatrixGmTensor, GlobalTensor<dataType> rightMatrixGmTensor, 
                                               GlobalTensor<dataType> outputMatrixGmTensor, ConstInfo constInfo, RunInfo runInfo)
 {
     uint32_t singleM = constInfo.groupNum;
     uint32_t singleK = 1;
-    uint32_t singleN = constInfo.topK;
+    uint32_t singleN = runInfo.realTopk;
     uint32_t baseM = constInfo.groupNum;
     uint32_t baseN = BASIC_BLOCK_LENGTH;
     uint32_t baseK = 16;
@@ -380,17 +383,20 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube2(GlobalTensor<dataType> leftMatrixG
     SetFlag<HardEvent::MTE1_MTE2>(A_FLAG_SHIFT);
     SetFlag<HardEvent::MTE1_M>(A_FLAG_SHIFT);
 
-    for (uint32_t i = 0; i < LIGCommon::Align(singleN, baseN) / baseN; i++) {
+    uint64_t loopN = LIGCommon::Align(singleN, baseN) / baseN;
+    uint32_t baseNTail = (singleN % baseN == 0) ? baseN : singleN % baseN;
+    for (uint32_t i = 0; i < loopN; i++) {
         LocalTensor<dataType> rightMatrixL1Tensor = (rightMatrixPingPong & 1) ? rightMatrixL1PingTensor : rightMatrixL1PongTensor;
         LocalTensor<dataType> rightMatrixL0BTensor = (rightMatrixPingPong & 1) ? rightMatrixL0BPingTensor : rightMatrixL0BPongTensor;
         LocalTensor<float> outputMatrixL0CTensor = (rightMatrixPingPong & 1) ? outputMatrixL0CPingTensor : outputMatrixL0CPongTensor;
         
+        uint32_t realN = (i == loopN - 1) ? baseNTail : baseN;
         // load B matrix(dOut) from GM to L1
         WaitFlag<HardEvent::MTE1_MTE2>(B_FLAG_SHIFT + rightMatrixPingPong);
-        commonNd2NzParams.nValue = baseN;
+        commonNd2NzParams.nValue = realN;
         commonNd2NzParams.dValue = 1;
         commonNd2NzParams.srcDValue = 1;
-        commonNd2NzParams.dstNzC0Stride = RoundUp(baseN, C0_SIZE);
+        commonNd2NzParams.dstNzC0Stride = RoundUp(realN, C0_SIZE);
         AscendC::DataCopy(
             rightMatrixL1Tensor, 
             rightMatrixGmTensor[rightMatrixGmOffset + i * baseN * 1], 
@@ -401,12 +407,12 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube2(GlobalTensor<dataType> leftMatrixG
         // load B matrix from L1 -> l0B
         WaitFlag<HardEvent::MTE2_MTE1>(B_FLAG_SHIFT + rightMatrixPingPong);
         WaitFlag<HardEvent::M_MTE1>(B_CONFLICT_FLAG_SHIFT + rightMatrixPingPong);
-        commonLoadData2dParamsNoTranspose.repeatTimes = RoundUp(baseN, C0_SIZE) / C0_SIZE;
+        commonLoadData2dParamsNoTranspose.repeatTimes = RoundUp(realN, C0_SIZE) / C0_SIZE;
         commonLoadData2dParamsNoTranspose.srcStride = 1;
         for (int i = 0; i < baseK / C0_SIZE; i++) {
             AscendC::LoadData(
-                rightMatrixL0BTensor[i * RoundUp(baseN, C0_SIZE) * C0_SIZE], 
-                rightMatrixL1Tensor[i * RoundUp(baseN, C0_SIZE) * C0_SIZE],
+                rightMatrixL0BTensor[i * RoundUp(realN, C0_SIZE) * C0_SIZE], 
+                rightMatrixL1Tensor[i * RoundUp(realN, C0_SIZE) * C0_SIZE],
                 commonLoadData2dParamsNoTranspose
             );
         }
@@ -419,7 +425,7 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube2(GlobalTensor<dataType> leftMatrixG
         }
         WaitFlag<HardEvent::MTE1_M>(B_FLAG_SHIFT + rightMatrixPingPong);
         commonMadParams.m = baseM;
-        commonMadParams.n = baseN;
+        commonMadParams.n = realN;
         commonMadParams.k = 1;
         commonMadParams.unitFlag = 3;
         commonMadParams.cmatrixInitVal = true;
@@ -431,15 +437,15 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube2(GlobalTensor<dataType> leftMatrixG
         );
 
         SetFlag<HardEvent::M_MTE1>(B_CONFLICT_FLAG_SHIFT + rightMatrixPingPong);
-        if (i == (LIGCommon::Align(singleN, baseN) / baseN - 1)) {
+        if (i == loopN - 1) {
             SetFlag<HardEvent::M_MTE1>(A_CONFLICT_FLAG_SHIFT);
         }
         
         // FixPipe  L0C -> GM
         commonFixpipeParamsV220.mSize = baseM;
-        commonFixpipeParamsV220.nSize = baseN;
+        commonFixpipeParamsV220.nSize = realN;
         commonFixpipeParamsV220.srcStride = RoundUp(baseM, C0_SIZE);
-        commonFixpipeParamsV220.dstStride = constInfo.topK;
+        commonFixpipeParamsV220.dstStride = runInfo.realTopk;
         commonFixpipeParamsV220.reluEn = false;
         if constexpr (std::is_same_v<dataType, half>) {
             commonFixpipeParamsV220.quantPre = QuantMode_t::F322F16;
@@ -456,14 +462,14 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube2(GlobalTensor<dataType> leftMatrixG
     }
 }
 
-// (G, 2048) @ (2048, 128) -> (G, 128)
+// (G, K) @ (K, 128) -> (G, 128)
 // L0C one buffer to add
 template <typename LIGT>
 __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixGmTensor, GlobalTensor<dataType> rightMatrixGmTensor, 
                                               GlobalTensor<dataType> outputMatrixGmTensor, ConstInfo constInfo, RunInfo runInfo)
 {
     uint32_t singleM = constInfo.groupNum;
-    uint32_t singleK = constInfo.topK;
+    uint32_t singleK = runInfo.realTopk;
     uint32_t singleN = constInfo.headDim;
     uint32_t baseM = constInfo.groupNum;
     uint32_t baseN = constInfo.headDim;
@@ -481,22 +487,25 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixG
                                 runInfo.n2Idx * constInfo.groupNum * constInfo.headDim;
     }
 
-    for (uint32_t i = 0; i < LIGCommon::Align(singleK, baseK) / baseK; i++) {
+    uint64_t loopK = LIGCommon::Align(singleK, baseK) / baseK;
+    uint32_t baseKTail = (singleK % baseK == 0) ? baseK : singleK % baseK;
+    for (uint32_t i = 0; i < loopK; i++) {
         LocalTensor<dataType> leftMatrixL1Tensor = (leftMatrixPingPong & 1) ? leftMatrixL1PingTensor : leftMatrixL1PongTensor;
         LocalTensor<dataType> leftMatrixL0ATensor = (leftMatrixPingPong & 1) ? leftMatrixL0APingTensor : leftMatrixL0APongTensor;
         LocalTensor<dataType> rightMatrixL1Tensor = (rightMatrixPingPong & 1) ? rightMatrixL1PingTensor : rightMatrixL1PongTensor;
         LocalTensor<dataType> rightMatrixL0BTensor = (rightMatrixPingPong & 1) ? rightMatrixL0BPingTensor : rightMatrixL0BPongTensor;
         LocalTensor<float> outputMatrixL0CTensor = outputMatrixL0CPingTensor;
         
+        uint32_t realK = (i == loopK - 1) ? baseKTail : baseK;
         // load A matrix from gm to L1
         WaitFlag<HardEvent::MTE1_MTE2>(A_FLAG_SHIFT + leftMatrixPingPong);
         commonNd2NzParams.nValue = baseM;
-        commonNd2NzParams.dValue = BASIC_BLOCK_LENGTH;
-        commonNd2NzParams.srcDValue = constInfo.topK;
+        commonNd2NzParams.dValue = realK;
+        commonNd2NzParams.srcDValue = runInfo.realTopk;
         commonNd2NzParams.dstNzC0Stride = RoundUp(baseM, C0_SIZE);
         AscendC::DataCopy(
             leftMatrixL1Tensor,
-            leftMatrixGmTensor[i * BASIC_BLOCK_LENGTH], 
+            leftMatrixGmTensor[i * baseK], 
             commonNd2NzParams
         );
         SetFlag<HardEvent::MTE2_MTE1>(A_FLAG_SHIFT + leftMatrixPingPong);
@@ -504,11 +513,11 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixG
         // load A matrix from L1 -> L0A
         WaitFlag<HardEvent::MTE2_MTE1>(A_FLAG_SHIFT + leftMatrixPingPong);
         WaitFlag<HardEvent::M_MTE1>(A_CONFLICT_FLAG_SHIFT + leftMatrixPingPong);
-        commonLoadData2dParamsNoTranspose.repeatTimes = baseK / C0_SIZE;
+        commonLoadData2dParamsNoTranspose.repeatTimes = RoundUp(realK, C0_SIZE) / C0_SIZE;
         commonLoadData2dParamsNoTranspose.srcStride = RoundUp(baseM, C0_SIZE) / C0_SIZE;
         for (int32_t i = 0; i < RoundUp(baseM, C0_SIZE) / C0_SIZE; i++) {
             AscendC::LoadData(
-                leftMatrixL0ATensor[i * C0_SIZE * baseK], 
+                leftMatrixL0ATensor[i * C0_SIZE * RoundUp(realK, C0_SIZE)], 
                 leftMatrixL1Tensor[i * C0_SIZE * C0_SIZE],
                 commonLoadData2dParamsNoTranspose
             );
@@ -518,10 +527,10 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixG
 
         // load B matrix from GM to L1
         WaitFlag<HardEvent::MTE1_MTE2>(B_FLAG_SHIFT + rightMatrixPingPong);
-        commonNd2NzParams.nValue = baseK;
+        commonNd2NzParams.nValue = realK;
         commonNd2NzParams.dValue = constInfo.headDim;
         commonNd2NzParams.srcDValue = constInfo.headDim;
-        commonNd2NzParams.dstNzC0Stride = RoundUp(baseK, C0_SIZE);
+        commonNd2NzParams.dstNzC0Stride = RoundUp(realK, C0_SIZE);
         AscendC::DataCopy(
             rightMatrixL1Tensor, 
             rightMatrixGmTensor[i * BASIC_BLOCK_LENGTH * constInfo.headDim], 
@@ -533,8 +542,8 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixG
         WaitFlag<HardEvent::MTE2_MTE1>(B_FLAG_SHIFT + rightMatrixPingPong);
         WaitFlag<HardEvent::M_MTE1>(B_CONFLICT_FLAG_SHIFT + rightMatrixPingPong);
         commonLoadData2dParamsTranspose.repeatTimes = constInfo.headDim / C0_SIZE;
-        commonLoadData2dParamsTranspose.srcStride = baseK / C0_SIZE;
-        for (int i = 0; i < baseK / C0_SIZE; i++) {
+        commonLoadData2dParamsTranspose.srcStride = RoundUp(realK, C0_SIZE) / C0_SIZE;
+        for (int i = 0; i < RoundUp(realK, C0_SIZE) / C0_SIZE; i++) {
             AscendC::LoadData(
                 rightMatrixL0BTensor[i * RoundUp(constInfo.headDim, C0_SIZE) * C0_SIZE], 
                 rightMatrixL1Tensor[i * C0_SIZE * C0_SIZE],
@@ -549,8 +558,8 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixG
         WaitFlag<HardEvent::MTE1_M>(B_FLAG_SHIFT + rightMatrixPingPong);
         commonMadParams.m = baseM;
         commonMadParams.n = baseN;
-        commonMadParams.k = baseK;
-        commonMadParams.unitFlag = (i == (LIGCommon::Align(singleK, baseK) / baseK) - 1) ? 3 : 2;
+        commonMadParams.k = realK;
+        commonMadParams.unitFlag = (i == loopK - 1) ? 3 : 2;
         commonMadParams.cmatrixInitVal = (i == 0) ? true : false;
         AscendC::Mmad(
             outputMatrixL0CTensor, 
@@ -562,7 +571,7 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixG
         SetFlag<HardEvent::M_MTE1>(A_CONFLICT_FLAG_SHIFT + leftMatrixPingPong);
         
         // FixPipe  L0C -> GM
-        if (i == (LIGCommon::Align(singleK, baseK) / baseK) - 1) {
+        if (i == loopK - 1) {
             commonFixpipeParamsV220.mSize = baseM;
             commonFixpipeParamsV220.nSize = baseN;
             commonFixpipeParamsV220.srcStride = RoundUp(baseM, C0_SIZE);
@@ -586,13 +595,13 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube3(GlobalTensor<dataType> leftMatrixG
     }
 }
 
-// (G, 2048)^T @ (G, 128) -> (2048, 128)
+// (G, K)^T @ (G, 128) -> (K, 128)
 // L0B will always stay in L0B buffer
 template <typename LIGT>
 __aicore__ inline void LIGMatmul<LIGT>::Cube4(GlobalTensor<dataType> leftMatrixGmTensor, GlobalTensor<dataType> rightMatrixGmTensor, 
                                               GlobalTensor<float> outputMatrixGmTensor, ConstInfo constInfo, RunInfo runInfo)
 {
-    uint32_t singleM = constInfo.topK;
+    uint32_t singleM = runInfo.realTopk;
     uint32_t singleK = constInfo.groupNum;
     uint32_t singleN = constInfo.headDim;
     uint32_t baseM = BASIC_BLOCK_LENGTH;
@@ -638,16 +647,19 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube4(GlobalTensor<dataType> leftMatrixG
     SetFlag<HardEvent::MTE1_MTE2>(B_FLAG_SHIFT);
     SetFlag<HardEvent::MTE1_M>(B_FLAG_SHIFT);
 
-    for (uint32_t i = 0; i < LIGCommon::Align(singleM, baseM) / baseM; i++) {
+    uint64_t loopM = LIGCommon::Align(singleM, baseM) / baseM;
+    uint32_t baseMTail = (singleM % baseM == 0) ? baseM : singleM % baseM;
+    for (uint32_t i = 0; i < loopM; i++) {
         LocalTensor<dataType> leftMatrixL1Tensor = (leftMatrixPingPong & 1) ? leftMatrixL1PingTensor : leftMatrixL1PongTensor;
         LocalTensor<dataType> leftMatrixL0ATensor = (leftMatrixPingPong & 1) ? leftMatrixL0APingTensor : leftMatrixL0APongTensor;
         LocalTensor<float> outputMatrixL0CTensor = (leftMatrixPingPong & 1) ? outputMatrixL0CPingTensor : outputMatrixL0CPongTensor;
         
+        uint32_t realM = (i == loopM - 1) ? baseMTail : baseM;
         // load A matrix from gm to L1
         WaitFlag<HardEvent::MTE1_MTE2>(A_FLAG_SHIFT + leftMatrixPingPong);
         commonNd2NzParams.nValue = baseK;
-        commonNd2NzParams.dValue = baseM;
-        commonNd2NzParams.srcDValue = constInfo.topK;
+        commonNd2NzParams.dValue = realM;
+        commonNd2NzParams.srcDValue = runInfo.realTopk;
         commonNd2NzParams.dstNzC0Stride = RoundUp(baseK, C0_SIZE);
         AscendC::DataCopy(
             leftMatrixL1Tensor,
@@ -659,7 +671,7 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube4(GlobalTensor<dataType> leftMatrixG
         // load A matrix from L1 -> L0A
         WaitFlag<HardEvent::MTE2_MTE1>(A_FLAG_SHIFT + leftMatrixPingPong);
         WaitFlag<HardEvent::M_MTE1>(A_CONFLICT_FLAG_SHIFT + leftMatrixPingPong);
-        commonLoadData2dParamsTranspose.repeatTimes = (LIGCommon::Align(baseM, C0_SIZE) / C0_SIZE) * (LIGCommon::Align(baseK, C0_SIZE) / C0_SIZE);
+        commonLoadData2dParamsTranspose.repeatTimes = (LIGCommon::Align(realM, C0_SIZE) / C0_SIZE) * (LIGCommon::Align(baseK, C0_SIZE) / C0_SIZE);
         commonLoadData2dParamsTranspose.srcStride = 1;
         AscendC::LoadData(
             leftMatrixL0ATensor,
@@ -674,7 +686,7 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube4(GlobalTensor<dataType> leftMatrixG
             WaitFlag<HardEvent::MTE1_M>(B_FLAG_SHIFT);
         }
         WaitFlag<HardEvent::MTE1_M>(A_FLAG_SHIFT + leftMatrixPingPong);
-        commonMadParams.m = baseM;
+        commonMadParams.m = (realM == 1) ? 2 : realM;
         commonMadParams.n = baseN;
         commonMadParams.k = baseK;
         commonMadParams.unitFlag = 3;
@@ -687,14 +699,14 @@ __aicore__ inline void LIGMatmul<LIGT>::Cube4(GlobalTensor<dataType> leftMatrixG
         );
 
         SetFlag<HardEvent::M_MTE1>(A_CONFLICT_FLAG_SHIFT + leftMatrixPingPong);
-        if (i == (LIGCommon::Align(singleM, baseM) / baseM - 1)) {
+        if (i == loopM - 1) {
             SetFlag<HardEvent::M_MTE1>(B_CONFLICT_FLAG_SHIFT);
         }
         
         // FixPipe  L0C -> GM
-        commonFixpipeParamsV220.mSize = baseM;
+        commonFixpipeParamsV220.mSize = realM;
         commonFixpipeParamsV220.nSize = baseN;
-        commonFixpipeParamsV220.srcStride = RoundUp(baseM, C0_SIZE);
+        commonFixpipeParamsV220.srcStride = RoundUp(realM, C0_SIZE);
         commonFixpipeParamsV220.dstStride = constInfo.headDim;
         commonFixpipeParamsV220.reluEn = false;
         commonFixpipeParamsV220.quantPre = QuantMode_t::NoQuant;

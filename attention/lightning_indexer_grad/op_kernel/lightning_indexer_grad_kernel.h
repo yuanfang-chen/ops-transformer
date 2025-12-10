@@ -49,6 +49,7 @@ public:
     __aicore__ inline void UpdateRunInfo(LIGCommon::RunInfo &runInfo, uint64_t taskId);
     __aicore__ inline void SplitCore(uint64_t &beginPos, uint64_t &length, uint64_t totalLoops, uint64_t coreIdx, uint64_t coreNum);
     __aicore__ inline void CopyRunInfo(LIGCommon::RunInfo &dstRunInfo, LIGCommon::RunInfo srcRunInfo);
+    __aicore__ inline uint64_t CalcRealTopk(LIGCommon::RunInfo &runInfo);
     __aicore__ inline void ProcessVec1(uint64_t taskId);
     __aicore__ inline void ProcessVec2(uint64_t taskId);
     __aicore__ inline void ProcessVec3(uint64_t taskId);
@@ -143,6 +144,7 @@ __aicore__ inline void LIGKernel<LIGT>::InitTilingData(const LIGTilingData *__re
     constInfo.reluInWorkspaceOffset = tilingData->reluInWorkspaceOffset;
     constInfo.reluGradWorkspaceOffset = tilingData->reluGradWorkspaceOffset;
     constInfo.scatterAddWorkspaceOffset = tilingData->scatterAddWorkspaceOffset;
+    constInfo.sparseMode = tilingData->sparseMode;
     usedCubeCoreNum = tilingData->usedCoreNum / 2;
     return;
 }
@@ -175,6 +177,21 @@ __aicore__ inline uint32_t LIGKernel<LIGT>::GetPrefixSeqLen(uint32_t bIdx, Globa
         return actualSeqLengthsGm.GetValue(bIdx - 1);
     } else {
         return 0;
+    }
+}
+
+template <typename LIGT>
+__aicore__ inline uint64_t LIGKernel<LIGT>::CalcRealTopk(LIGCommon::RunInfo &runInfo)
+{
+    if (constInfo.sparseMode == 0) {
+        return constInfo.topK;
+    } else {
+        int64_t s2RealSize = (runInfo.actualSeqK - runInfo.actualSeqQ) + runInfo.s1Idx + 1;
+        if (s2RealSize <= 0) {
+            return 0;
+        } else {
+            return s2RealSize >= constInfo.topK ? constInfo.topK : s2RealSize;
+        }
     }
 }
 
@@ -219,6 +236,7 @@ __aicore__ inline void LIGKernel<LIGT>::InitRunInfo(uint64_t beginPos, uint64_t 
         runInfo.loopTimes = length;
     }
     runInfo.taskId = taskId;
+    runInfo.realTopk = CalcRealTopk(runInfo);
     CopyRunInfo(runInfoStore[taskId], runInfo);
     taskId++;
 }
@@ -257,6 +275,7 @@ __aicore__ inline void LIGKernel<LIGT>::UpdateRunInfo(LIGCommon::RunInfo &runInf
             }
         }
     }
+    runInfo.realTopk = CalcRealTopk(runInfo);
     CopyRunInfo(runInfoStore[taskId % 4], runInfo);
 }
 
@@ -352,13 +371,16 @@ __aicore__ inline void LIGKernel<LIGT>::CopyRunInfo(LIGCommon::RunInfo &dstRunIn
     dstRunInfo.prefixSumS2 = srcRunInfo.prefixSumS2;
     dstRunInfo.loopTimes = srcRunInfo.loopTimes;
     dstRunInfo.taskId = srcRunInfo.taskId;
+    dstRunInfo.realTopk = srcRunInfo.realTopk;
 }
 
 template <typename LIGT>
 __aicore__ inline void LIGKernel<LIGT>::ProcessVec1(uint64_t taskId)
 {
     keyGatherGm = (taskId & 1) ? keyGatherPingGm : keyGatherPongGm;
-    vectorService.GatherTopk(sparseIndicesGm, keyGm, keyGatherGm, constInfo, runInfoStore[taskId]);
+    if (runInfoStore[taskId].realTopk > 0) {
+        vectorService.GatherTopk(sparseIndicesGm, keyGm, keyGatherGm, constInfo, runInfoStore[taskId]);
+    }
     AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
 }
 
@@ -368,7 +390,9 @@ __aicore__ inline void LIGKernel<LIGT>::ProcessVec2(uint64_t taskId)
     reluInGm = (taskId & 1) ? reluInPingGm : reluInPongGm;
     reluGradGm = (taskId & 1) ? reluGradPingGm : reluGradPongGm;
     AscendC::WaitEvent(SYNC_C1_V2_FLAG);
-    vectorService.ReluGrad(reluInGm, reluGradGm, dyGm, reluGradGm, dweightsGm, constInfo, runInfoStore[taskId]);
+    if (runInfoStore[taskId].realTopk > 0) {
+        vectorService.ReluGrad(reluInGm, reluGradGm, dyGm, reluGradGm, dweightsGm, constInfo, runInfoStore[taskId]);
+    }
     AscendC::CrossCoreSetFlag<2, PIPE_MTE3>(SYNC_V2_C2_FLAG);
 }
 
@@ -377,7 +401,9 @@ __aicore__ inline void LIGKernel<LIGT>::ProcessVec3(uint64_t taskId)
 {
     scatterAddGm = (taskId & 1) ? scatterAddPingGm : scatterAddPongGm;
     AscendC::WaitEvent(SYNC_C2_V3_FLAG);
-    vectorService.ScatterAdd(sparseIndicesGm, scatterAddGm, dkWorkSpaceGm, constInfo, runInfoStore[taskId]);
+    if (runInfoStore[taskId].realTopk > 0) {
+        vectorService.ScatterAdd(sparseIndicesGm, scatterAddGm, dkWorkSpaceGm, constInfo, runInfoStore[taskId]);
+    }
 }
 
 template <typename LIGT>
@@ -388,13 +414,15 @@ __aicore__ inline void LIGKernel<LIGT>::ProcessCube1(uint64_t taskId)
     reluGradGm = (taskId & 1) ? reluGradPingGm : reluGradPongGm;
 
     AscendC::WaitEvent(SYNC_V1_C1_FLAG);
-    matmulService.AllocEventID();
-    matmulService.Cube2(weightsGm, dyGm, reluGradGm, constInfo, runInfoStore[taskId]);
-    matmulService.FreeEventID();
+    if (runInfoStore[taskId].realTopk > 0) {
+        matmulService.AllocEventID();
+        matmulService.Cube2(weightsGm, dyGm, reluGradGm, constInfo, runInfoStore[taskId]);
+        matmulService.FreeEventID();
 
-    matmulService.AllocEventID();
-    matmulService.Cube1(queryGm, keyGatherGm, reluInGm, constInfo, runInfoStore[taskId]);
-    matmulService.FreeEventID();
+        matmulService.AllocEventID();
+        matmulService.Cube1(queryGm, keyGatherGm, reluInGm, constInfo, runInfoStore[taskId]);
+        matmulService.FreeEventID();
+    }
     AscendC::CrossCoreSetFlag<2, PIPE_FIX>(SYNC_C1_V2_FLAG);
 }
 
@@ -406,13 +434,15 @@ __aicore__ inline void LIGKernel<LIGT>::ProcessCube2(uint64_t taskId)
     scatterAddGm = (taskId & 1) ? scatterAddPingGm : scatterAddPongGm;
 
     AscendC::WaitEvent(SYNC_V2_C2_FLAG);
-    matmulService.AllocEventID();
-    matmulService.Cube3(reluGradGm, keyGatherGm, dqGm, constInfo, runInfoStore[taskId]);
-    matmulService.FreeEventID();
-    
-    matmulService.AllocEventID();
-    matmulService.Cube4(reluGradGm, queryGm, scatterAddGm, constInfo, runInfoStore[taskId]);
-    matmulService.FreeEventID();
+    if (runInfoStore[taskId].realTopk > 0) {
+        matmulService.AllocEventID();
+        matmulService.Cube3(reluGradGm, keyGatherGm, dqGm, constInfo, runInfoStore[taskId]);
+        matmulService.FreeEventID();
+        
+        matmulService.AllocEventID();
+        matmulService.Cube4(reluGradGm, queryGm, scatterAddGm, constInfo, runInfoStore[taskId]);
+        matmulService.FreeEventID();
+    }
     AscendC::CrossCoreSetFlag<2, PIPE_FIX>(SYNC_C2_V3_FLAG);
 }
 

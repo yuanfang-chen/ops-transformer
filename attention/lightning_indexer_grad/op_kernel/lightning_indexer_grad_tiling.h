@@ -35,6 +35,7 @@ public:
     int64_t reluInWorkspaceOffset;
     int64_t reluGradWorkspaceOffset;
     int64_t scatterAddWorkspaceOffset;
+    uint64_t sparseMode;
     // ========================
     // Getter & Setter 方法
     // ========================
@@ -82,6 +83,9 @@ public:
 
     uint32_t get_scatterAddWorkspaceOffset() const { return scatterAddWorkspaceOffset; }
     void set_scatterAddWorkspaceOffset(uint32_t scatterAddWorkspaceOffset) { this->scatterAddWorkspaceOffset = scatterAddWorkspaceOffset; }
+
+    uint32_t get_sparseMode() const { return sparseMode; }
+    void set_sparseMode(uint32_t sparseMode) { this->sparseMode = sparseMode; }
 
     void reset()
     {

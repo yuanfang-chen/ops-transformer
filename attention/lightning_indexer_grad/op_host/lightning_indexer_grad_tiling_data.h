@@ -126,6 +126,7 @@ public:
     int64_t reluInWorkspaceOffset = 0;
     int64_t reluGradWorkspaceOffset = 0;
     int64_t scatterAddWorkspaceOffset = 0;
+    uint64_t sparseMode;
     ge::DataType queryDataType = ge::DT_FLOAT16;
 
 private:

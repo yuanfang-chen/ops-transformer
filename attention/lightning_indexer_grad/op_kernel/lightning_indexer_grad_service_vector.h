@@ -185,8 +185,8 @@ __aicore__ inline void LIGVector<LIGT>::GatherTopk(GlobalTensor<int32_t> sparseI
     LocalTensor<dataType> gatherPingUb = unifiedBuffer.GetWithOffset<dataType>(gatherPingUbSize / sizeof(dataType), gatherPingUbOffset);
     LocalTensor<dataType> gatherPongUb = unifiedBuffer.GetWithOffset<dataType>(gatherPongUbSize / sizeof(dataType), gatherPongUbOffset);
 
-    uint64_t loopBegin = (GetBlockIdx() % 2 == 0) ? 0 : constInfo.topK / 2;
-    uint64_t loopEnd = (GetBlockIdx() % 2 == 0) ? constInfo.topK / 2 : constInfo.topK;
+    uint64_t loopBegin = (GetBlockIdx() % 2 == 0) ? 0 : runInfo.realTopk / 2;
+    uint64_t loopEnd = (GetBlockIdx() % 2 == 0) ? runInfo.realTopk / 2 : runInfo.realTopk;
     // [B, S1, K]
     uint64_t indicesOffset = 0;
     if constexpr (LIGT::layout == LIG_LAYOUT::BSND) {
@@ -195,7 +195,7 @@ __aicore__ inline void LIGVector<LIGT>::GatherTopk(GlobalTensor<int32_t> sparseI
         indicesOffset = (runInfo.prefixSumS1 + runInfo.s1Idx) * constInfo.topK;
     }
 
-    DataCopy(indiceUb, sparseIndicesTensor[indicesOffset], constInfo.topK);
+    DataCopy(indiceUb, sparseIndicesTensor[indicesOffset], (runInfo.realTopk + 7) / 8 * 8);
     event_t eventIdMte2ToS = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_S));
     AscendC::SetFlag<HardEvent::MTE2_S>(eventIdMte2ToS);
     AscendC::WaitFlag<HardEvent::MTE2_S>(eventIdMte2ToS);
@@ -205,10 +205,10 @@ __aicore__ inline void LIGVector<LIGT>::GatherTopk(GlobalTensor<int32_t> sparseI
 
     uint64_t pingPongOffset = 0;
     uint8_t splitDataCopyLen = 8;
-    for (uint64_t i = loopBegin; i < loopEnd; i++) {
-        event_t eventIdMte2ToMTE3PingPong = (i / splitDataCopyLen & 1) ? eventIdMte2ToMTE3Ping : eventIdMte2ToMTE3Pong;
-        event_t eventIdMte3ToMTE2PingPong = (i / splitDataCopyLen & 1) ? eventIdMte3ToMTE2Ping : eventIdMte3ToMTE2Pong;
-        LocalTensor<dataType> &gatherPingPongUb = (i / splitDataCopyLen & 1) ? gatherPingUb : gatherPongUb;
+    for (uint64_t i = loopBegin, cnt = 0; i < loopEnd; i++, cnt++) {
+        event_t eventIdMte2ToMTE3PingPong = ((cnt / splitDataCopyLen) & 1) ? eventIdMte2ToMTE3Ping : eventIdMte2ToMTE3Pong;
+        event_t eventIdMte3ToMTE2PingPong = ((cnt / splitDataCopyLen) & 1) ? eventIdMte3ToMTE2Ping : eventIdMte3ToMTE2Pong;
+        LocalTensor<dataType> &gatherPingPongUb = ((cnt / splitDataCopyLen) & 1) ? gatherPingUb : gatherPongUb;
         int64_t singleIndice = indiceUb.GetValue(i);
         // [B, S2, N2, D]
         uint64_t keyOffset = 0;
@@ -219,16 +219,17 @@ __aicore__ inline void LIGVector<LIGT>::GatherTopk(GlobalTensor<int32_t> sparseI
             keyOffset = runInfo.prefixSumS2 * constInfo.headNumK * constInfo.headDim +
                 singleIndice * constInfo.headNumK * constInfo.headDim + runInfo.n2Idx * constInfo.headDim;
         }
-        pingPongOffset = i % splitDataCopyLen * constInfo.headDim;
-        if (i % splitDataCopyLen == 0) {
+        pingPongOffset = cnt % splitDataCopyLen * constInfo.headDim;
+        if ((cnt % splitDataCopyLen == 0) || (i == loopBegin)) {
             AscendC::WaitFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMTE2PingPong);
         }
         DataCopy(gatherPingPongUb[pingPongOffset], keyTensor[keyOffset], constInfo.headDim);
-        if ((i + 1) % splitDataCopyLen == 0) {
-            uint64_t gatherKOffset = i / splitDataCopyLen * splitDataCopyLen * constInfo.headDim;
+        if (((cnt + 1) % splitDataCopyLen == 0) || (i == loopEnd - 1)) {
+            uint64_t gatherKOffset = (loopBegin + cnt / splitDataCopyLen * splitDataCopyLen) * constInfo.headDim;
+            uint64_t splitNum = ((cnt + 1) % splitDataCopyLen == 0) ? splitDataCopyLen : (cnt + 1) % 8;
             AscendC::SetFlag<HardEvent::MTE2_MTE3>(eventIdMte2ToMTE3PingPong);
             AscendC::WaitFlag<HardEvent::MTE2_MTE3>(eventIdMte2ToMTE3PingPong);
-            DataCopy(gatherKTensor[gatherKOffset], gatherPingPongUb, constInfo.headDim * splitDataCopyLen);
+            DataCopy(gatherKTensor[gatherKOffset], gatherPingPongUb, constInfo.headDim * splitNum);
             AscendC::SetFlag<HardEvent::MTE3_MTE2>(eventIdMte3ToMTE2PingPong);
         }
     }
@@ -244,8 +245,8 @@ __aicore__ inline void LIGVector<LIGT>::ScatterAdd(GlobalTensor<int32_t> sparseI
     LocalTensor<float> gatherPingUb = unifiedBuffer.GetWithOffset<float>(gatherPingUbSize / sizeof(float), gatherPingUbOffset);
     LocalTensor<float> gatherPongUb = unifiedBuffer.GetWithOffset<float>(gatherPongUbSize / sizeof(float), gatherPongUbOffset);
 
-    uint64_t loopBegin = (GetBlockIdx() % 2 == 0) ? 0 : constInfo.topK / 2;
-    uint64_t loopEnd = (GetBlockIdx() % 2 == 0) ? constInfo.topK / 2 : constInfo.topK;
+    uint64_t loopBegin = (GetBlockIdx() % 2 == 0) ? 0 : runInfo.realTopk / 2;
+    uint64_t loopEnd = (GetBlockIdx() % 2 == 0) ? runInfo.realTopk / 2 : runInfo.realTopk;
 
     // [B, S1, K]
     uint64_t indicesOffset = 0;
@@ -254,7 +255,7 @@ __aicore__ inline void LIGVector<LIGT>::ScatterAdd(GlobalTensor<int32_t> sparseI
     } else if constexpr (LIGT::layout == LIG_LAYOUT::TND) {
         indicesOffset = (runInfo.prefixSumS1 + runInfo.s1Idx) * constInfo.topK;
     }
-    DataCopy(indiceUb, sparseIndicesTensor[indicesOffset], constInfo.topK);
+    DataCopy(indiceUb, sparseIndicesTensor[indicesOffset], (runInfo.realTopk + 7) / 8 * 8);
     event_t eventIdMte2ToS = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_S));
     AscendC::SetFlag<HardEvent::MTE2_S>(eventIdMte2ToS);
     AscendC::WaitFlag<HardEvent::MTE2_S>(eventIdMte2ToS);
@@ -317,7 +318,7 @@ __aicore__ inline void LIGVector<LIGT>::ReluGrad(GlobalTensor<float> reluInGmTen
     AscendC::Duplicate(zeroFloatTensor, static_cast<float>(0.0), zeroFloatUbSize / sizeof(float));
     AscendC::PipeBarrier<PIPE_V>();
 
-    uint64_t totalElements = constInfo.groupNum * constInfo.topK;
+    uint64_t totalElements = constInfo.groupNum * runInfo.realTopk;
     uint64_t blockGroupBegin = (GetBlockIdx() % 2 == 0) ? 0 : constInfo.groupNum / 2;
     uint64_t blockGroupNum = (GetBlockIdx() % 2 == 0) ? constInfo.groupNum / 2 : (constInfo.groupNum + 1) / 2;
     uint64_t floatMask = 64;
@@ -336,10 +337,16 @@ __aicore__ inline void LIGVector<LIGT>::ReluGrad(GlobalTensor<float> reluInGmTen
     } else if constexpr (LIGT::layout == LIG_LAYOUT::TND) {
         dyOffset = (runInfo.prefixSumS1 + runInfo.s1Idx) * constInfo.topK;
     }
-    DataCopy(dyTensor, dyGmTensor[dyOffset], constInfo.topK);
+    uint64_t topkPadLenBf16 = (runInfo.realTopk + 15) / 16 * 16;
+    uint64_t topkPadLenFp32 = (runInfo.realTopk + 7) / 8 * 8;
+    uint32_t topkStride = (topkPadLenBf16 == topkPadLenFp32) ? 0 : 1;
+    uint32_t garbageLen = topkPadLenBf16 - runInfo.realTopk;
+    AscendC::DataCopyExtParams dyCopyParams{1, static_cast<uint32_t>(runInfo.realTopk * sizeof(dataType)), 0, 0, 0};
+    AscendC::DataCopyPadExtParams<dataType> dyPadParams{true, 0, static_cast<uint8_t>(topkPadLenBf16 - runInfo.realTopk), 0};
+    AscendC::DataCopyPad(dyTensor, dyGmTensor[dyOffset], dyCopyParams, dyPadParams);
     AscendC::SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
     AscendC::WaitFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
-    Cast(dyFloatTensor, dyTensor, RoundMode::CAST_NONE, constInfo.topK);
+    Cast(dyFloatTensor, dyTensor, RoundMode::CAST_NONE, topkPadLenBf16);
     AscendC::PipeBarrier<PIPE_V>();
 
     AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMte2Ping);
@@ -348,10 +355,11 @@ __aicore__ inline void LIGVector<LIGT>::ReluGrad(GlobalTensor<float> reluInGmTen
     AscendC::SetFlag<HardEvent::MTE3_V>(eventIdMte3ToVPong);
     for (uint64_t loopIdx = 0; loopIdx < loopTimes; loopIdx++) {
         uint64_t currentGroupNum = (loopIdx == loopTimes - 1) ? groupNumTail : groupNumDivide;
-        uint64_t elementsNum = currentGroupNum * constInfo.topK;
-        uint64_t groupOffset = (blockGroupBegin + loopIdx * groupNumDivide) * constInfo.topK;
-        uint64_t compareRepeatTimes = elementsNum / floatMask;
-        uint64_t selectRepeatTimes = elementsNum / halfMask;
+        uint64_t elementsNum = currentGroupNum * topkPadLenBf16;
+        uint64_t groupOffset = (blockGroupBegin + loopIdx * groupNumDivide) * runInfo.realTopk;
+        uint64_t elementsNumAlign = (elementsNum + 127) / 128 * 128;
+        uint64_t compareRepeatTimes = elementsNumAlign / floatMask;
+        uint64_t selectRepeatTimes = elementsNumAlign / halfMask;
         
         event_t eventIdVToMte2PingPong = (loopIdx & 1) ? eventIdVToMte2Ping : eventIdVToMte2Pong;
         event_t eventIdMte3ToVPingPong = (loopIdx & 1) ? eventIdMte3ToVPing : eventIdMte3ToVPong;
@@ -362,8 +370,13 @@ __aicore__ inline void LIGVector<LIGT>::ReluGrad(GlobalTensor<float> reluInGmTen
 
         // copyIn reluGrad, reluIn
         AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2PingPong);
-        DataCopy(reluInTensor, reluInGmTensor[groupOffset], elementsNum);
-        DataCopy(reluGradTensor, reluGradInGmTensor[groupOffset], elementsNum);
+        AscendC::DataCopyExtParams reluInCopyParams{static_cast<uint16_t>(currentGroupNum), static_cast<uint32_t>(runInfo.realTopk * sizeof(float)), 0, topkStride, 0};
+        AscendC::DataCopyPadExtParams<float> reluInPadParams{true, 0, static_cast<uint8_t>(topkPadLenFp32 - runInfo.realTopk), 0};
+        AscendC::DataCopyPad(reluInTensor, reluInGmTensor[groupOffset], reluInCopyParams, reluInPadParams);
+    
+        AscendC::DataCopyExtParams reluGradCopyParams{static_cast<uint16_t>(currentGroupNum), static_cast<uint32_t>(runInfo.realTopk * sizeof(dataType)), 0, 0, 0};
+        AscendC::DataCopyPadExtParams<dataType> reluGradPadParams{true, 0, static_cast<uint8_t>(topkPadLenBf16 - runInfo.realTopk), 0};
+        AscendC::DataCopyPad(reluGradTensor, reluGradInGmTensor[groupOffset], reluGradCopyParams, reluGradPadParams);
         AscendC::SetFlag<HardEvent::MTE2_V>(eventIdMte2ToV);
 
         AscendC::WaitFlag<HardEvent::MTE3_V>(eventIdMte3ToVPingPong); 
@@ -372,17 +385,16 @@ __aicore__ inline void LIGVector<LIGT>::ReluGrad(GlobalTensor<float> reluInGmTen
         AscendC::Compare(maskTensor, reluInTensor, zeroFloatTensor, CMPMODE::GT, floatMask, compareRepeatTimes, repeatParamsCompare);
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::Select(reluGradOutTensor.template ReinterpretCast<half>(), maskTensor, reluGradTensor.template ReinterpretCast<half>(), static_cast<half>(0.0), 
-                        SELMODE::VSEL_TENSOR_SCALAR_MODE, halfMask, selectRepeatTimes, repeatParamsSelect);
+                    SELMODE::VSEL_TENSOR_SCALAR_MODE, halfMask, selectRepeatTimes, repeatParamsSelect);
         AscendC::PipeBarrier<PIPE_V>();
         // compute broadcastMul
         for (uint32_t j = 0; j < currentGroupNum; j++) {
-            AscendC::Mul(reluInTensor[j * constInfo.topK], reluInTensor[j * constInfo.topK], dyFloatTensor, constInfo.topK);
+            AscendC::Mul(reluInTensor[j * topkPadLenBf16], reluInTensor[j * topkPadLenBf16], dyFloatTensor, topkPadLenFp32);
             AscendC::PipeBarrier<PIPE_V>();
         }
         // compute reduceSum 
         for (uint32_t j = 0; j < currentGroupNum; j++) {
-            int currentSize = constInfo.topK;
-            AscendC::ReduceSum<float>(reduceSumWorkSpaceTensor, reluInTensor[j * constInfo.topK], reduceSumWorkSpaceTensor, currentSize);
+            AscendC::ReduceSum<float>(reduceSumWorkSpaceTensor, reluInTensor[j * topkPadLenBf16], reduceSumWorkSpaceTensor, topkPadLenFp32);
             AscendC::SetFlag<HardEvent::V_S>(eventIdVToS);
             AscendC::WaitFlag<HardEvent::V_S>(eventIdVToS);
             float topKSum = reduceSumWorkSpaceTensor.GetValue(0);
@@ -393,7 +405,8 @@ __aicore__ inline void LIGVector<LIGT>::ReluGrad(GlobalTensor<float> reluInGmTen
 
         // copyout reluGrad
         AscendC::WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
-        DataCopy(reluGradOutGmTensor[groupOffset], reluGradOutTensor, elementsNum);
+        AscendC::DataCopyExtParams reluGradOutCopyParams{static_cast<uint16_t>(currentGroupNum), static_cast<uint32_t>(runInfo.realTopk * sizeof(dataType)), 0, 0, 0};
+        AscendC::DataCopyPad(reluGradOutGmTensor[groupOffset], reluGradOutTensor, reluGradOutCopyParams);
         AscendC::SetFlag<HardEvent::MTE3_V>(eventIdMte3ToVPingPong);
     }
     AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2Ping);
