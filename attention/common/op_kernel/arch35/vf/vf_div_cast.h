@@ -19,6 +19,47 @@
 namespace AscendC {
 #ifndef __CCE_KT_TEST__
 template <typename T, typename OUTPUT_T, uint16_t srcD>
+__simd_vf__ inline void DivCastImpl64VF(__ubuf__ OUTPUT_T * dstUb, __ubuf__ float * srcUb, __ubuf__ float * expSumUb,
+    const uint16_t m)
+{
+    RegTensor<T> vreg_src;
+    RegTensor<T> vreg_div;
+    RegTensor<T> vreg_exp_sum;
+    // bfloat16_t
+    RegTensor<bfloat16_t> vreg_div_even_bf16;
+    RegTensor<bfloat16_t> vreg_div_bf16;
+    RegTensor<bfloat16_t> vreg_dst_even_bf16;
+    RegTensor<bfloat16_t> vreg_dst_odd_bf16;
+    // half
+    RegTensor<half> vreg_div_even_f16;
+    RegTensor<half> vreg_div_f16;
+    RegTensor<half> vreg_dst_even_f16;
+    RegTensor<half> vreg_dst_odd_f16;
+
+    MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
+    MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
+
+    for (uint16_t i = 0; i < m; ++i) {
+        LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_exp_sum, expSumUb + i);
+        LoadAlign(vreg_src, srcUb + i * srcD);
+        Div(vreg_div, vreg_src, vreg_exp_sum, preg_all);
+
+        if constexpr (IsSameType<OUTPUT_T, float>::value) {
+            StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div, preg_all);
+        } else if constexpr (IsSameType<OUTPUT_T, bfloat16_t>::value) {
+            Cast<OUTPUT_T, T, castTraitZero>(vreg_div_bf16, vreg_div, preg_all_b16);
+            StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>(
+                (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div_bf16, preg_all);
+        } else {
+            Cast<OUTPUT_T, T, castTraitZero>(vreg_div_f16, vreg_div, preg_all_b16);
+            StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>(
+                (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div_f16, preg_all);
+        }
+    }
+}
+
+template <typename T, typename OUTPUT_T, uint16_t srcD>
 __aicore__ inline void DivCastImpl64(const LocalTensor<OUTPUT_T>& dstTensor,
     const LocalTensor<T>& srcTensor, const LocalTensor<T>& expSumTensor,
     const uint16_t m)
@@ -27,41 +68,58 @@ __aicore__ inline void DivCastImpl64(const LocalTensor<OUTPUT_T>& dstTensor,
     __ubuf__ float * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
     __ubuf__ float * expSumUb = (__ubuf__ T*)expSumTensor.GetPhyAddr();
 
-    const uint16_t floatRepSize = 64;
-    constexpr uint16_t dLoops = srcD >> 6;
-    __VEC_SCOPE__
-    {
-        RegTensor<T> vreg_src;
-        RegTensor<T> vreg_div;
-        RegTensor<T> vreg_exp_sum;
-        // bfloat16_t
-        RegTensor<bfloat16_t> vreg_div_even_bf16;
-        RegTensor<bfloat16_t> vreg_div_bf16;
-        RegTensor<bfloat16_t> vreg_dst_even_bf16;
-        RegTensor<bfloat16_t> vreg_dst_odd_bf16;
-        // half
-        RegTensor<half> vreg_div_even_f16;
-        RegTensor<half> vreg_div_f16;
-        RegTensor<half> vreg_dst_even_f16;
-        RegTensor<half> vreg_dst_odd_f16;
+    DivCastImpl64VF<T, OUTPUT_T, srcD>(dstUb, srcUb, expSumUb, m);
+}
 
-        MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
-        MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
+template <typename T, typename OUTPUT_T, uint16_t srcD>
+__simd_vf__ inline void DivCastImpl128VF(__ubuf__ OUTPUT_T * dstUb, __ubuf__ float * srcUb, __ubuf__ float * expSumUb,
+    const uint16_t m)
+{
+    RegTensor<float> vreg_src_even, vreg_src_odd;
+    RegTensor<float> vreg_div_even, vreg_div_odd;
+    RegTensor<float> vreg_exp_sum;
+    // bfloat16_t
+    RegTensor<bfloat16_t> vreg_div_even_bf16;
+    RegTensor<bfloat16_t> vreg_div_odd_bf16;
+    RegTensor<bfloat16_t> vreg_cast_bf16;
+    // half
+    RegTensor<half> vreg_div_even_f16;
+    RegTensor<half> vreg_div_odd_f16;
+    RegTensor<half> vreg_cast_f16;
 
-        for (uint16_t i = 0; i < m; ++i) {
-            DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_exp_sum, expSumUb + i);
-            DataCopy(vreg_src, srcUb + i * srcD);
-            Div(vreg_div, vreg_src, vreg_exp_sum, preg_all);
+    MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
+    MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
 
-            if constexpr (IsSameType<OUTPUT_T, float>::value) {
-                DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>((__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div, preg_all);
-            } else if constexpr (IsSameType<OUTPUT_T, bfloat16_t>::value) {
-                Cast<OUTPUT_T, T, castTraitZero>(vreg_div_bf16, vreg_div, preg_all_b16);
-                DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>((__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div_bf16, preg_all);
-            } else {
-                Cast<OUTPUT_T, T, castTraitZero>(vreg_div_f16, vreg_div, preg_all_b16);
-                DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>((__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div_f16, preg_all);
-            }
+    for (uint16_t i = 0; i < m; ++i) {
+        LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_exp_sum, expSumUb + i);
+        if constexpr (IsSameType<OUTPUT_T, float>::value) {
+            LoadAlign(vreg_src_even, srcUb + i * srcD);
+            LoadAlign(vreg_src_odd, srcUb + i * srcD + (srcD >> 1));
+        } else {
+            LoadAlign<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
+                vreg_src_even, vreg_src_odd, srcUb + i * srcD);
+        }
+        Div(vreg_div_even, vreg_src_even, vreg_exp_sum, preg_all);
+        Div(vreg_div_odd, vreg_src_odd, vreg_exp_sum, preg_all);
+
+        if constexpr (IsSameType<OUTPUT_T, float>::value) {
+            StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div_even, preg_all);
+            StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + (srcD >> 1), vreg_div_odd, preg_all);
+        } else if constexpr (IsSameType<OUTPUT_T, bfloat16_t>::value) {
+            Cast<OUTPUT_T, T, castTraitZero>(vreg_div_even_bf16, vreg_div_even, preg_all);
+            Cast<OUTPUT_T, T, castTraitOne>(vreg_div_odd_bf16, vreg_div_odd, preg_all);
+            Or((RegTensor<uint16_t>&)vreg_cast_bf16, (RegTensor<uint16_t>&)vreg_div_even_bf16,
+                (RegTensor<uint16_t>&)vreg_div_odd_bf16, preg_all_b16);
+            StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_cast_bf16, preg_all_b16);
+        } else {
+            Cast<OUTPUT_T, T, castTraitZero>(vreg_div_even_f16, vreg_div_even, preg_all);
+            Cast<OUTPUT_T, T, castTraitOne>(vreg_div_odd_f16, vreg_div_odd, preg_all);
+            Or((RegTensor<uint16_t>&)vreg_cast_f16, (RegTensor<uint16_t>&)vreg_div_even_f16, (RegTensor<uint16_t>&)vreg_div_odd_f16, preg_all_b16);
+            StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_cast_f16, preg_all_b16);
         }
     }
 }
@@ -75,55 +133,47 @@ __aicore__ inline void DivCastImpl128(const LocalTensor<OUTPUT_T>& dstTensor,
     __ubuf__ float * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
     __ubuf__ float * expSumUb = (__ubuf__ T*)expSumTensor.GetPhyAddr();
 
-    const uint16_t floatRepSize = 64;
+    DivCastImpl128VF<T, OUTPUT_T, srcD>(dstUb, srcUb, expSumUb, m);
+}
 
-    __VEC_SCOPE__
-    {
-        RegTensor<float> vreg_src_even, vreg_src_odd;
-        RegTensor<float> vreg_div_even, vreg_div_odd;
-        RegTensor<float> vreg_exp_sum;
-        // bfloat16_t
-        RegTensor<bfloat16_t> vreg_div_even_bf16;
-        RegTensor<bfloat16_t> vreg_div_odd_bf16;
-        RegTensor<bfloat16_t> vreg_cast_bf16;
-        // half
-        RegTensor<half> vreg_div_even_f16;
-        RegTensor<half> vreg_div_odd_f16;
-        RegTensor<half> vreg_cast_f16;
+template <typename T, typename OUTPUT_T, uint16_t srcD>
+__simd_vf__ inline void DivCastImplGeneralVF(__ubuf__ OUTPUT_T * dstUb, __ubuf__ float * srcUb,
+    __ubuf__ float * expSumUb, const uint16_t m)
+{
+    RegTensor<float> vreg_src;
+    RegTensor<float> vreg_div;
+    RegTensor<float> vreg_exp_sum;
+    // bfloat16_t
+    RegTensor<bfloat16_t> vreg_div_bf16;
+    RegTensor<bfloat16_t> vreg_dst_even_bf16;
+    RegTensor<bfloat16_t> vreg_dst_odd_bf16;
+    // half
+    RegTensor<half> vreg_div_f16;
+    RegTensor<half> vreg_dst_even_f16;
+    RegTensor<half> vreg_dst_odd_f16;
 
-        MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
-        MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
+    MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
+    MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
+    constexpr uint16_t dLoops = srcD >> 6;
+    constexpr uint16_t floatRepSize = 64;
 
-        for (uint16_t i = 0; i < m; ++i) {
-            DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_exp_sum, expSumUb + i);
+    for (uint16_t i = 0; i < m; ++i) {
+        LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_exp_sum, expSumUb + i);
+        for (uint16_t j = 0; j < dLoops; ++j) {
+            LoadAlign(vreg_src, srcUb + i * srcD + j * floatRepSize);
+            Div(vreg_div, vreg_src, vreg_exp_sum, preg_all);
+
             if constexpr (IsSameType<OUTPUT_T, float>::value) {
-                DataCopy(vreg_src_even, srcUb + i * srcD);
-                DataCopy(vreg_src_odd, srcUb + i * srcD + (srcD >> 1));
-            } else {
-                DataCopy<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
-                    vreg_src_even, vreg_src_odd, srcUb + i * srcD);
-            }
-            Div(vreg_div_even, vreg_src_even, vreg_exp_sum, preg_all);
-            Div(vreg_div_odd, vreg_src_odd, vreg_exp_sum, preg_all);
-
-            if constexpr (IsSameType<OUTPUT_T, float>::value) {
-                DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                    (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_div_even, preg_all);
-                DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                    (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + (srcD >> 1), vreg_div_odd, preg_all);
+                StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                    (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + j * floatRepSize, vreg_div, preg_all);
             } else if constexpr (IsSameType<OUTPUT_T, bfloat16_t>::value) {
-                Cast<OUTPUT_T, T, castTraitZero>(vreg_div_even_bf16, vreg_div_even, preg_all);
-                Cast<OUTPUT_T, T, castTraitOne>(vreg_div_odd_bf16, vreg_div_odd, preg_all);
-                Or((RegTensor<uint16_t>&)vreg_cast_bf16, (RegTensor<uint16_t>&)vreg_div_even_bf16,
-                (RegTensor<uint16_t>&)vreg_div_odd_bf16, preg_all_b16);
-                DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                    (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_cast_bf16, preg_all_b16);
+                Cast<OUTPUT_T, T, castTraitZero>(vreg_div_bf16, vreg_div, preg_all_b16);
+                StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>(
+                    (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + j * floatRepSize, vreg_div_bf16, preg_all);
             } else {
-                Cast<OUTPUT_T, T, castTraitZero>(vreg_div_even_f16, vreg_div_even, preg_all);
-                Cast<OUTPUT_T, T, castTraitOne>(vreg_div_odd_f16, vreg_div_odd, preg_all);
-                Or((RegTensor<uint16_t>&)vreg_cast_f16, (RegTensor<uint16_t>&)vreg_div_even_f16, (RegTensor<uint16_t>&)vreg_div_odd_f16, preg_all_b16);
-                DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                    (__ubuf__ OUTPUT_T *&)dstUb + i * srcD, vreg_cast_f16, preg_all_b16);
+                Cast<OUTPUT_T, T, castTraitZero>(vreg_div_f16, vreg_div, preg_all_b16);
+                StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>(
+                    (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + j * floatRepSize, vreg_div_f16, preg_all);
             }
         }
     }
@@ -138,46 +188,7 @@ __aicore__ inline void DivCastImplGeneral(const LocalTensor<OUTPUT_T>& dstTensor
     __ubuf__ float * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
     __ubuf__ float * expSumUb = (__ubuf__ T*)expSumTensor.GetPhyAddr();
 
-    const uint16_t floatRepSize = 64;
-    constexpr uint16_t dLoops = srcD >> 6;
-    __VEC_SCOPE__
-    {
-        RegTensor<float> vreg_src;
-        RegTensor<float> vreg_div;
-        RegTensor<float> vreg_exp_sum;
-        // bfloat16_t
-        RegTensor<bfloat16_t> vreg_div_bf16;
-        RegTensor<bfloat16_t> vreg_dst_even_bf16;
-        RegTensor<bfloat16_t> vreg_dst_odd_bf16;
-        // half
-        RegTensor<half> vreg_div_f16;
-        RegTensor<half> vreg_dst_even_f16;
-        RegTensor<half> vreg_dst_odd_f16;
-
-        MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
-        MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
-
-        for (uint16_t i = 0; i < m; ++i) {
-            DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_exp_sum, expSumUb + i);
-            for (uint16_t j = 0; j < dLoops; ++j) {
-                DataCopy(vreg_src, srcUb + i * srcD + j * floatRepSize);
-                Div(vreg_div, vreg_src, vreg_exp_sum, preg_all);
-
-                if constexpr (IsSameType<OUTPUT_T, float>::value) {
-                    DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                        (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + j * floatRepSize, vreg_div, preg_all);
-                } else if constexpr (IsSameType<OUTPUT_T, bfloat16_t>::value) {
-                    Cast<OUTPUT_T, T, castTraitZero>(vreg_div_bf16, vreg_div, preg_all_b16);
-                    DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>(
-                        (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + j * floatRepSize, vreg_div_bf16, preg_all);
-                } else {
-                    Cast<OUTPUT_T, T, castTraitZero>(vreg_div_f16, vreg_div, preg_all_b16);
-                    DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_PACK_B32>(
-                        (__ubuf__ OUTPUT_T *&)dstUb + i * srcD + j * floatRepSize, vreg_div_f16, preg_all);
-                }
-            }
-        }
-    }
+    DivCastImpl128VF<T, OUTPUT_T, srcD>(dstUb, srcUb, expSumUb, m);
 }
 
 /*

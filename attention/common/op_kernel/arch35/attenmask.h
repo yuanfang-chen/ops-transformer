@@ -216,6 +216,26 @@ __aicore__ inline int64_t ComputeOffsetForPrefixRectangle(const int64_t &delta, 
 }
 
 #ifndef __CCE_KT_TEST__
+__simd_vf__ inline void MergeBandVF(const uint64_t maskPreUb, const uint64_t maskNextUb,
+                                    const uint16_t loopCount)
+{
+    RegTensor<uint32_t> vreg_pre;
+    RegTensor<uint32_t> vreg_next;
+    RegTensor<uint32_t> vreg_xor;
+    RegTensor<uint32_t> vreg_not;
+    RegTensor<uint32_t> vreg_or;
+    MaskReg preg_all = CreateMask<uint32_t, MaskPattern::ALL>();
+    Duplicate(vreg_xor, 0x1010101);
+
+    for (uint16_t i = 0; i < loopCount; ++i) {
+        LoadAlign(vreg_pre, (__ubuf__ uint32_t*&)maskPreUb + i * 64);
+        LoadAlign(vreg_next, (__ubuf__ uint32_t*&)maskNextUb + i * 64);
+        Xor(vreg_not, vreg_pre, vreg_xor, preg_all);
+        Or(vreg_or, vreg_not, vreg_next, preg_all);
+        StoreAlign((__ubuf__ uint32_t*&)maskNextUb + i * 64, vreg_or, preg_all);
+    }
+}
+
 template <bool hasAtten>
 __aicore__ inline void MergeBandModeMask(LocalTensor<uint8_t> &maskPre, LocalTensor<uint8_t> &maskNext,
                                          int32_t &halfS1RealSize, int64_t s2BaseSize)
@@ -234,23 +254,22 @@ __aicore__ inline void MergeBandModeMask(LocalTensor<uint8_t> &maskPre, LocalTen
     uint16_t halfS1RealSizeLoop = static_cast<uint16_t>(halfS1RealSize) + 1;
     uint16_t loopCount = (halfS1RealSizeLoop / rowNumEachLoop) * rowNumTimesEachLoop;
 
-    __VEC_SCOPE__
-    {
-        RegTensor<uint32_t> vreg_pre;
-        RegTensor<uint32_t> vreg_next;
-        RegTensor<uint32_t> vreg_xor;
-        RegTensor<uint32_t> vreg_not;
-        RegTensor<uint32_t> vreg_or;
-        MaskReg preg_all = CreateMask<uint32_t, MaskPattern::ALL>();
-        Duplicate(vreg_xor, 0x1010101);
+    MergeBandVF(maskPreUb, maskNextUb, loopCount);
+}
 
-        for (uint16_t i = 0; i < loopCount; ++i) {
-            DataCopy(vreg_pre, (__ubuf__ uint32_t*&)maskPreUb + i * 64);
-            DataCopy(vreg_next, (__ubuf__ uint32_t*&)maskNextUb + i * 64);
-            Xor(vreg_not, vreg_pre, vreg_xor, preg_all);
-            Or(vreg_or, vreg_not, vreg_next, preg_all);
-            DataCopy((__ubuf__ uint32_t*&)maskNextUb + i * 64, vreg_or, preg_all);
-        }
+__simd_vf__ inline void MergePrefixVF(const uint64_t maskPreUb, const uint64_t maskNextUb,
+                                      const uint16_t loopCount)
+{
+    RegTensor<uint32_t> vreg_pre;
+    RegTensor<uint32_t> vreg_next;
+    RegTensor<uint32_t> vreg_and;
+    MaskReg preg_all = CreateMask<uint32_t, MaskPattern::ALL>();
+
+    for (uint16_t i = 0; i < loopCount; ++i) {
+        LoadAlign(vreg_pre, (__ubuf__ uint32_t*&)maskPreUb + i * 64);
+        LoadAlign(vreg_next, (__ubuf__ uint32_t*&)maskNextUb + i * 64);
+        And(vreg_and, vreg_pre, vreg_next, preg_all);
+        StoreAlign((__ubuf__ uint32_t*&)maskNextUb + i * 64, vreg_and, preg_all);
     }
 }
 
@@ -272,20 +291,7 @@ __aicore__ inline void MergePrefixModeMask(LocalTensor<uint8_t> &maskPre, LocalT
     uint16_t halfS1RealSizeLoop = static_cast<uint16_t>(halfS1RealSize) + 1;
     uint16_t loopCount = (halfS1RealSizeLoop / rowNumEachLoop) * rowNumTimesEachLoop;
 
-    __VEC_SCOPE__
-    {
-        RegTensor<uint32_t> vreg_pre;
-        RegTensor<uint32_t> vreg_next;
-        RegTensor<uint32_t> vreg_and;
-        MaskReg preg_all = CreateMask<uint32_t, MaskPattern::ALL>();
-
-        for (uint16_t i = 0; i < loopCount; ++i) {
-            DataCopy(vreg_pre, (__ubuf__ uint32_t*&)maskPreUb + i * 64);
-            DataCopy(vreg_next, (__ubuf__ uint32_t*&)maskNextUb + i * 64);
-            And(vreg_and, vreg_pre, vreg_next, preg_all);
-            DataCopy((__ubuf__ uint32_t*&)maskNextUb + i * 64, vreg_and, preg_all);
-        }
-    }
+    MergePrefixVF(maskPreUb, maskNextUb, loopCount);
 }
 #else
 template <bool hasAtten>

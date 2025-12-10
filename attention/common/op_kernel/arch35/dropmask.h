@@ -64,6 +64,40 @@ __aicore__ inline uint64_t ComputeDropOffset(RunInfo<false> &runInfo, ConstInfo<
            static_cast<uint64_t>(dropMaskInfo.offset);
 }
 
+__simd_vf__ inline void GenIndexAlign(const uint64_t indexVecDstLocalInt, const uint32_t rowNums,
+                                      const uint32_t eachRowIndexNum, const uint32_t eachRowOffset)
+{
+    RegTensor<int32_t> inc_idx;
+    MaskReg preg;
+    uint32_t sreg = eachRowIndexNum;
+    preg= UpdateMask<int32_t>(sreg);
+
+    Arange(inc_idx, 0);
+    for (uint16_t s1Idx = 0; s1Idx < static_cast<uint16_t>(rowNums); s1Idx++) {
+        StoreAlign<int32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::StoreDist::DIST_NORM_B32>(
+            (__ubuf__ int32_t *&)indexVecDstLocalInt, inc_idx, eachRowIndexNum, preg);
+        Adds(inc_idx, inc_idx, eachRowOffset, preg);
+    }
+}
+
+__simd_vf__ inline void GenIndexUnAling(const uint64_t indexVecDstLocalInt, const uint32_t rowNums,
+                                        const uint32_t eachRowIndexNum, const uint32_t eachRowOffset)
+{
+    RegTensor<int32_t> inc_idx;
+    MaskReg preg;
+    UnalignRegForStore ureg;
+    uint32_t sreg = eachRowIndexNum;
+    preg= UpdateMask<int32_t>(sreg);
+
+    Arange(inc_idx, 0);
+    for (uint16_t s1Idx = 0; s1Idx < static_cast<uint16_t>(rowNums); s1Idx++) {
+        StoreUnAlign<int32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            (__ubuf__ int32_t *&)indexVecDstLocalInt, inc_idx, ureg, eachRowIndexNum);
+        Adds(inc_idx, inc_idx, eachRowOffset, preg);
+    }
+    StoreUnAlignPost<int32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ int32_t *&)indexVecDstLocalInt, ureg, 0);
+}
+
 /*
  * @ingroup GenIndexVec
  * @brief generate basic block index vector, eachRowIndexNum need 8 aligned
@@ -77,37 +111,85 @@ __aicore__ inline void GenIndexVec(LocalTensor<int32_t> &dropmaskIndexVec, uint3
 {   
     uint64_t indexVecDstLocalInt = dropmaskIndexVec.GetPhyAddr();
     if (eachRowIndexNum % eachRowAlignNum == 0) {
-        __VEC_SCOPE__
-        {
-            RegTensor<int32_t> inc_idx;
-            MaskReg preg;
-            uint32_t sreg = (uint32_t)eachRowIndexNum;
-            preg= UpdateMask<int32_t>(sreg);
-
-            Arange(inc_idx, 0);
-            for (uint16_t s1Idx = 0; s1Idx < static_cast<uint16_t>(rowNums); s1Idx++) {
-                DataCopy<int32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::StoreDist::DIST_NORM_B32>(
-                    (__ubuf__ int32_t *&)indexVecDstLocalInt, inc_idx, eachRowIndexNum, preg);
-                Adds(inc_idx, inc_idx, eachRowOffset, preg);
-            }
-        }
+        GenIndexAlign(indexVecDstLocalInt, rowNums, eachRowIndexNum, eachRowOffset);
     } else {
-        __VEC_SCOPE__
-        {
-            RegTensor<int32_t> inc_idx;
-            MaskReg preg;
-            vector_align ureg;
-            uint32_t sreg = (uint32_t)eachRowIndexNum;
-            preg= UpdateMask<int32_t>(sreg);
+        GenIndexUnAling(indexVecDstLocalInt, rowNums, eachRowIndexNum, eachRowOffset);
+    }
+}
 
-            Arange(inc_idx, 0);
-            for (uint16_t s1Idx = 0; s1Idx < static_cast<uint16_t>(rowNums); s1Idx++) {
-                DataCopyUnAlign<int32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    (__ubuf__ int32_t *&)indexVecDstLocalInt, inc_idx, ureg, eachRowIndexNum);
-                Adds(inc_idx, inc_idx, eachRowOffset, preg);
-            }
-            vstas(ureg, (__ubuf__ int32_t *&)indexVecDstLocalInt, 0, POST_UPDATE);
+__simd_vf__ inline void GenMaskVF(__ubuf__ uint32_t *mask, const uint64_t indexVecLocalInt,
+                                  const uint32_t key0, const uint32_t key1, const uint32_t counter0,
+                                  const uint32_t counter1, const uint32_t counter2, const uint32_t counter3,
+                                  const uint16_t count, const uint8_t probValueUint8Scalar, const uint16_t mainLoop)
+{
+    MaskReg pg = CreateMask<uint32_t, MaskPattern::ALL>();
+    MaskReg preg = CreateMask<uint8_t, MaskPattern::ALL>();
+    MaskReg pd;
+    MaskReg pm_0, pm_1, pm_2, pm_3;
+    RegTensor<uint32_t> ctr_3, ctr_2, ctr_1, ctr_0, key_1, key_0;
+    Duplicate(key_0, key0);
+    Duplicate(key_1, key1);
+    Duplicate(ctr_0, counter0);
+    Duplicate(ctr_1, counter1);
+    Duplicate(ctr_2, counter2);
+    Duplicate(ctr_3, counter3);
+
+    RegTensor<int32_t> inc_idx;
+    RegTensor<uint32_t> v_zero;
+    RegTensor<uint32_t> v_const_mul_0, v_const_mul_1;
+
+    Duplicate(v_zero, 0x0);
+    Duplicate(v_const_mul_0, (uint32_t)PHILOX_CONST_MUL_0);
+    Duplicate(v_const_mul_1, (uint32_t)PHILOX_CONST_MUL_1);
+
+    for (uint16_t i = 0; i < mainLoop; i++) {
+        LoadAlign<int32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            inc_idx, ((__ubuf__ int32_t *&)indexVecLocalInt), ELE_CNT_B32);
+
+        RegTensor<uint32_t> tmp_ctr_0 = ctr_0;
+        RegTensor<uint32_t> tmp_ctr_1 = ctr_1;
+        RegTensor<uint32_t> tmp_ctr_2 = ctr_2;
+        RegTensor<uint32_t> tmp_ctr_3 = ctr_3;
+        AddCarryOut(pd, tmp_ctr_0, ctr_0, (RegTensor<uint32_t>&)inc_idx, pg);
+        AddCarryOuts(pd, tmp_ctr_1, ctr_1, v_zero, pd, pg);
+        AddCarryOuts(pd, tmp_ctr_2, ctr_2, v_zero, pd, pg);
+        AddCarryOuts(pd, tmp_ctr_3, ctr_3, v_zero, pd, pg);
+
+        RegTensor<uint32_t> tmp_key_0 = key_0;
+        RegTensor<uint32_t> tmp_key_1 = key_1;                                                    
+        for (uint16_t j = 0; j < 7; j++) {
+            RegTensor<uint32_t> tmp_l0, tmp_h0, tmp_l1, tmp_h1;
+            Mull(tmp_l0, tmp_h0, tmp_ctr_0, v_const_mul_0, pg);
+            Mull(tmp_l1, tmp_h1, tmp_ctr_2, v_const_mul_1, pg);
+            Xor(tmp_h1, tmp_h1, tmp_ctr_1, pg);
+            Xor(tmp_ctr_0, tmp_h1, tmp_key_0, pg);
+            Xor(tmp_h0, tmp_h0, tmp_ctr_3, pg);
+            Xor(tmp_ctr_2, tmp_h0, tmp_key_1, pg);
+            tmp_ctr_1 = tmp_l1;
+            tmp_ctr_3 = tmp_l0;
+            Adds(tmp_key_0, tmp_key_0, (uint32_t)PHILOX_CONST_KEY_ADD_0, pg);
+            Adds(tmp_key_1, tmp_key_1, (uint32_t)PHILOX_CONST_KEY_ADD_1, pg);
         }
+        Interleave(tmp_ctr_0, tmp_ctr_2, tmp_ctr_0, tmp_ctr_2);
+        Interleave(tmp_ctr_1, tmp_ctr_3, tmp_ctr_1, tmp_ctr_3);
+        Interleave(tmp_ctr_0, tmp_ctr_1, tmp_ctr_0, tmp_ctr_1);
+        Interleave(tmp_ctr_2, tmp_ctr_3, tmp_ctr_2, tmp_ctr_3);
+
+        // uint32转成4个uint8与keepprob比较得到mask
+        RegTensor<uint8_t> tmp_ctr_0_u8 = (RegTensor<uint8_t>&) tmp_ctr_0;
+        RegTensor<uint8_t> tmp_ctr_1_u8 = (RegTensor<uint8_t>&) tmp_ctr_1;
+        RegTensor<uint8_t> tmp_ctr_2_u8 = (RegTensor<uint8_t>&) tmp_ctr_2;
+        RegTensor<uint8_t> tmp_ctr_3_u8 = (RegTensor<uint8_t>&) tmp_ctr_3;
+
+        CompareScalar<uint8_t, CMPMODE::LE>(pm_0, tmp_ctr_0_u8, probValueUint8Scalar, preg);
+        CompareScalar<uint8_t, CMPMODE::LE>(pm_1, tmp_ctr_1_u8, probValueUint8Scalar, preg);
+        CompareScalar<uint8_t, CMPMODE::LE>(pm_2, tmp_ctr_2_u8, probValueUint8Scalar, preg);
+        CompareScalar<uint8_t, CMPMODE::LE>(pm_3, tmp_ctr_3_u8, probValueUint8Scalar, preg);
+        // pm是256bit，32Byte，偏移是按照Byte来的
+        StoreAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_0, 32);
+        StoreAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_1, 32);
+        StoreAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_2, 32);
+        StoreAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_3, 32);
     }
 }
 
@@ -131,78 +213,8 @@ __aicore__ inline void GenMaskByIndexVec(const LocalTensor<uint8_t> &dstLocal, c
     // 一次可以生成256个uint32的随机数, 如果不够256，生成的mask后面有一部分脏数据，dropout计算中只使用前面的有效数据
     uint16_t mainLoop = CeilDiv(count, 256);
 
-    __VEC_SCOPE__
-    {
-        MaskReg pg = CreateMask<uint32_t, MaskPattern::ALL>();
-        MaskReg preg = CreateMask<uint8_t, MaskPattern::ALL>();
-        MaskReg pd;
-        MaskReg pm_0, pm_1, pm_2, pm_3;
-        RegTensor<uint32_t> ctr_3, ctr_2, ctr_1, ctr_0, key_1, key_0;
-        Duplicate(key_0, philoxkey[0]);
-        Duplicate(key_1, philoxkey[1]);
-        Duplicate(ctr_0, philoxCounter[0]);
-        Duplicate(ctr_1, philoxCounter[1]);
-        Duplicate(ctr_2, philoxCounter[2]);
-        Duplicate(ctr_3, philoxCounter[3]);
-
-        RegTensor<int32_t> inc_idx;
-        RegTensor<uint32_t> v_zero;
-        RegTensor<uint32_t> v_const_mul_0, v_const_mul_1;
-
-        Duplicate(v_zero, 0x0);
-        Duplicate(v_const_mul_0, (uint32_t)PHILOX_CONST_MUL_0);
-        Duplicate(v_const_mul_1, (uint32_t)PHILOX_CONST_MUL_1);
-
-        for (uint16_t i = 0; i < mainLoop; i++) {
-            DataCopy<int32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                inc_idx, ((__ubuf__ int32_t *&)indexVecLocalInt), ELE_CNT_B32);
-
-            RegTensor<uint32_t> tmp_ctr_0 = ctr_0;
-            RegTensor<uint32_t> tmp_ctr_1 = ctr_1;
-            RegTensor<uint32_t> tmp_ctr_2 = ctr_2;
-            RegTensor<uint32_t> tmp_ctr_3 = ctr_3;
-            AddCarryOut(pd, tmp_ctr_0, ctr_0, (RegTensor<uint32_t>&)inc_idx, pg);
-            AddCarryOuts(pd, tmp_ctr_1, ctr_1, v_zero, pd, pg);
-            AddCarryOuts(pd, tmp_ctr_2, ctr_2, v_zero, pd, pg);
-            AddCarryOuts(pd, tmp_ctr_3, ctr_3, v_zero, pd, pg);
-
-            RegTensor<uint32_t> tmp_key_0 = key_0;
-            RegTensor<uint32_t> tmp_key_1 = key_1;                                                    
-            for (uint16_t j = 0; j < 7; j++) {
-                RegTensor<uint32_t> tmp_l0, tmp_h0, tmp_l1, tmp_h1;
-                Mull(tmp_l0, tmp_h0, tmp_ctr_0, v_const_mul_0, pg);
-                Mull(tmp_l1, tmp_h1, tmp_ctr_2, v_const_mul_1, pg);
-                Xor(tmp_h1, tmp_h1, tmp_ctr_1, pg);
-                Xor(tmp_ctr_0, tmp_h1, tmp_key_0, pg);
-                Xor(tmp_h0, tmp_h0, tmp_ctr_3, pg);
-                Xor(tmp_ctr_2, tmp_h0, tmp_key_1, pg);
-                tmp_ctr_1 = tmp_l1;
-                tmp_ctr_3 = tmp_l0;
-                Adds(tmp_key_0, tmp_key_0, (uint32_t)PHILOX_CONST_KEY_ADD_0, pg);
-                Adds(tmp_key_1, tmp_key_1, (uint32_t)PHILOX_CONST_KEY_ADD_1, pg);
-            }
-            Interleave(tmp_ctr_0, tmp_ctr_2, tmp_ctr_0, tmp_ctr_2);
-            Interleave(tmp_ctr_1, tmp_ctr_3, tmp_ctr_1, tmp_ctr_3);
-            Interleave(tmp_ctr_0, tmp_ctr_1, tmp_ctr_0, tmp_ctr_1);
-            Interleave(tmp_ctr_2, tmp_ctr_3, tmp_ctr_2, tmp_ctr_3);
-
-            // uint32转成4个uint8与keepprob比较得到mask
-            RegTensor<uint8_t> tmp_ctr_0_u8 = (RegTensor<uint8_t>&) tmp_ctr_0;
-            RegTensor<uint8_t> tmp_ctr_1_u8 = (RegTensor<uint8_t>&) tmp_ctr_1;
-            RegTensor<uint8_t> tmp_ctr_2_u8 = (RegTensor<uint8_t>&) tmp_ctr_2;
-            RegTensor<uint8_t> tmp_ctr_3_u8 = (RegTensor<uint8_t>&) tmp_ctr_3;
-
-            CompareScalar<uint8_t, CMPMODE::LE>(pm_0, tmp_ctr_0_u8, probValueUint8Scalar, preg);
-            CompareScalar<uint8_t, CMPMODE::LE>(pm_1, tmp_ctr_1_u8, probValueUint8Scalar, preg);
-            CompareScalar<uint8_t, CMPMODE::LE>(pm_2, tmp_ctr_2_u8, probValueUint8Scalar, preg);
-            CompareScalar<uint8_t, CMPMODE::LE>(pm_3, tmp_ctr_3_u8, probValueUint8Scalar, preg);
-            // pm是256bit，32Byte，偏移是按照Byte来的
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_0, 32);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_1, 32);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_2, 32);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ uint32_t *&)mask, pm_3, 32);
-        }
-    }
+    GenMaskVF(mask, indexVecLocalInt, philoxkey[0], philoxkey[1], philoxCounter[0], philoxCounter[1], philoxCounter[2],
+        philoxCounter[3], count, probValueUint8Scalar, mainLoop);
 }
 
 template <bool hasRope = false>
@@ -320,6 +332,22 @@ __aicore__ inline int64_t ComputeOuterDropOffset(RunInfo<false> &runInfo, ConstI
     }
 }
 
+__simd_vf__ inline void DropMaskBool2BitVF(const uint64_t srcUb, const uint64_t dstUb, const uint16_t loopCount)
+{
+    RegTensor<uint32_t> vreg_drop;
+    MaskReg vreg_cmp;
+    MaskReg preg_all = CreateMask<uint8_t, MaskPattern::ALL>();
+
+    for (uint16_t i = 0; i < loopCount; ++i) {
+        LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                vreg_drop, (__ubuf__ uint32_t *&)srcUb, OFFSET_64);
+        RegTensor<uint8_t> vreg_tmp = (RegTensor<uint8_t> &)vreg_drop;
+        CompareScalar<uint8_t, CMPMODE::EQ>(vreg_cmp, vreg_tmp, 1, preg_all);
+        StoreAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                (__ubuf__ uint32_t *&)dstUb, vreg_cmp, OFFSET_32);
+    }
+}
+
 __aicore__ inline void DropMaskBool2Bit(LocalTensor<uint8_t> &dstTensor, LocalTensor<uint8_t> &srcTensor,
                                         int32_t halfS1RealSize, int64_t s2BaseSize)
 {
@@ -329,20 +357,27 @@ __aicore__ inline void DropMaskBool2Bit(LocalTensor<uint8_t> &dstTensor, LocalTe
     uint16_t halfS1RealSizeLoop = static_cast<uint16_t>(halfS1RealSize) + 1;
     uint16_t loopCount = halfS1RealSizeLoop / rowNumEachLoop;
 
-    __VEC_SCOPE__
-    {
-        RegTensor<uint32_t> vreg_drop;
-        MaskReg vreg_cmp;
-        MaskReg preg_all = CreateMask<uint8_t, MaskPattern::ALL>();
+    DropMaskBool2BitVF(srcUb, dstUb, loopCount);
+}
 
-        for (uint16_t i = 0; i < loopCount; ++i) {
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    vreg_drop, (__ubuf__ uint32_t *&)srcUb, OFFSET_64);
-            RegTensor<uint8_t> vreg_tmp = (RegTensor<uint8_t> &)vreg_drop;
-            CompareScalar<uint8_t, CMPMODE::EQ>(vreg_cmp, vreg_tmp, 1, preg_all);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    (__ubuf__ uint32_t *&)dstUb, vreg_cmp, OFFSET_32);
-        }
+__simd_vf__ inline void DropMaskPadDelVF(const uint64_t srcUb, const uint64_t dstUb, const uint16_t loopCount)
+{
+    MaskReg preg1;
+    MaskReg preg2;
+    MaskReg preg3;
+    MaskReg preg4;
+
+    for (uint16_t i = 0; i < loopCount; ++i) {
+        // srcUb: 12340000 srcUb: 56780000
+        // preg1: 11223344 preg2: 55667788
+        LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
+                preg1, (__ubuf__ uint32_t *&)srcUb, OFFSET_32);
+        LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
+                preg2, (__ubuf__ uint32_t *&)srcUb, OFFSET_32);
+        // preg3: 12345678
+        MaskDeInterleave<uint8_t>(preg3, preg4, preg1, preg2);
+        StoreAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+                (__ubuf__ uint32_t *&)dstUb, preg3, OFFSET_32);
     }
 }
 
@@ -353,26 +388,7 @@ __aicore__ inline void DropMaskPadDel(LocalTensor<uint8_t> &dstTensor, LocalTens
     uint64_t dstUb = dstTensor.GetPhyAddr();
     uint16_t loopCount = (static_cast<uint16_t>(halfS1RealSize) + 1) / 2;
 
-    __VEC_SCOPE__
-    {
-        MaskReg preg1;
-        MaskReg preg2;
-        MaskReg preg3;
-        MaskReg preg4;
-
-        for (uint16_t i = 0; i < loopCount; ++i) {
-            // srcUb: 12340000 srcUb: 56780000
-            // preg1: 11223344 preg2: 55667788
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
-                    preg1, (__ubuf__ uint32_t *&)srcUb, OFFSET_32);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
-                    preg2, (__ubuf__ uint32_t *&)srcUb, OFFSET_32);
-            // preg3: 12345678
-            MaskDeInterleave<uint8_t>(preg3, preg4, preg1, preg2);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    (__ubuf__ uint32_t *&)dstUb, preg3, OFFSET_32);
-        }
-    }
+    DropMaskPadDelVF(srcUb, dstUb, loopCount);
 }
 
 template <bool hasDrop, bool hasRope = false>
