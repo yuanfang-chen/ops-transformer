@@ -337,18 +337,6 @@ add_init_py() {
 
 install_opp() {
   logandprint "[INFO]: Begin install opp module."
-  local version_mod=""
-  if [ -d ${TARGET_VERSION_DIR} ]; then
-    version_mod=$(stat -c %a ${TARGET_VERSION_DIR})
-  fi
-  local opp_builtin_mod=""
-  if [ -d ${TARGET_OPP_BUILT_IN} ]; then
-    opp_builtin_mod=$(stat -c %a ${TARGET_OPP_BUILT_IN})
-    if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_OPP_BUILT_IN}" ]; then
-      chmod u+w -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
-    fi
-  fi
-  comm_create_dir "${TARGET_VERSION_DIR}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
   comm_create_dir "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
 
   setenv
@@ -367,13 +355,6 @@ install_opp() {
   logandprint "[INFO]: upgradePercentage:30%"
 
   add_init_py
-
-  if [ -n "${version_mod}" ]; then
-    chmod ${version_mod} "${TARGET_VERSION_DIR}" 2>/dev/null
-  fi
-  if [ -n "${opp_builtin_mod}" ]; then
-    chmod ${opp_builtin_mod} -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
-  fi
 
   logandprint "[INFO]: upgradePercentage:50%"
 }
