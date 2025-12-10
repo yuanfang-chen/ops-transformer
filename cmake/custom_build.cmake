@@ -306,6 +306,7 @@ op_add_depend_directory(
         OP_DIR_LIST OP_DEPEND_DIR_LIST
 )
 
+list(APPEND OP_DIR_LIST ${OP_DEPEND_DIR_LIST})
 # 仅针对被依赖的算子重新add_subdirectory
 foreach (OP_DEPEND_DIR ${OP_DEPEND_DIR_LIST})
     get_filename_component(SUB_DIR ${OP_DEPEND_DIR} NAME)

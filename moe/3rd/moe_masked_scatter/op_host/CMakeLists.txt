@@ -1,3 +1,4 @@
+# ----------------------------------------------------------------------------
 # This program is free software, you can redistribute it and/or modify.
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This file is a part of the CANN Open Software.
@@ -5,21 +6,8 @@
 # Please refer to the License for details. You may not use this file except in compliance with the License.
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# ======================================================================================================================
-
-if (BUILD_OPEN_PROJECT)
-    set(moe_token_permute_with_routing_map_depends moe/3rd/moe_gather_v2 CACHE INTERNAL "Dependencies for moe_token_permute_with_routing_map")
-    target_sources(op_host_aclnnExc PRIVATE
-       moe_token_permute_with_routing_map_def.cpp
-    )
-    add_ops_compile_options(
-        OP_NAME MoeTokenPermuteWithRoutingMap
-        OPTIONS --cce-auto-sync=on
-                -Wno-deprecated-declarations
-                -Werror
-    )
-endif()
+# ----------------------------------------------------------------------------
 
 if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE moe_token_permute_with_routing_map ACLNNTYPE aclnn_exclude )
+    add_modules_sources(OPTYPE moe_masked_scatter ACLNNTYPE aclnn_exclude)
 endif()
