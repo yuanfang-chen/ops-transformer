@@ -8,7 +8,6 @@
         <install_script>share/info/ops_transformer/script/install.sh</install_script>
         <help>share/info/ops_transformer/script/help.info</help>
         <cleanup>share/info/ops_transformer/script/cleanup.sh</cleanup>
-        <check_features>true</check_features>
     </package_info>
     <generate_info value="ops_transformer_version.h" dst_path="share/info/ops_transformer" install_path="$(TARGET_ENV)/include/version" install_mod="440" install_type="devel" generator="version_header">
        <OPS_TRANSFORMER_VERSION>$(ASCEND_VER)</OPS_TRANSFORMER_VERSION>
@@ -44,5 +43,17 @@
         <path value="opp/include" install_mod="550"/>
         <path value="opp/lib64" install_mod="550"/>
         <path value="opp/built-in" install_mod="550"/>
-    </dir_info>
+		<path value="opp/built-in/op_graph" install_mod="550"/>
+		<path value="opp/built-in/op_graph/inc" install_mod="550"/>
+		<path value="opp/built-in/op_graph/lib" install_mod="550"/>
+		<path value="opp/built-in/op_graph/lib/linux" install_mod="550"/>
+		<path value="opp/built-in/op_graph/lib/linux/$(ARCH)" install_mod="550"/>
+		<path value="opp/built-in/op_impl" install_mod="550"/>
+		<path value="opp/built-in/op_impl/ai_core" install_mod="550"/>
+		<path value="opp/built-in/op_impl/ai_core/tbe" install_mod="550"/>
+		<path value="opp/built-in/op_impl/ai_core/tbe/op_host" install_mod="550"/>
+		<path value="opp/built-in/op_impl/ai_core/tbe/op_host/lib" install_mod="550"/>
+		<path value="opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux" install_mod="550"/>
+		<path value="opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux/$(ARCH)" install_mod="550"/>
+	</dir_info>
 </config>

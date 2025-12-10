@@ -340,9 +340,6 @@ install_opp() {
   local version_mod=""
   if [ -d ${TARGET_VERSION_DIR} ]; then
     version_mod=$(stat -c %a ${TARGET_VERSION_DIR})
-    if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_VERSION_DIR}" ]; then
-      chmod u+w "${TARGET_VERSION_DIR}" 2>/dev/null
-    fi
   fi
   local opp_builtin_mod=""
   if [ -d ${TARGET_OPP_BUILT_IN} ]; then
