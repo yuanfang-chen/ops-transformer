@@ -20,7 +20,6 @@
         -   新增了对低精度数据类型FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的支持。支持pertensor、perblock、mx[量化方式](../../../docs/zh/context/量化介绍.md)。
     -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
         -   新增了对低精度数据类型INT8的支持。支持pertoken/perchannel[量化方式](../../../docs/zh/context/量化介绍.md)。
-        -   新增了对FLOAT8_E4M3FN/FLOAT8_E5M2 mixfp8量化的支持[量化方式](../../../docs/zh/context/量化介绍.md)
 
 -   **计算公式**：
     -   情形1：如果x1和x2数据类型为FLOAT16/BFLOAT16时，入参x1、x2进行matmul计算后，进行ReduceScatter通信。
@@ -35,13 +34,13 @@
     output=ReduceScatter((x1Scale*x2Scale)*(x1@x2 + bias_{optional}))
     $$
 
-    -   情形3：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的perblock场景，且不输出amaxOut，当x1为(a0, a1)x2为(b0, b1)时x1Scale为(ceildiv(a0, 128), ceildiv(a1, 128))x2Scale为(ceildiv(b0, 128), ceildiv(b1, 128))时，入参x1、x2进行matmul计算和dequant计算后，再进行ReduceScatter通信。
+    -   情形3：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的perblock场景，且不输出amaxOut，当x1为(a0, a1)、x2为(b0, b1)时, x1Scale为(ceildiv(a0, 128), ceildiv(a1, 128))、x2Scale为(ceildiv(b0, 128), ceildiv(b1, 128))时，入参x1、x2进行matmul计算和dequant计算后，再进行ReduceScatter通信。
 
     $$
-    output=ReduceScatter(\sum_{0}^{\left \lfloor \frac{k}{blockSize} \right \rfloor} (x1_{pr}@x2_{rq}*(x1Scale_{pr}*x2Scale_{rq})))
+    output=ReduceScatter(\sum_{0}^{\left \lfloor \frac{k}{blockSize=128} \right \rfloor} (x1_{pr}@x2_{rq}*(x1Scale_{pr}*x2Scale_{rq})))
     $$
 
-    -   情形4：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2的pertensor mixfp8量化场景，且不输出amaxOut，当x1为(a0, a1, 2)x2为(b0, b1, 2)时x1Scale为(a0, ceildiv(a1, 64), 2), x2Scale为(b1, ceildiv(b0, 64), 2)，x1不转置，x2转置时，入参x1、x2进行matmul计算和dequant计算后，再进行ReduceScatter通信。
+    -   情形4：如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2的mx量化场景，且不输出amaxOut，当x1为(a0, a1)、x2为(b0, b1)时, x1Scale为(a0, ceildiv(a1, 64), 2)、x2Scale为(b0, ceildiv(b1, 64), 2)时，入参x1、x2进行matmul计算和dequant计算后，再进行ReduceScatter通信。
 
     $$
     output=ReduceScatter(\sum_{0}^{\left \lfloor \frac{k}{blockSize=32} \right \rfloor} (x1_{pr}@x2_{rq}*(x1Scale_{pr}*x2Scale_{rq})))
@@ -61,16 +60,16 @@
         -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, shape为[m, k]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。**当前版本仅支持两维输入，且仅支持不转置场景**。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16；commMode为aiv时，数据类型支持FLOAT16、BFLOAT16、INT8, shape为[m, k]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。**当前版本仅支持两维输入，且仅支持不转置场景**。
     -   x2（aclTensor\*，计算输入）：Device侧的两维aclTensor，mm左矩阵。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, shape为[k, n]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。支持通过转置构造的[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)。**当前版本仅支持两维输入**。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, shape为[k, n]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。支持通过转置构造的[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)。其中在mx量化场景下，当前仅支持转置场景。**当前版本仅支持两维输入**。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16；commMode为aiv时，数据类型支持FLOAT16、BFLOAT16、INT8。shape为[k, n]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。支持通过转置构造的[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)。**当前版本仅支持两维输入**。
     -   bias（aclTensor\*，计算输入）：Device侧的一维aclTensor。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor场景下，bias的数据类型必须为FLOAT，在perblock场景下，仅支持输入为nullptr。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor和mx量化场景下，bias的数据类型必须为FLOAT。在perblock场景下，仅支持输入为nullptr。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。且当前版本仅支持为0的输入。在commMode为aiv时，当前版本仅支持输入nullptr。
     -   x1Scale（aclTensor\*，计算输入）：Device侧的aclTensor，mm左矩阵反量化参数。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT，FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(m, 128), ceildiv(k, 128)]。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。数据类型为FLOAT8_E8M0且x1不转置，shape为(m, CeilDiv(k, 64), 2)。mx场景下，数据类型为FLOAT8_E8M0，shape为(m, CeilDiv(k, 64), 2)。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT，FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(m, 128), ceildiv(k, 128)]。在pertensor和perblock场景下，数据类型支持FLOAT。在mx量化场景下，数据类型为FLOAT8_E8M0，shape为(m, ceilDiv(k, 64), 2)。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，仅支持输入nullptr。在commMode为aiv时，数据类型支持FLOAT,，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertoken场景，shape为(m, 1)。
     -   x2Scale（aclTensor\*，计算输入）：Device侧的aclTensor，mm右矩阵反量化参数。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT，FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(k, 128), ceildiv(n, 128)]。数据格式支持ND。数据类型为FLOAT8_E8M0且x1不转置，x2转置时，shape为(n, CeilDiv(k, 64), 2)。数据类型为FLOAT8_E8M0且x1不转置，x2不转置时，shape为(CeilDiv(k, 64), n, 2)。mx场景下，数据类型为FLOAT8_E8M0，shape为(m, CeilDiv(k, 64), 2)。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT，FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(k, 128), ceildiv(n, 128)]。在pertensor和perblock场景下，数据类型支持FLOAT。在mx场景下，数据类型为FLOAT8_E8M0，shape为(ceilDiv(k, 64), n, 2), 仅支持转置场景。数据格式支持ND。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，仅支持输入nullptr。在commMode为aiv时，数据类型支持FLOAT、INT64，数据格式支持ND。INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在perchannel场景，shape为(1, n)。
     -   quantScale（aclTensor\*，计算输入）：Device侧的一维aclTensor，mm输出矩阵量化参数。数据类型支持FLOAT。**当前版本仅支持nullptr**。
     -   blockSize （int64\_t，计算输入）：Host侧的整型，用于表示mm输出矩阵在M轴方向上和N轴方向上可以用于对应方向上的多少个数的量化。blockSize由blockSizeM， blockSizeN，blockSizeK三个值拼接而成，每个值占16位，计算公式为：blockSize = blockSizeK | blockSizeN << 16 | blockSizeM << 32，mm输出矩阵不涉及K轴，blockSizeK固定为0。**当前版本只支持blockSizeM = blockSizeN = 0**。
@@ -79,7 +78,7 @@
     -   commTurn（int64\_t，计算输入）：Host侧的整型，通信数据切分数，即总数据量/单次通信量。数据类型支持INT64。**当前版本仅支持输入0**。
     -   streamMode（int64\_t，计算输入）：Host侧的整型，流模式的枚举，当前只支持枚举值1，数据类型支持INT64。
     -   groupSize（int64_t，计算输入）：用于表示反量化中x1Scale/x2Scale输入的一个数在其所在的对应维度方向上可以用于该方向x1/x2输入的多少个数的反量化。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。
-        -   <term>昇腾910_95 AI处理器</term>：当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT32时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，当前版本仅支持输入0。
+        -   <term>昇腾910_95 AI处理器</term>：当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，当前版本仅支持输入0。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：当前版本仅支持输入为0。
     -   commMode (char\*，计算输入)：Host侧的char，通信模式。数据类型支持String。
         -   <term>昇腾910_95 AI处理器</term>：当前仅支持集合通信单元ccu完成通信任务。**当前版本仅支持输入“ccu”**。

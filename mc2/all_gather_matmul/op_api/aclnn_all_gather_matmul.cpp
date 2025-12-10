@@ -209,18 +209,18 @@ aclnnStatus aclnnAllGatherMatmulGetWorkspaceSize(const aclTensor *x1, const aclT
   bool transposeX2 = IsTransposeLastTwoDims(x2);
   CHECK_RET(CheckShape(x1, x2, output, gatherOut, transposeX1), ACLNN_ERR_PARAM_INVALID);
   bool isGatherOut = IsGatherOut(gatherOut);
-  aclnnStatus ret = aclnnInnerAllGatherMatmulGetWorkspaceSize(x1, x2, bias, group, transposeX1, transposeX2,
-                                                              gatherIndex, commTurn, rankSize, isGatherOut,
-                                                              output, gatherOut, workspaceSize, executor);
-  OP_LOGD("AllGatherMatmul, aclnnInnerGetWorkspaceSize ret = %d.", ret);
-  static NnopbaseDfxId dfxId = {0x60000, __func__, false};
-  NnopbaseReportApiInfo(timeStamp, dfxId);
   if (IsAscend910A5()) {
     const char *commMode = "ccu";
     return aclnnAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, nullptr, nullptr, nullptr, 0, group, gatherIndex,
                                                   commTurn, streamMode, 0, commMode, const_cast<aclTensor *>(output),
                                                   const_cast<aclTensor *>(gatherOut), nullptr, workspaceSize, executor);
   }
+  aclnnStatus ret = aclnnInnerAllGatherMatmulGetWorkspaceSize(x1, x2, bias, group, transposeX1, transposeX2,
+                                                              gatherIndex, commTurn, rankSize, isGatherOut,
+                                                              output, gatherOut, workspaceSize, executor);
+  OP_LOGD("AllGatherMatmul, aclnnInnerGetWorkspaceSize ret = %d.", ret);
+  static NnopbaseDfxId dfxId = {0x60000, __func__, false};
+  NnopbaseReportApiInfo(timeStamp, dfxId);
   return ret;
 }
 

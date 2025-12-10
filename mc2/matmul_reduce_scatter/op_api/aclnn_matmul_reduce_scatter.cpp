@@ -208,18 +208,18 @@ aclnnStatus aclnnMatmulReduceScatterGetWorkspaceSize(const aclTensor *x1, const 
   bool transposeX1 = Ops::Transformer::IsTransposeLastTwoDims(x1);
   bool transposeX2 = Ops::Transformer::IsTransposeLastTwoDims(x2);
   CHECK_RET(CheckShape(x1, x2, output, transposeX1), ACLNN_ERR_PARAM_INVALID);
-  aclnnStatus ret = aclnnInnerMatmulReduceScatterGetWorkspaceSize(x1, x2, bias, group, reduce_op, transposeX1,
-                                                              transposeX2, commTurn, rankSize, output,
-                                                              workspaceSize, executor);
-  OP_LOGD("MatmulReduceScatter, aclnnnGetWorkspaceSize ret %d.", ret);
-  static NnopbaseDfxId dfxId = {0x60000, __func__, false};
-  NnopbaseReportApiInfo(timeStamp, dfxId);
   if (IsAscend910A5()) {
     const char *commMode = "ccu";
     return aclnnMatmulReduceScatterV2GetWorkspaceSize(x1, x2, bias, nullptr, nullptr, nullptr, 0, group, reduce_op,
                                                       commTurn, streamMode, 0, commMode, const_cast<aclTensor *>(output),
                                                       nullptr, workspaceSize, executor);
   }
+  aclnnStatus ret = aclnnInnerMatmulReduceScatterGetWorkspaceSize(x1, x2, bias, group, reduce_op, transposeX1,
+                                                              transposeX2, commTurn, rankSize, output,
+                                                              workspaceSize, executor);
+  OP_LOGD("MatmulReduceScatter, aclnnnGetWorkspaceSize ret %d.", ret);
+  static NnopbaseDfxId dfxId = {0x60000, __func__, false};
+  NnopbaseReportApiInfo(timeStamp, dfxId);
   return ret;
 }
 
