@@ -129,7 +129,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 ```
 
 
-## aclnnFlashAttentionUnpaddingScoreGrad5GetWorkspaceSize
+## aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize
 
 - **参数说明：**
   <table style="undefined;table-layout: fixed; width: 1529px"><colgroup>
@@ -161,7 +161,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>数据类型与keyIn/value一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
     <tr>
@@ -171,7 +171,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>数据类型与query一致。</td>
         <td>BFLOAT16</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -181,7 +181,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>数据类型与query/value一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -191,7 +191,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>数据类型与keyIn一致。</td>
         <td>BFLOAT16</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -201,7 +201,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>数据类型与query/keyIn一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -211,7 +211,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>-</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -221,7 +221,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>与rope不兼容，支持[B,N,H,S]、[1,N,H,S]；alibi场景需配置preTokens/nextTokens下三角。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[B,N,Sq,Skv]、[B,N,1,Skv]、[1,N,Sq,Skv]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -256,7 +256,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         </td>
         <td>BOOL、UINT8</td>
         <td>ND</td>
-        <td>0、2、4</td>
+        <td>[B,N,Sq,Skv]、[B,1,Sq,Skv]、[1,1,Sq,Skv]、[Sq,Skv]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -266,7 +266,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>-</td>
         <td>FLOAT</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[TN8]、[NT8]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -276,7 +276,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>-</td>
         <td>FLOAT</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[TN8]、[NT8]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -296,17 +296,17 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>与query数据类型、shape一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
     <tr>
         <td>sinkInOptional</td>
         <td>可选输入</td>
         <td>公式中的sink。</td>
-        <td>长度是headNumQ。</td>
+        <td>长度是headNum。</td>
         <td>FLOAT32</td>
         <td>ND</td>
-        <td>[headNumQ]</td>
+        <td>[headNum]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -338,56 +338,6 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>ND</td>
         <td>1</td>
         <td>-</td>
-      </tr>
-      <tr>
-        <td>dqOut</td>
-        <td>输出</td>
-        <td>公式中的dQ，Query梯度。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、3、4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>dkOut</td>
-        <td>输出</td>
-        <td>公式中的dK，Key梯度。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、3、4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>dvOut</td>
-        <td>输出</td>
-        <td>公式中的dV，Value梯度。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、3、4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>dpseOut</td>
-        <td>输出</td>
-        <td>d(pse)梯度。</td>
-        <td>暂未使用，但在pseShiftOptional不为空时shape和类型一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、4</td>
-        <td>√</td>
-      </tr>
-    <tr>
-        <td>dsinkOut</td>
-        <td>输出</td>
-        <td>公式中dSink，d(sinkInOptional)梯度。</td>
-        <td>-</td>
-        <td>FLOAT32</td>
-        <td>ND</td>
-        <td>[headNumQ]</td>
-        <td>√</td>
       </tr>
       <tr>
         <td>scaleValue</td>
@@ -488,6 +438,56 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>-</td>
         <td>-</td>
         <td>-</td>
+      </tr>
+      <tr>
+        <td>dqOut</td>
+        <td>输出</td>
+        <td>公式中的dQ，Query梯度。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>[TND]</td>
+        <td>√</td>
+      </tr>
+      <tr>
+        <td>dkOut</td>
+        <td>输出</td>
+        <td>公式中的dK，Key梯度。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>[TND]</td>
+        <td>√</td>
+      </tr>
+      <tr>
+        <td>dvOut</td>
+        <td>输出</td>
+        <td>公式中的dV，Value梯度。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>[TND]</td>
+        <td>√</td>
+      </tr>
+      <tr>
+        <td>dpseOut</td>
+        <td>输出</td>
+        <td>d(pse)梯度。</td>
+        <td>暂未使用，但在pseShiftOptional不为空时shape和类型一致。</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>0、4</td>
+        <td>√</td>
+      </tr>
+      <tr>
+        <td>dsinkOut</td>
+        <td>输出</td>
+        <td>公式中dSink，d(sinkInOptional)梯度。</td>
+        <td>-</td>
+        <td>FLOAT32</td>
+        <td>ND</td>
+        <td>[headNum]</td>
+        <td>√</td>
       </tr>
       <tr>
         <td>workspaceSize</td>
@@ -591,20 +591,17 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 
 ## 约束说明
 
-- 确定性计算：
-  - aclnnFlashAttentionUnpaddingScoreGradV5默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 - 输入query、queryRope、key、keyRope、value、dy的B：batchsize必须相等。
 - 输入query、key、value、dy的inputLayout必须一致。
 - 输入query、queryRope、key、keyRope、value、dy的inputLayout必须是TND。
 - 输入query、key、value、pseShiftOptional的数据类型必须一致。
-- 输入query、queryRope、key、keyRope、value、dy的inputLayout必须是TND。
 - 输入key/value的shape必须一致，在query/key/value的d大小相同的情况下，query/dy的shape必须一致。注：当前版本仅支持query/key/value的d大小相同的情况。
 - 支持输入query的N和key/value的N不相等，但必须成比例关系，即Nq/Nkv必须是非0整数，Nq取值范围1~256。
 - 关于数据shape的约束，以inputLayout的TND为例，其中：
 
     -   T(B*S)：取值范围为1\~1M。
-    -   B：取值范围为1\~2K。带prefixOptional的时候B最大支持1K。
+    -   B：取值范围为1\~2M。带prefixOptional的时候B最大支持1K。
     -   N：取值范围为1\~256。
     -   S：取值范围为1\~1M。
     -   D：取值范围为1\~512。

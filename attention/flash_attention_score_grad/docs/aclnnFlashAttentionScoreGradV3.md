@@ -156,7 +156,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>数据类型与keyIn/value一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -166,7 +166,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>数据类型与query/value一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -176,7 +176,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>数据类型与query/keyIn一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -186,7 +186,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>-</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -196,7 +196,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>支持[B,N,S,S]、[B,N,1,S]、[1,N,S,S]、[B,N,H,S]、[1,N,H,S]。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[B,N,S,S]、[B,N,1,Skv]、[1,N,S,S]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -221,7 +221,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         </td>
         <td>BOOL、UINT8</td>
         <td>ND</td>
-        <td>0、2、4</td>
+        <td>[B,N,Sq,Skv]、[B,1,Sq,Skv]、[1,1,Sq,Skv]、[Sq,Skv]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -231,7 +231,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>shape=[B,N,Sq,8]。</td>
         <td>FLOAT</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[B,N,Sq,8]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -241,7 +241,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>shape=[B,N,Sq,8]。</td>
         <td>FLOAT</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[B,N,Sq,8]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -251,7 +251,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>数据类型和shape与query一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
       </tr>
     <tr>
@@ -261,7 +261,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>长度是headNum。</td>
         <td>FLOAT32</td>
         <td>ND</td>
-        <td>1</td>
+        <td>[headNum]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -273,66 +273,6 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>ND</td>
         <td>0、1</td>
         <td>-</td>
-      </tr>
-      <tr>
-        <td>actualSeqQLenOptional</td>
-        <td>可选输入</td>
-        <td>表示每个Batch的query序列长度。</td>
-        <td>-</td>
-        <td>INT64</td>
-        <td>ND</td>
-        <td>0、1</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>actualSeqKvLenOptional</td>
-        <td>可选输入</td>
-        <td>表示每个Batch的kv序列长度。</td>
-        <td>-</td>
-        <td>INT64</td>
-        <td>ND</td>
-        <td>0、1</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>dqOut</td>
-        <td>输出</td>
-        <td>公式中的dQ，query的梯度。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、3、4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>dkOut</td>
-        <td>输出</td>
-        <td>公式中的dK，keyIn的梯度。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、3、4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>dvOut</td>
-        <td>输出</td>
-        <td>公式中的dV，value的梯度。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、3、4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>dpseOut</td>
-        <td>输出</td>
-        <td>d(pse)梯度。</td>
-        <td>暂未使用。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、4</td>
-        <td>√</td>
       </tr>
       <tr>
         <td>scaleValue</td>
@@ -413,6 +353,46 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>-</td>
         <td>-</td>
         <td>-</td>
+      </tr>
+      <tr>
+        <td>dqOut</td>
+        <td>输出</td>
+        <td>公式中的dQ，query的梯度。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
+        <td>√</td>
+      </tr>
+      <tr>
+        <td>dkOut</td>
+        <td>输出</td>
+        <td>公式中的dK，keyIn的梯度。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
+        <td>√</td>
+      </tr>
+      <tr>
+        <td>dvOut</td>
+        <td>输出</td>
+        <td>公式中的dV，value的梯度。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
+        <td>√</td>
+      </tr>
+      <tr>
+        <td>dpseOut</td>
+        <td>输出</td>
+        <td>d(pse)梯度。</td>
+        <td>暂未使用。</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>0、4</td>
+        <td>√</td>
       </tr>
       <tr>
         <td>dsinkOut</td>
@@ -757,12 +737,12 @@ int main() {
   uint64_t workspaceSize = 0;
   aclOpExecutor* executor;
 
-  // 调用aclnnFlashAttentionScoreGrad3第一段接口
+  // 调用aclnnFlashAttentionScoreGradV3第一段接口
   ret = aclnnFlashAttentionScoreGradV3GetWorkspaceSize(q, k, v, dx, pse, dropMask, padding,
             attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, sinkInOptional, prefix, qStartIdx, kvStartIdx,
             scaleValue, keepProb, preTokens, nextTokens, headNum, layOut, innerPrecise, sparseMode, pseType,
             dq, dk, dv, dpse, dsink, &workspaceSize, &executor);
-  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGrad3GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradV3GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
 
   // 根据第一段接口计算出的workspaceSize申请device内存
   void* workspaceAddr = nullptr;
