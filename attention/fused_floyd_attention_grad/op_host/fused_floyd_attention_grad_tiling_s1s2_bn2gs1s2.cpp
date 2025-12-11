@@ -1080,6 +1080,6 @@ void FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DetermineMode()
     }
 }
 
-REGISTER_TILING_TEMPLATE("FusedFloydAttentionGrad", FusedFloydAttentionGradTilingS1s2Bn2gs1s2, 16000);
+REGISTER_OPS_TILING_TEMPLATE(FusedFloydAttentionGrad, FusedFloydAttentionGradTilingS1s2Bn2gs1s2, 16000);
 
 } // namespace optiling
