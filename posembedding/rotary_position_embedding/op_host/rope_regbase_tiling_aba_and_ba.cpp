@@ -247,5 +247,5 @@ ge::graphStatus RopeRegBaseTilingClassABAAndBA::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("RotaryPositionEmbedding", RopeRegBaseTilingClassABAAndBA, ROPE_ABA_AND_BA_TILING_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(RotaryPositionEmbedding, RopeRegBaseTilingClassABAAndBA, ROPE_ABA_AND_BA_TILING_PRIORITY);
 } // namespace optiling

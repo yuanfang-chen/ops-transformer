@@ -885,6 +885,6 @@ ge::graphStatus Mc2WeightQuantBatchMatmulV2TilingAS::GetWorkspaceSize()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("Mc2WeightQuantBatchMatmulV2", Mc2WeightQuantBatchMatmulV2TilingAS, ADAPTIVE_SPLIT_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(Mc2WeightQuantBatchMatmulV2, Mc2WeightQuantBatchMatmulV2TilingAS, ADAPTIVE_SPLIT_PRIORITY);
 } // namespace Mc2weight_quant_batch_matmul_v2
 } // namespace optiling

@@ -93,6 +93,6 @@ ge::graphStatus MoeFinalizeRoutingV2GradWithoutScaleRegbase::CalcTilingKey()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("MoeFinalizeRoutingV2Grad", MoeFinalizeRoutingV2GradWithoutScaleRegbase, 2000);
+REGISTER_OPS_TILING_TEMPLATE(MoeFinalizeRoutingV2Grad, MoeFinalizeRoutingV2GradWithoutScaleRegbase, 2000);
 
 } // namespace optiling

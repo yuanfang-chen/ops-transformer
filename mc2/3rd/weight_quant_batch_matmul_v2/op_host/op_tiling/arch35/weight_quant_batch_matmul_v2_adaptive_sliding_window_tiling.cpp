@@ -359,6 +359,6 @@ uint64_t Mc2WeightQuantBatchMatmulV2TilingASW::GetTilingKey() const
     tilingKeyConfigure.apiConstexpr = 0;
     return tilingKeyConfigure.GenTilingKey();
 }
-REGISTER_TILING_TEMPLATE("Mc2WeightQuantBatchMatmulV2", Mc2WeightQuantBatchMatmulV2TilingASW, ASW_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(Mc2WeightQuantBatchMatmulV2, Mc2WeightQuantBatchMatmulV2TilingASW, ASW_PRIORITY);
 }  // namespace weight_quant_batch_matmul_v2
 }  // namespace optiling

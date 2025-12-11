@@ -920,6 +920,6 @@ ge::graphStatus MoeFinalizeRoutingV2Membase::CalcOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("MoeFinalizeRoutingV2", MoeFinalizeRoutingV2Membase, 10000);
+REGISTER_OPS_TILING_TEMPLATE(MoeFinalizeRoutingV2, MoeFinalizeRoutingV2Membase, 10000);
 
 } // namespace optiling

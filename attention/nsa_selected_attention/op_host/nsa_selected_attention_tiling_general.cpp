@@ -649,6 +649,6 @@ ge::graphStatus NsaSelectedAttentionTiling::GetWorkspaceSize()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("NsaSelectedAttention", NsaSelectedAttentionTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(NsaSelectedAttention, NsaSelectedAttentionTiling, 0);
 } // namespace nsa
 } // namespace optiling

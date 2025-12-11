@@ -146,8 +146,8 @@ ge::graphStatus TilingPrepareForRotaryPositionEmbeddingGrad(gert::TilingParseCon
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("RotaryPositionEmbeddingGrad", RopeInterLeavedGradTlingClass, 50000);
-REGISTER_TILING_TEMPLATE("RotaryPositionEmbeddingGrad", RopeRotateHalfGradTlingClass, 60000);
+REGISTER_OPS_TILING_TEMPLATE(RotaryPositionEmbeddingGrad, RopeInterLeavedGradTlingClass, 50000);
+REGISTER_OPS_TILING_TEMPLATE(RotaryPositionEmbeddingGrad, RopeRotateHalfGradTlingClass, 60000);
 
 IMPL_OP_OPTILING(RotaryPositionEmbeddingGrad)
     .Tiling(Tiling4RotaryPositionEmbeddingGrad)

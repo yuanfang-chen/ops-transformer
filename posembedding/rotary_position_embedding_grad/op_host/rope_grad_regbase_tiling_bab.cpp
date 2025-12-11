@@ -188,5 +188,5 @@ ge::graphStatus RopeGradRegBaseTilingClassBAB::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("RotaryPositionEmbeddingGrad", RopeGradRegBaseTilingClassBAB, ROPE_GRAD_BAB_TILING_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(RotaryPositionEmbeddingGrad, RopeGradRegBaseTilingClassBAB, ROPE_GRAD_BAB_TILING_PRIORITY);
 } // namespace optiling

@@ -520,7 +520,7 @@ ge::graphStatus NsaSelectedAttentionGradBasicTiling::GetBaseShapeInfo()
 }
 
 
-REGISTER_TILING_TEMPLATE("NsaSelectedAttentionGrad", NsaSelectedAttentionGradBasicTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(NsaSelectedAttentionGrad, NsaSelectedAttentionGradBasicTiling, 1);
 
 } // namespace nsa
 } // namespace optiling

@@ -259,5 +259,5 @@ void GroupedMatmulSwigluQuantDavidV2Tiling::PrintQuantParams()
     OP_LOGD(inputParams_.opName, "%s", oss.str().c_str());
 }
 
-REGISTER_TILING_TEMPLATE("GroupedMatmulSwigluQuantV2", GroupedMatmulSwigluQuantDavidV2Tiling, 2);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulSwigluQuantV2, GroupedMatmulSwigluQuantDavidV2Tiling, 2);
 } // namespace optiling

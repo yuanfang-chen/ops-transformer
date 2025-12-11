@@ -1407,5 +1407,5 @@ bool Mc2QuantBatchMatmulV3BasicTiling::GetUbDequantExtreSpace()
     return true;
 }
 
-REGISTER_TILING_TEMPLATE("Mc2QuantBatchMatmulV3", Mc2QuantBatchMatmulV3BasicTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(Mc2QuantBatchMatmulV3, Mc2QuantBatchMatmulV3BasicTiling, 0);
 }  // namespace optiling

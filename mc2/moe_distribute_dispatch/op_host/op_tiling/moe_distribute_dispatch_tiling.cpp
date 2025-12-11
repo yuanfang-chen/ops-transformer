@@ -832,8 +832,8 @@ ge::graphStatus TilingParseForMoeDistributeDispatch(gert::TilingParseContext *co
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("MoeDistributeDispatch", MoeDistributeDispatchTilingA5, 0);
-REGISTER_TILING_TEMPLATE("MoeDistributeDispatch", MoeDistributeDispatchTilingA2A3, 1);
+REGISTER_OPS_TILING_TEMPLATE(MoeDistributeDispatch, MoeDistributeDispatchTilingA5, 0);
+REGISTER_OPS_TILING_TEMPLATE(MoeDistributeDispatch, MoeDistributeDispatchTilingA2A3, 1);
 
 ge::graphStatus MoeDistributeDispatchTilingA2A3::DoOpTiling()
 {

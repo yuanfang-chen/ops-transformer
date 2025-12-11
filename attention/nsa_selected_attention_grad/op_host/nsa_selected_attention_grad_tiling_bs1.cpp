@@ -742,7 +742,7 @@ ge::graphStatus NsaSelectedAttentionGradTiling::Setmm5TilingData(matmul_tiling::
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("NsaSelectedAttentionGrad", NsaSelectedAttentionGradTiling, 10);
+REGISTER_OPS_TILING_TEMPLATE(NsaSelectedAttentionGrad, NsaSelectedAttentionGradTiling, 10);
 
 } // namespace nsa
 } // namespace optiling

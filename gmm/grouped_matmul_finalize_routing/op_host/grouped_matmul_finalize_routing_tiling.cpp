@@ -31,7 +31,7 @@ static const int32_t BIAS_INDEX = 2;
 
 namespace optiling {
 
-REGISTER_TILING_TEMPLATE("GroupedMatmulFinalizeRouting", GroupedMatmulFinalizeRoutingBaseTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulFinalizeRouting, GroupedMatmulFinalizeRoutingBaseTiling, 0);
 
 static ge::graphStatus GroupedMatmulFinalizeRoutingTilingFunc(gert::TilingContext* context)
 {

@@ -23,6 +23,6 @@ constexpr char IMRN[] = "InplaceMatmulAllReduceAddRmsNorm";
 } // namespace
 
 using InplaceQuantMatmulAllReduceAddRmsNormTiling = QuantMatmulAllReduceAddRmsNormTiling;
-REGISTER_TILING_TEMPLATE(IMRN, InplaceQuantMatmulAllReduceAddRmsNormTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(IMRN, InplaceQuantMatmulAllReduceAddRmsNormTiling, 0);
 } // namespace optiling
 #endif // _INPLACE_QUANT_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_CC_

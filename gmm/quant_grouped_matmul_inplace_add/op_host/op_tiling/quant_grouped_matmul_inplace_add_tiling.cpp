@@ -360,7 +360,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForGMMInplaceAdd(gert::TilingParse
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("QuantGroupedMatmulInplaceAdd", QuantGroupedInplaceAddTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(QuantGroupedMatmulInplaceAdd, QuantGroupedInplaceAddTiling, 0);
 IMPL_OP_OPTILING(QuantGroupedMatmulInplaceAdd)
     .Tiling(TilingGMMInplaceAdd)
     .TilingParse<GMMCompileInfo>(TilingPrepareForGMMInplaceAdd); // register into the framework

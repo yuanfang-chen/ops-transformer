@@ -33,8 +33,8 @@ using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
 
-REGISTER_TILING_TEMPLATE("GroupedMatmulSwigluQuantV2", GroupedMatmulSwigluQuantV2FusionTiling, 0);
-REGISTER_TILING_TEMPLATE("GroupedMatmulSwigluQuantV2", GroupedMatmulSwigluQuantV2BaseTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulSwigluQuantV2, GroupedMatmulSwigluQuantV2FusionTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulSwigluQuantV2, GroupedMatmulSwigluQuantV2BaseTiling, 1);
 
 static ge::graphStatus GroupedMatmulSwigluQuantV2TilingFunc(gert::TilingContext *context)
 {

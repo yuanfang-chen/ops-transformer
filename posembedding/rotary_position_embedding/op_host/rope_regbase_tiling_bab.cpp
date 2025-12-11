@@ -224,5 +224,5 @@ uint64_t RopeRegBaseTilingClassBAB::GetTilingKey() const
     return TILING_KEY_BAB;
 }
 
-REGISTER_TILING_TEMPLATE("RotaryPositionEmbedding", RopeRegBaseTilingClassBAB, ROPE_BAB_TILING_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(RotaryPositionEmbedding, RopeRegBaseTilingClassBAB, ROPE_BAB_TILING_PRIORITY);
 } // namespace optiling

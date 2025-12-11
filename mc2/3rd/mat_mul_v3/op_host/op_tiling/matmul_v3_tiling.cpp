@@ -39,7 +39,7 @@ static const int32_t BIAS_INDEX = 2;
 
 namespace optiling {
 
-REGISTER_TILING_TEMPLATE("Mc2MatMulV3", Mc2MatmulV3BaseTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(Mc2MatMulV3, Mc2MatmulV3BaseTiling, 0);
 
 static ge::graphStatus Mc2MatmulV3TilingFunc(gert::TilingContext *context) {
   OP_TILING_CHECK(context == nullptr, CUBE_INNER_ERR_REPORT("Mc2MatMulV3", "context is null"), return ge::GRAPH_FAILED);

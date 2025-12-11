@@ -543,6 +543,6 @@ protected:
     NsaCompressWithCacheTilingData tilingData;
 };
 // NOTE manually initialize tiling data in hostapi scenario in highest priority template
-REGISTER_TILING_TEMPLATE("NsaCompressWithCache", NsaCompressWithCacheTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(NsaCompressWithCache, NsaCompressWithCacheTiling, 0);
 } // namespace Nsa
 } // namespace optiling

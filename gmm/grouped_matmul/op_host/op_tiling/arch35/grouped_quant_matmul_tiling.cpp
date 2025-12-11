@@ -982,5 +982,5 @@ uint64_t GroupedQbmmTiling::GetShapeWithDataType(uint64_t shapeSize, ge::DataTyp
     }
 }
 
-REGISTER_TILING_TEMPLATE("GroupedMatmul", GroupedQbmmTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatmul, GroupedQbmmTiling, 0);
 } // namespace optiling

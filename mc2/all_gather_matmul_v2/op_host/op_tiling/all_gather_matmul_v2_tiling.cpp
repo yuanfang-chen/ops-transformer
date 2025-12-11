@@ -26,8 +26,8 @@ using namespace ge;
 
 namespace optiling
 {
-REGISTER_TILING_TEMPLATE("AllGatherMatmulV2", AllGatherMatmulTilingV2, 0);
-REGISTER_TILING_TEMPLATE("AllGatherMatmulV2", AllGatherQuantBmmTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(AllGatherMatmulV2, AllGatherMatmulTilingV2, 0);
+REGISTER_OPS_TILING_TEMPLATE(AllGatherMatmulV2, AllGatherQuantBmmTiling, 1);
 
 constexpr uint32_t ATTR_COMMMODE = 11;
 

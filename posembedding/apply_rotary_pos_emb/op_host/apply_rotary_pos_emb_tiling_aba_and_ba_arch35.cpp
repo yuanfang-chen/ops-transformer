@@ -264,5 +264,5 @@ ge::graphStatus ApplyRotaryPosEmbTilingABAAndBA::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("ApplyRotaryPosEmb", ApplyRotaryPosEmbTilingABAAndBA, ROPE_ABA_AND_BA_TILING_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(ApplyRotaryPosEmb, ApplyRotaryPosEmbTilingABAAndBA, ROPE_ABA_AND_BA_TILING_PRIORITY);
 } // namespace optiling

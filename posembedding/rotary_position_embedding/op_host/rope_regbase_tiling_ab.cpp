@@ -154,6 +154,6 @@ bool RopeRegBaseTilingClassAB::IsCapable()
     return layout_ == RopeLayout::SBND;
 }
 
-REGISTER_TILING_TEMPLATE("RotaryPositionEmbedding", RopeRegBaseTilingClassAB, 25000);
+REGISTER_OPS_TILING_TEMPLATE(RotaryPositionEmbedding, RopeRegBaseTilingClassAB, 25000);
 
 } // namespace optiling

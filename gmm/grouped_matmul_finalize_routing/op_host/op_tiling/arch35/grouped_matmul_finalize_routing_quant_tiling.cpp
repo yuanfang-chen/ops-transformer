@@ -361,5 +361,5 @@ void GroupedMatmulFinalizeRoutingQuantTiling::PrintQuantParams()
     OP_LOGD(context_->GetNodeName(), "%s", oss.str().c_str());
 }
 
-REGISTER_TILING_TEMPLATE("GroupedMatmulFinalizeRouting", GroupedMatmulFinalizeRoutingQuantTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulFinalizeRouting, GroupedMatmulFinalizeRoutingQuantTiling, 1);
 } // namespace optiling

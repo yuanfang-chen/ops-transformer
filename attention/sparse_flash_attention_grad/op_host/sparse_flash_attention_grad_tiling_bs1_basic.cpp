@@ -519,7 +519,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
 }
 
 
-REGISTER_TILING_TEMPLATE("SparseFlashAttentionGrad", SparseFlashAttentionGradBasicTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(SparseFlashAttentionGrad, SparseFlashAttentionGradBasicTiling, 1);
 
 } // namespace sfag
 } // namespace optiling

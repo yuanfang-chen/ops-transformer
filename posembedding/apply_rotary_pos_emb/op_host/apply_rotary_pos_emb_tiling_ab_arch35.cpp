@@ -145,6 +145,6 @@ bool ApplyRotaryPosEmbTilingAB::IsCapable()
     return false;
 }
 
-REGISTER_TILING_TEMPLATE("ApplyRotaryPosEmb", ApplyRotaryPosEmbTilingAB, 30000);
+REGISTER_OPS_TILING_TEMPLATE(ApplyRotaryPosEmb, ApplyRotaryPosEmbTilingAB, 30000);
 
 } // namespace optiling

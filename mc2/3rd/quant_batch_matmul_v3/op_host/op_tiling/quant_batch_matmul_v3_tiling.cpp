@@ -1445,8 +1445,8 @@ bool Mc2QuantBatchMatmulV3Tiling::NeedAtomiClean() const {
     }
 }
 
-REGISTER_TILING_TEMPLATE("Mc2QuantBatchMatmulV3", Mc2QuantBatchMatmulV3Tiling, 1);
-REGISTER_TILING_TEMPLATE("Mc2QuantBatchMatmulV3", Mc2AdaptiveSlidingWindowTiling, 2);
+REGISTER_OPS_TILING_TEMPLATE(Mc2QuantBatchMatmulV3, Mc2QuantBatchMatmulV3Tiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(Mc2QuantBatchMatmulV3, Mc2AdaptiveSlidingWindowTiling, 2);
 
 static ge::graphStatus Mc2QuantBatchMatmulV3TilingFunc(gert::TilingContext *context)
 {

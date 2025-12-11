@@ -150,5 +150,5 @@ ge::graphStatus MoeInitRoutingV2GradRegbaseSplitH::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("MoeInitRoutingV2Grad", MoeInitRoutingV2GradRegbaseSplitH, 20000);
+REGISTER_OPS_TILING_TEMPLATE(MoeInitRoutingV2Grad, MoeInitRoutingV2GradRegbaseSplitH, 20000);
 } // namespace optiling

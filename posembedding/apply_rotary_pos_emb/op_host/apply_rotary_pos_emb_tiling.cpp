@@ -531,7 +531,7 @@ static ge::graphStatus TilingPrepare4ApplyRotaryPosEmb(gert::TilingParseContext 
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("ApplyRotaryPosEmb", ApplyRotaryPosMembaseEmbTilingClass, 40000);
+REGISTER_OPS_TILING_TEMPLATE(ApplyRotaryPosEmb, ApplyRotaryPosMembaseEmbTilingClass, 40000);
 
 IMPL_OP_OPTILING(ApplyRotaryPosEmb)
     .Tiling(Tiling4ApplyRotaryPosEmb)

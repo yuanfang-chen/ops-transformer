@@ -25,8 +25,8 @@ using namespace ge;
 using namespace Mc2Tiling;
 
 namespace optiling {
-REGISTER_TILING_TEMPLATE("MatmulReduceScatterV2", MatmulReduceScatterV2Tiling, 0);
-REGISTER_TILING_TEMPLATE("MatmulReduceScatterV2", QuantBmmReduceScatterTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(MatmulReduceScatterV2, QuantBmmReduceScatterTiling, 1);
 constexpr uint32_t ATTR_COMMMODE = 10;
 ge::graphStatus MatmulReduceScatterTilingV2Func(gert::TilingContext *context)
 {

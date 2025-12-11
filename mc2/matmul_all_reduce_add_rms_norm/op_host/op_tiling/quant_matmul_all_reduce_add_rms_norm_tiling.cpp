@@ -187,6 +187,6 @@ uint64_t QuantMatmulAllReduceAddRmsNormTiling::GetTilingKey() const
         tilingOutAddRmsNormTile_.tilingKey, tilingOutAddRmsNormTail_.tilingKey);
     return my_key;
 }
-REGISTER_TILING_TEMPLATE(MRN, QuantMatmulAllReduceAddRmsNormTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(MRN, QuantMatmulAllReduceAddRmsNormTiling, 0);
 } // namespace optiling
 #endif // _QUANT_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_CC_

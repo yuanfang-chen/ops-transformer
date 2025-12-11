@@ -33,7 +33,7 @@ using Ops::Transformer::OpTiling::TilingRegistry;
 
 namespace optiling {
 
-REGISTER_TILING_TEMPLATE("Mc2BatchMatMulV3", Mc2BatchMatmulV3BaseTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(Mc2BatchMatMulV3, Mc2BatchMatmulV3BaseTiling, 0);
 
 static ge::graphStatus Mc2BatchMatMulV3TilingFunc(gert::TilingContext* context)
 {

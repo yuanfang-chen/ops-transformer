@@ -326,6 +326,6 @@ void Mc2WeightQuantBatchMatmulV2RegBase::PrintCVTilingData(bool debugLevel) cons
     }
 }
 
-REGISTER_TILING_TEMPLATE("Mc2WeightQuantBatchMatmulV2", Mc2WeightQuantBatchMatmulV2RegBase, ANTI_REG_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(Mc2WeightQuantBatchMatmulV2, Mc2WeightQuantBatchMatmulV2RegBase, ANTI_REG_PRIORITY);
 
 } // namespace optiling

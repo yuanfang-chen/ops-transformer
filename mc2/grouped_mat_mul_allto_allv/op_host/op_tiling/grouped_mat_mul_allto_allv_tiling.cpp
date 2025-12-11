@@ -872,7 +872,7 @@ ge::graphStatus GmmAlltoAllvTilingBase::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("GroupedMatMulAlltoAllv", GmmAlltoAllvTilingStruct, 0);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct, 0);
 
 
 static ge::graphStatus GroupedMatMulAlltoAllvTilingFunc(gert::TilingContext* context)

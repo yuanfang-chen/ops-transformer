@@ -24,7 +24,7 @@
 
 namespace optiling {
 
-REGISTER_TILING_TEMPLATE("RecurrentGatedDeltaRule", RecurrentGatedDeltaRuleTiling, 0);
+REGISTER_OPS_TILING_TEMPLATE(RecurrentGatedDeltaRule, RecurrentGatedDeltaRuleTiling, 0);
 
 const size_t QUERY_INDEX = 0;
 const size_t KEY_INDEX = 1;

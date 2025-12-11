@@ -411,5 +411,5 @@ void AttentionUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
 }
 
-REGISTER_TILING_TEMPLATE("AttentionUpdate", AttentionUpdateTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(AttentionUpdate, AttentionUpdateTiling, 1);
 } // namespace optiling

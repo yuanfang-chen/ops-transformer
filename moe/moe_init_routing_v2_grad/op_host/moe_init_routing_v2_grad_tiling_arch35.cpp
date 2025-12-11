@@ -154,5 +154,5 @@ ge::graphStatus MoeInitRoutingV2GradRegbase::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("MoeInitRoutingV2Grad", MoeInitRoutingV2GradRegbase, 40000);
+REGISTER_OPS_TILING_TEMPLATE(MoeInitRoutingV2Grad, MoeInitRoutingV2GradRegbase, 40000);
 } // namespace optiling
