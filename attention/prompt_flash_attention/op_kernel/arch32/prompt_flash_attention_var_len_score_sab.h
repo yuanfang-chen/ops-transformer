@@ -109,8 +109,6 @@ __aicore__ inline void PromptFlashAttentionVarLenScoreSameAB<TILING_TYPE, implMo
     }
     this->InitBuffer();
 
-    LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
-    DropOutBitModeInit(apiTmpBuffer);
     if (this->vecBlockIdx < this->tilingData->PFAmultiCoreParams.coreNum) {
         LocalTensor<half> pseHelpBuffer = this->stage1PingBuf.template Get<half>();
     }
