@@ -214,16 +214,16 @@ ge::graphStatus QLIInfoParser::CheckAttrParaInfo()
                   "but now layout_key is %s, layout_query is %s.",
          layout_key.c_str(),  layout_query.c_str()), return ge::GRAPH_FAILED);
     OP_CHECK_IF(!((*opParamInfo_.sparseCount > 0) && (*opParamInfo_.sparseCount <= SPARSE_LIMIT)),
-               OP_LOGE(opName_, "input attr sparse_count must > 0 and <= 2048, but now sparse_count is %u",
+                OP_LOGE(opName_, "input attr sparse_count must > 0 and <= 2048, but now sparse_count is %u",
                        *opParamInfo_.sparseCount),return ge::GRAPH_FAILED);
     OP_CHECK_IF(!((*opParamInfo_.sparseMode == 0) || (*opParamInfo_.sparseMode == SPARSE_MODE_LOWER)),
-               OP_LOGE(opName_, "input attr sparse_mode only supported 0 or 3, but now sparseMode is %u.",
+                OP_LOGE(opName_, "input attr sparse_mode only supported 0 or 3, but now sparseMode is %u.",
                        *opParamInfo_.sparseMode), return ge::GRAPH_FAILED);
     OP_CHECK_IF(*opParamInfo_.preTokens != 9223372036854775807,
-               OP_LOGE(opName_, "input attr preTokens only supported 9223372036854775807, but now preTokens is %ld.",
-               *opParamInfo_.preTokens), return ge::GRAPH_FAILED);
+                OP_LOGE(opName_, "input attr preTokens only supported 9223372036854775807, but now preTokens is %ld.",
+                *opParamInfo_.preTokens), return ge::GRAPH_FAILED);
     OP_CHECK_IF(*opParamInfo_.nextTokens != 9223372036854775807,
-               OP_LOGE(opName_, "input attr nextTokens only supported 9223372036854775807, but now nextTokens is %ld.",
+                OP_LOGE(opName_, "input attr nextTokens only supported 9223372036854775807, but now nextTokens is %ld.",
                 *opParamInfo_.nextTokens), return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(*opParamInfo_.queryQuantMode != 0, OP_LOGE(opName_, "input attr query_quant_mode only supported 0."),
@@ -350,9 +350,9 @@ ge::graphStatus QLIInfoParser::GetAndCheckOptionalInput()
 ge::graphStatus QLIInfoParser::CheckShapeDim()
 {
     OP_CHECK_IF((opParamInfo_.blockTable.tensor != nullptr) &&
-                   (opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum() != DIM_NUM_TWO),
-               OP_LOGE(opName_, "the dim num of block_table's shape should be 2,  but now is %u",
-                       opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                (opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum() != DIM_NUM_TWO),
+                OP_LOGE(opName_, "the dim num of block_table's shape should be 2, but now is %u",
+                opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
     OP_CHECK_IF(
         ((kLayout_ == DataLayout::PA_BSND)||(kLayout_ == DataLayout::BSND)) &&
         (opParamInfo_.key.shape->GetStorageShape().GetDimNum() != DIM_NUM_FOUR),
@@ -646,7 +646,7 @@ ge::graphStatus QLIInfoParser::ValidateInputShapesMatch()
     }
     // -----------------------check N1-------------------
     OP_CHECK_IF((opParamInfo_.weights.shape->GetStorageShape().GetDim(queryWeightsN1Dim) != n1Size_),
-               OP_LOGE(opName_, "input query, weight shape dim N1 must be same, but now are %u, %u respectively.",
+               OP_LOGE(opName_, "input query, weight shape dim N1 must be same, but now are %u, %u respectively, they must be same.",
                opParamInfo_.weights.shape->GetStorageShape().GetDim(queryWeightsN1Dim), n1Size_),
                return ge::GRAPH_FAILED);
     // -----------------------check D-------------------
