@@ -109,7 +109,8 @@ private:
     __aicore__ inline void ComputeScaleValue(LocalTensor<T> lseMaxUb, LocalTensor<T> lseSumUb, 
         ConstInfo<isInfer, hasRope> &constInfo, uint32_t splitSize, uint64_t lseOffset);
 
-    __aicore__ inline void Bmm2FDOut(LocalTensor<T> &vec2ResUb, RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, int64_t vec2CalcSize);
+    __aicore__ inline void Bmm2FDOut(LocalTensor<T> &vec2ResUb, RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+                                     int64_t vec2S1Idx, int64_t vec2CalcSize);
 
     __aicore__ inline void CopyLseIn(ConstInfo<isInfer, hasRope> &constInfo, uint32_t bIdx, uint32_t n2Idx, uint32_t startRow, uint32_t dealRowCount);
 
@@ -398,7 +399,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyOutAttentionOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     if constexpr (isFd) {
-        Bmm2FDOut(vec2ResUb, runInfo, constInfo, vec2CalcSize);
+        Bmm2FDOut(vec2ResUb, runInfo, constInfo, vec2S1Idx, vec2CalcSize);
     } else {
         this->Bmm2DataCopyOut(runInfo, constInfo, vec2ResUb, vec2S1Idx, vec2CalcSize);
     }
@@ -590,7 +591,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTensor<T> &vec2ResUb,
-    RunInfo<isInfer> &runInfo,  ConstInfo<isInfer, hasRope> &constInfo, int64_t vec2CalcSize)
+    RunInfo<isInfer> &runInfo,  ConstInfo<isInfer, hasRope> &constInfo, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     LocalTensor<T> attenOut;
     int64_t dSizeAligned64 = (int64_t)dVTemplateType;
@@ -602,7 +603,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTensor<T> 
     attenOut = vec2ResUb;
 
     DataCopyExtParams dataCopyParams;
-    dataCopyParams.blockCount = runInfo.halfS1RealSize;
+    dataCopyParams.blockCount = runInfo.vec2S1RealSize;
     dataCopyParams.blockLen = constInfo.dSizeV * sizeof(T);
     dataCopyParams.srcStride = (dSizeAligned64 - constInfo.dSizeV) / (FA_BYTE_BLOCK / sizeof(T));
     dataCopyParams.dstStride = 0;
@@ -611,7 +612,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTensor<T> 
     size_t base = (runInfo.boIdx * constInfo.n2Size * constInfo.gSize * constInfo.dSizeV +
                    runInfo.n2oIdx * constInfo.gSize * constInfo.dSizeV) *
                       constInfo.splitKVNum +
-                  mStart * constInfo.dSizeV;
+                  mStart * constInfo.dSizeV + vec2S1Idx * runInfo.vec2S1BaseSize * constInfo.dSizeV;
 
     DataCopyPad(this->accumOutGm[base + runInfo.flashDecodeS2Idx * constInfo.gSize * constInfo.dSizeV],
                 attenOut, dataCopyParams);
