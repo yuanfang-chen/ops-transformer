@@ -424,6 +424,9 @@ bool SparseLightningIndexerGradKLLossTilingBase::CrossShapeVerify(const gert::Sh
                  OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyShape D is Failed"), return false);
         OP_CHECK_IF(queryIndexShape[2] != keyIndexShape[2],
                  OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyIndexShape D is Failed"), return false);
+        // 验证ROPE是否使能
+        OP_CHECK_IF(hasRope == 0,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query or key rope is Failed, rope can't be null"), return false);
         if (hasRope) {
             // 验证queryrope
             OP_CHECK_IF(queryRopeShape[0] != t1Len || queryRopeShape[1] != n1Len,
@@ -481,6 +484,9 @@ bool SparseLightningIndexerGradKLLossTilingBase::CrossShapeVerify(const gert::Sh
                  OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyShape D is Failed"), return false);
         OP_CHECK_IF(queryIndexShape[3] != keyIndexShape[3],
                  OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyIndexShape D is Failed"), return false);
+        // 验证ROPE是否使能
+        OP_CHECK_IF(hasRope == 0,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query or key rope is Failed, rope can't be null"), return false);
         if (hasRope) {
             // 验证queryrope
             OP_CHECK_IF(queryRopeShape[0] != bLen || queryRopeShape[1] != s1Len || queryRopeShape[2] != n1Len,
