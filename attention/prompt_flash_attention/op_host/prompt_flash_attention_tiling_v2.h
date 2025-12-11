@@ -108,7 +108,7 @@ protected:
     bool IsCapable() override {return true;}
     ge::graphStatus DoOpTiling() override;
     void PromptFlashAttentionInitOutputSplit(int64_t totalSize, PromptFlashAttentionTilingData &tilingData);
-    bool CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams);    
+    bool CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams) const;    
     void SetEmptyTensor(ContextParamsForPFATiling& contextKeyParams, uint32_t& blockDimToBeSet,
         PromptFlashAttentionTilingData& tilingData);
     bool CheckIODataType(ContextParamsForPFATiling& contextKeyParams);
@@ -159,10 +159,10 @@ protected:
     bool CheckKV(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& keyShapeInfo, PFAShapeInfo& valueShapeInfo);
     bool CheckQueryAndKey(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, 
         PFAShapeInfo& keyShapeInfo, PromptFlashAttentionTilingData& tilingData);
-    bool CheckPFAMerge(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo);
+    bool CheckPFAMerge(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const;
     bool CheckRope(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo,
         PFAShapeInfo& keyShapeInfo, PFAShapeInfo& queryRopeShapeInfo);
-    bool CheckIFAMLA(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo);
+    bool CheckIFAMLA(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const;
     bool CheckQuant(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo, const PFAShapeInfo& valueShapeInfo);
     bool CheckQScaleShape4MLAFullQuant(ContextParamsForPFATiling& contextKeyParams);
     bool CheckKVScaleShape4MLAFullQuant(ContextParamsForPFATiling& contextKeyParams);
@@ -211,7 +211,7 @@ protected:
     void InferConstantization();
     bool AdjustCVTilingCVDiff(const ContextParamsForPFATiling& contextKeyParams, uint32_t& sOuterFactor,
         uint32_t& sInnerFactor, uint32_t& softmaxSOuterFactor, PromptFlashAttentionTilingData& tilingData,
-        const PFAShapeInfo& queryShapeInfo, const PFAShapeInfo& valueShapeInfo);
+        const PFAShapeInfo& queryShapeInfo);
     void GetMatMulType(matmul_tiling::DataType &mmInputType, matmul_tiling::DataType &mmOutputType);
     bool EnableMTE2BmmPipe(PromptFlashAttentionTilingData& tilingData, matmul_tiling::MatmulApiTiling& bmm,
         TCubeTiling& bmmTilingData, uint32_t sOuterFactor, uint32_t sInnerFactor);

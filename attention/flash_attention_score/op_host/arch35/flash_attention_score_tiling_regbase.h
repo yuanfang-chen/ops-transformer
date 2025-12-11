@@ -391,7 +391,7 @@ protected:
     virtual void SetOutputDtype();
     virtual void SetSplitCoreModeParam(int64_t totalSize);
     virtual void CalcThresholdForS2Size();
-    virtual bool IsUseSpliteCoreMode(SparseMode sparseMode);
+    virtual bool IsUseSpliteCoreMode(SparseMode inputSparseMode);
     virtual void SetMultiCoreParamsRegbase(int64_t totalSize, int64_t coreNum);
     virtual void SetSparseParamsRegbase(int64_t maxCoreNum);
     virtual bool SetPseAlibiParamsRegbase();

@@ -267,7 +267,7 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionInitOutputSplit(int64_t t
     initParams->set_totalOutputSize(totalSize);
 }
 
-bool PromptFlashAttentionTilingV2::CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams)
+bool PromptFlashAttentionTilingV2::CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams) const
 {
     return (contextKeyParams.keyInputShape->GetStorageShape().GetShapeSize() == 0) ||
         (contextKeyParams.valueInputShape->GetStorageShape().GetShapeSize() == 0) ||
@@ -790,11 +790,11 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
     const gert::StorageShape* deqScale1Shape = contextKeyParams.deqScale1Shape;
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
-    const ge::DataType inputType = contextKeyParams.inputDataType;
-    OP_CHECK_IF((inputType != ge::DT_INT8) && (inputType != ge::DT_HIFLOAT8) && (inputType != ge::DT_FLOAT8_E5M2) &&
-                (inputType != ge::DT_FLOAT8_E4M3FN),
+    const ge::DataType inputParamsType = contextKeyParams.inputDataType;
+    OP_CHECK_IF((inputParamsType != ge::DT_INT8) && (inputParamsType != ge::DT_HIFLOAT8) && (inputParamsType != ge::DT_FLOAT8_E5M2) &&
+                (inputParamsType != ge::DT_FLOAT8_E4M3FN),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "inputType must be INT8 or HIFLOAT8 or DT_FLOAT8_E5M2 or FLOAT8_E4M3FN in per-tensor quant scenario, now is %s", 
+            "inputParamsType must be INT8 or HIFLOAT8 or DT_FLOAT8_E5M2 or FLOAT8_E4M3FN in per-tensor quant scenario, now is %s", 
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
         return false);
     OP_CHECK_IF((deqScale1Shape == nullptr) || (quantScale1Shape == nullptr) || (deqScale2Shape == nullptr),
@@ -812,9 +812,9 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
 
 bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsForPFATiling& contextKeyParams, 
     const PFAShapeInfo& queryShapeInfo, const PFAShapeInfo& keyShapeInfo, const PFAShapeInfo& valueShapeInfo) const {
-    const ge::DataType queryType = contextKeyParams.dequantScaleQueryType;
-    const ge::DataType keyType = contextKeyParams.KeyAntiquantScaleType;
-    const ge::DataType valueType = contextKeyParams.valueAntiquantScaleType;
+    const ge::DataType dequantScaleQueryType = contextKeyParams.dequantScaleQueryType;
+    const ge::DataType KeyAntiquantScaleType = contextKeyParams.KeyAntiquantScaleType;
+    const ge::DataType valueAntiquantScaleType = contextKeyParams.valueAntiquantScaleType;
     const gert::StorageShape* dequantScaleQueryShape = contextKeyParams.dequantScaleQueryShape;
     const gert::StorageShape* keyAntiquantScaleShape = contextKeyParams.KeyAntiquantScaleShape;
     const gert::StorageShape* valueAntiquantScaleshape = contextKeyParams.valueAntiquantScaleShape;
@@ -833,11 +833,11 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             "inputType must be FLOAT8_E5M2 or FLOAT8_E4M3FN in per-block quant scenario, now is %s.", 
             GetPfaDataTypeStr(inputType).c_str()),
         return false);
-    OP_CHECK_IF((queryType != ge::DT_FLOAT) || (keyType != ge::DT_FLOAT) || (valueType != ge::DT_FLOAT),
+    OP_CHECK_IF((dequantScaleQueryType != ge::DT_FLOAT) || (KeyAntiquantScaleType != ge::DT_FLOAT) || (valueAntiquantScaleType != ge::DT_FLOAT),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "dequantscale type must be DT_FLOAT in per-block quant scenario," 
             "now dequantScaleQuery's type is %s, KeyAntiquantScale's type is %s, valueAntiquantScale's type is %s.",
-            GetPfaDataTypeStr(queryType).c_str(), GetPfaDataTypeStr(keyType).c_str(), GetPfaDataTypeStr(valueType).c_str()),
+            GetPfaDataTypeStr(dequantScaleQueryType).c_str(), GetPfaDataTypeStr(KeyAntiquantScaleType).c_str(), GetPfaDataTypeStr(valueAntiquantScaleType).c_str()),
         return false);
     OP_CHECK_IF((inputLayout == InputLayout::TND),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -1074,14 +1074,14 @@ bool PromptFlashAttentionTilingV2::CheckPAKeyValueShape(ContextParamsForPFATilin
         return false);
     std::string layoutStr(contextKeyParams.layout);
 
-    uint32_t dataTypeSize;
+    uint32_t dataTypeSizeValue = FLOAT16SIZE;
     std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN};
     std::vector<uint32_t> dataTypeSizeArray = {FLOAT16SIZE, BFLOAT16SIZE, INT8SIZE, FLOAT8SIZE, FLOAT8SIZE, FLOAT8SIZE};
 
     auto inputTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), inputType);
     if (inputTypeCheck != allowedDtypes.end()){
         uint32_t inputTypeIndex = std::distance(allowedDtypes.begin(), inputTypeCheck);
-        dataTypeSize = dataTypeSizeArray[inputTypeIndex];
+        dataTypeSizeValue = dataTypeSizeArray[inputTypeIndex];
     }
 
     if (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND) {
@@ -1090,14 +1090,14 @@ bool PromptFlashAttentionTilingV2::CheckPAKeyValueShape(ContextParamsForPFATilin
             "the layout of query is %s, key and value layout should be [>=%ld, %d, %u] or [>=%ld, %u, %d, %u] or [>=%ld, %u, %u, %d, %d] when PA enable.",
                 layoutStr.c_str(), blockNumValid, *blockSize, queryShapeInfo.h / headNumRatio, 
                 blockNumValid, queryShapeInfo.n / headNumRatio, *blockSize, (queryShapeInfo.h / queryShapeInfo.n), 
-                blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSize / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSize),
+                blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue),
             return false);
     } else if (inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND) {
         OP_CHECK_IF(((keyDim != KV_CACHE_DIM_NUMS_3) && (keyDim != KV_CACHE_DIM_NUMS_5)), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "the layout of query is %s, key and value layout should be [>=%ld, %d, %u] or [>=%ld, %u, %u, %d, %d] when PA enable."
             " now key and value shape [%ld, %ld, %ld, %ld].",
                 layoutStr.c_str(), blockNumValid, *blockSize, queryShapeInfo.h / headNumRatio, 
-                blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSize / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSize, 
+                blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue, 
                 keyDim1, keyDim2, keyDim3, keyDim4),
             return false);
     }
@@ -1150,23 +1150,23 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
         tempD0 = dim5;
         paLayoutType = 2; // If it is five-dimensional, paLayoutType = 2
 
-        uint32_t dataTypeSize;
+        uint32_t dataTypeSizeValue = FLOAT16SIZE;
         std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN};
         std::vector<uint32_t> dataTypeSizeArray = {FLOAT16SIZE, BFLOAT16SIZE, INT8SIZE, FLOAT8SIZE, FLOAT8SIZE, FLOAT8SIZE};
 
         auto inputTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), inputType);
         if (inputTypeCheck != allowedDtypes.end()){
             uint32_t inputTypeIndex = std::distance(allowedDtypes.begin(), inputTypeCheck);
-            dataTypeSize = dataTypeSizeArray[inputTypeIndex];
+            dataTypeSizeValue = dataTypeSizeArray[inputTypeIndex];
         }
 
         if (enableIFAMLAFullQuant && sName == "keyRope") {
-            dataTypeSize = BFLOAT16SIZE;
+            dataTypeSizeValue = BFLOAT16SIZE;
         }
 
-        OP_CHECK_IF(((dim1 < blockNumValid) || (tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) || (tempD1 * tempD0 != shapeInfo.d) || tempD0 != (BYTE_BLOCK / dataTypeSize)), 
+        OP_CHECK_IF(((dim1 < blockNumValid) || (tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) || (tempD1 * tempD0 != shapeInfo.d) || tempD0 != (BYTE_BLOCK / dataTypeSizeValue)), 
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "the shape of %s [%ld, %ld, %ld, %ld, %ld] is wrong, which should be [>=%ld, %u, %u, %d, %d] when PA NZ enable!",
-                sName.c_str(), dim1, dim2, dim3, dim4, dim5, blockNumValid, shapeInfo.n / headNumRatio, shapeInfo.d * dataTypeSize / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSize),
+                sName.c_str(), dim1, dim2, dim3, dim4, dim5, blockNumValid, shapeInfo.n / headNumRatio, shapeInfo.d * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue),
             return false);
     }
     return true;
@@ -1404,7 +1404,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskShapeCrossSparse(ContextParamsForPFA
 }
 
 bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& contextKeyParams,
-    PFAShapeInfo& queryShapeInfo) {
+    const PFAShapeInfo& queryShapeInfo) const {
     const int32_t pfaMergeGSLimit = pfaMergeQsLimit * pfaMergeGLimit;
 
     if (queryShapeInfo.s <= 1U) {
@@ -1525,7 +1525,7 @@ bool PromptFlashAttentionTilingV2::CheckQueryAndKey(ContextParamsForPFATiling& c
     return true;
 }
 
-bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) {
+bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const {
     constexpr uint32_t maxQuerySeqLenInIfaMla = 16U; // ifa mla场景qS最大支持16
     OP_CHECK_IF((queryShapeInfo.s > maxQuerySeqLenInIfaMla || queryShapeInfo.s < 1),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
@@ -2538,7 +2538,7 @@ void PromptFlashAttentionTilingV2::SetTilingDataAttribute(ContextParamsForPFATil
 void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contextKeyParams,
     PromptFlashAttentionTilingData& tilingData, PFAShapeInfo& queryShapeInfo, PFAShapeInfo& valueShapeInfo,
     std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV) {
-    // 使能DN条件：1.sOuter >= 128; 2.d等长且不大于128; 3.输入类型为fp16/bf16; 4.不带mask、pse、MLA等高阶特性; 5.FP8 perblock全量化
+    // 使能DN条件：1.sOuter >= 128; 2.d等长且不大于128; 3.输入类型为fp16/bf16; 4.不带mask、pse、MLA等高阶特性; 5.FP8 per-block全量化
     bool isQKVActualSeqLengthsRight = true;
     constexpr uint32_t dLimitDN = 128;
     constexpr uint32_t vecCoreNum = 2;
@@ -2555,14 +2555,15 @@ void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contex
         }
     }
 
-    if (enableDN && isQKVActualSeqLengthsRight && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d == 64)) {  
+    uint32_t shapeParameter =64;
+    if (enableDN && isQKVActualSeqLengthsRight && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d == shapeParameter)) {  
         // 64：扩大sInner的dsize限制	
         tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);	
     }   
 
-    if (enableDN && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d <= 128) && enablePerblockQuant) {
-        // 128： perblock全量化 扩大sInner切块大小 d<=128
-         tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);
+    shapeParameter = 128;   // 128： perblock全量化，扩大sInner切块大小 d<=128
+    if (enableDN && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d <= shapeParameter) && enablePerblockQuant) {
+        tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);
     }
 }
 
@@ -2817,8 +2818,7 @@ bool PromptFlashAttentionTilingV2::PromptFlashAttentionCheckBmm1(PromptFlashAtte
 
 bool PromptFlashAttentionTilingV2::AdjustCVTilingCVDiff(const ContextParamsForPFATiling& contextKeyParams,
     uint32_t& sOuterFactor, uint32_t& sInnerFactor, uint32_t& softmaxSOuterFactor,
-    PromptFlashAttentionTilingData& tilingData, const PFAShapeInfo& queryShapeInfo,
-    const PFAShapeInfo& valueShapeInfo) {
+    PromptFlashAttentionTilingData& tilingData, const PFAShapeInfo& queryShapeInfo) {
     uint32_t minFactor = SOUTER_FACTOR_DEFAULT;
     uint32_t rectangleFactor = SINNER_FACTOR_DEFAULT;
     softmaxSOuterFactor = SOUTER_FACTOR_DEFAULT;
@@ -4038,7 +4038,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::AdjustTilingData(ContextParamsForP
     uint32_t softmaxSOuterFactor = 0;
     // Currently, there will be no D splitting scenario, and split D = 0 is default when splitting.
     auto ret = AdjustCVTilingCVDiff(contextKeyParams, sOuterFactor, sInnerFactor, softmaxSOuterFactor,
-        tilingData, queryShapeInfo, valueShapeInfo);
+        tilingData, queryShapeInfo);
     OP_CHECK_IF(!ret, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "adjust tiling cv diff fail"),
         return ge::GRAPH_FAILED);
     softmaxSInnerFactor = sInnerFactor;

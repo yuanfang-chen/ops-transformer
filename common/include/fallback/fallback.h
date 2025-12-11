@@ -378,8 +378,8 @@ auto call(Function f, Tuple t) -> int {
 template <typename Tuple, size_t... I>
 auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr, std_utils::index_sequence<I...>)
     -> int (*)(typename std::decay<decltype(std::get<I>(params))>::type...) {
-    using OpApiFunc = int (*)(typename std::decay<decltype(std::get<I>(params))>::type...);
-    auto func = reinterpret_cast<OpApiFunc>(opApiAddr);
+    using LocalOpApiFunc = int (*)(typename std::decay<decltype(std::get<I>(params))>::type...);
+    auto func = reinterpret_cast<LocalOpApiFunc>(opApiAddr);
     return func;
 }
 

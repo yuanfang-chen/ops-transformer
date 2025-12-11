@@ -944,10 +944,10 @@ void FlashAttentionScoreTilingRegbase::CalcThresholdForS2Size() {
     thresholdS2Size = l2CacheSizeForKandV / (bSize * n2Size * (dBasicBlock + dVBasicBlock) * typeSize);
 }
 
-bool FlashAttentionScoreTilingRegbase::IsUseSpliteCoreMode(SparseMode sparseMode) {
-    if (sparseMode == SparseMode::LEFT_UP_CAUSAL) {
+bool FlashAttentionScoreTilingRegbase::IsUseSpliteCoreMode(SparseMode inputSparseMode) {
+    if (inputSparseMode == SparseMode::LEFT_UP_CAUSAL) {
         return std::min(s1Size, s2Size) >= thresholdS2Size;
-    } else if (sparseMode == SparseMode::RIGHT_DOWN_CAUSAL) {
+    } else if (inputSparseMode == SparseMode::RIGHT_DOWN_CAUSAL) {
         if (s1Size <= s2Size) {
             return s2Size >= thresholdS2Size;
         }

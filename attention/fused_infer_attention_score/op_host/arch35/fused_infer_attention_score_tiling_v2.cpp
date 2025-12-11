@@ -840,10 +840,10 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         auto platformInfoPtr = context_->GetPlatformInfo();
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
         if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910_55) {
-            auto kDType = context_->GetInputDesc(KEY_INDEX)->GetDataType();
-            if (kDType == ge::DT_INT8 || kDType == ge::DT_INT4 || kDType == ge::DT_HIFLOAT8 ||
-                kDType == ge::DT_FLOAT8_E5M2 || kDType == ge::DT_FLOAT8_E4M3FN || kDType == ge::DT_FLOAT4_E2M1 ||
-                kDType == ge::DT_FLOAT4_E1M2) {
+            auto kDTypeLocal = context_->GetInputDesc(KEY_INDEX)->GetDataType();
+            if (kDTypeLocal == ge::DT_INT8 || kDTypeLocal == ge::DT_INT4 || kDTypeLocal == ge::DT_HIFLOAT8 ||
+                kDTypeLocal == ge::DT_FLOAT8_E5M2 || kDTypeLocal == ge::DT_FLOAT8_E4M3FN || kDTypeLocal == ge::DT_FLOAT4_E2M1 ||
+                kDTypeLocal == ge::DT_FLOAT4_E1M2) {
                 usingIFA = true;
             } else {
                 usingIFA = false;
