@@ -12,4 +12,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTOR ${PROJECT_SOURCE_DIR}/build)
 
 file(GLOB_RECURSE OP_API_FILES "*.cpp")
 
-target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OP_API_FILES})
+if (NOT ENABLE_STATIC)
+    target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OP_API_FILES})
+endif()
