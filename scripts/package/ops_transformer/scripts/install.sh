@@ -431,6 +431,9 @@ check_opts() {
 
 # init target_dir and log for install
 init_env() {
+  # create log folder and log file
+  comm_init_log
+
   get_install_package_dir "TARGET_MOULDE_DIR" "${VERSION_INFO_FILE}" "${TARGET_INSTALL_PATH}" "${OPP_PLATFORM_DIR}"
   TARGET_VERSION_DIR=$(dirname ${TARGET_MOULDE_DIR})
   # Splicing docker-root and install-path
@@ -447,17 +450,12 @@ init_env() {
   TARGET_SHARED_INFO_DIR=${TARGET_VERSION_DIR}/share/info
   UNINSTALL_SHELL_FILE="${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/script/opp_uninstall.sh"
   INSTALL_INFO_FILE="${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}/${ASCEND_INSTALL_INFO}"
-  is_multi_version_pkg "pkg_is_multi_version" "$VERSION_INFO_FILE"
-  get_version_dir "PKG_VERSION_DIR" "$VERSION_INFO_FILE"
-  get_package_version "RUN_PKG_VERSION" "$VERSION_INFO_FILE"
-
-  # creat log folder and log file
-  comm_init_log
 
   logandprint "[INFO]: Execute the opp run package."
   logandprint "[INFO]: OperationLogFile path: ${COMM_LOGFILE}."
   logandprint "[INFO]: Input params: $CMD_LIST"
 
+  get_package_version "RUN_PKG_VERSION" "$VERSION_INFO_FILE"
   local installed_version=$(get_installed_info "${KEY_INSTALLED_VERSION}")
   if [ "${installed_version}" = "" ]; then
     logandprint "[INFO]: Version of installing opp module is ${RUN_PKG_VERSION}."
@@ -479,6 +477,15 @@ check_pre_install() {
       exitlog
       exit 1
     fi
+  fi
+  
+  if [ "${IS_UPGRADE}" = "y" ]; then
+    if [ ! -e "${INSTALL_INFO_FILE}" ]; then
+      logandprint "[ERROR]: ERR_NO:${FILE_NOT_EXIST}; The directory:${TARGET_INSTALL_PATH} not install OpsTransformer, upgrade failed."
+      exitlog
+      exit 1
+    fi
+    IN_INSTALL_TYPE=$(get_installed_info "${KEY_INSTALLED_TYPE}")
   fi
 }
 
