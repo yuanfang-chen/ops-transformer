@@ -356,9 +356,8 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::CheckAxisSize()
         VECTOR_INNER_ERR_REPORT_TILING(
             context_->GetNodeName(), "The size of k-axis=%lu exceeds the upper limit=%d.", k, UINT16_MAX),
         return ge::GRAPH_FAILED);
-    const uint64_t n = MatmulAllReduceTilingBase::GetNValue();
-    uint64_t x2FirstDim = args_.isBTrans ? n : k;
-    uint64_t x2LastDim = args_.isBTrans ? k : n;
+    uint64_t x2FirstDim = mmrCtxInfo_.x2_shape->GetStorageShape().GetDim(0);
+    uint64_t x2LastDim = mmrCtxInfo_.x2_shape->GetStorageShape().GetDim(1);
     OP_TILING_CHECK(
         (x2FirstDim > static_cast<uint64_t>(INT32_MAX)) || (x2LastDim > static_cast<uint64_t>(UINT16_MAX)),
         VECTOR_INNER_ERR_REPORT_TILING(

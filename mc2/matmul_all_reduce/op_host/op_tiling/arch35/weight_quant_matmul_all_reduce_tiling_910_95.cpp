@@ -492,6 +492,16 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::CheckInput()
         "unsupported types include DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, and DT_HIFLOAT8.",
         ge::TypeUtils::DataTypeToSerialString(x2Type).c_str()),
         return ge::GRAPH_FAILED);
+    
+    // pertensor场景下不支持fp8和hif8,增加校验
+    OP_TILING_CHECK(
+        (antiQuantType_ == AntiQuantType::PER_TENSOR) &&
+        ((x2Type == ge::DT_FLOAT8_E5M2) || (x2Type == ge::DT_FLOAT8_E4M3FN) || (x2Type == ge::DT_HIFLOAT8)),
+        VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(),
+        "x2 data type %s is not supported in per-tensor scenario, "
+        "unsupported types include DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, and DT_HIFLOAT8.",
+        ge::TypeUtils::DataTypeToSerialString(x2Type).c_str()),
+        return ge::GRAPH_FAILED);
         
     return CheckAxisSize();
 }
