@@ -142,6 +142,19 @@ static aclnnStatus InputFormatCheck(const aclTensor *prevAttnOut, const aclTenso
     return ACLNN_SUCCESS;
 }
 
+static bool CheckNullTensor(const Shape checkShape)
+{
+    size_t shapeSize = checkShape.GetDimNum();
+    for (size_t dimIndex = 0; dimIndex < shapeSize; ++dimIndex) {
+        if (checkShape.GetDim(dimIndex) == 0) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Input tensor shape dim(%ld) is 0, the shape is not supported.",
+                    dimIndex);
+            return false;
+        }
+    }
+    return true;
+}
+
 static aclnnStatus AnalysisAxis(const aclTensor *prevAttnOut, const aclTensor *prevSoftmaxMax, const aclTensor *prevSoftmaxSum,
                                 const aclTensor *curAttnOut, const aclTensor *curSoftmaxMax, const aclTensor *curSoftmaxSum,
                                 const char *inputLayout)
@@ -153,6 +166,13 @@ static aclnnStatus AnalysisAxis(const aclTensor *prevAttnOut, const aclTensor *p
     Shape cMaxShape = curSoftmaxMax->GetViewShape();
     Shape cSumShape = curSoftmaxSum->GetViewShape();
     std::string inputLayoutStr = op::ToString(inputLayout).GetString();
+
+    CHECK_RET(CheckNullTensor(paShape), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNullTensor(pMaxShape), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNullTensor(pSumShape), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNullTensor(caShape), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNullTensor(cMaxShape), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNullTensor(cSumShape), ACLNN_ERR_PARAM_INVALID);
 
     if (paShape.GetDimNum() != DIM_NUM_3 || caShape.GetDimNum() != DIM_NUM_3) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of prevAttnOut(%ld) or curAttnOut(%ld) is not supported.",

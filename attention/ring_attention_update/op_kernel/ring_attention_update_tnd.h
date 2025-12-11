@@ -124,17 +124,18 @@ public:
     softmaxGmOffsetLoop = dimTIndexCore * headNum * softmaxTailSize;
     attnGmOffsetLoop = dimTIndexCore * headNum * headDim;
     softmaxGmStride = 0;
+    softmaxBlockCount = 1;
 
     for (int64_t seqNumLoopIndex = 0; seqNumLoopIndex < dimTCore; seqNumLoopIndex++) {
       softmaxGmOffset = softmaxGmOffsetLoop + seqNumLoopIndex * headNum * softmaxTailSize;
       attnGmOffset = attnGmOffsetLoop + seqNumLoopIndex * headNum * headDim;
 
       for (int64_t headNumLoopIndex = 0; headNumLoopIndex < headNumLoopTimes; headNumLoopIndex++) {
-        softmaxBlockCount = headNumLoopEach;
+        softmaxBlockLen = headNumLoopEach * softmaxTailSize * floatDataSize;
         attnBlockLen = headNumLoopEach * headDim * inputDataSize;
 
         if (headNumLoopIndex != 0 && headNumLoopIndex == headNumLoopTimes - 1) {
-          softmaxBlockCount = headNumLoopTail;
+          softmaxBlockLen = headNumLoopTail * softmaxTailSize * floatDataSize;
           attnBlockLen = headNumLoopTail * headDim * inputDataSize;
         }
 
