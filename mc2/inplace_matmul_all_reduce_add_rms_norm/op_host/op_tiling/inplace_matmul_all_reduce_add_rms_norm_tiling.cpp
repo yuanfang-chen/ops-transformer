@@ -39,6 +39,6 @@ IMPL_OP_OPTILING(InplaceMatmulAllReduceAddRmsNorm)
     .TilingParse<DefaultCompileInfo>(DefaultTilingParseFunc);
 
 using InplaceMatmulAllReduceAddRmsNormTiling = MatmulAllReduceAddRmsNormTiling;
-REGISTER_OPS_TILING_TEMPLATE(IMRN, InplaceMatmulAllReduceAddRmsNormTiling, 2);
+REGISTER_OPS_TILING_TEMPLATE(InplaceMatmulAllReduceAddRmsNorm, InplaceMatmulAllReduceAddRmsNormTiling, 2);
 } // namespace optiling
 #endif // _INPLACE_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_CC_

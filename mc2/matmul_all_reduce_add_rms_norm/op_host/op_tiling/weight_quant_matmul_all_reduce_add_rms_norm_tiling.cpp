@@ -178,6 +178,6 @@ uint64_t WeightQuantMatmulAllReduceAddRmsNormTiling::GetTilingKey() const
         tilingOutAddRmsNormTile_.tilingKey, tilingOutAddRmsNormTail_.tilingKey);
     return my_key;
 }
-REGISTER_OPS_TILING_TEMPLATE(MRN, WeightQuantMatmulAllReduceAddRmsNormTiling, 1);
+REGISTER_OPS_TILING_TEMPLATE(MatmulAllReduceAddRmsNorm, WeightQuantMatmulAllReduceAddRmsNormTiling, 1);
 } // namespace optiling
 #endif // _WEIGHT_QUANT_MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_CC_
