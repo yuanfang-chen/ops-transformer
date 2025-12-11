@@ -32,6 +32,7 @@ using namespace Mc2Tiling;
 #include "lib/matmul_intf.h"
 #include "kernel_operator.h"
 #include "matmul_reduce_scatter_aiv_mode.h"
+#include "matmul_reduce_scatter_aiv_mode_smallM.h"
 #include "matmul_reduce_scatter_v2_aiv_mode_tiling.h"
 using namespace matmulReduceScatterV2_aivmode_tiling;
 #endif
@@ -39,65 +40,65 @@ using namespace matmulReduceScatterV2_aivmode_tiling;
 using namespace AscendC;
 using namespace MatmulReduceScatterV2Impl;
 
-#define INVOKE_MMREDUCESCATTER_FP16_BF16_OP_IMPL(templateClass)                             \
-    do {                                                                                    \
-        using AType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, A_DTYPE, false>;   \
-        using CType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, C_DTYPE>;          \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::MatmulReduceScatterV2TilingData);                           \
-        auto tiling = (__gm__ Mc2Tiling::MatmulReduceScatterV2TilingData*)tilingGM;                                   \
-        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                      \
-        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                         \
-        templateClass<AType, BType, BiasType, CType> op;                                    \
+#define INVOKE_MMREDUCESCATTER_FP16_BF16_OP_IMPL(templateClass)                                                        \
+    do {                                                                                                               \
+        using AType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, A_DTYPE, false>;                              \
+        using CType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, C_DTYPE>;                                     \
+        REGISTER_TILING_DEFAULT(Mc2Tiling::MatmulReduceScatterV2TilingData);                                           \
+        auto tiling = (__gm__ Mc2Tiling::MatmulReduceScatterV2TilingData*)tilingGM;                                    \
+        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                         \
+        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                             \
+        templateClass<AType, BType, BiasType, CType> op;                                                               \
         op.Init(aGM, bGM, biasGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData, mc2InitTiling, mc2CcTiling, &pipe); \
-        op.Process();                                                                       \
+        op.Process();                                                                                                  \
     } while (0)
 
 #define INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(templateClass, ...)                                              \
     do {                                                                                                             \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                                          \
-        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                                   \
-        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                      \
-        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                         \
+        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                               \
+        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                        \
+        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                       \
+        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                           \
         if (tilingData.msg.debugMode != static_cast<uint8_t>(MC2_DEBUG_ONLY_AICPU)) {                                \
             using mmClass = MatMulASWKernel<DTYPE_X1, DTYPE_X2, float, DTYPE_BIAS, DTYPE_Y, CubeFormat::ND,          \
                                             CubeFormat::ND, CubeFormat::ND, __VA_ARGS__>;                            \
-            templateClass<DTYPE_X1, DTYPE_X2, DTYPE_Y, float, \
-                          mmClass, false, __VA_ARGS__> op;                                                   \
+            templateClass<DTYPE_X1, DTYPE_X2, DTYPE_Y, float,                                                        \
+                          mmClass, false, __VA_ARGS__> op;                                                           \
             op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,         \
-                    mc2InitTiling, mc2CcTiling, &pipe);                                                             \
+                    mc2InitTiling, mc2CcTiling, &pipe);                                                              \
             op.Process();                                                                                            \
         }                                                                                                            \
     } while (0)
 
 #define INVOKE_QUANT_BATCHMM_PERTENSOR_MXFP8_REDUCE_SCATTER_OP_IMPL(templateClass, ...)                              \
     do {                                                                                                             \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                                         \
-        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                                   \
-        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                      \
-        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                         \
+        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                               \
+        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                        \
+        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                       \
+        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                           \
         if (tilingData.msg.debugMode != static_cast<uint8_t>(MC2_DEBUG_ONLY_AICPU)) {                                \
             using mmClass = MatMulASWKernel<DTYPE_X1, DTYPE_X2, fp8_e8m0_t, DTYPE_BIAS, DTYPE_Y, CubeFormat::ND,     \
                                             CubeFormat::ND, CubeFormat::ND, __VA_ARGS__>;                            \
             templateClass<DTYPE_X1, DTYPE_X2, DTYPE_Y, fp8_e8m0_t, mmClass, false, __VA_ARGS__> op;                  \
-            op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,          \
-                    mc2InitTiling, mc2CcTiling, &pipe);                                                             \
+            op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,         \
+                    mc2InitTiling, mc2CcTiling, &pipe);                                                              \
             op.Process();                                                                                            \
         }                                                                                                            \
     } while (0)
 
 #define INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(templateClass, ...)                                      \
     do {                                                                                                              \
-        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                                           \
-        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                                   \
-        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                      \
-        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                         \
-        if (tilingData.msg.debugMode != static_cast<uint8_t>(MC2_DEBUG_ONLY_AICPU)) {                                 \           
+        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                                \
+        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                         \
+        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                        \
+        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                            \
+        if (tilingData.msg.debugMode != static_cast<uint8_t>(MC2_DEBUG_ONLY_AICPU)) {                                 \
             using mmClass =                                                                                           \
-                Mc2QuantBatchMatmulV3::MatMulPerBlockASW<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y,                        \
-                                                         CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, __VA_ARGS__>;   \
+                Mc2QuantBatchMatmulV3::MatMulPerBlockASW<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y,                     \
+                                                         CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, __VA_ARGS__>;\
             templateClass<DTYPE_X1, DTYPE_X2, DTYPE_Y, float, mmClass, true, __VA_ARGS__> op;                         \
-            op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,           \
-                    mc2InitTiling, mc2CcTiling, &pipe);                                                             \
+            op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,          \
+                    mc2InitTiling, mc2CcTiling, &pipe);                                                               \
             op.Process();                                                                                             \
         }                                                                                                             \
     } while (0)
@@ -165,22 +166,26 @@ __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM
 #else
 //aiv算子模板
 
-    #define INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(templateClass, ...)                                              \
+    #define INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(templateClass, ...)                                         \
         do {                                                                                                    \
             GET_TILING_DATA_WITH_STRUCT(MatmulReduceScatterV2AivModeTilingData, tilingData, tilingGM);          \
-            templateClass<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X2_SCALE, DTYPE_Y, __VA_ARGS__> op;                             \
+            templateClass<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X2_SCALE, DTYPE_Y, __VA_ARGS__> op;             \
             op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, workspaceGM, tilingGM);                        \
             op.Process();                                                                                       \
         } while (0)
 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     REGISTER_TILING_DEFAULT(MatmulReduceScatterV2AivModeTilingData);
-    if constexpr (!TPL_IS_TRANSPOSE_B) {
+    if constexpr (!TPL_IS_SMALLM && !TPL_IS_TRANSPOSE_B) {
         //aivMode，非transB
-        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, false);
-    } else if constexpr (TPL_IS_TRANSPOSE_B) {
+        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, false, void);
+    } else if constexpr (!TPL_IS_SMALLM && TPL_IS_TRANSPOSE_B) {
         //aivMode，transB
-        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, true);
+        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, true, void);
+    } else if constexpr (TPL_IS_SMALLM && !TPL_IS_TRANSPOSE_B) {
+        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivModeSmallM, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, false);
+    } else if constexpr (TPL_IS_SMALLM && TPL_IS_TRANSPOSE_B) {
+        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivModeSmallM, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, true);
     }
 #endif
 }
