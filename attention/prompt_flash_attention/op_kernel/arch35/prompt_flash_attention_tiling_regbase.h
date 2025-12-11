@@ -24,194 +24,194 @@ class TCubeTiling {
 public:
     int usedCoreNum = 0;
     int get_usedCoreNum() const { return this->usedCoreNum; }
-    void set_usedCoreNum(int usedCoreNum) { this->usedCoreNum = usedCoreNum; }
+    void set_usedCoreNum(int usedCoreNumParam) { this->usedCoreNum = usedCoreNumParam; }
 
     int M = 0;
     int get_M() const { return this->M; }
-    void set_M(int M) { this->M = M; }
+    void set_M(int MParam) { this->M = MParam; }
 
     int N = 0;
     int get_N() const { return this->N; }
-    void set_N(int N) { this->N = N; }
+    void set_N(int NParam) { this->N = NParam; }
 
     int Ka = 0;
     int get_Ka() const { return this->Ka; }
-    void set_Ka(int Ka) { this->Ka = Ka; }
+    void set_Ka(int KaParam) { this->Ka = KaParam; }
 
     int Kb = 0;
     int get_Kb() const { return this->Kb; }
-    void set_Kb(int Kb) { this->Kb = Kb; }
+    void set_Kb(int KbParam) { this->Kb = KbParam; }
 
     int singleCoreM = 0;
     int get_singleCoreM() const { return this->singleCoreM; }
-    void set_singleCoreM(int singleCoreM) { this->singleCoreM = singleCoreM; }
+    void set_singleCoreM(int singleCoreMParam) { this->singleCoreM = singleCoreMParam; }
 
     int singleCoreN = 0;
     int get_singleCoreN() const { return this->singleCoreN; }
-    void set_singleCoreN(int singleCoreN) { this->singleCoreN = singleCoreN; }
+    void set_singleCoreN(int singleCoreNParam) { this->singleCoreN = singleCoreNParam; }
 
     int singleCoreK = 0;
     int get_singleCoreK() const { return this->singleCoreK; }
-    void set_singleCoreK(int singleCoreK) { this->singleCoreK = singleCoreK; }
+    void set_singleCoreK(int singleCoreKParam) { this->singleCoreK = singleCoreKParam; }
 
     int baseM = 0;
     int get_baseM() const { return this->baseM; }
-    void set_baseM(int baseM) { this->baseM = baseM; }
+    void set_baseM(int baseMParam) { this->baseM = baseMParam; }
 
     int baseN = 0;
     int get_baseN() const { return this->baseN; }
-    void set_baseN(int baseN) { this->baseN = baseN; }
+    void set_baseN(int baseNParam) { this->baseN = baseNParam; }
 
     int baseK = 0;
     int get_baseK() const { return this->baseK; }
-    void set_baseK(int baseK) { this->baseK = baseK; }
+    void set_baseK(int baseKParam) { this->baseK = baseKParam; }
 
     int depthA1 = 0;
     int get_depthA1() const { return this->depthA1; }
-    void set_depthA1(int depthA1) { this->depthA1 = depthA1; }
+    void set_depthA1(int depthA1Param) { this->depthA1 = depthA1Param; }
 
     int depthB1 = 0;
     int get_depthB1() const { return this->depthB1; }
-    void set_depthB1(int depthB1) { this->depthB1 = depthB1; }
+    void set_depthB1(int depthB1Param) { this->depthB1 = depthB1Param; }
 
     int stepM = 0;
     int get_stepM() const { return this->stepM; }
-    void set_stepM(int stepM) { this->stepM = stepM; }
+    void set_stepM(int stepMParam) { this->stepM = stepMParam; }
 
     int stepN = 0;
     int get_stepN() const { return this->stepN; }
-    void set_stepN(int stepN) { this->stepN = stepN; }
+    void set_stepN(int stepNParam) { this->stepN = stepNParam; }
 
     int stepKa = 0;
     int get_stepKa() const { return this->stepKa; }
-    void set_stepKa(int stepKa) { this->stepKa = stepKa; }
+    void set_stepKa(int stepKaParam) { this->stepKa = stepKaParam; }
 
     int stepKb = 0;
     int get_stepKb() const { return this->stepKb; }
-    void set_stepKb(int stepKb) { this->stepKb = stepKb; }
+    void set_stepKb(int stepKbParam) { this->stepKb = stepKbParam; }
 
     int isBias = 0;
     int get_isBias() const { return this->isBias; }
-    void set_isBias(int isBias) { this->isBias = isBias; }
+    void set_isBias(int isBiasParam) { this->isBias = isBiasParam; }
 
     int transLength = 0;
     int get_transLength() const { return this->transLength; }
-    void set_transLength(int transLength) { this->transLength = transLength; }
+    void set_transLength(int transLengthParam) { this->transLength = transLengthParam; }
 
     int iterateOrder = 0;
     int get_iterateOrder() const { return this->iterateOrder; }
-    void set_iterateOrder(int iterateOrder) { this->iterateOrder = iterateOrder; }
+    void set_iterateOrder(int iterateOrderParam) { this->iterateOrder = iterateOrderParam; }
 
     int dbL0A = 0;
     int get_dbL0A() const { return this->dbL0A; }
-    void set_dbL0A(int dbL0A) { this->dbL0A = dbL0A; }
+    void set_dbL0A(int dbL0AParam) { this->dbL0A = dbL0AParam; }
 
     int dbL0B = 0;
     int get_dbL0B() const { return this->dbL0B; }
-    void set_dbL0B(int dbL0B) { this->dbL0B = dbL0B; }
+    void set_dbL0B(int dbL0BParam) { this->dbL0B = dbL0BParam; }
 
     int dbL0C = 0;
     int get_dbL0C() const { return this->dbL0C; }
-    void set_dbL0C(int dbL0C) { this->dbL0C = dbL0C; }
+    void set_dbL0C(int dbL0CParam) { this->dbL0C = dbL0CParam; }
 
     int shareMode = 0;
     int get_shareMode() const { return this->shareMode; }
-    void set_shareMode(int shareMode) { this->shareMode = shareMode; }
+    void set_shareMode(int shareModeParam) { this->shareMode = shareModeParam; }
 
     int shareL1Size = 0;
     int get_shareL1Size() const { return this->shareL1Size; }
-    void set_shareL1Size(int shareL1Size) { this->shareL1Size = shareL1Size; }
+    void set_shareL1Size(int shareL1SizeParam) { this->shareL1Size = shareL1SizeParam; }
 
     int shareL0CSize = 0;
     int get_shareL0CSize() const { return this->shareL0CSize; }
-    void set_shareL0CSize(int shareL0CSize) { this->shareL0CSize = shareL0CSize; }
+    void set_shareL0CSize(int shareL0CSizeParam) { this->shareL0CSize = shareL0CSizeParam; }
 
     int shareUbSize = 0;
     int get_shareUbSize() const { return this->shareUbSize; }
-    void set_shareUbSize(int shareUbSize) { this->shareUbSize = shareUbSize; }
+    void set_shareUbSize(int shareUbSizeParam) { this->shareUbSize = shareUbSizeParam; }
 
     int batchM = 0;
     int get_batchM() const { return this->batchM; }
-    void set_batchM(int batchM) { this->batchM = batchM; }
+    void set_batchM(int batchMParam) { this->batchM = batchMParam; }
 
     int batchN = 0;
     int get_batchN() const { return this->batchN; }
-    void set_batchN(int batchN) { this->batchN = batchN; }
+    void set_batchN(int batchNParam) { this->batchN = batchNParam; }
 
     int singleBatchM = 0;
     int get_singleBatchM() const { return this->singleBatchM; }
-    void set_singleBatchM(int singleBatchM) { this->singleBatchM = singleBatchM; }
+    void set_singleBatchM(int singleBatchMParam) { this->singleBatchM = singleBatchMParam; }
 
     int singleBatchN = 0;
     int get_singleBatchN() const { return this->singleBatchN; }
-    void set_singleBatchN(int singleBatchN) { this->singleBatchN = singleBatchN; }
+    void set_singleBatchN(int singleBatchNParam) { this->singleBatchN = singleBatchNParam; }
 };
 
 class SoftMaxTiling {
 public:
     uint32_t srcM = 0;
     uint32_t get_srcM() const { return this->srcM; }
-    void set_srcM(uint32_t srcM) { this->srcM = srcM; }
+    void set_srcM(uint32_t srcMParam) { this->srcM = srcMParam; }
 
     uint32_t srcK = 0;
     uint32_t get_srcK() const { return this->srcK; }
-    void set_srcK(uint32_t srcK) { this->srcK = srcK; }
+    void set_srcK(uint32_t srcKParam) { this->srcK = srcKParam; }
 
     uint32_t srcSize = 0;
     uint32_t get_srcSize() const { return this->srcSize; }
-    void set_srcSize(uint32_t srcSize) { this->srcSize = srcSize; }
+    void set_srcSize(uint32_t srcSizeParam) { this->srcSize = srcSizeParam; }
 
     uint32_t outMaxM = 0;
     uint32_t get_outMaxM() const { return this->outMaxM; }
-    void set_outMaxM(uint32_t outMaxM) { this->outMaxM = outMaxM; }
+    void set_outMaxM(uint32_t outMaxMParam) { this->outMaxM = outMaxMParam; }
 
     uint32_t outMaxK = 0;
     uint32_t get_outMaxK() const { return this->outMaxK; }
-    void set_outMaxK(uint32_t outMaxK) { this->outMaxK = outMaxK; }
+    void set_outMaxK(uint32_t outMaxKParam) { this->outMaxK = outMaxKParam; }
 
     uint32_t outMaxSize = 0;
     uint32_t get_outMaxSize() const { return this->outMaxSize; }
-    void set_outMaxSize(uint32_t outMaxSize) { this->outMaxSize = outMaxSize; }
+    void set_outMaxSize(uint32_t outMaxSizeParam) { this->outMaxSize = outMaxSizeParam; }
 
     uint32_t splitM = 0;
     uint32_t get_splitM() const { return this->splitM; }
-    void set_splitM(uint32_t splitM) { this->splitM = splitM; }
+    void set_splitM(uint32_t splitMParam) { this->splitM = splitMParam; }
 
     uint32_t splitK = 0;
     uint32_t get_splitK() const { return this->splitK; }
-    void set_splitK(uint32_t splitK) { this->splitK = splitK; }
+    void set_splitK(uint32_t splitKParam) { this->splitK = splitKParam; }
 
     uint32_t splitSize = 0;
     uint32_t get_splitSize() const { return this->splitSize; }
-    void set_splitSize(uint32_t splitSize) { this->splitSize = splitSize; }
+    void set_splitSize(uint32_t splitSizeParam) { this->splitSize = splitSizeParam; }
 
     uint32_t reduceM = 0;
     uint32_t get_reduceM() const { return this->reduceM; }
-    void set_reduceM(uint32_t reduceM) { this->reduceM = reduceM; }
+    void set_reduceM(uint32_t reduceMParam) { this->reduceM = reduceMParam; }
 
     uint32_t reduceK = 0;
     uint32_t get_reduceK() const { return this->reduceK; }
-    void set_reduceK(uint32_t reduceK) { this->reduceK = reduceK; }
+    void set_reduceK(uint32_t reduceKParam) { this->reduceK = reduceKParam; }
 
     uint32_t reduceSize = 0;
     uint32_t get_reduceSize() const { return this->reduceSize; }
-    void set_reduceSize(uint32_t reduceSize) { this->reduceSize = reduceSize; }
+    void set_reduceSize(uint32_t reduceSizeParam) { this->reduceSize = reduceSizeParam; }
 
     uint32_t rangeM = 0;
     uint32_t get_rangeM() const { return this->rangeM; }
-    void set_rangeM(uint32_t rangeM) { this->rangeM = rangeM; }
+    void set_rangeM(uint32_t rangeMParam) { this->rangeM = rangeMParam; }
 
     uint32_t tailM = 0;
     uint32_t get_tailM() const { return this->tailM; }
-    void set_tailM(uint32_t tailM) { this->tailM = tailM; }
+    void set_tailM(uint32_t tailMParam) { this->tailM = tailMParam; }
 
     uint32_t tailSplitSize = 0;
     uint32_t get_tailSplitSize() const { return this->tailSplitSize; }
-    void set_tailSplitSize(uint32_t tailSplitSize) { this->tailSplitSize = tailSplitSize; }
+    void set_tailSplitSize(uint32_t tailSplitSizeParam) { this->tailSplitSize = tailSplitSizeParam; }
 
     uint32_t tailReduceSize = 0;
     uint32_t get_tailReduceSize() const { return this->tailReduceSize; }
-    void set_tailReduceSize(uint32_t tailReduceSize) { this->tailReduceSize = tailReduceSize; }
+    void set_tailReduceSize(uint32_t tailReduceSizeParam) { this->tailReduceSize = tailReduceSizeParam; }
 };
 
 }
@@ -289,251 +289,251 @@ class PromptAttentionBaseParams {
 public:
     uint32_t batchSize = 0;
     uint32_t get_batchSize() const { return this->batchSize; }
-    void set_batchSize(uint32_t batchSize) { this->batchSize = batchSize; }
+    void set_batchSize(uint32_t batchSizeParam) { this->batchSize = batchSizeParam; }
 
     uint32_t headNumSize = 0;
     uint32_t get_headNumSize() const { return this->headNumSize; }
-    void set_headNumSize(uint32_t headNumSize) { this->headNumSize = headNumSize; }
+    void set_headNumSize(uint32_t headNumSizeParam) { this->headNumSize = headNumSizeParam; }
 
     uint32_t seqSize = 0;
     uint32_t get_seqSize() const { return this->seqSize; }
-    void set_seqSize(uint32_t seqSize) { this->seqSize = seqSize; }
+    void set_seqSize(uint32_t seqSizeParam) { this->seqSize = seqSizeParam; }
 
     uint32_t headSize = 0;
     uint32_t get_headSize() const { return this->headSize; }
-    void set_headSize(uint32_t headSize) { this->headSize = headSize; }
+    void set_headSize(uint32_t headSizeParam) { this->headSize = headSizeParam; }
 
     float scaleValue = 0;
     float get_scaleValue() const { return this->scaleValue; }
-    void set_scaleValue(float scaleValue) { this->scaleValue = scaleValue; }
+    void set_scaleValue(float scaleValueParam) { this->scaleValue = scaleValueParam; }
 
     int32_t preTokens = 0;
     int32_t get_preTokens() const { return this->preTokens; }
-    void set_preTokens(int32_t preTokens) { this->preTokens = preTokens; }
+    void set_preTokens(int32_t preTokensParam) { this->preTokens = preTokensParam; }
 
     int32_t nextTokens = 0;
     int32_t get_nextTokens() const { return this->nextTokens; }
-    void set_nextTokens(int32_t nextTokens) { this->nextTokens = nextTokens; }
+    void set_nextTokens(int32_t nextTokensParam) { this->nextTokens = nextTokensParam; }
 
     int32_t blockSize = 0;
     int32_t get_blockSize() const { return this->blockSize; }
-    void set_blockSize(int32_t blockSize) { this->blockSize = blockSize; }
+    void set_blockSize(int32_t blockSizeParam) { this->blockSize = blockSizeParam; }
 
     int32_t blockTableDim2 = 0;
     int32_t get_blockTableDim2() const { return this->blockTableDim2; }
-    void set_blockTableDim2(int32_t blockTableDim2) { this->blockTableDim2 = blockTableDim2; }
+    void set_blockTableDim2(int32_t blockTableDim2Param) { this->blockTableDim2 = blockTableDim2Param; }
 
     int32_t PABlockNumSum = 0;
     int32_t get_PABlockNumSum() const { return this->PABlockNumSum; }
-    void set_PABlockNumSum(int32_t PABlockNumSum) { this->PABlockNumSum = PABlockNumSum; }
+    void set_PABlockNumSum(int32_t PABlockNumSumParam) { this->PABlockNumSum = PABlockNumSumParam; }
 
     uint32_t dimNumOfseq = 0;
     uint32_t get_dimNumOfseq() const { return this->dimNumOfseq; }
-    void set_dimNumOfseq(uint32_t dimNumOfseq) { this->dimNumOfseq = dimNumOfseq; }
+    void set_dimNumOfseq(uint32_t dimNumOfseqParam) { this->dimNumOfseq = dimNumOfseqParam; }
 
     uint32_t typeByteNum = 0;
     uint32_t get_typeByteNum() const { return this->typeByteNum; }
-    void set_typeByteNum(uint32_t typeByteNum) { this->typeByteNum = typeByteNum; }
+    void set_typeByteNum(uint32_t typeByteNumParam) { this->typeByteNum = typeByteNumParam; }
 
     uint32_t seqInnerSize = 0;
     uint32_t get_seqInnerSize() const { return this->seqInnerSize; }
-    void set_seqInnerSize(uint32_t seqInnerSize) { this->seqInnerSize = seqInnerSize; }
+    void set_seqInnerSize(uint32_t seqInnerSizeParam) { this->seqInnerSize = seqInnerSizeParam; }
 
     uint32_t prefixSeqInnerSize = 0;
     uint32_t get_prefixSeqInnerSize() const { return this->prefixSeqInnerSize; }
-    void set_prefixSeqInnerSize(uint32_t prefixSeqInnerSize) { this->prefixSeqInnerSize = prefixSeqInnerSize; }
+    void set_prefixSeqInnerSize(uint32_t prefixSeqInnerSizeParam) { this->prefixSeqInnerSize = prefixSeqInnerSizeParam; }
 
     uint32_t usePseShift = 0;
     uint32_t get_usePseShift() const { return this->usePseShift; }
-    void set_usePseShift(uint32_t usePseShift) { this->usePseShift = usePseShift; }
+    void set_usePseShift(uint32_t usePseShiftParam) { this->usePseShift = usePseShiftParam; }
 
     uint32_t useMask = 0;
     uint32_t get_useMask() const { return this->useMask; }
-    void set_useMask(uint32_t useMask) { this->useMask = useMask; }
+    void set_useMask(uint32_t useMaskParam) { this->useMask = useMaskParam; }
 
     uint32_t headNumRatio = 0;
     uint32_t get_headNumRatio() const { return this->headNumRatio; }
-    void set_headNumRatio(uint32_t headNumRatio) { this->headNumRatio = headNumRatio; }
+    void set_headNumRatio(uint32_t headNumRatioParam) { this->headNumRatio = headNumRatioParam; }
 
     uint32_t attenMaskElemType = 0;
     uint32_t get_attenMaskElemType() const { return this->attenMaskElemType; }
-    void set_attenMaskElemType(uint32_t attenMaskElemType) { this->attenMaskElemType = attenMaskElemType; }
+    void set_attenMaskElemType(uint32_t attenMaskElemTypeParam) { this->attenMaskElemType = attenMaskElemTypeParam; }
 
     uint32_t pseShiftTypeByteNum = 0;
     uint32_t get_pseShiftTypeByteNum() const { return this->pseShiftTypeByteNum; }
-    void set_pseShiftTypeByteNum(uint32_t pseShiftTypeByteNum) { this->pseShiftTypeByteNum = pseShiftTypeByteNum; }
+    void set_pseShiftTypeByteNum(uint32_t pseShiftTypeByteNumParam) { this->pseShiftTypeByteNum = pseShiftTypeByteNumParam; }
 
     uint32_t pseMaskMaxSize = 0;
     uint32_t get_pseMaskMaxSize() const { return this->pseMaskMaxSize; }
-    void set_pseMaskMaxSize(uint32_t pseMaskMaxSize) { this->pseMaskMaxSize = pseMaskMaxSize; }
+    void set_pseMaskMaxSize(uint32_t pseMaskMaxSizeParam) { this->pseMaskMaxSize = pseMaskMaxSizeParam; }
 
     uint32_t maskTypeByteNum = 0;
     uint32_t get_maskTypeByteNum() const { return this->maskTypeByteNum; }
-    void set_maskTypeByteNum(uint32_t maskTypeByteNum) { this->maskTypeByteNum = maskTypeByteNum; }
+    void set_maskTypeByteNum(uint32_t maskTypeByteNumParam) { this->maskTypeByteNum = maskTypeByteNumParam; }
 
     uint32_t outputTypeByteNum = 0;
     uint32_t get_outputTypeByteNum() const { return this->outputTypeByteNum; }
-    void set_outputTypeByteNum(uint32_t outputTypeByteNum) { this->outputTypeByteNum = outputTypeByteNum; }
+    void set_outputTypeByteNum(uint32_t outputTypeByteNumParam) { this->outputTypeByteNum = outputTypeByteNumParam; }
 
     uint32_t softmaxTypeByteNum = 0;
     uint32_t get_softmaxTypeByteNum() const { return this->softmaxTypeByteNum; }
-    void set_softmaxTypeByteNum(uint32_t softmaxTypeByteNum) { this->softmaxTypeByteNum = softmaxTypeByteNum; }
+    void set_softmaxTypeByteNum(uint32_t softmaxTypeByteNumParam) { this->softmaxTypeByteNum = softmaxTypeByteNumParam; }
 
     uint32_t sparseMode = 0;
     uint32_t get_sparseMode() const { return this->sparseMode; }
-    void set_sparseMode(uint32_t sparseMode) { this->sparseMode = sparseMode; }
+    void set_sparseMode(uint32_t sparseModeParam) { this->sparseMode = sparseModeParam; }
 
     uint32_t alignedHeadSize = 0;
     uint32_t get_alignedHeadSize() const { return this->alignedHeadSize; }
-    void set_alignedHeadSize(uint32_t alignedHeadSize) { this->alignedHeadSize = alignedHeadSize; }
+    void set_alignedHeadSize(uint32_t alignedHeadSizeParam) { this->alignedHeadSize = alignedHeadSizeParam; }
 
     uint32_t splitS2 = 0;
     uint32_t get_splitS2() const { return this->splitS2; }
-    void set_splitS2(uint32_t splitS2) { this->splitS2 = splitS2; }
+    void set_splitS2(uint32_t splitS2Param) { this->splitS2 = splitS2Param; }
 
     uint32_t splitD = 0;
     uint32_t get_splitD() const { return this->splitD; }
-    void set_splitD(uint32_t splitD) { this->splitD = splitD; }
+    void set_splitD(uint32_t splitDParam) { this->splitD = splitDParam; }
 
     uint32_t layoutType = 0;
     uint32_t get_layoutType() const { return this->layoutType; }
-    void set_layoutType(uint32_t layoutType) { this->layoutType = layoutType; }
+    void set_layoutType(uint32_t layoutTypeParam) { this->layoutType = layoutTypeParam; }
 
     uint32_t PAlayoutType = 0;
     uint32_t get_PAlayoutType() const { return this->PAlayoutType; }
-    void set_PAlayoutType(uint32_t PAlayoutType) { this->PAlayoutType = PAlayoutType; }
+    void set_PAlayoutType(uint32_t PAlayoutTypeParam) { this->PAlayoutType = PAlayoutTypeParam; }
 
     uint32_t pseShiftS1Size = 0;
     uint32_t get_pseShiftS1Size() const { return this->pseShiftS1Size; }
-    void set_pseShiftS1Size(uint32_t pseShiftS1Size) { this->pseShiftS1Size = pseShiftS1Size; }
+    void set_pseShiftS1Size(uint32_t pseShiftS1SizeParam) { this->pseShiftS1Size = pseShiftS1SizeParam; }
 
     uint32_t pseShiftS2Size = 0;
     uint32_t get_pseShiftS2Size() const { return this->pseShiftS2Size; }
-    void set_pseShiftS2Size(uint32_t pseShiftS2Size) { this->pseShiftS2Size = pseShiftS2Size; }
+    void set_pseShiftS2Size(uint32_t pseShiftS2SizeParam) { this->pseShiftS2Size = pseShiftS2SizeParam; }
 
     uint32_t maskKVsSize = 0;
     uint32_t get_maskKVsSize() const { return this->maskKVsSize; }
-    void set_maskKVsSize(uint32_t maskKVsSize) { this->maskKVsSize = maskKVsSize; }
+    void set_maskKVsSize(uint32_t maskKVsSizeParam) { this->maskKVsSize = maskKVsSizeParam; }
 
     uint32_t maskQsSize = 0;
     uint32_t get_maskQsSize() const { return this->maskQsSize; }
-    void set_maskQsSize(uint32_t maskQsSize) { this->maskQsSize = maskQsSize; }
+    void set_maskQsSize(uint32_t maskQsSizeParam) { this->maskQsSize = maskQsSizeParam; }
 
     uint32_t isLayoutSH = 0;
     uint32_t get_isLayoutSH() const { return this->isLayoutSH; }
-    void set_isLayoutSH(uint32_t isLayoutSH) { this->isLayoutSH = isLayoutSH; }
+    void set_isLayoutSH(uint32_t isLayoutSHParam) { this->isLayoutSH = isLayoutSHParam; }
 
     uint32_t isActualSeqLengthsNull = 0;
     uint32_t get_isActualSeqLengthsNull() const { return this->isActualSeqLengthsNull; }
-    void set_isActualSeqLengthsNull(uint32_t isActualSeqLengthsNull) { this->isActualSeqLengthsNull = isActualSeqLengthsNull; }
+    void set_isActualSeqLengthsNull(uint32_t isActualSeqLengthsNullParam) { this->isActualSeqLengthsNull = isActualSeqLengthsNullParam; }
 
     uint32_t isActualSeqLengthsKVNull = 0;
     uint32_t get_isActualSeqLengthsKVNull() const { return this->isActualSeqLengthsKVNull; }
-    void set_isActualSeqLengthsKVNull(uint32_t isActualSeqLengthsKVNull) { this->isActualSeqLengthsKVNull = isActualSeqLengthsKVNull; }
+    void set_isActualSeqLengthsKVNull(uint32_t isActualSeqLengthsKVNullParam) { this->isActualSeqLengthsKVNull = isActualSeqLengthsKVNullParam; }
 
     uint32_t actualSeqLengthsSize = 0;
     uint32_t get_actualSeqLengthsSize() const { return this->actualSeqLengthsSize; }
-    void set_actualSeqLengthsSize(uint32_t actualSeqLengthsSize) { this->actualSeqLengthsSize = actualSeqLengthsSize; }
+    void set_actualSeqLengthsSize(uint32_t actualSeqLengthsSizeParam) { this->actualSeqLengthsSize = actualSeqLengthsSizeParam; }
 
     uint32_t actualSeqLengthsKVSize = 0;
     uint32_t get_actualSeqLengthsKVSize() const { return this->actualSeqLengthsKVSize; }
-    void set_actualSeqLengthsKVSize(uint32_t actualSeqLengthsKVSize) { this->actualSeqLengthsKVSize = actualSeqLengthsKVSize; }
+    void set_actualSeqLengthsKVSize(uint32_t actualSeqLengthsKVSizeParam) { this->actualSeqLengthsKVSize = actualSeqLengthsKVSizeParam; }
 
     uint32_t deqScaleFlag = 0;
     uint32_t get_deqScaleFlag() const { return this->deqScaleFlag; }
-    void set_deqScaleFlag(uint32_t deqScaleFlag) { this->deqScaleFlag = deqScaleFlag; }
+    void set_deqScaleFlag(uint32_t deqScaleFlagParam) { this->deqScaleFlag = deqScaleFlagParam; }
 
     uint32_t deqScale2Flag = 0;
     uint32_t get_deqScale2Flag() const { return this->deqScale2Flag; }
-    void set_deqScale2Flag(uint32_t deqScale2Flag) { this->deqScale2Flag = deqScale2Flag; }
+    void set_deqScale2Flag(uint32_t deqScale2FlagParam) { this->deqScale2Flag = deqScale2FlagParam; }
 
     uint32_t isAntiPerchannel = 0;
     uint32_t get_isAntiPerchannel() const { return this->isAntiPerchannel; }
-    void set_isAntiPerchannel(uint32_t isAntiPerchannel) { this->isAntiPerchannel = isAntiPerchannel; }
+    void set_isAntiPerchannel(uint32_t isAntiPerchannelParam) { this->isAntiPerchannel = isAntiPerchannelParam; }
 
     uint32_t isRowInvalid = 0;
     uint32_t get_isRowInvalid() const { return this->isRowInvalid; }
-    void set_isRowInvalid(uint32_t isRowInvalid) { this->isRowInvalid = isRowInvalid; }
+    void set_isRowInvalid(uint32_t isRowInvalidParam) { this->isRowInvalid = isRowInvalidParam; }
 
     uint32_t softmaxOuterSize = 0;
     uint32_t get_softmaxOuterSize() const { return this->softmaxOuterSize; }
-    void set_softmaxOuterSize(uint32_t softmaxOuterSize) { this->softmaxOuterSize = softmaxOuterSize; }
+    void set_softmaxOuterSize(uint32_t softmaxOuterSizeParam) { this->softmaxOuterSize = softmaxOuterSizeParam; }
 
     uint32_t isQuant2Perchannel = 0;
     uint32_t get_isQuant2Perchannel() const { return this->isQuant2Perchannel; }
-    void set_isQuant2Perchannel(uint32_t isQuant2Perchannel) { this->isQuant2Perchannel = isQuant2Perchannel; }
+    void set_isQuant2Perchannel(uint32_t isQuant2PerchannelParam) { this->isQuant2Perchannel = isQuant2PerchannelParam; }
 
     uint32_t isQuant2BF16 = 0;
     uint32_t get_isQuant2BF16() const { return this->isQuant2BF16; }
-    void set_isQuant2BF16(uint32_t isQuant2BF16) { this->isQuant2BF16 = isQuant2BF16; }
+    void set_isQuant2BF16(uint32_t isQuant2BF16Param) { this->isQuant2BF16 = isQuant2BF16Param; }
 
     uint32_t isKvContinuous = 0;
     uint32_t get_isKvContinuous() const { return this->isKvContinuous; }
-    void set_isKvContinuous(uint32_t isKvContinuous) { this->isKvContinuous = isKvContinuous; }
+    void set_isKvContinuous(uint32_t isKvContinuousParam) { this->isKvContinuous = isKvContinuousParam; }
 
     uint32_t fromFused = 0;
     uint32_t get_fromFused() const { return this->fromFused; }
-    void set_fromFused(uint32_t fromFused) { this->fromFused = fromFused; }
+    void set_fromFused(uint32_t fromFusedParam) { this->fromFused = fromFusedParam; }
 
     uint32_t isBSNDOut = 0;
     uint32_t get_isBSNDOut() const { return this->isBSNDOut; }
-    void set_isBSNDOut(uint32_t isBSNDOut) { this->isBSNDOut = isBSNDOut; }
+    void set_isBSNDOut(uint32_t isBSNDOutParam) { this->isBSNDOut = isBSNDOutParam; }
 
     uint32_t isIFA = 0;
     uint32_t get_isIFA() const { return this->isIFA; }
-    void set_isIFA(uint32_t isIFA) { this->isIFA = isIFA; }
+    void set_isIFA(uint32_t isIFAParam) { this->isIFA = isIFAParam; }
 
     uint32_t isSoftMaxLseEnable = 0;
     uint32_t get_isSoftMaxLseEnable() const { return this->isSoftMaxLseEnable; }
-    void set_isSoftMaxLseEnable(uint32_t isSoftMaxLseEnable) { this->isSoftMaxLseEnable = isSoftMaxLseEnable; }
+    void set_isSoftMaxLseEnable(uint32_t isSoftMaxLseEnableParam) { this->isSoftMaxLseEnable = isSoftMaxLseEnableParam; }
 
     uint32_t isActualSharedPrefixLenNull = 0;
     uint32_t get_isActualSharedPrefixLenNull() const { return this->isActualSharedPrefixLenNull; }
-    void set_isActualSharedPrefixLenNull(uint32_t isActualSharedPrefixLenNull) { this->isActualSharedPrefixLenNull = isActualSharedPrefixLenNull; }
+    void set_isActualSharedPrefixLenNull(uint32_t isActualSharedPrefixLenNullParam) { this->isActualSharedPrefixLenNull = isActualSharedPrefixLenNullParam; }
 
     uint32_t isQHasLeftPadding = 0;
     uint32_t get_isQHasLeftPadding() const { return this->isQHasLeftPadding; }
-    void set_isQHasLeftPadding(uint32_t isQHasLeftPadding) { this->isQHasLeftPadding = isQHasLeftPadding; }
+    void set_isQHasLeftPadding(uint32_t isQHasLeftPaddingParam) { this->isQHasLeftPadding = isQHasLeftPaddingParam; }
 
     uint32_t isKVHasLeftPadding = 0;
     uint32_t get_isKVHasLeftPadding() const { return this->isKVHasLeftPadding; }
-    void set_isKVHasLeftPadding(uint32_t isKVHasLeftPadding) { this->isKVHasLeftPadding = isKVHasLeftPadding; }
+    void set_isKVHasLeftPadding(uint32_t isKVHasLeftPaddingParam) { this->isKVHasLeftPadding = isKVHasLeftPaddingParam; }
 
     int64_t keyAntiquantMode = 0;
     int64_t get_keyAntiquantMode() const { return this->keyAntiquantMode; }
-    void set_keyAntiquantMode(int64_t keyAntiquantMode) { this->keyAntiquantMode = keyAntiquantMode; }
+    void set_keyAntiquantMode(int64_t keyAntiquantModeParam) { this->keyAntiquantMode = keyAntiquantModeParam; }
 
     int64_t valueAntiquantMode = 0;
     int64_t get_valueAntiquantMode() const { return this->valueAntiquantMode; }
-    void set_valueAntiquantMode(int64_t valueAntiquantMode) { this->valueAntiquantMode = valueAntiquantMode; }
+    void set_valueAntiquantMode(int64_t valueAntiquantModeParam) { this->valueAntiquantMode = valueAntiquantModeParam; }
 
     uint32_t hasKeyAntiquantOffset = 0;
     uint32_t get_hasKeyAntiquantOffset() const { return this->hasKeyAntiquantOffset; }
-    void set_hasKeyAntiquantOffset(uint32_t hasKeyAntiquantOffset) { this->hasKeyAntiquantOffset = hasKeyAntiquantOffset; }
+    void set_hasKeyAntiquantOffset(uint32_t hasKeyAntiquantOffsetParam) { this->hasKeyAntiquantOffset = hasKeyAntiquantOffsetParam; }
 
     uint32_t isMsd = 0;
     uint32_t get_isMsd() const { return this->isMsd; }
-    void set_isMsd(uint32_t isMsd) { this->isMsd = isMsd; }
+    void set_isMsd(uint32_t isMsdParam) { this->isMsd = isMsdParam; }
 
     uint32_t isQuant2FP16 = 0;
     uint32_t get_isQuant2FP16() const { return this->isQuant2FP16; }
-    void set_isQuant2FP16(uint32_t isQuant2FP16) { this->isQuant2FP16 = isQuant2FP16; }
+    void set_isQuant2FP16(uint32_t isQuant2FP16Param) { this->isQuant2FP16 = isQuant2FP16Param; }
 
     uint32_t ropeHeadSize = 0;
     uint32_t get_ropeHeadSize() const { return this->ropeHeadSize; }
-    void set_ropeHeadSize(uint32_t ropeHeadSize) { this->ropeHeadSize = ropeHeadSize; }
+    void set_ropeHeadSize(uint32_t ropeHeadSizeParam) { this->ropeHeadSize = ropeHeadSizeParam; }
 
     uint32_t qkHeadSize = 0;
     uint32_t get_qkHeadSize() const { return this->qkHeadSize; }
-    void set_qkHeadSize(uint32_t qkHeadSize) { this->qkHeadSize = qkHeadSize; }
+    void set_qkHeadSize(uint32_t qkHeadSizeParam) { this->qkHeadSize = qkHeadSizeParam; }
 
     uint32_t vHeadSize = 0;
     uint32_t get_vHeadSize() const { return this->vHeadSize; }
-    void set_vHeadSize(uint32_t vHeadSize) { this->vHeadSize = vHeadSize; }
+    void set_vHeadSize(uint32_t vHeadSizeParam) { this->vHeadSize = vHeadSizeParam; }
 
     uint32_t gOfMla = 0;
     uint32_t get_gOfMla() const { return this->gOfMla; }
-    void set_gOfMla(uint32_t gOfMla) { this->gOfMla = gOfMla; }
+    void set_gOfMla(uint32_t gOfMlaParam) { this->gOfMla = gOfMlaParam; }
 };
 
 class PromptAttentionSeqParams {
@@ -610,185 +610,185 @@ class PromptAttentionSingleCoreParams {
 public:
     uint32_t singleProcessSInnerSize = 0;
     uint32_t get_singleProcessSInnerSize() const { return this->singleProcessSInnerSize; }
-    void set_singleProcessSInnerSize(uint32_t singleProcessSInnerSize) { this->singleProcessSInnerSize = singleProcessSInnerSize; }
+    void set_singleProcessSInnerSize(uint32_t singleProcessSInnerSizeParam) { this->singleProcessSInnerSize = singleProcessSInnerSizeParam; }
 
     uint32_t singleProcessSOuterSize = 0;
     uint32_t get_singleProcessSOuterSize() const { return this->singleProcessSOuterSize; }
-    void set_singleProcessSOuterSize(uint32_t singleProcessSOuterSize) { this->singleProcessSOuterSize = singleProcessSOuterSize; }
+    void set_singleProcessSOuterSize(uint32_t singleProcessSOuterSizeParam) { this->singleProcessSOuterSize = singleProcessSOuterSizeParam; }
 
     uint32_t multiSmaxsInnerLoopTimes = 0;
     uint32_t get_multiSmaxsInnerLoopTimes() const { return this->multiSmaxsInnerLoopTimes; }
-    void set_multiSmaxsInnerLoopTimes(uint32_t multiSmaxsInnerLoopTimes) { this->multiSmaxsInnerLoopTimes = multiSmaxsInnerLoopTimes; }
+    void set_multiSmaxsInnerLoopTimes(uint32_t multiSmaxsInnerLoopTimesParam) { this->multiSmaxsInnerLoopTimes = multiSmaxsInnerLoopTimesParam; }
 
     uint32_t actualCoreNums = 0;
     uint32_t get_actualCoreNums() const { return this->actualCoreNums; }
-    void set_actualCoreNums(uint32_t actualCoreNums) { this->actualCoreNums = actualCoreNums; }
+    void set_actualCoreNums(uint32_t actualCoreNumsParam) { this->actualCoreNums = actualCoreNumsParam; }
 
     uint32_t pseShiftBatch = 0;
     uint32_t get_pseShiftBatch() const { return this->pseShiftBatch; }
-    void set_pseShiftBatch(uint32_t pseShiftBatch) { this->pseShiftBatch = pseShiftBatch; }
+    void set_pseShiftBatch(uint32_t pseShiftBatchParam) { this->pseShiftBatch = pseShiftBatchParam; }
 
     uint32_t attenMaskBatch = 0;
     uint32_t get_attenMaskBatch() const { return this->attenMaskBatch; }
-    void set_attenMaskBatch(uint32_t attenMaskBatch) { this->attenMaskBatch = attenMaskBatch; }
+    void set_attenMaskBatch(uint32_t attenMaskBatchParam) { this->attenMaskBatch = attenMaskBatchParam; }
 
     uint32_t kvAntiquantSInnerSize = 0;
     uint32_t get_kvAntiquantSInnerSize() const { return this->kvAntiquantSInnerSize; }
-    void set_kvAntiquantSInnerSize(uint32_t kvAntiquantSInnerSize) { this->kvAntiquantSInnerSize = kvAntiquantSInnerSize; }
+    void set_kvAntiquantSInnerSize(uint32_t kvAntiquantSInnerSizeParam) { this->kvAntiquantSInnerSize = kvAntiquantSInnerSizeParam; }
 };
 
 class PromptAttentionSingleCoreTensorSize {
 public:
     uint32_t mmResUbSize = 0;
     uint32_t get_mmResUbSize() const { return this->mmResUbSize; }
-    void set_mmResUbSize(uint32_t mmResUbSize) { this->mmResUbSize = mmResUbSize; }
+    void set_mmResUbSize(uint32_t mmResUbSizeParam) { this->mmResUbSize = mmResUbSizeParam; }
 
     uint32_t pseShiftUbSize = 0;
     uint32_t get_pseShiftUbSize() const { return this->pseShiftUbSize; }
-    void set_pseShiftUbSize(uint32_t pseShiftUbSize) { this->pseShiftUbSize = pseShiftUbSize; }
+    void set_pseShiftUbSize(uint32_t pseShiftUbSizeParam) { this->pseShiftUbSize = pseShiftUbSizeParam; }
 
     uint32_t attenMaskUbSize = 0;
     uint32_t get_attenMaskUbSize() const { return this->attenMaskUbSize; }
-    void set_attenMaskUbSize(uint32_t attenMaskUbSize) { this->attenMaskUbSize = attenMaskUbSize; }
+    void set_attenMaskUbSize(uint32_t attenMaskUbSizeParam) { this->attenMaskUbSize = attenMaskUbSizeParam; }
 
     uint32_t maskSize = 0;
     uint32_t get_maskSize() const { return this->maskSize; }
-    void set_maskSize(uint32_t maskSize) { this->maskSize = maskSize; }
+    void set_maskSize(uint32_t maskSizeParam) { this->maskSize = maskSizeParam; }
 
     uint32_t softmaxMaxSize = 0;
     uint32_t get_softmaxMaxSize() const { return this->softmaxMaxSize; }
-    void set_softmaxMaxSize(uint32_t softmaxMaxSize) { this->softmaxMaxSize = softmaxMaxSize; }
+    void set_softmaxMaxSize(uint32_t softmaxMaxSizeParam) { this->softmaxMaxSize = softmaxMaxSizeParam; }
 
     uint32_t softmaxSumSize = 0;
     uint32_t get_softmaxSumSize() const { return this->softmaxSumSize; }
-    void set_softmaxSumSize(uint32_t softmaxSumSize) { this->softmaxSumSize = softmaxSumSize; }
+    void set_softmaxSumSize(uint32_t softmaxSumSizeParam) { this->softmaxSumSize = softmaxSumSizeParam; }
 
     uint32_t softmaxExpSize = 0;
     uint32_t get_softmaxExpSize() const { return this->softmaxExpSize; }
-    void set_softmaxExpSize(uint32_t softmaxExpSize) { this->softmaxExpSize = softmaxExpSize; }
+    void set_softmaxExpSize(uint32_t softmaxExpSizeParam) { this->softmaxExpSize = softmaxExpSizeParam; }
 
     uint32_t softmaxValueSize = 0;
     uint32_t get_softmaxValueSize() const { return this->softmaxValueSize; }
-    void set_softmaxValueSize(uint32_t softmaxValueSize) { this->softmaxValueSize = softmaxValueSize; }
+    void set_softmaxValueSize(uint32_t softmaxValueSizeParam) { this->softmaxValueSize = softmaxValueSizeParam; }
 
     uint32_t spmTmpSize = 0;
     uint32_t get_spmTmpSize() const { return this->spmTmpSize; }
-    void set_spmTmpSize(uint32_t spmTmpSize) { this->spmTmpSize = spmTmpSize; }
+    void set_spmTmpSize(uint32_t spmTmpSizeParam) { this->spmTmpSize = spmTmpSizeParam; }
 
     uint32_t scmTmpSize = 0;
     uint32_t get_scmTmpSize() const { return this->scmTmpSize; }
-    void set_scmTmpSize(uint32_t scmTmpSize) { this->scmTmpSize = scmTmpSize; }
+    void set_scmTmpSize(uint32_t scmTmpSizeParam) { this->scmTmpSize = scmTmpSizeParam; }
 
     uint32_t bmm2ResUbSize = 0;
     uint32_t get_bmm2ResUbSize() const { return this->bmm2ResUbSize; }
-    void set_bmm2ResUbSize(uint32_t bmm2ResUbSize) { this->bmm2ResUbSize = bmm2ResUbSize; }
+    void set_bmm2ResUbSize(uint32_t bmm2ResUbSizeParam) { this->bmm2ResUbSize = bmm2ResUbSizeParam; }
 
     uint32_t tmpMMResBmm2PreUbSize = 0;
     uint32_t get_tmpMMResBmm2PreUbSize() const { return this->tmpMMResBmm2PreUbSize; }
-    void set_tmpMMResBmm2PreUbSize(uint32_t tmpMMResBmm2PreUbSize) { this->tmpMMResBmm2PreUbSize = tmpMMResBmm2PreUbSize; }
+    void set_tmpMMResBmm2PreUbSize(uint32_t tmpMMResBmm2PreUbSizeParam) { this->tmpMMResBmm2PreUbSize = tmpMMResBmm2PreUbSizeParam; }
 
     uint32_t tmpSoftmaxBmm2UbSize = 0;
     uint32_t get_tmpSoftmaxBmm2UbSize() const { return this->tmpSoftmaxBmm2UbSize; }
-    void set_tmpSoftmaxBmm2UbSize(uint32_t tmpSoftmaxBmm2UbSize) { this->tmpSoftmaxBmm2UbSize = tmpSoftmaxBmm2UbSize; }
+    void set_tmpSoftmaxBmm2UbSize(uint32_t tmpSoftmaxBmm2UbSizeParam) { this->tmpSoftmaxBmm2UbSize = tmpSoftmaxBmm2UbSizeParam; }
 
     uint32_t selectSpaceUbSize = 0;
     uint32_t get_selectSpaceUbSize() const { return this->selectSpaceUbSize; }
-    void set_selectSpaceUbSize(uint32_t selectSpaceUbSize) { this->selectSpaceUbSize = selectSpaceUbSize; }
+    void set_selectSpaceUbSize(uint32_t selectSpaceUbSizeParam) { this->selectSpaceUbSize = selectSpaceUbSizeParam; }
 
     uint32_t tmpSoftMaxV2Size = 0;
     uint32_t get_tmpSoftMaxV2Size() const { return this->tmpSoftMaxV2Size; }
-    void set_tmpSoftMaxV2Size(uint32_t tmpSoftMaxV2Size) { this->tmpSoftMaxV2Size = tmpSoftMaxV2Size; }
+    void set_tmpSoftMaxV2Size(uint32_t tmpSoftMaxV2SizeParam) { this->tmpSoftMaxV2Size = tmpSoftMaxV2SizeParam; }
 
     uint32_t mm1TmpUbSize = 0;
     uint32_t get_mm1TmpUbSize() const { return this->mm1TmpUbSize; }
-    void set_mm1TmpUbSize(uint32_t mm1TmpUbSize) { this->mm1TmpUbSize = mm1TmpUbSize; }
+    void set_mm1TmpUbSize(uint32_t mm1TmpUbSizeParam) { this->mm1TmpUbSize = mm1TmpUbSizeParam; }
 
     uint32_t mm2TmpUbSize = 0;
     uint32_t get_mm2TmpUbSize() const { return this->mm2TmpUbSize; }
-    void set_mm2TmpUbSize(uint32_t mm2TmpUbSize) { this->mm2TmpUbSize = mm2TmpUbSize; }
+    void set_mm2TmpUbSize(uint32_t mm2TmpUbSizeParam) { this->mm2TmpUbSize = mm2TmpUbSizeParam; }
 
     uint32_t kvAntiquantUbSize = 0;
     uint32_t get_kvAntiquantUbSize() const { return this->kvAntiquantUbSize; }
-    void set_kvAntiquantUbSize(uint32_t kvAntiquantUbSize) { this->kvAntiquantUbSize = kvAntiquantUbSize; }
+    void set_kvAntiquantUbSize(uint32_t kvAntiquantUbSizeParam) { this->kvAntiquantUbSize = kvAntiquantUbSizeParam; }
 
     uint32_t bmm2ResUbMsdSize = 0;
     uint32_t get_bmm2ResUbMsdSize() const { return this->bmm2ResUbMsdSize; }
-    void set_bmm2ResUbMsdSize(uint32_t bmm2ResUbMsdSize) { this->bmm2ResUbMsdSize = bmm2ResUbMsdSize; }
+    void set_bmm2ResUbMsdSize(uint32_t bmm2ResUbMsdSizeParam) { this->bmm2ResUbMsdSize = bmm2ResUbMsdSizeParam; }
 
     uint32_t tempBmm2QueueMsdSize = 0;
     uint32_t get_tempBmm2QueueMsdSize() const { return this->tempBmm2QueueMsdSize; }
-    void set_tempBmm2QueueMsdSize(uint32_t tempBmm2QueueMsdSize) { this->tempBmm2QueueMsdSize = tempBmm2QueueMsdSize; }
+    void set_tempBmm2QueueMsdSize(uint32_t tempBmm2QueueMsdSizeParam) { this->tempBmm2QueueMsdSize = tempBmm2QueueMsdSizeParam; }
 
     uint32_t msdInQueueSize = 0;
     uint32_t get_msdInQueueSize() const { return this->msdInQueueSize; }
-    void set_msdInQueueSize(uint32_t msdInQueueSize) { this->msdInQueueSize = msdInQueueSize; }
+    void set_msdInQueueSize(uint32_t msdInQueueSizeParam) { this->msdInQueueSize = msdInQueueSizeParam; }
 
     uint32_t msdQRowSumBuffSize = 0;
     uint32_t get_msdQRowSumBuffSize() const { return this->msdQRowSumBuffSize; }
-    void set_msdQRowSumBuffSize(uint32_t msdQRowSumBuffSize) { this->msdQRowSumBuffSize = msdQRowSumBuffSize; }
+    void set_msdQRowSumBuffSize(uint32_t msdQRowSumBuffSizeParam) { this->msdQRowSumBuffSize = msdQRowSumBuffSizeParam; }
 
     uint32_t msdAMaxTmpBuffSize = 0;
     uint32_t get_msdAMaxTmpBuffSize() const { return this->msdAMaxTmpBuffSize; }
-    void set_msdAMaxTmpBuffSize(uint32_t msdAMaxTmpBuffSize) { this->msdAMaxTmpBuffSize = msdAMaxTmpBuffSize; }
+    void set_msdAMaxTmpBuffSize(uint32_t msdAMaxTmpBuffSizeParam) { this->msdAMaxTmpBuffSize = msdAMaxTmpBuffSizeParam; }
 
     uint32_t msdAMaxResBuffSize = 0;
     uint32_t get_msdAMaxResBuffSize() const { return this->msdAMaxResBuffSize; }
-    void set_msdAMaxResBuffSize(uint32_t msdAMaxResBuffSize) { this->msdAMaxResBuffSize = msdAMaxResBuffSize; }
+    void set_msdAMaxResBuffSize(uint32_t msdAMaxResBuffSizeParam) { this->msdAMaxResBuffSize = msdAMaxResBuffSizeParam; }
 
     uint32_t msdSoftmaxResAmaxBuffSize = 0;
     uint32_t get_msdSoftmaxResAmaxBuffSize() const { return this->msdSoftmaxResAmaxBuffSize; }
-    void set_msdSoftmaxResAmaxBuffSize(uint32_t msdSoftmaxResAmaxBuffSize) { this->msdSoftmaxResAmaxBuffSize = msdSoftmaxResAmaxBuffSize; }
+    void set_msdSoftmaxResAmaxBuffSize(uint32_t msdSoftmaxResAmaxBuffSizeParam) { this->msdSoftmaxResAmaxBuffSize = msdSoftmaxResAmaxBuffSizeParam; }
 
     uint32_t msdSoftmaxRowSumScaleBuffSize = 0;
     uint32_t get_msdSoftmaxRowSumScaleBuffSize() const { return this->msdSoftmaxRowSumScaleBuffSize; }
-    void set_msdSoftmaxRowSumScaleBuffSize(uint32_t msdSoftmaxRowSumScaleBuffSize) { this->msdSoftmaxRowSumScaleBuffSize = msdSoftmaxRowSumScaleBuffSize; }
+    void set_msdSoftmaxRowSumScaleBuffSize(uint32_t msdSoftmaxRowSumScaleBuffSizeParam) { this->msdSoftmaxRowSumScaleBuffSize = msdSoftmaxRowSumScaleBuffSizeParam; }
 
     uint32_t msdScaleBuffSize = 0;
     uint32_t get_msdScaleBuffSize() const { return this->msdScaleBuffSize; }
-    void set_msdScaleBuffSize(uint32_t msdScaleBuffSize) { this->msdScaleBuffSize = msdScaleBuffSize; }
+    void set_msdScaleBuffSize(uint32_t msdScaleBuffSizeParam) { this->msdScaleBuffSize = msdScaleBuffSizeParam; }
 
     uint32_t msdOffsetBuffSize = 0;
     uint32_t get_msdOffsetBuffSize() const { return this->msdOffsetBuffSize; }
-    void set_msdOffsetBuffSize(uint32_t msdOffsetBuffSize) { this->msdOffsetBuffSize = msdOffsetBuffSize; }
+    void set_msdOffsetBuffSize(uint32_t msdOffsetBuffSizeParam) { this->msdOffsetBuffSize = msdOffsetBuffSizeParam; }
 
     uint32_t msdTmpMm1BuffSize = 0;
     uint32_t get_msdTmpMm1BuffSize() const { return this->msdTmpMm1BuffSize; }
-    void set_msdTmpMm1BuffSize(uint32_t msdTmpMm1BuffSize) { this->msdTmpMm1BuffSize = msdTmpMm1BuffSize; }
+    void set_msdTmpMm1BuffSize(uint32_t msdTmpMm1BuffSizeParam) { this->msdTmpMm1BuffSize = msdTmpMm1BuffSizeParam; }
 
     uint32_t msdTmpMm2BuffSize = 0;
     uint32_t get_msdTmpMm2BuffSize() const { return this->msdTmpMm2BuffSize; }
-    void set_msdTmpMm2BuffSize(uint32_t msdTmpMm2BuffSize) { this->msdTmpMm2BuffSize = msdTmpMm2BuffSize; }
+    void set_msdTmpMm2BuffSize(uint32_t msdTmpMm2BuffSizeParam) { this->msdTmpMm2BuffSize = msdTmpMm2BuffSizeParam; }
 
     uint32_t msdOutQueueSize = 0;
     uint32_t get_msdOutQueueSize() const { return this->msdOutQueueSize; }
-    void set_msdOutQueueSize(uint32_t msdOutQueueSize) { this->msdOutQueueSize = msdOutQueueSize; }
+    void set_msdOutQueueSize(uint32_t msdOutQueueSizeParam) { this->msdOutQueueSize = msdOutQueueSizeParam; }
 
     uint32_t msdComputeLines = 0;
     uint32_t get_msdComputeLines() const { return this->msdComputeLines; }
-    void set_msdComputeLines(uint32_t msdComputeLines) { this->msdComputeLines = msdComputeLines; }
+    void set_msdComputeLines(uint32_t msdComputeLinesParam) { this->msdComputeLines = msdComputeLinesParam; }
 };
 
 class PromptAttentionInitOutputParams {
 public:
     uint32_t singleCoreSize = 0;
     uint32_t get_singleCoreSize() const { return this->singleCoreSize; }
-    void set_singleCoreSize(uint32_t singleCoreSize) { this->singleCoreSize = singleCoreSize; }
+    void set_singleCoreSize(uint32_t singleCoreSizeParam) { this->singleCoreSize = singleCoreSizeParam; }
 
     int64_t totalOutputSize = 0;
     int64_t get_totalOutputSize() const { return this->totalOutputSize; }
-    void set_totalOutputSize(int64_t totalOutputSize) { this->totalOutputSize = totalOutputSize; }
+    void set_totalOutputSize(int64_t totalOutputSizeParam) { this->totalOutputSize = totalOutputSizeParam; }
 
     int64_t totalSoftMaxLseOutputSize = 0;
     int64_t get_totalSoftMaxLseOutputSize() const { return this->totalSoftMaxLseOutputSize; }
-    void set_totalSoftMaxLseOutputSize(int64_t totalSoftMaxLseOutputSize) { this->totalSoftMaxLseOutputSize = totalSoftMaxLseOutputSize; }
+    void set_totalSoftMaxLseOutputSize(int64_t totalSoftMaxLseOutputSizeParam) { this->totalSoftMaxLseOutputSize = totalSoftMaxLseOutputSizeParam; }
 
     uint32_t needInit = 0;
     uint32_t get_needInit() const { return this->needInit; }
-    void set_needInit(uint32_t needInit) { this->needInit = needInit; }
+    void set_needInit(uint32_t needInitParam) { this->needInit = needInitParam; }
 
     uint32_t isOneN = 0;
     uint32_t get_isOneN() const { return this->isOneN; }
-    void set_isOneN(uint32_t isOneN) { this->isOneN = isOneN; }
+    void set_isOneN(uint32_t isOneNParam) { this->isOneN = isOneNParam; }
 };
 
 

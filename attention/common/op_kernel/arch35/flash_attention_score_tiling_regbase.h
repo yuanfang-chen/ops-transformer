@@ -261,11 +261,11 @@ public:
     uint8_t get_isRowInvalid() const {return isRowInvalid;}
     void set_isRowInvalid(uint8_t isRowInvalidParam) {this->isRowInvalid = isRowInvalidParam;}
     uint32_t get_kvSplitPart() const {return kvSplitPart;}
-    void set_kvSplitPart(uint32_t kvSplitPart) {this->kvSplitPart = kvSplitPart;}
+    void set_kvSplitPart(uint32_t kvSplitPartParam) {this->kvSplitPart = kvSplitPartParam;}
     uint32_t get_accumOutSize() const {return accumOutSize;}
-    void set_accumOutSize(uint32_t accumOutSize) {this->accumOutSize = accumOutSize;}
+    void set_accumOutSize(uint32_t accumOutSizeParam) {this->accumOutSize = accumOutSizeParam;}
     uint32_t get_logSumExpSize() const {return logSumExpSize;}
-    void set_logSumExpSize(uint32_t logSumExpSize) {this->logSumExpSize = logSumExpSize;}
+    void set_logSumExpSize(uint32_t logSumExpSizeParam) {this->logSumExpSize = logSumExpSizeParam;}
     uint8_t get_isPostQuantPerChnl() const {return isPostQuantPerChnl;}
     void set_isPostQuantPerChnl(uint8_t isPostQuantPerChnlParam) {this->isPostQuantPerChnl = isPostQuantPerChnlParam;}
     uint8_t get_isPostQuantBF16() const {return isPostQuantBF16;}

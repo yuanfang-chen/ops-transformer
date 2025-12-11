@@ -265,11 +265,11 @@ public:
     uint8_t get_isPostQuantBF16() const {return isPostQuantBF16;}
     void set_isPostQuantBF16(uint8_t isPostQuantBF16Param) {this->isPostQuantBF16 = isPostQuantBF16Param;}
     uint16_t get_antiquantPerTensorFlag() const {return antiquantPerTensorFlag;}
-    void set_antiquantPerTensorFlag(uint16_t antiquantPerTensorFlag) {this->antiquantPerTensorFlag = antiquantPerTensorFlag;}
+    void set_antiquantPerTensorFlag(uint16_t antiquantPerTensorFlagParam) {this->antiquantPerTensorFlag = antiquantPerTensorFlagParam;}
     uint16_t get_antiquantPerHeadFlag() const {return antiquantPerHeadFlag;}
-    void set_antiquantPerHeadFlag(uint16_t antiquantPerHeadFlag) {this->antiquantPerHeadFlag = antiquantPerHeadFlag;}
+    void set_antiquantPerHeadFlag(uint16_t antiquantPerHeadFlagParam) {this->antiquantPerHeadFlag = antiquantPerHeadFlagParam;}
     uint32_t get_antiquantParaSeqSize() const {return antiquantParaSeqSize;}
-    void set_antiquantParaSeqSize(uint32_t antiquantParaSeqSize) {this->antiquantParaSeqSize = antiquantParaSeqSize;}
+    void set_antiquantParaSeqSize(uint32_t antiquantParaSeqSizeParam) {this->antiquantParaSeqSize = antiquantParaSeqSizeParam;}
 };
 
 class MultiCoreParamsRegbase {

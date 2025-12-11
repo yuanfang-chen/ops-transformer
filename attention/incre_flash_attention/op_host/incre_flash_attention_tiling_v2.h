@@ -250,7 +250,6 @@ private:
   ge::graphStatus CalcWorkSpace();
   ge::graphStatus CalcBlockDim() const;
   ge::graphStatus GenTilingKey();
-  uint64_t GenTilingKeyfaRun();
   uint8_t GenHeadDimProfileVal() const;
   uint8_t GenAntiquantModeVal() const;
 

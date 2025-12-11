@@ -3571,117 +3571,6 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
   return ge::GRAPH_SUCCESS;
 }
 
-uint64_t IFATilingV2::GenTilingKeyfaRun() {
-  uint8_t layoutVal = 0;
-  uint8_t inputQVal = 0;
-  uint8_t inputKvVal = 0;
-  uint8_t outputVal = 0;
-  uint8_t originVal = 0;
-  if (!isPFAFlag_) {
-    if (IsFlashDecode()) {
-      splitKVFlagLocal_ = true;
-    }
-  }
-  uint8_t splitKvVal = (splitKVFlagLocal_ == true) ? 1 : 0;
-  uint8_t paVal = pageAttentionFlag_ == true ? 1 * 2 : 0;
-  uint8_t antiquantModeVal = GenAntiquantModeVal();
-  uint8_t attenMaskVal = attenMaskFlag_ == true ? 1 : 0;
-  uint8_t pseShiftVal = pseShiftFlag_ == true ? 1 * 2 : 0;
-  uint8_t attenMaskBandVal = (sparseMode_ == SPARSE_MODE_BAND && headDim_ <= NUM64 && pseShiftFlag_ == false) ?
-                              static_cast<uint8_t>(1U * 4U) : 0U; // d64非pse且band模式下需减小基本块大小，额外增加tilingkey
-  uint8_t headDimProfileVal = GenHeadDimProfileVal();
-
-  // page attention 新模板上线后删除这里的特殊处理
-  if (pageAttentionFlag_ && sMax_ == NUM0) {
-    paVal = NUM0;
-  }
-
-  if (inputLayout_ == IfaLayout::BSH_BSND) {
-    layoutVal = NUM1;
-  } else if (inputLayout_ == IfaLayout::TND) {
-    layoutVal = NUM2;
-  } else {
-    layoutVal = NUM0;
-  }
-
-  switch (inputQType_) {
-    case ge::DT_FLOAT16:
-      inputQVal = NUM0;
-      break;
-    case ge::DT_BF16:
-      inputQVal = NUM2;
-      break;
-    case ge::DT_INT8:
-      inputQVal = NUM3;
-      break;
-    default :
-      OP_LOGE(ifaContext_->opName, "Not support inputQType[%s].", DataTypeToString(inputQType_).c_str());
-  }
-  switch (inputKvType_) {
-    case ge::DT_FLOAT16:
-      inputKvVal = NUM0;
-      break;
-    case ge::DT_BF16:
-      inputKvVal = NUM2;
-      break;
-    case ge::DT_INT8:
-      inputKvVal = NUM3;
-      break;
-      case ge::DT_INT4:
-        inputKvVal = NUM4;
-        break;
-      case ge::DT_HIFLOAT8:
-        inputKvVal = NUM5;
-        break;
-      case ge::DT_FLOAT8_E5M2:
-        inputKvVal = NUM6;
-        break;
-      case ge::DT_FLOAT8_E4M3FN:
-        inputKvVal = NUM7;
-        break;
-      case ge::DT_FLOAT4_E2M1:
-        inputKvVal = NUM8;
-        break;
-      case ge::DT_FLOAT4_E1M2:
-        inputKvVal = NUM9;
-        break;
-    default :
-      OP_LOGE(ifaContext_->opName, "Not support inputKvType[%s].", DataTypeToString(inputKvType_).c_str());
-  }
-  switch (outputType_) {
-    case ge::DT_FLOAT16:
-      outputVal = NUM0;
-      break;
-    case ge::DT_BF16:
-      outputVal = NUM2;
-      break;
-    case ge::DT_INT8:
-      outputVal = NUM3;
-      break;
-    case ge::DT_FLOAT8_E4M3FN:
-      outputVal = NUM4;
-      break;
-    case ge::DT_FLOAT8_E5M2:
-      outputVal = NUM5;
-      break;
-    case ge::DT_HIFLOAT8:
-      outputVal = NUM6;
-      break;
-    default :
-      OP_LOGE(ifaContext_->opName, "Not support outputType[%s].", DataTypeToString(outputType_).c_str());
-  }
-
-  originVal = inputQVal;
-  uint64_t baseOffset = IFA_TILINGKEYOFFSET;
-  if (socVersion_ != IfaSocVersion::SOC_ASCEND_910_95 && socVersion_ != IfaSocVersion::SOC_ASCEND_910_55) {
-    baseOffset += (static_cast<uint64_t>(perfMode_)) * IFA_PERF_MODE_TILINGKEYOFFSET;
-  }
-  uint64_t tilingKey = baseOffset + IFA_GET_TILINGKEY(layoutVal, inputQVal, inputKvVal, outputVal, originVal,
-    (paVal + splitKvVal), (pseShiftVal + attenMaskVal + attenMaskBandVal), headDimProfileVal, antiquantModeVal);
-
-  return tilingKey;
-}
-
 ge::graphStatus IFATilingV2::CalcBlockDim() const {
   auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
   auto aicNum = aicNum_;
@@ -4107,7 +3996,7 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
         emptyTensor = flashTilingV2.emptyTensor;
         PFAMask = flashTilingV2.PFAMask;
         pFAMatMulType = flashTilingV2.pFAMatMulType;
-        OP_LOGI(contextParamsForPFATiling.opName, , "All the PFATiling work is done.");
+        OP_LOGI(contextParamsForPFATiling.opName, "All the PFATiling work is done.");
         return ret;
     } else {
         IncreFlashAttentionTilingDataV2 tilingData;
