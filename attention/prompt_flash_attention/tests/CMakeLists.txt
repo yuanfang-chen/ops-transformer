@@ -36,6 +36,12 @@ set(_PFA_OpKernelPrivateIncludesExt
 )
 
 aux_source_directory(${CMAKE_SOURCE_DIR}/attention/prompt_flash_attention/op_kernel _PFA_KernelSourcesExt)
+if(NOT "${CONDITION_UNIT}" STREQUAL "ascend910_95")
+        list(REMOVE_ITEM _PFA_KernelSourcesExt ${CMAKE_SOURCE_DIR}/attention/prompt_flash_attention/op_kernel/prompt_flash_attention_apt.cpp)
+else()
+        list(REMOVE_ITEM _PFA_KernelSourcesExt ${CMAKE_SOURCE_DIR}/attention/prompt_flash_attention/op_kernel/prompt_flash_attention.cpp)
+endif()
+
 set(_PFA_CompileDefintions
         PFA_UT
 )

@@ -63,6 +63,13 @@ set(_FIA_OpKernelPrivateIncludesExt
 set(_FIA_TargetPrivateLinkLibrariesExt)
 
 aux_source_directory(${CMAKE_SOURCE_DIR}/attention/fused_infer_attention_score/op_kernel _FIA_KernelSourcesExt)
+
+if(NOT "${CONDITION_UNIT}" STREQUAL "ascend910_95")
+        list(REMOVE_ITEM _FIA_KernelSourcesExt ${CMAKE_SOURCE_DIR}/attention/fused_infer_attention_score/op_kernel/fused_infer_attention_score_apt.cpp)
+else()
+        list(REMOVE_ITEM _FIA_KernelSourcesExt ${CMAKE_SOURCE_DIR}/attention/fused_infer_attention_score/op_kernel/fused_infer_attention_score.cpp)
+endif()
+
 set(_FIA_CompileDefintions
         KernelCtrlParam incre_flash_attention,incre_flash_attention_FIAS,prompt_flash_attention,prompt_flash_attention_FIAS fia PFA_UT
 )

@@ -36,6 +36,12 @@ set(_IFA_OpKernelPrivateIncludesExt
 )
 
 aux_source_directory(${CMAKE_SOURCE_DIR}/attention/incre_flash_attention/op_kernel _IFA_KernelSourcesExt)
+if(NOT "${CONDITION_UNIT}" STREQUAL "ascend910_95")
+        list(REMOVE_ITEM _IFA_KernelSourcesExt ${CMAKE_SOURCE_DIR}/attention/incre_flash_attention/op_kernel/incre_flash_attention_apt.cpp)
+else()
+        list(REMOVE_ITEM _IFA_KernelSourcesExt ${CMAKE_SOURCE_DIR}/attention/incre_flash_attention/op_kernel/incre_flash_attention.cpp)
+endif()
+
 
 set(_IFA_KernelPrivateCompileDefinitionsExt
         KernelCtrlParam incre_flash_attention,incre_flash_attention_FIAS fp16_fp16 ORIG_DTYPE_QUERY=DT_FLOAT16 ORIG_DTYPE_ATTENTION_OUT=DT_FLOAT16

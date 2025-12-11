@@ -14,7 +14,7 @@
  */
 
 #include "kernel_operator.h"
-#include "arch32/fused_infer_attention_score_tilingkey.h"
+#include "fused_infer_attention_score_tilingkey.h"
 
 #ifdef NOT_DYNAMIC_COMPILE
 #include "../../common/op_kernel/arch32/fia_kernel_empty_tensor.h"

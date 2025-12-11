@@ -12,7 +12,7 @@
  * \file incre_flash_attention_obp.h
  * \brief
  */
-#include "./incre_flash_attention_tilingkey.h"
+#include "incre_flash_attention_tilingkey.h"
 #include "./incre_flash_attention_allvec_new.h"
 #if (__CCE_AICORE__ == 200)
 #include "./arch20/incre_flash_attention_cube_310P_kvquant.h"

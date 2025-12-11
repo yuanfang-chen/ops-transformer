@@ -15,8 +15,8 @@
 #ifndef ANTIQUANT_PROCESSOR_H
 #define ANTIQUANT_PROCESSOR_H
 
-#include "../vector_api/vf_antiquant_w4.h"
-#include "../vector_api/vf_antiquant_w8.h"
+#include "../../../../common/op_kernel/arch35/vf/vf_antiquant_w4.h"
+#include "../../../../common/op_kernel/arch35/vf/vf_antiquant_w8.h"
 
 struct AntiquantTaskParam {
     uint32_t batchSize;
