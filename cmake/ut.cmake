@@ -374,7 +374,7 @@ if(UT_TEST_ALL OR OP_KERNEL_UT)
       target_link_libraries(
         ${opName}_${socVersion}_tiling_tmp
         PRIVATE -Wl,--no-as-needed $<$<TARGET_EXISTS:opsbase>:opsbase> -Wl,--as-needed -Wl,--whole-archive tiling_api
-                -Wl,--no-whole-archive
+                -Wl,--no-whole-archive gcov
                 $<$<BOOL:${dlog_FOUND}>:$<BUILD_INTERFACE:dlog_headers>>
         )
 
