@@ -33,6 +33,8 @@
 #include "register/tilingdata_base.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "../../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_tiling.h"
+#include "../../../op_kernel/moe_distribute_dispatch_tiling_key.h"
+using namespace Mc2Tiling;
 
 namespace {
 constexpr uint32_t ATTR_GROUP_EP_INDEX = 0;
@@ -63,6 +65,16 @@ constexpr uint32_t HCCL_CMD_ALLTOALLV = 8U;
 constexpr uint32_t HCCL_VERSION = 3U;
 
 const uint64_t TILING_KEY_BASE_A5 = 1000000000000000000;
+constexpr uint32_t UNQUANT_MODE = 0U;
+constexpr uint32_t STATIC_QUANT_MODE = 1U;
+constexpr uint32_t DYNAMIC_QUANT_MODE = 2U;
+constexpr uint32_t MXFP8_E5M2_QUANT_MODE = 3U;
+constexpr uint32_t MXFP8_E4M3_QUANT_MODE = 4U;
+constexpr uint32_t FP8_E5M2_PERTOKEN_QUANT_MODE = 5U;
+constexpr uint32_t FP8_E4M3_PERTOKEN_QUANT_MODE = 6U;
+constexpr uint32_t FP8_E5M2_PERTILE_QUANT_MODE = 7U;
+constexpr uint32_t FP8_E4M3_PERTILE_QUANT_MODE = 8U;
+constexpr uint32_t HIF8_PERTENSOR_QUANT_MODE = 9U;
 constexpr uint32_t NUM_0 = 0;
 constexpr uint32_t NUM_1 = 1;
 constexpr uint32_t NUM_10 = 10;
@@ -803,10 +815,36 @@ static ge::graphStatus SetCommTiling(const gert::TilingContext *context,
 
 static ge::graphStatus GenTilingKey(gert::TilingContext *context, uint32_t realMode, bool isScales)
 {
-    uint64_t tilingKey = TILING_KEY_BASE_A5;
-    uint32_t scalesBit = (isScales ? NUM_10 : NUM_0);
-    tilingKey += static_cast<uint64_t>(scalesBit);
-    tilingKey += static_cast<uint64_t>(realMode);
+    bool tp = false; 
+    uint32_t tilingKeyQuantMode = TILINGKEY_NO_QUANT; 
+    bool scaleMode = false;  
+    uint32_t fullMesh = TILINGKEY_NO_FULLMESH;
+    uint32_t layeredMode = TILINGKEY_TPL_MTE; 
+    
+    if (realMode == STATIC_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_STATIC_QUANT;
+    } else if (realMode == DYNAMIC_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_DYNAMIC_QUANT;
+    } else if (realMode == MXFP8_E5M2_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_MXFP8_E5M2_QUANT;
+    } else if (realMode == MXFP8_E4M3_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_MXFP8_E4M3_QUANT;
+    } else if (realMode == FP8_E5M2_PERTOKEN_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_FP8_E5M2_PERTOKEN_QUANT;
+    } else if (realMode == FP8_E4M3_PERTOKEN_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_FP8_E4M3_PERTOKEN_QUANT;
+    } else if (realMode == FP8_E5M2_PERTILE_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_FP8_E5M2_PERTILE_QUANT;
+    } else if (realMode == FP8_E4M3_PERTILE_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_FP8_E4M3_PERTILE_QUANT;
+    } else if (realMode == HIF8_PERTENSOR_QUANT_MODE) {
+        tilingKeyQuantMode = TILINGKEY_HIF8_PERTENSOR_QUANT;
+    } 
+    if (isScales) {
+        scaleMode = true;
+    }
+    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode, 
+                                            fullMesh, layeredMode, TILINGKEY_TPL_A5);
     const char *nodeName = context->GetNodeName();
     // Only tpWorldSize 1 is supported currently
     OP_LOGD(nodeName, "tilingKey=%lu", tilingKey);

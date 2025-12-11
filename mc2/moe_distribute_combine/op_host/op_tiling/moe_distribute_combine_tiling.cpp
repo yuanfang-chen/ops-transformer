@@ -42,8 +42,10 @@
 #include "moe_distribute_combine_tiling_a2a3.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "mc2_hcom_topo_info.h"
+#include "../../op_kernel/moe_distribute_combine_tiling_key.h"
 
 using namespace Ops::Transformer::OpTiling;
+using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
 
@@ -273,15 +275,18 @@ static uint64_t MoeDistributeCombineA2CalcTilingKey(gert::TilingContext *context
     const char *nodeName = context->GetNodeName();
     OP_LOGI(nodeName, "Enter MoeDistributeCombineA2 calc tiling func.");
 
-    uint64_t tilingKey = TILING_KEY_BASE_A2;
+    bool tp = false;
+    uint32_t quantMode = TILINGKEY_NO_QUANT;  // A2 & A3
+    uint32_t layeredMode = TILINGKEY_TPL_MTE;  // A2
 
     if (isLayered) {
-        tilingKey = TILING_KEY_LAYERED_COMM_A2;
+        layeredMode = TILINGKEY_TPL_AICPU;
         if (commQuantMode == static_cast<CommQuantModeType>(CommQuantMode::INT8_QUANT)) {
-            tilingKey += TILING_KEY_INT8_COMM_QUANT_A2;
+            quantMode = TILINGKEY_INT8_QUANT;
         }
     }
 
+    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, quantMode, layeredMode, TILINGKEY_TPL_A2);
     OP_LOGD(K_INNER_DEBUG, "tilingKey=%lu", tilingKey);
 
     return tilingKey;
@@ -774,13 +779,16 @@ static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(gert::TilingContext 
 
     uint32_t tpWorldSize = tilingData->moeDistributeCombineInfo.tpWorldSize;
     SetHCommCfg(context, tilingData, groupEp, groupTp, tpWorldSize);
-    uint64_t tilingKey = INIT_TILINGKEY_TP_2;
-    if (tpWorldSize != MAX_TP_WORLD_SIZE) {
-        tilingKey = INIT_TILINGKEY_TP_1;
+    bool tp = false;
+    uint32_t quantMode = TILINGKEY_NO_QUANT;
+    uint32_t layeredMode = TILINGKEY_TPL_MTE;  // A2
+    if (tpWorldSize == MAX_TP_WORLD_SIZE) {
+        tp = true;
     }
     if (commQuantMode == INT8_COMM_QUANT) {
-        tilingKey += TILINGKEY_INT8_COMM_QUANT;
+        quantMode = TILINGKEY_INT8_QUANT;
     }
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(tp, quantMode, layeredMode, TILINGKEY_TPL_A3);
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
     uint32_t blockDim = 1U;

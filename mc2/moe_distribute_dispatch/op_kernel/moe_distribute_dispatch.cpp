@@ -14,22 +14,30 @@
  */
 
 #include "kernel_operator.h"
+#include "moe_distribute_dispatch_tiling_key.h"
+
 #if defined(__DAV_C310__)
 #include "arch35/moe_distribute_dispatch_arch35.h"
-using namespace MoeDistributeDispatchA5Impl;
 #else
 #include "moe_distribute_dispatch_tiling.h"
 #include "moe_distribute_dispatch_a2.h"
 #include "moe_distribute_dispatch_a2_layered.h"
 #include "moe_distribute_dispatch_a2_layered_aicpu.h"
 #include "moe_distribute_dispatch.h"
+#endif
+
+#if defined(__DAV_C310__)
+using namespace MoeDistributeDispatchA5Impl;
+#else
 using namespace MoeDistributeDispatchImpl;
 using namespace MoeDistributeDispatchA2Impl;
 #endif
 
+using namespace Mc2Tiling;
 using namespace AscendC;
 
-extern "C" __global__ __aicore__ void moe_distribute_dispatch(
+template<bool HasTp, uint8_t QuantMode, bool ScaleMode, uint8_t FullMesh, uint8_t LayeredMode, uint8_t ArchTag>
+__global__ __aicore__ void moe_distribute_dispatch( 
     GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, GM_ADDR expandXOut,
     GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut,
     GM_ADDR tpSendCountsOut, GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
@@ -39,216 +47,171 @@ extern "C" __global__ __aicore__ void moe_distribute_dispatch(
     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
 #else
     REGISTER_TILING_DEFAULT(MoeDistributeDispatchA2TilingData);
-    REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR < 2000000000", MoeDistributeDispatchTilingData);
-    REGISTER_TILING_FOR_TILINGKEY("TILING_KEY_VAR >= 2000000000", MoeDistributeDispatchA2TilingData);
+    REGISTER_TILING_FOR_TILINGKEY("ArchTag == TILINGKEY_TPL_A3", MoeDistributeDispatchTilingData);
+    REGISTER_TILING_FOR_TILINGKEY("ArchTag == TILINGKEY_TPL_A2", MoeDistributeDispatchA2TilingData);
 #endif
 
     TPipe pipe;
 
 #if defined(__DAV_C310__)
-#if (ORIG_DTYPE_EXPAND_X == DT_BF16 || ORIG_DTYPE_EXPAND_X == DT_FLOAT16)
-    if (TILING_KEY_IS(1000000000000000000)) {
+#if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
+    if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, UNQUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
         op.Process();
-    }
+    } 
 #elif ((ORIG_DTYPE_X == DT_FLOAT8_E5M2) && (ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E5M2)) ||   \
     ((ORIG_DTYPE_X == DT_FLOAT8_E4M3FN) && (ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E4M3FN)) || \
     ((ORIG_DTYPE_X == DT_HIFLOAT8) && (ORIG_DTYPE_EXPAND_X == DT_HIFLOAT8))
-    if (TILING_KEY_IS(1000000000000000010)) {
+    if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, UNQUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
         op.Process();
-    }
-#elif (ORIG_DTYPE_EXPAND_X == DT_INT8 || ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E5M2 || \
-       ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E4M3FN || ORIG_DTYPE_EXPAND_X == DT_HIFLOAT8)
-    if (TILING_KEY_IS(1000000000000000011)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, STATIC_QUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000002)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, DYNAMIC_QUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000012)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, DYNAMIC_QUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000003)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, MXFP8_E5M2_QUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000004)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, MXFP8_E4M3_QUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000005)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E5M2_PERTOKEN_QUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000015)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E5M2_PERTOKEN_QUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000006)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E4M3_PERTOKEN_QUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000016)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E4M3_PERTOKEN_QUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000007)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E5M2_PERTILE_QUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000017)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E5M2_PERTILE_QUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000008)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E4M3_PERTILE_QUANT_MODE, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000018)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E4M3_PERTILE_QUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1000000000000000019)) {
-        MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, HIF8_PERTENSOR_QUANT_MODE, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    }
+    } 
+#elif ((ORIG_DTYPE_EXPAND_X == DT_INT8) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E5M2) || \
+       (ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_EXPAND_X == DT_HIFLOAT8))
+    if constexpr (ArchTag == TILINGKEY_TPL_A5) {
+        if constexpr (QuantMode == TILINGKEY_STATIC_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, STATIC_QUANT_MODE, true, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_DYNAMIC_QUANT) {
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, DYNAMIC_QUANT_MODE, ScaleMode, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_MXFP8_E5M2_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, MXFP8_E5M2_QUANT_MODE, false, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut,
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_MXFP8_E4M3_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, MXFP8_E4M3_QUANT_MODE, false, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_FP8_E5M2_PERTOKEN_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E5M2_PERTOKEN_QUANT_MODE, ScaleMode, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_FP8_E4M3_PERTOKEN_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E4M3_PERTOKEN_QUANT_MODE, ScaleMode, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_FP8_E5M2_PERTILE_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E5M2_PERTILE_QUANT_MODE, ScaleMode, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_FP8_E4M3_PERTILE_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, FP8_E4M3_PERTILE_QUANT_MODE, ScaleMode, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_HIF8_PERTENSOR_QUANT) { 
+            MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, HIF8_PERTENSOR_QUANT_MODE, true, false> op;
+            op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        }  
+    } 
 #endif
 #else
-#if (ORIG_DTYPE_EXPAND_X == DT_BF16 || ORIG_DTYPE_EXPAND_X == DT_FLOAT16)
-    if (TILING_KEY_IS(1000)) {
+#if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
+    if constexpr (ArchTag == TILINGKEY_TPL_A3) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, false, false, false> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, false, false, HasTp> op;
+        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
+                epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
         op.Process();
-    } else if (TILING_KEY_IS(1100)) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, false, false, true> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(2000001000)) {
+    }
+
+    if constexpr ((ArchTag == TILINGKEY_TPL_A2) && (LayeredMode == TILINGKEY_TPL_MTE)) { 
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
         MoeDistributeDispatchA2<DTYPE_X, DTYPE_EXPAND_X, false, false, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                workspaceGM, &pipe, tilingGM);
+        op.Init(x, expertIds, scales, xActiveMask, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, 
+                expertTokenNumsOut, epSendCountsOut, workspaceGM, &pipe, tilingGM);
         op.Process();
-    } else if (TILING_KEY_IS(2100001000)) {
+
+    } else if constexpr ((ArchTag == TILINGKEY_TPL_A2) && (LayeredMode == TILINGKEY_TPL_AICPU)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
         GM_ADDR contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
         DataplaneMode dataplaneMode = GetDataplaneMode(contextGM0);
         if (dataplaneMode == DataplaneMode::AICPU) {
             MoeDistributeDispatchA2LayeredAicpu<DTYPE_X, DTYPE_EXPAND_X, false, false, false> op;
-            op.Init(x, expertIds, scales, expertScales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
-                    epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
+            op.Init(x, expertIds, scales, expertScales, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
             op.Process();
         } else if (dataplaneMode == DataplaneMode::AIV) {
             MoeDistributeDispatchA2Layered<DTYPE_X, DTYPE_EXPAND_X, false, false, false> op;
-            op.Init(x, expertIds, scales, expertScales, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
-                    epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
+            op.Init(x, expertIds, scales, expertScales, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
             op.Process();
         }
     }
 #elif (ORIG_DTYPE_EXPAND_X == DT_INT8)
-    if (TILING_KEY_IS(1011)) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, true, false, false, false> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1002)) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, true, false, false> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1012)) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, true, true, false> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1111)) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, true, false, false, true> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1102)) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, true, false, true> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(1112)) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
-        MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, true, true, true> op;
-        op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-        op.Process();
-    } else if (TILING_KEY_IS(2000001002)) {
+    if constexpr (ArchTag == TILINGKEY_TPL_A3) {
+        if constexpr (QuantMode == TILINGKEY_STATIC_QUANT) {
+            GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
+            MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, true, false, false, HasTp> op;
+            op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_DYNAMIC_QUANT) {
+            GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchTilingData, tilingData, tilingGM);
+            MoeDistributeDispatch<DTYPE_X, DTYPE_EXPAND_X, false, true, ScaleMode, HasTp> op;
+            op.Init(x, expertIds, scales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
+                    epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+            op.Process();
+        }
+    }
+
+    if constexpr ((ArchTag == TILINGKEY_TPL_A2) && (LayeredMode == TILINGKEY_TPL_MTE) && (ScaleMode == false)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
         MoeDistributeDispatchA2<DTYPE_X, DTYPE_EXPAND_X, false, true, false> op;
-        op.Init(x, expertIds, scales, xActiveMask, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                workspaceGM, &pipe, tilingGM);
+        op.Init(x, expertIds, scales, xActiveMask, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, 
+                expertTokenNumsOut, epSendCountsOut, workspaceGM, &pipe, tilingGM);
         op.Process();
-    } else if (TILING_KEY_IS(2000001012)) {
+    } else if constexpr ((ArchTag == TILINGKEY_TPL_A2) && (LayeredMode == TILINGKEY_TPL_MTE) && (ScaleMode == true)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
         MoeDistributeDispatchA2<DTYPE_X, DTYPE_EXPAND_X, false, true, true> op;
-        op.Init(x, expertIds, scales, xActiveMask, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, epSendCountsOut,
-                workspaceGM, &pipe, tilingGM);
+        op.Init(x, expertIds, scales, xActiveMask, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, 
+                expertTokenNumsOut, epSendCountsOut, workspaceGM, &pipe, tilingGM);
         op.Process();
-    } else if (TILING_KEY_IS(2100001002)) {
+    } else if constexpr ((ArchTag == TILINGKEY_TPL_A2) && 
+                        (LayeredMode == TILINGKEY_TPL_AICPU) && (ScaleMode == false)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
         GM_ADDR contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
         DataplaneMode dataplaneMode = GetDataplaneMode(contextGM0);
         if (dataplaneMode == DataplaneMode::AICPU) {
             MoeDistributeDispatchA2LayeredAicpu<DTYPE_X, DTYPE_EXPAND_X, false, true, false> op;
-            op.Init(x, expertIds, scales, expertScales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
-                    epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
+            op.Init(x, expertIds, scales, expertScales, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
             op.Process();
         } else if (dataplaneMode == DataplaneMode::AIV) {
             MoeDistributeDispatchA2Layered<DTYPE_X, DTYPE_EXPAND_X, false, true, false> op;
-            op.Init(x, expertIds, scales, expertScales, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
-                    epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
+            op.Init(x, expertIds, scales, expertScales, nullptr, expandXOut, dynamicScalesOut, expandIdxOut,
+                    expertTokenNumsOut, epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
             op.Process();
         }
-    } else if (TILING_KEY_IS(2100001012)) {
+    } else if constexpr ((ArchTag == TILINGKEY_TPL_A2) && (LayeredMode == TILINGKEY_TPL_AICPU) && (ScaleMode == true)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
         GM_ADDR contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
         DataplaneMode dataplaneMode = GetDataplaneMode(contextGM0);
         if (dataplaneMode == DataplaneMode::AICPU) {
             MoeDistributeDispatchA2LayeredAicpu<DTYPE_X, DTYPE_EXPAND_X, false, true, true> op;
-            op.Init(x, expertIds, scales, expertScales, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
-                    epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
+            op.Init(x, expertIds, scales, expertScales, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
             op.Process();
         } else if (dataplaneMode == DataplaneMode::AIV) {
             MoeDistributeDispatchA2Layered<DTYPE_X, DTYPE_EXPAND_X, false, true, true> op;
-            op.Init(x, expertIds, scales, expertScales, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, expertTokenNumsOut, 
-                    epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
+            op.Init(x, expertIds, scales, expertScales, nullptr, expandXOut, dynamicScalesOut, expandIdxOut, 
+                    expertTokenNumsOut, epSendCountsOut, expandScalesOut, workspaceGM, &pipe, tilingGM, contextGM0);
             op.Process();
         }
     }

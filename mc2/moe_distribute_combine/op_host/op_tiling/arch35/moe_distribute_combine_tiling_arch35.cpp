@@ -34,6 +34,8 @@
 #include "register/tilingdata_base.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "../../../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_tiling.h"
+#include "../../../op_kernel/moe_distribute_combine_tiling_key.h"
+using namespace Mc2Tiling;
 
 namespace {
 constexpr uint32_t ATTRS_GROUP_EP_INDEX = 0;
@@ -717,7 +719,10 @@ inline void SetPlatformInfo(gert::TilingContext *context, MoeDistributeCombineV2
 static void SetTilingKey(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
-    uint64_t tilingKey = TILING_KEY_BASE_A5;
+    bool tp = false;
+    uint32_t quantMode = TILINGKEY_NO_QUANT;  // A2 & A3
+    uint32_t layeredMode = TILINGKEY_TPL_MTE;  // A2
+    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, quantMode, layeredMode, TILINGKEY_TPL_A5);
     context->SetTilingKey(tilingKey);
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
 }
