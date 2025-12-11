@@ -25,8 +25,9 @@ template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 
     bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool isMlaSgd = false, bool isMlaFullQuant = false>
 __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
     __ubuf__ T2 * expUb, __ubuf__ T2 * x_expUb,  __ubuf__ pseShiftType * pseUb, __ubuf__ T * expSumUb, __ubuf__ T * maxUb, 
-    __ubuf__ T * maxUbStart, __ubuf__ T * srcUb, __ubuf__ T * qScaleUb, __ubuf__ uint8_t * indexesUb, uint64_t maskUb, uint64_t maskUbUnroll, 
-    uint64_t dropMaskUb, const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t oriTailN, 
+    __ubuf__ T * maxUbStart, __ubuf__ T * srcUb, __ubuf__ T * qScaleUb, __ubuf__ uint8_t * indexesUb, 
+    __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * maskUbUnroll, __ubuf__ uint32_t * dropMaskUb, 
+    const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t oriTailN, 
     const uint32_t tailN, const float dScale, uint32_t pltOriTailN, uint32_t pltTailN, float divValue, const uint16_t m, const uint32_t pseStride, 
     const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, const float deSCaleKValue = 1.0f)
 {
@@ -334,9 +335,9 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl128(
     __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
 
 
-    uint64_t maskUb = maskTensor.GetPhyAddr();
-    uint64_t maskUbUnroll = maskTensor.GetPhyAddr() + floatRepSize;
-    uint64_t dropMaskUb = dropTensor.GetPhyAddr();
+    __ubuf__ uint32_t * maskUb = (__ubuf__ uint32_t *)maskTensor.GetPhyAddr();
+    __ubuf__ uint32_t * maskUbUnroll = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize);
+    __ubuf__ uint32_t * dropMaskUb = (__ubuf__ uint32_t *)dropTensor.GetPhyAddr();
 
 
     const uint32_t nPadding = (s2BaseSize + blockBytesU8 - 1) / blockBytesU8 * blockBytesU8;

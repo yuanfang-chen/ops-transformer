@@ -26,7 +26,7 @@ template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 
 __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     __ubuf__ T2 * expUb, __ubuf__ pseShiftType * pseUb, __ubuf__ T * expSumUb, 
     __ubuf__ T * maxUb, __ubuf__ T * maxUbStart, __ubuf__ T * srcUb, __ubuf__ T * qScaleUb, __ubuf__ uint8_t * indexesUb, 
-    uint64_t maskUb, uint64_t dropMaskUb, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t nPadding, 
+    __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * dropMaskUb, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t nPadding, 
     uint32_t pltOriginalN, float divValue, uint32_t pltSrcN, uint32_t pltSrcN16, const float dScale, 
     const uint16_t m, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
     const T minValue, const float deSCaleKValue = 1.0f)
@@ -255,8 +255,8 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     __ubuf__ T * qScaleUb = (__ubuf__ T*)queryScaleUb.GetPhyAddr();
     __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
 
-    uint64_t maskUb = maskTensor.GetPhyAddr();
-    uint64_t dropMaskUb = dropTensor.GetPhyAddr();
+    __ubuf__ uint32_t * maskUb = (__ubuf__ uint32_t*)maskTensor.GetPhyAddr();
+    __ubuf__ uint32_t * dropMaskUb = (__ubuf__ uint32_t*)dropTensor.GetPhyAddr();
 
 
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行

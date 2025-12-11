@@ -27,7 +27,8 @@ template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 
 __simd_vf__ void ProcessVec1UpdateGeneralImpl128VF(
     __ubuf__ T2 * expUb, __ubuf__ T2 * x_expUb, __ubuf__ pseShiftType * pseUb, __ubuf__ T * maxUb, __ubuf__ T * srcUb, 
     __ubuf__ T * expMaxUb, __ubuf__ T * inMaxUb, __ubuf__ T * tmpExpSumUb, __ubuf__ T * tmpMaxUb, __ubuf__ T * tmpMaxUb2, 
-    __ubuf__ T * qScaleUb, __ubuf__ T * pScaleUb, __ubuf__ uint8_t * indexesUb, uint64_t maskUb, uint64_t maskUbUnroll, uint64_t dropMaskUb, 
+    __ubuf__ T * qScaleUb, __ubuf__ T * pScaleUb, __ubuf__ uint8_t * indexesUb, 
+    __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * maskUbUnroll, __ubuf__ uint32_t * dropMaskUb, 
     const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t oriTailN, const uint32_t tailN, 
     const float dScale, uint32_t pltOriTailN, uint32_t pltTailN, float divValue, uint32_t pltN, const uint16_t m, const uint32_t pseStride, 
     const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, const float deSCaleKValue = 1.0f)
@@ -362,9 +363,9 @@ __aicore__ inline void ProcessVec1UpdateGeneralImpl128(
     __ubuf__ T * pScaleUb = (__ubuf__ T*)pScaleTensor.GetPhyAddr();
     __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
 
-    uint64_t maskUb = maskTensor.GetPhyAddr();
-    uint64_t maskUbUnroll = maskTensor.GetPhyAddr() + floatRepSize;
-    uint64_t dropMaskUb = dropTensor.GetPhyAddr();
+    __ubuf__ uint32_t * maskUb = (__ubuf__ uint32_t *)maskTensor.GetPhyAddr();
+    __ubuf__ uint32_t * maskUbUnroll = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize);
+    __ubuf__ uint32_t * dropMaskUb = (__ubuf__ uint32_t *)dropTensor.GetPhyAddr();
 
     ProcessVec1UpdateGeneralImpl128VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant>(
         expUb, x_expUb, pseUb, maxUb, srcUb, expMaxUb, inMaxUb, tmpExpSumUb, tmpMaxUb, tmpMaxUb2, qScaleUb, pScaleUb, indexesUb, 

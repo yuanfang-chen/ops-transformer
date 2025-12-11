@@ -27,8 +27,8 @@ template <typename T, typename T2, typename OUTPUT_T, uint32_t s1BaseSize = 16, 
 __simd_vf__ void ProcessVec1UpdateGeneralImpl512VF(
     __ubuf__ T2 * expUb1, __ubuf__ T2 * expUb2, __ubuf__ T2 * expUb3, __ubuf__ T2 * expUb4, __ubuf__ OUTPUT_T * pseUb, 
     __ubuf__ T * maxUb, __ubuf__ T * srcUb, __ubuf__ T * expMaxUb, __ubuf__ T * inMaxUb, __ubuf__ T * tmpExpSumUb, 
-    __ubuf__ T * tmpMaxUb, __ubuf__ T * tmpMaxUb2, uint64_t maskUb1, uint64_t maskUb2, uint64_t maskUb3, uint64_t maskUb4, 
-    uint64_t maskUb5, uint64_t maskUb6, uint64_t maskUb7, uint64_t maskUb8, const uint32_t nPadding, const uint32_t blockStride, 
+    __ubuf__ T * tmpMaxUb, __ubuf__ T * tmpMaxUb2, __ubuf__ uint32_t * maskUb1, __ubuf__ uint32_t * maskUb2, __ubuf__ uint32_t * maskUb3, __ubuf__ uint32_t * maskUb4, 
+    __ubuf__ uint32_t * maskUb5, __ubuf__ uint32_t * maskUb6, __ubuf__ uint32_t * maskUb7, __ubuf__ uint32_t * maskUb8, const uint32_t nPadding, const uint32_t blockStride, 
     const uint32_t repeatStride, const uint32_t oriTailN1, const uint32_t oriTailN2, const uint32_t oriTailN3, const uint32_t oriTailN4, 
     const uint32_t tailN1, const uint32_t tailN2, const uint32_t tailN3, const uint32_t tailN4, uint32_t pltOriTailN1, uint32_t pltOriTailN2, 
     uint32_t pltOriTailN3, uint32_t pltOriTailN4, uint32_t pltTailN1, uint32_t pltTailN2, uint32_t pltTailN3, uint32_t pltTailN4, 
@@ -569,14 +569,14 @@ __aicore__ inline void ProcessVec1UpdateGeneralImpl512(
     __ubuf__ T * tmpMaxUb = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
     __ubuf__ T * tmpMaxUb2 = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
 
-    uint64_t maskUb1 = maskTensor.GetPhyAddr();
-    uint64_t maskUb2 = maskTensor.GetPhyAddr() + floatRepSize;
-    uint64_t maskUb3 = maskTensor.GetPhyAddr() + floatRepSize * 2;
-    uint64_t maskUb4 = maskTensor.GetPhyAddr() + floatRepSize * 3;
-    uint64_t maskUb5 = maskTensor.GetPhyAddr() + floatRepSize * 4;
-    uint64_t maskUb6 = maskTensor.GetPhyAddr() + floatRepSize * 5;
-    uint64_t maskUb7 = maskTensor.GetPhyAddr() + floatRepSize * 6;
-    uint64_t maskUb8 = maskTensor.GetPhyAddr() + floatRepSize * 7;
+    __ubuf__ uint32_t * maskUb1 = (__ubuf__ uint32_t *)maskTensor.GetPhyAddr();
+    __ubuf__ uint32_t * maskUb2 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize);
+    __ubuf__ uint32_t * maskUb3 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 2);
+    __ubuf__ uint32_t * maskUb4 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 3);
+    __ubuf__ uint32_t * maskUb5 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 4);
+    __ubuf__ uint32_t * maskUb6 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 5);
+    __ubuf__ uint32_t * maskUb7 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 6);
+    __ubuf__ uint32_t * maskUb8 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 7);
 
     ProcessVec1UpdateGeneralImpl512VF<T, T2, OUTPUT_T, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd>(
         expUb1, expUb2, expUb3, expUb4, pseUb, maxUb, srcUb, expMaxUb, inMaxUb, tmpExpSumUb, tmpMaxUb, tmpMaxUb2, maskUb1, maskUb2, maskUb3, maskUb4, 

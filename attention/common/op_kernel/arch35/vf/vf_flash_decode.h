@@ -24,7 +24,7 @@ namespace AscendC {
 
 // 处理循环splitKVIndex=0的场景，vregDst需要置0
 template <typename T>
-__simd_vf__ void ReduceFinalRes_0_VF(uint64_t dstUb, uint64_t lseUb, uint64_t accumOutUb, uint16_t k, uint16_t z, 
+__simd_vf__ void ReduceFinalRes_0_VF(__ubuf__ T * dstUb, __ubuf__ T * lseUb, __ubuf__ T * accumOutUb, uint16_t k, uint16_t z, 
                                     uint32_t dealNum1Reg, uint32_t repStride, const uint16_t floatRepSize, 
                                     const uint16_t dLoops, uint32_t dealRowCount, uint32_t splitKVIndex)
 {
@@ -56,9 +56,9 @@ __aicore__ inline void ReduceFinalRes_0(LocalTensor<T>& dstLocal, LocalTensor<T>
                                            LocalTensor<T>& accumOutLocal, uint32_t dealRowCount,
                                            uint64_t headDimAlignFp32, uint32_t splitKVIndex)
 {
-    uint64_t dstUb = dstLocal.GetPhyAddr();
-    uint64_t lseUb = lseLocal.GetPhyAddr();
-    uint64_t accumOutUb = accumOutLocal.GetPhyAddr();
+    __ubuf__ T * dstUb = (__ubuf__ T *)dstLocal.GetPhyAddr();
+    __ubuf__ T * lseUb = (__ubuf__ T *)lseLocal.GetPhyAddr();
+    __ubuf__ T * accumOutUb = (__ubuf__ T *)accumOutLocal.GetPhyAddr();
     uint16_t k = 0;
     uint16_t z = 0;
     uint32_t dealNum1Reg = 256 / sizeof(float);
@@ -72,7 +72,7 @@ __aicore__ inline void ReduceFinalRes_0(LocalTensor<T>& dstLocal, LocalTensor<T>
 
 // 处理循环splitKVIndex>0的场景，reg_dst需要先从dstUb中load之前的结果，再进行add
 template <typename T>
-__simd_vf__ void ReduceFinalRes_Rest_VF(uint64_t dstUb, uint64_t lseUb, uint64_t accumOutUb, uint16_t k, uint16_t z, 
+__simd_vf__ void ReduceFinalRes_Rest_VF(__ubuf__ T * dstUb, __ubuf__ T * lseUb, __ubuf__ T * accumOutUb, uint16_t k, uint16_t z, 
                                         uint32_t dealNum1Reg, uint32_t repStride, const uint16_t floatRepSize, const uint16_t dLoops, 
                                         uint32_t dealRowCount, uint32_t splitKVIndex)
 {
@@ -105,9 +105,9 @@ __aicore__ inline void ReduceFinalRes_Rest(LocalTensor<T>& dstLocal, LocalTensor
                                                  LocalTensor<T>& accumOutLocal, uint32_t dealRowCount,
                                                  uint64_t headDimAlignFp32, uint32_t splitKVIndex)
 {
-    uint64_t dstUb = dstLocal.GetPhyAddr();
-    uint64_t lseUb = lseLocal.GetPhyAddr();
-    uint64_t accumOutUb = accumOutLocal.GetPhyAddr();
+    __ubuf__ T * dstUb = (__ubuf__ T *)dstLocal.GetPhyAddr();
+    __ubuf__ T * lseUb = (__ubuf__ T *)lseLocal.GetPhyAddr();
+    __ubuf__ T * accumOutUb = (__ubuf__ T *)accumOutLocal.GetPhyAddr();
     uint16_t k = 0;
     uint16_t z = 0;
     uint32_t dealNum1Reg = 256 / sizeof(float);
@@ -142,8 +142,8 @@ __aicore__ inline void ReduceFinalRes_const_VF(LocalTensor<T>& dstLocal, LocalTe
 
 // 处理g<=8的场景
 template <typename T>
-__simd_vf__ void ComputeScaleValue_8_VF(uint64_t lseMax, uint64_t lseMaxTmp, uint64_t lseSum, 
-                                        uint64_t lseSumTmp, __ubuf__ T * lseUb, uint32_t dealCount, uint16_t i, 
+__simd_vf__ void ComputeScaleValue_8_VF(__ubuf__ T * lseMax, __ubuf__ T * lseMaxTmp, __ubuf__ T * lseSum, 
+                                        __ubuf__ T * lseSumTmp, __ubuf__ T * lseUb, uint32_t dealCount, uint16_t i, 
                                         uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
 {
     MicroAPI::RegTensor<T> vregLseMax;
@@ -213,10 +213,10 @@ __aicore__ inline void ComputeScaleValue_8(const LocalTensor<T>& lseMaxUb, const
     uint32_t dealCount = dealRowCount * 8;
     uint16_t i = 0;
 
-    uint64_t lseMax = lseMaxUb.GetPhyAddr();
-    uint64_t lseMaxTmp = lseMax;
-    uint64_t lseSum = lseSumUb.GetPhyAddr();
-    uint64_t lseSumTmp = lseSum;
+    __ubuf__ T * lseMax = (__ubuf__ T *)lseMaxUb.GetPhyAddr();
+    __ubuf__ T * lseMaxTmp = lseMax;
+    __ubuf__ T * lseSum = (__ubuf__ T *)lseSumUb.GetPhyAddr();
+    __ubuf__ T * lseSumTmp = lseSum;
     __ubuf__ T * lseUb = (__ubuf__ T *)lseOutputUb.GetPhyAddr();
 
     ComputeScaleValue_8_VF<T>(lseMax, lseMaxTmp, lseSum, lseSumTmp, lseUb, dealCount, i, dealRowCount, actualCombineLoopSize, softmaxLseFlag);
@@ -355,7 +355,7 @@ __aicore__ inline void ComputeScaleValue_VF(const LocalTensor<T>& lseMaxUb, cons
 
 // 处理g<=8的场景
 template <typename T>
-__simd_vf__ void ComputeLogSumExp_8_VF(uint64_t srcSumLocalInt, uint64_t srcMaxLocalInt, uint64_t dstLocalInt, uint32_t dealCount)
+__simd_vf__ void ComputeLogSumExp_8_VF(__ubuf__ T * srcSumLocalInt, __ubuf__ T * srcMaxLocalInt, __ubuf__ T * dstLocalInt, uint32_t dealCount)
 {
     MicroAPI::RegTensor<T> vregSum;
     MicroAPI::RegTensor<T> vregMax;
@@ -390,9 +390,9 @@ template <typename T>
 __aicore__ inline void ComputeLogSumExp_8(const LocalTensor<T>& dstTensor, const LocalTensor<T>& softmaxSumTensor,
     const LocalTensor<T>& softmaxMaxTensor, uint32_t dealCount)
 {
-    uint64_t srcSumLocalInt = softmaxSumTensor.GetPhyAddr();
-    uint64_t srcMaxLocalInt = softmaxMaxTensor.GetPhyAddr();
-    uint64_t dstLocalInt = dstTensor.GetPhyAddr();
+    __ubuf__ T * srcSumLocalInt = (__ubuf__ T *)softmaxSumTensor.GetPhyAddr();
+    __ubuf__ T * srcMaxLocalInt = (__ubuf__ T *)softmaxMaxTensor.GetPhyAddr();
+    __ubuf__ T * dstLocalInt = (__ubuf__ T *)dstTensor.GetPhyAddr();
 
     ComputeLogSumExp_8_VF<T>(srcSumLocalInt, srcMaxLocalInt, dstLocalInt, dealCount);
 }

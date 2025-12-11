@@ -27,7 +27,8 @@ template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 
 __simd_vf__ void ProcessVec1UpdateGeneralImpl256VF(
     __ubuf__ T2 * expUb1, __ubuf__ T2 * expUb2, __ubuf__ pseShiftType * pseUb, __ubuf__ T * maxUb, __ubuf__ T * srcUb, 
     __ubuf__ T * expMaxUb, __ubuf__ T * inMaxUb, __ubuf__ T * tmpExpSumUb, __ubuf__ T * tmpMaxUb, __ubuf__ T * tmpMaxUb2, 
-    uint64_t maskUb1, uint64_t maskUb2, uint64_t maskUb3, uint64_t maskUb4, uint64_t dropMaskUb1, uint64_t dropMaskUb2, 
+    __ubuf__ uint32_t * maskUb1, __ubuf__ uint32_t * maskUb2, __ubuf__ uint32_t * maskUb3, __ubuf__ uint32_t * maskUb4, 
+    __ubuf__ uint32_t * dropMaskUb1, __ubuf__ uint32_t * dropMaskUb2, 
     const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t oriTailN1, const uint32_t oriTailN2,
     const uint32_t tailN1, const uint32_t tailN2, uint32_t pltOriTailN1, uint32_t pltOriTailN2, uint32_t pltTailN1, uint32_t pltTailN2, 
     float divValue, uint32_t pltN, const uint16_t m, const uint32_t pseStride, const float slopes, 
@@ -360,12 +361,12 @@ __aicore__ inline void ProcessVec1UpdateGeneralImpl256(
     __ubuf__ T * tmpExpSumUb = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr();
     __ubuf__ T * tmpMaxUb = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
     __ubuf__ T * tmpMaxUb2 = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
-    uint64_t maskUb1 = maskTensor.GetPhyAddr();
-    uint64_t maskUb2 = maskTensor.GetPhyAddr() + floatRepSize;
-    uint64_t maskUb3 = maskTensor.GetPhyAddr() + floatRepSize * 2;
-    uint64_t maskUb4 = maskTensor.GetPhyAddr() + floatRepSize * 3;
-    uint64_t dropMaskUb1 = dropTensor.GetPhyAddr();
-    uint64_t dropMaskUb2 = dropTensor.GetPhyAddr() + s2BaseSize / 16;
+    __ubuf__ uint32_t * maskUb1 = (__ubuf__ uint32_t *)maskTensor.GetPhyAddr();
+    __ubuf__ uint32_t * maskUb2 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize);
+    __ubuf__ uint32_t * maskUb3 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 2);
+    __ubuf__ uint32_t * maskUb4 = (__ubuf__ uint32_t *)(maskTensor.GetPhyAddr() + floatRepSize * 3);
+    __ubuf__ uint32_t * dropMaskUb1 = (__ubuf__ uint32_t *)dropTensor.GetPhyAddr();
+    __ubuf__ uint32_t * dropMaskUb2 = (__ubuf__ uint32_t *)(dropTensor.GetPhyAddr() + s2BaseSize / 16);
 
     ProcessVec1UpdateGeneralImpl256VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop>(
         expUb1, expUb2, pseUb, maxUb, srcUb, expMaxUb, inMaxUb, tmpExpSumUb, tmpMaxUb, tmpMaxUb2, 
