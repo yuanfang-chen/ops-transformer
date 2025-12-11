@@ -499,6 +499,7 @@ aclnnStatus aclnnIncreFlashAttentionV4(
 #include <cstring>
 #include "securec.h"
 #include "acl/acl.h"
+#include "aclnn/opdev/fp16_t.h"
 #include "aclnnop/aclnn_incre_flash_attention_v4.h"
  
 using namespace std;
@@ -688,7 +689,7 @@ int ExecuteIncreFlashAttention(TensorResources& resources, aclrtStream stream,
 
 int ProcessResults(TensorResources& resources, const std::vector<int64_t>& outShape) {
     auto size = GetShapeSize(outShape);
-    std::vector<double> resultData(size, 0);
+    std::vector<op::fp16_t> resultData(size, 0);
     
     int ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), 
                          resources.outDeviceAddr, size * sizeof(resultData[0]), 
@@ -699,7 +700,7 @@ int ProcessResults(TensorResources& resources, const std::vector<int64_t>& outSh
     }
     
     for (int64_t i = 0; i < size; i++) {
-        LOG_PRINT("result[%ld] is: %f\n", i, resultData[i]);
+        std::cout << "index: " << i << ": " << static_cast<float>(resultData[i]) << std::endl;
     }
     
     return ACL_SUCCESS;

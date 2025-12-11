@@ -25,9 +25,67 @@
 ## 算子执行接口
 
 算子执行接口为[两段式接口](common/两段式接口.md)，必须先调用“aclnnFusedInferAttentionScoreVXGetWorkspaceSize”接口获取入参并根据计算流程计算所需workspace大小，再调用“aclnnFusedInferAttentionScoreVX”接口执行计算。
+```c++
+aclnnStatus aclnnFusedInferAttentionScoreVXGetWorkspaceSize(
+    const aclTensor     *query,
+    const aclTensorList *key,
+    const aclTensorList *value,
+    const aclTensor     *pseShiftOptional,
+    const aclTensor     *attenMaskOptional,
+    const aclIntArray   *actualSeqLengthsOptional,
+    const aclIntArray   *actualSeqLengthsKvOptional,
+    const aclTensor     *deqScale1Optional,
+    const aclTensor     *quantScale1Optional,
+    const aclTensor     *deqScale2Optional,
+    const aclTensor     *quantScale2Optional,
+    const aclTensor     *quantOffset2Optional,
+    const aclTensor     *antiquantScaleOptional,
+    const aclTensor     *antiquantOffsetOptional,
+    const aclTensor     *blockTableOptional,
+    const aclTensor     *queryPaddingSizeOptional,
+    const aclTensor     *kvPaddingSizeOptional,
+    const aclTensor     *keyAntiquantScaleOptional, 
+    const aclTensor     *keyAntiquantOffsetOptional, 
+    const aclTensor     *valueAntiquantScaleOptional, 
+    const aclTensor     *valueAntiquantOffsetOptional, 
+    const aclTensor     *keySharedPrefixOptional, 
+    const aclTensor     *valueSharedPrefixOptional, 
+    const aclIntArray   *actualSharedPrefixLenOptional, 
+    const aclTensor     *queryRopeOptional, 
+    const aclTensor     *keyRopeOptional, 
+    const aclTensor     *keyRopeAntiquantScaleOptional, 
+    const aclTensor     *dequantScaleQueryOptional, 
+    const aclTensor     *learnableSinkOptional, 
+    const aclIntArray   *qStartIdxOptional, 
+    const aclIntArray   *kvStartIdxOptional, 
+    int64_t             numHeads, 
+    double              scaleValue, 
+    int64_t             preTokens, 
+    int64_t             nextTokens, 
+    char                *inputLayout, 
+    int64_t             numKeyValueHeads, 
+    int64_t             sparseMode, 
+    int64_t             innerPrecise, 
+    int64_t             blockSize, 
+    int64_t             antiquantMode, 
+    bool                softmaxLseFlag, 
+    int64_t             keyAntiquantMode, 
+    int64_t             valueAntiquantMode, 
+    int64_t             queryQuantMode, 
+    int64_t             pseType, 
+    const aclTensor     *attentionOut, 
+    const aclTensor     *softmaxLse, 
+    uint64_t            *workspaceSize, 
+    aclOpExecutor       **executor)
+```
 
-* `aclnnStatus aclnnFusedInferAttentionScoreVXGetWorkspaceSize(const aclTensor *query, const aclTensorList *key, const aclTensorList *value, const aclTensor *pseShiftOptional, const aclTensor *attenMaskOptional, const aclIntArray *actualSeqLengthsOptional, const aclIntArray *actualSeqLengthsKvOptional, const aclTensor *deqScale1Optional, const aclTensor *quantScale1Optional, const aclTensor *deqScale2Optional, const aclTensor *quantScale2Optional, const aclTensor *quantOffset2Optional, const aclTensor *antiquantScaleOptional, const aclTensor *antiquantOffsetOptional, const aclTensor *blockTableOptional, const aclTensor *queryPaddingSizeOptional, const aclTensor *kvPaddingSizeOptional, const aclTensor *keyAntiquantScaleOptional, const aclTensor *keyAntiquantOffsetOptional, const aclTensor *valueAntiquantScaleOptional, const aclTensor *valueAntiquantOffsetOptional, const aclTensor *keySharedPrefixOptional, const aclTensor *valueSharedPrefixOptional, const aclIntArray *actualSharedPrefixLenOptional, const aclTensor *queryRopeOptional, const aclTensor *keyRopeOptional, const aclTensor *keyRopeAntiquantScaleOptional, const aclTensor *dequantScaleQueryOptional, const aclIntArray *qStartIdxOptional, const aclIntArray *kvStartIdxOptional, int64_t numHeads, double scaleValue, int64_t preTokens, int64_t nextTokens, char *inputLayout, int64_t numKeyValueHeads, int64_t sparseMode, int64_t innerPrecise, int64_t blockSize, int64_t antiquantMode, bool softmaxLseFlag, int64_t keyAntiquantMode, int64_t valueAntiquantMode, int64_t queryQuantMode, int64_t pseType, const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor)`
-* `aclnnStatus aclnnFusedInferAttentionScoreVX(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, const aclrtStream stream)`
+```c++
+aclnnStatus aclnnFusedInferAttentionScoreVX(
+    void                *workspace, 
+    uint64_t            workspaceSize, 
+    aclOpExecutor       *executor, 
+    const aclrtStream   stream)
+```
 
 **说明：**
 
@@ -505,12 +563,13 @@
 - aclnn单算子调用方式
 
   通过aclnn单算子调用示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](common/编译与运行样例.md)。
-    ```c++
+  ```c++
   #include <iostream>
   #include <vector>
   #include <math.h>
   #include <cstring>
   #include "acl/acl.h"
+  #include "aclnn/opdev/fp16_t.h"
   #include "aclnnop/aclnn_fused_infer_attention_score_vx.h"
   
   using namespace std;
@@ -645,12 +704,13 @@
       bool softmaxLseFlag = false;
       int keyAntiquantMode = 0;
       int valueAntiquantMode = 0;
+      int queryAntiquantMode = 0;
       // 3. 调用CANN算子库API
       uint64_t workspaceSize = 0;
       int64_t pseType = 0;
       aclOpExecutor* executor;
       // 调用第一段接口
-      ret = aclnnFusedInferAttentionScoreVXGetWorkspaceSize(queryTensor, tensorKeyList, tensorValueList,  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, numHeads, scaleValue, preTokens, nextTokens, layerOut, numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode, valueAntiquantMode, pseType, outTensor, nullptr, &workspaceSize, &executor);
+      ret = aclnnFusedInferAttentionScoreVXGetWorkspaceSize(queryTensor, tensorKeyList, tensorValueList, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, numHeads, scaleValue, preTokens, nextTokens, layerOut, numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode, valueAntiquantMode, queryAntiquantMode, pseType, outTensor, nullptr, &workspaceSize, &executor);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFusedInferAttentionScoreVXGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
       // 根据第一段接口计算出的workspaceSize申请device内存
       void* workspaceAddr = nullptr;
@@ -668,12 +728,12 @@
   
       // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
       auto size = GetShapeSize(outShape);
-      std::vector<double> resultData(size, 0);
+      std::vector<op::fp16_t> resultData(size, 0);
       ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), outDeviceAddr,
                         size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
       CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
       for (int64_t i = 0; i < size; i++) {
-          LOG_PRINT("result[%ld] is: %f\n", i, resultData[i]);
+          std::cout << "index: " << i << ": " << static_cast<float>(resultData[i]) << std::endl;
       }
   
       // 6. 释放资源
