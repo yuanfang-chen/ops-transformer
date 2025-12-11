@@ -51,19 +51,19 @@ __simd_vf__ void PostQuantPerChnlOffsetImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf__
         for (uint16_t j = 0; j < gRowCount; ++j) {
             for (uint16_t i = 0; i < dLoops; ++i) {
                 if constexpr (IsSameType<POSTQUANT_PARAMS_T, T>::value) {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
                                                                         scaleUb + i * floatRepSize + j * srcD);
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vOffset,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vOffset,
                                                                         offsetUb + i * floatRepSize + j * srcD);
                 } else {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(vScaleTmp,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(vScaleTmp,
                                                                             scaleUb + i * floatRepSize + j * srcD);
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(vOffsetTmp,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(vOffsetTmp,
                                                                             offsetUb + i * floatRepSize + j * srcD);
                     Cast<T, POSTQUANT_PARAMS_T, castTraitP0>(vScale, vScaleTmp, preg_all);
                     Cast<T, POSTQUANT_PARAMS_T, castTraitP0>(vOffset, vOffsetTmp, preg_all);
                 }
-                DataCopy<T, LoadDist::DIST_NORM>(vregInput, srcUb + i * floatRepSize + j * srcD + m * srcD);
+                LoadAlign<T, LoadDist::DIST_NORM>(vregInput, srcUb + i * floatRepSize + j * srcD + m * srcD);
                 Mul<T, MaskMergeMode::ZEROING>(vregMul, vregInput, vScale, preg_all);
                 if constexpr (!IsSameType<OUTPUT_T, int8_t>::value) {
                     if constexpr (IsSameType<OUTPUT_T, hifloat8_t>::value) {
@@ -78,25 +78,25 @@ __simd_vf__ void PostQuantPerChnlOffsetImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf__
                     Cast<half, T, castTraitP0>(vregCastB16, vreg_add, preg_all);
                     Cast<OUTPUT_T, half, castTraitP0>(vregCast, vregCastB16, preg_all);
                 }
-                DataCopy<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + i * floatRepSize + j * srcD + m * srcD,
+                StoreAlign<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + i * floatRepSize + j * srcD + m * srcD,
                                                                 vregCast, preg_all);
             }
             // Process tail
             for (uint16_t k = 0; k < dTailLoop; ++k) {
                 if constexpr (IsSameType<POSTQUANT_PARAMS_T, T>::value) {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
                                                                         scaleUb + dLoops * floatRepSize + j * srcD);
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vOffset,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vOffset,
                                                                         offsetUb + dLoops * floatRepSize + j * srcD);
                 } else {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(
                         vScaleTmp, scaleUb + dLoops * floatRepSize + j * srcD);
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(
                         vOffsetTmp, offsetUb + dLoops * floatRepSize + j * srcD);
                     Cast<T, POSTQUANT_PARAMS_T, castTraitP0>(vScale, vScaleTmp, preg_tail);
                     Cast<T, POSTQUANT_PARAMS_T, castTraitP0>(vOffset, vOffsetTmp, preg_tail);
                 }
-                DataCopy<T, LoadDist::DIST_NORM>(vregInput, srcUb + dLoops * floatRepSize + j * srcD + m * srcD);
+                LoadAlign<T, LoadDist::DIST_NORM>(vregInput, srcUb + dLoops * floatRepSize + j * srcD + m * srcD);
                 Mul<T, MaskMergeMode::ZEROING>(vregMul, vregInput, vScale, preg_tail);
                 if constexpr (!IsSameType<OUTPUT_T, int8_t>::value) {
                     if constexpr (IsSameType<OUTPUT_T, hifloat8_t>::value) {
@@ -111,7 +111,7 @@ __simd_vf__ void PostQuantPerChnlOffsetImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf__
                     Cast<half, T, castTraitP0>(vregCastB16, vreg_add, preg_tail);
                     Cast<OUTPUT_T, half, castTraitP0>(vregCast, vregCastB16, preg_tail);
                 }
-                DataCopy<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + dLoops * floatRepSize + j * srcD + m * srcD,
+                StoreAlign<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + dLoops * floatRepSize + j * srcD + m * srcD,
                                                                 vregCast, preg_tail);
             }
         }
@@ -162,17 +162,15 @@ __simd_vf__ void PostQuantPerChnlNoOffsetImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf
         for (uint16_t j = 0; j < gRowCount; ++j) {
             for (uint16_t i = 0; i < dLoops; ++i) {
                 if constexpr (IsSameType<POSTQUANT_PARAMS_T, T>::value) {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
                                                                         scaleUb + i * floatRepSize + j * srcD);
                 } else {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(vScaleTmp,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(vScaleTmp,
                                                                             scaleUb + i * floatRepSize + j * srcD);
                     Cast<T, POSTQUANT_PARAMS_T, castTraitP0>(vScale, vScaleTmp, preg_all);
                 }
-                DataCopy<T, LoadDist::DIST_NORM>(vregInput, srcUb + i * floatRepSize + j * srcD + m * srcD);
+                LoadAlign<T, LoadDist::DIST_NORM>(vregInput, srcUb + i * floatRepSize + j * srcD + m * srcD);
                 Mul<T, MaskMergeMode::ZEROING>(vregMul, vregInput, vScale, preg_all);
-                // if constexpr (IsSameType<OUTPUT_T, fp8_e4m3fn_t>::value || IsSameType<OUTPUT_T,
-                // fp8_e5m2_t>::value) {
                 if constexpr (!IsSameType<OUTPUT_T, int8_t>::value) {
                     if constexpr (IsSameType<OUTPUT_T, hifloat8_t>::value) {
                         Cast<OUTPUT_T, T, castTraitP1>(vregCast, vregMul, preg_all);
@@ -183,20 +181,20 @@ __simd_vf__ void PostQuantPerChnlNoOffsetImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf
                     Cast<half, T, castTraitP0>(vregCastB16, vregMul, preg_all);
                     Cast<OUTPUT_T, half, castTraitP0>(vregCast, vregCastB16, preg_all);
                 }
-                DataCopy<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + i * floatRepSize + j * srcD + m * srcD,
+                StoreAlign<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + i * floatRepSize + j * srcD + m * srcD,
                                                                 vregCast, preg_all);
             }
             // Process tail
             for (uint16_t k = 0; k < dTailLoop; ++k) {
                 if constexpr (IsSameType<POSTQUANT_PARAMS_T, T>::value) {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_NORM>(vScale,
                                                                         scaleUb + dLoops * floatRepSize + j * srcD);
                 } else {
-                    DataCopy<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(
+                    LoadAlign<POSTQUANT_PARAMS_T, LoadDist::DIST_UNPACK_B16>(
                         vScaleTmp, scaleUb + dLoops * floatRepSize + j * srcD);
                     Cast<T, POSTQUANT_PARAMS_T, castTraitP0>(vScale, vScaleTmp, preg_tail);
                 }
-                DataCopy<T, LoadDist::DIST_NORM>(vregInput, srcUb + dLoops * floatRepSize + j * srcD + m * srcD);
+                LoadAlign<T, LoadDist::DIST_NORM>(vregInput, srcUb + dLoops * floatRepSize + j * srcD + m * srcD);
                 Mul<T, MaskMergeMode::ZEROING>(vregMul, vregInput, vScale, preg_tail);
                 // if constexpr (IsSameType<OUTPUT_T, fp8_e4m3fn_t>::value || IsSameType<OUTPUT_T,
                 // fp8_e5m2_t>::value) {
@@ -210,7 +208,7 @@ __simd_vf__ void PostQuantPerChnlNoOffsetImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf
                     Cast<half, T, castTraitP0>(vregCastB16, vregMul, preg_tail);
                     Cast<OUTPUT_T, half, castTraitP0>(vregCast, vregCastB16, preg_tail);
                 }
-                DataCopy<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + dLoops * floatRepSize + j * srcD + m * srcD,
+                StoreAlign<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + dLoops * floatRepSize + j * srcD + m * srcD,
                                                                 vregCast, preg_tail);
             }
         }
@@ -253,7 +251,7 @@ __simd_vf__ void PostQuantPerTensorImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf__ flo
 
     for (uint16_t j = 0; j < dealRowCount; ++j) {
         for (uint16_t i = 0; i < dLoops; ++i) {
-            DataCopy<T, LoadDist::DIST_NORM>(vregInput, srcUb + i * floatRepSize + j * srcD);
+            LoadAlign<T, LoadDist::DIST_NORM>(vregInput, srcUb + i * floatRepSize + j * srcD);
             Muls<T, float, MaskMergeMode::ZEROING>(vregMul, vregInput, postQuantScaleValue, preg_all);
             if constexpr (!IsSameType<OUTPUT_T, int8_t>::value) {
                 if constexpr (IsSameType<OUTPUT_T, hifloat8_t>::value) {
@@ -280,12 +278,12 @@ __simd_vf__ void PostQuantPerTensorImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf__ flo
                 }
                 Cast<OUTPUT_T, half, castTraitP0>(vregCast, vregCastB16, preg_all);
             }
-            DataCopy<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + i * floatRepSize + j * srcD, vregCast, preg_all);
+            StoreAlign<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + i * floatRepSize + j * srcD, vregCast, preg_all);
         }
 
         // Process tail
         for (uint16_t k = 0; k < dTailLoop; ++k) {
-            DataCopy<T, LoadDist::DIST_NORM>(vregInput, srcUb + dLoops * floatRepSize + j * srcD);
+            LoadAlign<T, LoadDist::DIST_NORM>(vregInput, srcUb + dLoops * floatRepSize + j * srcD);
             Muls<T, float, MaskMergeMode::ZEROING>(vregMul, vregInput, postQuantScaleValue, preg_tail);
             if constexpr (!IsSameType<OUTPUT_T, int8_t>::value) {
                 if constexpr (IsSameType<OUTPUT_T, hifloat8_t>::value) {
@@ -312,7 +310,7 @@ __simd_vf__ void PostQuantPerTensorImplVF(__ubuf__ OUTPUT_T *dstUb, __ubuf__ flo
                 }
                 Cast<OUTPUT_T, half, castTraitP0>(vregCast, vregCastB16, preg_tail);
             }
-            DataCopy<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + dLoops * floatRepSize + j * srcD, vregCast,
+            StoreAlign<OUTPUT_T, StoreDist::DIST_PACK4_B32>(dstUb + dLoops * floatRepSize + j * srcD, vregCast,
                                                             preg_tail);
         }
     }

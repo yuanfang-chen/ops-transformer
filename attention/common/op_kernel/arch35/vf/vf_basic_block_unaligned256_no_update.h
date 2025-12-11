@@ -96,8 +96,8 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
     RegTensor<half> vreg_pse3_f16;
     RegTensor<half> vreg_pse4_f16;
     
-    UnalignReg ureg_max;
-    UnalignReg ureg_exp_sum;
+    UnalignRegForStore ureg_max;
+    UnalignRegForStore ureg_exp_sum;
 
     MaskReg preg_all = CreateMask<float, MaskPattern::ALL>();
     MaskReg preg_all_b16 = CreateMask<uint16_t, MaskPattern::ALL>();
@@ -129,10 +129,10 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
         Arange(vreg_alibi4, posShift + floatRepSize * 3);
     }
     for (uint16_t i = 0; i < m; ++i) {
-        DataCopy(vreg_input_x1, srcUb + i * s2BaseSize);
-        DataCopy(vreg_input_x2, srcUb + floatRepSize + i * s2BaseSize);
-        DataCopy(vreg_input_x3, srcUb + floatRepSize * 2 + i * s2BaseSize);
-        DataCopy(vreg_input_x4, srcUb + floatRepSize * 3 + i * s2BaseSize);
+        LoadAlign(vreg_input_x1, srcUb + i * s2BaseSize);
+        LoadAlign(vreg_input_x2, srcUb + floatRepSize + i * s2BaseSize);
+        LoadAlign(vreg_input_x3, srcUb + floatRepSize * 2 + i * s2BaseSize);
+        LoadAlign(vreg_input_x4, srcUb + floatRepSize * 3 + i * s2BaseSize);
         if constexpr (pseMode != PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
             Muls(vreg_input_x1, vreg_input_x1, scale, preg_all);  // Muls(scale)
             Muls(vreg_input_x2, vreg_input_x2, scale, preg_all);
@@ -162,8 +162,8 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
                 Adds(vreg_alibi4, vreg_alibi4, -1.0f, preg_all);
             } else {
                 if constexpr (IsSameType<pseShiftType, bfloat16_t>::value) {
-                    DataCopy(vreg_pse_bf16_src1, pseUb + i * pseStride);
-                    DataCopy(vreg_pse_bf16_src2, pseUb + floatRepSize * 2 + i * pseStride);
+                    LoadAlign(vreg_pse_bf16_src1, pseUb + i * pseStride);
+                    LoadAlign(vreg_pse_bf16_src2, pseUb + floatRepSize * 2 + i * pseStride);
                     Interleave(vreg_pse1_bf16, vreg_pse2_bf16, vreg_pse_bf16_src1, vreg_pse_bf16_src1);
                     Interleave(vreg_pse3_bf16, vreg_pse4_bf16, vreg_pse_bf16_src2, vreg_pse_bf16_src2);
                     Cast<T, pseShiftType, castTraitZero>(vreg_pse1, vreg_pse1_bf16, preg_all_b16);
@@ -171,8 +171,8 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
                     Cast<T, pseShiftType, castTraitZero>(vreg_pse3, vreg_pse3_bf16, preg_all_b16);
                     Cast<T, pseShiftType, castTraitZero>(vreg_pse4, vreg_pse4_bf16, preg_all_b16);
                 } else if constexpr (IsSameType<pseShiftType, half>::value) {
-                    DataCopy(vreg_pse_f16_src1, pseUb + i * pseStride);
-                    DataCopy(vreg_pse_f16_src2, pseUb + floatRepSize * 2 + i * pseStride);
+                    LoadAlign(vreg_pse_f16_src1, pseUb + i * pseStride);
+                    LoadAlign(vreg_pse_f16_src2, pseUb + floatRepSize * 2 + i * pseStride);
                     Interleave(vreg_pse1_f16, vreg_pse2_f16, vreg_pse_f16_src1, vreg_pse_f16_src1);
                     Interleave(vreg_pse3_f16, vreg_pse4_f16, vreg_pse_f16_src2, vreg_pse_f16_src2);
                     Cast<T, pseShiftType, castTraitZero>(vreg_pse1, vreg_pse1_f16, preg_all_b16);
@@ -195,13 +195,13 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
 
         if constexpr (hasAtten == 1) {
             // atten mask
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
+            LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
                 preg_compare1, (__ubuf__ uint32_t *&)maskUb1, nPadding);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
+            LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
                 preg_compare2, (__ubuf__ uint32_t *&)maskUb2, nPadding);  
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
+            LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
                 preg_compare3, (__ubuf__ uint32_t *&)maskUb3, nPadding);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
+            LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_DS>(
                 preg_compare4, (__ubuf__ uint32_t *&)maskUb4, nPadding);   
             Select(vreg_sel1, vreg_min, vreg_input_x1, preg_compare1);
             Select(vreg_sel2, vreg_min, vreg_input_x2, preg_compare2);
@@ -209,36 +209,38 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
             Select(vreg_sel4, vreg_min, vreg_input_x4, preg_compare4);
             Select(vreg_sel3_new, vreg_sel3, vreg_min, preg_ori_tail_n1);
             Select(vreg_sel4_new, vreg_sel4, vreg_min, preg_ori_tail_n2);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + i * s2BaseSize, vreg_sel1, preg_all);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + floatRepSize + i * s2BaseSize, vreg_sel2, preg_all);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + floatRepSize * 2 + i * s2BaseSize, vreg_sel3_new, preg_all);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + floatRepSize * 3 +  i * s2BaseSize, vreg_sel4_new, preg_tail_n2);
             Max(vreg_max_tmp1, vreg_sel1, vreg_sel2, preg_all);
             Max(vreg_max_tmp2, vreg_sel3_new, vreg_sel4_new, preg_all);
             Max(vreg_max_tmp3, vreg_max_tmp1, vreg_max_tmp2, preg_all);
-            ReduceMax(vreg_input_max, vreg_max_tmp3, preg_all);
+            Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
+                vreg_input_max, vreg_max_tmp3, preg_all);
         } else {
             Select(vreg_input_x3_new, vreg_input_x3, vreg_min, preg_ori_tail_n1);
             Select(vreg_input_x4_new, vreg_input_x4, vreg_min, preg_ori_tail_n2);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + i * s2BaseSize, vreg_input_x1, preg_all);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + floatRepSize + i * s2BaseSize, vreg_input_x2, preg_all);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + floatRepSize * 2 + i * s2BaseSize, vreg_input_x3_new, preg_tail_n1);
-            DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+            StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)srcUb + floatRepSize * 3 + i * s2BaseSize, vreg_input_x4_new, preg_tail_n2);
             
             Max(vreg_max_tmp1, vreg_input_x1, vreg_input_x2, preg_all);
             Max(vreg_max_tmp2, vreg_input_x3_new, vreg_input_x4_new, preg_all);
             Max(vreg_max_tmp3, vreg_max_tmp1, vreg_max_tmp2, preg_all);
-            ReduceMax(vreg_input_max, vreg_max_tmp3, preg_all);
+            Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
+                vreg_input_max, vreg_max_tmp3, preg_all);
         }
-        DataCopyUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+        StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
     }
     vstas(ureg_max, maxUb, 0, POST_UPDATE);
@@ -248,27 +250,28 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
     LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
 
     for (uint16_t i = 0; i < m; ++i) {
-        DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(
+        LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(
             vreg_max_brc, maxUbStart + i);
-        DataCopy<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
+        LoadAlign<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
             vreg_input_x1, vreg_input_x2, srcUb + i * s2BaseSize);
-        DataCopy<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
+        LoadAlign<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
             vreg_input_x3, vreg_input_x4, srcUb + floatRepSize * 2 + i * s2BaseSize);
-        FusedExpSub(vreg_exp_even1, vreg_input_x1, vreg_max_brc, preg_all);
-        FusedExpSub(vreg_exp_odd1, vreg_input_x2, vreg_max_brc, preg_all);
-        FusedExpSub(vreg_exp_even2, vreg_input_x3, vreg_max_brc, preg_all);
-        FusedExpSub(vreg_exp_odd2, vreg_input_x4, vreg_max_brc, preg_all);
+        ExpSub(vreg_exp_even1, vreg_input_x1, vreg_max_brc, preg_all);
+        ExpSub(vreg_exp_odd1, vreg_input_x2, vreg_max_brc, preg_all);
+        ExpSub(vreg_exp_even2, vreg_input_x3, vreg_max_brc, preg_all);
+        ExpSub(vreg_exp_odd2, vreg_input_x4, vreg_max_brc, preg_all);
 
         // x_sum = sum(x_exp, axis=-1, keepdims=True)
         Add(vreg_exp_sum1, vreg_exp_even1, vreg_exp_odd1, preg_all);
         Add(vreg_exp_sum2, vreg_exp_even2, vreg_exp_odd2, preg_all);
         Add(vreg_exp_sum3, vreg_exp_sum1, vreg_exp_sum2, preg_all);
-        ReduceSum(vreg_exp_sum3, vreg_exp_sum3, preg_all);
-        DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+        Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
+            vreg_exp_sum3, vreg_exp_sum3, preg_all);
+        StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)expSumUb), vreg_exp_sum3, ureg_exp_sum, 1);
         // dropmask compute
         if constexpr (hasDrop == 1) {
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
+            LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
                 preg1, (__ubuf__ uint32_t *&)dropMaskUb1, s2BaseSize >> 3);
             // preg1: 0011223344556677 preg2: 0000000000000000
             MaskInterleave<half>(preg3, preg4, preg1, preg2);
@@ -279,7 +282,7 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
             Muls(vreg_exp_even1, vreg_sel_drop, divValue, preg_all);
             Select(vreg_sel_drop2, vreg_exp_odd1, vreg_zero, preg6);
             Muls(vreg_exp_odd1, vreg_sel_drop2, divValue, preg_all);
-            DataCopy<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
+            LoadAlign<uint32_t, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::MaskDist::DIST_US>(
                 preg1, (__ubuf__ uint32_t *&)dropMaskUb2, s2BaseSize >> 3);
             // preg1: 0011223344556677 preg2: 0000000000000000
             MaskInterleave<half>(preg3, preg4, preg1, preg2);
@@ -301,9 +304,9 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
                 (RegTensor<uint16_t>&)vreg_exp_odd1_bf16, preg_all_b16);
             Or((RegTensor<uint16_t>&)vreg_exp2_bf16, (RegTensor<uint16_t>&)vreg_exp_even2_bf16,
                 (RegTensor<uint16_t>&)vreg_exp_odd2_bf16, preg_all_b16);
-            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
                 ((__ubuf__ T2 *&)expUb1), vreg_exp1_bf16, blockStride, repeatStride, preg_all_b16);
-            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
                 ((__ubuf__ T2 *&)expUb2), vreg_exp2_bf16, blockStride, repeatStride, preg_all_b16);
         } else if constexpr (IsSameType<T2, half>::value) {
             Cast<T2, T, castTraitZero>(vreg_exp_even1_f16, vreg_exp_even1, preg_all);
@@ -312,9 +315,9 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
             Cast<T2, T, castTraitOne>(vreg_exp_odd2_f16, vreg_exp_odd2, preg_all);
             Or((RegTensor<uint16_t>&)vreg_exp1_f16, (RegTensor<uint16_t>&)vreg_exp_even1_f16, (RegTensor<uint16_t>&)vreg_exp_odd1_f16, preg_all_b16);
             Or((RegTensor<uint16_t>&)vreg_exp2_f16, (RegTensor<uint16_t>&)vreg_exp_even2_f16, (RegTensor<uint16_t>&)vreg_exp_odd2_f16, preg_all_b16);
-            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
                 ((__ubuf__ T2 *&)expUb1), vreg_exp1_f16, blockStride, repeatStride, preg_all_b16);
-            DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
                 ((__ubuf__ T2 *&)expUb2), vreg_exp2_f16, blockStride, repeatStride, preg_all_b16);
             // fp8_e5m2_t
         }
