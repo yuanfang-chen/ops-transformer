@@ -27,8 +27,7 @@ set(src_files
   ${ATTENTION_SRC}/incre_flash_attention/op_host/incre_flash_attention_tiling.cpp
   ${ATTENTION_SRC}/incre_flash_attention/op_host/incre_flash_attention_tiling_v2.cpp
   ${ATTENTION_SRC}/incre_flash_attention/op_host/incre_flash_attention_tiling_check.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/device_op_impl_registry.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/tiling_sink_kernel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/tiling_sink_registry.cpp
 )
 
 foreach(f ${src_files})
@@ -42,11 +41,13 @@ add_library(opmaster SHARED
   ${src_files}
 )
 
-if("${PRODUCT}" STREQUAL "ascend310p")
-  set_target_properties(opmaster PROPERTIES PREFIX "Ascend310P-v${SYS_VERSION}-lib")
+if (ENABLE_BUILT_IN)
+  set(OPMASTER_NAME "tiling_device_transformer")
 else()
-  set_target_properties(opmaster PROPERTIES PREFIX "Ascend-v${SYS_VERSION}-lib")
+  set(OPMASTER_NAME "cust_opmaster")
 endif()
+
+set_target_properties(opmaster PROPERTIES OUTPUT_NAME ${OPMASTER_NAME})
 
 if (BUILD_OPEN_PROJECT)
   add_custom_command(
@@ -54,7 +55,7 @@ if (BUILD_OPEN_PROJECT)
       POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy
               $<TARGET_FILE:opmaster>
-              ${CMAKE_BINARY_DIR}/Ascend310P-v${SYS_VERSION}-libopmaster.so
+              ${CMAKE_BINARY_DIR}/lib${OPMASTER_NAME}.so
   )
 endif ()
 
@@ -103,6 +104,7 @@ if (BUILD_OPEN_PROJECT)
   target_link_directories(opmaster PRIVATE
     ${ASCEND_CANN_PACKAGE_PATH}/lib64/device/lib64
     ${ASCEND_CANN_PACKAGE_PATH}/devlib/device
+    ${ASCEND_CANN_PACKAGE_PATH}/${CMAKE_SYSTEM_PROCESSOR}-linux/lib64
   )
 endif()
 
@@ -114,11 +116,26 @@ target_link_libraries(opmaster PRIVATE
   tiling_api
   exe_meta_device
   platform_static
+  ascend_protobuf
   -Wl,--no-as-needed
   c_sec
   -ldl
   -Wl,--as-needed
 )
+
+find_library(DEVICE_REGISTER_EXIST device_register
+             ${ASCEND_CANN_PACKAGE_PATH}/lib64/device/lib64
+             ${ASCEND_CANN_PACKAGE_PATH}/devlib/device
+             ${ASCEND_CANN_PACKAGE_PATH}/${CMAKE_SYSTEM_PROCESSOR}-linux/lib64)
+if (DEVICE_REGISTER_EXIST STREQUAL "DEVICE_REGISTER_EXIST-NOTFOUND")
+    message(WARNING "device_register library not found!")
+else()
+    target_link_libraries(opmaster PRIVATE 
+    -Wl,--whole-archive
+    device_register
+    -Wl,--no-whole-archive
+    )
+endif()
 
 if (NOT BUILD_OPEN_PROJECT)
   target_link_libraries(opmaster PRIVATE
