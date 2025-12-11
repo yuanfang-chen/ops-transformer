@@ -130,7 +130,10 @@ ge::graphStatus IFATiling::GetNpuInfo()
         socVersion_ = IfaSocVersion::SOC_ASCEND_310P;
     } else {
         socVersion_ = IfaSocVersion::SOC_ASCEND_910B;
+
         cvRatio_ = aivNum_ / aicNum_;
+        OP_CHECK_IF((cvRatio_ != 1U) && (cvRatio_ != 2U),
+            OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "aicNum(%u):aivNum(%u) only support 1:1 or 1:2.", aicNum_, aivNum_), return GRAPH_FAILED);
     }
 
     OP_LOGI(ifaContext_->opName, "FIA aicNum: %u, aivNum:%u, cvRatio:%u.", aicNum_, aivNum_, cvRatio_);
@@ -3176,7 +3179,7 @@ ge::graphStatus IFATiling::CalcBlockDim()
                 aicNum = aivNum;
             } else if (perfMode_ == IfaPerfMode::CUBE_VIEW_MM || perfMode_ == IfaPerfMode::CUBE_VIEW_MM_FULL_LOAD ||
                 perfMode_ == IfaPerfMode::CUBE_VIEW_MM_MLA || perfMode_ == IfaPerfMode::CUBE_VIEW_MM_DD) {
-                aivNum = (2U * usedCoreNum_ > aivNum_) ? aivNum_ : (2U * usedCoreNum_);
+                aivNum = cvRatio_ * usedCoreNum_;
                 aicNum = usedCoreNum_;
             } else {
                 aivNum = Align(usedCoreNum_, 2U); // aivNum必须为偶数达成CV 1:2

@@ -846,6 +846,13 @@ bool RouteToFia(gert::TilingContext *context)
         return false;
     }
 
+    uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
+    uint32_t aicNum = ascendcPlatform.GetCoreNumAic();
+    if((aicNum != aivNum) && (aicNum * 2U != aivNum)) {
+        OP_LOGI(context->GetNodeName(), "aicNum(%u):aivNum(%u) only support 1:1 or 1:2.", aicNum, aivNum);
+        return false;
+    }
+
     ge::DataType qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
     ge::DataType kDataType = context->GetInputDesc(KEY_INDEX)->GetDataType();
     bool isRopeSplit = (context->GetOptionalInputTensor(QUERY_ROPE_INDEX) != nullptr &&

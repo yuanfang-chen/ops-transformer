@@ -87,7 +87,7 @@ private:
     // platform info
     uint32_t aicNum_ = 0;
     uint32_t aivNum_ = 0;
-    uint32_t cvRatio_ = 0; // 2表示CV1:2; 1表示CV 1:1
+    uint32_t cvRatio_ = 2; // 2表示CV1:2; 1表示CV 1:1
     size_t libapiSize_ = 0;
 
     // set info to context
