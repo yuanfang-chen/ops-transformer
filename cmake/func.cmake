@@ -693,6 +693,7 @@ function(add_bin_compile_target)
     if (_ops_target_list)
         set(OPS_CONFIG_TARGET ops_config_${BINARY_COMPUTE_UNIT})
         set(BINARY_INFO_CONFIG_FILE ${BIN_OUT_DIR}/binary_info_config.json)
+        set(RELOCATABLE_KERNEL_INFO_CONFIG_FILE ${BIN_OUT_DIR}/relocatable_kernel_info_config.json)
 
         add_custom_command(OUTPUT ${BINARY_INFO_CONFIG_FILE}
                 COMMAND ${HI_PYTHON} ${ASCENDC_CMAKE_UTIL_DIR}/ascendc_ops_config.py -p ${BIN_OUT_DIR} -s ${BINARY_COMPUTE_UNIT}
@@ -712,7 +713,13 @@ function(add_bin_compile_target)
             install(FILES ${BINARY_INFO_CONFIG_FILE}
                     DESTINATION ${_INSTALL_DIR}/config/${BINARY_COMPUTE_UNIT}/ops_transformer OPTIONAL
             )
+            install(FILES ${RELOCATABLE_KERNEL_INFO_CONFIG_FILE}
+                    DESTINATION ${_INSTALL_DIR}/config/${BINARY_COMPUTE_UNIT}/ops_transformer OPTIONAL
+            )
         else()
+            install(FILES ${RELOCATABLE_KERNEL_INFO_CONFIG_FILE}
+                    DESTINATION ${_INSTALL_DIR}/config/${BINARY_COMPUTE_UNIT} OPTIONAL
+            )
             install(FILES ${BINARY_INFO_CONFIG_FILE}
                     DESTINATION ${_INSTALL_DIR}/config/${BINARY_COMPUTE_UNIT} OPTIONAL
             )
