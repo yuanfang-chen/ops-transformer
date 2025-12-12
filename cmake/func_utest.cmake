@@ -1013,6 +1013,7 @@ function(OpsTest_GenerateCoverage)
                     COMMAND ${HI_PYTHON} ${GEN_COV_PY}
                         "-s=${OPS_ADV_DIR}"
                         "-c=${GEM_COV_DATA_DIR}"
+                        "-f=/tmp/*"
                         "-f=/usr/include/*"
                         "-f=${ASCEND_CANN_PACKAGE_PATH_PARENT}/*"
                         "-y=${OPS_ADV_DIR}/classify_rule.yaml"

@@ -1364,12 +1364,18 @@ build_ut() {
         fi
     done
     if [[ "$COV" == "true" && "$ENABLE_UT_EXEC" == "TRUE" && "$has_valid_target" == "TRUE" ]]; then
-        python3 ${BASE_PATH}/cmake/scripts/utest/gen_coverage.py\
-            -s=${BASE_PATH}\
-            -c=${BUILD_PATH}\
-            -f="/usr/include/*"\
-            -f="$(realpath $ASCEND_HOME_PATH/../)/*"\
+        python3 ${BASE_PATH}/cmake/scripts/utest/gen_coverage.py \
+            -s=${BASE_PATH} \
+            -c=${BUILD_PATH} \
+            -f="/tmp/*" \
+            -f="/usr/include/*" \
+            -f="$(realpath $ASCEND_HOME_PATH/../)/*" \
             -y=${BASE_PATH}/classify_rule.yaml
+        local gen_coverage_result=$?
+        if [ $gen_coverage_result -ne 0 ]; then
+            echo "Error: Gen coverage failed with exit code: $gen_coverage_result"
+            exit $gen_coverage_result
+        fi
     fi
   fi
   exit 0

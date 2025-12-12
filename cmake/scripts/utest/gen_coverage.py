@@ -112,18 +112,18 @@ class GenCoverage:
         p.html_report_dir = Path(p.html_report_dir).absolute()
         p.init_filter_str(fs=args.filter)
         p.init_filter_str_from_yaml(source_dir=p.source_dir, yaml_path=args.yaml[0]) if args.yaml else None
-        logging.debug("filter_str=%s", p.filter_str)
+        logging.debug("[DEBUG] filter_str=%s", p.filter_str)
         # 参数检查
         if not p.data_dir.exists():
-            logging.error("The dir(%s) required to find the .da files not exist.", p.data_dir)
-            return
+            logging.error("[ERROR] The dir(%s) required to find the .da files not exist.", p.data_dir)
+            exit(1)
         if not p.info_file.exists():
             p.info_file.parent.mkdir(parents=True, exist_ok=True)
         if not p.html_report_dir.exists():
             p.html_report_dir.mkdir(parents=True, exist_ok=True)
         # 环境检查
         if not cls._chk_env():
-            return
+            exit(1)
         # 生成覆盖率数据
         cls._gen_cov(param=p)
 
@@ -133,13 +133,13 @@ class GenCoverage:
             ret = subprocess.run('lcov --version'.split(), capture_output=True, check=True, encoding='utf-8')
             ret.check_returncode()
         except FileNotFoundError:
-            logging.error("lcov is required to generate coverage data, please install.")
+            logging.error("[ERROR] lcov is required to generate coverage data, please install.")
             return False
         try:
             ret = subprocess.run('genhtml --version'.split(), capture_output=True, check=True, encoding='utf-8')
             ret.check_returncode()
         except FileNotFoundError:
-            logging.error("genhtml is required to generate coverage html report, please install.")
+            logging.error("[ERROR] genhtml is required to generate coverage html report, please install.")
             return False
         return True
 
@@ -150,23 +150,26 @@ class GenCoverage:
         """
         # 当 log 等级小于 INFO 时，lcov 不带 -q 标签
         lcov_log_tag = "" if logging.getLogger().level <= logging.INFO else "-q"
+        logging.critical("================================================================================")
+        logging.critical("Coverage Report")
+        logging.critical("================================================================================")
 
         # 生成覆盖率
         cmd = f"lcov -c -d {param.data_dir} -o {param.info_file} {lcov_log_tag}"
-        logging.debug("Generate origin coverage file, cmd=`%s`", cmd)
+        logging.debug("[DEBUG] Generate origin coverage file, cmd=`%s`", cmd)
         ret = subprocess.run(cmd.split(), capture_output=False, check=True, encoding='utf-8')
         ret.check_returncode()
         if param.info_file.stat().st_size == 0:
             logging.critical("No file found in origin coverage file.")
             return
-        logging.debug("Generated origin coverage file %s", param.info_file)
+        logging.debug("[DEBUG] Generated origin coverage file %s", param.info_file)
         # 滤掉某些文件/路径的覆盖率信息
         cmd = f"lcov --remove {param.info_file} {param.filter_str} -o {param.info_file_filtered} {lcov_log_tag}"
-        logging.debug("Generate filtered coverage file, cmd=`%s`", cmd)
+        logging.debug("[DEBUG] Generate filtered coverage file, cmd=`%s`", cmd)
         ret = subprocess.run(cmd.split(), capture_output=False, check=True, encoding='utf-8')
         ret.check_returncode()
-        logging.debug("Generated filtered coverage file %s", param.info_file_filtered)
-        logging.info("Generated coverage result in %s", os.path.dirname(param.info_file))
+        logging.debug("[DEBUG] Generated filtered coverage file %s", param.info_file_filtered)
+        logging.info("[INFO] Generated coverage result in %s", os.path.dirname(param.info_file))
 
         if param.info_file_filtered.stat().st_size == 0:
             logging.critical("No file found in filtered coverage file.")
@@ -174,15 +177,12 @@ class GenCoverage:
         # 生成 html 报告
         sub_cmd_prefix = f"-p {param.source_dir}" if param.source_dir else ""
         cmd = f'genhtml {param.info_file_filtered} {sub_cmd_prefix} -o {param.html_report_dir} {lcov_log_tag}'
-        logging.debug("Generate filtered coverage html report, cmd=`%s`", cmd)
+        logging.debug("[DEBUG] Generate filtered coverage html report, cmd=`%s`", cmd)
         ret = subprocess.run(cmd.split(), capture_output=False, check=True, encoding='utf-8')
         ret.check_returncode()
-        logging.info("Generated filtered coverage html report. %s", param.html_report_dir)
+        logging.info("[INFO] Generated filtered coverage html report. %s", param.html_report_dir)
         # 输出覆盖率数据到终端
         cmd = f"lcov --list {param.info_file_filtered}"
-        logging.critical("================================================================================")
-        logging.critical("Coverage Report")
-        logging.critical("================================================================================")
         ret = subprocess.run(cmd.split(), capture_output=False, check=True, encoding='utf-8')
         logging.critical("================================================================================")
         ret.check_returncode()
@@ -190,6 +190,6 @@ class GenCoverage:
 
 if __name__ == "__main__":
     # 将环境变量中的 ASCEND_GLOBAL_LOG_LEVEL 换算成 python 的 log 等级
-    log_level = (int(os.getenv("ASCEND_GLOBAL_LOG_LEVEL", "4")) + 1) * 10
+    log_level = (int(os.getenv("ASCEND_GLOBAL_LOG_LEVEL", "3")) + 1) * 10
     logging.basicConfig(format='[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=log_level)
     GenCoverage.main()
