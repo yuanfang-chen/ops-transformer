@@ -94,6 +94,7 @@ private:
     uint32_t rsResRound_{0};
     uint32_t rsBlockNums_{0};
     uint64_t xSize_{0};
+    uint64_t alignedXSize_{0};
     uint64_t scaleSize_{0};
     uint64_t xSliceSize_{0};
     uint64_t scaleSingleNums_{0};
@@ -111,6 +112,7 @@ __aicore__ inline void QuantAllReduceMte<TemplateQuantAllReduceType>::Init(GM_AD
     // windows分区写入数据
     xSize_ = tiliingDataIinfo.bs * tiliingDataIinfo.hiddenSize * sizeof(XType);
     scaleSize_ = tiliingDataIinfo.bs * tiliingDataIinfo.scaleHiddenSize * sizeof(ScalesType);
+    xSliceSize_ = xSize_ / hcclContext_->rankDim; // 每块的数据量大小
     // 对于mx的scale是三维，最后一维为2，总scales的数据量需要再乘以2
     if constexpr(AscendC::IsSameType<ScalesType, fp8_e8m0_t>::value) {
         scaleSize_ *= MX_SCALES_LAST_DIM;
@@ -124,12 +126,11 @@ __aicore__ inline void QuantAllReduceMte<TemplateQuantAllReduceType>::Init(GM_AD
     // 获取本卡地址写数据
     GM_ADDR localDataSpaceGm = (GM_ADDR)(hcclContext_->windowsIn[hcclContext_->rankId]);
     localWinXGMTensor_.SetGlobalBuffer((__gm__ XType*)localDataSpaceGm);
-    localWinScaleGMTensor_.SetGlobalBuffer((__gm__ ScalesType*)(localDataSpaceGm + xSize_)); // GM上sclae数据跟在x后
+    alignedXSize_ = CeilAlign(xSliceSize_, SINGLE_NUM) * hcclContext_->rankDim;
+    localWinScaleGMTensor_.SetGlobalBuffer((__gm__ ScalesType*)(localDataSpaceGm + alignedXSize_)); // GM上sclae数据跟在x后
 
-    xSliceSize_ = xSize_ / hcclContext_->rankDim; // 每块的数据量大小
     scaleSliceNums_ = scaleSize_ / (hcclContext_->rankDim * sizeof(ScalesType)); // 每块的数据量个数
     rsTotalBlocks_ = CeilDiv(xSliceSize_, X_SINGLE_SIZE); // 按每次搬运x的数据量分块，得到的总块数
-
     scaleSingleNums_ = SCALE_SINGLE_SIZE / sizeof(ScalesType); // 一块scale固定32B, 计算包含多少个数据
     rsRound_ = rsTotalBlocks_ / tiliingDataIinfo.aivNum;  // 计算总的数据分给所有核搬运需要的轮次数
     rsResRound_ = rsTotalBlocks_ % tiliingDataIinfo.aivNum; // 搬运的尾块数
@@ -328,7 +329,7 @@ __aicore__ inline void QuantAllReduceMte<TemplateQuantAllReduceType>::ReadRomote
                 GlobalTensor<XType> remoteWinGMTensor_;
                 GM_ADDR remoteXWin = (GM_ADDR)(hcclContext_->windowsIn[remoteRankId]);
                 remoteWinXTensor_.SetGlobalBuffer((__gm__ XType*)remoteXWin);
-                GM_ADDR remoteScaleWin = (GM_ADDR)(hcclContext_->windowsIn[remoteRankId] + xSize_);
+                GM_ADDR remoteScaleWin = (GM_ADDR)(hcclContext_->windowsIn[remoteRankId] + alignedXSize_);
                 remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleWin);
 
                 ////////////// 读取 x 从 Win -> UB //////////

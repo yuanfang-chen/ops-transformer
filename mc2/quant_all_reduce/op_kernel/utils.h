@@ -41,14 +41,20 @@ __aicore__ inline void SyncFunc()
     AscendC::WaitFlag<event>(eventID);
 }
 
-template <typename T1, typename T2>
-__aicore__ inline T1 CeilDiv(T1 a, T2 b)
+__aicore__ inline uint64_t CeilDiv(uint64_t a, uint32_t b)
 {
     if (b == 0) {
         return 0;
     }
     return (a + b - 1) / b;
 };
+
+__aicore__ inline uint64_t CeilAlign(uint64_t a, uint32_t b)
+{
+    uint64_t bTemp = static_cast<uint64_t>(b);
+    return (bTemp == 0) ? a : CeilDiv(a, bTemp) * bTemp;
+};
+
 
 static constexpr AscendC::MicroAPI::CastTrait castTrait = {AscendC::MicroAPI::RegLayout::ZERO,
     AscendC::MicroAPI::SatMode::NO_SAT, AscendC::MicroAPI::MaskMergeMode::ZEROING, AscendC::RoundMode::CAST_NONE};
