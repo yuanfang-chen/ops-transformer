@@ -185,6 +185,7 @@ private:
     int64_t vectorRow_ = 1;
     int64_t curVectorBlockNum_;
     int64_t vectorCoreNum_;
+    uint64_t dequantScaleCqSize_ = 1;
     uint32_t curStepVecFrontToken_;
     uint32_t curStepVecFrontListNum_;
     uint32_t curStepVecBackToken_;
@@ -193,9 +194,9 @@ private:
     static constexpr uint32_t cvRatio_ = MLAPT::cvRatio; // 默认cv 1:2
 
     struct DequantTool {
-        GlobalTensor<float> deQuantScaleCqGm_;
+        GlobalTensor<dequantScaleType> deQuantScaleCqGm_;
         TBuf<TPosition::VECCALC> deQuantScaleCqBuffer_;  // 用于临时存储每一行的Scale，以及汇总最终每一行的Scale参数
-        LocalTensor<float> deQuantScaleCqLocal_;
+        LocalTensor<dequantScaleType> deQuantScaleCqLocal_;
         __aicore__ inline DequantTool() {}
     };
 
@@ -523,7 +524,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::VectorBufferInit() {
 
     // 预留brcb的空间
     pipe_->InitBuffer(dequantTool_.deQuantScaleCqBuffer_, (baseParams_->stepBatchSize + 7) * ALIGN_BLOCK_SIZE);
-    dequantTool_.deQuantScaleCqLocal_ = dequantTool_.deQuantScaleCqBuffer_.template Get<float>();
+    dequantTool_.deQuantScaleCqLocal_ = dequantTool_.deQuantScaleCqBuffer_.template Get<dequantScaleType>();
 
     if constexpr (MLAPT::enableDequantOpt) {
         // 在ropeQr进行切N处理后，会复用shareBuffer的内存，不需要额外申请
@@ -604,9 +605,13 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::CubeBufferInit() {
 template<typename MLAPT>
 __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::WorkspaceInit(__gm__ uint8_t *workspace) {
     int64_t workspaceOffset = 0;
+    if constexpr (std::is_same<rmsNormCqOutputType, FP8E4M3>::value) {
+        dequantScaleCqSize_ = baseParams_->headSizeCq / FP8_E4M3_BLOCK_SIZE;
+    }
+    dequantScaleCqSize_ = Align(dequantScaleCqSize_, BYTE_BLOCK);
     if constexpr (MLAPT::enableGroupComputeOpt || MLAPT::enableDequantOpt) {
-        dequantTool_.deQuantScaleCqGm_.SetGlobalBuffer((__gm__ float *)(workspace + workspaceOffset));
-        workspaceOffset += baseParams_->stepBatchSize * ALIGN_BLOCK_SIZE;
+        dequantTool_.deQuantScaleCqGm_.SetGlobalBuffer((__gm__ dequantScaleType *)(workspace + workspaceOffset));
+        workspaceOffset += baseParams_->stepBatchSize * dequantScaleCqSize_;
     }
 
     mmCkvKrResGm_.SetGlobalBuffer((__gm__ mmCkvKrOutputType *)(workspace + workspaceOffset));
@@ -1200,11 +1205,17 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
     if (blockIdx_ >= curVectorBlockNum_) {
         return;
     }
+    uint64_t dequantScaleXSize = 1;
+    if constexpr (std::is_same<rmsNormCqOutputType, FP8E4M3>::value) {
+        dequantScaleXSize = baseParams_->headSizeX / FP8_E4M3_BLOCK_SIZE;
+    }
+    uint64_t dequantScaleCqElementNum = dequantScaleCqSize_ / sizeof(dequantScaleType);
+    uint64_t dequantScaleXElementNum = Align(dequantScaleXSize, BYTE_BLOCK) / sizeof(float);
     int64_t stepTokenIndex = tokenIndex;
     LocalTensor<rmsNormCqOutputType> outputLocal = shareBuffer_.Get<rmsNormCqOutputType>();
-    LocalTensor<float> dequantScaleQcQr = outputLocal[baseParams_->headSizeCq].template ReinterpretCast<float>();
-    LocalTensor<float> dequantScaleXLocal = dequantScaleQcQr[curVecToken * FP32_BLOCK_ELEMENT_NUM];
-    LocalTensor<uint8_t> shareTmpUb = dequantScaleXLocal[FP32_BLOCK_ELEMENT_NUM].template ReinterpretCast<uint8_t>();
+    LocalTensor<dequantScaleType> dequantScaleQcQr = outputLocal[baseParams_->headSizeCq].template ReinterpretCast<dequantScaleType>();
+    LocalTensor<float> dequantScaleXLocal = dequantScaleQcQr[curVecToken * dequantScaleCqElementNum].template ReinterpretCast<float>();
+    LocalTensor<uint8_t> shareTmpUb = dequantScaleXLocal[dequantScaleXElementNum].template ReinterpretCast<uint8_t>();
     for (int64_t curVecTokenIdx = 0; curVecTokenIdx < curVecToken; curVecTokenIdx++) {
         // MatmulCq ──> RmsNorm(Cq) ──> MatmulQcQr
 
@@ -1216,7 +1227,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
             DataCopyPad(dequantScaleXLocal, dequantScaleXGm_[tokenIndex], {1, sizeof(float), 0, 0}, {false, 0, 0, 0});
         }
 
-        uint64_t scaleOffset = curVecTokenIdx * FP32_BLOCK_ELEMENT_NUM;
+        uint64_t scaleOffset = curVecTokenIdx * dequantScaleCqElementNum;
         RmsNormParam rmsNormParams ={
             baseParams_->reciprocalCq,      // reciprocal
             baseParams_->epsilonCq,         // epsilon
@@ -1226,7 +1237,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
             baseParams_->isQcQrScaleEnable, // isScaleEnable
         };
         if constexpr (std::is_same<rmsNormCqOutputType, int8_t>::value || std::is_same<rmsNormCqOutputType, FP8E4M3>::value) {
-            RmsNormDynamicQuant<mmCqOutputType, rmsNormGammaType, float, rmsNormComputType, rmsNormCqOutputType>(
+            RmsNormDynamicQuant<mmCqOutputType, rmsNormGammaType, float, rmsNormComputType, rmsNormCqOutputType, dequantScaleType>(
                                 outputLocal, dequantScaleQcQr[scaleOffset],
                                 mmCqResGm_[rmsNormCqOffset], rmsnormGammaCqLocal_, smoothScaleCqLocal_, dequantScaleWDqLocal_,
                                 dequantScaleXLocal,  shareTmpUb,
@@ -1251,7 +1262,9 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormCq(int64_t tokenIndex,
         tokenIndex++;
     }
     if constexpr (std::is_same<rmsNormCqOutputType, FP8E4M3>::value) {
-        DataCopy(dequantTool_.deQuantScaleCqGm_[curBlockTokenOffset * DEQUANT_SCALES_CQ_SIZE], dequantScaleQcQr, curVecToken * DEQUANT_SCALES_CQ_SIZE);
+        SetFlag<HardEvent::V_MTE3>(EVENT_ID0);
+        WaitFlag<HardEvent::V_MTE3>(EVENT_ID0);
+        DataCopy(dequantTool_.deQuantScaleCqGm_[curBlockTokenOffset * dequantScaleCqElementNum], dequantScaleQcQr, curVecToken * dequantScaleCqElementNum);
     } else {
         Brcb(dequantTool_.deQuantScaleCqLocal_[curBlockTokenOffset * FP32_BLOCK_ELEMENT_NUM], dequantScaleQcQr, curVecToken, {1, 1});
         if constexpr (MLAPT::enableDequantOpt || MLAPT::enableGroupComputeOpt) {

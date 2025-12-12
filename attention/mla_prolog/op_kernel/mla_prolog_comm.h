@@ -98,8 +98,8 @@ constexpr uint32_t QC_CORE_NUM = 8; // 算力分组方案QC占用8核
 constexpr uint32_t QR_CORE_NUM = 4; // 算力分组方案QR占用4核
 constexpr uint32_t INT8_AFULLLOAD_MAX_MSIZE = 64; // 计算mmQcQr时，int8类型的A矩阵在msize小于等于64可以全载L1
 constexpr uint32_t BF16_AFULLLOAD_MAX_MSIZE = 32; // 计算mmQcQr时，bf16类型的A矩阵在msize小于等于32可以全载L1
-constexpr uint32_t DEQUANT_SCALES_CQ_SIZE = 48; // RmsNormCq输出的动态量化系数大小
 constexpr uint32_t ONE_BYTE_TYPE_SIZE = 1; // 数据类型int8_t fp8大小为1字节
+constexpr uint32_t FP8_E4M3_BLOCK_SIZE = 32;
 
 constexpr int SYNC_MODE_ALL_CUBE = 0x0;
 constexpr int SYNC_MODE_CUBE_VEC = 0x2;

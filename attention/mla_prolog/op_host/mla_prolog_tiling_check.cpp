@@ -377,7 +377,7 @@ void MlaPrologTilingCheck::FillOptionalOutputParamShapeWithDims()
         }
         expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME].dtype = ge::DT_FLOAT;
 
-        if (*(context_.queryNormFlag)) {
+        if (GetSocVersionShortName() != platform_ascendc::SocVersion::ASCEND910_95 && *(context_.queryNormFlag)) {
             if (scenarioInfo_.batchSeqFusedFlag_) {
                 expectedParamInfo_.emplace(QUERY_NORM_NAME,
                     std::vector<uint32_t>{baseShapeInfo_.tSize, baseShapeInfo_.hcqSize});
@@ -577,7 +577,7 @@ void MlaPrologTilingCheck::FillMxfp8FullKVQuantParamInfo()
 {
     FillMxfp8FullQuantParamInfo();
 
-    expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1, baseShapeInfo_.hckvSize});
+    expectedParamInfo_.emplace(QUANT_SCALE_CKV_NAME, std::vector<uint32_t>{1});
 
     expectedParamInfo_[KV_CACHE_NAME].dtype = ge::DT_FLOAT8_E4M3FN;
     expectedParamInfo_[QUANT_SCALE_CKV_NAME].dtype = ge::DT_FLOAT;
