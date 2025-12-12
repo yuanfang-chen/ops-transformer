@@ -17,16 +17,12 @@ operator_group_1:
   - nsa_selected_attention_infer
   - mla_preprocess_v2
   - mla_preprocess
-  - mla_prolog_v2
-  - mla_prolog_v3
-  - mla_prolog
 operator_group_2:
   - incre_flash_attention
   - prompt_flash_attention
 operator_group_3:
   - fused_infer_attention_score
 operator_group_4:
-  - flash_attention_score
   - flash_attention_score_grad
 operator_group_5:
   - quant_lightning_indexer
@@ -43,6 +39,7 @@ operator_group_6:
   - sparse_flash_attention
   - scatter_pa_kv_cache
   - lightning_indexer
+  - flash_attention_score
 operator_group_7:
   - ffn
   - grouped_matmul_swiglu_quant
@@ -50,34 +47,24 @@ operator_group_7:
   - grouped_matmul_add
   - grouped_matmul_swiglu_quant_v2
   - grouped_matmul_finalize_routing
+  - mla_prolog_v2
+  - mla_prolog_v3
+  - mla_prolog
 operator_group_8:
+  - moe_token_permute
+  - moe_init_routing_v2
+  - moe_token_permute_grad
+  - moe_init_routing_v2_grad
+  - moe_token_unpermute
+  - moe_finalize_routing_v2
+  - moe_token_unpermute_grad
+  - moe_finalize_routing_v2_grad
   - moe_compute_expert_tokens
   - moe_finalize_routing
-  - moe_finalize_routing_v2
-  - moe_finalize_routing_v2_grad
   - moe_fused_topk
   - moe_gating_top_k
   - moe_gating_top_k_softmax
   - moe_gating_top_k_softmax_v2
-  - moe_init_routing
-  - moe_init_routing_quant
-  - moe_init_routing_quant_v2
-  - moe_init_routing_v2
-  - moe_init_routing_v2_grad
-  - moe_init_routing_v3
-  - moe_re_routing
-  - moe_token_permute
-  - moe_token_permute_grad
-  - moe_token_permute_with_ep
-  - moe_token_permute_with_ep_grad
-  - moe_token_permute_with_routing_map
-  - moe_token_permute_with_routing_map_grad
-  - moe_token_unpermute
-  - moe_token_unpermute_grad
-  - moe_token_unpermute_with_ep
-  - moe_token_unpermute_with_ep_grad
-  - moe_token_unpermute_with_routing_map
-  - moe_token_unpermute_with_routing_map_grad
 operator_group_9:
   - dequant_rope_quant_kvcache
   - interleave_rope
@@ -87,6 +74,14 @@ operator_group_9:
   - norm_rope_concat_grad
   - apply_rotary_pos_emb
   - rotary_position_embedding
+  - moe_token_permute_with_ep
+  - moe_token_permute_with_ep_grad
+  - moe_token_permute_with_routing_map
+  - moe_token_permute_with_routing_map_grad
+  - moe_token_unpermute_with_ep
+  - moe_token_unpermute_with_ep_grad
+  - moe_token_unpermute_with_routing_map
+  - moe_token_unpermute_with_routing_map_grad
 operator_group_10:
   - allto_allv_grouped_mat_mul
   - allto_all_all_gather_batch_mat_mul
@@ -107,3 +102,8 @@ operator_group_10:
   - moe_distribute_dispatch
   - moe_distribute_dispatch_v2
   - moe_update_expert
+  - moe_init_routing
+  - moe_init_routing_quant
+  - moe_init_routing_quant_v2
+  - moe_init_routing_v3
+  - moe_re_routing
