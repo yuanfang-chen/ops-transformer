@@ -326,6 +326,7 @@ public:
     int32_t baseUbCalSize;
     int64_t multiCoreTotalSize;
     int64_t shapeTotalSize;
+    int64_t dropMaskAddrOffset;
 
     int32_t get_multiCoreFactorSize() const {return multiCoreFactorSize;}
     void set_multiCoreFactorSize(int32_t multiCoreFactorSizeParam) {this->multiCoreFactorSize = multiCoreFactorSizeParam;}

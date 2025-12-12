@@ -1604,9 +1604,11 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::PostTiling()
             }
             shapeTotalSize = n2Size * gSize * dropTotalSize;
         }
+        dropmaskParamsRegbase_->dropMaskAddrOffset = workspaces[0];
         shapeTotalSize = AlignUp(shapeTotalSize, GM_ALIGN);
         workspaces[0] += static_cast<size_t>(shapeTotalSize);
     }
+    workspaces[0] += WORK_SPACE_RESERVE_SIZE;
     OP_LOGD(opName, "[%s]tiling data: %s", templateName, GetTilingDataDebugStr().c_str());
     return ge::GRAPH_SUCCESS;
 }

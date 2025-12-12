@@ -31,13 +31,13 @@ class FABlockVecTrain
 public:
     using BaseClass = FABlockVecBase<FABlockVecTrain<TEMPLATE_ARGS>, TEMPLATE_ARGS>;
 public:
+    __aicore__ inline void InitDropOut(__gm__ uint8_t *dropMask, __gm__ uint8_t *workspace);
     __aicore__ inline void InitGlobalBuffer(
         __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
-        __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
-        __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask, __gm__ uint8_t *dropMask,
-        __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *softmaxMax,
-        __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
-        ConstInfo<isInfer, hasRope> &constInfo);
+        __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *prefix,
+        __gm__ uint8_t *attenMask, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize,
+        __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset,
+        uint32_t aicIdx, ConstInfo<isInfer, hasRope> &constInfo);
     /* =====================GM变量==================== */
     GlobalTensor<uint8_t> dropMaskGm;
     GlobalTensor<float> softmaxMaxGm;
@@ -69,10 +69,23 @@ private:
 
 
 TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::InitDropOut(__gm__ uint8_t *dropMask,
+    __gm__ uint8_t *workspace)
+{
+    if constexpr (hasDrop) {
+        dropMaskInfo.boolMode = this->tilingData->inputParamsRegbase.needDropMaskOp == 1;
+        if (dropMaskInfo.boolMode) {
+            dropMaskGm.SetGlobalBuffer(workspace + this->tilingData->dropmaskParamsRegbase.dropMaskAddrOffset);
+        } else {
+            dropMaskGm.SetGlobalBuffer((__gm__ uint8_t *)dropMask);
+        }
+    }
+}
+
+TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::InitGlobalBuffer(
     __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
-    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
-    __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask, __gm__ uint8_t *dropMask, 
+    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
     __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *softmaxMax,
     __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
     ConstInfo<isInfer, hasRope> &constInfo)
@@ -80,15 +93,6 @@ __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::InitGlobalBuffer(
     BaseClass::InitCommonGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, prefix, attenMask, workspace, constInfo);
     softmaxMaxGm.SetGlobalBuffer((__gm__ float *)softmaxMax);
     softmaxSumGm.SetGlobalBuffer((__gm__ float *)softmaxSum);
-    if constexpr (hasDrop) {
-        dropMaskInfo.boolMode = this->tilingData->inputParamsRegbase.needDropMaskOp == 1;
-        if (dropMaskInfo.boolMode) {
-            dropMaskGm.SetGlobalBuffer(workspace);
-            workspace += this->tilingData->dropmaskParamsRegbase.shapeTotalSize;
-        } else {
-            dropMaskGm.SetGlobalBuffer((__gm__ uint8_t *)dropMask);
-        }
-    }
 }
 
 TEMPLATES_DEF_NO_DEFAULT

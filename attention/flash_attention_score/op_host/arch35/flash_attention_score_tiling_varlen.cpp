@@ -238,7 +238,7 @@ protected:
         bmm2Bytes = AlignUp(bmm2Bytes, GM_ALIGN);
         vec2Bytes = AlignUp(vec2Bytes, GM_ALIGN);
         workspaces[0] = static_cast<size_t>(((bmm2Bytes + vec2Bytes) * PING_PONG_VALUE) *
-            multiCoreParamsRegbase_->get_coreNum()) + WORK_SPACE_RESERVE_SIZE;
+            multiCoreParamsRegbase_->get_coreNum());
         return ge::GRAPH_SUCCESS;
     }
 

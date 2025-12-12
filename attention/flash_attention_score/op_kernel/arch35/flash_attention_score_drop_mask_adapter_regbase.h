@@ -74,7 +74,8 @@ FlashAttentionScoreDropMaskAdapterRegbase::Init(__gm__ uint8_t *dropMask, __gm__
     blockIdx = AscendC::GetBlockIdx();
 
     dropMaskGm.SetGlobalBuffer(dropMask);
-    outputGm.SetGlobalBuffer(workspace, CeilDiv(tiling->dropmaskParamsRegbase.shapeTotalSize, 512) * 512);
+    outputGm.SetGlobalBuffer(workspace + tiling->dropmaskParamsRegbase.dropMaskAddrOffset,
+        CeilDiv(tiling->dropmaskParamsRegbase.shapeTotalSize, 512) * 512);
     pipe->InitBuffer(dropMaskInputQueue, 1, tiling->dropmaskParamsRegbase.baseUbCalSize / AscendC::ONE_BYTE_BIT_SIZE);
     pipe->InitBuffer(dropMaskOutputQueue, 1, tiling->dropmaskParamsRegbase.baseUbCalSize);
     pipe->InitBuffer(dropMaskSelSrcTBuf, tiling->dropmaskParamsRegbase.baseUbCalSize * sizeof(half));

@@ -69,10 +69,11 @@ public:
     __aicore__ inline void InitCubeVecSharedParams(CVSharedParams<isInfer, isPa> &sharedParams, int32_t aicIdx, uint8_t subBlockIdx);
     __aicore__ inline void CleanOutput(__gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut,
         ConstInfo<isInfer, hasRope> &constInfo);
+    __aicore__ inline void InitDropOut(__gm__ uint8_t *dropMask, __gm__ uint8_t *workspace) {}
     __aicore__ inline void InitGlobalBuffer(
         __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
         __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
-        __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask, __gm__ uint8_t *dropMask, 
+        __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
         __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *softmaxMax,
         __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
         ConstInfo<isInfer, hasRope> &constInfo);
@@ -237,8 +238,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CleanOutput(__gm__ uint8_
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitGlobalBuffer(
     __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
-    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
-    __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,  __gm__ uint8_t *dropMask, 
+    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
     __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *softmaxMax,
     __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset, uint32_t aicIdx,
     ConstInfo<isInfer, hasRope> &constInfo)
