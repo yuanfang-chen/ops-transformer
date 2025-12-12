@@ -16,7 +16,7 @@
 #define MY_MUL_SEL_SOFTMAX_FLASH_V2_CAST_NZ_REGBASE_V2_INTERFACE_H
 
 #include "kernel_tensor.h"
-#include "regbase/pse.h"
+#include "../pse.h"
 
 using namespace regbaseutil;
 

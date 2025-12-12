@@ -2579,7 +2579,7 @@ bool PromptFlashAttentionTilingArch38::AdjustCVTilingCVDiff(const ContextParamsF
 
     if (tilingData.promptAttentionBaseParams.get_vHeadSize() <= 128 && !enablePFAMLA) { // 128 for D size
         bool checkDtype = contextKeyParams.inputDataType == ge::DT_FLOAT16 || contextKeyParams.inputDataType == ge::DT_BF16;
-        bool checkQueryAndValueS = queryShapeInfo.s <= SOUTER_FACTOR_DEFAULT && S2 > SINNER_FACTOR_DEFAULT;
+        bool checkQueryAndValueS = queryShapeInfo.s <= SOUTER_FACTOR_DEFAULT && S2 >= SINNER_FACTOR_DEFAULT;
         uint32_t sparseMode = tilingData.promptAttentionBaseParams.get_sparseMode();
         int32_t preTokens = tilingData.promptAttentionBaseParams.get_preTokens();
         int32_t nextTokens = tilingData.promptAttentionBaseParams.get_nextTokens();
@@ -4099,6 +4099,18 @@ ge::graphStatus PromptFlashAttentionTilingArch38::RunBigKernelTilingWithParams(C
 #endif
     return ge::GRAPH_SUCCESS;
 }
+
+ge::graphStatus PromptFlashAttentionTilingArch38::DoSubOpTiling(PromptFlashAttentionTilingData& tilingData, ContextParamsForPFATiling& contextParamsForPFATiling) {
+    uint64_t tilingKey = 7;
+    uint32_t blockDimToBeSet;
+    auto ret = RunBigKernelTilingWithParams(contextParamsForPFATiling, tilingKey, blockDimToBeSet, tilingData);
+    tilingKey += BENCHMARK_TILING_KEY;
+    context_->SetTilingKey(tilingKey);
+    context_->SetBlockDim(blockDimToBeSet);
+    PromptFlashAttentionSetTilingData(context_, tilingData);
+    return ret;
+}
+
 ge::graphStatus PromptFlashAttentionTilingArch38::DoOpTiling() {
     PromptFlashAttentionTilingData tilingData;
     ContextParamsForPFATiling contextParamsForPFATiling;
@@ -4113,6 +4125,5 @@ ge::graphStatus PromptFlashAttentionTilingArch38::DoOpTiling() {
     return ret;
 }
 REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTilingArch38, std::vector<int32_t>({(int32_t)platform_ascendc::SocVersion::MC62CM12A}), 91);
-REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, PromptFlashAttentionTilingArch38, std::vector<int32_t>({(int32_t)platform_ascendc::SocVersion::MC62CM12A}), 92);
 } // namespace arch38
 } // namespace optiling

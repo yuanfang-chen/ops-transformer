@@ -16,17 +16,15 @@
 #ifndef PROMPT_FLASH_ATTENTION_ENTRY_ARCH38_H_
 #define PROMPT_FLASH_ATTENTION_ENTRY_ARCH38_H_
 
-#include "../../../common/op_kernel/arch38/flash_attention_score_kernel_infer_regbase_v2.h"
+#include "../common/arch38/flash_attention_score_kernel_infer_regbase_v2.h"
 #include "prompt_flash_attention_dummy.h"
 namespace optiling {};
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define PFA_REGBASE_COPY_TILING_DATA(tiling)                                                                                                \
-    do {                                                                                                                                    \
-        GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                                           \
-        const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                                 \
-    } while (0)
+    GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                                           \
+    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                                 \
  
 #define INVOKE_PFA_GENERAL_OP_IMPL_REGBASE_V2_FA_BASEAPI(templateClass, ...)                                 \
     do {                                                                                                                                \
