@@ -29,7 +29,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -40,7 +40,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -51,7 +51,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -62,7 +62,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -73,7 +73,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -84,7 +84,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -195,7 +195,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -206,7 +206,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -217,7 +217,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -228,7 +228,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -239,7 +239,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -250,7 +250,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -361,7 +361,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -372,7 +372,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -383,7 +383,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -394,7 +394,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -405,7 +405,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -416,7 +416,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -429,7 +429,7 @@
                 {
                     "name": "y",
                     "index": 0,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -527,7 +527,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -538,7 +538,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -549,7 +549,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -560,7 +560,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -571,7 +571,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -582,7 +582,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -693,7 +693,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -704,7 +704,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -715,7 +715,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -726,7 +726,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -737,7 +737,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -748,7 +748,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -859,7 +859,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -870,7 +870,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -881,7 +881,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -892,7 +892,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -903,7 +903,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -914,7 +914,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -927,7 +927,7 @@
                 {
                     "name": "y",
                     "index": 0,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -1036,7 +1036,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1047,7 +1047,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1058,7 +1058,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1069,7 +1069,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1080,7 +1080,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1191,7 +1191,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1202,7 +1202,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1213,7 +1213,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1224,7 +1224,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1235,7 +1235,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1246,7 +1246,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1368,7 +1368,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1379,7 +1379,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1390,7 +1390,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1401,7 +1401,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1412,7 +1412,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1523,7 +1523,7 @@
                 {
                     "name": "bias",
                     "index": 2,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1534,7 +1534,7 @@
                 {
                     "name": "x1_scale",
                     "index": 3,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1545,7 +1545,7 @@
                 {
                     "name": "x2_scale",
                     "index": 4,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1556,7 +1556,7 @@
                 {
                     "name": "comm_scale",
                     "index": 5,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1567,7 +1567,7 @@
                 {
                     "name": "x1_offset",
                     "index": 6,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -1578,7 +1578,7 @@
                 {
                     "name": "x2_offset",
                     "index": 7,
-                    "dtype": "float",
+                    "dtype": "float32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
