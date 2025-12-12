@@ -215,12 +215,14 @@
     ```
 3. **静态库测试方法**
     ```bash
-    g++ ${file} -I ${TEST_PATH}/include -L ${TEST_PATH} -L ${ASCEND_HOME_PATH}/lib64 -Wl,--allow-multiple-definition \
-    -Wl,--start-group -lcann_transformer_static -lcann_math_static -lcann_legacy_static -Wl,--end-group -lgraph -lgraph_base \
-    -lpthread -lmmpa -lmetadef -lascendalog -lregister -lopp_registry -lops_base -lascendcl -ltiling_api -lplatform \
-    -ldl -lnnopbase -lc_sec -lunified_dlog -lruntime -o ${exec_name}
+    g++ ${file} -I ${TEST_PATH}/include -L ${TEST_PATH}/lib -L ${ASCEND_HOME_PATH}/lib64 -Wl,--allow-multiple-definition \
+    -Wl,--start-group -lcann_transformer_static -lcann_math_static -lcann_legacy_static -Wl,--end-group -lgraph -lmetadef \
+    -lascendalog -lregister -lopp_registry -lops_base -lascendcl -ltiling_api -lplatform -ldl -lnnopbase -lgraph_base \
+    -lc_sec -lunified_dlog -lruntime -lhccl_fwk -o ${exec_name}
     ```
     \$\{file\}表示aclnn测试代码源文件，\$\{TEST\_PATH\}表示静态库解压路径，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/latest，\$\{exec\_name\}表示最终可执行文件的名字。
+
+    其中-lcann\_math\_static、-lgraph等库表示算子依赖的底层库，可在CANN toolkit包找到。
 
 ## 本地验证 
 
