@@ -662,9 +662,6 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::InitBuffers(TPipe 
 template <typename FIAT, typename Config>
 __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::AllocEventID()
 {
-    for (uint32_t i = 0; i < L1_Q_BUFCNT; ++i) {
-        SetFlag<HardEvent::MTE1_MTE2>(Q_EVENT0 + i);
-    }
     for (uint32_t i = 0; i < L1_KP_BUFCNT; ++i) {
         SetFlag<HardEvent::MTE1_MTE2>(KP_EVENT0 + i);
     }
@@ -682,9 +679,6 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::AllocEventID()
 template <typename FIAT, typename Config>
 __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::FreeEventID()
 {
-    for (uint32_t i = 0; i < L1_Q_BUFCNT; ++i) {
-        WaitFlag<HardEvent::MTE1_MTE2>(Q_EVENT0 + i);
-    }
     for (uint32_t i = 0; i < L1_KP_BUFCNT; ++i) {
         WaitFlag<HardEvent::MTE1_MTE2>(KP_EVENT0 + i);
     }
@@ -975,6 +969,9 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::ComputeMm1(const R
                 reuseQBuf = false;
             }
             if (unlikely(!reuseQBuf)) {
+                // 在需要搬入Q前才去Set MTE1->MTE2事件，而不是在L0算完后就去Set，是考虑到Q_L1 buf的生命周期可能跨越多轮MM1计算，
+                // 如果前一次MM1计算还未完成，还在复用Q_L1 buf，后一次MM1计算就开始搬运，就会覆盖了前一次计算的数据
+                SetFlag<HardEvent::MTE1_MTE2>(Q_EVENT0 + this->qL1BufId);
                 WaitFlag<HardEvent::MTE1_MTE2>(Q_EVENT0 + this->qL1BufId);
                 CopyQToL1(this->qL1BufId, info, mL1.start, mL1.sizeAct);
 
@@ -1027,7 +1024,6 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::ComputeMm1(const R
                 }
             }
             if (unlikely(!reuseQBuf)) {
-                SetFlag<HardEvent::MTE1_MTE2>(Q_EVENT0 + this->qL1BufId);
                 this->qL1BufId = (this->qL1BufId + 1)% L1_Q_BUFCNT;
                 reuseQBuf = true;
             }
