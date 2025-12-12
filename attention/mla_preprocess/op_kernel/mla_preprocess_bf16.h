@@ -1277,7 +1277,7 @@ public:
     __aicore__ inline void Process()
     {
 #ifdef __DAV_C220_CUBE__
-        if (block_idx >= num_core) {
+        if (core_idx >= num_core) {
             WaitFlagDev(AIC_MM3_START);
             return;
         }

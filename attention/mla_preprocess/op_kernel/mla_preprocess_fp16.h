@@ -1254,7 +1254,7 @@ template <DataFormat formatB, bool transB, uint32_t swizzleDirect, uint64_t spli
 __aicore__ inline void PpMatmulEinSum<formatB, transB, swizzleDirect, splitGapA, splitGapC>::Process()
 {
 #ifdef __DAV_C220_CUBE__
-    if (block_idx >= num_core) {
+    if (core_idx >= num_core) {
         WaitFlagDev(MM2OUT);
         AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(BMM3SPLIT);
         return;

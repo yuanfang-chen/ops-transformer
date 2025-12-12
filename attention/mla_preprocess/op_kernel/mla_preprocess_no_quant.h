@@ -1023,7 +1023,7 @@ template <DataFormat formatB, bool transB, uint32_t swizzleDirect, uint64_t spli
 __aicore__ inline void PpMatmulEinSum_no_quant<formatB, transB, swizzleDirect, splitGapA, splitGapC, ein>::Process()
 {
 #ifdef __DAV_C220_CUBE__
-    if (block_idx >= num_core) {
+    if (core_idx >= num_core) {
         return;
     }
     using LocalTensor = AscendC::LocalTensor<InDtype>;
