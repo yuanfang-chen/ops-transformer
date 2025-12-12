@@ -30,7 +30,6 @@
 using namespace op;
 
 namespace l0op {
-namespace moe3rd {
 OP_TYPE_REGISTER(InplaceIndexAdd);
 OP_TYPE_REGISTER(MoeInplaceIndexAddWithSorted);
 // AICORE算子kernel
@@ -77,6 +76,5 @@ const aclTensor *MoeInplaceIndexAddWithSorted(const aclTensor *self, const int64
     OP_CHECK(ret == ACLNN_SUCCESS, OP_LOGE(ACLNN_ERR_INNER_NULLPTR,
              "MoeInplaceIndexAddWithSortedAiCore ADD_TO_LAUNCHER_LIST_AICORE failed."), return nullptr);
     return indexAddOut;
-}
 }
 }  // namespace l0op

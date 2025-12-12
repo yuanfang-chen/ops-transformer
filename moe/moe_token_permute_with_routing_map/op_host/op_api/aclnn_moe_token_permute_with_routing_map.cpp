@@ -22,7 +22,11 @@
 #include "opdev/shape_utils.h"
 #include "opdev/platform.h"
 #include "aclnn_moe_token_permute_with_routing_map.h"
-#include "../../../moe/3rd/moe_gather_v2/op_host/op_api/moe_gather_v2.h"
+#ifdef BUILD_OPEN_PROJECT_API
+    #include "../../../moe/3rd/moe_gather_v2/op_host/op_api/moe_gather_v2.h"
+#else
+    #include "level0/gather_v2.h"
+#endif
 
 using namespace op;
 #ifdef __cplusplus
@@ -235,11 +239,19 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGetWorkspaceSize(
     }
 
     const aclTensor* permuteTokensOpOut;
-    if (dropAndPad) {
-        permuteTokensOpOut = l0op::moe3rd::MoeGatherV2(tokensContiguous, 0, sortedIndicesOut, uniqueExecutor.get());
-    } else {
-        permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
-    }
+    #ifdef BUILD_OPEN_PROJECT_API
+        if (dropAndPad) {
+            permuteTokensOpOut = l0op::MoeGatherV2(tokensContiguous, 0, sortedIndicesOut, uniqueExecutor.get());
+        } else {
+            permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
+        }
+    #else
+        if (dropAndPad) {
+            permuteTokensOpOut = l0op::GatherV2(tokensContiguous, 0, sortedIndicesOut, uniqueExecutor.get());
+        } else {
+            permuteTokensOpOut = MoeTokenPermuteWithRoutingMapOut[0];
+        }
+    #endif
 
     CHECK_RET(permuteTokensOpOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto permuteTokensResult = l0op::ViewCopy(permuteTokensOpOut, permuteTokensOut, uniqueExecutor.get());

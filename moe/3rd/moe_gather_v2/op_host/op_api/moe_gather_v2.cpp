@@ -19,7 +19,6 @@
 using namespace op;
 
 namespace l0op {
-namespace moe3rd {
 OP_TYPE_REGISTER(GatherV2);
 
 static constexpr size_t MODE_MoeGatherV2_NUM = 3;
@@ -117,6 +116,5 @@ const aclTensor *MoeGatherV2(const aclTensor *self, int64_t axis, const aclTenso
   } else {
     return MoeGatherV2AiCPU(self, indices, axisTensor, gatherV2Out, batchDims, negativeIndexSupport, executor);
   }
-}
 }
 } // l0op

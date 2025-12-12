@@ -8,23 +8,21 @@
  # See LICENSE in the root of the software repository for the full text of the License.
  # ----------------------------------------------------------------------------
 
-file(GLOB MOE_ACLNN_3RD_SRCS
-    # moe_gather_v2
-    ${CMAKE_CURRENT_SOURCE_DIR}/moe_gather_v2/op_host/op_api/moe_gather_v2.cpp
-    # moe_inplace_index_add_with_sorted
-    ${CMAKE_CURRENT_SOURCE_DIR}/moe_inplace_index_add_with_sorted/op_host/op_api/moe_inplace_index_add.cpp
-    # moe_masked_scatter
-    ${CMAKE_CURRENT_SOURCE_DIR}/moe_masked_scatter/op_host/op_api/moe_masked_scatter.cpp
-)
-
-
-
-if(MOE_ACLNN_3RD_SRCS)
-    add_opapi_modules()
-    target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${MOE_ACLNN_3RD_SRCS})
-endif()
-
 if (BUILD_OPEN_PROJECT)
+    file(GLOB MOE_ACLNN_3RD_SRCS
+        # moe_gather_v2
+        ${CMAKE_CURRENT_SOURCE_DIR}/moe_gather_v2/op_host/op_api/moe_gather_v2.cpp
+        # moe_inplace_index_add_with_sorted
+        ${CMAKE_CURRENT_SOURCE_DIR}/moe_inplace_index_add_with_sorted/op_host/op_api/moe_inplace_index_add.cpp
+        # moe_masked_scatter
+        ${CMAKE_CURRENT_SOURCE_DIR}/moe_masked_scatter/op_host/op_api/moe_masked_scatter.cpp
+    )
+
+    if(MOE_ACLNN_3RD_SRCS)
+        add_opapi_modules()
+        target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${MOE_ACLNN_3RD_SRCS})
+    endif()
+
     file(GLOB MOE_TILING_3RD_SRCS
         # moe_inplace_index_add_with_sorted
         ${CMAKE_CURRENT_SOURCE_DIR}/moe_inplace_index_add_with_sorted/op_host/moe_inplace_index_add_with_sorted_tiling.cpp

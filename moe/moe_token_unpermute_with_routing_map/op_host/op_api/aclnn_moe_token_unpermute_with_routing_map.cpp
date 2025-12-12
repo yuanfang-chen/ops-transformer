@@ -293,11 +293,11 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGetWorkspaceSize(const aclTensor
         #ifdef BUILD_OPEN_PROJECT_API
             if (useNewOp) {
                 indexAddRes =
-                    l0op::moe3rd::MoeInplaceIndexAddWithSorted(unpermutedTokensOut, 0, sortValuesI32, sortIndex,
+                    l0op::MoeInplaceIndexAddWithSorted(unpermutedTokensOut, 0, sortValuesI32, sortIndex,
                                                     source, nullptr, uniqueExecutor.get());
             } else {
                 indexAddRes =
-                    l0op::moe3rd::MoeInplaceIndexAddAiCore(unpermutedTokensOut, 0, sortedIndicesContiguous,
+                    l0op::MoeInplaceIndexAddAiCore(unpermutedTokensOut, 0, sortedIndicesContiguous,
                                                 source, nullptr, uniqueExecutor.get());
             }
         #else

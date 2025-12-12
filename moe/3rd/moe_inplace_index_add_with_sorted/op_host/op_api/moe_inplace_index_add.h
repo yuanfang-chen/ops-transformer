@@ -22,7 +22,6 @@
 #include "opdev/op_executor.h"
 
 namespace l0op {
-namespace moe3rd {
 const aclTensor *MoeInplaceIndexAddAiCore(const aclTensor *self, const int64_t dim, const aclTensor *index,
                                        const aclTensor *source, const aclTensor *alphaTensor,
                                        aclOpExecutor *executor);
@@ -34,6 +33,5 @@ const aclTensor *MoeInplaceIndexAddAiCpu(const aclTensor *self, const int64_t di
 const aclTensor *MoeInplaceIndexAddWithSorted(const aclTensor *self, const int64_t dim, const aclTensor *sortedIndices,
                                            const aclTensor *pos, const aclTensor *value, const aclTensor *alphaTensor,
                                            aclOpExecutor *executor);
-}
 }
 #endif

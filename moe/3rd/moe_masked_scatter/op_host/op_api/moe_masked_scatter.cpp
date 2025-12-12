@@ -26,7 +26,6 @@
 using namespace op;
 
 namespace l0op {
-namespace moe3rd {
 OP_TYPE_REGISTER(MaskedScatter);
 static const std::initializer_list<op::DataType> AICORE_DTYPE_SUPPORT_LIST = {
     op::DataType::DT_FLOAT, op::DataType::DT_FLOAT16, op::DataType::DT_UINT8, op::DataType::DT_INT8,
@@ -93,6 +92,5 @@ const aclTensor* MoeMaskedScatter(
     } else {
         return MoeMaskedScatterAiCpu(self, mask, source, maskedScatterOut, executor);
     }
-}
 }
 } // namespace l0op
