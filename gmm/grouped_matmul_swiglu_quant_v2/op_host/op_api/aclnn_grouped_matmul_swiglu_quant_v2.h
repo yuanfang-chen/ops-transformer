@@ -36,22 +36,20 @@ extern "C" {
  * @param [in] dequantMode: 表示反量化计算类型，用于确定激活矩阵与权重矩阵的反量化方式。
  * @param [in] dequantDtype: 表示中间GroupedMatmul的结果数据类型。
  * @param [in] quantMode: 表示量化计算类型，用于确定swiglu结果的量化模式。
- * @param [in] quantDtype: 表示量化数据格式。
  * @param [in] groupListType: 表示指定分组的解释方式，用于确定groupList的语义。
  * @param [in] tuningConfig: 用于算子预估m/e的大小，走不同的算子模板，以适配不不同场景性能要求。
- * @param [out] quantOutput: 表示公式中的out，数据类型支持FLOAT4_E1M2、FLOAT4_E2M1、FLOAT8_E4M3FN、FLOAT8_E5M2数据类型，数据格式支持ND。
- * @param [out] quantScaleOutput: 表示公式中的outQuantScale，数据类型支持FLOAT8_E8M0数据类型。
+ * @param [out] quantOutput: 表示公式中的out，数据类型支持INT8、FLOAT4_E1M2、FLOAT4_E2M1、FLOAT8_E4M3FN、FLOAT8_E5M2数据类型，数据格式支持ND。
+ * @param [out] quantScaleOutput: 表示公式中的outQuantScale，数据类型支持FLOAT32、FLOAT8_E8M0数据类型。
  * @param [out] workspaceSize: 返回用户需要在npu device侧申请的workspace大小。
  * @param [out] executor: 返回op执行器，包含算子计算流程。
  * @return aclnnStatus: 返回状态码。
  */
 aclnnStatus aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(const aclTensor *x,
         const aclTensorList *weight, const aclTensorList *weightScale,
-        [[maybe_unused]] const aclTensorList *weightAssistMatrix, [[maybe_unused]] const aclTensor *bias,
-        [[maybe_unused]] const aclTensor *xScale, [[maybe_unused]] const aclTensor *smoothScale,
-        const aclTensor *groupList,  [[maybe_unused]] int64_t dequantMode, 
-        [[maybe_unused]] int64_t dequantDtype, [[maybe_unused]] int64_t quantMode,
-        int64_t groupListType,
+        const aclTensorList *weightAssistMatrix, const aclTensor *bias,
+        const aclTensor *xScale, const aclTensor *smoothScale,
+        const aclTensor *groupList,  int64_t dequantMode, 
+        int64_t dequantDtype, int64_t quantMode, int64_t groupListType,
         const aclIntArray *tuningConfigOptional, 
         aclTensor *output, aclTensor *outputScale,
         uint64_t *workspaceSize, aclOpExecutor **executor);
