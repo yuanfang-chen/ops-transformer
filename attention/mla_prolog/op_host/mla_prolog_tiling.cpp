@@ -85,6 +85,9 @@ ge::graphStatus MlaPrologTiling::GetNpuInfo()
     OP_CHECK_IF(aicNum_ == 0 || aivNum_ == 0,
         OPS_REPORT_VECTOR_INNER_ERR(context_->opName, "num of core obtained is 0."), return GRAPH_FAILED);
 
+    OP_CHECK_IF((aicNum_ != aivNum_) && (aicNum_ * 2 != aivNum_),
+        OPS_REPORT_VECTOR_INNER_ERR(context_->opName, "aicNum(%u):aivNum(%u) only support 1:1 or 1:2", aicNum_, aivNum_), return GRAPH_FAILED);
+
     return ge::GRAPH_SUCCESS;
 }
 
