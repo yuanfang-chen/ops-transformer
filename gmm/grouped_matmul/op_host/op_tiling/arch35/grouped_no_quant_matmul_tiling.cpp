@@ -14,9 +14,15 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
  * \brief
  */
 #include "grouped_no_quant_matmul_tiling.h"
+#include "../../../op_kernel/arch35/non_quant/grouped_matmul_tiling_key.h"
 
+enum class GmmTrans {
+    NoTrans = 0,
+    ATrans = 1,
+    BTrans = 2,
+    ABTrans = 3
+};
 namespace optiling {
-
 bool GroupedNoQuantMatmulTiling::SetTiling(gert::TilingContext *context)
 {
     auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
@@ -354,7 +360,8 @@ bool GroupedNoQuantMatmulTiling::SetCustomParam(gert::TilingContext *context)
     context->SetBlockDim(usedCoreNum_);
     OP_CHECK_IF(context->GetRawTilingData() == nullptr, OP_LOGE(context->GetNodeName(), "RawTilingData is nullptr."),
                 return false);
-    errno_t ret = memcpy_s(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity(), reinterpret_cast<void *>(&tilingData_), sizeof(tilingData_));
+    errno_t ret = memcpy_s(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity(),
+                           reinterpret_cast<void *>(&tilingData_), sizeof(tilingData_));
     if (ret != EOK) {
         OP_LOGE(context->GetNodeName(), "memcpy_s failed, ret = %d", ret);
         return false;
@@ -542,10 +549,18 @@ void GroupedNoQuantMatmulTiling::PrintTilingResult(const gert::TilingContext *co
     OP_LOGI(context->GetNodeName(),
             "GMM MatMul Tiling result: usedCoreNum: %d, baseM: %d, baseN: %d, baseK: %d, stepKa: %d,"
             "stepKb: %d, depthA1: %d, depthB1: %d",
-            tilingData_.mmTilingData.usedCoreNum, tilingData_.mmTilingData.baseM,
-            tilingData_.mmTilingData.baseN, tilingData_.mmTilingData.baseK,
-            tilingData_.mmTilingData.stepKa, tilingData_.mmTilingData.stepKb,
+            tilingData_.mmTilingData.usedCoreNum, tilingData_.mmTilingData.baseM, tilingData_.mmTilingData.baseN,
+            tilingData_.mmTilingData.baseK, tilingData_.mmTilingData.stepKa, tilingData_.mmTilingData.stepKb,
             tilingData_.mmTilingData.depthA1, tilingData_.mmTilingData.depthB1);
 }
 
+uint64_t TilingKeyBuilder::GenTilingKey()
+{
+    uint64_t transInfo = static_cast<uint64_t>(this->gmmTrans);
+    bool atrans_ = (transInfo == static_cast<uint64_t>(GmmTrans::ATrans)) ||
+                   (transInfo == static_cast<uint64_t>(GmmTrans::ABTrans));
+    bool btrans_ = (transInfo == static_cast<uint64_t>(GmmTrans::BTrans)) ||
+                   (transInfo == static_cast<uint64_t>(GmmTrans::ABTrans));
+    return GET_TPL_TILING_KEY(static_cast<uint64_t>(btrans_), static_cast<uint64_t>(atrans_));
+}
 } // namespace optiling

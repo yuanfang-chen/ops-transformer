@@ -203,31 +203,7 @@ public:
         return;
     }
 
-    uint64_t GenTilingKey() const
-    {
-        PrintTilingKeyLog();
-        uint64_t tilingKey = 0;
-        tilingKey = this->socVersionType;
-        // 伪量化场景占2位，需要乘100空余出对应的位数
-        tilingKey = tilingKey * 100UL + static_cast<uint64_t>(this->quantizationScenario);
-        // 算法分类占2位(算法大类、算法小类)，需要乘100空余出对应的位数
-        tilingKey = tilingKey * 100UL + static_cast<uint64_t>(this->algorithm);
-        // 模板自定义场景占4位，需要乘10000空余出对应的位数
-        tilingKey = tilingKey * 10000UL + static_cast<uint64_t>(this->templateCustom);
-        // api常量化定义占4位，需要乘10000空余出对应的位数
-        tilingKey = tilingKey * 10000UL + static_cast<uint64_t>(this->apiConstexpr);
-        // 输入转置情况占1位，需要乘10空余出对应的位数
-        tilingKey = tilingKey * 10UL + static_cast<uint64_t>(this->transposeSituation);
-        // weight的量化类型占1位，需要乘10空余出对应的位数
-        tilingKey = tilingKey * 10UL + static_cast<uint64_t>(this->antiquantType);
-        // c矩阵量化类型占1位，需要乘10空余出对应的位数
-        tilingKey = tilingKey * 10UL + static_cast<uint64_t>(this->quantType);
-        // offset\bias的可选输入是否存在占1位，需要乘10空余出对应的位数
-        tilingKey = tilingKey * 10UL + static_cast<uint64_t>(this->optionInputSituation);
-        // weight的format占1位，需要乘10空余出对应的位数
-        tilingKey = tilingKey * 10UL + static_cast<uint64_t>(this->weightFormat);
-        return tilingKey;
-    }
+    uint64_t GenTilingKey() const;
 };
 
 class GroupedWeightQuantBatchMatmulTiling {

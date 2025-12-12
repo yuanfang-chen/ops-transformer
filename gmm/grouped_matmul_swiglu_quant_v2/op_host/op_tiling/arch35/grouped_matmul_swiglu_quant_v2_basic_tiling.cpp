@@ -20,6 +20,7 @@
 #include "tiling_base/tiling_type.h"
 #include "register/op_impl_registry.h"
 #include "grouped_matmul_swiglu_quant_v2_basic_tiling.h"
+#include "../../../op_kernel/arch35/grouped_matmul_swiglu_quant_v2_tiling_key.h"
 using namespace Ops::Transformer::OpTiling;
 using namespace GroupedMatmulSwigluQuantParamsV2;
 using namespace optiling::GmmConstant;
@@ -257,6 +258,11 @@ void GroupedMatmulSwigluQuantDavidV2Tiling::PrintQuantParams()
         << ", groupListType = " << static_cast<uint32_t>(params.get_groupListType())
         << ", quant_dtype = " << static_cast<int32_t>(params.get_quantDtype());
     OP_LOGD(inputParams_.opName, "%s", oss.str().c_str());
+}
+uint64_t GroupedMatmulSwigluQuantDavidV2Tiling::GetTilingKey() const
+{
+    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transB), static_cast<uint64_t>(inputParams_.transA),
+        static_cast<uint64_t>(inputParams_.kernelType));
 }
 
 REGISTER_OPS_TILING_TEMPLATE(GroupedMatmulSwigluQuantV2, GroupedMatmulSwigluQuantDavidV2Tiling, 2);

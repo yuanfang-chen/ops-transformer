@@ -14,12 +14,13 @@
  */
 
 #include "ts_quant_grouped_matmul_inplace_add.h"
+
 using qgmmiaTestParam::Ts_QuantGroupedMatmulInplaceAdd_WithParam_Ascend910_9591;
 namespace {
 const auto Tc_QuantGroupedMatmulInplaceAdd_Tiling_Case = ::testing::Values(QuantGroupedMatmulInplaceAddCase(
     "QuantGroupedQuantInplaceAddMM_mxfp8_Case0", true, "", /* CaseName, Enable, DebugInfo */
     OpInfo(ControlInfo(true, false),
-           ExpectInfo(true, 20000000010, 32)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+           ExpectInfo(true, 4, 32)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
     Param({GenTensorList("x1", {{512, 96}}, ge::DataType::DT_FLOAT8_E5M2),
            GenTensorList("x2", {{512, 128}}, ge::DataType::DT_FLOAT8_E5M2),
            GenTensorList("scale2", {{12, 128, 2}}, ge::DataType::DT_FLOAT8_E8M0),

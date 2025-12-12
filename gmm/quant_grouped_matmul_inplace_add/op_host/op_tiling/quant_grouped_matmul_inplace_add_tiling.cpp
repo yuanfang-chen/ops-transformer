@@ -14,6 +14,7 @@
 #include "tiling_base/tiling_type.h"
 #include "register/op_impl_registry.h"
 #include "quant_grouped_matmul_inplace_add_tiling.h"
+#include "../../op_kernel/arch35/qgmm_inplace_add_tiling_key.h"
 using namespace Ops::Transformer::OpTiling;
 using namespace QuantGroupedMatmulInplaceAdd;
 using namespace optiling::GmmConstant;
@@ -358,6 +359,11 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForGMMInplaceAdd(gert::TilingParse
     OP_LOGI(context->GetNodeName(), "Parse compile info success, soc: %d",
               static_cast<int>(compileInfoPtr->socVersion));
     return ge::GRAPH_SUCCESS;
+}
+uint64_t QuantGroupedInplaceAddTiling::GetTilingKey() const
+{
+    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transB), static_cast<uint64_t>(inputParams_.transA),
+        static_cast<uint64_t>(inputParams_.kernelType));
 }
 
 REGISTER_OPS_TILING_TEMPLATE(QuantGroupedMatmulInplaceAdd, QuantGroupedInplaceAddTiling, 0);

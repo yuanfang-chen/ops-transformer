@@ -57,7 +57,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_w8a8_normal_case_1)
     gert::StorageShape xScaleShape = {{m}, {m}};
     gert::StorageShape groupListShape = {{e}, {e}};
 
-    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2", 
+    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2",
         {
             {xShape, ge::DT_INT8, ge::FORMAT_ND},
             {xScaleShape, ge::DT_FLOAT, ge::FORMAT_ND},
@@ -107,7 +107,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxfp8_normal_case_1)
     gert::StorageShape outShape = {{m, n / 2}, {m, n / 2}};
     gert::StorageShape outScaleShape = {{m, n / 64, 2}, {m, n / 64, 2}};
 
-    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2", 
+    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2",
         {
             {xShape, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND},
             {xScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
@@ -133,7 +133,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxfp8_normal_case_1)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000000;
+    int64_t expectTilingKey = 0;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -157,7 +157,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxfp8_normal_case_2)
     gert::StorageShape outShape = {{m, n / 2}, {m, n / 2}};
     gert::StorageShape outScaleShape = {{m, n / 64, 2}, {m, n / 64, 2}};
 
-    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2", 
+    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2",
         {
             {xShape, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND},
             {xScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
@@ -183,7 +183,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxfp8_normal_case_2)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000001;
+    int64_t expectTilingKey = 1;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -207,7 +207,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxpf8_normal_case_3)
     gert::StorageShape outShape = {{m, n / 2}, {m, n / 2}};
     gert::StorageShape outScaleShape = {{m, n / 64, 2}, {m, n / 64, 2}};
 
-    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2", 
+    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2",
         {
             {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
             {xScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
@@ -233,7 +233,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxpf8_normal_case_3)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000000;
+    int64_t expectTilingKey = 0;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -257,7 +257,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxpf8_normal_case_4)
     gert::StorageShape outShape = {{m, n / 2}, {m, n / 2}};
     gert::StorageShape outScaleShape = {{m, n / 64, 2}, {m, n / 64, 2}};
 
-    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2", 
+    gert::TilingContextPara tilingContextPara("GroupedMatmulSwigluQuantV2",
         {
             {xShape, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
             {xScaleShape, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},
@@ -283,7 +283,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxpf8_normal_case_4)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000001;
+    int64_t expectTilingKey = 1;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -333,7 +333,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxfp4_normal_case_1)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000000;
+    int64_t expectTilingKey = 0;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -383,7 +383,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxfp4_normal_case_2)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000001;
+    int64_t expectTilingKey = 1;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -433,7 +433,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxpf4_normal_case_3)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000000;
+    int64_t expectTilingKey = 0;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -483,7 +483,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_mxpf4_normal_case_4)
         &compileinfo
     );
 
-    int64_t expectTilingKey = 20000000001;
+    int64_t expectTilingKey = 1;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);

@@ -14,6 +14,7 @@
  */
 #include "arch35/qgmm_inplace_add_utils.h"
 #include "arch35/quant_grouped_matmul_inplace_add_tiling_data.h"
+#include "arch35/qgmm_inplace_add_tiling_key.h"
 #if defined(V310_QGMM_QUANT_MX)
 #include "arch35/qgmm_inplace_add_cube_on_the_fly.h"
 #endif
@@ -24,7 +25,10 @@
 using namespace AscendC;
 using namespace matmul;
 
-extern "C" __global__ __aicore__ void quant_grouped_matmul_inplace_add(GM_ADDR x1, GM_ADDR x2, GM_ADDR scale2,
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
+template <int8_t QUANT_B_TRANS, int8_t QUANT_A_TRANS, int8_t KERNEL_TYPE>
+#endif
+__global__ __aicore__ void quant_grouped_matmul_inplace_add(GM_ADDR x1, GM_ADDR x2, GM_ADDR scale2,
                                                                        GM_ADDR groupList, GM_ADDR yIn, GM_ADDR scale1,
                                                                        GM_ADDR y, GM_ADDR workspace, GM_ADDR tiling)
 {
@@ -36,15 +40,15 @@ extern "C" __global__ __aicore__ void quant_grouped_matmul_inplace_add(GM_ADDR x
 
 #ifndef __CCE_KT_TEST__
 #if defined(V310_QGMM_QUANT_MX)       // mxfpx
-    if (TILING_KEY_IS(20000000010)) { // transX = true, transW = false
-        KERNEL_TASK_TYPE(20000000010, KERNEL_TYPE_AIC_ONLY);
+    if constexpr (QUANT_B_TRANS == QGMM_INPLACE_ADD_NO_TRANS && QUANT_A_TRANS == QGMM_INPLACE_ADD_TRANS
+        && KERNEL_TYPE == QGMM_INPLACE_ADD_DEQUANT_FIXP) { // transX = true, transW = false
         QGmmInplaceAddAswt<Act::Gemm::layout::ColumnMajor, Act::Gemm::layout::RowMajor>(x1, x2, scale2, groupList,
                                                                                         scale1, y, tiling);
     }
 #endif
 #if defined(V310_QGMM_QUANT_MIX)
-    if (TILING_KEY_IS(20000000110)) { // transX = true, transW = false
-        KERNEL_TASK_TYPE(20000000110, KERNEL_TYPE_MIX_AIC_1_2);
+    if constexpr (QUANT_B_TRANS == QGMM_INPLACE_ADD_NO_TRANS && QUANT_A_TRANS == QGMM_INPLACE_ADD_TRANS
+        && KERNEL_TYPE == QGMM_INPLACE_ADD_DEQUANT_VECTOR) { // transX = true, transW = false
         QGmmInplaceAddMixAswt<Act::Gemm::layout::ColumnMajor, Act::Gemm::layout::RowMajor>(x1, x2, scale2, groupList,
                                                                                            scale1, y, tiling);
     }

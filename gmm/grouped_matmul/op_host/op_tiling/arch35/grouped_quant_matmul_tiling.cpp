@@ -14,6 +14,7 @@
 #include "log/error_code.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "tiling_base/tiling_type.h"
+#include "../../../op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_tiling_key.h"
 using namespace Ops::Transformer::OpTiling;
 using namespace GroupedMatmul;
 using namespace optiling::GmmConstant;
@@ -678,10 +679,8 @@ void GroupedQbmmTiling::SetKernelType()
 
 uint64_t GroupedQbmmTiling::GetTilingKey() const
 {
-    // 20: 与伪量化保持一致的芯片前缀
-    constexpr uint64_t TILINGKEYOFFSETGMM = uint64_t(20000000000UL);
-    // from low to high： transB, transA, biasMode, kernelType
-    return TILINGKEYOFFSETGMM + RecursiveSum(inputParams_.transB, inputParams_.transA, inputParams_.kernelType);
+    return GET_TPL_TILING_KEY(static_cast<uint64_t>(inputParams_.transB), static_cast<uint64_t>(inputParams_.transA),
+        static_cast<uint64_t>(inputParams_.kernelType));
 }
 
 ge::graphStatus GroupedQbmmTiling::GetWorkspaceSize()

@@ -13,7 +13,14 @@
  * \brief
  */
 #include "grouped_weight_quant_batch_matmul_tiling.h"
+#include "../../../op_kernel/arch35/weight_quant_basic_block/weight_quant_tiling_key.h"
 
+enum class GmmTrans {
+    NoTrans = 0,
+    BTrans = 1,
+    ATrans = 2,
+    ABTrans = 3
+};
 namespace optiling {
 
 static const std::map<ge::DataType, std::unordered_set<ge::DataType>> BIAS_TYPE_SUPPORT_MAP = {
@@ -1128,4 +1135,21 @@ void GroupedWeightQuantBatchMatmulTiling::PrintTilingResult(const gert::TilingCo
         tilingData_.gmmWeightQuantParam.firstTailBlockCount,
         tilingData_.gmmWeightQuantParam.secondTailBlockCount);
 }
+
+uint64_t TilingKeyConfigure::GenTilingKey() const
+{
+    PrintTilingKeyLog();
+    constexpr uint8_t DECIMAL = 10U;
+    uint64_t transInfo = this->transposeSituation;
+    bool atrans_ = (transInfo == static_cast<uint64_t>(GmmTrans::ATrans)) ||
+                   (transInfo == static_cast<uint64_t>(GmmTrans::ABTrans));
+    bool btrans_ = (transInfo == static_cast<uint64_t>(GmmTrans::BTrans)) ||
+                   (transInfo == static_cast<uint64_t>(GmmTrans::ABTrans));
+    return GET_TPL_TILING_KEY(
+        static_cast<uint64_t>(this->weightFormat), static_cast<uint64_t>(this->optionInputSituation),
+        static_cast<uint64_t>(this->quantType), static_cast<uint64_t>(this->antiquantType),
+        static_cast<uint64_t>(btrans_), static_cast<uint64_t>(atrans_), static_cast<uint64_t>(this->templateCustom),
+        static_cast<uint64_t>(this->algorithm % DECIMAL), static_cast<uint64_t>(this->algorithm / DECIMAL));
+}
+
 }  // namespace optiling

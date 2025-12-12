@@ -18,10 +18,12 @@
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "arch35/grouped_matmul_swiglu_quant_v2_mxquant.h"
+#include "arch35/grouped_matmul_swiglu_quant_v2_tiling_key.h"
 using namespace AscendC;
 using namespace matmul;
 
-extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, GM_ADDR xScale, GM_ADDR groupList,
+template <int8_t QUANT_B_TRANS, int8_t QUANT_A_TRANS, int8_t KERNEL_TYPE>
+__global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, GM_ADDR xScale, GM_ADDR groupList,
                                                                      GM_ADDR weight, GM_ADDR weightScale,
                                                                      GM_ADDR weightAssistanceMatrix, GM_ADDR bias,
                                                                      GM_ADDR smoothScale, GM_ADDR y, GM_ADDR yScale,
@@ -30,14 +32,14 @@ extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, 
     TPipe tPipe;
     GM_ADDR userWorkspace = GetUserWorkspace(workspace);
 
-    if (TILING_KEY_IS(20000000000)) { // transX = false, transW = false
-        KERNEL_TASK_TYPE(20000000000, KERNEL_TYPE_MIX_AIC_1_2);
+    if (QUANT_B_TRANS == GMM_SWIGLU_QUANT_NO_TRANS && QUANT_A_TRANS == GMM_SWIGLU_QUANT_NO_TRANS
+        && KERNEL_TYPE == GMM_SWIGLU_QUANT_DEQUANT_FIXP) { // transX = false, transW = false
         GmmSwigluAswt<Act::Gemm::layout::RowMajor, Act::Gemm::layout::RowMajor>(x, weight, weightScale,
                                                                                 xScale, weightAssistanceMatrix,
                                                                                 smoothScale, groupList, y,
                                                                                 yScale, workspace, tiling);
-    } else if (TILING_KEY_IS(20000000001)) { // transX = false, transW = true
-        KERNEL_TASK_TYPE(20000000001, KERNEL_TYPE_MIX_AIC_1_2);
+    } else if (QUANT_B_TRANS == GMM_SWIGLU_QUANT_TRANS && QUANT_A_TRANS == GMM_SWIGLU_QUANT_NO_TRANS
+        && KERNEL_TYPE == GMM_SWIGLU_QUANT_DEQUANT_FIXP) { // transX = false, transW = true
         GmmSwigluAswt<Act::Gemm::layout::RowMajor, Act::Gemm::layout::ColumnMajor>(x, weight, weightScale,
                                                                                    xScale, weightAssistanceMatrix,
                                                                                    smoothScale, groupList, y,

@@ -77,19 +77,7 @@ public:
     uint8_t gmmTrans = 0;
 
 public:
-    uint64_t GenTilingKey()
-    {
-        uint64_t tilingKey = 1;
-        // 隔离符，暂时空置
-        tilingKey = tilingKey * 100000UL + TILING_KEY_DELIMITER;
-        // 隔离符，暂时空置
-        tilingKey = tilingKey * 100000UL + TILING_KEY_DELIMITER;
-        // 隔离符，暂时空置
-        tilingKey = tilingKey * 100000UL + TILING_KEY_DELIMITER;
-        // 20位，x/weight转置
-        tilingKey = tilingKey * 10000UL + static_cast<uint64_t>(this->gmmTrans);
-        return tilingKey;
-    }
+    uint64_t GenTilingKey();
 };
 
 class GroupedNoQuantMatmulTiling {
