@@ -366,7 +366,8 @@ struct RunInfo<false> {
     uint32_t implMode : 4;  \
     uint32_t layoutType : 4;  \
     uint32_t sparseType : 8;  \
-    uint32_t dSizeRope : 12; \
+    uint32_t dSizeRope : 11; \
+    uint32_t splitCoreMode : 1; \
     uint32_t coreNum;
 
 #define FAG_CV_SHARED_PARAMS \
@@ -417,7 +418,6 @@ struct CVSharedParams<false, false> {
     CV_SHARED_PARAMS;
     int64_t firstFullLoadS1OuterIdx;
     int64_t totalSize;
-    uint8_t splitCoreMode;
 };
 
 /* CVSharedParams需要小于等于CacheLine的大小：128Bytes */

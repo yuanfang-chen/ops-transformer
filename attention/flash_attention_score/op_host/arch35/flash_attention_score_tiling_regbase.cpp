@@ -922,7 +922,7 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::DoOpTiling()
     SetOutputDtype();
     multiCoreParamsRegbase_->set_s1OuterSize(CeilDivision(s1Size, s1BasicBlock));
     int64_t totalSize = CalcTotalSize();
-    SetSplitCoreModeParam(totalSize);
+    SetSplitCoreModeParam();
     SetMultiCoreParamsRegbase(totalSize, static_cast<int64_t>(aicNum));
     SetSparseParamsRegbase(static_cast<int64_t>(aicNum));
     OP_CHECK_IF(!SetPseAlibiParamsRegbase(), OPS_REPORT_VECTOR_INNER_ERR(opName, "fail to set pse alibi info."),
@@ -947,16 +947,18 @@ void FlashAttentionScoreTilingRegbase::CalcThresholdForS2Size() {
 bool FlashAttentionScoreTilingRegbase::IsUseSpliteCoreMode(SparseMode inputSparseMode) {
     if (inputSparseMode == SparseMode::LEFT_UP_CAUSAL) {
         return std::min(s1Size, s2Size) >= thresholdS2Size;
-    } else if (inputSparseMode == SparseMode::RIGHT_DOWN_CAUSAL) {
+    }
+
+    if (inputSparseMode == SparseMode::RIGHT_DOWN_CAUSAL) {
         if (s1Size <= s2Size) {
             return s2Size >= thresholdS2Size;
         }
-    } else {
-        return false;
     }
+
+    return false;
 }
 
-void FlashAttentionScoreTilingRegbase::SetSplitCoreModeParam(int64_t totalSize)
+void FlashAttentionScoreTilingRegbase::SetSplitCoreModeParam()
 {
     if (tilingKeyLayout == LayoutType::LAYOUT_TND) {
         return;

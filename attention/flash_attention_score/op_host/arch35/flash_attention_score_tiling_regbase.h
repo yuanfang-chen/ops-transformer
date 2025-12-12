@@ -389,7 +389,7 @@ protected:
 
     virtual ge::graphStatus SetQKVStartIdx();
     virtual void SetOutputDtype();
-    virtual void SetSplitCoreModeParam(int64_t totalSize);
+    virtual void SetSplitCoreModeParam();
     virtual void CalcThresholdForS2Size();
     virtual bool IsUseSpliteCoreMode(SparseMode inputSparseMode);
     virtual void SetMultiCoreParamsRegbase(int64_t totalSize, int64_t coreNum);
