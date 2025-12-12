@@ -249,10 +249,6 @@ if (BUILD_OPEN_PROJECT)
             add_subdirectory(tests/ut/framework_special)
             add_definitions(-Wno-builtin-macro-redefined)
         endif()
-
-        if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
-            add_subdirectory(tests/ut/framework_normal)
-        endif()
     endif ()
    if (TESTS_EXAMPLE_OPS_TEST)
        add_subdirectory(examples)
@@ -272,6 +268,11 @@ foreach (OP_DIR ${OP_DIR_LIST})
 endforeach ()
 
 add_subdirectory(attention)
+
+if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
+        add_subdirectory(tests/ut/framework_normal)
+endif()
+
 if("${ASCEND_OP_NAME}" STREQUAL "add_example")
     add_subdirectory(examples)
     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})

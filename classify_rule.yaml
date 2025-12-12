@@ -56,29 +56,29 @@ global_config:
     - mc2/common
 
 attention:
-  # flash_attention_score:
-  #   module: True
-  #   src:
-  #     - attention/flash_attention_score
-  #   exclude:
-  #     - attention/flash_attention_score/docs
-  #     - attention/flash_attention_score/README.md
-  #   ut_cov_exclude:
-  #     - attention/flash_attention_score
-  #   options:
-  #     - flash_attention_score
+  flash_attention_score:
+    module: True
+    src:
+      - attention/flash_attention_score
+    exclude:
+      - attention/flash_attention_score/docs
+      - attention/flash_attention_score/README.md
+    ut_cov_exclude:
+      - attention/flash_attention_score
+    options:
+      - flash_attention_score
 
-  # flash_attention_score_grad:
-  #   module: True
-  #   src:
-  #     - attention/flash_attention_score_grad
-  #   exclude:
-  #     - attention/flash_attention_score_grad/docs
-  #     - attention/flash_attention_score_grad/README.md
-  #   ut_cov_exclude:
-  #     - attention/flash_attention_score_grad
-  #   options:
-  #     - flash_attention_score_grad
+  flash_attention_score_grad:
+    module: True
+    src:
+      - attention/flash_attention_score_grad
+    exclude:
+      - attention/flash_attention_score_grad/docs
+      - attention/flash_attention_score_grad/README.md
+    ut_cov_exclude:
+      - attention/flash_attention_score_grad
+    options:
+      - flash_attention_score_grad
 
   fused_infer_attention_score:
     module: True
