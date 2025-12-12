@@ -171,7 +171,7 @@ static void PrintTilingDataInfo(const char *nodeName, MoeDistributeDispatchV2Til
     OP_LOGD(nodeName, "totalWinSizeTP is %lu.", tilingData.moeDistributeDispatchV2Info.totalWinSizeTp);
     OP_LOGD(nodeName, "hasElastic is %d.", tilingData.moeDistributeDispatchV2Info.hasElasticInfo);
     OP_LOGD(nodeName, "zeroComputeExpertNum is %d", tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum);
-    OP_LOGD(nodeName, "CumSumUBMinValue is %d", tilingData.moeDistributeDispatchV2Info.CumSumUBMinValue);
+    OP_LOGD(nodeName, "cumSumUBMinValue is %d", tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue);
 }
 
 static bool CheckTensorDim(const gert::TilingContext *context, const char *nodeName,
@@ -585,12 +585,12 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     if (mc2tiling::GetSocVersion(context) != "Ascend910_95") {
         std::vector<int64_t> srcShapeDim = {1, lastDim};
         auto srcShape = ge::Shape(srcShapeDim);
-        uint32_t CumSumUBMaxValue = 0;
-        uint32_t CumSumUBMinValue = 0;
-        AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, CumSumUBMaxValue, CumSumUBMinValue);
-        tilingData.moeDistributeDispatchV2Info.CumSumUBMinValue = static_cast<uint32_t>(CumSumUBMinValue);    
-        OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 CumSumUBMinValue = %d\n", lastDim,
-            tilingData.moeDistributeDispatchV2Info.CumSumUBMinValue);
+        uint32_t cumSumUBMaxValue = 0;
+        uint32_t cumSumUBMinValue = 0;
+        AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, cumSumUBMaxValue, cumSumUBMinValue);
+        tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue = static_cast<uint32_t>(cumSumUBMinValue);    
+        OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 cumSumUBMinValue = %d\n", lastDim,
+            tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -620,12 +620,12 @@ static bool CheckSharedAttrs(const char *nodeName,
 }
 
 static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *nodeName,
-    const MoeDistributeDispatchV2TilingData &tilingData, bool isActiveMask, bool isSetCommAlg)
+    const MoeDistributeDispatchV2TilingData &tilingData, bool isSetCommAlg)
 {
     uint32_t tpWorldSize = tilingData.moeDistributeDispatchV2Info.tpWorldSize;
     bool hasElasticInfo = tilingData.moeDistributeDispatchV2Info.hasElasticInfo;
     int32_t zeroComputeExpertNum = tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum;
-
+    bool isExpertMask = tilingData.moeDistributeDispatchV2Info.isExpertMask;
     // 获取bs
     const gert::StorageShape *xStorageShape = context->GetInputShape(X_INDEX);
     const int64_t xDim0 = xStorageShape->GetStorageShape().GetDim(0);
@@ -642,8 +642,8 @@ static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *no
     // 校验特殊专家和FullMesh_v2不能同时启用
     OP_TILING_CHECK((isSetCommAlg && (zeroComputeExpertNum > 0)), OP_LOGE(nodeName, "Cannot support zeroComputeExpert when comm_alg = fullmesh_v2"), 
         return false);
-    // 校验ActiveMask和FullMesh_v2不能同时启用
-    OP_TILING_CHECK((isSetCommAlg && isActiveMask), OP_LOGE(nodeName, "Cannot support xActiveMask when comm_alg = fullmesh_v2"), 
+    // 校验二维isExpertMask和FullMesh_v2不能同时启用
+    OP_TILING_CHECK((isSetCommAlg && isExpertMask), OP_LOGE(nodeName, "Cannot support ExpertMask when comm_alg = fullmesh_v2"), 
         return false);
     // 检查comm_alg和tpWorldSize是否冲突
     OP_TILING_CHECK(isSetCommAlg && (tpWorldSize == TP_WORLD_SIZE_TWO), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, tp_world_size cannot be 2."),
@@ -667,7 +667,7 @@ static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char
 
     OP_TILING_CHECK(!CheckSharedAttrs(nodeName, tilingData),
         OP_LOGE(nodeName, "Check shared expert related attributes failed."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!CheckCommAlgAttrs(context, nodeName, tilingData, isActiveMask, isSetCommAlg),
+    OP_TILING_CHECK(!CheckCommAlgAttrs(context, nodeName, tilingData, isSetCommAlg),
         OP_LOGE(nodeName, "Check comm_alg related attributes failed."), return ge::GRAPH_FAILED);
     // 校验moe专家数量能否均分给多机
     localMoeExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum);
