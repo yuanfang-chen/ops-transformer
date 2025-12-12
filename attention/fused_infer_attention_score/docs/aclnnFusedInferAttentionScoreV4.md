@@ -488,8 +488,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>key/value系统前缀部分的参数，代表keySharedPrefix/valueSharedPrefix的有效Sequence Length</td>
             <td>该入参中的有效Sequence Length应该不大于keySharedPrefix/valueSharedPrefix中的Sequence Length。</td>
             <td>INT64</td>
-            <td>ND</td>
-            <td>(1)</td>
+            <td>-</td>
+            <td>（1）</td>
             <td>-</td>
         </tr>
         <tr>
