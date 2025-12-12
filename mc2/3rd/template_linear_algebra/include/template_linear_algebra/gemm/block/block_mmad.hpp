@@ -77,6 +77,7 @@ struct BlockGemm {
 #include "block_mmad_mla_pv_tp1_spec.hpp"
 #include "block_mmad_preload.hpp"
 #include "block_mmad_preload_async.hpp"
+#include "block_mmad_pingpong_bias.hpp"
 #include "block_mmad_pingpong_tla.hpp"
 #include "block_mmad_preload_tla.hpp"
 #include "block_mmad_preload_async_with_callback.hpp"

@@ -45,6 +45,7 @@ struct TileCopyTlaExt {
 #include "copy_l0c_to_gm.hpp"
 #include "copy_l1_to_l0a.hpp"
 #include "copy_l1_to_l0b.hpp"
+#include "copy_l1_to_bt.hpp"
 #include "copy_gm_to_ub.hpp"
 #include "copy_ub_to_gm.hpp"
 #include "../helper.hpp"
@@ -77,6 +78,17 @@ struct TileCopy {
     using CopyL1ToL0B = Gemm::Tile::CopyL1ToL0B<
         ArchTag, typename helper::L1BTypeSelector<BType>::L1BType>;
     using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, CType>;
+    using BiasTypeSelector = helper::L1BiasTypeSelector<BiasType, ElementAccumulator>;
+    using CopyGmToL1Bias = std::conditional_t<std::is_same_v<BiasType, void>,
+        void,
+        Gemm::Tile::CopyGmToL1<ArchTag,
+            typename BiasTypeSelector::GMBiasType,
+            typename BiasTypeSelector::L1BiasType>>;
+    using CopyL1ToBT = std::conditional_t<std::is_same_v<BiasType, void>,
+        void,
+        Gemm::Tile::CopyL1ToBT<ArchTag,
+            typename BiasTypeSelector::L1BiasType,
+            typename BiasTypeSelector::L0BiasType>>;
 };
 
 template <
