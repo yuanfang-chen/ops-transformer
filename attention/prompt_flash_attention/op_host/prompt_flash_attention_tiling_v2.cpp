@@ -626,7 +626,7 @@ bool PromptFlashAttentionTilingV2::CheckKeyValueParamsConsistency(ContextParamsF
         int64_t tmpKeyDim = keyShape->GetStorageShape().GetDim(i);
         int64_t tmpValueDim = valueShape->GetStorageShape().GetDim(i);
         OP_CHECK_IF(tmpKeyDim != tmpValueDim, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "tensor key shape (%ld) do not equal to tensor value shape(%ld) in dim %u.", tmpKeyDim, tmpValueDim, i),
+            "tensor key shape(%ld) do not equal to tensor value shape(%ld) in dim %u.", tmpKeyDim, tmpValueDim, i),
             return false);
     }
     return true;
@@ -1584,10 +1584,15 @@ bool PromptFlashAttentionTilingV2::CheckQuant(ContextParamsForPFATiling& context
     const gert::StorageShape* deqScale1Shape = contextKeyParams.deqScale1Shape;
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
+    const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
     // per-tensor quant check
     if (enablePertensorQuant) {
         OP_CHECK_IF(!CheckPerTensorQuantParams(contextKeyParams),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "per-tensor quant params check failed!"),
+            return false);
+        const size_t keyDim = keyShape->GetStorageShape().GetDimNum();
+        OP_CHECK_IF((keyDim == KV_CACHE_DIM_NUMS_5),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "PA_NZ is not support in per-tensor quant scenario."),
             return false);
     }
 
