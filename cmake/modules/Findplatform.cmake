@@ -17,8 +17,9 @@ include(FindPackageHandleStandardArgs)
 
 set(PLATFORM_HEAD_SEARCH_PATHS
   ${ASCEND_DIR}/${SYSTEM_PREFIX}/include
-  ${TOP_DIR}/metadef/inc/external            # compile with ci
-  ${TOP_DIR}/ace/npuruntime/runtime/platform/inc            # compile with ci
+  ${TOP_DIR}/metadef/inc/external                 # compile with ci
+  ${TOP_DIR}/ace/npuruntime/runtime/platform/inc  # compile with ci
+  ${TOP_DIR}/runtime/pkg_inc                      # compile with ci
 )
 
 set(PLATFORM_LIB_SEARCH_PATHS ${ASCEND_DIR}/${SYSTEM_PREFIX})

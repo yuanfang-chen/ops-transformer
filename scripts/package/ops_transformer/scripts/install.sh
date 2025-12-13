@@ -344,18 +344,19 @@ check_arch() {
 }
 
 get_opts() {
-  local i=0
-  while true; do
-    if [ "$1" = "" ]; then
+  i=0
+  while true
+  do
+    if [ "x$1" = "x" ]; then
       break
     fi
     if [ "$(expr substr "$1" 1 2)" = "--" ]; then
-      ((i++))
+      i=$(expr $i + 1)
     fi
     if [ $i -gt 2 ]; then
       break
     fi
-    shift
+    shift 1
   done
 
   if [ "$*" = "" ]; then
@@ -370,17 +371,17 @@ get_opts() {
       --full)
         IN_INSTALL_TYPE=$(echo ${1} | awk -F"--" '{print $2}')
         IS_INSTALL="y"
-        ((CONFLICT_CMD_NUMS++))
+        CONFLICT_CMD_NUMS=$(expr $CONFLICT_CMD_NUMS + 1)
         shift
         ;;
       --upgrade)
         IS_UPGRADE="y"
-        ((CONFLICT_CMD_NUMS++))
+        CONFLICT_CMD_NUMS=$(expr $CONFLICT_CMD_NUMS + 1)
         shift
         ;;
       --uninstall)
         IS_UNINSTALL="y"
-        ((CONFLICT_CMD_NUMS++))
+        CONFLICT_CMD_NUMS=$(expr $CONFLICT_CMD_NUMS + 1)
         shift
         ;;
       --install-path=*)
