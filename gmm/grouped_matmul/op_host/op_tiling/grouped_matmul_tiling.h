@@ -49,7 +49,6 @@ TILING_DATA_FIELD_DEF(uint64_t, parallNum);            // for A8W4 MSD
 TILING_DATA_FIELD_DEF(uint64_t, quantGroupNum);        // for A8W4 MSD
 TILING_DATA_FIELD_DEF(uint64_t, isPreTiling);
 TILING_DATA_FIELD_DEF(uint32_t, withOffset);
-TILING_DATA_FIELD_DEF(uint32_t, isOutputDisableL2Cache);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(GMMBaseParamsOp, GMMBaseParams)
 
@@ -144,7 +143,6 @@ protected:
     const gert::Shape &wShape);
     ge::graphStatus DivideUbAndSetWorkspace(gert::TilingContext *context, const uint32_t &aicNum);
     ge::graphStatus DynamicTilingSingleN(gert::TilingContext *context, const uint32_t &aicNum, const GMMCompileInfo *compileInfoPtr);
-    ge::graphStatus IsOutputDisableL2Cache(gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
     int32_t FindBestSingleN(const uint32_t &aicNum);
     bool TryFullLoadA(int32_t baseM, const GMMCompileInfo *compileInfoPtr);
     void DivideUbAndSetWorkspaceAntiquant(size_t *workspaces, const uint32_t &aicNum, uint32_t &ubSize);
