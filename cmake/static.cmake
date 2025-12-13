@@ -55,6 +55,7 @@ if (TARGET ${OPHOST_NAME}_opapi_obj OR TARGET opbuild_gen_aclnn_all)
         $<$<TARGET_EXISTS:${OPHOST_NAME}_opapi_obj>:$<TARGET_OBJECTS:${OPHOST_NAME}_opapi_obj>>
         $<$<TARGET_EXISTS:opbuild_gen_aclnn_all>:$<TARGET_OBJECTS:opbuild_gen_aclnn_all>>
     )
+    add_dependencies(${OPAPI_NAME}_static ${OPHOST_NAME}_static)
     add_custom_command(TARGET ${OPAPI_NAME}_static
                     POST_BUILD
                     COMMAND ${CMAKE_AR} x ${PROJECT_SOURCE_DIR}/build/libops_aclnn.a
@@ -85,7 +86,7 @@ foreach(compute_unit ${ASCEND_COMPUTE_UNIT})
     set_target_properties(resource_${compute_unit}_static PROPERTIES
                                     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin_tmp/${compute_unit}
                                     OUTPUT_NAME ${OPSTATIC_NAME})
-    add_dependencies(${OPSTATIC_NAME} resource_${compute_unit}_static)
+    add_dependencies(${OPSTATIC_NAME} resource_${compute_unit}_static ${OPHOST_NAME}_static ${OPAPI_NAME}_static)
     add_custom_command(TARGET resource_${compute_unit}_static
                     POST_BUILD
                     COMMAND ${CMAKE_AR} x ${CMAKE_BINARY_DIR}/libops_aclnn.a
