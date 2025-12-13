@@ -9,6 +9,7 @@
  */
 
 #include "tiling_case_executor.h"
+#include <unordered_set>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 #include "platform/platform_infos_def.h"
@@ -140,19 +141,37 @@
     auto tilingRet = tilingFunc(tilingContext);
 
 template <typename T>
-static string to_string(void* buf, size_t size) {
+static string to_string(void* buf, size_t size, unordered_set<size_t> mask={})
+{
     string result;
     const T* data = reinterpret_cast<const T*>(buf);
     size_t len = size / sizeof(T);
     for (size_t i = 0; i < len; i++) {
-        result += std::to_string(data[i]);
+        result += mask.find(i) == mask.end() ? std::to_string(data[i]) : "*";
         result += " ";
     }
     return result;
 }
 
+static unordered_set<size_t> GetMask(const string& expectTilingData)
+{
+    unordered_set<size_t> mask;
+    size_t index = 0;
+    for (auto c : expectTilingData) {
+        if (c == ' ') {
+            ++index;
+            continue;
+        }
+        if (c == '*') {
+            mask.emplace(index);
+        }
+    }
+    return mask;
+}
+
 static void GetPlatFormInfos(const char* compileInfoStr, map<string, string>& socInfos, map<string, string>& aicoreSpec,
-                             map<string, string>& intrinsics) {
+                             map<string, string>& intrinsics)
+{
     string default_hardward_info = R"({
         "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1", "Intrinsic_fix_pipe_l0c2out": false,
                           "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true,
@@ -214,7 +233,7 @@ static void GetPlatFormInfos(const char* compileInfoStr, map<string, string>& so
     }
 }
 
-void ExecuteTestCase(const gert::TilingContextPara& tilingContextPara, 
+void ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
                      ge::graphStatus                expectResult,
                      uint64_t                       expectTilingKey,
                      const string&                  expectTilingData,
@@ -249,7 +268,8 @@ void ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
         auto rawTilingData = tilingContext->GetRawTilingData();
         auto tilingDataReservedSize = tilingDataReservedLen * sizeof(uint64_t);
         auto tilingDataResult = to_string<int64_t>(rawTilingData->GetData() + tilingDataReservedSize,
-                                                   rawTilingData->GetDataSize() - tilingDataReservedSize);
+                                                   rawTilingData->GetDataSize() - tilingDataReservedSize,
+                                                   GetMask(expectTilingData));
         EXPECT_EQ(tilingDataResult, expectTilingData);
     }
 }
@@ -261,7 +281,7 @@ bool ExecuteTiling(const gert::TilingContextPara& tilingContextPara, TilingInfo&
     if (tilingRet != ge::GRAPH_SUCCESS) {
         return false;
     }
-    
+
     tilingInfo.tilingKey = tilingContext->GetTilingKey();
     tilingInfo.blockNum = tilingContext->GetBlockDim();
     size_t workspaceCount = tilingContext->GetWorkspaceNum();
@@ -275,6 +295,6 @@ bool ExecuteTiling(const gert::TilingContextPara& tilingContextPara, TilingInfo&
     tilingInfo.tilingData = std::make_unique<uint8_t[]>(rawTilingData->GetDataSize());
     tilingInfo.tilingDataSize = rawTilingData->GetDataSize();
     std::memcpy(tilingInfo.tilingData.get(), rawTilingData->GetData(), rawTilingData->GetDataSize());
-    
+
     return true;
 }

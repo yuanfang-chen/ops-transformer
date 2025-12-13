@@ -99,7 +99,7 @@ void ExecuteTestCase(gert::InfershapeContextPara&             infershapeContextP
     DO_INFERSHAPE(infershapeContextPara);
 
     // check infershape func
-    EXPECT_EQ(infershapeRet, expectResult);
+    ASSERT_EQ(infershapeRet, expectResult);
     if (expectResult == ge::GRAPH_FAILED) {
         return;
     }
