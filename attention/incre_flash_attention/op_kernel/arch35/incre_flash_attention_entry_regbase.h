@@ -206,14 +206,6 @@ REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 24) & 0x1f) < 15", IncreFlash
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd);
 #endif
 
-#if (ORIG_DTYPE_QUERY == DT_FLOAT16 && ORIG_DTYPE_KEY == DT_FLOAT8_E5M2 && ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16) 
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
-    PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType);
-    INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, fp8_e5m2_t, float, float16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
-    static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd);
-#endif
-
 #if (ORIG_DTYPE_QUERY == DT_FLOAT16 && ORIG_DTYPE_KEY == DT_FLOAT8_E4M3FN && ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16) 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType);
@@ -258,14 +250,6 @@ REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 24) & 0x1f) < 15", IncreFlash
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, hifloat8_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
-    static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd);
-#endif
-
-#if (ORIG_DTYPE_QUERY == DT_BF16 && ORIG_DTYPE_KEY == DT_FLOAT8_E5M2 && ORIG_DTYPE_ATTENTION_OUT == DT_BF16) 
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
-    PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType);
-    INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, fp8_e5m2_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION,
     outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd);
 #endif
