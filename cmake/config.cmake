@@ -49,6 +49,8 @@ get_filename_component(OPS_ADV_DIR                  "${CMAKE_CURRENT_SOURCE_DIR}
 get_filename_component(OPS_ADV_CMAKE_DIR            "${OPS_ADV_DIR}/cmake"                  REALPATH)
 get_filename_component(OPS_ADV_UTILS_KERNEL_INC     "${OPS_ADV_DIR}/common/include/kernel"   REALPATH)
 get_filename_component(OPS_ADV_ACT                  "${OPS_ADV_DIR}/common/act"          REALPATH)
+get_filename_component(OPS_ADV_CATLASS              "${OPS_ADV_DIR}/common/catlass"      REALPATH)
+get_filename_component(OPS_ADV_TLA                  "${OPS_ADV_DIR}/common/tla"          REALPATH)
 get_filename_component(OPS_GROUPEDMATMUL_ACT        "${OPS_ADV_DIR}/gmm/common/groupedmatmul_act"   REALPATH)
 
 

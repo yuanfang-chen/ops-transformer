@@ -408,9 +408,13 @@ function(add_ops_src_copy)
             add_custom_command(OUTPUT ${OPS_UTILS_INC_KERNEL_DIR}
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/regbase
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/act
+                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/catlass
+                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/tla
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/groupedmatmul_act
                     COMMAND cp -rf ${OPS_ADV_UTILS_KERNEL_INC}/*.* ${OPS_UTILS_INC_KERNEL_DIR}
                     COMMAND cp -rf ${OPS_ADV_ACT}/* ${OPS_UTILS_INC_KERNEL_DIR}/act
+                    COMMAND cp -rf ${OPS_ADV_CATLASS}/* ${OPS_UTILS_INC_KERNEL_DIR}/catlass
+                    COMMAND cp -rf ${OPS_ADV_TLA}/* ${OPS_UTILS_INC_KERNEL_DIR}/tla
                     COMMAND cp -rf ${OPS_GROUPEDMATMUL_ACT}/* ${OPS_UTILS_INC_KERNEL_DIR}/groupedmatmul_act
             )
 
