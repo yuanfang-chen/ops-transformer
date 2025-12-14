@@ -137,6 +137,9 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
 
     auto dequantScaleQNopeHolder = TensorHolder(dequantScaleQNopeOutOptional, aclDataType::ACL_FLOAT, std::string("dequantScaleQNopeOut"));
     aclDataType queryNormDataType = weightQuantMode == 0 ? aclDataType::ACL_BF16 : aclDataType::ACL_INT8;
+    if (weightQuantMode == WEIGHT_QUANT_MODE_MXFP8_FULL_QUANT) {
+        queryNormDataType = aclDataType::ACL_FLOAT8_E4M3FN;
+    }
     auto queryNormHolder = TensorHolder(queryNormOutOptional, queryNormDataType, std::string("queryNormOut"));
     auto dequantScaleQNormHolder = TensorHolder(dequantScaleQNormOutOptional, aclDataType::ACL_FLOAT, std::string("dequantScaleQNormOut"));
     if (dequantScaleQNopeOutOptional == nullptr) {

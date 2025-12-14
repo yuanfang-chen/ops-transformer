@@ -313,6 +313,7 @@ ge::graphStatus MlaPrologTiling::FillMatmul1Tiling()
     auto dataType = context_->weightDq.desc->GetDataType();
     singlecoreHeadSizeCq_ =
         CalcSingleCoreN(baseShapeInfo_.hcqSize, aicNum_, BLOCK_SIZE / DTYPE_TO_SIZE.at(dataType));
+    singlecoreHeadSizeCq_ = std::max(singlecoreHeadSizeCq_, 64U); // 64：最大使用24核
     mm1BlockNum_ = CeilDiv(baseShapeInfo_.hcqSize, singlecoreHeadSizeCq_);
     return ge::GRAPH_SUCCESS;
 }
@@ -424,10 +425,11 @@ ge::graphStatus MlaPrologTiling::ProcessBaseInputs()
         enableGroupComputeOpt_ = true;
         aivNum_ = 32U;
         aicNum_ = 16U;
-    } else if ((context_->weightUqQr.desc->GetDataType() == ge::DT_INT8 || 
-                context_->weightUqQr.desc->GetDataType() == ge::DT_FLOAT8_E4M3FN) &&
-                baseShapeInfo_.nSize >= GROUP_COMPUTE_N_SIZE) {
-        // N大于等于8时通过切N处理MM3，MM4之后的操作例如Rope，DynamicQuant等会有性能收益
+    } else if ((context_->weightUqQr.desc->GetDataType() == ge::DT_INT8 &&
+                baseShapeInfo_.nSize >= GROUP_COMPUTE_N_SIZE) ||
+                context_->weightUqQr.desc->GetDataType() == ge::DT_FLOAT8_E4M3FN) {
+        // 场景1：INT8全量化且N大于等于8；场景2：MXFP8全量化场景
+        // 通过切N处理MM3，MM4之后的操作例如Rope，DynamicQuant等会有性能收益
         enableDequantOpt_ = true;
     }
     return ge::GRAPH_SUCCESS;

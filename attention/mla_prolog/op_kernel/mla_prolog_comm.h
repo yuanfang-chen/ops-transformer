@@ -87,6 +87,7 @@ enum class SPLIT_M_MODE : std::uint8_t {
 constexpr uint64_t BYTE_BLOCK = 32UL;
 constexpr uint8_t ALIGN_BLOCK_SIZE = 32; // 32B对齐
 constexpr uint32_t BLOCK_CUBE_SIZE = 16; // L1上m轴16对齐
+constexpr uint32_t FP8_TWO = 2; // L1上scale的存储方式为2个fp8类型存成1个bf16
 constexpr uint32_t REPEAT_BLOCK_BYTE = 256;
 constexpr uint32_t REPEAT_STRIDE_UP_BOUND = 256;  // repeat stride 不能超过256
 constexpr uint32_t FP32_BLOCK_ELEMENT_NUM = ALIGN_BLOCK_SIZE / sizeof(float);
@@ -100,6 +101,10 @@ constexpr uint32_t INT8_AFULLLOAD_MAX_MSIZE = 64; // 计算mmQcQr时，int8类�
 constexpr uint32_t BF16_AFULLLOAD_MAX_MSIZE = 32; // 计算mmQcQr时，bf16类型的A矩阵在msize小于等于32可以全载L1
 constexpr uint32_t ONE_BYTE_TYPE_SIZE = 1; // 数据类型int8_t fp8大小为1字节
 constexpr uint32_t FP8_E4M3_BLOCK_SIZE = 32;
+constexpr uint32_t K_STEP_SIZE_32 = 32; // for move left or right
+constexpr uint32_t SHIFTS_UNIT = 4; // for move left or right
+constexpr uint32_t DIV_UNIT_FOR_FP16 = 16; // for data type:fp16
+constexpr uint32_t ROUND_UP_UNIT = 15; // for round up
 
 constexpr int SYNC_MODE_ALL_CUBE = 0x0;
 constexpr int SYNC_MODE_CUBE_VEC = 0x2;
@@ -286,6 +291,7 @@ struct MMParams {
   uint32_t stepK;
   uint32_t needSetOrgShape;
   uint32_t kL1StepSize;
+  uint32_t kScale;
 };
 
 struct MMBufParams {
@@ -303,18 +309,22 @@ struct MMBufParams {
 
 struct AicOffset {
   int64_t weightDqOffset = 0;
+  int64_t dequantScaleWDqOffset = 0;
   int64_t cqResOffset = 0;
   int64_t rmsNormCqResOffset = 0;
   int64_t weightDkvKrOffset = 0;
+  int64_t dequantScaleWDkvKrOffset = 0;
   int64_t ckvKrResOffset = 0;
   int64_t weightUqQrOffset = 0;
   int64_t weightUqOffset = 0;
   int64_t weightQrOffset = 0;
   int64_t qcQrResOffset = 0;
+  int64_t dequantScaleCqOffset = 0;
   int64_t qCResOffset = 0;
   int64_t qRResOffset = 0;
   int64_t qcOffset = 0;
   int64_t weightUkOffset = 0;
+  int64_t dequantScaleWuqqrOffset = 0;
   int64_t qnResOffset = 0;
 };
 

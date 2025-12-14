@@ -57,14 +57,14 @@ __aicore__ inline void DynamicQuantMultiRow(const GlobalTensor<O>& outputGm, con
         WaitFlag<HardEvent::MTE2_V>(DYNAMIC_QUANT_INPUT_READY); // 搬运是否已经完成可以计算
 
 #if __CCE_AICORE__ == 310
-        SetFlag<HardEvent::V_MTE2>(DYNAMIC_QUANT_INPUT_READY);
-        AscendC::PipeBarrier<PIPE_V>();
         LocalTensor<O> output = outputLocal.template ReinterpretCast<O>();
+        WaitFlag<HardEvent::MTE3_V>(DYNAMIC_QUANT_OUTPUT_READY);
+        AscendC::PipeBarrier<PIPE_V>();
         DynamicQuantQnVf(output, scaleOutputLocal[scaleOffset], inputHalf, subRow, col);
         AscendC::PipeBarrier<PIPE_V>();
-        WaitFlag<HardEvent::MTE3_V>(DYNAMIC_QUANT_OUTPUT_READY);
+        SetFlag<HardEvent::V_MTE2>(DYNAMIC_QUANT_INPUT_READY);
         SetFlag<HardEvent::V_MTE3>(DYNAMIC_QUANT_OUTPUT_READY);
-        WaitFlag<HardEvent::V_MTE3>(DYNAMIC_QUANT_OUTPUT_READY);
+        WaitFlag<HardEvent::V_MTE3>(DYNAMIC_QUANT_OUTPUT_READY); // 计算是否已经完成可以搬运
         DataCopy(outputGm[inputGmOffset], output, outParams);
         SetFlag<HardEvent::MTE3_V>(DYNAMIC_QUANT_OUTPUT_READY);
         inputGmOffset += subRow * queryOutStride;
