@@ -387,6 +387,7 @@ function(add_opc_config)
 
     if(ENABLE_OOM)
         list(APPEND _OPC_CONFIG "--oom")
+        list(APPEND _OPC_CONFIG "-ffunction-sections -fdata-sections")
     endif()
 
     if(_OPC_CONFIG)

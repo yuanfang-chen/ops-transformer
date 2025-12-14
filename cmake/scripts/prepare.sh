@@ -97,6 +97,10 @@ while [[ $# -gt 0 ]]; do
         ENABLE_CCACHE="$2"
         shift 2
         ;;
+    --enable_oom)
+        ENABLE_OOM="$2"
+        shift 2
+        ;;
     --cann_3rd_lib_path)
         CANN_3RD_LIB_PATH="$(realpath $2)"
         shift 2
@@ -153,7 +157,8 @@ function build() {
         -DOP_DEBUG_CONFIG=${OP_DEBUG_CONFIG} \
         -DCANN_3RD_LIB_PATH=${CANN_3RD_LIB_PATH} \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-        -DVERSION=${VERSION}
+        -DVERSION=${VERSION} \
+        -DENABLE_OOM=${ENABLE_OOM}
 
     make ${JOB_NUM} prepare_build
 }
