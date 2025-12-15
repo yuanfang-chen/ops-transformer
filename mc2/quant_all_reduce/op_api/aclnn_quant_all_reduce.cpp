@@ -24,6 +24,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
+#include "opdev/format_utils.h"
 #include "hccl_util.h"
 #include "aclnn_kernels/transdata.h"
 
@@ -119,16 +120,41 @@ static bool  QuantAllReduceCheckAllDtypesValid(const aclTensor* x, const aclTens
 
 static bool QuantAllReduceCheckAllFormatValid(const aclTensor *x, const aclTensor *scales, const aclTensor *output)
 {
-    OP_LOGD("x/scales/output origin format is %s, %s, %s.", op::ToString(x->GetStorageFormat()).GetString(),
-            op::ToString(scales->GetStorageFormat()).GetString(), op::ToString(output->GetStorageFormat()).GetString());
+    if (IsPrivateFormat(x->GetStorageFormat())) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "In aclnnQuantAllReduce, x format %s does not support Private Format.",
+                op::ToString(x->GetStorageFormat()).GetString());
+        return false;
+    }
+    if (IsPrivateFormat(scales->GetStorageFormat())) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "In aclnnQuantAllReduce, scales format %s does not support Private Format.",
+                op::ToString(scales->GetStorageFormat()).GetString());
+        return false;
+    }
+    if (IsPrivateFormat(output->GetStorageFormat())) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "In aclnnQuantAllReduce, output format %s does not support Private Format.",
+                op::ToString(output->GetStorageFormat()).GetString());
+        return false;
+    }
 
     // 内部只处理ND格式，这里做reformat操作
-    x = l0op::ReFormat(x, op::Format::FORMAT_ND);
-    CHECK_RET(x != nullptr, false);
-    scales = l0op::ReFormat(scales, op::Format::FORMAT_ND);
-    CHECK_RET(scales != nullptr, false);
-    output = l0op::ReFormat(output, op::Format::FORMAT_ND);
-    CHECK_RET(output != nullptr, false);
+    if (x->GetStorageFormat() != op::Format::FORMAT_ND) {
+        OP_LOGW("x origin format is: %s.", op::ToString(x->GetStorageFormat()).GetString());
+        x = l0op::ReFormat(x, op::Format::FORMAT_ND);
+        CHECK_RET(x != nullptr, false);
+    }
+    if (scales->GetStorageFormat() != op::Format::FORMAT_ND) {
+        OP_LOGW("scales origin format is: %s.", op::ToString(scales->GetStorageFormat()).GetString());
+        scales = l0op::ReFormat(scales, op::Format::FORMAT_ND);
+        CHECK_RET(scales != nullptr, false);
+    }
+    if (output->GetStorageFormat() != op::Format::FORMAT_ND) {
+        OP_LOGW("output origin format is: %s.", op::ToString(output->GetStorageFormat()).GetString());
+        output = l0op::ReFormat(output, op::Format::FORMAT_ND);
+        CHECK_RET(output != nullptr, false);
+    }
 
     return true;
 }
