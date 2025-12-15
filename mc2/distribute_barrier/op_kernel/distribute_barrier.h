@@ -126,7 +126,12 @@ __aicore__ inline void DistributeBarrier<TemplateMC2TypeFunc>::TimeOutTest()
     if (isInputTimeout_) {
       uint64_t systemCntEnd = static_cast<uint64_t>(GetSystemCycle());
       uint64_t duration = (systemCntEnd - systemCntBegin) / CYCLES_PER_US;
-      assert(duration < timeOut_);
+      if (duration >= timeOut_) {
+        // 超时后做dfx，通过assert做aicore退出处理
+        PipeBarrier<PIPE_ALL>();
+        assert(duration < timeOut_);
+        PipeBarrier<PIPE_ALL>();
+      }
     }
   }
   DataCopyParams intriOutParams{static_cast<uint16_t>(usedAivNum), 1, 0U, LOCAL_STATUS_PADDING};
