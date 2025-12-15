@@ -9,11 +9,7 @@
 
 if (UT_TEST_ALL OR OP_KERNEL_UT)
     # 算子自己的tiling文件路径
-    set(mla_prolog_v3_tiling_files
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../op_host/mla_prolog_v3_tiling.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../op_host/mla_prolog_v3_tiling_arch35.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../op_host/mla_prolog_v3_tiling_membase.cpp
-        )
+    set(mla_prolog_v3_tiling_files)
     # 使用AddOpTestCase
     # param1：算子名称，以kernel方式命名
     # param2：soc版本，多个以分号分隔，例如："ascend910_9599;AscendB1"
