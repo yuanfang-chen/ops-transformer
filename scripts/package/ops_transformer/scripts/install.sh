@@ -49,8 +49,6 @@ OPP_COMMON_FILE="${CURR_PATH}/opp_common.sh"
 . "${VERSION_CFG_PATH}"
 . "${OPP_COMMON_FILE}"
 
-ARCH_INFO=$(grep -e "arch" "$RUN_PKG_INFO_FILE" | cut --only-delimited -d"=" -f2-)
-
 # defaluts info determinated by user's inputs
 ASCEND_INSTALL_INFO="ascend_install.info"
 TARGET_INSTALL_PATH="${DEFAULT_INSTALL_PATH}" #--input-path
@@ -332,17 +330,6 @@ get_run_path() {
   fi
 }
 
-check_arch() {
-  local architecture=$(uname -m)
-  # check platform
-  if [ "${architecture}" != "${ARCH_INFO}" ]; then
-    logandprint "[ERROR]: ERR_NO:${OPERATE_FAILED};ERR_DES:the architecture of the run package arch:${ARCH_INFO}\
-  is inconsistent with that of the current environment ${architecture}. "
-    exitlog
-    exit 1
-  fi
-}
-
 get_opts() {
   i=0
   while true
@@ -583,8 +570,6 @@ pre_check_only() {
 }
 
 main() {
-  check_arch
-
   get_run_path "$@"
 
   startlog
