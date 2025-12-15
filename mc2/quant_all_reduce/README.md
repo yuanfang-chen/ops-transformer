@@ -44,7 +44,7 @@
     <thead>
     <tr>
         <th>参数名</th>
-        <th>输入/输出</th>
+        <th>输入/输出/属性</th>
         <th>描述</th>
         <th>使用说明</th>
         <th>数据类型</th>
@@ -75,20 +75,20 @@
     </tr>
     <tr>
         <td>group</td>
-        <td>输入</td>
+        <td>属性</td>
         <td>通信域标识。</td>
-        <td>通信域标识。</td>
-        <td>String</td>
+        <td><li>Host侧标识列组的字符串，通信域名称。</li><li>通过Hccl提供的接口"extern HcclResult HcclGetCommName(HcclComm comm, char* commName);"获取，其中commName即为group。</li></td>
+        <td>Char*、String</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
     </tr>
     <tr>
         <td>reduceOp</td>
-        <td>输入</td>
+        <td>可选属性</td>
         <td>公式中的reduce操作类型。</td>
         <td>当前仅支持"sum"操作。</td>
-        <td>String</td>
+        <td>Char*、String</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>

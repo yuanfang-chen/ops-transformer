@@ -70,7 +70,7 @@ aclnnStatus aclnnQuantAllReduce(
       <thead>
         <tr>
           <th>参数名</th>
-          <th>输入/输出</th>
+          <th>输入/输出/属性</th>
           <th>描述</th>
           <th>使用说明</th>
           <th>数据类型</th>
@@ -101,20 +101,20 @@ aclnnStatus aclnnQuantAllReduce(
         </tr>
         <tr>
           <td>group</td>
-          <td>输入</td>
+          <td>属性</td>
           <td>通信域标识。</td>
-          <td>通信域标识。</td>
-          <td>String</td>
+          <td><li>Host侧标识列组的字符串，通信域名称。</li><li>通过Hccl提供的接口"extern HcclResult HcclGetCommName(HcclComm comm, char* commName);"获取，其中commName即为group。</li></td>
+          <td>Char*、String</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
         </tr>
         <tr>
           <td>reduceOp</td>
-          <td>输入</td>
+          <td>可选属性</td>
           <td>公式中的reduce操作类型。</td>
           <td>当前仅支持"sum"操作。</td>
-          <td>String</td>
+          <td>Char*、String</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -228,17 +228,17 @@ aclnnStatus aclnnQuantAllReduce(
 
 ## 约束说明
 
-- 确定性计算：
-  - aclnnQuantAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
-
 - 当x的数据类型为FLOAT8_E4M3FN、FLOAT8_E5M2并且scales的数据类型为FLOAT8_E8M0时，输入数据的量化方式为mx量化。
 - 当x的数据类型为INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2并且scales的数据类型为FLOAT时，输入数据的量化方式为pertoken-pergroup量化（groupSize=128）。
 - 只在Ascend910D系列平台使能。
 - 不支持空Tensor输入。
 - 通信域大小支持2, 4, 8。
+- `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。要求满足`HCCL_BUFFSIZE`>= 2 * (`xDataSize` + `scalesDataSize`)，`xDataSize`为输入`x`的数据大小，单位MB，`scalesDataSize`为`scales`的数据大小，单位MB。
 ## 调用示例
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
+
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclCommInitClusterInfoConfig、HcclGetCommName、HcclCommDestroy, 请参考[<<HCCL API (C)>>](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha002/API/hcclapiref/hcclcpp_07_0001.html)。
 
 - <term>昇腾910_95 AI处理器系列</term>：
     ```Cpp
