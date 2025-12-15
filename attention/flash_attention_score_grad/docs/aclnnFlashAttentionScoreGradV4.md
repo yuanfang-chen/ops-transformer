@@ -1,4 +1,4 @@
-# aclnnFlashAttentionScoreGradVX
+# aclnnFlashAttentionScoreGradV4
 
 
 ## 产品支持情况
@@ -15,7 +15,7 @@
 
 ## 功能说明
 
-- 接口功能：训练场景下计算注意力的反向输出，即[FlashAttentionScoreVX](./FlashAttentionScoreVX.md)的反向计算。**该接口query、key、value参数支持多个长度相等或者长度不相等的sequence**
+- 接口功能：训练场景下计算注意力的反向输出，即[FlashAttentionScoreV4](./FlashAttentionScoreV4.md)的反向计算。**该接口query、key、value参数支持多个长度相等或者长度不相等的sequence**
   - **该接口合并了[FlashAttentionScoreGradV2](./FlashAttentionScoreGradV2.md)接口和[FlashAttentionUnpaddingScoreGradV2](./FlashAttentionUnpaddingScoreGradV2.md)接口，并调整了Dropout功能**：
     -   <term>昇腾910_95 AI处理器</term>：keepProb小于1.0时，若没有外部传入的DropoutMask，则使用新增参数生成DropoutMask；若有外部传入的DropoutMask，则使用外部传入的DropoutMask
 - 计算公式：
@@ -61,10 +61,10 @@
 ## 函数原型
 
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnFlashAttentionScoreGradVXGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnFlashAttentionScoreGradVX”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnFlashAttentionScoreGradV4GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnFlashAttentionScoreGradV4”接口执行计算。
 
 ```c++
-aclnnStatus aclnnFlashAttentionScoreGradVXGetWorkspaceSize(
+aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
   const aclTensor   *query,
   const aclTensor   *keyIn, 
   const aclTensor   *value, 
@@ -77,6 +77,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVXGetWorkspaceSize(
   const aclTensor   *softmaxSumOptional, 
   const aclTensor   *softmaxInOptional, 
   const aclTensor   *attentionInOptional, 
+  const aclTensor   *sinkInOptional, 
   const aclTensor   *queryRopeOptional, 
   const aclTensor   *keyRopeOptional, 
   const aclTensor   *dScaleQOptional, 
@@ -95,6 +96,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVXGetWorkspaceSize(
   int64_t            nextTokensOptional, 
   int64_t            headNum, 
   char              *inputLayout, 
+  char              *softmaxInLayout, 
   int64_t            innerPreciseOptional, 
   int64_t            sparseModeOptional, 
   int64_t            pseTypeOptional,  
@@ -107,12 +109,13 @@ aclnnStatus aclnnFlashAttentionScoreGradVXGetWorkspaceSize(
   aclTensor         *dqRopeOut, 
   aclTensor         *dkRopeOut, 
   aclTensor         *dpseOut, 
+  aclTensor         *dsinkOut,
   uint64_t          *workspaceSize, 
   aclOpExecutor    **executor)`
 ```
 
 ```c++
-aclnnStatus aclnnFlashAttentionScoreGradVX(
+aclnnStatus aclnnFlashAttentionScoreGradV4(
   void             *workspace, 
   uint64_t          workspaceSize, 
   aclOpExecutor    *executor, 
@@ -120,7 +123,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
 ```
 
 
-## aclnnFlashAttentionScoreGradVXGetWorkspaceSize
+## aclnnFlashAttentionScoreGradV4GetWorkspaceSize
 
 - **参数说明：**
   <table style="undefined;table-layout: fixed; width: 1565px">
@@ -303,6 +306,16 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
       <td>√</td>
     </tr>
     <tr>
+      <td>sinkInOptional</td>
+      <td>输入</td>
+      <td>保留参数，暂未使用。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td>dScaleQOptional</td>
       <td>可选输入</td>
       <td>是query输入的反量化参数。</td>
@@ -443,6 +456,16 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
       <td>-</td>
     </tr>
     <tr>
+      <td>softmaxInLayout</td>
+      <td>输入</td>
+      <td>保留参数，暂未使用。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td>innerPreciseOptional</td>
       <td>输入</td>
       <td>预留参数暂未使用。</td>
@@ -563,6 +586,16 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
       <td>√</td>
     </tr>
     <tr>
+      <td>dsinkOut</td>
+      <td>输出</td>
+      <td>保留参数，暂未使用。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td>workspaceSize</td>
       <td>输出</td>
       <td>返回Device侧需要申请的workspace大小。</td>
@@ -618,7 +651,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
   </tbody>
   </table>
 
-## aclnnFlashAttentionScoreGradVX
+## aclnnFlashAttentionScoreGradV4
 
 - **参数说明：**
 
@@ -642,7 +675,7 @@ aclnnStatus aclnnFlashAttentionScoreGradVX(
     <tr>
       <td>workspaceSize</td>
       <td>输入</td>
-      <td>在Device侧申请的workspace大小，由第一段接口aclnnFlashAttentionScoreGradVXGetWorkspaceSize获取。</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnFlashAttentionScoreGradV4GetWorkspaceSize获取。</td>
     </tr>
     <tr>
       <td>executor</td>
@@ -854,7 +887,7 @@ int main() {
   std::vector<float> dkHostData(kv_size, 0);
   std::vector<float> dvHostData(kv_size, 0);
 
-    ret = CreateAclTensor(qHostData, qShape, &qDeviceAddr, aclDataType::ACL_FLOAT, &q);
+  ret = CreateAclTensor(qHostData, qShape, &qDeviceAddr, aclDataType::ACL_FLOAT, &q);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(kHostData, kShape, &kDeviceAddr, aclDataType::ACL_FLOAT, &k);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -905,26 +938,26 @@ int main() {
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
   uint64_t workspaceSize = 0;
   aclOpExecutor* executor;
-
-  // 调用aclnnFlashAttentionScoreGradVX第一段接口
-  ret = aclnnFlashAttentionScoreGradVXGetWorkspaceSize(q, k, v, dx, pse, dropMask, padding,
-            attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, queryRope, keyRope, dScaleQ, dScaleK, dScaleV, 
-            dScaleDy, dScaleO, prefix, actualSeqQLen, actualSeqKVLen, qStartIdx, kvStartIdx, scaleValue,keepProb,
-            preTokens, nextTokens, headNum, layOut, innerPrecise, sparseMode,outDtype, pseType, seed, offset,
-            dq,dk,dv,dqRope,dkRope,dpse, &workspaceSize, &executor);   
-  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradVXGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
-
+  
+  // 调用aclnnFlashAttentionScoreGradV4第一段接口
+  ret = aclnnFlashAttentionScoreGradV4GetWorkspaceSize(q, k, v, dx, pse, dropMask, padding,
+            attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, sink, queryrope, keyrope, dScaleQ, dScaleK, dScaleV,
+            dScaleDy, dScaleO, prefix, acSeqQLen, acSeqKvLen, qStartIdx, kvStartIdx,
+            scaleValue, keepProb, preTokens, nextTokens, headNum, inputlayOut, softmaxInlayout, innerPrecise, sparseMode, pseType,
+            seed, offset, outdtype, dq, dk, dv, dqrope, dkrope, dpse, dsinkout, &workspaceSize, &executor);
+  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradV4GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+  
   // 根据第一段接口计算出的workspaceSize申请device内存
   void* workspaceAddr = nullptr;
   if (workspaceSize > 0) {
     ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
   }
-
-  // 调用aclnnFlashAttentionScoreGradVX第二段接口
-  ret = aclnnFlashAttentionScoreGradVX(workspaceAddr, workspaceSize, executor, stream);
-  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradVX failed. ERROR: %d\n", ret); return ret);
-
+  
+  // 调用aclnnFlashAttentionScoreGrad第二段接口
+  ret = aclnnFlashAttentionScoreGradV4(workspaceAddr, workspaceSize, executor, stream);
+  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradV4 failed. ERROR: %d\n", ret); return ret);
+  
   // 4. （固定写法）同步等待任务执行结束
   ret = aclrtSynchronizeStream(stream);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
