@@ -197,7 +197,9 @@ bool FlashAttentionScoreGraTilingBasicDet::IsAttenMskCapable()
         }
         return true;
     }
-
+    if (attenMaskShape == nullptr){
+        return false;
+    }
     auto storageShape = attenMaskShape->GetStorageShape();
     auto attenMaskDim0 = storageShape.GetDim(0);
     auto attenMaskDim1 = storageShape.GetDim(1);
