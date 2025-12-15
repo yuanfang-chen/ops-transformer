@@ -345,8 +345,8 @@ aclnnStatus aclnnMlaPreprocess(
       <td>输入格式随cacheMode变化：<ul>
         <li>cacheMode为0：shape为[blockNum,blockSize,1,576]，dtype与input保持一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为ND。</li>
         <li>cacheMode为1：shape为[blockNum,blockSize,1,512]，tensor的shape为拆分情况，dtype与input保持一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为ND。</li>
-        <li>cacheMode为2：shape为[blockNum,headNum*512/32,block_size,32]，dtype为int8，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li>
-        <li>cacheMode为3：shape为[blockNum,headNum*512/16,block_size,16]，dtype与input保持一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li></ul>
+        <li>cacheMode为2：shape为[blockNum,16,blockSize,32]，dtype为int8，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li>
+        <li>cacheMode为3：shape为[blockNum,32,blockSize,16]，dtype与input保持一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li></ul>
       </td>
       <td>INT8、FLOAT16、BFLOAT16</td>
       <td>ND、NZ</td>
@@ -360,7 +360,7 @@ aclnnStatus aclnnMlaPreprocess(
       <td>可选参数，支出传入空指针，输入格式随cacheMode变化：<ul>
         <li>cacheMode为0：不传入。</li>
         <li>cacheMode为1：shape为[blockNum,blockSize,1,64]，dtype与input保持一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为ND。</li>
-        <li>cacheMode为2或3：shape为[blockNum, headNum*64 / 16 ,block_size, 16]，dtype与input保持一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li></ul>
+        <li>cacheMode为2或3：shape为[blockNum, 4 ,blockSize, 16]，dtype与input保持一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li></ul>
       </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND、NZ</td>
@@ -561,8 +561,8 @@ aclnnStatus aclnnMlaPreprocess(
       <td>shape和dtype随cacheMode变化：<ul>
         <li>cacheMode为0：shape为[blockNum, blockSize, 1, 576]， dtype与input一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为ND。</li>
         <li>cacheMode为1：shape为[blockNum, blockSize, 1, 512]， dtype与input一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为ND。</li>
-        <li>cacheMode为2：shape为[blockNum, headNum*512/32, block_size, 32]，dtype为INT8，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li>
-        <li>cacheMode为3：shape为[blockNum, headNum*512/16, block_size, 16]，dtype与input一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li>
+        <li>cacheMode为2：shape为[blockNum, 16, blockSize, 32]，dtype为INT8，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li>
+        <li>cacheMode为3：shape为[blockNum, 32, blockSize, 16]，dtype与input一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ。</li>
       </td>
       <td>INT8、FLOAT16、BFLOAT16</td>
       <td>ND、NZ</td>
@@ -590,7 +590,7 @@ aclnnStatus aclnnMlaPreprocess(
       <td>shape和dtype随cacheMode变化：<ul>
         <li>cacheMode为0：不输出。</li>
         <li>cacheMode为1：shape为[blockNum, blockSize, 1, 64]，dtype与input一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为ND。</li>
-        <li>cacheMode为2：cacheMode为2或3：shape为[blockNum, headNum*64 / 16 ,block_size, 16]，dtype与input一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ
+        <li>cacheMode为2：cacheMode为2或3：shape为[blockNum, 4 ,blockSize, 16]，dtype与input一致，<a href="../../../docs/zh/context/数据格式.md">数据格式</a>为NZ
       </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND、NZ</td>
@@ -715,7 +715,7 @@ aclnnStatus aclnnMlaPreprocess(
     -  headNum：表示多头数，取值范围：16、32、64、128
     -  blockNum：PagedAttention场景下的块数，取值范围：192
     -  blockSize：PagedAttention场景下的块大小，取值范围：128
-    -  当wdqkv和wuq的数据类型为bfloat16时，输入input也需要为bflot16，且hiddenSize只支持6144
+    -  当wdqkv和wuq的数据类型为bfloat16时，输入input也需要为bflot16，且hiddenSize只支持6144，cacheMode只支持0和1
 
 
 ## 调用示例
