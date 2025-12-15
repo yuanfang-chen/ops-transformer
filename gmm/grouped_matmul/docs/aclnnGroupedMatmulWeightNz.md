@@ -23,7 +23,8 @@
     **与[GroupedMatmulV5](aclnnGroupedMatmulV5.md)接口对比新增功能**：
 
       - 输入的weight的[数据格式]支持AI处理器亲和数据排布格式（FRACTAL_NZ）。
-      - 新增参数quantGroupSize，整数型参数，代表分组量化（per-group）的分组大小，不涉及分组量化时，填0。<term>昇腾910_95 AI处理器</term>暂不支持此参数。
+      - 新增参数quantGroupSize，整数型参数，代表分组量化（per-group）的分组大小，不涉及分组量化时，填0。
+      - <term>昇腾910_95 AI处理器</term>：暂不支持quantGroupSize参数。
 
   - **计算公式**：
 
@@ -82,12 +83,34 @@
 
       <a id="伪量化场景"></a>
 
-      - **伪量化场景：**
+      - **伪量化(perchannel、pergroup)场景：**
 
         $$
         y_i=x_i \times (weight_i + antiquant\_offset_i) * antiquant\_scale_i + bias_i
         $$
 
+      - **伪量化(mx)场景：**
+
+        x为BFLOAT16/FLOAT16输入，weight为FLOAT32(表示8个FLOAT4_E2M1)/FLOAT4_E2M1输入
+
+        $$
+        y_i=x_i \times (weight_i  * antiquant\_scale_i) + bias_i
+        $$
+
+        x为FLOAT8_E4M3FN输入，weight为FLOAT32(表示8个FLOAT4_E2M1)/FLOAT4_E2M1输入
+
+        $$
+        y_i=(x_i * per\_token\_scale_i) \times (weight_i  * antiquant\_scale_i) + bias_i
+        $$
+
+      - **伪量化(K-CG)场景：**
+
+        $$
+        y_i=(x_i \times (weight_i * antiquant\_scale_i)) * scale_i * per\_token\_scale_i + bias_i
+        $$
+
+        其中antiquant\_scale_i为weight矩阵pergroup量化参数，scale_i为weight矩阵perchannel量化参数，per\_token\_scale_i为
+        pertoken量化参数。
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGroupedMatmulWeightNzGetWorkspaceSize”接口获取入参并根据计算流程计算所需workspace大小，再调用“aclnnGroupedMatmulWeightNz”接口执行计算。
