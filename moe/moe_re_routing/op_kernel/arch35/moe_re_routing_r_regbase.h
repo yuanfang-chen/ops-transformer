@@ -81,9 +81,9 @@ __aicore__ inline void MoeReRoutingRRegbase<T, TIndex, TScale, hasScales>::Init(
         dstScaleGm_.SetGlobalBuffer((__gm__ TScale *)permutePerTokenScales);
     }
     this->pipe_->InitBuffer(
-        queBind_, DOUBLE_BUFFER, ops::CeilDiv(tilingData_->ubFactor, static_cast<int64_t>(BLOCK_SIZE / sizeof(T))));
+        queBind_, DOUBLE_BUFFER, ops::CeilAlign(tilingData_->ubFactor, static_cast<int64_t>(BLOCK_SIZE / sizeof(T))));
     this->pipe_->InitBuffer(
-        idxOutQue_, DOUBLE_BUFFER, ops::CeilDiv(INDEX_UB_SIZE * sizeof(TIndex), BLOCK_SIZE / sizeof(TIndex)));
+        idxOutQue_, DOUBLE_BUFFER, ops::CeilAlign(INDEX_UB_SIZE * sizeof(TIndex), BLOCK_SIZE / sizeof(TIndex)));
 }
 
 template <typename T, typename TIndex, typename TScale, bool hasScales>
@@ -189,9 +189,9 @@ __aicore__ inline void MoeReRoutingRRegbase<T, TIndex, TScale, hasScales>::UbFul
 template <typename T, typename TIndex, typename TScale, bool hasScales>
 __aicore__ inline void MoeReRoutingRRegbase<T, TIndex, TScale, hasScales>::ProcessTokenScale(const int64_t currTokenNum)
 {
-    int64_t tokSclSize = ops::CeilDiv(static_cast<int64_t>(tokenSize_ * sizeof(T)), BLOCK_SIZE);
+    int64_t tokSclSize = ops::CeilAlign(static_cast<int64_t>(tokenSize_ * sizeof(T)), BLOCK_SIZE);
     if constexpr (hasScales) {
-        tokSclSize += ops::CeilDiv(static_cast<int64_t>(scaleSize_ * sizeof(TScale)), BLOCK_SIZE);
+        tokSclSize += ops::CeilAlign(static_cast<int64_t>(scaleSize_ * sizeof(TScale)), BLOCK_SIZE);
     }
     if (tilingData_->ubFactor < tokSclSize) {
         CopyOutIndex(currTokenNum, tokensSrc_, tokensDst_);
@@ -228,7 +228,7 @@ __aicore__ inline void MoeReRoutingRRegbase<T, TIndex, TScale, hasScales>::CopyI
     DataCopyPadExtParams<T> padParams(false, 0, 0, 0);
     DataCopyPad(srcLocal, srcTokenGm_[offset * tokenSize_], copyParams, padParams);
     if constexpr (hasScales) {
-        int64_t shiftSize = ops::CeilDiv(static_cast<int64_t>(currFactor * tokenSize_ * sizeof(T)), BLOCK_SIZE);
+        int64_t shiftSize = ops::CeilAlign(static_cast<int64_t>(currFactor * tokenSize_ * sizeof(T)), BLOCK_SIZE);
         LocalTensor<T> tmpLocal = srcLocal[shiftSize / sizeof(T)];
         LocalTensor<TScale> srcScale = tmpLocal.template ReinterpretCast<TScale>();
         copyParams.blockLen = currFactor * scaleSize_ * sizeof(TScale);
@@ -246,7 +246,7 @@ __aicore__ inline void MoeReRoutingRRegbase<T, TIndex, TScale, hasScales>::CopyO
     DataCopyExtParams copyParams(1, currFactor * tokenSize_ * sizeof(T), 0, 0, 0);
     DataCopyPad(dstTokenGm_[offset * tokenSize_], dstLocal, copyParams);
     if constexpr (hasScales) {
-        int64_t shiftSize = ops::CeilDiv(static_cast<int64_t>(currFactor * tokenSize_ * sizeof(T)), BLOCK_SIZE);
+        int64_t shiftSize = ops::CeilAlign(static_cast<int64_t>(currFactor * tokenSize_ * sizeof(T)), BLOCK_SIZE);
         LocalTensor<T> tmpLocal = dstLocal[shiftSize / sizeof(T)];
         LocalTensor<TScale> dstScale = tmpLocal.template ReinterpretCast<TScale>();
         copyParams.blockLen = currFactor * scaleSize_ * sizeof(TScale);

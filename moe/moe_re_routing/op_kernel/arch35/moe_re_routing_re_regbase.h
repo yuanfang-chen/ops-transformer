@@ -90,9 +90,9 @@ __aicore__ inline void MoeReRoutingReRegbase<T, TIndex, TScale, hasScales>::Init
         dstScaleGm_.SetGlobalBuffer((__gm__ TScale *)permutePerTokenScales);
     }
     this->pipe_->InitBuffer(
-        queBind_, DOUBLE_BUFFER, ops::CeilDiv(tilingData_->ubFactor, static_cast<int64_t>(BLOCK_SIZE / sizeof(T))));
+        queBind_, DOUBLE_BUFFER, ops::CeilAlign(tilingData_->ubFactor, static_cast<int64_t>(BLOCK_SIZE / sizeof(T))));
     this->pipe_->InitBuffer(
-        idxOutQue_, DOUBLE_BUFFER, ops::CeilDiv(INDEX_UB_SIZE * sizeof(TIndex), BLOCK_SIZE / sizeof(TIndex)));
+        idxOutQue_, DOUBLE_BUFFER, ops::CeilAlign(INDEX_UB_SIZE * sizeof(TIndex), BLOCK_SIZE / sizeof(TIndex)));
 }
 
 template <typename T, typename TIndex, typename TScale, bool hasScales>
@@ -171,9 +171,9 @@ __aicore__ inline void MoeReRoutingReRegbase<T, TIndex, TScale, hasScales>::Proc
 {
     int64_t ubFactor = 0;
     if (isScale) {
-        ubFactor = ops::CeilDiv(tilingData_->ubFactor / sizeof(TScale), BLOCK_SIZE / sizeof(TScale));
+        ubFactor = ops::CeilAlign(tilingData_->ubFactor / sizeof(TScale), BLOCK_SIZE / sizeof(TScale));
     } else {
-        ubFactor = ops::CeilDiv(tilingData_->ubFactor / sizeof(T), BLOCK_SIZE / sizeof(T));
+        ubFactor = ops::CeilAlign(tilingData_->ubFactor / sizeof(T), BLOCK_SIZE / sizeof(T));
     }
     if (ubFactor < tokSclSize) {
         if (!isScale) {
