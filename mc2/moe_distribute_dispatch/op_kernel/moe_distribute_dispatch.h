@@ -18,7 +18,11 @@
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#else
+#include "../../common/inc/kernel/moe_distribute_base.h"
+#endif
 #include "moe_distribute_dispatch_tiling.h"
 
 namespace MoeDistributeDispatchImpl {

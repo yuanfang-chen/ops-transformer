@@ -19,11 +19,12 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_v2_tiling.h"
 #include "moe_distribute_v2_base.h"
-#include "../common/inc/kernel/moe_distribute_base.h"
 #if __has_include("../moe_distribute_dispatch/check_winsize.h")
 #include "../moe_distribute_dispatch/check_winsize.h"
+#include "../common/inc/kernel/moe_distribute_base.h"
 #else
 #include "../../moe_distribute_dispatch/op_kernel/check_winsize.h"
+#include "../../common/inc/kernel/moe_distribute_base.h"
 #endif
 
 namespace MoeDistributeDispatchV2Impl {

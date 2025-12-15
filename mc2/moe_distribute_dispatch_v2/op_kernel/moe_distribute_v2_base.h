@@ -16,7 +16,11 @@
 #ifndef MOE_DISTRIBUTE_V2_BASE_H
 #define MOE_DISTRIBUTE_V2_BASE_H
 
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#else
+#include "../../common/inc/kernel/moe_distribute_base.h"
+#endif
 
 namespace MoeDistributeV2Base {
 constexpr uint64_t OP_CNT_POSUL = 3UL;

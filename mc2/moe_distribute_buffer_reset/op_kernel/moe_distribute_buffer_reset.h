@@ -18,7 +18,11 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_buffer_reset_tiling.h"
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#else
+#include "../../common/inc/kernel/moe_distribute_base.h"
+#endif
 
 namespace MoeDistributeBufferResetImpl {
 constexpr uint8_t BUFFER_NUM = 2;     // 多buf
