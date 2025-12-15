@@ -59,7 +59,7 @@ TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
     const int64_t headNum = 1;
     char layout[] = "SBH";
     const int64_t innerPrecise = 0;
-    const int64_t sparseMod = 0;
+    const int64_t sparseMode = 0;
     const int64_t outDtype = 0;
     const int64_t pseType = 1;
     const int64_t seed = 0;
@@ -93,7 +93,7 @@ TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
             headNum,
             layout,
             innerPrecise,
-            sparseMod,
+            sparseMode,
             pseType
         ),
         OUTPUT(

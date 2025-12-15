@@ -41,12 +41,13 @@ int64_t GetShapeSize(const std::vector<int64_t>& shape) {
 
 void PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
   auto size = GetShapeSize(shape);
-  std::vector<float> resultData(size, 0);
+  // 输入类型为float16
+  std::vector<uint16_t> resultData(size, 0);
   auto ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]),
                          *deviceAddr, size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return);
   for (int64_t i = 0; i < size; i++) {
-    LOG_PRINT("mean result[%ld] is: %f\n", i, resultData[i]);
+    LOG_PRINT("mean result[%ld] is: %u\n", i, resultData[i]);
   }
 }
 
@@ -64,7 +65,6 @@ int Init(int32_t deviceId, aclrtContext* context, aclrtStream* stream) {
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateStream failed. ERROR: %d\n", ret); return ret);
   return 0;
 }
-
 
 template <typename T>
 int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr,
@@ -97,25 +97,28 @@ int main() {
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Init acl failed. ERROR: %d\n", ret); return ret);
 
   // 2. 构造输入与输出，需要根据API的接口自定义构造
+  int64_t B = 1;
   int64_t N1 = 1;
   int64_t N2 = 1;
-  int64_t T1 = 256;
-  int64_t T2 = 256;
+  int64_t S1 = 256;
+  int64_t S2 = 256;
   int64_t D = 128;
- 
-  int64_t q_size = T1 * N1 * D;
-  int64_t kv_size = T2 * N2 * D;
-  int64_t atten_mask_size = T1 * T2;
-  int64_t softmax_size = T1 * N1 * 8;
+  int64_t H1 = N1 * D;
+  int64_t H2 = N2 * D;
 
-  std::vector<int64_t> qShape = {T1, N1, D};
-  std::vector<int64_t> kShape = {T2, N2, D};
-  std::vector<int64_t> vShape = {T2, N2, D};
-  std::vector<int64_t> attenmaskShape = {T1, T2};
+  int64_t q_size = S1 * B * H1;
+  int64_t kv_size = S2 * B * H2;
+  int64_t atten_mask_size = 2048 * 2048;
+  int64_t softmax_size = B * N1 * S1 * 8;
 
-  std::vector<int64_t> attentionOutShape = {T1, N1, D};
-  std::vector<int64_t> softmaxMaxShape = {T1, N1, 8};
-  std::vector<int64_t> softmaxSumShape = {T1, N1, 8};
+  std::vector<int64_t> qShape = {S1, B, H1};
+  std::vector<int64_t> kShape = {S2, B, H2};
+  std::vector<int64_t> vShape = {S2, B, H2};
+  std::vector<int64_t> attenmaskShape = {2048, 2048};
+
+  std::vector<int64_t> attentionOutShape = {S1, B, H1};
+  std::vector<int64_t> softmaxMaxShape = {B, N1, S1, 8};
+  std::vector<int64_t> softmaxSumShape = {B, N1, S1, 8};
 
   void* qDeviceAddr = nullptr;
   void* kDeviceAddr = nullptr;
@@ -143,23 +146,23 @@ int main() {
   aclTensor* softmaxSum = nullptr;
   aclTensor* softmaxOut = nullptr;
 
-  std::vector<float> qHostData(q_size, 1.0);
-  std::vector<float> kHostData(kv_size, 1.0);
-  std::vector<float> vHostData(kv_size, 1.0);
+  std::vector<uint16_t> qHostData(q_size, 0x3C00);
+  std::vector<uint16_t> kHostData(kv_size, 0x3C00);
+  std::vector<uint16_t> vHostData(kv_size, 0x3C00);
   std::vector<uint8_t> attenmaskHostData(atten_mask_size, 0);
-  std::vector<float> attentionOutHostData(q_size, 255);
-  std::vector<float> softmaxMaxHostData(softmax_size, 3.0);
+  std::vector<uint16_t> attentionOutHostData(q_size, 0x3C00);
+  std::vector<float> softmaxMaxHostData(softmax_size,3.0);
   std::vector<float> softmaxSumHostData(softmax_size, 3.0);
 
-  ret = CreateAclTensor(qHostData, qShape, &qDeviceAddr, aclDataType::ACL_FLOAT, &q);
+  ret = CreateAclTensor(qHostData, qShape, &qDeviceAddr, aclDataType::ACL_FLOAT16, &q);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(kHostData, kShape, &kDeviceAddr, aclDataType::ACL_FLOAT, &k);
+  ret = CreateAclTensor(kHostData, kShape, &kDeviceAddr, aclDataType::ACL_FLOAT16, &k);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(vHostData, vShape, &vDeviceAddr, aclDataType::ACL_FLOAT, &v);
+  ret = CreateAclTensor(vHostData, vShape, &vDeviceAddr, aclDataType::ACL_FLOAT16, &v);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(attenmaskHostData, attenmaskShape, &attenmaskDeviceAddr, aclDataType::ACL_UINT8, &attenmask);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(attentionOutHostData, attentionOutShape, &attentionOutDeviceAddr, aclDataType::ACL_FLOAT, &attentionOut);
+  ret = CreateAclTensor(attentionOutHostData, attentionOutShape, &attentionOutDeviceAddr, aclDataType::ACL_FLOAT16, &attentionOut);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(softmaxMaxHostData, softmaxMaxShape, &softmaxMaxDeviceAddr, aclDataType::ACL_FLOAT, &softmaxMax);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -169,27 +172,27 @@ int main() {
   std::vector<int64_t> prefixOp = {0};
   std::vector<int64_t> qStartIdxOp = {0};
   std::vector<int64_t> kvStartIdxOp = {0};
+  std::vector<int64_t> actualSeqQLenOp = {128};
+  std::vector<int64_t> actualSeqKVLenOp = {128};
 
-  std::vector<int64_t>  acSeqQLenOp = {256};
-  std::vector<int64_t>  acSeqKvLenOp = {256};
   aclIntArray *prefix = aclCreateIntArray(prefixOp.data(), 1);
-  aclIntArray* actualSeqQLen = aclCreateIntArray(acSeqQLenOp.data(), acSeqQLenOp.size());
-  aclIntArray* actualSeqKVLen = aclCreateIntArray(acSeqKvLenOp.data(), acSeqKvLenOp.size());
   aclIntArray *qStartIdx = aclCreateIntArray(qStartIdxOp.data(), 1);
   aclIntArray *kvStartIdx = aclCreateIntArray(kvStartIdxOp.data(), 1);
+  aclIntArray* actualSeqQLen = aclCreateIntArray(actualSeqQLenOp.data(), 1);  
+  aclIntArray* actualSeqKVLen = aclCreateIntArray(actualSeqKVLenOp.data(), 1);
 
-  double scaleValue = 1.0/sqrt(128);
-  double keepProb = 1.0;
-  int64_t preTokens = INT32_MAX;
-  int64_t nextTokens = INT32_MAX;
+  double scaleValue = 0.088388;
+  double keepProb = 1;
+  int64_t preTokens = 65536;
+  int64_t nextTokens = 0;
   int64_t headNum = 1;
   int64_t innerPrecise = 0;
-  int64_t sparseMode = 0;
-  int64_t outDtype = 0;
+  int64_t sparseMode = 2;
+  int64_t outDtype = 1;
   int64_t pseType = 1;
   int64_t seed = 0;
   int64_t offset = 0;
-  char layOut[5] = {'T', 'N', 'D', 0};
+  char layOut[5] = {'S', 'B', 'H', 0};
   char *softmaxLayout = nullptr;
 
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
@@ -202,7 +205,6 @@ int main() {
             actualSeqQLen, actualSeqKVLen, qStartIdx, kvStartIdx, scaleValue, keepProb, preTokens, nextTokens,
             headNum, layOut, innerPrecise, sparseMode, outDtype, pseType, softmaxLayout, seed, offset, softmaxMax, softmaxSum,
             softmaxOut, attentionOut, &workspaceSize, &executor);
-
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreV4GetWorkspaceSize failed. ERROR: %d\n", ret);
             return ret);
 
@@ -227,6 +229,7 @@ int main() {
   PrintOutResult(softmaxSumShape, &softmaxSumDeviceAddr);
 
   // 6. 释放aclTensor和aclScalar，需要根据具体API的接口定义修改
+
   aclDestroyTensor(q);
   aclDestroyTensor(k);
   aclDestroyTensor(v);
