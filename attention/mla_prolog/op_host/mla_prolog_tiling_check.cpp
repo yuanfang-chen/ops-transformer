@@ -894,31 +894,33 @@ bool MlaPrologTilingCheck::CheckActSeqLen() const
 bool MlaPrologTilingCheck::CheckCacheModeParamShape() const
 {
     if (std::strncmp(context_.cacheMode, CACHE_MODE_TND, CACHE_MODE_LEN) == 0) {
-        if (context_.tokenX.shape->GetStorageShape().GetDimNum() == MLA_PROLOG_DIM_NUM_3) {
-            OP_LOGE(context_.opName, "When tokenX dim is 3, Only support cacheMode {BSND, PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, actually is %s.",
-                context_.cacheMode);
-            return false;
-        }
-        if (context_.kvCache.shape->GetStorageShape().GetDimNum() == MLA_PROLOG_DIM_NUM_4) {
+        OP_CHECK_IF(context_.tokenX.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_2,
             OP_LOGE(context_.opName,
-                    "When kvCache dim is 4, Only support cacheMode {BSND, PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, actually is %s.",
-                    context_.cacheMode);
-            return false;
-        }
-    }
-    if (std::strncmp(context_.cacheMode, CACHE_MODE_BSND, CACHE_MODE_LEN) == 0) {
-        if (context_.tokenX.shape->GetStorageShape().GetDimNum() == MLA_PROLOG_DIM_NUM_2) {
+                "When cacheMode is TND, tokenX dim must be 2, actually is %s.",
+                context_.tokenX.shape->GetStorageShape().GetDimNum()),
+            return false);
+        OP_CHECK_IF(context_.kvCache.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_3,
             OP_LOGE(context_.opName,
-                    "When tokenX dim is 2, Only support cacheMode {TND, PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, actually is %s.",
-                    context_.cacheMode);
-            return false;
-        }
-        if (context_.kvCache.shape->GetStorageShape().GetDimNum() == MLA_PROLOG_DIM_NUM_3) {
+                "When cacheMode is TND, kvCache dim must be 3, actually is %s.",
+                context_.kvCache.shape->GetStorageShape().GetDimNum()),
+            return false);
+    } else if (std::strncmp(context_.cacheMode, CACHE_MODE_BSND, CACHE_MODE_LEN) == 0) {
+        OP_CHECK_IF(context_.tokenX.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_3,
             OP_LOGE(context_.opName,
-                    "When kvCache dim is 3, Only support cacheMode {TND, PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, actually is %s.",
-                    context_.cacheMode);
-            return false;
-        }
+                "When cacheMode is BSND, tokenX dim must be 3, actually is %s.",
+                context_.tokenX.shape->GetStorageShape().GetDimNum()),
+            return false);
+        OP_CHECK_IF(context_.kvCache.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_4,
+            OP_LOGE(context_.opName,
+                "When cacheMode is BSND, kvCache dim must be 4, actually is %s.",
+                context_.kvCache.shape->GetStorageShape().GetDimNum()),
+            return false);
+    } else {
+        OP_CHECK_IF(context_.kvCache.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_4,
+            OP_LOGE(context_.opName,
+                "When cacheMode is in {PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, kvCache dim must be 4, actually is %s.",
+                context_.kvCache.shape->GetStorageShape().GetDimNum()),
+            return false);
     }
     return true;
 }
@@ -943,6 +945,17 @@ ge::graphStatus MlaPrologTilingCheck::CheckCacheMode() const
                 context_.cacheMode);
             return ge::GRAPH_FAILED;
         }
+
+        if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0 &&
+            (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_BSND, CACHE_MODE_LEN) == 0 ||
+                std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_NZ, CACHE_MODE_LEN) == 0)) {
+            OP_LOGE(context_.opName,
+                "%s only support cacheMode {PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, actually is %s.",
+                context_.opType,
+                context_.cacheMode);
+            return ge::GRAPH_FAILED;
+        }
+
         if (!CheckCacheModeParamShape()) {
             return ge::GRAPH_FAILED;
         }
