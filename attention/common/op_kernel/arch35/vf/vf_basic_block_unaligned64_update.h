@@ -160,7 +160,8 @@ __simd_vf__ void ProcessVec1UpdateImpl64VF(
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)tmpMaxUb), vreg_input_max, ureg_max, 1);
     }
-    vstas(ureg_max, tmpMaxUb, 0, POST_UPDATE);
+    StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            ((__ubuf__ T *&)tmpMaxUb), ureg_max, 1);
     LoadAlign(vreg_in_max, inMaxUb);
     LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
     LoadAlign(vreg_input_max, tmpMaxUb2);
@@ -255,7 +256,8 @@ __simd_vf__ void ProcessVec1UpdateImpl64VF(
                 ((__ubuf__ T2 *&)expUb), vreg_dst_even_f16, blockStride, repeatStride, preg_src_n_b16);
         }
     }
-    vstas(ureg_exp_sum, tmpExpSumUb, 0, POST_UPDATE);
+    StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            ((__ubuf__ T *&)tmpExpSumUb), ureg_exp_sum, 1);
 }
 // update, originN <= 64
 template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 128, uint32_t s2BaseSize = 128,

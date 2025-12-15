@@ -423,7 +423,8 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl512VF(
         StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
     }
-    vstas(ureg_max, maxUb, 0, POST_UPDATE);
+    StoreUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            ((__ubuf__ T *&)maxUb), ureg_max, 1);
     LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
 
     for (uint16_t i = 0; i < m; ++i) {
@@ -518,7 +519,8 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl512VF(
                 ((__ubuf__ T2 *&)expUb4), vreg_exp4_f16, blockStride, repeatStride, preg_all_b16);
         }
     }
-    vstas(ureg_exp_sum, expSumUb, 0, POST_UPDATE);
+    StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            ((__ubuf__ T *&)expSumUb), ureg_exp_sum, 1);
 }
 
 // 256 < Orignin N <=512
