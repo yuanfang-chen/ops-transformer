@@ -49,9 +49,9 @@ for S1_c_i/S1_v_i=128/8:
 
 上述示例中，仅在S1方向开了配比，S2方向C/V计算的长度是一致的，当然，也可以在S1/S2方向均开启配比；这样做的好处是，Cube一次可以发射大块的数据，避免因为小块数据不断发射带来的通信开销，也能最大程度地使用Cube单元的buffer。
 
-### 3.2 **<term>昇腾910_95</term>**
+### 3.2 **<term>昇腾950</term>**
 
-昇腾910_95同样是AIC和AIV分离的架构，保留了AIC AIV并行执行特性，同时新增了AIC和AIV之间的高速数据交互通路L0C->UB和UB->L1。降低了CV之间交互的成本，流水并行度更高，且相比于<term>Atlas A2 训练系列产品</term>复杂的tiling切块策略，在910_95上仅使用一种基本块就可以获得较好的性能。
+昇腾950同样是AIC和AIV分离的架构，保留了AIC AIV并行执行特性，同时新增了AIC和AIV之间的高速数据交互通路L0C->UB和UB->L1。降低了CV之间交互的成本，流水并行度更高，且相比于<term>Atlas A2 训练系列产品</term>复杂的tiling切块策略，在950上仅使用一种基本块就可以获得较好的性能。
 
  对于FAG算子，Vector计算涉及多个输入、输出、中间计算结果、double-buffer设计等，需要将buffer分配成多份，最优分配方案中最大一份为32KB，由于Vector计算使用的数据类型是float32，因此Vector的tiling基本块为64 * 128，由于Cube与Vector核数为1：2的数量比，为了充分利用cube核的算力，Cube侧考虑采用128 * 128的基本块，即每个cube核计算完128 * 128的数据后，均分给两个vector核处理。伪代码如下：
 
@@ -189,7 +189,7 @@ N1 * G * alignedS1 * alignedS2 <= bestBasicBlockNum。 </td>
 </tbody>
 </table>
 
-**昇腾910_95** 
+**昇腾950** 
 
 <table style="undefined;table-layout: fixed; width: 1576px">
 <colgroup>
@@ -323,7 +323,7 @@ N1 * G * alignedS1 * alignedS2 <= bestBasicBlockNum。 </td>
     >
     >    依据：如果希望单纯的把B.i放入CV基本块中，那么内层轴N2 * G * S1 * S2就需要足够小，一般是根据这个只小于64KB的话，Bmm1和Bmm2的数据量一般不会超过L1的一半，那么B轴切分时有意义的，否则单个Matmul就把L1用满，多个Matmul之间的数据搬入没有办法和计算并行。
 
-  - **<term>昇腾910_95</term>**FAG算子的模板划分如下，以下模板，序号越大，模板的优先级越高，序号1的模板是泛化模板（支持所有shape），虽然存在多个模板，但在实现时仅存在两个模板文件，一个是确定性计算另一个是非确定性计算模板，其中非确定性计算模板包含了BN2，BN2S2，BN2GS1S2三种切分模板，在代码中通过模板参数隔离各自的实现逻辑：
+  - **<term>昇腾950</term>**FAG算子的模板划分如下，以下模板，序号越大，模板的优先级越高，序号1的模板是泛化模板（支持所有shape），虽然存在多个模板，但在实现时仅存在两个模板文件，一个是确定性计算另一个是非确定性计算模板，其中非确定性计算模板包含了BN2，BN2S2，BN2GS1S2三种切分模板，在代码中通过模板参数隔离各自的实现逻辑：
 
     >    1. 核间切分B、N2、G、S1、S2轴模板：
     >
@@ -389,7 +389,7 @@ ops-transformer-dev/attention/flash_attention_score_grad/op_kernel/flash_attenti
 
 以Cube为主核对于FlashAttention来说由于V0、V1的Matmul任务可以复用左矩阵，且输出的部分结果可以在L0C累加，减少了对于带宽的依赖诉求，大部分场景性能会更优。
 
-**<term>昇腾910_95</term>**
+**<term>昇腾950</term>**
 
 为了实现极致性能，除部分确定性计算场景，全部切换到AscendC低阶API实现，且无论是高阶还是低阶都是以Cube为主核实现。
 
@@ -405,7 +405,7 @@ ops-transformer-dev/attention/flash_attention_score_grad/op_kernel/flash_attenti
 
 这个模板更加彻底地使用了以Cube为主核，Vector为从核，这时Matmul的任务都已经完全从Cube侧发起，通过同步通知Vector侧。
 
-**<term>昇腾910_95</term>**
+**<term>昇腾950</term>**
 
 除部分确定性计算场景，其余场景全部采用低阶API实现，可以实现极致的内存复用。
 
