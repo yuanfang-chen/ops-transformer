@@ -61,7 +61,7 @@ public:
     InitTempBuffer();
   }
   __aicore__ inline void Process() {
-    if (tndSoftmaxLayout == 1) {
+    if (tndSoftmaxLayout == 1 || headNum == 1) {
       ProcessSoftmaxTnd();
     } else {
       ProcessTnd();
@@ -125,30 +125,27 @@ public:
     attnGmOffsetLoop = dimTIndexCore * headNum * headDim;
     softmaxGmStride = 0;
     softmaxBlockCount = 1;
+    softmaxBlockLen = headNumLoopEach * softmaxTailSize * floatDataSize;
+    attnBlockLen = headNumLoopEach * headDim * inputDataSize;
 
-    for (int64_t seqNumLoopIndex = 0; seqNumLoopIndex < dimTCore; seqNumLoopIndex++) {
-      softmaxGmOffset = softmaxGmOffsetLoop + seqNumLoopIndex * headNum * softmaxTailSize;
-      attnGmOffset = attnGmOffsetLoop + seqNumLoopIndex * headNum * headDim;
+    for (int64_t seqNumLoopIndex = 0; seqNumLoopIndex < allLoopTimes; seqNumLoopIndex++) {
+      softmaxGmOffset = softmaxGmOffsetLoop + seqNumLoopIndex * headNumLoopEach * softmaxTailSize;
+      attnGmOffset = attnGmOffsetLoop + seqNumLoopIndex * headNumLoopEach * headDim;
 
-      for (int64_t headNumLoopIndex = 0; headNumLoopIndex < headNumLoopTimes; headNumLoopIndex++) {
-        softmaxBlockLen = headNumLoopEach * softmaxTailSize * floatDataSize;
-        attnBlockLen = headNumLoopEach * headDim * inputDataSize;
-
-        if (headNumLoopIndex != 0 && headNumLoopIndex == headNumLoopTimes - 1) {
-          softmaxBlockLen = headNumLoopTail * softmaxTailSize * floatDataSize;
-          attnBlockLen = headNumLoopTail * headDim * inputDataSize;
-        }
-
-        SoftmaxDataMoveIn();
-        AttnDataMoveIn();
-        SoftmaxCompute();
-        AttnCompute();
-        SoftmaxDataMoveOut();
-        AttnDataMoveOut();
-
-        softmaxGmOffset += headNumLoopEach * softmaxTailSize;
-        attnGmOffset += headNumLoopEach * headDim;
+      if (seqNumLoopIndex != 0 && seqNumLoopIndex == allLoopTimes - 1) {
+        softmaxBlockLen = allLoopTail * softmaxTailSize * floatDataSize;
+        attnBlockLen = allLoopTail * headDim * inputDataSize;
       }
+
+      SoftmaxDataMoveIn();
+      AttnDataMoveIn();
+      SoftmaxCompute();
+      AttnCompute();
+      SoftmaxDataMoveOut();
+      AttnDataMoveOut();
+
+      softmaxGmOffset += headNumLoopEach * softmaxTailSize;
+      attnGmOffset += headNumLoopEach * headDim;
     }
   }
 
@@ -181,6 +178,12 @@ private:
     headNumLoopEach = tiling->headNumLoopEach;
     headNumLoopTimes = (headNum + headNumLoopEach - 1) / headNumLoopEach;
     headNumLoopTail = headNum - (headNumLoopTimes - 1) * headNumLoopEach;
+
+    if (tndSoftmaxLayout == 1 || headNum == 1) {
+      headNumLoopEach = tiling->headNumLoopEach > dimTCore ? dimTCore : headNumLoopEach;
+    }
+    allLoopTimes = (headNum * dimTCore + headNumLoopEach - 1) / headNumLoopEach;
+    allLoopTail = headNum * dimTCore - (allLoopTimes - 1) * headNumLoopEach;
 
     // num loop align repeat
     softmaxEleNumLoop = (headNumLoopEach * softmaxTailSize + repeatNumB32 - 1) / repeatNumB32 * repeatNumB32;
@@ -404,6 +407,8 @@ private:
   int64_t headNumLoopTail;
   int64_t headNumLoop;
   int64_t headNumLoopAlign;
+  int64_t allLoopTimes;
+  int64_t allLoopTail;
 
   // gm offset
   int64_t softmaxBnGmOffset;

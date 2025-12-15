@@ -507,7 +507,8 @@ static ge::graphStatus Tiling4RingAttentionUpdateTND(const gert::TilingContext* 
             OP_LOGE(context->GetNodeName(), "Division by zero(headDimEach) is not supported"),
             return ge::GRAPH_FAILED);
   int64_t loopEachMax = headNumAllCount / headDimEach;
-  int64_t headNumLoopEach = loopEachMax > headNum ? headNum : loopEachMax;
+  int64_t headNumLoopEach = tndSoftmaxLayout == 1 || headNum == 1 ? loopEachMax :
+                            loopEachMax > headNum ? headNum : loopEachMax;
   tiling.set_headNumLoopEach(headNumLoopEach);
   OP_CHECK_IF(RingAttentionUpdateTNDUbSizeCheck(context, headNum, headDim, inputDataSize, headNumLoopEach) != ge::GRAPH_SUCCESS,
                   OP_LOGE(context->GetNodeName(), "Input conflicts with TND constraints! Please check your input."),
