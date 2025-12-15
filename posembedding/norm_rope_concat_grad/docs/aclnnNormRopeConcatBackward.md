@@ -13,7 +13,7 @@
 
 ## 功能说明
 
--   算子功能：（多模态）transfomer注意力机制中，针对query、key和Value实现归一化（Norm）、旋转位置编码（Rope）、特征拼接（Concat）融合算子功能反向推导：
+-   接口功能：（多模态）transfomer注意力机制中，针对query、key和Value实现归一化（Norm）、旋转位置编码（Rope）、特征拼接（Concat）融合算子功能反向推导：
 
     -   归一化（Norm）当前支持层归一化（LayerNorm）和带仿射变换参数层归一化（AFFINE LayerNorm）类型。
     -   旋转位置编码（Rope）支持Interleave和Half类型。
@@ -57,8 +57,58 @@
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnNormRopeConcatBackwardGetWorkspaceSize”接口获取入参并根据计算流程计算所需workspace大小，再调用“aclnnNormRopeConcatBackward”接口执行计算。
 
-* `aclnnStatus aclnnNormRopeConcatBackwardGetWorkspaceSize(const aclTensor *gradQueryOutput, const aclTensor *gradKeyOutput, const aclTensor *gradValueOutput, const aclTensor *query, const aclTensor *key, const aclTensor *encoderQuery, const aclTensor *encoderKey, const aclTensor *normQueryWeight, const aclTensor *normQueryMean, const aclTensor *normQueryRstd, const aclTensor *normKeyWeight, const aclTensor *normKeyMean, const aclTensor *normKeyRstd, const aclTensor *normAddedQueryWeight, const aclTensor *normAddedQueryMean, const aclTensor *normAddedQueryRstd, const aclTensor *normAddedKeyWeight, const aclTensor *normAddedKeyMean, const aclTensor *normAddedKeyRstd, const aclTensor *ropeSin, const aclTensor *ropeCos, int64_t normType, int64_t normAddedType, int64_t ropeType, int64_t concatOrder, const aclTensor *gradQuery, const aclTensor *gradKey, const aclTensor *gradValue, const aclTensor *gradEncoderQuery, const aclTensor *gradEncoderKey, const aclTensor *gradEncoderValue, const aclTensor *gradNormQueryWeight, const aclTensor *gradNormQueryBias, const aclTensor *gradNormKeyWeight, const aclTensor *gradNormKeyBias, const aclTensor *gradNormAddedQueryWeight, const aclTensor *gradNormAddedQueryBias, const aclTensor *gradNormAddedKeyWeight, const aclTensor *gradNormAddedKeyBias, uint64_t *workspaceSize, aclOpExecutor **executor)`
-* `aclnnStatus aclnnNormRopeConcatBackward(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)`
+```Cpp
+aclnnStatus aclnnNormRopeConcatBackwardGetWorkspaceSize(
+    const aclTensor *gradQueryOutput, 
+    const aclTensor *gradKeyOutput, 
+    const aclTensor *gradValueOutput, 
+    const aclTensor *query, 
+    const aclTensor *key, 
+    const aclTensor *encoderQuery, 
+    const aclTensor *encoderKey, 
+    const aclTensor *normQueryWeight, 
+    const aclTensor *normQueryMean, 
+    const aclTensor *normQueryRstd, 
+    const aclTensor *normKeyWeight, 
+    const aclTensor *normKeyMean, 
+    const aclTensor *normKeyRstd, 
+    const aclTensor *normAddedQueryWeight, 
+    const aclTensor *normAddedQueryMean, 
+    const aclTensor *normAddedQueryRstd, 
+    const aclTensor *normAddedKeyWeight, 
+    const aclTensor *normAddedKeyMean, 
+    const aclTensor *normAddedKeyRstd, 
+    const aclTensor *ropeSin, 
+    const aclTensor *ropeCos, 
+    int64_t          normType, 
+    int64_t          normAddedType, 
+    int64_t          ropeType, 
+    int64_t          concatOrder, 
+    const aclTensor *gradQuery, 
+    const aclTensor *gradKey, 
+    const aclTensor *gradValue, 
+    const aclTensor *gradEncoderQuery, 
+    const aclTensor *gradEncoderKey, 
+    const aclTensor *gradEncoderValue, 
+    const aclTensor *gradNormQueryWeight, 
+    const aclTensor *gradNormQueryBias, 
+    const aclTensor *gradNormKeyWeight, 
+    const aclTensor *gradNormKeyBias, 
+    const aclTensor *gradNormAddedQueryWeight, 
+    const aclTensor *gradNormAddedQueryBias, 
+    const aclTensor *gradNormAddedKeyWeight, 
+    const aclTensor *gradNormAddedKeyBias, 
+    uint64_t        *workspaceSize, 
+    aclOpExecutor   **executor)
+```
+```cpp
+aclnnStatus aclnnNormRopeConcatBackward(
+    void          *workspace, 
+    uint64_t       workspaceSize, 
+    aclOpExecutor *executor, 
+    aclrtStream    stream)
+```
+
 
 ### aclnnNormRopeConcatBackwardGetWorkspaceSize
 

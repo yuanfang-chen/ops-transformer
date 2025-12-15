@@ -18,20 +18,22 @@
 
 ## 功能说明
 
-- 算子功能:（多模态）transfomer注意力机制中，针对query、key和Value实现归一化（Norm）、旋转位置编码（Rope）、特征拼接（Concat）：
+- 接口功能:（多模态）transfomer注意力机制中，针对query、key和Value实现归一化（Norm）、旋转位置编码（Rope）、特征拼接（Concat）：
 
     -   归一化（Norm）当前支持层归一化（LayerNorm）和带仿射变换参数层归一化（AFFINE LayerNorm）类型。
     -   旋转位置编码（Rope）支持Interleave和Half类型。
     -   特征拼接（Concat）支持在sequence维度上进行拼接，拼接有顺序区别。
 
 -   计算公式（以Query（视频）和EncoderQuery（文本）为例）：
+
 	$$
     hiddenState_q = \text{LayerNorm}(query, normQueryWeight, normQueryBias, eps) \\
     hiddenState_{eq} = \text{LayerNorm}(encoderQuery, normEncoderQueryWeight, normEncoderQueryBias, eps) \\
     concatedHiddenState = \text{Concat}(hiddenState_q, hiddenState_{eq}) \\
     transposedHiddenState = \text{Transpose}(concatedHiddenState, (0, 2, 1, 3)) \\
     hiddenState = \text{RoPE}(concatedHiddenState, ropeSin, ropeCos)
-    $$
+  $$
+
 - 说明：
     1. 输入输出布局如下：输入`query`的shape为`(B, S, N, D)`，输出`hiddenState`的shape为`(B, N, S, D)`，其中
     B为batch，S为sequenceLen，N为headNum，D为headDim。
@@ -64,11 +66,50 @@
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnNormRopeConcatGetWorkspaceSize”接口获取入参并根据计算流程计算所需workspace大小，再调用“aclnnNormRopeConcat”接口执行计算。
 
-```cpp
-aclnnStatus aclnnNormRopeConcatGetWorkspaceSize(const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *encoderQuery, const aclTensor *encoderKey, const aclTensor *encoderValue, const aclTensor *normQueryWeight, const aclTensor *normQueryBias, const aclTensor *normKeyWeight, const aclTensor *normKeyBias, const aclTensor *normAddedQueryWeight, const aclTensor *normAddedQueryBias, const aclTensor *normAddedKeyWeight, const aclTensor *normAddedKeyBias, const aclTensor *ropeSin, const aclTensor *ropeCos, int64_t normType, int64_t normAddedType, int64_t ropeType, int64_t concatOrder, double eps, bool isTraining, const aclTensor *queryOutput, const aclTensor *keyOutput, const aclTensor *valueOutput, const aclTensor *normQueryMean, const aclTensor *normQueryRstd, const aclTensor *normKeyMean, const aclTensor *normKeyRstd, const aclTensor *normAddedQueryMean, const aclTensor *normAddedQueryRstd, const aclTensor *normAddedKeyMean, const aclTensor *normAddedKeyRstd, uint64_t *workspaceSize, aclOpExecutor **executor)
+```Cpp
+aclnnStatus aclnnNormRopeConcatGetWorkspaceSize(
+    const aclTensor *query, 
+    const aclTensor *key, 
+    const aclTensor *value, 
+    const aclTensor *encoderQuery, 
+    const aclTensor *encoderKey, 
+    const aclTensor *encoderValue, 
+    const aclTensor *normQueryWeight, 
+    const aclTensor *normQueryBias, 
+    const aclTensor *normKeyWeight, 
+    const aclTensor *normKeyBias, 
+    const aclTensor *normAddedQueryWeight, 
+    const aclTensor *normAddedQueryBias, 
+    const aclTensor *normAddedKeyWeight, 
+    const aclTensor *normAddedKeyBias, 
+    const aclTensor *ropeSin, 
+    const aclTensor *ropeCos, 
+    int64_t          normType, 
+    int64_t          normAddedType, 
+    int64_t          ropeType, 
+    int64_t          concatOrder, 
+    double           eps, 
+    bool             isTraining, 
+    const aclTensor *queryOutput, 
+    const aclTensor *keyOutput, 
+    const aclTensor *valueOutput, 
+    const aclTensor *normQueryMean, 
+    const aclTensor *normQueryRstd, 
+    const aclTensor *normKeyMean, 
+    const aclTensor *normKeyRstd, 
+    const aclTensor *normAddedQueryMean, 
+    const aclTensor *normAddedQueryRstd, 
+    const aclTensor *normAddedKeyMean, 
+    const aclTensor *normAddedKeyRstd, 
+    uint64_t *workspaceSize, 
+    aclOpExecutor **executor)
 ```
 ```cpp
-aclnnStatus aclnnNormRopeConcat(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
+aclnnStatus aclnnNormRopeConcat(
+    void          *workspace, 
+    uint64_t       workspaceSize, 
+    aclOpExecutor *executor, 
+    aclrtStream    stream)
 ```
 
 ### aclnnNormRopeConcatGetWorkspaceSize
