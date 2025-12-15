@@ -149,6 +149,95 @@ static bool CheckTensorDataType(const gert::TilingContext *context, TilingRunInf
 }
 
 /**
+ * @brief 校验x维度的合法性
+ * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opType: 当前op类型
+ * @return
+ */
+static bool CheckXDimValid(const gert::TilingContext *context, const OpType opType)
+{
+    const char *nodeName = context->GetNodeName();
+    // context->GetInputShape在函数CheckInputTensorDim中已经校验
+    size_t xDimNum = context->GetInputShape(X_INDEX)->GetStorageShape().GetDimNum();
+    // quant_reduce_scatter算子的x一定是2维，即x.shape(bs, h)
+    bool inValidDimNum = xDimNum != TWO_DIMS;
+    if (opType == OpType::OP_QUANT_ALL_REDUCE) {
+        // quant_all_reduce算子的x可能是2维或者3维，即x.shape(b, s, h)
+        inValidDimNum = inValidDimNum && (xDimNum != THREE_DIMS);
+    }
+    OP_TILING_CHECK(inValidDimNum,
+                    OP_LOGE(nodeName, "xDimNum is invalid, it should be 2 in QuantReduceScatter, "
+                            "and 2 or 3 in QuantAllReduce, but the actual input xDimNum is %lu.", xDimNum),
+                    return false);
+    return true;
+}
+
+/**
+ * @brief 校验scales维度的合法性
+ * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param runInfo: 封装的doTiling所需要的参数
+ * @param opType: 当前op类型
+ * @return
+ */
+static bool CheckScalesDimValid(const gert::TilingContext *context, TilingRunInfo &runInfo, const OpType opType)
+{
+    const char *nodeName = context->GetNodeName();
+    // context->GetInputShape在CheckInputTensorDim函数中校验过
+    size_t scalesDim = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDimNum();
+    if (runInfo.quantMode == TG_QUANT_MOD) {
+        // TG量化: scales.shape(bs, h/128)或(b, s, h/128)
+        bool invalidScalesDim = scalesDim != TWO_DIMS;
+        if (opType == OpType::OP_QUANT_ALL_REDUCE) {
+            invalidScalesDim = invalidScalesDim && (scalesDim != THREE_DIMS);
+        }
+        OP_TILING_CHECK(invalidScalesDim,
+                        OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2 in QuantReduceScatter, "
+                        "and 2 or 3 in QuantAllReduce, but actual value is %lu.", scalesDim),
+                        return false);
+    } else if (runInfo.quantMode == MX_QUANT_MOD) {
+        // MX量化: scales.shape(bs, h/64, 2)或(b, s, h/64, 2)
+        bool invalidScalesDim = scalesDim != THREE_DIMS;
+        if (opType == OpType::OP_QUANT_ALL_REDUCE) {
+            invalidScalesDim = invalidScalesDim && (scalesDim != FOUR_DIMS);
+        }
+        OP_TILING_CHECK(invalidScalesDim,
+                        OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3 in QuantReduceScatter, "
+                        "and 3 or 4 in QuantAllReduce, but actual value is %lu.", scalesDim),
+                        return false);
+    }
+    return true;
+}
+
+/**
+ * @brief 校验空tensor
+ * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opType: 当前op类型
+ * @return
+ */
+static bool CheckTensorEmpty(const gert::TilingContext *context, const OpType opType)
+{
+    const char *nodeName = context->GetNodeName();
+    // context->GetInputShape在CheckInputTensorDim函数中已经校验
+    size_t xDimNum = context->GetInputShape(X_INDEX)->GetStorageShape().GetDimNum();
+    uint64_t xValueOne = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t xValueTwo = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t scalesValueOne = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t scalesValueTwo = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+    // 校验是否为空tensor
+    bool emptyTensor = xValueOne == 0 || xValueTwo == 0 || scalesValueOne == 0 || scalesValueTwo == 0;
+    if (opType == OpType::OP_QUANT_ALL_REDUCE && xDimNum == THREE_DIMS) {
+        uint64_t xValueThree = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
+        uint64_t scalesValueThree = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
+        emptyTensor = emptyTensor || (xValueThree == 0 || scalesValueThree == 0);
+        OP_TILING_CHECK(xValueTwo != scalesValueTwo,
+                        OP_LOGE(nodeName, "dim2 of scales %lu is not equal to x %lu.", scalesValueTwo, xValueTwo),
+                        return false);
+    }
+    OP_TILING_CHECK(emptyTensor, OP_LOGE(nodeName, "x and scale should not be empty tensor."), return false);
+    return true;
+}
+
+/**
  * @brief 校验x的维度
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @param runInfo: 封装的doTiling所需要的参数
@@ -160,14 +249,6 @@ static bool CheckXDim(const gert::TilingContext *context, TilingRunInfo &runInfo
     const char *nodeName = context->GetNodeName();
     // context->GetInputShape在函数CheckInputTensorDim中已经校验
     size_t xDimNum = context->GetInputShape(X_INDEX)->GetStorageShape().GetDimNum();
-    // quant_reduce_scatter算子的x一定是2维，即x.shape(bs, h)
-    bool inValidDimNum = xDimNum != TWO_DIMS;
-    if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-        // quant_all_reduce算子的x可能是2维或者3维，即x.shape(b, s, h)
-        inValidDimNum = inValidDimNum && (xDimNum != THREE_DIMS);
-    }
-    OP_TILING_CHECK(inValidDimNum, OP_LOGE(nodeName, "xDimNum is invalid, the actual input xDimNum is %lu.", xDimNum),
-                    return false);
     // context->GetInputShape在CheckInputTensorDim函数中已经校验
     uint64_t xValueOne = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t xValueTwo = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
@@ -177,23 +258,14 @@ static bool CheckXDim(const gert::TilingContext *context, TilingRunInfo &runInfo
     OP_TILING_CHECK(xValueOne != scalesValueOne,
                     OP_LOGE(nodeName, "dim1 of scales %lu is not equal to x %lu.", scalesValueOne, xValueOne),
                     return false);
-    // 校验是否为空tensor
-    bool emptyTensor = xValueOne == 0 || xValueTwo == 0 || scalesValueOne == 0 || scalesValueTwo == 0;
     // bs需要整除worldSize。只有x是2维时，当前轴才是b*s，当x是3维时，当前轴是b
     uint64_t xValueBS = xValueOne;
     // 泛化场景下h必须是128的倍数。只有x是2维时，当前轴才是h。当x是3维时，当前轴是s，后一个轴才是h
     uint64_t xValueH = xValueTwo;
     if (opType == OpType::OP_QUANT_ALL_REDUCE && xDimNum == THREE_DIMS) {
-        uint64_t xValueThree = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
-        uint64_t scalesValueThree = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
-        emptyTensor = emptyTensor || (xValueThree == 0 || scalesValueThree == 0);
         xValueBS = xValueOne * xValueTwo;
         xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
-        OP_TILING_CHECK(xValueTwo != scalesValueTwo,
-                        OP_LOGE(nodeName, "dim2 of scales %lu is not equal to x %lu.", scalesValueTwo, xValueTwo),
-                        return false);
     }
-    OP_TILING_CHECK(emptyTensor, OP_LOGE(nodeName, "x and scale should not be empty tensor."), return false);
     OP_TILING_CHECK(xValueBS % runInfo.rankSize != 0,
                     OP_LOGE(nodeName,
                             "x b*s dim should be multiple of ranksize, but actual x b*s dim is %lu, ranksize is %u.",
@@ -221,6 +293,7 @@ static bool CheckXDim(const gert::TilingContext *context, TilingRunInfo &runInfo
  * @brief 根据量化模式校验scales的维度
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @param runInfo: 封装的doTiling所需要的参数
+ * @param opType: 当前op类型
  * @return
  */
 static bool CheckScalesDim(const gert::TilingContext *context, TilingRunInfo &runInfo, const OpType opType)
@@ -232,13 +305,6 @@ static bool CheckScalesDim(const gert::TilingContext *context, TilingRunInfo &ru
     size_t scalesDim = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDimNum();
     if (runInfo.quantMode == TG_QUANT_MOD) {
         // TG量化: scales.shape(bs, h/128)或(b, s, h/128)
-        bool invalidScalesDim = scalesDim != TWO_DIMS;
-        if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-            invalidScalesDim = invalidScalesDim && (scalesDim != THREE_DIMS);
-        }
-        OP_TILING_CHECK(invalidScalesDim,
-                        OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2 or 3, but actual value is %lu.", scalesDim),
-                        return false);
         if (opType == OpType::OP_QUANT_ALL_REDUCE && scalesDim == THREE_DIMS) {
             xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
             scalesValueH = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
@@ -250,13 +316,6 @@ static bool CheckScalesDim(const gert::TilingContext *context, TilingRunInfo &ru
                                 xValueH, scalesValueH), return false);
     } else if (runInfo.quantMode == MX_QUANT_MOD) {
         // MX量化: scales.shape(bs, h/64, 2)或(b, s, h/64, 2)
-        bool invalidScalesDim = scalesDim != THREE_DIMS;
-        if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-            invalidScalesDim = invalidScalesDim && (scalesDim != FOUR_DIMS);
-        }
-        OP_TILING_CHECK(
-            invalidScalesDim, OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3 or 4, but actual value is %lu.", scalesDim),
-            return false);
         uint64_t scalesValueLast = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
         if (opType == OpType::OP_QUANT_ALL_REDUCE && scalesDim == FOUR_DIMS) {
             xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
@@ -286,13 +345,18 @@ static bool CheckScalesDim(const gert::TilingContext *context, TilingRunInfo &ru
 static bool CheckInputTensorDim(const gert::TilingContext *context, TilingRunInfo &runInfo, const OpType opType)
 {
     const char *nodeName = context->GetNodeName();
-    // 校验xDim
+    // 校验x维度合法性
     const gert::StorageShape *xShape = context->GetInputShape(X_INDEX);
     OP_TILING_CHECK(xShape == nullptr, OP_LOGE(nodeName, "xShape is null."), return false);
-    OP_TILING_CHECK(!CheckXDim(context, runInfo, opType), OP_LOGE(nodeName, "x dimensions is invalid."), return false);
-    // 校验scalesDim
+    OP_TILING_CHECK(!CheckXDimValid(context, opType), OP_LOGE(nodeName, "x dimensions is invalid."), return false);
+    // 校验scales维度合法性
     const gert::StorageShape *scalesShape = context->GetInputShape(SCALES_INDEX);
     OP_TILING_CHECK(scalesShape == nullptr, OP_LOGE(nodeName, "scaleShape is null."), return false);
+    OP_TILING_CHECK(!CheckScalesDimValid(context, runInfo, opType), OP_LOGE(nodeName, "x dimensions is invalid."), return false);
+    // 校验空tensor
+    OP_TILING_CHECK(!CheckTensorEmpty(context, opType), OP_LOGE(nodeName, "x or scales is empty tensor."), return false);
+    // 校验x和scales的维度
+    OP_TILING_CHECK(!CheckXDim(context, runInfo, opType), OP_LOGE(nodeName, "x dimensions is invalid."), return false);
     // scalesDim根据量化模式判断
     OP_TILING_CHECK(!CheckScalesDim(context, runInfo, opType),
                     OP_LOGE(nodeName, "scales dimensions is invalid in the quantmode."), return false);
