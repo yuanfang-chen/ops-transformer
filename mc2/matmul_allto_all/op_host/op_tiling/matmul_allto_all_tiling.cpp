@@ -10,28 +10,27 @@
 
 /*!
  * \file matmul_allto_all_tiling.cpp
- * \brief host侧tiling实现
+ * \brief hosttiling
  */
 #include <register/op_def_registry.h>
-#include "../../op_kernel/arch35/matmul_allto_all_tiling_data.h"
-#include "../../op_kernel/arch35/matmul_allto_all_tiling_key.h"
-#include "mc2_log.h"
+#include <register/op_impl_registry.h>
+#include "matmul_allto_all_tiling_base.h"
 
-using namespace AscendC;
 using namespace ge;
+using Ops::Transformer::OpTiling::TilingRegistryNew;
 
-namespace optiling {
+namespace MC2Tiling {
 
 static ge::graphStatus MatmulAlltoAllTilingFunc(gert::TilingContext *context)
 {
-    return ge::GRAPH_SUCCESS;
+    return TilingRegistryNew::GetInstance().DoTilingImpl(context);
 }
 
 static ge::graphStatus TilingParseForMatmulAlltoAll(gert::TilingParseContext *context)
 {
+    (void)context;
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(MatmulAlltoAll)
-    .Tiling(MatmulAlltoAllTilingFunc);
-} // namespace optiling
+IMPL_OP_OPTILING(MatmulAlltoAll).Tiling(MatmulAlltoAllTilingFunc);
+} // namespace MC2Tiling
