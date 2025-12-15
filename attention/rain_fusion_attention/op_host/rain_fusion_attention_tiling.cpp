@@ -62,6 +62,9 @@ constexpr int SCALE_VALUE_INDEX = 4;
 constexpr int INNER_PRECISE_INDEX = 5;
 constexpr int BLOCK_SIZE_INDEX = 6;
 
+constexpr int VALID_EMBEDDING_SIZE_64 = 64;
+constexpr int VALID_EMBEDDING_SIZE_128 = 128;
+
 namespace optiling {
 
 constexpr uint32_t BASIC_BLOCK_SIZE = 128;
@@ -367,7 +370,12 @@ ge::graphStatus RFATiling::ValidateConfiguration(gert::TilingContext *rfaContext
         OP_LOGE(rfaContext->GetNodeName(), "Invalid head or embedding configuration");
         return ge::GRAPH_FAILED;
     }
-    
+
+    if (embeddingSize_ != VALID_EMBEDDING_SIZE_64 && embeddingSize_ != VALID_EMBEDDING_SIZE_128) {
+        OP_LOGE(rfaContext->GetNodeName(), "Invalid embedding size, embeddingSize must be 64 or 128");
+        return ge::GRAPH_FAILED;
+    }
+
     if (blockShapeX_ <= 0 || blockShapeY_ <= 0) {
         OP_LOGE(rfaContext->GetNodeName(), "Invalid block shape, blockShapeX and blockShapeY must be greater than 0");
         return ge::GRAPH_FAILED;
@@ -377,7 +385,12 @@ ge::graphStatus RFATiling::ValidateConfiguration(gert::TilingContext *rfaContext
         OP_LOGE(rfaContext->GetNodeName(), "Invalid block shape, blockShapeY must be divisible by %u", BASIC_BLOCK_SIZE);
         return ge::GRAPH_FAILED;
     }
-    
+    dataType_ = rfaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
+    if (innerPrecise_ == 1 && dataType_ == ge::DT_BF16) {
+        OP_LOGE(rfaContext->GetNodeName(), "Invalid innerPrecise, innerPrecise must be 0 when dataType is BF16");
+        return ge::GRAPH_FAILED;
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -573,10 +586,9 @@ uint64_t RFATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
     uint64_t tilingKey = 9000000000000000ULL;  // RFA基础值（Operator Category = 900）
     
     // [位14-15] Data Type（百亿位）
-    ge::DataType dataType = rfaContext->GetInputDesc(QUERY_INDEX)->GetDataType();
-    if (dataType == ge::DT_FLOAT16) {
+    if (dataType_ == ge::DT_FLOAT16) {
         tilingKey += 0;  // 00 for FP16
-    } else if (dataType == ge::DT_BF16) {
+    } else if (dataType_ == ge::DT_BF16) {
         // 22-位段在十进制低 5 位伸展（与 rain_fusion_attention_tilingkey.h 中预置宏一致）
         tilingKey += 22220ULL;  // 22 for BF16 -> 9000000030000002 + 22220 = 9000000030022222
     }

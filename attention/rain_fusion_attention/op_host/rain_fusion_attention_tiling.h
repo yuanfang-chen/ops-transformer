@@ -177,6 +177,8 @@ private:
     uint32_t maxQSeqlen_ = 0;  // BNSD格式Q的第三维（S维度）
     uint32_t maxKvSeqlen_ = 0;  // BNSD格式KV的第三维（S维度）
     
+    ge::DataType dataType_ = ge::DT_FLOAT16;
+
     RainFusionAttentionTilingData *tilingData_ = nullptr;
 };
 

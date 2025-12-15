@@ -32,8 +32,8 @@ RainFusionAttention输入query、key、value的数据排布格式支持从多种
 - D：表示隐藏层最小的单元尺寸，需满足D=H/N（Head-Dim）
 
 当前支持的布局：
-- qInputLayout: "TND"
-- kvInputLayout: "TND"
+- qInputLayout: "TND" "BNSD"
+- kvInputLayout: "TND" "BNSD"
 
 
 ## 函数原型
@@ -229,7 +229,7 @@ aclnnStatus aclnnRainFusionAttention(
       <td>qInputLayout</td>
       <td>输入</td>
       <td>Host侧的string，代表输入query的数据排布格式。</td>
-      <td>当前仅支持"TND"。</td>
+      <td>当前仅支持"TND"和"BNSD"。</td>
       <td>String</td>
       <td>-</td>
       <td>-</td>
@@ -239,7 +239,7 @@ aclnnStatus aclnnRainFusionAttention(
       <td>kvInputLayout</td>
       <td>输入</td>
       <td>Host侧的string，代表输入key、value的数据排布格式。</td>
-      <td>当前仅支持"TND"。</td>
+      <td>当前仅支持"TND"和"BNSD"。</td>
       <td>String</td>
       <td>-</td>
       <td>-</td>
@@ -427,15 +427,15 @@ aclnnStatus aclnnRainFusionAttention(
 - 确定性计算：
   - aclnnRainFusionAttention默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
-- qInputLayout当前仅支持"TND"。
-- kvInputLayout当前仅支持"TND"。
+- qInputLayout当前仅支持"TND"和"BNSD"。
+- kvInputLayout当前仅支持"TND"和"BNSD"。
 - 输入query、key、value的数据类型必须一致，支持FLOAT16和BFLOAT16。
 - blockShape必须包含至少两个元素[blockShapeX, blockShapeY]，且值必须大于0。
 - selectIdx的shape必须为[T, headNum, maxKvBlockNum]，其中T为所有batch中Q方向切块的总数。
 - selectNumIdx的shape必须为[T, headNum]。
-- innerPrecise必须为0（float32 softmax）或1（fp16 softmax）。
+- innerPrecise必须为0（float32 softmax）或1（fp16 softmax），query输入为BFLOAT16时，只能配置为0。
 - qSeqlen和kvSeqlen不需要被blockShape整除，支持非对齐场景，实际分块数通过向上取整计算。
-- qSeqlen在qInputLayout为“TND”时必选；kvSeqlen在kvInputLayout为“TND”时必选。
+- qSeqlen在qInputLayout为“TND”和"BNSD"时必选；kvSeqlen在kvInputLayout为“TND”和"BNSD"时必选。
 - 稀疏块索引必须在有效范围内，无效位置用-1填充。
 - 输入query的headNum为N1，输入key和value的headNum为N2，则N1 >= N2 && N1 % N2 == 0。
 - 设G = N1 / N2，G需要满足以下约束：G < 128 && 128 % G == 0。
