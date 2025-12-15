@@ -506,9 +506,10 @@ static bool CheckWindowSize(const gert::TilingContext *context, const TilingRunI
     uint64_t actualWinSize = xDataSize + scalesDataSize + MB_SIZE;
     uint64_t maxWinSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
     OP_TILING_CHECK(HCCL_BUFFSIZE_FACTOR * actualWinSize > maxWinSize,
-                    OP_LOGE(nodeName, "factor[%u] * actual winSize[%lu]MB is bigger than max winSize[%lu]MB.",
-                            HCCL_BUFFSIZE_FACTOR, ops::CeilDiv(actualWinSize, MB_SIZE),
-                            ops::CeilDiv(maxWinSize, MB_SIZE)),
+                    OP_LOGE(nodeName,
+                            "The HCCL_BUFFERSIZE is too small. The current HCCL_BUFFERSIZE in the environment is [%lu] MB,"
+                            "but the NEED HCCL_BUFFERSIZE is [%lu] MB. Please check HCCL_BUFFERSIZE config.",
+                            ops::CeilDiv(maxWinSize, MB_SIZE), ops::CeilDiv(actualWinSize, MB_SIZE) * HCCL_BUFFSIZE_FACTOR),
                     return false);
     return true;
 }
