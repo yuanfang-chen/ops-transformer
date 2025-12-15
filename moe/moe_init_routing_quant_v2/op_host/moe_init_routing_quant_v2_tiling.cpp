@@ -42,12 +42,14 @@ const static int64_t DYNAMIC_QUANT_FULLLOAD_COLS_BUFFER = 13;
 const static int64_t DYNAMIC_QUANT_SCALE_SIZE_64 = 64;
 const static int64_t DYNAMIC_QUANT_SCALE_SIZE_128 = 128;
 const static int64_t OUTOUT_DYNAMIC_QUANT_SCALE = 4;
+const static int64_t OUTOUT_EXPANDED_X = 0;
 const static int64_t FULLLOAD_H_LIMIT = 7168;
 const static int64_t HIST_REGBASE_MAX_EXPERT_NUM = 256;
 const static int64_t SIZE_INT32 = 4;
 const static int64_t SIZE_INT16 = 2;
 const static int64_t SIZE_INT8 = 1;
 const static int64_t SIZE_FP32 = 4;
+const static int64_t INT4_USED_BYTE = 32 * 2 + 32 * 2 +256;// 2*32 for align 32*2+256 for compute
 
 class MoeInitRoutingQuantV2TilingBase : public InnerMoeInitRoutingV2TilingBase
 {
@@ -90,6 +92,7 @@ private:
     void CopyTilingData();
 
     int64_t quantMode;
+    bool isInt4;
     MoeInitRoutingQuantV2TilingData quantTilingData;
 };
 
@@ -174,7 +177,15 @@ ge::graphStatus MoeInitRoutingQuantV2TilingBase::GetShapeAttrsInfo()
     if (InnerMoeInitRoutingV2TilingBase::GetShapeAttrsInfo() == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
     }
-
+    auto expandedXDesc = context_->GetOutputDesc(OUTOUT_EXPANDED_X);
+    CHECK_NULL(context_, expandedXDesc, "expandedXDesc");
+    auto expandedXType = expandedXDesc->GetDataType();
+    isInt4 = expandedXType == ge::DT_INT4;
+    if (isInt4) {
+        CHECK_FAIL(context_, quantMode != 1, "Attr quant_mode should be 1 when expendedx is int4.");
+        CHECK_FAIL(context_, dropPadMode != 0, "Attr drop_pad_mode should be 0 when expendedx is int4.");
+    }
+    CHECK_FAIL(context_, isInt4 && quantMode != 1, "The data type of scale should be same with x when expendedx is int4.");
     auto scaleShapePtr = context_->GetOptionalInputShape(INDEX_SCALE);
     if (quantMode == 0) {
         CHECK_NULL(context_, scaleShapePtr, "scale");
@@ -407,6 +418,7 @@ void MoeInitRoutingQuantV2TilingBase::Tiling4GatherDynamicQuant()
         tilingData->set_needCoreNum(0);
         return;
     }
+    aicoreParams_.ubSize = isInt4 ? aicoreParams_.ubSize - INT4_USED_BYTE: aicoreParams_.ubSize;
     tilingData->set_needCoreNum(Ops::Base::CeilDiv(totalLength, perCoreRows));
     int64_t cols = InnerMoeInitRoutingV2TilingBase::moeInitRoutingTilingData.get_cols();
     tilingData->set_perCoreRows(perCoreRows);
@@ -421,9 +433,11 @@ void MoeInitRoutingQuantV2TilingBase::Tiling4GatherDynamicQuant()
         (SIZE_INT32 * NUM_FOUR);
     int64_t oneBlockNumInt = static_cast<int64_t>(ONE_BLOCK_BYTE) / static_cast<int64_t>(SIZE_INT32);
     onceRowSize = onceRowSize / oneBlockNumInt * oneBlockNumInt;
+    bool ifOneLoopInt4 = isInt4 && 
+        ((static_cast<int64_t>(aicoreParams_.ubSize) > colSize + scaleSize + ONE_BLOCK_BYTE * NUM_FOUR * NUM_FOUR));
     bool ifOneLoop =
         ((static_cast<int64_t>(aicoreParams_.ubSize) > colSize + scaleSize + ONE_BLOCK_BYTE * NUM_FOUR * NUM_FOUR) &&
-         quantTilingData.get_smoothType() == SMOOTH_NONE && cols == FULLLOAD_H_LIMIT);
+         quantTilingData.get_smoothType() == SMOOTH_NONE && cols == FULLLOAD_H_LIMIT) || ifOneLoopInt4;
     int64_t perCoreOnceRowSize = ifOneLoop ? std::min(onceRowSize, perCoreRows) : perCoreRows;
     int64_t lastCoreOnceRowSize = ifOneLoop ? std::min(onceRowSize, lastCoreRows) : lastCoreRows;
     int64_t perCoreLoops = ifOneLoop ? Ops::Base::CeilDiv(perCoreRows, perCoreOnceRowSize) : 1;
@@ -448,7 +462,7 @@ void MoeInitRoutingQuantV2TilingBase::Tiling4GatherDynamicQuant()
         if (cols < MAX_COLS_DYNAMIC_QUANT) {
             basePerLoopMaxRows = AlignOneBlockByteCeil((ubSize - colSize - scaleSize) / SIZE_INT32) / NUM_FOUR;
         } else if (perCoreRows < basePerLoopMaxRows) {
-            baseMaxCols = AlignOneBlockByteCeil(ubSize - rowSize - scaleSize) / DYNAMIC_QUANT_COLS_BUFFER;
+            baseMaxCols = AlignOneBlockByteCeil((ubSize - rowSize - scaleSize) / DYNAMIC_QUANT_COLS_BUFFER);// aligin ub
         }
         SetGatherTilingDataCols(tilingData, baseMaxCols, cols);
         SetGatherTilingDataRows(tilingData, perCoreRows, lastCoreRows, basePerLoopMaxRows);
