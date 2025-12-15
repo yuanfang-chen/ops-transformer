@@ -142,6 +142,8 @@ public:
     uint32_t prevBIdx;
     uint32_t prevBN2Idx;
     uint32_t prevGS1Idx;
+
+    bool skipInitOutputFlag = false;
     // ================================Util functions==================================
     template <typename T> __aicore__ inline T Align(T num, T rnd)
     {
@@ -268,7 +270,11 @@ __aicore__ inline bool FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
 {
     // TND、NTD场景且无attentionMask,不需要初始化
     if constexpr (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
-        if (!constInfo.attenMaskFlag) {
+        if (tilingData->maskParams.attenMaskFlag == 0) {
+            return false;
+        }
+    } else {
+        if (tilingData->baseParams.actualSeqS1Dims == 0 && tilingData->maskParams.attenMaskFlag == 0) {
             return false;
         }
     }
@@ -280,6 +286,9 @@ template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename
 __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, FdBlockType>::
     InitOutputSingleCore()
 {
+    if (skipInitOutputFlag) {
+        return;
+    }
     if (usedCoreNum != 0) {
         int32_t aivCoreNum = usedCoreNum * constInfo.subBlockNum;
         uint32_t initOutputEventId = 0U;
@@ -340,10 +349,13 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
 
     // init tiling data
     tilingData = tiling;
+    skipInitOutputFlag = !IsInitAttentionOutGm() && !tilingData->baseParams.softmaxLseFlag;
     if (aiCoreIdx >= tilingData->baseParams.usedCoreNum) {
         if ASCEND_IS_AIV {
-            // superkernel 场景，启动核数大于实际运行核数时，未启动的核仅需要保留 SyncAll
-            SyncAll();
+            if (!skipInitOutputFlag){
+                // superkernel 场景，启动核数大于实际运行核数时，未启动的核仅需要保留 SyncAll
+                SyncAll();
+            }
         }
         return;
     }
