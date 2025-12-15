@@ -112,15 +112,15 @@ static aclnnStatus InputFormatCheck(const aclTensor *prevAttnOut, const aclTenso
                                     const aclTensor *actualSeqQlenOptional, const char *inputLayoutOptional)
 {
     std::string inputLayoutStr = op::ToString(inputLayoutOptional).GetString();
-    bool formatValid = prevAttnOut->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       prevSoftmaxMax->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       prevSoftmaxSum->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       curAttnOut->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       curSoftmaxMax->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       curSoftmaxSum->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       attnOutOut->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       softmaxMaxOut->GetStorageFormat() == op::Format::FORMAT_ND &&
-                       softmaxSumOut->GetStorageFormat() == op::Format::FORMAT_ND;
+    bool formatValid = prevAttnOut->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       prevSoftmaxMax->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       prevSoftmaxSum->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       curAttnOut->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       curSoftmaxMax->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       curSoftmaxSum->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       attnOutOut->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       softmaxMaxOut->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ &&
+                       softmaxSumOut->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ;
     if (!formatValid) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Input and output format only support [ND]. Actual: prevAttnOut:[%s], prevSoftmaxMax:[%s], prevSoftmaxSum:[%s], curAttnOut:[%s], curSoftmaxMax:[%s], curSoftmaxSum:[%s], attnOutOut:[%s], softmaxMaxOut:[%s], softmaxSumOut:[%s].",
             op::ToString(prevAttnOut->GetStorageFormat()).GetString(), op::ToString(prevSoftmaxMax->GetStorageFormat()).GetString(),
@@ -131,7 +131,7 @@ static aclnnStatus InputFormatCheck(const aclTensor *prevAttnOut, const aclTenso
         return ACLNN_ERR_PARAM_INVALID;
     }
     if (inputLayoutStr == "TND") {
-        formatValid = (formatValid && actualSeqQlenOptional->GetStorageFormat() == op::Format::FORMAT_ND);
+        formatValid = (formatValid && actualSeqQlenOptional->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ);
     }
     if (!formatValid) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Input and output format only support [ND]. Actual: actualSeqQlenOptional:[%s].",
