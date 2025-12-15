@@ -244,18 +244,7 @@ __aicore__ inline void MoeFinalizeRoutingV2FpCuth<T, ISBIASEXIST>::CopyIn(
     }
     SetFlag<HardEvent::MTE2_S>(EVENT_ID0);
 
-    if (tilingData_.skip2IsNull == 0) {
-        skip2Queue_.EnQue(skip2Local);
-    }
-    if (tilingData_.skip1IsNull == 0) {
-        skip1Queue_.EnQue(skip1Local);
-    }
-    if (tilingData_.scalesIsNull == 0) {
-        scalesQueue_.EnQue(scalesLocal);
-    }
-    if constexpr (ISBIASEXIST) {
-        expertForSourceRowQueue_.EnQue(expertForSourceRowLocal);
-    }
+    COPY_IN_ENQUE();
 }
 
 template <typename T, const bool ISBIASEXIST>
@@ -541,22 +530,7 @@ __aicore__ inline void MoeFinalizeRoutingV2FpCuth<T, ISBIASEXIST>::Process()
     if (GetBlockIdx() >= tilingData_.usedCoreNum) {
         return;
     }
-    int64_t loopCount = tilingData_.normalCoreLoopNum;
-    if ((GetBlockIdx() + 1) == tilingData_.usedCoreNum) {
-        loopCount = tilingData_.tailCoreLoopNum;
-    }
-
-    for (int64_t n = 0; n < loopCount; n++) {
-        bool isNormalH = (n + 1) % (tilingData_.hSliceNum + 1) != 0;
-        int64_t bias =
-            isNormalH ? (n % tilingData_.hSliceNum) * tilingData_.normalH : tilingData_.hSliceNum * tilingData_.normalH;
-        int64_t dataLen = isNormalH ? tilingData_.normalH : tilingData_.unnormalH;
-        int64_t rightPaddingH = isNormalH ? rightPaddingNormalH_ : rightPaddingUnnormalH_;
-        bool isPadH = isNormalH ? isPadNormalH_ : isPadUnnormalH_;
-        CopyIn(n, bias, dataLen, isPadH, rightPaddingH);
-        Compute(n, bias, dataLen, isPadH, rightPaddingH);
-        CopyOut(n, bias, dataLen);
-    }
+    PROCESS_IMP();
 }
 
 } // namespace MoeFinalizeRoutingV2

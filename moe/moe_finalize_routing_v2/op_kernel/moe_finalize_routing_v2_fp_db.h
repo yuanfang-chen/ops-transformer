@@ -227,18 +227,7 @@ __aicore__ inline void MoeFinalizeRoutingV2FpDb<T, ISBIASEXIST>::CopyIn(int64_t 
             expertForSourceRowLocal, gmExpertForSourceRow_[nLoopIdx * curCoreHandleNumPerLoop_ * tilingData_.K],
             copyParamsExpert, padParamsExpert);
     }
-    if (tilingData_.skip2IsNull == 0) {
-        skip2Queue_.EnQue(skip2Local);
-    }
-    if (tilingData_.skip1IsNull == 0) {
-        skip1Queue_.EnQue(skip1Local);
-    }
-    if (tilingData_.scalesIsNull == 0) {
-        scalesQueue_.EnQue(scalesLocal);
-    }
-    if constexpr (ISBIASEXIST) {
-        expertForSourceRowQueue_.EnQue(expertForSourceRowLocal);
-    }
+    COPY_IN_ENQUE();
 }
 
 template <typename T, const bool ISBIASEXIST>

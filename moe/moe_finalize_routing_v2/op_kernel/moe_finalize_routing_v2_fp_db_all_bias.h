@@ -287,18 +287,7 @@ __aicore__ inline void MoeFinalizeRoutingV2FpDbAllBias<T, ISBIASEXIST>::CopyIn(i
     }
     SetFlag<HardEvent::MTE2_S>(EVENT_ID0);
 
-    if (tilingData_.skip2IsNull == 0) {
-        skip2Queue_.EnQue(skip2Local);
-    }
-    if (tilingData_.skip1IsNull == 0) {
-        skip1Queue_.EnQue(skip1Local);
-    }
-    if (tilingData_.scalesIsNull == 0) {
-        scalesQueue_.EnQue(scalesLocal);
-    }
-    if constexpr (ISBIASEXIST) {
-        expertForSourceRowQueue_.EnQue(expertForSourceRowLocal);
-    }
+    COPY_IN_ENQUE();
 }
 
 template <typename T, const bool ISBIASEXIST>
