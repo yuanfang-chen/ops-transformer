@@ -1,114 +1,20 @@
 # 算子调用
-> **说明1**：本项目阐述如何与社区版CANN开发套件包配合使用，对于**商发版（8.3.RC1版本）** CANN开发套件包，其使用指导请参见“[商发版本说明](commercial_release.md)”，此处不详细介绍。
->
-> **说明2**：本项目可调用的算子参见[算子列表](../op_list.md)，算子对应aclnn接口参见[aclnn列表](../op_api_list.md)。
-
 ## 前提条件
 
-使用本项目前，请确保如下基础依赖、NPU驱动和固件已安装。
-
-1. **安装依赖**
-
-   本项目源码编译用到的依赖如下，请注意版本要求。
-
-   - python >= 3.7.0
-   - gcc >= 7.3.0
-   - cmake >= 3.16.0
-   - pigz（可选，安装后可提升打包速度，建议版本 >= 2.4）
-   - dos2unix
-   - Gawk
-   - googletest（仅执行UT时依赖，建议版本 [release-1.11.0](https://github.com/google/googletest/releases/tag/release-1.11.0)）
-
-   上述依赖包可通过项目根目录install\_deps.sh安装，命令如下，若遇到不支持系统，请参考该文件自行适配。
-   ```bash
-   bash install_deps.sh
-   ```
-
-2. **安装驱动与固件（运行态依赖）**
-
-   运行算子时必须安装驱动与固件，若仅编译算子，可跳过本操作，安装指导详见《[CANN 软件安装指南](https://www.hiascend.com/document/redirect/CannCommunityInstSoftware)》。
-
-## 环境准备
-
-1. **安装社区版CANN toolkit包**
-
-    根据实际环境，下载对应`Ascend-cann-toolkit_${cann_version}.alpha001_linux-${arch}.run`包，下载链接为[toolkit x86_64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/Ascend-cann-toolkit_8.5.0.alpha001_linux-x86_64.run)、[toolkit aarch64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/Ascend-cann-toolkit_8.5.0.alpha001_linux-aarch64.run)。
-    
-    ```bash
-    # 确保安装包具有可执行权限
-    chmod +x Ascend-cann-toolkit_${cann_version}_linux-${arch}.run
-    # 安装命令
-    ./Ascend-cann-toolkit_${cann_version}_linux-${arch}.run --full --force --install-path=${install_path}
-    ```
-    - \$\{cann\_version\}：表示CANN包版本号。
-    - \$\{arch\}：表示CPU架构，如aarch64、x86_64。
-    - \$\{install\_path\}：表示指定安装路径，默认安装在`/usr/local/Ascend`目录。
-
-2. **安装社区版CANN legacy包（运行态依赖）**
-
-    运行算子时必须安装本包，若仅编译算子，可跳过本操作。
-
-    根据产品型号和环境架构，下载对应`cann-${soc_name}-opp_legacy-${cann_version}.alpha001-linux-${arch}.run`包，下载链接如下：
-
-    - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件：[legacy x86_64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910b-ops-legacy_8.5.0.alpha001_linux-x86_64.run)、[legacy aarch64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910b-ops-legacy_8.5.0.alpha001_linux-aarch64.run)。
-    - Atlas A3 训练系列产品/Atlas A3 推理系列产品：[legacy x86_64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910_93-ops-legacy_8.5.0.alpha001_linux-x86_64.run)、[legacy aarch64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910_93-ops-legacy_8.5.0.alpha001_linux-aarch64.run)。
-
-    ```bash
-    # 确保安装包具有可执行权限
-    chmod +x cann-${soc_name}-ops-legacy_${cann_version}_linux-${arch}.run
-    # 安装命令
-    ./cann-${soc_name}-ops-legacy_${cann_version}_linux-${arch}.run --full --install-path=${install_path}
-    ```
-    - \$\{soc\_name\}：表示NPU型号名称，即\$\{soc\_version\}删除“ascend”后剩余的内容。
-
-    - \$\{install\_path\}：表示指定安装路径，需要与toolkit包安装在相同路径，默认安装在`/usr/local/Ascend`目录。
-
-3. **安装社区版CANN ops-math包（运行态依赖）**
-
-    如需本地运行项目算子，需额外安装此包，否则跳过本操作。
-
-    根据产品型号和环境架构，下载对应`cann-${soc_name}-ops-math_${cann_version}.alpha001_linux-${arch}.run`包，下载链接如下：
-
-    - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件：[ops-math x86_64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910b-ops-math_8.5.0.alpha001_linux-x86_64.run)、[ops-math aarch64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910b-ops-math_8.5.0.alpha001_linux-aarch64.run)。
-    - Atlas A3 训练系列产品/Atlas A3 推理系列产品：[ops-math x86_64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910_93-ops-math_8.5.0.alpha001_linux-x86_64.run)、[ops-math aarch64包](https://ascend-cann.obs.cn-north-4.myhuaweicloud.com/CANN/community/ops/cann-910_93-ops-math_8.5.0.alpha001_linux-aarch64.run)。
-
-    ```bash
-    # 确保安装包具有可执行权限
-    chmod +x cann-${soc_name}-ops-math_${cann_version}_linux-${arch}.run
-    # 安装命令
-    ./cann-${soc_name}-ops-math_${cann_version}_linux-${arch}.run --full --install-path=${install_path}
-    ```
-
-    - \$\{soc\_name\}：表示NPU型号名称，即${soc_version}删除“ascend”后剩余的内容。
-    - ${install_path}：表示指定安装路径，需要与toolkit包安装在相同路径，默认安装在`/usr/local/Ascend`目录。
-
-3. **配置环境变量**
-	
-	根据实际场景，选择合适的命令。
-
-    ```bash
-   # 默认路径安装，以root用户为例（非root用户，将/usr/local替换为${HOME}）
-   source /usr/local/Ascend/ascend-toolkit/set_env.sh
-   # 指定路径安装
-   # source ${install_path}/set_env.sh
-    ```
-
-4. **下载源码**
-
-    ```bash
-    # 下载项目源码，以master分支为例
-    git clone https://gitcode.com/cann/ops-transformer-dev.git
-    # 安装根目录requirements.txt依赖
-    pip3 install -r requirements.txt
-    ```
+- 环境部署：调用算子之前，请先参考[环境部署](../context/quick_install.md)完成基础环境搭建。
+- 调用算子列表：项目可调用的算子参见[算子列表](../op_list.md)，算子对应的aclnn接口参见[aclnn列表](../op_api_list.md)。
 
 ## 编译执行
 
-若基于社区版CANN包对算子源码进行修改，可使用[自定义算子包](#自定义算子包)和[ops-transformer包](#ops-transformer包)方式编译执行。
+基于社区版CANN包对算子源码修改时，可采用如下方式进行源码编译：
 
-- 自定义算子包：选择部分算子编译生成的包称为自定义算子包，以**挂载**形式作用于CANN包，不改变原始包内容。注意自定义算子包优先级高于原始CANN包。
-- ops-transformer包：选择整个项目编译生成的包称为ops-transformer包，可**完整替换**CANN包对应部分。
-- ops-transformer静态库：选择整个项目编译为一个静态库文件，并将libcann-transformer-static.a文件和aclnn接口头文件打包为压缩文件形式。
+- [自定义算子包](#自定义算子包)：选择部分算子编译生成的包称为自定义算子包，以**挂载**形式作用于CANN包，不改变原始包内容。生成的自定义算子包优先级高于原始CANN包。该包支持aclnn方式和图模式调用算子。
+
+- [ops-transformer包](#ops-transformer包)：选择整个项目编译生成的包称为ops-transformer包，可**完整替换**CANN包对应部分。该包支持aclnn方式和图模式调用算子。
+
+- [ops-transformer静态库](#ops-transformer静态库)：指整个项目编译为一个静态库文件，包含libcann-transformer-static.a和aclnn接口头文件。该包仅支持aclnn方式调用算子。
+
+  >说明：若您需要**基于本项目进行二次发布**并且对**软件包大小有要求**时，建议采用静态库编译，该库可以链接您的应用开发程序，仅保留业务所需的算子，从而实现软件最小化部署。
 
 ### 自定义算子包
 
@@ -123,12 +29,13 @@
     # 编译experimental贡献目录下的算子
     # bash build.sh --pkg --experimental --soc=ascend910b --ops=${experimental_op}
     ```
-    - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件使用"ascend910b"（默认），Atlas A3 训练系列产品/Atlas A3 推理系列产品使用"ascend910_93"。
+    - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2系列产品使用"ascend910b"（默认），Atlas A3系列产品使用"ascend910_93"，Ascend 950PR/Ascend 950DT产品使用"ascend910_95"。
     - --vendor_name（可选）：\$\{vendor\_name\}表示构建的自定义算子包名，默认名为custom。
     - --ops（可选）：\$\{op\_list\}表示待编译算子，不指定时默认编译所有算子。格式形如"apply_rotary_pos_emb,rope_quant_kvcache,..."，多算子之间用英文逗号","分隔。
+    - --experimental（可选）：表示编译experimental贡献目录下的算子。
 
     说明：若\$\{vendor\_name\}和\$\{op\_list\}都不传入编译的是ops-transformer包；若编译所有算子的自定义算子包，需传入\$\{vendor\_name\}。
-    
+
     若提示如下信息，说明编译成功。
     ```bash
     Self-extractable archive "cann-ops-transformer-${vendor_name}_linux-${arch}.run" successfully created.
@@ -141,7 +48,7 @@
     ./cann-ops-transformer-${vendor_name}_linux-${arch}.run
     ```
     
-    自定义算子包安装路径为`${ASCEND_HOME_PATH}/opp/vendors`，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/latest/opp。注意自定义算子包不支持卸载，如需卸载，请删除vendors\/\$\{vendor\_name}目录，并删除vendors/config.ini中load_priority对应\$\{vendor\_name\}的配置项。
+    自定义算子包安装路径为`${ASCEND_HOME_PATH}/vendors`，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/cann。注意自定义算子包不支持卸载，如需卸载，请删除vendors\/\$\{vendor\_name}目录，并删除vendors/config.ini中load_priority对应\$\{vendor\_name\}的配置项。
 
 ### ops-transformer包
 
@@ -155,8 +62,8 @@
     # 编译experimental贡献目录下的所有算子
     # bash build.sh --pkg --experimental [--jit] --soc=${soc_version}
     ```
-    - --jit（可选）：设置后表示不编译算子二进制文件，如需使用aclnn调用算子，该选项无需设置。
-    - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件使用"ascend910b"（默认），Atlas A3 训练系列产品/Atlas A3 推理系列产品使用"ascend910_93"。
+    - --jit（可选）：推荐设置，表示不编译算子的二进制文件。
+    - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2系列产品使用"ascend910b"（默认），Atlas A3系列产品使用"ascend910_93"，Ascend 950PR/Ascend 950DT产品使用"ascend910_95"。
 
     若提示如下信息，说明编译成功。
 
@@ -166,18 +73,25 @@
 
    \$\{soc\_name\}表示NPU型号名称，即\$\{soc\_version\}删除“ascend”后剩余的内容。编译成功后，run包存放于build_out目录下。
 
-2. **安装/卸载ops-transformer包**
+2. **安装ops-transformer包**
 
     ```bash
     # 安装命令
     ./cann-${soc_name}-ops-transformer_${cann_version}_linux-${arch}.run --full --install-path=${install_path}
-    # 卸载命令
-    # ./${install_path}/latest/ops_transformer/script/uninstall.sh
     ```
 
     \$\{install\_path\}：表示指定安装路径，需要与toolkit包安装在相同路径，默认安装在`/usr/local/Ascend`目录。
 
+3. **（可选）卸载ops-transformer包**
+
+    ```bash
+    # 卸载命令
+    ./${install_path}/cann/share/info/ops_transformer/script/uninstall.sh
+    ```
+
 ### ops-transformer静态库
+
+> 说明：Ascend 950PR/Ascend 950DT暂不支持使用静态库。
 
 1. **编译ops-transformer静态库压缩包**
 
@@ -186,7 +100,7 @@
     ```bash
     bash build.sh --pkg --static --soc=${soc_version}
     ```
-    - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件使用"ascend910b"（默认），Atlas A3 训练系列产品/Atlas A3 推理系列产品使用"ascend910_93"。
+    \$\{soc\_version\}表示NPU型号。Atlas A2系列产品使用"ascend910b"（默认），Atlas A3系列产品使用"ascend910_93"。
 
     若提示如下信息，说明编译并压缩成功。
 
@@ -211,16 +125,20 @@
     │   ├── lib64
     │   │   ├── libcann-transformer-static.a               # 静态库文件
     │   └── include
-    |       ├── ...                               # aclnn接口头文件
+    |       ├── ...                                        # aclnn接口头文件
     ```
+
 3. **静态库测试方法**
+
+    使用示例如下，仅供参考：
+
     ```bash
     g++ ${file} -I ${TEST_PATH}/include -L ${TEST_PATH}/lib -L ${ASCEND_HOME_PATH}/lib64 -Wl,--allow-multiple-definition \
     -Wl,--start-group -lcann_transformer_static -lcann_math_static -lcann_legacy_static -Wl,--end-group -lgraph -lmetadef \
     -lascendalog -lregister -lopp_registry -lops_base -lascendcl -ltiling_api -lplatform -ldl -lnnopbase -lgraph_base \
     -lc_sec -lunified_dlog -lruntime -lhccl_fwk -o ${exec_name}
     ```
-    \$\{file\}表示aclnn测试代码源文件，\$\{TEST\_PATH\}表示静态库解压路径，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/latest，\$\{exec\_name\}表示最终可执行文件的名字。
+    \$\{file\}表示aclnn测试代码源文件，\$\{TEST\_PATH\}表示静态库解压路径，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/cann，\$\{exec\_name\}表示最终可执行文件的名字。
 
     其中-lcann\_math\_static、-lgraph等库表示算子依赖的底层库，可在CANN toolkit包找到。
 
@@ -230,6 +148,20 @@
 
 - **执行算子样例**
   
+    - 完成自定义算子包安装后，执行如下命令：
+        ```bash
+        bash build.sh --run_example ${op} ${mode} ${pkg_mode} [--vendor_name=${vendor_name}]
+        # 以FlashAttentionScore算子example执行为例
+        # bash build.sh --run_example flash_attention_score eager cust --vendor_name=custom
+        ```
+        
+        - \$\{op\}：表示待执行算子，算子名小写下划线形式，如flash_attention_score。            
+        - \$\{mode\}：表示算子执行模式，目前支持eager（aclnn调用）、graph（图模式调用）。
+        - \$\{pkg_mode\}：表示包模式，目前仅支持cust，即自定义算子包。         
+        - \$\{vendor\_name\}（可选）：与构建的自定义算子包设置一致，默认名为custom。        
+        
+        说明：\$\{mode\}为graph时，不指定\$\{pkg_mode\}和\$\{vendor\_name\}
+
     - 完成ops-transformer包安装后，执行命令如下：
         ```bash
         bash build.sh --run_example ${op} ${mode}
@@ -237,24 +169,11 @@
         # bash build.sh --run_example flash_attention_score eager
         ```
         
-        - \$\{op\}：表示待执行算子，算子名小写下划线形式，如flash_attention_score。            
+        - \$\{op\}：表示待执行算子，算子名小写下划线形式，如flash_attention_score。       
         - \$\{mode\}：表示算子执行模式，目前支持eager（aclnn调用）、graph（图模式调用）。
-        
-    - 完成自定义算子包安装后，执行命令如下：
-        ```bash
-        bash build.sh --run_example ${op} ${mode} ${pkg_mode} [--vendor_name=${vendor_name}]
-        # 以FlashAttentionScore算子example执行为例
-        # bash build.sh --run_example flash_attention_score eager cust --vendor_name=custom
-        ```
 
-        - \$\{op\}：表示待执行算子，算子名小写下划线形式，如flash_attention_score。
-        - \$\{mode\}：表示执行模式，目前支持eager（aclnn调用）、graph（图模式调用）。
-        - \$\{pkg_mode\}：表示包模式，目前仅支持cust，即自定义算子包。         
-        - \$\{vendor\_name\}（名称可自定义）：与构建的自定义算子包设置一致，默认名为custom。
 
-        说明：\$\{mode\}为graph时，不指定\$\{pkg_mode\}和\$\{vendor\_name\}
-
-        如需执行算子样例，需将自定义算子包安装在默认路径下。执行算子样例后会打印执行结果，以FlashAttentionScore算子为例，结果如下：
+        执行算子样例后会打印结果，以FlashAttentionScore算子执行为例：
     
         ```
         mean result[0] is: 256.000000

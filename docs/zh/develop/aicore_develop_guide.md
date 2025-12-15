@@ -1,41 +1,45 @@
 # AI Core算子开发指南
 
-> 说明：  
-> 算子开发过程中涉及的基本概念如Tiling、Kernel、Ascend C接口等请参考[《Ascend C算子开发》](https://hiascend.com/document/redirect/CannCommunityOpdevAscendC)。  
+> **说明：** 
+>
+> 1. 算子开发过程中涉及的基本概念如Tiling、Kernel、Ascend C接口等，详细介绍请参考[《Ascend C算子开发》](https://hiascend.com/document/redirect/CannCommunityOpdevAscendC)。  
+> 2. AI Core算子是使用Ascend C语言开发，运行在AI Core硬件单元算子；AI CPU算子是使用C++语言开发，运行在AI CPU硬件单元算子。如果您想贡献AI CPU算子，请参考[AI CPU算子开发指南](./aicpu_develop_guide.md)。
 
 开发指南以`AddExample`算子开发为例，介绍新算子开发流程以及涉及的交付件，完整样例代码请访问项目`examples`目录。
 
-1. [工程创建](#工程创建)：开发算子前，需完成环境部署并创建算子目录，方便后续算子的编译和部署。
+1. [工程创建](#工程创建)：开发算子前，需完成环境部署并创建算子目录，方便后续算子编译和部署。
 
-2. [算子定义](#算子定义)：算子功能说明与原型定义。
+2. [算子定义](#算子定义)：确定算子功能与原型定义。
 
 3. [Tiling实现](#Tiling实现)：实现Host侧算子Tiling函数。
 
 4. [Kernel实现](#Kernel实现)：实现Device侧算子核函数。
 
-5. [aclnn适配](#aclnn适配)：自定义算子推荐使用aclnn接口调用。如需入图，请参考[附录](#附录)。
+5. [aclnn适配](#aclnn适配)：自定义算子推荐aclnn接口调用，需提前完成二进制发布。**如采用图模式调用算子**，请参考[图模式适配指南](./graph_develop_guide.md)。
 
 6. [编译部署](#编译部署)：通过工程编译脚本完成自定义算子的编译和安装。 
 
-7. [算子验证](#算子验证)：通过常见算子调用方式，验证自定义算子的功能。  
+7. [算子验证](#算子验证)：通过常见算子调用方式，验证自定义算子功能。  
 
 ## 工程创建
-**1. 环境部署**
+**1. 环境部署** 
 
-开发算子前，请参考[环境准备](../invocation/quick_op_invocation.md#环境准备)完成环境搭建。
+开发算子前，请先参考[环境部署](../context/quick_install.md)完成基础环境搭建。
 
 **2. 目录创建**
 
-本项目支持通过`build.sh`快速创建算子目录。进入项目根目录，执行以下命令：
+目录创建是算子开发的重要步骤，为后续代码编写、编译构建和调试提供统一的目录结构和文件组织方式。
+
+可通过`build.sh`快速创建算子目录，进入项目根目录，执行如下命令：
 
 ```bash
-# 创建指定算子目录，如bash build.sh --genop=examples/div_example
-# ${op_class}表示算子类型，如transformer类。
+# 创建指定算子目录，如bash build.sh --genop=examples/add_example
+# ${op_class}表示算子类型，如attention类。
 # ${op_name}表示算子名的小写下划线形式，如`AddExample`算子对应为add_example。
 bash build.sh --genop=${op_class}/${op_name}
 ```
 
-如果命令执行成功，会看到如下提示信息：
+命令执行成功，会看到如下提示信息：
 
 ```bash
 Create the initial directory for ${op_name} under ${op_class} success
@@ -49,7 +53,7 @@ ${op_name}                              # 替换为实际算子名的小写下�
 ├── op_host                             # Host侧实现
 │   ├── ${op_name}_def.cpp              # 算子信息库，定义算子基本信息，如名称、输入输出、数据类型等
 │   ├── ${op_name}_infershape.cpp       # InferShape实现，实现算子形状推导，在运行时推导输出shape
-│   ├── ${op_name}_tiling.cpp           # Tiling实现，实现输入数据切分的逻辑
+│   ├── ${op_name}_tiling.cpp           # Tiling实现，将张量划分为多个小块，区分数据类型进行并行计算
 │   └── CMakeLists.txt                  # Host侧cmakelist文件
 └── op_kernel                           # Device侧Kernel实现
 │   ├── ${op_name}_tiling_key.h         # Tilingkey文件，定义Tiling策略的Key，标识不同的划分方式
@@ -61,6 +65,7 @@ ${op_name}                              # 替换为实际算子名的小写下�
 └── CMakeLists.txt                      # 算子cmakelist入口
 ```
 
+使用上述命令行创建算子工程后，若要手动删除新创建出的算子工程，需要同时删除与算子工程同目录CMakeLists.txt中新添加的add_subdirectory(${op_class})。
 ## 算子定义
 算子定义需要完成两个交付件：`README.md` `${op_name}_def.cpp`
 
@@ -72,9 +77,9 @@ ${op_name}                              # 替换为实际算子名的小写下�
 
 **交付件2：${op_name}_def.cpp**
 
-算子原型定义。
+算子信息库。
 
-以自定义`AddExample`算子说明为例，请参考[AddExample算子原型定义](../../../examples/add_example/op_host/add_example_def.cpp)。
+以自定义`AddExample`算子说明为例，请参考[AddExample算子信息库](../../../examples/add_example/op_host/add_example_def.cpp)。
 ## Tiling实现
 
 ### Tiling简介
@@ -89,7 +94,7 @@ Tiling一共需要三个交付件：`${op_name}_tiling.cpp` `${op_name}_tiling_k
 
 **交付件1：${op_name}_tiling.cpp**
 
-实现Tiling主要切分逻辑。
+Tiling主要切分逻辑。
 
 如需查看详细实现，请参考[add_example_tiling.cpp](../../../examples/add_example/op_host/add_example_tiling.cpp)。
 
@@ -321,7 +326,7 @@ __aicore__ inline void AddExample<T>::Process()
 
 通常算子开发和编译完成后，会自动生成aclnn接口（一套基于C 的API），可直接在应用程序中调用aclnn接口实现调用算子。
 
-为实现该调用方式，需提前生成算子对应的二进制包，增加二进制编译json文件，以`AddExample`算子为例：
+为实现该调用方式，需提前生成算子对应的二进制包，配置二进制编译json文件，以`AddExample`算子为例：
 
 1. 在`examples/add_example/op_host`目录新建`config/${soc_version}`文件夹，用于存放配置文件。
 
@@ -331,11 +336,11 @@ __aicore__ inline void AddExample<T>::Process()
 
 ## 编译部署
 
-算子开发完成后，需对算子工程进行编译，生成自定义算子安装包\*\.run，详细的编译操作如下：
+算子开发完成后，需对算子工程进行编译，生成自定义算子安装包\*\.run，具体操作如下：
 
 1. **准备工作。**
 
-    完成基础环境搭建，同时检查算子开发交付件是否完备，是否在对应算子分类目录下。
+    参考[工程创建](#工程创建)完成基础环境搭建，同时检查算子开发交付件是否完备，是否在对应算子分类目录下。
 
 2. **编译自定义算子包。** 
 
@@ -362,23 +367,19 @@ __aicore__ inline void AddExample<T>::Process()
     # 安装run包
     ./build_out/cann-ops-transformer-${vendor_name}_linux-${arch}.run
     ```
-    自定义算子包安装在`${ASCEND_HOME_PATH}/latest/opp/vendors`路径中，`${ASCEND_HOME_PATH}`表示CANN软件安装目录，可提前在环境变量中配置。自定义算子包不支持卸载。
-    
+    自定义算子包安装在`${ASCEND_HOME_PATH}/cann/opp/vendors`路径中，`${ASCEND_HOME_PATH}`表示CANN软件安装目录，可提前在环境变量中配置。自定义算子包不支持卸载。
 
 ## 算子验证
+
+验证算子前需确保已配置了环境变量，命令如下：
 ```bash
-    # 执行前需要导入环境变量
-    export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/latest/opp/vendors/${vendor_name}/op_api/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_transformer/op_api/lib:${LD_LIBRARY_PATH}
 ```
 
-1. **UT验证。**
+- **UT验证**
 
-    算子开发过程中，可通过UT验证（如tiling）方式进行快速验证，方法请参考[本地验证](../invocation/quick_op_invocation.md#本地验证)。
+  算子开发过程中，可通过UT验证（如Tiling）方式进行快速验证，方法请参考[本地验证](../invocation/quick_op_invocation.md#本地验证)。
 
-2. **aclnn调用验证。**
+- **aclnn调用验证**
 
-    开发好的算子完成编译部署后，可通过aclnn方式验证功能，方法请参考[算子调用方式](../invocation/op_invocation.md)。
-
-## 附录
-
-自定义算子如需运行图模式，不需要aclnn适配，详细内容请参考[图模式开发指南](./graph_develop_guide.md)。
+  开发好的算子完成编译部署后，可通过aclnn方式验证功能，方法请参考[算子调用方式](../invocation/op_invocation.md)。
