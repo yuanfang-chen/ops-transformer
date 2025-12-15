@@ -15,7 +15,7 @@
 
     参考《[CANN 软件安装指南](https://www.hiascend.com/document/redirect/CannCommunityInstSoftware)》，按要求完成NPU驱动和固件、`Ascend-cann-toolkit_${cann_version}_linux-${arch}.run`软件包的获取和安装。
 
-2. 安装`cann-opbase_${cann_version}_linux-${arch}.run`包。
+2. 安装`cann-opbase_${cann_version}_linux-${arch}.run`包，详细步骤参见[opbase开源项目](https://gitcode.com/cann/ops-base-dev)。
 
     ```bash
     # 1.ops-base项目源码下载，以master分支为例
@@ -23,21 +23,22 @@
     # 2.进入项目根目录编译生成run包，默认在根目录build_out目录下
     bash build.sh
     # 3.安装编译包，${install_path}需与toolkit包指定路径一致
-    ./cann-opbase_${cann_version}_linux-${arch}.run --full --install-path=${install_path}/ascend-toolkit
+    ./cann-opbase_${cann_version}_linux-${arch}.run --full --install-path=${install_path}/cann
     ```
 
 ## 安装依赖
 
 开源项目的源码编译用到的依赖如下，请确保已安装并且满足版本要求。
+
 - python >= 3.7.0
 - gcc >= 7.3.0
 - cmake >= 3.16.0
 - pigz（可选，安装后可提升打包速度，建议版本 >= 2.4）
 - dos2unix
-- Gawk
+- gawk
 - googletest（仅执行UT时依赖，建议版本 [release-1.11.0](https://github.com/google/googletest/releases/tag/release-1.11.0)）
 
-上述依赖包可通过项目根目录install\_deps.sh安装，命令如下，若遇到不支持的情况，请参考该文件自行适配。
+上述依赖包可通过项目根目录下install\_deps.sh安装，命令如下，若遇到不支持系统，请参考该文件自行适配：
 ```bash
 bash install_deps.sh
 ```
@@ -46,6 +47,7 @@ bash install_deps.sh
 ```bash
 pip3 install -r requirements.txt
 ```
+
 ## 下载源码
 通过`git`命令下载待修改项目的源码：
 ```bash
@@ -56,13 +58,13 @@ git clone https://gitcode.com/cann/${ops_project}.git
 
 ## 配置环境变量
 
-根据实际场景，选择合适的命令。
+请根据实际场景，选择合适的命令。
 
 ```bash
 # 默认路径安装，以root用户为例（非root用户，将/usr/local替换为${HOME}）
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/cann/set_env.sh
 # 指定路径安装
-source ${install_path}/ascend-toolkit/set_env.sh
+source ${install_path}/cann/set_env.sh
 ```
 
 ## 编译执行
@@ -77,20 +79,23 @@ source ${install_path}/ascend-toolkit/set_env.sh
     bash build.sh --pkg --soc=${soc_version} [--vendor_name=${vendor_name}] [--ops=${op_list}]
     ```
     - --soc：Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件使用"ascend910b"（默认），Atlas A3 训练系列产品/Atlas A3 推理系列产品使用"ascend910_93"。
+    
     - --vendor_name（可选）：\$\{vendor\_name\}表示构建的自定义算子包名，默认名为custom。
+
     - --ops（可选）：\$\{op\_list\}表示待编译算子，不指定时默认编译所有算子。格式形如"apply_rotary_pos_emb,rope_quant_kvcache,..."，多算子之间用英文逗号","分隔。
     
     说明：若\$\{vendor\_name\}和\$\{op\_list\}都不传入编译的是built-in包；若编译所有算子的自定义算子包，需传入\$\{vendor\_name\}。
     
     若提示如下信息，说明编译成功。
     ```bash
-    Self-extractable archive "cann-ops-transformer-${vendor_name}_linux-${arch}.run" successfully created.
+    Self-extractable archive "cann-ops-${ops_project}-${vendor_name}-linux.${arch}.run" successfully created.
     ```
+
     编译成功后，run包存放于项目根目录的build_out目录下。
 
 2. **安装自定义算子包。**
     ```bash
-    ./cann-ops-transformer-${vendor_name}-linux-${arch}.run
+    ./cann-ops-${ops_project}-${vendor_name}-linux-${arch}.run
     ```
 
     自定义算子包安装路径为`${ASCEND_HOME_PATH}/opp/vendors`，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/ascend-toolkit/cann。注意自定义算子包不支持卸载。
