@@ -896,29 +896,29 @@ bool MlaPrologTilingCheck::CheckCacheModeParamShape() const
     if (std::strncmp(context_.cacheMode, CACHE_MODE_TND, CACHE_MODE_LEN) == 0) {
         OP_CHECK_IF(context_.tokenX.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_2,
             OP_LOGE(context_.opName,
-                "When cacheMode is TND, tokenX dim must be 2, actually is %s.",
+                "When cacheMode is TND, tokenX dim must be 2, actually is %d.",
                 context_.tokenX.shape->GetStorageShape().GetDimNum()),
             return false);
         OP_CHECK_IF(context_.kvCache.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_3,
             OP_LOGE(context_.opName,
-                "When cacheMode is TND, kvCache dim must be 3, actually is %s.",
+                "When cacheMode is TND, kvCache dim must be 3, actually is %d.",
                 context_.kvCache.shape->GetStorageShape().GetDimNum()),
             return false);
     } else if (std::strncmp(context_.cacheMode, CACHE_MODE_BSND, CACHE_MODE_LEN) == 0) {
         OP_CHECK_IF(context_.tokenX.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_3,
             OP_LOGE(context_.opName,
-                "When cacheMode is BSND, tokenX dim must be 3, actually is %s.",
+                "When cacheMode is BSND, tokenX dim must be 3, actually is %d.",
                 context_.tokenX.shape->GetStorageShape().GetDimNum()),
             return false);
         OP_CHECK_IF(context_.kvCache.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_4,
             OP_LOGE(context_.opName,
-                "When cacheMode is BSND, kvCache dim must be 4, actually is %s.",
+                "When cacheMode is BSND, kvCache dim must be 4, actually is %d.",
                 context_.kvCache.shape->GetStorageShape().GetDimNum()),
             return false);
     } else {
         OP_CHECK_IF(context_.kvCache.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_4,
             OP_LOGE(context_.opName,
-                "When cacheMode is in {PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, kvCache dim must be 4, actually is %s.",
+                "When cacheMode is in {PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, kvCache dim must be 4, actually is %d.",
                 context_.kvCache.shape->GetStorageShape().GetDimNum()),
             return false);
     }
