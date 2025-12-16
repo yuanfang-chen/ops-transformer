@@ -174,6 +174,11 @@ __aicore__ inline void FAGBlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(GM_ADDR dy, 
     if constexpr (IS_FP8_INPUT) {
         dsAmaxWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace + tilingData->postTilingData.vScaleDsWorkSpaceOffset / sizeof(float));
     }
+    if constexpr (IS_DROP) {
+        if (tilingData->preTilingData.dropoutIsDivisibleBy8 == 0) {
+            dropMaskWorkspaceGm.SetGlobalBuffer((__gm__ uint8_t *)workspace + tilingData->postTilingData.dropMaskGmOffset);
+        }
+    }
 }
  
 TEMPLATES_DEF_NO_DEFAULT
