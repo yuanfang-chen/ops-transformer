@@ -82,7 +82,7 @@ private:
     __aicore__ inline void CopyOutXQuant1H(int64_t progress);
     __aicore__ inline void CopyOutXQuantEH(int64_t progress);
     __aicore__ inline void OnceCopyOut(LocalTensor<int32_t> indicesLocal, int64_t row,
-                                       int64_t curLoopRow, int64_t initialRow,
+                                       int64_t &curLoopRow, int64_t &initialRow,
                                        DataCopyExtParams copyOutParams, DataCopyExtParams quantScaleParams);
     __aicore__ inline void OnceCopyIn(int64_t row, DataCopyExtParams copyInParams);
 
@@ -101,8 +101,8 @@ private:
     TQue<QuePosition::VECIN, BUFFER_NUM> smoothInQueue;
     TQue<QuePosition::VECIN, BUFFER_NUM> expandRowIdxInQueue;
     TQue<QuePosition::VECOUT, 1> calcQueue;
-    TQue<QuePosition::VECOUT, quantTypeValue<T>::outQueDepth> inputXOutQueue;
-    TQue<QuePosition::VECOUT, quantTypeValue<T>::outQueDepth> scaleOutQueue;
+    TQue<QuePosition::VECOUT, quantTypeValue<quantType>::outQueDepth> inputXOutQueue;
+    TQue<QuePosition::VECOUT, quantTypeValue<quantType>::outQueDepth> scaleOutQueue;
     TBuf<AscendC::TPosition::VECCALC> tempScaleBuf,maxValueBuf,mulBuf;
     LocalTensor<float> constScaleTensor,maxValueTensor,mulTensor;
 
@@ -254,8 +254,8 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::Compute(LocalTenso
 template <typename T, typename quantType>
 __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::OnceCopyOut(LocalTensor<int32_t> indicesLocal,
                                                                           int64_t row,
-                                                                          int64_t curLoopRow,
-                                                                          int64_t initialRow,
+                                                                          int64_t &curLoopRow,
+                                                                          int64_t &initialRow,
                                                                           DataCopyExtParams copyOutParams,
                                                                           DataCopyExtParams quantScaleParams)
 {
@@ -322,7 +322,7 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::CopyOutXQuant1H(in
             OnceCopyIn(row + 1, copyInParams);
             Compute(smoothLocal);
             if (likely(row != currentLoopStartRow)) {
-                OnceCopyOut(indicesLocal, row, curLoopRow, initialRow, copyOutParams, quantScaleParams);
+                OnceCopyOut(indicesLocal, row - 1, curLoopRow, initialRow, copyOutParams, quantScaleParams);
             }
         }
         if (currentLoopLastRow - currentLoopStartRow >= 1)
