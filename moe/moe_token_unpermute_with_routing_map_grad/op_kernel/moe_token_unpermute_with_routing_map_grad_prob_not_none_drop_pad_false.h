@@ -62,14 +62,12 @@ protected:
     int64_t pingPongFlagPermuteToken = 0;
     int64_t pingPongFlagPermuteTokenGrad = 0;
     int64_t pingPongFlagProbsGrad = 0;
+    event_t eventIdVMte3 = EVENT_ID0;             // eventid 0 1用于v和mte3之间同步
     event_t eventIdIndicesVMte2 = EVENT_ID0;      // eventid 0 1用于indices的v和mte2之间同步
     event_t eventIdProbsVMte2 = EVENT_ID2;        // eventid 2 3用于probs的v和mte2之间同步
     event_t eventIdUnpermuteVMte2 = EVENT_ID4;    // eventid 4 5用于unpermuteOutputD的v和mte2之间同步
     event_t eventIdPermuteTokenVMte2 = EVENT_ID6; // eventid 6 7用于permute_token的v和mte2之间同步
-    event_t eventIdVMte3 = EVENT_ID0;             // eventid 0 1用于v和mte3之间同步
-
-    int64_t indicesArray[INDICES_PROBS_MAX_RESERVE_NUM]; // 存储indicesNumPerLoop个indices值, 最大512,
-                                                         // 为避免GetValue操作设置
+    int64_t indicesArray[INDICES_PROBS_MAX_RESERVE_NUM]; // 存储indicesNumPerLoop个indices值, 最大512,为避免GetValue操作设置
     float probsArray[INDICES_PROBS_MAX_RESERVE_NUM]; // 存储indicesNumPerLoop个probs值, 最大512, 为避免GetValue操作设置
     int64_t probsAddrArray[INDICES_PROBS_MAX_RESERVE_NUM];
 };

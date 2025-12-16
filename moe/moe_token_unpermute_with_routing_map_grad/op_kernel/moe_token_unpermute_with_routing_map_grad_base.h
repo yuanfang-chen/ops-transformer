@@ -63,11 +63,11 @@ protected:
     int64_t tailCoreNum;
     int64_t tokenNumEachCore;
     int64_t tokenNumTailCore;
-    int64_t rowIdMapEachCore;
-    int64_t rowIdMapTailCore;
     int64_t inputReserveNum;
     int64_t indicesReserveNum;
     int64_t indicesReserveNumAlign;
+    int64_t rowIdMapEachCore;
+    int64_t rowIdMapTailCore;
     int64_t coreIndex;
     int64_t rowIdMapStartOffset;
     int64_t hiddenSizeAlign;
@@ -79,12 +79,12 @@ protected:
     uint32_t inputTypeSize;
     uint32_t rowIdMapTypeSize;
     uint32_t probTypeSize;
-    int64_t indicesReserveNumAlignFp32RepeatTimes;
-    int64_t indicesReserveNumAlignFp32TailMask;
-    int64_t indicesReserveNumAlignFp32TailOffset;
     int64_t hiddensizeAlignFp32RepeatTimes;
     int64_t hiddensizeAlignFp32TailMask;
     int64_t hiddensizeAlignFp32TailOffset;
+    int64_t indicesReserveNumAlignFp32RepeatTimes;
+    int64_t indicesReserveNumAlignFp32TailMask;
+    int64_t indicesReserveNumAlignFp32TailOffset;
     int64_t numExpertAlign;
 
     DataCopyPadExtParams<IdxT> rowIdMapPadParams{false, 0, 0, 0};
@@ -220,7 +220,6 @@ __aicore__ inline void MoeTokenUnpermuteWithRoutingMapGradBase<PermutedTokenT, I
     indicesReserveNumAlign = tiling_data.indicesReserveNumAlign; // indicesNumPerLoopAlign
     numOutTokens = tiling_data.numOutTokens;
     numExpertAlign = tiling_data.numExpertAlign;
-
     coreIndex = GetBlockIdx();
     inputTypeSize = sizeof(PermutedTokenT);
     rowIdMapTypeSize = sizeof(IdxT);

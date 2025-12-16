@@ -119,27 +119,27 @@ static void MoeTokenUnpermuteWithRoutingMapGradPrintParam(
     auto nodeName = context->GetNodeName();
     OP_LOGD(
         nodeName, ">>>>>>>>>>>>>>> Start to print MoeTokenUnpermuteWithRoutingMapGrad tiling data <<<<<<<<<<<<<<<<");
-    OP_LOGD(nodeName, ">>> tokensNum:                %ld", tiling.get_tokensNum());
-    OP_LOGD(nodeName, ">>> topK:                     %ld", tiling.get_topK());
-    OP_LOGD(nodeName, ">>> capacity:                 %ld", tiling.get_capacity());
-    OP_LOGD(nodeName, ">>> numExpert:                %ld", tiling.get_numExpert());
-    OP_LOGD(nodeName, ">>> hiddenSize:               %ld", tiling.get_hiddenSize());
-    OP_LOGD(nodeName, ">>> numOutTokens:             %ld", tiling.get_numOutTokens());
-    OP_LOGD(nodeName, ">>> formerCoreNum:            %ld", tiling.get_formerCoreNum());
-    OP_LOGD(nodeName, ">>> tailCoreNum:              %ld", tiling.get_tailCoreNum());
-    OP_LOGD(nodeName, ">>> tokenNumEachCore:         %ld", tiling.get_tokenNumEachCore());
-    OP_LOGD(nodeName, ">>> tokenNumTailCore:         %ld", tiling.get_tokenNumTailCore());
-    OP_LOGD(nodeName, ">>> rowIdMapEachCore:         %ld", tiling.get_rowIdMapEachCore());
-    OP_LOGD(nodeName, ">>> rowIdMapTailCore:         %ld", tiling.get_rowIdMapTailCore());
+    OP_LOGD(nodeName, "=== tokensNum:                %ld", tiling.get_tokensNum());
+    OP_LOGD(nodeName, "=== topK:                     %ld", tiling.get_topK());
+    OP_LOGD(nodeName, "=== capacity:                 %ld", tiling.get_capacity());
+    OP_LOGD(nodeName, "=== numExpert:                %ld", tiling.get_numExpert());
+    OP_LOGD(nodeName, "=== hiddenSize:               %ld", tiling.get_hiddenSize());
+    OP_LOGD(nodeName, "=== numOutTokens:             %ld", tiling.get_numOutTokens());
+    OP_LOGD(nodeName, "=== formerCoreNum:            %ld", tiling.get_formerCoreNum());
+    OP_LOGD(nodeName, "=== tailCoreNum:              %ld", tiling.get_tailCoreNum());
+    OP_LOGD(nodeName, "=== tokenNumEachCore:         %ld", tiling.get_tokenNumEachCore());
+    OP_LOGD(nodeName, "=== tokenNumTailCore:         %ld", tiling.get_tokenNumTailCore());
+    OP_LOGD(nodeName, "=== rowIdMapEachCore:         %ld", tiling.get_rowIdMapEachCore());
+    OP_LOGD(nodeName, "=== rowIdMapTailCore:         %ld", tiling.get_rowIdMapTailCore());
     OP_LOGD(nodeName, ">>>>>>>>>>>>>>>       in core information      <<<<<<<<<<<<<<<<");
-    OP_LOGD(nodeName, ">>> hiddenSizeAlign:          %ld", tiling.get_hiddenSizeAlign());
-    OP_LOGD(nodeName, ">>> hiddenSizeLoopTimes:      %ld", tiling.get_hiddenSizeLoopTimes());
-    OP_LOGD(nodeName, ">>> hiddenSizeLoopTimesAlign: %ld", tiling.get_hiddenSizeLoopTimesAlign());
-    OP_LOGD(nodeName, ">>> hiddenSizeTail:           %ld", tiling.get_hiddenSizeTail());
-    OP_LOGD(nodeName, ">>> inputReserveNum:          %ld", tiling.get_inputReserveNum());
-    OP_LOGD(nodeName, ">>> indicesReserveNum:        %ld", tiling.get_indicesReserveNum());
-    OP_LOGD(nodeName, ">>> indicesReserveNumAlign:   %ld", tiling.get_indicesReserveNumAlign());
-    OP_LOGD(nodeName, ">>> totalUbSize:              %ld", tiling.get_totalUbSize());
+    OP_LOGD(nodeName, "=== hiddenSizeAlign:          %ld", tiling.get_hiddenSizeAlign());
+    OP_LOGD(nodeName, "=== hiddenSizeLoopTimes:      %ld", tiling.get_hiddenSizeLoopTimes());
+    OP_LOGD(nodeName, "=== hiddenSizeLoopTimesAlign: %ld", tiling.get_hiddenSizeLoopTimesAlign());
+    OP_LOGD(nodeName, "=== hiddenSizeTail:           %ld", tiling.get_hiddenSizeTail());
+    OP_LOGD(nodeName, "=== inputReserveNum:          %ld", tiling.get_inputReserveNum());
+    OP_LOGD(nodeName, "=== indicesReserveNum:        %ld", tiling.get_indicesReserveNum());
+    OP_LOGD(nodeName, "=== indicesReserveNumAlign:   %ld", tiling.get_indicesReserveNumAlign());
+    OP_LOGD(nodeName, "=== totalUbSize:              %ld", tiling.get_totalUbSize());
     OP_LOGD(nodeName, ">>>>>>>>>>>>>>> Print MoeTokenUnpermuteWithRoutingMapGrad tiling data end <<<<<<<<<<<<<<<<");
 }
 

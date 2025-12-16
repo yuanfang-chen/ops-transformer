@@ -33,10 +33,9 @@ public:
     __aicore__ inline void Process();
 
 protected:
-    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> inOutque;
-    LocalTensor<PermutedTokenT> inOutLocal;
-
     DataCopyExtParams copyParams{1, 0, 0, 0, 0};
+    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> padTrueInOutque;
+    LocalTensor<PermutedTokenT> inOutLocal;
 };
 
 template <typename PermutedTokenT, typename IdxT, typename ProbsT>
@@ -49,7 +48,7 @@ __aicore__ inline void MoeTokenUnpermuteWithRoutingMapGradProbNoneDropPadTrue<Pe
         unpermuted_tokens_grad, outIndex, permuteTokenId, routing_map, permuted_tokens, probs, permuted_tokens_grad,
         probs_grad, tiling_data);
     this->pipe.InitBuffer(
-        inOutque, DOUBLE_BUFFER, (this->inputReserveNum * this->hiddenSizeAlign) * this->inputTypeSize);
+        padTrueInOutque, DOUBLE_BUFFER, (this->inputReserveNum * this->hiddenSizeAlign) * this->inputTypeSize);
 }
 
 template <typename PermutedTokenT, typename IdxT, typename ProbsT>
@@ -68,16 +67,16 @@ __aicore__ inline void MoeTokenUnpermuteWithRoutingMapGradProbNoneDropPadTrue<Pe
                 hiddenLoop == this->hiddenSizeLoopTimes - 1 ? this->hiddenSizeTail : this->hiddenSizeAlign;
             uint32_t hiddenLoopBlockLen = hiddenLoopNum * this->inputTypeSize;
             int64_t hiddenLoopOffset = hiddenLoop * this->hiddenSizeAlign;
-            inOutLocal = inOutque.AllocTensor<PermutedTokenT>();
+            inOutLocal = padTrueInOutque.AllocTensor<PermutedTokenT>();
             copyParams.blockLen = hiddenLoopBlockLen;
             int64_t unpermutedTokensGradOffset = tokenId * this->hiddenSize + hiddenLoopOffset;
             DataCopyPad(
                 inOutLocal, this->unpermutedTokensGradGm[unpermutedTokensGradOffset], copyParams, this->inputPadParams);
-            inOutque.EnQue<QuePosition::VECIN, QuePosition::VECOUT, PermutedTokenT>(inOutLocal);
-            inOutLocal = inOutque.DeQue<QuePosition::VECIN, QuePosition::VECOUT, PermutedTokenT>();
+            padTrueInOutque.EnQue<QuePosition::VECIN, QuePosition::VECOUT, PermutedTokenT>(inOutLocal);
+            inOutLocal = padTrueInOutque.DeQue<QuePosition::VECIN, QuePosition::VECOUT, PermutedTokenT>();
             int64_t permutedTokensGradOffset = permuteTokenId * this->hiddenSize + hiddenLoopOffset;
             DataCopyPad(this->permutedTokensGradGm[permutedTokensGradOffset], inOutLocal, copyParams);
-            inOutque.FreeTensor(inOutLocal);
+            padTrueInOutque.FreeTensor(inOutLocal);
         }
     }
 }
