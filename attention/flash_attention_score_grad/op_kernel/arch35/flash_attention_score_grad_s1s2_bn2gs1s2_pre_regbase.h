@@ -23,7 +23,7 @@ public:
     __aicore__ inline FlashAttentionScoreGradS1S2BNGS1S2PreRegbase(){};
     __aicore__ inline void Init(__gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv,
                                 __gm__ uint8_t *actual_seq_kvlen, __gm__ uint8_t *drop_mask, __gm__ uint8_t *workspace,
-                                const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND)> *ordTilingData,
+                                const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> *ordTilingData,
                                 TPipe *pipe_in);
     __aicore__ inline void Process();
     __aicore__ inline void SyncALLCores();
@@ -39,7 +39,7 @@ public:
     GlobalTensor<uint8_t> maskWorkSpaceGm;
     GlobalTensor<uint8_t> drop_maskGm;
 
-    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND)> *TilingData;
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> *TilingData;
     constexpr static uint32_t ADDR_ALIGN_SIZE = 512;
     constexpr static uint32_t HELP_LEN = 256;
     constexpr static uint32_t BIT8 = 8;
@@ -86,7 +86,7 @@ template <typename T1, typename T2, const uint8_t DETER_SPARSE_TYPE, const uint3
 __aicore__ inline void FlashAttentionScoreGradS1S2BNGS1S2PreRegbase<T1, T2, DETER_SPARSE_TYPE, IS_TND, SPLIT_AXIS>::Init(
     __gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *actual_seq_kvlen,
     __gm__ uint8_t *drop_mask, __gm__ uint8_t *workspace,
-    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND)> *orgTilingData, TPipe *pipe_in)
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> *orgTilingData, TPipe *pipe_in)
 {
     cBlockIdx = GetBlockIdx();
 

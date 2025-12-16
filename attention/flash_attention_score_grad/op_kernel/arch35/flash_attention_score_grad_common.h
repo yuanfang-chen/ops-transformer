@@ -67,11 +67,11 @@ __aicore__ constexpr bool GET_IS_L1_REUSE(const uint32_t HEAD_DIM_ALIGN, const b
     (((CUBE_BASEM) * (HEAD_DIM_ALIGN) * sizeof(float)) + ((CUBE_BASEN) * (HEAD_DIM_ALIGN) * sizeof(float)) +                   \
      ((CUBE_BASEN) > (HEAD_DIM_ALIGN) ? (CUBE_BASEM) * (CUBE_BASEN) * sizeof(float) :                                          \
                                     (CUBE_BASEM) * (HEAD_DIM_ALIGN) * sizeof(float))) <= L0C_MAX_SIZE
- 
+
 #define FagTilingType                                                                                                  \
-    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND)>         \
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> \
         *__restrict
- 
+
 #define CUBE_BLOCK_TRAITS_TYPE_FIELDS(X)                                                                               \
     X(INPUT_TYPE)                                                                                                      \
     X(CALC_TYPE)                                                                                                       \

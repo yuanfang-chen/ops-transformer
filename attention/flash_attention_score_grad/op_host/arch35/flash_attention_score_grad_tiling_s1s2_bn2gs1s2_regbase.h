@@ -206,7 +206,7 @@
      uint32_t sparseMode;
      uint32_t prefixN[BATCH_MAX_SIZE] = {0};
  
-     bool isAllSame = true;
+     bool isAllSame = false;
      std::vector<int64_t> actualSeqQlen;
      std::vector<int64_t> actualSeqKvlen;
  
@@ -241,6 +241,11 @@
  
      int64_t qStartIdx;
      int64_t kvStartIdx;
+
+    uint64_t tndStartBIdx[CORE_LIST_NUM];
+    uint64_t tndS1S2PrefixSum[CORE_LIST_NUM];
+    uint64_t tndS1S2AlignPrefixSum[CORE_LIST_NUM];
+    uint64_t tndPrefixSum[CORE_LIST_NUM];
  };
  
  class FlashAttentionScoreGradTilingUs1s2Bs2Regbase : public TilingBaseClass {
@@ -257,6 +262,7 @@
      PreParamsRegbase *preTilingData_ = nullptr;
      PostParamsRegbase *postTilingData_ = nullptr;
      DeterParamRegbase *deterParam = nullptr;
+     TndParamRegbase *tndParam_ = nullptr;
  
  protected:
      bool IsCapable() override;

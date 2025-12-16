@@ -71,9 +71,6 @@
                                                     IS_DETER, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType,      \
                                                     s2TemplateType, dTemplateType, OUTDTYPE)                           \
     do {                                                                                                               \
-        GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(IS_DETER, IS_TND)>, tiling_data_in,              \
-                                    tiling_data);                                                                      \
-        const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(IS_DETER, IS_TND)> *__restrict tilingData = &tiling_data_in;           \
         FlashAttentionScoreGradS1S2BNGS1S2PreRegbase<INPUT_TYPE, float, IS_DETER, IS_TND, SPLIT_AXIS> opPre;           \
         opPre.Init(dq, dk, dv, actual_seq_kvlen, drop_mask, user, tilingData, &pipeIn);                                \
         opPre.Process();                                                                                               \
@@ -127,9 +124,6 @@
                                                     IS_DETER, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType,      \
                                                     s2TemplateType, dTemplateType, OUTDTYPE)                           \
     do {                                                                                                               \
-        GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(IS_DETER, IS_TND)>, tiling_data_in,              \
-                                    tiling_data);                                                                      \
-        const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(IS_DETER, IS_TND)> *__restrict tilingData = &tiling_data_in;           \
         FlashAttentionScoreGradS1S2BNGS1S2PreRegbase<INPUT_TYPE, float, IS_DETER, IS_TND, SPLIT_AXIS> opPre;           \
         opPre.Init(dq, dk, dv, actual_seq_kvlen, drop_mask, user, tilingData, &pipeIn);                                \
         opPre.Process();                                                                                               \
@@ -317,11 +311,9 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
     SetMaskNorm();
     SetSysWorkspace(workspace);
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
- 
-    GET_TILING_DATA_WITH_STRUCT(
-        FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(deterType, isTnd)>, tiling_data_in,
-        tiling_data);
-    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(deterType, isTnd)>
+    using fagTiling = FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(deterType, isTnd), isTnd>;
+    GET_TILING_DATA_WITH_STRUCT(fagTiling, tiling_data_in, tiling_data);
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(deterType, isTnd), isTnd>
         *__restrict tilingData = &tiling_data_in;
     #if (ORIG_DTYPE_QUERY == DT_FLOAT16)
         if constexpr (splitAxis == BN2GS1S2) {

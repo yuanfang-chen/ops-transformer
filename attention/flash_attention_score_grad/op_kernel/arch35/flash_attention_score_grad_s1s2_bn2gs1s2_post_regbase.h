@@ -21,7 +21,7 @@ public:
     __aicore__ inline FlashAttentionScoreGradS1S2BNGS1S2PostRegbase(){};
     __aicore__ inline void Init(__gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *dqRope,
                                 __gm__ uint8_t *dkRope,__gm__ uint8_t *workspace,
-                                const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND)> *__restrict ordTilingData,
+                                const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> *__restrict ordTilingData,
                                 TPipe *pipe_in);
     __aicore__ inline void Process();
     __aicore__ inline void ProcessBNS2Deter();
@@ -32,7 +32,7 @@ public:
     uint32_t VALUE_DIM = 128;
     uint32_t POST_S_BASE = 96;
     TPipe *pipe;
-    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND)> *__restrict tilingData;
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> *__restrict tilingData;
     TQue<QuePosition::VECIN, 1> inQueuePing;
     TQue<QuePosition::VECOUT, 1> outQueuePing;
     TQue<QuePosition::VECIN, 1> inQueuePong;
@@ -51,7 +51,7 @@ template <typename T1, typename T2, typename OUTDTYPE, const uint8_t SPLIT_AXIS,
 __aicore__ inline void FlashAttentionScoreGradS1S2BNGS1S2PostRegbase<T1, T2, OUTDTYPE, SPLIT_AXIS, IS_ROPE, DETER_SPARSE_TYPE, IS_TND>::Init(
     __gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *dqRope,
     __gm__ uint8_t *dkRope, __gm__ uint8_t *workspace,
-    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND)> *__restrict ordTilingData, TPipe *pipe_in)
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> *__restrict ordTilingData, TPipe *pipe_in)
 {
     vBlockIdx = GetBlockIdx();
     tilingData = ordTilingData;

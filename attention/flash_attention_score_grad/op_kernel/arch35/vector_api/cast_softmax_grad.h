@@ -62,17 +62,10 @@ __aicore__ inline void CopyInSoftmaxGrad(FagConstInfo &constInfo, FagRunInfo &ru
         transpose_stride = (constInfo.commonConstInfo.n2GDv - constInfo.commonConstInfo.dSizeV) * sizeof(T1);
         transpose_stride_for_fp8 = (constInfo.commonConstInfo.n2GDv - constInfo.commonConstInfo.dSizeV) * sizeof(OUTDTYPE);
     } else if (constInfo.commonConstInfo.layoutType == TND) {
-        int64_t actualS1Len = 0;
-        for (int64_t bidx = 0; bidx < runInfo.commonRunInfo.boIdx; bidx++) {
-            if (unlikely(bidx == 0)) {
-                actualS1Len = ((__gm__ int64_t *)constInfo.seqS1_addr)[0];
-            } else {
-                actualS1Len =
-                    ((__gm__ int64_t *)constInfo.seqS1_addr)[bidx] - ((__gm__ int64_t *)constInfo.seqS1_addr)[bidx - 1];
-            }
-            bOffset +=
-                actualS1Len * constInfo.n2Size * constInfo.commonConstInfo.gSize * constInfo.commonConstInfo.dSizeV;
-        }
+        int64_t tndS1PrefixSum = (runInfo.commonRunInfo.boIdx == 0 ?
+                                      0 :
+                                      ((__gm__ int64_t *)constInfo.seqS1_addr)[runInfo.commonRunInfo.boIdx - 1]);
+        bOffset = tndS1PrefixSum * constInfo.commonConstInfo.n2G * constInfo.commonConstInfo.dSizeV;
         s1Offset = runInfo.commonRunInfo.s1oIdx * VECTOR_BASEM * CV_CORE_RATIO * constInfo.commonConstInfo.n2GDv +
                    runInfo.commonRunInfo.firstHalfS1RealSize * GetSubBlockIdx() * constInfo.commonConstInfo.n2GDv +
                    loopIdx * loopSize * constInfo.commonConstInfo.n2GDv;

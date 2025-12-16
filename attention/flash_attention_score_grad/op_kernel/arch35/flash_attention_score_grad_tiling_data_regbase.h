@@ -20,13 +20,13 @@
  
  namespace optiling {
  namespace fag {
+ constexpr uint32_t MAX_CORE_NUM = 36;
  class FlashAttentionScoreGradEmptyTensorTilingDataRegbase {
  public:
      uint32_t formerDqNum;
      uint32_t formerDkNum;
      uint32_t formerDvNum;
      uint32_t formerDpseNum;
-     uint32_t res;
      uint64_t singleCoreDqNum;
      uint64_t tailCoreDqNum;
      uint64_t singleCoreDkNum;
@@ -40,7 +40,6 @@
      uint32_t get_formerDkNum() const { return formerDkNum; }
      uint32_t get_formerDvNum() const { return formerDvNum; }
      uint32_t get_formerDpseNum() const { return formerDpseNum; }
-     uint32_t get_res() const { return res; }
      uint64_t get_singleCoreDqNum() const { return singleCoreDqNum; }
      uint64_t get_tailCoreDqNum() const { return tailCoreDqNum; }
      uint64_t get_singleCoreDkNum() const { return singleCoreDkNum; }
@@ -54,7 +53,6 @@
      void set_formerDkNum(uint32_t formerDkNumParam) { this->formerDkNum = formerDkNumParam; }
      void set_formerDvNum(uint32_t formerDvNumParam) { this->formerDvNum = formerDvNumParam; }
      void set_formerDpseNum(uint32_t formerDpseNumParam) { this->formerDpseNum = formerDpseNumParam; }
-     void set_res(uint32_t resParam) { this->res = resParam; }
      void set_singleCoreDqNum(uint64_t singleCoreDqNumParam) { this->singleCoreDqNum = singleCoreDqNumParam; }
      void set_tailCoreDqNum(uint64_t tailCoreDqNumParam) { this->tailCoreDqNum = tailCoreDqNumParam; }
      void set_singleCoreDkNum(uint64_t singleCoreDkNumParam) { this->singleCoreDkNum = singleCoreDkNumParam; }
@@ -182,10 +180,11 @@
      uint32_t blockOuter;
      uint32_t maxValidBBLen;
      uint32_t noNeedDeter;
+     uint32_t reserved1; // tilingData需要8字节对齐
      int64_t bandIdx;
      int64_t deterMaxRound;
-     uint64_t dqIsNeedDeter[36];
-     uint64_t dkDvIsNeedDeter[36];
+     uint64_t dqIsNeedDeter[MAX_CORE_NUM];
+     uint64_t dkDvIsNeedDeter[MAX_CORE_NUM];
  
      int64_t get_s1Outer() const { return s1Outer; }
      uint32_t get_s1Inner() const { return s1Inner; }
@@ -219,13 +218,13 @@
      void set_bandIdx(int64_t val) { bandIdx = val; }
      void set_deterMaxRound(int64_t value) { deterMaxRound = value; }
      void set_dqIsNeedDeter(const uint64_t* val) { 
-         for (int i = 0; i < 36; ++i) {
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
              dqIsNeedDeter[i] = val[i];
          }
      }
      void set_dqIsNeedDeter(int index, uint64_t val) { dqIsNeedDeter[index] = val; }
      void set_dkDvIsNeedDeter(const uint64_t* val) { 
-         for (int i = 0; i < 36; ++i) {
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
              dkDvIsNeedDeter[i] = val[i];
          }
      }
@@ -234,38 +233,25 @@
  
  class BlockNumListParamsRegbase {
  public:
-     int64_t blockStarts[36];
-     int64_t blockEnds[36];
+     int64_t blockStarts[MAX_CORE_NUM];
+     int64_t blockEnds[MAX_CORE_NUM];
  
-     const int64_t* get_blockStarts() const {
-         return blockStarts;
-     }
-     int64_t get_blockStarts(int index) const {
-         return blockStarts[index];
-     }
-     const int64_t* get_blockEnds() const {
-         return blockEnds;
-     }
-     int64_t get_blockEnds(int index) const {
-         return blockEnds[index];
-     }
- 
+     const int64_t* get_blockStarts() const { return blockStarts;}
+     int64_t get_blockStarts(int index) const { return blockStarts[index]; }
+     const int64_t* get_blockEnds() const { return blockEnds; }
+     int64_t get_blockEnds(int index) const { return blockEnds[index]; }
      void set_blockStarts(const int64_t* val) {
-         for (int i = 0; i < 36; ++i) {
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
              blockStarts[i] = val[i];
          }
      }
-     void set_blockStarts(int index, int64_t val) {
-         blockStarts[index] = val;
-     }
+     void set_blockStarts(int index, int64_t val) { blockStarts[index] = val; }
      void set_blockEnds(const int64_t* val) {
-         for (int i = 0; i < 36; ++i) {
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
              blockEnds[i] = val[i];
          }
      }
-     void set_blockEnds(int index, int64_t val) {
-         blockEnds[index] = val;
-     }
+     void set_blockEnds(int index, int64_t val) { blockEnds[index] = val; }
  };
  
  class PreParamsRegbase {
@@ -292,6 +278,10 @@
      uint32_t maskTailCoreLastLoopNum;
      uint32_t dropoutIsDivisibleBy8;
      bool sValueZeroUnderTND;
+     uint8_t reserved1; // tilingData需要8字节对齐
+     uint8_t reserved2; // tilingData需要8字节对齐
+     uint8_t reserved3; // tilingData需要8字节对齐
+     uint32_t reserved4; // tilingData需要8字节对齐
  
      uint64_t get_maskPreBlockTotal() const { return maskPreBlockTotal; }
      uint64_t get_maskSingleCoreNum() const { return maskSingleCoreNum; }
@@ -409,7 +399,6 @@
  class DeterParamRegbase {
  public:
      constexpr static int64_t DETER_PREFIX_NUM = 132;
-
      int64_t deterPrefixStep;
      int64_t deterPrefix[DETER_PREFIX_NUM];
      int64_t deterPrefixAlign[DETER_PREFIX_NUM];
@@ -417,108 +406,83 @@
      int64_t deterPrefix1[DETER_PREFIX_NUM];
      int64_t deterPrefix2[DETER_PREFIX_NUM];
 
-     int64_t get_deterPrefixStep() const
-     {
-         return deterPrefixStep;
-     }
-     const int64_t *get_deterPrefix() const
-     {
-         return deterPrefix;
-     }
-     int64_t get_deterPrefix(int index) const
-     {
-         return deterPrefix[index];
-     }
-     const int64_t *get_deterPrefixAlign() const
-     {
-         return deterPrefixAlign;
-     }
-     int64_t get_deterPrefixAlign(int index) const
-     {
-         return deterPrefixAlign[index];
-     }
-     const int64_t *get_deterPrefix0() const
-     {
-         return deterPrefix0;
-     }
-     int64_t get_deterPrefix0(int index) const
-     {
-         return deterPrefix0[index];
-     }
-     const int64_t *get_deterPrefix1() const
-     {
-         return deterPrefix1;
-     }
-     int64_t get_deterPrefix1(int index) const
-     {
-         return deterPrefix1[index];
-     }
-     const int64_t *get_deterPrefix2() const
-     {
-         return deterPrefix2;
-     }
-     int64_t get_deterPrefix2(int index) const
-     {
-         return deterPrefix2[index];
-     }
-
-     void set_deterPrefixStep(int64_t value)
-     {
-         deterPrefixStep = value;
-     }
-     void set_deterPrefix(const int64_t *val)
-     {
+     int64_t get_deterPrefixStep() const { return deterPrefixStep; }
+     const int64_t *get_deterPrefix() const { return deterPrefix; }
+     int64_t get_deterPrefix(int index) const { return deterPrefix[index]; }
+     const int64_t *get_deterPrefixAlign() const { return deterPrefixAlign; }
+     int64_t get_deterPrefixAlign(int index) const { return deterPrefixAlign[index]; }
+     const int64_t *get_deterPrefix0() const { return deterPrefix0; }
+     int64_t get_deterPrefix0(int index) const { return deterPrefix0[index]; }
+     const int64_t *get_deterPrefix1() const { return deterPrefix1; }
+     int64_t get_deterPrefix1(int index) const { return deterPrefix1[index]; }
+     const int64_t *get_deterPrefix2() const { return deterPrefix2; }
+     int64_t get_deterPrefix2(int index) const { return deterPrefix2[index]; }
+     void set_deterPrefixStep(int64_t value) { deterPrefixStep = value; }
+     void set_deterPrefix(const int64_t *val) {
          for (int i = 0; i < DETER_PREFIX_NUM; ++i) {
              deterPrefix[i] = val[i];
          }
      }
-     void set_deterPrefix(int index, int64_t val)
-     {
-         deterPrefix[index] = val;
-     }
-     void set_deterPrefixAlign(const int64_t *val)
-     {
+     void set_deterPrefix(int index, int64_t val) { deterPrefix[index] = val; }
+     void set_deterPrefixAlign(const int64_t *val) {
          for (int i = 0; i < DETER_PREFIX_NUM; ++i) {
              deterPrefixAlign[i] = val[i];
          }
      }
-     void set_deterPrefixAlign(int index, int64_t val)
-     {
-         deterPrefixAlign[index] = val;
-     }
-     void set_deterPrefix0(const int64_t *val)
-     {
+     void set_deterPrefixAlign(int index, int64_t val) { deterPrefixAlign[index] = val; }
+     void set_deterPrefix0(const int64_t *val) {
          for (int i = 0; i < DETER_PREFIX_NUM; ++i) {
              deterPrefix0[i] = val[i];
          }
      }
-     void set_deterPrefix0(int index, int64_t val)
-     {
-         deterPrefix0[index] = val;
-     }
-     void set_deterPrefix1(const int64_t *val)
-     {
+     void set_deterPrefix0(int index, int64_t val) { deterPrefix0[index] = val; }
+     void set_deterPrefix1(const int64_t *val) {
          for (int i = 0; i < DETER_PREFIX_NUM; ++i) {
              deterPrefix1[i] = val[i];
          }
      }
-     void set_deterPrefix1(int index, int64_t val)
-     {
-         deterPrefix1[index] = val;
-     }
-     void set_deterPrefix2(const int64_t *val)
-     {
+     void set_deterPrefix1(int index, int64_t val) { deterPrefix1[index] = val; }
+     void set_deterPrefix2(const int64_t *val) {
          for (int i = 0; i < DETER_PREFIX_NUM; ++i) {
              deterPrefix2[i] = val[i];
          }
      }
-     void set_deterPrefix2(int index, int64_t val)
+     void set_deterPrefix2(int index, int64_t val) { deterPrefix2[index] = val; }
+ };
+
+ class TndParamRegbase {
+ public:
+    uint64_t tndStartBIdx[MAX_CORE_NUM];
+    uint64_t tndS1S2PrefixSum[MAX_CORE_NUM];
+    uint64_t tndS1S2AlignPrefixSum[MAX_CORE_NUM];
+    uint64_t tndPrefixSum[MAX_CORE_NUM];
+    void set_tndStartBIdx(const uint64_t *val)
      {
-         deterPrefix2[index] = val;
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+             tndStartBIdx[i] = val[i];
+         }
+     }
+     void set_tndS1S2PrefixSum(const uint64_t *val)
+     {
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+             tndS1S2PrefixSum[i] = val[i];
+         }
+     }
+     void set_tndS1S2AlignPrefixSum(const uint64_t *val)
+     {
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+             tndS1S2AlignPrefixSum[i] = val[i];
+         }
+     }
+     void set_tndPrefixSum(const uint64_t *val)
+     {
+         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+             tndPrefixSum[i] = val[i];
+         }
      }
  };
 
- template<const bool isNewDeter = false>
+ template<const bool isNewDeter = false, const bool isTnd = false>
  class FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase {
  public:
      FlashAttentionScoreGradS1S2BNGS1S2BaseParamsRegbase s1s2BNGS1S2BaseParams;
@@ -527,6 +491,7 @@
      PreParamsRegbase preTilingData;
      PostParamsRegbase postTilingData;
      typename std::conditional<isNewDeter, DeterParamRegbase, std::nullptr_t>::type deterParam;
+     typename std::conditional<!isNewDeter && isTnd, TndParamRegbase, std::nullptr_t>::type tndParam;
  };
  }  // namespace fag
  }  // namespace optiling

@@ -69,28 +69,22 @@ __aicore__ inline void CopyInMaxSum(FagConstInfo &constInfo, FagRunInfo &runInfo
                                     TQue<QuePosition::VECIN, 1> &maxSumInQue, GlobalTensor<T2> &maxGm,
                                     GlobalTensor<T2> &sumGm)
 {
-    if (runInfo.commonRunInfo.halfS1RealSize == 0){
+    if (runInfo.commonRunInfo.halfS1RealSize == 0) {
         return;
     }
     int64_t maxSumGmOffset = 0;
     if (constInfo.commonConstInfo.layoutType == TND) {
+        int64_t tndS1PrefixSum =
+            (runInfo.commonRunInfo.boIdx == 0 ? 0 :
+                                                ((__gm__ int64_t *)constInfo.seqS1_addr)[runInfo.commonRunInfo.boIdx - 1]);
         int64_t actualS1Len = 0;
-        for (int64_t bIdx = 0; bIdx < runInfo.commonRunInfo.boIdx; bIdx++) {
-            if (unlikely(bIdx == 0)) {
-                actualS1Len = ((__gm__ int64_t *)constInfo.seqS1_addr)[0];
-            } else {
-                actualS1Len =
-                    ((__gm__ int64_t *)constInfo.seqS1_addr)[bIdx] - ((__gm__ int64_t *)constInfo.seqS1_addr)[bIdx - 1];
-            }
-            maxSumGmOffset += actualS1Len * constInfo.n2Size * constInfo.commonConstInfo.gSize *
-                              MAX_SUM_REDUCE_AXIS_SIZE / sizeof(T2);
-        }
+        maxSumGmOffset += tndS1PrefixSum * constInfo.commonConstInfo.n2G * MAX_SUM_REDUCE_AXIS_SIZE / sizeof(T2);
         if (unlikely(runInfo.commonRunInfo.boIdx == 0)) {
-                actualS1Len = ((__gm__ int64_t *)constInfo.seqS1_addr)[0];
-            } else {
-                actualS1Len =
-                    ((__gm__ int64_t *)constInfo.seqS1_addr)[runInfo.commonRunInfo.boIdx] - ((__gm__ int64_t *)constInfo.seqS1_addr)[runInfo.commonRunInfo.boIdx - 1];
-            }
+            actualS1Len = ((__gm__ int64_t *)constInfo.seqS1_addr)[0];
+        } else {
+            actualS1Len = ((__gm__ int64_t *)constInfo.seqS1_addr)[runInfo.commonRunInfo.boIdx] -
+                          ((__gm__ int64_t *)constInfo.seqS1_addr)[runInfo.commonRunInfo.boIdx - 1];
+        }
         maxSumGmOffset +=
             ((runInfo.commonRunInfo.n2oIdx * constInfo.commonConstInfo.gSize + runInfo.commonRunInfo.goIdx) *
                 actualS1Len +
@@ -98,7 +92,6 @@ __aicore__ inline void CopyInMaxSum(FagConstInfo &constInfo, FagRunInfo &runInfo
              runInfo.commonRunInfo.firstHalfS1RealSize * GetSubBlockIdx()) *
             MAX_SUM_REDUCE_AXIS_SIZE / sizeof(T2);
     } else {
-        // todo: 展开乘减少scalar
         maxSumGmOffset = (((runInfo.commonRunInfo.boIdx * constInfo.n2Size + runInfo.commonRunInfo.n2oIdx) *
                                constInfo.commonConstInfo.gSize +
                            runInfo.commonRunInfo.goIdx) *

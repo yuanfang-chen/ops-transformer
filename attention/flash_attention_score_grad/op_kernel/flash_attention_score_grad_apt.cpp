@@ -41,7 +41,8 @@ __global__ __aicore__ void flash_attention_score_grad(
 
 {
     constexpr bool needDeterPrefix = NEED_DETER_PREFIX(DeterType, IsTnd);
-    REGISTER_TILING_DEFAULT(optiling::fag::FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<needDeterPrefix>);
+    using fagTiling = optiling::fag::FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<needDeterPrefix, IsTnd>;
+    REGISTER_TILING_DEFAULT(fagTiling);
     if constexpr (IsEmptyTensor) {
         TPipe tPipe;
         REGISTER_TILING_FOR_TILINGKEY("(TILING_KEY_VAR & 0x1)", optiling::fag::FlashAttentionScoreGradEmptyTensorTilingDataRegbase);

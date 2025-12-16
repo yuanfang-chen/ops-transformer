@@ -140,6 +140,19 @@ protected:
  
     CubeBlockType cubeBlock;
     VecBlockType vecBlock;
+
+    // for record tnd offset or index info
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchIdx;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalBaseIdx;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS1BOffset;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS1BRopeOffset;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS1BOffsetForDv;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS2BOffset;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS2BRopeOffset;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS2BOffsetForDv;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS1S2SizeAlign;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS1S2Size;
+    typename std::conditional<IS_TND, int64_t, std::nullptr_t>::type curBatchTotalS2Size;
 };
  
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
@@ -263,6 +276,25 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetOptionalInfo()
 {
+    if constexpr (!IS_DETER_NEW(DETER_SPARSE_TYPE) && IS_TND) {
+        curBatchIdx = tilingData->tndParam.tndStartBIdx[cBlockIdx];
+        int64_t tndS1PrefixSum = (curBatchIdx == 0 ? 0 : ((__gm__ int64_t *)actualSeqQlenAddr)[curBatchIdx - 1]);
+        int64_t tndS2PrefixSum = (curBatchIdx == 0 ? 0 : ((__gm__ int64_t *)actualSeqKvlenAddr)[curBatchIdx - 1]);
+        curBatchTotalBaseIdx =
+            tilingData->tndParam.tndPrefixSum[cBlockIdx] * constInfo.commonConstInfo.n2G;
+        curBatchTotalS1BOffset = tndS1PrefixSum * constInfo.commonConstInfo.n2GD;
+        curBatchTotalS2BOffset = tndS2PrefixSum * constInfo.commonConstInfo.n2D;
+        curBatchTotalS1BOffsetForDv = tndS1PrefixSum * constInfo.commonConstInfo.n2GDv;
+        curBatchTotalS2BOffsetForDv = tndS2PrefixSum * constInfo.commonConstInfo.n2Dv;
+        curBatchTotalS1S2SizeAlign = tilingData->tndParam.tndS1S2AlignPrefixSum[cBlockIdx];
+        curBatchTotalS1S2Size = tilingData->tndParam.tndS1S2PrefixSum[cBlockIdx];
+        curBatchTotalS2Size = tndS2PrefixSum;
+        if constexpr (IS_ROPE) {
+            curBatchTotalS1BRopeOffset = tndS1PrefixSum * constInfo.commonConstInfo.n2GDr;
+            curBatchTotalS2BRopeOffset = tndS2PrefixSum * constInfo.commonConstInfo.n2Dr;
+        }
+    }
+
     if constexpr (IS_ATTEN_MASK) {
         attenMaskInfo.attenMaskShapeType = tilingData->s1s2BNGS1S2BaseParams.attenMaskShapeType;
         attenMaskInfo.compressMode = tilingData->s1s2BNGS1S2BaseParams.attenMaskCompressMode;
@@ -585,26 +617,31 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::Chec
     }
     return isValid;
 }
- 
+
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void
-FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetRunInfo(FagRunInfo &runInfo,
-                                                                                       int64_t taskId, int64_t index,
-                                                                                       int64_t nextIndex)
+__aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetRunInfo(
+    FagRunInfo &runInfo, int64_t taskId, int64_t index, int64_t nextIndex)
 {
     if constexpr (IS_TND) {
-        int64_t resbaseIdx = index;
+        int64_t resbaseIdx = index - curBatchTotalBaseIdx;
         int64_t actualS1Len = 0;
         int64_t actualS2Len = 0;
-        runInfo.lastBatchTotalBaseIdx = 0;
-        runInfo.lastBatchTotalS1BOffset = 0;
-        runInfo.lastBatchTotalS2BOffset = 0;
-        runInfo.lastBatchTotalS1BOffsetForDv = 0;
-        runInfo.lastBatchTotalS2BOffsetForDv = 0;
-        runInfo.lastBatchTotalS1S2SizeAlign = 0;
-        runInfo.lastBatchTotalS1S2Size = 0;
-        runInfo.lastBatchTotalS2Size = 0;
-        for (int64_t bIdx = 0; bIdx < constInfo.bSize; bIdx++) {
+        uint64_t startBIdx = curBatchIdx;
+
+        runInfo.lastBatchTotalBaseIdx = curBatchTotalBaseIdx;
+        runInfo.lastBatchTotalS1BOffset = curBatchTotalS1BOffset;
+        runInfo.lastBatchTotalS2BOffset = curBatchTotalS2BOffset;
+        runInfo.lastBatchTotalS1BOffsetForDv = curBatchTotalS1BOffsetForDv;
+        runInfo.lastBatchTotalS2BOffsetForDv = curBatchTotalS2BOffsetForDv;
+        runInfo.lastBatchTotalS1S2SizeAlign = curBatchTotalS1S2SizeAlign;
+        runInfo.lastBatchTotalS1S2Size = curBatchTotalS1S2Size;
+        runInfo.lastBatchTotalS2Size = curBatchTotalS2Size;
+        if constexpr (IS_ROPE) {
+            runInfo.lastBatchTotalS1BRopeOffset = curBatchTotalS1BRopeOffset;
+            runInfo.lastBatchTotalS2BRopeOffset = curBatchTotalS2BRopeOffset;
+        }
+
+        for (int64_t bIdx = startBIdx; bIdx < constInfo.bSize; bIdx++) {
             GetSeqQlenKvlenByBidx(bIdx, actualS1Len, actualS2Len);
             int64_t s1OuterTmp = (actualS1Len + CUBE_BASEM - 1) / CUBE_BASEM;
             int64_t s2OuterTmp = (actualS2Len + VECTOR_BASEN - 1) / VECTOR_BASEN;
@@ -620,7 +657,7 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetR
                 int64_t gDimTail = n2DimTail % (s1OuterTmp * s2OuterTmp);
                 runInfo.s2oIdx = gDimTail / s1OuterTmp;
                 runInfo.commonRunInfo.s1oIdx = gDimTail % s1OuterTmp;
- 
+
                 runInfo.commonRunInfo.s1RealSize =
                     (runInfo.commonRunInfo.s1oIdx == s1OuterTmp - 1) ? s1CvTailTmp : CUBE_BASEM;
                 runInfo.commonRunInfo.taskId = taskId;
@@ -635,24 +672,73 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetR
                         runInfo.commonRunInfo.s1RealSize - runInfo.commonRunInfo.halfS1RealSize;
                     runInfo.halfS2RealSize = runInfo.commonRunInfo.s2RealSize - runInfo.halfS2RealSize;
                 }
+                curBatchIdx = bIdx;
+
+                int64_t batchRemainBlockNum =
+                    (s1OuterTmp - runInfo.commonRunInfo.s1oIdx - 1) + (s2OuterTmp - runInfo.s2oIdx - 1) * s1OuterTmp +
+                    (totalBaseIdx - (runInfo.commonRunInfo.n2oIdx * constInfo.commonConstInfo.gSize +
+                                     runInfo.commonRunInfo.goIdx + 1) *
+                                        s1OuterTmp * s2OuterTmp);
+                if ((totalBaseIdx - resbaseIdx == 1) || (nextIndex - index > batchRemainBlockNum)) {
+                    curBatchIdx = bIdx + 1;
+                    curBatchTotalBaseIdx += totalBaseIdx;
+                    curBatchTotalS1BOffset += actualS1Len * constInfo.commonConstInfo.n2GD;
+                    curBatchTotalS2BOffset += actualS2Len * constInfo.commonConstInfo.n2D;
+                    curBatchTotalS1BOffsetForDv += actualS1Len * constInfo.commonConstInfo.n2GDv;
+                    curBatchTotalS2BOffsetForDv += actualS2Len * constInfo.commonConstInfo.n2Dv;
+                    curBatchTotalS1S2SizeAlign += actualS1Len * AlignTo16(actualS2Len);
+                    curBatchTotalS1S2Size += actualS1Len * actualS2Len;
+                    curBatchTotalS2Size += actualS2Len;
+                    if constexpr (IS_ROPE) {
+                        curBatchTotalS1BRopeOffset += actualS1Len * constInfo.commonConstInfo.n2GDr;
+                        curBatchTotalS2BRopeOffset += actualS2Len * constInfo.commonConstInfo.n2Dr;
+                    }
+                }
                 break;
             } else {
-                runInfo.lastBatchTotalBaseIdx += totalBaseIdx;
-                resbaseIdx = index - runInfo.lastBatchTotalBaseIdx;
-                runInfo.lastBatchTotalS1BOffset += actualS1Len * constInfo.commonConstInfo.n2GD;
-                runInfo.lastBatchTotalS2BOffset += actualS2Len * constInfo.commonConstInfo.n2D;
-                runInfo.lastBatchTotalS1BOffsetForDv += actualS1Len * constInfo.commonConstInfo.n2GDv;
-                runInfo.lastBatchTotalS2BOffsetForDv += actualS2Len * constInfo.commonConstInfo.n2Dv;
-                runInfo.lastBatchTotalS1S2SizeAlign += actualS1Len * AlignTo16(actualS2Len);
-                runInfo.lastBatchTotalS1S2Size += actualS1Len * actualS2Len;
-                runInfo.lastBatchTotalS2Size += actualS2Len;
+                runInfo.lastBatchTotalBaseIdx = curBatchTotalBaseIdx;
+                runInfo.lastBatchTotalS1BOffset = curBatchTotalS1BOffset;
+                runInfo.lastBatchTotalS2BOffset = curBatchTotalS2BOffset;
+                runInfo.lastBatchTotalS1BOffsetForDv = curBatchTotalS1BOffsetForDv;
+                runInfo.lastBatchTotalS2BOffsetForDv = curBatchTotalS2BOffsetForDv;
+                runInfo.lastBatchTotalS1S2SizeAlign = curBatchTotalS1S2SizeAlign;
+                runInfo.lastBatchTotalS1S2Size = curBatchTotalS1S2Size;
+                runInfo.lastBatchTotalS2Size = curBatchTotalS2Size;
                 if constexpr (IS_ROPE) {
-                    runInfo.lastBatchTotalS1BRopeOffset += actualS1Len * constInfo.commonConstInfo.n2GDr;
-                    runInfo.lastBatchTotalS2BRopeOffset += actualS2Len * constInfo.commonConstInfo.n2Dr;
+                    runInfo.lastBatchTotalS1BRopeOffset = curBatchTotalS1BRopeOffset;
+                    runInfo.lastBatchTotalS2BRopeOffset = curBatchTotalS2BRopeOffset;
+                }
+
+                resbaseIdx = index - curBatchTotalBaseIdx;
+                curBatchTotalBaseIdx += totalBaseIdx;
+                curBatchTotalS1BOffset += actualS1Len * constInfo.commonConstInfo.n2GD;
+                curBatchTotalS2BOffset += actualS2Len * constInfo.commonConstInfo.n2D;
+                curBatchTotalS1BOffsetForDv += actualS1Len * constInfo.commonConstInfo.n2GDv;
+                curBatchTotalS2BOffsetForDv += actualS2Len * constInfo.commonConstInfo.n2Dv;
+                curBatchTotalS1S2SizeAlign += actualS1Len * AlignTo16(actualS2Len);
+                curBatchTotalS1S2Size += actualS1Len * actualS2Len;
+                curBatchTotalS2Size += actualS2Len;
+                if constexpr (IS_ROPE) {
+                    curBatchTotalS1BRopeOffset += actualS1Len * constInfo.commonConstInfo.n2GDr;
+                    curBatchTotalS2BRopeOffset += actualS2Len * constInfo.commonConstInfo.n2Dr;
+                }
+                // when s1 or s2 = 0, bIdx changed, need to update runInfo
+                if (totalBaseIdx == 0) {
+                    runInfo.lastBatchTotalBaseIdx = curBatchTotalBaseIdx;
+                    runInfo.lastBatchTotalS1BOffset = curBatchTotalS1BOffset;
+                    runInfo.lastBatchTotalS2BOffset = curBatchTotalS2BOffset;
+                    runInfo.lastBatchTotalS1BOffsetForDv = curBatchTotalS1BOffsetForDv;
+                    runInfo.lastBatchTotalS2BOffsetForDv = curBatchTotalS2BOffsetForDv;
+                    runInfo.lastBatchTotalS1S2SizeAlign = curBatchTotalS1S2SizeAlign;
+                    runInfo.lastBatchTotalS1S2Size = curBatchTotalS1S2Size;
+                    runInfo.lastBatchTotalS2Size = curBatchTotalS2Size;
+                    if constexpr (IS_ROPE) {
+                        runInfo.lastBatchTotalS1BRopeOffset = curBatchTotalS1BRopeOffset;
+                        runInfo.lastBatchTotalS2BRopeOffset = curBatchTotalS2BRopeOffset;
+                    }
                 }
             }
         }
-        GetSeqQlenKvlenByBidx(runInfo.commonRunInfo.boIdx, actualS1Len, actualS2Len);
         runInfo.commonRunInfo.actualS1Size = actualS1Len;
         runInfo.commonRunInfo.actualS2Size = actualS2Len;
         runInfo.commonRunInfo.s2SizeAcc = runInfo.lastBatchTotalS2Size;
@@ -671,7 +757,7 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetR
         int64_t gDimTail = n2DimTail % constInfo.s1oS2o;
         runInfo.s2oIdx = gDimTail / constInfo.s1Outer;
         runInfo.commonRunInfo.s1oIdx = gDimTail % constInfo.s1Outer;
- 
+
         runInfo.commonRunInfo.s1RealSize =
             (runInfo.commonRunInfo.s1oIdx == constInfo.s1Outer - 1) ? constInfo.s1CvTail : CUBE_BASEM;
         runInfo.commonRunInfo.taskId = taskId;
@@ -700,7 +786,7 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetR
         runInfo.commonRunInfo.preTokensPerBatch = attenMaskInfo.preTokens;
         runInfo.commonRunInfo.nextTokensPerBatch = attenMaskInfo.nextTokens;
     }
- 
+
     runInfo.isS2IdxNoChange = (lastS2oCvDimIdx == runInfo.s2oIdx && lastBdimIdx == runInfo.commonRunInfo.boIdx &&
                                lastN2dimIdx == runInfo.commonRunInfo.n2oIdx);
     if (!runInfo.isS2IdxNoChange) {
@@ -723,7 +809,7 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetR
             return;
         }
     }
- 
+
     // preload next query and dy offset for l1 preload
     if (taskId == 0) {
         runInfo.commonRunInfo.queryOffset = GetQueryOffset(runInfo);
@@ -734,16 +820,16 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetR
         GetNextDxAndQueryOffset(runInfo, nextIndex, preloadArgs); // get nextQueryOffset, nextDyOffset, nextMorN
     } else {
         runInfo.commonRunInfo.queryOffset = preloadArgs.nextQueryOffset;
-        runInfo.dyOffset = preloadArgs.nextDyOffset; 
+        runInfo.dyOffset = preloadArgs.nextDyOffset;
         GetNextDxAndQueryOffset(runInfo, nextIndex, preloadArgs); // get nextQueryOffset, nextDyOffset, nextMorN
     }
-    
+
     runInfo.commonRunInfo.keyOffset = GetKeyOffset(runInfo);
     runInfo.commonRunInfo.valueOffset = runInfo.commonRunInfo.keyOffset;
     if constexpr (IS_D_NO_EQUAL) {
         runInfo.commonRunInfo.valueOffset = GetValueOffset(runInfo);
     }
-    
+
     if ASCEND_IS_AIC {
         runInfo.queryOffsetWithRope = runInfo.commonRunInfo.queryOffset;
         runInfo.keyOffsetWithRope = runInfo.commonRunInfo.keyOffset;
@@ -758,20 +844,20 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::SetR
         }
     }
 }
- 
+
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline bool
 FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsValid(FagRunInfo &runInfo, int64_t index)
 {
     if constexpr (IS_TND) {
-        int64_t resbaseIdx = index - runInfo.lastBatchTotalBaseIdx;
+        int64_t resbaseIdx = index - curBatchTotalBaseIdx;
         int64_t actualS1Len = 0;
         int64_t actualS2Len = 0;
-        for (int64_t bIdx = runInfo.lastBatchIdx; bIdx < constInfo.bSize; bIdx++) {
+        for (int64_t bIdx = curBatchIdx; bIdx < constInfo.bSize; bIdx++) {
             GetSeqQlenKvlenByBidx(bIdx, actualS1Len, actualS2Len);
             int64_t s1OuterTmp = (actualS1Len + CUBE_BASEM - 1) / CUBE_BASEM;
             int64_t s2OuterTmp = (actualS2Len + CUBE_BASEN - 1) / CUBE_BASEN;
-            int64_t totalBaseIdx = constInfo.n2Size * constInfo.commonConstInfo.gSize * s1OuterTmp * s2OuterTmp;
+            int64_t totalBaseIdx = constInfo.commonConstInfo.n2G * s1OuterTmp * s2OuterTmp;
             if (resbaseIdx < totalBaseIdx) {
                 int64_t gDimTail = resbaseIdx % (s1OuterTmp * s2OuterTmp);
                 int64_t s2oDimIdx = gDimTail / s1OuterTmp;
@@ -814,7 +900,7 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
                         }
                         return isValid;
                     }
- 
+
                     UpdateToken(runInfo, bIdx);
                     int64_t s2SparseLeft = Max(CUBE_BASEM * s1oDimIdx - actualCalcS1Token, 0);
                     s2SparseLeft = s2SparseLeft >> 6 << 6;
@@ -877,7 +963,7 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
         }
     }
 }
- 
+
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline int64_t FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetNextValidIdx(
     FagRunInfo &runInfo, int64_t blockInnerIdx, int64_t curLoopIdx)
@@ -1003,8 +1089,6 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetQ
     }
  
     if constexpr (IS_TND) {
-        int64_t actualS1Len = 0;
-        int64_t actualS2Len = 0;
         bOffset = bOffsetTmp;
         s1Offset = runInfo.commonRunInfo.s1oIdx * CUBE_BASEM * n2GD;
         n2Offset = runInfo.commonRunInfo.n2oIdx * gD;
@@ -1041,8 +1125,6 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetQ
     int64_t gOffset = 0;
     int64_t s1Offset = 0;
     if constexpr (IS_TND) {
-        int64_t actualS1Len = 0;
-        int64_t actualS2Len = 0;
         bOffset = runInfo.lastBatchTotalS1BRopeOffset;
         s1Offset = runInfo.commonRunInfo.s1oIdx * CUBE_BASEM * constInfo.commonConstInfo.n2GDr;
         n2Offset = runInfo.commonRunInfo.n2oIdx * constInfo.commonConstInfo.gDr;
@@ -1079,8 +1161,6 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetD
     int64_t gOffset = 0;
     int64_t s1Offset = 0;
     if constexpr (IS_TND) {
-        int64_t actualS1Len = 0;
-        int64_t actualS2Len = 0;
         bOffset = runInfo.lastBatchTotalS1BOffsetForDv;
         s1Offset = runInfo.commonRunInfo.s1oIdx * CUBE_BASEM * constInfo.commonConstInfo.n2GDv;
         n2Offset = runInfo.commonRunInfo.n2oIdx * constInfo.commonConstInfo.gDv;
@@ -1139,8 +1219,6 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetK
     }
  
     if constexpr (IS_TND) {
-        int64_t actualS1Len = 0;
-        int64_t actualS2Len = 0;
         bOffset = bOffsetTmp;
         s2Offset = runInfo.s2CvBegin * n2D;
         n2Offset = runInfo.commonRunInfo.n2oIdx * dSize;
@@ -1188,8 +1266,6 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetK
     int64_t n2Offset = 0;
     int64_t s2Offset = 0;
     if constexpr (IS_TND) {
-        int64_t actualS1Len = 0;
-        int64_t actualS2Len = 0;
         bOffset = runInfo.lastBatchTotalS2BRopeOffset;
         s2Offset = runInfo.s2CvBegin * constInfo.commonConstInfo.n2Dr;
         n2Offset = runInfo.commonRunInfo.n2oIdx * constInfo.dRopeSize;
@@ -1221,8 +1297,6 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetV
     int64_t n2Offset = 0;
     int64_t s2Offset = 0;
     if constexpr (IS_TND) {
-        int64_t actualS1Len = 0;
-        int64_t actualS2Len = 0;
         bOffset = runInfo.lastBatchTotalS2BOffsetForDv;
         s2Offset = runInfo.s2CvBegin * constInfo.commonConstInfo.n2Dv;
         n2Offset = runInfo.commonRunInfo.n2oIdx * constInfo.commonConstInfo.dSizeV;
@@ -1320,18 +1394,18 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetN
     int64_t s1OffsetDv = 0;
     
     if constexpr (IS_TND && IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        ;
+
     } else if constexpr (IS_TND) {
-        int64_t lastBatchTotalS1BOffset = runInfo.lastBatchTotalS1BOffset;
-        int64_t lastBatchTotalS1BOffsetForDv = runInfo.lastBatchTotalS1BOffsetForDv;
-        int64_t lastBatchTotalBaseIdx = runInfo.lastBatchTotalBaseIdx;
-        int64_t resbaseIdx = nextIndex - lastBatchTotalBaseIdx;
+        int64_t lastBatchTotalS1BOffset = curBatchTotalS1BOffset;
+        int64_t lastBatchTotalS1BOffsetForDv = curBatchTotalS1BOffsetForDv;
+        int64_t lastBatchTotalBaseIdx = curBatchTotalBaseIdx;
+        int64_t resbaseIdx = nextIndex - curBatchTotalBaseIdx;
         int64_t actualS1Len = 0;
         int64_t actualS2Len = 0;
         int64_t s1CvTail = 0;
         int64_t s1OuterTmp = 0;
         int64_t s2OuterTmp = 0;
-        for (int64_t bIdx = runInfo.lastBatchIdx; bIdx < constInfo.bSize; bIdx++) {
+        for (int64_t bIdx = curBatchIdx; bIdx < constInfo.bSize; bIdx++) {
             GetSeqQlenKvlenByBidx(bIdx, actualS1Len, actualS2Len);
             s1OuterTmp = (actualS1Len + CUBE_BASEM - 1) / CUBE_BASEM;
             s2OuterTmp = (actualS2Len + VECTOR_BASEN - 1) / VECTOR_BASEN;
