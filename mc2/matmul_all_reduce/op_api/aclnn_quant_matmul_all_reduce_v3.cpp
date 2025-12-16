@@ -246,8 +246,8 @@ static bool CheckShape(
           dequantScale->GetViewShape().GetDim(1) == outShape.GetDim(x1Len - 1))) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID,
-            "Expected dequantScale be [1] or [n] or [1,n], last dim of dequantScale should be %ld or 1, \
-                but got dequantScale shape: %s.",
+            "Expected dequantScale be [1] or [n] or [1,n], last dim of dequantScale should be %ld or 1, "
+            "but got dequantScale shape: %s.",
             output->GetViewShape().GetDim(x1Len - 1), op::ToString(dequantScale->GetViewShape()).GetString());
         return false;
     }
@@ -285,8 +285,8 @@ static bool CheckShape(
         if (commQuantScale1OptionalLen != commQuantScale2OptionalLen) {
             OP_LOGE(
                 ACLNN_ERR_PARAM_INVALID,
-                "Expected commQuantScale1 and commQuantScale2 have the same shape, \
-                                             but got commQuantScale1 shape: %s, commQuantScale2 shape: %s.",
+                "Expected commQuantScale1 and commQuantScale2 have the same shape, "
+                "but got commQuantScale1 shape: %s, commQuantScale2 shape: %s.",
                 op::ToString(commQuantScale1Optional->GetViewShape()).GetString(),
                 op::ToString(commQuantScale2Optional->GetViewShape()).GetString());
             return false;
@@ -306,8 +306,8 @@ static bool CheckShape(
                commQuantScale1Dim1 == x2Dim1 && commQuantScale2Dim1 == x2Dim1))) {
             OP_LOGE(
                 ACLNN_ERR_PARAM_INVALID,
-                "Expected commQuantScale1 and commQuantScale2 be [n] or [1,n], last dim should be %ld, \
-                but got commQuantScale1 shape: %s, commQuantScale2 shape: %s.",
+                "Expected commQuantScale1 and commQuantScale2 be [n] or [1,n], last dim should be %ld, "
+                "but got commQuantScale1 shape: %s, commQuantScale2 shape: %s.",
                 x2Dim1, op::ToString(commQuantScale1Optional->GetViewShape()).GetString(),
                 op::ToString(commQuantScale2Optional->GetViewShape()).GetString());
             return false;
