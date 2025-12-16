@@ -265,6 +265,7 @@ protected:
     T positiveFloatScalar;
 
     uint8_t attenMaskCompressMode;
+    bool hasSink;
 
     int32_t blockIdx;
     const FlashAttentionScoreGeneralTilingData *__restrict tilingData;
@@ -419,6 +420,7 @@ FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS_TEMPLATE>::InitInput(
     GetExtremeValue(this->negativeFloatScalar, this->positiveFloatScalar);
 
     this->attenMaskCompressMode = this->tilingData->inputParams.attenMaskCompressMode;
+    this->hasSink = this->tilingData->inputParams.needSinkOp;
 }
 
 FA_BN2GS1S2B_FUNCTION_TEMPLATE
@@ -778,6 +780,7 @@ FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1
     event_t eventIdMte2ToV = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE2_V>());
     event_t eventIdVToMte2A = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
     event_t eventIdVToMte2B = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
+    event_t eventIdVToMte2Sink = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
     event_t eventIdMte3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
     event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     event_t eventIdPseDropVToMte2A;
@@ -853,6 +856,9 @@ FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1
                 AscendC::PipeBarrier<PIPE_V>();
                 PseCompute<T, hasPse>(stage1PongTensor, stage1PingTensor, this->pseInfo);
             }
+            if (loopIdxNew > 0 && hasSink) {
+                AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2Sink);
+            }
             this->CopyInAttenMask(extraInfo, -1);
             if (this->tilingData->inputParams.pseType == (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
                 AscendC::PipeBarrier<PIPE_V>();
@@ -927,7 +933,10 @@ FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1
             }
 
             this->SoftMaxCompute(extraInfo, stage1PingTensor, loopIdx);
-
+            if (loopIdxNew < this->biN2G * this->s1OuterSize - 1 && hasSink) {
+                // hasSink场景下，需要flash更新，expUb使用maskTBufPing地址,增加一个同步。
+                AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMte2Sink);
+            }
             if constexpr (hasDrop == true) {
                 LocalTensor<uint8_t> apiTmpBuffer = this->commonTBuf.template Get<uint8_t>();
                 LocalTensor<uint8_t> dropMaskUb = this->maskTBufPong.template Get<uint8_t>();
@@ -1512,7 +1521,6 @@ __aicore__ inline void FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS
     sumUb.SetShapeInfo(ShapeInfo(2, maxSumShape, DataFormat::ND));
     maxUb.SetShapeInfo(ShapeInfo(2, maxSumShape, DataFormat::ND));
 
-    bool hasSink = this->tilingData->inputParams.needSinkOp;
     if (hasSink) {
         float inMax = sinkGm.GetValue(this->currentN1Idx);
         float inSum = 1.0;
@@ -1533,6 +1541,8 @@ __aicore__ inline void FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS
     SoftMaxTiling softmaxFlashTilingData;
     if (IsBasicBlockInSoftMax(extraInfo.vecS1BaseSize, this->s2Size)) {
         if (hasSink){
+            expUb = this->maskTBufPing.template Get<T>()[0];
+            expUb.SetShapeInfo(ShapeInfo(2, expShape, DataFormat::ND));
             SoftmaxFlashV2<T, true, true, true>(srcTensor, sumUb, maxUb, srcTensor, expUb, sumUb, maxUb, apiTmpBuffer,
                                         softmaxFlashTilingData);
         }else{
@@ -1541,6 +1551,8 @@ __aicore__ inline void FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS
         }
     } else {
         if (hasSink){
+            expUb = this->maskTBufPing.template Get<T>()[0];
+            expUb.SetShapeInfo(ShapeInfo(2, expShape, DataFormat::ND));
             SoftmaxFlashV2<T, true, true, false>(srcTensor, sumUb, maxUb, srcTensor, expUb, sumUb, maxUb, apiTmpBuffer,
                                                 softmaxFlashTilingData);
         }else{

@@ -263,6 +263,7 @@ protected:
 
     // s2base * N之后的长度
     int64_t s1BaseS2;
+    bool hasSink;
 
     int64_t s1BaseN2GD;
     int64_t s1BaseBN2GD;
@@ -420,6 +421,7 @@ __aicore__ inline void FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_T
         this->negativeIntScalar = NEGATIVE_MIN_VAULE_FP16;
     }
     GetExtremeValue(this->negativeFloatScalar, this->positiveFloatScalar);
+    this->hasSink = this->tilingData->inputParams.needSinkOp;
 }
 
 FA_S1BN2GS1_FUNCTION_TEMPLATE
@@ -1177,6 +1179,7 @@ FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1(S
     event_t eventIdMte2ToV = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE2_V>());
     event_t eventIdVToMte2A = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
     event_t eventIdVToMte2B = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
+    event_t eventIdVToMte2Sink = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
     event_t eventIdMte3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
     event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     event_t eventIdMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
@@ -1232,6 +1235,9 @@ FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1(S
         if constexpr (hasPse == true) {
             AscendC::PipeBarrier<PIPE_V>();
             PseCompute<T, hasPse>(this->tilingData->inputParams.pseType != (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE ? stage1PingTensor : actualUseTensor, commonTBuf, this->pseInfo);
+        }
+        if (loopIdx > 0 && hasSink) {
+                AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2Sink);
         }
         this->CopyInAttenMask(extraInfo, loopIdx, -1);
 
@@ -1311,6 +1317,10 @@ FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1(S
         }
 
         this->SoftMaxCompute(extraInfo, stage1PingTensor, loopIdx);
+        if (loopIdx < extraInfo.realSplitN - 1 && hasSink) {
+                // hasSink场景下，需要flash更新，expUb使用maskTBufPing地址,增加一个同步。
+                AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMte2Sink);
+        }
 
         if constexpr (hasDrop == true) {
             LocalTensor<uint8_t> apiTmpBuffer = this->commonTBuf.template Get<uint8_t>();
@@ -1641,7 +1651,6 @@ __aicore__ inline void FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_T
     sumUb.SetShapeInfo(ShapeInfo(2, maxSumShape, DataFormat::ND));
     maxUb.SetShapeInfo(ShapeInfo(2, maxSumShape, DataFormat::ND));
 
-    bool hasSink = this->tilingData->inputParams.needSinkOp;
     if (hasSink) {
         float inMax = sinkGm.GetValue(extraInfo.n2oIdx * this->tilingData->inputParams.gSize + extraInfo.goIdx);
         float inSum = 1.0;
@@ -1666,9 +1675,13 @@ __aicore__ inline void FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_T
                                                                     apiTmpBuffer.GetSize() / sizeof(T),
                                                                     false, true);
     if (hasSink){
+        expUb = this->maskTBufPing.template Get<T>()[0];
+        expUb.SetShapeInfo(ShapeInfo(2, expShape, DataFormat::ND));
         SoftmaxFlashV2<T, true, true, true, false, SOFTMAX_DEFAULT_CFG>(srcTensor, sumUb, maxUb, srcTensor, expUb,
                                                                     sumUb, maxUb, apiTmpBuffer, newTiling);
     }else{
+        expUb = this->maskTBufPing.template Get<T>()[0];
+        expUb.SetShapeInfo(ShapeInfo(2, expShape, DataFormat::ND));
         SoftmaxFlashV2<T, false, true, true, false, SOFTMAX_DEFAULT_CFG>(srcTensor, sumUb, maxUb, srcTensor, expUb,
                                                                     sumUb, maxUb, apiTmpBuffer, newTiling);
     }
