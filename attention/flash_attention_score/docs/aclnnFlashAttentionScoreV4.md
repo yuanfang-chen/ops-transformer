@@ -17,6 +17,8 @@
 
 ## 功能说明
 
+- 确定性计算：
+  - aclnnFlashAttentionScoreV4默认确定性实现。
 - 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。**该接口query、key、value参数支持多个长度相等或者多个长度不相等的sequence**
   - **该接口相较于[FlashAttentionScoreV2](./FlashAttentionScoreV2.md)接口，新增支持数据类型FLOAT8_E5M2、FLOAT8_E4M3FN，调整Dropout功能**：
     -   <term>昇腾950 AI处理器</term>：

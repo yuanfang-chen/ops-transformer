@@ -112,6 +112,8 @@
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMatmulReduceScatterV2默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 -   <term>昇腾910_95 AI处理器</term>：
     - 只支持x2矩阵转置/不转置，x1矩阵仅支持不转置场景。
     - 输入x1为2维，其shape为\(m, k\)，m须为卡数rank\_size的整数倍。

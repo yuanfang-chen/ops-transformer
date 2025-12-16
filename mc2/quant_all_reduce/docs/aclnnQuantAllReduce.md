@@ -227,6 +227,8 @@ aclnnStatus aclnnQuantAllReduce(
     返回aclnnStatus状态码，具体参见aclnn返回码。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnQuantAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 
 - 当x的数据类型为FLOAT8_E4M3FN、FLOAT8_E5M2并且scales的数据类型为FLOAT8_E8M0时，输入数据的量化方式为mx量化。
 - 当x的数据类型为INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2并且scales的数据类型为FLOAT时，输入数据的量化方式为pertoken-pergroup量化（groupSize=128）。
