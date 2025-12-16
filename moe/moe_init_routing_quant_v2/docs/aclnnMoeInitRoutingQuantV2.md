@@ -254,8 +254,8 @@ aclnnStatus aclnnMoeInitRoutingQuantV2(
         <td>expandedXOut</td>
         <td>输出</td>
         <td>根据expertIdx进行扩展过的特征。</td>
-        <td><ul><li>支持空tensor。</li><li>在Dropless/Active场景下要求是一个2D的Tensor，Dropless场景shape为[NUM_ROWS * K, H]，Active场景shape为[min(activeNum, NUM_ROWS * K), H]。</li><li>在Drop/Pad场景下要求是一个3D的Tensor，shape为[expertNum, expertCapacity, H]。</li><li>数据类型支持INT8。</li></ul></td>
-        <td>INT8</td>
+        <td><ul><li>支持空tensor。</li><li>在Dropless/Active场景下要求是一个2D的Tensor，Dropless场景shape为[NUM_ROWS * K, H]，Active场景shape为[min(activeNum, NUM_ROWS * K), H]。</li><li>在Drop/Pad场景下要求是一个3D的Tensor，shape为[expertNum, expertCapacity, H]。</li><li>数据类型支持INT8和INT4,当expandedXOut的数据类型为INT4时dropPadMode仅支持0,传入scaleOptional时仅支持shape为[1, H]。</li></ul></td>
+        <td>INT8、INT4</td>
         <td>ND</td>
         <td>2或3</td>
         <td>×</td>
@@ -321,7 +321,7 @@ aclnnStatus aclnnMoeInitRoutingQuantV2(
         <td>-</td>
       </tr>
     </tbody></table>
-
+    -   <term>昇腾910_95 AI处理器</term>：输出expandedXOut数据类型仅支持INT8。
 - **返回值：**
 
     `aclnnStatus`：返回状态码，具体参见 <a href="../../../docs/zh/context/aclnn返回码.md">aclnn 返回码</a>。
@@ -354,7 +354,7 @@ aclnnStatus aclnnMoeInitRoutingQuantV2(
         <tr>
           <td rowspan="6">ACLNN_ERR_INNER_TILING_ERROR</td>
           <td rowspan="6">561002</td>
-          <td>x和expertIdx的shape维度不等于2，且第一维不相等。</td>
+          <td>x和expertIdx的shape维度不等于2，且第一维不相等。当expandedXOut的数据类型为INT4时dropPadMode不为0或输入scaleOptional时shape不为[1, H]</td>
         </tr>
         <tr>
           <td>activeNum、expertNum、expertCapacity的值小于0。</td>
