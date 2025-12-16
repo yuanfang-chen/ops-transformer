@@ -1012,6 +1012,8 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
     int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
     int64_t tempKD = 0;
     int64_t tempVD = 0;
+    constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
+    constexpr int64_t MAX_BLOCK_SIZE = 512;
     if (!isPageAttention) {
         tempKD = tempK->GetStorageShape().GetDim(DIM_2);
         tempVD = tempV->GetStorageShape().GetDim(DIM_2);
@@ -1025,9 +1027,13 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                 "When paged cache is used, the first dim of K and V must be consistent with input blockSize attr"),
                 return ge::GRAPH_FAILED);
-        OP_CHECK_IF(inputBlockSize != 128U,
+        OP_CHECK_IF((inputBlockSize % BLOCK_SIZE_ALIGN_16 != 0),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-                "When input layout is TND and paged cache is used, the input blockSize must be 128"),
+                "When input layout is TND and paged cache is used, the input blockSize must be a multiple of 16"),
+                return ge::GRAPH_FAILED);
+        OP_CHECK_IF((inputBlockSize > MAX_BLOCK_SIZE),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                "When input layout is TND and paged cache is used, the input blockSize must be less than 512"),
                 return ge::GRAPH_FAILED);
     }
     OP_CHECK_IF((tempQD != tempKD) || (tempQD != tempVD),
@@ -1203,6 +1209,8 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
 
     bool usingFAI = false;
+    constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
+    constexpr int64_t MAX_BLOCK_SIZE = 512;
     if (inputLayoutStr == "TND" && !isLearnableSink && !isRopeSplitMla &&
         sparseModeSupported && (nonMhaConditions || mhaConditions)) {
         if (!isPageAttention) {
@@ -1219,7 +1227,9 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
             int64_t blockSize = tempK->GetStorageShape().GetDim(DIM_1);
             bool isFAIDSize = (tempD <= 256U && tempKD <= 256 && tempVD <= 256) &&
                     (tempD == tempKD && tempD == tempVD);
-            if (isFAIDSize && blockSize == 128U) {
+            bool blockSizeSupported = (blockSize % BLOCK_SIZE_ALIGN_16 == 0) && 
+                    (blockSize <= MAX_BLOCK_SIZE);
+            if (isFAIDSize && blockSizeSupported) {
                 usingFAI = true;
             }
         }
