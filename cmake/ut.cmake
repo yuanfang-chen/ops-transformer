@@ -340,8 +340,12 @@ if(UT_TEST_ALL OR OP_KERNEL_UT)
     endif()
 
     # find kernel file
-    file(GLOB KernelFile "${PROJECT_SOURCE_DIR}/*/${opName}/op_kernel/${opName}.cpp")
-
+    if(ARGN)
+      list(GET ARGN 0 KernelFile)
+    else()
+      file(GLOB KernelFile "${PROJECT_SOURCE_DIR}/*/${opName}/op_kernel/${opName}.cpp")
+    endif()
+    
     # standardize opType
     set(opType "")
     string(REPLACE "_" ";" opTypeTemp "${opName}")
@@ -484,7 +488,6 @@ if(UT_TEST_ALL OR OP_KERNEL_AICPU_UT)
     target_compile_options(${opName}_cases_obj PRIVATE 
             -g
             )
-    message(STATUS "111******************** ${AICPU_INCLUDE}")
 
     ## add op_kernel_aicpu test header file search path, so that header files can be referenced based on relative path
     target_include_directories(${opName}_cases_obj PRIVATE

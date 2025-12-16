@@ -54,6 +54,10 @@ foreach(SOC_VERSION ${ASCEND_COMPUTE_UNIT})
   endif()
 endforeach()
 
+list(FIND ARCH_DIRECTORY "arch32" INDXE)
+if(NOT INDEX EQUAL -1)
+    list(APPEND ARCH_DIRECTORY "arch22")
+endif()
 
 if(PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
   message(STATUS "compile project with library")
