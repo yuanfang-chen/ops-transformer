@@ -83,7 +83,8 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(const aclTensor *x,
                "Expected a proper Tensor but got null for argument output.");
     GroupedMatmulSwigluQuantParamsBase params =
         GroupedMatmulSwigluQuantParamsBuilder::Create(x, weight, weightScale, output, outputScale)
-        .SetXScale(xScale).SetGroupList(groupList).SetGroupListType(groupListType)
+        .SetXScale(xScale).SetSmoothScale(smoothScale)
+        .SetGroupList(groupList).SetGroupListType(groupListType)
         .SetWeightAssistMatrix(weightAssistMatrix)
         .SetDequantAttr(dequantMode, dequantDtype)
         .SetQuantAttr(quantMode, static_cast<int64_t> (output->GetDataType()))
@@ -131,8 +132,9 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2GetWorkspaceSize(const aclTen
 
     GroupedMatmulSwigluQuantParamsBase params =
         GroupedMatmulSwigluQuantParamsBuilder::Create(x, weight, weightScale, output, outputScale)
-        .SetXScale(xScale).SetGroupList(groupList)
-        .SetGroupListType(groupListType).SetWeightAssistMatrix(weightAssistMatrix)
+        .SetXScale(xScale).SetSmoothScale(smoothScale)
+        .SetGroupList(groupList).SetGroupListType(groupListType)
+        .SetWeightAssistMatrix(weightAssistMatrix)
         .SetDequantAttr(dequantMode, dequantDtype)
         .SetTuningConfig(tuningConfigOptional).Build();
 

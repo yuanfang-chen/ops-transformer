@@ -1,30 +1,29 @@
 /**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
- * \file grouped_matmul_swiglu_quant_v2_pipeline.h
+ * \file grouped_matmul_swiglu_quant_v2_a4w4_pipeline.h
  * \brief
  */
-#ifndef OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_PIPELINE_H
-#define OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_PIPELINE_H
+#ifndef OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A4W4_PIPELINE_H
+#define OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A4W4_PIPELINE_H
 
 #include <typeinfo>
-#include "grouped_matmul_swiglu_quant_v2_a8w4_msd_pre.h"
-#include "grouped_matmul_swiglu_quant_v2_a8w4_msd_mid.h"
-#include "grouped_matmul_swiglu_quant_v2_a8w4_msd_post.h"
+#include "grouped_matmul_swiglu_quant_v2_a4w4_mid.h"
+#include "grouped_matmul_swiglu_quant_v2_a4w4_post.h"
 #include "grouped_matmul_swiglu_quant_v2_utils.h"
 
 using namespace AscendC;
 using namespace matmul;
 
-#ifdef GMM_SWIGLU_QUANT_V2_A8W4_MSD
+#ifdef GMM_SWIGLU_QUANT_V2_A4W4
 
 namespace GroupedMatmulDequantSwigluQuant {
 
@@ -40,12 +39,10 @@ private:
     WorkSpaceSplitConfig tempWorkspaceSplitConfig;
     // 记录GM_ADDR的结构体
     GMAddrParams gmAddrParams;
-    // 前处理GMMA8W4PreProcess类
-    GMMA8W4PreProcess preProcess;
-    // 中间处理GMMA8W4MidProcess类
-    GMMA8W4MidProcess<mmType> midProcess;
-    // 后处理GMMA8W4PostProcess类
-    GMMA8W4PostProcess postProcess;
+    // 中间处理GMMA4W4MidProcess类
+    GMMA4W4MidProcess<mmType> midProcess;
+    // 后处理GMMA4W4PostProcess类
+    GMMA4W4PostProcess postProcess;
     GlobalTensor<int64_t> groupListGM;
     __aicore__ inline void InitWorkSpaceSplitConfig(WorkSpaceSplitConfig &workspaceSplitConfig);
 
@@ -81,10 +78,10 @@ __aicore__ inline void GMMSwigluQuantPipelineSchedule<mmType>::Init(GM_ADDR x, G
     gmAddrParams.yGM = y;
     gmAddrParams.yScaleGM = yScale;
     gmAddrParams.workSpaceGM = workspace;
-    gmAddrParams.workSpaceOffset1 = gmmSwigluQuantV2BaseParams->workSpaceOffset1 / 2;
+    gmAddrParams.workSpaceOffset1 = gmmSwigluQuantV2BaseParams->workSpaceOffset1 / NUM_2;
     gmAddrParams.workSpaceOffset2 = gmmSwigluQuantV2BaseParams->workSpaceOffset1;
     gmAddrParams.workSpaceOffset3 =
-        gmmSwigluQuantV2BaseParams->workSpaceOffset1 + gmmSwigluQuantV2BaseParams->workSpaceOffset2 / 2;
+        gmmSwigluQuantV2BaseParams->workSpaceOffset1 + gmmSwigluQuantV2BaseParams->workSpaceOffset2 / NUM_2;
     groupListGM.SetGlobalBuffer((__gm__ int64_t *)gmAddrParams.groupListGM);
     InitWorkSpaceSplitConfig(workspaceSplitConfig);
 }
@@ -93,12 +90,10 @@ template <class mmType>
 __aicore__ inline void GMMSwigluQuantPipelineSchedule<mmType>::Process()
 {
     // 1.对每次workspace切分做大循环。
-    preProcess.Init(gmAddrParams, gmmSwigluQuantV2BaseParams);
     midProcess.Init(gmAddrParams, gmmSwigluQuantV2BaseParams);
     postProcess.Init(gmAddrParams, gmmSwigluQuantV2BaseParams, gmmSwigluQuantV2);
 
     // 1.前处理提前下发一次
-    preProcess.Process(workspaceSplitConfig, 0, pipe);
     for (int64_t workspaceSplitLoopIdx = 0; workspaceSplitLoopIdx < workspaceSplitConfig.loopCount;
          workspaceSplitLoopIdx++) {
         // 更新workspaceSplitConfig
@@ -111,7 +106,6 @@ __aicore__ inline void GMMSwigluQuantPipelineSchedule<mmType>::Process()
         // 2.第n次中处理 && 第n+1次前处理 && 第n-1次后处理 并行
         midProcess.Process(workspaceSplitConfig, workspaceSplitLoopIdx);
 
-        preProcess.Process(workspaceSplitConfig, workspaceSplitLoopIdx + 1, pipe);
         if ASCEND_IS_AIV {
             pipe->Reset();
             SyncAll<true>();
@@ -232,5 +226,5 @@ GMMSwigluQuantPipelineSchedule<mmType>::UpdateWorkSpaceSplitConfig(WorkSpaceSpli
 }
 
 } // namespace GroupedMatmulDequantSwigluQuant
-#endif // GMM_SWIGLU_QUANT_V2_A8W4_MSD
-#endif // OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_PIPELINE_H
+#endif // GMM_SWIGLU_QUANT_V2_A4W4
+#endif // OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A4W4_PIPELINE_H

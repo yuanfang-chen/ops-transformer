@@ -48,7 +48,7 @@ constexpr size_t INT4_PER_INT32 = 8UL;
 constexpr size_t NZ_ALIGN_K = 16UL;
 constexpr size_t NZ_ALIGN_N = 32UL;
 
-const std::initializer_list<DataType> X_DTYPE_SUPPORT_LIST = {DataType::DT_INT8};
+const std::initializer_list<DataType> X_DTYPE_SUPPORT_LIST = {DataType::DT_INT8, DataType::DT_INT4};
 const std::initializer_list<DataType> WEIGHT_DTYPE_SUPPORT_LIST = {DataType::DT_INT8, DataType::DT_INT4};
 const std::initializer_list<DataType> WEIGHT_SCALE_DTYPE_SUPPORT_LIST = {
     DataType::DT_FLOAT, DataType::DT_FLOAT16, DataType::DT_BF16};
@@ -84,7 +84,7 @@ protected:
         return true;
     }
 
-    bool CheckInputOutDimsA8W4()
+    bool CheckInputOutDimsA8W4orA4W4()
     {
         OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.x, X_DIM_LIMIT, return false);
         size_t wLength = gmmDsqParams_.weight->Size();
@@ -283,7 +283,7 @@ protected:
         return true;
     }
 
-    bool CheckSingleTensorListTypeA8W4(int64_t e, int64_t k, int64_t n)
+    bool CheckSingleTensorListTypeA8W4orA4W4(int64_t e, int64_t k, int64_t n)
     {
         // weight的NDshape期望为[E, K, N]
         op::Shape weightNDExpectShape = {e, k, n};
@@ -308,7 +308,7 @@ protected:
         return true;
     }
 
-    bool CheckMultiTensorTypeA8W4(int64_t k, int64_t n)
+    bool CheckMultiTensorTypeA8W4orA4W4(int64_t k, int64_t n)
     {
         // weight的NDshape期望为[K, N]
         op::Shape weightNDExpectShape = {k, n};
@@ -334,17 +334,17 @@ protected:
         return true;
     }
 
-    bool CheckTensorListShapeA8W4(int64_t e, int64_t k, int64_t n)
+    bool CheckTensorListShapeA8W4orA4W4(int64_t e, int64_t k, int64_t n)
     {
         size_t wLength = gmmDsqParams_.weight->Size();
         if (wLength == static_cast<size_t>(1)) {
-            return CheckSingleTensorListTypeA8W4(e, k, n);
+            return CheckSingleTensorListTypeA8W4orA4W4(e, k, n);
         }
 
-        return CheckMultiTensorTypeA8W4(k, n);
+        return CheckMultiTensorTypeA8W4orA4W4(k, n);
     }
 
-    bool CheckInputOutShapeA8W4()
+    bool CheckInputOutShapeA8W4orA4W4()
     {
         int64_t m = gmmDsqParams_.x->GetViewShape().GetDim(0);
         int64_t k = gmmDsqParams_.x->GetViewShape().GetDim(1);
@@ -403,7 +403,7 @@ protected:
         // outputScale的shape期望为[M]
         op::Shape outputScaleExpectShape = {m};
 
-        auto ret = CheckTensorListShapeA8W4(e, k, n);
+        auto ret = CheckTensorListShapeA8W4orA4W4(e, k, n);
         if (!ret) {
             return false;
         }
@@ -421,20 +421,20 @@ protected:
         int64_t groupListLen = gmmDsqParams_.groupList->GetViewShape().GetDim(0);
         if (groupListLen > e) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "%s A8W4, Length of 'groupList' out of range (expected to be in range of [1, "
+                    "%s A8W4 or A4W4, Length of 'groupList' out of range (expected to be in range of [1, "
                     "%ld], but got %ld)", interfaceName_.c_str(),
                     e, groupListLen);
             return false;
         }
         if (n > N_LIMIT) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s A8W4: The current version does not support the scenario that "
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "%s A8W4 or A4W4: The current version does not support the scenario that "
                     "N(%ld) is greater than %ld.", interfaceName_.c_str(),
                     n, N_LIMIT);
             return false;
         }
         if (k >= K_LIMIT_A8W4) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "%s A8W4, The current version does not support the scenario."
+                    "%s A8W4 or A4W4, The current version does not support the scenario."
                     "The tail axis dimension of input0(x) is %ld, which need lower than %ld.",
                     interfaceName_.c_str(), k, K_LIMIT_A8W4);
             return false;
@@ -462,12 +462,23 @@ protected:
                 && ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT8) {
             return CheckInputOutDimsA8W8();
         }
-        // A8W4场景 INT32为兼容torch_npu考虑，实际计算时，1个INT32数据会被视为8个INT4数据
+        // A8W4或者A4W4场景 INT32为兼容torch_npu考虑，实际计算时，1个INT32数据会被视为8个INT4数据
         if ((gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
              ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
             (gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
              ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32)) {
             // 将INT32视为8个Int4数据，调整viewShape和dtype便于后续统一校验
+            if (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32) {
+                UnpackInt32ToInt4(gmmDsqParams_.x, "x");
+            }
             if (((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) {
                 size_t wLength = gmmDsqParams_.weight->Size();
                 for (size_t i = 0; i < wLength; i++) {
@@ -482,7 +493,7 @@ protected:
                     weightScale_fix->SetDataType(DataType::DT_UINT64);
                 }
             }
-            return CheckInputOutDimsA8W4();
+            return CheckInputOutDimsA8W4orA4W4();
         }
 
         return false;
@@ -494,12 +505,20 @@ protected:
                 && ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT8) {
             return CheckInputOutShapeA8W8();
         }
-        // A8W4场景
+        // A8W4场景或A4W4场景
         if ((gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
              ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
             (gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
+             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
              ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32)) {
-            return CheckInputOutShapeA8W4();
+            return CheckInputOutShapeA8W4orA4W4();
         }
 
         return false;

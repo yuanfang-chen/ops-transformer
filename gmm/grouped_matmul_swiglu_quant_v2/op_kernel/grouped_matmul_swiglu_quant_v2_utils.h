@@ -21,6 +21,10 @@
     defined(DT_INT4) && ORIG_DTYPE_WEIGHT == DT_INT4
         #define GMM_SWIGLU_QUANT_V2_A8W4_MSD
         using DTYPE_X_A8W4_MSD = AscendC::int4b_t;
+// A4W4 场景
+#elif defined(ORIG_DTYPE_X) && defined(DT_INT4) && ORIG_DTYPE_X == DT_INT4 && defined(ORIG_DTYPE_WEIGHT) &&              \
+    defined(DT_INT4) && ORIG_DTYPE_WEIGHT == DT_INT4
+        #define GMM_SWIGLU_QUANT_V2_A4W4
 // A8W8 场景
 #elif defined(ORIG_DTYPE_X) && defined(DT_INT8) && ORIG_DTYPE_X == DT_INT8 && defined(ORIG_DTYPE_WEIGHT) &&            \
     defined(DT_INT8) && ORIG_DTYPE_WEIGHT == DT_INT8
@@ -50,6 +54,7 @@ constexpr uint32_t MOD_32_MASK = 0x1F;
 constexpr uint32_t MOD_16_MASK = 0x0F;
 constexpr uint32_t ALIGN_8_ELE = 8;
 constexpr uint32_t ALIGN_16_ELE = 16;
+constexpr uint32_t NUM_2 = 2;
 constexpr int64_t SWIGLU_REDUCE_FACTOR = 2;
 constexpr int64_t DOUBLE_BUFFER = 2;
 constexpr int64_t DOUBLE_ROW = 2;
@@ -71,7 +76,7 @@ struct MMImplType {
 };
 
 template <class AT_, class BT_, class CT_>
-struct MMImplTypA8W4 {
+struct MMImplTypeCustom {
     using AT = AT_;
     using BT = BT_;
     using CT = CT_;

@@ -33,7 +33,7 @@ static inline auto AlignUp(T a, T base) -> T
     return (a + base - 1) / base * base;
 }
 
-int64_t GroupedMatmulSwigluQuantV2BaseTiling::CalMaxRowInUbA8W4(const uint64_t ubSize, const uint64_t n)
+int64_t GroupedMatmulSwigluQuantV2BaseTiling::CalMaxRowInUbA8W4(const uint64_t ubSize, const uint64_t n) const
 {
     const uint64_t ALIGNMENT = 8;
     const float WEIGHT_FACTOR = 8.5;
@@ -148,6 +148,16 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
     ge::DataType weightDType = weightDesc->GetDataType();
 
     isA8W4MSD_ = (xDType == ge::DataType::DT_INT8 && weightDType == ge::DataType::DT_INT4);
+    isA4W4_ = (xDType == ge::DataType::DT_INT4 && weightDType == ge::DataType::DT_INT4);
+    if (isA4W4_) {
+        auto smoothScaleTensor = context_->GetDynamicInputTensor(SMOOTH_SCALE_INDEX, 0);
+        if (smoothScaleTensor == nullptr) {
+            smoothScaleDimNum_ = 0;
+        } else {
+            smoothScaleDimNum_ = smoothScaleTensor->GetStorageShape().GetDimNum();
+        }
+    }
+
     auto compileInfoPtr = context_->GetCompileInfo<GMMSwigluV2CompileInfo>();
     OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context_->GetNodeName(), "CompileInfo is nullptr"),
                 return ge::GRAPH_FAILED);
@@ -177,7 +187,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
 
     groupNum_ = groupListTensor->GetStorageShape().GetDim(0);
 
-    if (isA8W4MSD_) {
+    if (isA8W4MSD_ || isA4W4_) {
         maxProcessRowNum_ = CalMaxRowInUbA8W4(compileInfoPtr->ubSize_, n_);
     } else {
         maxProcessRowNum_ = CalMaxRowInUb(compileInfoPtr->ubSize_, n_);
@@ -209,7 +219,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DoOpTiling()
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                                             "grouped_matmul_swiglu_quant_base_tiling, get tiling failed"),
                 return ge::GRAPH_FAILED);
-    if (isA8W4MSD_) {
+    if (isA8W4MSD_ || isA4W4_) {
         tilingData_.mmTilingData.set_baseM(A8W4_BASEM);
         tilingData_.mmTilingData.set_baseN(A8W4_BASEN);
         tilingData_.mmTilingData.set_baseK(A8W4_BASEK);
@@ -224,7 +234,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DoOpTiling()
 
     usrWorkspaceLimit_ = USER_WORKSPACE_LIMIT;
     mLimit_ = 0;
-    if (isA8W4MSD_) {
+    if (isA8W4MSD_ || isA4W4_) {
         mLimit_ =
             ((usrWorkspaceLimit_ / DOUBLE_WORKSPACE_SPLIT) / (k_ * sizeof(int8_t) + DOUBLE_ROW * n_ * sizeof(half)));
     } else {
@@ -235,7 +245,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DoOpTiling()
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "mLimit_ is %ld must over then 0.", mLimit_),
                 return ge::GRAPH_FAILED);
     tilingData_.gmmSwigluQuantV2BaseParams.set_mLimit(mLimit_);
-    if (isA8W4MSD_) {
+    if (isA8W4MSD_ || isA4W4_) {
         int workSpaceMTemp = mLimit_ * DOUBLE_WORKSPACE_SPLIT;
         tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset1(workSpaceMTemp * k_ * sizeof(int8_t));
         tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset2(DOUBLE_ROW * workSpaceMTemp * n_ * sizeof(half));
@@ -276,6 +286,7 @@ void GroupedMatmulSwigluQuantV2BaseTiling::FillTilingData()
     tilingData_.gmmSwigluQuantV2BaseParams.set_quantGroupNum(quantGroupNum_);
     tilingData_.gmmSwigluQuantV2BaseParams.set_isSingleTensor(isSingleTensor_);
     tilingData_.gmmSwigluQuantV2BaseParams.set_groupListType(groupListType_);
+    tilingData_.gmmSwigluQuantV2BaseParams.set_smoothScaleDimNum(smoothScaleDimNum_);
     tilingData_.gmmSwigluQuantV2.set_maxProcessRowNum(maxProcessRowNum_);
     tilingData_.gmmSwigluQuantV2.set_groupListLen(groupNum_);
     tilingData_.gmmSwigluQuantV2.set_tokenLen(n_);
@@ -295,6 +306,8 @@ void GroupedMatmulSwigluQuantV2BaseTiling::PrintTilingData()
     OP_LOGD(context_->GetNodeName(), "quantGroupNum: %ld", tilingData_.gmmSwigluQuantV2BaseParams.get_quantGroupNum());
     OP_LOGD(context_->GetNodeName(), "isSingleTensor:%ld", tilingData_.gmmSwigluQuantV2BaseParams.get_isSingleTensor());
     OP_LOGD(context_->GetNodeName(), "groupListType: %ld", tilingData_.gmmSwigluQuantV2BaseParams.get_groupListType());
+    OP_LOGD(context_->GetNodeName(), "smoothScaleDimNum: %ld",
+            tilingData_.gmmSwigluQuantV2BaseParams.get_smoothScaleDimNum());
     OP_LOGD(context_->GetNodeName(), "maxProcessRowNum:      %ld", tilingData_.gmmSwigluQuantV2.get_maxProcessRowNum());
     OP_LOGD(context_->GetNodeName(), "groupListLen:          %ld", tilingData_.gmmSwigluQuantV2.get_groupListLen());
     OP_LOGD(context_->GetNodeName(), "tokenLen:              %ld", tilingData_.gmmSwigluQuantV2.get_tokenLen());
@@ -307,6 +320,9 @@ void GroupedMatmulSwigluQuantV2BaseTiling::SetTilingKeyAndScheMode()
 {
     if (isA8W4MSD_) { // A8W4 MSD tiling_key
         tilingKey_ = A8W4_MSD_TILING_KEY_MODE;
+        context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
+    } else if (isA4W4_) {
+        tilingKey_ = A4W4_TILING_KEY_MODE;
         context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     } else if (isSplitWorkSpace_) {
         tilingKey_ = SPLITWORKSPACE_TILING_KEY_MODE;

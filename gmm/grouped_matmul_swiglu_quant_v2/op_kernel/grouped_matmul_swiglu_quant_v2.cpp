@@ -18,7 +18,8 @@
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "grouped_matmul_swiglu_quant_spilit_fusion.h"
-#include "grouped_matmul_swiglu_quant_v2_pipeline.h"
+#include "grouped_matmul_swiglu_quant_v2_a8w4_msd_pipeline.h"
+#include "grouped_matmul_swiglu_quant_v2_a4w4_pipeline.h"
 #include "grouped_matmul_swiglu_quant_v2_utils.h"
 using namespace AscendC;
 using namespace matmul;
@@ -42,7 +43,7 @@ extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, 
         using xType = MatmulType<TPosition::GM, CubeFormat::ND, int4b_t, false>;
         using weightType = MatmulType<TPosition::GM, wFormat, int4b_t, false>;
         using yType = MatmulType<TPosition::GM, CubeFormat::ND, half, false>;
-        using matmulType = MMImplTypA8W4<xType, weightType, yType>;
+        using matmulType = MMImplTypeCustom<xType, weightType, yType>;
         matmulType::MT mm;
         if ASCEND_IS_AIC {
             mm.SetSubBlockIdx(0);
@@ -53,7 +54,28 @@ extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, 
         op.Process();
     }
 #endif
-    if (TILING_KEY_IS(3)) { // antiquant msd
+#if defined(GMM_SWIGLU_QUANT_V2_A4W4)
+    if (TILING_KEY_IS(4)) {
+        KERNEL_TASK_TYPE(4, KERNEL_TYPE_MIX_AIC_1_2);
+        GET_TILING_DATA_MEMBER(GMMSwigluQuantV2TilingData, gmmSwigluQuantV2BaseParams, gmmSwigluQuantV2BaseParams_,
+                               tiling);
+        GET_TILING_DATA_MEMBER(GMMSwigluQuantV2TilingData, mmTilingData, mmTilingData_, tiling);
+        GET_TILING_DATA_MEMBER(GMMSwigluQuantV2TilingData, gmmSwigluQuantV2, gmmSwiglu_, tiling);
+        using xType = MatmulType<TPosition::GM, CubeFormat::ND, int4b_t, false>;
+        using weightType = MatmulType<TPosition::GM, wFormat, int4b_t, false>;
+        using yType = MatmulType<TPosition::GM, CubeFormat::ND, half, false>;
+        using matmulType = MMImplTypeCustom<xType, weightType, yType>;
+        matmulType::MT mm;
+        if ASCEND_IS_AIC {
+            mm.SetSubBlockIdx(0);
+            mm.Init(&mmTilingData_);
+        }
+        GMMSwigluQuantPipelineSchedule<matmulType> op(mm, &gmmSwigluQuantV2BaseParams_, &gmmSwiglu_, &tPipe);
+        op.Init(x, weight, weightScale, xScale, weightAssistanceMatrix, groupList, y, yScale, userWorkspace);
+        op.Process();
+    }
+#endif
+    if (TILING_KEY_IS(3)) {
         KERNEL_TASK_TYPE(3, KERNEL_TYPE_MIX_AIC_1_2);
         GET_TILING_DATA_WITH_STRUCT(GMMSwigluQuantV2TilingFusionData, tilingData, tiling);
         GET_TILING_DATA_MEMBER(GMMSwigluQuantV2TilingFusionData, matmulTiling, matmulTilingData, tiling);

@@ -1,24 +1,24 @@
 /**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
- * \file grouped_matmul_swiglu_quant_v2_a8w4_msd_mid.h
+ * \file grouped_matmul_swiglu_quant_v2_a4w4_mid.h
  * \brief
  */
 
-#ifndef OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A8W4_MSD_MID_H
-#define OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A8W4_MSD_MID_H
+#ifndef OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A4W4_MID_H
+#define OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A4W4_MID_H
 
 #include "grouped_matmul_swiglu_quant_v2_utils.h"
 
-#ifdef GMM_SWIGLU_QUANT_V2_A8W4_MSD
+#ifdef GMM_SWIGLU_QUANT_V2_A4W4
 
 namespace GroupedMatmulDequantSwigluQuant {
 using namespace matmul;
@@ -27,7 +27,7 @@ using namespace AscendC;
 constexpr uint32_t BUFFER_NUM = 1;
 
 template <typename T>
-__aicore__ inline void DataCopyPad2DA8W4(const LocalTensor<T> dst, const GlobalTensor<T> src, uint32_t dim1,
+__aicore__ inline void DataCopyPad2DA4W4(const LocalTensor<T> dst, const GlobalTensor<T> src, uint32_t dim1,
                                          uint32_t dim0, uint32_t srcDim0)
 {
     DataCopyExtParams params;
@@ -35,14 +35,14 @@ __aicore__ inline void DataCopyPad2DA8W4(const LocalTensor<T> dst, const GlobalT
     params.blockLen = dim0 * sizeof(T);
     params.srcStride = (srcDim0 - dim0) * sizeof(T);
     // 32: int32 -> float16, 为防止跨行数据进入同一32B block，提前每行按偶数block对齐
-    params.dstStride = Ceil(dim0 * sizeof(T), 32) % 2;
+    params.dstStride = Ceil(dim0 * sizeof(T), 32) % NUM_2;
 
     DataCopyPadExtParams<T> padParams{true, 0, 0, 0};
     DataCopyPad(dst, src, params, padParams);
 }
 
 template <typename T>
-__aicore__ inline void DataCopyPad2DA8W4ND(const LocalTensor<T> dst, const GlobalTensor<T> src, uint32_t dim1,
+__aicore__ inline void DataCopyPad2DA4W4ND(const LocalTensor<T> dst, const GlobalTensor<T> src, uint32_t dim1,
                                            uint32_t dim0, uint32_t srcDim0)
 {
     DataCopyExtParams params;
@@ -57,7 +57,7 @@ __aicore__ inline void DataCopyPad2DA8W4ND(const LocalTensor<T> dst, const Globa
 }
 
 template <typename T>
-__aicore__ inline void DataCopyPad2DA8W4(const GlobalTensor<T> dst, const LocalTensor<T> src, uint32_t dim1,
+__aicore__ inline void DataCopyPad2DA4W4(const GlobalTensor<T> dst, const LocalTensor<T> src, uint32_t dim1,
                                          uint32_t dim0, uint32_t srcDim0, uint32_t dstDim0)
 {
     DataCopyExtParams params;
@@ -70,12 +70,12 @@ __aicore__ inline void DataCopyPad2DA8W4(const GlobalTensor<T> dst, const LocalT
 }
 
 template <class mmType>
-class GMMA8W4MidProcess {
+class GMMA4W4MidProcess {
 public:
     using bT = typename mmType::BT;
 
 public:
-    __aicore__ inline GMMA8W4MidProcess(typename mmType::MT &matmul) : mm(matmul)
+    __aicore__ inline GMMA4W4MidProcess(typename mmType::MT &matmul) : mm(matmul)
     {
     }
     __aicore__ inline void Init(const GMAddrParams gmAddrParams,
@@ -91,8 +91,6 @@ private:
     typename mmType::MT &mm;
     const uint32_t HALF_ALIGN = 16;
     GlobalTensor<int4b_t> xGM;
-    GlobalTensor<int4b_t> xGM1;
-    GlobalTensor<int4b_t> xGM2;
     GlobalTensor<int4b_t> weightGM;
 
     GlobalTensor<half> mmOutGM;
@@ -110,20 +108,18 @@ private:
     uint32_t quantGroupSize = 0;
     uint32_t vecCount = 0;
     uint32_t xRowSumCount = 0;
-    const GMMSwigluQuantV2BaseParams *__restrict gmmSwigluQuantV2BaseParams;
+    const GMMSwigluQuantV2BaseParams *__restrict gmmSwigluQuantV2BaseParams = nullptr;
 };
 
 template <typename mmType>
 __aicore__ inline void
-GMMA8W4MidProcess<mmType>::Init(const GMAddrParams gmAddrParams,
+GMMA4W4MidProcess<mmType>::Init(const GMAddrParams gmAddrParams,
                                 const GMMSwigluQuantV2BaseParams *__restrict gmmSwigluQuantV2BaseParamsIN)
 {
     if ASCEND_IS_AIC {
         gmmSwigluQuantV2BaseParams = gmmSwigluQuantV2BaseParamsIN;
         xRowSumCount = gmmSwigluQuantV2BaseParams->M;
-        xGM1.SetGlobalBuffer((__gm__ int4b_t *)gmAddrParams.workSpaceGM); // 从前处理中获得的结果
-        xGM2.SetGlobalBuffer(
-            (__gm__ int4b_t *)((__gm__ int8_t *)gmAddrParams.workSpaceGM + gmAddrParams.workSpaceOffset1));
+        xGM.SetGlobalBuffer((__gm__ int4b_t *)gmAddrParams.xGM);
         weightGM.SetGlobalBuffer(GetTensorAddr<int4b_t>(0, gmAddrParams.weightGM));
         weightScaleGM.SetGlobalBuffer(GetTensorAddr<uint64_t>(0, gmAddrParams.weightScaleGM));
         groupListGM.SetGlobalBuffer((__gm__ int64_t *)gmAddrParams.groupListGM);
@@ -140,7 +136,7 @@ GMMA8W4MidProcess<mmType>::Init(const GMAddrParams gmAddrParams,
 }
 
 template <typename mmType>
-__aicore__ inline void GMMA8W4MidProcess<mmType>::UpdateMnConfig(MNConfig &mnConfig)
+__aicore__ inline void GMMA4W4MidProcess<mmType>::UpdateMnConfig(MNConfig &mnConfig)
 {
     if constexpr (bT::format == CubeFormat::NZ) {
         mnConfig.wBaseOffset += AlignUp<16>(mnConfig.k) * AlignUp<32>(mnConfig.n); // 16: nz format last two dim size
@@ -154,7 +150,7 @@ __aicore__ inline void GMMA8W4MidProcess<mmType>::UpdateMnConfig(MNConfig &mnCon
 }
 
 template <typename mmType>
-__aicore__ inline void GMMA8W4MidProcess<mmType>::SetMNConfig(const int32_t splitValue, MNConfig &mnConfig)
+__aicore__ inline void GMMA4W4MidProcess<mmType>::SetMNConfig(const int32_t splitValue, MNConfig &mnConfig)
 {
     mnConfig.m = static_cast<int64_t>(splitValue);
     mnConfig.baseM = gmmSwigluQuantV2BaseParams->baseM;
@@ -164,15 +160,14 @@ __aicore__ inline void GMMA8W4MidProcess<mmType>::SetMNConfig(const int32_t spli
 }
 
 template <typename mmType>
-__aicore__ inline void GMMA8W4MidProcess<mmType>::Process(WorkSpaceSplitConfig &workspaceSplitConfig,
+__aicore__ inline void GMMA4W4MidProcess<mmType>::Process(WorkSpaceSplitConfig &workspaceSplitConfig,
                                                           int64_t workspaceSplitLoopIdx)
 {
     if ASCEND_IS_AIC {
         if (workspaceSplitLoopIdx >= workspaceSplitConfig.loopCount || workspaceSplitLoopIdx < 0) {
             return;
         }
-        xGM = (workspaceSplitLoopIdx % 2 == 0 ? xGM1 : xGM2);
-        mmOutGM = (workspaceSplitLoopIdx % 2 == 0 ? mmOutGM1 : mmOutGM2);
+        mmOutGM = (workspaceSplitLoopIdx % NUM_2 == 0 ? mmOutGM1 : mmOutGM2);
         MNConfig mnConfig;
         mnConfig.baseM = gmmSwigluQuantV2BaseParams->baseM;
         mnConfig.baseN = gmmSwigluQuantV2BaseParams->baseN;
@@ -202,7 +197,7 @@ __aicore__ inline void GMMA8W4MidProcess<mmType>::Process(WorkSpaceSplitConfig &
                                  (workspaceSplitLoopIdx + 1) * gmmSwigluQuantV2BaseParams->mLimit :
                                  currSplitValue;
 
-            int32_t splitValue = (currSplitValue - prevSplitValue) * 2; // 2: int8 has been split in 2 int4
+            int32_t splitValue = (currSplitValue - prevSplitValue);
             prevSplitValue = currSplitValue;
 
             SetMNConfig(splitValue, mnConfig);
@@ -225,7 +220,7 @@ __aicore__ inline void GMMA8W4MidProcess<mmType>::Process(WorkSpaceSplitConfig &
 }
 
 template <typename mmType>
-__aicore__ inline void GMMA8W4MidProcess<mmType>::MMCompute(uint32_t groupIdx, MNConfig &mnConfig,
+__aicore__ inline void GMMA4W4MidProcess<mmType>::MMCompute(uint32_t groupIdx, MNConfig &mnConfig,
                                                             WorkSpaceSplitConfig &workspaceSplitConfig)
 {
     uint32_t tailN = mnConfig.nIdx * mnConfig.singleN;
@@ -238,7 +233,7 @@ __aicore__ inline void GMMA8W4MidProcess<mmType>::MMCompute(uint32_t groupIdx, M
         curSingleM = mnConfig.m - mnConfig.mIdx * mnConfig.singleM;
     }
     uint64_t weightOffset = 0;
-    mm.SetSingleShape(curSingleM, curSingleN, quantGroupSize); // 8, 256, 512 --> 514us
+    mm.SetSingleShape(curSingleM, curSingleN, quantGroupSize);
     GlobalTensor<int4b_t> weightSlice;
     uint64_t outOffset = mnConfig.mIdx * mnConfig.singleM * mnConfig.n + tailN;
     mnConfig.workspaceOffset = outOffset + mnConfig.yBaseOffset;
@@ -284,5 +279,5 @@ __aicore__ inline void GMMA8W4MidProcess<mmType>::MMCompute(uint32_t groupIdx, M
     }
 }
 } // namespace GroupedMatmulDequantSwigluQuant
-#endif // GMM_SWIGLU_QUANT_V2_A8W4_MSD
-#endif // OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A8W4_MSD_MID_H
+#endif // GMM_SWIGLU_QUANT_V2_A4W4
+#endif // OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_V2_A4W4_MID_H

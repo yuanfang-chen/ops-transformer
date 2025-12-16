@@ -41,7 +41,7 @@ protected:
     void PrintTilingData() override;
     void SetTilingKeyAndScheMode(void);
     ge::graphStatus ParseInputAndAttr();
-    int64_t CalMaxRowInUbA8W4(const uint64_t ubSize, const uint64_t n);
+    int64_t CalMaxRowInUbA8W4(const uint64_t ubSize, const uint64_t n) const;
     int64_t CalMaxRowInUb(const uint64_t ubSize, const uint64_t n) const;
 
 private:
@@ -56,9 +56,11 @@ private:
     int64_t groupNum_ = 0;
     int64_t isSingleTensor_ = 1;
     int64_t groupListType_ = 0;
+    int64_t smoothScaleDimNum_ = 0;
     int64_t usrWorkspaceLimit_ = 0;
     uint64_t workspaceSize_ = 0;
-    bool isA8W4MSD_ = true;
+    bool isA8W4MSD_ = false;
+    bool isA4W4_ = false;
     bool isSplitWorkSpace_ = false;
 };
 
