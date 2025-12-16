@@ -20,6 +20,56 @@
 namespace MlaProlog{
 constexpr uint64_t FLOAT_REP_SIZE = 64;
 
+template <typename InType, typename GammaType, typename C, typename OutType>
+__simd_vf__ void RmsNorm_VF_Impl(__ubuf__ InType * inputBuf, __ubuf__ GammaType * gammaBuf, __ubuf__ OutType * outputBuf, 
+                                uint32_t cnt, uint32_t repeatTimes, const RmsNormParam rmsNormParams)
+{
+    MicroAPI::RegTensor<C> vregSum;
+    MicroAPI::RegTensor<C> vregSumReduce;
+    MicroAPI::RegTensor<C> vregDiv;
+    MicroAPI::RegTensor<C> vregSquareRoot;
+
+    MicroAPI::MaskReg pregAll = MicroAPI::CreateMask<C, MicroAPI::MaskPattern::ALL>();
+    MicroAPI::MaskReg pregFirst = MicroAPI::CreateMask<C, MicroAPI::MaskPattern::VL1>();
+
+    static constexpr MicroAPI::CastTrait castTraitB162B32 = {MicroAPI::RegLayout::ZERO,
+        MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
+
+    MicroAPI::Duplicate<C, C>(vregSum, 0.0);
+
+    for(uint16_t i = 0; i < uint16_t(repeatTimes); ++i){
+        MicroAPI::RegTensor<C> vregXCast;
+        MicroAPI::RegTensor<C> vregXSquare;
+        uint64_t loopOffset = i * FLOAT_REP_SIZE;
+
+        MicroAPI::LoadAlign<C, MicroAPI::LoadDist::DIST_NORM>(vregXCast, inputBuf + loopOffset);
+        MicroAPI::Mul<C, MicroAPI::MaskMergeMode::ZEROING>(vregXSquare, vregXCast, vregXCast, pregAll);
+        MicroAPI::Add<C, MicroAPI::MaskMergeMode::ZEROING>(vregSum, vregXSquare, vregSum, pregAll);
+    }
+
+    MicroAPI::Reduce<MicroAPI::ReduceType::SUM, C, C, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSum, pregAll);
+    MicroAPI::Muls<C, C, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, rmsNormParams.reciprocal, pregFirst);
+    MicroAPI::Adds<C, C, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, rmsNormParams.epsilon, pregFirst);
+    MicroAPI::Sqrt<C, MicroAPI::MaskMergeMode::ZEROING>(vregSquareRoot, vregSumReduce, pregFirst);
+    MicroAPI::Duplicate<C, MicroAPI::HighLowPart::LOWEST, MicroAPI::MaskMergeMode::ZEROING>(vregDiv, vregSquareRoot, pregAll);
+
+    for(uint16_t i = 0; i < uint16_t(repeatTimes); ++i){
+        MicroAPI::RegTensor<C> vregXCast;
+        MicroAPI::RegTensor<GammaType> vregGamma;
+        MicroAPI::RegTensor<C> vregGammaCast;
+        uint16_t loopOffset = i * FLOAT_REP_SIZE;
+
+        MicroAPI::LoadAlign<C, MicroAPI::LoadDist::DIST_NORM>(vregXCast, inputBuf + loopOffset);
+        MicroAPI::LoadAlign<GammaType, MicroAPI::LoadDist::DIST_UNPACK_B16>(vregGamma, gammaBuf + loopOffset);
+        MicroAPI::Cast<C, GammaType, castTraitB162B32>(vregGammaCast, vregGamma, pregAll);
+
+        MicroAPI::Div<C, MicroAPI::MaskMergeMode::ZEROING>(vregXCast, vregXCast, vregDiv, pregAll);
+        MicroAPI::Mul<C, MicroAPI::MaskMergeMode::ZEROING>(vregXCast, vregXCast, vregGammaCast, pregAll);
+
+        MicroAPI::StoreAlign<OutType, MicroAPI::StoreDist::DIST_NORM>(outputBuf + loopOffset, vregXCast, pregAll);
+    }
+}
+
 /**
  * @brief RmsNorm_VF 对一行进行rmsnorm
  * @param outputLocal 输出tensor [row, col]，row目前均为1
@@ -33,60 +83,15 @@ constexpr uint64_t FLOAT_REP_SIZE = 64;
  */
 template <typename InType, typename GammaType, typename C, typename OutType>
 __aicore__ inline void RmsNorm_VF(const LocalTensor<OutType> &outputLocal, const LocalTensor<InType> &inputLocal, const LocalTensor<GammaType> &gammaLocal,
-                                           const RmsNormParam& rmsNormParams) {
-    uint64_t cnt = rmsNormParams.row * rmsNormParams.col;
-    uint64_t repeatTimes = (cnt + FLOAT_REP_SIZE - 1) / FLOAT_REP_SIZE;
+                                           const RmsNormParam rmsNormParams) {
+    uint32_t cnt = rmsNormParams.row * rmsNormParams.col;
+    uint32_t repeatTimes = (cnt + FLOAT_REP_SIZE - 1) / FLOAT_REP_SIZE;
 
-    __VEC_SCOPE__{
-        __ubuf__ InType * inputBuf = (__ubuf__ InType *)inputLocal.GetPhyAddr();
-        __ubuf__ GammaType * gammaBuf = (__ubuf__ GammaType *)gammaLocal.GetPhyAddr();
-        __ubuf__ OutType * outputBuf = (__ubuf__ OutType *)outputLocal.GetPhyAddr();
-
-        MicroAPI::RegTensor<C> vregSum;
-        MicroAPI::RegTensor<C> vregSumReduce;
-        MicroAPI::RegTensor<C> vregDiv;
-        MicroAPI::RegTensor<C> vregSquareRoot;
-
-        MicroAPI::MaskReg pregAll = MicroAPI::CreateMask<C, MicroAPI::MaskPattern::ALL>();
-        MicroAPI::MaskReg pregFirst = MicroAPI::CreateMask<C, MicroAPI::MaskPattern::VL1>();
-
-        static constexpr MicroAPI::CastTrait castTraitB162B32 = {MicroAPI::RegLayout::ZERO,
-            MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
-
-        MicroAPI::Duplicate<C, C>(vregSum, 0.0);
-
-        for(uint16_t i = 0; i < uint16_t(repeatTimes); ++i){
-            MicroAPI::RegTensor<C> vregXCast;
-            MicroAPI::RegTensor<C> vregXSquare;
-            uint64_t loopOffset = i * FLOAT_REP_SIZE;
-
-            MicroAPI::DataCopy<C, MicroAPI::LoadDist::DIST_NORM>(vregXCast, inputBuf + loopOffset);
-            MicroAPI::Mul<C, MicroAPI::MaskMergeMode::ZEROING>(vregXSquare, vregXCast, vregXCast, pregAll);
-            MicroAPI::Add<C, MicroAPI::MaskMergeMode::ZEROING>(vregSum, vregXSquare, vregSum, pregAll);
-        }
-
-        MicroAPI::ReduceSum<C, C, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSum, pregAll);
-        MicroAPI::Muls<C, C, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, rmsNormParams.reciprocal, pregFirst);
-        MicroAPI::Adds<C, C, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, rmsNormParams.epsilon, pregFirst);
-        MicroAPI::Sqrt<C, MicroAPI::MaskMergeMode::ZEROING>(vregSquareRoot, vregSumReduce, pregFirst);
-        MicroAPI::Duplicate<C, MicroAPI::HighLowPart::LOWEST, MicroAPI::MaskMergeMode::ZEROING>(vregDiv, vregSquareRoot, pregAll);
-
-        for(uint16_t i = 0; i < uint16_t(repeatTimes); ++i){
-            MicroAPI::RegTensor<C> vregXCast;
-            MicroAPI::RegTensor<GammaType> vregGamma;
-            MicroAPI::RegTensor<C> vregGammaCast;
-            uint16_t loopOffset = i * FLOAT_REP_SIZE;
-
-            MicroAPI::DataCopy<C, MicroAPI::LoadDist::DIST_NORM>(vregXCast, inputBuf + loopOffset);
-            MicroAPI::DataCopy<GammaType, MicroAPI::LoadDist::DIST_UNPACK_B16>(vregGamma, gammaBuf + loopOffset);
-            MicroAPI::Cast<C, GammaType, castTraitB162B32>(vregGammaCast, vregGamma, pregAll);
-
-            MicroAPI::Div<C, MicroAPI::MaskMergeMode::ZEROING>(vregXCast, vregXCast, vregDiv, pregAll);
-            MicroAPI::Mul<C, MicroAPI::MaskMergeMode::ZEROING>(vregXCast, vregXCast, vregGammaCast, pregAll);
-
-            MicroAPI::DataCopy<OutType, MicroAPI::StoreDist::DIST_NORM>(outputBuf + loopOffset, vregXCast, pregAll);
-        }
-    }
+    __ubuf__ InType * inputBuf = (__ubuf__ InType *)inputLocal.GetPhyAddr();
+    __ubuf__ GammaType * gammaBuf = (__ubuf__ GammaType *)gammaLocal.GetPhyAddr();
+    __ubuf__ OutType * outputBuf = (__ubuf__ OutType *)outputLocal.GetPhyAddr();
+    
+    RmsNorm_VF_Impl<InType, GammaType, C, OutType>(inputBuf, gammaBuf, outputBuf, cnt, repeatTimes, rmsNormParams);
 }
 }
 #endif 

@@ -23,6 +23,56 @@ namespace MlaProlog {
 constexpr uint64_t FLOAT_VF_SIZE = 64;
 
 template <typename T>
+__smid_vf__ void Rope_VF_Impl(__ubuf__ T * ropeUb, __ubuf__ T * sinUb, __ubuf__ T * cosUb, __ubuf__ uint32_t * gatherUb1, 
+    __ubuf__ uint32_t * gatherUb2, __ubuf__ T * resUb, const uint16_t row)
+{
+    MicroAPI::RegTensor<float> vregRopeFp32_1;
+    MicroAPI::RegTensor<float> vregRopeFp32_2;
+    MicroAPI::RegTensor<uint32_t> vregIndex_1;
+    MicroAPI::RegTensor<uint32_t> vregIndex_2;
+    MicroAPI::RegTensor<T> vregRes_1;
+    MicroAPI::RegTensor<T> vregSinMulLow;
+    MicroAPI::RegTensor<T> vregSinMulHigh;
+    MicroAPI::RegTensor<T> vregRes_2;
+    MicroAPI::RegTensor<T> vregSin;
+    MicroAPI::RegTensor<T> vregSinDouble;
+    MicroAPI::RegTensor<T> vregCos;
+    MicroAPI::RegTensor<T> vregCosDouble;
+    MicroAPI::MaskReg preg_all = MicroAPI::CreateMask<T, MicroAPI::MaskPattern::ALL>();
+    uint32_t halfReg = 32;
+    MicroAPI::MaskReg maskLower64 = MicroAPI::UpdateMask<T>(halfReg);
+    MicroAPI::MaskReg maskHigher64;
+    MicroAPI::Xor(maskHigher64, maskLower64, preg_all, preg_all);
+    // 奇数在前，偶数在后
+    MicroAPI::LoadAlign<uint32_t, MicroAPI::LoadDist::DIST_NORM>(vregIndex_1, gatherUb1);
+    // 偶数在前，奇数在后
+    MicroAPI::LoadAlign<uint32_t, MicroAPI::LoadDist::DIST_NORM>(vregIndex_2, gatherUb2);
+
+    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregCosDouble, cosUb);
+    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSinDouble, sinUb);
+
+    static constexpr MicroAPI::CastTrait castTrait ={MicroAPI::RegLayout::ZERO,
+                MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
+    static constexpr MicroAPI::CastTrait castTrait0 ={MicroAPI::RegLayout::ONE,
+                MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+    
+    for (uint16_t i = 0; i < row; i++) {
+        MicroAPI::Gather(vregRopeFp32_1, ropeUb + i * FLOAT_VF_SIZE, vregIndex_1, preg_all);
+        MicroAPI::Gather(vregRopeFp32_2, ropeUb + i * FLOAT_VF_SIZE, vregIndex_2, preg_all);
+        MicroAPI::Mul(vregRes_2, vregCosDouble, vregRopeFp32_2, preg_all);
+
+        MicroAPI::Muls(vregSinMulLow, vregRopeFp32_1, 1, maskLower64);
+        MicroAPI::Muls(vregSinMulHigh, vregRopeFp32_1, 1, maskHigher64);
+        MicroAPI::Add(vregRes_1, vregSinMulHigh, vregSinMulLow, preg_all);
+
+        MicroAPI::Mul(vregRes_1, vregSinDouble, vregRes_1, preg_all);
+
+        MicroAPI::Add(vregRes_2, vregRes_1, vregRes_2, preg_all);
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(resUb + i * FLOAT_VF_SIZE, vregRes_2, preg_all);
+    }
+}
+
+template <typename T>
 __aicore__ inline void Rope_VF(const LocalTensor<T>& sinTensor, const LocalTensor<T>& cosTensor, const LocalTensor<T>& xTensor,
     const LocalTensor<uint32_t>& gatherTensor1, const LocalTensor<uint32_t>& gatherTensor2,
     const LocalTensor<T>& resTensor, const uint16_t row)
@@ -34,53 +84,7 @@ __aicore__ inline void Rope_VF(const LocalTensor<T>& sinTensor, const LocalTenso
     __ubuf__ uint32_t * gatherUb2 = (__ubuf__ uint32_t*)gatherTensor2.GetPhyAddr();
     __ubuf__ T * resUb = (__ubuf__ T*)resTensor.GetPhyAddr();
 
-    __VEC_SCOPE__
-    {
-        MicroAPI::RegTensor<float> vregRopeFp32_1;
-        MicroAPI::RegTensor<float> vregRopeFp32_2;
-        MicroAPI::RegTensor<uint32_t> vregIndex_1;
-        MicroAPI::RegTensor<uint32_t> vregIndex_2;
-        MicroAPI::RegTensor<T> vregRes_1;
-        MicroAPI::RegTensor<T> vregSinMulLow;
-        MicroAPI::RegTensor<T> vregSinMulHigh;
-        MicroAPI::RegTensor<T> vregRes_2;
-        MicroAPI::RegTensor<T> vregSin;
-        MicroAPI::RegTensor<T> vregSinDouble;
-        MicroAPI::RegTensor<T> vregCos;
-        MicroAPI::RegTensor<T> vregCosDouble;
-        MicroAPI::MaskReg preg_all = MicroAPI::CreateMask<T, MicroAPI::MaskPattern::ALL>();
-        uint32_t halfReg = 32;
-        MicroAPI::MaskReg maskLower64 = MicroAPI::UpdateMask<T>(halfReg);
-        MicroAPI::MaskReg maskHigher64;
-        MicroAPI::MaskXor(maskHigher64, maskLower64, preg_all, preg_all);
-        // 奇数在前，偶数在后
-        MicroAPI::DataCopy<uint32_t, MicroAPI::LoadDist::DIST_NORM>(vregIndex_1, gatherUb1);
-        // 偶数在前，奇数在后
-        MicroAPI::DataCopy<uint32_t, MicroAPI::LoadDist::DIST_NORM>(vregIndex_2, gatherUb2);
-
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregCosDouble, cosUb);
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregSinDouble, sinUb);
-
-        static constexpr MicroAPI::CastTrait castTrait ={MicroAPI::RegLayout::ZERO,
-                    MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
-        static constexpr MicroAPI::CastTrait castTrait0 ={MicroAPI::RegLayout::ONE,
-                    MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
-        
-        for (uint16_t i = 0; i < row; i++) {
-            MicroAPI::DataCopyGather(vregRopeFp32_1, ropeUb + i * FLOAT_VF_SIZE, vregIndex_1, preg_all);
-            MicroAPI::DataCopyGather(vregRopeFp32_2, ropeUb + i * FLOAT_VF_SIZE, vregIndex_2, preg_all);
-            MicroAPI::Mul(vregRes_2, vregCosDouble, vregRopeFp32_2, preg_all);
-
-            MicroAPI::Muls(vregSinMulLow, vregRopeFp32_1, 1, maskLower64);
-            MicroAPI::Muls(vregSinMulHigh, vregRopeFp32_1, 1, maskHigher64);
-            MicroAPI::Add(vregRes_1, vregSinMulHigh, vregSinMulLow, preg_all);
-
-            MicroAPI::Mul(vregRes_1, vregSinDouble, vregRes_1, preg_all);
-
-            MicroAPI::Add(vregRes_2, vregRes_1, vregRes_2, preg_all);
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(resUb + i * FLOAT_VF_SIZE, vregRes_2, preg_all);
-        }
-    }
+    Rope_VF_Impl<T>(ropeUb, sinUb, cosUb, gatherUb1, gatherUb2, resUb, row);
 }
 
 template <typename C>

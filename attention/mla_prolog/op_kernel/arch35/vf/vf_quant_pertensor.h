@@ -18,6 +18,32 @@
  #include "kernel_tensor.h"
 
 namespace MlaProlog{
+template <typename T, typename U>
+__simd_vf__ void QuantPerTensor_VF_Impl(__ubuf__ T * inputBuf, __ubuf__ T * quantScaleBuf, __ubuf__ U * outputBuf, 
+                                        uint32_t cnt, const uint16_t floatRepSize, uint16_t repeatTimes)
+{
+    MicroAPI::MaskReg pregAll = MicroAPI::CreateMask<T, MicroAPI::MaskPattern::ALL>();
+
+    // float -> fp8e4m3 类型转换模式结构体
+    static constexpr MicroAPI::CastTrait CAST_TRAIT_FP32_TO_FP8E4M3 = {MicroAPI::RegLayout::ZERO,
+                MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+
+    for(uint16_t i = 0; i < uint16_t(repeatTimes); i++) {
+        MicroAPI::RegTensor<T> vregSrc;
+        MicroAPI::RegTensor<T> vregQuantScale;
+        MicroAPI::RegTensor<T> vregResFloat;
+        MicroAPI::RegTensor<U> vregRes;
+        uint16_t loopOffset = i * floatRepSize;
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSrc, inputBuf + loopOffset);
+        // 量化系数broadcast到寄存器所有位置
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vregQuantScale, quantScaleBuf);
+
+        MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregResFloat, vregSrc, vregQuantScale, pregAll);
+        
+        MicroAPI::Cast<U, float, CAST_TRAIT_FP32_TO_FP8E4M3>(vregRes, vregResFloat, pregAll);
+        MicroAPI::StoreAlign<U, MicroAPI::StoreDist::DIST_PACK4_B32>(outputBuf + loopOffset, vregRes, pregAll);   
+    }
+}
 
 /**
  * @brief QuantPerTensor_VF 对一行进行mul,并量化到fp8e4m3 T float U fp8e4m3 可根据不同量化结果扩展
@@ -30,37 +56,15 @@ namespace MlaProlog{
 template <typename T, typename U>
 __aicore__ inline void QuantPerTensor_VF(const LocalTensor<U> &outputLocal, const LocalTensor<T> &inputLocal, const LocalTensor<T> &quantScaleLocal,
                                   const uint32_t row, const uint32_t col) {
-    uint64_t cnt = row * col;
-    constexpr uint16_t floatRepSize = 64; // 一个寄存器能够存放64个FP32
+    uint32_t cnt = row * col;
+    const uint16_t floatRepSize = 64; // 一个寄存器能够存放64个FP32
     uint16_t repeatTimes = (cnt + floatRepSize - 1) / floatRepSize; // 对尾块处理的扩展，循环处理的次数
-    
-    __VEC_SCOPE__{
-        __ubuf__ T * inputBuf = (__ubuf__ T *)inputLocal.GetPhyAddr();
-        __ubuf__ T * quantScaleBuf = (__ubuf__ T *)quantScaleLocal.GetPhyAddr();
-        __ubuf__ U * outputBuf = (__ubuf__ U *)outputLocal.GetPhyAddr();
 
-        MicroAPI::MaskReg pregAll = MicroAPI::CreateMask<T, MicroAPI::MaskPattern::ALL>();
+    __ubuf__ T * inputBuf = (__ubuf__ T *)inputLocal.GetPhyAddr();
+    __ubuf__ T * quantScaleBuf = (__ubuf__ T *)quantScaleLocal.GetPhyAddr();
+    __ubuf__ U * outputBuf = (__ubuf__ U *)outputLocal.GetPhyAddr();
 
-        // float -> fp8e4m3 类型转换模式结构体
-        static constexpr MicroAPI::CastTrait CAST_TRAIT_FP32_TO_FP8E4M3 = {MicroAPI::RegLayout::ZERO,
-                    MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
-
-        for(uint16_t i = 0; i < uint16_t(repeatTimes); i++) {
-            MicroAPI::RegTensor<T> vregSrc;
-            MicroAPI::RegTensor<T> vregQuantScale;
-            MicroAPI::RegTensor<T> vregResFloat;
-            MicroAPI::RegTensor<U> vregRes;
-            uint16_t loopOffset = i * floatRepSize;
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregSrc, inputBuf + loopOffset);
-            // 量化系数broadcast到寄存器所有位置
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B32>(vregQuantScale, quantScaleBuf);
-
-            MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregResFloat, vregSrc, vregQuantScale, pregAll);
-            
-            MicroAPI::Cast<U, float, CAST_TRAIT_FP32_TO_FP8E4M3>(vregRes, vregResFloat, pregAll);
-            MicroAPI::DataCopy<U, MicroAPI::StoreDist::DIST_PACK4_B32>(outputBuf + loopOffset, vregRes, pregAll);   
-        }
-    }
+    QuantPerTensor_VF_Impl<T, U>(inputBuf, quantScaleBuf, outputBuf, cnt, floatRepSize, repeatTimes);
 }
 } // namespace MlaProlog
 #endif
