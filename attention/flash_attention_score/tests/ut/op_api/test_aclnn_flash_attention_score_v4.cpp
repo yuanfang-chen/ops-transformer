@@ -1,38 +1,39 @@
 /**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 #include <vector>
-#include <array> 
+#include <array>
 #include "gtest/gtest.h"
 #include "../../../op_api/aclnn_flash_attention_score.h"
 #include "op_api_ut_common/tensor_desc.h"
 #include "op_api_ut_common/scalar_desc.h"
 #include "op_api_ut_common/op_api_ut.h"
 #include "opdev/platform.h"
+
 using namespace std;
 using namespace op;
 
-class flash_attention_score_v3_opapi_ut : public testing::Test
+class flash_attention_score_v4_opapi_ut : public testing::Test
 {
 protected:
     static void SetUpTestCase()
     {
-        cout << "flash_attention_score_v3_opapi_ut SetUp" << endl;
+        cout << "flash_attention_score_v4_opapi_ut SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-        cout << "flash_attention_score_v3_opapi_ut TearDown" << endl;
+        cout << "flash_attention_score_v4_opapi_ut TearDown" << endl;
     }
 };
 
-TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
+TEST_F(flash_attention_score_v4_opapi_ut, flash_attention_score_aclnn_0) {
     auto tensorQ = TensorDesc({256, 1, 128}, ACL_FLOAT, ACL_FORMAT_ND)
         .ValueRange(-1, 1);  
     auto tensorK = TensorDesc({256, 1, 128}, ACL_FLOAT, ACL_FORMAT_ND)
@@ -49,12 +50,12 @@ TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
     const int64_t headNum = 1;
     char layout[] = "SBH";
     const int64_t innerPrecise = 0;
-    const int64_t sparseMode = 0;
+    const int64_t sparseMod = 0;
     const int64_t outDtype = 0;
     const int64_t pseType = 1;
     const int64_t seed = 0;
     const int64_t offset = 0;
-    char softmaxOutLayout[] = "same_as_input";
+    char softmaxOutLayout[] = "";
 
     // 输出
     auto tensorAttentionOutDesc = TensorDesc({256, 1, 128}, ACL_FLOAT, ACL_FORMAT_ND);
@@ -63,7 +64,7 @@ TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
     auto tensorSoftmaxSum = TensorDesc({1, 1, 256, 8}, ACL_FLOAT, ACL_FORMAT_ND);
 
     auto ut = OP_API_UT(
-        aclnnFlashAttentionScoreV3,
+        aclnnFlashAttentionScoreV4,
         INPUT(
             tensorQ,
             tensorK,
@@ -72,10 +73,17 @@ TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
             nullptr,                  // dropMask
             nullptr,                  // padding
             tensorAttenMask,
-            nullptr,                  // sink
-            nullptr,                  // Prefix
-            nullptr,                  // QStartIdx
-            nullptr,                  // KVStartIdx                        
+            nullptr,                  // queryRope
+            nullptr,                  // keyRope
+            nullptr,                  // dScaleQ
+            nullptr,                  // dScaleK
+            nullptr,                  // dScaleV
+            nullptr,                  // sink            
+            nullptr,                  // Prefix    
+            nullptr,                  // ActualSeqQLen    
+            nullptr,                  // ActualSeqKVLen    
+            nullptr,                  // QStartIdx    
+            nullptr,                  // KVStartIdx                                                    
             scaleValue,
             keepProb,
             preTokens,
@@ -83,8 +91,12 @@ TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
             headNum,
             layout,
             innerPrecise,
-            sparseMode,
-            pseType
+            sparseMod,
+            outDtype,
+            pseType,
+            softmaxOutLayout,
+            seed,
+            offset
         ),
         OUTPUT(
             tensorSoftmaxMax,
@@ -97,5 +109,5 @@ TEST_F(flash_attention_score_v3_opapi_ut, flash_attention_score_aclnn_0) {
     uint64_t workspaceSize = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(aclRet, ACL_SUCCESS);
-
 }
+
