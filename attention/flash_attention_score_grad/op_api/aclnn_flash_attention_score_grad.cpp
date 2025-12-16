@@ -2009,7 +2009,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3GetWorkspaceSize(
                           attenMaskOptional, softmaxMaxOptional, softmaxSumOptional, softmaxInOptional,
                           attentionInOptional, prefixOptional, qStartIdxOptional, kvStartIdxOptional,
                           scaleValue, keepProb, preTokens, nextTokens, headNum,
-                          inputLayout, innerPrecise, sparseMode, pseType, sinkInOptional, dsinkOut),
+                          inputLayout, innerPrecise, sparseMode, pseType, sinkInOptional),
                    DFX_OUT(dqOut, dkOut, dvOut, dpseOut, dsinkOut));
     // 固定写法，创建OpExecutor
     auto uniqueExecutor = CREATE_EXECUTOR();
