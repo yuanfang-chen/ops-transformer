@@ -101,16 +101,16 @@ private:
     int64_t normalCoreHandleNumPerLoop_{0};
     int64_t normalCoreHandleNumTailLoop_{0};
 
+    int64_t curCoreHandleNumPerLoop_{0};
+    int64_t curCoreHandleNumTailLoop_{0};
+    int64_t curCoreHandleNum_{0};
+    int64_t loopCount_{0};
+
     // tail core
     int64_t tailCoreHandleNum_{0};
     int64_t tailCoreLoopNum_{0};
     int64_t tailCoreHandleNumPerLoop_{0};
     int64_t tailCoreHandleNumTailLoop_{0};
-
-    int64_t curCoreHandleNumPerLoop_{0};
-    int64_t curCoreHandleNumTailLoop_{0};
-    int64_t curCoreHandleNum_{0};
-    int64_t loopCount_{0};
 
     int64_t usedCoreNumAfter_{0};
 
@@ -162,17 +162,17 @@ __aicore__ inline void MoeComputeExpertTokensInt32M<T>::ParseTilingData(
     tailCoreHandleNumPerLoopBefore_ = tilingData->tailCoreHandleNumPerLoopBefore;
     tailCoreHandleNumTailLoopBefore_ = tilingData->tailCoreHandleNumTailLoopBefore;
 
-    // SyncAll后，非尾核
-    normalCoreHandleNum_ = tilingData->normalCoreHandleNumAfter;
-    normalCoreLoopNum_ = tilingData->normalCoreLoopNumAfter;
-    normalCoreHandleNumPerLoop_ = tilingData->normalCoreHandleNumPerLoopAfter;
-    normalCoreHandleNumTailLoop_ = tilingData->normalCoreHandleNumTailLoopAfter;
-
     // SyncAll后，尾核
     tailCoreHandleNum_ = tilingData->tailCoreHandleNumAfter;
     tailCoreLoopNum_ = tilingData->tailCoreLoopNumAfter;
     tailCoreHandleNumPerLoop_ = tilingData->tailCoreHandleNumPerLoopAfter;
     tailCoreHandleNumTailLoop_ = tilingData->tailCoreHandleNumTailLoopAfter;
+
+    // SyncAll后，非尾核
+    normalCoreHandleNum_ = tilingData->normalCoreHandleNumAfter;
+    normalCoreLoopNum_ = tilingData->normalCoreLoopNumAfter;
+    normalCoreHandleNumPerLoop_ = tilingData->normalCoreHandleNumPerLoopAfter;
+    normalCoreHandleNumTailLoop_ = tilingData->normalCoreHandleNumTailLoopAfter;
 
     // 使用核数信息
     totalCoreNum_ = tilingData->totalCoreNum;
@@ -220,14 +220,14 @@ __aicore__ inline void MoeComputeExpertTokensInt32M<T>::Init(
     gmWorkspace_.SetGlobalBuffer((__gm__ T*)workspace);
 
     // gmWorkspace_清零
-    int64_t n = numOfExpert_ * totalCoreNum_;
+    int64_t n_m = numOfExpert_ * totalCoreNum_;
     int32_t initValue = 0;
     if ((GetBlockIdx() + 1) < GetBlockNum()) {
-        InitOutput<int32_t>(gmWorkspace_[n / GetBlockNum() * GetBlockIdx()], n / GetBlockNum(), initValue);
+        InitOutput<int32_t>(gmWorkspace_[n_m / GetBlockNum() * GetBlockIdx()], n_m / GetBlockNum(), initValue);
     }
     if ((GetBlockIdx() + 1) == GetBlockNum()) {
         InitOutput<int32_t>(
-            gmWorkspace_[n / GetBlockNum() * GetBlockIdx()], n - n / GetBlockNum() * (GetBlockNum() - 1), initValue);
+            gmWorkspace_[n_m / GetBlockNum() * GetBlockIdx()], n_m - n_m / GetBlockNum() * (GetBlockNum() - 1), initValue);
     }
     SyncAll();
 
@@ -236,17 +236,16 @@ __aicore__ inline void MoeComputeExpertTokensInt32M<T>::Init(
 
     // syncall after
     if (GetBlockIdx() + 1 == usedCoreNumAfter_) {
-        curCoreHandleNumPerLoop_ = tailCoreHandleNumPerLoop_;
-        curCoreHandleNumTailLoop_ = tailCoreHandleNumTailLoop_;
         curCoreHandleNum_ = tailCoreHandleNum_;
         loopCount_ = tailCoreLoopNum_;
+        curCoreHandleNumPerLoop_ = tailCoreHandleNumPerLoop_;
+        curCoreHandleNumTailLoop_ = tailCoreHandleNumTailLoop_;
     } else {
-        curCoreHandleNumPerLoop_ = normalCoreHandleNumPerLoop_;
-        curCoreHandleNumTailLoop_ = normalCoreHandleNumTailLoop_;
         curCoreHandleNum_ = normalCoreHandleNum_;
         loopCount_ = normalCoreLoopNum_;
+        curCoreHandleNumPerLoop_ = normalCoreHandleNumPerLoop_;
+        curCoreHandleNumTailLoop_ = normalCoreHandleNumTailLoop_;
     }
-
     // output 初始化
     outputIndex_ = GetBlockIdx() * normalCoreHandleNum_;
     gmOutput_.SetGlobalBuffer((__gm__ T*)out + outputIndex_, curCoreHandleNum_);
@@ -300,14 +299,14 @@ __aicore__ inline void MoeComputeExpertTokensInt32M<T>::ComputeBefore(int64_t lo
 
     // main core
     SetFlag<HardEvent::V_S>(EVENT_ID0);
-    for (int32_t target = startTarget; target <= endTarget; target++) {
+    for (int32_t targe_m = startTarget; targe_m <= endTarget; targe_m++) {
         int32_t low = startIdx;
         int32_t high = endIdx - startIdx;
         int32_t targetLocation = 0;
         int32_t mid = 0;
         while (low <= high) {
             mid = (low + high) / 2;
-            if (input.GetValue(mid) > target) {
+            if (input.GetValue(mid) > targe_m) {
                 high = mid - 1;
             } else {
                 low = mid + 1;
@@ -317,13 +316,13 @@ __aicore__ inline void MoeComputeExpertTokensInt32M<T>::ComputeBefore(int64_t lo
         WaitFlag<HardEvent::V_S>(EVENT_ID0);
         // 可以找到
         int32_t startOffset = GetBlockIdx() * normalCoreHandleNumBefore_ + loopIdx * curCoreHandleNumPerLoopBefore_;
-        if (input.GetValue(targetLocation) == target) {
-            Duplicate(outputQueueBefore_[target * 8], startOffset + targetLocation + 1, 1);
-            lastIdx = target;
+        if (input.GetValue(targetLocation) == targe_m) {
+            Duplicate(outputQueueBefore_[targe_m * 8], startOffset + targetLocation + 1, 1);
+            lastIdx = targe_m;
             lastVal = startOffset + targetLocation + 1;
         } else {
             // target找不到，该位置数置为0
-            Duplicate(outputQueueBefore_[target * 8], lastVal, 1);
+            Duplicate(outputQueueBefore_[targe_m * 8], lastVal, 1);
         }
         SetFlag<HardEvent::V_S>(EVENT_ID0);
     }
@@ -431,13 +430,13 @@ __aicore__ inline void MoeComputeExpertTokensInt32M<T>::ProcessAfter()
         (__gm__ T*)workspace_ + inputIdx, curCoreHandleNum_ * Int32AlignmentProcess(usedCoreNumBefore_));
 
     auto numOfLoop = curCoreHandleNumPerLoop_;
-    for (int64_t n = 0; n < loopCount_; n++) {
-        if (n == (loopCount_ - 1)) {
+    for (int64_t index_m = 0; index_m < loopCount_; index_m++) {
+        if (index_m == (loopCount_ - 1)) {
             numOfLoop = curCoreHandleNumTailLoop_;
         }
-        CopyInAfter(n, numOfLoop);
-        ComputeAfter(n, numOfLoop);
-        CopyOutAfter(n, numOfLoop);
+        CopyInAfter(index_m, numOfLoop);
+        ComputeAfter(index_m, numOfLoop);
+        CopyOutAfter(index_m, numOfLoop);
     }
 }
 
