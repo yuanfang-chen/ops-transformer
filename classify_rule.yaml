@@ -1060,7 +1060,6 @@ mc2:
         - mc2/moe_distribute_combine
       test:
         examples: False
-        ut: False
       options:
         - moe_distribute_combine
         - moe_distribute_dispatch
@@ -1094,7 +1093,6 @@ mc2:
         - mc2/moe_distribute_combine_v2
       test:
         examples: False
-        ut: False
       options:
         - moe_distribute_combine_v2
         - moe_distribute_dispatch_v2
@@ -1111,7 +1109,6 @@ mc2:
         - mc2/moe_distribute_dispatch
       test:
         examples: False
-        ut: False
       options:
         - moe_distribute_dispatch
         - moe_distribute_combine
@@ -1128,7 +1125,6 @@ mc2:
         - mc2/moe_distribute_dispatch_v2
       test:
         examples: False
-        ut: False
       options:
         - moe_distribute_dispatch_v2
         - moe_distribute_combine_v2
