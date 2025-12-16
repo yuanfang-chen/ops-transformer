@@ -327,13 +327,7 @@ __aicore__ inline void AddExample<T>::Process()
 
 通常算子开发和编译完成后，会自动生成aclnn接口（一套基于C 的API），可直接在应用程序中调用aclnn接口实现调用算子。
 
-为实现该调用方式，需提前生成算子对应的二进制包，配置二进制编译json文件，以`AddExample`算子为例：
-
-1. 在`examples/add_example/op_host`目录新建`config/${soc_version}`文件夹，用于存放配置文件。
-
-2. 在`${soc_version}`目录新建json文件，命名为`${op_name}_binary.json`，用于描述算子相关信息，包括二进制文件名称（命名无要求，当前是以`${op_type}`_哈希码命名）及算子输入、输出、shape、data type、format等信息，完整定义请参考[add_example_binary.json](../../../examples/add_example/op_host/config/ascend910b/add_example_binary.json)。
-
-3. 在`${soc_version}`目录新建ini文件，命名为`${op_name}_simplified_key.ini`，与二进制匹配逻辑相关，默认是0，示例参考[add_example_simplified_key.ini](../../../examples/add_example/op_host/config/ascend910b/add_example_simplified_key.ini)。
+为实现该调用方式，需提前生成算子对应的二进制包，本项目无需手动配置，通过${op_name}_def.cpp已自动生成算子二进制包，支持开发者直接使用。
 
 ## 编译部署
 
