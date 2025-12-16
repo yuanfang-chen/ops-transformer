@@ -179,7 +179,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>probsOptional</td>
         <td>可选输入</td>
         <td>当不需要时为空指针。</td>
-        <td>数据类型与unpermutedTokensGrad相同。</td>
+        <td>数据类型与unpermutedTokensGrad相同或者是FLOAT32。</td>
         <td>BFLOAT16、FLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>与routingMapOptional相同。</td>

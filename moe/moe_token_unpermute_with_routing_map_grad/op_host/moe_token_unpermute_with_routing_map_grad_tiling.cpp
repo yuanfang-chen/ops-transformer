@@ -448,7 +448,13 @@ static ge::graphStatus Tiling4MoeTokenUnpermuteWithRoutingMapGrad(gert::TilingCo
 
     uint32_t paddedModeKey = paddedMode ? 1 : 0;
     uint32_t probKey = (probTensor == nullptr) ? 0 : 1;
-    uint32_t tilingKey = paddedModeKey * 10 + probKey;
+    auto tokenDtype = context->GetInputDesc(INPUT_UNPERMUTEDOUTPUTD_IDX)->GetDataType();
+    auto probDtype = (probTensor == nullptr) ? tokenDtype : context->GetInputDesc(INPUT_PROB_IDX)->GetDataType();
+    uint32_t mixKey = 0;
+    if (probDtype != tokenDtype){
+        mixKey = 1;
+    }
+    uint32_t tilingKey = mixKey * 100 + paddedModeKey * 10 + probKey;
     // 00: padded_mode = False, 不存在prob  01: padded_mode = False, 存在prob
     // 10: padded_mode = True, 不存在prob   11: padded_mode = True, 存在prob
     context->SetTilingKey(tilingKey);
