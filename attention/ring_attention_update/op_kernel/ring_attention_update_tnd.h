@@ -178,10 +178,10 @@ private:
     headNumLoopTimes = (headNum + headNumLoopEach - 1) / headNumLoopEach;
     headNumLoopTail = headNum - (headNumLoopTimes - 1) * headNumLoopEach;
 
-    if (tndSoftmaxLayout == 1 || headNum == 1) {
-      headNumLoopEach = tiling->headNumLoopEach > dimTCore ? dimTCore : headNumLoopEach;
-    }
     allLoopTimes = (headNum * dimTCore + headNumLoopEach - 1) / headNumLoopEach;
+    if (allLoopTimes == 1) {
+        headNumLoopEach = headNum * dimTCore;
+    }
     allLoopTail = headNum * dimTCore - (allLoopTimes - 1) * headNumLoopEach;
 
     // num loop align repeat
