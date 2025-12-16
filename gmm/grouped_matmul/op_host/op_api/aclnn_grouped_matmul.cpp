@@ -113,7 +113,7 @@ namespace {
     DataType b32Dtype = (*tensorListB32)[0]->GetDataType();
     DataType b4Dtype = DataType::DT_INT4;
     if (b32Dtype == DataType::DT_FLOAT) {
-      b4Dtype = DataType::DT_FLOAT4_E2M1;  
+      b4Dtype = DataType::DT_FLOAT4_E2M1;
     }
 
     OP_LOGD("Unpack %s from %s to %s start.", tensorListType.c_str(), gmm::dTypeToString(b32Dtype).c_str(),
@@ -1091,7 +1091,8 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
       CHECK_COND(gmmParams.xDtype != DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
                  "aclnnGroupedMatmul does not support x or weight dtype float32.");
     }
-    CheckNonQuantMatmulDataType(gmmParams, weightDtype);
+    CHECK_COND(CheckNonQuantMatmulDataType(gmmParams, weightDtype) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
+               "check no quant case dtype failed.");
     CHECK_COND(isNoActivation, ACLNN_ERR_PARAM_INVALID, "non quant case dose not support activation.");
     return CheckNonQuant(gmmParams);
   }
