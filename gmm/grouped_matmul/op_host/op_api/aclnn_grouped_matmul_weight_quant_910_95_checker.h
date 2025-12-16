@@ -23,7 +23,8 @@ public:
 
 private:
     aclnnStatus CheckGroupTypeScenario() const;
-    aclnnStatus CheckUnsupportApi() const;
+    aclnnStatus CheckUnsupportedApi() const;
+    aclnnStatus CheckGroupListAndSplitItem() const;
     aclnnStatus CheckAntiQuantParams() const;
     aclnnStatus CheckQuantParams() const;
     aclnnStatus CheckYDtype() const;

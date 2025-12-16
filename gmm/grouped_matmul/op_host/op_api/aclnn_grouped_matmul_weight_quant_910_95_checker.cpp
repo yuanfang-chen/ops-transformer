@@ -454,17 +454,17 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckScaleAndPerTokenScal
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckUnsupportApi() const
+aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckUnsupportedApi() const
 {
     if (IsA16W8ND()) {
         if (gmmParams_.groupType == NO_SPLIT) {
             CHECK_COND(gmmParams_.apiVersion != GMMApiVersion::WeightNz, ACLNN_ERR_PARAM_INVALID,
-                       "Only AclnnGroupedMatmul V1/V2/V3/V4/V5 support fp16/bf16-int8 for xDtype-weightDtype and "
+                       "When xDtype-weightDtype is fp16/bf16-int8, only aclnnGroupedMatmul V1/V2/V3/V4/V5 support "
                        "multi-multi-multi scenario.");
         } else {
             CHECK_COND(gmmParams_.apiVersion != GMMApiVersion::WeightNz && gmmParams_.apiVersion != GMMApiVersion::V1,
                        ACLNN_ERR_PARAM_INVALID,
-                       "Only AclnnGroupedMatmul V2/V3/V4/V5 support fp16/bf16-int8 for xDtype-weightDtype and "
+                       "When xDtype-weightDtype is fp16/bf16-int8, only aclnnGroupedMatmul V2/V3/V4/V5 support "
                        "single-single-single scenario.");
         }
     } else if (IsA16F8ND() || IsA16W4()) {
@@ -521,18 +521,47 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupSize(size_t idx
 
 aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() const
 {
+    std::string errorMessage;
+
+    // groupType校验
+    // V1接口没有groupType字段，是在aclnnGroupedMatmulGetWorkspaceSize赋值的，只会出现0/-1，不会出现2
     if (IsA16W8ND() || IsA16W4()) {
         CHECK_COND(gmmParams_.groupType == NO_SPLIT || gmmParams_.groupType == SPLIT_M, ACLNN_ERR_PARAM_INVALID,
-                   "When xDtype-weightDtype is fp16/bf16-int8 and fp16/bf16-int4, GMM only support groupType 0 (split "
+                   "When xDtype-weightDtype is fp16/bf16-int8 or fp16/bf16-int4, GMM only support groupType 0 (split "
                    "M) or groupType -1 (no split), but the actual groupType is [%ld].",
                    gmmParams_.groupType);
     } else {
+        errorMessage =
+            gmmParams_.apiVersion == gmm::GMMApiVersion::V1
+                ? "M-split scenario, but the actual scenario is no-split (multi-multi-multi)"
+                : "groupType 0 (split M), but the actual groupType is [" + std::to_string(gmmParams_.groupType) + "]";
         CHECK_COND(gmmParams_.groupType == SPLIT_M, ACLNN_ERR_PARAM_INVALID,
-                   "Weight quant cases with x dtype [%s] and weight dtype [%s] only support groupType 0 (split M), but "
-                   "the actual groupType is [%ld].",
-                   op::ToString(xDtype_).GetString(), op::ToString(weightDtype_).GetString(), gmmParams_.groupType);
+                   "Weight quant cases with x dtype [%s] and weight dtype [%s] only support %s.",
+                   op::ToString(xDtype_).GetString(), op::ToString(weightDtype_).GetString(), errorMessage.c_str());
     }
 
+    // 多多多/单单单校验
+    // groupType为-1仅对应多多多；groupType为0会出现单单单/单多单/单多多/多多单，仅支持单单单
+    if (gmmParams_.groupType == NO_SPLIT) {
+        CHECK_COND(gmmParams_.x->Size() == gmmParams_.weight->Size() && gmmParams_.x->Size() == gmmParams_.y->Size(),
+                   ACLNN_ERR_PARAM_INVALID,
+                   "In multi-multi-multi scenario, the sizes of x, weight and y should be all the same, but the "
+                   "actual sizes are [%zu], [%zu] and [%zu].",
+                   gmmParams_.x->Size(), gmmParams_.weight->Size(), gmmParams_.y->Size());
+    } else {
+        errorMessage = gmmParams_.apiVersion == gmm::GMMApiVersion::V1 ? "When splited axis is M"
+                                                                       : "When groupType is 0 (split M)";
+        CHECK_COND(gmmParams_.x->Size() == 1 && gmmParams_.weight->Size() == 1 && gmmParams_.y->Size() == 1,
+                   ACLNN_ERR_PARAM_INVALID,
+                   "%s, the sizes of x, weight and y should all be 1, but the actual sizes are [%zu], [%zu] and [%zu].",
+                   errorMessage.c_str(), gmmParams_.x->Size(), gmmParams_.weight->Size(), gmmParams_.y->Size());
+    }
+
+    return ACLNN_SUCCESS;
+}
+
+aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupListAndSplitItem() const
+{
     if (gmmParams_.groupType == NO_SPLIT) {
         if (gmmParams_.apiVersion == GMMApiVersion::V2) {
             CHECK_COND(gmmParams_.groupListOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
@@ -554,7 +583,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() 
         }
 
         CHECK_COND(gmmParams_.splitItem == X_SEPARATED || gmmParams_.splitItem == NO_SEPARATED, ACLNN_ERR_PARAM_INVALID,
-                   "When groupType is 0 (split M), splitItem should be 2/3, but current splitItem is %ld.",
+                   "When y is not separated, splitItem should be 2/3, but current splitItem is %ld.",
                    gmmParams_.splitItem);
     }
     return ACLNN_SUCCESS;
@@ -562,20 +591,6 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() 
 
 aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorListSize() const
 {
-    if (gmmParams_.groupType == NO_SPLIT) {
-        CHECK_COND(gmmParams_.x->Size() == gmmParams_.weight->Size() && gmmParams_.x->Size() == gmmParams_.y->Size(),
-                   ACLNN_ERR_PARAM_INVALID,
-                   "When groupType is -1 (no split), the sizes of x, weight and y should be all the same, but the "
-                   "actual sizes are [%zu], [%zu] and [%zu].",
-                   gmmParams_.x->Size(), gmmParams_.weight->Size(), gmmParams_.y->Size());
-    } else {
-        CHECK_COND(gmmParams_.x->Size() == 1 && gmmParams_.weight->Size() == 1 && gmmParams_.y->Size() == 1,
-                   ACLNN_ERR_PARAM_INVALID,
-                   "When groupType is 0 (split M), the sizes of x, weight and y should all be 1, but the "
-                   "actual sizes are [%zu], [%zu] and [%zu].",
-                   gmmParams_.x->Size(), gmmParams_.weight->Size(), gmmParams_.y->Size());
-    }
-
     CHECK_COND(gmmParams_.antiquantScaleOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
                "AntiquantScaleOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
                gmmParams_.antiquantScaleOptional->Size(), gmmParams_.weight->Size());
@@ -598,6 +613,12 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorListSize() con
                    gmmParams_.perTokenScaleOptional->Size(), gmmParams_.x->Size());
     }
 
+    if (gmmParams_.scaleOptional != nullptr) {
+        CHECK_COND(gmmParams_.scaleOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
+                   "scaleOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
+                   gmmParams_.scaleOptional->Size(), gmmParams_.weight->Size());
+    }
+
     return ACLNN_SUCCESS;
 }
 
@@ -607,17 +628,19 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupedMatmulWeightQ
     weightDtype_ = (*gmmParams_.weight)[0]->GetDataType();
     yDtype_ = (*gmmParams_.y)[0]->GetDataType();
 
-    CHECK_COND(CheckUnsupportApi() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckUnsupportApi failed.");
     CHECK_COND(CheckGroupTypeScenario() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckGroupTypeScenario failed.");
+    CHECK_COND(CheckUnsupportedApi() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckUnsupportedApi failed.");
+    CHECK_COND(CheckGroupListAndSplitItem() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
+               "CheckGroupListAndSplitItem failed.");
 
     // CheckAntiQuantParams和CheckQuantParams校验各种量化参数在各数据流的支持情况，后续对量化参数的通用校验不再区分数据流
     CHECK_COND(CheckAntiQuantParams() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckAntiQuantParams failed.");
     CHECK_COND(CheckQuantParams() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckQuantParams failed!");
+    CHECK_COND(CheckTensorListSize() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckTensorListSize failed.");
     CHECK_RET(CheckYDtype() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckQuantDtype() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckBiasDtype() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
-    CHECK_COND(CheckTensorListSize() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckTensorListSize failed.");
     CHECK_RET(CheckTransposeStatus() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckScaleAndPerTokenScaleShape() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
