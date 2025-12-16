@@ -309,7 +309,7 @@ public:
             }
 
             AscendC::LocalTensor<half> tmpfp16 =
-                buf.ReinterpretCast<half>()[OFFSET_SUM * num_col_align_withStride_fp32 * 2];
+                buf.ReinterpretCast<half>()[OFFSET_GAMMA * num_col_align_withStride_fp32];
             CastFrom32To16(tmpfp16, fp32_xy, num_col_align_withStride_fp32);
             AscendC::PipeBarrier<PIPE_V>();
             CastFromF16ToI8(dstTensor, tmpfp16, quantMin_, num_col_align_withStride_fp16);
