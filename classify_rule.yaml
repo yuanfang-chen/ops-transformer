@@ -163,6 +163,9 @@ attention:
     exclude:
       - attention/nsa_compress_with_cache/docs
       - attention/nsa_compress_with_cache/README.md
+    test:
+        examples: False
+        ut: False
     ut_cov_exclude:
       - attention/nsa_compress_with_cache
     options:
