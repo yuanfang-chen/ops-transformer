@@ -95,6 +95,7 @@ constexpr int32_t FIXAXISMOVE_GROUP_TYPE = 0;
 constexpr size_t TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX = 0;
 constexpr size_t TUNING_CONFIG_A8W4_SPEC_SCENARIO_INDEX = 1;
 constexpr size_t TUNING_CONFIG_ALLOW_WORKSPACE_INDEX = 2;
+constexpr int64_t SPLITK_M_N_RATIO_THRESHOLD_2 = 2L;
 
 ge::graphStatus GMMTiling::CheckWeightNZShape(const gert::TilingContext* context, int64_t numInOneBlk) const {
   OP_CHECK_IF(numInOneBlk <= 0, OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "numInOneBlk, the "
@@ -561,6 +562,28 @@ bool GMMTiling::TryFullLoadA(int32_t baseM,const GMMCompileInfo *compileInfoPtr)
   return false;
 }
 
+/*
+1、输出默认会存储在L2Cache中，可以考虑设置输出不走L2Cache从而提高输入的L2Cache命中率
+2、后续算子可能会用到当前算子的输出，若当前输出不在L2Cache中可能会影响后续算子效率
+3、当前算子输出如果超过L2Cache大小时，实测不会对后续算子造成影响，此时可以跳过L2Cache
+*/
+ge::graphStatus GMMTiling::IsOutputDisableL2Cache(gert::TilingContext* context, const GMMCompileInfo *compileInfoPtr) {
+    OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_CUBE_INNER_ERR(
+                context->GetNodeName(), "compileInfoPtr is nullptr."), return ge::GRAPH_FAILED);
+    //仅切K单x单weight场景可以Tiling侧知道输出矩阵大小
+    if(groupType_ != SPLIT_K || !isSingleX_ || !isSingleWeight_) {
+        tilingData.gmmBaseParams.set_isOutputDisableL2Cache(0);
+        return ge::GRAPH_SUCCESS;
+    }
+    auto outputSize = static_cast<uint64_t>(GetSizeByDataType(yDtype_) * maxM_ * maxN_ * groupNum_);
+    if(outputSize > compileInfoPtr->l2Size) {
+        tilingData.gmmBaseParams.set_isOutputDisableL2Cache(1);
+    } else {
+        tilingData.gmmBaseParams.set_isOutputDisableL2Cache(0);
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus GMMTiling::DynamicTilingSingleN(gert::TilingContext* context, const uint32_t& aicNum, const GMMCompileInfo *compileInfoPtr) {
   OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_CUBE_INNER_ERR(
                context->GetNodeName(), "compileInfoPtr is nullptr."), return ge::GRAPH_FAILED);
@@ -782,6 +805,9 @@ ge::graphStatus GMMTiling::RunFusionKernelTiling(gert::TilingContext* context) {
   OP_CHECK_IF(DynamicTilingSingleN(context, usedCoreNum_, compileInfoPtr) != ge::GRAPH_SUCCESS,
              OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "GMM DynamicTilingSingleN failed"),
              return ge::GRAPH_FAILED);
+  OP_CHECK_IF(IsOutputDisableL2Cache(context, compileInfoPtr) != ge::GRAPH_SUCCESS,
+             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "GMM IsOutputDisableL2Cache failed"),
+             return ge::GRAPH_FAILED);
   tilingData.gmmBaseParams.set_workspaceSize(workspacesSize_);
   tilingData.mmTilingData.set_usedCoreNum(usedCoreNum_);  // usedCoreNum is ai_core num
   tilingData.gmmBaseParams.set_coreNum(usedCoreNum_);  // ai cube number
@@ -817,6 +843,7 @@ void GMMTiling::PrintTilingInfo(gert::TilingContext *context) {
   OP_LOGD(context->GetNodeName(), "GMM_tiling_new: dbL0C is %d.", tilingData.mmTilingData.get_dbL0C());
   OP_LOGD(context->GetNodeName(), "GMM_tiling_new: usedL1Size is %d.", tilingData.mmTilingData.get_shareL1Size());
   OP_LOGD(context->GetNodeName(), "GMM_tiling_new: usedUBSize is %d.", tilingData.mmTilingData.get_shareUbSize());
+  OP_LOGD(context->GetNodeName(), "GMM_tiling_new: isOutputDisableL2Cache is %d.", tilingData.gmmBaseParams.get_isOutputDisableL2Cache());
   auto buf = (uint32_t *)context->GetRawTilingData()->GetData();
   auto bufLen = context->GetRawTilingData()->GetDataSize();
   std::ostringstream oss;
@@ -1060,7 +1087,7 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
   }
   isA8W8_ = (xDType_ == ge::DT_INT8 && weightDtype_ == ge::DT_INT8);
   isA4W4_ = xDType_ == ge::DT_INT4 && weightDtype_ == ge::DT_INT4;
-
+  isA16W16_ = (xDType_ == ge::DT_FLOAT16 && weightDtype_ == ge::DT_FLOAT16) || (xDType_ == ge::DT_BF16 && weightDtype_ == ge::DT_BF16);
   auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
   OP_CHECK_NULL_WITH_CONTEXT(context, compileInfoPtr);  // check compileInfoPtr is not null
   if (groupListType_ == GROUP_LIST_SPARSE_M) {
@@ -1376,6 +1403,18 @@ ge::graphStatus GMMTiling::CalMMTiling(const gert::TilingContext* context, const
     baseN_ = tuningConfig_ > 64 ? BEST_BASEN : BEST_BASEN_A4W4; // 64 : when token in each group > 64, set baseN to 256
   } else {
     baseN_ = BEST_BASEN;
+  }
+  if (groupType_ == SPLIT_K && isSingleX_ && isSingleWeight_ &&
+             isA16W16_ &&
+             (compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND910B ||
+             compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND910_93) &&
+             maxM_ > (maxN_ * SPLITK_M_N_RATIO_THRESHOLD_2)) {
+    //切K场景左矩阵转置，尾轴为M轴，右矩阵不转置。
+    //左矩阵搬运也希望尾轴512B对齐，此时如果M较大，可以考虑将baseM:256,baseN:128,baseK:64
+    baseM_ = SPLITK_BASEM_256;
+    baseN_ = SPLITK_BASEN_128;
+    baseK_ = SPLITK_BASEK_64;
+    return ge::GRAPH_SUCCESS;
   }
   // according to the double buffer enabled L0B, compute baseK
   baseK_ = isA4W4_ ? static_cast<int32_t>((compileInfoPtr->l0BSize / DOUBLE_BUFFER_L0A_L0B) /
