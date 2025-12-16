@@ -70,6 +70,7 @@
         contextFaker.IrInstanceNum(inputIrInstance, outputIrInstance);                                                 \
     }                                                                                                                  \
     contextFaker.InputTensors(inputTensors).OutputTensors(outputTensors);                                              \
+    contextFaker.DeterministicInfo(tilingContextPara.deterministicInfo_);                                              \
     for (auto& attrInfo : tilingContextPara.attrs_) {                                                                  \
         switch (attrInfo.attr_.type_) {                                                                                \
             case Ops::Transformer::AnyValue::ValueType::VT_BOOL: {                                                            \

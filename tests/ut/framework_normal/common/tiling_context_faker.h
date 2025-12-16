@@ -146,6 +146,25 @@ public:
                       socVersion_(socVersion),
                       socInfoString_(socInfoString),
                       tilingDataSize_(tilingDataSize) {}
+    
+    TilingContextPara(const std::string& opName,
+                      const std::vector<TensorDescription>& inputTensorDesc,
+                      const std::vector<TensorDescription>& outputTensorDesc,
+                      const std::vector<OpAttr>& attrs,
+                      void* compileInfo,
+                      const std::string& socVersion,                   
+                      const std::string socInfoString,
+                      uint64_t tilingDataSize,
+                      int32_t deterministicInfo) : 
+                      opName_(opName),
+                      inputTensorDesc_(inputTensorDesc),
+                      outputTensorDesc_(outputTensorDesc),
+                      attrs_(attrs),
+                      compileInfo_(compileInfo),
+                      socVersion_(socVersion),
+                      socInfoString_(socInfoString),
+                      tilingDataSize_(tilingDataSize),
+                      deterministicInfo_(deterministicInfo) {}
 
 public:
     std::string opName_;
@@ -160,6 +179,7 @@ public:
     void* compileInfo_ = nullptr;
     std::string socVersion_;
     std::string socInfoString_;
+    int32_t deterministicInfo_ = 0;
 };
 
 class TilingContextFaker : public OpTilingContextBuilder {
@@ -225,7 +245,7 @@ public:
 
     TilingContextFaker& PlatformInfo(const void* platformInfo);
 
-    TilingContextFaker& DeterministicInfo(int32_t* deterministicInfo);
+    TilingContextFaker& DeterministicInfo(int32_t deterministicInfo);
 
     TilingContextFaker& TilingData(const void* tilingData);
 

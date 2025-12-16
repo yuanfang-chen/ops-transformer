@@ -67,9 +67,9 @@ TilingContextFaker& TilingContextFaker::PlatformInfo(const void* platformInfo)
     return *this;
 }
 
-TilingContextFaker& TilingContextFaker::DeterministicInfo(int32_t* deterministicInfo)
+TilingContextFaker& TilingContextFaker::DeterministicInfo(int32_t deterministicInfo)
 {
-    OpTilingContextBuilder::Deterministic(*deterministicInfo);
+    OpTilingContextBuilder::Deterministic(deterministicInfo);
     return *this;
 }
 
