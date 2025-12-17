@@ -26,7 +26,7 @@ class AllGatherAdd {
 public:
     __aicore__ inline AllGatherAdd(){};
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR gatherGM, 
-                                GM_ADDR workspaceGM, GM_ADDR contextGM, AllGatherAddTilingData *tilingData, TPipe *tPipe);
+                                AllGatherAddTilingData *tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -41,7 +41,6 @@ private:
 
     AllGatherAddTilingData *tilingData_;
 
-    TPipe *tPipe_;
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
 
     TQue<QuePosition::VECIN, ADD_BUFFER_NUM> inputQueueGather;
@@ -68,7 +67,7 @@ private:
 };
 
 __aicore__ inline void AllGatherAdd::Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR gatherGM, 
-                                          GM_ADDR workspaceGM, GM_ADDR contextGM, AllGatherAddTilingData *tilingData, TPipe *tPipe)
+                                          AllGatherAddTilingData *tilingData, TPipe *tPipe)
 {
     aGM_ = aGM;
     bGM_ = bGM;
@@ -76,19 +75,19 @@ __aicore__ inline void AllGatherAdd::Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM,
     gatherGM_ = gatherGM;
 
     tilingData_ = tilingData;
-    tPipe_ = tPipe;
     blockElemNum_ = tilingData->blockElemNum;
     addTileElemNum_ = tilingData->addTileElemNum / ADD_BUFFER_NUM;
     tileNum_ = tilingData->tileNum;
     blockIdx_ = AscendC::GetBlockIdx();
 
     // 初始化hccl对象
+    GM_ADDR contextGM = GetHcclContext<HCCL_GROUP_ID_0>();
     hccl_.InitV2(contextGM, tilingData);
     hccl_.SetCcTilingV2(offsetof(AllGatherAddTilingData, mc2CcTiling));
     
-    tPipe_->InitBuffer(inputQueueGather, ADD_BUFFER_NUM, addTileElemNum_ * sizeof(half));
-    tPipe_->InitBuffer(inputQueueB, ADD_BUFFER_NUM, addTileElemNum_ * sizeof(half));
-    tPipe_->InitBuffer(outputQueueC, ADD_BUFFER_NUM, addTileElemNum_ * sizeof(half));
+    tPipe->InitBuffer(inputQueueGather, ADD_BUFFER_NUM, addTileElemNum_ * sizeof(half));
+    tPipe->InitBuffer(inputQueueB, ADD_BUFFER_NUM, addTileElemNum_ * sizeof(half));
+    tPipe->InitBuffer(outputQueueC, ADD_BUFFER_NUM, addTileElemNum_ * sizeof(half));
 }
 
 __aicore__ inline void AllGatherAdd::HcclPrepare()
