@@ -543,7 +543,7 @@ ge::graphStatus FiaTilingCheck::SetAttenMaskCompare()
 
     if (sparseMode == SPARSE_MODE_NO_MASK || sparseMode == SPARSE_MODE_ALL_MASK) {
         if (maskDimNum == DIM_NUM_TWO) {
-            if (s1Size_ == 1U && maskDim0 == static_cast<int64_t>(bSize_)) {
+            if (s1Size_ == 1U) {
                 maskLayout = FiaLayout::BS2;
             } else {
                 maskLayout = FiaLayout::S1S2;

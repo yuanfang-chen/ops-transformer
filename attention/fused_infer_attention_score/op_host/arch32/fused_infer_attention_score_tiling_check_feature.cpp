@@ -174,41 +174,47 @@ ge::graphStatus FiaTilingCheck::CheckFeatureNoquantBlockSize() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoquantMask() const
+ge::graphStatus FiaTilingCheck::CheckFeatureMask() const
 {
-    if(vHeadDim_ == 512U) {
-        int32_t sparseMode = *opParamInfo_.sparseMode;
-        if (sparseMode != SPARSE_MODE_NO_MASK && sparseMode != SPARSE_MODE_RIGHT_DOWN && sparseMode != SPARSE_MODE_BAND) {
-            OP_LOGE(opName_,
-                "In %s situation, rope exsists and query/key head dim = %u, %s only support 0/3/4, but got %d.",
-                QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_, SPARSE_MODE_NAME.c_str(), sparseMode);
-            return ge::GRAPH_FAILED;
-        }
+    if ((!attenMaskFlag_) && (fiaInfo_.sparseMode != SPARSE_MODE_NO_MASK)) {
+        OP_LOGE(opName_, "when %s is %d, it not 0, %s should not be null.",
+            SPARSE_MODE_NAME.c_str(), fiaInfo_.sparseMode, ATTEN_MASK_NAME.c_str());
+        return ge::GRAPH_FAILED;
+    }
 
-        if (!attenMaskFlag_) {
-            if (sparseMode == SPARSE_MODE_NO_MASK) {
-                return ge::GRAPH_SUCCESS;
-            }
-            if (sparseMode == SPARSE_MODE_RIGHT_DOWN || sparseMode == SPARSE_MODE_BAND) {
+    if (attenMaskFlag_) {
+        size_t maskDimNum = opParamInfo_.attenMask.tensor->GetStorageShape().GetDimNum();
+        if ((fiaInfo_.sparseMode == SPARSE_MODE_NO_MASK || fiaInfo_.sparseMode == SPARSE_MODE_ALL_MASK) && 
+            maskDimNum == DIM_NUM_TWO) {
+            if (ropeMode_ == RopeMode::NO_ROPE) {
+                const std::vector<std::string> layoutSupportList = {
+                    "BSH", "BSND", "BNSD", "BNSD_BSND",
+                };
+                std::string layout = opParamInfo_.layOut;
+                OP_CHECK_IF(std::find(layoutSupportList.begin(), layoutSupportList.end(), layout) == layoutSupportList.end(),
+                    OP_LOGE(opName_,
+                        "In %s situation, rope not exits and qkHeadDim = vHeadDim, when sparseMode = 0 or 1, "
+                        "two dim mask only support for layout BSH,BSND,BNSD,BNSD_BSND, but got %s",
+                        QuantModeToSerialString(quantMode_).c_str(), layout.c_str()),
+                    return ge::GRAPH_FAILED);
+            } else {
                 OP_LOGE(opName_,
-                    "In %s situation, rope exsists and query/key head dim = %u, when %s = 3/4, %s should not be null.",
-                    QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_,
-                    SPARSE_MODE_NAME.c_str(), ATTEN_MASK_NAME.c_str());
+                        "In %s situation, rope exits or qkHeadDim != vHeadDim, when sparseMode = 0 or 1, two dim mask is not supported.",
+                        QuantModeToSerialString(quantMode_).c_str());
                 return ge::GRAPH_FAILED;
             }
         }
+    }
 
-        size_t maskDimNum = opParamInfo_.attenMask.tensor->GetStorageShape().GetDimNum();
-        size_t maskDim0 = opParamInfo_.attenMask.tensor->GetStorageShape().GetDim(0);
-        if (sparseMode == static_cast<int32_t>(SPARSE_MODE_NO_MASK) &&
-            maskDimNum == DIM_NUM_TWO && s1Size_ == 1U && maskDim0 == static_cast<size_t>(bSize_)) {
-            OP_CHECK_IF(qLayout_ == FiaLayout::TND || qLayout_ == FiaLayout::NTD,
-                    OP_LOGE(opName_, "In %s situation, rope exsists and query/key head dim = %u, when %s layout is TND/NTD, %s layout BS2 is not supported.",
-                        QuantModeToSerialString(quantMode_).c_str(), qkHeadDim_, QUERY_NAME.c_str(), ATTEN_MASK_NAME.c_str()),
-                return ge::GRAPH_FAILED);
+    if (ropeMode_ == RopeMode::ROPE_SPLIT && vHeadDim_ == 512U) {
+        int32_t sparseMode = fiaInfo_.sparseMode;
+        if (sparseMode != SPARSE_MODE_NO_MASK && sparseMode != SPARSE_MODE_RIGHT_DOWN && sparseMode != SPARSE_MODE_BAND) {
+            OP_LOGE(opName_,
+                    "In %s situation, when query_rope and key_rope exsists and the head dim of value is %u, %s only "
+                    "support 0/3/4, but got %d.",
+                    QuantModeToSerialString(quantMode_).c_str(), vHeadDim_, SPARSE_MODE_NAME.c_str(), sparseMode);
+            return ge::GRAPH_FAILED;
         }
-    } else {
-        return CheckFeatureGqaNoquantMask();
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -262,7 +268,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureNoquantBlockSize() ||
         ge::GRAPH_SUCCESS != CheckFeatureInOutDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureActualSeqLens() ||
-        ge::GRAPH_SUCCESS != CheckFeatureMlaNoquantMask() ||
+        ge::GRAPH_SUCCESS != CheckFeatureMask() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaNoQuantDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaNoQuantLayout() ||
         ge::GRAPH_SUCCESS != CheckFeatureMlaNoQuantShape() ||
@@ -309,34 +315,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquantUnsupported() const
         OP_CHECK_IF((std::find(layoutSupportList.begin(), layoutSupportList.end(), layout) == layoutSupportList.end()) && ropeMode_ != RopeMode::NO_ROPE,
             OP_LOGE(opName_, "In %s situation, tensor list is not supported.",
                 QuantModeToSerialString(quantMode_).c_str()),
-            return ge::GRAPH_FAILED);
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquantMask() const
-{
-    if (fiaInfo_.sparseMode == 0) {
-        return ge::GRAPH_SUCCESS;
-    }
-
-    if (!attenMaskFlag_) {
-        OP_LOGE(opName_,
-            "In %s situation, when %s = 1/2/3/4, %s should not be null.",
-            QuantModeToSerialString(quantMode_).c_str(),
-            SPARSE_MODE_NAME.c_str(), ATTEN_MASK_NAME.c_str());
-        return ge::GRAPH_FAILED;
-    }
-
-    size_t maskDimNum = opParamInfo_.attenMask.tensor->GetStorageShape().GetDimNum();
-    int64_t maskDim0 = opParamInfo_.attenMask.tensor->GetStorageShape().GetDim(0);
-    int32_t sparseMode = *opParamInfo_.sparseMode;
-
-    if (sparseMode == SPARSE_MODE_NO_MASK && maskDimNum == DIM_NUM_TWO &&
-        s1Size_ == 1U && maskDim0 == static_cast<int64_t>(bSize_)) {
-        OP_CHECK_IF(qLayout_ == FiaLayout::TND || qLayout_ == FiaLayout::NTD,
-                OP_LOGE(opName_, "In %s situation, when %s layout is TND/NTD, %s layout BS2 is not supported.",
-                    QuantModeToSerialString(quantMode_).c_str(), QUERY_NAME.c_str(), ATTEN_MASK_NAME.c_str()),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
@@ -586,7 +564,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureNoquantBlockSize() ||
         ge::GRAPH_SUCCESS != CheckFeatureInOutDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureActualSeqLens() ||
-        ge::GRAPH_SUCCESS != CheckFeatureGqaNoquantMask() ||
+        ge::GRAPH_SUCCESS != CheckFeatureMask() ||
         ge::GRAPH_SUCCESS != CheckFeatureGqaNoQuantDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureGqaNoQuantLayout() ||
         ge::GRAPH_SUCCESS != CheckFeatureGqaNoQuantShape() ||

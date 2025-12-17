@@ -202,7 +202,7 @@ private:
     ge::graphStatus CheckFeatureNoQuantDtype() const;
     ge::graphStatus CheckFeatureMlaNoQuantDtype() const;
     ge::graphStatus CheckFeatureNoquantBlockSize() const;
-    ge::graphStatus CheckFeatureMlaNoquantMask() const;
+    ge::graphStatus CheckFeatureMask() const;
     ge::graphStatus CheckFeatureNoquantUnsupported() const;
     ge::graphStatus CheckFeatureMlaSink() const;
     ge::graphStatus CheckFeatureMlaNoquantUnsupported() const;
