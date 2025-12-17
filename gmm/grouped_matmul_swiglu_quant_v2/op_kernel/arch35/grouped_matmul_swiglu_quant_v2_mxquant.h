@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file grouped_matmul_swiglu_quant_v2_mix_online_dynamic.h
+ * \file grouped_matmul_swiglu_quant_v2_mxquant.h
  * \brief
  */
 
-#ifndef GROUPED_MATMUL_SWIGLU_QUANT_V2_MIX_ONLINE_DYNAMIC_H
-#define GROUPED_MATMUL_SWIGLU_QUANT_V2_MIX_ONLINE_DYNAMIC_H
+#ifndef GROUPED_MATMUL_SWIGLU_QUANT_V2_MXQUANT_H
+#define GROUPED_MATMUL_SWIGLU_QUANT_V2_MXQUANT_H
 
 #include "act/matmul/kernel/kernel_gmm_swiglu_mxquant.h"
 #include "act/matmul/block/block_mx_mm_aic_to_aiv_builder.h"
