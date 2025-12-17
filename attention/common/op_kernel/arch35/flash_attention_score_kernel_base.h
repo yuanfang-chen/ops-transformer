@@ -386,7 +386,9 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         if ASCEND_IS_AIV {
             constInfo.attentionOutStride = (constInfo.n2G - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
             if constexpr (isInfer) {
-                if (sharedParams.isGqa) {
+                if (sharedParams.isPfaGS1Merge) {
+                    constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
+                } else if (sharedParams.isGqa) {
                     constInfo.attentionOutStride = 0;
                 }
             }
