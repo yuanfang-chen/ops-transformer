@@ -104,8 +104,8 @@ attention:
       - attention/incre_flash_attention/README.md
     ut_cov_exclude:
       - attention/incre_flash_attention
-    options:
-      - incre_flash_attention
+    # options:
+      # - incre_flash_attention
       # - fused_infer_attention_score
 
   nsa_compress:
@@ -216,8 +216,8 @@ attention:
       - attention/prompt_flash_attention/README.md
     ut_cov_exclude:
       - attention/prompt_flash_attention
-    options:
-      - prompt_flash_attention
+    # options:
+      # - prompt_flash_attention
       # - fused_infer_attention_score
 
 # gmm:

@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file incre_flash_attention_obp.h
+ * \file incre_flash_attention_arch32.h
  * \brief
  */
 #include "incre_flash_attention_tilingkey.h"
@@ -189,7 +189,7 @@
 #endif
 #endif
 
-inline __aicore__ void incre_flash_attention_FIAS_OBP(
+inline __aicore__ void incre_flash_attention_FIAS_arch32(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
     __gm__ uint8_t *pseShift, __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ,
     __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *deqScale1, __gm__ uint8_t *quantScale1,

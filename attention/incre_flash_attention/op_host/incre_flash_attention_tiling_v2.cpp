@@ -54,11 +54,11 @@ ge::graphStatus PFAConvertContext(ContextParamsForPFATiling &contextKeyParams, g
     contextKeyParams.antiquantScale = context->GetOptionalInputTensor(ANTIQUANT_SCALE_INPUT_INDEX);
     contextKeyParams.antiquantOffset = context->GetOptionalInputTensor(ANTIQUANT_OFFSET_INPUT_INDEX);
     contextKeyParams.blockTable = context->GetOptionalInputTensor(BLOCK_TABLE_INPUT_INDEX);
-    contextKeyParams.kvPaddingSize = context->GetOptionalInputTensor(KV_PADDING_SIZE_INPUT_INDEX);    
+    contextKeyParams.kvPaddingSize = context->GetOptionalInputTensor(KV_PADDING_SIZE_INPUT_INDEX);
     contextKeyParams.actualSequenceLengthQ = nullptr;
     contextKeyParams.keySharedPrefix = (nullptr);
     contextKeyParams.valueSharedPrefix = (nullptr);
-    contextKeyParams.actualSharedPrefixLen = (nullptr);    
+    contextKeyParams.actualSharedPrefixLen = (nullptr);
     contextKeyParams.inputDataType = context->GetInputDesc(QUERY_INPUT_INDEX)->GetDataType();
     contextKeyParams.kDataType = context->GetInputDesc(KEY_INPUT_INDEX)->GetDataType();
     contextKeyParams.vDataType = context->GetInputDesc(VALUE_INPUT_INDEX)->GetDataType();

@@ -9,11 +9,12 @@
  */
 
 /*!
- * \file prompt_flash_attention_obp.h
+ * \file prompt_flash_attention_arch32.h
  * \brief
  */
 
 #include "./arch32/prompt_flash_attention_tilingkey.h"
+#if (__CCE_AICORE__ > 200)
 #include "./arch32/prompt_flash_attention_base.h"
 #include "./arch32/prompt_flash_attention_bnstilling_n_s_no_tail.h"
 #include "./arch32/prompt_flash_attention_bnstilling_n_s_tail.h"
@@ -29,6 +30,13 @@
 #include "./arch32/prompt_flash_attention_s1s2_bns1_mla_baseapi.h"
 #include "./arch32/prompt_flash_attention_var_len_score_sab_baseapi.h"
 #include "./arch32/prompt_flash_attention_empty_tensor.h"
+#else
+#include "kernel_operator.h"
+#include "./arch32/unpad_flash_attention_common.h"
+#include "./arch32/prompt_attention_prefill.h"
+#include "./arch32/prompt_flash_attention_s1s2_bns1_x310_base.h"
+#include "./arch32/prompt_flash_attention_s1s2_bns1_x310.h"
+#endif
 
 constexpr uint32_t FLOATBYTENUM = 8;
 constexpr uint32_t FLOAT16BYTENUM = 16;
@@ -160,8 +168,16 @@ constexpr uint32_t INT8BYTENUM = 32;
     GET_TILING_DATA_WITH_STRUCT(PromptFlashAttentionBaseApiTilingData, tiling_data_in, tiling);                        \
     const PromptFlashAttentionBaseApiTilingData* __restrict tiling_data = &tiling_data_in
 #endif
+#define INVOKE_PFA_NEW_GQA_OP_IMPL(templateClass, ...)                                                                 \
+    do {                                                                                                               \
+        if (query == nullptr) {return;}                                                                              \
+        INVOKE_PFA_TILING_DATA_BASE_API(tiling);                                                                                \
+        templateClass<__VA_ARGS__> op;                                                                          \
+        op.Init(query, key, value, attenMask, actualSeqLengths, actualSeqLengthsKV, attentionOut, user, tiling_data);                                 \
+        op.Process();                                                                                                  \
+    } while (0)
 
-inline __aicore__ void prompt_flash_attention_FIAS_OBP(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
+inline __aicore__ void prompt_flash_attention_FIAS_arch32(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
                                                         __gm__ uint8_t* pseShift, __gm__ uint8_t* attenMask,
                                                         __gm__ uint8_t* actualSeqLengths, __gm__ uint8_t* actualSeqLengthsKV,
                                                         __gm__ uint8_t* deq_scale1, __gm__ uint8_t* quant_scale1,
@@ -175,6 +191,7 @@ inline __aicore__ void prompt_flash_attention_FIAS_OBP(__gm__ uint8_t* query, __
                                                         __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
                                                         __gm__ uint8_t* workspace, __gm__ uint8_t* tiling)
 {
+#if (__CCE_AICORE__ > 200)
     GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingData, promptAttentionBaseParams, baseParams, tiling);
     auto maskByteNum = baseParams.maskTypeByteNum;
 
@@ -754,5 +771,31 @@ inline __aicore__ void prompt_flash_attention_FIAS_OBP(__gm__ uint8_t* query, __
         op.Init(attentionOut, tiling_data, &tPipe);
         op.Process();
         return;
+    #endif
+#else // 310P
+    GET_TILING_DATA_MEMBER(PromptFlashAttentionTilingData, promptAttentionBaseParams, baseParams, tiling);
+    auto maskByteNum = baseParams.maskTypeByteNum;
+
+    __gm__ uint8_t* user = GetUserWorkspace(workspace);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    TILING_KEY_IS(QINT8_KVFP16_OUTBF16_BSH_HIGHLEVELAPI_MDL_310TILING);
+    TILING_KEY_IS(QINT8_KVFP16_OUTINT8_BSH_HIGHLEVELAPI_MDL_310TILING);
+    TILING_KEY_IS(QINT8_KVFP16_OUTBF16_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING);
+    TILING_KEY_IS(QINT8_KVFP16_OUTINT8_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING);
+    TILING_KEY_IS(QFP4E1M2_KVFP16_OUTBF16_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING);
+    TILING_KEY_IS(QFP4E1M2_KVFP16_OUTINT8_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING);
+    #if TILING_KEY_VAR == QINT8_KVFP16_OUTBF16_BSH_HIGHLEVELAPI_MDL_310TILING
+        INVOKE_PFA_NEW_GQA_OP_IMPL(PromptAttentionPrefill, PFATypeNZ<PFALayoutNZ::BNSD, half, int8_t>, PrecType::BMM1_FP16_EXP_FP32);//高性能
+    #elif TILING_KEY_VAR == QINT8_KVFP16_OUTINT8_BSH_HIGHLEVELAPI_MDL_310TILING
+        INVOKE_PFA_NEW_GQA_OP_IMPL(PromptAttentionPrefill, PFATypeNZ<PFALayoutNZ::BSH, half, int8_t>, PrecType::BMM1_FP16_EXP_FP32);//高性能
+    #elif TILING_KEY_VAR == QINT8_KVFP16_OUTBF16_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING
+        INVOKE_PFA_GENERAL_OP_IMPL(PromptFlashAttentionS1s2Bns1X310, PFATypeNZ<PFALayoutNZ::BNSD, half, int8_t, half>);
+    #elif TILING_KEY_VAR == QINT8_KVFP16_OUTINT8_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING
+        INVOKE_PFA_GENERAL_OP_IMPL(PromptFlashAttentionS1s2Bns1X310, PFATypeNZ<PFALayoutNZ::BSH, half, int8_t, half>);
+    #elif TILING_KEY_VAR == QFP4E1M2_KVFP16_OUTBF16_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING
+        INVOKE_PFA_GENERAL_OP_IMPL(PromptFlashAttentionS1s2Bns1X310, PFATypeNZ<PFALayoutNZ::BNSD, half, int8_t, half, half, ModeNZ::HighPrecisionNZ>);
+    #elif TILING_KEY_VAR == QFP4E1M2_KVFP16_OUTINT8_HIGHLEVELAPI_MDL_NOTAIL_CUBEVECTORDIFF_BNSD_310TILING
+        INVOKE_PFA_GENERAL_OP_IMPL(PromptFlashAttentionS1s2Bns1X310, PFATypeNZ<PFALayoutNZ::BSH, half, int8_t, half, half, ModeNZ::HighPrecisionNZ>);
+    #endif
 #endif
 }

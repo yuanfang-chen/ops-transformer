@@ -22,7 +22,6 @@
 #include "log/log.h"
 #include "../fia_tiling_templates_registry.h"
 #include "../split_core.h"
-#include "../../../incre_flash_attention/op_host/incre_flash_attention_tiling_base.h"
 
 using namespace ge;
 using namespace AscendC;

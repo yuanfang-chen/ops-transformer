@@ -22,7 +22,7 @@
 #include "../prompt_flash_attention/arch38/prompt_flash_attention_entry_regbase.h"
 #endif
 #else
-#include "incre_flash_attention_obp.h"
+#include "incre_flash_attention_arch32.h"
 
 #endif
 using namespace AscendC;
@@ -39,7 +39,7 @@ incre_flash_attention_FIAS(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ ui
                         __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
 #if (__NPU_ARCH__ != 5102)
-    incre_flash_attention_FIAS_OBP(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, deqScale1, quantScale1,
+    incre_flash_attention_FIAS_arch32(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, deqScale1, quantScale1,
                                     deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize,
                                     kvPaddingSize, keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset, keySharedPrefix,
                                     valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale, dequantScaleQuery,
