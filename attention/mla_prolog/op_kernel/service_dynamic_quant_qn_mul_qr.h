@@ -133,7 +133,7 @@ __aicore__ inline void MulQr(const GlobalTensor<T>& outputGmRope, const GlobalTe
         Cast(qrFp32Local, qrInputLocal[inputLocalRopeOffset], RoundMode::CAST_NONE, computeSizeRope);
         AscendC::PipeBarrier<PIPE_V>();
 #if __CCE_AICORE__ == 310
-        MulQr_VF(qrFp32Local, qrFp32Local, dequantScaleBrcbLocal, quantScaleCkvRope, computeSizeRope, computeBlockAlign);
+        MulQrVF(qrFp32Local, qrFp32Local, dequantScaleBrcbLocal, quantScaleCkvRope, computeSizeRope, computeBlockAlign);
 #else
         Duplicate(reciprocalLocal, quantScaleCkvRope, subRowRope * computeBlockAlign);
         AscendC::PipeBarrier<PIPE_V>();

@@ -18,7 +18,7 @@
 
 namespace MlaProlog{
 template <typename T>
-__simd_vf__ void MulQr_VF_Impl(__ubuf__ T * inputBuf, __ubuf__ T * outputBuf, __ubuf__ T * dequantScaleBrcbBuf, 
+__simd_vf__ void MulQrVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * outputBuf, __ubuf__ T * dequantScaleBrcbBuf, 
                               const uint16_t floatRepSize, uint16_t repeatTimes, float quantScaleCkvRope, 
                               uint64_t computeBlockAlign)
 {
@@ -47,7 +47,7 @@ __simd_vf__ void MulQr_VF_Impl(__ubuf__ T * inputBuf, __ubuf__ T * outputBuf, __
 }
 
 /**
- * @brief MulQr_VF 对于RopeQr输出的结果进行mul系数计算
+ * @brief MulQrVF 对于RopeQr输出的结果进行mul系数计算
  * @param outputLocal 输出tensor [subRow, colRope]，row目前均为1
  * @param inputLocal 输入tensor [subRow, colRope]
  * @param dequantScaleBrcbLocal 动态量化参数tensor [row, computeBlockAlign]
@@ -56,7 +56,7 @@ __simd_vf__ void MulQr_VF_Impl(__ubuf__ T * inputBuf, __ubuf__ T * outputBuf, __
  * @param computeBlockAlign 输入动态量化参数的单个数据块存放多少个动态量化参数
  */
 template <typename T>
-__aicore__ inline void MulQr_VF(const LocalTensor<T> &outputLocal, const LocalTensor<T> &inputLocal, const LocalTensor<T> &dequantScaleBrcbLocal,
+__aicore__ inline void MulQrVF(const LocalTensor<T> &outputLocal, const LocalTensor<T> &inputLocal, const LocalTensor<T> &dequantScaleBrcbLocal,
                                 float quantScaleCkvRope, uint64_t computeSizeRope, uint64_t computeBlockAlign) {
     const uint16_t floatRepSize = 64; // 一个寄存器能够存放64个FP32
     uint16_t repeatTimes = (computeSizeRope + floatRepSize - 1) / floatRepSize; // 对尾块处理的扩展，循环处理的次数
@@ -64,7 +64,7 @@ __aicore__ inline void MulQr_VF(const LocalTensor<T> &outputLocal, const LocalTe
     __ubuf__ T * inputBuf = (__ubuf__ T *)inputLocal.GetPhyAddr();
     __ubuf__ T * outputBuf = (__ubuf__ T *)outputLocal.GetPhyAddr();
     __ubuf__ T * dequantScaleBrcbBuf = (__ubuf__ T *)dequantScaleBrcbLocal.GetPhyAddr();
-    MulQr_VF_Impl<T>(inputBuf, outputBuf, dequantScaleBrcbBuf, floatRepSize, repeatTimes, quantScaleCkvRope, computeBlockAlign);
+    MulQrVFImpl<T>(inputBuf, outputBuf, dequantScaleBrcbBuf, floatRepSize, repeatTimes, quantScaleCkvRope, computeBlockAlign);
 }
 } // namespace MlaProlog
  #endif

@@ -23,7 +23,7 @@ namespace MlaProlog {
 constexpr uint64_t FLOAT_VF_SIZE = 64;
 
 template <typename T>
-__smid_vf__ void Rope_VF_Impl(__ubuf__ T * ropeUb, __ubuf__ T * sinUb, __ubuf__ T * cosUb, __ubuf__ uint32_t * gatherUb1, 
+__smid_vf__ void RopeVFImpl(__ubuf__ T * ropeUb, __ubuf__ T * sinUb, __ubuf__ T * cosUb, __ubuf__ uint32_t * gatherUb1, 
     __ubuf__ uint32_t * gatherUb2, __ubuf__ T * resUb, const uint16_t row)
 {
     MicroAPI::RegTensor<float> vregRopeFp32_1;
@@ -73,7 +73,7 @@ __smid_vf__ void Rope_VF_Impl(__ubuf__ T * ropeUb, __ubuf__ T * sinUb, __ubuf__ 
 }
 
 template <typename T>
-__aicore__ inline void Rope_VF(const LocalTensor<T>& sinTensor, const LocalTensor<T>& cosTensor, const LocalTensor<T>& xTensor,
+__aicore__ inline void RopeVF(const LocalTensor<T>& sinTensor, const LocalTensor<T>& cosTensor, const LocalTensor<T>& xTensor,
     const LocalTensor<uint32_t>& gatherTensor1, const LocalTensor<uint32_t>& gatherTensor2,
     const LocalTensor<T>& resTensor, const uint16_t row)
 {
@@ -84,7 +84,7 @@ __aicore__ inline void Rope_VF(const LocalTensor<T>& sinTensor, const LocalTenso
     __ubuf__ uint32_t * gatherUb2 = (__ubuf__ uint32_t*)gatherTensor2.GetPhyAddr();
     __ubuf__ T * resUb = (__ubuf__ T*)resTensor.GetPhyAddr();
 
-    Rope_VF_Impl<T>(ropeUb, sinUb, cosUb, gatherUb1, gatherUb2, resUb, row);
+    RopeVFImpl<T>(ropeUb, sinUb, cosUb, gatherUb1, gatherUb2, resUb, row);
 }
 
 template <typename C>
@@ -105,7 +105,7 @@ __aicore__ inline void RotaryPosEmbVF(const LocalTensor<C> &outputLocal, const L
         gatherTensor2.SetValue(i, i * 2); // 偶数在前面32
         gatherTensor2.SetValue(i + halfReg, i * 2 + 1); // 奇数在后面32
     }
-    Rope_VF<C>(sinLocal, cosLocal, inputLocal, gatherTensor1, gatherTensor2, outputLocal, static_cast<uint16_t>(row));
+    RopeVF<C>(sinLocal, cosLocal, inputLocal, gatherTensor1, gatherTensor2, outputLocal, static_cast<uint16_t>(row));
 }
 
 } // namespace MlaProlog

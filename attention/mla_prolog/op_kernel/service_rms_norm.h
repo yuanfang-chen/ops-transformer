@@ -85,14 +85,14 @@ __aicore__ inline void RmsNormNormal(const LocalTensor<O>& outputLocal, const Gl
 
     if constexpr (std::is_same<C, O>::value) {
         #if __CCE_AICORE__ == 310
-        RmsNorm_VF<C, GammaType, C, C>(outputLocal, xFp32Local, gammaLocal, rmsNormParams);
+        RmsNormVF<C, GammaType, C, C>(outputLocal, xFp32Local, gammaLocal, rmsNormParams);
         #else
         RmsNorm(outputLocal, xFp32Local ,gammaLocal, rmsnormShareUB.template ReinterpretCast<uint8_t>(), rmsNormParams);
         #endif
         AscendC::PipeBarrier<PIPE_V>();
     } else {
         #if __CCE_AICORE__ == 310
-        RmsNorm_VF<C, GammaType, C, C>(xFp32Local, xFp32Local, gammaLocal, rmsNormParams);
+        RmsNormVF<C, GammaType, C, C>(xFp32Local, xFp32Local, gammaLocal, rmsNormParams);
         #else
         RmsNorm(xFp32Local, xFp32Local ,gammaLocal, rmsnormShareUB.template ReinterpretCast<uint8_t>(), rmsNormParams);
         #endif

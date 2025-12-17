@@ -423,7 +423,7 @@ __aicore__ inline void QuantPerTensorToFP8e4m3(const LocalTensor<FP8E4M3> &outLo
                                                const LocalTensor<float> &quantScaleLocal, const Rectangle& rectangleParams)
 {
 #if __CCE_AICORE__ == 310
-    QuantPerTensor_VF(outLocal, inputLocal, quantScaleLocal, rectangleParams.row, rectangleParams.col);
+    QuantPerTensorVF(outLocal, inputLocal, quantScaleLocal, rectangleParams.row, rectangleParams.col);
 #endif
 }
 

@@ -21,7 +21,7 @@ namespace MlaProlog{
 constexpr uint64_t FLOAT_REP_SIZE = 64;
 
 template <typename InType, typename GammaType, typename C, typename OutType>
-__simd_vf__ void RmsNorm_VF_Impl(__ubuf__ InType * inputBuf, __ubuf__ GammaType * gammaBuf, __ubuf__ OutType * outputBuf, 
+__simd_vf__ void RmsNormVFImpl(__ubuf__ InType * inputBuf, __ubuf__ GammaType * gammaBuf, __ubuf__ OutType * outputBuf, 
                                 uint32_t cnt, uint32_t repeatTimes, const RmsNormParam rmsNormParams)
 {
     MicroAPI::RegTensor<C> vregSum;
@@ -71,7 +71,7 @@ __simd_vf__ void RmsNorm_VF_Impl(__ubuf__ InType * inputBuf, __ubuf__ GammaType 
 }
 
 /**
- * @brief RmsNorm_VF 对一行进行rmsnorm
+ * @brief RmsNormVF 对一行进行rmsnorm
  * @param outputLocal 输出tensor [row, col]，row目前均为1
  * @param inputLocal 输入tensor [row, col]
  * @param gammaLocal gamma参数tensor [row, col]
@@ -82,7 +82,7 @@ __simd_vf__ void RmsNorm_VF_Impl(__ubuf__ InType * inputBuf, __ubuf__ GammaType 
           epsilon，防止除零极小数
  */
 template <typename InType, typename GammaType, typename C, typename OutType>
-__aicore__ inline void RmsNorm_VF(const LocalTensor<OutType> &outputLocal, const LocalTensor<InType> &inputLocal, const LocalTensor<GammaType> &gammaLocal,
+__aicore__ inline void RmsNormVF(const LocalTensor<OutType> &outputLocal, const LocalTensor<InType> &inputLocal, const LocalTensor<GammaType> &gammaLocal,
                                            const RmsNormParam rmsNormParams) {
     uint32_t cnt = rmsNormParams.row * rmsNormParams.col;
     uint32_t repeatTimes = (cnt + FLOAT_REP_SIZE - 1) / FLOAT_REP_SIZE;
@@ -91,7 +91,7 @@ __aicore__ inline void RmsNorm_VF(const LocalTensor<OutType> &outputLocal, const
     __ubuf__ GammaType * gammaBuf = (__ubuf__ GammaType *)gammaLocal.GetPhyAddr();
     __ubuf__ OutType * outputBuf = (__ubuf__ OutType *)outputLocal.GetPhyAddr();
     
-    RmsNorm_VF_Impl<InType, GammaType, C, OutType>(inputBuf, gammaBuf, outputBuf, cnt, repeatTimes, rmsNormParams);
+    RmsNormVFImpl<InType, GammaType, C, OutType>(inputBuf, gammaBuf, outputBuf, cnt, repeatTimes, rmsNormParams);
 }
 }
 #endif 

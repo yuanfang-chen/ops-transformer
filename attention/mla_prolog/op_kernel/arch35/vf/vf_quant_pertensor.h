@@ -19,7 +19,7 @@
 
 namespace MlaProlog{
 template <typename T, typename U>
-__simd_vf__ void QuantPerTensor_VF_Impl(__ubuf__ T * inputBuf, __ubuf__ T * quantScaleBuf, __ubuf__ U * outputBuf, 
+__simd_vf__ void QuantPerTensorVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * quantScaleBuf, __ubuf__ U * outputBuf, 
                                         uint32_t cnt, const uint16_t floatRepSize, uint16_t repeatTimes)
 {
     MicroAPI::MaskReg pregAll = MicroAPI::CreateMask<T, MicroAPI::MaskPattern::ALL>();
@@ -46,7 +46,7 @@ __simd_vf__ void QuantPerTensor_VF_Impl(__ubuf__ T * inputBuf, __ubuf__ T * quan
 }
 
 /**
- * @brief QuantPerTensor_VF 对一行进行mul,并量化到fp8e4m3 T float U fp8e4m3 可根据不同量化结果扩展
+ * @brief QuantPerTensorVF 对一行进行mul,并量化到fp8e4m3 T float U fp8e4m3 可根据不同量化结果扩展
  * @param outputLocal 输出tensor [row, col]，row为rmsnorm输出的结果，均为1
  * @param inputLocal 输入tensor [row, col]
  * @param quantScaleLocal 量化参数tensor [row, 1]
@@ -54,7 +54,7 @@ __simd_vf__ void QuantPerTensor_VF_Impl(__ubuf__ T * inputBuf, __ubuf__ T * quan
  * @param col 处理数据的列数
  */
 template <typename T, typename U>
-__aicore__ inline void QuantPerTensor_VF(const LocalTensor<U> &outputLocal, const LocalTensor<T> &inputLocal, const LocalTensor<T> &quantScaleLocal,
+__aicore__ inline void QuantPerTensorVF(const LocalTensor<U> &outputLocal, const LocalTensor<T> &inputLocal, const LocalTensor<T> &quantScaleLocal,
                                   const uint32_t row, const uint32_t col) {
     uint32_t cnt = row * col;
     const uint16_t floatRepSize = 64; // 一个寄存器能够存放64个FP32
@@ -64,7 +64,7 @@ __aicore__ inline void QuantPerTensor_VF(const LocalTensor<U> &outputLocal, cons
     __ubuf__ T * quantScaleBuf = (__ubuf__ T *)quantScaleLocal.GetPhyAddr();
     __ubuf__ U * outputBuf = (__ubuf__ U *)outputLocal.GetPhyAddr();
 
-    QuantPerTensor_VF_Impl<T, U>(inputBuf, quantScaleBuf, outputBuf, cnt, floatRepSize, repeatTimes);
+    QuantPerTensorVFImpl<T, U>(inputBuf, quantScaleBuf, outputBuf, cnt, floatRepSize, repeatTimes);
 }
 } // namespace MlaProlog
 #endif
