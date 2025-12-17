@@ -506,6 +506,12 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::GetShapeAttrsInfo()
     OP_CHECK_IF(!AnalyzeAttrs() || !AnalyzeDtype() || !AnalyzeLayout() || !AnalyzeOptionalInput(),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "fail to analyze context info."), return ge::GRAPH_FAILED);
 
+    OP_CHECK_IF((inputDtypeBytes == DATA_TYPE_FP8) &&
+                (hasAttenMask || hasPse || hasDropOut || hasRope || dSize > 128 || dSizeV > 128),
+                OPS_REPORT_VECTOR_INNER_ERR(opName, "FP8 cannot have optional inputs, the value of d must be less than or equal to 128."
+                "[hasAttenMask:%d, hasPse:%d, hasDropOut:%d, hasRope:%d, dSize:%d, dSizeV:%d]", hasAttenMask, hasPse,
+                hasDropOut, hasRope, dSize, dSizeV), return ge::GRAPH_FAILED);
+
     if (hasRope && (dSize != 128 || dSizeRope != 64)) {
         OPS_REPORT_VECTOR_INNER_ERR(opName, "MLA concat only support dSize=128, dSizeRope=64.");
         return ge::GRAPH_FAILED;
@@ -822,7 +828,7 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
         
         OP_CHECK_IF(dimValue0 != bSize || dimValue1 != n2Size ||
             (dimValue2 != (s2Size + QUANT_KV_BLOCK_SIZE  - 1) / QUANT_KV_BLOCK_SIZE ) || dimValue3 != D_SCALE_DIM_NUM_1,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleK dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/128), 1]",
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleK dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/256), 1]",
                     dimValue0, dimValue1, dimValue2, dimValue3),
                     return false);
     }
@@ -845,7 +851,7 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
         int64_t dimValue3 = dScaleVShape->GetStorageShape().GetDim(D_SCALE_DIM_NUM_3);
         OP_CHECK_IF(dimValue0 != bSize || dimValue1 != n2Size ||
             (dimValue2 != (s2Size + QUANT_KV_BLOCK_SIZE - 1) / QUANT_KV_BLOCK_SIZE) || dimValue3 != D_SCALE_DIM_NUM_1,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleV dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/128), 1]",
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleV dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/256), 1]",
                     dimValue0, dimValue1, dimValue2, dimValue3),
                     return false);
     }

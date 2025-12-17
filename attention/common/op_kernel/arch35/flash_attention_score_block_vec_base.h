@@ -79,7 +79,7 @@ public:
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
     using pseShiftW8InType = typename AscendC::Conditional<isInfer, half, OUTPUT_T>::type;
     using pseShiftType = typename AscendC::Conditional<isW8In, pseShiftW8InType, INPUT_T>::type;
-    static constexpr int64_t FP8_QUANT_KV_BLOCK_SIZE = isInfer ? 256 : 128;
+    static constexpr int64_t FP8_QUANT_KV_BLOCK_SIZE = 256;
     // ==================== Functions ======================
     __aicore__ inline FABlockVecBase() {};
     __aicore__ inline void InitVecBlock(TPipe *pipe, const optiling::FlashAttentionScoreSimplifiedTilingData *__restrict tiling,
@@ -779,15 +779,9 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
             deScaleQOffset = runInfo.boIdx * constInfo.n2G * s1BlockCnt +
                                     runInfo.n2oIdx * constInfo.gSize * s1BlockCnt +
                                     runInfo.goIdx * s1BlockCnt + runInfo.s1oIdx;
-            if constexpr (isInfer) {
-                runInfo.deScaleKvOffset = runInfo.boIdx * constInfo.n2Size * s2BlockCnt +
-                                        runInfo.n2oIdx * s2BlockCnt +
-                                        (runInfo.s2StartIdx >> 8) + (runInfo.s2LoopCount >> 1); // 8 ：按照256分块计算deScaleKv偏移
-            } else {
-                runInfo.deScaleKvOffset = runInfo.boIdx * constInfo.n2Size * s2BlockCnt * (FP8_QUANT_KV_BLOCK_SIZE / s2BaseSize) +
-                                    runInfo.n2oIdx * s2BlockCnt * (FP8_QUANT_KV_BLOCK_SIZE / s2BaseSize) + 
-                                    (runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount;   // 7 ：按照128分块计算deScaleKv偏移
-            }
+            runInfo.deScaleKvOffset = runInfo.boIdx * constInfo.n2Size * s2BlockCnt +
+                                    runInfo.n2oIdx * s2BlockCnt +
+                                    (runInfo.s2StartIdx >> 8) + (runInfo.s2LoopCount >> 1); // 8 ：按照256分块计算deScaleKv偏移
             deScaleKvOffset = runInfo.deScaleKvOffset;
         }
         float deSCaleQValue = this->deScaleQGm.GetValue(deScaleQOffset);
@@ -977,22 +971,18 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUb(
         }
         float deSCalePreVValue = 1.0f;
         if constexpr (isFp8) {
-            if constexpr (isInfer) {
-                if constexpr (useDn) {
-                    deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
+            if constexpr (useDn) {
+                deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
+            } else {
+                if constexpr (isMlaFullQuant) {
+                    deSCalePreVValue = this->deScaleVGm.GetValue(0);
                 } else {
-                    if constexpr (isMlaFullQuant) {
-                        deSCalePreVValue = this->deScaleVGm.GetValue(0);
+                    if (((runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount) & 1) {   // 7：KV基本块大小128，按照256分块计算deScaleKv偏移
+                        deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset);
                     } else {
-                        if (((runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount) & 1) {   // 7：KV基本块大小128，按照256分块计算deScaleKv偏移
-                            deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset);
-                        } else {
-                            deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
-                        }
+                        deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
                     }
                 }
-            } else {
-                deSCalePreVValue = this->deScaleVGm.GetValue((runInfo.deScaleKvOffset - 1) * s2BaseSize / FP8_QUANT_KV_BLOCK_SIZE);
             }
         }
         if (runInfo.s2LoopCount < runInfo.s2LoopLimit) {
@@ -1126,18 +1116,14 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2DSplit(
             int64_t vec2ExpBufOffset = ComputeOffsetForSoftmax(runInfo, vec2S1Idx);
             float deSCalePreVValue = 1.0f;
             if constexpr (isFp8) {
-                if constexpr (isInfer) {
-                    if constexpr (useDn) {
-                        deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
-                    } else {
-                        if (((runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount) & 1) {
-                            deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset);
-                        } else {
-                            deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
-                        }
-                    }
+                if constexpr (useDn) {
+                    deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
                 } else {
-                    deSCalePreVValue = this->deScaleVGm.GetValue((runInfo.deScaleKvOffset - 1) * s2BaseSize / FP8_QUANT_KV_BLOCK_SIZE);
+                    if (((runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount) & 1) {
+                        deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset);
+                    } else {
+                        deSCalePreVValue = this->deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
+                    }
                 }
             }
             LocalTensor<T> expUb = softmaxExpBuf[runInfo.taskIdMod3].template Get<T>()[vec2ExpBufOffset];
@@ -1264,18 +1250,14 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2(
                 int64_t vec2ExpBufOffset = ComputeOffsetForSoftmax(runInfo, vec2S1Idx);
                 float deSCalePreVValue = 1.0f;
                 if constexpr (isFp8) {
-                    if constexpr (isInfer) {
-                        if constexpr (useDn) {
-                            deSCalePreVValue = deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
-                        } else {
-                            if (((runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount) & 1) {
-                                deSCalePreVValue = deScaleVGm.GetValue(runInfo.deScaleKvOffset);
-                            } else {
-                                deSCalePreVValue = deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
-                            }
-                        }
+                    if constexpr (useDn) {
+                        deSCalePreVValue = deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
                     } else {
-                        deSCalePreVValue = deScaleVGm.GetValue((runInfo.deScaleKvOffset - 1) * s2BaseSize / FP8_QUANT_KV_BLOCK_SIZE);
+                        if (((runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount) & 1) {
+                            deSCalePreVValue = deScaleVGm.GetValue(runInfo.deScaleKvOffset);
+                        } else {
+                            deSCalePreVValue = deScaleVGm.GetValue(runInfo.deScaleKvOffset - 1);
+                        }
                     }
                 }
                 LocalTensor<T> expUb = softmaxExpBuf[runInfo.taskIdMod3].template Get<T>()[vec2ExpBufOffset];

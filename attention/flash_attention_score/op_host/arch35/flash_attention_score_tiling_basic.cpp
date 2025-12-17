@@ -79,11 +79,12 @@ protected:
     void CalcS1S2BasicBlock() override
     {
         /* s2 = 64 && d == 64使能dn优化 */
-        if (dSize == DN_D_64 && dSizeV == DN_D_64 &&
+        if ((dSize == DN_D_64 && dSizeV == DN_D_64 &&
             (s1Size % DN_S1_128 == 0) &&
             (s2Size % MIN_DN_S2 == 0) &&
             !hasAttenMask && !hasPse && !hasDropOut && (inputDtypeBytes != DATA_TYPE_FP32) && 
-            (inputDtypeBytes != DATA_TYPE_FP8) && !hasRope) {
+            (inputDtypeBytes != DATA_TYPE_FP8) && !hasRope) ||
+            ((inputDtypeBytes == DATA_TYPE_FP8) && !hasAttenMask && !hasPse && !hasDropOut && !hasRope)) {
             s1TemplateType = STemplateType::ALIGNED_128;
             s2TemplateType = STemplateType::ALIGNED_256;
             s1BasicBlock = NUM_128;
