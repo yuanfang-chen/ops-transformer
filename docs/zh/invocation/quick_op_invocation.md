@@ -205,6 +205,8 @@
   # bash build.sh -u --[opapi|ophost|opkernel]
   # 方式5: 编译对应功能的UT测试用例但不执行（选其一）
   # bash build.sh -u --noexec --[opapi|ophost|opkernel]
+  # 方式6: 编译并执行除公共用例外指定soc的UT测试用例
+  # bash build.sh -u --[opapi|ophost|opkernel] --soc=${soc_version}
     ```
   
     如需验证ophost功能是否正常，执行如下命令：
