@@ -79,6 +79,7 @@ private:
     __aicore__ inline int64_t GetEndS1Etx(int32_t bIdx, int32_t defaultLens,
         GlobalTensor<int64_t> &actualSeqLensGm, SLILayout layout);
     __aicore__ inline void CalcMultiCoreOffset(int64_t &bStartIdx, int64_t &s1StartIdx, int64_t &bEndIdx, int64_t &s1EndIdx);
+    __aicore__ inline int64_t CalcBS1Loop();
 
     TPipe *pipe = nullptr;
     const optiling::SparseLightningIndexerGradKLLossTilingData *__restrict tilingData = nullptr;
@@ -178,7 +179,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Init(
                                     actualSeqLengthsQueryGm, actualSeqLengthsKeyGm,
                                     gatherPRes, gatherSYRes);
         vectorService.InitVector1GM(bmm1Res, softmaxMaxGm, softmaxSumGm, bmm2Res, weightGm, psySyncGm,
-                                    lossGm, dWeightGm, reluGm, reluGradRes);
+                                    lossGm, dWeightGm, reluGm, reluGradRes, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm);
         vectorService.InitVector2GM(bmm3Res, topKIndexGm, scatterAddRes);
     } else if ASCEND_IS_AIC {
         // initCubeOP
@@ -234,11 +235,11 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::InitWorkspace
 
     int64_t coreTotalOffset = constInfo.aicIdx *
             (pOffset * constInfo.gatherKeyDbNum + syOffset * constInfo.gatherKeyIndexDbNum +
-            bmm1Offset * 2 + bmm2Offset * 2 + reluGradOffset * 2 + psySyncSize * 2 + bmm3Offset * 2);
+            bmm1Offset * 2 + bmm2Offset * 2 + reluGradOffset * 2 + psySyncSize * 2);
 
     int64_t totalOffset = GetBlockNum() *
             (pOffset * constInfo.gatherKeyDbNum + syOffset * constInfo.gatherKeyIndexDbNum +
-            bmm1Offset * 2 + bmm2Offset * 2 + reluGradOffset * 2 + psySyncSize * 2 + bmm3Offset * 2);
+            bmm1Offset * 2 + bmm2Offset * 2 + reluGradOffset * 2 + psySyncSize * 2);
 
     uint64_t offset = 0;
     // workspace 按核分, 每个核内不同workspace相邻
@@ -269,8 +270,8 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::InitWorkspace
     offset += reluGradOffset * 2;
 
     bmm3Res.SetGlobalBuffer(
-        (__gm__ MM3_OUT_T *)(workspace + offset + coreTotalOffset));
-    offset += bmm3Offset * 2;
+        (__gm__ MM3_OUT_T *)(workspace + totalOffset));
+    totalOffset += bmm3Offset * GetBlockNum() * 2;
 
     scatterAddRes.SetGlobalBuffer(
         (__gm__ T *)(workspace + totalOffset));
@@ -363,6 +364,20 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::CalcMultiCore
 }
 
 template <typename SLIT>
+__aicore__ inline int64_t SparseLightningIndexerGradKLLossBase<SLIT>::CalcBS1Loop() {
+    int64_t maxLoop = 0;
+    int32_t coreNum = GetBlockNum();
+    int64_t bS1Index, bS1EndIndex;
+    for (int32_t aicIdx = 0; aicIdx < coreNum; aicIdx++) {
+        bS1Index = tilingData->multiCoreParams.bS1Index[aicIdx];
+        bS1EndIndex = aicIdx + 1 < optiling::MAX_CORE_NUM ?
+                tilingData->multiCoreParams.bS1Index[aicIdx + 1] : tilingData->multiCoreParams.totalSize;
+        maxLoop = Max(maxLoop, bS1EndIndex - bS1Index);
+    }
+    return maxLoop;
+}
+
+template <typename SLIT>
 __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Process()
 {
     if ASCEND_IS_AIV {
@@ -426,7 +441,11 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Process()
 
             if (runInfoNeg2.isValid) {
                 if ASCEND_IS_AIV {
-                    vectorService.ProcessVector2(runInfoNeg2); // V2 ScatterAdd
+                    if constexpr (deterministic){
+                        vectorService.ProcessDeterVector2(runInfoNeg2);
+                    } else {
+                        vectorService.ProcessVector2(runInfoNeg2); // V2 ScatterAdd
+                    }
                     runInfoNeg2.isValid = false;
                 }
             }
@@ -434,6 +453,31 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Process()
             taskId++;
         }
     }
+    
+    if constexpr (deterministic){
+        int64_t maxLoop = CalcBS1Loop();
+        if ASCEND_IS_AIV {
+            // 关于SYNC_V2_TO_C2_DETER_SA_FLAG的同步，是为了防止SYNC_C2_TO_V2_SA_FLAG累加到上限
+            CrossCoreSetFlag<2, PIPE_MTE3>(SYNC_V2_TO_C2_DETER_SA_FLAG);
+        }
+        for (; taskId < maxLoop + extraLoopTimes; taskId++) {
+            if ASCEND_IS_AIC {
+                CrossCoreWaitFlag<2, PIPE_FIX>(SYNC_V2_TO_C2_DETER_SA_FLAG);
+                CrossCoreSetFlag<2, PIPE_FIX>(SYNC_C2_TO_V2_SA_FLAG[(taskId - extraLoopTimes) & 1]);
+            }
+            if ASCEND_IS_AIV {
+                SLIGradKLLossRunInfo &runInfo = runInfos[0];
+                runInfo.taskId = taskId - extraLoopTimes;
+                runInfo.taskIdMod2 = runInfo.taskId & 1;
+                vectorService.ProcessDeterVector2(runInfo);
+                CrossCoreSetFlag<2, PIPE_MTE3>(SYNC_V2_TO_C2_DETER_SA_FLAG);
+            }
+        }
+        if ASCEND_IS_AIC {
+            CrossCoreWaitFlag<2, PIPE_FIX>(SYNC_V2_TO_C2_DETER_SA_FLAG);
+        }
+    }
+
     if ASCEND_IS_AIV {
         vectorService.FreeEventID();
     } else {

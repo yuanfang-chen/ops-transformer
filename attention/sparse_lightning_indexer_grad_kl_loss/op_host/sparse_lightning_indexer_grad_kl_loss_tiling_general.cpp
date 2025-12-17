@@ -161,6 +161,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeAttrs()
     scaleValue = *scaleValuePtr;
     inputLayout = inputLayoutPtr;
     sparseMode = *sparseModePtr;
+    deterministic = (context_->GetDeterministic() == 1);
 
     OP_LOGD(context_, "attrs: scaleValue[%f] input_layout[%s] sparse_mode[%ld].",
             scaleValue, inputLayout, sparseMode);

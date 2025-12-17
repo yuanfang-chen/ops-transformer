@@ -635,7 +635,8 @@ __aicore__ inline void SLITMatmulService<SLIT>::ComputeMm5(const SLIGradKLLossRu
 
     CrossCoreWaitFlag<SYNC_MODE, PIPE_MTE2>(SYNC_V1_TO_C2_DW_FLAG[info.taskIdMod2]);
     int64_t scatterOffset = 0;
-    GlobalTensor<MM_OUT_T> resGm = mm5ResGm[info.taskIdMod2 * constInfo.kSize * constInfo.dSizeQueryIndex];
+    int64_t resOffset = constInfo.aicIdx * constInfo.kSize * constInfo.dSizeQueryIndex * 2;
+    GlobalTensor<MM_OUT_T> resGm = mm5ResGm[resOffset + info.taskIdMod2 * constInfo.kSize * constInfo.dSizeQueryIndex];
     int64_t kOuterStride = info.kBaseSize * constInfo.dSizeQueryIndex;
     int64_t kInnerStride = K_SPLIT_SIZE * constInfo.dSizeQueryIndex;
     for (uint32_t kOuterIdx = 0; kOuterIdx < info.kLoopTimes; kOuterIdx++) {

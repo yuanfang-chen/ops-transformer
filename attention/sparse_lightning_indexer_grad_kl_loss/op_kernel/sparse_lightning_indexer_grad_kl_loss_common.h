@@ -37,6 +37,12 @@ constexpr uint8_t SYNC_V1_TO_C2_DW_FLAG[2] = {8, 9};
 
 constexpr uint8_t SYNC_C2_TO_V2_SA_FLAG[2] = {10, 11};
 
+constexpr uint8_t SYNC_V2_TO_C2_DETER_SA_FLAG = 12;
+
+constexpr uint8_t SYNC_C2_TO_V2_DETER_SA_FLAG_MOD0[2] = {0, 1};
+
+constexpr uint8_t SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0 = 2;
+
 static constexpr uint32_t N_WORKSPACE_SIZE = 1024; // n方向切分
 static constexpr uint32_t K_BASE_SIZE = 2048; // n方向切分
 
