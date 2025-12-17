@@ -1461,8 +1461,8 @@ static void SetA8W4HPTiling(A8W4HPTiling *tiling_data, uint32_t aicNum)
   constexpr uint32_t SINGLE_CORE_TILING_1 = 256;
   constexpr uint32_t SINGLE_CORE_BASE_TILING_0 = 128;
   constexpr uint32_t SINGLE_CORE_BASE_TILING_1 = 256;
-  constexpr uint32_t TOTAL_K_THRESHOLD_7168 = 7168;
-  
+  constexpr uint32_t TOTAL_K_THRESHOLD_6656 = 6656;
+
   uint32_t *ori_in0_shape = tiling_data->get_ori_in0_shape();
   uint32_t total_K = ori_in0_shape[IDX_ONE];
   uint32_t core_num = aicNum;
@@ -1474,9 +1474,9 @@ static void SetA8W4HPTiling(A8W4HPTiling *tiling_data, uint32_t aicNum)
   tiling_data->set_kernel_index(0);
   tiling_data->set_splitTimes(0);
 
-  if (total_K > TOTAL_K_THRESHOLD_7168) {
-    splitRecord[IDX_ZERO] = CeilDiv(total_K, TOTAL_K_THRESHOLD_7168);
-    single_core_tiling[IDX_TWO] = TOTAL_K_THRESHOLD_7168;
+  if (total_K > TOTAL_K_THRESHOLD_6656) {
+    splitRecord[IDX_ZERO] = CeilDiv(total_K, TOTAL_K_THRESHOLD_6656);
+    single_core_tiling[IDX_TWO] = TOTAL_K_THRESHOLD_6656;
   }
 
   tiling_data->set_splitRecord(splitRecord);
@@ -1551,7 +1551,6 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
                     ((reinterpret_cast<const int64_t *>(tuningConfigPtr->GetData()))[TUNING_CONFIG_A8W4_SPEC_SCENARIO_INDEX] == 1) : false;
       if (useHighPerf) {
         OP_LOGD(context->GetNodeName(), "Enter GMM A8W4 MSD high performance path...");
-        constexpr size_t GMM_WORKSPACE_AMOUNT = 262144L;     // 256 * 1024
         constexpr int CASE_ZERO = 0;
         constexpr int CASE_ONE = 1;
         constexpr int CASE_TWO = 2;
@@ -1638,7 +1637,7 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
           tilingDataA8W4.hpTilingData.set_output_type(1);
         }
 
-        size_t workspaceSize = aic * GMM_WORKSPACE_AMOUNT * sizeof(uint32_t) +
+        size_t workspaceSize = M * N * sizeof(int16_t) +
                                (static_cast<size_t>(SixteenAlign(M, true)) * K / TWO * sizeof(uint8_t));
         context->SetScheduleMode(1); // set as batchmod for template using SyncAll
         context->SetTilingKey(GET_TPL_TILING_KEY(GMM_TPL_INT8, GMM_TPL_INT4, yDtype, 0, 0,

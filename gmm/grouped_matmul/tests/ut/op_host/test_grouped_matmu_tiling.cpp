@@ -95,7 +95,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w4obf16_autotiling_1aic2aiv)
     ); // tilngkey
     string expectTilingData =
         "0 ";
-    std::vector<size_t> expectWorkspaces = {58720256}; // workspace
+    std::vector<size_t> expectWorkspaces = {67108864}; // workspace
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces,250);
 }
 TEST_F(GroupedMatmulTiling, test_tiling_a8w4ofp16_autotiling_1aic2aiv)
@@ -155,7 +155,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w4ofp16_autotiling_1aic2aiv)
     ); // tilngkey
     string expectTilingData =
         "0 ";
-    std::vector<size_t> expectWorkspaces = {58720256}; // workspace
+    std::vector<size_t> expectWorkspaces = {67108864}; // workspace
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces,250);
 }
 TEST_F(GroupedMatmulTiling, test_tiling_a8w4obf16_pergroup_antiqunt_1aic2aiv)
