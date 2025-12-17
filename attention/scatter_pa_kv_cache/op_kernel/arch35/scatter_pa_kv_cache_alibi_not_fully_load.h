@@ -208,10 +208,12 @@ __aicore__ inline void ScatterPaKvCacheAlibiNotFullyLoad<T, IndexDtype, InOutMod
         seqLenOffset = seqLensGm_.GetValue(curBatch);
         LocalTensor<IndexDtype> slotMappingLocal = slotMappingBuf_.Get<IndexDtype>();
         for (int64_t k = 0; k < offsetIndex; k++) {
+            if (k >= tilingData_->seqLen) {
+                break;
+            }
             curOffset = seqLenOffset - offsetIndex + k;
             startIdx = slotMappingLocal.GetValue(i) + k;
-            if (startIdx >= tilingData_->numBlocks * tilingData_->blockSize || k >= tilingData_->seqLen ||
-                curOffset < 0) {
+            if (startIdx >= tilingData_->numBlocks * tilingData_->blockSize || curOffset < 0) {
                 continue;
             }
 

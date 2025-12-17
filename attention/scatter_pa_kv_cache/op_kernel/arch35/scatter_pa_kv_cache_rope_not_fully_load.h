@@ -186,7 +186,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
     event_t eventIdMTE2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
     for (int64_t k = startIdx; k < endIdx; k++) {
         if (k >= seqLen_) {
-            continue;
+            break;
         }
         event_t eventIdVToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
         SetFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
@@ -255,7 +255,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
     event_t eventIdMTE2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
     for (int64_t k = startIdx; k < endIdx; k++) {
         if (k >= seqLen_) {
-            continue;
+            break;
         }
         event_t eventIdVToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
         SetFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
@@ -403,8 +403,11 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
     int64_t keyOffset = (kvBlockOffset_ + iter) / numHead_ * tilingData_->keyStride0 +
                         (kvBlockOffset_ + iter) % numHead_ * tilingData_->keyStride2;
     for (int64_t k = 0; k < offsetIndex; k++) {
+        if (k >= seqLen_) {
+            break;
+        }
         int64_t kStartIdx = startIdx + k + count_;
-        if (kStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || k >= seqLen_) {
+        if (kStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }
         UpdateKeyCache(k, kStartIdx * tilingData_->kHeadSize, keyOffset);
@@ -490,8 +493,11 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
     int64_t valueOffset = (kvBlockOffset_ + iter) / numHead_ * tilingData_->valueStride0 +
                           (kvBlockOffset_ + iter) % numHead_ * tilingData_->valueStride2;
     for (int64_t k = 0; k < offsetIndex; k++) {
+        if (k >= seqLen_) {
+            break;
+        }
         int64_t vStartIdx = startIdx + k + count_;
-        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || k >= seqLen_) {
+        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }
         UpdateValueCache(k, vStartIdx * tilingData_->vHeadSize, valueOffset);

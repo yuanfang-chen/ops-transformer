@@ -116,7 +116,10 @@ __aicore__ inline void ScatterPaKvCacheAlibiFullyLoad<T, IndexDtype, InOutMode>:
     int64_t offset = (kvBlockOffset_ + iter) / tilingData_->numHead * tilingData_->keyStride0 +
                      (kvBlockOffset_ + iter) % tilingData_->numHead * tilingData_->keyStride2;
     for (int64_t k = 0; k < offsetIndex; ++k) {
-        if (k >= tilingData_->seqLen || seqLenOffset - offsetIndex + k < 0) {
+        if (k >= tilingData_->seqLen) {
+            break;
+        }
+        if (seqLenOffset - offsetIndex + k < 0) {
             continue;
         }
         DataCopy(inputKeyLocal[k * RoundUp(tilingData_->kHeadSize)],
@@ -135,7 +138,10 @@ __aicore__ inline void ScatterPaKvCacheAlibiFullyLoad<T, IndexDtype, InOutMode>:
     int64_t offset = (kvBlockOffset_ + iter) / tilingData_->numHead * tilingData_->valueStride0 +
                      (kvBlockOffset_ + iter) % tilingData_->numHead * tilingData_->valueStride2;
     for (int64_t k = 0; k < offsetIndex; ++k) {
-        if (k >= tilingData_->seqLen || seqLenOffset - offsetIndex + k < 0) {
+        if (k >= tilingData_->seqLen) {
+            break;
+        }
+        if (seqLenOffset - offsetIndex + k < 0) {
             continue;
         }
         DataCopy(inputValueLocal[k * RoundUp(tilingData_->vHeadSize)],
@@ -158,9 +164,11 @@ __aicore__ inline void ScatterPaKvCacheAlibiFullyLoad<T, IndexDtype, InOutMode>:
         static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
 
     for (int64_t k = 0; k < offsetIndex; k++) {
+        if (k >= tilingData_->seqLen) {
+            break;
+        }
         int64_t vStartIdx = slotMappingLocal.GetValue(iter) + k;
-        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || k >= tilingData_->seqLen ||
-            seqLenOffset - offsetIndex + k < 0) {
+        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || seqLenOffset - offsetIndex + k < 0) {
             continue;
         }
         DataCopyPad(outputKeyCacheGm_[vStartIdx * tilingData_->kHeadSize],
@@ -182,9 +190,11 @@ __aicore__ inline void ScatterPaKvCacheAlibiFullyLoad<T, IndexDtype, InOutMode>:
         static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
 
     for (int64_t k = 0; k < offsetIndex; k++) {
+        if (k >= tilingData_->seqLen) {
+            break;
+        }
         int64_t vStartIdx = slotMappingLocal.GetValue(iter) + k;
-        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || k >= tilingData_->seqLen ||
-            seqLenOffset - offsetIndex + k < 0) {
+        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || seqLenOffset - offsetIndex + k < 0) {
             continue;
         }
         DataCopyPad(outputValueCacheGm_[vStartIdx * tilingData_->vHeadSize],

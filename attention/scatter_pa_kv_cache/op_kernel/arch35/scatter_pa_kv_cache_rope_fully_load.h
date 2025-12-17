@@ -362,7 +362,7 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyInKey(int64_t iter,
                      (kvBlockOffset_ + iter) % numHead_ * tilingData_->keyStride2;
     for (int64_t k = startIdx; k < offsetIndex; ++k) {
         if (k >= seqLen_) {
-            continue;
+            break;
         }
         DataCopy(inputKeyLocal[(k - startIdx) * RoundUp(tilingData_->kHeadSize)],
                  inputKeyGm_[offset + k * tilingData_->keyStride1], RoundUp(tilingData_->kHeadSize));
@@ -381,7 +381,7 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyInValue(int64_t ite
                      (kvBlockOffset_ + iter) % numHead_ * tilingData_->valueStride2;
     for (int64_t k = startIdx; k < offsetIndex; ++k) {
         if (k >= seqLen_) {
-            continue;
+            break;
         }
         DataCopy(inputValueLocal[(k - startIdx) * RoundUp(tilingData_->vHeadSize)],
                  inputValueGm_[offset + k * tilingData_->valueStride1], RoundUp(tilingData_->vHeadSize));
@@ -402,8 +402,11 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyOutKey(int64_t iter
         static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
 
     for (int64_t k = 0; k < offsetIndex; k++) {
+        if (k >= seqLen_) {
+            break;
+        }
         int64_t kStartIdx = slotMappingLocal.GetValue(iter) + k + startOffset;
-        if (kStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || k >= seqLen_) {
+        if (kStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }
         DataCopyPad(outputKeyCacheGm_[kStartIdx * tilingData_->kHeadSize],
@@ -425,8 +428,11 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyOutValue(int64_t it
         static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
 
     for (int64_t k = 0; k < offsetIndex; k++) {
+        if (k >= seqLen_) {
+            break;
+        }
         int64_t vStartIdx = slotMappingLocal.GetValue(iter) + k + startOffset;
-        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize || k >= seqLen_) {
+        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }
         DataCopyPad(outputValueCacheGm_[vStartIdx * tilingData_->vHeadSize],
