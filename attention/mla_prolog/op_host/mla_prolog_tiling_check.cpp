@@ -364,8 +364,13 @@ void MlaPrologTilingCheck::FillRequiredParamShapeWithDims()
 void MlaPrologTilingCheck::FillOptionalOutputParamShapeWithDims()
 {
     if (std::strncmp(context_.opType, V2_OP_NAME, OP_NAME_LEN) == 0) {
-        // 仅校验dequantScaleQNope有传入
-        expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, context_.dequantScaleQNope);
+        if (scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR) {
+            expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, std::vector<uint32_t>{baseShapeInfo_.tSize, baseShapeInfo_.nSize, 1});
+            expectedParamInfo_[DEQUANT_SCALE_Q_NOPE_NAME].dtype = ge::DT_FLOAT;
+        } else {
+            // 仅校验dequantScaleQNope有传入
+            expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, context_.dequantScaleQNope);
+        }
     }
 
     if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
