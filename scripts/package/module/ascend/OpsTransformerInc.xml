@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <block name="OpsTransformerInc" copy_type="delivery" src_path="" dst_path="" install_path="" install_own="$username:$usergroup" install_mod="550"
        install_type="all" pkg_feature="opp_binary">
-    <file_info copy_type="source" src_path="common/include/external/"
-        dst_path="include/"
-        install_path="$(TARGET_ENV)/include" install_type="all">
-        <file value="aclnn_kernels" install_mod="550"/>
-    </file_info>
     <file_info copy_type="delivery" src_path=""
         dst_path="built-in/op_impl/aicpu/"
         install_path="opp/built-in/op_impl/aicpu/" install_type="all" optional="true">
