@@ -17,9 +17,9 @@
 -   **算子功能**:
     aclnnMatmulReduceScatterV2接口是对aclnnMatmulReduceScatter接口的功能扩展，在支持x1和x2输入类型为FLOAT16/BFLOAT16的基础上,
     -   <term>昇腾910_95 AI处理器</term>：
-        -   新增了对低精度数据类型FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的支持。支持pertensor、perblock[量化方式](../../../docs/zh/context/量化介绍.md)。
+        -   新增了对低精度数据类型FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的支持。支持pertensor、perblock[量化方式](../../docs/zh/context/量化介绍.md)。
     -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
-        -   新增了对低精度数据类型INT8的支持。支持pertoken/perchannel[量化方式](../../../docs/zh/context/量化介绍.md)。
+        -   新增了对低精度数据类型INT8的支持。支持pertoken/perchannel[量化方式](../../docs/zh/context/量化介绍.md)。
 
 -   **计算公式**：
     -   情形1：如果x1和x2数据类型为FLOAT16/BFLOAT16时，入参x1、x2进行matmul计算后，进行ReduceScatter通信。
@@ -47,17 +47,17 @@
 
 -   **参数说明：**
     -   x1（aclTensor\*，计算输入）：Device侧的两维aclTensor，mm左矩阵。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, shape为[m, k]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。**当前版本仅支持两维输入，且仅支持不转置场景**。
-        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16；commMode为aiv时，数据类型支持FLOAT16、BFLOAT16、INT8, shape为[m, k]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。**当前版本仅支持两维输入，且仅支持不转置场景**。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, shape为[m, k]，[数据格式](../../docs/zh/context/数据格式.md)支持ND。**当前版本仅支持两维输入，且仅支持不转置场景**。
+        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16；commMode为aiv时，数据类型支持FLOAT16、BFLOAT16、INT8, shape为[m, k]，[数据格式](../../docs/zh/context/数据格式.md)支持ND。**当前版本仅支持两维输入，且仅支持不转置场景**。
     -   x2（aclTensor\*，计算输入）：Device侧的两维aclTensor，mm左矩阵。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, shape为[k, n]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。支持通过转置构造的[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)。**当前版本仅支持两维输入**。
-        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16；commMode为aiv时，数据类型支持FLOAT16、BFLOAT16、INT8。shape为[k, n]，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。支持通过转置构造的[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)。**当前版本仅支持两维输入**。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, shape为[k, n]，[数据格式](../../docs/zh/context/数据格式.md)支持ND。支持通过转置构造的[非连续的Tensor](../../docs/zh/context/非连续的Tensor.md)。**当前版本仅支持两维输入**。
+        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16；commMode为aiv时，数据类型支持FLOAT16、BFLOAT16、INT8。shape为[k, n]，[数据格式](../../docs/zh/context/数据格式.md)支持ND。支持通过转置构造的[非连续的Tensor](../../docs/zh/context/非连续的Tensor.md)。**当前版本仅支持两维输入**。
     -   bias（aclTensor\*，计算输入）：Device侧的一维aclTensor。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor场景下，bias的数据类型必须为FLOAT，在perblock场景下，仅支持输入为nullptr。
-        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。且当前版本仅支持为0的输入。在commMode为aiv时，当前版本仅支持输入nullptr。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT。[数据格式](../../docs/zh/context/数据格式.md)支持ND。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor场景下，bias的数据类型必须为FLOAT，在perblock场景下，仅支持输入为nullptr。
+        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16，[数据格式](../../docs/zh/context/数据格式.md)支持ND。且当前版本仅支持为0的输入。在commMode为aiv时，当前版本仅支持输入nullptr。
     -   x1Scale（aclTensor\*，计算输入）：Device侧的aclTensor，mm左矩阵反量化参数。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT，FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(m, 128), ceildiv(k, 128)]。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。数据类型为FLOAT8_E8M0且x1不转置，shape为(m, CeilDiv(k, 64), 2)。
-        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，仅支持输入nullptr。在commMode为aiv时，数据类型支持FLOAT,，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertoken场景，shape为(m, 1)。
+        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT，FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(m, 128), ceildiv(k, 128)]。[数据格式](../../docs/zh/context/数据格式.md)支持ND。数据类型为FLOAT8_E8M0且x1不转置，shape为(m, CeilDiv(k, 64), 2)。
+        -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，仅支持输入nullptr。在commMode为aiv时，数据类型支持FLOAT,，[数据格式](../../docs/zh/context/数据格式.md)支持ND。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertoken场景，shape为(m, 1)。
     -   x2Scale（aclTensor\*，计算输入）：Device侧的aclTensor，mm右矩阵反量化参数。
         -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT，FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(k, 128), ceildiv(n, 128)]。数据格式支持ND。数据类型为FLOAT8_E8M0且x1不转置，x2转置时，shape为(n, CeilDiv(k, 64), 2)。数据类型为FLOAT8_E8M0且x1不转置，x2不转置时，shape为(CeilDiv(k, 64), n, 2)。
         -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：在commMode为aicpu时，仅支持输入nullptr。在commMode为aiv时，数据类型支持FLOAT、INT64，数据格式支持ND。INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在perchannel场景，shape为(1, n)。
@@ -82,7 +82,7 @@
 
 -   **返回值：**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../docs/zh/context/aclnn返回码.md)。
     ```
     161001(ACLNN_ERR_PARAM_NULLPTR): 1. 传入的x1/x2/output为空指针。
     161002(ACLNN_ERR_PARAM_INVALID): 1. 传入的x1/x2/output/bias(非空场景)/x1Scale(非空场景)/x2Scale(非空场景)/quantScale(非空场景) 的数据格式或数据类型不在支持范围。
@@ -98,7 +98,7 @@
 
 -   **返回值：**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 -   <term>昇腾910_95 AI处理器</term>：

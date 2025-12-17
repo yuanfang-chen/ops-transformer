@@ -15,7 +15,7 @@
 ## 功能说明
 
 - **算子功能**：
-  aclnnAllGatherMatmulV2接口是对aclnnAllGatherMatmul接口的功能拓展，x1和x2新增支持低精度数据类型（如FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8），同时支持pertensor、perblock[量化方式](common/量化介绍.md)。
+  aclnnAllGatherMatmulV2接口是对aclnnAllGatherMatmul接口的功能拓展，x1和x2新增支持低精度数据类型（如FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8），同时支持pertensor、perblock[量化方式](../../docs/zh/context/量化介绍.md)。
   
   功能可分为以下4种情形：  
     - 如果x1和x2数据类型为FLOAT16/BFLOAT16时，入参x1进行allgather后，对x1、x2进行matmul计算；
@@ -213,5 +213,5 @@
 
 | 调用方式   | 样例代码           | 说明                                         |
 | ---------------- | --------------------------- | --------------------------------------------------- |
-| aclnn接口  | [test_aclnn_all_gather_matmul](./examples/test_aclnn_all_gather_matmul.cpp) | 通过[aclnnAllGatherMatmulV2](./docs/aclnnAllGatherMatmulV2.md)接口方式调用AllGatherMatmul算子。 |
+| aclnn接口  | [test_aclnn_all_gather_matmul](./examples/test_aclnn_all_gather_matmul_v2.cpp) | 通过[aclnnAllGatherMatmulV2](./docs/aclnnAllGatherMatmulV2.md)接口方式调用AllGatherMatmul算子。 |
 

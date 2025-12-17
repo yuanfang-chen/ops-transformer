@@ -114,7 +114,7 @@ $$
 
 - **返回值：**
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -159,4 +159,4 @@ $$
 
 | 调用方式 | 调用样例                                             | 说明                                                                             |
 |---------|--------------------------------------------------|--------------------------------------------------------------------------------|
-| aclnn调用 | [test_aclnn_ffn_worker_scheduler](./examples/test_aclnn_ffn_worker_scheduler.cpp) | 通过[aclnnFfnWorkerScheduler](./docs/aclnnSinh&aclnnInplaceSinh.md)接口方式调用FfnWorkerScheduler算子。 |
+| aclnn调用 | [test_aclnn_ffn_worker_scheduler](./examples/test_aclnn_ffn_worker_scheduler.cpp) | 通过[aclnnFfnWorkerScheduler](./docs/aclnnInplaceFfnWorkerScheduler)接口方式调用FfnWorkerScheduler算子。 |

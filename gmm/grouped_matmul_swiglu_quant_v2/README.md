@@ -196,7 +196,7 @@
     <th style="white-space: nowrap">输入/输出</th>
     <th>描述</th>
     <th>数据类型</th>
-    <th><a href="../../../docs/zh/context/数据格式.md" target="_blank">数据格式</a></th>
+    <th><a href="../../docs/zh/context/数据格式.md" target="_blank">数据格式</a></th>
   </tr>
 </thead>
 <tbody>

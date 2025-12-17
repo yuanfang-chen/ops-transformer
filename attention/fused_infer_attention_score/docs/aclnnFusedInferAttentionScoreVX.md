@@ -17,14 +17,14 @@
 ## 功能说明
 
 -   算子功能：适配增量&全量推理场景的FlashAttention算子，既可以支持全量计算场景（PromptFlashAttention），也可支持增量计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV4，本接口新增qStartIdxOptional、kvStartIdxOptional、pseType参数。
--   计算公式：详细内容可参考[PromptFlashAttentionV3](PromptFlashAttentionV3.md)及[IncreFlashAttentionV4](IncreFlashAttentionV4.md)。
+-   计算公式：详细内容可参考[PromptFlashAttentionV3](../../prompt_flash_attention/docs/aclnnPromptFlashAttentionV3.md)及[IncreFlashAttentionV4](../../incre_flash_attention/docs/aclnnIncreFlashAttentionV4.md)。
 
 ## 实现原理
-该算子是全量计算场景（PromptFlashAttention）和增量计算场景（IncreFlashAttention）的融合算子，详细实现原理可参考[PromptFlashAttentionV3](PromptFlashAttentionV3.md)及[IncreFlashAttentionV4](IncreFlashAttentionV4.md)。
+该算子是全量计算场景（PromptFlashAttention）和增量计算场景（IncreFlashAttention）的融合算子，详细实现原理可参考[PromptFlashAttentionV3](../../prompt_flash_attention/docs/aclnnPromptFlashAttentionV3.md)及[IncreFlashAttentionV4](../../incre_flash_attention/docs/aclnnIncreFlashAttentionV4.md)。
 
 ## 算子执行接口
 
-算子执行接口为[两段式接口](common/两段式接口.md)，必须先调用“aclnnFusedInferAttentionScoreVXGetWorkspaceSize”接口获取入参并根据计算流程计算所需workspace大小，再调用“aclnnFusedInferAttentionScoreVX”接口执行计算。
+算子执行接口为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnFusedInferAttentionScoreVXGetWorkspaceSize”接口获取入参并根据计算流程计算所需workspace大小，再调用“aclnnFusedInferAttentionScoreVX”接口执行计算。
 ```c++
 aclnnStatus aclnnFusedInferAttentionScoreVXGetWorkspaceSize(
     const aclTensor     *query,
@@ -96,20 +96,20 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 
 -   **参数说明：**
 
-    - query（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构的Query输入，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。
+    - query（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构的Query输入，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
         -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN。
     
-    - key（aclTensorList\*，计算输入）：Device侧的aclTensorList，attention结构的Key输入，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。
+    - key（aclTensorList\*，计算输入）：Device侧的aclTensorList，attention结构的Key输入，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
         -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN、INT4（INT32）、FLOAT4_E1M2、FLOAT4_E2M1。
     
-    - value（aclTensorList\*，计算输入）：Device侧的aclTensorList，attention结构的Value输入，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。
+    - value（aclTensorList\*，计算输入）：Device侧的aclTensorList，attention结构的Value输入，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
         -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN、INT4（INT32）、FLOAT4_E1M2、FLOAT4_E2M1。
     
-    -   pseShiftOptional（aclTensor\*，计算输入）：Device侧的aclTensor，在attention结构内部的位置编码参数，数据类型支持FLOAT16、BFLOAT16，数据类型与query的数据类型需满足数据类型推导规则。不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。如果pseType为2或3的时候，数据类型需为FLOAT32, 对应shape支持范围是\[N]，其中N = numHeads，用于传入alibi_slope。如不使用该功能时可传入nullptr。
+    -   pseShiftOptional（aclTensor\*，计算输入）：Device侧的aclTensor，在attention结构内部的位置编码参数，数据类型支持FLOAT16、BFLOAT16，数据类型与query的数据类型需满足数据类型推导规则。不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如果pseType为2或3的时候，数据类型需为FLOAT32, 对应shape支持范围是\[N]，其中N = numHeads，用于传入alibi_slope。如不使用该功能时可传入nullptr。
         - Q_S不为1，当query为BFLOAT16类型时，要求pseShiftOptional为BFLOAT16类型；query为其他类型时要求pseShiftOptional为FLOAT16类型。输入shape类型需为 (B,N,Q_S,KV_S) 或 (1,N,Q_S,KV_S)，其中Q_S为query的shape中的S，KV_S为key和value的shape中的S。对于pseShiftOptional的KV_S为非32对齐的场景，建议padding到32字节来提高性能，多余部分的填充值不做要求。
         - Q_S为1，要求在pseShiftOptional为FLOAT16类型时，此时的query为FLOAT16类型，而在pseShiftOptional为BFLOAT16类型时，要求此时的query为BFLOAT16类型。输入shape类型需为 (B,N,1,KV_S) 或 (1,N,1,KV_S)，其中KV_S为key和value的shape中的S。对于pseShiftOptional的KV_S为非32对齐的场景，建议padding到32字节来提高性能，多余部分的填充值不做要求。
     
-    -   attenMaskOptional（aclTensor\*，计算输入）：Device侧的aclTensor，对QK的结果进行mask，用于指示是否计算Token间的相关性，不支持[非连续的Tensor](common/非连续的Tensor.md)，数据类型支持BOOL、INT8和UINT8。[数据格式](common/数据格式.md)支持ND。如果不使用该功能可传入nullptr。
+    -   attenMaskOptional（aclTensor\*，计算输入）：Device侧的aclTensor，对QK的结果进行mask，用于指示是否计算Token间的相关性，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，数据类型支持BOOL、INT8和UINT8。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如果不使用该功能可传入nullptr。
         -  Q_S不为1时建议shape输入 (Q_S,KV_S); (B,Q_S,KV_S); (1,Q_S,KV_S); (B,1,Q_S,KV_S); (1,1,Q_S,KV_S)。
         -  Q_S为1时建议shape输入(B,KV_S); (B,1,KV_S); (B,1,1,KV_S)。
     
@@ -119,58 +119,58 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 
     - actualSeqLengthsKvOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，可传入nullptr，代表不同Batch中key/value的有效Sequence Length。数据类型支持INT64。如果不指定seqlen可以传入nullptr，表示和key/value的shape的S长度相同。综合约束请见[约束说明](#约束说明)。
 
-    - deqScale1Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持UINT64, FLOAT32。[数据格式](common/数据格式.md)支持ND，表示BMM1后面的反量化因子，支持per-tensor。使用全量化功能时，该参数由实际量化过程计算得来。如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
+    - deqScale1Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持UINT64, FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示BMM1后面的反量化因子，支持per-tensor。使用全量化功能时，该参数由实际量化过程计算得来。如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
 
-    - quantScale1Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32。[数据格式](common/数据格式.md)支持ND，表示BMM2前面的量化因子，支持per-tensor。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
+    - quantScale1Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示BMM2前面的量化因子，支持per-tensor。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
     
-    - deqScale2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持UINT64, FLOAT32。[数据格式](common/数据格式.md)支持ND，表示BMM2后面的反量化因子，支持per-tensor。使用全量化功能时，该参数由实际量化过程计算得来。如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
+    - deqScale2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持UINT64, FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示BMM2后面的反量化因子，支持per-tensor。使用全量化功能时，该参数由实际量化过程计算得来。如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
     
-    - quantScale2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32、BFLOAT16。[数据格式](common/数据格式.md)支持ND，表示输出的量化因子，支持per-tensor，per-channel。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
+    - quantScale2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32、BFLOAT16。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示输出的量化因子，支持per-tensor，per-channel。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
     
-    - quantOffset2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32、BFLOAT16。[数据格式](common/数据格式.md)支持ND，表示输出的量化偏移，支持per-tensor，per-channel。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
+    - quantOffset2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32、BFLOAT16。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示输出的量化偏移，支持per-tensor，per-channel。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
     
-    - antiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor，[数据格式](common/数据格式.md)支持ND，表示伪量化因子，支持per-tensor，per-channel，per-token。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - antiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor，[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示伪量化因子，支持per-tensor，per-channel，per-token。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
         -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32。
     
-    - antiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，[数据格式](common/数据格式.md)支持ND，表示伪量化偏移，支持per-tensor，per-channel，per-token。如果使用该功能其数据类型与shape必须与antiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - antiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示伪量化偏移，支持per-tensor，per-channel，per-token。如果使用该功能其数据类型与shape必须与antiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
         -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32。
     
-    - blockTableOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT32。[数据格式](common/数据格式.md)支持ND。表示PageAttention中KV存储使用的block映射表，如不使用该功能可传入nullptr。
+    - blockTableOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。表示PageAttention中KV存储使用的block映射表，如不使用该功能可传入nullptr。
     
-    - queryPaddingSizeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT64。[数据格式](common/数据格式.md)支持ND。表示Query中每个batch的数据是否右对齐，且右对齐的个数是多少。仅支持Q_S大于1，其余场景该参数无效。用户不特意指定时建议传入nullptr。
+    - queryPaddingSizeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT64。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。表示Query中每个batch的数据是否右对齐，且右对齐的个数是多少。仅支持Q_S大于1，其余场景该参数无效。用户不特意指定时建议传入nullptr。
 
-    - kvPaddingSizeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT64。[数据格式](common/数据格式.md)支持ND。表示key/value中每个batch的数据是否右对齐，且右对齐的个数是多少。用户不特意指定时建议传入nullptr。
+    - kvPaddingSizeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT64。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。表示key/value中每个batch的数据是否右对齐，且右对齐的个数是多少。用户不特意指定时建议传入nullptr。
     
-    - keyAntiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor。[数据格式](common/数据格式.md)支持ND，表示key的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - keyAntiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示key的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
         -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32、FLOAT8_E8M0。支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset和per-token-group。
     
-    - keyAntiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT16、BFLOAT16、FLOAT32。[数据格式](common/数据格式.md)支持ND，kv伪量化参数分离时表示key的反量化偏移。如果使用该功能其数据类型与shape必须与keyAntiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - keyAntiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT16、BFLOAT16、FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，kv伪量化参数分离时表示key的反量化偏移。如果使用该功能其数据类型与shape必须与keyAntiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
         -  <term>昇腾910_95 AI处理器</term>：支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset。
 
-    - valueAntiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor。[数据格式](common/数据格式.md)支持ND，表示value的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - valueAntiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示value的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
          -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32、FLOAT8_E8M0。支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset和per-token-group。
 
     
-    - valueAntiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT16、BFLOAT16、FLOAT32。[数据格式](common/数据格式.md)支持ND，kv伪量化参数分离时表示value的反量化偏移。如果使用该功能其数据类型与shape必须与valueAntiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - valueAntiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT16、BFLOAT16、FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，kv伪量化参数分离时表示value的反量化偏移。如果使用该功能其数据类型与shape必须与valueAntiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
          -   <term>昇腾910_95 AI处理器</term>：支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset。
 
-    - keySharedPrefixOptional（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构中Key的系统前缀部分的参数，数据类型支持FLOAT16、BFLOAT16、INT8，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - keySharedPrefixOptional（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构中Key的系统前缀部分的参数，数据类型支持FLOAT16、BFLOAT16、INT8，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
     
-    - valueSharedPrefixOptional（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构中Value的系统前缀部分的输入，数据类型支持FLOAT16、BFLOAT16、INT8，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
+    - valueSharedPrefixOptional（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构中Value的系统前缀部分的输入，数据类型支持FLOAT16、BFLOAT16、INT8，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
     
     - actualSharedPrefixLenOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，可传入nullptr，代表keySharedPrefix/valueSharedPrefix的有效Sequence Length。数据类型支持INT64。如果不指定seqlen可以传入nullptr，表示和keySharedPrefix/valueSharedPrefix的s长度相同。限制：该入参中的有效Sequence Length应该不大于keySharedPrefix/valueSharedPrefix中的Sequence Length。
 
-    - queryRopeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，表示MLA结构中的query的rope信息，数据类型支持FLOAT16、BFLOAT16，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。综合约束请见[约束说明](#约束说明)。
+    - queryRopeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，表示MLA结构中的query的rope信息，数据类型支持FLOAT16、BFLOAT16，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。综合约束请见[约束说明](#约束说明)。
 
-    - keyRopeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，表示MLA结构中的key的rope信息，数据类型支持FLOAT16、BFLOAT16，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。综合约束请见[约束说明](#约束说明)。
+    - keyRopeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，表示MLA结构中的key的rope信息，数据类型支持FLOAT16、BFLOAT16，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。综合约束请见[约束说明](#约束说明)。
 
     - keyRopeAntiquantScaleOptional（aclTensor*，计算输入）：Device侧的aclTensor，表示MLA结构中的key的rope信息的反量化因子。预留参数，当前版本不生效，传入nullptr即可。
 
-    - dequantScaleQueryOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32。[数据格式](common/数据格式.md)支持ND，query的反量化参数，全量化场景涉及。量化模式支持per-token叠加per-head，per-block模式。如不使用该功能时可传入nullptr。
+    - dequantScaleQueryOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，query的反量化参数，全量化场景涉及。量化模式支持per-token叠加per-head，per-block模式。如不使用该功能时可传入nullptr。
         
-    - qStartIdxOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，数据类型支持INT64，内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。代表外切场景，当前分块的query的sequence在全局中的起始索引，[数据格式](common/数据格式.md)支持ND；综合约束请见[约束说明](#约束说明)。当pseType为2、3时，不传入该参数按照0处理。
+    - qStartIdxOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，数据类型支持INT64，内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。代表外切场景，当前分块的query的sequence在全局中的起始索引，[数据格式](../../../docs/zh/context/数据格式.md)支持ND；综合约束请见[约束说明](#约束说明)。当pseType为2、3时，不传入该参数按照0处理。
 
-    - kvStartIdxOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，数据类型支持INT64，内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。代表外切场景，当前分块的key和value的sequence在全局中的起始索引，[数据格式](common/数据格式.md)支持ND；综合约束请见[约束说明](#约束说明)。当pseType为2、3时，不传入该参数按照0处理。
+    - kvStartIdxOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，数据类型支持INT64，内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。代表外切场景，当前分块的key和value的sequence在全局中的起始索引，[数据格式](../../../docs/zh/context/数据格式.md)支持ND；综合约束请见[约束说明](#约束说明)。当pseType为2、3时，不传入该参数按照0处理。
 
     - numHeads（int64\_t，计算输入）：Host侧的int，代表query的head个数，数据类型支持INT64，在BNSD、BSND、BNSD_BSND、TND场景下，需要与shape中的query的N轴shape值相同，否则执行异常。
     
@@ -236,7 +236,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         - pseType为2时，内部生成pse，计算公式：-alibi_slope * abs(i - j)。
         - pseType为3时，内部生成pse，计算公式：-alibi_slope * sqrt(abs(i - j))。
 
-    - attentionOut（aclTensor\*，计算输出）：Device侧的aclTensor，公式中的输出，数据类型支持FLOAT16、BFLOAT16、INT8、FLOAT8_E4M3FN、 HIFLOAT8。[数据格式](common/数据格式.md)支持ND。限制：该入参的D维度与value的D保持一致，其余维度需要与入参query的shape保持一致。
+    - attentionOut（aclTensor\*，计算输出）：Device侧的aclTensor，公式中的输出，数据类型支持FLOAT16、BFLOAT16、INT8、FLOAT8_E4M3FN、 HIFLOAT8。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。限制：该入参的D维度与value的D保持一致，其余维度需要与入参query的shape保持一致。
     
     - softmaxLse（aclTensor\*，计算输出）：ring attention算法对query乘key的结果，先取max得到softmax_max。query乘key的结果减去softmax_max, 再取exp，接着求sum，得到softmax_sum。最后对softmax_sum取log，再加上softmax_max得到的结果。用户不特意指定时建议传入nullptr。数据类型支持FLOAT32，softmaxLseFlag为True时,一般情况下,shape必须为[B,N,Q_S,1],当inputLayout为TND/NTD_TND时,shape必须为[T,N,1]。数据为inf的代表无效数据；softmaxLseFlag为False时，如果softmaxLse传入的Tensor非空，则直接返回该Tensor数据，如果softmaxLse传入的是nullptr，则返回shape为{1}全0的Tensor。
     
@@ -247,7 +247,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 
 -   **返回值：**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](common/aclnn返回码.md)。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     ```
     第一段接口完成入参校验，若出现以下错误码，则对应原因为：
@@ -266,7 +266,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 
 -   **返回值：**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](common/aclnn返回码.md)。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
@@ -282,7 +282,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         - 当前只支持每个batch中qs和kvs等长。
         - 不支持MLA、左padding场景。
         - 只支持非量化、伪量化场景，不支持全量化场景。
-- int8量化相关入参数量与输入、输出[数据格式](common/数据格式.md)的综合限制：
+- int8量化相关入参数量与输入、输出[数据格式](../../../docs/zh/context/数据格式.md)的综合限制：
     - 输出为INT8/FP8(FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8)的场景：入参deqScale1、quantScale1、deqScale2、quantScale2需要同时存在，quantOffset2可选，不传时按照0处理。
     - 输出为FLOAT16的场景：入参deqScale1、quantScale1、deqScale2需要同时存在，若存在入参quantOffset2 或 quantScale2（即不为nullptr），则报错并返回。
         -  <term>昇腾910_95 AI处理器</term>：输入为INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2。
@@ -562,7 +562,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 
 - aclnn单算子调用方式
 
-  通过aclnn单算子调用示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](common/编译与运行样例.md)。
+  通过aclnn单算子调用示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
   ```c++
   #include <iostream>
   #include <vector>

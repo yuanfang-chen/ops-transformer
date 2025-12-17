@@ -90,7 +90,7 @@ V侧流水设计需要考虑Vector的搬运及计算过程，实施的优化手�
 
     该场景流水特征下，Vector计算节点少，计算速度快，在<term>Atlas A2 训练系列产品</term> C:V=1:2的情况下，Cube的搬运时长足以覆盖Vector的计算时长，因此只要关注Cube的MTE2耗时即可，最终达成MTE2 bound。在Cube双发机制下，提前发射两块Cube计算，Cube1、Cube2计算可以衔接，使得Cube利用率最高，达成Cube bound。
 
-  ![FA流水.jpg](../../../docs/figures/FA流水.png)
+  ![FA流水.jpg](../../../docs/zh/figures/FA流水.png)
 
 2. 昇腾950 AI处理器
   昇腾950 AI处理器的CV流水设计思路和A2基本一致。差异点在于950 AI处理器cube的preload次数为3次：完成3次mm1的计算后才会开启mm2的计算；目的是优化启动阶段的CV流水，使其更紧密，以达到整体性能的最优。

@@ -15,12 +15,12 @@
 
 ## 功能说明
 
-- 接口功能：训练场景下计算注意力的反向输出，即[FlashAttentionScoreV4](./FlashAttentionScoreV4.md)的反向计算。**该接口query、key、value参数支持多个长度相等或者长度不相等的sequence**
-  - **该接口合并了[FlashAttentionScoreGradV2](./FlashAttentionScoreGradV2.md)接口和[FlashAttentionUnpaddingScoreGradV2](./FlashAttentionUnpaddingScoreGradV2.md)接口，并调整了Dropout功能**：
+- 接口功能：训练场景下计算注意力的反向输出，即[FlashAttentionScoreV4](../../flash_attention_score/docs/aclnnFlashAttentionScoreV4.md)的反向计算。**该接口query、key、value参数支持多个长度相等或者长度不相等的sequence**
+  - **该接口合并了[FlashAttentionScoreGradV2](./aclnnFlashAttentionScoreGradV2.md)接口和[FlashAttentionUnpaddingScoreGradV2](./aclnnFlashAttentionUnpaddingScoreGradV2.md)接口，并调整了Dropout功能**：
     -   <term>昇腾910_95 AI处理器</term>：keepProb小于1.0时，若没有外部传入的DropoutMask，则使用新增参数生成DropoutMask；若有外部传入的DropoutMask，则使用外部传入的DropoutMask
 - 计算公式：
 
-  - pseType=1时，与[FlashAttentionScoreGrad](./FlashAttentionScoreGrad.md)计算公式相同
+  - pseType=1时，与[FlashAttentionScoreGrad](./aclnnFlashAttentionScoreGrad.md)计算公式相同
   - pseType=其他取值时，公式如下：
 
   $$

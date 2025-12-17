@@ -20,12 +20,12 @@
 - 确定性计算：
   - aclnnFlashAttentionScoreV4默认确定性实现。
 - 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。**该接口query、key、value参数支持多个长度相等或者多个长度不相等的sequence**
-  - **该接口相较于[FlashAttentionScoreV2](./FlashAttentionScoreV2.md)接口，新增支持数据类型FLOAT8_E5M2、FLOAT8_E4M3FN，调整Dropout功能**：
+  - **该接口相较于[FlashAttentionScoreV2](./aclnnFlashAttentionScoreV2.md)接口，新增支持数据类型FLOAT8_E5M2、FLOAT8_E4M3FN，调整Dropout功能**：
     -   <term>昇腾950 AI处理器</term>：
-        -   针对计算输入query、key、value，支持的数据类型相较于[FlashAttentionScoreV2](./FlashAttentionScoreV2.md)，新增支持数据类型FLOAT8_E5M2、FLOAT8_E4M3FN
+        -   针对计算输入query、key、value，支持的数据类型相较于[FlashAttentionScoreV2](./aclnnFlashAttentionScoreV2.md)，新增支持数据类型FLOAT8_E5M2、FLOAT8_E4M3FN
         -   在keepProb小于1.0时，相较于[FlashAttentionScoreV2](./FlashAttentionScoreV2.md)，若没有外部传入的DropoutMask，则使用新增参数生成DropoutMask；若有外部传入的DropoutMask，则使用外部传入的DropoutMask
-  - **该接口相较于[FlashAttentionVarLenScoreV2](./FlashAttentionVarLenScoreV2.md)接口，调整Dropout功能**：
-    -   <term>昇腾950 AI处理器</term>：在keepProb小于1.0时，相较于[FlashAttentionVarLenScoreV2](./FlashAttentionVarLenScoreV2.md)，若没有外部传入的DropoutMask，则使用新增参数生成DropoutMask；若有外部传入的DropoutMask，则使用外部传入的DropoutMask
+  - **该接口相较于[FlashAttentionVarLenScoreV2](./aclnnFlashAttentionScoreV2.md)接口，调整Dropout功能**：
+    -   <term>昇腾950 AI处理器</term>：在keepProb小于1.0时，相较于[FlashAttentionVarLenScoreV2](./aclnnFlashAttentionVarLenScoreV2.md)，若没有外部传入的DropoutMask，则使用新增参数生成DropoutMask；若有外部传入的DropoutMask，则使用外部传入的DropoutMask
 
 - 计算公式：
 
