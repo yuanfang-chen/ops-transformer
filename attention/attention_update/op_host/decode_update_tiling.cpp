@@ -25,11 +25,14 @@
 #include "attention_update_tiling.h"
 
 namespace {
-    constexpr uint64_t SYS_WORKSPACE_SIZE = 16 * 1024 * 1024UL;
+    constexpr uint64_t TILING_KEY_GO_FP32_WITHOUT_MAX_OUT = 10010;
+    constexpr uint64_t TILING_KEY_GO_FP16_WITHOUT_MAX_OUT = 10020;
+    constexpr uint64_t TILING_KEY_GO_BF16_WITHOUT_MAX_OUT = 10030;
 
+    constexpr uint64_t SYS_WORKSPACE_SIZE = 16 * 1024 * 1024UL;
     constexpr uint32_t LSE_TOTAL_LENGTH_DIM = 0;
     constexpr uint32_t IN_HD_DIM = 1;
-
+    constexpr uint32_t LOCAL_OUT_IDNEX = 1;
     constexpr uint32_t ATTR_UPDATETYPE_INDEX = 0;
     constexpr uint32_t ATTR_SP_INDEX = 1;
 
@@ -38,6 +41,19 @@ namespace {
 }
 
 namespace optiling {
+
+uint64_t GetTilingKey(uint32_t sp, ge::DataType goType_)
+{
+    uint64_t tiling_key = 0UL;
+    if (goType_ == ge::DataType::DT_FLOAT) {
+        tiling_key = TILING_KEY_GO_FP32_WITHOUT_MAX_OUT;
+    } else if (goType_ == ge::DataType::DT_FLOAT16) {
+        tiling_key = TILING_KEY_GO_FP16_WITHOUT_MAX_OUT;
+    } else if (goType_ == ge::DataType::DT_BF16) {
+        tiling_key = TILING_KEY_GO_BF16_WITHOUT_MAX_OUT;
+    }
+    return tiling_key;
+}
 
 ge::graphStatus DecodeUpdateTiling(gert::TilingContext *context) {
     OP_CHECK_IF(context == nullptr, OP_LOGE("AttentionUpdate", "context is null"),
@@ -55,6 +71,10 @@ ge::graphStatus DecodeUpdateTiling(gert::TilingContext *context) {
 
     auto updateType = *updateTypePtr;
     auto sp = *spPtr;
+
+    ge::DataType goType_ = context->GetInputDesc(LOCAL_OUT_IDNEX * sp)->GetDataType();
+    auto tilingKey = GetTilingKey(sp, goType_);
+    context->SetTilingKey(tilingKey);
 
     auto lseShape = context->GetInputShape(0)->GetStorageShape();
     auto inShape = context->GetInputShape(sp)->GetStorageShape();
@@ -120,7 +140,7 @@ static ge::graphStatus TilingPrepare4DecodeUpdate(gert::TilingParseContext* cont
                         "AttentionUpdate GetHardwareInfo Failed, vectorCoreNum: %u",
                         compileInfo->coreNum),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(compileInfo->ubSize <= 00,
+    OP_CHECK_IF(compileInfo->ubSize <= 0,
                 OP_LOGE(context->GetNodeName(),
                         "AttentionUpdate GetHardwareInfo Failed, ubSize: %lu",
                         compileInfo->ubSize),

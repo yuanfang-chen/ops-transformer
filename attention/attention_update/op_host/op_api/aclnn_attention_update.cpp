@@ -47,6 +47,8 @@ static const int64_t SP_MAX = 16;
 
 static const std::initializer_list<op::DataType> ATTENTION_UPDATE_DTYPE_SUPPORT_LIST = {
                                 DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> ATTENTION_UPDATE_DTYPE_SUPPORT_LIST_LOCALOUT = {
+                                DataType::DT_FLOAT, DataType::DT_FLOAT16, DataType::DT_BF16};
 static const std::initializer_list<op::DataType> ATTENTION_UPDATE_DTYPE_SUPPORT_LIST_95 = {
                                 DataType::DT_FLOAT, DataType::DT_FLOAT16, DataType::DT_BF16};
 
@@ -66,15 +68,15 @@ static inline bool CheckNotNull(const aclTensorList* lse, const aclTensorList* l
 static inline bool CheckDtypeValid(const aclTensorList* lse, const aclTensorList* localOut, const aclTensor* out) {
     for (size_t i = 0; i < lse->Size(); i++) {
         if ((*lse)[i]->GetViewShape().GetShapeSize() != 0) {
-        OP_CHECK_DTYPE_NOT_SUPPORT((*lse)[i], ATTENTION_UPDATE_DTYPE_SUPPORT_LIST, return false);
+            OP_CHECK_DTYPE_NOT_SUPPORT((*lse)[i], ATTENTION_UPDATE_DTYPE_SUPPORT_LIST, return false);
         }
     }
     for (size_t i = 0; i < localOut->Size(); i++) {
         if ((*localOut)[i]->GetViewShape().GetShapeSize() != 0) {
-        OP_CHECK_DTYPE_NOT_SUPPORT((*localOut)[i], ATTENTION_UPDATE_DTYPE_SUPPORT_LIST, return false);
+            OP_CHECK_DTYPE_NOT_SUPPORT((*localOut)[i], ATTENTION_UPDATE_DTYPE_SUPPORT_LIST_LOCALOUT, return false);
         }
     }
-    OP_CHECK_DTYPE_NOT_SUPPORT(out, ATTENTION_UPDATE_DTYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(out, ATTENTION_UPDATE_DTYPE_SUPPORT_LIST_LOCALOUT, return false);
 
     return true;
 }
@@ -398,7 +400,7 @@ aclnnStatus aclnnAttentionUpdateGetWorkspaceSize(
     auto lseContiguous = uniqueExecutor.get()->AllocTensorList(lseContiguousVec.data(), sp);
     auto localOutContiguous = uniqueExecutor.get()->AllocTensorList(localOutContiguousVec.data(), sp);
 
-    auto [AttentionUpdateRes, lseM] = l0op::AttentionUpdateWithTwoOut(lseContiguous, localOutContiguous, updateType, sp, uniqueExecutor.get());
+    auto [AttentionUpdateRes, lseM] = l0op::AttentionUpdate(lseContiguous, localOutContiguous, updateType, sp, uniqueExecutor.get());
     CHECK_RET(AttentionUpdateRes != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto viewCopyResult = l0op::ViewCopy(AttentionUpdateRes, out, uniqueExecutor.get());
     CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);

@@ -19,9 +19,7 @@
 #include "opdev/op_executor.h"
 
 namespace l0op {
-const aclTensor *AttentionUpdate(const aclTensorList *lse, const aclTensorList *go, int64_t updateType,
-                            int64_t sp, aclOpExecutor *executor);
-const std::tuple<const aclTensor*, const aclTensor*> AttentionUpdateWithTwoOut(const aclTensorList *lse, const aclTensorList *go, int64_t updateType,
+const std::tuple<const aclTensor*, const aclTensor*> AttentionUpdate(const aclTensorList *lse, const aclTensorList *go, int64_t updateType,
                             int64_t sp, aclOpExecutor *executor);
 }
 
