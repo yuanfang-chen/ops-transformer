@@ -190,7 +190,7 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
             ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
     }
     StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-            ((__ubuf__ T *&)maxUb), ureg_max, 1);
+            ((__ubuf__ T *&)maxUb), ureg_max, 0);
     if constexpr (hasDrop == 1) {
         Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vreg_zero, 0.0f, preg_all);
     }
@@ -308,7 +308,7 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
         }
     }
     StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-            ((__ubuf__ T *&)expSumUb), ureg_exp_sum, 1);
+            ((__ubuf__ T *&)expSumUb), ureg_exp_sum, 0);
 }
 
 // no update, 64 < originN <= 128

@@ -423,7 +423,7 @@ __simd_vf__ void ProcessVec1UpdateGeneralImpl512VF(
             ((__ubuf__ T *&)tmpMaxUb), vreg_input_max, ureg_max, 1);
     }
     StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-            ((__ubuf__ T *&)tmpMaxUb), ureg_max, 1);
+            ((__ubuf__ T *&)tmpMaxUb), ureg_max, 0);
     LoadAlign(vreg_in_max, inMaxUb);
     LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
     LoadAlign(vreg_input_max, tmpMaxUb2);
@@ -524,7 +524,7 @@ __simd_vf__ void ProcessVec1UpdateGeneralImpl512VF(
         }
     }
     StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-            ((__ubuf__ T *&)tmpExpSumUb), ureg_exp_sum, 1);
+            ((__ubuf__ T *&)tmpExpSumUb), ureg_exp_sum, 0);
 }
 
 // 256 < Orignin N <=512
