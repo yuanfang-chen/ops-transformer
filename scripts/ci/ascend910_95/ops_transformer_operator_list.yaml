@@ -14,14 +14,14 @@ operator_group_1:
   - gather_pa_kv_cache
   - scatter_pa_kv_cache
   - attention_update
-  - fused_infer_attention_score;8-0
+  - fused_infer_attention_score,8-0
 operator_group_2:
   - grouped_matmul
   - grouped_matmul_add
   - grouped_matmul_finalize_routing
   - grouped_matmul_swiglu_quant_v2
   - quant_grouped_matmul_inplace_add
-  - fused_infer_attention_score;8-1
+  - fused_infer_attention_score,8-1
 operator_group_3:
   - incre_flash_attention
 operator_group_4:
@@ -41,21 +41,21 @@ operator_group_4:
   - apply_rotary_pos_emb
   - rotary_position_embedding
   - rotary_position_embedding_grad
-  - fused_infer_attention_score;8-2
+  - fused_infer_attention_score,8-2
 operator_group_5:
   - flash_attention_score
   - flash_attention_score_grad
 operator_group_6:
   - prompt_flash_attention
-  - fused_infer_attention_score;8-3
+  - fused_infer_attention_score,8-3
 operator_group_7:
-  - fused_infer_attention_score;8-4
+  - fused_infer_attention_score,8-4
 operator_group_8:
-  - fused_infer_attention_score;8-5
+  - fused_infer_attention_score,8-5
 operator_group_9:
-  - fused_infer_attention_score;8-6
+  - fused_infer_attention_score,8-6
 operator_group_10:
-  - fused_infer_attention_score;8-7
+  - fused_infer_attention_score,8-7
 
 
 

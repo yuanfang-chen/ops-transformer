@@ -21,6 +21,7 @@ operator_group_1:
   - grouped_mat_mul_all_reduce
   - grouped_matmul
   - grouped_matmul_swiglu_quant
+  - fused_infer_attention_score,5-0
 operator_group_2:
   - incre_flash_attention
   - prompt_flash_attention
@@ -28,12 +29,13 @@ operator_group_2:
   - mla_prolog_v3
   - mla_prolog
 operator_group_3:
-  - fused_infer_attention_score;2-0
+  - fused_infer_attention_score,5-1
 operator_group_4:
-  - fused_infer_attention_score;2-1
+  - fused_infer_attention_score,5-2
 operator_group_5:
   - flash_attention_score
 operator_group_6:
+  - fused_infer_attention_score,5-3
   - quant_lightning_indexer
   - lightning_indexer_grad
   - sparse_flash_attention_grad
@@ -54,6 +56,7 @@ operator_group_7:
   - moe_token_unpermute_with_routing_map
   - moe_token_unpermute_with_routing_map_grad
 operator_group_8:
+  - fused_infer_attention_score,5-4
   - moe_token_permute
   - moe_init_routing_v2
   - moe_token_permute_grad

@@ -16,8 +16,6 @@ operator_group_1:
   - nsa_selected_attention
   - nsa_selected_attention_grad
   - nsa_selected_attention_infer
-  - mla_preprocess_v2
-  - mla_preprocess
 operator_group_2:
   - incre_flash_attention
   - prompt_flash_attention
@@ -28,7 +26,7 @@ operator_group_2:
   - moe_init_routing_v3
   - moe_re_routing
 operator_group_3:
-  - fused_infer_attention_score
+  - fused_infer_attention_score,2-0
 operator_group_4:
   - flash_attention_score_grad
 operator_group_5:
@@ -39,6 +37,7 @@ operator_group_5:
   - rain_fusion_attention
   - recurrent_gated_delta_rule
   - ring_attention_update
+  - fused_infer_attention_score,2-1
 operator_group_6:
   - sparse_lightning_indexer_grad_kl_loss
   - attention_update
@@ -108,3 +107,5 @@ operator_group_10:
   - moe_distribute_combine_v2
   - moe_distribute_dispatch
   - moe_distribute_dispatch_v2
+  - mla_preprocess_v2
+  - mla_preprocess
