@@ -16,6 +16,7 @@
 #include <thread>
 #include <iostream>
 #include <vector>
+#include "hccl/hccl.h"
 #include "aclnnop/aclnn_matmul_reduce_scatter.h"
 
 #define CHECK_RET(cond, return_expr) \

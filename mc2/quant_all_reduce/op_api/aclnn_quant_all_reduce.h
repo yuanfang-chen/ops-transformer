@@ -20,7 +20,6 @@
 
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"
-#include "hccl/hccl.h"
 
 #ifdef __cplusplus
 extern "C" {

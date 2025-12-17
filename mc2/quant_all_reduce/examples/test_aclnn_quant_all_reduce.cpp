@@ -18,6 +18,7 @@
 #include <string>
 #include <cstring>
 #include <getopt.h>
+#include "hccl/hccl.h"
 #include "aclnnop/aclnn_quant_all_reduce.h"
 using namespace std;
 
