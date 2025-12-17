@@ -101,28 +101,34 @@ Tiling主要切分逻辑。
 
 ```CPP
 // ${op_name}_tiling.cpp
-// 1.Tiling需要获取运行环境信息，包括可用核数、UB(Unified Buffer)大小，并将获取到的信息传递给CompileInfo
+// 1.Tiling需要获取运行环境信息，包括可用核数、UB(Unified Buffer)大小，并将获取到的信息传递给CompileInfo, 自动生成aclnn不调用该函数，直接返回ge::GRAPH_SUCCESS即可。
 static ge::graphStatus TilingParse(gert::TilingParseContext* context)
 {
-    // 1.1获取环境信息
-    auto compileInfo = context->GetCompiledInfo<CompileInfo>();
-    OP_CHECK_NULL_WITH_CONTEXT(context, compileInfo);
-    auto platformInfo = context->GetPlatformInfo();
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    // 1.2获取可用核数
-    compileInfo->totalCoreNum = ascendcPlatform.GetCoreNumAiv();
-    // 1.3获取UB大小
-    uint64_t ubSizePlatForm;
-    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
-    compileInfo->ubSize = static_cast<int64_t>(ubSizePlatForm);
-    ...
     return ge::GRAPH_SUCCESS;
+    // 若手写aclnn接口，可以按照下面步骤完善parse函数
+    // // 1.1获取环境信息
+    // auto compileInfo = context->GetCompiledInfo<CompileInfo>();
+    // OP_CHECK_NULL_WITH_CONTEXT(context, compileInfo);
+    // auto platformInfo = context->GetPlatformInfo();
+    // auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    // // 1.2获取可用核数
+    // compileInfo->totalCoreNum = ascendcPlatform.GetCoreNumAiv();
+    // // 1,3获取UB大小
+    // uint64_t ubSizePlatForm;
+    // ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
+    // compileInfo->ubSize = static_cast<int64_t>(ubSizePlatForm);
+    // ...
+    // return ge::GRAPH_SUCCESS;
 }
 
 // 2.Tiling计算主入口
 static ge::graphStatus TilingFunc(gert::TilingContext* context){
-    // 2.1获取TilingParse中传递的环境信息
-    auto compileInfo = reinterpret_cast<const CompileInfo*>(context->GetCompileInfo());
+    // 2.1获取平台信息
+    uint64_t ubSize;
+    int64_t coreNum;
+    OP_CHECK_IF(
+        GetPlatformInfo(context, ubSize, coreNum) != ge::GRAPH_SUCCESS, OP_LOGE(context, "GetPlatformInfo error"),
+        return ge::GRAPH_FAILED);
     
     // 2.2获取输入信息
     // 获取输入张量shape信息
@@ -177,7 +183,8 @@ ASCENDC_TPL_SEL(ASCENDC_TPL_ARGS_SEL(
 ```
 **交付件3：${op_name}_tiling_data.h**
 
-声明TilingData结构体用于存储Tiling的参数，比如总数据量大小、每个核数据切块数量。
+切分算法相关的参数，比如总数据量大小、每个核数据切块数量，通过结构体存储。
+
 如需查看详细实现，请参考[add_example_tiling_data.h](../../../examples/add_example/op_kernel/add_example_tiling_data.h)。
 
 ```CPP
@@ -187,33 +194,31 @@ struct ${op_name}TilingData {
     int64_t tileNum;
 };
 ```
-
 如需实现复杂参数组合完成分支选择（涉及多TilingKey场景），请参考[《Ascend C算子开发》](https://hiascend.com/document/redirect/CannCommunityOpdevAscendC)中"算子实现 > 工程化算子开发 > Host侧Tiling实现 > Tiling模板编程"。
 
 ## Kernel实现
 
 ### Kernel简介
-Kernel是算子在NPU执行的核心部分，通过调用计算、数据搬运、内存管理、任务同步API，实现算子逻辑。Kernel的实现需要与Tiling策略紧密配合，根据Tiling提供的`TilingData`、`TilingKey`信息进行内存分配和计算调度。Kernel实现包括如下步骤：
+Kernel是算子在NPU执行的核心部分，负责张量数据的加载、计算和存储，是算子功能实现的最终载体。Kernel的实现需要与Tiling策略紧密配合，根据Tiling提供的`TilingData`、`TilingKey`信息进行内存分配和计算调度。
+
+Kernel实现包括如下步骤，整个流程通过`Process`函数串联，实现完整的算子流程。
 
 ```mermaid
 graph LR
-	H([核函数定义]) -->A([定义Kernel类])
-	A -->B([初始化函数<br>Init])
-    B -->D([主处理函数<br>Process])
+    H([核函数定义]) -->A([定义Kernel类])
+    A -->B([初始化函数<br>Init])
+    B -->C([主处理函数<br>Process])
     subgraph C [主处理函数 Process]
         D([数据搬入<br>CopyIn]) -->E([计算<br>Compute]) -->F([数据搬出<br>CopyOut])
     end
     F -->G([Kernel执行完成])
-
-    %% 使用style语句为子图C定义样式
-    style C fill:#f5f7fa,stroke:#4E5969,stroke-width:1px
 ```
 
 ### 代码实现
 
-以自定义`AddExample`算子为例，该算子一共包含两个交付件：`add_example.cpp` `add_example.h`
+Kernel一共需要两个交付件：`${op_name}.cpp` `${op_name}.h`
 
-**交付件1：add_example.cpp**
+**交付件1：${op_name}.cpp**
 
 Kernel入口文件，包含主函数和调度逻辑。
 
@@ -241,7 +246,7 @@ __global__ __aicore__ void add_example(GM_ADDR x, GM_ADDR y, GM_ADDR z, GM_ADDR 
     ....
 }
 ```
-**交付件2：add_example.h**
+**交付件2：${op_name}.h**
 
 定义Kernel头文件，包含函数声明、结构定义、逻辑实现等。
 
@@ -302,10 +307,10 @@ __aicore__ inline void AddExample<T>::Init(GM_ADDR x, GM_ADDR y, GM_ADDR z, cons
     blockLength_ = tilingData->totalLength / AscendC::GetBlockNum();
     ...
     // 3.2 初始化GM地址
-    inputGMX_.SetGlobalBuffer((__gm__ T*)x + blockLength_ * AscendC::GetBlockIdx(), blockLength_);
+    inputGMX.SetGlobalBuffer((__gm__ T*)x + blockLength_ * AscendC::GetBlockIdx(), blockLength_);
     ...
     // 3.3 初始化队列长度
-    pipe.InitBuffer(inputQueueX_, BUFFER_NUM, tileLength_ * sizeof(T));
+    pipe.InitBuffer(inputQueueX, BUFFER_NUM, tileLength_ * sizeof(T));
     ...
 }
 
@@ -337,17 +342,15 @@ __aicore__ inline void AddExample<T>::Process()
 
     参考[工程创建](#工程创建)完成基础环境搭建，同时检查算子开发交付件是否完备，是否在对应算子分类目录下。
 
-2. **编译自定义算子包。** 
+2. **编译自定义算子包。**
 
     以`AddExample`算子为例，假设开发交付件在`examples`目录，完整代码参见[add_example](../../../examples/add_example)目录。
-
-    进入项目根目录，执行如下编译命令：
 
     ```bash
     # 编译指定算子，如--ops=add_example
     bash build.sh --pkg --soc=${soc_version} --vendor_name=${vendor_name} --ops=${op_list}
     ```
-
+   
     若提示如下信息，说明编译成功：
 
     ```bash
@@ -356,13 +359,15 @@ __aicore__ inline void AddExample<T>::Process()
 
 3. **安装自定义算子包。**
 
-    执行以下命令进行安装：
-    
     ```bash
     # 安装run包
     ./build_out/cann-ops-transformer-${vendor_name}_linux-${arch}.run
     ```
-    自定义算子包安装在`${ASCEND_HOME_PATH}/cann/opp/vendors`路径中，`${ASCEND_HOME_PATH}`表示CANN软件安装目录，可提前在环境变量中配置。自定义算子包不支持卸载。
+    自定义算子包安装在`${ASCEND_HOME_PATH}/opp/vendors`路径中，`${ASCEND_HOME_PATH}`表示CANN软件安装目录，可提前在环境变量中配置。
+    
+4. **（可选）卸载自定义算子包。**
+
+    待补充
 
 ## 算子验证
 
@@ -373,7 +378,7 @@ export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_transforme
 
 - **UT验证**
 
-  算子开发过程中，可通过UT验证（如Tiling）方式进行快速验证，方法请参考[本地验证](../invocation/quick_op_invocation.md#本地验证)。
+  算子开发过程中，可通过UT验证（如Tiling）方式进行快速验证，如需查看详细实现，请参考[Tiling UT](../../../examples/add_example/tests/ut/op_host/test_add_example_tiling.cpp)。
 
 - **aclnn调用验证**
 
@@ -383,12 +388,12 @@ export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_transforme
 
 ### 算子工程迁移
 
-由于Ascend/samples工程与本项目工程有差异，在本项目创建工程后（参考[工程创建](#工程创建)），迁移请参考下表中的迁移方法。
+由于[Ascend/samples](https://gitee.com/ascend/samples/tree/master)工程与本项目工程（参考[工程创建](#工程创建)）有差异，因此算子实现交付件和数量不同，可参考下表迁移`operator`目录中的算子样例。
 
 <table border="1">
   <tr>
-    <th>cann-ops</th>
-    <th>gitcode</th>
+    <th>Ascend/samples</th>
+    <th>本项目</th>
     <th>迁移方法</th>
     <th>代码示例</th>
   </tr>
@@ -424,14 +429,14 @@ export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/${vendor_name}_transforme
   <tr>
     <td rowspan="2">op_kernel/{op_name}.cpp</td>
     <td>op_kernel/{op_name}.h</td>
-    <td>保留原有op_host/{op_name}.cpp中kernel实现的算子类定义部分</td>
+    <td>保留原有op_host/{op_name}.cpp中Kernel实现的算子类定义部分</td>
     <td><a href="#op_kernel/{op_name}.h">op_kernel/{op_name}.h</a></td>
   </tr>
   <tr>
     <td>op_kernel/{op_name}.cpp</td>
-    <td>将原有op_host/{op_name}.cpp中kernel实现的核函数实现迁移至cpp文件，同时：
-      <br>. 新增REGISTER_TILING_DEFAULT调用注册Tiling结构体，使用GET_TILING_DATA_WITH_STRUCT获取TilingData
-      <br>. 添加tiling模板，支持模板参数的传入，根据模板参数的分支判断，选择不同的kernel侧是实现
+    <td>将原有op_host/{op_name}.cpp中Kernel实现的核函数迁移至cpp文件，同时:
+      <li>新增REGISTER_TILING_DEFAULT调用注册Tiling结构体，使用GET_TILING_DATA_WITH_STRUCT获取TilingData</li>
+      <li>添加Tiling模板，支持模板参数的传入，根据模板参数的分支选择不同的Kernel侧实现</li>
     </td>
     <td><a href="#op_kernel/{op_name}.cpp">op_kernel/{op_name}.cpp</a></td>
   </tr>
