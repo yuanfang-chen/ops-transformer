@@ -1202,7 +1202,7 @@ bool PromptFlashAttentionTilingV2::CheckBlockTableShape(ContextParamsForPFATilin
     if (!CheckPACacheShape(contextKeyParams, keyDim, queryShapeInfo, keyShape, blockSize, blockNumValid, headNumRatio, "key")) {
         return false;
     }
-    if (enableIFAMLA) {
+    if (enableIFAMLA || enablePFARope) {
         const gert::StorageShape* keyRopeShape = contextKeyParams.keyRopeInputShape;
         const size_t keyRopeDim = keyRopeShape->GetStorageShape().GetDimNum();
         OP_CHECK_IF((keyRopeDim != keyDim),
