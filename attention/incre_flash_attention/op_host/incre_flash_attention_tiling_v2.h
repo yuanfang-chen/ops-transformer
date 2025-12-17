@@ -82,6 +82,7 @@ const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> inOutDty
 
 class IFATilingV2 : public FiaTilingBase {
  public:
+  IFATilingV2() : FiaTilingBase() {}
   IFATilingV2(gert::TilingContext *context) : FiaTilingBase(context) {}
   ~IFATilingV2() override = default;
   void InitTilingInfo(TilingInfo *tilingInfo) override {}

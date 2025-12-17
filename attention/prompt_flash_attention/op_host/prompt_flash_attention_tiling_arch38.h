@@ -36,7 +36,6 @@ public:
     ge::graphStatus DoSubOpTiling(PromptFlashAttentionTilingData& tilingData, ContextParamsForPFATiling& contextParamsForPFATiling);
     bool CheckNonEmptyShapeExceptions(const ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* shape,
         const std::string &sName) const;
-#ifndef ASCEND_OPTILING_UT
 protected:
     void InitTilingInfo(TilingInfo *tilingInfo) override {}
     bool IsCapable() override {return true;}
@@ -285,7 +284,6 @@ protected:
     uint8_t sparseType = 0;
     int64_t pseType = 0;
     FlashAttentionScoreSimplifiedTilingData faTilingAdapter;
-#endif
 };
 } // namespace arch38
 } // namespace optiling

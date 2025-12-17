@@ -64,7 +64,7 @@ constexpr uint32_t ATTR_INPUT_LAYOUT_INDEX = 4;
 constexpr uint32_t ATTR_NUM_KV_HEADS_INDEX = 5;
 constexpr uint32_t INPUT_QKV_SHAPE_MIN_DIMS = 3;
 constexpr uint32_t INPUT_QKV_SHAPE_MAX_DIMS = 4;
-#ifndef ASCEND_OPTILING_UT
+
 constexpr uint32_t BYTE_BLOCK = 32; // The block size of datacopy, which moves data at the block granularity.
 
 constexpr uint32_t MASKDIM_2 = 2;
@@ -536,8 +536,7 @@ bool PromptFlashAttentionTilingArch38::CheckQueryOutParamsConsistency(const Cont
     }
     return true;
 }
-#endif
-#ifndef ASCEND_OPTILING_UT
+
 bool PromptFlashAttentionTilingArch38::CheckKVDataType(ContextParamsForPFATiling& contextKeyParams) const {
     ge::DataType keyDataType = contextKeyParams.kDataType;
     ge::DataType valueDataType = contextKeyParams.vDataType;
@@ -3744,7 +3743,6 @@ ge::graphStatus PromptFlashAttentionTilingArch38::ComputeTilingKey(uint64_t& til
     OP_LOGI(contextKeyParams.opName, "The Tiling key is %lu", tilingKey);
     return ge::GRAPH_SUCCESS;
 }
-#endif
 
 void PromptFlashAttentionTilingArch38::SetAttenMaskCompressMode()
 {
@@ -4005,7 +4003,6 @@ ge::graphStatus PromptFlashAttentionTilingArch38::PromptFlashAttentionSetTilingD
 }
 ge::graphStatus PromptFlashAttentionTilingArch38::RunBigKernelTilingWithParams(ContextParamsForPFATiling& contextKeyParams,
     uint64_t& tilingKey, uint32_t& blockDimToBeSet, PromptFlashAttentionTilingData& tilingData) {
-#ifndef ASCEND_OPTILING_UT
     // set memory parameters
     if (SetPlatMemoryInfo(contextKeyParams) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
@@ -4096,7 +4093,6 @@ ge::graphStatus PromptFlashAttentionTilingArch38::RunBigKernelTilingWithParams(C
     if (SetQKVStartIdx(contextKeyParams) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-#endif
     return ge::GRAPH_SUCCESS;
 }
 
