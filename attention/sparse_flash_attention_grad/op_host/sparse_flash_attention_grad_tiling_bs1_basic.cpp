@@ -406,6 +406,10 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
     // attrs
     const char *inputLayout = context_->GetAttrs()->GetAttrPointer<char>(static_cast<size_t>(AttrIndex::INPUT_LAYOUT));
     auto selected_block_count = indicesShape.GetDim(dimSize - 1);
+    if (selected_block_count != 2048) {
+        OP_LOGE(context_, "SparseFlashAttentionGrad only support selected_block_count=2048 now, but got selected_block_count=%ld.", selected_block_count);
+        return ge::GRAPH_FAILED;
+    }
     auto selected_block_size =
         *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SELECTED_BLOCK_SIZE));
     auto sparse_mode = *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SPARSE_MODE));
@@ -474,6 +478,17 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
         OP_CHECK_IF(tmpData.n2 == 0, OP_LOGE(context_, "key headNum is 0"), return ge::GRAPH_FAILED);
         tmpData.g = queryShape.GetDim(DIM_2) / tmpData.n2;
         tmpData.layout = static_cast<uint32_t>(InputLayout::BSND);
+    }
+
+    if (tmpData.g <= 0) {
+        OP_LOGE(context_, "g (N1 / N2) should be larger than 0, but got g=%ld.", tmpData.g);
+        return ge::GRAPH_FAILED;
+    }
+
+    int64_t n1 = tmpData.n2 * tmpData.g;
+    if (tmpData.n2 != 1 || n1 > 128 || (n1 & (n1 - 1)) != 0) {
+        OP_LOGE(context_, "SparseFlashAttentionGrad only support n2=1 and n1=1/2/4/8/16/32/64/128, but got n2=%ld n1=%ld.", tmpData.n2, n1);
+        return ge::GRAPH_FAILED;
     }
 
     tilingData.opInfo.set_B(tmpData.b);
