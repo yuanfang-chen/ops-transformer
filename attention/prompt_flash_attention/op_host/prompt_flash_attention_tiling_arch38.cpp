@@ -1794,7 +1794,7 @@ bool PromptFlashAttentionTilingArch38::CheckInnerPrecise(ContextParamsForPFATili
         return false;
     }
     // Determine if the bit1 bit of innerPrecise requires invalid correction.
-    tilingData.promptAttentionBaseParams.set_isRowInvalid((static_cast<int32_t>(static_cast<int32_t>(innerPrecise) >> 1)) & 1);
+    tilingData.promptAttentionBaseParams.set_isRowInvalid((static_cast<uint32_t>(static_cast<uint32_t>(innerPrecise) >> 1U)) & 1U);
     // Determine the bit0 bit of innerPrecise, high-performance or high-precision mode.
     innerPrecise = HIGH_PRECISION; // High-precision contains high-performance and high-precision mode.
 
@@ -3891,7 +3891,7 @@ void PromptFlashAttentionTilingArch38::PFATilingDataconvert(PromptFlashAttention
     inputParams.set_isKvContinuous(tilingData.promptAttentionBaseParams.get_isKvContinuous());
     inputParams.set_fromFused(tilingData.promptAttentionBaseParams.get_fromFused());
     inputParams.set_isBSNDOut(tilingData.promptAttentionBaseParams.get_isBSNDOut());
-    inputParams.set_isGqa(static_cast<bool>(tilingData.promptAttentionBaseParams.get_isIFA()) || enablePFAMerge);
+    inputParams.set_isGqa((tilingData.promptAttentionBaseParams.get_isIFA() != 0) || enablePFAMerge);
     inputParams.set_isSoftMaxLseEnable(tilingData.promptAttentionBaseParams.get_isSoftMaxLseEnable());
     inputParams.set_isActualSharedPrefixLenNull(tilingData.promptAttentionBaseParams.get_isActualSharedPrefixLenNull());
     inputParams.set_isQHasLeftPadding(tilingData.promptAttentionBaseParams.get_isQHasLeftPadding());

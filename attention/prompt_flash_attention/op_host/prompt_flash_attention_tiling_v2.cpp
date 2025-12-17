@@ -2558,15 +2558,14 @@ void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contex
         }
     }
 
-    uint32_t shapeParameter =64;
-    if (enableDN && isQKVActualSeqLengthsRight && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d == shapeParameter)) {  
-        // 64：扩大sInner的dsize限制	
-        tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);	
+    // 64：扩大sInner的dsize限制
+    if (enableDN && isQKVActualSeqLengthsRight && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d == 64)) {   
+        tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);	// 256U: 设置sInner的dsize
     }   
 
-    shapeParameter = 128;   // 128： perblock全量化，扩大sInner切块大小 d<=128
-    if (enableDN && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d <= shapeParameter) && enablePerblockQuant) {
-        tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);
+    // 128： perblock全量化，扩大sInner切块大小 d<=128
+    if (enableDN && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d <= 128) && enablePerblockQuant) {
+        tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);   // 256U: 设置sInner的dsize
     }
 }
 
