@@ -356,7 +356,9 @@ static bool CheckContiguous(const aclTensor *x2, const aclTensor *scale, const a
 {
     // check x2(weight) is transposed, scale and offset should also be transposed
     const bool transposeX2 = IsTransposeLastTwoDims(x2) || IsAclnnPreTransposed(x2);
-    if (op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND910_95) {
+    const bool isASCEND910_95 = (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910_95);
+    const bool isASCEND910B = (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910B);
+    if ((!isASCEND910_95) && (!isASCEND910B)) {
         return true;
     }
     if (IsAffineInconsistent(scale, transposeX2)) {

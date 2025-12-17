@@ -332,6 +332,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 - bias若非空，shape大小与output最后一维大小相等。antiquantScale在per-tensor场景下shape为(1)，在per-channel场景下shape为(1,n)/(n)，在per-group场景shape为(ceil(k,antiquantGroupSize), n)。antiquantOffset若非空，其shape与antiquantScale一致。
 - x1和x2，x3（非空场景）、antiquantScale、antiquantOffset（非空场景）、output、bias（非空场景）的数据类型和数据格式需要在支持的范围之内。
 - x1，antiquantScale，antiquantOffset（非空场景），x3（非空场景）、bias（非空场景）output的数据类型相同。antiquantGroupSize取值满足取值范围且为32倍数。
+- per-group场景下，x2转置时，antiquantScale和antiquantOffset需要一起转置，保持连续性。
 - 在长序列场景，随着b/s或者m的增大，可能出现OOM或者计算超时。
 - 仅支持hccs链路all mesh组网。
     - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持1、2、4、8卡。
