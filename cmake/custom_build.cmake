@@ -307,8 +307,6 @@ op_add_depend_directory(
         OP_LIST ${OP_LIST}
         OP_DIR_LIST OP_DEPEND_DIR_LIST
 )
-
-list(APPEND OP_DIR_LIST ${OP_DEPEND_DIR_LIST})
 # 仅针对被依赖的算子重新add_subdirectory
 foreach (OP_DEPEND_DIR ${OP_DEPEND_DIR_LIST})
     get_filename_component(SUB_DIR ${OP_DEPEND_DIR} NAME)
@@ -325,6 +323,9 @@ foreach (OP_DEPEND_DIR ${OP_DEPEND_DIR_LIST})
             add_subdirectory(${OP_DEPEND_DIR})
         endif()
     endif ()
+    if ( "${OP_DEPEND_DIR}" MATCHES ".*moe_inplace_index_add_with_sorted.*")
+       list(APPEND OP_DIR_LIST ${OPS_TRANSFORMER_DIR}/moe/3rd/moe_inplace_index_add_with_sorted)
+    endif()
 endforeach ()
 
 # ------------------------------------------------ aclnn ------------------------------------------------
