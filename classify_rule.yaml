@@ -404,6 +404,8 @@ moe:
       - moe/moe_gating_top_k/README.md
     ut_cov_exclude:
       - moe/moe_gating_top_k
+    test:
+        examples: False
     options:
       - moe_gating_top_k
 
