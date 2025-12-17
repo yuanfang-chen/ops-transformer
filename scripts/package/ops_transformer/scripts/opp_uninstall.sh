@@ -176,13 +176,6 @@ remove_module() {
     --use-share-info --version-dir=$PKG_VERSION_DIR ${UNINSTALL_OPTION} "${INSTALLED_TYPE}" "${TARGET_INSTALL_PATH}" \
     "${FILELIST_FILE}" "${IN_FEATURE}" --recreate-softlink
   log_with_errorlevel "$?" "error" "[ERROR]: ERR_NO:${OPERATE_FAILED};ERR_DES:Uninstall opp module failed."
-
- local remain_opp_dir_list=$(find ${TARGET_OPP_BUILT_IN} -mindepth 1 -maxdepth 1 -type d)
-  for remain_dir in ${remain_opp_dir_list}; do
-    if [ "$(find "${remain_dir}" -type f 2>&1)" = "" ]; then
-      rm -rf ${remain_dir}
-    fi
-  done
 }
 
 remove_init_py() {
