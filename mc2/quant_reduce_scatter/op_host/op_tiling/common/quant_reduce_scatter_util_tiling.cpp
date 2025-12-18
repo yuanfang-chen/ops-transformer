@@ -164,11 +164,14 @@ static bool CheckXDimValid(const gert::TilingContext *context, const OpType opTy
     if (opType == OpType::OP_QUANT_ALL_REDUCE) {
         // quant_all_reduce算子的x可能是2维或者3维，即x.shape(b, s, h)
         inValidDimNum = inValidDimNum && (xDimNum != THREE_DIMS);
+        OP_TILING_CHECK(inValidDimNum,
+                        OP_LOGE(nodeName, "xDimNum is invalid, it should be 2 or 3, but the actual input xDimNum is %lu.", xDimNum),
+                        return false);
+    } else {
+        OP_TILING_CHECK(inValidDimNum,
+                        OP_LOGE(nodeName, "xDimNum is invalid, it should be 2, but the actual input xDimNum is %lu.", xDimNum),
+                        return false);
     }
-    OP_TILING_CHECK(inValidDimNum,
-                    OP_LOGE(nodeName, "xDimNum is invalid, it should be 2 in QuantReduceScatter, "
-                            "and 2 or 3 in QuantAllReduce, but the actual input xDimNum is %lu.", xDimNum),
-                    return false);
     return true;
 }
 
@@ -189,21 +192,27 @@ static bool CheckScalesDimValid(const gert::TilingContext *context, TilingRunInf
         bool invalidScalesDim = scalesDim != TWO_DIMS;
         if (opType == OpType::OP_QUANT_ALL_REDUCE) {
             invalidScalesDim = invalidScalesDim && (scalesDim != THREE_DIMS);
+            OP_TILING_CHECK(invalidScalesDim,
+                            OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2 or 3, but actual value is %lu.", scalesDim),
+                            return false);
+        } else {
+            OP_TILING_CHECK(invalidScalesDim,
+                            OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2, but actual value is %lu.", scalesDim),
+                            return false);
         }
-        OP_TILING_CHECK(invalidScalesDim,
-                        OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2 in QuantReduceScatter, "
-                        "and 2 or 3 in QuantAllReduce, but actual value is %lu.", scalesDim),
-                        return false);
     } else if (runInfo.quantMode == MX_QUANT_MOD) {
         // MX量化: scales.shape(bs, h/64, 2)或(b, s, h/64, 2)
         bool invalidScalesDim = scalesDim != THREE_DIMS;
         if (opType == OpType::OP_QUANT_ALL_REDUCE) {
             invalidScalesDim = invalidScalesDim && (scalesDim != FOUR_DIMS);
+            OP_TILING_CHECK(invalidScalesDim,
+                            OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3 or 4, but actual value is %lu.", scalesDim),
+                            return false);
+        } else {
+            OP_TILING_CHECK(invalidScalesDim,
+                            OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3, but actual value is %lu.", scalesDim),
+                            return false);
         }
-        OP_TILING_CHECK(invalidScalesDim,
-                        OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3 in QuantReduceScatter, "
-                        "and 3 or 4 in QuantAllReduce, but actual value is %lu.", scalesDim),
-                        return false);
     }
     return true;
 }
