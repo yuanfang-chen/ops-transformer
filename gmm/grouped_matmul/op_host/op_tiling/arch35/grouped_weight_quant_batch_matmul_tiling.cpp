@@ -687,7 +687,9 @@ void GroupedWeightQuantBatchMatmulTiling::SetMatMulTiling()
     } else if (xDType_ == ge::DT_FLOAT8_E4M3FN && weightDtype_ == ge::DT_FLOAT4_E2M1 &&
                antiquantScaleDtype_ == ge::DT_FLOAT8_E8M0) {
         // MxA8W4场景配置mxTypePara
-        tilingData_.mmTilingData.mxTypePara = (SCALE_FACTOR_MIN << SCALE_FACTOR_B_BIT) + SCALE_FACTOR_MIN;
+        tilingData_.mmTilingData.mxTypePara = (SCALE_FACTOR_DEFAULT << SCALE_FACTOR_N_BIT) +
+                                              (SCALE_FACTOR_DEFAULT << SCALE_FACTOR_M_BIT) +
+                                              (SCALE_FACTOR_MIN << SCALE_FACTOR_B_BIT) + SCALE_FACTOR_MIN;
     } else if (hasBias_) {
         tilingData_.mmTilingData.baseM = BASIC_BLOCK_BASE_M_WITH_BIAS;
         tilingData_.mmTilingData.singleCoreM = BASIC_BLOCK_BASE_M_WITH_BIAS;

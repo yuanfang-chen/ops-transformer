@@ -49,8 +49,11 @@ constexpr uint32_t STEP_K_4 = 4;
 constexpr uint32_t DEPTH_8 = 8;
 constexpr uint32_t BUFFER_NUM_2 = 2;
 
+constexpr uint32_t SCALE_FACTOR_DEFAULT = 1;
 constexpr uint32_t SCALE_FACTOR_MIN = 1;
 constexpr uint32_t SCALE_FACTOR_B_BIT = 8;
+constexpr uint32_t SCALE_FACTOR_M_BIT = 16;
+constexpr uint32_t SCALE_FACTOR_N_BIT = 24;
 
 constexpr int32_t B16_DATA_SIZE = 2;
 constexpr int32_t B8_DATA_SIZE = 1;
