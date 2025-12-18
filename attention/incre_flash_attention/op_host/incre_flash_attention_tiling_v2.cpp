@@ -905,6 +905,10 @@ ge::graphStatus IFATilingV2::CheckKvCacheValue(uint32_t kDimNum) const {
                   dimOfKey / NUM8, headDim_ / NUM8, dimOfKey, headDim_),
                   return ge::GRAPH_FAILED);
       } else {
+        OP_CHECK_IF((d1OfKey != (headDim_ / d0OfKey)),
+                  OP_LOGE(ifaContext_->opName, "When Page Attention NZ is enabled, the third dim (D1) of kvCache[%u] should be %u", d1OfKey, headDim_ / d0OfKey),
+                  return ge::GRAPH_FAILED);
+
         OP_CHECK_IF((dimOfKey != headDim_),
                   OP_LOGE(ifaContext_->opName, "When Page Attention is enabled, headDim of kvCache[%u] should be %u", dimOfKey, headDim_),
                   return ge::GRAPH_FAILED);
