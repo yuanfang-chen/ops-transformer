@@ -16,7 +16,7 @@
 
 ## 功能说明
 
-- 接口功能：融合GroupedMatmul 、dequant、swiglu和quant，详细解释见计算公式。本接口相较于[aclnnGroupedMatmulSwigluQuant](../../grouped_matmul_swiglu_quant/docs/aclnnGroupedMatmulSwigluQuant.md)，新增了MXFP8量化场景（仅昇腾910_95 AI处理器支持），参数weight, weightScale, weightAssistMatrix的字段类型变为tensorlist，请根据实际情况选择合适的接口。
+- 接口功能：融合GroupedMatmul 、dequant、swiglu和quant，详细解释见计算公式。本接口相较于[aclnnGroupedMatmulSwigluQuant](../../grouped_matmul_swiglu_quant/docs/aclnnGroupedMatmulSwigluQuant.md)，新增了MXFP8、MXFP4量化场景（仅昇腾910_95 AI处理器支持），参数weight, weightScale, weightAssistMatrix的字段类型变为tensorlist，请根据实际情况选择合适的接口。
 - 计算公式：
   - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
     <details>
@@ -151,8 +151,7 @@
 
   - <term>昇腾910_95 AI处理器</term>：
     <details>
-    <summary>量化场景MXFP8：</summary>
-    <a id="量化场景MXFP8"></a>
+    <summary>MX量化场景：</summary>
 
       - **计算过程**
         - 1.根据groupList[i]确定当前分组的 token ，$i \in [0,Len(groupList)]$
@@ -178,6 +177,8 @@
             | :-----------: | :--: |
             | FLOAT8_E4M3FN |  8   |
             |  FLOAT8_E5M2  |  15  |
+            |  FLOAT4_E1M2  |  1   |
+            |  FLOAT4_E2M1  |  2   |
           - $blocksize$：指每次量化的元素个数，仅支持32的倍数，不能为0，且不能超过1024。
     </details>
 
@@ -245,7 +246,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td rowspan="1">输入</td>
         <td>表示左矩阵，Device侧的aclTensor，对应公式中的X。</td>
         <td><ul><li>使用INT8数据类型时，K必须小于65536。</li></ul></td>
-        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
+        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E1M2、FLOAT4_E2M1、INT8</td>
         <td>ND</td>
         <td>2，形如(M, K)</td>
         <td>√</td>
@@ -256,9 +257,9 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td>表示权重矩阵，Device侧的aclTensorList，对应公式中的W。</td>
         <td><ul>
           <li>INT32为适配用途，实际1个INT32会被解释为8个INT4数据。</li>
-          <li>ND数据格式仅A8W4、MXFP8场景支持。</li>
+          <li>ND数据格式仅A8W4、MXFP8、MXFP4场景支持。</li>
         </ul></td>
-        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4、INT32</td>
+        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E1M2、FLOAT4_E2M1、INT8、INT4、INT32</td>
         <td>ND、FRACTAL_NZ</td>
         <td>3，weight非转置shape形如(E, K, N)，weight转置shape形如(E, N, K)</td>
         <td>√</td>
@@ -271,7 +272,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
           <li>首轴长度需与weight的首轴维度相等，尾轴长度需要与weight还原为ND格式的尾轴相同。</li>
           <li>A8W4场景：shape支持2或3维，数据类型支持UINT64。</li>
           <li>A8W8场景：shape支持2维，数据类型支持FLOAT、FLOAT16、BFLOAT16。</li>
-          <li>MXFP8场景：shape支持4维，数据类型支持FLOAT8_E8M0。</li>
+          <li>MX量化场景：shape支持4维，数据类型支持FLOAT8_E8M0。</li>
         </ul></td>
         <td>FLOAT8_E8M0、UINT64、FLOAT、FLOAT16、BFLOAT16</td>
         <td>ND</td>
@@ -409,7 +410,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       </tr>
       <tr>
         <td>tuningConfig</td>
-        <td rowspan="1">输入</td>
+        <td rowspan="1">可选输入</td>
         <td>用于算子预估M/E的大小，走不同的算子模板，以适配不不同场景性能要求。</td>
         <td><ul><li>预留输入，暂不支持，需要传空指针。</li></ul></td>
         <td>-</td>
@@ -422,7 +423,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td rowspan="1">输出</td>
         <td>表示输出的量化结果，Device侧的aclTensor，公式中的Q。</td>
         <td>-</td>
-        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
+        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E1M2、FLOAT4_E2M1、INT8</td>
         <td>ND</td>
         <td>2，形如(M, N / 2)</td>
         <td>√</td>
@@ -466,7 +467,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     </table>
 
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：不支持FLOAT8量化数据类型、支持其他数据类型，不支持weight转置、不支持dequantDtype参数、不支持quantDtype参数。
-    - <term>昇腾910_95 AI处理器</term>：仅支持FLOAT8量化数据类型，不支持其他数据类型，支持weight转置、支持dequantDtype参数、支持quantDtype参数。
+    - <term>昇腾910_95 AI处理器</term>：支持FLOAT8和FLOAT4量化数据类型，不支持其他数据类型，支持weight转置、支持dequantDtype参数、支持quantDtype参数。
 
 - **返回值：**
   
@@ -491,8 +492,8 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       <td>参数x、weight、weightScale、xScale、groupList、output、outputScale是空指针。</td>
     </tr>
     <tr>
-      <td rowspan="7">ACLNN_ERR_PARAM_INVALID</td>
-      <td rowspan="7">161002</td>
+      <td rowspan="9">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="9">161002</td>
       <td>传入的x、weight、weightScale、xScale、groupList、output、outputScale的数据维度不满足约束。</td>
     </tr>
     <tr>
@@ -500,6 +501,9 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     </tr>
     <tr>
       <td>传入的x、weight、weightScale、xScale、groupList、output、outputScale数据的format不满足约束条件。</td>
+    </tr>
+    <tr>
+      <td>参数bias、smoothScale、dequantDtype、tuningConfig不为空指针。</td>
     </tr>
     <tr>
       <td>groupList的元素个数大于weight的首轴长度。</td>
@@ -512,6 +516,9 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     </tr>
     <tr>
       <td>A8W4场景，x的尾轴长度大于等于20000。</td>
+    </tr>
+    <tr>
+      <td>MX量化场景，N不为偶数。</td>
     </tr>
   </tbody>
   </table>
@@ -536,6 +543,48 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+  - MX量化场景下需满足以下约束条件：
+      - 数据类型需要满足下表：
+      <table style="undefined;table-layout: fixed; width: 1134px"><colgroup>
+      <col style="width: 319px">
+      <col style="width: 144px">
+      <col style="width: 671px">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>MX量化场景</th>
+          <th>x</th>
+          <th>weight</th>
+          <th>weightScale</th>
+          <th>xScale</th>
+          <th>output</th>
+          <th>outputScale</th>
+        </tr></thead>
+      <tbody>
+        <tr>
+          <td>MXFP8</td>
+          <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+          <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+          <td>FLOAT8_E8M0</td>
+          <td>FLOAT8_E8M0</td>
+          <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+          <td>FLOAT8_E8M0</td>
+        </tr>
+        <tr>
+          <td>MXFP4</td>
+          <td>FLOAT4_E1M2、FLOAT4_E2M1</td>
+          <td>FLOAT4_E1M2、FLOAT4_E2M1</td>
+          <td>FLOAT8_E8M0</td>
+          <td>FLOAT8_E8M0</td>
+          <td>FLOAT4_E1M2、FLOAT4_E2M1、FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+          <td>FLOAT8_E8M0</td>
+        </tr>
+      </tbody>
+      </table>
+
+      - MX量化场景下，需满足N为128对齐。
+      - MXFP4场景不支持K=2。
+      - MXFP4场景需满足K为偶数；当output的数据类型为FLOAT4_E1M2、FLOAT4_E2M1时，需满足N为大于等于4的偶数。
 
   - 确定性说明：aclnnGroupedMatmulSwigluQuantV2默认为确定性实现。
 
