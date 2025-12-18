@@ -15,7 +15,7 @@
 | <term>Atlas 200/300/500 推理产品</term>                      |    ×    |
 
 ## 功能说明
--  算子功能：推理网络为了提升性能，将query和key两路算子融合成一路。执行旋转位置编码计算，计算结果执行原地更新。
+-  接口功能：推理网络为了提升性能，将query和key两路算子融合成一路。执行旋转位置编码计算，计算结果执行原地更新。
    本接口针对[aclnnApplyRotaryPosEmb](aclnnApplyRotaryPosEmb.md)做了如下功能变更，请根据实际情况选择合适的接口：
    
    - 新增rotaryMode参数，用于控制不同的旋转编码方式
@@ -344,6 +344,8 @@ aclnnStatus aclnnApplyRotaryPosEmbV2(
 - **返回值：**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+  
+  第一段接口完成入参校验，出现以下场景时报错：
   <table>
   
   <tr>

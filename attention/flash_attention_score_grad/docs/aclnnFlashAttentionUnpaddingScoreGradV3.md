@@ -158,7 +158,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>数据类型与keyIn/value一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -168,7 +168,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>数据类型与query一致。</td>
         <td>BFLOAT16</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -178,7 +178,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>数据类型与query/value一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -188,7 +188,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>数据类型与keyIn一致。</td>
         <td>BFLOAT16</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -198,7 +198,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>数据类型与query/keyIn一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -208,7 +208,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -234,12 +234,12 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
       <tr>
         <td>paddingMaskOptional</td>
         <td>输入</td>
-        <td>padding掩码。</td>
-        <td>暂不支持。</td>
-        <td>UINT8、BOOL</td>
-        <td>ND</td>
-        <td>0、2、4</td>
-        <td>√</td>
+        <td>预留参数。</td>
+        <td>调用时需传空。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>qStartIdxOptional</td>
@@ -264,16 +264,11 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
       <tr>
         <td>attenMaskOptional</td>
         <td>输入</td>
-        <td>注意力mask。</td>
-        <td>
-          <ul>
-            <li>1表示不参与计算，0表示参与计算。</li>
-            <li>支持[B,N,S,S]、[B,1,S,S]、[1,1,S,S]、[S,S]。</li>
-          </ul>
-        </td>
+        <td>公式中的atten_mask。</td>
+        <td>取值为1代表该位不参与计算，为0代表该位参与计算。</td>
         <td>BOOL、UINT8</td>
         <td>ND</td>
-        <td>0、2、4</td>
+        <td>[B,N,Sq,Skv]、[B,1,Sq,Skv]、[1,1,Sq,Skv]、[Sq,Skv] </td>
         <td>√</td>
       </tr>
       <tr>
@@ -283,7 +278,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>FLOAT</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[N,T,8]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -293,18 +288,18 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>FLOAT</td>
         <td>ND</td>
-        <td>0、4</td>
+        <td>[N,T,8]</td>
         <td>√</td>
       </tr>
       <tr>
         <td>softmaxInOptional</td>
         <td>输入</td>
-        <td>softmax计算输入。</td>
-        <td>传空。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、3、4</td>
-        <td>√</td>
+        <td>正向softmax的中间输出。</td>
+        <td>暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>attentionInOptional</td>
@@ -313,7 +308,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>与query数据类型、shape一致。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -353,7 +348,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -363,7 +358,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>BFLOAT16</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -373,7 +368,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -383,7 +378,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>BFLOAT16</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -393,7 +388,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>-</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>0、3、4</td>
+        <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
@@ -401,10 +396,10 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>输出</td>
         <td>d(pse)梯度。</td>
         <td>暂未使用。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>0、4</td>
-        <td>√</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>scaleValue</td>
@@ -609,7 +604,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
 - 关于数据shape的约束，以inputLayout的TND为例，其中：
     -   T：取值范围为1\~1M。
     -   N：取值范围为1\~256。
-    -   D：取值范围为1\~512。
+    -   D：取值范围为1\~768。
     -   KeepProb：取值范围为1。
 - query、key、value数据排布格式仅支持TND，T是B和S合轴紧密排列的数据（每个batch的SeqLenQ和SeqLenKV），其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N。
 - sparseMode的约束如下:
@@ -708,7 +703,7 @@ int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& 
 }
 
 int main() {
-  // 1. （固定写法）device/stream初始化，参考AscendCL对外接口列表
+  // 1. （固定写法）device/stream初始化，参考acl API手册
   // 根据自己的实际device填写deviceId
   int32_t deviceId = 0;
   aclrtStream stream;

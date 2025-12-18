@@ -20,9 +20,9 @@
 * 计算公式：
   注意力的正向计算公式如下：
 
-$$
-Attention\_out=Dropout(Softmax(Mask(scale*(pse+query*key^T),atten\_mask)),keep\_prob)*value
-$$
+  $$
+  Attention=Dropout(Softmax(Mask(scale*(query*key^T + queryRope*keyRope^T) + pse),atten\_mask),keep\_prob)*value
+  $$
 
   其中增加**sink**之后计算逻辑见下，主要修改相关softmax_max和softmax_sum逻辑计算部分
 
@@ -118,14 +118,14 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>输入</td>
         <td>公式中的query。</td>
         <td>数据类型与key/value的数据类型一致。</td>
-        <td>BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
         <td>queryRope</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>公式中的queryRope。</td>
         <td>数据类型与key/value的数据类型一致。</td>
         <td>BFLOAT16</td>
@@ -138,14 +138,14 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>输入</td>
         <td>公式中的key。</td>
         <td>数据类型与query/value的数据类型一致。</td>
-        <td>BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
         <td>keyRope</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>公式中的keyRope。</td>
         <td>数据类型与query/value的数据类型一致。</td>
         <td>BFLOAT16</td>
@@ -158,24 +158,24 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>输入</td>
         <td>公式中的value。</td>
         <td>数据类型与query/key的数据类型一致。</td>
-        <td>BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
       </tr>
       <tr>
         <td>realShiftOptional</td>
-        <td>输入</td>
-        <td>Device侧的aclTensor，公式中的pse。</td>
-        <td>与queryRope、keyRope不兼容。不用rope时，数据类型和query一致。</td>
+        <td>可选输入</td>
+        <td>公式中的pse。</td>
+        <td>与queryRope、keyRope不兼容。不用rope时，数据类型和query一致，需要与pseType配套使用。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>[B,N,Sq,Skv]、[B,N,1,Skv]、[1,N,Sq,Skv]</td>
+        <td>[B,N,1024,Skv]、[1,N,1024,Skv]、[B,N]、[N]</td>
         <td>√</td>
       </tr>
       <tr>
         <td>dropMaskOptional</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>公式中的Dropout。</td>
         <td>与queryRope、keyRope不兼容。</td>
         <td>UINT8</td>
@@ -185,7 +185,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>attenMaskOptional</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>公式中的atten_mask。</td>
         <td>取值为1代表该位不参与计算，为0代表该位参与计算。</td>
         <td>BOOL、UINT8</td>
@@ -195,7 +195,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>sinkOptional</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>公式中的sink。</td>
         <td>提供sink功能。</td>
         <td>FLOAT32</td>
@@ -205,7 +205,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>prefixOptional</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>代表prefix稀疏计算场景每个Batch的N值。</td>
         <td>-</td>
         <td>INT64</td>
@@ -220,7 +220,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>-</td>
         <td>INT64</td>
         <td>ND</td>
-        <td>0、1</td>
+        <td>1</td>
         <td>-</td>
       </tr>
       <tr>
@@ -230,12 +230,12 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>-</td>
         <td>INT64</td>
         <td>ND</td>
-        <td>0、1</td>
+        <td>1</td>
         <td>-</td>
       </tr>
       <tr>
         <td>qStartIdxOptional</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
         <td>-</td>
         <td>INT64</td>
@@ -245,7 +245,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>kvStartIdxOptional</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
         <td>-</td>
         <td>INT64</td>
@@ -255,7 +255,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>scaleValue</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>公式中的scale，代表缩放系数。</td>
         <td>-</td>
         <td>DOUBLE</td>
@@ -265,7 +265,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>keepProb</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>代表dropMaskOptional中1的比例。</td>
         <td>取值范围为(0, 1]。</td>
         <td>DOUBLE</td>
@@ -275,7 +275,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>preTokens</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>用于稀疏计算 ，表示slides window的左边界。</td>
         <td>-</td>
         <td>INT64</td>
@@ -285,7 +285,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>nextTokens</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>用于稀疏计算，表示slides window的右边界。</td>
         <td>-</td>
         <td>INT64</td>
@@ -315,7 +315,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>innerPrecise</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>用于提升精度。</td>
         <td>暂未使用。</td>
         <td>INT64</td>
@@ -325,7 +325,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>sparseMode</td>
-        <td>输入</td>
+        <td>可选输入</td>
         <td>表示sparse的模式。</td>
         <td>支持配置值为支持配置0~8，不支持5。传入rope时，不支持6。</td>
         <td>INT64</td>
@@ -335,9 +335,9 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
         <td>pseType</td>
-        <td>输入</td>
-        <td>控制mul与add计算顺序，无rope时配置为0-3，有rope仅支持配置值为1。</td>
-        <td>-</td>
+        <td>可选输入</td>
+        <td>控制mul与add计算顺序。</td>
+        <td>无rope时配置为0-3，有rope仅支持配置值为1。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -345,7 +345,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       </tr>
       <tr>
           <td>softmaxOutLayout</td>
-          <td>输入</td>
+          <td>可选输入</td>
           <td>用于控制TND场景下softmax输出。</td>
           <td>传入"same_as_input"时，softmax输出排布与输入保持一致，为TND排布；传入空字符串时，与原逻辑保持一致，softmax输出排布为NTD。</td>
           <td>String</td>
@@ -437,6 +437,11 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
     <tr>
       <td>query、key、value、realShiftOptional、dropMaskOptional、paddingMaskOptional、attenMaskOptional、sinkOptional、softmaxMaxOut、softmaxSumOut、softmaxOutOut、attentionOutOut的数据格式不在支持的范围内。</td>
     </tr>
+    <tr>
+      <td>ACLNN_ERR_INNER_NULLPTR</td>
+      <td>561103</td>
+      <td>API内部校验错误，通常由于输入的shape或属性的规格不在支持的范围之内导致。</td>
+    </tr>
   </tbody>
   </table>
 
@@ -498,11 +503,16 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
 - 支持输入query的N和key/value的N不相等，但必须成比例关系，即Nq/Nkv必须是非0整数，Nq取值范围1~256。当Nq/Nkv > 1时，即为GQA（grouped-query attention）；当Nkv=1时，即为MQA（multi-query attention）。本文如无特殊说明，N表示的是Nq。
 - 关于数据shape的约束，其中：
   - T(B*S)：取值范围为1\~1M。
-  - B：取值范围为1\~2K。带prefixOptional的时候B最大支持1K。
+  - B：取值范围为1\~20000。带prefixOptional的时候B最大支持1K。
   - N：取值范围为1\~256。
   - S：取值范围为1\~1M。
   - D：取值范围为1\~768。
 - query、key、value数据排布格式仅支持TND，T是B和S合轴紧密排列的数据（每个batch的SeqLenQ和SeqLenKV），其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N。
+- realShiftOptional：如果Sq大于1024的每个batch的Sq与Skv等长且是sparseMode为0、2、3的下三角掩码场景，可使能alibi位置编码压缩，此时只需要输入原始PSE最后1024行，实现内存优化，即alibi_compress = ori_pse[:, :, -1024:, :]，具体如下：
+  - 参数每个batch不相同时，shape为BNHSkv(H=1024)。
+  - 每个batch相同时，shape为1NHSkv(H=1024)。
+  - 如果pseType为2或3的时候，数据类型需为FLOAT32, 对应shape支持范围是[B,N]或[N]。
+  - 如果不使能该参数，realShiftOptional需要传入nullptr，pseType需要传入1。
 - sparseMode的约束如下: 
   - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量。
   - 配置为1、2、3、5、6时，用户配置的preTokens、nextTokens不会生效。
@@ -599,7 +609,7 @@ int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& 
 }
 
 int main() {
-  // 1. （固定写法）device/stream初始化，参考AscendCL对外接口列表
+  // 1. （固定写法）device/stream初始化，参考acl API手册
   // 根据自己的实际device填写deviceId
   int32_t deviceId = 0;
   aclrtStream stream;
