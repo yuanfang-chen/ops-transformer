@@ -150,7 +150,6 @@ __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockTyp
         }
 
         int64_t s2LoopLimit = 0;
-        runParam.s2LoopStartIdx = 0;
         bool notLastThreeLoop = notThirdLast && notSecondLast && notLast;
         bool notLastTwoLoop = notSecondLast && notLast;
         if (notLastThreeLoop) {

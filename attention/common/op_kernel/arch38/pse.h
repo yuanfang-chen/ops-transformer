@@ -303,7 +303,6 @@ __aicore__ inline void ComputeInnerPseOffset(float &slopes, float &posShift, con
         int64_t s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * constInfo.s2BaseSize;
         if constexpr (isInfer) {
             s1Offset += (runInfo.nextTokensPerBatch < 0) ? -runInfo.nextTokensPerBatch : 0;
-            s2Offset = runInfo.s2LoopCount * constInfo.s2BaseSize;
         }
         posShift = float(s2Offset + pseInfo.kvStartIdx - s1Offset - pseInfo.qStartIdx);
         return;

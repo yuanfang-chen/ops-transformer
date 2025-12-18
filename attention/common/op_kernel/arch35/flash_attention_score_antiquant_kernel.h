@@ -533,11 +533,10 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
                 }
                 s2LoopLimit = runParam.s2LoopEndIdx - 1;
             } else {
-                runParam.s2LoopStartIdx = 0;
                 s2LoopLimit = 0;
             }
 
-            for (int64_t s2LoopCount = runParam.s2LoopStartIdx; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
+            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
                 if (notLastTwoLoop) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];  // 3 is mod 4
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, runParam.s2LoopEndIdx - 1, multiCoreInnerIdx);
@@ -602,7 +601,6 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
     RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
     runInfo.s2StartIdx = runParam.s2LineStartIdx;
-    runInfo.s2LoopStartIdx = runParam.s2LoopStartIdx;
     runInfo.s2EndIdx = runParam.s2LineEndIdx;
     runInfo.s2LoopCount = s2LoopCount;
     if (runInfo.multiCoreInnerIdx != multiCoreInnerIdx) {
@@ -645,9 +643,9 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
     if constexpr (isInfer) {
         runInfo.qRopeOffset = runParam.qRopeNBGOffset;
         InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, runInfo);
-        ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, s2LoopCount, runInfo);
+        ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx / s2BaseSize, runInfo);
         if ASCEND_IS_AIV{
-            ComputeOffsetForAntiquant<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, s2LoopCount, runInfo);
+            ComputeOffsetForAntiquant<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx / s2BaseSize, runInfo);
         }
     }
 }
@@ -712,16 +710,9 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
-    if constexpr (isInfer) {
-        if ((runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-        }
-    } else {
-        if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-        }
+    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+        runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
+        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
 }
 

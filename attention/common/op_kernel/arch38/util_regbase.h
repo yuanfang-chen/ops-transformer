@@ -68,7 +68,6 @@ struct RunParamStr;
     int64_t s1oIdx; \
     int64_t n2oIdx; \
     int64_t goIdx; \
-    int32_t s2LoopStartIdx;        /* S2方向的循环控制信息 souter层确定 */ \
     int32_t s2LoopEndIdx;          /* S2方向的循环控制信息 souter层确定 */ \
     int64_t s2LineStartIdx = 0;    /* S2方向按行的起始位置 */ \
     int64_t s2LineEndIdx;          /* S2方向按行的结束位置 */ \
@@ -131,7 +130,6 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     int64_t s2StartIdx; /* s2的起始位置，sparse场景下可能不是0 */ \
     int64_t s2EndIdx; \
     int64_t s2LoopCount; /* s2循环当前的循环index */ \
-    int64_t s2LoopStartIdx; \
     int64_t s2LoopLimit; \
     int64_t s1oIdx = 0; /* s1轴的index */ \
     int64_t boIdx = 0; /* b轴的index */ \

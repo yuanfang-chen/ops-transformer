@@ -83,7 +83,7 @@ FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
     const RunParamStr<isInfer> &runParam, RunInfo<isInfer> &runInfo)
 {
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn>(runParam, runInfo);
-    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn>(runParam, this->constInfo, runInfo.s2LoopCount, runInfo);
+    ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn>(runParam, this->constInfo, runInfo.s2LoopCount + runInfo.s2StartIdx / this->constInfo.s2BaseSize, runInfo);
 }
 
 template <typename CubeBlockType, typename VecBlockType>
@@ -200,11 +200,10 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
                 }
                 s2LoopLimit = runParam.s2LoopEndIdx - 1;
             } else {
-                runParam.s2LoopStartIdx = 0;
                 s2LoopLimit = 0;
             }
 
-            for (int64_t s2LoopCount = runParam.s2LoopStartIdx; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
+            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
                 if (notLastThreeLoop) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);

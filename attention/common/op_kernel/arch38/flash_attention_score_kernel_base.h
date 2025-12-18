@@ -483,7 +483,6 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
     runInfo.s2StartIdx = runParam.s2LineStartIdx;
-    runInfo.s2LoopStartIdx = runParam.s2LoopStartIdx;
     runInfo.s2EndIdx = runParam.s2LineEndIdx;
     runInfo.s2LoopCount = s2LoopCount;
     if (runInfo.multiCoreInnerIdx != multiCoreInnerIdx) {
@@ -531,17 +530,10 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
 
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = s2BaseSize;
-    runInfo.s2AlignedSize = runInfo.s2RealSize;
-    if constexpr (isInfer) {
-        if ((runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-        }
-    } else {
-        if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-        }
+    runInfo.s2AlignedSize = runInfo.s2RealSize; 
+    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+        runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
+        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
 }
 }

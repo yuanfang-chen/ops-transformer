@@ -489,8 +489,7 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::CalcS2Coord(RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
-    coordInfo[runInfo.taskIdMod3].s2Coord = runInfo.s2StartIdx +
-        (runInfo.s2LoopCount - runInfo.s2LoopStartIdx) * s2BaseSize;
+    coordInfo[runInfo.taskIdMod3].s2Coord = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;
     coordInfo[runInfo.taskIdMod3].curBIdx = runInfo.boIdx;
     if constexpr (isInfer) {
         coordInfo[runInfo.taskIdMod3].s2Coord += runInfo.kvLeftPaddingSize;  // 左padding
@@ -586,7 +585,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos
                 startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                            runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
             } else {
-                startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+                startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
             }
             startPos.dIdx = n * baseN;
             PAShape shape;
@@ -693,7 +692,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                     startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                             runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
                 } else {
-                    startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+                    startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
                 }
                 startPos.dIdx = 0;
                 PAShape shape;
@@ -896,7 +895,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
     Buffer<BufferType::L1> mm1B;
     // 左矩阵复用 ,s2的第一次循环加载左矩阵
     // 加载左矩阵到L1 当前使用全载方式
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) { // sOuter循环第一个基本快：搬运0
+    if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本快：搬运0
         mm1A = l1QBuffers.Get();
         mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用
         LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
@@ -943,7 +942,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
             startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                         runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
         } else {
-            startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+            startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
         }
         startPos.dIdx = 0;
         PAShape shape;
@@ -1063,7 +1062,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
     Buffer<BufferType::L1> mm1B;
     // 右矩阵复用，S2的第一次循环加载右矩阵
     // 加载右矩阵到L1 ,当前使用全载方式
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) { // sOuter循环第一个基本快：搬运0
+    if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本快：搬运0
         mm1B = l1QBuffers.Get();
         mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
@@ -1090,7 +1089,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
             startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                         runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
         } else {
-            startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+            startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
         }
         startPos.dIdx = 0;
         PAShape shape;
@@ -1165,7 +1164,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     Buffer<BufferType::L1> mm1B;
     // 左矩阵复用，S2的第一次循环加载左矩阵
     // 加载左矩阵到L1 ,当前使用全载方式
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) { // sOuter循环第一个基本块：搬运Q
+    if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本块：搬运Q
         mm1A = l1QBuffers.Get();
         mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用L1A
         LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
@@ -1207,7 +1206,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
             startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                         runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
         } else {
-            startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+            startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
         }
         startPos.dIdx = 0;
         PAShape shape;
@@ -1324,7 +1323,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
     uint32_t dstNzC0Stride = ((runInfo.s1RealSize + 15) >> 4 << 4);
     uint64_t l1BaseKOffset = baseK * dstNzC0Stride;
     mm1A = l1QBuffers.Get();
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+    if (unlikely(runInfo.s2LoopCount == 0)) {
         mm1A.Wait<HardEvent::MTE1_MTE2>();
     }
     uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
@@ -1341,7 +1340,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
         } else {
             realK = baseK; // 单个ND矩阵的实际列数，单位为元素个数
         }
-        if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) { // sOuter循环第一个基本快：搬运0
+        if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本快：搬运0
             uint64_t gmKOffset = k * baseK;
             LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
             
@@ -1377,7 +1376,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
                 startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                            runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
             } else {
-                startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+                startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
             }
             startPos.dIdx = k * baseK;
             PAShape shape;
@@ -1455,7 +1454,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
     Buffer<BufferType::L1> mm1B;
     // 右矩阵复用，S2的第一次循环加载右矩阵
     // 加载右矩阵到L1 ,当前使用全载方式
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) { // sOuter循环第一个基本块：搬运Q
+    if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本块：搬运Q
         mm1B = l1QBuffers.Get();
         mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1A
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
@@ -1482,7 +1481,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
             startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                         runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
         } else {
-            startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+            startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
         }
         startPos.dIdx = 0;
         PAShape shape;
@@ -1588,7 +1587,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1MLAFullQuant(
     uint32_t offsetQRopeByElement = dstNzC0StrideQNope * constInfo.dSize / dTypeRATIO; //Rope在mm1A的偏移量（单位：元素）
     // 左矩阵复用 ,s2的第一次循环加载左矩阵
     // 加载左矩阵到L1 当前使用全载方式
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) { // sOuter循环第一个基本快：搬运0
+    if (unlikely(runInfo.s2LoopCount == 0)) { // sOuter循环第一个基本快：搬运0
         mm1A = l1QBuffers.Get();
         mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用，MTE2开始
         LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
@@ -1620,7 +1619,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1MLAFullQuant(
             startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                         runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
         } else {
-            startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
+            startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
         }
         startPos.dIdx = 0;
         PAShape nopeShape;//配置KNope的PA搬运参数

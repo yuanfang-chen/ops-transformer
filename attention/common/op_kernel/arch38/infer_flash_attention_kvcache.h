@@ -453,7 +453,6 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
 {
     constexpr int32_t s2BaseSize = static_cast<int32_t>(s2TemplateType);
     if constexpr (isFd) {
-        runParam.s2LoopStartIdx = 0;
         runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize;
         return false;
     }
@@ -463,14 +462,13 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
     runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
         runParam.s1RealSize, 0, runParam.actualS2Size);
 
-    runParam.s2LoopStartIdx = sInnerFirstToken / s2BaseSize;
-    runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize;
+    runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - sInnerFirstToken /s2BaseSize;
 
-    if (runParam.s2LoopEndIdx <= runParam.s2LoopStartIdx) {
+    if (runParam.s2LoopEndIdx <= 0) {
         return true;
     }
     if constexpr (hasAtten) {
-        runParam.s2LineStartIdx = runParam.s2LoopStartIdx * s2BaseSize;
+        runParam.s2LineStartIdx = sInnerFirstToken / s2BaseSize * s2BaseSize;
     } else {
         runParam.s2LineStartIdx = sInnerFirstToken;
     }

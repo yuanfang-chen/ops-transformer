@@ -99,7 +99,7 @@ __aicore__ inline void FABlockCubeAntiquant<ANTIQUANT_TEMPLATE_ARGS>::IterateBmm
         Buffer<BufferType::L1> &mm1B, LocalTensor<T> &outputTensor, ConstInfo<isInfer, hasRope> &constInfo)
 {
     Buffer<BufferType::L1> mm1A;
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+    if (unlikely(runInfo.s2LoopCount == 0)) {
         mm1A = mm1AL1Buffers.Get();
         mm1A.Wait<HardEvent::MTE1_MTE2>(); // 占用
         LocalTensor<Q_T> mm1ATensor = mm1A.GetTensor<Q_T>();

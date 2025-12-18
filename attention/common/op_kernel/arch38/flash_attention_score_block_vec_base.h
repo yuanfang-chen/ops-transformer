@@ -254,7 +254,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1DnRegbaseV
     int64_t stage1Offset = runInfo.taskIdMod2;
     AscendC::LocalTensor<INPUT_T> stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
 
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+    if (unlikely(runInfo.s2LoopCount == 0)) {
         fa::ProcessVec1VfDnRegbaseV2<T, INPUT_T, false, s2BaseSize>(stage1CastTensor, sumUb,
             maxUb, mmRes, expUb, runInfo.s1RealSizeAlign32, runInfo.s2RealSize, static_cast<T>(constInfo.scaleValue), negativeFloatScalar, 1); // constInfo.quantScalePValue
     } else {
@@ -331,14 +331,14 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1NdRegbaseV
                                  runInfo.goIdx * s1BlockCnt + runInfo.s1oIdx;
         runInfo.deScaleKvOffset = runInfo.boIdx * constInfo.n2Size * s2BlockCnt +
                                   runInfo.n2oIdx * s2BlockCnt +
-                                  (runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount; // 7 for multi factor 128
+                                  (runInfo.s2StartIdx >> 7) + runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize; // 7 for multi factor 128
         float deSCaleQValue = this->deScaleQGm.GetValue(deScaleQOffset);
         float deSCaleKValue = this->deScaleKGm.GetValue(runInfo.deScaleKvOffset);
         descaleQK = deSCaleQValue * deSCaleKValue;
     }
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
     LocalTensor<float> null;
-    if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx) {
+    if (runInfo.s2LoopCount == 0) {
         SoftmaxFlashV510_VF<T, INPUT_T, false, 1, s1BaseSize, s2BaseSize>(
             stage1CastTensor, sumUb, maxUb, expUb, mmRes, sumUb, maxUb, attenMaskUb, pseUb,
             apiTmpBuffer, runInfo.s1RealSizeAlign32, runInfo.s2RealSize, static_cast<T>(constInfo.scaleValue), negativeFloatScalar, constInfo.quantScalePValue);
@@ -389,7 +389,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUbRegbas
     }
     LocalTensor<T> vec2ResUb = this->stage2OutBuf.template Get<T>();
     WaitFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+    if (unlikely(runInfo.s2LoopCount == 0)) {
         DataCopy(vec2ResUb, mmRes, vec2CalcSize);
     } else {
         LocalTensor<float> expUb = softmaxExpBuf[runInfo.taskIdMod3].template Get<float>();
@@ -405,7 +405,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec2OnUbRegbas
         }
     }
     if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
-        if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+        if (unlikely(runInfo.s2LoopCount == 0)) {
             LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
             FlashUpdateDivV510<T, T, T, dTemplateAlign64>(vec2ResUb, vec2ResUb, sumUb, runInfo.vec2S1RealSize, (uint16_t)dTemplateAlign64);
         }
@@ -475,7 +475,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
         if constexpr (isInfer) {
             runInfo.deScaleKvOffset = runInfo.boIdx * constInfo.n2Size * s2BlockCnt +
                                       runInfo.n2oIdx * s2BlockCnt +
-                                      (runInfo.s2StartIdx >> 8) + (runInfo.s2LoopCount >> 1); // 8 ：按照256分块计算deScaleKv偏移
+                                      (runInfo.s2StartIdx >> 8) + ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) >> 1); // 8 ：按照256分块计算deScaleKv偏移
         } else {
             runInfo.deScaleKvOffset = runInfo.boIdx * constInfo.n2Size * s2BlockCnt * (FP8_QUANT_KV_BLOCK_SIZE / s2BaseSize) +
                                   runInfo.n2oIdx * s2BlockCnt * (FP8_QUANT_KV_BLOCK_SIZE / s2BaseSize) + 
@@ -488,7 +488,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
 
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
-    if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx) {
+    if (runInfo.s2LoopCount == 0) {
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, hasDrop>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
@@ -576,7 +576,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
     outputBuf.SetCrossCore();
     // ======================================================
-    if (runInfo.s2LoopCount != runInfo.s2LoopStartIdx) {
+    if (runInfo.s2LoopCount != 0) {
         UpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
     }
     if constexpr (IsSameType<INPUT_T, float>::value) {

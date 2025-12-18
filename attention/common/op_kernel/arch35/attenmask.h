@@ -173,13 +173,11 @@ __aicore__ inline int64_t ComputeOffsetForNoCompress(const RunInfo<isInfer> &run
             bOffset = runInfo.b1SSAttenMaskOffset;
         }
         int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize + runInfo.vecCoreOffset;
-        int64_t s2Offset = runInfo.s2LoopCount * constInfo.s2BaseSize;
+        int64_t s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * constInfo.s2BaseSize;
         if constexpr (isInfer) {
             s1Offset += (runInfo.nextTokensPerBatch < 0) ? -runInfo.nextTokensPerBatch : 0;
             s1Offset += runInfo.queryLeftPaddingSize;
             s2Offset += runInfo.kvLeftPaddingSize;
-        } else {
-            s2Offset += runInfo.s2StartIdx;
         }
         s1Offset *= attenMaskInfo.attenMaskS2Size;
         return bOffset + n2Offset + gOffset + s1Offset + s2Offset;
@@ -374,10 +372,7 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
         int64_t deltaPre = 0;
         int64_t deltaN = runInfo.actualS1Size - runInfo.actualS2Size;
         int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize;
-        int64_t s2Offset = runInfo.s2LoopCount * constInfo.s2BaseSize;
-        if constexpr (!isInfer) {
-            s2Offset += runInfo.s2StartIdx; //训练的s2LoopCount是从0开始，需要加上起始位置
-        }
+        int64_t s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * constInfo.s2BaseSize;
         if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::LEFT_UP_CAUSAL_MODE)) {
             deltaCausalOrNext = s1Offset - s2Offset;
         } else if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_MODE)) {

@@ -908,25 +908,24 @@ __aicore__ inline int64_t FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         // (BS)ND
         bOffsetRope = runInfo.s2SizeAcc * constInfo.n2DR;
-        s2OffsetRope = runInfo.s2StartIdx * constInfo.n2DR + runInfo.s2LoopCount * constInfo.s2BaseN2DR;
+        s2OffsetRope = runInfo.s2StartIdx * constInfo.n2DR + (runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) * constInfo.s2BaseN2DR;
         n2OffsetRope = runInfo.n2oIdx * constInfo.dSizeRope;
     } else {
         if (constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_BSH) {
             // BSH/BSND
             bOffsetRope = runInfo.boIdx * constInfo.n2S2DR;
-            s2OffsetRope = runInfo.s2StartIdx * constInfo.n2DR + runInfo.s2LoopCount * constInfo.s2BaseN2DR;
+            s2OffsetRope = runInfo.s2StartIdx * constInfo.n2DR + (runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) * constInfo.s2BaseN2DR;
             n2OffsetRope = runInfo.n2oIdx * constInfo.dSizeRope;
         } else if (constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_SBH) {
             // SBH / SBND
-            s2OffsetRope = runInfo.s2StartIdx * constInfo.bN2DR + runInfo.s2LoopCount * constInfo.s2BaseBN2DR;
+            s2OffsetRope = runInfo.s2StartIdx * constInfo.bN2DR + (runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) * constInfo.s2BaseBN2DR;
             bOffsetRope = runInfo.boIdx * constInfo.n2DR;
             n2OffsetRope = runInfo.n2oIdx * constInfo.dSizeRope;
         } else if (constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_BNSD) {
             // BNSD
             bOffsetRope = runInfo.boIdx * constInfo.n2S2DR;
             n2OffsetRope = runInfo.n2oIdx * constInfo.s2DR;
-            s2OffsetRope = runInfo.s2StartIdx * constInfo.dSizeRope + 
-                runInfo.s2LoopCount * constInfo.s2BaseDR;
+            s2OffsetRope = runInfo.s2StartIdx * constInfo.dSizeRope + (runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) * constInfo.s2BaseDR;
         }
     }
     return bOffsetRope + n2OffsetRope + s2OffsetRope;
@@ -1020,7 +1019,6 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
         gS1EndIdx = runParam.s1LoopTimes;
         for (int64_t gS1Index = gS1StartIdx; gS1Index <runParam.s1LoopTimes; gS1Index++) {
             s2LoopLimit = 0;
-            runParam.s2LoopStartIdx = 0;
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
             bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, gS1Index, actualSeqQlenAddr, this->pseInfo);
             bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo);
@@ -1035,7 +1033,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
                 isLastBmm1 = true;
                 s2LoopLimit += PRELOAD_N;
             }
-            for (int64_t s2LoopCount = runParam.s2LoopStartIdx; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
+            for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
                 if (s2LoopCount < runParam.s2LoopEndIdx) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, runParam.s2LoopEndIdx - 1, multiCoreInnerIdx);
@@ -1356,7 +1354,6 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::S
     runInfo.attentionOutOffset = runParam.attentionOutOffset;
     runInfo.sOuterOffset = runParam.sOuterOffset;
     runInfo.s2StartIdx = runParam.s2LineStartIdx;
-    runInfo.s2LoopStartIdx = runParam.s2LoopStartIdx;
     runInfo.s2EndIdx = runParam.s2LineEndIdx;
     runInfo.s2LoopCount = s2LoopCount;
     if (runInfo.multiCoreInnerIdx != multiCoreInnerIdx) {
@@ -1399,7 +1396,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::S
     if constexpr (isInfer) {
         runInfo.qRopeOffset = runParam.qRopeNBGOffset;
         InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, runInfo);
-        ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, s2LoopCount, runInfo);
+        ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx / s2BaseSize, runInfo);
     }
 }   
 
@@ -1419,16 +1416,9 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::C
     // -----------S2 Base Related-----------------
     runInfo.s2RealSize = s2BaseSize;
     runInfo.s2AlignedSize = runInfo.s2RealSize;
-    if constexpr (isInfer) {
-        if ((runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-        }
-    } else {
-        if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-        }
+    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+        runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
+        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
 }
 
@@ -1484,7 +1474,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::I
         Position startPos;
         startPos.bIdx = runInfo.boIdx;
         startPos.n2Idx = runInfo.n2oIdx;
-        startPos.s2Offset = runInfo.s2LoopCount * s2BaseSize;
+        startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;
         startPos.dIdx = 0; 
         PAShape shape;
         shape.blockSize = kvCacheBlockSize;
@@ -1624,7 +1614,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::I
         if (!res) {
             this->softMaxCheckRes = false;
         } else {
-            if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
+            if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
                 SoftmaxSumUpdate<T>(sumUb, maxUb, runInfo.halfS1RealSize, this->negativeFloatScalar,
                     this->positiveFloatScalar);
             }
@@ -1675,7 +1665,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
     LocalTensor<T> stage1PongTensor = this->bmm1ResBuf[runInfo.taskIdMod2].template Get<T>();
     int64_t stage1Offset = 0;
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+    if (unlikely(runInfo.s2LoopCount == 0)) {
         if (runInfo.s2RealSize == 128) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, false, hasRope && (dTemplateType == DTemplateType::Aligned576) && layout != LayOutTypeEnum::LAYOUT_BNSD>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, stage1PongTensor, expUb, sumUb, maxUb,
@@ -1750,7 +1740,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
     // CrossCoreSetFlag<4, PIPE_MTE3>(SYNC_V1_C2_FLAG[runInfo.taskIdMod2]); // mte3将结果搬运到L1，设置SYNC_V1_C2_FLAG
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
     // =======================================================
-    if (runInfo.s2LoopCount != runInfo.s2LoopStartIdx) {
+    if (runInfo.s2LoopCount != 0) {
         UpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
     }
 
@@ -1759,7 +1749,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
             this->InvalidLineProcess(runInfo, sumUb, maxUb);
         }
     }
-    if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
+    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
         SoftmaxDataCopyOut(runInfo);
         if constexpr (isFd) {
             ComputeLogSumExpAndCopyToGm(sumUb, maxUb, runInfo);
@@ -1935,13 +1925,13 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
     LocalTensor<T> vec2ResUb = this->stage2OutQue[0].template AllocTensor<T>();
     int64_t vec2CalcSize = runInfo.vec2S1RealSize * dTemplateAlign64;
 
-    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+    if (unlikely(runInfo.s2LoopCount == 0)) {
         DataCopy(vec2ResUb, bmm2Ub, vec2CalcSize);
     } else {
         LocalTensor<T> expUb = softmaxExpBuf[runInfo.taskIdMod3].template Get<T>();
         float deSCalePreVValue = 1.0f;
         if (runInfo.s2LoopCount < runInfo.s2LoopLimit) {
-            if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx + 1) {
+            if (unlikely(runInfo.s2LoopCount == 1)) {
                 FlashUpdateNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, true, false>(
                     vec2ResUb, bmm2Ub, vec2ResUb, expUb, expUb, runInfo.vec2S1RealSize, dTemplateAlign64,
                     1.0, deSCalePreVValue);
@@ -1951,7 +1941,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
                     1.0, deSCalePreVValue);
             }
         } else {
-            if (runInfo.s2LoopCount == runInfo.s2LoopStartIdx + 1) {
+            if (unlikely(runInfo.s2LoopCount == 1)) {
                 LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
                 FlashUpdateLastNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, true, false>(
                     vec2ResUb, bmm2Ub, vec2ResUb, expUb, expUb, sumUb, runInfo.vec2S1RealSize, dTemplateAlign64,
@@ -1965,8 +1955,8 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
         }
     }
     CrossCoreSetFlag<4, PIPE_V>(mm2ResIntraEvent[runInfo.taskIdMod2]);
-    if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
-        if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopStartIdx)) {
+    if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
+        if (unlikely(runInfo.s2LoopCount == 0)) {
             LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
             LastDivNew<T, INPUT_T, OUTPUT_T, dTemplateAlign64, false>(
                 vec2ResUb, vec2ResUb, sumUb, runInfo.vec2S1RealSize, (uint16_t)dTemplateAlign64, 1.0);
