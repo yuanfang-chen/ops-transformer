@@ -2416,15 +2416,18 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
                         AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
                     }
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s2CvInner * dAlign + coreId * s2CvInner * dAlign +
-                                     cBlockIdx % vecCalBlockNum * s2CalcInner * C0_SIZE;
+                                         cBlockIdx % vecCalBlockNum * s2CalcInner * C0_SIZE;
                     AscendC::DataCopyExtParams intriParams;
                     intriParams.blockCount = dAlign / C0_SIZE;
                     intriParams.blockLen = s2CalcExtend * C0_SIZE * sizeof(float);
                     intriParams.srcStride = dbParam.s2CvExtendArr[coreId] * C0_SIZE * sizeof(float) - intriParams.blockLen;
                     intriParams.dstStride = (s2CalcInner - s2CalcExtend) * C0_SIZE / 8;
                     intriParams.rsv = 0;
-                    DataCopyPad(inBuf, srcTensor[srcOffset], intriParams, {false, 0, 0, 0});
 
+                    event_t eventIdVToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+                    AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
+                    AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
+                    DataCopyPad(inBuf, srcTensor[srcOffset], intriParams, {false, 0, 0, 0});
                     event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
                     AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
                     AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
@@ -2435,9 +2438,12 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::CalcDkvR
 
                 } else {
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s2CvInner * dAlign + coreId * s2CvInner * dAlign +
-                                     cBlockIdx % vecCalBlockNum * s2CalcInner * d;
-                    DataCopy(inBuf, srcTensor[srcOffset], s2CalcExtend * d);
+                                         cBlockIdx % vecCalBlockNum * s2CalcInner * d;
 
+                    event_t eventIdVToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+                    AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
+                    AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
+                    DataCopy(inBuf, srcTensor[srcOffset], s2CalcExtend * d);
                     event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
                     AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
                     AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
@@ -2555,13 +2561,17 @@ template <typename FAGT>
                         AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
                     }
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s1CvInner * dAlign + coreId * s1CvInner * dAlign +
-                                     cBlockIdx % vecCalBlockNum * s1CalcInner * C0_SIZE;
+                                         cBlockIdx % vecCalBlockNum * s1CalcInner * C0_SIZE;
                     AscendC::DataCopyExtParams intriParams;
                     intriParams.blockCount = dAlign / C0_SIZE;
                     intriParams.blockLen = s1CalcExtend * C0_SIZE * sizeof(float);
                     intriParams.srcStride = dbParam.s1CvExtendArr[coreId] * C0_SIZE * sizeof(float) - intriParams.blockLen;
                     intriParams.dstStride = (s1CalcInner - s1CalcExtend) * C0_SIZE / 8;  // ub内按整块大小放置
                     intriParams.rsv = 0;
+
+                    event_t eventIdVToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+                    AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
+                    AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
                     DataCopyPad(inBuf, srcTensor[srcOffset], intriParams, {false, 0, 0, 0});
                     event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
                     AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
@@ -2573,9 +2583,12 @@ template <typename FAGT>
 
                 } else {
                     uint64_t srcOffset = pingpongIdx * cubeCoreNum * s1CvInner * dAlign + coreId * s1CvInner * dAlign +
-                                     cBlockIdx % vecCalBlockNum * s1CalcInner * d;
-                    DataCopy(inBuf, srcTensor[srcOffset], s1CalcExtend * d);
+                                         cBlockIdx % vecCalBlockNum * s1CalcInner * d;
 
+                    event_t eventIdVToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE2));
+                    AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
+                    AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMTE2);
+                    DataCopy(inBuf, srcTensor[srcOffset], s1CalcExtend * d);
                     event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
                     AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
                     AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
