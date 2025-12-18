@@ -2294,7 +2294,7 @@ void PromptFlashAttentionTilingArch38::GetEnableDN(PromptFlashAttentionTilingDat
     constexpr uint32_t dLimitDN = 128;
     constexpr uint32_t vecCoreNum = 2;
     constexpr uint32_t sOuterLimitDN = 64;
-    enableDN = ((queryShapeInfo.d == 128) && (queryShapeInfo.s == 128)); // 128 for MC62CM12A d and query's limit
+    enableDN = (queryShapeInfo.d == 128) && !enableIFA && !enableMask; // pfa d=128 使能dn
     for (uint32_t i = LOOP_BEGIN_NUM; i < queryShapeInfo.b; i++) {
         if ((actualSeqLengths[i] % 32 > 0) || (actualSeqLengthsKV[i] <= 128)) { // 32: 只针对对齐场景修改基本快大小; 128: 扩大sInner的KV_S限制
             isQKVActualSeqLengthsRight = false;
@@ -3662,19 +3662,6 @@ ge::graphStatus PromptFlashAttentionTilingArch38::AdjustTilingData(ContextParams
 }
 
 bool PromptFlashAttentionTilingArch38::IsFlashDecode(ContextParamsForPFATiling& contextKeyParams, uint64_t bng) const {
-    float flashDecodeBNRatio = 0.4F; // 0.4, 经验值
-    if (maxActualseqKV < SINNER_FACTOR_DOUBLE) {
-        return false;
-    }
-    if ((bng < flashDecodeBNRatio * aicNum) && (gSize == 1)) {
-        OP_LOGD(contextKeyParams.opName, "Flash decode dplit key/value.");
-        return true;
-    }
-
-    if ((bng < flashDecodeBNRatio * aicNum) && (maxActualseqKV >= 2048)) { // 2048, 在flash decode + gqa时的经验值
-        OP_LOGD(contextKeyParams.opName, "Flash decode And GQA split key/value.");
-        return true;
-    }
     return false;
 }
 
