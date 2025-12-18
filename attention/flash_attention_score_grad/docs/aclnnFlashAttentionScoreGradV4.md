@@ -733,8 +733,9 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
 #include <vector>
 #include <cstdint>
 #include <cmath>
+#include <random>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_flash_attention_score_grad_vx.h"
+#include "aclnnop/aclnn_flash_attention_score_grad.h"
 
 #define CHECK_RET(cond, return_expr) \
   do {                               \
@@ -813,9 +814,9 @@ int main() {
   int64_t B = 1;
   int64_t N1 = 1;
   int64_t N2 = 1;
-  int64_t S1 = 256;
-  int64_t S2 = 256;
-  int64_t D = 192;
+  int64_t S1 = 128;
+  int64_t S2 = 128;
+  int64_t D = 128;
 
   int64_t H1 = N1 * D;
   int64_t H2 = N2 * D;
@@ -874,18 +875,38 @@ int main() {
   aclTensor* dpse = nullptr;
   aclTensor* dqRope = nullptr;
   aclTensor* dkRope = nullptr;
-  
-  std::vector<float> qHostData(q_size, 1.0);
-  std::vector<float> kHostData(kv_size, 2.0);
-  std::vector<float> vHostData(kv_size, 2.0);
-  std::vector<float> dxHostData(q_size, 1.0);
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::normal_distribution<float> dist(0.0f, 1.0f); // 均值为0，标准差为1的正态分布
+
+  std::vector<float> qHostData(q_size);
+  for (auto& val : qHostData) {
+      val = dist(gen);
+  }
+
+  std::vector<float> kHostData(kv_size);
+  for (auto& val : kHostData) {
+      val = dist(gen);
+  }
+
+  std::vector<float> vHostData(kv_size);
+  for (auto& val : vHostData) {
+      val = dist(gen);
+  }
+
+  std::vector<float> dxHostData(q_size);
+  for (auto& val : dxHostData) {
+      val = dist(gen);
+  }
+
   std::vector<uint8_t> attenmaskHostData(atten_mask_size, 0);
   std::vector<float> softmaxMaxHostData(softmax_size, 3.0);
   std::vector<float> softmaxSumHostData(softmax_size, 3.0);
-  std::vector<float> attentionInHostData(q_size, 1.0);
-  std::vector<float> dqHostData(q_size, 0);
-  std::vector<float> dkHostData(kv_size, 0);
-  std::vector<float> dvHostData(kv_size, 0);
+  std::vector<float> attentionInHostData(q_size, 255.0);
+  std::vector<float> dqHostData(q_size, 2.0);
+  std::vector<float> dkHostData(kv_size, 2.0);
+  std::vector<float> dvHostData(kv_size, 3.0);
 
   ret = CreateAclTensor(qHostData, qShape, &qDeviceAddr, aclDataType::ACL_FLOAT, &q);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -910,18 +931,6 @@ int main() {
   ret = CreateAclTensor(dvHostData, dvShape, &dvDeviceAddr, aclDataType::ACL_FLOAT, &dv);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
-  std::vector<int64_t> prefixOp = {0};
-  std::vector<int64_t> qStartIdxOp = {0};
-  std::vector<int64_t> kvStartIdxOp = {0};
-  std::vector<int64_t> actualSeqQLenOp = {128};
-  std::vector<int64_t> actualSeqKVLenOp = {128};
-
-  aclIntArray *prefix = aclCreateIntArray(prefixOp.data(), 1);
-  aclIntArray *qStartIdx = aclCreateIntArray(qStartIdxOp.data(), 1);
-  aclIntArray *kvStartIdx = aclCreateIntArray(kvStartIdxOp.data(), 1);
-  aclIntArray* actualSeqQLen = aclCreateIntArray(actualSeqQLenOp.data(), 1);  
-  aclIntArray* actualSeqKVLen = aclCreateIntArray(actualSeqKVLenOp.data(), 1);
-
   double scaleValue = 1.0/sqrt(128);
   double keepProb = 1.0;
   int64_t preTokens = 65536;
@@ -933,31 +942,31 @@ int main() {
   int64_t outDtype = 1;
   int64_t seed = 0;
   int64_t offset = 0;
-  char layOut[5] = {'S', 'B', 'H', 0};
+  char inputlayOut[5] = {'S', 'B', 'H', 0};
 
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
   uint64_t workspaceSize = 0;
   aclOpExecutor* executor;
-  
+
   // 调用aclnnFlashAttentionScoreGradV4第一段接口
   ret = aclnnFlashAttentionScoreGradV4GetWorkspaceSize(q, k, v, dx, pse, dropMask, padding,
-            attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, sink, queryrope, keyrope, dScaleQ, dScaleK, dScaleV,
-            dScaleDy, dScaleO, prefix, acSeqQLen, acSeqKvLen, qStartIdx, kvStartIdx,
-            scaleValue, keepProb, preTokens, nextTokens, headNum, inputlayOut, softmaxInlayout, innerPrecise, sparseMode, pseType,
-            seed, offset, outdtype, dq, dk, dv, dqrope, dkrope, dpse, dsinkout, &workspaceSize, &executor);
+            attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, nullptr, queryRope, keyRope, dScaleQ, dScaleK, dScaleV, 
+            dScaleDy, dScaleO, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb,
+            preTokens, nextTokens, headNum, inputlayOut, nullptr, innerPrecise, sparseMode,outDtype, pseType, seed, offset,
+            dq,dk,dv,dqRope,dkRope,dpse, nullptr, &workspaceSize, &executor);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradV4GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
-  
+
   // 根据第一段接口计算出的workspaceSize申请device内存
   void* workspaceAddr = nullptr;
   if (workspaceSize > 0) {
     ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
   }
-  
-  // 调用aclnnFlashAttentionScoreGrad第二段接口
+
+  // 调用aclnnFlashAttentionScoreGradV4第二段接口
   ret = aclnnFlashAttentionScoreGradV4(workspaceAddr, workspaceSize, executor, stream);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradV4 failed. ERROR: %d\n", ret); return ret);
-  
+
   // 4. （固定写法）同步等待任务执行结束
   ret = aclrtSynchronizeStream(stream);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
@@ -978,10 +987,6 @@ int main() {
   aclDestroyTensor(attentionIn);
   aclDestroyTensor(dq);
   aclDestroyTensor(dk);
-
-  aclDestroyIntArray(prefix);
-  aclDestroyIntArray(qStartIdx);
-  aclDestroyIntArray(kvStartIdx);
 
   // 7. 释放device资源
   aclrtFree(qDeviceAddr);

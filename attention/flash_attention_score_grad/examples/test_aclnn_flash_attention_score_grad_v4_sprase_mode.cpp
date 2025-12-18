@@ -18,7 +18,7 @@
 #include <cstdint>
 #include <cmath>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_flash_attention_score_grad_vx.h"
+#include "aclnnop/aclnn_flash_attention_score_grad.h"
 
 #define CHECK_RET(cond, return_expr) \
   do {                               \
@@ -85,8 +85,6 @@ int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& 
                             shape.data(), shape.size(), *deviceAddr);
   return 0;
 }
-
-
 
 int main() {
   // 1. （固定写法）device/stream初始化，参考AscendCL对外接口列表
@@ -174,7 +172,7 @@ int main() {
   std::vector<uint16_t> dkHostData(kv_size, 0);
   std::vector<uint16_t> dvHostData(kv_size, 0);
 
-    ret = CreateAclTensor(qHostData, qShape, &qDeviceAddr, aclDataType::ACL_FLOAT16, &q);
+  ret = CreateAclTensor(qHostData, qShape, &qDeviceAddr, aclDataType::ACL_FLOAT16, &q);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(kHostData, kShape, &kDeviceAddr, aclDataType::ACL_FLOAT16, &k);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -197,18 +195,6 @@ int main() {
   ret = CreateAclTensor(dvHostData, dvShape, &dvDeviceAddr, aclDataType::ACL_FLOAT16, &dv);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
-  std::vector<int64_t> prefixOp = {0};
-  std::vector<int64_t> qStartIdxOp = {0};
-  std::vector<int64_t> kvStartIdxOp = {0};
-  std::vector<int64_t> actualSeqQLenOp = {128};
-  std::vector<int64_t> actualSeqKVLenOp = {128};
-
-  aclIntArray *prefix = aclCreateIntArray(prefixOp.data(), 1);
-  aclIntArray *qStartIdx = aclCreateIntArray(qStartIdxOp.data(), 1);
-  aclIntArray *kvStartIdx = aclCreateIntArray(kvStartIdxOp.data(), 1);
-  aclIntArray* actualSeqQLen = aclCreateIntArray(actualSeqQLenOp.data(), 1);  
-  aclIntArray* actualSeqKVLen = aclCreateIntArray(actualSeqKVLenOp.data(), 1);
-
   double scaleValue = 1.0/sqrt(128);
   double keepProb = 1.0;
   int64_t preTokens = 65536;
@@ -220,19 +206,19 @@ int main() {
   int64_t outDtype = 1;
   int64_t seed = 0;
   int64_t offset = 0;
-  char layOut[5] = {'S', 'B', 'H', 0};
+  char inputlayOut[5] = {'S', 'B', 'H', 0};
 
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
   uint64_t workspaceSize = 0;
   aclOpExecutor* executor;
 
-  // 调用aclnnFlashAttentionScoreGradVX第一段接口
-  ret = aclnnFlashAttentionScoreGradVXGetWorkspaceSize(q, k, v, dx, pse, dropMask, padding,
-            attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, queryRope, keyRope, dScaleQ, dScaleK, dScaleV, 
-            dScaleDy, dScaleO, prefix, actualSeqQLen, actualSeqKVLen, qStartIdx, kvStartIdx, scaleValue,keepProb,
-            preTokens, nextTokens, headNum, layOut, innerPrecise, sparseMode,outDtype, pseType, seed, offset,
-            dq,dk,dv,dqRope,dkRope,dpse, &workspaceSize, &executor);   
-  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradVXGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+  // 调用aclnnFlashAttentionScoreGradV4第一段接口
+  ret = aclnnFlashAttentionScoreGradV4GetWorkspaceSize(q, k, v, dx, pse, dropMask, padding,
+            attenmask, softmaxMax, softmaxSum, softmaxIn, attentionIn, nullptr, queryRope, keyRope, dScaleQ, dScaleK, dScaleV, 
+            dScaleDy, dScaleO, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb,
+            preTokens, nextTokens, headNum, inputlayOut, nullptr, innerPrecise, sparseMode,outDtype, pseType, seed, offset,
+            dq,dk,dv,dqRope,dkRope,dpse, nullptr, &workspaceSize, &executor);  
+  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradV4GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
 
   // 根据第一段接口计算出的workspaceSize申请device内存
   void* workspaceAddr = nullptr;
@@ -241,9 +227,9 @@ int main() {
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
   }
 
-  // 调用aclnnFlashAttentionScoreGradVX第二段接口
-  ret = aclnnFlashAttentionScoreGradVX(workspaceAddr, workspaceSize, executor, stream);
-  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradVX failed. ERROR: %d\n", ret); return ret);
+  // 调用aclnnFlashAttentionScoreGradV4第二段接口
+  ret = aclnnFlashAttentionScoreGradV4(workspaceAddr, workspaceSize, executor, stream);
+  CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlashAttentionScoreGradV4 failed. ERROR: %d\n", ret); return ret);
 
   // 4. （固定写法）同步等待任务执行结束
   ret = aclrtSynchronizeStream(stream);
@@ -265,10 +251,6 @@ int main() {
   aclDestroyTensor(attentionIn);
   aclDestroyTensor(dq);
   aclDestroyTensor(dk);
-
-  aclDestroyIntArray(prefix);
-  aclDestroyIntArray(qStartIdx);
-  aclDestroyIntArray(kvStartIdx);
 
   // 7. 释放device资源
   aclrtFree(qDeviceAddr);

@@ -200,7 +200,7 @@ int main() {
   int64_t headNum = 1;
   int64_t innerPrecise = 0;
   int64_t sparseMode = 0;
-  char softmaxInLayoutArr[] = "same_as_input";
+  char softmaxInLayoutArr[] = "";
 
   char layOut[5] = {'T', 'N', 'D', 0};
 
