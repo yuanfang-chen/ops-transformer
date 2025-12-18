@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This program is free software, you can redistribute it and/or modify it.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file sparse_lightning_indexer_grad_kl_loss_tiling_general.cpp
@@ -46,6 +46,7 @@ static constexpr uint32_t D_SIZE_512 = 512;
 static constexpr uint32_t DINDEX_SIZE_128 = 128;
 static constexpr uint32_t DROPE_SIZE_64 = 64;
 static constexpr uint32_t TOPK_SIZE_2048 = 2048;
+static constexpr int64_t  SPARSE_MODE_SIZE_3 = 3;
 
 template <typename T>
 static auto AlignUp(T num1, T num2) -> T
@@ -163,6 +164,9 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeAttrs()
     sparseMode = *sparseModePtr;
     deterministic = (context_->GetDeterministic() == 1);
 
+    OP_CHECK_IF(sparseMode != SPARSE_MODE_SIZE_3,
+                OP_LOGE(opName, " The value of sparse_mode is [%d], but currently only supports mode [3].", sparseMode),
+                return false);
     OP_LOGD(context_, "attrs: scaleValue[%f] input_layout[%s] sparse_mode[%ld].",
             scaleValue, inputLayout, sparseMode);
     return true;
@@ -220,7 +224,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDimLayout(const gert::Sh
             GetActualSeqLenData(ACTUAL_SEQ_LENGTHS_QUERY_INPUT_INDEX, actualSeqLenData, actualSeqQLen);
             GetActualSeqLenData(ACTUAL_SEQ_LENGTHS_KEY_INPUT_INDEX, actualSeqLenKData, actualSeqKLen);
             OP_CHECK_IF(actualSeqQLen != actualSeqKLen,
-                OP_LOGE(opName, "VarLen scene, q is not equal k."), return false);
+                OP_LOGE(opName, "VarLen scene, q[%ld] is not equal k[%ld].", actualSeqQLen, actualSeqKLen), return false);
             // 校验actualQ 对应每一个元素是否大于 actualK ，大于则拦截
             for (int i=0;i<actualSeqQLen;i++) {
                 OP_CHECK_IF(actualSeqLenData[i] > actualSeqLenKData[i],
@@ -393,54 +397,71 @@ bool SparseLightningIndexerGradKLLossTilingBase::CrossShapeVerify(const gert::Sh
         int64_t n1indexLen = queryIndexShape[1];
         int64_t t2Len = keyShape[0];
         int64_t n2Len = keyShape[1];
-        
         // 验证T1
         OP_CHECK_IF(queryIndexShape[0] != t1Len || weightsShape[0] != t1Len || softmaxMaxShape[1] != t1Len || softmaxSumShape[1] != t1Len,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify T1 is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify T1 is failed, the value of query[0], query_index[0], weights[0], softmax_max[1] \
+                 and softmax_sum[1] are respectively (%ld), (%ld), (%ld), (%ld), (%ld). Their values should be equal.", queryShape[0], queryIndexShape[0], weightsShape[0], softmaxMaxShape[1], softmaxSumShape[1]), return false);
         // 验证N Query数字是否正确
-        OP_CHECK_IF(n1Len != NQUERY_SIZE_8 && n1Len != NQUERY_SIZE_16 && n1Len != NQUERY_SIZE_32 && n1Len != NQUERY_SIZE_64 && n1Len != NQUERY_SIZE_128,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query must be one of the {8, 16, 32, 64, 128}"), return false);        
+        OP_CHECK_IF(queryShape[1] != NQUERY_SIZE_64 && queryShape[1] != NQUERY_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape N of query must be one of the {64, 128}, but the value of query[1] is (%ld)", queryShape[1]), return false);        
         // 验证N Index数字是否正确
-        OP_CHECK_IF(n1indexLen != NQUERYINDEX_SIZE_8 && n1indexLen != NQUERYINDEX_SIZE_16 && n1indexLen != NQUERYINDEX_SIZE_32 && n1indexLen != NQUERYINDEX_SIZE_64,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query Index must be one of the {8, 16, 32, 64}"), return false);
+        OP_CHECK_IF(queryIndexShape[1] != NQUERYINDEX_SIZE_8 && queryIndexShape[1] != NQUERYINDEX_SIZE_16 && queryIndexShape[1] != NQUERYINDEX_SIZE_32 && queryIndexShape[1] != NQUERYINDEX_SIZE_64,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape N of query_index must be one of the {8, 16, 32, 64}, but the value of query_index[1] is (%ld).", queryIndexShape[1]), return false);
+        OP_CHECK_IF(weightsShape[1] != NQUERYINDEX_SIZE_8 && weightsShape[1] != NQUERYINDEX_SIZE_16 && weightsShape[1] != NQUERYINDEX_SIZE_32 && weightsShape[1] != NQUERYINDEX_SIZE_64,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape N of weights must be one of the {8, 16, 32, 64}, but the value of weights[1] is (%ld).", weightsShape[1]), return false);
         // 验证N Index
-        OP_CHECK_IF(n1indexLen != weightsShape[1],
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N Index is Failed"), return false);
+        OP_CHECK_IF(queryIndexShape[1] != weightsShape[1],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N index is failed, the value of query_index[1] and weights[1] are respectively (%ld), (%ld). Their values should be equal.", queryIndexShape[1], weightsShape[1]), return false);
         // 验证T2
-        OP_CHECK_IF(keyIndexShape[0] != t2Len,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify T2 is Failed"), return false);
+        OP_CHECK_IF(keyIndexShape[0] != keyShape[0],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify T2 is failed, the value of key[0] and key_index[0] are respectively (%ld), (%ld). Their values should be equal.", keyShape[0], keyIndexShape[0]), return false);
         // 验证N2 数字是否正确
-        OP_CHECK_IF(n2Len != N2_SIZE_1,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1"), return false);
+        OP_CHECK_IF(keyShape[1] != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of key[1] is (%ld).", keyShape[1]), return false);
+        OP_CHECK_IF(keyIndexShape[1] != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of key_index[1] is (%ld).", keyIndexShape[1]), return false);
+        OP_CHECK_IF(softmaxMaxShape[0] != N2_SIZE_1,
+            OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of softmax_max[0] is (%ld).", softmaxMaxShape[0]), return false);
+        OP_CHECK_IF(softmaxSumShape[0] != N2_SIZE_1,
+            OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of softmax_sum[0] is (%ld).", softmaxSumShape[0]), return false);
         // 验证N2
-        OP_CHECK_IF(keyIndexShape[1] != n2Len || softmaxMaxShape[0] != n2Len || softmaxSumShape[0] != n2Len,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N2 is Failed"), return false);
+        OP_CHECK_IF(keyIndexShape[1] != keyShape[1] || softmaxMaxShape[0] != keyShape[1] || softmaxSumShape[0] != keyShape[1],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N2 is failed, the value of key[1], key_index[1], softmax_max[0] and softmax_sum[0] are respectively (%ld), (%ld), (%ld), (%ld). Their values should be equal.",
+                 keyShape[1], keyIndexShape[1], softmaxMaxShape[0], softmaxSumShape[0]), return false);
         // 验证D 数字是否正确
+        OP_CHECK_IF(queryShape[2] != D_SIZE_512,
+                OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of query must be 512, but the value of query[2] is (%ld)", queryShape[2]), return false);
         OP_CHECK_IF(keyShape[2] != D_SIZE_512,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-key must be 512"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of key must be 512, but the value of key[2] is (%ld)", keyShape[2]), return false);
         OP_CHECK_IF(queryIndexShape[2] != DINDEX_SIZE_128,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-keyIndexShape must be 128"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of query_index must be 128, but the value of query_index[2] is (%ld)", queryIndexShape[2]), return false);
+        OP_CHECK_IF(keyIndexShape[2] != DINDEX_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of key_index must be 128, but the value of key_index[2] is (%ld)", keyIndexShape[2]), return false);        
         // 验证D
         OP_CHECK_IF(keyShape[2] != queryShape[2],
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyShape D is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-key shape D is failed, the value of query[2] and key[2] are respectively (%ld), (%ld). Their values should be equal.", queryShape[2], keyShape[2]), return false);
         OP_CHECK_IF(queryIndexShape[2] != keyIndexShape[2],
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyIndexShape D is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-key_index shape D is failed, the value of query_index[2] and key_index[2] are respectively (%ld), (%ld). Their values should be equal.", queryIndexShape[2], keyIndexShape[2]), return false);
         // 验证ROPE是否使能
         OP_CHECK_IF(hasRope == 0,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query or key rope is Failed, rope can't be null"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query or key rope is failed, rope can't be null"), return false);
         if (hasRope) {
             // 验证queryrope
             OP_CHECK_IF(queryRopeShape[0] != t1Len || queryRopeShape[1] != n1Len,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope is Failed"), return false);
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query_rope is failed, the value of query_rope[0] is (%ld), it should be equal to tlSize(%ld). \
+                    the value of query_rope[1] is (%ld), it should be equal to nQuerySize(%ld).", queryRopeShape[0], t1Len, queryRopeShape[1], n1Len), return false);
             // 验证keyrope
             OP_CHECK_IF(keyRopeShape[0] != t2Len || keyRopeShape[1] != n2Len,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify keyrope is Failed"), return false);
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify key_rope is failed, the value of key_rope[0] is (%ld), it should be equal to t2Size(%ld). \
+                    the value of key_rope[1] is (%ld), it should be equal to n2Size(%ld)", keyRopeShape[0], t2Len, keyRopeShape[1], n2Len), return false);
             // 验证rope D 数字是否正确
             OP_CHECK_IF(queryRopeShape[2] != DROPE_SIZE_64,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, queryrope must be 64"), return false);
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of query_rope must be 64, but the value of query_rope[2] is (%ld).", queryRopeShape[2]), return false);
+            OP_CHECK_IF(keyRopeShape[2] != DROPE_SIZE_64,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of key_rope must be 64, but the value of key_rope[2] is (%ld).", keyRopeShape[2]), return false);
             // 验证rope D
             OP_CHECK_IF(queryRopeShape[2] != keyRopeShape[2],
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope is not equal to keyrope"), return false);
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query_rope D is not equal to key_rope D, the value of query_rope[2] and key_rope[2] is (%ld), (%ld).", queryRopeShape[2], keyRopeShape[2]), return false);
         }           
     } else if (inputLayout[0] == 'B' && inputLayout[1] == 'S' && inputLayout[2] == 'N' && inputLayout[3] == 'D') {
         int64_t bLen = queryShape[0];
@@ -453,54 +474,73 @@ bool SparseLightningIndexerGradKLLossTilingBase::CrossShapeVerify(const gert::Sh
         // 验证B
         OP_CHECK_IF(queryIndexShape[0] != bLen || weightsShape[0] != bLen || softmaxMaxShape[0] != bLen || softmaxSumShape[0] != bLen ||
                     keyShape[0] != bLen || keyIndexShape[0] != bLen || sparseIndicesShape[0] != bLen,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify B is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify shape B is failed, the value of query[0], key[0], query_index[0], key_index[0], weights[0], softmax_max[0], softmax_sum[0] and sparse_indices[0] are respectively (%ld), (%ld), (%ld), (%ld), (%ld), (%ld), (%ld), (%ld).\
+                 Their values should be equal.", queryShape[0], keyShape[0], queryIndexShape[0], keyIndexShape[0], weightsShape[0], softmaxMaxShape[0], softmaxSumShape[0], sparseIndicesShape[0]), return false);
         // 验证s1
         OP_CHECK_IF(queryIndexShape[1] != s1Len || weightsShape[1] != s1Len || softmaxMaxShape[2] != s1Len || softmaxSumShape[2] != s1Len,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify S1 is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify S1 is failed, the value of query[1], query_index[1], weights[1], softmax_max[2] \
+                 and softmax_sum[2] are respectively (%ld), (%ld), (%ld), (%ld), (%ld). Their values should be equal.", queryShape[1], queryIndexShape[1], weightsShape[1], softmaxMaxShape[2], softmaxSumShape[2]), return false);
         // 验证s2
         OP_CHECK_IF(keyIndexShape[1] != s2Len,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify S2 is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify shape S2 is failed, the value of key[1] and key_index[1] are respectively (%ld), (%ld). Their values should be equal.", keyShape[1], keyIndexShape[1]), return false);
         // 验证N Query数字是否正确
-        OP_CHECK_IF(n1Len != NQUERY_SIZE_8 && n1Len != NQUERY_SIZE_16 && n1Len != NQUERY_SIZE_32 && n1Len != NQUERY_SIZE_64 && n1Len != NQUERY_SIZE_128,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query must be one of the {8, 16, 32, 64, 128}"), return false);        
+        OP_CHECK_IF(queryShape[2] != NQUERY_SIZE_64 && queryShape[2] != NQUERY_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape N of query must be one of the {64, 128}, but the value of query[2] is (%ld)", queryShape[2]), return false);        
         // 验证N Index数字是否正确
-        OP_CHECK_IF(n1indexLen != NQUERYINDEX_SIZE_8 && n1indexLen != NQUERYINDEX_SIZE_16 && n1indexLen != NQUERYINDEX_SIZE_32 && n1indexLen != NQUERYINDEX_SIZE_64,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N Query Index must be one of the {8, 16, 32, 64}"), return false);        
+        OP_CHECK_IF(queryIndexShape[2] != NQUERYINDEX_SIZE_8 && queryIndexShape[2] != NQUERYINDEX_SIZE_16 && queryIndexShape[2] != NQUERYINDEX_SIZE_32 && queryIndexShape[2] != NQUERYINDEX_SIZE_64,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape N of query_index must be one of the {8, 16, 32, 64}, but the value of query_index[2] is (%ld).", queryIndexShape[2]), return false);        
+        OP_CHECK_IF(weightsShape[2] != NQUERYINDEX_SIZE_8 && weightsShape[2] != NQUERYINDEX_SIZE_16 && weightsShape[2] != NQUERYINDEX_SIZE_32 && weightsShape[2] != NQUERYINDEX_SIZE_64,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape N of weights must be one of the {8, 16, 32, 64}, but the value of weights[2] is (%ld).", weightsShape[2]), return false);         
         // 验证N Index
-        OP_CHECK_IF(n1indexLen != weightsShape[2],
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N Index is Failed"), return false);
+        OP_CHECK_IF(queryIndexShape[2] != weightsShape[2],
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N index is failed, the value of query_index[2] and weights[2] are respectively (%ld), (%ld). Their values should be equal.", queryIndexShape[2], weightsShape[2]), return false);
         // 验证N2 数字是否正确
-        OP_CHECK_IF(n2Len != N2_SIZE_1,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1"), return false);        
+        OP_CHECK_IF(keyShape[2] != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of key[2] is (%ld).", keyShape[2]), return false);        
+        OP_CHECK_IF(keyIndexShape[2] != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of key_index[2] is (%ld).", keyIndexShape[2]), return false);
+        OP_CHECK_IF(softmaxMaxShape[1] != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of softmax_max[1] is (%ld).", softmaxMaxShape[1]), return false);        
+        OP_CHECK_IF(softmaxSumShape[1] != N2_SIZE_1,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, N2 must be 1, but the value of softmax_sum[1] is (%ld).", softmaxSumShape[1]), return false);
         // 验证N2
         OP_CHECK_IF(keyIndexShape[2] != n2Len || softmaxMaxShape[1] != n2Len || softmaxSumShape[1] != n2Len,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N2 is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify N2 is failed, the value of key[2], key_index[2], softmax_max[1] and softmax_sum[1] are respectively (%ld), (%ld), (%ld), (%ld). Their values should be equal.",
+                 keyShape[2], keyIndexShape[2], softmaxMaxShape[1], softmaxSumShape[1]), return false);
         // 验证D 数字是否正确
+        OP_CHECK_IF(queryShape[3] != D_SIZE_512,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of query must be 512, but the value of query[3] is (%ld)", queryShape[3]), return false);
         OP_CHECK_IF(keyShape[3] != D_SIZE_512,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-key must be 512"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of key must be 512, but the value of key[3] is (%ld)", keyShape[3]), return false);
         OP_CHECK_IF(queryIndexShape[3] != DINDEX_SIZE_128,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed, D query-keyIndexShape must be 128"), return false);        
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of query_index must be 128, but the value of query_index[3] is (%ld)", queryIndexShape[3]), return false);        
+        OP_CHECK_IF(keyIndexShape[3] != DINDEX_SIZE_128,
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of key_index must be 128, but the value of key_index[3] is (%ld)", keyIndexShape[3]), return false);       
         // 验证D
         OP_CHECK_IF(keyShape[3] != queryShape[3],
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyShape D is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-key shape D is failed, the value of query[3] and key[3] are respectively (%ld), (%ld). Their values should be equal.", queryShape[3], keyShape[3]), return false);
         OP_CHECK_IF(queryIndexShape[3] != keyIndexShape[3],
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-keyIndexShape D is Failed"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query-key_index shape D is Failed, the value of query_index[3] and key_index[3] are respectively (%ld), (%ld). Their values should be equal.", queryIndexShape[3], keyIndexShape[3]), return false);
         // 验证ROPE是否使能
         OP_CHECK_IF(hasRope == 0,
-                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query or key rope is Failed, rope can't be null"), return false);
+                 OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query or key rope is failed, rope can't be null"), return false);
         if (hasRope) {
             // 验证queryrope
             OP_CHECK_IF(queryRopeShape[0] != bLen || queryRopeShape[1] != s1Len || queryRopeShape[2] != n1Len,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope is Failed"), return false);
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query_rope is failed, the value of query_rope[0] is (%ld), it should be equal to bSize(%ld). \
+                    the value of query_rope[1] is (%ld), it should be equal to s1Size(%ld), the value of query_rope[2] is (%ld), it should be equal to nQuerySize(%ld).", queryRopeShape[0], bLen, queryRopeShape[1], s1Len, queryRopeShape[2], n1Len), return false);
             // 验证keyrope
             OP_CHECK_IF(keyRopeShape[0] != bLen || keyRopeShape[1] != s2Len || keyRopeShape[2] != n2Len,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify keyrope is Failed"), return false);
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify key_rope is failed, the value of key_rope[0] is (%ld), it should be equal to bSize(%ld), the value of key_rope[1] is (%ld), it should be equal to s2Size(%ld). \
+                    the value of key_rope[2] is (%ld), it should be equal to n2Size(%ld)", keyRopeShape[0], bLen, keyRopeShape[1], s2Len, keyRopeShape[2], n2Len), return false);
             // 验证rope D 数字是否正确
             OP_CHECK_IF(queryRopeShape[3] != DROPE_SIZE_64,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, queryrope must be 64"), return false);            
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of query_rope  must be 64, but the value of query_rope[3] is (%ld).", queryRopeShape[3]), return false);
+            OP_CHECK_IF(keyRopeShape[3] != DROPE_SIZE_64,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify failed, shape D of key_rope must be 64, but the value of key_rope[3] is (%ld).", keyRopeShape[3]), return false);           
             // 验证rope D
             OP_CHECK_IF(queryRopeShape[3] != keyRopeShape[3],
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify queryrope D is not equal to keyrope D"), return false);
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify query_rope D is not equal to key_rope D, the value of queryRope[3] and keyRope[3] is (%ld), (%ld).", queryRopeShape[3], keyRopeShape[3]), return false);
         }
     }
     return true;
@@ -533,7 +573,6 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeLayout()
     OP_CHECK_IF(!CrossShapeVerify(queryRopeShape, keyRopeShape), OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed"), return false);    
     OP_CHECK_IF(!AnalyzeDimLayout(queryShape, keyShape, queryIndexShape, topKShape, layoutLen, queryRopeShape, keyRopeShape),
                OP_LOGE(opName, "Layout: %s, Run Failed", inputLayout), return false);
-    OP_CHECK_IF(kSize != TOPK_SIZE_2048, OPS_REPORT_VECTOR_INNER_ERR(opName, "topk size must be 2048 now"), return false);
     OP_CHECK_IF(gSizeQuery == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "gSizeQuery is zero"), return false);
     OP_CHECK_IF(n2Size == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "n2Size is zero"), return false);
     OP_CHECK_IF(dSizeQuery <= 0,
