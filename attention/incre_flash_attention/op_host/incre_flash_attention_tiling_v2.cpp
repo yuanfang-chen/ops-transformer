@@ -1674,7 +1674,7 @@ ge::graphStatus IFATilingV2::ProcessActualSeqLen() {
     actualSeqLenQFlag_ = true;
     maxActualseq_ = sMax_;
   } else {
-    if (isPFAFlag_ && ifaContext_->actualSeqLengthsQ.tensor != nullptr) {
+    if (ifaContext_->actualSeqLengthsQ.tensor != nullptr) {
       const gert::Tensor* actSeqLen = ifaContext_->actualSeqLengthsQ.tensor;
       actualLenQDims_ = actSeqLen->GetShapeSize();
       actualSeqLenQFlag_ = (actualLenQDims_ != 0 && actSeqLen->GetData<int64_t>() != nullptr);
