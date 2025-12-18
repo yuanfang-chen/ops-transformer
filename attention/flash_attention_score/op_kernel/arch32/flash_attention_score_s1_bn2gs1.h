@@ -1680,8 +1680,6 @@ __aicore__ inline void FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_T
         SoftmaxFlashV2<T, true, true, true, false, SOFTMAX_DEFAULT_CFG>(srcTensor, sumUb, maxUb, srcTensor, expUb,
                                                                     sumUb, maxUb, apiTmpBuffer, newTiling);
     }else{
-        expUb = this->maskTBufPing.template Get<T>()[0];
-        expUb.SetShapeInfo(ShapeInfo(2, expShape, DataFormat::ND));
         SoftmaxFlashV2<T, false, true, true, false, SOFTMAX_DEFAULT_CFG>(srcTensor, sumUb, maxUb, srcTensor, expUb,
                                                                     sumUb, maxUb, apiTmpBuffer, newTiling);
     }
