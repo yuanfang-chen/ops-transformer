@@ -49,6 +49,11 @@ OPP_COMMON_FILE="${CURR_PATH}/opp_common.sh"
 . "${VERSION_CFG_PATH}"
 . "${OPP_COMMON_FILE}"
 
+ARCH_INFO=$(grep -e "arch" "$RUN_PKG_INFO_FILE" | cut --only-delimited -d"=" -f2-)
+# 包内路径
+GRAPH_SO_PATH="${CURR_PATH}/../../../../${OPP_PLATFORM_DIR}/built-in/op_graph/lib/linux/${ARCH_INFO}/libopgraph_transformer.so"
+HOST_SO_PATH="${CURR_PATH}/../../../../${OPP_PLATFORM_DIR}/built-in/op_impl/ai_core/tbe/op_host/lib/linux/${ARCH_INFO}/libophost_transformer.so"
+
 # defaluts info determinated by user's inputs
 ASCEND_INSTALL_INFO="ascend_install.info"
 TARGET_INSTALL_PATH="${DEFAULT_INSTALL_PATH}" #--input-path
@@ -515,6 +520,26 @@ install_package() {
   if [ "${IS_PRE_CHECK}" = "y" ]; then
     interact_pre_check
   fi
+  local architecture=$(uname -m)
+  local graph_so_dir_path="${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux/${ARCH_INFO}"
+  local host_so_dir_path="${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux/${ARCH_INFO}"
+  # check platform
+  if [ "${architecture}" != "${ARCH_INFO}" ] ; then
+    logandprint "[INFO]: the architecture of the run package is inconsistent with that of the current environment. "
+    # 异构安装场景，拷贝so到指定目录
+    chmod u+w ${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux
+    chmod u+w ${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux
+    mkdir -p ${graph_so_dir_path}
+    mkdir -p ${host_so_dir_path}
+    cp ${GRAPH_SO_PATH} ${graph_so_dir_path}
+    cp ${HOST_SO_PATH} ${host_so_dir_path}
+    chmod 755 ${graph_so_dir_path}/*
+    chmod 755 ${host_so_dir_path}/*
+
+    chmod u-w ${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux
+    chmod u-w ${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux
+    exit 0
+  fi
 
   # use uninstall to clean the install folder
   clean_before_reinstall
@@ -555,6 +580,44 @@ uninstall_package() {
     comm_log_operation "Uninstall" "${IN_INSTALL_TYPE}" "OpsTransformer" "$?" "${CMD_LIST}"
     exit 0
   fi
+
+  # 如果是异构卸载
+  local architecture=$(uname -m)
+  if [ "${architecture}" != ${ARCH_INFO} ]; then
+    target_arch=${ARCH_INFO}
+  else
+     # 判断异构so是否存在，存在则删除
+    if [ "${architecture}" = "x86_64" ]; then
+        target_arch="aarch64"
+    else
+        target_arch="x86_64"
+    fi
+  fi
+  local graph_so_path="${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux/${target_arch}/libopgraph_transformer.so"
+  local graph_so_dir_path="${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux/${target_arch}"
+  local host_so_path="${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux/${target_arch}/libophost_transformer.so"
+  local host_so_dir_path="${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux/${target_arch}"
+  if [ -f "${graph_so_path}" ]; then
+      rm -f "${graph_so_path}"
+  fi
+  if [ -f "${host_so_path}" ]; then
+      rm -f "${host_so_path}"
+  fi
+  # 判断目录是否存在且是否为空
+  if [ -d "${graph_so_dir_path}" ]; then
+      if [ -z "$(ls -A "${graph_so_dir_path}")" ]; then
+          rm -rf "${graph_so_dir_path}"
+      fi
+  fi
+  if [ -d "${host_so_dir_path}" ]; then
+      if [ -z "$(ls -A "${host_so_dir_path}")" ]; then
+          rm -rf "${host_so_dir_path}"
+      fi
+  fi
+  if [ "${architecture}" != ${ARCH_INFO} ]; then
+      return
+  fi
+
   bash "${UNINSTALL_SHELL_FILE}" "${TARGET_INSTALL_PATH}" "uninstall" "${IS_QUIET}" ${IN_FEATURE} "${IS_DOCKER_INSTALL}" "${DOCKER_ROOT}"
   # remove precheck info in ${TARGET_VERSION_DIR}/bin/prereq_check.bash
   logandprint "[INFO]: Remove precheck info."
