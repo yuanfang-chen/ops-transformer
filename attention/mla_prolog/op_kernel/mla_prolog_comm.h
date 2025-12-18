@@ -102,8 +102,8 @@ constexpr uint32_t BF16_AFULLLOAD_MAX_MSIZE = 32; // 计算mmQcQr时，bf16类�
 constexpr uint32_t ONE_BYTE_TYPE_SIZE = 1; // 数据类型int8_t fp8大小为1字节
 constexpr uint32_t FP8_E4M3_BLOCK_SIZE = 32;
 constexpr uint32_t K_STEP_SIZE_32 = 32; // for move left or right
-constexpr uint32_t SHIFTS_UNIT = 4; // for move left or right
-constexpr uint32_t DIV_UNIT_FOR_FP16 = 16; // for data type:fp16
+constexpr uint32_t SHIFTS_UNIT = 4;
+constexpr uint32_t UNIT_SIZE = 512;
 constexpr uint32_t ROUND_UP_UNIT = 15; // for round up
 
 constexpr int SYNC_MODE_ALL_CUBE = 0x0;
@@ -312,8 +312,8 @@ struct AicOffset {
   int64_t dequantScaleWDqOffset = 0;
   int64_t cqResOffset = 0;
   int64_t rmsNormCqResOffset = 0;
-  int64_t weightDkvKrOffset = 0;
   int64_t dequantScaleWDkvKrOffset = 0;
+  int64_t weightDkvKrOffset = 0;
   int64_t ckvKrResOffset = 0;
   int64_t weightUqQrOffset = 0;
   int64_t weightUqOffset = 0;
