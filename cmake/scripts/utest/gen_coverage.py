@@ -95,7 +95,7 @@ class GenCoverage:
         parser.add_argument("-f", "--filter", required=False, action='append',
                             nargs='*', type=str, help="Explicitly specify filter file/dir in coverage info.")
         parser.add_argument("-y", "--yaml", required=False,
-                            nargs=1, type=Path, help="Explicitly specify filter file/dir from classify_rule.yaml.")
+                            nargs=1, type=Path, help="Explicitly specify filter file/dir from tests/test_config.yaml.")
         parser.add_argument("--html_report", required=False,
                             nargs=1, type=Path, help="Explicitly specify coverage html report dir.")
         # 参数解析, 默认值处理

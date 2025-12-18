@@ -10,7 +10,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 """
-classify_rule.yaml 格式转换
+test_config.yaml 格式转换
 
 转换成 ops-nn 仓的格式, 方便ci读取
 """
@@ -21,14 +21,14 @@ import os
 import yaml
 
 
-def load_classify_rule(classify_rule_path: str):
-    """读取并解析classify_rule.yaml文件"""
+def load_test_config(test_config_path: str):
+    """读取并解析test_config.yaml文件"""
     try:
-        with open(classify_rule_path, 'r', encoding='utf-8') as file:
+        with open(test_config_path, 'r', encoding='utf-8') as file:
             return yaml.safe_load(file)
 
     except Exception as e:
-        logging.error(f"Failed to read classify_rule.yaml file: {e}")
+        logging.error(f"Failed to read test_config.yaml file: {e}")
         return None
 
 
@@ -83,15 +83,15 @@ def write_new_format(new_file_path: str, src_paths: list, exclude_paths: list):
         return False
 
 
-def main(classify_rule_path: str, output_path: str):
+def main(test_config_path: str, output_path: str):
     """主函数"""
     # 检查文件是否存在
-    if not os.path.exists(classify_rule_path):
-        logging.error(f"File does not exist: {classify_rule_path}")
+    if not os.path.exists(test_config_path):
+        logging.error(f"File does not exist: {test_config_path}")
         return
 
-    # 读取classify_rule文件
-    data = load_classify_rule(classify_rule_path)
+    # 读取test_config文件
+    data = load_test_config(test_config_path)
     if data is None:
         return
 
@@ -111,11 +111,11 @@ if __name__ == '__main__':
     logging.basicConfig(format='[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
     if len(sys.argv) == 1:
-        main("classify_rule.yaml", "classify_rule.yaml")
+        main("test_config.yaml", "test_config.yaml")
     elif len(sys.argv) == 2:
         main(sys.argv[1], sys.argv[1])
     elif len(sys.argv) == 3:
         main(sys.argv[1], sys.argv[2])
     else:
-        logging.error("usage: convert_yaml.py classify_rule_path [output_path]")
+        logging.error("usage: convert_yaml.py test_config_path [output_path]")
         exit(1)

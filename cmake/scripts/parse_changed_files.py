@@ -132,7 +132,7 @@ class Parser:
     规则文件、修改文件列表文件解析.
     """
 
-    _Modules: List[Module] = []         # 保存规则文件(classify_rule)内设置的模块列表
+    _Modules: List[Module] = []         # 保存规则文件(tests/test_config.yaml)内设置的模块列表
     _ChangedPaths: List[Path] = []      # 修改文件列表文件(changed_file)内设置的修改文件列表
     _UTExcludes: List[str] = []
     _ExamplesExcludes: List[str] = []
@@ -263,7 +263,7 @@ class Parser:
     def main() -> str:
         # 参数注册
         ps = argparse.ArgumentParser(description="Parse changed files", epilog="Best Regards!")
-        ps.add_argument("-c", "--classify", required=True, nargs=1, type=Path, help="classify_rule.yaml")
+        ps.add_argument("-c", "--classify", required=True, nargs=1, type=Path, help="tests/test_config.yaml")
         ps.add_argument("-f", "--file", required=True, nargs=1, type=Path, help="changed files desc file.")
         # 子命令行
         sub_ps = ps.add_subparsers(help="Sub-Command")
