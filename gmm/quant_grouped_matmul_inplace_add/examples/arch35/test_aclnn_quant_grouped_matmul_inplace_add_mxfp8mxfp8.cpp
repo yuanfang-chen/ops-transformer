@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_aclnn_quant_grouped_matmul_inplace_add.cpp
+ * \file test_aclnn_quant_grouped_matmul_inplace_add_mxfp8mxfp8.cpp
  * \brief
  */
 
@@ -20,10 +20,10 @@
 #include "aclnnop/aclnn_quant_grouped_matmul_inplace_add.h"
 
 #define CHECK_RET(cond, return_expr) \
-    do {                               \
-    if (!(cond)) {                   \
-        return_expr;                   \
-    }                                \
+    do {                             \
+        if (!(cond)) {               \
+            return_expr;             \
+        }                            \
     } while (0)
 
 #define CHECK_FREE_RET(cond, return_expr) \
@@ -34,9 +34,9 @@
         }                                 \
     } while (0)
 
-#define LOG_PRINT(message, ...)     \
-    do {                              \
-    printf(message, ##__VA_ARGS__); \
+#define LOG_PRINT(message, ...)         \
+    do {                                \
+        printf(message, ##__VA_ARGS__); \
     } while (0)
 
 int64_t GetShapeSize(const std::vector<int64_t>& shape) {
@@ -48,7 +48,7 @@ int64_t GetShapeSize(const std::vector<int64_t>& shape) {
 }
 
 int Init(int32_t deviceId, aclrtStream* stream) {
-    // 固定写法，资源初始化
+    // 固定写法，AscendCL初始化
     auto ret = aclInit(nullptr);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclInit failed. ERROR: %d\n", ret); return ret);
     ret = aclrtSetDevice(deviceId);
@@ -95,12 +95,13 @@ int aclnnQuantGroupedMatmulInplaceAddTest(int32_t deviceId, aclrtStream &stream)
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("Init acl failed. ERROR: %d\n", ret); return ret);
 
     // 2. 构造输入与输出，需要根据API的接口自定义构造
-    std::vector<int64_t> x1Shape = {2, 2};
-    std::vector<int64_t> x2Shape= {2, 2};
-    std::vector<int64_t> scale2Shape = {2, 2};
-    std::vector<int64_t> yShape = {2, 2, 2};
-    std::vector<int64_t> scale1Shape = {2, 1};
-    std::vector<int64_t> groupListShape = {2};
+    
+    std::vector<int64_t> x1Shape = {1, 1};
+    std::vector<int64_t> x2Shape= {1, 64};
+    std::vector<int64_t> scale2Shape = {1, 64 ,2};
+    std::vector<int64_t> yShape = {1, 1, 64};
+    std::vector<int64_t> scale1Shape = {1, 1 ,2};
+    std::vector<int64_t> groupListShape = {1};
     void* x1DeviceAddr = nullptr;
     void* x2DeviceAddr = nullptr;
     void* scale2DeviceAddr = nullptr;
@@ -116,24 +117,24 @@ int aclnnQuantGroupedMatmulInplaceAddTest(int32_t deviceId, aclrtStream &stream)
     aclTensor* out = nullptr;
     int64_t groupListType = 0;
     int64_t groupSize = 0;
-    std::vector<uint8_t> xData(GetShapeSize(x1Shape), 0X10); // hifloat8 2.0 转16进制 0X10
+    std::vector<uint8_t> xData(GetShapeSize(x1Shape), 16); 
     std::vector<int64_t> groupListData = {1, 2};
-    std::vector<float> scale2Data(GetShapeSize(scale2Shape), 1);
+    std::vector<uint8_t> scale2Data(GetShapeSize(scale2Shape), 1);
     std::vector<float> yData(GetShapeSize(yShape), 1);
-    std::vector<float> scale1Data(GetShapeSize(scale1Shape), 1);
+    std::vector<uint8_t> scale1Data(GetShapeSize(scale1Shape), 1);
 
     // 创建x aclTensor
-    ret = CreateAclTensor<uint8_t>(xData, x1Shape, &x1DeviceAddr, aclDataType::ACL_HIFLOAT8, &x1);
+    ret = CreateAclTensor<uint8_t>(xData, x1Shape, &x1DeviceAddr, aclDataType::ACL_FLOAT8_E5M2, &x1);
     std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor *)> x1TensorPtr(x1, aclDestroyTensor);
     std::unique_ptr<void, aclError (*)(void *)> x1DeviceAddrPtr(x1DeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建x2 aclTensor
-    ret = CreateAclTensor<uint8_t>(xData, x2Shape, &x2DeviceAddr, aclDataType::ACL_HIFLOAT8, &x2);
+    ret = CreateAclTensor<uint8_t>(xData, x2Shape, &x2DeviceAddr, aclDataType::ACL_FLOAT8_E5M2, &x2);
     std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor *)> x2TensorPtr(x2, aclDestroyTensor);
     std::unique_ptr<void, aclError (*)(void *)> x2DeviceAddrPtr(x2DeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建scale2 aclTensor
-    ret = CreateAclTensor<float>(scale2Data, scale2Shape, &scale2DeviceAddr, aclDataType::ACL_FLOAT, &scale2);
+    ret = CreateAclTensor<uint8_t>(scale2Data, scale2Shape, &scale2DeviceAddr, aclDataType::ACL_FLOAT8_E8M0, &scale2);
     std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor *)> scale2TensorPtr(scale2, aclDestroyTensor);
     std::unique_ptr<void, aclError (*)(void *)> scale2DeviceAddrPtr(scale2DeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -148,7 +149,7 @@ int aclnnQuantGroupedMatmulInplaceAddTest(int32_t deviceId, aclrtStream &stream)
     std::unique_ptr<void, aclError (*)(void *)> groupListDeviceAddrPtr(groupListDeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建scale1 aclTensor
-    ret = CreateAclTensor<float>(scale1Data, scale1Shape, &scale1DeviceAddr, aclDataType::ACL_FLOAT, &scale1);
+    ret = CreateAclTensor<uint8_t>(scale1Data, scale1Shape, &scale1DeviceAddr, aclDataType::ACL_FLOAT8_E8M0, &scale1);
     std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor *)> scale1TensorPtr(scale1, aclDestroyTensor);
     std::unique_ptr<void, aclError (*)(void *)> scale1DeviceAddrPtr(scale1DeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
