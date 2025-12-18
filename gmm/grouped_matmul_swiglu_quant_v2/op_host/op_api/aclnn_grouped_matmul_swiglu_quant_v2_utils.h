@@ -214,36 +214,45 @@ protected:
     }
 
     bool checkMxfp4InputShape()
-    {   
+    {
         int64_t kValue = gmmDsqParams_.x->GetViewShape().GetDim(1);
         // 转置情况下从weight的第1维获取n，非转置情况下从weight的第2维获取n
         int64_t nValue = gmmDsqParams_.transposeWeight ? ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(1) :
                                                          ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(2);
-        //mxfp4场景不支持k=2
-        CHECK_COND(
-            kValue != MXFP4_K_CONSTRAINT, ACLNN_ERR_PARAM_INVALID,
-            "When the dtypes of x and weight inputs are fp4 , the K value should  be greater than 2, but actual \
-value is %lu",
-                     kValue);
-        //1：检查K是否为偶数
+        // mxfp4场景不支持k=2
+        if (kValue == MXFP4_K_CONSTRAINT) {
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID,
+                "When the dtypes of x and weight inputs are DT_FLOAT4_E1M2 or DT_FLOAT4_E2M1, the K value \
+should be greater than 2, but actual value is %lu.",
+                kValue);
+            return false;
+        }
+
+        // 1：检查K是否为偶数
         int64_t kModValue = kValue % MXFP4_K_CONSTRAINT;
-        //2：检查N是否为偶数
+        // 2：检查N是否为偶数
         int64_t nModValue = nValue % MXFP4_N_CONSTRAINT;
-        CHECK_COND(kModValue == 0, ACLNN_ERR_PARAM_INVALID,
-                    "When the dtypes of x and weight inputs are fp4 , the K value should be even, but actual \
-value is %lu",
-                     kValue);
-        
+        if (kModValue != 0) {
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID,
+                "When the dtypes of x and weight inputs are DT_FLOAT4_E1M2 or DT_FLOAT4_E2M1, the K value \
+should be even, but actual value is %lu.",
+                kValue);
+            return false;
+        }
+
+        // mxfp4场景下，当输出类型为fp4时，N需要满足为大于等于4的偶数
         DataType outputDtype = gmmDsqParams_.output->GetDataType();
         if ((outputDtype == DataType::DT_FLOAT4_E1M2 || outputDtype == DataType::DT_FLOAT4_E2M1)) {
-            if ( !(nValue >= MXFP4_N_CONSTRAINT && nModValue == 0)) {
+            if (!(nValue >= MXFP4_N_CONSTRAINT && nModValue == 0)) {
                 OP_LOGE(
-                    ACLNN_ERR_PARAM_INVALID, 
-                    "When the output dtype is DT_FLOAT4_E1M2 or DT_FLOAT4_E2M1, the N value should be even and greater or equal to 4, but actual  \
-value is %lu",
+                    ACLNN_ERR_PARAM_INVALID,
+                    "When the output dtype is DT_FLOAT4_E1M2 or DT_FLOAT4_E2M1, the N value should be even \
+and greater or equal to 4, but actual value is %lu.",
                     nValue);
                 return false;
-                }
+            }
         }
 
         return true;
