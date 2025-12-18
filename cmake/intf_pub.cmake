@@ -99,6 +99,7 @@ target_link_options(intf_pub_cxx14 INTERFACE
   -Wl,-z,relro
   -Wl,-z,now
   -Wl,-z,noexecstack
+  $<$<CONFIG:Release>:-s>
   $<$<CONFIG:Release>:-Wl,--build-id=none>
   $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage> 
 )
@@ -127,6 +128,7 @@ target_link_options(intf_pub_cxx17 INTERFACE
     -Wl,-z,relro
     -Wl,-z,now
     -Wl,-z,noexecstack
+    $<$<CONFIG:Release>:-s>
     $<$<CONFIG:Release>:-Wl,--build-id=none>
     $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>   
   )

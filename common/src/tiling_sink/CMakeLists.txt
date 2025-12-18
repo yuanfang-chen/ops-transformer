@@ -11,6 +11,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(tiling_sink_project)
 
+set(CMAKE_SKIP_RPATH TRUE)
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/intf.cmake)
 
 set(ATTENTION_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../../../attention)
