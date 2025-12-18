@@ -13,6 +13,7 @@
  * \brief
  */
 
+#define MLA_PROLOG_VERSION 1
 #include "kernel_mla_prolog_split_n.h"
 using namespace MlaProlog; 
 

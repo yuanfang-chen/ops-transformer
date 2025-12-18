@@ -20,7 +20,6 @@ if (BUILD_OPEN_PROJECT)
                 -Wno-deprecated-declarations
                 -Werror
                 -mllvm -cce-aicore-hoist-movemask=false
-                --op_relocatable_kernel_binary=true
     )
 endif()
 
