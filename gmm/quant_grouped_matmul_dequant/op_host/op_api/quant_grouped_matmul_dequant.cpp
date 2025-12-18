@@ -8,6 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+/*!
+ * \file quant_grouped_matmul_dequant.cpp
+ * \brief
+ */
+
 #include "quant_grouped_matmul_dequant.h"
 #include "opdev/data_type_utils.h"
 #include "opdev/format_utils.h"

@@ -6,9 +6,6 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
-if (NOT BUILD_OPEN_PROJECT)
-    add_modules_sources(HOSTNAME ${OPHOST_NAME} MODE PRIVATE DIR ${CMAKE_CURRENT_SOURCE_DIR} OPTYPE quant_grouped_matmul_dequant ACLNNTYPE aclnn)
-endif()
-    # add_opapi_modules()
-    # target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${gmm\quant_grouped_matmul_dequant\op_api})
+# ----------------------------------------------------------------------------
+
+message(STATUS "=== Debug: start ops.transformer.quant_grouped_matmul_dequant.graph_plugin.CMakeLists.txt ")

@@ -8,6 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+/*!
+ * \file aclnn_quant_grouped_matmul_dequant.cpp
+ * \brief
+ */
+
 #include "aclnn_quant_grouped_matmul_dequant.h"
 #include "quant_grouped_matmul_dequant.h"
 #include "level0/padv3.h"
@@ -21,7 +26,7 @@
 #include "opdev/platform.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/tensor_view_utils.h"
-#include "../op_math_util.h"
+#include "util/math_util.h"
 using namespace op;
 #ifdef __cplusplus
 extern "C" {
@@ -116,8 +121,8 @@ static op::Shape GetWeightNzShape(const aclTensor *weight)
     uint64_t n = weight->GetViewShape().GetDim(N_IDX);
     uint64_t k = weight->GetViewShape().GetDim(K_IDX);
 
-    uint64_t k1 = CeilDiv(k, FRACTAL_K_INT8);
-    uint64_t n1 = CeilDiv(n, FRACTAL_N_INT8);
+    uint64_t k1 = Ops::Base::CeilDiv(k, FRACTAL_K_INT8);
+    uint64_t n1 = Ops::Base::CeilDiv(n, FRACTAL_N_INT8);
 
     op::Shape weightNzShape;
     weightNzShape.AppendDim(weight->GetViewShape().GetDim(0));
@@ -151,6 +156,7 @@ aclnnStatus aclnnQuantGroupedMatmulDequantGetWorkspaceSize(const aclTensor *x, c
 
   // QuantMatmulDequant算子的空tensor在kernel中支持，对标竞品根据算子实际情况补充
   if (x->IsEmpty() || weight->IsEmpty() || weightScale->IsEmpty() || groupList->IsEmpty()) {
+    // 根据实际支持情况补充
     *workspaceSize = static_cast<uint64_t>(0);
     uniqueExecutor.ReleaseTo(executor);
     return ACLNN_SUCCESS;
