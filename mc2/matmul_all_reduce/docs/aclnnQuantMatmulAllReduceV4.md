@@ -173,7 +173,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
           <td>x2</td>
           <td>输入</td>
           <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
-          <td><ul><li>当前版本仅支持两维输入。</li><li>支持转置/不转置场景。</li></ul></td>
+          <td><ul><li>当前版本仅支持二维输入。</li><li>支持转置/不转置场景。</li></ul></td>
           <td>INT8、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E2M1、FLOAT4_E1M2。</td>
           <td>ND</td>
           <td>2</td>
@@ -425,7 +425,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 
 ## 调用示例
 
-示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
+示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 

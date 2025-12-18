@@ -74,14 +74,14 @@ aclnnStatus aclnnMatmulReduceScatter(
   <tr>
    <td>x1</td>
    <td>输入</td>
-   <td>Device侧的aclTensor，即计算公式中的x1，数据类型与x2保持一致。当前版本仅支持两维输入，且仅支持不转置场景。</td>
+   <td>Device侧的aclTensor，即计算公式中的x1，数据类型与x2保持一致。当前版本仅支持二维输入，且仅支持不转置场景。</td>
    <td>FLOAT16、BFLOAT16</td>
    <td>ND</td>
   </tr>
   <tr>
    <td>x2</td>
    <td>输入</td>
-   <td>Device侧的aclTensor，即计算公式中的x2，数据类型与x1保持一致。支持通过转置构造的非连续的Tensor，当前版本仅支持两维输入。</td>
+   <td>Device侧的aclTensor，即计算公式中的x2，数据类型与x1保持一致。支持通过转置构造的非连续的Tensor，当前版本仅支持二维输入。</td>
    <td>FLOAT16、BFLOAT16</td>
    <td>ND</td>
   </tr>
@@ -164,9 +164,15 @@ aclnnStatus aclnnMatmulReduceScatter(
    <td>1. 传入的x1、x2或output是空指针。</td>
   </tr>
   <tr>
-   <td>ACLNN_ERR_PARAM_INVALID</td>
-   <td>161002</td>
-   <td>1. x1、x2、bias或output的数据类型不符合约束要求；<br>2. streamMode不在合法范围内；<br>3. x1、x2或output的shape不符合约束要求。</td>
+    <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+    <td rowspan="3">161002</td>
+    <td>x1、x2、bias或output的数据类型不符合约束要求。</td>
+  </tr>
+  <tr>
+    <td>streamMode不在合法范围内。</td>
+  </tr>
+  <tr>
+    <td>x1、x2或output的shape不符合约束要求。</td>
   </tr>
  </tbody></table>
 
@@ -235,7 +241,7 @@ aclnnStatus aclnnMatmulReduceScatter(
 
 ## 调用示例
 
-示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
+示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 

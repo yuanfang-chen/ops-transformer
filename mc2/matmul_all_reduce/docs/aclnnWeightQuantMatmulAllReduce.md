@@ -115,7 +115,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>antiquantScale</td>
           <td>输入</td>
           <td>即计算公式中的antiquantScale。</td>
-          <td>pertensor场景shape为(1)；per_channel场景shape为(n)/(1,n)，n为x2最后一维的大小；pergroup场景shape为(ceil(k,antiquantGroupSize),n)。</td>
+          <td>pertensor场景shape为(1)；perchannel场景shape为(n)/(1,n)，n为x2最后一维的大小；pergroup场景shape为(ceil(k,antiquantGroupSize),n)。</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
           <td>1-2</td>
@@ -184,7 +184,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>antiquantGroupSize</td>
           <td>输入</td>
-          <td>伪量化per_group模式下，对x2进行反量化计算的groupSize输入。</td>
+          <td>伪量化pergroup模式下，对x2进行反量化计算的groupSize输入。</td>
           <td>当不支持pergroup时，传入0，支持时，传入值的范围为[32,min(k-1,INT_MAX)]，且为32的倍数；k取值范围与[mm接口](aclnnMatmulAllReduce.md)保持一致。</td>
           <td>INT64</td>
           <td>-</td>
@@ -315,7 +315,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <td>指定执行任务的stream。</td>
     </tr>
     </tbody></table>
-- **返回值：**
+-   **返回值：**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -329,7 +329,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 - x2必须是二维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等，m的范围为[1, 2147483647]，k、n的范围为[1, 65535]。
 - 传入的x1、x2、antiquantScale或者output不为空指针。
 - 当输入x1的shape为(b, s, k)时，x3（非空场景）与输出output的shape为(b, s, n)；当输入x1的shape为(m, k)时，x3（非空场景）与输出output的shape为(m, n)。
-- bias若非空，shape大小与output最后一维大小相等。antiquantScale在per-tensor场景下shape为(1)，在per-channel场景下shape为(1,n)/(n)，在per-group场景shape为(ceil(k,antiquantGroupSize), n)。antiquantOffset若非空，其shape与antiquantScale一致。
+- bias若非空，shape大小与output最后一维大小相等。antiquantScale在pertensor场景下shape为(1)，在perchannel场景下shape为(1,n)/(n)，在pergroup场景shape为(ceil(k,antiquantGroupSize), n)。antiquantOffset若非空，其shape与antiquantScale一致。
 - x1和x2，x3（非空场景）、antiquantScale、antiquantOffset（非空场景）、output、bias（非空场景）的数据类型和数据格式需要在支持的范围之内。
 - x1，antiquantScale，antiquantOffset（非空场景），x3（非空场景）、bias（非空场景）output的数据类型相同。antiquantGroupSize取值满足取值范围且为32倍数。
 - per-group场景下，x2转置时，antiquantScale和antiquantOffset需要一起转置，保持连续性。

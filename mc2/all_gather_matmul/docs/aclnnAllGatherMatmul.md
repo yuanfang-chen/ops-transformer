@@ -35,24 +35,24 @@
 
 ```cpp
 aclnnStatus aclnnAllGatherMatmulGetWorkspaceSize(
-    const aclTensor *x1, 
-    const aclTensor *x2, 
-    const aclTensor *bias, 
-    const char      *group, 
-    int64_t         gatherIndex, 
-    int64_t         commTurn, 
-    int64_t         streamMode, 
-    const aclTensor *output, 
-    const aclTensor *gatherOut, 
-    uint64_t        *workspaceSize, 
+    const aclTensor *x1,
+    const aclTensor *x2,
+    const aclTensor *bias,
+    const char      *group,
+    int64_t         gatherIndex,
+    int64_t         commTurn,
+    int64_t         streamMode,
+    const aclTensor *output,
+    const aclTensor *gatherOut,
+    uint64_t        *workspaceSize,
     aclOpExecutor   **executor)
 ```
 
 ```cpp
 aclnnStatus aclnnAllGatherMatmul(
-    void          *workspace, 
-    uint64_t       workspaceSize, 
-    aclOpExecutor *executor, 
+    void          *workspace,
+    uint64_t       workspaceSize,
+    aclOpExecutor *executor,
     aclrtStream    stream)
 ```
 
@@ -62,10 +62,10 @@ aclnnStatus aclnnAllGatherMatmul(
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
-      <col style="width: 300px">  
-      <col style="width: 330px">  
-      <col style="width: 212px">  
-      <col style="width: 100px"> 
+      <col style="width: 300px">
+      <col style="width: 330px">
+      <col style="width: 212px">
+      <col style="width: 100px">
       <col style="width: 190px">
       <col style="width: 145px">
       </colgroup>
@@ -85,7 +85,7 @@ aclnnStatus aclnnAllGatherMatmul(
           <td>x1</td>
           <td>输入</td>
           <td>Device侧的aclTensor，即计算公式中的x1。</td>
-          <td><li>支持空Tensor。</li><li>与x2的数据类型保持一致。</li><li>当前版本仅支持两维shape输入，且仅支持不转置场景。</li></td>
+          <td><ul><li>支持空Tensor。</li><li>与x2的数据类型保持一致。</li><li>当前版本仅支持二维shape输入，且仅支持不转置场景。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>
@@ -95,7 +95,7 @@ aclnnStatus aclnnAllGatherMatmul(
           <td>x2</td>
           <td>输入</td>
           <td>Device侧的aclTensor，即计算公式中的x2。</td>
-          <td><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li><li>当前版本仅支持两维输入，支持转置/不转置场景。</li><li>支持通过转置构造非连续Tensor。</li></td>
+          <td><ul><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li><li>当前版本仅支持二维输入，支持转置/不转置场景。</li><li>支持通过转置构造非连续Tensor。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>
@@ -105,7 +105,7 @@ aclnnStatus aclnnAllGatherMatmul(
           <td>bias</td>
           <td>输入</td>
           <td>Device侧的aclTensor，即计算公式中的bias。</td>
-          <td><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。<br><term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：暂不支持bias输入为非0的场景。<br><term>昇腾910_95 AI处理器</term>：支持bias输入为非0的场景。</li></td>
+          <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。<br><term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：暂不支持bias输入为非0的场景。<br><term>昇腾910_95 AI处理器</term>：支持bias输入为非0的场景。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>1</td>
@@ -125,7 +125,7 @@ aclnnStatus aclnnAllGatherMatmul(
           <td>gatherIndex</td>
           <td>输入</td>
           <td>Host侧的整型，标识Gather目标。</td>
-          <td><li>0表示目标为x1，1表示目标为x2。</li><li>当前版本仅支持输入0。</li></td>
+          <td><ul><li>0表示目标为x1，1表示目标为x2。</li><li>当前版本仅支持输入0。</li></ul></td>
           <td>INT64</td>
           <td>-</td>
           <td>-</td>
@@ -155,7 +155,7 @@ aclnnStatus aclnnAllGatherMatmul(
           <td>output</td>
           <td>输出</td>
           <td>Device侧的aclTensor，AllGather通信与MatMul计算的结果，即计算公式中的output。</td>
-          <td><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></td>
+          <td><ul><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>
@@ -165,7 +165,7 @@ aclnnStatus aclnnAllGatherMatmul(
           <td>gatherOut</td>
           <td>输出</td>
           <td>Device侧的aclTensor，仅输出AllGather通信后的结果，即计算公式中的gatherOut。</td>
-          <td><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></td>
+          <td><ul><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>

@@ -363,7 +363,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
 - int8低bit通信仅在通信bound的情况下存在性能收益，计算bound的情况不建议使能int8低bit通信，即不建议输入commQuantScale1和commQuantScale2。
 
 ## 调用示例
-示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
+示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 

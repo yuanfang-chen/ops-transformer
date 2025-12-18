@@ -44,27 +44,27 @@
 
 ```cpp
 aclnnStatus aclnnQuantMatmulAllReduceAddRmsNormGetWorkspaceSize(
-    const aclTensor *x1, 
-    const aclTensor *x2, 
-    const aclTensor *bias, 
-    const aclTensor *dequantScale, 
-    const aclTensor *residual, 
-    const aclTensor *gamma, 
-    double           epsilon, 
-    const char      *group, 
-    const char      *reduceOp, 
-    int64_t          commTurn, 
-    int64_t          streamMode, 
-    const aclTensor *y, 
-    const aclTensor *normOut, 
-    uint64_t        *workspaceSize, 
+    const aclTensor *x1,
+    const aclTensor *x2,
+    const aclTensor *bias,
+    const aclTensor *dequantScale,
+    const aclTensor *residual,
+    const aclTensor *gamma,
+    double           epsilon,
+    const char      *group,
+    const char      *reduceOp,
+    int64_t          commTurn,
+    int64_t          streamMode,
+    const aclTensor *y,
+    const aclTensor *normOut,
+    uint64_t        *workspaceSize,
     aclOpExecutor  **executor)
 ```
 ```cpp
 aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
-    void             *workspace, 
-    uint64_t          workspaceSize, 
-    aclOpExecutor    *executor, 
+    void             *workspace,
+    uint64_t          workspaceSize,
+    aclOpExecutor    *executor,
     const aclrtStream stream)
 ```
 
@@ -74,10 +74,10 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
-      <col style="width: 300px">  
-      <col style="width: 330px">  
-      <col style="width: 212px">  
-      <col style="width: 100px"> 
+      <col style="width: 300px">
+      <col style="width: 330px">
+      <col style="width: 212px">
+      <col style="width: 100px">
       <col style="width: 190px">
       <col style="width: 145px">
       </colgroup>
@@ -97,7 +97,7 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
           <td>x1</td>
           <td>输入</td>
           <td>Device侧的aclTensor，MatMul计算的左矩阵，即计算公式中的x1。</td>
-          <td><li>支持空Tensor。</li><li>与x2的数据类型保持一致。</li><li>当前版本仅支持二维或者三维输入。</li></td>
+          <td><ul><li>支持空Tensor。</li><li>与x2的数据类型保持一致。</li><li>当前版本仅支持二维或者三维输入。</li></ul></td>
           <td>INT8</td>
           <td>ND</td>
           <td>2-3</td>
@@ -107,7 +107,7 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
           <td>x2</td>
           <td>输入</td>
           <td>Device侧的aclTensor，MatMul计算的右矩阵，即计算公式中的x2。</td>
-          <td><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li><li>当前版本仅支持两维输入，支持转置/不转置场景。</li><li>支持转置场景下的非连续的tensor</li></td>
+          <td><ul><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li><li>当前版本仅支持二维输入，支持转置/不转置场景。</li><li>支持转置场景下的非连续的tensor</li></ul></td>
           <td>INT8</td>
           <td>ND</td>
           <td>2</td>
@@ -117,7 +117,7 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
           <td>bias</td>
           <td>输入</td>
           <td>Device侧的aclTensor，即计算公式中的bias。</td>
-          <td><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></td>
+          <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
           <td>INT32</td>
           <td>ND</td>
           <td>1</td>
@@ -127,7 +127,7 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
           <td>dequantScale</td>
           <td>输入</td>
           <td>Device侧的aclTensor，MatMul计算后的全量化系数，即计算公式中的dequantScale。</td>
-          <td>shape在per-tensor场景为(1)，per-channel场景为(n)或(1, n)。</td>
+          <td>shape在pertensor场景为(1)，perchannel场景为(n)或(1, n)。</td>
           <td>UINT64、INT64、BFLOAT16</td>
           <td>ND</td>
           <td>1-2</td>
@@ -207,7 +207,7 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
           <td>y</td>
           <td>输出</td>
           <td>Device侧的aclTensor，mm + all_reduce + add的结果，即计算公式中的y。</td>
-          <td><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></td>
+          <td><ul><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>
@@ -217,7 +217,7 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
           <td>normOut</td>
           <td>输出</td>
           <td>Device侧的aclTensor，mm + all_reduce + add + rms_norm的结果，即计算公式中的normOut。</td>
-          <td><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></td>
+          <td><ul><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
           <td>2</td>
@@ -248,8 +248,8 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
 
 - **返回值：**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
-    第一段接口完成入参校验，出现以下场景时报错：
+    <p>aclnnStatus：返回状态码，具体参见<a href="../../../docs/zh/context/aclnn返回码.md">aclnn返回码</a>。</p>
+    <p>第一段接口完成入参校验，出现以下场景报错：</p>
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
     <col style="width: 130px">
@@ -337,7 +337,7 @@ aclnnStatus aclnnQuantMatmulAllReduceAddRmsNorm(
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：一个模型中的通算融合MC2算子，仅支持相同通信域。
 
 ## 调用示例
-示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
+示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```Cpp
 #include <iostream>
@@ -411,14 +411,12 @@ int launchOneThreadQuantMatmulAllReduceAddRmsNorm(Args &args) {
     std::vector<int64_t> dequantScaleShape = {128};
     std::vector<int64_t> residualShape = {1, 32, 128};
     std::vector<int64_t> gammaShape = {128};
-    std::vector<int64_t> x3Shape = {32, 128};
     std::vector<int64_t> yShape = {1, 32, 128};
     std::vector<int64_t> normOutShape = {1, 32, 128};
     void *x1DeviceAddr = nullptr;
     void *x2DeviceAddr = nullptr;
     void *biasDeviceAddr = nullptr;
     void *dequantScaleDeviceAddr = nullptr;
-    void *x3DeviceAddr = nullptr;
     void *residualDeviceAddr = nullptr;
     void *gammaDeviceAddr = nullptr;
     void *yDeviceAddr = nullptr;
@@ -427,7 +425,6 @@ int launchOneThreadQuantMatmulAllReduceAddRmsNorm(Args &args) {
     aclTensor *x2 = nullptr;
     aclTensor *bias = nullptr;
     aclTensor *dequantScale = nullptr;
-    aclTensor *x3 = nullptr;
     aclTensor *residual = nullptr;
     aclTensor *gamma = nullptr;
     aclTensor *y = nullptr;
@@ -444,7 +441,6 @@ int launchOneThreadQuantMatmulAllReduceAddRmsNorm(Args &args) {
     long long x2ShapeSize = GetShapeSize(x2Shape);
     long long biasShapeSize = GetShapeSize(biasShape);
     long long dequantScaleShapeSize = GetShapeSize(dequantScaleShape);
-    long long x3ShapeSize = GetShapeSize(x3Shape);
     long long residualShapeSize = GetShapeSize(residualShape);
     long long gammaShapeSize = GetShapeSize(gammaShape);
     long long yShapeSize = GetShapeSize(yShape);
@@ -454,7 +450,6 @@ int launchOneThreadQuantMatmulAllReduceAddRmsNorm(Args &args) {
     std::vector<int8_t> x2HostData(x2ShapeSize, 1);
     std::vector<int32_t> biasHostData(biasShapeSize, 1);
     std::vector<uint64_t> dequantScaleHostData(dequantScaleShapeSize, 1);
-    std::vector<int16_t> x3HostData(x3ShapeSize, 1);
     std::vector<int16_t> residualHostData(residualShapeSize, 1);
     std::vector<int16_t> gammaHostData(gammaShapeSize, 1);
     std::vector<int16_t> yHostData(yShapeSize, 0);
@@ -468,8 +463,6 @@ int launchOneThreadQuantMatmulAllReduceAddRmsNorm(Args &args) {
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(dequantScaleHostData, dequantScaleShape, &dequantScaleDeviceAddr,
                         aclDataType::ACL_UINT64, &dequantScale);
-    CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(x3HostData, x3Shape, &x3DeviceAddr, aclDataType::ACL_FLOAT16, &x3);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(residualHostData, residualShape, &residualDeviceAddr, aclDataType::ACL_FLOAT16, &residual);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -512,9 +505,6 @@ int launchOneThreadQuantMatmulAllReduceAddRmsNorm(Args &args) {
     if (dequantScale != nullptr) {
         aclDestroyTensor(dequantScale);
     }
-    if (x3 != nullptr) {
-        aclDestroyTensor(x3);
-    }
     if (residual != nullptr) {
         aclDestroyTensor(residual);
     }
@@ -538,9 +528,6 @@ int launchOneThreadQuantMatmulAllReduceAddRmsNorm(Args &args) {
     }
     if (dequantScaleDeviceAddr != nullptr) {
         aclrtFree(dequantScaleDeviceAddr);
-    }
-    if (x3DeviceAddr != nullptr) {
-        aclrtFree(x3DeviceAddr);
     }
     if (residualDeviceAddr != nullptr) {
         aclrtFree(residualDeviceAddr);
