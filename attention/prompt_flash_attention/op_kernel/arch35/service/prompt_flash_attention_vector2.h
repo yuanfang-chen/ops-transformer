@@ -98,7 +98,7 @@ __aicore__ inline void PromptFlashAttentionNormalVector2<PFAT>::Bmm1ResDoVecBmm2
         int64_t vec2CalcSize = constParam.singleProcessSOuterSizeWhole * PFAT::vDSize;
         if constexpr (IsSameType<T, int8_t>::value) {
             AscendDequant(tempBmm2Ub, bmm2ResUb, dequantScale2, {constParam.singleProcessSOuterSizeWhole, PFAT::vDSize, PFAT::vDSize});
-        } else if constexpr (IsSameType<T, fp8_e5m2_t>::value || IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, hifloat8_t>::value) {
+        } else if constexpr (IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, hifloat8_t>::value) {
             Muls(tempBmm2Ub, bmm2ResUb, dequantScale2, vec2CalcSize);
         } else {
             DataCopy(tempBmm2Ub, bmm2ResUb, vec2CalcSize);

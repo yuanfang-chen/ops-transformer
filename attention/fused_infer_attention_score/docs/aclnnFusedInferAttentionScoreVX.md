@@ -283,10 +283,10 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         - 不支持MLA、左padding场景。
         - 只支持非量化、伪量化场景，不支持全量化场景。
 - int8量化相关入参数量与输入、输出[数据格式](../../../docs/zh/context/数据格式.md)的综合限制：
-    - 输出为INT8/FP8(FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8)的场景：入参deqScale1、quantScale1、deqScale2、quantScale2需要同时存在，quantOffset2可选，不传时按照0处理。
+    - 输出为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)的场景：入参deqScale1、quantScale1、deqScale2、quantScale2需要同时存在，quantOffset2可选，不传时按照0处理。
     - 输出为FLOAT16的场景：入参deqScale1、quantScale1、deqScale2需要同时存在，若存在入参quantOffset2 或 quantScale2（即不为nullptr），则报错并返回。
-        -  <term>昇腾910_95 AI处理器</term>：输入为INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2。
-    - 输入全为FLOAT16或BFLOAT16，输出为INT8/FP8(FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8)的场景：入参quantScale2需存在，quantOffset2可选，不传时按照0处理，若存在入参deqScale1 或 quantScale1 或 deqScale2（即不为nullptr），则报错并返回。
+        -  <term>昇腾910_95 AI处理器</term>：输入为INT8、HIFLOAT8、FLOAT8_E4M3FN。
+    - 输入全为FLOAT16或BFLOAT16，输出为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)的场景：入参quantScale2需存在，quantOffset2可选，不传时按照0处理，若存在入参deqScale1 或 quantScale1 或 deqScale2（即不为nullptr），则报错并返回。
     - 入参 quantScale2 和 quantOffset2 支持 per-tensor/per-channel 两种格式和 FLOAT32/BFLOAT16 两种数据类型。若传入 quantOffset2 ，需保证其类型和shape信息与 quantScale2 一致。当输入为BFLOAT16时，同时支持FLOAT32和BFLOAT16，否则仅支持FLOAT32 。per-channel 格式，当输出layout为BSH时，要求 quantScale2 所有维度的乘积等于H；其他layout要求乘积等于N*D。（建议输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D];输出为TND时，建议传入[1,N,1,D]或[N,D]）
 -   伪量化参数 antiquantScale和antiquantOffset约束：
     - 仅支持kv_dtype为int8的伪量化场景。
@@ -353,13 +353,13 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
    -   kvCache反量化的合成参数场景仅支持query为FLOAT16时，将INT8类型的key和value反量化到FLOAT16。入参key/value的datarange与入参antiquantScale的datarange乘积范围在（-1，1）范围内，高性能模式可以保证精度，否则需要开启高精度模式来保证精度。
    -   page attention场景:
         -   page attention的使能必要条件是blockTable存在且有效，同时key、value是按照blockTable中的索引在一片连续内存中排布，在该场景下key、value的inputLayout参数无效。blockTable中填充的是blockid，当前不会对blockid的合法性进行校验，需用户自行保证。
-            -  <term>昇腾910_95 AI处理器</term>：支持key、value dtype为FLOAT16/BFLOAT16/INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT8_E5M2/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。
+            -  <term>昇腾910_95 AI处理器</term>：支持key、value dtype为FLOAT16/BFLOAT16/INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。
         -   blockSize是用户自定义的参数，该参数的取值会影响page attention的性能，在使能page attention场景下，blockSize最小为128, 最大为512，且要求是128的倍数。通常情况下，page attention可以提高吞吐量，但会带来性能上的下降。
         -   page attention场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N, blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式。当输入kv cache排布格式为BnBsH，且 KV_N * D 超过65535时，受硬件指令约束，会被拦截报错。可通过使能GQA（减小 KV_N）或调整kv cache排布格式为BnNBsD解决。blocknum不能小于根据actualSeqLengthsKv和blockSize计算的每个batch的block数量之和。且key和value的shape需保证一致。
         -   page attention 伪量化场景
-            - <term>昇腾910_95 AI处理器</term>：支持query为FLOAT16/BFLOAT16，支持key、value dtype为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT8_E5M2/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv cache排布为（blocknum，KV_N，D/2，blocksize，2）。
+            - <term>昇腾910_95 AI处理器</term>：支持query为FLOAT16/BFLOAT16，支持key、value dtype为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv cache排布为（blocknum，KV_N，D/2，blocksize，2）。
         -   page attention 全量化场景
-            - <term>昇腾910_95 AI处理器</term>：支持query和kv cache全部为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT8_E5M2。
+            - <term>昇腾910_95 AI处理器</term>：支持query和kv cache全部为INT8/HIFLOAT8/FLOAT8_E4M3FN。
         -   page attention 不支持tensorlist场景，不支持左padding场景。
         -   page attention场景下，必须传入actualSeqLengthsKv。
         -   page attention场景下，blockTable必须为二维，第一维长度需等于B，第二维长度不能小于maxBlockNumPerSeq（maxBlockNumPerSeq为不同batch中最大actualSeqLengthsKv对应的block数量）。
@@ -399,7 +399,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             - keyAntiquantScale 和 valueAntiquantScale要么都为空，要么都不为空；keyAntiquantOffset 和 valueAntiquantOffset要么都为空，要么都不为空
             - KeyAntiquantScale 和valueAntiquantScale都不为空时，除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致；keyAntiquantOffset 和 valueAntiquantOffset都不为空时，除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致
             - 支持per-channel、per-tensor、per-token、per-tensor叠加per-head、per-token叠加per-head、per-token使用page attention模式管理scale/offset、per-token叠加per-head并使用page attention模式管理scale/offset、key支持per-channel叠加value支持per-token和per-token-group九种模式，以下N均为numKeyValueHeads。
-            - per-channel模式：两个参数的shape可支持\(1, N, 1, D\)，\(1, N, D\)，\(1, H\)，\(N, 1, D\)，\(N, D\)，\(H\)。参数数据类型和query数据类型相同，当key、value数据类型为INT8、INT4\(INT32\)、HIFLOAT8、FLOAT8_E5M2、FLOAT8_E4M3FN时支持。当key、value数据类型为HIFLOAT8、FLOAT8_E5M2、FLOAT8_E4M3FN时不支持带antiquantOffset。
+            - per-channel模式：两个参数的shape可支持\(1, N, 1, D\)，\(1, N, D\)，\(1, H\)，\(N, 1, D\)，\(N, D\)，\(H\)。参数数据类型和query数据类型相同，当key、value数据类型为INT8、INT4\(INT32\)、HIFLOAT8、FLOAT8_E4M3FN时支持。当key、value数据类型为HIFLOAT8、FLOAT8_E4M3FN时不支持带antiquantOffset。
             - per-tensor模式：两个参数的shape均为\(1\)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4\(INT32\)时支持。
             - per-token模式：两个参数的shape可支持\(1, B, S\)，\( B, S\)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4\(INT32\)时支持。
             - per-tensor叠加per-head模式：两个参数的shape均为\(N\)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4\(INT32\)时支持。
@@ -419,8 +419,8 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             - INT4（INT32）伪量化场景支持后量化。
     - qkv FP8 per-block全量化
         - <term>昇腾910_95 AI处理器</term>：
-            - 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小\(128, 256\)进行分块，并分别将每个块内的数据量化成FLOAT8_E5M2或FLOAT8_E4M3FN类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale。
-            - query、key和value的数据类型支持FLOAT8_E5M2、FLOAT8_E4M3FN。
+            - 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小\(128, 256\)进行分块，并分别将每个块内的数据量化成FLOAT8_E4M3FN类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale。
+            - query、key和value的数据类型支持FLOAT8_E4M3FN。
             - queryQuantMode、keyAntiquantMode和valueAntiquantMode均为7。
             - dequantScaleQuery、keyAntiquantScale和valueAntiquantScale的数据类型固定为FLOAT32。
             - dequantScaleQuery的shape为\(B, Q_N, ceil(Q_S,128),1\)，keyAntiquantScale和valueAntiquantScale的shape为\(B, K_N, ceil(K_S,256),1\)
@@ -443,9 +443,9 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
       - <term>昇腾910_95 AI处理器</term>：在inputLayout不同时，其含义与拦截条件不同：当inputLayout不为TND时，该入参为可选入参，其长度为1或大于等于key/value的batch值，该入参中的值代表每个batch的实际长度，其值应该不大于KV_S。当inputLayout为TND时，该入参必须传入，在非PA场景下，第b个值表示前b个batch的S轴累加长度，其值应递增（大于等于前一个值）排列，且该入参长度代表总batch数，在PA场景下，其长度等于key/value的batch值，代表每个batch的实际长度，值不大于KV_S。
   -   page attention场景:
       -   page attention的使能必要条件是blocktable存在且有效，同时key、value是按照blocktable中的索引在一片连续内存中排布，在该场景下key、value的inputLayout参数无效。
-          -  <term>昇腾910_95 AI处理器</term>：支持key、value dtype为FLOAT16/BFLOAT16/INT8/HIFLOAT8/FLOAT8_E5M2/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。
+          -  <term>昇腾910_95 AI处理器</term>：支持key、value dtype为FLOAT16/BFLOAT16/INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）。
       -   blockSize是用户自定义的参数，该参数的取值会影响page attention的性能，在使能page attention场景下，blockSize需要传入非0值, 且blocksize最大不超过512。通常情况下，page attention可以提高吞吐量，但会带来性能上的下降。
-          -  <term>昇腾910_95 AI处理器</term>：key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；key、value 输入类型为INT8/HIFLOAT8/FLOAT8_E5M2/FLOAT8_E4M3FN时需要32对齐；key、value输入类型为FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）时需要64对齐。
+          -  <term>昇腾910_95 AI处理器</term>：key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；key、value 输入类型为INT8/HIFLOAT8/FLOAT8_E4M3FN时需要32对齐；key、value输入类型为FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32）时需要64对齐。
       -   page attention场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N, blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式。blocknum不能小于根据actualSeqLengthsKv和blockSize计算的每个batch的block数量之和。且key和value的shape需保证一致。
       -   page attention场景下，kv cache排布为（blocknum, KV_N, blocksize, D）时性能通常优于kv cache排布为（blocknum, blocksize, H）时的性能，建议优先选择（blocknum, KV_N, blocksize, D）格式。
       -   page attention使能场景下，当输入kv cache排布格式为（blocknum, blocksize, H），且 numKvHeads * headDim 超过64k时，受硬件指令约束，会被拦截报错。可通过使能GQA（减小 numKvHeads）或调整kv cache排布格式为（blocknum, numKvHeads, blocksize, D）解决。
@@ -501,9 +501,9 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 ## 算子原型
     ```
     REG_OP(FusedInferAttentionScore)
-        .INPUT(query, TensorType({DT_INT8, DT_FLOAT16,DT_BF16, DT_FLOAT8_E4M3FN, DT_FLOAT8_E5M2}))
-        .DYNAMIC_INPUT(key, TensorType({DT_INT8, DT_FLOAT16,DT_BF16, DT_FLOAT8_E4M3FN, DT_FLOAT8_E5M2}))
-        .DYNAMIC_INPUT(value, TensorType({DT_INT8, DT_FLOAT16,DT_BF16, DT_FLOAT8_E4M3FN, DT_FLOAT8_E5M2}))
+        .INPUT(query, TensorType({DT_INT8, DT_FLOAT16,DT_BF16, DT_FLOAT8_E4M3FN}))
+        .DYNAMIC_INPUT(key, TensorType({DT_INT8, DT_FLOAT16,DT_BF16, DT_FLOAT8_E4M3FN}))
+        .DYNAMIC_INPUT(value, TensorType({DT_INT8, DT_FLOAT16,DT_BF16, DT_FLOAT8_E4M3FN}))
         .OPTIONAL_INPUT(pse_shift, TensorType({DT_FLOAT16, DT_BF16}))
         .OPTIONAL_INPUT(atten_mask, TensorType({DT_FLOAT16, DT_BOOL, DT_UINT8, DT_INT8}))
         .OPTIONAL_INPUT(actual_seq_lengths, TensorType({DT_INT64}))

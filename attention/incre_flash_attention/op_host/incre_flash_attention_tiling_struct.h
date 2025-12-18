@@ -102,10 +102,8 @@ enum class TilingInOutMode : uint32_t {
     BF16_INT8 = 8,
     INT8_BF16 = 9,
     FP16_FP8_E4M3FN = 10,
-    FP16_FP8_E5M2 = 11,
     FP16_HIFLOAT8 = 12,
     BF16_FP8_E4M3FN = 13,
-    BF16_FP8_E5M2 = 14,
     BF16_HIFLOAT8 = 15,
 };
 

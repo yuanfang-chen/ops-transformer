@@ -296,7 +296,7 @@ bool PromptFlashAttentionTilingV2::CheckIODataType(ContextParamsForPFATiling& co
     inputType = contextKeyParams.inputDataType;
 
     std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, 
-        ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN};
+        ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN};
     std::vector<uint32_t> dataTypeSizeArray = {FLOAT16SIZE, BFLOAT16SIZE, INT8SIZE, FLOAT8SIZE, FLOAT8SIZE, FLOAT8SIZE};
 
     auto inputTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), inputType);
@@ -587,7 +587,7 @@ bool PromptFlashAttentionTilingV2::CheckKVDataType(ContextParamsForPFATiling& co
     ge::DataType valueDataType = contextKeyParams.vDataType;
 
     std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8,
-        ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN};
+        ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN};
 
     auto keyTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), keyDataType);
 
@@ -789,10 +789,10 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
     const ge::DataType inputParamsType = contextKeyParams.inputDataType;
-    OP_CHECK_IF((inputParamsType != ge::DT_INT8) && (inputParamsType != ge::DT_HIFLOAT8) && (inputParamsType != ge::DT_FLOAT8_E5M2) &&
+    OP_CHECK_IF((inputParamsType != ge::DT_INT8) && (inputParamsType != ge::DT_HIFLOAT8) &&
                 (inputParamsType != ge::DT_FLOAT8_E4M3FN),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "inputParamsType must be INT8 or HIFLOAT8 or DT_FLOAT8_E5M2 or FLOAT8_E4M3FN in per-tensor quant scenario, now is %s", 
+            "inputParamsType must be INT8 or HIFLOAT8 or FLOAT8_E4M3FN in per-tensor quant scenario, now is %s", 
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
         return false);
     OP_CHECK_IF((deqScale1Shape == nullptr) || (quantScale1Shape == nullptr) || (deqScale2Shape == nullptr),
@@ -826,9 +826,9 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
     OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "tensorlist is not supported in per-block quant scenario!"),
         return false);
-    OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E5M2) && (contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN),
+    OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "inputType must be FLOAT8_E5M2 or FLOAT8_E4M3FN in per-block quant scenario, now is %s.", 
+            "inputType must be FLOAT8_E4M3FN in per-block quant scenario, now is %s.", 
             GetPfaDataTypeStr(inputType).c_str()),
         return false);
     OP_CHECK_IF((dequantScaleQueryType != ge::DT_FLOAT) || (KeyAntiquantScaleType != ge::DT_FLOAT) || (valueAntiquantScaleType != ge::DT_FLOAT),
@@ -902,10 +902,9 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantParams(const ContextParamsForPF
     uint32_t quantD = 0;
     uint32_t queryD = h / n;
 
-    OP_CHECK_IF(outputType != ge::DT_INT8 && outputType != ge::DT_FLOAT8_E5M2 &&
-               outputType != ge::DT_FLOAT8_E4M3FN && outputType != ge::DT_HIFLOAT8,
+    OP_CHECK_IF(outputType != ge::DT_INT8 && outputType != ge::DT_FLOAT8_E4M3FN && outputType != ge::DT_HIFLOAT8,
                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-               "invalid output type [%s], only support int8, fp8_e5m2_t, fp8_e4m3fn_t, hifloat8_t",
+               "invalid output type [%s], only support int8, fp8_e4m3fn_t, hifloat8_t",
                GetPfaDataTypeStr(outputType).c_str()),
                return false);
 
@@ -1073,7 +1072,7 @@ bool PromptFlashAttentionTilingV2::CheckPAKeyValueShape(ContextParamsForPFATilin
     std::string layoutStr(contextKeyParams.layout);
 
     uint32_t dataTypeSizeValue = FLOAT16SIZE;
-    std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN};
+    std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN};
     std::vector<uint32_t> dataTypeSizeArray = {FLOAT16SIZE, BFLOAT16SIZE, INT8SIZE, FLOAT8SIZE, FLOAT8SIZE, FLOAT8SIZE};
 
     auto inputTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), inputType);
@@ -1149,7 +1148,7 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
         paLayoutType = 2; // If it is five-dimensional, paLayoutType = 2
 
         uint32_t dataTypeSizeValue = FLOAT16SIZE;
-        std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN};
+        std::vector<ge::DataType> allowedDtypes = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN};
         std::vector<uint32_t> dataTypeSizeArray = {FLOAT16SIZE, BFLOAT16SIZE, INT8SIZE, FLOAT8SIZE, FLOAT8SIZE, FLOAT8SIZE};
 
         auto inputTypeCheck = std::find(allowedDtypes.begin(), allowedDtypes.end(), inputType);
@@ -3476,7 +3475,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyQuantMode(ge::DataType inputDa
 void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDataType) {
     // perblock采用新模板
 	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-       inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         hasAttenMask = 0;
         return;
     }
@@ -3489,7 +3488,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDa
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputDataType) {
 	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-       inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         hasRope = 0;
         return;
     }
@@ -3502,7 +3501,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputData
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataType) {
 	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-       inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         isPa = 0;
         return;
     }
@@ -3515,7 +3514,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataTyp
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsFd(ge::DataType inputDataType) {
 	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-       inputDataType == ge::DT_FLOAT8_E5M2 || inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         isFd = 0;
         return;
     }
@@ -3786,8 +3785,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
     const int64_t *keyAntiquantMode = contextKeyParams.keyAntiquantMode;
     const int64_t *queryQuantMode = contextKeyParams.queryQuantMode;
     const int64_t *valueAntiquantMode = contextKeyParams.valueAntiquantMode;
-    if (contextKeyParams.inputDataType == ge::DT_HIFLOAT8 || contextKeyParams.inputDataType == ge::DT_FLOAT8_E5M2 || 
-        contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN) {
+    if (contextKeyParams.inputDataType == ge::DT_HIFLOAT8 || contextKeyParams.inputDataType == ge::DT_FLOAT8_E4M3FN) {
         if (*keyAntiquantMode == static_cast<int64_t>(AntiquantTypeEnum::PER_BLOCK) && *queryQuantMode == static_cast<int64_t>(AntiquantTypeEnum::PER_BLOCK)
             && *valueAntiquantMode == static_cast<int64_t>(AntiquantTypeEnum::PER_BLOCK)) { // 7: FP8 perblock quant
             enablePerblockQuant = true;

@@ -87,7 +87,7 @@ public:
         nd2nzParams_.nValue = tileHeight;
         nd2nzParams_.dValue = tileWidth;
         nd2nzParams_.srcDValue = orgWidth_;
-        if constexpr (IsSameType<SrcT, int8_t>::value || IsSameType<SrcT, fp8_e5m2_t>::value || 
+        if constexpr (IsSameType<SrcT, int8_t>::value ||
             IsSameType<SrcT, fp8_e4m3fn_t>::value || IsSameType<SrcT, hifloat8_t>::value) {
             nd2nzParams_.dstNzC0Stride = Ceil(tileHeight, 32) * 32; // int8/fp8类型，32B对齐需要有32个数
         } else {

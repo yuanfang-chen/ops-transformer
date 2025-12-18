@@ -269,10 +269,10 @@ ge::graphStatus IFATilingV2::CheckPABlockSize() const {
                "When page attention is enabled, if kvCache datatype is int4(int32)/fp4_e1m2/fp4_e2m1, input attribute blocksize[%u] should be 64 aligned.", blockSize_),
                return ge::GRAPH_FAILED);
     OP_CHECK_IF(((inputKvType_ == ge::DT_INT8) || (inputKvType_ == ge::DT_HIFLOAT8) ||
-               (inputKvType_ == ge::DT_FLOAT8_E5M2) || (inputKvType_ == ge::DT_FLOAT8_E4M3FN)) && 
+               (inputKvType_ == ge::DT_FLOAT8_E4M3FN)) && 
                (blockSize_ % NUM32 != 0),
                OP_LOGE(ifaContext_->opName,
-               "When page attention is enabled, if kvCache datatype is int8/hif8/fp8_e5m2/fp8_e4m3fn, input attribute blocksize[%u] should be 32 aligned.", blockSize_),
+               "When page attention is enabled, if kvCache datatype is int8/hif8/fp8_e4m3fn, input attribute blocksize[%u] should be 32 aligned.", blockSize_),
                return ge::GRAPH_FAILED);
     OP_CHECK_IF(((inputKvType_ == ge::DT_FLOAT16) || (inputKvType_ == ge::DT_BF16)) && 
                (blockSize_ % NUM16 != 0),
@@ -519,7 +519,7 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
   }
   antiQuantFlag_ = (inputQType_ != inputKvType_) && ((inputKvType_ == ge::DT_INT8) ||
                    (inputKvType_ == ge::DT_INT4) || (inputKvType_ == ge::DT_HIFLOAT8) ||
-                   (inputKvType_ == ge::DT_FLOAT8_E5M2) || (inputKvType_ == ge::DT_FLOAT8_E4M3FN) ||
+                   (inputKvType_ == ge::DT_FLOAT8_E4M3FN) ||
                    (inputKvType_ == ge::DT_FLOAT4_E2M1) || (inputKvType_ == ge::DT_FLOAT4_E1M2));
   if (socVersion_ == IfaSocVersion::SOC_ASCEND_910_95 && antiQuantFlag_ && sOfQuery_ > 1) {
     isPFAFlag_ = true;
@@ -1046,8 +1046,6 @@ ge::graphStatus IFATilingV2::InitInOutMode() {
     inOutMode_ = TilingInOutMode::INT8_FP16;
   } else if (inputQType_ == ge::DT_FLOAT16 && outputType_ == ge::DT_FLOAT8_E4M3FN) {
     inOutMode_ = TilingInOutMode::FP16_FP8_E4M3FN;
-  } else if (inputQType_ == ge::DT_FLOAT16 && outputType_ == ge::DT_FLOAT8_E5M2) {
-    inOutMode_ = TilingInOutMode::FP16_FP8_E5M2;
   } else if (inputQType_ == ge::DT_FLOAT16 && outputType_ == ge::DT_HIFLOAT8) {
     inOutMode_ = TilingInOutMode::FP16_HIFLOAT8;
   } else if (inputQType_ == ge::DT_FLOAT16 && outputType_ == ge::DT_INT8) {
@@ -1058,8 +1056,6 @@ ge::graphStatus IFATilingV2::InitInOutMode() {
     inOutMode_ = TilingInOutMode::BF16_BF16;
   } else if (inputQType_ == ge::DT_BF16 && outputType_ == ge::DT_FLOAT8_E4M3FN) {
     inOutMode_ = TilingInOutMode::BF16_FP8_E4M3FN;
-  } else if (inputQType_ == ge::DT_BF16 && outputType_ == ge::DT_FLOAT8_E5M2) {
-    inOutMode_ = TilingInOutMode::BF16_FP8_E5M2;
   } else if (inputQType_ == ge::DT_BF16 && outputType_ == ge::DT_HIFLOAT8) {
     inOutMode_ = TilingInOutMode::BF16_HIFLOAT8;
   } else if (inputQType_ == ge::DT_BF16 && outputType_ == ge::DT_INT8) {
@@ -1898,10 +1894,10 @@ ge::graphStatus IFATilingV2::ProcessQuant2() {
     return ge::GRAPH_SUCCESS;
   }
   enablePostQuant_ = true;
-  OP_CHECK_IF(outputType_ != ge::DT_INT8 && outputType_ != ge::DT_FLOAT8_E5M2 && 
+  OP_CHECK_IF(outputType_ != ge::DT_INT8 &&
               outputType_ != ge::DT_FLOAT8_E4M3FN && outputType_ != ge::DT_HIFLOAT8,
               OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-              "invalid output type [%s], only support int8, fp8_e5m2_t, fp8_e4m3fn_t, hifloat8_t",
+              "invalid output type [%s], only support int8, fp8_e4m3fn_t, hifloat8_t",
               optiling::v2::GetPfaDataTypeStr(outputType_).c_str()),
               return ge::GRAPH_FAILED);
               
@@ -2194,7 +2190,7 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
               return ge::GRAPH_FAILED);
 
   OP_CHECK_IF((antiquantOffsetTensor != nullptr &&
-             (inputKvType_ == ge::DT_HIFLOAT8 || inputKvType_ == ge::DT_FLOAT8_E5M2 || inputKvType_ == ge::DT_FLOAT8_E4M3FN ||
+             (inputKvType_ == ge::DT_HIFLOAT8 || inputKvType_ == ge::DT_FLOAT8_E4M3FN ||
               inputKvType_ == ge::DT_FLOAT4_E2M1 || inputKvType_ == ge::DT_FLOAT4_E1M2)),
               OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp8/hifp8/fp4, antiquantOffset is not supported."),
               return ge::GRAPH_FAILED);
@@ -2252,8 +2248,8 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
   }
 
   if (pageAttentionFlag_ && pageAttentionKvLayoutType_ == KvCacheLayout::KV_CACHE_NZ) {
-    OP_CHECK_IF((inputKvType_ == ge::DT_FLOAT4_E2M1 || inputKvType_ == ge::DT_FLOAT4_E1M2 || inputKvType_ == ge::DT_FLOAT8_E5M2),
-              OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp4 or fp8_e5m2, antiquant pa_nz is not supported."),
+    OP_CHECK_IF((inputKvType_ == ge::DT_FLOAT4_E2M1 || inputKvType_ == ge::DT_FLOAT4_E1M2),
+              OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp4, antiquant pa_nz is not supported."),
               return ge::GRAPH_FAILED);
     OP_CHECK_IF((antiquantMode != PER_CHANNEL_MODE && antiquantMode != PER_TENSOR_HEAD_MODE),  // pa_nz : per-tensor per-channel and per-tensor-head
               OP_LOGE(ifaContext_->opName,
@@ -2370,7 +2366,7 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
              OP_LOGE(ifaContext_->opName, "antiquantOffsetTensor exist, but it's datatype doesn't exist."),
              return ge::GRAPH_FAILED);
     OP_LOGD(ifaContext_->opName, "KeyAntiquant/valueAntiquant is not split mode.");
-    OP_CHECK_IF((inputKvType_ == ge::DT_HIFLOAT8 || inputKvType_ == ge::DT_FLOAT8_E5M2 || inputKvType_ == ge::DT_FLOAT8_E4M3FN ||
+    OP_CHECK_IF((inputKvType_ == ge::DT_HIFLOAT8 || inputKvType_ == ge::DT_FLOAT8_E4M3FN ||
                 inputKvType_ == ge::DT_FLOAT4_E2M1 || inputKvType_ == ge::DT_FLOAT4_E1M2),
                 OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp8/hifp8/fp4, keyAntiquant/valueAntiquant must be split mode."),
                 return ge::GRAPH_FAILED);
@@ -3382,7 +3378,6 @@ bool IFATilingV2::GetMatmulType(ge::DataType getype, matmul_tiling::DataType* mm
                    {ge::DT_FLOAT, matmul_tiling::DataType::DT_FLOAT},
                    {ge::DT_INT4, matmul_tiling::DataType::DT_INT8},
                    {ge::DT_HIFLOAT8, matmul_tiling::DataType::DT_INT8},
-                   {ge::DT_FLOAT8_E5M2, matmul_tiling::DataType::DT_INT8},
                    {ge::DT_FLOAT8_E4M3FN, matmul_tiling::DataType::DT_INT8},
                    {ge::DT_FLOAT4_E2M1, matmul_tiling::DataType::DT_INT8},
                    {ge::DT_FLOAT4_E1M2, matmul_tiling::DataType::DT_INT8}
@@ -3471,7 +3466,7 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
     case ge::DT_FLOAT16:
       if ((inputKvType_ != ge::DT_FLOAT16) && (inputKvType_ != ge::DT_INT8) &&
          (inputKvType_ != ge::DT_INT4) && (inputKvType_ != ge::DT_HIFLOAT8) &&
-         (inputKvType_ != ge::DT_FLOAT8_E5M2) && (inputKvType_ != ge::DT_FLOAT8_E4M3FN) &&
+         (inputKvType_ != ge::DT_FLOAT8_E4M3FN) &&
          (inputKvType_ != ge::DT_FLOAT4_E2M1) && (inputKvType_ != ge::DT_FLOAT4_E1M2)) {
         OP_LOGE(ifaContext_->opName, "When input query type is fp16, key/value type should be fp16/int8/fp8/hif8/int4/fp4.");
         return ge::GRAPH_FAILED;
@@ -3481,7 +3476,7 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
     case ge::DT_BF16:
       if ((inputKvType_ != ge::DT_BF16) && (inputKvType_ != ge::DT_INT8) &&
          (inputKvType_ != ge::DT_INT4) && (inputKvType_ != ge::DT_HIFLOAT8) &&
-         (inputKvType_ != ge::DT_FLOAT8_E5M2) && (inputKvType_ != ge::DT_FLOAT8_E4M3FN) &&
+         (inputKvType_ != ge::DT_FLOAT8_E4M3FN) &&
          (inputKvType_ != ge::DT_FLOAT4_E2M1) && (inputKvType_ != ge::DT_FLOAT4_E1M2)) {
         OP_LOGE(ifaContext_->opName, "When input query type is bf16, key/value type should be bf16/int8/fp8/hif8/int4/fp4.");
         return ge::GRAPH_FAILED;
@@ -3515,9 +3510,6 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
       case ge::DT_HIFLOAT8:
         inputKvVal = NUM5;
         break;
-      case ge::DT_FLOAT8_E5M2:
-        inputKvVal = NUM6;
-        break;
       case ge::DT_FLOAT8_E4M3FN:
         inputKvVal = NUM7;
         break;
@@ -3543,9 +3535,6 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
       break;
     case ge::DT_FLOAT8_E4M3FN:
       outputVal = NUM4;
-      break;
-    case ge::DT_FLOAT8_E5M2:
-      outputVal = NUM5;
       break;
     case ge::DT_HIFLOAT8:
       outputVal = NUM6;

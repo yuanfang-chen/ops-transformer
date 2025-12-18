@@ -38,7 +38,7 @@ public:
 
     __aicore__ inline void Init()
     {
-        if constexpr (IsSameType<SrcT, int8_t>::value || IsSameType<SrcT, fp8_e5m2_t>::value ||
+        if constexpr (IsSameType<SrcT, int8_t>::value ||
             IsSameType<SrcT, fp8_e4m3fn_t>::value || IsSameType<SrcT, hifloat8_t>::value) {
             alignNum_ = 16; // 此处对齐方式需要与matmul中L1到L0A/B逻辑保持一致,matmul中tileHeight参数在转置时按照16对齐,非转置时按照c0size对齐.
         } else if constexpr (IsSameType<SrcT, float>::value) {

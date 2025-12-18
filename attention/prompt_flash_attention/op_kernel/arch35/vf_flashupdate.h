@@ -75,8 +75,7 @@ __aicore__ inline void FlashUpdateTail_VF(const LocalTensor<T>& dstTensor, const
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -91,8 +90,7 @@ __aicore__ inline void FlashUpdateTail_VF(const LocalTensor<T>& dstTensor, const
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegTailD);
@@ -109,8 +107,7 @@ __aicore__ inline void FlashUpdateTail_VF(const LocalTensor<T>& dstTensor, const
                     } else {
                         MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + j * floatRepSize);
                     }
-                    if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                        IsSameType<INPUT_T, hifloat8_t>::value) {
+                    if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                         MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                     }
                     MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -127,8 +124,7 @@ __aicore__ inline void FlashUpdateTail_VF(const LocalTensor<T>& dstTensor, const
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + dLoops * floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegTailD);
@@ -200,8 +196,7 @@ __aicore__ inline void FlashUpdateLastTail_VF(const LocalTensor<T>& dstTensor, c
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -217,8 +212,7 @@ __aicore__ inline void FlashUpdateLastTail_VF(const LocalTensor<T>& dstTensor, c
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegTailD);
@@ -236,8 +230,7 @@ __aicore__ inline void FlashUpdateLastTail_VF(const LocalTensor<T>& dstTensor, c
                     } else {
                         MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + j * floatRepSize);
                     }
-                    if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                        IsSameType<INPUT_T, hifloat8_t>::value) {
+                    if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                         MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                     }
                     MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -255,8 +248,7 @@ __aicore__ inline void FlashUpdateLastTail_VF(const LocalTensor<T>& dstTensor, c
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + dLoops * floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegTailD);
@@ -318,8 +310,7 @@ __aicore__ inline void FlashUpdateDivTail_VF(const LocalTensor<T>& dstTensor, co
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegPre, vSrcRegPre, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSum, maskRegAll);
@@ -332,8 +323,7 @@ __aicore__ inline void FlashUpdateDivTail_VF(const LocalTensor<T>& dstTensor, co
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize + floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegPre, vSrcRegPre, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSum, maskRegTailD);
@@ -348,8 +338,7 @@ __aicore__ inline void FlashUpdateDivTail_VF(const LocalTensor<T>& dstTensor, co
                     } else {
                         MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize + j * floatRepSize);
                     }
-                    if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                        IsSameType<INPUT_T, hifloat8_t>::value) {
+                    if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                         MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegPre, vSrcRegPre, dequantScale2, maskRegAll);
                     }
                     MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSum, maskRegAll);
@@ -364,8 +353,7 @@ __aicore__ inline void FlashUpdateDivTail_VF(const LocalTensor<T>& dstTensor, co
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize + dLoops * floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegPre, vSrcRegPre, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSum, maskRegTailD);
@@ -425,8 +413,7 @@ __aicore__ inline void FlashUpdateNoTail_VF(const LocalTensor<T>& dstTensor, con
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -441,8 +428,7 @@ __aicore__ inline void FlashUpdateNoTail_VF(const LocalTensor<T>& dstTensor, con
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -459,8 +445,7 @@ __aicore__ inline void FlashUpdateNoTail_VF(const LocalTensor<T>& dstTensor, con
                     } else {
                         MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + j * floatRepSize);
                     }
-                    if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                        IsSameType<INPUT_T, hifloat8_t>::value) {
+                    if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                         MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                     }
                     MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -530,8 +515,7 @@ __aicore__ inline void FlashUpdateLastNoTail_VF(const LocalTensor<T>& dstTensor,
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -547,8 +531,7 @@ __aicore__ inline void FlashUpdateLastNoTail_VF(const LocalTensor<T>& dstTensor,
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -566,8 +549,7 @@ __aicore__ inline void FlashUpdateLastNoTail_VF(const LocalTensor<T>& dstTensor,
                     } else {
                         MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize + j * floatRepSize);
                     }
-                    if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                        IsSameType<INPUT_T, hifloat8_t>::value) {
+                    if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                         MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegCur, vSrcRegCur, dequantScale2, maskRegAll);
                     }
                     MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMax, vSrcRegPre, maskRegAll);
@@ -627,8 +609,7 @@ __aicore__ inline void FlashUpdateDivNoTail_VF(const LocalTensor<T>& dstTensor, 
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegPre, vSrcRegPre, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSum, maskRegAll);
@@ -641,8 +622,7 @@ __aicore__ inline void FlashUpdateDivNoTail_VF(const LocalTensor<T>& dstTensor, 
                 } else {
                     MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize + floatRepSize);
                 }
-                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                     MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegPre, vSrcRegPre, dequantScale2, maskRegAll);
                 }
                 MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSum, maskRegAll);
@@ -657,8 +637,7 @@ __aicore__ inline void FlashUpdateDivNoTail_VF(const LocalTensor<T>& dstTensor, 
                     } else {
                         MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize + j * floatRepSize);
                     }
-                    if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || 
-                        IsSameType<INPUT_T, hifloat8_t>::value) {
+                    if constexpr (IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value) {
                         MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegPre, vSrcRegPre, dequantScale2, maskRegAll);
                     }
                     MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSum, maskRegAll);

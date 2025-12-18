@@ -161,7 +161,7 @@ __aicore__ inline void PromptFlashAttentionNormalMM2<PFAT, mmType>::IterateAll(
                 SetFlag<HardEvent::V_MTE3>(this->nd2NZEvent);  // PFATODO tmpSoftmaxResUb需要改为 OutBuf后可以删除
                 WaitFlag<HardEvent::V_MTE3>(this->nd2NZEvent);
                 if (dataCopyParams1.blockLen) {
-                    if constexpr (IsSameType<T, int8_t>::value || IsSameType<T, fp8_e5m2_t>::value || 
+                    if constexpr (IsSameType<T, int8_t>::value ||
                         IsSameType<T, fp8_e4m3fn_t>::value || IsSameType<T, hifloat8_t>::value) {
                         DataCopy(scmTensor[constParam.subBlockIdx * PFAT::sOuter * 16], tmpSoftmaxResUb, dataCopyParams1);
                     } else {

@@ -68,7 +68,6 @@ static const std::unordered_map<ge::DataType, std::string> g_strDataTypePfa = {
     {ge::DT_VARIANT, "DT_VARIANT"},
     {ge::DT_BF16, "DT_BF16"},
     {ge::DT_HIFLOAT8, "DT_HIFLOAT8"},
-    {ge::DT_FLOAT8_E5M2, "DT_FLOAT8_E5M2"},
     {ge::DT_FLOAT8_E4M3FN, "DT_FLOAT8_E4M3FN"},
     {ge::DT_UNDEFINED, "DT_UNDEFINED"},
 };

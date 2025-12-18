@@ -144,7 +144,7 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateGeneralImpl128(
                     (vregInputXUnroll, srcUb + floatRepSize + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputXUnroll, vregInputXUnroll, dequantScale1, pregAll);
@@ -249,10 +249,10 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateGeneralImpl128(
                 MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb),
                     vregRes, blockStride, repeatStride, pregNB16);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven, vregExpEven, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd, vregExpOdd, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::TWO, MicroAPI::SatMode::NO_SAT,
@@ -409,7 +409,7 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateImpl128(
                     (vregInputXUnroll, srcUb + floatRepSize + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputXUnroll, vregInputXUnroll, dequantScale1, pregAll);
@@ -509,10 +509,10 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateImpl128(
                 MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb),
                     vregRes, blockStride, repeatStride, pregS8);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven, vregExpEven, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd, vregExpOdd, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::TWO, MicroAPI::SatMode::NO_SAT,
@@ -665,7 +665,7 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateImpl64(
                     (vregInputX, srcUb + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
             }
@@ -741,9 +741,9 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateImpl64(
                 MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb),
                     vregRes, blockStride, repeatStride, pregSrcNB16);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsB32, vregExp, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     MicroAPI::Cast<T2, T, castTrait0>(vregExpEvenF16, vregMulsB32, pregAll);
@@ -961,7 +961,7 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateGeneralImpl256(
 				MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregInputX3, srcUb + floatRepSize3 + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX1, vregInputX1, dequantScale1, pregAll);
@@ -1127,12 +1127,12 @@ __aicore__ inline void SoftmaxFlashV3NoUpdateGeneralImpl256(
 				MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb1),
                     vregRes1, blockStride, repeatStride, pregNB16);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven, vregExpEven, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd, vregExpOdd, quantScale1, pregAll);
 				MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven1, vregExpEven1, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd1, vregExpOdd1, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::TWO, MicroAPI::SatMode::NO_SAT,
@@ -1373,7 +1373,7 @@ __aicore__ inline void SoftmaxFlashV3UpdateGeneralImpl128(
                     (vregInputXUnroll, srcUb + floatRepSize + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputXUnroll, vregInputXUnroll, dequantScale1, pregAll);
@@ -1498,10 +1498,10 @@ __aicore__ inline void SoftmaxFlashV3UpdateGeneralImpl128(
                 MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb),
                     vregRes, blockStride, repeatStride, pregNB16);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven, vregExpEven, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd, vregExpOdd, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::TWO, MicroAPI::SatMode::NO_SAT,
@@ -1687,7 +1687,7 @@ __aicore__ inline void SoftmaxFlashV3UpdateImpl128(const LocalTensor<T2>& dstTen
                     (vregInputXUnroll, srcUb + floatRepSize + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputXUnroll, vregInputXUnroll, dequantScale1, pregAll);
@@ -1808,10 +1808,10 @@ __aicore__ inline void SoftmaxFlashV3UpdateImpl128(const LocalTensor<T2>& dstTen
                 MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb),
                     vregRes, blockStride, repeatStride, pregS8);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven, vregExpEven, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd, vregExpOdd, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::TWO, MicroAPI::SatMode::NO_SAT,
@@ -1990,7 +1990,7 @@ __aicore__ inline void SoftmaxFlashV3UpdateImpl64(const LocalTensor<T2>& dstTens
                     (vregInputX, srcUb + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
             }
@@ -2085,9 +2085,9 @@ __aicore__ inline void SoftmaxFlashV3UpdateImpl64(const LocalTensor<T2>& dstTens
                 MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb),
                     vregRes, blockStride, repeatStride, pregSrcNB16);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsB32, vregExp, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     MicroAPI::Cast<T2, T, castTrait0>(vregExpEvenF16, vregMulsB32, pregAll);
@@ -2332,7 +2332,7 @@ __aicore__ inline void SoftmaxFlashV3UpdateGeneralImpl256(
 				MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregInputX3, srcUb + floatRepSize3 + i * sInner);
             }
 
-            if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+            if constexpr (IsSameType<T2, int8_t>::value ||
                 IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX, vregInputX, dequantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregInputX1, vregInputX1, dequantScale1, pregAll);
@@ -2517,12 +2517,12 @@ __aicore__ inline void SoftmaxFlashV3UpdateGeneralImpl256(
 				MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb1),
                     vregRes1, blockStride, repeatStride, pregNB16);
-            } else if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
+            } else if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven, vregExpEven, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd, vregExpOdd, quantScale1, pregAll);
 				MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsEven1, vregExpEven1, quantScale1, pregAll);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregMulsOdd1, vregExpOdd1, quantScale1, pregAll);
-                if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value) {
+                if constexpr (IsSameType<T2, fp8_e4m3fn_t>::value) {
                     static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
                         MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
                     static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::TWO, MicroAPI::SatMode::NO_SAT,
@@ -2675,7 +2675,7 @@ __aicore__ inline void SoftmaxFlashV3_VF(const LocalTensor<T2>& dstTensor, const
 {
     constexpr uint32_t blockU8 = 32;
     uint32_t blockN = 0;
-    if constexpr (IsSameType<T2, int8_t>::value || IsSameType<T2, fp8_e5m2_t>::value ||
+    if constexpr (IsSameType<T2, int8_t>::value ||
         IsSameType<T2, fp8_e4m3fn_t>::value || IsSameType<T2, hifloat8_t>::value) {
         blockN = 32;
     } else {

@@ -639,7 +639,7 @@ static bool CheckTensorDataType(const aclTensor* query, const aclTensor* key, co
     // Currently, only the input and output dtype are different when quantifying related scenarios (int8_in/fp16_out or fp16_in/int8_out)
     if (queryDataType != outputDataType) {
         bool isQuant = (((queryDataType == DataType::DT_INT8 || queryDataType == DataType::DT_HIFLOAT8 || 
-        queryDataType == DataType::DT_FLOAT8_E5M2 || queryDataType == DataType::DT_FLOAT8_E4M3FN) && outputDataType == DataType::DT_FLOAT16) || 
+        queryDataType == DataType::DT_FLOAT8_E4M3FN) && outputDataType == DataType::DT_FLOAT16) || 
         (queryDataType == DataType::DT_FLOAT16 && outputDataType == DataType::DT_INT8) ||
         (queryDataType == DataType::DT_BF16 && outputDataType == DataType::DT_INT8));
         if (!isQuant) {

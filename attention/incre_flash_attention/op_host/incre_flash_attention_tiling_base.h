@@ -59,7 +59,6 @@ const std::map<ge::DataType, std::string> DATATYPE_TO_STRING_MAP = {
     {ge::DT_INT2, "DT_INT2"},
     {ge::DT_UINT2, "DT_UINT2"},
     {ge::DT_HIFLOAT8, "DT_HIFLOAT8"},
-    {ge::DT_FLOAT8_E5M2, "DT_FLOAT8_E5M2"},
     {ge::DT_FLOAT8_E4M3FN, "DT_FLOAT8_E4M3FN"},
     {ge::DT_FLOAT4_E2M1, "DT_FLOAT4_E2M1"},
     {ge::DT_FLOAT4_E1M2, "DT_FLOAT4_E1M2"}

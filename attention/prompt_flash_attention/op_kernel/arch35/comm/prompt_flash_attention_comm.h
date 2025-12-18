@@ -761,17 +761,6 @@ struct PromptFlashAttentionTypeTraits<int8_t, RunMode::HighPrecision>
 };
 
 template<>
-struct PromptFlashAttentionTypeTraits<fp8_e5m2_t, RunMode::HighPrecision>
-{
-    using mmInputType = fp8_e5m2_t;
-    using mmBiasType = float;
-    using mmOutputType = float;
-    using softmaxType = float;
-    using pseShiftType = half;
-    using pseShiftCastType = float;  // pseShiftCastType只有在高精度和bf16的情况下为fp32
-};
-
-template<>
 struct PromptFlashAttentionTypeTraits<fp8_e4m3fn_t, RunMode::HighPrecision>
 {
     using mmInputType = fp8_e4m3fn_t;
