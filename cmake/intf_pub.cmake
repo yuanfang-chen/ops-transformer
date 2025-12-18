@@ -37,7 +37,7 @@ target_compile_options(intf_pub
             -Wdelete-non-virtual-dtor -Wduplicated-cond
             -Wtrampolines -Wsized-deallocation -Wlogical-op -Wsuggest-attribute=format
             -Wduplicated-branches
-            -Wmissing-include-dirs -Wformat-signedness
+            -Wformat-signedness
             -Wreturn-local-addr -Wextra
             -Wredundant-decls -Wfloat-conversion
             -Wno-write-strings -Wall -Wno-dangling-else -Wno-comment -Wno-conversion-null -Wno-return-type

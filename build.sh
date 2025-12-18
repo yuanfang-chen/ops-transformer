@@ -111,7 +111,7 @@ function help_info() {
                 echo "    -u|--test              Build and run all unit tests"
                 echo "    --noexec               Only compile ut, do not execute"
                 echo "    --cov                  Enable code coverage for unit tests"
-                echo "    --ops=op1,op2,...      Compile specified operators (comma-separated for multiple)"         
+                echo "    --ops=op1,op2,...      Compile specified operators (comma-separated for multiple)"
                 echo "    --disable_asan         Disable ASAN (Address Sanitizer)"
                 echo "    --soc=soc_version      Run unit tests for specified Ascend SoC"
                 echo "    --valgrind             Run unit tests with valgrind (disables ASAN and noexec)"
@@ -236,10 +236,11 @@ function help_info() {
             run_example)
                 echo "Run examples Options:"
                 echo $dotted_line
-                echo "    --run_example op_type  mode[eager:graph] [pkg_mode --vendor_name=name]     Compile and execute the test_aclnn_xxx.cpp/test_geir_xxx.cpp"
+                echo "    --run_example op_type  mode[eager:graph] [pkg_mode --vendor_name=name  --soc=soc_version]     Compile and execute the test_aclnn_xxx.cpp/test_geir_xxx.cpp"
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --run_example abs eager"
+                echo "    bash build.sh --run_example abs eager --soc=ascend910_95"
                 echo "    bash build.sh --run_example abs graph"
                 echo "    bash build.sh --run_example abs eager cust"
                 echo "    bash build.sh --run_example abs eager cust --vendor_name=custom"
@@ -372,15 +373,15 @@ ARCH_INFO=$(uname -m)
 
 export INCLUDE_PATH="${ASCEND_HOME_PATH}/include"
 export ACLNN_INCLUDE_PATH="${INCLUDE_PATH}/aclnn"
-export COMPILER_INCLUDE_PATH="${ASCEND_HOME_PATH}/compiler/include:${ASCEND_HOME_PATH}/include"
+export COMPILER_INCLUDE_PATH="${ASCEND_HOME_PATH}/include"
 export GRAPH_INCLUDE_PATH="${COMPILER_INCLUDE_PATH}/graph"
 export GE_INCLUDE_PATH="${COMPILER_INCLUDE_PATH}/ge"
 export INC_INCLUDE_PATH="${ASCEND_OPP_PATH}/built-in/op_proto/inc"
 export LINUX_INCLUDE_PATH="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/include"
 export EAGER_LIBRARY_OPP_PATH="${ASCEND_OPP_PATH}/lib64"
 export EAGER_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
-export GRAPH_LIBRARY_STUB_PATH="${ASCEND_HOME_PATH}/compiler/lib64/stub:${ASCEND_HOME_PATH}/lib64/stub"
-export GRAPH_LIBRARY_PATH="${ASCEND_HOME_PATH}/compiler/lib64:${ASCEND_HOME_PATH}/lib64"
+export GRAPH_LIBRARY_STUB_PATH="${ASCEND_HOME_PATH}/lib64/stub"
+export GRAPH_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 
 export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_OPP_PATH}/${ARCH_INFO}-linux/include/aclnnop"
 
@@ -398,23 +399,35 @@ function build_example()
 
     cd "${BUILD_PATH}"
     if [[ "${EXAMPLE_MODE}" == "eager" ]]; then
-        files=$(find ../ -path "*/${EXAMPLE_NAME}/examples/*" -name test_aclnn_*.cpp)
+        pattern="test_aclnn_"
+    elif [[ "${EXAMPLE_MODE}" == "graph" ]]; then
+        pattern="test_geir_"
+    fi
+
+    files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/${pattern}*.cpp"))
+    if [[ "$ASCEND_SOC_UNITS" == "ascend910_95" ]]; then
+        files+=($(find ../ -path "*/${EXAMPLE_NAME}/examples/arch35/${pattern}*.cpp"))
+    fi
+    if [[ "${EXAMPLE_MODE}" == "eager" ]]; then
         if [ -z "$files" ]; then
             echo "${EXAMPLE_NAME} do not have eager example"
             return 2
         fi
-        for file in $files; do
+        for file in "${files[@]}"; do
             echo "Start compile and run example file: $file"
             if [[ "${PKG_MODE}" == "" ]]; then
                 g++ ${file} -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi -lopapi_transformer -lascendcl -lnnopbase -lpthread -lhccl -lhccl_fwk -o test_aclnn_${EXAMPLE_NAME}
-            elif [[ "${PKG_MODE}" == "cust" ]]; then    
-                echo "pkg_mode:${PKG_MODE} vendor_name:${VENDOR}"
+            elif [[ "${PKG_MODE}" == "cust" ]]; then
+                if [[ "${vendor_name}" == "" ]]; then
+                    vendor_name="custom"
+                fi
+                echo "pkg_mode:${PKG_MODE} vendor_name:${vendor_name}"
                 export CUST_LIBRARY_PATH="${ASCEND_OPP_PATH}/vendors/${VENDOR}_transformer/op_api/lib"     # 仅自定义算子需要
                 export CUST_INCLUDE_PATH="${ASCEND_OPP_PATH}/vendors/${VENDOR}_transformer/op_api/include" # 仅自定义算子需要
                 if [[ -n "${ASCEND_CUSTOM_OPP_PATH}" ]]; then
                     CUST_VENDORS_PATH=$(dirname "${ASCEND_CUSTOM_OPP_PATH%%:*}")
-                    CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${VENDOR}_transformer/op_api/lib"
-                    CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${VENDOR}_transformer/op_api/include"
+                    CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/lib"
+                    CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/include"
                 fi
                 ABSOLUTE_MC2_PATH=$(realpath ${BUILD_PATH}/../mc2)
                 REAL_FILE_PATH=$(realpath "$file")
@@ -438,14 +451,13 @@ function build_example()
             fi
         done
     elif [[ "${EXAMPLE_MODE}" == "graph" ]]; then
-        files=$(find ../ -path "*/${EXAMPLE_NAME}/examples/*" -name test_geir_*.cpp)
         if [ -z "$files" ]; then
             echo "${EXAMPLE_NAME} do not have graph example"
             return 2
         fi
-        for file in $files; do
+        for file in "${files[@]}"; do
             echo "Start compile and run example file: $file"
-            g++ ${file} -I ${GRAPH_INCLUDE_PATH} -I ${GE_INCLUDE_PATH} -I ${LINUX_INCLUDE_PATH} -I ${INC_INCLUDE_PATH} -L ${GRAPH_LIBRARY_STUB_PATH} -L ${GRAPH_LIBRARY_PATH} -lgraph -lge_runner -lgraph_base -o test_geir_${EXAMPLE_NAME}
+            g++ ${file} -I ${GRAPH_INCLUDE_PATH} -I ${GE_INCLUDE_PATH} -I ${LINUX_INCLUDE_PATH} -I ${INC_INCLUDE_PATH} -L ${GRAPH_LIBRARY_STUB_PATH} -L ${GRAPH_LIBRARY_PATH} -lgraph -lge_runner -lgraph_base -lge_compiler -o test_geir_${EXAMPLE_NAME}
             ./test_geir_${EXAMPLE_NAME}
             run_result=$?
             if [ $run_result -ne 0 ]; then
@@ -774,6 +786,22 @@ set_ut_mode() {
     UT_TARGETS+=("${REPOSITORY_NAME}_op_kernel_ut")
   fi
 }
+
+set_example_opt() {
+  if [[ -n $1 && $1 != -* ]]; then
+    EXAMPLE_NAME=$1
+    step=$((step + 1))
+  fi
+  if [[ -n $2 && $2 != -* ]]; then
+    EXAMPLE_MODE=$2
+    step=$((step + 1))
+  fi
+  if [[ -n $3 && $3 != -* ]]; then
+    PKG_MODE=$3
+    step=$((step + 1))
+  fi
+}
+
 ########################################################################################################################
 # 参数解析处理
 ########################################################################################################################
@@ -866,19 +894,9 @@ while [[ $# -gt 0 ]]; do
         ;;
     --run_example)
         ENABLE_RUN_EXAMPLE=TRUE
-        EXAMPLE_NAME="$2"
-        EXAMPLE_MODE="$3"
-        shift 3
-        if [[ -n "$1" ]]; then
-            PKG_MODE="$1"
-            VENDOR="custom"
-            shift 1
-            if [[ -n "$1" ]]; then
-                VENDOR="$1"
-                VENDOR="${VENDOR#*=}"
-                shift 1
-            fi
-        fi
+        step=1
+        set_example_opt $2 $3 $4
+        shift $step
         ;;
     --experimental) 
         ENABLE_EXPERIMENTAL=TRUE
@@ -903,7 +921,7 @@ while [[ $# -gt 0 ]]; do
         PR_CHANGED_FILES="$2"
         ENABLE_SMOKE=TRUE
         PKG_MODE="cust"
-        VENDOR="custom"     
+        vendor_name="custom"
         shift 2
         ;;
     --PR_UT)
@@ -1459,6 +1477,20 @@ if [[ "$ENABLE_SMOKE" == "TRUE" ]]; then
 fi
 
 cd ${BUILD_DIR}
+
+if [[ "$ENABLE_RUN_EXAMPLE" == "TRUE" ]];then
+    build_example
+    example_result=$?
+    if [ $example_result -eq 2 ]; then
+        echo "Error: ${EXAMPLE_NAME} do not have ${EXAMPLE_MODE} example"
+    elif [ $example_result -ne 0 ]; then
+        echo "Example failed with exit code: $example_result"
+    else
+        echo "Example completed successfully"
+    fi
+    exit $example_result
+fi
+
 if [[ "$ENABLE_TEST" == "TRUE" ]]; then
     set_compute_unit_option
     build_ut ${BUILD}
@@ -1524,17 +1556,6 @@ else
     elif [ "${BUILD}" == "package" ];then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         build_package
-    elif [[ "$ENABLE_RUN_EXAMPLE" == "TRUE" ]];then
-        build_example || example_result=$?
-        if [ $example_result -eq 2 ]; then
-            echo "Error: ${EXAMPLE_NAME} do not have ${EXAMPLE_MODE} example"
-            exit $example_result
-        elif [ $example_result -ne 0 ]; then
-            echo "Example failed with exit code: $example_result"
-            exit $example_result
-        else
-            echo "Example completed successfully"
-        fi
     elif [ -n "${BUILD}" ];then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         cmake_config

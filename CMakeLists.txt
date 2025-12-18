@@ -513,8 +513,9 @@ if (BUILD_OPS_RTY_KERNEL)
 
     add_dependencies(generate_transformer_adapt_py opbuild_gen_default opbuild_gen_inner opbuild_gen_exc)
 
+    file(GLOB dynamic_impl ${ASCEND_IMPL_OUT_DIR}/dynamic/*.py)
     foreach (_op_name ${OP_LIST})
-        install(FILES ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}.py
+        install(FILES ${dynamic_impl}
                 DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
                 OPTIONAL
         )

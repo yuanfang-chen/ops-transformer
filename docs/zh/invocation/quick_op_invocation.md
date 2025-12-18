@@ -164,14 +164,14 @@
 
     - 完成ops-transformer包安装后，执行命令如下：
         ```bash
-        bash build.sh --run_example ${op} ${mode}
+        bash build.sh --run_example ${op} ${mode} [--soc=${soc_version}]
         # 以FlashAttentionScore算子example执行为例
         # bash build.sh --run_example flash_attention_score eager
         ```
         
         - \$\{op\}：表示待执行算子，算子名小写下划线形式，如flash_attention_score。       
         - \$\{mode\}：表示算子执行模式，目前支持eager（aclnn调用）、graph（图模式调用）。
-
+        - \$\{soc\_version\}（可选）：表示NPU型号。当设置为"ascend910_95"时额外运行"arch35"目录下的示例文件。
 
         执行算子样例后会打印结果，以FlashAttentionScore算子执行为例：
     
