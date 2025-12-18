@@ -527,8 +527,12 @@ install_package() {
   if [ "${architecture}" != "${ARCH_INFO}" ] ; then
     logandprint "[INFO]: the architecture of the run package is inconsistent with that of the current environment. "
     # 异构安装场景，拷贝so到指定目录
-    chmod u+w ${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux
-    chmod u+w ${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux
+    if [ -d "${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux" ] ; then
+      chmod u+w ${TARGET_VERSION_DIR}/opp/built-in/op_graph/lib/linux
+    fi
+    if [ -d "${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux" ] ; then
+      chmod u+w ${TARGET_VERSION_DIR}/opp/built-in/op_impl/ai_core/tbe/op_host/lib/linux
+    fi
     mkdir -p ${graph_so_dir_path}
     mkdir -p ${host_so_dir_path}
     cp ${GRAPH_SO_PATH} ${graph_so_dir_path}
