@@ -33,6 +33,7 @@ constexpr int32_t BMM3 = 7;
 constexpr int32_t BMM3SPLIT = 8;
 constexpr uint32_t OFFSET_WORKSPACE_NO_QUANT = 3;  // the offset of workspace is 3
 
+constexpr float SCALE_FACTOR_NO_QUANT = 1536.0f;
 
 template <typename QkDtype, typename CosDtype, typename QOutDtype, int8_t CacheMode> class RopeBf16_no_quant {
 public:
@@ -65,7 +66,6 @@ public:
         lastCoreLoopTime = ropeConcatParams.lastCoreLoopTime;
         lastCoreLoopNLast = ropeConcatParams.lastCoreLoopNLast;
         concatSize = ropeConcatParams.concatSize;
-        blockIdx_ = (blockIdx_ / 2) * 2 + static_cast<uint64_t>(GetSubBlockidx()); // 2的倍数
         loopTime = (blockIdx_ == realCore - 1) ? lastCoreLoopTime : preCoreLoopTime;
         lastLoopN = (blockIdx_ == realCore - 1) ? lastCoreLoopNLast : preCoreLoopNLast;
         this->repeatSize_ = 64; // 64 = 256B / sizeof(fp32)
@@ -321,8 +321,7 @@ public:
         num_col_ = num_col;
         avg_factor_ = avg_factor;
         epsilon_ = 1e-6;
-        const int32_t MIN_VALUE = -128;
-        quantMin_ = MIN_VALUE;
+        quantMin_ = INT8_MIN;
         uint32_t num_row = mlaParams_.n;
         this->row_work = row_work;
         this->row_work_ = row_work_;
@@ -2008,15 +2007,14 @@ public:
         }
         this->splitN = mlaParams.perTaskNum;
 
-        const float FACTOR = 0.000651041666;
         if (q_down_out_flag) {
             rmsNormQuant2.Init(gamma2GmTensor, beta2GmTensor, quantScale2GmTensor, quantOffset2GmTensor, s3GmTensor,
-                           qDownGmTensor, SPLIT_SIZE_ONE, num_col_2, FACTOR,
+                           qDownGmTensor, SPLIT_SIZE_ONE, num_col_2, 1 / SCALE_FACTOR_NO_QUANT,
                            vectorBlockIdx * static_cast<uint64_t>(row_work) * num_col_2,
                            vectorBlockIdx * static_cast<uint64_t>(row_work) * SPLIT_SIZE_TWO, row_work_, mlaParams);
         } else {
             rmsNormQuant2.Init(gamma2GmTensor, beta2GmTensor, quantScale2GmTensor, quantOffset2GmTensor, s3GmTensor,
-                           s1GmTensor, SPLIT_SIZE_ONE, num_col_2, FACTOR,
+                           s1GmTensor, SPLIT_SIZE_ONE, num_col_2, 1 / SCALE_FACTOR_NO_QUANT,
                            vectorBlockIdx * static_cast<uint64_t>(row_work) * num_col_2,
                            vectorBlockIdx * static_cast<uint64_t>(row_work) * SPLIT_SIZE_TWO, row_work_, mlaParams);
         }
@@ -2105,7 +2103,7 @@ private:
                 AscendC::PipeBarrier<PIPE_V>();
                 CastFrom32To16(tmpfp16, rmsNormTensor, SPLIT_RMSNRORM_SIZE_ONE);
                 AscendC::PipeBarrier<PIPE_V>();
-                CastFromF16ToI8(int8OutTensor, tmpfp16, -128, SPLIT_RMSNRORM_SIZE_ONE);
+                CastFromF16ToI8(int8OutTensor, tmpfp16, INT8_MIN, SPLIT_RMSNRORM_SIZE_ONE);
                 AscendC::PipeBarrier<PIPE_V>();
             } else {
                 AscendC::PipeBarrier<PIPE_V>();
