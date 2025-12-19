@@ -825,9 +825,9 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
     OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "tensorlist is not supported in per-block quant scenario!"),
         return false);
-    OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN),
+    OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN) && (contextKeyParams.inputDataType != ge::DT_HIFLOAT8),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "inputType must be FLOAT8_E4M3FN in per-block quant scenario, now is %s.", 
+            "inputType must be FLOAT8_E4M3FN or HIFLOAT8 in per-block quant scenario, now is %s.", 
             GetPfaDataTypeStr(inputType).c_str()),
         return false);
     OP_CHECK_IF((dequantScaleQueryType != ge::DT_FLOAT) || (KeyAntiquantScaleType != ge::DT_FLOAT) || (valueAntiquantScaleType != ge::DT_FLOAT),
