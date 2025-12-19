@@ -35,8 +35,6 @@
 |[aclnnDequantRopeQuantKvcache](../../posembedding/dequant_rope_quant_kvcache/docs/aclnnDequantRopeQuantKvcache.md)|对输入张量进行dequant后，对尾轴进行切分，划分为q、k、vOut，对q、k进行旋转位置编码，并进行量化。|默认确定性实现||
 |[aclnnDistributeBarrier](../../mc2/distribute_barrier/docs/aclnnDistributeBarrier.md)|完成通信域内的全卡同步，xRef仅用于构建Tensor依赖，接口内不对xRef做任何操作。|默认确定性实现||
 |[aclnnDistributeBarrierV2](../../mc2/distribute_barrier/docs/aclnnDistributeBarrierV2.md)|完成通信域内的全卡同步，xRef仅用于构建Tensor依赖，接口内不对xRef做任何操作。|默认确定性实现||
-|[aclnnElasticReceivableInfoCollect](../../mc2/elastic_receivable_info_collect/docs/aclnnElasticReceivableInfoCollect.md)|在快恢检测流程中，收集并整理检测通信域内Test结果发送的状态位，并将结果输出，供下一步检测流程判断全局联通情况。|默认确定性实现||
-|[aclnnElasticReceivableTest](../../mc2/elastic_receivable_test/docs/aclnnElasticReceivableTest.md)|对一个通信域内的所有卡发送数据并写状态位，以检测通信链路是否正常。|默认确定性实现||
 |[aclnnFFN](../../ffn/ffn/docs/aclnnFFN.md)|该FFN算子提供MoeFFN和FFN的计算功能。|默认非确定性实现，支持配置开启||
 |[aclnnFFNV2](../../ffn/ffn/docs/aclnnFFNV2.md)|该FFN算子提供MoeFFN和FFN的计算功能。|默认非确定性实现，支持配置开启||
 |[aclnnFFNV3](../../ffn/ffn/docs/aclnnFFNV3.md)|该FFN算子提供MoeFFN和FFN的计算功能。|默认非确定性实现，支持配置开启||
@@ -102,7 +100,6 @@
 |[aclnnMlaPrologV2WeightNz](../../attention/mla_prolog_v2/docs/aclnnMlaPrologV2WeightNz.md)|Multi-Head Latent Attention前处理的计算 。|默认确定性实现||
 |[aclnnMlaPrologV3WeightNz](../../attention/mla_prolog_v3/docs/aclnnMlaPrologV3WeightNz.md)|Multi-Head Latent Attention前处理的计算 。|默认非确定性实现，支持配置开启||
 |[aclnnMoeComputeExpertTokens](../../moe/moe_compute_expert_tokens/docs/aclnnMoeComputeExpertTokens.md)|MoE计算中，通过二分查找的方式查找每个专家处理的最后一行的位置。|默认确定性实现||
-|[aclnnMoeDistributeBufferReset](../../mc2/moe_distribute_buffer_reset/docs/aclnnMoeDistributeBufferReset.md)|故障检测流程中，对EP通信域做数据区与状态区的清理。|默认确定性实现||
 |[aclnnMoeDistributeCombine](../../mc2/moe_distribute_combine/docs/aclnnMoeDistributeCombine.md)|当存在TP域通信时，先进行ReduceScatterV通信，再进行AlltoAllV通信，最后将接收的数据整合；当不存在TP域通信时，进行AlltoAllV通信，最后将接收的数据整合。|默认确定性实现||
 |[aclnnMoeDistributeCombineV2](../../mc2/moe_distribute_combine_v2/docs/aclnnMoeDistributeCombineV2.md)|当存在TP域通信时，先进行ReduceScatterV通信，再进行AllToAllV通信，最后将接收的数据整合；当不存在TP域通信时，进行AllToAllV通信，最后将接收的数据整合。|默认确定性实现||
 |[aclnnMoeDistributeCombineV3](../../mc2/moe_distribute_combine_v2/docs/aclnnMoeDistributeCombineV3.md)|当存在TP域通信时，先进行ReduceScatterV通信，再进行AlltoAllV通信，最后将接收的数据整合；当不存在TP域通信时，进行AlltoAllV通信，最后将接收的数据整合。|默认确定性实现||
