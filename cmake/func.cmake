@@ -43,8 +43,6 @@ set(A5_OPS_BLACK_LIST
     "moe_init_routing_quant_v2;"
     "moe_init_routing_v2;"
     "moe_init_routing_v2_grad;"
-    "moe_init_routing_v3;"
-    "moe_re_routing;"
     "moe_token_permute_with_routing_map;"
 ) # A5算子黑名单
 
