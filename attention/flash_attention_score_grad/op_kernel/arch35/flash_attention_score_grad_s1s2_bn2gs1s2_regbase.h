@@ -75,7 +75,6 @@ public:
                                 TSCM<QuePosition::VECIN, 1, GROUP_TSCM_MASK> &pScmIn);
     __aicore__ inline void SetConstInfo();
     __aicore__ inline void SetRunInfo(FagRunInfo &runInfo, int64_t taskId, int64_t index);
-    __aicore__ inline void SetRunInfoDeterForTND(FagRunInfo &runInfo, int64_t taskId, int64_t index, CoordinateInfo &coordinateInfo);
     __aicore__ inline void GetIsNeedDeter(int64_t computeLoopIdx);
     __aicore__ inline void SetOptionalInfo();
     __aicore__ inline void InitUbBuffer();
@@ -84,14 +83,7 @@ public:
     __aicore__ inline void Process();
     __aicore__ inline void ProcessNormal();
     __aicore__ inline void ProcessDeter();
-    __aicore__ inline void ProcessDeterV2();
-    __aicore__ inline int64_t CalDeterMaxLoopNum();
-    __aicore__ inline void CalDeterIndex(uint32_t roundId, uint32_t maxLoopNum, int64_t &nextValidRoundId, int64_t &nextValidIndex, CoordinateInfo &coordinateInfo, FagRunInfo &runInfo);
-    __aicore__ inline int64_t CalDenseDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo);
-    __aicore__ inline int64_t CalCausalDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo);
-    __aicore__ inline int64_t CalBandDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo);
     __aicore__ inline bool IsValid(FagRunInfo &runInfo, int64_t index);
-    __aicore__ inline bool IsValidDeterForTnd(FagRunInfo &runInfo, int64_t index, CoordinateInfo &coordinateInfo);
     __aicore__ inline void UpdateToken(FagRunInfo &runInfo, int64_t bIdx);
     __aicore__ inline bool CheckIsValidBlock(FagRunInfo &runInfo, int64_t baseIdx, int64_t s1oDimIdx,
                                              int64_t s2oDimIdx);
@@ -835,80 +827,6 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
 }
 
 FAG_FUNCTION_TEMPLATE
-__aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::SetRunInfoDeterForTND(
-    FagRunInfo &runInfo, int64_t taskId, int64_t index, CoordinateInfo &coordinateInfo)
-{
-    runInfo.s2CvBegin = s2CvBegin;
-    runInfo.s2CvEnd = s2CvEnd;
-    if constexpr (IS_TSCM_PRELOAD) {
-        runInfo.qDxPingPongIdx = taskId % 3;
-    } else {
-        runInfo.qDxPingPongIdx = taskId & 1;
-    }
-
-    int64_t bIdx = coordinateInfo.batchId;
-    int64_t actualS1Len = coordinateInfo.actualS1Len;
-    int64_t actualS2Len = coordinateInfo.actualS2Len;
-    int64_t s1OuterTmp = coordinateInfo.s1Outer;
-    int64_t s1CvTailTmp = actualS1Len - (s1OuterTmp - 1) * CUBE_BASEM;
-    runInfo.commonRunInfo.boIdx = bIdx;
-
-    if (runInfo.lastBatchIdx != bIdx) {
-        // deter场景不使用
-        int64_t seqQLenPrefix = bIdx == 0 ? 0 : ((__gm__ int64_t *)actualSeqQlenAddr)[bIdx - 1];
-        int64_t seqKvLenPrefix = bIdx == 0 ? 0 : ((__gm__ int64_t *)actualSeqKvlenAddr)[bIdx - 1];
-        runInfo.lastBatchTotalS1BOffset = seqQLenPrefix * constInfo.commonConstInfo.n2GD;
-        runInfo.lastBatchTotalS2BOffset = seqKvLenPrefix * constInfo.commonConstInfo.n2D;
-        runInfo.lastBatchTotalS1BOffsetForDv = seqQLenPrefix * constInfo.commonConstInfo.n2GDv;
-        runInfo.lastBatchTotalS2BOffsetForDv = seqKvLenPrefix * constInfo.commonConstInfo.n2Dv;
-        runInfo.lastBatchTotalS1S2SizeAlign =
-            GetPrefixByBidx<true>(actualSeqQlenAddr, actualSeqKvlenAddr, tilingData->deterParam.deterPrefixAlign, bIdx,
-                                  tilingData->deterParam.deterPrefixStep);
-        runInfo.lastBatchTotalS1S2Size =
-            GetPrefixByBidx<false>(actualSeqQlenAddr, actualSeqKvlenAddr, tilingData->deterParam.deterPrefix, bIdx,
-                                   tilingData->deterParam.deterPrefixStep);
-        runInfo.lastBatchTotalS2Size = seqKvLenPrefix;
-    }
-    
-    runInfo.lastBatchIdx = bIdx;
-    runInfo.commonRunInfo.n2oIdx = coordinateInfo.n1Idx / constInfo.commonConstInfo.gSize;
-    runInfo.commonRunInfo.goIdx = coordinateInfo.n1Idx % constInfo.commonConstInfo.gSize;
-    runInfo.s2oIdx = coordinateInfo.s2Idx;
-    runInfo.commonRunInfo.s1oIdx = coordinateInfo.s1Idx;
-    runInfo.commonRunInfo.s1RealSize =
-        (runInfo.commonRunInfo.s1oIdx == s1OuterTmp - 1) ? s1CvTailTmp : CUBE_BASEM;
-    runInfo.commonRunInfo.taskId = taskId;
-    runInfo.commonRunInfo.taskIdMod2 = taskId & 1;
-    runInfo.commonRunInfo.s2RealSize = runInfo.s2CvEnd - runInfo.s2CvBegin; // 真实s2基本块大小
-    runInfo.halfS2RealSize = (runInfo.commonRunInfo.s2RealSize + 1) >> 1;
-    runInfo.firstHalfS2RealSize = runInfo.halfS2RealSize;
-    runInfo.commonRunInfo.halfS1RealSize = (runInfo.commonRunInfo.s1RealSize + 1) >> 1;
-    runInfo.commonRunInfo.firstHalfS1RealSize = runInfo.commonRunInfo.halfS1RealSize;
-    if (vSubBlockIdx == 1) {
-        runInfo.commonRunInfo.halfS1RealSize =
-            runInfo.commonRunInfo.s1RealSize - runInfo.commonRunInfo.halfS1RealSize;
-            runInfo.halfS2RealSize = runInfo.commonRunInfo.s2RealSize - runInfo.halfS2RealSize;
-    }
-
-    runInfo.commonRunInfo.actualS1Size = actualS1Len;
-    runInfo.commonRunInfo.actualS2Size = actualS2Len;
-    runInfo.commonRunInfo.s2SizeAcc = runInfo.lastBatchTotalS2Size;
-    runInfo.commonRunInfo.b1SSOffsetAlign = runInfo.lastBatchTotalS1S2SizeAlign;
-    runInfo.commonRunInfo.b1SSOffset = runInfo.lastBatchTotalS1S2Size;
-    runInfo.commonRunInfo.s2StartIdx = runInfo.s2CvBegin;
-    runInfo.commonRunInfo.vecCoreOffset = vSubBlockIdx * runInfo.commonRunInfo.firstHalfS1RealSize;
-    runInfo.commonRunInfo.s2AlignedSize = AlignTo16(runInfo.commonRunInfo.s2RealSize);
-    
-    runInfo.isS2IdxNoChange = (lastS2oCvDimIdx == runInfo.s2oIdx && lastBdimIdx == runInfo.commonRunInfo.boIdx &&
-                               lastN2dimIdx == runInfo.commonRunInfo.n2oIdx);
-    if (!runInfo.isS2IdxNoChange) {
-        lastS2oCvDimIdx = runInfo.s2oIdx;
-        lastBdimIdx = runInfo.commonRunInfo.boIdx;
-        lastN2dimIdx = runInfo.commonRunInfo.n2oIdx;
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
 __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::GetIsNeedDeter(int64_t computeLoopIdx)
 {
     if (constInfo.deterConstInfo.noNeedDeter) {
@@ -927,315 +845,6 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
     }
 }
 
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline int64_t
-FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::CalCausalDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo)
-{
-    int64_t j = cBlockIdx + 1;
-    int64_t r = roundId + 1;
-    int64_t k = static_cast<int64_t>(tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
-    int64_t mGap = 0;
-
-    if constexpr (!IS_TND) {
-        int64_t b = constInfo.bSize * constInfo.n2Size;
-        int64_t m = constInfo.s1Outer;
-        int64_t n = constInfo.s2Outer;
-
-        if (constInfo.sparseMode == RIGHT_DOWN_CAUSAL && m < n) {
-            return -1;
-        }
-
-        if (constInfo.sparseMode == RIGHT_DOWN_CAUSAL && m > n) {
-            mGap = m - n;
-            m = n;
-        } else if ((constInfo.sparseMode == NO_MASK || constInfo.sparseMode == LEFT_UP_CAUSAL) && n > m) {
-            n = m;
-        }
-        if constexpr(IS_N_EQUAL) {
-            CalCausalIndex(k, m, n, b, j, r, coordinateInfo);
-        } else {
-            CalGQACausalIndex(k, m, n, b, j, r, constInfo.commonConstInfo.gSize, coordinateInfo);
-        }
-    } else {
-        CalTNDCausalIndex<CUBE_BASEM, CUBE_BASEN>(actualSeqQlenAddr, actualSeqKvlenAddr, tilingData->deterParam.deterPrefix0, tilingData->deterParam.deterPrefix1, tilingData->deterParam.deterPrefix2, constInfo.bSize, constInfo.n2Size, k, j, r, tilingData->deterParam.deterPrefixStep, coordinateInfo);
-    }
-
-    int64_t w = coordinateInfo.batchId;
-    int64_t n1 = constInfo.commonConstInfo.gSize * constInfo.n2Size;
-    coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
-    coordinateInfo.n1Idx = w - coordinateInfo.batchId * n1 - 1;
-    coordinateInfo.s1Idx = coordinateInfo.s1Idx + mGap - 1;
-    coordinateInfo.s2Idx = coordinateInfo.s2Idx - 1;
-    if (!(w > 0 && w <= constInfo.bSize * n1 &&
-          coordinateInfo.s1Idx >= 0 && coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
-          coordinateInfo.s2Idx < coordinateInfo.s2Outer)) {
-        return -1;
-    }
-
-    if constexpr (!IS_TND) {
-        return (w - 1) * constInfo.s1Outer * constInfo.s2Outer + coordinateInfo.s2Idx * constInfo.s1Outer + coordinateInfo.s1Idx;
-    } else {
-        return coordinateInfo.batchId;
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline int64_t
-FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::CalDenseDeterIndex(
-    uint32_t roundId, CoordinateInfo &coordinateInfo)
-{
-    int64_t j = cBlockIdx + 1;
-    int64_t r = roundId + 1;
-
-    if constexpr (IS_TND) {
-        int64_t b = constInfo.bSize;
-        CalTNDDenseIndex<CUBE_BASEM, CUBE_BASEN, DETER_SPARSE_TYPE, IS_N_EQUAL>(
-                actualSeqQlenAddr, actualSeqKvlenAddr, tilingData->deterParam.deterPrefix0,
-                tilingData->s1s2BNGS1S2SplitCoreParams.deterMaxRound, constInfo.bSize, constInfo.n2Size, constInfo.commonConstInfo.gSize, j, r, 0, tilingData->deterParam.deterPrefixStep, coordinateInfo);
-    } else {
-        int64_t k = static_cast<int64_t>(tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
-        int64_t b = constInfo.bSize * constInfo.n2Size;
-        if constexpr(IS_N_EQUAL) {
-            CalDenseIndex(k, constInfo.s1Outer, constInfo.s2Outer, b, j, r, coordinateInfo);
-        } else {
-            CalGQADenseIndex(k, constInfo.s1Outer, constInfo.s2Outer, b, j, r, constInfo.commonConstInfo.gSize, coordinateInfo);
-        }
-    }
- 
-    int64_t w = coordinateInfo.batchId;
-    int64_t n1 = constInfo.commonConstInfo.gSize * constInfo.n2Size;
-    coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
-    coordinateInfo.n1Idx = w - coordinateInfo.batchId * n1 - 1;
-    coordinateInfo.s1Idx -= 1;
-    coordinateInfo.s2Idx -= 1;
-    if (!(w > 0 && w <= constInfo.bSize * n1 &&
-          coordinateInfo.s1Idx >= 0 && coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
-          coordinateInfo.s2Idx < coordinateInfo.s2Outer)) {
-        return -1;
-    }
- 
-    if constexpr (IS_TND) {
-        return coordinateInfo.batchId;
-    } else {
-        return (w - 1) * constInfo.s1Outer * constInfo.s2Outer + coordinateInfo.s2Idx * constInfo.s1Outer + coordinateInfo.s1Idx;
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline int64_t
-FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::CalBandDeterIndex(
-    uint32_t roundId, CoordinateInfo &coordinateInfo)
-{
-    int64_t j = cBlockIdx + 1;
-    int64_t r = roundId + 1;
-
-    if constexpr (!IS_TND) {
-        if constexpr(IS_N_EQUAL) {
-            CalBandIndex(bandInfo, j, r, coordinateInfo);
-        } else {
-            CalGQABandIndex(bandInfo, j, r, constInfo.commonConstInfo.gSize, coordinateInfo);
-        }
-    } else {
-        int64_t k = static_cast<int64_t>(tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
-        coordinateInfo.p = constInfo.s1Token;
-        coordinateInfo.q = constInfo.s2Token;
-        CalTNDBandIndex<CUBE_BASEM, CUBE_BASEN>(actualSeqQlenAddr, actualSeqKvlenAddr,
-                                                tilingData->deterParam.deterPrefix0,
-                                                tilingData->deterParam.deterPrefix1, constInfo.bSize, constInfo.n2Size,
-                                                k, j, r, tilingData->deterParam.deterPrefixStep, coordinateInfo);
-    }
- 
-    int64_t w = coordinateInfo.batchId;
-    int64_t n1 = constInfo.commonConstInfo.gSize * constInfo.n2Size;
-    coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
-    coordinateInfo.n1Idx = w - coordinateInfo.batchId * n1 - 1;
-    coordinateInfo.s1Idx = coordinateInfo.s1Idx - 1 + coordinateInfo.mOffset;
-    coordinateInfo.s2Idx = coordinateInfo.s2Idx - 1 + coordinateInfo.nOffset;
-    if (!(w > 0 && w <= constInfo.bSize * n1 && coordinateInfo.s1Idx >= 0 &&
-          coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
-          coordinateInfo.s2Idx < coordinateInfo.s2Outer)) {
-        return -1;
-    }
-
-    if constexpr (!IS_TND) {
-        return (w - 1) * constInfo.s1Outer * constInfo.s2Outer + coordinateInfo.s2Idx * constInfo.s1Outer +
-               coordinateInfo.s1Idx;
-    } else {
-        // TND不需要blockIdx，有效block大于0即可
-        return coordinateInfo.batchId;
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline int64_t
-FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::CalDeterMaxLoopNum()
-{
-    int64_t b = constInfo.bSize * constInfo.n2Size;
-    int64_t m = constInfo.s1Outer;
-    int64_t n = constInfo.s2Outer;
-    int64_t k = static_cast<int64_t>(tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
-    int64_t loopMax = 0;
-    if constexpr (IS_TND) {
-        return tilingData->s1s2BNGS1S2SplitCoreParams.deterMaxRound;
-    }
-
-    InitCoordinateInfo(constInfo.s1Outer, constInfo.s2Outer, 0, 0, coordinateInfos[0]);
-    InitCoordinateInfo(constInfo.s1Outer, constInfo.s2Outer, 0, 0, coordinateInfos[1]);
-    if constexpr (DETER_SPARSE_TYPE == DETER_CAUSAL) {
-        return tilingData->s1s2BNGS1S2SplitCoreParams.deterMaxRound;
-    }
-
-    if constexpr (DETER_SPARSE_TYPE == DETER_DENSE) {
-        if constexpr(IS_N_EQUAL) {
-            return Ceil<int64_t>(n * b, Min(k, m * b)) * m;
-        } else {
-            return Max(Max(Ceil<int64_t>(b * n * constInfo.commonConstInfo.gSize,
-                                         (Min(Min(k, b * constInfo.commonConstInfo.gSize * m), b * n))),
-                           Ceil<int64_t>(n, m)),
-                       constInfo.commonConstInfo.gSize) *
-                   m;
-        }
-    }
-
-    if constexpr (DETER_SPARSE_TYPE == DETER_BAND) {
-        int64_t p = Ceil<int64_t>(constInfo.s1Token, CUBE_BASEM) + 1;
-        int64_t q = Ceil<int64_t>(constInfo.s2Token, CUBE_BASEN) + 1;
-        p = p > constInfo.s1Outer ? constInfo.s1Outer : p;
-        q = q > constInfo.s2Outer ? constInfo.s2Outer : q;
-
-        int64_t actualM, actualN, actualP, actualQ;
-        int64_t mOffset, nOffset;
-        if (p < 0) {
-                actualM = m;
-                actualN = n + p;
-                actualP = 1;
-                actualQ = p + q;
-                mOffset = 0;
-                nOffset = -p;
-        } else if (q < 0) {
-                actualM = m + q;
-                actualN = n;
-                actualP = p + q;
-                actualQ = 1;
-                mOffset = -q;
-                nOffset = 0;
-        } else {
-                actualM = m;
-                actualN = n;
-                actualP = p;
-                actualQ = q;
-                mOffset = 0;
-                nOffset = 0;
-        }
-
-        if constexpr(IS_N_EQUAL) {
-            GenBandInfo(k, actualM, actualN, actualP, actualQ, b, bandInfo);
-            loopMax = bandInfo.rm2;
-        } else {
-            k = Min(Min(k, b * constInfo.commonConstInfo.gSize * m), b * n);
-            int64_t b2 = b % k;
-            GenGQABandInfo(k, actualM, actualN, actualP, actualQ, b, constInfo.commonConstInfo.gSize, bandInfo);
-            loopMax = bandInfo.rm + bandInfo.rm2;
-        }
-        InitCoordinateInfo(constInfo.s1Outer, constInfo.s2Outer, mOffset, nOffset, coordinateInfos[0]);
-        InitCoordinateInfo(constInfo.s1Outer, constInfo.s2Outer, mOffset, nOffset, coordinateInfos[1]);
-        return loopMax;
-    }
-    return loopMax;
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline void
-    FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::CalDeterIndex(
-        uint32_t roundId, uint32_t maxLoopNum, int64_t &nextValidRoundId, int64_t &nextValidIndex, CoordinateInfo &coordinateInfo, FagRunInfo &runInfo)
-{
-    coordinateInfo.sparseMode = constInfo.sparseMode;
-    for (uint32_t currentRoundId = roundId; currentRoundId < maxLoopNum; currentRoundId++) {
-        if constexpr (DETER_SPARSE_TYPE == DETER_BAND) {
-            nextValidIndex = CalBandDeterIndex(currentRoundId, coordinateInfo);
-        } else if constexpr (DETER_SPARSE_TYPE == DETER_CAUSAL) {
-            nextValidIndex = CalCausalDeterIndex(currentRoundId, coordinateInfo);
-        } else {
-            nextValidIndex = CalDenseDeterIndex(currentRoundId, coordinateInfo);
-        }
-
-        bool isValidBlock = (nextValidIndex >= 0);
-        if constexpr (IS_TND) {
-            isValidBlock = isValidBlock && IsValidDeterForTnd(runInfo, nextValidIndex, coordinateInfo);
-        } else {
-            isValidBlock = isValidBlock && IsValid(runInfo, nextValidIndex);
-        }
-        if (isValidBlock) { 
-            nextValidRoundId = currentRoundId;
-            return;
-        }
-    }
-    nextValidIndex = -1;
-    nextValidRoundId = maxLoopNum;
-}
- 
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline void
-    FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::ProcessDeterV2()
-{
-    int64_t loopMax = CalDeterMaxLoopNum();
-    int64_t blockIdx = 0;
-    int64_t taskId = 0;
-    int64_t nextValidLoopIdx;
-    int64_t nextblockIdx;
-
-    FagRunInfo runInfos[2];  // for ping pongs
-    CalDeterIndex(0, loopMax, nextValidLoopIdx, nextblockIdx, coordinateInfos[taskId & 1], runInfos[taskId & 1]);
- 
-    for (int64_t loopIdx = 0; loopIdx < loopMax + 1; loopIdx++) {
-        if (loopIdx >= nextValidLoopIdx) {
-            blockIdx = nextblockIdx;
-            CalDeterIndex(loopIdx + 1, loopMax, nextValidLoopIdx, nextblockIdx, coordinateInfos[(taskId + 1) & 1], runInfos[(taskId + 1) & 1]);
-        } else {
-            blockIdx = -1;
-        }
- 
-        bool isValidBlock = (blockIdx >= 0);
-        if constexpr (IS_TND) {
-            isValidBlock = isValidBlock && IsValidDeterForTnd(runInfos[taskId & 1], blockIdx, coordinateInfos[taskId & 1]);
-            nextblockIdx = nextblockIdx < 0 ? nextblockIdx : ((taskId + 1) & 1);
-        } else {
-            isValidBlock = isValidBlock && IsValid(runInfos[taskId & 1], blockIdx);
-        }
-        
-        if (!(runInfos[(taskId + 1) & 1].completed)) {
-            ProcessSoftmaxGrad(runInfos[(taskId + 1) & 1]);  // softmaxGrad
-            WaitMm1Mm2Result();
-        }
-        if (isValidBlock) {
-            if constexpr (IS_TND) {
-                SetRunInfoDeterForTND(runInfos[taskId & 1], taskId, blockIdx, coordinateInfos[taskId & 1]);
-            } else {
-                SetRunInfo(runInfos[taskId & 1], taskId, blockIdx);
-            }
-            
-            IterateMm1Mm2(runInfos[taskId & 1], nextblockIdx);
-            CopyInMaxSum<T2, VECTOR_BASEM>(
-                constInfo, runInfos[taskId & 1], maxSumQue[taskId & 1], softmaxMaxGm, softmaxSumGm);
-            runInfos[taskId & 1].completed = false;
-        }
- 
-        if (!(runInfos[(taskId + 1) & 1].completed)) {
-            isLastLoop = blockIdx < 0 && nextblockIdx < 0;
-            ProcessReCompute(runInfos[(taskId + 1) & 1]);
-            IterateMm3Mm4Mm5(runInfos[(taskId + 1) & 1], blockIdx < 0 ? nextblockIdx : blockIdx);
-            runInfos[(taskId + 1) & 1].completed = true;
-        } else {
-            if (loopIdx > 0) {
-                SyncAll<true, syncAllConfigMte2ToMte3>();
-            }
-        }
- 
-        if (isValidBlock) {
-            taskId++;
-        }
-    }
-}
 
 FAG_FUNCTION_TEMPLATE
 __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::ProcessDeter()
@@ -1360,8 +969,6 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
 {
     if constexpr (IS_DETER_OLD(DETER_SPARSE_TYPE)) {
         ProcessDeter();
-    } else if constexpr (IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        ProcessDeterV2();
     } else {
         ProcessNormal();
     }
@@ -1822,8 +1429,8 @@ FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>
             int64_t s1CvTail = actualS1Len - (s1OuterTmp - 1) * CUBE_BASEM;
 
             nextS1oIdx = coordinateInfos[nextIndex].s1Idx;
-            nextN2oIdx = coordinateInfos[nextIndex].n1Idx / constInfo.commonConstInfo.gSize;
-            nextGoIdx = coordinateInfos[nextIndex].n1Idx % constInfo.commonConstInfo.gSize;
+            nextN2oIdx = coordinateInfos[nextIndex].n2Idx;
+            nextGoIdx = coordinateInfos[nextIndex].gIdx;
             bOffset = lastBatchTotalS1BOffset;
             s1Offset = nextS1oIdx * CUBE_BASEM * constInfo.commonConstInfo.n2GD;
             n2Offset = nextN2oIdx * constInfo.commonConstInfo.gD;
@@ -2209,14 +1816,6 @@ FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>
     int64_t nextBoIdx = nextIndex / constInfo.n2GS1oS2o;
     bool isNextS2IdxNoChange = (nextS2oIdx == runInfo.s2oIdx && nextN2oIdx == runInfo.commonRunInfo.n2oIdx &&
                                 nextBoIdx == runInfo.commonRunInfo.boIdx);
-
-    if constexpr (IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        if (isMm3NeedWait) {
-            mm2.WaitIterateAll();
-        }
-        isMm3NeedWait = true;
-        SyncAll<true, syncAllConfigMte2ToMte3>();
-    }
 
     ///////////////////////////////////////////////////////////////
     // Matmal3 dq
@@ -2847,64 +2446,6 @@ FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>
             s2CvEnd = s2IdxRight;
             return true;
         }
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline bool
-FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::IsValidDeterForTnd(FagRunInfo &runInfo,
-                                                                                        int64_t index, CoordinateInfo &coordinateInfo)
-{
-    if (coordinateInfo.batchId < 0 || index < 0) {
-        return false;
-    }
-    int64_t bIdx = coordinateInfo.batchId; // 0
-    int64_t actualS1Len = coordinateInfo.actualS1Len; // 512
-    int64_t actualS2Len = coordinateInfo.actualS2Len; // 257
-    int64_t s1oDimIdx = coordinateInfo.s1Idx; // 3
-    int64_t s2oDimIdx = coordinateInfo.s2Idx; // 2
-    int64_t s2IdxLeft = s2oDimIdx * CUBE_BASEN;
-    int64_t s2IdxRight = Min((s2oDimIdx + 1) * CUBE_BASEN, actualS2Len);
-    if constexpr (IS_ATTEN_MASK) {
-        if (constInfo.sparseMode == PREFIX_COMPRESS) {
-            int64_t s2IdxLeft = s2oDimIdx * CUBE_BASEN;
-            int64_t s2IdxRight = (s2oDimIdx + 1) * CUBE_BASEN;
-            int64_t s2IgnoredEndLen = actualS1Len - static_cast<int64_t>(CUBE_BASEM * (s1oDimIdx + 1));
-            int64_t s2EndLen = 0;
-            if (actualS2Len > s2IgnoredEndLen) {
-                s2EndLen = actualS2Len - s2IgnoredEndLen;
-            }
-            if (constInfo.sparseMode == PREFIX || constInfo.sparseMode == PREFIX_COMPRESS) {
-                s2EndLen = Min(Max(s2EndLen, ((__gm__ int64_t *)prefixNAddr)[bIdx]), actualS2Len);
-            }
-            bool isValid = s2IdxLeft < s2EndLen;
-            if (isValid) {
-                s2CvBegin = s2IdxLeft;
-                s2CvEnd = s2CvBegin + CUBE_BASEN; // 非尾块s2按照+CUBE_BASEN处理
-                if (s2oDimIdx == coordinateInfo.s2Outer - 1) {
-                    s2CvEnd = s2CvBegin + actualS2Len - s2oDimIdx * CUBE_BASEN;
-                }
-            }
-            return isValid;
-        }
-
-        UpdateToken(runInfo, bIdx);
-        int64_t s2SparseLeft = Max(CUBE_BASEM * s1oDimIdx - actualCalcS1Token, 0);
-        s2SparseLeft = s2SparseLeft >> 6 << 6;
-        int64_t s2SparseRight = AlignTo64(
-            Min(CUBE_BASEM * (s1oDimIdx + 1), constInfo.commonConstInfo.s1Size) + actualCalcS2Token);
-        s2SparseRight = Min(s2SparseRight, actualS2Len);
-        bool isValid = s2IdxLeft < s2SparseRight && s2IdxRight > s2SparseLeft;
-        s2CvBegin = s2IdxLeft;
-        s2CvEnd = s2CvBegin + CUBE_BASEN;  // 非尾块s2按照+CUBE_BASEN处理
-        if (s2oDimIdx == coordinateInfo.s2Outer - 1) { // 默认s2 cv tail相等
-            s2CvEnd = s2CvBegin + actualS2Len - s2oDimIdx * CUBE_BASEN;
-        }
-        return isValid;
-    } else {
-        s2CvBegin = s2IdxLeft;
-        s2CvEnd = s2IdxRight;
-        return true;
     }
 }
 

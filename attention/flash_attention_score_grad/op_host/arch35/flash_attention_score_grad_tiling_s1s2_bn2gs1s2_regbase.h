@@ -216,6 +216,8 @@
      DtypeEnum inputDtype;
      bool isDeterministic = false;
      uint32_t deterSparseType;
+     bool isS1S2Same = true;
+     bool coreDivide = false;
      int64_t deterMaxRound = 0;
      // 每个 batch 的前缀面积总和 prefix, 小于128b传完整的前缀和，大于128b的，按步长传部分前缀和，在kernel内组装完整的前缀和
      int64_t deterPrefixThreshold = 128;
@@ -281,6 +283,7 @@
      uint32_t GetDeterSparseTilingKey();
      uint8_t GetSparseType();
      int64_t GetTotalPerBatchNum(uint8_t sparseType);
+     bool SupportTNDBns2(DeterPrefixData &deterPrefixData);
      void CalcleDeterParam();
      void CalcleCausalDeterParam();
      void CalcleTNDDeterParam();
@@ -288,6 +291,8 @@
      void CalcleTNDCausalDeterPrefix(DeterPrefixData &deterPrefixData,
                                      int64_t &m0Max, int64_t &m1Max, int64_t &m2Max);
      void CalcleTNDCausalDeterParam();
+     void CalcleTNDCausalDeterParamNormal(DeterPrefixData &deterPrefixData, const int64_t m0Max, const int64_t m1Max, const int64_t m2Max);
+     void CalcleTNDCausalDeterParamGQA(DeterPrefixData &deterPrefixData, const int64_t m0Max, const int64_t m1Max, const int64_t m2Max);
      void CalcleTNDDenseDeterParam();
      void CalcleTNDBandDeterSyncRounds(std::vector<std::pair<uint64_t, uint64_t>> &syncRounds,
                                        std::vector<std::pair<uint64_t, uint64_t>> &syncRoundRanges);

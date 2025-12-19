@@ -45,13 +45,6 @@ public:
                                 TSCM<QuePosition::VECIN, 1, GROUP_TSCM_MASK> &pScmIn);
     __aicore__ inline void Process();
     __aicore__ inline void ProcessNormal();
-    __aicore__ inline void ProcessDeterV2();
-    __aicore__ inline void DeterSync(int64_t loopIdx);
-    __aicore__ inline int64_t GetKeyOffsetDeter(int64_t nextIndex);
-    template <const bool IS_DK>
-    __aicore__ inline void ProcessPostDeter(GlobalTensor<float> dkvWorkSpaceTensor, TQue<QuePosition::VECIN, 1> &inQue,
-                                            GlobalTensor<T1> &dkvGmTensor, TQue<QuePosition::VECOUT, 1> &outQue);
-    __aicore__ inline int8_t SpecialS2Index(int64_t dkvGmOffset);
     __aicore__ inline void IterateMm3Mm4Mm5(FagRunInfo &runInfo, int64_t nextIndex = -1, int64_t nextS2CvBegin = 0); // dq dk dv
     __aicore__ inline void IterateMm4(FagRunInfo &runInfo, LocalTensor<T1> &vecOutBuffer, int64_t dxOrQueryGmOffset,
                                       int64_t keyOrValueGmOffset, int64_t nextIndex, bool isNextS2IdxNoChange);
@@ -112,130 +105,12 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCT
     dkvWorkSpaceOffet = this->cBlockIdx * S1S2_TEMPLATE::CUBE_BASEN * S1S2_TEMPLATE::HEAD_DIM_ALIGN;
     dAlign16 = AlignTo16(this->constInfo.commonConstInfo.dSize);
     dvAlign16 = AlignTo16(this->constInfo.commonConstInfo.dSizeV);
-
-    if constexpr (IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        this->deterGm.SetGlobalBuffer((__gm__ float *)workspace + this->tilingData->postTilingData.deterGmOffset / sizeof(T2));
-        deterGmOffset = this->cBlockIdx * S1S2_TEMPLATE::CUBE_BASEN * S1S2_TEMPLATE::HEAD_DIM_ALIGN * NUM_TWO; 
-    }
 }
 
 FAG_FUNCTION_TEMPLATE
 __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::Process()
 {
-    if constexpr (IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        ProcessDeterV2();
-    } else {
-        ProcessNormal();
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline void
-    FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::ProcessDeterV2()
-{
-    InitOutput<float>(this->deterGm[deterGmOffset + this->vSubBlockIdx * S1S2_TEMPLATE::CUBE_BASEN * S1S2_TEMPLATE::HEAD_DIM_ALIGN], S1S2_TEMPLATE::CUBE_BASEN * S1S2_TEMPLATE::HEAD_DIM_ALIGN, 0);
-    int64_t loopMax = this->CalDeterMaxLoopNum();
-    int64_t blockIdx = 0;
-    int64_t taskId = 0;
-    int64_t nextValidLoopIdx;
-    int64_t nextblockIdx;
-
-    dkvWorkSpaceOffet = this->cBlockIdx * S1S2_TEMPLATE::CUBE_BASEN * S1S2_TEMPLATE::HEAD_DIM_ALIGN;
-    dAlign16 = AlignTo16(this->constInfo.commonConstInfo.dSize);
-    dvAlign16 = AlignTo16(this->constInfo.commonConstInfo.dSizeV);
-
-    FagRunInfo runInfos[2];  // for ping pongs
-    this->CalDeterIndex(0, loopMax, nextValidLoopIdx, nextblockIdx, this->coordinateInfos[taskId & 1], runInfos[taskId & 1]);
- 
-    for (int64_t loopIdx = 0; loopIdx < loopMax + 1; loopIdx++) {
-        if (loopIdx >= nextValidLoopIdx) {
-            blockIdx = nextblockIdx;
-            this->CalDeterIndex(loopIdx + 1, loopMax, nextValidLoopIdx, nextblockIdx, this->coordinateInfos[(taskId + 1) & 1], runInfos[(taskId + 1) & 1]);
-        } else {
-            blockIdx = -1;
-        }
- 
-        bool isValidBlock = (blockIdx >= 0);
-        isValidBlock = isValidBlock && this->IsValidDeterForTnd(runInfos[taskId & 1], blockIdx, this->coordinateInfos[taskId & 1]);
-        nextblockIdx = nextblockIdx < 0 ? nextblockIdx : ((taskId + 1) & 1);
-        
-        if (!(runInfos[(taskId + 1) & 1].completed)) {
-            this->ProcessSoftmaxGrad(runInfos[(taskId + 1) & 1]);  // softmaxGrad
-            this->WaitMm1Mm2Result();
-        }
-        if (isValidBlock) {
-            this->SetRunInfoDeterForTND(runInfos[taskId & 1], taskId, blockIdx, this->coordinateInfos[taskId & 1]);
-            this->IterateMm1Mm2(runInfos[taskId & 1], nextblockIdx);
-            CopyInMaxSum<T2, S1S2_TEMPLATE::VECTOR_BASEM>(
-                this->constInfo, runInfos[taskId & 1], this->maxSumQue[taskId & 1], this->softmaxMaxGm, this->softmaxSumGm);
-            runInfos[taskId & 1].completed = false;
-        }
- 
-        if (!(runInfos[(taskId + 1) & 1].completed)) {
-            this->isLastLoop = blockIdx < 0 && nextblockIdx < 0;
-            this->ProcessReCompute(runInfos[(taskId + 1) & 1]);
-            IterateMm3Mm4Mm5(runInfos[(taskId + 1) & 1], blockIdx < 0 ? nextblockIdx : blockIdx, GetKeyOffsetDeter((taskId & 1)));
-            runInfos[(taskId + 1) & 1].completed = true;
-        }
- 
-        DeterSync(loopIdx);
- 
-        if (isValidBlock) {
-            taskId++;
-        }
-    }
-
-    if (deterNeedWait) {
-        mm3.WaitIterateAll();
-        mm3.WaitIterateAll();
-    }
-    SyncAll<>();
-
-    ProcessPostDeter<true>(this->deterGm[deterGmOffset], this->attenMaskOrYInQue, this->dkGm, this->dSOutQue);
-    ProcessPostDeter<false>(this->deterGm[deterGmOffset + S1S2_TEMPLATE::CUBE_BASEN * S1S2_TEMPLATE::HEAD_DIM_ALIGN], this->attenMaskOrYInQue, this->dvGm, this->pOutQue);
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::DeterSync(int64_t loopIdx) {
-    if (loopIdx == 0) {
-        return;
-    }
-
-    // 此处复用dqIsNeedDeter和dkDvIsNeedDeter装载需要同步的轮次范围
-    for (int8_t i = 0; i < MAX_CUBE_CORE_NUM; i++) {
-        if (this->tilingData->s1s2BNGS1S2SplitCoreParams.dkDvIsNeedDeter[i] == 0) {
-            return;
-        }
-        if (static_cast<uint64_t>(loopIdx) >= this->tilingData->s1s2BNGS1S2SplitCoreParams.dqIsNeedDeter[i] && static_cast<uint64_t>(loopIdx) <= this->tilingData->s1s2BNGS1S2SplitCoreParams.dkDvIsNeedDeter[i]) {
-            SyncAll<true, syncAllConfigMte3ToMte3>();
-            return;
-        }
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline int64_t FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::GetKeyOffsetDeter(int64_t nextIndex) {
-        if constexpr (!IS_TND || !IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-            return -1;
-        }
-
-        if (nextIndex == -1) {
-            return -1;
-        }
-
-        int64_t nextN2oIdx = 0;
-        int64_t bOffset = 0;
-        int64_t n2Offset = 0;
-        int64_t s2Offset = 0;
-
-        int64_t bIdx = this->coordinateInfos[nextIndex].batchId;
-        int64_t seqKvLenPrefix = bIdx == 0 ? 0 : ((__gm__ int64_t *)this->actualSeqKvlenAddr)[bIdx - 1];
-        bOffset = seqKvLenPrefix * this->constInfo.commonConstInfo.n2D;
-
-        nextN2oIdx = this->coordinateInfos[nextIndex].n1Idx / this->constInfo.commonConstInfo.gSize;
-        n2Offset = nextN2oIdx * this->constInfo.commonConstInfo.dSize;
-        s2Offset = this->coordinateInfos[nextIndex].s2Idx * S1S2_TEMPLATE::CUBE_BASEN * this->constInfo.commonConstInfo.n2D;
-        return bOffset + n2Offset + s2Offset;
+    ProcessNormal();
 }
 
 FAG_FUNCTION_TEMPLATE
@@ -328,7 +203,6 @@ FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::I
         dxGmOffset = this->GetDxOffset(runInfo);
         valueGmOffset = this->GetValueOffset(runInfo);
     }
-    specialS2Index = SpecialS2Index(keyGmOffset);
     bool isNextS2IdxNoChange = (nextIndex != -1) && (nextS2CvBegin == keyGmOffset);
 
     ///////////////////////////////////////////////////////////////
@@ -561,29 +435,6 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCT
     }
     mm3.End();
     this->dsScm.FreeTensor(dsScmTensordq);
-
-    if constexpr (IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        if (specialS2Index != -1) {
-            deterNeedWait = nextIndex == -1;
-        }
-        if (this->cBlockIdx == specialS2Index) {
-            specialDkGmOffset = keyOrValueGmOffset;
-            specialHalfS2RealSize = runInfo.halfS2RealSize;
-            specialFirstHalfS2RealSize = runInfo.firstHalfS2RealSize;
-        }
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-__aicore__ inline int8_t FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::SpecialS2Index(int64_t dkvGmOffset) {
-    if constexpr (IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        for (int8_t i = 0; i < MAX_CUBE_CORE_NUM; i++) {
-            if (this->tilingData->deterParam.deterPrefix2[i] == dkvGmOffset) {
-                return i;
-            }
-        }
-    }
-    return -1;
 }
 
 FAG_FUNCTION_TEMPLATE
@@ -662,75 +513,6 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCT
     }
     mm3.End();
     this->pScm.FreeTensor(pScmTensor);
-
-    if constexpr (IS_DETER_NEW(DETER_SPARSE_TYPE)) {
-        isFirstBlock = false;
-        if (this->cBlockIdx == specialS2Index) {
-            specialDvGmOffset = keyOrValueGmOffset;
-        }
-    }
-}
-
-FAG_FUNCTION_TEMPLATE
-template <const bool IS_DK>
-__aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>::ProcessPostDeter(GlobalTensor<float> dkvWorkSpaceTensor, TQue<QuePosition::VECIN, 1> &inQue,
-    GlobalTensor<T1> &dkvGmTensor, TQue<QuePosition::VECOUT, 1> &outQue)
-{
-    if (specialHalfS2RealSize == 0) {
-        return;
-    }
-    uint32_t dSize = this->constInfo.commonConstInfo.dSize;
-    uint32_t curDAlign = dAlign16;
-    int64_t dkvGmOffset = IS_DK ? specialDkGmOffset : specialDvGmOffset;
-    
-    if constexpr (!IS_DK && IS_D_NO_EQUAL) {
-        dSize = this->constInfo.commonConstInfo.dSizeV;
-        curDAlign = dvAlign16;
-    }
-
-    uint32_t maxLoopSize = S1S2_TEMPLATE::VECTOR_BASEM * S1S2_TEMPLATE::VECTOR_BASEN / curDAlign; 
-    uint32_t loopNum = Ceil<uint32_t>(specialHalfS2RealSize, maxLoopSize);
-    if (loopNum == 0) {
-        return;
-    }
-
-    uint32_t loopSize = Ceil<uint32_t>(specialHalfS2RealSize, loopNum);
-    uint32_t tailLoopSize = specialHalfS2RealSize - (loopNum - 1) * loopSize;
-    uint32_t curLoopSize = loopSize;
-    DataCopyExtParams intriParamsOut;
-    intriParamsOut.srcStride = 0;
-    intriParamsOut.dstStride = static_cast<uint32_t>((this->constInfo.commonConstInfo.n2G - 1) * dSize * sizeof(T1));
-    dkvGmOffset += this->vSubBlockIdx * specialFirstHalfS2RealSize * dSize * this->constInfo.commonConstInfo.n2G;
-
-    uint32_t data_size = curLoopSize * curDAlign;
-    for (uint32_t loopIdx = 0; loopIdx < loopNum; loopIdx++) {
-        if (loopIdx == loopNum - 1) {
-            curLoopSize = tailLoopSize;
-            data_size = curLoopSize * curDAlign;
-        }
-
-        LocalTensor<T2> dkvTensor = inQue.AllocTensor<T2>();
-        DataCopy(dkvTensor, dkvWorkSpaceTensor[this->vSubBlockIdx * specialFirstHalfS2RealSize * curDAlign + loopIdx * loopSize * curDAlign],
-                 data_size);
-        
-        inQue.EnQue(dkvTensor);
-        inQue.DeQue();
-        if constexpr (IS_DK) {
-            Muls(dkvTensor, dkvTensor, this->constInfo.scaleValue, data_size);
-        }
-        LocalTensor<T1> dkvCastTensor = outQue.template AllocTensor<T1>();
-        Cast(dkvCastTensor, dkvTensor, RoundMode::CAST_ROUND, data_size);
-        inQue.FreeTensor(dkvTensor);
-        outQue.EnQue(dkvCastTensor);
-        outQue.template DeQue<T1>();
-
-        intriParamsOut.blockCount = curLoopSize;
-        intriParamsOut.blockLen = dSize * sizeof(T1);
-
-        DataCopyPad(dkvGmTensor[dkvGmOffset], dkvCastTensor, intriParamsOut);
-        outQue.FreeTensor(dkvCastTensor);
-        dkvGmOffset += loopSize * dSize * this->constInfo.commonConstInfo.n2G;
-    }
 }
 
 

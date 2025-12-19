@@ -63,14 +63,7 @@ GlobalTensor<float> deterGm;
     int64_t deterGmOffset = 0;
     int64_t specialHalfS2RealSize = 0;
     int64_t specialFirstHalfS2RealSize = 0;
-    int8_t specialS2Index = -1;
-    bool isFirstBlock = true;
-    bool deterNeedWait = false;
-    typename std::conditional<IS_DETER_OLD(DETER_SPARSE_TYPE), int64_t[36], std::nullptr_t>::type dqOffset;
-    typename std::conditional<IS_DETER_OLD(DETER_SPARSE_TYPE), int64_t[36], std::nullptr_t>::type dkOffset;
-    typename std::conditional<IS_DETER_OLD(DETER_SPARSE_TYPE), int64_t[36], std::nullptr_t>::type dvOffset;
-    typename std::conditional<IS_DETER_OLD(DETER_SPARSE_TYPE), bool[2], std::nullptr_t>::type dqIsNeedDeter{};
-    typename std::conditional<IS_DETER_OLD(DETER_SPARSE_TYPE), bool[2], std::nullptr_t>::type dkDvIsNeedDeter{};
+    bool isFirstBlock = false;
     typename std::conditional<IS_DETER_NEW(DETER_SPARSE_TYPE), CoordinateInfo[2], std::nullptr_t>::type coordinateInfos{};
     typename std::conditional<DETER_SPARSE_TYPE == DETER_BAND, BandInfo, std::nullptr_t>::type bandInfo;
     bool isMm3NeedWait = false;
@@ -144,8 +137,8 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::GetNextDxAndQue
         int64_t s1CvTail = actualS1Len - (s1OuterTmp - 1) * this->CUBE_BASEM;
  
         nextS1oIdx = coordinateInfos[nextIndex].s1Idx;
-        nextN2oIdx = coordinateInfos[nextIndex].n1Idx / this->constInfo.commonConstInfo.gSize;
-        nextGoIdx = coordinateInfos[nextIndex].n1Idx % this->constInfo.commonConstInfo.gSize;
+        nextN2oIdx = coordinateInfos[nextIndex].n2Idx;
+        nextGoIdx = coordinateInfos[nextIndex].gIdx;
         bOffset = lastBatchTotalS1BOffset;
         s1Offset = nextS1oIdx * this->CUBE_BASEM * this->constInfo.commonConstInfo.n2GD;
         n2Offset = nextN2oIdx * this->constInfo.commonConstInfo.gD;
@@ -174,8 +167,7 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::GetNextDxAndQue
     runInfo.isNextS2IdxNoChange = (nextS2oIdx == runInfo.s2oIdx && nextN2oIdx == runInfo.commonRunInfo.n2oIdx &&
                                    nextBoIdx == runInfo.commonRunInfo.boIdx);
 }
- 
- 
+
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline bool
 FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::IsValidDeterForTnd(FagRunInfo &runInfo,
@@ -192,22 +184,33 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::IsValidDeterFor
     int64_t s2IdxLeft = s2oDimIdx * this->CUBE_BASEN;
     int64_t s2IdxRight = Min((s2oDimIdx + 1) * this->CUBE_BASEN, actualS2Len);
     if constexpr (BaseClass::IS_ATTEN_MASK) {
-        this->UpdateToken(runInfo, bIdx);
+        if (this->constInfo.sparseMode == RIGHT_DOWN_CASUAL_BAND && bIdx != this->attenMaskInfo.bandIndex) {
+            this->actualCalcS1Token = static_cast<int64_t>(INT32_MAX) + actualS1Len - actualS2Len;
+            this->actualCalcS2Token = static_cast<int64_t>(0) - actualS1Len + actualS2Len;
+        } else if (this->constInfo.sparseMode == BAND_LEFT_UP_CASUAL && bIdx != this->attenMaskInfo.bandIndex) {
+            this->actualCalcS1Token = INT32_MAX;
+            this->actualCalcS2Token = 0;
+        } else if (this->constInfo.sparseMode == RIGHT_DOWN_CAUSAL || this->constInfo.sparseMode == BAND || (this->constInfo.sparseMode == RIGHT_DOWN_CASUAL_BAND 
+                    && bIdx == this->attenMaskInfo.bandIndex) || (this->constInfo.sparseMode == BAND_LEFT_UP_CASUAL && bIdx == this->attenMaskInfo.bandIndex)) {
+            this->actualCalcS1Token = this->constInfo.s1Token + actualS1Len - actualS2Len;
+            this->actualCalcS2Token = this->constInfo.s2Token - actualS1Len + actualS2Len;
+        }
+
         int64_t s2SparseLeft = Max(this->CUBE_BASEM * s1oDimIdx - this->actualCalcS1Token, 0);
         s2SparseLeft = s2SparseLeft >> 6 << 6;
         int64_t s2SparseRight = AlignTo64(
             Min(this->CUBE_BASEM * (s1oDimIdx + 1), this->constInfo.commonConstInfo.s1Size) + this->actualCalcS2Token);
         s2SparseRight = Min(s2SparseRight, actualS2Len);
         bool isValid = s2IdxLeft < s2SparseRight && s2IdxRight > s2SparseLeft;
-        this->s2CvBegin = s2IdxLeft;
-        this->s2CvEnd = this->s2CvBegin + this->CUBE_BASEN;  // 非尾块s2按照+CUBE_BASEN处理
+        runInfo.s2CvBegin = s2IdxLeft;
+        runInfo.s2CvEnd = runInfo.s2CvBegin + this->CUBE_BASEN;  // 非尾块s2按照+CUBE_BASEN处理
         if (s2oDimIdx == coordinateInfo.s2Outer - 1) { // 默认s2 cv tail相等
-            this->s2CvEnd = this->s2CvBegin + actualS2Len - s2oDimIdx * this->CUBE_BASEN;
+            runInfo.s2CvEnd = runInfo.s2CvBegin + actualS2Len - s2oDimIdx * this->CUBE_BASEN;
         }
         return isValid;
     } else {
-        this->s2CvBegin = s2IdxLeft;
-        this->s2CvEnd = s2IdxRight;
+        runInfo.s2CvBegin = s2IdxLeft;
+        runInfo.s2CvEnd = s2IdxRight;
         return true;
     }
 }
@@ -243,8 +246,8 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::SetRunInfoDeter
     }
     
     runInfo.lastBatchIdx = bIdx;
-    runInfo.commonRunInfo.n2oIdx = coordinateInfo.n1Idx / this->constInfo.commonConstInfo.gSize;
-    runInfo.commonRunInfo.goIdx = coordinateInfo.n1Idx % this->constInfo.commonConstInfo.gSize;
+    runInfo.commonRunInfo.n2oIdx = coordinateInfo.n2Idx;
+    runInfo.commonRunInfo.goIdx = coordinateInfo.gIdx;
     runInfo.s2oIdx = coordinateInfo.s2Idx;
     runInfo.commonRunInfo.s1oIdx = coordinateInfo.s1Idx;
     runInfo.commonRunInfo.s1RealSize =
@@ -282,18 +285,17 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::SetRunInfoDeter
 //----------------------------------------------PART
     this->GetDerived()->SetUniqueRunInfo(runInfo);
     // preload next query and dy offset for l1 preload
-    if (taskId == 0) {
+    if (unlikely(taskId == 0)) {
         runInfo.commonRunInfo.queryOffset = this->GetQueryOffset(runInfo);
         runInfo.dyOffset = runInfo.commonRunInfo.queryOffset;
         if constexpr (IS_D_NO_EQUAL) {
             runInfo.dyOffset = this->GetDxOffset(runInfo);
         }
-        GetNextDxAndQueryOffsetTND(runInfo, nextIndex, this->preloadArgs); // get nextQueryOffset, nextDyOffset, nextMorN
     } else {
         runInfo.commonRunInfo.queryOffset = this->preloadArgs.nextQueryOffset;
         runInfo.dyOffset = this->preloadArgs.nextDyOffset; 
-        GetNextDxAndQueryOffsetTND(runInfo, nextIndex, this->preloadArgs); // get nextQueryOffset, nextDyOffset, nextMorN
     }
+    GetNextDxAndQueryOffsetTND(runInfo, nextIndex, this->preloadArgs); // get nextQueryOffset, nextDyOffset, nextMorN
     runInfo.commonRunInfo.keyOffset = this->GetKeyOffset(runInfo);
     runInfo.commonRunInfo.valueOffset = runInfo.commonRunInfo.keyOffset;
     if constexpr (IS_D_NO_EQUAL) {
@@ -313,8 +315,11 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::SetRunInfoDeter
         }
     }
 //----------------------------------------------PART
-    runInfo.specialS2Index = SpecialS2Index(runInfo.commonRunInfo.keyOffset);
-    runInfo.isFirstBlock = isFirstBlock;
+    if constexpr(SPLIT_AXIS == BN2S2) {
+        runInfo.specialS2Index = SpecialS2Index(runInfo.commonRunInfo.keyOffset);
+        runInfo.isFirstBlock = isFirstBlock;
+        isFirstBlock = false;
+    }
 }
  
 template <typename CubeBlockType, typename VecBlockType>
@@ -347,25 +352,43 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::CalCausalDeterI
             CalGQACausalIndex(k, m, n, b, j, r, this->constInfo.commonConstInfo.gSize, coordinateInfo);
         }
     } else {
-        CalTNDCausalIndex<BaseClass::CUBE_BASEM, BaseClass::CUBE_BASEN>(this->actualSeqQlenAddr, this->actualSeqKvlenAddr, this->tilingData->deterParam.deterPrefix0, this->tilingData->deterParam.deterPrefix1, this->tilingData->deterParam.deterPrefix2, this->constInfo.bSize, this->constInfo.n2Size, k, j, r, this->tilingData->deterParam.deterPrefixStep, coordinateInfo);
+        if constexpr (BaseClass::IS_N_EQUAL) {
+            CalTNDCausalIndex<BaseClass::CUBE_BASEM, BaseClass::CUBE_BASEN>(
+                this->actualSeqQlenAddr, this->actualSeqKvlenAddr, this->tilingData->deterParam.deterPrefix0, this->tilingData->deterParam.deterPrefix1, this->tilingData->deterParam.deterPrefix2, this->constInfo.bSize, this->constInfo.n2Size, k, j, r, this->tilingData->deterParam.deterPrefixStep, coordinateInfo);
+        } else {
+            CalTNDGQACausalIndex<BaseClass::CUBE_BASEM, BaseClass::CUBE_BASEN>(this->actualSeqQlenAddr, this->actualSeqKvlenAddr, 
+                this->tilingData->deterParam.deterPrefix0, this->tilingData->deterParam.deterPrefix1, this->tilingData->deterParam.deterPrefix2, this->constInfo.bSize,
+                this->constInfo.commonConstInfo.gSize, this->constInfo.n2Size, k, j, r, this->tilingData->deterParam.deterPrefixStep, this->tilingData->deterParam.coreDivide, coordinateInfo);
+        }
     }
  
     int64_t w = coordinateInfo.batchId;
     int64_t n1 = this->constInfo.commonConstInfo.gSize * this->constInfo.n2Size;
-    coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
-    coordinateInfo.n1Idx = w - coordinateInfo.batchId * n1 - 1;
+    if (!BaseClass::IS_TND || BaseClass::IS_N_EQUAL) {
+        coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
+        int64_t n1Idx = w - coordinateInfo.batchId * n1 - 1;
+        coordinateInfo.n2Idx = n1Idx / this->constInfo.commonConstInfo.gSize;
+        coordinateInfo.gIdx = n1Idx % this->constInfo.commonConstInfo.gSize;
+    } else {
+        coordinateInfo.batchId -= 1;
+        coordinateInfo.n2Idx -= 1;
+        coordinateInfo.gIdx -= 1;
+    }
     coordinateInfo.s1Idx = coordinateInfo.s1Idx + mGap - 1;
     coordinateInfo.s2Idx = coordinateInfo.s2Idx - 1;
-    if (!(w > 0 && w <= this->constInfo.bSize * n1 &&
-          coordinateInfo.s1Idx >= 0 && coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
+    if (!(w > 0 && coordinateInfo.batchId < this->constInfo.bSize && coordinateInfo.n2Idx < this->constInfo.n2Size &&
+          coordinateInfo.gIdx < this->constInfo.commonConstInfo.gSize && coordinateInfo.s1Idx >= 0 &&
+          coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
           coordinateInfo.s2Idx < coordinateInfo.s2Outer)) {
         return -1;
     }
- 
-    if constexpr (!BaseClass::IS_TND) {
-        return (w - 1) * this->constInfo.s1Outer * this->constInfo.s2Outer + coordinateInfo.s2Idx * this->constInfo.s1Outer + coordinateInfo.s1Idx;
-    } else {
+    if (BaseClass::IS_TND) {
         return coordinateInfo.batchId;
+    } else {
+        return (coordinateInfo.batchId * n1 + coordinateInfo.n2Idx * this->constInfo.commonConstInfo.gSize +
+            coordinateInfo.gIdx) *
+               this->constInfo.s1Outer * this->constInfo.s2Outer +
+           coordinateInfo.s2Idx * this->constInfo.s1Outer + coordinateInfo.s1Idx;
     }
 }
  
@@ -394,21 +417,29 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::CalDenseDeterIn
  
     int64_t w = coordinateInfo.batchId;
     int64_t n1 = this->constInfo.commonConstInfo.gSize * this->constInfo.n2Size;
-    coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
-    coordinateInfo.n1Idx = w - coordinateInfo.batchId * n1 - 1;
+    if (!BaseClass::IS_TND || this->constInfo.commonConstInfo.gSize == 1) {
+        coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
+        int64_t n1Idx = w - coordinateInfo.batchId * n1 - 1;
+        coordinateInfo.n2Idx = n1Idx / this->constInfo.commonConstInfo.gSize;
+        coordinateInfo.gIdx = n1Idx % this->constInfo.commonConstInfo.gSize;
+    } else {
+        coordinateInfo.batchId -= 1;
+        coordinateInfo.n2Idx -= 1;
+        coordinateInfo.gIdx -= 1;
+    }
     coordinateInfo.s1Idx -= 1;
     coordinateInfo.s2Idx -= 1;
-    if (!(w > 0 && w <= this->constInfo.bSize * n1 &&
-          coordinateInfo.s1Idx >= 0 && coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
+    if (!(w > 0 && coordinateInfo.batchId < this->constInfo.bSize && coordinateInfo.n2Idx < this->constInfo.n2Size &&
+          coordinateInfo.gIdx < this->constInfo.commonConstInfo.gSize && coordinateInfo.s1Idx >= 0 &&
+          coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
           coordinateInfo.s2Idx < coordinateInfo.s2Outer)) {
         return -1;
     }
  
-    if constexpr (BaseClass::IS_TND) {
-        return coordinateInfo.batchId;
-    } else {
-        return (w - 1) * this->constInfo.s1Outer * this->constInfo.s2Outer + coordinateInfo.s2Idx * this->constInfo.s1Outer + coordinateInfo.s1Idx;
-    }
+    return (coordinateInfo.batchId * n1 + coordinateInfo.n2Idx * this->constInfo.commonConstInfo.gSize +
+            coordinateInfo.gIdx) *
+               this->constInfo.s1Outer * this->constInfo.s2Outer +
+           coordinateInfo.s2Idx * this->constInfo.s1Outer + coordinateInfo.s1Idx;
 }
  
 template <typename CubeBlockType, typename VecBlockType>
@@ -429,31 +460,43 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::CalBandDeterInd
         int64_t k = static_cast<int64_t>(this->tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
         coordinateInfo.p = this->constInfo.s1Token;
         coordinateInfo.q = this->constInfo.s2Token;
-        CalTNDBandIndex<BaseClass::CUBE_BASEM,BaseClass::CUBE_BASEN>(this->actualSeqQlenAddr, this->actualSeqKvlenAddr,
+        if constexpr (BaseClass::IS_N_EQUAL) {
+            CalTNDBandIndex<BaseClass::CUBE_BASEM,BaseClass::CUBE_BASEN>(this->actualSeqQlenAddr, this->actualSeqKvlenAddr,
                                                 this->tilingData->deterParam.deterPrefix0,
                                                 this->tilingData->deterParam.deterPrefix1, this->constInfo.bSize, this->constInfo.n2Size,
                                                 k, j, r, this->tilingData->deterParam.deterPrefixStep, coordinateInfo);
+        } else {
+            CalTNDGQABandIndex<BaseClass::CUBE_BASEM,BaseClass::CUBE_BASEN>(
+                this->actualSeqQlenAddr, this->actualSeqKvlenAddr, this->tilingData->deterParam.deterPrefix0,
+                this->tilingData->deterParam.deterPrefix1, this->constInfo.bSize, this->constInfo.commonConstInfo.gSize, this->constInfo.n2Size,
+                k, j, r, this->tilingData->deterParam.deterPrefixStep, coordinateInfo);
+        }
     }
  
     int64_t w = coordinateInfo.batchId;
     int64_t n1 = this->constInfo.commonConstInfo.gSize * this->constInfo.n2Size;
-    coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
-    coordinateInfo.n1Idx = w - coordinateInfo.batchId * n1 - 1;
+    if (!BaseClass::IS_TND || this->constInfo.commonConstInfo.gSize == 1) {
+        coordinateInfo.batchId = Ceil<int64_t>(w, n1) - 1;
+        int64_t n1Idx = w - coordinateInfo.batchId * n1 - 1;
+        coordinateInfo.n2Idx = n1Idx / this->constInfo.commonConstInfo.gSize;
+        coordinateInfo.gIdx = n1Idx % this->constInfo.commonConstInfo.gSize;
+    } else {
+        coordinateInfo.batchId -= 1;
+        coordinateInfo.n2Idx -= 1;
+        coordinateInfo.gIdx -= 1;
+    }
     coordinateInfo.s1Idx = coordinateInfo.s1Idx - 1 + coordinateInfo.mOffset;
     coordinateInfo.s2Idx = coordinateInfo.s2Idx - 1 + coordinateInfo.nOffset;
-    if (!(w > 0 && w <= this->constInfo.bSize * n1 && coordinateInfo.s1Idx >= 0 &&
+    if (!(w > 0 && coordinateInfo.batchId < this->constInfo.bSize && coordinateInfo.n2Idx < this->constInfo.n2Size &&
+          coordinateInfo.gIdx < this->constInfo.commonConstInfo.gSize && coordinateInfo.s1Idx >= 0 &&
           coordinateInfo.s1Idx < coordinateInfo.s1Outer && coordinateInfo.s2Idx >= 0 &&
           coordinateInfo.s2Idx < coordinateInfo.s2Outer)) {
         return -1;
     }
  
-    if constexpr (!BaseClass::IS_TND) {
-        return (w - 1) * this->constInfo.s1Outer * this->constInfo.s2Outer + coordinateInfo.s2Idx * this->constInfo.s1Outer +
-               coordinateInfo.s1Idx;
-    } else {
-        // TND不需要blockIdx，有效block大于0即可
-        return coordinateInfo.batchId;
-    }
+    return (coordinateInfo.batchId * n1 + coordinateInfo.n2Idx * this->constInfo.commonConstInfo.gSize +
+            coordinateInfo.gIdx) * this->constInfo.s1Outer * this->constInfo.s2Outer +
+           coordinateInfo.s2Idx * this->constInfo.s1Outer + coordinateInfo.s1Idx;
 }
  
 template <typename CubeBlockType, typename VecBlockType>
@@ -602,7 +645,9 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::Process()
 {
     if constexpr (SPLIT_AXIS == BN2S2) {
-        InitOutput<float>(this->deterGm[deterGmOffset + this->vSubBlockIdx * this->CUBE_BASEN * this->HEAD_DIM_ALIGN], this->CUBE_BASEN * this->HEAD_DIM_ALIGN, 0);
+        if ASCEND_IS_AIV {
+            InitOutput<float>(this->deterGm[deterGmOffset + this->vSubBlockIdx * this->CUBE_BASEN * this->HEAD_DIM_ALIGN], this->CUBE_BASEN * this->HEAD_DIM_ALIGN, 0);
+        }
     }
     int64_t loopMax = CalDeterMaxLoopNum();
     int64_t blockInnerIdx = 0;
@@ -629,7 +674,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
  
         bool isValidBlock = (blockInnerIdx >= 0);
         if constexpr (BaseClass::IS_TND) {
-            isValidBlock = isValidBlock && IsValidDeterForTnd(runInfos[taskId & 1], blockInnerIdx, this->coordinateInfos[taskId & 1]);
+            isValidBlock = isValidBlock && !(this->coordinateInfos[taskId & 1].batchId < 0 || blockInnerIdx < 0);
             nextblockIdx = nextblockIdx < 0 ? nextblockIdx : ((taskId + 1) & 1);
         } else {
             isValidBlock = isValidBlock && this->IsValid(runInfos[taskId & 1], blockInnerIdx);
@@ -644,9 +689,11 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
             }
         }
         if (isValidBlock) {
- 
-            runInfos[taskId & 1].s2CvBegin = this->s2CvBegin;
-            runInfos[taskId & 1].s2CvEnd = this->s2CvEnd;
+            if constexpr(!BaseClass::IS_TND) {
+                runInfos[taskId & 1].s2CvBegin = this->s2CvBegin;
+                runInfos[taskId & 1].s2CvEnd = this->s2CvEnd;
+            }
+            
             if constexpr (BaseClass::IS_TND) {
                 SetRunInfoDeterForTND(runInfos[taskId & 1], taskId, blockInnerIdx, coordinateInfos[taskId & 1], nextblockIdx);
             } else {
@@ -741,10 +788,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
                     CrossCoreSetFlag<SYNC_MODE, PIPE_MTE1>(16 + SYNC_C4_TO_V3_FLAG);
                 }
                 // ------ deter 特殊部分 START ------
-                if (specialS2Index != -1) {
-                    deterNeedWait = nextblockIdx == -1;
-                }
-                if (this->cBlockIdx == specialS2Index) {
+                if (this->cBlockIdx == runInfos[(taskId + 1) & 1].specialS2Index) {
                     specialDkGmOffset = runInfos[(taskId + 1) & 1].commonRunInfo.keyOffset;
                     specialHalfS2RealSize = runInfos[(taskId + 1) & 1].halfS2RealSize;
                     specialFirstHalfS2RealSize = runInfos[(taskId + 1) & 1].firstHalfS2RealSize;
@@ -759,7 +803,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
                         this->dvWorkSpaceGm, this->pL1Buf, this->constInfo, runInfos[(taskId + 1) & 1]); // c5
                 }
  
-                if (!runInfos[(taskId + 1) & 1].isNextS2IdxNoChange) {
+                if (runInfos[(taskId + 1) & 1].specialS2Index == -1 && !runInfos[(taskId + 1) & 1].isNextS2IdxNoChange) {
                     if ASCEND_IS_AIC {
                         CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_C3_TO_V5_FLAG);
                         CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(16 + SYNC_C3_TO_V5_FLAG);
@@ -775,8 +819,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
                 }
                 needSyncDkMM = true;
                 // ------ deter 特殊部分 START ------
-                isFirstBlock = false;
-                if (this->cBlockIdx == specialS2Index) {
+                if (static_cast<int64_t>(this->cBlockIdx) == static_cast<int64_t>(runInfos[(taskId + 1) & 1].specialS2Index)) {
                     specialDvGmOffset = runInfos[(taskId + 1) & 1].commonRunInfo.valueOffset;
                 }
                 // ------ deter 特殊部分 END ------

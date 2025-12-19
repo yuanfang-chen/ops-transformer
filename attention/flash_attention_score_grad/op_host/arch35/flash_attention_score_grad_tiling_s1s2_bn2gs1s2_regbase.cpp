@@ -602,6 +602,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetShapeAttrsInfo(
                 fBaseParams.isAllSame = (kvValue[i] - kvValue[i - 1] == lastKvLen) &&
                             (qValue[i] - qValue[i - 1] == lastQLen) && fBaseParams.isAllSame;
             }
+            fBaseParams.isS1S2Same = fBaseParams.actualSeqQlen[i] == fBaseParams.actualSeqKvlen[i] && fBaseParams.isS1S2Same;
             fBaseParams.sumS1S2Product += fBaseParams.actualSeqQlen[i] * fBaseParams.actualSeqKvlen[i];
         }
 
@@ -1145,20 +1146,14 @@ uint32_t FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetDeterSparseTilingKey()
         return static_cast<uint32_t>(DeterSparseType::NO_DETER);
     }
 
-    if (fBaseParams.layoutType == INPUT_FROAMT_TND && fBaseParams.n1 != fBaseParams.n2 && fBaseParams.d <= static_cast<uint32_t>(ConstAxisTemplateNum::NUM512)) {
-        return static_cast<uint32_t>(DeterSparseType::DETER_OLD);
-    }
-    else if (fBaseParams.layoutType == INPUT_FROAMT_TND && fBaseParams.n1 != fBaseParams.n2 && fBaseParams.d > static_cast<uint32_t>(ConstAxisTemplateNum::NUM512)) {
-        return static_cast<uint32_t>(DeterSparseType::NO_DETER);
-    }
-
     if (!fBaseParams.isSparse || (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::ALL_MASK)) ||
         (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::NO_MASK) &&
          fBaseParams.s1Token >= fBaseParams.s1 && fBaseParams.s2Token >= fBaseParams.s2)) {
         return static_cast<uint32_t>(DeterSparseType::DETER_DENSE);
     } else if (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::LEFT_UP_CAUSAL) ||
                (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::NO_MASK) &&
-                fBaseParams.s1Token >= fBaseParams.s1 && (fBaseParams.s2Token > NEGATIVE_128 && fBaseParams.s2Token <= 0))) {
+                fBaseParams.s1Token >= fBaseParams.s1 && (fBaseParams.s2Token > NEGATIVE_128 && fBaseParams.s2Token <= 0))
+               || (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL) && fBaseParams.isS1S2Same)) {
         return static_cast<uint32_t>(DeterSparseType::DETER_CAUSAL);
     } else if (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::BAND) ||
                // RIGHT_DOWN_CAUSAL场景和Band类似，直接走Band分支
@@ -1354,7 +1349,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDDenseDeterParam()
 }
 
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterPrefix(DeterPrefixData &deterPrefixData, int64_t &m0Max, int64_t &m1Max, int64_t &m2Max) {
-    int64_t N12 = fBaseParams.n1 % fBaseParams.aicNum % NUM_TWO;
+    int64_t N12 = fBaseParams.g == 1 ? fBaseParams.n2 % fBaseParams.aicNum % NUM_TWO : fBaseParams.n2 % NUM_TWO;
     for (int64_t i = 0; i < fBaseParams.b; i++) {
         int64_t actualS1Outer =
             CeilDivideBy(fBaseParams.actualSeqQlen[i], fBaseParams.s1Inner * fBaseParams.s1CvRatio);
@@ -1366,17 +1361,19 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterPrefix(De
             fBaseParams.actualSeqQlen[i] *
                 AlignTo(fBaseParams.actualSeqKvlen[i], static_cast<int64_t>(ConstAxisTemplateNum::NUM16)));
 
-        m0Max = std::max(m0Max, NUM_TWO * actualS1Outer - actualS2Outer + 1);
+        m0Max = std::max(m0Max, fBaseParams.g * (NUM_TWO * actualS1Outer - actualS2Outer + 1));
         deterPrefixData.prefix0.push_back(deterPrefixData.prefix0.back() + (NUM_TWO * actualS1Outer - actualS2Outer + 1) * actualS2Outer);
 
         if (N12 > 0) {
             deterPrefixData.prefix1.push_back(deterPrefixData.prefix1.back() +
                                     (actualS1Outer - (actualS2Outer + 1) / NUM_TWO + 1) * (actualS2Outer / NUM_TWO));
-            m1Max = std::max(m1Max, actualS1Outer - (actualS2Outer + 1) / NUM_TWO + 1);
+            if (actualS2Outer >= NUM_TWO && fBaseParams.g != 1) {
+                m1Max = std::max(m1Max, fBaseParams.g * (actualS1Outer - (actualS2Outer + 1) / NUM_TWO + 1));
+            }
 
             deterPrefixData.prefix2.push_back(deterPrefixData.prefix2.back() +
                                     (actualS1Outer - actualS2Outer / NUM_TWO) * ((actualS2Outer + 1) / NUM_TWO));
-            m2Max = std::max(m2Max, actualS1Outer - actualS2Outer / NUM_TWO);
+            m2Max = std::max(m2Max, fBaseParams.g * (actualS1Outer - actualS2Outer / NUM_TWO));
         }
     }
 }
@@ -1388,8 +1385,6 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterParam()
     }
     fBaseParams.splitAxis = SplitAxisEnum::BN2GS1S2;
     int64_t m0Max{0}, m1Max{0}, m2Max{0};
-    int64_t N11 = fBaseParams.n1 % fBaseParams.aicNum / NUM_TWO;
-    int64_t N12 = fBaseParams.n1 % fBaseParams.aicNum % NUM_TWO;
     DeterPrefixData deterPrefixData;
     CalcleTNDCausalDeterPrefix(deterPrefixData, m0Max, m1Max, m2Max);
     
@@ -1398,9 +1393,20 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterParam()
     std::copy(deterPrefixData.deterPrefix.begin(), deterPrefixData.deterPrefix.end(), fBaseParams.deterPrefix);
     std::copy(deterPrefixData.deterPrefixAlign.begin(), deterPrefixData.deterPrefixAlign.end(), fBaseParams.deterPrefixAlign);
 
-    int64_t prefix0Max1 = deterPrefixData.prefix0.back() / NUM_TWO * (fBaseParams.n1 / fBaseParams.aicNum);
-    int64_t prefix0Max2 =
-        std::max(CeilDivideBy(deterPrefixData.prefix0.back() * N11, static_cast<int64_t>(fBaseParams.aicNum)), m0Max);
+    if (fBaseParams.g == 1) {
+        CalcleTNDCausalDeterParamNormal(deterPrefixData, m0Max, m1Max, m2Max);
+    } else {
+        CalcleTNDCausalDeterParamGQA(deterPrefixData, m0Max, m1Max, m2Max);
+    }
+}
+
+void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterParamNormal(DeterPrefixData &deterPrefixData, const int64_t m0Max, const int64_t m1Max, const int64_t m2Max) {
+    int64_t N11 = fBaseParams.n2 % fBaseParams.aicNum / NUM_TWO;
+    int64_t N12 = fBaseParams.n2 % fBaseParams.aicNum % NUM_TWO;
+    int64_t prefix0Max1 = deterPrefixData.prefix0.back() / NUM_TWO * (fBaseParams.n2 / fBaseParams.aicNum);
+    int64_t prefix0Max2 = std::max(CeilDivideBy(deterPrefixData.prefix0.back() * N11 * fBaseParams.g,
+                                                static_cast<int64_t>(fBaseParams.aicNum)),
+                                    m0Max);
     deterPrefixData.prefix0 = SliceVector(deterPrefixData.prefix0, fBaseParams.deterPrefixStep);
     deterPrefixData.prefix0.push_back(prefix0Max1);
     fBaseParams.deterMaxRound += prefix0Max1;
@@ -1413,15 +1419,66 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterParam()
     std::copy(deterPrefixData.prefix0.begin(), deterPrefixData.prefix0.end(), fBaseParams.deterPrefix0);
 
     if (N12 > 0) {
+        int64_t r1 = std::max(CeilDivideBy(deterPrefixData.prefix1.back() * fBaseParams.g, static_cast<int64_t>(fBaseParams.aicNum)), m1Max);
+        int64_t r2 = std::max(CeilDivideBy(deterPrefixData.prefix2.back() * fBaseParams.g, static_cast<int64_t>(fBaseParams.aicNum)), m2Max);
         deterPrefixData.prefix1 = SliceVector(deterPrefixData.prefix1, fBaseParams.deterPrefixStep);
         deterPrefixData.prefix2 = SliceVector(deterPrefixData.prefix2, fBaseParams.deterPrefixStep);
-        deterPrefixData.prefix1.push_back(std::max(CeilDivideBy(deterPrefixData.prefix1.back(), static_cast<int64_t>(fBaseParams.aicNum)), m1Max));
-        deterPrefixData.prefix2.push_back(std::max(CeilDivideBy(deterPrefixData.prefix2.back(), static_cast<int64_t>(fBaseParams.aicNum)), m2Max));
+        deterPrefixData.prefix1.push_back(r1);
+        deterPrefixData.prefix2.push_back(r2);
         fBaseParams.deterMaxRound += deterPrefixData.prefix1.back();
         fBaseParams.deterMaxRound += deterPrefixData.prefix2.back();
         std::copy(deterPrefixData.prefix1.begin(), deterPrefixData.prefix1.end(), fBaseParams.deterPrefix1);
         std::copy(deterPrefixData.prefix2.begin(), deterPrefixData.prefix2.end(), fBaseParams.deterPrefix2);
     }
+}
+
+void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterParamGQA(DeterPrefixData &deterPrefixData, const int64_t m0Max, const int64_t m1Max, const int64_t m2Max) {
+    int64_t N11 = fBaseParams.n2 / NUM_TWO;
+    int64_t N12 = fBaseParams.n2 % NUM_TWO;
+
+    int64_t prefix0Max{0}, prefix1Max{0}, prefix2Max{0};
+    if (fBaseParams.n2 == 1) {
+        prefix0Max = 0;
+        prefix1Max = std::max(CeilDivideBy(deterPrefixData.prefix1.back() * fBaseParams.g, static_cast<int64_t>(fBaseParams.aicNum)), m1Max);
+        prefix2Max = std::max(CeilDivideBy(deterPrefixData.prefix2.back() * fBaseParams.g, static_cast<int64_t>(fBaseParams.aicNum)), m2Max);
+        fBaseParams.deterMaxRound = prefix1Max + prefix2Max;
+    } else if (N12 == 0) {
+        prefix0Max = std::max(CeilDivideBy(deterPrefixData.prefix0.back() * fBaseParams.g * N11, static_cast<int64_t>(fBaseParams.aicNum)), m0Max);
+        prefix1Max = 0;
+        prefix2Max = 0;
+        fBaseParams.deterMaxRound = prefix0Max;
+    } else {
+        prefix0Max = std::max(CeilDivideBy(deterPrefixData.prefix0.back() * fBaseParams.g * N11, static_cast<int64_t>(fBaseParams.aicNum)), m0Max);
+        prefix1Max = std::max(CeilDivideBy(deterPrefixData.prefix1.back() * fBaseParams.g, static_cast<int64_t>(fBaseParams.aicNum)), m1Max);
+        prefix2Max = std::max(CeilDivideBy(deterPrefixData.prefix2.back() * fBaseParams.g, static_cast<int64_t>(fBaseParams.aicNum)), m2Max);
+        int64_t totalRound = prefix0Max + prefix1Max + prefix2Max;
+
+        int64_t k2 = CeilDivideBy(static_cast<int64_t>(fBaseParams.aicNum), fBaseParams.n2);
+        int64_t k1 = static_cast<int64_t>(fBaseParams.aicNum) - k2;
+
+        int64_t prefix0MaxNew = std::max(CeilDivideBy(deterPrefixData.prefix0.back() * fBaseParams.g * N11, k1), m0Max);
+        int64_t prefix1MaxNew = std::max(CeilDivideBy(deterPrefixData.prefix1.back() * fBaseParams.g, k2), m1Max);
+        int64_t prefix2MaxNew = std::max(CeilDivideBy(deterPrefixData.prefix2.back() * fBaseParams.g, k2), m2Max);
+        int64_t totalRoundNew = std::max(prefix0MaxNew, prefix1MaxNew + prefix2MaxNew);
+        if (totalRoundNew < totalRound) {
+            fBaseParams.coreDivide = true;
+            prefix0Max = prefix0MaxNew;
+            prefix1Max = prefix1MaxNew;
+            prefix2Max = prefix2MaxNew;
+            totalRound = totalRoundNew;
+        }
+        fBaseParams.deterMaxRound = totalRound;
+    }
+
+    deterPrefixData.prefix0 = SliceVector(deterPrefixData.prefix0, fBaseParams.deterPrefixStep);
+    deterPrefixData.prefix1 = SliceVector(deterPrefixData.prefix1, fBaseParams.deterPrefixStep);
+    deterPrefixData.prefix2 = SliceVector(deterPrefixData.prefix2, fBaseParams.deterPrefixStep);
+    deterPrefixData.prefix0.push_back(prefix0Max);
+    deterPrefixData.prefix1.push_back(prefix1Max);
+    deterPrefixData.prefix2.push_back(prefix2Max);
+    std::copy(deterPrefixData.prefix0.begin(), deterPrefixData.prefix0.end(), fBaseParams.deterPrefix0);
+    std::copy(deterPrefixData.prefix1.begin(), deterPrefixData.prefix1.end(), fBaseParams.deterPrefix1);
+    std::copy(deterPrefixData.prefix2.begin(), deterPrefixData.prefix2.end(), fBaseParams.deterPrefix2);
 }
 
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleActualToken(int64_t batchIdx, int64_t &actualCalcS1Token, int64_t &actualCalcS2Token) {
@@ -1479,16 +1536,16 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterPrefix(
             int64_t L1{q - 1}, L2{std::min(n - q + 1, m + NUM_TWO - p - q)}, L3{std::max(static_cast<int64_t>(0), std::min(p + n - m - 1, p + q - NUM_TWO))};
             mNew = L3 == 0 ? p + q + L2 - NUM_TWO : m;
             nNew = L1 + L2 + L3;
-            mnMax = std::max({mnMax, p + q - 1});
+            mnMax = n <= m || fBaseParams.g == 1 ? std::max({mnMax, (p + q - 1) * fBaseParams.g}) : std::max({mnMax, mNew * fBaseParams.g, p + q - 1});
             deterPrefixData.prefix1.push_back(deterPrefixData.prefix1.back() + std::min(mNew, nNew) * (p + q - 1));
         } else {
             mNew = m;
             nNew = std::min(m - 1 + q, n);
             if (p + q <= n) {
-                mnMax = std::max({mnMax, mNew, p + q - 1});
+                mnMax = std::max({mnMax, mNew * fBaseParams.g, p + q - 1});
                 deterPrefixData.prefix1.push_back(deterPrefixData.prefix1.back() + mNew * (p + q - 1));
             } else {
-                mnMax = std::max({mnMax, mNew, nNew});
+                mnMax = std::max({mnMax, mNew * fBaseParams.g, nNew});
                 deterPrefixData.prefix1.push_back(deterPrefixData.prefix1.back() + mNew * nNew);
             }
         }
@@ -1498,7 +1555,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterPrefix(
         deterPrefixData.nNewList.push_back(nNew);
         deterPrefixData.pNewList.push_back(p);
         deterPrefixData.qNewList.push_back(q);
-        if (N11 > 0) {
+        if (N11 > 0 && fBaseParams.g == 1) {
             int64_t R0 = deterPrefixData.prefix0.back() + (mNew * nNew - (mNew - p) * (mNew - p + 1) / NUM_TWO - (nNew - q) * (nNew - q + 1) / NUM_TWO) * N11;
             deterPrefixData.prefix0.push_back(R0);
         }
@@ -1689,6 +1746,14 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandBns2DeterParam(
     if (fBaseParams.splitAxis != SplitAxisEnum::BN2S2) {
         return;
     }
+
+    // 最多允许coreNum列分给不同的核
+    if (!SupportTNDBns2(deterPrefixData)) {
+        fBaseParams.splitAxis = SplitAxisEnum::BN2GS1S2;
+        OP_LOGD("CalcleTNDBandBns2DeterParam", "Not support BNS2, change to BN2GS1S2.");
+        return;
+    }
+
     // BNS2分核按顺序分核，存在前后两核收尾分同一列的情况，计算可能分开的列
     std::vector<std::pair<uint64_t, uint64_t>> syncRounds, syncRoundRanges;
     std::fill(std::begin(fBaseParams.separateDkOffset), std::end(fBaseParams.separateDkOffset), static_cast<int64_t>(-1));
@@ -1703,6 +1768,20 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandBns2DeterParam(
     CalcleTNDBandDeterSyncRounds(syncRounds, syncRoundRanges);
 }
 
+bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SupportTNDBns2(DeterPrefixData &deterPrefixData)
+{
+    int64_t r1 = deterPrefixData.prefix1.back();
+    for (int64_t b = 0; b < fBaseParams.b; b++) {
+        int64_t m = deterPrefixData.mNewList[b];
+        int64_t n = deterPrefixData.nNewList[b];
+        if ((r1 / Gcd(m, r1)) >= n) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterParam()
 {
     if (fBaseParams.deterSparseType != static_cast<uint32_t>(DeterSparseType::DETER_BAND)) {
@@ -1715,7 +1794,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterParam()
     DeterPrefixData deterPrefixData;
     CalcleTNDBandDeterPrefix(deterPrefixData, N11, mnMax);
 
-    if (N11 > 0) {
+    if (N11 > 0 && fBaseParams.g == 1) {
         int64_t R0 = deterPrefixData.prefix0.back();
         deterPrefixData.prefix0 = SliceVector(deterPrefixData.prefix0, fBaseParams.deterPrefixStep);
         deterPrefixData.prefix0.push_back(R0);
@@ -1723,8 +1802,9 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterParam()
 
     // 将最大轮次append在了prefix的最后，需要的时候可以直接取用，形式更简洁
     // prefix0的是乘了N1的结果，也可以不乘，乘了后二分查找不用额外申请空间
-    int64_t R1 =
-        N12 > 0 ? std::max(CeilDivideBy(deterPrefixData.prefix1.back() * N12, static_cast<int64_t>(fBaseParams.aicNum)), mnMax) : 0;
+    int64_t R1 = fBaseParams.g == 1 ? 
+        (N12 > 0 ? std::max(CeilDivideBy(deterPrefixData.prefix1.back() * N12, static_cast<int64_t>(fBaseParams.aicNum)), mnMax) : 0) :
+        std::max(CeilDivideBy(deterPrefixData.prefix1.back() * fBaseParams.n1, static_cast<int64_t>(fBaseParams.aicNum)), mnMax);
     std::vector<int64_t> slicePrefix1 = SliceVector(deterPrefixData.prefix1, fBaseParams.deterPrefixStep);
     deterPrefixData.prefix1.push_back(R1);
     slicePrefix1.push_back(R1);
@@ -3565,6 +3645,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SaveToTilingData()
     if (fBaseParams.deterSparseType >= static_cast<uint32_t>(DeterSparseType::DETER_DENSE) &&
         fBaseParams.deterSparseType <= static_cast<uint32_t>(DeterSparseType::DETER_BAND) &&
         fBaseParams.layoutType == INPUT_FROAMT_TND && deterParam != nullptr) {
+        deterParam->set_coreDivide(fBaseParams.coreDivide);
         deterParam->set_deterPrefixStep(fBaseParams.deterPrefixStep);
         deterParam->set_deterPrefix(fBaseParams.deterPrefix);
         deterParam->set_deterPrefixAlign(fBaseParams.deterPrefixAlign);

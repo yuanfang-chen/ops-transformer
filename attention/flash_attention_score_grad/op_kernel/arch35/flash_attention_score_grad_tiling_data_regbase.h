@@ -399,6 +399,8 @@
  class DeterParamRegbase {
  public:
      constexpr static int64_t DETER_PREFIX_NUM = 132;
+
+     bool coreDivide;
      int64_t deterPrefixStep;
      int64_t deterPrefix[DETER_PREFIX_NUM];
      int64_t deterPrefixAlign[DETER_PREFIX_NUM];
@@ -406,6 +408,7 @@
      int64_t deterPrefix1[DETER_PREFIX_NUM];
      int64_t deterPrefix2[DETER_PREFIX_NUM];
 
+     bool get_coreDivide() const { return coreDivide; }
      int64_t get_deterPrefixStep() const { return deterPrefixStep; }
      const int64_t *get_deterPrefix() const { return deterPrefix; }
      int64_t get_deterPrefix(int index) const { return deterPrefix[index]; }
@@ -417,6 +420,7 @@
      int64_t get_deterPrefix1(int index) const { return deterPrefix1[index]; }
      const int64_t *get_deterPrefix2() const { return deterPrefix2; }
      int64_t get_deterPrefix2(int index) const { return deterPrefix2[index]; }
+     void set_coreDivide(bool value) { coreDivide = value; }
      void set_deterPrefixStep(int64_t value) { deterPrefixStep = value; }
      void set_deterPrefix(const int64_t *val) {
          for (int i = 0; i < DETER_PREFIX_NUM; ++i) {
