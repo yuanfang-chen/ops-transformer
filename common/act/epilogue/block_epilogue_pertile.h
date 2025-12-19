@@ -290,8 +290,8 @@ template <class T>
 __aicore__ inline __ubuf__ T*
 BlockEpiloguePerTile<QGMM_BLOCK_EPILOGUE_FUNC_LOCAL_PARAMS>::CopyInX1Scale(uint64_t srcOffset, uint64_t m, uint64_t k)
 {
-    AscendC::DataCopyParams x1ScaleGm2UbParams{0, 0, 0, 0};
-    AscendC::DataCopyPadParams padParams;
+    AscendC::DataCopyExtParams x1ScaleGm2UbParams;
+    AscendC::DataCopyPadExtParams<X1ScaleType> padParams;
     if constexpr (transA) {
         x1ScaleGm2UbParams.blockCount = k;
         x1ScaleGm2UbParams.blockLen = m * sizeof(T);
