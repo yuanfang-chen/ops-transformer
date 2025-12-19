@@ -18,7 +18,7 @@
 #include <cmath>
 #include "common.h"
 #include "kernel_operator.h"
-#include "../../inc/kernel_utils.h"
+#include "op_kernel/math_util.h"
 #include "../../inc/load_store_utils.h"
 
 namespace MoeGatingTopK {
