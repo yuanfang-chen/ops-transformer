@@ -304,7 +304,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
             uint64_t tailSize = totalOutputSize - tmpBlockIdx * singleCoreSize;
             uint64_t singleInitOutputSize = tailSize < singleCoreSize ? tailSize : singleCoreSize;
             WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-            matmul::InitOutput<OUT_T>(attentionOutGm[tmpBlockIdx * singleCoreSize], singleInitOutputSize, 0);
+            if (tmpBlockIdx * singleCoreSize < totalOutputSize && singleInitOutputSize > 0) {
+                matmul::InitOutput<OUT_T>(attentionOutGm[tmpBlockIdx * singleCoreSize], singleInitOutputSize, 0);
+            }
             SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         }
 
@@ -315,7 +317,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
             uint64_t tailLseSize = totalLseSize - tmpBlockIdx * singleCoreLseSize;
             uint64_t singleInitOutputLseSize = tailLseSize < singleCoreLseSize ? tailLseSize : singleCoreLseSize;
             WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
-            matmul::InitOutput<float>(softmaxLseGm[tmpBlockIdx * singleCoreLseSize], singleInitOutputLseSize, lseInitValue);
+            if (tmpBlockIdx * singleCoreLseSize < totalLseSize && singleInitOutputLseSize > 0) {
+                matmul::InitOutput<float>(softmaxLseGm[tmpBlockIdx * singleCoreLseSize], singleInitOutputLseSize, lseInitValue);
+            }
             SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         }
         WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
