@@ -401,9 +401,9 @@ int run_example_on_A2(int rankId, const char* RANK_TABLE_FILE, const char* FIRST
     HcclComm hcclComm = nullptr;
     int rank_id = rankId + first_rank_id;
     ret = HcclCommInitClusterInfo(RANK_TABLE_FILE, rank_id, &hcclComm);
-    if (ret != HCCL_SUCCESS || hcclComm == nullptr) {
+    if (ret != HCCL_SUCCESS) {
         std::cout << "[ERROR] HCCL CommInitClusterInfo failed. ret = " << ret << std::endl;
-        return 0;
+        return ret;
     }
     std::cout << "[INFO] HcclCommInitClusterInfo success, rank_id:" << rank_id << ", rankSize:" << DEV_NUM
               << ", hcclComm:" << hcclComm << std::endl;
@@ -508,12 +508,13 @@ int main(int argc, char *argv[])
         LOG_PRINT("[INFO] %s are identified and example on <Atlas A2> will be executed!\n", env_var_name);
         uint32_t single_machine_dev_num = EP_WORLD_SIZE / MACHINE_NUM;
         std::vector<std::unique_ptr<std::thread>> threads(single_machine_dev_num);
-        int ret = aclInit(nullptr);
+        auto ret = aclInit(nullptr);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d\n", ret); return ret);
         for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
             threads[rankId] = std::make_unique<std::thread>([rankId]()
             {
-                int ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
+                ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
+                CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] run example on A2 failed. ret = %d\n", ret); return ret);
             });
         }
         for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
