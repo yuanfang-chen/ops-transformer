@@ -418,7 +418,7 @@ ge::graphStatus MlaPrologTiling::ProcessBaseInputs()
     if ((scenarioInfo_.quantMode_ == QUANT_MODE::PARTIAL_QUANT_KV_NO_QUANT ||
          scenarioInfo_.quantMode_ == QUANT_MODE::PARTIAL_QUANT_KV_QUANT_PER_CHANNEL) &&
         baseShapeInfo_.tSize == GROUP_COMPUTE_T_SIZE &&
-        baseShapeInfo_.nSize == GROUP_COMPUTE_N_SIZE &&
+        baseShapeInfo_.nkvSize == GROUP_COMPUTE_N_SIZE &&
         aivNum_ >= GROUP_COMPUTE_MIN_AIV_NUM &&
         aicNum_ >= GROUP_COMPUTE_MIN_AIC_NUM &&
         cvRatio != 1) {
