@@ -14,7 +14,7 @@
 <tbody>
   <tr>
     <td>昇腾910_95 AI处理器</td>
-    <td style="text-align: center;">×</td>
+    <td style="text-align: center;">√</td>
   </tr>
   <tr>
     <td>Atlas A3 训练系列产品/Atlas A3 推理系列产品</td>

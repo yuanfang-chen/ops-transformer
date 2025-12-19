@@ -160,7 +160,7 @@ aclnnStatus aclnnPromptFlashAttentionV3(
         <td><ul><li>不指定序列长度可传入nullptr。</li>
             <li>综合约束请见<a href="#约束说明">约束说明</a>。</li><ul></td>
         <td>INT64</td>
-        <td>TND</td>
+        <td>ND</td>
         <td>1</td>
         <td>-</td>
       </tr>
@@ -171,7 +171,7 @@ aclnnStatus aclnnPromptFlashAttentionV3(
         <td><ul><li>不指定序列长度可传入nullptr。</li></ul>
             <ul><li>综合约束请见<a href="#约束说明">约束说明</a>。</li></ul></td>
         <td>INT64</td>
-        <td>TND</td>
+        <td>ND</td>
         <td>1</td>
         <td>-</td>
       </tr>
@@ -192,7 +192,7 @@ aclnnStatus aclnnPromptFlashAttentionV3(
         <td>BMM2前面的量化因子。</td>
         <td><ul><li>支持per-tensor。 </li></ul>
             <ul><li>不使用该功能时可传入nullptr。</li></ul></td>
-        <td>UINT64、FLOAT32</td>
+        <td>FLOAT32</td>
         <td>ND</td>
         <td>1</td>
         <td>-</td>
@@ -214,7 +214,7 @@ aclnnStatus aclnnPromptFlashAttentionV3(
         <td>输出的量化因子。</td>
         <td><ul><li>支持per-tensor，per-channel。 </li></ul>
             <ul><li>不使用该功能时可传入nullptr。</li></ul></td>
-        <td>UINT64、FLOAT32</td>
+        <td>FLOAT32、BFLOAT16</td>
         <td>ND</td>
         <td>1</td>
         <td>-</td>
@@ -225,7 +225,7 @@ aclnnStatus aclnnPromptFlashAttentionV3(
         <td>输出的量化偏移。</td>
         <td><ul><li>支持per-tensor，per-channel。 </li></ul>
             <ul><li>不使用该功能时可传入nullptr。</li></ul></td>
-        <td>FLOAT32</td>
+        <td>FLOAT32、BFLOAT16</td>
         <td>ND</td>
         <td>1</td>
         <td>-</td>
@@ -259,7 +259,7 @@ aclnnStatus aclnnPromptFlashAttentionV3(
         <td>INT64</td>
         <td>-</td>
         <td>1</td>
-        <td></td>
+        <td>-</td>
       </tr>
       <tr>
         <td>nextTokens</td>

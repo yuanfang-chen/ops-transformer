@@ -184,7 +184,7 @@ aclnnStatus aclnnPromptFlashAttention(
     <td><ul><li>不指定序列长度可传入nullptr。</li></ul>
         <ul><li>综合约束请见<a href="#约束说明">约束说明</a>。</li></ul></td>
     <td>INT64</td>
-    <td>TND</td>
+    <td>ND</td>
     <td>1</td>
     <td>-</td>
   </tr>
@@ -218,7 +218,7 @@ aclnnStatus aclnnPromptFlashAttention(
     <td>INT64</td>
     <td>-</td>
     <td>1</td>
-    <td></td>
+    <td>-</td>
   </tr>
   <tr>
     <td>nextTokens</td>
@@ -258,7 +258,7 @@ aclnnStatus aclnnPromptFlashAttention(
     <td>输出</td>
     <td>公式中的输出。</td>
     <td>-</td>
-    <td>FLOAT16、BFLOAT16、INT8</td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>3-4</td>
     <td>-</td>

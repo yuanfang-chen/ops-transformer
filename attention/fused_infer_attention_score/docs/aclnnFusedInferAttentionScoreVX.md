@@ -96,154 +96,812 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 
 -   **参数说明：**
 
-    - query（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构的Query输入，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN。
-    
-    - key（aclTensorList\*，计算输入）：Device侧的aclTensorList，attention结构的Key输入，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN、INT4（INT32）、FLOAT4_E1M2、FLOAT4_E2M1。
-    
-    - value（aclTensorList\*，计算输入）：Device侧的aclTensorList，attention结构的Value输入，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN、INT4（INT32）、FLOAT4_E1M2、FLOAT4_E2M1。
-    
-    -   pseShiftOptional（aclTensor\*，计算输入）：Device侧的aclTensor，在attention结构内部的位置编码参数，数据类型支持FLOAT16、BFLOAT16，数据类型与query的数据类型需满足数据类型推导规则。不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如果pseType为2或3的时候，数据类型需为FLOAT32, 对应shape支持范围是\[N]，其中N = numHeads，用于传入alibi_slope。如不使用该功能时可传入nullptr。
-        - Q_S不为1，当query为BFLOAT16类型时，要求pseShiftOptional为BFLOAT16类型；query为其他类型时要求pseShiftOptional为FLOAT16类型。输入shape类型需为 (B,N,Q_S,KV_S) 或 (1,N,Q_S,KV_S)，其中Q_S为query的shape中的S，KV_S为key和value的shape中的S。对于pseShiftOptional的KV_S为非32对齐的场景，建议padding到32字节来提高性能，多余部分的填充值不做要求。
-        - Q_S为1，要求在pseShiftOptional为FLOAT16类型时，此时的query为FLOAT16类型，而在pseShiftOptional为BFLOAT16类型时，要求此时的query为BFLOAT16类型。输入shape类型需为 (B,N,1,KV_S) 或 (1,N,1,KV_S)，其中KV_S为key和value的shape中的S。对于pseShiftOptional的KV_S为非32对齐的场景，建议padding到32字节来提高性能，多余部分的填充值不做要求。
-    
-    -   attenMaskOptional（aclTensor\*，计算输入）：Device侧的aclTensor，对QK的结果进行mask，用于指示是否计算Token间的相关性，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，数据类型支持BOOL、INT8和UINT8。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如果不使用该功能可传入nullptr。
-        -  Q_S不为1时建议shape输入 (Q_S,KV_S); (B,Q_S,KV_S); (1,Q_S,KV_S); (B,1,Q_S,KV_S); (1,1,Q_S,KV_S)。
-        -  Q_S为1时建议shape输入(B,KV_S); (B,1,KV_S); (B,1,1,KV_S)。
-    
-        其中Q_S为query的shape中的S，KV_S为key和value的shape中的S；如果输入attenMask shape中的Q_S、KV_S非32B对齐，可以向上取到对齐的Q_S、KV_S。综合约束请见[约束说明](#约束说明)。
-
-    - actualSeqLengthsOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，代表不同Batch中query的有效Sequence Length，数据类型支持INT64。如果不指定seqlen可以传入nullptr，表示和query的shape的S长度相同。综合约束请见[约束说明](#约束说明)。
-
-    - actualSeqLengthsKvOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，可传入nullptr，代表不同Batch中key/value的有效Sequence Length。数据类型支持INT64。如果不指定seqlen可以传入nullptr，表示和key/value的shape的S长度相同。综合约束请见[约束说明](#约束说明)。
-
-    - deqScale1Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持UINT64, FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示BMM1后面的反量化因子，支持per-tensor。使用全量化功能时，该参数由实际量化过程计算得来。如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
-
-    - quantScale1Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示BMM2前面的量化因子，支持per-tensor。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
-    
-    - deqScale2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持UINT64, FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示BMM2后面的反量化因子，支持per-tensor。使用全量化功能时，该参数由实际量化过程计算得来。如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
-    
-    - quantScale2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32、BFLOAT16。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示输出的量化因子，支持per-tensor，per-channel。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
-    
-    - quantOffset2Optional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32、BFLOAT16。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示输出的量化偏移，支持per-tensor，per-channel。 如不使用该功能时可传入nullptr，综合约束请见[约束说明](#约束说明)。
-    
-    - antiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor，[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示伪量化因子，支持per-tensor，per-channel，per-token。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-        -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32。
-    
-    - antiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示伪量化偏移，支持per-tensor，per-channel，per-token。如果使用该功能其数据类型与shape必须与antiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-        -  <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32。
-    
-    - blockTableOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。表示PageAttention中KV存储使用的block映射表，如不使用该功能可传入nullptr。
-    
-    - queryPaddingSizeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT64。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。表示Query中每个batch的数据是否右对齐，且右对齐的个数是多少。仅支持Q_S大于1，其余场景该参数无效。用户不特意指定时建议传入nullptr。
-
-    - kvPaddingSizeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持INT64。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。表示key/value中每个batch的数据是否右对齐，且右对齐的个数是多少。用户不特意指定时建议传入nullptr。
-    
-    - keyAntiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示key的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-        -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32、FLOAT8_E8M0。支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset和per-token-group。
-    
-    - keyAntiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT16、BFLOAT16、FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，kv伪量化参数分离时表示key的反量化偏移。如果使用该功能其数据类型与shape必须与keyAntiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-        -  <term>昇腾910_95 AI处理器</term>：支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset。
-
-    - valueAntiquantScaleOptional（aclTensor\*，计算输入）：Device侧的aclTensor。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，表示value的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-         -   <term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16、BFLOAT16、FLOAT32、FLOAT8_E8M0。支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset和per-token-group。
-
-    
-    - valueAntiquantOffsetOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT16、BFLOAT16、FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，kv伪量化参数分离时表示value的反量化偏移。如果使用该功能其数据类型与shape必须与valueAntiquantScaleOptional保持一致。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-         -   <term>昇腾910_95 AI处理器</term>：支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset。
-
-    - keySharedPrefixOptional（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构中Key的系统前缀部分的参数，数据类型支持FLOAT16、BFLOAT16、INT8，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-    
-    - valueSharedPrefixOptional（aclTensor\*，计算输入）：Device侧的aclTensor，attention结构中Value的系统前缀部分的输入，数据类型支持FLOAT16、BFLOAT16、INT8，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。如不使用该功能时可传入nullptr。综合约束请见[约束说明](#约束说明)。
-    
-    - actualSharedPrefixLenOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，可传入nullptr，代表keySharedPrefix/valueSharedPrefix的有效Sequence Length。数据类型支持INT64。如果不指定seqlen可以传入nullptr，表示和keySharedPrefix/valueSharedPrefix的s长度相同。限制：该入参中的有效Sequence Length应该不大于keySharedPrefix/valueSharedPrefix中的Sequence Length。
-
-    - queryRopeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，表示MLA结构中的query的rope信息，数据类型支持FLOAT16、BFLOAT16，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。综合约束请见[约束说明](#约束说明)。
-
-    - keyRopeOptional（aclTensor\*，计算输入）：Device侧的aclTensor，表示MLA结构中的key的rope信息，数据类型支持FLOAT16、BFLOAT16，不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。综合约束请见[约束说明](#约束说明)。
-
-    - keyRopeAntiquantScaleOptional（aclTensor*，计算输入）：Device侧的aclTensor，表示MLA结构中的key的rope信息的反量化因子。预留参数，当前版本不生效，传入nullptr即可。
-
-    - dequantScaleQueryOptional（aclTensor\*，计算输入）：Device侧的aclTensor，数据类型支持FLOAT32。[数据格式](../../../docs/zh/context/数据格式.md)支持ND，query的反量化参数，全量化场景涉及。量化模式支持per-token叠加per-head，per-block模式。如不使用该功能时可传入nullptr。
-        
-    - qStartIdxOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，数据类型支持INT64，内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。代表外切场景，当前分块的query的sequence在全局中的起始索引，[数据格式](../../../docs/zh/context/数据格式.md)支持ND；综合约束请见[约束说明](#约束说明)。当pseType为2、3时，不传入该参数按照0处理。
-
-    - kvStartIdxOptional（aclIntArray\*，计算输入）：Host侧的aclIntArray，数据类型支持INT64，内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。代表外切场景，当前分块的key和value的sequence在全局中的起始索引，[数据格式](../../../docs/zh/context/数据格式.md)支持ND；综合约束请见[约束说明](#约束说明)。当pseType为2、3时，不传入该参数按照0处理。
-
-    - numHeads（int64\_t，计算输入）：Host侧的int，代表query的head个数，数据类型支持INT64，在BNSD、BSND、BNSD_BSND、TND场景下，需要与shape中的query的N轴shape值相同，否则执行异常。
-    
-    - scaleValue（double，计算输入）：Host侧的double，公式中d开根号的倒数，代表缩放系数，作为计算流中Muls的scalar值，数据类型支持DOUBLE。数据类型与query的数据类型需满足数据类型推导规则。用户不特意指定时建议传入1.0。
-    
-    - preTokens（int64\_t，计算输入）：Host侧的int，用于稀疏计算，表示attention需要和前几个Token计算关联，数据类型支持INT64。用户不特意指定时建议传入2147483647，Q_S为1时该参数无效。
-    
-    - nextTokens（int64\_t，计算输入）：Host侧的int，用于稀疏计算，表示attention需要和后几个Token计算关联。数据类型支持INT64。用户不特意指定时建议传入2147483647，Q_S为1时该参数无效。
-    
-    - inputLayout（char\*，计算输入）：Host侧的字符指针CHAR\*，用于标识输入query、key、value的数据排布格式，当前支持BSH、BSND、BNSD、BNSD_BSND(输入为BNSD时，输出格式为BSND，仅支持Q_S大于1)、TND(TND相关场景综合约束请见[约束说明](#约束说明))。用户不特意指定时建议传入"BSH"。
-    
-       >**说明**：
-       >1、注意排布格式带下划线时，下划线左边表示输入query的layout，下划线右边表示输出output的格式。
-       >2、query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
-    
-    - numKeyValueHeads（int64\_t，计算输入）：Host侧的int，代表key、value中head个数，用于支持GQA（Grouped-Query Attention，分组查询注意力）场景，数据类型支持INT64。用户不特意指定时建议传入0，表示key/value和query的head个数相等，需要满足numHeads整除numKeyValueHeads，numHeads与numKeyValueHeads的比值不能大于64。在BNSD、BSND、BNSD_BSND、TND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常。
-    
-    - sparseMode（int64\_t，计算输入）：Host侧的int，表示sparse的模式。数据类型支持INT64。Q_S为1且不带rope输入时该参数无效。inputLayout为TND、TND_NTD、NTD_TND时，综合约束请见[约束说明](#约束说明)。
-      -   sparseMode为0时，代表defaultMask模式，如果attenmask未传入则不做mask操作，忽略preTokens和nextTokens（内部赋值为INT\_MAX）；如果传入，则需要传入完整的attenmask矩阵（S1 \* S2），表示preTokens和nextTokens之间的部分需要计算。
-      -   sparseMode为1时，代表allMask，必须传入完整的attenmask矩阵（S1 \* S2）。
-      -   sparseMode为2时，代表leftUpCausal模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）。
-      -   sparseMode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景，需要传入优化后的attenmask矩阵（2048\*2048）。
-      -   sparseMode为4时，代表band模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）。
-      -   sparseMode为5、6、7、8时，分别代表prefix、global、dilated、block\_local，**均暂不支持**。用户不特意指定时建议传入0。综合约束请见[约束说明](#约束说明)。
-    
-    - innerPrecise（int64\_t，计算输入）：Host侧的int，一共4种模式：0、1、2、3。一共两位bit位，第0位（bit0）表示高精度或者高性能选择，第1位（bit1）表示是否做行无效修正。数据类型支持INT64。Q_S>1时，sparse_mode为0或1，并传入用户自定义mask的情况下，建议开启行无效；Q_S为1时该参数仅支持innerPrecise为0和1。综合约束请见[约束说明](#约束说明)。
-      - innerPrecise为0时，代表开启高精度模式，且不做行无效修正。
-    
-      - innerPrecise为1时，代表高性能模式，且不做行无效修正。
-    
-      - innerPrecise为2时，代表开启高精度模式，且做行无效修正。
-    
-      - innerPrecise为3时，代表高性能模式，且做行无效修正。
-    
-      >**说明：**
-      >BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLOAT16和INT8均生效。
-      >当前0、1为保留配置值，当计算过程中“参与计算的mask部分”存在某整行全为1的情况时，精度可能会有损失。此时可以尝试将该参数配置为2或3来使能行无效功能以提升精度，但是该配置会导致性能下降。
-      >如果算子可判断出存在无效行场景，会自动使能无效行计算，例如sparse_mode为3，Sq > Skv场景。
-    
-    - blockSize（int64\_t，计算输入）：Host侧的int64\_t，PageAttention中KV存储每个block中最大的token个数，不传时按照0处理，数据类型支持INT64。
-    
-    - antiquantMode（int64，计算输入）：伪量化的方式，传入0时表示为per-channel（per-channel包含per-tensor），传入1时表示per-token。用户不特意指定时建议传入0。
-        -  <term>昇腾910_95 AI处理器</term>：传入0和1之外的其他值会执行异常。
-
-    - softmaxLseFlag（bool，计算输入）：是否输出softmax_lse，支持S轴外切（增加输出）。用户不特意指定时建议传入false。
-    
-    - keyAntiquantMode（int64，计算输入）：key 的反量化的方式。用户不特意指定时建议传入0。除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，需要与valueAntiquantMode一致。综合约束请见[约束说明](#约束说明)。
-        - keyAntiquantMode为0时，代表per-channel模式（per-channel包含per-tensor）。
-        - keyAntiquantMode为1时，代表per-token模式。
-        - keyAntiquantMode为2时，代表per-tensor叠加per-head模式。
-        - keyAntiquantMode为3时，代表per-token叠加per-head模式。
-        - keyAntiquantMode为4时，代表per-token叠加使用page attention模式管理scale/offset模式。
-        - keyAntiquantMode为5时，代表per-token叠加per head并使用page attention模式管理scale/offset模式。
-        - keyAntiquantMode为6时，代表per-token-group模式。
-        - keyAntiquantMode为7时，代表FP8 per-block全量化模式。
-        -  <term>昇腾910_95 AI处理器</term>：传入0，1，2，3，4，5，6和7之外的其他值会执行异常。
-            - valueAntiquantMode（int64，计算输入）：value 的反量化的方式，模式编号与keyAntiquantMode一致。用户不特意指定时建议传入0。除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，需要与 keyAntiquantMode 一致。综合约束请见[约束说明](#约束说明)。
-
-    - queryQuantMode（int64，计算输入）：query 的反量化的方式，模式编号与keyAntiquantMode一致。代表模式3：per-token叠加per-head模式。代表模式7：FP8 per-block全量化模式。
-
-    - pseType（int64\_t，计算输入）：Host侧的int64_t。数据类型支持INT64。支持配置值为0、2、3（pseType = 1推理场景不支持）。
-        - pseType为0时，外部传入pse，先mul再add。
-        - pseType为2时，内部生成pse，计算公式：-alibi_slope * abs(i - j)。
-        - pseType为3时，内部生成pse，计算公式：-alibi_slope * sqrt(abs(i - j))。
-
-    - attentionOut（aclTensor\*，计算输出）：Device侧的aclTensor，公式中的输出，数据类型支持FLOAT16、BFLOAT16、INT8、FLOAT8_E4M3FN、 HIFLOAT8。[数据格式](../../../docs/zh/context/数据格式.md)支持ND。限制：该入参的D维度与value的D保持一致，其余维度需要与入参query的shape保持一致。
-    
-    - softmaxLse（aclTensor\*，计算输出）：ring attention算法对query乘key的结果，先取max得到softmax_max。query乘key的结果减去softmax_max, 再取exp，接着求sum，得到softmax_sum。最后对softmax_sum取log，再加上softmax_max得到的结果。用户不特意指定时建议传入nullptr。数据类型支持FLOAT32，softmaxLseFlag为True时,一般情况下,shape必须为[B,N,Q_S,1],当inputLayout为TND/NTD_TND时,shape必须为[T,N,1]。数据为inf的代表无效数据；softmaxLseFlag为False时，如果softmaxLse传入的Tensor非空，则直接返回该Tensor数据，如果softmaxLse传入的是nullptr，则返回shape为{1}全0的Tensor。
-    
-    - workspaceSize（uint64\_t\*，出参）：返回用户需要在Device侧申请的workspace大小。
-    
-    - executor（aclOpExecutor\*\*，出参）：返回op执行器，包含了算子计算流程。
-
+    <div style="overflow-x: auto;">
+    <table style="undefined;table-layout: fixed; width: 1497px"><colgroup> 
+     <col style="width: 150px"> 
+     <col style="width: 120px"> 
+     <col style="width: 300px"> 
+     <col style="width: 330px"> 
+     <col style="width: 212px"> 
+     <col style="width: 100px">  
+     <col style="width: 140px">  
+     <col style="width: 145px">  
+     </colgroup>
+    <thead>
+    <tr>
+        <th>参数名</th>
+        <th>输入/输出</th>
+        <th>描述</th>
+        <th>使用说明</th>
+        <th>数据类型</th>
+        <th>数据格式</th>
+        <th>维度(shape)</th>
+        <th>非连续Tensor</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>query</td>
+        <td>输入</td>
+        <td>公式中的输入Q。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN</td>
+        <td>ND</td>
+        <td>见参数inputLayout</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>key</td>
+        <td>输入</td>
+        <td>公式中的输入K。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN、INT4（INT32）、FLOAT4_E1M2、FLOAT4_E2M1</td>
+        <td>ND</td>
+        <td>见参数inputLayout</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>value</td>
+        <td>输入</td>
+        <td>公式中的输入V。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、INT8、HIFLOAT8、FLOAT8_E4M3FN、INT4（INT32）、FLOAT4_E1M2、FLOAT4_E2M1</td>
+        <td>ND</td>
+        <td>见参数inputLayout</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>pseShiftOptional</td>
+        <td>输入</td>
+        <td>位置编码</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>ND</td>
+        <td>建议shape输入 (B,Q_N,Q_S,KV_S)、(1,Q_N,Q_S,KV_S)</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>attenMaskOptional</td>
+        <td>输入</td>
+        <td>mask矩阵</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>BOOL、INT8、UINT8</td>
+        <td>ND</td>
+        <td>
+        <ul>
+            <li>spareseMode = 2、3、4时，attenMaskOptional的shape需要为（2048,2048）或（1,2048,2048）或（1,1,2048,2048）。</li>
+            <li>spareseMode为其他值且Q_S不为1时建议shape输入 (Q_S,KV_S); (B,Q_S,KV_S); (1,Q_S,KV_S); (B,1,Q_S,KV_S); (1,1,Q_S,KV_S)。</li>
+            <li>spareseMode为其他值且Q_S为1时建议shape输入(B,KV_S); (B,1,KV_S); (B,1,1,KV_S)。</li>
+            <li>上述Q_S为query的shape中的S，KV_S为key和value的shape中的S；如果输入attenMask shape中的Q_S、KV_S非32B对齐，可以向上取到对齐的Q_S、KV_S。</li>
+        </ul>
+        </td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>actualSeqLengthsOptional</td>
+        <td>输入</td>
+        <td>不同Batch中query的有效序列长度。</td>
+        <td>
+        <ul>
+            <li>不指定序列长度可传入nullptr，表示和query的shape的S长度相同。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        <ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>（1）或（B）或（>B）</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>actualSeqLengthsKvOptional</td>
+        <td>输入</td>
+        <td>不同Batch中key/value的有效序列长度。</td>
+        <td>
+        <ul>
+            <li>不指定序列长度可传入nullptr，表示和key/value的shape的S长度相同。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>（1）或（B）或（>B）</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>deqScale1Optional</td>
+        <td>输入</td>
+        <td>BMM1后面的反量化因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>支持per-tensor。</li>
+            <li>使用全量化功能时，该参数由实际量化过程计算得来。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>UINT64、FLOAT32</td>
+        <td>ND</td>
+        <td>见<a href="#INT8">int8量化相关入参数量与输入、输出数据格式的综合限制</a>。</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>quantScale1Optional</td>
+        <td>输入</td>
+        <td>BMM2前面的量化因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>支持per-tensor。 </li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT32</td>
+        <td>ND</td>
+        <td>见<a href="#INT8">int8量化相关入参数量与输入、输出数据格式的综合限制</a>。</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>deqScale2Optional</td>
+        <td>输入</td>
+        <td>BMM2后面的反量化因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>支持per-tensor。 </li>
+            <li>使用全量化功能时，该参数由实际量化过程计算得来。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>UINT64、FLOAT32</td>
+        <td>ND</td>
+        <td>见<a href="#INT8">int8量化相关入参数量与输入、输出数据格式的综合限制</a>。</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>quantScale2Optional</td>
+        <td>输入</td>
+        <td>输出的量化因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>支持per-tensor，per-channel。 </li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT32、BFLOAT16</td>
+        <td>ND</td>
+        <td>输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D]</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>quantOffset2Optional</td>
+        <td>输入</td>
+        <td>输出的量化偏移。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>支持per-tensor，per-channel。 </li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT32、BFLOAT16</td>
+        <td>ND</td>
+        <td>与quantScale2Optional保持一致</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>antiquantScaleOptional</td>
+        <td>输入</td>
+        <td>伪量化因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>支持per-tensor，per-channel，per-token。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>见<a href="#AntiQuant">伪量化参数 antiquantScale和antiquantOffset约束</a></td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>antiquantOffsetOptional</td>
+        <td>输入</td>
+        <td>伪量化偏移。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>支持per-tensor，per-channel，per-token。</li>
+            <li>使用时，数据类型与shape必须与antiquantScaleOptional保持一致。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>与antiquantScaleOptional保持一致</td>
+        <td>-</td>
+    </tr> 
+    <tr>
+        <td>blockTableOptional</td>
+        <td>输入</td>
+        <td>PageAttention中KV存储使用的block映射表。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+        </ul>
+        </td>
+        <td>INT32</td>
+        <td>ND</td>
+        <td>第一维长度需等于B，第二维长度不能小于maxBlockNumPerSeq（maxBlockNumPerSeq为不同batch中最大actualSeqLengthsKv对应的block数量）</td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>queryPaddingSizeOptional</td>
+        <td>输入</td>
+        <td>表示Query中每个batch的数据是否右对齐，且右对齐的个数是多少。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>仅支持Q_S大于1，其余场景该参数无效。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>（1）</td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>kvPaddingSizeOptional</td>
+        <td>输入</td>
+        <td>表示key/value中每个batch的数据是否右对齐，且右对齐的个数是多少。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>（1）</td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>keyAntiquantScaleOptional</td>
+        <td>输入</td>
+        <td>表示key的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset和per-token-group。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、FLOAT32、FLOAT8_E8M0</td>
+        <td>ND</td>
+        <td>见<a href="#约束说明">约束说明</a></td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>keyAntiquantOffsetOptional</td>
+        <td>输入</td>
+        <td>kv伪量化参数分离时表示key的反量化偏移。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>使用时，shape必须与keyAntiquantScaleOptional保持一致。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>见<a href="#约束说明">约束说明</a></td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>valueAntiquantScaleOptional</td>
+        <td>输入</td>
+        <td>表示value的反量化因子，用于kv伪量化参数分离和FP8 per-block全量化场景。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset和per-token-group。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、FLOAT32、FLOAT8_E8M0</td>
+        <td>ND</td>
+        <td>见<a href="#约束说明">约束说明</a></td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>valueAntiquantOffsetOptional</td>
+        <td>输入</td>
+        <td>kv伪量化参数分离时表示value的反量化因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>使用时，shape必须与valueAntiquantScaleOptional保持一致。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>支持per-tensor，per-channel，per-token，per-tensor叠加per-head，per-token叠加per-head，per-token叠加使用page attention模式管理scale/offset、per-token叠加per head并使用page attention模式管理scale/offset。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+        <td>见<a href="#约束说明">约束说明</a></td>
+        <td>-</td>
+    </tr>        
+    <tr> 
+        <td>keySharedPrefixOptional</td>
+        <td>输入</td>
+        <td>attention结构中Key的系统前缀部分的参数。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、INT8</td>
+        <td>ND</td>
+        <td>
+        <ul>
+            <li>input_layout为BSH时，shape为（1，prefix_S，H=KV_N*KV_D）</li>
+            <li>input_layout为BSND时，shape为（1，prefix_S，KV_N，KV_D）</li>
+            <li>input_layout为BNSD、BNSD_BSND时，shape为（1，KV_N，prefix_S，KV_D）</li>
+        </ul>
+        </td>
+        <td>×</td>
+    </tr>
+    <tr> 
+        <td>valueSharedPrefixOptional</td>
+        <td>输入</td>
+        <td>attention结构中Value的系统前缀部分的输入。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16、INT8</td>
+        <td>ND</td>
+        <td>
+        <ul>
+            <li>input_layout为BSH时，shape为（1，prefix_S，H=KV_N*KV_D）</li>
+            <li>input_layout为BSND时，shape为（1，prefix_S，KV_N，KV_D）</li>
+            <li>input_layout为BNSD、BNSD_BSND时，shape为（1，KV_N，prefix_S，KV_D）</li>
+        </ul>
+        </td>
+        <td>×</td>
+    </tr>
+    <tr> 
+        <td>actualSharedPrefixLenOptional</td>
+        <td>输入</td>
+        <td>keySharedPrefix/valueSharedPrefix的有效Sequence Length。</td>
+        <td>
+        <ul>
+            <li>不使用该功能时可传入nullptr，表示和keySharedPrefix/valueSharedPrefix的s长度相同。</li>
+            <li>该入参中的有效Sequence Length应该不大于keySharedPrefix/valueSharedPrefix中的Sequence Length。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>（1）</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>queryRopeOptional</td>
+        <td>输入</td>
+        <td>MLA结构中的query的rope信息。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>ND</td>
+        <td>queryRope的shape中d为64，其余维度与query一致</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>keyRopeOptional</td>
+        <td>输入</td>
+        <td>MLA结构中的key的rope信息。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>ND</td>
+        <td>keyRope的shape中d为64，其余维度与key一致</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>keyRopeAntiquantScaleOptional</td>
+        <td>输入</td>
+        <td>MLA结构中的key的rope信息的反量化因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>预留参数，当前版本不生效，传入nullptr即可。</li>
+        </ul>
+        </td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>        
+    <tr> 
+        <td>dequantScaleQueryOptional</td>
+        <td>输入</td>
+        <td>对query进行反量化的因子。</td>
+        <td>
+        <ul>
+            <li>不支持空Tensor。</li>
+            <li>全量化场景涉及。量化模式支持per-token叠加per-head，per-block模式。</li>
+            <li>不使用该功能时可传入nullptr。</li>
+        </ul>
+        </td>
+        <td>FLOAT32</td>
+        <td>ND</td>
+        <td>见<a href="#约束说明">约束说明</a></td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>qStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
+        <td>
+        <ul>
+            <li>内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。</li>
+            <li>当pseType为2、3时，不传入该参数按照0处理。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>见<a href="#约束说明">约束说明</a></td>
+        <td>-</td>
+    </tr>
+    <tr> 
+        <td>kvStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的key和value的sequence在全局中的起始索引。</td>
+        <td>
+        <ul>
+            <li>内部生成pse场景生效（pseType为2或3），其他场景可传入nullptr。</li>
+            <li>当pseType为2、3时，不传入该参数按照0处理。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>见<a href="#约束说明">约束说明</a></td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>numHeads</td>
+        <td>输入</td>
+        <td>query的head个数。</td>
+        <td>在BNSD、BSND、BNSD_BSND、TND场景下，需要与shape中的query的N轴shape值相同，否则执行异常。</td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>scaleValue</td>
+        <td>输入</td>
+        <td>公式中d开根号的倒数。</td>
+        <td>
+        <ul>
+            <li>数据类型与query的数据类型需满足数据类型推导规则。 </li>
+            <li>用户不特意指定时建议传入1.0。 </li>
+        </ul>
+        </td>
+        <td>DOUBLE</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>preTokens</td>
+        <td>输入</td>
+        <td>用于稀疏计算，表示attention需要和前几个Token计算关联。</td>
+        <td>
+        <ul>
+            <li>不特意指定时建议传入2147483647。</li>
+            <li>Q_S为1时该参数无效。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>      
+    <tr>
+        <td>nextTokens</td>
+        <td>输入</td>
+        <td>表示attention需要和后几个Token计算关联。</td>
+        <td>
+        <ul>
+            <li>不特意指定时建议传入2147483647。</li>
+            <li>Q_S为1时该参数无效。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>inputLayout</td>
+        <td>输入</td>
+        <td>标识输入query、key、value的数据排布格式。</td>
+        <td>
+        <ul>
+            <li>当前支持BSH、BSND、BNSD、BNSD_BSND（输入为BNSD时，输出格式为BSND，仅支持Q_S大于1）、TND（TND相关场景综合约束见<a href="#约束说明">约束说明</a>）。不特意指定时建议传入"BSH"。</li>
+            <li>注意排布格式带下划线时，下划线左边表示输入query的layout，下划线右边表示输出output的格式。</li>
+            <li>query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。</li>
+        </ul>
+        </td>
+        <td>CHAR</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>numKeyValueHeads</td>
+        <td>输入</td>
+        <td>key、value中head个数。</td>
+        <td>
+        <ul>
+            <li>用户不特意指定时建议传入0，表示key/value和query的head个数相等。</li>
+            <li>需要满足numHeads整除numKeyValueHeads，numHeads与numKeyValueHeads的比值不能大于64。在BNSD、BSND、BNSD_BSND、TND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>sparseMode</td>
+        <td>输入</td>
+        <td>sparse的模式。</td>
+        <td>
+        <ul>
+            <li>Q_S为1且不带rope输入时该参数无效。</li>
+            <li>inputLayout为TND、TND_NTD、NTD_TND时，综合约束请见<a href="#约束说明">约束说明</a>。</li>
+            <li>sparseMode为0时，代表defaultMask模式，如果attenmask未传入则不做mask操作，忽略preTokens和nextTokens（内部赋值为INT\_MAX）；如果传入，则需要传入完整的attenmask矩阵（S1 \* S2），表示preTokens和nextTokens之间的部分需要计算。</li>
+            <li>sparseMode为1时，代表allMask，必须传入完整的attenmask矩阵（S1 \* S2）。</li>
+            <li>sparseMode为2时，代表leftUpCausal模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
+            <li>sparseMode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
+            <li>sparseMode为4时，代表band模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
+            <li>sparseMode为5、6、7、8时，分别代表prefix、global、dilated、block\_local，均暂不支持。</li>
+            <li>用户不特意指定时建议传入0。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>innerPrecise</td>
+        <td>输入</td>
+        <td>表示高精度或者高性能选择。</td>
+        <td>
+        <ul>
+            <li>innerPrecise为0时，代表开启高精度模式，且不做行无效修正。</li>
+            <li>innerPrecise为1时，代表高性能模式，且不做行无效修正。</li>
+            <li>innerPrecise为2时，代表开启高精度模式，且做行无效修正。</li>
+            <li>innerPrecise为3时，代表高性能模式，且做行无效修正。</li>
+            <li>Q_S>1时，sparse_mode为0或1，并传入用户自定义mask的情况下，建议开启行无效；Q_S为1时该参数仅支持innerPrecise为0和1。</li>
+            <li>BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLOAT16和INT8均生效。</li>
+            <li>当前0、1为保留配置值，当计算过程中“参与计算的mask部分”存在某整行全为1的情况时，精度可能会有损失。此时可以尝试将该参数配置为2或3来使能行无效功能以提升精度，但是该配置会导致性能下降。</li>
+            <li>如果算子可判断出存在无效行场景，会自动使能无效行计算，例如sparse_mode为3，Sq > Skv场景。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>blockSize</td>
+        <td>输入</td>
+        <td>PageAttention中KV存储每个block中最大的token个数。</td>
+        <td>不传时按照0处理。</td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>antiquantMode</td>
+        <td>输入</td>
+        <td>伪量化的方式。</td>
+        <td>
+        <ul>
+            <li>传入0时表示为per-channel（per-channel包含per-tensor）。</li>
+            <li>传入1时表示per-token。</li>
+            <li>不特意指定时建议传入0。</li>
+            <li>传入0和1之外的其他值会执行异常。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>softmaxLseFlag</td>
+        <td>输入</td>
+        <td>是否输出softmax_lse。</td>
+        <td>
+        <ul>
+            <li>支持S轴外切（增加输出）。</li>
+            <li>用户不特意指定时建议传入false。</li>
+        </ul>
+        </td>
+        <td>BOOL</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>        
+    <tr>
+        <td>keyAntiquantMode</td>
+        <td>输入</td>
+        <td>key 的反量化的方式。</td>
+        <td>
+        <ul>
+            <li>不特意指定时建议传入0。</li>
+            <li>除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，需要与valueAntiquantMode一致。</li>
+            <li>keyAntiquantMode为0时，代表per-channel模式（per-channel包含per-tensor）。</li>
+            <li>keyAntiquantMode为1时，代表per-token模式。</li>
+            <li>keyAntiquantMode为2时，代表per-tensor叠加per-head模式。</li>
+            <li>keyAntiquantMode为3时，代表per-token叠加per-head模式。</li>
+            <li>keyAntiquantMode为4时，代表per-token叠加使用page attention模式管理scale/offset模式。</li>
+            <li>keyAntiquantMode为5时，代表per-token叠加per head并使用page attention模式管理scale/offset模式。</li>
+            <li>keyAntiquantMode为6时，代表per-token-group模式。</li>
+            <li>keyAntiquantMode为7时，代表FP8 per-block全量化模式。</li>
+            <li>传入0-7之外的其他值会执行异常。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>valueAntiquantMode</td>
+        <td>输入</td>
+        <td>value 的反量化的方式。</td>
+        <td>
+        <ul>
+            <li>模式编号与keyAntiquantMode一致。</li>
+            <li>用户不特意指定时建议传入0。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>        
+    <tr>
+        <td>queryQuantMode</td>
+        <td>输入</td>
+        <td>query反量化的模式。</td>
+        <td>
+        <ul>
+            <li>模式编号与keyAntiquantMode一致。</li>
+            <li>用户不特意指定时建议传入0。</li>
+            <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>pseType</td>
+        <td>输入</td>
+        <td>pse的方式。</td>
+        <td>
+        <ul>
+            <li>支持配置值为0、2、3（pseType = 1推理场景不支持）。</li>
+            <li>pseType为0时，外部传入pse，先mul再add。</li>
+            <li>pseType为2时，内部生成pse，计算公式：-alibi_slope * abs(i - j)。</li>
+            <li>pseType为3时，内部生成pse，计算公式：-alibi_slope * sqrt(abs(i - j))。</li>
+        </ul>
+        </td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>attentionOut</td>
+        <td>输出</td>
+        <td>公式中的输出。</td>
+        <td>-</td>
+        <td>FLOAT16、BFLOAT16、INT8、FLOAT8_E4M3FN、HIFLOAT8</td>
+        <td>ND</td>
+        <td>该入参的D维度与value的D保持一致，其余维度需要与入参query的shape保持一致。</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>softmaxLse</td>
+        <td>输出</td>
+        <td>ring attention算法对query乘key的结果，先取max得到softmax_max。query乘key的结果减去softmax_max, 再取exp，接着求sum，得到softmax_sum。最后对softmax_sum取log，再加上softmax_max得到的结果。</td>
+        <td>
+        <ul>
+            <li>用户不特意指定时建议传入nullptr。</li>
+            <li>数据为inf的代表无效数据；softmaxLseFlag为False时，如果softmaxLse传入的Tensor非空，则直接返回该Tensor数据，如果softmaxLse传入的是nullptr，则返回shape为{1}全0的Tensor。</li>
+        </ul>
+        </td>
+        <td>FLOAT32</td>
+        <td>ND</td>
+        <td>softmaxLseFlag为True时，一般情况下，shape必须为[B, N, Q_S, 1]，当inputLayout为TND/NTD_TND时，shape必须为[T, N, 1]。</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>workspaceSize</td>
+        <td>输出</td>
+        <td>返回用户需要在Device侧申请的workspace大小。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>executor</td>
+        <td>输出</td>
+        <td>返回op执行器，包含了算子计算流程。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+    </tbody></table>
+    </div>
 
 -   **返回值：**
 
@@ -282,13 +940,13 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         - 当前只支持每个batch中qs和kvs等长。
         - 不支持MLA、左padding场景。
         - 只支持非量化、伪量化场景，不支持全量化场景。
-- int8量化相关入参数量与输入、输出[数据格式](../../../docs/zh/context/数据格式.md)的综合限制：
+- <a id="INT8"></a>int8量化相关入参数量与输入、输出[数据格式](../../../docs/zh/context/数据格式.md)的综合限制：
     - 输出为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)的场景：入参deqScale1、quantScale1、deqScale2、quantScale2需要同时存在，quantOffset2可选，不传时按照0处理。
     - 输出为FLOAT16的场景：入参deqScale1、quantScale1、deqScale2需要同时存在，若存在入参quantOffset2 或 quantScale2（即不为nullptr），则报错并返回。
         -  <term>昇腾910_95 AI处理器</term>：输入为INT8、HIFLOAT8、FLOAT8_E4M3FN。
     - 输入全为FLOAT16或BFLOAT16，输出为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)的场景：入参quantScale2需存在，quantOffset2可选，不传时按照0处理，若存在入参deqScale1 或 quantScale1 或 deqScale2（即不为nullptr），则报错并返回。
     - 入参 quantScale2 和 quantOffset2 支持 per-tensor/per-channel 两种格式和 FLOAT32/BFLOAT16 两种数据类型。若传入 quantOffset2 ，需保证其类型和shape信息与 quantScale2 一致。当输入为BFLOAT16时，同时支持FLOAT32和BFLOAT16，否则仅支持FLOAT32 。per-channel 格式，当输出layout为BSH时，要求 quantScale2 所有维度的乘积等于H；其他layout要求乘积等于N*D。（建议输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D];输出为TND时，建议传入[1,N,1,D]或[N,D]）
--   伪量化参数 antiquantScale和antiquantOffset约束：
+-   <a id="AntiQuant"></a>伪量化参数 antiquantScale和antiquantOffset约束：
     - 仅支持kv_dtype为int8的伪量化场景。
     - 支持per-channel、per-tensor和per-token三种模式：
       - per-channel模式：两个参数的shape可支持\(2, N, 1, D\)，\(2, N, D\)，\(2, H\)，N为numKeyValueHeads。参数数据类型和query数据类型相同，antiquantMode置0。
@@ -384,6 +1042,9 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         - <term>昇腾910_95 AI处理器</term>：
             - 非量化，全量化场景：无对齐限制。
         - Q_S需大于等于query的S长度，KV_S需大于等于key的S长度。prefix场景KV_S需大于等于actualSharedPrefixLen与key的S长度之和。
+        - Q_S不为1，当query为BFLOAT16类型时，要求pseShift为BFLOAT16类型；query为其他类型时要求pseShift为FLOAT16类型。输入shape类型需为 (B,N,Q_S,KV_S) 或 (1,N,Q_S,KV_S)，其中Q_S为query的shape中的S，KV_S为key和value的shape中的S。对于pseShift的KV_S为非32对齐的场景，建议padding到32字节来提高性能，多余部分的填充值不做要求。
+        - Q_S为1，要求在pseShift为FLOAT16类型时，此时的query为FLOAT16类型，而在pseShift为BFLOAT16类型时，要求此时的query为BFLOAT16类型。输入shape类型需为 (B,N,1,KV_S) 或 (1,N,1,KV_S)，其中KV_S为key和value的shape中的S。对于pseShift的KV_S为非32对齐的场景，建议padding到32字节来提高性能，多余部分的填充值不做要求。
+        - 如果pseType为2或3的时候，数据类型需为FLOAT32, 对应shape支持范围是[N]，其中N = numHeads，用于传入alibi_slope。
    -   prefix相关参数约束：
         -   keySharedPrefix和valueSharedPrefix要么都为空，要么都不为空
         -   keySharedPrefix和valueSharedPrefix都不为空时，keySharedPrefix、valueSharedPrefix、key、value的维度相同、dtype保持一致。
