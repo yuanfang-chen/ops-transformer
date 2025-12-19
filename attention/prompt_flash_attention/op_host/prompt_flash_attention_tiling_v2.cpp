@@ -719,20 +719,19 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
         OP_LOGE(contextKeyParams.opName, "numHeads(%d) must be divisible by numKeyValueHeads(%d)!", nQ, nKV);
         return false;
     }
+    if ((!enablePFAMLA && !enableIFAMLA) && (nQ / nKV > 64)) { // G cannot be greater than 64.
+        OP_LOGE(contextKeyParams.opName, "numHeads / numKeyValueHeads = %d, cannot be larger than 64.", nQ / nKV);
+        return false;
+    }
 
     if (enableIFAMLA || enableIFA) {
         tilingData.promptAttentionBaseParams.set_headNumRatio(1);
         tilingData.promptAttentionBaseParams.set_gOfMla(gSize);
-        return true;
     } else {
+        tilingData.promptAttentionBaseParams.set_headNumRatio(nQ / nKV);
         tilingData.promptAttentionBaseParams.set_gOfMla(1);
     }
 
-    if (nQ / nKV > 64 && (!enablePFAMLA)) { // G cannot be greater than 64.
-        OP_LOGE(contextKeyParams.opName, "numHeads / numKeyValueHeads = %d, cannot be larger than 64.", nQ / nKV);
-        return false;
-    }
-    tilingData.promptAttentionBaseParams.set_headNumRatio(nQ / nKV);
     return true;
 }
 
