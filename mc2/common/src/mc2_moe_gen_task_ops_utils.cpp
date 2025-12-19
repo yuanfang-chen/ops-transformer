@@ -50,6 +50,7 @@ const std::string MOE_DISTRIBUTE_DISPATCH_TEARDOWN_OP_TYPE =
 const std::string ALLTO_ALLV_GROUPED_MAT_MUL_OP_TYPE = "AlltoAllvGroupedMatMul";
 const std::string GROUPED_MAT_MUL_ALLTO_ALLV_OP_TYPE = "GroupedMatMulAlltoAllv";
 const std::string ATTENTION_TO_FFN_OP_TYPE = "AttentionToFFN";
+const std::string FFN_TO_ATTENTION_OP_TYPE = "FFNToAttention";
 const int32_t GROUP_CNT_OF_DS_TRAINING = 1;
 const int32_t GROUP_CNT_OF_MOE_DISTRIBUTE = 2;
 const int32_t ONE_GROUP_CNT_OF_MOE_DISTRIBUTE = 1;
@@ -75,7 +76,8 @@ static const std::map<const std::string, int32_t> GROUP_CNT_MAP{
     {MOE_DISTRIBUTE_DISPATCH_TEARDOWN_OP_TYPE, ONE_GROUP_CNT_OF_MOE_DISTRIBUTE},
     {ALLTO_ALLV_GROUPED_MAT_MUL_OP_TYPE, GROUP_CNT_OF_DS_TRAINING},
     {GROUPED_MAT_MUL_ALLTO_ALLV_OP_TYPE, GROUP_CNT_OF_DS_TRAINING},
-    {ATTENTION_TO_FFN_OP_TYPE, GROUP_CNT_OF_ATTENTION_FFN}};
+    {ATTENTION_TO_FFN_OP_TYPE, GROUP_CNT_OF_ATTENTION_FFN},
+    {FFN_TO_ATTENTION_OP_TYPE, GROUP_CNT_OF_ATTENTION_FFN}};
 
 static const std::unordered_set<std::string> NO_AI_CPU_SET{
     MOE_DISTRIBUTE_DISPATCH_OP_TYPE,
@@ -224,7 +226,8 @@ ge::Status Mc2MoeGenTaskOpsUtils::Mc2MoeInsertTask(
   const char* groupName =
       opTypeStr == DISTRIBUTE_BARRIER_OP_TYPE || opTypeStr == ALLTO_ALLV_GROUPED_MAT_MUL_OP_TYPE || 
       opTypeStr == GROUPED_MAT_MUL_ALLTO_ALLV_OP_TYPE ||
-      opTypeStr == ATTENTION_TO_FFN_OP_TYPE ? "group" : "group_ep";
+      opTypeStr == ATTENTION_TO_FFN_OP_TYPE ||
+      opTypeStr == FFN_TO_ATTENTION_OP_TYPE ? "group" : "group_ep";
   ge::KernelLaunchInfo waitTask =
       ge::KernelLaunchInfo::CreateHcomWaitTask(context, groupName);
   waitTask.SetStreamId(attachStreamId);

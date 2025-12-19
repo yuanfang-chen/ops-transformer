@@ -416,6 +416,16 @@
   </tr>
   <tr>
     <td>mc2</td>
+    <td><a href="../../mc2/ffn_to_attention/README.md">ffn_to_attention</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>AI Core</td>
+    <td>一个通信域内的FFN节点对Attention节点发送数据并写状态位，以检测通信链路是否正常。</td>
+  </tr>
+  <tr>
+    <td>mc2</td>
     <td><a href="../../mc2/grouped_mat_mul_all_reduce/README.md">grouped_mat_mul_all_reduce</a></td>
     <td>√</td>
     <td>√</td>

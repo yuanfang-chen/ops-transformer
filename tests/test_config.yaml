@@ -1042,6 +1042,21 @@ mc2:
         examples: False
       options:
         - elastic_receivable_test
+    
+    ffn_to_attention:
+      module: True
+      src:
+        - mc2/ffn_to_attention
+        - mc2/common
+      exclude:
+        - mc2/ffn_to_attention/docs
+        - mc2/ffn_to_attention/README.md
+      ut_cov_exclude:
+        - mc2/ffn_to_attention
+      test:
+        examples: False
+      options:
+        - ffn_to_attention
 
     moe_distribute_buffer_reset:
       module: True

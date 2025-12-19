@@ -99,6 +99,7 @@ operator_group_10:
   - distribute_barrier
   - elastic_receivable_info_collect
   - elastic_receivable_test
+  - ffn_to_attention
   - grouped_mat_mul_allto_allv
   - grouped_mat_mul_all_reduce
   - matmul_reduce_scatter
