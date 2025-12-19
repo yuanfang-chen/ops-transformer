@@ -88,7 +88,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(const aclTensor *x,
         .SetWeightAssistMatrix(weightAssistMatrix)
         .SetDequantAttr(dequantMode, dequantDtype)
         .SetQuantAttr(quantMode, static_cast<int64_t> (output->GetDataType()))
-        .SetTransposeAttr(false)
+        .SetTransposeAttr(false).SetBias(bias)
         .SetTuningConfig(tuningConfigOptional).Build();
 
     // 调用公共接口

@@ -36,6 +36,7 @@ constexpr int64_t SWIGLU_SPLIT_SIZE = 64L;
 constexpr int64_t MXFP4_K_CONSTRAINT = 2L;
 constexpr int64_t SWIGLU_N_CONSTRAINT = 2L;
 constexpr int64_t MXFP4_N_CONSTRAINT = 4L;
+constexpr size_t SINGLE_TENSOR_SIZE = 1;
 
 const std::initializer_list<DataType> X_DTYPE_SUPPORT_LIST = {DataType::DT_FLOAT8_E4M3FN,
                                                               DataType::DT_FLOAT8_E5M2};
@@ -140,13 +141,76 @@ protected:
         }
     }
 
+    static void CheckOptionalTensorListEmpty(const aclTensorList *&tensorList) {
+        if (tensorList != nullptr) {
+            if (tensorList->Size() == 0) {
+                tensorList = nullptr;
+            } else if ((*tensorList)[0] == nullptr) {
+                tensorList = nullptr;
+            } else if (tensorList->Size() == 1) {
+                op::Shape shape = (*tensorList)[0]->GetViewShape();
+                if (shape.GetDimNum() == 1 && shape.GetDim(0) == 0) {
+                    tensorList = nullptr;
+                }
+            }
+        }
+    }
+
+    bool CheckMXAttrs()
+    {
+        CheckOptionalTensorListEmpty(gmmDsqParams_.weightAssistMatrix);
+        if (gmmDsqParams_.tuningConfig != nullptr && gmmDsqParams_.tuningConfig->Size() == 0) {
+            gmmDsqParams_.tuningConfig = nullptr;
+        }
+        if (gmmDsqParams_.weightAssistMatrix != nullptr) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "The current version does not support weightAssistMatrix, it should be nullptr.");
+            return false;
+        }
+        if (gmmDsqParams_.bias != nullptr) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "The current version does not support bias, it should be nullptr.");
+            return false;
+        }
+        if (gmmDsqParams_.smoothScale != nullptr) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "The current version does not support smoothScale, it should be nullptr.");
+            return false;
+        }
+        if (gmmDsqParams_.tuningConfig != nullptr) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "The current version does not support tuningConfig, it should be nullptr.");
+            return false;
+        }
+        if (gmmDsqParams_.dequantMode != 2) { // 当前版本仅支持dequantMode为2
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "In mx quant mode, dequantMode should be 2, but actual value is %lu.", 
+                    gmmDsqParams_.dequantMode);
+            return false;
+        }
+        if (gmmDsqParams_.quantMode != 2) { // 当前版本仅支持quantMode为2
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "In mx quant mode, quantMode should be 2, but actual value is %lu.", 
+                    gmmDsqParams_.quantMode);
+            return false;
+        }
+        ge::DataType dequantDtype = static_cast<ge::DataType>(gmmDsqParams_.dequantDtype);
+        if (dequantDtype != ge::DT_FLOAT) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "In mx quant mode, dequantDtype should be 0, but actual value is %lu.", 
+                    gmmDsqParams_.dequantDtype);
+            return false;
+        }
+        return true;
+    }
+
     bool CheckMXTranspose()
     {
         // 判断weight和weightScale是否转置，是则对两者进行转置动作
         bool transposeWeightScale = IsTransposeForMxShape((*gmmDsqParams_.weightScale)[0]);
         bool transposeWeight = IsTransposeLastTwoDims((*gmmDsqParams_.weight)[0]);
         bool transposeX = IsTransposeLastTwoDims(gmmDsqParams_.x);
-        bool transposeXScale = IsTransposeLastTwoDims(gmmDsqParams_.xScale);
+        bool transposeXScale = IsTransposeForMxShape(gmmDsqParams_.xScale);
 
         if (transposeWeightScale != transposeWeight) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -178,6 +242,65 @@ protected:
         }
         return true;
     }
+    
+    bool CheckMXShape()
+    {
+        int64_t m = gmmDsqParams_.x->GetViewShape().GetDim(0); // 从x的第0维获取m
+        int64_t k = gmmDsqParams_.x->GetViewShape().GetDim(1); // 从x的第1维获取k
+        // 转置情况下从weight的第1维获取n，非转置情况下从weight的第2维获取n
+        int64_t n = gmmDsqParams_.transposeWeight ? ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(1) : 
+                                                    ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(2);
+        int64_t e = ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(0); // 从weight的第0维获取e
+
+        // x的shape期望为[M, K]
+        op::Shape xExpectShape = {m, k};
+        // xScale的shape期望为[M, CeilDiv(K, 64), 2]
+        op::Shape xScaleExpectShape = {m, Ops::Base::CeilDiv(k, SWIGLU_SPLIT_SIZE), SWIGLU_SPLIT_FACTOR};
+        // weight的shape期望为[E, K, N]
+        op::Shape weightExpectShape = {e, k, n};
+        // weightScale的shape期望为[E, CeilDiv(K, 64), N, 2]
+        op::Shape weightScaleExpectShape = {e, Ops::Base::CeilDiv(k, SWIGLU_SPLIT_SIZE), n, SWIGLU_SPLIT_FACTOR};
+        // weight转置的shape期望为[E, N, K]
+        op::Shape weightTransExpectShape = {e, n, k};
+        // weightScale转置的shape期望为[E, N, CeilDiv(K, 64), 2]
+        op::Shape weightScaleTransExpectShape = {e, n, Ops::Base::CeilDiv(k, SWIGLU_SPLIT_SIZE), SWIGLU_SPLIT_FACTOR};
+        int64_t nAfterHalve = static_cast<int64_t>(n / SWIGLU_SPLIT_FACTOR);
+        // output的shape期望为[M, N / 2]
+        op::Shape outputExpectShape = {m, nAfterHalve};
+        // outputScale的shape期望为[M, CeilDiv(N / 2, 64), 2]
+        op::Shape outputScaleExpectShape = {m, Ops::Base::CeilDiv(nAfterHalve, SWIGLU_SPLIT_SIZE), SWIGLU_SPLIT_FACTOR};
+        const aclTensor* x = gmmDsqParams_.x;
+        const aclTensor* xScale = gmmDsqParams_.xScale;
+        const aclTensor* output = gmmDsqParams_.output;
+        const aclTensor* outputScale = gmmDsqParams_.outputScale;
+        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(x, xExpectShape, return false);
+        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(xScale, xScaleExpectShape, return false);
+        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(output, outputExpectShape, return false);
+        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(outputScale, outputScaleExpectShape, return false);
+
+        const aclTensor* weightScale = (*gmmDsqParams_.weightScale)[0];
+        const aclTensor* weight = (*gmmDsqParams_.weight)[0];
+        if (gmmDsqParams_.transposeWeight) {
+            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightScale, weightScaleTransExpectShape, return false);
+            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weight, weightTransExpectShape, return false);
+        } else {
+            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightScale, weightScaleExpectShape, return false);
+            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weight, weightExpectShape, return false);
+        }
+        //进行swiglu操作需满足n为偶数
+        if (n % SWIGLU_N_CONSTRAINT != 0) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Swiglu operation requires n to be even , but n actual value is %lu.", n);
+            return false;
+        }
+        
+        // groupList的长度应等于weight的专家数
+        int64_t groupListLen = gmmDsqParams_.groupList->GetViewShape().GetDim(0);
+        if (groupListLen != e) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Length of 'groupList' should be equal to the number of experts in weight.");
+            return false;
+        }
+        return true;
+    }
 
     bool CheckFp8DtypeValid()
     {
@@ -188,11 +311,16 @@ protected:
             OP_CHECK_DTYPE_NOT_SUPPORT(weight, WEIGHT_DTYPE_SUPPORT_LIST, return false);
             OP_CHECK_DTYPE_NOT_SUPPORT(weightScale, WEIGHT_SCALE_DTYPE_SUPPORT_LIST, return false);
         }
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.x, X_DTYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.xScale, X_SCALE_DTYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.groupList, GROUP_LIST_DTYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.output, QUANTOUT_DTYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.outputScale, QUANTSCALEOUT_DTYPE_SUPPORT_LIST, return false);
+        const aclTensor* x = gmmDsqParams_.x;
+        const aclTensor* xScale = gmmDsqParams_.xScale;
+        const aclTensor* groupList = gmmDsqParams_.groupList;
+        const aclTensor* output = gmmDsqParams_.output;
+        const aclTensor* outputScale = gmmDsqParams_.outputScale;
+        OP_CHECK_DTYPE_NOT_SUPPORT(x, X_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(xScale, X_SCALE_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(groupList, GROUP_LIST_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(output, QUANTOUT_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(outputScale, QUANTSCALEOUT_DTYPE_SUPPORT_LIST, return false);
         return true;
     }
 
@@ -260,86 +388,63 @@ and greater or equal to 4, but actual value is %lu.",
 
     bool CheckInputOutDims() override
     {
+        if (!CheckMXAttrs()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "CheckMXAttrs failed.");
+            return false;
+        }
         auto xDimNumber = gmmDsqParams_.x->GetViewShape().GetDimNum();
         auto xScaleDimNumber = gmmDsqParams_.xScale->GetViewShape().GetDimNum();
         auto outputDimNumber = gmmDsqParams_.output->GetViewShape().GetDimNum();
         auto outputScaleDimNumber = gmmDsqParams_.outputScale->GetViewShape().GetDimNum();
-        CHECK_COND(xDimNumber == MX_X_DIM, ACLNN_ERR_PARAM_INVALID,
-                        "The dim num of x should be equal 2, current dim is %lu", xDimNumber);
-        CHECK_COND(xScaleDimNumber == MX_X_SCALE_DIM, ACLNN_ERR_PARAM_INVALID,
-                        "The dim num of xScale should be equal 3, current dim is %lu", xScaleDimNumber);
-        CHECK_COND(outputDimNumber == MX_OUTPUT_DIM, ACLNN_ERR_PARAM_INVALID,
-                        "The dim num of output should be equal 2, current dim is %lu", outputDimNumber);
-        CHECK_COND(outputScaleDimNumber == MX_OUTPUT_SCALE_DIM, ACLNN_ERR_PARAM_INVALID,
-                        "The dim num of outputScale should be equal 3, current dim is %lu", outputScaleDimNumber);
-        CHECK_COND(gmmDsqParams_.weight->Size() == gmmDsqParams_.weightScale->Size(), ACLNN_ERR_PARAM_INVALID,
-                        "The size of weightScale should be equal to weight");
-        for (size_t i = 0; i < gmmDsqParams_.weight->Size(); i++) {
-            auto weightDimNumber = ((*gmmDsqParams_.weight)[i])->GetViewShape().GetDimNum();
-            auto weightScaleDimNumber = ((*gmmDsqParams_.weightScale)[i])->GetViewShape().GetDimNum();
-            CHECK_COND(weightScaleDimNumber == MX_WEIGHT_SCALE_DIM, ACLNN_ERR_PARAM_INVALID,
-                        "The dim num of weightScale should be equal 4, current dim is %lu", weightScaleDimNumber);
-            CHECK_COND(weightDimNumber == MX_WEIGHT_DIM, ACLNN_ERR_PARAM_INVALID,
-                        "The dim num of weight should be equal 3, current dim is %lu", weightDimNumber);
+        if (xDimNumber != MX_X_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of x should be equal 2, current dim is %lu.", xDimNumber);
+            return false;
+        }
+        if (xScaleDimNumber != MX_X_SCALE_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of xScale should be equal 3, current dim is %lu.", xScaleDimNumber);
+            return false;
+        }
+        if (outputDimNumber != MX_OUTPUT_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of output should be equal 2, current dim is %lu.", outputDimNumber);
+            return false;
+        }
+        if (outputScaleDimNumber != MX_OUTPUT_SCALE_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of outputScale should be equal 3, current dim is %lu.", outputScaleDimNumber);
+            return false;
+        }
+        if (gmmDsqParams_.weight->Size() != SINGLE_TENSOR_SIZE) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The size of weight should be 1, current size is %lu.", gmmDsqParams_.weight->Size());
+            return false;
+        }
+        if (gmmDsqParams_.weightScale->Size() != SINGLE_TENSOR_SIZE) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The size of weightScale should be 1, current size is %lu.", gmmDsqParams_.weightScale->Size());
+            return false;
+        }
+        auto weightDimNumber = ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDimNum();
+        auto weightScaleDimNumber = ((*gmmDsqParams_.weightScale)[0])->GetViewShape().GetDimNum();
+        if (weightScaleDimNumber != MX_WEIGHT_SCALE_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of weightScale should be equal 4, current dim is %lu.", weightScaleDimNumber);
+            return false;
+        } 
+        if (weightDimNumber != MX_WEIGHT_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of weight should be equal 3, current dim is %lu.", weightDimNumber);
+            return false;
         }
         return true;
     }
 
     bool CheckInputOutShape() override
     {
-        CHECK_COND(CheckMXTranspose(), ACLNN_ERR_PARAM_INVALID, "CheckMXTranspose failed");
-        int64_t m = gmmDsqParams_.x->GetViewShape().GetDim(0); // 从x的第0维获取m
-        int64_t k = gmmDsqParams_.x->GetViewShape().GetDim(1); // 从x的第1维获取k
-        // 转置情况下从weight的第1维获取n，非转置情况下从weight的第2维获取n
-        int64_t n = gmmDsqParams_.transposeWeight ? ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(1) : 
-                                                    ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(2);
-        int64_t e = ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(0); // 从weight的第0维获取e
-
-        // x的shape期望为[M, K]
-        op::Shape xExpectShape = {m, k};
-        // xScale的shape期望为[M, CeilDiv(K, 64), 2]
-        op::Shape xScaleExpectShape = {m, Ops::Base::CeilDiv(k, SWIGLU_SPLIT_SIZE), SWIGLU_SPLIT_FACTOR};
-        // weight的shape期望为[E, K, N]
-        op::Shape weightExpectShape = {e, k, n};
-        // weightScale的shape期望为[E, CeilDiv(K, 64), N, 2]
-        op::Shape weightScaleExpectShape = {e, Ops::Base::CeilDiv(k, SWIGLU_SPLIT_SIZE), n, SWIGLU_SPLIT_FACTOR};
-        // weight转置的shape期望为[E, N, K]
-        op::Shape weightTransExpectShape = {e, n, k};
-        // weightScale转置的shape期望为[E, N, CeilDiv(K, 64), 2]
-        op::Shape weightScaleTransExpectShape = {e, n, Ops::Base::CeilDiv(k, SWIGLU_SPLIT_SIZE), SWIGLU_SPLIT_FACTOR};
-        int64_t nAfterHalve = static_cast<int64_t>(n / SWIGLU_SPLIT_FACTOR);
-        // output的shape期望为[M, N / 2]
-        op::Shape outputExpectShape = {m, nAfterHalve};
-        // outputScale的shape期望为[M, CeilDiv(N / 2, 64), 2]
-        op::Shape outputScaleExpectShape = {m, Ops::Base::CeilDiv(nAfterHalve, SWIGLU_SPLIT_SIZE), SWIGLU_SPLIT_FACTOR};
-
-        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmDsqParams_.x, xExpectShape, return false);
-        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmDsqParams_.xScale, xScaleExpectShape, return false);
-        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmDsqParams_.output, outputExpectShape, return false);
-        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmDsqParams_.outputScale, outputScaleExpectShape, return false);
-
-        const aclTensor* weightScale = (*gmmDsqParams_.weightScale)[0];
-        const aclTensor* weight = (*gmmDsqParams_.weight)[0];
-        if (gmmDsqParams_.transposeWeight) {
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightScale, weightScaleTransExpectShape, return false);
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weight, weightTransExpectShape, return false);
-        } else {
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightScale, weightScaleExpectShape, return false);
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weight, weightExpectShape, return false);
-        }
-
-        //进行swiglu操作需满足n为偶数
-        if (n % SWIGLU_N_CONSTRAINT != 0) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "Swiglu operation requires n to be even , but n actual value is %lu", n);
+        if (gmmDsqParams_.x->GetViewShape().GetDim(0) == 1 && gmmDsqParams_.x->GetViewShape().GetDim(1) == 1) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In mxfp8 quant mode, M and N cannot both be 1.");
             return false;
         }
-        
-        // groupList的长度应等于weight的专家数
-        int64_t groupListLen = gmmDsqParams_.groupList->GetViewShape().GetDim(0);
-        if (groupListLen != e) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "Length of 'groupList' should be equal to the number of experts in weight");
+        if (!CheckMXTranspose()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "CheckMXTranspose failed.");
+            return false;
+        }
+        if (!CheckMXShape()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "CheckMXShape failed.");
             return false;
         }
 
@@ -377,39 +482,39 @@ and greater or equal to 4, but actual value is %lu.",
             const aclTensor* weightScale = (*gmmDsqParams_.weightScale)[i];
             const aclTensor* weight = (*gmmDsqParams_.weight)[i];
             if (op::IsPrivateFormat(weight->GetStorageFormat())) {
-                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of weight should be ND, current format is format is %s",
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of weight should be ND, current format is format is %s.",
                         op::ToString(weight->GetStorageFormat()).GetString());
                 return false;
             }
             if (op::IsPrivateFormat(weightScale->GetStorageFormat())) {
-                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of weightScale should be ND, current format is format is %s",
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of weightScale should be ND, current format is format is %s.",
                         op::ToString(weightScale->GetStorageFormat()).GetString());
                 return false;
             }
         }
         
         if (op::IsPrivateFormat(gmmDsqParams_.x->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of x should be ND, current format is format is %s",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of x should be ND, current format is format is %s.",
                op::ToString(gmmDsqParams_.x->GetStorageFormat()).GetString());
             return false;
         }
         if (op::IsPrivateFormat(gmmDsqParams_.xScale->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of xScale should be ND, current format is format is %s",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of xScale should be ND, current format is format is %s.",
                op::ToString(gmmDsqParams_.xScale->GetStorageFormat()).GetString());
             return false;
         }
         if (op::IsPrivateFormat(gmmDsqParams_.groupList->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of groupList should be ND, current format is format is %s",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of groupList should be ND, current format is format is %s.",
                op::ToString(gmmDsqParams_.groupList->GetStorageFormat()).GetString());
             return false;
         }
         if (op::IsPrivateFormat(gmmDsqParams_.output->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of output should be ND, current format is format is %s",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of output should be ND, current format is format is %s.",
                op::ToString(gmmDsqParams_.output->GetStorageFormat()).GetString());
             return false;
         }
         if (op::IsPrivateFormat(gmmDsqParams_.outputScale->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of outputScale should be ND, current format is format is %s",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of outputScale should be ND, current format is format is %s.",
                op::ToString(gmmDsqParams_.outputScale->GetStorageFormat()).GetString());
             return false;
         }

@@ -155,8 +155,8 @@ int aclnnGroupedMatmulSwigluQuantV2Test(int32_t deviceId, aclrtStream& stream)
     aclIntArray *tuningConfig = aclCreateIntArray(tuningConfigData.data(), 1);
     
     int64_t quantMode = 2;
-    int64_t dequantMode = 1;
-    int64_t dequantDtype = 1;
+    int64_t dequantMode = 2;
+    int64_t dequantDtype = 0;
     int64_t groupListType = 1;
 
     // 创建x aclTensor
@@ -213,7 +213,7 @@ int aclnnGroupedMatmulSwigluQuantV2Test(int32_t deviceId, aclrtStream& stream)
     // 3. 调用CANN算子库API
     // 调用aclnnGroupedMatmulSwigluQuantV2第一段接口
     ret = aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(x, weight, weightScale, nullptr, nullptr, xScale, nullptr, groupList, 
-                                                        dequantMode, dequantDtype, quantMode, groupListType, tuningConfig, output, outputScale, &workspaceSize, &executor);
+                                                        dequantMode, dequantDtype, quantMode, groupListType, nullptr, output, outputScale, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     // 根据第一段接口计算出的workspaceSize申请device内存
     if (workspaceSize > 0) {

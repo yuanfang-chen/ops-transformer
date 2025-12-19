@@ -46,11 +46,11 @@ struct GroupedMatmulSwigluQuantParamsBase {
     const aclTensor *output = nullptr;
     const aclTensor *outputScale = nullptr;
     const aclIntArray *tuningConfig = nullptr;
-    int64_t dequantMode;
-    int64_t dequantDtype;
-    int64_t quantMode;
-    int64_t quantDtype;
-    int64_t groupListType;
+    int64_t dequantMode = 0;
+    int64_t dequantDtype = 0;
+    int64_t quantMode = 0;
+    int64_t quantDtype = 0;
+    int64_t groupListType = 0;
     bool transposeWeight = false;
 };
 
@@ -83,6 +83,12 @@ public:
     GroupedMatmulSwigluQuantParamsBuilder &SetSmoothScale(const aclTensor *smoothScale)
     {
         p_.smoothScale = smoothScale;
+        return *this;
+    }
+
+    GroupedMatmulSwigluQuantParamsBuilder &SetBias(const aclTensor *bias)
+    {
+        p_.bias = bias;
         return *this;
     }
 
@@ -171,17 +177,23 @@ protected:
         }
 
         if (!gmmDsqParams_.weight || !gmmDsqParams_.weightScale) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
             "The weight or weightScale is nullptr.");
             return false;
         }
+        return true;
+    }
 
+    virtual bool CheckEmptyTensor(void)
+    {
         if ((*gmmDsqParams_.weight)[0]->IsEmpty() || (*gmmDsqParams_.weightScale)[0]->IsEmpty()) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-            "The weight or weightScale is an empty container.");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The weight or weightScale is an empty container.");
             return false;
         }
-
+        if (gmmDsqParams_.x->IsEmpty() || gmmDsqParams_.xScale->IsEmpty()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x or xScale is an empty container.");
+            return false;
+        }
         return true;
     }
 
@@ -192,8 +204,9 @@ protected:
 
     virtual aclnnStatus CheckParams()
     {
-        // 1. 检查参数是否为空指针
+        // 1. 检查参数是否为空指针、空tensor
         CHECK_RET(CheckNotNull(), ACLNN_ERR_PARAM_NULLPTR);
+        CHECK_RET(CheckEmptyTensor(), ACLNN_ERR_PARAM_INVALID);
 
         // 2. 校验输入、输出参数维度
         CHECK_RET(CheckInputOutDims(), ACLNN_ERR_PARAM_INVALID);
@@ -309,7 +322,6 @@ public:
         auto uniqueExecutor = CREATE_EXECUTOR();
         CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
         l0Executor_ = uniqueExecutor.get();
-
         auto ret = CheckParams();
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         
