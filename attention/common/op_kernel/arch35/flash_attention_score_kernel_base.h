@@ -386,9 +386,9 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         if ASCEND_IS_AIV {
             constInfo.attentionOutStride = (constInfo.n2G - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
             if constexpr (isInfer) {
-                if (sharedParams.isPfaGS1Merge) {
+                if (sharedParams.isPfaGS1Merge == 1) {
                     constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
-                } else if (sharedParams.isGqa) {
+                } else if (sharedParams.isGqa == 1) {
                     constInfo.attentionOutStride = 0;
                 }
             }
@@ -412,9 +412,9 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
             constInfo.attentionOutStride =
                 (constInfo.n2G - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
             if constexpr (isInfer) {
-                if (sharedParams.isPfaGS1Merge) {
+                if (sharedParams.isPfaGS1Merge == 1) {
                     constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
-                } else if (sharedParams.isGqa) {
+                } else if (sharedParams.isGqa == 1) {
                     constInfo.attentionOutStride = 0;
                 }
             }

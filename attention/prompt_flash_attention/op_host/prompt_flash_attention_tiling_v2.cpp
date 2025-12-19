@@ -1414,10 +1414,12 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
         return false;
     }
 
-    if (enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope || enablePerblockQuant || enablePertensorQuant || enablePostQuant) {
-        return false;
-    }
-    return true;
+    // 隔离高阶特性
+    bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope 
+        || enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList 
+        || enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable;
+
+    return !hasCrossoverAttr;
 }
 
 bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKeyParams,
@@ -2850,7 +2852,7 @@ bool PromptFlashAttentionTilingV2::AdjustCVTilingCVDiff(const ContextParamsForPF
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_DOUBLE;
             softmaxSOuterFactor = SOUTER_FACTOR_SUB;
-        } else if(((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND)) && enablePFAMerge) {
+        } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge) {
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_DOUBLE;
         }
@@ -2858,7 +2860,7 @@ bool PromptFlashAttentionTilingV2::AdjustCVTilingCVDiff(const ContextParamsForPF
         if (!faRunFlag_) {
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_SUB;
-        } else if(((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND)) && enablePFAMerge && tilingData.promptAttentionBaseParams.get_vHeadSize() <= 256) { // 256 : D size
+        } else if (((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) && enablePFAMerge && tilingData.promptAttentionBaseParams.get_vHeadSize() <= 256) { // 256 : D size
             minFactor = SOUTER_FACTOR_SUB;
             rectangleFactor = SINNER_FACTOR_DOUBLE;
         } else {

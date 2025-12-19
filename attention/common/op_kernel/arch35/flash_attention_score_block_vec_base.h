@@ -1438,19 +1438,23 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         attenOutOffset = constInfo.n2GDv;
         if constexpr (isInfer) {
-            if (constInfo.isGqa == 1) {
+            if (constInfo.isPfaGS1Merge) {
+                attenOutOffset = 0;
+                dataCopyParams.blockLen *= constInfo.gSize;
+                dataCopyParams.blockCount /= constInfo.gSize;
+            } else if (constInfo.isGqa) {
                 attenOutOffset = constInfo.dSizeV;
             }
         }
     } else {
-        if (constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_BSH) {
+        if (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH)) {
             attenOutOffset = constInfo.n2GDv;
             if constexpr (isInfer) {
                 if (constInfo.isPfaGS1Merge) {
                     attenOutOffset = 0;
                     dataCopyParams.blockLen *= constInfo.gSize;
                     dataCopyParams.blockCount /= constInfo.gSize;
-                } else if (constInfo.isGqa == 1) {
+                } else if (constInfo.isGqa) {
                     attenOutOffset = constInfo.dSizeV;
                 }
             }
@@ -1465,7 +1469,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
     }
 
     if constexpr (isInfer) {
-        if (constInfo.isPfaGS1Merge && dSizeAligned64 - constInfo.dSizeV != 0 && constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_BSH) {
+        if (constInfo.isPfaGS1Merge && dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
             for(int64_t i = 0; i < runInfo.vec2S1BaseSize / constInfo.gSize; i++){
                 attenOutOffset = i * constInfo.dSizeV * constInfo.gSize * constInfo.n2Size;
                 dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
@@ -1476,11 +1480,11 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
             }
         } else {
             DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
-                attenOut, dataCopyParams); // 
+                attenOut, dataCopyParams); 
         }
     } else {
         DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
-            attenOut, dataCopyParams); // 
+            attenOut, dataCopyParams);
     }
 }
 TEMPLATES_DEF_BASE_NO_DEFAULT
