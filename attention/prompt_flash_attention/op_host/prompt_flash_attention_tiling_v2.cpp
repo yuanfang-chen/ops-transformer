@@ -3007,19 +3007,6 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
     }
 }
 
-void PromptFlashAttentionTilingV2::UpdateTilingKeyMatmulCfg(uint64_t& tilingKey) {
-    constexpr uint64_t tilingKeySplitCoreNBSVectorValue = 0;
-    constexpr uint64_t tilingKeySplitCoreNBSCubeValue = static_cast<uint64_t>(1e6); // Position 6
-
-    if (splitCoreMode == SplitCoreMode::SPLIT_NBS_VECTOR) {
-        tilingKey += tilingKeySplitCoreNBSVectorValue;
-    } else if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) {
-        tilingKey += tilingKeySplitCoreNBSCubeValue;
-    } else {
-        tilingKey += tilingKeySplitCoreNBSVectorValue;
-    }
-}
-
 void PromptFlashAttentionTilingV2::UpdateTilingKeyMaskCfg(PromptFlashAttentionTilingData& tilingData,
     uint64_t& tilingKey) {
     constexpr uint64_t tilingKeyDisableMask = 0;
@@ -3386,12 +3373,13 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyFlag(ContextParamsForPFATiling
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyLayoutType() {
-	if (inputLayout == InputLayout::BNSD)
-		inOutLayoutType = InOutLayoutType_BNSD_BNSD;
-	else if (inputLayout == InputLayout::TND)
-		inOutLayoutType = InOutLayoutType_TND_TND;
-	else if (inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND)
-		inOutLayoutType = InOutLayoutType_BSH_BSH;	
+	if (inputLayout == InputLayout::BNSD) {
+        inOutLayoutType = InOutLayoutType_BNSD_BNSD;
+    } else if (inputLayout == InputLayout::TND) {
+        inOutLayoutType = InOutLayoutType_TND_TND;
+    } else if (inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND) {
+        inOutLayoutType = InOutLayoutType_BSH_BSH;
+    }
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) {
@@ -3445,7 +3433,6 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(ContextParamsForPFATili
     } else {
         OP_LOGE(contextKeyParams.opName, "The combination of parameters S1, S2, D, DV is not supported!");
     }
-
 	OP_LOGI(contextKeyParams.opName, "sInner is %d, sOuter is %d, dSize is %d, dVsize is %d, config is %d.", sInner, sOuter, dSize, dVsize, config);
 }
 
@@ -3470,7 +3457,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyQuantMode(ge::DataType inputDa
         quantMode = FULLQUANT_MODE_PER_TOKEN_HEAD;
     } else {
         quantMode = FullQuantMode;
-    }    
+    }
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDataType) {
@@ -3556,7 +3543,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMatMulType(PromptFlashAtten
             pFAMatMulType = PFAMatMulType_MM_PA_D512;
         } else {
             pFAMatMulType = PFAMatMulType_MM_IFA_MLA;
-        }        
+        }
     } else if (enablePA) {
         pFAMatMulType = PFAMatMulType_MM_PA;
     } else {

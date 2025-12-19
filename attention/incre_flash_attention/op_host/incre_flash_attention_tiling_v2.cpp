@@ -3392,22 +3392,6 @@ bool IFATilingV2::GetMatmulType(ge::DataType getype, matmul_tiling::DataType* mm
   return false;
 }
 
-uint8_t IFATilingV2::GenHeadDimProfileVal() const {
-  if (perfMode_ != IfaPerfMode::NORMAL) { 
-    return NUM0;
-  }
-  if (headDim_ <= NUM64) { // D小于64，常量化分档为1
-    return NUM1; // D小于64，分档为1
-  } else if (headDim_ <= NUM128) { // D大于64小于等于128，常量化分档为2
-    return NUM2; // D大于64小于128，常量化分档为2
-  } else if (headDim_ <= NUM256) { // D大于128小于等于256，常量化分档为3
-    return NUM3; // D大于128小于等于256，常量化分档为3
-  } else {
-    return NUM4; // 常量化分档为4
-  }
-  return NUM0;
-}
-
 uint8_t IFATilingV2::GenAntiquantModeVal() const {
   uint8_t ret = NUM0;
   switch (antiquantMode_) {
@@ -3434,134 +3418,109 @@ uint8_t IFATilingV2::GenAntiquantModeVal() const {
   }
   return ret;
 }
+
 ge::graphStatus IFATilingV2::GenTilingKey() {
-  uint8_t layoutVal = 0;
-  uint8_t inputQVal = 0;
-  uint8_t inputKvVal = 0;
-  uint8_t outputVal = 0;
-  uint8_t originVal = 0;
-  uint8_t splitKvVal = splitKVFlag_ == true ? 1 : 0;
-  uint8_t paVal = pageAttentionFlag_ == true ? 1 * 2 : 0;
-  uint8_t antiquantModeVal = GenAntiquantModeVal();
-  uint8_t attenMaskVal = attenMaskFlag_ == true ? 1 : 0;
-  uint8_t pseShiftVal = pseShiftFlag_ == true ? 1 * 2 : 0;
-  uint8_t attenMaskBandVal = (sparseMode_ == SPARSE_MODE_BAND && headDim_ <= NUM64 && pseShiftFlag_ == false) ?
-                              static_cast<uint8_t>(1U * 4U) : 0U; // d64非pse且band模式下需减小基本块大小，额外增加tilingkey
-  uint8_t headDimProfileVal = GenHeadDimProfileVal();
-  uint8_t pseTypeVal = pseType_;
-  // page attention 新模板上线后删除这里的特殊处理
-  if (pageAttentionFlag_ && sMax_ == NUM0) {
-    paVal = NUM0;
-  }
-
-  if (inputLayout_ == IfaLayout::BSH_BSND) {
-    layoutVal = NUM1;
-  } else if (inputLayout_ == IfaLayout::TND) {
-    layoutVal = NUM2;
-  } else {
-    layoutVal = NUM0;
-  }
-
-  switch (inputQType_) {
+    uint8_t inputQVal = 0;
+    uint8_t inputKvVal = 0;
+    uint8_t outputVal = 0;
+    switch (inputQType_) {
     case ge::DT_FLOAT16:
-      if ((inputKvType_ != ge::DT_FLOAT16) && (inputKvType_ != ge::DT_INT8) &&
+    if ((inputKvType_ != ge::DT_FLOAT16) && (inputKvType_ != ge::DT_INT8) &&
          (inputKvType_ != ge::DT_INT4) && (inputKvType_ != ge::DT_HIFLOAT8) &&
          (inputKvType_ != ge::DT_FLOAT8_E4M3FN) &&
          (inputKvType_ != ge::DT_FLOAT4_E2M1) && (inputKvType_ != ge::DT_FLOAT4_E1M2)) {
         OP_LOGE(ifaContext_->opName, "When input query type is fp16, key/value type should be fp16/int8/fp8/hif8/int4/fp4.");
         return ge::GRAPH_FAILED;
-      }
-      inputQVal = NUM0;
-      break;
+    }
+    inputQVal = NUM0;
+    break;
     case ge::DT_BF16:
-      if ((inputKvType_ != ge::DT_BF16) && (inputKvType_ != ge::DT_INT8) &&
+    if ((inputKvType_ != ge::DT_BF16) && (inputKvType_ != ge::DT_INT8) &&
          (inputKvType_ != ge::DT_INT4) && (inputKvType_ != ge::DT_HIFLOAT8) &&
          (inputKvType_ != ge::DT_FLOAT8_E4M3FN) &&
          (inputKvType_ != ge::DT_FLOAT4_E2M1) && (inputKvType_ != ge::DT_FLOAT4_E1M2)) {
         OP_LOGE(ifaContext_->opName, "When input query type is bf16, key/value type should be bf16/int8/fp8/hif8/int4/fp4.");
         return ge::GRAPH_FAILED;
-      }
-      inputQVal = NUM2;
-      break;
+    }
+    inputQVal = NUM2;
+    break;
     case ge::DT_INT8:
-      if (inputKvType_ != ge::DT_INT8) {
-        OP_LOGE(ifaContext_->opName, "When input query type is int8, key/value type should be int8.");
-        return ge::GRAPH_FAILED;
-      }
-      inputQVal = NUM3;
-      break;
+        if (inputKvType_ != ge::DT_INT8) {
+            OP_LOGE(ifaContext_->opName, "When input query type is int8, key/value type should be int8.");
+            return ge::GRAPH_FAILED;
+        }
+        inputQVal = NUM3;
+        break;
     default :
-      OP_LOGE(ifaContext_->opName, "Not support inputQType[%s].", DataTypeToString(inputQType_).c_str());
-      return ge::GRAPH_FAILED;
-  }
-  switch (inputKvType_) {
+        OP_LOGE(ifaContext_->opName, "Not support inputQType[%s].", DataTypeToString(inputQType_).c_str());
+        return ge::GRAPH_FAILED;
+    }
+    switch (inputKvType_) {
     case ge::DT_FLOAT16:
-      inputKvVal = NUM0;
-      break;
+        inputKvVal = NUM0;
+        break;
     case ge::DT_BF16:
-      inputKvVal = NUM2;
-      break;
+        inputKvVal = NUM2;
+        break;
     case ge::DT_INT8:
-      inputKvVal = NUM3;
-      break;
-      case ge::DT_INT4:
+        inputKvVal = NUM3;
+        break;
+    case ge::DT_INT4:
         inputKvVal = NUM4;
         break;
-      case ge::DT_HIFLOAT8:
+    case ge::DT_HIFLOAT8:
         inputKvVal = NUM5;
         break;
-      case ge::DT_FLOAT8_E4M3FN:
+    case ge::DT_FLOAT8_E4M3FN:
         inputKvVal = NUM7;
         break;
-      case ge::DT_FLOAT4_E2M1:
+    case ge::DT_FLOAT4_E2M1:
         inputKvVal = NUM8;
         break;
-      case ge::DT_FLOAT4_E1M2:
+    case ge::DT_FLOAT4_E1M2:
         inputKvVal = NUM9;
         break;
     default :
-      OP_LOGE(ifaContext_->opName, "Not support inputKvType[%s].", DataTypeToString(inputKvType_).c_str());
-      return ge::GRAPH_FAILED;
-  }
-  switch (outputType_) {
+        OP_LOGE(ifaContext_->opName, "Not support inputKvType[%s].", DataTypeToString(inputKvType_).c_str());
+        return ge::GRAPH_FAILED;
+    }
+    switch (outputType_) {
     case ge::DT_FLOAT16:
-      outputVal = NUM0;
-      break;
+        outputVal = NUM0;
+        break;
     case ge::DT_BF16:
-      outputVal = NUM2;
-      break;
+        outputVal = NUM2;
+        break;
     case ge::DT_INT8:
-      outputVal = NUM3;
-      break;
+        outputVal = NUM3;
+        break;
     case ge::DT_FLOAT8_E4M3FN:
-      outputVal = NUM4;
-      break;
+        outputVal = NUM4;
+        break;
     case ge::DT_HIFLOAT8:
-      outputVal = NUM6;
-      break;
+        outputVal = NUM6;
+        break;
     default :
-      OP_LOGE(ifaContext_->opName, "Not support outputType[%s].", DataTypeToString(outputType_).c_str());
-      return ge::GRAPH_FAILED;
-  }
-
-  originVal = inputQVal;
-  UpdatePerfMode();
-  uint64_t baseOffset = IFA_TILINGKEYOFFSET;
-  if (socVersion_ != IfaSocVersion::SOC_ASCEND_910_95 && socVersion_ != IfaSocVersion::SOC_ASCEND_910_55) {
-    baseOffset += (static_cast<uint64_t>(perfMode_)) * IFA_PERF_MODE_TILINGKEYOFFSET;
-  }
-  UpdateTilingKeyLayoutType();
-  UpdateTilingKeyConfig();
-  UpdateTilingKeyPseMode();
-  UpdateTilingKeyQuantMode();
-  UpdateTilingKeyAttenMask();
-  UpdateTilingKeyHasRope();
-  UpdateTilingKeyIsPa();
-  UpdateTilingKeyIsFd();
-  UpdateTilingKeyEmptyTensor();
-  UpdateTilingKeyPFAMask();
-  UpdateTilingKeyPFAMatMulType();
-  return ge::GRAPH_SUCCESS;
+        OP_LOGE(ifaContext_->opName, "Not support outputType[%s].", DataTypeToString(outputType_).c_str());
+        return ge::GRAPH_FAILED;
+    }
+    UpdatePerfMode();
+    uint64_t baseOffset = IFA_TILINGKEYOFFSET;
+    if (socVersion_ != IfaSocVersion::SOC_ASCEND_910_95 && socVersion_ != IfaSocVersion::SOC_ASCEND_910_55) {
+        baseOffset += (static_cast<uint64_t>(perfMode_)) * IFA_PERF_MODE_TILINGKEYOFFSET;
+    }
+    UpdateTilingKeyLayoutType();
+    UpdateTilingKeyConfig();
+    UpdateTilingKeyPseMode();
+    UpdateTilingKeyQuantMode();
+    UpdateTilingKeyAttenMask();
+    UpdateTilingKeyHasRope();
+    UpdateTilingKeyIsPa();
+    UpdateTilingKeyIsFd();
+    UpdateTilingKeyEmptyTensor();
+    UpdateTilingKeyPFAMask();
+    UpdateTilingKeyPFAMatMulType();
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus IFATilingV2::CalcBlockDim() const {
@@ -3574,12 +3533,13 @@ ge::graphStatus IFATilingV2::CalcBlockDim() const {
 }
 
 void IFATilingV2::UpdateTilingKeyLayoutType() {
-	if (inputLayout_ == IfaLayout::BNSD)
+	if (inputLayout_ == IfaLayout::BNSD) {
 		inOutLayoutType = InOutLayoutType_BNSD_BNSD;
-	else if (inputLayout_ == IfaLayout::TND)
+    } else if (inputLayout_ == IfaLayout::TND) {
 		inOutLayoutType = InOutLayoutType_TND_TND;
-	else if (inputLayout_ == IfaLayout::BSH_BSND)
-		inOutLayoutType = InOutLayoutType_BSH_BSH;	
+    } else if (inputLayout_ == IfaLayout::BSH_BSND) {
+		inOutLayoutType = InOutLayoutType_BSH_BSH;
+    }
 }
 
 void IFATilingV2::UpdateTilingKeyConfig() {
@@ -3643,7 +3603,6 @@ void IFATilingV2::UpdateTilingKeyPFAMask() {
 void IFATilingV2::UpdateTilingKeyPFAMatMulType() {
 	pFAMatMulType = 0;
 }
-
 
 ge::graphStatus IFATilingV2::DoTiling(gert::TilingContext& context) {
   IncreFlashAttentionTilingDataV2 tilingData;

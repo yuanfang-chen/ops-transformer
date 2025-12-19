@@ -100,30 +100,29 @@ class IFATilingV2 : public FiaTilingBase {
   }
 
 protected:
-  void UpdateTilingKeyLayoutType();
-  void UpdateTilingKeyConfig();
-  void UpdateTilingKeyPseMode();
-  void UpdateTilingKeyQuantMode();
-  void UpdateTilingKeyAttenMask();
-  void UpdateTilingKeyHasRope();
-  void UpdateTilingKeyIsPa();
-  void UpdateTilingKeyIsFd();
-  void UpdateTilingKeyEmptyTensor();
-  void UpdateTilingKeyPFAMask();
-  void UpdateTilingKeyPFAMatMulType();
+    void UpdateTilingKeyLayoutType();
+    void UpdateTilingKeyConfig();
+    void UpdateTilingKeyPseMode();
+    void UpdateTilingKeyQuantMode();
+    void UpdateTilingKeyAttenMask();
+    void UpdateTilingKeyHasRope();
+    void UpdateTilingKeyIsPa();
+    void UpdateTilingKeyIsFd();
+    void UpdateTilingKeyEmptyTensor();
+    void UpdateTilingKeyPFAMask();
+    void UpdateTilingKeyPFAMatMulType();
 public:
-  uint8_t inOutLayoutType;
-  uint16_t config;
-  uint8_t pseMode;
-  uint8_t quantMode;
-  bool hasAttenMask;
-  bool hasRope;
-  bool isPa;
-  bool isFd;
-  bool emptyTensor;
-  uint8_t PFAMask;
-  uint8_t pFAMatMulType;
-
+    uint8_t inOutLayoutType = 0;
+    uint16_t config = 0;
+    uint8_t pseMode = 0;
+    uint8_t quantMode = 0;
+    bool hasAttenMask = false;
+    bool hasRope = false;
+    bool isPa = false;
+    bool isFd = false;
+    bool emptyTensor = false;
+    uint8_t PFAMask = 0;
+    uint8_t pFAMatMulType = 0;
 private:
   ge::graphStatus GetNpuInfo();
   ge::graphStatus PreProcess();
@@ -251,9 +250,7 @@ private:
   ge::graphStatus CalcWorkSpace();
   ge::graphStatus CalcBlockDim() const;
   ge::graphStatus GenTilingKey();
-  uint8_t GenHeadDimProfileVal() const;
   uint8_t GenAntiquantModeVal() const;
-
   ge::graphStatus FillTiling();
   void FillTilingBaseParams() const;
   void FillTilingSplitKV() const;

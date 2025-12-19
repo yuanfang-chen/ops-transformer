@@ -14,7 +14,6 @@
  */
 #ifndef PFA_MATMUL_POLICY_H
 #define PFA_MATMUL_POLICY_H
-// #include "lib/../../impl/adv_api/detail/matmul/policy/matmul_policy.h"
 #include "copy_cube_in/pa_copy_cube_in/pa_copy_left_cube_in_norm.h"
 #include "copy_cube_in/pa_copy_cube_in/pa_copy_right_cube_in_norm.h"
 #include "copy_cube_in/pa_copy_cube_in/pa_copy_left_cube_in_norm_split_k.h"

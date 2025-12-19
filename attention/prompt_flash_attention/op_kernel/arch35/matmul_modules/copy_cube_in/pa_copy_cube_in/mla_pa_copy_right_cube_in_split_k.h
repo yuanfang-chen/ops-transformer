@@ -15,7 +15,6 @@
 #ifndef MLA_PA_COPY_RIGHT_CUBE_IN_SPLIT_K_H
 #define MLA_PA_COPY_RIGHT_CUBE_IN_SPLIT_K_H
 
-// #include "lib/../../impl/adv_api/detail/matmul/resource/cube_in_buffer/cube_in_buffer.h"
 #include "../../pfa_policy_data.h"
 
 namespace AscendC {
