@@ -878,7 +878,7 @@ __aicore__ inline void GenGQABandInfo(int64_t k, int64_t m, int64_t n, int64_t p
         }
         n = bandInfo.L1 + bandInfo.L2 + bandInfo.L3;
     }
-
+    bandInfo.n = n;
     // Rm_group内有列的轮次约束
     bandInfo.Rm = m * n - (m - p) * (m - p + 1) / NUM_TWO - (n - q) * (n - q + 1) / NUM_TWO;
     int64_t Rm_group = bandInfo.Rm * g;
@@ -2167,7 +2167,7 @@ __aicore__ inline void CalGQABandIndex(const BandInfo &bandInfo, int64_t j, int6
             x = coordinate.s1Idx;
             y = coordinate.s2Idx;
 
-            if (x-p+1 <= y <= x+q-1) {
+            if (x-p+1 <= y && y <= x+q-1) {
                 coordinate.batchId = b1*k*N1 + w;
                 coordinate.s1Idx = x;
                 coordinate.s2Idx = y;
@@ -2197,7 +2197,7 @@ __aicore__ inline void CalGQABandIndex(const BandInfo &bandInfo, int64_t j, int6
                     return;
                 } else {
                     y = Ceil<int64_t>((x-(p+y-1)), (p+q-1)) * (p+q-1) + y;
-                    if (1<=y<=n) {
+                    if (1 <= y && y <= n) {
                         coordinate.batchId = b1*k*N1 + w;
                         coordinate.s1Idx = x;
                         coordinate.s2Idx = y;
@@ -2217,7 +2217,7 @@ __aicore__ inline void CalGQABandIndex(const BandInfo &bandInfo, int64_t j, int6
                 y = coordinate.s2Idx;
 
                 x = x + y - q;
-                if (1 <= x <= m) {
+                if (1 <= x && x<= m) {
                     coordinate.batchId = b1 * k * N1 + w;
                     coordinate.s1Idx = x;
                     coordinate.s2Idx = y;

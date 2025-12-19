@@ -1037,6 +1037,9 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetN
                 int64_t xMin = (s2oIdx - q) > 0 ? (s2oIdx - q) : 0;
                 int64_t xMax = (constInfo.s1Outer - 1) > (s2oIdx + p) ? (s2oIdx + p) : (constInfo.s1Outer - 1);
                 int64_t length = xMax - xMin + 1;
+                if (length < 0) {
+                    continue;
+                }
                 if (cum + length > gDimTail) {
                     s1Idx = xMin + (gDimTail - cum);
                     s2Idx = s2oIdx;

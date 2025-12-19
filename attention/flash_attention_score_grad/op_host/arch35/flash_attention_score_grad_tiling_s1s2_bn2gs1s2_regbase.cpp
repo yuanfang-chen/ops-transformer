@@ -1210,7 +1210,10 @@ int64_t FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetTotalPerBatchNum(uint8_
         for (int64_t s2oIdx = 0; s2oIdx < fBaseParams.s2Outer; s2oIdx++) {
             int64_t xMin = (s2oIdx - q) > 0 ? (s2oIdx - q) : 0;
             int64_t xMax = (fBaseParams.s1Outer - 1) > (s2oIdx + p) ? (s2oIdx + p) : (fBaseParams.s1Outer - 1);
-            totalPerBatchNum += (xMax - xMin + 1);
+            int64_t length = xMax - xMin + 1;
+            if (length > 0) {
+                totalPerBatchNum += (xMax - xMin + 1);   
+            }
         }
     }
     return totalPerBatchNum;
