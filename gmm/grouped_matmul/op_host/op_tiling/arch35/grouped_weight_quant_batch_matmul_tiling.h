@@ -46,6 +46,7 @@ constexpr uint32_t BASIC_BLOCK_BASE_N = 256;
 constexpr uint32_t BASIC_BLOCK_BASE_K = 64;
 constexpr uint32_t BASIC_BLOCK_BASE_N_MIN = 128;
 constexpr uint32_t STEP_K_4 = 4;
+constexpr uint32_t STEP_K_3 = 3;
 constexpr uint32_t DEPTH_8 = 8;
 constexpr uint32_t BUFFER_NUM_2 = 2;
 
@@ -154,6 +155,7 @@ enum class Mte2Configuration : uint8_t {
     MTE2_INNER_SIZE_1024_BUF_NUM_2 = 2,
     MTE2_INNER_SIZE_256_BUF_NUM_4 = 3,
     MTE2_INNER_SIZE_512_BUF_NUM_DEFAULT = 4,  // w8 w4在非性能场景下复用一组设置
+    MTE2_INNER_SIZE_384_BUF_NUM_3 = 5,
 };
 
 class TilingKeyConfigure {
@@ -253,6 +255,7 @@ protected:
     uint16_t GetTensorListSize(const gert::TilingContext *context, uint32_t attrIdx) const;
     void GetNumOfInputs(const gert::TilingContext *context);
     bool SetAntiquantGroupSize(const gert::TilingContext *context);
+    bool CheckGroupSize(const gert::TilingContext *context) const;
     bool GetC0Size(const gert::TilingContext *context, ge::DataType dtype, uint64_t &c0Size) const;
     void CalcFullBlockDimResplitTiling(uint64_t c0Size);
     void CalcNoFullBlockDimResplitTiling(uint64_t c0Size);

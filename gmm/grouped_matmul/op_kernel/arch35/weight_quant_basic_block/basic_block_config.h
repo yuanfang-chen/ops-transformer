@@ -250,7 +250,7 @@ __aicore__ constexpr VfConfig GetVfConfig()
     } else {
         // NZ transB=False
         if constexpr (IsSameType<xType, int8_t>::value) {
-            return {.vfNStandardLen = 64, .vfKStandardLen = 512};
+            return {.vfNStandardLen = 64, .vfKStandardLen = vecConfig.ubMte2InnerSize};
         } else {
             return {.vfNStandardLen = 64, .vfKStandardLen = 256};
         }

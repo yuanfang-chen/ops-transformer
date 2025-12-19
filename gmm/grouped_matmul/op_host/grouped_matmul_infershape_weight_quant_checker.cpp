@@ -573,10 +573,10 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckGroupSize(const gert::Infe
     groupSize = weightKDim_ / groupNum;
 
     if (IsS8S4NZ(xDtype_, weightDtype_)) {
-        // 伪量化S8S4场景支持groupsize为128/256/512
-        OP_CHECK_IF(groupSize != 128 && groupSize != 256 && groupSize != 512,
-                    OP_LOGE(context->GetNodeName(), "groupSize must be 128/256/512, but current groupSize is (%ld).",
-                            groupSize),
+        // 伪量化S8S4场景支持groupsize为128/192/256/512
+        OP_CHECK_IF(groupSize != 128 && groupSize != 256 && groupSize != 512 && groupSize != 192,
+                    OP_LOGE(context->GetNodeName(),
+                            "groupSize must be 128/192/256/512, but current groupSize is (%ld).", groupSize),
                     return ge::GRAPH_FAILED);
     } else {
         // Mx量化的groupSize为32

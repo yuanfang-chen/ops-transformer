@@ -508,9 +508,10 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupSize(size_t idx
 
     // 当前伪量化仅支持groupsize为32整数倍
     if (IsS8S4NZ()) {
-        // 伪量化S8S4场景支持groupsize为128/256/512
-        CHECK_COND(groupSize == 128 || groupSize == 256 || groupSize == 512, ACLNN_ERR_PARAM_INVALID,
-                   "GroupSize must be 128/256/512, but the actual groupSize is [%ld].", groupSize);
+        // 伪量化S8S4场景支持groupsize为128/192/256/512
+        CHECK_COND(groupSize == 128 || groupSize == 256 || groupSize == 512 || groupSize == 192,
+                   ACLNN_ERR_PARAM_INVALID, "GroupSize must be 128/192/256/512, but the actual groupSize is [%ld].",
+                   groupSize);
     } else {
         // 当前伪量化非S8S4仅支持groupsize为32
         CHECK_COND(groupSize == 32, ACLNN_ERR_PARAM_INVALID, "GroupSize must be 32, but the actual groupSize is [%ld].",

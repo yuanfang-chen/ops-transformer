@@ -523,6 +523,7 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(!CheckEveryTensor(context), OP_LOGE(context->GetNodeName(), "CheckEveryTensor failed."), return false);
     OP_CHECK_IF(!SetAntiquantGroupSize(context), OP_LOGE(context->GetNodeName(), "Unable to get antiquant groupSize"),
                 return false);
+    OP_CHECK_IF(!CheckGroupSize(context), OP_LOGE(context->GetNodeName(), "CheckGroupSize failed."), return false);
     PrintInputParam(context);
     return true;
 }
@@ -684,6 +685,12 @@ void GroupedWeightQuantBatchMatmulTiling::SetMatMulTiling()
         tilingData_.mmTilingData.baseK = BASIC_BLOCK_BASE_K * 2;
         // A8W4场景在UB中处理bias，mm api默认无bias
         tilingData_.mmTilingData.isBias = 0;
+        // groupsize=192时, ubMte2InnerSize=384, stepKb=ubMte2InnerSize/baseK=3
+        if (groupSize_ == 192u) {
+            tilingData_.mmTilingData.stepKa = STEP_K_3;
+            tilingData_.mmTilingData.stepKb = STEP_K_3;
+        }
+        OP_LOGI("SetMatMulTiling", "stepKb = %llu", tilingData_.mmTilingData.stepKb);
     } else if (xDType_ == ge::DT_FLOAT8_E4M3FN && weightDtype_ == ge::DT_FLOAT4_E2M1 &&
                antiquantScaleDtype_ == ge::DT_FLOAT8_E8M0) {
         // MxA8W4场景配置mxTypePara
@@ -726,6 +733,9 @@ void GroupedWeightQuantBatchMatmulTiling::SetTilingKey(gert::TilingContext *cont
     tilingKeyConfig_.templateCustom = static_cast<uint8_t>(Mte2Configuration::MTE2_INNER_SIZE_256_BUF_NUM_4);
     if (xDType_ == ge::DT_INT8 && weightDtype_ == ge::DT_INT4) {
         tilingKeyConfig_.templateCustom = static_cast<uint8_t>(Mte2Configuration::MTE2_INNER_SIZE_512_BUF_NUM_DEFAULT);
+        if (groupSize_ == 192u) {
+            tilingKeyConfig_.templateCustom = static_cast<uint8_t>(Mte2Configuration::MTE2_INNER_SIZE_384_BUF_NUM_3);
+        }
     }
     tilingKeyConfig_.apiConstexpr = 0U;
     context->SetTilingKey(tilingKeyConfig_.GenTilingKey());
@@ -968,6 +978,19 @@ bool GroupedWeightQuantBatchMatmulTiling::SetShapeListMultiXMultiWeightMultiY(co
         nSize_ = std::max(nSize_, static_cast<uint64_t>(n));
     }
     nSizeOri_ = nSize_;
+    return true;
+}
+
+bool GroupedWeightQuantBatchMatmulTiling::CheckGroupSize(const gert::TilingContext *context) const
+{
+    if (xDType_ != ge::DT_INT8 || weightDtype_ != ge::DT_INT4) {
+        return true;
+    }
+    // 伪量化S8S4场景支持groupsize为128/192/256/512
+    OP_CHECK_IF(
+        groupSize_ != 128u && groupSize_ != 256u && groupSize_ != 512u && groupSize_ != 192u,
+        OP_LOGE(context->GetNodeName(), "groupSize must be 128/192/256/512, but current groupSize is %u.", groupSize_),
+        return false);
     return true;
 }
 

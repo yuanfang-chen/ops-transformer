@@ -22,7 +22,7 @@ using WeightQuantBatchMatmulV2::Arch35::A_L1_MAX_SIZE_WITH_BIAS_QUANT;
 using WeightQuantBatchMatmulV2::Arch35::BASIC_BLOCK_PROCESS_NUM;
 using WeightQuantBatchMatmulV2::Arch35::BasicBlockControlParam;
 using WeightQuantBatchMatmulV2::Arch35::BasicBlockOffsetParam;
-using WeightQuantBatchMatmulV2::Arch35::CeilDiv;
+using WeightQuantBatchMatmulV2::Arch35::CeilDivide;
 using WeightQuantBatchMatmulV2::Arch35::DOUBLE_BUFFER_NUM;
 using WeightQuantBatchMatmulV2::Arch35::IsMxA8W4;
 using WeightQuantBatchMatmulV2::Arch35::QUADRUPLE_BUFFER_NUM;
@@ -143,8 +143,8 @@ __aicore__ inline void GMM_WQ_RESPLIT_CONTROLLER_CLASS::Process()
                 ctrlParam.mSize <= mmTiling_->baseM || ctrlParam.mSize >= mmTiling_->baseM * QUADRUPLE_BUFFER_NUM
                     ? mmTiling_->baseM
                     : (ctrlParam.mSize <= DOUBLE_BUFFER_NUM * mmTiling_->baseM
-                           ? CeilDiv(ctrlParam.mSize, (uint64_t)DOUBLE_BUFFER_NUM)
-                           : CeilDiv(ctrlParam.mSize, (uint64_t)QUADRUPLE_BUFFER_NUM));
+                           ? CeilDivide(ctrlParam.mSize, (uint64_t)DOUBLE_BUFFER_NUM)
+                           : CeilDivide(ctrlParam.mSize, (uint64_t)QUADRUPLE_BUFFER_NUM));
             basicBlock_.UpdateGlobalAddr(xGm_, weightGm_, antiquantScaleGm_, antiquantOffsetGm_, scaleGm_,
                                          perTokenScaleGm_, biasGm_, yGm_, mmTiling_->isBias,
                                          ctrlParam.mL1Size < ctrlParam.mSize || isCacheLineUnaligned);
@@ -241,8 +241,8 @@ __aicore__ inline void GMM_WQ_RESPLIT_CONTROLLER_CLASS::UpdateGmAddr(uint64_t mS
     }
 
     if constexpr (wqmmConfig.antiQuantType == QuantType::PER_GROUP || wqmmConfig.antiQuantType == QuantType::MX) {
-        antiquantScaleGm_ += nSize * CeilDiv(kSize, gmmBaseTiling_->groupSize);
-        antiquantOffsetGm_ += nSize * CeilDiv(kSize, gmmBaseTiling_->groupSize);
+        antiquantScaleGm_ += nSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
+        antiquantOffsetGm_ += nSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
     } else {
         antiquantScaleGm_ += nSize;
         antiquantOffsetGm_ += nSize;
@@ -251,7 +251,7 @@ __aicore__ inline void GMM_WQ_RESPLIT_CONTROLLER_CLASS::UpdateGmAddr(uint64_t mS
     scaleGm_ += nSize;
 
     if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
-        perTokenScaleGm_ += mSize * CeilDiv(kSize, gmmBaseTiling_->groupSize);
+        perTokenScaleGm_ += mSize * CeilDivide(kSize, static_cast<uint64_t>(gmmBaseTiling_->groupSize));
     } else {
         perTokenScaleGm_ += mSize;
     }
@@ -277,8 +277,9 @@ __aicore__ inline void GMM_WQ_RESPLIT_CONTROLLER_CLASS::PrefetchA(uint64_t mSize
      */
     if (mSize <= 512 && aSize <= static_cast<uint64_t>(gmmBaseTiling_->cubeBlockDimN) * A_L1_MAX_SIZE_WITH_BIAS_QUANT &&
         (gmmBaseTiling_->coreNum % gmmBaseTiling_->cubeBlockDimN == 0)) {
-        uint64_t aPrefetchSize = CeilAlign(CeilDiv(mSize * kSize, static_cast<uint64_t>(gmmBaseTiling_->cubeBlockDimN)),
-                                           64UL);  // 64 表示128B的cacheline对齐
+        uint64_t aPrefetchSize =
+            CeilAlign(CeilDivide(mSize * kSize, static_cast<uint64_t>(gmmBaseTiling_->cubeBlockDimN)),
+                      64UL); // 64 表示128B的cacheline对齐
         basicBlock_.PrefetchA(aPrefetchSize, mSize * kSize);
     }
 }
