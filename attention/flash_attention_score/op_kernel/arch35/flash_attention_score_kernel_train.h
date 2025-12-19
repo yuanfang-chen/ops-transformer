@@ -32,6 +32,9 @@ private:
     __aicore__ inline void GetAttentionOffset(RunParamStr<isInfer> &runParam);
     __aicore__ inline void CalS1OuterSize(const int64_t &multiCoreInnerOffset, RunParamStr<isInfer> &runParam);
     __aicore__ inline void GetS2LoopRange(RunParamStr<isInfer> &runParam);
+    __aicore__ inline int64_t CalcRealTimes(int64_t relativePos, int64_t length);
+    __aicore__ inline int64_t CalcRealCoreIdx(int64_t relativePos, int64_t times, int64_t offsetCoreIdx,
+        bool isPartialCalc);
 };
 
 template <typename CubeBlockType, typename VecBlockType>
@@ -65,6 +68,43 @@ FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
     runInfo.vecCoreOffset = this->constInfo.subBlockIdx * runInfo.firstHalfS1RealSize;
 }
 
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline int64_t FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockType>::CalcRealCoreIdx(
+    int64_t relativePos, int64_t times, int64_t offsetCoreIdx, bool isPartialCalc)
+{
+    int64_t n1oIdx = 0;
+    int64_t s1oIdx = 0;
+    int64_t realCoreIdx = 0;
+    int64_t partialCalcLength = this->sharedParams.firstFullLoadS1OuterIdx + 1;
+
+    // 新分核方式中，将顺序-部分计算，倒序-部分计算，全量计算 三种计算区域进行独立计算
+    // coreIdx 表示第 times 次计算的S1方向基本块在对应计算区域中的位置
+    int64_t coreIdx = times * this->sharedParams.coreNum + relativePos;
+    if (isPartialCalc && this->sharedParams.firstFullLoadS1OuterIdx != -1) {
+        // 非sparse场景，firstFullLoadS1OuterIdx才为-1
+        n1oIdx = coreIdx / partialCalcLength;
+        s1oIdx = coreIdx % partialCalcLength;
+    } else {
+        n1oIdx = coreIdx / (this->constInfo.s1OuterSize - partialCalcLength);
+        s1oIdx = coreIdx % (this->constInfo.s1OuterSize - partialCalcLength);
+    }
+
+    // realCoreIdx 将对应计算区域中S1方向基本块的索引，转换为实际的索引值
+    realCoreIdx = n1oIdx * this->constInfo.s1OuterSize + s1oIdx + offsetCoreIdx;
+
+    return realCoreIdx;
+}
+
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline int64_t FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockType>::CalcRealTimes(
+    int64_t relativePos, int64_t length)
+{
+    int64_t realTimes = length / this->sharedParams.coreNum;
+    int64_t remainCycles = length % this->sharedParams.coreNum;
+
+    return (relativePos < remainCycles) ? realTimes + 1 : realTimes;
+}
+
 /*
  * 新分核方式（提高L2上数据的复用）：
  * 一、顺序分核：将每个S1的基本块，依次分发给各个核计算；
@@ -73,33 +113,64 @@ FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
  *      s1基本块3 -- core3
  *      s1基本块4 -- core1
  *      ...
- * 二、两两配对：为了让Sparse场景更好的负载均衡，偶数(N)采用顺序分核，奇数(N')与其对应的偶数(N'-1)对称分核
- *      偶数N
+ * 二、对称分核：为了让Sparse场景更好的负载均衡，上半部分N采用顺序分核，下半部分N与上半部分N对称分核
+ *      <上半部分N>
  *      s1基本块1 -- core1
  *      s1基本块2 -- core2
- *      奇数N’
- *      s1基本块3 -- core2
- *      s1基本块4 -- core1
+ *      s1基本块3 -- core3
+ *      <下半部分N>
+ *      s1基本块4 -- core3
+ *      s1基本块5 -- core2
+ *      s1基本块6 -- core1
  */
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockType>::Process()
 {
-    // 确定核内切分起点
     int64_t multiCoreInnerOffset = 0;
     int64_t multiCoreInnerLimit = 0;
+
+    // 新分核模式
+    // 1、S2全量计算的部分，采用顺序分核；
+    // 2、S2部分计算的部分，采用对称分核：将N分成一半，上半部分顺序分核，下半部分与上半部分对称分核；
+    int64_t halfN = 0;
+    int64_t partialCalcForwardNum = 0;              // 当前核 在顺序部分计算中分配的S1方向上基本块个数；
+    int64_t partialCalcReverseNum = 0;              // 当前核 在倒序部分计算中分配的S1方向上基本块个数；
+    int64_t partialCalcNum = 0;                     // 当前核 在部分计算中分配的S1方向上基本块个数；
+    int64_t fullCalcForwardNum = 0;                 // 当前核 在全量计算中分配的S1方向上基本块个数；
+    int64_t halfNCoreIdx = 0;                       // 下半部分第一个S1方向基本块对应的核索引；
+    int64_t partialCalcLength = this->sharedParams.firstFullLoadS1OuterIdx + 1;     // 部分计算在单个S1上的长度；
+    int64_t relativePosReverse = 0;                 // 当前核 与第一个S1方向基本块对应的核索引 相差的个数
     if (this->sharedParams.splitCoreMode == 1) {
+        const int64_t totalN = this->constInfo.n2G * this->sharedParams.bSize;
+        halfN = CeilDiv(totalN, 2);
+        int64_t partialCalcForwardLength = halfN * partialCalcLength;
+        int64_t partialCalcReverseLength = (totalN - halfN) * partialCalcLength;
+        int64_t fullCalcForwardLength = 0;
+        if (this->sharedParams.firstFullLoadS1OuterIdx == -1) {
+            fullCalcForwardLength = totalN * this->constInfo.s1OuterSize;
+        } else {
+            fullCalcForwardLength = totalN * (this->constInfo.s1OuterSize - partialCalcLength);
+        }
+        halfNCoreIdx = (partialCalcForwardLength - 1) % this->sharedParams.coreNum;
+        relativePosReverse = (halfNCoreIdx - this->aicIdx + this->sharedParams.coreNum) % this->sharedParams.coreNum;
+        partialCalcForwardNum = CalcRealTimes(this->aicIdx, partialCalcForwardLength);
+        partialCalcReverseNum = CalcRealTimes(relativePosReverse, partialCalcReverseLength);
+        fullCalcForwardNum = CalcRealTimes(this->aicIdx, fullCalcForwardLength);
+        partialCalcNum = partialCalcForwardNum + partialCalcReverseNum;
+        // 表示当前核需要计算的次数
         multiCoreInnerOffset = 0;
-        multiCoreInnerLimit = this->sharedParams.totalSize;
+        multiCoreInnerLimit = partialCalcForwardNum + partialCalcReverseNum + fullCalcForwardNum;
     } else {
+        // 表示核内切分起点
         multiCoreInnerOffset = this->sharedParams.multiCoreInnerOffset;
         multiCoreInnerLimit = this->sharedParams.multiCoreInnerLimit;
     }
+
     // 初始化AxisIdx
     RunParamStr<isInfer> runParam;
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         CalS1OuterSize(multiCoreInnerOffset, runParam);
     }
-
     RunInfo<isInfer> runInfo[4];
     int64_t taskId = 0;
     bool notThirdLast = true;
@@ -108,11 +179,8 @@ __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockTyp
     int64_t thirdLast = multiCoreInnerLimit;
     int64_t secondLast = multiCoreInnerLimit + 1;
     int64_t last = multiCoreInnerLimit + 2;
-    int64_t fullLoadIndex = -1;     // 表示第一块全载的S1方向上基本块的索引；如果是非Sparse场景为-1
-    int64_t evenLoopIndex = -1;     // 两两配对分核中，统计偶数N上的S1方向上基本块个数（从0开始，用索引表示）；
-    int64_t oddLoopIndex = -1;      // 两两配对分核中，统计奇数N'上的S1方向上基本块个数（从0开始，用索引表示）；
-    int64_t realHandledIndex = 0;   // 每个核实际计算的S1方向上基本块个数（从0开始，用索引表示）；
     multiCoreInnerLimit += 3;
+    int64_t realCoreInnerIdx = 0;
     for (int64_t multiCoreInnerIdx = multiCoreInnerOffset; multiCoreInnerIdx < multiCoreInnerLimit;
          multiCoreInnerIdx++) {
         if (multiCoreInnerIdx == secondLast) {
@@ -121,31 +189,20 @@ __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockTyp
             notLast = false;
         } else if (multiCoreInnerIdx == thirdLast) {
             notThirdLast = false;
-        } else if (this->sharedParams.splitCoreMode == 1) {
-            int64_t s1oIdx = multiCoreInnerIdx % this->constInfo.s1OuterSize;
-            if (s1oIdx > this->sharedParams.firstFullLoadS1OuterIdx) {
-                // 顺序分配
-                fullLoadIndex++;
-                if (fullLoadIndex % this->sharedParams.coreNum != this->aicIdx) {
-                    continue;
+        } else {
+            // 非最后三次伪循环，需要将当前核处理的次数转化为S1方向上基本块的索引值
+            if (this->sharedParams.splitCoreMode == 1) {
+                if (multiCoreInnerIdx >= 0 && multiCoreInnerIdx < partialCalcForwardNum) {
+                    realCoreInnerIdx = CalcRealCoreIdx(this->aicIdx, multiCoreInnerIdx, 0, true);
+                } else if (multiCoreInnerIdx >= partialCalcForwardNum && multiCoreInnerIdx < partialCalcNum) {
+                    realCoreInnerIdx = CalcRealCoreIdx(relativePosReverse, multiCoreInnerIdx - partialCalcForwardNum,
+                                                       halfN * this->constInfo.s1OuterSize, true);
+                } else {
+                    realCoreInnerIdx = CalcRealCoreIdx(this->aicIdx, multiCoreInnerIdx - partialCalcNum,
+                                                       partialCalcLength, false);
                 }
             } else {
-                // 两两配对
-                int64_t n1oIdx = multiCoreInnerIdx / this->constInfo.s1OuterSize;
-                // 非最后三次伪循环，当S2非全载时，需要区分N是奇数还是偶数
-                if (n1oIdx % 2 == 0) {
-                    evenLoopIndex++;
-                    if (evenLoopIndex % this->sharedParams.coreNum != this->aicIdx) {
-                        continue;
-                    }
-                } else {
-                    oddLoopIndex++;
-                    // 从后往前分核
-                    int64_t gap = this->sharedParams.firstFullLoadS1OuterIdx - s1oIdx;
-                    if ((oddLoopIndex - s1oIdx + gap) % this->sharedParams.coreNum != this->aicIdx) {
-                        continue;
-                    }
-                }
+                realCoreInnerIdx = multiCoreInnerIdx;
             }
         }
 
@@ -153,7 +210,7 @@ __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockTyp
         bool notLastThreeLoop = notThirdLast && notSecondLast && notLast;
         bool notLastTwoLoop = notSecondLast && notLast;
         if (notLastThreeLoop) {
-            this->ComputeAxisIdx(multiCoreInnerIdx, runParam);
+            this->ComputeAxisIdx(realCoreInnerIdx, runParam);
             this->GetAttentionOffset(runParam);
             // s2轴循环计数, 支持sparse和非sparse场景
             this->GetS2LoopRange(runParam);
@@ -171,9 +228,9 @@ __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockTyp
         for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; s2LoopCount++) {
             if (notLastThreeLoop) {
                 RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
-                this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
+                this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, realCoreInnerIdx);
                 if (this->sharedParams.splitCoreMode == 1) {
-                    runInfo1.multiCoreIdxMod3 = realHandledIndex % 3;
+                    runInfo1.multiCoreIdxMod3 = multiCoreInnerIdx % 3;
                 }
                 if ASCEND_IS_AIC {
                     this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
@@ -210,7 +267,6 @@ __aicore__ inline void FlashAttentionScoreKernelTrain<CubeBlockType, VecBlockTyp
             }
             taskId++;
         }
-        realHandledIndex++;
     }
 }
 

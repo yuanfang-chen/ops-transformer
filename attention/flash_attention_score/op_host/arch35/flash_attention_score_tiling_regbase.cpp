@@ -940,14 +940,16 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::DoOpTiling()
 void FlashAttentionScoreTilingRegbase::CalcThresholdForS2Size() {
     int64_t l2CacheSizeForKandV = L2_CACHE_SIZE * NUM_1024 * NUM_1024;
     if (bSize == 0 || n2Size == 0 || dBasicBlock == 0 || dVBasicBlock == 0) {
-        OP_LOGE(context_, "The product of bSize[%ld], nSize[%ld] and dSize[%ld] and dVSzie[%ld] cannot be zero.",
+        OP_LOGE(context_, "The product of bSize[%ld], nSize[%ld], dSize[%ld] and dVSzie[%ld] cannot be zero.",
             bSize, n1Size, dBasicBlock, dVBasicBlock);
         thresholdS2Size = std::numeric_limits<int64_t>::max();
         return;
     }
 
     int64_t typeSize = ge::GetSizeByDataType(inputDtype);
-    thresholdS2Size = l2CacheSizeForKandV / (bSize * n2Size * (dBasicBlock + dVBasicBlock) * typeSize);
+    // 当bn1比较大时，部分s比较小的场景，性能受限并非在L2cache资源的复用；
+    int64_t bnSize = std::min(bSize * n2Size, static_cast<int64_t>(aicNum));
+    thresholdS2Size = l2CacheSizeForKandV / (bnSize * (dBasicBlock + dVBasicBlock) * typeSize);
 }
 
 bool FlashAttentionScoreTilingRegbase::IsUseSpliteCoreMode(SparseMode inputSparseMode) {
