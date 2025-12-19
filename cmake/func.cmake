@@ -38,11 +38,6 @@ set(A5_OPS_BLACK_LIST
     "moe_update_expert;"
     "quant_all_reduce;"
     "quant_reduce_scatter;"
-
-    "moe_init_routing;"
-    "moe_init_routing_quant_v2;"
-    "moe_init_routing_v2;"
-    "moe_init_routing_v2_grad;"
     "moe_token_permute_with_routing_map;"
 ) # A5算子黑名单
 

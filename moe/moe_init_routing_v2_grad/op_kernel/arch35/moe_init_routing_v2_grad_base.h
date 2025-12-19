@@ -16,8 +16,8 @@
 #define MOE_INIT_ROUTING_V2_GRAD_BASE_COMPUTE_H
 
 #include "kernel_operator.h"
-#include "../../inc/kernel_utils.h"
-#include "../../inc/platform.h"
+#include "op_kernel/platform_util.h"
+#include "op_kernel/math_util.h"
 
 namespace MoeInitRoutingV2Grad {
 using namespace AscendC;
@@ -33,8 +33,8 @@ using AscendC::MicroAPI::UpdateMask;
 
 constexpr int64_t DROP_PAD_MODE = 1;
 constexpr int64_t ACTIVE_MODE = 2;
-constexpr uint32_t VL_F32 = platform::GetVRegSize() / sizeof(float);
-constexpr int64_t BLOCK_SIZE = platform::GetUbBlockSize();
+constexpr uint32_t VL_F32 = Ops::Base::GetVRegSize() / sizeof(float);
+constexpr int64_t BLOCK_SIZE = Ops::Base::GetUbBlockSize();
 constexpr int64_t DOUBLE_BUFFER = 2;
 constexpr int64_t SCALE_COEF_TWO = 2;
 constexpr int64_t SCALE_COEF_FOUR = 4;
@@ -198,7 +198,7 @@ __aicore__ inline void SequenceReduceSum(
 
     uint16_t hQuotLoopCount = hQuotCount;
     uint32_t hRemCount = hRem;
-    uint16_t hRemLoopCount = ops::Ceil(hRemCount, VL_F32);
+    uint16_t hRemLoopCount = Ops::Base::CeilDiv(hRemCount, VL_F32);
     uint16_t nLoopCount = currentN;
     uint16_t kLoopCount = currentK;
 

@@ -42,7 +42,7 @@ public:
         inputGm.SetGlobalBuffer((__gm__ T*)gradExpandedX);
         indexGm.SetGlobalBuffer((__gm__ int32_t*)expandedRowIdx);
         outputGm.SetGlobalBuffer((__gm__ T*)gradX + outputGmOffset);
-        auto hUbAlignFactor = ops::CeilAlign(static_cast<int64_t>(this->hUbFactor * sizeof(T)), BLOCK_SIZE);
+        auto hUbAlignFactor = Ops::Base::CeilAlign(static_cast<int64_t>(this->hUbFactor * sizeof(T)), BLOCK_SIZE);
         tPipe->InitBuffer(inputQueue, DOUBLE_BUFFER, this->kUbFactor * this->k * hUbAlignFactor);
         tPipe->InitBuffer(outputQueue, 1, this->kUbFactor * hUbAlignFactor);
     }
@@ -53,7 +53,7 @@ public:
         if (this->blockIdx == this->blockDim - 1) {
             currhBlockFactor = this->h % this->hBlockFactor == 0 ? this->hBlockFactor : this->h % this->hBlockFactor;
         }
-        int64_t splitHLoopCnt = ops::CeilDiv(currhBlockFactor, this->hUbFactor);
+        int64_t splitHLoopCnt = Ops::Base::CeilDiv(currhBlockFactor, this->hUbFactor);
         int64_t currSubhLen = this->hUbFactor;
         for (int64_t splitHIdx = 0; splitHIdx < splitHLoopCnt; ++splitHIdx) {
             if (splitHIdx == splitHLoopCnt - 1) {
@@ -61,9 +61,9 @@ public:
                     currhBlockFactor % this->hUbFactor == 0 ? this->hUbFactor : currhBlockFactor % this->hUbFactor;
             }
             int64_t currSubhAlign =
-                ops::CeilAlign(static_cast<int64_t>(currSubhLen * sizeof(T)), BLOCK_SIZE) / sizeof(T);
+                Ops::Base::CeilAlign(static_cast<int64_t>(currSubhLen * sizeof(T)), BLOCK_SIZE) / sizeof(T);
             // 一次可以搬入this->kUbFactor个topK, UB需要循环 n / this->kUbFactor次
-            uint32_t loopCnt = ops::CeilDiv(this->n, this->kUbFactor);
+            uint32_t loopCnt = Ops::Base::CeilDiv(this->n, this->kUbFactor);
             int64_t currkUbFactor = this->kUbFactor;
             for (uint32_t loopIdx = 0; loopIdx < loopCnt; loopIdx++) {
                 if (loopIdx == loopCnt - 1) {

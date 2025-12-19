@@ -164,7 +164,7 @@ private:
         __local_mem__ T* outputUbAddr = (__local_mem__ T*)outputUb.GetPhyAddr();
 
         uint32_t updateNum = currentN * currentHAlign;
-        uint16_t dataLoopCount = ops::Ceil(updateNum, VL_F32);
+        uint16_t dataLoopCount = Ops::Base::CeilDiv(updateNum, VL_F32);
 
         __VEC_SCOPE__
         {
