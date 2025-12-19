@@ -580,6 +580,52 @@ FlashAttentionScoreGradUs1s2Bbn2StaticRegbase<FAG_BN2_FUNCTION_PARAMS_TEMPLATE>:
     }
 }
 
+template <typename T1, typename T2>
+__simd_vf__ inline void MulsCastVF(uint64_t dstLocalInt, uint64_t srcLocalInt, uint32_t srcM, float scaleValue, uint32_t realN, uint32_t realNAlign16)
+{
+    uint32_t OneN = realN / 2;
+    uint32_t ZeroN = realN - OneN;
+    static constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp16Zero = {
+        AscendC::MicroAPI::RegLayout::ZERO,
+        AscendC::MicroAPI::SatMode::SAT,
+        AscendC::MicroAPI::MaskMergeMode::ZEROING,
+        AscendC::RoundMode::CAST_ROUND,
+    };    
+    static constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp16One = {
+        AscendC::MicroAPI::RegLayout::ONE,
+        AscendC::MicroAPI::SatMode::SAT,
+        AscendC::MicroAPI::MaskMergeMode::ZEROING,
+        AscendC::RoundMode::CAST_ROUND,
+    };
+    RegTensor<T2> vregSrcZero;
+    RegTensor<T2> vregSrcOne;
+    RegTensor<T2> vregMulsZero;
+    RegTensor<T2> vregMulsOne;
+    RegTensor<T1> vregCastZero;
+    RegTensor<T1> vregCastOne;
+    RegTensor<T1> vregCast;
+
+    MaskReg pregFullExeT2 = CreateMask<T2, MaskPattern::ALL>();
+    MaskReg pregFullExeT1 = CreateMask<T1, MaskPattern::ALL>();
+    MaskReg pregTailExeZero = UpdateMask<T2>(ZeroN);
+    MaskReg pregTailExeOne = UpdateMask<T2>(OneN);
+    MaskReg pregTailExeT1 = UpdateMask<T1>(realN);    
+
+    for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
+        LoadAlign<T2, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
+            vregSrcZero, vregSrcOne, ((__ubuf__ T2 *&)srcLocalInt), realNAlign16);
+        Muls(vregMulsZero, vregSrcZero, scaleValue, pregTailExeZero);
+        Muls(vregMulsOne, vregSrcOne, scaleValue, pregTailExeOne);
+        Cast<T1, T2, castTraitFp322Fp16Zero>(vregCastZero, vregMulsZero, pregTailExeZero);
+        Cast<T1, T2, castTraitFp322Fp16One>(vregCastOne, vregMulsOne, pregTailExeOne);
+        Or((RegTensor<uint16_t> &)vregCast, (RegTensor<uint16_t> &)vregCastZero,
+            (RegTensor<uint16_t> &)vregCastOne, pregTailExeT1);
+        StoreAlign<T1, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
+            ((__ubuf__ T1 *&)dstLocalInt), vregCast, realNAlign16, pregTailExeT1);
+    }
+}
+
+
 FAG_BN2_FUNCTION_TEMPLATE
 __aicore__ inline void
 FlashAttentionScoreGradUs1s2Bbn2StaticRegbase<FAG_BN2_FUNCTION_PARAMS_TEMPLATE>::MulsCast(const LocalTensor<T1> &dstTensor, 
@@ -591,49 +637,7 @@ FlashAttentionScoreGradUs1s2Bbn2StaticRegbase<FAG_BN2_FUNCTION_PARAMS_TEMPLATE>:
     uint32_t realNAlign16 = AlignTo16(realN);
 
     if (realN <= (uint32_t)DTemplateType::Aligned128) {
-        uint32_t OneN = realN / 2;
-        uint32_t ZeroN = realN - OneN;
-        __VEC_SCOPE__
-        {
-            static constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp16Zero = {
-                AscendC::MicroAPI::RegLayout::ZERO,
-                AscendC::MicroAPI::SatMode::SAT,
-                AscendC::MicroAPI::MaskMergeMode::ZEROING,
-                AscendC::RoundMode::CAST_ROUND,
-            };
-            static constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp16One = {
-                AscendC::MicroAPI::RegLayout::ONE,
-                AscendC::MicroAPI::SatMode::SAT,
-                AscendC::MicroAPI::MaskMergeMode::ZEROING,
-                AscendC::RoundMode::CAST_ROUND,
-            };
-            RegTensor<T2> vregSrcZero;
-            RegTensor<T2> vregSrcOne;
-            RegTensor<T2> vregMulsZero;
-            RegTensor<T2> vregMulsOne;
-            RegTensor<T1> vregCastZero;
-            RegTensor<T1> vregCastOne;
-            RegTensor<T1> vregCast;
-
-            MaskReg pregFullExeT2 = CreateMask<T2, MaskPattern::ALL>();
-            MaskReg pregFullExeT1 = CreateMask<T1, MaskPattern::ALL>();
-            MaskReg pregTailExeZero = UpdateMask<T2>(ZeroN);
-            MaskReg pregTailExeOne = UpdateMask<T2>(OneN);
-            MaskReg pregTailExeT1 = UpdateMask<T1>(realN);
-
-            for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
-                DataCopy<T2, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
-                    vregSrcZero, vregSrcOne, ((__ubuf__ T2 *&)srcLocalInt), realNAlign16);
-                Muls(vregMulsZero, vregSrcZero, scaleValue, pregTailExeZero);
-                Muls(vregMulsOne, vregSrcOne, scaleValue, pregTailExeOne);
-                Cast<T1, T2, castTraitFp322Fp16Zero>(vregCastZero, vregMulsZero, pregTailExeZero);
-                Cast<T1, T2, castTraitFp322Fp16One>(vregCastOne, vregMulsOne, pregTailExeOne);
-                Or((RegTensor<uint16_t> &)vregCast, (RegTensor<uint16_t> &)vregCastZero,
-                    (RegTensor<uint16_t> &)vregCastOne, pregTailExeT1);
-                DataCopy<T1, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
-                    ((__ubuf__ T1 *&)dstLocalInt), vregCast, realNAlign16, pregTailExeT1);
-            }
-        }
+        MulsCastVF<T1,T2>(dstLocalInt, srcLocalInt, srcM, scaleValue, realN, realNAlign16);
     }
 }
 

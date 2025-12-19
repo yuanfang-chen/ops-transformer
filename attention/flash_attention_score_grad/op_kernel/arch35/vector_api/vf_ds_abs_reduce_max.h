@@ -19,6 +19,65 @@ namespace AscendC {
 #ifndef __CCE_KT_TEST__
 using namespace MicroAPI;
 
+template <typename T>
+__simd_vf__ inline void DsAbsReduceMaxVF64(uint64_t srcLocalInt, uint64_t dstLocalInt, uint32_t srcM, uint32_t realN)
+{
+    RegTensor<T> vregInput;
+    RegTensor<T> vregInputAbs;
+    RegTensor<T> vregInputMax;
+    RegTensor<T> vregMax;
+    
+    MaskReg pregFullExe = CreateMask<T, MaskPattern::ALL>();
+    MaskReg pregTailExe = UpdateMask<T>(realN);
+    MaskReg pregLen1 = CreateMask<T, MicroAPI::MaskPattern::VL1>();
+    UnalignReg uregReduceSum;
+
+    Duplicate(vregMax, 0.0f, pregFullExe);
+    for (uint16_t i = 0; i < static_cast<uint16_t>(srcM); i++) {
+        Duplicate(vregInputMax, 0.0f, pregFullExe);
+        LoadAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(vregInput, ((__ubuf__ T *&)srcLocalInt), 128);
+        Abs(vregInputAbs, vregInput, pregTailExe);
+        ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>(vregInputMax, vregInputAbs, pregTailExe);
+        Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregMax, vregMax, vregInputMax, pregLen1);
+    }
+    vstus(uregReduceSum, 1, vregMax, ((__ubuf__ T *&)dstLocalInt), POST_UPDATE);
+    vstas(uregReduceSum, ((__ubuf__ T *&)dstLocalInt), 0, POST_UPDATE);
+}
+
+template <typename T, uint32_t srcN>
+__simd_vf__ inline void DsAbsReduceMaxVFnot64(uint64_t srcLocalInt, uint64_t dstLocalInt, uint16_t repeatTimes, uint32_t tailSize, uint64_t srcLocalIntTail, uint32_t srcM)
+{
+    RegTensor<T> vregInput;
+    RegTensor<T> vregInputTail;
+    RegTensor<T> vregInputAbs;
+    RegTensor<T> vregInputTailAbs;
+    RegTensor<T> vregInputMax;
+    RegTensor<T> vregInputTailMax;
+    RegTensor<T> vregMax;
+    RegTensor<T> vregMaxTmp;
+    MaskReg pregFullExe = CreateMask<T, MaskPattern::ALL>();
+    MaskReg pregTailExe = UpdateMask<T>(tailSize);
+    MaskReg pregLen1 = CreateMask<T, MicroAPI::MaskPattern::VL1>();
+    UnalignReg uregReduceSum;
+    Duplicate(vregInputMax, 0.0f, pregFullExe);
+    Duplicate(vregMax, 0.0f, pregFullExe);
+    for (uint16_t i = 0; i < static_cast<uint16_t>(srcM); i++) {
+        for (uint16_t j = 0; j < repeatTimes; j++) {
+            LoadAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(vregInput, ((__ubuf__ T *&)srcLocalInt), srcN);
+            Abs(vregInputAbs, vregInput, pregFullExe);
+        }
+        // tailLoop
+        LoadAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(vregInputTail, ((__ubuf__ T *&)srcLocalIntTail), srcN);
+        Abs(vregInputTailAbs, vregInputTail, pregTailExe);
+        Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregMaxTmp, vregInputAbs, vregInputTailAbs, pregFullExe);
+        Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregInputMax, vregMaxTmp, vregInputMax, pregFullExe);
+    }
+    ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>(vregMax, vregInputMax, pregFullExe);
+    
+    vstus(uregReduceSum, 1, vregMax, ((__ubuf__ T *&)dstLocalInt), POST_UPDATE);
+    vstas(uregReduceSum, ((__ubuf__ T *&)dstLocalInt), 0, POST_UPDATE);
+}
+
 template <typename T, uint32_t srcN>
 __aicore__ inline void DsAbsReduceMax(const LocalTensor<T> &dstTensor, const LocalTensor<T> &srcTensor, uint32_t srcM,
     uint32_t realN = srcN)
@@ -27,30 +86,7 @@ __aicore__ inline void DsAbsReduceMax(const LocalTensor<T> &dstTensor, const Loc
         const uint32_t fullExeSize = 64;
         uint64_t srcLocalInt = srcTensor.GetPhyAddr();
         uint64_t dstLocalInt = dstTensor.GetPhyAddr();
-
-        __VEC_SCOPE__
-        {
-            RegTensor<T> vregInput;
-            RegTensor<T> vregInputAbs;
-            RegTensor<T> vregInputMax;
-            RegTensor<T> vregMax;
-            
-            MaskReg pregFullExe = CreateMask<T, MaskPattern::ALL>();
-            MaskReg pregTailExe = UpdateMask<T>(realN);
-            MaskReg pregLen1 = CreateMask<T, MicroAPI::MaskPattern::VL1>();
-            UnalignReg uregReduceSum;
-
-            Duplicate(vregMax, 0.0f, pregFullExe);
-            for (uint16_t i = 0; i < static_cast<uint16_t>(srcM); i++) {
-                Duplicate(vregInputMax, 0.0f, pregFullExe);
-                DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(vregInput, ((__ubuf__ T *&)srcLocalInt), 128);
-                Abs(vregInputAbs, vregInput, pregTailExe);
-                ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>(vregInputMax, vregInputAbs, pregTailExe);
-                Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregMax, vregMax, vregInputMax, pregLen1);
-            }
-            vstus(uregReduceSum, 1, vregMax, ((__ubuf__ T *&)dstLocalInt), POST_UPDATE);
-            vstas(uregReduceSum, ((__ubuf__ T *&)dstLocalInt), 0, POST_UPDATE);
-        }
+        DsAbsReduceMaxVF64<T>(srcLocalInt, dstLocalInt, srcM, realN);
     } else {
         const uint32_t bytesOfType = sizeof(T);
         const uint32_t regBytes = 256;
@@ -61,39 +97,7 @@ __aicore__ inline void DsAbsReduceMax(const LocalTensor<T> &dstTensor, const Loc
         uint64_t srcLocalInt = srcTensor.GetPhyAddr();
         uint64_t dstLocalInt = dstTensor.GetPhyAddr();
         uint64_t srcLocalIntTail = srcTensor.GetPhyAddr() + fullExeSize * bytesOfType * repeatTimes;
-
-        __VEC_SCOPE__
-        {
-            RegTensor<T> vregInput;
-            RegTensor<T> vregInputTail;
-            RegTensor<T> vregInputAbs;
-            RegTensor<T> vregInputTailAbs;
-            RegTensor<T> vregInputMax;
-            RegTensor<T> vregInputTailMax;
-            RegTensor<T> vregMax;
-            RegTensor<T> vregMaxTmp;
-            MaskReg pregFullExe = CreateMask<T, MaskPattern::ALL>();
-            MaskReg pregTailExe = UpdateMask<T>(tailSize);
-            MaskReg pregLen1 = CreateMask<T, MicroAPI::MaskPattern::VL1>();
-            UnalignReg uregReduceSum;
-			Duplicate(vregInputMax, 0.0f, pregFullExe);
-			Duplicate(vregMax, 0.0f, pregFullExe);
-			for (uint16_t i = 0; i < static_cast<uint16_t>(srcM); i++) {
-				for (uint16_t j = 0; j < repeatTimes; j++) {
-					DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(vregInput, ((__ubuf__ T *&)srcLocalInt), srcN);
-					Abs(vregInputAbs, vregInput, pregFullExe);
-				}
-				// tailLoop
-				DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(vregInputTail, ((__ubuf__ T *&)srcLocalIntTail), srcN);
-				Abs(vregInputTailAbs, vregInputTail, pregTailExe);
-				Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregMaxTmp, vregInputAbs, vregInputTailAbs, pregFullExe);
-				Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregInputMax, vregMaxTmp, vregInputMax, pregFullExe);
-			}
-			ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>(vregMax, vregInputMax, pregFullExe);
-			
-            vstus(uregReduceSum, 1, vregMax, ((__ubuf__ T *&)dstLocalInt), POST_UPDATE);
-            vstas(uregReduceSum, ((__ubuf__ T *&)dstLocalInt), 0, POST_UPDATE);
-        }
+        DsAbsReduceMaxVFnot64<T, srcN>(srcLocalInt, dstLocalInt, repeatTimes, tailSize, srcLocalIntTail, srcM);
     }
 }
 #else
