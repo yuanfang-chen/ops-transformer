@@ -2332,7 +2332,7 @@ ge::graphStatus IFATiling::CalcInnerSize(uint32_t seqSize)
     if (ropeFlag_) {
         sInnerSize_ = 512U;
         // FlashDecode时，如果S2的计算量>=256(确保切分后不小于128)但又不足以分2次计算时，则修改sInnerSize_，均分为2份进行计算，确保Nbuffer=2
-        if (splitKVFlag_ && inputLayout_ != IfaLayout::TND) {
+        if (!isWorkspace_ && splitKVFlag_ && inputLayout_ != IfaLayout::TND) {
             if (seqSize == 256U) {
                 sInnerSize_ = 128U;
             } else if (seqSize > 256U && seqSize <= sInnerSize_) {
