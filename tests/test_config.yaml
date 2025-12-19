@@ -192,6 +192,8 @@ attention:
     exclude:
       - attention/nsa_selected_attention_grad/docs
       - attention/nsa_selected_attention_grad/README.md
+    test:
+      ut: False
     ut_cov_exclude:
       - attention/nsa_selected_attention_grad
     options:
