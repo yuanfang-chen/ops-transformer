@@ -1428,21 +1428,31 @@ template <typename T>
 __aicore__ inline void CopyMultiMatrixNDToNZ(LocalTensor<T> l1Tensor, const GlobalTensor<T> gmTensor,
     uint32_t srcNdMatrixNum, uint32_t srcNdMatrixStride, uint32_t dstNzMatrixStride, uint32_t nValue, uint32_t dValue, uint32_t srcDValue, uint32_t dstNzC0Stride)
 {
-    Nd2NzParams nd2nzPara;
-    nd2nzPara.ndNum = srcNdMatrixNum;
-    nd2nzPara.nValue = nValue; //nd矩阵的行数
-    if constexpr (IsSameType<T, int4b_t>::value) {
-        nd2nzPara.dValue = dValue / HALF_SIZE_DIVISOR;
-        nd2nzPara.srcDValue = srcDValue / HALF_SIZE_DIVISOR;
+    if (unlikely(srcNdMatrixStride > ND_MATRIX_STRIDE_LIMIT)) {
+        uint64_t l1Offset = 0;
+        uint64_t gmOffset = 0;
+        for (uint32_t i = 0; i < srcNdMatrixNum; i++) {
+            CopySingleMatrixNDToNZ(l1Tensor[l1Offset], gmTensor[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
+            gmOffset += srcNdMatrixStride;
+            l1Offset += dstNzMatrixStride;
+        }
     } else {
-        nd2nzPara.dValue = dValue; //nd矩阵的列数
-        nd2nzPara.srcDValue = srcDValue; //同一nd矩阵相邻行起始地址间的偏移
+        Nd2NzParams nd2nzPara;
+        nd2nzPara.ndNum = srcNdMatrixNum;
+        nd2nzPara.nValue = nValue; //nd矩阵的行数
+        if constexpr (IsSameType<T, int4b_t>::value) {
+            nd2nzPara.dValue = dValue / HALF_SIZE_DIVISOR;
+            nd2nzPara.srcDValue = srcDValue / HALF_SIZE_DIVISOR;
+        } else {
+            nd2nzPara.dValue = dValue; //nd矩阵的列数
+            nd2nzPara.srcDValue = srcDValue; //同一nd矩阵相邻行起始地址间的偏移
+        }
+        nd2nzPara.dstNzC0Stride = dstNzC0Stride;
+        nd2nzPara.dstNzNStride = 1;
+        nd2nzPara.srcNdMatrixStride = srcNdMatrixStride;
+        nd2nzPara.dstNzMatrixStride = dstNzMatrixStride;
+        DataCopy(l1Tensor, gmTensor, nd2nzPara);
     }
-    nd2nzPara.dstNzC0Stride = dstNzC0Stride;
-    nd2nzPara.dstNzNStride = 1;
-    nd2nzPara.srcNdMatrixStride = srcNdMatrixStride;
-    nd2nzPara.dstNzMatrixStride = dstNzMatrixStride;
-    DataCopy(l1Tensor, gmTensor, nd2nzPara);
 }
 
 template <typename Q_T, GmFormat GM_FORMAT, L1Format L1_FORMAT = L1Format::NZ>
@@ -1501,23 +1511,13 @@ private:
             // 处理中间块
             uint64_t gmOffset = queryGmbaseOffset + offsetCalculator.GetStrideS1();
             uint64_t l1Offset = headSize * 16U;
-
-            if (likely(offsetCalculator.GetStrideS1() <= ND_MATRIX_STRIDE_LIMIT)) {
+            if (s1IdxEnd - s1IdxStart > 1) {
                 CopyMultiMatrixNDToNZ(dstTensor.tensor[l1Offset], srcTensor.gmTensor[gmOffset],
                         s1IdxEnd - s1IdxStart - 1, offsetCalculator.GetStrideS1(), offsetCalculator.GetDimG() * 16U,
                         offsetCalculator.GetDimG(), gmCoord.dDealSize,
                         offsetCalculator.GetStrideG(), dstTensor.rowCount);
                 gmOffset += (s1IdxEnd - s1IdxStart - 1) * offsetCalculator.GetStrideS1();
                 l1Offset += (s1IdxEnd - s1IdxStart - 1) * offsetCalculator.GetDimG() * 16U;
-            } else {
-                for (uint32_t i = s1IdxStart + 1; i < s1IdxEnd; i++) {
-                    CopySingleMatrixNDToNZ(dstTensor.tensor[l1Offset], srcTensor.gmTensor[gmOffset],
-                                           offsetCalculator.GetDimG(), gmCoord.dDealSize, offsetCalculator.GetStrideG(),
-                                           dstTensor.rowCount);
-
-                    gmOffset += offsetCalculator.GetStrideS1();
-                    l1Offset += offsetCalculator.GetDimG() * 16U;
-                }
             }
 
             // 处理尾块
@@ -1583,19 +1583,12 @@ private:
             uint64_t gmOffset = queryGmbaseOffset + offsetCalculator.GetStrideG();
             uint64_t l1Offset = headSize * 16U;
 
-            if (likely(offsetCalculator.GetStrideG() <= ND_MATRIX_STRIDE_LIMIT)) {
+            if (gIdxEnd - gIdxStart > 1) {
                 CopyMultiMatrixNDToNZ(dstTensor.tensor[l1Offset], srcTensor.gmTensor[gmOffset],
                         gIdxEnd - gIdxStart - 1, offsetCalculator.GetStrideG(), s1Size * 16U,
                         s1Size, gmCoord.dDealSize, offsetCalculator.GetStrideS1(), dstTensor.rowCount);
                 gmOffset += (gIdxEnd - gIdxStart - 1) * offsetCalculator.GetStrideG();
                 l1Offset += (gIdxEnd - gIdxStart - 1) * s1Size * 16U;
-            } else {
-                for (uint32_t i = gIdxStart + 1; i < gIdxEnd; i++) {
-                    CopySingleMatrixNDToNZ(dstTensor.tensor[l1Offset], srcTensor.gmTensor[gmOffset], s1Size,
-                                        gmCoord.dDealSize, offsetCalculator.GetStrideS1(), dstTensor.rowCount);
-                    gmOffset += offsetCalculator.GetStrideG();
-                    l1Offset += s1Size * 16U;
-                }
             }
 
             // 处理尾块
