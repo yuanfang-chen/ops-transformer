@@ -145,6 +145,10 @@ private:
         }
         sparseLeftBound = dimS1 - dimS2 + preToken + 1;
         sparseRightBound = dimS1 - dimS2 - nextToken;
+        if (bIdx > 0) {
+            lastBatchQSum = getTotalLen(bIdx - 1, seqLenQ);
+            lastBatchKSum = getTotalLen(bIdx - 1, seqLenK);
+        }
     }
 
     __aicore__ inline SEQLEN_TYPE getSeqLen(int32_t i, __gm__ uint8_t *seq_Len) {
@@ -361,8 +365,6 @@ private:
             n1Idx = 0;
             bIdx++;
             UpdateSeqLen();
-            lastBatchQSum = getTotalLen(bIdx - 1, seqLenQ);
-            lastBatchKSum = getTotalLen(bIdx - 1, seqLenK);
             return false;
         }
 
