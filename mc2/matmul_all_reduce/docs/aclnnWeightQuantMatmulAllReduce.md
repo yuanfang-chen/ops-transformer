@@ -87,7 +87,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>MatMul计算的左矩阵，即计算公式中的x1。</td>
           <td><ul><li>当前版本仅支持二维或者三维输入。</li><li>支持不转置场景。</li></ul></td>
           <td>BFLOAT16、FLOAT16</td>
-          <td>ND</td>
+          <td>参见<a href="#约束说明" target="_blank">约束说明。</td>
           <td>2-3</td>
           <td>×</td>
         </tr>
@@ -96,7 +96,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>输入</td>
           <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
           <td><ul><li>当前版本仅支持二维输入。</li><li>支持转置/不转置场景。</li></ul></td>
-          <td>-</td>
+          <td>参见<a href="#约束说明" target="_blank">约束说明。</td>
           <td>ND</td>
           <td>2</td>
           <td>√</td>
@@ -104,9 +104,9 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>bias</td>
           <td>输入</td>
-          <td>对应计算公式中bias偏移，即计算公式中的biasOptional。</td>
-          <td>支持传入空指针，非空时当前版本仅支持一维输入。</td>
-          <td>-</td>
+          <td>对应计算公式中bias偏移，即计算公式中的bias。</td>
+          <td><ul><li>支持传入空指针，非空时当前版本仅支持一维输入。</li></ul></td>
+          <td>参见<a href="#约束说明" target="_blank">约束说明。</td>
           <td>ND</td>
           <td>1</td>
           <td>√</td>
@@ -115,7 +115,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>antiquantScale</td>
           <td>输入</td>
           <td>即计算公式中的antiquantScale。</td>
-          <td>pertensor场景shape为(1)；perchannel场景shape为(n)/(1,n)，n为x2最后一维的大小；pergroup场景shape为(ceil(k,antiquantGroupSize),n)。</td>
+          <td><ul><li>pertensor场景shape为(1)。</li><li>perchannel场景shape为(n)/(1,n)，n为x2最后一维的大小。</li><li>pergroup场景shape为(ceil(k,antiquantGroupSize),n)。</li></ul></td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
           <td>1-2</td>
@@ -124,8 +124,8 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>antiquantOffset</td>
           <td>输入</td>
-          <td>对x2进行伪量化计算的offset参数，即计算公式中的x1ScaleOptional。</td>
-          <td>支持传入空指针，非空时shape与antiquantScale一致。当weight的数据格式为FLOAT8_E5M2、FLOAT8_E4M3FN或者HIFLOAT8时，不支持该参数，填空指针。</td>
+          <td>对x2进行伪量化计算的offset参数，即计算公式中的antiquantOffset。</td>
+          <td><ul><li>支持传入空指针，非空时shape与antiquantScale一致。</li><li>当x2的数据格式为FLOAT8_E5M2、FLOAT8_E4M3FN或者HIFLOAT8时，不支持该参数，填空指针。</li></ul></td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
           <td>1-2</td>
@@ -134,18 +134,18 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <tr>
           <td>x3</td>
           <td>输入</td>
-          <td>MatMul计算后的add计算，即计算公式中的x3Optional。</td>
-          <td>支持传入空指针，非空时shape与mm计算后的shape相同。</td>
-          <td>-</td>
+          <td>MatMul计算后的add计算，即计算公式中的x3。</td>
+          <td><ul><li>支持传入空指针，非空时shape与mm计算后的shape相同。</li></ul></td>
+          <td>参见<a href="#约束说明" target="_blank">约束说明。</td>
           <td>ND</td>
-          <td>2</td>
+          <td>2-3</td>
           <td>√</td>
         </tr>
         <tr>
           <td>group</td>
           <td>输入</td>
           <td>通信域名称。</td>
-          <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
+          <td><ul><li>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</li></ul></td>
           <td>String</td>
           <td>-</td>
           <td>-</td>
@@ -155,7 +155,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>reduceOp</td>
           <td>输入</td>
           <td>reduce操作类型。</td>
-          <td>当前版本仅支持输入"sum"。</td>
+          <td><ul><li>当前版本仅支持输入"sum"。</li></ul></td>
           <td>String</td>
           <td>-</td>
           <td>-</td>
@@ -165,7 +165,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>commTurn</td>
           <td>输入</td>
           <td>通信数据切分数，即总数据量/单次通信量。</td>
-          <td>当前版本仅支持输入0。</td>
+          <td><ul><li>当前版本仅支持输入0。</li></ul></td>
           <td>INT64</td>
           <td>-</td>
           <td>-</td>
@@ -175,7 +175,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>streamMode</td>
           <td>输入</td>
           <td>流模式的枚举。</td>
-          <td>当前版本仅支持枚举值1。</td>
+          <td><ul><li>当前版本仅支持枚举值1。</li></ul></td>
           <td>INT64</td>
           <td>-</td>
           <td>-</td>
@@ -185,17 +185,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>antiquantGroupSize</td>
           <td>输入</td>
           <td>伪量化pergroup模式下，对x2进行反量化计算的groupSize输入。</td>
-          <td>当不支持pergroup时，传入0，支持时，传入值的范围为[32,min(k-1,INT_MAX)]，且为32的倍数；k取值范围与[mm接口](aclnnMatmulAllReduce.md)保持一致。</td>
-          <td>INT64</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>commQuantMode</td>
-          <td>输入</td>
-          <td>静态量化和动态量化的标志位。</td>
-          <td>数值为0和1。</td>
+          <td><ul><li>pergroup量化场景下需传入该参数，传入值的范围为[32,min(k-1,INT_MAX)]，且为32的倍数; k取值范围与[mm接口]保持一致，为[1,65535]。</li><li>非pergroup量化场景下仅支持传入0。</li></ul></td>
           <td>INT64</td>
           <td>-</td>
           <td>-</td>
@@ -205,7 +195,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>output</td>
           <td>输出</td>
           <td>MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
-          <td>output的维度与x1一致。</td>
+          <td><ul><li>output的维度与x1一致。</li></ul></td>
           <td>-</td>
           <td>ND</td>
           <td>2-3</td>
@@ -234,19 +224,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
       </tbody>
     </table>
 
-    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
-      - 输入x2的数据类型支持INT8、INT4，数据格式支持ND（当前版本仅支持二维输入）和FRACTAL_NZ格式（当前版本仅支持四维输入）。当x2的数据格式为FRACTAL_NZ时，配合aclnnCalculateMatmulWeightSizeV2和aclnnTransMatmulWeight完成输入ND到NZ的转换，非连续的tensor仅支持transpose场景。
-      - 输入bias的数据类型与x1保持一致。
-      - 输入x3的数据类型支持BFLOAT16、FLOAT16。
-      - 输出output的数据类型支持BFLOAT16、FLOAT16。
-    - <term>昇腾910_95 AI处理器</term>：
-      - 输入x2的数据类型支持INT8、INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8。数据格式支持ND（仅支持2D输入）。当前版本，当数据类型为INT8时，要求N、K为32B对齐；当数据类型为INT4时，要求N、K为64B对齐；pergroup场景下数据类型不支持FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8。
-      - 对于输入bias，当x2为FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8，且x1为BFLOAT16时，bias数据类型支持BFLOAT16、FLOAT32；其他场景下，数据类型与x1保持一致。
-      - 输入x3的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
-      - 输出output的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
-
 - **返回值：**
-
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     第一段接口完成入参校验，出现以下场景时报错：
@@ -322,9 +300,11 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 ## 约束说明
 
 - 确定性计算：
-  - aclnnWeightQuantMatmulAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
-
+  - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件：aclnnWeightQuantMatmulAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+  - 昇腾910_95 AI处理器：aclnnWeightQuantMatmulAllReduce默认确定性实现。
 - 增量场景不使能MC2，全量场景使能MC2。
+- 空tensor:
+  - 仅支持k=0的空tensor场景。
 - 输入x1可为二维或者三维，其shape为(b, s, k)或者(m, k)。
 - x2必须是二维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等，m的范围为[1, 2147483647]，k、n的范围为[1, 65535]。
 - 传入的x1、x2、antiquantScale或者output不为空指针。
@@ -332,12 +312,22 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 - bias若非空，shape大小与output最后一维大小相等。antiquantScale在pertensor场景下shape为(1)，在perchannel场景下shape为(1,n)/(n)，在pergroup场景shape为(ceil(k,antiquantGroupSize), n)。antiquantOffset若非空，其shape与antiquantScale一致。
 - x1和x2，x3（非空场景）、antiquantScale、antiquantOffset（非空场景）、output、bias（非空场景）的数据类型和数据格式需要在支持的范围之内。
 - x1，antiquantScale，antiquantOffset（非空场景），x3（非空场景）、bias（非空场景）output的数据类型相同。antiquantGroupSize取值满足取值范围且为32倍数。
-- per-group场景下，x2转置时，antiquantScale和antiquantOffset需要一起转置，保持连续性。
+- pergroup场景下，x2转置时，antiquantScale和antiquantOffset需要一起转置，保持连续性。
 - 在长序列场景，随着b/s或者m的增大，可能出现OOM或者计算超时。
 - 仅支持hccs链路all mesh组网。
     - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持1、2、4、8卡。
     - <term>昇腾910_95 AI处理器</term>：支持1、2、4、8、16、32、64卡。
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：一个模型中的通算融合MC2算子，仅支持相同通信域。
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - 一个模型中的通算融合MC2算子，仅支持相同通信域。
+  - 输入x2的数据类型支持INT8、INT4，数据格式支持ND（当前版本仅支持二维输入）和FRACTAL_NZ格式（当前版本仅支持四维输入）。当x2的数据格式为FRACTAL_NZ时，配合aclnnCalculateMatmulWeightSizeV2和aclnnTransMatmulWeight完成输入ND到NZ的转换，非连续的tensor仅支持transpose场景。
+  - 输入bias的数据类型与x1保持一致。
+  - 输入x3的数据类型支持BFLOAT16、FLOAT16。
+  - 输出output的数据类型支持BFLOAT16、FLOAT16。
+- <term>昇腾910_95 AI处理器</term>：
+  - 输入x2的数据类型支持INT8、INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8。数据格式支持ND（仅支持2D输入）。当前版本，当数据类型为INT8时，要求N、K为32对齐；当数据类型为INT4时，要求N、K为64对齐；pergroup场景下数据类型不支持FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8。
+  - 对于输入bias，当x2为FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8，且x1为BFLOAT16时，bias数据类型支持BFLOAT16、FLOAT32；其他场景下，数据类型与x1保持一致。
+  - 输入x3的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
+  - 输出output的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
 
 ## 调用示例
 
