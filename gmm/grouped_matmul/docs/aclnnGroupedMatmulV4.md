@@ -146,7 +146,7 @@ aclnnStatus aclnnGroupedMatmulV4(
       <td>输入</td>
       <td>Device侧的aclTensorList，公式中的输入x</td>
       <td>支持的最大长度为128个</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32、INT8、INT4、FLOAT8_E4M3FN、FLOAT8_E5M2、  HIFLOAT8、FLOAT4_E1M2、FLOAT4_E2M1</td>
+      <td>FLOAT16、BFLOAT16、FLOAT32、INT8、INT4、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E1M2、FLOAT4_E2M1</td>
       <td>ND</td>
       <td>-</td>
       <td>-</td>
@@ -156,7 +156,7 @@ aclnnStatus aclnnGroupedMatmulV4(
       <td>输入</td>
       <td>Device侧的aclTensorList，公式中的weight</td>
       <td>支持的最大长度为128个</td>
-      <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT4_E1M2、  FLOAT4_E2M1，FLOAT32、INT4</td>
+      <td>FLOAT16、BFLOAT16、FLOAT32、INT8、INT4、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E1M2、FLOAT4_E2M1</td>
       <td>ND、NZ</td>
       <td>-</td>
       <td>-</td>
@@ -470,8 +470,6 @@ aclnnStatus aclnnGroupedMatmulV4(
 
 ## 约束说明
 
-- 确定性计算：
-  - aclnnGroupedMatmulV4默认确定性实现。
 - 确定性说明：aclnnGroupedMatmulV4默认确定性实现。
 - 如果传入groupListOptional，当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列；groupListType为2时，groupListOptional的第二列数据必须为非负数列，且长度不能为1。
 - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
@@ -622,7 +620,7 @@ aclnnStatus aclnnGroupedMatmulV4(
 
       |groupType| 使用场景 | shape限制 |
       |:---------:|:---------:| :------ |
-      |0|weight单tensor|每个tensor 4维，shape为(g, N, ceil(K / 64), 2)|
+      |0|weight单tensor|每个tensor 4维，当weight转置时，shape为(g, N, ceil(K / 64), 2)；当weight不转置时，shape为(g, ceil(K / 64), N, 2)|
       |2|weight单tensor|每个tensor 3维，shape为((K / 64) + g, N, 2)，scale\_i起始地 址偏移为((K\_0 + K\_1 + ...+ K\_ {i-1})/ 64 + g\_i)*N* 2，即scale_0的起始地 址偏移为0，scale_1的起始地址偏移为（K\_0 / 64 + 1）*N* 2， scale_2的起始地址偏移为((K\_0 + K\_1) / 64 + 2) *N* 2, 依此类推|
 
   - perTokenScaleOptional要满足下表：
@@ -665,7 +663,7 @@ aclnnStatus aclnnGroupedMatmulV4(
 
   - 动态量化特殊场景处理：
     - 在动态量化场景M分组或K分组情况下，当N等于1且scaleOptional的shape为（g, 1）时，weight既可以pertensor量化也可以perchannel量化时, 优先选择pertensor量化模式。
-    - 在动态量化场景M分组情况下，当g = M, K > 128且perTokenScaleOptional的shape为（g,）时，x选择pertoken量化模式；当g = M，K <= 128且perTokenScaleOptional的shape 为（g, 1）时，根据weight的量化模式选择x的量化模式（weight如果是perchannel或者pertensor量化，x选择pertensor量化；weight如果是perblock量化，x选择pergroup量化）。
+    - 在动态量化场景M分组情况下，当g = M且perTokenScaleOptional的shape为（g,）时，x选择pertoken量化模式；当g = M，K <= 128且perTokenScaleOptional的shape 为（g, 1）时，根据weight的量化模式选择x的量化模式（weight如果是perchannel或者pertensor量化，x选择pertensor量化；weight如果是perblock量化，x选择pergroup量化）。
     - 在动态量化场景K分组情况下，K小于128，N小于等于128且scaleOptional的shape为（g, 1）时，按照现有量化模式区分规则，既可以为非pergroup量化，又可以为G-B量化，此种场景现一律按照G-B量化处理。
     - 在动态量化场景K分组情况下，当M等于1且perTokenScaleOptional的shape为（g, 1）时，x既可以pertoken量化也可以pertensor量化时, 优先选择pertensor量化模式。
     - 在动态量化场景K分组情况下，K小于128, M等于1且perTokenScaleOptional的shape为（g, 1）时，如果N小于等于128，x则选择pergroup量化；如果N大于128，根据weight的量化模式选择x的量化模式（weight如果是perchannel或者pertensor量化，x选择 pertensor量化；weight  如果是perblock量化，x选择pergroup量化）。
