@@ -94,6 +94,7 @@ operator_group_10:
   - allto_all_all_gather_batch_mat_mul
   - all_gather_matmul
   - all_gather_matmul_v2
+  - attention_to_ffn
   - batch_mat_mul_reduce_scatter_allto_all
   - distribute_barrier
   - elastic_receivable_info_collect
