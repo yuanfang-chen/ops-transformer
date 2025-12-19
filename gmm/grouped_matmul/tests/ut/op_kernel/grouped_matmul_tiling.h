@@ -56,6 +56,7 @@ struct GMMBaseParams {
     uint64_t quantGroupNum = 0;
     uint64_t isPreTiling = 0;
     uint32_t withOffset = 0;
+    uint32_t isOutputDisableL2Cache = 0;
 };
 #pragma pack(pop)
 
