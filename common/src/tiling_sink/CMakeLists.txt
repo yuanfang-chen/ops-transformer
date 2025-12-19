@@ -88,9 +88,9 @@ if (BUILD_OPEN_PROJECT)
     ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc
     ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/op_common
     ${ASCEND_CANN_PACKAGE_PATH}/include/aicpu
-    ${ASCEND_CANN_PACKAGE_PATH}/include/aicpu_common/context/common
-    ${ASCEND_CANN_PACKAGE_PATH}/include/aicpu_common/context/utils
-    ${ASCEND_CANN_PACKAGE_PATH}/include/aicpu_common/context/cpu_proto
+    ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/aicpu_common/context/common
+    ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/aicpu_common/context/utils
+    ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/aicpu_common/context/cpu_proto
     ${ASCEND_CANN_PACKAGE_PATH}/include/toolchain
     ${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/base
   )
@@ -100,9 +100,9 @@ else ()
     ${TOP_DIR}/ops-base/pkg_inc
     ${TOP_DIR}/ops-base/pkg_inc/op_common
     ${TOP_DIR}/ops-base/include/base
-    ${TOP_DIR}/ops-base/include/aicpu_common/context/common
-    ${TOP_DIR}/ops-base/include/aicpu_common/context/utils
-    ${TOP_DIR}/ops-base/include/aicpu_common/context/cpu_proto
+    ${TOP_DIR}/ops-base/pkg_inc/aicpu_common/context/common
+    ${TOP_DIR}/ops-base/pkg_inc/aicpu_common/context/utils
+    ${TOP_DIR}/ops-base/pkg_inc/aicpu_common/context/cpu_proto
     ${TOP_DIR}/metadef/inc/external
     ${TOP_DIR}/metadef/inc
     ${TOP_DIR}/abl/slog/inc/toolchain
