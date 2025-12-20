@@ -1179,7 +1179,6 @@ FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1(S
     event_t eventIdMte2ToV = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE2_V>());
     event_t eventIdVToMte2A = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
     event_t eventIdVToMte2B = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
-    event_t eventIdVToMte2Sink = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
     event_t eventIdMte3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
     event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     event_t eventIdMte3ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
@@ -1236,9 +1235,6 @@ FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1(S
             AscendC::PipeBarrier<PIPE_V>();
             PseCompute<T, hasPse>(this->tilingData->inputParams.pseType != (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE ? stage1PingTensor : actualUseTensor, commonTBuf, this->pseInfo);
         }
-        if (loopIdx > 0 && hasSink) {
-                AscendC::WaitFlag<HardEvent::V_MTE2>(eventIdVToMte2Sink);
-        }
         this->CopyInAttenMask(extraInfo, loopIdx, -1);
 
         if (this->tilingData->inputParams.pseType == (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
@@ -1293,7 +1289,7 @@ FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1(S
         }
 
 
-        if (loopIdx < extraInfo.realSplitN - 1) {
+        if (loopIdx < extraInfo.realSplitN - 1 && !hasSink) {
             AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMte2B);
         }
         if (loopIdx > 0) {
@@ -1318,8 +1314,7 @@ FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_TEMPLATE>::ProcessVec1(S
 
         this->SoftMaxCompute(extraInfo, stage1PingTensor, loopIdx);
         if (loopIdx < extraInfo.realSplitN - 1 && hasSink) {
-                // hasSink场景下，需要flash更新，expUb使用maskTBufPing地址,增加一个同步。
-                AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMte2Sink);
+            AscendC::SetFlag<HardEvent::V_MTE2>(eventIdVToMte2B);
         }
 
         if constexpr (hasDrop == true) {
