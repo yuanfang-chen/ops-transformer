@@ -666,6 +666,10 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::AllocEventID()
         SetFlag<HardEvent::MTE1_MTE2>(KP_EVENT0 + i);
     }
 
+    for (uint32_t i = 0; i < L1_V_BUFCNT; ++i) {
+        SetFlag<HardEvent::MTE1_MTE2>(V_EVENT0 + i);
+    }
+
     SetFlag<HardEvent::M_MTE1>(L0AB_EVENT0);
     SetFlag<HardEvent::M_MTE1>(L0AB_EVENT1);
 
@@ -678,6 +682,10 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::FreeEventID()
 {
     for (uint32_t i = 0; i < L1_KP_BUFCNT; ++i) {
         WaitFlag<HardEvent::MTE1_MTE2>(KP_EVENT0 + i);
+    }
+
+    for (uint32_t i = 0; i < L1_V_BUFCNT; ++i) {
+        WaitFlag<HardEvent::MTE1_MTE2>(V_EVENT0 + i);
     }
 
     WaitFlag<HardEvent::M_MTE1>(L0AB_EVENT0);
@@ -1063,12 +1071,10 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::ComputeMm2(const R
 
     bool canFullLoadV = (KL1Slices.size() <= L1_V_BUFCNT);
     uint64_t vCoord = ((uint64_t)info.bIdx << 48) | ((uint64_t)info.n2Idx << 32) | ((uint64_t)info.s2Idx);
-    bool reuseVBuf = canFullLoadV && (vL1Snapshot.signature == vCoord);
-    if (!reuseVBuf) {
-        vL1Snapshot.bufCnt = 0;
-        vL1Snapshot.firstBufId = this->vL1BufId;
-        vL1Snapshot.signature = vCoord;
-    }
+    bool reuseVBuf = false;
+    vL1Snapshot.bufCnt = 0;
+    vL1Snapshot.firstBufId = this->vL1BufId;
+    vL1Snapshot.signature = vCoord;
 
     for (auto& mL1 : m.Split(M_SPLIT_SIZE)) {
         WaitFlag<HardEvent::FIX_M>(L0C_EVENT0 + this->cL0BufId);
@@ -1090,8 +1096,6 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::ComputeMm2(const R
             uint32_t vBufId;
             if (unlikely(!reuseVBuf)) {
                 vBufId = this->vL1BufId;
-                // V_L1 buf的生命周期跨越整个mL1的迭代，理论上应该在mL1迭代完成时Set MTE1->MTE2事件。为简化代码实现，在下一次需要搬入V时才去Set
-                SetFlag<HardEvent::MTE1_MTE2>(V_EVENT0 + vBufId);
                 WaitFlag<HardEvent::MTE1_MTE2>(V_EVENT0 + vBufId);
                 CopyVToL1(vBufId, info, kL1.start, kL1.sizeAct);
 
@@ -1131,6 +1135,11 @@ __aicore__ inline void FiaBlockCubeNonQuantGqa<FIAT, Config>::ComputeMm2(const R
             ++this->kpL1BufId;
             if (this->kpL1BufId >= L1_KP_BUFCNT) {
                 this->kpL1BufId = 0;
+            }
+
+            if (unlikely(!canFullLoadV || mL1.IsTailOf(m))) {
+                // 当可以复用V_L1 buf时，它的生命周期跨越整个mL1的迭代，在mL1迭代完成释放
+                SetFlag<HardEvent::MTE1_MTE2>(V_EVENT0 + vBufId);
             }
 
             if (unlikely(!reuseVBuf)) {
