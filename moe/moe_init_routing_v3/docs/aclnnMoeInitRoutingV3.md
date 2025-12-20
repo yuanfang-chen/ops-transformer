@@ -16,14 +16,47 @@
 
 ## 功能说明
 
-- 接口功能：MoE的routing计算，根据[aclnnMoeGatingTopKSoftmaxV2](../../moe_gating_top_k_softmax_v2/docs/aclnnMoeGatingTopKSoftmaxV2.md)的计算结果做routing处理，支持不量化和动态量化模式。本接口针对V2接口[aclnnMoeInitRoutingV2](../../moe_init_routing_v2/docs/aclnnMoeInitRoutingV2.md)做了如下功能变更，请根据实际情况选择合适的接口：
-
-    1.增加动态量化功能，支持输出expendX的 int8动态量化输出
-
-    2.增加参数activeExpertRangeOptional，支持筛选有效范围内的expertId
-
-    3.删除属性expertTokensBeforeCapacityFlag、删除输出expertTokensBeforeCapacityOut (使用expertTokensCountOrCumsumOut进行输出)
-
+- 接口功能：MoE的routing计算，根据[aclnnMoeGatingTopKSoftmaxV2](../../moe_gating_top_k_softmax_v2/docs/aclnnMoeGatingTopKSoftmaxV2.md)的计算结果做routing处理，支持不量化、静态量化和动态量化模式。本接口针对V2接口[aclnnMoeInitRoutingV2](../../moe_init_routing_v2/docs/aclnnMoeInitRoutingV2.md)做出如下功能变更，请根据实际情况选择合适的接口：<br>
+  <ol><li>增加动态与静态量化功能，支持输出expendX的 int8量化模式输出。<li>删除输出expertTokensBeforeCapacityOut，新增输出expertTokensCountOrCumsumOut。<li>兼容V2原有输出模式，并新增key_value输出格式支持：重新定义原有属性expertTokensBeforeCapacityFlag(bool)和expertTokensCountOrCumsumFlag(int)，分别为expertsTokensNumFlag(bool)和expertTokensNumType(int)。具体输出格式对应关系如下表：
+  <table align="center">
+    <tr>
+      <th>DropPadMode</th>
+      <th>expertsTokensNumFlag</th>
+      <th>expertTokensNumType</th>
+      <th style="text-align: center;">输出格式说明</th>
+    </tr>
+    <tr align="center">
+      <td>0</td>
+      <td>true</td>
+      <td>0</td>
+      <td align="left">comsum模式，expertTokensCountOrCumsumOut表示按排序后各专家处理token的计数前缀和直方图。</td>
+    </tr>
+    <tr align="center">
+      <td>0</td>
+      <td>true</td>
+      <td>1</td>
+      <td align="left">count模式，expertTokensCountOrCumsumOut表示按排序后各专家处理token的单独计数直方图。</td>
+    </tr>
+    <tr align="center">
+      <td>0</td>
+      <td>true</td>
+      <td>2</td>
+      <td align="left">key_value模式，输出shape为[expert_num, 2]，表示每个专家和该专家处理非零token数量的累计值。</td>
+    </tr>
+    <tr align="center">
+      <td>1</td>
+      <td>true</td>
+      <td>1</td>
+      <td align="left">输出模式为count模式。</td>
+    </tr>
+    <tr align="center">
+      <td>不使能</td>
+      <td>false</td>
+      <td>不使能</td>
+      <td align="left">不输出expertTokensCountOrCumsumOut。</td>
+    </tr>
+  </table>
+  </ol>
 - 计算公式：  
 
   1.对输入expertIdx做排序，得出排序后的结果sortedExpertIdx和对应的序号sortedRowIdx：
@@ -33,18 +66,27 @@
     $$
 
   2.以sortedRowIdx做位置映射得出expandedRowIdxOut：
-
-    $$
-    expandedRowIdxOut[sortedRowIdx[i]]=i
-    $$
-
-  3.在drop模式下，对sortedExpertIdx的每个专家统计直方图结果，得出expertTokensCountOrCumsumOutOptional：
+    - rowIdxType等于1时, 输出scatter索引
+      $$
+      expandedRowIdxOut[i]=sortedRowIdx[i]
+      $$
+    - rowIdxType等于0时, 输出gather索引
+      $$
+      expandedRowIdxOut[sortedRowIdx[i]]=i
+      $$
+      
+  3.对sortedExpertIdx的每个专家统计直方图结果，得出expertTokensCountOrCumsumOutOptional：
 
     $$
     expertTokensCountOrCumsumOutOptional[i]=Histogram(sortedExpertIdx)
     $$
 
-  4.计算quant结果：
+  4.如果quantMode不等于-1, 计算quant结果：
+     - 静态quant
+     $$
+     quantResult=round((x∗scaleOptional)+offsetOptional)
+     $$
+     
     - 动态quant：
         - 若不输入scale：
             $$
@@ -63,17 +105,30 @@
             quantResult = round(x / dynamicQuantScaleOutOptional)
             $$
   
-  5.对quantResult取前NUM\_ROWS个sortedRowIdx的对应位置的值，得出expandedXOut：
+  5.若活跃的expert范围为全专家范围时，按照Scatter索引搬运token；反之按照Gather索引搬运token。在dropPadMode为1时将每个专家需要处理的Token个数对齐为expertCapacity个，超过expertCapacity个的Token会被Drop，不足的会用0填充。得出expandedXOut：
+    - 非量化场景
+      - 按照Scatter索引搬运
+      $$
+      expandedXOut[i]=x[scatterRowIdx[i] // K]
+      $$
+      - 按照Gather索引搬运
+      $$
+      expandedXOut[gatherRowIdx[i]]=x[i // K]
+      $$
+    - 量化场景
+      - 按照Scatter索引搬运
+      $$
+      expandedXOut[i]=quantResult[scatterRowIdx[i] // K]
+      $$
+      - 按照Gather索引搬运
+      $$
+      expandedXOut[gatherRowIdx[i]]=quantResult[i // K]
+      $$
 
-    $$
-    expandedXOut[i]=quantResult[sortedRowIdx[i]\%NUM\_ROWS]
-    $$
-
-  6.expandedRowIdxOut的有效元素数量availableIdxNum计算方式为，expertIdx中activeExpertRangeOptional范围内的元素的个数
+  6.expandedRowIdxOut的有效元素数量availableIdxNum，计算方式为expertIdx中activeExpertRangeOptional范围内的元素的个数
     $$
     availableIdxNum = |\{x\in expertIdx| expert\_start \le x<expert\_end \ \}|
     $$
-  
 
 ## 函数原型
 
@@ -116,7 +171,7 @@ aclnnStatus aclnnMoeInitRoutingV3(
     <col style="width: 158px">
     <col style="width: 120px">
     <col style="width: 333px">
-    <col style="width: 375px">
+    <col style="width: 400px">
     <col style="width: 212px">
     <col style="width: 100px">
     <col style="width: 107px">
@@ -158,9 +213,10 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>scaleOptional</td>
         <td>输入</td>
         <td>表示用于计算quant结果的参数</td>
-        <td>如果不输入表示计算时不使用scale
-          <br>非量化场景下，如果输入则要求为1D的Tensor，shape为(NUM_ROWS,)
-          <br>动态quant场景下，如果输入则要求为2D的Tensor，shape为(expertEnd-expertStart, H)</td>
+        <td><ul><li>如果不输入表示计算时不使用scale;
+          <li>非量化场景下为可选输入，如果输入则要求为1D的Tensor，shape为(NUM_ROWS,);
+          <li>静态量化场景必须输入，输入要求为1D的Tensor，shape为[1, ]；
+          <li>动态quant场景下为可选输入，如果输入则要求为2D的Tensor，shape为(expertEnd-expertStart, H)或(1, H)。</td>
         <td>FLOAT32</td>
         <td>ND</td>
         <td>1-2</td>
@@ -170,7 +226,7 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>offsetOptional</td>
         <td>输入</td>
         <td>表示用于计算quant结果的偏移值</td>
-        <td>在非量化场景下不输入<br>动态quant场景下不输入</td>
+        <td><ul><li>在非量化场景下不输入;<li>静态量化场景必须输入，输入要求为1D的Tensor，shape为[1, ]；<li>动态quant场景下不输入.</td>
         <td>FLOAT32</td>
         <td>ND</td>
         <td>-</td>
@@ -180,7 +236,7 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>activeNum</td>
         <td>输入</td>
         <td>表示总的最大处理row数，输出expandedXOut只有这么多行是有效的</td>
-        <td>入参校验需大于等于0</td>
+        <td>入参校验需大于等于0，0表示Dropless场景，大于0时表示Active场景，约束所有专家共同处理tokens总量。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -190,7 +246,7 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>expertCapacity</td>
         <td>输入</td>
         <td>表示每个专家能够处理的tokens数</td>
-        <td>取值范围大于等于0</td>
+        <td>入参校验大于0小于NUM_ROWS</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -221,7 +277,7 @@ aclnnStatus aclnnMoeInitRoutingV3(
       <tr>
         <td>expertTokensNumType</td>
         <td>输入</td>
-        <td>表示不同模式</td>
+        <td>表示直方图的不同模式</td>
         <td>取值为0、1和2
           <br>0：表示 comsum 模式
           <br>1：表示 count 模式
@@ -258,7 +314,7 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>activeExpertRangeOptional</td>
         <td>输入</td>
         <td>表示活跃的expert范围</td>
-        <td>长度为2，数组内的值为[expertStart, expertEnd]，左闭右开，要求值大于等于0，并且expertEnd不大于expertNum</td>
+        <td>长度为2，数组内的值为[expertStart, expertEnd]，左闭右开，要求值大于等于0，并且expertEnd不大于expertNum；Drop/Pad场景下，expertStart等于0, expertEnd等于expertNum </td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -268,7 +324,7 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>rowIdxType</td>
         <td>输入</td>
         <td>表示expandedRowIdxOut使用的索引类型</td>
-        <td>取值为0、1（性能模板仅支持1）
+        <td>取值为0、1
           <br>0：表示gather类型的索引
           <br>1：表示scatter类型的索引</td>
         <td>INT64</td>
@@ -280,7 +336,10 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>expandedXOut</td>
         <td>输出</td>
         <td>根据expertIdx进行扩展过的特征</td>
-        <td>非量化场景下数据类型同x，量化场景下数据类型支持INT8</td>
+        <td><ul><li>Dropless场景shape为[NUM_ROWS * K, H]。 
+          <li>Active场景shape为[min(activeNum, NUM_ROWS * K), H]。 
+          <li>Drop/Pad场景下要求是一个3D的Tensor，shape为[expertNum, expertCapacity, H]。 
+          <li>非量化场景下数据类型同x，量化场景下数据类型支持INT8。</td>
         <td>FLOAT16、BFLOAT16、FLOAT32、INT8</td>
         <td>ND</td>
         <td>2</td>
@@ -290,9 +349,9 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>expandedRowIdxOut</td>
         <td>输出</td>
         <td>expandedXOut和x的索引映射关系</td>
-        <td>前availableIdxNum*H个元素为有效数据，其余无效数据由rowIdxType决定
-          <br>当rowIdxType为0时，无效数据由-1填充
-          <br>当rowIdxType为1时，无效数据未初始化</td>
+        <td>输出shape为(NUM_ROWS*K, )， 前availableIdxNum个元素为有效数据，其余无效数据由rowIdxType决定：
+          <ul><li>当rowIdxType为0时，无效数据由-1填充
+          <li>当rowIdxType为1时，无效数据未初始化</td>
         <td>INT32</td>
         <td>ND</td>
         <td>1</td>
@@ -301,9 +360,10 @@ aclnnStatus aclnnMoeInitRoutingV3(
       <tr>
         <td>expertTokensCountOrCumsumOut</td>
         <td>输出</td>
-        <td>输出每个专家处理的token数量的统计结果及累加值</td>
-        <td>在expertTokensNumType为1时，表示activeExpertRangeOptional范围内expert对应的处理token的总数
-            <br>在expertTokensNumType为2时，表示activeExpertRangeOptional范围内token总数为非0的expert，以及对应expert处理token的总数</td>
+        <td>输出每个专家处理的token数量的统计结果或累加值</td>
+        <td><ul><li>在expertTokensNumType为0时，表示activeExpertRangeOptional范围内expert在排序后处理token总数的前缀和。
+            <li>在expertTokensNumType为1时，表示activeExpertRangeOptional范围内expert对应的处理token的总数。
+            <li>在expertTokensNumType为2时，表示activeExpertRangeOptional范围内token总数为非0的expert，以及对应expert处理token的总数。</td>
         <td>INT64</td>
         <td>ND</td>
         <td>1-2</td>
@@ -313,9 +373,10 @@ aclnnStatus aclnnMoeInitRoutingV3(
         <td>expandedScaleOut</td>
         <td>输出</td>
         <td>输出不同量化过程中scaleOptional的中间值。</td>
-        <td>shape为(NUM_ROWS*K,)
-          <br>当scaleOptional输入时，前availableIdxNum*H个元素为有效数据
-          <br>当scaleOptional输入时，前availableIdxNum个元素为有效数据，若x的数据类型为INT8，输出值未定义</td>
+        <td> 输出shape为expandedXOut的shape去掉最后一维之后所有维度的乘积。
+          <ul style="list-style-type: circle;"><li>非量化场景下，当scaleOptional输入时，前availableIdxNum个元素为有效数据。</li>
+          <li>动态量化场景下，当scaleOptional输入时，前availableIdxNum个元素为有效数据。
+          <li>静态量化场景下不输出。</td>
         <td>FLOAT32</td>
         <td>ND</td>
         <td>1</td>
@@ -427,29 +488,26 @@ aclnnStatus aclnnMoeInitRoutingV3(
 - 确定性计算：
   - aclnnMoeInitRoutingV3默认确定性实现。
 
-- 输入值域限制：
-  - activeNum 当前未使用，校验需等于NUM_ROWS*K。
-  - expertCapacity 当前未使用，仅校验非空。
-  - dropPadMode 当前只支持0，代表 Dropless 场景。
-  - expertTokensNumType 当前只支持 1 和 2，分别代表 count 模式和 key\_value 模式。
-  - expertTokensNumFlag 只支持 true，代表输出 expertTokensCountOrCumsumOut。
-  - quantMode 只支持 1 和 -1，分别代表动态 quant 场景和不量化场景。
+- 该算子支持三种性能模板，需要分别额外满足以下条件，否则进入通用模板：
+  <table>
+    <tr align="center">
+      <th style="text-align: center;">性能模板类型</th>
+      <th style="text-align: center;">准入条件</th>
+    </tr>
+    <tr>
+      <td align="center">低时延性能模板</td>
+      <td>需要同时满足以下条件：<ul><li>x、expertIdx、scaleOptional 输入 Shape 要求分别为：(1, 7168)、(1, 8)、(256, 7168)。</li><li>x 数据类型要求：BFLOAT16.</li><li>属性要求：activeExpertRangeOptional=[0, 256]、 quantMode=1、expertTokensNumType=2、expertNum=256</li></ul></td>
+    </tr>
+    <tr>
+      <td align="center">大 batch 性能模板</td>
+      <td>需要同时满足以下条件：<ul><li>NUM_ROWS范围为[384, 8192]，K=8。</li><li>属性要求：expertNum=256，expertEnd-expertStart<=32，quantMode=-1，rowIdxType=1，expertTokensNumType=1</td>
+    </tr>
+    <tr>
+      <td align="center"><br>全载性能模板</td>
+      <td>在算子输入shape较小的场景，操作间的多核同步时间占比较高，成为性能瓶颈。因此，针对这种特化场景，添加性能模板。该模板中，搬入、排序、计算都在同一个kernel内完成。需要满足如下条件：<ul style="list-style-type: circle;"><li>属性要求：dropPadMode=0<br></td>
+    </tr>
+  </table>
 
-- 其他限制：该算子支持两种性能模板，进入两种性能模板需要分别额外满足以下条件，不满足条件则进入通用模板：
-
-  - 进入低时延性能模板需要同时满足以下条件：
-    - x、expertIdx、scaleOptional 输入 Shape 要求分别为：(1, 7168)、(1, 8)、(256, 7168)
-    - x 数据类型要求：BFLOAT16
-    - 属性要求：activeExpertRangeOptional=[0, 256]、 quantMode=1、expertTokensNumType=2、expertNum=256
-
-  - 进入大 batch 性能模板需要同时满足以下条件：
-    - NUM_ROWS范围为[384, 8192]
-    - K=8
-    - expertNum=256
-    - expertEnd-expertStart<=32
-    - quantMode=-1
-    - rowIdxType=1
-    - expertTokensNumType=1
 
 ## 调用示例
 

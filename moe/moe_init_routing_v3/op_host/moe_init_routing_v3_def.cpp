@@ -108,4 +108,4 @@ public:
 };
 
 OP_ADD(MoeInitRoutingV3);
-} // namespace ops
+}  // namespace ops
