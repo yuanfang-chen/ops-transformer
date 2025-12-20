@@ -78,10 +78,9 @@ __aicore__ inline void GMMSwigluQuantPipelineSchedule<mmType>::Init(GM_ADDR x, G
     gmAddrParams.yGM = y;
     gmAddrParams.yScaleGM = yScale;
     gmAddrParams.workSpaceGM = workspace;
-    gmAddrParams.workSpaceOffset1 = gmmSwigluQuantV2BaseParams->workSpaceOffset1 / NUM_2;
-    gmAddrParams.workSpaceOffset2 = gmmSwigluQuantV2BaseParams->workSpaceOffset1;
-    gmAddrParams.workSpaceOffset3 =
-        gmmSwigluQuantV2BaseParams->workSpaceOffset1 + gmmSwigluQuantV2BaseParams->workSpaceOffset2 / NUM_2;
+    gmAddrParams.workSpaceOffset1 = gmmSwigluQuantV2BaseParams->workSpaceOffset1;
+    gmAddrParams.workSpaceOffset2 = 0;
+    gmAddrParams.workSpaceOffset3 = 0;
     groupListGM.SetGlobalBuffer((__gm__ int64_t *)gmAddrParams.groupListGM);
     InitWorkSpaceSplitConfig(workspaceSplitConfig);
 }
@@ -93,7 +92,6 @@ __aicore__ inline void GMMSwigluQuantPipelineSchedule<mmType>::Process()
     midProcess.Init(gmAddrParams, gmmSwigluQuantV2BaseParams);
     postProcess.Init(gmAddrParams, gmmSwigluQuantV2BaseParams, gmmSwigluQuantV2);
 
-    // 1.前处理提前下发一次
     for (int64_t workspaceSplitLoopIdx = 0; workspaceSplitLoopIdx < workspaceSplitConfig.loopCount;
          workspaceSplitLoopIdx++) {
         // 更新workspaceSplitConfig
@@ -103,7 +101,7 @@ __aicore__ inline void GMMSwigluQuantPipelineSchedule<mmType>::Process()
         }
 
         SyncAll<false>();
-        // 2.第n次中处理 && 第n+1次前处理 && 第n-1次后处理 并行
+        // 2.第n次中处理 && 第n-1次后处理 并行
         midProcess.Process(workspaceSplitConfig, workspaceSplitLoopIdx);
 
         if ASCEND_IS_AIV {

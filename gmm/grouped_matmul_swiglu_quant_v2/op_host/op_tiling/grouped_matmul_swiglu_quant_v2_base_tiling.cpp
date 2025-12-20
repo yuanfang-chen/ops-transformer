@@ -36,13 +36,14 @@ static inline auto AlignUp(T a, T base) -> T
 int64_t GroupedMatmulSwigluQuantV2BaseTiling::CalMaxRowInUbA8W4(const uint64_t ubSize, const uint64_t n) const
 {
     const uint64_t ALIGNMENT = 8;
-    const float WEIGHT_FACTOR = 8.5;
+    const float WEIGHT_FACTOR = isA4W4_ ? 4.5f : 8.5f;
     const uint64_t ALIGNMENT_TERM_FACTOR = 4;
     const uint64_t LINEAR_TERM_FACTOR = 6;
     const uint64_t CONSTANT_TERM = 64;
     const int64_t MIN_ROW_THRESHOLD = 1;
 
-    // 表达式：8.5 * row * n + 4 * alignUp(row, 8) + 6n + 64 <= ubSize
+    // A8W4 表达式：8.5 * row * n + 4 * alignUp(row, 8) + 6n + 64 <= ubSize
+    // A4W4 表达式：4.5 * row * n + 4 * alignUp(row, 8) + 6n + 64 <= ubSize
 
     // 忽略对齐项的初始估计
     int64_t maxRowEstimate =
@@ -234,9 +235,11 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DoOpTiling()
 
     usrWorkspaceLimit_ = USER_WORKSPACE_LIMIT;
     mLimit_ = 0;
-    if (isA8W4MSD_ || isA4W4_) {
+    if (isA8W4MSD_) {
         mLimit_ =
-            ((usrWorkspaceLimit_ / DOUBLE_WORKSPACE_SPLIT) / (k_ * sizeof(int8_t) + DOUBLE_ROW * n_ * sizeof(half)));
+            ((usrWorkspaceLimit_ / DOUBLE_WORKSPACE_SPLIT) / (k_ * sizeof(int8_t) + DOUBLE_ROW * n_ * SIZE_OF_HALF_2));
+    } else if (isA4W4_) {
+        mLimit_ = ((usrWorkspaceLimit_ / DOUBLE_WORKSPACE_SPLIT) / (n_ * SIZE_OF_HALF_2));
     } else {
         mLimit_ = ((usrWorkspaceLimit_ / DOUBLE_WORKSPACE_SPLIT) / INT32_DTYPE_SIZE) / n_;
     }
@@ -245,15 +248,21 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DoOpTiling()
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "mLimit_ is %ld must over then 0.", mLimit_),
                 return ge::GRAPH_FAILED);
     tilingData_.gmmSwigluQuantV2BaseParams.set_mLimit(mLimit_);
-    if (isA8W4MSD_ || isA4W4_) {
+
+    if (isA8W4MSD_) {
         int workSpaceMTemp = mLimit_ * DOUBLE_WORKSPACE_SPLIT;
         tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset1(workSpaceMTemp * k_ * sizeof(int8_t));
-        tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset2(DOUBLE_ROW * workSpaceMTemp * n_ * sizeof(half));
+        tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset2(DOUBLE_ROW * workSpaceMTemp * n_ * SIZE_OF_HALF_2);
         workspaceSize_ =
             SYS_WORKSPACE_SIZE +                     // 系统预留16MB
             (workSpaceMTemp * k_ * sizeof(int8_t)) + // 第一阶段 预处理左矩阵 (mLimit_, K) * int8 * 2(double WorkSpace)
             (DOUBLE_ROW * workSpaceMTemp * n_ *
-             sizeof(half)); // 第二阶段 矩阵乘结果 (2 * mLimit_, N) * fp16 * 2(double WorkSpace)
+             SIZE_OF_HALF_2); // 第二阶段 矩阵乘结果 (2 * mLimit_, N) * fp16 * 2(double WorkSpace)
+    } else if (isA4W4_) {
+        int workSpaceMTemp = mLimit_ * DOUBLE_WORKSPACE_SPLIT;
+        tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset1(mLimit_ * n_ * SIZE_OF_HALF_2);
+        tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset2(0);
+        workspaceSize_ = SYS_WORKSPACE_SIZE + (workSpaceMTemp * n_ * SIZE_OF_HALF_2);
     } else {
         int workSpaceMTemp = (mLimit_ * DOUBLE_WORKSPACE_SPLIT > m_ ? m_ : mLimit_ * DOUBLE_WORKSPACE_SPLIT);
         tilingData_.gmmSwigluQuantV2BaseParams.set_workSpaceOffset1(0);

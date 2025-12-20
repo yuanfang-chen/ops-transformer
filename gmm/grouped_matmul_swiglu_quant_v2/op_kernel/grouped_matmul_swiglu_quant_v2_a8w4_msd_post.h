@@ -113,7 +113,7 @@ __aicore__ inline void GMMA8W4PostProcess::customDataCopyIn(uint32_t outLoopIdx,
 {
     LocalTensor<half> _inMMLocal_0 = mmOutQueue.DeQue<half>();
     const int64_t processNum = 2 * vecConfig.innerLoopNum * gmmSwigluQuantV2->tokenLen;
-    DataCopyExtParams copyParams_0{1, static_cast<uint32_t>(processNum * sizeof(half)), 0, 0, 0};
+    DataCopyExtParams copyParams_0{1, static_cast<uint32_t>(processNum * SIZE_OF_HALF_2), 0, 0, 0};
     DataCopyPadExtParams<half> padParams_0{false, 0, 0, 0};
     DataCopyPad(_inMMLocal_0[processNum], mmOutGM[vecConfig.curOffset * DOUBLE_ROW], copyParams_0, padParams_0);
 

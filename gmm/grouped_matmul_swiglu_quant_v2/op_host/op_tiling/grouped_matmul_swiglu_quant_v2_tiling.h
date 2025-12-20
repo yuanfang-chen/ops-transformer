@@ -136,6 +136,7 @@ constexpr int64_t COMMON_TILING_KEY_MODE = 0;
 constexpr int64_t A8W4_BASEM = 128;
 constexpr int64_t A8W4_BASEK = 256;
 constexpr int64_t A8W4_BASEN = 256;
+constexpr int64_t SIZE_OF_HALF_2 = 2;
 
 class GroupedMatmulSwigluQuantV2Tiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:

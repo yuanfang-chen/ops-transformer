@@ -58,6 +58,7 @@ constexpr uint32_t NUM_2 = 2;
 constexpr int64_t SWIGLU_REDUCE_FACTOR = 2;
 constexpr int64_t DOUBLE_BUFFER = 2;
 constexpr int64_t DOUBLE_ROW = 2;
+constexpr int64_t SIZE_OF_HALF_2 = 2;
 constexpr uint8_t NUM_8 = 8;
 constexpr float QUANT_SCALE_INT8 = 127.0f;
 

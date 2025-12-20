@@ -26,49 +26,6 @@ using namespace AscendC;
 
 constexpr uint32_t BUFFER_NUM = 1;
 
-template <typename T>
-__aicore__ inline void DataCopyPad2DA4W4(const LocalTensor<T> dst, const GlobalTensor<T> src, uint32_t dim1,
-                                         uint32_t dim0, uint32_t srcDim0)
-{
-    DataCopyExtParams params;
-    params.blockCount = dim1;
-    params.blockLen = dim0 * sizeof(T);
-    params.srcStride = (srcDim0 - dim0) * sizeof(T);
-    // 32: int32 -> float16, 为防止跨行数据进入同一32B block，提前每行按偶数block对齐
-    params.dstStride = Ceil(dim0 * sizeof(T), 32) % NUM_2;
-
-    DataCopyPadExtParams<T> padParams{true, 0, 0, 0};
-    DataCopyPad(dst, src, params, padParams);
-}
-
-template <typename T>
-__aicore__ inline void DataCopyPad2DA4W4ND(const LocalTensor<T> dst, const GlobalTensor<T> src, uint32_t dim1,
-                                           uint32_t dim0, uint32_t srcDim0)
-{
-    DataCopyExtParams params;
-    params.blockCount = dim1;
-    params.blockLen = dim0 * sizeof(T);
-    params.srcStride = (srcDim0 - dim0) * sizeof(T);
-    params.dstStride = 0;
-
-    DataCopyPadExtParams<T> padParams{true, 0, 0, 0};
-    DataCopyPad(dst, src, params, padParams);
-    return;
-}
-
-template <typename T>
-__aicore__ inline void DataCopyPad2DA4W4(const GlobalTensor<T> dst, const LocalTensor<T> src, uint32_t dim1,
-                                         uint32_t dim0, uint32_t srcDim0, uint32_t dstDim0)
-{
-    DataCopyExtParams params;
-    params.blockCount = dim1;
-    params.blockLen = dim0 * sizeof(T);
-    // 32: ub访问粒度为32B
-    params.srcStride = (srcDim0 - dim0) * sizeof(T) / 32;
-    params.dstStride = (dstDim0 - dim0) * sizeof(T);
-    DataCopyPad(dst, src, params);
-}
-
 template <class mmType>
 class GMMA4W4MidProcess {
 public:
@@ -102,6 +59,8 @@ private:
     GM_ADDR weightTensorPtr;
     GM_ADDR weightScaleTensorPtr;
 
+    MNConfig mnConfig;
+
     // define the que
     uint32_t subBlockIdx = 0;
     uint32_t coreIdx = 0;
@@ -123,10 +82,9 @@ GMMA4W4MidProcess<mmType>::Init(const GMAddrParams gmAddrParams,
         weightGM.SetGlobalBuffer(GetTensorAddr<int4b_t>(0, gmAddrParams.weightGM));
         weightScaleGM.SetGlobalBuffer(GetTensorAddr<uint64_t>(0, gmAddrParams.weightScaleGM));
         groupListGM.SetGlobalBuffer((__gm__ int64_t *)gmAddrParams.groupListGM);
-        mmOutGM1.SetGlobalBuffer(
-            (__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM + gmAddrParams.workSpaceOffset2));
+        mmOutGM1.SetGlobalBuffer((__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM));
         mmOutGM2.SetGlobalBuffer(
-            (__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM + gmAddrParams.workSpaceOffset3));
+            (__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM + gmAddrParams.workSpaceOffset1));
         quantGroupSize = gmmSwigluQuantV2BaseParams->K / gmmSwigluQuantV2BaseParams->quantGroupNum; // 约束为整除关系
         subBlockIdx = GetSubBlockIdx();
         coreIdx = GetBlockIdx();
@@ -168,7 +126,6 @@ __aicore__ inline void GMMA4W4MidProcess<mmType>::Process(WorkSpaceSplitConfig &
             return;
         }
         mmOutGM = (workspaceSplitLoopIdx % NUM_2 == 0 ? mmOutGM1 : mmOutGM2);
-        MNConfig mnConfig;
         mnConfig.baseM = gmmSwigluQuantV2BaseParams->baseM;
         mnConfig.baseN = gmmSwigluQuantV2BaseParams->baseN;
         mnConfig.singleM = gmmSwigluQuantV2BaseParams->baseM;

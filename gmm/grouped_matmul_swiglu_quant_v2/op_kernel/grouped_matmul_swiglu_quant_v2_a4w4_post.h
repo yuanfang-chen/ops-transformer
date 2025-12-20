@@ -83,10 +83,9 @@ __aicore__ inline void GMMA4W4PostProcess::Init(const GMAddrParams gmAddrParams,
         gmmSwigluQuantV2BaseParams = gmmSwigluQuantV2BaseParamsIN;
         gmmSwigluQuantV2 = gmmSwigluIN;
         groupListGM.SetGlobalBuffer((__gm__ int64_t *)gmAddrParams.groupListGM, gmmSwigluQuantV2->groupListLen);
-        mmOutGM1.SetGlobalBuffer(
-            (__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM + gmAddrParams.workSpaceOffset2));
+        mmOutGM1.SetGlobalBuffer((__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM));
         mmOutGM2.SetGlobalBuffer(
-            (__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM + gmAddrParams.workSpaceOffset3));
+            (__gm__ half *)((__gm__ int8_t *)gmAddrParams.workSpaceGM + gmAddrParams.workSpaceOffset1));
         perTokenScaleGM.SetGlobalBuffer((__gm__ float *)gmAddrParams.xScaleGM, gmmSwigluQuantV2BaseParams->M);
         quantOutputGM.SetGlobalBuffer((__gm__ int8_t *)gmAddrParams.yGM, gmmSwigluQuantV2BaseParams->M *
                                                                              gmmSwigluQuantV2->tokenLen /
@@ -101,7 +100,7 @@ __aicore__ inline void GMMA4W4PostProcess::customDataCopyIn(uint32_t outLoopIdx,
 {
     LocalTensor<half> _inMMLocal_0 = mmOutQueue.DeQue<half>();
     const int64_t processNum = vecConfig.innerLoopNum * gmmSwigluQuantV2->tokenLen;
-    DataCopyExtParams copyParams_0{1, static_cast<uint32_t>(processNum * sizeof(half)), 0, 0, 0};
+    DataCopyExtParams copyParams_0{1, static_cast<uint32_t>(processNum * SIZE_OF_HALF_2), 0, 0, 0};
     DataCopyPadExtParams<half> padParams_0{false, 0, 0, 0};
     DataCopyPad(_inMMLocal_0[processNum], mmOutGM[vecConfig.curOffset], copyParams_0, padParams_0);
 
@@ -186,7 +185,7 @@ __aicore__ inline void GMMA4W4PostProcess::Quant(uint32_t loopIdx, VecConfig &ve
     float quantScale = reduceResLocal.GetValue(0) / QUANT_SCALE_INT8;
     LocalTensor<float> quantScaleLocal = quantScaleOutQueue.DeQue<float>();
     quantScaleLocal.SetValue(loopIdx, quantScale);
-    quantScale = 1 / quantScale;
+    quantScale = QUANT_SCALE_INT8 / reduceResLocal.GetValue(0);
     int32_t eventIdSToV = static_cast<int32_t>(GetTPipePtr()->FetchEventID(HardEvent::S_V));
     SetFlag<HardEvent::S_V>(eventIdSToV);
     WaitFlag<HardEvent::S_V>(eventIdSToV);
