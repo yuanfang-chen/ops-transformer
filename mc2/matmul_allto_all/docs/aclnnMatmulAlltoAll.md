@@ -1,6 +1,6 @@
-# aclnnMatmulAlltoAll
+*
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/mc2/matmul_allto_all)
+# aclnnMatmulAlltoAll
 
 ## 产品支持情况
 
@@ -16,183 +16,184 @@
 
 ## 功能说明
 
-- **接口功能**：完成MatMul计算与AlltoAll通信融合。
-- **计算公式**：
-
-    $$
-    output = AlltoAll(x1 @ x2 + bias)
-    $$
+- 算子功能：完成Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**。
+- 计算公式:
+  假设x1的shape为(BS, H1), x2的shape为(H1, H2)
+  $$
+  computeOut = x1 @ x2 + bias \\
+  permutedOut = computeOut.view(BS, rankSize, H2/rankSize).permute(1, 0, 2) \\
+  output = AlltoAll(permutedOut).view(rankSize*BS, H2/rankSize)
+  $$
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnMatmulAlltoAllGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMatmulAlltoAll”接口执行计算。
+每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用 “aclnnMatmulAlltoAllGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMatmulAlltoAll”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(
-    const aclTensor *x1,
-    const aclTensor *x2,
-    const aclTensor *biasOptional,
-    const aclIntArray* alltoAllAxesOptional,
-    const char* group,
-    bool transposeX1,
-    bool transposeX2,
-    const aclTensor *output,
-    uint64_t *workspaceSize,
-    aclOpExecutor **executor)
+  const aclTensor* x1, 
+  const aclTensor* x2,
+  const aclTensor* biasOptional,
+  const aclIntArray* alltoAllAxesOptional,
+  const char* group,
+  bool transposeX1,
+  bool transposeX2,
+  aclTensor* output,
+  uint64_t *workspaceSize,
+  aclOpExecutor **executor)
 ```
 
 ```cpp
 aclnnStatus aclnnMatmulAlltoAll(
-    void *workspace,
-    uint64_t workspaceSize,
-    aclOpExecutor *executor,
-    const aclrtStream stream)
+  void *workspace,
+  uint64_t workspaceSize,
+  aclOpExecutor *executor,
+  aclrtStream stream)
 ```
 
 ## aclnnMatmulAlltoAllGetWorkspaceSize
 
-- **参数说明：**
-    <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
-      <col style="width: 170px">
-      <col style="width: 120px">
-      <col style="width: 300px">
-      <col style="width: 330px">
-      <col style="width: 212px">
-      <col style="width: 100px">
-      <col style="width: 190px">
-      <col style="width: 145px">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>参数名</th>
-          <th>输入/输出</th>
-          <th>描述</th>
-          <th>使用说明</th>
-          <th>数据类型</th>
-          <th>数据格式</th>
-          <th>维度(shape)</th>
-          <th>非连续Tensor</th>
-        </tr></thead>
-      <tbody>
-        <tr>
-          <td>x1</td>
-          <td>输入</td>
-          <td>融合算子的左矩阵输入，对应公式中的x1。</td>
-          <td>该输入作为MatMul计算的左矩阵输入。</td>
-          <td>BFLOAT16、FLOAT16</td>
-          <td>ND</td>
-          <td>2维, shape为(BS, H1)</td>
-          <td>×</td>
-        </tr>
-        <tr>
-          <td>x2</td>
-          <td>输入</td>
-          <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵，对应计算公式中的x2。</td>
-          <td>直接作为MatMul计算的右矩阵输入。</td>
-          <td>BFLOAT16、FLOAT16</td>
-          <td>ND</td>
-          <td>2维，shape为(H1, H2)</td>
-          <td>x</td>
-        </tr>
-        <tr>
-          <td>biasOptional</td>
-          <td>可选输入</td>
-          <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
-          <td>当前版本仅支持一维输入。</td>
-          <td>FLOAT32、FLOAT16</td>
-          <td>ND</td>
-          <td>1维，shape为(H2)</td>
-          <td>x</td>
-        </tr>
-        <tr>
-          <td>alltoAllAxesOptional</td>
-          <td>输入</td>
-          <td>可选输入，AlltoAll和Pemute数据交换的方向</td>
-          <td>支持配置空或者[-2,-1]，传入空时默认按[-2,-1]处理，表示将输入由(BS, H2)转为(BS * rankSize, H2 / rankSize)</td>
-          <td>aclIntArray*(元素类型INT64)</td>
-          <td>ND</td>
-          <td>1维，shape为(2)</td>
-          <td>x</td>
-        </tr>
-        <tr>
-          <td>group</td>
-          <td>输入</td>
-          <td>通信域名称。</td>
-          <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，字符串长度要求(0, 128)。</td>
-          <td>STRING</td>
-          <td>ND</td>
-          <td>1维</td>
-          <td>x</td>
-        </tr>
-        <tr>
-          <td>transposeX1</td>
-          <td>输入</td>
-          <td>标识左矩阵是否转置过</td>
-          <td>配置为True时左矩阵Shape为(H1, BS)，暂不支持配置为True</td>
-          <td>bool</td>
-          <td>ND</td>
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>transposeX2</td>
-          <td>输入</td>
-          <td>标识右矩阵是否转置过</td>
-          <td>配置为True时右矩阵Shape为(H2, H1)</td>
-          <td>bool</td>
-          <td>ND</td>
-          <td></td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>output</td>
-          <td>输出</td>
-          <td>MatMul计算与AlltoAll通信的结果，即计算公式中的output。</td>
-          <td>数据类型与输入x1保持一致</td>
-          <td>BFLOAT16、FLOAT16</td>
-          <td>ND</td>
-          <td>2维，shape为(BS / rankSize, H2 / rankSize)</td>
-          <td>x</td>
-        </tr>
-        <tr>
-          <td>workspaceSize</td>
-          <td>输出</td>
-          <td>返回需要在Device侧申请的workspace大小。</td>
-          <td>-</td>
-          <td>UINT64</td>
-          <td>ND</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>executor</td>
-          <td>输出</td>
-          <td>返回op执行器，包含了算子计算流程。</td>
-          <td>-</td>
-          <td>aclOpExecutor*</td>
-          <td>ND</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-      </tbody>
-    </table>
+### ​**参数说明**​：
 
-- **返回值：**
+<table style="undefined;table-layout: fixed; width: 1392px"> <colgroup>
+ <col style="width: 120px">
+ <col style="width: 120px">
+ <col style="width: 160px">
+ <col style="width: 150px">
+ <col style="width: 80px">
+ </colgroup>
+ <thead>
+  <tr>
+   <th>参数名</th>
+   <th>输入/输出</th>
+   <th>描述</th>
+   <th>使用说明</th>
+   <th>数据类型</th>
+   <th>数据格式</th>
+   <th>维度(shape)</th>
+   <th>非连续tensor</th>
+  </tr></thead>
+ <tbody>
+  <tr>
+   <td>x1</td>
+   <td>输入</td>
+   <td>融合算子的左矩阵输入，对应公式中的x1</td>
+   <td>该输入作为MatMul计算的左矩阵输入</td>
+   <td>FLOAT16、BFLOAT16</td>
+   <td>ND</td>
+   <td>2维, shape为(BS, H1)</td>
+   <td>x</td>
+  </tr>
+  <tr>
+   <td>x2</td>
+   <td>输入</td>
+   <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵</td>
+   <td>直接作为MatMul计算的右矩阵输入</td>
+   <td>FLOAT16、BFLOAT16</td>
+   <td>ND</td>
+   <td>2维，shape为(H1, H2)</td>
+   <td>x</td>
+  </tr>
+  <tr>
+   <td>biasOptional</td>
+   <td>可选输入</td>
+   <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
+   <td></td>
+   <td>FLOAT16、BFLOAT16、FLOAT32</td>
+   <td>ND</td>
+   <td>1维，shape为(H2)</td>
+   <td>x</td>
+  </tr>
+  <tr>
+   <td>alltoAllAxesOptional</td>
+   <td>输入</td>
+   <td>可选输入，AlltoAll和Pemute数据交换的方向</td>
+   <td>支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H2)转为(BS * rankSize, H2 / rankSize)</td>
+   <td>aclIntArray*(元素类型INT64)</td>
+   <td>ND</td>
+   <td>1维，shape为(2)</td>
+   <td>x</td>
+  </tr>
+  <tr>
+   <td>group</td>
+   <td>输入</td>
+   <td>通信域名</td>
+   <td>字符串长度要求(0, 128)</td>
+   <td>STRING</td>
+   <td>ND</td>
+   <td>1维</td>
+   <td>x</td>
+  </tr>
+  <tr>
+   <td>transposeX1</td>
+   <td>输入</td>
+   <td>标识左矩阵是否转置过</td>
+   <td>配置为True时左矩阵Shape为(H1, BS)，暂不支持配置为True</td>
+   <td>bool</td>
+   <td>ND</td>
+   <td></td>
+   <td></td>
+  </tr>
+  <tr>
+   <td>transposeX2</td>
+   <td>输入</td>
+   <td>标识右矩阵是否转置过</td>
+   <td>配置为True时右矩阵Shape为(H2, H1)</td>
+   <td>bool</td>
+   <td>ND</td>
+   <td></td>
+   <td></td>
+  </tr>
+  <tr>
+   <td>output</td>
+   <td>输入</td>
+   <td>最终的计算结果</td>
+   <td>数据类型与输入x1保持一致</td>
+   <td>FLOAT16、BFLOAT16</td>
+   <td>ND</td>
+   <td>2维，shape为(BS / rankSize, H2 / rankSize)</td>
+   <td>x</td>
+  </tr>
+  <tr>
+   <td>workspaceSize</td>
+   <td>输出</td>
+   <td>返回需要在Device侧申请的workspace大小。</td>
+   <td></td>
+   <td>UINT64</td>
+   <td>ND</td>
+   <td></td>
+   <td></td>
+  </tr>
+  <tr>
+   <td>executor</td>
+   <td>输出</td>
+   <td>返回op执行器，包含了算子的计算流程。</td>
+   <td></td>
+   <td>aclOpExecutor*</td>
+   <td>ND</td>
+   <td></td>
+   <td></td>
+  </tr>
+ </tbody></table>
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
+**返回值**
+
+    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。  
     第一段接口完成入参校验，出现以下场景时报错：
-    <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 650px">
+
+  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
+    <col style="width:250px">
+    <col style="width:130px">
+    <col style="width:650px">
     </colgroup>
     <thead>
-    <tr>
-      <th>返回值</th>
-      <th>错误码</th>
-      <th>描述</th>
-    </tr></thead>
+     <tr>
+       <th>返回值</th>
+       <th>错误码</th>
+       <th>描述</th>
+     </tr>
+    </thead>
     <tbody>
     <tr>
       <td>ACLNN_ERR_PARAM_NULLPTR</td>
@@ -204,57 +205,28 @@ aclnnStatus aclnnMatmulAlltoAll(
       <td>161002</td>
       <td>输入和输出的数据类型不在支持的范围内。</td>
     </tr>
-    </tbody>
-    </table>
+      </tbody>
+  </table>
+
 ## aclnnMatmulAlltoAll
 
-- **参数说明：**
-    <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
-    <col style="width: 158px">
-    <col style="width: 120px">
-    <col style="width: 750px">
-    <thead>
-    <tr>
-        <th>参数名</th>
-        <th>输入/输出</th>
-        <th>描述</th>
-    </tr></thead>
-    <tbody>
-    <tr>
-        <td>workspace</td>
-        <td>输入</td>
-        <td>在device侧申请的workspace内存地址。</td>
-    </tr>
-    <tr>
-        <td>workspaceSize</td>
-        <td>输入</td>
-        <td>在device侧申请的workspace大小，由第一段接口aclnnMatmulAlltoAllGetWorkspaceSize获取。</td>
-    </tr>
-    <tr>
-        <td>executor</td>
-        <td>输入</td>
-        <td>op执行器，包含了算子计算流程。</td>
-    </tr>
-    <tr>
-        <td>stream</td>
-        <td>输入</td>
-        <td>指定执行任务的AscendCL stream流。</td>
-    </tr>
-    </tbody></table>
-- **返回值：**
-
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+* **参数说明：**
+    * workspace（void*，入参）：在Device侧申请的workspace内存地址。
+    * workspaceSize（uint64_t，入参）：在Device侧申请的workspace大小，由第一段接口aclnnMoeDistributeCombineV3GetWorkspaceSize获取。
+    * executor（aclOpExecutor*，入参）：op执行器，包含了算子计算流程。
+    * stream（aclrtStream，入参）：指定执行任务的AscendCL stream流。
+* **返回值：**
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
 
 ## 约束说明
-
-- 默认支持确定性计算。
-- 右矩阵和输出矩阵的H2必须整除rankSize。
-- 仅支持BS为0的空tensor。
-- H1范围仅支持[1, 65535]。
-- ranSize仅支持2、4、8、16。
-- x1、x2计算输入的数据类型要和output计算输出的数据类型一致。
-- 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
-- 不支持跨超节点通信，只支持超节点内。
+* 默认支持确定性计算
+* 右矩阵和输出矩阵的H2必须整除rankSize
+* 仅支持BS为0的空tensor
+* H1范围仅支持[1, 65535]
+* ranSize仅支持2,4,8,16
+* x1、x2、output的数据类型必须一致
+* 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
+* 不支持跨超节点通信，只支持超节点内。
 
 ## 调用示例
 
@@ -471,3 +443,108 @@ aclnnStatus aclnnMatmulAlltoAll(
         return 0;
     }
     ```
+
+## 附录
+
+### 1. 缓存机制
+
+跟随AscendC自动生成的缓存机制。（通算融合当前无缓存）
+
+### 2.归属领域
+
+`aclnnop_ops_infer` `aclnnop_ops_train`
+
+### 3. Pytorch AtenIR
+
+无对标
+
+### 4. AtenIR参数描述
+
+无对标
+
+### 5. HostAPI接口约束
+
+| **功能维度** | **已支持**               | **应支持但未支持** |
+| -------------------- | -------------------------------- | -------------------------- |
+| 数据类型           | FP16/BF16                      | NA                       |
+| 数据格式           | ND                             | NA                       |
+| 空Tensor           | 不支持空Tensor，无现实意义     | NA                       |
+| 非连续Tensor       | 不支持输入非连续、不支持输出非连续 | NA                       |
+
+​**低性能场景**​：
+
+? NA
+
+​**未支持类型说明**​：
+
+? NA
+
+​**边界值场景说明**​：
+
+1. 当输入数据为nan时，输出也为nan
+2. 当计算结果超过数据类型的数据范围时：
+   浮点类型计算结果为inf，整形计算结果为会出现反转。
+
+### 6. HostAPI异常处理
+
+以下场景会出现参数校验异常：
+
+1. 传入的x1、x2、out是空指针时。
+2. 入参的数据类型和shape不符合数学逻辑。
+
+### 7. 兼容性说明
+
+1. 功能兼容性：无Pytorch/TensorFlow/MindSpore/Onnx 原生接口，新增支持pytorch自定义接口；
+2. 平台兼容性：已支持的芯片版本，功能无差异；
+3. 接口兼容性：新增接口；
+4. 行为兼容性：新增接口；
+5. 性能兼容性：新增接口；
+6. 资源兼容性：新增接口；
+7. 错误处理兼容性：新增接口；
+
+### 8. API代码注释
+
+```php
+**
+ * @brief 计算全连接（All-to-All）矩阵乘法所需的 workspace 大小。
+ * 
+ * 该接口用于计算分布式训练中通信和计算所需的 workspace 大小。支持多种数据类型和量化模式。
+ *
+ * @param[in] x1 左矩阵输入张量
+ * @param[in] x2 右矩阵输入张量
+ * @param[in] biasOptional 可选输入张量，偏置项
+ * @param[in] alltoallAxes all2all做数据交换的方向
+ * @param[in] group 通信域标识，用于标识不同的通信组
+ * @param[in] transposeX1 是否对 x1 转置
+ * @param[in] transposeX2 是否对 x2 转置
+ * @param[out] output 矩阵乘法的输出结果
+ * @param[out] workspaceSize 用于存储计算所需的 workspace 大小
+ * @param[out] executor 执行器指针，用于后续的计算执行
+ * 
+ * @return aclnnStatus 执行状态，返回 0 表示成功，其他值表示错误
+ */
+```cpp
+aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(
+  const aclTensor* x1, 
+  const aclTensor* x2,
+  const aclTensor* biasOptional,
+  const aclIntArray* alltoAllAxesOptional,
+  const char* group,
+  bool transposeX1,
+  bool transposeX2,
+  aclTensor* output,
+  uint64_t *workspaceSize,
+  aclOpExecutor **executor)
+
+
+
+aclnnStatus aclnnMatmulAlltoAll(
+  void *workspace,
+  uint64_t workspaceSize,
+  aclOpExecutor *executor,
+  aclrtStream stream)
+```
+调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
+
+
+// axes增加对空输入场景的描述
