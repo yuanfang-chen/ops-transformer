@@ -153,6 +153,10 @@
     <details>
     <summary>MX量化场景：</summary>
 
+      - **定义**：
+
+        * **⋅** 表示矩阵乘法。
+        * **⊙** 表示逐元素乘法。
       - **计算过程**
         - 1.根据groupList[i]确定当前分组的 token ，$i \in [0,Len(groupList)]$
 
@@ -162,7 +166,7 @@
 
           $C_{i,act}, gate_{i} = split(C_{i})$
 
-          $S_{i}=Swish(C_{i,act})\odot gate_{i}$  &nbsp;&nbsp;其中$Swish(x)=\frac{x}{1+e^{-x}}$
+          $S_{i}=Swish(C_{i,act})\odot gate_{i}$，其中$Swish(x)=\frac{x}{1+e^{-x}}$
 
         - 3.量化输出结果
 
@@ -179,7 +183,7 @@
             |  FLOAT8_E5M2  |  15  |
             |  FLOAT4_E1M2  |  1   |
             |  FLOAT4_E2M1  |  2   |
-          - $blocksize$：指每次量化的元素个数，仅支持32的倍数，不能为0，且不能超过1024。
+          - $blocksize$：指每次量化的元素个数，仅支持32。
     </details>
 
 ## 函数原型
@@ -198,8 +202,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(
     const aclTensor     *groupList, 
     int64_t              dequantMode, 
     int64_t              dequantDtype, 
-    int64_t              quantMode, 
-    int64_t              quantDtype, 
+    int64_t              quantMode,  
     int64_t              groupListType, 
     const aclIntArray   *tuningConfig, 
     aclTensor           *output, 
@@ -258,10 +261,11 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td><ul>
           <li>INT32为适配用途，实际1个INT32会被解释为8个INT4数据。</li>
           <li>ND数据格式仅A8W4、MXFP8、MXFP4场景支持。</li>
+          <li>目前仅支持tensor list长度为1。</li>
         </ul></td>
         <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E1M2、FLOAT4_E2M1、INT8、INT4、INT32</td>
         <td>ND、FRACTAL_NZ</td>
-        <td>3，weight非转置shape形如(E, K, N)，weight转置shape形如(E, N, K)</td>
+        <td>3，weight非转置shape形如{(E, K, N)}，weight转置shape形如{(E, N, K)}</td>
         <td>√</td>
       </tr>
       <tr>
@@ -273,15 +277,16 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
           <li>A8W4场景：shape支持2或3维，数据类型支持UINT64。</li>
           <li>A8W8场景：shape支持2维，数据类型支持FLOAT、FLOAT16、BFLOAT16。</li>
           <li>MX量化场景：shape支持4维，数据类型支持FLOAT8_E8M0。</li>
+          <li>目前仅支持tensor list长度为1。</li>
         </ul></td>
         <td>FLOAT8_E8M0、UINT64、FLOAT、FLOAT16、BFLOAT16</td>
         <td>ND</td>
-        <td>2-4，weightScale非转置shape形如(E, Ceil(K / 64), N, 2)，weightScale转置shape形如(E, N, Ceil(K / 64), 2)</td>
+        <td>2-4，MX量化场景：weightScale非转置shape形如{(E, ceil(K / 64), N, 2)}，weightScale转置shape形如{(E, N, ceil(K / 64), 2)}</td>
         <td>√</td>
       </tr>
       <tr>
         <td>weightAssistMatrix</td>
-        <td rowspan="1">输入</td>
+        <td rowspan="1">可选输入</td>
         <td>表示计算矩阵乘时的辅助矩阵，Device侧的aclTensorList，公式中的bias。</td>
         <td><ul>
           <li>仅A8W4场景生效，其他场景需传空指针。</li>
@@ -314,7 +319,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         </ul></td>
         <td>FLOAT8_E8M0、FLOAT</td>
         <td>ND</td>
-        <td>1、3，形如（M）、(M, Ceil(K / 64), 2)</td>
+        <td>1、3，形如（M）、(M, ceil(K / 64), 2)</td>
         <td>√</td>
       </tr>
       <tr>
@@ -339,7 +344,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         </ul></td>
         <td>INT64</td>
         <td>ND</td>
-        <td>1</td>
+        <td>1，形如(E,)</td>
         <td>√</td>
       </tr>
       <tr>
@@ -349,7 +354,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td><ul>
           <li>0表示激活矩阵per-token，权重矩阵per-channel。</li>
           <li>1表示激活矩阵per-token，权重矩阵per-group。</li>
-          <li>2表示激活矩阵per-group，权重矩阵per-group。</li>
+          <li>2表示激活矩阵mx，权重矩阵mx。</li>
         </ul></td>
         <td>-</td>
         <td>-</td>
@@ -375,24 +380,11 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td>quantMode</td>
         <td rowspan="1">输入</td>
         <td>表示量化计算类型，用于确定swiglu结果的量化模式。</td>
-        <td><ul><li>0表示per-token。</li><li>1表示per-channel。</li><li>2表示per-group。</li></td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-      </tr>
-      <tr>
-        <td>quantDtype</td>
-        <td rowspan="1">输入</td>
-        <td>表示输出的数据类型。</td>
         <td><ul>
-          <li>2表示DT_INT8 。</li>
-          <li>28表示DT_UNDEFINED。</li>
-          <li>35表示DT_FLOAT8_E5M2。</li>
-          <li>36表示DT_FLOAT8_E4M3FN。</li>
-          <li>40表示DT_FLOAT4_E2M1。</li>
-          <li>41表示DT_FLOAT4_E1M2。</li>
-        </ul></td>
+          <li>0表示per-token。</li>
+          <li>1表示per-group。</li>
+          <li>2表示mx。</li>
+        </td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -440,7 +432,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         </td>
         <td>FLOAT8_E8M0、FLOAT</td>
         <td>ND</td>
-        <td>1、3，形如（M）、(M, Ceil((N / 2) / 64), 2)</td>
+        <td>1、3，形如（M）、(M, ceil((N / 2) / 64), 2)</td>
         <td>√</td>
       </tr>
       <tr>
@@ -466,8 +458,15 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     </tbody>
     </table>
 
-    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：不支持FLOAT8量化数据类型、支持其他数据类型，不支持weight转置、不支持dequantDtype参数、不支持quantDtype参数。
-    - <term>昇腾910_95 AI处理器</term>：支持FLOAT8和FLOAT4量化数据类型，不支持其他数据类型，支持weight转置、支持dequantDtype参数、支持quantDtype参数。
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：不支持FLOAT8量化数据类型、支持其他数据类型，不支持weight转置、不支持dequantDtype参数。
+      - A8W4/A8W8场景，不支持N轴长度超过10240。
+      - A8W8场景，不支持x的尾轴长度大于等于65536。
+      - A8W4场景，不支持x的尾轴长度大于等于20000。
+    - <term>昇腾910_95 AI处理器</term>：
+      - 仅支持FLOAT8、FLOAT4量化数据类型，不支持其他数据类型，支持weight转置。
+      - 支持dequantMode参数：默认值为0，当前仅支持传入2。
+      - 支持dequantDtype参数：当前仅支持传入默认值0。
+      - 支持quantDtype参数：默认值为0，当前仅支持传入2。
 
 - **返回值：**
   
@@ -503,22 +502,26 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       <td>传入的x、weight、weightScale、xScale、groupList、output、outputScale数据的format不满足约束条件。</td>
     </tr>
     <tr>
-      <td>参数bias、smoothScale、dequantDtype、tuningConfig不为空指针。</td>
+      <td>传入的weight、weightScale的tensor list长度不为1。</td>
+    </tr>
+    <tr>
+      <td>传入的x、xScale为空tensor，传入的weight、weightScale为空tensorList。</td>
     </tr>
     <tr>
       <td>groupList的元素个数大于weight的首轴长度。</td>
     </tr>
     <tr>
-      <td>N轴长度超过10240。</td>
+      <td>A8W4、A8W8场景，N轴取值不符合约束。</td>
     </tr>
     <tr>
-      <td>A8W8场景，x的尾轴长度大于等于65536。</td>
+      <td>A8W4、A8W8场景，x的尾轴长度不符合约束。</td>
     </tr>
     <tr>
-      <td>A8W4场景，x的尾轴长度大于等于20000。</td>
-    </tr>
-    <tr>
-      <td>MX量化场景，N不为偶数。</td>
+      <td>MX量化场景<ul>
+      <li>N不为偶数。</li>
+      <li>传入的dequantMode、quantMode不为2，dequantDtype不为0。</li>
+      <li>传入的bias、weightAssistMatrix、smoothScale、tuningConfig不为空指针。</li>
+      </ul></td>
     </tr>
   </tbody>
   </table>
@@ -543,44 +546,45 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
-  - MX量化场景下需满足以下约束条件：
-      - 数据类型需要满足下表：
-      <table style="undefined;table-layout: fixed; width: 1134px"><colgroup>
-      <col style="width: 319px">
-      <col style="width: 144px">
-      <col style="width: 671px">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>MX量化场景</th>
-          <th>x</th>
-          <th>weight</th>
-          <th>weightScale</th>
-          <th>xScale</th>
-          <th>output</th>
-          <th>outputScale</th>
-        </tr></thead>
-      <tbody>
-        <tr>
-          <td>MXFP8</td>
-          <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
-          <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
-          <td>FLOAT8_E8M0</td>
-          <td>FLOAT8_E8M0</td>
-          <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
-          <td>FLOAT8_E8M0</td>
-        </tr>
-        <tr>
-          <td>MXFP4</td>
-          <td>FLOAT4_E1M2、FLOAT4_E2M1</td>
-          <td>FLOAT4_E1M2、FLOAT4_E2M1</td>
-          <td>FLOAT8_E8M0</td>
-          <td>FLOAT8_E8M0</td>
-          <td>FLOAT4_E1M2、FLOAT4_E2M1、FLOAT8_E4M3FN、FLOAT8_E5M2</td>
-          <td>FLOAT8_E8M0</td>
-        </tr>
-      </tbody>
-      </table>
+  - <term>昇腾910_95 AI处理器</term>：
+    - MX量化场景下需满足以下约束条件：
+        - 数据类型需要满足下表：
+        <table style="undefined;table-layout: fixed; width: 1134px"><colgroup>
+        <col style="width: 319px">
+        <col style="width: 144px">
+        <col style="width: 671px">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>MX量化场景</th>
+            <th>x</th>
+            <th>weight</th>
+            <th>weightScale</th>
+            <th>xScale</th>
+            <th>output</th>
+            <th>outputScale</th>
+          </tr></thead>
+        <tbody>
+          <tr>
+            <td>MXFP8</td>
+            <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+            <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+            <td>FLOAT8_E8M0</td>
+            <td>FLOAT8_E8M0</td>
+            <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+            <td>FLOAT8_E8M0</td>
+          </tr>
+          <tr>
+            <td>MXFP4</td>
+            <td>FLOAT4_E1M2、FLOAT4_E2M1</td>
+            <td>FLOAT4_E1M2、FLOAT4_E2M1</td>
+            <td>FLOAT8_E8M0</td>
+            <td>FLOAT8_E8M0</td>
+            <td>FLOAT4_E1M2、FLOAT4_E2M1、FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+            <td>FLOAT8_E8M0</td>
+          </tr>
+        </tbody>
+        </table>
 
       - MX量化场景下，需满足N为128对齐。
       - MXFP4场景不支持K=2。
@@ -905,7 +909,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     }
 
     template <typename T1, typename T2>
-    auto Ceil(T1 a, T2 b) -> T1
+    auto CeilDiv(T1 a, T2 b) -> T1
     {
         if (b == 0) {
             return a;
@@ -933,11 +937,11 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
 
         std::vector<int64_t> xShape = {M, K};
         std::vector<int64_t> weightShape = {E, K, N};
-        std::vector<int64_t> weightScaleShape = {E, Ceil(K, 64), N, 2};
-        std::vector<int64_t> xScaleShape = {M, Ceil(K, 64), 2};
+        std::vector<int64_t> weightScaleShape = {E, CeilDiv(K, 64), N, 2};
+        std::vector<int64_t> xScaleShape = {M, CeilDiv(K, 64), 2};
         std::vector<int64_t> groupListShape = {E};
         std::vector<int64_t> outputShape = {M, N / 2};
-        std::vector<int64_t> outputScaleShape = {M, Ceil(N / 2, 64), 2};
+        std::vector<int64_t> outputScaleShape = {M, CeilDiv((N / 2), 64), 2};
 
         void* xDeviceAddr = nullptr;
         void* weightDeviceAddr = nullptr;
@@ -959,17 +963,17 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
 
         std::vector<int8_t> xHostData(M * K, 1);
         std::vector<int8_t> weightHostData(E * N * K, 1);
-        std::vector<int8_t> weightScaleHostData(E * Ceil(K, 64) * N * 2, 1);
-        std::vector<int8_t> xScaleHostData(M * Ceil(K, 64) * 2, 1);
+        std::vector<int8_t> weightScaleHostData(E * CeilDiv(K, 64) * N * 2, 1);
+        std::vector<int8_t> xScaleHostData(M * CeilDiv(K, 64) * 2, 1);
         std::vector<int64_t> groupListHostData(E, 1);
         std::vector<int8_t> outputHostData(M * N / 2, 1);
-        std::vector<int8_t> outputScaleHostData(M * Ceil(N, 64), 1);
+        std::vector<int8_t> outputScaleHostData(M * CeilDiv((N / 2), 64) * 2, 1);
         std::vector<int64_t> tuningConfigData = {1};
         aclIntArray *tuningConfig = aclCreateIntArray(tuningConfigData.data(), 1);
-
+        
         int64_t quantMode = 2;
-        int64_t dequantMode = 1;
-        int64_t dequantDtype = 1;
+        int64_t dequantMode = 2;
+        int64_t dequantDtype = 0;
         int64_t groupListType = 1;
 
         // 创建x aclTensor
@@ -986,11 +990,11 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         std::unique_ptr<aclTensorList, aclnnStatus (*)(const aclTensorList*)> weightTensorListPtr(weight, aclDestroyTensorList);
         std::unique_ptr<void, aclError (*)(void*)> weightDeviceAddrPtr(weightDeviceAddr, aclrtFree);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
-
+        
         // 创建weightScale aclTensorList
         std::vector<std::vector<int8_t>> weightScaleHostDataList = {weightScaleHostData};
         std::vector<std::vector<int64_t>> weightScaleShapeList = {weightScaleShape};
-        ret = CreateAclTensorList<int8_t>(weightScaleHostDataList, weightScaleShapeList, &weightScaleDeviceAddr, aclDataType::ACL_FLOAT8_E8M0, &    weightScale);
+        ret = CreateAclTensorList<int8_t>(weightScaleHostDataList, weightScaleShapeList, &weightScaleDeviceAddr, aclDataType::ACL_FLOAT8_E8M0, &weightScale);
         std::unique_ptr<aclTensorList, aclnnStatus (*)(const aclTensorList*)> weightScaleTensorListPtr(weightScale, aclDestroyTensorList);
         std::unique_ptr<void, aclError (*)(void*)> weightScaleDeviceAddrPtr(weightScaleDeviceAddr, aclrtFree);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -1002,7 +1006,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         CHECK_RET(ret == ACL_SUCCESS, return ret);
 
         // 创建group_list aclTensor
-        ret = CreateAclTensor<int64_t>(groupListHostData, groupListShape, &groupListDeviceAddr, aclDataType::ACL_INT64, aclFormat::ACL_FORMAT_ND, &   groupList);
+        ret = CreateAclTensor<int64_t>(groupListHostData, groupListShape, &groupListDeviceAddr, aclDataType::ACL_INT64, aclFormat::ACL_FORMAT_ND, &groupList);
         std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor*)> groupListTensorPtr(groupList, aclDestroyTensor);
         std::unique_ptr<void, aclError (*)(void*)> groupListDeviceAddrPtr(groupListDeviceAddr, aclrtFree);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -1014,7 +1018,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         CHECK_RET(ret == ACL_SUCCESS, return ret);
 
         // 创建yScale aclTensor
-        ret = CreateAclTensor<int8_t>(outputScaleHostData, outputScaleShape, &outputScaleDeviceAddr, aclDataType::ACL_FLOAT8_E8M0,    aclFormat::ACL_FORMAT_ND, &outputScale);
+        ret = CreateAclTensor<int8_t>(outputScaleHostData, outputScaleShape, &outputScaleDeviceAddr, aclDataType::ACL_FLOAT8_E8M0, aclFormat::ACL_FORMAT_ND, &outputScale);
         std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor*)> outputScaleTensorPtr(outputScale, aclDestroyTensor);
         std::unique_ptr<void, aclError (*)(void*)> outputScaleDeviceAddrPtr(outputScaleDeviceAddr, aclrtFree);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -1026,7 +1030,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         // 3. 调用CANN算子库API
         // 调用aclnnGroupedMatmulSwigluQuantV2第一段接口
         ret = aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize(x, weight, weightScale, nullptr, nullptr, xScale, nullptr, groupList, 
-                                                            dequantMode, dequantDtype, quantMode, groupListType, tuningConfig, output, outputScale, &   workspaceSize, &executor);
+                                                            dequantMode, dequantDtype, quantMode, groupListType, nullptr, output, outputScale, &workspaceSize, &executor);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
         // 根据第一段接口计算出的workspaceSize申请device内存
         if (workspaceSize > 0) {
