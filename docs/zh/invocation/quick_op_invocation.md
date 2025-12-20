@@ -8,11 +8,11 @@
 
 基于社区版CANN包对算子源码修改时，可采用如下方式进行源码编译：
 
-- [自定义算子包](#自定义算子包)：选择部分算子编译生成的包称为自定义算子包，以**挂载**形式作用于CANN包，不改变原始包内容。生成的自定义算子包优先级高于原始CANN包。该包支持aclnn方式和图模式调用算子。
+- [自定义算子包](#自定义算子包)：选择部分算子编译生成的包称为自定义算子包，以**挂载**形式作用于CANN包，不改变原始包内容。生成的自定义算子包优先级高于原始CANN包。该包支持aclnn和图模式调用AI Core算子。
 
-- [ops-transformer包](#ops-transformer包)：选择整个项目编译生成的包称为ops-transformer包，可**完整替换**CANN包对应部分。该包支持aclnn方式和图模式调用算子。
+- [ops-transformer包](#ops-transformer包)：选择整个项目编译生成的包称为ops-transformer包，可**完整替换**CANN包对应部分。该包支持aclnn和图模式调用AI Core算子。
 
-- [ops-transformer静态库](#ops-transformer静态库)：指整个项目编译为一个静态库文件，包含libcann-transformer-static.a和aclnn接口头文件。该包仅支持aclnn方式调用算子。
+- [ops-transformer静态库](#ops-transformer静态库)：指整个项目编译为一个静态库文件，包含libcann-transformer-static.a和aclnn接口头文件。该包仅支持aclnn调用AI Core算子。
 
   >说明：若您需要**基于本项目进行二次发布**并且对**软件包大小有要求**时，建议采用静态库编译，该库可以链接您的应用开发程序，仅保留业务所需的算子，从而实现软件最小化部署。
 
@@ -42,13 +42,17 @@
     ```
     编译成功后，run包存放于项目根目录的build_out目录下。
     
-2. **安装/删除自定义算子包**
+2. **安装自定义算子包**
    
     ```bash
     ./cann-ops-transformer-${vendor_name}_linux-${arch}.run
     ```
     
-    自定义算子包安装路径为`${ASCEND_HOME_PATH}/vendors`，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/cann。注意自定义算子包不支持卸载，如需卸载，请删除vendors\/\$\{vendor\_name}目录，并删除vendors/config.ini中load_priority对应\$\{vendor\_name\}的配置项。
+    自定义算子包安装路径为`${ASCEND_HOME_PATH}/vendors`，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/cann。
+
+3. **（可选）删除自定义算子包**
+
+    注意自定义算子包不支持卸载，如需卸载，请删除vendors\/\$\{vendor\_name}目录，并删除vendors/config.ini中load_priority对应\$\{vendor\_name\}的配置项。
 
 ### ops-transformer包
 
@@ -64,6 +68,7 @@
     ```
     - --jit（可选）：推荐设置，表示不编译算子的二进制文件。
     - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2系列产品使用"ascend910b"（默认），Atlas A3系列产品使用"ascend910_93"，Ascend 950PR/Ascend 950DT产品使用"ascend910_95"。
+    - --experimental（可选）：表示编译experimental贡献目录下的算子。
 
     若提示如下信息，说明编译成功。
 
@@ -93,7 +98,7 @@
 
 > 说明：Ascend 950PR/Ascend 950DT暂不支持使用静态库。
 
-1. **编译ops-transformer静态库压缩包**
+1. **编译ops-transformer静态库**
 
     进入项目根目录，执行如下编译命令：
 
@@ -109,17 +114,17 @@
     Successfully created compressed package: ${repo_path}/build_out/cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}.tar.gz
     ```
 
-   \$\{repo\_path\}表示项目根目录绝对路径，\$\{soc\_name\}表示NPU型号名称，即\$\{soc\_version\}删除“ascend”后剩余的内容。编译成功后，压缩包存放于build_out目录下。
+   \$\{repo\_path\}表示项目根目录，\$\{soc\_name\}表示NPU型号名称，即\$\{soc\_version\}删除“ascend”后剩余的内容。编译成功后，压缩包存放于build_out目录下。
 
-2. **解压ops-transformer静态库压缩包**
+2. **解压ops-transformer静态库**
 
-    进入到build_out目录下，执行解压命令：
+    进入build_out目录执行解压命令：
 
     ```bash
     tar --zxvf ./cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}.tar.gz -C ${static_lib_path}
     ```
 
-    \$\{static\_lib\_path\}：表示静态库解压路径。解压后目录格式如下：
+    \$\{static\_lib\_path\}：表示静态库解压路径。解压后目录结构如下：
     ```
     ├── cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}
     │   ├── lib64
@@ -128,7 +133,7 @@
     |       ├── ...                                        # aclnn接口头文件
     ```
 
-3. **静态库测试方法**
+3. **静态库使用方法**
 
     使用示例如下，仅供参考：
 
@@ -140,11 +145,11 @@
     ```
     \$\{file\}表示aclnn测试代码源文件，\$\{TEST\_PATH\}表示静态库解压路径，\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN toolkit包安装路径，一般为\$\{install\_path\}/cann，\$\{exec\_name\}表示最终可执行文件的名字。
 
-    其中-lcann\_math\_static、-lgraph等库表示算子依赖的底层库，可在CANN toolkit包找到。
+    其中-lcann\_transformer\_static、-lmetadef等表示算子依赖的底层库文件，可在CANN toolkit包获取。
 
 ## 本地验证 
 
-通过项目根目录build.sh脚本，可快速调用算子和UT用例，验证项目功能是否正常，build参数介绍参见[build参数说明](../context/build.md)。目前算子支持API方式（aclnn接口）和图模式调用，**推荐aclnn调用**。
+通过项目根目录build.sh执行算子和UT用例，验证项目功能是否正常，build参数参见[build参数说明](../context/build.md)。目前算子支持API方式（aclnn接口）和图模式调用，**推荐aclnn调用**。
 
 - **执行算子样例**
   
@@ -156,7 +161,7 @@
         ```
         
         - \$\{op\}：表示待执行算子，算子名小写下划线形式，如flash_attention_score。            
-        - \$\{mode\}：表示算子执行模式，目前支持eager（aclnn调用）、graph（图模式调用）。
+        - \$\{mode\}：表示执行模式，目前支持eager（aclnn调用）、graph（图模式调用）。
         - \$\{pkg_mode\}：表示包模式，目前仅支持cust，即自定义算子包。         
         - \$\{vendor\_name\}（可选）：与构建的自定义算子包设置一致，默认名为custom。        
         

@@ -12,6 +12,8 @@ ${op_name}                              # 替换为实际算子名的小写下�
 └── └── ${op_name}_proto.h              # 算子原型定义，用于图优化和融合阶段识别算子
 ```
 
+本文将以`AddExample`算子（假设为AI Core算子）入图为例，介绍入图交付件的实现，完整代码详见`examples`目录下`add_example`。
+
 ## Shape与DataType推导
 
 图模式需要完成两个交付件 `${op_name}_graph_infer.cpp` `${op_name}_infershape.cpp`
@@ -20,7 +22,7 @@ ${op_name}                              # 替换为实际算子名的小写下�
 
 InferShape函数的作用是根据输入的shape推导输出的shape。
 
-示例如下，`AddExample`算子完整代码请参考`examples/add_example_aicpu/op_host`下[add_example_infershape.cpp](../../../examples/add_example/op_host/add_example_infershape.cpp)。
+示例如下，`AddExample`算子完整代码请参考`examples/add_example/op_host`下[add_example_infershape.cpp](../../../examples/add_example/op_host/add_example_infershape.cpp)。
 
 ```C++
 // AddExample算子逻辑是两个数相加，因此输出shape与输入shape一致
@@ -50,7 +52,7 @@ IMPL_OP_INFERSHAPE(AddExample).InferShape(InferShapeAddExample);
 
 InferDataType函数的作用是根据输入的DataType推导输出的DataType。
 
-示例如下，`AddExample`算子完整代码请参考`examples/add_example_aicpu/op_graph`下[add_example_graph_infer.cpp](../../../examples/add_example/op_graph/add_example_graph_infer.cpp)。
+示例如下，`AddExample`算子完整代码请参考`examples/add_example/op_graph`下[add_example_graph_infer.cpp](../../../examples/add_example/op_graph/add_example_graph_infer.cpp)。
 
 ```C++
 // AddExample算子逻辑是两个数相加，因此输出dataType与输入dataType一致
