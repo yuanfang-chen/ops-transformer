@@ -17,17 +17,32 @@
 
 #include <ascendc/host_api/tiling/template_argument.h>
 
-#define QUANT_MODE 0 // base tiling
+// 量化组合模式
+#define NON_QUANT_MODE 0
 
-// 模板参数
+// bias的数据类型
+#define DTYPE_BIAS_SAME_WITH_X 0
+#define DTYPE_BIAS_FP32 1
+
+// 模板参数范围声明
 ASCENDC_TPL_ARGS_DECL(MatmulAlltoAll,
-                      ASCENDC_TPL_UINT_DECL(matmulAlltoAllTemplateId, ASCENDC_TPL_8_BW, ASCENDC_TPL_UI_LIST,
-                                            QUANT_MODE), // LIST模式，穷举
-);
+                      ASCENDC_TPL_UINT_DECL(QUANTMODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST, NON_QUANT_MODE, ),
+                      ASCENDC_TPL_BOOL_DECL(X2TRANSPOSE, 0, 1),
+                      ASCENDC_TPL_DTYPE_DECL(DTYPEBIAS, DTYPE_BIAS_SAME_WITH_X, DTYPE_BIAS_FP32), );
 
 // 模板参数组合
 // 用于调用GET_TPL_TILING_KEY获取TilingKey时，接口内部校验TilingKey是否合法
-ASCENDC_TPL_SEL(ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(matmulAlltoAllTemplateId, ASCENDC_TPL_UI_LIST,
-                                                          QUANT_MODE), ), );
+ASCENDC_TPL_SEL(ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL_UI_LIST, NON_QUANT_MODE),
+                                     ASCENDC_TPL_BOOL_SEL(X2TRANSPOSE, 0),
+                                     ASCENDC_TPL_DTYPE_SEL(DTYPEBIAS, DTYPE_BIAS_FP32), ),
+                ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL_UI_LIST, NON_QUANT_MODE),
+                                     ASCENDC_TPL_BOOL_SEL(X2TRANSPOSE, 1),
+                                     ASCENDC_TPL_DTYPE_SEL(DTYPEBIAS, DTYPE_BIAS_FP32), ),
+                ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL_UI_LIST, NON_QUANT_MODE),
+                                     ASCENDC_TPL_BOOL_SEL(X2TRANSPOSE, 0),
+                                     ASCENDC_TPL_DTYPE_SEL(DTYPEBIAS, DTYPE_BIAS_SAME_WITH_X), ),
+                ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL_UI_LIST, NON_QUANT_MODE),
+                                     ASCENDC_TPL_BOOL_SEL(X2TRANSPOSE, 1),
+                                     ASCENDC_TPL_DTYPE_SEL(DTYPEBIAS, DTYPE_BIAS_SAME_WITH_X), ), );                                                          
 
 #endif // MATMUL_ALLTO_ALL_TILING_KEY_H

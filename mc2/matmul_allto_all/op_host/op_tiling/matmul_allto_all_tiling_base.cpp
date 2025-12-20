@@ -85,8 +85,16 @@ ge::graphStatus MatmulAllToAllTilingBase::GetWorkspaceSize()
  */
 uint64_t MatmulAllToAllTilingBase::GetTilingKey() const
 {
-    const uint64_t tilingKey = GET_TPL_TILING_KEY(QUANT_MODE);
-    OP_LOGD(opName_, "TilingKey is [%lu] in MatmulAllToAll.", tilingKey);
+    // 按照量化组合模式，是否转置，bias数据类型进行展开
+    bool x2TransposeFlag = contextInfo.args_.isBTrans ? true : false;
+    // 0代表数据类型和x一致(FP16 OR BF16)，1代表FP32
+    uint32_t biasDType = DTYPE_BIAS_SAME_WITH_X;
+    if (contextInfo.args_.geBiasType != contextInfo.args_.geAType) {
+        biasDType = DTYPE_BIAS_FP32;
+    }
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(NON_QUANT_MODE, x2TransposeFlag, biasDType);
+    OP_LOGD(opName_, "QUANTMODE,X2TRANSPOSE,DTYPEBIAS: [%d,%d,%d], TilingKey is [%lu].", NON_QUANT_MODE,
+            x2TransposeFlag, biasDType, tilingKey);
     return tilingKey;
 }
 
@@ -130,6 +138,56 @@ void MatmulAllToAllTilingBase::SetUserWorkSpace()
         inferredInfo.biasLen =
             mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
     }
+}
+
+/**
+ * @brief 校验MatmulAlltoAll在不同转置情况下的x1,x2,output的shape关系,以及需要满足n/rankSize的整除关系
+ * 需要满足 x1(BS,H1), x2(H2, H1) if trans else x2(H1, H2)
+ * output(BS*rankSize, H2/rankSize)
+ *
+ * @return ge::graphStatus
+ */
+ge::graphStatus MatmulAllToAllTilingBase::Check2DMatrixMulShapes(const gert::TilingContext *context, const char *opName)
+{
+    bool x2TransFlag = false;
+    // attr及其元素的非空校验在前置的Check方法里都校验过，所以这里不需要额外判断
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const bool *isTransX2 = attrs->GetAttrPointer<bool>(ATTR_X2_TRANSPOSE_INDEX);
+    if (isTransX2) {
+        x2TransFlag = *isTransX2;
+    }
+    const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
+
+    int64_t rankDim = 0;
+    if (MatmulAlltoAllTilingUtil::GetAndValidateRankSize(context, opName, group, rankDim) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    Matrix2DShapes shapeInfo;
+    MatmulAlltoAllTilingUtil::GetMatrix2DShapes(context, shapeInfo);
+    uint64_t kAxis = x2TransFlag ? shapeInfo.x2Dim1 : shapeInfo.x2Dim0;
+    uint64_t nAxis = x2TransFlag ? shapeInfo.x2Dim0 : shapeInfo.x2Dim1;
+    // MatmulAlltoAll, n要整除rankSize
+    OP_TILING_CHECK(nAxis % static_cast<uint64_t>(rankDim) != 0,
+                    OP_LOGE(opName, "N (%lu) is not divisible by rankSize (%ld).", nAxis, rankDim),
+                    return ge::GRAPH_FAILED);
+    // MatmulAlltoAll: x1Dim1 = x2 K-axis
+    OP_TILING_CHECK((shapeInfo.x1Dim1 != kAxis),
+                    OP_LOGE(opName,
+                            "The x1 second dim should be the same with the %s dim of x2, "
+                            "the x1 second dim is %lu, the x2 %s dim is %lu.",
+                            x2TransFlag ? "second" : "first", shapeInfo.x1Dim1, x2TransFlag ? "second" : "first",
+                            kAxis),
+                    return ge::GRAPH_FAILED);
+    // MatmulAlltoAll: yDim0 = x1Dim0 * rankDim and x2 N-axis = yDim1 * rankDim
+    OP_TILING_CHECK((((shapeInfo.x1Dim0 * rankDim) != shapeInfo.yDim0) || (nAxis != (shapeInfo.yDim1 * rankDim))),
+                    OP_LOGE(opName,
+                            "The y first dim should be %lu times of the first dim of x1, "
+                            "the x2 %s dim should be %lu times of the second dim of y. "
+                            "rankDim: %lu, x1Dim0: %lu, yDim0: %lu, x2Dim%d: %lu, yDim1: %lu.",
+                            rankDim, x2TransFlag ? "first" : "second", rankDim, rankDim, shapeInfo.x1Dim0,
+                            shapeInfo.yDim0, x2TransFlag ? 0 : 1, nAxis, shapeInfo.yDim1),
+                    return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 } // namespace MC2Tiling

@@ -45,11 +45,15 @@ bool FpMatmulAllToAllTilingBase::IsCapable()
  */
 ge::graphStatus FpMatmulAllToAllTilingBase::CheckOpInputInfo()
 {
-    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckAttrsInfo(context_, opName_) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckAttrsInfo(context_, opName_, MATMUL_ALLTOALL_INDEX_SCHEMA) !=
+                        ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Attrs failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckNonQuantTensorDataType(context_, opName_) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Dtype failed."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckShapeInfo(context_, opName_) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckShapeInfo(context_, opName_, MATMUL_ALLTOALL_INDEX_SCHEMA) !=
+                        ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Tiling check shape failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(Check2DMatrixMulShapes(context_, opName_) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check shape failed."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -61,7 +65,8 @@ ge::graphStatus FpMatmulAllToAllTilingBase::CheckOpInputInfo()
  */
 ge::graphStatus FpMatmulAllToAllTilingBase::InitTilingContextParameters()
 {
-    GE_ASSERT_GRAPH_SUCCESS(MatmulAlltoAllTilingUtil::SetAttrsInfo(context_, opName_, contextInfo));
+    GE_ASSERT_GRAPH_SUCCESS(
+        MatmulAlltoAllTilingUtil::SetAttrsInfo(context_, opName_, contextInfo, MATMUL_ALLTOALL_INDEX_SCHEMA));
     GE_ASSERT_GRAPH_SUCCESS(MatmulAlltoAllTilingUtil::SetDataTypeInfo(context_, opName_, contextInfo));
     GE_ASSERT_GRAPH_SUCCESS(MatmulAlltoAllTilingUtil::SetShapeInfo(context_, contextInfo));
     contextInfo.quantMode = QuantMode::NON_QUANT; // 在isCapable判断过，直接赋值即可
@@ -244,6 +249,7 @@ void FpMatmulAllToAllTilingBase::PrintMatmulAlltoAllTilingData(MatmulAlltoAllTil
  */
 ge::graphStatus FpMatmulAllToAllTilingBase::PostTiling()
 {
+    SetTilingInfo(localTilingData_.matmulAlltoAllTilingInfo);
     MatmulAlltoAllTilingData *outTilingData = context_->GetTilingData<MatmulAlltoAllTilingData>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
     OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "Failed to get tiling data from context"),

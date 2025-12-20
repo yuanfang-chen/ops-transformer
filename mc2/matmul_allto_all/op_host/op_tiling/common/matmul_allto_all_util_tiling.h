@@ -21,8 +21,9 @@ using namespace ge;
 using namespace gert;
 
 // 参数范围
-const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32};
+const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16};
 constexpr uint64_t K_MAX_VALUE = 65535UL;
+constexpr int64_t RANK_DEFAULT_NUM = -1;
 // FOR NON_QUANT
 const std::vector<uint32_t> NON_QUANT_X_DTYPE_LIST = {ge::DT_BF16, ge::DT_FLOAT16};
 // 维度范围
@@ -31,30 +32,64 @@ constexpr size_t DIM_ZERO = 0;
 constexpr size_t DIM_ONE = 1;
 
 // input index
-constexpr size_t INPUT_X1 = 0;
-constexpr size_t INPUT_X2 = 1;
-constexpr size_t INPUT_BIAS = 2;
-constexpr size_t INPUT_X1_SCALE = 3;
-constexpr size_t INPUT_X2_SCALE = 4;
-constexpr size_t INPUT_COMM_SCALE = 5;
-constexpr size_t INPUT_X1_OFFSET = 6;
-constexpr size_t INPUT_X2_OFFSET = 7;
+constexpr size_t INPUT_X1_INDEX = 0;
+constexpr size_t INPUT_X2_INDEX = 1;
+constexpr size_t INPUT_BIAS_INDEX = 2;
+constexpr size_t INPUT_X1_SCALE_INDEX = 3;
+constexpr size_t INPUT_X2_SCALE_INDEX = 4;
+constexpr size_t INPUT_COMM_SCALE_INDEX = 5;
+constexpr size_t INPUT_X1_OFFSET_INDEX = 6;
+constexpr size_t INPUT_X2_OFFSET_INDEX = 7;
 
 // output index
-constexpr size_t OUTPUT_Y = 0;
+constexpr size_t OUTPUT_Y_INDEX = 0;
+constexpr size_t ALLTO_ALL_OUT_INDEX = 1; // AlltoAllMatmul的第二个输出
 
-// attr index
-constexpr size_t ATTR_GROUP = 0;
-constexpr size_t ATTR_WORLD_SIZE = 1;
-constexpr size_t ATTR_ALLTO_ALL_AXES = 2;
-constexpr size_t ATTR_Y_DTYPE = 3;
-constexpr size_t ATTR_X1_QUANTMODE = 4;
-constexpr size_t ATTR_X2_QUANTMODE = 5;
-constexpr size_t ATTR_COMMON_QUANTMODE = 6;
-constexpr size_t ATTR_COMMON_QUANTDTYPE = 7;
-constexpr size_t ATTR_X1_TRANSPOSE = 8;
-constexpr size_t ATTR_X2_TRANSPOSE = 9;
-constexpr size_t ATTR_GROUP_SIZE = 10;
+// attr index,对于MatmulAlltoAll和AlltoAllMatmul相同的index
+constexpr size_t ATTR_GROUP_INDEX = 0;
+constexpr size_t ATTR_WORLD_SIZE_INDEX = 1;
+constexpr size_t ATTR_ALLTO_ALL_AXES_INDEX = 2;
+constexpr size_t ATTR_Y_DTYPE_INDEX = 3;
+constexpr size_t ATTR_X1_QUANTMODE_INDEX = 4;
+constexpr size_t ATTR_X2_QUANTMODE_INDEX = 5;
+constexpr size_t ATTR_COMMON_QUANTMODE_INDEX = 6;
+// MatmulAlltoAll的差异的Attr
+constexpr size_t ATTR_COMMON_QUANTDTYPE_INDEX = 7;
+constexpr size_t ATTR_X1_TRANSPOSE_INDEX = 8;
+constexpr size_t ATTR_X2_TRANSPOSE_INDEX = 9;
+constexpr size_t ATTR_GROUP_SIZE_INDEX = 10;
+// AlltoAllMatmul的差异的Attr
+constexpr size_t ALLTOALLMATMUL_ATTR_X1_QUANTDTYPE_INDEX = 7;
+constexpr size_t ALLTOALLMATMUL_ATTR_COMMON_QUANTDTYPE_INDEX = 8;
+constexpr size_t ALLTOALLMATMUL_ATTR_X1_TRANSPOSE_INDEX = 9;
+constexpr size_t ALLTOALLMATMUL_ATTR_X2_TRANSPOSE_INDEX = 10;
+constexpr size_t ALLTOALLMATMUL_ATTR_GROUP_SIZE_INDEX = 11;
+constexpr size_t ALLTOALLMATMUL_ATTR_ALLTO_ALL_OUT_FLAG_INDEX = 12;
+
+// 用来存放MatmulAlltoAll和AllToAllMatmul错位的属性信息的处理，
+// 比如说MatmulAllToAll存放x1转置(ATTR_X1_TRANSPOSE_INDEX)的位置是8，
+// AllToAllMatmul(ALLTOALLMATMUL_ATTR_X1_TRANSPOSE_INDEX)的是9
+struct OpAttrIndexSchema {
+    size_t x1Transpose;
+    size_t x2Transpose;
+    // 可以继续添加其他错位属性索引
+};
+
+// 上面结构体的实例化
+const OpAttrIndexSchema MATMUL_ALLTOALL_INDEX_SCHEMA = {ATTR_X1_TRANSPOSE_INDEX, ATTR_X2_TRANSPOSE_INDEX};
+
+const OpAttrIndexSchema ALLTOALL_MATMUL_INDEX_SCHEMA = {ALLTOALLMATMUL_ATTR_X1_TRANSPOSE_INDEX,
+                                                        ALLTOALLMATMUL_ATTR_X2_TRANSPOSE_INDEX};
+
+// 维护一个输入输出shape的维度的结构体，仅支持x1,x2,output都是二维的情况
+struct Matrix2DShapes {
+    uint64_t x1Dim0;
+    uint64_t x1Dim1;
+    uint64_t x2Dim0;
+    uint64_t x2Dim1;
+    uint64_t yDim0;
+    uint64_t yDim1;
+};
 
 // 定义量化模式枚举，直接取量化组合
 enum class QuantMode : uint8_t {
@@ -68,30 +103,40 @@ struct TilingContextInfo {
     std::string group = "group"; // group属性
     QuantMode quantMode = QuantMode::NON_QUANT;
     mc2tiling::TilingArgs args_;
+    bool allToAllOutFlag =
+        false; // AlltoAllMatmul用于存放alltoAllFlag的标识,AlltoAll在前，为true表示当前存在alltoall的对应地址
 };
 
 // 封装Tiling过程中推导得到的参数
 struct TilingInferredInfo {
-    uint64_t mmResultLen = 0UL; // 存储计算MM的地址大小
-    uint64_t permuteLen = 0UL;  // 重排空间大小
-    uint32_t biasLen = 0UL;     // 存储偏移的地址大小
-    uint32_t tileM = 0UL;       // 头块大小
-    uint32_t tileCnt = 0UL;     // 头块数量
-    uint32_t tailM = 0UL;       // 尾块大小
-    uint32_t tailCnt = 0UL;     // 尾块数量
+    uint64_t mmResultLen =
+        0UL;                // 存储计算MM的地址大小，仅对于MatmulAlltoAll，因为先执行完Matmul之后需要有空间存放计算地址
+    uint64_t commLen = 0UL; // 存储通信结果的临时空间，仅对于AlltoAllMatmul，需要有空间存放重排的地址（和kernel侧约定）
+    uint64_t permuteLen =
+        0UL; // 重排空间大小,对于AlltoAllMatmul来说，当alltoAllout存在时，就有一个额外的alltoall地址传递给kernel侧，不需要额外分配
+    uint32_t biasLen = 0UL; // 存储偏移的地址大小
+    uint32_t tileM = 0UL;   // 头块大小
+    uint32_t tileCnt = 0UL; // 头块数量
+    uint32_t tailM = 0UL;   // 尾块大小
+    uint32_t tailCnt = 0UL; // 尾块数量
 };
 
 
 class MatmulAlltoAllTilingUtil {
 public:
     static QuantMode GetQuantMode(const gert::TilingContext *context, const char *opName);
+    static ge::graphStatus GetAndValidateRankSize(const gert::TilingContext *context, const char *opName,
+                                                  const char *group, int64_t &rankDim);
+    static void GetMatrix2DShapes(const gert::TilingContext *context, Matrix2DShapes &shapes);
 
-    static ge::graphStatus CheckAttrsInfo(const gert::TilingContext *context, const char *opName);
-    static ge::graphStatus CheckShapeInfo(const gert::TilingContext *context, const char *opName);
+    static ge::graphStatus CheckAttrsInfo(const gert::TilingContext *context, const char *opName,
+                                          const OpAttrIndexSchema &indexSchema);
+    static ge::graphStatus CheckShapeInfo(const gert::TilingContext *context, const char *opName,
+                                          const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus CheckNonQuantTensorDataType(const gert::TilingContext *context, const char *opName);
 
     static ge::graphStatus SetAttrsInfo(const gert::TilingContext *context, const char *opName,
-                                        TilingContextInfo &contextInfo);
+                                        TilingContextInfo &contextInfo, const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus SetShapeInfo(const gert::TilingContext *context, TilingContextInfo &contextInfo);
     static ge::graphStatus SetDataTypeInfo(const gert::TilingContext *context, const char *opName,
                                            TilingContextInfo &contextInfo);

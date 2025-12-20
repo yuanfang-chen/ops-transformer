@@ -296,7 +296,7 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckAndSetAttrsInfo(MatmulAlltoAllInfo
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "Failed to get attrs."), return ge::GRAPH_FAILED);
 
-    const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP);
+    const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
     // 判断为空或者空字符串
     OP_TILING_CHECK(group == nullptr, OP_LOGE(opName_, "The input attr group is null pointer."),
                     return ge::GRAPH_FAILED);
@@ -308,12 +308,12 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckAndSetAttrsInfo(MatmulAlltoAllInfo
         OP_LOGE(opName_, "World_size should be 2 or 4 or 8, but the actual value is %u.", info.worldSize),
         return ge::GRAPH_FAILED);
 
-    const bool *isTransX1 = attrs->GetAttrPointer<bool>(ATTR_X1_TRANSPOSE);
+    const bool *isTransX1 = attrs->GetAttrPointer<bool>(ATTR_X1_TRANSPOSE_INDEX);
     bool x1TransposeFlag = (isTransX1 != nullptr) ? *isTransX1 : false;
     OP_TILING_CHECK(x1TransposeFlag, OP_LOGE(opName_, "X1 transpose is not supported, should be false."),
                     return ge::GRAPH_FAILED);
 
-    const bool *isTransX2 = attrs->GetAttrPointer<bool>(ATTR_X2_TRANSPOSE);
+    const bool *isTransX2 = attrs->GetAttrPointer<bool>(ATTR_X2_TRANSPOSE_INDEX);
     info.isTransX2 = (isTransX2 != nullptr) ? *isTransX2 : false;
 
     return ge::GRAPH_SUCCESS;
@@ -339,23 +339,23 @@ bool IsArrayEqual(std::vector<uint32_t>& arr1, const std::vector<uint32_t>& arr2
 ge::graphStatus MatmulAlltoAllTiling910::CheckTensorDataType(MatmulAlltoAllInfo &info)
 {
     // 获取并校验输入张量描述符
-    auto x1TensorDesc = context_->GetInputDesc(INPUT_X1);
+    auto x1TensorDesc = context_->GetInputDesc(INPUT_X1_INDEX);
     OP_TILING_CHECK((x1TensorDesc == nullptr), OP_LOGE(opName_, "The input tensor x1 is invalid."), return ge::GRAPH_FAILED);
-    auto x2TensorDesc = context_->GetInputDesc(INPUT_X2);
+    auto x2TensorDesc = context_->GetInputDesc(INPUT_X2_INDEX);
     OP_TILING_CHECK((x2TensorDesc == nullptr), OP_LOGE(opName_, "The input tensor x2 is invalid."), return ge::GRAPH_FAILED);
-    auto yDesc = context_->GetOutputDesc(OUTPUT_Y);
+    auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName_, "Output tensor y is nullptr."), return ge::GRAPH_FAILED);
 
     // 获取数据类型并校验一致性与范围
     ge::DataType x1Dtype = x1TensorDesc->GetDataType();
     ge::DataType x2Dtype = x2TensorDesc->GetDataType();
     ge::DataType yDtype = yDesc->GetDataType();
-    auto biasTensorDesc = context_->GetOptionalInputDesc(INPUT_BIAS);
+    auto biasTensorDesc = context_->GetOptionalInputDesc(INPUT_BIAS_INDEX);
 
     if (x1Dtype == ge::DT_INT8) {
         // 校验 scale 张量不为空，量化模式
-        auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE);
-        auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE);
+        auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
+        auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
         OP_TILING_CHECK((x1ScaleTensorDesc == nullptr || x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
                         OP_LOGE(opName_, "Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x1ScaleDtype = x1ScaleTensorDesc->GetDataType();
@@ -405,9 +405,9 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckTensorDataType(MatmulAlltoAllInfo 
 
 static ge::graphStatus CheckMatrixMulShapes(const gert::TilingContext *context, const char *opName, uint64_t worldSize)
 {
-    const gert::StorageShape *x1Shape = context->GetInputShape(INPUT_X1);
-    const gert::StorageShape *x2Shape = context->GetInputShape(INPUT_X2);
-    const gert::StorageShape *yShape = context->GetOutputShape(OUTPUT_Y);
+    const gert::StorageShape *x1Shape = context->GetInputShape(INPUT_X1_INDEX);
+    const gert::StorageShape *x2Shape = context->GetInputShape(INPUT_X2_INDEX);
+    const gert::StorageShape *yShape = context->GetOutputShape(OUTPUT_Y_INDEX);
 
     uint64_t x1Dim0 = x1Shape->GetStorageShape().GetDim(0);
     uint64_t x1Dim1 = x1Shape->GetStorageShape().GetDim(1);
@@ -417,7 +417,7 @@ static ge::graphStatus CheckMatrixMulShapes(const gert::TilingContext *context, 
     uint64_t yDim1 = yShape->GetStorageShape().GetDim(1);
 
     bool x2TransFlag = false;
-    const bool *isTransX2 = context->GetAttrs()->GetAttrPointer<bool>(ATTR_X2_TRANSPOSE);
+    const bool *isTransX2 = context->GetAttrs()->GetAttrPointer<bool>(ATTR_X2_TRANSPOSE_INDEX);
     if (isTransX2) {
         x2TransFlag = *isTransX2;
     }
@@ -463,8 +463,8 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckShapeInfo(MatmulAlltoAllInfo &info
     ge::graphStatus status;
 
     // 校验输入Input Shape是否为空
-    const gert::StorageShape *x1Shape = context_->GetInputShape(INPUT_X1);
-    const gert::StorageShape *x2Shape = context_->GetInputShape(INPUT_X2);
+    const gert::StorageShape *x1Shape = context_->GetInputShape(INPUT_X1_INDEX);
+    const gert::StorageShape *x2Shape = context_->GetInputShape(INPUT_X2_INDEX);
     OP_TILING_CHECK((x1Shape == nullptr) || (x2Shape == nullptr), OP_LOGE(opName_, "The input shape is invalid"),
                     return ge::GRAPH_FAILED);
 
@@ -476,7 +476,7 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckShapeInfo(MatmulAlltoAllInfo &info
                     return ge::GRAPH_FAILED);
 
     // 校验输出
-    const gert::StorageShape *yShape = context_->GetOutputShape(OUTPUT_Y);
+    const gert::StorageShape *yShape = context_->GetOutputShape(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((yShape == nullptr), OP_LOGE(opName_, "The yShape is nullptr."), return ge::GRAPH_FAILED);
     uint64_t yDimNum = yShape->GetStorageShape().GetDimNum();
     OP_TILING_CHECK((yDimNum != 2), 
@@ -489,7 +489,7 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckShapeInfo(MatmulAlltoAllInfo &info
         return status;
 
     // 校验量化场景中scale的shape信息
-    auto x1TensorDesc = context_->GetInputDesc(INPUT_X1);
+    auto x1TensorDesc = context_->GetInputDesc(INPUT_X1_INDEX);
     ge::DataType x1Dtype = x1TensorDesc->GetDataType();
     info.M = x1Shape->GetStorageShape().GetDim(0);
     info.K = x1Shape->GetStorageShape().GetDim(1);
@@ -497,8 +497,8 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckShapeInfo(MatmulAlltoAllInfo &info
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
     info.N = (info.K == x2Dim0) ? x2Dim1 : x2Dim0;
     if (x1Dtype == ge::DT_INT8) {
-        const gert::StorageShape *x1ScaleShape = context_->GetOptionalInputShape(INPUT_X1_SCALE);
-        const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE);
+        const gert::StorageShape *x1ScaleShape = context_->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
+        const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
         uint64_t x1ScaleShapeDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x2ScaleShapeDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
         OP_TILING_CHECK((x1ScaleShapeDimNum != 1 || x2ScaleShapeDimNum),
@@ -513,7 +513,7 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckShapeInfo(MatmulAlltoAllInfo &info
                         OP_LOGE(opName_, "The x2Scale dimNum0 should be %u, but actual value is %lu.", info.N, x2ScaleDim0),
                         return ge::GRAPH_FAILED);
     }
-    const gert::StorageShape *biasShape = context_->GetOptionalInputShape(INPUT_BIAS);
+    const gert::StorageShape *biasShape = context_->GetOptionalInputShape(INPUT_BIAS_INDEX);
     if (biasShape != nullptr) {
         uint64_t biasShapeDimNum = biasShape->GetStorageShape().GetDimNum();
         OP_TILING_CHECK((biasShapeDimNum != 1), OP_LOGE(opName_, "The input bias dimNum should be one."),
@@ -674,7 +674,7 @@ uint64_t MatmulAlltoAllTiling910::GetTilingKey() const
 ge::graphStatus MatmulAlltoAllTiling910::SetHcclTiling(MatmulAlltoAllTilingData *tilingData)
 {
     auto attrs = context_->GetAttrs();
-    auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP));
+    auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
     uint32_t opType = 18; // batch write=18,
     std::string algConfig = "MultiPut=level0:fullmesh";
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);

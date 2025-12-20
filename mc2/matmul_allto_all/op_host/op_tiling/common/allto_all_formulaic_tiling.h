@@ -26,12 +26,18 @@ class AlltoAllMM : public OneCalcOneCommBase {
 public:
     // Constructor
     explicit AlltoAllMM(const mc2tiling::TilingArgs &args, uint32_t inputRankDim, KernelType inputKernelType,
-                        SocVersion inputSocVersion = SocVersion::SOC910_95)
+                        SocVersion inputSocVersion = SocVersion::SOC910_95, bool isCommunicationBefore = false)
         : OneCalcOneCommBase(args, inputRankDim, inputKernelType, inputSocVersion)
     {
-        // 设置CommShapeLen为N轴的长度(FOR MMAlltoAll)
-        commPerf_.SetCommShapeLen(clusterInfo_.nValue);
-        commPerf_.SetCommDTypeSize(clusterInfo_.outMatrixCDtypeSize);
+        if (isCommunicationBefore) {
+            // 如果是AllToAllMatmul，设置CommShapeLen为k轴的长度
+            commPerf_.SetCommShapeLen(clusterInfo_.kValue);
+            commPerf_.SetCommDTypeSize(clusterInfo_.inMatrixADtypeSize);
+        } else {
+            // 设置CommShapeLen为N轴的长度(FOR MMAlltoAll)
+            commPerf_.SetCommShapeLen(clusterInfo_.nValue);
+            commPerf_.SetCommDTypeSize(clusterInfo_.outMatrixCDtypeSize);
+        }
         rankTileNum_ = commPerf_.GetRankTileNum();
         // 分别根据通信和计算的最小值设置minTileLen, 各自进行拟合计算出minTileLen
         tilingM_.SetMinLenByMax(commPerf_.GetLinearThresholdLen());
