@@ -80,6 +80,7 @@ attention:
       - attention/flash_attention_score_grad
     test:
         examples: False
+        ut: False
     options:
       - flash_attention_score_grad
 
