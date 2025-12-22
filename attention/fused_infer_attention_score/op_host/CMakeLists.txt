@@ -19,22 +19,27 @@ if (BUILD_OPEN_PROJECT)
 endif()
 
 if("${CONDITION_UNIT}" STREQUAL "ascend910_95")
-        add_ops_compile_options(
-            OP_NAME FusedInferAttentionScore
-            COMPUTE_UNIT ascend910_9599
-            OPTIONS -DENABLE_CV_COMM_VIA_SSBUF=true
-        )
+    add_ops_compile_options(
+        OP_NAME FusedInferAttentionScore
+        COMPUTE_UNIT ascend910_9599
+        OPTIONS -DENABLE_CV_COMM_VIA_SSBUF=true
+                --cce-auto-sync=off
+                -Wno-deprecated-declarations
+                -Werror
+                -mllvm -cce-vf-remove-membar=false
+                -mllvm -cce-aicore-hoist-movemask=false
+    )
+else()
+    add_ops_compile_options(
+        OP_NAME FusedInferAttentionScore
+        OPTIONS --cce-auto-sync=off
+                -Wno-deprecated-declarations
+                -Werror
+                -mllvm -cce-vf-remove-membar=false
+                -mllvm -cce-aicore-hoist-movemask=false
+                --op_relocatable_kernel_binary=true
+    )
 endif()
-
-add_ops_compile_options(
-    OP_NAME FusedInferAttentionScore
-    OPTIONS --cce-auto-sync=off
-            -Wno-deprecated-declarations
-            -Werror
-            -mllvm -cce-vf-remove-membar=false
-            -mllvm -cce-aicore-hoist-movemask=false
-            --op_relocatable_kernel_binary=true
-)
 
 if(NOT BUILD_OPS_RTY_KERNEL)
     add_modules_sources_with_soc(OPTYPE fused_infer_attention_score ACLNNTYPE aclnn_inner)
