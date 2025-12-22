@@ -354,7 +354,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td><ul>
           <li>0表示激活矩阵per-token，权重矩阵per-channel。</li>
           <li>1表示激活矩阵per-token，权重矩阵per-group。</li>
-          <li>2表示激活矩阵mx，权重矩阵mx。</li>
+          <li>2表示MX量化。</li>
         </ul></td>
         <td>-</td>
         <td>-</td>
@@ -383,7 +383,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td><ul>
           <li>0表示per-token。</li>
           <li>1表示per-group。</li>
-          <li>2表示mx。</li>
+          <li>2表示MX量化。</li>
         </td>
         <td>-</td>
         <td>-</td>
@@ -466,7 +466,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       - 仅支持FLOAT8、FLOAT4量化数据类型，不支持其他数据类型，支持weight转置。
       - 支持dequantMode参数：默认值为0，当前仅支持传入2。
       - 支持dequantDtype参数：当前仅支持传入默认值0。
-      - 支持quantDtype参数：默认值为0，当前仅支持传入2。
+      - 支持quantMode参数：默认值为0，当前仅支持传入2。
 
 - **返回值：**
   
