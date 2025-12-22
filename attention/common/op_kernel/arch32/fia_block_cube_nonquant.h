@@ -467,7 +467,7 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::CopyKeyToL1(const RunInfo &in
     if (ropeDealSize > 0) {
         // nopeDealSize需要按照32B对齐, 否则这里取偏移的方式错误, 并且当前分段拷贝存在问题
         FaL1Tensor<KV_T, L1Format::NZ> dstTensor {
-            .tensor = kvL1Tensor[l1Offset + Align(nopeDealSize, 16U) * Align(nDealSize, 16U)],
+            .tensor = kvL1Tensor[l1Offset + nopeDealSize * Align(nDealSize, 16U)],
             .rowCount = Align(nDealSize, 16U)
         };
         GmKvCoord gmCoord {
@@ -616,7 +616,7 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::CopyQGmToL1(uint32_t nopeDeal
     if(nopeDealSize > 0) {
         CopyQDealSizeToL1(nopeDealSize, queryL1BaseOffset, mActSizeAlign, bIdx, n2Idx, gS1Idx, kStart, mActSize, queryGmTensor);
     }
-    uint64_t queryRopeL1Offset = queryL1BaseOffset + Align(nopeDealSize, 16U) * mActSizeAlign;
+    uint64_t queryRopeL1Offset = queryL1BaseOffset + nopeDealSize * mActSizeAlign;
     if(ropeDealSize > 0) {
         uint32_t ropeKStart = kStart + nopeDealSize - static_cast<uint32_t>(constInfo.headDim);
         CopyQDealSizeToL1(ropeDealSize, queryRopeL1Offset, mActSizeAlign, bIdx, n2Idx, gS1Idx, ropeKStart, mActSize, queryRopeGmTensor);
@@ -668,11 +668,10 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::DealMm1SingleMKN(const RunInf
         // matmul k
         WaitFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId % 2);
         LocalTensor<T> cL0Tensor = cL0TensorPingPong[(l0cBufId % 2) * (L0C_PP_SIZE / sizeof(MM_OUT_T))];
-        uint32_t kDealSizeAlign = Align(nopeDealSize, 16U) + Align(ropeDealSize, 16U);
-        for (uint32_t k = 0; k < kDealSizeAlign; k += K_BASE) {
+        for (uint32_t k = 0; k < kDealSize; k += K_BASE) {
             uint32_t kActSize = K_BASE;
-            if (k + K_BASE > kDealSizeAlign) {
-                kActSize = kDealSizeAlign - k;
+            if (k + K_BASE > kDealSize) {
+                kActSize = kDealSize - k;
             }
             uint32_t kActSizeAlign = Align(kActSize, 16U);
             WaitFlag<HardEvent::M_MTE1>(L0AB_EVENT0 + l0abBufId % 2);
@@ -726,9 +725,6 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::DealMm1SingleMKN(const RunInf
         WaitFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0cBufId % 2);
         // FIXPIPE
         {
-            if (kStart != 0) {
-                SetAtomicAdd<MM_OUT_T>();
-            }
             FixpipeParamsV220 fixParams;
             fixParams.mSize = mActSize;
             fixParams.nSize = nDealSize;
@@ -739,9 +735,6 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::DealMm1SingleMKN(const RunInf
                                       (mStart + m) * info.actualSingleProcessSInnerSizeAlign + // m方向上偏移
                                       nStart; // n方向上偏移nStart个元素
             Fixpipe(mm1ResGm[mm1ResGmOffset], cL0Tensor, fixParams);
-            if (kStart != 0) {
-                SetAtomicNone();
-            }
         }
         SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId % 2);
         l0cBufId = (l0cBufId + 1) % 2;
@@ -918,10 +911,6 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::ComputeMm1(const RunInfo &inf
     uint32_t mSize = info.actMBaseSize;
     uint32_t kSize = constInfo.headDim + constInfo.headDimRope;
     uint32_t nSize = info.actualSingleProcessSInnerSize;
-
-    if (constInfo.ropeSplitMode) {
-        kSize = Align(constInfo.headDim, 16UL) + constInfo.headDimRope;
-    }
     for (uint32_t kStart = 0; kStart < kSize; kStart += K_SPLIT_SIZE) {
         uint32_t kDealSize = K_SPLIT_SIZE;
         if (kStart + K_SPLIT_SIZE > kSize) {
@@ -931,15 +920,9 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::ComputeMm1(const RunInfo &inf
         // 适配ROPE分离模式, 需要根据D的起始点和D方向拷贝长度, 拆分出需要在nope和rope上分别在D方向上拷贝的数据长度
         uint32_t nopeDealSize = kDealSize;
         uint32_t ropeDealSize = 0;
-        if (constInfo.ropeSplitMode) {
-            if ((kStart < constInfo.headDim) && (kStart + kDealSize > constInfo.headDim)) {
-                nopeDealSize = constInfo.headDim - kStart;
-                // kDealSize -= Align(constInfo.headDim, 16UL) - constInfo.headDim;
-                ropeDealSize = kStart + kDealSize - Align(constInfo.headDim, 16UL);
-            } else if (kStart >= constInfo.headDim) {
-                nopeDealSize = 0;
-                ropeDealSize = kDealSize;
-            }
+        if (constInfo.ropeSplitMode && (kStart + kDealSize > constInfo.headDim)) {
+            nopeDealSize = constInfo.headDim - kStart;
+            ropeDealSize = kDealSize - nopeDealSize;
         }
 
         for (uint32_t mStart = 0; mStart < mSize; mStart += M_SPLIT_SIZE) {

@@ -40,7 +40,6 @@ private:
     bool DealSameSeqEachBatch() const;
 
     void ZeroTensorProcess() const;
-    bool IsHighPerformanceTemplate();
     void InitParams();
 
     void Split();
@@ -63,7 +62,6 @@ private:
     void FillTilingLeftPaddingParams();
     void FillTilingWorkspaceParams();
     void FillTilingFeatureParams();
-    void FillTilingPostQuantParams();
     void FillTiling();
 
     uint32_t CalcFlashDecodeParamNums(const uint32_t coreNum) const;

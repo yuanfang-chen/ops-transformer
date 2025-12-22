@@ -124,18 +124,18 @@ bool FiaTilingNonQuant::IsCapable()
         return false;
     }
 
-    // 不支持空Tensor
-    if (fiaInfo_->emptyTensorFlag) {
-        return false;
-    }
-
     ge::DataType qDataType = fiaInfo_->inputQType;
     ge::DataType kDataType = fiaInfo_->inputKvType;
-    // 仅支持非量化
-    if ((qDataType != ge::DT_FLOAT16 && qDataType != ge::DT_BF16) || (qDataType != kDataType)) {
-        return false;
+
+    if ((qDataType == ge::DT_FLOAT16 || qDataType == ge::DT_BF16) && (qDataType == kDataType)) {
+        if ((fiaInfo_->qkHeadDim  == QK_HEAD_DIM_128 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_128) || 
+            (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_64 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_64) ||
+            (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_192 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128) ||
+            (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_128 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128)) {
+            return true;
+        }
     }
-    return true;
+    return false;
 }
 
 void FiaTilingNonQuant::GenTilingKey()
@@ -220,24 +220,16 @@ void FiaTilingNonQuant::ZeroTensorProcess() const
     }
 }
 
-bool FiaTilingNonQuant::IsHighPerformanceTemplate()
+void FiaTilingNonQuant::InitParams()
 {
+    perfMode_ = FiaTemplateId::GENERAL_GQA;
     if ((fiaInfo_->qkHeadDim  == QK_HEAD_DIM_128 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_128) || 
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_64 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_64) ||
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_192 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128) ||
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_128 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_64 && fiaInfo_->vHeadDim == V_HEAD_DIM_128)) {
         if (!(fiaInfo_->sysPrefixFlag || fiaInfo_->pseShiftFlag || fiaInfo_->kvPaddingSizeFlag || fiaInfo_->qPaddingSizeFlag)) {
-            return true;
+            perfMode_ = FiaTemplateId::HIGH_PERFORMANCE_GQA;
         }
-    }
-    return false;
-}
-
-void FiaTilingNonQuant::InitParams()
-{
-    perfMode_ = FiaTemplateId::GENERAL_GQA;
-    if (IsHighPerformanceTemplate()) {
-        perfMode_ = FiaTemplateId::HIGH_PERFORMANCE_GQA;
     }
 
     coreNum_ = aicNum_;
@@ -515,12 +507,6 @@ void FiaTilingNonQuant::FillTilingLeftPaddingParams()
     tilingData_.leftPaddingParams.set_kvPaddingFlag(fiaInfo_->kvPaddingSizeFlag ? 1 : 0);
 }
 
-void FiaTilingNonQuant::FillTilingPostQuantParams()
-{
-    tilingData_.postquantParams.set_isPerChnOut(fiaInfo_->isOutQuantPerChnOut);
-    tilingData_.postquantParams.set_isOutQuantTypeBf16(fiaInfo_->isOutQuantTypeBf16);
-}
-
 // for flash decode
 void FiaTilingNonQuant::FillTilingWorkspaceParams()
 {
@@ -560,7 +546,6 @@ void FiaTilingNonQuant::FillTiling()
     FillTilingPageAttenParams();
     FillTilingMaskParams();
     FillTilingLeftPaddingParams();
-    FillTilingPostQuantParams();
     FillTilingWorkspaceParams();
     FillTilingFeatureParams();
 }
