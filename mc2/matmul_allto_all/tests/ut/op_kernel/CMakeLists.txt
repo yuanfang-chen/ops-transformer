@@ -9,5 +9,6 @@
 # -----------------------------------------------------------------------------------------------------------
 
 if (UT_TEST_ALL OR OP_KERNEL_UT)
+    AddOpTestCase(matmul_allto_all "Ascend910_9391" "-DDTYPE_X_REF=half" "")
     # AddOpTestCase(matmul_allto_all "Ascend910_9599" "-DDTYPE_X_REF=half" "")
 endif()

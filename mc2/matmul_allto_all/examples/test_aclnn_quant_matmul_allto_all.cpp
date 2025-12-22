@@ -13,12 +13,16 @@
  * \brief aclnn测试样例
  */
 
-#include <iostream>
-#include <vector>
 #include <thread>
+#include <iostream>
+#include <string>
+#include <cstring>
+#include <vector>
+#include <acl/acl.h>
+#include <hccl/hccl.h>
 #include "../op_api/aclnn_quant_matmul_allto_all.h"
 
-int ndev = 2;
+int ndev = 8;
 
 #define CHECK_RET(cond, return_expr) \
 do {                               \
@@ -100,7 +104,7 @@ int launchOneThreadQuantMatmulAlltoAll(Args &args) {
     int64_t x1QuantMode = 3;
     int64_t x2QuantMode = 2;
     int64_t commQuantMode = 0;
-    int64_t commQuantDtype = 0;
+    int64_t commQuantDtype = 28;
     int64_t groupSize = 0;
 
     int64_t a2aAxes[2] = {-1, -2};
@@ -136,7 +140,7 @@ int launchOneThreadQuantMatmulAlltoAll(Args &args) {
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 调用第一段接口
     ret = aclnnQuantMatmulAlltoAllGetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, nullptr, nullptr, nullptr,
-                                                   hcom_name, alltoAllAxesOptional, x1QuantMode, x2QuantMode, 
+                                                   alltoAllAxesOptional, hcom_name, x1QuantMode, x2QuantMode, 
                                                    commQuantMode, commQuantDtype, groupSize, false, false,
                                                    out, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,

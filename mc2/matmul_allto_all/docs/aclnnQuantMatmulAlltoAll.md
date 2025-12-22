@@ -362,9 +362,13 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
 
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：
     ```Cpp
-    #include <iostream>
-    #include <vector>
     #include <thread>
+    #include <iostream>
+    #include <string>
+    #include <cstring>
+    #include <vector>
+    #include <acl/acl.h>
+    #include <hccl/hccl.h>
     #include "aclnnop/aclnn_quant_matmul_allto_all.h"
 
     int ndev = 8;
@@ -446,10 +450,10 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
         aclTensor *x2Scale = nullptr;
         aclTensor *out = nullptr;
 
-        int64_t x1QuantMode = 0;
-        int64_t x2QuantMode = 0;
+        int64_t x1QuantMode = 3;
+        int64_t x2QuantMode = 2;
         int64_t commQuantMode = 0;
-        int64_t commQuantDtype = 0;
+        int64_t commQuantDtype = 28;
         int64_t groupSize = 0;
 
         int64_t a2aAxes[2] = {-1, -2};
@@ -485,7 +489,7 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
         CHECK_RET(ret == ACL_SUCCESS, return ret);
         // 调用第一段接口
         ret = aclnnQuantMatmulAlltoAllGetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, nullptr, nullptr, nullptr,
-                                                      hcom_name, alltoAllAxesOptional, x1QuantMode, x2QuantMode, 
+                                                      alltoAllAxesOptional, hcom_name, x1QuantMode, x2QuantMode, 
                                                       commQuantMode, commQuantDtype, groupSize, false, false,
                                                       out, &workspaceSize, &executor);
         CHECK_RET(ret == ACL_SUCCESS,

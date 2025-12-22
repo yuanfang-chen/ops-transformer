@@ -292,8 +292,8 @@ static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST_SCALE = {
     op::DataType::DT_FLOAT
 };
 
-static bool CheckKCBiasDtypesValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
-                            const aclTensor* x1Scale, const aclTensor* x2Scale, const aclTensor* y) 
+static bool CheckKCBiasDtypesValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale,
+                                   const aclTensor* x2Scale, const aclTensor* bias, const aclTensor* y) 
 {
     OP_CHECK_DTYPE_NOT_SUPPORT(x1, DTYPE_SUPPORT_LIST_X, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(x2, DTYPE_SUPPORT_LIST_X, return false);

@@ -157,7 +157,7 @@ public:
     {
         SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-        LocalTensor<int32_t> ubTensor = uBuf_.AllocTensor<int32_t>();
+        LocalTensor<int32_t> ubTensor = uBuf_.template Get<int32_t>();
         while (true) {
             CopyGmToUbufAlignB16(ubTensor, buff, 1, sizeof(int32_t), 0, 0);
             SetFlag<HardEvent::MTE2_S>(EVENT_ID3);
@@ -166,22 +166,20 @@ public:
                 break;
             }
         }
-        uBuf_.FreeTensor<int32_t>(ubTensor);
     }
 
     __aicore__ inline void SetBuffFlag(__gm__ int32_t *buff, int32_t flag)
     {
         SetFlag<HardEvent::S_MTE3>(EVENT_ID2);
         WaitFlag<HardEvent::S_MTE3>(EVENT_ID2);
-        LocalTensor<int32_t> ubTensor = uBuf_.AllocTensor<int32_t>();
+        LocalTensor<int32_t> ubTensor = uBuf_.template Get<int32_t>();
         ubTensor(0) = flag;
         CopyUbufToGmAlignB16(buff, ubTensor, 1, sizeof(int32_t), 0, 0);
-        uBuf_.FreeTensor<int32_t>(ubTensor);
     }
 
     template <typename T>
     __aicore__ inline void CopyGMToGM(__gm__ T* gm_src, __gm__ T* gm_dst, int32_t copy_size) {
-        LocalTensor<T> ubTensor = uBuf_.AllocTensor<T>();
+        LocalTensor<T> ubTensor = uBuf_.template Get<T>();
         LocalTensor<T> copyTensor0 = ubTensor;
         LocalTensor<T> copyTensor1 = ubTensor[UB_OFFSET];
         int32_t interm_offset = 0;
@@ -197,7 +195,6 @@ public:
             SetFlag<HardEvent::MTE3_MTE2>(event_id);
             interm_offset += data_size;
         }
-        uBuf_.FreeTensor<T>(ubTensor);
     }
 
     __aicore__ inline void ResetIpcFlags(int32_t num_flags)
