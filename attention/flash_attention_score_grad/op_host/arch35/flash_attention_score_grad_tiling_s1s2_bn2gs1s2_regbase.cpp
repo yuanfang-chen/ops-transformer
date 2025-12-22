@@ -185,7 +185,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetQKVStartIdx()
         return;
     }
     auto &qStartIdxShape = qStartIdxTensor->GetShape().GetStorageShape();
-    if (qStartIdxShape.GetDimNum() != 1) {
+    if (qStartIdxShape.GetDimNum() != 1 || qStartIdxShape.GetDim(0) == 0) {
         OP_LOGW(context_, "[%s]qStartIdxShape is invalid %lu %ld", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2",
                   qStartIdxShape.GetDimNum(), qStartIdxShape.GetDim(0));
         return;
@@ -204,7 +204,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetQKVStartIdx()
         return;
     }
     auto &kvStartIdxShape = kvStartIdxTensor->GetShape().GetStorageShape();
-    if (kvStartIdxShape.GetDimNum() != 1) {
+    if (kvStartIdxShape.GetDimNum() != 1 || kvStartIdxShape.GetDim(0) == 0) {
         OP_LOGW(context_, "[%s]kvStartIdxShape is invalid %lu %ld", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2",
                   kvStartIdxShape.GetDimNum(), kvStartIdxShape.GetDim(0));
         return;
