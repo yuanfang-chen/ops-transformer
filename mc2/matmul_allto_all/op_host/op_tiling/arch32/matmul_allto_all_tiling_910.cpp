@@ -25,11 +25,16 @@ using namespace AscendC;
 using namespace ge;
 
 namespace {
+    const char *K_INNER_DEBUG = "MatmulAlltoAll Tiling Debug";
     constexpr uint64_t INIT_TILINGKEY = 1000000;
     constexpr uint64_t TILINGKEY_TRANS_B = 1U;
     constexpr uint64_t TILINGKEY_BIAS = 10U;
+    constexpr uint64_t TILINGKEY_QUNT_BF16 = 100U;
     constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16 * 1024 * 1024;
-    constexpr uint32_t USER_WORKSPACE_A2 = 1 * 1024 * 1024; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
+    constexpr uint32_t WORKSPACE_NUM = 2;
+    constexpr uint32_t FORMAT_ND_DIM = 1;
+    constexpr uint32_t X1_QUANT_SIGN = 10;
+    constexpr uint32_t SUPPORT_QUANT_MODE = 32; // x1_quant_mode * X1_QUANT_SIGN + x2_quant_mode
 
     constexpr int32_t RANKSIZE_TWO = 2;
     constexpr int32_t RANKSIZE_FOUR = 4;
@@ -297,6 +302,8 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckAndSetAttrsInfo(MatmulAlltoAllInfo
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "Failed to get attrs."), return ge::GRAPH_FAILED);
 
     const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
+    const int *x1_quant_mode = attrs->GetAttrPointer<int>(ATTR_X1_QUANTMODE_INDEX);
+    const int *x2_quant_mode = attrs->GetAttrPointer<int>(ATTR_X2_QUANTMODE_INDEX);
     // 判断为空或者空字符串
     OP_TILING_CHECK(group == nullptr, OP_LOGE(opName_, "The input attr group is null pointer."),
                     return ge::GRAPH_FAILED);
@@ -314,7 +321,8 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckAndSetAttrsInfo(MatmulAlltoAllInfo
                     return ge::GRAPH_FAILED);
 
     const bool *isTransX2 = attrs->GetAttrPointer<bool>(ATTR_X2_TRANSPOSE_INDEX);
-    info.isTransX2 = (isTransX2 != nullptr) ? *isTransX2 : false;
+    needTransX2 = (isTransX2 != nullptr) ? *isTransX2 : false;
+    quantType = (*x1_quant_mode) * X1_QUANT_SIGN + (*x2_quant_mode);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -340,9 +348,11 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckTensorDataType(MatmulAlltoAllInfo 
 {
     // 获取并校验输入张量描述符
     auto x1TensorDesc = context_->GetInputDesc(INPUT_X1_INDEX);
-    OP_TILING_CHECK((x1TensorDesc == nullptr), OP_LOGE(opName_, "The input tensor x1 is invalid."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x1TensorDesc == nullptr), OP_LOGE(opName_, "The input tensor x1 is invalid."),
+                    return ge::GRAPH_FAILED);
     auto x2TensorDesc = context_->GetInputDesc(INPUT_X2_INDEX);
-    OP_TILING_CHECK((x2TensorDesc == nullptr), OP_LOGE(opName_, "The input tensor x2 is invalid."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2TensorDesc == nullptr), OP_LOGE(opName_, "The input tensor x2 is invalid."),
+                    return ge::GRAPH_FAILED);
     auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName_, "Output tensor y is nullptr."), return ge::GRAPH_FAILED);
 
@@ -364,11 +374,19 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckTensorDataType(MatmulAlltoAllInfo 
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x1Scale Dtype is %s, x2Scale Dtype is %s.",
                                 Ops::Base::ToString(x1ScaleDtype).c_str(), Ops::Base::ToString(x2ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
+
+    if (biasTensorDesc->GetDataType() == ge::DT_BF16) {
+            isQuantBF16 = true;
+        }
+        OP_TILING_CHECK((quantType != SUPPORT_QUANT_MODE),
+                        OP_LOGE(opName_, "Current quant mode only supports x1 PerToken[3], but get [%d], x2 PerChannel[2], but get [%d].",
+                                quantType/X1_QUANT_SIGN, quantType%X1_QUANT_SIGN),
+                        return ge::GRAPH_FAILED);
     }
 
     // 校验 bias 数据类型（如果存在）
     if (biasTensorDesc != nullptr) {
-        info.hasBias = true;
+        hasBias = true;
         ge::DataType biasDtype = biasTensorDesc->GetDataType();
         vector<uint32_t> paramsType = {x1Dtype, x2Dtype, biasDtype, yDtype};
 
@@ -497,12 +515,14 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckShapeInfo(MatmulAlltoAllInfo &info
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
     info.N = (info.K == x2Dim0) ? x2Dim1 : x2Dim0;
     if (x1Dtype == ge::DT_INT8) {
+        orgM = info.M;
+        orgN = info.N;
         const gert::StorageShape *x1ScaleShape = context_->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
         const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
         uint64_t x1ScaleShapeDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x2ScaleShapeDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
-        OP_TILING_CHECK((x1ScaleShapeDimNum != 1 || x2ScaleShapeDimNum),
-                         OP_LOGE(opName_, "The input x1Scale and x2Scale dimNum should be one."),
+        OP_TILING_CHECK((x1ScaleShapeDimNum != 1 || x2ScaleShapeDimNum != 1),
+                         OP_LOGE(opName_, "The input x1Scale and x2Scale dimNum should be 1, but get [%lu] and [%lu].", x1ScaleShapeDimNum, x2ScaleShapeDimNum),
                          return ge::GRAPH_FAILED);
         uint64_t x1ScaleDim0 = x1ScaleShape->GetStorageShape().GetDim(0);
         uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(0);
@@ -643,6 +663,10 @@ ge::graphStatus MatmulAlltoAllTiling910::DoOpTiling()
     GE_ASSERT_GRAPH_SUCCESS(DoMmCommTiling(tilingData->cocTiling, info));
     GE_ASSERT_GRAPH_SUCCESS(SetHcclTiling(tilingData));
     SetTilingKey(info);
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
+    auto aicNum = ascendcPlatform.GetCoreNumAic();
+    auto aivNum = ascendcPlatform.GetCoreNumAiv();
+    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
 
     OPS_LOG_I(opName_, "Leave MatmulAlltoAll tiling func.");
     return ge::GRAPH_SUCCESS;
@@ -651,8 +675,9 @@ ge::graphStatus MatmulAlltoAllTiling910::DoOpTiling()
 void MatmulAlltoAllTiling910::SetTilingKey(MatmulAlltoAllInfo &info)
 {
     tilingKey_ = INIT_TILINGKEY;
-    tilingKey_ += info.isTransX2 ? TILINGKEY_TRANS_B : 0;
-    tilingKey_ += info.hasBias ? TILINGKEY_BIAS : 0;
+    tilingKey_ += needTransX2 ? TILINGKEY_TRANS_B : 0;
+    tilingKey_ += hasBias ? TILINGKEY_BIAS : 0;
+    tilingKey_ += isQuantBF16 ? TILINGKEY_QUNT_BF16 : 0;
     OP_LOGD(opName_, "TilingKey is [%lu] in MatmulAllToAll.", tilingKey_);
 }
 
@@ -692,7 +717,11 @@ ge::graphStatus MatmulAlltoAllTiling910::GetWorkspaceSize()
 {
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Get workspace failed"), return ge::GRAPH_FAILED);
-    workspaces[0] = SYSTEM_NEED_WORKSPACE + USER_WORKSPACE_A2;
+    size_t wsSize = SYSTEM_NEED_WORKSPACE;
+    if (quantType == SUPPORT_QUANT_MODE) {
+        wsSize += orgM * blockDim * WORKSPACE_NUM * orgN * 4; //4 is sizeof uint32_t
+    }
+    workspaces[0] = wsSize;
     OP_LOGD(opName_, "Workspaces[0] size=%ld", workspaces[0]);
     return ge::GRAPH_SUCCESS;
 }
@@ -709,8 +738,6 @@ void MatmulAlltoAllTiling910::PrintMatmulAlltoAllTilingData(CoCTiling &cocTiling
     OP_LOGD(opName_, "info.K: %u", info.K);
     OP_LOGD(opName_, "info.N: %u", info.N);
     OP_LOGD(opName_, "info.worldSize: %u", info.worldSize);
-    OP_LOGD(opName_, "info.isTransX2: %u", info.isTransX2);
-    OP_LOGD(opName_, "info.hasBias: %u", info.hasBias);
     OP_LOGD(opName_, "cocTilingData.m0: %u", cocTilingData.m0);
     OP_LOGD(opName_, "cocTilingData.k0: %u", cocTilingData.k0);
     OP_LOGD(opName_, "cocTilingData.n0: %u", cocTilingData.n0);
@@ -726,11 +753,6 @@ void MatmulAlltoAllTiling910::PrintMatmulAlltoAllTilingData(CoCTiling &cocTiling
 ge::graphStatus MatmulAlltoAllTiling910::PostTiling()
 {
     MatmulAlltoAllTilingData *outTilingData = context_->GetTilingData<MatmulAlltoAllTilingData>();
-    uint32_t blockDim = 1U;
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
-    auto aicNum = ascendcPlatform.GetCoreNumAic();
-    auto aivNum = ascendcPlatform.GetCoreNumAiv();
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
     context_->SetBlockDim(blockDim);
 
     PrintMatmulAlltoAllTilingData(outTilingData->cocTiling, outTilingData->matmulAlltoAllInfo);

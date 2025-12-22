@@ -20,8 +20,6 @@ struct MatmulAlltoAllInfo {
     uint32_t K;
     uint32_t N;
     uint32_t worldSize;
-    uint32_t isTransX2;
-    uint32_t hasBias;
 };
 
 struct CoCTiling {
@@ -31,6 +29,7 @@ struct CoCTiling {
     int32_t pValue = -1;
     int32_t ubMoveNum = -1;
 };
+
 
 struct MatmulAlltoAllTilingData {
     Mc2InitTiling mc2InitTiling;

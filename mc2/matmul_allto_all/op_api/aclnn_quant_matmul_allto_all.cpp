@@ -50,10 +50,11 @@ enum class NnopbaseHcclServerType : uint32_t {
 static constexpr int64_t COMM_QUANT_DTYPE = 28;
 static constexpr int64_t GROUP_SIZE = 0;
 static constexpr int64_t ZERO = 0;
+static constexpr int64_t ONE_DIM = 1;
 
 // 检查必要输入是否为空，必须非空
-static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale,
-                         const aclTensor* x2Scale, const aclTensor* output) {
+static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
+                         const aclTensor* x1Scale, const aclTensor* x2Scale, const aclTensor* output) {
     if (x1 == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input x1 should not be null.");
         return false;
@@ -61,6 +62,12 @@ static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTens
     if (x2 == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input x2 should not be null.");
         return false;
+    }
+    if(op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910B) {
+        if (bias == nullptr) {
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input bias should not be null.");
+            return false;
+        }
     }
     if (x1Scale == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input x1Scale should not be null.");
@@ -267,6 +274,48 @@ static bool CheckKCDtypesValid(const aclTensor* x1, const aclTensor* x2,
     return true;
 }
 
+static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST_X = {
+    op::DataType::DT_INT8
+};
+
+static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST_BIAS = {
+    op::DataType::DT_FLOAT16,
+    op::DataType::DT_FLOAT,
+    op::DataType::DT_BF16
+};
+static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST_Y = {
+    op::DataType::DT_FLOAT16,
+    op::DataType::DT_BF16
+};
+
+static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST_SCALE = {
+    op::DataType::DT_FLOAT
+};
+
+static bool CheckKCBiasDtypesValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
+                            const aclTensor* x1Scale, const aclTensor* x2Scale, const aclTensor* y) 
+{
+    OP_CHECK_DTYPE_NOT_SUPPORT(x1, DTYPE_SUPPORT_LIST_X, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(x2, DTYPE_SUPPORT_LIST_X, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(y, DTYPE_SUPPORT_LIST_Y, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(x1Scale, DTYPE_SUPPORT_LIST_SCALE, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(x2Scale, DTYPE_SUPPORT_LIST_SCALE, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(bias, DTYPE_SUPPORT_LIST_BIAS, return false);
+
+    OP_CHECK_DTYPE_NOT_SAME(x1, x2, return false);
+    auto biasDtype = bias->GetDataType();
+    auto yDtype = y->GetDataType();
+    if (biasDtype != ge::DT_FLOAT) {
+        OP_CHECK_DTYPE_NOT_SAME(y, bias, return false);
+    } else if (yDtype != ge::DT_BF16) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        "When bias' dtype is [DT_FLOAT], y's dtype must be [DT_BF16], but get [%s].", op::ToString(yDtype).GetString());
+        return false;
+    }
+
+    return true;
+}
+
 // 校验所有场景的数据类型是否在各自的支持列表中
 static bool CheckDtypesValid(const aclTensor* x1, const aclTensor* x2,
                              const int64_t x1QuantMode, const int64_t x2QuantMode,
@@ -275,7 +324,11 @@ static bool CheckDtypesValid(const aclTensor* x1, const aclTensor* x2,
     bool isAllDtypesValid = false;
     // 目前只有KC量化场景，后续场景直接在这里补充判断
     if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::PERTOKEN_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
-        isAllDtypesValid = CheckKCDtypesValid(x1, x2, x1Scale, x2Scale, biasOptional, output);
+        if(op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910B) {
+            isAllDtypesValid = CheckKCBiasDtypesValid(x1, x2, x1Scale, x2Scale, biasOptional, output);
+        } else {
+            isAllDtypesValid = CheckKCDtypesValid(x1, x2, x1Scale, x2Scale, biasOptional, output);
+        }
     }
     if (!isAllDtypesValid) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -287,6 +340,32 @@ static bool CheckDtypesValid(const aclTensor* x1, const aclTensor* x2,
     return isAllDtypesValid;
 }
 
+static bool CheckScaleShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale,
+                            const aclTensor* x2Scale, bool transposeX2)
+{
+    OP_CHECK_WRONG_DIMENSION(x1Scale, ONE_DIM, return false);
+    OP_CHECK_WRONG_DIMENSION(x2Scale, ONE_DIM, return false);
+
+    auto mVal = x1->GetViewShape().GetDim(0);
+    auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
+
+    auto x1ScaleDim = x1Scale->GetViewShape().GetDim(0);
+    if (x1ScaleDim != mVal) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        "The m-axis of x1 and x1scale should be same, but x1's m-axis is: %ld and x1Scale's is: %ld.", mVal, x1ScaleDim);
+        return false;
+    }
+    
+    auto x2ScaleDim = x2Scale->GetViewShape().GetDim(0);
+    if (x2ScaleDim != nVal) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        "The n-axis of x2 and x2ScaleDim should be same, but x2's m-axis is: %ld and x2ScaleDim is: %ld.", nVal, x2ScaleDim);
+        return false;
+    }
+
+    return true;
+}
+
 static aclnnStatus CheckAndHandleParams(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional,
                                         const aclTensor* x1Scale, const aclTensor* x2Scale, const aclTensor* commScaleOptional,
                                         const aclTensor* x1OffsetOptional, const aclTensor* x2OffsetOptional, const char* group,
@@ -295,11 +374,12 @@ static aclnnStatus CheckAndHandleParams(const aclTensor* x1, const aclTensor* x2
                                         bool transposeX1, bool transposeX2, aclTensor* output)
 {
     // 1. 检查参数是否为空指针
-    CHECK_RET(CheckNotNull(x1, x2, x1Scale, x2Scale, output), ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(CheckNotNull(x1, x2, biasOptional, x1Scale, x2Scale, output), ACLNN_ERR_PARAM_NULLPTR);
     // 2. 检查空tensor
     CHECK_RET(CheckNotEmptyTensor(x1, x2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查shape
     CHECK_RET(CheckShape(x1, x2, biasOptional, transposeX2, output), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckScaleShape(x1, x2, x1Scale, x2Scale, transposeX2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(CheckDtypesValid(x1, x2, x1QuantMode, x2QuantMode, x1Scale, x2Scale, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
     // 4. 检查暂不支持的参数是否为空，不影响场景

@@ -29,9 +29,9 @@ extern "C" {
  *
  * 该接口用于计算分布式训练中通信和计算所需的workspace大小。支持多种数据类型和量化模式。
  *
- * @param [in] x1: 左矩阵输入张量，对应公式中的x1，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2。
- * @param [in] x2: 右矩阵输入张量，对应公式中的x2，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2。
- * @param [in] biasOptional: 可选输入张量，偏置项，仅在传入非空时生效，数据类型为FLOAT32。
+ * @param [in] x1: 左矩阵输入张量，对应公式中的x1，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8。
+ * @param [in] x2: 右矩阵输入张量，对应公式中的x2，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8。
+ * @param [in] biasOptional: 可选输入张量，偏置项，仅在传入非空时生效，数据类型为FLOAT32、FLAOT16、BFLOAT16。
  * @param [in] x1Scale: 左矩阵的量化参数，对应公式中的x1Scale，数据类型为FLOAT32。
  * @param [in] x2Scale: 右矩阵的量化参数，对应公式中的x2Scale，数据类型为FLOAT32。
  * @param [in] commScaleOptional: 可选输入，低比特通信的量化系数，暂不支持。

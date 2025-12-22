@@ -64,6 +64,13 @@ protected:
     void SetTilingKey(MatmulAlltoAllInfo &info);
 private:
     uint64_t tilingKey_;
+    bool isQuantBF16 = false;
+    bool needTransX2 = false;
+    bool hasBias = false;
+    uint32_t quantType = 0;
+    uint32_t orgM = 0;
+    uint32_t orgN = 0;
+    uint32_t blockDim = 1U;
 };
 } // namespace MC2Tiling
 #endif

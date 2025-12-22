@@ -25,41 +25,57 @@
 
 using namespace AscendC;
 using namespace MatmulAlltoAllImpl;
-
-extern "C" __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR comm_scale,
-                                                       GM_ADDR x1_offset, GM_ADDR x2_offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
+extern "C" __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, 
+                                                       GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR comm_scale, GM_ADDR x1_offset, GM_ADDR x2_offset, 
+                                                       GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(MatmulAlltoAllTilingData);
 #if __CCE_AICORE__ == 220
     if (TILING_KEY_IS(1000000)) {
         KERNEL_TASK_TYPE(1000000, KERNEL_TYPE_MIX_AIC_1_2);
         GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingData, tilingData, tilingGM);
-        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y, false, false> op;
-        op.Init(x1, x2, bias, y, workspaceGM, tilingGM);
+        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, false, false> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, workspaceGM, tilingGM);
         op.Process();
     }
 
     if (TILING_KEY_IS(1000001)) {
         KERNEL_TASK_TYPE(1000001, KERNEL_TYPE_MIX_AIC_1_2);
         GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingData, tilingData, tilingGM);
-        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y, true, false> op;
-        op.Init(x1, x2, bias, y, workspaceGM, tilingGM);
+        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, false, true> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, workspaceGM, tilingGM);
         op.Process();
     }
 
     if (TILING_KEY_IS(1000010)) {
         KERNEL_TASK_TYPE(1000010, KERNEL_TYPE_MIX_AIC_1_2);
         GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingData, tilingData, tilingGM);
-        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y, false, true> op;
-        op.Init(x1, x2, bias, y, workspaceGM, tilingGM);
+        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, true, false> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, workspaceGM, tilingGM);
         op.Process();
     }
 
     if (TILING_KEY_IS(1000011)) {
         KERNEL_TASK_TYPE(1000011, KERNEL_TYPE_MIX_AIC_1_2);
         GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingData, tilingData, tilingGM);
-        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y, true, true> op;
-        op.Init(x1, x2, bias, y, workspaceGM, tilingGM);
+        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, true, true> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, workspaceGM, tilingGM);
+        op.Process();
+    }
+
+    if (TILING_KEY_IS(1000110)) {
+        KERNEL_TASK_TYPE(1000110, KERNEL_TYPE_MIX_AIC_1_2);
+        GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingData, tilingData, tilingGM);
+        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, bfloat16_t, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, true, false> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, workspaceGM, tilingGM);
+        op.Process();
+    }
+
+    if (TILING_KEY_IS(1000111)) {
+        KERNEL_TASK_TYPE(1000111, KERNEL_TYPE_MIX_AIC_1_2);
+        GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingData, tilingData, tilingGM);
+        MatmulAlltoAll<DTYPE_X1, DTYPE_X2, bfloat16_t, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, true, true> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, workspaceGM, tilingGM);
         op.Process();
     }
 #else

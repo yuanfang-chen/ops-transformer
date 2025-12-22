@@ -104,22 +104,7 @@ public:
         m_loop = DivCeil(m, m0);
         n_loop = DivCeil(n, n0);
         k_loop = DivCeil(k, k0);
-    }
-
-    __aicore__ inline void AlignJudge(bool trans_a, bool trans_b, int32_t m, int32_t k, int32_t n, int32_t m_align,
-                                    int32_t k_align, int32_t n_align, int32_t &aligned_a, int32_t &aligned_b)
-    {
-        if (!trans_a) {
-            aligned_a = k != k_align;
-        } else {
-            aligned_a = (m != m_align && m != 1);
-        }
-
-        if (!trans_b) {
-            aligned_b = (n != n_align);
-        } else {
-            aligned_b = (k != k_align);
-        }
+        gm_a_pingpong_size = m0 * n * p_value;
     }
 
     template <pipe_t pipe, uint64_t mode>
@@ -137,34 +122,6 @@ public:
     __aicore__ inline void SetAicSync(uint64_t flag_idx)
     {
         FFTSCrossCoreSync<PIPE_MTE3, 2>(flag_idx);
-    }
-
-    template <typename T>
-    __aicore__ inline void CopyUbufToGm(__gm__ T *dst, LocalTensor<T> ubTensor, uint16_t nBurst, uint16_t lenBurst,
-                                        uint16_t srcStride, uint16_t dstStride)
-    {
-        DataCopyParams dataCopyParams(nBurst,     // blockCount
-                                    lenBurst,   // blockLen
-                                    srcStride,  // srcStride
-                                    dstStride   // dstStride
-        );
-        GlobalTensor<T> gmTensor;
-        gmTensor.SetGlobalBuffer(dst);
-        DataCopy(gmTensor, ubTensor, dataCopyParams);
-    }
-
-    template <typename T>
-    __aicore__ inline void CopyGmToUbuf(LocalTensor<T> ubTensor, __gm__ T *src, uint16_t nBurst, uint32_t lenBurst,
-                                        uint16_t srcStride, uint16_t dstStride)
-    {
-        DataCopyParams dataCopyParams(nBurst,     // blockCount
-                                    lenBurst,   // blockLen
-                                    srcStride,  // srcStride
-                                    dstStride   // dstStride
-        );
-        GlobalTensor<T> gmTensor;
-        gmTensor.SetGlobalBuffer(src);
-        DataCopy(ubTensor, gmTensor, dataCopyParams);
     }
 
     template <typename T>
@@ -219,6 +176,7 @@ public:
         LocalTensor<int32_t> ubTensor = uBuf_.AllocTensor<int32_t>();
         ubTensor(0) = flag;
         CopyUbufToGmAlignB16(buff, ubTensor, 1, sizeof(int32_t), 0, 0);
+        uBuf_.FreeTensor<int32_t>(ubTensor);
     }
 
     template <typename T>
@@ -277,6 +235,7 @@ public:
     int32_t n0;
     int32_t p_value;
     int32_t max_ub_ping_pong_size;
+    int32_t gm_a_pingpong_size;
     int32_t len_per_loop;
 
     int32_t m;

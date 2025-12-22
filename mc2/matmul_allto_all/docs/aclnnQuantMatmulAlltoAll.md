@@ -6,7 +6,13 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>     |    √     |
+| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
+| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
+| <term>Atlas 推理系列产品</term>                             |    ×     |
+| <term>Atlas 训练系列产品</term>                              |    ×     |
+| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -16,6 +22,12 @@
     - K-C量化模式：
       $$
       computeOut = (x1 @ x2 + bias) * x1Scale * x2Scale \\
+      permutedOut = computeOut.view(BS, rankSize, H2 / rankSize).permute(1, 0, 2) \\
+      output = AlltoAll(permutedOut).view(rankSize * BS, H2 / rankSize)
+      $$
+    - K-C量化模式带bias：
+      $$
+      computeOut = (x1 @ x2) * x1Scale * x2Scale  + bias \\
       permutedOut = computeOut.view(BS, rankSize, H2 / rankSize).permute(1, 0, 2) \\
       output = AlltoAll(permutedOut).view(rankSize * BS, H2 / rankSize)
       $$
@@ -333,12 +345,248 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
 ## 约束说明
 * 默认支持确定性计算
 * 右矩阵和输出矩阵的H2必须整除rankSize
+* 仅支持左矩阵perToken量化，x1QuantMode=3，右矩阵perChannel量化,x2QuantMode=2
+* <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：传入的x1、x2、biasOptional、x1Scale、x2Scale或者output不为空指针
+* <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：x1、x2计算输入的数据类型必须为INT8，output计算输出的数据类型为BFLOAT16时，biasOptional的数据类型为FLOAT或BFLOAT16，output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16
 * H1范围仅支持[1, 65535]
 * rankSize仅支持2,4,8,16
+  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持2、4、8卡
+  - <term>昇腾910_95 AI处理器</term>：支持2,4,8,16卡
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
 ## 调用示例
+示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
+
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
+
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：
+    ```Cpp
+    #include <iostream>
+    #include <vector>
+    #include <thread>
+    #include "aclnnop/aclnn_quant_matmul_allto_all.h"
+
+    int ndev = 8;
+
+    #define CHECK_RET(cond, return_expr) \
+    do {                               \
+        if (!(cond)) {                   \
+        return_expr;                   \
+        }                                \
+    } while (0)
+
+    #define LOG_PRINT(message, ...)     \
+    do {                              \
+        printf(message, ##__VA_ARGS__); \
+    } while (0)
+
+    int64_t GetShapeSize(const std::vector<int64_t> &shape) {
+        int64_t shapeSize = 1;
+        for (auto i: shape) {
+            shapeSize *= i;
+        }
+        return shapeSize;
+    }
+
+    template<typename T>
+    int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
+                        aclDataType dataType, aclTensor **tensor) {
+        auto size = GetShapeSize(shape) * sizeof(T);
+        // 调用aclrtMalloc申请device侧内存
+        auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
+        // 调用aclrtMemcpy将host侧数据拷贝到device侧内存上
+        ret = aclrtMemcpy(*deviceAddr, size, hostData.data(), size, ACL_MEMCPY_HOST_TO_DEVICE);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMemcpy failed. ERROR: %d\n", ret); return ret);
+        // 计算连续tensor的strides
+        std::vector<int64_t> strides(shape.size(), 1);
+        for (int64_t i = shape.size() - 2; i >= 0; i--) {
+            strides[i] = shape[i + 1] * strides[i + 1];
+        }
+        // 调用aclCreateTensor接口创建aclTensor
+        *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, strides.data(), 0, aclFormat::ACL_FORMAT_ND,
+                                shape.data(), shape.size(), *deviceAddr);
+        return 0;
+    }
+
+    struct Args {
+        uint32_t rankId;
+        HcclComm hcclComm;
+        aclrtStream stream;
+        aclrtContext context;
+    };
+
+    int launchOneThreadQuantMatmulAlltoAll(Args &args) {
+        int ret;
+        ret = aclrtSetCurrentContext(args.context);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSetCurrentContext failed. ERROR: %d\n", ret); return ret);
+        char hcom_name[128];
+        ret = HcclGetCommName(args.hcclComm, hcom_name);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret = %d \n", ret); return -1);
+        LOG_PRINT("[INFO] rank %d hcom: %s stream: %p, context : %p\n", args.rankId, hcom_name, args.stream,
+                args.context);
+
+        std::vector<int64_t> x1Shape = {32, 64};
+        std::vector<int64_t> x2Shape = {64, 128};
+        std::vector<int64_t> biasShape = {128};
+        std::vector<int64_t> x1ScaleShape = {32};
+        std::vector<int64_t> x2ScaleShape = {128};
+        std::vector<int64_t> outShape = {32, 128};
+        void *x1DeviceAddr = nullptr;
+        void *x2DeviceAddr = nullptr;
+        void *biasDeviceAddr = nullptr;
+        void *x1ScaleDeviceAddr = nullptr;
+        void *x2ScaleDeviceAddr = nullptr;
+        void *outDeviceAddr = nullptr;
+        aclTensor *x1 = nullptr;
+        aclTensor *x2 = nullptr;
+        aclTensor *bias = nullptr;
+        aclTensor *x1Scale = nullptr;
+        aclTensor *x2Scale = nullptr;
+        aclTensor *out = nullptr;
+
+        int64_t x1QuantMode = 0;
+        int64_t x2QuantMode = 0;
+        int64_t commQuantMode = 0;
+        int64_t commQuantDtype = 0;
+        int64_t groupSize = 0;
+
+        int64_t a2aAxes[2] = {-1, -2};
+        aclIntArray* alltoAllAxesOptional = aclCreateIntArray(a2aAxes, static_cast<uint64_t>(2));
+        uint64_t workspaceSize = 0;
+        aclOpExecutor *executor;
+        void *workspaceAddr = nullptr;
+
+        long long x1ShapeSize = GetShapeSize(x1Shape);
+        long long x2ShapeSize = GetShapeSize(x2Shape);
+        long long biasShapeSize = GetShapeSize(biasShape);
+        long long x1ScaleShapeSize = GetShapeSize(x1ScaleShape);
+        long long x2ScaleShapeSize = GetShapeSize(x2ScaleShape);
+        long long outShapeSize = GetShapeSize(outShape);
+        std::vector<int16_t> x1HostData(x1ShapeSize, 1);
+        std::vector<int16_t> x2HostData(x2ShapeSize, 1);
+        std::vector<int16_t> biasHostData(biasShapeSize, 1);
+        std::vector<int16_t> x1ScaleHostData(x1ShapeSize, 1);
+        std::vector<int16_t> x2ScaleHostData(x2ShapeSize, 1);
+        std::vector<int16_t> outHostData(outShapeSize, 0);
+        // 创建 tensor
+        ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_INT8, &x1);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(x2HostData, x2Shape, &x2DeviceAddr, aclDataType::ACL_INT8, &x2);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_FLOAT16, &bias);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(x1ScaleHostData, x1ScaleShape, &x1ScaleDeviceAddr, aclDataType::ACL_FLOAT, &x1Scale);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(x2ScaleHostData, x2ScaleShape, &x2ScaleDeviceAddr, aclDataType::ACL_FLOAT, &x2Scale);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_FLOAT16, &out);
+        CHECK_RET(ret == ACL_SUCCESS, return ret);
+        // 调用第一段接口
+        ret = aclnnQuantMatmulAlltoAllGetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, nullptr, nullptr, nullptr,
+                                                      hcom_name, alltoAllAxesOptional, x1QuantMode, x2QuantMode, 
+                                                      commQuantMode, commQuantDtype, groupSize, false, false,
+                                                      out, &workspaceSize, &executor);
+        CHECK_RET(ret == ACL_SUCCESS,
+                LOG_PRINT("aclnnQuantMatmulAlltoAllGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+        // 根据第一段接口计算出的workspaceSize申请device内存
+        if (workspaceSize > 0) {
+            ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
+        }
+        // 调用第二段接口
+        ret = aclnnQuantMatmulAlltoAll(workspaceAddr, workspaceSize, executor, args.stream);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnQuantMatmulAlltoAll failed. ERROR: %d\n", ret); return ret);
+        //（固定写法）同步等待任务执行结束
+        ret = aclrtSynchronizeStreamWithTimeout(args.stream, 10000);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
+        LOG_PRINT("device%d aclnnQuantMatmulAlltoAll execute success \n", args.rankId);
+        // 释放device资源，需要根据具体API的接口定义修改
+        if (x1 != nullptr) {
+            aclDestroyTensor(x1);
+        }
+        if (x2 != nullptr) {
+            aclDestroyTensor(x2);
+        }
+        if (bias != nullptr) {
+            aclDestroyTensor(bias);
+        }
+        if (x1Scale != nullptr) {
+            aclDestroyTensor(x1Scale);
+        }
+        if (x2Scale != nullptr) {
+            aclDestroyTensor(x2Scale);
+        }
+        if (out != nullptr) {
+            aclDestroyTensor(out);
+        }
+        if (x1DeviceAddr != nullptr) {
+            aclrtFree(x1DeviceAddr);
+        }
+        if (x2DeviceAddr != nullptr) {
+            aclrtFree(x2DeviceAddr);
+        }
+        if (biasDeviceAddr != nullptr) {
+            aclrtFree(biasDeviceAddr);
+        }
+        if (outDeviceAddr != nullptr) {
+            aclrtFree(outDeviceAddr);
+        }
+        if (workspaceSize > 0) {
+            aclrtFree(workspaceAddr);
+        }
+        aclrtDestroyStream(args.stream);
+        HcclCommDestroy(args.hcclComm);
+        aclrtDestroyContext(args.context);
+        aclrtResetDevice(args.rankId);
+        return 0;
+    }
+
+    int main(int argc, char *argv[]) {
+        // 本样例基于Atlas A2实现，必须在Atlas A2上运行
+        int ret;
+        int32_t devices[ndev];
+        for (int i = 0; i < ndev; i++) {
+            devices[i] = i;
+        }
+        HcclComm comms[128];
+        ret = aclInit(nullptr);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclInit failed. ERROR: %d\n", ret); return ret);
+        // 初始化集合通信域
+        for (int i = 0; i < ndev; i++) {
+            ret = aclrtSetDevice(devices[i]);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSetDevice failed. ERROR: %d\n", ret); return ret);
+        }
+        ret = HcclCommInitAll(ndev, devices, comms);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("HcclCommInitAll failed. ERROR: %d\n", ret); return ret);
+        Args args[ndev];
+        aclrtStream stream[ndev];
+        aclrtContext context[ndev];
+        for (uint32_t rankId = 0; rankId < ndev; rankId++) {
+            ret = aclrtSetDevice(rankId);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSetDevice failed. ERROR: %d\n", ret); return ret);
+            ret = aclrtCreateContext(&context[rankId], rankId);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateContext failed. ERROR: %d\n", ret); return ret);
+            ret = aclrtCreateStream(&stream[rankId]);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateStream failed. ERROR: %d\n", ret); return ret);
+        }
+        // 启动多线程
+        std::vector<std::unique_ptr<std::thread>> threads(ndev);
+        for (uint32_t rankId = 0; rankId < ndev; rankId++) {
+            args[rankId].rankId = rankId;
+            args[rankId].hcclComm = comms[rankId];
+            args[rankId].stream = stream[rankId];
+            args[rankId].context = context[rankId];
+            threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadQuantMatmulAlltoAll, std::ref(args  [rankId])));
+        }
+        for (uint32_t rankId = 0; rankId < ndev; rankId++) {
+            threads[rankId]->join();
+        }
+        aclFinalize();
+        return 0;
+    }
+    ```
 
 ## 实现说明
 // 方案文档单独说
@@ -388,7 +636,7 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
 
 以下场景会出现参数校验异常：
 
-1. 传入的x1、x2、out是空指针时。
+1. 要求传入的输入是空指针时。
 2. 入参的数据类型和shape不符合数学逻辑。
 
 ### 7. 兼容性说明
@@ -409,9 +657,9 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
  * 
  * 该接口用于计算分布式训练中通信和计算所需的 workspace 大小。支持多种数据类型和量化模式。
  *
- * @param[in] x1 左矩阵输入张量，对应公式中的x1，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2。
- * @param[in] x2 右矩阵输入张量，对应公式中的x2，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2。
- * @param[in] biasOptional 可选输入张量，偏置项，仅在传入非空时生效，数据类型为FLOAT32。
+ * @param[in] x1 左矩阵输入张量，对应公式中的x1，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8。
+ * @param[in] x2 右矩阵输入张量，对应公式中的x2，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8。
+ * @param[in] biasOptional 可选输入张量，偏置项，仅在传入非空时生效，数据类型为FLOAT32、BFLOAT16、FLOAT16。
  * @param[in] x1Scale 左矩阵的量化系数，对应公式中的x1Scale，数据类型为FLOAT32。
  * @param[in] x2Scale 右矩阵的量化系数，对应公式中的x2Scale，数据类型为FLOAT32。
  * @param[in] commScaleOptional 可选输入，低比特通信的量化系数，暂不支持。
