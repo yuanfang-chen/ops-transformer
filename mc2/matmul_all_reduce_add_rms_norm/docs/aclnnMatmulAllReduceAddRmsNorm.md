@@ -199,7 +199,7 @@ aclnnStatus aclnnMatmulAllReduceAddRmsNorm(
           <td><ul><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>2</td>
+          <td>3</td>
           <td>√</td>
         </tr>
         <tr>
@@ -238,7 +238,7 @@ aclnnStatus aclnnMatmulAllReduceAddRmsNorm(
 
 - **返回值：**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     第一段接口完成入参校验，出现以下场景时报错：
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
@@ -308,7 +308,7 @@ aclnnStatus aclnnMatmulAllReduceAddRmsNorm(
     </tbody></table>
 - **返回值：**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
