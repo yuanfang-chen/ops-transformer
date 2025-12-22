@@ -17,7 +17,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <cmath>
@@ -49,7 +48,7 @@ constexpr uint32_t IS_TRANS_B = 3;
 constexpr uint32_t COMM_TURN = 4;
 const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64};
 
-uint32_t MatmulReduceScatterTilingBase::ReduceScatterSpliteM(mc2tiling::TilingArgs& args, uint32_t maxTileCnt)
+uint32_t MatmulReduceScatterTilingBase::ReduceScatterSpliteM(mc2tiling::TilingArgs& args, uint32_t maxTileCnt) const
 {
     // 检查允许通信的最大次数
     if (args.commTurn >= maxTileCnt) {
@@ -249,7 +248,7 @@ bool MatmulReduceScatterTilingBase::CheckBias() const
     return true;
 }
 
-bool MatmulReduceScatterTilingBase::CheckGroupSize()
+bool MatmulReduceScatterTilingBase::CheckGroupSize() const
 {
     ge::DataType aType = context_->GetInputDesc(INPUT_X1)->GetDataType();
     ge::DataType bType = context_->GetInputDesc(INPUT_X2)->GetDataType();
@@ -266,7 +265,7 @@ bool MatmulReduceScatterTilingBase::CheckGroupSize()
     return CheckBias();
 }
 
-bool MatmulReduceScatterTilingBase::CheckInputScale()
+bool MatmulReduceScatterTilingBase::CheckInputScale() const
 {
     auto quantscaleShape = context_->GetOptionalInputShape(QUANT_SCALE);
     OP_TILING_CHECK((quantscaleShape != nullptr),
@@ -480,7 +479,7 @@ ge::graphStatus MatmulReduceScatterTilingBase::GetShapeAttrsInfo()
         VECTOR_INNER_ERR_REPORT_TILING(opName_, "fail to set comm algo"), return ge::GRAPH_FAILED);
     // 为通信而进行调整搬运
     OP_TILING_CHECK(
-        (args_.rankDim <= 0) || (args_.orgMValue % args_.rankDim),
+        (args_.rankDim <= 0) || (args_.orgMValue % args_.rankDim != 0),
         VECTOR_INNER_ERR_REPORT_TILING(opName_, "rankDim error : %u, mValue=%lu", args_.rankDim, args_.orgMValue),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;

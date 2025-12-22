@@ -24,9 +24,9 @@
 #include "tiling_base/tiling_key.h"
 #include "../../op_kernel/weight_quant_batch_matmul_v2_kernel_tiling_key.h"
 
-using Ops::Transformer::OpTiling::RecursiveSum;
-
 namespace optiling {
+
+using Ops::Transformer::OpTiling::RecursiveSum;
 
 BEGIN_TILING_DATA_DEF(Mc2WeightQuantBatchMatmulV2MsdGroupTilingData)
 TILING_DATA_FIELD_DEF(uint8_t, vecBlockDimN);

@@ -476,7 +476,7 @@ struct KFCMsgBody {
     HcclAicpuOpParam msgRcvArea[mc2tiling::AC_MAX_AIV][mc2tiling::AC_MSG_CNT];
 };
 
-static void GetTilingKey(uint64_t& tilingKey, MatmulReduceScatterTilingData& tilingData)  
+static void GetTilingKey(uint64_t& tilingKey, const MatmulReduceScatterTilingData& tilingData)
 { 
     bool mmReduceScatterFullMesh = true;
     bool mmReduceScatterNd2nzOpt = false;

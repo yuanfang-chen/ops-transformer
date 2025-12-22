@@ -75,7 +75,7 @@ static ge::graphStatus MatmulReduceScatterV2CheckAttrAndSetTiling(gert::TilingCo
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus MatmulReduceScatterV2CheckShapeAndSetTiling(gert::TilingContext *context,
+static ge::graphStatus MatmulReduceScatterV2CheckShapeAndSetTiling(const gert::TilingContext *context,
                                                                    MatmulReduceScatterV2AivModeInfo &info)
 {
     const char *nodeName = context->GetNodeName();
@@ -103,7 +103,7 @@ static ge::graphStatus MatmulReduceScatterV2CheckShapeAndSetTiling(gert::TilingC
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus MatmulReduceScatterV2GetPlatformInfoAndSetTiling(gert::TilingContext *context,
+static ge::graphStatus MatmulReduceScatterV2GetPlatformInfoAndSetTiling(const gert::TilingContext *context,
                                                                         MatmulReduceScatterV2AivModeInfo &info)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
@@ -128,7 +128,7 @@ const std::map<ge::DataType, int64_t> D_TYPE_SIZE_MAP = {
 
 static uint32_t AlignUp(uint32_t len, uint32_t size)
 {
-    return static_cast<uint32_t>((static_cast<int64_t>(len) + size - 1) & ~(size - 1));
+    return static_cast<uint32_t>((static_cast<uint64_t>(len) + size - 1) & ~(size - 1));
 }
 
 static bool IsMatrixAligned(const uint32_t &m, const uint32_t &n, const bool &transpose, const uint32_t &nElemAlign)
@@ -157,7 +157,7 @@ inline AlgorithmStrategy GetAlgorithmPolicy(uint32_t M, uint32_t N, bool is910C,
     return AlgorithmStrategy::LARGE_M_OPTIMIZED;
 }
 
-static void GetTilingKey(uint64_t &tilingKey, MatmulReduceScatterV2AivModeInfo &info, gert::TilingContext *context)
+static void GetTilingKey(uint64_t &tilingKey, const MatmulReduceScatterV2AivModeInfo &info, const gert::TilingContext *context)
 {
     const gert::StorageShape *matrix_bias = context->GetOptionalInputShape(BIAS_INDEX);
     bool isBias = (matrix_bias == nullptr) ? false : true;
@@ -198,7 +198,7 @@ int32_t CeilDev(int32_t num, int32_t div)
 
 void CalTilingParam(CoCTiling &cocTilingData,
                     const std::map<int *, MatmulReduceScatterV2AivModeTilingValue> &TilingParamMap,
-                    MatmulReduceScatterV2AivModeInfo &info)
+                    const MatmulReduceScatterV2AivModeInfo &info)
 {
     int32_t m = static_cast<int32_t>(info.M);
     int32_t k = static_cast<int32_t>(info.K);
@@ -540,7 +540,7 @@ void GetUsrWorkSpaceSize(uint32_t elementSize, uint32_t blockDim, uint64_t &user
     userWorkSpaceSize += info.dequantSize;
 }
 
-static bool CheckDtype_X1(gert::TilingContext *context)
+static bool CheckDtype_X1(const gert::TilingContext *context)
 {
     const gert::Tensor *x1Scale = context->GetInputTensor(X1_SCALE_INDEX);
     if (x1Scale == nullptr) {
@@ -553,7 +553,7 @@ static bool CheckDtype_X1(gert::TilingContext *context)
     return true;
 }
 
-static bool CheckDtype_X2(gert::TilingContext *context, MatmulReduceScatterV2AivModeInfo &info, ge::DataType cType)
+static bool CheckDtype_X2(const gert::TilingContext *context, MatmulReduceScatterV2AivModeInfo &info, ge::DataType cType)
 {
     const gert::Tensor *x2Scale = context->GetInputTensor(X2_SCALE_INDEX);
     if (x2Scale == nullptr) {

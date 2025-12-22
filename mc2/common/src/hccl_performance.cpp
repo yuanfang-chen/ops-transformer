@@ -26,7 +26,7 @@
 // sizeToTimeParabolicPar1, sizeToTimeParabolicPar2, sizeToTimeParabolicPar3,
 // timeToSizeBoundary1, timeToSizeBoundary2,
 // timeToSizeParabolicPar1, timeToSizeParabolicPar2, timeToSizeParabolicPar3}},
-const std::map<std::string, HCCLFittingParameters> FITTING_PARAMETER_MAP = {
+const static std::map<std::string, HCCLFittingParameters> FITTING_PARAMETER_MAP = {
     {DEFAULT_KEY_FOR_FITTING_MAP,
      HCCLFittingParameters{64.0 / ONE_KBYTE, 8, 13.58491263, 61.508333,
                            -0.9698202, 27.0622573, 14.769, 18, 170, -1.03111896,

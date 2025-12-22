@@ -19,7 +19,7 @@
 #include "mc2_log.h"
 #include "tiling/matmul_performance.h"
 
-const std::map<std::string, double> CUBE_CALC_PER_CYCLE_MAP = {
+const static std::map<std::string, double> CUBE_CALC_PER_CYCLE_MAP = {
     {MatmulPerformance::DEFAULT_KEY_FOR_PAR_MAP,
      MatmulPerformance::COMPUTES_PER_CYCLE},
     {"1_1_1_1_2", 8192},
@@ -28,7 +28,7 @@ const std::map<std::string, double> CUBE_CALC_PER_CYCLE_MAP = {
     {"4_1_1_1_2", 8192},
 };
 
-const std::map<std::string, L2CacheEstimateParameters> L2_PARAMETER_MAP = {
+const static std::map<std::string, L2CacheEstimateParameters> L2_PARAMETER_MAP = {
     {MatmulPerformance::DEFAULT_KEY_FOR_PAR_MAP,
      L2CacheEstimateParameters{128, 192, 0.85, 0.75, 0.65}},
     {"3_1_1_1_2", L2CacheEstimateParameters{96, 96, 0.4, 0.4, 0.35}},

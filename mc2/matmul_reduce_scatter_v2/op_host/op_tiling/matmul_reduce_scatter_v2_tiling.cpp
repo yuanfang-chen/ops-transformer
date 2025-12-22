@@ -13,13 +13,8 @@
  * \brief
  */
 #include <queue>
-#include <dlfcn.h>
-#include <fcntl.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -68,14 +63,14 @@ void PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tilin
     OP_LOGD(opName, " tiling.aswWindowLen %d", tiling.aswWindowLen);
 }
 
-void MatmulReduceScatterV2Tiling::PrintAllTilingData()
+void MatmulReduceScatterV2Tiling::PrintAllTilingData() const
 {
     if (matmulReduceScatterV2TilingData_->param.rankID == 0) {
         PrintRCSTilingData(context_->GetNodeName(), matmulReduceScatterV2TilingData_->param);
         PrintMc2MsgData(context_->GetNodeName(), matmulReduceScatterV2TilingData_->msg);
         OP_LOGD(opName_, "MutableMC2MmV3TileTilingData matmulTiling");
         PrintMMV3TilingData(context_->GetNodeName(), matmulReduceScatterV2TilingData_->mC2Mmv3TileTilingData);
-        if (matmulReduceScatterV2TilingData_->param.tailM) {
+        if (matmulReduceScatterV2TilingData_->param.tailM > 0) {
             OP_LOGD(opName_, "MutableMC2MmV3TileTilingData matmulTiling");
             PrintMMV3TilingData(context_->GetNodeName(), matmulReduceScatterV2TilingData_->mC2Mmv3TailTilingData);
         }
@@ -95,7 +90,7 @@ ge::graphStatus MatmulReduceScatterV2Tiling::CheckInput()
     return ge::GRAPH_SUCCESS;
 }
 
-void MatmulReduceScatterV2Tiling::SetMc2Hcomm(Mc2Tiling::RCSTiling &rcsCfg)
+void MatmulReduceScatterV2Tiling::SetMc2Hcomm()
 {
     matmulReduceScatterV2TilingData_->hcommCfg.opType = (
         static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER));
@@ -151,14 +146,14 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoAllMatmulTiling()
     // 获取tileTiling
     mmV3Args_.mValue = tileMValue_ * args_.rankDim;
     OP_LOGD(opName_, "Do Mc2MatMulV3 tile tiling!");
-    Mc2MatmulHelper::Mc2MatmulTilingCfg tileTilingCfg(reinterpret_cast<const void*>(&compileInfo_),
-                                     reinterpret_cast<const void*>(&mmV3Args_), tileMValue_);
+    Mc2MatmulHelper::Mc2MatmulTilingCfg tileTilingCfg(static_cast<const void*>(&compileInfo_),
+                                     static_cast<const void*>(&mmV3Args_), tileMValue_);
     GE_ASSERT_GRAPH_SUCCESS(DoMatmulV3Tiling(tileTilingCfg, registerCfg, MutableMC2MmV3TileTilingData()));
     if (tailMValue_ != 0UL) {
         mmV3Args_.mValue = tailMValue_ * args_.rankDim;
         OP_LOGD(opName_, "Do Mc2MatMulV3 tail tiling!");
-        Mc2MatmulHelper::Mc2MatmulTilingCfg tailTilingCfg(reinterpret_cast<const void*>(&compileInfo_),
-                                         reinterpret_cast<const void*>(&mmV3Args_), tailMValue_);
+        Mc2MatmulHelper::Mc2MatmulTilingCfg tailTilingCfg(static_cast<const void*>(&compileInfo_),
+                                         static_cast<const void*>(&mmV3Args_), tailMValue_);
         GE_ASSERT_GRAPH_SUCCESS(DoMatmulV3Tiling(tileTilingCfg, registerCfg, MutableMC2MmV3TailTilingData()));
     }
     return ge::GRAPH_SUCCESS;
@@ -167,7 +162,7 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoAllMatmulTiling()
 ge::graphStatus MatmulReduceScatterV2Tiling::DoOpTiling()
 {
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
-    SetMc2Hcomm(matmulReduceScatterV2TilingData_->param);
+    SetMc2Hcomm();
     SetRcsTilingData(matmulReduceScatterV2TilingData_->param);
     DoSplitMTiling(matmulReduceScatterV2TilingData_->param);
     GE_ASSERT_GRAPH_SUCCESS(DoAllMatmulTiling());

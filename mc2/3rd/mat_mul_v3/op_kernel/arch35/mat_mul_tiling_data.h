@@ -15,11 +15,8 @@
 #ifndef __OP_KERNEL_MATMUL_TILING_DATA_H__
 #define __OP_KERNEL_MATMUL_TILING_DATA_H__
 
-#include "kernel_tiling/kernel_tiling.h"
-
-#ifndef __CCE_AICORE__
 #include <cstdint>
-#endif
+#include "kernel_tiling/kernel_tiling.h"
 
 constexpr uint64_t TILINGDATA_OFFSET = 512;
 constexpr uint64_t TILINGDATA_SPLIT_NUM = 2;

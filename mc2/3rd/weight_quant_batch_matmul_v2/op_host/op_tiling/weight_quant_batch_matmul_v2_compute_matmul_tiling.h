@@ -19,9 +19,10 @@
 #include "weight_quant_batch_matmul_v2_tiling.h"
 #include "ops_legacy/op_tiling/op_cache_tiling.h"
 
+namespace optiling {
+
 using Ops::Transformer::OpTiling::AiCoreParams;
 
-namespace optiling {
 struct Mc2MatmulMultiCoreResult {
     uint8_t mDim;
     uint8_t nDim;

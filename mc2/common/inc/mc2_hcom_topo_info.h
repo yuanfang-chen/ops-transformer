@@ -35,11 +35,11 @@ public:
 private:
     static MC2HcomTopology &GetInstance();
     explicit MC2HcomTopology(const char *libPath);
-    HcclResult CallHcomGetCommHandleByGroup(const char *group, HcclComm *commHandle);
-    HcclResult CallCommGetNetLayers(HcclComm comm, uint32_t **netLayers, uint32_t *netLayerNum);
-    HcclResult CallCommGetInstTopoTypeByNetLayer(HcclComm comm, uint32_t netLayers, uint32_t *topoType);
-    HcclResult CallCommGetInstSizeByNetLayer(HcclComm comm, uint32_t netLayers, uint32_t *rankNum);
-    HcclResult CallCommGetCCLBufSizeCfg(HcclComm comm, uint64_t *cclBufferSize);
+    HcclResult CallHcomGetCommHandleByGroup(const char *group, HcclComm *commHandle) const;
+    HcclResult CallCommGetNetLayers(HcclComm comm, uint32_t **netLayer, uint32_t *netLayerNum) const;
+    HcclResult CallCommGetInstTopoTypeByNetLayer(HcclComm comm, uint32_t netLayer, uint32_t *topoType) const;
+    HcclResult CallCommGetInstSizeByNetLayer(HcclComm comm, uint32_t netLayer, uint32_t *rankNum) const;
+    HcclResult CallCommGetCCLBufSizeCfg(HcclComm comm, uint64_t *cclBufferSize) const;
 
     void *handle_ = nullptr;
     bool isNewHcclLib = true;

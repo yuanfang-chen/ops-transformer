@@ -20,7 +20,7 @@ using namespace ge;
 namespace ops {
 // infershape 公共函数
 ge::graphStatus CommonParamCheck(
-    gert::InferShapeContext* context, const size_t isTransAIndex, const size_t isTransBIndex, CommParas& commParas)
+    const gert::InferShapeContext* context, const size_t isTransAIndex, const size_t isTransBIndex, CommParas& commParas)
 {
     commParas.x1MatrixShape = context->GetInputShape(0);
     OPS_CHECK_NULL_WITH_CONTEXT(context, commParas.x1MatrixShape);
@@ -100,6 +100,10 @@ ge::graphStatus AllGatherMatmulInferYShape(gert::InferShapeContext* context, Com
 ge::graphStatus AllGatherMatmulInferGatherOutShape(gert::InferShapeContext* context, const CommParas& commParas,
                                                    const size_t gatherIndex)
 {
+    if (context->GetAttrs() == nullptr) {
+        OP_LOGE(context->GetNodeName(), "get attrs failed.");
+        return ge::GRAPH_FAILED;
+    }
     const bool* isGatherOut = context->GetAttrs()->GetAttrPointer<bool>(gatherIndex);
     OPS_CHECK_NULL_WITH_CONTEXT(context, isGatherOut);
     gert::Shape* gatherOutShape = context->GetOutputShape(1);

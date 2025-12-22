@@ -92,7 +92,7 @@ MC2HcomTopology &MC2HcomTopology::GetInstance()
     return loader;
 }
 
-HcclResult MC2HcomTopology::CallHcomGetCommHandleByGroup(const char *group, HcclComm *commHandle)
+HcclResult MC2HcomTopology::CallHcomGetCommHandleByGroup(const char *group, HcclComm *commHandle) const
 {
     if (getCommHandle_ == nullptr) {
         OP_LOGE("", "Failed to get comm handle, func load failed.");
@@ -101,16 +101,16 @@ HcclResult MC2HcomTopology::CallHcomGetCommHandleByGroup(const char *group, Hccl
     return static_cast<HcclResult>(getCommHandle_(group, commHandle));
 }
 
-HcclResult MC2HcomTopology::CallCommGetNetLayers(HcclComm comm, uint32_t **netLayers, uint32_t *netLayerNum)
+HcclResult MC2HcomTopology::CallCommGetNetLayers(HcclComm comm, uint32_t **netLayer, uint32_t *netLayerNum) const
 {
     if (getNetLayers_ == nullptr) {
         OP_LOGE("", "Failed to get net layers, func load failed.");
         return HCCL_E_PTR;
     }
-    return static_cast<HcclResult>(getNetLayers_(comm, netLayers, netLayerNum));
+    return static_cast<HcclResult>(getNetLayers_(comm, netLayer, netLayerNum));
 }
 
-HcclResult MC2HcomTopology::CallCommGetInstTopoTypeByNetLayer(HcclComm comm, uint32_t netLayer, uint32_t *topoType)
+HcclResult MC2HcomTopology::CallCommGetInstTopoTypeByNetLayer(HcclComm comm, uint32_t netLayer, uint32_t *topoType) const
 {
     if (getTopoType_ == nullptr) {
         OP_LOGE("", "Failed to get topo type, func load failed.");
@@ -119,7 +119,7 @@ HcclResult MC2HcomTopology::CallCommGetInstTopoTypeByNetLayer(HcclComm comm, uin
     return static_cast<HcclResult>(getTopoType_(comm, netLayer, topoType));
 }
 
-HcclResult MC2HcomTopology::CallCommGetInstSizeByNetLayer(HcclComm comm, uint32_t netLayer, uint32_t *rankNum)
+HcclResult MC2HcomTopology::CallCommGetInstSizeByNetLayer(HcclComm comm, uint32_t netLayer, uint32_t *rankNum) const
 {
     if (getInstSize_ == nullptr) {
         OP_LOGE("", "Failed to get inst size, func load failed.");
@@ -128,7 +128,7 @@ HcclResult MC2HcomTopology::CallCommGetInstSizeByNetLayer(HcclComm comm, uint32_
     return static_cast<HcclResult>(getInstSize_(comm, netLayer, rankNum));
 }
 
-HcclResult MC2HcomTopology::CallCommGetCCLBufSizeCfg(HcclComm comm, uint64_t *cclBufferSize)
+HcclResult MC2HcomTopology::CallCommGetCCLBufSizeCfg(HcclComm comm, uint64_t *cclBufferSize) const
 {
     return static_cast<HcclResult>(getCclBufferSize_(comm, cclBufferSize));
 }

@@ -186,6 +186,10 @@ uint8_t Mc2GetCommAlgo(int64_t rankDim, uint64_t mValue, const char *group,
       return COMM_ALG_DEFAULT;
     }
     return COMM_ALG_FULL_MESH;
+  } else if (rankDim <= 0) {
+    OP_LOGE(context->GetNodeName(),
+              "Invalid rank dimension %lld. Rank dimension must be positive.", rankDim);
+    return COMM_ALG_DEFAULT;
   }
 
   uint32_t commSets = 0;
@@ -218,7 +222,7 @@ uint8_t Mc2GetCommAlgo(int64_t rankDim, uint64_t mValue, const char *group,
     }
     return debugCommAlg;
   }
-  if ((mValue % CHECK_VALUE_ODD != 0) || (mValue % rankDim != 0)) {
+  if ((mValue % CHECK_VALUE_ODD != 0) || (mValue % static_cast<uint64_t>(rankDim) != 0)) {
     OP_LOGW(context->GetNodeName(),
             " m value is odd or cannot be divided by rankDim.");
     return COMM_ALG_DEFAULT;

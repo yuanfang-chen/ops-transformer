@@ -32,11 +32,11 @@ private:
     __aicore__ inline void HcclPrepare();
     __aicore__ inline void InnerProcess();
     __aicore__ inline void MatmulKernelCompute(GM_ADDR aGM, GM_ADDR gmToFloat, TCubeTiling &tiling,
-        TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt);
+        Mc2Tiling::TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt);
     __aicore__ inline void MatmulKernelComputeL2Cache(GM_ADDR aGM, GM_ADDR gmToFloat, TCubeTiling &tiling,
-        TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt);
+        Mc2Tiling::TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt);
     __aicore__ inline void MatmulKernelReduceScatter(GM_ADDR aGM, GM_ADDR gmToFloat, TCubeTiling &tiling,
-        TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt);
+        Mc2Tiling::TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt);
     __aicore__ inline void HcclFinalize();
 
 private:
@@ -127,7 +127,7 @@ MatmulReduceScatterFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Floa
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, bool BNd2Nz, bool Bias2Float>
 __aicore__ inline void
 MatmulReduceScatterFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Float>::MatmulKernelCompute(GM_ADDR aGM,
-    GM_ADDR gmToFloat, TCubeTiling &tiling, TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt)
+    GM_ADDR gmToFloat, TCubeTiling &tiling, Mc2Tiling::TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt)
 {
     if (GetBlockIdx() >= tiling.usedCoreNum) {
         for (uint32_t i = 0; i < tileCnt; i++) {
@@ -177,7 +177,7 @@ MatmulReduceScatterFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Floa
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, bool BNd2Nz, bool Bias2Float>
 __aicore__ inline void
 MatmulReduceScatterFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Float>::MatmulKernelComputeL2Cache(
-    GM_ADDR aGM, GM_ADDR gmToFloat, TCubeTiling &tiling, TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt)
+    GM_ADDR aGM, GM_ADDR gmToFloat, TCubeTiling &tiling, Mc2Tiling::TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt)
 {
     if (GetBlockIdx() >= tiling.usedCoreNum) {
         for (uint32_t i = 0; i < tileCnt; i++) {
@@ -222,7 +222,7 @@ MatmulReduceScatterFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Floa
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, bool BNd2Nz, bool Bias2Float>
 __aicore__ inline void
 MatmulReduceScatterFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Float>::MatmulKernelReduceScatter(
-    GM_ADDR aGM, GM_ADDR gmToFloat, TCubeTiling &tiling, TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt)
+    GM_ADDR aGM, GM_ADDR gmToFloat, TCubeTiling &tiling, Mc2Tiling::TileL2Tiling &l2Tiling, HcclHandle &handleId, uint32_t tileCnt)
 {
     // Matmul的一次计算流程
     if (l2Tiling.enableL2Tile > 0) {

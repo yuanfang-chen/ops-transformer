@@ -29,7 +29,7 @@ class QuantBmmReduceScatterTiling : public MatmulReduceScatterTilingBase {
 public:
     explicit QuantBmmReduceScatterTiling(gert::TilingContext *context);
     ~QuantBmmReduceScatterTiling() override = default;
-    gert::TilingContext *GetContext()
+    gert::TilingContext *GetContext() const
     {
         return context_;
     }
@@ -37,11 +37,11 @@ public:
     {
         return args_;
     }
-    const char *GetOpName()
+    const char *GetOpName() const
     {
         return opName_;
     }
-    uint64_t GetMyWorkSpaceSize()
+    uint64_t GetMyWorkSpaceSize() const
     {
         return myWorkSpaceSize_;
     }
@@ -49,11 +49,11 @@ public:
     {
         return myWorkSpaceSize_ = workspaceSize;
     }
-    uint64_t GetLibApiWorkSpaceSize()
+    uint64_t GetLibApiWorkSpaceSize() const
     {
         return libApiWorkSpaceSize_;
     }
-    mc2tiling::Mc2QuantMode GetQuantMode()
+    mc2tiling::Mc2QuantMode GetQuantMode() const
     {
         return quantMode_ ;
     }
@@ -65,31 +65,31 @@ protected:
     ge::graphStatus PostTiling() override;
     uint64_t GetTilingKey() const override;
 
-    ::TCubeTiling &MutableTCubeTileTilingData();
-    DequantBmm::Mc2QuantBatchMatmulV3DataParams &MutableTCubeTilingParam();
-    DequantBmm::Mc2L2cacheTileParams &MutableTCubeTilingL2cache();
-    DequantBmm::Mc2SlidingWindowParams &MutableTCubeTilingSlidingWindow();
+    ::TCubeTiling &MutableTCubeTileTilingData() const;
+    DequantBmm::Mc2QuantBatchMatmulV3DataParams &MutableTCubeTilingParam() const;
+    DequantBmm::Mc2L2cacheTileParams &MutableTCubeTilingL2cache() const;
+    DequantBmm::Mc2SlidingWindowParams &MutableTCubeTilingSlidingWindow() const;
 
-    ::TCubeTiling &MutableTCubeTailTilingData();
-    DequantBmm::Mc2QuantBatchMatmulV3DataParams &MutableTailTCubeTilingParam();
-    DequantBmm::Mc2L2cacheTileParams &MutableTailTCubeTilingL2cache();
-    DequantBmm::Mc2SlidingWindowParams &MutableTailTCubeTilingSlidingWindow();
+    ::TCubeTiling &MutableTCubeTailTilingData() const;
+    DequantBmm::Mc2QuantBatchMatmulV3DataParams &MutableTailTCubeTilingParam() const;
+    DequantBmm::Mc2L2cacheTileParams &MutableTailTCubeTilingL2cache() const;
+    DequantBmm::Mc2SlidingWindowParams &MutableTailTCubeTilingSlidingWindow() const;
 
-    Mc2Tiling::Mc2Msg &MutableMc2MsgDataA5();
-    Mc2Tiling::RCSTiling &MutableRCSTilingDataA5();
+    Mc2Tiling::Mc2Msg &MutableMc2MsgDataA5() const;
+    Mc2Tiling::RCSTiling &MutableRCSTilingDataA5() const;
 
     ge::graphStatus DoAdaptSlidWindowTiling();
     void SetMc2Hcomm();
     ge::graphStatus CheckInput() override;
-    bool CommonParamCheck();
-    bool PerblockSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
+    bool CommonParamCheck() const;
+    bool PerblockSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape) const;
     bool PertensorSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
     bool MxfpSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
     void SetScene();
     bool CheckPerblockM();
-    ge::graphStatus CheckGroupSize();
-    ge::graphStatus CheckScale();
-    ge::graphStatus CheckMxScaleDim(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
+    ge::graphStatus CheckGroupSize() const;
+    ge::graphStatus CheckScale() const;
+    ge::graphStatus CheckMxScaleDim(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape) const;
 
 private:
     Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData quantBmmMatmulReducescatterTilingDataSelf_;
@@ -101,16 +101,16 @@ private:
 class QuantBmmReduceScatterHelper : public Mc2AdaptiveSlidingWindowTiling {
 public:
     QuantBmmReduceScatterHelper(QuantBmmReduceScatterTiling &quantBmmReduceScatterTiling,
-                                DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &out);
+                                DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &data);
     const gert::Shape GetX1Shape(const size_t index) override;
     const gert::Shape GetX2Shape(const size_t index) override;
     const gert::Shape &GetScaleShape(const size_t index) override;
     const gert::StorageShape *GetPertokenShape(const size_t index) override;
     const gert::StorageShape *GetBiasShape(const size_t index) override;
-    const gert::StorageShape *GetOffsetShape(const size_t index);
+    const gert::StorageShape *GetOffsetShape(const size_t index) const;
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus DoLibApiTiling() override;
-    void PrintTilingInputParam(Mc2QuantBatchMatmulInfo &quantBatchMatmulInfo);
+    void PrintTilingInputParam(Mc2QuantBatchMatmulInfo &quantBatchMatmulInfo) const;
     ge::graphStatus PostTiling() override;
 
 private:

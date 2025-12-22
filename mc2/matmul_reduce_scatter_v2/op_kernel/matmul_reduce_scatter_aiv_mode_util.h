@@ -45,11 +45,16 @@ constexpr int32_t USED_UB_SIZE = 160 * 1024;
 constexpr int32_t AIC_WAIT_AIV_FINISH_ALIGN_FLAG_ID = 12;
 constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16 * 1024 * 1024;
 constexpr uint32_t BLOCK_SIZE_16 = 16;
+constexpr uint32_t BASE_BLOCK_SIZE_32 = 32;
+constexpr uint32_t BASE_BLOCK_SIZE_256 = 256;
+constexpr uint32_t BASE_BLOCK_SIZE_512 = 512;
 constexpr uint32_t TILE_SHAPE_64 = 64;
 constexpr uint32_t TILE_SHAPE_128 = 128;
 constexpr uint32_t TILE_SHAPE_256 = 256;
 constexpr uint32_t TILE_SHAPE_512 = 512;
 constexpr uint32_t UB_BUFFER_NUM = 2;
+constexpr uint32_t AIV_CROSS_CORE_SYNC_MODE = 0;
+constexpr uint32_t AIC_CROSS_CORE_SYNC_MODE = 2;
 constexpr uint32_t RAND_BASE = 3;
 
 template <typename T, size_t SIZE>
@@ -79,13 +84,13 @@ struct BaseBlock {
 };
 
 template <typename T>
-using Block32B = BaseBlock<T, 32>;
+using Block32B = BaseBlock<T, BASE_BLOCK_SIZE_32>;
 
 template <typename T>
-using Block256B = BaseBlock<T, 256>;
+using Block256B = BaseBlock<T, BASE_BLOCK_SIZE_256>;
 
 template <typename T>
-using Block512B = BaseBlock<T, 512>;
+using Block512B = BaseBlock<T, BASE_BLOCK_SIZE_512>;
 
 __aicore__ inline int32_t CeilDev(int32_t num, int32_t div)
 {
@@ -374,13 +379,13 @@ public:
 
     __aicore__ inline void SetAndWaitAivSync(uint64_t flag_idx, int32_t pipe_depth = 2)
     {
-        FFTSCrossCoreSync<PIPE_MTE3, 0>(flag_idx + pipe_depth);
+        FFTSCrossCoreSync<PIPE_MTE3, AIV_CROSS_CORE_SYNC_MODE>(flag_idx + pipe_depth);
         WaitEvent(flag_idx + pipe_depth);
     }
 
     __aicore__ inline void SetAicSync(uint64_t flag_idx)
     {
-        FFTSCrossCoreSync<PIPE_MTE3, 2>(flag_idx);
+        FFTSCrossCoreSync<PIPE_MTE3, AIC_CROSS_CORE_SYNC_MODE>(flag_idx);
     }
 
     __aicore__ inline void CrossRankSyncV1(int32_t flag_idx, int32_t flag_data)

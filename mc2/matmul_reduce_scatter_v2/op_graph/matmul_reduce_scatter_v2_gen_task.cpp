@@ -12,8 +12,6 @@
  * \file matmul_reduce_scatter_v2_gen_task.cpp
  * \brief
  */
-#include <vector>
-
 #include "op_mc2.h"
 #include "platform/platform_info.h"
 

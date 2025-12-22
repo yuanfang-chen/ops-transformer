@@ -53,7 +53,7 @@ struct BaseBlockArguments
 class MatmulBaseBlockMC2 {
 public:
     __aicore__ inline MatmulBaseBlockMC2() {}
-    __aicore__ inline void Init(RCSTiling& cfg, TCubeTiling& tiling, TileL2Tiling &l2Tiling, uint32_t rankID=0);
+    __aicore__ inline void Init(Mc2Tiling::RCSTiling& cfg, TCubeTiling& tiling, Mc2Tiling::TileL2Tiling &l2Tiling, uint32_t rankID=0);
     __aicore__ inline void InitBlockIndex(uint32_t index=0);
     __aicore__ inline void InitBlockWithoutIndex();
     __aicore__ inline void UpdateBlockIndex(uint32_t currPos);
@@ -66,10 +66,10 @@ public:
     BaseBlockOffset offset_;
     BaseBlockArguments args_;
     TCubeTiling tiling_;
-    RCSTiling cfg_;
+    Mc2Tiling::RCSTiling cfg_;
 };
 
-__aicore__ inline void MatmulBaseBlockMC2::Init(RCSTiling& cfg, TCubeTiling& tiling, TileL2Tiling &l2Tiling, uint32_t rankID)
+__aicore__ inline void MatmulBaseBlockMC2::Init(Mc2Tiling::RCSTiling& cfg, TCubeTiling& tiling, Mc2Tiling::TileL2Tiling &l2Tiling, uint32_t rankID)
 {
     (void)l2Tiling;
     (void)rankID;

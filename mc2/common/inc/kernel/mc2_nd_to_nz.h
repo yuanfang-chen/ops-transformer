@@ -474,7 +474,7 @@ __aicore__ inline void MatrixND2NZ(GM_ADDR outGm, GM_ADDR srcGm, uint32_t high, 
 }
 
 template <class T>
-__aicore__ inline void MatrixBtoNZ(GM_ADDR workspace, GM_ADDR src, const RCSTiling &cfg,
+__aicore__ inline void MatrixBtoNZ(GM_ADDR workspace, GM_ADDR src, const Mc2Tiling::RCSTiling &cfg,
                                    TBuf<TPosition::VECCALC> &totalUbBuf)
 {
     if (g_coreType == AIV) {

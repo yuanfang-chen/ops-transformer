@@ -153,8 +153,8 @@ ge::graphStatus ContextTransfer::CheckMRNCtxInfo(const gert::TilingContext *cont
                                                     "Expect x1 dim to be more than 0, but got x1 dim [%lu].",
                                                     x1DimNum),
                     return ge::GRAPH_FAILED);
-    uint64_t x1MValue = x1Shape->GetStorageShape().GetDim(0);
-    if (x1DimNum >= DIM_THREE) {
+    int64_t x1MValue = x1Shape->GetStorageShape().GetDim(0);
+    if (x1DimNum >= static_cast<int64_t>(DIM_THREE)) {
         x1MValue *= x1Shape->GetStorageShape().GetDim(1);
     }
     OP_TILING_CHECK(residualShape->GetStorageShape().GetDimNum() != DIM_THREE,
@@ -163,7 +163,7 @@ ge::graphStatus ContextTransfer::CheckMRNCtxInfo(const gert::TilingContext *cont
                                                     " residual_dim:[%lu].",
                                                     residualShape->GetStorageShape().GetDimNum()),
                     return ge::GRAPH_FAILED);
-    uint64_t residualMValue = residualShape->GetStorageShape().GetDim(0) * residualShape->GetStorageShape().GetDim(1);
+    int64_t residualMValue = residualShape->GetStorageShape().GetDim(0) * residualShape->GetStorageShape().GetDim(1);
     OP_TILING_CHECK(x1MValue != residualMValue,
                     VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(),
                                                     "Expect b * s of x1 (when dim of x1 is 2, b = 1 as default) and"

@@ -20,7 +20,6 @@
 #include "tiling_base/tiling_base.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "tiling/matmul_formulaic_tiling.h"
-#include "mc2_log.h"
 #include "../../op_kernel/matmul_reduce_scatter_v2_c_tiling.h"
 
 namespace optiling {
@@ -61,13 +60,13 @@ protected:
     void DoFormulaticTiling(Mc2Tiling::RCSTiling &rcsCfg);
     void SetStorageAWorkSpaceSize(Mc2Tiling::RCSTiling& rcsCfg);
     void SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg);
-    uint32_t ReduceScatterSpliteM(mc2tiling::TilingArgs& args, uint32_t maxTileCnt = 64);
-    ge::graphStatus DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg);
+    uint32_t ReduceScatterSpliteM(mc2tiling::TilingArgs& args, uint32_t maxTileCnt = 64) const;
+    ge::graphStatus DoSplitMTiling(Mc2Tiling::RCSTiling& rcsCfg);
     uint32_t GetRankSize(const char* group) const;
     void Reset();
     bool ReduceScatterCheckShapeInfo();
-    bool CheckInputScale();
-    bool CheckGroupSize();
+    bool CheckInputScale() const;
+    bool CheckGroupSize() const;
     bool CheckBias() const;
     bool CheckAttrInfoValid(uint64_t kValue);
     void SetReduceScatterTilingArgsDataType();

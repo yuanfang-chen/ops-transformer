@@ -28,7 +28,7 @@ class MatmulCompute {
 
 public:
     __aicore__ inline MatmulCompute() {}
-    __aicore__ inline void Init(RCSTiling& cfg, TCubeTiling& tiling, TileL2Tiling& l2Tiling, uint32_t rankID);
+    __aicore__ inline void Init(Mc2Tiling::RCSTiling& cfg, TCubeTiling& tiling, Mc2Tiling::TileL2Tiling& l2Tiling, uint32_t rankID);
     __aicore__ inline void InitGlobalTensor(GM_ADDR bGM, GM_ADDR biasGM);
     __aicore__ inline void InitGlobalTensor(GM_ADDR aGM, uint64_t aSize, GM_ADDR cGM, uint64_t cSize);
     __aicore__ inline void Compute(uint32_t index=0, uint32_t offset=0);
@@ -48,8 +48,8 @@ private:
     GlobalTensor<BiasT> biasGlobal;
     typename BlockType<T>::PARAMS block_;
     TCubeTiling tiling_;
-    TileL2Tiling l2Tiling_;
-    RCSTiling cfg_;
+    Mc2Tiling::TileL2Tiling l2Tiling_;
+    Mc2Tiling::RCSTiling cfg_;
 };
 
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, SplitType T>
@@ -70,8 +70,8 @@ __aicore__ inline void MatmulCompute<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, T>::Init
 }
 
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, SplitType T>
-__aicore__ inline void MatmulCompute<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, T>::Init(RCSTiling& cfg, TCubeTiling& tiling,
-    TileL2Tiling& l2Tiling, uint32_t rankID)
+__aicore__ inline void MatmulCompute<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, T>::Init(Mc2Tiling::RCSTiling& cfg, TCubeTiling& tiling,
+    Mc2Tiling::TileL2Tiling& l2Tiling, uint32_t rankID)
 {
     // MatmulImpl初始化
     mm_.SetSubBlockIdx(0);

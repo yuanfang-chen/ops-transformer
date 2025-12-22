@@ -50,10 +50,10 @@ bool DimNumCheck(const char *nodeName, const gert::Shape *xShape, const gert::Sh
 bool GroupCheck(const char *nodeName, const char *groupEp, const char *groupTp);
 
 void DynamicShapeCheck(
-    const gert::Shape *xShape, const gert::Shape *weightShape, const size_t wDimM, OutShapeInfo &outShapeInfo);
+    const gert::Shape *xShape, const gert::Shape *weightShape, const size_t wDim, OutShapeInfo &outShapeInfo);
 
 void EmptyShapeCheck(
-    const gert::Shape *xShape, const gert::Shape *weightShape, const size_t wDimM, OutShapeInfo &outShapeInfo);
+    const gert::Shape *xShape, const gert::Shape *weightShape, const size_t wDim, OutShapeInfo &outShapeInfo);
 
 bool CheckBiasDtype(const char *nodeName, const ge::DataType xType, const ge::DataType biasType);
 

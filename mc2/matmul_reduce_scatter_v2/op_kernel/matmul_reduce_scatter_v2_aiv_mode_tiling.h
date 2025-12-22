@@ -16,6 +16,7 @@
 #define __MATMUL_REDUCE_SCATTER_V2_AIV_MODE_TILING_H__
 #include <vector>
 #include <map>
+#include "kernel_tiling/kernel_tiling.h"
 namespace matmulReduceScatterV2_aivmode_tiling{
 
 enum class DequantType : int {

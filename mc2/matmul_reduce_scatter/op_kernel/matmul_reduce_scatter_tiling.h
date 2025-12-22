@@ -22,7 +22,6 @@
 #else
 #include "../common/inc/kernel/mc2_tiling_struct.h"
 #endif
-using namespace Mc2Tiling;
 
 struct ReduceScatterSoc {
     uint32_t commAlg;

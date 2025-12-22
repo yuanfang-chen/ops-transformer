@@ -15,17 +15,12 @@
 #ifndef __MATMUL_REDUCE_SCATTER_V2_TILING_H__
 #define __MATMUL_REDUCE_SCATTER_V2_TILING_H__
 
-#include "register/tilingdata_base.h"
-#include "tiling/tiling_api.h"
 #include "mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
-#include "mat_mul_v3/op_host/op_tiling/matmul_v3_tiling.h"
 #include "mat_mul_v3/op_host/op_tiling/matmul_v3_base_tiling.h"
 #include "matmul_reduce_scatter_tiling_base.h"
-#include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_compile_info_advanced.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_common_advanced.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_tiling_registry.h"
 #include "mc2_matmul_tiling_cfg.h"
-#include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_tiling_strategy.h"
 #include "../../op_kernel/matmul_reduce_scatter_v2_c_tiling.h"
 
 namespace optiling {
@@ -46,15 +41,15 @@ protected:
     ge::graphStatus PostTiling() override;
     ge::graphStatus CheckInput() override;
     ge::graphStatus DoAllMatmulTiling();
-    void PrintAllTilingData(); // done
-    void SetMc2Hcomm(Mc2Tiling::RCSTiling &rcsCfg);
+    void PrintAllTilingData() const; // done
+    void SetMc2Hcomm();
     ge::graphStatus DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg, Mc2MMRegisterCfg &registerCfg,
                                      Mc2MatMulV3TilingData &tilingData);
-    inline Mc2MatMulV3TilingData &MutableMC2MmV3TileTilingData()
+    inline Mc2MatMulV3TilingData &MutableMC2MmV3TileTilingData() const
     {
         return matmulReduceScatterV2TilingData_->mC2Mmv3TileTilingData;
     }
-    inline Mc2MatMulV3TilingData &MutableMC2MmV3TailTilingData()
+    inline Mc2MatMulV3TilingData &MutableMC2MmV3TailTilingData() const
     {
         return matmulReduceScatterV2TilingData_->mC2Mmv3TailTilingData;
     }

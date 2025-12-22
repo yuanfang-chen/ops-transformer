@@ -57,7 +57,7 @@ int64_t Mc2GenTaskOpsUtils::GetAttachStreamIdByContext(const gert::ExeResGenerat
     return stream_id;
 }
 
-ge::Status Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc(gert::ExeResGenerationContext *context,
+ge::Status Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc(const gert::ExeResGenerationContext *context,
                                                          const ge::AscendString &name,
                                                          const ge::AscendString &reuse_key)
 {
@@ -187,14 +187,14 @@ ge::Status Mc2GenTaskOpsUtils::CommonKFCMc2GenTask(const gert::ExeResGenerationC
     /* wait aicpu record [aicore] wait */
     // wait task
     ge::KernelLaunchInfo aicpu_wait_for_aicore_task = ge::KernelLaunchInfo::CreateHcomWaitTask(context);
-    aicpu_wait_for_aicore_task.SetStreamId(attach_stream_id);
+    aicpu_wait_for_aicore_task.SetStreamId(static_cast<uint32_t>(attach_stream_id));
     tasks.insert(tasks.begin() + aicore_idx, aicpu_wait_for_aicore_task.Serialize());
     ++aicore_idx;
 
     // aicpu task
     ge::KernelLaunchInfo aicpu_task =
         ge::KernelLaunchInfo::CreateAicpuKfcTask(context, SO_NAME.c_str(), KERNEL_NAME_V1.c_str());
-    aicpu_task.SetStreamId(attach_stream_id);
+    aicpu_task.SetStreamId(static_cast<uint32_t>(attach_stream_id));
     GE_ASSERT_SUCCESS(CreateAicpuTaskV1(context, aicpu_task)); // 之后换一个名称可能清晰一点，上面已经有create了
     tasks.insert(tasks.begin() + aicore_idx, aicpu_task.Serialize());
     ++aicore_idx;

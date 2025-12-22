@@ -80,7 +80,7 @@ bool QuantBmmReduceScatterTiling::IsCapable()
 }
 
 // amaxout 和 quantscale为nullptr
-bool QuantBmmReduceScatterTiling::CommonParamCheck()
+bool QuantBmmReduceScatterTiling::CommonParamCheck() const
 {
     auto quantscale = context_->GetOptionalInputShape(QUANTSCALE_INDEX);
     OP_TILING_CHECK(
@@ -99,7 +99,7 @@ bool QuantBmmReduceScatterTiling::CommonParamCheck()
     return true;
 }
 
-ge::graphStatus QuantBmmReduceScatterTiling::CheckGroupSize()
+ge::graphStatus QuantBmmReduceScatterTiling::CheckGroupSize() const
 {
     auto attrsPtr = context_->GetAttrs();
     OP_TILING_CHECK(attrsPtr == nullptr, CUBE_INNER_ERR_REPORT(opName_, "AttrsPtr shouldn't be nullptr"),
@@ -137,7 +137,7 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckGroupSize()
 }
 
 ge::graphStatus QuantBmmReduceScatterTiling::CheckMxScaleDim(const gert::StorageShape* x1ScaleShape,
-                                                             const gert::StorageShape* x2ScaleShape)
+                                                             const gert::StorageShape* x2ScaleShape) const
 {
     auto x1shape = context_->GetInputShape(X1_INDEX);
     auto x2shape = context_->GetInputShape(X2_INDEX);
@@ -222,7 +222,7 @@ bool QuantBmmReduceScatterTiling::PertensorSceneParamCheck(const gert::StorageSh
 }
 
 bool QuantBmmReduceScatterTiling::PerblockSceneParamCheck(const gert::StorageShape* x1ScaleShape,
-                                                          const gert::StorageShape* x2ScaleShape)
+                                                          const gert::StorageShape* x2ScaleShape) const
 {
     auto biasDesc = context_->GetOptionalInputShape(static_cast<size_t>(BIAS_INDEX));
     OP_TILING_CHECK(biasDesc != nullptr, CUBE_INNER_ERR_REPORT(opName_, "in perblock scene, bias must be nullptr"),
@@ -274,7 +274,7 @@ bool QuantBmmReduceScatterTiling::MxfpSceneParamCheck(const gert::StorageShape* 
     return true;
 }
 
-ge::graphStatus QuantBmmReduceScatterTiling::CheckScale()
+ge::graphStatus QuantBmmReduceScatterTiling::CheckScale() const
 {
     // x1scale x2scale判空
     auto x1ScaleShape = context_->GetOptionalInputShape(X1SCALE_INDEX);
@@ -571,46 +571,46 @@ ge::graphStatus QuantBmmReduceScatterTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-Mc2Tiling::Mc2Msg &QuantBmmReduceScatterTiling::MutableMc2MsgDataA5()
+Mc2Tiling::Mc2Msg &QuantBmmReduceScatterTiling::MutableMc2MsgDataA5() const
 {
     return quantBmmMatmulReducescatterTilingData_->msg;
 }
-Mc2Tiling::RCSTiling &QuantBmmReduceScatterTiling::MutableRCSTilingDataA5()
+Mc2Tiling::RCSTiling &QuantBmmReduceScatterTiling::MutableRCSTilingDataA5() const
 {
     return quantBmmMatmulReducescatterTilingData_->param;
 }
 
-::TCubeTiling &QuantBmmReduceScatterTiling::MutableTCubeTileTilingData()
+::TCubeTiling &QuantBmmReduceScatterTiling::MutableTCubeTileTilingData() const
 {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TileTiling.matmulTiling;
 }
 
-DequantBmm::Mc2QuantBatchMatmulV3DataParams &QuantBmmReduceScatterTiling::MutableTCubeTilingParam(){
+DequantBmm::Mc2QuantBatchMatmulV3DataParams &QuantBmmReduceScatterTiling::MutableTCubeTilingParam() const {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TileTiling.params;
 }
 
-DequantBmm::Mc2L2cacheTileParams &QuantBmmReduceScatterTiling::MutableTCubeTilingL2cache(){
+DequantBmm::Mc2L2cacheTileParams &QuantBmmReduceScatterTiling::MutableTCubeTilingL2cache() const {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TileTiling.tileL2cacheTiling;
 }
 
-DequantBmm::Mc2SlidingWindowParams &QuantBmmReduceScatterTiling::MutableTCubeTilingSlidingWindow(){
+DequantBmm::Mc2SlidingWindowParams &QuantBmmReduceScatterTiling::MutableTCubeTilingSlidingWindow() const {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TileTiling.adaptiveSlidingWin;
 }
 
-::TCubeTiling &QuantBmmReduceScatterTiling::MutableTCubeTailTilingData()
+::TCubeTiling &QuantBmmReduceScatterTiling::MutableTCubeTailTilingData() const
 {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TailTiling.matmulTiling;
 }
 
-DequantBmm::Mc2QuantBatchMatmulV3DataParams &QuantBmmReduceScatterTiling::MutableTailTCubeTilingParam(){
+DequantBmm::Mc2QuantBatchMatmulV3DataParams &QuantBmmReduceScatterTiling::MutableTailTCubeTilingParam() const {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TailTiling.params;
 }
 
-DequantBmm::Mc2L2cacheTileParams &QuantBmmReduceScatterTiling::MutableTailTCubeTilingL2cache(){
+DequantBmm::Mc2L2cacheTileParams &QuantBmmReduceScatterTiling::MutableTailTCubeTilingL2cache() const {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TailTiling.tileL2cacheTiling;
 }   
 
-DequantBmm::Mc2SlidingWindowParams &QuantBmmReduceScatterTiling::MutableTailTCubeTilingSlidingWindow(){
+DequantBmm::Mc2SlidingWindowParams &QuantBmmReduceScatterTiling::MutableTailTCubeTilingSlidingWindow() const {
     return quantBmmMatmulReducescatterTilingData_->quantBmmV3TailTiling.adaptiveSlidingWin;
 }
 
@@ -683,10 +683,10 @@ const gert::StorageShape *QuantBmmReduceScatterHelper::GetBiasShape(const size_t
     return context_->GetOptionalInputShape(static_cast<size_t>(BIAS_INDEX));
 }
 
-const gert::StorageShape *QuantBmmReduceScatterHelper::GetOffsetShape(const size_t index)
+const gert::StorageShape *QuantBmmReduceScatterHelper::GetOffsetShape(const size_t index) const
 {
     (void)index;
-    return (gert::StorageShape*)nullptr;
+    return static_cast<const gert::StorageShape*>(nullptr);
 }
 
 ge::graphStatus QuantBmmReduceScatterHelper::GetShapeAttrsInfo()
@@ -751,7 +751,7 @@ ge::graphStatus QuantBmmReduceScatterHelper::DoLibApiTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-void QuantBmmReduceScatterHelper::PrintTilingInputParam(Mc2QuantBatchMatmulInfo &quantBatchMatmulInfo)
+void QuantBmmReduceScatterHelper::PrintTilingInputParam(Mc2QuantBatchMatmulInfo &quantBatchMatmulInfo) const
 {
     OP_LOGD(inputParams_.opName, "transA_ = %d transB_ = %d, hasBias_ = %d", quantBatchMatmulInfo.transA,
             quantBatchMatmulInfo.transB, quantBatchMatmulInfo.hasBias);
