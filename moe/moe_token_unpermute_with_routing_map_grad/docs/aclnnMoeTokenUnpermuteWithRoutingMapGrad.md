@@ -130,7 +130,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>输入</td>
         <td>计算公式中的unpermutedTokensGrad，代表正向输出unpermutedTokens的梯度。</td>
         <td>-</td>
-        <td>BFLOAT16、FLOAT16、FLOAT32</td>
+        <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>(tokens_num，hidden_size)。</td>
         <td>√</td>
@@ -170,7 +170,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>可选输入</td>
         <td>当输入probsOptional为空指针时不需要此输入，应该传入空指针。</td>
         <td>数据类型与unpermutedTokensGrad相同。</td>
-        <td>BFLOAT16、FLOAT16、FLOAT32</td>
+        <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td><ul><li>paddedMode为false时，shape为(tokens_num*topK_num,hidden_size)。</li><li>paddedMode为true时，shape为(experts_num*capacity,hidden_size)。</li></ul></td>
         <td>√</td>
@@ -179,8 +179,8 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>probsOptional</td>
         <td>可选输入</td>
         <td>当不需要时为空指针。</td>
-        <td>数据类型与unpermutedTokensGrad相同或者是FLOAT32。</td>
-        <td>BFLOAT16、FLOAT16、FLOAT32</td>
+        <td>数据类型与unpermutedTokensGrad相同或者是FLOAT。</td>
+        <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>与routingMapOptional相同。</td>
         <td>√</td>
@@ -210,7 +210,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>输出</td>
         <td>计算公式中的permutedTokensGradOut，代表输入permutedTokens的梯度。</td>
         <td>数据类型与unpermutedTokensGrad相同。</td>
-        <td>BFLOAT16、FLOAT16、FLOAT32</td>
+        <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td><ul><li>paddedMode为false时，shape为(tokens_num*topK_num,hidden_size)。</li><li>paddedMode为true时，shape为(experts_num*capacity,hidden_size)。</li></ul></td>
         <td>×</td>
@@ -219,8 +219,8 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>probsGradOutOptional</td>
         <td>可选输出</td>
         <td>未输入probsOptional时为空指针。输入probs的梯度。</td>
-        <td>数据类型与unpermutedTokensGrad相同。</td>
-        <td>BFLOAT16、FLOAT16、FLOAT32</td>
+        <td>数据类型与unpermutedTokensGrad相同或者是FLOAT。</td>
+        <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>与routingMapOptional相同。</td>
         <td>×</td>

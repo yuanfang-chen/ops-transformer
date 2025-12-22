@@ -90,7 +90,7 @@
       <td>unpermutedTokensGrad</td>
       <td>输入</td>
       <td>Device侧的aclTensor。计算公式中的unpermutedTokensGrad，代表正向输出unpermutedTokens的梯度。</td>
-      <td>BFLOAT16、FLOAT16、FLOAT32</td>
+      <td>BFLOAT16、FLOAT16、FLOAT</td>
       <td>ND</td>
     </tr>
     <tr>
@@ -118,14 +118,14 @@
       <td>permutedTokensOptional</td>
       <td>可选输入</td>
       <td>Device侧的aclTensor，可选输入，当输入probsOptional为空指针时不需要此输入，应该传入空指针。</td>
-      <td>BFLOAT16、FLOAT16、FLOAT32</td>
+      <td>BFLOAT16、FLOAT16、FLOAT</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>probsOptional</td>
       <td>可选输入</td>
       <td>Device侧的aclTensor，可选输入，当不需要时为空指针。</td>
-      <td>BFLOAT16、FLOAT16、FLOAT32</td>
+      <td>BFLOAT16、FLOAT16、FLOAT</td>
       <td>ND</td>
     </tr>
     <tr>
@@ -146,14 +146,14 @@
       <td>permutedTokensGradOut</td>
       <td>输出</td>
       <td>输入permutedTokens的梯度，要求是一个2D的Tensor。</td>
-      <td>BFLOAT16、FLOAT16、FLOAT32</td>
+      <td>BFLOAT16、FLOAT16、FLOAT</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>probsGradOutOptional</td>
       <td>可选输出</td>
       <td>当不需要时为空指针。输入probs的梯度。</td>
-      <td>BFLOAT16、FLOAT16、FLOAT32</td>
+      <td>BFLOAT16、FLOAT16、FLOAT</td>
       <td>ND</td>
     </tr>
   </tbody></table>

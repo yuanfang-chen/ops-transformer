@@ -289,8 +289,9 @@ static ge::graphStatus TilingForProbNotNonePadFalse(
                                     topK;
     int64_t indicesReserveNumAlign = AlignUp<int64_t>(indicesReserveNum, inputBlockAlignEleNum);
     int64_t numExpertAlign = AlignUp<int64_t>(numExpert, BLOCK_SIZE_32);
+    int64_t probTypeLength = GetLengthByType(context->GetInputDesc(INPUT_PROB_IDX)->GetDataType());
     int64_t hiddenSizeTmpMax =
-        (tiling.get_totalUbSize() - numExpertAlign - numExpertAlign * inputTypeLength -
+        (tiling.get_totalUbSize() - numExpertAlign - numExpertAlign * probTypeLength -
          inputTypeLength * indicesReserveNumAlign - indicesReserveNumAlign * sizeof(float) * INDICES_FP32_BUFFER_NUM) /
         (H_BUFFER_NUM_PAD_FALSE * BUFFER_NUM * inputTypeLength + H_FP32_BUFFER_NUM_PAD_FALSE * sizeof(float));
     OP_CHECK_IF(
