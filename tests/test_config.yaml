@@ -827,6 +827,23 @@ mc2:
       options:
         - allto_allv_grouped_mat_mul
 
+    allto_all_matmul:
+      module: True
+      src:
+        - mc2/allto_all_matmul
+        - mc2/common
+        - mc2/3rd
+      exclude:
+        - mc2/allto_all_matmul/docs
+        - mc2/allto_all_matmul/README.md
+      ut_cov_exclude:
+        - mc2/allto_all_matmul
+      test:
+        examples: False
+        ut: False
+      options:
+        - allto_all_matmul
+
     batch_mat_mul_reduce_scatter_allto_all:
       module: True
       src:
