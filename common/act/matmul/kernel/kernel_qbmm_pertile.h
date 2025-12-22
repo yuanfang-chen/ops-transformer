@@ -85,8 +85,6 @@ public:
     using CoordClass = Coordinate<transA, transB, CubeFormat::ND, FormatB, CubeFormat::ND>;
 
     struct QBMMTiling {
-        uint32_t batchA;
-        uint32_t batchB;
         uint32_t batchC;
         uint32_t batchA1;
         uint32_t batchA2;
@@ -113,6 +111,9 @@ public:
 
         uint32_t mTailTile;
         uint32_t nTailTile;
+        uint32_t mBaseTailSplitCnt;
+        uint32_t mTailMain;
+
         uint32_t groupSizeM;
         uint32_t groupSizeN;
         uint32_t groupSizeK;
@@ -120,15 +121,13 @@ public:
         __aicore__ QBMMTiling()
         {}
         __aicore__ QBMMTiling(
-            uint32_t batchA_, uint32_t batchB_, uint32_t batchC_, uint32_t batchA1_, uint32_t batchA2_,
-            uint32_t batchA3_, uint32_t batchA4_, uint32_t batchB1_, uint32_t batchB2_, uint32_t batchB3_,
-            uint32_t batchB4_, uint32_t batchC1_, uint32_t batchC2_, uint32_t batchC3_, uint32_t batchC4_, int32_t m_,
-            int32_t n_, int32_t k_, int32_t baseM_, int32_t baseN_, int32_t baseK_, int32_t stepM_, int32_t stepN_,
-            int32_t stepKa_, int32_t stepKb_, uint32_t mTailTile_, uint32_t nTailTile_, uint32_t groupSizeM_,
-            uint32_t groupSizeN_, uint32_t groupSizeK_)
-            : batchA(batchA_),
-              batchB(batchB_),
-              batchC(batchC_),
+            uint32_t batchC_, uint32_t batchA1_, uint32_t batchA2_, uint32_t batchA3_, uint32_t batchA4_,
+            uint32_t batchB1_, uint32_t batchB2_, uint32_t batchB3_, uint32_t batchB4_, uint32_t batchC1_,
+            uint32_t batchC2_, uint32_t batchC3_, uint32_t batchC4_, int32_t m_, int32_t n_, int32_t k_, int32_t baseM_,
+            int32_t baseN_, int32_t baseK_, int32_t stepM_, int32_t stepN_, int32_t stepKa_, int32_t stepKb_,
+            uint32_t mTailTile_, uint32_t nTailTile_, uint32_t mBaseTailSplitCnt_, uint32_t mTailMain_,
+            uint32_t groupSizeM_, uint32_t groupSizeN_, uint32_t groupSizeK_)
+            : batchC(batchC_),
               batchA1(batchA1_),
               batchA2(batchA2_),
               batchA3(batchA3_),
@@ -153,6 +152,8 @@ public:
               stepKb(stepKb_),
               mTailTile(mTailTile_),
               nTailTile(nTailTile_),
+              mBaseTailSplitCnt(mBaseTailSplitCnt_),
+              mTailMain(mTailMain_),
               groupSizeM(groupSizeM_),
               groupSizeN(groupSizeN_),
               groupSizeK(groupSizeK_)
@@ -204,6 +205,11 @@ private:
 
     uint32_t mTailTile_;
     uint32_t nTailTile_;
+    uint32_t mTailMain_;
+    uint32_t mTailLast_;
+    uint32_t mBaseNormCnt_;
+    uint32_t nTailMain_;
+    uint32_t nBaseNormCnt_;
     uint32_t groupSizeM_;
     uint32_t groupSizeN_;
     uint32_t groupSizeK_;
@@ -217,6 +223,9 @@ __aicore__ inline void QuantMmBatchPertile<QBMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::
     Init(params);
     bool isKZeroInit = false;
     BlockSchedulerOp bs(params.qbmmParams.baseM, params.qbmmParams.baseN, params.qbmmParams.baseK);
+    if constexpr (!transA) {
+        bs.SetLoadBalanceParam(mBaseNormCnt_, mTailMain_, mTailLast_);
+    }
 
     if (params.qbmmParams.batchC == 1UL) {
         ProcessWithoutBatch(params, bs, true);
@@ -257,6 +266,18 @@ __aicore__ inline void QuantMmBatchPertile<QBMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::
     Get<MNK_K>(problemShape_) = params.qbmmParams.k;
     mTailTile_ = params.qbmmParams.mTailTile;
     nTailTile_ = params.qbmmParams.nTailTile;
+    if constexpr (!transA) {
+        int32_t mBaseTailSplitCnt_ = params.qbmmParams.mBaseTailSplitCnt;
+        mBaseNormCnt_ =
+            CeilDiv(static_cast<int64_t>(params.qbmmParams.m), static_cast<int64_t>(params.qbmmParams.baseM)) -
+            mBaseTailSplitCnt_;
+        nBaseNormCnt_ =
+            CeilDiv(static_cast<int64_t>(params.qbmmParams.n), static_cast<int64_t>(params.qbmmParams.baseN)) - 1;
+        int32_t mergeSize = params.qbmmParams.m - mBaseNormCnt_ * params.qbmmParams.baseM;
+        mTailMain_ = mBaseTailSplitCnt_ == 1 ? mergeSize : params.qbmmParams.mTailMain;
+        nTailMain_ = params.qbmmParams.n - nBaseNormCnt_ * params.qbmmParams.baseN;
+        mTailLast_ = mergeSize - (mBaseTailSplitCnt_ - 1) * mTailMain_;
+    }
 
     isPertile_ = (params.qbmmParams.groupSizeM == 1);
     if ASCEND_IS_AIC {
@@ -357,9 +378,8 @@ __aicore__ inline void QuantMmBatchPertile<QBMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::
         epilogueOp_.UpdateParamsForNextProblem(problemShape_);
     }
 
-    AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t> bsProblemShape{
-        Get<MNK_M>(problemShape_), Get<MNK_N>(problemShape_), Get<MNK_K>(problemShape_), 0L};
-    bs.UpdateNextProblem(bsProblemShape);
+    bs.UpdateNextProblem(AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t>{
+                         Get<MNK_M>(problemShape_), Get<MNK_N>(problemShape_), Get<MNK_K>(problemShape_), 0L});
 
     if (isLastBatch && (bs.GetEndBlockIdx() + 1) * mTailTile_ * nTailTile_ <= AscendC::GetBlockNum()) {
         bs.UpdateTailTile(mTailTile_, nTailTile_);
@@ -373,16 +393,24 @@ __aicore__ inline void QuantMmBatchPertile<QBMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::
     BlockCoord tileIdx;
 
     while (bs.GetTileIdx(tileIdx)) {
-        BlockShape singleShape = bs.GetBlockShape(tileIdx);
+        BlockShape singleShape = bs.GetBlockShape(tileIdx, true);
 
         if (Get<MNK_M>(singleShape) <= 0 || Get<MNK_N>(singleShape) <= 0) {
             return;
         }
 
         if (isPertile_) {
-            blockOffset_ = coord.template GetQuantOffset<GroupedMatmul::QuantMode::PERGROUP_MODE>(
-                Get<IDX_M_TILEIDX>(tileIdx), Get<IDX_N_TILEIDX>(tileIdx), Get<IDX_M_TAIL_SPLIT_TILEIDX>(singleShape),
-                Get<IDX_N_TAIL_SPLIT_TILEIDX>(singleShape));
+            if constexpr (!transA) {
+                blockOffset_ = coord.template GetQuantOffset<GroupedMatmul::QuantMode::PERGROUP_MODE, true>(
+                    Get<IDX_M_TILEIDX>(tileIdx), Get<IDX_N_TILEIDX>(tileIdx),
+                    Get<IDX_M_TAIL_SPLIT_TILEIDX>(singleShape), Get<IDX_N_TAIL_SPLIT_TILEIDX>(singleShape),
+                    AscendC::Std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>{
+                        mBaseNormCnt_, mTailMain_, nBaseNormCnt_, nTailMain_});
+            } else {
+                blockOffset_ = coord.template GetQuantOffset<GroupedMatmul::QuantMode::PERGROUP_MODE>(
+                    Get<IDX_M_TILEIDX>(tileIdx), Get<IDX_N_TILEIDX>(tileIdx),
+                    Get<IDX_M_TAIL_SPLIT_TILEIDX>(singleShape), Get<IDX_N_TAIL_SPLIT_TILEIDX>(singleShape));
+            }
         } else {
             blockOffset_ = coord.template GetQuantOffset<GroupedMatmul::QuantMode::PERBLOCK_MODE>(
                 Get<IDX_M_TILEIDX>(tileIdx), Get<IDX_N_TILEIDX>(tileIdx), Get<IDX_M_TAIL_SPLIT_TILEIDX>(singleShape),

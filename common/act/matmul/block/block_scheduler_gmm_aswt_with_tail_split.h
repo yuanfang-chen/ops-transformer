@@ -45,11 +45,6 @@ private:
     int64_t m_{0};
     int64_t n_{0};
     int64_t k_;
-    int32_t baseM_;
-    int32_t baseN_;
-    int32_t baseK_;
-    int32_t mBaseTail_;
-    int32_t nBaseTail_;
     int64_t mTailCnt_{1};
     int64_t nTailCnt_{1};
     int64_t tailCnt_{1}; // only update when last group
@@ -58,15 +53,30 @@ private:
     int64_t mainRow_;
     int64_t round_;
     int64_t roundIdx_;
+    int32_t baseM_;
+    int32_t baseN_;
+    int32_t baseK_;
+    int32_t mBaseTail_;
+    int32_t nBaseTail_;
+    int32_t mBaseNormCnt_;
+    int32_t mBaseTailMain_;
+    int32_t mBaseTailLast_;
     uint32_t blockNum_ = AscendC::GetBlockNum();
     uint32_t blockIdx_ = AscendC::GetBlockIdx() / AscendC::GetTaskRation();
     uint32_t startBlockIdx_;
     uint32_t endBlockIdx_{blockNum_ - 1};
 
 public:
-    __aicore__ inline BlockSchedulerGmmAswtWithTailSplit(int32_t baseM, int32_t baseN, int32_t baseK) :
-        baseM_(baseM), baseN_(baseN), baseK_(baseK)
+    __aicore__ inline BlockSchedulerGmmAswtWithTailSplit(int32_t baseM, int32_t baseN, int32_t baseK)
+        : baseM_(baseM), baseN_(baseN), baseK_(baseK)
     {}
+
+    __aicore__ inline void SetLoadBalanceParam(uint32_t mBaseNormCnt, uint32_t mBaseTailMain, uint32_t mBaseTailLast)
+    {
+        mBaseNormCnt_ = mBaseNormCnt;
+        mBaseTailMain_ = mBaseTailMain;
+        mBaseTailLast_ = mBaseTailLast;
+    }
 
     __aicore__ inline void UpdateNextProblem(const TupleShape& problemShape)
     {
@@ -145,9 +155,20 @@ public:
         return true;
     }
 
-    __aicore__ inline TupleShape GetBlockShape(const BlockCoord& blockCoord)
+    __aicore__ inline TupleShape GetBlockShape(const BlockCoord& blockCoord, bool enableLoadBalance = false)
     {
-        int64_t singleCoreM = Get<MNK_M>(blockCoord) != (mCnt_ - 1) ? baseM_ : mBaseTail_;
+        int64_t singleCoreM = baseM_;
+        if (enableLoadBalance) {
+            if constexpr (!TransA_) {
+                if (Get<MNK_M>(blockCoord) >= mBaseNormCnt_) {
+                    singleCoreM = Get<MNK_M>(blockCoord) < mCnt_ - 1 ? mBaseTailMain_ : mBaseTailLast_;
+                }
+            } else {
+                singleCoreM = Get<MNK_M>(blockCoord) != (mCnt_ - 1) ? baseM_ : mBaseTail_;
+            }
+        } else {
+            singleCoreM = Get<MNK_M>(blockCoord) != (mCnt_ - 1) ? baseM_ : mBaseTail_;
+        }
         int64_t singleCoreN = Get<MNK_N>(blockCoord) != (nCnt_ - 1) ? baseN_ : nBaseTail_;
         if (tailCnt_ == 1 || roundIdx_ < round_) { // roundIdx++ in GetTileIdx
             return {singleCoreM, singleCoreN, 0, 0};

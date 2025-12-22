@@ -22,6 +22,10 @@ namespace Act {
 namespace Gemm {
 
 constexpr uint32_t OUTER_SIZE = 16;
+constexpr int IDX_M_BASE_NORM_CNT = 0;
+constexpr int IDX_M_BASE_TAIL_MAIN = 1;
+constexpr int IDX_N_BASE_NORM_CNT = 2;
+constexpr int IDX_N_BASE_TAIL_MAIN = 3;
 
 template <class BlockCoord_, class ProblemShape_, class ATensorType_, class BTensorType_, class CTensorType_>
 __aicore__ inline AscendC::Coord<int64_t, int64_t, int64_t>
@@ -192,11 +196,42 @@ public:
     }
 
     template <GroupedMatmul::QuantMode aQuantMode>
-    __aicore__ inline AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t>
-    GetQuantOffset(int64_t mTileIdx, int64_t nTileIdx, int64_t mSplitOffset = 0, int64_t nSplitOffset = 0)
+    __aicore__ inline void CalOffsetOfAIV(
+        int64_t mOffset, int64_t nOffset, AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t>& offset)
+    {
+        int64_t x1ScaleMOffset = mOffset;
+        if constexpr (aQuantMode == GroupedMatmul::QuantMode::PERBLOCK_MODE) {
+            x1ScaleMOffset = mOffset / PER_BLOCK_SIZE;
+        }
+        if constexpr (isTransA) {
+            Get<2>(offset) = x1ScaleMOffset; // 2: idx of x1Scale
+        } else {
+            Get<2>(offset) = x1ScaleMOffset * CeilDiv(k, PER_BLOCK_SIZE); // 2: idx of x1Scale
+        }
+        if constexpr (isTransB) {
+            Get<3>(offset) = nOffset / PER_BLOCK_SIZE * CeilDiv(k, PER_BLOCK_SIZE); // 3: idx of x2Scale
+        } else {
+            Get<3>(offset) = nOffset / PER_BLOCK_SIZE; // 3: idx of x2Scale
+        }
+    }
+
+    template <GroupedMatmul::QuantMode aQuantMode, bool enableLoadBalance = false>
+    __aicore__ inline AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t> GetQuantOffset(
+        int64_t mTileIdx, int64_t nTileIdx, int64_t mSplitOffset = 0, int64_t nSplitOffset = 0,
+        AscendC::Std::tuple<uint32_t, uint32_t, uint32_t, uint32_t> loadBalanceParam = {0u, 0u, 0u, 0u})
     {
         int64_t mOffset = mTileIdx * l1M + mSplitOffset;
         int64_t nOffset = nTileIdx * l1N + nSplitOffset;
+        if constexpr (enableLoadBalance && !(isTransA && !isTransB)) {
+            int32_t mBaseNormCnt = Get<IDX_M_BASE_NORM_CNT>(loadBalanceParam);
+            int32_t nBaseNormCnt = Get<IDX_N_BASE_NORM_CNT>(loadBalanceParam);
+            if (mTileIdx > mBaseNormCnt) {
+                mOffset -= (mTileIdx - mBaseNormCnt) * (l1M - Get<IDX_M_BASE_TAIL_MAIN>(loadBalanceParam));
+            }
+            if (nTileIdx > nBaseNormCnt) {
+                nOffset -= (nTileIdx - nBaseNormCnt) * (l1N - Get<IDX_N_BASE_TAIL_MAIN>(loadBalanceParam));
+            }
+        }
         AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t> offset{0, 0, 0, 0, 0, 0};
         if constexpr (isTransA) {
             Get<0>(offset) = mOffset;
@@ -212,19 +247,7 @@ public:
         if constexpr (aQuantMode == GroupedMatmul::QuantMode::PERGROUP_MODE ||
                       aQuantMode == GroupedMatmul::QuantMode::PERBLOCK_MODE) {
             if ASCEND_IS_AIV {
-                int64_t x1ScaleMOffset = (aQuantMode == GroupedMatmul::QuantMode::PERGROUP_MODE) ?
-                                             mOffset :
-                                             mOffset / PER_BLOCK_SIZE;
-                if constexpr (isTransA) {
-                    Get<2>(offset) = x1ScaleMOffset; // 2: idx of x1Scale
-                } else {
-                    Get<2>(offset) = x1ScaleMOffset * CeilDiv(k, PER_BLOCK_SIZE); // 2: idx of x1Scale
-                }
-                if constexpr (isTransB) {
-                    Get<3>(offset) = nOffset / PER_BLOCK_SIZE * CeilDiv(k, PER_BLOCK_SIZE); // 3: idx of x2Scale
-                } else {
-                    Get<3>(offset) = nOffset / PER_BLOCK_SIZE; // 3: idx of x2Scale
-                }
+                this->CalOffsetOfAIV<aQuantMode>(mOffset, nOffset, offset);
             }
         } else if constexpr (aQuantMode == GroupedMatmul::QuantMode::MX_PERGROUP_MODE) {
             if constexpr (isTransA) {
