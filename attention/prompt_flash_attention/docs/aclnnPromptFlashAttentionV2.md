@@ -245,7 +245,7 @@ aclnnStatus aclnnPromptFlashAttentionV2(
         <td>输出的量化因子。</td>
         <td><ul><li>支持per-tensor，per-channel。 </li></ul>
             <ul><li>不使用该功能时可传入nullptr。</li></ul></td>
-        <td>FLOAT32、nullptr</td>
+        <td>FLOAT32、BFLOAT16、nullptr</td>
         <td>ND</td>
         <td>1</td>
         <td>-</td>
@@ -256,7 +256,7 @@ aclnnStatus aclnnPromptFlashAttentionV2(
         <td>输出的量化偏移。</td>
         <td><ul><li>支持per-tensor，per-channel。 </li></ul>
             <ul><li>不使用该功能时可传入nullptr。</li></ul></td>
-        <td>FLOAT32、nullptr</td>
+        <td>FLOAT32、BFLOAT16、nullptr</td>
         <td>ND</td>
         <td>1</td>
         <td>-</td>
@@ -561,16 +561,16 @@ aclnnStatus aclnnPromptFlashAttentionV2(
     - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：数据类型支持UINT64、FLOAT32。
     - Atlas 推理系列加速卡产品：仅支持nullptr。
   
-- quantScale1，quantScale2输入，功能使用限制如下：
+- quantScale1输入，功能使用限制如下：
   
   - 输入数据类型限制：
     - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT32。
     - Atlas 推理系列加速卡产品：仅支持nullptr。
   
-- quantOffset2输入，功能使用限制如下：
+- quantScale2，quantOffset2输入，功能使用限制如下：
   
   - 输入数据类型限制：
-    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT32。
+    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT32和BFLOAT16。
     - Atlas 推理系列加速卡产品：仅支持nullptr。
   
 - preTokens输入，功能使用限制如下：
