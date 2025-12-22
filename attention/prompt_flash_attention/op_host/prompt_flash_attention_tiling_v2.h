@@ -309,6 +309,7 @@ protected:
     bool isBandMode = false;
     bool enableIFAMLA = false;
     bool enableIFA = false;
+    bool enableIFAMask = false;
     bool enableIFAMLAFullQuant = false;
     // MLPerf合轴优化
     bool enablePFAMerge = false;

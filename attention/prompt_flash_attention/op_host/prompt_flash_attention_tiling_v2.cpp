@@ -1250,7 +1250,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskShape(ContextParamsForPFATiling& con
     size_t attenMaskDim = attenMaskShape->GetStorageShape().GetDimNum();
     int64_t attenMaskN = 1U;
     if (attenMaskDim == MASKDIM_2) {
-        if (enableIFA) {
+        if (enableIFAMask) {
             attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0);
             attenMaskS1 = 1;
             attenMaskS2 = attenMaskShape->GetStorageShape().GetDim(1);
@@ -1278,7 +1278,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskShape(ContextParamsForPFATiling& con
         return false;
     }
 
-    if (enableIFA) {
+    if (enableIFAMask) {
         checkMask = (attenMaskBatch == batchSize) && (attenMaskS1 == 1) && (attenMaskS2 >= S2);
     } else if (isDefaultSparseMode || (sparseMode != nullptr && *sparseMode == SPARSE_MODE_ALL_MASK)) {
         checkMask = (attenMaskS1 >= sQ) && (attenMaskS2 >= sK) && (attenMaskBatch == 1 || attenMaskBatch == batchSize);
@@ -1298,7 +1298,7 @@ void PromptFlashAttentionTilingV2::SetSparseModeData(ContextParamsForPFATiling& 
         // 2: target dimension of attenMask
         attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0);
     }
-    if ((attenMaskShape != nullptr) && enableIFA && (attenMaskShape->GetStorageShape().GetDimNum() == MASKDIM_2)) {
+    if ((attenMaskShape != nullptr) && enableIFAMask && (attenMaskShape->GetStorageShape().GetDimNum() == MASKDIM_2)) {
         attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0); // IFA mask shape (B,S2)
     }
     tilingData.promptAttentionSingleCoreParams.set_attenMaskBatch(attenMaskBatch);
@@ -1371,7 +1371,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskShapeCrossSparse(ContextParamsForPFA
     if (!CheckMaskShape(contextKeyParams, sparseMode, attenMaskBatch, attenMaskS1, attenMaskS2, checkMask, sQ, sK, batchSize, strMaskShape)) {
         return false;
     }
-    if (enableIFA) {
+    if (enableIFAMask) {
         OP_CHECK_IF(!checkMask,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "attenMask batch(%ld) must be %u, attenMask Q_S(%ld) must be 1,"
@@ -1442,8 +1442,11 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
     OP_CHECK_IF((!GetAndCheckShape(contextKeyParams, queryShapeInfo, queryShape, "query")),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Get and check query shape failed."),
         return false);
-    if (queryShapeInfo.s == 1 && !enableAlibiPse) {
-        enableIFA = true;
+    if (queryShapeInfo.s == 1) {
+        enableIFAMask = true;
+        if (!enableAlibiPse) {
+            enableIFA = true;
+        }
     }
     enablePFAMerge = CheckPFAMerge(contextKeyParams, queryShapeInfo);
     // check value shape
@@ -1566,6 +1569,7 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Get and check queryRope shape failed."),
         return false);
     enableIFA = false;
+    enableIFAMask = false;
     enablePFAMerge = false;
     if (queryShapeInfo.d == QUERY_SHAPE_DIM_D_128_TILING_V2) {
         enablePFARope = true;
@@ -2110,7 +2114,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskTypeAndShape(ContextParamsForPFATili
     maskKVsSize = attenMaskShape->GetStorageShape().GetDim(attenMaskShape->GetStorageShape().GetDimNum() - 1);
     maskQsSize = attenMaskShape->GetStorageShape().GetDim(attenMaskShape->GetStorageShape().GetDimNum() - 2); // 2 for Q dim index
     
-    if (enableIFA) {
+    if (enableIFAMask) {
         maskQsSize = 1;
     }
 
