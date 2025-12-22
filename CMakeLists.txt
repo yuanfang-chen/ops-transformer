@@ -30,14 +30,14 @@ option(OP_KERNEL_AICPU_UT         "Enable aicpu kernel ut"          OFF)
 option(UT_TEST_ALL                "Enable all ut"                   OFF)
 option(ENABLE_OOM                 "Enable kernel oom"               OFF)
 
-set(ASCEND_COMPUTE_UNIT           "ascend910b"                    CACHE   STRING   "soc that need to be compiled")
+set(ASCEND_COMPUTE_UNIT           "ascend910b"           CACHE   STRING   "soc that need to be compiled")
 set(ASCEND_OP_NAME                "ALL"                           CACHE   STRING   "operators that need to be compiled")
 set(ARCH_DIRECTORY                ""                           CACHE   STRING   "arch directory that need to be compiled")
 set(VENDOR_NAME                   "custom"                     CACHE   STRING   "vendor name")
-set(ASCEND_ALL_COMPUTE_UNIT       "ascend310p;ascend910b;ascend910_93;ascend910_95;mc62cm12a" CACHE STRING "all soc list")
+set(ASCEND_ALL_COMPUTE_UNIT       "ascend310p;ascend910b;ascend910_93;ascend910_95;mc62cm12a;kirinx90" CACHE STRING "all soc list")
 
-set(SOC_VERSION_LIST ascend310p ascend910b ascend910_93 ascend910_95 mc62cm12a)
-set(ARCH_DIRECTORY_LIST arch20 arch32 arch32 arch35 arch38)
+set(SOC_VERSION_LIST ascend310p ascend910b ascend910_93 ascend910_95 mc62cm12a kirinx90)
+set(ARCH_DIRECTORY_LIST arch20 arch32 arch32 arch35 arch38 arch32)
 
 foreach(SOC_VERSION ${ASCEND_COMPUTE_UNIT})
   list(FIND SOC_VERSION_LIST ${SOC_VERSION} INDEX)

@@ -42,7 +42,7 @@ ENABLE_STATIC=FALSE
 ENABLE_EXPERIMENTAL=FALSE
 ASCEND_SOC_UNITS="ascend910b"
 SUPPORT_COMPUTE_UNIT_SHORT=("ascend031" "ascend035" "ascend310b" "ascend610lite" "ascend910_55" "mc62cm12a"
-                            "ascend910b" "ascend910_93" "ascend910_95" "ascend310p" "ascend910")
+                            "ascend910b" "ascend910_93" "ascend910_95" "ascend310p" "ascend910" "kirinx90")
 CMAKE_BUILD_MODE=""
 BUILD_TYPE=""
 VERSION=""
