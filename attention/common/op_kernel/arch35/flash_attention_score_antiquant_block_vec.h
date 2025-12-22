@@ -199,8 +199,8 @@ protected:
     TQue<QuePosition::VECOUT, 1> softmaxLseQueue;
     TQue<QuePosition::VECOUT, 1> stage1OutQue[2];
     TQue<QuePosition::VECOUT, 1> stage2OutQue[2];
-    TQue<QuePosition::VECOUT, 1> postQuantScaleQue;
-    TQue<QuePosition::VECOUT, 1> postQuantOffsetQue;
+    TQue<QuePosition::VECIN, 1> postQuantScaleQue;
+    TQue<QuePosition::VECIN, 1> postQuantOffsetQue;
     /*伪量化参数*/
     GlobalTensor<KEY_ANTIQ_PARAMS_T> keyAntiquantOffsetGm;
     GlobalTensor<KEY_ANTIQ_PARAMS_T> keyAntiqScaleGm;
