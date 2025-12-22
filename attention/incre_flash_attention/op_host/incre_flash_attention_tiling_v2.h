@@ -111,6 +111,7 @@ protected:
     void UpdateTilingKeyEmptyTensor();
     void UpdateTilingKeyPFAMask();
     void UpdateTilingKeyPFAMatMulType();
+    void UpdateTilingKeyEnableKVPrefix();
 public:
     uint8_t inOutLayoutType = 0;
     uint16_t config = 0;
@@ -123,6 +124,7 @@ public:
     bool emptyTensor = false;
     uint8_t PFAMask = 0;
     uint8_t pFAMatMulType = 0;
+    bool enableKVPrefix = false;
 private:
   ge::graphStatus GetNpuInfo();
   ge::graphStatus PreProcess();

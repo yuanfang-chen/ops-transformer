@@ -226,6 +226,7 @@ protected:
         int64_t actualSeqLengthKV, int64_t& preTokensLeftUp, int64_t& nextTokensLeftUp);
     void UpdateTilingKeyMaskCfg(PromptFlashAttentionTilingData& tilingData, uint64_t& tilingKey);
     void UpdateTilingKeyPseCfg(uint64_t& tilingKey);
+    void UpdateTilingSystemPrefix(uint64_t& tilingKey);
     void UpdateTilingKeyDSizeConst(PromptFlashAttentionTilingData &tilingData, uint64_t& tilingKey);
     void UpdateTilingKeyValueDSizeConst(PromptFlashAttentionTilingData &tilingData, uint64_t& tilingKey) const;
     void UpdateTilingKeySInnerConst(PromptFlashAttentionTilingData &tilingData, uint64_t& tilingKey);
@@ -271,6 +272,7 @@ protected:
     void UpdateTilingKeyEmptyTensor();
     void UpdateTilingKeyPFAMask(PromptFlashAttentionTilingData& tilingData, ge::DataType inputDataType);
     void UpdateTilingKeyPFAMatMulType(PromptFlashAttentionTilingData& tilingData, ge::DataType inputDataType);
+    void UpdateTilingKeyEnableKVPrefix();
 
 public:
     uint8_t inOutLayoutType = 0;
@@ -284,6 +286,7 @@ public:
     bool emptyTensor = false;
     uint8_t PFAMask = 0;
     uint8_t pFAMatMulType = 0;
+    bool enableKVPrefix = false;
   
 protected:
     ContextParamsForPFATiling* contextKeyParamsPtr = nullptr;

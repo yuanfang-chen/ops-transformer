@@ -131,6 +131,9 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     // IFA_MLA
     int64_t actualSeqLengthOfMlaPerBatch = 0; // 在mla场景下Q的actualSeqLength
     int64_t nextTokensOfMlaPerBatch = 0;   // 在mla场景下左上顶点的nexttoken，用于计算BNSD的行无效
+
+    // prefix
+    int64_t prefixCoreOffset = 0;       // 保存当前循环，prefix在bn维度的地址偏移
 };
 
 #define COMMON_RUN_INFO \
@@ -197,6 +200,9 @@ struct RunInfo<true> {
 
     // tensorlist相关
     int64_t s2InCurrentBatch;
+
+    // prefix相关
+    int64_t prefixOffset;                  //保存当前循环prefix的地址偏移
 };
 
 template<>
@@ -300,6 +306,13 @@ struct RunInfo<false> {
     int64_t mm1RopeKa; /* rope matmul 跳读参数*/ \
     int64_t mm1RopeKb
 
+#define KVPREFIX_INFO \
+    /* prefix参数 */ \
+    bool isActualSharedPrefixLenNull = true; \
+    int64_t actualKVPrefixSize = 0; /* 保存prefix实际长度 */ \
+    int64_t kvPrefixSize = 0;  /* 保存prefix shape完整长度 */ \
+    int64_t prefixLoopCount = 0 /* 保存prefix参与的S2方向循环次数 */
+
 #define INFER_CONST_INFO \
     /* 推理新增 */ \
     bool isRowInvalid; /* 是否使能行无效 */ \
@@ -384,12 +397,14 @@ struct ConstInfo<true, true> {
     COMMON_CONST_INFO;
     INFER_CONST_INFO;
     ROPE_INFO;
+    KVPREFIX_INFO;
 };
 
 template <>
 struct ConstInfo<true, false> {
     COMMON_CONST_INFO;
     INFER_CONST_INFO;
+    KVPREFIX_INFO;
 };
 
 template <>
@@ -446,6 +461,10 @@ struct CVSharedParams<true, false> {
 
     uint32_t queryRightPaddingSize;
     uint32_t kvRightPaddingSize;
+
+    // prefix
+    bool isActualSharedPrefixLenNull;
+    int64_t kvPrefixSize;
 };
 
 template<>
@@ -480,6 +499,10 @@ struct CVSharedParams<true, true> {
     int32_t blockTableDim2;
     int32_t paBlockNumSum;
     uint32_t paLayoutType;
+
+    // prefix
+    bool isActualSharedPrefixLenNull;
+    int64_t kvPrefixSize;
 };
 }
 

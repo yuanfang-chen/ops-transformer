@@ -275,6 +275,7 @@ protected:
     static constexpr uint32_t FP32_ONE_BLOCK_SIZE = 8;
 
     static constexpr bool useDn = false;
+    static constexpr bool enableKVPrefix = false;
     /*========常量信息，只和输入shape相关的信息========*/
     ConstInfo<isInfer, hasRope> constInfo;
     PseInfo pseInfo;
@@ -1001,9 +1002,9 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
             runParam.boIdx = bnIdx / constInfo.n2Size;
             runParam.n2oIdx = bnIdx % constInfo.n2Size;
         }
-        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, this->attenMaskInfo, keyGm, 
+        ComputeParamBatch<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, this->attenMaskInfo, keyGm, 
             actualSeqQlenAddr, actualSeqKvlenAddr);
-        ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, lastBN, this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1]);
+        ComputeS1LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, lastBN, this->tilingData->multiCoreParamsRegbase.sparseStartIdx[aicIdx + 1]);
         if constexpr (isFd) {
             if (constInfo.sInnerLoopSize * (aicIdx % splitKVNum) > runParam.actualSeqLengthKVPerBatch) {
                 runParam.actualSInnerLoopSize = 0;
@@ -1020,10 +1021,10 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::P
         for (int64_t gS1Index = gS1StartIdx; gS1Index <runParam.s1LoopTimes; gS1Index++) {
             s2LoopLimit = 0;
             this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, multiCoreInnerIdx, runParam);
-            bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, gS1Index, actualSeqQlenAddr, this->pseInfo);
-            bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo);
+            bool s1NoNeedCalc = ComputeParamS1<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, gS1Index, actualSeqQlenAddr, this->pseInfo);
+            bool s2NoNeedCalc = ComputeS2LoopInfo<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo);
             bool lastLoopThisCore = lastBN && (gS1Index == runParam.s1LoopTimes - 1);
-            bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, actualSeqQlenAddr);
+            bool lastBnNoNeedCalc = ComputeLastBN<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, actualSeqQlenAddr);
             if (((s1NoNeedCalc || s2NoNeedCalc) && !lastLoopThisCore) || lastBnNoNeedCalc) {
                 continue;
             }
@@ -1395,8 +1396,8 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::S
     this->ComputeBmm1Tail(runInfo, runParam);
     if constexpr (isInfer) {
         runInfo.qRopeOffset = runParam.qRopeNBGOffset;
-        InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, runInfo);
-        ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx / s2BaseSize, runInfo);
+        InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, runInfo);
+        ComputeOffset<CHILD_SPEC_TEMPLATE_ARGS, useDn, enableKVPrefix>(runParam, constInfo, s2LoopCount + runInfo.s2StartIdx / s2BaseSize, runInfo);
     }
 }   
 
@@ -1767,7 +1768,7 @@ __aicore__ inline void FlashAttentionKvsameBN2GS1S2<CHILD_SPEC_TEMPLATE_ARGS>::M
 {
     if constexpr (hasAtten == true) {
         LocalTensor<uint8_t> attenMaskUb = attenMaskInQue.template AllocTensor<uint8_t>();
-        int64_t maskOffset = ComputeAttenMaskOffset<hasAtten, isFd, hasRope, isInfer, dTemplateType>(runInfo, constInfo, attenMaskInfo);
+        int64_t maskOffset = ComputeAttenMaskOffset<hasAtten, enableKVPrefix, isFd, hasRope, isInfer, dTemplateType>(runInfo, constInfo, attenMaskInfo);
         this->MlaBoolCopyInRegbase(attenMaskUb, srcTensor, maskOffset, runInfo.halfS1RealSize, runInfo.s2RealSize,
             attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo, runInfo, runParam);
         attenMaskInQue.template EnQue(attenMaskUb);

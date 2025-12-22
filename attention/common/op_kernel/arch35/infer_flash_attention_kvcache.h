@@ -132,9 +132,16 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr<isInfer>& runParam,
     runParam.actualS2Size = actualS2Size;
     GetSparseParam<TEMPLATE_INTF_ARGS>(constInfo, attenMaskInfo, runParam);
 
-    runParam.actualS1Size = 
-        (runParam.actualS1Size > runParam.actualS2Size + runParam.preTokensPerBatch) ?
-        runParam.actualS2Size + runParam.preTokensPerBatch : runParam.actualS1Size;
+    if constexpr (enableKVPrefix) {
+        runParam.actualS1Size = (runParam.actualS1Size >
+                                 runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch) ?
+                                    runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch :
+                                    runParam.actualS1Size;
+    } else {
+        runParam.actualS1Size = (runParam.actualS1Size > runParam.actualS2Size + runParam.preTokensPerBatch) ?
+                                    runParam.actualS2Size + runParam.preTokensPerBatch :
+                                    runParam.actualS1Size;
+    }
 
     // 计算S1的尾块大小，非对齐
     runParam.actualS1Size = (runParam.nextTokensPerBatch >= 0) ? runParam.actualS1Size :
@@ -238,6 +245,21 @@ __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, c
         GetKeyCoreOffsetParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, sIdx, actualSeqKvlenAddr);
     } else {
         runParam.keyCoreOffset = runParam.valueCoreOffset;
+    }
+
+    if constexpr (enableKVPrefix) {
+        uint64_t prefixInnerOffsetSize = 0;
+        if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
+            // 前缀区域从 batch 的左padding 后开始；与 value 一致但 sIdx 固定为 0
+            prefixInnerOffsetSize = runParam.kvLeftPaddingSize * constInfo.n2Dv;
+            runParam.prefixCoreOffset = prefixInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeV;
+        } else {
+            // 除TND外的其他布局，例如BSH，BNSD，BSND等
+            uint64_t headStrideV = 0;
+            headStrideV = constInfo.s2Dv;
+            prefixInnerOffsetSize = runParam.kvLeftPaddingSize * constInfo.dSizeV;
+            runParam.prefixCoreOffset = prefixInnerOffsetSize + runParam.n2oIdx * headStrideV;
+        }
     }
 }
 
@@ -491,7 +513,14 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
         0, runParam.actualS2Size);
     runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
         runParam.s1RealSize, 0, runParam.actualS2Size);
-
+    if constexpr (enableKVPrefix) {
+        sInnerFirstToken =
+            ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch, 0,
+                                                    runParam.actualS2Size + constInfo.actualKVPrefixSize);
+        runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(
+            runParam.cubeSOuterOffset + runParam.nextTokensPerBatch + runParam.s1RealSize, 0,
+            runParam.actualS2Size + constInfo.actualKVPrefixSize);
+    }
     runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - sInnerFirstToken /s2BaseSize;
 
     if (runParam.s2LoopEndIdx <= 0) {
@@ -523,31 +552,62 @@ __aicore__ inline void ComputeOffset(const RunParamStr<isInfer>& runParam,
             runInfo.vecCoreOffset = 0;
         }
     } else {
-        if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH || layout == LayOutTypeEnum::LAYOUT_TND) {
-            runInfo.valueOffset = runParam.valueCoreOffset + sInnerLoopIdx * constInfo.s2BaseN2Dv;
-            if constexpr (isFd) {
-                runInfo.valueOffset += runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize * constInfo.n2D;
-            }
-            if (unlikely(constInfo.dSize != constInfo.dSizeV)) {
-                runInfo.keyOffset = runParam.keyCoreOffset + sInnerLoopIdx * constInfo.s2BaseN2D;
+        if constexpr (enableKVPrefix) {
+            // 判断是否处于 prefix 循环
+            const bool inPrefixLoop =
+                (sInnerLoopIdx * static_cast<int32_t>(s2TemplateType) < constInfo.actualKVPrefixSize);
+            if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
+                if (inPrefixLoop) {
+                    // 前缀循环：只计算 prefixOffset，K/V 置 0 
+                    runInfo.prefixOffset = runParam.prefixCoreOffset + sInnerLoopIdx * constInfo.s2BaseN2Dv;
+                    runInfo.valueOffset = 0;
+                    runInfo.keyOffset = 0;
+                } else {
+                    // 普通 KV 循环：维持原 K/V 计算，prefixOffset 置 0 
+                    runInfo.prefixOffset = 0;
+                    runInfo.valueOffset = runParam.valueCoreOffset + sInnerLoopIdx * constInfo.s2BaseN2Dv;
+                    runInfo.keyOffset = runInfo.valueOffset;
+                }
             } else {
-                runInfo.keyOffset = runInfo.valueOffset;
-            }
-            if constexpr (hasRope) {
-                runInfo.kRopeOffset = runParam.kRopeNBGOffset + sInnerLoopIdx * constInfo.s2BaseN2DR;
+                if (inPrefixLoop) {
+                    // 前缀循环：只计算 prefixOffset，K/V 置 0 
+                    runInfo.prefixOffset = runParam.prefixCoreOffset + sInnerLoopIdx * constInfo.s2BaseDv;
+                    runInfo.valueOffset = 0;
+                    runInfo.keyOffset = 0;
+                } else {
+                    // 普通 KV 循环：维持原 K/V 计算，prefixOffset 置 0 
+                    runInfo.prefixOffset = 0;
+                    runInfo.valueOffset = runParam.valueCoreOffset + sInnerLoopIdx * constInfo.s2BaseDv;
+                    runInfo.keyOffset = runInfo.valueOffset;
+                }
             }
         } else {
-            runInfo.valueOffset = runParam.valueCoreOffset + sInnerLoopIdx * constInfo.s2BaseDv;
-            if constexpr (isFd) {
-                runInfo.valueOffset += runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize * constInfo.dSize;
-            }
-            if (unlikely(constInfo.dSize != constInfo.dSizeV)) {
-                runInfo.keyOffset = runParam.keyCoreOffset + sInnerLoopIdx * constInfo.s2BaseD;
+            if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH || layout == LayOutTypeEnum::LAYOUT_TND) {
+                runInfo.valueOffset = runParam.valueCoreOffset + sInnerLoopIdx * constInfo.s2BaseN2Dv;
+                if constexpr (isFd) {
+                    runInfo.valueOffset += runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize * constInfo.n2D;
+                }
+                if (unlikely(constInfo.dSize != constInfo.dSizeV)) {
+                    runInfo.keyOffset = runParam.keyCoreOffset + sInnerLoopIdx * constInfo.s2BaseN2D;
+                } else {
+                    runInfo.keyOffset = runInfo.valueOffset;
+                }
+                if constexpr (hasRope) {
+                    runInfo.kRopeOffset = runParam.kRopeNBGOffset + sInnerLoopIdx * constInfo.s2BaseN2DR;
+                }
             } else {
-                runInfo.keyOffset = runInfo.valueOffset;
-            }
-            if constexpr (hasRope) {
-                runInfo.kRopeOffset = runParam.kRopeNBGOffset + sInnerLoopIdx * constInfo.s2BaseDR;
+                runInfo.valueOffset = runParam.valueCoreOffset + sInnerLoopIdx * constInfo.s2BaseDv;
+                if constexpr (isFd) {
+                    runInfo.valueOffset += runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize * constInfo.dSize;
+                }
+                if (unlikely(constInfo.dSize != constInfo.dSizeV)) {
+                    runInfo.keyOffset = runParam.keyCoreOffset + sInnerLoopIdx * constInfo.s2BaseD;
+                } else {
+                    runInfo.keyOffset = runInfo.valueOffset;
+                }
+                if constexpr (hasRope) {
+                    runInfo.kRopeOffset = runParam.kRopeNBGOffset + sInnerLoopIdx * constInfo.s2BaseDR;
+                }
             }
         }
     }

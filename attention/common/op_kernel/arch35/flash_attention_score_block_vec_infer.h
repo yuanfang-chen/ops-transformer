@@ -188,7 +188,11 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedParams(
         sharedParams.paLayoutType = inputParamsRegbase.paLayoutType;
         sharedParams.paBlockNumSum = inputParamsRegbase.paBlockNumSum;
     }
- 
+    // prefix
+    if constexpr (enableKVPrefix) {
+        sharedParams.isActualSharedPrefixLenNull = inputParamsRegbase.isActualSharedPrefixLenNull;
+        sharedParams.kvPrefixSize = inputParamsRegbase.prefixSeqInnerSize;
+    }
     auto &multiCoreParamsRegbase = this->tilingData->multiCoreParamsRegbase;
     sharedParams.s1OuterSize = multiCoreParamsRegbase.s1OuterSize;
     sharedParams.coreNum = multiCoreParamsRegbase.coreNum;

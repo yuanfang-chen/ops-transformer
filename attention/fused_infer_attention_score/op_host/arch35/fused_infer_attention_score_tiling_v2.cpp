@@ -695,13 +695,6 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Attributes returned from GetAttrs() is a nullptr!"),
         return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(context_->GetOptionalInputDesc(KEY_SHARED_PREFIX_INDEX) != nullptr,
-        OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "key shared perfix is not supported yet!"),
-        return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->GetOptionalInputDesc(VALUE_SHARED_PREFIX_INDEX) != nullptr,
-        OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "value shared perfix is not supported yet!"),
-        return ge::GRAPH_FAILED);
-
     uint32_t tempN = *attrs->GetAttrPointer<uint32_t>(ATTR_N_INDEX);
     uint32_t tempKVN = *attrs->GetAttrPointer<uint32_t>(ATTR_NUM_KV_HEADS_INDEX);
     OP_CHECK_IF(tempN == 0, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Q numhead is 0!"), 
@@ -872,13 +865,13 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                     return ge::GRAPH_FAILED);
         uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(ifaTilingV2.inOutLayoutType), static_cast<uint64_t>(ifaTilingV2.config), static_cast<uint64_t>(ifaTilingV2.pseMode),
                                                 static_cast<uint64_t>(ifaTilingV2.quantMode), ifaTilingV2.hasAttenMask, ifaTilingV2.hasRope, ifaTilingV2.isPa, ifaTilingV2.isFd, ifaTilingV2.emptyTensor,
-                                                static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType));
+                                                static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType), ifaTilingV2.enableKVPrefix);
         context_->SetTilingKey(tiling_key);
         OP_LOGI(ifaContext.opName, "The new template tilingkey is %llu.", tiling_key);
-        OP_LOGI(ifaContext.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.", 
+        OP_LOGI(ifaContext.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.", 
                 static_cast<uint64_t>(ifaTilingV2.inOutLayoutType), static_cast<uint64_t>(ifaTilingV2.config), static_cast<uint64_t>(ifaTilingV2.pseMode),
                 static_cast<uint64_t>(ifaTilingV2.quantMode), ifaTilingV2.hasAttenMask, ifaTilingV2.hasRope, ifaTilingV2.isPa, ifaTilingV2.isFd, ifaTilingV2.emptyTensor,
-                static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType));
+                static_cast<uint64_t>(ifaTilingV2.PFAMask), static_cast<uint64_t>(ifaTilingV2.pFAMatMulType), ifaTilingV2.enableKVPrefix);
         return ret;
     } else {
         // PFA tiling process        
@@ -976,12 +969,12 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                     return ge::GRAPH_FAILED);
         uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
                                                 pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), 
-                                                static_cast<uint64_t>(pfa_tiling.pFAMatMulType));
+                                                static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix);
         context_->SetTilingKey(gen_tilingkey);
         OP_LOGI(context_->GetNodeName(), "The new template tilingkey is %llu.", gen_tilingkey);
-        OP_LOGI(context_->GetNodeName(), "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.",
+        OP_LOGI(context_->GetNodeName(), "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.",
                 static_cast<uint64_t>(pfa_tiling.inOutLayoutType), static_cast<uint64_t>(pfa_tiling.config), static_cast<uint64_t>(pfa_tiling.pseMode), static_cast<uint64_t>(pfa_tiling.quantMode), pfa_tiling.hasAttenMask,
-                pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), static_cast<uint64_t>(pfa_tiling.pFAMatMulType));
+                pfa_tiling.hasRope, pfa_tiling.isPa, pfa_tiling.isFd, pfa_tiling.emptyTensor, static_cast<uint64_t>(pfa_tiling.PFAMask), static_cast<uint64_t>(pfa_tiling.pFAMatMulType), pfa_tiling.enableKVPrefix);
         OP_LOGI(context_->GetNodeName(), "All the FIASTiling work is done.");
         return ret;
     }

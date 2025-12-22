@@ -383,11 +383,19 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
         b = shape->GetStorageShape().GetDim(0);
         n = shape->GetStorageShape().GetDim(1);
         s = shape->GetStorageShape().GetDim(2); // 2 for Sequence length
+        if (isKVHasPrefix && inputName == "keysharedprefix") {
+            b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
+            s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV Sequence length
+        }
         d = shape->GetStorageShape().GetDim(3); // 3 for D dim
         h = n * d;
     } else if ((inputLayout == InputLayout::BSH)) {
         b = shape->GetStorageShape().GetDim(0);
         s = shape->GetStorageShape().GetDim(1);
+        if (isKVHasPrefix && inputName == "keysharedprefix") {
+            b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
+            s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV Sequence length
+        }
         h = shape->GetStorageShape().GetDim(2); // 2 for H dim
         if (inputName == "query") {
             n = static_cast<int64_t>(*contextKeyParams.headsNumber);
@@ -399,10 +407,17 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
     } else if ((inputLayout == InputLayout::BSND)) {
         b = shape->GetStorageShape().GetDim(0);
         s = shape->GetStorageShape().GetDim(1);
+        if (isKVHasPrefix && inputName == "keysharedprefix") {
+            b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
+            s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV Sequence length
+        }
         n = shape->GetStorageShape().GetDim(2); // 2 for head dim
         d = shape->GetStorageShape().GetDim(3); // 3 for D dim
         h = n * d;
     } else if ((inputLayout == InputLayout::TND)) {
+        if (isKVHasPrefix && inputName == "keysharedprefix") {
+            return false;
+        }
         if (isMaxWorkspace) {
             b = 1;
             s = shape->GetStorageShape().GetDim(0);
@@ -410,6 +425,8 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
             b = static_cast<int64_t>(contextKeyParams.actualSequenceLengthQ->GetShapeSize());
             s = (inputName == "query") ? GetMaxSeq(contextKeyParams.actualSequenceLengthQ) : GetMaxSeq(contextKeyParams.actualSequenceLengthKV);
         }
+        b = static_cast<int64_t>(contextKeyParams.actualSequenceLengthQ->GetShapeSize());
+        s = (inputName == "query") ? GetMaxSeq(contextKeyParams.actualSequenceLengthQ) : GetMaxSeq(contextKeyParams.actualSequenceLengthKV);
         t = shape->GetStorageShape().GetDim(0);
         n = shape->GetStorageShape().GetDim(1);
         d = shape->GetStorageShape().GetDim(2); // 2 for D dim
@@ -940,7 +957,7 @@ bool PromptFlashAttentionTilingV2::CheckAntiquantParamsShape(ContextParamsForPFA
 }
 
 bool PromptFlashAttentionTilingV2::GetAndCheckPrefixShape(ContextParamsForPFATiling& contextKeyParams,
-    PFAShapeInfo& queryShapeInfo, PFAShapeInfo& prefixShapeInfo,
+    PFAShapeInfo& keyShapeInfo, PFAShapeInfo& prefixShapeInfo,
     PromptFlashAttentionTilingData& tilingData) const {
     int64_t prefixSeqInnerSize = 0;
     int64_t bPrefix = 0U;
@@ -949,23 +966,24 @@ bool PromptFlashAttentionTilingV2::GetAndCheckPrefixShape(ContextParamsForPFATil
     int64_t hPrefix = 0U;
     int64_t tPrefix = 0;
 
-    if (!SetShape(contextKeyParams, contextKeyParams.queryInputShape, "query", bPrefix, nPrefix, prefixSeqInnerSize, dPrefix,
-        hPrefix, tPrefix)) {
+    if (!SetShape(contextKeyParams, contextKeyParams.keyInputShape, "keysharedprefix", bPrefix, nPrefix,
+                  prefixSeqInnerSize, dPrefix, hPrefix, tPrefix)) {
         return false;
     }
     OP_CHECK_IF((bPrefix != 1),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "prefix batch num(%ld) only support 1!", bPrefix),
-        return false);
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "prefix batch num(%ld) only support 1!", bPrefix),
+                return false);
     if (inputLayout == InputLayout::BSH) {
-        OP_CHECK_IF(
-            (hPrefix != queryShapeInfo.h / tilingData.promptAttentionBaseParams.get_headNumRatio()), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "prefix H(%ld) should be same with KV H(%u)!",
-                hPrefix, queryShapeInfo.h / tilingData.promptAttentionBaseParams.get_headNumRatio()),
-            return false);
+        OP_CHECK_IF((hPrefix != keyShapeInfo.h),
+                    OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "prefix H(%ld) should be same with KV H(%u)!",
+                                                hPrefix, keyShapeInfo.h),
+                    return false);
     } else {
-        OP_CHECK_IF((nPrefix != queryShapeInfo.n / tilingData.promptAttentionBaseParams.get_headNumRatio()) ||
-            (dPrefix != queryShapeInfo.h / queryShapeInfo.n), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "prefix N(%ld) and D(%ld) should be same with KV N(%u) and D(%u)!", 
-                nPrefix, dPrefix, queryShapeInfo.n / tilingData.promptAttentionBaseParams.get_headNumRatio(), queryShapeInfo.h / queryShapeInfo.n),
-            return false);
+        OP_CHECK_IF((nPrefix != keyShapeInfo.n) || (dPrefix != keyShapeInfo.d),
+                    OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                                                "prefix N(%ld) and D(%ld) should be same with KV N(%u) and D(%u)!",
+                                                nPrefix, dPrefix, keyShapeInfo.n, keyShapeInfo.d),
+                    return false);
     }
     prefixShapeInfo.b = static_cast<uint32_t>(bPrefix);
     prefixShapeInfo.n = static_cast<uint32_t>(nPrefix);
@@ -1746,6 +1764,10 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
         contextKeyParams.deqScale2Shape != nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, quantScale1, dequantScale1 and dequantScale2 should be null."), return false);
+    // 全量化不支持system prefix
+    OP_CHECK_IF((contextKeyParams.keySharedPrefix != nullptr || contextKeyParams.valueSharedPrefix != nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, keySharedPrefix and valueSharedPrefix should be null."), return false);
     return true;
 }
 
@@ -1759,9 +1781,19 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         actualSharedPrefixLen = 0;
         return true;
     }
-    // The prefix does not support tensorlist, PA, or left padding
+    // The prefix does not support TND, tensorlist, pfa mla, ifa mla or left padding
+    OP_CHECK_IF(
+        (inputLayout == InputLayout::TND),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when TND is used, system prefix is not supported!"),
+        return false);
     OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when tensorlist is used, system prefix is not supported!"),
+        return false);
+    OP_CHECK_IF(enableIFAMLA || enablePFARope, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "when system prefix is used, rope is not supported!"),
+        return false);
+    OP_CHECK_IF(enablePFAMLA, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "when system prefix is used, query, key and value D should be the same, input query's D ane key's D = 192, but value's D = 128!"),
         return false);
     OP_CHECK_IF(enableLeftPadding, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when system prefix is used, leftpadding is not supported!"),
@@ -1774,7 +1806,7 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
     // get prefix shape
     const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
 
-    OP_CHECK_IF(!GetAndCheckPrefixShape(contextKeyParams, queryShapeInfo, prefixShapeInfo, tilingData),
+    OP_CHECK_IF(!GetAndCheckPrefixShape(contextKeyParams, keyShapeInfo, prefixShapeInfo, tilingData),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Get and check prefix shape failed."),
         return false);
 
@@ -1786,7 +1818,7 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
     // check actSharedPrefix
     if (!isMaxWorkspace && (contextKeyParams.actualSharedPrefixLen != nullptr) &&
         (contextKeyParams.actualSharedPrefixLen->GetStorageShape().GetShapeSize() > 0) &&
-        !CheckActSharedPrefix(contextKeyParams, prefixShapeInfo.s, keyShapeInfo.s)) {
+        CheckActSharedPrefix(contextKeyParams, prefixShapeInfo.s, keyShapeInfo.s)) {
         tilingData.promptAttentionBaseParams.set_isActualSharedPrefixLenNull(0);
     } else {
         tilingData.promptAttentionBaseParams.set_isActualSharedPrefixLenNull(1);
@@ -2454,10 +2486,10 @@ bool PromptFlashAttentionTilingV2::CheckMultiFeatureCrossover(ContextParamsForPF
         tilingData.promptAttentionInitOutputParams.set_needInit(needInit);
 
         if (enableAlibiPse) {
-            OP_CHECK_IF((actualSeqLengths[i] != actualSeqLengthsKV[i]),
+            OP_CHECK_IF((actualSeqLengths[i] != actualSeqLengthsKV[i] + actualSharedPrefixLen),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                     "When pseType = 2/3, actualSeqLengths[%u](seq size of query)=%ld must be equal to actualSeqLengthsKv[%u](seq size of key)=%ld",
-                    i, actualSeqLengths[i], i, actualSeqLengthsKV[i]),
+                    i, actualSeqLengths[i], i, actualSeqLengthsKV[i] + actualSharedPrefixLen),
                 return false);
         }
     }
@@ -2553,7 +2585,7 @@ void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contex
     enableDN = ((ascendPlatformInfo.socVersion != platform_ascendc::SocVersion::ASCEND910_55) &&
         !enableMask && !enablePseShift && !enableAlibiPse && !enablePA && !enablePFAMLA && !enablePFARope && 
         (queryShapeInfo.d <= dLimitDN) && (valueShapeInfo.d <= dLimitDN) &&
-        (contextKeyParams.inputDataType == ge::DT_FLOAT16 || contextKeyParams.inputDataType == ge::DT_BF16 || enablePerblockQuant) &&
+        !isKVHasPrefix && (contextKeyParams.inputDataType == ge::DT_FLOAT16 || contextKeyParams.inputDataType == ge::DT_BF16 || enablePerblockQuant) &&
         (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * vecCoreNum > sOuterLimitDN));
     for (uint32_t i = LOOP_BEGIN_NUM; i < queryShapeInfo.b; i++) {
         if ((actualSeqLengths[i] % 32 > 0) || (actualSeqLengthsKV[i] <= 128)) { // 32: 只针对对齐场景修改基本快大小; 128: 扩大sInner的KV_S限制
@@ -3323,14 +3355,14 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
             preTokensLeftUp, nextTokensLeftUp);
 
         // 计算各sparse mode情况下，减去行无效后真实的actseqlen
-        FixParamWithRowInvalid(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx], preTokensLeftUp, nextTokensLeftUp);
+        FixParamWithRowInvalid(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx] + actualSharedPrefixLen, preTokensLeftUp, nextTokensLeftUp);
 
         // sinner方向块数，prefix和origin是分开切的。
         sInnerLoopTimes[sIdx] = (actualSeqLengthsKV[sIdx] + sInnerSize - 1) / sInnerSize +
             (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize;
         multiSmaxsInnerLoopTimes = std::max(multiSmaxsInnerLoopTimes, sInnerLoopTimes[sIdx]);
 
-        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx], sOuterSize,
+        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx] + actualSharedPrefixLen, sOuterSize,
             sInnerSize, preTokensLeftUp, nextTokensLeftUp, isAttenMaskUsed);
     }
     singleCoreParams->set_multiSmaxsInnerLoopTimes(multiSmaxsInnerLoopTimes);
@@ -3505,7 +3537,11 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataTyp
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsFd(ge::DataType inputDataType) {
-	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
+	if (isKVHasPrefix) {
+        isFd = false;
+        return;
+    }
+    if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
         inputDataType == ge::DT_FLOAT8_E4M3FN)) {
         isFd = 0;
         return;
@@ -3555,6 +3591,14 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMatMulType(PromptFlashAtten
     }
 }
 
+void PromptFlashAttentionTilingV2::UpdateTilingKeyEnableKVPrefix() {
+    if (isKVHasPrefix) {
+        enableKVPrefix = isKVHasPrefix;
+    } else {
+        enableKVPrefix = isKVHasPrefix;
+    }
+}
+
 bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) {
 	auto inputDataType = contextKeyParams.inputDataType; // input q
     auto attenMaskElemType = contextKeyParams.maskDataType;
@@ -3571,6 +3615,7 @@ bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextPar
     UpdateTilingKeyEmptyTensor();
     UpdateTilingKeyPFAMask(tilingData, inputDataType);
     UpdateTilingKeyPFAMatMulType(tilingData, inputDataType);
+    UpdateTilingKeyEnableKVPrefix();
     return true;
 }
 
@@ -4509,13 +4554,13 @@ void PromptFlashAttentionTilingV2::SetTilingKey(ContextParamsForPFATiling& conte
     uint64_t gen_tilingkey = GET_TPL_TILING_KEY(static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
                                                 static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask,
                                                 hasRope, isPa, isFd, emptyTensor,
-                                                static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType));
+                                                static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), static_cast<uint64_t>(enableKVPrefix));
     context_->SetTilingKey(gen_tilingkey);
     OP_LOGI(contextKeyParams.opName, "The new template tilingkey is %llu.", gen_tilingkey);
-    OP_LOGI(contextKeyParams.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.",
+    OP_LOGI(contextKeyParams.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu, quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.",
             static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config), static_cast<uint64_t>(pseMode),
             static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, static_cast<uint64_t>(PFAMask),
-            static_cast<uint64_t>(pFAMatMulType));
+            static_cast<uint64_t>(pFAMatMulType), static_cast<uint64_t>(enableKVPrefix));
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::DoSubOpTiling(PromptFlashAttentionTilingData& tilingData, ContextParamsForPFATiling& contextParamsForPFATiling) {

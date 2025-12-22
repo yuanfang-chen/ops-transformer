@@ -137,7 +137,7 @@ public:
 #endif
     static constexpr bool splitD = (uint16_t)dVTemplateType > (uint16_t)DTemplateType::Aligned256;
     static constexpr bool useDn = IsDn(((IsSameType<INPUT_T, float>::value) || isFp8), (isFp8 && (s2BaseSize == 256)), pseMode, hasAtten, hasDrop,
-                                       s1BaseSize == 64, dTemplateType, hasRope);
+                                       s1BaseSize == 64, dTemplateType, hasRope, enableKVPrefix);
     using ROPE_T = std::conditional_t<isMlaFullQuant, bfloat16_t, INPUT_T>;
     static constexpr TPosition bmm2OutPos = GetC2Position(dVTemplateType,
                                                           UbOutCondition<INPUT_T>(IsSameType<INPUT_T, float>::value, pseMode, hasAtten, hasDrop, hasRope,
@@ -158,8 +158,10 @@ public:
         __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *blockTable, 
         __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope);
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *key, __gm__ uint8_t *value,
-        CVSharedParams<isInfer, isPa> *sharedParams, AttenMaskInfo *attenMaskInfo,
-        __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr);
+                                         CVSharedParams<isInfer, isPa> *sharedParams, AttenMaskInfo *attenMaskInfo,
+                                         __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr,
+                                         __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix,
+                                         __gm__ uint8_t *actualSharedPrefixLen);
 #if (__NPU_ARCH__ == 5102)
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *deqScaleQK, __gm__ uint8_t *deqScaleV, ConstInfo<isInfer, hasRope> &constInfo);
 #endif
@@ -216,6 +218,8 @@ private:
     FaGmTensor<INPUT_T, Q_FORMAT> queryGm;
     FaGmTensor<INPUT_T, KV_FORMAT> keyGm;
     FaGmTensor<INPUT_T, KV_FORMAT> valueGm;
+    FaGmTensor<INPUT_T, KV_FORMAT> keySharedPrefixGm;
+    FaGmTensor<INPUT_T, KV_FORMAT> valueSharedPrefixGm;
     FaGmTensor<ROPE_T, Q_FORMAT> queryRopeGm;
     FaGmTensor<ROPE_T, KV_FORMAT> keyRopeGm;
 
@@ -278,7 +282,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitCubeBlock(
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitCubeInput(
     __gm__ uint8_t *key, __gm__ uint8_t *value, CVSharedParams<isInfer, isPa> *sharedParams,
-    AttenMaskInfo *attenMaskInfo, __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr)
+    AttenMaskInfo *attenMaskInfo, __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr,
+    __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen)
 {
     if ASCEND_IS_AIC {
         if constexpr (isInfer) {
@@ -297,6 +302,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitCubeInput(
             } else {
                 this->keyGm.gmTensor.SetGlobalBuffer((__gm__ INPUT_T *)key);
                 this->valueGm.gmTensor.SetGlobalBuffer((__gm__ INPUT_T *)value);
+            }
+            if constexpr (enableKVPrefix) {
+                this->keySharedPrefixGm.gmTensor.SetGlobalBuffer((__gm__ INPUT_T *)keySharedPrefix);
+                this->valueSharedPrefixGm.gmTensor.SetGlobalBuffer((__gm__ INPUT_T *)valueSharedPrefix);
             }
             attenMaskInfo->preTokens = sharedParams->preTokens;
             attenMaskInfo->nextTokens = sharedParams->nextTokens;
@@ -443,6 +452,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedParams<i
             sharedParams->dSize);
         this->valueGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->s2Size,
             sharedParams->dSizeV);
+        if constexpr (enableKVPrefix) {
+            this->keySharedPrefixGm.offsetCalculator.Init(1, sharedParams->n2Size, sharedParams->kvPrefixSize, sharedParams->dSize);
+            this->valueSharedPrefixGm.offsetCalculator.Init(1, sharedParams->n2Size, sharedParams->kvPrefixSize, sharedParams->dSizeV);
+        }
         if constexpr (hasRope) {
             this->keyRopeGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->s2Size,
                 sharedParams->dSizeRope);
@@ -603,11 +616,21 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos
             GlobalTensor<INPUT_T> mm2BGmTensor = GetValueGm(runInfo, constInfo);
             GmCopyInToL1PA<INPUT_T>(mm2BTensor, mm2BGmTensor, blockTableGm, kvLayout, shape, startPos);
         } else {
-            uint64_t gmOffset = runInfo.keyOffset;
-            if (constInfo.dSize != constInfo.dSizeV) {
-                gmOffset = this->valueGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+            if constexpr (enableKVPrefix) { 
+                if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
+                    uint64_t gmOffset = runInfo.prefixOffset;
+                    CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, this->valueSharedPrefixGm.gmTensor[gmOffset + gmNOffset], runInfo.s2RealSize, realN, constInfo.mm2Kb);
+                } else {
+                    uint64_t gmOffset = runInfo.keyOffset;
+                    CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset + gmNOffset], runInfo.s2RealSize, realN, constInfo.mm2Kb);
+                }
+            } else {
+                uint64_t gmOffset = runInfo.keyOffset;
+                if (constInfo.dSize != constInfo.dSizeV) {
+                    gmOffset = this->valueGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                }
+                CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset + gmNOffset], runInfo.s2RealSize, realN, constInfo.mm2Kb);
             }
-            CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset + gmNOffset], runInfo.s2RealSize, realN, constInfo.mm2Kb);
         }
         mm2B.Set<HardEvent::MTE2_MTE1>(); // 通知
 
@@ -710,13 +733,26 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                 GlobalTensor<INPUT_T> mm2BGmTensor = GetValueGm(runInfo, constInfo);
                 GmCopyInToL1PA<INPUT_T>(mm2BTensor, mm2BGmTensor, blockTableGm, kvLayout, shape, startPos);
             } else {
-                uint64_t gmOffset = runInfo.keyOffset;
-                if (constInfo.dSize != constInfo.dSizeV) {
-                    gmOffset = this->valueGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx,
-                        runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                if constexpr (enableKVPrefix) {
+                    if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
+                        uint64_t gmOffset = runInfo.prefixOffset;
+                        CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, this->valueSharedPrefixGm.gmTensor[gmOffset],
+                                               runInfo.s2RealSize, constInfo.dSizeV, constInfo.mm2Kb);
+                    } else {
+                        uint64_t gmOffset = runInfo.keyOffset;
+                        CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], runInfo.s2RealSize,
+                                               constInfo.dSizeV, constInfo.mm2Kb);
+                    }
+                } else {
+                    uint64_t gmOffset = runInfo.keyOffset;
+                    if (constInfo.dSize != constInfo.dSizeV) {
+                        gmOffset = this->valueGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx,
+                                                                            runInfo.n2oIdx,
+                                                                            coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                    }
+                    CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], runInfo.s2RealSize,
+                                           constInfo.dSizeV, constInfo.mm2Kb);
                 }
-                CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], runInfo.s2RealSize,
-                    constInfo.dSizeV, constInfo.mm2Kb);
             }
             mm2B.Set<HardEvent::MTE2_MTE1>(); // 通知
 
@@ -970,10 +1006,25 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
             GmCopyInToL1PA<INPUT_T>(mm1BTensor, mm1BGmTensor, blockTableGm, kvLayout, shape, startPos);
         }
     } else {
-        runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx,
-            coordInfo[runInfo.taskIdMod3].s2Coord, 0);
-        CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
-            constInfo.dSize, constInfo.mm1Kb);
+        if constexpr (enableKVPrefix) {
+            if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
+                runInfo.prefixOffset = this->keySharedPrefixGm.offsetCalculator.GetOffset(
+                    0, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->keySharedPrefixGm.gmTensor[runInfo.prefixOffset],
+                                       runInfo.s2RealSize, constInfo.dSize, constInfo.mm1Kb);
+            } else {
+                runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                    coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx,
+                    coordInfo[runInfo.taskIdMod3].s2Coord - constInfo.prefixLoopCount * s2BaseSize, 0);
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
+                                       constInfo.dSize, constInfo.mm1Kb);
+            }
+        } else {
+            runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
+                                   constInfo.dSize, constInfo.mm1Kb);
+        }
         if constexpr (hasRope) {
             uint32_t dstNzC0Stride = (runInfo.s2RealSize + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移, 单位为Block个数;
             if constexpr (isFp8) {
@@ -1224,10 +1275,25 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
         GlobalTensor<INPUT_T> mm1BGmTensor = GetKeyGm(runInfo, constInfo);
         GmCopyInToL1PA<INPUT_T>(mm1BTensor, mm1BGmTensor, blockTableGm, kvLayout, shape, startPos);
     } else {
-        runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx,
-            coordInfo[runInfo.taskIdMod3].s2Coord, 0);
-        CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
-            constInfo.dSize, constInfo.mm1Kb);
+        if constexpr (enableKVPrefix) {
+            if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
+                runInfo.prefixOffset = this->keySharedPrefixGm.offsetCalculator.GetOffset(
+                    0, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->keySharedPrefixGm.gmTensor[runInfo.prefixOffset],
+                                       runInfo.s2RealSize, constInfo.dSize, constInfo.mm1Kb);
+            } else {
+                runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                    coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx,
+                    coordInfo[runInfo.taskIdMod3].s2Coord - constInfo.prefixLoopCount * s2BaseSize, 0);
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
+                                       constInfo.dSize, constInfo.mm1Kb);
+            }
+        } else {
+            runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
+                                   constInfo.dSize, constInfo.mm1Kb);
+        }
     }
     mm1B.Set<HardEvent::MTE2_MTE1>(); // 通知
 
@@ -1328,8 +1394,19 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
     }
     uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
         coordInfo[runInfo.taskIdMod3].s1Coord, 0);
-    runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx,
-        coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+    if constexpr (enableKVPrefix) {
+        if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
+            runInfo.prefixOffset = this->keySharedPrefixGm.offsetCalculator.GetOffset(
+                0, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+        } else {
+            runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
+                coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx,
+                coordInfo[runInfo.taskIdMod3].s2Coord - constInfo.prefixLoopCount * s2BaseSize, 0);
+        }
+    } else {
+        runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
+            coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
+    }
     for (uint32_t k = 0; k < kLoops; k++) {
         Buffer<BufferType::L1> mm1B;
         // 左矩阵复用, 但是每次只加载realK列
@@ -1391,8 +1468,19 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
             GmCopyInToL1PA<INPUT_T>(mm1BTensor, mm1BGmTensor, blockTableGm, kvLayout, shape, startPos);
         } else {
             uint64_t gmKBOffset = k * baseK;
-            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset + gmKBOffset],
-                runInfo.s2RealSize, realK, constInfo.mm1Kb);
+            if constexpr (enableKVPrefix) {
+                if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
+                    CopyToL1Nd2Nz<INPUT_T>(mm1BTensor,
+                                           this->keySharedPrefixGm.gmTensor[runInfo.prefixOffset + gmKBOffset],
+                                           runInfo.s2RealSize, realK, constInfo.mm1Kb);
+                } else {
+                    CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset + gmKBOffset],
+                                           runInfo.s2RealSize, realK, constInfo.mm1Kb);
+                }
+            } else {
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset + gmKBOffset],
+                                       runInfo.s2RealSize, realK, constInfo.mm1Kb);
+            }
         }
         mm1B.Set<HardEvent::MTE2_MTE1>(); // 通知
         mm1A.Wait<HardEvent::MTE2_MTE1>(); // 等待L1A
@@ -1778,9 +1866,10 @@ public:
         __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *blockTable, 
         __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope) {}
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *key, __gm__ uint8_t *value,
-        CVSharedParams<isInfer, isPa> *sharedParams, AttenMaskInfo *attenMaskInfo,
-        __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr) {}
-
+                                         CVSharedParams<isInfer, isPa> *sharedParams, AttenMaskInfo *attenMaskInfo,
+                                         __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr,
+                                         __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix,
+                                         __gm__ uint8_t *actualSharedPrefixLen) {}
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo) {}
 

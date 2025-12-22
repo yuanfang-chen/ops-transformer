@@ -31,7 +31,7 @@
         templateClass<CubeBlockType, VecBlockType> op;                                                         \
         op.InitBaseAPI(query, key, value, pse, dropMask, paddingMask, attenMask, prefix, actualSeqLengths,     \
                 actualSeqLengthsKv, nullptr, nullptr, nullptr, deqScaleQ, deqScaleK, deqScaleV, nullptr,       \
-                nullptr, queryRope,keyRope, softmaxMax, softmaxSum, softmaxOut, nullptr, attentionOut, user,   \
+                nullptr, nullptr, nullptr, nullptr, queryRope, keyRope, softmaxMax, softmaxSum, softmaxOut, nullptr, attentionOut, user,   \
                 nullptr, &tPipe);                                                                              \
         op.Process();                                                                                          \
     } while (0)
@@ -56,7 +56,7 @@
         templateClass<CubeBlockType, VecBlockType> op;                                                         \
         op.InitBaseAPI(query, key, value, pse, dropMask, paddingMask, attenMask, prefix, actualSeqLengths,     \
                 actualSeqLengthsKv, nullptr, nullptr, nullptr, deqScaleQ, deqScaleK, deqScaleV, nullptr,       \
-                nullptr,queryRope, keyRope, softmaxMax, softmaxSum, softmaxOut, nullptr, attentionOut, user,   \
+                nullptr,nullptr, nullptr, nullptr, queryRope, keyRope, softmaxMax, softmaxSum, softmaxOut, nullptr, attentionOut, user,   \
                 tilingData, &tPipe);                                                                           \
         op.Process();                                                                                          \
     } while (0)

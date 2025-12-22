@@ -3520,6 +3520,7 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
     UpdateTilingKeyEmptyTensor();
     UpdateTilingKeyPFAMask();
     UpdateTilingKeyPFAMatMulType();
+    UpdateTilingKeyEnableKVPrefix();
     return ge::GRAPH_SUCCESS;
 }
 
@@ -3602,6 +3603,10 @@ void IFATilingV2::UpdateTilingKeyPFAMask() {
 
 void IFATilingV2::UpdateTilingKeyPFAMatMulType() {
 	pFAMatMulType = 0;
+}
+
+void IFATilingV2::UpdateTilingKeyEnableKVPrefix() {
+  enableKVPrefix = false;
 }
 
 ge::graphStatus IFATilingV2::DoTiling(gert::TilingContext& context) {
@@ -3908,13 +3913,13 @@ ge::graphStatus IFATilingV2::DoOpTiling()
     ret = DoSubOpTiling(ifaContext);
     uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
                                             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
-                                            static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType));
+                                            static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), enableKVPrefix);
     context_->SetTilingKey(tiling_key);
     OP_LOGI(ifaContext.opName, "The new template tilingkey is %llu.", tiling_key);
-    OP_LOGI(ifaContext.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu,quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu.", 
+    OP_LOGI(ifaContext.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu,quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.", 
             static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
-            static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType));
+            static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), enableKVPrefix);
     return ret;
 }
 
