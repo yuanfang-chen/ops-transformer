@@ -344,10 +344,10 @@ static ge::graphStatus CheckInputScaleShape(gert::InferShapeContext *context, co
                     return ge::GRAPH_FAILED);
             } else {
                 OP_CHECK_IF(
-                    scaleShape->GetDim(0) != NEG_ONE || scaleShape->GetDim(1) != NEG_ONE,
+                    scaleShape->GetDim(0) != NEG_ONE || (scaleShape->GetDim(1) != NEG_ONE && scaleShape->GetDim(1) != xShape->GetDim(1)),
                     OP_LOGE(context,
-                            "When quant_mode is %ld and scale dim is 2 in dynamic graph, the shape of scale should be (-1, -1), but its shape is (%s).",
-                            quantMode, Ops::Base::ToString(*scaleShape).c_str()),
+                            "When quant_mode is %ld and scale dim is 2 in dynamic graph, the shape of scale should be (-1, -1) or (-1, %d), but its shape is (%s).",
+                            quantMode, xShape->GetDim(1), Ops::Base::ToString(*scaleShape).c_str()),
                     return ge::GRAPH_FAILED);
             }
         } else {
