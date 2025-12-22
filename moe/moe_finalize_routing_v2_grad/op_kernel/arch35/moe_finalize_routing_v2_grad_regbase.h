@@ -194,7 +194,7 @@ __aicore__ inline void MoeFinalizeRoutingV2GradRegbase<T1, T2, T3, IsBiasExist>:
                 ubAddSum + remainderGeneral, vregSumBias, pregMerge);
         }
         // step3: non-overlapping portions of the first half reduce by 64, this part always 64 align
-        for (uint16_t i = 0; i < (quotientLoop - remainderLoop); i++) {
+        for (uint16_t i = 0; i < static_cast<uint16_t>(quotientLoop - remainderLoop); i++) {
             ops::LoadOneTensorForDtypeT<T1>(ubBias, vregBias, pregMain, (i + remainderLoop) * VL_FLOAT32_SIZE);
             ops::LoadOneTensorForDtypeT<T1>(ubGradY, vregGradY, pregMain, (i + remainderLoop) * VL_FLOAT32_SIZE);
             Mul(vregBias, vregBias, vregGradY, pregMain);
