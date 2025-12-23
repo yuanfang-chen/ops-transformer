@@ -326,7 +326,7 @@ aclnnStatus aclnnFFNToAttention(
     #!/bin/bash
     cann_path="/path/to/cann_env" # 更改cann包环境的路径
     g++ "aclnnFFNtoAttentionDemo.cpp" -o FFNtoAttentionDemo -I"$cann_path/latest/include/" -I"$cann_path/latest/include/aclnnop/" \
-                        -L="$cann_path/latest/lib64/" -lascendcl -lnnopbase -lopapi -lop_common -lpthread -lhccl
+                        -L="$cann_path/latest/lib64/" -lascendcl -lnnopbase -lopapi_math -lop_common -lpthread -lhccl
     ```
 - 编译与运行：
 
