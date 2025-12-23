@@ -823,7 +823,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
         - 当数据类型为BFLOAT16时，支持sparse=0且不传mask，或sparse=3，4且传入优化后的attentionMask；
       - NTD_TND场景，不支持page attention；
       - 当sparse=3时，要求每个batch单独的actualSeqLengths < actualSeqLengthsKv；
-      - sparse模式支持sparse=4且传入mask；当sparse=4时，要求preTokens >= -actualSeqLengths、nextTokens >= -actualSeqLengthsKv、preTokens + nextTokens >= 0；
       - 不支持左padding、tensorlist、pse、page attention、prefix、伪量化、全量化、后量化；
       - actualSeqLengths和actualSeqLengthsKv的元素个数不大于4096。
   - 昇腾910_95 AI处理器：
@@ -894,7 +893,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
               <td>
                   <ul style="margin: 0; padding-left: 20px;">
                       <li>未传入attenmask：不执行mask操作，忽略preTokens和nextTokens（内部赋值为INT_MAX）；</li>
-                      <li>传入attenmask：需要传入完整的attenmask矩阵（S1 * S2），表示preTokens和nextTokens之间的部分需要计算。</li>
+                      <li>传入attenmask：需要传入完整的attenmask矩阵（S1 * S2），表示preTokens和nextTokens之间的部分需要计算；要求preTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。</li>
                   </ul>
               </td>
           </tr>
@@ -916,7 +915,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
           <tr>
               <td>4</td>
               <td>band模式</td>
-              <td>需要传入优化后的attenmask矩阵（2048*2048）。</td>
+              <td>
+                <ul style="margin: 0; padding-left: 20px;">
+                  <li>需要传入优化后的attenmask矩阵（2048*2048）；</li>
+                  <li>要求preTokens > -actualSeqLengths，nextTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。</li>
+              </td>
           </tr>
           <tr>
               <td>5</td>

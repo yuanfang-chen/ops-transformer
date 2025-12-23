@@ -704,11 +704,11 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         <ul>
             <li>Q_S为1且不带rope输入时该参数无效。</li>
             <li>inputLayout为TND、TND_NTD、NTD_TND时，综合约束请见<a href="#约束说明">约束说明</a>。</li>
-            <li>sparseMode为0时，代表defaultMask模式，如果attenmask未传入则不做mask操作，忽略preTokens和nextTokens（内部赋值为INT\_MAX）；如果传入，则需要传入完整的attenmask矩阵（S1 \* S2），表示preTokens和nextTokens之间的部分需要计算。</li>
+            <li>sparseMode为0时，代表defaultMask模式，如果attenmask未传入则不做mask操作，忽略preTokens和nextTokens（内部赋值为INT\_MAX）；如果传入，则需要传入完整的attenmask矩阵（S1 \* S2），表示preTokens和nextTokens之间的部分需要计算；要求preTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。 </li>
             <li>sparseMode为1时，代表allMask，必须传入完整的attenmask矩阵（S1 \* S2）。</li>
             <li>sparseMode为2时，代表leftUpCausal模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
             <li>sparseMode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
-            <li>sparseMode为4时，代表band模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
+            <li>sparseMode为4时，代表band模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）；要求preTokens > -actualSeqLengths，nextTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。</li>
             <li>sparseMode为5、6、7、8时，分别代表prefix、global、dilated、block\_local，均暂不支持。</li>
             <li>用户不特意指定时建议传入0。</li>
         </ul>
