@@ -206,7 +206,7 @@ __aicore__ inline void AntiquantProcessor<IFAT, ANTIQUANT_PER_TOKEN>::LoadAntiqu
     antiqScaleE8M0Ub = antiqScaleInputQue.DeQue<Q_T>();
 
     antiqScale = kvAntiqMxScaleRes.Get<ANTIQ_PARAMS_T>();
-    AntiqScaleByVF<Q_T, ANTIQ_PARAMS_T>(antiqScaleE8M0Ub, antiqScale, taskParam.copyTotalS, grpNum);
+    FaVectorApi::AntiqScaleByVF<Q_T, ANTIQ_PARAMS_T>(antiqScaleE8M0Ub, antiqScale, taskParam.copyTotalS, grpNum);
 }
 
 template <typename IFAT, const bool ANTIQUANT_PER_TOKEN>
@@ -473,25 +473,25 @@ __aicore__ inline void AntiquantProcessor<IFAT, ANTIQUANT_PER_TOKEN>::AntiquantV
         uint32_t grpNum = taskParam.headDim / 32;
         uint32_t perTokenScaleOffset = copyLoopIdx * taskParam.copySplitS * grpNum * 2;
         LocalTensor<ANTIQ_PARAMS_T> antiqScaleWithOffset = antiqScale[perTokenScaleOffset];
-        AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, false>(antiqInUb, antiqResUb, antiqOffset,
+        FaVectorApi::AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, false>(antiqInUb, antiqResUb, antiqOffset,
                                                                  antiqScaleWithOffset, dealRowCount, taskParam.headDim);
     } else if constexpr (ANTIQUANT_PER_TOKEN) {
         uint32_t perTokenScaleOffset = copyLoopIdx * taskParam.copySplitS;
         LocalTensor<ANTIQ_PARAMS_T> antiqScaleWithOffset = antiqScale[perTokenScaleOffset];
         if (taskParam.isExistOffset) {
             LocalTensor<ANTIQ_PARAMS_T> antiqOffsetWithOffset = antiqOffset[perTokenScaleOffset];
-            AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, true, true>(antiqInUb, antiqResUb, antiqOffsetWithOffset,
+            FaVectorApi::AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, true, true>(antiqInUb, antiqResUb, antiqOffsetWithOffset,
                                                                           antiqScaleWithOffset, dealRowCount, taskParam.headDim);
         } else {
-            AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, false, true>(antiqInUb, antiqResUb, antiqOffset,
+            FaVectorApi::AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, false, true>(antiqInUb, antiqResUb, antiqOffset,
                                                                            antiqScaleWithOffset, dealRowCount, taskParam.headDim);
         }
     } else {
         if (taskParam.isExistOffset) {
-            AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, true>(antiqInUb, antiqResUb, antiqOffset, antiqScale,
+            FaVectorApi::AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, true>(antiqInUb, antiqResUb, antiqOffset, antiqScale,
                                                                     dealRowCount, taskParam.headDim);
         } else {
-            AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, false>(antiqInUb, antiqResUb, antiqOffset, antiqScale,
+            FaVectorApi::AntiquantVF<Q_T, KV_T, ANTIQ_PARAMS_T, PROFILE.D, false>(antiqInUb, antiqResUb, antiqOffset, antiqScale,
                                                                      dealRowCount, taskParam.headDim);
         }
     }

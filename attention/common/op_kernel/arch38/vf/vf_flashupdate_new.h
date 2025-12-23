@@ -17,8 +17,7 @@
 
 #include "kernel_tensor.h"
 
-namespace AscendC {
-#ifndef __CCE_KT_TEST__
+namespace FaVectorApi {
 constexpr uint16_t REDUCE_SIZE = 1;
 /* **************************************************************************************************
  * FlashUpdate, fp32
@@ -524,71 +523,6 @@ __aicore__ inline void RowInvalidUpdateVF(const LocalTensor<T>& finalTensor, con
         }
     }
 }
-#else
-template <typename T, typename INPUT_T, typename OUTPUT_T, uint16_t srcD, uint16_t reduceSize, bool isUpdatePre>
-__aicore__ inline void FlashUpdateBasic(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-                                        const LocalTensor<T>& preTensor, const LocalTensor<T>& expMaxTensor,
-                                        const uint16_t m, const uint16_t d, const float deSCaleVValue,
-                                          const float deSCalePreVValue)
-{
-}
-
-template <typename T, typename INPUT_T, typename OUTPUT_T, uint16_t reduceSize, bool isUpdatePre>
-__aicore__ inline void FlashUpdateGeneral(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-                                          const LocalTensor<T>& preTensor, const LocalTensor<T>& expMaxTensor,
-                                          const uint16_t m, const uint16_t d, const float deSCaleVValue,
-                                          const float deSCalePreVValue)
-{
-}
-
-template <typename T, typename INPUT_T, typename OUTPUT_T, uint16_t srcD, bool isUpdatePre>
-__aicore__ inline void FlashUpdateNew(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-                                      const LocalTensor<T>& preTensor, const LocalTensor<T>& expMaxTensor,
-                                      const uint16_t m, const uint16_t d, const float deSCaleVValue, const float deSCalePreVValue)
-{
-}
-
-template <typename T, typename INPUT_T, typename OUTPUT_T, uint16_t srcD, uint16_t reduceSize, bool isUpdatePre>
-__aicore__ inline void FlashUpdateLastBasic(const LocalTensor<T>& dstTensor,
-                                            const LocalTensor<T>& curTensor, const LocalTensor<T>& preTensor,
-                                            const LocalTensor<T>& expMaxTensor, const LocalTensor<T>& expSumTensor,
-                                            const uint16_t m, const uint16_t d, const float deSCaleVValue,
-                                            const float deSCalePreVValue)
-{
-}
-
-template <typename T, typename INPUT_T, typename OUTPUT_T, uint16_t reduceSize, bool isUpdatePre>
-__aicore__ inline void FlashUpdateLastGeneral(const LocalTensor<T>& dstTensor,
-                                              const LocalTensor<T>& curTensor, const LocalTensor<T>& preTensor,
-                                              const LocalTensor<T>& expMaxTensor, const LocalTensor<T>& expSumTensor,
-                                              const uint16_t m, const uint16_t d, const float deSCaleVValue,
-                                              const float deSCalePreVValue)
-{
-}
-
-template <typename T, typename INPUT_T, typename OUTPUT_T, uint16_t srcD, bool isUpdatePre>
-__aicore__ inline void FlashUpdateLastNew(const LocalTensor<T>& dstTensor,
-                                          const LocalTensor<T>& curTensor, const LocalTensor<T>& preTensor,
-                                          const LocalTensor<T>& expMaxTensor, const LocalTensor<T>& expSumTensor,
-                                          uint16_t m, uint16_t d, const float deSCaleVValue, const float deSCalePreVValue)
-{
-}
-
-template <typename T, typename INPUT_T, typename OUTPUT_T, uint32_t srcD>
-__aicore__ inline void LastDivNew(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-                                  const LocalTensor<T>& expSumTensor, const uint16_t m, const uint16_t d,
-                                  const float deSCaleVValue)
-{
-}
-
-template <typename T, uint32_t srcD>
-__aicore__ inline void InvalidLineUpdate(const LocalTensor<T>& dstTensor, const LocalTensor<T>& srcTensor,
-                                         const LocalTensor<T>& maxTensor, const uint16_t m, const uint16_t d,
-                                         const T minValue, const T invalidValue)
-{
-}
-#endif
-
 } // namespace
 
 #endif // MY_FLASH_UPDATE_INTERFACE_H

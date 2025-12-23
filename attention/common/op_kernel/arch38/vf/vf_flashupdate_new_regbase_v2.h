@@ -17,8 +17,7 @@
 
 #include "kernel_tensor.h"
 
-namespace AscendC {
-#ifndef __CCE_KT_TEST__
+namespace FaVectorApi {
 /* **************************************************************************************************
  * FlashUpdateV510
  * [s1, k] = [128, 128], fp16
@@ -254,68 +253,6 @@ __aicore__ inline void FlashUpdateDivV510(const LocalTensor<T>& dstTensor, const
     // 1952 only support d=128 now, no tail
     FlashUpdateDivNoTailV510_VF<T, OUTPUT_T, MMOUTPUT_T, dSize>(dstTensor, preTensor, expSumTensor, m, d);
 }
-
-#else
-template <typename T, typename OUTPUT_T, typename MMOUTPUT_T, uint32_t dSize = 0>
-__aicore__ inline void FlashUpdateNoTailV510_VF(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-    const LocalTensor<T>& preTensor, const LocalTensor<float>& expMaxTensor, const uint16_t m, const uint16_t d)
-{
-}
-
-/*
- * @ingroup FlashUpdateLastNoTailV510_VF
- * @brief compute, dstTensor = (preTensor  + curTensor ) / expSumTensor
- * @param [out] dstTensor, output LocalTensor
- * @param [in] curTensor, input LocalTensor
- * @param [in] preTensor, input LocalTensor
- * @param [in] expMaxTensor, input LocalTensor
- * @param [in] expSumTensor, input LocalTensor
- * @param [in] m, input rows
- * @param [in] d, input colums, should be 32 bytes aligned
- */
-template <typename T, typename OUTPUT_T, typename MMOUTPUT_T, uint32_t dSize = 0>
-__aicore__ inline void FlashUpdateLastNoTailV510_VF(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-    const LocalTensor<T>& preTensor, const LocalTensor<float>& expMaxTensor, const LocalTensor<float>& expSumTensor,
-    const uint16_t m, const uint16_t d, float deqScaleV)
-{
-}
-
-/*
- * @ingroup FlashUpdateDivNoTailV510_VF
- * @brief compute, dstTensor = preTensor / expSumTensor
- * @param [out] dstTensor, output LocalTensor
- * @param [in] preTensor, input LocalTensor
- * @param [in] expSumTensor, input LocalTensor
- * @param [in] m, input rows
- * @param [in] d, input colums, should be 32 bytes aligned
- */
-template <typename T, typename OUTPUT_T, typename MMOUTPUT_T, uint32_t dSize = 0>
-__aicore__ inline void FlashUpdateDivNoTailV510_VF(const LocalTensor<T>& dstTensor, const LocalTensor<T>& preTensor,
-    const LocalTensor<float>& expSumTensor, const uint16_t m, const uint16_t d, float deqScaleV)
-{
-}
-
-template <typename T, typename OUTPUT_T, typename MMOUTPUT_T, uint32_t dSize = 0>
-__aicore__ inline void FlashUpdateV510(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-    const LocalTensor<T>& preTensor, const LocalTensor<float>& expMaxTensor, const uint16_t m, const uint16_t d)
-{
-}
-
-template <typename T, typename OUTPUT_T, typename MMOUTPUT_T, uint32_t dSize = 0>
-__aicore__ inline void FlashUpdateLastV510(const LocalTensor<T>& dstTensor, const LocalTensor<T>& curTensor,
-    const LocalTensor<T>& preTensor, const LocalTensor<float>& expMaxTensor,
-    const LocalTensor<float>& expSumTensor, const uint16_t m, const uint16_t d)
-{
-}
-
-template <typename T, typename OUTPUT_T, typename MMOUTPUT_T, uint32_t dSize = 0>
-__aicore__ inline void FlashUpdateDivV510(const LocalTensor<T>& dstTensor, const LocalTensor<T>& preTensor,
-    const LocalTensor<float>& expSumTensor, const uint16_t m, const uint16_t d, float deqScaleV)
-{
-}
-
-#endif
-
 } // namespace
 
 #endif // MY_FLASH_UPDATE_NEW_REGBASE_V2_INTERFACE_H

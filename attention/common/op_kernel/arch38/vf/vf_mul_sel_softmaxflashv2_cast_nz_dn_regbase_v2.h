@@ -15,9 +15,8 @@
 #ifndef MUL_SEL_SOFTMAXFLASHV2_CAST_NZ_DN_REGBASE_V2_H_
 #define MUL_SEL_SOFTMAXFLASHV2_CAST_NZ_DN_REGBASE_V2_H_
 #include "kernel_tensor.h"
-namespace fa {
+namespace FaVectorApi {
 using AscendC::LocalTensor;
-#ifndef __CCE_KT_TEST__
 using namespace AscendC;
 using namespace MicroAPI;
 
@@ -588,6 +587,5 @@ __aicore__ inline void ProcessVec1VfDnRegbaseV2(const LocalTensor<T2>& dstTensor
             m, originN, scale, minValue, quantScale1);
     }
 }
-#endif
 }
 #endif // MUL_SEL_SOFTMAXFLASHV2_CAST_NZ_DN_REGBASE_V2_H_

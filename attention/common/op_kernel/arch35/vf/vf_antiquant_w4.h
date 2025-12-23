@@ -16,7 +16,7 @@
 #ifndef VF_ANTIQUANT_W4_H
 #define VF_ANTIQUANT_W4_H
 
-namespace AscendC {
+namespace FaVectorApi {
 // w4转Q_T
 static constexpr MicroAPI::CastTrait castTraitW4 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::UNKNOWN,
                                                   MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
@@ -911,6 +911,6 @@ __aicore__ inline void AntiqScaleByVF(
   AntiqScaleByVFImpl<Q_T, ANTIQ_PARAMS_T>(ub_src_addr, ub_dst_addr, ub_dst_addr_, loop_cnt, tailSize);
 }
 
-}; // namespace AscendC 
+}; // namespace FaVectorApi
 
 #endif

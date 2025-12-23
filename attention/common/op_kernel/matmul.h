@@ -318,7 +318,7 @@ __aicore__ inline void MatmulK(const LocalTensor<A> &aL1Tensor,
         L1Aoffset = ((param.singleM + 31) >> 5 << 5) * baseK;
         L1Boffset = ((param.singleN + 31) >> 5 << 5) * baseK;
     }
-    if constexpr (IsSameType<A, float32_t>::value) {
+    if constexpr (IsSameType<A, float>::value) {
         L1Aoffset = param.isLeftTranspose ? baseK << 3 : ((param.singleM + 15) >> 4 << 4) * baseK;
         L1Boffset = param.isRightTranspose ? ((param.singleN + 15) >> 4 << 4) * baseK : baseK << 3; 
     }

@@ -16,7 +16,7 @@
 #define VF_POST_QUANT_H
 
 #include "kernel_tensor.h"
-namespace AscendC {
+namespace FaVectorApi {
 
 // fp32/fp16->int8/fp8
 static constexpr MicroAPI::CastTrait castTraitP0 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::NO_SAT,
@@ -316,6 +316,6 @@ __aicore__ inline void PostQuantPerTensorVF(const LocalTensor<OUTPUT_T> &dstTens
     }
 }
 
-} // namespace AscendC
+} // namespace FaVectorApi
 
 #endif // VF_POST_QUANT_H

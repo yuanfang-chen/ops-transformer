@@ -20,7 +20,7 @@
 
 using namespace regbaseutil;
 
-namespace AscendC {
+namespace FaVectorApi {
 constexpr uint32_t floatRepSize = 64;
 constexpr uint32_t halfRepSize = 128;
 constexpr uint32_t blockBytesU8 = 32;
@@ -38,7 +38,6 @@ enum OriginNRange {
     GT_512_AND_LTE_1024,    // 512 < originN <= 1024 (s2BaseSize <= 1024 or tail s2)
     N_INVALID
 };
-#ifndef __CCE_KT_TEST__
 using namespace MicroAPI;
 constexpr static AscendC::MicroAPI::CastTrait castTraitZero = {
     AscendC::MicroAPI::RegLayout::ZERO,
@@ -5824,37 +5823,6 @@ __aicore__ inline void SoftmaxSumUpdate(const LocalTensor<T>& sumTensor, const L
             (__ubuf__ T *&)sumUb, vreg_sum_new, preg_all);
     }
 }
-
-#else
-template <typename T, typename T2, typename pseShiftType, bool isUpdate = false, uint32_t s1BaseSize = 128, uint32_t s2BaseSize = 128,
-    OriginNRange oriNRange = GT_64_AND_LTE_128, bool hasAtten = 0,
-    PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0>
-__aicore__ inline void ProcessVec1Vf(
-    const LocalTensor<T2>& dstTensor, TBuf<> *vselrIndexesBuf, const LocalTensor<T>& expSumTensor,
-    const LocalTensor<T>& maxTensor, const LocalTensor<T>& srcTensor,
-    const LocalTensor<T>& expMaxTensor,
-    const LocalTensor<T>& inExpSumTensor, const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor,
-    const LocalTensor<pseShiftType>& pseTensor, const LocalTensor<uint8_t>& dropTensor,
-    const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN,
-    const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, float keepProb)
-{
-}
-
-template <typename T>
-__aicore__ inline void UpdateExpSumAndExpMax(const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor,
-                                             const LocalTensor<T>& expMaxTensor,
-                                             const LocalTensor<T>& inExpSumTensor, const LocalTensor<T>& inMaxTensor,
-                                             const LocalTensor<uint8_t>& sharedTmpBuffer,
-                                             const uint32_t m)
-{
-}
-
-template <typename T>
-__aicore__ inline void SoftmaxSumUpdate(const LocalTensor<T>& sumTensor, const LocalTensor<T>& maxTensor,
-    const uint32_t m, const T minValue, const T maxValue)
-{
-}
-#endif
 } // namespace
 
 #endif // MY_MUL_SEL_SOFTMAX_FLASH_V2_CAST_NZ_INTERFACE_H

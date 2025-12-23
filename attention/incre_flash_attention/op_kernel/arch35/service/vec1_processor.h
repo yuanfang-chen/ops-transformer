@@ -109,7 +109,7 @@ __aicore__ inline void Vec1Processor<IFAT>::SoftmaxLseCopyOut(
     LocalTensor<T>& softmaxSumOutUb, const Vec1TaskParam& taskParam)
 {
     LocalTensor<T> lseUb = softmaxLseOutputQue.template AllocTensor<T>();
-    ComputeLogSumExp_VF(lseUb, softmaxSumOutUb, softmaxMaxOutUb, taskParam.dealRowCount);
+    FaVectorApi::ComputeLogSumExp_VF(lseUb, softmaxSumOutUb, softmaxMaxOutUb, taskParam.dealRowCount);
     softmaxLseOutputQue.template EnQue(lseUb);
     softmaxLseOutputQue.DeQue<T>();
     DataCopyExtParams intriParams1;

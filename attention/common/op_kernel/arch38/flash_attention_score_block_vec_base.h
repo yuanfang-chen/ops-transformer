@@ -24,6 +24,7 @@
 #include "vf/vf_flashupdate_new_regbase_v2.h"
 
 using namespace AscendC;
+using namespace FaVectorApi;
 using namespace AscendC::Impl::Detail;
 using namespace regbaseutil;
 
@@ -255,10 +256,10 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1DnRegbaseV
     AscendC::LocalTensor<INPUT_T> stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
 
     if (unlikely(runInfo.s2LoopCount == 0)) {
-        fa::ProcessVec1VfDnRegbaseV2<T, INPUT_T, false, s2BaseSize>(stage1CastTensor, sumUb,
+        FaVectorApi::ProcessVec1VfDnRegbaseV2<T, INPUT_T, false, s2BaseSize>(stage1CastTensor, sumUb,
             maxUb, mmRes, expUb, runInfo.s1RealSizeAlign32, runInfo.s2RealSize, static_cast<T>(constInfo.scaleValue), negativeFloatScalar, 1); // constInfo.quantScalePValue
     } else {
-        fa::ProcessVec1VfDnRegbaseV2<T, INPUT_T, true, s2BaseSize>(stage1CastTensor, sumUb,
+        FaVectorApi::ProcessVec1VfDnRegbaseV2<T, INPUT_T, true, s2BaseSize>(stage1CastTensor, sumUb,
             maxUb, mmRes, expUb, runInfo.s1RealSizeAlign32, runInfo.s2RealSize, static_cast<T>(constInfo.scaleValue), negativeFloatScalar, 1); // constInfo.quantScalePValue
     }
     this->stage1OutQue[stage1Offset].template EnQue(stage1CastTensor);

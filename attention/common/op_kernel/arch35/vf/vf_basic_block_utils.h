@@ -17,7 +17,7 @@
 
 #include "kernel_operator.h"
 
-namespace AscendC {
+namespace FaVectorApi {
 constexpr uint32_t floatRepSize = 64;
 constexpr uint32_t blockBytesU8 = 32;
 constexpr float fp8e4m3MaxValue = 448.0f;
@@ -25,7 +25,7 @@ constexpr float floatEps = 2.220446049250313e-16;
 /* **************************************************************************************************
  * Muls + Select(optional) + SoftmaxFlashV2 + Cast(fp32->fp16/bf16) + ND2NZ
  * ************************************************************************************************* */
-using namespace MicroAPI;
+ using namespace MicroAPI;
 
 constexpr static AscendC::MicroAPI::CastTrait castTraitZero = {
     AscendC::MicroAPI::RegLayout::ZERO,

@@ -1106,7 +1106,7 @@ __aicore__ inline void IncreFlashAttentionNormalSplitBbn2s2Us2<IFAT>::ReduceFina
         // 第一次，mul结果直接放到dst里
         CopyAccumOutIn(bIdx, n2Idx, j, startRow, dealRowCount);
         LocalTensor<T> accumOutLocal = accumOutInputQue.DeQue<T>();
-        ReduceFinalRes_const_VF<T, PROFILE.D>(dst, lseLocal, accumOutLocal, dealRowCount, j);
+        FaVectorApi::ReduceFinalRes_const_VF<T, PROFILE.D>(dst, lseLocal, accumOutLocal, dealRowCount, j);
         accumOutInputQue.FreeTensor(accumOutLocal);
     }
 }
@@ -1121,7 +1121,7 @@ __aicore__ inline void IncreFlashAttentionNormalSplitBbn2s2Us2<IFAT>::ComputeSca
     if (softmaxLseFlag) {
         lseOutputUb = softmaxLseOutputQue.template AllocTensor<T>();
     }
-    ComputeScaleValue_VF(lseMaxUb, lseSumUb, lseOutputUb, splitSize, actualCombineLoopSize, softmaxLseFlag);
+    FaVectorApi::ComputeScaleValue_VF(lseMaxUb, lseSumUb, lseOutputUb, splitSize, actualCombineLoopSize, softmaxLseFlag);
     if (softmaxLseFlag) {
         softmaxLseOutputQue.template EnQue<T>(lseOutputUb);
         softmaxLseOutputQue.DeQue<T>();

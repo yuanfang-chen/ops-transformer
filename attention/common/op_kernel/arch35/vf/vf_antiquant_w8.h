@@ -17,7 +17,7 @@
 
 #include "kernel_tensor.h"
 
-namespace AscendC {
+namespace FaVectorApi {
 // w8转Q_T
 static constexpr MicroAPI::CastTrait castTrait = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::UNKNOWN,
                                                   MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
@@ -917,6 +917,6 @@ __aicore__ inline void AntiquantVF(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T
     (antiqInUb, antiqResUb, antiqOffsetUb, antiqScaleUb, dealRowCount, headDim);
 }
 
-};  // namespace AscendC
+};  // namespace FaVectorApi
 
 #endif

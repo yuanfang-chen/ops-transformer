@@ -20,11 +20,10 @@
 
 using namespace regbaseutil;
 
-namespace AscendC {
+namespace FaVectorApi {
 /* **************************************************************************************************
  * only 128*128 support
  * only high performance support (expSum expMax use fp32)************************************************************************************************* */
-#ifndef __CCE_KT_TEST__
 // originN = 128, No update
 template <typename T, typename T2, uint8_t mode = 0, uint32_t sOuter = 0, uint32_t sInner = 0>
 __aicore__ inline void SoftmaxFlashV510NoUpdateImpl128(
@@ -364,7 +363,6 @@ __aicore__ inline void SoftmaxFlashV510_VF(const LocalTensor<T2>& dstTensor, con
             sharedTmpBuffer, m, originN, scale, minValue, blockStride, quantScaleP);
     }
 }
-#endif
 } // namespace
 
 #endif // MY_MUL_SEL_SOFTMAX_FLASH_V2_CAST_NZ_REGBASE_V2_INTERFACE_H
