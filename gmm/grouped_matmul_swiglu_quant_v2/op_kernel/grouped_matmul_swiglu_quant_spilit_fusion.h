@@ -69,6 +69,9 @@ public:
         totalBasicBlocks = 0;
         for (int groupId = 0; groupId < tilingData_->groupNum; groupId++) {
             int tokens = groupListGm_(groupId);
+            if (tilingData_->groupListType == 0 && groupId > 0) {
+                tokens = groupListGm_(groupId) - groupListGm_(groupId - 1);
+            }
             int mBasicBlocks = CeilDiv(tokens, matmulTilingData_->baseM);
             totalBasicBlocks += mBasicBlocks * nBasicsBlocks;
         }
@@ -86,6 +89,9 @@ public:
         uint32_t& globalMOffset, uint32_t& processedBasicBlock) {
         for (int groupId = currentGroupId; groupId < tilingData_->groupNum; groupId++) {
             int tokens = groupListGm_.GetValue(groupId);
+            if (tilingData_->groupListType == 0 && groupId > 0) {
+                tokens = groupListGm_.GetValue(groupId) - groupListGm_.GetValue(groupId - 1);
+            }
             int mBasicBlocks = CeilDiv(tokens, matmulTilingData_->baseM);
             if (processedBasicBlock + mBasicBlocks * nBasicsBlocks > basicBlockIdxInGlobal) {
                 currentGroupId = groupId;
@@ -128,6 +134,9 @@ public:
         uint32_t& globalMOffset, uint32_t& processedBasicBlock) {
         FindCurrentGroup(basicBlockIdxInGlobal, currentGroupId, globalMOffset, processedBasicBlock);
         int tokens = groupListGm_.GetValue(currentGroupId);
+        if (tilingData_->groupListType == 0 && currentGroupId > 0) {
+            tokens = groupListGm_.GetValue(currentGroupId) - groupListGm_.GetValue(currentGroupId - 1);
+        }
         int basicBlockIdxInCurrentGroup = basicBlockIdxInGlobal - processedBasicBlock;
         int mBasicBlocks = CeilDiv(tokens, matmulTilingData_->baseM);
         int currentBasicBlockMId = basicBlockIdxInCurrentGroup / nBasicsBlocks;
@@ -193,6 +202,9 @@ public:
         basicBlockCountBeforeEndGroup = 0;
         for (int gId = 0; gId < endGroupId; gId++) {
             int tokens = groupListGm_(gId);
+            if (tilingData_->groupListType == 0 && gId > 0) {
+                tokens = groupListGm_.GetValue(gId) - groupListGm_.GetValue(gId - 1);
+            }
             int mBasicBlocks = CeilDiv(tokens, matmulTilingData_->baseM);
             basicBlockCountBeforeEndGroup += mBasicBlocks * nBasicsBlocks;
             endGroupMOffset += tokens;
@@ -209,7 +221,11 @@ public:
             currentGroupMOffset += groupListGm_(gId);
         }
         for (int groupId = startGroupId; groupId <= endGroupId; groupId++) {
-            currentGroupMOffset += groupListGm_(groupId);
+            if (tilingData_->groupListType == 0 && groupId > 0) {
+                currentGroupMOffset = groupListGm_(groupId);
+            } else {
+                currentGroupMOffset += groupListGm_(groupId);
+            }
             int calcCount = 0;
             if (currentGroupMOffset <= endGroupMOffset) {
                 calcCount = currentGroupMOffset - globalMOffset;
@@ -279,6 +295,9 @@ public:
         int globalMOffset = 0;
         for (int groupId = 0; groupId < tilingData_->groupNum; groupId++) {
             int tokens = groupListGm_(groupId);
+            if (tilingData_->groupListType == 0 && groupId > 0) {
+                tokens = groupListGm_(groupId) - groupListGm_(groupId - 1);
+            }
             int mBasicBlocks = CeilDiv(tokens, matmulTilingData_->baseM);
             if (processedBasicBlock + mBasicBlocks * nBasicsBlocks >= basicBlockId) {
                 return groupId;
