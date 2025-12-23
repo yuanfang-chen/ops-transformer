@@ -663,6 +663,13 @@ foreach (_op_name ${OP_LIST})
             DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
             OPTIONAL
     )
+
+    if(EXISTS ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}_apt.py)
+            install(FILES ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}_apt.py
+            DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
+            OPTIONAL
+        )
+    endif()
 endforeach ()
 
 install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
