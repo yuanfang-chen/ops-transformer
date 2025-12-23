@@ -164,7 +164,7 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMap(
         <td>probsOptional</td>
         <td>输入</td>
         <td>可选输入probsOptional。</td>
-        <td><ul><li>支持空tensor。</li><li>元素个数与routingMap相同。</li><li>当probsOptional为空时，可选输出permuteProbsOutOptional为空。</li></ul></td>
+        <td><ul><li>支持空tensor。</li><li>元素个数与routingMap相同。</li><li>当probsOptional为空时，可选输出permuteProbsOutOptional为空。</li><li>仅当probsOptional的数据类型为FLOAT且tokens的数据类型为BFLOAT16时probsOptional的数据类型可以不和tokens一致，其他场景probsOptional的数据类型需要和tokens一致。</li></ul></td>
         <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>2</td>
