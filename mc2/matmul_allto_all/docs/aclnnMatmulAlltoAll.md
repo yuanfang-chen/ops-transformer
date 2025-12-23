@@ -6,7 +6,7 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    ×     |
+| <term>昇腾910_95 AI处理器</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
 | <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
@@ -151,7 +151,7 @@ aclnnStatus aclnnMatmulAlltoAll(
    <td>数据类型与输入x1保持一致</td>
    <td>FLOAT16、BFLOAT16</td>
    <td>ND</td>
-   <td>2维，shape为(BS / rankSize, H2 / rankSize)</td>
+   <td>2维，shape为(BS*rankSize, H2/rankSize)</td>
    <td>x</td>
   </tr>
   <tr>
@@ -234,7 +234,7 @@ aclnnStatus aclnnMatmulAlltoAll(
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
     ```Cpp
     #include <thread>
     #include <iostream>
@@ -443,108 +443,3 @@ aclnnStatus aclnnMatmulAlltoAll(
         return 0;
     }
     ```
-
-## 附录
-
-### 1. 缓存机制
-
-跟随AscendC自动生成的缓存机制。（通算融合当前无缓存）
-
-### 2.归属领域
-
-`aclnnop_ops_infer` `aclnnop_ops_train`
-
-### 3. Pytorch AtenIR
-
-无对标
-
-### 4. AtenIR参数描述
-
-无对标
-
-### 5. HostAPI接口约束
-
-| **功能维度** | **已支持**               | **应支持但未支持** |
-| -------------------- | -------------------------------- | -------------------------- |
-| 数据类型           | FP16/BF16                      | NA                       |
-| 数据格式           | ND                             | NA                       |
-| 空Tensor           | 不支持空Tensor，无现实意义     | NA                       |
-| 非连续Tensor       | 不支持输入非连续、不支持输出非连续 | NA                       |
-
-​**低性能场景**​：
-
-? NA
-
-​**未支持类型说明**​：
-
-? NA
-
-​**边界值场景说明**​：
-
-1. 当输入数据为nan时，输出也为nan
-2. 当计算结果超过数据类型的数据范围时：
-   浮点类型计算结果为inf，整形计算结果为会出现反转。
-
-### 6. HostAPI异常处理
-
-以下场景会出现参数校验异常：
-
-1. 传入的x1、x2、out是空指针时。
-2. 入参的数据类型和shape不符合数学逻辑。
-
-### 7. 兼容性说明
-
-1. 功能兼容性：无Pytorch/TensorFlow/MindSpore/Onnx 原生接口，新增支持pytorch自定义接口；
-2. 平台兼容性：已支持的芯片版本，功能无差异；
-3. 接口兼容性：新增接口；
-4. 行为兼容性：新增接口；
-5. 性能兼容性：新增接口；
-6. 资源兼容性：新增接口；
-7. 错误处理兼容性：新增接口；
-
-### 8. API代码注释
-
-```php
-**
- * @brief 计算全连接（All-to-All）矩阵乘法所需的 workspace 大小。
- * 
- * 该接口用于计算分布式训练中通信和计算所需的 workspace 大小。支持多种数据类型和量化模式。
- *
- * @param[in] x1 左矩阵输入张量
- * @param[in] x2 右矩阵输入张量
- * @param[in] biasOptional 可选输入张量，偏置项
- * @param[in] alltoallAxes all2all做数据交换的方向
- * @param[in] group 通信域标识，用于标识不同的通信组
- * @param[in] transposeX1 是否对 x1 转置
- * @param[in] transposeX2 是否对 x2 转置
- * @param[out] output 矩阵乘法的输出结果
- * @param[out] workspaceSize 用于存储计算所需的 workspace 大小
- * @param[out] executor 执行器指针，用于后续的计算执行
- * 
- * @return aclnnStatus 执行状态，返回 0 表示成功，其他值表示错误
- */
-```cpp
-aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(
-  const aclTensor* x1, 
-  const aclTensor* x2,
-  const aclTensor* biasOptional,
-  const aclIntArray* alltoAllAxesOptional,
-  const char* group,
-  bool transposeX1,
-  bool transposeX2,
-  aclTensor* output,
-  uint64_t *workspaceSize,
-  aclOpExecutor **executor)
-
-
-
-aclnnStatus aclnnMatmulAlltoAll(
-  void *workspace,
-  uint64_t workspaceSize,
-  aclOpExecutor *executor,
-  aclrtStream stream)
-```
-调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
-
-
-// axes增加对空输入场景的描述

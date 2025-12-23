@@ -16,8 +16,6 @@
 #define OP_API_INC_QUANT_MATMUL_ALL_TO_ALL_
 
 #include "aclnn/aclnn_base.h"
-#include "aclnn_util.h"
-#include "hccl/hccl_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,15 +58,16 @@ extern "C" {
  *
  * @return aclnnStatus: 执行状态，返回0表示成功，其他值表示错误。
  */
-ACLNN_API aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional,
-                                                               const aclTensor* x1Scale, const aclTensor* x2Scale,
-                                                               const aclTensor* commScaleOptional,
-                                                               const aclTensor* x1OffsetOptional, const aclTensor* x2OffsetOptional,
-                                                               const aclIntArray* alltoAllAxesOptional, const char* group,
-                                                               int64_t x1QuantMode, int64_t x2QuantMode,
-                                                               int64_t commQuantMode, int64_t commQuantDtype, int64_t groupSize,
-                                                               bool transposeX1, bool transposeX2, aclTensor* output,
-                                                               uint64_t *workspaceSize, aclOpExecutor **executor);
+__attribute__((visibility("default"))) aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(
+    const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional,
+    const aclTensor* x1Scale, const aclTensor* x2Scale,
+    const aclTensor* commScaleOptional,
+    const aclTensor* x1OffsetOptional, const aclTensor* x2OffsetOptional,
+    const aclIntArray* alltoAllAxesOptional, const char* group,
+    int64_t x1QuantMode, int64_t x2QuantMode,
+    int64_t commQuantMode, int64_t commQuantDtype, int64_t groupSize,
+    bool transposeX1, bool transposeX2, const aclTensor* output,
+    uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
  * @brief 执行全连接（All-to-All）矩阵乘法计算。
@@ -81,8 +80,8 @@ ACLNN_API aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor* 
  * @param [in] stream: 指定执行任务的Stream。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnQuantMatmulAlltoAll(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                               aclrtStream stream);
+__attribute__((visibility("default"))) aclnnStatus aclnnQuantMatmulAlltoAll(
+    void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream);
 
 
 #ifdef __cplusplus

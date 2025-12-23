@@ -16,8 +16,6 @@
 #define OP_API_INC_MATMUL_ALL_TO_ALL_
 
 #include "aclnn/aclnn_base.h"
-#include "aclnn_util.h"
-#include "hccl/hccl_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,10 +38,11 @@ extern "C" {
  *
  * @return aclnnStatus: 执行状态，返回0表示成功，其他值表示错误。
  */
-ACLNN_API aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, const aclTensor *x2, const aclTensor *biasOptional,
-                                                          const aclIntArray* alltoAllAxesOptional, const char *group,
-                                                          bool transposeX1, bool transposeX2, aclTensor *output,
-                                                          uint64_t *workspaceSize, aclOpExecutor **executor);
+__attribute__((visibility("default"))) aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(
+    const aclTensor *x1, const aclTensor *x2, const aclTensor *biasOptional,
+    const aclIntArray* alltoAllAxesOptional, const char *group,
+    bool transposeX1, bool transposeX2, const aclTensor *output,
+    uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
  * @brief aclnnMatmulAlltoAll的第二段接口，用于执行计算。
@@ -53,8 +52,8 @@ ACLNN_API aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, c
  * @param [in] stream: 指定执行任务的Stream。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnMatmulAlltoAll(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                         aclrtStream stream);
+__attribute__((visibility("default"))) aclnnStatus aclnnMatmulAlltoAll(
+    void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream);
 
 
 #ifdef __cplusplus

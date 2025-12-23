@@ -266,7 +266,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
    <td></td>
    <td>FLOAT16、BFLOAT16、FLOAT32</td>
    <td>ND</td>
-   <td>2维，shape为(BS/rankSize, H2/rankSize)</td>
+   <td>2维，shape为(BS*rankSize, H2/rankSize)</td>
    <td>x</td>
   </tr>
   <tr>
@@ -360,7 +360,7 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
     ```Cpp
     #include <thread>
     #include <iostream>
@@ -591,137 +591,3 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
         return 0;
     }
     ```
-
-## 实现说明
-// 方案文档单独说
-
-## 附录
-
-### 1. 缓存机制
-
-跟随AscendC自动生成的缓存机制。（通算融合当前无缓存）
-
-### 2.归属领域
-
-`aclnnop_ops_infer` `aclnnop_ops_train`
-
-### 3. Pytorch AtenIR
-
-无对标
-
-### 4. AtenIR参数描述
-
-无对标
-
-### 5. HostAPI接口约束
-
-| **功能维度** | **已支持**               | **应支持但未支持** |
-| -------------------- | -------------------------------- | -------------------------- |
-| 数据类型           | FP16/BF16                      | NA                       |
-| 数据格式           | ND                             | NA                       |
-| 空Tensor           | 仅支持BS为零的空Tensor     | NA                       |
-| 非连续Tensor       | 不支持输入非连续、不支持输出非连续 | NA                       |
-
-​**低性能场景**​：
-
-? NA
-
-​**未支持类型说明**​：
-
-? NA
-
-​**边界值场景说明**​：
-
-1. 当输入数据为nan时，输出也为nan
-2. 当计算结果超过数据类型的数据范围时：
-   浮点类型计算结果为inf，整形计算结果为会出现反转。
-
-### 6. HostAPI异常处理
-
-以下场景会出现参数校验异常：
-
-1. 要求传入的输入是空指针时。
-2. 入参的数据类型和shape不符合数学逻辑。
-
-### 7. 兼容性说明
-
-1. 功能兼容性：无Pytorch/TensorFlow/MindSpore/Onnx 原生接口，新增支持pytorch自定义接口；
-2. 平台兼容性：已支持的芯片版本，功能无差异；
-3. 接口兼容性：新增接口；
-4. 行为兼容性：新增接口；
-5. 性能兼容性：新增接口；
-6. 资源兼容性：新增接口；
-7. 错误处理兼容性：新增接口；
-
-### 8. API代码注释
-
-```cpp
-/**
- * @brief 计算全连接（All-to-All）矩阵乘法所需的 workspace 大小。
- * 
- * 该接口用于计算分布式训练中通信和计算所需的 workspace 大小。支持多种数据类型和量化模式。
- *
- * @param[in] x1 左矩阵输入张量，对应公式中的x1，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8。
- * @param[in] x2 右矩阵输入张量，对应公式中的x2，数据类型支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8。
- * @param[in] biasOptional 可选输入张量，偏置项，仅在传入非空时生效，数据类型为FLOAT32、BFLOAT16、FLOAT16。
- * @param[in] x1Scale 左矩阵的量化系数，对应公式中的x1Scale，数据类型为FLOAT32。
- * @param[in] x2Scale 右矩阵的量化系数，对应公式中的x2Scale，数据类型为FLOAT32。
- * @param[in] commScaleOptional 可选输入，低比特通信的量化系数，暂不支持。
- * @param[in] x1OffsetOptional 可选输入，左矩阵的量化偏置，暂不支持。
- * @param[in] x2OffsetOptional 可选输入，右矩阵的量化偏置，暂不支持。
- * @param[in] alltoAllAxesOptional 可选输入，AlltoAll和Permute数据交换的方向，支持配置空或[-2,-1]，传入空时默认按[-2,-1]处理。
- * @param[in] group 通信域名，字符串长度要求(0, 128)。
- * @param[in] x1QuantMode 左矩阵的量化方式，当前仅支持配置为3，表示PerToken。
- * @param[in] x2QuantMode 右矩阵的量化方式，当前仅支持配置为2，表示PerChannel。
- * @param[in] commQuantMode 低比特通信的量化方式，预留参数，当前仅支持配置为0，表示不量化。
- * @param[in] commQuantDtype 低比特通信的量化类型，预留参数，当前仅支持配置为-1，表示ACL_DT_UNDEFINED。
- * @param[in] groupSize 用于Matmul计算三个方向上的量化分组大小，预留参数，K-C量化模式下仅支持配置为0，取值不生效。
- * @param[in] transposeX1 标识左矩阵是否转置过，配置为True时左矩阵Shape为(H1, BS)，暂不支持配置为True。
- * @param[in] transposeX2 标识右矩阵是否转置过，配置为True时右矩阵Shape为(H2, H1)。
- * @param[out] output 矩阵乘法的输出结果，数据类型与输入x1保持一致，支持FLOAT16、BFLOAT16。
- * @param[out] workspaceSize 用于存储计算所需的 workspace 大小。
- * @param[out] executor 执行器指针，用于后续的计算执行。
- * 
- * @return aclnnStatus 执行状态，返回 0 表示成功，其他值表示错误。
- */
-aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(
-const aclTensor* x1,           
-const aclTensor* x2,
-const aclTensor* biasOptional,
-const aclTensor* x1Scale,
-const aclTensor* x2Scale,
-const aclTensor* commScaleOptional,
-const aclTensor* x1OffsetOptional,
-const aclTensor* x2OffsetOptional,
-const aclIntArray* alltoAllAxesOptional,
-const char* group,
-int64_t x1QuantMode,
-int64_t x2QuantMode,
-int64_t commQuantMode,
-int64_t commQuantDtype,
-int64_t groupSize,
-bool transposeX1,
-bool transposeX2,
-aclTensor* output,
-uint64_t *workspaceSize,
-aclOpExecutor **executor);
-
-/**
- * @brief 执行全连接（All-to-All）矩阵乘法计算。
- * 
- * 该接口用于执行分布式训练中的通信和计算流程，需在调用前检查HCCL_BUFFSIZE环境变量配置是否合理。
- *
- * @param[in] workspace 在Device侧申请的workspace内存地址。
- * @param[in] workspaceSize 在Device侧申请的workspace大小，由第一段接口获取。
- * @param[in] executor op执行器，包含了算子计算流程。
- * @param[in] stream 指定执行任务的AscendCL stream流。
- * 
- * @return aclnnStatus 执行状态，返回 0 表示成功，其他值表示错误。
- */
-aclnnStatus aclnnQuantMatmulAlltoAll(
-  void *workspace,
-  uint64_t workspaceSize,
-  aclOpExecutor *executor,
-  aclrtStream stream);
-```
-调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。

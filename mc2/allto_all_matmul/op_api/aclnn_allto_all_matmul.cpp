@@ -254,7 +254,7 @@ static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const 
 
 static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2, const aclTensor *biasOptional,
                                         const aclIntArray* alltoAllAxesOptional, const char *group,
-                                        bool transposeX1, aclTensor *output, aclTensor *alltoAllOutOptional)
+                                        bool transposeX1, const aclTensor *output, const aclTensor *alltoAllOutOptional)
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
@@ -296,7 +296,8 @@ extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, 
 // 非量化L2接口调用L0时需要设置较多默认值，通过InnerAlltoAllMatmulGetWorkspaceSize完成默认值传参和调用L0层接口
 extern "C" aclnnStatus InnerAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, const aclTensor *x2, const aclTensor *biasOptional,
                                                            const aclIntArray* alltoAllAxesOptional, const char *group,
-                                                           bool transposeX1, bool transposeX2, aclTensor *output, aclTensor *alltoAllOutOptional,
+                                                           bool transposeX1, bool transposeX2, const aclTensor *output,
+                                                           const aclTensor *alltoAllOutOptional,
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     // 需要使用的默认值常量定义
@@ -336,7 +337,7 @@ extern "C" aclnnStatus InnerAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
 extern "C" aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, const aclTensor *x2, const aclTensor *biasOptional,
                                                            const aclIntArray* alltoAllAxesOptional, const char* group,
                                                            bool transposeX1, bool transposeX2,
-                                                           aclTensor *output, aclTensor *alltoAllOutOptional,
+                                                           const aclTensor *output, const aclTensor *alltoAllOutOptional,
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, output, alltoAllOutOptional);
@@ -354,7 +355,11 @@ extern "C" aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
 extern "C" aclnnStatus aclnnAlltoAllMatmul(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        } else {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_AICPU);
+        }
     }
     aclnnStatus ret = aclnnInnerAlltoAllMatmul(workspace, workspaceSize, executor, stream);
     if (ret != ACLNN_SUCCESS) {

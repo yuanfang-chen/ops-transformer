@@ -371,7 +371,7 @@ static aclnnStatus CheckAndHandleParams(const aclTensor* x1, const aclTensor* x2
                                         const aclTensor* x1OffsetOptional, const aclTensor* x2OffsetOptional, const char* group,
                                         const aclIntArray* alltoAllAxesOptional, int64_t x1QuantMode, int64_t x2QuantMode,
                                         int64_t commQuantMode, int64_t commQuantDtype, int64_t groupSize,
-                                        bool transposeX1, bool transposeX2, aclTensor* output)
+                                        bool transposeX1, bool transposeX2, const aclTensor* output)
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x1, x2, biasOptional, x1Scale, x2Scale, output), ACLNN_ERR_PARAM_NULLPTR);
@@ -424,7 +424,7 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
                                                                 const aclIntArray* alltoAllAxesOptional, const char* group,
                                                                 int64_t x1QuantMode, int64_t x2QuantMode,
                                                                 int64_t commQuantMode, int64_t commQuantDtype, int64_t groupSize,
-                                                                bool transposeX1, bool transposeX2, aclTensor* output,
+                                                                bool transposeX1, bool transposeX2, const aclTensor* output,
                                                                 uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     aclnnStatus retParam = CheckAndHandleParams(
@@ -453,7 +453,11 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
 extern "C" aclnnStatus aclnnQuantMatmulAlltoAll(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        } else {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_AICPU);
+        }
     }
     aclnnStatus ret = aclnnInnerMatmulAlltoAll(workspace, workspaceSize, executor, stream);
     if (ret != ACLNN_SUCCESS) {

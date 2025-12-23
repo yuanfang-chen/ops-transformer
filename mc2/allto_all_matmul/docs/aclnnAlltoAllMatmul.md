@@ -6,8 +6,13 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>     |    √     |
-
+| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
+| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
+| <term>Atlas 推理系列产品</term>                             |    ×     |
+| <term>Atlas 训练系列产品</term>                              |    ×     |
+| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 ## 功能说明
 
 - 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)和Matmul计算的融合，**先通信后计算**。
@@ -156,7 +161,7 @@ aclnnStatus aclnnAlltoAllMatmul(
    <td>传入nullptr时表示不输出通信输出</td>
    <td>FLOAT16、BFLOAT16</td>
    <td>ND</td>
-   <td>2维，shape为(BS/rankSize, rankSize*H)</td>
+   <td>2维，shape为(BS/rankSize, H*rankSize)</td>
    <td>x</td>
   </tr>
   <tr>
@@ -229,4 +234,3 @@ aclnnStatus aclnnAlltoAllMatmul(
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
-## 调用示例
