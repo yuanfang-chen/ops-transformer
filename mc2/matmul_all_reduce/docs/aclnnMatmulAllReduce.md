@@ -267,6 +267,9 @@ aclnnStatus aclnnMatmulAllReduce(
     - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持1、2、4、8卡。
     - <term>昇腾910_95 AI处理器</term>：支持1、2、4、8、16、32、64卡。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：一个模型中的通算融合MC2算子，仅支持相同通信域。
+- 空tensor支持度：
+  - 支持k为0的场景，输出为bias + x3。
+  - 支持bs/m/n为0，此时传入的输出也应该是空tensor，此场景不进入kernel计算，直接返回。
 
 ## 调用示例
 

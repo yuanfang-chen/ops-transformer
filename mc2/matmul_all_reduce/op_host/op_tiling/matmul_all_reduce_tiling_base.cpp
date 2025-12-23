@@ -695,6 +695,10 @@ ge::graphStatus MatmulAllReduceTilingBase::CheckInput()
 
 ge::graphStatus MatmulAllReduceTilingBase::CheckA16W16()
 {
+    uint64_t nValue = GetNValue();
+    OP_TILING_CHECK(
+        !CheckBiasShape(nValue), VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "bias shape is wrong"),
+        return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         ((mmrCtxInfo_.antiquant_scale_shape != nullptr) || (mmrCtxInfo_.antiquant_offset_shape != nullptr) ||
          (mmrCtxInfo_.dequant_scale_shape != nullptr)),
@@ -725,7 +729,7 @@ bool MatmulAllReduceTilingBase::CheckBiasShape(const uint64_t nValue) const
             (dimNum != 1U) || (biasShapeSize != nValue),
             VECTOR_INNER_ERR_REPORT_TILING(
                 opName_,
-                "Expected shape of bias is [n] where n is %lu in current case, "
+                "Expected shape of bias is [n] or [1, n] where n is %lu in current case, "
                 "but got bias shape: %s, bias dim num is: %lu.",
                 nValue, Ops::Base::ToString(bias->GetStorageShape()).c_str(), dimNum),
             return false);
@@ -759,8 +763,6 @@ ge::graphStatus MatmulAllReduceTilingBase::CheckA8W8()
             "when both dtype of x1 and dtype of x2 are equal to int8,"
             "antiquantScale, antiquantOffset should be null"),
         return ge::GRAPH_FAILED);
-    // __DAV_C310__
-    // end __DAV_C310__
     if ((socVersion_ == platform_ascendc::SocVersion::ASCEND910B) ||
         (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95)) {
         OP_TILING_CHECK(
@@ -782,6 +784,7 @@ ge::graphStatus MatmulAllReduceTilingBase::CheckA8W8()
 
 ge::graphStatus MatmulAllReduceTilingBase::CheckEmptyTensor()
 {
+    // n为0的时候，框架拦截，走不进tiling逻辑。
     OP_TILING_CHECK(
         (mmrCtxInfo_.bias_shape != nullptr) && (mmrCtxInfo_.bias_shape->GetStorageShape().GetShapeSize() == 0),
         VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "Input bias is empty tensor."),
@@ -866,6 +869,9 @@ ge::graphStatus MatmulAllReduceTilingBase::CheckA16W8()
 {
     uint64_t kValue = GetKValue();
     uint64_t nValue = GetNValue();
+    OP_TILING_CHECK(
+        !CheckBiasShape(nValue), VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "bias shape is wrong"),
+        return ge::GRAPH_FAILED);
     if (kValue == 0) {
         OP_LOGD(
             context_->GetNodeName(),

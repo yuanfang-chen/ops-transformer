@@ -303,8 +303,6 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
   - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件：aclnnWeightQuantMatmulAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
   - 昇腾910_95 AI处理器：aclnnWeightQuantMatmulAllReduce默认确定性实现。
 - 增量场景不使能MC2，全量场景使能MC2。
-- 空tensor:
-  - 仅支持k=0的空tensor场景。
 - 输入x1可为二维或者三维，其shape为(b, s, k)或者(m, k)。
 - x2必须是二维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等，m的范围为[1, 2147483647]，k、n的范围为[1, 65535]。
 - 传入的x1、x2、antiquantScale或者output不为空指针。
@@ -328,6 +326,8 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
   - 对于输入bias，当x2为FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8，且x1为BFLOAT16时，bias数据类型支持BFLOAT16、FLOAT32；其他场景下，数据类型与x1保持一致。
   - 输入x3的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
   - 输出output的数据类型支持BFLOAT16、FLOAT16、FLOAT32。
+- 空tensor支持度：
+  - 仅支持k为0的场景，输出为bias + x3，不支持bs/m/n为0的空tensor输入。
 
 ## 调用示例
 

@@ -285,7 +285,7 @@ aclnnStatus aclnnQuantMatmulAllReduce(
   - aclnnQuantMatmulAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 
 - 增量场景不使能MC2，全量场景使能MC2。
-- 输入x1可为二维或者三维，其shape为(b, s, k)或者(m, k)。x2必须是二维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等。不支持x1、x2为空矩阵。
+- 输入x1可为二维或者三维，其shape为(b, s, k)或者(m, k)。x2必须是二维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等。
 - m大小不超过2147483647，x1与x2的最后一维大小不超过65535，x1的最后一维指k，x2的最后一维指转置时的k或非转置时的n。bias若非空，shape为(n)。x3若非空，shape与output相同。
 - 当输入x1的shape为(b, s, k)时，输出output的shape为(b, s, n)，当输入x1的shape为(m, k)时，输出output的shape为(m, n)。
 - 传入的x1、x2、dequantScale或者output不为空指针。
@@ -295,6 +295,8 @@ aclnnStatus aclnnQuantMatmulAllReduce(
     - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持1、2、4、8卡。
     - <term>昇腾910_95 AI处理器</term>：支持1、2、4、8、16、32、64卡。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：一个模型中的通算融合MC2算子，仅支持相同通信域。
+- 空tensor支持度：
+  - 不支持空tensor。
 
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。

@@ -420,9 +420,10 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 - 当x1,x2的输入类型为INT8时，若输出output类型为FLOAT16，当x1ScaleOptional为空时，x2Scale的类型为INT64、UINT64，当x1ScaleOptional不为空时，x2Scale的类型为FLOAT32；若输出output类型为BFLOAT16，x2Scale的类型为BFLOAT16，x3的类型为BFLOAT16。
 - 传入的commQuantScale1与commQuantScale2需要同时为空指针或同时不为空指针，若传入的commQuantScale1与commQuantScale2同时不为空指针，两个量化参数shape需保持一致，类型需与算子输出类型保持一致，且每张卡输入保持一致。
 - 支持1、2、4、8、16、32、64卡，并且仅支持HCCS链路all mesh组网。
-- 不支持空tensor。
 - 一个模型中的通算融合MC2算子，仅支持相同通信域。
 - INT8和FP8低bit通信仅在通信bound的情况下存在性能收益，计算bound的情况不建议使能INT8或FP8低bit通信，即不建议输入commQuantScale1和commQuantScale2，且commQuantMode输入0。
+- 空tensor支持度：
+  - 不支持空tensor。
 
 ## 调用示例
 
