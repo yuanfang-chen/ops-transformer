@@ -14,16 +14,14 @@ operator_group_1:
   - gather_pa_kv_cache
   - scatter_pa_kv_cache
   - attention_update
-  - fused_infer_attention_score;8-0
 operator_group_2:
   - grouped_matmul
   - grouped_matmul_add
   - grouped_matmul_finalize_routing
   - grouped_matmul_swiglu_quant_v2
   - quant_grouped_matmul_inplace_add
-  - fused_infer_attention_score;8-1
 operator_group_3:
-  - incre_flash_attention
+  - incre_flash_attention,1-0
 operator_group_4:
   - moe_finalize_routing
   - moe_finalize_routing_v2
@@ -41,21 +39,17 @@ operator_group_4:
   - apply_rotary_pos_emb
   - rotary_position_embedding
   - rotary_position_embedding_grad
-  - fused_infer_attention_score;8-2
 operator_group_5:
-  - flash_attention_score
-  - flash_attention_score_grad
+  - flash_attention_score,3-0
 operator_group_6:
   - prompt_flash_attention
-  - fused_infer_attention_score;8-3
 operator_group_7:
-  - fused_infer_attention_score;8-4
+  - fused_infer_attention_score,7-0
 operator_group_8:
-  - fused_infer_attention_score;8-5
+  - fused_infer_attention_score,7-1
 operator_group_9:
-  - fused_infer_attention_score;8-6
+  - fused_infer_attention_score,7-2
 operator_group_10:
-  - fused_infer_attention_score;8-7
   - allto_allv_grouped_mat_mul
   - grouped_mat_mul_allto_allv
   - all_gather_matmul_v2
@@ -67,6 +61,42 @@ operator_group_10:
   - moe_distribute_dispatch_v2
   - quant_all_reduce
   - quant_reduce_scatter
+operator_group_11:
+  - fused_infer_attention_score,7-3
+operator_group_12:
+  - fused_infer_attention_score,7-4
+operator_group_13:
+  - fused_infer_attention_score,7-5
+operator_group_14:
+  - fused_infer_attention_score,7-6
+operator_group_15:
+  - incre_flash_attention,2-0
+operator_group_16:
+  - flash_attention_score_grad,3-0
+operator_group_17:
+  - flash_attention_score,3-1
+operator_group_18:
+  - flash_attention_score,3-2
+operator_group_19:
+  - flash_attention_score_grad,3-1
+operator_group_20:
+  - flash_attention_score_grad,3-2
+
+
+
+#allto_allv_grouped_mat_mul
+#all_gather_matmul
+#all_gather_matmul_v2
+#grouped_mat_mul_allto_allv
+#matmul_all_reduce
+#matmul_reduce_scatter
+#matmul_reduce_scatter_v2
+#moe_distribute_combine
+#moe_distribute_combine_v2
+#moe_distribute_dispatch
+#moe_distribute_dispatch_v2
+#quant_all_reduce
+#quant_reduce_scatter
 
 
 # operator_group_2:
