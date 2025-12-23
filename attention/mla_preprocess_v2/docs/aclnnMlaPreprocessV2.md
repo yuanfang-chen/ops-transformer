@@ -95,7 +95,7 @@ aclnnStatus aclnnMlaPreprocessV2GetWorkspaceSize(
   int64_t          wdqDim, 
   int64_t          qRopeDim, 
   int64_t          kRopeDim, 
-  float            epsilon, 
+  double           epsilon, 
   int64_t          qRotaryCoeff, 
   int64_t          kRotaryCoeff, 
   bool             transposeWdq, 
@@ -434,7 +434,7 @@ aclnnStatus aclnnMlaPreprocessV2(
       <td>输入</td>
       <td>表示加在分母上防止除0。</td>
       <td>-</td>
-      <td>float</td>
+      <td>double</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -952,7 +952,7 @@ int main() {
   int64_t wdqDim = 128;
   int64_t qRopeDim = 0; 
   int64_t kRopeDim = 0;
-  float epsilon = 1e-05f;
+  double epsilon = 1e-05;
   int64_t qRotaryCoeff = 2;
   int64_t kRotaryCoeff = 2;
   bool transposeWdq = true;
