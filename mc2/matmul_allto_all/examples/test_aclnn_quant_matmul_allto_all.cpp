@@ -87,7 +87,7 @@ int launchOneThreadQuantMatmulAlltoAll(Args &args) {
     std::vector<int64_t> biasShape = {128};
     std::vector<int64_t> x1ScaleShape = {32};
     std::vector<int64_t> x2ScaleShape = {128};
-    std::vector<int64_t> outShape = {64, 64};
+    std::vector<int64_t> outShape = {32 * ndev, 128 / ndev};
     void *x1DeviceAddr = nullptr;
     void *x2DeviceAddr = nullptr;
     void *biasDeviceAddr = nullptr;
