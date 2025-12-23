@@ -121,7 +121,11 @@ __aicore__ inline void GetAttenMaskComputeMode(int64_t deltaCausalOrNext, int64_
             }
             return;
         }
-        if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
+        if (((attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) ||
+            (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_BAND_MODE) &&
+                runInfo.boIdx == attenMaskInfo.bandIndex) ||
+            (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_LEFT_UP_CAUSAL_MODE) &&
+                runInfo.boIdx == attenMaskInfo.bandIndex))) {
             int64_t preFactor = deltaPre + 1 + constInfo.s1BaseSize;
             if (causalOrNextFactor >= 0 && preFactor <= 0) {
                 attenMaskInfo.computeMode = AttenMaskComputeMode::NO_NEED_COMPUTE_MODE;
@@ -338,15 +342,30 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
             } else if (attenMaskInfo.compressMode ==
                        static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_BAND_MODE)) {
                 if (runInfo.boIdx == attenMaskInfo.bandIndex) {
-                    delta = s1Offset - s2Offset - deltaN + attenMaskInfo.nextTokens;
+                    int64_t tmpPre = attenMaskInfo.preTokens;
+                    int64_t tmpNext = attenMaskInfo.nextTokens;
+                    int64_t transPreTokens = runInfo.actualS1Size - Max(runInfo.actualS2Size - tmpPre, 0);
+                    int64_t transNextTokens = runInfo.actualS2Size - Max(runInfo.actualS1Size - tmpNext, 0);
+                    deltaPre = s1Offset - s2Offset - transPreTokens - 1;
+                    int64_t maskOffsetPre = ComputeOffsetForCausal(deltaPre, constInfo.s1BaseSize, constInfo.s2BaseSize,
+                                                                attenMaskInfo.attenMaskS2Size, runInfo.vecCoreOffset);
+                    attenMaskInfo.attenMaskOffsetPre = maskOffsetPre; // save offset value for the 2nd mask
+                    delta = s1Offset - s2Offset + transNextTokens;
                 } else {
                     delta = s1Offset - s2Offset - deltaN;
                 }
             } else if (attenMaskInfo.compressMode ==
                        static_cast<uint8_t>(AttenMaskCompressMode::BAND_LEFT_UP_CAUSAL_MODE)) {
                 if (runInfo.boIdx == attenMaskInfo.bandIndex) {
-                    delta = s1Offset - s2Offset + runInfo.actualS2Size -
-                                Max(runInfo.actualS1Size - attenMaskInfo.nextTokens, 0);
+                    int64_t tmpPre = attenMaskInfo.preTokens;
+                    int64_t tmpNext = attenMaskInfo.nextTokens;
+                    int64_t transPreTokens = runInfo.actualS1Size - Max(runInfo.actualS2Size - tmpPre, 0);
+                    int64_t transNextTokens = runInfo.actualS2Size - Max(runInfo.actualS1Size - tmpNext, 0);
+                    deltaPre = s1Offset - s2Offset - transPreTokens - 1;
+                    int64_t maskOffsetPre = ComputeOffsetForCausal(deltaPre, constInfo.s1BaseSize, constInfo.s2BaseSize,
+                                                                attenMaskInfo.attenMaskS2Size, runInfo.vecCoreOffset);
+                    attenMaskInfo.attenMaskOffsetPre = maskOffsetPre; // save offset value for the 2nd mask operation.
+                    delta = s1Offset - s2Offset + transNextTokens;
                 } else {
                     delta = s1Offset - s2Offset;
                 }
@@ -493,7 +512,11 @@ __aicore__ inline void AttenMaskCopyIn(TQue<QuePosition::VECIN, 1> &attenMaskInQ
         BoolCopyInRegbase<isInfer>(attenMaskUb, srcTensor, maskOffset, runInfo.halfS1RealSize, runInfo.s2RealSize,
             attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo);
         attenMaskInQue.template EnQue(attenMaskUb);
-        if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE) &&
+        if (((attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) ||
+            (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_BAND_MODE) &&
+                runInfo.boIdx == attenMaskInfo.bandIndex) ||
+            (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_LEFT_UP_CAUSAL_MODE) &&
+             runInfo.boIdx == attenMaskInfo.bandIndex)) &&
             (attenMaskInfo.computeMode == AttenMaskComputeMode::PRE_ONLY_MODE ||
              attenMaskInfo.computeMode == AttenMaskComputeMode::PRE_AND_NEXT_MODE)) {
             LocalTensor<uint8_t> attenMaskUbPre = attenMaskInQuePre.template AllocTensor<uint8_t>();

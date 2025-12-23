@@ -131,7 +131,7 @@ template <> struct Mm3ConstPolicySelector<true, false, true> {
 ///////////////////////////////////////////////////////////////
 template <typename T1>
 __aicore__ inline constexpr MatmulConfig
-GetMm1Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const bool HAS_TAIL,
+GetMm1Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP,
           const uint32_t CUBE_BASEM, const uint32_t CUBE_BASEN, const uint32_t HEAD_DIM_ALIGN, const bool IS_TSCM_REUSE,
           const bool IS_L0DB, const bool IS_L0C_REUSE, const uint32_t sharedCO1BufferSize, const uint32_t maxBaseRatio)
 {
@@ -145,7 +145,7 @@ GetMm1Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const
     mmCfg.enableInit = false;
     mmCfg.enableSetBias = false;
     mmCfg.enableQuantVector = false;
-    mmCfg.enableSetTail = HAS_TAIL;
+    mmCfg.enableSetTail = true;
     mmCfg.isBiasBatch = false;
     mmCfg.enableSetDefineData = IS_TSCM_REUSE || IS_L0C_REUSE;
     mmCfg.iterateMode = IterateMode::ITERATE_MODE_ALL;
@@ -160,7 +160,7 @@ GetMm1Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const
 ///////////////////////////////////////////////////////////////
 template <typename T1>
 __aicore__ inline constexpr MatmulConfig
-GetMm2Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const bool HAS_TAIL,
+GetMm2Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP,
           const uint32_t CUBE_BASEM, const uint32_t CUBE_BASEN, const uint32_t HEAD_DIM_ALIGN, const bool IS_TSCM_REUSE,
           const bool IS_L0DB, const bool IS_L0C_REUSE, const uint32_t sharedCO1BufferSize, const uint32_t maxBaseRatio)
 {
@@ -174,7 +174,7 @@ GetMm2Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const
     mmCfg.enableInit = false;
     mmCfg.enableSetBias = false;
     mmCfg.enableQuantVector = IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value;
-    mmCfg.enableSetTail = HAS_TAIL;
+    mmCfg.enableSetTail = true;
     mmCfg.isBiasBatch = false;
     mmCfg.enableSetDefineData = IS_TSCM_REUSE || IS_L0C_REUSE;
     mmCfg.iterateMode = IterateMode::ITERATE_MODE_ALL;
@@ -190,7 +190,7 @@ GetMm2Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const
 ///////////////////////////////////////////////////////////////
 template <typename T1>
 __aicore__ inline constexpr MatmulConfig
-GetMm3Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const bool HAS_TAIL,
+GetMm3Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP,
           const uint32_t CUBE_BASEM, const uint32_t CUBE_BASEN, const uint32_t HEAD_DIM_ALIGN, const bool IS_TSCM_REUSE,
           const bool IS_L0DB, const bool IS_L0C_REUSE, const uint32_t sharedCO1BufferSize, const uint32_t maxBaseRatio)
 {
@@ -204,7 +204,7 @@ GetMm3Cfg(const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP, const
     mmCfg.enableInit = IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value;
     mmCfg.enableSetBias = false;
     mmCfg.enableQuantVector = IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value;
-    mmCfg.enableSetTail = HAS_TAIL;
+    mmCfg.enableSetTail = true;
     mmCfg.isBiasBatch = false;
     mmCfg.enableSetDefineData = IS_TSCM_REUSE || IS_L0C_REUSE;
     mmCfg.iterateMode = (IS_L0C_REUSE) ? IterateMode::ITERATE_MODE_NORMAL : IterateMode::ITERATE_MODE_ALL;

@@ -36,11 +36,11 @@ public:
     __aicore__ inline void SetOptionalInfo();
     __aicore__ inline void SetRunInfo(FagRunInfo &runInfo, int64_t taskId, int64_t index, int64_t nextIndex = -1);
     __aicore__ inline void Process();
-    __aicore__ inline bool IsValid(FagRunInfo &runInfo, int64_t index);
+    __aicore__ inline bool IsValid(FagRunInfo &runInfo, int64_t taskId, int64_t index);
     __aicore__ inline void UpdateToken(FagRunInfo &runInfo, int64_t bIdx);
     __aicore__ inline bool CheckIsValidBlock(FagRunInfo &runInfo, int64_t baseIdx, int64_t s1oDimIdx,
-                                             int64_t s2oDimIdx);
-    __aicore__ inline int64_t GetNextValidIdx(FagRunInfo &runInfo, int64_t startIndex, int64_t loopIdx = 0);
+                                             int64_t s2oDimIdx, int64_t taskId);
+    __aicore__ inline int64_t GetNextValidIdx(FagRunInfo &runInfo, int64_t taskId, int64_t startIndex, int64_t loopIdx = 0);
     __aicore__ inline int64_t GetNextValidIdxFromFormula(FagRunInfo &runInfo, int64_t loopIdx);
     __aicore__ inline int64_t GetDeqScaleQOffset(FagRunInfo &runInfo);
     __aicore__ inline int64_t GetDeqScaleKOffset(FagRunInfo &runInfo);
@@ -55,6 +55,7 @@ public:
     __aicore__ inline void GetNextDxAndQueryOffset(FagRunInfo &runInfo, int64_t nextIndex, PreloadArgs<IS_ROPE> &preloadArgs);
     __aicore__ inline void SyncALLCores();
     __aicore__ inline void GetSeqQlenKvlenByBidx(int64_t bIdx, int64_t &actualSeqQlen, int64_t &actualSeqKvlen);
+    __aicore__ inline void CheckS1RangeInBn2(int64_t taskId);
     __aicore__ inline ChildClass *GetDerived()
     {
         return static_cast<ChildClass *>(this);
@@ -90,8 +91,8 @@ public:
     constexpr static bool IS_DQ_RES_EXCEED_UB = HEAD_DIM_ALIGN > VECTOR_BASEN;
     constexpr static bool IS_DKV_RES_EXCEED_UB =
         VECTOR_BASEN / CV_CORE_RATIO * HEAD_DIM_ALIGN > VECTOR_BASEM *VECTOR_BASEN;
-    constexpr static bool IS_DQ_WRITE_UB = (SPLIT_AXIS == BN2 && !IS_DQ_RES_EXCEED_UB);
-    constexpr static bool IS_DK_WRITE_UB = ((SPLIT_AXIS == BN2 || (SPLIT_AXIS == BN2S2 && !IS_TND)) && !IS_DKV_RES_EXCEED_UB);
+    constexpr static bool IS_DQ_WRITE_UB = (SPLIT_AXIS == BN2 && !IS_BN2_MULTIBLK && !IS_DQ_RES_EXCEED_UB);
+    constexpr static bool IS_DK_WRITE_UB = (((SPLIT_AXIS == BN2 && !IS_BN2_MULTIBLK) || (SPLIT_AXIS == BN2S2 && !IS_TND)) && !IS_DKV_RES_EXCEED_UB);
     constexpr static bool IS_DV_WRITE_UB = ((SPLIT_AXIS == BN2S2 && !IS_TND) && !IS_DKV_RES_EXCEED_UB);
  
 protected:
@@ -130,6 +131,11 @@ protected:
     // BN2S2模板判断是否有无效S2列
     int64_t curS2oIdx = -1;
     int64_t curS2InvalidTotalNum = 0;
+
+    // BN2扩展模板判断S1轴有效始终位置
+    bool isLastS1Outer[2] = {0};
+    bool isFirstS1Outer[2] = {0};
+    Bn2MultiBlkInfo multiBlkInfo;
  
     FagTilingType tilingData;
     FagConstInfo constInfo;
@@ -232,7 +238,7 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::Init
  
     // init workspace address
     if constexpr (!IS_FP32_INPUT) {
-        if constexpr (SPLIT_AXIS == BN2) {
+        if constexpr (SPLIT_AXIS == BN2 && !IS_BN2_MULTIBLK) {
             uint64_t qPostBlockTotal = CUBE_BASEM * HEAD_DIM_ALIGN * MAX_CUBE_CORE_NUM;
             uint64_t kPostBlockTotal = CUBE_BASEN * HEAD_DIM_ALIGN * MAX_CUBE_CORE_NUM;
             uint64_t workspaceOffsets = RESERVED_WORKSPACE_SIZE;
@@ -589,7 +595,8 @@ __aicore__ inline bool
 FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::CheckIsValidBlock(FagRunInfo &runInfo,
                                                                                                   int64_t baseIdx,
                                                                                                   int64_t s1oDimIdx,
-                                                                                                  int64_t s2oDimIdx)
+                                                                                                  int64_t s2oDimIdx,
+                                                                                                  int64_t taskId)
 {
     int64_t s2IdxLeft = s2oDimIdx * CUBE_BASEN;
     int64_t s2IdxRight = (s2oDimIdx + 1) * CUBE_BASEN;
@@ -606,6 +613,13 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::Chec
         int64_t curBIdx = baseIdx / constInfo.n2GS1oS2o;
         s2EndLen = Min(Max(s2EndLen, ((__gm__ int64_t *)prefixNAddr)[curBIdx]),
                        static_cast<int64_t>(constInfo.commonConstInfo.s2Size));
+    }
+    if constexpr (IS_BN2_MULTIBLK) {
+        multiBlkInfo.s2oDimIdx = s2oDimIdx;
+        multiBlkInfo.s2OuterTmp = 0;
+        multiBlkInfo.s2SparseLeft = 0;
+        multiBlkInfo.s2SparseRight = s2EndLen;
+        CheckS1RangeInBn2(taskId);
     }
     bool isValid = s2IdxLeft < s2EndLen;
     if (isValid) {
@@ -786,6 +800,10 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
         runInfo.commonRunInfo.preTokensPerBatch = attenMaskInfo.preTokens;
         runInfo.commonRunInfo.nextTokensPerBatch = attenMaskInfo.nextTokens;
     }
+ 
+    // BN2扩展模板专用
+    runInfo.isLastS1Outer = isLastS1Outer[taskId & 1];
+    runInfo.isFirstS1Outer = isFirstS1Outer[taskId & 1];
 
     runInfo.isS2IdxNoChange = (lastS2oCvDimIdx == runInfo.s2oIdx && lastBdimIdx == runInfo.commonRunInfo.boIdx &&
                                lastN2dimIdx == runInfo.commonRunInfo.n2oIdx);
@@ -847,7 +865,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline bool
-FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsValid(FagRunInfo &runInfo, int64_t index)
+FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsValid(FagRunInfo &runInfo, int64_t taskId, int64_t index)
 {
     if constexpr (IS_TND) {
         int64_t resbaseIdx = index - curBatchTotalBaseIdx;
@@ -890,6 +908,13 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
                                 s2CvEnd = s2CvBegin + actualS2Len - s2oDimIdx * CUBE_BASEN;
                             }
                         }
+                        if constexpr (IS_BN2_MULTIBLK) {
+                            multiBlkInfo.s2oDimIdx = s2oDimIdx;
+                            multiBlkInfo.s2OuterTmp = 0;
+                            multiBlkInfo.s2SparseLeft = 0;
+                            multiBlkInfo.s2SparseRight = s2EndLen;
+                            CheckS1RangeInBn2(taskId);
+                        }
                         if constexpr (SPLIT_AXIS == BN2S2) {
                             if (!isValid) {
                                 curS2InvalidTotalNum += 1;
@@ -913,6 +938,13 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
                     if (s2oDimIdx == s2OuterTmp - 1) { // 默认s2 cv tail相等
                         s2CvEnd = s2CvBegin + actualS2Len - s2oDimIdx * CUBE_BASEN;
                     }
+                    if constexpr (IS_BN2_MULTIBLK) {
+                        multiBlkInfo.s2oDimIdx = s2oDimIdx;
+                        multiBlkInfo.s2OuterTmp = 0;
+                        multiBlkInfo.s2SparseLeft = s2SparseLeft;
+                        multiBlkInfo.s2SparseRight = s2SparseRight;
+                        CheckS1RangeInBn2(taskId);
+                    }
                     if constexpr (SPLIT_AXIS == BN2S2) {
                         if (!isValid) {
                             curS2InvalidTotalNum += 1;
@@ -925,6 +957,13 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
                 } else {
                     s2CvBegin = s2IdxLeft;
                     s2CvEnd = s2IdxRight;
+                    if constexpr (IS_BN2_MULTIBLK) {
+                        multiBlkInfo.s2oDimIdx = s2oDimIdx;
+                        multiBlkInfo.s2OuterTmp = s2OuterTmp;
+                        multiBlkInfo.s2SparseLeft = 0;
+                        multiBlkInfo.s2SparseRight = 0;
+                        CheckS1RangeInBn2(taskId);
+                    }
                     return true;
                 }
             } else {
@@ -941,13 +980,20 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
         if constexpr (IS_ATTEN_MASK) {
             if (constInfo.sparseMode == RIGHT_DOWN_CAUSAL || constInfo.sparseMode == PREFIX ||
                 constInfo.sparseMode == PREFIX_COMPRESS) {
-                return CheckIsValidBlock(runInfo, index, s1oDimIdx, s2oDimIdx);
+                return CheckIsValidBlock(runInfo, index, s1oDimIdx, s2oDimIdx, taskId);
             } else {
                 int64_t s2SparseLeft = Max(CUBE_BASEM * s1oDimIdx - constInfo.s1Token, 0);
                 s2SparseLeft = s2SparseLeft >> 6 << 6;
                 int64_t s2SparseRight =
                     AlignTo64(Min(CUBE_BASEM * (s1oDimIdx + 1), constInfo.commonConstInfo.s1Size) + constInfo.s2Token);
                 s2SparseRight = Min(s2SparseRight, constInfo.commonConstInfo.s2Size);
+                if constexpr (IS_BN2_MULTIBLK) {
+                    multiBlkInfo.s2oDimIdx = s2oDimIdx;
+                    multiBlkInfo.s2OuterTmp = 0;
+                    multiBlkInfo.s2SparseLeft = s2SparseLeft;
+                    multiBlkInfo.s2SparseRight = s2SparseRight;
+                    CheckS1RangeInBn2(taskId);
+                }
                 bool isValid = s2IdxLeft < s2SparseRight && s2IdxRight > s2SparseLeft;
                 s2CvBegin = s2IdxLeft;
                 s2CvEnd = s2CvBegin + CUBE_BASEN;         // 非尾块s2按照+CUBE_BASEN处理
@@ -959,6 +1005,13 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
         } else {
             s2CvBegin = s2IdxLeft;
             s2CvEnd = s2IdxRight;
+            if constexpr (IS_BN2_MULTIBLK) {
+                multiBlkInfo.s2oDimIdx = s2oDimIdx;
+                multiBlkInfo.s2OuterTmp = constInfo.s2Outer;
+                multiBlkInfo.s2SparseLeft = 0;
+                multiBlkInfo.s2SparseRight = 0;
+                CheckS1RangeInBn2(taskId);
+            }
             return true;
         }
     }
@@ -966,12 +1019,12 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsVa
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline int64_t FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::GetNextValidIdx(
-    FagRunInfo &runInfo, int64_t blockInnerIdx, int64_t curLoopIdx)
+    FagRunInfo &runInfo, int64_t taskId, int64_t blockInnerIdx, int64_t curLoopIdx)
 {
     int64_t nextValidBlockInnerIdx = 0;
     if (!tilingData->s1s2BNGS1S2BaseParams.isSplitByBlockIdx) {
         nextValidBlockInnerIdx = blockInnerIdx;
-        while (!IsValid(runInfo, nextValidBlockInnerIdx)) {
+        while (!IsValid(runInfo, taskId, nextValidBlockInnerIdx)) {
             runInfo.s2CvBegin = s2CvBegin;
             runInfo.s2CvEnd = s2CvEnd;
             if (nextValidBlockInnerIdx >= tilingData->s1s2BNGS1S2BlockNumList.blockEnds[cBlockIdx]) {
@@ -1511,6 +1564,37 @@ FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::Sync
 {
     SyncAll<false>();
 }
- 
+
+template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void
+FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::CheckS1RangeInBn2(int64_t taskId)
+{
+    if constexpr (IS_ATTEN_MASK) {
+        int64_t nextS2IdxLeft = (multiBlkInfo.s2oDimIdx + 1) * CUBE_BASEN;
+        int64_t nextS2IdxRight = (multiBlkInfo.s2oDimIdx + 2) * CUBE_BASEN;
+        if (constInfo.sparseMode == RIGHT_DOWN_CAUSAL || constInfo.sparseMode == PREFIX ||
+                constInfo.sparseMode == PREFIX_COMPRESS) {
+            bool isNextValid = nextS2IdxLeft < multiBlkInfo.s2SparseRight;
+            isLastS1Outer[taskId & 1] = !isNextValid;
+            isFirstS1Outer[taskId & 1] = (multiBlkInfo.s2oDimIdx == 0);
+        } else {
+            bool isNextValid = nextS2IdxLeft < multiBlkInfo.s2SparseRight && nextS2IdxRight > multiBlkInfo.s2SparseLeft;
+            isLastS1Outer[taskId & 1] = !isNextValid;
+            if (multiBlkInfo.s2oDimIdx > 0) {
+                int64_t preS2IdxLeft = (multiBlkInfo.s2oDimIdx - 1) * CUBE_BASEN;
+                int64_t preS2IdxRight = multiBlkInfo.s2oDimIdx * CUBE_BASEN;
+                bool isPreValid = preS2IdxLeft < multiBlkInfo.s2SparseRight && preS2IdxRight > multiBlkInfo.s2SparseLeft;
+                isFirstS1Outer[taskId & 1] = !isPreValid;
+            } else {
+                isFirstS1Outer[taskId & 1] = (multiBlkInfo.s2oDimIdx == 0);
+            }
+        }
+    } else {
+        isLastS1Outer[taskId & 1] = (multiBlkInfo.s2oDimIdx == multiBlkInfo.s2OuterTmp - 1) ? true : false;
+        isFirstS1Outer[taskId & 1] = (multiBlkInfo.s2oDimIdx == 0);
+    }
+    return;
+}
+
 } // namespace FagBaseApi
 #endif

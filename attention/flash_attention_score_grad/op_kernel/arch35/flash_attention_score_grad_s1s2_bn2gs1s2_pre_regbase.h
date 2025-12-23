@@ -170,6 +170,14 @@ __aicore__ inline void FlashAttentionScoreGradS1S2BNGS1S2PreRegbase<T1, T2, DETE
             InitOutput<T1>(dkGm[dkOffset], initdkSize, 0);
             InitOutput<T1>(dvGm[dvOffset], initdvSize, 0);
         } else {
+            if constexpr (SPLIT_AXIS == 1) {
+                if (TilingData->preTilingData.sValueZeroUnderTND) {
+                    // BN2 MULTIBLK针对TND中有S为0的场景，增加gm清零
+                    InitOutput<T1>(dkGm[dkOffset], initdkSize, 0);
+                    InitOutput<T1>(dvGm[dvOffset], initdvSize, 0);
+                }
+                return;
+            }
             InitOutput<float>(dqWorkSpaceGm[dqOffset], initdqSize, 0);
             if constexpr (SPLIT_AXIS == 0) {
                 InitOutput<float>(dkWorkSpaceGm[dkOffset], initdkSize, 0);

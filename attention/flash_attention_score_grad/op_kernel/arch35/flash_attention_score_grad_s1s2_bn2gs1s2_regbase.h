@@ -32,17 +32,17 @@
 
 #define FAG_CLASS_TEMPLATE                                                                                             \
     template <typename T1, typename T2, const bool IS_ATTEN_MASK = 0, const bool IS_PSE = 0, const bool IS_DROP = 0,   \
-              const bool IS_TND = 0, const bool HAS_TAIL = 0, const uint8_t DETER_SPARSE_TYPE = 0, bool IS_N_EQUAL = 0, const bool IS_D_NO_EQUAL = 0,   \
+              const bool IS_TND = 0, const bool IS_BN2_MULTIBLK = 0, const uint8_t DETER_SPARSE_TYPE = 0, bool IS_N_EQUAL = 0, const bool IS_D_NO_EQUAL = 0,   \
               const bool IS_ROPE = 0, const bool FP8_OPEN_TSCM = 0, const uint8_t SPLIT_AXIS = 0, S1TemplateType s1TemplateType = S1TemplateType::Aligned128, \
               S2TemplateType s2TemplateType = S2TemplateType::Aligned128,                                              \
               DTemplateType dTemplateType = DTemplateType::Aligned128, typename OUTDTYPE = T1>
 #define FAG_FUNCTION_TEMPLATE                                                                                          \
     template <typename T1, typename T2, const bool IS_ATTEN_MASK, const bool IS_PSE, const bool IS_DROP,               \
-              const bool IS_TND, const bool HAS_TAIL, const uint8_t DETER_SPARSE_TYPE, const bool IS_N_EQUAL, const bool IS_D_NO_EQUAL,                   \
+              const bool IS_TND, const bool IS_BN2_MULTIBLK, const uint8_t DETER_SPARSE_TYPE, const bool IS_N_EQUAL, const bool IS_D_NO_EQUAL,                   \
               const bool IS_ROPE, const bool FP8_OPEN_TSCM, const uint8_t SPLIT_AXIS, S1TemplateType s1TemplateType, S2TemplateType s2TemplateType,                  \
               DTemplateType dTemplateType, typename OUTDTYPE>
 #define FAG_FUNCTION_PARAMS_TEMPLATE                                                                                   \
-    T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType,     \
+    T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType,     \
         s2TemplateType, dTemplateType, OUTDTYPE
 
 using namespace matmul;
@@ -179,13 +179,13 @@ public:
     constexpr static bool IS_L0C_REUSE = IS_L0C_REUSE(CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_DETER_OLD(DETER_SPARSE_TYPE), T1, IS_TND);
     constexpr static bool IS_TSCM_PRELOAD = IS_TSCM_PRELOAD_ROPE(HEAD_DIM_ALIGN, T1, SPLIT_AXIS, IS_DETER_OLD(DETER_SPARSE_TYPE), IS_TND, FP8_OPEN_TSCM, IS_ROPE);
     constexpr static MatmulConfig MM1_CFG_SAMEAB =
-        GetMm1Cfg<T1>(IS_ATTEN_MASK, IS_PSE, IS_DROP, HAS_TAIL, CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_TSCM_REUSE,
+        GetMm1Cfg<T1>(IS_ATTEN_MASK, IS_PSE, IS_DROP, CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_TSCM_REUSE,
                       IS_L0DB, IS_L0C_REUSE, SHARED_C1_BUFFER_SZIE, MM1_MAX_BASE_RATIO);
     constexpr static MatmulConfig MM2_CFG_SAMEB =
-        GetMm2Cfg<T1>(IS_ATTEN_MASK, IS_PSE, IS_DROP, HAS_TAIL, CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_TSCM_REUSE,
+        GetMm2Cfg<T1>(IS_ATTEN_MASK, IS_PSE, IS_DROP, CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_TSCM_REUSE,
                       IS_L0DB, IS_L0C_REUSE, SHARED_C1_BUFFER_SZIE, MM2_MAX_BASE_RATIO);
     constexpr static MatmulConfig MM3_CFG_SAMEB =
-        GetMm3Cfg<T1>(IS_ATTEN_MASK, IS_PSE, IS_DROP, HAS_TAIL, CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_TSCM_REUSE,
+        GetMm3Cfg<T1>(IS_ATTEN_MASK, IS_PSE, IS_DROP, CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_TSCM_REUSE,
                       IS_L0DB, IS_L0C_REUSE, SHARED_C1_BUFFER_SZIE, MM3_MAX_BASE_RATIO);
     constexpr static uint32_t L0C_BUF_NUM = GET_L0C_BUF_NUM(CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN);
 
@@ -1597,9 +1597,7 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
                         constInfo.commonConstInfo.mm1Ka, constInfo.commonConstInfo.mm1Kb, CUBE_BASEN);
     }
     
-    if constexpr (HAS_TAIL) {
-        mm1.SetTail(runInfo.commonRunInfo.s1RealSize, runInfo.commonRunInfo.s2RealSize, constInfo.commonConstInfo.dSizeV);
-    }
+    mm1.SetTail(runInfo.commonRunInfo.s1RealSize, runInfo.commonRunInfo.s2RealSize, constInfo.commonConstInfo.dSizeV);
     mm1.SetTensorA(dxGm[dxGmOffset]);
     mm1.SetTensorB(valueGm[valueGmOffset], true);
     LocalTensor<T2> mm1ResQueInTensor = mm1ResBuf[runInfo.commonRunInfo.taskIdMod2].Get<T2>();
@@ -1636,9 +1634,7 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
                             constInfo.mm2Ka, constInfo.mm2Kb, CUBE_BASEN);
         }
         
-        if constexpr (HAS_TAIL) {
-            mm1.SetTail(runInfo.commonRunInfo.s1RealSize, runInfo.commonRunInfo.s2RealSize, constInfo.commonConstInfo.dSize);
-        }
+        mm1.SetTail(runInfo.commonRunInfo.s1RealSize, runInfo.commonRunInfo.s2RealSize, constInfo.commonConstInfo.dSize);
     }
     mm1.SetTensorA(queryGm[queryGmOffset]);
     mm1.SetTensorB(keyGm[keyGmOffset], true);
@@ -1747,7 +1743,7 @@ FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FUNCTION_PARAMS_TEMPLATE>
         }
     }
 
-    if constexpr (IS_DETER_OLD(DETER_SPARSE_TYPE) && HAS_TAIL) { // 确定性计算尾块脏数据补零
+    if constexpr (IS_DETER_OLD(DETER_SPARSE_TYPE)) { // 确定性计算尾块脏数据补零
         if (!constInfo.deterConstInfo.noNeedDeter) { 
             if (runInfo.commonRunInfo.halfS1RealSize != VECTOR_BASEM) {
                 Duplicate<T2>(mm1ResQueInTensor[runInfo.commonRunInfo.halfS1RealSize * VECTOR_BASEN], 0,
@@ -1915,9 +1911,7 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
     CopyUB2L1Deter(runInfo, dsScmTensor, vecOutBuffer);
     dsScm.EnQue(dsScmTensor);
     dsScm.DeQue<T1>();
-    if constexpr (HAS_TAIL) {
-        mm2.SetTail(CUBE_BASEM, constInfo.commonConstInfo.dSize, runInfo.commonRunInfo.s2RealSize);
-    }
+    mm2.SetTail(CUBE_BASEM, constInfo.commonConstInfo.dSize, runInfo.commonRunInfo.s2RealSize);
     mm2.SetTensorA(dsScmTensor);
     mm2.SetTensorB(keyGm[keyOrValueGmOffset]);
     if (dqIsNeedDeter[deterPpFlag] && !dkDvIsNeedDeter[deterPpFlag]) {
@@ -1961,10 +1955,8 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
     CopyUB2L1<true>(runInfo, dsScmTensor, vecOutBuffer);
     dsScm.EnQue(dsScmTensor);
     dsScm.DeQue<T1>();
-    if constexpr (HAS_TAIL) {
-		mm2.SetTail(runInfo.commonRunInfo.s1RealSize, constInfo.commonConstInfo.dSize,
+    mm2.SetTail(runInfo.commonRunInfo.s1RealSize, constInfo.commonConstInfo.dSize,
 				runInfo.commonRunInfo.s2RealSize);
-    }
 
     if constexpr (IS_FP8_INPUT) {
         float tmp = runInfo.quantScaleInfo.deqScaleKValue / qScaleDs;
@@ -2017,9 +2009,7 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
     }
     dsScm.EnQue(dsScmTensordq);
     dsScm.DeQue<T1>();
-    if constexpr (HAS_TAIL) {
-        mm3.SetTail(CUBE_BASEN, constInfo.commonConstInfo.dSize, runInfo.commonRunInfo.s1RealSize);
-    }
+    mm3.SetTail(CUBE_BASEN, constInfo.commonConstInfo.dSize, runInfo.commonRunInfo.s1RealSize);
     mm3.SetTensorA(dsScmTensordq, true);
     mm3.SetTensorB(queryGm[dxOrQueryGmOffset]); // sameB
     mm3.template IterateAll<false>(deterGm[deterGmOffset], false, false, false);
@@ -2067,10 +2057,8 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
     }
     dsScm.EnQue(dsScmTensordq);
     dsScm.DeQue<T1>();
-    if constexpr (HAS_TAIL) {
-		mm3.SetTail(runInfo.commonRunInfo.s2RealSize, constInfo.commonConstInfo.dSize,
-				runInfo.commonRunInfo.s1RealSize);
-    }
+    mm3.SetTail(runInfo.commonRunInfo.s2RealSize, constInfo.commonConstInfo.dSize,
+            runInfo.commonRunInfo.s1RealSize);
 
     if constexpr (IS_FP8_INPUT) {
         float tmp = runInfo.quantScaleInfo.deqScaleQValue / qScaleDs;
@@ -2134,9 +2122,7 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
     CopyUB2L1(runInfo, pScmTensor, vecOutBuffer1);
     pScm.EnQue(pScmTensor);
     pScm.DeQue<T1>();
-    if constexpr (HAS_TAIL) {
-        mm3.SetTail(CUBE_BASEN, constInfo.commonConstInfo.dSizeV, runInfo.commonRunInfo.s1RealSize);
-    }
+    mm3.SetTail(CUBE_BASEN, constInfo.commonConstInfo.dSizeV, runInfo.commonRunInfo.s1RealSize);
     mm3.SetTensorA(pScmTensor, true);
     mm3.SetTensorB(dxGm[dxOrQueryGmOffset]); // sameB
     mm3.template IterateAll<false>(deterGm[deterGmOffset], false, false, true);
@@ -2177,7 +2163,7 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
     CopyUB2L1(runInfo, pScmTensor, vecOutBuffer1);
     pScm.EnQue(pScmTensor);
     pScm.DeQue<T1>();
-    if constexpr (HAS_TAIL && IS_D_NO_EQUAL) {
+    if constexpr (IS_D_NO_EQUAL) {
 		mm3.SetTail(runInfo.commonRunInfo.s2RealSize, constInfo.commonConstInfo.dSizeV,
 					runInfo.commonRunInfo.s1RealSize);
     }
@@ -2278,20 +2264,18 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<FAG_FU
             (uint16_t)(CUBE_BASEM - runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM;
         DataCopy(dstTensor[scmOffset], srcTensor, dataCopyParams);
     }
-    if constexpr (HAS_TAIL) {
-        if (runInfo.commonRunInfo.halfS1RealSize != VECTOR_BASEM) {
-            // copy 补零的数据
-            scmOffset = (vSubBlockIdx == 0 ? runInfo.commonRunInfo.s1RealSize * FRACTAL_NZ_C0_SIZE
-                                           : (VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE);
-            dataCopyParams.blockCount = VECTOR_BASEN / FRACTAL_NZ_C0_SIZE;
-            dataCopyParams.blockLen =
-                (uint16_t)((VECTOR_BASEM - runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
-            dataCopyParams.srcStride =
-                (uint16_t)((runInfo.commonRunInfo.halfS1RealSize + 1) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
-            dataCopyParams.dstStride =
-                (uint16_t)(VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM;
-            DataCopy(dstTensor[scmOffset], srcTensor[runInfo.commonRunInfo.halfS1RealSize * FRACTAL_NZ_C0_SIZE], dataCopyParams);
-        }
+    if (runInfo.commonRunInfo.halfS1RealSize != VECTOR_BASEM) {
+        // copy 补零的数据
+        scmOffset = (vSubBlockIdx == 0 ? runInfo.commonRunInfo.s1RealSize * FRACTAL_NZ_C0_SIZE
+                                        : (VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE);
+        dataCopyParams.blockCount = VECTOR_BASEN / FRACTAL_NZ_C0_SIZE;
+        dataCopyParams.blockLen =
+            (uint16_t)((VECTOR_BASEM - runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
+        dataCopyParams.srcStride =
+            (uint16_t)((runInfo.commonRunInfo.halfS1RealSize + 1) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
+        dataCopyParams.dstStride =
+            (uint16_t)(VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM;
+        DataCopy(dstTensor[scmOffset], srcTensor[runInfo.commonRunInfo.halfS1RealSize * FRACTAL_NZ_C0_SIZE], dataCopyParams);
     }
 }
 

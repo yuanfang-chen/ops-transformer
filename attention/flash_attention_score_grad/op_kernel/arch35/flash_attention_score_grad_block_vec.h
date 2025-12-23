@@ -311,22 +311,20 @@ __aicore__ inline void FAGBlockVec<TEMPLATE_ARGS>::CopyUB2L1Deter(FagRunInfo &ru
             (uint16_t)(CUBE_BASEM - runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM;
         DataCopy(dstTensor[scmOffset], srcTensor, dataCopyParams);
     }
-    if constexpr (HAS_TAIL) {
-        if (runInfo.commonRunInfo.halfS1RealSize != VECTOR_BASEM) {
-            // copy 补零的数据
-            scmOffset =
-                (vSubBlockIdx == 0 ? runInfo.commonRunInfo.s1RealSize * FRACTAL_NZ_C0_SIZE :
-                                     (VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE);
-            dataCopyParams.blockCount = VECTOR_BASEN / FRACTAL_NZ_C0_SIZE;
-            dataCopyParams.blockLen = (uint16_t)((VECTOR_BASEM - runInfo.commonRunInfo.halfS1RealSize) *
-                                                 FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
-            dataCopyParams.srcStride =
-                (uint16_t)((runInfo.commonRunInfo.halfS1RealSize + 1) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
-            dataCopyParams.dstStride =
-                (uint16_t)(VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM;
-            DataCopy(dstTensor[scmOffset], srcTensor[runInfo.commonRunInfo.halfS1RealSize * FRACTAL_NZ_C0_SIZE],
-                     dataCopyParams);
-        }
+    if (runInfo.commonRunInfo.halfS1RealSize != VECTOR_BASEM) {
+        // copy 补零的数据
+        scmOffset =
+            (vSubBlockIdx == 0 ? runInfo.commonRunInfo.s1RealSize * FRACTAL_NZ_C0_SIZE :
+                                    (VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE);
+        dataCopyParams.blockCount = VECTOR_BASEN / FRACTAL_NZ_C0_SIZE;
+        dataCopyParams.blockLen = (uint16_t)((VECTOR_BASEM - runInfo.commonRunInfo.halfS1RealSize) *
+                                                FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
+        dataCopyParams.srcStride =
+            (uint16_t)((runInfo.commonRunInfo.halfS1RealSize + 1) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM);
+        dataCopyParams.dstStride =
+            (uint16_t)(VECTOR_BASEM + runInfo.commonRunInfo.halfS1RealSize) * FRACTAL_NZ_C0_SIZE / INPUT_BLOCK_NUM;
+        DataCopy(dstTensor[scmOffset], srcTensor[runInfo.commonRunInfo.halfS1RealSize * FRACTAL_NZ_C0_SIZE],
+                    dataCopyParams);
     }
 }
  
@@ -395,7 +393,7 @@ __aicore__ inline void FAGBlockVec<TEMPLATE_ARGS>::ProcessVec3(Buffer<BufferType
         }
     }
  
-    if constexpr (IS_DETER_OLD(DETER_SPARSE_TYPE) && HAS_TAIL) { // 确定性计算尾块脏数据补零
+    if constexpr (IS_DETER_OLD(DETER_SPARSE_TYPE)) { // 确定性计算尾块脏数据补零
         if (!constInfo.deterConstInfo.noNeedDeter) {
             if (runInfo.commonRunInfo.halfS1RealSize != VECTOR_BASEM) {
                 Duplicate<CALC_TYPE>(mm1ResTensor[runInfo.commonRunInfo.halfS1RealSize * VECTOR_BASEN], 0,
@@ -611,6 +609,11 @@ __aicore__ inline void FAGBlockVec<TEMPLATE_ARGS>::DqkvMulsAndCastFromGM(FagCons
  
     GlobalTensor<OUTDTYPE> dqkvGmTensor = MM_IDX == DQ_IDX ? dqGm : (MM_IDX == DK_IDX ? dkGm : dvGm);
     int64_t dkvWorkSpaceOffet = this->cBlockIdx * this->CUBE_BASEN * this->HEAD_DIM_ALIGN + vSubBlockIdx * firsthalfSRealSize * curDAlign;
+    if constexpr (IS_BN2_MULTIBLK && MM_IDX == DQ_IDX) {
+        dkvWorkSpaceOffet = this->cBlockIdx * AlignTo128(constInfo.commonConstInfo.s1Size) * HEAD_DIM_ALIGN +
+            runInfo.commonRunInfo.s1oIdx * CUBE_BASEM * HEAD_DIM_ALIGN +
+            vSubBlockIdx * firsthalfSRealSize * curDAlign;
+    }
     uint32_t data_size = curLoopSize * curDAlign;
     for (uint32_t loopIdx = 0; loopIdx < loopNum; loopIdx++) {
         if (loopIdx == loopNum - 1) {

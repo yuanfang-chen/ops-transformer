@@ -60,7 +60,7 @@ __aicore__ inline void FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType
     int64_t dqkvBlockInnerIdx = 0;
     int64_t curLoopIdx = 0; // just for continuous split core
     nextValidBlockInnerIdx = this->GetNextValidIdx(
-        runInfos[0], this->tilingData->s1s2BNGS1S2BlockNumList.blockStarts[this->cBlockIdx], curLoopIdx);
+        runInfos[0], taskId, this->tilingData->s1s2BNGS1S2BlockNumList.blockStarts[this->cBlockIdx], curLoopIdx);
     blockInnerIdx = nextValidBlockInnerIdx;
  
     LocalTensor<CALC_TYPE> mm1ResTensor;
@@ -79,7 +79,7 @@ __aicore__ inline void FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType
         }
         if (!this->isLastLoop) {
             // get mm1 mm2 next valid block index and next s2 begin end
-            nextValidBlockInnerIdx = this->GetNextValidIdx(runInfos[(taskId + 1) & 1], blockInnerIdx + 1, curLoopIdx + 1);
+            nextValidBlockInnerIdx = this->GetNextValidIdx(runInfos[(taskId + 1) & 1], taskId + 1, blockInnerIdx + 1, curLoopIdx + 1);
             this->SetRunInfo(runInfos[taskId & 1], taskId, blockInnerIdx, nextValidBlockInnerIdx);
             if (this->tilingData->s1s2BNGS1S2BaseParams.isSplitByBlockIdx) {
                 curLoopIdx++;
@@ -150,7 +150,7 @@ __aicore__ inline void FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType
                 CrossCoreWaitFlag<SYNC_MODE, PIPE_MTE1>(16 + SYNC_V4_TO_C5_FLAG);
             }
  
-            if constexpr (SPLIT_AXIS == BN2) {
+            if constexpr (SPLIT_AXIS == BN2 && !IS_BN2_MULTIBLK) {
                 // compute dq
                 if constexpr (BaseClass::IS_DQ_WRITE_UB) {
                     mm1ResTensor =
@@ -221,6 +221,59 @@ __aicore__ inline void FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType
                 // compute dv
                 this->cubeBlock.template IterateMmPDy<OUTDTYPE, BaseClass::IS_DV_WRITE_UB>(
                     this->dvGm, this->pL1Buf, this->constInfo, runInfos[(taskId + 1) & 1]); // c5
+                if ASCEND_IS_AIC {
+                    CrossCoreSetFlag<SYNC_MODE, PIPE_MTE1>(SYNC_C5_TO_V4_FLAG);
+                    CrossCoreSetFlag<SYNC_MODE, PIPE_MTE1>(16 + SYNC_C5_TO_V4_FLAG);
+                }
+                needSyncDkMM = true;
+            } else if constexpr (IS_BN2_MULTIBLK) {
+                // compute dq
+                this->cubeBlock.template IterateMmDsK<CALC_TYPE, BaseClass::IS_DK_WRITE_UB>(
+                    this->dqWorkSpaceGm, this->dSL1Buf, this->constInfo,
+                    runInfos[(taskId + 1) & 1]); // c3
+                if (runInfos[(taskId + 1) & 1].isLastS1Outer) {
+                    if ASCEND_IS_AIC {
+                        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_C3_TO_V5_FLAG);
+                        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(16 + SYNC_C3_TO_V5_FLAG);
+                    } else {
+                        CrossCoreWaitFlag<SYNC_MODE, PIPE_MTE2>(SYNC_C3_TO_V5_FLAG);
+                    }
+                    this->vecBlock.template ProcessMulsAndCast<CALC_TYPE, BaseClass::IS_DK_WRITE_UB, DQ_IDX>(
+                        this->dqWorkSpaceGm, this->constInfo, runInfos[(taskId + 1) & 1]); // v5: dq muls + cast
+                }
+
+                // compute dk
+                this->cubeBlock.template IterateMmDsQ<CALC_TYPE, BaseClass::IS_DK_WRITE_UB>(
+                    this->dkWorkSpaceGm, this->dSL1Buf, this->constInfo,
+                    runInfos[(taskId + 1) & 1]); // c4
+                if (!runInfos[(taskId + 1) & 1].isNextS2IdxNoChange) {
+                    if ASCEND_IS_AIC {
+                        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_C4_TO_V6_FLAG);
+                        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(16 + SYNC_C4_TO_V6_FLAG);
+                    } else {
+                        CrossCoreWaitFlag<SYNC_MODE, PIPE_MTE2>(SYNC_C4_TO_V6_FLAG);
+                    }
+                    this->vecBlock.template ProcessMulsAndCast<CALC_TYPE, BaseClass::IS_DK_WRITE_UB, DK_IDX>(
+                        this->dkWorkSpaceGm, this->constInfo, runInfos[(taskId + 1) & 1]); // v6: dk muls + cast
+                }
+                if ASCEND_IS_AIC {
+                    CrossCoreSetFlag<SYNC_MODE, PIPE_MTE1>(SYNC_C4_TO_V3_FLAG);
+                    CrossCoreSetFlag<SYNC_MODE, PIPE_MTE1>(16 + SYNC_C4_TO_V3_FLAG);
+                }
+
+                // compute dv
+                this->cubeBlock.template IterateMmPDy<CALC_TYPE, BaseClass::IS_DK_WRITE_UB>(
+                    this->dvWorkSpaceGm, this->pL1Buf, this->constInfo, runInfos[(taskId + 1) & 1]); // c5
+                if (!runInfos[(taskId + 1) & 1].isNextS2IdxNoChange) {
+                    if ASCEND_IS_AIC {
+                        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_C3_TO_V5_FLAG);
+                        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(16 + SYNC_C3_TO_V5_FLAG);
+                    } else {
+                        CrossCoreWaitFlag<SYNC_MODE, PIPE_MTE2>(SYNC_C3_TO_V5_FLAG);
+                    }
+                    this->vecBlock.template ProcessMulsAndCast<CALC_TYPE, BaseClass::IS_DK_WRITE_UB, DV_IDX>(
+                        this->dvWorkSpaceGm, this->constInfo, runInfos[(taskId + 1) & 1]); // v6: dv muls + cast
+                }
                 if ASCEND_IS_AIC {
                     CrossCoreSetFlag<SYNC_MODE, PIPE_MTE1>(SYNC_C5_TO_V4_FLAG);
                     CrossCoreSetFlag<SYNC_MODE, PIPE_MTE1>(16 + SYNC_C5_TO_V4_FLAG);

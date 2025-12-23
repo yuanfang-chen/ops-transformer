@@ -233,6 +233,7 @@
      int64_t separateDkOffset[CORE_LIST_NUM];
 
      bool isBn2 = false;
+     bool isBn2MultiBlk = false;
      bool hasRope = false;
      SplitAxisEnum splitAxis = SplitAxisEnum::BN2GS1S2;
      bool sValueZeroUnderTND = false;
@@ -369,7 +370,7 @@
      ge::graphStatus ProcessOptionalInput();
      ge::graphStatus ProcessDropoutInfo();
      ge::graphStatus ProcessQuantInfo();
-     void SetSplitAxis(uint32_t queryType);
+     void SetSplitAxis();
      bool CheckSparseLeftAndRight(int64_t s1oDimIdx,
          int64_t s2IdxLeft, int64_t s2IdxRight, int64_t bIdx = 0, int64_t blockIdx = 0);
      bool CheckUnpadSparseLeftAndRight(int64_t s1oDimIdx,
@@ -393,6 +394,14 @@
      bool IsValidUnpad(int64_t blockIdx);
      ge::graphStatus QuantScaleShapeValidCheck();
      ge::graphStatus QuantScaleDtypeValidCheck();
+     ge::graphStatus DoBn2MultiBlkSparse();
+     void FillBlockInfoLoadBalanceForBn2(std::vector<std::vector<int64_t>> &totalBlockInfo,
+         std::vector<std::vector<float>> &acturalBlockInfo);
+     ge::graphStatus GetBlockInfoOfTNDForBn2();
+     bool CaclePerCoreBlockInfoBn2(const std::vector<std::vector<int64_t>> &totalBlockInfo,
+         const std::vector<std::vector<float>> &acturalBlockInfo,
+         const float maxBlockNumPerCore, int64_t (&blockStarts)[CORE_LIST_NUM], int64_t (&blockEnds)[CORE_LIST_NUM]);
+     ge::graphStatus GetSparseBlockInfoBn2();
  
      FuzzyBaseInfoParamsRegbase fBaseParams;
      platform_ascendc::SocVersion socVersion;

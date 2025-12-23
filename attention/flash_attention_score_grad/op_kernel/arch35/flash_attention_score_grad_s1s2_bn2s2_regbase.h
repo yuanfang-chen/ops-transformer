@@ -390,10 +390,8 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCT
     LocalTensor<T1> dsScmTensordq = this->dsScm.template AllocTensor<T1>();
     this->dsScm.EnQue(dsScmTensordq);
     this->dsScm.template DeQue<T1>();
-    if constexpr (HAS_TAIL) {
-        mm3.SetTail(runInfo.commonRunInfo.s2RealSize, this->constInfo.commonConstInfo.dSize,
-                    runInfo.commonRunInfo.s1RealSize);
-    }
+    mm3.SetTail(runInfo.commonRunInfo.s2RealSize, this->constInfo.commonConstInfo.dSize,
+                runInfo.commonRunInfo.s1RealSize);
     mm3.SetTensorA(dsScmTensordq, true);
     mm3.SetTensorB(this->queryGm[dxOrQueryGmOffset]); // sameB
     if constexpr (!S1S2_TEMPLATE::IS_L0C_REUSE || IS_DKV_RES_EXCEED_UB) {
@@ -471,7 +469,7 @@ __aicore__ inline void FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<FAG_FUNCT
     this->pOutQue.FreeTensor(vecOutBuffer1);
     this->pScm.EnQue(pScmTensor);
     this->pScm.template DeQue<T1>();
-    if constexpr (HAS_TAIL && IS_D_NO_EQUAL) {
+    if constexpr (IS_D_NO_EQUAL) {
         mm3.SetTail(runInfo.commonRunInfo.s2RealSize, this->constInfo.commonConstInfo.dSizeV,
                     runInfo.commonRunInfo.s1RealSize);
     }

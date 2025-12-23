@@ -236,6 +236,10 @@ struct FagRunInfo {
     uint8_t qDxPingPongIdx;
     uint8_t isS2IdxNoChange; // s2Idx是否变化
     uint8_t isNextS2IdxNoChange; // 下一个基本块的s2Idx是否变化（是否切换了列）
+    // BN2模板使用
+    bool isLastS1Outer = false; // 标记BN2扩展模板中是否是S1轴要处理的最后一个s1outer
+    bool isFirstS1Outer = false; // 标记BN2扩展模板中是否是S1轴要处理的第一个s1outer
+
     // TND需要记录上一次的基本块的信息，用于优化scalar
     int64_t lastBatchIdx = 0;
     int64_t lastBatchTotalBaseIdx = 0;
@@ -272,6 +276,13 @@ struct LoopInfo {
     int64_t s2oIdx{0};
 };
 
+struct Bn2MultiBlkInfo {
+    int64_t s2oDimIdx{0};
+    int64_t s2OuterTmp{0}; // TND场景此值不可直接使用constinfo中的S2Outer
+    int64_t s2SparseLeft{0};
+    int64_t s2SparseRight{0};
+};
+
 __aicore__ inline uint32_t AlignTo(uint32_t num1, uint32_t num2)
 {
     if (num2 == 0) {
@@ -285,6 +296,10 @@ __aicore__ inline int64_t AlignTo16(int64_t num) { return (num + 15) >> 4 << 4; 
 __aicore__ inline int64_t AlignTo32(int64_t num) { return (num + 31) >> 5 << 5; }
 
 __aicore__ inline int64_t AlignTo64(int64_t num) { return (num + 63) >> 6 << 6; }
+
+__aicore__ inline int64_t AlignTo128(int64_t num) { return (num + 127) >> 7 << 7; }
+
+__aicore__ inline int64_t AlignTo512(int64_t num) { return (num + 511) >> 9 << 9; }
 
 __aicore__ constexpr bool IS_DETER_OLD(const uint8_t deterSparseType) 
 {

@@ -42,7 +42,8 @@ public:
     __aicore__ inline void SetUniqueConstInfo(FagConstInfo &constInfo);
     __aicore__ inline void SetRunInfoDeterForTND(FagRunInfo &runInfo, int64_t taskId, int64_t index, CoordinateInfo &coordinateInfo,int64_t nextIndex);
     __aicore__ inline int64_t CalDeterMaxLoopNum();
-    __aicore__ inline void CalDeterIndex(uint32_t roundId, uint32_t maxLoopNum, int64_t &nextValidRoundId, int64_t &nextValidIndex, CoordinateInfo &coordinateInfo, FagRunInfo &runInfo);
+    __aicore__ inline void CalDeterIndex(uint32_t roundId, uint32_t maxLoopNum, int64_t &nextValidRoundId, int64_t &nextValidIndex, int64_t taskId,
+        CoordinateInfo &coordinateInfo, FagRunInfo &runInfo);
     __aicore__ inline int64_t CalDenseDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo);
     __aicore__ inline int64_t CalCausalDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo);
     __aicore__ inline int64_t CalBandDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo);
@@ -593,7 +594,8 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::SpecialS2Index(
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
 FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::CalDeterIndex(
-        uint32_t roundId, uint32_t maxLoopNum, int64_t &nextValidRoundId, int64_t &nextValidIndex, CoordinateInfo &coordinateInfo, FagRunInfo &runInfo)
+        uint32_t roundId, uint32_t maxLoopNum, int64_t &nextValidRoundId, int64_t &nextValidIndex, int64_t taskId,
+        CoordinateInfo &coordinateInfo, FagRunInfo &runInfo)
 {
     coordinateInfo.sparseMode = this->constInfo.sparseMode;
     for (uint32_t currentRoundId = roundId; currentRoundId < maxLoopNum; currentRoundId++) {
@@ -609,7 +611,7 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::CalDeterIndex(
         if constexpr (BaseClass::IS_TND) {
             isValidBlock = isValidBlock && IsValidDeterForTnd(runInfo, nextValidIndex, coordinateInfo);
         } else {
-            isValidBlock = isValidBlock && this->IsValid(runInfo, nextValidIndex);
+            isValidBlock = isValidBlock && this->IsValid(runInfo, taskId, nextValidIndex);
         }
         if (isValidBlock) { 
             nextValidRoundId = currentRoundId;
@@ -662,12 +664,14 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
     LocalTensor<CALC_TYPE> mm2ResTensor;
  
     FagRunInfo runInfos[2];  // for ping pongs
-    CalDeterIndex(0, loopMax, nextValidLoopIdx, nextblockIdx, this->coordinateInfos[taskId & 1], runInfos[taskId & 1]);
+    CalDeterIndex(0, loopMax, nextValidLoopIdx, nextblockIdx, taskId,
+        this->coordinateInfos[taskId & 1], runInfos[taskId & 1]);
  
     for (int64_t loopIdx = 0; loopIdx < loopMax + 1; loopIdx++) {
         if (loopIdx >= nextValidLoopIdx) {
             blockInnerIdx = nextblockIdx;
-            CalDeterIndex(loopIdx + 1, loopMax, nextValidLoopIdx, nextblockIdx, this->coordinateInfos[(taskId + 1) & 1], runInfos[(taskId + 1) & 1]);
+            CalDeterIndex(loopIdx + 1, loopMax, nextValidLoopIdx, nextblockIdx, taskId,
+                this->coordinateInfos[(taskId + 1) & 1], runInfos[(taskId + 1) & 1]);
         } else {
             blockInnerIdx = -1;
         }
@@ -677,7 +681,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBloc
             isValidBlock = isValidBlock && !(this->coordinateInfos[taskId & 1].batchId < 0 || blockInnerIdx < 0);
             nextblockIdx = nextblockIdx < 0 ? nextblockIdx : ((taskId + 1) & 1);
         } else {
-            isValidBlock = isValidBlock && this->IsValid(runInfos[taskId & 1], blockInnerIdx);
+            isValidBlock = isValidBlock && this->IsValid(runInfos[taskId & 1], taskId, blockInnerIdx);
         }
         
         if (!(runInfos[(taskId + 1) & 1].completed)) {

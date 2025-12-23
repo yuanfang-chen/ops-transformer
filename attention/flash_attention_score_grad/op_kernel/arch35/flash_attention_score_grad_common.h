@@ -82,7 +82,7 @@ __aicore__ constexpr bool GET_IS_L1_REUSE(const uint32_t HEAD_DIM_ALIGN, const b
     X(IS_PSE, bool, false)                                                                                             \
     X(IS_DROP, bool, false)                                                                                            \
     X(IS_TND, bool, false)                                                                                             \
-    X(HAS_TAIL, bool, false)                                                                                           \
+    X(IS_BN2_MULTIBLK, bool, false)                                                                                           \
     X(DETER_SPARSE_TYPE, uint8_t, 0)                                                                                   \
     X(IS_N_EQUAL, bool, false)                                                                                         \
     X(IS_D_NO_EQUAL, bool, false)                                                                                      \

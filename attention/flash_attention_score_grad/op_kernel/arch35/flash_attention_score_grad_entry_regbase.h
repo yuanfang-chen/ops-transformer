@@ -32,7 +32,7 @@
  
  
 #define INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL(                                                                 \
-    INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE,           \
+    INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE,           \
     FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType)                                \
     do {                                                                                                               \
         FlashAttentionScoreGradS1S2BNGS1S2PreRegbase<INPUT_TYPE, float, DETER_SPARSE_TYPE, IS_TND, SPLIT_AXIS> opPre;  \
@@ -42,11 +42,11 @@
         pipeIn.Destroy();                                                                                              \
         TPipe pipeBase;                                                                                                \
         using CubeBlockType =                                                                                          \
-            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockCube<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>,               \
-                                      FagBaseApi::FAGBlockCubeDummy<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>>::type;                               \
+            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockCube<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>,               \
+                                      FagBaseApi::FAGBlockCubeDummy<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>>::type;                               \
         using VecBlockType =                                                                                           \
-            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockVecDummy<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>,           \
-                                      FagBaseApi::FAGBlockVec<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>>::type;                                     \
+            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockVecDummy<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>,           \
+                                      FagBaseApi::FAGBlockVec<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>>::type;                                     \
                                                                                                                        \
         typename std::conditional<(DETER_SPARSE_TYPE) == NO_DETER, FagBaseApi::FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType>, FagBaseApi::FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType> >::type op;                                     \
         op.Init(key, value, dy, query, pse_shift, drop_mask, atten_mask, attention_in, softmax_max, softmax_sum,       \
@@ -67,7 +67,7 @@
         }                                                                                                              \
     } while (0)
  
-#define INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL(INPUT_TYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL,    \
+#define INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL(INPUT_TYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK,    \
                                                     IS_DETER, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType,      \
                                                     s2TemplateType, dTemplateType, OUTDTYPE)                           \
     do {                                                                                                               \
@@ -79,7 +79,7 @@
                                                                                                                        \
         TPipe pipeBase;                                                                                                \
         FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<INPUT_TYPE, float, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND,  \
-                                                         HAS_TAIL, IS_DETER, 0, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS,       \
+                                                         IS_BN2_MULTIBLK, IS_DETER, 0, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS,       \
                                                          s1TemplateType, s2TemplateType, dTemplateType, OUTDTYPE>      \
             op;                                                                                                        \
                                                                                                                        \
@@ -120,7 +120,7 @@
         }                                                                                                              \
     } while (0)
 
-#define INVOKE_FAG_GENERAL_FP8_OLD_REGBASE_IMPL(INPUT_TYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL,    \
+#define INVOKE_FAG_GENERAL_FP8_OLD_REGBASE_IMPL(INPUT_TYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK,    \
                                                     IS_DETER, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType,      \
                                                     s2TemplateType, dTemplateType, OUTDTYPE)                           \
     do {                                                                                                               \
@@ -132,7 +132,7 @@
                                                                                                                        \
         TPipe pipeBase;                                                                                                \
         FlashAttentionScoreGradUs1s2Bbn2gs1s2StaticRegbase<INPUT_TYPE, float, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND,  \
-                                                         HAS_TAIL, IS_DETER, 0, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS,       \
+                                                         IS_BN2_MULTIBLK, IS_DETER, 0, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS,       \
                                                          s1TemplateType, s2TemplateType, dTemplateType, OUTDTYPE>      \
             op;                                                                                                        \
                                                                                                                        \
@@ -202,7 +202,7 @@
     INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL(__VA_ARGS__)
  
 #define INVOKE_FAG_GENERAL_S1S2_BN2S2_REGBASE_IMPL(                                                                    \
-    INPUT_TYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE,           \
+    INPUT_TYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE,           \
     FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType, OUTDTYPE)                                \
     do {                                                                                                               \
         FlashAttentionScoreGradS1S2BNGS1S2PreRegbase<INPUT_TYPE, float, DETER_SPARSE_TYPE, IS_TND, SPLIT_AXIS> opPre;  \
@@ -213,7 +213,7 @@
                                                                                                                        \
         TPipe pipeBase;                                                                                                \
         FlashAttentionScoreGradUs1s2Bbn2s2StaticRegbase<                                                               \
-            INPUT_TYPE, float, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, HAS_TAIL, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL,     \
+            INPUT_TYPE, float, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL,     \
             IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>                         \
             op;                                                                                                        \
         TSCM<QuePosition::VECIN, 1, GROUP_TSCM_MASK> dsScm;                                                            \
@@ -263,21 +263,31 @@
     INVOKE_FAG_GENERAL_S1S2_BN2S2_REGBASE_IMPL(__VA_ARGS__)
 
 
-#define INVOKE_FAG_GENERAL_S1S2_BN2_REGBASE_IMPL(...)                                                                  \
+#define INVOKE_FAG_GENERAL_S1S2_BN2_REGBASE_IMPL(                                                                      \
+    INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE,       \
+    IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType)      \
     do {                                                                                                               \
+        if constexpr (IS_BN2_MULTIBLK && IS_TND) {                                                                     \
+            FlashAttentionScoreGradS1S2BNGS1S2PreRegbase<INPUT_TYPE, float, DETER_SPARSE_TYPE, IS_TND, SPLIT_AXIS> opPre;  \
+            opPre.Init(dq, dk, dv, actual_seq_kvlen, drop_mask, user, tilingData, &pipeIn);                                \
+            opPre.Process();                                                                                               \
+            opPre.SyncALLCores();                                                                                          \
+        }                                                                                                              \
+        pipeIn.Destroy();                                                                                              \
+        TPipe pipeBase;                                                                                                \
         using CubeBlockType =                                                                                          \
-            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockCube<__VA_ARGS__>,               \
-                                      FagBaseApi::FAGBlockCubeDummy<__VA_ARGS__>>::type;                               \
+            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockCube<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>,               \
+                                      FagBaseApi::FAGBlockCubeDummy<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>>::type;                               \
         using VecBlockType =                                                                                           \
-            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockVecDummy<__VA_ARGS__>,           \
-                                      FagBaseApi::FAGBlockVec<__VA_ARGS__>>::type;                                     \
+            typename std::conditional<g_coreType == AscendC::AIC, FagBaseApi::FAGBlockVecDummy<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>,           \
+                                      FagBaseApi::FAGBlockVec<INPUT_TYPE, CALC_TYPE, OUTDTYPE, IS_ATTEN_MASK, IS_PSE, IS_DROP, IS_TND, IS_BN2_MULTIBLK, DETER_SPARSE_TYPE, IS_N_EQUAL, IS_D_NO_EQUAL, IS_ROPE, FP8_OPEN_TSCM, SPLIT_AXIS, s1TemplateType, s2TemplateType, dTemplateType>>::type;                                     \
                                                                                                                        \
         FagBaseApi::FlashAttentionScoreGradKernel<CubeBlockType, VecBlockType> op;                                     \
         op.Init(key, value, dy, query, pse_shift, drop_mask, atten_mask, attention_in, softmax_max, softmax_sum,       \
                 prefix, actual_seq_qlen, actual_seq_kvlen, deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope,     \
-                keyRope, dq, dk, dv, dpse, dqRope, dkRope, user, tilingData, &pipeIn);                                 \
+                keyRope, dq, dk, dv, dpse, dqRope, dkRope, user, tilingData, &pipeBase);                               \
         op.Process();                                                                                                  \
-        pipeIn.Destroy();                                                                                              \
+        pipeBase.Destroy();                                                                                            \
     } while (0)
 
 #define INVOKE_FAG_GENERAL_S1S2_BN2_REGBASE_IMPL_FP16(...)                                                             \
@@ -294,7 +304,7 @@
 
 // implementation of kernel function
 template <uint8_t splitAxis, uint8_t inputDType, bool isTnd, bool isDrop, bool isPse, bool isAttenMask,
-          uint16_t s1TemplateType, uint16_t s2TemplateType, uint16_t dTemplateType, uint8_t deterType, bool isNEqual, bool hasTail,
+          uint16_t s1TemplateType, uint16_t s2TemplateType, uint16_t dTemplateType, uint8_t deterType, bool isNEqual, bool isBn2MultiBlk,
           bool isDNoEqual, bool isRope, uint8_t outDType, bool fp8OpenTscm, bool isRegbase>
 inline __aicore__ void
 RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *dy,
@@ -319,28 +329,28 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
         if constexpr (splitAxis == BN2GS1S2) {
             if constexpr (deterType != DETER_OLD) {
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP16(
-                    half, float, half, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2,
+                    half, float, half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2,
                     S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType)); 
             } else {
                 if constexpr (dTemplateType == 768){
                     INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL_FP16(
-                        half, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                        half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                         S2TemplateType(s2TemplateType), DTemplateType(512), half);
                 }
                 else
                     INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL_FP16(
-                        half, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                        half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                         S2TemplateType(s2TemplateType), DTemplateType(dTemplateType), half);
             }
             return;
         } else if constexpr (splitAxis == BN2S2) {
             INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP16(
-                half, float, half, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2S2,
+                half, float, half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2S2,
                 S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
             return;
         } else if constexpr (splitAxis == BN2) {
             INVOKE_FAG_GENERAL_S1S2_BN2_REGBASE_IMPL_FP16(
-                half, float, half, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm,
+                half, float, half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm,
                 BN2, S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
             return;
         }
@@ -350,28 +360,28 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
         if constexpr (splitAxis == BN2GS1S2) {
             if constexpr (deterType != DETER_OLD) {
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_BF16(
-                    bfloat16_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm,
+                    bfloat16_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm,
                     BN2GS1S2, S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
             } else {
                 if constexpr (dTemplateType == 768){
                     INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL_BF16(
-                        bfloat16_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                        bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                         S2TemplateType(s2TemplateType), DTemplateType(512), bfloat16_t);
                 }
                 else
                     INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL_BF16(
-                        bfloat16_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                        bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                         S2TemplateType(s2TemplateType), DTemplateType(dTemplateType), bfloat16_t);
             }
             return;
         } else if constexpr (splitAxis == BN2S2) {
             INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_BF16(
-                bfloat16_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2S2,
+                bfloat16_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2S2,
                 S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
             return;
         } else if constexpr (splitAxis == BN2) {
             INVOKE_FAG_GENERAL_S1S2_BN2_REGBASE_IMPL_BF16(bfloat16_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd,
-                                                        hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2,
+                                                        isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2,
                                                         S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType),
                                                         DTemplateType(dTemplateType));
             return;
@@ -382,28 +392,28 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
         if constexpr (splitAxis == BN2GS1S2) {
             if constexpr (deterType != DETER_OLD) {
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP32(
-                    float, float, float, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2,
+                    float, float, float, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2,
                     S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
             } else {
                 if constexpr (dTemplateType == 768){
                     INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL_FP32(
-                        float, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                        float, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                         S2TemplateType(s2TemplateType), DTemplateType(512), float);
                 }
                 else
                     INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_OLD_DETER_REGBASE_IMPL_FP32(
-                        float, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                        float, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                         S2TemplateType(s2TemplateType), DTemplateType(dTemplateType), float);
             }
             return;
         } else if constexpr (splitAxis == BN2S2) {
             INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP32(
-                float, float, float, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2S2,
+                float, float, float, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, BN2S2,
                 S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
             return;
         } else if constexpr (splitAxis == BN2) {
             INVOKE_FAG_GENERAL_S1S2_BN2_REGBASE_IMPL_FP32(
-                float, float, float, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm,
+                float, float, float, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm,
                 BN2, S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
             return;
         }
@@ -413,23 +423,23 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
         if constexpr (outDType == FLOAT16_PRECISION) {
             if constexpr (dTemplateType == 768){
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(512), half); 
             }
             else
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(dTemplateType), half);
             return;
         } else if constexpr (outDType == BFLOAT16) {
             if constexpr (dTemplateType == 768){
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(512), bfloat16_t);
             }
             else
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e5m2_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(dTemplateType), bfloat16_t);
             return;
         }
@@ -439,23 +449,23 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
         if constexpr (outDType == FLOAT16_PRECISION) {
             if constexpr (dTemplateType == 768){
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(512), half);
             }
             else
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(dTemplateType), half);
             return;
         } else if constexpr (outDType == BFLOAT16) {
             if constexpr (dTemplateType == 768){
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(512), bfloat16_t);
             }
             else
                 INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, hasTail, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
+                    fp8_e4m3fn_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isDNoEqual, isRope, fp8OpenTscm, BN2GS1S2, S1TemplateType(s1TemplateType), 
                     S2TemplateType(s2TemplateType), DTemplateType(dTemplateType), bfloat16_t);
             return;
         }
