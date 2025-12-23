@@ -120,7 +120,7 @@ private:
     int64_t needCoreNum;
     int64_t blockIdx;
     int64_t cols;
-    int64_t colsInt4 = 0;
+    int64_t colsAsInt8 = 0;
     int64_t n;
     int64_t k;
     int64_t totalLength;
@@ -133,7 +133,7 @@ private:
     int64_t rowLoops;
     int64_t colsTileLength;
     int64_t perLoopCols;
-    int64_t perLoopColsInt4 = 0;
+    int64_t perLoopcolsAsInt8 = 0;
     int64_t perLoopColsAlign;
     int64_t lastLoopCols;
     int64_t colLoops;
@@ -269,7 +269,7 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::OnceCopyOut(LocalT
         if (outIndex == -1 || (this->dropPadMode == DROPLESS_MODE && outIndex >= this->activateRows)) {
             continue;
         }
-        DataCopyPad(expandedXGm[outIndex * this->colsInt4], outLocal, copyOutParams);
+        DataCopyPad(expandedXGm[outIndex * this->colsAsInt8], outLocal, copyOutParams);
         DataCopyPad(dynamicQuantScaleGm[outIndex], quantScaleLocal, quantScaleParams);
     }
     inputXOutQueue.template FreeTensor(outLocal);
@@ -301,7 +301,7 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::CopyOutXQuant1H(in
     DataCopyExtParams copyInParams{1, static_cast<uint32_t>(this->cols * sizeof(T)), 0, 0, 0};
     DataCopyExtParams copyOutParams{1, static_cast<uint32_t>(this->cols * sizeof(int8_t)), 0, 0, 0};
     if constexpr (IsSameType<quantType, int4b_t>::value) {
-        copyOutParams.blockLen = static_cast<uint32_t>(this->colsInt4 * sizeof(int8_t));
+        copyOutParams.blockLen = static_cast<uint32_t>(this->colsAsInt8 * sizeof(int8_t));
     }
     DataCopyExtParams smoothParams{1, static_cast<uint32_t>(this->cols * sizeof(float)), 0, 0, 0};
     DataCopyExtParams quantScaleParams{1, static_cast<uint32_t>(sizeof(int32_t)), 0, 0, 0};
@@ -510,7 +510,7 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::ComputeScale(
     inputXOutQueue.template EnQue(outLocal);
     outLocal = inputXOutQueue.template DeQue<int8_t>();
     if constexpr (IsSameType<quantType, int4b_t>::value) {
-        DataCopyPad(expandedXGm[dstIndex * this->colsInt4 + j * this->perLoopColsInt4], outLocal, copyOutParams);
+        DataCopyPad(expandedXGm[dstIndex * this->colsAsInt8 + j * this->perLoopcolsAsInt8], outLocal, copyOutParams);
     } else {
         DataCopyPad(expandedXGm[dstIndex * this->cols + j * this->perLoopCols], outLocal, copyOutParams);
     }
@@ -718,11 +718,11 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::Init(
     pipe->InitBuffer(expandRowIdxInQueue, BUFFER_NUM, 2 * AlignBytes(this->perLoopRows, sizeof(int32_t)));
     pipe->InitBuffer(inputXInQueue, BUFFER_NUM, perLoopColsAlignBytes);
     if constexpr (IsSameType<quantType, int4b_t>::value) {
-        this->colsInt4 = this->cols / ONE_BYTE_INT4_NUM;
-        this->perLoopColsInt4 = this->perLoopCols / ONE_BYTE_INT4_NUM;
+        this->colsAsInt8 = this->cols / ONE_BYTE_INT4_NUM;
+        this->perLoopcolsAsInt8 = this->perLoopCols / ONE_BYTE_INT4_NUM;
         pipe->InitBuffer(smoothInQueue, 1, AlignBytes(this->perLoopCols, sizeof(float)));
         pipe->InitBuffer(calcQueue, 1, AlignBytes(this->perLoopCols, sizeof(float)));
-        pipe->InitBuffer(inputXOutQueue, BUFFER_NUM, AlignBytes(perLoopColsInt4, sizeof(int8_t)));
+        pipe->InitBuffer(inputXOutQueue, BUFFER_NUM, AlignBytes(perLoopcolsAsInt8, sizeof(int8_t)));
         pipe->InitBuffer(scaleOutQueue, BUFFER_NUM, BLOCK_BYTES + BLOCK_BYTES);
 
         pipe->InitBuffer(tempScaleBuf, BLOCK_BYTES);
@@ -735,6 +735,8 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::Init(
         Duplicate<float>(constScaleTensor, DYNAMIC_QUANT_INT4_SYM_SCALE, MAX_VALUE_NUM);
         Duplicate<float>(maxValueTensor, 1.0, MAX_VALUE_NUM);
     } else {
+        this->colsAsInt8 = this->cols;
+        this->perLoopcolsAsInt8 = this->perLoopCols;
         pipe->InitBuffer(smoothInQueue, BUFFER_NUM, AlignBytes(this->perLoopCols, sizeof(float)));
         pipe->InitBuffer(calcQueue, 1, AlignBytes(this->perLoopCols, sizeof(float)));
         pipe->InitBuffer(inputXOutQueue, 1, AlignBytes(this->perLoopCols, sizeof(int8_t)));

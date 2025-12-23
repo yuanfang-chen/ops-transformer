@@ -75,6 +75,7 @@ protected:
 
 private:
     ge::graphStatus CheckOutShape() override;
+    ge::graphStatus CheckInt4Info();
     bool IsFullLoadQuant(int64_t space);
     bool IsFullLoadDynamicQuant(int64_t space);
     bool IsFullLoad() override;
@@ -165,27 +166,31 @@ ge::graphStatus MoeInitRoutingQuantV2TilingBase::CheckOutShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MoeInitRoutingQuantV2TilingBase::GetShapeAttrsInfo()
+ge::graphStatus MoeInitRoutingQuantV2TilingBase::CheckInt4Info()
 {
-    auto attrs = context_->GetAttrs();
-    const int64_t* quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_QUANT_MODE);
-    if (quantModePtr != nullptr) {
-        quantMode = *quantModePtr;
-    }
-    CHECK_FAIL(context_, quantMode < 0 || quantMode > 1, "The quantMode should be 0 or 1.");
-
-    if (InnerMoeInitRoutingV2TilingBase::GetShapeAttrsInfo() == ge::GRAPH_FAILED) {
-        return ge::GRAPH_FAILED;
-    }
     auto expandedXDesc = context_->GetOutputDesc(OUTOUT_EXPANDED_X);
     CHECK_NULL(context_, expandedXDesc, "expandedXDesc");
     auto expandedXType = expandedXDesc->GetDataType();
     isInt4 = expandedXType == ge::DT_INT4;
     if (isInt4) {
+        int64_t cols = InnerMoeInitRoutingV2TilingBase::moeInitRoutingTilingData.get_cols();
+        CHECK_FAIL(context_, cols % NUM_TWO != 0,
+                   "The secnod dim of x should be a multiple of 2 when expendedx is int4, but got [%ld]", cols);
         CHECK_FAIL(context_, quantMode != 1, "Attr quant_mode should be 1 when expendedx is int4.");
         CHECK_FAIL(context_, dropPadMode != 0, "Attr drop_pad_mode should be 0 when expendedx is int4.");
     }
-    CHECK_FAIL(context_, isInt4 && quantMode != 1, "The data type of scale should be same with x when expendedx is int4.");
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MoeInitRoutingQuantV2TilingBase::GetShapeAttrsInfo()
+{
+    auto attrs = context_->GetAttrs();
+    const int64_t* quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_QUANT_MODE);
+    if (quantModePtr != nullptr) {quantMode = *quantModePtr;}
+    CHECK_FAIL(context_, quantMode < 0 || quantMode > 1, "The quantMode should be 0 or 1.");
+    if (InnerMoeInitRoutingV2TilingBase::GetShapeAttrsInfo() == ge::GRAPH_FAILED || CheckInt4Info() == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
     auto scaleShapePtr = context_->GetOptionalInputShape(INDEX_SCALE);
     if (quantMode == 0) {
         CHECK_NULL(context_, scaleShapePtr, "scale");
