@@ -96,6 +96,68 @@ public:
 
         // 将group配置为该算子的通信域
         this->MC2().HcclGroup("group");
+
+        OpAICoreConfig aicore_config_910b;
+        aicore_config_910b.Input("x1")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Input("x2")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Input("bias")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT})
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Input("x1_scale")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Input("x2_scale")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Input("comm_scale")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Input("x1_offset")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Input("x2_offset")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910b.Output("y")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND});
+        aicore_config_910b.Output("all2all_out")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND});
+
+        aicore_config_910b.DynamicCompileStaticFlag(true)
+            .DynamicFormatFlag(true)
+            .DynamicRankSupportFlag(true)
+            .DynamicShapeSupportFlag(true)
+            .NeedCheckSupportFlag(false)
+            .PrecisionReduceFlag(true)
+            .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
+            .ExtendCfgInfo("jitCompile.flag", "static_false")
+            .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel");
+        this->AICore().AddConfig("ascend910b", aicore_config_910b);
+        this->MC2().HcclGroup("group");
     }
 };
 

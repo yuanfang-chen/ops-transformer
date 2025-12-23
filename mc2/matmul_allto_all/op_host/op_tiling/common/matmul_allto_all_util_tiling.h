@@ -232,6 +232,19 @@ public:
                                            const std::string &algConfig);
 };
 
+inline bool IsArrayEqual(std::vector<uint32_t>& arr1, const std::vector<uint32_t>& arr2, uint32_t size)
+{
+    if (arr1.size() < size || arr2.size() < size) {
+        return false;
+    }
+    for (size_t i = 0; i < size; i++) {
+        if (arr1[i] != arr2[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }; // namespace MC2Tiling
 
 #endif // MATMUL_ALLTO_ALL_UTIL_TILING_H

@@ -355,10 +355,10 @@ extern "C" aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
 extern "C" aclnnStatus aclnnAlltoAllMatmul(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        } else if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
-        } else {
-            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_AICPU);
         }
     }
     aclnnStatus ret = aclnnInnerAlltoAllMatmul(workspace, workspaceSize, executor, stream);

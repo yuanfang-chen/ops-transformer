@@ -327,19 +327,6 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckAndSetAttrsInfo(MatmulAlltoAllInfo
     return ge::GRAPH_SUCCESS;
 }
 
-bool IsArrayEqual(std::vector<uint32_t>& arr1, const std::vector<uint32_t>& arr2, uint32_t size)
-{
-    if (arr1.size() < size || arr2.size() < size) {
-        return false;
-    }
-    for (size_t i = 0; i < size; i++) {
-        if (arr1[i] != arr2[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
 /**
  * @brief 非量化场景校验参数的DType
  * @return ge::graphStatus
