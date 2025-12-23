@@ -96,8 +96,8 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
   const aclTensor *ropeSin, 
   const aclTensor *ropeCos, 
   const aclTensor *cacheIndexOptional, 
-  const aclTensor *kvCacheRef, 
-  const aclTensor *krCacheRef, 
+  aclTensor       *kvCacheRef, 
+  aclTensor       *krCacheRef, 
   const aclTensor *dequantScaleXOptional, 
   const aclTensor *dequantScaleWDqOptional, 
   const aclTensor *dequantScaleWUqQrOptional, 
@@ -128,10 +128,10 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
 ```
 ```cpp
 aclnnStatus aclnnMlaPrologV3WeightNz(
-  void          *workspace, 
-  uint64_t      workspaceSize, 
-  aclOpExecutor *executor, 
-  aclrtStream   stream)
+  void              *workspace, 
+  uint64_t          workspaceSize, 
+  aclOpExecutor     *executor, 
+  const aclrtStream stream)
 ```
 
 
