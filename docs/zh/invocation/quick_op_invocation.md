@@ -121,7 +121,7 @@
     进入build_out目录执行解压命令：
 
     ```bash
-    tar --zxvf ./cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}.tar.gz -C ${static_lib_path}
+    tar -zxvf ./cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}.tar.gz -C ${static_lib_path}
     ```
 
     \$\{static\_lib\_path\}：表示静态库解压路径。解压后目录结构如下：
