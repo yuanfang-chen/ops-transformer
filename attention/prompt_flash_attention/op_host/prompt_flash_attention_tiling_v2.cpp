@@ -1462,7 +1462,7 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
         return false);
     if (queryShapeInfo.s == 1) {
         enableIFAMask = true;
-        if (!enableAlibiPse) {
+        if (!enableAlibiPse && !enablePerblockQuant) {
             enableIFA = true;
         }
     }

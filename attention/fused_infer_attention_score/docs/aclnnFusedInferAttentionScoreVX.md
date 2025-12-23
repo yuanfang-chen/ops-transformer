@@ -985,6 +985,17 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 - inputLayout：BSH、BSND、BNSD、BNSD_BSND、TND；
                 - 不支持prefix、伪量化、全量化；
                 - 当kv为tensorlist时，keyRope的shape中b需要与tensorlist长度保持一致，n、s需要与tensorlist中每个tensor的n、s相等，d为64。
+- qkv FP8 per-block全量化
+    - <term>昇腾910_95 AI处理器</term>：
+        - 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小\(128, 256\)进行分块，并分别将每个块内的数据量化成FLOAT8_E4M3FN或HIFLOAT8类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale。
+        - query、key和value的数据类型支持FLOAT8_E4M3FN、HIFLOAT8。
+        - queryQuantMode、keyAntiquantMode和valueAntiquantMode均为7。
+        - dequantScaleQuery、keyAntiquantScale和valueAntiquantScale的数据类型固定为FLOAT32。
+        - dequantScaleQuery的shape为\(B, Q_N, ceil(Q_S,128),1\)，keyAntiquantScale和valueAntiquantScale的shape为\(B, K_N, ceil(K_S,256),1\)
+        - 输出数据类型支持FLOAT16和BFLOAT16。
+        - 不支持TND格式输入。
+        - D轴支持1-128。
+        - 不支持叠加任何高阶特性。
 
 - **当Q_S大于1时**：
    -   query，key，value输入，功能使用限制如下：
@@ -998,7 +1009,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         -   D轴限制：
             - <term>昇腾910_95 AI处理器</term>：
                 - 非量化场景：query，key，value的类型全部为FLOAT16、BFLOAT16，D轴1-512全部支持。
-                - 全量化场景：query，key，value的类型全部INT8/HIFLOAT8/FLOAT8_E4M3FN时，D轴1-512全部支持。FP8 per-block全量化场景时，query，key，value的类型只支持FLOAT8_E4M3FN，D轴1-128全部支持。
+                - 全量化场景：query，key，value的类型全部INT8/HIFLOAT8/FLOAT8_E4M3FN时，D轴1-512全部支持。FP8 per-block全量化场景时，query，key，value的类型支持FLOAT8_E4M3FN、HIFLOAT8，D轴1-128全部支持。
                 - 伪量化场景：query类型为FLOAT16、BFLOAT16，key、value类型为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32），其中当key、value类型为FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32），query的D轴以及key、value的D轴仅支持64对齐（INT32仅支持key、value的D 8对齐）。
    -   actualSeqLengths入参，传入时应为非负数。
       - <term>昇腾910_95 AI处理器</term>：在inputLayout不同时，其含义与拦截条件不同：当inputLayout不为TND时，该入参为可选入参，其长度为1或大于等于query的batch值，该入参中的值代表每个batch的实际长度，其值应该不大于Q_S。当inputLayout为TND时，该入参必须传入，第b个值表示前b个batch的S轴累加长度，其值应递增（大于等于前一个值）排列，且该入参长度代表总batch数。
@@ -1078,17 +1089,6 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 - per-token叠加per-head模式；
                 - key支持per-channel叠加value支持per-token模式。
             - INT4（INT32）伪量化场景支持后量化。
-    - qkv FP8 per-block全量化
-        - <term>昇腾910_95 AI处理器</term>：
-            - 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小\(128, 256\)进行分块，并分别将每个块内的数据量化成FLOAT8_E4M3FN类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale。
-            - query、key和value的数据类型支持FLOAT8_E4M3FN。
-            - queryQuantMode、keyAntiquantMode和valueAntiquantMode均为7。
-            - dequantScaleQuery、keyAntiquantScale和valueAntiquantScale的数据类型固定为FLOAT32。
-            - dequantScaleQuery的shape为\(B, Q_N, ceil(Q_S,128),1\)，keyAntiquantScale和valueAntiquantScale的shape为\(B, K_N, ceil(K_S,256),1\)
-            - 输出数据类型支持FLOAT16和BFLOAT16。
-            - 不支持TND格式输入。
-            - D轴支持1-128。
-            - 不支持叠加任何高阶特性。
 
 - **当Q_S等于1时**：
   -   query，key，value输入，功能使用限制如下：
