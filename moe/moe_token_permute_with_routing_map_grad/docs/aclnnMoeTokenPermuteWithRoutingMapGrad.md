@@ -67,18 +67,18 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGradGetWorkspaceSize(
     int64_t          experts_num,
     int64_t          tokens_num,
     bool             dropAndPad,
-    const aclTensor *tokenGradOut
-    const aclTensor *probsGradOutOptional,
+    aclTensor       *tokenGradOut
+    aclTensor       *probsGradOutOptional,
     uint64_t        *workspaceSize,
     aclOpExecutor   **executor)
 ```
 
 ```c++
 aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
-    void          *workspace,
-    uint64_t       workspaceSize,
-    aclOpExecutor *executor,
-    aclrtStream    stream)
+    void                *workspace,
+    uint64_t             workspaceSize,
+    aclOpExecutor       *executor,
+    const aclrtStream    stream)
 ```
 
 ## aclnnMoeTokenPermuteWithRoutingMapGradGetWorkspaceSize
