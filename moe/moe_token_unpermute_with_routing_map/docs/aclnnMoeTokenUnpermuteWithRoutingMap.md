@@ -181,8 +181,8 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
         <td>probsOptional</td>
         <td>输入</td>
         <td>计算公式中的probsOptional，代表对应位置的Token被对应专家处理后的结果在最终结果中的权重。</td>
-        <td>-</td>
-        <td>与permutedTokens一致。</td>
+        <td>数据类型与permutedTokens相同或者当permutedTokens是BFLOAT16时probsOptional支持FLOAT。</td>
+        <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>与routingMapOptional一致。</td>
         <td>√</td>
@@ -241,8 +241,8 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
         <td>permuteProbs</td>
         <td>输出</td>
         <td>计算公式中的permuteProbs，表示输出经过排序后的probs。</td>
-        <td>-</td>
         <td>与probsOptional相同。</td>
+        <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>1</td>
         <td>√</td>
