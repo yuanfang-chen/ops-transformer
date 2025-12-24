@@ -14,6 +14,7 @@ operator_group_1:
   - gather_pa_kv_cache
   - scatter_pa_kv_cache
   - attention_update
+  - ring_attention_update
 operator_group_2:
   - grouped_matmul
   - grouped_matmul_add

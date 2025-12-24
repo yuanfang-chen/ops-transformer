@@ -80,6 +80,16 @@ public:
         this->Attr("input_softmax_layout").AttrType(OPTIONAL).String("");
         this->AICore().AddConfig("ascend910b");
         this->AICore().AddConfig("ascend910_93");
+
+        OpAICoreConfig config_91095;
+        config_91095.DynamicCompileStaticFlag(true)
+            .DynamicFormatFlag(true)
+            .DynamicRankSupportFlag(true)
+            .DynamicShapeSupportFlag(true)
+            .NeedCheckSupportFlag(false)
+            .PrecisionReduceFlag(true)
+            .ExtendCfgInfo("opFile.value", "ring_attention_update_apt");
+        this->AICore().AddConfig("ascend910_95", config_91095);
     }
 };
 OP_ADD(RingAttentionUpdate);

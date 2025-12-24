@@ -21,6 +21,7 @@
 #include "util/math_util.h"
 #include "util/shape_util.h"
 #include "ring_attention_update_tiling.h"
+#include "ring_attention_update_tiling_arch35.h"
 
 namespace optiling {
 
@@ -521,6 +522,17 @@ static ge::graphStatus Tiling4RingAttentionUpdateTND(const gert::TilingContext* 
 
 static ge::graphStatus Tiling4RingAttentionUpdate(gert::TilingContext* context) {
   OP_LOGD(context->GetNodeName(), "RingAttentionUpdateTiling tiling start");
+
+  auto platformInfoPtr = context->GetPlatformInfo();
+  OP_CHECK_IF(platformInfoPtr == nullptr,
+    OP_LOGE(context, "platformInfoPtr is null"),
+    return ge::GRAPH_FAILED);
+  auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
+  if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910_95) {
+    OP_LOGD(context->GetNodeName(), "RingAttentionUpdateRegbaseTiling tiling start");
+    return Tiling4RingAttentionUpdateRegbase(context);
+  }
+
   // init tiling data
   RingAttentionUpdateTilingData tiling;
   InitTilingData(tiling);
