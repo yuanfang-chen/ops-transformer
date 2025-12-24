@@ -676,7 +676,7 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
-install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/groupedmatmul_act
+install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
@@ -699,7 +699,7 @@ install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/3rd
 )
-        
+
 foreach (op_dir ${OP_DIR_LIST})
     get_filename_component(_op_name "${op_dir}" NAME)
     set(CURRENT_KERNEL_DIR "${op_dir}/op_kernel")

@@ -649,4 +649,4 @@ src/transformer/gmm/quant_grouped_matmul_inplace_add/op_kernel/arch35/qgmm_inpla
 src/transformer/gmm/quant_grouped_matmul_inplace_add/op_kernel/arch35/qgmm_inplace_add_mix_online_dynamic.h
 src/transformer/gmm/quant_grouped_matmul_inplace_add/op_host/arch35/quant_grouped_matmul_inplace_add_tiling.h
 src/transformer/gmm/quant_grouped_matmul_inplace_add/op_host/arch35/aclnn_quant_grouped_matmul_inplace_add.cpp
-src/transformer/gmm/grouped_matmul_add/op_kernel/arch35/grouped_matmul_add_basic_act.h
+src/transformer/gmm/grouped_matmul_add/op_kernel/arch35/grouped_matmul_add_basic_cgmct.h
