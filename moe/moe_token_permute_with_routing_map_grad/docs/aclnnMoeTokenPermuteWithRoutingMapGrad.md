@@ -20,7 +20,7 @@
 - **计算公式**：
 
 $$
-permuteTokenId, outIndex= sortedIndices.sort(dim=-1)
+permuteTokenId， outIndex= sortedIndices.sort(dim=-1)
 $$
 
 $$
@@ -30,24 +30,24 @@ $$
 - probs不为None：
   
   $$
-  probsGradOutOptional = zeros(tokens_num, numExperts)
+  probsGradOutOptional = zeros(tokens_num， numExperts)
   $$
   
   - paddedMode为true时
   
   $$
-  probsGradOutOptional [sortedIndices[i], i/capacity] = permutedProbsOutputGradOptional[i]
+  probsGradOutOptional [sortedIndices[i]， i/capacity] = permutedProbsOutputGradOptional[i]
   $$
   
   - paddedMode为false时
   
   $$
-  probsGradOutOptional = maskedscatter(probsGradOutOptional,routingMap,permutedProbsOutputGradOptional)
+  probsGradOutOptional = maskedscatter(probsGradOutOptional，routingMap，permutedProbsOutputGradOptional)
   $$
 - probs为None：
   
   $$
-  tokensGradout= zeros(restoreShapeOptional, dtype=permutedTokens.dtype, device=permutedTokens.device)
+  tokensGradout= zeros(restoreShapeOptional， dtype=permutedTokens.dtype， device=permutedTokens.device)
   $$
   
   $$
@@ -124,7 +124,8 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
         <td>正向输出permutedProbs的梯度。</td>
         <td>
         •  不传则表示不需要计算probsGradOutOptional；<br>
-        • shape为一个1D维度，topK_num表示每个token选中的专家数量，capacity表示每个专家选中的token数量。</td>
+        • shape为一个1D维度，topK_num表示每个token选中的专家数量，capacity表示每个专家选中的token数量;<br>
+        • 数据类型与permutedTokensOutputGrad一致或者当permutedTokensOutputGrad是BFLOAT16时支持FLOAT。</td>
         <td>BFLOAT16、FLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>
@@ -136,7 +137,7 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
         <td>sortedIndices</td>
         <td>输入</td>
         <td>-</td>
-        <td>非droppad模式索引取值范围[0，tokens_num \* topK_num - 1], droppad模式索引取值范围[0，experts_num \* capacity - 1]。</td>
+        <td>非droppad模式索引取值范围[0，tokens_num \* topK_num - 1]， droppad模式索引取值范围[0，experts_num \* capacity - 1]。</td>
         <td>INT32</td>
         <td>ND</td>
         <td>

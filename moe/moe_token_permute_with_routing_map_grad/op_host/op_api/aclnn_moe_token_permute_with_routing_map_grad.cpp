@@ -93,14 +93,17 @@ static bool IsAICoreSupport(const aclTensor* self)
 static const std::initializer_list<DataType> dtype_list = {
     op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT, op::DataType::DT_BF16};
 
+
+static const std::initializer_list<DataType> token_mix_dtype_list = {op::DataType::DT_FLOAT, op::DataType::DT_BF16};
+
 static const std::initializer_list<DataType> routing_map_dtype_list = {op::DataType::DT_INT8, op::DataType::DT_BOOL};
 
 static const std::initializer_list<DataType> indice_dtype_list = {op::DataType::DT_INT32};
 
 static inline bool CheckNotNull(
     const aclTensor* permutedTokenOutputGrad, const aclTensor* permutedProbsOutputGradOptional,
-    const aclTensor* sortedIndices, const aclTensor* routingMapOptional, aclTensor* tokensGradOut,
-    aclTensor* probsGradOutOptional)
+    const aclTensor* sortedIndices, const aclTensor* routingMapOptional, const aclTensor* tokensGradOut,
+    const aclTensor* probsGradOutOptional)
 {
     OP_CHECK_NULL(permutedTokenOutputGrad, return false);
     OP_CHECK_NULL(sortedIndices, return false);
@@ -119,16 +122,26 @@ static inline bool CheckNotNull(
 
 static inline bool CheckDtypeValid(
     const aclTensor* permutedTokenOutputGrad, const aclTensor* permutedProbsOutputGradOptional,
-    const aclTensor* sortedIndices, const aclTensor* routingMapOptional, aclTensor* tokensGradOut,
-    aclTensor* probsGradOutOptional)
+    const aclTensor* sortedIndices, const aclTensor* routingMapOptional, const aclTensor* tokensGradOut,
+    const aclTensor* probsGradOutOptional)
 {
     // 检查permutedTokenOutputGrad的数据类型是否在支持列表内
     OP_CHECK_DTYPE_NOT_SUPPORT(permutedTokenOutputGrad, dtype_list, return false);
+    OP_CHECK_DTYPE_NOT_MATCH(permutedTokenOutputGrad, tokensGradOut->GetDataType(), return false);
     if (permutedProbsOutputGradOptional != nullptr) {
         OP_CHECK_DTYPE_NOT_SUPPORT(permutedProbsOutputGradOptional, dtype_list, return false);
-        OP_CHECK_DTYPE_NOT_MATCH(permutedProbsOutputGradOptional, permutedTokenOutputGrad->GetDataType(), return false);
+        if (probsGradOutOptional != nullptr) {
+            OP_CHECK_DTYPE_NOT_MATCH(permutedProbsOutputGradOptional, probsGradOutOptional->GetDataType(),
+                                     return false);
+        }
+        if (permutedProbsOutputGradOptional->GetDataType() != op::DataType::DT_FLOAT) {
+            OP_CHECK_DTYPE_NOT_MATCH(permutedProbsOutputGradOptional, permutedTokenOutputGrad->GetDataType(),
+                                     return false);
+        }
+        else {
+            OP_CHECK_DTYPE_NOT_SUPPORT(permutedTokenOutputGrad,token_mix_dtype_list, return false);
+        }
     }
-
     // 检查out的数据类型是否在支持列表内
     if (routingMapOptional != nullptr) {
         OP_CHECK_DTYPE_NOT_SUPPORT(routingMapOptional, routing_map_dtype_list, return false);
