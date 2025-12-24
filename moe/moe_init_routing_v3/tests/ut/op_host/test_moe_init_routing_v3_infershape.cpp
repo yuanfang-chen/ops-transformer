@@ -8,12 +8,10 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-// /* !
-//  * \file test_moe_init_routing_v3_infershape.cpp
-//  * \brief
-//  */
 #include <gtest/gtest.h>
 #include <iostream>
+#include <vector>
+#include <initializer_list>
 #include "infer_shape_context_faker.h"
 #include "infer_shape_case_executor.h"
 #include "infer_shaperange_context_faker.h"
@@ -913,45 +911,47 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_datatype_01)
 {
     auto spaceRegistry = gert::DefaultOpImplSpaceRegistryV2::GetInstance().GetSpaceRegistry();
     auto data_type_func = spaceRegistry->GetOpImpl("MoeInitRoutingV3")->infer_datatype;
-    
+
     if (data_type_func != nullptr) {
         ge::DataType fp16_ref = ge::DT_FLOAT16;
         ge::DataType fp32_ref = ge::DT_FLOAT;
         ge::DataType int32_ref = ge::DT_INT32;
         ge::DataType int64_ref = ge::DT_INT64;
         std::vector<int64_t> active_expert_range{1, 8};
-        auto holder = gert::InferDataTypeContextFaker()
-                                  .IrInputNum(3)
-                                  .NodeIoNum(3, 4)
-                                  .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-                                              {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"active_expert_range",
-                                               Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
-                                              {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}})
-                                  .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref})
-                                  .OutputDataTypes({&fp16_ref, &int32_ref, &int64_ref, &fp32_ref})
-                                  .Build();
+        auto holder =
+            gert::InferDataTypeContextFaker()
+                .IrInputNum(3)
+                .NodeIoNum(3, 4)
+                .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+                            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"active_expert_range",
+                             Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
+                            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}})
+                .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
+                .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref})
+                .OutputDataTypes({&fp16_ref, &int32_ref, &int64_ref, &fp32_ref})
+                .Build();
         ASSERT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_SUCCESS);
         auto expanded_x_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(0);
         auto expanded_row_idx_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(1);
-        auto expert_tokens_count_or_cumsum_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
+        auto expert_tokens_count_or_cumsum_output =
+            holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
         auto expanded_scale_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(3);
         EXPECT_EQ(expanded_x_output, fp16_ref);
         EXPECT_EQ(expanded_row_idx_output, int32_ref);
         EXPECT_EQ(expert_tokens_count_or_cumsum_output, int64_ref);
-        EXPECT_EQ(expanded_scale_output, fp32_ref);   
+        EXPECT_EQ(expanded_scale_output, fp32_ref);
     }
 }
 
@@ -967,39 +967,41 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_datatype_02)
         ge::DataType int32_ref = ge::DT_INT32;
         ge::DataType int64_ref = ge::DT_INT64;
         std::vector<int64_t> active_expert_range{1, 8};
-        auto holder = gert::InferDataTypeContextFaker()
-                                  .IrInputNum(4)
-                                  .NodeIoNum(4, 4)
-                                  .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(3, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-                                              {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"active_expert_range",
-                                               Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
-                                              {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}})
-                                  .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref, &fp32_ref})
-                                  .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
-                                  .Build();
+        auto holder =
+            gert::InferDataTypeContextFaker()
+                .IrInputNum(4)
+                .NodeIoNum(4, 4)
+                .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(3, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+                            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"active_expert_range",
+                             Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
+                            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}})
+                .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
+                .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref, &fp32_ref})
+                .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
+                .Build();
         ASSERT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_SUCCESS);
         auto expanded_x_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(0);
         auto expanded_row_idx_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(1);
-        auto expert_tokens_count_or_cumsum_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
+        auto expert_tokens_count_or_cumsum_output =
+            holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
         auto expanded_scale_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(3);
         EXPECT_EQ(expanded_x_output, int8_ref);
         EXPECT_EQ(expanded_row_idx_output, int32_ref);
         EXPECT_EQ(expert_tokens_count_or_cumsum_output, int64_ref);
-        EXPECT_EQ(expanded_scale_output, fp32_ref);   
+        EXPECT_EQ(expanded_scale_output, fp32_ref);
     }
 }
 
@@ -1015,38 +1017,40 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_datatype_03)
         ge::DataType int32_ref = ge::DT_INT32;
         ge::DataType int64_ref = ge::DT_INT64;
         std::vector<int64_t> active_expert_range{1, 8};
-        auto holder = gert::InferDataTypeContextFaker()
-                                  .IrInputNum(3)
-                                  .NodeIoNum(3, 4)
-                                  .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-                                              {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-                                              {"active_expert_range",
-                                               Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
-                                              {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}})
-                                  .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref})
-                                  .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
-                                  .Build();
+        auto holder =
+            gert::InferDataTypeContextFaker()
+                .IrInputNum(3)
+                .NodeIoNum(3, 4)
+                .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+                            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+                            {"active_expert_range",
+                             Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
+                            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}})
+                .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
+                .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref})
+                .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
+                .Build();
         ASSERT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_SUCCESS);
         auto expanded_x_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(0);
         auto expanded_row_idx_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(1);
-        auto expert_tokens_count_or_cumsum_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
+        auto expert_tokens_count_or_cumsum_output =
+            holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
         auto expanded_scale_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(3);
         EXPECT_EQ(expanded_x_output, int8_ref);
         EXPECT_EQ(expanded_row_idx_output, int32_ref);
         EXPECT_EQ(expert_tokens_count_or_cumsum_output, int64_ref);
-        EXPECT_EQ(expanded_scale_output, fp32_ref);  
+        EXPECT_EQ(expanded_scale_output, fp32_ref);
     }
 }
 
@@ -1062,38 +1066,40 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_datatype_04)
         ge::DataType int32_ref = ge::DT_INT32;
         ge::DataType int64_ref = ge::DT_INT64;
         std::vector<int64_t> active_expert_range{1, 7};
-        auto holder = gert::InferDataTypeContextFaker()
-                                  .IrInputNum(3)
-                                  .NodeIoNum(3, 4)
-                                  .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-                                              {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-                                              {"active_expert_range",
-                                               Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
-                                              {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}})
-                                  .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref})
-                                  .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
-                                  .Build();
+        auto holder =
+            gert::InferDataTypeContextFaker()
+                .IrInputNum(3)
+                .NodeIoNum(3, 4)
+                .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+                            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+                            {"active_expert_range",
+                             Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
+                            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}})
+                .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
+                .InputDataTypes({&fp16_ref, &int32_ref, &fp32_ref})
+                .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
+                .Build();
         ASSERT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_SUCCESS);
         auto expanded_x_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(0);
         auto expanded_row_idx_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(1);
-        auto expert_tokens_count_or_cumsum_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
+        auto expert_tokens_count_or_cumsum_output =
+            holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
         auto expanded_scale_output = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(3);
         EXPECT_EQ(expanded_x_output, int8_ref);
         EXPECT_EQ(expanded_row_idx_output, int32_ref);
         EXPECT_EQ(expert_tokens_count_or_cumsum_output, int64_ref);
-        EXPECT_EQ(expanded_scale_output, fp32_ref);  
+        EXPECT_EQ(expanded_scale_output, fp32_ref);
     }
 }
 
@@ -1108,30 +1114,31 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_datatype_05)
         ge::DataType int32_ref = ge::DT_INT32;
         ge::DataType int64_ref = ge::DT_INT64;
         std::vector<int64_t> active_expert_range{1, 7};
-        auto holder = gert::InferDataTypeContextFaker()
-                                  .IrInputNum(3)
-                                  .NodeIoNum(3, 4)
-                                  .NodeInputTd(0, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(1, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-                                              {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"active_expert_range",
-                                               Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
-                                              {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}})
-                                  .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .InputDataTypes({&int8_ref, &int32_ref, &fp32_ref})
-                                  .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
-                                  .Build();
-        EXPECT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_FAILED);       
+        auto holder =
+            gert::InferDataTypeContextFaker()
+                .IrInputNum(3)
+                .NodeIoNum(3, 4)
+                .NodeInputTd(0, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(1, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+                            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"active_expert_range",
+                             Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
+                            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}})
+                .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
+                .InputDataTypes({&int8_ref, &int32_ref, &fp32_ref})
+                .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
+                .Build();
+        EXPECT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_FAILED);
     }
 }
 
@@ -1146,30 +1153,31 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_datatype_06)
         ge::DataType int32_ref = ge::DT_INT32;
         ge::DataType int64_ref = ge::DT_INT64;
         std::vector<int64_t> active_expert_range{1, 7};
-        auto holder = gert::InferDataTypeContextFaker()
-                                  .IrInputNum(3)
-                                  .NodeIoNum(3, 4)
-                                  .NodeInputTd(0, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(1, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                              {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-                                              {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-                                              {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
-                                              {"active_expert_range",
-                                               Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
-                                              {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}})
-                                  .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
-                                  .InputDataTypes({&int8_ref, &int32_ref, &fp32_ref})
-                                  .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
-                                  .Build();
-        EXPECT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_FAILED);       
+        auto holder =
+            gert::InferDataTypeContextFaker()
+                .IrInputNum(3)
+                .NodeIoNum(3, 4)
+                .NodeInputTd(0, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(1, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeAttrs({{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+                            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+                            {"active_expert_range",
+                             Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(active_expert_range)},
+                            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}})
+                .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
+                .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
+                .InputDataTypes({&int8_ref, &int32_ref, &fp32_ref})
+                .OutputDataTypes({&int8_ref, &int32_ref, &int64_ref, &fp32_ref})
+                .Build();
+        EXPECT_EQ(data_type_func(holder.GetContext<gert::InferDataTypeContext>()), ge::GRAPH_FAILED);
     }
 }
 
@@ -1218,6 +1226,12 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_range_00)
     };
     gert::Range<gert::Shape> expect_output_1_shape_range(&output_1_range_min, &output_1_range_max);
 
+    // attrs
+    int64_t active_num{-1}, expert_capacity{0}, expert_num{1}, drop_pad_mode{0}, expert_tokens_num_type{1},
+        quant_mode{-1}, row_idx_type{0};
+    bool expert_tokens_num_flag{true};
+    std::vector<int64_t> active_expert_range = {0, 1};
+
     auto context_holder = gert::InferShapeRangeContextFaker()
                               .IrInputNum(4)
                               .NodeIoNum(4, 4)
@@ -1229,6 +1243,15 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_range_00)
                                                  &input_scale_shape_range, &input_offset_shape_range})
                               .OutputShapeRanges({&output_0_shape_range, &output_1_shape_range, &output_2_shape_range,
                                                   &output_3_shape_range})
+                              .Attr("active_num", active_num)
+                              .Attr("expert_capacity", expert_capacity)
+                              .Attr("expert_num", expert_num)
+                              .Attr("drop_pad_mode", drop_pad_mode)
+                              .Attr("expert_tokens_num_type", expert_tokens_num_type)
+                              .Attr("expert_tokens_num_flag", expert_tokens_num_flag)
+                              .Attr("quant_mode", quant_mode)
+                              .Attr("active_expert_range", active_expert_range)
+                              .Attr("row_idx_type", row_idx_type)
                               .Build();
 
     auto context = context_holder.GetContext<gert::InferShapeRangeContext>();
@@ -1245,7 +1268,7 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_range_00)
 
     EXPECT_EQ(Ops::Base::ToString(*context->GetOutputShapeRange(3)->GetMin()), Ops::Base::ToString(output_1_range_min));
     EXPECT_EQ(Ops::Base::ToString(*context->GetOutputShapeRange(3)->GetMax()), Ops::Base::ToString(output_1_range_max));
-}   
+}
 
 TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_shape_00)
 {
@@ -1384,29 +1407,30 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_shape_04)
 
 TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_shape_05)
 {
-    gert::InfershapeContextPara infershapeContextPara("MoeInitRoutingV3",
-                                                      {
-                                                        {{{2087, 192}, {2087, 192}}, ge::DT_FLOAT, ge::FORMAT_ND},
-                                                        {{{2087, 7242}, {2087, 7242}}, ge::DT_INT32, ge::FORMAT_ND},
-                                                        {{{2087}, {2087}}, ge::DT_INT32, ge::FORMAT_ND},
-                                                        {{{-1}, {-1}}, ge::DT_INT32, ge::FORMAT_ND},
-                                                      },
-                                                      {
-                                                        {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-                                                        {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
-                                                        {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
-                                                      },
-                                                      {
-                                                        {"active_num",Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-                                                        {"expert_capacity",Ops::Transformer::AnyValue::CreateFrom<int64_t>(20)},
-                                                        {"expert_num",Ops::Transformer::AnyValue::CreateFrom<int64_t>(256)}, 
-                                                        {"drop_pad_mode",Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}, 
-                                                        {"expert_tokens_num_type",Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)}, 
-                                                        {"expert_tokens_num_flag",Ops::Transformer::AnyValue::CreateFrom<bool>(true)}, 
-                                                        {"quant_mode",Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)}, 
-                                                        {"active_expert_range",Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({1, 8})}, 
-                                                        {"row_idx_type",Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}, 
-                                                      });
+    gert::InfershapeContextPara infershapeContextPara(
+        "MoeInitRoutingV3",
+        {
+            {{{2087, 192}, {2087, 192}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{2087, 7242}, {2087, 7242}}, ge::DT_INT32, ge::FORMAT_ND},
+            {{{2087}, {2087}}, ge::DT_INT32, ge::FORMAT_ND},
+            {{{-1}, {-1}}, ge::DT_INT32, ge::FORMAT_ND},
+        },
+        {
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+        },
+        {
+            {"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(20)},
+            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(256)},
+            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+            {"active_expert_range", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({1, 8})},
+            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+        });
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED);
 }
 
@@ -1520,4 +1544,216 @@ TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infer_shape_09)
                                                         {"row_idx_type",Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}, 
                                                       });
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED);
+}
+
+namespace {
+// arch35固定属性
+constexpr int64_t EXPERT_CAPACITY = 0LL;
+constexpr int64_t DROP_PAD_MODE = 0LL;
+constexpr bool EXPERT_TOKENS_NUM_FLAG = true;
+// arch35可选expertTokensNumType
+constexpr int64_t EXPERT_TOKENS_TYPE_COUNT = 1LL;
+constexpr int64_t EXPERT_TOKENS_TYPE_KEY_VALUE = 2LL;
+// arch35可选quantMode
+constexpr int64_t QUANT_MODE_UNQUANT = -1LL;
+constexpr int64_t QUANT_MODE_DYNAMIC = 1LL;
+constexpr int64_t QUANT_MODE_MXFP8_E5M2 = 2LL;
+constexpr int64_t QUANT_MODE_MXFP8_E4M3FN = 3LL;
+// arch35可选rowIdxType
+constexpr int64_t ROW_IDX_TYPE_GATHER = 0LL;
+constexpr int64_t ROW_IDX_TYPE_SCATTER = 1LL;
+// quantModeMap
+const static std::unordered_map<int64_t, ge::DataType> QUANT_DST_TYPE_MAP = {
+    {QUANT_MODE_UNQUANT, ge::DT_INT8},
+    {QUANT_MODE_MXFP8_E5M2, ge::DT_FLOAT8_E5M2},
+    {QUANT_MODE_MXFP8_E4M3FN, ge::DT_FLOAT8_E4M3FN}};
+} // namespace
+
+using ShapeList = std::initializer_list<int64_t>;
+
+void RunSuccessTestcaseInferShape(ShapeList xShape, ge::DataType xDtype, ShapeList expertIdxShape, ShapeList scaleShape,
+                                  int64_t activeNum, int64_t expertCapacity, int64_t expertNum, int64_t dropPadMode,
+                                  int64_t expertTokensNumType, bool expertTokensNumFlag, int64_t quantMode,
+                                  std::vector<int64_t> activeExpertRange, int64_t rowIdxType, ShapeList expectOutShape0,
+                                  ShapeList expectOutShape1, ShapeList expectOutShape2, ShapeList expectOutShape3)
+{
+    ge::DataType expandedXDtype = (quantMode == QUANT_MODE_UNQUANT) ? xDtype : QUANT_DST_TYPE_MAP.at(quantMode);
+    ge::DataType expandedScaleDtype = (quantMode == QUANT_MODE_MXFP8_E5M2 || quantMode == QUANT_MODE_MXFP8_E4M3FN) ?
+                                          ge::DT_FLOAT8_E8M0 :
+                                          ge::DT_FLOAT;
+
+    gert::InfershapeContextPara infershapeContextPara(
+        "MoeInitRoutingV3",
+        {
+            {{xShape, xShape}, xDtype, ge::FORMAT_ND},
+            {{expertIdxShape, expertIdxShape}, ge::DT_INT32, ge::FORMAT_ND},
+            {{scaleShape, scaleShape}, ge::DT_INT32, ge::FORMAT_ND},
+        },
+        {
+            {{{}, {}}, expandedXDtype, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{}, {}}, expandedScaleDtype, ge::FORMAT_ND},
+        },
+        {
+            {"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(activeNum)},
+            {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(expertCapacity)},
+            {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(expertNum)},
+            {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(dropPadMode)},
+            {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(expertTokensNumType)},
+            {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(expertTokensNumFlag)},
+            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(quantMode)},
+            {"active_expert_range", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(activeExpertRange)},
+            {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(rowIdxType)},
+        });
+    std::vector<std::vector<int64_t>> expectOutputShape = {expectOutShape0, expectOutShape1, expectOutShape2,
+                                                           expectOutShape3};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
+}
+
+// TokensCount模式+E5M2量化+h为32倍数
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_mxquant_1)
+{
+    RunSuccessTestcaseInferShape({32, 7168}, ge::DT_FLOAT16, {32, 8}, {32}, 256, EXPERT_CAPACITY, 32, DROP_PAD_MODE,
+                                 EXPERT_TOKENS_TYPE_COUNT, EXPERT_TOKENS_NUM_FLAG, QUANT_MODE_MXFP8_E5M2, {16, 32},
+                                 ROW_IDX_TYPE_GATHER, {256, 7168}, {256}, {16}, {256, 224});
+}
+
+// TokensKV模式+E5M2量化+h为32倍数
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_mxquant_2)
+{
+    RunSuccessTestcaseInferShape({32, 7168}, ge::DT_BF16, {32, 8}, {32}, 256, EXPERT_CAPACITY, 128, DROP_PAD_MODE,
+                                 EXPERT_TOKENS_TYPE_KEY_VALUE, EXPERT_TOKENS_NUM_FLAG, QUANT_MODE_MXFP8_E5M2, {0, 32},
+                                 ROW_IDX_TYPE_GATHER, {256, 7168}, {256}, {128, 2}, {256, 224});
+}
+
+// TokensCount模式+E4M3量化+h不为32倍数
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_mxquant_3)
+{
+    RunSuccessTestcaseInferShape({32, 1111}, ge::DT_FLOAT16, {32, 8}, {32}, 256, EXPERT_CAPACITY, 32, DROP_PAD_MODE,
+                                 EXPERT_TOKENS_TYPE_COUNT, EXPERT_TOKENS_NUM_FLAG, QUANT_MODE_MXFP8_E4M3FN, {16, 32},
+                                 ROW_IDX_TYPE_GATHER, {256, 1111}, {256}, {16}, {256, 36});
+}
+
+// TokensKV模式+E4M3量化+h不为32倍数
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_mxquant_4)
+{
+    RunSuccessTestcaseInferShape({32, 1111}, ge::DT_BF16, {32, 8}, {32}, 256, EXPERT_CAPACITY, 128, DROP_PAD_MODE,
+                                 EXPERT_TOKENS_TYPE_KEY_VALUE, EXPERT_TOKENS_NUM_FLAG, QUANT_MODE_MXFP8_E4M3FN, {0, 32},
+                                 ROW_IDX_TYPE_GATHER, {256, 1111}, {256}, {128, 2}, {256, 36});
+}
+
+// 动态(-1) TokensCount模式+E5M2量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_mxquant_5)
+{
+    RunSuccessTestcaseInferShape({-1, -1}, ge::DT_FLOAT16, {-1, -1}, {-1}, -1, EXPERT_CAPACITY, 32, DROP_PAD_MODE,
+                                 EXPERT_TOKENS_TYPE_COUNT, EXPERT_TOKENS_NUM_FLAG, QUANT_MODE_MXFP8_E5M2, {16, 32},
+                                 ROW_IDX_TYPE_GATHER, {-1, -1}, {-1}, {16}, {-1, -1});
+}
+
+// 动态(-1) TokensKV模式+E5M2量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_infershape_mxquant_6)
+{
+    RunSuccessTestcaseInferShape({-1, -1}, ge::DT_FLOAT16, {-1, -1}, {-1}, -1, EXPERT_CAPACITY, 128, DROP_PAD_MODE,
+                                 EXPERT_TOKENS_TYPE_KEY_VALUE, EXPERT_TOKENS_NUM_FLAG, QUANT_MODE_MXFP8_E4M3FN,
+                                 {16, 32}, ROW_IDX_TYPE_GATHER, {-1, -1}, {-1}, {128, 2}, {-1, -1});
+}
+
+void RunTestcaseInferDataType(ge::DataType xDtype, int64_t quantMode, ge::graphStatus expectRet, ge::DataType expectOutDtype0,
+                              ge::DataType expectOutDtype3)
+{
+    static ge::DataType FP32Ref = ge::DT_FLOAT;
+    static ge::DataType INT32Ref = ge::DT_INT32;
+    static ge::DataType INT64Ref = ge::DT_INT64;
+
+    auto spaceRegistry = gert::DefaultOpImplSpaceRegistryV2::GetInstance().GetSpaceRegistry();
+    auto inferDtypeFunc = spaceRegistry->GetOpImpl("MoeInitRoutingV3")->infer_datatype;
+    if (inferDtypeFunc == nullptr) {
+        return;
+    }
+
+    auto holder =
+        gert::InferDataTypeContextFaker()
+            .IrInputNum(3)
+            .NodeIoNum(3, 4)
+            .NodeInputTd(0, xDtype, ge::FORMAT_ND, ge::FORMAT_ND)
+            .NodeInputTd(1, ge::DT_INT32, ge::FORMAT_ND, ge::FORMAT_ND)
+            .NodeInputTd(2, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
+            .NodeAttrs(
+                {{"active_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+                 {"expert_capacity", Ops::Transformer::AnyValue::CreateFrom<int64_t>(EXPERT_CAPACITY)},
+                 {"expert_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+                 {"drop_pad_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(DROP_PAD_MODE)},
+                 {"expert_tokens_num_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(EXPERT_TOKENS_TYPE_COUNT)},
+                 {"expert_tokens_num_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(EXPERT_TOKENS_NUM_FLAG)},
+                 {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(quantMode)},
+                 {"active_expert_range", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0, 1})},
+                 {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(ROW_IDX_TYPE_GATHER)}})
+            .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
+            .NodeOutputTd(1, ge::FORMAT_ND, ge::FORMAT_ND)
+            .NodeOutputTd(2, ge::FORMAT_ND, ge::FORMAT_ND)
+            .NodeOutputTd(3, ge::FORMAT_ND, ge::FORMAT_ND)
+            .InputDataTypes({&xDtype, &INT32Ref, &FP32Ref})
+            .Build();
+    EXPECT_EQ(inferDtypeFunc(holder.GetContext<gert::InferDataTypeContext>()), expectRet);
+
+    if (expectRet == ge::GRAPH_SUCCESS) {
+        auto outDtype0 = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(0);
+        auto outDtype1 = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(1);
+        auto outDtype2 = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(2);
+        auto outDtype3 = holder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(3);
+        EXPECT_EQ(outDtype0, expectOutDtype0);
+        EXPECT_EQ(outDtype1, INT32Ref);
+        EXPECT_EQ(outDtype2, INT64Ref);
+        EXPECT_EQ(outDtype3, expectOutDtype3);
+    }
+}
+
+void RunSuccessTestcaseInferDataType(ge::DataType xDtype, int64_t quantMode)
+{
+    ge::DataType expandedXDtype = (quantMode == QUANT_MODE_UNQUANT) ? xDtype : QUANT_DST_TYPE_MAP.at(quantMode);
+    ge::DataType expandedScaleDtype = (quantMode == QUANT_MODE_MXFP8_E5M2 || quantMode == QUANT_MODE_MXFP8_E4M3FN) ?
+                                          ge::DT_FLOAT8_E8M0 :
+                                          ge::DT_FLOAT;
+    RunTestcaseInferDataType(xDtype, quantMode, ge::GRAPH_SUCCESS, expandedXDtype, expandedScaleDtype);
+}
+
+// FP16+E5M2量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_inferdatatype_mxquant_1)
+{
+    RunSuccessTestcaseInferDataType(ge::DT_FLOAT16, QUANT_MODE_MXFP8_E5M2);
+}
+
+// BF16+E5M2量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_inferdatatype_mxquant_2)
+{
+    RunSuccessTestcaseInferDataType(ge::DT_BF16, QUANT_MODE_MXFP8_E5M2);
+}
+
+// FP16+E4M3量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_inferdatatype_mxquant_3)
+{
+    RunSuccessTestcaseInferDataType(ge::DT_FLOAT16, QUANT_MODE_MXFP8_E4M3FN);
+}
+
+// BF16+E4M3量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_inferdatatype_mxquant_4)
+{
+    RunSuccessTestcaseInferDataType(ge::DT_BF16, QUANT_MODE_MXFP8_E4M3FN);
+}
+
+// 失败用例：FP32+E5M2量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_inferdatatype_mxquant_5)
+{
+    int64_t quantMode = QUANT_MODE_MXFP8_E5M2;
+    RunTestcaseInferDataType(ge::DT_FLOAT, quantMode, ge::GRAPH_FAILED, QUANT_DST_TYPE_MAP.at(quantMode),
+                             ge::DT_FLOAT8_E8M0);
+}
+
+// 失败用例：INT8+E4M3量化
+TEST_F(MoeInitRoutingV3, moe_init_routing_v3_inferdatatype_mxquant_6)
+{
+    int64_t quantMode = QUANT_MODE_MXFP8_E4M3FN;
+    RunTestcaseInferDataType(ge::DT_INT8, quantMode, ge::GRAPH_FAILED, QUANT_DST_TYPE_MAP.at(quantMode),
+                             ge::DT_FLOAT8_E8M0);
 }
