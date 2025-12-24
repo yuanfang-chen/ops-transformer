@@ -406,6 +406,12 @@ static ge::graphStatus CheckInputForProbIsNotNone(
 static ge::graphStatus Tiling4MoeTokenUnpermuteWithRoutingMapGrad(gert::TilingContext* context)
 {
     OP_LOGD(context->GetNodeName(), "MoeTokenUnpermuteWithRoutingMapGradTiling tiling start");
+    auto tokenDtype = context->GetInputDesc(INPUT_UNPERMUTEDOUTPUTD_IDX)->GetDataType();
+    auto probTensor = context->GetOptionalInputTensor(INPUT_PROB_IDX);
+    auto probDtype = (probTensor == nullptr) ? tokenDtype : context->GetInputDesc(INPUT_PROB_IDX)->GetDataType();
+    OP_CHECK_IF(
+        tokenDtype != probDtype && (tokenDtype != ge::DataType::DT_BF16 || probDtype != ge::DataType::DT_FLOAT),
+        OP_LOGE(context->GetNodeName(), "The input probs data type only supports being consistent with the input unpermuted_tokens_grad, or when unpermuted_tokens_grad is BFLOAT16, probs can be FLOAT."), return ge::GRAPH_FAILED);
     MoeTokenUnpermuteWithRoutingMapGradTilingData tiling;
     OP_CHECK_IF(
         ge::GRAPH_SUCCESS != PreInitForTiling(context, tiling),
@@ -423,7 +429,6 @@ static ge::graphStatus Tiling4MoeTokenUnpermuteWithRoutingMapGrad(gert::TilingCo
     const bool* paddedModePtr = attrPtr->GetAttrPointer<bool>(ATTR_PADDEDMODE_IDX);
     bool paddedMode = *paddedModePtr;
     OP_LOGD(context->GetNodeName(), ">>> [MoeTokenUnpermuteWithRoutingMapGradTiling] paddedMode: %d", paddedMode);
-    auto probTensor = context->GetOptionalInputTensor(INPUT_PROB_IDX);
     if (probTensor == nullptr) {
         TilingForProbIsNone(context, tiling, paddedMode);
     } else {
@@ -449,8 +454,6 @@ static ge::graphStatus Tiling4MoeTokenUnpermuteWithRoutingMapGrad(gert::TilingCo
 
     uint32_t paddedModeKey = paddedMode ? 1 : 0;
     uint32_t probKey = (probTensor == nullptr) ? 0 : 1;
-    auto tokenDtype = context->GetInputDesc(INPUT_UNPERMUTEDOUTPUTD_IDX)->GetDataType();
-    auto probDtype = (probTensor == nullptr) ? tokenDtype : context->GetInputDesc(INPUT_PROB_IDX)->GetDataType();
     uint32_t mixKey = 0;
     if (probDtype != tokenDtype){
         mixKey = 1;

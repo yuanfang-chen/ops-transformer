@@ -179,7 +179,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>probsOptional</td>
         <td>可选输入</td>
         <td>当不需要时为空指针。</td>
-        <td>数据类型与unpermutedTokensGrad相同或者是FLOAT。</td>
+        <td>数据类型与unpermutedTokensGrad相同或者当unpermutedTokensGrad是BFLOAT16时probsOptional支持FLOAT。</td>
         <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>与routingMapOptional相同。</td>
@@ -219,7 +219,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
         <td>probsGradOutOptional</td>
         <td>可选输出</td>
         <td>未输入probsOptional时为空指针。输入probs的梯度。</td>
-        <td>数据类型与unpermutedTokensGrad相同或者是FLOAT。</td>
+        <td>数据类型与probsOptional相同。</td>
         <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
         <td>与routingMapOptional相同。</td>
