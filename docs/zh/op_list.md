@@ -84,6 +84,26 @@
     <td>AI Core</td>
     <td>增量推理场景的FlashAttention算子。</td>
   </tr>
+  <tr>
+    <td>attention</td>
+    <td><a href="../../attention/kv_quant_sparse_flash_attention/README.md">kv_quant_sparse_flash_attention</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>√</td>
+    <td>AI Core</td>
+    <td>在Sparse Flash Attention的基础上支持了[Per-Token-Head-Tile-128量化]输入。</td>
+  </tr>
+  <tr>
+    <td>attention</td>
+    <td><a href="../../attention/lightning_indexer/README.md">lightning_indexer</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>√</td>
+    <td>AI Core</td>
+    <td>基于一系列操作得到每一个token对应的Top-k个位置。</td>
+  </tr>
     <tr>
     <td>attention</td>
     <td><a href="../../attention/mla_preprocess/README.md">mla_preprocess</a></td>
@@ -216,6 +236,16 @@
   </tr>
   <tr>
     <td>attention</td>
+    <td><a href="../../attention/quant_lightning_indexer/README.md">quant_lightning_indexer</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>√</td>
+    <td>AI Core</td>
+    <td>推理场景下，SparseFlashAttention前处理的计算，选出关键的稀疏token，并对输入query和key进行量化实现存8算8。</td>
+  </tr>
+  <tr>
+    <td>attention</td>
     <td><a href="../../attention/recurrent_gated_delta_rule/README.md">recurrent_gated_delta_rule</a></td>
     <td>√</td>
     <td>√</td>
@@ -233,6 +263,16 @@
     <td>×</td>
     <td>AI Core</td>
     <td>训练场景下，更新两次FlashAttention的结果。</td>
+  </tr>
+  <tr>
+    <td>attention</td>
+    <td><a href="../../attention/sparse_flash_attention/README.md">sparse_flash_attention</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>√</td>
+    <td>AI Core</td>
+    <td>针对大序列长度推理场景的高效注意力计算模块。</td>
   </tr>
   <tr>
     <td>ffn</td>
