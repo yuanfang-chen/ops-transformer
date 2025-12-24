@@ -146,8 +146,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_0)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2410129757049872;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2392537571005456;
     std::string expectTilingData = "32 1 1 1 256 256 128 128 4575657222443697349 255 65536 65536 0 0 0 2 1 0 0 4294967297 2 1099511627776 0 2 549755813952 549755813952 2 549755814016 4294967300 1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 32768 32768 32768 65536 0 1 2 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 3 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 65536 16384 8192 4 35184372097024 4 35184372097024 4 17179877376 131941395394560 131941395447808 70368744177665 70368744177665 1 0 4295000064 32768 70368744194048 1 32768 70368744194048 1 32768 70368744194048 0 0 0 0 0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {21037056};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -251,8 +251,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_1)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2691604599542960;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2674012413498544;
     std::string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {21825024};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -354,8 +354,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_2)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2550867111187490;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2533274925143074;
     std::string expectTilingData = "32 1 1 1 1 1 1 1 4575657222473777152 255 65536 0 2 0 0 2 1 0 0 4294967297 2 4294967296 0 1 4294967360 4294967297 1 4294967424 4294967297 1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 32 1 1 4294967297 1 4294967297 1 4294967297 131941395394560 131941395447808 137438953473 137438953473 1 0 4295000064 1 4294983680 1 1 4294983680 1 1 4294983680 65536 0 0 0 0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {23396864};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -457,8 +457,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_3)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2410129891266576;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2392537705222160;
     std::string expectTilingData = "32 1 1 1 64 128 129 129 4575657222443651324 255 2147483647 2147483647 2 0 0 3 1 0 0 0 0 0 0 1 274877907008 274877907008 1 549755814016 4294967297 1 3200171710 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 8256 16512 16512 8192 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 8192 8192 8256 1 70918499999808 1 70918500008064 1 4294983808 131941395394560 131941395447808 35184372088833 35184372088833 1 0 4295000064 8256 35459250012160 1 16512 549755830272 1 16512 549755830272 0 0 0 0 0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {21037056};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -560,8 +560,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_4)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2797157984243760;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2779565798199344;
     std::string expectTilingData = "32 2 8 1 2000 2000 192 128 4575657222441520442 255 2147483647 2147483647 2 0 256 1 1 0 0 0 0 0 4294967296 16 549755813952 343597383696 16 343597383808 549755813920 1 3200171710 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 6144000 6144000 4096000 64000000 0 128 256 384 512 640 768 896 1024 1152 1280 1408 1536 1664 1792 1920 2048 2176 2304 2432 2560 2688 2816 2944 3072 3200 3328 3456 3584 3712 3840 3968 0 0 0 0 128 256 384 512 640 768 896 1024 1152 1280 1408 1536 1664 1792 1920 2048 2176 2304 2432 2560 2688 2816 2944 3072 3200 3328 3456 3584 3712 3840 3968 4096 0 0 0 0 64000000 2000000 192000 32 824633721024000 32 549755814080000 32 137439081472 131941395394560 131941395447808 13743895347266 13743895347266 1 0 25769840640 6144000 26388279085056 6 6144000 26388279085056 4 4096000 17592186062848 65536 24678912 49292288 0 0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {86672896};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -663,8 +663,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_5)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2550867648057378;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2533275462012962;
     std::string expectTilingData = "32 64 16 1 123 64 389 389 4575657222437055722 255 2147483647 2147483647 2 0 0 1 1 0 0 0 0 0 0 1 528280977472 528280977467 1 274877907072 137438953504 1 3200171710 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 48995328 25493504 25493504 8060928 0 32 64 96 128 160 192 224 256 288 320 352 384 416 448 480 512 544 576 608 640 672 704 736 768 800 832 864 896 928 960 992 0 0 0 0 32 64 96 128 160 192 224 256 288 320 352 384 416 448 480 512 544 576 608 640 672 704 736 768 800 832 864 896 928 960 992 1024 0 0 0 0 8060928 251904 1531104 32 3421680187170016 32 3421680186435584 32 137439750144 131941395394560 131941395447808 26388279066633 26388279066633 1 0 201863495680 48995328 30786325594112 25 25493504 70368744194048 25 25493504 70368744194048 65536 0 0 0 0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {49349120};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -766,8 +766,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_6)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2550867245404194;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2533275059359778;
     std::string expectTilingData = "32 3 1 1 128 121 128 128 4575657222443697395 255 2147483647 2147483647 2 0 0 1 1 0 0 0 0 0 0 1 549755813952 549755813952 1 519691042944 4294967299 1 3200171710 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 49152 46464 46464 46464 0 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 46464 15488 16384 3 66520453496832 3 66520453495936 3 12884917376 131941395394560 131941395447808 66520453480449 66520453480449 1 0 4295000064 49152 70368744194048 1 46464 58823872102400 1 46464 58823872102400 65536 0 0 0 0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {25756160};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -869,8 +869,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_7)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2550867513840930;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2533275327796514;
     std::string expectTilingData = "32 1 1 1 73 4096 200 200 4561245704492732611 204 2147483647 0 2 0 0 1 1 0 0 4294967297 8589934594 8796093022209 0 1 313532612672 313532612617 32 549755814016 4294967297 1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 14600 819200 819200 299008 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 32 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 299008 299008 14600 1 3518437208897800 1 3518437209702400 1 4295786496 131941395394560 131941395447808 96757023244298 96757023244298 1 0 4295000064 14600 62706522537984 25 819200 70368744194048 25 819200 70368744194048 65536 0 0 0 0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {30474752};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -974,8 +974,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_8)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2410130025486224;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2392537839441808;
     std::string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {21046784};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -1079,8 +1079,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_9)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95",A5SocInfo,4096);
-    int64_t expectTilingKey = 2691604733761456;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2674012547717040;
     std::string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {21759488};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
@@ -1185,8 +1185,8 @@ TEST_F(FlashAttentionScoreGradTiling, FlashAttentionScoreGrad_tiling_10)
          {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          {"softmax_in_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
          },
-                &compileInfo,"Ascend910_95", A5SocInfo, 4096);
-    int64_t expectTilingKey = 2410130025486224;
+                &compileInfo, "Ascend910_95", A5SocInfo, 4096);
+    int64_t expectTilingKey = 2392537839441808;
     std::string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {21046784};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
