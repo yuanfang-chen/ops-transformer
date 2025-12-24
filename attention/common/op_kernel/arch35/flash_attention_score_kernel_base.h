@@ -184,11 +184,11 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
 
     this->InitActualKVPrefixLen(actualSharedPrefixLen);
     this->ComputeConstexpr();
+    this->InitLocalBuffer();
     this->InitGlobalBuffer(query, key, value, pse, dropMask, paddingMask, attenMask, prefix,
         actualSeqLengths, actualSeqLengthsKv, deqScaleQ, deqScaleK, deqScaleV, postQuantScale, postQuantOffset,
         keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, blockTable, queryPaddingSize, 
         kvPaddingSize, softmaxMax, softmaxSum, softmaxOut, workspace, tiling, tPipe); // gm设置
-    this->InitLocalBuffer();
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
