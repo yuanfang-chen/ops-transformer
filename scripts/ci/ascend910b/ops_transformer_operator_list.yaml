@@ -18,27 +18,22 @@ operator_group_1:
   - nsa_selected_attention_infer
   - moe_token_permute_with_ep
   - moe_token_permute_with_ep_grad
-  - all_gather_matmul
-  - all_gather_matmul_v2
-  - inplace_matmul_all_reduce_add_rms_norm
-  - matmul_reduce_scatter_v2
-  - moe_distribute_combine_add_rms_norm
   - grouped_mat_mul_all_reduce
   - grouped_matmul
   - grouped_matmul_swiglu_quant
 operator_group_2:
+  - incre_flash_attention
+  - prompt_flash_attention
   - mla_prolog_v2
   - mla_prolog_v3
   - mla_prolog
-  - flash_attention_score_grad
 operator_group_3:
-  - flash_attention_score
+  - fused_infer_attention_score;2-0
 operator_group_4:
-  - fused_infer_attention_score,3-0
+  - fused_infer_attention_score;2-1
 operator_group_5:
-  - fused_infer_attention_score,3-1
+  - flash_attention_score
 operator_group_6:
-  - prompt_flash_attention
   - quant_lightning_indexer
   - lightning_indexer_grad
   - sparse_flash_attention_grad
@@ -53,7 +48,7 @@ operator_group_6:
   - moe_token_permute_with_routing_map_grad
   - grouped_matmul_add
 operator_group_7:
-  - incre_flash_attention
+  - flash_attention_score_grad
   - moe_token_unpermute_with_ep
   - moe_token_unpermute_with_ep_grad
   - moe_token_unpermute_with_routing_map
@@ -82,12 +77,6 @@ operator_group_8:
   - swin_transformer_ln_qkv
   - ffn
   - matmul_reduce_scatter
-  - matmul_all_reduce
-  - matmul_all_reduce_add_rms_norm
-  - moe_distribute_combine
-  - moe_distribute_combine_v2
-  - moe_distribute_dispatch
-  - moe_distribute_dispatch_v2
 operator_group_9:
   - dequant_rope_quant_kvcache
   - interleave_rope
@@ -106,4 +95,14 @@ operator_group_9:
   - mla_preprocess_v2
   - mla_preprocess
 operator_group_10:
-  - fused_infer_attention_score,3-2
+  - matmul_all_reduce
+  - matmul_all_reduce_add_rms_norm
+  - moe_distribute_combine
+  - moe_distribute_combine_v2
+  - moe_distribute_dispatch
+  - moe_distribute_dispatch_v2
+  - all_gather_matmul
+  - all_gather_matmul_v2
+  - inplace_matmul_all_reduce_add_rms_norm
+  - matmul_reduce_scatter_v2
+  - moe_distribute_combine_add_rms_norm
