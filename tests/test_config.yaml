@@ -818,6 +818,7 @@ mc2:
         - mc2/all_gather_matmul
       test:
         examples: False
+        ut: False
       options:
         - all_gather_matmul
 
@@ -834,6 +835,7 @@ mc2:
         - mc2/all_gather_matmul_v2
       test:
         examples: False
+        ut: False
       options:
         - all_gather_matmul_v2
 
@@ -1005,6 +1007,7 @@ mc2:
         - mc2/matmul_reduce_scatter
       test:
         examples: False
+        ut: False
       options:
         - matmul_reduce_scatter
 
@@ -1037,6 +1040,7 @@ mc2:
         - mc2/matmul_reduce_scatter_v2
       test:
         examples: False
+        ut: False
       options:
         - matmul_reduce_scatter_v2
 
