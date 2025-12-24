@@ -341,6 +341,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
   #include <vector>
   #include <thread>
   #include <string.h>
+  #include "hccl/hccl.h"
   #include "aclnnop/aclnn_weight_quant_matmul_all_reduce.h"
 
   int ndev = 8;

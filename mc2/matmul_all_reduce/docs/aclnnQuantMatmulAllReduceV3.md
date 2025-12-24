@@ -373,6 +373,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
     #include <iostream>
     #include <vector>
     #include <thread>
+    #include "hccl/hccl.h"
     #include "aclnnop/aclnn_trans_matmul_weight.h"
     #include "aclnnop/aclnn_quant_matmul_all_reduce_v3.h"
 
