@@ -753,7 +753,7 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
 }
 
 bool PromptFlashAttentionTilingV2::CheckPostQuantShape(const ContextParamsForPFATiling& contextKeyParams, uint32_t quantD,
-    const gert::StorageShape* quantOffset2Shape, const ge::DataType quantScale2Type, int64_t quantScale2ShapeSize,
+    const gert::StorageShape* quantOffset2Shape, const ge::DataType quantScale2Type, size_t quantScale2Dim, int64_t quantScale2ShapeSize,
     const PFAShapeInfo& queryShapeInfo, const PFAShapeInfo& valueShapeInfo) const {
     // dtype verification
     OP_CHECK_IF((quantOffset2Shape != nullptr) && (quantScale2Type != contextKeyParams.quantOffset2Type),
@@ -782,6 +782,11 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantShape(const ContextParamsForPFA
     }
     // shape verification
     if (quantOffset2Shape != nullptr) {
+        size_t quantOffset2Dim = quantOffset2Shape->GetStorageShape().GetDimNum();
+        OP_CHECK_IF(quantScale2Dim != quantOffset2Dim, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "quant_scale2 dim num(%ld) do not equal quant_offset2 dim num(%ld).",
+            quantScale2Dim, quantOffset2Dim),
+            return false);
         int64_t quantOffset2ShapeSize = quantOffset2Shape->GetStorageShape().GetShapeSize();
         OP_CHECK_IF(quantScale2ShapeSize != quantOffset2ShapeSize, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "quant_scale2 dimension multiply result(%ld) do not equal quant_offset2 dimension multiply result(%ld).",
@@ -790,13 +795,18 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantShape(const ContextParamsForPFA
     }
 
     uint64_t quantScale2ShapeSizePerChannel = static_cast<uint64_t>(queryShapeInfo.n) * static_cast<uint64_t>(valueShapeInfo.d);
-    OP_CHECK_IF(quantScale2ShapeSize < 0 || 
-        ((static_cast<uint64_t>(quantScale2ShapeSize) != 1U) && 
-         (static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel)),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "post quant scale2/offset2 dimension multiply result only support 1 and qN * vD(%u * %u = %lu), now is (%ld).",
-             queryShapeInfo.n, valueShapeInfo.d, quantScale2ShapeSizePerChannel, quantScale2ShapeSize),
-        return false);
+    if (quantScale2Dim == 1) {
+        OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
+            return false);
+    } else {
+        OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "for post quant per-channel, quant scale/offset dim multiply result only support qN * vD(%u * %u = %lu), now is (%ld).",
+                queryShapeInfo.n, valueShapeInfo.d, quantScale2ShapeSizePerChannel, quantScale2ShapeSize),
+            return false);
+    }
     return true;
 }
 
@@ -915,6 +925,7 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantParams(const ContextParamsForPF
     uint32_t n = queryShapeInfo.n;
 
     int64_t quantScale2ShapeSize = 0;
+    size_t quantScale2Dim = 0;
     uint32_t quantD = 0;
     uint32_t queryD = h / n;
 
@@ -928,20 +939,15 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantParams(const ContextParamsForPF
     OP_CHECK_IF(quantScale2Shape == nullptr, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "quant_scale2_shape is nullptr in post quant scenario."),
         return false);
+    quantScale2Dim = quantScale2Shape->GetStorageShape().GetDimNum();
     quantScale2ShapeSize = quantScale2Shape->GetStorageShape().GetShapeSize();
     quantD = quantScale2ShapeSize / n;
     OP_CHECK_IF(quantScale2ShapeSize == 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "quant_scale2 is empty tensor in post quant scenario."),
         return false);
 
-    // altert unsupported situation(post quant per-tensor + BF16 + BSH + D unalign)
-    if ((contextKeyParams.inputDataType == ge::DT_BF16) && (quantScale2ShapeSize == 1) &&
-        (inputLayout == InputLayout::BSH) && (queryD % BYTE_BLOCK != 0)) {
-        OP_LOGW(contextKeyParams.opName,
-            "post quant per-tensor doesn't support D unaligned(%u), when qkv is bf16 and layout is BSH.", queryD);
-    }
     OP_CHECK_IF(!CheckPostQuantShape(contextKeyParams, quantD, quantOffset2Shape, quantScale2Type, 
-    quantScale2ShapeSize, queryShapeInfo, valueShapeInfo),
+    quantScale2Dim, quantScale2ShapeSize, queryShapeInfo, valueShapeInfo),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "post quant params check failed!"),
         return false);
     return true;

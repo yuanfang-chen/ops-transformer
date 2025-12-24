@@ -768,7 +768,7 @@ ge::graphStatus IFATilingV2::CheckLse() const
         return ge::GRAPH_FAILED);
     OP_CHECK_IF(((lseShape->GetStorageShape().GetDim(NUM0) != queryShape->GetStorageShape().GetDim(NUM0)) ||
               (lseShape->GetStorageShape().GetDim(NUM1) != numHeads_) || (lseShape->GetStorageShape().GetDim(NUM2) != sOfQuery_) ||
-              (lseShape->GetStorageShape().GetDim(NUM3) != NUM1)), OP_LOGE(ifaContext_->opName, "SoftmaxLse shape[%ld, %ld, %ld, %ld] does not match BNS1[%ld, %u, %u, 1]!",
+              (lseShape->GetStorageShape().GetDim(NUM3) != NUM1)), OP_LOGE(ifaContext_->opName, "SoftmaxLse shape[%ld, %ld, %ld, %ld] does not match [B, N, Q_S, 1]([%ld, %u, %u, 1])!",
                         lseShape->GetStorageShape().GetDim(NUM0), lseShape->GetStorageShape().GetDim(NUM1),
                         lseShape->GetStorageShape().GetDim(NUM2), lseShape->GetStorageShape().GetDim(NUM3),
                         queryShape->GetStorageShape().GetDim(NUM0), numHeads_, sOfQuery_),
@@ -1851,6 +1851,7 @@ ge::graphStatus IFATilingV2::ProcessQuant2Dtype() const {
 ge::graphStatus IFATilingV2::ProcessQuant2Attribute(const gert::Tensor *qtScale2) {
   const ge::DataType quantScale2Type = qtScale2->GetDataType();
   int64_t quantScale2ShapeSize = qtScale2->GetShapeSize();
+  size_t quantScale2Dim = qtScale2->GetStorageShape().GetDimNum();
   OP_CHECK_IF((quantScale2Type != ge::DT_BF16) && (quantScale2Type != ge::DT_FLOAT),
       OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "post quant scale dtype(%s) only support bf16 and fp32.", optiling::v2::GetPfaDataTypeStr(quantScale2Type).c_str()),
       return ge::GRAPH_FAILED);
@@ -1875,15 +1876,18 @@ ge::graphStatus IFATilingV2::ProcessQuant2Attribute(const gert::Tensor *qtScale2
 
   // per-tensor or per-channel verification
   uint64_t quantScale2ShapeSizePerChannel = static_cast<uint64_t>(numHeads_) * static_cast<uint64_t>(headDim_);
-  OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U) && 
-      (static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
-      OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-      "post quant scale2/offset2 dimension multiply result only support 1 and qN * vD(%u * %u = %lu), now is (%ld).",
-      numHeads_ , headDim_ , quantScale2ShapeSizePerChannel, quantScale2ShapeSize),
-      return ge::GRAPH_FAILED);
-  
-  if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel) {
-    isPostQuantPerChnl_ = true;
+  if (quantScale2Dim == 1) {
+      OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
+          OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
+              "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
+          return ge::GRAPH_FAILED);
+  } else {
+      OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
+          OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
+              "for post quant per-channel, quant scale/offset dim multiply result only support qN * vD(%u * %u = %lu), now is (%ld).",
+              numHeads_ , headDim_ , quantScale2ShapeSizePerChannel, quantScale2ShapeSize),
+          return ge::GRAPH_FAILED);
+      isPostQuantPerChnl_ = true;
   }
 
   return ge::GRAPH_SUCCESS;
@@ -1909,6 +1913,7 @@ ge::graphStatus IFATilingV2::ProcessQuant2() {
       return ge::GRAPH_FAILED);
 
   const ge::DataType quantScale2Type = qtScale2->GetDataType();
+  size_t quantScale2Dim = qtScale2->GetStorageShape().GetDimNum();
   int64_t quantScale2ShapeSize = qtScale2->GetShapeSize();
   OP_CHECK_IF(quantScale2ShapeSize <= 0, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
       "quant_scale2 is empty tensor in post quant scenario."),
@@ -1924,6 +1929,11 @@ ge::graphStatus IFATilingV2::ProcessQuant2() {
           optiling::v2::GetPfaDataTypeStr(quantScale2Type).c_str(), optiling::v2::GetPfaDataTypeStr(quantOffset2Type).c_str()),
           return ge::GRAPH_FAILED);
 
+    size_t quantOffset2Dim = qtOffset2->GetStorageShape().GetDimNum();
+    OP_CHECK_IF(quantScale2Dim != quantOffset2Dim, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
+        "quant_scale2 dim num(%ld) do not equal quant_offset2 dim num(%ld).",
+        quantScale2Dim, quantOffset2Dim),
+        return ge::GRAPH_FAILED);
     int64_t quantOffset2ShapeSize = qtOffset2->GetShapeSize();
     OP_CHECK_IF(quantScale2ShapeSize != quantOffset2ShapeSize, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
         "quant_scale2 dimension multiply result(%ld) do not equal quant_offset2 dimension multiply result(%ld).",
