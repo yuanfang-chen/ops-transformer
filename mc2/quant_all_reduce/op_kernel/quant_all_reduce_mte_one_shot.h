@@ -9,21 +9,21 @@
  */
 
 /*!
- * \file quant_reduce_scatter_mte.h
- * \brief quant_reduce_scatter mte通信kernel代码逻辑
+ * \file quant_all_reduce_mte_one_shot.h
+ * \brief quant_all_reduce mte_one_shot方式通信，通过1步allgather的kernel代码逻辑
  */
 
-#ifndef QUANT_REDUCE_SCATTER_MTE_H
-#define QUANT_REDUCE_SCATTER_MTE_H
+#ifndef QUANT_ALL_REDUCE_MTE_ONE_SHOT_H
+#define QUANT_ALL_REDUCE_MTE_ONE_SHOT_H
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
-#include "quant_reduce_scatter_tiling_data.h"
-#include "utils.h"
-#include "mte_comm.h"
-#include "vec_comp.h"
+#include "quant_all_reduce_tiling_data.h"
+#include "../quant_reduce_scatter/utils.h"
+#include "../quant_reduce_scatter/mte_comm.h"
+#include "../quant_reduce_scatter/vec_comp.h"
 
-namespace QuantReduceScatterImpl {
+namespace QuantAllReduceImpl {
 
 using namespace QuantMTECommImpl;
 using namespace VectorComputeImpl;
@@ -31,19 +31,22 @@ using namespace AscendC;
 
 // 之后可修改成从tiling侧获取数据切块大小
 constexpr static uint32_t X_PRE_BLOCK_NUM = 1024U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 1024个x数据. 对于fp4需要另外算
-constexpr static uint64_t MX_SCALES_LAST_DIM = 2U; // MX量化scales最后一维的大小
 
 template<TemplateTypeClass>
-class QuantReduceScatterMte {
+class QuantAllReduceMteOneShot {
 public:
-    __aicore__ inline QuantReduceScatterMte() {};
+    __aicore__ inline QuantAllReduceMteOneShot() {};
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR scales, GM_ADDR output,
-                                TPipe *pipe, const QuantReduceScatterTilingData *tilingData);
+                                TPipe *pipe, const QuantAllReduceTilingData *tilingData);
     __aicore__ inline void Process();
 private:
     __aicore__ inline void ClearSumTensor();
     __aicore__ inline void ReadDataBlockReduceSum(uint64_t curXOffset, uint64_t curScaleOffset);
-    __aicore__ inline void ExecuteReduceScatter();
+    __aicore__ inline void ExecuteAllReduce();
+
+    uint64_t xSize_{0};
+    uint32_t totalBlockNums_{0};
+    uint64_t alignedXSize_{0};
 
     MTECommunication<TemplateType> mteComm_; // MTE 通信相关实现
     VectorCompute<TemplateType> vecComp_; // vector 计算相关实现
@@ -54,36 +57,21 @@ private:
 
     TQue<QuePosition::VECIN, 1> xInQueue_, scaleInQue; // 用于读数据和反量化求和的通算并行
     TBuf<> sumBuf_; // 用于Reduce_sum 求和
-
-    uint64_t xSize_{0};
-    uint32_t totalBlockNums_{0};
-    uint64_t alignedXSize_{0};
-    // reduceScater进行all2all过程，数据要按卡数进行均分，以下为计算切分相关的参数
-    uint64_t scaleSize_{0};
-    uint64_t xSliceSizeNums_{0};
-    uint64_t scaleSliceNums_{0};
 };
 
 template <TemplateTypeClass>
-__aicore__ inline void QuantReduceScatterMte<TemplateType>::Init(GM_ADDR x, GM_ADDR scales,
-    GM_ADDR output, TPipe *tPipe, const QuantReduceScatterTilingData *tilingData)
+__aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::Init(GM_ADDR x, GM_ADDR scales,
+    GM_ADDR output, TPipe *tPipe, const QuantAllReduceTilingData *tilingData)
 {
     // 初始化HcclContext
     mteComm_.InitHcclContext();
 
-    /* quant_reduce_scatter自己的数据 */
-    auto&& tiliingDatainfo = tilingData->quantReduceScatterTilingInfo;
-    xSize_ = tiliingDatainfo.bs * tiliingDatainfo.hiddenSize * sizeof(XType);
-    scaleSize_ = tiliingDatainfo.bs * tiliingDatainfo.scaleHiddenSize * sizeof(ScalesType);
-    // 对于mx的scale是三维，最后一维为2，总scales的数据量需要再乘以2
-    if constexpr(AscendC::IsSameType<ScalesType, fp8_e8m0_t>::value) {
-        scaleSize_ *= MX_SCALES_LAST_DIM;
-    }
-    xSliceSizeNums_ = xSize_ / (mteComm_.hcclContext_->rankDim * sizeof(XType)); // all2all过程，数据需要按卡数均分
-    scaleSliceNums_ = scaleSize_ / (mteComm_.hcclContext_->rankDim * sizeof(ScalesType)); // all2all过程，每张卡需要的scale数据个数
-    alignedXSize_ = CeilAlign(xSliceSizeNums_, X_BLOCK_BYTES) * mteComm_.hcclContext_->rankDim; // x数据量按1024B向上对齐，防止尾块覆写后方scale数据
-    totalBlockNums_ = CeilDiv(xSliceSizeNums_, X_BLOCK_BYTES); // 1/rank 数据需要搬运的总块数
-    mteComm_.round_ = totalBlockNums_ / tiliingDatainfo.aivNum;  // 计算数据分核搬运需要的轮次数
+    /* quant_all_reduce自己的数据 */
+    auto&& tiliingDatainfo = tilingData->quantAllReduceTilingInfo;
+    xSize_ = tiliingDatainfo.bs * tiliingDatainfo.hiddenSize * sizeof(XType); // 总的x数据量，B
+    alignedXSize_ = CeilAlign(xSize_, X_BLOCK_BYTES); // x数据量按1024B向上对齐，防止尾块覆写后方scale数据
+    totalBlockNums_ = CeilDiv(xSize_, X_BLOCK_BYTES); // 按每次搬运x的数据量分块，得到的总块数
+    mteComm_.round_ = totalBlockNums_ / tiliingDatainfo.aivNum;  // 计算总的数据分核搬运需要的轮次数
     mteComm_.tailBlockNums_ = totalBlockNums_ % tiliingDatainfo.aivNum; // 搬运的尾块数
     tPipe->Reset();
     tPipe->InitBuffer(xInQueue_, BUFFER_NUM, X_BLOCK_BYTES); // 每次拷贝 1024B x; 128 * 8
@@ -91,7 +79,7 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::Init(GM_ADDR x, GM_A
     tPipe->InitBuffer(sumBuf_, X_PRE_BLOCK_NUM * sizeof(float)); // 用于Reduce_sum 求和，1024 * 4 = 4k
     sumTensor_ = sumBuf_.Get<float>();
 
-    // 设置quant_reduce_scatter切块大小
+    // 设置切块大小
     mteComm_.SetBlockSize(X_PRE_BLOCK_NUM);
     vecComp_.SetBlockSize(X_PRE_BLOCK_NUM);  
 
@@ -107,7 +95,7 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::Init(GM_ADDR x, GM_A
 }
 
 template <TemplateTypeClass>
-__aicore__ inline void QuantReduceScatterMte<TemplateType>::ReadDataBlockReduceSum(uint64_t curXOffset,
+__aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::ReadDataBlockReduceSum(uint64_t curXOffset,
     uint64_t curScaleOffset)
 {
     /* 读取 x 从 Win -> UB */
@@ -122,21 +110,20 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::ReadDataBlockReduceS
     scaleInQue.EnQue(scaleTmpTensor);
     scaleTmpTensor = scaleInQue.DeQue<ScalesType>();
 
-    /* 反量化计算与ReduceSum求和 */
+    /* 反量化计算与ReduceSum求和 */ 
     vecComp_.DequantReduceSum(xTmpTensor, scaleTmpTensor, sumTensor_); 
     xInQueue_.FreeTensor(xTmpTensor);
     scaleInQue.FreeTensor(scaleTmpTensor);
 }
 
-
 template <TemplateTypeClass>
-__aicore__ inline void QuantReduceScatterMte<TemplateType>::ClearSumTensor()
+__aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::ClearSumTensor()
 {
     Duplicate<float>(sumTensor_, (float)0.0, X_PRE_BLOCK_NUM); // sumTensor 清零
 }
 
 template <TemplateTypeClass>
-__aicore__ inline void QuantReduceScatterMte<TemplateType>::ExecuteReduceScatter()
+__aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::ExecuteAllReduce()
 {   
     // 读状态位，软同步
     mteComm_.ReadStatus(); 
@@ -158,9 +145,7 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::ExecuteReduceScatter
             remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleWin);
 
             // 读取对端对应地址的 x 和 scale数据，进行反量化和求和
-            uint64_t curRankXOffset = curXOffset + mteComm_.hcclContext_->rankId * xSliceSizeNums_;
-            uint64_t curRankScaleOffset = curScaleOffset + mteComm_.hcclContext_->rankId * scaleSliceNums_;
-            ReadDataBlockReduceSum(curRankXOffset, curRankScaleOffset); // ReduceScatter过程，all2all仅需与rankId相关的数据，加上本卡偏移
+            ReadDataBlockReduceSum(curXOffset, curScaleOffset); // AllReduce过程，allgather直接搬运
         }
 
         // 将计算好的数据拷贝到输出tensor
@@ -169,7 +154,7 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::ExecuteReduceScatter
 }
 
 template <TemplateTypeClass>
-__aicore__ inline void QuantReduceScatterMte<TemplateType>::Process()
+__aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::Process()
 {
     // 纯AIV过程
     if ASCEND_IS_AIC {
@@ -177,11 +162,11 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::Process()
     }
 
     // 一次性拷贝完所有数据到本地卡win区
-    mteComm_.template CopyDataToWin<true>(xSliceSizeNums_, scaleSliceNums_);
+    mteComm_.CopyDataToWin();
     // 写入状态到状态区
     mteComm_.WriteStatusToWin();
-    // 执行ReduceScatter过程：等待状态区同步，读取数据并进行反量化ReduceSum
-    ExecuteReduceScatter();
+    // 执行AllReduce过程：等待状态区同步，读取数据并进行反量化ReduceSum
+    ExecuteAllReduce();
 }
-} // QuantReduceScatterImpl
-#endif  // QUANT_REDUCE_SCATTER_MTE_H
+} // QuantAllReduceImpl
+#endif  // QUANT_ALL_REDUCE_MTE_ONE_SHOT_H

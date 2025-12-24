@@ -16,7 +16,7 @@
 #include "kernel_operator.h"
 #include "quant_all_reduce_tiling_data.h"
 #include "quant_all_reduce_tiling_key.h"
-#include "quant_all_reduce_mte.h"
+#include "quant_all_reduce_mte_one_shot.h"
 
 using namespace AscendC;
 using namespace QuantAllReduceImpl;
@@ -31,8 +31,8 @@ __global__ __aicore__ void quant_all_reduce(GM_ADDR x, GM_ADDR scales, GM_ADDR o
     REGISTER_TILING_DEFAULT(QuantAllReduceTilingData);
     GET_TILING_DATA_WITH_STRUCT(QuantAllReduceTilingData, tilingData, tilingGM);
     TPipe pipe;
-    if constexpr (quantAllReduceCommMode == MTE_COMM) {
-        QuantAllReduceMte<DTYPE_X, DTYPE_SCALES, DTYPE_OUT_PUT> op;
+    if constexpr (quantAllReduceCommMode == MTE_ONE_SHOT) {
+        QuantAllReduceMteOneShot<DTYPE_X, DTYPE_SCALES, DTYPE_OUT_PUT> op;
         op.Init(x, scales, output, &pipe, &tilingData);
         op.Process();
     }

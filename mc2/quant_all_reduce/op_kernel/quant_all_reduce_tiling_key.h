@@ -15,20 +15,19 @@
 #ifndef QUANT_ALL_REDUCE_TILING_KEY_H
 #define QUANT_ALL_REDUCE_TILING_KEY_H
 
-#include <ascendc/host_api/tiling/template_argument.h>
+#include "ascendc/host_api/tiling/template_argument.h"
 
-#define MTE_COMM 1  // base tiling时
-
+#define MTE_ONE_SHOT 1 // 通过1步allgather的方法实现
 // 模板参数
 ASCENDC_TPL_ARGS_DECL(QuantAllReduce,
-    ASCENDC_TPL_UINT_DECL(quantAllReduceCommMode, ASCENDC_TPL_8_BW, ASCENDC_TPL_UI_LIST, MTE_COMM),  // LIST模式，穷举
+    ASCENDC_TPL_UINT_DECL(quantAllReduceCommMode, ASCENDC_TPL_8_BW, ASCENDC_TPL_UI_LIST, MTE_ONE_SHOT), // LIST模式，穷举
 );
 
 // 模板参数组合
 // 用于调用GET_TPL_TILING_KEY获取TilingKey时，接口内部校验TilingKey是否合法
 ASCENDC_TPL_SEL(
     ASCENDC_TPL_ARGS_SEL(
-        ASCENDC_TPL_UINT_SEL(quantAllReduceCommMode, ASCENDC_TPL_UI_LIST, MTE_COMM),
+        ASCENDC_TPL_UINT_SEL(quantAllReduceCommMode, ASCENDC_TPL_UI_LIST, MTE_ONE_SHOT),
     ),
 );
 

@@ -94,7 +94,7 @@ static void SetTilingData(gert::TilingContext *context, QuantAllReduceTilingData
 static void SetTilingKey(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
-    const uint64_t tilingKey = GET_TPL_TILING_KEY(MTE_COMM);
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(MTE_ONE_SHOT);
     OP_LOGD(nodeName, "tilingKey is [%lu] in quant_all_reduce.", tilingKey);
     context->SetTilingKey(tilingKey);
 }

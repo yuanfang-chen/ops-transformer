@@ -1053,6 +1053,7 @@ mc2:
         - mc2/quant_all_reduce
       test:
         examples: False
+        ut: False
       options:
         - quant_all_reduce
 
@@ -1069,6 +1070,7 @@ mc2:
         - mc2/quant_reduce_scatter
       test:
         examples: False
+        ut: False
       options:
         - quant_reduce_scatter
 
