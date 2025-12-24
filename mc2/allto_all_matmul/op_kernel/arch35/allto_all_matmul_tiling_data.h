@@ -17,7 +17,7 @@
 
 #include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
-#include "../common/inc/kernel/mc2_tiling_struct.h"
+#include "../../common/inc/kernel/mc2_tiling_struct.h"
 #include "../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
 
 struct AlltoAllMatmulTilingInfo {

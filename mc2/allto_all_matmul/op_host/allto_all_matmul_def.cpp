@@ -89,9 +89,10 @@ public:
             .DynamicShapeSupportFlag(true)
             .NeedCheckSupportFlag(false)
             .PrecisionReduceFlag(true)
-            .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
             .ExtendCfgInfo("jitCompile.flag", "static_false") // 动态shape，复用二进制，后续图支持后修改
-            .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel");
+            .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
+            .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
+            .ExtendCfgInfo("opFile.value", "allto_all_matmul_apt");
         this->AICore().AddConfig("ascend910_95", aicoreConfig_910_95);
 
         // 将group配置为该算子的通信域

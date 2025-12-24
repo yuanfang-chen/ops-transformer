@@ -165,7 +165,7 @@ ge::graphStatus AllToAllFpMatmulTilingBase::SetHcclTiling()
     Mc2CcTilingConfigBuilder allToAllBuilder =
         Mc2CcTilingConfigBuilder::create(contextInfo.group, mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL,
                                          Mc2CcTilingConfigBuilder::AlgConfigType::ALL_TO_ALL);
-    AscendC::Mc2CcTilingConfig allToAllTilingConfig = allToAllBuilder.build();
+    AscendC::Mc2CcTilingConfig allToAllTilingConfig = allToAllBuilder.withCommEngine(mc2tiling::A5_CCU_ENGINE).build();
     if (!allToAllBuilder.isSuccess()) {
         return ge::GRAPH_FAILED;
     }

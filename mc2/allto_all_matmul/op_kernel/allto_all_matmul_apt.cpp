@@ -21,7 +21,7 @@
 using namespace AscendC;
 using namespace AlltoAllMatmulImpl;
 
-template<uint32_t AlltoAllMatmulTemplateId>
+template <uint32_t QUANT_MODE, bool X2_TRANSPOSE, uint32_t BIAS_DTYPE>
 __global__ __aicore__ void allto_all_matmul(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR comm_scale, GM_ADDR x1_offset,
                                             GM_ADDR x2_offset, GM_ADDR y, GM_ADDR all2all_out, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
