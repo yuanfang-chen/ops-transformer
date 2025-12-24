@@ -1438,9 +1438,10 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     }
 
     // 隔离高阶特性
-    bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope 
-        || enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList 
-        || enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable;
+    std::string layoutStr(contextKeyParams.layout);
+    bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope ||
+        enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList ||
+        enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || layoutStr == "BNSD_BSND";
 
     return !hasCrossoverAttr;
 }

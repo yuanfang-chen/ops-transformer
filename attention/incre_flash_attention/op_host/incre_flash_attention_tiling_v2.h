@@ -208,6 +208,7 @@ private:
   bool SetQKVStartIdx();
   bool AlibiCheckSeqLength();
   bool CheckPseShiftShape(const gert::Tensor* pseShiftInput);
+  bool CheckPFAMerge();
 
   std::string GetShapeStr(const gert::Shape &aShape) const;
 
@@ -406,6 +407,8 @@ private:
   //伪量化新模板新增
   bool faRunGS_ = false;    //指示是否合轴
   int8_t isGqa_ = 0;
+  bool actualSeqLenUnequal_ = false;
+  int64_t pfaMergeGSLimit = 32;
   uint8_t faRunAttenMaskShapeType_ = 0;
   uint8_t faRunSparseType_ = 0;
   uint32_t paBlockNumSumfaRun_ = 1;

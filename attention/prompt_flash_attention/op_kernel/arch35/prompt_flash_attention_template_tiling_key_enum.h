@@ -68,6 +68,7 @@ enum class inferDTemplateType {
 
 enum class inferS1TemplateType {
     Aligned16 = 16,
+    Aligned32 = 32,
     Aligned64 = 64,
     Aligned128 = 128,
     Aligned256 = 256,
@@ -139,6 +140,10 @@ static constexpr ConfigParams ConfigValue[] ={
    {inferS1TemplateType::Aligned16, inferS2TemplateType::Aligned512, inferDTemplateType::Aligned64, inferDTemplateType::Aligned64}, //16
    {inferS1TemplateType::Aligned128, inferS2TemplateType::Aligned256, inferDTemplateType::Aligned128, inferDTemplateType::Aligned128}, //17
    {inferS1TemplateType::Aligned64, inferS2TemplateType::Aligned256, inferDTemplateType::Aligned256, inferDTemplateType::Aligned256}, //18
+   {inferS1TemplateType::Aligned32, inferS2TemplateType::Aligned512, inferDTemplateType::Aligned64, inferDTemplateType::Aligned64}, //19
+   {inferS1TemplateType::Aligned32, inferS2TemplateType::Aligned512, inferDTemplateType::Aligned128, inferDTemplateType::Aligned128}, //20
+   {inferS1TemplateType::Aligned32, inferS2TemplateType::Aligned256, inferDTemplateType::Aligned256, inferDTemplateType::Aligned256}, //21
+   {inferS1TemplateType::Aligned32, inferS2TemplateType::Aligned128, inferDTemplateType::Aligned512, inferDTemplateType::Aligned512}, //22
 };
 
 #define Config_S1Aligned64_S2Aligned256_DAligned64_DVAligned64 0
@@ -160,6 +165,10 @@ static constexpr ConfigParams ConfigValue[] ={
 #define Config_S1Aligned16_S2Aligned512_DAligned64_DVAligned64 16
 #define Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128 17
 #define Config_S1Aligned64_S2Aligned256_DAligned256_DVAligned256 18
+#define Config_S1Aligned32_S2Aligned512_DAligned64_DVAligned64 19
+#define Config_S1Aligned32_S2Aligned512_DAligned128_DVAligned128 20
+#define Config_S1Aligned32_S2Aligned256_DAligned256_DVAligned256 21
+#define Config_S1Aligned32_S2Aligned128_DAligned512_DVAligned512 22
 
 //PseMode
 #define PSE_MODE_PSE_OUTER_MUL_ADD_TYPE 0

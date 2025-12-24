@@ -1094,14 +1094,28 @@ ge::graphStatus IFATilingV2::ProcessOptionalTensors() {
   return ge::GRAPH_SUCCESS;
 }
 
+bool IFATilingV2::CheckPFAMerge() { // PFA场景合轴条件检验
+  const int64_t gS1 = nNumOfQInOneGroup_ * sOfQuery_;
+  if (gS1 <= 0 || gS1 > pfaMergeGSLimit) { // 溢出或超出基本块大小
+      return false;
+  }
+
+  // 隔离高阶特性
+  std::string layout(ifaContext_->layOut);
+  bool hasCrossoverAttr = actualSeqLenUnequal_ || qPaddingSizeFlag_ || attenMaskFlag_ || pseShiftFlag_ || pageAttentionFlag_ ||
+    enableAlibiPse_ || enablePostQuant_ || softmaxLseFlag_ || layout == "BNSD_BSND";
+  return !hasCrossoverAttr;
+}
+
 void IFATilingV2::SetfaRunFlag() {
   if (antiQuantFlag_) {
     if(sOfQuery_ == NUM1 && !enableAlibiPse_) {
       faRunGS_ = true;
       isGqa_ = 1;
     } else {
-      faRunGS_ = false;
-      isGqa_ = 0;
+      bool enablePFAMerge = CheckPFAMerge();
+      faRunGS_ = enablePFAMerge;
+      isGqa_ = static_cast<uint8_t>(enablePFAMerge);
     }
   } else {
     faRunGS_ = false;
@@ -1749,6 +1763,10 @@ ge::graphStatus IFATilingV2::ProcessActualSeqLen() {
       maxActualseq_ = maxActualseq_ < static_cast<uint32_t>(actLen) ? static_cast<uint32_t>(actLen) : maxActualseq_;
       if (actLen == 0 && needInitfaRun_ == false) {
         needInitfaRun_ = true;
+      }
+
+      if (actLen < sOfQuery_) { // 合轴校验actseqlen
+          actualSeqLenUnequal_ = true;
       }
     }
   } else {
@@ -2997,9 +3015,12 @@ ge::graphStatus IFATilingV2::SplitBNSfaRun() {
 void IFATilingV2::SetfaRunBaseSize()
 {
   sOuterSize_ = NUM16;
+  if (sOfQuery_ > NUM1 && isGqa_) { // pfa gs1合轴时 s1base=32
+      sOuterSize_ = NUM32;
+  }
   if (headDim_ <= NUM64) {
     sInnerSize_ = NUM1024;
-    if (pseShiftFlag_) {
+    if (pseShiftFlag_ || (sOfQuery_ > NUM1 && isGqa_)) { // pfa gs1合轴 s1base=32 s2base=512 dbase=64
       sInnerSize_ = NUM512;
     }
   } else if (headDim_ <= NUM128) {
@@ -3568,6 +3589,14 @@ void IFATilingV2::UpdateTilingKeyConfig() {
 		config = Config_S1Aligned16_S2Aligned256_DAligned256_DVAligned256;
 	} else if (sInner == 128 && sOuter == 16 && dSize <= 512 && dVsize <= 512) {
 		config = Config_S1Aligned16_S2Aligned128_DAligned512_DVAligned512;
+	} else if (sInner == 512 && sOuter == 32 && dSize <= 64 && dVsize <= 64) { // 以下为PFA伪量化合轴场景 32:s1base 512:s2base 64:dbase
+		config = Config_S1Aligned32_S2Aligned512_DAligned64_DVAligned64;
+	} else if (sInner == 512 && sOuter == 32 && dSize <= 128 && dVsize <= 128) { // 32:s1base 512:s2base 128:dbase
+		config = Config_S1Aligned32_S2Aligned512_DAligned128_DVAligned128;
+	} else if (sInner == 256 && sOuter == 32 && dSize <= 256 && dVsize <= 256) { // 32:s1base 256:s2base 256:dbase
+		config = Config_S1Aligned32_S2Aligned256_DAligned256_DVAligned256;
+	} else if (sInner == 128 && sOuter == 32 && dSize <= 512 && dVsize <= 512) { // 32:s1base 128:s2base 512:dbase
+		config = Config_S1Aligned32_S2Aligned128_DAligned512_DVAligned512;
 	} else {
         OP_LOGE(ifaContext_->opName, "The combination of parameters S1, S2, D, DV is not supported!");
     }

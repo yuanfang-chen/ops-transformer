@@ -1030,11 +1030,17 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::Bmm2DataCop
         dataCopyParams.srcStride = (dSizeAligned64 - constInfo.dSizeV) >> 4;
     }
     dataCopyParams.dstStride = constInfo.attentionOutStride;
+    dataCopyParams.blockCount = runInfo.vec2S1RealSize;
+
     int64_t attenOutOffset = constInfo.dSizeV;
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         attenOutOffset = constInfo.n2GDv;
         if constexpr (isInfer) {
-            if (constInfo.isGqa == 1) {
+            if (constInfo.isPfaGS1Merge) {
+                attenOutOffset = 0;
+                dataCopyParams.blockLen *= constInfo.gSize;
+                dataCopyParams.blockCount /= constInfo.gSize;
+            } else if (constInfo.isGqa) {
                 attenOutOffset = constInfo.dSizeV;
             }
         }
@@ -1042,7 +1048,11 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::Bmm2DataCop
         if (constInfo.layoutType == (uint8_t)LayOutTypeEnum::LAYOUT_BSH) {
             attenOutOffset = constInfo.n2GDv;
             if constexpr (isInfer) {
-                if (constInfo.isGqa == 1) {
+                if (constInfo.isPfaGS1Merge) {
+                    attenOutOffset = 0;
+                    dataCopyParams.blockLen *= constInfo.gSize;
+                    dataCopyParams.blockCount /= constInfo.gSize;
+                } else if (constInfo.isGqa) {
                     attenOutOffset = constInfo.dSizeV;
                 }
             }
@@ -1055,9 +1065,25 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::Bmm2DataCop
             }
         }
     }
-    dataCopyParams.blockCount = runInfo.vec2S1RealSize;
-    DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset], 
+    
+    if constexpr (isInfer) {
+        if (constInfo.isPfaGS1Merge && dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
+            for (int64_t i = 0; i < runInfo.vec2S1BaseSize / constInfo.gSize; i++) {
+                attenOutOffset = i * constInfo.dSizeV * constInfo.gSize * constInfo.n2Size;
+                dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
+                dataCopyParams.blockCount = constInfo.gSize;
+                dataCopyParams.dstStride = 0;
+                DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + attenOutOffset],
+                    attenOut[i * constInfo.gSize * dSizeAligned64], dataCopyParams);
+            }
+        } else {
+            DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
+                attenOut, dataCopyParams);
+        }
+    } else {
+        DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
             attenOut, dataCopyParams);
+    }
 }
 
 ANTIQUANT_TEMPLATES_DEF_NO_DEFAULT
