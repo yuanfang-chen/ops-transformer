@@ -40,7 +40,7 @@
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGatherPaKvCacheGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnGatherPaKvCache”接口执行计算。
 
-- `aclnnStatus aclnnGatherPaKvCacheGetWorkspaceSize(const aclTensor *keyCache, const aclTensor *valueCache, const aclTensor *blockTables, const aclTensor *seqLens, const aclTensor *keyRef, const aclTensor *valueRef, const aclTensor *seqOffsetOptional, char* cacheMode, const bool isSeqLensCumsum, uint64_t *workspaceSize, aclOpExecutor **executor)`
+- `aclnnStatus aclnnGatherPaKvCacheGetWorkspaceSize(const aclTensor *keyCache, const aclTensor *valueCache, const aclTensor *blockTables, const aclTensor *seqLens, aclTensor *keyRef, aclTensor *valueRef, const aclTensor *seqOffsetOptional, char* cacheMode, bool isSeqLensCumsum, uint64_t *workspaceSize, aclOpExecutor **executor)`
 - `aclnnStatus aclnnGatherPaKvCache(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)`
 
 ## aclnnGatherPaKvCacheGetWorkspaceSize

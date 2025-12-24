@@ -99,7 +99,7 @@
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnScatterPaKvCacheGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnScatterPaKvCache”接口执行计算。
 
-* `aclnnStatus aclnnScatterPaKvCacheGetWorkspaceSize(const aclTensor *key, const aclTensor *keyCacheRef, const aclTensor *slotMapping, const aclTensor *value, const aclTensor *valueCacheRef, const aclTensor *compressLensOptional, const aclTensor *compressSeqOffsetOptional, const aclTensor *seqLensOptional, char *cacheModeOptional, char *scatterModeOptional, const aclIntArray *stridesOptional, const aclIntArray *offsetsOptional, uint64_t *workspaceSize, aclOpExecutor **executor)`
+* `aclnnStatus aclnnScatterPaKvCacheGetWorkspaceSize(const aclTensor *key, aclTensor *keyCacheRef, const aclTensor *slotMapping, const aclTensor *value, aclTensor *valueCacheRef, const aclTensor *compressLensOptional, const aclTensor *compressSeqOffsetOptional, const aclTensor *seqLensOptional, char *cacheModeOptional, char *scatterModeOptional, const aclIntArray *stridesOptional, const aclIntArray *offsetsOptional, uint64_t *workspaceSize, aclOpExecutor **executor)`
 * `aclnnStatus aclnnScatterPaKvCache(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)`
 
 ## aclnnScatterPaKvCacheGetWorkspaceSize
