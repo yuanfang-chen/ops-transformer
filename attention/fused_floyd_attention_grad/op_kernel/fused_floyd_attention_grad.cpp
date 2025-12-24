@@ -95,7 +95,7 @@ extern "C" __global__ __aicore__ void fused_floyd_attention_grad(
                                               MM_ND_OUT_NOALIGN, BNGSD, MM_ND_OUT_NOALIGN, INPUT_DISABLE);
         return;    
     } else if (TILING_KEY_IS(10000000000100022434UL)) {
-        //  attention_mask:0, pse:0, drop:0, mm_out:nd
+        //  attention_mask:1, pse:0, drop:0, mm_out:nd
         INVOKE_FFAG_GENERAL_S1S2_BN2GS1S2_IMPL(bfloat16_t, INPUT_ENABLE, INPUT_DISABLE, INPUT_DISABLE,
                                               MM_ND_OUT_NOALIGN, BNGSD, MM_ND_OUT_NOALIGN, INPUT_DISABLE);
         return;
@@ -111,7 +111,7 @@ extern "C" __global__ __aicore__ void fused_floyd_attention_grad(
                                               MM_ND_OUT_NOALIGN, BNGSD, MM_ND_OUT_NOALIGN, INPUT_DISABLE);
         return;    
     } else if (TILING_KEY_IS(10000000000100023434UL)) {
-        //  attention_mask:0, pse:0, drop:0, mm_out:nd
+        //  attention_mask:1, pse:0, drop:0, mm_out:nd
         INVOKE_FFAG_GENERAL_S1S2_BN2GS1S2_IMPL(half, INPUT_ENABLE, INPUT_DISABLE, INPUT_DISABLE,
                                               MM_ND_OUT_NOALIGN, BNGSD, MM_ND_OUT_NOALIGN, INPUT_DISABLE);
         return;

@@ -141,13 +141,16 @@ static ge::graphStatus CheckBaseInput(gert::TilingContext *context){
     auto &valueShape = context->GetInputShape(VALUE1_INPUT_INDEX)->GetStorageShape();
     auto &key2Shape = context->GetInputShape(KEY1_INPUT_INDEX)->GetStorageShape();
     auto &value2Shape = context->GetInputShape(VALUE1_INPUT_INDEX)->GetStorageShape();
-    OP_CHECK_IF((queryShape.GetDim(0) != keyShape.GetDim(0)), OP_LOGE(context, "query or key shape is invalid"),
-            return ge::GRAPH_FAILED);
-    OP_CHECK_IF((queryShape.GetDim(3) != keyShape.GetDim(3)), OP_LOGE(context, "query or key shape is invalid"),
-            return ge::GRAPH_FAILED);
+    OP_CHECK_IF(
+        (queryShape.GetDim(0) != keyShape.GetDim(0) ||
+        queryShape.GetDim(1) != keyShape.GetDim(1) ||
+        queryShape.GetDim(4) != keyShape.GetDim(4)),
+        OP_LOGE(context, "query or key shape is invalid"),
+        return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF((keyShape.GetDim(3) < valueShape.GetDim(3)),
-        OP_LOGE(context, "key or value shape is invalid"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF((keyShape != valueShape), OP_LOGE(context, "key1's shape should be same as value1"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF((key2Shape != value2Shape), OP_LOGE(context, "key2's shape should be same as value2"), return ge::GRAPH_FAILED);
+
     return ge::SUCCESS;
 }
 
