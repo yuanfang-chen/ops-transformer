@@ -406,10 +406,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
     // attrs
     const char *inputLayout = context_->GetAttrs()->GetAttrPointer<char>(static_cast<size_t>(AttrIndex::INPUT_LAYOUT));
     auto selected_block_count = indicesShape.GetDim(dimSize - 1);
-    if (selected_block_count != 2048) {
-        OP_LOGE(context_, "SparseFlashAttentionGrad only support selected_block_count=2048 now, but got selected_block_count=%ld.", selected_block_count);
-        return ge::GRAPH_FAILED;
-    }
+
     auto selected_block_size =
         *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SELECTED_BLOCK_SIZE));
     auto sparse_mode = *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SPARSE_MODE));
