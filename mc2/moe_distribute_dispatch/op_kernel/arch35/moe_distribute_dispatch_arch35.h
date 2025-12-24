@@ -681,10 +681,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ProcessToke
         auto tok = tokenInQue_.AllocTensor<XType>();
          // Initialize local tensor with zeros for mx/pertile quantations
         LocalTensor<uint8_t> singleByteTok = tok.template ReinterpretCast<uint8_t>();
-        if constexpr (((QuantMode == MXFP8_E5M2_QUANT_MODE) || (QuantMode == MXFP8_E4M3_QUANT_MODE))) {
-            Duplicate(singleByteTok, QUANT_PADDING_VALUE, Align64(axisH_) * sizeof(XType));
-        } else if constexpr (((QuantMode == FP8_E5M2_PERTILE_QUANT_MODE) ||
-                              (QuantMode == FP8_E4M3_PERTILE_QUANT_MODE))) {
+        if constexpr (((QuantMode == MXFP8_E5M2_QUANT_MODE) || (QuantMode == MXFP8_E4M3_QUANT_MODE) ||
+                    (QuantMode == FP8_E5M2_PERTILE_QUANT_MODE) || (QuantMode == FP8_E4M3_PERTILE_QUANT_MODE))) {
             Duplicate(singleByteTok, QUANT_PADDING_VALUE, Align128(axisH_) * sizeof(XType));
         }
         SyncFunc<HardEvent::V_MTE2>();
