@@ -45,7 +45,7 @@ pytest/
 
 在pytest文件夹路径下执行：
 
-### 方式一：运行泛化测试用例
+### 运行方式：运行泛化测试用例
 单算子直调+图模式
 ```bash
 python3 -m pytest -rA -s test.py
@@ -60,14 +60,3 @@ python3 -m pytest -rA -s test.py -v -m ci
 ```bash
 python3 -m pytest -rA -s test.py -v -m graph
 ```
-
-### 方式二：运行Excel测试用例
-```bash
-EXCEL_FILE="./test_excel/IFA_FIA_Case_PA.xlsx" SHEET_NAME="IFA_FIA_Case" python3 -m pytest -rA -s test_excel.py
-EXCEL_FILE="./test_excel/IFA_FIA_Case_PA.xlsx" SHEET_NAME="IFA_FIA_Case" python3 -m pytest -rA -s test_excel.py -v -m ci
-EXCEL_FILE="./test_excel/IFA_FIA_Case_PA.xlsx" SHEET_NAME="IFA_FIA_Case" python3 -m pytest -rA -s test_excel.py -v -m graph
-```
-
-## 测试用例生成
-
-网站生成的excel测试用例文件存放在 `test_excel/` 目录下。
