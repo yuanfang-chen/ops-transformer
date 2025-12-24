@@ -203,7 +203,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
           <td>x1ScaleOptional</td>
           <td>输入</td>
           <td>MatMul计算后的pertoken去量化系数，即计算公式中的x1ScaleOptional。</td>
-          <td><ul><li>pertoken场景下，x1为(b, s, k)时shape为(b*s)，x1为(m, k)时shape为(m)。</li><li>perblock场景下，x1为(b, s, k)时shape为[b, ceilDiv(s, 128), ceilDiv(k, 128)]，x1为(m, k)时shape为[ceilDiv(m, 128), ceilDiv(k, 128)]。</li><li>数据类型为FLOAT8_E8M0时，shape为[m, ceilDiv(k, 64), 2], x1为FLOAT4_E2M1、FLOAT4_E1M2时，必须保证ceilDiv(k, 32)为偶数。</li></ul></td>
+          <td><ul><li>pertoken场景下，x1为(b, m, k)时shape为(b*m)，x1为(m, k)时shape为(m)。</li><li>perblock场景下，x1为(b, m, k)时shape为[b, ceilDiv(m, 128), ceilDiv(k, 128)]，x1为(m, k)时shape为[ceilDiv(m, 128), ceilDiv(k, 128)]。</li><li>数据类型为FLOAT8_E8M0时，shape为[m, ceilDiv(k, 64), 2], x1为FLOAT4_E2M1、FLOAT4_E1M2时，必须保证ceilDiv(k, 32)为偶数。</li></ul></td>
           <td>FLOAT32、FLOAT8_E8M0</td>
           <td>ND</td>
           <td>1-3</td>

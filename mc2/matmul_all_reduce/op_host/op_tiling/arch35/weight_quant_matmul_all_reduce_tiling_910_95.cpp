@@ -336,7 +336,7 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::CheckAxisSize()
     const uint64_t k = MatmulAllReduceTilingBase::GetKValue();
     OP_TILING_CHECK(
         k > static_cast<uint64_t>(UINT16_MAX),
-        VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "The size of n-axis=%lu exceeds the upper limit=%d.",
+        VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "The size of k-axis=%lu exceeds the upper limit=%d.",
                                         k, UINT16_MAX),
         return ge::GRAPH_FAILED);
     const uint64_t n = MatmulAllReduceTilingBase::GetNValue();
@@ -345,13 +345,16 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::CheckAxisSize()
         OP_LOGE(context_->GetNodeName(), "The size of n-axis=%lu exceeds the upper limit=%d.",
                                         n, UINT16_MAX),
         return ge::GRAPH_FAILED);
-  
     OP_TILING_CHECK(
-        (antiQuantType_ == AntiQuantType::PER_GROUP) && ((n % alignDim != 0) || (k % alignDim != 0)),
-        VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "In A16W8/W4/F8 pergroup, K and N must align to 32B, "
+        isA16W8_ && (antiQuantType_ == AntiQuantType::PER_GROUP) && ((n % alignDim != 0) || (k % alignDim != 0)),
+        VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "In A16W8/F8 pergroup, K and N must align to 32, "
                                         "which are [%lu] and [%lu].", k, n),
         return ge::GRAPH_FAILED);
-
+    OP_TILING_CHECK(
+        isA16W4_ && (antiQuantType_ == AntiQuantType::PER_GROUP) && ((n % alignDim != 0) || (k % alignDim != 0)),
+        VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "In A16W4 pergroup, K and N must align to 64, "
+                                        "which are [%lu] and [%lu].", k, n),
+        return ge::GRAPH_FAILED);
     return CheckWeightQuantEmptyTensor();
 }
 

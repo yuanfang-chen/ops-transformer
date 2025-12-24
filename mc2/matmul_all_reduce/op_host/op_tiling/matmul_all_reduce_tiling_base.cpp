@@ -1230,9 +1230,6 @@ bool MatmulAllReduceTilingBase::CheckDequantScaleShape(const uint64_t nValue) co
             scaleDimNum),
         return false);
     const auto scaleShapeSize = static_cast<size_t>(dequantScaleShape->GetStorageShape().GetShapeSize());
-    if (scaleShapeSize == 1) {
-        return true;
-    }
 
     if (scenario_ == AllReduceScenario::MXFP4) {
         return CheckMXScenarioScaleShape(nValue, GetKValue(), dequantScaleShape, false, true);
@@ -1241,7 +1238,8 @@ bool MatmulAllReduceTilingBase::CheckDequantScaleShape(const uint64_t nValue) co
     }
 
     OP_TILING_CHECK(
-        scaleShapeSize != nValue,
+        !((quantType_ == Mc2QuantType::PER_TENSOR && scaleShapeSize == 1) ||
+        (quantType_ == Mc2QuantType::PER_CHANNEL && scaleShapeSize == nValue)),
         VECTOR_INNER_ERR_REPORT_TILING(
             opName_,
             "Expected shape of dequantScale(x2Scale) to be [1] or [n] or [1,n] for "
@@ -1295,12 +1293,15 @@ bool MatmulAllReduceTilingBase::CheckPertokenScaleShape(const uint64_t mValue, c
 
     OP_LOGD(opName_, "dim of pertokenScale(x1Scale) is %lu.", pertokenScaleDimNum);
 
+    // x1为三维时GetMValue获取的mValue是m轴与batch的乘积，需要除以batch得到实际的m轴
     if (scenario_ == AllReduceScenario::MXFP4) {
+        uint64_t mOfx1 = mValue / GetBatchValue();
         return CheckMXScenarioScaleShape(
-            mValue, kValue, pertokenScaleShape, true, true);
+            mOfx1, kValue, pertokenScaleShape, true, true);
     } else if (scenario_ == AllReduceScenario::MXFP8) {
+        uint64_t mOfx1 = mValue / GetBatchValue();
         return CheckMXScenarioScaleShape(
-            mValue, kValue, pertokenScaleShape, true, false);
+            mOfx1, kValue, pertokenScaleShape, true, false);
     }
 
     OP_TILING_CHECK(
