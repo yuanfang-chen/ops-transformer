@@ -69,6 +69,7 @@ TILING_DATA_FIELD_DEF(uint32_t, attenMaskStride)
 TILING_DATA_FIELD_DEF(int32_t, preToken)
 TILING_DATA_FIELD_DEF(int32_t, nextToken)
 TILING_DATA_FIELD_DEF(uint32_t, isRowInvalid)
+TILING_DATA_FIELD_DEF(uint32_t, isExistRowInvalid)
 TILING_DATA_FIELD_DEF(uint32_t, sparseMode)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionMaskParamsOp, FusedInferAttentionMaskParams)

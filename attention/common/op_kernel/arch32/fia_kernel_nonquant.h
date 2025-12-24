@@ -239,6 +239,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.preToken = tilingData->maskParams.preToken;
     constInfo.nextToken = tilingData->maskParams.nextToken;
     constInfo.isRowInvalid = (tilingData->maskParams.isRowInvalid != 0);
+    constInfo.isExistRowInvalid = (tilingData->maskParams.isExistRowInvalid != 0);
     constInfo.isLegacyIfa = tilingData->baseParams.isLegacyIfa;
     constInfo.softmaxLseFlag = tilingData->baseParams.softmaxLseFlag;
 
@@ -281,9 +282,15 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline bool FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBlockType>::IsInitAttentionOutGm()
 {
-    // TND、NTD场景且无attentionMask,不需要初始化
+    // TND、NTD场景且不存在无效行,不需要初始化
     if constexpr (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
-        if (!constInfo.attenMaskFlag) {
+        /*
+         * tiling中提前算好了是否可能出现无效行, 正常从tiling中提取这个标记位(constInfo.isExistRowInvalid),
+         * 对于FD场景, 有可能整体是没有无效行的, 但当前FD处理的这部分s2是无效的。为规避潜在的风险，只要带mask(constInfo.isExistRowInvalid)
+         * 就认为可能存在无效行
+         */
+        bool isExistRowInvalid = FLASH_DECODE ? constInfo.attenMaskFlag : constInfo.isExistRowInvalid;
+        if (!isExistRowInvalid) {
             return false;
         }
     }
