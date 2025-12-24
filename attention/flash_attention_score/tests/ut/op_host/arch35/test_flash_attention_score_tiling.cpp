@@ -258,3 +258,539 @@ TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_2)
     std::vector<size_t> expectWorkspaces = {17966592};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
+
+// TND d=126
+TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_3)
+{
+    int64_t actual_seq_qlist[] = {169,333};
+    int64_t actual_seq_kvlist[] = {169,297};
+    optiling::FlashAttentionScoreCompileInfo compileInfo = {
+        64, 32, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+    gert::TilingContextPara tilingContextPara(
+        "FlashAttentionScore",
+        {
+         // q
+        {{{333, 4, 126}, {333, 4, 126}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // k: S2=256, B=1, H2=128
+         {{{297, 4, 126}, {297, 4, 126}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // v: S2=256, B=1, H2=128
+         {{{297, 4, 126}, {297, 4, 126}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // real_shift
+         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // drop_mask
+         {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // padding_mask
+         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // atten_mask: S1=256, S2=256
+        {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // prefix
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_qlen
+          {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND,true,actual_seq_qlist},
+         // actual_seq_kvlen
+         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND,true,actual_seq_kvlist},
+         // q_start_idx
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // kv_start_idx
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},         
+         // dScaleQ
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleK
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleV
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // queryRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // keyRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         },
+        {
+         // 输出Tensor
+         // softmaxMax: B=1, N1=1, S1=256, 8
+        {{{333, 4, 8}, {333, 4, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxSum: B=1, N1=1, S1=256, 8
+         {{{333, 4, 8}, {333, 4, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxOut
+         {{{0,0,0}, {0,0,0}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // attentionOut
+         {{{333, 4, 126}, {333, 4, 126}}, ge::DT_FLOAT16, ge::FORMAT_ND}
+         },
+        {
+        {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.1767766f)},
+         {"keep_prob", Ops::Transformer::AnyValue::CreateFrom<float>(1.0f)},
+         {"pre_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"next_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"head_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(4)},
+         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("TND")},
+         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"seed", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+         {"offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"softmax_out_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
+         },
+                &compileInfo,"Ascend910_95",64,262144,8192);
+    int64_t expectTilingKey = 2328361009230643776;
+    std::string expectTilingData = "2 4 1 333 169 0 126 126 0 4482494421136310272 65536 65536 0 0 0 260 0 0 0 0 65536 65536 2 0 255 0 0 0 0 0 0 0 0 0 0 0 24 24 3 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+// fp8 + scale
+TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_4)
+{
+    optiling::FlashAttentionScoreCompileInfo compileInfo = {
+        64, 32, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+    gert::TilingContextPara tilingContextPara(
+        "FlashAttentionScore",
+        {
+         // q
+        {{{2, 128, 9, 16}, {2, 128, 9, 16}}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
+         // k: S2=256, B=1, H2=128
+         {{{2, 256, 3, 16}, {2, 256, 3, 16}}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
+         // v: S2=256, B=1, H2=128
+         {{{2, 256, 3, 16}, {2, 256, 3, 16}}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
+         // real_shift
+        //  {{{2, 9, 1, 256}, {2, 9, 1, 256}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // drop_mask
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // padding_mask
+         {{{}, {}}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},
+         // atten_mask: S1=256, S2=256
+         {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // prefix
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_qlen
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_kvlen
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // q_start_idx
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // kv_start_idx
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},         
+         // dScaleQ
+         {{{2, 9, 1, 1}, {2, 9, 1, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleK
+         {{{2, 3, 1, 1}, {2, 3, 1, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleV
+         {{{2, 3, 1, 1}, {2, 3, 1, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // queryRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // keyRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         },
+        {
+         // 输出Tensor
+         // softmaxMax: B=1, N1=1, S1=256, 8
+         {{{2, 9, 128, 8}, {2, 9, 128, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxSum: B=1, N1=1, S1=256, 8
+         {{{2, 9, 128, 8}, {2, 9, 128, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxOut
+         {{{2, 128, 9, 16}, {2, 128, 9, 16}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // attentionOut
+         {{{2, 128, 9, 16}, {2, 128, 9, 16}}, ge::DT_FLOAT, ge::FORMAT_ND}
+         },
+        {
+        {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.25f)},
+         {"keep_prob", Ops::Transformer::AnyValue::CreateFrom<float>(1.0f)},
+         {"pre_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"next_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"head_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(9)},
+         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BSND")},
+         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"seed", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"softmax_out_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("same_as_input")}
+         },
+                &compileInfo,"Ascend910_95",64,262144,8192);
+    int64_t expectTilingKey = 2904821760729023248;
+    std::string expectTilingData = "2 3 3 128 256 0 16 16 0 4503599628435849216 65536 65536 0 0 0 257 0 0 0 0 0 0 0 0 255 0 0 0 0 0 0 0 0 0 0 0 18 18 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+// fp8 e5m2+band+attenmask =ss pse=bn
+TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_5)
+{
+    optiling::FlashAttentionScoreCompileInfo compileInfo = {
+        64, 32, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+    gert::TilingContextPara tilingContextPara(
+        "FlashAttentionScore",
+        {
+         // q
+        {{{2, 700, 128}, {2, 700, 128}}, ge::DT_FLOAT8_E5M2 , ge::FORMAT_ND},
+         // k: S2=256, B=1, H2=128
+         {{{2, 856, 128}, {2, 856, 128}}, ge::DT_FLOAT8_E5M2 , ge::FORMAT_ND},
+         // v: S2=256, B=1, H2=128
+         {{{2, 856, 128}, {2, 856, 128}}, ge::DT_FLOAT8_E5M2 , ge::FORMAT_ND},
+         // real_shift
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // drop_mask
+         {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // padding_mask
+         {{{}, {}}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND},
+         // atten_mask: S1=256, S2=256
+         {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // prefix
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_qlen
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_kvlen
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // q_start_idx
+          {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},
+         // kv_start_idx
+         {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},         
+         // dScaleQ
+         {{{2, 1, 6, 1}, {2, 1, 6, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleK
+         {{{2, 1, 4, 1}, {2, 1, 4, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleV
+         {{{2, 1, 4, 1}, {2, 1, 4, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // queryRope
+         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+         // keyRope
+         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+         },
+        {
+         // 输出Tensor
+         // softmaxMax: B=1, N1=1, S1=256, 8
+         {{{2, 1, 700, 8}, {2, 1, 700, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxSum: B=1, N1=1, S1=256, 8
+         {{{2, 1, 700, 8}, {2, 1, 700, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxOut
+         {{{2, 700, 128}, {2, 700, 128}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // attentionOut
+         {{{2, 700, 128}, {2, 700, 128}}, ge::DT_FLOAT16, ge::FORMAT_ND}
+         },
+        {
+        {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.08838834f)},
+         {"keep_prob", Ops::Transformer::AnyValue::CreateFrom<float>(1.0f)},
+         {"pre_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"next_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"head_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BSH")},
+         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"seed", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+         {"offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+         {"softmax_out_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
+         },
+                &compileInfo,"Ascend910_95",64,262144,8192);
+    int64_t expectTilingKey = 3481282513837753104;
+    std::string expectTilingData = "2 1 1 700 856 0 128 128 0 4446465645592182784 65536 65536 0 0 0 257 0 0 0 0 0 0 2 0 255 0 0 0 0 0 0 0 0 0 0 0 12 12 6 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+// BF16
+TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_6)
+{
+    optiling::FlashAttentionScoreCompileInfo compileInfo = {
+        64, 32, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+    gert::TilingContextPara tilingContextPara(
+        "FlashAttentionScore",
+        {
+         // q
+        {{{1, 1, 128, 384}, {1, 1, 128, 384}}, ge::DT_BF16, ge::FORMAT_ND},
+         // k: S2=256, B=1, H2=128
+         {{{1, 1, 128, 384}, {1, 1, 128, 384}}, ge::DT_BF16, ge::FORMAT_ND},
+         // v: S2=256, B=1, H2=128
+         {{{1, 1, 128, 384}, {1, 1, 128, 384}}, ge::DT_BF16, ge::FORMAT_ND},
+         // real_shift
+         {{{1, 1, 128, 128}, {1, 1, 128, 128}}, ge::DT_BF16, ge::FORMAT_ND},
+         // drop_mask
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // padding_mask
+         {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+         // atten_mask: S1=256, S2=256
+         {{{128, 128}, {128, 128}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // prefix
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_qlen
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_kvlen
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // q_start_idx
+          {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},
+         // kv_start_idx
+         {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},         
+         // dScaleQ
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleK
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleV
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // queryRope
+         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+         // keyRope
+         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+         },
+        {
+         // 输出Tensor
+         // softmaxMax: B=1, N1=1, S1=256, 8
+         {{{1, 1, 128, 8}, {1, 1, 128, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxSum: B=1, N1=1, S1=256, 8
+         {{{1, 1, 128, 8}, {1, 1, 128, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxOut
+         {{{1, 1, 128, 384}, {1, 1, 128, 384}}, ge::DT_BF16, ge::FORMAT_ND},
+         // attentionOut
+         {{{1, 1, 128, 384}, {1, 1, 128, 384}}, ge::DT_BF16, ge::FORMAT_ND}
+         },
+        {
+        {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.125f)},
+         {"keep_prob", Ops::Transformer::AnyValue::CreateFrom<float>(0.5f)},
+         {"pre_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"next_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"head_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BNSD")},
+         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+         {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+         {"seed", Ops::Transformer::AnyValue::CreateFrom<int64_t>(12)},
+         {"offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(33)},
+         {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"softmax_out_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
+         },
+                &compileInfo,"Ascend910_95",64,262144,8192);
+    int64_t expectTilingKey = 2526519393908687664;
+    std::string expectTilingData = "1 1 1 128 128 0 384 384 0 4467570831408496640 2147483647 2147483647 128 128 1 281474993618947 549755813888 1 0 0 2147483647 2147483647 12 33 127 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ";
+    std::vector<size_t> expectWorkspaces = {18546688};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+// basic.cpp cov
+TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_7)
+{
+    optiling::FlashAttentionScoreCompileInfo compileInfo = {
+        64, 32, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+    gert::TilingContextPara tilingContextPara(
+        "FlashAttentionScore",
+        {
+         // q
+        {{{1, 1, 128, 64}, {1, 1, 128, 64}}, ge::DT_BF16, ge::FORMAT_ND},
+         // k: S2=256, B=1, H2=128
+         {{{1, 1, 255, 64}, {1, 1, 255, 64}}, ge::DT_BF16, ge::FORMAT_ND},
+         // v: S2=256, B=1, H2=128
+         {{{1, 1, 255, 64}, {1, 1, 255, 64}}, ge::DT_BF16, ge::FORMAT_ND},
+         // real_shift
+         {{{1}, {1}}, ge::DT_BF16, ge::FORMAT_ND},
+         // drop_mask bnss
+         {{{1, 1, 128,255}, {1, 1, 128,255}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // padding_mask
+         {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+         // atten_mask: S1=256, S2=256
+         {{{2048, 2048}, {2048, 2048}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // prefix
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_qlen
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_kvlen
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // q_start_idx
+          {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},
+         // kv_start_idx
+         {{{1}, {1}}, ge::DT_INT64, ge::FORMAT_ND},         
+         // dScaleQ
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleK
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleV
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // queryRope
+         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+         // keyRope
+         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},
+         },
+        {
+         // 输出Tensor
+         // softmaxMax: B=1, N1=1, S1=256, 8
+         {{{1, 1, 128, 8}, {1, 1, 128, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxSum: B=1, N1=1, S1=256, 8
+         {{{1, 1, 128, 8}, {1, 1, 128, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxOut
+         {{{1, 1, 128, 64}, {1, 1, 128, 64}}, ge::DT_BF16, ge::FORMAT_ND},
+         // attentionOut
+         {{{1, 1, 128, 64}, {1, 1, 128, 64}}, ge::DT_BF16, ge::FORMAT_ND}
+         },
+        {
+        {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.125f)},
+         {"keep_prob", Ops::Transformer::AnyValue::CreateFrom<float>(0.6f)},
+         {"pre_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"next_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"head_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BNSD")},
+         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(4)},
+         {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+         {"seed", Ops::Transformer::AnyValue::CreateFrom<int64_t>(6)},
+         {"offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(24)},
+         {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"softmax_out_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
+         },
+                &compileInfo,"Ascend910_95",64,262144,8192);
+    int64_t expectTilingKey = 2531022991657009712;
+    std::string expectTilingData = "1 1 1 128 255 0 64 64 0 4467570831410174362 65409 127 0 0 1 73183506846581507 8796093022209 2 0 0 128 128 6 24 153 0 0 0 0 0 0 0 0 0 0 0 2 2 2 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 0 2 2 2 ";
+    std::vector<size_t> expectWorkspaces = {16809984};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+// TND d=384
+TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_8)
+{
+    int64_t actual_seq_qlist[] = {64,192};
+    int64_t actual_seq_kvlist[] = {64,192};
+    optiling::FlashAttentionScoreCompileInfo compileInfo = {
+        64, 32, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+    gert::TilingContextPara tilingContextPara(
+        "FlashAttentionScore",
+        {
+         // q
+        {{{192, 4, 384}, {192, 4, 384}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // k: S2=256, B=1, H2=128
+         {{{192, 4, 384}, {192, 4, 384}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // v: S2=256, B=1, H2=128
+         {{{192, 4, 384}, {192, 4, 384}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // real_shift
+         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // drop_mask
+         {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // padding_mask
+         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // atten_mask: S1=256, S2=256
+        {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // prefix
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // actual_seq_qlen
+          {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND,true,actual_seq_qlist},
+         // actual_seq_kvlen
+         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND,true,actual_seq_kvlist},
+         // q_start_idx
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // kv_start_idx
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},         
+         // dScaleQ
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleK
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleV
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // queryRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // keyRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         },
+        {
+         // 输出Tensor
+         // softmaxMax: B=1, N1=1, S1=256, 8
+        {{{192, 4, 8}, {192, 4, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxSum: B=1, N1=1, S1=256, 8
+         {{{192, 4, 8}, {192, 4, 8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxOut
+         {{{0,0,0}, {0,0,0}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+         // attentionOut
+         {{{192, 4, 384}, {192, 4, 384}}, ge::DT_FLOAT16, ge::FORMAT_ND}
+         },
+        {
+        {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.0510310f)},
+         {"keep_prob", Ops::Transformer::AnyValue::CreateFrom<float>(1.0f)},
+         {"pre_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"next_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"head_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(4)},
+         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("TND")},
+         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"seed", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+         {"offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"softmax_out_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
+         },
+                &compileInfo,"Ascend910_95",64,262144,8192);
+    int64_t expectTilingKey = 2328361010304385856;
+    std::string expectTilingData = "2 4 1 192 128 0 384 384 0 4418319178713268224 65536 65536 0 0 0 260 0 0 0 0 65536 65536 2 0 255 0 0 0 0 0 0 0 0 0 0 0 8 8 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 3 4 5 6 7 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 ";
+    std::vector<size_t> expectWorkspaces = {30932992};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+// TND d=256
+TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_9)
+{
+    int64_t actual_seq_qlist[3] = {13,14,81};
+    int64_t actual_seq_kvlist[3] = {13,14,81};
+    int64_t prefix[3] = {10, 12, 60};
+    optiling::FlashAttentionScoreCompileInfo compileInfo = {
+        64, 32, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+    gert::TilingContextPara tilingContextPara(
+        "FlashAttentionScore",
+        {
+         // q
+        {{{81,2,256}, {81,2,256}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // k: S2=256, B=1, H2=128
+         {{{81,2,256}, {81,2,256}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // v: S2=256, B=1, H2=128
+         {{{81,2,256}, {81,2,256}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // real_shift
+         {{{2}, {2}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // drop_mask
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // padding_mask
+         {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},
+         // atten_mask: S1=256, S2=256
+        //  {{{3072,2048}, {3072,2048}}, ge::DT_UINT8, ge::FORMAT_ND},
+        {{{}, {}}, ge::DT_UINT8, ge::FORMAT_ND},
+         // prefix
+         {{{3}, {3}}, ge::DT_INT64, ge::FORMAT_ND,true,prefix},
+         // actual_seq_qlen
+          {{{3}, {3}}, ge::DT_INT64, ge::FORMAT_ND,true,actual_seq_qlist},
+         // actual_seq_kvlen
+         {{{3}, {3}}, ge::DT_INT64, ge::FORMAT_ND,true,actual_seq_kvlist},
+         // q_start_idx
+          {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+         // kv_start_idx
+         {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},         
+         // dScaleQ
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleK
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // dScaleV
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // queryRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // keyRope
+         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         },
+        {
+         // 输出Tensor
+         // softmaxMax: B=1, N1=1, S1=256, 8
+         {{{81,2,8}, {81,2,8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxSum: B=1, N1=1, S1=256, 8
+         {{{81,2,8}, {81,2,8}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // softmaxOut
+         {{{0, 0, 0}, {0, 0, 0}}, ge::DT_FLOAT, ge::FORMAT_ND},
+         // attentionOut
+         {{{81,2,256}, {81,2,256}}, ge::DT_FLOAT, ge::FORMAT_ND}
+         },
+        {
+        {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.0625f)},
+         {"keep_prob", Ops::Transformer::AnyValue::CreateFrom<float>(0.7f)},
+         {"pre_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"next_tockens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(65536)},
+         {"head_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+         {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("TND")},
+         {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(6)},
+         {"pse_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+         {"seed", Ops::Transformer::AnyValue::CreateFrom<int64_t>(2)},
+         {"offset", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+         {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
+         {"softmax_out_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("")}
+         },
+                &compileInfo,"Ascend910_95",64,262144,8192);
+    int64_t expectTilingKey = 2458965399229694784;
+    std::string expectTilingData = "3 2 1 81 67 0 256 256 0 4431542034392888115 65536 65536 0 0 1 17179869956 0 2 0 0 65536 65536 2 0 178 0 0 0 0 0 0 0 0 0 0 0 6 6 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 2 3 4 5 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 ";
+    std::vector<size_t> expectWorkspaces = {19136512};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
