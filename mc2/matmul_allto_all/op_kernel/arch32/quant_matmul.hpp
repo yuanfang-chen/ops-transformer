@@ -156,7 +156,7 @@ public:
                 actualPValue = mLoops - commIdx * params.commUtil.p_value;
             }
             if (commIdx >= params.pipeDepth) {
-                WaitEvent(flagIdx+4);
+                WaitEvent(flagIdx + WORKSPACE_STAGES * 2); // 避开matmul-dequant使用的flag_idx(0-3)
             }
             int64_t gmAPingpongSize = L1TileShape::M * params.commUtil.p_value * params.problemShape.n();
 
@@ -326,18 +326,15 @@ public:
             if (params.commUtil.aiv_idx == 0 && params.commUtil.core_idx < params.commUtil.rank_size) {
                 int64_t src_offset = flag_idx * params.commUtil.gm_a_pingpong_size + params.commUtil.gm_a_pingpong_size / params.commUtil.rank_size * params.commUtil.rank;
                 int64_t dst_offset = params.commUtil.core_idx * rank_offset + commIdx * L1TileShape::M * params.commUtil.p_value * (params.problemShape.n() / params.commUtil.rank_size);
-                SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-                SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
                 params.commUtil.CopyGMToGM((__gm__ ElementD*)params.commUtil.buff[params.commUtil.core_idx] + src_offset, reinterpret_cast<__gm__ ElementD*>(params.ptrOut) + dst_offset, token_per_rank);
-                WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-                WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
             }
 
             params.commUtil.SetAndWaitAivSync(flag_idx + WORKSPACE_STAGES);
             params.commUtil.CrossRankSyncV1(FLAG_ONE_IDX, commIdx + 1);
             params.commUtil.SetAndWaitAivSync(flag_idx + WORKSPACE_STAGES);
-
-            params.commUtil.SetAicSync(flag_idx+4);
+            if (commIdx < commCount - 2) {
+                params.commUtil.SetAicSync(flag_idx + WORKSPACE_STAGES * 2); // 避开matmul-dequant使用的flag_idx(0-3)
+            }
         }
         params.commUtil.ResetIpcFlags(1);
     }

@@ -502,8 +502,6 @@ ge::graphStatus MatmulAlltoAllTiling910::CheckShapeInfo(MatmulAlltoAllInfo &info
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
     info.N = (info.K == x2Dim0) ? x2Dim1 : x2Dim0;
     if (x1Dtype == ge::DT_INT8) {
-        orgM = info.M;
-        orgN = info.N;
         const gert::StorageShape *x1ScaleShape = context_->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
         const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
         uint64_t x1ScaleShapeDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
@@ -594,6 +592,8 @@ void MatmulAlltoAllTiling910::CalTilingParam(CoCTiling &cocTilingData, const std
         cocTilingData.k0 = DEFAULT_COL;
         cocTilingData.n0 = cocTilingData.m0 == DEFAULT_ROW ? DEFAULT_COL : DEFAULT_ROW;
     }
+    tileM0 = cocTilingData.m0;
+    tileN0 = cocTilingData.n0;
 }
 
 void MatmulAlltoAllTiling910::DoTwoRankTiling(CoCTiling &cocTilingData, MatmulAlltoAllInfo &info)
@@ -649,7 +649,7 @@ ge::graphStatus MatmulAlltoAllTiling910::DoOpTiling()
     GE_ASSERT_GRAPH_SUCCESS(CheckOpInputInfo(info));
     GE_ASSERT_GRAPH_SUCCESS(DoMmCommTiling(tilingData->cocTiling, info));
     GE_ASSERT_GRAPH_SUCCESS(SetHcclTiling(tilingData));
-    SetTilingKey(info);
+    SetTilingKey();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
     auto aicNum = ascendcPlatform.GetCoreNumAic();
     auto aivNum = ascendcPlatform.GetCoreNumAiv();
@@ -659,7 +659,7 @@ ge::graphStatus MatmulAlltoAllTiling910::DoOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-void MatmulAlltoAllTiling910::SetTilingKey(MatmulAlltoAllInfo &info)
+void MatmulAlltoAllTiling910::SetTilingKey()
 {
     tilingKey_ = INIT_TILINGKEY;
     tilingKey_ += needTransX2 ? TILINGKEY_TRANS_B : 0;
@@ -706,7 +706,7 @@ ge::graphStatus MatmulAlltoAllTiling910::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Get workspace failed"), return ge::GRAPH_FAILED);
     size_t wsSize = SYSTEM_NEED_WORKSPACE;
     if (quantType == SUPPORT_QUANT_MODE) {
-        wsSize += orgM * blockDim * WORKSPACE_NUM * orgN * 4; //4 is sizeof uint32_t
+        wsSize += tileM0 * blockDim * WORKSPACE_NUM * tileN0 * 4; //4 is sizeof uint32_t
     }
     workspaces[0] = wsSize;
     OP_LOGD(opName_, "Workspaces[0] size=%ld", workspaces[0]);

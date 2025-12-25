@@ -85,7 +85,7 @@ private:
 
     int32_t aligned_a;
     int32_t aligned_b;
-    int32_t cal_count;
+    int32_t commCount;
 
     int32_t peer_mem_m;
 
@@ -147,7 +147,7 @@ __aicore__ inline void MatmulAlltoAll<TemplateMMA2AFunc>::AIVInit()
         SetMaskNormImpl();
         SetVectorMask<int32_t>((uint64_t)-1, (uint64_t)-1);
 
-        cal_count = DivCeil(commUtil.m_loop, commUtil.p_value);
+        commCount = DivCeil(commUtil.m_loop, commUtil.p_value);
     }
 }
 
@@ -384,38 +384,35 @@ __aicore__ inline void MatmulAlltoAll<TemplateMMA2AFunc>::Process()
             commUtil.ResetIpcFlags(2);
             PipeBarrier<PIPE_ALL>();
 
-            for (int32_t cal_idx = 0; cal_idx < cal_count; ++cal_idx) {
+            for (int32_t commIdx = 0; commIdx < commCount; ++commIdx) {
                 int32_t actual_p_value = commUtil.p_value;
 
                 int32_t token_total = commUtil.p_value * commUtil.m0 * commUtil.n;
-                if (cal_idx == cal_count - 1) {
-                    token_total = (commUtil.m - (cal_idx * commUtil.m0 * commUtil.p_value)) * commUtil.n;
+                if (commIdx == commCount - 1) {
+                    token_total = (commUtil.m - (commIdx * commUtil.m0 * commUtil.p_value)) * commUtil.n;
                 }
                 int32_t token_per_rank = token_total / rank_size;
 
-                uint64_t flag_idx = cal_idx % MAX_BLOCK_COUNT;
+                uint64_t flag_idx = commIdx % MAX_BLOCK_COUNT;
                 WaitEvent(flag_idx);
 
                 commUtil.SetAndWaitAivSync(flag_idx);
-                commUtil.CrossRankSyncV1(FLAG_ZERO_IDX, cal_idx + 1);
+                commUtil.CrossRankSyncV1(FLAG_ZERO_IDX, commIdx + 1);
                 commUtil.SetAndWaitAivSync(flag_idx);
 
                 int32_t rank_offset = commUtil.m * commUtil.n / rank_size;
                 if (commUtil.aiv_idx == 0 && commUtil.core_idx < rank_size) {
                     int64_t src_offset = flag_idx * commUtil.gm_a_pingpong_size + commUtil.gm_a_pingpong_size / rank_size * rank;
-                    int64_t dst_offset = commUtil.core_idx * rank_offset + cal_idx * commUtil.m0 * commUtil.p_value * (commUtil.n / rank_size);
-                    SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-                    SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
+                    int64_t dst_offset = commUtil.core_idx * rank_offset + commIdx * commUtil.m0 * commUtil.p_value * (commUtil.n / rank_size);
                     commUtil.CopyGMToGM((__gm__ cType *)commUtil.buff[commUtil.core_idx] + src_offset, reinterpret_cast<__gm__ cType*>(cGM_) + dst_offset, token_per_rank);
-                    WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-                    WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
                 }
 
                 commUtil.SetAndWaitAivSync(flag_idx);
-                commUtil.CrossRankSyncV1(FLAG_ONE_IDX, cal_idx + 1);
+                commUtil.CrossRankSyncV1(FLAG_ONE_IDX, commIdx + 1);
                 commUtil.SetAndWaitAivSync(flag_idx);
-
-                commUtil.SetAicSync(flag_idx);
+                if (commIdx < commCount - 2) {
+                    commUtil.SetAicSync(flag_idx);
+                }
             }
             PipeBarrier<PIPE_ALL>();
             commUtil.ResetIpcFlags(1);

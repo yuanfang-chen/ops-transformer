@@ -141,6 +141,7 @@ function(gen_aclnn_with_opdef)
         "all_gather_matmul_v2"
         "all_to_all_all_gather_batch_matmul"
         "allto_allv_grouped_mat_mul"
+        "allto_all_matmul"
         "batch_matmul_reduce_scatter_all_to_all"
         "distribute_barrier"
         "distribute_barrier_v2"
@@ -154,6 +155,7 @@ function(gen_aclnn_with_opdef)
         "matmul_all_reduce"
         "matmul_all_reduce_add_rms_norm"
         "matmul_all_reduce_v2"
+        "matmul_allto_all"
         "matmul_reduce_scatter"
         "matmul_reduce_scatter_v2"
         "moe_distribute_buffer_reset"
@@ -173,6 +175,7 @@ function(gen_aclnn_with_opdef)
         "quant_matmul_all_reduce_v2"
         "quant_matmul_all_reduce_v3"
         "quant_matmul_all_reduce_v4"
+        "quant_matmul_allto_all"
         "weight_quant_matmul_all_reduce"
         "weight_quant_matmul_all_reduce_add_rms_norm"
       )

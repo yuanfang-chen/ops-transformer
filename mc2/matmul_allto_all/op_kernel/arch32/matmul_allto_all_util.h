@@ -183,6 +183,8 @@ public:
         LocalTensor<T> copyTensor0 = ubTensor;
         LocalTensor<T> copyTensor1 = ubTensor[UB_OFFSET];
         int32_t interm_offset = 0;
+        SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
+        SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
         for (int32_t move_idx = 0; interm_offset < copy_size; ++move_idx){
             uint32_t data_size = interm_offset + max_ub_ping_pong_size < copy_size ? max_ub_ping_pong_size : copy_size - interm_offset;
             auto event_id = (move_idx & 1) ? EVENT_ID0 : EVENT_ID1;
@@ -195,6 +197,8 @@ public:
             SetFlag<HardEvent::MTE3_MTE2>(event_id);
             interm_offset += data_size;
         }
+        WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
+        WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
     }
 
     __aicore__ inline void ResetIpcFlags(int32_t num_flags)
