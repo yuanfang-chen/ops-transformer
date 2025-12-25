@@ -26,6 +26,9 @@ constexpr uint64_t K_MAX_VALUE = 65535UL;
 constexpr int64_t RANK_DEFAULT_NUM = -1;
 // FOR NON_QUANT
 const std::vector<uint32_t> NON_QUANT_X_DTYPE_LIST = {ge::DT_BF16, ge::DT_FLOAT16};
+// FOR QUANT
+const std::vector<uint32_t> KC_QUANT_X_DTYPE_LIST = {ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2};
+const std::vector<uint32_t> KC_QUANT_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT};
 // 维度范围
 constexpr uint32_t TWO_DIMS = 2;
 constexpr size_t DIM_ZERO = 0;
@@ -91,6 +94,9 @@ struct Matrix2DShapes {
     uint64_t yDim1;
 };
 
+constexpr uint32_t X1_QUANTMODE_VALUE = 3;
+constexpr uint32_t X2_QUANTMODE_VALUE = 2;
+
 // 定义量化模式枚举，直接取量化组合
 enum class QuantMode : uint8_t {
     NON_QUANT = 0, // 非量化模式
@@ -128,13 +134,14 @@ public:
     static ge::graphStatus GetAndValidateRankSize(const gert::TilingContext *context, const char *opName,
                                                   const char *group, int64_t &rankDim);
     static void GetMatrix2DShapes(const gert::TilingContext *context, Matrix2DShapes &shapes);
-
     static ge::graphStatus CheckAttrsInfo(const gert::TilingContext *context, const char *opName,
                                           const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus CheckShapeInfo(const gert::TilingContext *context, const char *opName,
                                           const OpAttrIndexSchema &indexSchema);
+    static ge::graphStatus CheckKcQuantShapeInfo(const gert::TilingContext *context, const char *opName,
+                                          const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus CheckNonQuantTensorDataType(const gert::TilingContext *context, const char *opName);
-
+    static ge::graphStatus CheckKcQuantTensorDataType(const gert::TilingContext *context, const char *opName);
     static ge::graphStatus SetAttrsInfo(const gert::TilingContext *context, const char *opName,
                                         TilingContextInfo &contextInfo, const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus SetShapeInfo(const gert::TilingContext *context, TilingContextInfo &contextInfo);

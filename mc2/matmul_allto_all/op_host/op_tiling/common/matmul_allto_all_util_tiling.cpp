@@ -167,6 +167,63 @@ ge::graphStatus MatmulAlltoAllTilingUtil::CheckNonQuantTensorDataType(const gert
 }
 
 /**
+ * @brief 量化场景校验参数的DType
+ *
+ * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName  算子名称
+ * @param runInfo 过程信息
+ * @return ge::graphStatus
+ */
+ge::graphStatus MatmulAlltoAllTilingUtil::CheckKcQuantTensorDataType(const gert::TilingContext *context,
+                                                                      const char *opName)
+{
+    // 获取并校验输入张量描述符
+    auto x1TensorDesc = context->GetInputDesc(INPUT_X1_INDEX);
+    auto x2TensorDesc = context->GetInputDesc(INPUT_X2_INDEX);
+    OP_TILING_CHECK((x1TensorDesc == nullptr), OP_LOGE(opName, "the input x1 tensor is invalid."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2TensorDesc == nullptr), OP_LOGE(opName, "the input x2 tensor is invalid."), return ge::GRAPH_FAILED);
+    // 获取数据类型并校验一致性与范围
+    ge::DataType x1Dtype = x1TensorDesc->GetDataType();
+    ge::DataType x2Dtype = x2TensorDesc->GetDataType();
+    OP_TILING_CHECK((x1Dtype != x2Dtype),
+                    OP_LOGE(opName, "The Input x1 and x2 Dtype should be same, but x1 is %s, x2 is %s.",
+                            Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!IsContains(KC_QUANT_X_DTYPE_LIST, x1Dtype),
+                    OP_LOGE(opName,
+                            "The Input x Dtype should be in kc-quant range (float8_e4m3fn/float8_e5m2), but x1 is %s, x2 is %s.",
+                            Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
+                    return ge::GRAPH_FAILED);
+    // 校验 bias 数据类型（如果存在）
+    auto biasTensorDesc = context->GetOptionalInputDesc(INPUT_BIAS_INDEX);
+    QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context, opName);
+    if (biasTensorDesc != nullptr && mode == QuantMode::KC_QUANT) {
+        ge::DataType biasDtype = biasTensorDesc->GetDataType();
+        OP_TILING_CHECK((biasDtype != ge::DT_FLOAT),
+                        OP_LOGE(opName, "bias Dtype should be float, but bias is %s.",
+                                Ops::Base::ToString(biasDtype).c_str()),
+                        return ge::GRAPH_FAILED);
+    }
+    // 校验 scale 张量不为空（量化场景）
+    auto x1ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
+    auto x2ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
+    OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
+                    OP_LOGE(opName, "x1scale tensors should not be null in kc quant mode."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                    OP_LOGE(opName, "x2scale tensors should not be null in kc quant mode."), return ge::GRAPH_FAILED);
+
+    // 校验输出张量数据类型
+    auto yDesc = context->GetOutputDesc(OUTPUT_Y_INDEX);
+    OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName, "output tensor y is nullptr."), return ge::GRAPH_FAILED);
+    ge::DataType yDtype = yDesc->GetDataType();
+    OP_TILING_CHECK(!IsContains(KC_QUANT_Y_DTYPE_LIST, yDtype),
+                    OP_LOGE(opName, "output y Dtype should be float16, bfloat16 or float, but y is %s.",
+                            Ops::Base::ToString(yDtype).c_str()),
+                    return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
  * @brief 校验tiling inputshape非空
  *
  * @param context 框架根据input，output，attrs等信息生成tiling需要的context
@@ -183,6 +240,30 @@ static ge::graphStatus CheckInputShapesValid(const gert::TilingContext *context,
 }
 
 /**
+ * @brief 校验量化tiling inputshape非空
+ *
+ * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称
+ * @return ge::graphStatus
+ */
+static ge::graphStatus CheckKcQuantInputShapesValid(const gert::TilingContext *context, const char *opName)
+{
+    const gert::StorageShape *x1Shape = context->GetInputShape(INPUT_X1_INDEX);
+    const gert::StorageShape *x2Shape = context->GetInputShape(INPUT_X2_INDEX);
+    const gert::StorageShape *x1ScaleShape = context->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
+    const gert::StorageShape *x2ScaleShape = context->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
+    OP_TILING_CHECK((x1Shape == nullptr),
+                    OP_LOGE(opName, "the input x1 shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2Shape == nullptr),
+                    OP_LOGE(opName, "the input x2 shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x1ScaleShape == nullptr),
+                    OP_LOGE(opName, "the input x1Scale shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2ScaleShape == nullptr),
+                    OP_LOGE(opName, "the input x2Scale shape is invalid"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
  * @brief 校验tiling shape的Dim数量信息
  *
  * @param context 框架根据input，output，attrs等信息生成tiling需要的context
@@ -193,6 +274,20 @@ static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, con
 {
     uint64_t dimNum = shape->GetStorageShape().GetDimNum();
     OP_TILING_CHECK((dimNum != 2), OP_LOGE(opName, "The %s dimNum should be two.", shapeName), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
+ * @brief 校验量化tiling scale shape的Dim数量信息
+ *
+ * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称
+ * @return ge::graphStatus
+ */
+static ge::graphStatus CheckScaleShapeDimensions(const gert::StorageShape *shape, const char *shapeName, const char *opName)
+{
+    uint64_t dimNum = shape->GetStorageShape().GetDimNum();
+    OP_TILING_CHECK((dimNum != 1), OP_LOGE(opName, "the %s dimNum should be one.", shapeName), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -313,6 +408,60 @@ ge::graphStatus MatmulAlltoAllTilingUtil::CheckShapeInfo(const gert::TilingConte
     status = CheckShapeDimRange(context, opName, indexSchema);
     if (status != ge::GRAPH_SUCCESS)
         return status;
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
+ * @brief 校验量化tiling输入的shape信息
+ *
+ * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称
+ * @param indexSchema 存放输入参数索引差别的结构体
+ * @return ge::graphStatus
+ */
+ge::graphStatus MatmulAlltoAllTilingUtil::CheckKcQuantShapeInfo(const gert::TilingContext *context, const char *opName,
+                                                         const OpAttrIndexSchema &indexSchema)
+{
+    ge::graphStatus status;
+    // 校验输入量化Input Shape是否为空
+    status = CheckKcQuantInputShapesValid(context, opName);
+    if (status != ge::GRAPH_SUCCESS)
+        return status;
+
+    // 校验维度数目是否合法
+    const gert::StorageShape *x1Shape = context->GetInputShape(INPUT_X1_INDEX);
+    const gert::StorageShape *x2Shape = context->GetInputShape(INPUT_X2_INDEX);
+    const gert::StorageShape *x1ScaleShape = context->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
+    const gert::StorageShape *x2ScaleShape = context->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
+    status = CheckShapeDimensions(x1Shape, "kc quant input x1", opName);
+    if (status != ge::GRAPH_SUCCESS)
+        return status;
+    status = CheckShapeDimensions(x2Shape, "kc quant input x2", opName);
+    if (status != ge::GRAPH_SUCCESS)
+        return status;
+    status = CheckScaleShapeDimensions(x1ScaleShape, "kc quant input x1scale", opName);
+    if (status != ge::GRAPH_SUCCESS)
+        return status;
+    status = CheckScaleShapeDimensions(x2ScaleShape, "kc quant input x2scale", opName);
+    if (status != ge::GRAPH_SUCCESS)
+        return status;
+    // 校验输出
+    const gert::StorageShape *yShape = context->GetOutputShape(OUTPUT_Y_INDEX);
+    OP_TILING_CHECK((yShape == nullptr), OP_LOGE(opName, "the yShape is nullptr."), return ge::GRAPH_FAILED);
+    status = CheckShapeDimensions(yShape, "kc quant output y", opName);
+    if (status != ge::GRAPH_SUCCESS) {
+        return status;
+    }
+    // 校验bias的shape信息
+    status = CheckBiasShape(context, opName, indexSchema);
+    if (status != ge::GRAPH_SUCCESS) {
+        return status;
+    }
+    // 校验shape的dim范围
+    status = CheckShapeDimRange(context, opName, indexSchema);
+    if (status != ge::GRAPH_SUCCESS) {
+        return status;
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -452,7 +601,12 @@ QuantMode MatmulAlltoAllTilingUtil::GetQuantMode(const gert::TilingContext *cont
     if (x1QuantMode == 0 && x2QuantMode == 0 && aType == bType && (aType == ge::DT_BF16 || aType == ge::DT_FLOAT16)) {
         return QuantMode::NON_QUANT;
     }
-    // 当前只有两种场景，K-C量化的准入条件可以在这里添加
+    if (x1QuantMode == X1_QUANTMODE_VALUE && x2QuantMode == X2_QUANTMODE_VALUE) {
+        return QuantMode::KC_QUANT;
+    } else {
+        OP_LOGE(opName, "Quantization mode error, KC quantization X1 should be three, X2 should be two."
+        "currently X1=%d, X2=%d.", x1QuantMode, x2QuantMode);
+    }
     return QuantMode::ERROR;
 }
 
@@ -585,6 +739,5 @@ Mc2CcTilingConfigBuilder Mc2CcTilingConfigBuilder::create(const std::string &gro
 {
     return Mc2CcTilingConfigBuilder(groupName, static_cast<uint32_t>(opType), algConfig);
 }
-
 
 } // namespace MC2Tiling

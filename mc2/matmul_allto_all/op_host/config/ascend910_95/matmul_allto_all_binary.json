@@ -115,7 +115,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -281,7 +281,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -447,7 +447,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -613,7 +613,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -779,7 +779,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -945,7 +945,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -1111,7 +1111,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -1277,7 +1277,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -1443,7 +1443,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -1609,7 +1609,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",

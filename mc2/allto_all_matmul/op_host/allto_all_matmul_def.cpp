@@ -64,12 +64,12 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         this->Output("all2all_out")
-            .ParamType(OPTIONAL)
+            .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         this->Attr("group").AttrType(REQUIRED).String();
-        this->Attr("world_size").AttrType(REQUIRED).Int();
-        this->Attr("all2all_axes").AttrType(OPTIONAL).ListInt({-1, -2});
+        this->Attr("world_size").AttrType(REQUIRED).Int(-1);
+        this->Attr("all2all_axes").AttrType(OPTIONAL).ListInt({-2, -1});
         this->Attr("y_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
         this->Attr("x1_quant_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("x2_quant_mode").AttrType(OPTIONAL).Int(0);

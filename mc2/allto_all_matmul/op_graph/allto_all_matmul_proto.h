@@ -37,8 +37,8 @@ namespace ge {
  *
  * @par Attributes:
  * @li group: A string. Communication domain identifier.
- * @li world_size: An int.
- * @li all2all_axes: An ListInt. Indicate the data direction for All2All communication. Default: {-1, -2}.
+ * @li world_size: An int. Default: -1.
+ * @li all2all_axes: An ListInt. Indicate the data direction for All2All communication. Default: {-2, -1}.
  * @li y_dtype: An int. Declare the output dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) 为28.
  * @li x1_quant_mode: An int. Quantization mode of x1. Default: 0.
  * @li x2_quant_mode: An int. Quantization mode of x2. Default: 0.
@@ -62,8 +62,8 @@ REG_OP(AlltoAllMatmul)
     .OUTPUT(y, TensorType({DT_BF16, DT_FLOAT16}))
     .OUTPUT(all2all_out, TensorType({DT_BF16, DT_FLOAT16}))
     .REQUIRED_ATTR(group, String)
-    .REQUIRED_ATTR(world_size, int)
-    .ATTR(all2all_axes, ListInt, {-1, -2})
+    .REQUIRED_ATTR(world_size, int, -1)
+    .ATTR(all2all_axes, ListInt, {-2, -1})
     .ATTR(y_dtype, Int, 28)
     .ATTR(x1_quant_mode, Int, 0)
     .ATTR(x2_quant_mode, Int, 0)

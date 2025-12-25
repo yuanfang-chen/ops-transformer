@@ -34,7 +34,7 @@ namespace ge {
  * @li y: A matrix Tensor. The type support bfloat16, float16, float. The format supports ND.
  * @par Attributes:
  * @li group: A string. Communication domain identifier.
- * @li world_size: An int.
+ * @li world_size: An int. Default: -1.
  * @li all2all_axes: An ListInt. Indicate the data direction for All2All communication. Default: {-1, -2}.
  * @li y_dtype: An int. Declare the output dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) 为28.
  * @li x1_quant_mode: An int. Quantization mode of x1. Default: 0.
@@ -56,7 +56,7 @@ REG_OP(MatmulAlltoAll)
     .OPTIONAL_INPUT(x2_offset, TensorType({DT_FLOAT}))
     .OUTPUT(y, TensorType({DT_BF16, DT_FLOAT16, DT_FLOAT}))
     .REQUIRED_ATTR(group, String)
-    .REQUIRED_ATTR(world_size, int)
+    .REQUIRED_ATTR(world_size, int, -1)
     .ATTR(all2all_axes, ListInt, {-1, -2})
     .ATTR(y_dtype, Int, 28)
     .ATTR(x1_quant_mode, Int, 0)

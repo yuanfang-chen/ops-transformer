@@ -190,4 +190,56 @@ ge::graphStatus MatmulAllToAllTilingBase::Check2DMatrixMulShapes(const gert::Til
     return ge::GRAPH_SUCCESS;
 }
 
+/**
+ * @brief 校验KC量化MatmulAlltoAll在不同转置情况下的x1,x2,output的shape关系,以及需要满足n/rankSize的整除关系
+ * 需要满足 x1(BS,H1), x2(H2, H1) if trans else x2(H1, H2)
+ * output(BS*rankSize, H2/rankSize)
+ *
+ * @return ge::graphStatus
+ */
+ge::graphStatus MatmulAllToAllTilingBase::CheckKcQuantMatrixMulShapes(const gert::TilingContext *context, const char *opName)
+{
+    OP_TILING_CHECK(Check2DMatrixMulShapes(context, opName) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Kc quant tiling check x1 x2 and y shape failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(CheckKcQuantScaleShapes(context, opName) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Kc quant tiling check scale shape failed."), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
+ * @brief 校验KC量化scale的维度
+ *
+ * @return ge::graphStatus
+ */
+ge::graphStatus MatmulAllToAllTilingBase::CheckKcQuantScaleShapes(const gert::TilingContext *context, const char *opName)
+{
+    bool TransX2Flag = false;
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const bool *isX2TransX2 = attrs->GetAttrPointer<bool>(ATTR_X2_TRANSPOSE_INDEX);
+    
+    if (isX2TransX2) {
+        TransX2Flag = *isX2TransX2;
+    }
+    Matrix2DShapes shapeInfo;
+    MatmulAlltoAllTilingUtil::GetMatrix2DShapes(context, shapeInfo);
+    uint64_t nAxis = TransX2Flag ? shapeInfo.x2Dim0 : shapeInfo.x2Dim1;
+    const gert::StorageShape *x1ScaleShape = context->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
+    const gert::StorageShape *x2ScaleShape = context->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
+    uint64_t x1ScaleDim = x1ScaleShape->GetStorageShape().GetDim(0);
+    uint64_t x2ScaleDim = x2ScaleShape->GetStorageShape().GetDim(0);
+    OP_TILING_CHECK((x1ScaleDim != shapeInfo.x1Dim0),
+                        OP_LOGE(opName,
+                                "the x1Scale dim should be same with the "
+                                "x1 first dim, the x1Scale dim is %lu, the x1 first dim is %lu.",
+                                x1ScaleDim, shapeInfo.x1Dim0),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2ScaleDim != nAxis),
+                        OP_LOGE(opName,
+                                "the x2Scale dim should be same with the "
+                                "x2 second dim, the x2Scale dim is %lu, the x2 second dim is %lu.",
+                                x2ScaleDim, nAxis),
+                        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 } // namespace MC2Tiling
