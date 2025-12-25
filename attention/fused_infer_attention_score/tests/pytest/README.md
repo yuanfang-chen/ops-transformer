@@ -4,7 +4,6 @@
 
 pytest/
 - test.py                      # pytest泛化测试用例运行主程序
-- test_excel.py                   # excel读取测试用例运行主程序, 测试用例的excel文件需放入pytest/test_excel目录下
 - testcases.py                    # 泛化测试用例入参配置
 - check_valid_param.py            # 入参检查及精度对比
 - gqa_no_quant_bnsd_bsnd.py       # CPU侧算子逻辑实现获取golden，npu算子直调
