@@ -25,7 +25,7 @@ constexpr float floatEps = 2.220446049250313e-16;
 /* **************************************************************************************************
  * Muls + Select(optional) + SoftmaxFlashV2 + Cast(fp32->fp16/bf16) + ND2NZ
  * ************************************************************************************************* */
- using namespace MicroAPI;
+using namespace MicroAPI;
 
 constexpr static AscendC::MicroAPI::CastTrait castTraitZero = {
     AscendC::MicroAPI::RegLayout::ZERO,

@@ -23,13 +23,6 @@ using namespace MicroAPI;
 #define VMULSCVT false
 #define DROPOUT false
 
-constexpr static AscendC::MicroAPI::CastTrait castTraitZero = {
-    AscendC::MicroAPI::RegLayout::ZERO,
-    AscendC::MicroAPI::SatMode::SAT,
-    AscendC::MicroAPI::MaskMergeMode::ZEROING,
-    AscendC::RoundMode::CAST_ROUND,
-};
-
 template <typename T, typename T2, uint16_t ubN = 128>
 __aicore__ inline void ProcessVec1DnNoUpdateRegbaseV2(
     const LocalTensor<T2>& dstTensor, const LocalTensor<float>& expSumTensor, const LocalTensor<T>& maxTensor,
