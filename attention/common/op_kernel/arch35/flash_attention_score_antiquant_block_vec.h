@@ -536,6 +536,10 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::setConstAnt
     taskParam.singleSInnerSize = constInfo.s2BaseSize;
     taskParam.sInnerLoopSize = constInfo.sInnerLoopSize;
     taskParam.antiqSeqSize = antiqSeqSize;
+    taskParam.isKvCacheNz = false;
+    if constexpr (isPa) {
+        taskParam.isKvCacheNz = taskParam.paKvShapeType == static_cast<uint32_t>(KvCacheLayout::KV_CACHE_NZ);
+    }
 }
 
 ANTIQUANT_TEMPLATES_DEF_NO_DEFAULT

@@ -2279,10 +2279,6 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
     OP_CHECK_IF((inputKvType_ == ge::DT_FLOAT4_E2M1 || inputKvType_ == ge::DT_FLOAT4_E1M2),
               OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp4, antiquant pa_nz is not supported."),
               return ge::GRAPH_FAILED);
-    OP_CHECK_IF((antiquantMode != PER_CHANNEL_MODE && antiquantMode != PER_TENSOR_HEAD_MODE),  // pa_nz : per-tensor per-channel and per-tensor-head
-              OP_LOGE(ifaContext_->opName,
-                        "When antiquantMode is per-token or per-token-group, antiquant pa_nz is not supported."),
-              return ge::GRAPH_FAILED);
   }
 
   return ge::GRAPH_SUCCESS;
