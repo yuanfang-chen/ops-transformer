@@ -1095,7 +1095,7 @@ aclnnStatus aclnnMoeDistributeCombine(
             for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
                 threads[rankId] = std::make_unique<std::thread>([rankId]()
                 {
-                    ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
+                    int ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
                     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] run example on A2 failed. ret = %d\n", ret); return ret);
                 });
             }
