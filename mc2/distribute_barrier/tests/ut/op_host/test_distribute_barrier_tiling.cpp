@@ -52,7 +52,7 @@ TEST_F(DistributeBarrierTiling, distribute_barrier_test_tiling)
         {{"group", Ops::Transformer::AnyValue::CreateFrom<std::string>("group")},
          {"world_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16)}},
         &compileInfo, "Ascend910_93", coreNum, ubSize);
-    std::string expectTilingData = "16 0 20 0 196352 0 0 0 0 0 ";
+    std::string expectTilingData = "16 0 20 0 196608 0 0 0 0 0 ";
     //barrier算子没有tilingkey，需要单独搭建与其他mc2算子不同的测试
     TilingInfo tilingInfo;
     ASSERT_TRUE(ExecuteTiling(tilingContextPara, tilingInfo));
@@ -106,7 +106,7 @@ TEST_F(DistributeBarrierTiling, distribute_barrier_test_tiling_time_out)
         {{"group", Ops::Transformer::AnyValue::CreateFrom<std::string>("group")},
          {"world_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16)}},
         &compileInfo, "Ascend910_93", coreNum, ubSize);
-    std::string expectTilingData = "16 0 20 0 196352 0 0 0 1 0 ";
+    std::string expectTilingData = "16 0 20 0 196608 0 0 0 1 0 ";
         TilingInfo tilingInfo;
     ASSERT_TRUE(ExecuteTiling(tilingContextPara, tilingInfo));
     auto tilingDataResult = to_string<uint32_t>(tilingInfo.tilingData.get() + mc2TilingDataReservedLen,
@@ -129,7 +129,7 @@ TEST_F(DistributeBarrierTiling, distribute_barrier_test_tiling_elastic_info)
         {{"group", Ops::Transformer::AnyValue::CreateFrom<std::string>("group")},
          {"world_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16)}},
         &compileInfo, "Ascend910_93", coreNum, ubSize);
-    std::string expectTilingData = "16 0 20 0 196352 0 0 0 256 0 ";
+    std::string expectTilingData = "16 0 20 0 196608 0 0 0 256 0 ";
     TilingInfo tilingInfo;
     ASSERT_TRUE(ExecuteTiling(tilingContextPara, tilingInfo));
     auto tilingDataResult = to_string<uint32_t>(tilingInfo.tilingData.get() + mc2TilingDataReservedLen,
@@ -152,7 +152,7 @@ TEST_F(DistributeBarrierTiling, distribute_barrier_test_tiling_time_out_elastic_
         {{"group", Ops::Transformer::AnyValue::CreateFrom<std::string>("group")},
          {"world_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16)}},
         &compileInfo, "Ascend910_93", coreNum, ubSize);
-    std::string expectTilingData = "16 0 20 0 196352 0 0 0 257 0 ";
+    std::string expectTilingData = "16 0 20 0 196608 0 0 0 257 0 ";
     TilingInfo tilingInfo;
     ASSERT_TRUE(ExecuteTiling(tilingContextPara, tilingInfo));
     auto tilingDataResult = to_string<uint32_t>(tilingInfo.tilingData.get() + mc2TilingDataReservedLen,
