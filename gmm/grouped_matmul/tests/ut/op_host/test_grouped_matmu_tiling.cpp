@@ -3903,7 +3903,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8ofp16_weightnz_notrans)
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
                                                 }, &compileInfo);
-    int64_t expectTilingKey = 20000000100UL;
+    int64_t expectTilingKey = 16UL;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -3952,7 +3952,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8ofp16_weightnz_wtrans)
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
                                                 }, &compileInfo);
-    int64_t expectTilingKey = 20000000101UL;
+    int64_t expectTilingKey = 17UL;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
@@ -4001,7 +4001,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8ofp16_weightnz_pertensor)
                                                     {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
                                                     {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
                                                 }, &compileInfo);
-    int64_t expectTilingKey = 20000000100UL;
+    int64_t expectTilingKey = 16UL;
 
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
