@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 #ifndef ACT_QBMM_BLOCK_SCHEDULER_H
 #define ACT_QBMM_BLOCK_SCHEDULER_H
@@ -58,6 +58,7 @@ public:
     int64_t nSplitAddrOffset_{0};
     int64_t mainRow_{0};
     int64_t usedCoreNum_{0};
+    int64_t batchIdx_{0};
 
     using BlockShape = AscendC::Shape<int64_t, int64_t, int64_t, int64_t>;
     using BlockCoord = AscendC::Coord<int64_t, int64_t, int64_t, int64_t>;
@@ -106,6 +107,13 @@ public:
         endBlockIdx_ = singleBatchCnt_ % blockNum_ - 1;
         roundIdx_ = 0;
         round_ = Act::Gemm::CeilDiv(singleBatchCnt_, blockNum_);
+        if (b_ > 1) {
+            if (startBlockIdx_ > endBlockIdx_ && (blockIdx_ > endBlockIdx_ && blockIdx_ < startBlockIdx_)) {
+                round_ -= 1;
+            } else if (startBlockIdx_ <= endBlockIdx_ && (blockIdx_ > endBlockIdx_ || blockIdx_ < startBlockIdx_)) {
+                round_ -= 1;
+            }
+        }
         mTailTile_ = static_cast<int64_t>(params.mTailTile);
         nTailTile_ = static_cast<int64_t>(params.nTailTile);
         totalTailTile_ = mTailTile_ * nTailTile_;
@@ -133,37 +141,41 @@ public:
             singleCoreN = Get<MNK_N>(blockCoord) >= nCnt_ - 1 ? nBaseTailLast_ : nBaseTailMain_;
         }
 
-        if (totalTailTile_ == 1 || b_ > 1) {
+        if (totalTailTile_ == 1 || b_ > 1 || roundIdx_ != round_ - 1) {
             return {singleCoreM, singleCoreN, 0, 0};
         }
 
-        if (roundIdx_ == round_ - 1) {
-            int64_t singleCoreMSplit = Act::Gemm::CeilDiv(singleCoreM, mTailTile_);
-            int64_t singleCoreNSplit = Act::Gemm::CeilDiv(singleCoreN, nTailTile_);
-            int64_t mSplitIdx = (blockIdx_ % totalTailTile_) % mTailTile_;
-            int64_t nSplitIdx = (blockIdx_ % totalTailTile_) / mTailTile_;
-            mSplitAddrOffset_ = mSplitIdx * singleCoreMSplit;
-            nSplitAddrOffset_ = nSplitIdx * singleCoreNSplit;
-            if (mSplitAddrOffset_ >= singleCoreM || nSplitAddrOffset_ >= singleCoreN) {
-                singleCoreM = 0;
-                singleCoreN = 0;
-                return {singleCoreM, singleCoreN, mSplitAddrOffset_, nSplitAddrOffset_};
-            }
-            singleCoreM = Act::Gemm::Min(singleCoreM - mSplitAddrOffset_, singleCoreMSplit);
-            singleCoreN = Act::Gemm::Min(singleCoreN - nSplitAddrOffset_, singleCoreNSplit);
+        int64_t singleCoreMSplit = Act::Gemm::CeilDiv(singleCoreM, mTailTile_);
+        int64_t singleCoreNSplit = Act::Gemm::CeilDiv(singleCoreN, nTailTile_);
+        int64_t mSplitIdx = (blockIdx_ % totalTailTile_) % mTailTile_;
+        int64_t nSplitIdx = (blockIdx_ % totalTailTile_) / mTailTile_;
+        mSplitAddrOffset_ = mSplitIdx * singleCoreMSplit;
+        nSplitAddrOffset_ = nSplitIdx * singleCoreNSplit;
+        if (mSplitAddrOffset_ >= singleCoreM || nSplitAddrOffset_ >= singleCoreN) {
+            singleCoreM = 0;
+            singleCoreN = 0;
             return {singleCoreM, singleCoreN, mSplitAddrOffset_, nSplitAddrOffset_};
         }
+        singleCoreM = Act::Gemm::Min(singleCoreM - mSplitAddrOffset_, singleCoreMSplit);
+        singleCoreN = Act::Gemm::Min(singleCoreN - nSplitAddrOffset_, singleCoreNSplit);
+        return {singleCoreM, singleCoreN, mSplitAddrOffset_, nSplitAddrOffset_};
     }
 
-    __aicore__ inline BlockShape GetLoadBalanceInfo()
+    __aicore__ inline AscendC::Std::tuple<uint32_t, uint32_t, uint32_t, uint32_t> GetLoadBalanceInfo()
     {
-        return {mBaseNormCnt_, mBaseTailMain_, nBaseNormCnt_, nBaseTailMain_};
+        return {static_cast<uint32_t>(mBaseNormCnt_), static_cast<uint32_t>(mBaseTailMain_),
+                static_cast<uint32_t>(nBaseNormCnt_), static_cast<uint32_t>(nBaseTailMain_)};
     }
 
     __aicore__ inline void ResetAddrOffsets()
     {
         mSplitAddrOffset_ = 0;
         nSplitAddrOffset_ = 0;
+    }
+
+    __aicore__ inline void IncrementRoundIdx()
+    {
+        roundIdx_++;
     }
 
     __aicore__ inline void UpdateNextBatchBlockRoundParams()
@@ -178,6 +190,8 @@ public:
         } else if (startBlockIdx_ <= endBlockIdx_ && (blockIdx_ > endBlockIdx_ || blockIdx_ < startBlockIdx_)) {
             round_ -= 1;
         }
+
+        batchIdx_++;
     }
 
     __aicore__ inline bool GetTileIdx(BlockCoord &blockCoord)
@@ -186,11 +200,20 @@ public:
             return false;
         }
 
-        int64_t newBlockIdx = (roundIdx_ == round_ - 1) ? blockIdx_ / totalTailTile_ : blockIdx_;
+        int64_t newBlockIdx = (b_ == 1 && roundIdx_ == round_ - 1) ? blockIdx_ / totalTailTile_ : blockIdx_;
         int64_t tileIdx = newBlockIdx + roundIdx_ * usedCoreNum_;
+        if (b_ > 1) {
+            if (blockIdx_ < startBlockIdx_) {
+                tileIdx += blockNum_ - startBlockIdx_;
+            } else {
+                tileIdx -= startBlockIdx_;
+            }
+        }
 
-        int64_t batchIdx = tileIdx / singleBatchCnt_;
-        Get<MNK_B>(blockCoord) = batchIdx;
+        if (batchIdx_ >= b_) {
+            return false;
+        }
+        Get<MNK_B>(blockCoord) = batchIdx_;
 
         int64_t inBatchIdx = tileIdx % singleBatchCnt_;
         int64_t rowIdx = inBatchIdx / nCnt_ / mCoreNum_;
@@ -207,7 +230,6 @@ public:
             Get<MNK_N>(blockCoord) = nCnt_ - 1 - Get<MNK_N>(blockCoord);
         }
 
-        roundIdx_++;
         return true;
     }
 };
