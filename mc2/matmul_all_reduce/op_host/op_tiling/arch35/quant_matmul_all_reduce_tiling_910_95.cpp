@@ -136,8 +136,10 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::GetDynamicQuantTempBuffSize()
     uint64_t ubDenomQuant =
         3 * PERTILE_TILELEN * sizeof(float) + PERTILE_TILELEN * fp8Size + sizeof(float) + sizeof(uint8_t);
     ubDenomQuant *= DOUBLE_BUFFER;
-    int64_t procRows = ubSize / ubDenomQuant < procRowsRaw ? ubSize / ubDenomQuant : procRowsRaw;
+    int64_t procRows = ((ubSize / ubDenomQuant) < procRowsRaw) ? (ubSize / ubDenomQuant) : procRowsRaw;
     int64_t procRowTileCnt = (ubSize / ubDenomQuant) / procRows;
+    OP_LOGD(opName_, "Quant: ubSize=%ld, ubDenomQuant=%ld, procRowsRaw=%ld, procRows=%ld, procRowTileCnt=%ld.",
+        ubSize, ubDenomQuant, procRowsRaw, procRows, procRowTileCnt);
     std::vector<int64_t> srcShapeVec = {procRowTileCnt, 1};
     std::vector<int64_t> dstShapeVec = {procRowTileCnt, PERTILE_TILELEN};
     ge::Shape srcShape(srcShapeVec);
@@ -147,11 +149,13 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::GetDynamicQuantTempBuffSize()
     AscendC::GetBroadCastMaxMinTmpSize(ascendcPlatform, srcShape, dstShape, sizeof(float), false, maxValBroadCast,
                                        minValBroadCast); // Quant 广播Scale计算量化结果时需要的额外空间
     uint32_t minValBroadCastDequant{0};
-    uint64_t ubDenomDeQuant =
+    uint64_t ubDenomDequant =
         PERTILE_TILELEN * fp8Size + sizeof(float) + PERTILE_TILELEN * outSize + 2 * PERTILE_TILELEN * sizeof(float);
-    ubDenomDeQuant *= DOUBLE_BUFFER;
-    procRows = ubSize / ubDenomDeQuant < procRowsRaw ? ubSize / ubDenomDeQuant : procRowsRaw;
-    procRowTileCnt =  (ubSize / ubDenomQuant) / procRows;
+    ubDenomDequant *= DOUBLE_BUFFER;
+    procRows = ((ubSize / ubDenomDequant) < procRowsRaw) ? (ubSize / ubDenomDequant) : procRowsRaw;
+    procRowTileCnt =  (ubSize / ubDenomDequant) / procRows;
+    OP_LOGD(opName_, "Dequant: ubSize=%ld, ubDenomDequant=%ld, procRowsRaw=%ld, procRows=%ld, procRowTileCnt=%ld.",
+        ubSize, ubDenomDequant, procRowsRaw, procRows, procRowTileCnt);
     std::vector<int64_t> srcShapeDequantVec = {procRowTileCnt, 1};
     std::vector<int64_t> dstShapeDequantVec = {procRowTileCnt, PERTILE_TILELEN};
     ge::Shape srcShapeDequant(srcShapeDequantVec);
