@@ -40,6 +40,8 @@ enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_END
 };
 
+static constexpr size_t HCCL_GROUP_NAME_LENGTH_MAX = 128U; // group长度小于128字符
+
 // T-G量化支持的Dtype
 static const std::initializer_list<op::DataType> X_DTYPE_TG_SUPPORT_LIST = {
     op::DataType::DT_INT8, op::DataType::DT_HIFLOAT8,
@@ -63,7 +65,8 @@ static const std::initializer_list<op::DataType> OUTPUT_DTYPE_SUPPORT_LIST = {
 };
 
 // 检查入参是否为nullptr
-static bool  QuantAllReduceCheckNotNull(const aclTensor* x, const aclTensor* scales, const aclTensor* output)
+static bool  QuantAllReduceCheckNotNull(const aclTensor* x, const aclTensor* scales,
+                                        const aclTensor* output)
 {
     OP_CHECK_NULL(x, return false);
     OP_CHECK_NULL(scales, return false);
@@ -159,9 +162,26 @@ static bool QuantAllReduceCheckAllFormatValid(const aclTensor *x, const aclTenso
     return true;
 }
 
+static bool QuantAllReduceCheckGroupLength(const char* group)
+{
+    if (group == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "QuantAllReduce, group is nullptr !");
+        return false;
+    }
+
+    size_t groupLen = strnlen(group, HCCL_GROUP_NAME_LENGTH_MAX); // group长度≥128字符, 返回HCCL_GROUP_NAME_LENGTH_MAX
+    if (groupLen >= HCCL_GROUP_NAME_LENGTH_MAX) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "QuantAllReduce, Limit the length of the group to less than %lu characters.",
+                HCCL_GROUP_NAME_LENGTH_MAX);
+        return false;
+    }
+
+    return true;
+}
+
 // 参数综合校验
 static aclnnStatus QuantAllReduceCheckParams(const aclTensor* x, const aclTensor* scales,
-                                             const aclTensor* output)
+                                             const char* group, const aclTensor* output)
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(QuantAllReduceCheckNotNull(x, scales, output), ACLNN_ERR_PARAM_NULLPTR);
@@ -171,6 +191,9 @@ static aclnnStatus QuantAllReduceCheckParams(const aclTensor* x, const aclTensor
 
     // 3. 检查参数数据格式是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(QuantAllReduceCheckAllFormatValid(x, scales, output), ACLNN_ERR_PARAM_INVALID);
+
+    // 4. 检查group参数是否在要求范围之内
+    CHECK_RET(QuantAllReduceCheckGroupLength(group), ACLNN_ERR_PARAM_INVALID);
 
     return ACLNN_SUCCESS;
 }
@@ -191,7 +214,7 @@ extern "C" aclnnStatus aclnnQuantAllReduceGetWorkspaceSize(const aclTensor* x, c
                                                            aclTensor* output, uint64_t* workspaceSize,
                                                            aclOpExecutor** executor)
 {
-    aclnnStatus retParam = QuantAllReduceCheckParams(x, scales, output);
+    aclnnStatus retParam = QuantAllReduceCheckParams(x, scales, group, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
     aclnnStatus ret = aclnnInnerQuantAllReduceGetWorkspaceSize(x, scales, group, reduceOp, yDtype,

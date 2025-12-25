@@ -35,6 +35,9 @@ enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_CCU,
     NNOPBASE_HCCL_SERVER_TYPE_END
 };
+
+static constexpr size_t HCCL_GROUP_NAME_LENGTH_MAX = 128U; // group长度小于128字符
+
 // 根据API定义，列出T-G量化所能支持的所有dtype
 const std::initializer_list<op::DataType> X_DTYPE_TG_SUPPORT_LIST = {
     op::DataType::DT_INT8, op::DataType::DT_HIFLOAT8, op::DataType::DT_FLOAT8_E4M3FN,
@@ -104,12 +107,32 @@ static bool CheckAllDtypesValid(const aclTensor* x, const aclTensor* scales, con
     return isAllDtypesValid;
 }
 
-static aclnnStatus CheckParams(const aclTensor* x, const aclTensor* scales, const aclTensor* output)
+static bool CheckGroupLength(const char* group)
+{
+    if (group == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "QuantReduceScatter, group is nullptr !");
+        return false;
+    }
+
+    size_t groupLen = strnlen(group, HCCL_GROUP_NAME_LENGTH_MAX); // group长度≥128字符, 返回HCCL_GROUP_NAME_LENGTH_MAX
+    if (groupLen >= HCCL_GROUP_NAME_LENGTH_MAX) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "QuantReduceScatter, Limit the length of the group to less than %lu characters.",
+                HCCL_GROUP_NAME_LENGTH_MAX);
+        return false;
+    }
+
+    return true;
+}
+
+static aclnnStatus CheckParams(const aclTensor* x, const aclTensor* scales, const char* group, const aclTensor* output)
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x, scales, output), ACLNN_ERR_PARAM_NULLPTR);
     // 2. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(CheckAllDtypesValid(x, scales, output), ACLNN_ERR_PARAM_INVALID);
+    // 3. 检查group参数是否在要求范围之内
+    CHECK_RET(CheckGroupLength(group), ACLNN_ERR_PARAM_INVALID);
+
     return ACLNN_SUCCESS;
 }
 }
@@ -126,7 +149,7 @@ extern "C" aclnnStatus aclnnQuantReduceScatterGetWorkspaceSize(const aclTensor* 
                                                                const char* reduceOp, aclTensor* output, uint64_t* workspaceSize,
                                                                aclOpExecutor** executor)
 {
-    aclnnStatus retParam = CheckParams(x, scales, output);
+    aclnnStatus retParam = CheckParams(x, scales, group, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
     aclnnStatus ret = aclnnInnerQuantReduceScatterGetWorkspaceSize(x, scales, group, reduceOp, yDtype, output, workspaceSize, executor);
