@@ -23,7 +23,7 @@
 #include "prompt_flash_attention_template_tiling_key_enum.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
-#include "../../../common/op_kernel/arch35/flash_attention_kvsame_bn2gs1s2.h"
+#include "../../../common/op_kernel/arch35/flash_attention_kernel_noquant_mla.h"
 #else
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_regbase_v2.h"
 #include "prompt_flash_attention_dummy.h"
@@ -42,7 +42,9 @@ using namespace regbaseutil;
         TPipe tPipe;                                                                                                    \
         __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                               \
         REGBASE_COPY_TILING_DATA_ASCEND910_95_KVSAME_BASEAPI(tiling);                                                   \
-        templateClass<__VA_ARGS__> op;                                                                                  \
+        using CubeBlockType = FABlockCubeNoquantMla<__VA_ARGS__>;                                                   \
+        using VecBlockType = BaseApi::FABlockVecInfer<__VA_ARGS__>;                                                     \
+        templateClass<CubeBlockType, VecBlockType> op;                                                                  \
         op.Init(query, key, value, pseShift, attenMask, actualSeqLengths,                                               \
                 actualSeqLengthsKV, blocktable, postQuantScale, postQuantOffset, queryRope, keyRope, softmaxLse, attentionOut,                           \
                 user, tilingData, &tPipe);                                                                              \
@@ -277,8 +279,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI会报结构体的某些变量不存在
         // 原因：不使用constexpr，所有组合都会在编译阶段进入该函数，因此会出现hasRope字段为false的情况导致变量不存在
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, half, true, isPa, false); //实际模板参数hasRope为false，但模板需要其为true，选择在kernel直接写入，tiling不做修改
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, half, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false); //实际模板参数hasRope为false，但模板需要其为true，选择在kernel直接写入，tiling不做修改
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
@@ -302,10 +304,10 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI会报结构体的某些变量不存在
         // 原因：不使用constexpr，所有组合都会在编译阶段进入该函数，因此会出现hasRope字段为false的情况导致变量不存在    
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, bfloat16_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
-            }
+        }
 
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
@@ -329,8 +331,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI会报结构体的某些变量不存在
         // 原因：不使用constexpr，所有组合都会在编译阶段进入该函数，因此会出现hasRope字段为false的情况导致变量不存在    
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, int8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, int8_t, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
             }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
@@ -353,8 +355,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, hifloat8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, hifloat8_t, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
@@ -377,8 +379,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, fp8_e4m3fn_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, fp8_e4m3fn_t, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
@@ -401,8 +403,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, int8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, int8_t, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
@@ -425,8 +427,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, hifloat8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, hifloat8_t, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
@@ -449,8 +451,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, fp8_e4m3fn_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, fp8_e4m3fn_t, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
+                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;

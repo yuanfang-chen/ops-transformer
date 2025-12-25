@@ -168,6 +168,24 @@ public:
         }
     }
 
+    __aicore__ inline void SetEventID() {
+        if ASCEND_IS_AIC {
+            p2cEventId_ = GetTPipePtr()->AllocEventID<BufferInfo<bufferType>::EventP2C>(); // 确保只能被调用一次
+            c2pEventId_ = GetTPipePtr()->AllocEventID<BufferInfo<bufferType>::EventC2P>();
+        }
+    }
+
+    template<HardEvent EventType>
+    __aicore__ inline TEventID GetEventID() {
+        if ASCEND_IS_AIC {
+            if constexpr (EventType == BufferInfo<bufferType>::EventP2C) {
+                return p2cEventId_; // 生产者通知消费者已完成生产
+            } else {
+                return c2pEventId_; // 消费者通知生产者已完成消费
+            }
+        }
+    }
+
     __aicore__ inline void WaitCrossCore() {
         if constexpr (bufferType == BufferType::UB || bufferType == BufferType::GM) {
             // AIC属于生产者，AIV属于消费者，且一个AIC对应两个AIV

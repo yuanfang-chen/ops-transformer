@@ -39,6 +39,7 @@ public:
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
     static constexpr bool isFp8 = IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value || IsSameType<INPUT_T, hifloat8_t>::value;
     static constexpr bool isMlaFullQuant = isFp8 && hasRope;
+    static constexpr bool isMlaNoQuant = !isFp8 && hasRope && isInfer && (dTemplateType == DTemplateType::Aligned576);
     
     /* =====================GM变量========================== */
     GlobalTensor<float> softmaxLseGm;
@@ -468,7 +469,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
     } else {
         intriParams1.dstStride = 0;
     }
-    if constexpr (isMlaFullQuant) {
+    if constexpr (isMlaFullQuant || isMlaNoQuant) {
         if (layout == LayOutTypeEnum::LAYOUT_BSH) {
             intriParams1.dstStride = sizeof(float) * (constInfo.s1Size - 1);
         } else {
@@ -812,28 +813,48 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInfo<isInf
     uint32_t s1RowCount = constInfo.isGqa ? 1U : runInfo.vec2S1RealSize; // s1=1, gS合轴, bn2分核
     uint32_t gRowCount = constInfo.isGqa ? runInfo.vec2S1RealSize : 1U;  // s1>1, bn1分核
     if (constInfo.isPostQuantPerChnl) {
-        uint64_t perChannelQuantGQAOffset = runInfo.n2oIdx * constInfo.gDv + runInfo.vec2S1BaseSize * vec2S1Idx * constInfo.dSizeV +
-                                            constInfo.subBlockIdx * runInfo.firstHalfS1RealSize * constInfo.dSizeV;
-        uint64_t perChannelQuantOffset = constInfo.isGqa ?
-                                             perChannelQuantGQAOffset :
-                                             runInfo.n2oIdx * constInfo.gDv + runInfo.goIdx * constInfo.dSizeV;
-        uint32_t gSplitSize = constInfo.isPostQuantBF16 ? (2048U / ((uint32_t)dSizeAligned64 * sizeof(bfloat16_t))) :
-                                                          (2048U / ((uint32_t)dSizeAligned64 * sizeof(float)));
-        gSplitSize = gSplitSize > gRowCount ? gRowCount : gSplitSize;
-        uint32_t loopCount = (gRowCount + gSplitSize - 1) / gSplitSize;
-        uint32_t tailSplitSize = gRowCount - (loopCount - 1) * gSplitSize;
-        for (uint32_t i = 0; i < loopCount; i++) {
-            uint32_t startRow = i * gSplitSize;
-            if (i + 1 == loopCount) {
-                gSplitSize = tailSplitSize;
+        if (isMlaNoQuant) {
+            uint64_t perChannelQuantOffset = runInfo.n2oIdx * constInfo.gDv + vec2S1Idx * runInfo.vec2S1BaseSize * constInfo.dSizeV;
+            uint32_t quantSplitOffset;
+            for (uint32_t startRow = 0; startRow < runInfo.vec2S1RealSize; startRow++) {
+                uint32_t splitOffset = startRow * constInfo.dSizeV;
+                if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
+                    quantSplitOffset = ((startRow + runInfo.sOuterOffset) / constInfo.s1Size) * constInfo.dSizeV;
+                } else {
+                    quantSplitOffset = ((startRow + runInfo.sOuterOffset) % constInfo.gSize) * constInfo.dSizeV;
+                }
+                if (constInfo.isPostQuantBF16) {
+                    PostQuantPerChnl(constInfo, attenOut, vec2ResUb, perChannelQuantOffset + quantSplitOffset,
+                                     1U, 1U, splitOffset, dSizeAligned64, postQuantScaleBf16Gm, postQuantOffsetBf16Gm);
+                } else {
+                    PostQuantPerChnl(constInfo, attenOut, vec2ResUb, perChannelQuantOffset + quantSplitOffset,
+                                     1U, 1U, splitOffset, dSizeAligned64, postQuantScaleGm, postQuantOffsetGm);
+                }
             }
-            uint32_t splitOffset = startRow * dSizeAligned64;
-            if (constInfo.isPostQuantBF16) {
-                PostQuantPerChnl(constInfo, attenOut, vec2ResUb, perChannelQuantOffset + startRow * constInfo.dSizeV,
-                                 gSplitSize, s1RowCount, splitOffset, dSizeAligned64, postQuantScaleBf16Gm, postQuantOffsetBf16Gm);
-            } else {
-                PostQuantPerChnl(constInfo, attenOut, vec2ResUb, perChannelQuantOffset + startRow * constInfo.dSizeV,
-                                 gSplitSize, s1RowCount, splitOffset, dSizeAligned64, postQuantScaleGm, postQuantOffsetGm);
+        } else {
+            uint64_t perChannelQuantGQAOffset = runInfo.n2oIdx * constInfo.gDv + runInfo.vec2S1BaseSize * vec2S1Idx * constInfo.dSizeV +
+                                                constInfo.subBlockIdx * runInfo.firstHalfS1RealSize * constInfo.dSizeV;
+            uint64_t perChannelQuantOffset = constInfo.isGqa ?
+                                                 perChannelQuantGQAOffset :
+                                                 runInfo.n2oIdx * constInfo.gDv + runInfo.goIdx * constInfo.dSizeV;
+            uint32_t gSplitSize = constInfo.isPostQuantBF16 ? (2048U / ((uint32_t)dSizeAligned64 * sizeof(bfloat16_t))) :
+                                                              (2048U / ((uint32_t)dSizeAligned64 * sizeof(float)));
+            gSplitSize = gSplitSize > gRowCount ? gRowCount : gSplitSize;
+            uint32_t loopCount = (gRowCount + gSplitSize - 1) / gSplitSize;
+            uint32_t tailSplitSize = gRowCount - (loopCount - 1) * gSplitSize;
+            for (uint32_t i = 0; i < loopCount; i++) {
+                uint32_t startRow = i * gSplitSize;
+                if (i + 1 == loopCount) {
+                    gSplitSize = tailSplitSize;
+                }
+                uint32_t splitOffset = startRow * dSizeAligned64;
+                if (constInfo.isPostQuantBF16) {
+                    PostQuantPerChnl(constInfo, attenOut, vec2ResUb, perChannelQuantOffset + startRow * constInfo.dSizeV,
+                                     gSplitSize, s1RowCount, splitOffset, dSizeAligned64, postQuantScaleBf16Gm, postQuantOffsetBf16Gm);
+                } else {
+                    PostQuantPerChnl(constInfo, attenOut, vec2ResUb, perChannelQuantOffset + startRow * constInfo.dSizeV,
+                                     gSplitSize, s1RowCount, splitOffset, dSizeAligned64, postQuantScaleGm, postQuantOffsetGm);
+                }
             }
         }
     } else {
