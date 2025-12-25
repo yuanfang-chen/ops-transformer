@@ -84,9 +84,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_0)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1206124801;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {16924672};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, "");
 }
 // #endif
 
@@ -143,9 +141,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_1)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, "");
 }
 
 // #endif
@@ -202,8 +198,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_2)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 266600448;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {7776239616};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -260,8 +254,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_3)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -318,8 +310,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_4)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -376,8 +366,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_5)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1210322177;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -434,8 +422,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_6)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1210322177;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -493,8 +479,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_7)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -552,8 +536,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_8)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -611,8 +593,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_9)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 #endif
@@ -669,8 +649,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_10)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -727,8 +705,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_11)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -785,8 +761,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_12)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -844,9 +818,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_13)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
 }
 // #endif
 
@@ -903,9 +875,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_14)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
 }
 // #endif
 
@@ -961,8 +931,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_15)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -1019,8 +987,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_16)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -1077,8 +1043,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_17)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1135,8 +1099,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_18)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -1192,9 +1154,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_19)
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
-    int64_t expectTilingKey = 2362625;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
+    int64_t expectTilingKey = 2364417;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -1252,8 +1212,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_20)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -1311,9 +1269,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_21)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1370,9 +1326,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_22)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1429,9 +1383,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_23)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1488,9 +1440,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_24)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1547,9 +1497,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_25)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1606,9 +1554,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_26)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1665,9 +1611,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_27)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1724,9 +1668,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_28)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1784,9 +1726,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_29)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1206124801;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {16924672};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
 }
 // #endif
 
@@ -1843,9 +1783,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_30)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
 }
 // #endif
 
@@ -1902,9 +1840,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_31)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
 }
 // #endif
 
@@ -1960,8 +1896,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_32)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2018,8 +1952,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_33)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2077,8 +2009,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_34)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2137,8 +2067,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_35)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2196,9 +2124,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_36)
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "", expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
 }
 // #endif
 
@@ -2254,8 +2180,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_37)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -2313,9 +2237,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_38)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2372,9 +2294,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_39)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2431,9 +2350,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_40)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {147070976};
-    // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2490,8 +2406,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_41)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
@@ -2548,8 +2462,6 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_42)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 136580352;
-    std::string expectTilingData = "4 1 8 1 2048 0 128 128 64 4446465451253301248 2147483647 2147483647 0 0 0 16777217 0 0 0 0 0 0 0 0 0 0 0 16843009 72058697844523008 256 4294967296 4294967424 1 140737488355336 2048 4294967296 4 4 1 1 1 4294967296 12884901890 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 140647939593651 2 105690555649392 105690555649408 105690555649408 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {18555854848};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif

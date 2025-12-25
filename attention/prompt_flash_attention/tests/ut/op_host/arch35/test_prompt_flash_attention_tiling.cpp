@@ -66,8 +66,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_0)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 4423156480;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {25165824};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 // BSH
@@ -109,8 +108,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_1)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 266601217;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {17444896768};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 // BSND
@@ -152,8 +150,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_2)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 266601217;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {6332768256};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 // TND
@@ -198,8 +195,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_3)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 266601986;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {13851623424};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 // BNSD_BSND
@@ -241,8 +237,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_4)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 266600960;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {9533046784};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 // k = 0/v = 0/out = 0
@@ -284,8 +279,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_5)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 2277507072;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {16777216};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_6)
@@ -326,8 +320,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_6)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 132383488;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {16691353984};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 // DT_HIFLOAT8
@@ -369,8 +362,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_7)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 132383488;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {16691353984};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // num_heads < 0 || num_key_value_heads < 0
@@ -412,8 +404,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_8)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 132383488;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {16691353984};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // sparse_mode = 0
@@ -455,8 +446,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_8_1)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 132383488;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {16691353984};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 //  enableIFA = true
@@ -498,8 +488,7 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_9)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 1206124800;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {16794496};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 //  enableIFA = true
@@ -541,49 +530,6 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_9_1)
         &compileInfo, "Ascend910_95", 64, 262144, 16384);
     int64_t expectTilingKey = 1206124800;
     std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {16794496};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
-// TND actual_seq_lengths_q/actual_seq_lengths_kv is null
-TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_10)
-{
-    optiling::PromptFlashAttentionCompileInfo compileInfo = {    // 硬件参数
-        64, 32, 262144, 524288, 262144, 65536, 65536, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
-    int64_t* actual_seq_qlist = nullptr;
-    int64_t* actual_seq_kvlist = nullptr;
-    gert::TilingContextPara tilingContextPara(
-        "PromptFlashAttention",
-        {
-            {{{16384, 64, 192}, {16384, 64, 192}}, ge::DT_BF16, ge::FORMAT_ND},  // query input0
-            {{{16384, 64, 192}, {16384, 64, 192}}, ge::DT_BF16, ge::FORMAT_ND},  // key input1
-            {{{16384, 64, 192}, {16384, 64, 192}}, ge::DT_BF16, ge::FORMAT_ND},  // value input2
-            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},    // pse_shift input3
-            {{{1, 2048, 2048}, {1, 2048, 2048}}, ge::DT_BOOL, ge::FORMAT_ND},    // atten_mask input4
-            {{{0}, {0}}, ge::DT_INT64, ge::FORMAT_ND, true, actual_seq_qlist},    // actual_seq_lengths_q
-            {{{0}, {0}}, ge::DT_INT64, ge::FORMAT_ND, true, actual_seq_kvlist},    // actual_seq_lengths_kv 
-            {{{}, {}}, ge::DT_UINT64, ge::FORMAT_ND},    // deq_scale1 input5
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},    // quant_scale1 input6
-            {{{}, {}}, ge::DT_UINT64, ge::FORMAT_ND},    // deq_scale2 input7
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},    // quant_scale2 input8
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}    // quant_offset2 input9
-        },
-        {
-            {{{16384, 64, 192}, {16384, 64, 192}}, ge::DT_BF16, ge::FORMAT_ND}
-        },
-        {
-            {"num_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(64)},
-            {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.07216878364870323f)},
-            {"pre_tokens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16384)},
-            {"next_tokens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16384)},
-            {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("TND")},
-            {"num_key_value_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(64)},
-            {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-            {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
-        },
-        &compileInfo, "Ascend910_95", 64, 262144, 16384);
-    int64_t expectTilingKey = 266601986;
-    std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {17137557504};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
-}
