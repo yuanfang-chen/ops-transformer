@@ -423,10 +423,13 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetSplitAxis()
             fBaseParams.isDeterministic = (context_->GetDeterministic() == 1);
         }
     }
-    if (fBaseParams.isBn2MultiBlk && fBaseParams.dropoutIsDivisibleBy8 == 0) {
-        fBaseParams.isBn2 = false;
-        fBaseParams.isBn2MultiBlk = false;
-        fBaseParams.isDeterministic = (context_->GetDeterministic() == 1);
+    if (fBaseParams.isBn2MultiBlk) {
+        fBaseParams.isDeterministic = false;
+        if (fBaseParams.dropoutIsDivisibleBy8 == 0) {
+            fBaseParams.isBn2 = false;
+            fBaseParams.isBn2MultiBlk = false;
+            fBaseParams.isDeterministic = (context_->GetDeterministic() == 1);
+        }
     }
 
     if (!fBaseParams.isBn2 && !fBaseParams.hasRope && fBaseParams.d <= BN2_MAX_D &&
