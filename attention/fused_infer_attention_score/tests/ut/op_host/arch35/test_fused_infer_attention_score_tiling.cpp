@@ -93,7 +93,7 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_0)
     int64_t expectTilingKey = 266602241;
     std::string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {119873536};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_1)
@@ -160,7 +160,7 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_1)
     int64_t expectTilingKey = 266600704;
     std::string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {17440768};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_2)
@@ -227,7 +227,7 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_2)
     int64_t expectTilingKey = 132382977;
     std::string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {19431424};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_3)
