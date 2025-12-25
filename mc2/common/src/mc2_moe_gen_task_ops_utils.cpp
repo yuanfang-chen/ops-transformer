@@ -87,7 +87,9 @@ static const std::unordered_set<std::string> NO_AI_CPU_SET{
     MOE_DISTRIBUTE_DISPATCH_TEARDOWN_OP_TYPE,
     MOE_DISTRIBUTE_COMBINE_TEARDOWN_OP_TYPE,
     MOE_DISTRIBUTE_COMBINE_ADD_RMS_NORM_OP_TYPE,
-    DISTRIBUTE_BARRIER_OP_TYPE};
+    DISTRIBUTE_BARRIER_OP_TYPE,
+    ATTENTION_TO_FFN_OP_TYPE,
+    FFN_TO_ATTENTION_OP_TYPE};
 
 // 对已有结构的重复定义，只在本文件插入 aicpu desc 的时候使用
 struct HcclCommParamDescTmp {
@@ -340,7 +342,9 @@ ge::Status Mc2MoeGenTaskOpsUtils::Mc2MoeGenTaskCallbackV2(
                    (opTypeStr != MOE_DISTRIBUTE_COMBINE_V2_OP_TYPE) &&
                    (opTypeStr != DISTRIBUTE_BARRIER_OP_TYPE) &&
                    (opTypeStr != MOE_DISTRIBUTE_DISPATCH_OP_TYPE) &&
-                   (opTypeStr != MOE_DISTRIBUTE_COMBINE_OP_TYPE));
+                   (opTypeStr != MOE_DISTRIBUTE_COMBINE_OP_TYPE) &&
+                   (opTypeStr != ATTENTION_TO_FFN_OP_TYPE) &&
+                   (opTypeStr != FFN_TO_ATTENTION_OP_TYPE));
   return useAiCpu ? Mc2MoeInsertTask(context, tasks, groupCnt)
                   : ge::GRAPH_SUCCESS;
 }
