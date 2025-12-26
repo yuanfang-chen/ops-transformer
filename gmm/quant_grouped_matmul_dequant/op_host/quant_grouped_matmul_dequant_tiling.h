@@ -195,10 +195,9 @@ TILING_DATA_FIELD_DEF(uint64_t, ubKMask);
 TILING_DATA_FIELD_DEF(uint32_t, isXScaleHalf);
 END_TILING_DATA_DEF;
 
-REGISTER_TILING_DATA_CLASS(QuantMatmulDequant, QuantGroupedMatmulDequantTilingData)
 REGISTER_TILING_DATA_CLASS(QuantGroupedMatmulDequant, QuantGroupedMatmulDequantTilingData)
 
-class QuantMatmulDequantTiling {
+class QuantGroupedMatmulDequantTiling {
 public:
   ge::graphStatus runTiling(gert::TilingContext* context, bool is_grouped = false);
 private:
