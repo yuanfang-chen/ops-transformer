@@ -94,17 +94,15 @@ TEST_F(MoeGatingTopKSoftmaxV2Tiling, moe_gating_top_k_softmax_v2_tiling_003) {
                                               },
                                               {
                                                 {"k", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16)},
+                                                {"renorm", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+                                                {"output_softmax_result_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
                                               },
                                               &compileInfo, socVersion, coreNum, ubSize);
     uint64_t expectTilingKey = 102011;
     string expectTilingData =
-        "32212254720024 137438953488 4294967320 17179869185 10720238373312 137438953484 0 10720238370817 4294969792 "
-        "34359738376 10720238370816 0 8 0 0 51539607553 4294967308 34359738376 51539607552 0 8 0 0 10857677334400 "
-        "339302421440 137438954104 137438953504 549755813952 17179869186 8589934598 4294972352 2714419331072 0 0 0 0 0 "
-        "274877907200 8589934720 137438953488 137438953504 549755813952 17179869186 8589934598 4294967424 68719476736 "
         "0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {16777216};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces, 46);
 }
 
 TEST_F(MoeGatingTopKSoftmaxV2Tiling, moe_gating_top_k_softmax_v2_tiling_004) {
@@ -288,13 +286,9 @@ TEST_F(MoeGatingTopKSoftmaxV2Tiling, moe_gating_top_k_softmax_v2_tiling_011) {
                                               &compileInfo, socVersion, coreNum, ubSize);
     uint64_t expectTilingKey = 102011;
     string expectTilingData =
-        "32212254720024 137438953488 4294967320 17179869185 10720238373312 137438953484 1 10720238370817 4294969792 "
-        "34359738376 10720238370816 0 8 0 0 51539607553 4294967308 34359738376 51539607552 0 8 0 0 10857677334400 "
-        "339302421440 137438954104 137438953504 549755813952 17179869186 8589934598 4294972352 2714419331072 0 0 0 0 0 "
-        "274877907200 8589934720 137438953488 137438953504 549755813952 17179869186 8589934598 4294967424 68719476736 "
         "0 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {16777216};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces, 46);
 }
 
 TEST_F(MoeGatingTopKSoftmaxV2Tiling, moe_gating_top_k_softmax_v2_tiling_012) {
