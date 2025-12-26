@@ -188,10 +188,7 @@ __aicore__ constexpr bool UbOutCondition(
     return false;
 }
 
-__aicore__ constexpr TPosition GetC2Position(regbaseutil::DTemplateType dTemplateType, bool ubOutCondition, bool isNdS2Size256, bool isMlaFullQuant, bool isMlaNoQuant = false) {
-    if (isMlaNoQuant) {
-        return TPosition::VECCALC;
-    }
+__aicore__ constexpr TPosition GetC2Position(regbaseutil::DTemplateType dTemplateType, bool ubOutCondition, bool isNdS2Size256, bool isMlaFullQuant) {
     if ((uint16_t)dTemplateType <= (uint16_t)regbaseutil::DTemplateType::Aligned128 ||
         (ubOutCondition && (uint16_t)dTemplateType <= (uint16_t)regbaseutil::DTemplateType::Aligned192) ||
         (ubOutCondition && isMlaFullQuant) ||
