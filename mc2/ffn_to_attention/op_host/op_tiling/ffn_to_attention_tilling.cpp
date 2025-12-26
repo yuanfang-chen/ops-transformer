@@ -133,9 +133,9 @@ static bool CheckAndSetAttrs(gert::TilingContext* context, const char *nodeName,
     OP_TILING_CHECK((tokenDataShape[TOKEN_DATA_SHAPE_BS_INDEX] > BS_UPPER_BOUND) || (tokenDataShape[TOKEN_DATA_SHAPE_BS_INDEX] <= 0),
     OP_LOGE(nodeName, "xDim0(BS) is invalid. Should be between [1, %ld], but got xDim0=%ld.", BS_UPPER_BOUND,
             tokenDataShape[TOKEN_DATA_SHAPE_BS_INDEX]), return false);
-    OP_TILING_CHECK((tokenDataShape[TOKEN_DATA_SHAPE_HS_INDEX] < H_MIN + SCALE_SIZE) || (tokenDataShape[TOKEN_DATA_SHAPE_HS_INDEX] > H_MAX + SCALE_SIZE), 
+    OP_TILING_CHECK((tokenDataShape[TOKEN_DATA_SHAPE_HS_INDEX] < H_MIN ) || (tokenDataShape[TOKEN_DATA_SHAPE_HS_INDEX] > H_MAX + SCALE_SIZE), 
     OP_LOGE(nodeName,"HS should be in [%ld, %ld], but got %ld.",
-        H_MIN + SCALE_SIZE, H_MAX + SCALE_SIZE, tokenDataShape[TOKEN_DATA_SHAPE_HS_INDEX]), return false); 
+        H_MIN, H_MAX + SCALE_SIZE, tokenDataShape[TOKEN_DATA_SHAPE_HS_INDEX]), return false); 
 
     tilingData.ffnToAttentionInfo.worldSize = *worldSizePtr;
     tilingData.ffnToAttentionInfo.microBatchNum = tokenDataShape[TOKEN_DATA_SHAPE_MICRO_BATCH_NUM_INDEX];

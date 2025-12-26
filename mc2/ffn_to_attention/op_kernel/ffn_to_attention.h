@@ -185,12 +185,14 @@ __aicore__ inline void FFNToAttention<TemplateMC2TypeFunc>::Process()
         GlobalTensor<xType> tokenDataGMTensor;
         GlobalTensor<int32_t> tokenInfoTableGMTensor;
         DataCopyExtParams dataCopyParams = {1U, sizeof(int32_t), 0U, 0U, 0U};
+        DataCopyExtParams xCopyParams = {1U, static_cast<uint32_t>(axisH_ * sizeof(xType)), 0U, 0U, 0U};
+        DataCopyPadExtParams<xType> copyPadExtParams{false, 0U, 0U, 0U};
         for (uint32_t tokenCnt = 0; tokenCnt < sendTokenNum; ++tokenCnt) {
             uint32_t YOffset = aivId_ + (tokenCnt * aivNum_); // 当前token在Y的偏移
             
             // 1. 加载token
             xTmpTensor_ = xQueue_.AllocTensor<xType>();
-            DataCopy(xTmpTensor_, xGMTensor_[YOffset * axisH_], axisH_);
+            DataCopyPad(xTmpTensor_, xGMTensor_[YOffset * axisH_], xCopyParams, copyPadExtParams);
             
             // 2. 计算偏移数据
             ReadTokenMetaDataStruct metaDataStruct;
@@ -208,7 +210,7 @@ __aicore__ inline void FFNToAttention<TemplateMC2TypeFunc>::Process()
             // 5. 复制数据到win区
             xQueue_.EnQue(xTmpTensor_);
             xTmpTensor_ = xQueue_.DeQue<xType>();
-            DataCopy(tokenDataGMTensor, xTmpTensor_, axisH_); // 数据搬入token_data位置上
+            DataCopyPad(tokenDataGMTensor, xTmpTensor_, xCopyParams); // 数据搬入token_data位置上
             xQueue_.FreeTensor<xType>(xTmpTensor_);
             DataCopyPad(tokenInfoTableGMTensor, statusTensor_, dataCopyParams); // 状态位
         }
