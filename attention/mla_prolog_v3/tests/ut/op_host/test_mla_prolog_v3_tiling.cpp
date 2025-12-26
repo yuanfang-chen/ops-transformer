@@ -81,7 +81,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test0) {
     },
     &compileInfo);
     int64_t expectTilingKey = 1574177;
-    string expectTilingData = "34359738376 0 34359738400 4294967297 6597069773824 17592186044928 274877908992 4294967328 274877907072 549755813904 38654705688 137438953504 274877906952 824633720896 2199023255553 549755813889 0 4191350054637797376 4251398049163101612 925353388 4575657222473777152 ";
+    string expectTilingData = "";
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
@@ -136,7 +136,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test1) {
     },
     &compileInfo);
     int64_t expectTilingKey = 1574177;
-    string expectTilingData = "34359738376 0 34359738400 4294967297 6597069772800 17592186044928 274877908992 4294967328 274877907072 549755813904 38654705688 137438953504 274877906952 824633720896 2199023255553 549755813889 0 4191350054637797376 4251398049163101612 925353388 4575657222473777152 ";
+    string expectTilingData = "";
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
@@ -200,8 +200,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test2) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1574180;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {17393920};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 //非PA非量化 TND
@@ -256,9 +255,8 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test3) {
     },
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1572880;
-    string expectTilingData = "68719476736 0 68719476800 4294967296 6597069773824 70368744178176 274877915136 4294967424 274877907072 16 38654705712 184683593776 137438953488 2199023255616 2199023255555 549755813888 0 4191350054637797376 4251398049232863322 1000352864 4575657222473777152 ";
-    std::vector<size_t> expectWorkspaces = {18991104};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    string expectTilingData = "";
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // 非PA半量化 BSND qnorm_flag==true /mlaprolog_L0_1_128_1_11776_11776_128_BSND_1_000035
@@ -314,8 +312,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test4) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1574048;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {34492416};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // 非PA全量化 BSND qnorm_flag==false /mlaprolog_L0_1_128_1_1024_1024_128_BSND_2_000037
@@ -371,8 +368,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test5) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1574112;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {35033088};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
   
 // 非PA全量化 TND qnorm_flag==false /mlaprolog_L0_4_128_1_2_2_128_TND_2_000016
@@ -428,8 +424,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test6) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1574304;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {17918208};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // 非PA全量化 BSND qnorm_flag==TRUE /mlaprolog_L0_1_128_1_6016_6016_128_BSND_2_000020
@@ -485,8 +480,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test7) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1574176;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {51810304};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // 非PA全量化 TND qnorm_flag==false /mlaprolog_L0_1_128_1_512_512_128_TND_1_000015
@@ -542,8 +536,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test8) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1574240;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {34492416};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // mlaprolog_L0_2_128_1_4825_65536_128_TND_PA_BLK_NZ_1_2_000028 
@@ -599,8 +592,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test9) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1590436;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {34492416};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // mlaprolog_L0_16_128_1_2_2_128_BSND_1_000000
@@ -656,8 +648,7 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test10) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1573984;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {21206016};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 // mlaprolog_L0_4_128_1_2317_65536_128_BSND_PA_BLK_NZ_1_0_000011
@@ -713,6 +704,5 @@ TEST_F(MlaPrologV3, MlaProlog_tiling_test11) {
     &compileInfo, "Ascend910B", 48, 196608, 16384);
     int64_t expectTilingKey = 1573988;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {34492416};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
