@@ -1,11 +1,13 @@
 # aclnnFlashAttentionScoreV4
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/flash_attention_score)
+
 ## 产品支持情况
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾950 AI处理器</term>|      √     |
-|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      x     |
 |<term>Atlas A2 训练系列产品</term>|      x     |
 |<term>Atlas 800I A2 推理产品</term>|      ×     |
 |<term>A200I A2 Box 异构组件</term>|      ×     |
@@ -17,8 +19,6 @@
 
 ## 功能说明
 
-- 确定性计算：
-  - aclnnFlashAttentionScoreV4默认确定性实现。
 - 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。**该接口query、key、value参数支持多个长度相等或者多个长度不相等的sequence**
   - **该接口相较于[FlashAttentionScoreV2](./aclnnFlashAttentionScoreV2.md)接口，新增支持数据类型FLOAT8_E5M2、FLOAT8_E4M3FN，调整Dropout功能**：
     -   <term>昇腾950 AI处理器</term>：
@@ -557,6 +557,8 @@ aclnnStatus aclnnFlashAttentionScoreV4(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnFlashAttentionScoreV4默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 - 输入query、key、value的
   - B：batchsize必须相等。
@@ -597,7 +599,7 @@ aclnnStatus aclnnFlashAttentionScoreV4(
 - attenMaskOptional输入不支持补pad，即attenMaskOptional中不能存在某一行全1的场景。
 - 支持actualSeqQLenOptional中某个Batch上的S长度为0；如果存在S为0的情况，不支持pse输入，
   假设真实的S长度为\[2,2,0,2,2\]，则传入的actualSeqQLenOptional为\[2,4,4,6,8\]。
-- <term>昇腾950 AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
     -   seed和offset只在keepProb小于1.0时生效，否则不生效。
     -   keepProb小于1.0时，若dropMaskOptional非nullptr，则使用输入的dropMask；否则使用seed和offset生成的dropMask。
 
