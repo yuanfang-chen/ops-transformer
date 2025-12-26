@@ -72,7 +72,7 @@ static ge::graphStatus AllGatherMatmulV2ExecuteFunc(gert::OpExecuteContext* host
     const int64_t groupSize = (groupSizePtr != nullptr ? *groupSizePtr : 0);
     const char* commMode = attrs->GetStr(static_cast<size_t>(ops::AllGatherMMV2AttrIdx::K_COMM_MODE));
     OPS_CHECK(commMode == nullptr, OPS_LOG_E(allGatherV2Info, "commMode is null"), return ge::GRAPH_FAILED);
-    OPS_LOG_E(allGatherV2Info, "fallback commMode is %s", commMode);
+
     const auto apiRet = EXEC_OPAPI_CMD(
         aclnnAllGatherMatmulV2, x1Acl, x2Acl, bias, x1Scale, x2Scale, quantScale, blockSize, group, gatherIndex,
         commTurn, streamMode, groupSize, commMode, y, gatherOut, amaxOut);

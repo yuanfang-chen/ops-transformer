@@ -74,7 +74,7 @@ static ge::graphStatus MatmulReduceScatterV2ExecuteFunc(gert::OpExecuteContext* 
     const int64_t groupSize = (groupSizePtr != nullptr ? *groupSizePtr : 0);
     const char* commMode = attrs->GetStr(static_cast<size_t>(ops::MmReduceScatterV2AttrIdx::K_COMM_MODE));
     OPS_CHECK(commMode == nullptr, OPS_LOG_E(reduceScatterV2Info, "commMode is null"), return ge::GRAPH_FAILED);
-    OPS_LOG_E(reduceScatterV2Info, "fallback commMode is %s", commMode);
+
     const auto apiRet = EXEC_OPAPI_CMD(
         aclnnMatmulReduceScatterV2, x1Acl, x2Acl, bias, x1Scale, x2Scale, quantScale, blockSize, group, op, commTurn,
         streamMode, groupSize, commMode, y, amaxOut);
