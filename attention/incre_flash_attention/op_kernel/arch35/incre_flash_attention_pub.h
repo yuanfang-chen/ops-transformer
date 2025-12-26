@@ -16,7 +16,6 @@
 #ifndef INCRE_FLASH_ATTENTION_PUB_H
 #define INCRE_FLASH_ATTENTION_PUB_H
 
-#include <cstdint>
 
 typedef struct {
   uint32_t G;

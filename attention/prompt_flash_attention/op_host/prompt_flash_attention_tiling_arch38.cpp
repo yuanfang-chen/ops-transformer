@@ -14,16 +14,7 @@
  */
 #include "prompt_flash_attention_tiling_arch38.h"
 #include <queue>
-#include <cstdint>
-#include <unordered_map>
-#include <fcntl.h>
-#include <cstdlib>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <cstdio>
-#include <string>
 
-#include <sys/types.h>
 #include "register/op_def_registry.h"
 #include "tiling/tiling_api.h"
 #include "tiling_base/data_copy_transpose_tiling.h"

@@ -10,8 +10,6 @@
 
 #ifndef FLASH_ATTN_INFER_TILING_H
 #define FLASH_ATTN_INFER_TILING_H
-#include <cstdio>
-#include <algorithm>
 #include "exe_graph/runtime/tiling_context.h"
 #include "register/tilingdata_base.h"
 #include "fused_infer_attention_score_tiling.h"

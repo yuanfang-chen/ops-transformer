@@ -15,12 +15,8 @@
 #ifndef AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_NEW_V2_H_
 #define AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_NEW_V2_H_
 
-#include <cstdint>
-#include <string>
-#include <vector>
 #include <queue>
 #include <map>
-#include <set>
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "tiling_base/data_copy_transpose_tiling.h"

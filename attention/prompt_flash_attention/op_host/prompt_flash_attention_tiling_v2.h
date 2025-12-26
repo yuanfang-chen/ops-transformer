@@ -14,8 +14,6 @@
  */
 #ifndef AIR_CXX_RUNTIME_V2_OP_IMPL_PROMPTFLASHATTENTION_V2_H_
 #define AIR_CXX_RUNTIME_V2_OP_IMPL_PROMPTFLASHATTENTION_V2_H_
-#include <string>
-#include <unordered_map>
 #include "tiling_base/data_copy_transpose_tiling_def.h"
 #include "tiling_base/data_copy_transpose_tiling.h"
 #include "register/tilingdata_base.h"

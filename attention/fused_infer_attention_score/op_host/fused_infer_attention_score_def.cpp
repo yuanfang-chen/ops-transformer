@@ -12,7 +12,6 @@
  * \file fused_infer_attention_score_def.cpp
  * \brief
  */
-#include <cstdint>
 #include "register/op_def_registry.h"
 
 // namespace optiling {

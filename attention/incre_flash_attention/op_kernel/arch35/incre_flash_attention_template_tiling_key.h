@@ -17,10 +17,6 @@
 #ifndef INCRE_FLASH_ATTENTION_TEMPLATE_TILING_KEY_H_
 #define INCRE_FLASH_ATTENTION_TEMPLATE_TILING_KEY_H_
 
-#include <vector>
-#include <cstdint>
-#include <iostream>
-#include <string>
 
 #include "../../../prompt_flash_attention/op_kernel/arch35/prompt_flash_attention_template_tiling_key_enum.h"
 #include "ascendc/host_api/tiling/template_argument.h"

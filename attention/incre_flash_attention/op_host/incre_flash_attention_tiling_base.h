@@ -15,11 +15,8 @@
 #ifndef INCRE_FLASH_ATTENTION_TILING_BASE_H
 #define INCRE_FLASH_ATTENTION_TILING_BASE_H
 
-#include <cstdint>
-#include <string>
 #include <map>
 
-#include "graph/types.h"
 
 namespace optiling {
 using namespace ge;
