@@ -806,10 +806,9 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
     const ge::DataType inputParamsType = contextKeyParams.inputDataType;
-    OP_CHECK_IF((inputParamsType != ge::DT_INT8) && (inputParamsType != ge::DT_HIFLOAT8) &&
-                (inputParamsType != ge::DT_FLOAT8_E4M3FN),
+    OP_CHECK_IF((inputParamsType != ge::DT_INT8),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "inputParamsType must be INT8 or HIFLOAT8 or FLOAT8_E4M3FN in per-tensor quant scenario, now is %s", 
+            "inputParamsType must be INT8 in per-tensor quant scenario, now is %s", 
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
         return false);
     OP_CHECK_IF((deqScale1Shape == nullptr) || (quantScale1Shape == nullptr) || (deqScale2Shape == nullptr),
@@ -3496,8 +3495,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyQuantMode(ge::DataType inputDa
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDataType) {
     // perblock采用新模板
-	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+	if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
         hasAttenMask = 0;
         return;
     }
@@ -3509,8 +3507,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDa
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputDataType) {
-	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+	if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
         hasRope = 0;
         return;
     }
@@ -3522,8 +3519,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputData
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataType) {
-	if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+	if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
         isPa = 0;
         return;
     }
@@ -3539,8 +3535,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyIsFd(ge::DataType inputDataTyp
         isFd = false;
         return;
     }
-    if (enablePertensorQuant && (inputDataType == ge::DT_INT8 || inputDataType == ge::DT_HIFLOAT8 ||
-        inputDataType == ge::DT_FLOAT8_E4M3FN)) {
+    if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
         isFd = 0;
         return;
     }

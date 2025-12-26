@@ -1038,7 +1038,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV2(
     - 昇腾910_95 AI处理器：
 
       - 非量化场景：query，key，value的类型全部为FLOAT16、BFLOAT16，D轴1-512全部支持。
-      - 全量化场景：query，key，value的类型全部INT8/HIFLOAT8/FLOAT8_E4M3FN时，D轴1-512全部支持。
+      - 全量化场景：query，key，value的类型全部为INT8时，D轴1-512全部支持。
       - 伪量化场景：query类型为FLOAT16、BFLOAT16，key、value类型为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32），其中当key、value类型为FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32），query的D轴以及key、value的D轴仅支持64对齐（INT32仅支持key、value的D 8对齐）。
 
   - 参数sparseMode当前仅支持值为0、1、2、3、4的场景，取其它值时会报错。

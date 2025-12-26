@@ -1009,7 +1009,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         -   D轴限制：
             - <term>昇腾910_95 AI处理器</term>：
                 - 非量化场景：query，key，value的类型全部为FLOAT16、BFLOAT16，D轴1-512全部支持。
-                - 全量化场景：query，key，value的类型全部INT8/HIFLOAT8/FLOAT8_E4M3FN时，D轴1-512全部支持。FP8 per-block全量化场景时，query，key，value的类型支持FLOAT8_E4M3FN、HIFLOAT8，D轴1-128全部支持。
+                - 全量化场景：per-tensor全量化场景时，query，key，value的类型支持INT8，D轴1-512全部支持。FP8 per-block全量化场景时，query，key，value的类型支持FLOAT8_E4M3FN、HIFLOAT8，D轴1-128全部支持。
                 - 伪量化场景：query类型为FLOAT16、BFLOAT16，key、value类型为INT8/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32），其中当key、value类型为FLOAT4_E1M2/FLOAT4_E2M1/INT4（INT32），query的D轴以及key、value的D轴仅支持64对齐（INT32仅支持key、value的D 8对齐）。
    -   actualSeqLengths入参，传入时应为非负数。
       - <term>昇腾910_95 AI处理器</term>：在inputLayout不同时，其含义与拦截条件不同：当inputLayout不为TND时，该入参为可选入参，其长度为1或大于等于query的batch值，该入参中的值代表每个batch的实际长度，其值应该不大于Q_S。当inputLayout为TND时，该入参必须传入，第b个值表示前b个batch的S轴累加长度，其值应递增（大于等于前一个值）排列，且该入参长度代表总batch数。
