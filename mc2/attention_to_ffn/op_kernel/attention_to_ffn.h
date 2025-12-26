@@ -72,7 +72,6 @@ private:
     __aicore__ inline void SetFlagInAttn();
     __aicore__ inline void FindExpertRank(int32_t expertId);
     __aicore__ inline void SetFFNStatus(uint32_t startFFNId, uint32_t endFFNId);
-    __aicore__ inline void CheckFlagInFFN(GlobalTensor<int32_t> tokenInfoTableGMTensor);
     __aicore__ inline void SetExpertAndRank(uint32_t tokenIdx, uint32_t tokenId, uint32_t topkId);
     __aicore__ inline void CheckFlagAndSetTableGM(int32_t toRankId, GM_ADDR &toRankAddr, GlobalTensor<int32_t> &tokenInfoTableGMTensor);
     TPipe *tpipe_{nullptr};
@@ -89,6 +88,7 @@ private:
     LocalTensor<float> scalesFp32Tensor_;
     LocalTensor<int8_t> xOutTensor_;
     LocalTensor<int32_t> ffnStatusTensor_;
+    LocalTensor<int32_t> ffnFlagTensor_;
     LocalTensor<float> smoothScalesTensor_;
     LocalTensor<int32_t> expertIdsTensor_;
 
@@ -100,6 +100,7 @@ private:
     TBuf<> activeMaskBuf_;
     TBuf<> castTempBuf_;
     TBuf<> ffnStatusBuf_;
+    TBuf<> ffnFlagBuf_;
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> xQueue_;  // 非量化使用
     TQue<QuePosition::VECIN, 1> xInQueue_; // 量化使用，量化前的输入
     TQue<QuePosition::VECOUT, 1> xOutQueue_; // 量化使用，量化后的输出
@@ -176,7 +177,7 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::InitByTinglingData(c
     axisH_ = tilingData->attentionToFFNInfo.H;
     axisL_ = tilingData->attentionToFFNInfo.L;
     axisK_ = tilingData->attentionToFFNInfo.K;
-    expertNum_ = tilingData->attentionToFFNInfo.expertNum; // 所有专家数：1个共享专家+所有的moe专家
+    expertNum_ = tilingData->attentionToFFNInfo.expertNum; // 所有专家数：共享专家+所有的moe专家
     moeExpertNum_ = tilingData->attentionToFFNInfo.moeExpertNum;
     expRankTableM_ = tilingData->attentionToFFNInfo.expRankTableM;
     microBatchNum_ = tilingData->attentionToFFNInfo.microBatchNum;
@@ -223,8 +224,10 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::Init(GM_ADDR x, GM_A
     uint32_t experTableCntAlign = Ceil(expertRankTableCnt_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN; // 约束32对齐
     tpipe_->InitBuffer(expertIdsBuf_, expertIdsAlign); // 对齐32B
     tpipe_->InitBuffer(statusBuf_, UB_ALIGN); // 对齐32B
+    tpipe_->InitBuffer(ffnFlagBuf_, UB_ALIGN); // 对齐32B
     expertIdsTensor_ = expertIdsBuf_.Get<int32_t>();
     statusTensor_ = statusBuf_.Get<int32_t>();
+    ffnFlagTensor_ = ffnFlagBuf_.Get<int32_t>();
     if constexpr (isQuant) {
         QuantInit(scales);
         castTempBuf_ = receiveDataCastFloatBuf_;
@@ -340,7 +343,6 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::QuantProcess(uint32_
     Cast(xOutTensor_, halfLocalTemp, RoundMode::CAST_TRUNC, axisH_);
 
     floatLocalTemp = xOutTensor_.template ReinterpretCast<float>();
-    // SyncFunc<AscendC::HardEvent::V_S>();
     floatLocalTemp.SetValue(hOutSizeAlign / sizeof(float), float(1.0) / dynamicScale); // int8->float32
 }
 
@@ -409,8 +411,9 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::CheckFlagAndSetTable
 
     int32_t ffnFlage = 1;
     while (ffnFlage == 1) {
-        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(tokenInfoTableGMTensor);
-        ffnFlage = tokenInfoTableGMTensor.GetValue(0);
+        DataCopy(ffnFlagTensor_, tokenInfoTableGMTensor, STATUS_REP_STRIDE);
+        SyncFunc<AscendC::HardEvent::MTE2_S>();
+        ffnFlage = ffnFlagTensor_.GetValue(0);
     }
     SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等待flag
 }
