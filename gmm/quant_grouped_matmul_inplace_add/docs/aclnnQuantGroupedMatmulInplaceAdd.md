@@ -122,7 +122,7 @@ aclnnStatus aclnnQuantGroupedMatmulInplaceAdd(
       </td>
       <td>FLOAT32、FLOAT8_E8M0</td>
       <td>ND</td>
-      <td>2</td>
+      <td>2-3</td>
       <td>√</td>
     </tr>
     <tr>
@@ -136,7 +136,7 @@ aclnnStatus aclnnQuantGroupedMatmulInplaceAdd(
       </td>
       <td>FLOAT32、FLOAT8_E8M0</td>
       <td>ND</td>
-      <td>2</td>
+      <td>2-3</td>
       <td>√</td>
     </tr>
     <tr>
@@ -174,7 +174,7 @@ aclnnStatus aclnnQuantGroupedMatmulInplaceAdd(
           <li>1: groupList中数值为分组轴上每组大小。</li>
         </ul>
       </td>
-      <td>-</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -189,7 +189,7 @@ aclnnStatus aclnnQuantGroupedMatmulInplaceAdd(
           <li>当前只支持传0。</li>
         </ul>
       </td>
-      <td>-</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
