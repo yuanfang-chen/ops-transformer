@@ -120,7 +120,7 @@
     <td>√</td>
     <td>√</td>
     <td>×</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>推理MlaProlog算子。</td>
   </tr>
@@ -130,7 +130,7 @@
     <td>√</td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>推理MlaPrologV2WeightNz算子。</td>
   </tr>
@@ -140,7 +140,7 @@
     <td>√</td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>推理MlaPrologV3WeightNz算子。</td>
   </tr>
