@@ -22,6 +22,7 @@ namespace optiling {};
 #include "../../../common/op_kernel/arch35/flash_attention_score_antiquant_kernel.h"
 #include "incre_flash_attention_dummy.h"
 #include "../../../prompt_flash_attention/op_kernel/arch35/prompt_flash_attention_template_tiling_key_enum.h"
+#include "../../../prompt_flash_attention/op_kernel/arch35/prompt_flash_attention_entry_regbase.h"
 
 using namespace AscendC;
 
@@ -180,7 +181,16 @@ template<uint8_t inOutLayoutType, uint16_t config, uint8_t pseMode, uint8_t quan
   KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
 #endif
 
-REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 24) & 0x1f) < 15", IncreFlashAttentionTilingDataV2);
+REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) < 15", IncreFlashAttentionTilingDataV2);
+
+if constexpr (emptyTensor == true) {
+    # if (ORIG_DTYPE_ATTENTION_OUT != DT_FLOAT16 && ORIG_DTYPE_ATTENTION_OUT != DT_BF16)
+        INVOKE_PFA_ZERO_OP_IMPL_V2(fp8_e4m3fn_t);
+    #else
+        INVOKE_PFA_ZERO_OP_IMPL_V2(half);
+    #endif
+    return;
+}
 
 #if (ORIG_DTYPE_QUERY == DT_FLOAT16 && ORIG_DTYPE_KEY == DT_INT8 && ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16)
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);

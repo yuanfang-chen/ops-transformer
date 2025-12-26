@@ -105,7 +105,7 @@ protected:
     bool IsCapable() override {return true;}
     ge::graphStatus DoOpTiling() override;
     void PromptFlashAttentionInitOutputSplit(int64_t totalSize, PromptFlashAttentionTilingData &tilingData);
-    bool CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams) const;    
+    ge::graphStatus CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams);    
     void SetEmptyTensor(ContextParamsForPFATiling& contextKeyParams, uint32_t& blockDimToBeSet,
         PromptFlashAttentionTilingData& tilingData);
     bool CheckIODataType(ContextParamsForPFATiling& contextKeyParams);
@@ -222,22 +222,13 @@ protected:
         int64_t l1Size, int64_t l0CSize, uint32_t& sOuterFactor, uint32_t &sInnerFactor);
     void GetPreNextTokensLeftUp(PromptFlashAttentionTilingData& tilingData, int64_t actualSeqLength, 
         int64_t actualSeqLengthKV, int64_t& preTokensLeftUp, int64_t& nextTokensLeftUp);
-    void UpdateTilingKeyMaskCfg(PromptFlashAttentionTilingData& tilingData, uint64_t& tilingKey);
-    void UpdateTilingKeyPseCfg(uint64_t& tilingKey);
-    void UpdateTilingSystemPrefix(uint64_t& tilingKey);
-    void UpdateTilingKeyDSizeConst(PromptFlashAttentionTilingData &tilingData, uint64_t& tilingKey);
-    void UpdateTilingKeyValueDSizeConst(PromptFlashAttentionTilingData &tilingData, uint64_t& tilingKey) const;
-    void UpdateTilingKeySInnerConst(PromptFlashAttentionTilingData &tilingData, uint64_t& tilingKey);
-    void UpdateTilingKeySOuterConst(PromptFlashAttentionTilingData &tilingData, uint64_t& tilingKey);
     void PromptFlashAttentionInitSoftmaxLseOutputSplit(int64_t totalSize, PromptFlashAttentionTilingData &tilingData);
-    void UpdateTilingKeyFlag(ContextParamsForPFATiling& contextKeyParams, uint64_t& tilingKey);
     bool TilingGetTilingKeyAttentionAscendC(ContextParamsForPFATiling& contextKeyParams,
         PromptFlashAttentionTilingData &tilingData);
     size_t GetPFAWorkSpaceSize(PromptFlashAttentionTilingData& tilingData);
     ge::graphStatus SetPlatMemoryInfo(ContextParamsForPFATiling& contextKeyParams);
     ge::graphStatus SetAttributeInfo(ContextParamsForPFATiling& contextKeyParams);
     ge::graphStatus CheckTensorInvalid(const ContextParamsForPFATiling& contextKeyParams) const;
-    ge::graphStatus CheckRopeInvalid(const ContextParamsForPFATiling& contextKeyParams) const;
     ge::graphStatus CheckSingleAttribute(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo, 
         PFAShapeInfo& keyShapeInfo, PFAShapeInfo& valueShapeInfo, PFAShapeInfo& queryRopeShapeInfo, PromptFlashAttentionTilingData& tilingData);
     ge::graphStatus CheckCrossoverAttribute(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo,

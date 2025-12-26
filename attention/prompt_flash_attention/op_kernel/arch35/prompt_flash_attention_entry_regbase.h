@@ -231,11 +231,11 @@ using namespace regbaseutil;
         op.Process();                                                                                                   \
     } while (0)
 // kv is empty tensor, return zero output
-#define INVOKE_PFA_ZERO_OP_IMPL_V2(templateClass, ...)                                                  \
+#define INVOKE_PFA_ZERO_OP_IMPL_V2(T)                                                                   \
     TPipe tPipe;                                                                                        \
-    INVOKE_PFA_TILING_DATA_95(tiling);                                                                  \
-    PromptFlashAttentionZeroOutPut<half> op;                                                            \
-    op.Init(attentionOut, tiling_data);                                                                 \
+    PFA_REGBASE_COPY_TILING_DATA(tiling);                                                               \
+    PromptFlashAttentionZeroOutPut<T> op;                                                               \
+    op.Init(attentionOut, softmaxLse, tilingData);                                                      \
     op.Process();                                                                                       \
     return
 #define INVOKE_PFA_DUMMY(templateClass, ...)                                                            \
@@ -267,7 +267,11 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
     REGISTER_TILING_DEFAULT(PFAFullQuantTilingData);
     REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) == 31", FlashAttentionScoreSimplifiedTilingData);
     if constexpr (emptyTensor == true) {
-        INVOKE_PFA_ZERO_OP_IMPL_V2();
+        # if (ORIG_DTYPE_ATTENTION_OUT != DT_FLOAT16 && ORIG_DTYPE_ATTENTION_OUT != DT_BF16)
+            INVOKE_PFA_ZERO_OP_IMPL_V2(fp8_e4m3fn_t);
+        #else
+            INVOKE_PFA_ZERO_OP_IMPL_V2(half);
+        #endif
         return;
     }
     // 非量化用新模板

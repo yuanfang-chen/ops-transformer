@@ -99,42 +99,21 @@ constexpr uint32_t PSE_TYPE_INDEX = 14;
 
 constexpr uint32_t SOFTMAX_LSE_INDEX = 1;
 
-#ifndef ASCEND_OPTILING_UT
-static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams, 
-    const string layoutStr, int64_t batchOfQ) {
-    int64_t validBatchOfK = 0;
-    int64_t validBatchOfV = 0;
-    int64_t cumulativeKeyS = 0;
-    int64_t cumulativeValueS = 0;
-    contextKeyParams.kTensorList.resize(batchOfQ);
-    contextKeyParams.vTensorList.resize(batchOfQ);
-    while (context->GetDynamicInputShape(KEY_INDEX, validBatchOfK) != nullptr) {
-        contextKeyParams.kTensorList[validBatchOfK] = context->GetDynamicInputShape(KEY_INDEX, validBatchOfK);
-        OP_CHECK_IF(contextKeyParams.kTensorList[validBatchOfK]->GetStorageShape().GetDim(0) != 1,
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Batch value of Key(%ld) is NOT 1 but should be 1 under tensorlist mode!", 
-            contextKeyParams.kTensorList[validBatchOfK]->GetStorageShape().GetDim(0)),
-            return false);
-        validBatchOfK++;
+static bool CheckEmptyTensorList(ContextParamsForPFATiling& contextKeyParams, int64_t validBatchOfK) {
+    for (int64_t tmpIdx = 0; tmpIdx < validBatchOfK; ++tmpIdx) {
+        if (contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetShapeSize() != 0) {
+            return false;
+        }
+        if (contextKeyParams.vTensorList[tmpIdx]->GetStorageShape().GetShapeSize() != 0) {
+            return false;
+        }
     }
+    contextKeyParams.emptyTensor = 1;
+    return true;
+}
 
-    while (context->GetDynamicInputShape(VALUE_INDEX, validBatchOfV) != nullptr) {
-        contextKeyParams.vTensorList[validBatchOfV] = context->GetDynamicInputShape(VALUE_INDEX, validBatchOfV);
-        OP_CHECK_IF(contextKeyParams.vTensorList[validBatchOfV]->GetStorageShape().GetDim(0) != 1,
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Batch value of Value(%ld) is NOT 1 but should be 1 under tensorlist mode!",
-            contextKeyParams.vTensorList[validBatchOfV]->GetStorageShape().GetDim(0)),
-            return false);
-        validBatchOfV++;
-    }
-
-    OP_CHECK_IF((batchOfQ != validBatchOfK) || (validBatchOfK != validBatchOfV),
-        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), 
-        "Batch of Query(%ld) do NOT equal to Batch of Key(%ld) and Value(%ld) under tensorlist mode!", batchOfQ, validBatchOfK, validBatchOfV),
-        return false);
-
-    OP_CHECK_IF((batchOfQ > BLIMIT),
-        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Batch of Query(%ld) do NOT larger than 65535 under tensorlist mode!", batchOfQ),
-        return false);
-
+static bool CheckNormalTensorList(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams,
+    const string layoutStr, int64_t validBatchOfK) {
     if (layoutStr == "BSH") { // check all H across batches and KVs are the same under BSH layout
         auto standardKH = contextKeyParams.kTensorList[0]->GetStorageShape().GetDim(KV_DIM_2);
         auto standardVH = contextKeyParams.vTensorList[0]->GetStorageShape().GetDim(KV_DIM_2);
@@ -178,11 +157,6 @@ static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATil
                     return false;
                 }
             }
-            if (contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(1) == 0) {
-                contextKeyParams.emptyTensor = 1;
-            }
-            cumulativeKeyS += contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(1);
-            cumulativeValueS += contextKeyParams.vTensorList[tmpIdx]->GetStorageShape().GetDim(1);
             contextKeyParams.maxKVs = std::max(contextKeyParams.maxKVs, uint32_t(contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(1)));
         }
     } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND") { // check N and D, respectively, are the same
@@ -242,11 +216,6 @@ static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATil
                     return false;
                 }
             }
-            if (contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(KV_DIM_2) == 0) { // 2: Traverse the k list of the tiling key to check whether the second dimension of each tensor is 0.
-                contextKeyParams.emptyTensor = 1;
-            }
-            cumulativeKeyS += contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(KV_DIM_2); // 2: Obtain the second dimension
-            cumulativeValueS += contextKeyParams.vTensorList[tmpIdx]->GetStorageShape().GetDim(KV_DIM_2); // 2: Obtain the second dimension
             contextKeyParams.maxKVs = std::max(contextKeyParams.maxKVs, uint32_t(contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(KV_DIM_2))); // 2: Obtain the second dimension
         }
     } else { // check N and D, respectively, are the same across batches and KVs under BSND
@@ -299,22 +268,55 @@ static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATil
                     return false;
                 }
             }
-            if (contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(1) == 0) {
-                contextKeyParams.emptyTensor = 1;
-            }
-            cumulativeKeyS += contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(1);
-            cumulativeValueS += contextKeyParams.vTensorList[tmpIdx]->GetStorageShape().GetDim(1);
             contextKeyParams.maxKVs = std::max(contextKeyParams.maxKVs, uint32_t(contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(1)));
         }
     }
-
-    OP_CHECK_IF((contextKeyParams.emptyTensor == 1) && (cumulativeKeyS != 0) && (cumulativeValueS != 0),
-        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Got empty tensor in key and value which is not continuous!"),
-        return false);
     contextKeyParams.isKvContinuous = 0;
     return true;
 }
-#endif
+
+static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams,
+    const string layoutStr, int64_t batchOfQ) {
+    int64_t validBatchOfK = 0;
+    int64_t validBatchOfV = 0;
+    contextKeyParams.kTensorList.resize(batchOfQ);
+    contextKeyParams.vTensorList.resize(batchOfQ);
+    while (context->GetDynamicInputShape(KEY_INDEX, validBatchOfK) != nullptr) {
+        contextKeyParams.kTensorList[validBatchOfK] = context->GetDynamicInputShape(KEY_INDEX, validBatchOfK);
+        OP_CHECK_IF(contextKeyParams.kTensorList[validBatchOfK]->GetStorageShape().GetDim(0) != 1,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Batch value of Key(%ld) is NOT 1 but should be 1 under tensorlist mode!", 
+            contextKeyParams.kTensorList[validBatchOfK]->GetStorageShape().GetDim(0)),
+            return false);
+        validBatchOfK++;
+    }
+
+    while (context->GetDynamicInputShape(VALUE_INDEX, validBatchOfV) != nullptr) {
+        contextKeyParams.vTensorList[validBatchOfV] = context->GetDynamicInputShape(VALUE_INDEX, validBatchOfV);
+        OP_CHECK_IF(contextKeyParams.vTensorList[validBatchOfV]->GetStorageShape().GetDim(0) != 1,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Batch value of Value(%ld) is NOT 1 but should be 1 under tensorlist mode!",
+            contextKeyParams.vTensorList[validBatchOfV]->GetStorageShape().GetDim(0)),
+            return false);
+        validBatchOfV++;
+    }
+
+    OP_CHECK_IF((batchOfQ != validBatchOfK) || (validBatchOfK != validBatchOfV),
+        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), 
+        "Batch of Query(%ld) do NOT equal to Batch of Key(%ld) and Value(%ld) under tensorlist mode!", batchOfQ, validBatchOfK, validBatchOfV),
+        return false);
+
+    OP_CHECK_IF((batchOfQ > BLIMIT),
+        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Batch of Query(%ld) do NOT larger than 65535 under tensorlist mode!", batchOfQ),
+        return false);
+
+    if (CheckEmptyTensorList(contextKeyParams, validBatchOfK)) {
+        return true;
+    }
+
+    if (!CheckNormalTensorList(context, contextKeyParams, layoutStr, validBatchOfK)) {
+        return false;
+    }
+    return true;
+}
 
 static bool CheckKVPaddingCrossover(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) {
     OP_CHECK_IF(((contextKeyParams.queryPaddingSize != nullptr) && (contextKeyParams.queryPaddingSize->GetStorageShape().GetShapeSize() != 1 ||
@@ -385,7 +387,6 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.maxKVs = 0;
     contextKeyParams.pseShift = context->GetOptionalInputTensor(PSE_SHIFT_INDEX);
     contextKeyParams.attentionMask = context->GetOptionalInputTensor(ATTEN_MASK_INDEX);
-#ifndef ASCEND_OPTILING_UT
     OP_CHECK_IF((contextKeyParams.attentionMask != nullptr) &&
         (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != ge::DT_BOOL) &&
         (context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() != ge::DT_INT8) &&
@@ -394,7 +395,6 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
         "Invalid attention mask datatype(%s)! Only support BOOL, INT8 and UINT8",
         v2::GetPfaDataTypeStr(context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType()).c_str()),
         return ge::GRAPH_FAILED);
-#endif
     contextKeyParams.actualSequenceLengthQ = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
     contextKeyParams.actualSequenceLengthKV = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     contextKeyParams.antiquantScale = context->GetOptionalInputTensor(ANTIQUANT_SCALE_INDEX);
@@ -491,7 +491,6 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
             break;
         }
     }
-#ifndef ASCEND_OPTILING_UT
     if (validBatchOfK > 1) { // k tensor 超过一个, 认为是tensorlist场景
         // PA和TND格式, 与tensorlist本身的定义有冲突, 在判定tensorlist输入后先做校验, 之后再校验tensorlist信息正确性
         OP_CHECK_IF((contextKeyParams.blockTable != nullptr),
@@ -507,7 +506,6 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
                 "Check Tensorlist failed!"),
             return ge::GRAPH_FAILED);
     }
-#endif
     OP_CHECK_IF(((contextKeyParams.isKvContinuous == 0) && ((context->GetOptionalInputDesc(QUERY_PADDING_SIZE_INDEX) != nullptr) ||
         (context->GetOptionalInputDesc(KV_PADDING_SIZE_INDEX) != nullptr))), OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
             "When tensorlist is used, left padding is not supported!"),
@@ -679,10 +677,12 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "AttentionOut is null pointer!"),
         return ge::GRAPH_FAILED);
     auto attrs = context_->GetAttrs();
-    OP_CHECK_IF((tempQ->GetStorageShape().GetShapeSize() == 0) &&
-        (tempOut->GetStorageShape().GetShapeSize() != 0),
-        OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Query input is empty and output is not empty!"),
+    OP_CHECK_IF((tempQ->GetStorageShape().GetShapeSize() == 0 && tempOut->GetStorageShape().GetShapeSize() != 0) ||
+        (tempQ->GetStorageShape().GetShapeSize() != 0 && tempOut->GetStorageShape().GetShapeSize() == 0),
+        OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "query shape size is %llu byte, but attention Out shape size is %llu byte, they cannot be empty while the other is not",
+            tempQ->GetStorageShape().GetShapeSize(), tempOut->GetStorageShape().GetShapeSize()),
         return ge::GRAPH_FAILED);
+
     OP_CHECK_IF((tempQ->GetStorageShape().GetShapeSize() == gert::Shape::kInvalidDimValue),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Get the shape size of Query failed!"),
         return ge::GRAPH_FAILED);
@@ -738,7 +738,6 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
             tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
             return ge::GRAPH_FAILED);
     } else if (inputLayoutStr == "TND") {
-#ifndef ASCEND_OPTILING_UT
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
                 "The current layout is %s, input query shape dim(%zu) should be 3!", inputLayoutStr.c_str(),
@@ -755,7 +754,6 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 tempQ->GetStorageShape().GetDim(0), tempQ->GetStorageShape().GetDim(1), tempQ->GetStorageShape().GetDim(QUERY_DIM_2),
                 tempOut->GetStorageShape().GetDim(0), tempOut->GetStorageShape().GetDim(1), tempOut->GetStorageShape().GetDim(OUT_DIM_2)),
             return ge::GRAPH_FAILED);
-#endif
     } else if (inputLayoutStr == "BSH") {
         OP_CHECK_IF((tempQ->GetStorageShape().GetDimNum() != QUERY_DIM_3),
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(),
@@ -913,7 +911,6 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
             if (!pfa_tiling.CheckNonEmptyShapeExceptions(contextParamsForPFATiling, contextParamsForPFATiling.lseoutputShape, "softmaxLse")) {
                 return ge::GRAPH_FAILED;
             }
-#ifndef ASCEND_OPTILING_UT
             OP_CHECK_IF(((tempLse == nullptr)),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "SoftmaxLse shape is null, but SoftmaxLseFlag is true!"),
                 return ge::GRAPH_FAILED);
@@ -947,7 +944,6 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                         tempLse->GetStorageShape().GetDim(2), tempLse->GetStorageShape().GetDim(3), b, tempN, s), // 2: the third dimension 3: the fourth dimension
                     return ge::GRAPH_FAILED);
             }
-#endif
         }
         if (tempCompileInfoPtr.socShortName != platform_ascendc::SocVersion::ASCEND910_95 && tempCompileInfoPtr.socShortName != platform_ascendc::SocVersion::ASCEND910_55) {
             OP_CHECK_IF((((contextParamsForPFATiling.inputDataType == ge::DT_INT8) || (contextParamsForPFATiling.kDataType == ge::DT_INT8) ||

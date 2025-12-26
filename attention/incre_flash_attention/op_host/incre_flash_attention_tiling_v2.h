@@ -145,12 +145,17 @@ private:
   void SetPFASparseType(uint32_t qS);
   void SetfaRunBaseSize();
   void GetMaxWorkspaceFlag();
+  void SetEmptyTensor();
+  void IncreFlashAttentionInitOutputSplit();
+  void IncreFlashAttentionInitSoftmaxLseOutputSplit();
+  bool CheckEmptyTensor(int64_t loopTimes);
   ge::graphStatus InitInOutMode();
   ge::graphStatus KvShapePostProcess();
   ge::graphStatus CheckKvCache();
   ge::graphStatus CheckKvCacheValue(uint32_t kDimNum) const;
   ge::graphStatus CheckInputAntiquantFormat() const;
-  ge::graphStatus CheckKVShape() const;
+  ge::graphStatus CheckKVShapePre();
+  ge::graphStatus CheckKVShape(int64_t batchOfQuery);
   ge::graphStatus CheckFormat(ge::Format format, const std::string &sName) const;
   ge::graphStatus CheckQKOutShape() const;
   ge::graphStatus CheckLse() const;
@@ -295,6 +300,7 @@ private:
   uint32_t sMax_ = 0;
   uint32_t blockTypeSize_ = 0;  // 计算中间量大小
   uint32_t kvSplitPart_ = 1;
+  bool emptyTensor_ = false;
 
   ge::DataType inputQType_ = ge::DT_FLOAT16;
   ge::DataType inputKvType_ = ge::DT_FLOAT16;

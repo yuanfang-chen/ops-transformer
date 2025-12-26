@@ -147,10 +147,10 @@ std::string DataTypeToString(ge::DataType type)
 {
     const auto it = DATATYPE_TO_STRING_MAP.find(type);
     if (it != DATATYPE_TO_STRING_MAP.end()) {
-    	return it->second;
+        return it->second;
     } else {
-		OP_LOGE("IncreFlashAttention", "datatype %d not support", type);
-		return "UNDEFINED";
+        OP_LOGE("IncreFlashAttention", "datatype %d not support", type);
+        return "UNDEFINED";
     }
 }
 
@@ -241,6 +241,9 @@ ge::graphStatus IFATilingV2::GetNpuInfo() {
 ge::graphStatus IFATilingV2::PreProcess() {
   if (ProcessBaseTensors() != ge::GRAPH_SUCCESS) {
     return ge::GRAPH_FAILED;
+  }
+  if (emptyTensor_) {
+    return ge::GRAPH_SUCCESS;
   }
   return ProcessOptionalTensors();
 }
@@ -336,11 +339,6 @@ int64_t IFATilingV2::GetMaxSeqLength(const gert::Tensor* actualSeqLength) {
 ge::graphStatus IFATilingV2::ProcessBaseTensors() {
   OP_CHECK_IF(ifaContext_->query.shape == nullptr,
              OP_LOGE(ifaContext_->opName, "Shape of tensor query is null."), return ge::GRAPH_FAILED);
-
-  OP_CHECK_IF(ifaContext_->query.shape->GetStorageShape().GetShapeSize() == 0,
-             OP_LOGE(ifaContext_->opName, "Tensor query is empty cause shapesize is 0."),
-             return ge::GRAPH_FAILED);
-
   OP_CHECK_IF(ifaContext_->query.desc == nullptr,
              OP_LOGE(ifaContext_->opName, "Desc of tensor query is null."), return ge::GRAPH_FAILED);
   OP_CHECK_IF(ifaContext_->key.shape == nullptr,
@@ -355,6 +353,23 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
              OP_LOGE(ifaContext_->opName, "Desc of tensor attentionOut is null."), return ge::GRAPH_FAILED);
   OP_CHECK_IF(ifaContext_->attenOut.shape == nullptr,
              OP_LOGE(ifaContext_->opName, "Shape of tensor attentionOut is null."), return ge::GRAPH_FAILED);
+
+  if (ifaContext_->softmaxLseFlag != nullptr) {
+    softmaxLseFlag_ = *ifaContext_->softmaxLseFlag;
+  }
+
+  OP_CHECK_IF((ifaContext_->query.shape->GetStorageShape().GetShapeSize() == 0 &&
+              ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize() != 0) ||
+              (ifaContext_->query.shape->GetStorageShape().GetShapeSize() != 0 &&
+              ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize() == 0),
+              OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "query shape size is %llu byte, but attention Out shape size is %llu byte, they cannot be empty while the other is not",
+                                          ifaContext_->query.shape->GetStorageShape().GetShapeSize(), ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize()),
+              return ge::GRAPH_FAILED);
+  if (ifaContext_->query.shape->GetStorageShape().GetShapeSize() == 0 &&
+      ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize() == 0) {
+    emptyTensor_ = true;
+    return ge::GRAPH_SUCCESS;
+  }
 
   OP_CHECK_IF(ifaContext_->key.desc->GetDataType() != ifaContext_->value.desc->GetDataType(),
              OP_LOGE(ifaContext_->opName, "Datatype of key and datatype of value are different."), return ge::GRAPH_FAILED);
@@ -410,10 +425,6 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
     batchContinuousFlag_ = (batchSize_ == kvBatch);
   } else if (CheckPABlockSize() != ge::GRAPH_SUCCESS) {
     return ge::GRAPH_FAILED;
-  }
-
-  if (ifaContext_->softmaxLseFlag != nullptr) {
-    softmaxLseFlag_ = *ifaContext_->softmaxLseFlag;
   }
 
   std::string layout(ifaContext_->layOut);
@@ -514,6 +525,9 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
   }
   if (KvShapePostProcess() != ge::GRAPH_SUCCESS) {
     return ge::GRAPH_FAILED;
+  }
+  if (emptyTensor_) {
+    return ge::GRAPH_SUCCESS;
   }
   antiQuantFlag_ = (inputQType_ != inputKvType_) && ((inputKvType_ == ge::DT_INT8) ||
                    (inputKvType_ == ge::DT_INT4) || (inputKvType_ == ge::DT_HIFLOAT8) ||
@@ -638,26 +652,21 @@ ge::graphStatus IFATilingV2::CheckKVHeadNum(const gert::StorageShape *inputShape
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus IFATilingV2::CheckKVShape() const {
-  if (pageAttentionFlag_) {
-    return ge::GRAPH_SUCCESS; // page_attention don't check this place
-  }
-  auto batchOfQuery = ifaContext_->query.shape->GetStorageShape().GetDim(NUM0);
-  auto batchOfKey = ifaContext_->key.shape->GetStorageShape().GetDim(NUM0);
-  if (inputLayout_ == IfaLayout::TND) {
-    if (isMaxWorkspace_) {
-      batchOfQuery = 1;
-      batchOfKey = 1;
-    } else {
-      batchOfQuery = ifaContext_->actualSeqLengthsQ.tensor->GetShapeSize();
-      batchOfKey = ifaContext_->actualSeqLengths.tensor->GetShapeSize();
+bool IFATilingV2::CheckEmptyTensor(int64_t loopTimes) {
+  for (int64_t size = 0; size < loopTimes; ++size) {
+    auto keyTensorInList = ifaContext_->kCache[size];
+    auto valueTensorInList = ifaContext_->vCache[size];
+    if (keyTensorInList->GetStorageShape().GetShapeSize() != 0) {
+      return false;
+    }
+    if (valueTensorInList->GetStorageShape().GetShapeSize() != 0) {
+      return false;
     }
   }
-  /* kv continuous */
-  if (batchOfQuery == batchOfKey) {
-    return ge::GRAPH_SUCCESS;
-  }
-  /* kv not continuous */
+  return true;
+}
+
+ge::graphStatus IFATilingV2::CheckKVShape(int64_t batchOfQuery) {
   for (int64_t size = 0; size < batchOfQuery; ++size) {
     auto keyTensorInList = ifaContext_->kCache[size];
     auto valueTensorInList = ifaContext_->vCache[size];
@@ -691,6 +700,33 @@ ge::graphStatus IFATilingV2::CheckKVShape() const {
     }
   }
   return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus IFATilingV2::CheckKVShapePre() {
+  auto batchOfQuery = ifaContext_->query.shape->GetStorageShape().GetDim(NUM0);
+  auto batchOfKey = ifaContext_->key.shape->GetStorageShape().GetDim(NUM0);
+  if (isMaxWorkspace_) {
+    return ge::GRAPH_SUCCESS;
+  }
+  if (inputLayout_ == IfaLayout::TND) {
+    if (CheckEmptyTensor(1)) { // 1:TND场景下不使能tensorlist，kCache size为1
+      emptyTensor_ = true;
+      return ge::GRAPH_SUCCESS;
+    }
+    batchOfQuery = ifaContext_->actualSeqLengthsQ.tensor->GetShapeSize();
+    batchOfKey = ifaContext_->actualSeqLengths.tensor->GetShapeSize();
+  }
+  /* kv continuous */
+  if (batchOfQuery == batchOfKey) {
+    emptyTensor_ = CheckEmptyTensor(1); // 1: 非tensorlist场景，kCache size为1
+    return ge::GRAPH_SUCCESS;
+  }
+  /* kv not continuous */
+  if (CheckEmptyTensor(batchOfQuery)) {
+    emptyTensor_ = true;
+    return ge::GRAPH_SUCCESS;
+  }
+  return CheckKVShape(batchOfQuery);
 }
 
 ge::graphStatus IFATilingV2::CheckQKOutShape() const
@@ -917,6 +953,10 @@ ge::graphStatus IFATilingV2::CheckKvCacheValue(uint32_t kDimNum) const {
 
 ge::graphStatus IFATilingV2::KvShapePostProcess() {
   if (pageAttentionFlag_) {
+    if (CheckEmptyTensor(1)) { // 1:pa场景下不使能tensorlist，kCache size为1
+      emptyTensor_ = true;
+      return ge::GRAPH_SUCCESS;
+    }
     if (CheckKvCache() != ge::GRAPH_SUCCESS) {
       return ge::GRAPH_FAILED;
     }
@@ -936,7 +976,15 @@ ge::graphStatus IFATilingV2::KvShapePostProcess() {
       return ge::GRAPH_FAILED;
     }
 
-    if (CheckKVShape() != ge::GRAPH_SUCCESS || CheckKeyShapeTensor(keyShape->GetStorageShape(), i) != ge::GRAPH_SUCCESS) {
+    if (CheckKVShapePre() != ge::GRAPH_SUCCESS) {
+      return ge::GRAPH_FAILED;
+    }
+
+    if (emptyTensor_) {
+      return ge::GRAPH_SUCCESS;
+    }
+
+    if (CheckKeyShapeTensor(keyShape->GetStorageShape(), i) != ge::GRAPH_SUCCESS) {
       return ge::GRAPH_FAILED;
     }
 
@@ -953,11 +1001,6 @@ ge::graphStatus IFATilingV2::KvShapePostProcess() {
       seqSize = keyShape->GetStorageShape().GetDim(NUM2);  // 2, dim of S
     }
 
-    /* 原则上空tensor为S=0，兼容ShapeSize=0场景 */
-    if (seqSize != 0 && keyShape->GetStorageShape().GetShapeSize() == 0) {
-      seqSize = 0;
-    }
-
     sMax_ = std::max(seqSize, sMax_);
     kvListSeqLens_.push_back(seqSize);
   }
@@ -965,16 +1008,48 @@ ge::graphStatus IFATilingV2::KvShapePostProcess() {
   return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus IFATilingV2::EmptyTensorProcess() {
-  if (sMax_ == 0) {
-    /*
-     * 1024，空tensor场景下，作为默认值完成后续计算
-     * 避免matmal tiling  softmax tiling异常
-     * kernel计算使用真实的seqSize=0, 与actuseq_len流程归一
-     */
-    seqSize_ = NUM1024;
+void IFATilingV2::IncreFlashAttentionInitSoftmaxLseOutputSplit() {
+  int64_t totalSize = ifaContext_->lseOut.shape->GetStorageShape().GetShapeSize();
+  tilingData_->outputParams.set_totalLseOutputSize(totalSize);
+}
+
+void IFATilingV2::IncreFlashAttentionInitOutputSplit() {
+  int64_t totalSize = ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize();
+  // Upward rounding, coreNum has been verified to be non-zero when obtained.
+  uint32_t singleCoreSize = (totalSize + coreNum_ - 1) / (coreNum_);
+
+  if (enablePostQuant_) {
+    // requiring that the number of points allocated to each kernel must be even.
+    singleCoreSize = ((singleCoreSize + 1) / 2) * 2; // 2 : fill in 0
   }
-  return ge::GRAPH_SUCCESS;
+
+  tilingData_->outputParams.set_singleCoreSize(singleCoreSize);
+  tilingData_->outputParams.set_totalOutputSize(totalSize);
+}
+
+void IFATilingV2::SetEmptyTensor() {
+  emptyTensor = true;
+  quantMode = NoQuantMode;
+  IncreFlashAttentionInitOutputSplit();
+  tilingData_->outputParams.set_totalLseOutputSize(0);
+  if (softmaxLseFlag_) {
+    IncreFlashAttentionInitSoftmaxLseOutputSplit();
+  }
+  auto platformInfoPtr = context_->GetPlatformInfo();
+  OP_CHECK_IF(platformInfoPtr == nullptr,
+              OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "platformInfoPtr is null!"),
+              return);
+  auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
+  ifaContext_->blockDim = ascendcPlatform.CalcTschBlockDim(coreNum_, aicNum_, coreNum_);
+  ifaContext_->workSpaces[0] = ascendcPlatform.GetLibApiWorkSpaceSize();
+}
+
+ge::graphStatus IFATilingV2::EmptyTensorProcess() {
+  if (emptyTensor_) {
+    SetEmptyTensor();
+    return ge::GRAPH_SUCCESS;
+  }
+  return ge::GRAPH_FAILED;
 }
 
 ge::graphStatus IFATilingV2::CheckKeyShapeTensor(const gert::Shape& aShape, size_t idx) const {
@@ -1347,7 +1422,7 @@ ge::graphStatus IFATilingV2::ProcessAttenMaskSparsePFA() {
   const gert::Tensor* maskShape = ifaContext_->attenMask.tensor;
   ge::DataType attenMaskType = ifaContext_->attenMask.desc ? ifaContext_->attenMask.desc->GetDataType() : ge::DT_UNDEFINED;
 
-  bool enableMask = (maskShape != nullptr) && (maskShape->GetStorageShape().GetShapeSize() != 0);
+  bool enableMask = (maskShape != nullptr);
   bool isDefaultSparseMode = (ifaContext_->sparseMode == nullptr) || ((ifaContext_->sparseMode != nullptr) && 
     (sparseMode_ == SPARSE_MODE_NO_MASK));
 
@@ -1589,7 +1664,7 @@ ge::graphStatus IFATilingV2::ProcessAttenMask() {
     return ge::GRAPH_SUCCESS;
   }
   auto maskShape = ifaContext_->attenMask.tensor;  // input shape = 4
-  if (maskShape == nullptr || maskShape->GetStorageShape().GetShapeSize() == 0) {
+  if (maskShape == nullptr) {
     attenMaskFlag_ = false;
     OP_LOGD(ifaContext_->opName, "AttenMask tensor exists, but attenMask is null or attenMask shapeSize is 0.");
     return ge::GRAPH_SUCCESS;
@@ -2719,9 +2794,9 @@ void IFATilingV2::PromptFlashAttentionInitOutputSplit() {
   int64_t totalSize = ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize();
   uint32_t singleCoreSize = (totalSize + coreNum_ - 1) / (coreNum_);
   if (enablePostQuant_) {
-      // 2：In post quant scenario, when initializing, fill in 0 according to the half type,
-      // requiring that the number of points allocated to each kernel must be even.
-      singleCoreSize = ((singleCoreSize + 1) / 2) * 2; // 2 : fill in 0
+    // 2：In post quant scenario, when initializing, fill in 0 according to the half type,
+    // requiring that the number of points allocated to each kernel must be even.
+    singleCoreSize = ((singleCoreSize + 1) / 2) * 2; // 2 : fill in 0
   }
   singleCoreSize_ = singleCoreSize;
   tilingData_->outputParams.set_singleCoreSize(singleCoreSize);
@@ -3559,83 +3634,83 @@ ge::graphStatus IFATilingV2::CalcBlockDim() const {
 }
 
 void IFATilingV2::UpdateTilingKeyLayoutType() {
-	if (inputLayout_ == IfaLayout::BNSD) {
-		inOutLayoutType = InOutLayoutType_BNSD_BNSD;
-    } else if (inputLayout_ == IfaLayout::TND) {
-		inOutLayoutType = InOutLayoutType_TND_TND;
-    } else if (inputLayout_ == IfaLayout::BSH_BSND) {
-		inOutLayoutType = InOutLayoutType_BSH_BSH;
-    }
+  if (inputLayout_ == IfaLayout::BNSD) {
+    inOutLayoutType = InOutLayoutType_BNSD_BNSD;
+  } else if (inputLayout_ == IfaLayout::TND) {
+    inOutLayoutType = InOutLayoutType_TND_TND;
+  } else if (inputLayout_ == IfaLayout::BSH_BSND) {
+    inOutLayoutType = InOutLayoutType_BSH_BSH;
+  }
 }
 
 void IFATilingV2::UpdateTilingKeyConfig() {
-	auto sInner = sInnerSize2_;
-	auto sOuter = sOuterSize_;
-	auto dSize = headDim_;
-	auto dVsize = headDim_;
-	if (sInner == 1024 && sOuter == 16 && dSize <= 64 && dVsize <= 64) {
-		config = Config_S1Aligned16_S2Aligned1024_DAligned64_DVAligned64;
-	} else if (sInner == 512 && sOuter == 16 && dSize <= 64 && dVsize <= 64) {
-		config = Config_S1Aligned16_S2Aligned512_DAligned64_DVAligned64;
-	} else if (sInner == 512 && sOuter == 16 && dSize <= 128 && dVsize <= 128) {
-		config = Config_S1Aligned16_S2Aligned512_DAligned128_DVAligned128;
-	} else if (sInner == 256 && sOuter == 16 && dSize <= 256 && dVsize <= 256) {
-		config = Config_S1Aligned16_S2Aligned256_DAligned256_DVAligned256;
-	} else if (sInner == 128 && sOuter == 16 && dSize <= 512 && dVsize <= 512) {
-		config = Config_S1Aligned16_S2Aligned128_DAligned512_DVAligned512;
-	} else if (sInner == 512 && sOuter == 32 && dSize <= 64 && dVsize <= 64) { // 以下为PFA伪量化合轴场景 32:s1base 512:s2base 64:dbase
-		config = Config_S1Aligned32_S2Aligned512_DAligned64_DVAligned64;
-	} else if (sInner == 512 && sOuter == 32 && dSize <= 128 && dVsize <= 128) { // 32:s1base 512:s2base 128:dbase
-		config = Config_S1Aligned32_S2Aligned512_DAligned128_DVAligned128;
-	} else if (sInner == 256 && sOuter == 32 && dSize <= 256 && dVsize <= 256) { // 32:s1base 256:s2base 256:dbase
-		config = Config_S1Aligned32_S2Aligned256_DAligned256_DVAligned256;
-	} else if (sInner == 128 && sOuter == 32 && dSize <= 512 && dVsize <= 512) { // 32:s1base 128:s2base 512:dbase
-		config = Config_S1Aligned32_S2Aligned128_DAligned512_DVAligned512;
-	} else {
+  auto sInner = sInnerSize2_;
+  auto sOuter = sOuterSize_;
+  auto dSize = headDim_;
+  auto dVsize = headDim_;
+  if (sInner == 1024 && sOuter == 16 && dSize <= 64 && dVsize <= 64) {
+    config = Config_S1Aligned16_S2Aligned1024_DAligned64_DVAligned64;
+  } else if (sInner == 512 && sOuter == 16 && dSize <= 64 && dVsize <= 64) {
+    config = Config_S1Aligned16_S2Aligned512_DAligned64_DVAligned64;
+  } else if (sInner == 512 && sOuter == 16 && dSize <= 128 && dVsize <= 128) {
+    config = Config_S1Aligned16_S2Aligned512_DAligned128_DVAligned128;
+  } else if (sInner == 256 && sOuter == 16 && dSize <= 256 && dVsize <= 256) {
+    config = Config_S1Aligned16_S2Aligned256_DAligned256_DVAligned256;
+  } else if (sInner == 128 && sOuter == 16 && dSize <= 512 && dVsize <= 512) {
+    config = Config_S1Aligned16_S2Aligned128_DAligned512_DVAligned512;
+  } else if (sInner == 512 && sOuter == 32 && dSize <= 64 && dVsize <= 64) { // 以下为PFA伪量化合轴场景 32:s1base 512:s2base 64:dbase
+    config = Config_S1Aligned32_S2Aligned512_DAligned64_DVAligned64;
+  } else if (sInner == 512 && sOuter == 32 && dSize <= 128 && dVsize <= 128) { // 32:s1base 512:s2base 128:dbase
+    config = Config_S1Aligned32_S2Aligned512_DAligned128_DVAligned128;
+  } else if (sInner == 256 && sOuter == 32 && dSize <= 256 && dVsize <= 256) { // 32:s1base 256:s2base 256:dbase
+    config = Config_S1Aligned32_S2Aligned256_DAligned256_DVAligned256;
+  } else if (sInner == 128 && sOuter == 32 && dSize <= 512 && dVsize <= 512) { // 32:s1base 128:s2base 512:dbase
+    config = Config_S1Aligned32_S2Aligned128_DAligned512_DVAligned512;
+  } else {
         OP_LOGE(ifaContext_->opName, "The combination of parameters S1, S2, D, DV is not supported!");
     }
-	OP_LOGI(ifaContext_->opName, "sInner is %llu. sOuter is %llu. dSize is %llu. dVsize is %llu.", sInner, sOuter, dSize, dVsize);
+  OP_LOGI(ifaContext_->opName, "sInner is %llu. sOuter is %llu. dSize is %llu. dVsize is %llu.", sInner, sOuter, dSize, dVsize);
 }
 
 void IFATilingV2::UpdateTilingKeyPseMode() {
-	if (!pseShiftFlag_ && !enableAlibiPse_) {
-		pseMode = PSE_MODE_PSE_NONE_TYPE;
-	}
-	else {
-		pseMode = pseType_;
-	}
+  if (!pseShiftFlag_ && !enableAlibiPse_) {
+    pseMode = PSE_MODE_PSE_NONE_TYPE;
+  }
+  else {
+    pseMode = pseType_;
+  }
 }
 
 void IFATilingV2::UpdateTilingKeyQuantMode() {
-	quantMode = GenAntiquantModeVal();
+  quantMode = GenAntiquantModeVal();
 }
 
 void IFATilingV2::UpdateTilingKeyAttenMask() {
-	hasAttenMask = attenMaskFlag_;
+  hasAttenMask = attenMaskFlag_;
 }
 
 void IFATilingV2::UpdateTilingKeyHasRope() {
-	hasRope = 0;
+  hasRope = 0;
 }
 
 void IFATilingV2::UpdateTilingKeyIsPa() {
-	isPa = pageAttentionFlag_;
+  isPa = pageAttentionFlag_;
 }
 
 void IFATilingV2::UpdateTilingKeyIsFd() {
-	isFd = static_cast<uint64_t>(splitKVFlag_);
+  isFd = static_cast<uint64_t>(splitKVFlag_);
 }
 
 void IFATilingV2::UpdateTilingKeyEmptyTensor() {
-	emptyTensor = 0;
+  emptyTensor = 0;
 }
 
 void IFATilingV2::UpdateTilingKeyPFAMask() {
-	PFAMask = 0;
+  PFAMask = 0;
 }
 
 void IFATilingV2::UpdateTilingKeyPFAMatMulType() {
-	pFAMatMulType = 0;
+  pFAMatMulType = 0;
 }
 
 void IFATilingV2::UpdateTilingKeyEnableKVPrefix() {
@@ -3754,11 +3829,15 @@ ge::graphStatus IFATilingV2::RunBigKernelTiling(IncreFlashAttentionContext& cont
 
   GetMaxWorkspaceFlag();
 
-  if ((GetNpuInfo() != ge::GRAPH_SUCCESS) || (PreProcess() != ge::GRAPH_SUCCESS) ||
-      (EmptyTensorProcess() != ge::GRAPH_SUCCESS) || (Split() != ge::GRAPH_SUCCESS) ||
-      (FillTiling() != ge::GRAPH_SUCCESS) || (GenTilingKey() != ge::GRAPH_SUCCESS) ||
-      (CalcWorkSpace() != ge::GRAPH_SUCCESS) || (CalcBlockDim() != ge::GRAPH_SUCCESS)) {
+  if ((GetNpuInfo() != ge::GRAPH_SUCCESS) || (PreProcess() != ge::GRAPH_SUCCESS)) {
     return ge::GRAPH_FAILED;
+  }
+  if (EmptyTensorProcess() != ge::GRAPH_SUCCESS) {
+    if ((Split() != ge::GRAPH_SUCCESS) || (FillTiling() != ge::GRAPH_SUCCESS) ||
+        (GenTilingKey() != ge::GRAPH_SUCCESS) || (CalcWorkSpace() != ge::GRAPH_SUCCESS) ||
+        (CalcBlockDim() != ge::GRAPH_SUCCESS)) {
+      return ge::GRAPH_FAILED;
+    }
   }
   if (tilingData_ != nullptr) {
     IFATilingDataconvert();
@@ -3800,6 +3879,13 @@ void IFATilingV2::SetAttenMaskCompressMode()
 }
 
 void IFATilingV2::IFATilingDataconvert() {
+  if (emptyTensor_) {
+    auto &initOutputParams = faRunTilingAdapter.initOutputParams;
+    initOutputParams.set_singleCoreSize(singleCoreSize_);
+    initOutputParams.set_totalOutputSize(totalSize_);
+    initOutputParams.set_totalSoftMaxLseOutputSize(totalSizeLse_);
+    return;
+  }
   SetLayoutTypefaRun();
   auto &inputParams = faRunTilingAdapter.inputParamsRegbase;
   inputParams.set_bSize(batchSize_);
@@ -3921,19 +4007,19 @@ IMPL_OP_OPTILING(IncreFlashAttentionNew)
 
 void TilingGetTempCompileInfo(platform_ascendc::PlatformAscendC& ascendcPlatform, PromptFlashAttentionCompileInfo& compileInfo)
 {
-	compileInfo.aivNum = ascendcPlatform.GetCoreNumAiv();
-	compileInfo.aicNum = ascendcPlatform.GetCoreNumAic();
-	ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfo.ubSize);
-	ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, compileInfo.l1Size);
-	ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfo.l0CSize);
-	ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, compileInfo.l0ASize);
-	ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfo.l0BSize);
-	compileInfo.socShortName = ascendcPlatform.GetSocVersion();
-	if (compileInfo.socShortName == platform_ascendc::SocVersion::ASCEND310P) {
-		compileInfo.defaultSysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
-	} else {
-		compileInfo.defaultSysWorkspaceSize = 0U;
-	}
+  compileInfo.aivNum = ascendcPlatform.GetCoreNumAiv();
+  compileInfo.aicNum = ascendcPlatform.GetCoreNumAic();
+  ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfo.ubSize);
+  ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, compileInfo.l1Size);
+  ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfo.l0CSize);
+  ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, compileInfo.l0ASize);
+  ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfo.l0BSize);
+  compileInfo.socShortName = ascendcPlatform.GetSocVersion();
+  if (compileInfo.socShortName == platform_ascendc::SocVersion::ASCEND310P) {
+    compileInfo.defaultSysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
+  } else {
+    compileInfo.defaultSysWorkspaceSize = 0U;
+  }
 }
 
 ge::graphStatus IFATilingV2::DoOpTiling()
@@ -4002,7 +4088,7 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
         *tiling = faRunTilingAdapter;
         return ret;
     }
-	return ge::GRAPH_FAILED;
+  return ge::GRAPH_FAILED;
 }
 
 REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, IFATilingV2, std::vector<int32_t>({(int32_t)platform_ascendc::SocVersion::ASCEND910_95}), 90);
