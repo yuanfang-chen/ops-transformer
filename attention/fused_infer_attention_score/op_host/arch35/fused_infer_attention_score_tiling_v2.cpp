@@ -268,11 +268,6 @@ static bool CheckTensorList(gert::TilingContext* context, ContextParamsForPFATil
             OP_LOGE(context->GetNodeName(), "N of Key(%ld) in the first batch is different from numKeyValueHeads(%ld)!", standardN, tmpNKv);
             return false;
         }
-        if (standardKD != standardVD && !(standardKD == QK_D_PFA_MLA && standardVD == V_D_PFA_MLA)) {
-            OP_LOGE(context->GetNodeName(), "D of Key(%ld) and Value(%ld) is different in the first batch under tensorlist mode!",
-                standardKD, standardVD);
-            return false;
-        }
 
         for (int64_t tmpIdx = 0; tmpIdx < validBatchOfK; ++tmpIdx) {
             if ((contextKeyParams.kTensorList[tmpIdx]->GetStorageShape().GetDim(KV_DIM_2) != standardN) || // 2: The second dimension of the tensorlist represents n, in order to check whether all n in the tensorlist are the same.

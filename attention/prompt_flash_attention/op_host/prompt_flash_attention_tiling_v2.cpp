@@ -582,7 +582,13 @@ bool PromptFlashAttentionTilingV2::CheckQueryOutParamsConsistency(const ContextP
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
             outDim = outShape->GetStorageShape().GetDim(i);
         }
-        OP_CHECK_IF(tmpqueryDim != outDim, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+
+        OP_CHECK_IF(!isQKVDDifferent && (tmpqueryDim != outDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "tensor query shape (%ld) do not equal to tensor output shape(%ld) in dim %u for %s.",
+            tmpqueryDim, outDim, i, layoutStr.c_str()),
+            return false);
+
+        OP_CHECK_IF(isQKVDDifferent && (i != queryDimNum - 1) && (tmpqueryDim != outDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "tensor query shape (%ld) do not equal to tensor output shape(%ld) in dim %u for %s.",
             tmpqueryDim, outDim, i, layoutStr.c_str()),
             return false);
@@ -631,7 +637,11 @@ bool PromptFlashAttentionTilingV2::CheckKeyValueParamsConsistency(ContextParamsF
         }
         int64_t tmpKeyDim = keyShape->GetStorageShape().GetDim(i);
         int64_t tmpValueDim = valueShape->GetStorageShape().GetDim(i);
-        OP_CHECK_IF(tmpKeyDim != tmpValueDim, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        
+        OP_CHECK_IF(!isQKVDDifferent && (tmpKeyDim != tmpValueDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "tensor key shape(%ld) do not equal to tensor value shape(%ld) in dim %u.", tmpKeyDim, tmpValueDim, i),
+            return false);
+        OP_CHECK_IF(isQKVDDifferent && (i != keyDimNum - 1) && (tmpKeyDim != tmpValueDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "tensor key shape(%ld) do not equal to tensor value shape(%ld) in dim %u.", tmpKeyDim, tmpValueDim, i),
             return false);
     }
@@ -1485,6 +1495,22 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
         enablePFAMLA = true;
         enablePFAMerge = false;
     }
+
+    if(queryShapeInfo.d != valueShapeInfo.d && !enablePFAMLA){
+        isQKVDDifferent = true;
+    }
+    OP_CHECK_IF(isQKVDDifferent && (contextKeyParams.inputDataType != ge::DT_FLOAT16 && contextKeyParams.inputDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query data type must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (outputType != ge::DT_FLOAT16 && outputType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Output data type must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (queryShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (valueShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Value headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
     // check query and output consistency
     OP_CHECK_IF((!CheckQueryOutParamsConsistency(contextKeyParams, queryShape, outShape)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query and output consistency check failed."),
@@ -1513,6 +1539,18 @@ bool PromptFlashAttentionTilingV2::CheckKV(ContextParamsForPFATiling& contextKey
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Get and check value shape failed."),
         return false);
 
+    OP_CHECK_IF(isQKVDDifferent && (contextKeyParams.kDataType != ge::DT_FLOAT16 && contextKeyParams.kDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Key type must must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (contextKeyParams.vDataType != ge::DT_FLOAT16 && contextKeyParams.vDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Value type must must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (keyShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Key headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (valueShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Value headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
     // check key and value consistency
     OP_CHECK_IF((!CheckKeyValueParamsConsistency(contextKeyParams, keyShape, valueShape)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Key and value consistency check failed."),
@@ -1970,6 +2008,9 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
 
 bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, PFAShapeInfo& queryRopeShapeInfo, PromptFlashAttentionTilingData& tilingData) {
+    OP_CHECK_IF(isQKVDDifferent,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support PA when query and key headdim is not equal to value headdim."),
+        return false);
     // The interception that is mutually exclusive with the left padding has been implemented in FIA.
     OP_CHECK_IF(enableTensorList,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "not support tensorlist when blockTable is not null"),
@@ -2031,6 +2072,10 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
 bool PromptFlashAttentionTilingV2::CheckPseShiftTypeAndShape(ContextParamsForPFATiling& contextKeyParams,
     uint32_t b, uint32_t n, uint32_t s1, uint32_t s2) {
     const gert::StorageShape* pseShiftShape = contextKeyParams.pseShiftShape;
+    OP_CHECK_IF(isQKVDDifferent,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support pse shift when query and key headdim is not equal to value headdim."),
+        return false);    
+
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShiftShape, "pseShift")) {
         return false;
     }
@@ -2230,6 +2275,11 @@ bool PromptFlashAttentionTilingV2::CheckSparseMode(ContextParamsForPFATiling& co
         return false);
 
     SetSparseType(qS);
+    OP_CHECK_IF((isQKVDDifferent && sparseModeVal != 0 && sparseModeVal != 2 && sparseModeVal != 3) ,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Not support sparse mode %d when query and key headdim is not equal to value headdim.",
+        sparseModeVal),
+        return false);
     return true;
 }
 
@@ -3463,6 +3513,14 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(ContextParamsForPFATili
         config = Config_S1Aligned64_S2Aligned256_DAligned256_DVAligned256;
     } else if (sOuter == 128 && sInner == 256 && dSize == 128 && dVsize == 128) {
         config = Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128;
+    } else if (sOuter == 128 && sInner == 128 && dSize == 128 && dVsize == 64) {
+        config = Config_S1Aligned128_S2Aligned128_DAligned128_DVAligned64; //qkvd不等长
+    } else if (sOuter == 128 && sInner == 128 && dSize == 64 && dVsize == 128) {
+        config = Config_S1Aligned128_S2Aligned128_DAligned64_DVAligned128;//qkvd不等长
+    } else if (sOuter == 64 && sInner == 256 && dSize == 128 && dVsize == 64) {
+        config = Config_S1Aligned64_S2Aligned256_DAligned128_DVAligned64;//qkvd不等长
+    } else if (sOuter == 64 && sInner == 256 && dSize == 64 && dVsize == 128) {
+        config = Config_S1Aligned64_S2Aligned256_DAligned64_DVAligned128;//qkvd不等长
     } else {
         OP_LOGE(contextKeyParams.opName, "The combination of parameters S1, S2, D, DV is not supported!");
     }
@@ -3868,6 +3926,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckTensorInvalid(const ContextPa
 bool PromptFlashAttentionTilingV2::CheckAlibiPseShiftTypeAndShape(ContextParamsForPFATiling& contextKeyParams, uint32_t n)
 {
     const gert::StorageShape* pseShape = contextKeyParams.pseShiftShape;
+    OP_CHECK_IF(isQKVDDifferent,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support alibi pse when query and key headdim is not equal to value headdim."),
+        return false);
+
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShape, "pseShift")) {
         return false;
     }

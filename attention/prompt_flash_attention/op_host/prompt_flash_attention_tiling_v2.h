@@ -375,6 +375,7 @@ protected:
     matmul_tiling::PlatformInfo ascendPlatformInfo;
 
     bool isMaxWorkspace = false;
+    bool isQKVDDifferent = false;
     bool faRunFlag_ = true;
     uint8_t attenMaskShapeType = 0; // 0: (B,N2,G,S1,S2), 1: (B,1,1,S1,S2), 2: (1,1,1,S1,S2)
     uint8_t sparseType = 0;
