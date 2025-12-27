@@ -477,15 +477,14 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::SendTokenToFFN()
     uint32_t startId = 0;
     uint32_t endId = 0;
     totalSendNum_ = axisX_ * curBsCnt_ * (axisK_ + sharedExpertNum_); // 总发送数：axisX_ * curBsCnt_ * (axisK_ + 1)
+    DataCopyExtParams expertIdsCntParams = {1U, static_cast<uint32_t>(expertIdsCnt_ * sizeof(uint32_t)), 0U, 0U, 0U};
+    DataCopyPadExtParams<int32_t> copyPadParams{false, 0U, 0U, 0U};
+    DataCopyPad(expertIdsTensor_, expertIdsGMTensor_, expertIdsCntParams, copyPadParams);
+
     SplitToCore(totalSendNum_, aivNum_, startId, endId, sendNum_);
     if (startId >= totalSendNum_) {
         return;
     }
-
-    DataCopyExtParams expertIdsCntParams = {1U, static_cast<uint32_t>(expertIdsCnt_ * sizeof(uint32_t)), 0U, 0U, 0U};
-    DataCopyExtParams expertRankTableParams = {1U, static_cast<uint32_t>(expertRankTableCnt_ * sizeof(uint32_t)), 0U, 0U, 0U};
-    DataCopyPadExtParams<int32_t> copyPadParams{false, 0U, 0U, 0U};
-    DataCopyPad(expertIdsTensor_, expertIdsGMTensor_, expertIdsCntParams, copyPadParams);
 
     for (uint32_t tokenIdx = 0; tokenIdx < sendNum_; ++tokenIdx) {
         SendTokenToFFNByTokenIdx(tokenIdx);
