@@ -9,14 +9,21 @@
 # -----------------------------------------------------------------------------------------------------------
 operator_group_1:
   - mla_prolog
+  - mla_prolog_v2
+  - mla_prolog_v3
+  - gather_pa_kv_cache
+  - scatter_pa_kv_cache
+  - attention_update
+  - fused_infer_attention_score,10-7
 operator_group_2:
   - grouped_matmul
   - grouped_matmul_add
   - grouped_matmul_finalize_routing
   - grouped_matmul_swiglu_quant_v2
   - quant_grouped_matmul_inplace_add
+  - fused_infer_attention_score,10-8
 operator_group_3:
-  - incre_flash_attention
+  - incre_flash_attention,2-0
 operator_group_4:
   - moe_finalize_routing
   - moe_finalize_routing_v2
@@ -29,16 +36,23 @@ operator_group_4:
   - moe_init_routing_v2
   - moe_init_routing_v2_grad
   - moe_init_routing_v3
+  - moe_re_routing
+  - moe_compute_expert_tokens
+  - apply_rotary_pos_emb
+  - rotary_position_embedding
+  - rotary_position_embedding_grad
+  - ring_attention_update
+  - fused_infer_attention_score,10-9
 operator_group_5:
-  - flash_attention_score
+  - flash_attention_score,3-0
 operator_group_6:
   - prompt_flash_attention
 operator_group_7:
-  - fused_infer_attention_score
+  - fused_infer_attention_score,10-0
 operator_group_8:
-  - ring_attention_update
+  - fused_infer_attention_score,10-1
 operator_group_9:
-  - rotary_position_embedding_grad
+  - fused_infer_attention_score,10-2
 operator_group_10:
   - allto_allv_grouped_mat_mul
   - grouped_mat_mul_allto_allv
@@ -52,25 +66,25 @@ operator_group_10:
   - quant_all_reduce
   - quant_reduce_scatter
 operator_group_11:
-  - rotary_position_embedding
+  - fused_infer_attention_score,10-3
 operator_group_12:
-  - gather_pa_kv_cache
+  - fused_infer_attention_score,10-4
 operator_group_13:
-  - scatter_pa_kv_cache
+  - fused_infer_attention_score,10-5
 operator_group_14:
-  - attention_update
+  - fused_infer_attention_score,10-6
 operator_group_15:
-  - moe_re_routing
+  - incre_flash_attention,2-1
 operator_group_16:
-  - flash_attention_score_grad
-operator_group_17:
-  - mla_prolog_v2
+  - flash_attention_score_grad,3-0
+operator_group_17:  
+  - flash_attention_score_grad,3-1
 operator_group_18:
-  - mla_prolog_v3
+  - flash_attention_score_grad,3-2
 operator_group_19:
-  - apply_rotary_pos_emb
+  - flash_attention_score,3-1
 operator_group_20:
-  - moe_compute_expert_tokens
+  - flash_attention_score,3-2
 
 
 
