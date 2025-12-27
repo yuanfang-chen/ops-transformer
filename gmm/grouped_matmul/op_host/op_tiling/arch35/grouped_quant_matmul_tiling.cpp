@@ -7,6 +7,12 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+/*!
+ * \file grouped_quant_matmul_tiling.cpp
+ * \brief
+ */
+
 #include <alog_pub.h>
 #include "grouped_quant_matmul_tiling.h"
 
@@ -367,19 +373,19 @@ bool GroupedQbmmTiling::CheckFp4Shape() const
 {
     OP_CHECK_IF(inputParams_.kSize % EVEN_FACTOR != 0,
                 OP_LOGE(inputParams_.opName,
-                        "When the dtype of x is FLOAT4, the k size should be even number, but actual k size is %lu",
+                        "When the dtype of x is FLOAT4, the k size should be even number, but actual k size is %lu.",
                         inputParams_.kSize),
                 return false);
     // 2: mxfp4场景下不支持K轴为2
     OP_CHECK_IF(inputParams_.kSize == 2,
-                OP_LOGE(inputParams_.opName, "When the dtype of x is FLOAT4, the k size should not be 2"),
+                OP_LOGE(inputParams_.opName, "When the dtype of x is FLOAT4, the k size should not be 2."),
                 return false);
     if (!inputParams_.transB) {
         OP_CHECK_IF(
             inputParams_.nSize % EVEN_FACTOR != 0,
             OP_LOGE(inputParams_.opName,
                     "When the dtype of x is FLOAT4 and weight is not transposed, the n size should be even number, \
-but actual n size is %lu",
+but actual n size is %lu.",
                     inputParams_.nSize),
             return false);
     }
@@ -493,12 +499,12 @@ bool GroupedQbmmTiling::AnalyzeInputs()
     auto scaleDimNum = wScaleShape.GetDimNum();
     OP_CHECK_IF(scaleDimNum < 1,
                OP_LOGE(inputParams_.opName,
-                                         "The dimension of scale should be positive integer, actual is %zu",
+                                         "The dimension of scale should be positive integer, actual is %zu.",
                                          scaleDimNum),
                return false);
     auto xScaleStorageShape = context_->GetOptionalInputShape(PER_TOKEN_SCALE_INDEX);
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
-               return false);
+                return false);
     OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(inputParams_.opName, "SetMKN failed."), return false);
     OP_CHECK_IF(!SetMKNList(), OP_LOGE(inputParams_.opName, "SetMKNList failed."), return false);
     OP_CHECK_IF(!SetQuantMode(wScaleShape, xScaleStorageShape, wShape),
@@ -610,13 +616,21 @@ void GroupedQbmmTiling::SetPerGroupQuantMode(const gert::Shape &xScaleShape, con
 bool GroupedQbmmTiling::SetGroupNum(uint32_t groupListIndex)
 {
     auto groupListStorageShape = context_->GetOptionalInputShape(groupListIndex);
-    OP_CHECK_IF(groupListStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "groupListStorageShape is nullptr."), return false);
-    const gert::Shape &groupListShape = groupListStorageShape->GetStorageShape();
-    OP_CHECK_IF(groupListShape.GetDimNum() != 1,
-               OP_LOGE(inputParams_.opName, "The dimension of groupList should be 1, actual is %zu",
-                                         groupListShape.GetDimNum()),
-               return false);
-    inputParams_.groupNum = static_cast<int32_t>(groupListShape.GetDim(0));
+    OP_CHECK_IF(
+        groupListStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "groupListStorageShape is nullptr."),
+        return false);
+    const gert::Shape& groupListShape = groupListStorageShape->GetStorageShape();
+    OP_CHECK_IF(
+        groupListShape.GetDimNum() != 1,
+        OP_LOGE(
+            inputParams_.opName, "The dimension of groupList should be 1, actual is %zu.", groupListShape.GetDimNum()),
+        return false);
+    inputParams_.groupNum = groupListShape.GetDim(0);
+    OP_CHECK_IF(
+        inputParams_.groupNum > GMM_MAX_GROUP_LIST_SIZE,
+        OP_LOGE(inputParams_.opName, "The group number should not be greater than 1024, but actual is %lu.",
+                inputParams_.groupNum),
+                return false);
     return true;
 }
 
@@ -625,12 +639,12 @@ bool GroupedQbmmTiling::SetMKN(const gert::Shape &xShape, const gert::Shape &wSh
     uint32_t wDimNum = static_cast<uint32_t>(wShape.GetDimNum());
     OP_CHECK_IF(wDimNum < MIN_ND_DIM,
                OP_LOGE(inputParams_.opName,
-                                         "The dimension of weight should be at least 2, actual is %u", wDimNum),
+                                         "The dimension of weight should be at least 2, actual is %u.", wDimNum),
                return false);
     uint32_t xDimNum = static_cast<uint32_t>(xShape.GetDimNum());
     OP_CHECK_IF(xDimNum < MIN_ND_DIM,
                OP_LOGE(inputParams_.opName,
-                                         "Invalid x dimension for format ND, expect at least 2, actual is %u", xDimNum),
+                                         "Invalid x dimension for format ND, expect at least 2, actual is %u.", xDimNum),
                return false);
     auto mSize = inputParams_.transA ? xShape.GetDim(xDimNum - LAST_FIRST_DIM_INDEX) :
                                        xShape.GetDim(xDimNum - LAST_SECOND_DIM_INDEX);
@@ -640,7 +654,7 @@ bool GroupedQbmmTiling::SetMKN(const gert::Shape &xShape, const gert::Shape &wSh
                                        wShape.GetDim(wDimNum - LAST_FIRST_DIM_INDEX);
     OP_CHECK_IF(mSize <= 0 || kSize <= 0 || nSize <= 0,
                OP_LOGE(inputParams_.opName,
-                                         "Invalid mSize[%ld] kSize[%ld] or nSize[%ld], expect all greater than 0",
+                                         "Invalid mSize[%ld] kSize[%ld] or nSize[%ld], expect all greater than 0.",
                                          mSize, kSize, nSize),
                return false);
     inputParams_.mSize = mSize;

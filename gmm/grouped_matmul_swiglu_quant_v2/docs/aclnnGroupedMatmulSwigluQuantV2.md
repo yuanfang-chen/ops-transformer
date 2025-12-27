@@ -640,7 +640,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       - MX量化场景下，需满足N为128对齐。
       - MXFP4场景不支持K=2。
       - MXFP4场景需满足K为偶数；当output的数据类型为FLOAT4_E1M2、FLOAT4_E2M1时，需满足N为大于等于4的偶数。
-
+      - groupList第1维最大支持1024，即最多支持1024个group。
   - 确定性计算：
       - aclnnGroupedMatmulSwigluQuantV2默认为确定性实现。
 
