@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file matmul_allto_all_tiling_910.h
+ * \file matmul_allto_all_tiling_910b.h
  * \brief
  */
 
-#ifndef MATMUL_ALLTO_ALL_TILING_910_H
-#define MATMUL_ALLTO_ALL_TILING_910_H
+#ifndef MATMUL_ALLTO_ALL_TILING_910B_H
+#define MATMUL_ALLTO_ALL_TILING_910B_H
 
 #include "securec.h"
 #include "mc2_matmul_tiling_cfg.h"
@@ -24,6 +24,7 @@
 #include "../matmul_allto_all_tiling_base.h"
 #include "../common/matmul_allto_all_util_tiling.h"
 #include "../../../op_kernel/arch32/matmul_allto_all_tiling.h"
+#include "../../../op_kernel/arch32/matmul_allto_all_tiling_key.h"
 
 namespace MC2Tiling {
 using namespace optiling;
@@ -36,10 +37,10 @@ struct MatmulAlltoAllTilingValue {
         : value(v), conditionMap(std::move(m)) {}
 };
 
-class MatmulAlltoAllTiling910 : public MatmulAllToAllTilingBase {
+class MatmulAlltoAllTiling910B : public MatmulAllToAllTilingBase {
 public:
-    explicit MatmulAlltoAllTiling910(gert::TilingContext *context);
-    ~MatmulAlltoAllTiling910() override = default;
+    explicit MatmulAlltoAllTiling910B(gert::TilingContext *context);
+    ~MatmulAlltoAllTiling910B() override = default;
 
 protected:
     bool IsCapable() override;  //恒为true

@@ -24,6 +24,7 @@
 #include "../matmul_allto_all_tiling_base.h"
 #include "../common/matmul_allto_all_util_tiling.h"
 #include "../../../op_kernel/arch35/matmul_allto_all_tiling_data.h"
+#include "../../../op_kernel/arch35/matmul_allto_all_tiling_key.h"
 
 namespace MC2Tiling {
 
@@ -39,6 +40,7 @@ protected:
     bool IsCapable() override;
     ge::graphStatus DoOpTiling() override;
     ge::graphStatus PostTiling() override;
+    uint64_t GetTilingKey() const override;
 
     ge::graphStatus CheckOpInputInfo();
     ge::graphStatus InitTilingContextParameters();

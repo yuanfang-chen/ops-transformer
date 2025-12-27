@@ -21,7 +21,6 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "common/matmul_allto_all_util_tiling.h"
 #include "common/allto_all_formulaic_tiling.h"
-#include "../../op_kernel/arch35/matmul_allto_all_tiling_key.h"
 
 namespace MC2Tiling {
 
