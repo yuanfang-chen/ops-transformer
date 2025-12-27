@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "aclnn_rotary_position_embedding.h"
+#include "aclnn_rotary_position_embedding_v2.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,19 +18,19 @@ extern aclnnStatus aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(const aclTe
                                                                      const aclTensor* sin, const aclTensor* rotate, int64_t mode,
                                                                      aclTensor* out, uint64_t* workspaceSize,
                                                                      aclOpExecutor** executor);
+
 extern aclnnStatus aclnnInnerRotaryPositionEmbedding(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
                                                      aclrtStream stream);
 
-aclnnStatus aclnnRotaryPositionEmbeddingGetWorkspaceSize(const aclTensor* x, const aclTensor* cos, const aclTensor* sin,
-                                                         int64_t mode, aclTensor* out, uint64_t* workspaceSize,
-                                                         aclOpExecutor** executor)
+aclnnStatus aclnnRotaryPositionEmbeddingV2GetWorkspaceSize(const aclTensor* x, const aclTensor* cos, const aclTensor* sin,
+                                                           int64_t mode, const aclTensor* rotate, aclTensor* out,
+                                                           uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    const aclTensor* defaultRotate = nullptr;
-    return aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(x, cos, sin, defaultRotate, mode, out, workspaceSize, executor);
+    return aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(x, cos, sin, rotate, mode, out, workspaceSize, executor);
 }
 
-aclnnStatus aclnnRotaryPositionEmbedding(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
-                                         aclrtStream stream)
+aclnnStatus aclnnRotaryPositionEmbeddingV2(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
+                                           aclrtStream stream)
 {
     return aclnnInnerRotaryPositionEmbedding(workspace, workspaceSize, executor, stream);
 }

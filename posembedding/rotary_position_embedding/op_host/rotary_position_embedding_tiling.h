@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file rotary_position_embedding.h
@@ -24,6 +24,27 @@
 #include "platform/platform_info.h"
 #include "util/math_util.h"
 namespace optiling {
+
+BEGIN_TILING_DATA_DEF(RotateMatrixParams)
+    TILING_DATA_FIELD_DEF_STRUCT(TCubeTiling, matmulTiling);
+    TILING_DATA_FIELD_DEF(uint64_t, blockNum);           // baseMN num
+    TILING_DATA_FIELD_DEF(uint64_t, blockNumM);          // baseM num in S
+    TILING_DATA_FIELD_DEF(uint64_t, blockNumN);          // baseN num in D
+    TILING_DATA_FIELD_DEF(uint64_t, cvParallNum);        // cv parall num
+    TILING_DATA_FIELD_DEF(uint64_t, tilingMode);         // layout code
+    TILING_DATA_FIELD_DEF(uint64_t, gmLength);           // x dim
+    TILING_DATA_FIELD_DEF(uint64_t, broadcastFirstDim);  // B
+    TILING_DATA_FIELD_DEF(uint64_t, broadcastSecondDim); // N
+    TILING_DATA_FIELD_DEF(uint64_t, dLength);            // D dim length
+    TILING_DATA_FIELD_DEF(uint64_t, totalSLines);        // S dim length
+    TILING_DATA_FIELD_DEF(uint64_t, bn);                  // B * N
+    TILING_DATA_FIELD_DEF(uint64_t, baseM);                  // B * N
+    TILING_DATA_FIELD_DEF(uint64_t, baseN);                  // B * N
+    TILING_DATA_FIELD_DEF(uint64_t, baseK);                  // B * N
+    TILING_DATA_FIELD_DEF(uint64_t, coreNum);           // baseMN num
+END_TILING_DATA_DEF;
+REGISTER_TILING_DATA_CLASS(RotateMatrixParamsOp, RotateMatrixParams)
+
 
 BEGIN_TILING_DATA_DEF(RotateHalfParams)
 TILING_DATA_FIELD_DEF(uint64_t, tilingMode); // layout code
@@ -87,6 +108,7 @@ END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(RopeInterleavedParamsOp, RopeInterleavedParams)
 
 BEGIN_TILING_DATA_DEF(RotaryPositionEmbeddingTilingData)
+TILING_DATA_FIELD_DEF_STRUCT(RotateMatrixParams, rotateMatrixParams);
 TILING_DATA_FIELD_DEF_STRUCT(RotateHalfParams, rotateHalfParams);
 TILING_DATA_FIELD_DEF_STRUCT(RopeInterleavedParams, ropeInterleavedParams);
 END_TILING_DATA_DEF;

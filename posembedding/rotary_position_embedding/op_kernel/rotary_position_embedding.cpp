@@ -20,16 +20,18 @@
 #include "rotate_interleaved_split_s_pad.h"
 #include "rotate_interleaved_split_bs_pad.h"
 #include "rotate_interleaved_split_bsn_pad.h"
+#include "rotate_matrix.h"
 using namespace AscendC;
 using namespace RotateHalfN;
 using namespace RotateInterleavedN;
+using namespace RotateMatrix;
 
-extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_ADDR cos, GM_ADDR sin, GM_ADDR y,
-                                                                GM_ADDR workspace, GM_ADDR tiling)
+extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_ADDR cos, GM_ADDR sin, GM_ADDR rotate,
+                                                                GM_ADDR y, GM_ADDR workspace, GM_ADDR tiling)
 {
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);     
     GET_TILING_DATA(tilingData, tiling);
     GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
 
     // mode: rotate_half
     if (TILING_KEY_IS(1011)) {
@@ -197,5 +199,13 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
         InterleavedSplitBSNPad<float> interleavedSplitBSNPad;
         interleavedSplitBSNPad.Init(x, cos, sin, y, tilingData, &pipe);
         interleavedSplitBSNPad.Process();
+    }
+
+    if (TILING_KEY_IS(3013)) {
+        TPipe pipe;
+        KERNEL_TASK_TYPE(3013, KERNEL_TYPE_MIX_AIC_1_2);
+        RotateMatrixBNSD<bfloat16_t> rm;
+        rm.Init(x, cos, sin, rotate, y, usrWorkspace, tilingData, &pipe);
+        rm.Process();
     }
 }
