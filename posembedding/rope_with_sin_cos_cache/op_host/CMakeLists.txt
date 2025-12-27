@@ -22,7 +22,7 @@ if (BUILD_OPEN_PROJECT)
         add_ops_compile_options(
         OP_NAME RopeWithSinCosCache
         COMPUTE_UNIT ascend910_9599
-        OPTIONS -mllvm -cce-aicore-dcci-before-kernle-end=false
+        OPTIONS -mllvm -cce-aicore-dcci-before-kernel-end=false
         )
     endif()
 endif()
