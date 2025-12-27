@@ -951,7 +951,6 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantParams(const ContextParamsForPF
                "invalid output type [%s], only support int8, fp8_e4m3fn_t, hifloat8_t",
                GetPfaDataTypeStr(outputType).c_str()),
                return false);
-
     // Basic verification: quantScale2 must be inputted and not an empty tensor
     OP_CHECK_IF(quantScale2Shape == nullptr, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "quant_scale2_shape is nullptr in post quant scenario."),
@@ -1836,7 +1835,7 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         actualSharedPrefixLen = 0;
         return true;
     }
-    // The prefix does not support TND, tensorlist, pfa mla, ifa mla or left padding
+    // The prefix does not support TND, tensorlist, pfa mla, ifa mla, left padding and alibi
     OP_CHECK_IF(
         (inputLayout == InputLayout::TND),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when TND is used, system prefix is not supported!"),
@@ -1857,7 +1856,14 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when system prefix is used, query and key/value should not both be int8!"),
         return false);
-
+    OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When pseType = 2/3, system prefix is not supported!"),
+        return false);
+    OP_CHECK_IF(enablePostQuant && (outputType == ge::DT_FLOAT8_E4M3FN || outputType == ge::DT_HIFLOAT8),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "when system prefix is used, invalid output type [%s], only support int8.",
+            GetPfaDataTypeStr(outputType).c_str()),
+        return false);
     // get prefix shape
     const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
 
@@ -2553,10 +2559,10 @@ bool PromptFlashAttentionTilingV2::CheckMultiFeatureCrossover(ContextParamsForPF
         tilingData.promptAttentionInitOutputParams.set_needInit(needInit);
 
         if (enableAlibiPse) {
-            OP_CHECK_IF((actualSeqLengths[i] != actualSeqLengthsKV[i] + actualSharedPrefixLen),
+            OP_CHECK_IF((actualSeqLengths[i] != actualSeqLengthsKV[i]),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                     "When pseType = 2/3, actualSeqLengths[%u](seq size of query)=%ld must be equal to actualSeqLengthsKv[%u](seq size of key)=%ld",
-                    i, actualSeqLengths[i], i, actualSeqLengthsKV[i] + actualSharedPrefixLen),
+                    i, actualSeqLengths[i], i, actualSeqLengthsKV[i]),
                 return false);
         }
     }
@@ -3535,11 +3541,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMatMulType(PromptFlashAtten
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyEnableKVPrefix() {
-    if (isKVHasPrefix) {
-        enableKVPrefix = isKVHasPrefix;
-    } else {
-        enableKVPrefix = isKVHasPrefix;
-    }
+    enableKVPrefix = isKVHasPrefix;
 }
 
 bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) {
