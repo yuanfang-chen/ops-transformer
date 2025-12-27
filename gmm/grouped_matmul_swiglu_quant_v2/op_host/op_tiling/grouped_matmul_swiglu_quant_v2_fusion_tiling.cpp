@@ -71,7 +71,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2FusionTiling::ParseInputAndAttr()
     groupListType_ = groupListTypePtr != nullptr ? *groupListTypePtr : 0;
     OP_CHECK_IF(!(groupListType_ == 0 || groupListType_ == 1),
         OP_LOGE(context_->GetNodeName(), "GroupListType must be 0 or 1, but actual value is %ld.", groupListType_),
-        return false);
+        return ge::GRAPH_FAILED);
 
     m_ = xTensor->GetStorageShape().GetDim(0);
     k_ = xTensor->GetStorageShape().GetDim(1);
