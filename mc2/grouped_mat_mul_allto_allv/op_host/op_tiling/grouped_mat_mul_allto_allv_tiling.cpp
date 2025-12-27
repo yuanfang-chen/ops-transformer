@@ -123,6 +123,26 @@ static inline uint32_t SixteenAlign(uint32_t a, bool up = false)
     return a & ~15U; // ~15: 16 bytes down-align
 }
 
+static void PrintCommonTilingInfo(GmmAlltoAllvCommonTilingInfo &commonTilingInfo)
+{
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.A %lu.", commonTilingInfo.A);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.H %lu.", commonTilingInfo.H);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.sharedMatmulH %lu.", commonTilingInfo.sharedMatmulH);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.E_ep %lu.", commonTilingInfo.E_ep);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.N1 %lu.", commonTilingInfo.N1);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.Bs %lu.", commonTilingInfo.Bs);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.N2 %lu.", commonTilingInfo.N2);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.BsK %lu.", commonTilingInfo.BsK);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.epWorldSize %lu.", commonTilingInfo.epWorldSize);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.aivCoreNum %lu.", commonTilingInfo.aivCoreNum);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.aicCoreNum %lu.", commonTilingInfo.aicCoreNum);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.isGmmWeightTrans %d.", commonTilingInfo.isGmmWeightTrans);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.isMmWeightTrans %d.", commonTilingInfo.isMmWeightTrans);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.isOptionalMatmul %d.", commonTilingInfo.isOptionalMatmul);
+    OP_LOGD(C_INNER_DEBUG, " commonTilingInfo.isOptionalSendRecvCountTensors %d.",
+        commonTilingInfo.isOptionalSendRecvCountTensors);
+}
+
 static bool CheckDimNum(
     const GroupedMatMulAlltoAllvTilingData* tilingData, const gert::StorageShape* gmmX,
     const gert::StorageShape* gmmWeight, const gert::StorageShape* sendCountsTensorStorageShape,
@@ -818,6 +838,7 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
     UpdateTilingKey(tilingKey, tilingData, context);
     OP_LOGD(nodeName, "Computed tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
+    PrintCommonTilingInfo(tilingData->commonTilingInfo);
     OP_LOGD("GroupedMatMulAlltoAllv", "tiling process finished successfully!!!");
 
     return ge::GRAPH_SUCCESS;
