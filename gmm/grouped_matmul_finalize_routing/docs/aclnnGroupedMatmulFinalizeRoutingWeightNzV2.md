@@ -26,7 +26,7 @@
 ```cpp
 aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(
     const aclTensor   *x1,
-    aclTensor         *x2,
+    const aclTensor   *x2,
     const aclTensor   *scale,
     const aclTensor   *bias,
     const aclTensor   *offsetOptional,

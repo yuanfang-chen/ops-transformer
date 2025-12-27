@@ -1009,7 +1009,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNz(void *workspace, uint64_t 
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
-aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const aclTensor *x1, aclTensor *x2,
+aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const aclTensor *x1, const aclTensor *x2,
     const aclTensor *scale, const aclTensor *bias, const aclTensor *offsetOptional,
     const aclTensor *antiquantScaleOptional, const aclTensor *antiquantOffsetOptional,
     const aclTensor *pertokenScaleOptional, const aclTensor *groupList, const aclTensor *sharedInput,
@@ -1024,13 +1024,17 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         DFX_OUT(out));
     (void) antiquantScaleOptional;
     (void) antiquantOffsetOptional;
+    auto viewShape = x2->GetViewShape();
+
+    auto uniqueExecutor = CREATE_EXECUTOR();
     // unpack int32 to int4
-    auto tmpWeight = x2;
+    auto tmpWeight = uniqueExecutor.get()->CreateView(x2, viewShape, x2->GetViewOffset());
     if (tmpWeight->GetDataType() == DataType::DT_INT32) {
-        auto viewShape = tmpWeight->GetViewShape();
+        tmpWeight->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
         auto viewShapeDim = viewShape.GetDimNum();
         viewShape[viewShapeDim - 1] *= PER_INT4_IN_U32;
-        auto storageShape = tmpWeight->GetStorageShape();
+
+        auto storageShape = x2->GetStorageShape();
         auto storageShapeDim = storageShape.GetDimNum();
         // The following line adjusts the storage shape because we have a few
         // checks that put some requirements on the storage shape and the view shape,
@@ -1069,12 +1073,12 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         return ACLNN_ERR_PARAM_NULLPTR;
     }
 
-    CheckSupportSceneParams sceneParams{x1, x2, scale, pertokenScaleOptional, groupList, sharedInput,
+    CheckSupportSceneParams sceneParams{x1, tmpWeight, scale, pertokenScaleOptional, groupList, sharedInput,
                                    logit, rowIndex, dtype};
     auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
     CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
-    auto uniqueExecutor = CREATE_EXECUTOR();
-    GroupedMatmulParams params = GroupedMatmulParamsBuilder::Create(x1, x2, out)
+    
+    GroupedMatmulParams params = GroupedMatmulParamsBuilder::Create(x1, tmpWeight, out)
         .SetScale(scale)
         .SetBias(bias)
         .SetPertokenScale(pertokenScaleOptional)
