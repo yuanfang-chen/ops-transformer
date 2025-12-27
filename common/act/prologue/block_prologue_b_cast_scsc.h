@@ -252,7 +252,11 @@ private:
     __aicore__ inline void VectorProcess(const TensorB &tensorBlockB, const TensorBias &tensorBias)
     {
         WaitForCube();
-        ProcessL1(tensorBlockB, tensorBias);
+        if (likely(l1BufNum_ == QUADRUPLE_BUFFER)) {
+            ProcessL1NK4Buffer(tensorBlockB, tensorBias);
+        } else {
+            ProcessL1NK(tensorBlockB, tensorBias);
+        }
         NotifyCube();
     }
 
@@ -262,21 +266,21 @@ private:
             if (kL1Len_ > kUbSize_) {
                 kUbLen_ = kUbSize_;
                 if (GetSubBlockIdx() == 1) {
-                    kL1Aiv1Offset_ = kUbLen_;
+                    kL1Offset_ = kUbLen_;
                     kUbLen_ = kL1Len_ - kUbLen_;
                 }
             } else {
-                kL1Aiv1Offset_ = 0;
+                kL1Offset_ = 0;
             }
         } else {
             if (nL1Len_ > nUbSize_) {
                 nUbLen_ = nUbSize_;
                 if (GetSubBlockIdx() == 1) {
-                    nL1Aiv1Offset_ = nUbLen_;
+                    nL1Offset_ = nUbLen_;
                     nUbLen_ = nL1Len_ - nUbLen_;
                 }
             } else {
-                nL1Aiv1Offset_ = 0;
+                nL1Offset_ = 0;
             }
         }
     }
@@ -291,18 +295,44 @@ private:
         if (likely(l1BufNum_ == QUADRUPLE_BUFFER)) {
             nBiasUbLen_ = nL1Len_ < BIAS_SPLIT_N_L1_SIZE ? nL1Len_ : BIAS_SPLIT_N_L1_SIZE;
             if (GetSubBlockIdx() == 1) {
-                nL1BiasAiv1Offset_ = nBiasUbLen_;
+                nL1BiasOffset_ = nBiasUbLen_;
                 nBiasUbLen_ = nL1Len_ - nBiasUbLen_;
             }
         }
     }
 
     template <class TensorB, class TensorBias>
-    __aicore__ inline void ProcessL1(const TensorB &bGlobal, const TensorBias &biasGlobal)
+    __aicore__ inline void ProcessL1NK4Buffer(const TensorB &bGlobal, const TensorBias &biasGlobal)
     {
         int64_t l1Offset = (l1BufIdx_ & 0x1) * Act::Gemm::Max(L1_BUFFER_HALF_SIZE / sizeof(ElementOut),
                                                               DOUBLE_BUFFER * bL1Size_ + aL1Size_) +
                            ((l1BufIdx_ & 0x2) > 1) * bL1Size_;
+        l1Offset += nL1Offset_ * ONE_BLK_SIZE + kL1Offset_ * CeilAlign(nL1Len_, BLOCK_CUBE);
+        ProcessL1(bGlobal, biasGlobal, l1Offset);
+    }
+
+    template <class TensorB, class TensorBias>
+    __aicore__ inline void ProcessL1NK(const TensorB &bGlobal, const TensorBias &biasGlobal)
+    {
+        int32_t bUbNFactor = CeilDiv(nL1Len_, nUbSize_);
+        int32_t bUbKFactor = CeilDiv(kL1Len_, kUbSize_);
+        for (int32_t bUbNLoopIdx = 0; bUbNLoopIdx < bUbNFactor; bUbNLoopIdx++) {
+            nL1Offset_ = bUbNLoopIdx * nUbSize_;
+            nUbLen_ = Min(nL1Len_ - static_cast<int32_t>(nL1Offset_), nUbSize_);
+            for (int32_t bUbKLoopIdx = 0; bUbKLoopIdx < bUbKFactor; bUbKLoopIdx++) {
+                kL1Offset_ = bUbKLoopIdx * kUbSize_;
+                kUbLen_ = Min(kL1Len_ - static_cast<int32_t>(kL1Offset_), kUbSize_);
+                int64_t l1Offset = (l1BufIdx_ & 0x1) * L1_BUFFER_HALF_SIZE / sizeof(ElementOut) +
+                                   CeilAlign(nL1Len_, BLOCK_CUBE) * kL1Offset_ + nL1Offset_ * ONE_BLK_SIZE;
+                calcBias_ = calcBias_ && bUbNLoopIdx == 0 && bUbKLoopIdx == 0;  // 不管weight算几轮，bias只在第一轮计算
+                ProcessL1(bGlobal, biasGlobal, l1Offset);
+            }
+        }
+    }
+
+    template <class TensorB, class TensorBias>
+    __aicore__ inline void ProcessL1(const TensorB &bGlobal, const TensorBias &biasGlobal, int64_t l1Offset)
+    {
         idx_ += 1;
         ubBufIdx_ = idx_ % l1BufNum_;
         if (idx_ >= l1BufNum_) {
@@ -319,18 +349,6 @@ private:
         SetFlag<HardEvent::V_MTE3>(ubBufIdx_);
         SetFlag<HardEvent::V_MTE2>(ubBufIdx_);
         WaitFlag<HardEvent::V_MTE3>(ubBufIdx_);
-        int64_t nl1Offset = 0;
-        int64_t kl1Offset = 0;
-        if constexpr (weightNz) {
-            if (GetSubBlockIdx() == 1 && kL1Len_ > kUbSize_) {
-                kl1Offset += kUbSize_;
-            }
-        } else {
-            if (GetSubBlockIdx() == 1 && nL1Len_ > nUbSize_) {
-                nl1Offset += nUbSize_;
-            }
-        }
-        l1Offset += nl1Offset * ONE_BLK_SIZE + kl1Offset * CeilAlign(nL1Len_, BLOCK_CUBE);
         if constexpr (weightNz) {
             CopyVecOut2L1(l1Offset, weightOutUb_[ubBufIdx_ * VEC_MAX_ELEM_B8]);
         } else {
@@ -361,9 +379,11 @@ private:
         AscendC::GlobalTensor<ElementIn> srcTensor;
         srcTensor.SetGlobalBuffer(bGlobal.address_);
         if constexpr (weightNz) {
-            DataCopyPad(weightInUb_[weightInOffset], srcTensor[kL1Aiv1Offset_ * nSize_], intriParams, padParams);
+            DataCopyPad(weightInUb_[weightInOffset], srcTensor[kL1Offset_ * nSize_ + nL1Offset_ * C0_SIZE_B8],
+                        intriParams, padParams);
         } else {
-            DataCopyPad(weightInUb_[weightInOffset], srcTensor[nL1Aiv1Offset_ * kSize_], intriParams, padParams);
+            DataCopyPad(weightInUb_[weightInOffset], srcTensor[nL1Offset_ * kSize_ + kL1Offset_], intriParams,
+                        padParams);
         }
     }
 
@@ -378,7 +398,7 @@ private:
         AscendC::GlobalTensor<ElementBias> srcTensor;
         srcTensor.SetGlobalBuffer(tensorBias.address_);
         uint64_t biasInOffset = ubBufIdx_ * vecBiasLen_ / l1BufNum_;
-        AscendC::DataCopyPad(biasInUb_[biasInOffset], srcTensor[nL1BiasAiv1Offset_], dataCopyParams, dataCopyPadParams);
+        AscendC::DataCopyPad(biasInUb_[biasInOffset], srcTensor[nL1BiasOffset_], dataCopyParams, dataCopyPadParams);
     }
 
     __aicore__ inline void CopyVecOut2L1(int64_t l1Offset, const AscendC::LocalTensor<ElementOut> &ubLocal)
@@ -641,9 +661,9 @@ private:
     uint64_t ubBufIdx_;
     int64_t l1BufIdx_ = 0;
     int64_t idx_ = -1;
-    uint64_t nL1Aiv1Offset_ = 0;
-    uint64_t kL1Aiv1Offset_ = 0;
-    uint64_t nL1BiasAiv1Offset_ = 0;
+    uint64_t nL1Offset_ = 0;
+    uint64_t kL1Offset_ = 0;
+    uint64_t nL1BiasOffset_ = 0;
     uint8_t vecBufNum_ = SINGLE_BUFFER;
     uint8_t occupied_ = 0;  // unused
     bool hasBias_;
