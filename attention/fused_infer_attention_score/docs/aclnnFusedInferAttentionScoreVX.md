@@ -932,7 +932,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
   - aclnnFusedInferAttentionScoreVX默认确定性实现。
 -   该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 -   入参为空的处理：算子内部需要判断参数query是否为空，如果是空则直接返回。参数query不为空Tensor，参数key、value为空tensor（即S2为0），则attentionOut填充为全零。attentionOut为空Tensor时，AscendCLNN框架会处理。其余在上述参数说明中标注了“可传入nullptr”的入参为空指针时，不进行处理。
--   参数key、value中对应tensor的shape需要完全一致；非连续场景下 key、value的tensorlist中的batch只能为1，个数等于query的B，N和D需要相等。由于tensorlist限制, 非连续场景下B不能大于256。
+-   参数key、value中的tensor的shape一般情况下需要完全一致，但在非量化场景下支持参数query、key的head dim与value的head dim不相等，并且三者的head dim都应小于等于128，本场景下除了sparse=0/2/3、mask、FD、行无效以外不支持叠加其他高阶特性；非连续场景下 key、value的tensorlist中的batch只能为1，个数等于query的B，N和D需要相等。由于tensorlist限制, 非连续场景下B不能大于256。
 -   当attenMask数据类型取INT8、UINT8时，其tensor中的值需要为0或1。
 - pseType为2或3时约束如下：
     -  <term>昇腾910_95 AI处理器</term>：
