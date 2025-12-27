@@ -122,6 +122,39 @@ __aicore__ inline constexpr bool IsI8I8I32()
 }
 
 /**
+ * @brief Check if the matrix type is F4
+ * @param [in] MatmulType: matrix type
+ * @return Return true if the matrix type is F4, otherwise false
+ */
+template <class MatmulType>
+__aicore__ inline constexpr bool IsF4()
+{
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+    return AscendC::IsSameTypeV<typename MatmulType::T, fp4x2_e2m1_t> ||
+           AscendC::IsSameTypeV<typename MatmulType::T, fp4x2_e1m2_t>;
+#else
+    return false;
+#endif
+}
+
+/**
+ * @brief Check if matrix A and B are Fp4 and matrix C is F32
+ * @param [in] AType: type of matrix A
+ * @param [in] BType: type of matrix B
+ * @param [in] CType: type of matrix C
+ * @return Return true if matrix A and B are Fp4 and matrix C is F32, otherwise false
+ */
+template <class AType, class BType, class CType>
+__aicore__ inline constexpr bool IsFp4Fp4F32()
+{
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+    return IsF4<AType>() && IsF4<BType>() && AscendC::IsSameTypeV<typename CType::T, float>;
+#else
+    return false;
+#endif
+}
+
+/**
  * @brief Check if the matrix type is F8
  * @param [in] MatmulType: matrix type
  * @return Return true if the matrix type is F8, otherwise false
@@ -170,6 +203,28 @@ __aicore__ inline constexpr bool IsHIF8HIF8F32()
 #else
     return false;
 #endif
+}
+
+/**
+ * @brief Check if the given matrix type is ND format
+ * @param [in] MatmulType: matrix type
+ * @return Return true if the matrix type is ND format, otherwise false
+ */
+template <class MatmulType>
+__aicore__ inline constexpr bool IsND()
+{
+    return (MatmulType::format == CubeFormat::ND || MatmulType::format == CubeFormat::ND_ALIGN);
+}
+
+/**
+ * @brief Check if the given matrix type is NZ format
+ * @param [in] MatmulType: matrix type
+ * @return Return true if the matrix type is NZ format, otherwise false
+ */
+template <class MatmulType>
+__aicore__ inline constexpr bool IsNz()
+{
+    return MatmulType::format == CubeFormat::NZ;
 }
 
 /**
@@ -228,6 +283,83 @@ __aicore__ inline constexpr bool IsTileShapeValid()
     // Check L1 L0 shape
     return l1M == l0M && l1N == l0N && (l1Ka >= l0K && (l0K == 0 || l1Ka % l0K == 0)) &&
            (l1Kb >= l0K && (l0K == 0 || l1Kb % l0K == 0));
+}
+
+/**
+ * @brief Check if L1 buffer is valid
+ * @param [in] AType: type of matrix A
+ * @param [in] BType: type of matrix B
+ * @param [in] L1TileShape: L1TileShape type
+ * @param [in] bufferNum: buffer count, default is DOUBLE_BUFFER_COUNT
+ * @return Return true if L1 buffer is valid, otherwise false
+ */
+template <class AType, class BType, class L1TileShape>
+__aicore__ inline constexpr bool IsL1BufferValid(const int bufferNum = DOUBLE_BUFFER_COUNT)
+{
+    constexpr auto l1M = GetIntegralConstant<MNK_M, L1TileShape>();
+    constexpr auto l1N = GetIntegralConstant<MNK_N, L1TileShape>();
+    constexpr auto l1Ka = GetIntegralConstant<MNK_K, L1TileShape>();
+    constexpr auto l1Kb = GetL1Kb<L1TileShape>();
+
+    return (l1M * l1Ka * sizeof(typename AType::T) + l1N * l1Kb * sizeof(typename BType::T)) * bufferNum <= L1_SIZE;
+}
+
+/**
+ * @brief Check if L0 buffer is valid
+ * @param [in] AType: type of matrix A
+ * @param [in] BType: type of matrix B
+ * @param [in] L0TileShape: L0TileShape type
+ * @param [in] bufferNum: buffer count, default is 1
+ * @return Return true if L0 buffer is valid, otherwise false
+ */
+template <class AType, class BType, class L0TileShape>
+__aicore__ inline constexpr bool IsL0BufferValid(const int bufferNum = 1) // L0 DB is optional
+{
+    constexpr auto l0M = GetIntegralConstant<MNK_M, L0TileShape>();
+    constexpr auto l0N = GetIntegralConstant<MNK_N, L0TileShape>();
+    constexpr auto l0K = GetIntegralConstant<MNK_K, L0TileShape>();
+
+    return l0M * l0K * sizeof(typename AType::T) * bufferNum <= L0A_SIZE &&
+           l0N * l0K * sizeof(typename BType::T) * bufferNum <= L0B_SIZE &&
+           l0M * l0N * sizeof(typename AscendC::GetMmDstType<typename AType::T>::Type) <= L0C_SIZE;
+}
+
+/**
+ * @brief Get matrix shape parameters
+ * @param [in] SingleShape: single shape
+ * @param [in] L0TileShape: L0TileShape type
+ * @return Return matrix shape parameters
+ */
+template <class SingleShape, class L0TileShape>
+__aicore__ inline constexpr MatmulShapeParams GetMatmulShapeParams()
+{
+    return {GetIntegralConstant<MNK_M, SingleShape>(), GetIntegralConstant<MNK_N, SingleShape>(),
+            GetIntegralConstant<MNK_K, SingleShape>(), GetIntegralConstant<MNK_M, L0TileShape>(),
+            GetIntegralConstant<MNK_N, L0TileShape>(), GetIntegralConstant<MNK_K, L0TileShape>()};
+}
+
+/**
+ * @brief Get function parameters
+ * @param [in] intrinsicsCheck: whether to perform intrinsic checks
+ * @return Return function parameters
+ */
+__aicore__ inline constexpr MatmulFuncParams GetFuncParams(bool intrinsicsCheck)
+{
+    MatmulFuncParams params{};
+    params.intrinsicsCheck = intrinsicsCheck;
+    return params;
+}
+
+/**
+ * @brief Get bias parameters
+ * @param [in] enableSetBias: whether to enable bias setting
+ * @return Return bias parameters
+ */
+__aicore__ inline constexpr MatmulBiasParams GetBiasParams(bool enableSetBias)
+{
+    MatmulBiasParams params{};
+    params.enableSetBias = enableSetBias;
+    return params;
 }
 } // namespace Block
 } // namespace Gemm

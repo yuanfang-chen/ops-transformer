@@ -34,13 +34,13 @@ __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, GM_ADDR xSc
 
     if (QUANT_B_TRANS == GMM_SWIGLU_QUANT_NO_TRANS && QUANT_A_TRANS == GMM_SWIGLU_QUANT_NO_TRANS
         && KERNEL_TYPE == GMM_SWIGLU_QUANT_DEQUANT_FIXP) { // transX = false, transW = false
-        GmmSwigluAswt<Act::Gemm::layout::RowMajor, Act::Gemm::layout::RowMajor>(x, weight, weightScale,
+        GmmSwigluAswt<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::RowMajor>(x, weight, weightScale,
                                                                                 xScale, weightAssistanceMatrix,
                                                                                 smoothScale, groupList, y,
                                                                                 yScale, workspace, tiling);
     } else if (QUANT_B_TRANS == GMM_SWIGLU_QUANT_TRANS && QUANT_A_TRANS == GMM_SWIGLU_QUANT_NO_TRANS
         && KERNEL_TYPE == GMM_SWIGLU_QUANT_DEQUANT_FIXP) { // transX = false, transW = true
-        GmmSwigluAswt<Act::Gemm::layout::RowMajor, Act::Gemm::layout::ColumnMajor>(x, weight, weightScale,
+        GmmSwigluAswt<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::ColumnMajor>(x, weight, weightScale,
                                                                                    xScale, weightAssistanceMatrix,
                                                                                    smoothScale, groupList, y,
                                                                                    yScale, workspace, tiling);

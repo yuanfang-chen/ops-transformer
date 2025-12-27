@@ -21,12 +21,12 @@
 
 #include "./block_mmad.h"
 #include "./block_mmad_utils.h"
-#include "../../utils/tensor_utils.h"
-#include "../../utils/tuple_utils.h"
+#include "../utils/tensor_utils.h"
+#include "../utils/tuple_utils.h"
 #include "../policy/dispatch_policy.h"
 #include "../tile/tile_copy.h"
 
-namespace Act {
+namespace Cgmct {
 namespace Gemm {
 namespace Block {
 /**
@@ -65,7 +65,7 @@ public:
                       IsHIF8HIF8F32<AType, BType, CType>(),
                   "Unsupported dtype");
     static_assert(IsND<AType>() && IsND<CType>(), "Only support ND format");
-    static_assert(IsTileShapeValid<L1Shape, L0Shape>(), "L1Shape or L0Shape is invalid");
+    static_assert(IsTileShapeValid<AType, BType, L1Shape, L0Shape>(), "L1Shape or L0Shape is invalid");
     static_assert(IsL1BufferValid<AType, BType, L1Shape>(), "L1 buffer overflow");
     static_assert(IsL0BufferValid<AType, BType, L0Shape>(), "L0 buffer overflow");
 
@@ -109,7 +109,7 @@ public:
     constexpr static MatmulShapeParams shapeParams =
         GetMatmulShapeParams<typename DispatchPolicy::SingleShape, L0Shape>();
     constexpr static MatmulConfig cfg = GetMMConfig<MatmulConfigMode::CONFIG_MDL>(
-        shapeParams, GetFuncParams(DispatchPolicy::enableInputDataLenCheck), GetBiasParams(false));
+        shapeParams, GetFuncParams(DispatchPolicy::ENABLE_INTRINSICS_CHECK), GetBiasParams(false));
     constexpr static MatmulApiStaticTiling staticTiling =
         AscendC::GetMatmulApiTiling<AType, BType, CType, BiasType, typename DispatchPolicy::SingleShape, L1Shape,
                                     L0Shape>(cfg);
@@ -243,5 +243,5 @@ private:
 };
 } // namespace Block
 } // namespace Gemm
-} // namespace Act
+} // namespace Cgmct
 #endif

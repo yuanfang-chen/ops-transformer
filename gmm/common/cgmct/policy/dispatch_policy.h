@@ -30,6 +30,7 @@ struct KernelIterBatch {};         // Multi-tile pipelined transfer with batch c
 struct KernelMmadWithScale {};     // Multi-block with scale
 struct KernelMultiBlockStreamK {}; // Multi-tile transfer with K-axis spliting and caching
 struct KernelBatchMatMulToMul {};  // BatchMatmul to mul
+struct KernelMixWithWeightPrologue {};
 
 enum class MatMulL0C2Out : std::uint8_t {
     ON_THE_FLY = 0,
@@ -42,10 +43,6 @@ enum class MatMulL0C2Out : std::uint8_t {
  * @brief Define a template struct GMMPerTile for configuring block matrix multiplication policies
  * @param [in] SingleCoreShape: the shape of a single core, default is AscendC::Shape<_0, _0, _0, _0>
  */
-struct KernelMixWithWeightPrologue {};
-//
-// block matmul policies
-//
 template <class SingleCoreShape = AscendC::Shape<_0, _0, _0, _0>>
 struct GMMPerTile {
     using ScheduleType = KernelMmadPerBaseK;
@@ -68,6 +65,18 @@ struct QuantMatmulMultiBlock {
 };
 
 /**
+ * @struct QuantMatmulWithTileMultiBlock
+ * @brief Define a template struct QuantMatmulWithTileMultiBlock for multi-block matrix multiplication policies
+ * @param [in] SingleCoreShape: the shape of a single core, default is AscendC::Shape<_0, _0, _0, _0>
+ */
+template <class SingleCoreShape = AscendC::Shape<_0, _0, _0, _0>>
+struct QuantMatmulWithTileMultiBlock {
+    using ScheduleType = KernelMmadWithScale;
+    using SingleShape = SingleCoreShape;
+    constexpr static bool enableInputDataLenCheck = false;
+};
+
+/**
  * @struct MatmulNaivePipelineWithLayout
  * @brief Structure for a naive matrix multiplication pipeline with layout
  * @param [in] SingleCoreShape: the shape of a single core, default is AscendC::Shape<_0, _0, _0, _0>
@@ -79,6 +88,18 @@ struct MatmulNaivePipelineWithLayout {
 
     constexpr static int l0CStages = 1;
     constexpr static bool enalbeL0CUnitFlag = false;
+};
+
+/**
+ * @struct MatmulWithScale
+ * @brief Matrix multiplication with scaleA and scaleB
+ * @param [in] SingleCoreShape: the shape of a single core, default is AscendC::Shape<_0, _0, _0, _0>
+ */
+template <class SingleCoreShape = AscendC::Shape<_0, _0, _0, _0>, uint64_t FULL_LOAD_MODE_ = 0>
+struct MatmulWithScale {
+    using ScheduleType = KernelMmadWithScale;
+    using SingleShape = SingleCoreShape;
+    constexpr static uint64_t fullLoadMode = FULL_LOAD_MODE_;
 };
 
 /**
