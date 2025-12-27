@@ -237,6 +237,7 @@
      bool hasRope = false;
      SplitAxisEnum splitAxis = SplitAxisEnum::BN2GS1S2;
      bool sValueZeroUnderTND = false;
+     uint64_t tailZeroCount = 0;
  
      ConstAxisTemplateNum s1TemplateType = ConstAxisTemplateNum::NUM128;
      ConstAxisTemplateNum s2TemplateType = ConstAxisTemplateNum::NUM128;

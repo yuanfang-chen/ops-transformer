@@ -399,7 +399,8 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetSplitAxis()
                         (fBaseParams.queryType != ge::DT_FLOAT) &&
                         (fBaseParams.d == fBaseParams.d1) &&
                         !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) &&
-                        !fBaseParams.hasRope;
+                        !fBaseParams.hasRope &&
+                        (fBaseParams.tailZeroCount == 0);
 
     bool bnSparseLimit = ((fBaseParams.b * fBaseParams.n1) >= BN2_MULTIBLK_BN) &&
                             (fBaseParams.layoutType != INPUT_FROAMT_TND) &&
@@ -616,15 +617,31 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetShapeAttrsInfo(
         int64_t lastQLen = 0;
         int64_t lastKvLen = 0;
         fBaseParams.isAllSame = true;
+        bool isEOD = false;
         for (size_t i = 0; i < seqQShapeSize; i++) {
             if (i == static_cast<size_t>(0)) {
                 fBaseParams.actualSeqQlen.push_back(qValue[i]);
                 fBaseParams.actualSeqKvlen.push_back(kvValue[i]);
+                if (qValue[0] == 0 || kvValue[0] == 0) {
+                    fBaseParams.sValueZeroUnderTND = true;
+                }
             } else {
                 lastQLen = fBaseParams.actualSeqQlen[i - 1];
                 lastKvLen = fBaseParams.actualSeqKvlen[i - 1];
-                fBaseParams.actualSeqQlen.push_back(qValue[i] - qValue[i - 1]);
-                fBaseParams.actualSeqKvlen.push_back(kvValue[i] - kvValue[i - 1]);
+                auto qLen = qValue[i] - qValue[i - 1];
+                auto kvLen = kvValue[i] - kvValue[i - 1];
+                fBaseParams.actualSeqQlen.push_back(qLen < 0 ? 0 : qLen);
+                fBaseParams.actualSeqKvlen.push_back(kvLen < 0 ? 0 : kvLen);
+                if (qLen < 0 || kvLen < 0) {
+                    isEOD = true;
+                }
+                if (isEOD && (qValue[i] == 0 || kvValue[i] == 0)) {
+                    ++fBaseParams.tailZeroCount;
+                    fBaseParams.sValueZeroUnderTND = true;
+                } else if (isEOD && (qValue[i] != 0 || kvValue[i] != 0)) {
+                    OP_LOGE("inputLayout = TND EOD", "In EOD mode, the last several actualSeq values must all be 0.");
+                    return ge::GRAPH_PARAM_INVALID;
+                }
                 fBaseParams.isAllSame = (kvValue[i] - kvValue[i - 1] == lastKvLen) &&
                             (qValue[i] - qValue[i - 1] == lastQLen) && fBaseParams.isAllSame;
             }
@@ -634,8 +651,8 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetShapeAttrsInfo(
 
         fBaseParams.s1 = *std::max_element(fBaseParams.actualSeqQlen.begin(), fBaseParams.actualSeqQlen.end());
         fBaseParams.s2 = *std::max_element(fBaseParams.actualSeqKvlen.begin(), fBaseParams.actualSeqKvlen.end());
-        fBaseParams.t1 = qValue[seqQShapeSize - 1];
-        fBaseParams.t2 = kvValue[seqQShapeSize - 1];
+        fBaseParams.t1 = queryShape->GetStorageShape().GetDim(INPUT_DIM_0);
+        fBaseParams.t2 = keyShape->GetStorageShape().GetDim(INPUT_DIM_0);
         fBaseParams.b = seqQShapeSize;
         fBaseParams.n2 = keyShape->GetStorageShape().GetDim(INPUT_DIM_1);
         fBaseParams.g =
@@ -2361,6 +2378,9 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetWorkspaceSize()
     int64_t qSize = ((fBaseParams.b * fBaseParams.n2 * fBaseParams.g - 1) * fBaseParams.s1 +
                          AlignTo(fBaseParams.s1, ALIGN128)) *
                         fBaseParams.d;
+    if (fBaseParams.tailZeroCount > 0) {
+        qSize = (AlignTo(fBaseParams.t1 * fBaseParams.n1, ALIGN128)) * fBaseParams.d;
+    }
     if (fBaseParams.splitAxis == SplitAxisEnum::BN2S2) {
         postTilingData_->set_dqWorkSpaceOffset(workspaceSize);
         // matmal3 q
@@ -2393,6 +2413,10 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetWorkspaceSize()
                 ((fBaseParams.b * fBaseParams.n2 - 1) * fBaseParams.s2 + AlignTo(fBaseParams.s2, ALIGN128)) * fBaseParams.d;
             int64_t vSize =
                 ((fBaseParams.b * fBaseParams.n2 - 1) * fBaseParams.s2 + AlignTo(fBaseParams.s2, ALIGN128)) * fBaseParams.d1;
+            if (fBaseParams.tailZeroCount > 0) {
+                kSize = (AlignTo(fBaseParams.t2 * fBaseParams.n2, ALIGN128)) * fBaseParams.d;
+                vSize = (AlignTo(fBaseParams.t2 * fBaseParams.n2, ALIGN128)) * fBaseParams.d1;
+            }
             // matmal3 q
             workspaceSize = (workspaceSize + static_cast<size_t>(qSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
             postTilingData_->set_dkWorkSpaceOffset(workspaceSize);
@@ -2915,7 +2939,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetParseS1S2OuterInfo(int64_t
     if ((parseInfo[fBaseParams.s2Outer - 1][LENGTH_IDX] <= 1) && fBaseParams.d <= BN2_MAX_D &&
         fBaseParams.n1 == fBaseParams.n2 && (fBaseParams.queryType != ge::DT_FLOAT) && 
         fBaseParams.queryType != ge::DT_FLOAT8_E5M2 && fBaseParams.queryType != ge::DT_FLOAT8_E4M3FN &&
-        fBaseParams.d == fBaseParams.d1 && !fBaseParams.hasRope) {
+        fBaseParams.d == fBaseParams.d1 && !fBaseParams.hasRope && (fBaseParams.tailZeroCount == 0)) {
         fBaseParams.isBn2 = true;
         fBaseParams.isBn2MultiBlk = false;
         fBaseParams.isDeterministic = false;
@@ -2948,6 +2972,9 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CheckUnpadTokensIn
     for (int64_t i = 0; i < fBaseParams.b; i++) {
         int64_t actualS1Len = fBaseParams.actualSeqQlen[i];
         int64_t actualS2Len = fBaseParams.actualSeqKvlen[i];
+        if (actualS1Len == 0 || actualS2Len == 0) {
+            continue;
+        }
         if (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::NO_MASK)) {
             if (-fBaseParams.s1Token > actualS2Len || -fBaseParams.s2Token > actualS1Len ||
                 (fBaseParams.s1Token + fBaseParams.s2Token) <= 0) {
@@ -3879,7 +3906,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SaveToTilingData()
 {
     s1s2BNGS1S2BaseParams_->set_coreNum(fBaseParams.coreNum);
     // set tilingdata baseinfo
-    s1s2BNGS1S2BaseParams_->set_b(fBaseParams.b);
+    s1s2BNGS1S2BaseParams_->set_b(fBaseParams.b - fBaseParams.tailZeroCount);
     s1s2BNGS1S2BaseParams_->set_n2(fBaseParams.n2);
     s1s2BNGS1S2BaseParams_->set_g(fBaseParams.g);
     s1s2BNGS1S2BaseParams_->set_s1(fBaseParams.s1);
