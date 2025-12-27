@@ -813,14 +813,21 @@ ge::graphStatus FiaInfoParser::GetAttenMaskInfo()
     // only bss & b1ss & bs need to calc attenMaskSize_ , attenMaskSize_ is uesed to calc batch offset
     if (attenMaskFlag_) {
         auto *maskTensor = opParamInfo_.attenMask.tensor;
-        if (maskTensor->GetStorageShape().GetDimNum() == 2U && s1Size_ == 1U && maskTensor->GetStorageShape().GetDim(0) != 1U) { // for bs situation
-            attenMaskSize_ = maskTensor->GetStorageShape().GetDim(maskTensor->GetStorageShape().GetDimNum() - 1); // batch offset = s2
-        } else if ((maskTensor->GetStorageShape().GetDimNum() == 3U || maskTensor->GetStorageShape().GetDimNum() == 4U) &&
-            maskTensor->GetStorageShape().GetDim(0) == bSize_ && bSize_ != 1) { // for bs & bss situation
-            attenMaskSize_ = maskTensor->GetStorageShape().GetDim(maskTensor->GetStorageShape().GetDimNum() - 1) *
-                maskTensor->GetStorageShape().GetDim(maskTensor->GetStorageShape().GetDimNum() - 2); // batch offset = s1*s2
+        uint32_t maskDimNum = maskTensor->GetStorageShape().GetDimNum();
+        if (maskDimNum == 2U){
+            if (s1Size_ == 1U) { // qs=1 仅支持BS
+                attenMaskBatchStride_ = maskTensor->GetStorageShape().GetDim(1);
+            } else { // qs > 1 仅支持SS
+                attenMaskBatchStride_ = 0;
+            }
+        } else if (maskDimNum == 3U || maskDimNum == 4U) {
+            if (maskTensor->GetStorageShape().GetDim(0) == bSize_) { //BSS B1SS BatchStride = S1*S2
+                attenMaskBatchStride_ = maskTensor->GetStorageShape().GetDim(maskDimNum-1) * maskTensor->GetStorageShape().GetDim(maskDimNum-2);
+            } else { // 1SS 11SS
+                attenMaskBatchStride_ = 0;
+            }
         } else {
-            attenMaskSize_ = 0U;
+            OP_LOGE(opName_, "mask matrix dim only support 2/3/4.");
         }
         if (*opParamInfo_.sparseMode == 0U || *opParamInfo_.sparseMode == 1U) {
             attenMaskStride_ = maskTensor->GetStorageShape().GetDim(maskTensor->GetStorageShape().GetDimNum() - 1);
@@ -970,7 +977,7 @@ void FiaInfoParser::GenerateFeatureInfo(FiaTilingInfo &fiaInfo)
 
     // atten mask
     fiaInfo.attenMaskFlag = attenMaskFlag_;
-    fiaInfo.attenMaskSize = attenMaskSize_;
+    fiaInfo.attenMaskBatchStride = attenMaskBatchStride_;
     fiaInfo.attenMaskStride = attenMaskStride_;
     fiaInfo.sparseMode = *opParamInfo_.sparseMode;
     // 4: only mla noquant & band mode suppport slidingFlag
