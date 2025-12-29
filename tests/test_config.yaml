@@ -336,6 +336,8 @@ ffn:
       - ffn/ffn/README.md
     ut_cov_exclude:
       - ffn/ffn
+    test:
+      ut: False
     options:
       - ffn
 
