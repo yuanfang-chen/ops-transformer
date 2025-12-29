@@ -139,7 +139,7 @@ namespace {
     constexpr int32_t MAX_EP_WORLD_SIZE_A2 = 384;
     constexpr int32_t MAX_EP_WORLD_SIZE_A2_LAYERED = 64;
     constexpr int32_t MAX_MOE_EXPERT_NUMS_A2 = 512;
-    constexpr int32_t UNLAYERED_EXP_NUM_PER_RANK_A2 = 24;
+    constexpr int32_t UNLAYERED_EXP_NUM_PER_RANK_A2 = 120;
     constexpr uint32_t MAX_BATCH_SIZE_A2 = 256;
     constexpr size_t USER_WORKSPACE_A2 = 1UL * 1024UL * 1024UL; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
     constexpr uint64_t TILING_KEY_BASE_A2 = 2000000000;
@@ -555,7 +555,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
         *expertTokenNumsTypePtr), return ge::GRAPH_FAILED);
     if (mc2tiling::GetSocVersion(context) != "Ascend910_95") {
         OP_TILING_CHECK((strlen(commAlgPtr) != 0) && (strcmp(commAlgPtr, "fullmesh_v1") != 0) && (strcmp(commAlgPtr, "fullmesh_v2") != 0),
-            OP_LOGE(nodeName, "Attr commAlg is invalid, current only support fullmesh_v1 and fullmesh_v2, but got commAlg = %s.", commAlgPtr), 
+            OP_LOGE(nodeName, "Attr commAlg is invalid, current only support fullmesh_v1 and fullmesh_v2, but got commAlg = %s.", commAlgPtr),
             return ge::GRAPH_FAILED);
         isSetCommAlg = ((strcmp(commAlgPtr, "fullmesh_v2") == 0) ? true : false);
         OP_LOGD(nodeName, "MoeDistributeDispatchV2 isSetCommAlg = %d\n", isSetCommAlg);
@@ -582,7 +582,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
         tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum);
     uint32_t localMoeExpertNum = static_cast<uint32_t>(moeExpertNum) / (static_cast<uint32_t>(epWorldSize) - static_cast<uint32_t>(sharedExpertRankNum));
     uint32_t lastDim = localMoeExpertNum * static_cast<uint32_t>(epWorldSize);
-    
+
     if (mc2tiling::GetSocVersion(context) != "Ascend910_95" && isSetCommAlg) {
             lastDim = ((lastDim + CEIL_ALIGN32 - 1) / CEIL_ALIGN32) * CEIL_ALIGN32;
             std::vector<int64_t> srcShapeDim = {1, lastDim};
@@ -590,7 +590,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
             uint32_t cumSumUBMaxValue = 0;
             uint32_t cumSumUBMinValue = 0;
             AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, cumSumUBMaxValue, cumSumUBMinValue);
-            tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue = static_cast<uint32_t>(cumSumUBMinValue);    
+            tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue = static_cast<uint32_t>(cumSumUBMinValue);
             OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 cumSumUBMinValue = %d\n", lastDim,
                 tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue);
     }
@@ -639,13 +639,13 @@ static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *no
     uint32_t k = static_cast<uint32_t>(expertIdsDim1);
 
     // 校验动态缩容和FullMesh_v2不能同时启用
-    OP_TILING_CHECK((isSetCommAlg && hasElasticInfo), OP_LOGE(nodeName, "Cannot support elasticInfo when comm_alg = fullmesh_v2"), 
+    OP_TILING_CHECK((isSetCommAlg && hasElasticInfo), OP_LOGE(nodeName, "Cannot support elasticInfo when comm_alg = fullmesh_v2"),
         return false);
     // 校验特殊专家和FullMesh_v2不能同时启用
-    OP_TILING_CHECK((isSetCommAlg && (zeroComputeExpertNum > 0)), OP_LOGE(nodeName, "Cannot support zeroComputeExpert when comm_alg = fullmesh_v2"), 
+    OP_TILING_CHECK((isSetCommAlg && (zeroComputeExpertNum > 0)), OP_LOGE(nodeName, "Cannot support zeroComputeExpert when comm_alg = fullmesh_v2"),
         return false);
     // 校验二维isExpertMask和FullMesh_v2不能同时启用
-    OP_TILING_CHECK((isSetCommAlg && isExpertMask), OP_LOGE(nodeName, "Cannot support ExpertMask when comm_alg = fullmesh_v2"), 
+    OP_TILING_CHECK((isSetCommAlg && isExpertMask), OP_LOGE(nodeName, "Cannot support ExpertMask when comm_alg = fullmesh_v2"),
         return false);
     // 检查comm_alg和tpWorldSize是否冲突
     OP_TILING_CHECK(isSetCommAlg && (tpWorldSize == TP_WORLD_SIZE_TWO), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, tp_world_size cannot be 2."),
@@ -659,7 +659,7 @@ static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *no
     return true;
 }
 
-static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char *nodeName, 
+static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char *nodeName,
     MoeDistributeDispatchV2TilingData &tilingData, uint32_t &localMoeExpertNum, bool isActiveMask, bool isSetCommAlg)
 {
     uint32_t epWorldSize = tilingData.moeDistributeDispatchV2Info.epWorldSize;
@@ -864,7 +864,7 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     OP_TILING_CHECK(tpRecvCountDim0 != tpWorldSize, OP_LOGE(nodeName,
         "dimension 0 of tpRecvCount should be equal to tpWorldSize, but dimension 0 of tpRecvCount is %ld, "
         "tpWorldSize is %ld.", tpRecvCountDim0, tpWorldSize), return ge::GRAPH_FAILED);
-    
+
     const gert::StorageShape *performanceInfoStorageShape = context->GetOptionalInputShape(PERFORMANCE_INFO_INDEX);
     OP_TILING_CHECK(performanceInfoStorageShape != nullptr,
         OP_LOGE(K_INNER_DEBUG, "This input is not support, performanceInfo should be nullptr."), return GRAPH_FAILED);
@@ -907,7 +907,7 @@ static uint64_t CalTilingKey(const bool isScales, const uint32_t quantMode,
     if (isSetCommAlg) {
         fullMesh = TILINGKEY_ENABLE_FULLMESH;
     }
-    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode, 
+    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode,
                                             fullMesh, layeredMode, TILINGKEY_TPL_A3);
     return tilingKey;
 }
@@ -1149,7 +1149,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(const gert::
         maxEpWorldSizeA2 = MAX_EP_WORLD_SIZE_A2_LAYERED;
     }
     OP_TILING_CHECK(epWorldSizePtr == nullptr || *epWorldSizePtr <= 0 || *epWorldSizePtr > maxEpWorldSizeA2 ||
-        *epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0,
+        ((*epWorldSizePtr > RANK_NUM_PER_NODE_A2) && (*epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0)),
         OP_LOGE(K_INNER_DEBUG, "epWorldSize is invalid."), return GRAPH_FAILED);
     OP_TILING_CHECK(epRankIdPtr == nullptr || *epRankIdPtr < 0 || *epRankIdPtr >= *epWorldSizePtr,
         OP_LOGE(K_INNER_DEBUG, "epRankId is invalid."), return GRAPH_FAILED);
@@ -1157,7 +1157,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(const gert::
         *moeExpertNumPtr <= 0 || *moeExpertNumPtr > MAX_MOE_EXPERT_NUMS_A2,
         OP_LOGE(K_INNER_DEBUG, "moeExpertNum is invalid."), return GRAPH_FAILED);
     OP_TILING_CHECK(!isLayered && *moeExpertNumPtr / *epWorldSizePtr > UNLAYERED_EXP_NUM_PER_RANK_A2,
-        OP_LOGE(K_INNER_DEBUG, "moeExpertNum is %d, in case of unlayered, it must no more than %d.", 
+        OP_LOGE(K_INNER_DEBUG, "moeExpertNum is %d, in case of unlayered, it must no more than %d.",
             *moeExpertNumPtr / *epWorldSizePtr, UNLAYERED_EXP_NUM_PER_RANK_A2), return GRAPH_FAILED);
     OP_TILING_CHECK(tpWorldSizePtr == nullptr,
         OP_LOGE(K_INNER_DEBUG, "tpWorldSize is null."), return GRAPH_FAILED);
@@ -1392,11 +1392,19 @@ static uint64_t MoeDistributeDispatchA2CalcTilingKey(const gert::TilingContext *
     if (isScales) {
         scaleMode = true;
     }
-    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, TILINGKEY_NO_QUANT, scaleMode, 
+    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, TILINGKEY_NO_QUANT, scaleMode,
                                             TILINGKEY_NO_FULLMESH, layeredMode, TILINGKEY_TPL_A2);
     OP_LOGD(K_INNER_DEBUG, "tilingKey=%lu", tilingKey);
 
     return tilingKey;
+}
+
+static std::string MoeDistributeCombineA2GetAlgConfig(int32_t epWorldSize, bool isLayered)
+{
+    if (epWorldSize <= RANK_NUM_PER_NODE_A2) {
+        return "BatchWrite=level0:fullmesh";
+    }
+    return isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
 }
 
 static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext *context)
@@ -1442,7 +1450,8 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-    std::string algConfig = isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
+    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    std::string algConfig = MoeDistributeCombineA2GetAlgConfig(*epWorldSizePtr, isLayered);
     uint32_t opType = 18; // BatchWrite
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);

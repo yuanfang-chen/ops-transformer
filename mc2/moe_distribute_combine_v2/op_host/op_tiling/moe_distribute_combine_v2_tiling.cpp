@@ -472,7 +472,7 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
     OP_TILING_CHECK((expandXDesc->GetDataType() != ge::DT_BF16) && (expandXDesc->GetDataType() != ge::DT_FLOAT16),
         OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be bf16 or float16, but is %s",
         Ops::Base::ToString(expandXDesc->GetDataType()).c_str()), return false);
-        
+
     auto oriXDesc = context->GetOptionalInputDesc(ORI_X_INDEX);
     if (oriXDesc != nullptr) {
         OP_TILING_CHECK(
@@ -699,7 +699,7 @@ static bool CheckTensorShape(const gert::TilingContext *context, MoeDistributeCo
     if (hasElasticInfo) {
         const gert::StorageShape *elasticInfoStorageShape = context->GetOptionalInputShape(ELASTIC_INFO_INDEX);
         const int64_t elasticInfoDim0 = elasticInfoStorageShape->GetStorageShape().GetDim(0);
-        
+
         OP_TILING_CHECK(elasticInfoDim0 != (ELASTIC_METAINFO_OFFSET + RANK_LIST_NUM * epWorldSize),
             OP_LOGE(nodeName, "elasticInfo's dim0 not equal to 4 + 2 * epWorldSize, "
             "elasticInfo's dim0 is %ld, epWorldSize is %ld.",
@@ -1083,7 +1083,7 @@ static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context,
     uint32_t bsKNum = axisBS * axisK;
     uint32_t bsKFloatAlign = (bsKNum * sizeof(float) + UB_ALIGN - 1) / UB_ALIGN * UB_ALIGN;
     uint32_t mulBufSize = hFloatAlign256Size > bsKFloatAlign ? hFloatAlign256Size : bsKFloatAlign;
-    
+
     if (isInputExpertMaskFlag || enableSpecialExpert) {
         uint32_t activeMaskAlignHalfSize = activeMaskAlignSize * sizeof(DTYPE_SIZE_HALF);
         maxSizeTokenBuf = (activeMaskAlignSize > hExpandXAlign32Size ? activeMaskAlignSize : hExpandXAlign32Size);
@@ -1297,7 +1297,7 @@ static ge::graphStatus MoeDistributeCombineA2CheckAttrAndSetTiling(const gert::T
         maxEpWorldSizeA2 = MAX_EP_WORLD_SIZE_A2_LAYERED;
     }
     OP_TILING_CHECK(epWorldSizePtr == nullptr || *epWorldSizePtr <= 0 || *epWorldSizePtr > maxEpWorldSizeA2 ||
-        *epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0,
+        ((*epWorldSizePtr > RANK_NUM_PER_NODE_A2) && (*epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0)),
         OP_LOGE(K_INNER_DEBUG, "epWorldSize is invalid."), return GRAPH_FAILED);
     OP_TILING_CHECK(epRankIdPtr == nullptr || *epRankIdPtr < 0 || *epRankIdPtr >= *epWorldSizePtr,
         OP_LOGE(K_INNER_DEBUG, "epRankId is invalid."), return GRAPH_FAILED);
@@ -1611,6 +1611,14 @@ static uint64_t MoeDistributeCombineA2CalcTilingKey(const bool isLayered, const 
     return tilingKey;
 }
 
+static std::string MoeDistributeCombineA2GetAlgConfig(int32_t epWorldSize, bool isLayered)
+{
+    if (epWorldSize <= RANK_NUM_PER_NODE_A2) {
+        return "BatchWrite=level0:fullmesh";
+    }
+    return isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
+}
+
 static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext* context)
 {
     const char *nodeName = context->GetNodeName();
@@ -1656,7 +1664,8 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-    std::string algConfig = isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
+    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    std::string algConfig = MoeDistributeCombineA2GetAlgConfig(*epWorldSizePtr, isLayered);
     uint32_t opType = 18; // DispatchCombine
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
