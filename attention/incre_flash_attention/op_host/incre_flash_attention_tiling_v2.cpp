@@ -1967,10 +1967,15 @@ ge::graphStatus IFATilingV2::ProcessQuant2Attribute(const gert::Tensor *qtScale2
   // per-tensor or per-channel verification
   uint64_t quantScale2ShapeSizePerChannel = static_cast<uint64_t>(numHeads_) * static_cast<uint64_t>(headDim_);
   if (quantScale2Dim == 1) {
-      OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
-          OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-              "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
-          return ge::GRAPH_FAILED);
+      if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel) {
+        // per-channel quant scale/offset shape is [H].
+        isPostQuantPerChnl_ = true;
+      } else {
+        OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
+            OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
+                "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
+            return ge::GRAPH_FAILED);
+      }
   } else {
       OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
           OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,

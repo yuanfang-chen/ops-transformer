@@ -814,10 +814,15 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantShape(const ContextParamsForPFA
 
     uint64_t quantScale2ShapeSizePerChannel = static_cast<uint64_t>(queryShapeInfo.n) * static_cast<uint64_t>(valueShapeInfo.d);
     if (quantScale2Dim == 1) {
-        OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
-            return false);
+        if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel) {
+            // per-channel quant scale/offset shape is [H].
+            return true;
+        } else {
+            OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
+                return false);
+        }
     } else {
         OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
