@@ -190,11 +190,6 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
             MAX_B_SIZE, baseShapeInfo_.bSize),
         return ge::GRAPH_FAILED);
     if (GetSocVersionShortName() == platform_ascendc::SocVersion::ASCEND910_95) {
-        OP_CHECK_IF(baseShapeInfo_.s1Size != 1 && baseShapeInfo_.s1Size != 0,
-            OP_LOGE(context_.opName, "S allows only {0, 1}, got %u.", baseShapeInfo_.s1Size),
-            return ge::GRAPH_FAILED);
-    }
-    if (GetSocVersionShortName() == platform_ascendc::SocVersion::ASCEND910_95) {
         const std::set<uint32_t> supportedHeSize {7168U};
         OP_CHECK_IF(supportedHeSize.find(baseShapeInfo_.heSize) == supportedHeSize.end(),
             OP_LOGE(context_.opName, "He allows only %s, got %u.",
@@ -934,12 +929,24 @@ bool MlaPrologTilingCheck::CheckCacheModeParamShape() const
 ge::graphStatus MlaPrologTilingCheck::CheckCacheMode() const
 {
     if (GetSocVersionShortName() == platform_ascendc::SocVersion::ASCEND910_95) {
-        if ((std::strcmp(context_.cacheMode, CACHE_MODE_PA_BSND) == 0)) {
+        if ((std::strcmp(context_.cacheMode, CACHE_MODE_PA_BSND) == 0) ||
+            std::strcmp(context_.cacheMode, CACHE_MODE_PA_NZ) == 0) {
             return ge::GRAPH_SUCCESS;
         }
-        OP_LOGE(context_.opName, "Only support cacheMode {PA_BSND}, actually is %s.", context_.cacheMode);
+        OP_LOGE(context_.opName, "Only support cacheMode {PA_BSND, PA_NZ}, actually is %s.", context_.cacheMode);
         return ge::GRAPH_FAILED;
     } else {
+        if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0) {
+            if (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BSND, CACHE_MODE_LEN) != 0 &&
+                std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) != 0) {
+                OP_LOGE(context_.opName,
+                    "%s only support cacheMode {BSND, TND}, actually is %s.",
+                    context_.opType,
+                    context_.cacheMode);
+                return ge::GRAPH_FAILED;
+            }
+            return ge::GRAPH_SUCCESS;
+        }
         if ((std::strncmp(context_.cacheMode, CACHE_MODE_BSND, CACHE_MODE_LEN) != 0) &&
             (std::strncmp(context_.cacheMode, CACHE_MODE_TND, CACHE_MODE_LEN) != 0) &&
             (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BSND, CACHE_MODE_LEN) != 0) &&
@@ -952,31 +959,19 @@ ge::graphStatus MlaPrologTilingCheck::CheckCacheMode() const
             return ge::GRAPH_FAILED;
         }
 
-        if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0 &&
-            (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_BSND, CACHE_MODE_LEN) == 0 ||
-                std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_NZ, CACHE_MODE_LEN) == 0)) {
-            OP_LOGE(context_.opName,
-                "%s only support cacheMode {PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ}, actually is %s.",
-                context_.opType,
-                context_.cacheMode);
-            return ge::GRAPH_FAILED;
-        }
-
         if (!CheckCacheModeParamShape()) {
             return ge::GRAPH_FAILED;
-        }
-        if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0) {
-            return ge::GRAPH_SUCCESS;
         }
         if (*(context_.kvQuantMode) != static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
             return ge::GRAPH_SUCCESS;
         }
         if ((std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) == 0) ||
             (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_BSND, CACHE_MODE_LEN) == 0) ||
-            (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_NZ, CACHE_MODE_LEN) == 0))  {
-            OP_LOGE(context_.opName, "Not support both cacheMode {PA_NZ, PA_BLK_BSND, PA_BLK_NZ} and pertile effective.");
+            (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_NZ, CACHE_MODE_LEN) == 0)) {
+            OP_LOGE(
+                context_.opName, "Not support both cacheMode {PA_NZ, PA_BLK_BSND, PA_BLK_NZ} and pertile effective.");
             return ge::GRAPH_FAILED;
-        }        
+        }
         return ge::GRAPH_SUCCESS;
     }
 }

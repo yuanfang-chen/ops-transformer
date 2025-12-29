@@ -94,11 +94,11 @@ ge::graphStatus MlaPrologTiling::GetNpuInfo()
 QUANT_MODE MlaPrologTiling::GetQuantizationModeV3() const
 {
     if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::NO_QUANT)) {
-            if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
-                return QUANT_MODE::NO_QUANT;
-            } else {
-                OP_LOGE(context_->opName, "When weightQuantMode == 0, kvQuantMode must be within {0}, actually is %d.", *(context_->kvQuantMode)); 
-            }
+        if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
+            return QUANT_MODE::NO_QUANT;
+        } else {
+            OP_LOGE(context_->opName, "When weightQuantMode == 0, kvQuantMode must be within {0}, actually is %d.", *(context_->kvQuantMode)); 
+        }
     } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::PARTIAL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
                 return QUANT_MODE::PARTIAL_QUANT_KV_NO_QUANT;
@@ -127,7 +127,13 @@ QUANT_MODE MlaPrologTiling::GetQuantizationModeV3() const
 
 QUANT_MODE MlaPrologTiling::GetQuantizationModeV3Mxfp8() const
 {
-    if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::MXFP8_FULL_QUANT)) {
+    if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::NO_QUANT)) {
+        if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
+            return QUANT_MODE::NO_QUANT;
+        } else {
+            OP_LOGE(context_->opName, "When weightQuantMode == 0, kvQuantMode must be within {0}, actually is %d.", *(context_->kvQuantMode)); 
+        }
+    } else if (*(context_->weightQuantMode) == static_cast<int>(WEIGHT_QUANT_MODE::MXFP8_FULL_QUANT)) {
         if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::NO_QUANT)) {
                 return QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT;
         } else if (*(context_->kvQuantMode) == static_cast<int>(KV_QUANT_MODE::PER_TENSOR)) {
@@ -136,7 +142,7 @@ QUANT_MODE MlaPrologTiling::GetQuantizationModeV3Mxfp8() const
             OP_LOGE(context_->opName, "When weightQuantMode == 3, kvQuantMode must be within {0, 1}, actually is %d.", *(context_->kvQuantMode)); 
         }
     } else {
-        OP_LOGE(context_->opName, "weightQuantMode must be 3, actually is %d.", *(context_->weightQuantMode)); 
+        OP_LOGE(context_->opName, "weightQuantMode must be within {0, 3}, actually is %d.", *(context_->weightQuantMode)); 
     }
     return QUANT_MODE::ERROR_MODE;
 }
