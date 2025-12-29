@@ -19,7 +19,6 @@
 #include "tiling/mc2_tiling_utils.h"
 #include "tiling_base/tiling_base.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "../../op_kernel/arch35/allto_all_matmul_tiling_key.h"
 #include "mc2/matmul_allto_all/op_host/op_tiling/common/matmul_allto_all_util_tiling.h"
 #include "mc2/matmul_allto_all/op_host/op_tiling/common/allto_all_formulaic_tiling.h"
 

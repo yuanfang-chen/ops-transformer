@@ -53,8 +53,8 @@ __aicore__ inline void SyncFunc() {
     AscendC::WaitFlag<event>(eventID);
 }
 // A2AMM : AlltoAllMatmul
-#define TemplateA2AMMClass typename AType, typename BType, typename BiasType, typename ScaleType, typename PerTokenScaleType, typename CType, typename AllToAllResultType, bool hasBias
-#define TemplateA2AMMFunc AType, BType, BiasType, ScaleType, PerTokenScaleType, CType, AllToAllResultType, hasBias
+#define TemplateA2AMMClass typename AType, typename BType, typename BiasType, typename ScaleType, typename PerTokenScaleType, typename CType, typename AllToAllResultType, bool hasBias, bool transB
+#define TemplateA2AMMFunc AType, BType, BiasType, ScaleType, PerTokenScaleType, CType, AllToAllResultType, hasBias, transB
 
 using namespace AscendC;
 template <TemplateA2AMMClass>
@@ -90,9 +90,6 @@ private:
     int32_t gm_a_pingpong_size;
 
     __gm__ AType* gm_peer_mem;
-
-    bool TA;
-    bool TB;
 
     Catlass::Arch::Resource<Catlass::Arch::AtlasA2> resource;
 };
@@ -164,7 +161,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
         using ElementBias = BiasType;
         using LayoutA = layout::RowMajor;
         // B转置
-        using LayoutB = layout::ColumnMajor;
+        using LayoutB = std::conditional_t<transB, layout::ColumnMajor, layout::RowMajor>;
         using LayoutC = layout::RowMajor;
         using LayoutBias = layout::VectorLayout;
 
@@ -175,13 +172,14 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
         LayoutC layoutC{static_cast<uint32_t>(realM), static_cast<uint32_t>(n)};
         LayoutBias layoutBias{static_cast<uint32_t>(n)};
 
-        using DispatchPolicy = std::conditional_t<hasBias, Gemm::MmadAtlasA2PingpongBias<ENABLE_UNIT_FLAG>,
+        constexpr bool aicCalBias = !std::is_same_v<BType, int8_t> && hasBias;
+        using DispatchPolicy = std::conditional_t<aicCalBias, Gemm::MmadAtlasA2PingpongBias<ENABLE_UNIT_FLAG>,
                                                            Gemm::MmadAtlasA2Preload<ENABLE_UNIT_FLAG, ENABLE_SHUFFLE_K>>;
 
         using AType_ = Gemm::GemmType<ElementA, LayoutA>;
         using BType_ = Gemm::GemmType<ElementB, LayoutB>;
         using CType_ = Gemm::GemmType<ElementC, LayoutC>;
-        using BiasType_ = std::conditional_t<hasBias, Gemm::GemmType<ElementBias, LayoutBias>, void>;
+        using BiasType_ = std::conditional_t<aicCalBias, Gemm::GemmType<ElementBias, LayoutBias>, void>;
 
         struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType_, BType_, CType_, BiasType_> {
             using Base = Catlass::Gemm::Tile::TileCopy<ArchTag, AType_, BType_, CType_, BiasType_>;
@@ -210,27 +208,27 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
             using L1TileShape = GemmShape<128, 256, 256>;
             using L0TileShape = GemmShape<128, 256, 64>;
             using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType_, BType_, CType_, BiasType_, TileCopy>;
-            using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, hasBias>;
+            using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
             MatmulKernel matmul_op;
             typename MatmulKernel::Params params{processSize,
                                     reinterpret_cast<GM_ADDR>(gm_peer_mem), layoutA,
                                     reinterpret_cast<GM_ADDR>(bGM_), layoutB,
                                     reinterpret_cast<GM_ADDR>(biasGM_),
                                     reinterpret_cast<GM_ADDR>(matmulResultGM), layoutC,
-                                    p_value, 3, 0, static_cast<int32_t>(rank_size), MAX_BLOCK_COUNT, TB};
+                                    p_value, 3, 0, static_cast<int32_t>(rank_size), MAX_BLOCK_COUNT};
             matmul_op(params);
         } else {
             using L1TileShape = GemmShape<256, 128, 256>;
             using L0TileShape = GemmShape<256, 128, 64>;
             using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType_, BType_, CType_, BiasType_, TileCopy>;
-            using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, hasBias>;
+            using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
             MatmulKernel matmul_op;
             typename MatmulKernel::Params params{processSize,
                                     reinterpret_cast<GM_ADDR>(gm_peer_mem), layoutA,
                                     reinterpret_cast<GM_ADDR>(bGM_), layoutB,
                                     reinterpret_cast<GM_ADDR>(biasGM_),
                                     reinterpret_cast<GM_ADDR>(matmulResultGM), layoutC,
-                                    p_value, 3, 0, static_cast<int32_t>(rank_size), MAX_BLOCK_COUNT, TB};
+                                    p_value, 3, 0, static_cast<int32_t>(rank_size), MAX_BLOCK_COUNT};
             matmul_op(params);
         }
     }
@@ -241,26 +239,14 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Dequant()
 {
     using ArchTag = Arch::AtlasA2;
 
-    constexpr bool ENABLE_UNIT_FLAG = false;
-    constexpr bool ENABLE_SHUFFLE_K = false;
-    using ElementA = AType;
-    using ElementB = BType;
     using ElementC = int32_t;
     using ElementBias = BiasType;
-    using LayoutA = layout::RowMajor;
-    using LayoutB = layout::ColumnMajor;
     using LayoutD = layout::RowMajor;
 
     uint32_t realM = m / rank_size;
     uint32_t realK = k * rank_size;
-    LayoutA layoutA{static_cast<uint32_t>(realM), static_cast<uint32_t>(realK)};
-    LayoutB layoutB{static_cast<uint32_t>(realK), static_cast<uint32_t>(n)};
     LayoutD layoutD{static_cast<uint32_t>(realM), static_cast<uint32_t>(n)};
 
-    using DispatchPolicy = Gemm::MmadAtlasA2Preload<ENABLE_UNIT_FLAG, ENABLE_SHUFFLE_K>;
-
-    using AType_ = Gemm::GemmType<ElementA, LayoutA>;
-    using BType_ = Gemm::GemmType<ElementB, LayoutB>;
     using CType_ = Gemm::GemmType<ElementC, layout::RowMajor>;
 
     constexpr uint32_t ubStages = 2;
@@ -408,7 +394,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AlltoAll()
                 int64_t data_dst = flag_idx * peer_mem_block_size + data_src_in_move * rank_size + rank * k;
 
                 if (data_len > 0) {
-                    MoveResultFromSrcToPeerMem(reinterpret_cast<__gm__ AType*>(aGM_) + data_src, (__gm__ AType *)buff[dst_rank] + data_dst, data_len);
+                    MoveResultFromSrcToPeerMem(reinterpret_cast<__gm__ AType*>(aGM_) + data_src, (__gm__ AType *)buff[dst_rank] + data_dst, data_len / k);
                 }
                 src_offset += num_per_rank_move;
             }
@@ -418,10 +404,10 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AlltoAll()
                 int32_t m_per_core = DivCeil(total_m, second_step_core_num);
                 int32_t m_st = (core_idx - first_step_core_num) * m_per_core;
                 int32_t m_len = m_st + m_per_core > total_m ? total_m - m_st : m_per_core;
-                int64_t src_st = block_dst + m_st * peer_mem_k_size;
+                int64_t src_st = block_dst + m_st * mid_output_k_size;
                 int64_t dst_st = ((cal_idx - 1) * num_per_rank_m + m_st) * mid_output_k_size;
                 if (m_len > 0) {
-                    MoveResultFromPeerMemToOutput((__gm__ AType *)buff[rank] + src_st, reinterpret_cast<__gm__ AllToAllResultType*>(allToAllResultGM_) + dst_st, m_len * peer_mem_k_size);
+                    MoveResultFromPeerMemToOutput((__gm__ AType *)buff[rank] + src_st, reinterpret_cast<__gm__ AllToAllResultType*>(allToAllResultGM_) + dst_st, m_len);
                 }
             }
 
@@ -434,6 +420,12 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AlltoAll()
                 SetAicSync(flag_idx);
             }
         }
+
+        WaitEvent(FLAG_ZERO_IDX);
+        if (cal_count % 2 == 0) {  // 若AIC计算次数为偶数，则多等一次
+            WaitEvent(FLAG_ONE_IDX);
+        }
+
         PipeBarrier<PIPE_ALL>();
         ResetIpcFlags(1);
     }
@@ -474,7 +466,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AlltoAllDequant()
                 int64_t data_dst = flag_idx * peer_mem_block_size + data_src_in_move * rank_size + rank * k;
 
                 if (data_len > 0) {
-                    MoveResultFromSrcToPeerMem(reinterpret_cast<__gm__ AType*>(aGM_) + data_src, (__gm__ AType *)buff[dst_rank] + data_dst, data_len);
+                    MoveResultFromSrcToPeerMem(reinterpret_cast<__gm__ AType*>(aGM_) + data_src, (__gm__ AType *)buff[dst_rank] + data_dst, data_len / k);
                 }
                 src_offset += num_per_rank_move;
             }
@@ -484,10 +476,10 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AlltoAllDequant()
                 int32_t m_per_core = DivCeil(total_m, second_step_core_num);
                 int32_t m_st = (core_idx - first_step_core_num) * m_per_core;
                 int32_t m_len = m_st + m_per_core > total_m ? total_m - m_st : m_per_core;
-                int64_t src_st = block_dst + m_st * peer_mem_k_size;
+                int64_t src_st = block_dst + m_st * mid_output_k_size;
                 int64_t dst_st = ((cal_idx - 1) * num_per_rank_m + m_st) * mid_output_k_size;
                 if (m_len > 0) {
-                    MoveResultFromPeerMemToOutput((__gm__ AType *)buff[rank] + src_st, reinterpret_cast<__gm__ AType*>(allToAllResultGM_) + dst_st, m_len * peer_mem_k_size);
+                    MoveResultFromPeerMemToOutput((__gm__ AType *)buff[rank] + src_st, reinterpret_cast<__gm__ AType*>(allToAllResultGM_) + dst_st, m_len);
                 }
             }
 

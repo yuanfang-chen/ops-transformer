@@ -89,7 +89,6 @@ public:
         int32_t swizzlDirect;
         int32_t rankSize;
         int32_t pipeDepth;
-        bool transB;
 
         // Methods
         CATLASS_HOST_DEVICE
@@ -98,9 +97,9 @@ public:
         CATLASS_HOST_DEVICE
         Params(GemmCoord const &problemShape_,
                GM_ADDR ptrA_, LayoutA layoutA_, GM_ADDR ptrB_, LayoutB layoutB_, GM_ADDR ptrBias_, GM_ADDR ptrC_, LayoutC layoutC_,
-               int32_t pValue_, int32_t swizzlCount_, int32_t swizzlDirect_, int32_t rankSize_, int32_t pipeDepth_, bool transB_)
+               int32_t pValue_, int32_t swizzlCount_, int32_t swizzlDirect_, int32_t rankSize_, int32_t pipeDepth_)
             : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_), ptrBias(ptrBias_),
-              ptrC(ptrC_), layoutC(layoutC_), pValue(pValue_), swizzlCount(swizzlCount_), swizzlDirect(swizzlDirect_), rankSize(rankSize_), pipeDepth(pipeDepth_), transB(transB_){}
+              ptrC(ptrC_), layoutC(layoutC_), pValue(pValue_), swizzlCount(swizzlCount_), swizzlDirect(swizzlDirect_), rankSize(rankSize_), pipeDepth(pipeDepth_) {}
     };
 
     // Methods
@@ -110,8 +109,6 @@ public:
     template <int32_t CORE_TYPE = g_coreType>
     CATLASS_DEVICE
     void operator()(Params const &params);
-
-#if 1
 
     inline __aicore__ void GetBlockIdx(int32_t loopIdx, int32_t mLoop, int32_t nLoop, int32_t swizzlDirect, int32_t swizzlCount, int64_t &mIdx, int64_t &nIdx)
     {
@@ -194,10 +191,9 @@ public:
 
         int32_t coreIdx = AscendC::GetBlockIdx();
         int32_t coreNum = AscendC::GetBlockNum();
-        int32_t kAlign = (params.problemShape.k() + L1TileShape::K - 1) / L1TileShape::K * L1TileShape::K;
         int32_t mLoops = (params.problemShape.m() + L1TileShape::M - 1) / L1TileShape::M;
         uint32_t nLoops = (params.problemShape.n() + L1TileShape::N - 1) / L1TileShape::N;
-        int32_t peerMemBlockSize = L1TileShape::M * params.pValue * kAlign;
+        int32_t peerMemBlockSize = L1TileShape::M * params.pValue * params.problemShape.k();
 
         int32_t commCount = (mLoops + params.pValue - 1) / params.pValue;
 
@@ -267,10 +263,9 @@ public:
                         blockSizeCoord, nextBlockSizeCoord, isFirstBlock, hasNextBlock);
                 }
             }
-            AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(flagIdx);
+            AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(flagIdx);
         }
     }
-#endif
 
 private:
     static constexpr Arch::FlagID FLAG_AIV_FINISH_STORE = 0;

@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file allto_all_matmul_tiling_910.h
+ * \file allto_all_matmul_tiling_910b.h
  * \brief
  */
 
@@ -23,6 +23,7 @@
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_common_advanced.h"
 #include "../allto_all_matmul_tiling_base.h"
 #include "../../../op_kernel/arch32/allto_all_matmul_tiling.h"
+#include "../../../op_kernel/arch32/allto_all_matmul_tiling_key.h"
 #include "mc2/matmul_allto_all/op_host/op_tiling/common/matmul_allto_all_util_tiling.h"
 
 namespace MC2Tiling {
@@ -36,10 +37,10 @@ struct AlltoAllMatmulTilingValue {
         : value(v), conditionMap(std::move(m)) {}
 };
 
-class AlltoAllMatmulTiling910 : public AllToAllMatmulTilingBase {
+class AlltoAllMatmulTiling910b : public AllToAllMatmulTilingBase {
 public:
-    explicit AlltoAllMatmulTiling910(gert::TilingContext *context);
-    ~AlltoAllMatmulTiling910() override = default;
+    explicit AlltoAllMatmulTiling910b(gert::TilingContext *context);
+    ~AlltoAllMatmulTiling910b() override = default;
 
 protected:
     bool IsCapable() override;  //恒为true
@@ -61,12 +62,13 @@ protected:
                                     std::map<int, std::vector<std::vector<int>>> conditionMap);
     ge::graphStatus SetHcclTiling(AlltoAllMatmulTilingData *tilingData);
     void PrintAlltoAllMatmulTilingData(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
-    void SetTilingKey(AlltoAllMatmulInfo &info);
+    void SetTilingKey();
 private:
     uint64_t tilingKey_;
     bool needTransX2 = false;
     bool hasBias = false;
     bool isQuant = false;
+    uint32_t biasDtype_ = 0;
     uint32_t worldSize = 0;
     uint32_t orgM = 0;
     uint32_t orgN = 0;

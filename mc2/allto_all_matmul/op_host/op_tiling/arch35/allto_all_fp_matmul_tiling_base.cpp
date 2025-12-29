@@ -175,6 +175,27 @@ ge::graphStatus AllToAllFpMatmulTilingBase::SetHcclTiling()
 }
 
 /**
+ * @brief 获取对应的tilingKey
+ * 使用QUANT_MODE来区分tilingKey,此处的QUANT_MODE指的也是量化组合，对于非量化的场景，QUANT_MODE=0
+ *
+ * @return uint64_t tilingKey结果
+ */
+uint64_t AllToAllFpMatmulTilingBase::GetTilingKey() const
+{
+    // 按照量化组合模式，是否转置，bias数据类型进行展开
+    // 0代表数据类型和x一致(FP16 OR BF16)，1代表FP32
+    uint32_t biasDType = DTYPE_BIAS_SAME_WITH_X;
+    if (contextInfo.args_.geBiasType != contextInfo.args_.geAType) {
+        biasDType = DTYPE_BIAS_FP32;
+    }
+    bool x2TransposeFlag = contextInfo.args_.isBTrans ? true : false;
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(NON_QUANT_MODE, x2TransposeFlag, biasDType);
+    OP_LOGD(opName_, "QUANTMODE,X2TRANSPOSE,DTYPEBIAS is: [%d,%d,%d], and tilingKey is [%lu].", NON_QUANT_MODE,
+            x2TransposeFlag, biasDType, tilingKey);
+    return tilingKey;
+}
+
+/**
  * @brief 保存tiling数据到context,并打印相关信息
  *
  * @return ge::graphStatus

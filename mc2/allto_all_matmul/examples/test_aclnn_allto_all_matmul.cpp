@@ -163,15 +163,10 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);
     }
-    LOG_PRINT("device%d 162 \n", args.rankId);
     aclrtDestroyStream(args.stream);
-    LOG_PRINT("device%d 163 \n", args.rankId);
     HcclCommDestroy(args.hcclComm);
-    LOG_PRINT("device%d 164 \n", args.rankId);
     aclrtDestroyContext(args.context);
-    LOG_PRINT("device%d 165 \n", args.rankId);
     aclrtResetDevice(args.rankId);
-    LOG_PRINT("device%d 166 \n", args.rankId);
     return 0;
 }
 

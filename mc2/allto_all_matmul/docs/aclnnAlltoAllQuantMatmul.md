@@ -1,12 +1,12 @@
 *
 
-# aclnnAlltoAllMatmul
+# aclnnAlltoAllQuantMatmul
 
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>昇腾910_95 AI处理器</term>                             |    ×     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
 | <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
@@ -15,26 +15,40 @@
 | <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 ## 功能说明
 
-- 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)和Matmul计算的融合，**先通信后计算**。
+- 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)、Qunat、Matmul和Dequant计算的融合，**先通信后计算**。
 - 计算公式:
   假设x1输入shape为(BS, H)
   $$
   commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
   permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-  output = permutedOut @ x2 + bias \\
+  x1_{quant}, x1_{scale} = Quant(permutedOut) \\
+  output_{quant} = x1_{quant} @ x2 \\
+  output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+  output = output + bias
   $$
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用 “aclnnAlltoAllMatmulGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnAlltoAllMatmul”接口执行计算。
+每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用 “aclnnAlltoAllQuantMatmulGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnAlltoAllQuantMatmul”接口执行计算。
 
 ```cpp
-aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(
+aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(
   const aclTensor* x1, 
   const aclTensor* x2,
   const aclTensor* biasOptional,
-  const aclIntArray* alltoAllAxesOptional,
+  const aclTensor* x1ScaleOptional,
+  const aclTensor* x2Scale,
+  const aclTensor* commScaleOptional,
+  const aclTensor* x1OffsetOptional,
+  const aclTensor* x2OffsetOptional,
   const char* group,
+  const aclIntArray* alltoAllAxesOptional,
+  int64_t x1QuantMode,
+  int64_t x2QuantMode,
+  int64_t commQuantMode,
+  int64_t commQuantDtype,
+  int64_t x1QuantDtype,
+  int64_t groupSize,
   bool transposeX1,
   bool transposeX2,
   aclTensor* output,
@@ -44,7 +58,7 @@ aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(
 ```
 
 ```cpp
-aclnnStatus aclnnAlltoAllMatmul(
+aclnnStatus aclnnAlltoAllQuantMatmul(
   void *workspace,
   uint64_t workspaceSize,
   aclOpExecutor *executor,
@@ -87,17 +101,17 @@ aclnnStatus aclnnAlltoAllMatmul(
   <tr>
    <td>x2</td>
    <td>输入</td>
-   <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵</td>
+   <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵，对应公式中的x2</td>
    <td>直接作为MatMul计算的右矩阵输入</td>
-   <td>FLOAT16、BFLOAT16</td>
+   <td>INT8</td>
    <td>ND</td>
    <td>2维，shape为(H*rankSize, N)</td>
    <td>x</td>
   </tr>
   <tr>
    <td>biasOptional</td>
-   <td>可选输入</td>
-   <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
+   <td>输入</td>
+   <td>可选输入，阵乘运算后累加的偏置，对应公式中的bias。</td>
    <td></td>
    <td>FLOAT16、BFLOAT16、FLOAT32</td>
    <td>ND</td>
@@ -105,10 +119,58 @@ aclnnStatus aclnnAlltoAllMatmul(
    <td>x</td>
   </tr>
   <tr>
+   <td>x1ScaleOptional</td>
+   <td>输入</td>
+   <td>可选输入，左矩阵的量化系数</td>
+   <td>预留参数，暂不支持输入静态的x1Scale</td>
+   <td></td>
+   <td></td>
+   <td></td>
+   <td></td>
+  </tr>
+  <tr>
+   <td>x2Scale</td>
+   <td>输入</td>
+   <td>右矩阵的量化系数</td>
+   <td>对应公式中的x2Scale</td>
+   <td>FLOAT32</td>
+   <td>ND</td>
+   <td>1维, shape为(N,)</td>
+   <td>x</td>
+  </tr>
+  <tr>
+   <td>commScaleOptional</td>
+   <td>输入</td>
+   <td>可选输入, 低比特通信的量化系数</td>
+   <td>预留参数，暂不支持低比特通信</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  </tr>
+  <tr>
+   <td>x1OffsetOptional</td>
+   <td>输入</td>
+   <td>可选输入，左矩阵的量化偏置</td>
+   <td>预留参数，暂不支持</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  <tr>
+   <td>x2OffsetOptional</td>
+   <td>输入</td>
+   <td>可选输入，右矩阵的量化偏置</td>
+   <td>预留参数，暂不支持</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  <tr>
    <td>alltoAllAxesOptional</td>
    <td>输入</td>
-   <td>AlltoAll和Pemute数据交换的方向</td>
-   <td>支持配置空或者[-2,-1]，传入空时默认按[-2,-1]处理，表示将输入由(BS, H)转为(BS/rankSize, rankSize*H)</td>
+   <td>可选输入，AlltoAll和Pemute数据交换的方向</td>
+   <td>仅支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H)转为(BS / rankSize, rankSize * H)</td>
    <td>aclIntArray*(元素类型INT64)</td>
    <td>ND</td>
    <td>1维，shape为(2)</td>
@@ -125,10 +187,72 @@ aclnnStatus aclnnAlltoAllMatmul(
    <td>x</td>
   </tr>
   <tr>
+   <td>x1QuantMode</td>
+   <td>输入</td>
+   <td>量化Matmul左矩阵的量化方式</td>
+   <td>AlltoAll通信与Permute操作后的结果，按照该参数配置量化后作为MatMul计算的左矩阵输入，当前仅支持配置为3，表示PerToken动态量化</td>
+   <td>INT</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  </tr>
+  <tr>
+   <td>x2QuantMode</td>
+   <td>输入</td>
+   <td>左矩阵的量化方式</td>
+   <td>当前仅支持配置为2，表示PerChannel</td>
+   <td>INT</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  </tr>
+  <tr>
+   <td>commQuantMode</td>
+   <td>输入</td>
+   <td>低比特通信的量化方式</td>
+   <td>预留参数，当前仅支持配置为0，表示不量化</td>
+   <td>INT</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  </tr>
+  <tr>
+   <td>commQuantDtype</td>
+   <td>输入</td>
+   <td>低比特通信的量化类型</td>
+   <td>预留参数，当前仅支持配置为-1, 表示ACL_DT_UNDEFINED, [数据格式](../../../docs/context/数据格式.md)</td>
+   <td>INT</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  </tr>
+  <tr>
+   <td>x1QuantDtype</td>
+   <td>输入</td>
+   <td>量化Matmul左矩阵的量化类型</td>
+   <td>AlltoAll通信与Permute操作后结果，按照该参数配置量化后作为MatMul计算的左矩阵输入，
+        仅支持配置2(表示aclDataType.ACL_INT8), [数据格式](../../../docs/context/数据格式.md)
+   </td>
+   <td>INT</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  </tr>
+  <tr>
+   <td>groupSize</td>
+   <td>输入</td>
+   <td>用于Matmul计算三个方向上的量化分组大小</td>
+   <td>预留参数，K-C量化模式下仅支持配置为0，取值不生效。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+   <td>INT</td>
+   <td>-</td>
+   <td>-</td>
+   <td>-</td>
+  </tr>
+  <tr>
    <td>transposeX1</td>
    <td>输入</td>
    <td>标识左矩阵是否转置过</td>
-   <td>配置为True时左矩阵Shape为(H, BS)，暂不支持配为True</td>
+   <td>配置为True时左矩阵Shape为(H, BS)，暂不支持配置为True</td>
    <td>bool</td>
    <td>ND</td>
    <td></td>
@@ -138,7 +262,7 @@ aclnnStatus aclnnAlltoAllMatmul(
    <td>transposeX2</td>
    <td>输入</td>
    <td>标识右矩阵是否转置过</td>
-   <td>配置为True时右矩阵Shape为(N, rankSize*H)</td>
+   <td>配置为True时右矩阵Shape为(N, rankSize * H)</td>
    <td>bool</td>
    <td>ND</td>
    <td></td>
@@ -147,32 +271,22 @@ aclnnStatus aclnnAlltoAllMatmul(
   <tr>
    <td>output</td>
    <td>输入</td>
-   <td>最终的计算结果，</td>
+   <td>最终的计算结果</td>
    <td>数据类型与输入x1保持一致</td>
-   <td>FLOAT16、BFLOAT16</td>
+   <td>FLOAT16、BFLOAT16、FLOAT32</td>
    <td>ND</td>
-   <td>2维，shape为(BS/rankSize, N)</td>
+   <td>2维，shape为(BS / rankSize, N)</td>
    <td>x</td>
   </tr>
   <tr>
    <td>alltoAllOutOptional</td>
    <td>可选输出</td>
-   <td>接收AlltoAll和Pemute后的内容</td>
+   <td>接收AlltoAll和Permute后的内容，数据类型与输入x1保持一致</td>
    <td>传入nullptr时表示不输出通信输出</td>
    <td>FLOAT16、BFLOAT16</td>
    <td>ND</td>
-   <td>2维，shape为(BS/rankSize, H*rankSize)</td>
+   <td>2维，shape为(BS / rankSize, rankSize * H)</td>
    <td>x</td>
-  </tr>
-  <tr>
-   <td>workspaceSize</td>
-   <td>输出</td>
-   <td>返回需要在Device侧申请的workspace大小。</td>
-   <td></td>
-   <td>UINT64</td>
-   <td>ND</td>
-   <td></td>
-   <td></td>
   </tr>
   <tr>
    <td>executor</td>
@@ -217,7 +331,7 @@ aclnnStatus aclnnAlltoAllMatmul(
       </tbody>
   </table>
 
-## aclnnAlltoAllMatmul
+## aclnnAlltoAllQuantMatmul
 
 * **参数说明：**
     * workspace（void*，入参）：在Device侧申请的workspace内存地址。
@@ -230,7 +344,7 @@ aclnnStatus aclnnAlltoAllMatmul(
 ## 约束说明
 * 默认支持确定性计算
 * 参数说明中shape使用的变量BS必须整除rankSize
-* x1、x2、output、alltoAllOutOptional的数据类型必须一致
+* x1、output、alltoAllOutOptional的数据类型必须一致
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
@@ -250,7 +364,7 @@ aclnnStatus aclnnAlltoAllMatmul(
 #include <vector>
 #include <acl/acl.h>
 #include <hccl/hccl.h>
-#include "../op_api/aclnn_allto_all_matmul.h"
+#include "../op_api/aclnn_allto_all_quant_matmul.h"
 
 int ndev = 8;
 
@@ -302,7 +416,7 @@ struct Args {
     aclrtContext context;
 };
 
-int launchOneThreadAlltoAllMatmul(Args &args)
+int launchOneThreadAlltoAllQuantMatmul(Args &args)
 {
     int ret;
     ret = aclrtSetCurrentContext(args.context);
@@ -316,59 +430,78 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     std::vector<int64_t> x1Shape = {32, 64};
     std::vector<int64_t> x2Shape = {64 * ndev, 128};
     std::vector<int64_t> biasShape = {128};
+    std::vector<int64_t> x2ScaleShape = {128};
     std::vector<int64_t> outShape = {32 / ndev, 128};
     std::vector<int64_t> allToAllOutShape = {16, 64 * ndev};
     void *x1DeviceAddr = nullptr;
     void *x2DeviceAddr = nullptr;
     void *biasDeviceAddr = nullptr;
+    void *x2ScaleDeviceAddr = nullptr;
     void *outDeviceAddr = nullptr;
     void *allToAllOutDeviceAddr = nullptr;
     aclTensor *x1 = nullptr;
     aclTensor *x2 = nullptr;
     aclTensor *bias = nullptr;
+    aclTensor *x1ScaleOptional = nullptr;
+    aclTensor *x2Scale = nullptr;
+    aclTensor* commScaleOptional = nullptr,
+    aclTensor* x1OffsetOptional = nullptr,
+    aclTensor* x2OffsetOptional = nullptr,
     aclTensor *out = nullptr;
     aclTensor *allToAllOut = nullptr;
 
     int64_t a2aAxes[2] = {-2, -1};
     aclIntArray* alltoAllAxesOptional = aclCreateIntArray(a2aAxes, static_cast<uint64_t>(2));
     uint64_t workspaceSize = 0;
+    int64_t x1QuantMode = 3;
+    int64_t x2QuantMode = 2;
+    int64_t commQuantMode = 0;
+    int64_t commQuantDtype = -1;
+    int64_t x1QuantDtype = 2;
+    int64_t groupSize = 0;
     aclOpExecutor *executor;
     void *workspaceAddr = nullptr;
 
     long long x1ShapeSize = GetShapeSize(x1Shape);
     long long x2ShapeSize = GetShapeSize(x2Shape);
     long long biasShapeSize = GetShapeSize(biasShape);
+    long long x2ScaleShapeSize = GetShapeSize(x2ScaleShape);
     long long outShapeSize = GetShapeSize(outShape);
     long long allToAllOutShapeSize = GetShapeSize(allToAllOutShape);
     std::vector<int16_t> x1HostData(x1ShapeSize, 1);
     std::vector<int16_t> x2HostData(x2ShapeSize, 1);
     std::vector<int16_t> biasHostData(biasShapeSize, 1);
+    std::vector<int16_t> x2ScaleHostData(x2ScaleShapeSize, 1);
     std::vector<int16_t> outHostData(outShapeSize, 0);
     std::vector<int16_t> allToAllOutHostData(allToAllOutShapeSize, 0);
     // 创建 tensor
     ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_FLOAT16, &x1);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(x2HostData, x2Shape, &x2DeviceAddr, aclDataType::ACL_FLOAT16, &x2);
+    ret = CreateAclTensor(x2HostData, x2Shape, &x2DeviceAddr, aclDataType::ACL_INT8, &x2);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_FLOAT16, &bias);
+    CHECK_RET(ret == ACL_SUCCESS, return ret);
+    ret = CreateAclTensor(x2ScaleHostData, x2ScaleShape, &x2ScaleDeviceAddr, aclDataType::ACL_FLOAT, &x2Scale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_FLOAT16, &out);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(allToAllOutHostData, allToAllOutShape, &allToAllOutDeviceAddr, aclDataType::ACL_FLOAT16, &allToAllOut);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 调用第一段接口
-    ret = aclnnAlltoAllMatmulGetWorkspaceSize(x1, x2, bias, alltoAllAxesOptional, hcom_name, false, false,
+    ret = aclnnAlltoAllQuantMatmulGetWorkspaceSize(x1, x2, bias, x1ScaleOptional, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
+                                            hcom_name, alltoAllAxesOptional, x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, x1QuantDtype,
+                                            groupSize, false, true,
                                             out, allToAllOut, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,
-            LOG_PRINT("aclnnAlltoAllMatmulGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+            LOG_PRINT("aclnnAlltoAllQuantMatmulGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     // 根据第一段接口计算出的workspaceSize申请device内存
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
     }
     // 调用第二段接口
-    ret = aclnnAlltoAllMatmul(workspaceAddr, workspaceSize, executor, args.stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnAlltoAllMatmul failed. ERROR: %d\n", ret); return ret);
+    ret = aclnnAlltoAllQuantMatmul(workspaceAddr, workspaceSize, executor, args.stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnAlltoAllQuantMatmul failed. ERROR: %d\n", ret); return ret);
     //（固定写法）同步等待任务执行结束
     ret = aclrtSynchronizeStreamWithTimeout(args.stream, 10000);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
@@ -382,6 +515,9 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     }
     if (bias != nullptr) {
         aclDestroyTensor(bias);
+    }
+    if (x2Scale != nullptr) {
+        aclDestroyTensor(x2Scale);
     }
     if (out != nullptr) {
         aclDestroyTensor(out);
@@ -446,7 +582,7 @@ int main(int argc, char *argv[])
         args[rankId].hcclComm = comms[rankId];
         args[rankId].stream = stream[rankId];
         args[rankId].context = context[rankId];
-        threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadAlltoAllMatmul, std::ref(args  [rankId])));
+        threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadAlltoAllQuantMatmul, std::ref(args  [rankId])));
     }
     for (uint32_t rankId = 0; rankId < ndev; rankId++) {
         threads[rankId]->join();

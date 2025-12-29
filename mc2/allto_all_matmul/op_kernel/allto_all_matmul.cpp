@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
@@ -16,25 +16,33 @@
 #include "lib/matmul_intf.h"
 #include "arch32/allto_all_matmul_tiling.h"
 #include "arch32/allto_all_matmul.h"
+#include "arch32/allto_all_matmul_tiling_key.h"
 
 using namespace AscendC;
 using namespace AlltoAllMatmulImpl;
 
-extern "C" __global__ __aicore__ void allto_all_matmul(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR comm_scale,
+template<bool ALLTO_ALL_MM_HAS_BIAS, bool ALLTO_ALL_MM_IS_QUANT, bool ALLTO_ALL_MM_TRANSPOSE_X2, int ALLTO_ALL_MM_QUANT_BIAS_DTYPE>
+__global__ __aicore__ void allto_all_matmul(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR comm_scale,
                                             GM_ADDR x1_offset, GM_ADDR x2_offset, GM_ADDR y, GM_ADDR all2all_out, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(AlltoAllMatmulTilingData);
-    if (TILING_KEY_IS(1000000)) {
-        KERNEL_TASK_TYPE(1000000, KERNEL_TYPE_MIX_AIC_1_2);
-        GET_TILING_DATA_WITH_STRUCT(AlltoAllMatmulTilingData, tilingData, tilingGM);
-        AlltoAllMatmul<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, DTYPE_ALL2ALL_OUT, false> op;
+    GET_TILING_DATA(tilingData, tilingGM);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    if constexpr (!ALLTO_ALL_MM_IS_QUANT) {  // 有bias无quant
+        AlltoAllMatmul<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, DTYPE_ALL2ALL_OUT, ALLTO_ALL_MM_HAS_BIAS, ALLTO_ALL_MM_TRANSPOSE_X2> op;
         op.Init(x1, x2, bias, nullptr, nullptr, y, all2all_out, workspaceGM, tilingGM);
         op.Process();
-    } else if (TILING_KEY_IS(1100000)) {
-        KERNEL_TASK_TYPE(1100000, KERNEL_TYPE_MIX_AIC_1_2);
-        GET_TILING_DATA_WITH_STRUCT(AlltoAllMatmulTilingData, tilingData, tilingGM);
-        AlltoAllMatmul<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, DTYPE_ALL2ALL_OUT, true> op;
-        op.Init(x1, x2, bias, nullptr, nullptr, y, all2all_out, workspaceGM, tilingGM);
+    } else if constexpr (ALLTO_ALL_MM_IS_QUANT && ALLTO_ALL_MM_QUANT_BIAS_DTYPE == TILINGKEY_TPL_FP16) {  // bias是fp16
+        AlltoAllMatmul<DTYPE_X1, DTYPE_X2, float16_t, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, DTYPE_ALL2ALL_OUT, ALLTO_ALL_MM_HAS_BIAS, ALLTO_ALL_MM_TRANSPOSE_X2> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, all2all_out, workspaceGM, tilingGM);
         op.Process();
-    }
+    } else if constexpr (ALLTO_ALL_MM_IS_QUANT && ALLTO_ALL_MM_QUANT_BIAS_DTYPE == TILINGKEY_TPL_BF16) {  // bias是bf16
+        AlltoAllMatmul<DTYPE_X1, DTYPE_X2, bfloat16_t, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, DTYPE_ALL2ALL_OUT, ALLTO_ALL_MM_HAS_BIAS, ALLTO_ALL_MM_TRANSPOSE_X2> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, all2all_out, workspaceGM, tilingGM);
+        op.Process();
+    } else if constexpr (ALLTO_ALL_MM_IS_QUANT && ALLTO_ALL_MM_QUANT_BIAS_DTYPE == TILINGKEY_TPL_FP32) {  // bias是fp32
+        AlltoAllMatmul<DTYPE_X1, DTYPE_X2, float32_t, DTYPE_X1_SCALE, DTYPE_X2_SCALE, DTYPE_Y, DTYPE_ALL2ALL_OUT, ALLTO_ALL_MM_HAS_BIAS, ALLTO_ALL_MM_TRANSPOSE_X2> op;
+        op.Init(x1, x2, bias, x1_scale, x2_scale, y, all2all_out, workspaceGM, tilingGM);
+        op.Process();
+    }     
 }
