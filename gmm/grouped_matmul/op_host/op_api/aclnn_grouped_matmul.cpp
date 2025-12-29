@@ -1446,7 +1446,7 @@ static aclnnStatus CheckParamDifferentGroupType(const gmm::GroupedMatmulParams &
   }
 
   DataType weightDtype = (*gmmParams.weight)[0]->GetDataType();
-  if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
+  if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
       IsWeightQuant(gmmParams.xDtype, weightDtype)) {
     // 伪量化场景91095除了单单单的GroupList，其他校验在AclnnGroupedMatmulWeightQuant91095Checker均已完成，下方校验跳过
     if (gmmParams.groupType == gmm::SPLIT_M) {
@@ -1690,7 +1690,11 @@ static aclnnStatus TransWeightToNz(gmm::GroupedMatmulParams &gmmParams, aclOpExe
           weight->GetStorageFormat() != op::Format::FORMAT_FRACTAL_NZ_C0_32) {
         break;
       }
-      TransWeightToNzCheckAlign(gmmParams, weight, xDtype);
+      if (!(op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+            IsQuant(xDtype, weight->GetDataType()) &&
+             (*gmmParams.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ)) {
+          TransWeightToNzCheckAlign(gmmParams, weight, xDtype);
+      }
       continue;
     }
   }
@@ -1715,7 +1719,7 @@ static aclnnStatus CheckZeroShape(gmm::GroupedMatmulParams &params, uint64_t *wo
 static void SetAntiQuantParamsTensorEmpty91095(gmm::GroupedMatmulParams &params, aclOpExecutor *executor)
 {
     DataType weightDtype = (*params.weight)[0]->GetDataType();
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
         IsWeightQuant(params.xDtype, weightDtype)) {
         // MxA8W4 的bias和antiquantoffset的dtype要和ydtype一致
         if (params.xDtype == ge::DataType::DT_FLOAT8_E4M3FN) {
@@ -1799,15 +1803,20 @@ static aclnnStatus CheckOutputShape(const aclTensorList* l0Res, const aclTensorL
   return ACLNN_SUCCESS;
 }
 
+static bool IsPerTileQuantMode(gmm::GroupedMatmulParams &params)
+{
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+        IsQuant(params.xDtype, (*params.weight)[0]->GetDataType())) {
+        gmm::AclnnGroupedMatmul91095Checker<aclTensorList> checker(params);
+        return checker.IsPerTileQuantMode();
+    }
+    return false;
+}
+
 static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, aclOpExecutor *executorPtr)
 {
-  bool isPerTileQuantMode = false;
+  bool isPerTileQuantMode = IsPerTileQuantMode(params);
   DataType weightDtype = (*params.weight)[0]->GetDataType();
-  if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
-      IsQuant(params.xDtype, weightDtype)) {
-    gmm::AclnnGroupedMatmul91095Checker<aclTensorList> checker(params);
-    isPerTileQuantMode = checker.IsPerTileQuantMode();
-  }
   if (params.transposeX) {
     std::vector<aclTensor*> xTensorList;
     gmm::CreateContiguousTensorList(params.x, xTensorList, executorPtr);
@@ -1827,10 +1836,12 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
     auto nZShape = (*params.weight)[0]->GetStorageShape();
     gmm::CreateContiguousTensorList(params.weight, weightTensorList, executorPtr);
     params.weight = executorPtr->AllocTensorList(weightTensorList.data(), weightTensorList.size());
-    if (IsWeightQuant(params.xDtype, weightDtype) &&
-        GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
-        params.apiVersion == gmm::GMMApiVersion::WeightNz) {
-      (*params.weight)[0]->SetStorageShape(nZShape);}
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+        ((IsQuant(params.xDtype, weightDtype) &&
+          (*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) ||
+         (params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(params.xDtype, weightDtype)))) {
+        (*params.weight)[0]->SetStorageShape(nZShape);
+    }
     if (params.scaleOptional != nullptr) {
       std::vector<aclTensor *> scaleTensorList;
       if ((*params.scaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) {
@@ -1842,7 +1853,7 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
     }
     // 伪量化场景antiquantscale为3维时，需要手动转置为正确shape
     if ((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 &&
-        GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
+        op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
         params.apiVersion == gmm::GMMApiVersion::WeightNz) {
       std::vector<aclTensor *> antiSTensorList;
       gmm::CreateContiguousTensorList(params.antiquantScaleOptional, antiSTensorList, executorPtr);
@@ -1855,10 +1866,11 @@ static aclnnStatus ParamsDataContiguous(gmm::GroupedMatmulParams &params, aclOpE
              "Contiguous x failed.");  // make x contiguous
   DataType xDtype = (*params.x)[0]->GetDataType();
   DataType weightDtype = (*params.weight)[0]->GetDataType();
-  if (!(GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
-        params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(xDtype, weightDtype))) {
-    CHECK_COND(DataContiguous(params.weight, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
-               "Contiguous weight failed."); // make w contiguous
+  if (!(op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+        ((IsQuant(xDtype, weightDtype) && (*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) ||
+         (params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(xDtype, weightDtype))))) {
+      CHECK_COND(DataContiguous(params.weight, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
+                 "Contiguous weight failed.");  // make w contiguous
   }
   CHECK_COND(DataContiguous(params.biasOptional, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
              "Contiguous biasOptional failed.");
@@ -1983,9 +1995,10 @@ static aclnnStatus SetStorageShape(gmm::GroupedMatmulParams &params, op::Shape w
 {
     DataType xDtype = (*params.x)[0]->GetDataType();
     DataType weightDtype = (*params.weight)[0]->GetDataType();
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
-        params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(xDtype, weightDtype)) {
-      (*params.weight)[0]->SetStorageShape(wqbmmNzShape);
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+        ((IsQuant(xDtype, weightDtype) && (*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) ||
+         (params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(xDtype, weightDtype)))) {
+        (*params.weight)[0]->SetStorageShape(wqbmmNzShape);
     }
     return ACLNN_SUCCESS;
 }
@@ -2006,8 +2019,9 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
   if (CheckZeroShape(params, workspaceSize) != ACLNN_SUCCESS) {
     uniqueExecutor.ReleaseTo(executor);
     return ACLNN_SUCCESS;}
-  op::Shape wqbmmNzShape = (*params.weight)[0]->GetStorageShape();
-  if (params.apiVersion == gmm::GMMApiVersion::WeightNz) {
+  op::Shape nzShape = (*params.weight)[0]->GetStorageShape();
+  if (params.apiVersion == gmm::GMMApiVersion::WeightNz ||
+      (*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
       CHECK_COND(ParamsWeightNzDtype(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "ParamsWeightNzDtype failed.");
       std::vector<const aclTensor *> tensorsVec;
       for (size_t i = 0; i < params.weight->Size(); ++i) {
@@ -2017,10 +2031,9 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
           tensorsVec.push_back(tensor);
       }
       params.weight = executorPtr->AllocTensorList(tensorsVec.data(), tensorsVec.size());
-      SetStorageShape(params,wqbmmNzShape);
+      SetStorageShape(params,nzShape);
   }
-  CHECK_COND(TransWeightToNz(params, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
-             "TransWeightToNz failed.");
+  CHECK_COND(TransWeightToNz(params, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "TransWeightToNz failed.");
   if (params.groupListOptional != nullptr) {
     params.groupTensorOptional = uniqueExecutor->ConvertToTensor(params.groupListOptional, op::ToOpDataType(ACL_INT64));
   }
@@ -2032,8 +2045,7 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
                   (*params.y)[0]->GetDataType(), params.transposeWeight, params.transposeX, params.groupType,
                   params.groupListType, params.activeType, params.tuningConfigOptional, params.y->Size(), executorPtr);
   CHECK_RET(result != nullptr, ACLNN_ERR_INNER_NULLPTR);
-  CHECK_COND(CheckOutputShape(result, params.y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
-             "Check output shape failed.");
+  CHECK_COND(CheckOutputShape(result, params.y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "Check outputShape failed.");
   // If the output tensor is non-contiguous, convert the calculated contiguous tensor to non-contiguous.
   for (size_t i(0); i < params.y->Size(); ++i) {
     auto viewCopyResult = l0op::ViewCopy((*result)[i], (*params.y)[i], executorPtr);
@@ -2171,14 +2183,14 @@ aclnnStatus aclnnGroupedMatmulWeightNzGetWorkspaceSize(const aclTensorList *x, c
   if ((*weight)[0]->GetDataType() == DataType::DT_INT32) {
     // convert weight from int32 to int4
     UnpackB32ToB4(weight, "weight");
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
         IsWeightQuant((*x)[0]->GetDataType(), (*weight)[0]->GetDataType())) {
       SetSpecialNZTensorToNormalNZFormat(weight);
     }
   }
 
   if ((*weight)[0]->GetDataType() == DataType::DT_FLOAT) {
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
         IsWeightQuant((*x)[0]->GetDataType(), (*weight)[0]->GetDataType())) {
       UnpackB32ToB4(weight, "weight");
       SetSpecialNZTensorToNormalNZFormat(weight);
