@@ -26,6 +26,8 @@ using namespace AscendC;
 constexpr int64_t MX_BLOCK_SIZE = 32LL;
 // 一个VL放多少fp32->fp8的元素个数，即按fp32算的一个VL能放几个元素
 constexpr int64_t OUT_ELE_NUM_ONE_BLK = 64LL;
+// fp16中指数部分Mask，同时也表示bf16的INF值
+constexpr uint16_t FP16_EMASK_AND_INF_VAL = 0x7c00;
 // bf16中指数部分Mask，同时也表示bf16的INF值
 constexpr uint16_t BF16_EMASK_AND_INF_VAL = 0x7f80;
 // bfloat16的nan值（与inf值不同）
@@ -56,13 +58,14 @@ __simd_vf__ inline void vfComputeMaxExp(__ubuf__ T *xAddr, __ubuf__ uint16_t *ma
     // 0存奇数位元素，1存偶数位元素
     RegTensor<T> x0, x1;
     RegTensor<bfloat16_t> x0BF16, x1BF16;
-    RegTensor<uint16_t> exp0, exp1, maxExp;
-    // 存储BF16的指数位为1的mask
-    RegTensor<uint16_t> emaskBF16;
+    RegTensor<uint16_t> exp0, exp1, exp0FP16, exp1FP16, maxExp;
+    // 存储FP16/BF16的指数位为1的mask
+    RegTensor<uint16_t> emaskFP16, emaskBF16;
+    Duplicate(emaskFP16, FP16_EMASK_AND_INF_VAL);
     Duplicate(emaskBF16, BF16_EMASK_AND_INF_VAL);
     // 2字节Reg的MaskALL
     MaskReg maskAllB16 = CreateMask<uint16_t, MaskPattern::ALL>();
-    MaskReg mask0, mask1;
+    MaskReg mask0, mask1, mask0FP16NanInf, mask1FP16NanInf;
     // 非对齐搬出至UB用
     UnalignReg uReg;
 
@@ -75,12 +78,22 @@ __simd_vf__ inline void vfComputeMaxExp(__ubuf__ T *xAddr, __ubuf__ uint16_t *ma
         DataCopy<T, PostLiteral::POST_MODE_UPDATE, LoadDist::DIST_DINTLV_B16>(x0, x1, xAddr, vlForT * 2);
 
         if constexpr (IsSameType<T, half>::value) {
+            // 单独提取fp16中inf/nan的元素
+            And(exp0FP16, (RegTensor<uint16_t> &)x0, emaskFP16, mask0);
+            And(exp1FP16, (RegTensor<uint16_t> &)x1, emaskFP16, mask1);
+            Compare<uint16_t, CMPMODE::EQ>(mask0FP16NanInf, exp0FP16, emaskFP16, mask0);
+            Compare<uint16_t, CMPMODE::EQ>(mask1FP16NanInf, exp1FP16, emaskFP16, mask1);
+
             // fp16要先转成bf16
             Cast<bfloat16_t, T, traitFP16ToBF16>(x0BF16, x0, mask0);
             Cast<bfloat16_t, T, traitFP16ToBF16>(x1BF16, x1, mask1);
             // 用BF16_EMASK_AND_INF_VAL提取BF16的指数位
             And(exp0, (RegTensor<uint16_t> &)x0BF16, emaskBF16, mask0);
             And(exp1, (RegTensor<uint16_t> &)x1BF16, emaskBF16, mask1);
+
+            //exp[expFP16==nan/inf]=nan/inf
+            Select(exp0, emaskBF16, exp0, mask0FP16NanInf);
+            Select(exp1, emaskBF16, exp1, mask1FP16NanInf);
         } else {
             // 用BF16_EMASK_AND_INF_VAL提取BF16的指数位
             And(exp0, (RegTensor<uint16_t> &)x0, emaskBF16, mask0);
@@ -100,7 +113,7 @@ __simd_vf__ inline void vfComputeMaxExp(__ubuf__ T *xAddr, __ubuf__ uint16_t *ma
 
 template <typename T, typename U>
 __simd_vf__ inline void vfComputeScale(__ubuf__ uint16_t *maxExpInAddr, __ubuf__ uint16_t *mxScaleOutAddr,
-                                       __ubuf__ uint16_t *invScaleOutAddr, uint32_t scaleElemNum, uint16_t vfLoopNum,
+                                       __ubuf__ uint16_t *invScaleOutAddr, uint32_t scaleElemNum, uint32_t validScaleElemNum, uint16_t vfLoopNum,
                                        uint32_t vlForT, uint16_t expLowerBoundValue)
 {
     using namespace AscendC::MicroAPI;
@@ -129,32 +142,33 @@ __simd_vf__ inline void vfComputeScale(__ubuf__ uint16_t *maxExpInAddr, __ubuf__
     Duplicate(specialMinE8M0, FP8_E8M0_SPECIAL_MIN);
 
     // 循环用mask
-    MaskReg maskLoop;
+    MaskReg maskLoop, maskValid;
     // 存储compare后的结果用的mask
     MaskReg maskInfBF16, maskZero, maskLowExp, maskSpecialMin;
 
     for (uint16_t i = 0; i < vfLoopNum; i++) {
         maskLoop = UpdateMask<uint16_t>(scaleElemNum);
+        maskValid = UpdateMask<uint16_t>(validScaleElemNum);
         // 拷入vfComputeMaxExp算好的maxExp
         DataCopy<uint16_t, PostLiteral::POST_MODE_UPDATE>(maxExp, maxExpInAddr, vlForT);
 
         // 1.计算并拷出mxScale（float8_e8m0）
 
         // maskLowExp提取maxExp过小的位置
-        Compare<uint16_t, CMPMODE::LT>(maskLowExp, maxExp, expLowerBound, maskLoop);
+        Compare<uint16_t, CMPMODE::LT>(maskLowExp, maxExp, expLowerBound, maskValid);
         // maxExp[<expLowerBound]=expLowerBound
         Select<uint16_t>(maxExp, expLowerBound, maxExp, maskLowExp);
 
         // sharedExp=maxExp-expLowerBound
-        Sub(sharedExp, maxExp, expLowerBound, maskLoop);
+        Sub(sharedExp, maxExp, expLowerBound, maskValid);
         // mxScale=sharedExp>>BF16_EXP_SHR_BITS) 即把sharedExp存储的指数位右移到低8位，以便存放在float8_e8m0中
-        ShiftRights(mxScale, sharedExp, BF16_EXP_SHR_BITS, maskLoop);
+        ShiftRights(mxScale, sharedExp, BF16_EXP_SHR_BITS, maskValid);
 
         // mxScale[maxExp==infBF16]=nanE8M0
-        Compare<uint16_t, CMPMODE::EQ>(maskInfBF16, maxExp, infBF16, maskLoop);
+        Compare<uint16_t, CMPMODE::EQ>(maskInfBF16, maxExp, infBF16, maskValid);
         Select<uint16_t>(mxScale, nanForE8M0, mxScale, maskInfBF16);
         // mxScale[maxExp==0]=0
-        Compare<uint16_t, CMPMODE::EQ>(maskZero, maxExp, zeroB16, maskLoop);
+        Compare<uint16_t, CMPMODE::EQ>(maskZero, maxExp, zeroB16, maskValid);
         Select<uint16_t>(mxScale, zeroB16, mxScale, maskZero);
 
         // 拷出算好的mxScale，即为算子输出expandedScale的值。
@@ -165,13 +179,13 @@ __simd_vf__ inline void vfComputeScale(__ubuf__ uint16_t *maxExpInAddr, __ubuf__
         // 2.计算并拷出invScale（bfloat16）
 
         // invScale=invSub-sharedExp
-        Sub<uint16_t>(invScale, invSub, sharedExp, maskLoop);
+        Sub<uint16_t>(invScale, invSub, sharedExp, maskValid);
         // invScale[maxExp==InfBF16]=nanBF16
         Select<uint16_t>(invScale, nanBF16, invScale, maskInfBF16);
         // invScale[maxExp==0]=0
         Select<uint16_t>(invScale, zeroB16, invScale, maskZero);
         // invScale[(invScale=invSub-sharedExp)==0]=FP8_E8M0_SPECIAL_MIN
-        Compare<uint16_t, CMPMODE::EQ>(maskSpecialMin, invSub, sharedExp, maskLoop);
+        Compare<uint16_t, CMPMODE::EQ>(maskSpecialMin, invSub, sharedExp, maskValid);
         Select<uint16_t>(invScale, specialMinE8M0, invScale, maskSpecialMin);
 
         // 拷出算好的invScale，用于在后续量化xQuant=invScale*x，以uint16的长度拷出，实际存储的为bfloat16类型的二进制值
@@ -308,7 +322,7 @@ private:
     __aicore__ inline void CopyInExpandedExpertIdx(int64_t progress);
     __aicore__ inline void CopyExpandedXandMXQuant(int64_t progress);
     __aicore__ inline void CopyIn(int64_t srcIdx, int64_t colIdx, int64_t loopCols);
-    __aicore__ inline void Compute(uint32_t xElemNum, uint32_t scaleElemNum);
+    __aicore__ inline void Compute(uint32_t xElemNum, uint32_t scaleElemNum, uint32_t validScaleElemNum);
     __aicore__ inline void CopyOut(int64_t dstIdx, int64_t colIdx, int64_t loopCols, int64_t loopScaleCols);
 
 private:
@@ -331,7 +345,8 @@ private:
     int64_t needCoreNum_;
     int64_t blockIdx_;
     int64_t cols_;
-    int64_t scaleCols_; // 一个token的scale有多少个元素（列），即CeilAlign(CeliDiv(h,32),2)
+    int64_t validScaleCols_; // 一个token实际有意义的scale有多少个元素（列）
+    int64_t scaleCols_; // 一个token的scale有多少个元素（列），即CeilAlign(CeliDiv(h,32),2)，在actualScaleCols_为奇数时，scaleCols_=validScaleCols_+1
     int64_t n_;
     int64_t k_;
     int64_t perCoreRow_;
@@ -343,7 +358,9 @@ private:
     int64_t perLoopCols_;
     int64_t lastLoopCols_;
     int64_t colLoops_;
-    int64_t lastLoopScaleCol_;
+    int64_t perLoopScaleCols_;
+    int64_t lastLoopValidScaleCols_;
+    int64_t lastLoopScaleCols_;
     int64_t indicesOffset_;
     int64_t rowIdxType_ = 0;
 
@@ -389,9 +406,9 @@ __aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::Init(GM_ADDR xAddr, GM_ADDR
     pipe_->InitBuffer(sortedRowIdxInQueue_, 1, AlignBytes(perLoopRows_, sizeof(int32_t)));
     pipe_->InitBuffer(xInQueue_, 1, AlignBytes(perLoopCols_, sizeof(T)));
     pipe_->InitBuffer(xQuantOutQueue_, 1, AlignBytes(perLoopCols_ / 4, sizeof(int8_t)) * 4);
-    pipe_->InitBuffer(mxScaleOutQueue_, 1, AlignBytes(perLoopCols_ / MX_BLOCK_SIZE, sizeof(int8_t)));
-    pipe_->InitBuffer(maxExpBuffer_, AlignBytes(perLoopCols_ / MX_BLOCK_SIZE, sizeof(T)));
-    pipe_->InitBuffer(invScaleBuffer_, AlignBytes(perLoopCols_ / MX_BLOCK_SIZE, sizeof(T)));
+    pipe_->InitBuffer(mxScaleOutQueue_, 1, AlignBytes(perLoopScaleCols_, sizeof(int8_t)));
+    pipe_->InitBuffer(maxExpBuffer_, AlignBytes(perLoopScaleCols_, sizeof(T)));
+    pipe_->InitBuffer(invScaleBuffer_, AlignBytes(perLoopScaleCols_, sizeof(T)));
     if constexpr (IsSameType<U, fp8_e4m3fn_t>::value) {
         lowerBoundOfB16MaxExp_ = LOWER_BOUND_OF_MAX_EXP_FOR_E4M3;
     } else {
@@ -404,8 +421,8 @@ __aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::InitKernelTiling(GM_ADDR so
 {
     gatherOutTilingData_ = &(tilingData->gatherOutComputeParamsOp);
     cols_ = tilingData->cols;
-    scaleCols_ =
-        Ops::Base::CeilAlign<int64_t>(Ops::Base::CeilDiv(cols_, MX_BLOCK_SIZE), 2); // CeilDiv(h, 32)后再向上到2的倍数（偶数）
+    validScaleCols_ = Ops::Base::CeilDiv<int64_t>(cols_, MX_BLOCK_SIZE);
+    scaleCols_ = Ops::Base::CeilAlign<int64_t>(validScaleCols_, 2); // CeilDiv(h, 32)后再向上到2的倍数（偶数）
     n_ = tilingData->n;
     k_ = tilingData->k;
     rowIdxType_ = tilingData->rowIdxType;
@@ -437,7 +454,9 @@ __aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::InitKernelTiling(GM_ADDR so
     perLoopCols_ = gatherOutTilingData_->perLoopCols;
     lastLoopCols_ = gatherOutTilingData_->lastLoopCols;
     colLoops_ = gatherOutTilingData_->colsLoops;
-    lastLoopScaleCol_ = scaleCols_ - (colLoops_ - 1) * (perLoopCols_ / MX_BLOCK_SIZE);
+    perLoopScaleCols_ = perLoopCols_ / MX_BLOCK_SIZE; // perLoopCols_在tiling侧计算，已经对齐到32的整数倍了
+    lastLoopValidScaleCols_ = validScaleCols_ - (colLoops_ - 1) * perLoopScaleCols_;
+    lastLoopScaleCols_ = scaleCols_ - (colLoops_ - 1) * perLoopScaleCols_;
 }
 
 template <typename T, typename U>
@@ -479,9 +498,10 @@ __aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::CopyExpandedXandMXQuant(int
         for (int64_t j = 0; j < colLoops_; j++) {
             // 每行切分成cols，按cols读入-计算量化-拷出
             int64_t loopCols = (j == colLoops_ - 1) ? lastLoopCols_ : perLoopCols_;
-            uint32_t loopScaleCols = (j == colLoops_ - 1) ? lastLoopScaleCol_ : perLoopCols_ / MX_BLOCK_SIZE;
+            uint32_t loopScaleCols = (j == colLoops_ - 1) ? lastLoopScaleCols_ : perLoopScaleCols_;
+            uint32_t loopValidScaleCols = (j == colLoops_ - 1) ? lastLoopValidScaleCols_ : perLoopScaleCols_;
             CopyIn(srcIdx / k_, j, loopCols);
-            Compute(loopCols, loopScaleCols);
+            Compute(loopCols, loopScaleCols, loopValidScaleCols);
             CopyOut(dstIdx, j, loopCols, loopScaleCols);
         }
     }
@@ -507,7 +527,7 @@ __aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::CopyIn(int64_t srcIdx, int6
 }
 
 template <typename T, typename U>
-__aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::Compute(uint32_t xElemNum, uint32_t scaleElemNum)
+__aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::Compute(uint32_t xElemNum, uint32_t scaleElemNum, uint32_t validScaleElemNum)
 {
     // deque input
     LocalTensor<T> xLocal = xInQueue_.DeQue<T>();
@@ -529,7 +549,7 @@ __aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::Compute(uint32_t xElemNum, 
 
     VF_CALL<vfComputeMaxExp<T, U>>(xLocalAddr, maxExpLocalAddr, xElemNum, vfLoopNumForX, vlForB16_,
                                    numUbBlocksPerVReg_);
-    VF_CALL<vfComputeScale<T, U>>(maxExpLocalAddr, mxScaleLocalAddr, invScaleLocalAddr, scaleElemNum, vfLoopNumForScale,
+    VF_CALL<vfComputeScale<T, U>>(maxExpLocalAddr, mxScaleLocalAddr, invScaleLocalAddr, scaleElemNum, validScaleElemNum, vfLoopNumForScale,
                                   vlForB16_, lowerBoundOfB16MaxExp_);
     VF_CALL<vfComputeData<T, U>>(xLocalAddr, invScaleLocalAddr, xQuantLocalAddr, xElemNum, vfLoopNumForX, vlForB16_,
                                  numUbBlocksPerVReg_);
@@ -552,7 +572,7 @@ __aicore__ inline void MoeGatherOutMxfp8Quant<T, U>::CopyOut(int64_t dstIdx, int
     DataCopyPad<uint8_t>(expandedXOutGm_[dstIdx * cols_ + colIdx * perLoopCols_], outLocal, copyOutParams);
 
     DataCopyExtParams copyScaleParams = {1, static_cast<uint32_t>(loopScaleCols * sizeof(uint8_t)), 0, 0, 0};
-    DataCopyPad<uint8_t>(expandedScaleOutGm_[dstIdx * scaleCols_ + colIdx * perLoopCols_ / MX_BLOCK_SIZE], mxScaleLocal,
+    DataCopyPad<uint8_t>(expandedScaleOutGm_[dstIdx * scaleCols_ + colIdx * perLoopScaleCols_], mxScaleLocal,
                          copyScaleParams);
 
     xQuantOutQueue_.FreeTensor(outLocal);
