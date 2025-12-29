@@ -786,7 +786,7 @@ __aicore__ inline void AntiquantVFW8PerTokenD512(LocalTensor<KV_T>& antiqInUb, L
 template <typename Q_T, typename ANTIQ_PARAMS_T, uint32_t baseSize, bool hasOffset = false, bool isPerToken = false, bool isKvCacheNz = false>
 __aicore__ inline void AntiquantVFImpl(LocalTensor<int8_t>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                        LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
-                                       uint32_t dealRowCount, uint32_t headDim) {
+                                       uint32_t dealRowCount, uint32_t headDim, uint32_t copyTotalS) {
   if constexpr (isKvCacheNz) {
     if constexpr (!isPerToken) {
       AntiquantVFW8Nz<Q_T, int8_t, ANTIQ_PARAMS_T, baseSize, hasOffset>
@@ -825,7 +825,7 @@ __aicore__ inline void AntiquantVFImpl(LocalTensor<int8_t>& antiqInUb, LocalTens
 template <typename Q_T, typename ANTIQ_PARAMS_T, uint32_t baseSize, bool hasOffset = false, bool isPerToken = false, bool isKvCacheNz = false>
 __aicore__ inline void AntiquantVFImpl(LocalTensor<hifloat8_t>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                        LocalTensor<Q_T>& antiqOffsetUb, LocalTensor<Q_T>& antiqScaleUb,
-                                       uint32_t dealRowCount, uint32_t headDim) {
+                                       uint32_t dealRowCount, uint32_t headDim, uint32_t copyTotalS) {
   if constexpr (isKvCacheNz) {
     AntiquantVFW8Nz<Q_T, hifloat8_t, ANTIQ_PARAMS_T, baseSize, hasOffset>
       (antiqInUb, antiqResUb, antiqOffsetUb, antiqScaleUb, dealRowCount);
@@ -979,7 +979,7 @@ __aicore__ inline void AntiquantVFFp8Norm(LocalTensor<KV_T>& antiqInUb, LocalTen
 template <typename Q_T, typename ANTIQ_PARAMS_T, uint32_t baseSize, bool hasOffset = false, bool isPerToken = false, bool isKvCacheNz = false>
 __aicore__ inline void AntiquantVFImpl(LocalTensor<fp8_e5m2_t>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                        LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
-                                       uint32_t dealRowCount, uint32_t headDim) {
+                                       uint32_t dealRowCount, uint32_t headDim, uint32_t copyTotalS) {
   if constexpr (isKvCacheNz) {
     AntiquantVFFp8Nz<Q_T, fp8_e5m2_t, baseSize>(antiqInUb, antiqResUb, antiqScaleUb, dealRowCount);
   } else {
@@ -994,7 +994,7 @@ __aicore__ inline void AntiquantVFImpl(LocalTensor<fp8_e5m2_t>& antiqInUb, Local
 template <typename Q_T, typename ANTIQ_PARAMS_T, uint32_t baseSize, bool hasOffset = false, bool isPerToken = false, bool isKvCacheNz = false>
 __aicore__ inline void AntiquantVFImpl(LocalTensor<fp8_e4m3fn_t>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                        LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
-                                       uint32_t dealRowCount, uint32_t headDim) {
+                                       uint32_t dealRowCount, uint32_t headDim, uint32_t copyTotalS) {
   if constexpr (isKvCacheNz) {
     AntiquantVFFp8Nz<Q_T, fp8_e4m3fn_t, baseSize>(antiqInUb, antiqResUb, antiqScaleUb, dealRowCount);
   } else {
@@ -1010,9 +1010,9 @@ template <typename Q_T, typename KV_T, typename ANTIQ_PARAMS_T,
   uint32_t baseSize, bool hasOffset = false, bool isPerToken = false, bool isKvCacheNz = false>
 __aicore__ inline void AntiquantVF(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
                                    LocalTensor<ANTIQ_PARAMS_T>& antiqOffsetUb, LocalTensor<ANTIQ_PARAMS_T>& antiqScaleUb,
-                                   uint32_t dealRowCount, uint32_t headDim) {
+                                   uint32_t dealRowCount, uint32_t headDim, uint32_t copyTotalS = 0) {
   AntiquantVFImpl<Q_T, ANTIQ_PARAMS_T, baseSize, hasOffset, isPerToken, isKvCacheNz>
-    (antiqInUb, antiqResUb, antiqOffsetUb, antiqScaleUb, dealRowCount, headDim);
+    (antiqInUb, antiqResUb, antiqOffsetUb, antiqScaleUb, dealRowCount, headDim, copyTotalS);
 }
 
 };  // namespace FaVectorApi

@@ -2346,13 +2346,6 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
       return ge::GRAPH_FAILED;
     }
   }
-
-  if (pageAttentionFlag_ && pageAttentionKvLayoutType_ == KvCacheLayout::KV_CACHE_NZ) {
-    OP_CHECK_IF((inputKvType_ == ge::DT_FLOAT4_E2M1),
-              OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp4_e2m1, antiquant pa_nz is not supported."),
-              return ge::GRAPH_FAILED);
-  }
-
   return ge::GRAPH_SUCCESS;
 }
 
