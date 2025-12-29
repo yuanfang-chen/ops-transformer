@@ -1107,7 +1107,7 @@ static aclnnStatus InputDtypeCheck(const aclTensor *query, const aclTensor *key,
     auto kDtype = key->GetDataType();
     auto qDtype = query->GetDataType();
     auto dyDtype = dy->GetDataType();
-    if (qDtype != kDtype || kDtype != vDtype || vDtype != dyDtype) {
+    if (!(qDtype == op::DataType::DT_FLOAT8_E4M3FN || qDtype == op::DataType::DT_FLOAT8_E5M2 || qDtype == op::DataType::DT_HIFLOAT8) && (qDtype != kDtype || kDtype != vDtype || vDtype != dyDtype)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The data type of query[%s], key[%s], value[%s], dy[%s] are not equal.",
                 op::ToString(DataType(qDtype)).GetString(), op::ToString(DataType(kDtype)).GetString(),
                 op::ToString(DataType(vDtype)).GetString(), op::ToString(DataType(dyDtype)).GetString());
@@ -1118,7 +1118,8 @@ static aclnnStatus InputDtypeCheck(const aclTensor *query, const aclTensor *key,
                 op::ToString(DataType(qDtype)).GetString());
         return ACLNN_ERR_PARAM_INVALID;
     }
-    if (!StrideLimited() && !(qDtype == op::DataType::DT_FLOAT || qDtype == op::DataType::DT_FLOAT16 || qDtype == op::DataType::DT_BF16 || qDtype == op::DataType::DT_FLOAT8_E4M3FN || qDtype == op::DataType::DT_FLOAT8_E5M2)) {
+    if (!StrideLimited() && !(qDtype == op::DataType::DT_FLOAT || qDtype == op::DataType::DT_FLOAT16 || qDtype == op::DataType::DT_BF16 ||
+        qDtype == op::DataType::DT_FLOAT8_E4M3FN || qDtype == op::DataType::DT_FLOAT8_E5M2 || qDtype == op::DataType::DT_HIFLOAT8)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The data type of query/key/value is [%s], should be fp8, fp16, bf16 or fp32.",
                 op::ToString(DataType(qDtype)).GetString());
         return ACLNN_ERR_PARAM_INVALID;   

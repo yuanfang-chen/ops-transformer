@@ -49,7 +49,8 @@ constexpr uint32_t INPUT_DIM_0 = 0;          // BSH  BSND
 constexpr uint32_t INPUT_DIM_1 = 1;
 constexpr uint32_t INPUT_DIM_2 = 2;
 constexpr uint32_t INPUT_DIM_3 = 3;
-constexpr uint32_t QUANT_BLOCK_SIZE = 128;
+constexpr uint32_t QUANT_BLOCK_S1_SIZE = 128;
+constexpr uint32_t QUANT_BLOCK_S2_SIZE = 256;
 constexpr uint32_t DEQUANT_SCALE_SHAPE_DIM = 4;
 
 constexpr uint32_t CORE_INIT_NUM = 40;
@@ -135,6 +136,13 @@ std::pair<uint32_t, uint32_t> FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetS
         fBaseParams.s2TemplateType = ConstAxisTemplateNum::NUM128;
         return std::make_pair(static_cast<uint32_t>(ConstAxisTemplateNum::NUM64),
             static_cast<uint32_t>(ConstAxisTemplateNum::NUM128));
+    } else if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
+        fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        // FP8场景基本块修改
+        fBaseParams.s1TemplateType = ConstAxisTemplateNum::NUM64;
+        fBaseParams.s2TemplateType = ConstAxisTemplateNum::NUM256;
+        return std::make_pair(static_cast<uint32_t>(ConstAxisTemplateNum::NUM64),
+            static_cast<uint32_t>(ConstAxisTemplateNum::NUM256));
     } else if ((AlignTo(fBaseParams.s1, static_cast<int64_t>(ConstAxisTemplateNum::NUM16)) >
                 static_cast<int64_t>(ConstAxisTemplateNum::NUM16) ||
                 AlignTo(fBaseParams.s2, static_cast<int64_t>(ConstAxisTemplateNum::NUM16)) >
@@ -242,7 +250,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessQuantInfo()
     DetermineMode();
     fBaseParams.outDtype = fBaseParams.inputDtype;
     if (context_->GetAttrs()->GetAttrNum() > OUTDTYPE_ATTR_IDX &&
-        (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN)) {
+        (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8)) {
         int64_t outDType = *(context_->GetAttrs()->GetAttrPointer<int>(OUTDTYPE_ATTR_IDX));
         if (outDType == 0) {
             fBaseParams.outDtype = DtypeEnum::FLOAT16_PRECISION;
@@ -398,7 +406,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetSplitAxis()
                         (fBaseParams.d <= BN2_MAX_D) &&
                         (fBaseParams.queryType != ge::DT_FLOAT) &&
                         (fBaseParams.d == fBaseParams.d1) &&
-                        !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) &&
+                        !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8) &&
                         !fBaseParams.hasRope &&
                         (fBaseParams.tailZeroCount == 0);
 
@@ -413,7 +421,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetSplitAxis()
                                 fBaseParams.d <= BN2_MAX_D &&
                                 (fBaseParams.queryType != ge::DT_FLOAT) &&
                                 (fBaseParams.d == fBaseParams.d1) &&
-                                !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) &&
+                                !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8) &&
                                 !fBaseParams.hasRope;
     fBaseParams.isBn2 = fBaseParams.isBn2MultiBlk ? true : fBaseParams.isBn2; // 多基本块场景是原始bn2的子集
     if (fBaseParams.isBn2 && !fBaseParams.isBn2MultiBlk) {
@@ -435,7 +443,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetSplitAxis()
 
     if (!fBaseParams.isBn2 && !fBaseParams.hasRope && fBaseParams.d <= BN2_MAX_D &&
         (fBaseParams.layoutType == INPUT_FROAMT_TND || fBaseParams.isAllSame) && fBaseParams.n1 == fBaseParams.n2 &&
-        (fBaseParams.queryType != ge::DT_FLOAT) && !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN)) {
+        (fBaseParams.queryType != ge::DT_FLOAT) && !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8)) {
         fBaseParams.layoutType = INPUT_FROAMT_TND;
         fBaseParams.splitAxis = SplitAxisEnum::BN2S2;
     } else if (fBaseParams.isBn2) {
@@ -450,15 +458,10 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleShapeVal
     auto deqScaleQShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_Q));
     auto deqScaleKShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_K));
     auto deqScaleVShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_V));
-    auto deqScaleDyShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_DY));
-    auto deqScaleOShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_O));
-    if (deqScaleQShape != nullptr && deqScaleKShape != nullptr && deqScaleVShape != nullptr && deqScaleDyShape != nullptr 
-        && deqScaleOShape != nullptr) {
+    if (deqScaleQShape != nullptr && deqScaleKShape != nullptr && deqScaleVShape != nullptr) {
         auto deqScaleQStorageShape = deqScaleQShape->GetStorageShape();
         auto deqScaleKStorageShape = deqScaleKShape->GetStorageShape();
         auto deqScaleVStorageShape = deqScaleVShape->GetStorageShape();
-        auto deqScaleDyStorageShape = deqScaleDyShape->GetStorageShape();
-        auto deqScaleOStorageShape = deqScaleOShape->GetStorageShape();
 
         int64_t deqScaleQDimNum = deqScaleQStorageShape.GetDimNum();
         if (deqScaleQDimNum != 0) {
@@ -470,7 +473,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleShapeVal
             int64_t deqScaleQDim2 = deqScaleQStorageShape.GetDim(INPUT_DIM_2);
             int64_t deqScaleQDim3 = deqScaleQStorageShape.GetDim(INPUT_DIM_3);
             OP_CHECK_IF(deqScaleQDim0 != fBaseParams.b || deqScaleQDim1 != fBaseParams.n1 ||
-                deqScaleQDim2 != (fBaseParams.s1 + QUANT_BLOCK_SIZE - 1) / QUANT_BLOCK_SIZE || deqScaleQDim3 != 1,
+                deqScaleQDim2 != (fBaseParams.s1 + QUANT_BLOCK_S1_SIZE - 1) / QUANT_BLOCK_S1_SIZE || deqScaleQDim3 != 1,
                 OP_LOGE(context_,"Invalid deqScaleQ shape [%ld,%ld,%ld,%ld], only support [B,N1,ceil(S1/128),1].",
                     deqScaleQDim0, deqScaleQDim1, deqScaleQDim2, deqScaleQDim3),
                 return ge::GRAPH_FAILED);
@@ -485,15 +488,12 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleShapeVal
             int64_t deqScaleKDim2 = deqScaleKStorageShape.GetDim(INPUT_DIM_2);
             int64_t deqScaleKDim3 = deqScaleKStorageShape.GetDim(INPUT_DIM_3);
             OP_CHECK_IF(deqScaleKDim0 != fBaseParams.b || deqScaleKDim1 != fBaseParams.n2 ||
-                deqScaleKDim2 != (fBaseParams.s2 + QUANT_BLOCK_SIZE - 1) / QUANT_BLOCK_SIZE || deqScaleKDim3 != 1,
+                deqScaleKDim2 != (fBaseParams.s2 + QUANT_BLOCK_S2_SIZE - 1) / QUANT_BLOCK_S2_SIZE || deqScaleKDim3 != 1,
                 OP_LOGE(context_, "Invalid deqScaleK shape [%ld,%ld,%ld,%ld], only support [B,N2,ceil(S2/128),1].",
                     deqScaleKDim0, deqScaleKDim1, deqScaleKDim2, deqScaleKDim3),
                 return ge::GRAPH_FAILED);
         }
 
-        OP_CHECK_IF(!(deqScaleQStorageShape == deqScaleDyStorageShape && deqScaleDyStorageShape == deqScaleOStorageShape),
-            OP_LOGE(context_, "deqScaleQShape, deqScaleDyShape and deqScaleOShape are not equal, only support [B,N1,ceil(S1/128),1]"),
-                return ge::GRAPH_FAILED);
         OP_CHECK_IF(deqScaleKStorageShape != deqScaleVStorageShape,
             OP_LOGE(context_, "deqScaleKShape and deqScaleVShape are not equal, only support [B,N2,ceil(S2/128),1]"),
             return ge::GRAPH_FAILED);
@@ -506,21 +506,15 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleDtypeVal
     auto deqScaleQInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_Q));
     auto deqScaleKInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_K));
     auto deqScaleVInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_V));
-    auto deqScaleDyInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_DY));
-    auto deqScaleOInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_O));
-    if (deqScaleQInput != nullptr && deqScaleKInput != nullptr && deqScaleVInput != nullptr && deqScaleDyInput != nullptr &&
-        deqScaleOInput != nullptr) {
+    if (deqScaleQInput != nullptr && deqScaleKInput != nullptr && deqScaleVInput != nullptr) {
         auto deqScaleQDtype = deqScaleQInput->GetDataType();
         auto deqScaleKDtype = deqScaleKInput->GetDataType();
         auto deqScaleVDtype = deqScaleVInput->GetDataType();
-        auto deqScaleDyDtype = deqScaleDyInput->GetDataType();
-        auto deqScaleODtype = deqScaleOInput->GetDataType();
         OP_CHECK_IF(deqScaleQDtype != ge::DT_FLOAT || deqScaleKDtype != ge::DT_FLOAT ||
-            deqScaleVDtype != ge::DT_FLOAT || deqScaleDyDtype != ge::DT_FLOAT || deqScaleODtype != ge::DT_FLOAT,
-            OP_LOGE(context_, "Invalid deqScaleDType [deqScaleQDtype:%s, deqScaleKDtype:%s, deqScaleVDtype:%s, deqScaleDyDtype:%s, deqScaleODtype:%s], only support FLOAT32.", 
+            deqScaleVDtype != ge::DT_FLOAT,
+            OP_LOGE(context_, "Invalid deqScaleDType [deqScaleQDtype:%s, deqScaleKDtype:%s, deqScaleVDtype:%s], only support FLOAT32.", 
                 ge::TypeUtils::DataTypeToSerialString(deqScaleQDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(deqScaleKDtype).c_str(),
-                ge::TypeUtils::DataTypeToSerialString(deqScaleVDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(deqScaleDyDtype).c_str(),
-                ge::TypeUtils::DataTypeToSerialString(deqScaleODtype).c_str()),
+                ge::TypeUtils::DataTypeToSerialString(deqScaleVDtype).c_str()),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
@@ -2182,7 +2176,7 @@ bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CheckExceedL2Cache()
         inputSize = FP32_BYTES;
     } else if (fBaseParams.queryType == ge::DT_BF16) {
         inputSize = FP16_BYTES;
-    } else if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
+    } else if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8) {
         inputSize = 1;
     }
 
@@ -2360,6 +2354,8 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DetermineMode()
         fBaseParams.inputDtype = (optiling::DtypeEnum)4;    // DtypeEnum::FLOAT8_E5M2
     } else if (fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
         fBaseParams.inputDtype = (optiling::DtypeEnum)5;    // DtypeEnum::FLOAT8_E4M3
+    } else if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        fBaseParams.inputDtype = (optiling::DtypeEnum)6;    // DtypeEnum::HIFLOAT8
     } else {
         fBaseParams.inputDtype = DtypeEnum::FLOAT16_PRECISION;
     }
@@ -2427,7 +2423,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetWorkspaceSize()
             workspaceSize = (workspaceSize + static_cast<size_t>(vSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
         }
 		// fp8 vScaleDs
-		if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
+		if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8) {
 			postTilingData_->set_vScaleDsWorkSpaceOffset(workspaceSize);
 			workspaceSize = (workspaceSize + fBaseParams.coreNum * ALIGN128 * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
 		}
@@ -2473,11 +2469,7 @@ uint64_t FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetTilingKey() const
     auto isTnd = (fBaseParams.layoutType == INPUT_FROAMT_TND);
     auto splitAxis = fBaseParams.splitAxis;
     bool isDeterNEqual = fBaseParams.deterSparseType != static_cast<uint32_t>(DeterSparseType::DETER_OLD) && fBaseParams.deterSparseType != static_cast<uint32_t>(DeterSparseType::NO_DETER) && fBaseParams.g == 1;
-    bool fp8OpenTscm = false;
-    if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
-        fp8OpenTscm = (AlignTo(fBaseParams.s1, static_cast<int64_t>(ConstAxisTemplateNum::NUM16)) == AlignTo(fBaseParams.s1, static_cast<int64_t>(ConstAxisTemplateNum::NUM32))) 
-            && (AlignTo(fBaseParams.s2, static_cast<int64_t>(ConstAxisTemplateNum::NUM16)) == AlignTo(fBaseParams.s2, static_cast<int64_t>(ConstAxisTemplateNum::NUM32)));
-    }
+    bool fp8OpenTscm = fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8;
     OP_LOGI(context_, "splitAxis[%d], inputDtype[%d], isTnd[%d], dropValue[%d], pseValue[%d], attenMaskCfg[%d], s1TemplateType[%d], s2TemplateType[%d], dTemplateType[%u], isDeterministic[%d], nEqual[%d], isBn2MultiBlk[%d], dNoEqual[%d], hasRope[%d], outDtype[%d], fp8OpenTscm[%d], isRegbasePlatformValue[%d]",
                     static_cast<int>(splitAxis), static_cast<int>(fBaseParams.inputDtype), isTnd, static_cast<int>(dropValue), static_cast<int>(pseValue), static_cast<int>(attenMaskCfg), 
                     static_cast<int>(fBaseParams.s1TemplateType), static_cast<int>(fBaseParams.s2TemplateType), static_cast<uint32_t>(fBaseParams.dTemplateType),
@@ -2717,7 +2709,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessPseInfo(con
     auto pse = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::PSE_SHIFT));
     if (fBaseParams.pseType == static_cast<uint32_t>(PseType::PSE_OUTER_MUL_ADD_TYPE) ||
         fBaseParams.pseType == static_cast<uint32_t>(PseType::PSE_OUTER_ADD_MUL_TYPE)) {
-        if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
+        if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8) {
             bool pseTypeCheckResult = (fBaseParams.outDtype == DtypeEnum::FLOAT16_PRECISION) ? (pse->GetDataType() == ge::DT_FLOAT16) : (pse->GetDataType() == ge::DT_BF16);
             OP_CHECK_IF(!pseTypeCheckResult, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "FAG invalid pse dtype[%s], should be same with output's dtype",
                         ge::TypeUtils::DataTypeToSerialString(pse->GetDataType()).c_str()), return ge::GRAPH_FAILED);  
@@ -2939,6 +2931,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetParseS1S2OuterInfo(int64_t
     if ((parseInfo[fBaseParams.s2Outer - 1][LENGTH_IDX] <= 1) && fBaseParams.d <= BN2_MAX_D &&
         fBaseParams.n1 == fBaseParams.n2 && (fBaseParams.queryType != ge::DT_FLOAT) && 
         fBaseParams.queryType != ge::DT_FLOAT8_E5M2 && fBaseParams.queryType != ge::DT_FLOAT8_E4M3FN &&
+	    fBaseParams.queryType != ge::DT_HIFLOAT8 &&
         fBaseParams.d == fBaseParams.d1 && !fBaseParams.hasRope && (fBaseParams.tailZeroCount == 0)) {
         fBaseParams.isBn2 = true;
         fBaseParams.isBn2MultiBlk = false;
