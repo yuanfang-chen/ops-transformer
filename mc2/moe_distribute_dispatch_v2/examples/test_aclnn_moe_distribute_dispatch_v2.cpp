@@ -51,9 +51,10 @@ struct Args {
 const uint32_t MACHINE_NUM = 1;
 const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
 const char* first_rank_id = std::getenv("FIRST_RANK_ID");
+const char* ep_world_size_env = std::getenv("EP_WORLD_SIZE");
 
-const uint32_t EP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 8 : 16;
-const uint32_t TP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 2 : 0;
+const uint32_t EP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 2 : 16;
+const uint32_t TP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 1 : 0;
 const uint32_t DEV_NUM = (!rank_table_file && !first_rank_id) ? EP_WORLD_SIZE * TP_WORLD_SIZE : EP_WORLD_SIZE;
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape)
@@ -106,7 +107,7 @@ int launchOneThreadDispatchV2AndCombineV2(Args &args)
     // 设置场景
     int64_t BS = 8;
     int64_t H = 7168;
-    int64_t K = 3;
+    int64_t K = 1;
     int64_t expertShardType = 0;
     int64_t sharedExpertNum = 0;
     int64_t sharedExpertRankNum = 0;
@@ -504,27 +505,33 @@ int run_example_on_A3()
 int main(int argc, char *argv[])
 {
     const char* env_var_name = "RANK_TABLE_FILE and FIRST_RANK_ID";
+    int ep_world_size_cur = std::stoi(std::string(ep_world_size_env));
     if (!rank_table_file && !first_rank_id) {
         LOG_PRINT("[INFO] %s are not identified and example on <Atlas A3> will be executed!\n", env_var_name);
-        int ret = run_example_on_A3();   
+        int ret = run_example_on_A3();
     }
     else if (rank_table_file && first_rank_id) {
         LOG_PRINT("[INFO] %s are identified and example on <Atlas A2> will be executed!\n", env_var_name);
-        uint32_t single_machine_dev_num = EP_WORLD_SIZE / MACHINE_NUM;
-        std::vector<std::unique_ptr<std::thread>> threads(single_machine_dev_num);
-        int ret = aclInit(nullptr);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d\n", ret); return ret);
-        for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
-            threads[rankId] = std::make_unique<std::thread>([rankId]()
-            {
-                int ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
-            });
-        }
-        for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
-            threads[rankId]->join();
-        }
-        aclFinalize();
-        LOG_PRINT("[INFO] aclFinalize success\n");
+        if (ep_world_size_cur < 16) {
+            LOG_PRINT("[INFO] EP_WORLD_SIZE = %d is less than 16, currently not supported <Atlas A2> \n", ep_world_size_cur);
+            return 0; // moe_distribute_dispatch_v2 A2最低支持16卡，所以暂不维护
+        } else {
+            uint32_t single_machine_dev_num = EP_WORLD_SIZE / MACHINE_NUM;
+            std::vector<std::unique_ptr<std::thread>> threads(single_machine_dev_num);
+            int ret = aclInit(nullptr);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d\n", ret); return ret);
+            for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
+                threads[rankId] = std::make_unique<std::thread>([rankId,&ret]()
+                {
+                    int ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
+                });
+            }
+            for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
+                threads[rankId]->join();
+            }
+            aclFinalize();
+            LOG_PRINT("[INFO] aclFinalize success\n");
+        } 
     }
     else {
         LOG_PRINT("[WARNING] Please check whether %s are set correctly.\n", env_var_name);
