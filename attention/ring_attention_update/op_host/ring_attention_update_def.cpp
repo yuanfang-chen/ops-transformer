@@ -83,6 +83,10 @@ public:
 
         OpAICoreConfig config_91095;
         config_91095.DynamicCompileStaticFlag(true)
+            .DynamicFormatFlag(true)
+            .DynamicRankSupportFlag(true)
+            .DynamicShapeSupportFlag(true)
+            .NeedCheckSupportFlag(false)
             .PrecisionReduceFlag(true)
             .ExtendCfgInfo("opFile.value", "ring_attention_update_apt");
         this->AICore().AddConfig("ascend910_95", config_91095);
