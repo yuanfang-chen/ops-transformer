@@ -244,7 +244,6 @@ aclnnStatus aclnnQuantReduceScatter(
     #include <vector>
     #include <string>
     #include <cstring>
-    #include <getopt.h>
     #include "hccl/hccl.h"
     #include "aclnnop/aclnn_quant_reduce_scatter.h"
     
@@ -261,32 +260,6 @@ aclnnStatus aclnnQuantReduceScatter(
         } while (0)
 
     constexpr int DEV_NUM = 2;
-    constexpr int INTERNAL_LEN = 10;
-    int g_rankId = 0;
-    int streamWithTimeout = 10000;
-    int64_t g_hcclBufferSize = 200;
-    void GetOption(int argc, char **argv)
-    {
-        while (true) {
-            int optionIndex = 0;
-            struct option longOptions[] = {
-                {"rank_id", 1, 0, 'a'},
-                {0, 0, 0, 0}
-            };
-            int c = getopt_long(argc, argv, "a:", longOptions, &optionIndex);
-            if (c == -1) {
-                break;
-            }
-
-            switch (c) {
-                case 'a':
-                    g_rankId = atoi(optarg);
-                    LOG_PRINT("[INFO] rankId = %d\n", g_rankId);
-                default:
-                    break;
-            }
-        }
-    }
 
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
     {
@@ -381,7 +354,7 @@ aclnnStatus aclnnQuantReduceScatter(
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclnnQuantReduceScatter failed. ret = %d \n", ret);
                 return ret);
         // （固定写法）同步等待任务执行结束
-        ret = aclrtSynchronizeStreamWithTimeout(args.stream, streamWithTimeout);
+        ret = aclrtSynchronizeStreamWithTimeout(args.stream, 10000);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSynchronizeStreamWithTimeout failed. ret = %d \n", ret);
                 return ret);
         LOG_PRINT("[INFO] device_%d aclnnQuantReduceScatter execute successfully.\n", args.rankId);
@@ -428,46 +401,41 @@ aclnnStatus aclnnQuantReduceScatter(
     }
     int main(int argc, char *argv[])
     {
-        GetOption(argc, argv);
         int ret = aclInit(nullptr);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret);
-                return ret);
-        aclrtStream stream;
-        aclrtContext context;
-        HcclComm comms;
-        ret = aclrtSetDevice(g_rankId);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret);
-                return ret);
-        ret = aclrtCreateContext(&context, g_rankId);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateContext failed. ret = %d \n", ret);
-                return ret);
-        ret = aclrtCreateStream(&stream);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret);
-                return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret); return ret);
+        aclrtStream stream[DEV_NUM];
+        aclrtContext context[DEV_NUM];
+        for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+            ret = aclrtSetDevice(rankId);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
+            ret = aclrtCreateContext(&context[rankId], rankId);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateContext failed. ret = %d \n", ret); return ret);
+            ret = aclrtCreateStream(&stream[rankId]);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
+        }
+        int32_t devices[DEV_NUM];
+        for (int i = 0; i < DEV_NUM; i++) {
+            devices[i] = i;
+        }
         // 初始化集合通信域
-        HcclCommConfig config;
-        HcclCommConfigInit(&config);
+        HcclComm comms[DEV_NUM];
+        ret = HcclCommInitAll(DEV_NUM, devices, comms);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitAll failed. ret = %d \n", ret); return ret);
         
-        config.hcclDeterministic = 1;
-        config.hcclBufferSize = g_hcclBufferSize;
-        strncpy(config.hcclCommName, "hccl_comm_test", COMM_NAME_MAX_LENGTH - 1);
-        const char* rankTableFile = getenv("RANK_TABLE_FILE");
-        CHECK_RET(rankTableFile != nullptr, LOG_PRINT("[ERROR] get rankTableFile failed.\n");
-                return -1);
-        ret = HcclCommInitClusterInfoConfig(rankTableFile, g_rankId, &config, &comms);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclCommInitClusterInfoConfig failed. ret = %d \n", ret);
-                return ret);
-
-        Args args;
-        args.rankId = g_rankId;
-        args.hcclComm = comms;
-        args.stream = stream;
-        args.context = context;
-        ret = LaunchOneThreadQtReduceScatter(args);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] LaunchOneThreadQtReduceScatter failed. ret = %d \n", ret);
-                return ret);
+        Args args[DEV_NUM];
+        // 启动多线程
+        std::vector<std::unique_ptr<std::thread>> threads(DEV_NUM);
+        for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+            args[rankId].rankId = rankId;
+            args[rankId].hcclComm = comms[rankId];
+            args[rankId].context = context[rankId];
+            args[rankId].stream = stream[rankId];
+            threads[rankId].reset(new(std::nothrow) std::thread(&LaunchOneThreadQtReduceScatter, std::ref(args[rankId])));
+        }
+        for (uint32_t rankId = 0; rankId < DEV_NUM; rankId++) {
+            threads[rankId]->join();
+        }
         aclFinalize();
         return 0;
     }
-
     ```
