@@ -18,58 +18,59 @@
   aclnnAllGatherMatmulV2接口是对aclnnAllGatherMatmul接口的功能拓展，x1和x2新增支持低精度数据类型（如FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8），同时支持pertensor、perblock[量化方式](../../docs/zh/context/量化介绍.md)。
   
   功能可分为以下4种情形：  
-    - 如果x1和x2数据类型为FLOAT16/BFLOAT16时，入参x1进行allgather后，对x1、x2进行matmul计算；
-    - 如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，不输出amaxOut，入参x1进行allgather后，对x1、x2进行matmul计算，然后进行dequant操作；
-    - 如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，且输出amaxOut，入参x1进行allgather后，对x1、x2进行matmul计算，然后进行dequant操作，最后进行quant操作， 当前版本暂不支持；
-    - 如果groupSize取值为有效值，入参x1进行allgather后，对x1、x2进行perblock量化matmul计算，然后进行dequant操作。
+    - 如果x1和x2数据类型为FLOAT16/BFLOAT16时，入参x1进行AllGather后，对x1、x2进行matmul计算；
+    - 如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，不输出amaxOut，入参x1进行AllGather后，对x1、x2进行matmul计算，然后进行dequant操作；
+    - 如果x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，且输出amaxOut，入参x1进行AllGather后，对x1、x2进行matmul计算，然后进行dequant操作，最后进行quant操作， 当前版本暂不支持；
+    - 如果groupSize取值为有效值，入参x1进行AllGather后，对x1、x2进行perblock量化matmul计算，然后进行dequant操作。
 
 - **计算公式**：
     - 情形1：
 
     $$
-    output=allgather(x1)@x2 + bias
+    output=AllGather(x1)@x2 + bias
     $$
 
     $$
-    gatherOut=allgather(x1)
+    gatherOut=AllGather(x1)
     $$
 
     - 情形2：
 
     $$
-    output=(x1Scale*x2Scale)*(allgather(x1)@x2 + bias)
+    output=(x1Scale*x2Scale)*(AllGather(x1)@x2 + bias)
     $$
 
     $$
-    gatherOut=allgather(x1)
+    gatherOut=AllGather(x1)
     $$
 
     - 情形3：
     $$
-    output=(x1Scale*x2Scale)*(quantScale)*(allgather(x1)@x2 + bias)
+    output=(x1Scale*x2Scale)*(quantScale)*(AllGather(x1)@x2 + bias)
     $$
     $$
-    gatherOut=allgather(x1)
+    gatherOut=AllGather(x1)
     $$
     $$
-    amaxOut=amax((x1Scale*x2Scale)*(allgather(x1)@x2 + bias))
+    amaxOut=amax((x1Scale*x2Scale)*(AllGather(x1)@x2 + bias))
     $$
 
     - 情形4：
     $$
-    \begin{align*}
-    & output[r(i), r(j)] = \sum_{k=1}^{\frac{K}{groupSizeK}} x1Scale[i, k] * x2Scale[k, j] * (allgather(x1)[r(i), r(j)] @ x2[r(k), r(j)]) \\
-    & r(z) = (groupSizeK * (z - 1) + 1) : (groupSizeK * z) \\
-    & output = 
-    \begin{bmatrix}
-    output[r(1), r(1)] & \cdots & output[r(1), r(\frac{N}{groupSizeN})] \\ 
-    \vdots & \ddots & \vdots \\
-    output[r(\frac{M}{groupSizeM}), r(1)] & \vdots & output[r(\frac{M}{groupSizeM}), r(\frac{N}{groupSizeN})]
-    \end{bmatrix}
-    \end{align*}
+    output[r(i), r(j)] = \sum_{k=1}^{\frac{K}{groupSizeK}} x1Scale[i, k] * x2Scale[k, j] * (AllGather(x1)[r(i), r(j)] @ x2[r(k), r(j)])
+    $$
+    $$
+    r(z) = (groupSizeK * (z - 1) + 1) : (groupSizeK * z)
+    $$
+    $$
+    output = \begin{bmatrix}
+          output[r(1), r(1)] & \cdots & output[r(1), r(\frac{N}{groupSizeN})] \\ 
+          \vdots & \ddots & \vdots \\
+          output[r(\frac{M}{groupSizeM}), r(1)] & \vdots & output[r(\frac{M}{groupSizeM}), r(\frac{N}{groupSizeN})]
+        \end{bmatrix}
     $$
     
-      其中$output\left[r(y), r(z)\right]$表示从output矩阵中取出第$(groupSizeM*(y-1)+1)$到$(groupSizeM*y)$行和$(groupSizeN*(z-1)+1)$到$(groupSizeN*z)$列构成的块。
+    其中$output\left[r(y), r(z)\right]$表示从output矩阵中取出第$(groupSizeM*(y-1)+1)$到$(groupSizeM*y)$行和$(groupSizeN*(z-1)+1)$到$(groupSizeN*z)$列构成的块。
 
 ## 参数说明
 
@@ -129,7 +130,7 @@
       <td>blockSize</td>
       <td>输入</td>
       <td>公式中的输入blockSize。</td>
-      <td>int64</td>
+      <td>INT64</td>
       <td>-</td>
     </tr>
     <tr>
@@ -157,7 +158,7 @@
       <td>workspaceSize</td>
       <td>输出</td>
       <td>Device侧的整型，返回需要在Device侧申请的workspace大小。</td>
-      <td>uint64</td>
+      <td>UINT64</td>
       <td>-</td>
     </tr>
     <tr>
@@ -213,5 +214,5 @@
 
 | 调用方式   | 样例代码           | 说明                                         |
 | ---------------- | --------------------------- | --------------------------------------------------- |
-| aclnn接口  | [test_aclnn_all_gather_matmul](./examples/test_aclnn_all_gather_matmul_v2.cpp) | 通过[aclnnAllGatherMatmulV2](./docs/aclnnAllGatherMatmulV2.md)接口方式调用AllGatherMatmul算子。 |
+| aclnn接口  | [test_aclnn_all_gather_matmul_v2](./examples/test_aclnn_all_gather_matmul_v2.cpp) | 通过[aclnnAllGatherMatmulV2](./docs/aclnnAllGatherMatmulV2.md)接口方式调用AllGatherMatmulV2算子。 |
 

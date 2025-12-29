@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_aclnn_matmul_reduce_scatter_v2.cpp
+ * \file test_aclnn_all_gather_matmul_v2.cpp
  * \brief
  */
 
@@ -31,7 +31,7 @@
         printf(message, ##__VA_ARGS__); \
     } while(0)
 
-constexpr int DEV_NUM = 4;
+constexpr int DEV_NUM = 2;
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape)
 {

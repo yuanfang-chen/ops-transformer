@@ -18,26 +18,26 @@
 
 ## 功能说明
 
-- **接口功能**：aclnnQuantMatmulAllReduceV2接口是对aclnnQuantMatmulAllReduce接口的功能扩展，新增支持pertensor量化方式。aclnnQuantMatmulAllReduceV2共支持pertensor、perchannel、pertoken[量化方式](../../../docs/zh/context/量化介绍.md)。
+- **接口功能**：`aclnnQuantMatmulAllReduceV2`接口是对`aclnnQuantMatmulAllReduce`接口的功能扩展，新增支持pertensor量化方式。`aclnnQuantMatmulAllReduceV2`共支持pertensor、perchannel、pertoken[量化方式](../../../docs/zh/context/量化介绍.md)。
 
 - **计算公式**：
 
     分为以下2种情形：
 
-    - 情形1：对量化后的入参x1、x2进行matmul计算后，接着进行dequant计算，接着与x3进行add操作，最后做all_reduce计算。
+    - 情形1：对量化后的入参x1、x2进行MatMul计算后，接着进行dequant计算，接着与x3进行Add操作，最后做AllReduce计算。
 
   $$
   output= AllReduce(dequantScale*(x1_{int8}@x2_{int8} + bias_{int32}) + x3)
   $$
 
-    - 情形2：对量化后的入参x1、x2进行mm计算后，接着进行dequant和pertoken计算，接着与x3进行add操作，最后做all_reduce计算。
+    - 情形2：对量化后的入参x1、x2进行MatMul计算后，接着进行dequant和pertoken计算，接着与x3进行Add操作，最后做AllReduce计算。
 
   $$
   output= AllReduce(dequantScale * pertokenScaleOptional * (x1_{int8}@x2_{int8} + biasOptional_{int32}) + x3Optional)
   $$
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnQuantMatmulAllReduceV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantMatmulAllReduceV2”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用`aclnnQuantMatmulAllReduceV2GetWorkspaceSize`接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用`aclnnQuantMatmulAllReduceV2`接口执行计算。
 
 ```cpp
 aclnnStatus aclnnQuantMatmulAllReduceV2GetWorkspaceSize(
@@ -65,7 +65,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
 
 ## aclnnQuantMatmulAllReduceV2GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
@@ -221,14 +221,18 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
       </tbody>
     </table>
 
-    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：输入x2的数据格式支持ND（当前版本仅支持二维输入）和FRACTAL_NZ格式（当前版本仅支持四维输入）。当x2的数据格式为FRACTAL_NZ时，配合aclnnCalculateMatmulWeightSizeV2和aclnnTransMatmulWeight完成数据格式ND到数据格式NZ的转换，非连续的tensor仅支持transpose场景。
-    - <term>昇腾910_95 AI处理器</term>：输入x2的数据格式仅支持ND格式（当前版本仅支持二维输入）。
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
 
-- **返回值：**
+    - 输入x2的数据格式支持ND（当前版本仅支持二维输入）和FRACTAL_NZ格式（当前版本仅支持四维输入）。当x2的数据格式为FRACTAL_NZ时，配合`aclnnCalculateMatmulWeightSizeV2`和`aclnnTransMatmulWeight`完成数据格式ND到数据格式NZ的转换，非连续的tensor仅支持transpose场景。
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+- <term>昇腾910_95 AI处理器</term>：
 
-    第一段接口完成入参校验，出现以下场景时报错：
+    - 输入x2的数据格式仅支持ND格式（当前版本仅支持二维输入）。
+
+- **返回值**
+
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
     <col style="width: 130px">
@@ -261,7 +265,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
     </table>
 ## aclnnQuantMatmulAllReduceV2
 
-- **参数说明：**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
     <col style="width: 158px">
     <col style="width: 120px">
@@ -281,7 +285,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
     <tr>
         <td>workspaceSize</td>
         <td>输入</td>
-        <td>在device侧申请的workspace大小，由第一段接口aclnnQuantMatmulAllReduceV2GetWorkspaceSize获取。</td>
+        <td>在device侧申请的workspace大小，由第一段接口<code>aclnnQuantMatmulAllReduceV2GetWorkspaceSize</code>获取。</td>
     </tr>
     <tr>
         <td>executor</td>
@@ -294,7 +298,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
         <td>指定执行任务的stream。</td>
     </tr>
     </tbody></table>
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -334,7 +338,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
     #include "aclnnop/aclnn_trans_matmul_weight.h"
     #include "aclnnop/aclnn_quant_matmul_all_reduce_v2.h"
 
-    int ndev = 8;
+    int ndev = 2;
 
     #define ACL_CHECK(ret)                                                                                     \
         do {                                                                                                   \

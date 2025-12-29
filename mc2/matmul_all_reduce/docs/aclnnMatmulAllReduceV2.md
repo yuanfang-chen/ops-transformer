@@ -22,12 +22,12 @@
 - **计算公式**：
 
     $$
-    output = allreduce(x1 @ x2 + bias + x3)
+    output = AllReduce(x1 @ x2 + bias + x3)
     $$
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnMatmulAllReduceV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMatmulAllReduceV2”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用`aclnnMatmulAllReduceV2GetWorkspaceSize`接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用`aclnnMatmulAllReduceV2`接口执行计算。
 
 ```cpp
 aclnnStatus aclnnMatmulAllReduceV2GetWorkspaceSize(
@@ -53,7 +53,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
 
 ## aclnnMatmulAllReduceV2GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
@@ -189,11 +189,10 @@ aclnnStatus aclnnMatmulAllReduceV2(
       </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
 
-    第一段接口完成入参校验，出现以下场景时报错：
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
     <col style="width: 130px">
@@ -226,7 +225,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
     </table>
 ## aclnnMatmulAllReduceV2
 
-- **参数说明：**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
     <col style="width: 158px">
     <col style="width: 120px">
@@ -246,7 +245,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
     <tr>
         <td>workspaceSize</td>
         <td>输入</td>
-        <td>在Device侧申请的workspace大小，由第一段接口aclnnMatmulAllReduceV2GetWorkspaceSize获取。</td>
+        <td>在Device侧申请的workspace大小，由第一段接口<code>aclnnMatmulAllReduceV2GetWorkspaceSize</code>获取。</td>
     </tr>
     <tr>
         <td>executor</td>
@@ -259,7 +258,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <td>指定执行任务的Stream。</td>
     </tr>
     </tbody></table>
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -295,7 +294,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
     #include "hccl/hccl.h"
     #include "aclnnop/aclnn_matmul_all_reduce_v2.h"
 
-    int ndev = 8;
+    int ndev = 2;
 
     #define CHECK_RET(cond, return_expr) \
     do {                               \

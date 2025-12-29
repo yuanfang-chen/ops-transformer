@@ -24,12 +24,12 @@
 - **计算公式**：
 
   $$
-  output = allreduce(x1 @ ((x2 + antiquantOffset) *antiquantScale) + bias+ x3) 
+  output = AllReduce(x1 @ ((x2 + antiquantOffset) * antiquantScale) + bias + x3)
   $$
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnWeightQuantMatmulAllReduceGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnWeightQuantMatmulAllReduce”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用`aclnnWeightQuantMatmulAllReduceGetWorkspaceSize`接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用`aclnnWeightQuantMatmulAllReduce`接口执行计算。
 
 ```cpp
 aclnnStatus aclnnWeightQuantMatmulAllReduceGetWorkspaceSize(
@@ -58,7 +58,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 
 ## aclnnWeightQuantMatmulAllReduceGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
@@ -224,43 +224,44 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
       </tbody>
     </table>
 
-- **返回值：**
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+- **返回值**
 
-    第一段接口完成入参校验，出现以下场景时报错：
-    <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 650px">
-    </colgroup>
-    <thead>
-    <tr>
-        <th>返回值</th>
-        <th>错误码</th>
-        <th>描述</th>
-    </tr></thead>
-    <tbody>
-    <tr>
-        <td>ACLNN_ERR_PARAM_NULLPTR</td>
-        <td>161001</td>
-        <td>传入的x1、x2、antiquantScale或output是空指针。</td>
-    </tr>
-    <tr>
-        <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
-        <td rowspan="3">161002</td>
-        <td>x1、x2、bias、antiquantScale、antiquantOffset、x3或output的数据类型不符合要求。</td>
-    </tr>
-    <tr>
-        <td>reduceOp、streamMode、antiquantGroupSize不在合法范围内。</td>
-    </tr>
-    <tr>
-        <td>x1、x2、bias、antiquantScale、antiquantOffset、x3、output、antiquantGroupSize的shape不符合约束要求。</td>
-    </tr>
-    </tbody>
-    </table>
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+
+  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
+  <col style="width: 250px">
+  <col style="width: 130px">
+  <col style="width: 650px">
+  </colgroup>
+  <thead>
+  <tr>
+      <th>返回值</th>
+      <th>错误码</th>
+      <th>描述</th>
+  </tr></thead>
+  <tbody>
+  <tr>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
+      <td>161001</td>
+      <td>传入的x1、x2、antiquantScale或output是空指针。</td>
+  </tr>
+  <tr>
+      <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="3">161002</td>
+      <td>x1、x2、bias、antiquantScale、antiquantOffset、x3或output的数据类型不符合要求。</td>
+  </tr>
+  <tr>
+      <td>reduceOp、streamMode、antiquantGroupSize不在合法范围内。</td>
+  </tr>
+  <tr>
+      <td>x1、x2、bias、antiquantScale、antiquantOffset、x3、output、antiquantGroupSize的shape不符合约束要求。</td>
+  </tr>
+  </tbody>
+  </table>
+
 ## aclnnWeightQuantMatmulAllReduce
 
-- **参数说明：**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
     <col style="width: 158px">
     <col style="width: 120px">
@@ -280,7 +281,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
     <tr>
         <td>workspaceSize</td>
         <td>输入</td>
-        <td>在Device侧申请的workspace大小，由第一段接口aclnnWeightQuantMatmulAllReduceGetWorkspaceSize获取。</td>
+        <td>在Device侧申请的workspace大小，由第一段接口<code>aclnnWeightQuantMatmulAllReduceGetWorkspaceSize</code>获取。</td>
     </tr>
     <tr>
         <td>executor</td>
@@ -293,15 +294,16 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <td>指定执行任务的stream。</td>
     </tr>
     </tbody></table>
--   **返回值：**
+
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
 - 确定性计算：
-  - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件：aclnnWeightQuantMatmulAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
-  - 昇腾910_95 AI处理器：aclnnWeightQuantMatmulAllReduce默认确定性实现。
+  - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件：`aclnnWeightQuantMatmulAllReduce`默认非确定性实现，支持通过`aclrtCtxSetSysParamOpt`开启确定性。
+  - 昇腾910_95 AI处理器：`aclnnWeightQuantMatmulAllReduce`默认确定性实现。
 - 增量场景不使能MC2，全量场景使能MC2。
 - 输入x1可为二维或者三维，其shape为(b, s, k)或者(m, k)。
 - x2必须是二维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等，m的范围为[1, 2147483647]，k、n的范围为[1, 65535]。
@@ -344,7 +346,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
   #include "hccl/hccl.h"
   #include "aclnnop/aclnn_weight_quant_matmul_all_reduce.h"
 
-  int ndev = 8;
+  int ndev = 2;
 
   #define CHECK_RET(cond, return_expr) \
   do {                               \
