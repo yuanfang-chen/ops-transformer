@@ -1292,4 +1292,3 @@ int main()
     Finalize(deviceId, stream);
     return 0;
 }
-```
