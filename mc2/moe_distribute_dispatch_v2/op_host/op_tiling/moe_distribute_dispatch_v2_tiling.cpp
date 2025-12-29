@@ -84,14 +84,8 @@ namespace {
     constexpr uint64_t INIT_TILINGKEY = 10000;
     constexpr uint32_t ARR_LENGTH = 128;
     constexpr uint32_t OP_TYPE_ALL_TO_ALL = 8;
-    constexpr uint32_t NO_SCALES = 0;
-    constexpr uint32_t STATIC_SCALES = 1;
-    constexpr uint32_t DYNAMIC_SCALES = 2;
     constexpr uint32_t OP_TYPE_ALL_GATHER = 6;
 
-    constexpr uint32_t UNQUANT_MODE = 0;
-    constexpr uint32_t STATIC_QUANT_MODE = 1;
-    constexpr uint32_t DYNAMIC_QUANT_MODE = 2;
     constexpr size_t MAX_GROUP_NAME_LENGTH = 128UL;
     constexpr int64_t MAX_SHARED_EXPERT_NUM = 4;
     constexpr int64_t MAX_EP_WORLD_SIZE = 768L; // 384 * 2
@@ -126,8 +120,14 @@ namespace {
     constexpr uint64_t DOUBLE_DATA_BUFFER = 2UL;
     constexpr uint64_t MAX_OUT_DTYPE_SIZE = 2UL;
     constexpr uint64_t UB_ALIGN = 32UL;
+    constexpr uint64_t EVEN_ALIGN = 2;
     constexpr int64_t ELASTIC_METAINFO_OFFSET = 4;
     constexpr int64_t CEIL_ALIGN32 = 8;
+
+    constexpr uint64_t STATIC_SCALE_DIM_0 = 1;
+    constexpr uint64_t ONE_DIM_SCALE_COL_NUM = 1;
+    constexpr uint64_t MX_BLOCK_SIZE = 32U;
+    constexpr uint64_t PERGROUP_BLOCK_SIZE = 128U;
 
     // A2定义
     const char *K_INNER_DEBUG = "MoeDistributeDispatchV2 Tiling Debug";
@@ -149,6 +149,10 @@ namespace {
     // A5
     constexpr uint32_t OP_VERSION_2 = 2;
 }
+
+// Supported x datatype in nonquant mode, the same as expandX
+const std::set<ge::DataType> NON_QUANT_DTYPE = {
+    ge::DT_FLOAT16, ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2};
 
 namespace optiling {
 static void PrintTilingDataInfo(const char *nodeName, MoeDistributeDispatchV2TilingData &tilingData)
@@ -175,8 +179,33 @@ static void PrintTilingDataInfo(const char *nodeName, MoeDistributeDispatchV2Til
     OP_LOGD(nodeName, "cumSumUBMinValue is %d", tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue);
 }
 
-static bool CheckTensorDim(const gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo)
+static bool CheckDynamicScalesDim(const gert::TilingContext *context,
+    const char *nodeName, const uint32_t quantMode)
+{
+     const gert::StorageShape *dynamicScalesStorageShape = context->GetOutputShape(OUTPUT_DYNAMIC_SCALES_INDEX);
+        OP_TILING_CHECK(dynamicScalesStorageShape == nullptr,
+            OP_LOGE(nodeName, "dynamicScalesShape is null."), return false);
+    if ((quantMode == static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT))) {
+        // quantMode 2: 1dim, the same in A2/A3/A5
+        OP_TILING_CHECK(dynamicScalesStorageShape->GetStorageShape().GetDimNum() != DYNAMIC_SCALE_ONE_DIM_NUM,
+            OP_LOGE(nodeName, "dynamicScalesShape dims must be %u when quantMode=%u, but current dim num is %lu.",
+            DYNAMIC_SCALE_ONE_DIM_NUM, quantMode, dynamicScalesStorageShape->GetStorageShape().GetDimNum()), return false);
+        OP_LOGD(nodeName, "dynamicScales dim0 = %ld", dynamicScalesStorageShape->GetStorageShape().GetDim(0));
+    } else {
+        // MX/PERGROUP
+        OP_TILING_CHECK(dynamicScalesStorageShape->GetStorageShape().GetDimNum() != DYNAMIC_SCALE_TWO_DIM_NUM,
+            OP_LOGE(nodeName, "dynamicScalesShape dims must be %u when quantMode=%u, but current dim num is %lu.",
+            DYNAMIC_SCALE_TWO_DIM_NUM, quantMode, dynamicScalesStorageShape->GetStorageShape().GetDimNum()), return false);
+        OP_LOGD(nodeName, "dynamicScales dim0=%ld, dim1=%ld", 
+            dynamicScalesStorageShape->GetStorageShape().GetDim(0), 
+            dynamicScalesStorageShape->GetStorageShape().GetDim(1));
+    }
+    return true;
+}
+
+//x, expertIds, scales维度校验
+static bool CheckInputTensorDim(const gert::TilingContext *context, const char *nodeName,
+    const bool isScales, const uint32_t quantMode)
 {
     const gert::StorageShape *xStorageShape = context->GetInputShape(X_INDEX);
     OP_TILING_CHECK(xStorageShape == nullptr, OP_LOGE(nodeName, "xShape is null."), return false);
@@ -202,39 +231,37 @@ static bool CheckTensorDim(const gert::TilingContext *context, const char *nodeN
     if (isScales) {
         const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
         OP_TILING_CHECK(scalesStorageShape == nullptr, OP_LOGE(nodeName, "scalesShape is null."), return false);
-        OP_TILING_CHECK(scalesStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
-            OP_LOGE(nodeName, "scalesShape dims must be 2, but current dim num is %lu.",
-            scalesStorageShape->GetStorageShape().GetDimNum()), return false);
-        OP_LOGD(nodeName, "scales dim0 = %ld", scalesStorageShape->GetStorageShape().GetDim(0));
-        OP_LOGD(nodeName, "scales dim1 = %ld", scalesStorageShape->GetStorageShape().GetDim(1));
+        if (quantMode != static_cast<uint32_t>(QuantModeA5::STATIC_QUANT)) {
+            // the cond is compatible with A2/A3 because static quant is only supported on A5
+            OP_TILING_CHECK(scalesStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
+                OP_LOGE(nodeName, "scales dims must be 2 when quantMode=%u, but current dim num is %lu.",
+                quantMode, scalesStorageShape->GetStorageShape().GetDimNum()), return false);
+            OP_LOGD(nodeName, "scales dim0 = %ld", scalesStorageShape->GetStorageShape().GetDim(0));
+            OP_LOGD(nodeName, "scales dim1 = %ld", scalesStorageShape->GetStorageShape().GetDim(1));
+        } else {
+            OP_TILING_CHECK((scalesStorageShape->GetStorageShape().GetDimNum() != ONE_DIM)
+                && (scalesStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS),
+                OP_LOGE(nodeName, "scalesShape dims must be 1 or 2 when quantMode is 1, but current dim num is %lu.",
+                scalesStorageShape->GetStorageShape().GetDimNum()), return false);
+            // additional check for hif8 quant
+            auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
+            OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
+            OP_TILING_CHECK((expandXDesc->GetDataType() == ge::DT_HIFLOAT8) && (scalesStorageShape->GetStorageShape().GetDimNum() != ONE_DIM),
+                OP_LOGE(nodeName, "scalesShape dims must be 1 when x dtype is hif8 in static quant, but current dim num is %lu.",
+                scalesStorageShape->GetStorageShape().GetDimNum()), return false);
+            OP_LOGD(nodeName, "scales dim0 = %ld", scalesStorageShape->GetStorageShape().GetDim(0));
+            if (scalesStorageShape->GetStorageShape().GetDimNum() == TWO_DIMS) {
+                OP_LOGD(nodeName, "scales dim1 = %ld", scalesStorageShape->GetStorageShape().GetDim(1));
+            }
+        }
     }
+    return true;
+}
 
-    if (isActiveMask) {
-        const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(X_ACTIVE_MASK_INDEX);
-        OP_TILING_CHECK(xActiveMaskStorageShape == nullptr, OP_LOGE(nodeName, "xActiveMask shape is null."),
-            return false);
-        const int64_t xActiveMaskDimNum = xActiveMaskStorageShape->GetStorageShape().GetDimNum();
-        OP_TILING_CHECK(((xActiveMaskDimNum != ONE_DIM) && (xActiveMaskDimNum != TWO_DIMS)),
-            OP_LOGE(nodeName, "xActiveMask shape dim must be 1 or 2, but current dim num is %ld.",
-            xActiveMaskDimNum), return false);
-        OP_TILING_CHECK((xActiveMaskStorageShape->GetStorageShape().GetDim(0) != xDim0), OP_LOGE(nodeName,
-            "The input of xActiveMask dim0 = %ld is not equal to x dim0 = %ld.",
-            xActiveMaskStorageShape->GetStorageShape().GetDim(0), xDim0), return false);
-        OP_TILING_CHECK(((xActiveMaskDimNum == TWO_DIMS) &&
-            (xActiveMaskStorageShape->GetStorageShape().GetDim(1) != expertIdDim1)), OP_LOGE(nodeName,
-            "The input of xActiveMask dim1 = %ld is not equal to expertId dim1 = %ld.",
-            xActiveMaskStorageShape->GetStorageShape().GetDim(1), expertIdDim1),
-            return false);
-    }
-    if (hasElasticInfo) {
-        const gert::StorageShape *elasticInfoStorageShape = context->GetOptionalInputShape(ELASTIC_INFO_INDEX);
-        OP_TILING_CHECK(elasticInfoStorageShape == nullptr, OP_LOGE(nodeName, "elasticInfo is null."), return false);
-        OP_TILING_CHECK(elasticInfoStorageShape->GetStorageShape().GetDimNum() != ONE_DIM,
-            OP_LOGE(nodeName, "elasticInfo dim must be 1, but current dim num is %lu.",
-            elasticInfoStorageShape->GetStorageShape().GetDimNum()), return false);
-        OP_LOGD(nodeName, "elasticInfo dim0 = %ld", elasticInfoStorageShape->GetStorageShape().GetDim(0));
-    }
-
+//expertX, assistInfo, expertTokenNums, epRecvCount, tpRecvCount维度校验 
+static bool CheckCommonOutputTensorDim(const gert::TilingContext *context, const char *nodeName,
+    const uint32_t quantMode)
+{
     const gert::StorageShape *expandXStorageShape = context->GetOutputShape(OUTPUT_EXPAND_X_INDEX);
     OP_TILING_CHECK(expandXStorageShape == nullptr, OP_LOGE(nodeName, "expandXShape is null."), return false);
     OP_TILING_CHECK(expandXStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
@@ -243,14 +270,8 @@ static bool CheckTensorDim(const gert::TilingContext *context, const char *nodeN
     OP_LOGD(nodeName, "expandX dim0 = %ld", expandXStorageShape->GetStorageShape().GetDim(0));
     OP_LOGD(nodeName, "expandX dim1 = %ld", expandXStorageShape->GetStorageShape().GetDim(1));
 
-    if (quantMode == DYNAMIC_SCALES) {
-        const gert::StorageShape *dynamicScalesStorageShape = context->GetOutputShape(OUTPUT_DYNAMIC_SCALES_INDEX);
-        OP_TILING_CHECK(dynamicScalesStorageShape == nullptr,
-            OP_LOGE(nodeName, "dynamicScalesShape is null."), return false);
-        OP_TILING_CHECK(dynamicScalesStorageShape->GetStorageShape().GetDimNum() != DYNAMIC_SCALE_DIM_NUM,
-            OP_LOGE(nodeName, "dynamicScalesShape dims must be %u, but current dim num is %lu.",
-            DYNAMIC_SCALE_DIM_NUM, dynamicScalesStorageShape->GetStorageShape().GetDimNum()), return false);
-        OP_LOGD(nodeName, "dynamicScales dim0 = %ld", dynamicScalesStorageShape->GetStorageShape().GetDim(0));
+    if ((quantMode != static_cast<uint32_t>(QuantModeA5::NON_QUANT)) && (quantMode != static_cast<uint32_t>(QuantModeA5::STATIC_QUANT))) {
+        OP_TILING_CHECK(!CheckDynamicScalesDim(context, nodeName, quantMode),OP_LOGE(nodeName, "CheckDynamicScalesDim failed."), return false);
     }
 
     const gert::StorageShape *assistInfoStorageShape = context->GetOutputShape(OUTPUT_ASSIST_INFO_INDEX);
@@ -284,69 +305,178 @@ static bool CheckTensorDim(const gert::TilingContext *context, const char *nodeN
     OP_LOGD(nodeName, "tpRecvCount dim0 = %ld", tpRecvCountStorageShape->GetStorageShape().GetDim(0));
 
     return true;
+}    
+
+static bool CheckTensorDim(const gert::TilingContext *context, const char *nodeName,
+    const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo)
+{
+    OP_TILING_CHECK(!CheckInputTensorDim(context, nodeName, isScales, quantMode), 
+        OP_LOGE(nodeName, "Input param shape is invalid."), return false);
+    if (isActiveMask) {
+        const gert::StorageShape *xStorageShape = context->GetInputShape(X_INDEX);
+        int64_t xDim0 = xStorageShape->GetStorageShape().GetDim(0);
+        const gert::StorageShape *expertIdStorageShape = context->GetInputShape(EXPERT_IDS_INDEX);
+        const int64_t expertIdDim1 = expertIdStorageShape->GetStorageShape().GetDim(1);
+        const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(X_ACTIVE_MASK_INDEX);
+        OP_TILING_CHECK(xActiveMaskStorageShape == nullptr, OP_LOGE(nodeName, "xActiveMask shape is null."),
+            return false);
+        const int64_t xActiveMaskDimNum = xActiveMaskStorageShape->GetStorageShape().GetDimNum();
+        OP_TILING_CHECK(((xActiveMaskDimNum != ONE_DIM) && (xActiveMaskDimNum != TWO_DIMS)),
+            OP_LOGE(nodeName, "xActiveMask shape dim must be 1 or 2, but current dim num is %ld.",
+            xActiveMaskDimNum), return false);
+        OP_TILING_CHECK((xActiveMaskStorageShape->GetStorageShape().GetDim(0) != xDim0), OP_LOGE(nodeName,
+            "The input of xActiveMask dim0 = %ld is not equal to x dim0 = %ld.",
+            xActiveMaskStorageShape->GetStorageShape().GetDim(0), xDim0), return false);
+        OP_TILING_CHECK(((xActiveMaskDimNum == TWO_DIMS) &&
+            (xActiveMaskStorageShape->GetStorageShape().GetDim(1) != expertIdDim1)), OP_LOGE(nodeName,
+            "The input of xActiveMask dim1 = %ld is not equal to expertId dim1 = %ld.",
+            xActiveMaskStorageShape->GetStorageShape().GetDim(1), expertIdDim1),
+            return false);
+    }
+    if (hasElasticInfo) {
+        const gert::StorageShape *elasticInfoStorageShape = context->GetOptionalInputShape(ELASTIC_INFO_INDEX);
+        OP_TILING_CHECK(elasticInfoStorageShape == nullptr, OP_LOGE(nodeName, "elasticInfo is null."), return false);
+        OP_TILING_CHECK(elasticInfoStorageShape->GetStorageShape().GetDimNum() != ONE_DIM,
+            OP_LOGE(nodeName, "elasticInfo dim must be 1, but current dim num is %lu.",
+            elasticInfoStorageShape->GetStorageShape().GetDimNum()), return false);
+        OP_LOGD(nodeName, "elasticInfo dim0 = %ld", elasticInfoStorageShape->GetStorageShape().GetDim(0));
+    }
+
+    OP_TILING_CHECK(!CheckCommonOutputTensorDim(context, nodeName, quantMode), 
+        OP_LOGE(nodeName, "Output param shape is invalid."), return false);
+
+    return true;
 }
 
-static bool CheckTensorDataType(const gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo)
+static ge::graphStatus CheckQuantModeAndScales(const gert::TilingContext *context, const char *nodeName,
+    bool isScales, const uint32_t quantMode)
+{
+    OP_TILING_CHECK(!isScales && (quantMode == static_cast<uint32_t>(QuantModeA5::STATIC_QUANT)),
+        OP_LOGE(nodeName, "The scales should not be nullptr when quantMode is %u.", 
+        quantMode), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(isScales && (quantMode == static_cast<uint32_t>(QuantModeA5::MX_QUANT)),
+        OP_LOGE(nodeName, "The scales should be nullptr when quantMode is %u.", 
+        quantMode), return ge::GRAPH_FAILED);
+    auto xDesc = context->GetInputDesc(X_INDEX);
+    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!isScales && (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) 
+        && ((xDesc->GetDataType() == ge::DT_HIFLOAT8) || (xDesc->GetDataType() == ge::DT_FLOAT8_E5M2) 
+        || (xDesc->GetDataType() == ge::DT_FLOAT8_E4M3FN)),
+        OP_LOGE(nodeName, "The scales should not be nullptr when quantMode is %u and X datatype is %s.",
+        quantMode, Ops::Base::ToString(xDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(isScales && (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) 
+        && ((xDesc->GetDataType() == ge::DT_BF16) || (xDesc->GetDataType() == ge::DT_FLOAT16)),
+        OP_LOGE(nodeName, "The scales should be nullptr when quantMode is %u and X datatype is %s.",
+        quantMode, Ops::Base::ToString(xDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+static bool CheckTensorDataTypeNonQuant(const gert::TilingContext *context,
+    const char *nodeName, const bool isScales)
 {
     auto xDesc = context->GetInputDesc(X_INDEX);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
-    OP_TILING_CHECK((xDesc->GetDataType() != ge::DT_BF16) && (xDesc->GetDataType() != ge::DT_FLOAT16),
-        OP_LOGE(nodeName, "x dataType is invalid, dataType should be bf16 or float16, but is %s.",
+    auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
+    OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
+    OP_TILING_CHECK((NON_QUANT_DTYPE.find(static_cast<ge::DataType>(xDesc->GetDataType())) == NON_QUANT_DTYPE.end()),
+        OP_LOGE(nodeName, 
+        "x datatype is invalid, datatype should be one of bf16/fp16/e5m2/e4m3fn/hif8, but is %s.",
         Ops::Base::ToString(xDesc->GetDataType()).c_str()), return false);
-
-    auto expertIdDesc = context->GetInputDesc(EXPERT_IDS_INDEX);
-    OP_TILING_CHECK(expertIdDesc == nullptr, OP_LOGE(nodeName, "expertIdDesc is null."), return false);
-    OP_TILING_CHECK(expertIdDesc->GetDataType() != ge::DT_INT32,
-        OP_LOGE(nodeName, "expertId dataType is invalid, dataType should be int32, but is %s.",
-        Ops::Base::ToString(expertIdDesc->GetDataType()).c_str()), return false);
-
+    // ExpandX: the same as X
+    OP_TILING_CHECK(expandXDesc->GetDataType() != xDesc->GetDataType(),
+        OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be equal to x dataType %s, but is %s.",
+        Ops::Base::ToString(xDesc->GetDataType()).c_str(), Ops::Base::ToString(expandXDesc->GetDataType()).c_str()),
+        return false);
+    // Scales: bf16/fp16: nullptr; hif8: fp32; e5m2/e4m3fn: float/e8m0
+    // Dynamic scales: the same as scales, and no validations for bf16/fp16
+    // If X is bf16/fp16, the scales must be nullptr, which is validated in CheckQuantModeAndScales
+    // Hence the datatype of X must be e5m2/e4m3fn/hif8 when isScales is true
     if (isScales) {
         auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
         OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
-        OP_TILING_CHECK(scalesDesc->GetDataType() != ge::DT_FLOAT,
-            OP_LOGE(nodeName, "scales dataType is invalid, dataType should be float, but is %s.",
-            Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
-    }
-
-    if (isActiveMask) {
-        auto xActiveMaskDesc = context->GetOptionalInputDesc(X_ACTIVE_MASK_INDEX);
-        OP_TILING_CHECK(xActiveMaskDesc == nullptr, OP_LOGE(nodeName, "xActiveMaskDesc is null."), return false);
-        OP_TILING_CHECK(xActiveMaskDesc->GetDataType() != ge::DT_BOOL, OP_LOGE(nodeName,
-            "xActiveMask dataType is invalid, dataType should be bool, but is %s.",
-            Ops::Base::ToString(xActiveMaskDesc->GetDataType()).c_str()), return false);
-    }
-
-    if (hasElasticInfo) {
-        auto elasticInfoDesc = context->GetOptionalInputDesc(ELASTIC_INFO_INDEX);
-        OP_TILING_CHECK(elasticInfoDesc == nullptr, OP_LOGE(nodeName, "elasticInfoDesc is null."), return false);
-        OP_TILING_CHECK(elasticInfoDesc->GetDataType() != ge::DT_INT32, OP_LOGE(nodeName,
-            "elasticInfoDesc dataType is invalid, dataType should be int32, but is %s.",
-            Ops::Base::ToString(elasticInfoDesc->GetDataType()).c_str()), return false);
-    }
-
-    auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
-    OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
-    if (quantMode != NO_SCALES) {
-        OP_TILING_CHECK(expandXDesc->GetDataType() != ge::DT_INT8,
-            OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be int8, but is %s.",
-            Ops::Base::ToString(expandXDesc->GetDataType()).c_str()), return false);
-    } else {
-        OP_TILING_CHECK(expandXDesc->GetDataType() != xDesc->GetDataType(),
-            OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be equal to x dataType %s, but is %s.",
-            Ops::Base::ToString(xDesc->GetDataType()).c_str(), Ops::Base::ToString(expandXDesc->GetDataType()).c_str()),
-            return false);
-    }
-
-    if (quantMode == DYNAMIC_SCALES) {
         auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
         OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
             return false);
-        OP_TILING_CHECK(dynamicScalesDesc->GetDataType() != ge::DT_FLOAT,
-            OP_LOGE(nodeName, "dynamicScales dataType is invalid, dataType should be float, but is %s.",
+        OP_TILING_CHECK((xDesc->GetDataType() == ge::DT_HIFLOAT8) && 
+            (scalesDesc->GetDataType() != ge::DT_FLOAT),
+            OP_LOGE(nodeName, "scales datatype is invalid, datatype should be float, but is %s.",
+            Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
+        OP_TILING_CHECK((scalesDesc->GetDataType() != ge::DT_FLOAT) && 
+            (scalesDesc->GetDataType() != ge::DT_FLOAT8_E8M0),
+            OP_LOGE(nodeName, "scales datatype is invalid, datatype should be float or e8m0, but is %s.",
+            Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
+        OP_TILING_CHECK(dynamicScalesDesc->GetDataType() != scalesDesc->GetDataType(),
+            OP_LOGE(nodeName, 
+            "dynamicScales datatype is invalid, datatype should be equal to scales dataType %s, but is %s.",
+            Ops::Base::ToString(scalesDesc->GetDataType()).c_str(), 
             Ops::Base::ToString(dynamicScalesDesc->GetDataType()).c_str()), return false);
     }
+    return true;
+}
 
+static bool CheckTensorDataTypeStaticOrDynamic(
+    const gert::TilingContext *context, const char *nodeName, bool isScales)
+{
+    auto xDesc = context->GetInputDesc(X_INDEX);
+    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
+    auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
+    OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
+        return false);
+    OP_TILING_CHECK((xDesc->GetDataType() != ge::DT_BF16) && (xDesc->GetDataType() != ge::DT_FLOAT16),
+        OP_LOGE(nodeName, "x datatype is invalid, datatype should be bf16 or float16, but is %s.",
+        Ops::Base::ToString(xDesc->GetDataType()).c_str()), return false);
+    // Scales: fp32, optional for dynamic/pertoken/pertile, required for static/hif8
+    // isScales has been checked in CheckQuantModeAndScales
+    if (isScales) {
+        auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
+        OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
+        OP_TILING_CHECK((scalesDesc->GetDataType() != ge::DT_FLOAT),
+            OP_LOGE(nodeName, "scales datatype is invalid, datatype should be float, but is %s.",
+            Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
+    }
+    OP_TILING_CHECK(dynamicScalesDesc->GetDataType() != ge::DT_FLOAT,
+        OP_LOGE(nodeName, "dynamicScales datatype is invalid, datatype should be float, but is %s.",
+        Ops::Base::ToString(dynamicScalesDesc->GetDataType()).c_str()), return false);
+    return true;
+}
+
+static bool CheckTensorDataTypeMxfp8(
+    const gert::TilingContext *context, const char *nodeName)
+{
+    auto xDesc = context->GetInputDesc(X_INDEX);
+    OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
+    auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
+    OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
+        return false);
+    OP_TILING_CHECK((xDesc->GetDataType() != ge::DT_BF16) && (xDesc->GetDataType() != ge::DT_FLOAT16),
+        OP_LOGE(nodeName, "x datatype is invalid, datatype should be bf16 or float16, but is %s.",
+        Ops::Base::ToString(xDesc->GetDataType()).c_str()), return false);
+    // No Scales input
+    OP_TILING_CHECK(dynamicScalesDesc->GetDataType() != ge::DT_FLOAT8_E8M0,
+        OP_LOGE(nodeName, "dynamicScales datatype is invalid, datatype should be e8m0, but is %s.",
+        Ops::Base::ToString(dynamicScalesDesc->GetDataType()).c_str()), return false);
+    return true;
+}
+
+static bool CheckDistinctTensorDataType(const gert::TilingContext *context, const char *nodeName,
+    const bool isScales, const uint32_t quantMode)
+{  
+    if (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) {
+        OP_TILING_CHECK(!CheckTensorDataTypeNonQuant(context, nodeName, isScales), 
+            OP_LOGE(nodeName, "CheckTensorDataType for nonquant mode failed."), return false);
+    } else if (quantMode == static_cast<uint32_t>(QuantModeA5::MX_QUANT)) {
+        OP_TILING_CHECK(!CheckTensorDataTypeMxfp8(context, nodeName),
+            OP_LOGE(nodeName, "CheckTensorDataType for mx quant mode failed."), return false);
+    } else {
+        // static/perToken/perGroup
+        OP_TILING_CHECK(!CheckTensorDataTypeStaticOrDynamic(context, nodeName, isScales), 
+            OP_LOGE(nodeName, "CheckTensorDataType for quantMode %u failed.", quantMode), return false);
+    }
+    return true;
+}
+
+static bool CheckCommomOutputTensorDataType(const gert::TilingContext *context, const char *nodeName)
+{
     auto assistInfoDesc = context->GetOutputDesc(OUTPUT_ASSIST_INFO_INDEX);
     OP_TILING_CHECK(assistInfoDesc == nullptr, OP_LOGE(nodeName, "assistInfoDesc is null."), return false);
     OP_TILING_CHECK(assistInfoDesc->GetDataType() != ge::DT_INT32,
@@ -375,6 +505,98 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
     return true;
 }
 
+static bool CheckQuantModeAndExpandXType(const gert::TilingContext *context, const char *nodeName)
+{
+    auto attrs = context->GetAttrs();
+    auto quantModePtr = attrs-> GetAttrPointer<int64_t>(ATTR_QUANT_MODE_INDEX);
+    auto expandXDesc = context-> GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
+    QuantModeA5 quantMode = static_cast<QuantModeA5>(*quantModePtr);
+    auto modeToFind = QUANT_MODE_MAP.find({quantMode, static_cast<ge::DataType>(expandXDesc->GetDataType())});
+    OP_TILING_CHECK(modeToFind == QUANT_MODE_MAP.end(),
+        OP_LOGE(nodeName, "Failed to find real mode for quantMode=%u and expandx datatype=%s",
+        static_cast<uint32_t>(quantMode), Ops::Base::ToString(expandXDesc->GetDataType()).c_str()),
+        return false);
+    OP_LOGD(nodeName, "quantMode=%u, expandx datatype=%s, get realMode=%u\n",
+        static_cast<uint32_t>(quantMode), Ops::Base::ToString(expandXDesc->GetDataType()).c_str(),
+        static_cast<uint32_t>(modeToFind->second));
+    return true;
+}
+
+static bool CheckTensorDataType(const gert::TilingContext *context, const char *nodeName,
+    const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo)
+{
+    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
+        OP_TILING_CHECK(!CheckQuantModeAndExpandXType(context, nodeName), 
+            OP_LOGE(nodeName, "CheckQuantModeAndExpandXType failed."), return false);
+        OP_TILING_CHECK(!CheckDistinctTensorDataType(context, nodeName, isScales, quantMode), 
+            OP_LOGE(nodeName, "CheckDistinctTensorDataType failed."), return false);
+    } else {
+        auto xDesc = context->GetInputDesc(X_INDEX);
+        OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
+        OP_TILING_CHECK((xDesc->GetDataType() != ge::DT_BF16) && (xDesc->GetDataType() != ge::DT_FLOAT16),
+            OP_LOGE(nodeName, "x dataType is invalid, dataType should be bf16 or float16, but is %s.",
+            Ops::Base::ToString(xDesc->GetDataType()).c_str()), return false);
+
+        if (quantMode == static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)) {
+            auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
+            OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
+                return false);
+            OP_TILING_CHECK(dynamicScalesDesc->GetDataType() != ge::DT_FLOAT,
+                OP_LOGE(nodeName, "dynamicScales dataType is invalid, dataType should be float, but is %s.",
+                Ops::Base::ToString(dynamicScalesDesc->GetDataType()).c_str()), return false);
+        }
+
+        if (isScales) {
+            auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
+            OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
+            OP_TILING_CHECK(scalesDesc->GetDataType() != ge::DT_FLOAT,
+                OP_LOGE(nodeName, "scales dataType is invalid, dataType should be float, but is %s.",
+                Ops::Base::ToString(scalesDesc->GetDataType()).c_str()), return false);
+        }
+
+        auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
+        OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
+        if (quantMode != static_cast<uint32_t>(QuantModeA5::NON_QUANT)) {
+            OP_TILING_CHECK(expandXDesc->GetDataType() != ge::DT_INT8,
+                OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be int8, but is %s.",
+                Ops::Base::ToString(expandXDesc->GetDataType()).c_str()), return false);
+        } else {
+            OP_TILING_CHECK(expandXDesc->GetDataType() != xDesc->GetDataType(),
+                OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be equal to x dataType %s, but is %s.",
+                Ops::Base::ToString(xDesc->GetDataType()).c_str(), Ops::Base::ToString(expandXDesc->GetDataType()).c_str()),
+                return false);
+        }
+    }
+
+    auto expertIdDesc = context->GetInputDesc(EXPERT_IDS_INDEX);
+    OP_TILING_CHECK(expertIdDesc == nullptr, OP_LOGE(nodeName, "expertIdDesc is null."), return false);
+    OP_TILING_CHECK(expertIdDesc->GetDataType() != ge::DT_INT32,
+        OP_LOGE(nodeName, "expertId dataType is invalid, dataType should be int32, but is %s.",
+        Ops::Base::ToString(expertIdDesc->GetDataType()).c_str()), return false);
+
+    if (isActiveMask) {
+        auto xActiveMaskDesc = context->GetOptionalInputDesc(X_ACTIVE_MASK_INDEX);
+        OP_TILING_CHECK(xActiveMaskDesc == nullptr, OP_LOGE(nodeName, "xActiveMaskDesc is null."), return false);
+        OP_TILING_CHECK(xActiveMaskDesc->GetDataType() != ge::DT_BOOL, OP_LOGE(nodeName,
+            "xActiveMask dataType is invalid, dataType should be bool, but is %s.",
+            Ops::Base::ToString(xActiveMaskDesc->GetDataType()).c_str()), return false);
+    }
+
+    if (hasElasticInfo) {
+        auto elasticInfoDesc = context->GetOptionalInputDesc(ELASTIC_INFO_INDEX);
+        OP_TILING_CHECK(elasticInfoDesc == nullptr, OP_LOGE(nodeName, "elasticInfoDesc is null."), return false);
+        OP_TILING_CHECK(elasticInfoDesc->GetDataType() != ge::DT_INT32, OP_LOGE(nodeName,
+            "elasticInfoDesc dataType is invalid, dataType should be int32, but is %s.",
+            Ops::Base::ToString(elasticInfoDesc->GetDataType()).c_str()), return false);
+    }
+
+    OP_TILING_CHECK(!CheckCommomOutputTensorDataType(context, nodeName),
+        OP_LOGE(nodeName, "CheckCommomOutputTensorDataType failed."), return false);
+
+    return true;
+}
+
+//校验输入输出数据格式
 static bool CheckTensorFormat(const gert::TilingContext *context, const char *nodeName,
     const bool isScales, const uint32_t quantMode, const bool isActiveMask, const uint32_t hasElasticInfo)
 {
@@ -414,9 +636,10 @@ static bool CheckTensorFormat(const gert::TilingContext *context, const char *no
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expandXDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "expandX format is invalid."), return false);
 
-    if (quantMode == DYNAMIC_SCALES) {
+    if (quantMode >= static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)) {
         auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
-        OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."), return false);
+        OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
+            return false);
         OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(dynamicScalesDesc->GetStorageFormat())) ==
             ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "dynamicScales format is invalid."), return false);
     }
@@ -546,10 +769,17 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     OP_TILING_CHECK((moeExpertNum <= 0) || (moeExpertNum > MOE_EXPERT_MAX_NUM),
         OP_LOGE(nodeName, "moeExpertNum is invalid, only support (0, %ld], but got moeExpertNum=%ld.",
         MOE_EXPERT_MAX_NUM, moeExpertNum), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((*quantModePtr < static_cast<int64_t>(NO_SCALES)) ||
-        (*quantModePtr > static_cast<int64_t>(DYNAMIC_SCALES)),
-        OP_LOGE(nodeName, "quantMode is invalid, only support [0, %u], but got quantMode=%ld.",
-        DYNAMIC_SCALES, *quantModePtr), return ge::GRAPH_FAILED);
+    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
+        OP_TILING_CHECK((*quantModePtr < static_cast<int64_t>(QuantModeA5::NON_QUANT)) ||
+        (*quantModePtr > static_cast<int64_t>(QuantModeA5::MX_QUANT)),
+        OP_LOGE(nodeName, "quantMode is invalid, only support [0, %ld], but got quantMode=%ld.",
+        static_cast<int64_t>(QuantModeA5::MX_QUANT), *quantModePtr), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK((*quantModePtr < static_cast<int64_t>(QuantModeA5::NON_QUANT)) ||
+        (*quantModePtr > static_cast<int64_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)),
+        OP_LOGE(nodeName, "quantMode is invalid, only support [0, %ld], but got quantMode=%ld.",
+        static_cast<int64_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT), *quantModePtr), return ge::GRAPH_FAILED);
+    }
     OP_TILING_CHECK((*expertTokenNumsTypePtr != 0) && (*expertTokenNumsTypePtr != 1),
         OP_LOGE(nodeName, "expertTokenNumsType only support 0 or 1, but got expertTokenNumsType=%ld.",
         *expertTokenNumsTypePtr), return ge::GRAPH_FAILED);
@@ -720,6 +950,29 @@ static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char
     return ge::GRAPH_SUCCESS;
 }
 
+static ge::graphStatus CheckTwoDimScalesShape(const gert::TilingContext *context, const char *nodeName,
+    MoeDistributeDispatchV2TilingData &tilingData, const int64_t scalesDim0, const int64_t scalesDim1)
+{
+    uint32_t sharedExpertRankNum = tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum;
+    uint32_t sharedExpertNum = tilingData.moeDistributeDispatchV2Info.sharedExpertNum; 
+    int64_t moeExpertNum = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.moeExpertNum);
+    const gert::StorageShape *xStorageShape = context->GetInputShape(X_INDEX);
+    OP_TILING_CHECK(xStorageShape == nullptr, OP_LOGE(nodeName, "xShape is null."), return ge::GRAPH_FAILED);
+    const int64_t xDim1 = xStorageShape->GetStorageShape().GetDim(1);
+    if (sharedExpertRankNum != 0U) {
+        OP_TILING_CHECK(scalesDim0 != (moeExpertNum + sharedExpertNum), OP_LOGE(nodeName,
+            "scales's dim0 not equal to moeExpertNum + sharedExpertNum, scales's dim0=%ld, (moeExpertNum + sharedExpertNum)=%ld.",
+            scalesDim0, moeExpertNum + sharedExpertNum), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK(scalesDim0 != moeExpertNum, OP_LOGE(nodeName,
+            "scales's dim0 not equal to moeExpertNum, scales's dim0=%ld, moeExpertNum=%ld.",
+            scalesDim0, moeExpertNum), return ge::GRAPH_FAILED);
+    }
+    OP_TILING_CHECK(xDim1 != scalesDim1, OP_LOGE(nodeName, "scales's dim1 not equal to xShape's dim1, "
+        "xShape's dim1=%ld, scales's dim1=%ld.", xDim1, scalesDim1), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, const char *nodeName,
     MoeDistributeDispatchV2TilingData &tilingData, const uint32_t quantMode, const bool isScales,
     const bool isSharedExpert,const bool hasElasticInfo, const int64_t localMoeExpertNum)
@@ -762,17 +1015,51 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     tilingData.moeDistributeDispatchV2Info.k = static_cast<uint32_t>(expertIdsDim1);
 
     // 校验scales的维度
+    uint64_t h = tilingData.moeDistributeDispatchV2Info.h;
+    uint32_t bs = tilingData.moeDistributeDispatchV2Info.bs;
+    uint64_t scalesRow = 0;
+    uint64_t scalesCol = 0;
+    uint32_t scalesTypeSize = 0;
+    uint64_t scalesCount = 0;
     if (isScales) {
+        auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
         const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
+        OP_TILING_CHECK(scalesStorageShape == nullptr, OP_LOGE(nodeName, "scalesShape is null."), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return ge::GRAPH_FAILED);
+        size_t scalesDimNum = scalesStorageShape->GetStorageShape().GetDimNum();
         const int64_t scalesDim0 = scalesStorageShape->GetStorageShape().GetDim(0);
-        const int64_t scalesDim1 = scalesStorageShape->GetStorageShape().GetDim(1);
-        OP_TILING_CHECK(scalesDim0 != (static_cast<int64_t>(sharedExpertNum) + moeExpertNum),
-            OP_LOGE(nodeName, "scales's dim0 not equal to sharedExpertNum + moeExpertNum, "
-            "scales's dim0 is %ld, sharedExpertNum is %ld, moeExpertNum is %ld.",
-            scalesDim0, static_cast<int64_t>(sharedExpertNum), moeExpertNum), return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(xDim1 != scalesDim1, OP_LOGE(nodeName, "scales's dim1 not equal to xShape's dim1, "
-            "xShape's dim1 is %ld, scales's dim1 is %ld.", xDim1, scalesDim1), return ge::GRAPH_FAILED);
+        scalesRow = static_cast<uint64_t>(scalesDim0);  
+        scalesTypeSize = ge::GetSizeByDataType(scalesDesc->GetDataType());
+        if (scalesDimNum == ONE_DIM) {
+            //A3不会进此分支
+            auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
+            OP_TILING_CHECK((quantMode == static_cast<uint32_t>(QuantModeA5::STATIC_QUANT)) && (expandXDesc->GetDataType() == ge::DT_INT8) 
+                && (scalesDim0 != (int64_t)h) && (scalesDim0 != (int64_t)STATIC_SCALE_DIM_0),
+                OP_LOGE(nodeName, "The expected scalesDim0 is %lu or %lu in static quant, but got %ld", 
+                h, STATIC_SCALE_DIM_0, scalesDim0), return ge::GRAPH_FAILED);
+            OP_TILING_CHECK((quantMode == static_cast<uint32_t>(QuantModeA5::STATIC_QUANT))
+                && (expandXDesc->GetDataType() == ge::DT_HIFLOAT8) && (scalesDim0 != STATIC_SCALE_DIM_0),
+                OP_LOGE(nodeName, "The expected scalesDim0 is 1 when expandX datatype is hif8 in static quant, but got %ld", 
+                scalesDim0), return ge::GRAPH_FAILED);
+            scalesCol = ONE_DIM_SCALE_COL_NUM;
+            scalesCount = static_cast<uint64_t>(scalesDim0);
+        } else if (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) {
+            OP_TILING_CHECK(scalesDim0 != bs,
+                OP_LOGE(nodeName, "The expected scalesDim0 is %u when scales is not null in non-quant, but got %ld", 
+                bs, scalesDim0), return ge::GRAPH_FAILED);
+        } else {
+            const int64_t scalesDim1 = scalesStorageShape->GetStorageShape().GetDim(1);
+            OP_TILING_CHECK(CheckTwoDimScalesShape(context, nodeName, tilingData, scalesDim0, scalesDim1) != ge::GRAPH_SUCCESS,
+                OP_LOGE(nodeName, "CheckTwoDimScalesShape failed."), return ge::GRAPH_FAILED);
+            scalesCol = static_cast<uint64_t>(scalesDim1);
+            scalesCount = static_cast<uint64_t>(scalesDim0 * scalesDim1);
+        }
     }
+    tilingData.moeDistributeDispatchV2Info.scalesRow = scalesRow;
+    tilingData.moeDistributeDispatchV2Info.scalesCol = scalesCol;
+    tilingData.moeDistributeDispatchV2Info.scalesCount = scalesCount;
+    tilingData.moeDistributeDispatchV2Info.scalesTypeSize = scalesTypeSize;
+
     uint32_t rankNumPerSharedExpert = 0;
     uint32_t epWorldSizeU32 = tilingData.moeDistributeDispatchV2Info.epWorldSize;
     uint32_t maxBs = globalBs / epWorldSizeU32;
@@ -813,12 +1100,26 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
         "xShape's dim1 is %ld, expandX's dim1 is %ld.", xDim1, expandXDim1), return ge::GRAPH_FAILED);
 
     // 校验dynamicScales的维度
-    if (quantMode != NO_SCALES) {
+    if ((quantMode != static_cast<uint32_t>(QuantModeA5::NON_QUANT)) && (quantMode != static_cast<uint32_t>(QuantModeA5::STATIC_QUANT))) {
+        // Dim0
         const gert::StorageShape *dynamicScalesStorageShape = context->GetOutputShape(OUTPUT_DYNAMIC_SCALES_INDEX);
         const int64_t dynamicScalesDim0 = dynamicScalesStorageShape->GetStorageShape().GetDim(0);
         OP_TILING_CHECK(dynamicScalesDim0 < static_cast<int64_t>(A) * tpWorldSize, OP_LOGE(nodeName,
-            "dynamicScales's dim0 should be equal to or greater than A*tpWorldSize, dynamicScales's dim0 is %ld, "
-            "A*tpWorldSize is %ld.", dynamicScalesDim0, A * tpWorldSize), return ge::GRAPH_FAILED);
+            "dynamicScales's dim0 should be equal to or greater than A*tpWorldSize, dynamicScales's dim0=%ld, A*tpWorldSize=%ld.",
+            dynamicScalesDim0, A * tpWorldSize), return ge::GRAPH_FAILED);
+        // Dim1, only for pergroup and mx
+        if (quantMode != static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)) {
+            const uint64_t dynamicScalesDim1 = static_cast<uint64_t>(dynamicScalesStorageShape->GetStorageShape().GetDim(1));
+            OP_TILING_CHECK((quantMode == static_cast<uint32_t>(QuantModeA5::MX_QUANT)) 
+                && (dynamicScalesDim1 != ops::CeilAlign(static_cast<uint64_t>(ops::CeilDiv(h, MX_BLOCK_SIZE)), EVEN_ALIGN)),
+                OP_LOGE(nodeName, "dynamicScales's dim1 should be equal to %lu and even when quantMode=%u, but got %lu.",
+                ops::CeilAlign(static_cast<uint64_t>(ops::CeilDiv(h, MX_BLOCK_SIZE)), EVEN_ALIGN), quantMode, dynamicScalesDim1), 
+                return ge::GRAPH_FAILED);
+            OP_TILING_CHECK((dynamicScalesDim1 != ops::CeilDiv(h, PERGROUP_BLOCK_SIZE)) && 
+                (quantMode == static_cast<uint32_t>(QuantModeA5::PERGROUP_DYNAMIC_QUANT)), 
+                OP_LOGE(nodeName, "dynamicScales's dim1 should be equal to %lu when quantMode=%u, but got %lu.",
+                ops::CeilDiv(h, PERGROUP_BLOCK_SIZE), quantMode, dynamicScalesDim1), return ge::GRAPH_FAILED);
+        }
     }
 
     // 校验assistInfo的维度
@@ -885,30 +1186,31 @@ static ge::graphStatus TilingCheckMoeDistributeDispatch(gert::TilingContext *con
     return ge::GRAPH_SUCCESS;
 }
 
-static uint64_t CalTilingKey(const bool isScales, const uint32_t quantMode,
+static uint64_t CalTilingKey(const gert::TilingContext *context, const bool isScales, const uint32_t quantMode,
     const uint32_t tpWorldSize, const bool isSetCommAlg)
 {
     uint32_t fullMesh = TILINGKEY_NO_FULLMESH;
     bool tp = false;
-    uint32_t tilingKeyQuantMode = TILINGKEY_NO_QUANT;
+    uint32_t tilingKeyQuantMode = quantMode;
     bool scaleMode = false;
-    uint32_t layeredMode = TILINGKEY_TPL_MTE;
-    if (tpWorldSize == MAX_TP_WORLD_SIZE) {
-        tp = true;
-    }
-    if (quantMode == STATIC_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_STATIC_QUANT;
-    } else if (quantMode == DYNAMIC_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_DYNAMIC_QUANT;
-    }
+    uint64_t tilingKey;
+    uint32_t commMode = TILINGKEY_TPL_MTE;
     if (isScales) {
-        scaleMode = true;
+            scaleMode = true;
     }
-    if (isSetCommAlg) {
-        fullMesh = TILINGKEY_ENABLE_FULLMESH;
+    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
+        tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode,
+                                                fullMesh, commMode, TILINGKEY_TPL_A5);
+    } else {
+        if (tpWorldSize == MAX_TP_WORLD_SIZE) {
+            tp = true;
+        }
+        if (isSetCommAlg) {
+            fullMesh = TILINGKEY_ENABLE_FULLMESH;
+        }
+        tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode, 
+                                                fullMesh, commMode, TILINGKEY_TPL_A3);
     }
-    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode,
-                                            fullMesh, layeredMode, TILINGKEY_TPL_A3);
     return tilingKey;
 }
 
@@ -1034,7 +1336,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(nodeName, "tilingData is nullptr."), return ge::GRAPH_FAILED);
     std::string groupEp = "";
     std::string groupTp = "";
-    uint32_t quantMode = NO_SCALES;
+    uint32_t quantMode = static_cast<uint32_t>(QuantModeA5::NON_QUANT);
     bool isScales = false;
     bool isActiveMask = false;
     bool hasElasticInfo = false;
@@ -1066,11 +1368,17 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
     quantMode = tilingData->moeDistributeDispatchV2Info.quantMode;
 
     // 检查quantMode和scales是否匹配
-    OP_TILING_CHECK(quantMode == STATIC_SCALES, OP_LOGE(nodeName, "cannot support static quant now."),
-        return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((isScales && (quantMode == NO_SCALES)) || ((!isScales) && (quantMode == STATIC_SCALES)),
-        OP_LOGE(nodeName, "quant mode and scales not match, isScales is %d, quantMode is %u.",
-        static_cast<int32_t>(isScales), quantMode), return ge::GRAPH_FAILED);
+    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
+        OP_TILING_CHECK(CheckQuantModeAndScales(context, nodeName, isScales, quantMode) != ge::GRAPH_SUCCESS,
+            OP_LOGE(nodeName, "quant mode and scales not match, isScales is %d,quantMode is %u.",
+            static_cast<int32_t>(isScales),quantMode), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK(quantMode == static_cast<uint32_t>(QuantModeA5::STATIC_QUANT), OP_LOGE(nodeName, "cannot support static quant now."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((isScales && (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT))) || ((!isScales) && (quantMode == static_cast<uint32_t>(QuantModeA5::STATIC_QUANT))),
+            OP_LOGE(nodeName, "quant mode and scales not match, isScales is %d, quantMode is %u.",
+            static_cast<int32_t>(isScales), quantMode), return ge::GRAPH_FAILED);
+    }
 
     // 检查输入输出的dim、format、dataType
     OP_TILING_CHECK(
@@ -1098,7 +1406,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
         OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
     uint32_t tpWorldSize = tilingData->moeDistributeDispatchV2Info.tpWorldSize;
     SetHcommCfg(context, tilingData, groupEp, groupTp, tpWorldSize);
-    uint64_t tilingKey = CalTilingKey(isScales, quantMode, tpWorldSize, isSetCommAlg);
+    uint64_t tilingKey = CalTilingKey(context, isScales, quantMode, tpWorldSize, isSetCommAlg);
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
     uint32_t blockDim = 1U;
@@ -1167,7 +1475,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(const gert::
         OP_LOGE(K_INNER_DEBUG, "expertSharedType is null."), return GRAPH_FAILED);
     OP_TILING_CHECK(sharedExpertRankNumPtr == nullptr,
         OP_LOGE(K_INNER_DEBUG, "sharedExpertRankNum is null."), return GRAPH_FAILED);
-    OP_TILING_CHECK(quantModePtr == nullptr || (*quantModePtr != UNQUANT_MODE && *quantModePtr != DYNAMIC_QUANT_MODE),
+    OP_TILING_CHECK(quantModePtr == nullptr || (*quantModePtr != static_cast<uint64_t>(QuantModeA5::NON_QUANT) && *quantModePtr != static_cast<uint64_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)),
         OP_LOGE(K_INNER_DEBUG, "quantMode is invalid."), return GRAPH_FAILED);
     OP_TILING_CHECK(globalBsPtr == nullptr,
         OP_LOGE(K_INNER_DEBUG, "globalBs is null."), return GRAPH_FAILED);
@@ -1282,7 +1590,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckShapeAndSetTiling(const gert:
     int32_t zeroComputeExpertNum = zeroExpertNum + copyExpertNum + constExpertNum;
     OP_TILING_CHECK(k == 0 || k > MAX_K_VALUE_A2 || k > moeExpertNum + zeroComputeExpertNum,
         OP_LOGE(K_INNER_DEBUG, "k is invalid."), return GRAPH_FAILED);
-    OP_TILING_CHECK(*quantModePtr == UNQUANT_MODE && isScales,
+    OP_TILING_CHECK(*quantModePtr == static_cast<uint64_t>(QuantModeA5::NON_QUANT) && isScales,
         OP_LOGE(K_INNER_DEBUG, "scales should be null when quantMode is unQuant."), return GRAPH_FAILED);
 
     bool isActiveMask = (xActiveMaskStorageShape != nullptr);
@@ -1382,18 +1690,18 @@ static uint64_t MoeDistributeDispatchA2CalcTilingKey(const gert::TilingContext *
 {
     bool tp = false;
     bool scaleMode = false;
-    uint32_t layeredMode = TILINGKEY_TPL_MTE;
+    uint32_t commMode = TILINGKEY_TPL_MTE;
 
     if (isLayered) {
-        layeredMode = TILINGKEY_TPL_AICPU;
+        commMode = TILINGKEY_TPL_AICPU;
     }
     const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
     bool isScales = (scalesStorageShape != nullptr);
     if (isScales) {
         scaleMode = true;
     }
-    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, TILINGKEY_NO_QUANT, scaleMode,
-                                            TILINGKEY_NO_FULLMESH, layeredMode, TILINGKEY_TPL_A2);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(tp, TILINGKEY_NO_QUANT, scaleMode, 
+                                            TILINGKEY_NO_FULLMESH, commMode, TILINGKEY_TPL_A2);
     OP_LOGD(K_INNER_DEBUG, "tilingKey=%lu", tilingKey);
 
     return tilingKey;

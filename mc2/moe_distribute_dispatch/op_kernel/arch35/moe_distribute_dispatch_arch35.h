@@ -39,16 +39,19 @@ constexpr float FP8_E4M3_MAX_VALUE = 448.0f;
 constexpr float HIFP8_MAX_VALUE = 32768.0f;
 constexpr float INT8_MAX_VALUE = 127.0f;
 
-constexpr uint32_t UNQUANT_MODE = 0;
-constexpr uint32_t STATIC_QUANT_MODE = 1;
-constexpr uint32_t DYNAMIC_QUANT_MODE = 2;
-constexpr uint32_t MXFP8_E5M2_QUANT_MODE = 3;
-constexpr uint32_t MXFP8_E4M3_QUANT_MODE = 4;
-constexpr uint32_t FP8_E5M2_PERTOKEN_QUANT_MODE = 5;
-constexpr uint32_t FP8_E4M3_PERTOKEN_QUANT_MODE = 6;
-constexpr uint32_t FP8_E5M2_PERTILE_QUANT_MODE = 7;
-constexpr uint32_t FP8_E4M3_PERTILE_QUANT_MODE = 8;
-constexpr uint32_t HIF8_PERTENSOR_QUANT_MODE = 9;
+constexpr uint32_t UNQUANT = 0;
+constexpr uint32_t STATIC_QUANT = 1;
+constexpr uint32_t PERTOKEN_DYNAMIC_QUANT = 2;
+constexpr uint32_t PERGROUP_DYNAMIC_QUANT = 3;
+constexpr uint32_t MX_QUANT = 4;
+
+template <AscendC::HardEvent event>
+__aicore__ inline void SyncFunc()
+{
+    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
+    AscendC::SetFlag<event>(eventID);
+    AscendC::WaitFlag<event>(eventID);
+}
 
 #define TemplateMC2TypeClass \
     typename XType, typename ExpandXOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather
@@ -320,20 +323,19 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitCommAnd
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantInit()
 {
-    if constexpr ((QuantMode == UNQUANT_MODE) && IsSmoothScaleExist) {
+    if constexpr ((QuantMode == UNQUANT) && IsSmoothScaleExist) {
         perTokenMergeSize_ += scaleInBytes_;
         perTokenInSize_ += scaleInBytes_;
         scaleOutBytes_ = scaleInBytes_;
-    } else if constexpr ((QuantMode == MXFP8_E5M2_QUANT_MODE) || (QuantMode == MXFP8_E4M3_QUANT_MODE)) {
+    } else if constexpr (QuantMode == MX_QUANT) {
         perTokenMergeSize_ = Align256(axisH_) * sizeof(ExpandXOutType);
         perTokenInSize_ = Align64(axisH_) * sizeof(XType);
         perTokenMergeSize_ += Align2(Ceil32(axisH_));
         scaleOutBytes_ = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t);
-    } else if constexpr ((QuantMode == DYNAMIC_QUANT_MODE) || (QuantMode == FP8_E5M2_PERTOKEN_QUANT_MODE) ||
-        (QuantMode == FP8_E4M3_PERTOKEN_QUANT_MODE)) {
+    } else if constexpr (QuantMode == PERTOKEN_DYNAMIC_QUANT) {
         perTokenMergeSize_ += sizeof(float);
         scaleOutBytes_ = sizeof(float);
-    } else if constexpr ((QuantMode == FP8_E5M2_PERTILE_QUANT_MODE) || (QuantMode == FP8_E4M3_PERTILE_QUANT_MODE)) {
+    } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
         perTokenMergeSize_ = Align128(axisH_) * sizeof(ExpandXOutType);
         perTokenInSize_ = Align128(axisH_) * sizeof(XType);
         perTokenMergeSize_ += Ceil128(axisH_) * sizeof(float);
@@ -343,7 +345,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantInit()
     perTokenCommSize_ = Align512<uint32_t>(perTokenMergeSize_);
     perRankDataSize_ = COUNT_OFFSET + perTokenCommSize_ * axisMaxBs_ * localExpertNum_;
 
-    if constexpr (QuantMode > 0) {
+    if constexpr (QuantMode > UNQUANT) {
         pipe_->InitBuffer(tokenInQue_, BUFFER_NUM, perTokenInSize_);
         pipe_->InitBuffer(tokenOutQue_, BUFFER_NUM, perTokenMergeSize_);
 
@@ -353,8 +355,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantInit()
         tokenF32LT_ = tmpBuf.Get<float>();
         pipe_->InitBuffer(tmpBuf, tokenB32Size);
         scalesLT_ = tmpBuf.Get<float>();
-        if constexpr ((QuantMode == DYNAMIC_QUANT_MODE) || (QuantMode == FP8_E5M2_PERTOKEN_QUANT_MODE) ||
-            (QuantMode == FP8_E4M3_PERTOKEN_QUANT_MODE)) {
+        if constexpr (QuantMode == PERTOKEN_DYNAMIC_QUANT) {
             pipe_->InitBuffer(tmpBuf, UB_ALIGN);
             rowMaxLT_ = tmpBuf.Get<float>();
         }
@@ -407,7 +408,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantStatic
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
     Cast(tokenF32LT_, inLocal, RoundMode::CAST_NONE, axisH_);
-    if constexpr (QuantMode == STATIC_QUANT_MODE) {
+    if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
         if (scalesCount_ == 1) {
             DataCacheCleanAndInvalid<float, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(scalesGT_);
             float scaleVal = scalesGT_(0);
@@ -426,9 +427,10 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantStatic
         LocalTensor<int32_t> tokenI32LT = tokenF32LT_.ReinterpretCast<int32_t>();
         Cast(tokenI32LT, tokenF32LT_, RoundMode::CAST_RINT, axisH_);
         LocalTensor<half> tokenF16LT = tokenF32LT_.ReinterpretCast<half>();
+        SetDeqScale((half)1.000000e+00f);
         Cast(tokenF16LT, tokenI32LT, RoundMode::CAST_ROUND, axisH_);
         Cast(outLocal, tokenF16LT, RoundMode::CAST_TRUNC, axisH_);
-    } else if constexpr ((QuantMode == HIF8_PERTENSOR_QUANT_MODE)) {
+    } else if constexpr (Std::IsSame<ExpandXOutType, hifloat8_t>::value) {
         DataCacheCleanAndInvalid<float, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(scalesGT_);
         float scaleVal = scalesGT_(0);
         SyncFunc<AscendC::HardEvent::S_V>();
@@ -443,11 +445,11 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynami
 {
     float dynamicScale = 0.0;
     float maxVal = 0.0f;
-    if constexpr (QuantMode == FP8_E5M2_PERTOKEN_QUANT_MODE) {
+    if constexpr (Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
         maxVal = FP8_E5M2_MAX_VALUE;
-    } else if constexpr (QuantMode == FP8_E4M3_PERTOKEN_QUANT_MODE) {
+    } else if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value) {
         maxVal = FP8_E4M3_MAX_VALUE;
-    } else if constexpr (QuantMode == DYNAMIC_QUANT_MODE) {
+    } else if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
         maxVal = INT8_MAX_VALUE;
     }
     Cast(tokenF32LT_, inLocal, RoundMode::CAST_NONE, axisH_);
@@ -466,14 +468,15 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynami
     SyncFunc<AscendC::HardEvent::S_V>();
     Muls(tokenF32LT_, tokenF32LT_, dynamicScale, axisH_);
 
-    if constexpr (QuantMode == DYNAMIC_QUANT_MODE) {
+    if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
         LocalTensor<int32_t> tokenI32LT = tokenF32LT_.ReinterpretCast<int32_t>();
         Cast(tokenI32LT, tokenF32LT_, RoundMode::CAST_RINT, axisH_);
         LocalTensor<half> tokenF16LT = tokenF32LT_.ReinterpretCast<half>();
+        SetDeqScale((half)1.000000e+00f);
         Cast(tokenF16LT, tokenI32LT, RoundMode::CAST_ROUND, axisH_);
         Cast(outLocal, tokenF16LT, RoundMode::CAST_TRUNC, axisH_);
-    } else if constexpr ((QuantMode == FP8_E5M2_PERTOKEN_QUANT_MODE) ||
-        (QuantMode == FP8_E4M3_PERTOKEN_QUANT_MODE)) {
+    } else if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value || 
+        Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
         Cast(outLocal, tokenF32LT_, RoundMode::CAST_RINT, axisH_);
     }
 
@@ -529,14 +532,13 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantProcess(
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
-    if constexpr ((QuantMode == STATIC_QUANT_MODE) || (QuantMode == HIF8_PERTENSOR_QUANT_MODE)) {
+    if constexpr (QuantMode == STATIC_QUANT) {
         QuantStatic(outLocal, inLocal, expertIndex);
-    } else if constexpr ((QuantMode == DYNAMIC_QUANT_MODE) || (QuantMode == FP8_E5M2_PERTOKEN_QUANT_MODE) ||
-        (QuantMode == FP8_E4M3_PERTOKEN_QUANT_MODE)) {
+    } else if constexpr (QuantMode == PERTOKEN_DYNAMIC_QUANT) {
         QuantDynamicPerToken(outLocal, inLocal, expertIndex);
-    } else if constexpr ((QuantMode == MXFP8_E4M3_QUANT_MODE) || (QuantMode == MXFP8_E5M2_QUANT_MODE)) {
+    } else if constexpr (QuantMode == MX_QUANT) {
         QuantDynamicMxFp8(outLocal, inLocal);
-    } else if constexpr ((QuantMode == FP8_E4M3_PERTILE_QUANT_MODE) || (QuantMode == FP8_E5M2_PERTILE_QUANT_MODE)) {
+    } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
         QuantDynamicPerTile(outLocal, inLocal, expertIndex);
     }
 }
@@ -677,12 +679,11 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ProcessToke
             DataCopyPadParams& padParams, DataCopyParams& tokenOutParams, DataCopyParams& scaleInParams,
             uint32_t expertIndex)
 {
-    if constexpr (QuantMode > 0) {
+    if constexpr (QuantMode > UNQUANT) {
         auto tok = tokenInQue_.AllocTensor<XType>();
          // Initialize local tensor with zeros for mx/pertile quantations
         LocalTensor<uint8_t> singleByteTok = tok.template ReinterpretCast<uint8_t>();
-        if constexpr (((QuantMode == MXFP8_E5M2_QUANT_MODE) || (QuantMode == MXFP8_E4M3_QUANT_MODE) ||
-                    (QuantMode == FP8_E5M2_PERTILE_QUANT_MODE) || (QuantMode == FP8_E4M3_PERTILE_QUANT_MODE))) {
+        if constexpr ((QuantMode == MX_QUANT) || (QuantMode == PERGROUP_DYNAMIC_QUANT)) {
             Duplicate(singleByteTok, QUANT_PADDING_VALUE, Align128(axisH_) * sizeof(XType));
         }
         SyncFunc<HardEvent::V_MTE2>();
@@ -972,13 +973,12 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::CopyScalesT
     LocalTensor<ExpandXOutType> &quantTok, int32_t expertIndex)
 {
     DataCopyParams scaleOutParams = {1U, static_cast<uint16_t>(scaleOutBytes_), 0U, 0U};
-    if constexpr (((QuantMode > 0) && (QuantMode != STATIC_QUANT_MODE) && (QuantMode != HIF8_PERTENSOR_QUANT_MODE)) ||
-                  ((QuantMode == 0) && IsSmoothScaleExist)) {
+    if constexpr (((QuantMode > UNQUANT) && (QuantMode != STATIC_QUANT)) ||
+                  ((QuantMode == UNQUANT) && IsSmoothScaleExist)) {
         auto scaleLT = quantTok[Align32<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
-        if constexpr (((QuantMode == MXFP8_E5M2_QUANT_MODE) || (QuantMode == MXFP8_E4M3_QUANT_MODE))) {
+        if constexpr (QuantMode == MX_QUANT) {
             scaleLT = quantTok[Align256<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
-        } else if constexpr (((QuantMode == FP8_E5M2_PERTILE_QUANT_MODE) ||
-                              (QuantMode == FP8_E4M3_PERTILE_QUANT_MODE))) {
+        } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
             scaleLT = quantTok[Align128<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
         }
         DataCopyPad(dynamicScaleGT_[currentTokenIndex * scaleOutBytes_], scaleLT, scaleOutParams);

@@ -64,17 +64,6 @@ constexpr uint32_t HCCL_CMD_ALLGATHER = 6U;
 constexpr uint32_t HCCL_CMD_ALLTOALLV = 8U;
 constexpr uint32_t HCCL_VERSION = 3U;
 
-const uint64_t TILING_KEY_BASE_A5 = 1000000000000000000;
-constexpr uint32_t UNQUANT_MODE = 0U;
-constexpr uint32_t STATIC_QUANT_MODE = 1U;
-constexpr uint32_t DYNAMIC_QUANT_MODE = 2U;
-constexpr uint32_t MXFP8_E5M2_QUANT_MODE = 3U;
-constexpr uint32_t MXFP8_E4M3_QUANT_MODE = 4U;
-constexpr uint32_t FP8_E5M2_PERTOKEN_QUANT_MODE = 5U;
-constexpr uint32_t FP8_E4M3_PERTOKEN_QUANT_MODE = 6U;
-constexpr uint32_t FP8_E5M2_PERTILE_QUANT_MODE = 7U;
-constexpr uint32_t FP8_E4M3_PERTILE_QUANT_MODE = 8U;
-constexpr uint32_t HIF8_PERTENSOR_QUANT_MODE = 9U;
 constexpr uint32_t NUM_0 = 0;
 constexpr uint32_t NUM_1 = 1;
 constexpr uint32_t NUM_10 = 10;
@@ -344,7 +333,7 @@ static ge::graphStatus GetContextAttrs(const gert::TilingContext *context, const
     return ge::GRAPH_SUCCESS;
 }
 
-inline uint32_t CalcRealMode(const gert::TilingContext *context, const char *nodeName)
+inline uint32_t CheckQuantModeAndExpandXType(const gert::TilingContext *context, const char *nodeName)
 {
     auto attrs = context->GetAttrs();
     auto quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_QUANT_MODE_INDEX);
@@ -813,41 +802,27 @@ static ge::graphStatus SetCommTiling(const gert::TilingContext *context,
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus GenTilingKey(gert::TilingContext *context, uint32_t realMode, bool isScales)
+static ge::graphStatus GenTilingKey(gert::TilingContext *context, uint32_t quantMode, bool isScales)
 {
     bool tp = false; 
-    uint32_t tilingKeyQuantMode = TILINGKEY_NO_QUANT; 
+    uint32_t tilingKeyQuantMode = quantMode; 
     bool scaleMode = false;  
     uint32_t fullMesh = TILINGKEY_NO_FULLMESH;
-    uint32_t layeredMode = TILINGKEY_TPL_MTE; 
+    uint32_t commMode = TILINGKEY_TPL_CCU; 
     
-    if (realMode == STATIC_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_STATIC_QUANT;
-    } else if (realMode == DYNAMIC_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_DYNAMIC_QUANT;
-    } else if (realMode == MXFP8_E5M2_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_MXFP8_E5M2_QUANT;
-    } else if (realMode == MXFP8_E4M3_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_MXFP8_E4M3_QUANT;
-    } else if (realMode == FP8_E5M2_PERTOKEN_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_FP8_E5M2_PERTOKEN_QUANT;
-    } else if (realMode == FP8_E4M3_PERTOKEN_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_FP8_E4M3_PERTOKEN_QUANT;
-    } else if (realMode == FP8_E5M2_PERTILE_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_FP8_E5M2_PERTILE_QUANT;
-    } else if (realMode == FP8_E4M3_PERTILE_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_FP8_E4M3_PERTILE_QUANT;
-    } else if (realMode == HIF8_PERTENSOR_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_HIF8_PERTENSOR_QUANT;
-    } 
     if (isScales) {
         scaleMode = true;
     }
     uint64_t tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode, 
-                                            fullMesh, layeredMode, TILINGKEY_TPL_A5);
+                                            fullMesh, commMode, TILINGKEY_TPL_A5);
     const char *nodeName = context->GetNodeName();
     // Only tpWorldSize 1 is supported currently
     OP_LOGD(nodeName, "tilingKey=%lu", tilingKey);
+    OP_LOGD(nodeName, "tp=%d", tp);
+    OP_LOGD(nodeName, "tilingKeyQuantMode=%u", tilingKeyQuantMode);
+    OP_LOGD(nodeName, "scaleMode=%d", scaleMode);
+    OP_LOGD(nodeName, "fullMesh=%u", fullMesh);
+    OP_LOGD(nodeName, "commMode=%u", commMode);
     context->SetTilingKey(tilingKey);
     return ge::GRAPH_SUCCESS;
 }
@@ -913,9 +888,9 @@ ge::graphStatus MoeDistributeDispatchTilingImpl(gert::TilingContext* context, ui
         OP_LOGE(nodeName, "Get attr and set tiling data failed."), return ge::GRAPH_FAILED);
     // Calc real quantMode
     uint32_t quantMode = tilingData->moeDistributeDispatchV2Info.quantMode;
-    uint32_t realMode = CalcRealMode(context, nodeName);
+    uint32_t realMode = CheckQuantModeAndExpandXType(context, nodeName);
     OP_TILING_CHECK(realMode == static_cast<uint32_t>(RealModeA5::INVALID_MODE), 
-        OP_LOGE(nodeName, "CalcRealMode failed."), return ge::GRAPH_FAILED);
+        OP_LOGE(nodeName, "CheckQuantModeAndExpandXType failed."), return ge::GRAPH_FAILED);
     // X active mask
     const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(X_ACTIVE_MASK_INDEX);
     bool isTokenMask = (xActiveMaskStorageShape != nullptr);
@@ -954,7 +929,7 @@ ge::graphStatus MoeDistributeDispatchTilingImpl(gert::TilingContext* context, ui
     OP_TILING_CHECK(SetWorkSpace(context, *tilingData, localMoeExpertNum) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetWorkSpace failed."), return ge::GRAPH_FAILED);
     // Tiling Key
-    OP_TILING_CHECK(GenTilingKey(context, realMode, isScales) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(GenTilingKey(context, quantMode, isScales) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Fail to get tiling key."), return ge::GRAPH_FAILED);
     // Platform
     SetPlatformInfo(context, *tilingData, nodeName);

@@ -228,7 +228,7 @@ TEST_F(moe_distribute_dispatch_v2_test, moe_distribute_dispatch_v2_test_20000010
         GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, 
         GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
         GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM) {
-            moe_distribute_dispatch_v2<false, TILINGKEY_DYNAMIC_QUANT, false, TILINGKEY_NO_FULLMESH, TILINGKEY_TPL_MTE, TILINGKEY_TPL_A3>(
+            moe_distribute_dispatch_v2<false, TILINGKEY_PERTOKEN_QUANT, false, TILINGKEY_NO_FULLMESH, TILINGKEY_TPL_MTE, TILINGKEY_TPL_A3>(
                 x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo, expandXOut, 
                 dynamicScalesOut, assistInfoOut, expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, 
                 expandScalesOut, workspaceGM, tilingGM);
@@ -304,7 +304,7 @@ TEST_F(moe_distribute_dispatch_v2_test, moe_distribute_dispatch_v2_test_20000010
         GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, 
         GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
         GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM) {
-            moe_distribute_dispatch_v2<false, TILINGKEY_DYNAMIC_QUANT, true, TILINGKEY_NO_FULLMESH, TILINGKEY_TPL_MTE, TILINGKEY_TPL_A3>(
+            moe_distribute_dispatch_v2<false, TILINGKEY_PERTOKEN_QUANT, true, TILINGKEY_NO_FULLMESH, TILINGKEY_TPL_MTE, TILINGKEY_TPL_A3>(
                 x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo, expandXOut, 
                 dynamicScalesOut, assistInfoOut, expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, 
                 expandScalesOut, workspaceGM, tilingGM);

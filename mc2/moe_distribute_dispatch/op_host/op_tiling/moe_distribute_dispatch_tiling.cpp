@@ -415,7 +415,7 @@ static uint64_t CalTilingKey(const bool isScales, const uint32_t quantMode, cons
     if (quantMode == STATIC_QUANT_MODE) {
         tilingKeyQuantMode = TILINGKEY_STATIC_QUANT;
     } else if (quantMode == DYNAMIC_QUANT_MODE) {
-        tilingKeyQuantMode = TILINGKEY_DYNAMIC_QUANT;
+        tilingKeyQuantMode = TILINGKEY_PERTOKEN_QUANT;
     }
     if (isScales) {
         scaleMode = true;
