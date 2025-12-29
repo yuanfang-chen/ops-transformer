@@ -10,7 +10,7 @@
 
 /*!
  * \file test_aclnn_mla_prolog_v2_nq_bsh.cpp
- * \brief
+ * \brief 该场景A2、A3、A5均支持
  */
 
 #include <iostream>
