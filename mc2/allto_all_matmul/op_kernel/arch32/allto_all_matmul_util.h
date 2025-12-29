@@ -216,7 +216,7 @@ public:
             CopyGmToUbufAlignB16(copyTensor, gm_src, actualCopyTokenPerTime, k * sizeof(T), 0, 0);
             SetFlag<HardEvent::MTE2_MTE3>(event_id);
             WaitFlag<HardEvent::MTE2_MTE3>(event_id);
-            CopyUbufToGmAlignB16(gm_dst, copyTensor, actualCopyTokenPerTime, k * sizeof(T), 0, k * sizeof(T));
+            CopyUbufToGmAlignB16(gm_dst, copyTensor, actualCopyTokenPerTime, k * sizeof(T), 0, (rank_size - 1) * k * sizeof(T));
             gm_dst += mid_output_k_size * actualCopyTokenPerTime;
             gm_src += k * actualCopyTokenPerTime;
             SetFlag<HardEvent::MTE3_MTE2>(event_id);
