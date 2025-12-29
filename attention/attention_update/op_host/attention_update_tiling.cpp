@@ -33,18 +33,11 @@ constexpr uint64_t OUTPUT_INDEX = 0;
 constexpr uint64_t OUTPUT_LSE_M_INDEX = 1;
 
 constexpr uint64_t ALL_TO_SP_MULTIPLIER = 2UL;
-constexpr uint64_t GO_FLAG_FLOAT32 = 1UL;
-constexpr uint64_t GO_FLAG_FLOAT16 = 2UL;
-constexpr uint64_t GO_FLAG_BFLOAT16 = 3UL;
-constexpr uint64_t NUM_10 = 10UL;
 constexpr uint64_t NUM_2 = 2UL;
 constexpr uint64_t TILING_KEY_EMPTY = 10000UL;
 constexpr uint64_t TILING_KEY_INIT_VALUE = 20000UL;
 
 constexpr uint64_t DOUBLE_BUFFER_NUM = 2UL;
-constexpr uint64_t UB_ALIGN_SIZE = 32UL;
-constexpr uint64_t MAX_UB_FACTOR = 4UL;
-constexpr uint64_t RESERVED_UB_SIZE = 256;
 constexpr uint64_t SYS_WORKSPACE_SIZE = static_cast<uint64_t>(16 * 1024 * 1024);
 
 bool AttentionUpdateTiling::IsCapable()
@@ -217,6 +210,12 @@ ge::graphStatus AttentionUpdateTiling::GetShapeAttrsInfo()
     const uint64_t *spPtr = attrs->GetAttrPointer<uint64_t>(ATTR_SP_INDEX);
     OP_CHECK_IF(spPtr == nullptr, OP_LOGE("AttentionUpdate", "spPtr is null"), return ge::GRAPH_FAILED);
     sp_ = *spPtr;
+
+    uint32_t allTensorCount = context_->GetComputeNodeInputNum();
+    OP_CHECK_IF(allTensorCount != sp_ * NUM_2,
+                OP_LOGE("AttentionUpdate", "input num is not equal with sp * 2. input num is %u, but sp is %lu.",
+                        allTensorCount, sp_),
+                return ge::GRAPH_FAILED);
 
     for (uint64_t i = 0; i < NUM_2 * sp_; i++) {
         OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(i));
