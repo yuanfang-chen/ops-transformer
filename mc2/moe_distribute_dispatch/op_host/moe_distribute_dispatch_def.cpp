@@ -79,9 +79,7 @@ public:
         .FormatList({ge::FORMAT_ND});
     this->Output("expand_scales")
         .ParamType(REQUIRED)
-        .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-        ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-        ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32})
+        .DataTypeList({ge::DT_FLOAT})
         .FormatList({ge::FORMAT_ND});
 
     this->Attr("group_ep").AttrType(REQUIRED).String();
