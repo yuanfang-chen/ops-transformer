@@ -214,7 +214,7 @@ __aicore__ inline void GMM_WQ_A16W4_MSD_CUBE_SERVICE_CLASS::InitMatDuceL0()
     c1c2Diag.SetGlobalBuffer((__gm__ half *)(C1C2_EYE_DIAG));
 // diag在gm上，需要告知oom框架diag的地址
 #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
-    AscendC::OOMCheckAddrRange((__gm__ uint8_t *)(C1_EYE_DIAG), 512);
+    AscendC::OOMCheckAddrRange((__gm__ uint8_t *)(C1C2_EYE_DIAG), 512);
 #endif
 
     DataCopyParams dmaParams;
@@ -280,7 +280,7 @@ __aicore__ inline void GMM_WQ_A16W4_MSD_CUBE_SERVICE_CLASS::ComputeC2S32ToL1(
     DataCopyCO12DstParams params;
     params.mSize = curOffsetParam.mL1Size;
     params.nSize = curOffsetParam.nL1Size;
-    params.dstStride = CeilAlign(params.mSize, (uint16_t)BLOCK_CUBE);  // todo cf16 m要不要对齐到32 ？？？
+    params.dstStride = CeilAlign(params.mSize, (uint16_t)BLOCK_CUBE);
     params.srcStride = params.dstStride;
     params.quantPre = QuantMode_t::DEQF16;
     params.reluPre = 0;
@@ -455,7 +455,7 @@ __aicore__ inline void GMM_WQ_A16W4_MSD_CUBE_SERVICE_CLASS::MmadC1F32(
     mmadParams.n = curOffsetParam.nL1Size;
     mmadParams.k = kL0RealSize;
     mmadParams.cmatrixInitVal = false;
-    // dato的乘法 将s32的l0c变fp32，当前后移到vec处理，如果cube实现，需要对datoMatrixFp16l0a_和datoMatrixFp16l0a_执行mmad并累加
+    // dato的乘法 将s32的l0c变fp32，当前后移到vec处理，如果cube实现，需要对datoMatrixFp16l0a_和datoMatrixFp16l0b_执行mmad并累加
     Mmad(s32l0c_[(loopL0cIdx_ % L0C_BUF_NUM) * L0C_4BUFF_OFFSET],
          s8l0a_[(loopL0abIdx_ % L0AB_BUF_NUM) * L0AB_S8_4BUFF_OFFSET],
          s8l0b_[(loopL0abIdx_ % L0AB_BUF_NUM) * L0AB_S8_4BUFF_OFFSET], datoBiasBT_, mmadParams);
