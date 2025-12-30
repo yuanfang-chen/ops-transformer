@@ -972,6 +972,7 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::ProcessVec2
             }
         }
     }
+    CrossCoreSetFlag<SYNC_MODE, PIPE_V>(VC_MM2RES_EVENT[runInfo.taskIdMod2]);
     if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
         if (unlikely(runInfo.s2LoopCount == 0)) {
             LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
@@ -988,7 +989,6 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::ProcessVec2
         }
     }
     this->stage2OutQue[0].template FreeTensor(vec2ResUb);
-    CrossCoreSetFlag<SYNC_MODE, PIPE_V>(VC_MM2RES_EVENT[runInfo.taskIdMod2]);
 }
 
 ANTIQUANT_TEMPLATES_DEF_NO_DEFAULT
@@ -1182,7 +1182,8 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::PostQuant(C
     uint32_t gRowCount = constInfo.isGqa ? runInfo.vec2S1RealSize : 1U;  // s1>1, bn1分核
     if (constInfo.isPostQuantPerChnl) {
         uint64_t perChannelQuantGQAOffset = runInfo.n2oIdx * constInfo.gDv + runInfo.vec2S1BaseSize * vec2S1Idx * constInfo.dSizeV +
-                                            constInfo.subBlockIdx * runInfo.firstHalfS1RealSize * constInfo.dSizeV;
+                                            constInfo.subBlockIdx * runInfo.firstHalfS1RealSize * constInfo.dSizeV +
+                                            runInfo.goIdx * constInfo.s1BaseSize * constInfo.dSizeV;
         uint64_t perChannelQuantOffset = constInfo.isGqa ?
                                             perChannelQuantGQAOffset :
                                             runInfo.n2oIdx * constInfo.gDv + runInfo.goIdx * constInfo.dSizeV;
