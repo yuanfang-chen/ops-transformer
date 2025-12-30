@@ -669,7 +669,7 @@ __aicore__ inline void AntiquantProcessorBaseAPI<ANTIQUANT_TEMPLATE_ARGS, ANTIQU
     dataCopyParams.srcStride = 1;
     dataCopyParams.dstStride = dstStep - dealRowCount;
     if constexpr (PAGE_ATTENTION) {
-        dataCopyParams.srcStride = taskParam.paKvShapeType == static_cast<uint32_t>(KvCacheLayout::KV_CACHE_NZ) ? 0 : 1;
+        dataCopyParams.srcStride = taskParam.isKvCacheNz ? (dealRowCount % 2) : 1; // 对齐后的地址偏移
     }
 
     DataCopy(antiqResScm[outOffset], antiqResUb, dataCopyParams);

@@ -57,7 +57,7 @@ __simd_vf__ void AntiquantVFImplW8Nz(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_T* 
   uint32_t rowBaseSize = 8; // 8行
   uint32_t colBaseSize = 16; // 16列
   uint32_t dealBaseNum = 128; // 128个元素
-  uint32_t colDstStride = dealRowCount * colBaseSize;
+  uint32_t colDstStride = (dealRowCount + (dealRowCount % 2)) * colBaseSize; // 2行对齐
   uint32_t colSrcStride = (dealRowCount * colBaseSize + 31) / 32 * 32; // 32B对齐
   const uint16_t colLoopCnt = static_cast<uint16_t>(baseSize / colBaseSize);
   const uint16_t rowLoopCnt = static_cast<uint16_t>((dealRowCount + rowBaseSize - 1) / rowBaseSize); // 8行对齐
@@ -125,7 +125,7 @@ __simd_vf__ void AntiquantVFImplFp8Nz(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_T*
   uint32_t rowBaseSize = 8; // 8行
   uint32_t colBaseSize = 16; // 16列
   uint32_t dealBaseNum = 128; // 128个元素
-  uint32_t colDstStride = dealRowCount * colBaseSize;
+  uint32_t colDstStride = (dealRowCount + (dealRowCount % 2)) * colBaseSize; // 2行对齐
   uint32_t colSrcStride = (dealRowCount * colBaseSize + 31) / 32 * 32; // 32B对齐
   const uint16_t colLoopCnt = static_cast<uint16_t>(baseSize / colBaseSize);
   const uint16_t rowLoopCnt = static_cast<uint16_t>((dealRowCount + rowBaseSize - 1) / rowBaseSize);
@@ -179,7 +179,7 @@ __simd_vf__ void AntiquantVFImplW8PerTokenNz(__ubuf__ uint8_t* ubSrcAddr, __ubuf
   const uint32_t doubleRowBaseSize = 16; // 每16行交替，防止bank冲突
 
   const uint32_t rowStride = doubleRowBaseSize * colBaseSize; 
-  const uint32_t colDstStride = dealRowCount * colBaseSize;
+  const uint32_t colDstStride = (dealRowCount + (dealRowCount % 2)) * colBaseSize; // 2行对齐
   const uint32_t colSrcStride = (dealRowCount * colBaseSize + 31) >> 5U << 5U; // 32B对齐
   const uint16_t colLoopCnt = static_cast<uint16_t>(baseSize / colBaseSize);
   const uint16_t rowLoopCnt = static_cast<uint16_t>((dealRowCount + doubleRowBaseSize - 1) / doubleRowBaseSize); // 16行对齐

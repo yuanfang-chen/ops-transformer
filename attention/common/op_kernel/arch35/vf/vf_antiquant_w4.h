@@ -65,7 +65,7 @@ __aicore__ inline void AntiquantVFImplW4PerTokenGroupNz(LocalTensor<KV_T>& antiq
     const uint32_t rowScaleStride = doubleRowBaseSize;
     const uint32_t rowDstStride = doubleRowBaseSize * colBaseSize;
     const uint32_t rowSrcStride = doubleRowBaseSize * colBaseSize / 2;
-    const uint32_t colDstStride = dealRowCount * colBaseSize;
+    const uint32_t colDstStride = (dealRowCount + (dealRowCount % 2)) * colBaseSize; // 2行对齐
     const uint32_t colSrcStride = (dealRowCount * colBaseSize / 2 + 31) / 32 * 32; // 32B对齐
     const uint16_t innerLoopCnt = 2;//D方向，每个group内部的VF基本块循环次数（=2）
     const uint16_t colLoopCnt = static_cast<uint16_t>(baseSize /(colBaseSize*innerLoopCnt));
@@ -127,7 +127,7 @@ __simd_vf__ void AntiquantVFImplW4Nz(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_T* 
   uint32_t rowBaseSize = 8; // 8行
   uint32_t colBaseSize = 16; // 16列
   uint32_t dealBaseNum = 128; // 128个元素
-  uint32_t colDstStride = dealRowCount * colBaseSize;
+  uint32_t colDstStride = (dealRowCount + (dealRowCount % 2)) * colBaseSize; // 2行对齐
   uint32_t colSrcStride = (dealRowCount * 8 + 31) / 32 * 32; // 32B对齐
   const uint16_t colLoopCnt = static_cast<uint16_t>(baseSize / colBaseSize);
   const uint16_t rowLoopCnt = static_cast<uint16_t>((dealRowCount + rowBaseSize - 1) / rowBaseSize);
@@ -186,7 +186,7 @@ __simd_vf__ void AntiquantVFImplW4PerTokenNz(__ubuf__ uint8_t* ubSrcAddr, __ubuf
 
   const uint32_t rowDstStride = doubleRowBaseSize * colBaseSize;
   const uint32_t rowSrcStride = doubleRowBaseSize * colBaseSize >> 1U;
-  const uint32_t colDstStride = dealRowCount * colBaseSize;
+  const uint32_t colDstStride = (dealRowCount + (dealRowCount % 2)) * colBaseSize; // 2行对齐
   const uint32_t colSrcStride = (((dealRowCount * colBaseSize) >> 1U) + 31) >> 5U << 5U; // 32B对齐
   const uint16_t colLoopCnt = static_cast<uint16_t>(baseSize / colBaseSize);
   const uint16_t rowLoopCnt = static_cast<uint16_t>((dealRowCount + doubleRowBaseSize - 1) / doubleRowBaseSize); // 16行对齐
