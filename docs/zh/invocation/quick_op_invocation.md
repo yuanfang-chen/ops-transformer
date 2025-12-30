@@ -130,7 +130,7 @@
     ```
     ├── cann-${soc_name}-ops-transformer-static_${cann_version}_linux-${arch}
     │   ├── lib64
-    │   │   ├── libcann-transformer-static.a               # 静态库文件
+    │   │   ├── libcann_transformer_static.a               # 静态库文件
     │   └── include
     |       ├── ...                                        # aclnn接口头文件
     ```
@@ -154,6 +154,8 @@
 通过项目根目录build.sh执行算子和UT用例，验证项目功能是否正常，build参数参见[build参数说明](../context/build.md)。目前算子支持API方式（aclnn接口）和图模式调用，**推荐aclnn调用**。
 
 - **执行算子样例**
+
+    > **说明**：Ascend 950PR/Ascend 950DT产品使用仿真执行算子样例，请见[仿真指导](../debug/op_debug_prof.md#方式二针对ascend-950pr)。
   
     - 完成自定义算子包安装后，执行如下命令：
         ```bash
