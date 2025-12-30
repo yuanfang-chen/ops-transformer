@@ -116,7 +116,7 @@ TEST_F(AllGatherMatmulInferShapeTest, is_gather_out_false) {
     };
 
     std::vector<std::vector<int64_t>> expectOutputShape = {{65536, 3904}};
-    ExecuteTestCase(infershapeContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectOutputShape);
+    Mc2ExecuteTestCase(infershapeContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 TEST_F(AllGatherMatmulInferShapeTest, infer_datatype) {

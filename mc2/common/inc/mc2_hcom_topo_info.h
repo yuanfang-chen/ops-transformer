@@ -18,7 +18,10 @@
 
 #include <memory>
 #include "hccl/hcom.h"
+
+#ifdef BUILD_OPEN_PROJECT
 #include "hccl/hccl_rank_graph.h"
+#endif
 
 static constexpr uint32_t COMM_ALG_DEFAULT = 0U;
 static constexpr uint32_t COMM_MESH = 0b1U;
@@ -40,7 +43,9 @@ private:
     HcclResult CallHcomGetCommHandleByGroup(const char *group, HcclComm *commHandle) const;
     HcclResult CallCommGetCCLBufSizeCfg(HcclComm comm, uint64_t *cclBufferSize) const;
     HcclResult CallHcomGetRankSizeEx(const char *group, uint32_t *ranksize, uint32_t flag) const;
+#ifdef BUILD_OPEN_PROJECT
     HcclResult CallHcomGetL0TopoTypeEx(const char *group, CommTopo *topoType, uint32_t flag) const;
+#endif
 
     void *handle_ = nullptr;
     bool isNewHcclLib = true;
@@ -48,12 +53,16 @@ private:
     using FuncGetHandle = HcclResult (*)(const char *, HcclComm *);
     using FuncGetCclBufferSize = HcclResult (*)(HcclComm, uint64_t *);
     using FuncGetRankSizeEx = HcclResult (*)(const char *group, uint32_t *rankSize, uint32_t flag);
+#ifdef BUILD_OPEN_PROJECT
     using FuncGetL0TopoTypeEx = HcclResult (*)(const char *group, CommTopo *topoType, uint32_t flag);
+#endif
     void *hcclHandle_ = nullptr;
     FuncGetHandle getCommHandle_ = nullptr;
     FuncGetCclBufferSize getCclBufferSize_ = nullptr;
     FuncGetRankSizeEx getRankSizeEx_ = nullptr;
+#ifdef BUILD_OPEN_PROJECT
     FuncGetL0TopoTypeEx getL0TopoTypeEx_ = nullptr;
+#endif
 };
 }  // namespace Mc2Hcom
 #endif

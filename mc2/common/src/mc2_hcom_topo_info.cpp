@@ -66,6 +66,7 @@ MC2HcomTopology::MC2HcomTopology(const char *libPath)
         return;
     }
 
+#ifdef BUILD_OPEN_PROJECT
     getCommHandle_ = GetHcclLibFunc<FuncGetHandle>(handle_, HCOM_GET_COMM_FUNC_NAME);
     getCclBufferSize_ = GetHcclLibFunc<FuncGetCclBufferSize>(handle_, COMM_GET_CCL_BUFFER_SIZE_NAME);
     getRankSizeEx_ = GetHcclLibFunc<FuncGetRankSizeEx>(handle_, HCOM_GET_RANK_SIZE_EX);
@@ -79,6 +80,18 @@ MC2HcomTopology::MC2HcomTopology(const char *libPath)
         getL0TopoTypeEx_ = nullptr;
         return;
     }
+#else
+    getCommHandle_ = GetHcclLibFunc<FuncGetHandle>(handle_, HCOM_GET_COMM_FUNC_NAME);
+    getCclBufferSize_ = GetHcclLibFunc<FuncGetCclBufferSize>(handle_, COMM_GET_CCL_BUFFER_SIZE_NAME);
+    getRankSizeEx_ = GetHcclLibFunc<FuncGetRankSizeEx>(handle_, HCOM_GET_RANK_SIZE_EX);
+    if (getCommHandle_ == nullptr || getCclBufferSize_ == nullptr || getRankSizeEx_ == nullptr) {
+        OP_LOGE("", "Lib load new topo functions failed.");
+        getCommHandle_ = nullptr;
+        getCclBufferSize_ = nullptr;
+        getRankSizeEx_ = nullptr;
+        return;
+    }
+#endif
 
     OP_LOGI("", "Init MC2HcomTopoLogy Success.");
 }
@@ -117,6 +130,7 @@ HcclResult MC2HcomTopology::CallHcomGetRankSizeEx(const char *group, uint32_t *r
     return static_cast<HcclResult>(getRankSizeEx_(group, ranksize, flag));
 }
 
+#ifdef BUILD_OPEN_PROJECT
 HcclResult MC2HcomTopology::CallHcomGetL0TopoTypeEx(const char *group, CommTopo *topoType, uint32_t flag) const
 {
     if (getL0TopoTypeEx_ == nullptr) {
@@ -125,6 +139,7 @@ HcclResult MC2HcomTopology::CallHcomGetL0TopoTypeEx(const char *group, CommTopo 
     }
     return static_cast<HcclResult>(getL0TopoTypeEx_(group, topoType, flag));
 }
+#endif
 
 HcclResult MC2HcomTopology::CommGetCclBufferSizeByGroup(const char *group, uint64_t *cclBufferSize, HcclComm *hcclComm)
 {
