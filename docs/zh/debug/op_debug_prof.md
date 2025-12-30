@@ -42,7 +42,7 @@
 
 1. 前提条件。
 
-   完成算子开发和编译后，假设采用aclnn接口方式调用，生成的算子可执行文件（test_aclnn_add_example）所在目录为本项目`examples/add_example/examples/build/bin/`。
+   完成算子开发和编译后，假设采用aclnn接口方式调用，生成的算子可执行文件（test_aclnn_add_example）所在目录为本项目`build/`。
 
 2. 采集性能数据。
 
@@ -51,7 +51,7 @@
    ```bash
    msprof op ./test_aclnn_add_example
    ```
-   采集结果在本项目`examples/add_example/examples/build/bin/OPPROF_*`目录，采集完成后打印如下信息：
+   采集结果在本项目`build/OPPROF*`目录，采集完成后打印如下信息：
    
     ``` text
     Op Name: AddExample_a1532827238e1555db7b997c7bce2928_high_performance_1
