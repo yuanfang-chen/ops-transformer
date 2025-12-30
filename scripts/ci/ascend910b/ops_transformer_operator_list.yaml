@@ -47,6 +47,8 @@ operator_group_6:
   - recurrent_gated_delta_rule
   - ring_attention_update
   - sparse_lightning_indexer_grad_kl_loss
+  - fused_floyd_attention
+  - fused_floyd_attention_grad
   - attention_update
   - kv_quant_sparse_flash_attention
   - moe_token_permute_with_routing_map
