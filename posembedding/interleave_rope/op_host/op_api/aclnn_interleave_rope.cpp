@@ -12,7 +12,6 @@
 #include "opdev/make_op_executor.h"
 #include "opdev/op_dfx.h"
 #include "opdev/op_executor.h"
-#include "common/op_api_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "posembedding/rotary_position_embedding/op_host/op_api/aclnn_rotary_position_embedding.h"
 
@@ -25,8 +24,8 @@ extern "C" {
 constexpr int64_t HALF_INTERLEAVE_MODE = 3;
 
 aclnnStatus aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(
-    const aclTensor* x, const aclTensor* cos, const aclTensor* sin, int64_t mode, aclTensor* out,
-    uint64_t* workspaceSize, aclOpExecutor** executor);
+    const aclTensor* x, const aclTensor* cos, const aclTensor* sin, const aclTensor* rotate, int64_t mode,
+    aclTensor* out, uint64_t* workspaceSize, aclOpExecutor** executor);
 aclnnStatus aclnnInnerRotaryPositionEmbedding(
     void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream);
 aclnnStatus aclnnInnerInterleaveRopeGetWorkspaceSize(
@@ -41,8 +40,9 @@ aclnnStatus aclnnInterleaveRopeGetWorkspaceSize(
 {
     bool useRotaryPositionEmbedding = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95;
     if (useRotaryPositionEmbedding) {
+        const aclTensor* defaultRotate = nullptr;
         return aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(
-            x, cos, sin, HALF_INTERLEAVE_MODE, out, workspaceSize, executor);
+            x, cos, sin, defaultRotate, HALF_INTERLEAVE_MODE, out, workspaceSize, executor);
     } else {
         return aclnnInnerInterleaveRopeGetWorkspaceSize(x, cos, sin, out, workspaceSize, executor);
     }
