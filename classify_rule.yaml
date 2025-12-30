@@ -206,15 +206,6 @@ transformer-5@ops-transformer:
                 - ops/ops-transformer/attention/common/op_kernel/FixpipeOut.h
                 - ops/ops-transformer/attention/incre_flash_attention/op_kernel/arch32/incre_flash_attention_preload_mla.h
                 - ops/ops-transformer/attention/incre_flash_attention/op_kernel/arch32/ifa_service_matmul_full_quant.h
-                - ops/ops-transformer/common/include/common
-                - ops/ops-transformer/common/include/err
-                - ops/ops-transformer/common/include/external
-                - ops/ops-transformer/common/include/fallback
-                - ops/ops-transformer/common/include/kernel
-                - ops/ops-transformer/common/include/tiling_base
-                - ops/ops-transformer/common/include/tiling_sink
-                - ops/ops-transformer/common/src
-                - ops/ops-transformer/common/stub
             opensource_style: null  
             kernel_style: null  
         unrelease:
