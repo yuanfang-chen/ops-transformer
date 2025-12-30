@@ -16,6 +16,7 @@
 #ifndef ASCENDC_ATTENTION_UPDATE_DECODE_UPDATE_H_
 #define ASCENDC_ATTENTION_UPDATE_DECODE_UPDATE_H_
 
+#include <limits>
 #include "kernel_operator.h"
 #include "kernel_utils.h"
 #include "kernel_tiling/kernel_tiling.h"
@@ -34,8 +35,8 @@ static constexpr uint32_t NUM32 = 32;
 static constexpr uint32_t NUM64 = 64;
 static constexpr uint32_t NUM255 = 255;
 static constexpr uint32_t NUM256 = 256;
-static constexpr float POS_INF = 3e+99;
-static constexpr float NEG_INF = -3e+99;
+static constexpr float POS_INF = std::numeric_limits<float>::infinity();
+static constexpr float NEG_INF = -std::numeric_limits<float>::infinity();
 static constexpr uint32_t MAX_UB_SIZE = 188 * 1024; //  double buffer, 每块94KB共188KB
 static const uint16_t ALIGNED_TO_8 = 8;
 static const int32_t ALIGNED_TO_2 = 2;
