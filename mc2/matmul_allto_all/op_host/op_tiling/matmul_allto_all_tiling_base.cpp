@@ -77,16 +77,6 @@ ge::graphStatus MatmulAllToAllTilingBase::GetWorkspaceSize()
 }
 
 /**
- * @brief tilingkey在子目录中实现，这里返回0
- *
- * @return 0
- */
-uint64_t MatmulAllToAllTilingBase::GetTilingKey() const
-{
-    return 0;
-}
-
-/**
  * @brief 进行通算切分:使用公式化tiling的方式，当前阶段公式化tiling只是个预估，需要针对alltoall的场景进行细化分析
  *
  * @return ge::graphStatus

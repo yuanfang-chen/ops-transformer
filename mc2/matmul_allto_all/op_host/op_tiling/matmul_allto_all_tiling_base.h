@@ -36,7 +36,7 @@ public:
     ~MatmulAllToAllTilingBase() override = default;
 
 protected:
-    uint64_t GetTilingKey() const override;
+    uint64_t GetTilingKey() const override = 0;
     ge::graphStatus GetPlatformInfo() override;
     ge::graphStatus GetWorkspaceSize() override;
 
