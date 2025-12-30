@@ -225,5 +225,7 @@ AllGatherMatmulTilingV2::AllGatherMatmulTilingV2(gert::TilingContext* context)
     : AllGatherMatmulTilingBase(context), allGatherMatmulTilingDataV2_(&allGatherMatmulTilingDataV2Self_)
 {
 }
-
+//注册Tiling类
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(AllGatherMatmulV2, AllGatherMatmulTilingV2, \
+                                        static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 0);
 }  // namespace optiling

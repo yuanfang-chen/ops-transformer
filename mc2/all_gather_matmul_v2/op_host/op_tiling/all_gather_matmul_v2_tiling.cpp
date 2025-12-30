@@ -14,7 +14,7 @@
  */
 
 #include "all_gather_matmul_tiling_v2.h"
-#include "all_gather_quant_bmm_tiling.h"
+#include "arch35/all_gather_quant_bmm_tiling.h"
 #include "mc2_log.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "graph/utils/type_utils.h"
@@ -26,9 +26,8 @@ using namespace ge;
 
 namespace optiling
 {
-REGISTER_OPS_TILING_TEMPLATE(AllGatherMatmulV2, AllGatherMatmulTilingV2, 0);
-REGISTER_OPS_TILING_TEMPLATE(AllGatherMatmulV2, AllGatherQuantBmmTiling, 1);
-
+ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context);
+ge::graphStatus TilingParseForAllGatherMatmulV2(gert::TilingParseContext* context);
 constexpr uint32_t ATTR_COMMMODE = 11;
 
 ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
@@ -47,7 +46,7 @@ ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
             return AllGatherMatmulTilingAIVModeFunc(context);
         }
     }
-    return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
+    return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
 }
 
 struct AllGatherMatmulCompileInfo {

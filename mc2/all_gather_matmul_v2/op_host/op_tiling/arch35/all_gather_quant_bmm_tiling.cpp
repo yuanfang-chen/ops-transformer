@@ -57,8 +57,6 @@ constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
 
 bool AllGatherQuantBmmTiling::IsCapable()
 {
-    OP_TILING_CHECK(socVersion_ != platform_ascendc::SocVersion::ASCEND910_95,
-        CUBE_INNER_ERR_REPORT(opName_, "Skip quant tiling when version is not 910_95."), return false);
     // geAType 和 geBType 为fp8/hif8时且amax为空时做tiling
     auto amaxShape = context_->GetOutputShape(OUTPUT_AMAX);
     if (amaxShape != nullptr) {
@@ -798,6 +796,9 @@ AllGatherQuantBmmHelper::AllGatherQuantBmmHelper(AllGatherQuantBmmTiling& allGat
     : Mc2AdaptiveSlidingWindowTiling(allGatherQuantBmmTiling.context_, &data), tilingProcesser_(allGatherQuantBmmTiling)
 {
 }
+//注册Tiling类
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(AllGatherMatmulV2, AllGatherQuantBmmTiling, \
+                                        static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 1);
 }  // namespace optiling
 
 #endif  //_QUANT_MATMUL_ALL_REDUCE_TILING_CC_

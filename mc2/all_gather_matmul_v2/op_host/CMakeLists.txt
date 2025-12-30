@@ -16,6 +16,7 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
     set(MC2_OPT ON PARENT_SCOPE)
     set(all_gather_matmul_v2_depends mc2/common mc2/3rd PARENT_SCOPE)
+    set(all_gather_matmul_v2_apt_depends mc2/common mc2/3rd PARENT_SCOPE)
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE all_gather_matmul_v2 all_gather_matmul_v2 ACLNNTYPE aclnn aclnn_inner)
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)

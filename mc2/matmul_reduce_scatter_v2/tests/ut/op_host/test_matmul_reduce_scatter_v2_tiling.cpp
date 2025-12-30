@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_kernel/matmul_reduce_scatter_v2_c_tiling.h"
+#include "../../../op_kernel/arch35/matmul_reduce_scatter_v2_c_tiling.h"
 #include "mc2_tiling_case_executor.h"
 
 namespace {

@@ -129,7 +129,8 @@ class AllGatherMatmulV2 : public OpDef {
         .PrecisionReduceFlag(true)
         .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
         .ExtendCfgInfo("jitCompile.flag", "static_false")  // 动态shape,复用二进制,后续图支持后修改
-        .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel");
+        .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
+        .ExtendCfgInfo("opFile.value", "all_gather_matmul_v2_apt");
     this->AICore().AddConfig("ascend910_95", aicore_config);
     this->MC2().HcclGroup("group");
 

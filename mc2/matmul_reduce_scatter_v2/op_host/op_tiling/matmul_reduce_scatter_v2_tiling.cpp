@@ -12,6 +12,7 @@
  * \file matmul_reduce_scatter_v2_tiling.cpp
  * \brief
  */
+#include "matmul_reduce_scatter_v2_tiling.h"
 #include <queue>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -26,7 +27,7 @@
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "matmul_reduce_scatter_v2_tiling.h"
+#include "tiling_base/tiling_templates_registry.h"
 
 using namespace AscendC;
 using namespace ge;
@@ -189,4 +190,8 @@ ge::graphStatus MatmulReduceScatterV2Tiling::PostTiling()
     context_->SetBlockDim(args_.aicCoreNum);
     return ge::GRAPH_SUCCESS;
 }
+//注册Tiling类
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
+                                    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 0);
+
 }
