@@ -40,6 +40,7 @@ private:
     __aicore__ inline void VBSCopyOut(int64_t progress, int64_t size, int64_t sortNum);
     __aicore__ inline void InitMoeMrgSort(MoeMrgsort *sorter, int64_t listNum, int64_t coreOffset, int64_t loopOffset);
     __aicore__ inline void InitMoeMrgSortOut(MoeMrgsortOut *sorter, int64_t listNum, int64_t coreOffset);
+    __aicore__ inline void InitExpertTokensGlobalMemory();
 
 private:
     GlobalTensor<float> workspaceGms[2];
@@ -69,10 +70,17 @@ private:
     int64_t perCoreExpert;
     int64_t needInitExpertCore;
     int64_t currentCoreExpert;
+    int64_t expertTokensNumFlag;
 
     static constexpr int64_t MAX_MRGSORT_LIST = 4;
 };
 
+__aicore__ inline void MoeSortMultiCore::InitExpertTokensGlobalMemory()
+{
+    if (this->blockIdx < this->needInitExpertCore && this->expertTokensNumFlag) {
+        InitGlobalMemory(this->expertCountTempGm, currentCoreExpert, 0);
+    }
+}
 __aicore__ inline void MoeSortMultiCore::VBSCopyIn(int64_t progress, int64_t size, int64_t sortNum)
 {
     LocalTensor<int32_t> inLocal = sortDataCopyInQueue.AllocTensor<int32_t>();
@@ -309,11 +317,12 @@ __aicore__ inline void MoeSortMultiCore::Init(GM_ADDR expertIdx, GM_ADDR expende
     this->n = tilingData->n;
     this->k = tilingData->k;
     this->ep_ = tilingData->ep;
-    this->oneLoopMaxElements_ = ep_ ? this->sortOutTilingData->oneLoopMaxElements : MRGSORT_LIST_MAX_ELEMENT;
+    this->oneLoopMaxElements_ = this->ep_ ? this->sortOutTilingData->oneLoopMaxElements : MRGSORT_LIST_MAX_ELEMENT;
+    this->expertTokensNumFlag = tilingData->expertTokensNumFlag;
+    this->rowIdxType_ = tilingData->rowIdxType;
 
     expertStart_ = tilingData->expertStart;
     expertEnd_ = tilingData->expertEnd;
-    rowIdxType_ = tilingData->rowIdxType;
 
     // VBS param init
     if (this->blockIdx == this->vbsTilingData->needCoreNum - 1) {
@@ -332,29 +341,35 @@ __aicore__ inline void MoeSortMultiCore::Init(GM_ADDR expertIdx, GM_ADDR expende
                                 this->sortTotalLength);
     sortedexpertIdxGm.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(workspace),
                                       Align(this->totalLength, sizeof(int32_t)));
-    if (rowIdxType_ == SCATTER) {
+    if (this->rowIdxType_ == SCATTER) {
         expendedRowIdxGm.SetGlobalBuffer((__gm__ int32_t *)expendedRowIdx, Align(this->totalLength, sizeof(int32_t)));
     } else {
         expendedRowIdxGm.SetGlobalBuffer((__gm__ int32_t *)workspace + Align(this->totalLength, sizeof(int32_t)),
                                          Align(this->totalLength, sizeof(int32_t)));
     }
 
-    if (GetBlockIdx() == 0) {
+    this->perCoreExpert = Align((tilingData->actualExpertNum + this->coreNum - 1) / this->coreNum, sizeof(int32_t));
+    this->needInitExpertCore = (tilingData->actualExpertNum + this->perCoreExpert - 1) / this->perCoreExpert;
+    this->currentCoreExpert = this->perCoreExpert;
+    if (this->blockIdx == needInitExpertCore - 1) {
+        this->currentCoreExpert = tilingData->actualExpertNum - (this->needInitExpertCore - 1) * this->perCoreExpert;
+    }
+
+    if (this->expertTokensNumFlag) {
         expertCountTempGm.SetGlobalBuffer((__gm__ int32_t *)workspace +
-                                              Align(tilingData->n * tilingData->k, sizeof(int32_t)) * 2,
-                                          tilingData->actualExpertNum);
-        InitGlobalMemory(expertCountTempGm, tilingData->actualExpertNum, 0);
-        SetWaitFlag<HardEvent::MTE3_MTE2>(HardEvent::MTE3_MTE2);
+                                            Align(tilingData->n * tilingData->k, sizeof(int32_t)) * 2 +
+                                            this->blockIdx * this->perCoreExpert,
+                                            this->currentCoreExpert);
     }
 
     // key and value
     int64_t kvFactor = 2;
     workspaceGms[0].SetGlobalBuffer((__gm__ float *)workspace + Align(this->totalLength, sizeof(int32_t)) * 2 +
-                                        tilingData->actualExpertNum,
+                                        Align(tilingData->actualExpertNum, sizeof(int32_t)),
                                     Align(this->totalLength, sizeof(int32_t)) * kvFactor);
     workspaceGms[1].SetGlobalBuffer((__gm__ float *)workspace +
                                         Align(this->totalLength, sizeof(int32_t)) * (kvFactor + 2) +
-                                        tilingData->actualExpertNum,
+                                        Align(tilingData->actualExpertNum, sizeof(int32_t)),
                                     Align(this->totalLength, sizeof(int32_t)) * kvFactor);
 
     int64_t bufferSize = Ceil(Max(oneLoopMaxElements_ * MAX_MRGSORT_LIST, sortCoreLoopElements), ONE_REPEAT_SORT_NUM) *
@@ -362,13 +377,14 @@ __aicore__ inline void MoeSortMultiCore::Init(GM_ADDR expertIdx, GM_ADDR expende
     pipe->InitBuffer(sortDataCopyInQueue, bufferNum, bufferSize);
     pipe->InitBuffer(sortDataCopyOutQueue, bufferNum, bufferSize);
     pipe->InitBuffer(sortedBuffer, bufferSize);
-    if (ep_) {
+    if (this->ep_) {
         pipe->InitBuffer(tempBuffer, bufferSize);
     }
 }
 
 __aicore__ inline void MoeSortMultiCore::Process()
 {
+    InitExpertTokensGlobalMemory();
     VBSProcess();
     VMSProcess();
     SortOutProcess();

@@ -40,7 +40,6 @@ private:
     TQue<QuePosition::VECIN, 1> copyInQueue;
     TQue<QuePosition::VECOUT, 1> copyOutQueue;
     TQue<QuePosition::VECOUT, 1> copyOutZeroQueue;
-    TQue<QuePosition::VECOUT, 1> scaleOutZeroQueue;
 
     GlobalTensor<int32_t> expandDstToSrcRowGm;
     GlobalTensor<int32_t> expandedRowIdxGm;
@@ -50,7 +49,6 @@ private:
     GlobalTensor<float> expandedScaleGm;
 
     LocalTensor<T> outTmpLocal;
-    LocalTensor<float> scaleLocal;
 
     const MoeV3SrcToDstCapacityComputeTilingData *srcToDstTilingData;
     int64_t coreNum;
@@ -74,7 +72,6 @@ private:
     int32_t lastExpertId = -1;
     int32_t lastCoreExpertId = 0;
     int32_t lastCoreExpertIdNum = 0;
-    bool needScaleCopy = false;
 };
 
 template <typename T, typename TilingData>
@@ -88,11 +85,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::AssistInit()
         LocalTensor<T> outLocal = copyOutZeroQueue.AllocTensor<T>();
         Duplicate<T>(outLocal, static_cast<T>(0), this->perLoopCols);
         copyOutZeroQueue.EnQue<T>(outLocal);
-    }
-    if (this->needScaleCopy) {
-        LocalTensor<float> scaleOutLocal = scaleOutZeroQueue.AllocTensor<float>(); // 非量化下有scale的情况
-        Duplicate<float>(scaleOutLocal, 0.0f, FP32_ONE_BLOCK_NUM);
-        scaleOutZeroQueue.EnQue<float>(scaleOutLocal);
     }
 
     if (this->blockIdx != 0) {
@@ -128,7 +120,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::CopyOut(int64_t
     LocalTensor<int32_t> outLocal = copyOutQueue.AllocTensor<int32_t>();
     int64_t length = Align(currentLoopRows, sizeof(int32_t));
     DataCopyExtParams copyParams{static_cast<uint16_t>(1), static_cast<uint32_t>(sizeof(int32_t)), 0, 0, 0};
-    DataCopyExtParams ScaleParams{1, static_cast<uint32_t>(sizeof(float)), 0, 0, 0};
 
     SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
     if (this->lastExpertId == -1) {
@@ -141,9 +132,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::CopyOut(int64_t
         while (this->lastExpertId < expertIdx) {
             while (this->tokenCount < this->expertCapacity) {
                 index = this->lastExpertId * this->expertCapacity + this->tokenCount;
-                if (this->needScaleCopy) {
-                    DataCopyPad(expandedScaleGm[index], this->scaleLocal, ScaleParams);
-                }
                 int64_t col = this->perLoopCols;
                 for (int64_t i = 0; i < this->colLoops; i++) {
                     if (i == this->colLoops - 1) {
@@ -178,18 +166,11 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::CopyOutRemain()
 {
     if (this->blockIdx != this->srcToDstTilingData->needCoreNum - 1) {
         copyOutZeroQueue.FreeTensor(this->outTmpLocal);
-        if (this->needScaleCopy) {
-            scaleOutZeroQueue.FreeTensor(this->scaleLocal);
-        }
         return;
     }
-    DataCopyExtParams ScaleParams{1, static_cast<uint32_t>(sizeof(float)), 0, 0, 0};
     while (this->lastExpertId < this->expertNum) { // 补全至expertNum
         while (this->tokenCount < this->expertCapacity) {
             int32_t index = this->lastExpertId * this->expertCapacity + this->tokenCount;
-            if (this->needScaleCopy) {
-                DataCopyPad(expandedScaleGm[index], this->scaleLocal, ScaleParams);
-            }
             int64_t col = this->perLoopCols;
             for (int64_t i = 0; i < this->colLoops; i++) {
                 if (i == this->colLoops - 1) {
@@ -197,7 +178,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::CopyOutRemain()
                 }
                 DataCopyExtParams copyParams{static_cast<uint16_t>(1), static_cast<uint32_t>(col * sizeof(T)), 0, 0, 0};
                 DataCopyPad(expandedXGm[index * this->cols + i * this->perLoopCols], this->outTmpLocal, copyParams);
-                SetWaitFlag<HardEvent::MTE3_S>(HardEvent::MTE3_S);
             }
             this->tokenCount++;
         }
@@ -205,9 +185,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::CopyOutRemain()
         this->lastExpertId++;
     }
     copyOutZeroQueue.FreeTensor(this->outTmpLocal);
-    if (this->needScaleCopy) {
-        scaleOutZeroQueue.FreeTensor(this->scaleLocal);
-    }
 }
 
 template <typename T, typename TilingData>
@@ -237,7 +214,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::Init(GM_ADDR ex
     this->expertNum = tilingData->expertNum;
     this->expertCapacity = tilingData->expertCapacity;
     this->cols = tilingData->cols;
-    this->isInputScale_ = tilingData->isInputScale;
     this->quantMode_ = tilingData->quantMode;
 
     if (this->blockIdx == this->srcToDstTilingData->needCoreNum - 1) {
@@ -254,9 +230,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::Init(GM_ADDR ex
     this->perLoopCols = this->srcToDstTilingData->perLoopCols;
     this->lastLoopCols = this->srcToDstTilingData->lastLoopCols;
     this->colLoops = this->srcToDstTilingData->colLoops;
-    this->needScaleCopy = (this->isInputScale_ != 0 && this->quantMode_ == -1);
-
-    expandedScaleGm.SetGlobalBuffer((__gm__ float *)expandedScale);
 
     int64_t length = Align(this->totalLength, sizeof(int32_t));
     expandedRowIdxGm.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx, length);
@@ -278,9 +251,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::Init(GM_ADDR ex
     } else {
         pipe->InitBuffer(copyOutZeroQueue, 1, AlignBytes(this->perLoopCols, sizeof(T)));
     }
-    if (this->needScaleCopy) {
-        pipe->InitBuffer(scaleOutZeroQueue, 1, BLOCK_BYTES);
-    }
 }
 
 template <typename T, typename TilingData>
@@ -289,9 +259,6 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::Process()
     if (this->blockIdx < this->srcToDstTilingData->needCoreNum) {
         AssistInit();
         this->outTmpLocal = copyOutZeroQueue.DeQue<T>();
-        if (this->needScaleCopy) {
-            this->scaleLocal = scaleOutZeroQueue.DeQue<float>();
-        }
         currentLoopRows = perLoopRows;
         for (int64_t loop = 0; loop < this->rowLoops; loop++) {
             if (loop == this->rowLoops - 1) {

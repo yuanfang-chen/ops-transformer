@@ -602,10 +602,12 @@ static ge::graphStatus InferShape4MoeInitRoutingV3(gert::InferShapeContext *cont
     int64_t expert_idx_n = expertIdxShape->GetDimNum() == DIM_ONE ? NEG_ONE : expertIdxShape->GetDim(0);
     int64_t k = expertIdxShape->GetDimNum() == DIM_ONE ? NEG_ONE : expertIdxShape->GetDim(1);
     int64_t n = x_n > expert_idx_n ? x_n : expert_idx_n;
-    if (activeNum == 0 || activeNum == -1) {
-        activeNum = n * k;
-    } else {
-        activeNum = std::min(activeNum, n * k);
+    if (n > 0 && k > 0) {
+        if (activeNum == 0 || activeNum == -1) {
+            activeNum = n * k;
+        } else {
+            activeNum = std::min(activeNum, n * k);
+        }
     }
 
     int64_t xOutDimNum = activeNum < n * k ? activeNum : n * k;
