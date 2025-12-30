@@ -15,7 +15,7 @@
 #include <cstdint>
 #include "gtest/gtest.h"
 #include "tikicpulib.h"
-#include "../../../../common/inc/hccl_stub.h"
+#include "../../../../../tests/ut/framework_normal/common/hccl_stub.h"
 #include "batch_mat_mul_reduce_scatter_allto_all_tiling_def.h"
 #include "../../../op_kernel/batch_mat_mul_reduce_scatter_allto_all.cpp"
 

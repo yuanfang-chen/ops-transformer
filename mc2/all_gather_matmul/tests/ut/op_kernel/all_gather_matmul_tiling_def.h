@@ -15,7 +15,7 @@
 #include <cstring>
 
 #include "kernel_tiling/kernel_tiling.h"
-#include "../../../../common/inc/hccl_stub.h"
+#include "../../../../../tests/ut/framework_normal/common/hccl_stub.h"
 #include "../../../op_kernel/all_gather_matmul_tiling.h"
 
 constexpr uint16_t MAX_TENSOR_CONT = 256;

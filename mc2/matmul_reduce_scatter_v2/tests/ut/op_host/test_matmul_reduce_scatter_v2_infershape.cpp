@@ -10,9 +10,8 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "infer_shape_context_faker.h"
+#include "mc2_infer_shape_case_executor.h"
 #include "infer_datatype_context_faker.h"
-#include "infer_shape_case_executor.h"
 #include "base/registry/op_impl_space_registry_v2.h"
 
 namespace {
@@ -57,9 +56,12 @@ TEST_F(MatmulReduceScatterV2InferShapeTest, basic)
             {"comm_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>("aicpu")}
         }
     );
+    Mc2Hcom::MockValues hcomTopologyMockValues {
+        {"rankNum", 8}
+    };
 
     std::vector<std::vector<int64_t>> expectOutputShape = {{1024, 12288}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
+    Mc2ExecuteTestCase(infershapeContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 TEST_F(MatmulReduceScatterV2InferShapeTest, empty_tensor_test)
@@ -95,8 +97,11 @@ TEST_F(MatmulReduceScatterV2InferShapeTest, empty_tensor_test)
             {"comm_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>("aicpu")}
         }
     );
+    Mc2Hcom::MockValues hcomTopologyMockValues {
+        {"rankNum", 8}
+    };
 
-    ExecuteTestCase(infershapeContextPara);
+    Mc2ExecuteTestCase(infershapeContextPara, hcomTopologyMockValues);
 }
 
 TEST_F(MatmulReduceScatterV2InferShapeTest, pertensor)
@@ -135,9 +140,12 @@ TEST_F(MatmulReduceScatterV2InferShapeTest, pertensor)
             {"comm_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>("aicpu")}
         }
     );
+    Mc2Hcom::MockValues hcomTopologyMockValues {
+        {"rankNum", 8}
+    };
 
     std::vector<std::vector<int64_t>> expectOutputShape = {{1024, 12288}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
+    Mc2ExecuteTestCase(infershapeContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 TEST_F(MatmulReduceScatterV2InferShapeTest, perblock)
@@ -175,9 +183,12 @@ TEST_F(MatmulReduceScatterV2InferShapeTest, perblock)
             {"comm_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>("aicpu")}
         }
     );
+    Mc2Hcom::MockValues hcomTopologyMockValues {
+        {"rankNum", 8}
+    };
 
     std::vector<std::vector<int64_t>> expectOutputShape = {{1024, 12288}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
+    Mc2ExecuteTestCase(infershapeContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 // inferDtype用例 ======================================================================================================

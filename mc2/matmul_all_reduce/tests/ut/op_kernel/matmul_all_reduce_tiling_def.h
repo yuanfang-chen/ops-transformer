@@ -23,7 +23,7 @@
 #include "weight_quant_batch_matmul_v2_tiling.h"
 #include "quant_batch_matmul_v3_tiling_def.h"
 #if __has_include("../../../../common/inc/hccl_stub.h")
-#include "../../../../common/inc/hccl_stub.h"
+#include "../../../../../tests/ut/framework_normal/common/hccl_stub.h"
 #endif
 #define __aicore__
 

@@ -12,7 +12,7 @@
 #define MATMUL_ALLTO_ALL_UTIL_TILING_H
 
 #include "tiling/mc2_tiling_utils.h"
-#include "../../../../common/inc/hccl_stub.h"
+#include "../../../../../tests/ut/framework_normal/common/hccl_stub.h"
 
 namespace MC2Tiling {
 

@@ -14,7 +14,7 @@
 #include <cstring>
 
 #include "kernel_tiling/kernel_tiling.h"
-#include "../../../../common/inc/hccl_stub.h"
+#include "../../../../../tests/ut/framework_normal/common/hccl_stub.h"
 #include "../../../op_kernel/matmul_reduce_scatter_tiling.h"
 
 #define __aicore__
