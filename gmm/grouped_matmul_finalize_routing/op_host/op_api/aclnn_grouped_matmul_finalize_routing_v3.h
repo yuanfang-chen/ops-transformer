@@ -22,14 +22,14 @@ extern "C" {
  * @brief aclnnGroupedMatmulFinalizeRoutingV3的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
  * 算子功能：实现GroupedMatmul和MoeFinalizeRouting的融合算子，GroupedMatmul计算后的输出按照索引做combine动作。
- * @param [in] x1: matmul左矩阵，数据类型支持：int8。
- * @param [in] x2: matmul右矩阵，数据类型支持：int4。
- * @param [in] scaleOptional: 量化参数中的缩放因子，数据类型支持：int64。
+ * @param [in] x1: matmul左矩阵，数据类型支持：int8。在MX量化模式中，数据类型支持FLOAT8_E5M2,FLOAT8_E4M3FN,FLOAT4_E2M1,FLOAT4_E1M2。
+ * @param [in] x2: matmul右矩阵，数据类型支持：int4。在MX量化模式中，数据类型支持FLOAT8_E5M2,FLOAT8_E4M3FN,FLOAT4_E2M1,FLOAT4_E1M2。
+ * @param [in] scaleOptional: 量化参数中的缩放因子，数据类型支持：int64。在MX量化模式中，数据类型支持FLOAT8_E8M0。
  * @param [in] biasOptional: 偏置，数据类型支持：float32。
- * @param [in] offsetOptional: 量化参数偏移量，数据类型支持：float32。
+ * @param [in] offsetOptional: 量化参数偏移量，数据类型支持：float32。在MX量化模式中，仅支持为空。
  * @param [in] antiquantScaleOptional: 伪量化参数中缩放因子，暂不支持。
  * @param [in] antiquantOffsetOptional: 伪量化参数中偏移量，暂不支持。
- * @param [in] pertokenScaleOptional: 反量化参数，数据类型支持：float32。
+ * @param [in] pertokenScaleOptional: 反量化参数，数据类型支持：float32。在MX量化模式中，数据类型支持FLOAT8_E8M0。
  * @param [in] groupListOptional: 代表输入和输出分组轴方向的matmul大小分布，数据类型支持：int64。
  * @param [in] sharedInputOptional: 
  * moe计算中共享专家的输出，需要与moe专家的输出进行combine操作，数据类型支持：bfloat16、float16。
@@ -41,7 +41,7 @@ extern "C" {
  * 共享专家与moe专家进行combine的系数，shareInput先于该参数乘，然后在和moe专家结果累加，数据类型支持：float32。
  * @param [in] sharedInputOffset: 共享专家输出的在总输出中的偏移，数据类型支持：int64。
  * @param [in] transposeX: 左矩阵是否转置，默认值：false。
- * @param [in] transposeW: 右矩阵是否转置，默认值：false。
+ * @param [in] transposeW: 右矩阵是否转置，默认值：false。在MX量化模式中，支持Weight矩阵转置。
  * @param [in] groupListType: GroupedMatmul分组类型，默认值：1，count模式，数据类型支持：int64。
  * @param [in] tuningConfigOptional:
  * 调优参数，数组中第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值进行最优tiling。
@@ -74,4 +74,4 @@ ACLNN_API aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(void *workspace, uint6
 }
 #endif
 
-#endif  // OP_API_INC_GROUPED_MATMUL_FINALIZE_ROUTING_V2_H
+#endif  // OP_API_INC_GROUPED_MATMUL_FINALIZE_ROUTING_V3_H
