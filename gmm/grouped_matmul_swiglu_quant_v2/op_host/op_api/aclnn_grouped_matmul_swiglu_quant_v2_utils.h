@@ -37,6 +37,7 @@ constexpr int64_t MXFP4_K_CONSTRAINT = 2L;
 constexpr int64_t SWIGLU_N_CONSTRAINT = 2L;
 constexpr int64_t MXFP4_N_CONSTRAINT = 4L;
 constexpr size_t SINGLE_TENSOR_SIZE = 1;
+constexpr int64_t MAX_GROUP_LIST_SIZE = 1024L;
 
 const std::initializer_list<DataType> X_DTYPE_SUPPORT_LIST = {DataType::DT_FLOAT8_E4M3FN,
                                                               DataType::DT_FLOAT8_E5M2};
@@ -443,6 +444,13 @@ and greater or equal to 4, but actual value is %lu.",
 
     bool CheckInputOutShape() override
     {
+        int64_t groupListLen = gmmDsqParams_.groupList->GetViewShape().GetDim(0);
+        if (groupListLen > MAX_GROUP_LIST_SIZE) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The length of groupList should not be greater than 1024, but actual is %ld.",
+            groupListLen);
+            return false;
+        }
+
         if (!CheckMXTranspose()) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "CheckMXTranspose failed.");
             return false;
