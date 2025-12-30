@@ -135,6 +135,7 @@ private:
   ge::graphStatus ProcessBlockTable();
   ge::graphStatus ProcessQPaddingSize();
   ge::graphStatus ProcessKVPaddingSize();
+  ge::graphStatus ProcessPrefix();
   ge::graphStatus VerifyQuantScale2() const;
   bool EnableC1V1() const;
   void UpdatePerfMode();
@@ -207,6 +208,9 @@ private:
   bool SetQKVStartIdx();
   bool AlibiCheckSeqLength();
   bool CheckPseShiftShape(const gert::Tensor* pseShiftInput);
+  bool GetAndCheckPrefixShape(std::string layoutStr, const gert::Shape keyPrefixShape, const gert::Shape valuePrefixShape, const gert::Shape keyShape);
+  bool CheckKeyValuePrefixConsistency(const gert::Shape keyPrefixShape, const gert::Shape valuePrefixShape, const gert::Shape keyShape);
+  bool CheckActualSharedPrefixLen(const gert::Tensor* actualSharedPrefixLenInput, const gert::Shape keyPrefixShape, uint32_t prefixSSize_);
   bool CheckPFAMerge();
 
   std::string GetShapeStr(const gert::Shape &aShape) const;
@@ -403,6 +407,13 @@ private:
   uint32_t l2CacheOffFlag_ = 0;
   // softmaxLse
   bool softmaxLseFlag_ = false;
+
+  // prefix
+  bool enableKVPrefix_ = false;
+  bool actualSharedPrefixLenNullFlag_ = true; // 默认为空
+  uint32_t prefixSeqInnerSize_ = 0;
+  uint32_t prefixSSize_ = 0;
+  uint32_t actualSharedPrefixLen_ = 0;
 
   //伪量化新模板新增
   bool faRunGS_ = false;    //指示是否合轴

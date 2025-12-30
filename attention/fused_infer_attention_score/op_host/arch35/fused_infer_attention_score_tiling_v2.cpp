@@ -577,6 +577,12 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
   ifaContext.qStartIdx.desc = context.GetOptionalInputDesc(Q_START_IDX_INDEX);
   ifaContext.kvStartIdx.tensor = context.GetOptionalInputTensor(KV_START_IDX_INDEX);
   ifaContext.kvStartIdx.desc = context.GetOptionalInputDesc(KV_START_IDX_INDEX);
+  ifaContext.keySharedPrefix.tensor = context.GetOptionalInputTensor(KEY_SHARED_PREFIX_INDEX);
+  ifaContext.keySharedPrefix.desc = context.GetOptionalInputDesc(KEY_SHARED_PREFIX_INDEX);
+  ifaContext.valueSharedPrefix.tensor = context.GetOptionalInputTensor(VALUE_SHARED_PREFIX_INDEX);
+  ifaContext.valueSharedPrefix.desc = context.GetOptionalInputDesc(VALUE_SHARED_PREFIX_INDEX);
+  ifaContext.actualSharedPrefixLen.tensor = context.GetOptionalInputTensor(ACTUAL_SHARED_PREFIX_LEN_INDEX);
+  ifaContext.actualSharedPrefixLen.desc = context.GetOptionalInputDesc(ACTUAL_SHARED_PREFIX_LEN_INDEX);
 
   auto attrs = context.GetAttrs();
   OP_CHECK_IF(attrs == nullptr,

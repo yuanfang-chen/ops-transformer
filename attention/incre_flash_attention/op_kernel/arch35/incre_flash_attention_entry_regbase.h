@@ -42,7 +42,8 @@ using namespace AscendC;
     BaseApi::FABlockVecAntiquantDummy<__VA_ARGS__>, BaseApi::FABlockVecAntiquant<__VA_ARGS__>>::type;                                 \
     templateClass<CubeBlockType, VecBlockType> op;                                                                                    \
     op.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, blocktable,                                  \
-      queryPaddingSize, kvPaddingSize, softmaxLse, attentionOut, user, tilingData, &tPipe, antiquantScale, antiquantOffset,           \
+      queryPaddingSize, kvPaddingSize, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen,                                     \
+      softmaxLse, attentionOut, user, tilingData, &tPipe, antiquantScale, antiquantOffset,                                            \
       keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset, quantScale2, quantOffset2);                   \
     op.Process();                                                                                                                     \
   } while(0)

@@ -79,6 +79,8 @@ struct AntiquantTaskParamBaseAPI {
     uint32_t maxBlockNumPerSeq;
     uint32_t paKvShapeType;
     uint64_t kvPaddingBeginOffset;
+
+    bool isPrefixLoop = 0;
 };
 
 
@@ -268,21 +270,37 @@ __aicore__ inline void AntiquantProcessorBaseAPI<ANTIQUANT_TEMPLATE_ARGS, ANTIQU
         antiqScale = kvAntiqMxScaleRes.Get<ANTIQ_PARAMS_T>();
         FaVectorApi::AntiqScalePerTokenGroupByVF<Q_T, ANTIQ_PARAMS_T>(antiqScaleE8M0Ub, antiqScale, taskParam.copyTotalS, grpNum);
     } else {
-    scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.seqSize * grpNum +
-                  taskParam.n2Idx * taskParam.seqSize * grpNum + taskParam.s2Idx * taskParam.singleSInnerSize * grpNum +
-                  taskParam.kvPaddingBeginOffset * grpNum + subBlockIdx * GetRealDealSize(s2RealSize) * grpNum;
-    if constexpr (FLASH_DECODE) {
-        scaleOffset += taskParam.flashDecodeS2Idx * taskParam.sInnerLoopSize * grpNum;
-    }
+        if constexpr (enableKVPrefix) {
+            if (taskParam.isPrefixLoop) {
+                scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.antiqSeqSize * grpNum +
+                        taskParam.n2Idx * taskParam.antiqSeqSize * grpNum +
+                        taskParam.s2Idx * taskParam.singleSInnerSize * grpNum +
+                        taskParam.kvPaddingBeginOffset * grpNum +
+                        subBlockIdx * GetRealDealSize(s2RealSize) * grpNum;
+            } else {
+                scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.antiqSeqSize * grpNum +
+                        taskParam.n2Idx * taskParam.antiqSeqSize * grpNum +
+                        (taskParam.s2Idx * taskParam.singleSInnerSize + (taskParam.antiqSeqSize - taskParam.seqSize)) * grpNum +
+                        taskParam.kvPaddingBeginOffset * grpNum +
+                        subBlockIdx * GetRealDealSize(s2RealSize) * grpNum;
+            }
+        } else {
+            scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.seqSize * grpNum +
+                    taskParam.n2Idx * taskParam.seqSize * grpNum + taskParam.s2Idx * taskParam.singleSInnerSize * grpNum +
+                    taskParam.kvPaddingBeginOffset * grpNum + subBlockIdx * GetRealDealSize(s2RealSize) * grpNum;
+        }
+        if constexpr (FLASH_DECODE) {
+            scaleOffset += taskParam.flashDecodeS2Idx * taskParam.sInnerLoopSize * grpNum;
+        }
 
-    LocalTensor<Q_T> antiqScaleE8M0Ub = antiqScaleInputQue.template AllocTensor<Q_T>();
-    CopyAntiqScaleE8M0(antiqScaleE8M0Ub, antiqScaleGm, scaleOffset / 2, taskParam.copyTotalS,
-                       grpNum);
-    antiqScaleInputQue.template EnQue(antiqScaleE8M0Ub);
-    antiqScaleE8M0Ub = antiqScaleInputQue.DeQue<Q_T>();
+        LocalTensor<Q_T> antiqScaleE8M0Ub = antiqScaleInputQue.template AllocTensor<Q_T>();
+        CopyAntiqScaleE8M0(antiqScaleE8M0Ub, antiqScaleGm, scaleOffset / 2, taskParam.copyTotalS,
+                        grpNum);
+        antiqScaleInputQue.template EnQue(antiqScaleE8M0Ub);
+        antiqScaleE8M0Ub = antiqScaleInputQue.DeQue<Q_T>();
 
-    antiqScale = kvAntiqMxScaleRes.Get<ANTIQ_PARAMS_T>();
-    FaVectorApi::AntiqScaleByVF<Q_T, ANTIQ_PARAMS_T>(antiqScaleE8M0Ub, antiqScale, taskParam.copyTotalS, grpNum);
+        antiqScale = kvAntiqMxScaleRes.Get<ANTIQ_PARAMS_T>();
+        FaVectorApi::AntiqScaleByVF<Q_T, ANTIQ_PARAMS_T>(antiqScaleE8M0Ub, antiqScale, taskParam.copyTotalS, grpNum);
     }
 }
 
@@ -300,11 +318,31 @@ __aicore__ inline void AntiquantProcessorBaseAPI<ANTIQUANT_TEMPLATE_ARGS, ANTIQU
     }
     uint64_t scaleOffset = 0;
     if (taskParam.isPerHead) {
-        scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.seqSize + taskParam.n2Idx * taskParam.seqSize +
+        if constexpr (enableKVPrefix) {
+            if (taskParam.isPrefixLoop) {
+                scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.antiqSeqSize + taskParam.n2Idx * taskParam.antiqSeqSize +
                       taskParam.s2Idx * taskParam.singleSInnerSize + taskParam.kvPaddingBeginOffset + subBlockIdx * GetRealDealSize(s2RealSize);
+            } else {
+                scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.antiqSeqSize + taskParam.n2Idx * taskParam.antiqSeqSize +
+                      taskParam.s2Idx * taskParam.singleSInnerSize + (taskParam.antiqSeqSize - taskParam.seqSize) + taskParam.kvPaddingBeginOffset + subBlockIdx * GetRealDealSize(s2RealSize);
+            }
+        } else {
+            scaleOffset = taskParam.bIdx * taskParam.kvHeadNum * taskParam.seqSize + taskParam.n2Idx * taskParam.seqSize +
+                      taskParam.s2Idx * taskParam.singleSInnerSize + taskParam.kvPaddingBeginOffset + subBlockIdx * GetRealDealSize(s2RealSize);
+        }
     } else {
-        scaleOffset = taskParam.bIdx * taskParam.antiqSeqSize + taskParam.s2Idx * taskParam.singleSInnerSize +
+        if constexpr (enableKVPrefix) {
+            if (taskParam.isPrefixLoop) {
+                scaleOffset = taskParam.bIdx * taskParam.antiqSeqSize + taskParam.s2Idx * taskParam.singleSInnerSize +
                       taskParam.kvPaddingBeginOffset + subBlockIdx * GetRealDealSize(s2RealSize);
+            } else {
+                scaleOffset = taskParam.bIdx * taskParam.antiqSeqSize + taskParam.s2Idx * taskParam.singleSInnerSize + (taskParam.antiqSeqSize - taskParam.seqSize) +
+                      taskParam.kvPaddingBeginOffset + subBlockIdx * GetRealDealSize(s2RealSize);
+            }
+        } else {
+            scaleOffset = taskParam.bIdx * taskParam.antiqSeqSize + taskParam.s2Idx * taskParam.singleSInnerSize +
+                      taskParam.kvPaddingBeginOffset + subBlockIdx * GetRealDealSize(s2RealSize);
+        }
     }
     if constexpr (FLASH_DECODE) {
         scaleOffset += taskParam.flashDecodeS2Idx * taskParam.sInnerLoopSize;
