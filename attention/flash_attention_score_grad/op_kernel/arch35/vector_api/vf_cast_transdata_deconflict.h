@@ -20,11 +20,12 @@ namespace AscendC
 {
 #ifndef __CCE_KT_TEST__
 using namespace MicroAPI;
-constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp8Three = {
-    AscendC::MicroAPI::RegLayout::THREE,
+template<bool IS_HIFP8 = false>
+constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp8Zero = {
+    AscendC::MicroAPI::RegLayout::ZERO,
     AscendC::MicroAPI::SatMode::SAT,
     AscendC::MicroAPI::MaskMergeMode::ZEROING,
-    AscendC::RoundMode::CAST_RINT,
+    IS_HIFP8 ? AscendC::RoundMode::CAST_ROUND : AscendC::RoundMode::CAST_RINT,
 };
 template<bool IS_HIFP8 = false>
 constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp8Two = {
@@ -39,12 +40,11 @@ constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp16Odd = {
     AscendC::MicroAPI::MaskMergeMode::ZEROING,
     AscendC::RoundMode::CAST_RINT,
 };
-template<bool IS_HIFP8 = false>
 constexpr AscendC::MicroAPI::CastTrait castTraitFp322Fp16Even = {
     AscendC::MicroAPI::RegLayout::ZERO,
     AscendC::MicroAPI::SatMode::SAT,
     AscendC::MicroAPI::MaskMergeMode::ZEROING,
-    IS_HIFP8 ? AscendC::RoundMode::CAST_ROUND : AscendC::RoundMode::CAST_RINT,
+    AscendC::RoundMode::CAST_RINT,
 };
 /* **************************************************************************************************
  * cast + ND_2_NZ                                             *
@@ -85,7 +85,7 @@ __aicore__ inline void CastTransdataDeconflict(const LocalTensor<T1> &dstTensor,
                 for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
                     DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
                         vregSrcEven, vregSrcOdd, ((__ubuf__ T *&)srcLocalInt), fullExeSize);
-                    Cast<T1, T, castTraitFp322Fp16Even<>>(vregCastEven, vregSrcEven, pregFullExe);
+                    Cast<T1, T, castTraitFp322Fp16Even>(vregCastEven, vregSrcEven, pregFullExe);
                     Cast<T1, T, castTraitFp322Fp16Odd>(vregCastOdd, vregSrcOdd, pregFullExe);
                     // 0101: b16 0001: b32 1111: b8
                     Or((RegTensor<uint16_t> &)vregCastRes, (RegTensor<uint16_t> &)vregCastEven,
@@ -114,7 +114,7 @@ __aicore__ inline void CastTransdataDeconflict(const LocalTensor<T1> &dstTensor,
                 for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
                     DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
                         vregSrcEven, vregSrcOdd, ((__ubuf__ T *&)srcLocalInt), fullExeSize);
-                    Cast<T1, T, castTraitFp322Fp16Even<>>(vregCastEven, vregSrcEven, pregFullExe);
+                    Cast<T1, T, castTraitFp322Fp16Even>(vregCastEven, vregSrcEven, pregFullExe);
                     Cast<T1, T, castTraitFp322Fp16Odd>(vregCastOdd, vregSrcOdd, pregFullExe);
                     // 0101: b16 0001: b32 1111: b8
                     Or((RegTensor<uint16_t> &)vregCastRes, (RegTensor<uint16_t> &)vregCastEven,
@@ -127,7 +127,7 @@ __aicore__ inline void CastTransdataDeconflict(const LocalTensor<T1> &dstTensor,
                 for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
                     DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
                         vregSrcEven, vregSrcOdd, ((__ubuf__ T *&)srcLocalIntTail), fullExeSize);
-                    Cast<T1, T, castTraitFp322Fp16Even<>>(vregCastEven, vregSrcEven, pregFullExe);
+                    Cast<T1, T, castTraitFp322Fp16Even>(vregCastEven, vregSrcEven, pregFullExe);
                     Cast<T1, T, castTraitFp322Fp16Odd>(vregCastOdd, vregSrcOdd, pregFullExe);
                     // 0101: b16 0001: b32 1111: b8
                     Or((RegTensor<uint16_t> &)vregCastRes, (RegTensor<uint16_t> &)vregCastEven,
@@ -153,7 +153,7 @@ __aicore__ inline void CastTransdataDeconflict(const LocalTensor<T1> &dstTensor,
             for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
                 DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
                     vregSrcEven, vregSrcOdd, ((__ubuf__ T *&)srcLocalInt), fullExeSize);
-                Cast<T1, T, castTraitFp322Fp16Even<>>(vregCastEven, vregSrcEven, pregFullExe);
+                Cast<T1, T, castTraitFp322Fp16Even>(vregCastEven, vregSrcEven, pregFullExe);
                 Cast<T1, T, castTraitFp322Fp16Odd>(vregCastOdd, vregSrcOdd, pregFullExe);
                 // 0101: b16 0001: b32 1111: b8
                 Or((RegTensor<uint16_t> &)vregCastRes, (RegTensor<uint16_t> &)vregCastEven,
@@ -200,7 +200,7 @@ __aicore__ inline void CastTransdataDeconflict(const LocalTensor<T1> &dstTensor,
                 for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
                     DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
                         vregSrcEven, vregSrcOdd, ((__ubuf__ T *&)srcLocalInt), fullExeSize);
-                    Cast<T1, T, castTraitFp322Fp16Even<IsSameType<T1, hifloat8_t>::value>>(vregCastEven, vregSrcEven, preg_all);
+                    Cast<T1, T, castTraitFp322Fp8Zero<IsSameType<T1, hifloat8_t>::value>>(vregCastEven, vregSrcEven, preg_all);
                     Cast<T1, T, castTraitFp322Fp8Two<IsSameType<T1, hifloat8_t>::value>>(vregCastOdd, vregSrcOdd, preg_all);
                     Or((RegTensor<uint8_t> &)vregCastResTmp, (RegTensor<uint8_t> &)vregCastEven,
                         (RegTensor<uint8_t> &)vregCastOdd, preg_all_b8);
@@ -232,7 +232,7 @@ __aicore__ inline void CastTransdataDeconflict(const LocalTensor<T1> &dstTensor,
                 for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
                     DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
                         vregSrcEven, vregSrcOdd, ((__ubuf__ T *&)srcLocalInt), fullExeSize);
-                    Cast<T1, T, castTraitFp322Fp16Even<IsSameType<T1, hifloat8_t>::value>>(vregCastEven, vregSrcEven, preg_all);
+                    Cast<T1, T, castTraitFp322Fp8Zero<IsSameType<T1, hifloat8_t>::value>>(vregCastEven, vregSrcEven, preg_all);
                     Cast<T1, T, castTraitFp322Fp8Two<IsSameType<T1, hifloat8_t>::value>>(vregCastOdd, vregSrcOdd, preg_all);
                     Or((RegTensor<uint8_t> &)vregCastResTmp, (RegTensor<uint8_t> &)vregCastEven,
                         (RegTensor<uint8_t> &)vregCastOdd, preg_all_b8);
@@ -246,7 +246,7 @@ __aicore__ inline void CastTransdataDeconflict(const LocalTensor<T1> &dstTensor,
                 for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
                     DataCopy<T, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_DINTLV_B32>(
                         vregSrcEven, vregSrcOdd, ((__ubuf__ T *&)srcLocalIntTail), fullExeSize);
-                    Cast<T1, T, castTraitFp322Fp16Even<IsSameType<T1, hifloat8_t>::value>>(vregCastEven, vregSrcEven, preg_all);
+                    Cast<T1, T, castTraitFp322Fp8Zero<IsSameType<T1, hifloat8_t>::value>>(vregCastEven, vregSrcEven, preg_all);
                     Cast<T1, T, castTraitFp322Fp8Two<IsSameType<T1, hifloat8_t>::value>>(vregCastOdd, vregSrcOdd, preg_all);
                     Or((RegTensor<uint8_t> &)vregCastResTmp, (RegTensor<uint8_t> &)vregCastEven,
                         (RegTensor<uint8_t> &)vregCastOdd, preg_all_b8);

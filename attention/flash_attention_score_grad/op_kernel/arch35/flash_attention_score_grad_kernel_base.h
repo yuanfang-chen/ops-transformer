@@ -276,7 +276,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockTy
     } else {
         dSL1Buf.Init(l1BufferManager, CUBE_BASEM * CUBE_BASEN * sizeof(INPUT_TYPE));  
     }
-    pL1Buf.Init(l1BufferManager, CUBE_BASEM * CUBE_BASEN * sizeof(INPUT_TYPE));
+    pL1Buf.Init(l1BufferManager, CUBE_BASEM * CUBE_BASEN * sizeof(OUTDTYPE));
     if constexpr (IS_FP8_INPUT) {
         vL1Buf.Init(l1BufferManager, CUBE_BASEN * HEAD_DIM_ALIGN * sizeof(OUTDTYPE));
     }

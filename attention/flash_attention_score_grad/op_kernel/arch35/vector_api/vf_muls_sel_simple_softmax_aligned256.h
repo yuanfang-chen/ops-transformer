@@ -101,7 +101,6 @@ __aicore__ inline void MulsSelSimpleSoftMaxAligned256(const LocalTensor<float> &
  
             // 64 * 128 max/sum: 64 * 8
             for (uint16_t m = 0; m < static_cast<uint16_t>(srcM); m++) {
-                LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
                 DataCopy<float, MicroAPI::LoadDist::DIST_BRC_B32>(
                     vregMax, ((__ubuf__ float *&)maxLocalInt + m * 8));
                 DataCopy<float, MicroAPI::LoadDist::DIST_BRC_B32>(
