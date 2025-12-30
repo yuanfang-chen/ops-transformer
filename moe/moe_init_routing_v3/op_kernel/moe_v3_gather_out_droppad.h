@@ -35,13 +35,10 @@ public:
 private:
     __aicore__ inline void CopyInIndices(int64_t progress);
     __aicore__ inline void CopyOut(int64_t progress);
-    __aicore__ inline void CopyScaleIn(int64_t scaleSrcOffset, LocalTensor<float> scaleLocal);
-    __aicore__ inline void CopyScaleOut(int64_t scaleDstOffset, LocalTensor<float> scaleLocal);
 
 private:
     TPipe *pipe_;
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, GATHER_OUT_DROPPAD_BUFFER_NUM> xCopyInQueue_;
-    TQueBind<TPosition::VECIN, TPosition::VECOUT, GATHER_OUT_DROPPAD_BUFFER_NUM> scaleCopyInQueue_;
     TQue<QuePosition::VECIN, GATHER_OUT_DROPPAD_BUFFER_NUM> expandedRowIdxCopyInQueue_;
 
     GlobalTensor<T> inputXGm_;
@@ -66,7 +63,6 @@ private:
     int64_t perLoopCols_;
     int64_t lastLoopCols_;
     int64_t colLoops_;
-    int64_t isInputScale_;
 
     int64_t indicesOffset_;
     int64_t inputOffset_;
@@ -85,22 +81,6 @@ __aicore__ inline void MoeGatherOutDroppad<T>::CopyInIndices(int64_t progress)
 }
 
 template <typename T>
-__aicore__ inline void MoeGatherOutDroppad<T>::CopyScaleIn(int64_t scaleSrcOffset, LocalTensor<float> scaleLocal)
-{
-    DataCopyExtParams copyParams1{static_cast<uint16_t>(1), static_cast<uint32_t>(1 * sizeof(float)), 0, 0, 0};
-    DataCopyPadExtParams<float> padParams1{false, 0, 0, 0};
-    DataCopyPad(scaleLocal, xGscaleGm_[scaleSrcOffset], copyParams1, padParams1);
-    scaleCopyInQueue_.EnQue(scaleLocal);
-}
-
-template <typename T>
-__aicore__ inline void MoeGatherOutDroppad<T>::CopyScaleOut(int64_t scaleDstOffset, LocalTensor<float> scaleLocal)
-{
-    DataCopyExtParams copyParams3{1, static_cast<uint32_t>(sizeof(float)), 0, 0, 0};
-    DataCopyPad(expandedScaleGm_[scaleDstOffset], scaleLocal, copyParams3);
-}
-
-template <typename T>
 __aicore__ inline void MoeGatherOutDroppad<T>::CopyOut(int64_t progress)
 {
     LocalTensor<int32_t> indicesLocal = expandedRowIdxCopyInQueue_.DeQue<int32_t>();
@@ -115,12 +95,6 @@ __aicore__ inline void MoeGatherOutDroppad<T>::CopyOut(int64_t progress)
         int64_t currentLoopStartRow = initialRow / k_;
         int64_t currentLoopLastRow = (initialRow + currentLoopRows_ - 1) / k_;
         for (int64_t row = currentLoopStartRow; row <= currentLoopLastRow; row++) {
-            // 搬入scale
-            LocalTensor<float> scaleLocal = scaleCopyInQueue_.AllocTensor<float>();
-            if (isInputScale_ == 1) {
-                CopyScaleIn(row, scaleLocal);
-                LocalTensor<float> scaleLocal = scaleCopyInQueue_.DeQue<float>();
-            }
             inputOffset_ = row * cols_ + colsLoop * perLoopCols_;
             // input row position
             LocalTensor<T> inLocal = xCopyInQueue_.AllocTensor<T>();
@@ -138,13 +112,8 @@ __aicore__ inline void MoeGatherOutDroppad<T>::CopyOut(int64_t progress)
                 }
                 outOffset_ = outIndex * cols_ + colsLoop * perLoopCols_;
                 DataCopyPad(expandedXGm_[outOffset_], inLocal, intriParams);
-                // 搬出scale
-                if (isInputScale_ == 1) {
-                    CopyScaleOut(outIndex, scaleLocal);
-                }
             }
             xCopyInQueue_.FreeTensor(inLocal);
-            scaleCopyInQueue_.FreeTensor(scaleLocal);
         }
     }
     expandedRowIdxCopyInQueue_.FreeTensor(indicesLocal);
@@ -163,7 +132,6 @@ __aicore__ inline void MoeGatherOutDroppad<T>::Init(GM_ADDR inputX, GM_ADDR scal
     cols_ = tilingData->cols;
     n_ = tilingData->n;
     k_ = tilingData->k;
-    isInputScale_ = tilingData->isInputScale;
 
     if (blockIdx_ == needCoreNum_ - 1) {
         coreRows_ = gatherOutTilingData_->lastCoreIndicesElements;
@@ -181,17 +149,14 @@ __aicore__ inline void MoeGatherOutDroppad<T>::Init(GM_ADDR inputX, GM_ADDR scal
     colLoops_ = gatherOutTilingData_->colsLoops;
 
     inputXGm_.SetGlobalBuffer((__gm__ T *)inputX, coreRows_ * cols_);
-    xGscaleGm_.SetGlobalBuffer((__gm__ float *)scale, n_);
     expandedXGm_.SetGlobalBuffer((__gm__ T *)expandedX, n_ * k_ * cols_);
     expandedRowIdxGm_.SetGlobalBuffer((__gm__ int32_t *)expandedRowIdx +
                                           blockIdx_ * gatherOutTilingData_->perCoreIndicesElements,
                                       Align(coreRows_, sizeof(int32_t)));
-    expandedScaleGm_.SetGlobalBuffer((__gm__ float *)expandedScale);
 
     pipe_->InitBuffer(xCopyInQueue_, GATHER_OUT_DROPPAD_BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(T)));
     pipe_->InitBuffer(expandedRowIdxCopyInQueue_, GATHER_OUT_DROPPAD_BUFFER_NUM,
                       AlignBytes(perLoopRows_, sizeof(int32_t)));
-    pipe_->InitBuffer(scaleCopyInQueue_, GATHER_OUT_DROPPAD_BUFFER_NUM, AlignBytes(1, sizeof(float)));
 }
 
 template <typename T>

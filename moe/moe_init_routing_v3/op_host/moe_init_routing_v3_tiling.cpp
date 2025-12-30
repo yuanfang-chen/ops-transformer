@@ -1080,11 +1080,10 @@ void MoeInitRountingV3TilingBase::Tiling4SrcToDstDropPadCompute()
     tilingData->set_perCoreRows(perCoreRows);
     int64_t lastCoreRows = totalLength_ - perCoreRows * (needCoreNum - 1);
     tilingData->set_lastCoreRows(lastCoreRows);
-    bool needScaleCopy = (isInputScale_ != 0 && quantMode_ == -1);
     int64_t inuptXDtypeSize = inuptXDtypeSize_ == SIZE_INT8 ? SIZE_INT16 : inuptXDtypeSize_;
 
     int64_t rowSize =
-        (perCoreRows * sizeof(int32_t) * NUM_TWO + ONE_BLOCK_BYTE + ONE_BLOCK_BYTE * needScaleCopy + ONE_BLOCK_BYTE - 1) /
+        (perCoreRows * sizeof(int32_t) * NUM_TWO + ONE_BLOCK_BYTE + ONE_BLOCK_BYTE - 1) /
         ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
     int64_t colSize = (cols * inuptXDtypeSize + ONE_BLOCK_BYTE - 1) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
 
@@ -1094,12 +1093,12 @@ void MoeInitRountingV3TilingBase::Tiling4SrcToDstDropPadCompute()
         int64_t baseMaxCols = MAX_COLS_ONE_LOOP;
         int64_t baseMaxColsSize =
             (baseMaxCols * inuptXDtypeSize + ONE_BLOCK_BYTE - 1) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
-        int64_t basePerLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) - baseMaxColsSize - ONE_BLOCK_BYTE -
-                                     ONE_BLOCK_BYTE * needScaleCopy) /static_cast<int64_t>(sizeof(int32_t))
+        int64_t basePerLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) - baseMaxColsSize - ONE_BLOCK_BYTE) 
+                                     /static_cast<int64_t>(sizeof(int32_t))
                                      / NUM_TWO / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
         if (cols < MAX_COLS_ONE_LOOP) {
-            basePerLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) - colSize - ONE_BLOCK_BYTE -
-                                 ONE_BLOCK_BYTE * needScaleCopy) / static_cast<int64_t>(sizeof(int32_t)) 
+            basePerLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) - colSize - ONE_BLOCK_BYTE)
+                                 / static_cast<int64_t>(sizeof(int32_t)) 
                                  / NUM_TWO / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
         } else if (perCoreRows < basePerLoopMaxRows) {
             baseMaxCols = (static_cast<int64_t>(aicoreParams_.ubSize) - rowSize) / inuptXDtypeSize / ONE_BLOCK_BYTE *
