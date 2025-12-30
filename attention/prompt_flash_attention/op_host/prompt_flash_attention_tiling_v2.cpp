@@ -724,9 +724,6 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
     if (enableIFAMLA || enableIFA) {
         gSize = nQ / nKV;
     }
-    if ((nQ / nKV) > pfaMergeGLimit) {
-        enablePFAMerge = false;
-    }
     return true;
 }
 
