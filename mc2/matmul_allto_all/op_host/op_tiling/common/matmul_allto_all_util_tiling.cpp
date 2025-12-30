@@ -185,14 +185,15 @@ ge::graphStatus MatmulAlltoAllTilingUtil::CheckKcQuantTensorDataType(const gert:
     // 获取数据类型并校验一致性与范围
     ge::DataType x1Dtype = x1TensorDesc->GetDataType();
     ge::DataType x2Dtype = x2TensorDesc->GetDataType();
-    OP_TILING_CHECK((x1Dtype != x2Dtype),
-                    OP_LOGE(opName, "The Input x1 and x2 Dtype should be same, but x1 is %s, x2 is %s.",
-                            Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
-                    return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!IsContains(KC_QUANT_X_DTYPE_LIST, x1Dtype),
                     OP_LOGE(opName,
-                            "The Input x Dtype should be in kc-quant range (float8_e4m3fn/float8_e5m2), but x1 is %s, x2 is %s.",
-                            Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
+                            "The Input x1 Dtype should be in kc-quant range (float8_e4m3fn/float8_e5m2), but x1 is %s.",
+                            Ops::Base::ToString(x1Dtype).c_str()),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!IsContains(KC_QUANT_X_DTYPE_LIST, x2Dtype),
+                    OP_LOGE(opName,
+                            "The Input x2 Dtype should be in kc-quant range (float8_e4m3fn/float8_e5m2), but x2 is %s.",
+                            Ops::Base::ToString(x2Dtype).c_str()),
                     return ge::GRAPH_FAILED);
     // 校验 bias 数据类型（如果存在）
     auto biasTensorDesc = context->GetOptionalInputDesc(INPUT_BIAS_INDEX);
@@ -209,9 +210,16 @@ ge::graphStatus MatmulAlltoAllTilingUtil::CheckKcQuantTensorDataType(const gert:
     auto x2ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
     OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
                     OP_LOGE(opName, "x1scale tensors should not be null in kc quant mode."), return ge::GRAPH_FAILED);
+    ge::DataType x1scaleDtype = x1ScaleTensorDesc->GetDataType();
+    OP_TILING_CHECK((x1scaleDtype != ge::DT_FLOAT),
+                    OP_LOGE(opName, "x1scale dtype should be DT_FLOAT in kc quant mode, but is %s.", Ops::Base::ToString(x1scaleDtype).c_str()),
+                    return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
                     OP_LOGE(opName, "x2scale tensors should not be null in kc quant mode."), return ge::GRAPH_FAILED);
-
+    ge::DataType x2scaleDtype = x2ScaleTensorDesc->GetDataType();
+    OP_TILING_CHECK((x2scaleDtype != ge::DT_FLOAT),
+                    OP_LOGE(opName, "x1scale dtype should be DT_FLOAT in kc quant mode, but is %s.", Ops::Base::ToString(x2scaleDtype).c_str()),
+                    return ge::GRAPH_FAILED);
     // 校验输出张量数据类型
     auto yDesc = context->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName, "output tensor y is nullptr."), return ge::GRAPH_FAILED);
