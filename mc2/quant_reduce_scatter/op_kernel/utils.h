@@ -33,6 +33,7 @@ struct HcclA5OpResParam {
     uint64_t msSize; // 可写的MS个数，预留
 };
 
+// 同步函数：等待指定事件完成
 template <AscendC::HardEvent event>
 __aicore__ inline void SyncFunc()
 {
@@ -41,6 +42,7 @@ __aicore__ inline void SyncFunc()
     AscendC::WaitFlag<event>(eventID);
 }
 
+// 向上取整除法：计算a除以b的向上取整结果
 __aicore__ inline uint64_t CeilDiv(uint64_t a, uint32_t b)
 {
     if (b == 0) {
@@ -49,11 +51,23 @@ __aicore__ inline uint64_t CeilDiv(uint64_t a, uint32_t b)
     return (a + b - 1) / b;
 };
 
+// 向上对齐：将a向上对齐到b的倍数
 __aicore__ inline uint64_t CeilAlign(uint64_t a, uint32_t b)
 {
     uint64_t bTemp = static_cast<uint64_t>(b);
     return (bTemp == 0) ? a : CeilDiv(a, bTemp) * bTemp;
 };
+
+// 尾块模运算：计算a对b取模，模为0时返回b（用于数据块尾块的计算）
+__aicore__ inline uint64_t BlockAlignMod(uint64_t a, uint32_t b)
+{
+    if (b == 0) {
+        return 0;
+    }
+    
+    uint64_t c = a % b;
+    return c ? c : b;
+}
 
 static constexpr AscendC::MicroAPI::CastTrait castTrait = {AscendC::MicroAPI::RegLayout::ZERO,
     AscendC::MicroAPI::SatMode::NO_SAT, AscendC::MicroAPI::MaskMergeMode::ZEROING, AscendC::RoundMode::CAST_NONE};

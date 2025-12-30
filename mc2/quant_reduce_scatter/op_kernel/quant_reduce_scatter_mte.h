@@ -56,10 +56,14 @@ private:
     TBuf<> sumBuf_; // 用于Reduce_sum 求和
 
     uint64_t xSize_{0};
+    uint64_t dataWinSize_{0};
+    uint64_t statusWinSize_{0};
+    uint64_t tailXNums_{0};
     uint32_t totalBlockNums_{0};
     uint64_t alignedXSize_{0};
     // reduceScater进行all2all过程，数据要按卡数进行均分，以下为计算切分相关的参数
     uint64_t scaleSize_{0};
+    uint64_t xSliceSize_{0};
     uint64_t xSliceSizeNums_{0};
     uint64_t scaleSliceNums_{0};
 };
@@ -73,18 +77,22 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::Init(GM_ADDR x, GM_A
 
     /* quant_reduce_scatter自己的数据 */
     auto&& tiliingDatainfo = tilingData->quantReduceScatterTilingInfo;
+    dataWinSize_ = tiliingDatainfo.winInDataSize;
+    statusWinSize_ = tiliingDatainfo.winOutStateSize;
     xSize_ = tiliingDatainfo.bs * tiliingDatainfo.hiddenSize * sizeof(XType);
     scaleSize_ = tiliingDatainfo.bs * tiliingDatainfo.scaleHiddenSize * sizeof(ScalesType);
     // 对于mx的scale是三维，最后一维为2，总scales的数据量需要再乘以2
     if constexpr(AscendC::IsSameType<ScalesType, fp8_e8m0_t>::value) {
         scaleSize_ *= MX_SCALES_LAST_DIM;
     }
-    xSliceSizeNums_ = xSize_ / (mteComm_.hcclContext_->rankDim * sizeof(XType)); // all2all过程，数据需要按卡数均分
+    xSliceSize_ = xSize_ / (mteComm_.hcclContext_->rankDim ); // all2all过程，数据需要按卡数均分
+    xSliceSizeNums_ = xSliceSize_ / sizeof(XType); // 按卡均分后每片x数据的个数
     scaleSliceNums_ = scaleSize_ / (mteComm_.hcclContext_->rankDim * sizeof(ScalesType)); // all2all过程，每张卡需要的scale数据个数
-    alignedXSize_ = CeilAlign(xSliceSizeNums_, X_BLOCK_BYTES) * mteComm_.hcclContext_->rankDim; // x数据量按1024B向上对齐，防止尾块覆写后方scale数据
-    totalBlockNums_ = CeilDiv(xSliceSizeNums_, X_BLOCK_BYTES); // 1/rank 数据需要搬运的总块数
+    tailXNums_ = BlockAlignMod(xSliceSizeNums_, X_PRE_BLOCK_NUM); // 计算分卡后每片的最后一个数据块的大小
+    totalBlockNums_ = CeilDiv(xSliceSize_, X_BLOCK_BYTES); // 1/rank 数据需要搬运的总块数
     mteComm_.round_ = totalBlockNums_ / tiliingDatainfo.aivNum;  // 计算数据分核搬运需要的轮次数
     mteComm_.tailBlockNums_ = totalBlockNums_ % tiliingDatainfo.aivNum; // 搬运的尾块数
+    mteComm_.ComputeTailAivId(tiliingDatainfo.aivNum); // 计算最后一个核的id
     tPipe->Reset();
     tPipe->InitBuffer(xInQueue_, BUFFER_NUM, X_BLOCK_BYTES); // 每次拷贝 1024B x; 128 * 8
     tPipe->InitBuffer(scaleInQue, BUFFER_NUM, UB_ALIGN_BYTES); // 每次拷贝 32B scale；4 * 8
@@ -92,14 +100,14 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::Init(GM_ADDR x, GM_A
     sumTensor_ = sumBuf_.Get<float>();
 
     // 设置quant_reduce_scatter切块大小
-    mteComm_.SetBlockSize(X_PRE_BLOCK_NUM);
+    mteComm_.SetBlockSize(X_PRE_BLOCK_NUM, tiliingDatainfo.aivNum, tailXNums_);
     vecComp_.SetBlockSize(X_PRE_BLOCK_NUM);  
 
     // 公共MTE搬运参数计算
     mteComm_.InitParams();
 
     // 初始化GM上的Tensor，包括Win区
-    mteComm_.InitGMTensor(x, scales, output, alignedXSize_);
+    mteComm_.InitGMTensor(x, scales, output, xSize_, dataWinSize_);
 
     // 初始化tPipe的各种buffer
     mteComm_.InitBuffer(tPipe);
@@ -139,7 +147,7 @@ template <TemplateTypeClass>
 __aicore__ inline void QuantReduceScatterMte<TemplateType>::ExecuteReduceScatter()
 {   
     // 读状态位，软同步
-    mteComm_.ReadStatus(); 
+    mteComm_.ReadStatus(statusWinSize_); 
     // 遍历需要搬运的数据块
     for (uint64_t curBlock = 0; curBlock < mteComm_.assignedBlockNums_; ++curBlock) {
         uint64_t curXOffset = mteComm_.xOffset_ + curBlock * X_PRE_BLOCK_NUM;
@@ -153,8 +161,14 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::ExecuteReduceScatter
 
             // 获取对端Win区中 x 和 sclae的地址
             GM_ADDR remoteXWin = (GM_ADDR)(mteComm_.hcclContext_->windowsIn[remoteRankId]);
+            GM_ADDR remoteScaleWin = (GM_ADDR)(mteComm_.hcclContext_->windowsIn[remoteRankId] + xSize_);
+
+            // OOM检测相关，给OOM框架手动设置端卡GM上WinIn数据区的的地址和大小
+            #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
+                OOMCheckAddrRange<XType>((__gm__ XType*)(remoteXWin), dataWinSize_);
+            #endif
+
             remoteWinXTensor_.SetGlobalBuffer((__gm__ XType*)remoteXWin);
-            GM_ADDR remoteScaleWin = (GM_ADDR)(mteComm_.hcclContext_->windowsIn[remoteRankId] + alignedXSize_);
             remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleWin);
 
             // 读取对端对应地址的 x 和 scale数据，进行反量化和求和
@@ -164,7 +178,11 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::ExecuteReduceScatter
         }
 
         // 将计算好的数据拷贝到输出tensor
-        mteComm_.CopyResultToOutput(curXOffset, sumTensor_);
+        uint32_t copyBlockNum = X_PRE_BLOCK_NUM;
+        if ((mteComm_.aivId_ ==  mteComm_.lastAivId_) && (curBlock == mteComm_.assignedBlockNums_ - 1)) {
+            copyBlockNum = tailXNums_; // 检测是否为最后的尾块搬运（即最后一个核的最后一个数据块）
+        }
+        mteComm_.CopyResultToOutput(curXOffset, sumTensor_, copyBlockNum);
     }
 }
 
@@ -179,7 +197,7 @@ __aicore__ inline void QuantReduceScatterMte<TemplateType>::Process()
     // 一次性拷贝完所有数据到本地卡win区
     mteComm_.template CopyDataToWin<true>(xSliceSizeNums_, scaleSliceNums_);
     // 写入状态到状态区
-    mteComm_.WriteStatusToWin();
+    mteComm_.WriteStatusToWin(statusWinSize_);
     // 执行ReduceScatter过程：等待状态区同步，读取数据并进行反量化ReduceSum
     ExecuteReduceScatter();
 }

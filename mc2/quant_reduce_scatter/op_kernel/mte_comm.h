@@ -35,28 +35,32 @@ public:
     __aicore__ inline MTECommunication() {};
     __aicore__ inline void InitHcclContext();
     __aicore__ inline void InitParams();
-    __aicore__ inline void InitGMTensor(GM_ADDR x, GM_ADDR scales, GM_ADDR output, uint64_t alignedXSize);
+    __aicore__ inline void InitGMTensor(GM_ADDR x, GM_ADDR scales, GM_ADDR output, uint64_t alignedXSize, uint64_t dataSpaceGmSize);
     __aicore__ inline void InitBuffer(TPipe *tPipe);
-    __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock);
+    __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum);
      template <bool isReduceScatter = false>
     __aicore__ inline void CopyDataToWin(uint64_t xSliceSizeNums = 0, uint64_t scaleSliceNums = 0);
-    __aicore__ inline void WriteStatusToWin();
-    __aicore__ inline void ReadStatus();
-    __aicore__ inline void CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor);
+    __aicore__ inline void WriteStatusToWin(uint64_t statusSpaceGmSize);
+    __aicore__ inline void ReadStatus(uint64_t statusSpaceGmSize);
+    __aicore__ inline void CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint32_t count);
+    __aicore__ inline void ComputeTailAivId(uint64_t totalAivCount);
 
     __gm__ HcclA5OpResParam *hcclContext_;
+    uint32_t aivId_{0};
+    uint64_t aivNum_{0};
     uint32_t round_{0};
     uint32_t tailBlockNums_{0};
     uint32_t assignedBlockNums_{0};
-
     uint64_t scaleNumsPerBlcok_{0};
     uint64_t xOffset_{0};  
     uint64_t scaleOffset_{0};
+    uint64_t lastAivId_{0};
 private:
-    uint32_t aivId_{0};  
-    uint32_t xNumPerBlock_{0};
 
-    __aicore__ inline void CopyDataBlock(uint64_t curXOffset, uint64_t curScaleOffset);
+    uint32_t xNumPerBlock_{0};
+    uint64_t tailXNums_{0};
+
+    __aicore__ inline void CopyDataBlock(uint64_t curXOffset, uint64_t curScaleOffset, uint32_t count);
 
     GlobalTensor<XType> xGMTensor_;
     GlobalTensor<ScalesType> scalesGMTensor_;
@@ -94,7 +98,7 @@ __aicore__ inline void MTECommunication<TemplateType>::InitParams()
 }
 
 template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::InitGMTensor(GM_ADDR x, GM_ADDR scales, GM_ADDR output, uint64_t alignedXSize)
+__aicore__ inline void MTECommunication<TemplateType>::InitGMTensor(GM_ADDR x, GM_ADDR scales, GM_ADDR output, uint64_t xSize, uint64_t dataSpaceGmSize)
 {
     xGMTensor_.SetGlobalBuffer((__gm__ XType*)x);
     scalesGMTensor_.SetGlobalBuffer((__gm__ ScalesType*)scales);
@@ -103,8 +107,14 @@ __aicore__ inline void MTECommunication<TemplateType>::InitGMTensor(GM_ADDR x, G
     // 通过rankId获取本地winIn区地址对应卡的数据区域
     // 获取本卡地址写数据
     GM_ADDR localDataSpaceGm = (GM_ADDR)(hcclContext_->windowsIn[hcclContext_->rankId]);
+
+    // OOM检测相关，给OOM框架手动设置本卡GM上WinIn数据区的地址和大小
+    #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
+        OOMCheckAddrRange<XType>((__gm__ XType*)(localDataSpaceGm), dataSpaceGmSize);
+    #endif
+
     localWinXGMTensor_.SetGlobalBuffer((__gm__ XType*)localDataSpaceGm);
-    localWinScaleGMTensor_.SetGlobalBuffer((__gm__ ScalesType*)(localDataSpaceGm + alignedXSize)); // GM上sclae数据跟在x后
+    localWinScaleGMTensor_.SetGlobalBuffer((__gm__ ScalesType*)(localDataSpaceGm + xSize)); // GM上sclae数据跟在x后
 }
 
 template <TemplateTypeClass>
@@ -122,14 +132,38 @@ __aicore__ inline void MTECommunication<TemplateType>::InitBuffer(TPipe *tPipe)
 }
 
 /**
- * @brief 设置数据块大小（每个DataBlock包含的数据x元素数量）
+ * @brief 配置数据块划分参数，用于多核并行计算
  * 
- * @param elementsPerBlock 每个数据块包含的x元素数量
+ * @param elementsPerBlock 每个标准数据块包含的X元素数量
+ * @param aivNum AIV核的总数，用于数据分发和负载均衡
+ * @param lastBlockNum 最后一个核处理的尾部数据块元素数量
  */
 template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::SetBlockSize(uint32_t elementsPerBlock)
+__aicore__ inline void MTECommunication<TemplateType>::SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum)
 {
     xNumPerBlock_ = elementsPerBlock;
+    aivNum_ = aivNum;
+    tailXNums_ = lastBlockNum;
+}
+
+/**
+ * @brief 计算负责处理尾部数据的AI核ID
+ * 
+ * @param totalAivCount AIV核的总数量
+ * 
+ * @note 当数据量较小时，此时计算仅仅只有一轮（round_ == 0），此时处理尾块的aiv并非最后一个，
+ *       需根据当前数据块数量计算。
+ */
+template <TemplateTypeClass>
+__aicore__ inline void MTECommunication<TemplateType>::ComputeTailAivId(uint64_t totalAivCount)
+{
+    if (round_ == 0) {
+        // 小数据量时，如果只有一轮搬运，负责尾块的aiv由此时计算的总块数决定
+        lastAivId_ = tailBlockNums_ - 1;
+    } else {
+        // 轮次大于一轮时，负责尾块的aiv必定是最后一个
+        lastAivId_ = totalAivCount - 1;
+    }
 }
 
 /**
@@ -141,17 +175,18 @@ __aicore__ inline void MTECommunication<TemplateType>::SetBlockSize(uint32_t ele
  * 
  * @param curXOffset 量化数据x在全局内存(GM)中的偏移量
  * @param curScaleOffset 缩放因子scale在全局内存(GM)中的偏移量
+ * @param count 当前x数据块dataCopy的元素数量
  */
 template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::CopyDataBlock(uint64_t curXOffset, uint64_t curScaleOffset)
+__aicore__ inline void MTECommunication<TemplateType>::CopyDataBlock(uint64_t curXOffset, uint64_t curScaleOffset, uint32_t count)
 {
     // 先拷贝data数据， 再拷贝scales
     /* x 从 GM -> UB -> Win */
     xTmpTensor_ = xQueue_.AllocTensor<XType>();
-    DataCopy(xTmpTensor_, xGMTensor_[curXOffset], xNumPerBlock_);
+    DataCopy(xTmpTensor_, xGMTensor_[curXOffset], count);
     xQueue_.EnQue(xTmpTensor_);
     xTmpTensor_ = xQueue_.DeQue<XType>();
-    DataCopy(localWinXGMTensor_[curXOffset], xTmpTensor_, xNumPerBlock_);
+    DataCopy(localWinXGMTensor_[curXOffset], xTmpTensor_, count);
     xQueue_.FreeTensor<XType>(xTmpTensor_);
 
     /* scale 从 GM -> UB -> Win */
@@ -183,7 +218,10 @@ __aicore__ inline void MTECommunication<TemplateType>::CopyDataToWin(uint64_t xS
     for (uint64_t curBlock = 0; curBlock < assignedBlockNums_; ++curBlock) {
         uint64_t curXOffset = xOffset_ + curBlock * xNumPerBlock_; // 计算现在搬第几个x
         uint64_t curScaleOffset = scaleOffset_ + curBlock * scaleNumsPerBlcok_; // 计算现在搬第几个scale
-        
+        uint32_t copyBlockNum = xNumPerBlock_;
+        if ((aivId_ ==  lastAivId_) && (curBlock == assignedBlockNums_ - 1)) {
+            copyBlockNum = tailXNums_; // 检测是否为最后的尾块搬运
+        }
         if constexpr (isReduceScatter) {
             // ReduceScatter过程，数据按卡均分，需要对卡进行遍历
             for(uint64_t curRank = 0; curRank < hcclContext_->rankDim; ++curRank) {
@@ -192,11 +230,11 @@ __aicore__ inline void MTECommunication<TemplateType>::CopyDataToWin(uint64_t xS
                 uint64_t curRankScaleOffset = curScaleOffset + curRank * scaleSliceNums;
 
                 // 搬运当前数据块到Win区
-                CopyDataBlock(curRankXOffset, curRankScaleOffset);
+                CopyDataBlock(curRankXOffset, curRankScaleOffset, copyBlockNum);
             }
         } else {
             // AllReduce过程，allgather直接搬运
-            CopyDataBlock(curXOffset, curScaleOffset);
+            CopyDataBlock(curXOffset, curScaleOffset, copyBlockNum);
         }
     }
     PipeBarrier<PIPE_ALL>();
@@ -211,7 +249,7 @@ __aicore__ inline void MTECommunication<TemplateType>::CopyDataToWin(uint64_t xS
  * 确保所有设备都能感知到当前核的完成状态。
  */
 template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::WriteStatusToWin()
+__aicore__ inline void MTECommunication<TemplateType>::WriteStatusToWin(uint64_t statusSpaceGmSize)
 {
     uint32_t coreOffset = aivId_ * hcclContext_->rankDim; // Win区大小为 aivNum * rankDim, 此处计算核偏移
     // 遍历每一张卡，给每一张卡都要写入状态
@@ -223,6 +261,10 @@ __aicore__ inline void MTECommunication<TemplateType>::WriteStatusToWin()
         statusTensor(0) = (float)1.0;  // 用1标识
         GM_ADDR remoteWinStateGM = (GM_ADDR)hcclContext_->windowsOut[curRank]; // 获取当前要写对端卡的状态区地址
         GlobalTensor<float> stateGMTensor;
+        // OOM检测相关，给OOM框架手动设置端卡GM上WinOut状态区的的地址和大小
+        #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
+            OOMCheckAddrRange<float>((__gm__ float*)(remoteWinStateGM), statusSpaceGmSize);
+        #endif
         stateGMTensor.SetGlobalBuffer((__gm__ float*)remoteWinStateGM);
         // 不同卡上的核的状态写到相邻位置，读时可以一次读rankDim个状态, 状态区大小设计为 aivNum * ranDim
         uint64_t curOffset = (coreOffset + hcclContext_->rankId) * FLOAT_UB_ALIGN_NUM; // 当前核偏移 + 卡偏移， 按32B对齐
@@ -239,11 +281,15 @@ __aicore__ inline void MTECommunication<TemplateType>::WriteStatusToWin()
  * 准备就绪，从而避免跨设备数据不一致性问题。
  */
 template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::ReadStatus()
+__aicore__ inline void MTECommunication<TemplateType>::ReadStatus(uint64_t statusSpaceGmSize)
 {
     GM_ADDR stateGM = (GM_ADDR)hcclContext_->windowsOut[hcclContext_->rankId]; // 获取本卡的状态区用于读取
     GlobalTensor<float> selfStatusWinTensor;
     uint32_t offset = aivId_ * hcclContext_->rankDim * FLOAT_UB_ALIGN_NUM; // 获取当前核所需读取状态位的头地址，状态按32B对齐
+    // OOM检测相关，给OOM框架手动设本卡GM上WinOut状态区的的地址和大小
+    #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
+        OOMCheckAddrRange<float>((__gm__ float*)(stateGM), statusSpaceGmSize);
+    #endif
     selfStatusWinTensor.SetGlobalBuffer((__gm__ float*)(stateGM));
     LocalTensor<float> statusTensor = readStateBuf_.Get<float>();
     float flag = 0; // 用于计算状态和
@@ -269,20 +315,21 @@ __aicore__ inline void MTECommunication<TemplateType>::ReadStatus()
  * 
  * @param outputOffset 输出OutputTensor的GM偏移量，用于指定目标位置。
  * @param sourceTensor 本地UB上计算结果Tensor，包含计算完成的数据。
+ * @param count 当前每次处理数据块的元素数量
  */
 template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor)
+__aicore__ inline void MTECommunication<TemplateType>::CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint32_t count)
 {
     // 将计算好的数据拷贝到输出tensor，如果是非float数据类型需要先转换成目标数据类型
     xOutTensor_ = xOutQueue_.AllocTensor<OutputType>();
     if constexpr (AscendC::IsSameType<OutputType, float>::value) {
-        DataCopy(xOutTensor_, localResultTensor, xNumPerBlock_);
+        DataCopy(xOutTensor_, localResultTensor, count);
     } else {
-        Cast(xOutTensor_, localResultTensor, RoundMode::CAST_RINT, xNumPerBlock_);
+        Cast(xOutTensor_, localResultTensor, RoundMode::CAST_RINT, count);
     }
     xOutQueue_.EnQue(xOutTensor_);
     xOutTensor_ = xOutQueue_.DeQue<OutputType>();
-    DataCopy(outputTensor_[outOffsetGM], xOutTensor_, xNumPerBlock_);
+    DataCopy(outputTensor_[outOffsetGM], xOutTensor_, count);
     xOutQueue_.FreeTensor(xOutTensor_);
 }
 } // QuantMTECommImpl

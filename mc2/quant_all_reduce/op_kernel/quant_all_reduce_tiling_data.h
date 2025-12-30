@@ -23,6 +23,8 @@ struct QuantAllReduceTilingInfo {
     uint64_t hiddenSize;      // x的h轴
     uint64_t scaleHiddenSize; // scales的h轴
     uint64_t aivNum;          // aiv数
+    uint64_t winInDataSize;   // WinIn区大小，用作数据区
+    uint64_t winOutStateSize; // WinOut区大小，用作状态区
 };
 
 struct QuantAllReduceTilingData {
