@@ -19,7 +19,7 @@
 
 ## 功能说明
 
-- 算子功能：训练场景下，使用NSA Compress算法减轻long-context的注意力计算，实现在KV序列维度进行压缩。
+- 接口功能：训练场景下，使用NSA Compress算法减轻long-context的注意力计算，实现在KV序列维度进行压缩。
 
 - 计算公式：
 
@@ -56,7 +56,7 @@ aclnnStatus aclnnNsaCompress(
 ## aclnnNsaCompressGetWorkspaceSize
 
 - **参数说明：**
-<table style="undefined;table-layout: fixed; width: 1565px"><colgroup>
+  <table style="undefined;table-layout: fixed; width: 1565px"><colgroup>
   <col style="width: 146px">
   <col style="width: 135px">
   <col style="width: 326px">
@@ -81,7 +81,7 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>input</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，表示待压缩张量。</td>
+      <td>表示待压缩张量。</td>
       <td>
         <ul>
           <li>不支持空Tensor。</li>
@@ -97,7 +97,7 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>weight</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，表示压缩权重。</td>
+      <td>表示压缩权重。</td>
       <td>
         <ul>
           <li>不支持空Tensor。</li>
@@ -113,12 +113,8 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>actSeqLenOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，描述每个Batch对应的S大小。</td>
-      <td>
-        <ul>
-          <li>当前不能为空。</li>
-        </ul>
-      </td>
+      <td>描述每个Batch对应的S大小。</td>
+      <td>当前不能为空。</td>
       <td>INT64</td>
       <td>ND</td>
       <td>1</td>
@@ -127,7 +123,7 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>layoutOptional</td>
       <td>输入</td>
-      <td>Host侧的string，代表输入input的数据排布格式。</td>
+      <td>表输入input的数据排布格式。</td>
       <td>
         <ul>
           <li>支持BSH、SBH、BSND、BNSD、TND。</li>
@@ -142,7 +138,7 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>compressBlockSize</td>
       <td>输入</td>
-      <td>Host侧的int64_t，压缩滑窗大小。</td>
+      <td>压缩滑窗大小。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -152,7 +148,7 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>compressStride</td>
       <td>输入</td>
-      <td>Host侧的int64_t，两次压缩滑窗间隔大小。</td>
+      <td>两次压缩滑窗间隔大小。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -162,7 +158,7 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>actSeqLenType</td>
       <td>输入</td>
-      <td>Host侧的int64_t，描述actSeqLenOptional数值类型。</td>
+      <td>描述actSeqLenOptional数值类型。</td>
       <td>
         <ul>
           <li>可取值0或1。</li>
@@ -178,7 +174,7 @@ aclnnStatus aclnnNsaCompress(
     <tr>
       <td>output</td>
       <td>输出</td>
-      <td>Device侧的aclTensor，压缩后的结果。</td>
+      <td>压缩后的结果。</td>
       <td>
         <ul>
           <li>不支持空Tensor。</li>
@@ -218,48 +214,51 @@ aclnnStatus aclnnNsaCompress(
 
 - **返回值：**
 
-返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
-<table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
-<col style="width: 319px">
-<col style="width: 144px">
-<col style="width: 671px">
-</colgroup>
-<thead>
-  <tr>
-    <th>返回码</th>
-    <th>错误码</th>
-    <th>描述</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td>ACLNN_ERR_PARAM_NULLPTR</td>
-    <td>161001</td>
-    <td>传入input、weight、actSeqLenOptional或output是空指针。</td>
-  </tr>
-  <tr>
-    <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
-    <td rowspan="3">161002</td>
-    <td>input和weight的数据类型不在支持的范围之内。</td>
-  </tr>
-  <tr>
-    <td>input和weight的shape无法做broadcast。</td>
-  </tr>
-  <tr>
-    <td>layoutOptional不合法。</td>
-  </tr>
-</tbody>
-</table>
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+  第一段接口完成入参校验，出现以下场景时报错：
+
+  <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
+  <col style="width: 319px">
+  <col style="width: 144px">
+  <col style="width: 671px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>返回码</th>
+      <th>错误码</th>
+      <th>描述</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
+      <td>161001</td>
+      <td>传入input、weight、actSeqLenOptional或output是空指针。</td>
+    </tr>
+    <tr>
+      <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="3">161002</td>
+      <td>input和weight的数据类型不在支持的范围之内。</td>
+    </tr>
+    <tr>
+      <td>input和weight的shape无法做broadcast。</td>
+    </tr>
+    <tr>
+      <td>layoutOptional不合法。</td>
+    </tr>
+  </tbody>
+  </table>
 
 
 ## aclnnNsaCompress
 
 - **参数说明：**
 
-  <table style="undefined;table-layout: fixed; width: 598px"><colgroup>
-  <col style="width: 144px">
-  <col style="width: 125px">
-  <col style="width: 700px">
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
   </colgroup>
   <thead>
     <tr>
@@ -302,7 +301,6 @@ aclnnStatus aclnnNsaCompress(
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 - input和weight需要满足broadcast关系，input.shape[1]=weight.shape[1]，不支持input、weight为空输入。
 - actSeqLenType目前仅支持取值0，即actSeqLenOptional需要是前缀和模式。
-- actSeqLenOptional目前不支持为空。
 - layoutOptional目前仅支持TND，此时input.shape[0]必须等于actSeqLenOptional[-1]。
 - input.shape[1]=weight.shape[1]，需要小于等于128。
 - input.shape[2]必须是16的倍数，上限256。

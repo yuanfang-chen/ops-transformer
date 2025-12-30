@@ -364,11 +364,10 @@ aclnnStatus aclnnNsaCompressAttentionInfer(
   
   第一段接口完成入参校验，出现以下场景时报错：
   
-  <table style="undefined;table-layout: fixed; width: 1030px">
-  <colgroup>
-  <col style="width: 250px">
-  <col style="width: 130px">
-  <col style="width: 650px">
+  <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
+  <col style="width: 319px">
+  <col style="width: 144px">
+  <col style="width: 671px">
   </colgroup>
   <thead>
     <tr>
@@ -399,7 +398,12 @@ aclnnStatus aclnnNsaCompressAttentionInfer(
 
 - **参数说明**
   
-  <table><thead>
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
+  </colgroup>
+  <thead>
     <tr>
       <th>参数名</th>
       <th>输入/输出</th>
@@ -428,6 +432,7 @@ aclnnStatus aclnnNsaCompressAttentionInfer(
     </tr>
   </tbody>
   </table>
+  
 - **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。

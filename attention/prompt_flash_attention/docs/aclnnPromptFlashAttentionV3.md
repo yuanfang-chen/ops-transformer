@@ -15,7 +15,7 @@
 
 ## 功能说明
 
-- 算子功能：全量推理场景的FlashAttention算子，支持sparse优化、actualSeqLengthsKv优化、int8量化功能、innerPrecise参数（用于支持高精度或者高性能模式选择）。
+- 接口功能：全量推理场景的FlashAttention算子，支持sparse优化、actualSeqLengthsKv优化、int8量化功能、innerPrecise参数（用于支持高精度或者高性能模式选择）。
 
 -   计算公式：
 

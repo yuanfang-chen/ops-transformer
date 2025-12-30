@@ -4,46 +4,15 @@
 
 ## 产品支持情况
 
-<table style="undefined;table-layout: fixed; width: 700px"><colgroup>
-<col style="width: 600px">
-<col style="width: 100px">
-</colgroup>
-<thead>
-  <tr>
-    <th style="text-align: center;">产品</th>
-    <th style="text-align: center;">是否支持</th>
-  </tr></thead>
-<tbody>
-  <tr>
-    <td>昇腾910_95 AI处理器</td>
-    <td style="text-align: center;">√</td>
-  </tr>
-  <tr>
-    <td>Atlas A3 训练系列产品/Atlas A3 推理系列产品</td>
-    <td style="text-align: center;">×</td>
-  </tr>
-  <tr>
-    <td>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</td>
-    <td style="text-align: center;">√</td>
-  </tr>
-  <tr>
-    <td>Atlas 200I/500 A2 推理产品</td>
-    <td style="text-align: center;">×</td>
-  </tr>
-  <tr>
-    <td>Atlas 推理系列加速卡产品</td>
-    <td style="text-align: center;">√</td>
-  </tr>
-  <tr>
-    <td>Atlas 训练系列产品</td>
-    <td style="text-align: center;">×</td>
-  </tr>
-  <tr>
-    <td>Atlas 200I/300/500 推理产品</td>
-    <td style="text-align: center;">×</td>
-  </tr>
-</tbody>
-</table>
+|产品      | 是否支持 |
+|:----------------------------|:-----------:|
+|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
+|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列加速卡产品</term>|      √    |
+|<term>Atlas 训练系列产品</term>|      ×     |
+|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -288,6 +257,7 @@ aclnnStatus aclnnPromptFlashAttention(
 
 
 - **返回值**
+
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
   第一段接口完成入参校验，若出现以下错误码，则对应原因为：
@@ -363,6 +333,7 @@ aclnnStatus aclnnPromptFlashAttention(
     </tbody>
     </table>
     </div>
+    
 -   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。

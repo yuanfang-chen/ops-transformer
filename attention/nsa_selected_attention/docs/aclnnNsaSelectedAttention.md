@@ -19,7 +19,7 @@
 
 ## 功能说明
 
-- 算子功能：训练场景下，实现NativeSparseAttention算法中selected-attention（选择注意力）的计算。
+- 接口功能：训练场景下，实现NativeSparseAttention算法中selected-attention（选择注意力）的计算。
 
 - 计算公式：
   选择注意力的正向计算公式如下：
@@ -65,7 +65,8 @@ aclnnStatus aclnnNsaSelectedAttention(
   aclOpExecutor    *executor,
   const aclrtStream stream)
 ```
-### aclnnNsaSelectedAttentionGetWorkspaceSize
+
+## aclnnNsaSelectedAttentionGetWorkspaceSize
 
 - **参数说明：**
 
@@ -96,7 +97,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>query</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的query。</td>
+      <td>公式中的query。</td>
       <td>数据类型需与key/value一致。</td>
       <td>BFLOAT16、FLOAT16</td>
       <td>ND</td>
@@ -106,7 +107,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>key</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的key。</td>
+      <td>公式中的key。</td>
       <td>数据类型需与query/value一致。</td>
       <td>BFLOAT16、FLOAT16</td>
       <td>ND</td>
@@ -116,7 +117,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>value</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的value。</td>
+      <td>公式中的value。</td>
       <td>数据类型需与query/key一致。</td>
       <td>BFLOAT16、FLOAT16</td>
       <td>ND</td>
@@ -126,7 +127,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>topkIndices</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的topk_indices。</td>
+      <td>公式中的topk_indices。</td>
       <td>shape需为[T_q, N_kv, selected_block_count], 表示所选数据的索引。</td>
       <td>INT32</td>
       <td>ND</td>
@@ -136,7 +137,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>attenMaskOptional</td>
       <td>输入</td>
-      <td>Device侧的aclTensor，公式中的atten_mask。</td>
+      <td>公式中的atten_mask。</td>
       <td>
         <ul>
           <li>取值true/1表示不参与计算。</li>
@@ -151,7 +152,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>actualSeqQLenOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，表示query每个Batch S的累加和长度。</td>
+      <td>表示query每个Batch S的累加和长度。</td>
       <td>TND排布时需要输入，其余场景输入nullptr。</td>
       <td>INT64</td>
       <td>ND</td>
@@ -161,7 +162,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>actualSeqKvLenOptional</td>
       <td>输入</td>
-      <td>Host侧的aclIntArray，表示key/value每个Batch S的累加和长度。</td>
+      <td>表示key/value每个Batch S的累加和长度。</td>
       <td>TND排布时需要输入，其余场景输入nullptr。</td>
       <td>INT64</td>
       <td>ND</td>
@@ -171,7 +172,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>scaleValue</td>
       <td>输入</td>
-      <td>Host侧的double，公式中的scale，代表缩放系数。</td>
+      <td>公式中的scale，代表缩放系数。</td>
       <td>一般设置为D^-0.5，其中D为query的head维度。</td>
       <td>DOUBLE</td>
       <td>-</td>
@@ -181,7 +182,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>headNum</td>
       <td>输入</td>
-      <td>Host侧的int64_t，代表head个数。</td>
+      <td>代表head个数。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -191,7 +192,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>inputLayout</td>
       <td>输入</td>
-      <td>Host侧的string，代表query/key/value的数据排布格式。</td>
+      <td>代表query/key/value的数据排布格式。</td>
       <td>当前仅支持TND。</td>
       <td>String</td>
       <td>-</td>
@@ -201,8 +202,8 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>selectedBlockSize</td>
       <td>输入</td>
-      <td>Host侧的int64_t，表示select的每个block长度。</td>
-      <td>-</td>
+      <td>表示select的每个block长度。</td>
+      <td>支持<=128且满足16的整数倍。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -211,7 +212,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>selectedBlockCount</td>
       <td>输入</td>
-      <td>Host侧的int64_t，表示select block的数量。</td>
+      <td>表示select block的数量。</td>
       <td>-</td>
       <td>INT64</td>
       <td>-</td>
@@ -221,7 +222,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>sparseMode</td>
       <td>输入</td>
-      <td>Host侧的int64_t，表示sparse模式。</td>
+      <td>表示sparse模式。</td>
       <td>支持取值0或2。</td>
       <td>INT64</td>
       <td>-</td>
@@ -231,7 +232,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>softmaxMaxOut</td>
       <td>输出</td>
-      <td>Device侧的aclTensor，Softmax计算的Max中间结果。</td>
+      <td>Softmax计算的Max中间结果。</td>
       <td>用于反向计算。</td>
       <td>FLOAT</td>
       <td>ND</td>
@@ -241,7 +242,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>softmaxSumOut</td>
       <td>输出</td>
-      <td>Device侧的aclTensor，Softmax计算的Sum中间结果。</td>
+      <td>Softmax计算的Sum中间结果。</td>
       <td>用于反向计算。</td>
       <td>FLOAT</td>
       <td>ND</td>
@@ -251,7 +252,7 @@ aclnnStatus aclnnNsaSelectedAttention(
     <tr>
       <td>attentionOut</td>
       <td>输出</td>
-      <td>Device侧的aclTensor，计算公式的最终输出。</td>
+      <td>计算公式的最终输出。</td>
       <td>数据类型与query一致。</td>
       <td>BFLOAT16、FLOAT16</td>
       <td>ND</td>
@@ -284,45 +285,48 @@ aclnnStatus aclnnNsaSelectedAttention(
 
 - **返回值：**
 
-返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
-<table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
-<col style="width: 319px">
-<col style="width: 144px">
-<col style="width: 671px">
-</colgroup>
-<thead>
-  <tr>
-    <th>返回码</th>
-    <th>错误码</th>
-    <th>描述</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td>ACLNN_ERR_PARAM_NULLPTR</td>
-    <td>161001</td>
-    <td>传入参数是必选输入，输出或者必选属性，且是空指针。</td>
-  </tr>
-  <tr>
-    <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
-    <td rowspan="3">161002</td>
-    <td>query、key、value、attenMaskOptional、softmaxMaxOut、softmaxSumOut、attentionOut的数据类型和数据格式不在支持的范围内。</td>
-  </tr>
-  <tr>
-    <td>inputLayout输入的类型不在支持的范围内。</td>
-  </tr>
-</tbody>
-</table>
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+  第一段接口完成入参校验，出现以下场景时报错：
+
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 281px">
+  <col style="width: 119px">
+  <col style="width: 750px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>返回码</th>
+      <th>错误码</th>
+      <th>描述</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
+      <td>161001</td>
+      <td>传入参数是必选输入，输出或者必选属性，且是空指针。</td>
+    </tr>
+    <tr>
+      <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="3">161002</td>
+      <td>query、key、value、attenMaskOptional、softmaxMaxOut、softmaxSumOut、attentionOut的数据类型和数据格式不在支持的范围内。</td>
+    </tr>
+    <tr>
+      <td>inputLayout输入的类型不在支持的范围内。</td>
+    </tr>
+  </tbody>
+  </table>
 
 
-### aclnnNsaSelectedAttention
+## aclnnNsaSelectedAttention
 
 - **参数说明：**
 
-  <table style="undefined;table-layout: fixed; width: 598px"><colgroup>
-  <col style="width: 144px">
-  <col style="width: 125px">
-  <col style="width: 700px">
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
   </colgroup>
   <thead>
     <tr>
@@ -368,11 +372,8 @@ aclnnStatus aclnnNsaSelectedAttention(
 - 输入query、key、value的D：Head-Dim必须满足（D_q == D_k && D_k >= D_v）。
 - 输入query、key、value的数据类型必须一致。
 - 输入query、key、value的inputLayout必须一致。
-- sparseMode目前支持0和2。
-- selectedBlockSize支持<=128且满足16的整数倍。
 - selectBlockCount：支持[1~128]。 总计选择的大小`selectBlockCount * selctBlockSize` < 128*64(8K)
 - Layout为TND时，每个Batch的S2都要大于总计选择的大小`selectBlockCount * selctBlockSize`
-- inputLayout目前仅支持TND。
 - 支持输入query的N和key/value的N不相等，但必须成比例关系，即N_q / N_kv必须是非0整数，称为G（group），且需满足G <= 32。
 - 当attenMaskOptional输入为nullptr时，sparseMode参数不生效，固定为全计算。
 - 关于数据shape的约束，以inputLayout的TND举例（注：T等于各batch S的长度累加和。当各batch的S相等时，T=B*S）。其中：
