@@ -956,21 +956,21 @@ bool GMMTiling::IsAivAicRatioTwoRequired() {
     if (groupListType_ == GROUP_LIST_SPARSE_M) {
       return false;
     }
-    
+
     // Condition 1: GELU activation (immediate match)
     if (actType_ == ACT_TYPE_GELU) {
       return true;
     }
-    
+
     // Condition 2: Complex tuning configuration requiring:
     // - K dimension outside normal vectorization range
     // - Minimum tuning configuration threshold
     // - Valid token/group size
-    const bool needs_double_vector = (maxK_ <= DOUBLE_VECTOT_THRESHOLD_K_LOWER) || 
+    const bool needs_double_vector = (maxK_ <= DOUBLE_VECTOT_THRESHOLD_K_LOWER) ||
                                     (maxK_ >= DOUBLE_VECTOT_THRESHOLD_K_UPPER);
     const bool has_sufficient_tuning = (tuningConfig_ >= SMALL_TUNING_CONFIG_THRESHOLD);
     const bool has_valid_workload = (perTokenOrPerGroupSize_ > 0U);
-    
+
     return needs_double_vector && has_sufficient_tuning && has_valid_workload;
 }
 
@@ -978,14 +978,14 @@ bool GMMTiling::IsFixedAxisMoveCondition() {
     bool isCorrectShape = (maxK_ == FIXAXISMOVE_K1 && maxN_ == FIXAXISMOVE_N1) ||
                           (maxK_ == FIXAXISMOVE_K2 && maxN_ == FIXAXISMOVE_N2);
     bool isGroupCorrect = (groupNum_ == FIXAXISMOVE_GROUP_NUM);
-    bool isTuningInRange = (tuningConfig_ >= FIXAXISMOVE_PERM_LOWER) && 
+    bool isTuningInRange = (tuningConfig_ >= FIXAXISMOVE_PERM_LOWER) &&
                           (tuningConfig_ <= FIXAXISMOVE_PERM_UPPER);
     bool isDataTypeCorrect = yDtype_ == ge::DT_FLOAT16 && scaleDtype_ == ge::DT_FLOAT && perTokenScaleDtype_ == ge::DT_FLOAT;
-    bool isConfigCorrect = !transposeX_ && (splitItem_ == FIXAXISMOVE_SPLIT_ITEM2 || splitItem_ == FIXAXISMOVE_SPLIT_ITEM3) 
-                          && (groupListType_ == FIXAXISMOVE_GROUP_LIST_TYPE) 
+    bool isConfigCorrect = !transposeX_ && (splitItem_ == FIXAXISMOVE_SPLIT_ITEM2 || splitItem_ == FIXAXISMOVE_SPLIT_ITEM3)
+                          && (groupListType_ == FIXAXISMOVE_GROUP_LIST_TYPE)
                           && (groupType_ == FIXAXISMOVE_GROUP_TYPE) && (actType_ == 0)
                           && !transposeWeight_;
-    bool isWorkspaceValid = (FixedAxisMoveWorkspace_ <= tuningConfigWorkspace_) || 
+    bool isWorkspaceValid = (static_cast<int64_t>(FixedAxisMoveWorkspace_) <= tuningConfigWorkspace_) ||
                            (tuningConfigWorkspace_ == -1);
     bool isFormatValid = (wFormat_ == matmul_tiling::CubeFormat::NZ);
 
@@ -1032,7 +1032,7 @@ void GMMTiling::GMMSetTplTilingKey(gert::TilingContext* context) {
 
   if (a8w4KernelTemplate == GROUPED_MATMUL_A8W4_KERNEL_TEMPLATE_NONE &&
       a16w8KernelTemplate == GROUPED_MATMUL_A16W8_KERNEL_TEMPLATE_NONE &&
-      aivAicRatio != GROUPED_MATMUL_AIV_AIC_RATIO_2 && 
+      aivAicRatio != GROUPED_MATMUL_AIV_AIC_RATIO_2 &&
       !isFixedAxisMove_ &&
       StaticTilingProcess(context)) {
     isStaticTilingApi = 1U;
@@ -1983,7 +1983,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingGMM(gert::TilingContext* context) {
                      OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "SetTiling failed."), return ge::GRAPH_FAILED);
           return ge::GRAPH_SUCCESS;
       }
-      bool isUnQuant = (xDType == ge::DT_FLOAT16 || xDType == ge::DT_BF16) && (xDType == weightDtype);
+      bool isUnQuant = (xDType == ge::DT_FLOAT16 || xDType == ge::DT_BF16 || xDType == ge::DT_FLOAT) && (xDType == weightDtype);
       if (isUnQuant) {
         GroupedNoQuantMatmulTiling groupedNoQuantMatmulTiling;
         OP_CHECK_IF(!groupedNoQuantMatmulTiling.SetTiling(context),
