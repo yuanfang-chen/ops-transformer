@@ -23,7 +23,6 @@
      ((ORIG_DTYPE_X1 == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_X1 == DT_FLOAT8_E5M2)) && \
          ((ORIG_DTYPE_X2 == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_X2 == DT_FLOAT8_E5M2)))
 #include "arch35/all_gather_quant_bmm.h"
-#include "../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_perblock.h"
 #include "arch35/all_gather_quant_bmm_perblock.h"
 #endif
 
