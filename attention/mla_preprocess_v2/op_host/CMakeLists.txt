@@ -14,8 +14,7 @@ if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnn PRIVATE
             mla_preprocess_v2_def.cpp
     )
-
-    message("Debug mla_preprocess_v2 -----------------------------")
+    
     add_ops_compile_options(
         OP_NAME MlaPreprocessV2
         OPTIONS --cce-auto-sync=off
