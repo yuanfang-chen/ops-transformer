@@ -124,19 +124,25 @@
     if (tilingContextPara.socInfoString_ != "") {                                                                      \
         compileInfoString = tilingContextPara.socInfoString_;                                                          \
     }                                                                                                                  \
-    map<string, string> socToArch = {                                                                                  \
-        {"Ascend310P", "2002"},                                                                                        \
-        {"Ascend910B", "2201"},                                                                                        \
-        {"Ascend910_93", "2201"},                                                                                      \
-        {"Ascend910_95", "3510"}                                                                                       \
-    };                                                                                                                 \
     map<string, string> socInfos;                                                                                      \
     map<string, string> aicoreSpec;                                                                                    \
     map<string, string> intrinsics;                                                                                    \
-    map<string, string> versions = {                                                                                   \
-        {"NpuArch", socToArch[tilingContextPara.socVersion_]},                                                         \
-        {"Short_SoC_version", tilingContextPara.socVersion_}                                                           \
-    };                                                                                                                 \
+    map<string, string> versions;                                                                                      \
+    string version = tilingContextPara.socVersion_;                                                                    \
+    if (isNpuArchString(version)) {                                                                                    \
+        versions = {{"NpuArch", tilingContextPara.socVersion_}};                                                       \
+    } else {                                                                                                           \
+        map<string, string> socToArch = {                                                                              \
+            {"Ascend310P", "2002"},                                                                                    \
+            {"Ascend910B", "2201"},                                                                                    \
+            {"Ascend910_93", "2201"},                                                                                  \
+            {"Ascend910_95", "3510"}                                                                                   \
+        };                                                                                                             \
+        versions = {                                                                                                   \
+            {"NpuArch", socToArch[tilingContextPara.socVersion_]},                                                     \
+            {"Short_SoC_version", tilingContextPara.socVersion_}                                                       \
+        };                                                                                                             \
+    }                                                                                                                  \
     GetPlatFormInfos(compileInfoString.c_str(), socInfos, aicoreSpec, intrinsics);                                     \
     auto tilingContext = contextHolder.GetContext();                                                                   \
     tilingContext->GetPlatformInfo()->SetPlatformRes("SoCInfo", socInfos);                                             \
@@ -149,6 +155,20 @@
     auto tilingFunc = spaceRegistry->GetOpImpl(tilingContextPara.opName_.c_str())->tiling;                             \
     /* 4. check tiling func */                                                                                         \
     auto tilingRet = tilingFunc(tilingContext);
+
+static bool isNpuArchString(string version)
+{
+    if(version.empty()){
+        return false;
+    }
+
+    for(char c : version) {
+        if (!std::isdigit(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    return true;
+}
 
 template <typename T>
 static string to_string(void* buf, size_t size, unordered_set<size_t> mask={})
