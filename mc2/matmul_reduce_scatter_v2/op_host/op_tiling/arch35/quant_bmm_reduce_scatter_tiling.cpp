@@ -478,7 +478,7 @@ ge::graphStatus QuantBmmReduceScatterTiling::GetWorkspaceSize()
     OP_LOGI(opName_, "set max workspace size %lu to context", myWorkSpaceSize_);
     size_t* workspaces = context_->GetWorkspaceSizes(1);
     if (workspaces == nullptr) {
-        OP_LOGE(opName_, " workspaces is nullptr.");
+        OP_LOGE(opName_, "WorkspaceSizes is nullptr.");
         return ge::GRAPH_FAILED;
     }
     workspaces[0] = myWorkSpaceSize_;
@@ -503,22 +503,22 @@ void PrintTCubeTilingParams(const std::string &opName, DequantBmm::Mc2QuantBatch
     OP_LOGD(opName, " tiling.batchC3 %d", tiling.batchC3);
     OP_LOGD(opName, " tiling.batchC4 %d", tiling.batchC4);
     OP_LOGD(opName, " tiling.singleCoreBatch %d", tiling.singleCoreBatch);
+    OP_LOGD(opName, " tiling.realSingleCoreM %d", tiling.realSingleCoreM);
+    OP_LOGD(opName, " tiling.realSingleCoreN %d", tiling.realSingleCoreN);
     OP_LOGD(opName, " tiling.isPerTensor %d", tiling.isPerTensor);
-    OP_LOGD(opName, " tiling.isPertoken %d", tiling.isPertoken);
     OP_LOGD(opName, " tiling.isDoubleScale %d", tiling.isDoubleScale);
+    OP_LOGD(opName, " tiling.isPertoken %d", tiling.isPertoken);
     OP_LOGD(opName, " tiling.biasThreeDim %d", tiling.biasThreeDim);
     OP_LOGD(opName, " tiling.ubCalcM %d", tiling.ubCalcM);
     OP_LOGD(opName, " tiling.ubCalcN %d", tiling.ubCalcN);
     OP_LOGD(opName, " tiling.needUbBuffer %d", tiling.needUbBuffer);
-    OP_LOGD(opName, " tiling.realSingleCoreM %d", tiling.realSingleCoreM);
-    OP_LOGD(opName, " tiling.realSingleCoreN %d", tiling.realSingleCoreN);
     OP_LOGD(opName, " tiling.biasDtype %d", tiling.biasDtype);
     OP_LOGD(opName, " tiling.ubSize %d", tiling.ubSize);
-    OP_LOGD(opName, " tiling.isMClash %d", tiling.isMClash);
-    OP_LOGD(opName, " tiling.isNClash %d", tiling.isNClash);
     OP_LOGD(opName, " tiling.groupSizeM %d", tiling.groupSizeM);
     OP_LOGD(opName, " tiling.groupSizeN %d", tiling.groupSizeN);
     OP_LOGD(opName, " tiling.groupSizeK %d", tiling.groupSizeK);
+    OP_LOGD(opName, " tiling.isMClash %d", tiling.isMClash);
+    OP_LOGD(opName, " tiling.isNClash %d", tiling.isNClash);
 }
 
 void PrintTCubeTilingWindowParam(const std::string &opName, DequantBmm::Mc2SlidingWindowParams &tiling)
@@ -529,11 +529,11 @@ void PrintTCubeTilingWindowParam(const std::string &opName, DequantBmm::Mc2Slidi
 
 void PrintTCubeTilingL2cache(const std::string &opName, DequantBmm::Mc2L2cacheTileParams &tiling)
 {
+    OP_LOGD(opName, " tiling.calOrder %d", tiling.calOrder);
     OP_LOGD(opName, " tiling.mTileCntL2 %d", tiling.mTileCntL2);
     OP_LOGD(opName, " tiling.nTileCntL2 %d", tiling.nTileCntL2);
     OP_LOGD(opName, " tiling.mTileBlock %d", tiling.mTileBlock);
     OP_LOGD(opName, " tiling.nTileBlock %d", tiling.nTileBlock);
-    OP_LOGD(opName, " tiling.calOrder %d", tiling.calOrder);
     OP_LOGD(opName, " tiling.isBasicTiling %d", tiling.isBasicTiling);
 }
 

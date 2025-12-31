@@ -421,9 +421,9 @@ static void SetReduceScatterTilingArgs(const gert::TilingContext* context, mc2ti
 
     const gert::StorageShape* aShape = context->GetInputShape(0);
     const gert::StorageShape* bShape = context->GetInputShape(1);
-    uint64_t mValue = aShape->GetStorageShape().GetDim(0);
     uint64_t kValue = aShape->GetStorageShape().GetDim(1);
     uint64_t nValue = bShape->GetStorageShape().GetDim(1);
+    uint64_t mValue = aShape->GetStorageShape().GetDim(0);
 
 	if (aShape->GetStorageShape().GetDim(1) != bShape->GetStorageShape().GetDim(0)) {
         OP_LOGD(context->GetNodeName(), "A.shape(1) %lu B.shape(0) %lu, istransB = %d",

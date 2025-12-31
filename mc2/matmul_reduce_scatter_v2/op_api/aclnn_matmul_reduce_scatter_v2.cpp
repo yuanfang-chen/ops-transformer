@@ -12,12 +12,11 @@
  * \file aclnn_matmul_reduce_scatter_v2.cpp
  * \brief
  */
-#include "aclnn_matmul_reduce_scatter_v2.h"
 #include "securec.h"
-
 #include "acl/acl.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
+#include "hccl_util.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
@@ -26,8 +25,8 @@
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "common/op_host/op_api/matmul_util.h"
-#include "hccl_util.h"
 #include "mc2_aclnn_util.h"
+#include "aclnn_matmul_reduce_scatter_v2.h"
 
 using namespace op;
 
@@ -83,11 +82,12 @@ static inline bool IsAscend910D(void)
 // 检查入参是否为nullptr
 static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* output)
 {
-    OP_CHECK_NULL(x1, return false);
-    OP_CHECK_NULL(x2, return false);
     OP_CHECK_NULL(output, return false);
+    OP_CHECK_NULL(x2, return false);
+    OP_CHECK_NULL(x1, return false);
     return true;
 }
+
 enum class CaseOption {
     HIGH_ACCURACY = 0,
     LOW_ACCURACY_PER_TENSOR_WITHOUT_QUANT_AMAX,
@@ -98,14 +98,14 @@ enum class CaseOption {
 
 // 根据API定义，需要列出所能支持的所有dtype
 static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST = {
-    op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
+    op::DataType::DT_BF16, op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
     op::DataType::DT_HIFLOAT8};
 static const std::initializer_list<op::DataType> BIAS_OUTPUT_SUPPORT_TYPE = {
-    op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_FLOAT};
-static const std::initializer_list<op::DataType> INPUT_SUPPORT_TYPE_HIGH_ACCURACY = {op::DataType::DT_FLOAT16,
-                                                                                     op::DataType::DT_BF16};
+    op::DataType::DT_BF16, op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> INPUT_SUPPORT_TYPE_HIGH_ACCURACY = {
+    op::DataType::DT_FLOAT16, op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> INPUT_SUPPORT_TYPE_LOW_ACCURACY = {
-    op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2, op::DataType::DT_HIFLOAT8};
+    op::DataType::DT_FLOAT8_E5M2, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_HIFLOAT8};
 
 static bool CheckDtypeValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias, const aclTensor* output)
 {
@@ -285,25 +285,25 @@ static enum CaseOption CheckCase(const aclTensor* x1, const aclTensor* x2, const
 
 static const aclTensor *TransX2Tensor(const aclTensor *x2)
 {
-    uint64_t storageDimsNum = x2->GetStorageShape().GetDimNum();
-    std::vector<int64_t> storageDims(storageDimsNum);
-    for (uint64_t i = 0; i < storageDimsNum; i++) {
-      storageDims[i] = x2->GetStorageShape().GetDim(i);
+    uint64_t storageShapeDimNum = x2->GetStorageShape().GetDimNum();
+    std::vector<int64_t> storageDim(storageShapeDimNum);
+    for (uint64_t i = 0; i < storageShapeDimNum; i++) {
+      storageDim[i] = x2->GetStorageShape().GetDim(i);
     }
 
-    uint64_t viewDimsNum = x2->GetViewShape().GetDimNum();
-    std::vector<int64_t> viewDims;
-	viewDims.resize(viewDimsNum);
-    for (uint64_t i = 0; i < viewDimsNum; i++) {
-      viewDims[i] = x2->GetViewShape().GetDim(i);
+    uint64_t viewShapeDimNum = x2->GetViewShape().GetDimNum();
+    std::vector<int64_t> viewDim;
+	viewDim.resize(viewShapeDimNum);
+    for (uint64_t i = 0; i < viewShapeDimNum; i++) {
+      viewDim[i] = x2->GetViewShape().GetDim(i);
     }
     // transpose the viewshape last two dimensions
-    viewDims[0] = x2->GetViewShape().GetDim(1);
-    viewDims[1] = x2->GetViewShape().GetDim(0);
+    viewDim[0] = x2->GetViewShape().GetDim(1);
+    viewDim[1] = x2->GetViewShape().GetDim(0);
 
     aclDataType dataType = aclDataType::ACL_DT_UNDEFINED;
     aclGetDataType(x2, &dataType);
-    std::vector<int64_t> stride(viewDimsNum);
+    std::vector<int64_t> stride(viewShapeDimNum);
     auto transStride = x2->GetViewStrides();
     stride = std::vector<int64_t>(transStride.begin(), transStride.end());
     // transpose the two dimensions
@@ -313,8 +313,8 @@ static const aclTensor *TransX2Tensor(const aclTensor *x2)
     auto offset = x2->GetViewOffset();
     aclFormat format = aclFormat::ACL_FORMAT_ND;
 
-    return aclCreateTensor(viewDims.data(), viewDimsNum, dataType, stride.data(), offset, format, storageDims.data(),
-                           storageDimsNum, x2->GetTensor()->GetAddr());
+    return aclCreateTensor(viewDim.data(), viewShapeDimNum, dataType, stride.data(), offset, format, storageDim.data(),
+                           storageShapeDimNum, x2->GetTensor()->GetAddr());
 }
 
 aclnnStatus matmulReduceScatterV2GetWorkSpaceSizeCcuMode(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
@@ -389,10 +389,10 @@ static bool MatmulReduceScatterV2IsWeightNZFormat(const aclTensor* x2)
     }
     if (format == aclFormat::ACL_FORMAT_FRACTAL_NZ) {
         OP_LOGD("MatmulReduceScatterV2, Recieved weight format is ACL_FORMAT_FRACTAL_NZ");
-        uint64_t storageDimsNum = x2->GetStorageShape().GetDimNum();
-        OP_LOGD("MatmulReduceScatterV2, Shape is %lu", storageDimsNum);
+        uint64_t storageShapeDimNum = x2->GetStorageShape().GetDimNum();
+        OP_LOGD("MatmulReduceScatterV2, Shape is %lu", storageShapeDimNum);
         const uint64_t transdataNzDim = 4U;
-        if (storageDimsNum == transdataNzDim) {
+        if (storageShapeDimNum == transdataNzDim) {
             return true;
         }
     }

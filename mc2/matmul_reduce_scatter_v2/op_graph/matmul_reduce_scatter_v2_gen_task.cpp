@@ -31,21 +31,22 @@
 namespace ops {
 static bool IsTargetPlatform(const char *nodeName, const std::set<std::string> &targetPlatform)
 {
-    fe::PlatFormInfos platform_info;
-    fe::OptionalInfos optional_info;
-    if (fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platform_info, optional_info) !=
+    fe::PlatFormInfos platformInfo;
+    fe::OptionalInfos optionalInfo;
+    if (fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platformInfo, optionalInfo) !=
         ge::GRAPH_SUCCESS) {
         OPS_LOG_E(nodeName, "Cannot get platform info!");
         return false;
     }
     std::string short_soc_version;
-    if (!platform_info.GetPlatformRes("version", "Short_SoC_version", short_soc_version) || short_soc_version.empty()) {
+    if (!platformInfo.GetPlatformRes("version", "Short_SoC_version", short_soc_version) || short_soc_version.empty()) {
         OPS_LOG_E(nodeName, "Cannot get short soc version!");
         return false;
     }
     OPS_LOG_D(nodeName, "Get soc version: %s", short_soc_version.c_str());
     return targetPlatform.count(short_soc_version) > 0;
 }
+
 #ifdef BUILD_OPEN_PROJECT
 //待开源补充
 #else // mc2 gen task utils

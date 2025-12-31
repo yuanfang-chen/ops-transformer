@@ -19,12 +19,12 @@
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
-#include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/op_dfx.h"
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
+#include "opdev/common_types.h"
 #include "common/op_host/op_api/matmul_util.h"
 #include "hccl_util.h"
 
@@ -33,10 +33,11 @@ using namespace op;
 #ifdef __cplusplus
 extern "C" {
 #endif
-static constexpr int64_t NUM_ACL_STOP_ON_FAILURE = 1;
-static constexpr size_t TWO_DIMS = 2;
 static constexpr int64_t KVALUE_MIN = 256;
 static constexpr int64_t KVALUE_MAX = 65535;
+static constexpr int64_t NUM_ACL_STOP_ON_FAILURE = 1;
+static constexpr size_t TWO_DIMS = 2;
+
 typedef struct {
   uint32_t id;
   const char *funcName;
@@ -50,19 +51,19 @@ extern aclnnStatus aclnnInnerMatmulReduceScatterGetWorkspaceSize(const aclTensor
                                                              const aclTensor *output, uint64_t *workspaceSize,
                                                              aclOpExecutor **executor);
 extern aclnnStatus aclnnInnerMatmulReduceScatter(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                                 aclrtStream stream);
-extern "C" aclnnStatus NnopbaseGetAttrAddr(void *executor, const size_t index, void **attrAddr, size_t *attrLen);
-extern "C" void NnopbaseGetOutputTensorAddr(void *executor, const size_t index, void **addr);
-extern "C" void NnopbaseGetInputTensorAddr(void *executor, const size_t index, void **addr);
-extern "C" void NnopbaseSetInputTensorAddr(void *executor, const size_t index, const void *const addr);
-extern "C" void NnopbaseGetTilingData(void *executor, void **tilingData, uint64_t *dataLen);
-extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
+                                                 aclrtStream stream);               
 extern "C" void* NnopbaseGetUserHandle(void *executor);
 extern "C" uint64_t NnopbaseMsprofSysTime();
 extern "C" void NnopbaseReportApiInfo(const uint64_t beginTime, NnopbaseDfxId &dfxId);
 extern "C" void NnopbaseReportLaunchInfo(const uint64_t beginTime, const char *const opType);
 extern "C" aclnnStatus NnopbaseReportAicpuAdditionInfo(const uint64_t timeStamp, const char *const opType);
 extern "C" aclnnStatus __attribute__((weak)) NnopbaseDisableOptionalInput(void *executor, const size_t irIndex);
+extern "C" aclnnStatus NnopbaseGetAttrAddr(void *executor, const size_t index, void **attrAddr, size_t *attrLen);
+extern "C" void NnopbaseGetOutputTensorAddr(void *executor, const size_t index, void **addr);
+extern "C" void NnopbaseGetInputTensorAddr(void *executor, const size_t index, void **addr);
+extern "C" void NnopbaseSetInputTensorAddr(void *executor, const size_t index, const void *const addr);
+extern "C" void NnopbaseGetTilingData(void *executor, void **tilingData, uint64_t *dataLen);
+extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
 
 
 static inline bool IsAscend910A5(void)
@@ -93,18 +94,18 @@ static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST = {
 };
 static bool CheckDtypeValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias, const aclTensor* output) {
   // 检查x1、x2、bias、output的数据类型是否在算子的支持列表内
+  OP_CHECK_DTYPE_NOT_SUPPORT(output, DTYPE_SUPPORT_LIST, return false);
   OP_CHECK_DTYPE_NOT_SUPPORT(x1, DTYPE_SUPPORT_LIST, return false);
   OP_CHECK_DTYPE_NOT_SUPPORT(x2, DTYPE_SUPPORT_LIST, return false);
-  OP_CHECK_DTYPE_NOT_SUPPORT(output, DTYPE_SUPPORT_LIST, return false);
   // 检查bias的数据类型是否在算子的支持列表内
   if (bias != nullptr) {
     OP_CHECK_DTYPE_NOT_SUPPORT(bias, DTYPE_SUPPORT_LIST, return false);
   }
 
-  // 检查x1和x2的数据类型是否相同
-  OP_CHECK_DTYPE_NOT_SAME(x1, x2, return false);
   // 检查x1和output的数据类型是否相同
   OP_CHECK_DTYPE_NOT_SAME(x1, output, return false);
+  // 检查x1和x2的数据类型是否相同
+  OP_CHECK_DTYPE_NOT_SAME(x1, x2, return false);
   // 检查output和bias的数据类型是否相同
   if (bias != nullptr) {
     OP_CHECK_DTYPE_NOT_SAME(bias, x1, return false);
@@ -166,13 +167,13 @@ static bool CheckShape(const aclTensor *x1, const aclTensor *x2, const aclTensor
       "The k-axis of x1 and x2 should be same, but x1's k-axis is: %ld and x2's k-axis is: %ld.", kVal1, kVal2);
       return false;
     });
-    OP_API_CHECK((kVal1 < KVALUE_MIN || kVal1 >= KVALUE_MAX), {
+    OP_API_CHECK((kVal1 >= KVALUE_MAX || kVal1 < KVALUE_MIN), {
       OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The k-axis should be in range[256, 65535), but it is: %ld.", kVal1);
       return false;
     });
 
-    auto nVal1 = x2->GetViewShape().GetDim(1);
     auto nVal2 = output->GetViewShape().GetDim(1);
+    auto nVal1 = x2->GetViewShape().GetDim(1);
     OP_API_CHECK((nVal1 != nVal2), {
       OP_LOGE(ACLNN_ERR_PARAM_INVALID, 
       "The n-axis of x2 and output should be same, but x2's n-axis is: %ld and output's n-axis is: %ld.", nVal1, nVal2);
@@ -235,7 +236,7 @@ aclnnStatus aclnnMatmulReduceScatter(void *workspace, uint64_t workspaceSize, ac
   uint64_t timeStamp = NnopbaseMsprofSysTime();
   auto ret = aclnnInnerMatmulReduceScatter(workspace, workspaceSize, executor, stream);
   if (ret != 0) {
-    OP_LOGE(ACLNN_ERR_INNER, "This is an error in launch aicore");
+    OP_LOGE(ACLNN_ERR_INNER, "MatmulReduceScatter launch task failed.");
     return ACLNN_ERR_INNER;
   }
   static NnopbaseDfxId dfxId = {0x60000, __func__, false};

@@ -53,10 +53,10 @@ bool MatmulReduceScatterV2Tiling::IsCapable()
 void PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling) 
 {
     PrintTCubeTilingData(opName, tiling.tCubeTiling);
+    OP_LOGD(opName, " tiling.isHf32 %d", tiling.isHf32);
     OP_LOGD(opName, " tiling.mTailCnt %d", tiling.mTailCnt);
     OP_LOGD(opName, " tiling.nTailCnt %d", tiling.nTailCnt);
     OP_LOGD(opName, " tiling.kTailCnt %d", tiling.kTailCnt);
-    OP_LOGD(opName, " tiling.isHf32 %d", tiling.isHf32);
     OP_LOGD(opName, " tiling.mBaseTailSpiltCnt %d", tiling.mBaseTailSplitCnt);
     OP_LOGD(opName, " tiling.nBaseTailSpiltCnt %d", tiling.nBaseTailSplitCnt);
     OP_LOGD(opName, " tiling.mTailMain %d", tiling.mTailMain);
@@ -131,16 +131,15 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoAllMatmulTiling()
     // 获取芯片平台信息
     auto platformInfo = context_->GetPlatformInfo();
     OP_TILING_CHECK(platformInfo == nullptr, VECTOR_INNER_ERR_REPORT_TILING(opName_, "get platform info failed"),
-                    return ge::GRAPH_FAILED);
+        return ge::GRAPH_FAILED);
     // 获取compileInfo
     OP_TILING_CHECK(mc2_matmul_v3_advanced::InitCompileInfo(platformInfo, &compileInfo_) != ge::GRAPH_SUCCESS,
-                    VECTOR_INNER_ERR_REPORT_TILING(opName_, "init compile info failed"), return ge::GRAPH_FAILED);
+        VECTOR_INNER_ERR_REPORT_TILING(opName_, "init compile info failed"), return ge::GRAPH_FAILED);
 
     // 根据芯片型号获取策略模板
     std::vector<int32_t> priorities;
     OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion_, priorities, opName_) != ge::GRAPH_SUCCESS,
-                    VECTOR_INNER_ERR_REPORT_TILING(opName_, "get mmv3 priority policy failed"),
-                    return ge::GRAPH_FAILED);
+        VECTOR_INNER_ERR_REPORT_TILING(opName_, "get mmv3 priority policy failed"), return ge::GRAPH_FAILED);
     Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", socVersion_, priorities};
     mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
