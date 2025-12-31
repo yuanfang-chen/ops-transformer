@@ -633,6 +633,7 @@ ge::graphStatus MlaPrologTilingCheck::CheckCkvkrRepoMode()
         return isCorrect;
     }
     if (*(context_.ckvkrRepoMode) == static_cast<int>(CKVKR_REPO_MODE::COMBINE)) {
+        // 校验所有维度的乘积是否为0
         if(context_.krCache.shape->GetStorageShape().GetShapeSize() != 0) {
             isCorrect = ge::GRAPH_FAILED;
             OP_LOGE(context_.opName, "KrCache %s is not an empty tensor.",
@@ -645,6 +646,43 @@ ge::graphStatus MlaPrologTilingCheck::CheckCkvkrRepoMode()
         }    
     }
     return isCorrect;
+}
+
+ge::graphStatus MlaPrologTilingCheck::CheckCacheIndexDim()
+{
+    if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (!scenarioInfo_.batchSeqFusedFlag_) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (scenarioInfo_.cacheMode_ != CACHE_MODE::PA_BLK_BSND && scenarioInfo_.cacheMode_ != CACHE_MODE::PA_BLK_NZ) {
+        return ge::GRAPH_SUCCESS;
+    }
+    OP_CHECK_IF(context_.cacheIndex.shape == nullptr,
+        OP_LOGE(context_.opName,
+            "When cacheMode is in {PA_BLK_BSND, PA_BLK_NZ},"
+            "cacheIndex should not be null."),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(context_.cacheIndex.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_1,
+        OP_LOGE(context_.opName,
+            "When cacheMode in {PA_BLK_BSND, PA_BLK_NZ} and tokenX shape dim num is 2,"
+            "cacheIndex shape dim num should be 1, but got %d.",
+            context_.cacheIndex.shape->GetStorageShape().GetDimNum()),
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MlaPrologTilingCheck::CheckSpecialScenarioParamShape()
+{
+    if (CheckCkvkrRepoMode() == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
+    if (CheckCacheIndexDim() == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MlaPrologTilingCheck::CheckParamByScenario()
@@ -869,12 +907,13 @@ bool MlaPrologTilingCheck::CheckKvCache() const
 bool MlaPrologTilingCheck::CheckKrCache() const
 {
     if (GetSocVersionShortName() == platform_ascendc::SocVersion::ASCEND910_95) {
-        return IsSingleParamValid(context_.krCache, KR_CACHE_NAME, {ge::DT_BF16}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {4});
+        return IsSingleParamValid(
+            context_.krCache, KR_CACHE_NAME, {ge::DT_BF16}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {4});
     } else {
         return (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0 &&
                    *(context_.ckvkrRepoMode) == static_cast<int>(CKVKR_REPO_MODE::COMBINE)) ||
                IsSingleParamValid(context_.krCache, KR_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8},
-                   {ge::FORMAT_ND, ge::FORMAT_NCHW}, {3, 4});
+                   {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1, 3, 4});
     }
 }
 
