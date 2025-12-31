@@ -91,34 +91,34 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
-        <td>√</td>
+        <td>×</td>
     </tr>
     <tr>
         <td>x2</td>
         <td>输入</td>
         <td>即计算公式中的x2。</td>
-        <td><ul><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li><li>当前版本仅支持二维输入，支持转置/不转置场景。</li><li>支持通过转置构造非连续Tensor。</li></ul></td>
+        <td><ul><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li><li>当前版本仅支持二维输入，支持转置/不转置场景。</li><li>仅支持两根轴转置情况下的非连续Tensor，其他场景的<a href="../../../docs/zh/context/非连续的Tensor.md">[非连续的Tensor]</a>不支持。</li></ul></td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
-        <td>√</td>
+        <td>√（仅适用转置场景）</td>
     </tr>
     <tr>
         <td>bias</td>
         <td>输入</td>
         <td>即计算公式中的bias。</td>
-        <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。<br><term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：暂不支持bias输入为非0的场景。<br><term>昇腾910_95 AI处理器</term>：支持bias输入为非0的场景。</li></ul></td>
+        <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>1</td>
-        <td>√</td>
+        <td>×</td>
     </tr>
     <tr>
         <td>group</td>
         <td>输入</td>
-        <td>Host侧标识通信域的字符串，通信域名称。</td>
+        <td>通信域名称。</td>
         <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
-        <td>String</td>
+        <td>-</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -128,7 +128,7 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>输入</td>
         <td>标识Gather目标。</td>
         <td><ul><li>0表示目标为x1，1表示目标为x2。</li><li>当前版本仅支持输入0。</li></ul></td>
-        <td>INT64</td>
+        <td>-</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -138,7 +138,7 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>输入</td>
         <td>通信数据切分数，即总数据量/单次通信量。</td>
         <td>当前版本仅支持输入0。</td>
-        <td>INT64</td>
+        <td>-</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -148,7 +148,7 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>输入</td>
         <td>流模式的枚举。</td>
         <td>当前只支持枚举值1。</td>
-        <td>INT64</td>
+        <td>-</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -161,17 +161,17 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
-        <td>√</td>
+        <td>×</td>
     </tr>
     <tr>
         <td>gatherOut</td>
         <td>输出</td>
         <td>仅输出AllGather通信后的结果，即计算公式中的gatherOut。</td>
-        <td><ul><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
+        <td><ul><li>支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
-        <td>√</td>
+        <td>×</td>
     </tr>
     <tr>
         <td>workspaceSize</td>
@@ -193,8 +193,12 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>-</td>
         <td>-</td>
     </tr>
-    </tbody>
-    </table>
+    </tbody></table>
+
+    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+        - bias：暂不支持输入为非0的场景。
+    - <term>昇腾910_95 AI处理器</term>：
+        - bias：支持输入为非0的场景。
 
 - **返回值：**
 
@@ -202,10 +206,14 @@ aclnnStatus aclnnAllGatherMatmul(
     
     第一段接口完成入参校验，出现以下场景时报错：
 
-    <table style="undefined;table-layout: fixed; width: 1180px"> <colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 800px">
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+    第一段接口完成入参校验，出现以下场景时报错：
+
+    <table style="undefined;table-layout: fixed; width: 1166px"> <colgroup>
+    <col style="width: 267px">
+    <col style="width: 124px">
+    <col style="width: 775px">
     </colgroup>
     <thead>
     <tr>
@@ -227,25 +235,19 @@ aclnnStatus aclnnAllGatherMatmul(
     <tr>
         <td>streamMode不在合法范围内。</td>
     </tr>
-    <tr>
-        <td>x1是空tensor。</td>
-    </tr>
-    </tbody>
-    </table>
+    </tbody></table>
 
 ## aclnnAllGatherMatmul
-
-- **参数说明：**
-
-    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
-    <col style="width: 168px">
-    <col style="width: 128px">
-    <col style="width: 854px">
+-   **参数说明：**
+    <table style="undefined;table-layout: fixed; width: 1166px"> <colgroup>
+    <col style="width: 173px">
+    <col style="width: 133px">
+    <col style="width: 860px">
     <thead>
     <tr>
-        <th>参数名</th>
-        <th>输入/输出</th>
-        <th>描述</th>
+    <th>参数名</th>
+    <th>输入/输出</th>
+    <th>描述</th>
     </tr></thead>
     <tbody>
     <tr>
@@ -270,7 +272,7 @@ aclnnStatus aclnnAllGatherMatmul(
     </tr>
     </tbody></table>
 
-- **返回值：**
+-   **返回值：**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

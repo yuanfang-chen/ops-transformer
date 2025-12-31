@@ -4,7 +4,7 @@
 
 ## 产品支持情况
 | 产品                                                         | 是否支持 |
-| :----------------------------------------------------------- | :------: |
+| :----------------------------------------------------------- | :------：|
 | <term>昇腾910_95 AI处理器</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
@@ -106,249 +106,240 @@ aclnnStatus aclnnAllGatherMatmulV2(
 
 ## aclnnAllGatherMatmulV2GetWorkspaceSize
 
--   **参数说明**
-
+-   **参数说明：**
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
-      <col style="width: 170px">
-      <col style="width: 120px">
-      <col style="width: 300px">
-      <col style="width: 330px">
-      <col style="width: 212px">
-      <col style="width: 100px">
-      <col style="width: 190px">
-      <col style="width: 145px">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>参数名</th>
-          <th>输入/输出</th>
-          <th>描述</th>
-          <th>使用说明</th>
-          <th>数据类型</th>
-          <th>数据格式</th>
-          <th>维度(shape)</th>
-          <th>非连续Tensor</th>
-        </tr></thead>
-      <tbody>
-        <tr>
-          <td>x1</td>
-          <td>输入</td>
-          <td>MM左矩阵，即计算公式中的x1。</td>
-          <td><ul><li>与x2的数据类型保持一致。</li><li>当前版本仅支持二维输入，且仅支持不转置场景</li></ul></td>
-          <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
-          <td>ND</td>
-          <td>2</td>
-          <td>√</td>
-        </tr>
-        <tr>
-          <td>x2</td>
-          <td>输入</td>
-          <td>MM右矩阵，即公式中的x2。</td>
-          <td><ul><li>与x1的数据类型保持一致。</li><li>当前版本仅支持二维输入，支持转置/不转置场景。</li><li>支持通过转置构造非连续Tensor。</li></ul></td>
-          <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
-          <td>ND</td>
-          <td>2</td>
-          <td>√</td>
-        </tr>
-        <tr>
-          <td>bias</td>
-          <td>输入</td>
-          <td>即公式中的bias。</td>
-          <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
-          <td>FLOAT16、BFLOAT16</td>
-          <td>ND</td>
-          <td>1</td>
-          <td>√</td>
-        </tr>
-        <tr>
-          <td>x1Scale</td>
-          <td>输入</td>
-          <td>mm左矩阵反量化参数。</td>
-          <td>-</td>
-          <td>FLOAT</td>
-          <td>ND</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>x2Scale</td>
-          <td>输入</td>
-          <td>mm右矩阵反量化参数。</td>
-          <td>-</td>
-          <td>FLOAT</td>
-          <td>ND</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>quantScale</td>
-          <td>输入</td>
-          <td>mm输出矩阵量化参数。</td>
-          <td>当前版本仅支持nullptr</td>
-          <td>FLOAT</td>
-          <td>ND</td>
-          <td>1</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>blockSize</td>
-          <td>输入</td>
-          <td>用于表示mm输出矩阵在M轴方向上和N轴方向上可以用于对应方向上的多少个数的量化。</td>
-          <td>blockSize由blockSizeM、blockSizeN、blockSizeK三个值拼接而成，每个值占16位，计算公式为blockSize = blockSizeK | blockSizeN << 16 | blockSizeM << 32，mm输出矩阵不涉及K轴，blockSizeK固定为0。当前版本只支持blockSizeM=blockSizeN=0</td>
-          <td>INT64</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>group</td>
-          <td>输入</td>
-          <td>Host侧标识列组的字符串，通信域名称。</td>
-          <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
-          <td>CHAR*、STRING</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>gatherIndex</td>
-          <td>输入</td>
-          <td>标识Gather目标。</td>
-          <td><ul><li>0表示目标为x1，1表示目标为x2。</li><li>当前版本仅支持输入0。</li></ul></td>
-          <td>INT64</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>commTurn</td>
-          <td>输入</td>
-          <td>通信数据切分数，即总数据量/单次通信量。</td>
-          <td>当前版本仅支持输入0。</td>
-          <td>INT64</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>streamMode</td>
-          <td>输入</td>
-          <td>流模式的枚举。</td>
-          <td>当前只支持枚举值1。</td>
-          <td>INT64</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>groupSize</td>
-          <td>输入</td>
-          <td>表示反量化中x1Scale/x2Scale输入的一个数在其所在的对应维度方向上可以用于该方向x1/x2输入的多少个数的反量化。</td>
-          <td>由3个方向的groupSizeM、groupSizeN、groupSizeK拼接组成，每个值占16位，计算公式为groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
-          <td>INT64</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>commMode</td>
-          <td>输入</td>
-          <td>通信模式。</td>
-          <td>-</td>
-          <td>STRING</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>output</td>
-          <td>输出</td>
-          <td>AllGather通信与MatMul计算的结果，即计算公式中的output。</td>
-          <td><ul><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
-          <td>FLOAT16、BFLOAT16、FLOAT</td>
-          <td>ND</td>
-          <td>2</td>
-          <td>√</td>
-        </tr>
-        <tr>
-          <td>gatherOut</td>
-          <td>输出</td>
-          <td>仅输出AllGather通信后的结果，即计算公式中的gatherOut。</td>
-          <td><ul><li>不支持空Tensor。</li><li>与x1的数据类型保持一致。</li></ul></td>
-          <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
-          <td>ND</td>
-          <td>2</td>
-          <td>√</td>
-        </tr>
-        <tr>
-          <td>amaxOut</td>
-          <td>输出</td>
-          <td>MM计算的最大值结果，即公式中的amaxOut。</td>
-          <td>当前版本仅支持nullptr或空tensor</td>
-          <td>FLOAT</td>
-          <td>-</td>
-          <td>1</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>workspaceSize</td>
-          <td>输出</td>
-          <td>返回需要在Device侧申请的workspace大小。</td>
-          <td>-</td>
-          <td>UINT64</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-        <tr>
-          <td>executor</td>
-          <td>输出</td>
-          <td>返回op执行器，包含了算子计算流程。</td>
-          <td>-</td>
-          <td>aclOpExecutor</td>
-          <td>-</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-      </tbody>
-    </table>
+    <col style="width: 170px">
+    <col style="width: 120px">
+    <col style="width: 300px">
+    <col style="width: 330px">
+    <col style="width: 212px">
+    <col style="width: 100px">
+    <col style="width: 190px">
+    <col style="width: 145px">
+    </colgroup>
+    <thead>
+    <tr>
+      <th>参数名</th>
+      <th>输入/输出</th>
+        <th>描述</th>
+        <th>使用说明</th>
+        <th>数据类型</th>
+        <th>数据格式</th>
+        <th>维度(shape)</th>
+        <th>非连续Tensor</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>x1</td>
+        <td>输入</td>
+        <td>MM左矩阵，即计算公式中的x1。</td>
+        <td>当前版本仅支持两维输入，shape为[m, k]，且仅支持不转置场景。</td>
+        <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、INT8</td>
+        <td>ND</td>
+        <td>2</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>x2</td>
+        <td>输入</td>
+        <td>MM右矩阵，即计算公式中的x2。</td>
+        <td><ul><li>当前版本仅支持二维输入，shape为[k, n]，支持转置/不转置场景。</li><li>仅支持两根轴转置情况下的非连续Tensor，其他场景的<a href="../../../docs/zh/context/非连续的Tensor.md">[非连续的Tensor]</a>不支持。</li></ul></td>
+        <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、INT8</td>
+        <td>ND</td>
+        <td>2</td>
+        <td>√（仅适用转置场景）</td>
+    </tr>
+    <tr>
+        <td>bias</td>
+        <td>输入</td>
+        <td>即计算公式中的bias。</td>
+        <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
+        <td>FLOAT16、BFLOAT16、FLOAT</td>
+        <td>ND</td>
+        <td>1</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>x1Scale</td>
+        <td>输入</td>
+        <td>mm左矩阵反量化参数。</td>
+        <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
+        <td>FLOAT16、BFLOAT16、FLOAT</td>
+        <td>ND</td>
+        <td>1-3</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>x2Scale</td>
+        <td>输入</td>
+        <td>mm右矩阵反量化参数。</td>
+        <td>支持传入空指针场景。</td>
+        <td>FLOAT16、BFLOAT16、FLOAT</td>
+        <td>ND</td>
+        <td>1-3</td>
+        <td>√（仅适用转置场景）</td>
+    </tr>
+    <tr>
+        <td>quantScale</td>
+        <td>输入</td>
+        <td>即计算公式中的bias。</td>
+        <td>当前仅支持传入空指针场景。</td>
+        <td>FLOAT</td>
+        <td>ND</td>
+        <td>1</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>blockSize</td>
+        <td>输入</td>
+        <td>用于表示mm输出矩阵在M轴方向上和N轴方向上可以用于对应方向上的多少个数的量化。</td>
+        <td>blockSize由blockSizeM、blockSizeN、blockSizeK三个值拼接而成，每个值占16位，计算公式为blockSize = blockSizeK | blockSizeN << 16 | blockSizeM << 32，mm输出矩阵不涉及K轴，blockSizeK固定为0, 当前版本只支持blockSizeM=blockSizeN=0。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>group</td>
+        <td>输入</td>
+        <td>通信域名称。</td>
+        <td>通过Hccl提供的接口“extern HcclResult HcclGetCommName(HcclComm comm, char* commName);”获取，其中commName即为group。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>gatherIndex</td>
+        <td>输入</td>
+        <td>标识gather目标。</td>
+        <td><ul><li>0表示目标为x1，1表示目标为x2。</li><li>当前版本仅支持输入0。</li></ul></td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>commTurn</td>
+        <td>输入</td>
+        <td>通信数据切分数，即总数据量/单次通信量。</td>
+        <td>当前版本仅支持输入0。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>streamMode</td>
+        <td>输入</td>
+        <td>流模式的枚举。</td>
+        <td>当前只支持枚举值1。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>groupSize</td>
+        <td>输入</td>
+        <td>用于表示反量化中x1Scale/x2Scale输入的一个数在其所在的对应维度方向上可以用于该方向x1/x2输入的多少个数的反量化。</td>
+        <td>groupSize输入由3个方向的groupSizeM、groupSizeN、groupSizeK三个值拼接组成，每个值占16位，计算公式为groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>commMode</td>
+        <td>输入</td>
+        <td>通信模式。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>output</td>
+        <td>输出</td>
+        <td>AllGather通信与MatMul计算的结果，即计算公式中的output。</td>
+        <td>不支持空Tensor。</td>
+        <td>FLOAT16、BFLOAT16、FLOAT</td>
+        <td>ND</td>
+        <td>2</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>gatherOut</td>
+        <td>输出</td>
+        <td>仅输出all_gather通信后的结果。即公式中的gatherOut。</td>
+        <td><ul><li>支持空Tensor。</li><li>数据类型与x1的数据类型保持一致。</li></ul></td>
+        <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、INT8</td>
+        <td>ND</td>
+        <td>2</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>amaxOut</td>
+        <td>输出</td>
+        <td>MM计算的最大值结果，即公式中的amaxOut。</td>
+        <td>当前版本仅支持nullptr或空tensor。</td>
+        <td>FLOAT16</td>
+        <td>ND</td>
+        <td>1</td>
+        <td>×</td>
+    </tr>
+    <tr>
+        <td>workspaceSize</td>
+        <td>输出</td>
+        <td>返回需要在Device侧申请的workspace大小。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>executor</td>
+        <td>输出</td>
+        <td>返回op执行器，包含了算子计算流程。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+    </tr>
+    </tbody></table>
 
-    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
-        - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8，bias仅支持输入nullptr。
-        - x2的shape为[k, n]。
-        - commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景下，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
-        - groupSize当前版本仅支持输入为0。
-        - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
-        - gatherOut数据类型除FLOAT16、BFLOAT16外，还支持INT8。
-
-    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-        - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8，bias仅支持输入nullptr。
-        - x2的shape为[k, n]。
-        - commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景下，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
-        - groupSize当前版本仅支持输入为0。
-        - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
-        - gatherOut数据类型除FLOAT16、BFLOAT16外，还支持INT8。
-
+    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+        - x1、x2：在commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16；commMode为aiv时，数据类型支持FLOAT16、BFLOAT16、INT8。
+        - bias：在commMode为aicpu时，数据类型支持FLOAT16、BFLOAT16，仅支持为0的输入。在commMode为aiv时，当前版本仅支持输入nullptr。
+        - x1Scale：在commMode为aicpu时，仅支持输入nullptr。在commMode为aiv时，数据类型支持FLOAT。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在pertoken场景，shape为(m, 1)。
+        - x2Scale：在commMode为aicpu时，仅支持输入nullptr。在commMode为aiv时，数据类型支持FLOAT、INT64。INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，仅支持输入为nullptr。在perchannel场景，shape为(1, n)。
+        - groupSize：当前版本仅支持输入为0。
+        - commMode：当前仅支持aiv模式。aiv模式下使用AI VECTOR核完成通信任务。当前版本仅支持输入“aiv”。
+        - output：数据类型支持FLOAT16、BFLOAT16。 如果x1类型为FLOAT16、BFLOAT16，则output类型与x1保持一致。
+        - gatherOut：数据类型支持FLOAT16、BFLOAT16、INT8。
     - <term>昇腾910_95 AI处理器</term>：
-        - x1、x2数据类型除FLOAT16、BFLOAT16外，还支持FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8。bias数据类型除FLOAT16、BFLOAT16外，还支持FLOAT。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8，在pertensor和mx量化场景下，bias的数据类型必须为FLOAT。在perblock场景下，当前版本仅支持输入nullptr。
-        - 在mx量化场景下，x2当前仅支持转置场景。
-        - 当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。当x1和x2数据类型为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，在pertensor场景下，x1Scale、x2Scale的shape为[1]；在perblock场景下，x1Scale的shape为[t, d]，t=ceilDiv(m, 128)，d=ceilDiv(k, 128)，其中m与x1的m一致，且m为128的倍数，k与x1的k一致；x2Scale的shape为[t, d]，t=ceilDiv(k, 128)，d=ceilDiv(n, 128)，其中n与x2的n一致，k与x2的k一致。在pertensor和perblock场景下，x1Scale、x2Scale数据类型支持FLOAT。在mx场景下，x1Scale、x2Scale数据类型支持FLOAT8_E8M0，其中x1Scale的shape为(m, ceilDiv(k, 64), 2)，x2Scale的shape为(ceilDiv(k, 64), n, 2), 且x2Scale仅支持转置场景。
-        - 当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，groupSize当前版本仅支持输入0。
-        - 当前仅支持集合通信单元ccu完成通信任务，commMode仅支持输入“ccu”。
-        - 如果x1类型为FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8，则output数据类型支持FLOAT16、BFLOAT16、FLOAT。
-        - gatherOut数据类型除FLOAT16、BFLOAT16外，还支持FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8。
+        - x1、x2：的数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8。
+        - bais：如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor和mx量化场景下，bias的数据类型必须为FLOAT。在perblock场景下，仅支持输入为nullptr。
+        - x1Scale：当x1和x2数据类型为FLOAT16、BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(m, 128), ceildiv(k, 128)]。在pertensor和perblock场景下，数据类型支持FLOAT。在mx量化场景下，数据类型为FLOAT8_E8M0，shape为(m, ceilDiv(k, 64), 2)。
+        - x2Scale：当x1和x2数据类型为FLOAT16、BFLOAT16时，仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，shape为[ceildiv(k, 128), ceildiv(n, 128)]。在pertensor和perblock场景下，数据类型支持FLOAT。在mx场景下，数据类型为FLOAT8_E8M0，shape为(ceilDiv(k, 64), n, 2)，仅支持转置场景。
+        - groupSize：当x1Scale、x2Scale输入都是2维，且数据类型都为FLOAT时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale、x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，当前版本仅支持输入0。
+        - commMode：当前版本仅支持输入“ccu”。
+        - output：如果x1类型为FLOAT16、BFLOAT16，则output类型与x1保持一致。如果x1类型为FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8，则数据类型支持FLOAT16、BFLOAT16、FLOAT。
+        - gatherOut：数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8。
 
-
--   **返回值**
+-   **返回值：**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-    第一阶段接口完成入参校验，出现以下场景报错：
+    第一段接口完成入参校验，出现以下场景时报错：
 
-    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
-    <col style="width: 282px">
-    <col style="width: 120px">
-    <col style="width: 747px">
+    <table style="undefined;table-layout: fixed; width: 1166px"> <colgroup>
+    <col style="width: 267px">
+    <col style="width: 124px">
+    <col style="width: 775px">
     </colgroup>
     <thead>
     <tr>
@@ -363,21 +354,20 @@ aclnnStatus aclnnAllGatherMatmulV2(
         <td>传入的x1、x2或output是空指针。</td>
     </tr>
     <tr>
-        <td>ACLNN_ERR_PARAM_INVALID</td>
-        <td>161002</td>
+        <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+        <td rowspan="3">161002</td>
         <td>传入的x1、x2、x1Scale、x2Scale、bias、quantScale、output、gatherOut或amaxOut的数据类型和维度不在支持的范围内。</td>
     </tr>
-    </tbody>
-    </table>
+    </tbody></table>
 
 ## aclnnAllGatherMatmulV2
 
--   **参数说明**
+-   **参数说明：**
 
-    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
-    <col style="width: 168px">
-    <col style="width: 128px">
-    <col style="width: 854px">
+    <table style="undefined;table-layout: fixed; width: 1166px"> <colgroup>
+    <col style="width: 173px">
+    <col style="width: 133px">
+    <col style="width: 860px">
     <thead>
     <tr>
         <th>参数名</th>
@@ -468,7 +458,7 @@ aclnnStatus aclnnAllGatherMatmulV2(
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
     {
         int64_t shape_size = 1;
-        for (auto i : shape) {
+        for (auto i ：shape) {
             shape_size *= i;
         }
         return shape_size;
@@ -480,9 +470,9 @@ aclnnStatus aclnnAllGatherMatmulV2(
     {
         auto size = GetShapeSize(shape) * sizeof(T);
         auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc failed. ret: %d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc failed. ret：%d\n", ret); return ret);
         ret = aclrtMemcpy(*deviceAddr, size, hostData.data(), size, ACL_MEMCPY_HOST_TO_DEVICE);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMemcpy failed. ret: %d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMemcpy failed. ret：%d\n", ret); return ret);
         std::vector<int64_t> strides(shape.size(), 1);
         for (int64_t i = shape.size() - 2; i >= 0; i--) {
             strides[i] = shape[i +1] * strides[i + 1];
@@ -502,10 +492,10 @@ aclnnStatus aclnnAllGatherMatmulV2(
     int LaunchOneThreadAllGatherMmV2(Args &args)
     {
         int ret = aclrtSetCurrentContext(args.context);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret: %d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret：%d\n", ret); return ret);
         char hcomName[128] = {0};
         ret = HcclGetCommName(args.hcclComm, hcomName);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret: %d\n", ret); return -1);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret：%d\n", ret); return -1);
         LOG_PRINT("[INFO] rank = %d, hcomName = %s, stream = %p, context = %p\n", args.rankId, hcomName,
             args.stream, args.context);
         std::vector<int64_t> x1Shape = {32, 256};
