@@ -215,18 +215,15 @@
 
 
 - <term>昇腾910_95 AI处理器</term>：
-  
   - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
-  - 输入参数x、weight均不支持FLOAT、INT16类型，且x不支持int4类型。
+  - 输入参数x、weight均不支持INT16类型，且x不支持int4类型。
   - 输出参数out不支持INT32、INT8类型。
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-  
   - 上表数据类型列中的角标“2”代表该系列不支持的数据类型。
   - 不支持FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8、FLOAT8_E8M0类型。
   - 输入参数biasOptional不支持BFLOAT16。
   - 输入参数scaleOptional不支持INT64类型。
 - <term>Atlas 推理系列产品</term>：
-  
   - 仅支持x、weight、out均为FLOAT16的场景，其中weight仅支持NZ数据格式。
 
 ## 约束说明
@@ -317,6 +314,7 @@
         |:-------:|:-------:|:-------:| :------      |:------ |
         |-1/0/2   |BFLOAT16     |BFLOAT16     |BFLOAT16/FLOAT32/null    | BFLOAT16|
         |-1/0/2   |FLOAT16     |FLOAT16     |FLOAT16/FLOAT32/null    | FLOAT16|
+        |-1/0/2   |FLOAT32     |FLOAT32     |FLOAT32/null    | FLOAT32|
     - 伪量化场景支持的数据类型为：
       - 以下入参为空：scaleOptional、offsetOptional、perTokenScaleOptional、activationInputOptional、activationQuantScaleOptional、activationQuantOffsetOptional
       - 不为空的参数支持的数据类型组合要满足下表
