@@ -455,7 +455,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynami
     Cast(tokenF32LT_, inLocal, RoundMode::CAST_NONE, axisH_);
     if constexpr (IsSmoothScaleExist) {
         DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(float)), 0U, 0U};
-        DataCopyPadParams scalesPadParams = {false, 0, 0, 0};
+        DataCopyPadParams scalesPadParams = {true, 0, 0, 0};
         DataCopyPad(scalesLT_, scalesGT_[expertIndex * axisH_], scalesInParams, scalesPadParams);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
         Mul(tokenF32LT_, tokenF32LT_, scalesLT_, axisH_);
@@ -493,7 +493,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynami
         Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
         if constexpr (IsSmoothScaleExist) {
             DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(float)), 0U, 0U};
-            DataCopyPadParams scalesPadParams = {false, 0, 0, 0};
+            DataCopyPadParams scalesPadParams = {true, 0, 0, 0};
             DataCopyPad(scalesLT_, scalesGT_[expertIndex * axisH_], scalesInParams, scalesPadParams);
             SyncFunc<AscendC::HardEvent::MTE2_V>();
         }
@@ -592,7 +592,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ShareScatte
 
     GlobalTensor<ExpandXOutType> outTokenGT;
     DataCopyParams tokenInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(XType)), 0U, 0U};
-    DataCopyPadParams padParams = {false, 0, 0, 0};
+    DataCopyPadParams padParams = {true, 0, 0, 0};
     DataCopyParams tokenOutParams = {1U, static_cast<uint16_t>(perTokenMergeSize_), 0U, 0U};
     DataCopyParams scaleInParams = {1U, static_cast<uint16_t>(scaleInBytes_), 0U, 0U};
 
