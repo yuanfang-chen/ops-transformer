@@ -209,7 +209,7 @@ auto Ceil(T1 a, T2 b) -> T1
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     
     // 创建bias aclTensor
-    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_FLOAT, &bias);
+    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_BF16, &bias);
     std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor *)> biasTensorPtr(bias, aclDestroyTensor);
     std::unique_ptr<void, aclError (*)(void *)> biasDeviceAddrPtr(biasDeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);

@@ -21,9 +21,9 @@ using namespace GmmFinalizeRouting;
 
 namespace GmmFinalizeRouting {
 
-constexpr size_t ZERO_DIM = 1UL;
+constexpr size_t ZERO_DIM = 0UL;
 constexpr size_t ONE_DIM = 1UL;
-constexpr size_t TWO_DIM = 3UL;
+constexpr size_t TWO_DIM = 2UL;
 constexpr size_t THERE_DIM = 3UL;
 constexpr size_t FOUR_DIM = 4UL;
 constexpr int64_t GMMFR_SPLIT_SIZE = 64L;
@@ -37,7 +37,7 @@ const std::initializer_list<DataType> MXFP4_IN_TYPE_SUPPORT_LIST = {op::DataType
 const std::initializer_list<DataType> MXFP8_IN_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
 static const std::initializer_list<op::DataType> MX_SCALE_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
 static const std::initializer_list<op::DataType> MX_ROW_INDEX_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
-static const std::initializer_list<op::DataType> MX_BIAS_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> MX_BIAS_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> MX_PERTOKEN_SCALE_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
 static const std::initializer_list<op::DataType> GROUP_LIST_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
 static const std::initializer_list<op::DataType> SHARED_INPUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};

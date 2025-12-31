@@ -415,7 +415,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
       <td>输入</td>
       <td>矩阵的偏移</td>
       <td>无</td>
-      <td>FLOAT32</td>
+      <td>BF16</td>
       <td>ND</td>
       <td>shape支持二维，维度为(e, n)，e、n和w的e、n一致</td>
       <td>×</td>
@@ -1035,17 +1035,6 @@ MXFP4| FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT8_E8M0 | BFLOAT1
 
   在910_95处理器上产品上示例代码如下：
   ```cpp
-  /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
-
-
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -1095,7 +1084,7 @@ int Init(int32_t deviceId, aclrtStream *stream)
 }
 
 template <typename T>
-int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
+aclnnStatus CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
                     aclDataType dataType, aclTensor **tensor)
 {
     auto size = GetShapeSize(shape) * sizeof(T);
@@ -1119,7 +1108,7 @@ int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &
 }
 
 template <typename T>
-int CreateAclTensorWeight(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
+aclnnStatus CreateAclTensorWeight(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
                       aclDataType dataType, aclTensor **tensor)
 {
     auto size = static_cast<uint64_t>(GetShapeSize(shape));
@@ -1246,7 +1235,7 @@ auto Ceil(T1 a, T2 b) -> T1
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     
     // 创建bias aclTensor
-    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_FLOAT, &bias);
+    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_BF16, &bias);
     std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor *)> biasTensorPtr(bias, aclDestroyTensor);
     std::unique_ptr<void, aclError (*)(void *)> biasDeviceAddrPtr(biasDeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
