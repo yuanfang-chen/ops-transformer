@@ -163,7 +163,7 @@ aclnnStatus aclnnAllGatherMatmulV2(
         <td>x1Scale</td>
         <td>输入</td>
         <td>mm左矩阵反量化参数。</td>
-        <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
+        <td>支持传入空指针场景。</td>
         <td>FLOAT16、BFLOAT16、FLOAT</td>
         <td>ND</td>
         <td>1-3</td>
