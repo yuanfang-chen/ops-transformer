@@ -1112,20 +1112,33 @@ static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context,
     tilingData->moeDistributeCombineV2Info.bufferNum = totalBufferSize > ubSize ? BUFFER_SINGLE : BUFFER_NUM;
 }
 
+static ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const char *nodeName,
+    uint64_t &hcclBufferSizeEp, uint64_t &maxWindowSizeEp)
+{
+    auto attrs = context->GetAttrs();
+    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
+        // A5 暂不支持 Hccl CommGetCCLBufSizeCfg 接口，此处暂作规避
+        hcclBufferSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+        // A5 上前 1MB 将作为状态区，剩余空间用作数据区
+        maxWindowSizeEp = hcclBufferSizeEp - MB_SIZE;
+    } else {
+        auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
+        OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &hcclBufferSizeEp, nodeName) != ge::GRAPH_SUCCESS,
+            OP_LOGE(nodeName, "Get Ep HcclBufferSize failed, HcclBufferSizeEP is %lu", hcclBufferSizeEp),
+            return ge::GRAPH_FAILED);
+        maxWindowSizeEp = hcclBufferSizeEp;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistributeCombineV2TilingData* tilingData,
     const char *nodeName, uint32_t localMoeExpertNum)
 {
     auto attrs = context->GetAttrs();
+    uint64_t hcclBufferSizeEp = 0;
     uint64_t maxWindowSizeEp = 0;
-    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
-        // A5 暂不支持 Hccl CommGetCCLBufSizeCfg 接口，此处暂作规避
-        maxWindowSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
-    } else {
-        auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-        OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &maxWindowSizeEp, nodeName) != ge::GRAPH_SUCCESS,
-            OP_LOGE(nodeName, "Get Ep HcclBufferSize failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
-            return ge::GRAPH_FAILED);
-    }
+    OP_TILING_CHECK(GetEpWinSize(context, nodeName, hcclBufferSizeEp, maxWindowSizeEp) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "Get EP WinSize failed"), return ge::GRAPH_FAILED);
     uint64_t h = static_cast<uint64_t>(tilingData->moeDistributeCombineV2Info.h);
     uint64_t epWorldSize = static_cast<uint64_t>(tilingData->moeDistributeCombineV2Info.epWorldSize);
     uint64_t k = static_cast<uint64_t>(tilingData->moeDistributeCombineV2Info.k);
@@ -1144,7 +1157,7 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
             " k = %lu, NEEDED_HCCL_BUFFSIZE(((maxBs * tokenNeedSizeDispatch * ep_worldsize * localMoeExpertNum) +"
             " (maxBs * tokenNeedSizeCombine * (k + sharedExpertNum))) * 2) = %luMB,"
             " HCCL_BUFFSIZE=%luMB.", maxBs, h, epWorldSize, localMoeExpertNum, sharedExpertNum,
-            tokenNeedSizeDispatch, tokenNeedSizeCombine, k, actualSize / MB_SIZE + 1UL, maxWindowSizeEp / MB_SIZE),
+            tokenNeedSizeDispatch, tokenNeedSizeCombine, k, actualSize / MB_SIZE + 1UL, hcclBufferSizeEp / MB_SIZE),
             return ge::GRAPH_FAILED);
     tilingData->moeDistributeCombineV2Info.totalWinSizeEp = maxWindowSizeEp;
     OP_LOGD(nodeName, "EpwindowSize = %lu", maxWindowSizeEp);

@@ -33,13 +33,8 @@
 #endif
 
 namespace MoeDistributeDispatchV2Impl {
-#ifdef __DAV_C310__
-constexpr uint32_t STATE_SIZE = 2048 * 1024; // 2M
-constexpr uint64_t TIMEOUT_OFFSET = 1024UL * 1024UL;
-#else
 constexpr uint32_t STATE_SIZE = 1024 * 1024; // 1M
 constexpr uint64_t TIMEOUT_OFFSET = 1000UL * 1024UL;
-#endif
 constexpr uint8_t BUFFER_NUM = 2;        // 多buf
 constexpr uint8_t BUFFER_SINGLE = 1; 
 constexpr uint32_t STATE_OFFSET = 32U;  // 状态空间偏移地址
@@ -48,8 +43,8 @@ constexpr uint8_t COMM_EP_IDX = 0;
 constexpr uint8_t COMM_TP_IDX = 1;
 constexpr uint8_t QUANT_PADDING_VALUE = 0;
 // 先写死这个偏移，如果TP固定为2，可直接往起始数据偏移开始读写
-constexpr uint64_t WIN_STATE_OFFSET = 500UL * 1024UL;
-constexpr uint64_t STATE_WIN_OFFSET = 950UL * 1024UL;
+constexpr uint64_t WIN_STATE_OFFSET = 450UL * 1024UL;
+constexpr uint64_t STATE_WIN_OFFSET = 900UL * 1024UL;
 constexpr uint64_t TIMEOUT_DETECTION_THRESHOLD = 50000UL;
 constexpr uint64_t CYCLES_PER_US = 50UL;
 constexpr uint64_t TIMEOUT_DETECTION_TX_UNITS = 8UL;
