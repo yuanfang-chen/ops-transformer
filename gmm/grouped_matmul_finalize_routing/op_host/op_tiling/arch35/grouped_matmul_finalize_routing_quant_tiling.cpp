@@ -157,9 +157,6 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, cons
                         ge::TypeUtils::DataTypeToSerialString(targetDtype).c_str(),
                         ge::TypeUtils::DataTypeToSerialString(realDtype).c_str()),
                 return false);
-    auto optionalFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(optionalDesc->GetStorageFormat()));
-    OP_CHECK_IF(optionalFormat != ge::FORMAT_ND,
-                OP_LOGE(context_->GetNodeName(), "%s Format should be FORMAT_ND", paramName), return false);
     return true;
 }
 
