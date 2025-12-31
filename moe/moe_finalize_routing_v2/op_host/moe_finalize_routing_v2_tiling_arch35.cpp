@@ -73,6 +73,8 @@ protected:
     bool IsKHFullLoad();
     bool IsHFullLoad();
     ge::graphStatus CheckShapeAndDtypeIsValid();
+    ge::graphStatus CheckPartShapeAndDtypeIsValid();
+    ge::graphStatus FinalCheckShapeAndDtypeIsValid();
     ge::graphStatus GetRow(const gert::StorageShape* expandedRowIdxShape);
     ge::graphStatus CheckBiasShape(const gert::StorageShape* biasShape);
     ge::graphStatus GetECH(const gert::StorageShape* expandedXShape);
@@ -233,7 +235,6 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckBiasShape(const gert::StorageS
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
 {
-    gert::Shape bsk = {row, k};
     gert::Shape rowIdxShape = {row * k};
     gert::Shape bsh = {row, h};
 
@@ -272,6 +273,23 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
             OP_LOGE(context_->GetNodeName(), "dtype of x2 is invalid."),
             return ge::GRAPH_FAILED);
     }
+
+    OP_CHECK_IF(
+            CheckPartShapeAndDtypeIsValid() != ge::GRAPH_SUCCESS,
+            OP_LOGE(context_->GetNodeName(), "CheckPartShapeAndDtypeIsValid failed."),
+            return ge::GRAPH_FAILED);
+    
+    OP_CHECK_IF(
+            FinalCheckShapeAndDtypeIsValid() != ge::GRAPH_SUCCESS,
+            OP_LOGE(context_->GetNodeName(), "FinalCheckShapeAndDtypeIsValid failed."),
+            return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckPartShapeAndDtypeIsValid()
+{
+    gert::Shape bsh = {row, h};
+
     auto x2Shape = context_->GetOptionalInputShape(X2_IDX);
     if (x2Shape) {
         OP_CHECK_IF(
@@ -315,6 +333,14 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
             scaleDtypeKey = BFLOAT16_TILING_KEY;
         }
     }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
+{
+    gert::Shape bsk = {row, k};
+    gert::Shape bsh = {row, h};
+
     auto scalesShape = context_->GetOptionalInputShape(SCALES_IDX);
     if (scalesShape) {
         OP_CHECK_IF(

@@ -189,12 +189,17 @@ private:
     const MoeFinalizeRoutingV2RegbaseTilingData* tilingData;
     GlobalTensor<T> expandedXGm;
     GlobalTensor<int32_t> expandedRowIdxGm;
-    GlobalTensor<T> x1Gm;
-    GlobalTensor<T> x2Gm;
-    GlobalTensor<T> biasGm;
-    GlobalTensor<S> scalesGm;
     GlobalTensor<int32_t> expertIdxGm;
     GlobalTensor<T> yGm;
+    GlobalTensor<T> x1Gm;
+    GlobalTensor<T> x2Gm;
+
+    int64_t expandedRowIdxOffset{0};
+    int64_t expertIdxOffset{0};
+    int64_t scaleOffset{0};
+
+    GlobalTensor<T> biasGm;
+    GlobalTensor<S> scalesGm;
 
     LocalTensor<T> expandedXLocal;
     LocalTensor<T> x1Local;
@@ -213,10 +218,6 @@ private:
     bool hasX2{false};
     bool hasBiasAndExpertIdx{false};
     bool hasScales{false};
-
-    int64_t expandedRowIdxOffset{0};
-    int64_t expertIdxOffset{0};
-    int64_t scaleOffset{0};
 };
 } // namespace MoeFinalizeRoutingV2Regbase
 
