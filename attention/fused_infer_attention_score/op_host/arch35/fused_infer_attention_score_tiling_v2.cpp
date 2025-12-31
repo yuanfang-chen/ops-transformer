@@ -119,11 +119,6 @@ static bool CheckNormalTensorList(gert::TilingContext* context, ContextParamsFor
         auto standardVH = contextKeyParams.vTensorList[0]->GetStorageShape().GetDim(KV_DIM_2);
         int64_t tmpNKv = (*contextKeyParams.numKeyValueHeads != 0) ? *contextKeyParams.numKeyValueHeads : *contextKeyParams.headsNumber;
         int64_t keyRopeS = 0;
-        if (standardKH != standardVH && !(standardKH / tmpNKv == QK_D_PFA_MLA && standardVH / tmpNKv == V_D_PFA_MLA)) {
-            OP_LOGE(context->GetNodeName(), "H of Key(%ld) and Value(%ld) is different in the first batch under tensorlist mode!",
-                standardKH, standardVH);
-            return false;
-        }
 
         if (contextKeyParams.keyRopeInputShape != nullptr) {
             keyRopeS = contextKeyParams.keyRopeInputShape->GetStorageShape().GetDim(1);
@@ -177,11 +172,6 @@ static bool CheckNormalTensorList(gert::TilingContext* context, ContextParamsFor
 
         if (tmpNKv != standardN) {
             OP_LOGE(context->GetNodeName(), "N of Key(%ld) in the first batch is different from numKeyValueHeads(%ld)!", standardN, tmpNKv);
-            return false;
-        }
-        if (standardKD != standardVD && !(standardKD == QK_D_PFA_MLA && standardVD == V_D_PFA_MLA)) {
-            OP_LOGE(context->GetNodeName(), "D of Key(%ld) and Value(%ld) is different in the first batch under tensorlist mode!",
-                standardKD, standardVD);
             return false;
         }
 
