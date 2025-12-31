@@ -16,7 +16,8 @@
 #ifndef KV_RMS_NORM_ROPE_CACHE_REGBASE_BASE_H
 #define KV_RMS_NORM_ROPE_CACHE_REGBASE_BASE_H
 
-#include "../inc/platform.h"
+#include "kernel_operator.h"
+#include "platform.h"
 
 namespace KvRmsNormRopeCache {
 using namespace AscendC;
