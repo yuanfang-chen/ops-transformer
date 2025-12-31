@@ -16,19 +16,23 @@
 
 ## 功能说明
 
-算子功能：完成路由专家GroupedMatMul、Unpermute、AlltoAllv融合并实现与共享专家MatMul并行融合，**先计算后通信**。
+- 接口功能：完成路由专家GroupedMatMul、Unpermute、AlltoAllv融合并实现与共享专家MatMul并行融合，**先计算后通信**。
 
-计算公式：
-- 路由专家：
-  $$
-  gmmY = gmmX \times gmmWeight \\
-  unpermuteOut = Unpermute(gmmY) \\
-  y = AlltoAllv(unpermuteOut)
-  $$
-- 共享专家：
-  $$
-  mmY = mmX \times mmWeight
-  $$
+- 计算公式：
+
+    - 路由专家：
+
+    $$
+    gmmY = gmmX \times gmmWeight \\
+    unpermuteOut = Unpermute(gmmY) \\
+    y = AlltoAllv(unpermuteOut)
+    $$
+
+    - 共享专家：
+
+    $$
+    mmY = mmX \times mmWeight
+    $$
 
 ## 函数原型
 
@@ -66,12 +70,12 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 
 - **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1392px"> <colgroup>
-    <col style="width: 120px">
-    <col style="width: 120px">
+    <table style="undefined;table-layout: fixed; width: 1013px"><colgroup>
     <col style="width: 160px">
-    <col style="width: 150px">
-    <col style="width: 80px">
+    <col style="width: 111px">
+    <col style="width: 429px">
+    <col style="width: 188px">
+    <col style="width: 125px">
     </colgroup>
     <thead>
     <tr>
@@ -198,12 +202,14 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 
 - **返回值**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-    <table style="undefined;table-layout: fixed; width: 1180px"> <colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 800px">
+    第一阶段接口完成入参校验，出现以下场景报错：
+
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
     </colgroup>
     <thead>
     <tr>
@@ -229,10 +235,10 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 
 - **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1180px"> <colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 800px">
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     </colgroup>
     <thead>
     <tr>
@@ -287,11 +293,13 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>: 单卡通信量取值范围需大于等于2MB。
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>昇腾910_95 AI处理器</term>：
+
     ```Cpp
     #include <thread>
     #include <iostream>

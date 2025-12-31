@@ -16,7 +16,7 @@
 
 ## 功能说明
 
--   **算子功能**:
+-   **接口功能**:
     aclnnMatmulReduceScatterV2接口是对aclnnMatmulReduceScatter接口的功能扩展，在支持x1和x2输入类型为FLOAT16/BFLOAT16的基础上,
     -   <term>昇腾910_95 AI处理器</term>：
         -   新增了对低精度数据类型FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的支持。支持pertensor、perblock、mx[量化方式](../../../docs/zh/context/量化介绍.md)。
@@ -110,7 +110,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>x1</td>
           <td>输入</td>
-          <td>Device侧的两维aclTensor，MM左矩阵，即计算公式中的x1。</td>
+          <td>MM左矩阵，即计算公式中的x1。</td>
           <td><ul><li>与x2的数据类型保持一致。</li><li>当前版本仅支持二维输入，且仅支持不转置场景</li></ul></td>
           <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
           <td>ND</td>
@@ -120,7 +120,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>x2</td>
           <td>输入</td>
-          <td>Device侧的两维aclTensor，MM右矩阵，即公式中的x2。</td>
+          <td>MM右矩阵，即公式中的x2。</td>
           <td><ul><li>与x1的数据类型保持一致。</li><li>当前版本仅支持二维输入，支持转置/不转置场景。</li><li>支持通过转置构造非连续Tensor。</li></ul></td>
           <td>FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
           <td>ND</td>
@@ -130,7 +130,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>bias</td>
           <td>输入</td>
-          <td>Device侧的一维aclTensor，即公式中的bias。</td>
+          <td>即公式中的bias。</td>
           <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -140,7 +140,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>x1Scale</td>
           <td>输入</td>
-          <td>Device侧的aclTensor， mm左矩阵反量化参数。</td>
+          <td>mm左矩阵反量化参数。</td>
           <td>-</td>
           <td>FLOAT</td>
           <td>ND</td>
@@ -150,7 +150,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>x2Scale</td>
           <td>输入</td>
-          <td>Device侧的aclTensor， mm右矩阵反量化参数。</td>
+          <td>mm右矩阵反量化参数。</td>
           <td>-</td>
           <td>FLOAT</td>
           <td>ND</td>
@@ -160,7 +160,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>quantScale</td>
           <td>输入</td>
-          <td>Device侧的一维aclTensor，mm输出矩阵量化参数。</td>
+          <td>mm输出矩阵量化参数。</td>
           <td>当前版本仅支持nullptr</td>
           <td>FLOAT</td>
           <td>ND</td>
@@ -170,7 +170,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>blockSize</td>
           <td>输入</td>
-          <td>Host侧的整型，用于表示mm输出矩阵在M轴方向上和N轴方向上可以用于对应方向上的多少个数的量化。</td>
+          <td>用于表示mm输出矩阵在M轴方向上和N轴方向上可以用于对应方向上的多少个数的量化。</td>
           <td>blockSize由blockSizeM、blockSizeN、blockSizeK三个值拼接而成，每个值占16位，计算公式为blockSize = blockSizeK | blockSizeN << 16 | blockSizeM << 32，mm输出矩阵不涉及K轴，blockSizeK固定为0。当前版本只支持blockSizeM=blockSizeN=0</td>
           <td>INT64</td>
           <td>-</td>
@@ -190,7 +190,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>reduceOp</td>
           <td>输入</td>
-          <td>Host侧的char，reduce操作类型。</td>
+          <td>reduce操作类型。</td>
           <td>当前版本仅支持“sum”</td>
           <td>STRING</td>
           <td>-</td>
@@ -200,7 +200,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>commTurn</td>
           <td>输入</td>
-          <td>Host侧的整型，通信数据切分数，即总数据量/单次通信量。</td>
+          <td>通信数据切分数，即总数据量/单次通信量。</td>
           <td>当前版本仅支持输入0。</td>
           <td>INT64</td>
           <td>-</td>
@@ -210,7 +210,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>streamMode</td>
           <td>输入</td>
-          <td>Host侧的整型，流模式的枚举。</td>
+          <td>流模式的枚举。</td>
           <td>当前只支持枚举值1。</td>
           <td>INT64</td>
           <td>-</td>
@@ -230,7 +230,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>commMode</td>
           <td>输入</td>
-          <td>Host侧的char，通信模式。</td>
+          <td>通信模式。</td>
           <td>-</td>
           <td>STRING</td>
           <td>-</td>
@@ -240,7 +240,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>output</td>
           <td>输出</td>
-          <td>Device侧的aclTensor，MatMul计算+ReduceScatter通信的结果，即计算公式中的output。</td>
+          <td>MatMul计算+ReduceScatter通信的结果，即计算公式中的output。</td>
           <td><ul><li>不支持空Tensor。</li><li>如果x1数据类型为FLOAT16、BFLOAT16时，output数据类型与x1一致。</li></ul></td>
           <td>FLOAT16、BFLOAT16、FLOAT</td>
           <td>ND</td>
@@ -250,7 +250,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <tr>
           <td>amaxOutOptional</td>
           <td>输出</td>
-          <td>Device侧的aclTensor，MatMul计算的最大值结果。</td>
+          <td>MatMul计算的最大值结果。</td>
           <td>当前版本仅支持nullptr或空tensor</td>
           <td>FLOAT</td>
           <td>-</td>
@@ -280,33 +280,35 @@ aclnnStatus aclnnMatmulReduceScatterV2(
       </tbody>
     </table>
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
-    - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias当前版本仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8, x1的shape为[m, k]，x2的shape为[k, n]，bias当前版本仅支持输入nullptr。
-    - 在commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。在commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
-    - groupSize当前版本仅支持输入为0。
-    - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
+    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+        - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias当前版本仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8, x1的shape为[m, k]，x2的shape为[k, n]，bias当前版本仅支持输入nullptr。
+        - 在commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。在commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
+        - groupSize当前版本仅支持输入为0。
+        - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-    - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias当前版本仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8, x1的shape为[m, k]，x2的shape为[k, n]，bias当前版本仅支持输入nullptr。
-    - 在commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。在commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
-    - groupSize当前版本仅支持输入为0。
-    - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+        - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias当前版本仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8, x1的shape为[m, k]，x2的shape为[k, n]，bias当前版本仅支持输入nullptr。
+        - 在commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。在commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
+        - groupSize当前版本仅支持输入为0。
+        - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
 
-- <term>昇腾910_95 AI处理器</term>：
-    - x1、x2数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, x1的shape为[m, k]，x2的shape为[k, n]。在mx量化场景下，当前x2仅支持转置场景。bias数据类型支持FLOAT16、BFLOAT16、FLOAT。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor和mx量化场景下，bias的数据类型必须为FLOAT。在perblock场景下，仅支持输入为nullptr。
-    - x1Scale、x2Scale数据类型支持FLOAT、FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，二者仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，x1Scale的shape为[ceildiv(m, 128), ceildiv(k, 128)]，x2Scale的shape为[ceildiv(k, 128), ceildiv(n, 128)]。在pertensor和perblock场景下，二者数据类型支持FLOAT。在mx量化场景下，数据类型为FLOAT8_E8M0，x1Scale的shape为(m, ceilDiv(k, 64), 2)，x2Scale的shape为(ceilDiv(k, 64), n, 2)，且x2Scale仅支持转置场景。
-    - 当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，groupSize当前版本仅支持输入0。
-    - 当前仅支持集合通信单元ccu完成通信任务，commMode当前版本仅支持输入“ccu”。
-    - output数据类型支持FLOAT16、BFLOAT16、FLOAT，
+    - <term>昇腾910_95 AI处理器</term>：
+        - x1、x2数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, x1的shape为[m, k]，x2的shape为[k, n]。在mx量化场景下，当前x2仅支持转置场景。bias数据类型支持FLOAT16、BFLOAT16、FLOAT。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor和mx量化场景下，bias的数据类型必须为FLOAT。在perblock场景下，仅支持输入为nullptr。
+        - x1Scale、x2Scale数据类型支持FLOAT、FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，二者仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，x1Scale的shape为[ceildiv(m, 128), ceildiv(k, 128)]，x2Scale的shape为[ceildiv(k, 128), ceildiv(n, 128)]。在pertensor和perblock场景下，二者数据类型支持FLOAT。在mx量化场景下，数据类型为FLOAT8_E8M0，x1Scale的shape为(m, ceilDiv(k, 64), 2)，x2Scale的shape为(ceilDiv(k, 64), n, 2)，且x2Scale仅支持转置场景。
+        - 当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，groupSize当前版本仅支持输入0。
+        - 当前仅支持集合通信单元ccu完成通信任务，commMode当前版本仅支持输入“ccu”。
+        - output数据类型支持FLOAT16、BFLOAT16、FLOAT，
 
 -   **返回值**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-    <table style="undefined;table-layout: fixed; width: 1180px"> <colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 800px">
+    第一阶段接口完成入参校验，出现以下场景报错：
+
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
     </colgroup>
     <thead>
     <tr>
@@ -332,10 +334,10 @@ aclnnStatus aclnnMatmulReduceScatterV2(
 
 -   **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1180px"> <colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 800px">
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     <thead>
     <tr>
         <th>参数名</th>

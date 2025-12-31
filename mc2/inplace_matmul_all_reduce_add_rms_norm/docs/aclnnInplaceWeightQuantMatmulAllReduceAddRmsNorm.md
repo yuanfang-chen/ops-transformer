@@ -18,7 +18,7 @@
 
 ## 功能说明
 
-- **算子功能**：完成mm + all_reduce + add + rms_norm计算。
+- **接口功能**：完成mm + all_reduce + add + rms_norm计算。
 - **计算公式**：
 
   $$
@@ -97,7 +97,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>x1</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的左矩阵，即计算公式中的x1。</td>
+          <td>MatMul计算的左矩阵，即计算公式中的x1。</td>
           <td><ul><li>支持空Tensor。</li><li>当前版本仅支持二维或者三维输入。</li></ul></td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -107,7 +107,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>x2</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，MatMul计算的右矩阵，即计算公式中的x2。</td>
+          <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
           <td><ul><li>支持空Tensor。</li><li>当前版本仅支持两维输入，支持转置/不转置场景。</li><li>支持转置场景下的非连续的tensor。</li></ul></td>
           <td>INT8、INT4</td>
           <td>ND</td>
@@ -117,7 +117,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>bias</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，即计算公式中的bias。</td>
+          <td>即计算公式中的bias。</td>
           <td><ul><li>支持传入空指针场景。</li><li>当前版本仅支持一维输入。</li></ul></td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -127,7 +127,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>antiquantScale</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，即计算公式中的antiquantScale。</td>
+          <td>即计算公式中的antiquantScale。</td>
           <td>pertensor场景shape为(1)；PerChannel场景shape为(n)/(1,n)，n为x2最后一维的大小；pergroup场景shape为(ceil(k,antiquantGroupSize),n)。</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -137,7 +137,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>antiquantOffset</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，对x2进行伪量化计算的offset参数，即计算公式中的antiquantOffset。</td>
+          <td>对x2进行伪量化计算的offset参数，即计算公式中的antiquantOffset。</td>
           <td>可选，可为空，非空时shape与antiquantScale一致。</td>
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
@@ -147,7 +147,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>residual</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，AddRmsNorm融合算子的残差输入，即计算公式中的residual。</td>
+          <td>AddRmsNorm融合算子的残差输入，即计算公式中的residual。</td>
           <td>当前版本仅支持三维输入。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -157,7 +157,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>gamma</td>
           <td>输入</td>
-          <td>Device侧的aclTensor，AddRmsNorm融合算子的RmsNorm计算输入，即计算公式中的gamma。</td>
+          <td>AddRmsNorm融合算子的RmsNorm计算输入，即计算公式中的gamma。</td>
           <td>当前版本仅支持一维输入。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -197,7 +197,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>commTurn</td>
           <td>输入</td>
-          <td>Host侧的整型，通信数据切分数，即总数据量/单次通信量。</td>
+          <td>通信数据切分数，即总数据量/单次通信量。</td>
           <td>当前版本仅支持输入0。</td>
           <td>INT64</td>
           <td>-</td>
@@ -207,7 +207,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>streamMode</td>
           <td>输入</td>
-          <td>Host侧的整型，流模式的枚举。</td>
+          <td>流模式的枚举。</td>
           <td>当前只支持枚举值1。</td>
           <td>INT64</td>
           <td>-</td>
@@ -227,7 +227,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>y</td>
           <td>输出</td>
-          <td>Device侧的aclTensor，mm + all_reduce + add的结果，即计算公式中的y。</td>
+          <td>mm + all_reduce + add的结果，即计算公式中的y。</td>
           <td><ul><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -237,7 +237,7 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         <tr>
           <td>normOut</td>
           <td>输出</td>
-          <td>Device侧的aclTensor，mm + all_reduce + add + rms_norm的结果，即计算公式中的normOut。</td>
+          <td>mm + all_reduce + add + rms_norm的结果，即计算公式中的normOut。</td>
           <td><ul><li>不支持空Tensor。</li><li>数据类型同residual输入。</li></ul></td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -266,16 +266,17 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
         </tr>
       </tbody>
     </table>
+
 -   **返回值：**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     第一段接口完成入参校验，出现以下场景时报错：
 
-    <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 650px">
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
     </colgroup>
     <thead>
     <tr>
@@ -299,13 +300,15 @@ aclnnStatus aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm(
     </tr>
     </tbody>
     </table>
+
 ## aclnnInplaceWeightQuantMatmulAllReduceAddRmsNorm
 
 - **参数说明：**
-    <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
-    <col style="width: 158px">
-    <col style="width: 120px">
-    <col style="width: 750px">
+
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     <thead>
     <tr>
         <th>参数名</th>

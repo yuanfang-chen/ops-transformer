@@ -13,11 +13,13 @@
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 | <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
+
 ## 功能说明
 
 - 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)、Qunat、Matmul和Dequant计算的融合，**先通信后计算**。
 - 计算公式:
   假设x1输入shape为(BS, H)
+
   $$
   commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
   permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -67,242 +69,246 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 
 ## aclnnAlltoAllMatmulGetWorkspaceSize
 
-### ​**参数说明**​：
+- ​**参数说明**​：
 
-<table style="undefined;table-layout: fixed; width: 1392px"> <colgroup>
- <col style="width: 120px">
- <col style="width: 120px">
- <col style="width: 160px">
- <col style="width: 150px">
- <col style="width: 80px">
- </colgroup>
- <thead>
-  <tr>
-   <th>参数名</th>
-   <th>输入/输出</th>
-   <th>描述</th>
-   <th>使用说明</th>
-   <th>数据类型</th>
-   <th>数据格式</th>
-   <th>维度(shape)</th>
-   <th>非连续tensor</th>
-  </tr></thead>
- <tbody>
-  <tr>
-   <td>x1</td>
-   <td>输入</td>
-   <td>融合算子的左矩阵输入，对应公式中的x1</td>
-   <td>该输入进行AlltoAll通信与Permute操作后结果作为MatMul计算的左矩阵输入</td>
-   <td>FLOAT16、BFLOAT16</td>
-   <td>ND</td>
-   <td>2维, shape为(BS, H)</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>x2</td>
-   <td>输入</td>
-   <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵，对应公式中的x2</td>
-   <td>直接作为MatMul计算的右矩阵输入</td>
-   <td>INT8</td>
-   <td>ND</td>
-   <td>2维，shape为(H*rankSize, N)</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>biasOptional</td>
-   <td>输入</td>
-   <td>可选输入，阵乘运算后累加的偏置，对应公式中的bias。</td>
-   <td></td>
-   <td>FLOAT16、BFLOAT16、FLOAT32</td>
-   <td>ND</td>
-   <td>1维，shape为(N)</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>x1ScaleOptional</td>
-   <td>输入</td>
-   <td>可选输入，左矩阵的量化系数</td>
-   <td>预留参数，暂不支持输入静态的x1Scale</td>
-   <td></td>
-   <td></td>
-   <td></td>
-   <td></td>
-  </tr>
-  <tr>
-   <td>x2Scale</td>
-   <td>输入</td>
-   <td>右矩阵的量化系数</td>
-   <td>对应公式中的x2Scale</td>
-   <td>FLOAT32</td>
-   <td>ND</td>
-   <td>1维, shape为(N,)</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>commScaleOptional</td>
-   <td>输入</td>
-   <td>可选输入, 低比特通信的量化系数</td>
-   <td>预留参数，暂不支持低比特通信</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  </tr>
-  <tr>
-   <td>x1OffsetOptional</td>
-   <td>输入</td>
-   <td>可选输入，左矩阵的量化偏置</td>
-   <td>预留参数，暂不支持</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  <tr>
-   <td>x2OffsetOptional</td>
-   <td>输入</td>
-   <td>可选输入，右矩阵的量化偏置</td>
-   <td>预留参数，暂不支持</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  <tr>
-   <td>alltoAllAxesOptional</td>
-   <td>输入</td>
-   <td>可选输入，AlltoAll和Pemute数据交换的方向</td>
-   <td>仅支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H)转为(BS / rankSize, rankSize * H)</td>
-   <td>aclIntArray*(元素类型INT64)</td>
-   <td>ND</td>
-   <td>1维，shape为(2)</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>group</td>
-   <td>输入</td>
-   <td>通信域名</td>
-   <td>字符串长度要求(0, 128)</td>
-   <td>STRING</td>
-   <td>ND</td>
-   <td>1维</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>x1QuantMode</td>
-   <td>输入</td>
-   <td>量化Matmul左矩阵的量化方式</td>
-   <td>AlltoAll通信与Permute操作后的结果，按照该参数配置量化后作为MatMul计算的左矩阵输入，当前仅支持配置为3，表示PerToken动态量化</td>
-   <td>INT</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  </tr>
-  <tr>
-   <td>x2QuantMode</td>
-   <td>输入</td>
-   <td>左矩阵的量化方式</td>
-   <td>当前仅支持配置为2，表示PerChannel</td>
-   <td>INT</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  </tr>
-  <tr>
-   <td>commQuantMode</td>
-   <td>输入</td>
-   <td>低比特通信的量化方式</td>
-   <td>预留参数，当前仅支持配置为0，表示不量化</td>
-   <td>INT</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  </tr>
-  <tr>
-   <td>commQuantDtype</td>
-   <td>输入</td>
-   <td>低比特通信的量化类型</td>
-   <td>预留参数，当前仅支持配置为-1, 表示ACL_DT_UNDEFINED, [数据格式](../../../docs/context/数据格式.md)</td>
-   <td>INT</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  </tr>
-  <tr>
-   <td>x1QuantDtype</td>
-   <td>输入</td>
-   <td>量化Matmul左矩阵的量化类型</td>
-   <td>AlltoAll通信与Permute操作后结果，按照该参数配置量化后作为MatMul计算的左矩阵输入，
-        仅支持配置2(表示aclDataType.ACL_INT8), [数据格式](../../../docs/context/数据格式.md)
-   </td>
-   <td>INT</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  </tr>
-  <tr>
-   <td>groupSize</td>
-   <td>输入</td>
-   <td>用于Matmul计算三个方向上的量化分组大小</td>
-   <td>预留参数，K-C量化模式下仅支持配置为0，取值不生效。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
-   <td>INT</td>
-   <td>-</td>
-   <td>-</td>
-   <td>-</td>
-  </tr>
-  <tr>
-   <td>transposeX1</td>
-   <td>输入</td>
-   <td>标识左矩阵是否转置过</td>
-   <td>配置为True时左矩阵Shape为(H, BS)，暂不支持配置为True</td>
-   <td>bool</td>
-   <td>ND</td>
-   <td></td>
-   <td></td>
-  </tr>
-  <tr>
-   <td>transposeX2</td>
-   <td>输入</td>
-   <td>标识右矩阵是否转置过</td>
-   <td>配置为True时右矩阵Shape为(N, rankSize * H)</td>
-   <td>bool</td>
-   <td>ND</td>
-   <td></td>
-   <td></td>
-  </tr>
-  <tr>
-   <td>output</td>
-   <td>输入</td>
-   <td>最终的计算结果</td>
-   <td>数据类型与输入x1保持一致</td>
-   <td>FLOAT16、BFLOAT16、FLOAT32</td>
-   <td>ND</td>
-   <td>2维，shape为(BS / rankSize, N)</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>alltoAllOutOptional</td>
-   <td>可选输出</td>
-   <td>接收AlltoAll和Permute后的内容，数据类型与输入x1保持一致</td>
-   <td>传入nullptr时表示不输出通信输出</td>
-   <td>FLOAT16、BFLOAT16</td>
-   <td>ND</td>
-   <td>2维，shape为(BS / rankSize, rankSize * H)</td>
-   <td>x</td>
-  </tr>
-  <tr>
-   <td>executor</td>
-   <td>输出</td>
-   <td>返回op执行器，包含了算子的计算流程。</td>
-   <td></td>
-   <td>aclOpExecutor*</td>
-   <td>ND</td>
-   <td></td>
-   <td></td>
-  </tr>
- </tbody></table>
+    <table style="undefined;table-layout: fixed; width: 1543px"><colgroup>
+    <col style="width: 186px">
+    <col style="width: 123px">
+    <col style="width: 283px">
+    <col style="width: 295px">
+    <col style="width: 181px">
+    <col style="width: 122px">
+    <col style="width: 206px">
+    <col style="width: 147px">
+    </colgroup>
+    <thead>
+    <tr>
+    <th>参数名</th>
+    <th>输入/输出</th>
+    <th>描述</th>
+    <th>使用说明</th>
+    <th>数据类型</th>
+    <th>数据格式</th>
+    <th>维度(shape)</th>
+    <th>非连续tensor</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+    <td>x1</td>
+    <td>输入</td>
+    <td>融合算子的左矩阵输入，对应公式中的x1</td>
+    <td>该输入进行AlltoAll通信与Permute操作后结果作为MatMul计算的左矩阵输入</td>
+    <td>FLOAT16、BFLOAT16</td>
+    <td>ND</td>
+    <td>2维, shape为(BS, H)</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>x2</td>
+    <td>输入</td>
+    <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵，对应公式中的x2</td>
+    <td>直接作为MatMul计算的右矩阵输入</td>
+    <td>INT8</td>
+    <td>ND</td>
+    <td>2维，shape为(H*rankSize, N)</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>biasOptional</td>
+    <td>输入</td>
+    <td>可选输入，阵乘运算后累加的偏置，对应公式中的bias。</td>
+    <td></td>
+    <td>FLOAT16、BFLOAT16、FLOAT32</td>
+    <td>ND</td>
+    <td>1维，shape为(N)</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>x1ScaleOptional</td>
+    <td>输入</td>
+    <td>可选输入，左矩阵的量化系数</td>
+    <td>预留参数，暂不支持输入静态的x1Scale</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    </tr>
+    <tr>
+    <td>x2Scale</td>
+    <td>输入</td>
+    <td>右矩阵的量化系数</td>
+    <td>对应公式中的x2Scale</td>
+    <td>FLOAT32</td>
+    <td>ND</td>
+    <td>1维, shape为(N,)</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>commScaleOptional</td>
+    <td>输入</td>
+    <td>可选输入, 低比特通信的量化系数</td>
+    <td>预留参数，暂不支持低比特通信</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>x1OffsetOptional</td>
+    <td>输入</td>
+    <td>可选输入，左矩阵的量化偏置</td>
+    <td>预留参数，暂不支持</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <tr>
+    <td>x2OffsetOptional</td>
+    <td>输入</td>
+    <td>可选输入，右矩阵的量化偏置</td>
+    <td>预留参数，暂不支持</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <tr>
+    <td>alltoAllAxesOptional</td>
+    <td>输入</td>
+    <td>可选输入，AlltoAll和Pemute数据交换的方向</td>
+    <td>仅支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H)转为(BS / rankSize, rankSize * H)</td>
+    <td>aclIntArray*(元素类型INT64)</td>
+    <td>ND</td>
+    <td>1维，shape为(2)</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>group</td>
+    <td>输入</td>
+    <td>通信域名</td>
+    <td>字符串长度要求(0, 128)</td>
+    <td>STRING</td>
+    <td>ND</td>
+    <td>1维</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>x1QuantMode</td>
+    <td>输入</td>
+    <td>量化Matmul左矩阵的量化方式</td>
+    <td>AlltoAll通信与Permute操作后的结果，按照该参数配置量化后作为MatMul计算的左矩阵输入，当前仅支持配置为3，表示PerToken动态量化</td>
+    <td>INT</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>x2QuantMode</td>
+    <td>输入</td>
+    <td>左矩阵的量化方式</td>
+    <td>当前仅支持配置为2，表示PerChannel</td>
+    <td>INT</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>commQuantMode</td>
+    <td>输入</td>
+    <td>低比特通信的量化方式</td>
+    <td>预留参数，当前仅支持配置为0，表示不量化</td>
+    <td>INT</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>commQuantDtype</td>
+    <td>输入</td>
+    <td>低比特通信的量化类型</td>
+    <td>预留参数，当前仅支持配置为-1, 表示ACL_DT_UNDEFINED, [数据格式](../../../docs/context/数据格式.md)</td>
+    <td>INT</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>x1QuantDtype</td>
+    <td>输入</td>
+    <td>量化Matmul左矩阵的量化类型</td>
+    <td>AlltoAll通信与Permute操作后结果，按照该参数配置量化后作为MatMul计算的左矩阵输入，
+            仅支持配置2(表示aclDataType.ACL_INT8), [数据格式](../../../docs/context/数据格式.md)
+    </td>
+    <td>INT</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>groupSize</td>
+    <td>输入</td>
+    <td>用于Matmul计算三个方向上的量化分组大小</td>
+    <td>预留参数，K-C量化模式下仅支持配置为0，取值不生效。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+    <td>INT</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <td>transposeX1</td>
+    <td>输入</td>
+    <td>标识左矩阵是否转置过</td>
+    <td>配置为True时左矩阵Shape为(H, BS)，暂不支持配置为True</td>
+    <td>bool</td>
+    <td>ND</td>
+    <td></td>
+    <td></td>
+    </tr>
+    <tr>
+    <td>transposeX2</td>
+    <td>输入</td>
+    <td>标识右矩阵是否转置过</td>
+    <td>配置为True时右矩阵Shape为(N, rankSize * H)</td>
+    <td>bool</td>
+    <td>ND</td>
+    <td></td>
+    <td></td>
+    </tr>
+    <tr>
+    <td>output</td>
+    <td>输入</td>
+    <td>最终的计算结果</td>
+    <td>数据类型与输入x1保持一致</td>
+    <td>FLOAT16、BFLOAT16、FLOAT32</td>
+    <td>ND</td>
+    <td>2维，shape为(BS / rankSize, N)</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>alltoAllOutOptional</td>
+    <td>可选输出</td>
+    <td>接收AlltoAll和Permute后的内容，数据类型与输入x1保持一致</td>
+    <td>传入nullptr时表示不输出通信输出</td>
+    <td>FLOAT16、BFLOAT16</td>
+    <td>ND</td>
+    <td>2维，shape为(BS / rankSize, rankSize * H)</td>
+    <td>x</td>
+    </tr>
+    <tr>
+    <td>executor</td>
+    <td>输出</td>
+    <td>返回op执行器，包含了算子的计算流程。</td>
+    <td></td>
+    <td>aclOpExecutor*</td>
+    <td>ND</td>
+    <td></td>
+    <td></td>
+    </tr>
+    </tbody></table>
 
-**返回值**
+- **返回值**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。  
+
     第一段接口完成入参校验，出现以下场景时报错：
 
   <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
@@ -334,14 +340,48 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 ## aclnnAlltoAllQuantMatmul
 
 * **参数说明：**
-    * workspace（void*，入参）：在Device侧申请的workspace内存地址。
-    * workspaceSize（uint64_t，入参）：在Device侧申请的workspace大小，由第一段接口aclnnMoeDistributeCombineV3GetWorkspaceSize获取。
-    * executor（aclOpExecutor*，入参）：op执行器，包含了算子计算流程。
-    * stream（aclrtStream，入参）：指定执行任务的AscendCL stream流。
+
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
+    </colgroup>
+    <thead>
+    <tr>
+        <th>参数名</th>
+        <th>输入/输出</th>
+        <th>描述</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>workspace</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace内存地址。</td>
+    </tr>
+    <tr>
+        <td>workspaceSize</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace大小，由第一段接口aclnnAlltoAllMatmulGetWorkspaceSize获取。</td>
+    </tr>
+    <tr>
+        <td>executor</td>
+        <td>输入</td>
+        <td>op执行器，包含了算子计算流程。</td>
+    </tr>
+    <tr>
+        <td>stream</td>
+        <td>输入</td>
+        <td>指定执行任务的Stream。</td>
+    </tr>
+    </tbody>
+    </table>
+
 * **返回值：**
+
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
 
 ## 约束说明
+
 * 默认支持确定性计算
 * 参数说明中shape使用的变量BS必须整除rankSize
 * x1、output、alltoAllOutOptional的数据类型必须一致

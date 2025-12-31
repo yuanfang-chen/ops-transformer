@@ -14,7 +14,7 @@
 
 ## 功能说明
 
-接口功能：将FFN节点上的数据发往Attention节点。
+将FFN节点上的数据发往Attention节点。
 
 ## 函数原型
 
@@ -48,15 +48,15 @@ aclnnStatus aclnnFFNToAttention(
 
 - **参数说明：**
 
-    <table style="undefined;table-layout: fixed; width: 1166px"><colgroup>
-      <col style="width: 176px">
-      <col style="width: 100px">
-      <col style="width: 200px">
-      <col style="width: 200px">
-      <col style="width: 150px">
-      <col style="width: 90px"> 
-      <col style="width: 100px">
-      <col style="width: 150px">
+    <table style="undefined;table-layout: fixed; width: 1484px"><colgroup>
+    <col style="width: 186px">
+    <col style="width: 123px">
+    <col style="width: 283px">
+    <col style="width: 295px">
+    <col style="width: 181px">
+    <col style="width: 122px">
+    <col style="width: 147px">
+    <col style="width: 147px">
       </colgroup>
   <thead>
     <tr>
@@ -208,6 +208,7 @@ aclnnStatus aclnnFFNToAttention(
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     第一段接口完成入参校验，出现以下场景时报错：
+
     <table style="undefined;table-layout: fixed; width: 1166px">
     <colgroup>
     <col style="width: 166px">
@@ -241,11 +242,10 @@ aclnnStatus aclnnFFNToAttention(
 
 - **参数说明：**
 
-    <table style="undefined;table-layout: fixed; width: 1166px">
-    <colgroup>
-    <col style="width: 166px">
-    <col style="width: 100px">
-    <col style="width: 900px">
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     </colgroup>
     <thead>
     <tr>
@@ -295,6 +295,7 @@ aclnnStatus aclnnFFNToAttention(
   - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：该场景下单卡包含双DIE（简称为“晶粒”或“裸片”），因此参数说明中的“本卡”均表示单DIE。
 
 - **Shape变量约束**：
+
   | 变量         | 定义与取值范围                                                                           |
   | :----------- | :------------------------------------------------------------------------------------- |
   | Y            | 表示本卡需要分发的最大token数量。|

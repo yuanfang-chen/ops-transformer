@@ -56,6 +56,7 @@
     $$
     output = AllReduce((x1@x2 + biasOptional) * x2Scale * x1ScaleOptional + x3Optional)
     $$
+
   - 公式6：x1，x2为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，x1ScaleOptional为FLOAT32，x2Scale为FLOAT32，无biasOptional。当x1为(a0, a1)，x2为(b0, b1)时x1ScaleOptional为(ceildiv(a0，128), ceildiv(a1，128))x2Scale为(ceildiv(b0，128), ceildiv(b1，128)), out为FLOAT16/BFLOAT16/FLOAT32:
 
     $$
@@ -74,6 +75,7 @@
     $$
     quantOutput_{fp8} = (append((matmulAddOutput_{fp32} * scaleOut{fp32})@scaleOut_{fp32}));
     $$
+
     $$
     alltoallOutput_{fp8} = (AllToAll(quantOut_{fp8}));
     $$
@@ -292,7 +294,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>commQuantMode</td>
           <td>输入</td>
-          <td>Host侧的整型，静态量化和动态量化的标志位。</td>
+          <td>静态量化和动态量化的标志位。</td>
           <td><ul><li>数值为0和1。仅在x1和x2为FLOAT8_E4M3或FLOAT8_E5M2时支持1，为1时走Pertile量化Fp8通信场景。</li></ul></td>
           <td>INT64</td>
           <td>-</td>
@@ -302,7 +304,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
         <tr>
           <td>output</td>
           <td>输出</td>
-          <td>Device侧的aclTensor，MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
+          <td>MatMul计算与AllReduce通信的结果，即计算公式中的output。</td>
           <td><ul><li>output的维数与x1一致。</li></ul></td>
           <td>FLOAT16、BFLOAT16、FLOAT32</td>
           <td>ND</td>
@@ -335,12 +337,14 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 
 - **返回值**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-  <col style="width: 250px">
-  <col style="width: 130px">
-  <col style="width: 650px">
+  第一阶段接口完成入参校验，出现以下场景报错：
+
+  <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+  <col style="width: 282px">
+  <col style="width: 120px">
+  <col style="width: 747px">
   </colgroup>
   <thead>
   <tr>
@@ -371,10 +375,11 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 ## aclnnQuantMatmulAllReduceV4
 
 - **参数说明**
-  <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
-  <col style="width: 158px">
-  <col style="width: 120px">
-  <col style="width: 750px">
+
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
   <thead>
   <tr>
       <th>参数名</th>

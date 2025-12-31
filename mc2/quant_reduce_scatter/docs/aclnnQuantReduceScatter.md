@@ -15,20 +15,23 @@
 
 ## 功能说明
 
--   **算子功能**：实现quant + reduceScatter融合计算。
+-   **接口功能**：实现quant + reduceScatter融合计算。
 -   **计算公式**：
 
     $$
     output=Reduce(AllToAllScales * AllToAllData)
     $$
+
     $$
     AllToAllData=AllToAll(x)
     $$
+
     $$
     AllToAllScales=AllToAll(scales)
     $$
+
     其中的Reduce计算是将来自不同rank的数据进行reduce计算。
-    $$
+    
 
 ## 函数原型
 
@@ -55,8 +58,9 @@ aclnnStatus aclnnQuantReduceScatter(
 
 ## aclnnQuantReduceScatterGetWorkspaceSize
 
--   **参数说明：**
-<table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
+-   **参数说明**
+
+    <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
     <col style="width: 170px">
     <col style="width: 120px">
     <col style="width: 300px">  
@@ -152,13 +156,16 @@ aclnnStatus aclnnQuantReduceScatter(
     </tbody>
     </table>
 
--   **返回值：**
+-   **返回值**
 
-    返回aclnnStatus状态码，第一段接口完成入参校验，出现以下场景时报错：
-    <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 650px">
+    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。  
+
+    第一段接口完成入参校验，出现以下场景时报错：
+
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
     </colgroup>
     <thead>
     <tr>
@@ -187,11 +194,13 @@ aclnnStatus aclnnQuantReduceScatter(
     </table>
 
 ## aclnnQuantReduceScatter
--   **参数说明：**
-    <table style="undefined;table-layout: fixed; width: 1312px">
-    <col style="width: 158px">
-    <col style="width: 120px">
-    <col style="width: 750px">
+
+-   **参数说明**
+
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     <thead>
     <tr>
         <th>参数名</th>
@@ -220,7 +229,8 @@ aclnnStatus aclnnQuantReduceScatter(
         <td>指定执行任务的stream。</td>
     </tr>
     </tbody></table>
--   **返回值：**
+
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见aclnn返回码。
 

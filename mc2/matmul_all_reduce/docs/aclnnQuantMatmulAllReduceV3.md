@@ -262,58 +262,61 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
       </tbody>
     </table>
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
 
-  - 输入x2的数据格式支持ND和FRACTAL_NZ格式。输入的shape规则如下：
-    - 当x2的数据格式为FRACTAL_NZ时，当前版本仅支持四维输入，配合`aclnnCalculateMatmulWeightSizeV2`和`aclnnTransMatmulWeight`完成输入ND到NZ的转换，非连续的tensor仅支持transpose场景。
-    - 当x2的数据格式为ND时，当前版本仅支持二维输入。
+      - 输入x2的数据格式支持ND和FRACTAL_NZ格式。输入的shape规则如下：
+        - 当x2的数据格式为FRACTAL_NZ时，当前版本仅支持四维输入，配合`aclnnCalculateMatmulWeightSizeV2`和`aclnnTransMatmulWeight`完成输入ND到NZ的转换，非连续的tensor仅支持transpose场景。
+        - 当x2的数据格式为ND时，当前版本仅支持二维输入。
 
-- <term>昇腾910_95 AI处理器</term>：
+    - <term>昇腾910_95 AI处理器</term>：
 
-  - 输入x2的数据格式仅支持ND格式（当前版本仅支持二维输入）。
+      - 输入x2的数据格式仅支持ND格式（当前版本仅支持二维输入）。
 
 -   **返回值**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-  <col style="width: 250px">
-  <col style="width: 130px">
-  <col style="width: 650px">
-  </colgroup>
-  <thead>
-  <tr>
-      <th>返回值</th>
-      <th>错误码</th>
-      <th>描述</th>
-  </tr></thead>
-  <tbody>
-  <tr>
-      <td>ACLNN_ERR_PARAM_NULLPTR</td>
-      <td>161001</td>
-      <td>传入的x1、x2、dequantScale或output是空指针。</td>
-  </tr>
-  <tr>
-      <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
-      <td rowspan="3">161002</td>
-      <td>x1、x2、biasOptional、dequantScale、pertokenScaleOptional、x3Optional、commQuantScale1Optional、commQuantScale2Optional或output的数据类型不在支持的范围之内。</td>
-  </tr>
-  <tr>
-      <td>streamMode不在合法范围内。</td>
-  </tr>
-  <tr>
-      <td>x1、x2、biasOptional、dequantScale、pertokenScaleOptional、x3Optional、commQuantScale1Optional、commQuantScale2Optional或output的shape不符合约束要求。</td>
-  </tr>
-  </tbody>
-  </table>
+    第一阶段接口完成入参校验，出现以下场景报错：
+
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
+    </colgroup>
+    <thead>
+    <tr>
+        <th>返回值</th>
+        <th>错误码</th>
+        <th>描述</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>ACLNN_ERR_PARAM_NULLPTR</td>
+        <td>161001</td>
+        <td>传入的x1、x2、dequantScale或output是空指针。</td>
+    </tr>
+    <tr>
+        <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+        <td rowspan="3">161002</td>
+        <td>x1、x2、biasOptional、dequantScale、pertokenScaleOptional、x3Optional、commQuantScale1Optional、commQuantScale2Optional或output的数据类型不在支持的范围之内。</td>
+    </tr>
+    <tr>
+        <td>streamMode不在合法范围内。</td>
+    </tr>
+    <tr>
+        <td>x1、x2、biasOptional、dequantScale、pertokenScaleOptional、x3Optional、commQuantScale1Optional、commQuantScale2Optional或output的shape不符合约束要求。</td>
+    </tr>
+    </tbody>
+    </table>
 
 ## aclnnQuantMatmulAllReduceV3
 
 -   **参数说明**
-    <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
-    <col style="width: 158px">
-    <col style="width: 120px">
-    <col style="width: 750px">
+
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     <thead>
     <tr>
         <th>参数名</th>
@@ -342,6 +345,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV3(
         <td>指定执行任务的Stream。</td>
     </tr>
     </tbody></table>
+
 -   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。

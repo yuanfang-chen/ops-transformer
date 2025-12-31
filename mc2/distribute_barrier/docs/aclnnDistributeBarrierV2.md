@@ -16,12 +16,13 @@
 
 ## 功能说明
 
-算子功能：完成通信域内的全卡同步，xRef仅用于构建Tensor依赖，接口内不对xRef做任何操作。
+完成通信域内的全卡同步，xRef仅用于构建Tensor依赖，接口内不对xRef做任何操作。
 
 相较于`aclnnDistributeBarrier`接口，该接口变更如下：
 - 支持动态缩容场景：支持在创建通信域后，剔除故障卡，算子可正常执行（无需重新编译），通过传入`elasticInfoOptional`参数使能该特性。
 - 支持超时检测场景：
     -   `timeOutOptional`≠0：通过传入大于0的`timeOutOptional`参数（单位为us）使能本特性，最大支持传入INT32_MAX。当算子内部同步等待时间超过给定timeOut时，则认为所在卡存在超时异常。
+
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 “aclnnDistributeBarrierV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnDistributeBarrierV2”接口执行计算。
@@ -75,7 +76,7 @@ aclnnStatus aclnnDistributeBarrierV2(
     <tr>
     <td>xRef</td>
     <td>输入</td>
-    <td>Device侧的aclTensor，无业务语义，仅用于输入Tensor依赖，接口内不做任何操作。</td>
+    <td></td>
     <td>无</td>
     <td>BFLOAT16、FLOAT16、FLOAT32、BOOL、INT8、INT16、INT32、INT64、UINT8、UINT16、UINT32、UINT64</td>
     <td>ND</td>
@@ -152,10 +153,10 @@ aclnnStatus aclnnDistributeBarrierV2(
     
     第一段接口完成入参校验，出现以下场景时报错：
 
-    <table style="undefined;table-layout: fixed; width: 1576px"> <colgroup>
-    <col style="width: 170px">
-    <col style="width: 170px">
-    <col style="width: 400px">
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
     </colgroup>
     <thead>
     <tr>
@@ -183,10 +184,10 @@ aclnnStatus aclnnDistributeBarrierV2(
 
 - **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 1576px"> <colgroup>
-    <col style="width: 170px">
-    <col style="width: 170px">
-    <col style="width: 800px">
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     </colgroup>
     <thead>
     <tr>
@@ -237,6 +238,7 @@ aclnnStatus aclnnDistributeBarrierV2(
 
 - 参数一致性约束：
   - 使能`elasticInfoOptional`时，需确保`aclnnMoeDistributeDispatchV3`与`aclnnMoeDistributeCombineV3`或`aclnnMoeDistributeCombineAddRmsNormV2`也使能此参数，并且其取值与对应的`elasticInfoOptional`参数保持一致。
+
 ## 调用示例
 
 - 文件准备：    
@@ -245,12 +247,14 @@ aclnnStatus aclnnDistributeBarrierV2(
   2.安装cann包，并根据下方指导编译运行barrierDemo。
 
 -  编译脚本
+
     ```bash
     #!/bin/bash
     cann_path="/path/to/cann_env" # 更改cann包环境的路径
     g++ "aclnnBarrierDemo.cpp" -o barrierDemo -I"$cann_path/latest/include/" -I"$cann_path/latest/include/aclnnop/" \
                         -L="$cann_path/latest/lib64/" -lascendcl -lnnopbase -lopapi -lop_common -lpthread -lhccl
     ```
+    
 - 编译与运行：
 
     ```bash

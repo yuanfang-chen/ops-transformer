@@ -15,7 +15,7 @@
 
 ## 功能说明
 
-- **算子功能**：实现低比特数据的AllReduce通信，在通信的过程中对数据进行反量化，并输出通信结果。
+- **接口功能**：实现低比特数据的AllReduce通信，在通信的过程中对数据进行反量化，并输出通信结果。
 具体实现依据数据量大小有两种情况：
 
 - **计算公式**：
@@ -23,12 +23,15 @@
     $$
     AllGatherData = AllGather(x)
     $$
+
     $$
     AllGatherScales = AllGather(scales)
     $$
+
     $$
     output = Reduce(AllGatherScales * AllGatherData)
     $$
+
     其中的Reduce计算是将来自不同rank的数据进行reduce计算。
 
 ## 函数原型
@@ -56,7 +59,8 @@ aclnnStatus aclnnQuantAllReduce(
 
 ## aclnnQuantAllReduceGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
+
     <table style="undefined;table-layout: fixed; width: 1567px"><colgroup>
       <col style="width: 170px">
       <col style="width: 120px">
@@ -152,15 +156,16 @@ aclnnStatus aclnnQuantAllReduce(
       </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
     aclnnStatus: 返回状态码，具体参见aclnn返回码。
     
     第一段接口完成入参校验，出现以下场景时报错：
-    <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-    <col style="width: 250px">
-    <col style="width: 130px">
-    <col style="width: 650px">
+
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
     </colgroup>
     <thead>
     <tr>
@@ -187,13 +192,15 @@ aclnnStatus aclnnQuantAllReduce(
     </tr>
     </tbody>
     </table>
+
 ## aclnnQuantAllReduce
 
-- **参数说明：**
-    <table style="undefined;table-layout: fixed; width: 1312px"><colgroup>
-    <col style="width: 158px">
-    <col style="width: 120px">
-    <col style="width: 750px">
+- **参数说明**
+
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     <thead>
     <tr>
         <th>参数名</th>
@@ -222,11 +229,13 @@ aclnnStatus aclnnQuantAllReduce(
         <td>指定执行任务的Stream。</td>
     </tr>
     </tbody></table>
-- **返回值：**
+    
+- **返回值**
 
     返回aclnnStatus状态码，具体参见aclnn返回码。
 
 ## 约束说明
+
 - 确定性计算：
   - aclnnQuantAllReduce默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 
