@@ -3603,7 +3603,10 @@ size_t PromptFlashAttentionTilingV2::GetPFAWorkSpaceSize(PromptFlashAttentionTil
     if (!faRunFlag_) {
         curWorkspaceSize = sysWorkspaceSize + coreNum * softmaxDataTypeSize * (maxSpmSize + mm1ResSize * MM2_UB_NUM + mm2ResSize * MM2_UB_NUM);
     } else {
-        uint32_t kvSplitPart = faTilingAdapter.inputParamsRegbase.get_kvSplitPart();
+        uint32_t kvSplitPart = 1;
+        if (enableFlashDecode) {
+            kvSplitPart = faTilingAdapter.inputParamsRegbase.get_kvSplitPart();
+        }
         auto batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
         auto headNumSize = tilingData.promptAttentionBaseParams.get_headNumSize();
         auto vHeadSize = tilingData.promptAttentionBaseParams.get_vHeadSize();
