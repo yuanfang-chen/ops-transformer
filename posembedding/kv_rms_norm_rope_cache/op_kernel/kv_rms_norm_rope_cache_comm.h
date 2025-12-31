@@ -13,7 +13,7 @@
  */
 #ifndef _KV_RMS_NORM_ROPE_CACHE_COMM_H_
 #define _KV_RMS_NORM_ROPE_CACHE_COMM_H_
-#include "arch35/platform.h"
+#include "platform.h"
 
 // Develope scaffold (Remove in release version)
 #define _KV_RNRC_UNLEASH_D_SIZE 1    
