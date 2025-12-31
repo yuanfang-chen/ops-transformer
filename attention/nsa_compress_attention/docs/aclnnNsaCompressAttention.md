@@ -445,7 +445,6 @@ aclnnStatus aclnnNsaCompressAttention(
 - actualSeqQLenOptional, actualCmpSeqKvLenOptional, actualSelSeqKvLenOptional需要是前缀和模式；且TND格式下必须传入。
 - 由于UB限制，CmpSkv需要满足以下约束：CmpSkv <= 14000
 - SelSkv = CeilDiv(CmpSkv, selectBlockSize // compressStride)
-- layoutOptional目前仅支持TND。
 - 输入query、key、value的约束如下：
   - 数据类型必须一致。
   - batchSize必须相等。
