@@ -54,6 +54,7 @@ constexpr uint32_t MASKDIM_BSS = 3;
 constexpr uint32_t MASKDIM_B1SS = 4;
 constexpr uint32_t SPARSE_OPTIMIZE_ATTENTION_SIZE = 2048;
 constexpr int64_t SLOPE_N_DIM_NUM = 1L;
+constexpr int64_t SLIMIT = 20971520;
 
 const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> inOutDtypeSupported = {
   {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16},

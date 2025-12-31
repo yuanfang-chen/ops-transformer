@@ -413,6 +413,10 @@ static ge::graphStatus ConvertContextToParamsPFA(gert::TilingContext* context, C
     contextKeyParams.blockTableShape = context->GetOptionalInputShape(BLOCK_TABLE_INDEX);
     contextKeyParams.outputShape = context->GetOutputShape(ATTENTION_OUT_INDEX);
     contextKeyParams.lseoutputShape = context->GetOutputShape(SOFTMAX_LSE_INDEX);
+    contextKeyParams.keySharedPrefixDataType = (contextKeyParams.keySharedPrefix != nullptr) ?
+        context->GetOptionalInputDesc(KEY_SHARED_PREFIX_INDEX)->GetDataType() : contextKeyParams.inputDataType;
+    contextKeyParams.valueSharedPrefixDataType = (contextKeyParams.valueSharedPrefix != nullptr) ?
+        context->GetOptionalInputDesc(VALUE_SHARED_PREFIX_INDEX)->GetDataType() : contextKeyParams.inputDataType;
 
     auto convertQuantRet = ConvertQuantOptionalInputs(context, contextKeyParams);
     if (convertQuantRet != ge::GRAPH_SUCCESS) {

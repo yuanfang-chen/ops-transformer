@@ -111,7 +111,8 @@ public:
     AntiquantVecBlockType vecBlock;
     /*GM*/
     GlobalTensor<KV_T> keyGm;
-    GlobalTensor<KV_T> keySharedPrefixGm;
+    using prefixGmType = typename std::conditional<enableKVPrefix, GlobalTensor<KV_T>, int8_t>::type;
+    prefixGmType keySharedPrefixGm;
     __gm__ int64_t *actualSeqQlenAddr;
     __gm__ int64_t *actualSeqKvlenAddr;
     uint64_t s1SizeAcc;

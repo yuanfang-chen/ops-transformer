@@ -294,8 +294,7 @@ __aicore__ inline void AntiquantProcessorBaseAPI<ANTIQUANT_TEMPLATE_ARGS, ANTIQU
         }
 
         LocalTensor<Q_T> antiqScaleE8M0Ub = antiqScaleInputQue.template AllocTensor<Q_T>();
-        CopyAntiqScaleE8M0(antiqScaleE8M0Ub, antiqScaleGm, scaleOffset / 2, taskParam.copyTotalS,
-                        grpNum);
+        CopyAntiqScaleE8M0(antiqScaleE8M0Ub, antiqScaleGm, scaleOffset / 2, taskParam.copyTotalS, grpNum);
         antiqScaleInputQue.template EnQue(antiqScaleE8M0Ub);
         antiqScaleE8M0Ub = antiqScaleInputQue.DeQue<Q_T>();
 

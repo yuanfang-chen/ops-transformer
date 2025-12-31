@@ -1341,12 +1341,16 @@ ge::graphStatus IFATilingV2::ProcessPrefix() {
     return ge::GRAPH_SUCCESS;
   }
   std::string layOutStr = ifaContext_->layOut;
-  //Not support prefix
+  // Not support prefix
   OP_CHECK_IF((layOutStr == "TND"), OP_LOGE(ifaContext_->opName, "when TND is used, system prefix is not supported!"),
               return false);
   OP_CHECK_IF(!batchContinuousFlag_, OP_LOGE(ifaContext_->opName, "when tensorlist is used, system prefix is not supported!"),
               return false);
-  OP_CHECK_IF(qPaddingSizeFlag_ || kvPaddingSizeFlag_, OP_LOGE(ifaContext_->opName, "when system prefix is used, leftpadding is not supported!"),
+  OP_CHECK_IF(qPaddingSizeFlag_ || kvPaddingSizeFlag_, OP_LOGE(ifaContext_->opName, "when leftpadding is used, system prefix is not supported!"),
+              return false);
+  OP_CHECK_IF(enableAlibiPse_, OP_LOGE(ifaContext_->opName, "when pseType = 2/3, system prefix is not supported!"),
+              return false);
+  OP_CHECK_IF(pageAttentionFlag_, OP_LOGE(ifaContext_->opName, "when page attention is enabled, system prefix is not supported!"),
               return false);
   OP_CHECK_IF((ifaContext_->query.desc->GetDataType() == ge::DT_INT8) &&
                   (ifaContext_->key.desc->GetDataType() == ge::DT_INT8),
@@ -1356,14 +1360,24 @@ ge::graphStatus IFATilingV2::ProcessPrefix() {
   const gert::Shape keyPrefixShape = ifaContext_->keySharedPrefix.tensor->GetStorageShape();
   const gert::Shape valuePrefixShape = ifaContext_->valueSharedPrefix.tensor->GetStorageShape();
   const gert::Shape keyShape = ifaContext_->key.shape->GetStorageShape();
+  const ge::DataType keyPrefixType = ifaContext_->keySharedPrefix.tensor->GetDataType();
+  const ge::DataType valuePrefixType = ifaContext_->valueSharedPrefix.tensor->GetDataType();
+  const ge::DataType keyType = ifaContext_->key.desc->GetDataType();
 
-  //KV prefix shape
-  OP_CHECK_IF(!GetAndCheckPrefixShape(layOutStr, keyPrefixShape, valuePrefixShape, keyShape),
-              OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "Get and check prefix shape failed."),
+  // KV prefix dtype
+  OP_CHECK_IF(keyPrefixType != valuePrefixType,
+              OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "key shared prefix and value shared prefix dtype should be same."),
               return ge::GRAPH_FAILED);
-  //KV prefix consistency
+  OP_CHECK_IF(keyPrefixType != keyType || valuePrefixType != keyType,
+              OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "key shared prefix and value shared prefix dtype should have same dtype with key and value."),
+              return ge::GRAPH_FAILED);
+  // KV prefix shape
+  OP_CHECK_IF(!GetAndCheckPrefixShape(layOutStr, keyPrefixShape, valuePrefixShape, keyShape),
+              OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "Get and check KV shared prefix shape failed."),
+              return ge::GRAPH_FAILED);
+  // KV prefix consistency
   OP_CHECK_IF(!CheckKeyValuePrefixConsistency(keyPrefixShape, valuePrefixShape, keyShape),
-              OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "key value prefix consistency check failed."),
+              OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "KV shared prefix consistency check failed."),
               return ge::GRAPH_FAILED);
   // check actsharedPrefix
   auto actualSharedPrefixLenInput = ifaContext_->actualSharedPrefixLen.tensor;
@@ -1385,43 +1399,78 @@ ge::graphStatus IFATilingV2::ProcessPrefix() {
 }
 
 bool IFATilingV2::GetAndCheckPrefixShape(std::string layOutStr, const gert::Shape keyPrefixShape, const gert::Shape valuePrefixShape, const gert::Shape keyShape) {
-  int64_t prefixNSize_ = 0U;
-  int64_t prefixDSize_ = 0U;
-  int64_t prefixHSize_ = 0U;
-  int64_t prefixBSize_ = 0U;
-  int64_t kvNSize_ = 0U;
-  int64_t kvDSize_ = 0U;
-  int64_t kvHSize_ = 0U;
+  int64_t keyPrefixBSize_ = 0L;
+  int64_t keyPrefixSSize_ = 0L;
+  int64_t keyPrefixNSize_ = 0L;
+  int64_t keyPrefixDSize_ = 0L;
+  int64_t keyPrefixHSize_ = 0L;
+  int64_t valuePrefixBSize_ = 0L;
+  int64_t valuePrefixSSize_ = 0L;
+  int64_t valuePrefixNSize_ = 0L;
+  int64_t valuePrefixDSize_ = 0L;
+  int64_t valuePrefixHSize_ = 0L;
+  int64_t kvNSize_ = 0L;
+  int64_t kvDSize_ = 0L;
+  int64_t kvHSize_ = 0L;
 
-  prefixBSize_ = keyPrefixShape.GetDim(0);
-  if (layOutStr == "BNSD") {
-    prefixNSize_ = keyPrefixShape.GetDim(1);
-    prefixDSize_ = keyPrefixShape.GetDim(3);
+  keyPrefixBSize_ = keyPrefixShape.GetDim(0);
+  valuePrefixBSize_ = valuePrefixShape.GetDim(0);
+  if (layOutStr == "BNSD" || layOutStr == "BNSD_BSND") {
+    keyPrefixNSize_ = keyPrefixShape.GetDim(1);
+    keyPrefixSSize_ = keyPrefixShape.GetDim(2);
+    keyPrefixDSize_ = keyPrefixShape.GetDim(3);
+    valuePrefixNSize_ = valuePrefixShape.GetDim(1);
+    valuePrefixSSize_ = valuePrefixShape.GetDim(2);
+    valuePrefixDSize_ = valuePrefixShape.GetDim(3);
     kvNSize_ = keyShape.GetDim(1);
     kvDSize_ = keyShape.GetDim(3);
   } else if (layOutStr == "BSND") {
-    prefixNSize_ = keyPrefixShape.GetDim(2);
-    prefixDSize_ = keyPrefixShape.GetDim(3);
+    keyPrefixSSize_ = keyPrefixShape.GetDim(1);
+    keyPrefixNSize_ = keyPrefixShape.GetDim(2);
+    keyPrefixDSize_ = keyPrefixShape.GetDim(3);
+    valuePrefixSSize_ = valuePrefixShape.GetDim(1);
+    valuePrefixNSize_ = valuePrefixShape.GetDim(2);
+    valuePrefixDSize_ = valuePrefixShape.GetDim(3);
     kvNSize_ = keyShape.GetDim(2);
     kvDSize_ = keyShape.GetDim(3);
   } else if (layOutStr == "BSH") {
-    prefixHSize_ = keyPrefixShape.GetDim(2);
+    keyPrefixSSize_ = keyPrefixShape.GetDim(1);
+    keyPrefixHSize_ = keyPrefixShape.GetDim(2);
+    valuePrefixSSize_ = valuePrefixShape.GetDim(1);
+    valuePrefixHSize_ = valuePrefixShape.GetDim(2);
     kvHSize_ = keyShape.GetDim(2);
   }
 
-  OP_CHECK_IF((prefixBSize_ != 1), OP_LOGE(ifaContext_->opName, "prefix batch num(%d) only support 1!", prefixBSize_),
+  if (layOutStr == "BSH") {
+    OP_CHECK_IF((keyPrefixBSize_ == 0 || keyPrefixSSize_ == 0 || keyPrefixHSize_ == 0) ||
+                (valuePrefixBSize_ == 0 || valuePrefixSSize_ == 0 || valuePrefixHSize_ == 0),
+            OP_LOGE(ifaContext_->opName, "key shared prefix and value shared prefix should not have 0 axis!"),
+            return false);
+  } else {
+    OP_CHECK_IF((keyPrefixBSize_ == 0 || keyPrefixSSize_ == 0 || keyPrefixNSize_ == 0 || keyPrefixDSize_ == 0) ||
+                (valuePrefixBSize_ == 0 || valuePrefixSSize_ == 0 || valuePrefixNSize_ == 0 || valuePrefixDSize_ == 0),
+            OP_LOGE(ifaContext_->opName, "key shared prefix and value shared prefix should not have 0 axis!"),
+            return false);
+  }
+
+  OP_CHECK_IF((keyPrefixSSize_ < 1 || keyPrefixSSize_ > SLIMIT || valuePrefixSSize_ < 1 || valuePrefixSSize_ > SLIMIT),
+              OP_LOGE(ifaContext_->opName, "key shared prefix S(%ld) and value shared prefix S(%ld) invalid, they should not smaller than 1 or greater than %ld",
+              keyPrefixSSize_, valuePrefixSSize_, SLIMIT),
+              return false);
+  OP_CHECK_IF((keyPrefixBSize_ != 1 || valuePrefixBSize_ != 1),
+              OP_LOGE(ifaContext_->opName, "key shared prefix batch num(%ld) and value shared prefix batch num(%ld) only support 1!", keyPrefixBSize_, valuePrefixBSize_),
               return false);
   if (layOutStr == "BSH") {
     // prefix H 与 normal H
-    OP_CHECK_IF((prefixHSize_ != kvHSize_),
-                OP_LOGE(ifaContext_->opName, "prefix H(%ld) and D(%ld) should be same with KV H(%u)!", prefixNSize_,
-                        prefixDSize_, kvNSize_, kvDSize_),
+    OP_CHECK_IF((keyPrefixHSize_ != kvHSize_ || valuePrefixHSize_ != kvHSize_),
+                OP_LOGE(ifaContext_->opName, "key shared prefix H(%ld) and value shared prefix H(%ld) should be same with KV H(%ld)!",
+                keyPrefixHSize_, valuePrefixHSize_, kvHSize_),
                 return false);
   } else {
     // prefix的N D 和 kv 的N D
-    OP_CHECK_IF((prefixNSize_ != kvNSize_) || (prefixDSize_ != kvDSize_),
-                OP_LOGE(ifaContext_->opName, "prefix N(%ld) and D(%ld) should be same with KV N(%u) and D(%u)!",
-                        prefixNSize_, prefixDSize_, kvNSize_, kvDSize_),
+    OP_CHECK_IF((keyPrefixNSize_ != kvNSize_) || (keyPrefixDSize_ != kvDSize_) || (valuePrefixNSize_ != kvNSize_) || (valuePrefixDSize_ != kvDSize_),
+                OP_LOGE(ifaContext_->opName, "key shared prefix N(%ld) and D(%ld) / value shared prefix N(%ld) and D(%ld) should be same with KV N(%u) and D(%u)!",
+                        keyPrefixNSize_, keyPrefixDSize_, valuePrefixNSize_, valuePrefixDSize_, kvNSize_, kvDSize_),
                 return false);
   }
   return true;
@@ -1433,10 +1482,10 @@ bool IFATilingV2::CheckKeyValuePrefixConsistency(const gert::Shape keyPrefixShap
   int64_t prefixKeyDim = keyPrefixShape.GetDimNum();
   int64_t prefixValueDim = valuePrefixShape.GetDimNum();
   int64_t KVDim = keyShape.GetDimNum();
-  OP_CHECK_IF(((prefixKeyDim != KVDim) || (prefixKeyDim != prefixValueDim)),
+  OP_CHECK_IF(((prefixKeyDim != KVDim) || (prefixValueDim != KVDim) || (prefixKeyDim != prefixValueDim)),
               OP_LOGE(ifaContext_->opName,
                       "dim num of key_shared_prefix and value_shared_prefix should be same with KV, "
-                      "but key_shared_prefix dim(%zu), value_shared_prefix dim(%zu), KV dim(%zu)!",
+                      "but key_shared_prefix dim(%ld), value_shared_prefix dim(%ld), KV dim(%ld)!",
                       prefixKeyDim, prefixValueDim, KVDim),
               return false);
   for (uint32_t i = 0; i < prefixKeyDim; i++) {
@@ -1473,7 +1522,7 @@ bool IFATilingV2::CheckActualSharedPrefixLen(const gert::Tensor *actualSharedPre
               OP_LOGE(ifaContext_->opName, "actualSharedPrefixLen datas is null!"), return false);
   actualSharedPrefixLen_ = actualSharedPrefixLenInput->GetData<int64_t>()[0];
   OP_CHECK_IF((actualSharedPrefixLen_ > prefixSSize_) || (actualSharedPrefixLen_ < 0),
-              OP_LOGE(ifaContext_->opName, "actualSharedPrefixLen(%ld) must be in range[0, %u]!",
+              OP_LOGE(ifaContext_->opName, "actualSharedPrefixLen(%ld) must be in range[0, %ld]!",
                       actualSharedPrefixLen_, prefixSSize_),
               return false);
   return true;

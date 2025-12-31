@@ -388,22 +388,30 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
             h = n * d;
         }
     } else if ((inputLayout == InputLayout::BNSD)) {
+        if (isKVHasPrefix && inputName == "keysharedprefix") {
+            b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
+            n = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV N 
+            s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV Sequence length
+            d = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(3); // 3 for Prefix KV D dim
+            h = n * d;
+            return true;
+        }
         b = shape->GetStorageShape().GetDim(0);
         n = shape->GetStorageShape().GetDim(1);
         s = shape->GetStorageShape().GetDim(2); // 2 for Sequence length
-        if (isKVHasPrefix && inputName == "keysharedprefix") {
-            b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
-            s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV Sequence length
-        }
         d = shape->GetStorageShape().GetDim(3); // 3 for D dim
         h = n * d;
     } else if ((inputLayout == InputLayout::BSH)) {
-        b = shape->GetStorageShape().GetDim(0);
-        s = shape->GetStorageShape().GetDim(1);
         if (isKVHasPrefix && inputName == "keysharedprefix") {
             b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
             s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV Sequence length
+            h = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV H
+            n = n > 0 ? n : static_cast<int64_t>(*contextKeyParams.headsNumber);
+            d = n > 0 ? h / n : 0;
+            return true;
         }
+        b = shape->GetStorageShape().GetDim(0);
+        s = shape->GetStorageShape().GetDim(1);
         h = shape->GetStorageShape().GetDim(2); // 2 for H dim
         if (inputName == "query") {
             n = static_cast<int64_t>(*contextKeyParams.headsNumber);
@@ -413,12 +421,16 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
         }
         d = n > 0 ? h / n : 0;
     } else if ((inputLayout == InputLayout::BSND)) {
-        b = shape->GetStorageShape().GetDim(0);
-        s = shape->GetStorageShape().GetDim(1);
         if (isKVHasPrefix && inputName == "keysharedprefix") {
             b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
             s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV Sequence length
+            n = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV N
+            d = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(3); // 3 for Prefix KV D dim
+            h = n * d;
+            return true;
         }
+        b = shape->GetStorageShape().GetDim(0);
+        s = shape->GetStorageShape().GetDim(1);
         n = shape->GetStorageShape().GetDim(2); // 2 for head dim
         d = shape->GetStorageShape().GetDim(3); // 3 for D dim
         h = n * d;
@@ -1040,6 +1052,13 @@ bool PromptFlashAttentionTilingV2::CheckKeyValuePrefixConsistency(ContextParamsF
                 "but key_shared_prefix[%u]:%ld, value_shared_prefix[%u]:%ld!", i, tmpPrefixKeyDim, i, tmpPrefixValueDim),
             return false);
     }
+    auto keySharedPrefixDataType = contextKeyParams.keySharedPrefixDataType;
+    auto valueSharedPrefixDataType = contextKeyParams.valueSharedPrefixDataType;
+    OP_CHECK_IF((keySharedPrefixDataType != valueSharedPrefixDataType), 
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When system prefix is used, dataType of keySharedPrefixDataType(%s) and dataType of valueSharedPrefixDataType(%s) must be same.",
+            GetPfaDataTypeStr(keySharedPrefixDataType).c_str(), GetPfaDataTypeStr(valueSharedPrefixDataType).c_str()),
+        return false);
     return true;
 }
 
@@ -3913,7 +3932,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
 
     // pse check
     if (enablePseShift) {
-        if (!CheckPseShiftTypeAndShape(contextKeyParams, queryShapeInfo.b, queryShapeInfo.n, queryShapeInfo.s, S2)) {
+        if (!CheckPseShiftTypeAndShape(contextKeyParams, queryShapeInfo.b, queryShapeInfo.n, queryShapeInfo.s, S2 + actualSharedPrefixLen)) {
             return ge::GRAPH_FAILED;
         }
         usePseShift = 1;
