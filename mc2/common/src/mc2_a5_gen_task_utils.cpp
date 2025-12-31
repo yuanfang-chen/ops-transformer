@@ -208,7 +208,7 @@ ge::Status Mc2A5GenTaskUtils::CreateCcuFusionTask(const gert::ExeResGenerationCo
   } else {
     stream_id = context->GetStreamId();
   }
-  GE_ASSERT_TRUE(stream_id > 0);
+  GE_ASSERT_TRUE(stream_id >= 0);
   ccu_fusion_task.set_id(context->GetOpId());
   ccu_fusion_task.set_notify_id(UINT32_MAX);
   ccu_fusion_task.set_type(type);
@@ -243,7 +243,7 @@ ge::Status Mc2A5GenTaskUtils::Mc2GenTaskCallBack910A5(const gert::ExeResGenerati
   auto iter = tasks.erase(tasks.begin() + aicore_idx);
   // 创建 fusion task
   domi::TaskDef fusion_task{};
-  GE_ASSERT_SUCCESS(CreateCcuFusionTask(context, fusion_task, RT_MODEL_TASK_FUSION_KERNEL, true));
+  GE_ASSERT_SUCCESS(CreateCcuFusionTask(context, fusion_task, RT_MODEL_TASK_FUSION_KERNEL, false));
   tasks.insert(iter, fusion_task);
   OPS_LOG_D(context->GetNodeName(), "after CreateCcuFusionTask.");
   return InsertContextForCcuFusion(context, tasks[static_cast<size_t>(aicore_idx)], argDescs, isAllKernel);

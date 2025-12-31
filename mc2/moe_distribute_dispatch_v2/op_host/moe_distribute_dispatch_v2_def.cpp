@@ -111,6 +111,7 @@ public:
     this->Attr("zero_expert_num").AttrType(OPTIONAL).Int(0);
     this->Attr("copy_expert_num").AttrType(OPTIONAL).Int(0);
     this->Attr("const_expert_num").AttrType(OPTIONAL).Int(0);
+    this->Attr("y_dtype").AttrType(OPTIONAL).Int(ge::DT_UNDEFINED);
 
     OpAICoreConfig aicore_config_A2;
     aicore_config_A2.DynamicCompileStaticFlag(true)

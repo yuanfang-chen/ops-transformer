@@ -33,7 +33,7 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
     int64_t epRankId, int64_t moeExpertNum, const char* groupTp, int64_t tpWorldSize,
     int64_t tpRankId, int64_t expertShardType, int64_t sharedExpertNum, int64_t shareExpertRankNum,
     int64_t quantMode, int64_t globalBs, int64_t expertTokenNumsType, const char* commAlg,
-    int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum, aclTensor* expandX,
+    int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum, int64_t ydtype, aclTensor* expandX,
     aclTensor* dynamicScales, aclTensor* assist_info_for_combine, aclTensor* expertTokensNums, aclTensor* epRecvCounts,
     aclTensor* tpRecvCounts, aclTensor* expandScales,
     uint64_t* workspaceSize, aclOpExecutor** executor);
@@ -106,12 +106,14 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     } else {
         performanceInfoOptionalDispatchV2Temp = nullptr;
     }
+
+    int64_t ydtype = expandXOut->GetDataType();
     aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
         x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
         elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
         groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
         sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
-        constExpertNum, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
+        constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
         epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
 
     if (NnopbaseSetHcclServerType) {
