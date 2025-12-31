@@ -184,11 +184,11 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
 
     this->InitActualKVPrefixLen(actualSharedPrefixLen);
     this->ComputeConstexpr();
-    this->InitLocalBuffer();
     this->InitGlobalBuffer(query, key, value, pse, dropMask, paddingMask, attenMask, prefix,
         actualSeqLengths, actualSeqLengthsKv, deqScaleQ, deqScaleK, deqScaleV, postQuantScale, postQuantOffset,
         keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, blockTable, queryPaddingSize, 
         kvPaddingSize, softmaxMax, softmaxSum, softmaxOut, workspace, tiling, tPipe); // gm设置
+    this->InitLocalBuffer();
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
@@ -277,39 +277,31 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         this->aicIdx, constInfo);
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND && !isInfer) {
         if ASCEND_IS_AIV {
-            if (constInfo.aivIdx == 0) {
-                int64_t actualS1Len;
-                int64_t actualS2Len;
-                for (int64_t i = 0; i < this->sharedParams.bSize; ++i) {
-                    this->GetSeqQlenKvlenByBoidx(i, actualS1Len, actualS2Len);
-                    if (actualS2Len <= 0 && actualS1Len != 0) {
-                        int64_t accumSize = (i == 0) ? 0 : ((__gm__ int64_t *)this->actualSeqQlenAddr)[i - 1];
-                        if (actualS1Len < 0 && accumSize > 0) {
-                            actualS1Len = constInfo.s1Size - accumSize;
-                            int64_t frontCoreNum = actualS1Len % (this->sharedParams.coreNum * 2);
-                            int64_t splitFactor = frontCoreNum > 0 ? 1 : 0;
-                            int64_t s1SizeInner = actualS1Len / this->sharedParams.coreNum / 2;
-                            int64_t innerOffset1 = (s1SizeInner + splitFactor) * (constInfo.aivIdx >= frontCoreNum ?
-                                                frontCoreNum : constInfo.aivIdx);
-                            int64_t innerOffset2 = s1SizeInner * (constInfo.aivIdx >= frontCoreNum ?
-                                                constInfo.aivIdx - frontCoreNum : 0);
-                            accumSize = accumSize + innerOffset1 + innerOffset2;
-                            actualS1Len = s1SizeInner + (constInfo.aivIdx >= frontCoreNum ? 0 : splitFactor);
-                        }
-                        event_t eventIDMTE3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
-                        AscendC::InitOutput<OUTPUT_T>(this->vecBlock.attentionOutGm[accumSize * this->constInfo.n2GDv],
-                                                    actualS1Len * this->constInfo.n2GDv, static_cast<OUTPUT_T>(0.0));
-                        SetFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
-                        WaitFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
-                        AscendC::InitOutput<float>(this->vecBlock.softmaxMaxGm[accumSize * this->constInfo.n2G * 8],
-                                                actualS1Len * this->constInfo.n2G * 8, static_cast<float>(0.0));
-                        SetFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
-                        WaitFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
-                        AscendC::InitOutput<float>(this->vecBlock.softmaxSumGm[accumSize * this->constInfo.n2G * 8],
-                                                actualS1Len * this->constInfo.n2G * 8, static_cast<float>(0.0));
-                        SetFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
-                        WaitFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
+            int64_t actualS1Len;
+            int64_t actualS2Len;
+            for (int64_t i = 0; i < this->sharedParams.bSize; ++i) {
+                this->GetSeqQlenKvlenByBoidx(i, actualS1Len, actualS2Len);
+                if (actualS2Len <= 0 && actualS1Len != 0) {
+                    int64_t accumSize = (i == 0) ? 0 : ((__gm__ int64_t *)this->actualSeqQlenAddr)[i - 1];
+                    if (actualS1Len < 0 && accumSize > 0) {
+                        actualS1Len = constInfo.s1Size - accumSize;
+                        int64_t frontCoreNum = actualS1Len % (this->sharedParams.coreNum * 2);
+                        int64_t splitFactor = frontCoreNum > 0 ? 1 : 0;
+                        int64_t s1SizeInner = actualS1Len / this->sharedParams.coreNum / 2;
+                        int64_t innerOffset1 = (s1SizeInner + splitFactor) * (constInfo.aivIdx >= frontCoreNum ?
+                                            frontCoreNum : constInfo.aivIdx);
+                        int64_t innerOffset2 = s1SizeInner * (constInfo.aivIdx >= frontCoreNum ?
+                                            constInfo.aivIdx - frontCoreNum : 0);
+                        accumSize = accumSize + innerOffset1 + innerOffset2;
+                        actualS1Len = s1SizeInner + (constInfo.aivIdx >= frontCoreNum ? 0 : splitFactor);
                     }
+                    GlobalTensor<OUTPUT_T> attentionOutEodGm = this->vecBlock.attentionOutGm[accumSize * this->constInfo.n2GDv];
+                    GlobalTensor<float> softmaxMaxEodGm = this->vecBlock.softmaxMaxGm[accumSize * this->constInfo.n2G * 8];
+                    GlobalTensor<float> softmaxSumEodGm = this->vecBlock.softmaxSumGm[accumSize * this->constInfo.n2G * 8];
+                    AscendC::Fill<OUTPUT_T>(attentionOutEodGm, actualS1Len * this->constInfo.n2GDv, static_cast<OUTPUT_T>(0.0));
+                    AscendC::Fill<float>(softmaxMaxEodGm, actualS1Len * this->constInfo.n2G * 8, static_cast<float>(0.0));
+                    AscendC::Fill<float>(softmaxSumEodGm, actualS1Len * this->constInfo.n2G * 8, static_cast<float>(0.0));
+                    SyncAll();
                 }
             }
         }
