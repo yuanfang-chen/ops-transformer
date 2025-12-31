@@ -62,8 +62,8 @@ private:
 
     int64_t listNum{0};
     int64_t remainListNum{0};
-    int64_t outOffset{0};
     int64_t offsets[4];
+    int64_t outOffset{0};
     int64_t listRemainElements[4];
     int64_t lengths[4];
     int64_t allRemainElements{0};

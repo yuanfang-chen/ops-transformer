@@ -76,17 +76,17 @@ private:
     int64_t k_;
     int64_t totalLength_;
     int64_t activateRows_;
+    int64_t coreRows_;
     int64_t currentLoopRows_;
     int64_t currentLoopRowsAlign_;
-    int64_t coreRows_;
     int64_t perLoopRows_;
     int64_t lastLoopRows_;
     int64_t rowLoops_;
     int64_t colsTileLength_;
+    int64_t colLoops_;
     int64_t perLoopCols_;
     int64_t perLoopColsAlign_;
     int64_t lastLoopCols_;
-    int64_t colLoops_;
     int64_t dropPadMode_;
     int64_t smoothType_;
     int64_t expertNum_;
@@ -426,7 +426,7 @@ __aicore__ inline void MoeV2GatherDynamicQuantDroppad<T>::CopyOutPartialXQuant1H
         LocalTensor<float> tempLocal = calcQueue_.AllocTensor<float>();
         LocalTensor<float> quantScaleLocal = scaleOutQueue_.AllocTensor<float>();
 
-        uint32_t tmp = 0xFF7FFFFF;
+        uint32_t tmp = INF;
         float reduceMax = *((float*)&tmp);
         for (int64_t j = 0; j < colLoops_; j++) {
             colsTileLength_ = perLoopCols_;

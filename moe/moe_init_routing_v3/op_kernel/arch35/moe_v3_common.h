@@ -49,6 +49,18 @@ __aicore__ inline int64_t Ceil(int64_t a, int64_t b)
     return (a + b - 1) / b;
 }
 
+template <typename T>
+__aicore__ inline T Min(T a, T b)
+{
+    return a > b ? b : a;
+}
+
+template <typename T>
+__aicore__ inline T Max(T a, T b)
+{
+    return a < b ? b : a;
+}
+
 __aicore__ inline int64_t Align(int64_t elementNum, int64_t bytes)
 {
     if (bytes == 0) {
@@ -60,18 +72,6 @@ __aicore__ inline int64_t Align(int64_t elementNum, int64_t bytes)
 __aicore__ inline int64_t AlignBytes(int64_t elementNum, int64_t bytes)
 {
     return (elementNum * bytes + BLOCK_BYTES - 1) / BLOCK_BYTES * BLOCK_BYTES;
-}
-
-template <typename T>
-__aicore__ inline T Min(T a, T b)
-{
-    return a > b ? b : a;
-}
-
-template <typename T>
-__aicore__ inline T Max(T a, T b)
-{
-    return a < b ? b : a;
 }
 
 template <HardEvent event>

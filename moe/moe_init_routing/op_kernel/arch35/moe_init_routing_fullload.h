@@ -80,14 +80,9 @@ __aicore__ inline void MoeFullLoad<T>::ArithProgressionPerf(const LocalTensor<in
 {
     // countAlign must be eight aligned
     countAlign = (countAlign + CONSTANT_SEVEN) / BLOCK_B32_SIZE * BLOCK_B32_SIZE;
-    dst.SetValue(0, firstValue);
-    dst.SetValue(1, firstValue + diffValue * 1);
-    dst.SetValue(CONSTANT_TWO, firstValue + diffValue * CONSTANT_TWO);
-    dst.SetValue(CONSTANT_THREE, firstValue + diffValue * CONSTANT_THREE);
-    dst.SetValue(CONSTANT_FOUR, firstValue + diffValue * CONSTANT_FOUR);
-    dst.SetValue(CONSTANT_FIVE, firstValue + diffValue * CONSTANT_FIVE);
-    dst.SetValue(CONSTANT_SIX, firstValue + diffValue * CONSTANT_SIX);
-    dst.SetValue(CONSTANT_SEVEN, firstValue + diffValue * CONSTANT_SEVEN);
+    for (int32_t index = 0; index <= CONSTANT_SEVEN; index++) {
+        dst.SetValue(index, firstValue + diffValue * index);
+    }
     auto eventID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::S_V));
     SetFlag<HardEvent::S_V>(eventID);
     WaitFlag<HardEvent::S_V>(eventID);

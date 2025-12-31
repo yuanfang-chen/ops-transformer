@@ -64,14 +64,14 @@ private:
     int64_t perListElements;
     int64_t lastListElements;
 
+    int64_t perCoreExpert;
+    int64_t needInitExpertCore;
+    int64_t currentCoreExpert;
+
     int64_t sortTotalLength;
     int64_t sortCoreLoops;
     int64_t sortCoreLoopElements;
     int64_t sortCoreLastLoopElements;
-
-    int64_t perCoreExpert;
-    int64_t needInitExpertCore;
-    int64_t currentCoreExpert;
 
     static constexpr int64_t MAX_MRGSORT_LIST = 4;
 };
@@ -116,9 +116,7 @@ __aicore__ inline void MoeV2SortMultiCore::UBSortCompute(int64_t progress, int64
     int64_t duplicateNum = size % ONE_REPEAT_SORT_NUM;
     if (duplicateNum > 0) {
         int duplicateIndex = size - duplicateNum;
-        uint64_t mask0 = UINT64_MAX;
-        mask0 = mask0 << duplicateNum;
-        mask0 = mask0 & (UINT64_MAX >> ONE_REPEAT_SORT_NUM);
+        uint64_t mask0 = (UINT64_MAX << duplicateNum) & (UINT64_MAX >> ONE_REPEAT_SORT_NUM);
         uint64_t mask[2] = {mask0, 0};
         Duplicate(expertForSourceRowLocalFp32[duplicateIndex], MIN_FP32, mask, 1, DST_BLK_STRIDE, DST_REP_STRIDE);
     }
@@ -151,11 +149,11 @@ __aicore__ inline void MoeV2SortMultiCore::InitMoeMrgSort(
 {
     GlobalTensor<float> srcWsGm = workspaceGms[srcWsIndex][blockIdx * coreOffset + loopOffset];
     LocalTensor<float> inLocal = sortDataCopyInQueue.AllocTensor<float>();
-    LocalTensor<float> outLocal = sortDataCopyOutQueue.AllocTensor<float>();
     for (int64_t i = 0; i < listNum; i++) {
         LocalTensor<float> inLocalT = inLocal[GetSortLen<float>(this->sortOutTilingData->oneLoopMaxElements) * i];
         sorter->SetInput(srcWsGm, inLocalT);
     }
+    LocalTensor<float> outLocal = sortDataCopyOutQueue.AllocTensor<float>();
     GlobalTensor<float> dstWsGm = workspaceGms[1 - srcWsIndex][blockIdx * coreOffset + loopOffset];
     sorter->SetOutput(dstWsGm, outLocal);
     sortDataCopyInQueue.FreeTensor(inLocal);
@@ -258,18 +256,18 @@ __aicore__ inline void MoeV2SortMultiCore::VMSProcess()
         int64_t coreOffset = GetSortLen<float>(perListElements * MAX_MRGSORT_LIST);
         int64_t remainListNum = listNum - (currentStageNeedCoreNum - 1) * MAX_MRGSORT_LIST;
 
-        if (this->blockIdx < currentStageNeedCoreNum - 1) {
-            mrgsortParam.perListElements = perListElements;
-            mrgsortParam.lastListElements = perListElements;
-            mrgsortParam.oneLoopMaxElements = this->sortOutTilingData->oneLoopMaxElements;
-            InitMoeMrgSort(&mrgsorter, MAX_MRGSORT_LIST, coreOffset, 0);
-            mrgsorter.Init(&mrgsortParam);
-            mrgsorter.Process();
-        } else if (this->blockIdx == currentStageNeedCoreNum - 1) {
+        if (this->blockIdx == currentStageNeedCoreNum - 1) {
             mrgsortParam.perListElements = perListElements;
             mrgsortParam.lastListElements = lastListElements;
             mrgsortParam.oneLoopMaxElements = this->sortOutTilingData->oneLoopMaxElements;
             InitMoeMrgSort(&mrgsorter, remainListNum, coreOffset, 0);
+            mrgsorter.Init(&mrgsortParam);
+            mrgsorter.Process();
+        } else if (this->blockIdx < currentStageNeedCoreNum - 1) {
+            mrgsortParam.perListElements = perListElements;
+            mrgsortParam.lastListElements = perListElements;
+            mrgsortParam.oneLoopMaxElements = this->sortOutTilingData->oneLoopMaxElements;
+            InitMoeMrgSort(&mrgsorter, MAX_MRGSORT_LIST, coreOffset, 0);
             mrgsorter.Init(&mrgsortParam);
             mrgsorter.Process();
         }
@@ -310,11 +308,12 @@ __aicore__ inline void MoeV2SortMultiCore::Init(
     this->sortOutTilingData = &(tilingData->sortOutComputeParamsOp);
 
     this->blockIdx = GetBlockIdx();
-    this->tileLength = this->vbsTilingData->perCorePerLoopElements;
-    this->sortTotalLength = this->vbsTilingData->perCoreElements;
     if (this->blockIdx == tilingData->vbsComputeParamsOp.needCoreNum - 1) {
         this->tileLength = this->vbsTilingData->lastCorePerLoopElements;
         this->sortTotalLength = this->vbsTilingData->lastCoreElements;
+    } else {
+        this->tileLength = this->vbsTilingData->perCorePerLoopElements;
+        this->sortTotalLength = this->vbsTilingData->perCoreElements;
     }
     this->n = tilingData->n;
     this->k = tilingData->k;

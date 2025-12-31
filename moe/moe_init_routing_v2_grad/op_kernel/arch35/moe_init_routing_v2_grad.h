@@ -185,12 +185,12 @@ private:
     {
         LocalTensor<T> outputUb = outputQueue.template DeQue<T>();
 
-        DataCopyExtParams copyInParams;
-        copyInParams.blockCount = currentN;
-        copyInParams.blockLen = currentH * sizeof(T);
-        copyInParams.srcStride = 0;
-        copyInParams.dstStride = (td_->h - currentH) * sizeof(T);
-        DataCopyPad(outputGm[outputOffset], outputUb, copyInParams);
+        DataCopyExtParams copyOutParams;
+        copyOutParams.blockCount = currentN;
+        copyOutParams.blockLen = currentH * sizeof(T);
+        copyOutParams.srcStride = 0;
+        copyOutParams.dstStride = (td_->h - currentH) * sizeof(T);
+        DataCopyPad(outputGm[outputOffset], outputUb, copyOutParams);
         outputQueue.FreeTensor(outputUb);
     }
 
