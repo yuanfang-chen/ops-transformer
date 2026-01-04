@@ -20,19 +20,20 @@
 #include "moe_distribute_combine_v2_tiling.h"
 #include "moe_distribute_combine_v2_quant.h"
 #if __has_include("../moe_distribute_dispatch/check_winsize.h")
+#include "../moe_distribute_dispatch_v2/moe_distribute_v2_constant.h"
 #include "../common/inc/kernel/moe_distribute_base.h"
 #include "../moe_distribute_dispatch/check_winsize.h"
 #include "../moe_distribute_dispatch_v2/moe_distribute_v2_base.h"
-#include "../moe_distribute_dispatch_v2/moe_distribute_v2_constant.h"
 #else
+#include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_constant.h"
 #include "../../common/inc/kernel/moe_distribute_base.h"
 #include "../../moe_distribute_dispatch/op_kernel/check_winsize.h"
 #include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_base.h"
-#include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_constant.h"
 #endif
 
 namespace MoeDistributeCombineV2Impl {
 using namespace MoeDistributeV2Base;
+using namespace Mc2Kernel;
 
 #define TemplateMC2TypeClass typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant
 #define TemplateMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant

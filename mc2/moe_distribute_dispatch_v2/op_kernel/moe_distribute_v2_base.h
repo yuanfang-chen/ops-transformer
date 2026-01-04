@@ -16,6 +16,8 @@
 #ifndef MOE_DISTRIBUTE_V2_BASE_H
 #define MOE_DISTRIBUTE_V2_BASE_H
 
+#include "moe_distribute_v2_constant.h"
+
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
 #else
@@ -23,20 +25,6 @@
 #endif
 
 namespace MoeDistributeV2Base {
-constexpr uint64_t OP_CNT_POSUL = 3UL;
-constexpr uint32_t ZERONE_STATE_POS = 0U;
-constexpr uint32_t OPOSITION_POS = 1U;
-constexpr uint32_t TILING_EPRANKID_POS = 2U;
-constexpr uint32_t MOE_NUM_POS = 3U;
-constexpr uint32_t TILING_WORLDSIZE_POS = 4U;
-constexpr uint32_t GLOBALBS_POS = 5U;
-constexpr uint32_t HCCL_DFX_POS = 8U;
-constexpr uint32_t HCCL_DFX_NUM = 2U;
-constexpr uint32_t HCCL_EPRANKId_POS = 0U;
-constexpr uint32_t HCCL_WORLDSIZE_POS = 1U;
-constexpr uint32_t UB_ALIGN = 32U;
-constexpr uint64_t A5_MTE_STATE_WIN_SIZE = 1024UL * 1024UL;
-
 template<AscendC::HardEvent event>
 __aicore__ inline void SyncFunc()
 {
@@ -46,6 +34,7 @@ __aicore__ inline void SyncFunc()
 }
 
 using namespace AscendC;
+using namespace Mc2Kernel;
 
 #ifdef __DAV_C310__ // A5 implmentation
 using HcclOpParam = HcclCombinOpParam;

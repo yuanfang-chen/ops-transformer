@@ -18,12 +18,14 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #if __has_include("../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h")
+#include "../moe_distribute_dispatch_v2/moe_distribute_v2_constant.h"
 #include "../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h"
 #include "../3rd/rms_norm/op_kernel/rms_norm_base.h"
 #include "../moe_distribute_dispatch/check_winsize.h"
 #include "../common/inc/kernel/moe_distribute_base.h"
 #include "../moe_distribute_combine_v2/moe_distribute_combine_v2_quant.h"
 #else
+#include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_constant.h"
 #include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_tiling.h"
 #include "../../3rd/rms_norm/op_kernel/rms_norm_base.h"
 #include "../../moe_distribute_dispatch/op_kernel/check_winsize.h"
@@ -32,36 +34,6 @@
 #endif
 
 namespace MoeDistributeCombineAddRmsNormImpl {
-constexpr uint8_t BUFFER_NUM = 2;                       // 多buf
-constexpr uint8_t BUFFER_SINGLE = 1;
-constexpr uint32_t MAX_UB_SIZE = 170U * 1024U;
-constexpr uint32_t STATE_OFFSET = 32U;                  // 状态空间偏移地址
-constexpr uint32_t COMBINE_ARN_STATE_SIZE = 1024UL * 1024UL; // 1M
-constexpr uint32_t UB_ALIGN = 32U;                      // UB按32字节对齐
-constexpr uint32_t COMBINE_STATE_OFFSET = 64U * 1024U;  // 本卡状态空间偏移地址，前面的地址给dispatch用
-constexpr uint8_t EP_DOMAIN = 0;
-constexpr uint8_t TP_DOMAIN = 1;
-constexpr uint32_t FLOAT_PER_UB_ALIGN = 8U;
-constexpr uint64_t WIN_STATE_OFFSET = 500UL * 1024UL;
-constexpr uint64_t STATE_WIN_OFFSET = 975UL * 1024UL;  // 预留48*512内存
-constexpr uint32_t EXPAND_IDX_INFO = 3U;  // expand_idx是按3元组保存信息，分别为rank_id token_id topk_id
-constexpr uint32_t ALIGNED_LEN = 256U;    // blockReduceMax中，最多支持连续256字节数据参与计算
-constexpr float SCALE_PARAM = 127.0;      // 计算量化参数所需的缩放倍数
-constexpr uint32_t BLOCK_NUM = ALIGNED_LEN / UB_ALIGN;  // blockReduceMax中，最多支持连续256字节数据参与计算
-constexpr uint64_t ALIGNED_LEN_256 = 256UL;
-constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
-constexpr uint32_t REDUCE_NUM = 8U;
-constexpr uint32_t DIM_NUM = 2;
-constexpr uint32_t NUM_PER_REP_FP32 = 64U;  // ONE_REPEAT_BYTE_SIZE / sizeof(float)
-constexpr uint32_t ELASTIC_INFO_OFFSET = 4U;
-constexpr uint32_t RANK_LIST_NUM = 2;
-constexpr float ZERO = 0;
-constexpr float ONE = 1;
-constexpr uint8_t EP_WORLD_SIZE_IDX = 1;
-constexpr uint8_t SHARE_RANK_NUM_IDX = 2;
-constexpr uint8_t MOE_NUM_IDX = 3;
-constexpr size_t MASK_CALC_NEED_WORKSPACE = 10UL * 1024UL;
-
 template <AscendC::HardEvent event>
 __aicore__ inline void SyncFunc()
 {
@@ -74,8 +46,8 @@ __aicore__ inline void SyncFunc()
     typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant
 #define TemplateMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant
 
-using namespace MoeDistributeV2Base;
 using namespace AscendC;
+using namespace Mc2Kernel;
 template <TemplateMC2TypeClass>
 class MoeDistributeCombineAddRmsNorm {
 public:
@@ -386,7 +358,7 @@ __aicore__ inline void MoeDistributeCombineAddRmsNorm<TemplateMC2TypeFunc>::Init
 
     GlobalTensor<int32_t> selfDataStatusTensor;
     selfDataStatusTensor.SetGlobalBuffer(
-        (__gm__ int32_t*)(statusDataSpaceGm + STATE_WIN_OFFSET + coreIdx_ * WIN_ADDR_ALIGN));
+        (__gm__ int32_t*)(statusDataSpaceGm + COMBINE_ARN_STATE_WIN_OFFSET + coreIdx_ * WIN_ADDR_ALIGN));
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
     dataState_ = selfDataStatusTensor(0);
     selfDataStatusTensor(0) = ((dataState_ == 0) ? 1 : 0);

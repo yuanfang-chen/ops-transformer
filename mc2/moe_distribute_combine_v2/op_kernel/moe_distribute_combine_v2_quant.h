@@ -17,15 +17,16 @@
 #define MOE_DISTRIBUTE_COMBINE_V2_QUANT_H
 
 #if __has_include("../moe_distribute_dispatch/check_winsize.h")
-#include "../moe_distribute_dispatch_v2/moe_distribute_v2_base.h"
 #include "../moe_distribute_dispatch_v2/moe_distribute_v2_constant.h"
+#include "../moe_distribute_dispatch_v2/moe_distribute_v2_base.h"
 #else
-#include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_base.h"
 #include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_constant.h"
+#include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_base.h"
 #endif
 
-namespace MoeDistributeV2Base {
+namespace Mc2Kernel {
 using namespace AscendC;
+using namespace MoeDistributeV2Base;
 
 template <typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant>
 class MoeDistributeCombineQuant{
