@@ -458,7 +458,7 @@ aclnnStatus aclnnAllGatherMatmulV2(
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
     {
         int64_t shape_size = 1;
-        for (auto i ：shape) {
+        for (auto i : shape) {
             shape_size *= i;
         }
         return shape_size;
@@ -470,9 +470,9 @@ aclnnStatus aclnnAllGatherMatmulV2(
     {
         auto size = GetShapeSize(shape) * sizeof(T);
         auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc failed. ret：%d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc failed. ret: %d\n", ret); return ret);
         ret = aclrtMemcpy(*deviceAddr, size, hostData.data(), size, ACL_MEMCPY_HOST_TO_DEVICE);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMemcpy failed. ret：%d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMemcpy failed. ret: %d\n", ret); return ret);
         std::vector<int64_t> strides(shape.size(), 1);
         for (int64_t i = shape.size() - 2; i >= 0; i--) {
             strides[i] = shape[i +1] * strides[i + 1];
@@ -492,10 +492,10 @@ aclnnStatus aclnnAllGatherMatmulV2(
     int LaunchOneThreadAllGatherMmV2(Args &args)
     {
         int ret = aclrtSetCurrentContext(args.context);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret：%d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed. ret: %d\n", ret); return ret);
         char hcomName[128] = {0};
         ret = HcclGetCommName(args.hcclComm, hcomName);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret：%d\n", ret); return -1);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret: %d\n", ret); return -1);
         LOG_PRINT("[INFO] rank = %d, hcomName = %s, stream = %p, context = %p\n", args.rankId, hcomName,
             args.stream, args.context);
         std::vector<int64_t> x1Shape = {32, 256};

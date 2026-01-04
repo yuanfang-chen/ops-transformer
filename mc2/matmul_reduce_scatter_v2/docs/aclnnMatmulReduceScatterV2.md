@@ -427,7 +427,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
     {
         int64_t shape_size = 1;
-        for (auto i ：shape) {
+        for (auto i : shape) {
             shape_size *= i;
         }
         return shape_size;
@@ -439,9 +439,9 @@ aclnnStatus aclnnMatmulReduceScatterV2(
     {
         auto size = GetShapeSize(shape) * sizeof(T);
         auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc failed. ret：%d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMalloc failed. ret: %d\n", ret); return ret);
         ret = aclrtMemcpy(*deviceAddr, size, hostData.data(), size, ACL_MEMCPY_HOST_TO_DEVICE);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMemcpy failed. ret：%d\n", ret); return ret);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtMemcpy failed. ret: %d\n", ret); return ret);
         std::vector<int64_t> strides(shape.size(), 1);
         for (int64_t i = shape.size() - 2; i >= 0; i--) {
             strides[i] = shape[i +1] * strides[i + 1];
@@ -608,7 +608,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
             ret = aclrtSetDevice(rankId);
             CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetDevice failed. ret = %d \n", ret); return ret);
             ret = aclrtCreateContext(&context[rankId], rankId);
-            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateContext failed. ERROR：%d\n", ret); return ret);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtCreateContext failed. ERROR: %d\n", ret); return ret);
             ret = aclrtCreateStream(&stream[rankId]);
             CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtCreateStream failed. ret = %d \n", ret); return ret);
         }
