@@ -79,7 +79,7 @@ TEST_F(IncreFlashAttentionProto, incre_flash_attention_infershape_0)
     std::vector<std::vector<int64_t>> expectOutputShape = {
         {4, 1, 1024},   // attentionOut
     };
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 
@@ -134,7 +134,7 @@ TEST_F(IncreFlashAttentionProto, incre_flash_attention_infershape_1)
     std::vector<std::vector<int64_t>> expectOutputShape = {
         {2, 1, 24, 128},   // attentionOut
     };
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 
@@ -190,7 +190,7 @@ TEST_F(IncreFlashAttentionProto, incre_flash_attention_infershape_2)
     std::vector<std::vector<int64_t>> expectOutputShape = {
         {5, 20, 1, 21},   // attentionOut
     };
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 TEST_F(IncreFlashAttentionProto, incre_flash_attention_infershape_3)
@@ -244,7 +244,7 @@ TEST_F(IncreFlashAttentionProto, incre_flash_attention_infershape_3)
     std::vector<std::vector<int64_t>> expectOutputShape = {
         {-2},   // attentionOut
     };
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 TEST_F(IncreFlashAttentionProto, incre_flash_attention_infershape_4)

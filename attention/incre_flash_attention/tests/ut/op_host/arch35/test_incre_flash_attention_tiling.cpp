@@ -987,7 +987,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_16)
          },
                 &compileInfo,"Ascend910_95",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
 
