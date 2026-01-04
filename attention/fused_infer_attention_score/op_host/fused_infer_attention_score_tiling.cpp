@@ -1311,23 +1311,67 @@ bool IsGqaIfa(gert::TilingContext &context, const string inputLayoutStr, const i
     return false;
 }
 
-bool IsGqaMtp(gert::TilingContext &context, const string inputLayoutStr, const int64_t queryS)
+int64_t GetTndQueryS(gert::TilingContext &context)
+{
+    auto queryShape = context.GetInputShape(QUERY_INDEX);
+    auto actualSeqlenthsQ = context.GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
+    auto actualSeqlenthsKv = context.GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
+    auto blockTable = context.GetOptionalInputTensor(BLOCK_TABLE_INDEX);
+    int64_t batchSize = blockTable->GetStorageShape().GetDim(DIM_0);
+    const int64_t *actualSeqQ = actualSeqlenthsQ->GetData<int64_t>();
+    const int64_t *actualSeqKv = actualSeqlenthsKv->GetData<int64_t>();
+
+    if (batchSize == 0) {
+        return 0;
+    }
+    if (actualSeqQ == nullptr || actualSeqKv == nullptr) { // tiling下沉场景
+        int64_t queryT4Tnd = queryShape->GetStorageShape().GetDim(DIM_0);
+        return (queryT4Tnd + batchSize - 1) / batchSize;
+    }
+    int64_t qActualSeqMax = 0;
+    for (int64_t i = 0; i < batchSize; i++) {
+        int64_t tmpS1 = (i == 0) ? actualSeqQ[0] : (actualSeqQ[i] - actualSeqQ[i - 1U]);
+        if (tmpS1 > qActualSeqMax) {
+            qActualSeqMax = tmpS1;
+        }
+    }
+    return qActualSeqMax;
+}
+
+bool IsGqaMtp(gert::TilingContext &context, const string inputLayoutStr, const int64_t queryS, const int64_t queryD)
 {
     if (context.GetOptionalInputTensor(QUERY_ROPE_INDEX) != nullptr) {
         return false;
     }
     bool isIFALayout = (inputLayoutStr == "BSH") || (inputLayoutStr == "BNSD") || (inputLayoutStr == "BSND") ||
-            (inputLayoutStr == "BNSD_NBSD") || (inputLayoutStr == "BSND_NBSD") || (inputLayoutStr == "BSH_NBSD");
+            (inputLayoutStr == "BNSD_NBSD") || (inputLayoutStr == "BSND_NBSD") || (inputLayoutStr == "BSH_NBSD")
+            || (inputLayoutStr == "TND");
     if (!isIFALayout) {
-        return false;
-    }
-    if (!(queryS > 1 && queryS <= 16)) { // 16: mtp
         return false;
     }
     auto tempK = context.GetInputShape(KEY_INDEX);
     bool isNz = (tempK->GetStorageShape().GetDimNum() == 5) ? true : false;
     if (!isNz) {
         return false;
+    }
+
+    int64_t actualQueryS = queryS;
+    if (inputLayoutStr == "TND") {
+        actualQueryS = GetTndQueryS(context);
+    }
+    if (!(actualQueryS >= 1 && actualQueryS <= 16)) { // 16: mtp
+        return false;
+    }
+
+    if (inputLayoutStr == "TND") {
+        if (queryD != 128) { // 128: queryD need 128 when gqa kv_nz
+            return false;
+        }
+        if (context.GetInputDesc(QUERY_INDEX)->GetDataType() != ge::DT_BF16 ||
+            context.GetInputDesc(KEY_INDEX)->GetDataType() != ge::DT_INT8 ||
+            context.GetInputDesc(VALUE_INDEX)->GetDataType() != ge::DT_INT8) {
+            return false;
+        }
     }
     return true;
 }
@@ -1400,7 +1444,7 @@ static bool IsUsingIFA(gert::TilingContext &context, const string inputLayoutStr
     const int64_t queryS)
 {
     if (IsGqaIfa(context, inputLayoutStr, queryS, queryD) || 
-        IsGqaMtp(context, inputLayoutStr, queryS) || 
+        IsGqaMtp(context, inputLayoutStr, queryS, queryD) || 
         IsAtbIfa(context, inputLayoutStr, queryD) || 
         IsMlaIfaOrMtp(context, inputLayoutStr, queryS, queryD) ||
         IsSlidingAttention(context, inputLayoutStr, queryD)) {
