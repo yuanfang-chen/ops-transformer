@@ -403,6 +403,7 @@
          const std::vector<std::vector<float>> &acturalBlockInfo,
          const float maxBlockNumPerCore, int64_t (&blockStarts)[CORE_LIST_NUM], int64_t (&blockEnds)[CORE_LIST_NUM]);
      ge::graphStatus GetSparseBlockInfoBn2();
+     bool CheckIsLargeInvalidBlk();
  
      FuzzyBaseInfoParamsRegbase fBaseParams;
      platform_ascendc::SocVersion socVersion;

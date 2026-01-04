@@ -107,6 +107,8 @@ constexpr uint32_t DKDV_OUT = 2;
 constexpr uint32_t NUM_TWO = 2;
 constexpr uint32_t NUM_THREE = 3;
 
+constexpr int64_t LARGE_INVALID_NUM = 3072;
+
 template <class T>
 inline auto CeilDivideBy(T num1, T num2) -> T
 {
@@ -2160,6 +2162,17 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetIsDeterArr()
     }
 }
 
+bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CheckIsLargeInvalidBlk()
+{
+    if ((fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::LEFT_UP_CAUSAL)) &&
+        (fBaseParams.s1Outer >= 0 && fBaseParams.s2Outer >= 0) &&
+        (fBaseParams.s1Outer < fBaseParams.s2Outer) &&
+        (fBaseParams.d <= static_cast<uint32_t>(ConstAxisTemplateNum::NUM256))) {
+        return (fBaseParams.s2Outer - fBaseParams.s1Outer) * fBaseParams.s1Outer >= LARGE_INVALID_NUM;
+    }
+    return false;
+}
+
 bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CheckExceedL2Cache()
 {
     std::array<int64_t, CORE_LIST_NUM> dqOffset;
@@ -3931,14 +3944,15 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SaveToTilingData()
     s1s2BNGS1S2BaseParams_->set_dropMaskOuter(fBaseParams.dropMaskOuter);
     // 分核优化，对于超出l2 cache的case优先多个核处理BN下的S1S2
     bool isExceedL2Cache = CheckExceedL2Cache();
+    bool isLargeInvalidBlk = CheckIsLargeInvalidBlk();
     uint8_t sparseType = GetSparseType();
-    bool isSplitByBlockIdx = CheckExceedL2Cache() && fBaseParams.splitAxis == SplitAxisEnum::BN2GS1S2 &&
+    bool isSplitByBlockIdx = (isExceedL2Cache || isLargeInvalidBlk) && fBaseParams.splitAxis == SplitAxisEnum::BN2GS1S2 &&
         fBaseParams.layoutType != INPUT_FROAMT_TND &&
         !fBaseParams.isDeterministic &&
         fBaseParams.blockOuter == fBaseParams.aicNum &&
         (sparseType != static_cast<uint8_t>(SparseType::UNSUPPORTED));
-    OP_LOGI(context_, "Determine whether to enter splitByBlock core-splitting plan, get isSplitByBlockIdx=[%d], isExceedL2Cache=[%d] and sparseType=[%d].",
-        static_cast<int>(isSplitByBlockIdx), static_cast<int>(isExceedL2Cache), static_cast<int>(sparseType));
+    OP_LOGI(context_, "Determine whether to enter splitByBlock core-splitting plan, get isSplitByBlockIdx=[%d], isExceedL2Cache=[%d], isLargeInvalidBlk=[%d] and sparseType=[%d].",
+        static_cast<int>(isSplitByBlockIdx), static_cast<int>(isExceedL2Cache), static_cast<int>(isLargeInvalidBlk), static_cast<int>(sparseType));
     s1s2BNGS1S2BaseParams_->set_isSplitByBlockIdx(isSplitByBlockIdx);
     if (isSplitByBlockIdx) {
         s1s2BNGS1S2BaseParams_->set_totalPerBatchNum(GetTotalPerBatchNum(sparseType));
