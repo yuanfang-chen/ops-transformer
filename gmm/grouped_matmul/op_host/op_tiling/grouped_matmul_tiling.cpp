@@ -97,6 +97,36 @@ constexpr size_t TUNING_CONFIG_A8W4_SPEC_SCENARIO_INDEX = 1;
 constexpr size_t TUNING_CONFIG_ALLOW_WORKSPACE_INDEX = 2;
 constexpr int64_t SPLITK_M_N_RATIO_THRESHOLD_2 = 2L;
 
+
+static inline uint32_t FindBestSingleNA8W4(uint32_t baseM_, uint32_t baseN_, uint32_t avg_m, uint32_t maxN_, uint32_t groupNum_, const uint32_t& aicNum) {
+  int32_t mDim = CeilDiv(avg_m, baseM_);
+  int32_t nDim = CeilDiv(maxN_, baseN_);
+  int32_t taskNum = mDim * nDim * static_cast<int32_t>(groupNum_);
+  int32_t taskNumPerCore = CeilDiv(taskNum, aicNum);
+  //每个核只需要做1个基本块的时候，任务量太少，无需处理
+  if(taskNumPerCore <= 1){
+    return baseN_;
+  }
+  int32_t curNDim = 0;
+  int32_t curTaskNum = 0;
+  int32_t bestSingleN = baseN_;
+  float ratio = 0;
+  for (uint32_t i = 1; i <= aicNum; ++i){
+    bestSingleN = CeilDiv(static_cast<int32_t>(maxN_), i);
+    if(baseN_ != 0 && static_cast<int64_t>(bestSingleN) != maxN_ && bestSingleN % baseN_ != 0) {
+      continue;
+    }
+    curNDim = CeilDiv(maxN_, bestSingleN);
+    curTaskNum = mDim * curNDim * static_cast<int32_t>(groupNum_);
+    ratio = static_cast<float>(curTaskNum) / AlignUp(static_cast<uint32_t>(curTaskNum), aicNum);
+    if(ratio >= EFFECTIVE_TASK_RATIO) {
+      return bestSingleN;
+    }
+  }
+  return baseN_;
+}
+
+
 ge::graphStatus GMMTiling::CheckWeightNZShape(const gert::TilingContext* context, int64_t numInOneBlk) const {
   OP_CHECK_IF(numInOneBlk <= 0, OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "numInOneBlk, the "
              "input of CheckWeightNZShape has an invaild value %ld", numInOneBlk), return ge::GRAPH_FAILED);
@@ -1660,6 +1690,9 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
       constexpr uint32_t TWO = 2;
       constexpr uint32_t EIGHT = 8;
       constexpr uint32_t FIVE = 5;
+      constexpr uint32_t FOUR = 4;
+      constexpr uint32_t ONE = 1;
+
       uint32_t singleN = 256;
       uint32_t singleM = 128;
       OP_CHECK_NULL_WITH_CONTEXT(context, compileInfoPtr);  // check compileInfoPtr is not null
@@ -1802,9 +1835,13 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
                   groupNum, n, offsetDim0, offsetDim1, offsetDim2);
           }
         }
-        const int is_in_a8w4_white_list = A8W4_PRETILING_WHITE_LIST.count(mKNList)
+        //GEMM Tiling
+        int64_t tuningConfig = (tuningConfigPtr != nullptr && tuningConfigPtr->GetSize() > TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX) ?
+                    (reinterpret_cast<const int64_t *>(tuningConfigPtr->GetData()))[TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX] : 0;
+
+        const int is_in_a8w4_white_list = ((tuningConfig !=0 &&tuningConfig <= 64) || (A8W4_PRETILING_WHITE_LIST.count(mKNList))) 
               && quantGroupNum != 0 && k / quantGroupNum == 256 && k % quantGroupNum == 0
-              && withOffset == 0; // 256: 新方案只支持256 pergroup
+              && withOffset == 0 && k%64==0 && n%64==0; // 256: 新方案只支持256 pergroup
 
         tilingDataA8W4.gmmBaseParams.set_coreNum(aicNum);
         tilingDataA8W4.gmmBaseParams.set_groupNum(groupNum);
@@ -1839,9 +1876,7 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
         matmul_tiling::PlatformInfo platformInfo;
         InitPlatformInfo(compileInfoPtr, platformInfo);
         matmul_tiling::MultiCoreMatmulTiling mm(platformInfo);
-        //GEMM Tiling
-        int64_t tuningConfig = (tuningConfigPtr != nullptr && tuningConfigPtr->GetSize() > TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX) ?
-                    (reinterpret_cast<const int64_t *>(tuningConfigPtr->GetData()))[TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX] : 0;
+        
         uint32_t calc_m = 1U;
         if (groupNum != 0U) {
           calc_m = m / groupNum;
@@ -1888,10 +1923,13 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
         } else {
           const bool isShortM = avg_m < 32U;
           uint32_t A8W4_MSD_BASE_M = isShortM ? 64U : 128U;
-          constexpr uint32_t A8W4_MSD_BASE_M_NEW = 32;
+          constexpr uint32_t A8W4_MSD_BASE_M_NEW = 64;
           constexpr uint32_t A8W4_MSD_BASE_K = 256;
           uint32_t A8W4_MSD_BASE_N = isShortM ? 512U : 256U;
           constexpr uint32_t A8W4_MSD_BASE_N_NEW = 512;
+          constexpr uint32_t A8W4_MSD_BASE_K_NEW = 256;
+          //增加动态Tiling部分
+          uint32_t A8W4_MSD_SINGLE_N = FindBestSingleNA8W4(A8W4_MSD_BASE_M_NEW, A8W4_MSD_BASE_N_NEW, avg_m, n, groupNum, aicNum);
           mm.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT4, false);
           if (wNZ) {
             mm.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT4, false);
@@ -1902,9 +1940,9 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
           mm.SetBias(false);
           if (is_in_a8w4_white_list) {
             mm.SetOrgShape(A8W4_MSD_BASE_M_NEW, n, k);
-            mm.SetShape(A8W4_MSD_BASE_M_NEW, n, k);
-            mm.SetFixSplit(A8W4_MSD_BASE_M_NEW, A8W4_MSD_BASE_N_NEW, A8W4_MSD_BASE_K);
-            OP_LOGI(context->GetNodeName(), "GMM A8W4 tiling: baseM is %u, baseN is %u, baseK is %u, tuningConfig is %ld.", A8W4_MSD_BASE_M_NEW, A8W4_MSD_BASE_N_NEW, A8W4_MSD_BASE_K, tuningConfig);
+                  mm.SetShape(A8W4_MSD_BASE_M_NEW, A8W4_MSD_SINGLE_N, k);
+            mm.SetFixSplit(A8W4_MSD_BASE_M_NEW, A8W4_MSD_BASE_N_NEW, A8W4_MSD_BASE_K_NEW);
+            OP_LOGI(context->GetNodeName(), "GMM A8W4 tiling: baseM is %u, baseN is %u, baseK is %u, tuningConfig is %ld.", A8W4_MSD_BASE_M_NEW, A8W4_MSD_BASE_N_NEW, A8W4_MSD_BASE_K_NEW, tuningConfig);
           } else {
             mm.SetOrgShape(A8W4_MSD_BASE_M, n, k);
             mm.SetShape(A8W4_MSD_BASE_M, A8W4_MSD_BASE_N, k);
@@ -1914,24 +1952,25 @@ ge::graphStatus GMMTiling::A8W4Tiling(gert::TilingContext* context, const GMMCom
           if (mm.GetTiling(tilingDataA8W4.mmTilingData) == -1){
             return ge::GRAPH_FAILED;
           }
-          constexpr uint32_t FOUR = 4;
+          
           if (is_in_a8w4_white_list) {
-            tilingDataA8W4.mmTilingData.set_dbL0B(1);  // disable double buffer for LOB
-            tilingDataA8W4.mmTilingData.set_dbL0C(1);  // disable double buffer for LOC
-            tilingDataA8W4.mmTilingData.set_stepKa(FOUR);  // set precomputed mmStepKa
-            tilingDataA8W4.mmTilingData.set_stepKb(TWO);  // set precomputed mmStepKb
-            tilingDataA8W4.mmTilingData.set_depthA1(EIGHT);  // set precomputed mmDepthA1
-            tilingDataA8W4.mmTilingData.set_depthB1(FOUR);  // set precomputed mmDepthB1
+            tilingDataA8W4.mmTilingData.set_dbL0A(ONE);  // disable double buffer for LOA
+            tilingDataA8W4.mmTilingData.set_dbL0B(ONE);  // disable double buffer for LOB
+            tilingDataA8W4.mmTilingData.set_dbL0C(ONE);  // disable double buffer for LOC
+            tilingDataA8W4.mmTilingData.set_stepKa(ONE);  // set precomputed mmStepKa
+            tilingDataA8W4.mmTilingData.set_stepKb(ONE);  // set precomputed mmStepKb
+            tilingDataA8W4.mmTilingData.set_depthA1(TWO);  // set precomputed mmDepthA1
+            tilingDataA8W4.mmTilingData.set_depthB1(TWO);  // set precomputed mmDepthB1
             tilingDataA8W4.mmTilingData.set_baseK(A8W4_MSD_BASE_K);
-            tilingDataA8W4.mmTilingData.set_stepM(1);  // set precomputed stepM
-            tilingDataA8W4.mmTilingData.set_stepN(1);  // set precomputed stepN
+            tilingDataA8W4.mmTilingData.set_stepM(ONE);  // set precomputed stepM
+            tilingDataA8W4.mmTilingData.set_stepN(ONE);  // set precomputed stepN
           } else {
             tilingDataA8W4.mmTilingData.set_dbL0C(1);  // disable double buffer for LOC
             tilingDataA8W4.mmTilingData.set_stepKa(FOUR);  // set precomputed mmStepKa
             tilingDataA8W4.mmTilingData.set_stepKb(FOUR);  // set precomputed mmStepKb
             tilingDataA8W4.mmTilingData.set_depthA1(EIGHT);  // set precomputed mmDepthA1
             tilingDataA8W4.mmTilingData.set_depthB1(EIGHT);  // set precomputed mmDepthB1
-            tilingDataA8W4.mmTilingData.set_stepM(1);  // set precomputed stepM
+            tilingDataA8W4.mmTilingData.set_stepM(1);  // set precomputed step
             tilingDataA8W4.mmTilingData.set_stepN(1);  // set precomputed stepN
           }
           OP_LOGI(context->GetNodeName(), "GMM_tiling: baseM is %u, baseK is %u, baseN is %u.", A8W4_MSD_BASE_M, A8W4_MSD_BASE_K, A8W4_MSD_BASE_N);
