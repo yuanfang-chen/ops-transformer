@@ -197,7 +197,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, int8_t, float, float16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -205,7 +205,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, int4b_t, float, float16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -213,7 +213,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, hifloat8_t, float, float16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -221,7 +221,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, fp8_e4m3fn_t, float, float16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -229,7 +229,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, fp4x2_e2m1_t, float, float16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -237,7 +237,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, int8_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -245,7 +245,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, int4b_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -253,7 +253,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, hifloat8_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -261,7 +261,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, fp8_e4m3fn_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -269,7 +269,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, fp4x2_e2m1_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -277,7 +277,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, int8_t, float, int8_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -285,7 +285,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, int8_t, float, int8_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -293,7 +293,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, hifloat8_t, float, hifloat8_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -301,7 +301,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, hifloat8_t, float, hifloat8_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -309,7 +309,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, bfloat16_t, fp8_e4m3fn_t, float, fp8_e4m3fn_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 
@@ -317,7 +317,7 @@ if constexpr (emptyTensor == true) {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
     INVOKE_FA_OP_IMPL_ASCEND910_95_ANTIQUANT_BASEAPI(BaseApi::FlashAttentionScoreAntiquantKernel, float16_t, fp8_e4m3fn_t, float, fp8_e4m3fn_t, ImplModeEnum::AA_HIGH_PRECISION,
-    outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+    inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
     static_cast<PseTypeEnum>(pseMode), static_cast<AntiquantTypeEnum>(quantMode), hasAttenMask, false, false, true, isPa, isFd, enableKVPrefix);
 #endif
 

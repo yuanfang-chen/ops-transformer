@@ -100,7 +100,7 @@ static constexpr  inferFaLayOutTypeEnum InOutLayoutTypeValue[4][2] ={
     {inferFaLayOutTypeEnum::LAYOUT_BNSD, inferFaLayOutTypeEnum::LAYOUT_BNSD},
     {inferFaLayOutTypeEnum::LAYOUT_BSH, inferFaLayOutTypeEnum::LAYOUT_BSH},
     {inferFaLayOutTypeEnum::LAYOUT_TND, inferFaLayOutTypeEnum::LAYOUT_TND},
-    {inferFaLayOutTypeEnum::LAYOUT_BNSD, inferFaLayOutTypeEnum::LAYOUT_BNSD}, //这个对应InOutLayoutType_BNSD_BSND,david的这个layout是tilingdtata控制，因此该格式入口参数与InOutLayoutType_BNSD_BNSD处理相同
+    {inferFaLayOutTypeEnum::LAYOUT_BNSD, inferFaLayOutTypeEnum::LAYOUT_BSH}, 
 };
 
 static constexpr  inferPFALayoutTypeEnum InOutLayoutPFATypeValue[3][2] ={
