@@ -18,6 +18,7 @@ operator_group_1:
 operator_group_2:
   - grouped_matmul
   - grouped_matmul_add
+  - kv_rms_norm_rope_cache
   - grouped_matmul_finalize_routing
   - grouped_matmul_swiglu_quant_v2
   - quant_grouped_matmul_inplace_add

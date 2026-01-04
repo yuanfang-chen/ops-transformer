@@ -78,6 +78,7 @@ operator_group_9:
   - dequant_rope_quant_kvcache
   - interleave_rope
   - rope_with_sin_cos_cache
+  - kv_rms_norm_rope_cache
   - rotary_position_embedding_grad
   - norm_rope_concat
   - norm_rope_concat_grad
