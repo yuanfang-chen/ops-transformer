@@ -86,12 +86,12 @@ TEST_F(rotary_position_embedding_test, test_case_mode_1_pad_fp16_001)
     free(path_);
 }
 
-// [3, 4, 46, 14] "BNSD" bfloat16
+// [3, 4, 46, 128] "BNSD" bfloat16
 TEST_F(rotary_position_embedding_test, test_case_mode_1_rotate_bf16_001)
 {
-    size_t inputXByteSize = 3 * 4 * 46 * 14 * sizeof(half);
-    size_t inputCosByteSize = 1 * 1 * 46 * 14 * sizeof(half);
-    size_t inputRotateByteSize = 14 * 14 * sizeof(half);
+    size_t inputXByteSize = 3 * 4 * 46 * 128 * sizeof(half);
+    size_t inputCosByteSize = 1 * 1 * 46 * 128 * sizeof(half);
+    size_t inputRotateByteSize = 128 * 128 * sizeof(half);
     size_t inputSinByteSize = inputCosByteSize;
     size_t outputYByteSize = inputXByteSize;
     size_t tilingDataSize = sizeof(RotaryPositionEmbeddingTilingData);
@@ -112,7 +112,7 @@ TEST_F(rotary_position_embedding_test, test_case_mode_1_rotate_bf16_001)
     system("chmod -R 755 ./rotary_position_embedding_data/");
     system("cd ./rotary_position_embedding_data/ && rm -rf ./*bin");
     system("cd ./rotary_position_embedding_data/ && rm -rf ./*pt");
-    system("cd ./rotary_position_embedding_data/ && python3 gen_data_torch.py 3 4 46 14 bfloat16");
+    system("cd ./rotary_position_embedding_data/ && python3 gen_data_torch.py 3 4 46 128 bfloat16");
     system("cd ./rotary_position_embedding_data/ && python3 gen_tiling.py case1");
 
     char *path_ = get_current_dir_name();

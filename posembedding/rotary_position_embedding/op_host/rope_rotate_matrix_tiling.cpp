@@ -46,7 +46,7 @@ const uint64_t TILING_MODE_WEIGHT = 10;
 const uint64_t BASE_M = 128;
 const uint64_t BASE_N = 128;
 const uint64_t BASE_K = 128;
-const uint64_t CV_PARALL_NUM = 4;
+const uint64_t CV_PARALL_NUM = 16;
 
 const uint64_t TILING_MODE_UNKNOWN = 0;
 const uint64_t TILING_MODE_BNSD = 1;

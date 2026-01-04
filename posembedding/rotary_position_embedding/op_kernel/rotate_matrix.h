@@ -36,6 +36,12 @@ struct MMConfig {
     int32_t blockNumN_;
 };
 
+struct CVConfig {
+    int32_t blockIdx;
+    int32_t cvParall;       // 当前cv缓存块序号
+    int32_t cvParallNum;
+};
+
 namespace RotateMatrix {
 using namespace AscendC;
 using namespace matmul;
@@ -59,10 +65,10 @@ public:
                                 const RotaryPositionEmbeddingTilingData &tilingData, TPipe *pipe);
     __aicore__ inline void InitData(const RotaryPositionEmbeddingTilingData &tiling);
     __aicore__ inline void Process();
-    __aicore__ inline void AICProcess(int64_t offset, int64_t cvParall);
+    __aicore__ inline void AICProcess(int64_t offset);
     __aicore__ inline void innerProcess(int64_t bnIdx);
     __aicore__ inline void XCosProcess(int64_t offset, int64_t baseMNOffset, int64_t relativeOffset);
-    __aicore__ inline void XRSinProcess(int64_t offset, int64_t baseMNOffset, int64_t relativeOffset, int64_t cvParall);
+    __aicore__ inline void XRSinProcess(int64_t offset, int64_t baseMNOffset, int64_t relativeOffset);
     template <typename U>
     __aicore__ inline void AIVCopyIn(GlobalTensor<U> xGM);
     __aicore__ inline void AIVCopyOut(GlobalTensor<T> xGM);
@@ -83,6 +89,7 @@ protected:
     int32_t subBlockIdx_;
     int32_t coreNum_;
     MMConfig mmConfig_;
+    CVConfig cvConfig_;
     TCubeTiling cubeTiling_;  // Matmul Tiling数据
 };
 
@@ -102,6 +109,7 @@ __aicore__ inline void RotateMatrixBNSD<T>::InitData(const RotaryPositionEmbeddi
     mmConfig_.blockNumM_ = rotateTiling.blockNumM;              // SD块内的baseMN块个数
     mmConfig_.blockNumN_ = rotateTiling.blockNumN;              // SD块内的baseMN块个数
     mmConfig_.blockNum_ = rotateTiling.blockNum;                // SD块内的baseMN块个数
+    cvConfig_.cvParallNum = rotateTiling.cvParallNum;
     mmConfig_.sdSize_ = mmConfig_.m_ * mmConfig_.k_;            // BNSD内的SD块大小
     coreNum_ = rotateTiling.coreNum;
 }
@@ -135,25 +143,34 @@ template <typename T>
 __aicore__ inline void RotateMatrixBNSD<T>::Process()
 {
     for (int i = 0; i < mmConfig_.bn_; ++i) {
+        // 重置block块和cv并行序号
+        cvConfig_.blockIdx = blockIdx_;
+        cvConfig_.cvParall = 0;
+        if ASCEND_IS_AIV {
+            cvConfig_.blockIdx /= 2;
+        }
+
         innerProcess(i);
+        
+        // 防止BN间SD内容互相影响
+        if ASCEND_IS_AIV {
+            AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x1);
+            AscendC::CrossCoreWaitFlag(0x3);
+        }
+        if ASCEND_IS_AIC {
+            AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x3);
+            AscendC::CrossCoreWaitFlag(0x1);
+        }
     }
 }
 
 template <typename T>
 __aicore__ inline void RotateMatrixBNSD<T>::innerProcess(int64_t bnIdx)
 {
-    // 判断当前起始位置
-    int64_t blockIdx = blockIdx_; // baseMN为单位
-    int64_t cvParall = 0;
-
-    if ASCEND_IS_AIV {
-        blockIdx /= 2;
-    }
-
-    while (blockIdx < mmConfig_.blockNum_) {
+    while (cvConfig_.blockIdx < mmConfig_.blockNum_) {
         // 本轮起始位置
-        auto idxM = blockIdx / mmConfig_.blockNumN_;
-        auto idxN = blockIdx % mmConfig_.blockNumN_;
+        auto idxM = cvConfig_.blockIdx / mmConfig_.blockNumN_;
+        auto idxN = cvConfig_.blockIdx % mmConfig_.blockNumN_;
 
         // 计算当前baseMN块的偏移
         int64_t mOffset = idxM * mmConfig_.baseM_ * mmConfig_.k_;
@@ -169,12 +186,12 @@ __aicore__ inline void RotateMatrixBNSD<T>::innerProcess(int64_t bnIdx)
         if ASCEND_IS_AIV {
             // 两个AIV, 各处理一半baseM
             if (unlikely(mmConfig_.curBaseM_ < 2 && subBlockIdx_ == 0)) {
-                blockIdx += coreNum_;
+                cvConfig_.blockIdx += coreNum_;
                 AscendC::CrossCoreWaitFlag(0x5);
-                if (cvParall > HALF) {
+                if (cvConfig_.cvParall > cvConfig_.cvParallNum - 2) {
                     CrossCoreSetFlag<2, PIPE_MTE3>(0x2);
                 }
-                cvParall++;
+                cvConfig_.cvParall++;
                 continue;
             }
             // 重写baseM偏移大小及起始地址
@@ -185,18 +202,18 @@ __aicore__ inline void RotateMatrixBNSD<T>::innerProcess(int64_t bnIdx)
             mmConfig_.curBaseM_= subBlockIdx_ == 0 ? 
                                  (mmConfig_.curBaseM_ / 2) : (mmConfig_.curBaseM_ - mmConfig_.curBaseM_ / 2);
             XCosProcess(baseOffset, sinCosOffset, relativeOffset);
-            XRSinProcess(baseOffset, sinCosOffset, relativeOffset, cvParall);
+            XRSinProcess(baseOffset, sinCosOffset, relativeOffset);
         }
 
         if ASCEND_IS_AIC {
-            AICProcess(baseOffset, cvParall);
+            AICProcess(baseOffset);
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x5);
-            if (cvParall > 2) {
+            if (cvConfig_.cvParall > cvConfig_.cvParallNum - 2) {
                 AscendC::CrossCoreWaitFlag(0x2);
             }
         }
-        blockIdx += coreNum_;
-        cvParall++;
+        cvConfig_.blockIdx += coreNum_;
+        cvConfig_.cvParall++;
     }
 }
 
@@ -223,7 +240,7 @@ __aicore__ inline void RotateMatrixBNSD<T>::XCosProcess(int64_t offset, int64_t 
 }
 
 template <typename T>
-__aicore__ inline void RotateMatrixBNSD<T>::XRSinProcess(int64_t offset, int64_t baseMNOffset, int64_t relativeOffset, int64_t cvParall)
+__aicore__ inline void RotateMatrixBNSD<T>::XRSinProcess(int64_t offset, int64_t baseMNOffset, int64_t relativeOffset)
 {
     int64_t aivOffset = subBlockIdx_ * relativeOffset;
     AIVCopyIn<T>(sinGm_[baseMNOffset]); // baseMN, GM->UB
@@ -235,18 +252,20 @@ __aicore__ inline void RotateMatrixBNSD<T>::XRSinProcess(int64_t offset, int64_t
     AscendC::CrossCoreWaitFlag(0x5);
 
     LocalTensor<float> xRLocal = inQueue_.AllocTensor<float>();
-    DataCopy(xRLocal, xRotatedGm_[blockIdx_ / 2 * 4 * mmConfig_.baseMN_ + (cvParall % 4) * mmConfig_.baseMN_ + aivOffset],
+    DataCopy(xRLocal, xRotatedGm_[blockIdx_ / 2 * cvConfig_.cvParallNum * mmConfig_.baseMN_
+             + (cvConfig_.cvParall % cvConfig_.cvParallNum) * mmConfig_.baseMN_ + aivOffset],
              static_cast<uint32_t>(mmConfig_.curBaseM_ * mmConfig_.curBaseN_));
-    
+
     SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
     WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
+
+    if (cvConfig_.cvParall > cvConfig_.cvParallNum - 2) {
+        CrossCoreSetFlag<2, PIPE_MTE2>(0x2);
+    }
+    
     Mul(buff[aivOffset], xRLocal, buff[aivOffset], mmConfig_.curBaseM_ * mmConfig_.curBaseN_); // x_r * sin
     PipeBarrier<PIPE_V>();
-
-    inQueue_.FreeTensor(xRLocal);
-    if (cvParall > 2) {
-        CrossCoreSetFlag<2, PIPE_MTE3>(0x2);
-    }
+    
     // x * cos + x_r * sin
     Add(xCosLocal_[aivOffset], buff[aivOffset], xCosLocal_[aivOffset], mmConfig_.curBaseM_ * mmConfig_.curBaseN_);
     PipeBarrier<PIPE_V>();
@@ -256,6 +275,7 @@ __aicore__ inline void RotateMatrixBNSD<T>::XRSinProcess(int64_t offset, int64_t
 
     outQueue_.EnQue(yLocal);
     AIVCopyOut(yGm_[offset]);
+    inQueue_.FreeTensor(xRLocal);
 }
 
 template <typename T>
@@ -290,7 +310,7 @@ __aicore__ inline void RotateMatrixBNSD<T>::AIVCopyOut(GlobalTensor<T> yGM)
 }
 
 template <typename T>
-__aicore__ inline void RotateMatrixBNSD<T>::AICProcess(int64_t offset, int64_t cvParall)
+__aicore__ inline void RotateMatrixBNSD<T>::AICProcess(int64_t offset)
 {
     int64_t xOffset = offset / mmConfig_.k_ * mmConfig_.k_;
     int64_t rotateOffset = offset - xOffset;
@@ -300,7 +320,8 @@ __aicore__ inline void RotateMatrixBNSD<T>::AICProcess(int64_t offset, int64_t c
     mm_.SetTensorA(xGm_[xOffset]);
     mm_.SetTensorB(rotateGm_[rotateOffset]);
     while (mm_.Iterate()) {
-        mm_.GetTensorC(xRotatedGm_[blockIdx_ * 4 * mmConfig_.baseMN_ + (cvParall % 4) * mmConfig_.baseMN_], 0, true);    // true: 开启连续写
+        mm_.GetTensorC(xRotatedGm_[blockIdx_ * cvConfig_.cvParallNum * mmConfig_.baseMN_
+                       + (cvConfig_.cvParall % cvConfig_.cvParallNum) * mmConfig_.baseMN_], 0, true);    // true: 开启连续写
     }
     mm_.End();
 }
