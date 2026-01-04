@@ -1160,12 +1160,24 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
       OP_CHECK_NULL_WITH_CONTEXT(context, scale0Desc);
       scaleDtype_ = scale0Desc->GetDataType();
   }
+  
   auto wFormat0 = static_cast<ge::Format>(ge::GetPrimaryFormat(w0Desc->GetStorageFormat()));
   wFormat_ = wFormat0 == ge::FORMAT_FRACTAL_NZ ? matmul_tiling::CubeFormat::NZ : matmul_tiling::CubeFormat::ND;
   tuningConfig_ = (tuningConfigPtr != nullptr && tuningConfigPtr->GetSize() > TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX) ?
                   (reinterpret_cast<const int64_t *>(tuningConfigPtr->GetData()))[TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX] : 0;
   tuningConfigWorkspace_ = (tuningConfigPtr != nullptr && tuningConfigPtr->GetSize() > TUNING_CONFIG_ALLOW_WORKSPACE_INDEX) ?
                   (reinterpret_cast<const int64_t *>(tuningConfigPtr->GetData()))[TUNING_CONFIG_ALLOW_WORKSPACE_INDEX] : 0;
+
+  if (((compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND910B ||
+        compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND910_93)) &&
+    isA4W4_ ){
+      OP_CHECK_IF( !((wFormat0 == ge::FORMAT_FRACTAL_NZ) || (wFormat0 != FORMAT_FRACTAL_NZ && transposeWeight_ == 0)),
+               OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                                           "A4W4 GMM currently supports only weight tensor nz transpose/untranspose input \
+                                            or nd format untranspose input."
+                                           ),
+                return ge::GRAPH_FAILED);
+  }
   return ge::GRAPH_SUCCESS;
 }
 

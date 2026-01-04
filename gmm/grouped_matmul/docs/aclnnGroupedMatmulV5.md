@@ -661,7 +661,7 @@ aclnnStatus aclnnGroupedMatmulV5(
       除[公共约束](#公共约束)外，A4W4场景其余约束如下：
       - 仅支持GroupType=0（M轴分组），actType=0，groupListType=0/1
       - 当前仅支持x、weight、out均为长度为1的TensorList
-      - x不支持转置，weight不支持转置
+      - x不支持转置，weight支持不转置和NZ转置
       - x仅支持2维Tensor，Shape为（M，K）
       - weight仅支持3维Tensor，Shape为（E，K，N）
       - weight的数据格式为ND时，要求n为8的整数倍。
