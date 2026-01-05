@@ -17,7 +17,7 @@
 #include "platform/platform_info.h"
 #include "log/log.h"
 #include "register/op_impl_registry.h"
-#include "platform/platform_ascendc.h"
+#include "tiling/platform/platform_ascendc.h"
 #include "util/math_util.h"
 #include "util/shape_util.h"
 #include "ring_attention_update_tiling.h"
