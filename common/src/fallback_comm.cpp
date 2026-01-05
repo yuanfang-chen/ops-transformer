@@ -39,8 +39,7 @@ aclDataType ToAclDataType(ge::DataType dtype) {
     ge::DataType::DT_INT64,       ge::DataType::DT_DOUBLE,     ge::DataType::DT_BOOL,   ge::DataType::DT_STRING,
     ge::DataType::DT_COMPLEX64,   ge::DataType::DT_COMPLEX128, ge::DataType::DT_BF16,   ge::DataType::DT_UINT64,
     ge::DataType::DT_FLOAT8_E5M2, ge::DataType::DT_HIFLOAT8,   ge::DataType::DT_INT4,   ge::DataType::DT_FLOAT8_E4M3FN,
-    ge::DataType::DT_FLOAT8_E8M0
-  };
+    ge::DataType::DT_FLOAT8_E8M0, ge::DataType::DT_FLOAT4_E2M1, ge::DataType::DT_FLOAT4_E1M2};
   auto iter = std::find(CANN_CONVERT_TO_ACL_DataType_LIST.begin(), CANN_CONVERT_TO_ACL_DataType_LIST.end(), dtype);
   if (iter == CANN_CONVERT_TO_ACL_DataType_LIST.end()) {
     return aclDataType::ACL_DT_UNDEFINED;
