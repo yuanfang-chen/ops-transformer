@@ -173,7 +173,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetWorkspaceSize()
     selectedKWorkspaceLen = AlignData(selectedKWorkspaceLen, GM_ALIGN);
     selectedVWorkspaceLen = AlignData(selectedVWorkspaceLen, GM_ALIGN);
 
-    selectedKWorkspaceLen *= 3;
+    selectedKWorkspaceLen *= 4;
     selectedVWorkspaceLen *= PING_PONG_BUFFER;
 
     size_t *workspaces = context_->GetWorkspaceSizes(1);
@@ -181,6 +181,11 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetWorkspaceSize()
     workspaces[0] += (selectedKWorkspaceLen + selectedVWorkspaceLen) * currentUseCoreNum;
     workspaces[0] += mm12WorkspaceLen * 2 * currentUseCoreNum;
     workspaces[0] += dqWorkspaceLen + dkWorkspaceLen + dvWorkspaceLen;
+
+    int64_t dAlign = (tilingData.opInfo.get_D() + tilingData.opInfo.get_ropeD() + 15) / 16 * 16;
+    int64_t d2Align = (tilingData.opInfo.get_D2() + 15) / 16 * 16;
+    // 每个s1做完，做scatter add累加，workspace开DB
+    workspaces[0] += 24 * PING_PONG_BUFFER * tmpData.selected_block_count * tmpData.selected_block_size * (dAlign + d2Align) * B32;
 
     tilingData.opInfo.set_mm12WorkspaceLen(mm12WorkspaceLen);
     tilingData.opInfo.set_selectedKWorkspaceLen(selectedKWorkspaceLen);
@@ -267,7 +272,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::DoSftTiling()
     constexpr int32_t maxProcessDataSize = 8 * 1024;
 
     uint32_t sftBaseN = tmpData.singleN;
-    uint32_t sftBaseM = maxProcessDataSize / sftBaseN;
+    uint32_t sftBaseM = 16;
 
     tilingData.splitCoreParams.set_sftBaseM(sftBaseM);
     tilingData.splitCoreParams.set_sftBaseN(sftBaseN);
