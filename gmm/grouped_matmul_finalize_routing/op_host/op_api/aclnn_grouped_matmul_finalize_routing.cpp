@@ -514,7 +514,7 @@ static inline bool CheckTuningConfig(const GroupedMatmulParams &params)
     return true;
 }
 
-static aclnnStatus CheckParams(GroupedMatmulParams &params,aclOpExecutor *executor)
+static aclnnStatus CheckParams(GroupedMatmulParams &params)
 {
     if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
         GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRouting91095Checker checker;
@@ -834,7 +834,7 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
     params2.rowIndex = reformatedRowIndex;
     params2.offset = reformatedOffset;
     
-    ret = CheckParams(params2,executor);
+    ret = CheckParams(params2);
     
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
@@ -1023,12 +1023,11 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     auto uniqueExecutor = CREATE_EXECUTOR();
     // unpack int32 to int4
     auto tmpWeight = uniqueExecutor.get()->CreateView(x2, viewShape, x2->GetViewOffset());
+    auto storageShape = x2->GetStorageShape();
     if (tmpWeight->GetDataType() == DataType::DT_INT32) {
         tmpWeight->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
         auto viewShapeDim = viewShape.GetDimNum();
         viewShape[viewShapeDim - 1] *= PER_INT4_IN_U32;
-
-        auto storageShape = x2->GetStorageShape();
         auto storageShapeDim = storageShape.GetDimNum();
         // The following line adjusts the storage shape because we have a few
         // checks that put some requirements on the storage shape and the view shape,
@@ -1057,11 +1056,11 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         // in torch_npu, we should update the following line accordingly.
         storageShape[storageShapeDim - 1] = NZ_STORAGE_LAST_DIM * PER_INT4_IN_U8;
         tmpWeight->SetViewShape(viewShape);
-        tmpWeight->SetStorageShape(storageShape);
         tmpWeight->SetDataType(DataType::DT_INT4);
     }
+    tmpWeight->SetStorageShape(storageShape);
 
-    if (x2->GetDataType() == DataType::DT_INT4 && pertokenScaleOptional == nullptr) {
+    if (tmpWeight->GetDataType() == DataType::DT_INT4 && pertokenScaleOptional == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
                 "GroupedMatmulFinalizeRoutingWeightNz does not support nullptr for pertokenScale.");
         return ACLNN_ERR_PARAM_NULLPTR;
