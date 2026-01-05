@@ -77,10 +77,8 @@ static void SetTilingData(gert::TilingContext *context, QuantReduceScatterTiling
         context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
     tilingData.quantReduceScatterTilingInfo.scaleHiddenSize =
         context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ONE);
-    tilingData.quantReduceScatterTilingInfo.winInDataSize = 
-        mc2tiling::Mc2TilingUtils::GetMaxWindowSize() / HCCL_BUFFSIZE_FACTOR;
-    tilingData.quantReduceScatterTilingInfo.winOutStateSize = 
-        mc2tiling::Mc2TilingUtils::GetMaxWindowSize() / HCCL_BUFFSIZE_FACTOR;
+    tilingData.quantReduceScatterTilingInfo.totalWinSize = 
+        mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
 }
 
 /**

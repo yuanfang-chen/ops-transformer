@@ -84,8 +84,7 @@ static void SetTilingData(gert::TilingContext *context, QuantAllReduceTilingData
     tilingData.quantAllReduceTilingInfo.bs = xValueBS;
     tilingData.quantAllReduceTilingInfo.hiddenSize = xValueH;
     tilingData.quantAllReduceTilingInfo.scaleHiddenSize = scalesValueH;
-    tilingData.quantAllReduceTilingInfo.winInDataSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize() / HCCL_BUFFSIZE_FACTOR;
-    tilingData.quantAllReduceTilingInfo.winOutStateSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize() / HCCL_BUFFSIZE_FACTOR;
+    tilingData.quantAllReduceTilingInfo.totalWinSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
 }
 
 /**

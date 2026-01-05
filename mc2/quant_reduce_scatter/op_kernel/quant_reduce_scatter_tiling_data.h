@@ -23,8 +23,7 @@ struct QuantReduceScatterTilingInfo {
     uint64_t hiddenSize;
     uint64_t scaleHiddenSize;
     uint64_t aivNum;
-    uint64_t winInDataSize;   // WinIn区大小，用作数据区
-    uint64_t winOutStateSize; // WinOut区大小，用作状态区
+    uint64_t totalWinSize;   // Win区总大小，即HCCL_BUFFER_SIZE
 };
 
 struct QuantReduceScatterTilingData {

@@ -46,8 +46,7 @@ private:
 
     uint64_t xSize_{0};
     uint64_t xNums_{0};
-    uint64_t dataWinSize_{0};
-    uint64_t statusWinSize_{0};
+    uint64_t totalWinSize_{0};
     uint64_t tailXNums_{0};
     uint32_t totalBlockNums_{0};
 
@@ -71,8 +70,7 @@ __aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::Init(GM_ADDR x, G
 
     /* quant_all_reduce自己的数据 */
     auto&& tiliingDatainfo = tilingData->quantAllReduceTilingInfo;
-    dataWinSize_ = tiliingDatainfo.winInDataSize;
-    statusWinSize_ = tiliingDatainfo.winOutStateSize;
+    totalWinSize_ = tiliingDatainfo.totalWinSize;
     xNums_ = tiliingDatainfo.bs * tiliingDatainfo.hiddenSize; // 总的x数据个数， bs * h
     xSize_ = xNums_ * sizeof(XType); // 总的x数据量，B
     tailXNums_ = BlockAlignMod(xNums_, X_PRE_BLOCK_NUM); // 计算最后一个数据块的大小
@@ -93,12 +91,12 @@ __aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::Init(GM_ADDR x, G
     // 公共MTE搬运参数计算
     mteComm_.InitParams();
 
-    // 初始化GM上的Tensor，包括Win区
-    mteComm_.InitGMTensor(x, scales, output, xSize_, dataWinSize_);
-
     // 初始化tPipe的各种buffer
     mteComm_.InitBuffer(tPipe);
     vecComp_.InitBuffer(tPipe);
+
+    // 初始化GM上的Tensor，包括Win区
+    mteComm_.InitGMTensor(x, scales, output, xSize_, totalWinSize_);
 }
 
 template <TemplateTypeClass>
@@ -133,7 +131,7 @@ template <TemplateTypeClass>
 __aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::ExecuteAllReduce()
 {   
     // 读状态位，软同步
-    mteComm_.ReadStatus(statusWinSize_); 
+    mteComm_.ReadStatus();
     // 遍历需要搬运的数据块
     for (uint64_t curBlock = 0; curBlock < mteComm_.assignedBlockNums_; ++curBlock) {
         uint64_t curXOffset = mteComm_.xOffset_ + curBlock * X_PRE_BLOCK_NUM;
@@ -145,17 +143,10 @@ __aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::ExecuteAllReduce(
         for (uint32_t i = 0; i < mteComm_.hcclContext_->rankDim; ++i) {
             uint32_t remoteRankId = (startRankId + i) % mteComm_.hcclContext_->rankDim;
 
-            // 获取对端Win区中 x 和 sclae的地址
-            GM_ADDR remoteXWin = (GM_ADDR)(mteComm_.hcclContext_->windowsIn[remoteRankId]);
-            GM_ADDR remoteScaleWin = (GM_ADDR)(mteComm_.hcclContext_->windowsIn[remoteRankId] + xSize_);
-
-            // OOM检测相关，给OOM框架手动设置端卡GM上WinIn数据区的的地址和大小
-            #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
-                OOMCheckAddrRange<XType>((__gm__ XType*)(remoteXWin), dataWinSize_);
-            #endif
-
-            remoteWinXTensor_.SetGlobalBuffer((__gm__ XType*)remoteXWin);
-            remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleWin);
+            // 获取对端Win区中数据区相关的地址
+            GM_ADDR remoteDataSpaceGm = mteComm_.GetWinDataAddrGm(remoteRankId, mteComm_.winBufferFlags_);
+            remoteWinXTensor_.SetGlobalBuffer((__gm__ XType*)remoteDataSpaceGm);
+            remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)(remoteDataSpaceGm + xSize_));
 
             // 读取对端对应地址的 x 和 scale数据，进行反量化和求和
             ReadDataBlockReduceSum(curXOffset, curScaleOffset); // AllReduce过程，allgather直接搬运
@@ -181,7 +172,7 @@ __aicore__ inline void QuantAllReduceMteOneShot<TemplateType>::Process()
     // 一次性拷贝完所有数据到本地卡win区
     mteComm_.CopyDataToWin();
     // 写入状态到状态区
-    mteComm_.WriteStatusToWin(statusWinSize_);
+    mteComm_.WriteStatusToWin();
     // 执行AllReduce过程：等待状态区同步，读取数据并进行反量化ReduceSum
     ExecuteAllReduce();
 }
