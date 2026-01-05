@@ -21,7 +21,7 @@
 #include "mc2_log.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "../../../op_kernel/matmul_reduce_scatter_v2_tiling_key.h"
+#include "../../../op_kernel/matmul_reduce_scatter_v2_apt_tiling_key.h"
 
 using namespace Mc2Log;
 using namespace Mc2Tiling;
@@ -438,7 +438,6 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
     bool enableNd2Nz = false;               // quantbatchmatmul输入数据格式为ND
     bool isCastBias = false;                // david上支持bias数据类型为bf16
     uint8_t commAlgorithm = args_.commAlg;  // fullmesh
-    bool inputIsfp8 = true;
     uint8_t outputType = 0;
     uint32_t yDType = static_cast<uint32_t>(*context_->GetAttrs()->GetAttrPointer<uint64_t>(YDTYPE_INDEX));
     if (yDType == DTYPE_ENUM_FLOAT) {
@@ -458,17 +457,10 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
     }
 
     bool isPerBlock = quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE;
-    // 1、x1、x2均不转置：0; 2、x1转置：1; 3、x2转置：2; 4、x1和x2均转置：3;
-    uint8_t transpose = static_cast<uint8_t>(args_.isATrans) + (static_cast<uint8_t>(args_.isBTrans) << 1);
-    uint64_t tilingKey = GET_TPL_TILING_KEY(                            \
-        SET_NOT_USE_AIV_MODE_TILING,                                    \
-        isCastBias, enableNd2Nz, commAlgorithm, isPerBlock, transpose,  \
-        SET_NOT_USE_BASE_TILING,                                        \
-        inputIsfp8, outputType, scaleType);
-    OP_LOGD(opName_, "isCastBias, enableNd2Nz, commAlgorithm, isPerBlock, transpose is: [%d, %d, %u, %d, %u]", \
-            isCastBias, enableNd2Nz, commAlgorithm, isPerBlock, transpose);
-    OP_LOGD(opName_, "inputIsfp8, outputType, scaleType is: [%d, %u, %u]", \
-            inputIsfp8, outputType, scaleType);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(   \
+        isPerBlock, args_.isATrans, args_.isBTrans, INPUT_TYPE_IS_FP8, outputType, scaleType);
+    OP_LOGD(opName_, "isPerBlock, transA, transB is: [%d, %d, %d]", isPerBlock, args_.isATrans, args_.isBTrans);
+    OP_LOGD(opName_, "outputType, scaleType is: [%u, %u]", outputType, scaleType);
     return tilingKey;
 }
 

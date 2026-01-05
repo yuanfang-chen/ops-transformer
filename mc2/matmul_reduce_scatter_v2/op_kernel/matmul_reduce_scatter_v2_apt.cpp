@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "matmul_reduce_scatter_v2_tiling_key.h"
+#include "matmul_reduce_scatter_v2_apt_tiling_key.h"
 #include "lib/matmul_intf.h"
 #include "common_def.h"
 
@@ -93,11 +93,11 @@ using namespace MatmulReduceScatterV2Impl;
         }                                                                                                             \
     } while (0)
 
-template<TPL_AIV_MODE_TILING_PARAMS_COMM, TPL_PARAMS_COMM, TPL_BASE_TILING_PARAMS_COMM, TPL_QUANT_BMM_TILING_PARAMS_COMM> 
+template<bool TPL_ISPERBLOCK, bool TPL_TRANSA, bool TPL_TRANSB, bool TPL_INPUT, uint8_t TPL_OUTPUTDTYPE, uint8_t TPL_SCALETYPE>
 __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM,
-                                                               GM_ADDR x1ScaleGM, GM_ADDR x2ScaleGM,
-                                                               GM_ADDR quantScaleGM, GM_ADDR cGM, GM_ADDR amaxOutGM,
-                                                               GM_ADDR workspaceGM, GM_ADDR tilingGM)
+                                                    GM_ADDR x1ScaleGM, GM_ADDR x2ScaleGM,
+                                                    GM_ADDR quantScaleGM, GM_ADDR cGM, GM_ADDR amaxOutGM,
+                                                    GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
 // david算子模板
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
@@ -107,11 +107,9 @@ __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
     // bf16/fp16 场景
     using BiasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, typename BiasType<BIAS_DTYPE>::type>;
-    if constexpr (TPL_COMMALG == TPL_COMM_ALG_FULL_MESH && TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE) {  // david + fullmesh + no nd2nz + bais not cast
-        using BType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, false>;
-        INVOKE_MMREDUCESCATTER_FP16_BF16_OP_IMPL(MatmulReduceScatterFP16BF16);
-    } else if constexpr (TPL_COMMALG == TPL_COMM_ALG_FULL_MESH && TPL_TRANSPOSE == TPL_X2_TRANSPOSE) {    //  david + transb + fullmesh + no nd2nz + bais not cast
-        using BType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, true>;
+    if constexpr (!TPL_ISPERBLOCK && TPL_INPUT == INPUT_TYPE_IS_FP16_BF16 && \
+                TPL_OUTPUTDTYPE == OUTPUT_TYPE_IS_FP8 && TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER) {
+        using BType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, TPL_TRANSB>;
         INVOKE_MMREDUCESCATTER_FP16_BF16_OP_IMPL(MatmulReduceScatterFP16BF16);
     }
 #elif (((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_HIFLOAT8))) ||        \
@@ -119,36 +117,14 @@ __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM
         ((ORIG_DTYPE_X2 == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_X2 == DT_FLOAT8_E5M2))))
     // float8/hif8
     #if (ORIG_DTYPE_X1 != DT_HIFLOAT8)
-        if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_FP8E8M0 && TPL_TRANSPOSE == TPL_X2_TRANSPOSE) {
-            INVOKE_QUANT_BATCHMM_PERTENSOR_MXFP8_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, true);
-        } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_FP8E8M0 && TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE) {
-            INVOKE_QUANT_BATCHMM_PERTENSOR_MXFP8_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, false);
+        if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_FP8E8M0) {
+            INVOKE_QUANT_BATCHMM_PERTENSOR_MXFP8_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, TPL_TRANSB);
         }
     #endif
-    if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE && !TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, false);
-    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                        TPL_TRANSPOSE == TPL_X1_TRANSPOSE && !TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, false);
-    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                        TPL_TRANSPOSE == TPL_X2_TRANSPOSE && !TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, true);
-    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                        TPL_TRANSPOSE == TPL_X1_X2_TRANSPOSE && !TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, true);
-    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                        TPL_TRANSPOSE == TPL_X1_X2_NO_TRANSPOSE && TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, false);
-    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                        TPL_TRANSPOSE == TPL_X1_TRANSPOSE && TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, false);
-    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                        TPL_TRANSPOSE == TPL_X2_TRANSPOSE && TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, false, true);
-    } else if constexpr (TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER && \
-                        TPL_TRANSPOSE == TPL_X1_X2_TRANSPOSE && TPL_ISPERBLOCK) {
-        INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, true, true);
+    if constexpr (!TPL_ISPERBLOCK && TPL_INPUT == INPUT_TYPE_IS_FP8 && TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER) {
+        INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, TPL_TRANSA, TPL_TRANSB);
+    } else if constexpr (TPL_ISPERBLOCK && TPL_INPUT == INPUT_TYPE_IS_FP8 && TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER) {
+        INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, TPL_TRANSA, TPL_TRANSB);
     }
 #endif
 }

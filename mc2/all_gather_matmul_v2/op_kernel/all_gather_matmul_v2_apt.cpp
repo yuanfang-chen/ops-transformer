@@ -15,6 +15,7 @@
 
 #include "lib/matmul_intf.h"
 #include "common.h"
+#include "all_gather_matmul_v2_apt_tiling_key.h"
 
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
 #include "arch35/all_gather_matmul_fp16_bf16.h"
@@ -72,10 +73,11 @@ using namespace AllGatherMatmulImpl;
         op.Process();                                                                                                 \
     } while (0)
 
-extern "C" __global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR scaleInv1,
-                                                           GM_ADDR scaleInv2, GM_ADDR scale, GM_ADDR cGM,
-                                                           GM_ADDR gatherOut, GM_ADDR amax, GM_ADDR workspaceGM,
-                                                           GM_ADDR tilingGM)
+template<TPL_PARAMS_COMM, TPL_QUANT_BMM_PARAMS_COMM>
+__global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR scaleInv1,
+                                                GM_ADDR scaleInv2, GM_ADDR scale, GM_ADDR cGM,
+                                                GM_ADDR gatherOut, GM_ADDR amax, GM_ADDR workspaceGM,
+                                                GM_ADDR tilingGM)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
@@ -86,39 +88,20 @@ extern "C" __global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR 
          ((ORIG_DTYPE_X2 == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_X2 == DT_FLOAT8_E5M2)))
         // MX
         #if (ORIG_DTYPE_X1 != DT_HIFLOAT8)
-            if (TILING_KEY_IS(1000000000012001100UL) || TILING_KEY_IS(1000000000012021100UL)) {
-                INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_MX_OP_IMPL(AllGatherQuantBmm, false, true);
-            } else if (TILING_KEY_IS(1000000000010001100UL) || TILING_KEY_IS(1000000000010021100UL)) {
-                INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_MX_OP_IMPL(AllGatherQuantBmm, false, false);
+            if constexpr (SCALETYPE == SCALE_TYPE_IS_MX && !INPUT_IS_BF16FP16 && QUANTMMMODE == TPL_DEFAULT_MODE) {
+                INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_MX_OP_IMPL(AllGatherQuantBmm, false, TRANS_B);
             }
         #endif
-    if (TILING_KEY_IS(1000000000000001100UL)) {
-        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_OP_IMPL(AllGatherQuantBmm, false, false);
-    } else if (TILING_KEY_IS(1000000000000021100UL)) {
-        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_OP_IMPL(AllGatherQuantBmm, false, false);
-    } else if (TILING_KEY_IS(1000000000002021100UL)) {
-        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_OP_IMPL(AllGatherQuantBmm, false, true);
-    } else if (TILING_KEY_IS(1000000000002001100UL)) {
-        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_OP_IMPL(AllGatherQuantBmm, false, true);
-    } else if (TILING_KEY_IS(1000000000000101100UL)) {
+    if constexpr (SCALETYPE == SCALE_TYPE_NOT_IS_MX && !INPUT_IS_BF16FP16 && QUANTMMMODE == TPL_DEFAULT_MODE) {
+        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_OP_IMPL(AllGatherQuantBmm, false, TRANS_B);
+    } else if constexpr (SCALETYPE == SCALE_TYPE_NOT_IS_MX && !INPUT_IS_BF16FP16 && QUANTMMMODE == TPL_PERBLOCK_MODE) {
         INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_PERBLOCK_OP_IMPL(Mc2QuantBatchMatmulV3::MatMulPerBlockASW,
-                                                             Mc2CoreType::ON_CUBE, false, false);
-    } else if (TILING_KEY_IS(1000000000000121100UL)) {
-        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_PERBLOCK_OP_IMPL(Mc2QuantBatchMatmulV3::MatMulPerBlockASW,
-                                                             Mc2CoreType::ON_CUBE, false, false);
-    } else if (TILING_KEY_IS(1000000000002121100UL)) {
-        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_PERBLOCK_OP_IMPL(Mc2QuantBatchMatmulV3::MatMulPerBlockASW,
-                                                             Mc2CoreType::ON_CUBE, false, true);
-    } else if (TILING_KEY_IS(1000000000002101100UL)) {
-        INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_PERBLOCK_OP_IMPL(Mc2QuantBatchMatmulV3::MatMulPerBlockASW,
-                                                             Mc2CoreType::ON_CUBE, false, true);
+                                                             Mc2CoreType::ON_CUBE, false, TRANS_B);
     }
 #elif ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
-      // B矩阵根据tilingkey第7位判断, A矩阵不支持转置
-    if (TILING_KEY_IS(1000000000000000100UL)) {    // full mesh+ no nd2nz +biasNoNeedCast
-        INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(AllGatherMatmulFP16BF16, false);
-    } else if(TILING_KEY_IS(1000000000002000100UL)) {
-        INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(AllGatherMatmulFP16BF16, true);
+    if constexpr (SCALETYPE == SCALE_TYPE_NOT_IS_MX && INPUT_IS_BF16FP16 && \
+                OUTPUTDTYPE == OUTPUT_TYPE_IS_FP16_BF16) {    // full mesh+ no nd2nz +biasNoNeedCast
+        INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL(AllGatherMatmulFP16BF16, TRANS_B);
     }
 #endif
 }

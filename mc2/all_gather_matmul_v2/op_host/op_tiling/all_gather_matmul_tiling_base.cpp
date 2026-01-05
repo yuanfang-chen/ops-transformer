@@ -30,6 +30,7 @@
 #include "tiling/mc2_tiling_utils.h"
 #include "all_gather_formulaic_tiling.h"
 #include "all_gather_matmul_tiling_base.h"
+#include "../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
 
 using namespace AscendC;
 using namespace ge;
@@ -697,12 +698,11 @@ ge::graphStatus AllGatherMatmulTilingBase::GetWorkspaceSize()
 
 uint64_t AllGatherMatmulTilingBase::GetTilingKey() const
 {
-    // 1、x1、x2均不转置：0; 2、x1转置：1; 3、x2转置：2; 4、x1和x2均转置：3;
-    uint8_t transpose = static_cast<uint8_t>(args_.isATrans) + (static_cast<uint8_t>(args_.isBTrans) << 1);
-
-    uint64_t tilingKey = mc2tiling::MC2_TILINGKEY_OFFSET +
-                         RecursiveSum(castBias_, enableNd2Nz_, commAlgorithm_, !inputIsBf16Fp16_, outputIsFp8_, 
-                                      false, transpose);
+    uint8_t outputType = (outputIsFp8_) ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0);
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(
+        inputIsBf16Fp16_, args_.isBTrans, outputType, TPL_DEFAULT_MODE, SCALE_TYPE_NOT_IS_MX);
+    OP_LOGD(opName_, "AllGatherMatmulV2, inputIsBf16Fp16_, args_.isBTrans, outputType: [%d,%d,%u]",   \
+        inputIsBf16Fp16_, args_.isBTrans, outputType);
     OP_LOGD(opName_, "tilingKey=%lu", tilingKey);
     return tilingKey;
 }

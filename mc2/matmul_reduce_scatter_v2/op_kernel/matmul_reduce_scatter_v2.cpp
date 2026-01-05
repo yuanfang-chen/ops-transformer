@@ -24,7 +24,7 @@ using namespace matmulReduceScatterV2_aivmode_tiling;
 using namespace AscendC;
 using namespace MatmulReduceScatterV2Impl;
 
-template<TPL_AIV_MODE_TILING_PARAMS_COMM, TPL_PARAMS_COMM, TPL_BASE_TILING_PARAMS_COMM, TPL_QUANT_BMM_TILING_PARAMS_COMM> 
+template<bool TPL_ISBIAS, bool TPL_IS_TRANSPOSE_A, bool TPL_IS_TRANSPOSE_B, bool TPL_IS_SMALLM>
 __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM,
                                                                GM_ADDR x1ScaleGM, GM_ADDR x2ScaleGM,
                                                                GM_ADDR quantScaleGM, GM_ADDR cGM, GM_ADDR amaxOutGM,
@@ -42,15 +42,11 @@ __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM
 
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     REGISTER_TILING_DEFAULT(MatmulReduceScatterV2AivModeTilingData);
-    if constexpr (!TPL_IS_SMALLM && !TPL_IS_TRANSPOSE_B) {
-        //aivMode，非transB
-        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, false, void);
-    } else if constexpr (!TPL_IS_SMALLM && TPL_IS_TRANSPOSE_B) {
-        //aivMode，transB
-        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, true, void);
-    } else if constexpr (TPL_IS_SMALLM && !TPL_IS_TRANSPOSE_B) {
-        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivModeSmallM, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, false);
-    } else if constexpr (TPL_IS_SMALLM && TPL_IS_TRANSPOSE_B) {
-        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL(MatmulReduceScatterAivModeSmallM, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, true);
+    if constexpr (!TPL_IS_SMALLM) {
+        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL( \
+            MatmulReduceScatterAivMode, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, TPL_IS_TRANSPOSE_B, void);
+    } else if constexpr (TPL_IS_SMALLM) {
+        INVOKE_MMREDUCESCATTER_AIV_MODE_OP_IMPL( \
+            MatmulReduceScatterAivModeSmallM, FORMAT_X2 == FORMAT_FRACTAL_NZ, false, TPL_IS_TRANSPOSE_B);
     }
 }

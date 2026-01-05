@@ -646,12 +646,7 @@ static void GetTilingKey(uint64_t &tilingKey, const MatmulReduceScatterV2AivMode
     const gert::StorageShape *matrix_bias = context->GetOptionalInputShape(BIAS_INDEX);
     bool isBias = (matrix_bias == nullptr) ? false : true;
     bool isSmallM = GetAlgorithmPolicy(info.M, info.N, info.is910C, info.quantFlag) == AlgorithmStrategy::SMALL_M_OPTIMIZED;
-    tilingKey = GET_TPL_TILING_KEY(                     \
-        isBias, info.isTransposeA, info.isTransposeB,   \
-        isSmallM,                                       \
-        false, false, 0UL, false, 0UL,                  \
-        SET_NOT_USE_BASE_TILING,                        \
-        SET_NOT_USE_QUANT_BMM_TILING);
+    tilingKey = GET_TPL_TILING_KEY(isBias, info.isTransposeA, info.isTransposeB, isSmallM);
     return;
 }
 

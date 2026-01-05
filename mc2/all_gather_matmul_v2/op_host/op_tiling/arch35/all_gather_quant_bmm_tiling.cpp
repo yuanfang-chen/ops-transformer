@@ -17,6 +17,7 @@
 #include "op_mc2.h"
 #include "mc2_log.h"
 #include "all_gather_quant_bmm_tiling.h"
+#include "../../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
 
 using namespace Mc2Log;
 using namespace AscendC;
@@ -455,11 +456,11 @@ uint64_t AllGatherQuantBmmTiling::GetTilingKey() const
     }
     
     uint8_t quanMmMode = static_cast<uint8_t>(quantMmMode_) - 1;
-    uint8_t transpose = static_cast<uint8_t>(args_.isATrans) + (static_cast<uint8_t>(args_.isBTrans) << 1);
-    uint64_t tilingKey =
-        mc2tiling::MC2_TILINGKEY_OFFSET +
-        RecursiveSum(
-            castBias_, enableNd2Nz_, commAlgorithm_, !inputIsBf16Fp16_, outputType, quanMmMode, transpose, scaleType);
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(
+        inputIsBf16Fp16_, args_.isBTrans, outputType, quanMmMode, scaleType);
+    OP_LOGD(opName_, "AllGatherMatmulV2, inputIsBf16Fp16_, outputType, "        \
+        "args_.isBTrans, quanMmMode, scaleType: [%d,%u,%d,%u,%u]",              \
+        inputIsBf16Fp16_, outputType, args_.isBTrans, quanMmMode, scaleType);
     OP_LOGD(opName_, "Tiling Key=%lu", tilingKey);
     return tilingKey;
 }
