@@ -408,6 +408,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantStatic
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
     Cast(tokenF32LT_, inLocal, RoundMode::CAST_NONE, axisH_);
+    DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(float)), 0U, 0U};
+    DataCopyPadParams scalesPadParams = {false, 0, 0, 0};
     if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
         if (scalesCount_ == 1) {
             DataCacheCleanAndInvalid<float, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(scalesGT_);
@@ -415,9 +417,9 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantStatic
             SyncFunc<AscendC::HardEvent::S_V>();
             Muls(tokenF32LT_, tokenF32LT_, scaleVal, axisH_);
         } else if (scalesCount_ == axisH_) {
-            DataCopy(scalesLT_, scalesGT_, axisH_);
+            DataCopyPad(scalesLT_, scalesGT_, scalesInParams, scalesPadParams);
         } else {
-            DataCopy(scalesLT_, scalesGT_[expertIndex * axisH_], axisH_);
+            DataCopyPad(scalesLT_, scalesGT_[expertIndex * axisH_], scalesInParams, scalesPadParams);
         }
         if (scalesCount_ != 1) {
             SyncFunc<AscendC::HardEvent::MTE2_V>();
