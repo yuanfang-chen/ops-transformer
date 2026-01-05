@@ -15,6 +15,7 @@
 #include "matmul_all_reduce_tiling_910_95.h"
 #include "tiling/new_mc2_tiling_utils.h"
 #include "op_mc2.h"
+#include "mc2/matmul_all_reduce/op_kernel/matmul_all_reduce_apt_tiling_key.h"
 
 namespace optiling {
 bool MatmulAllReduceTilingA5::IsCapable()
@@ -68,19 +69,28 @@ ge::graphStatus MatmulAllReduceTilingA5::DoOpTiling()
 uint64_t MatmulAllReduceTilingA5::GetTilingKey() const
 {
     if (unlikely(isKZero_)) {
-        OP_LOGI(opName_, "Get tilingKey=%lu for empty tensor.", EMPTY_TENSOR_KEY);
-        return EMPTY_TENSOR_KEY;
+        const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
+            MMTYPE_NULL_TENSOR,                         \
+            false,                                      \
+            false,                                      \
+            SET_NOT_USE_FP_MM_TILING,                   \
+            SET_NOT_USE_QUANT_MM_TILING,                \
+            SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
+        return tilingKey;
     }
-
-    uint64_t tilingKey = 0;
+    bool matmulWithAdd = true;
     if (!matmulAllReduce910TilingData_.param.get_isAdd()) {
-        tilingKey = CUBE_ONLY_KEY;
-    } else {
-        tilingKey = MM_ALINGNED_TILING_KEY;
+        matmulWithAdd = false;
     }
-    // 为了不影响A2，910_95的tilingKey额外增加1）10^18
-    tilingKey += mc2tiling::MC2_TILINGKEY_OFFSET;
-    OP_LOGI(opName_, "Get tilingKey=%lu.", tilingKey);
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
+        MMTYPE_FP_MM,                               \
+        false,                                      \
+        false,                                      \
+        matmulWithAdd,                              \
+        SET_NOT_USE_QUANT_MM_TILING,                \
+        SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
+    OP_LOGD(opName_, "Mc2MatmulAllReduce: matmulWithAdd is:[%d].", matmulWithAdd);
+    OP_LOGD(opName_, "Mc2MatmulAllReduce: TilingKey=%lu.", tilingKey);
     return tilingKey;
 }
 

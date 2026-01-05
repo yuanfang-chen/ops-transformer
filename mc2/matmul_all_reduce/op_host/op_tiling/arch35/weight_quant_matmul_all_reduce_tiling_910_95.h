@@ -32,19 +32,11 @@ TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2RegBaseTilingData, tileR
 TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2RegBaseTilingData, tailRegBaseMmTiling);
 END_TILING_DATA_DEF;
 // weight int8
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100200, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101200, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100210, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101210, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100300, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100310, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101300, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101310, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100100, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_100110, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101100, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_101110, WeightQuantMatmulAllReduceA5TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000000008, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_0, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_12291, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_12295, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_77827, WeightQuantMatmulAllReduceA5TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_77831, WeightQuantMatmulAllReduceA5TilingData);
 REGISTER_TILING_DATA_CLASS(WeightQuantMatmulAllReduceA5TilingDataOp, WeightQuantMatmulAllReduceA5TilingData);
 
 BEGIN_TILING_DATA_DEF(WeightQuantMatmulAllReduceA5Fp8TilingData)
@@ -58,39 +50,34 @@ TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2ASTilingData, tileMmASTi
 TILING_DATA_FIELD_DEF_STRUCT(Mc2WeightQuantBatchMatmulV2ASTilingData, tailMmASTiling);
 END_TILING_DATA_DEF;
 // weight fp8/hif8
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000002160, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020000000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020001000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020002000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000020003000012160, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001100, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001120, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030003000001160, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011140, WeightQuantMatmulAllReduceA5Fp8TilingData);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2000030004000011160, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_20483, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_20487, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_24579, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_24583, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_86019, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_86023, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_90115, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_90119, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_151563, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_151567, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_155659, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_155663, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_217099, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_217103, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_221195, WeightQuantMatmulAllReduceA5Fp8TilingData);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_221199, WeightQuantMatmulAllReduceA5Fp8TilingData);
 REGISTER_TILING_DATA_CLASS(WeightQuantMatmulAllReduceA5Fp8TilingDataOp, WeightQuantMatmulAllReduceA5Fp8TilingData);
+
+struct WeightQuantMMAllReduceTilingKeyParams
+{
+    bool transB{false};
+    bool biasIsExist{false};
+    uint8_t antiQuantType{0};
+    uint8_t quantType{0};
+    bool hasAntiQuantOffset{false};
+    bool isBiasFp32{false};
+    uint8_t weightFormat{0};
+};
 
 class WeightQuantMatmulAllReduceTilingA5 : public MatmulAllReduceTilingBase
 {
@@ -166,6 +153,7 @@ private:
     WeightQuantMatmulAllReduceA5Fp8TilingData& weightQuantMatmulAllReduceA5Fp8TilingData_;
     uint64_t myWorkSpaceSize_{0U};
     bool isWeightFp8Hif8_{false};
+    WeightQuantMMAllReduceTilingKeyParams WeightQuantTPLPatams_;
 };
 
 class WeightQuantTilingTransferHelperA5 : public Mc2WeightQuantBatchMatmulV2RegBase
@@ -180,6 +168,7 @@ public:
     {}
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus PostTiling() override;
+    WeightQuantMMAllReduceTilingKeyParams GetWeightQuantMMAllReduceTPLParam();
     bool IsCapable() override
     {
         return true;
@@ -248,6 +237,7 @@ public:
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus PostTiling() override;
     void PrintTilingInputParam(std::unique_ptr<Mc2WeightQuantBatchMatmulInfo>& matmulInfo);
+    WeightQuantMMAllReduceTilingKeyParams GetWeightQuantASMMAllReduceTPLParam();
     bool IsCapable() override
     {
         return true;

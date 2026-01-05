@@ -28,17 +28,26 @@ TILING_DATA_FIELD_DEF_STRUCT(RCSTiling, param);
 TILING_DATA_FIELD_DEF_STRUCT(Mc2QuantBatchMatmulV3TilingData, tilematmulTiling);
 TILING_DATA_FIELD_DEF_STRUCT(Mc2QuantBatchMatmulV3TilingData, tailmatmulTiling);
 END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000000, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000001, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002000, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002001, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000010, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000000011, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002010, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000002011, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000004000, QuantMatmulAllReduceTilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1000000000000004001, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_514, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_66, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_578, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_6, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_518, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_70, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_582, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_130, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_134, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1090, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1094, QuantMatmulAllReduceTilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_2054, QuantMatmulAllReduceTilingDataA5);
 REGISTER_TILING_DATA_CLASS(QuantMatmulAllReduceTilingDataOp, QuantMatmulAllReduceTilingDataA5);
+
+struct QuantMMAllReduceTPLParam
+{
+    bool transB{false};
+    uint64_t kernelType{0};
+};
 
 class QuantMatmulAllReduceTilingA5 : public MatmulAllReduceTilingBase
 {
@@ -93,6 +102,7 @@ private:
     uint64_t myWorkSpaceSize_{0U};
     bool isCommInt8Enable_ = false;
     bool isCommFp8Enable_ = false;
+    QuantMMAllReduceTPLParam quantTPlparam_;
 };
 
 class QuantTilingTransferHelperA5 : public Mc2AdaptiveSlidingWindowTiling
@@ -113,6 +123,7 @@ public:
     ge::graphStatus GetShapeAttrsInfo() override;
     void PrintTilingInputParam(Mc2QuantBatchMatmulInfo quantBatchMatmulInfo);
     ge::graphStatus PostTiling() override;
+    QuantMMAllReduceTPLParam GetQuantMMAllReduceTPLParam(const uint64_t kernelType);
 
 private:
     QuantMatmulAllReduceTilingA5& tilingProcesser_;

@@ -76,6 +76,9 @@ public:
     ~Mc2WeightQuantBatchMatmulV2TilingASW() override = default;
 
 protected:
+    Mc2OptimizationAlgorithmSubCategory algorithmSubCategory_ = Mc2OptimizationAlgorithmSubCategory::ASW;
+    Mc2Mte2Configuration mte2Config_ = Mc2Mte2Configuration::MTE2_INNER_SIZE_512_BUF_NUM_2;
+
     ge::graphStatus DoOpTiling() override;
     ge::graphStatus DoLibApiTiling() override;
     uint64_t GetTilingKey() const override;
@@ -100,9 +103,6 @@ protected:
     void SetTilingData();
 
 private:
-    Mc2OptimizationAlgorithmSubCategory algorithmSubCategory_ = Mc2OptimizationAlgorithmSubCategory::ASW;
-    Mc2Mte2Configuration mte2Config_ = Mc2Mte2Configuration::MTE2_INNER_SIZE_512_BUF_NUM_2;
-
     // 滑窗相关信息
     AdaptiveSlidingWindow adaptiveWin_;
     BasicTiling basicTiling_;

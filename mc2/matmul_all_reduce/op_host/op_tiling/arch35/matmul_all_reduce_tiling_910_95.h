@@ -38,9 +38,9 @@ BEGIN_TILING_DATA_DEF(MatmulAllReduce910TilingDataA5)
     TILING_DATA_FIELD_DEF_STRUCT(MC2MatmulV3TilingData, mC2Mmv3TileTilingData);
     TILING_DATA_FIELD_DEF_STRUCT(MC2MatmulV3TilingData, mC2Mmv3TailTilingData);
 END_TILING_DATA_DEF;
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000000001, MatmulAllReduce910TilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000001100, MatmulAllReduce910TilingDataA5);
-REGISTER_TILING_DATA_CLASS(MatmulAllReduce_11000000000000000009, MatmulAllReduce910TilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_0, MatmulAllReduce910TilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_1, MatmulAllReduce910TilingDataA5);
+REGISTER_TILING_DATA_CLASS(MatmulAllReduce_17, MatmulAllReduce910TilingDataA5);
 
 class MatmulAllReduceTilingA5 : public MatmulAllReduceTilingBase
 {

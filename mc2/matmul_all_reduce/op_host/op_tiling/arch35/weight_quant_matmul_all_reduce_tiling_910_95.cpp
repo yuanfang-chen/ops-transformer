@@ -17,10 +17,10 @@
 
 #include "weight_quant_matmul_all_reduce_tiling_910_95.h"
 #include "op_mc2.h"
+#include "mc2/matmul_all_reduce/op_kernel/matmul_all_reduce_apt_tiling_key.h"
 
 namespace optiling {
 constexpr int64_t ANTIQUANT_GROUP_SIZE_MIN_VALUE = 32;
-constexpr uint64_t WEIGHT_QUANT_EMPTY_TENSOR_KEY_A5 = 11000000000000000008UL;
 
 bool WeightQuantMatmulAllReduceTilingA5::IsCapable()
 {
@@ -70,6 +70,15 @@ ge::graphStatus WeightQuantTilingTransferHelperA5::GetShapeAttrsInfo()
     return ge::GRAPH_SUCCESS;
 }
 
+WeightQuantMMAllReduceTilingKeyParams WeightQuantTilingTransferHelperA5::GetWeightQuantMMAllReduceTPLParam()
+{
+    WeightQuantMMAllReduceTilingKeyParams tplParam;
+    tplParam.transB = matmulInfoPtr_->transB;
+    tplParam.antiQuantType = static_cast<uint8_t>(matmulInfoPtr_->antiQuantType);
+    tplParam.hasAntiQuantOffset = matmulInfoPtr_->hasAntiQuantOffset;
+    return tplParam;
+}
+
 ge::graphStatus WeightQuantAsTilingTransferHelper::GetShapeAttrsInfo()
 {
     OP_LOGI(tilingProcesser_.opName_, "Start fill weight fp8/hif8 matmul info.");
@@ -105,6 +114,21 @@ ge::graphStatus WeightQuantAsTilingTransferHelper::GetShapeAttrsInfo()
             matmulInfoPtr_->opName, "Nz weight input is not supported in fp8/hif8 weight per-channel quant scene."),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
+}
+
+WeightQuantMMAllReduceTilingKeyParams WeightQuantAsTilingTransferHelper::GetWeightQuantASMMAllReduceTPLParam()
+{
+    WeightQuantMMAllReduceTilingKeyParams tplParam;
+    tplParam.transB = matmulInfoPtr_->transB;
+    tplParam.antiQuantType = static_cast<uint8_t>(matmulInfoPtr_->antiQuantType);
+    tplParam.quantType = static_cast<uint8_t>(matmulInfoPtr_->quantType);
+    tplParam.hasAntiQuantOffset = matmulInfoPtr_->hasAntiQuantOffset;
+    if (matmulInfoPtr_->biasDtype == ge::DT_FLOAT && matmulInfoPtr_->hasBias) {
+        tplParam.biasIsExist = true;
+        tplParam.isBiasFp32 = true;
+    }
+    tplParam.weightFormat= static_cast<uint8_t>(Mc2WeightFormat::ND);
+    return tplParam;
 }
 
 void WeightQuantAsTilingTransferHelper::PrintTilingInputParam(std::unique_ptr<Mc2WeightQuantBatchMatmulInfo>& matmulInfo)
@@ -171,13 +195,38 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::DoOpTiling()
     DoAllReduceTiling();
     return ge::GRAPH_SUCCESS;
 }
+
 uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
 {
-    uint64_t tilingKey = context_->GetTilingKey();
-    if (isKZero_) {
-        tilingKey = WEIGHT_QUANT_EMPTY_TENSOR_KEY_A5;
+    if (unlikely(isKZero_)) {
+        const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
+            MMTYPE_NULL_TENSOR,                         \
+            false,                                      \
+            false,                                      \
+            SET_NOT_USE_FP_MM_TILING,                   \
+            SET_NOT_USE_QUANT_MM_TILING,                \
+            SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
+        return tilingKey;
     }
-    OP_LOGI(opName_, "TilingKey=%lu.", tilingKey);
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
+        MMTYPE_WEIGHT_QUANT_MM,                     \
+        WeightQuantTPLPatams_.transB,               \
+        WeightQuantTPLPatams_.biasIsExist,          \
+        SET_NOT_USE_FP_MM_TILING,                   \
+        SET_NOT_USE_QUANT_MM_TILING,                \
+        WeightQuantTPLPatams_.antiQuantType,        \
+        WeightQuantTPLPatams_.quantType,            \
+        WeightQuantTPLPatams_.hasAntiQuantOffset,   \
+        WeightQuantTPLPatams_.isBiasFp32,           \
+        WeightQuantTPLPatams_.weightFormat);
+    OP_LOGD(opName_, "Mc2MatmulAllReduce: transB, biasIsExist is: [%d,%d].",                \
+            WeightQuantTPLPatams_.transB, WeightQuantTPLPatams_.biasIsExist);
+    OP_LOGD(opName_, "Mc2MatmulAllReduce: antiQuantType, quantType, "                       \
+            "hasAntiQuantOffset, isBiasFp32, weightFormat is: [%u,%u,%d,%d,%u].",           \
+            WeightQuantTPLPatams_.antiQuantType, WeightQuantTPLPatams_.quantType,           \
+            WeightQuantTPLPatams_.hasAntiQuantOffset, WeightQuantTPLPatams_.isBiasFp32,     \
+            WeightQuantTPLPatams_.weightFormat);
+    OP_LOGD(opName_, "Mc2MatmulAllReduce: weight_quant_TilingKey=%lu.", tilingKey);
     return tilingKey;
 }
 
@@ -309,15 +358,20 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::DoWeightQuantTiling()
     args_.mValue = tileMValue_;
     WeightQuantTilingTransferHelperA5 mmTile(*this, weightQuantMatmulAllReduceA5TilingData_.tileRegBaseMmTiling);
     if (args_.enableSplitK) {
-        return mmTile.MatmulDoTiling();
+        ge::graphStatus curStatus = mmTile.MatmulDoTiling();
+        WeightQuantTPLPatams_ = mmTile.GetWeightQuantMMAllReduceTPLParam();
+        return curStatus;
     } else {
         GE_ASSERT_GRAPH_SUCCESS(mmTile.MatmulDoTiling());
         if (MutableRCSTilingData().get_tailCnt() == 0) {
+            WeightQuantTPLPatams_ = mmTile.GetWeightQuantMMAllReduceTPLParam();
             return ge::GRAPH_SUCCESS;
         }
         args_.mValue = tailMValue_;
         WeightQuantTilingTransferHelperA5 mmTail(*this, weightQuantMatmulAllReduceA5TilingData_.tailRegBaseMmTiling);
-        return mmTail.MatmulDoTiling();
+        ge::graphStatus curStatus = mmTail.MatmulDoTiling();
+        WeightQuantTPLPatams_ = mmTile.GetWeightQuantMMAllReduceTPLParam();
+        return curStatus;
     }
 }
 
@@ -364,11 +418,14 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::DoWeightQuantAsTiling()
     WeightQuantAsTilingTransferHelper mmTile(*this, weightQuantMatmulAllReduceA5Fp8TilingData_.tileMmASTiling);
     GE_ASSERT_GRAPH_SUCCESS(mmTile.MatmulDoTiling());
     if (MutableRCSTilingData().get_tailCnt() == 0) {
+        WeightQuantTPLPatams_ = mmTile.GetWeightQuantASMMAllReduceTPLParam();
         return ge::GRAPH_SUCCESS;
     }
     args_.mValue = tailMValue_;
     WeightQuantAsTilingTransferHelper mmTail(*this, weightQuantMatmulAllReduceA5Fp8TilingData_.tailMmASTiling);
-    return mmTail.MatmulDoTiling();
+    ge::graphStatus curStatus = mmTail.MatmulDoTiling();
+    WeightQuantTPLPatams_ = mmTail.GetWeightQuantASMMAllReduceTPLParam();
+    return curStatus;
 }
 
 ge::graphStatus WeightQuantMatmulAllReduceTilingA5::CheckBiasInput()

@@ -172,6 +172,9 @@ public:
     ~Mc2WeightQuantBatchMatmulV2TilingAS() override = default;
 
 protected:
+    Mc2OptimizationAlgorithmSubCategory algorithmSubCategory_ = Mc2OptimizationAlgorithmSubCategory::N_FIRST_TAIL_RESPLIT;
+    Mc2Mte2Configuration mte2Config_ = Mc2Mte2Configuration::MTE2_INNER_SIZE_512_BUF_NUM_2;
+
     std::unique_ptr<Mc2WeightQuantBatchMatmulV2ASTilingData> tilingData_;
 
     ge::graphStatus PostTiling() override;
@@ -195,8 +198,6 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
 
 private:
-    Mc2OptimizationAlgorithmSubCategory algorithmSubCategory_ = Mc2OptimizationAlgorithmSubCategory::N_FIRST_TAIL_RESPLIT;
-    Mc2Mte2Configuration mte2Config_ = Mc2Mte2Configuration::MTE2_INNER_SIZE_512_BUF_NUM_2;
     uint64_t l1NMaxSize_ = 0;
     bool weightMxFp4Flag_ = false;
     bool weightInt4Flag_ = false;

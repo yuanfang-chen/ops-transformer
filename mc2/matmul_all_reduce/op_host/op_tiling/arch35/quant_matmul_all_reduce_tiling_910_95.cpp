@@ -19,6 +19,7 @@
 #include "mc2_log.h"
 #include "util/math_util.h"
 #include "new_mc2_copy_quant_matmul_params.h"
+#include "mc2/matmul_all_reduce/op_kernel/matmul_all_reduce_apt_tiling_key.h"
 
 using namespace Mc2Log;
 namespace optiling {
@@ -170,17 +171,27 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::GetDynamicQuantTempBuffSize()
 
 uint64_t QuantMatmulAllReduceTilingA5::GetTilingKey() const
 {
-    uint64_t tilingKey = context_->GetTilingKey();
-    OP_LOGD(opName_, "Raw tilingKey=%lu.", tilingKey);
-    if ((isCommInt8Enable_ == true) || (scenario_ == AllReduceScenario::MXFP8)) {
-        tilingKey += 10UL; // 适配int8 通信tilingKey; 区分MXFP8 和 FP8HIF8场景
+    uint8_t commDtype = COMMDTPYE_DEFAULT;
+    if (isCommInt8Enable_ == true) {	
+        commDtype = COMMDTPYE_INT8; // 适配int8 通信;
+    } else if (isCommFp8Enable_ == true) {
+        commDtype = COMMDTPYE_FP8; // 适配fp8 通信;
     }
-    // david上的tilingKey暂时用第18位区分
-    tilingKey += mc2tiling::MC2_TILINGKEY_OFFSET;
-    if (isCommFp8Enable_ == true) {
-        tilingKey += 50100010UL;
-    }
-    OP_LOGI(opName_, "TilingKey=%lu.", tilingKey);
+    bool scenarioIsMXFP8 = (scenario_ == AllReduceScenario::MXFP8); // 区分MXFP8 和 FP8HIF8场景
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
+        MMTYPE_QUANT_MM,                            \
+        quantTPlparam_.transB,                      \
+        false,                                      \
+        SET_NOT_USE_FP_MM_TILING,                   \
+        quantTPlparam_.kernelType,                  \
+        commDtype,                                  \
+        scenarioIsMXFP8,                            \
+        SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
+    OP_LOGD(opName_, "transB, kernelType,"                              \
+            "commDtype, scenarioIsMXFP8 is:[%d,%u,%u,%d].",             \
+            quantTPlparam_.transB, quantTPlparam_.kernelType,           \
+            commDtype, scenarioIsMXFP8);
+    OP_LOGD(opName_, "Mc2MatmulAllReduce: quant_TilingKey=%lu.", tilingKey);
     return tilingKey;
 }
 
@@ -330,11 +341,15 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::DoQuantTiling()
         OP_LOGD(opName_, "Enable SplitK Tiling.");
         GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
         NewCopyQuantBatchMatmulParams(tileQuantBatchMatmulParams, quantMatmulAllReduceTilingData_.tilematmulTiling);
+        quantTPlparam_ = mmTile.GetQuantMMAllReduceTPLParam(mmTile.GetKernelType());
+        OP_LOGD(opName_, "quantmmAllReduce get kernelType: %d", mmTile.GetKernelType());
         return ge::GRAPH_SUCCESS;
     } else {
         GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
         NewCopyQuantBatchMatmulParams(tileQuantBatchMatmulParams, quantMatmulAllReduceTilingData_.tilematmulTiling);
         if (MutableRCSTilingData().get_tailCnt() == 0) {
+            quantTPlparam_ = mmTile.GetQuantMMAllReduceTPLParam(mmTile.GetKernelType());
+            OP_LOGD(opName_, "quantmmAllReduce get kernelType: %d", mmTile.GetKernelType());
             return ge::GRAPH_SUCCESS;
         }
         args_.mValue = tailMValue_;
@@ -342,6 +357,9 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::DoQuantTiling()
         QuantTilingTransferHelperA5 mmTail(*this, tailQuantBatchMatmulParams);
         GE_ASSERT_GRAPH_SUCCESS(mmTail.DoTiling());
         NewCopyQuantBatchMatmulParams(tailQuantBatchMatmulParams, quantMatmulAllReduceTilingData_.tailmatmulTiling);
+
+        quantTPlparam_ = mmTail.GetQuantMMAllReduceTPLParam(mmTail.GetKernelType());
+        OP_LOGD(opName_, "quantmmAllReduce get kernelType: %d", mmTail.GetKernelType());
         return ge::GRAPH_SUCCESS;
     }
 }
@@ -767,6 +785,14 @@ ge::graphStatus QuantTilingTransferHelperA5::GetShapeAttrsInfo()
     inputParams_.isPerTensor = (tilingProcesser_.quantType_ == Mc2QuantType::PER_TENSOR);
     PrintTilingInputParam(inputParams_);
     return ge::GRAPH_SUCCESS;
+}
+
+QuantMMAllReduceTPLParam QuantTilingTransferHelperA5::GetQuantMMAllReduceTPLParam(const uint64_t kernelType)
+{
+    QuantMMAllReduceTPLParam param;
+    param.transB = inputParams_.transB;
+    param.kernelType = kernelType;
+    return param;
 }
 
 ge::graphStatus QuantTilingTransferHelperA5::PostTiling()
