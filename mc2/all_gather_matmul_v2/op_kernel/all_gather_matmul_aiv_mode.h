@@ -211,6 +211,7 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Init(
     n_loop = tilingData.cocTiling.nLoop;
     k_loop = tilingData.cocTiling.kLoop;
     pValue = tilingData.cocTiling.pValue;
+    max_ub_ping_pong_size = tilingData.cocTiling.ubMoveNum / MAX_BLOCK_COUNT;
     comm_npu_split = tilingData.cocTiling.commNpuSplit;   // tiling 寻优
     comm_data_split = tilingData.cocTiling.commDataSplit; // tiling 寻优
     comm_direct = tilingData.cocTiling.commDirect;        // tiling 寻优
@@ -318,7 +319,6 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::AIVInit()
 
         cal_count = DivCeil(m_loop, pValue);
         gm_a_pingpong_size = m0 * k_align * pValue * worldSize;
-        max_ub_ping_pong_size = 6400;
 
         data_len = static_cast<int64_t>(m) * k_align; // 数据量
         num_per_rank_move = m0 * k_align * pValue;    // 每轮搬运到其他卡的数据量
