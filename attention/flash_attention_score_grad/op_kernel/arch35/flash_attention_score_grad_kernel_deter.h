@@ -230,7 +230,6 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::SetRunInfoDeter
     runInfo.commonRunInfo.boIdx = bIdx;
  
     if (runInfo.lastBatchIdx != bIdx) {
-        // deter场景不使用
         int64_t seqQLenPrefix = bIdx == 0 ? 0 : ((__gm__ int64_t *)this->actualSeqQlenAddr)[bIdx - 1];
         int64_t seqKvLenPrefix = bIdx == 0 ? 0 : ((__gm__ int64_t *)this->actualSeqKvlenAddr)[bIdx - 1];
         runInfo.lastBatchTotalS1BOffset = seqQLenPrefix * this->constInfo.commonConstInfo.n2GD;
@@ -244,6 +243,10 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::SetRunInfoDeter
             GetPrefixByBidx<false>(this->actualSeqQlenAddr, this->actualSeqKvlenAddr, this->tilingData->deterParam.deterPrefix, bIdx,
                                    this->tilingData->deterParam.deterPrefixStep);
         runInfo.lastBatchTotalS2Size = seqKvLenPrefix;
+        if constexpr (IS_ROPE) {
+            runInfo.lastBatchTotalS1BRopeOffset = seqQLenPrefix * this->constInfo.commonConstInfo.n2GDr;
+            runInfo.lastBatchTotalS2BRopeOffset = seqKvLenPrefix * this->constInfo.commonConstInfo.n2Dr;
+        }
     }
     
     runInfo.lastBatchIdx = bIdx;
