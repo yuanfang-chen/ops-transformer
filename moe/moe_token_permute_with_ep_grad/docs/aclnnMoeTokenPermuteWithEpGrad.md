@@ -50,16 +50,16 @@
 
 ```c++
 aclnnStatus aclnnMoeTokenPermuteWithEpGradGetWorkspaceSize(
-    const aclTensor *permutedTokensOutputGrad,
-    const aclTensor *sortedIndices,
-    const aclTensor *permutedProbsOutputGradOptional,
-    int64_t          numTopk,
-    aclIntArray     *rangeOptional,
-    bool             paddedMode,
-    const aclTensor *tokenGradOut
-    const aclTensor *probsGradOut,
-    uint64_t        *workspaceSize,
-    aclOpExecutor   **executor)
+    const aclTensor       *permutedTokensOutputGrad,
+    const aclTensor       *sortedIndices,
+    const aclTensor       *permutedProbsOutputGradOptional,
+    int64_t                numTopk,
+    const aclIntArray     *rangeOptional,
+    bool                   paddedMode,
+    const aclTensor       *tokenGradOut
+    const aclTensor       *probsGradOut,
+    uint64_t              *workspaceSize,
+    aclOpExecutor         **executor)
 ```
 ```c++
 aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
@@ -164,7 +164,7 @@ aclnnStatus aclnnMoeTokenPermuteWithEpGrad(
         <td>要求为一个维度为2D的Tensor。</td>
         <td>BFLOAT16、FLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>（num\_tokens，hidden_size）</td>
+        <td>（num_tokens，hidden_size）</td>
         <td>-</td>
     </tr>
     <tr>

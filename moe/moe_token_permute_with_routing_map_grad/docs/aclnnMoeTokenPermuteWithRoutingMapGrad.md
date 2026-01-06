@@ -114,8 +114,8 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
         <td>BFLOAT16、FLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>
-        • 非droppad模式:（tokens_num \* topK_num，hidden_size）<br>
-        • droppad模式: （experts_num \* capacity，hidden_size）</td>
+        • 非droppad模式:（tokens_num * topK_num，hidden_size）<br>
+        • droppad模式: （experts_num * capacity，hidden_size）</td>
         <td>√</td>
     </tr>
     <tr>
@@ -129,20 +129,20 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
         <td>BFLOAT16、FLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>
-        • 非droppad模式:（tokens_num \* topK_num）<br>
-        • droppad模式: （experts_num \* capacity）</td>
+        • 非droppad模式:（tokens_num * topK_num）<br>
+        • droppad模式: （experts_num * capacity）</td>
         <td>√</td>
     </tr>
     <tr>
         <td>sortedIndices</td>
         <td>输入</td>
         <td>-</td>
-        <td>非droppad模式索引取值范围[0，tokens_num \* topK_num - 1]， droppad模式索引取值范围[0，experts_num \* capacity - 1]。</td>
+        <td>非droppad模式索引取值范围[0，tokens_num * topK_num - 1]， droppad模式索引取值范围[0，experts_num * capacity - 1]。</td>
         <td>INT32</td>
         <td>ND</td>
         <td>
-        • 非droppad模式:（tokens_num \* topK_num，）<br>
-        • droppad模式: （experts_num \* capacity）</td>
+        • 非droppad模式:（tokens_num * topK_num，）<br>
+        • droppad模式: （experts_num * capacity）</td>
         <td>√</td>
     </tr>
     <tr>

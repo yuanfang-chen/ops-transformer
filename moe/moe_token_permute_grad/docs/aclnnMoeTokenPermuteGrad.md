@@ -94,7 +94,7 @@ aclnnStatus aclnnMoeTokenPermuteGrad(
         <td>sortedIndices</td>
         <td>输入</td>
         <td>-</td>
-        <td>取值范围是(0, tokens_num \* topK_num - 1)，且没有重复索引。</td>
+        <td>取值范围是(0, tokens_num * topK_num - 1)，且没有重复索引。</td>
         <td>INT32</td>
         <td>ND</td>
         <td>tokens_num * topK_num</td>
