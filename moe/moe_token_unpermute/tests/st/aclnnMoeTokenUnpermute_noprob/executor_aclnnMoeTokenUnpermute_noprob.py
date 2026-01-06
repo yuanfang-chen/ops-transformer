@@ -44,9 +44,7 @@ class FunctionUnpermuteApi(BaseApi):
         return unpermuted_tokens.to(self.case_dtype)
 
     def init_by_input_data(self, input_data: InputDataset):
-        if self.device == "gpu":
-            device = f"cuda:{self.device_id}"
-        elif self.device == "npu":
+        if self.device == "npu":
             device = f"{self.device}:{self.device_id}"
         else:
             device = "cpu"

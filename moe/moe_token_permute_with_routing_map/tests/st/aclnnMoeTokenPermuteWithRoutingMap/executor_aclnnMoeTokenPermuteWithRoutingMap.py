@@ -65,9 +65,8 @@ class FunctionApi(BaseApi):
                 permuted_input = tokens.index_select(0, sorted_indices)
                 return permuted_input, permuted_probs, sorted_indices2.to(torch.int32)
 
-        if self.device == "gpu":
-            device = f"cuda:{self.device_id}"
-        elif self.device == "npu":
+
+        if self.device == "npu":
             device = f"{self.device}:{self.device_id}"
             permuted_tokens, permuted_probs, sorted_indices = permute(input_data.kwargs["tokens"],
                                                                       input_data.kwargs["routingMap"],
@@ -85,7 +84,7 @@ class FunctionApi(BaseApi):
             return permuted_tokens, permuted_probs, sorted_indices
     def init_by_input_data(self, input_data: InputDataset):
         OpsDataset.seed_everything()
-        torch.npu.synchronize()
+        print(input_data.kwargs['routingMap'])
         def generate_map(m,n,k):
             rmap = torch.zeros((m,n),dtype=torch.bool)
             for i in range(m):
@@ -113,12 +112,12 @@ class FunctionApi(BaseApi):
                 input_data.kwargs["numOutTokens"] = numOutTokens * 512
                 topk = 512
             rmap = generate_map(tokenNum,expertNum,topk)
-        torch.npu.synchronize()
+        print(input_data.kwargs['routingMap'])
 
         if self.device == "npu":
             rmap = rmap.npu()
         input_data.kwargs['routingMap'] = rmap.to(input_data.kwargs['routingMap'].device)
-        torch.npu.synchronize()
+        print(input_data.kwargs['routingMap'])
 
 
 @register("AclnnBaseApi_aclnn_moe_token_permute_with_routing_map")

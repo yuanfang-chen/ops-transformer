@@ -43,9 +43,8 @@ class FunctionApi(BaseApi):
                 permuted_probs = flatten_probs.index_select(0, sorted_indices)
             return permuted_tokens, sorted_indices1, permuted_probs
 
-        if self.device == "gpu":
-            device = f"cuda:{self.device_id}"
-        elif self.device == "npu":
+
+        if self.device == "npu":
             device = f"{self.device}:{self.device_id}"
             permuted_tokens, sorted_indices, permuted_probs = permute(input_data.kwargs["tokens"],
                                                                       input_data.kwargs["indices"],

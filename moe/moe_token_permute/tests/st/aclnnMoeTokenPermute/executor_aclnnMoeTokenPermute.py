@@ -44,9 +44,8 @@ class FunctionApi(BaseApi):
             permuted_tokens = tokens.index_select(0, s_k)
             return permuted_tokens, sorted_indices1
 
-        if self.device == "gpu":
-            device = f"cuda:{self.device_id}"
-        elif self.device == "npu":
+
+        if self.device == "npu":
             device = f"{self.device}:{self.device_id}"
             permuted_tokens, sorted_indices = permute(input_data.kwargs["tokens"], input_data.kwargs["indices"],
                                                       input_data.kwargs["numOutTokensOptional"],

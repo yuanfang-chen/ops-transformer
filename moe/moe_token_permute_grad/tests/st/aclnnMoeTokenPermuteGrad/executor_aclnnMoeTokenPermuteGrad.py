@@ -51,9 +51,7 @@ class FunctionApi(BaseApi):
             permuted_tokens = tokens.index_select(dim=0, index=indices.view(-1))
             return permuted_tokens, indices
 
-        if self.device == "gpu":
-            device = f"cuda:{self.device_id}"
-        elif self.device == "npu":
+        if self.device == "npu":
             device = f"{self.device}:{self.device_id}"
             from mindspeed.ops.npu_moe_token_permute import npu_moe_token_permute
             input_data.kwargs["tokens"].requires_grad_(True)
