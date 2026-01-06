@@ -31,7 +31,7 @@ class MoeInitRoutingV2Tiling : public testing::Test {
 };
 
 
-gert::TilingContextPara RunNormalCase(int64_t N, int64_t H, int64_t K, int64_t activeNum, int64_t C, int64_t E,
+gert::TilingContextPara RunMoeInitRoutingV2Case(int64_t N, int64_t H, int64_t K, int64_t activeNum, int64_t C, int64_t E,
                                       int64_t dropPadMode, int64_t countFlag, bool tokenFlag, int64_t quantMode,
                                       int64_t dqFlag, ge::DataType optionalDt, int64_t optionalDtypePosi)
 {
@@ -100,7 +100,7 @@ gert::TilingContextPara RunNormalCase(int64_t N, int64_t H, int64_t K, int64_t a
 // 单核+drop  
 TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_01)
 {
-  auto tilingContextPara = RunNormalCase(8, 30, 6, 0, 6, 8, 1, 0, true, 0, 0, ge::DT_FLOAT, 0);
+  auto tilingContextPara = RunMoeInitRoutingV2Case(8, 30, 6, 0, 6, 8, 1, 0, true, 0, 0, ge::DT_FLOAT, 0);
   uint64_t expectTilingKey = 10011;
   string expectTilingData = "64 8 30 6 6 8 1 0 1 1 48 1 48 48 48 1 48 48 8160 0 2040 48 0 1 1 1 1 1 1 0 0 0 0 0 48 0 1 1 1 1 1 1 1 1 30 30 1 48 48 1 1 1 1 1 1 1 1 30 30 1 ";
   std::vector<size_t> expectWorkspaces = {16779264};
@@ -110,7 +110,7 @@ TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_01)
 // 单核+非drop  
 TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_perf)
 {
-  auto tilingContextPara = RunNormalCase(8, 30, 6, 0, 6, 8, 0, 0, false, 0, 0, ge::DT_FLOAT, 0);
+  auto tilingContextPara = RunMoeInitRoutingV2Case(8, 30, 6, 0, 6, 8, 0, 0, false, 0, 0, ge::DT_FLOAT, 0);
   uint64_t expectTilingKey = 20000;
   string expectTilingData = "64 8 30 6 6 8 0 0 0 1 48 1 48 48 48 1 48 48 8160 0 2040 48 0 1 1 1 1 1 1 0 0 0 0 0 48 0 1 1 1 1 1 1 1 1 30 30 1 48 48 1 1 1 1 1 1 1 1 30 30 1 ";
   std::vector<size_t> expectWorkspaces = {16779264};
@@ -119,7 +119,7 @@ TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_perf)
 
 // 单核++dropless  11000
 TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_one_core_dropless) {
-  auto tilingContextPara = RunNormalCase(
+  auto tilingContextPara = RunMoeInitRoutingV2Case(
     /*N=*/80, /*H=*/3000, /*K=*/60, 
     /*activeNum=*/0, /*C=*/6, /*E=*/8,
     /*dropPadMode=*/0, /*countFlag=*/1, /*tokenFlag=*/false,
@@ -136,7 +136,7 @@ TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_one_core_dropless) {
 
 // // 多核+静态quant+drop  10110
 TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_muticore_drop) {
-  auto tilingContextPara = RunNormalCase(
+  auto tilingContextPara = RunMoeInitRoutingV2Case(
     /*N=*/320, /*H=*/3000, /*K=*/56, 
     /*activeNum=*/0, /*C=*/200, /*E=*/32,
     /*dropPadMode=*/1, /*countFlag=*/0, /*tokenFlag=*/true,
@@ -153,7 +153,7 @@ TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_muticore_drop) {
 
 // // 多核+静态quant+dropless  10110
 TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_muticore_dropless) {
-  auto tilingContextPara = RunNormalCase(
+  auto tilingContextPara = RunMoeInitRoutingV2Case(
     /*N=*/320, /*H=*/3000, /*K=*/56, 
     /*activeNum=*/0, /*C=*/200, /*E=*/32,
     /*dropPadMode=*/0, /*countFlag=*/0, /*tokenFlag=*/true,
@@ -169,7 +169,7 @@ TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_muticore_dropless) {
 }
 
 TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_error_expert_id) {
-  auto tilingContextPara = RunNormalCase(
+  auto tilingContextPara = RunMoeInitRoutingV2Case(
     /*N=*/320, /*H=*/3000, /*K=*/56, 
     /*activeNum=*/0, /*C=*/200, /*E=*/32,
     /*dropPadMode=*/0, /*countFlag=*/1, /*tokenFlag=*/false,
@@ -183,7 +183,7 @@ TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_error_expert_id) {
 }
 
 TEST_F(MoeInitRoutingV2Tiling, moe_init_routing_v2_tiling_error_token) {
-  auto tilingContextPara = RunNormalCase(
+  auto tilingContextPara = RunMoeInitRoutingV2Case(
     /*N=*/320, /*H=*/3000, /*K=*/56, 
     /*activeNum=*/0, /*C=*/200, /*E=*/32,
     /*dropPadMode=*/0, /*countFlag=*/1, /*tokenFlag=*/false,
