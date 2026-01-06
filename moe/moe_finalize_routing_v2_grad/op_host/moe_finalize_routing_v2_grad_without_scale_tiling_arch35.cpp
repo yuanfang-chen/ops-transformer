@@ -59,11 +59,11 @@ ge::graphStatus MoeFinalizeRoutingV2GradWithoutScaleRegbase::CheckOptionalInputD
         OP_LOGE(nodeName_, "expanded_row_idx dtype only support int32."), return ge::GRAPH_FAILED);
     if (isBiasExist_) {
         OP_CHECK_IF(
-            (expertIdxType_ != expandedRowIdxType_),
-            OP_LOGE(nodeName_, "expert_idx and expanded_row_idx dtype must be same."), return ge::GRAPH_FAILED);
-        OP_CHECK_IF(
             (biasType_ != gradYType_), OP_LOGE(nodeName_, "bias and grad_y dtype must be same."),
             return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            (expertIdxType_ != expandedRowIdxType_),
+            OP_LOGE(nodeName_, "expert_idx and expanded_row_idx dtype must be same."), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }

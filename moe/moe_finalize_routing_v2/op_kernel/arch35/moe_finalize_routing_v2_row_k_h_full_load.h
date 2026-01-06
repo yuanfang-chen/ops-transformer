@@ -60,11 +60,11 @@ public:
             pipe->InitBuffer(expandedXQue, 1, eCHAligned * sizeof(T));
         }
         pipe->InitBuffer(yQue, DOUBLE_BUFFER, rowFactorHAlignedFloat * sizeof(float));
-        if (hasBiasAndExpertIdx) {
-            pipe->InitBuffer(biasQue, 1, eHAligned * sizeof(T));
-        }
         if (hasX1) {
             pipe->InitBuffer(x1Que, DOUBLE_BUFFER, rowFactorHAlignedT * sizeof(T));
+        }
+        if (hasBiasAndExpertIdx) {
+            pipe->InitBuffer(biasQue, 1, eHAligned * sizeof(T));
         }
         if (hasX2) {
             pipe->InitBuffer(x2Que, DOUBLE_BUFFER, rowFactorHAlignedT * sizeof(T));
@@ -107,11 +107,11 @@ public:
             if (hasX1) {
                 x1Que.FreeTensor(x1Local);
             }
-            if (hasX2) {
-                x2Que.FreeTensor(x2Local);
-            }
             if (hasScales) {
                 scalesQue.FreeTensor(scalesLocal);
+            }
+            if (hasX2) {
+                x2Que.FreeTensor(x2Local);
             }
             yLocal = yQue.DeQue<float>();
             int64_t yGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +

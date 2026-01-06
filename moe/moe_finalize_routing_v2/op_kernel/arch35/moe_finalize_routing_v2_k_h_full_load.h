@@ -44,14 +44,14 @@ public:
         hasBiasAndExpertIdx = (bias != nullptr) && (expertIdx != nullptr);
         hasScales = scales != nullptr;
         k1 = k == 1;
-        expandedXGm.SetGlobalBuffer((__gm__ T*)expandedX);
-        expandedRowIdxGm.SetGlobalBuffer((__gm__ int32_t*)expandedRowIdx);
         x1Gm.SetGlobalBuffer((__gm__ T*)x1);
         x2Gm.SetGlobalBuffer((__gm__ T*)x2);
         biasGm.SetGlobalBuffer((__gm__ T*)bias);
         scalesGm.SetGlobalBuffer((__gm__ S*)scales);
         expertIdxGm.SetGlobalBuffer((__gm__ int32_t*)expertIdx);
         yGm.SetGlobalBuffer((__gm__ T*)y);
+        expandedXGm.SetGlobalBuffer((__gm__ T*)expandedX);
+        expandedRowIdxGm.SetGlobalBuffer((__gm__ int32_t*)expandedRowIdx);
 
         int32_t rowFactorHAlignedT = RoundUp<T>(tilingData->rowFactor * h);
         int32_t rowFactorHAlignedFloat = RoundUp<float>(tilingData->rowFactor * h);
@@ -86,30 +86,14 @@ public:
 
     __aicore__ inline void Process()
     {
-        int64_t rowOuterLoop =
-            (GetBlockIdx() == GetBlockNum() - 1) ? tilingData->rowLoopOfTailBlock : tilingData->rowLoopOfFormerBlock;
         int64_t tailRowFactor = (GetBlockIdx() == GetBlockNum() - 1) ? tilingData->tailRowFactorOfTailBlock :
                                                                        tilingData->tailRowFactorOfFormerBlock;
+        int64_t rowOuterLoop =
+            (GetBlockIdx() == GetBlockNum() - 1) ? tilingData->rowLoopOfTailBlock : tilingData->rowLoopOfFormerBlock;
         for (int64_t rowOuterIdx = 0; rowOuterIdx < rowOuterLoop; rowOuterIdx += 1) {
             int64_t rowInnerLoop = (rowOuterIdx == rowOuterLoop - 1) ? tailRowFactor : tilingData->rowFactor;
             ProcessInputWithX(rowOuterIdx, rowInnerLoop);
-            if (k1) {
-                expandedRowIdxLocal = expandedRowIdxQue.AllocTensor<int32_t>();
-                expandedRowIdxOffset = GetBlockIdx() * tilingData->rowOfFormerBlock +
-                    rowOuterIdx * tilingData->rowFactor;
-                CopyIn(expandedRowIdxGm[expandedRowIdxOffset], expandedRowIdxLocal, 1, rowInnerLoop);
-                expandedRowIdxQue.EnQue(expandedRowIdxLocal);
-                expandedRowIdxLocal = expandedRowIdxQue.DeQue<int32_t>();
-                
-                if (hasBiasAndExpertIdx) {
-                    expertIdxLocal = expertIdxQue.AllocTensor<int32_t>();
-                    expertIdxOffset = GetBlockIdx() * tilingData->rowOfFormerBlock +
-                        rowOuterIdx * tilingData->rowFactor;
-                    CopyIn(expertIdxGm[expertIdxOffset], expertIdxLocal, 1, rowInnerLoop);
-                    expertIdxQue.EnQue(expertIdxLocal);
-                    expertIdxLocal = expertIdxQue.DeQue<int32_t>();
-                }
-            }
+            ProcessWithId(rowOuterIdx, rowInnerLoop);
 
             yLocal = yQue.AllocTensor<float>();
             ProcessX1AndX2(yLocal, x1Local, x2Local, rowInnerLoop * h, hasX1, hasX2);
@@ -145,6 +129,26 @@ public:
     }
 
 private:
+    __aicore__ inline void ProcessWithId(int64_t rowOuterIdx, int64_t rowInnerLoop) {
+        if (k1) {
+            expandedRowIdxLocal = expandedRowIdxQue.AllocTensor<int32_t>();
+            expandedRowIdxOffset = GetBlockIdx() * tilingData->rowOfFormerBlock +
+                rowOuterIdx * tilingData->rowFactor;
+            CopyIn(expandedRowIdxGm[expandedRowIdxOffset], expandedRowIdxLocal, 1, rowInnerLoop);
+            expandedRowIdxQue.EnQue(expandedRowIdxLocal);
+            expandedRowIdxLocal = expandedRowIdxQue.DeQue<int32_t>();
+            
+            if (hasBiasAndExpertIdx) {
+                expertIdxLocal = expertIdxQue.AllocTensor<int32_t>();
+                expertIdxOffset = GetBlockIdx() * tilingData->rowOfFormerBlock +
+                    rowOuterIdx * tilingData->rowFactor;
+                CopyIn(expertIdxGm[expertIdxOffset], expertIdxLocal, 1, rowInnerLoop);
+                expertIdxQue.EnQue(expertIdxLocal);
+                expertIdxLocal = expertIdxQue.DeQue<int32_t>();
+            }
+        }
+    }
+
     __aicore__ inline void ProcessInputWithX(int64_t rowOuterIdx, int64_t rowInnerLoop)
     {
         if (hasX1) {
