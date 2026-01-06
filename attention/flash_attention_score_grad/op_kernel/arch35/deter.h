@@ -161,6 +161,9 @@ __aicore__ inline void CalGQADenseIndex(int64_t k, int64_t m, int64_t n, int64_t
             if (ID > (delta - 1) * t2 * m * R + offset * t2 * R) {
                 ID -= t2 * R;
             }
+            b_id = ID % N;
+            b_id = b_id != 0 ? b_id : N;
+            b_id = Ceil<int64_t>(b_id, g);
             w = ID % g;
             w = w != 0 ? w : g;
             y = Ceil<int64_t>(ID, N);
@@ -717,26 +720,26 @@ __aicore__ inline void CalGQACausalIndex(int64_t k, int64_t m, int64_t n, int64_
         // 情况 B
         w = (k * ((a4 - 1) / (ell1 + NUM_TWO * delta)) + j) % b2;
         w = w != 0 ? w : b2;
-        int64_t g = Ceil<int64_t>((k * ((a4 - 1) / (ell1 + NUM_TWO * delta)) + j), b2);
-        if (g >= 1 && g <= p) {
+        int64_t gTail = Ceil<int64_t>((k * ((a4 - 1) / (ell1 + NUM_TWO * delta)) + j), b2);
+        if (gTail >= 1 && gTail <= p) {
             int64_t a5 = a4 % (ell1 + NUM_TWO * delta);
             a5 = a5 != 0 ? a5 : (ell1 + NUM_TWO * delta);
             int64_t x0, y0 = 0;
-            if (g % NUM_TWO == 1) {
-                if (a5 <= ell - g + 1 + delta) {
-                    x0 = g + a5 - 1;
-                    y0 = g;
+            if (gTail % NUM_TWO == 1) {
+                if (a5 <= ell - gTail + 1 + delta) {
+                    x0 = gTail + a5 - 1;
+                    y0 = gTail;
                 } else {
-                    x0 = NUM_TWO * ell + NUM_TWO * delta + NUM_TWO - g - a5;
-                    y0 = ell + 1 + (ell % NUM_TWO) - g;
+                    x0 = NUM_TWO * ell + NUM_TWO * delta + NUM_TWO - gTail - a5;
+                    y0 = ell + 1 + (ell % NUM_TWO) - gTail;
                 }
             } else {
-                if (a5 >= (g + 1 + delta - (ell % NUM_TWO))) {
-                    x0 = g + ell + NUM_TWO * delta + 1 - (ell % NUM_TWO) - a5;
-                    y0 = g;
+                if (a5 >= (gTail + 1 + delta - (ell % NUM_TWO))) {
+                    x0 = gTail + ell + NUM_TWO * delta + 1 - (ell % NUM_TWO) - a5;
+                    y0 = gTail;
                 } else {
-                    x0 = a5 + ell - g + (ell % NUM_TWO);
-                    y0 = ell + 1 + (ell % NUM_TWO) - g;
+                    x0 = a5 + ell - gTail + (ell % NUM_TWO);
+                    y0 = ell + 1 + (ell % NUM_TWO) - gTail;
                 }
             }
 
@@ -1307,7 +1310,7 @@ CalTNDDenseIndex(const __gm__ uint8_t *actualSeqQlenAddr, const __gm__ uint8_t *
     int64_t m, n, p, q;
     int64_t actualS1Len = 0;
     int64_t actualS2Len = 0;
-    GetSeqQlenKvlenByBidx(actualSeqQlenAddr, actualSeqKvlenAddr, batchId, actualS1Len, actualS2Len);
+    GetSeqQlenKvlenByBidx(actualSeqQlenAddr, actualSeqKvlenAddr, w, actualS1Len, actualS2Len);
 
     m = (actualS1Len + CUBE_BASEM - 1) / CUBE_BASEM;
     n = (actualS2Len + CUBE_BASEN - 1) / CUBE_BASEN;
@@ -1336,7 +1339,7 @@ CalTNDDenseIndex(const __gm__ uint8_t *actualSeqQlenAddr, const __gm__ uint8_t *
             if (w >= b) {
                 return;
             }
-            GetSeqQlenKvlenByBidx(actualSeqQlenAddr, actualSeqKvlenAddr, batchId, actualS1Len, actualS2Len);
+            GetSeqQlenKvlenByBidx(actualSeqQlenAddr, actualSeqKvlenAddr, w, actualS1Len, actualS2Len);
             m = (actualS1Len + CUBE_BASEM - 1) / CUBE_BASEM;
             n = (actualS2Len + CUBE_BASEN - 1) / CUBE_BASEN;
             coordinateInfo.s1Outer = m;

@@ -342,8 +342,8 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::CalCausalDeterI
         }
  
         if (this->constInfo.sparseMode == RIGHT_DOWN_CAUSAL && m > n) {
-            mGap = m - n;
-            m = n;
+            mGap = (this->constInfo.commonConstInfo.s1Size - this->constInfo.commonConstInfo.s2Size) / BaseClass::CUBE_BASEM;
+            m -= mGap;
         } else if ((this->constInfo.sparseMode == NO_MASK || this->constInfo.sparseMode == LEFT_UP_CAUSAL) && n > m) {
             n = m;
         }
@@ -564,7 +564,7 @@ FlashAttentionScoreGradKernelDeter<CubeBlockType, VecBlockType>::CalDeterMaxLoop
  
         if constexpr(BaseClass::IS_N_EQUAL) {
             GenBandInfo(k, actualM, actualN, actualP, actualQ, b, this->bandInfo);
-            loopMax = this->bandInfo.rm2;
+            loopMax = Max(this->tilingData->s1s2BNGS1S2SplitCoreParams.deterMaxRound, this->bandInfo.rm2);
         } else {
             k = Min(Min(k, b * this->constInfo.commonConstInfo.gSize * m), b * n);
             int64_t b2 = b % k;

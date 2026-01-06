@@ -216,7 +216,7 @@
      DtypeEnum inputDtype;
      bool isDeterministic = false;
      uint32_t deterSparseType;
-     bool isS1S2Same = true;
+     bool isS1S2Same = false;
      bool coreDivide = false;
      int64_t deterMaxRound = 0;
      // 每个 batch 的前缀面积总和 prefix, 小于128b传完整的前缀和，大于128b的，按步长传部分前缀和，在kernel内组装完整的前缀和
@@ -285,9 +285,11 @@
      uint32_t GetDeterSparseTilingKey();
      uint8_t GetSparseType();
      int64_t GetTotalPerBatchNum(uint8_t sparseType);
+     bool SupportTrans2BS2N2GD();
      bool SupportTNDBns2(DeterPrefixData &deterPrefixData);
      void CalcleDeterParam();
      void CalcleCausalDeterParam();
+     void CalcleBandDeterParam();
      void CalcleTNDDeterParam();
      void CalcleTNDBandDeterParam();
      void CalcleTNDCausalDeterPrefix(DeterPrefixData &deterPrefixData,

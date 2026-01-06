@@ -612,6 +612,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetShapeAttrsInfo(
 
         int64_t lastQLen = 0;
         int64_t lastKvLen = 0;
+        fBaseParams.isS1S2Same = true;
         fBaseParams.isAllSame = true;
         bool isEOD = false;
         for (size_t i = 0; i < seqQShapeSize; i++) {
@@ -960,7 +961,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoSparse()
         return ge::GRAPH_SUCCESS;
     } else {
         // TND S1 S2全等场景下if分支尝试走BN2S2分核优化,如果判断不能走则恢复layoutType赋值
-        if (fBaseParams.isAllSame) {
+        if (SupportTrans2BS2N2GD()) {
             fBaseParams.layoutType = INPUT_FROAMT_BS2N2GD;
         }
     }
@@ -1387,18 +1388,72 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleDeterParam()
     if (fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_CAUSAL)) {
         CalcleCausalDeterParam();
         return;
+    } else if (fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_BAND)) {
+        CalcleBandDeterParam();
+        return;
     }
+}
+
+void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleBandDeterParam()
+{
+    int64_t m{fBaseParams.s1Outer}, n{fBaseParams.s2Outer}, k{static_cast<int64_t>(fBaseParams.aicNum)}, b{fBaseParams.b * fBaseParams.n2};
+    int64_t actualCalcS1Token{fBaseParams.s1Token}, actualCalcS2Token{fBaseParams.s2Token};
+    if (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL) ||
+        fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::BAND)) {
+        actualCalcS1Token = actualCalcS1Token + fBaseParams.s1 - fBaseParams.s2;
+        actualCalcS2Token = actualCalcS2Token - fBaseParams.s1 + fBaseParams.s2;
+    }
+    int64_t p = CeilDivideBy(actualCalcS1Token, fBaseParams.s1Inner * fBaseParams.s1CvRatio) + 1;
+    int64_t q = CeilDivideBy(actualCalcS2Token, fBaseParams.s2Inner * fBaseParams.s2CvRatio) + 1;
+    q = q > n ? n : q;
+    p = p > m ? m : p;
+
+    // 负数场景变换
+    if (q < 0) {
+        m = m + q;
+        p = p + q;
+        q = 1;
+    } else if (p < 0) {
+        n = n + p;
+        q = p + q;
+        p = 1;
+    }
+
+    int64_t b1 = b / k;
+    int64_t b2 = b % k;
+    int64_t L1, L2, L3, n_seg;
+    if (p + q > m) {
+        L1 = m - p;
+        L2 = p + q - m;
+        L3 = std::min(m - 1, n - q);
+        n_seg = L1 + L2 + L3;
+    } else {
+        L1 = q - 1;
+        L2 = std::min(n - q + 1, m + NUM_TWO - p - q);
+        L3 = std::max(static_cast<int64_t>(0), std::min(p + n - m - 1, p + q - NUM_TWO));
+        if (L3 == 0) {
+            m = p + q + L2 - NUM_TWO;
+        }
+        n_seg = L1 + L2 + L3;
+    }
+    int64_t r1 = (m * n_seg - (m - p) * (m - p + 1) / NUM_TWO - (n_seg - q) * (n_seg - q + 1) / NUM_TWO) * b1;
+    int64_t r2 = 0;
+    if (b2 > 0) {
+        if (p + q > m) {
+            r2 = std::max(m * CeilDivideBy((n * b2), std::min(k, b2 * m)), n);
+        } else {
+            r2 = std::max(CeilDivideBy((n * b2), k) * (p + q - 1), n);
+        }
+    }
+    fBaseParams.deterMaxRound = r1 + r2;
 }
 
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleCausalDeterParam()
 {
-    int64_t m = fBaseParams.s1Outer;
-    int64_t n = fBaseParams.s2Outer;
-    int64_t k = static_cast<int64_t>(fBaseParams.aicNum);
-    int64_t b = fBaseParams.b * fBaseParams.n2;
-
+    int64_t m{fBaseParams.s1Outer}, n{fBaseParams.s2Outer}, k{static_cast<int64_t>(fBaseParams.aicNum)}, b{fBaseParams.b * fBaseParams.n2};
     if (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL) && m > n) {
-        m = n;
+        int64_t skipM = (fBaseParams.s1 - fBaseParams.s2) / (fBaseParams.s1Inner * fBaseParams.s1CvRatio);
+        m -= skipM;
     } else if (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::NO_MASK) ||
                fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::LEFT_UP_CAUSAL) && n > m) {
         n = m;
@@ -2794,6 +2849,11 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetAttenMaskShapeT
     return ge::GRAPH_SUCCESS;
 }
 
+bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SupportTrans2BS2N2GD() {
+    return (fBaseParams.sparseMode <= static_cast<uint32_t>(SparseMode::PREFIX_COMPRESS)) && fBaseParams.isAllSame &&
+         (fBaseParams.layoutType == INPUT_FROAMT_TND);
+}
+
 ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessSparseModeInfo()
 {
     // 新增SPARSE_MODE属性，上库兼容处理
@@ -2803,8 +2863,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessSparseModeI
         fBaseParams.sparseMode = *(attrs->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SPARSE_MODE))); // 7
     }
 
-    if ((fBaseParams.sparseMode <= static_cast<uint32_t>(SparseMode::PREFIX_COMPRESS)) && fBaseParams.isAllSame &&
-         (fBaseParams.layoutType == INPUT_FROAMT_TND)) {
+    if (SupportTrans2BS2N2GD()) {
         fBaseParams.layoutType = INPUT_FROAMT_BS2N2GD;
         OP_LOGD("inputLayout = TND, but all s1 s2 same, inputLayout set BSND");
     }
