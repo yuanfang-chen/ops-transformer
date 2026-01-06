@@ -308,7 +308,7 @@ aclnnStatus aclnnMatmulReduceScatter(
             printf(message, ##__VA_ARGS__); \
         } while(0)
 
-    constexpr int DEV_NUM = 8;
+    constexpr int DEV_NUM = 2;
 
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
     {

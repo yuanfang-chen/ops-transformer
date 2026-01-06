@@ -9,9 +9,9 @@
  */
 
 /*!
- * \file test_aclnn_moe_distribute_dispatch_v2.cpp
- * \brief
- */
+* \file test_aclnn_moe_distribute_dispatch_v2.cpp
+* \brief
+*/
 
 #include <thread>
 #include <iostream>
@@ -51,7 +51,7 @@ struct Args {
 const uint32_t MACHINE_NUM = 1;
 const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
 const char* first_rank_id = std::getenv("FIRST_RANK_ID");
-const char* ep_world_size_env = std::getenv("EP_WORLD_SIZE");
+const char* env_dev_num = std::getenv("ENV_DEV_NUM");
 
 const uint32_t EP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 2 : 16;
 const uint32_t TP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 1 : 0;
@@ -411,7 +411,7 @@ int run_example_on_A2(int rankId, const char* RANK_TABLE_FILE, const char* FIRST
         return ret;
     }
     std::cout << "[INFO] HcclCommInitClusterInfo success, rank_id:" << rank_id << ", rankSize:" << DEV_NUM
-              << ", hcclComm:" << hcclComm << std::endl;
+            << ", hcclComm:" << hcclComm << std::endl;
 
     args.rankId = rankId;
     args.epRankId = rankId;
@@ -505,33 +505,36 @@ int run_example_on_A3()
 int main(int argc, char *argv[])
 {
     const char* env_var_name = "RANK_TABLE_FILE and FIRST_RANK_ID";
-    int ep_world_size_cur = std::stoi(std::string(ep_world_size_env));
+    if (!env_dev_num) {
+        LOG_PRINT("[WARNING] Please check whether environment variable ENV_DEV_NUM is set correctly.\n");
+        return 0;
+    }
+    int actual_env_dev_num = std::stoi(std::string(env_dev_num));
+    if (actual_env_dev_num < DEV_NUM) {
+        LOG_PRINT("[INFO] ENV_DEV_NUM = %d is less than %d, currently not supported\n", actual_env_dev_num, DEV_NUM);
+        return 0;
+    }
     if (!rank_table_file && !first_rank_id) {
         LOG_PRINT("[INFO] %s are not identified and example on <Atlas A3> will be executed!\n", env_var_name);
         int ret = run_example_on_A3();
     }
     else if (rank_table_file && first_rank_id) {
         LOG_PRINT("[INFO] %s are identified and example on <Atlas A2> will be executed!\n", env_var_name);
-        if (ep_world_size_cur < 16) {
-            LOG_PRINT("[INFO] EP_WORLD_SIZE = %d is less than 16, currently not supported <Atlas A2> \n", ep_world_size_cur);
-            return 0; // moe_distribute_dispatch_v2 A2最低支持16卡，所以暂不维护
-        } else {
-            uint32_t single_machine_dev_num = EP_WORLD_SIZE / MACHINE_NUM;
-            std::vector<std::unique_ptr<std::thread>> threads(single_machine_dev_num);
-            int ret = aclInit(nullptr);
-            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d\n", ret); return ret);
-            for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
-                threads[rankId] = std::make_unique<std::thread>([rankId,&ret]()
-                {
-                    int ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
-                });
-            }
-            for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
-                threads[rankId]->join();
-            }
-            aclFinalize();
-            LOG_PRINT("[INFO] aclFinalize success\n");
-        } 
+        uint32_t single_machine_dev_num = EP_WORLD_SIZE / MACHINE_NUM;
+        std::vector<std::unique_ptr<std::thread>> threads(single_machine_dev_num);
+        int ret = aclInit(nullptr);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d\n", ret); return ret);
+        for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
+            threads[rankId] = std::make_unique<std::thread>([rankId,&ret]()
+            {
+                int ret = run_example_on_A2(rankId, rank_table_file, first_rank_id);
+            });
+        }
+        for (int rankId = 0; rankId < single_machine_dev_num; ++rankId) {
+            threads[rankId]->join();
+        }
+        aclFinalize();
+        LOG_PRINT("[INFO] aclFinalize success\n");
     }
     else {
         LOG_PRINT("[WARNING] Please check whether %s are set correctly.\n", env_var_name);

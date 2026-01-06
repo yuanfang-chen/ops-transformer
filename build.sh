@@ -407,7 +407,7 @@ export EAGER_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 export GRAPH_LIBRARY_STUB_PATH="${ASCEND_HOME_PATH}/lib64/stub"
 export GRAPH_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 
-export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_OPP_PATH}/${ARCH_INFO}-linux/include/aclnnop"
+export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/include/aclnnop"
 
 function build_example()
 {
@@ -459,7 +459,7 @@ function build_example()
                 if [[ "$REAL_FILE_PATH" == "${ABSOLUTE_MC2_PATH}"* ]]; then
                     MC2_APPEND_INCLUDE_AND_LIBRARY="-lpthread -lhccl -lhccl_fwk"
                 fi
-                g++ ${file} -I ${INCLUDE_PATH} -I ${CUST_INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} ${MC2_APPEND_INCLUDE_AND_LIBRARY} -lc_sec -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
+                g++ ${file} -I ${INCLUDE_PATH} -I ${CUST_INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} ${MC2_APPEND_INCLUDE_AND_LIBRARY} -lc_sec -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
             else
                 echo "Error: pkg_mode(${PKG_MODE}) must be cust."
                 help_info "run_example"
@@ -1466,16 +1466,19 @@ fi
 function build_example_for_ci()
 {
     EXAMPLE_NAME="$1"
-    EXAMPLE_MODE="eager"
     PKG_MODE="cust"
-    build_example || local eager_result=$?       # 避免函数随build_example一起退出
+    
+    EXAMPLE_MODE="eager"
+    local eager_result=0
+    build_example || eager_result=$? # 避免函数随build_example一起退出
     if [ $eager_result -ne 0 ] && [ $eager_result -ne 2 ]; then
         echo "Error: Eager Example failed with exit code: $eager_result"
         exit $eager_result
     fi
 
     EXAMPLE_MODE="graph"
-    build_example || local geir_result=$?
+    local geir_result=0
+    build_example || geir_result=$? # 避免函数随build_example一起退出
     if [ $geir_result -ne 0 ] && [ $geir_result -ne 2 ]; then
         echo "Error: Graph Example failed with exit code: $geir_result"
         exit $geir_result
@@ -1485,7 +1488,7 @@ function build_example_for_ci()
         echo "Error: Neither eager nor graph examples provided for $EXAMPLE_NAME"
         exit $geir_result
     fi
-    exit 0
+    return 0
 }
 
 # 冒烟任务只跑examples

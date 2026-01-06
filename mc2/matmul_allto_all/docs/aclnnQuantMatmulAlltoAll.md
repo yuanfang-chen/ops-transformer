@@ -404,7 +404,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     #include <hccl/hccl.h>
     #include "aclnnop/aclnn_quant_matmul_allto_all.h"
 
-    int ndev = 8;
+    int ndev = 2;
 
     #define CHECK_RET(cond, return_expr) \
     do {                               \
