@@ -244,7 +244,7 @@ aclnnStatus aclnnQuantAllReduce(
 - 只在Ascend910D系列平台使能。
 - 不支持空Tensor输入。
 - 通信域大小支持2, 4, 8。
-- `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。要求满足`HCCL_BUFFSIZE`>= 2 * (`xDataSize` + `scalesDataSize`)，`xDataSize`为输入`x`的数据大小，单位MB，`scalesDataSize`为`scales`的数据大小，单位MB。
+- `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。要求满足`HCCL_BUFFSIZE`>= 2 * (`xDataSize` + `scalesDataSize + 1`)。其中`xDataSize`为输入`x`的数据大小，计算公式为：`xDataSize = b * s * H * 1 (Byte)`，`scalesDataSize`为`scales`的数据大小，当量化方式为pertoken-pergroup量化时，计算公式为：`scalesDataSize = b * s * H / 128 * 4 (Byte)`，当量化方式为mx量化时，计算公式为：`scalesDataSize = b * s * H / 32 * 1 (Byte)`。
 ## 调用示例
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
