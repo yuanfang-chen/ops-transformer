@@ -445,8 +445,6 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
             b = static_cast<int64_t>(contextKeyParams.actualSequenceLengthQ->GetShapeSize());
             s = (inputName == "query") ? GetMaxSeq(contextKeyParams.actualSequenceLengthQ) : GetMaxSeq(contextKeyParams.actualSequenceLengthKV);
         }
-        b = static_cast<int64_t>(contextKeyParams.actualSequenceLengthQ->GetShapeSize());
-        s = (inputName == "query") ? GetMaxSeq(contextKeyParams.actualSequenceLengthQ) : GetMaxSeq(contextKeyParams.actualSequenceLengthKV);
         t = shape->GetStorageShape().GetDim(0);
         n = shape->GetStorageShape().GetDim(1);
         d = shape->GetStorageShape().GetDim(2); // 2 for D dim
