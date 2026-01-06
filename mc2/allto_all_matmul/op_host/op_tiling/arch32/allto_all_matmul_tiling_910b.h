@@ -49,6 +49,8 @@ protected:
     ge::graphStatus PostTiling() override;
     uint64_t GetTilingKey() const override;
 
+    void CalcQuantWorkspaceSize(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
+    void CalcQuantTokenNumPerUb(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
     ge::graphStatus CheckOpInputInfo(AlltoAllMatmulInfo &info);
     ge::graphStatus CheckAndSetAttrsInfo(AlltoAllMatmulInfo &info);
     ge::graphStatus CheckTensorDataType(AlltoAllMatmulInfo &info);
@@ -62,9 +64,8 @@ protected:
                                     std::map<int, std::vector<std::vector<int>>> conditionMap);
     ge::graphStatus SetHcclTiling(AlltoAllMatmulTilingData *tilingData);
     void PrintAlltoAllMatmulTilingData(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
-    void SetTilingKey();
+
 private:
-    uint64_t tilingKey_;
     bool needTransX2 = false;
     bool hasBias = false;
     bool isQuant = false;
@@ -72,7 +73,9 @@ private:
     uint32_t worldSize = 0;
     uint32_t orgM = 0;
     uint32_t orgN = 0;
+    uint32_t orgK = 0;
     uint32_t blockDim = 1U;
+    size_t quantWorkspaceSize = 0;
 };
 } // namespace MC2Tiling
 #endif

@@ -26,6 +26,12 @@ struct AlltoAllMatmulInfo {
     uint32_t worldSize;
     uint32_t aivNum;
     uint32_t totalUbSize;
+    int32_t copyTokenNumPerUb;
+    int32_t segmentsNumForLargeToken;
+    int32_t copyTensorSize;
+    uint64_t quantSize;
+    uint64_t dequantSize;
+    uint64_t quantScaleSize;
     bool hasBias;
 };
 

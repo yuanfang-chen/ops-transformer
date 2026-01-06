@@ -22,6 +22,7 @@
 using namespace AscendC;
 
 constexpr static uint32_t BUFFER_NUM = 2U;
+constexpr static uint32_t BLOCK_SIZE = 512U;
 constexpr static int32_t MAX_BLOCK_COUNT = 2;
 constexpr static int32_t FLAG_ZERO_IDX = 0;
 constexpr static int32_t FLAG_ONE_IDX = 1;
@@ -30,6 +31,7 @@ constexpr static int32_t FLAG_OFFSET = 180 * 1024 * 1024 / sizeof(int32_t);
 constexpr static uint32_t UB_OFFSET = 97440;  // 根据类型变动这个值   / sizeof(int16_t)
 constexpr static uint32_t BLOCK_ALIGN_BYTES = 32U;
 constexpr static uint32_t BLOCK_NUM_OF_UB_OFFSET = UB_OFFSET / BLOCK_ALIGN_BYTES;
+constexpr static float MAX_INT8 = 127.0f;
 
 template <typename T, size_t SIZE>
 struct BaseBlock {
@@ -56,6 +58,15 @@ struct BaseBlock {
         return len & ~(size - 1);
     }
 };
+
+template <typename T>
+using Block32B = BaseBlock<T, 32>;
+
+template <typename T>
+using Block256B = BaseBlock<T, 256>;
+
+template <typename T>
+using Block512B = BaseBlock<T, 512>;
 
 class CommBase {
 public:
@@ -112,6 +123,12 @@ public:
         m0 = info.cocTiling.m0;
         k0 = info.cocTiling.k0;
         n0 = info.cocTiling.n0;
+        quantSize = info.allToAllMatmulInfo.quantSize;
+        dequantSize = info.allToAllMatmulInfo.dequantSize;
+        quantScaleSize = info.allToAllMatmulInfo.quantScaleSize;
+        copyTokenNum = info.allToAllMatmulInfo.copyTokenNumPerUb;
+        copyTimes = info.allToAllMatmulInfo.segmentsNumForLargeToken;
+        copyTensorSize = info.allToAllMatmulInfo.copyTensorSize;
         first_step_core_num = info.cocTiling.first_step_core_num;
         second_step_core_num = info.cocTiling.second_step_core_num;
         swizzl_count = info.cocTiling.swizzlCount;
@@ -307,6 +324,9 @@ public:
     int32_t first_step_core_num;
     int32_t second_step_core_num; 
     int32_t ub_offset;
+    int32_t copyTokenNum;
+    int32_t copyTimes;
+    int32_t copyTensorSize;
 
     int32_t m0;
     int32_t k0;
@@ -319,6 +339,9 @@ public:
     uint32_t m;
     uint32_t k;
     uint32_t n;
+    uint64_t quantSize;
+    uint64_t dequantSize;
+    uint64_t quantScaleSize;
 };
 
 __aicore__ inline void SetAndWaitAivSync(uint64_t flag_idx, int32_t pipe_depth = 2)

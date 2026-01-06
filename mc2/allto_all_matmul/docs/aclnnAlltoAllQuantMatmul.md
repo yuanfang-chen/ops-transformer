@@ -67,7 +67,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
   aclrtStream stream)
 ```
 
-## aclnnAlltoAllMatmulGetWorkspaceSize
+## aclnnAlltoAllQuantMatmulGetWorkspaceSize
 
 - ​**参数说明**​：
 

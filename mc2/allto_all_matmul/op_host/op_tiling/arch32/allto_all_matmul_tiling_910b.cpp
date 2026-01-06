@@ -34,8 +34,10 @@ constexpr uint32_t INPUT_X2_INDEX = 1;
 constexpr uint32_t INPUT_BIAS_INDEX = 2;
 constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16 * 1024 * 1024;
 constexpr uint32_t USER_WORKSPACE_A2 = 1 * 1024 * 1024; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
+constexpr uint32_t UB_OFFSET = 97440;
 constexpr uint32_t ELEMENT_SIZE = 2;
 constexpr uint32_t MAX_BLOCK_COUNT = 2;
+constexpr uint32_t BLOCK_ALIGN_BYTES = 32U;
 constexpr int32_t MIN_P_VALUE = 1;
 constexpr int32_t MAX_BUFF_BYTES = 204 * 1024 * 1024;
 constexpr int32_t FLAG_BUFF_BYTES = 5 * 512 * 1024;
@@ -75,7 +77,10 @@ constexpr uint32_t COUNT_PARAMS_WITHOUT_BIAS = 3; // [x1, x2, y]
 const std::set<int> SUPPORT_RANK_SIZE_910{2, 4, 8};
 const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITH_BIAS = {
     {ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT, ge::DT_BF16},
-    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16}
+    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
+    {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT, ge::DT_BF16},
+    {ge::DT_BF16, ge::DT_INT8, ge::DT_BF16, ge::DT_BF16},
+    {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16, ge::DT_FLOAT16}
 };
 const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
     {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16},
@@ -84,6 +89,41 @@ const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
 }
 
 namespace MC2Tiling {
+
+template <typename T, size_t SIZE>
+struct BaseBlock {
+    static_assert((SIZE & (SIZE - 1)) == 0, "Invalid block size");
+    static constexpr size_t size = SIZE / sizeof(T);
+
+    static __aicore__ inline size_t Count(size_t len)
+    {
+        return (len + size - 1) / size;
+    }
+
+    static __aicore__ inline bool IsAligned(size_t len)
+    {
+        return len % size == 0;
+    }
+
+    static __aicore__ inline size_t AlignUp(size_t len)
+    {
+        return (len + size - 1) & ~(size - 1);
+    }
+
+    static __aicore__ inline size_t AlignDown(size_t len)
+    {
+        return len & ~(size - 1);
+    }
+};
+
+template <typename T>
+using Block32B = BaseBlock<T, 32>;
+
+template <typename T>
+using Block256B = BaseBlock<T, 256>;
+
+template <typename T>
+using Block512B = BaseBlock<T, 512>;
 
 int32_t RoundNum(int32_t num, int32_t rnd) {
     if (rnd == 0) {
@@ -403,9 +443,9 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
             if (biasDtype == ge::DT_FLOAT16) {
                 biasDtype_ = TILINGKEY_TPL_FP16;
             } else if (biasDtype == ge::DT_BF16) {
-                biasDtype_ == TILINGKEY_TPL_BF16;
+                biasDtype_ = TILINGKEY_TPL_BF16;
             } else {
-                biasDtype_ == TILINGKEY_TPL_FP32;
+                biasDtype_ = TILINGKEY_TPL_FP32;
             }
         }
         for (uint32_t kindsId = 0; kindsId < SUPPORTED_TYPES_WITH_BIAS.size(); kindsId++) {
@@ -484,6 +524,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     if (isQuant) {
         orgM = info.M;
         orgN = info.N;
+        orgK = info.K;
         const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
         uint64_t x2ScaleShapeDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(0);
@@ -656,20 +697,15 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
     GE_ASSERT_GRAPH_SUCCESS(CheckOpInputInfo(info));
     GE_ASSERT_GRAPH_SUCCESS(DoMmCommTiling(tilingData->cocTiling, info));
     GE_ASSERT_GRAPH_SUCCESS(SetHcclTiling(tilingData));
-    SetTilingKey();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
     auto aicNum = ascendcPlatform.GetCoreNumAic();
     auto aivNum = ascendcPlatform.GetCoreNumAiv();
     blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
 
+    CalcQuantWorkspaceSize(tilingData->cocTiling, info);
+
     OPS_LOG_I(opName_, "Leave AllToAllMatmul tiling func.");
     return ge::GRAPH_SUCCESS;
-}
-
-void AlltoAllMatmulTiling910b::SetTilingKey()
-{
-    tilingKey_ = GET_TPL_TILING_KEY(hasBias, isQuant, needTransX2, biasDtype_);
-    OP_LOGD(opName_, "TilingKey is [%lu] in AllToAllMatmul.", tilingKey_);
 }
 
 /**
@@ -679,7 +715,9 @@ void AlltoAllMatmulTiling910b::SetTilingKey()
  */
 uint64_t AlltoAllMatmulTiling910b::GetTilingKey() const
 {
-    return tilingKey_;
+    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, isQuant, needTransX2, biasDtype_);
+    OP_LOGD(opName_, "TilingKey is [%lu] in AllToAllMatmul.", tilingKey);
+    return tilingKey;
 }
 
 /**
@@ -699,6 +737,44 @@ ge::graphStatus AlltoAllMatmulTiling910b::SetHcclTiling(AlltoAllMatmulTilingData
     return ge::GRAPH_SUCCESS;
 }
 
+void AlltoAllMatmulTiling910b::CalcQuantTokenNumPerUb(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t maxUBPingPongSize = cocTilingData.ubMoveNum / 2;
+    int32_t tokenSize = info.K * worldSize;  // 加上padding后，此处需要使用k_allign
+    int32_t tokenPerCore = (cocTilingData.m0 * cocTilingData.pValue) / (cocTilingData.first_step_core_num);  // 每个核需要处理的token数
+    int32_t quantScaleSize = Block32B<float>::AlignUp(tokenPerCore);  // 用于存储quantScale
+    int32_t reduceMaxSize = BLOCK_ALIGN_BYTES / sizeof(float);  // 用于存储reduceMax的结果，存放某个token的max的值
+    int32_t ubLeftForCopyAndAbs = UB_OFFSET / sizeof(float) - quantScaleSize - reduceMaxSize;  // 剩余用来存放absTensor和copyTensor的空间
+    int32_t copyTokenNum = ubLeftForCopyAndAbs / Block32B<float>::AlignUp(tokenSize) / 2;  // copyTensor和absTensor所用空间相同
+
+    int32_t copyTimes = 0;
+    int32_t copyTensorSize = 0;
+    if (copyTokenNum == 0) {
+        // tokenSize过大，需要切分token，进入大Token量化流程
+        int32_t quantScaleSize = Block32B<float>::AlignUp(tokenPerCore) * sizeof(float);
+        int32_t reduceMaxSize = 32;  // reduceMax只占用一个DataBlock即可
+        int32_t remainUbSize = (UB_OFFSET - quantScaleSize - reduceMaxSize) / sizeof(float);
+        copyTensorSize = Block32B<float>::AlignDown(remainUbSize / 2);  // copyTensor和absTensor的Tensor大小
+        copyTimes = tokenSize / copyTensorSize;
+        if (tokenSize % copyTensorSize != 0) {
+            copyTimes += 1;
+        }
+    }
+    info.copyTokenNumPerUb = copyTokenNum;
+    info.segmentsNumForLargeToken = copyTimes;
+    info.copyTensorSize = copyTensorSize;
+}
+
+void AlltoAllMatmulTiling910b::CalcQuantWorkspaceSize(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info) {
+    CalcQuantTokenNumPerUb(cocTilingData, info);
+    uint32_t numPerRankM = cocTilingData.m0 * cocTilingData.pValue;
+    uint32_t midOutputKSize = orgK * worldSize;
+    info.quantSize = numPerRankM * midOutputKSize * MAX_BLOCK_COUNT;  // int8类型的A需要占用的空间大小
+    info.quantScaleSize = Block32B<float>::AlignUp(orgM) * sizeof(float) / worldSize;  // A反量化参数所需要的空间大小
+    info.dequantSize = orgM * orgN * sizeof(int32_t);
+    quantWorkspaceSize = info.quantSize + info.quantScaleSize + info.dequantSize;
+}
+
 /**
  * @brief 获取额外申请的空间
  *
@@ -710,7 +786,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Get workspace failed"), return ge::GRAPH_FAILED);
     size_t wsSize = SYSTEM_NEED_WORKSPACE;
     if (isQuant) {
-        wsSize += orgM * orgN * sizeof(int32_t) / worldSize;
+        wsSize += quantWorkspaceSize;
     }
     workspaces[0] = wsSize;
     OP_LOGD(opName_, "Workspaces[0] size=%ld", workspaces[0]);
