@@ -31,13 +31,12 @@ extern "C" {
 };
 
 ACLNN_API bool CombineCheckNotNull(const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine,
-                         const aclTensor* epSendCounts, const aclTensor* expertScales,
-                         const char* groupEp, aclTensor* x);
+                                   const aclTensor* epSendCounts, const aclTensor* expertScales,
+                                   const char* groupEp, aclTensor* x);
 
 ACLNN_API aclnnStatus CombineCheckParams(const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* expandIdx,
-                               const aclTensor* epSendCounts, 
-                               const aclTensor* expertScales, const char* groupEp, const char* groupTp,
-                               aclTensor* x);
+                                         const aclTensor* epSendCounts, const aclTensor* expertScales, const char* groupEp,
+                                         const char* groupTp, aclTensor* x);
 
 ACLNN_API aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     const aclTensor* expandX, const aclTensor* expertIds,

@@ -108,9 +108,9 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormGetWorkspaceSizeBase(const aclTen
     aclOpExecutor** executor)
 {
     const static bool is910B = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
-    auto ret_param = CombineArnCheckParams(expandX, expertIds, assistInfoForCombine, epSendCounts, tpSendCountsOptional,
+    auto retParam = CombineArnCheckParams(expandX, expertIds, assistInfoForCombine, epSendCounts, tpSendCountsOptional,
         expertScales, groupEp, groupTp, xOut, is910B);
-    CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
+    CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     aclnnStatus ret;
     if (is910B) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Not support 910B platform.");

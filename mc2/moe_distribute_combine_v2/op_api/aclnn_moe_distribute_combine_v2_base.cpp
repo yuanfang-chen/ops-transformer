@@ -107,9 +107,9 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
 {
     const static bool is910B = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
     const static bool is910_95 = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95;
-    auto ret_param = CombineCheckParams(expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales, groupEp,
+    auto retParam = CombineCheckParams(expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales, groupEp,
         groupTp, xOut);
-    CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
+    CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
 
     const aclTensor* performanceInfoOptionalCombineV2Temp = performanceInfoOptional;
     const char* groupTpCombineV2Temp = groupTp;
