@@ -307,10 +307,6 @@ foreach (OP_DEPEND_DIR ${OP_DEPEND_DIR_LIST})
     endif()
 endforeach ()
 
-install(DIRECTORY ${OPS_ADV_ACT}/
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/act
-)
-
 install(DIRECTORY ${OPS_CGMCT}/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/cgmct
 )

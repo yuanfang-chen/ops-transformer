@@ -687,10 +687,6 @@ install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
-install(DIRECTORY ${OPS_ADV_DIR}/common/act
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
-)
-
 install(DIRECTORY ${OPS_ADV_DIR}/common/catlass
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )

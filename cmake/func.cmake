@@ -392,12 +392,10 @@ function(add_ops_src_copy)
             set(OPS_UTILS_INC_KERNEL_DIR ${_ROOT_OPS_SRC_DIR}/ascendc/common)
             add_custom_command(OUTPUT ${OPS_UTILS_INC_KERNEL_DIR}
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/regbase
-                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/act
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/catlass
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/tla
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
                     COMMAND cp -rf ${OPS_ADV_UTILS_KERNEL_INC}/*.* ${OPS_UTILS_INC_KERNEL_DIR}
-                    COMMAND cp -rf ${OPS_ADV_ACT}/* ${OPS_UTILS_INC_KERNEL_DIR}/act
                     COMMAND cp -rf ${OPS_ADV_CATLASS}/* ${OPS_UTILS_INC_KERNEL_DIR}/catlass
                     COMMAND cp -rf ${OPS_ADV_TLA}/* ${OPS_UTILS_INC_KERNEL_DIR}/tla
                     COMMAND cp -rf ${OPS_CGMCT}/* ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
