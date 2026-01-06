@@ -171,16 +171,13 @@ ge::graphStatus MoeGatingTopKTilingRegbase::CheckAttr()
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF(groupCount_ <= 0, OP_LOGE(context_, "group_count is: %ld, but should be greater than 0.", groupCount_),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(expertCount_ % groupCount_ != 0,
-                OP_LOGE(context_, "expert num : %ld is not divisible by group_count: %ld", expertCount_, groupCount_),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(kGroup_ > groupCount_,
-                OP_LOGE(context_, "k_group is: %ld, but should not greater than group_count: %ld", kGroup_, groupCount_),
-                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(expertCount_ % groupCount_ != 0, OP_LOGE(context_, "expert num : %ld is not divisible by group_count: %ld",
+                expertCount_, groupCount_), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(kGroup_ > groupCount_, OP_LOGE(context_, "k_group is: %ld, but should not greater than group_count: %ld",
+                kGroup_, groupCount_), return ge::GRAPH_FAILED);
     OP_CHECK_IF(groupCount_ == expertCount_ && kGroup_ < k_,
                 OP_LOGE(context_, "k_group * group expert count is: %ld, but it must be greater than or equal to k: %ld.",
-                     kGroup_, k_),
-                return ge::GRAPH_FAILED);
+                     kGroup_, k_), return ge::GRAPH_FAILED);
     
     if (kGroup_ == groupCount_ || groupCount_ == expertCount_) {
         kGroup_ = 1;
@@ -195,36 +192,29 @@ ge::graphStatus MoeGatingTopKTilingRegbase::CheckAttr()
 
     OP_CHECK_IF(groupCount_ * groupExpertCountAlign > MAX_EXPERT_COUNT,
                 OP_LOGE(context_, "group count * group expert count align is: %ld, but should not greater than %ld.",
-                     groupCount_ * groupExpertCountAlign, MAX_EXPERT_COUNT),
-                return ge::GRAPH_FAILED);
+                      groupCount_ * groupExpertCountAlign, MAX_EXPERT_COUNT), return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(kGroup_ * groupExpertCount < k_,
                 OP_LOGE(context_, "k_group * group expert count is: %ld, but it must be greater than or equal to k: %ld.",
-                     kGroup_ * groupExpertCount, k_),
-                return ge::GRAPH_FAILED);
+                      kGroup_ * groupExpertCount, k_), return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(groupExpertCount < 1,
                 OP_LOGE(context_, "per group expert count is: %ld, but should be greater than 0.", groupExpertCount),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(
-        groupSelectMode_ != GROUP_SELECT_MODE_SUM && groupSelectMode_ != GROUP_SELECT_MODE_MAX,
+     OP_CHECK_IF(groupSelectMode_ != GROUP_SELECT_MODE_SUM && groupSelectMode_ != GROUP_SELECT_MODE_MAX,
         OP_LOGE(context_, "group select mode is: %ld, but currently only support %ld and %ld.", groupSelectMode_,
-            GROUP_SELECT_MODE_SUM, GROUP_SELECT_MODE_MAX),
-            return ge::GRAPH_FAILED);
+            GROUP_SELECT_MODE_SUM, GROUP_SELECT_MODE_MAX), return ge::GRAPH_FAILED);
     OP_CHECK_IF(groupSelectMode_ == GROUP_SELECT_MODE_SUM && groupExpertCount < 2,
         OP_LOGE(context_,
              "group expert count is: %ld, if group select mode is: %ld, group expert count should be greater than 1.",
-             groupExpertCount, groupSelectMode_),
-        return ge::GRAPH_FAILED);
+	              groupExpertCount, groupSelectMode_), return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(renorm_ != RENORM_NO,
-                OP_LOGE(context_, "renorm is: %ld, but currently only support %ld.", renorm_, RENORM_NO),
-                return ge::GRAPH_FAILED);
+     OP_CHECK_IF(renorm_ != RENORM_NO, OP_LOGE(context_, "renorm is: %ld, but currently only support %ld.",
+ 	         renorm_, RENORM_NO), return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(normType_ != NORM_TYPE_SOFTMAX && normType_ != NORM_TYPE_SIGMOID,
                 OP_LOGE(context_, "norm type is: %ld, but currently only support %ld and %ld.", normType_,
-                        NORM_TYPE_SOFTMAX, NORM_TYPE_SIGMOID),
-                return ge::GRAPH_FAILED);
+                    NORM_TYPE_SOFTMAX, NORM_TYPE_SIGMOID), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
