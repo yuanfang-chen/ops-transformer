@@ -260,8 +260,9 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Init(
         if (constInfo.pseShiftFlag) {
             pseShiftGm.SetGlobalBuffer((__gm__ PSE_T *)pseShift);
             pseShiftGmTensor.gmTensor = pseShiftGm;
-            pseShiftGmTensor.offsetCalculator.Init(constInfo.pseShiftByBatch ? constInfo.batchSize : 1,
-                constInfo.kvHeadNum, constInfo.gSize, constInfo.pseShiftS1, constInfo.pseShiftS2);
+            pseShiftGmTensor.offsetCalculator.Init(
+                constInfo.pseShiftByBatch ? constInfo.batchSize : 1, constInfo.kvHeadNum, constInfo.gSize,
+                constInfo.pseShiftS1, constInfo.pseShiftS2, this->actualSeqLengthsGmQ, constInfo.actualLenQDims);
         }
     }
     if constexpr (POST_QUANT) {
