@@ -59,6 +59,8 @@ operator_group_10:
   - allto_allv_grouped_mat_mul
   - grouped_mat_mul_allto_allv
   - all_gather_matmul_v2
+  - all_gather_matmul
+  - matmul_reduce_scatter
   - matmul_reduce_scatter_v2
   - matmul_all_reduce
   - moe_distribute_combine
