@@ -215,6 +215,8 @@ ge::Status Mc2A5GenTaskUtils::CreateCcuFusionTask(const gert::ExeResGenerationCo
   ccu_fusion_task.set_notify_id(UINT32_MAX);
   ccu_fusion_task.set_type(type);
   ccu_fusion_task.set_stream_id(stream_id);
+  // 算子临时规避整网执行方案：aic（1个） + ccu（4个） 一共占据 5 个 sqe
+  ccu_fusion_task.set_sqe_num(5);
   OPS_LOG_I(context->GetNodeName(), "Create fusion task(type %u) for mc2 node successfully, %s stream id %ld.",
             static_cast<uint32_t>(type), (is_attached_stream ? "attached" : "main"), stream_id);
   return ge::GRAPH_SUCCESS;
