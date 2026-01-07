@@ -328,9 +328,8 @@ __aicore__ inline void AntiQuantFp4NzKnVf(Fp4NzParams<xType, wType> &fp4NzParams
     }
 }
 
-template <typename xType, typename wType, typename biasType, uint64_t ubMte2InnerSize, bool calcMxBias,
-          bool isBiasSingleVector>
-__simd_vf__ inline void AntiQuantMxA8W4NzNkVf(MxA8W4NzParams<xType, wType, biasType> mxA8W4NzParams)
+template <typename xType, typename wType, typename biasType, bool calcMxBias, bool isBiasSingleVector>
+__simd_callee__ inline void MxA8W4BiasCompute(MxA8W4NzParams<xType, wType, biasType> &mxA8W4NzParams)
 {
     if constexpr (calcMxBias) {
         static constexpr biasType MX_BIAS_FACTOR = static_cast<biasType>(0.015625f);
@@ -356,7 +355,13 @@ __simd_vf__ inline void AntiQuantMxA8W4NzNkVf(MxA8W4NzParams<xType, wType, biasT
                                                                                maskBiasAll);
         }
     }
+}
 
+template <typename xType, typename wType, typename biasType, uint64_t ubMte2InnerSize, bool calcMxBias,
+          bool isBiasSingleVector>
+__simd_vf__ inline void AntiQuantMxA8W4NzNkVf(MxA8W4NzParams<xType, wType, biasType> mxA8W4NzParams)
+{
+    MxA8W4BiasCompute<xType, wType, biasType, calcMxBias, isBiasSingleVector>(mxA8W4NzParams);
     MicroAPI::RegTensor<int8_t> wShrReg, wShlReg, wAndReg, wLoad, wShl, wShr0, wShr1, wSel, wAnd;
     MicroAPI::MaskReg preg = MicroAPI::CreateMask<uint8_t, AscendC::MicroAPI::MaskPattern::ALL>();
     MicroAPI::MaskReg pregVsel = MicroAPI::CreateMask<uint16_t, AscendC::MicroAPI::MaskPattern::ALL>();

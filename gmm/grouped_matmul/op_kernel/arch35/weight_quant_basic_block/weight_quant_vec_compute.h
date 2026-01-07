@@ -73,10 +73,7 @@ public:
     __aicore__ inline void WeightAntiQuantCompute(const UbConsumeConfig &ubConsumeConfig,
                                                   const LocalTensor<xType> &weightHighBitL1,
                                                   const L1ConsumeConfig &l1ConsumeConfig,
-                                                  const LocalTensor<biasType> &biasL1);
-    __aicore__ inline void WeightAntiQuantCompute(const UbConsumeConfig &ubConsumeConfig,
-                                                  const LocalTensor<xType> &weightHighBitL1,
-                                                  const L1ConsumeConfig &l1ConsumeConfig);
+                                                  const LocalTensor<biasType> *biasL1Ptr);
     __aicore__ inline void CopyKcScaleBiasGmToUb(uint64_t nRealL0Size, uint64_t mRealL0Size, uint64_t nOffset,
                                                  uint64_t mOffset);
     __aicore__ inline void AntiQuantYWithKc(uint64_t nRealL0Size, uint64_t mRealL0Size);
@@ -641,60 +638,9 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::CopyKcSca
                          移大小，用于搬运到L1的dst地址偏移计算。
 */
 GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
-__aicore__ inline void
-GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAntiQuantCompute(const UbConsumeConfig &ubConsumeConfig,
-                                                                       const LocalTensor<xType> &weightHighBitL1,
-                                                                       const L1ConsumeConfig &l1ConsumeConfig)
-{
-    uint64_t weightHighBitL1Offset;
-    uint64_t nRealLen;
-    uint64_t kRealLen;
-    TEventID vecEventIdMte3ToV[QUADRUPLE_BUFFER_NUM];
-
-    // 用临时变量接一下，优化编译的作用
-    if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ) {
-        vecEventIdMte3ToV[0] = vecEventIdMte3ToV_[0];
-        vecEventIdMte3ToV[1] = vecEventIdMte3ToV_[1];
-    } else {
-        vecEventIdMte3ToV[0] = vecEventIdMte3ToV_[0];
-        vecEventIdMte3ToV[1] = vecEventIdMte3ToV_[1];
-        vecEventIdMte3ToV[2] = vecEventIdMte3ToV_[2];
-        vecEventIdMte3ToV[3] = vecEventIdMte3ToV_[3];
-    }
-    for (uint64_t antiQuantKOffset = 0; antiQuantKOffset < ubConsumeConfig.l1RequireVfComputeRealK;
-         antiQuantKOffset += VF_CONFIG.vfKStandardLen) {
-        for (uint64_t antiQuantNOffset = 0; antiQuantNOffset < ubConsumeConfig.l1RequireVfComputeRealN;
-             antiQuantNOffset += VF_CONFIG.vfNStandardLen) {
-            if (likely(ubComputeLoopIdx_ > UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)) {
-                WaitFlag<HardEvent::MTE3_V>(
-                    vecEventIdMte3ToV[ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)]);
-            }
-            nRealLen = antiQuantNOffset + VF_CONFIG.vfNStandardLen >= ubConsumeConfig.l1RequireVfComputeRealN
-                           ? ubConsumeConfig.l1RequireVfComputeRealN - antiQuantNOffset
-                           : VF_CONFIG.vfNStandardLen;
-            kRealLen = antiQuantKOffset + VF_CONFIG.vfKStandardLen >= ubConsumeConfig.l1RequireVfComputeRealK
-                           ? ubConsumeConfig.l1RequireVfComputeRealK - antiQuantKOffset
-                           : VF_CONFIG.vfKStandardLen;
-            WeightAntiQuantProcess(nRealLen, kRealLen, antiQuantNOffset, antiQuantKOffset, ubConsumeConfig);
-
-            weightHighBitL1Offset =
-                ComputeWeightHighBitL1Offset(antiQuantNOffset, antiQuantKOffset, nRealLen, kRealLen, l1ConsumeConfig);
-            event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID<HardEvent::V_MTE3>());
-            SetFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
-            WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
-            WeightHighBitUbToL1(weightHighBitL1Offset, nRealLen, kRealLen, weightHighBitL1,
-                                l1ConsumeConfig.l1RealExternalLen);
-            SetFlag<HardEvent::MTE3_V>(
-                vecEventIdMte3ToV[ubComputeLoopIdx_ & (UB_BUFFER_INFO.ubWeightOutputHighBitBufferNum - 1)]);
-            ubComputeLoopIdx_++;
-        }
-    }
-}
-
-GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_TEMPLATE_PARAM
 __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAntiQuantCompute(
     const UbConsumeConfig &ubConsumeConfig, const LocalTensor<xType> &weightHighBitL1,
-    const L1ConsumeConfig &l1ConsumeConfig, const LocalTensor<biasType> &biasL1)
+    const L1ConsumeConfig &l1ConsumeConfig, const LocalTensor<biasType> *biasL1Ptr)
 {
     uint64_t weightHighBitL1Offset;
     uint64_t nRealLen;
@@ -702,12 +648,9 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAnt
     TEventID vecEventIdMte3ToV[QUADRUPLE_BUFFER_NUM];
 
     // 用临时变量接一下，优化编译的作用
-    if constexpr (wqmmConfig.weightFormat != CubeFormat::NZ) {
-        vecEventIdMte3ToV[0] = vecEventIdMte3ToV_[0];
-        vecEventIdMte3ToV[1] = vecEventIdMte3ToV_[1];
-    } else {
-        vecEventIdMte3ToV[0] = vecEventIdMte3ToV_[0];
-        vecEventIdMte3ToV[1] = vecEventIdMte3ToV_[1];
+    vecEventIdMte3ToV[0] = vecEventIdMte3ToV_[0];
+    vecEventIdMte3ToV[1] = vecEventIdMte3ToV_[1];
+    if constexpr (wqmmConfig.weightFormat == CubeFormat::NZ) {
         vecEventIdMte3ToV[2] = vecEventIdMte3ToV_[2];
         vecEventIdMte3ToV[3] = vecEventIdMte3ToV_[3];
     }
@@ -734,7 +677,8 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::WeightAnt
             WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
             WeightHighBitUbToL1(weightHighBitL1Offset, nRealLen, kRealLen, weightHighBitL1,
                                 l1ConsumeConfig.l1RealExternalLen);
-            if (ubConsumeConfig.calcMxBias) {
+            if (biasL1Ptr != nullptr && ubConsumeConfig.calcMxBias) {
+                auto biasL1 = *biasL1Ptr;
                 DataCopy(biasL1[l1ConsumeConfig.l1MxBiasSplitNOffset],
                          ubBiasOutTotalBuffer_[((ubMte2LoopIdx_ - 1) & (vecConfig.ubMte2BufferNum - 1)) *
                          UB_BUFFER_INFO.biasReducedSingleBufferSize], ubConsumeConfig.ubMxBiasNsize);
