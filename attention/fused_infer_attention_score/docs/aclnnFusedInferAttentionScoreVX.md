@@ -1088,7 +1088,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 - per-tensor叠加per-head模式；
                 - per-token叠加per-head模式；
                 - key支持per-channel叠加value支持per-token模式。
-            - INT4（INT32）伪量化场景支持后量化。
+            - INT4（INT32）伪量化场景不支持后量化。
 
 - **当Q_S等于1时**：
   -   query，key，value输入，功能使用限制如下：
@@ -1129,17 +1129,16 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
       -   kv左padding场景与attenMask参数一起使能时，需要保证attenMask含义正确，即能够正确的对无效数据进行隐藏。否则将引入精度问题。
   -   pseShift功能使用限制如下：
       - pseShift数据类型需与query数据类型保持一致。
-      - 仅支持D轴对齐，即D轴可以被16整除。
   -   kv伪量化参数分离
       - 除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，keyAntiquantMode 和 valueAntiquantMode需要保持一致
       - keyAntiquantScale 和 valueAntiquantScale要么都为空，要么都不为空；keyAntiquantOffset 和 valueAntiquantOffset要么都为空，要么都不为空
       - KeyAntiquantScale 和valueAntiquantScale都不为空时，除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致；keyAntiquantOffset 和 valueAntiquantOffset都不为空时，除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致
       - <term>昇腾910_95 AI处理器</term>：支持per-channel、per-tensor、per-token、per-tensor叠加per-head、per-token叠加per-head、per-token使用page attention模式管理scale/offset、per-token叠加per-head并使用page attention模式管理scale/offset、key支持per-channel叠加value支持per-token和per-token-group九种模式，以下N均为numKeyValueHeads。
-          - per-channel模式：两个参数的shape可支持\(1, N, 1, D\)，\(1, N, D\)，\(1, H\)。参数数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。
+          - per-channel模式：两个参数的shape可支持\(1, N, 1, D\)，\(1, N, D\)，\(1, H\)。参数数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)、FLOAT8_E4M3FN、HIFLOAT8时支持。
           - per-tensor模式：两个参数的shape均为\(1\)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。
           - per-token模式：两个参数的shape均为\(1, B, S\)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
           - per-tensor叠加per-head模式：两个参数的shape均为\(N\)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。
-          - key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持\(1, N, 1, D\)，\(1, N, D\)，\(1, H\)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为\(1, B, S\)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。当key、value数据类型为INT8、INT4(INT32)时，仅支持query和attentionOut的数据类型为FLOAT16。
+          - key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持\(1, N, 1, D\)，\(1, N, D\)，\(1, H\)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为\(1, B, S\)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
           - per-token-group模式：antiquantScale的shape为\(1, B, N, S, D/32\), 数据类型固定为FLOAT8_E8M0，不支持带antiquantOffset。当key、value数据类型为FLOAT4_E2M1时支持。
           - per-token叠加per-head模式：两个参数的shape均为\(B, N, S\)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
           - per-token模式使用page attention管理scale/offset模式：两个参数的shape均为\(blocknum, blocksize\)，数据类型固定为FLOAT32，当key、value数据类型为INT8时支持。
@@ -1152,7 +1151,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             - per-tensor叠加per-head模式；
             - per-token叠加per-head模式；
             - key支持per-channel叠加value支持per-token模式。
-          - INT4（INT32）伪量化场景支持后量化。
+          - INT4（INT32）伪量化场景不支持后量化。
   -   prefix相关参数约束：
       - keySharedPrefix和valueSharedPrefix要么都为空，要么都不为空
       - keySharedPrefix和valueSharedPrefix都不为空时，keySharedPrefix、valueSharedPrefix、key、value的维度相同、dtype保持一致。

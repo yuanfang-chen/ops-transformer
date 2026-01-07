@@ -1725,6 +1725,28 @@ bool IFATilingV2::CheckSparseMode(bool isDefaultSparseMode, bool enableMask) {
       preToken_, nextToken_),
     return false);
 
+  if (!CheckBandMode(isBandMode)) {
+    return false;
+  }
+  return true;
+}
+
+bool IFATilingV2::CheckBandMode(bool isBandMode) {
+  if (!isBandMode) {
+    return true;
+  }
+  if (ifaContext_->actualSeqLengths.tensor != nullptr) {
+    const gert::Tensor* actSeqLen = ifaContext_->actualSeqLengths.tensor;
+    uint32_t actualLenKvDims = actSeqLen->GetShapeSize();
+    uint32_t actSeqLengthKvSize = std::min(actualLenKvDims, batchSize_);
+    for (uint32_t i = 0; i < actSeqLengthKvSize; ++i) {
+      int64_t actSeqTmp = actSeqLen->GetData<int64_t>()[i];
+      OP_CHECK_IF(nextToken_ <= -actSeqTmp,
+        OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
+        "In SparseMode 4(band mode), nextToken must be greater than -actualSeqLengthsKv, but nextToken got %ld while actualSeqLengthsKv[%u] got %ld.", nextToken_, i, actSeqTmp),
+        return false);
+    }
+  }
   return true;
 }
 
