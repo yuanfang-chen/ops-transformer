@@ -344,7 +344,7 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
     }
     if constexpr (isFd) {
         this->constInfo.splitKVNum = inputParamsRegbase.kvSplitPart;
-        this->constInfo.sInnerLoopSize = CeilDivision(this->constInfo.s2Size, this->constInfo.splitKVNum);
+        this->constInfo.sInnerLoopSize = CeilDiv(this->constInfo.s2Size, this->constInfo.splitKVNum);
         if constexpr (PAGE_ATTENTION_ANTIQUANT) {
             this->constInfo.sInnerLoopSize = AlignUp32(static_cast<uint64_t>(this->constInfo.sInnerLoopSize));
         }

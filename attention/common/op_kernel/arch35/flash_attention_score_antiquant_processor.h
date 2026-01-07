@@ -43,7 +43,7 @@ __aicore__ constexpr uint16_t GetRealDealSize(uint16_t realSize) {
     return (dealSize > realSize) ? realSize : dealSize;
 }
 
-__aicore__ constexpr uint16_t AlignUp32(uint16_t size) {
+__aicore__ constexpr uint64_t AlignUp32(uint64_t size) {
     return (size + 31) >> 5 << 5;      // 31 & 5 is Alignup 32
 }
 
