@@ -177,7 +177,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithEp(
         <td>out</td>
         <td>输出</td>
         <td>表示permutedTokens反重排的输出结果。</td>
-        <td>shape支持2D维度</td>
+        <td>shape支持2D维度。</td>
         <td>BFLOAT16、FLOAT16、FLOAT32</td>
         <td>ND</td>
         <td>
