@@ -723,7 +723,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4(
 
     -   seedOptional和offsetOptional只在keepProbOptional小于1.0时生效，否则不生效。
     -   keepProbOptional小于1.0时，若dropMaskOptional非nullptr，则使用输入的dropMask；否则使用seed和offset生成的dropMask。
-
+- TND格式下，支持尾部部分Batch不参与计算，此时actual_seq_q_len和actual_seq_kv_len尾部传入对应个数的0即可。假设真实S长度为[2, 3, 4, 5, 6]，若希望最后两个Batch不参与计算，则传入的actual_seq_q_len为[2, 3, 4, 0, 0]。此时若需要传入prefixOptional，其尾部也需要传入同等数量的0，例如[1, 1, 1, 0, 0]。
 
 ## 调用示例
 
