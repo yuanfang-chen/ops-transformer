@@ -570,7 +570,9 @@ template <typename SFAGT>
 __aicore__ inline void VecOp<SFAGT>::CalSoftmax(const int32_t loopIdx, const int32_t processM, const int64_t mm12Addr,
                                                 const int64_t mm345Addr, const RunInfo &runInfo)
 {
-    int64_t actualSelS2 = runInfo.actualSelCntOffset * selectedBlockSize;
+    int64_t actualSelS2 = runInfo.isLastBasicBlock ? 
+                          (runInfo.actualSelCntOffset - 1) * selectedBlockSize + runInfo.lastBlockSize : 
+                          runInfo.actualSelCntOffset * selectedBlockSize;
     int64_t actualSelS2Align = AlignUp(actualSelS2, 8);
     int64_t dataSize = processM * actualSelS2Align;
 
@@ -615,7 +617,9 @@ template <typename SFAGT>
 __aicore__ inline void VecOp<SFAGT>::CalSoftmaxGrad(const int32_t loopIdx, const int32_t processM,
                                                     const int64_t mm12Addr, const int64_t mm345Addr, const RunInfo &runInfo)
 {
-    int64_t actualSelS2 = runInfo.actualSelCntOffset * selectedBlockSize;
+    int64_t actualSelS2 = runInfo.isLastBasicBlock ? 
+                          (runInfo.actualSelCntOffset - 1) * selectedBlockSize + runInfo.lastBlockSize : 
+                          runInfo.actualSelCntOffset * selectedBlockSize;
     int64_t actualSelS2Align = AlignUp(actualSelS2, 8);
     int64_t dataSize = processM * actualSelS2Align;
     DataCopyPad(dPTensor, mm2WorkspaceGm[mm12Addr], 

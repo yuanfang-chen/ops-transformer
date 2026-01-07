@@ -116,6 +116,7 @@ private:
     constexpr static uint32_t CUBE_WAIT_VEC_GATHER_PONG = 5;
     constexpr static uint32_t SCATTER_SYNC_FLAG = 6;
     bool changePingpong = false;
+    bool isLastBlockSelected = false;
 
     RunInfo runInfo[2];
     RunInfo scatterRunInfo;
@@ -194,6 +195,7 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::Process(
             GetTndSeqLen(actual_seq_qlen, actual_seq_kvlen, t1Index, bIndex);
             changePingpong = false;
             for (n2Index = 0; n2Index < dimN2; n2Index++) {
+                isLastBlockSelected = false;
                 GetActualSelCount(t1Index, n2Index, actualSelectedBlockCount);
                 for (blkCntOffset = 0; blkCntOffset < actualSelectedBlockCount; blkCntOffset += selectedCountOffset) {
                     UpdateGmOffset(task);
@@ -233,6 +235,7 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::Process(
             GetTndSeqLen(actual_seq_qlen, actual_seq_kvlen, t1Index, bIndex);
             changePingpong = false;
             for (n2Index = 0; n2Index < dimN2; n2Index++) {
+                isLastBlockSelected = false;
                 GetActualSelCount(t1Index, n2Index, actualSelectedBlockCount);
                 for (blkCntOffset = 0; blkCntOffset < actualSelectedBlockCount; blkCntOffset += selectedCountOffset) {
                     UpdateGmOffset(task);
@@ -375,7 +378,7 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::UpdateGmOffset(int64_t
     runInfo[mmPingPongIdx].mm4OutGmOffset = keyGmOffset + keyRopeGmOffset;
     runInfo[mmPingPongIdx].mm5OutGmOffset = valueGmOffset;
     runInfo[mmPingPongIdx].actualSelCntOffset = blkCntOffset + selectedCountOffset <= actualSelectedBlockCount ? selectedCountOffset : actualSelectedBlockCount - blkCntOffset;
-    runInfo[mmPingPongIdx].lastBlockSize = curMaxS2 % selectedBlockSize != 0 ? curMaxS2 % selectedBlockSize : selectedBlockSize;
+    runInfo[mmPingPongIdx].lastBlockSize = isLastBlockSelected && curMaxS2 % selectedBlockSize != 0 ? curMaxS2 % selectedBlockSize : selectedBlockSize;
     runInfo[mmPingPongIdx].isLastBasicBlock = (blkCntOffset + selectedCountOffset >= actualSelectedBlockCount);
     runInfo[mmPingPongIdx].scatterTaskId = scatterTaskId;
     runInfo[mmPingPongIdx].s1Index = s1Index;
@@ -431,11 +434,16 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::GetTndSeqLen(const GM_
 template <typename SFAGT>
 __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::GetActualSelCount(const int64_t t1Idx, const int64_t n2Idx, int32_t &actSelBlkCount)
 {
+    auto maxS2Blk = CeilDiv(curS2, selectedBlockSize);
     if constexpr(ATTEN_ENABLE) {
         int64_t newMaxS2 = Max(curS2 - curS1 + s1Index + 1, 0);
-        actualSelectedBlockCount = Min(selectedBlockCount, CeilDiv(newMaxS2, selectedBlockSize));
-    } else {
-        actualSelectedBlockCount = Min(selectedBlockCount, CeilDiv(curS2, selectedBlockSize));
+        maxS2Blk = CeilDiv(newMaxS2, selectedBlockSize);
+    }
+    actualSelectedBlockCount = Min(selectedBlockCount, maxS2Blk);
+
+    int64_t topkGmOffset = t1Idx * (dimN2 * selectedBlockCount) + n2Idx * selectedBlockCount + actualSelectedBlockCount - 1;
+    if (topkIndicesGm[topkGmOffset].GetValue(0) == maxS2Blk - 1) {
+        isLastBlockSelected = true;
     }
 }
 
