@@ -87,7 +87,7 @@ public:
         int32_t pValue;
         int32_t swizzlCount;
         int32_t swizzlDirect;
-        int32_t rankSize;
+        int32_t rankSize;  // 待分析是否删除
         int32_t pipeDepth;
 
         // Methods
@@ -193,13 +193,13 @@ public:
         int32_t coreNum = AscendC::GetBlockNum();
         int32_t mLoops = (params.problemShape.m() + L1TileShape::M - 1) / L1TileShape::M;
         uint32_t nLoops = (params.problemShape.n() + L1TileShape::N - 1) / L1TileShape::N;
-        int32_t peerMemBlockSize = L1TileShape::M * params.pValue * params.problemShape.k();
+        int32_t pingPongBlockSize = L1TileShape::M * params.pValue * params.problemShape.k();
 
         int32_t commCount = (mLoops + params.pValue - 1) / params.pValue;
 
         for (int32_t commIdx = 0; commIdx < commCount; commIdx++) {
             uint64_t flagIdx = commIdx % params.pipeDepth;
-            int32_t peerMemBlockSt = flagIdx * peerMemBlockSize;
+            int32_t peerMemBlockSt = flagIdx * pingPongBlockSize;
 
             uint32_t actualPValue = params.pValue;
             int32_t mLoopStart = commIdx * params.pValue;

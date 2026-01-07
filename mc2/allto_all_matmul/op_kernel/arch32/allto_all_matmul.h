@@ -73,14 +73,14 @@ private:
     __aicore__ inline void CatlassMatmul();
     __aicore__ inline void AlltoAll();
     __aicore__ inline void Dequant();
-    __aicore__ inline void Quant(uint64_t flag_idx, int32_t cal_idx);
+    __aicore__ inline void Quant(uint64_t flagIdx, int32_t commIdx);
     __aicore__ inline void QuantPerToken(LocalTensor<float> copyTensor, LocalTensor<float> absTensor, LocalTensor<float> reduceMaxTensor, 
-                                        LocalTensor<float> quantScaleTensor, int32_t actual_move_size, int32_t actual_move_token,
-                                        int32_t token_per_move, int32_t move_idx, event_t event_id);
-    __aicore__ inline void QuantToken(__gm__ AType *data_src, int32_t data_offset, int32_t token_per_core,
-                                        int32_t data_len, int32_t tokenSize, int32_t cal_idx);
-    __aicore__ inline void QuantTokenSegment(__gm__ AType *data_src, int32_t data_offset, int32_t token_per_core,
-                                        int32_t data_len, int32_t tokenSize, int32_t cal_idx);
+                                        LocalTensor<float> quantScaleTensor, int32_t actualMoveSize, int32_t actualMoveToken,
+                                        int32_t tokenPerMove, int32_t moveIdx, event_t eventId);
+    __aicore__ inline void QuantToken(__gm__ AType *dataSrc, int32_t dataOffset, int32_t tokenPerCore,
+                                        int32_t dataLen, int32_t commIdx);
+    __aicore__ inline void QuantTokenSegment(__gm__ AType *dataSrc, int32_t dataOffset, int32_t tokenPerCore,
+                                        int32_t dataLen, int32_t commIdx);
 
 private:
     GM_ADDR aGM_;
@@ -92,14 +92,10 @@ private:
     GM_ADDR allToAllResultGM_;
     GM_ADDR workspaceGM_;
 
-    int32_t aligned_a;
-    int32_t aligned_b;
-    int32_t gm_a_pingpong_size;
-
-    __gm__ AType* gm_peer_mem;
-    __gm__ int8_t* quant_aGM_;
-    __gm__ int32_t* dequant_cGM_;
-    GM_ADDR quant_scale_gm;
+    __gm__ AType* gmPeerMem_;
+    __gm__ int8_t* quantAGM_;
+    __gm__ int32_t* dequantCGM_;
+    GM_ADDR quantScaleGM_;
 
     Catlass::Arch::Resource<Catlass::Arch::AtlasA2> resource;
 };
@@ -118,7 +114,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Init(GM_ADDR aGM, GM_A
     auto contextGM = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     winContext_ = (__gm__ HcclCombineOpParam *)contextGM;
     rank = winContext_ -> rankId;
-    rank_size = tilingData.allToAllMatmulInfo.worldSize;
+    rankSize = tilingData.allToAllMatmulInfo.rankSize;
 
     aGM_ = aGM;
     bGM_ = bGM;
@@ -128,12 +124,12 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Init(GM_ADDR aGM, GM_A
     allToAllResultGM_ = allToAllResultGM;
     workspaceGM_ = GetUserWorkspace(workspaceGM);
 
-    CommBase::SetArgs<AType>(rank, rank_size, tilingData);
+    CommBase::SetArgs<AType>(rank, rankSize, tilingData);
     this->ub_offset = UB_OFFSET / sizeof(AType);
 
-    quant_aGM_ = reinterpret_cast<__gm__ int8_t *>(std::is_same_v<BType, int8_t> ? workspaceGM_ : nullptr);
-    dequant_cGM_ = reinterpret_cast<__gm__ int32_t *>(std::is_same_v<BType, int8_t> ? workspaceGM_ + quantSize : nullptr);
-    quant_scale_gm = reinterpret_cast<GM_ADDR>(std::is_same_v<BType, int8_t>? workspaceGM_ + quantSize + dequantSize : nullptr);
+    quantAGM_ = reinterpret_cast<__gm__ int8_t *>(std::is_same_v<BType, int8_t> ? workspaceGM_ : nullptr);
+    dequantCGM_ = reinterpret_cast<__gm__ int32_t *>(std::is_same_v<BType, int8_t> ? workspaceGM_ + quantSize : nullptr);
+    quantScaleGM_ = reinterpret_cast<GM_ADDR>(std::is_same_v<BType, int8_t>? workspaceGM_ + quantSize + dequantSize : nullptr);
 
     AlltoAllMatmul<TemplateA2AMMFunc>::AICInit();
     AlltoAllMatmul<TemplateA2AMMFunc>::AIVInit();
@@ -146,7 +142,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AICInit()
         SetLoadDataPaddingValue(0);
         SetAtomicNone();
         SetFixpipeNz2ndFlag(1, 0, 0);
-        gm_peer_mem = reinterpret_cast<__gm__ AType*>(buff[rank]);
+        gmPeerMem_ = reinterpret_cast<__gm__ AType*>(buff[rank]);
     }
 }
 
@@ -180,8 +176,8 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
         using LayoutC = layout::RowMajor;
         using LayoutBias = layout::VectorLayout;
 
-        uint32_t realM = m / rank_size;
-        uint32_t realK = k * rank_size;
+        uint32_t realM = m / rankSize;
+        uint32_t realK = k * rankSize;
         LayoutA layoutA{static_cast<uint32_t>(realM), static_cast<uint32_t>(realK)};
         LayoutB layoutB{static_cast<uint32_t>(realK), static_cast<uint32_t>(n)};
         LayoutC layoutC{static_cast<uint32_t>(realM), static_cast<uint32_t>(n)};
@@ -217,8 +213,8 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
         GemmCoord processSize{static_cast<uint32_t>(realM), static_cast<uint32_t>(n), static_cast<uint32_t>(realK)};
         using BlockScheduler30 = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
 
-        GM_ADDR srcGM = std::is_same_v<BType, int8_t> ? reinterpret_cast<GM_ADDR>(quant_aGM_) : reinterpret_cast<GM_ADDR>(gm_peer_mem);
-        GM_ADDR matmulResultGM = std::is_same_v<BType, int8_t> ? reinterpret_cast<GM_ADDR>(dequant_cGM_) : cGM_;
+        GM_ADDR srcGM = std::is_same_v<BType, int8_t> ? reinterpret_cast<GM_ADDR>(quantAGM_) : reinterpret_cast<GM_ADDR>(gmPeerMem_);
+        GM_ADDR matmulResultGM = std::is_same_v<BType, int8_t> ? reinterpret_cast<GM_ADDR>(dequantCGM_) : cGM_;
         if (m0 == 128) {
             using L1TileShape = GemmShape<128, 256, 256>;
             using L0TileShape = GemmShape<128, 256, 64>;
@@ -230,7 +226,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
                                     reinterpret_cast<GM_ADDR>(bGM_), layoutB,
                                     reinterpret_cast<GM_ADDR>(biasGM_),
                                     reinterpret_cast<GM_ADDR>(matmulResultGM), layoutC,
-                                    p_value, 3, 0, static_cast<int32_t>(rank_size), MAX_BLOCK_COUNT};
+                                    pValue, 3, 0, static_cast<int32_t>(rankSize), MAX_BLOCK_COUNT};
             matmul_op(params);
         } else {
             using L1TileShape = GemmShape<256, 128, 256>;
@@ -243,7 +239,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
                                     reinterpret_cast<GM_ADDR>(bGM_), layoutB,
                                     reinterpret_cast<GM_ADDR>(biasGM_),
                                     reinterpret_cast<GM_ADDR>(matmulResultGM), layoutC,
-                                    p_value, 3, 0, static_cast<int32_t>(rank_size), MAX_BLOCK_COUNT};
+                                    pValue, 3, 0, static_cast<int32_t>(rankSize), MAX_BLOCK_COUNT};
             matmul_op(params);
         }
     }
@@ -252,27 +248,26 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
 template <TemplateA2AMMClass>
 __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantPerToken(LocalTensor<float> copyTensor,
     LocalTensor<float> absTensor, LocalTensor<float> reduceMaxTensor, LocalTensor<float> quantScaleTensor,
-    int32_t actual_move_size, int32_t actual_move_token, int32_t token_per_move, int32_t move_idx,
-    event_t event_id)
+    int32_t actualMoveSize, int32_t actualMoveToken, int32_t tokenPerMove, int32_t moveIdx,
+    event_t eventId)
 
 {
     PipeBarrier<PIPE_V>();
-    Abs(absTensor, copyTensor, actual_move_size);
-    int32_t tokenSize = k * rank_size;
-    for (int32_t tokenIdx = 0; tokenIdx < actual_move_token; tokenIdx++) {
+    Abs(absTensor, copyTensor, actualMoveSize);
+    for (int32_t tokenIdx = 0; tokenIdx < actualMoveToken; tokenIdx++) {
         uint32_t tokenOffset = tokenIdx * tokenSize;
         PipeBarrier<PIPE_V>();
         ReduceMax<float>(reduceMaxTensor, absTensor[tokenOffset], absTensor[tokenOffset], tokenSize);
-        SetFlag<HardEvent::V_S>(event_id);
-        WaitFlag<HardEvent::V_S>(event_id);
+        SetFlag<HardEvent::V_S>(eventId);
+        WaitFlag<HardEvent::V_S>(eventId);
         float maxValue = reduceMaxTensor.GetValue(0);
         float quantScale = maxValue / MAX_INT8;
-        float quant_scale_reciproal = MAX_INT8 / maxValue;
-        quantScaleTensor.SetValue(move_idx * token_per_move + tokenIdx, quantScale);
-        SetFlag<HardEvent::S_V>(event_id);
-        WaitFlag<HardEvent::S_V>(event_id);
+        float quantScaleReciproal = MAX_INT8 / maxValue;
+        quantScaleTensor.SetValue(moveIdx * tokenPerMove + tokenIdx, quantScale);
+        SetFlag<HardEvent::S_V>(eventId);
+        WaitFlag<HardEvent::S_V>(eventId);
 
-        Muls(copyTensor[tokenOffset], copyTensor[tokenOffset], quant_scale_reciproal, tokenSize);
+        Muls(copyTensor[tokenOffset], copyTensor[tokenOffset], quantScaleReciproal, tokenSize);
         PipeBarrier<PIPE_V>();
 
         Cast(copyTensor.ReinterpretCast<int32_t>()[tokenOffset], copyTensor[tokenOffset], RoundMode::CAST_RINT, tokenSize);
@@ -283,21 +278,21 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantPerToken(LocalTen
     }
     PipeBarrier<PIPE_V>();
 
-    Cast(copyTensor.ReinterpretCast<int8_t>(), copyTensor.ReinterpretCast<half>(), RoundMode::CAST_TRUNC, actual_move_size);
+    Cast(copyTensor.ReinterpretCast<int8_t>(), copyTensor.ReinterpretCast<half>(), RoundMode::CAST_TRUNC, actualMoveSize);
 
     PipeBarrier<PIPE_V>();
 }
 
 template <TemplateA2AMMClass>
-__aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantToken(__gm__ AType *data_src, int32_t data_offset,
-    int32_t token_per_core, int32_t data_len, int32_t tokenSize, int32_t cal_idx)
+__aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantToken(__gm__ AType *dataSrc, int32_t dataOffset,
+    int32_t tokenPerCore, int32_t dataLen, int32_t commIdx)
 {
-    int32_t ub_ping_pong_size = max_ub_ping_pong_size / tokenSize * tokenSize;
-    int32_t ping_pong_move_count = (data_len + ub_ping_pong_size - 1) / ub_ping_pong_size;
-    int32_t actual_move_size = ub_ping_pong_size;
-    int32_t token_per_move = actual_move_size / tokenSize;
-    int32_t actual_move_token = token_per_move; /* ub_ping_pong_size已经与tokenSize对齐，因此必然每次搬运整数倍token */
-    int32_t total_token_num = data_len / tokenSize;
+    int32_t ubTokenAlignedPingPongSize = ubPingPongSize / tokenSize * tokenSize;
+    int32_t pingPongMoveCount = (dataLen + ubTokenAlignedPingPongSize - 1) / ubTokenAlignedPingPongSize;
+    int32_t actualMoveSize = ubTokenAlignedPingPongSize;
+    int32_t tokenPerMove = actualMoveSize / tokenSize;
+    int32_t actualMoveToken = tokenPerMove; /* ub_ping_pong_size已经与tokenSize对齐，因此必然每次搬运整数倍token */
+    int32_t tokenNum = dataLen / tokenSize;
 
     uint32_t midElementCnt = UB_OFFSET / sizeof(float);
     LocalTensor<float> ubTensor = uBuf_.Get<float>();
@@ -305,176 +300,175 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantToken(__gm__ ATyp
     LocalTensor<float> copyTensor1 = ubTensor[midElementCnt];
 
     /* 用于存储计算quantScale的token取abs的结果 */
-    int32_t abs_offset = Block32B<float>::AlignUp(ub_ping_pong_size); /* 从GM拷贝的数据用abs_offset_a大小空间，case为float后用abs_offset大小的空间 */
-    int32_t cast_offset = Block32B<AType>::AlignUp(abs_offset);   // 换成AType可能不一定32B对齐
-    LocalTensor<float> absTensor0 = copyTensor0[abs_offset];
-    LocalTensor<float> absTensor1 = copyTensor1[abs_offset];
+    int32_t absOffset = Block32B<float>::AlignUp(ubTokenAlignedPingPongSize); /* 从GM拷贝的数据用abs_offset_a大小空间，case为float后用abs_offset大小的空间 */
+    int32_t castOffset = Block32B<AType>::AlignUp(absOffset);   // 换成AType可能不一定32B对齐
+    LocalTensor<float> absTensor0 = copyTensor0[absOffset];
+    LocalTensor<float> absTensor1 = copyTensor1[absOffset];
 
     /* 用于存储取abs后，取出token中最大元素的值 */
-    int32_t reduce_max_offset = Block32B<float>::AlignUp(ub_ping_pong_size);
-    LocalTensor<float> reduceMaxTensor0 = absTensor0[reduce_max_offset];
-    LocalTensor<float> reduceMaxTensor1 = absTensor1[reduce_max_offset];
+    int32_t reduceMaxOffset = Block32B<float>::AlignUp(ubTokenAlignedPingPongSize);
+    LocalTensor<float> reduceMaxTensor0 = absTensor0[reduceMaxOffset];
+    LocalTensor<float> reduceMaxTensor1 = absTensor1[reduceMaxOffset];
 
     /* 用于存储计算完成的量化系数 */
-    int32_t quant_scale_offset = BLOCK_ALIGN_BYTES / sizeof(float);
-    LocalTensor<float> quantScaleTensor = reduceMaxTensor0[quant_scale_offset];
+    int32_t quantScaleOffset = BLOCK_ALIGN_BYTES / sizeof(float);
+    LocalTensor<float> quantScaleTensor = reduceMaxTensor0[quantScaleOffset];
 
     SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
     SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-    for (int32_t move_idx = 0; move_idx < ping_pong_move_count; ++move_idx) {
-        if (move_idx == ping_pong_move_count - 1) {
-            actual_move_size = data_len - move_idx * ub_ping_pong_size;
-            actual_move_token = actual_move_size / tokenSize;
+    for (int32_t moveIdx = 0; moveIdx < pingPongMoveCount; ++moveIdx) {
+        if (moveIdx == pingPongMoveCount - 1) {
+            actualMoveSize = dataLen - moveIdx * ubTokenAlignedPingPongSize;
+            actualMoveToken = actualMoveSize / tokenSize;
         }
-        auto event_id = (move_idx & 1) ? EVENT_ID0 : EVENT_ID1;
-        LocalTensor<float> copyTensor = (move_idx & 1) ? copyTensor0 : copyTensor1;
-        LocalTensor<float> absTensor = (move_idx & 1) ? absTensor0 : absTensor1;
-        LocalTensor<float> reduceMaxTensor = (move_idx & 1) ? reduceMaxTensor0 : reduceMaxTensor1;
+        auto eventId = (moveIdx & 1) ? EVENT_ID0 : EVENT_ID1;
+        LocalTensor<float> copyTensor = (moveIdx & 1) ? copyTensor0 : copyTensor1;
+        LocalTensor<float> absTensor = (moveIdx & 1) ? absTensor0 : absTensor1;
+        LocalTensor<float> reduceMaxTensor = (moveIdx & 1) ? reduceMaxTensor0 : reduceMaxTensor1;
 
-        WaitFlag<HardEvent::MTE3_MTE2>(event_id);
-        CopyGmToUbufAlignB16(copyTensor.ReinterpretCast<AType>()[cast_offset], reinterpret_cast<__gm__ AType *>(data_src) +
-            data_offset, 1, actual_move_size * sizeof(AType), 0, 0);
-        SetFlag<HardEvent::MTE2_V>(event_id);
-        WaitFlag<HardEvent::MTE2_V>(event_id);
-        Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[cast_offset], RoundMode::CAST_NONE, actual_move_size);
+        WaitFlag<HardEvent::MTE3_MTE2>(eventId);
+        CopyGmToUbufAlignB16(copyTensor.ReinterpretCast<AType>()[castOffset], reinterpret_cast<__gm__ AType *>(dataSrc) +
+            dataOffset, 1, actualMoveSize * sizeof(AType), 0, 0);
+        SetFlag<HardEvent::MTE2_V>(eventId);
+        WaitFlag<HardEvent::MTE2_V>(eventId);
+        Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[castOffset], RoundMode::CAST_NONE, actualMoveSize);
         QuantPerToken(copyTensor, absTensor, reduceMaxTensor, quantScaleTensor,
-            actual_move_size, actual_move_token, token_per_move, move_idx, event_id);
-        SetFlag<HardEvent::V_MTE3>(event_id);
-        WaitFlag<HardEvent::V_MTE3>(event_id);
+            actualMoveSize, actualMoveToken, tokenPerMove, moveIdx, eventId);
+        SetFlag<HardEvent::V_MTE3>(eventId);
+        WaitFlag<HardEvent::V_MTE3>(eventId);
         /* 搬运到GM上时，与peerMem上的相对位置保持不变，后续数据offset可以复用 */
-        CopyUbufToGmAlignB16(reinterpret_cast<__gm__ int8_t *>(quant_aGM_) + data_offset, copyTensor.ReinterpretCast<int8_t>(),
-            1, actual_move_size * sizeof(int8_t), 0, 0);
-        data_offset += actual_move_size;
-        SetFlag<HardEvent::MTE3_MTE2>(event_id);
+        CopyUbufToGmAlignB16(reinterpret_cast<__gm__ int8_t *>(quantAGM_) + dataOffset, copyTensor.ReinterpretCast<int8_t>(),
+            1, actualMoveSize * sizeof(int8_t), 0, 0);
+        dataOffset += actualMoveSize;
+        SetFlag<HardEvent::MTE3_MTE2>(eventId);
     }
     WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
     WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-    CopyUbufToGmAlignB16(reinterpret_cast<__gm__ float *>(quant_scale_gm) + core_idx * token_per_core + cal_idx * num_per_rank_m,
-        quantScaleTensor, 1, total_token_num * sizeof(float), 0, 0);
+    CopyUbufToGmAlignB16(reinterpret_cast<__gm__ float *>(quantScaleGM_) + aicIdx * tokenPerCore + commIdx * mPerLoop,
+        quantScaleTensor, 1, tokenNum * sizeof(float), 0, 0);
 }
 
 template <TemplateA2AMMClass>
-__aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantTokenSegment(__gm__ AType *data_src, int32_t data_offset,
-    int32_t token_per_core, int32_t data_len, int32_t tokenSize, int32_t cal_idx)
+__aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantTokenSegment(__gm__ AType *dataSrc, int32_t dataOffset,
+    int32_t tokenPerCore, int32_t dataLen, int32_t commIdx)
 {
     uint32_t midElementCnt = UB_OFFSET / sizeof(float);
     LocalTensor<float> ubTensor = uBuf_.Get<float>();
     LocalTensor<float> copyTensor0 = ubTensor;
     LocalTensor<float> copyTensor1 = ubTensor[midElementCnt];
 
-    int32_t abs_offset = Block32B<float>::AlignUp(copyTensorSize); /* 从GM拷贝的数据用abs_offset_a大小空间，case为float后用abs_offset大小的空间 */
-    LocalTensor<float> absTensor0 = copyTensor0[abs_offset];
-    LocalTensor<float> absTensor1 = copyTensor1[abs_offset];
+    int32_t absOffset = Block32B<float>::AlignUp(copyTensorSize); /* 从GM拷贝的数据用abs_offset_a大小空间，case为float后用abs_offset大小的空间 */
+    LocalTensor<float> absTensor0 = copyTensor0[absOffset];
+    LocalTensor<float> absTensor1 = copyTensor1[absOffset];
 
-    int32_t reduce_max_offset = Block32B<float>::AlignUp(copyTensorSize);
-    LocalTensor<float> reduceMaxTensor = absTensor0[reduce_max_offset];
+    int32_t reduceMaxOffset = Block32B<float>::AlignUp(copyTensorSize);
+    LocalTensor<float> reduceMaxTensor = absTensor0[reduceMaxOffset];
 
-    int32_t quant_scale_offset = BLOCK_SIZE / sizeof(float);
-    LocalTensor<float> quantScaleTensor = reduceMaxTensor[quant_scale_offset];
+    int32_t quantScaleOffset = BLOCK_SIZE / sizeof(float);
+    LocalTensor<float> quantScaleTensor = reduceMaxTensor[quantScaleOffset];
 
-    int32_t actual_move_size = copyTensorSize;
-    int32_t total_token_num = data_len / tokenSize; /* 当前核实际处理的token数 */
+    int32_t actualMoveSize = copyTensorSize;
+    int32_t tokenNum = dataLen / tokenSize; /* 当前核实际处理的token数 */
 
     SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
     SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-    for (int32_t token_loop = 0; token_loop < total_token_num; token_loop++) {
-        int32_t data_token_offset = data_offset + token_loop * tokenSize;
-        int32_t data_segment_offset = 0;
+    for (int32_t tokenLoop = 0; tokenLoop < tokenNum; tokenLoop++) {
+        int32_t dataTokenOffset = dataOffset + tokenLoop * tokenSize;
+        int32_t dataSegmentOffset = 0;
         Duplicate<float>(reduceMaxTensor, static_cast<float>(0), 1);
         PipeBarrier<PIPE_V>();
         /* 获取当前token的max_abs_value */
-        for (int32_t token_segment_loop = 0; token_segment_loop < copyTimes; token_segment_loop++) {
-            if (token_segment_loop == copyTimes - 1) {
-                actual_move_size = tokenSize - token_segment_loop * copyTensorSize;
+        for (int32_t tokenSegmentLoop = 0; tokenSegmentLoop < copyTimes; tokenSegmentLoop++) {
+            if (tokenSegmentLoop == copyTimes - 1) {
+                actualMoveSize = tokenSize - tokenSegmentLoop * copyTensorSize;
             }
-            auto event_id = (token_segment_loop & 1) ? EVENT_ID0 : EVENT_ID1;
-            LocalTensor<float> copyTensor = (token_segment_loop & 1) ? copyTensor0 : copyTensor1;
-            LocalTensor<float> absTensor = (token_segment_loop & 1) ? absTensor0 : absTensor1;
-            WaitFlag<HardEvent::MTE3_MTE2>(event_id);
+            auto eventId = (tokenSegmentLoop & 1) ? EVENT_ID0 : EVENT_ID1;
+            LocalTensor<float> copyTensor = (tokenSegmentLoop & 1) ? copyTensor0 : copyTensor1;
+            LocalTensor<float> absTensor = (tokenSegmentLoop & 1) ? absTensor0 : absTensor1;
+            WaitFlag<HardEvent::MTE3_MTE2>(eventId);
             /* 下一步需要将copyTensor转换成float类型，目标地址复用copyTensor。为防止踩踏，将AType类型数据内存放在后半段 */
-            CopyGmToUbufAlignB16(copyTensor.ReinterpretCast<AType>()[abs_offset], reinterpret_cast<__gm__ AType *>(data_src) +
-                data_token_offset + data_segment_offset, 1, actual_move_size * sizeof(AType), 0, 0);
-            SetFlag<HardEvent::MTE2_V>(event_id);
-            WaitFlag<HardEvent::MTE2_V>(event_id);
-            Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[abs_offset], RoundMode::CAST_NONE, actual_move_size);
+            CopyGmToUbufAlignB16(copyTensor.ReinterpretCast<AType>()[absOffset], reinterpret_cast<__gm__ AType *>(dataSrc) +
+                dataTokenOffset + dataSegmentOffset, 1, actualMoveSize * sizeof(AType), 0, 0);
+            SetFlag<HardEvent::MTE2_V>(eventId);
+            WaitFlag<HardEvent::MTE2_V>(eventId);
+            Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[absOffset], RoundMode::CAST_NONE, actualMoveSize);
             PipeBarrier<PIPE_V>();
-            Abs(absTensor, copyTensor, actual_move_size);
+            Abs(absTensor, copyTensor, actualMoveSize);
             PipeBarrier<PIPE_V>();
-            ReduceMax<float>(copyTensor, absTensor, absTensor, actual_move_size);
-            SetFlag<HardEvent::V_S>(event_id);
-            WaitFlag<HardEvent::V_S>(event_id);
-            float current_max_value = copyTensor.GetValue(0);
-            float last_max_value = reduceMaxTensor.GetValue(0);
-            float max_value = current_max_value > last_max_value ? current_max_value : last_max_value;
-            quantScaleTensor.SetValue(token_loop, max_value);
-            SetFlag<HardEvent::MTE3_MTE2>(event_id);
-            data_segment_offset += actual_move_size;
+            ReduceMax<float>(copyTensor, absTensor, absTensor, actualMoveSize);
+            SetFlag<HardEvent::V_S>(eventId);
+            WaitFlag<HardEvent::V_S>(eventId);
+            float currentMaxValue = copyTensor.GetValue(0);
+            float lastMaxValue = reduceMaxTensor.GetValue(0);
+            float maxValue = currentMaxValue > lastMaxValue ? currentMaxValue : lastMaxValue;
+            quantScaleTensor.SetValue(tokenLoop, maxValue);
+            SetFlag<HardEvent::MTE3_MTE2>(eventId);
+            dataSegmentOffset += actualMoveSize;
         }
-        float token_max_value = quantScaleTensor.GetValue(token_loop);
-        float quantScale = token_max_value / MAX_INT8;
-        float quant_scale_reciproal = MAX_INT8 / token_max_value;
-        quantScaleTensor.SetValue(token_loop, quantScale);
-        data_segment_offset = 0;
-        actual_move_size = copyTensorSize;
+        float tokenMaxValue = quantScaleTensor.GetValue(tokenLoop);
+        float quantScale = tokenMaxValue / MAX_INT8;
+        float quantScaleReciproal = MAX_INT8 / tokenMaxValue;
+        quantScaleTensor.SetValue(tokenLoop, quantScale);
+        dataSegmentOffset = 0;
+        actualMoveSize = copyTensorSize;
         /* 量化当前token */
-        for (int32_t token_segment_loop = 0; token_segment_loop < copyTimes; token_segment_loop++) {
-            if (token_segment_loop == copyTimes - 1) {
-                actual_move_size = tokenSize - token_segment_loop * copyTensorSize;
+        for (int32_t tokenSegmentLoop = 0; tokenSegmentLoop < copyTimes; tokenSegmentLoop++) {
+            if (tokenSegmentLoop == copyTimes - 1) {
+                actualMoveSize = tokenSize - tokenSegmentLoop * copyTensorSize;
             }
-            auto event_id = (token_segment_loop & 1) ? EVENT_ID0 : EVENT_ID1;
-            LocalTensor<float> copyTensor = (token_segment_loop & 1) ? copyTensor0 : copyTensor1;
-            LocalTensor<float> absTensor = (token_segment_loop & 1) ? absTensor0 : absTensor1;
-            WaitFlag<HardEvent::MTE3_MTE2>(event_id);
+            auto eventId = (tokenSegmentLoop & 1) ? EVENT_ID0 : EVENT_ID1;
+            LocalTensor<float> copyTensor = (tokenSegmentLoop & 1) ? copyTensor0 : copyTensor1;
+            LocalTensor<float> absTensor = (tokenSegmentLoop & 1) ? absTensor0 : absTensor1;
+            WaitFlag<HardEvent::MTE3_MTE2>(eventId);
             /* 下一步需要将copyTensor转换成float类型，目标地址复用copyTensor。为防止踩踏，将AType类型数据内存放在后半段 */
-            CopyGmToUbufAlignB16(copyTensor.ReinterpretCast<AType>()[abs_offset], reinterpret_cast<__gm__ AType *>(data_src) +
-                data_token_offset + data_segment_offset, 1, actual_move_size * sizeof(AType), 0, 0);
-            SetFlag<HardEvent::MTE2_V>(event_id);
-            WaitFlag<HardEvent::MTE2_V>(event_id);
-            Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[abs_offset], RoundMode::CAST_NONE, actual_move_size);
+            CopyGmToUbufAlignB16(copyTensor.ReinterpretCast<AType>()[absOffset], reinterpret_cast<__gm__ AType *>(dataSrc) +
+                dataTokenOffset + dataSegmentOffset, 1, actualMoveSize * sizeof(AType), 0, 0);
+            SetFlag<HardEvent::MTE2_V>(eventId);
+            WaitFlag<HardEvent::MTE2_V>(eventId);
+            Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[absOffset], RoundMode::CAST_NONE, actualMoveSize);
             PipeBarrier<PIPE_V>();
-            Muls(copyTensor, copyTensor, quant_scale_reciproal, actual_move_size);
+            Muls(copyTensor, copyTensor, quantScaleReciproal, actualMoveSize);
             PipeBarrier<PIPE_V>();
-            Cast(copyTensor.ReinterpretCast<half>(), copyTensor, RoundMode::CAST_ROUND, actual_move_size);
+            Cast(copyTensor.ReinterpretCast<half>(), copyTensor, RoundMode::CAST_ROUND, actualMoveSize);
             PipeBarrier<PIPE_V>();
-            Cast(copyTensor.ReinterpretCast<int8_t>(), copyTensor.ReinterpretCast<half>(), RoundMode::CAST_ROUND, actual_move_size);
-            SetFlag<HardEvent::V_MTE3>(event_id);
-            WaitFlag<HardEvent::V_MTE3>(event_id);
+            Cast(copyTensor.ReinterpretCast<int8_t>(), copyTensor.ReinterpretCast<half>(), RoundMode::CAST_ROUND, actualMoveSize);
+            SetFlag<HardEvent::V_MTE3>(eventId);
+            WaitFlag<HardEvent::V_MTE3>(eventId);
 
-            CopyUbufToGmAlignB16(reinterpret_cast<__gm__ int8_t *>(quant_aGM_) + data_token_offset + data_segment_offset,
-                copyTensor.ReinterpretCast<int8_t>(), 1, actual_move_size * sizeof(int8_t), 0, 0);  
+            CopyUbufToGmAlignB16(reinterpret_cast<__gm__ int8_t *>(quantAGM_) + dataTokenOffset + dataSegmentOffset,
+                copyTensor.ReinterpretCast<int8_t>(), 1, actualMoveSize * sizeof(int8_t), 0, 0);  
 
-            SetFlag<HardEvent::MTE3_MTE2>(event_id);
-            data_segment_offset += actual_move_size;
+            SetFlag<HardEvent::MTE3_MTE2>(eventId);
+            dataSegmentOffset += actualMoveSize;
         }
     }
 
-    CopyUbufToGmAlignB16(reinterpret_cast<__gm__ float *>(quant_scale_gm) + core_idx * token_per_core, quantScaleTensor, 1,
-        total_token_num * sizeof(float), 0, 0);
+    CopyUbufToGmAlignB16(reinterpret_cast<__gm__ float *>(quantScaleGM_) + aicIdx * tokenPerCore, quantScaleTensor, 1,
+        tokenNum * sizeof(float), 0, 0);
     WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
     WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
 }
 
 template <TemplateA2AMMClass>
-__aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Quant(uint64_t flag_idx, int32_t cal_idx) {
-    __gm__ AType* data_src = (__gm__ AType *)buff[rank];
+__aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Quant(uint64_t flagIdx, int32_t commIdx) {
+    __gm__ AType* dataSrc = (__gm__ AType *)buff[rank];
     
-    int32_t data_src_core_offset = (core_idx % first_step_core_num) * data_per_core;  // 一共first_stem_core_num个核，每个核分段处理一部分数据
-    int32_t total_move = num_per_rank_move * rank_size;
+    int32_t dataSrcCoreOffset = (aicIdx % allToAllSendCoreNum) * allToAllSizePerCore;  // 一共first_stem_core_num个核，每个核分段处理一部分数据
     // data_per_core是按照m0的粒度，均分给每个核处理的数据量。在尾块处理时，部分核会分不到数据
-    int32_t data_len = data_src_core_offset + data_per_core > total_move ? total_move - data_src_core_offset : data_per_core;
-    if (data_len < 0) {
+    int32_t dataLen = dataSrcCoreOffset + allToAllSizePerCore > allToAllSizeAllRanksPerLoop ? allToAllSizeAllRanksPerLoop - dataSrcCoreOffset : allToAllSizePerCore;
+    if (dataLen < 0) {
         return;
     }
-    int64_t data_src_offset = flag_idx * peer_mem_block_size;
-    int32_t data_offset = data_src_offset + data_src_core_offset;
-    int32_t token_per_core = num_per_rank_m / first_step_core_num;
+    int64_t dataSrcOffset = flagIdx * pingPongBlockSize;
+    int32_t dataOffset = dataSrcOffset + dataSrcCoreOffset;
+    int32_t tokenPerCore = mPerLoop / allToAllSendCoreNum;
 
-    if (copyTokenNum == 0) {
+    if (isSegmentK) {
         // token过大，分段量化
-        QuantTokenSegment(data_src, data_offset, token_per_core, data_len, mid_output_k_size, cal_idx);
+        QuantTokenSegment(dataSrc, dataOffset, tokenPerCore, dataLen, commIdx);
     } else {
         // token较小，一次量化多个
-        QuantToken(data_src, data_offset, token_per_core, data_len, mid_output_k_size, cal_idx);
+        QuantToken(dataSrc, dataOffset, tokenPerCore, dataLen, commIdx);
     }
     
 }
@@ -488,8 +482,8 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Dequant()
     using ElementBias = BiasType;
     using LayoutD = layout::RowMajor;
 
-    uint32_t realM = m / rank_size;
-    uint32_t realK = k * rank_size;
+    uint32_t realM = m / rankSize;
+    uint32_t realK = k * rankSize;
     LayoutD layoutD{static_cast<uint32_t>(realM), static_cast<uint32_t>(n)};
 
     using CType_ = Gemm::GemmType<ElementC, layout::RowMajor>;
@@ -533,29 +527,29 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Dequant()
     AscendC::GlobalTensor<ElementD> gmD;
     gmD.SetGlobalBuffer((__gm__ ElementD *)cGM_);
     AscendC::GlobalTensor<ElementC> gmC;
-    gmC.SetGlobalBuffer((__gm__ ElementC *)dequant_cGM_);
+    gmC.SetGlobalBuffer((__gm__ ElementC *)dequantCGM_);
 
     AscendC::GlobalTensor<ScaleType> gmScale;
     gmScale.SetGlobalBuffer((__gm__ ScaleType *)scaleGM_);
     AscendC::GlobalTensor<PerTokenScaleType> gmPerTokenScale;
-    gmPerTokenScale.SetGlobalBuffer((__gm__ PerTokenScaleType *)quant_scale_gm);
+    gmPerTokenScale.SetGlobalBuffer((__gm__ PerTokenScaleType *)quantScaleGM_);
     AscendC::GlobalTensor<ElementBias> gmBias;
     gmBias.SetGlobalBuffer((__gm__ ElementBias *)biasGM_);
 
-    uint32_t rows_per_core = DivCeil(problemShape.m(), core_num);
-    uint32_t rows_this_core = rows_per_core;
-    uint32_t st_row_per_core = core_idx * rows_per_core;
-    if (st_row_per_core < problemShape.m()) {
-        if (rows_this_core + st_row_per_core > problemShape.m()) {
-            rows_this_core = problemShape.m() - st_row_per_core;
+    uint32_t rowsPerCore = DivCeil(problemShape.m(), blockNum);
+    uint32_t rowsThisCore = rowsPerCore;
+    uint32_t stRowPerCore = aicIdx * rowsPerCore;
+    if (stRowPerCore < problemShape.m()) {
+        if (rowsThisCore + stRowPerCore > problemShape.m()) {
+            rowsThisCore = problemShape.m() - stRowPerCore;
         }
     } else {
-        rows_this_core = 0;
+        rowsThisCore = 0;
     }
-    MatrixCoord coreOffset(st_row_per_core, 0u);
+    MatrixCoord coreOffset(stRowPerCore, 0u);
     auto layoutC = layout::RowMajor{problemShape.m(), n};
     int64_t gmOffsetC = layoutC.GetOffset(coreOffset);
-    GemmCoord actualBlockShape{rows_this_core, n, 1};
+    GemmCoord actualBlockShape{rowsThisCore, n, 1};
 
     if (m0 == 128) {
         using EpilogueTileShape = MatrixShape<32, 256>;
@@ -572,7 +566,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Dequant()
         using EpilogueParams = typename QuantBlockEpilogue::Params;
         EpilogueParams epilogueParams {
             scaleGM_, layoutScale,
-            quant_scale_gm, layoutPerTokenScale.GetTileLayout(problemShape.template GetCoordByAxis<0>()),
+            quantScaleGM_, layoutPerTokenScale.GetTileLayout(problemShape.template GetCoordByAxis<0>()),
             biasGM_, layoutBias
         };
         blockEpilogue.UpdateParams(epilogueParams);
@@ -595,7 +589,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Dequant()
         using EpilogueParams = typename QuantBlockEpilogue::Params;
         EpilogueParams epilogueParams {
             scaleGM_, layoutScale,
-            quant_scale_gm, layoutPerTokenScale.GetTileLayout(problemShape.template GetCoordByAxis<0>()),
+            quantScaleGM_, layoutPerTokenScale.GetTileLayout(problemShape.template GetCoordByAxis<0>()),
             biasGM_, layoutBias
         };
         blockEpilogue.UpdateParams(epilogueParams);
@@ -612,68 +606,68 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AlltoAll()
         PipeBarrier<PIPE_ALL>();
 
         int64_t src_offset = 0;
-        for (int32_t cal_idx = 0; cal_idx <= cal_count; ++cal_idx) {
-            uint64_t flag_idx = cal_idx % peer_mem_block_count;
+        for (int32_t commIdx = 0; commIdx <= commCount; ++commIdx) {
+            uint64_t flagIdx = commIdx % MAX_BLOCK_COUNT;
 
-            if (cal_idx == cal_count - 1) {
-                num_per_rank_move = data_size_per_rank - src_offset;
+            if (commIdx == commCount - 1) {
+                allToAllSizePerRankPerLoop = allToAllSizePerRank - src_offset;
             }
 
-            if (cal_idx >= peer_mem_block_count && cal_idx < cal_count) {
-                WaitEvent(flag_idx);
+            if (commIdx >= MAX_BLOCK_COUNT && commIdx < commCount) {
+                WaitEvent(flagIdx);
             }
 
-            SetAndWaitAivSync(flag_idx);
-            if (cal_idx < cal_count) {
-                CrossRankSyncV1(FLAG_ZERO_IDX, cal_idx + 1);
+            SetAndWaitAivSync(flagIdx);
+            if (commIdx < commCount) {
+                CrossRankSyncV1(FLAG_ZERO_IDX, commIdx + 1);
             }
-            SetAndWaitAivSync(flag_idx);
+            SetAndWaitAivSync(flagIdx);
 
-            if (aiv_idx == 0 && cal_idx < cal_count && core_idx < first_step_core_num) {
-                int32_t dst_rank = core_idx / core_num_per_rank;
-                int32_t dst_loc = core_idx % core_num_per_rank;
-                int32_t data_src_in_move = dst_loc * data_per_core;
-                int32_t data_len = data_src_in_move + data_per_core > num_per_rank_move ?
-                        num_per_rank_move - data_src_in_move : data_per_core;
-                int64_t data_src = dst_rank * data_size_per_rank + src_offset + data_src_in_move;
-                int64_t data_dst = flag_idx * peer_mem_block_size + data_src_in_move * rank_size + rank * k;
+            if (aivIdx == 0 && commIdx < commCount && aicIdx < allToAllSendCoreNum) {
+                int32_t dstRank = aicIdx / coreNumPerRank;
+                int32_t dstLoc = aicIdx % coreNumPerRank;
+                int32_t coreOffset = dstLoc * allToAllSizePerCore;
+                int32_t dataLen = coreOffset + allToAllSizePerCore > allToAllSizePerRankPerLoop ?
+                        allToAllSizePerRankPerLoop - coreOffset : allToAllSizePerCore;
+                int64_t dataSrc = dstRank * allToAllSizePerRank + src_offset + coreOffset;
+                int64_t dataDst = flagIdx * pingPongBlockSize + coreOffset * rankSize + rank * k;
 
-                if (data_len > 0) {
-                    MoveResultFromSrcToPeerMem(reinterpret_cast<__gm__ AType*>(aGM_) + data_src, (__gm__ AType *)buff[dst_rank] + data_dst, data_len / k);
+                if (dataLen > 0) {
+                    MoveResultFromSrcToPeerMem(reinterpret_cast<__gm__ AType*>(aGM_) + dataSrc, (__gm__ AType *)buff[dstRank] + dataDst, dataLen / k);
                 }
-                src_offset += num_per_rank_move;
+                src_offset += allToAllSizePerRankPerLoop;
             }
-            else if (aiv_idx == 1 && cal_idx > 0 && core_idx >= first_step_core_num && core_idx < core_count) {
-                int32_t block_dst = ((cal_idx - 1) % peer_mem_block_count) * peer_mem_block_size;
-                int32_t total_m = cal_idx == cal_count ? m / rank_size - (cal_idx - 1) * num_per_rank_m : num_per_rank_m;
-                int32_t m_per_core = DivCeil(total_m, second_step_core_num);
-                int32_t m_st = (core_idx - first_step_core_num) * m_per_core;
-                int32_t m_len = m_st + m_per_core > total_m ? total_m - m_st : m_per_core;
-                int64_t src_st = block_dst + m_st * mid_output_k_size;
-                int64_t dst_st = ((cal_idx - 1) * num_per_rank_m + m_st) * mid_output_k_size;
-                if (m_len > 0) {
-                    MoveResultFromPeerMemToOutput((__gm__ AType *)buff[rank] + src_st, reinterpret_cast<__gm__ AllToAllResultType*>(allToAllResultGM_) + dst_st, m_len);
+            else if (aivIdx == 1 && commIdx > 0 && aicIdx >= allToAllSendCoreNum && aicIdx < usedCoreNum) {
+                int32_t blockDst = ((commIdx - 1) % MAX_BLOCK_COUNT) * pingPongBlockSize;
+                int32_t mThisLoop = commIdx == commCount ? m / rankSize - (commIdx - 1) * mPerLoop : mPerLoop;
+                int32_t mThisLoopPerCore = DivCeil(mThisLoop, allToAllRecvCoreNum);
+                int32_t mSt = (aicIdx - allToAllSendCoreNum) * mThisLoopPerCore;
+                int32_t mThisCoreThisLoop = mSt + mThisLoopPerCore > mThisLoop ? mThisLoop - mSt : mThisLoopPerCore;
+                int64_t srcSt = blockDst + mSt * tokenSize;
+                int64_t dstSt = ((commIdx - 1) * mPerLoop + mSt) * tokenSize;
+                if (mThisCoreThisLoop > 0) {
+                    MoveResultFromPeerMemToOutput((__gm__ AType *)buff[rank] + srcSt, reinterpret_cast<__gm__ AllToAllResultType*>(allToAllResultGM_) + dstSt, mThisCoreThisLoop);
                 }
             }
 
-            SetAndWaitAivSync(flag_idx);
-            if (cal_idx < cal_count) {
-                CrossRankSyncV1(FLAG_ONE_IDX, cal_idx + 1);
+            SetAndWaitAivSync(flagIdx);
+            if (commIdx < commCount) {
+                CrossRankSyncV1(FLAG_ONE_IDX, commIdx + 1);
             }
-            SetAndWaitAivSync(flag_idx);
+            SetAndWaitAivSync(flagIdx);
 
-            if (AscendC::IsSameType<BType, int8_t>::value && cal_idx < cal_count) {  // 拷贝完成后，对左矩阵进行quant
-                Quant(flag_idx, cal_idx);
-                SetAndWaitAivSync(flag_idx);
+            if (AscendC::IsSameType<BType, int8_t>::value && commIdx < commCount) {  // 拷贝完成后，对左矩阵进行quant
+                Quant(flagIdx, commIdx);
+                SetAndWaitAivSync(flagIdx);
             }
 
-            if (cal_idx < cal_count) {
-                SetAicSync(flag_idx);
+            if (commIdx < commCount) {
+                SetAicSync(flagIdx);
             }
         }
 
         WaitEvent(FLAG_ZERO_IDX);
-        if (cal_count % 2 == 0) {  // 若AIC计算次数为偶数，则多等一次
+        if (commCount % 2 == 0) {  // 若AIC计算次数为偶数，则多等一次
             WaitEvent(FLAG_ONE_IDX);
         }
 

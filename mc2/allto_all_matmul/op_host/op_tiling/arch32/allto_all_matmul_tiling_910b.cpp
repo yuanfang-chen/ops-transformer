@@ -379,11 +379,11 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckAndSetAttrsInfo(AlltoAllMatmulInf
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(group[0] == '\0', OP_LOGE(opName_, "The input attr group is empty string."),
                     return ge::GRAPH_FAILED);
-    info.worldSize = mc2tiling::MatmulFormulaicTiling::GetRankSize(group);
-    worldSize = info.worldSize;
+    info.rankSize = mc2tiling::MatmulFormulaicTiling::GetRankSize(group);
+    rankSize = info.rankSize;
     OP_TILING_CHECK(
-        SUPPORT_RANK_SIZE_910.find(info.worldSize) == SUPPORT_RANK_SIZE_910.end(),
-        OP_LOGE(opName_, "World_size should be 2 or 4 or 8, but the actual value is %u.", info.worldSize),
+        SUPPORT_RANK_SIZE_910.find(info.rankSize) == SUPPORT_RANK_SIZE_910.end(),
+        OP_LOGE(opName_, "World_size should be 2 or 4 or 8, but the actual value is %u.", info.rankSize),
         return ge::GRAPH_FAILED);
 
     const bool *isTransX1 = attrs->GetAttrPointer<bool>(ALLTOALLMATMUL_ATTR_X1_TRANSPOSE_INDEX);
@@ -520,7 +520,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     info.K = x1Shape->GetStorageShape().GetDim(1);
     uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(0);
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
-    info.N = (info.K * info.worldSize == x2Dim1) ? x2Dim0 : x2Dim1;
+    info.N = (info.K * info.rankSize == x2Dim1) ? x2Dim0 : x2Dim1;
     if (isQuant) {
         orgM = info.M;
         orgN = info.N;
@@ -611,10 +611,9 @@ void AlltoAllMatmulTiling910b::CalTilingParam(CoCTiling &cocTilingData, const st
 void TilingParamDeal(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info, int32_t ubSize)
 {
     uint32_t k = info.K;
-    uint32_t rankSize = info.worldSize;
     int32_t dataTypeSize = ELEMENT_SIZE;
     int32_t peerMemSize = (MAX_BUFF_BYTES - FLAG_BUFF_BYTES) / dataTypeSize;
-    int32_t transKAlign = RoundNum(k * rankSize, HALF_KBYTE / dataTypeSize);
+    int32_t transKAlign = RoundNum(k * info.rankSize, HALF_KBYTE / dataTypeSize);
     cocTilingData.ubMoveNum = std::min(ubSize * transKAlign * UB_PINGPONG_SIZE, MAX_UB_NUM);
     if (cocTilingData.m0 * cocTilingData.pValue * transKAlign > peerMemSize / MAX_BLOCK_COUNT) {
         int32_t maxValue = peerMemSize / MAX_BLOCK_COUNT / transKAlign;
@@ -633,9 +632,9 @@ void AlltoAllMatmulTiling910b::DoTwoRankTiling(CoCTiling &cocTilingData, AlltoAl
     TilingParamMap[&ubSize] = AlltoAllMatmulTilingValue(ALLTOALLMATMUL_TWO_RANK_FP16_UBSIZE_DEFAULT, g_alltoallmatmulTwoRankFP16UbsizeMap);
     TilingParamMap[&cocTilingData.swizzlDirect] = AlltoAllMatmulTilingValue(SWIZZLE_DIRECT_ONE);
     TilingParamMap[&cocTilingData.swizzlCount] = AlltoAllMatmulTilingValue(DEFAULT_SWIZZLE_COUNT);
-    TilingParamMap[&cocTilingData.first_step_core_num] = AlltoAllMatmulTilingValue(ALLTOALLMATMUL_TWO_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT,
+    TilingParamMap[&cocTilingData.allToAllSendCoreNum] = AlltoAllMatmulTilingValue(ALLTOALLMATMUL_TWO_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT,
         g_alltoallmatmulTwoRankFP16FirststepcorenumMap);
-    TilingParamMap[&cocTilingData.second_step_core_num] = AlltoAllMatmulTilingValue(CORE_NUM_FOUR);
+    TilingParamMap[&cocTilingData.allToAllRecvCoreNum] = AlltoAllMatmulTilingValue(CORE_NUM_FOUR);
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
 }
@@ -649,9 +648,9 @@ void AlltoAllMatmulTiling910b::DoFourRankTiling(CoCTiling &cocTilingData, AlltoA
     TilingParamMap[&ubSize] = AlltoAllMatmulTilingValue(ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT, g_alltoallmatmulFourRankFP16UbsizeMap);
     TilingParamMap[&cocTilingData.swizzlDirect] = AlltoAllMatmulTilingValue(SWIZZLE_DIRECT_ONE);
     TilingParamMap[&cocTilingData.swizzlCount] = AlltoAllMatmulTilingValue(SWIZZLE_COUNT_THREE);
-    TilingParamMap[&cocTilingData.first_step_core_num] = AlltoAllMatmulTilingValue(ALLTOALLMATMUL_FOUR_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT,
+    TilingParamMap[&cocTilingData.allToAllSendCoreNum] = AlltoAllMatmulTilingValue(ALLTOALLMATMUL_FOUR_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT,
         g_alltoallmatmulFourRankFP16FirststepcorenumMap);
-    TilingParamMap[&cocTilingData.second_step_core_num] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
+    TilingParamMap[&cocTilingData.allToAllRecvCoreNum] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
 }
@@ -665,18 +664,18 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     TilingParamMap[&ubSize] = AlltoAllMatmulTilingValue(ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT, g_alltoallmatmulEightRankFP16UbsizeMap);
     TilingParamMap[&cocTilingData.swizzlDirect] = AlltoAllMatmulTilingValue(SWIZZLE_DIRECT_ONE);
     TilingParamMap[&cocTilingData.swizzlCount] = AlltoAllMatmulTilingValue(SWIZZLE_COUNT_THREE);
-    TilingParamMap[&cocTilingData.first_step_core_num] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
-    TilingParamMap[&cocTilingData.second_step_core_num] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
+    TilingParamMap[&cocTilingData.allToAllSendCoreNum] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
+    TilingParamMap[&cocTilingData.allToAllRecvCoreNum] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
 }
 
 ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
-    if (info.worldSize == 2) {  // 若2卡
+    if (info.rankSize == 2) {  // 若2卡
         DoTwoRankTiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
-    } else if (info.worldSize == 4) {  // 若4卡
+    } else if (info.rankSize == 4) {  // 若4卡
         DoFourRankTiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
     }
@@ -740,8 +739,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::SetHcclTiling(AlltoAllMatmulTilingData
 void AlltoAllMatmulTiling910b::CalcQuantTokenNumPerUb(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
     int32_t maxUBPingPongSize = cocTilingData.ubMoveNum / 2;
-    int32_t tokenSize = info.K * worldSize;  // 加上padding后，此处需要使用k_allign
-    int32_t tokenPerCore = (cocTilingData.m0 * cocTilingData.pValue) / (cocTilingData.first_step_core_num);  // 每个核需要处理的token数
+    int32_t tokenSize = info.K * rankSize;  // 加上padding后，此处需要使用k_align
+    int32_t tokenPerCore = (cocTilingData.m0 * cocTilingData.pValue) / (cocTilingData.allToAllSendCoreNum);  // 每个核需要处理的token数
     int32_t quantScaleSize = Block32B<float>::AlignUp(tokenPerCore);  // 用于存储quantScale
     int32_t reduceMaxSize = BLOCK_ALIGN_BYTES / sizeof(float);  // 用于存储reduceMax的结果，存放某个token的max的值
     int32_t ubLeftForCopyAndAbs = UB_OFFSET / sizeof(float) - quantScaleSize - reduceMaxSize;  // 剩余用来存放absTensor和copyTensor的空间
@@ -760,17 +759,17 @@ void AlltoAllMatmulTiling910b::CalcQuantTokenNumPerUb(const CoCTiling &cocTiling
             copyTimes += 1;
         }
     }
-    info.copyTokenNumPerUb = copyTokenNum;
-    info.segmentsNumForLargeToken = copyTimes;
+    info.isSegmentK = (copyTokenNum == 0);
+    info.segmentsNum = copyTimes;
     info.copyTensorSize = copyTensorSize;
 }
 
 void AlltoAllMatmulTiling910b::CalcQuantWorkspaceSize(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info) {
     CalcQuantTokenNumPerUb(cocTilingData, info);
     uint32_t numPerRankM = cocTilingData.m0 * cocTilingData.pValue;
-    uint32_t midOutputKSize = orgK * worldSize;
+    uint32_t midOutputKSize = orgK * rankSize;
     info.quantSize = numPerRankM * midOutputKSize * MAX_BLOCK_COUNT;  // int8类型的A需要占用的空间大小
-    info.quantScaleSize = Block32B<float>::AlignUp(orgM) * sizeof(float) / worldSize;  // A反量化参数所需要的空间大小
+    info.quantScaleSize = Block32B<float>::AlignUp(orgM) * sizeof(float) / rankSize;  // A反量化参数所需要的空间大小
     info.dequantSize = orgM * orgN * sizeof(int32_t);
     quantWorkspaceSize = info.quantSize + info.quantScaleSize + info.dequantSize;
 }
@@ -804,17 +803,15 @@ void AlltoAllMatmulTiling910b::PrintAlltoAllMatmulTilingData(CoCTiling &cocTilin
     OP_LOGD(opName_, "info.M: %u", info.M);
     OP_LOGD(opName_, "info.K: %u", info.K);
     OP_LOGD(opName_, "info.N: %u", info.N);
-    OP_LOGD(opName_, "info.worldSize: %u", info.worldSize);
-    OP_LOGD(opName_, "info.aivNum: %u", info.aivNum);
-    OP_LOGD(opName_, "info.totalUbSize: %u", info.totalUbSize);
+    OP_LOGD(opName_, "info.rankSize: %u", info.rankSize);
     OP_LOGD(opName_, "info.hasBias: %d", info.hasBias);
     OP_LOGD(opName_, "cocTilingData.m0: %u", cocTilingData.m0);
     OP_LOGD(opName_, "cocTilingData.pValue: %u", cocTilingData.pValue);
     OP_LOGD(opName_, "cocTilingData.unMoveNum: %u", cocTilingData.ubMoveNum);
     OP_LOGD(opName_, "cocTilingData.swizzlDirect: %u", cocTilingData.swizzlDirect);
     OP_LOGD(opName_, "cocTilingData.swizzlCount: %u", cocTilingData.swizzlCount);
-    OP_LOGD(opName_, "cocTilingData.first_step_core_num: %u", cocTilingData.first_step_core_num);
-    OP_LOGD(opName_, "cocTilingData.second_step_core_num: %u", cocTilingData.second_step_core_num);
+    OP_LOGD(opName_, "cocTilingData.allToAllSendCoreNum: %u", cocTilingData.allToAllSendCoreNum);
+    OP_LOGD(opName_, "cocTilingData.allToAllRecvCoreNum: %u", cocTilingData.allToAllRecvCoreNum);
 }
 
 /**

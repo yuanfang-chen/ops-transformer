@@ -73,39 +73,37 @@ public:
      __aicore__ explicit CommBase(){};
 
     template <typename T>
-    __aicore__ inline void SetArgs(int32_t rank, int32_t rank_size, AlltoAllMatmulTilingData info)
+    __aicore__ inline void SetArgs(int32_t rank, int32_t rankSize, AlltoAllMatmulTilingData info)
     {
-        block_id = GetBlockIdx();
-        core_num = GetBlockNum();
-        aiv_idx = GetSubBlockIdx();
-        core_idx = block_id / GetTaskRation();
+        blockIdx = GetBlockIdx();
+        blockNum = GetBlockNum();
+        aivIdx = GetSubBlockIdx();
+        aicIdx = blockIdx / GetTaskRation();
         this->rank = rank;
-        this->rank_size = rank_size;
+        this->rankSize = rankSize;
 
         auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
         winContext_ = (__gm__ HcclCombineOpParam *)contextGM0;
 
-        for (int i = 0; i < rank_size; i++) {
+        for (int i = 0; i < rankSize; i++) {
             buff[i] = (GM_ADDR)winContext_->windowsIn[i];
         }
 
         SetTiling(info);
 
-        num_per_rank_m = m0 * p_value;
-        mid_output_k_size = k * rank_size;
+        mPerLoop = m0 * pValue;
+        tokenSize = k * rankSize;
 
-        total_data_size = 1LL * m * k; // 矩阵A大小
-        data_size_per_rank = total_data_size / rank_size; // 搬运到每个rank的数据量
-        num_per_rank_move = num_per_rank_m * k; // 一次通信搬运到每个rank的数据量
-        num_per_move = num_per_rank_move * rank_size; // 一次通信搬运的数据量
-        peer_mem_block_size = num_per_rank_m * mid_output_k_size; // pingpong缓冲区大小
-        data_per_core = num_per_move / first_step_core_num; // 每个core搬运的数据量
-        core_num_per_rank = first_step_core_num / rank_size; // 每个rank的core数量
+        uint64_t x1DataSize = 1LL * m * k; // 矩阵A大小
+        allToAllSizePerRank = x1DataSize / rankSize; // 搬运到每个rank的数据量
+        allToAllSizePerRankPerLoop = mPerLoop * k; // 一次通信搬运到每个rank的数据量
+        allToAllSizeAllRanksPerLoop = allToAllSizePerRankPerLoop * rankSize; // 一次通信搬运的数据量
+        pingPongBlockSize = mPerLoop * tokenSize; // pingpong缓冲区大小
+        allToAllSizePerCore = allToAllSizeAllRanksPerLoop / allToAllSendCoreNum; // 每个core搬运的数据量
+        coreNumPerRank = allToAllSendCoreNum / rankSize; // 每个rank的用来搬运的core数量
 
-        cal_count = DivCeil(total_data_size, num_per_move); // 总共需要计算的次数
-        core_count = first_step_core_num + second_step_core_num; // 总共的core数量
-
-        peer_mem_block_count = MAX_BLOCK_COUNT;
+        commCount = DivCeil(x1DataSize, allToAllSizeAllRanksPerLoop); // 总共需要计算的次数
+        usedCoreNum = allToAllSendCoreNum + allToAllRecvCoreNum; // 总共的core数量
 
         if ASCEND_IS_AIV {
             TPipe pipe;
@@ -126,32 +124,16 @@ public:
         quantSize = info.allToAllMatmulInfo.quantSize;
         dequantSize = info.allToAllMatmulInfo.dequantSize;
         quantScaleSize = info.allToAllMatmulInfo.quantScaleSize;
-        copyTokenNum = info.allToAllMatmulInfo.copyTokenNumPerUb;
-        copyTimes = info.allToAllMatmulInfo.segmentsNumForLargeToken;
+        isSegmentK = info.allToAllMatmulInfo.isSegmentK;
+        copyTimes = info.allToAllMatmulInfo.segmentsNum;
         copyTensorSize = info.allToAllMatmulInfo.copyTensorSize;
-        first_step_core_num = info.cocTiling.first_step_core_num;
-        second_step_core_num = info.cocTiling.second_step_core_num;
-        swizzl_count = info.cocTiling.swizzlCount;
-        swizzl_direct =info.cocTiling.swizzlDirect;
-        p_value = info.cocTiling.pValue;
+        allToAllSendCoreNum = info.cocTiling.allToAllSendCoreNum;
+        allToAllRecvCoreNum = info.cocTiling.allToAllRecvCoreNum;
+        swizzlCount = info.cocTiling.swizzlCount;
+        swizzlDirect =info.cocTiling.swizzlDirect;
+        pValue = info.cocTiling.pValue;
 
-        max_ub_ping_pong_size = info.cocTiling.ubMoveNum / 2;
-    }
-
-    __aicore__ inline void AlignJudge(bool trans_a, bool trans_b, int32_t m, int32_t k, int32_t n, int32_t m_align,
-                                    int32_t k_align, int32_t n_align, int32_t &aligned_a, int32_t &aligned_b)
-    {
-        if (!trans_a) {
-            aligned_a = k != k_align;
-        } else {
-            aligned_a = (m != m_align && m != 1);
-        }
-
-        if (!trans_b) {
-            aligned_b = (n != n_align);
-        } else {
-            aligned_b = (k != k_align);
-        }
+        ubPingPongSize = info.cocTiling.ubMoveNum / 2;
     }
 
     template <typename T>
@@ -209,7 +191,7 @@ public:
     }
 
     template <typename T>
-    __aicore__ inline void MoveResultFromSrcToPeerMem(__gm__ T *gm_src, __gm__ T *gm_dst, int32_t token_num)
+    __aicore__ inline void MoveResultFromSrcToPeerMem(__gm__ T *gmSrc, __gm__ T *gmDst, int32_t tokenNum)
     {
         LocalTensor<T> ubTensor = uBuf_.AllocTensor<T>();
         LocalTensor<T> copyTensor0 = ubTensor;
@@ -218,25 +200,25 @@ public:
         constexpr uint32_t elemPerUbBlock = BLOCK_ALIGN_BYTES / sizeof(T);
         uint32_t blockPerToken = DivCeil(k, elemPerUbBlock);  // 每个token占用多少格子
         uint32_t copyTokenPerTime = BLOCK_NUM_OF_UB_OFFSET / blockPerToken;  // 一次搬运多少token
-        uint32_t copyTimes = DivCeil(token_num, copyTokenPerTime);
+        uint32_t copyTimes = DivCeil(tokenNum, copyTokenPerTime);
         uint32_t actualCopyTokenPerTime = copyTokenPerTime;
 
         SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-        for (int32_t move_idx = 0; move_idx < copyTimes; ++move_idx) {
-            if (move_idx == copyTimes - 1) {  // 最后一次可能不为copyTokenPerTime
-                actualCopyTokenPerTime = token_num - (copyTimes - 1) * copyTokenPerTime;
+        for (int32_t copyIdx = 0; copyIdx < copyTimes; ++copyIdx) {
+            if (copyIdx == copyTimes - 1) {  // 最后一次可能不为copyTokenPerTime
+                actualCopyTokenPerTime = tokenNum - (copyTimes - 1) * copyTokenPerTime;
             }
-            auto event_id = (move_idx & 1) ? EVENT_ID0 : EVENT_ID1;
-            LocalTensor<T> copyTensor = (move_idx & 1) ? copyTensor0 : copyTensor1;
-            WaitFlag<HardEvent::MTE3_MTE2>(event_id);
-            CopyGmToUbufAlignB16(copyTensor, gm_src, actualCopyTokenPerTime, k * sizeof(T), 0, 0);
-            SetFlag<HardEvent::MTE2_MTE3>(event_id);
-            WaitFlag<HardEvent::MTE2_MTE3>(event_id);
-            CopyUbufToGmAlignB16(gm_dst, copyTensor, actualCopyTokenPerTime, k * sizeof(T), 0, (rank_size - 1) * k * sizeof(T));
-            gm_dst += mid_output_k_size * actualCopyTokenPerTime;
-            gm_src += k * actualCopyTokenPerTime;
-            SetFlag<HardEvent::MTE3_MTE2>(event_id);
+            auto eventId = (copyIdx & 1) ? EVENT_ID0 : EVENT_ID1;
+            LocalTensor<T> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
+            WaitFlag<HardEvent::MTE3_MTE2>(eventId);
+            CopyGmToUbufAlignB16(copyTensor, gmSrc, actualCopyTokenPerTime, k * sizeof(T), 0, 0);
+            SetFlag<HardEvent::MTE2_MTE3>(eventId);
+            WaitFlag<HardEvent::MTE2_MTE3>(eventId);
+            CopyUbufToGmAlignB16(gmDst, copyTensor, actualCopyTokenPerTime, k * sizeof(T), 0, (rankSize - 1) * k * sizeof(T));
+            gmDst += tokenSize * actualCopyTokenPerTime;
+            gmSrc += k * actualCopyTokenPerTime;
+            SetFlag<HardEvent::MTE3_MTE2>(eventId);
         }
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
@@ -244,97 +226,93 @@ public:
     }
 
     template <typename T>
-    __aicore__ inline void MoveResultFromPeerMemToOutput(__gm__ T *gm_src, __gm__ T *gm_dst, int32_t token_num)
+    __aicore__ inline void MoveResultFromPeerMemToOutput(__gm__ T *gmSrc, __gm__ T *gmDst, int32_t tokenNum)
     {
         LocalTensor<T> ubTensor = uBuf_.AllocTensor<T>();
         LocalTensor<T> copyTensor0 = ubTensor;
         LocalTensor<T> copyTensor1 = ubTensor[ub_offset];
 
         constexpr uint32_t elemPerUbBlock = BLOCK_ALIGN_BYTES / sizeof(T);
-        uint32_t blockPerToken = DivCeil(mid_output_k_size, elemPerUbBlock);  // 每个token占用多少格子
+        uint32_t blockPerToken = DivCeil(tokenSize, elemPerUbBlock);  // 每个token占用多少格子
         uint32_t copyTokenPerTime = BLOCK_NUM_OF_UB_OFFSET / blockPerToken;  // 一次搬运多少token
-        uint32_t copyTimes = DivCeil(token_num, copyTokenPerTime);
+        uint32_t copyTimes = DivCeil(tokenNum, copyTokenPerTime);
         uint32_t actualCopyTokenPerTime = copyTokenPerTime;
 
         SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-        for (int32_t move_idx = 0; move_idx < copyTimes; ++move_idx) {
-            if (move_idx == copyTimes - 1) {  // 最后一次可能不为copyTokenPerTime
-                actualCopyTokenPerTime = token_num - (copyTimes - 1) * copyTokenPerTime;
+        for (int32_t copyIdx = 0; copyIdx < copyTimes; ++copyIdx) {
+            if (copyIdx == copyTimes - 1) {  // 最后一次可能不为copyTokenPerTime
+                actualCopyTokenPerTime = tokenNum - (copyTimes - 1) * copyTokenPerTime;
             }
-            auto event_id = (move_idx & 1) ? EVENT_ID0 : EVENT_ID1;
-            LocalTensor<T> copyTensor = (move_idx & 1) ? copyTensor0 : copyTensor1;
-            WaitFlag<HardEvent::MTE3_MTE2>(event_id);
-            CopyGmToUbufAlignB16(copyTensor, gm_src, actualCopyTokenPerTime, mid_output_k_size * sizeof(T), 0, 0);
-            SetFlag<HardEvent::MTE2_MTE3>(event_id);
-            WaitFlag<HardEvent::MTE2_MTE3>(event_id);
-            CopyUbufToGmAlignB16(gm_dst, copyTensor, actualCopyTokenPerTime, mid_output_k_size * sizeof(T), 0, 0);
-            gm_dst += mid_output_k_size * actualCopyTokenPerTime;
-            gm_src += mid_output_k_size * actualCopyTokenPerTime;
-            SetFlag<HardEvent::MTE3_MTE2>(event_id);
+            auto eventId = (copyIdx & 1) ? EVENT_ID0 : EVENT_ID1;
+            LocalTensor<T> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
+            WaitFlag<HardEvent::MTE3_MTE2>(eventId);
+            CopyGmToUbufAlignB16(copyTensor, gmSrc, actualCopyTokenPerTime, tokenSize * sizeof(T), 0, 0);
+            SetFlag<HardEvent::MTE2_MTE3>(eventId);
+            WaitFlag<HardEvent::MTE2_MTE3>(eventId);
+            CopyUbufToGmAlignB16(gmDst, copyTensor, actualCopyTokenPerTime, tokenSize * sizeof(T), 0, 0);
+            gmDst += tokenSize * actualCopyTokenPerTime;
+            gmSrc += tokenSize * actualCopyTokenPerTime;
+            SetFlag<HardEvent::MTE3_MTE2>(eventId);
         }
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
     }
 
-    __aicore__ inline void ResetIpcFlags(int32_t num_flags)
+    __aicore__ inline void ResetIpcFlags(int32_t flagNum)
     {
-        for (int32_t idx = 0; idx < num_flags; ++idx) {
-            if (core_idx == 0 && aiv_idx == 0){
+        for (int32_t idx = 0; idx < flagNum; ++idx) {
+            if (aicIdx == 0 && aivIdx == 0){
                 SetBuffFlag((__gm__ int32_t *)buff[rank] + FLAG_OFFSET + idx, 0);
             }
         }
     }
 
-    __aicore__ inline void CrossRankSyncV1(int32_t flag_idx, int32_t flag_data)
+    __aicore__ inline void CrossRankSyncV1(int32_t flagIdx, int32_t flagVal)
     {
-        if (core_idx == 0 && aiv_idx == 0) {
-            SetBuffFlag((__gm__ int32_t *)buff[rank] + FLAG_OFFSET + flag_idx, flag_data);
+        if (aicIdx == 0 && aivIdx == 0) {
+            SetBuffFlag((__gm__ int32_t *)buff[rank] + FLAG_OFFSET + flagIdx, flagVal);
         }
-        if (core_idx < rank_size && aiv_idx == 0) {
-            CheckBuffFlag((__gm__ int32_t *)buff[core_idx] + FLAG_OFFSET + flag_idx, flag_data);
+        if (aicIdx < rankSize && aivIdx == 0) {
+            CheckBuffFlag((__gm__ int32_t *)buff[aicIdx] + FLAG_OFFSET + flagIdx, flagVal);
         }
     }
 
 public:
-    int32_t block_id;
-    int32_t core_num;
-    int32_t aiv_idx;
-    int32_t core_idx;
+    int32_t blockIdx;
+    int32_t blockNum;  // 取值为aiv数量
+    int32_t aivIdx;  // 只能为0或1
+    int32_t aicIdx;
     int32_t rank;
-    int32_t rank_size;
+    int32_t rankSize;
     GM_ADDR buff[8];
     __gm__ HcclCombineOpParam *winContext_{nullptr};
     TBuf<AscendC::TPosition::VECCALC> uBuf_;
     TBuf<AscendC::TPosition::VECCALC> uBufSync_;
 
-    int64_t total_data_size;
-    int64_t data_size_per_rank;
-    int32_t data_per_core;
-    int32_t used_peer_mem_count;
-    int32_t peer_mem_block_size;
-    int32_t peer_mem_block_count;
-    int32_t num_per_rank_m;
-    int32_t num_per_rank_move;
-    int32_t num_per_move;
-    int32_t cal_count;
-    int32_t core_count;
-    int32_t core_num_per_rank;
-    int32_t mid_output_k_size;
-    int32_t first_step_core_num;
-    int32_t second_step_core_num; 
+    uint64_t allToAllSizePerRank;
+    uint32_t allToAllSizePerCore;
+    int32_t pingPongBlockSize;
+    int32_t mPerLoop;
+    int32_t allToAllSizePerRankPerLoop;
+    int32_t allToAllSizeAllRanksPerLoop;
+    int32_t commCount;
+    int32_t usedCoreNum;
+    int32_t coreNumPerRank;
+    int32_t tokenSize;
+    int32_t allToAllSendCoreNum;
+    int32_t allToAllRecvCoreNum; 
     int32_t ub_offset;
-    int32_t copyTokenNum;
     int32_t copyTimes;
     int32_t copyTensorSize;
 
     int32_t m0;
     int32_t k0;
     int32_t n0;
-    int32_t swizzl_count;
-    int32_t swizzl_direct;
-    int32_t p_value;
-    int32_t max_ub_ping_pong_size;
+    int32_t swizzlCount;
+    int32_t swizzlDirect;
+    int32_t pValue;
+    int32_t ubPingPongSize;
 
     uint32_t m;
     uint32_t k;
@@ -342,16 +320,18 @@ public:
     uint64_t quantSize;
     uint64_t dequantSize;
     uint64_t quantScaleSize;
+
+    bool isSegmentK;
 };
 
-__aicore__ inline void SetAndWaitAivSync(uint64_t flag_idx, int32_t pipe_depth = 2)
+__aicore__ inline void SetAndWaitAivSync(uint64_t flagIdx, int32_t pipeDepth = 2)
 {
-    AscendC::CrossCoreSetFlag<0x0, PIPE_MTE3>(flag_idx + pipe_depth);
-    AscendC::CrossCoreWaitFlag(flag_idx + pipe_depth);
+    AscendC::CrossCoreSetFlag<0x0, PIPE_MTE3>(flagIdx + pipeDepth);
+    AscendC::CrossCoreWaitFlag(flagIdx + pipeDepth);
 }
 
-__aicore__ inline void SetAicSync(uint64_t flag_idx)
+__aicore__ inline void SetAicSync(uint64_t flagIdx)
 {
-    AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag_idx);
+    AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(flagIdx);
 }
 #endif

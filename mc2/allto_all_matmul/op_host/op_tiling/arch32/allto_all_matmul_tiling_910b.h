@@ -70,7 +70,7 @@ private:
     bool hasBias = false;
     bool isQuant = false;
     uint32_t biasDtype_ = 0;
-    uint32_t worldSize = 0;
+    uint32_t rankSize = 0;
     uint32_t orgM = 0;
     uint32_t orgN = 0;
     uint32_t orgK = 0;

@@ -23,28 +23,28 @@ struct AlltoAllMatmulInfo {
     uint32_t M;
     uint32_t K;
     uint32_t N;
-    uint32_t worldSize;
-    uint32_t aivNum;
-    uint32_t totalUbSize;
-    int32_t copyTokenNumPerUb;
-    int32_t segmentsNumForLargeToken;
-    int32_t copyTensorSize;
+    uint32_t rankSize;
+    uint32_t segmentsNum;  // 计算quant时，切分k的次数
+    uint32_t copyTensorSize;  // 计算quant时，k较大的情况下，ub一次处理的size
     uint64_t quantSize;
     uint64_t dequantSize;
     uint64_t quantScaleSize;
+    bool isSegmentK;
     bool hasBias;
 };
 
 struct CoCTiling {
     int32_t m0 = -1;
+    int32_t pValue = -1;
+    int32_t ubMoveNum = -1;  // 做alltoall步骤的UB大小
+    int32_t allToAllSendCoreNum = -1;
+    int32_t allToAllRecvCoreNum = -1;
+
+    // 以下四个变量暂时未启用
     int32_t k0 = -1;
     int32_t n0 = -1;
     int32_t swizzlCount = -1;
     int32_t swizzlDirect = -1;
-    int32_t pValue = -1;
-    int32_t ubMoveNum = -1;
-    int32_t first_step_core_num = -1;
-    int32_t second_step_core_num = -1;
 };
 
 
