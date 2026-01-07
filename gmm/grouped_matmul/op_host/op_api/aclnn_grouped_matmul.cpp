@@ -1458,7 +1458,8 @@ static aclnnStatus CheckParamDifferentGroupType(const gmm::GroupedMatmulParams &
   if (gmmParams.groupType == gmm::NO_SPLIT) {
     CHECK_COND(!gmmParams.transposeX, ACLNN_ERR_PARAM_INVALID,
                "When x, weight and y are all separated, x can not be transposed.");
-    CHECK_COND(!(gmmParams.apiVersion == gmm::GMMApiVersion::V1 && gmmParams.transposeWeight), ACLNN_ERR_PARAM_INVALID,
+    CHECK_COND(!(gmmParams.apiVersion == gmm::GMMApiVersion::V1 && gmmParams.transposeWeight) ||
+               GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95, ACLNN_ERR_PARAM_INVALID,
                "in this version, when x, weight and y are all separated, weight can not be transposed.");
     CHECK_COND(CheckCaseNoSplit(gmmParams) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
                "Invalid inputs!");
