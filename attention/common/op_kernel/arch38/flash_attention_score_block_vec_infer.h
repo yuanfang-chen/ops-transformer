@@ -250,7 +250,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitGlobalBuffer(
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitPostQuant(ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset)
 {
-        if (postQuantScale != nullptr) {
+    if (postQuantScale != nullptr) {
         constInfo.postQuantScaleValue = *(reinterpret_cast<__gm__ float*>(postQuantScale));
     }
     if (postQuantOffset != nullptr) {
@@ -761,9 +761,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInfo<isInf
         }
     } else {
 #if (__NPU_ARCH__ == 5102)
-        float quantScale2 = 1;
-        float quantOffset2 = 1;
-        AscendQuant(attenOut, vec2ResUb, quantScale2, quantOffset2, vec2ResUb.GetSize());
+        AscendQuant(attenOut, vec2ResUb, constInfo.postQuantScaleValue, constInfo.postQuantOffsetValue, runInfo.vec2S1RealSize * constInfo.dSizeV);
 #else
         PostQuantPerTensorVF<T, OUTPUT_T, true>(
             attenOut, vec2ResUb, constInfo.postQuantScaleValue, constInfo.postQuantOffsetValue, runInfo.vec2S1RealSize,

@@ -245,20 +245,16 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     if constexpr (bmm2Write2Ub) {
         if constexpr (!(useDn && isFp8)) {
             ubBufferManager.Init(pipe, mm1ResultSize * 2 + mm2ResultSize * 2);
+            PipeBarrier<PIPE_ALL>();
             bmm2Buffers.Init(ubBufferManager, mm2ResultSize);
-            bmm2Buffers.Get().SetCrossCore();
-            bmm2Buffers.Get().SetCrossCore();
         } else {
             ubBufferManager.Init(pipe, mm1ResultSize * 2 + mm2ResultSize);
             bmm2Buffers.Init(ubBufferManager, mm2ResultSize);
-            bmm2Buffers.Get().SetCrossCore();
         }
     } else {
         ubBufferManager.Init(pipe, mm1ResultSize * 2);
     }
     bmm1Buffers.Init(ubBufferManager, mm1ResultSize);
-    bmm1Buffers.Get().SetCrossCore();
-    bmm1Buffers.Get().SetCrossCore();
 }
  
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>

@@ -127,12 +127,13 @@ public:
     static constexpr bool isInt8 = IsSameType<INPUT_T, int8_t>::value;
     static constexpr bool splitD = (uint16_t)dVTemplateType > (uint16_t)DTemplateType::Aligned256;
     static constexpr bool useDn = IsDn(true, isInt8, pseMode, hasAtten, hasDrop,
-                                       s1BaseSize == 64, dTemplateType, hasRope);
+                                       s1BaseSize == 128, dTemplateType, hasRope);
     static constexpr TPosition bmm2OutPos = GetC2Position(dVTemplateType,
                                                           UbOutCondition<INPUT_T>(IsSameType<INPUT_T, float>::value, pseMode, hasAtten, hasDrop,
                                                                                s1BaseSize == 64), (s2BaseSize == 256 && s1BaseSize == 64));
     static constexpr bool bmm2Write2Ub = bmm2OutPos == TPosition::VECCALC;
-    static constexpr FixpipeConfig BMM2_FIXPIPE_CONFIG = {CO2Layout::ROW_MAJOR, bmm2Write2Ub};
+    static constexpr FixpipeConfig BMM1_FIXPIPE_CONFIG = {CO2Layout::ROW_MAJOR, true, !isInt8};
+    static constexpr FixpipeConfig BMM2_FIXPIPE_CONFIG = {CO2Layout::ROW_MAJOR, bmm2Write2Ub, !isInt8};
     static constexpr uint32_t l1BaseD = isFp8 ? 256: ((IsSameType<INPUT_T, float>::value) ? (dBaseSize > 128 ? 96 : 128): 128);
     using mm2ResPos = typename std::conditional<bmm2Write2Ub, Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>,
         Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD>>::type;
@@ -302,6 +303,9 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint8
 {
     if constexpr (isInt8) {
         this->InitQuant(constInfo, deqScaleQK, deqScaleV);
+    } else {
+        constInfo.deqScaleQKValue = 0x3f800000; // float32的1
+        constInfo.deqScaleVValue = 0x3f800000;
     }
 }
  
@@ -475,7 +479,12 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1(
 {
     CalcS1Coord(runInfo, constInfo);
     CalcS2Coord(runInfo, constInfo);
-    IterateBmm1Dn(outputBuf, runInfo, constInfo);
+    if constexpr (useDn) {
+        IterateBmm1Dn(outputBuf, runInfo, constInfo);
+    } else {
+        IterateBmm1Nd(outputBuf, runInfo, constInfo);
+    }
+    
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -643,14 +652,14 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                          false     // isRightTranspose
                         };
         mm2B.Wait<HardEvent::MTE2_MTE1>(); // 等待
-            using L0C_TYPE = int32_t;
-            MatmulFull<INPUT_T, INPUT_T, L0C_TYPE, 128, (uint32_t)dVTemplateType, 128, ABLayout::MK, ABLayout::KN>(
-                mm2A.GetTensor<INPUT_T>(),
-                mm2BTensor,
-                mmL0ABuffers,
-                mmL0BBuffers,
-                mm2ResL0C.GetTensor<L0C_TYPE>(),
-                param);
+        using L0C_TYPE = int32_t;
+        MatmulBase<INPUT_T, INPUT_T, L0C_TYPE, 128, (uint32_t)dVTemplateType, 128, ABLayout::MK, ABLayout::KN>(
+            mm2A.GetTensor<INPUT_T>(),
+            mm2BTensor,
+            mmL0ABuffers,
+            mmL0BBuffers,
+            mm2ResL0C.GetTensor<L0C_TYPE>(),
+            param);
         mm2B.Set<HardEvent::MTE1_MTE2>(); // 释放L1B
 
         mm2ResL0C.Set<HardEvent::M_FIX>(); // 通知
@@ -670,14 +679,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
         fixpipeParams.params.ndNum = 1;
         fixpipeParams.params.srcNdStride = 0;
         fixpipeParams.params.dstNdStride = 0;
-        if constexpr ((IsSameType<INPUT_T, int8_t>::value) && (implMode == ImplModeEnum::AA_HIGH_PERFORMANCE)) {
-            fixpipeParams.quantPre = QuantMode_t::DEQF16;
-            fixpipeParams.deqScalar = 0x3F800000; // constInfo.deqScaleVValue;
-        } else if constexpr ((IsSameType<INPUT_T, half>::value) && (implMode == ImplModeEnum::AA_HIGH_PERFORMANCE)) {
-            fixpipeParams.quantPre = QuantMode_t::DEQF16;
-        }
+        fixpipeParams.quantPre = QuantMode_t::DEQF16;
+        fixpipeParams.deqScalar = constInfo.deqScaleVValue;
         Fixpipe<T, int32_t, BMM2_FIXPIPE_CONFIG>(outputBuf.template GetTensor<T>(), mm2ResL0C.GetTensor<int32_t>(),
-            fixpipeParams); // 将matmul结果从L0C搬运到UB
+                                                 fixpipeParams); // 将matmul结果从L0C搬运到UB
         mm2ResL0C.Set<HardEvent::FIX_M>(); // 释放
     }
 }
@@ -1069,11 +1074,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     fixpipeParams.params.ndNum = 1;
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
-    if constexpr ((IsSameType<INPUT_T, int8_t>::value) && (implMode == ImplModeEnum::AA_HIGH_PERFORMANCE)) {
-        fixpipeParams.quantPre = QuantMode_t::DEQF16;
-        fixpipeParams.deqScalar = constInfo.deqScaleQKValue;
-    }
-    Fixpipe<T, int32_t, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<int32_t>(), fixpipeParams); // 将matmul结果从L0C搬运到UB
+    fixpipeParams.quantPre = QuantMode_t::DEQF16;
+    fixpipeParams.deqScalar = constInfo.deqScaleQKValue;
+    Fixpipe<T, L0C_TYPE, BMM1_FIXPIPE_CONFIG>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<L0C_TYPE>(),
+                                              fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放L0C
 }
 
@@ -1283,14 +1287,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
     fixpipeParams.params.ndNum = 1;
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
-    if constexpr ((IsSameType<INPUT_T, int8_t>::value) && (implMode == ImplModeEnum::AA_HIGH_PERFORMANCE)) {
-        fixpipeParams.quantPre = QuantMode_t::DEQF16;
-        fixpipeParams.deqScalar = 0x3F800000; //constInfo.deqScaleQKValue;
-    } else if constexpr ((IsSameType<INPUT_T, half>::value) && (implMode == ImplModeEnum::AA_HIGH_PERFORMANCE)) {
-        fixpipeParams.quantPre = QuantMode_t::DEQF16;
-    }
+    fixpipeParams.quantPre = QuantMode_t::DEQF16;
+    fixpipeParams.deqScalar = constInfo.deqScaleQKValue;
     Fixpipe<T, int32_t, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<int32_t>(),
-        fixpipeParams); // 将matmul结果从L0C搬运到UB
+                                              fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放L0C
 }
 

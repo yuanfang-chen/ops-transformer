@@ -207,35 +207,32 @@ __aicore__ inline void FlashAttentionScoreKernelInferRegbaseV2<CubeBlockType, Ve
                 if (notLastThreeLoop) {
                     RunInfo<isInfer> &runInfo1 = runInfo[taskId & 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
-                    this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
-                    // SetFlag<HardEvent::FIX_V>(BaseClass::SYNC_C1_V1_FLAG[runInfo1.taskIdMod2]);
+                    if (taskId >= 2) {
+                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.GetPre(), runInfo1, this->constInfo);
+                    } else {
+                        this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), runInfo1, this->constInfo);
+                    }
+                    SetFlag<HardEvent::FIX_V>(BaseClass::SYNC_C1_V1_FLAG[runInfo1.taskIdMod2]);
                 }
                 if (taskId > 0 && notLastTwoLoop) {
                     auto &runInfo3 = runInfo[(taskId + 3) & 3];
-                    // WaitFlag<HardEvent::FIX_V>(BaseClass::SYNC_C1_V1_FLAG[runInfo3.taskIdMod2]);
-                    this->vecBlock.ProcessVec1(this->l1PBuffers.GetVec(), this->bmm1Buffers.Get(), runInfo3,
-                        this->constInfo);
+                    WaitFlag<HardEvent::FIX_V>(BaseClass::SYNC_C1_V1_FLAG[runInfo3.taskIdMod2]);
+                    this->vecBlock.ProcessVec1(this->l1PBuffers.GetVec(), this->bmm1Buffers.Get(), runInfo3, this->constInfo); //单基本块需要getPre
                 }
                 if (taskId > 1 && notLast) {
                     RunInfo<isInfer> &runInfo2 = runInfo[(taskId + 2) & 3];
                     WaitFlag<HardEvent::MTE3_MTE1>(BaseClass::SYNC_V1_C2_FLAG[runInfo2.taskIdMod3]);
-                    if constexpr (BaseClass::bmm2Write2Ub) {
-                        this->cubeBlock.IterateBmm2(this->bmm2Buffers.Get(), this->l1PBuffers, runInfo2,
-                            this->constInfo);
+                    if (taskId >= 4) {
+                        this->cubeBlock.IterateBmm2(this->bmm2Buffers.GetPre(), this->l1PBuffers, runInfo2, this->constInfo);
                     } else {
-                        this->cubeBlock.IterateBmm2(this->bmm2ResGmBuffers.Get(), this->l1PBuffers, runInfo2,
-                            this->constInfo);
+                        this->cubeBlock.IterateBmm2(this->bmm2Buffers.Get(), this->l1PBuffers, runInfo2, this->constInfo);
                     }
-                    // SetFlag<HardEvent::FIX_V>(BaseClass::SYNC_C2_V2_FLAG[runInfo2.taskIdMod2]);
+                    SetFlag<HardEvent::FIX_V>(BaseClass::SYNC_C2_V2_FLAG[runInfo2.taskIdMod2]);
                 }
                 if (taskId > 2) {
                     RunInfo<isInfer> &runInfo3 = runInfo[(taskId + 1) & 3];
-                    // WaitFlag<HardEvent::FIX_V>(BaseClass::SYNC_C2_V2_FLAG[runInfo3.taskIdMod2]);
-                    if constexpr (BaseClass::bmm2Write2Ub) {
-                        this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo3, this->constInfo);
-                    } else {
-                        this->vecBlock.ProcessVec2(this->bmm2ResGmBuffers.Get(), runInfo3, this->constInfo);
-                    }
+                    WaitFlag<HardEvent::FIX_V>(BaseClass::SYNC_C2_V2_FLAG[runInfo3.taskIdMod2]);
+                    this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo3, this->constInfo);
                 }
                 ++taskId;
             }
