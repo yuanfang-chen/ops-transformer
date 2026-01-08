@@ -17,11 +17,14 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(MC2_OPT ON PARENT_SCOPE)
     set(matmul_all_reduce_depends mc2/3rd mc2/common PARENT_SCOPE)
     set(matmul_all_reduce_apt_depends mc2/3rd mc2/common PARENT_SCOPE)
-    if ("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend910_95" OR "${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend910_95;")
+    set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
+    if("${CONDITION_UNIT}" STREQUAL "ascend910_95")
         add_ops_compile_options(
             OP_NAME MatmulAllReduce
             COMPUTE_UNIT ascend910_9599
-            OPTIONS -DENABLE_CV_COMM_VIA_SSBUF=true
+            OPTIONS --cce-auto-sync=off
+                    -mllvm -cce-aicore-dcci-before-kernel-end=false
+                    -DENABLE_CV_COMM_VIA_SSBUF=true
         )
     endif()
 else() # 回黄host
