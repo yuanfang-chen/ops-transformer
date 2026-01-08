@@ -936,7 +936,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 -   当attenMask数据类型取INT8、UINT8时，其tensor中的值需要为0或1。
 - pseType为2或3时约束如下：
     -  <term>昇腾910_95 AI处理器</term>：
-        - 若qStartIdxOptional或kvStartIdxOptional非空，则取列表中第一个数据作为qStartIdx或kvStartIdx，同时qStartIdx、kvStartIdx和kvStartIdx-qStartIdx的取值范围需要满足[-2147483648, 2147483647]。
+        - 若qStartIdxOptional或kvStartIdxOptional非空，则取列表中第一个数据作为qStartIdx或kvStartIdx，同时qStartIdx、kvStartIdx的取值范围需要满足[-2147483648, 2147483647]，kvStartIdx-qStartIdx的取值范围需要满足[-1048576, 1048576]。
         - 当前只支持每个batch中qs和kvs等长。
         - 不支持MLA、左padding场景。
         - 只支持非量化、伪量化场景，不支持全量化场景。

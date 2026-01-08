@@ -118,6 +118,8 @@ constexpr int64_t PSE_TYPE_2_TILING_V2 = 2;
 constexpr int64_t PSE_TYPE_3_TILING_V2 = 3;
 constexpr uint32_t QUERY_SHAPE_DIM_D_128_TILING_V2 = 128;
 constexpr int32_t ROPE_DIMENSION_SIZE_TILING_V2 = 64;
+constexpr int32_t POS_SHIFT_MAX = 1048576; // 2^20
+constexpr int32_t POS_SHIFT_MIN = -1048576; // -2^20
 
 const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> inOutDtypeSupported = {
     {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
@@ -4194,9 +4196,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetQKVStartIdx(ContextParamsForPFA
             }
         }
     }
-    // 当kvStartIdx - qStartIdx超出范围后，由于编译器不支持大数值类型转换，kernel侧int_64转float类型时可能发生截断。
-    OP_CHECK_IF(kvStartIdx - qStartIdx > INT32_MAX || kvStartIdx - qStartIdx < INT32_MIN, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        "kvStartIdx - qStartIdx should >= %d and <= %d, but qStartIdx = %ld, kvStartIdx = %ld.", INT32_MIN, INT32_MAX, qStartIdx, kvStartIdx),
+    // 当kvStartIdx - qStartIdx超出范围后，kernel侧转为float会造成丢失精度。
+    OP_CHECK_IF(kvStartIdx - qStartIdx > POS_SHIFT_MAX || kvStartIdx - qStartIdx < POS_SHIFT_MIN, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "kvStartIdx - qStartIdx should >= %d and <= %d, but qStartIdx = %ld, kvStartIdx = %ld.", POS_SHIFT_MIN, POS_SHIFT_MAX, qStartIdx, kvStartIdx),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }

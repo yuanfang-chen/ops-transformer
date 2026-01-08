@@ -38,6 +38,8 @@ namespace optiling {
 void TilingGetTempCompileInfo(platform_ascendc::PlatformAscendC& ascendcPlatform, PromptFlashAttentionCompileInfo& compileInfo);
 const int64_t tokenDefault = 2147483647;  // for token default value
 const int32_t sparseDefault = 0;
+constexpr int32_t POS_SHIFT_MAX = 1048576; // 2^20
+constexpr int32_t POS_SHIFT_MIN = -1048576; // -2^20
 
 ge::graphStatus PFAConvertContext(ContextParamsForPFATiling &contextKeyParams, gert::TilingContext *context)
 {
@@ -1270,11 +1272,11 @@ bool IFATilingV2::SetQKVStartIdx()
             }
         }
     }
-    // 当kvStartIdx - qStartIdx超出范围后，由于编译器不支持大数值类型转换，kernel侧int_64转float类型时可能发生截断。
-    OP_CHECK_IF(kvStartIdx_ - qStartIdx_ > INT32_MAX || kvStartIdx_ - qStartIdx_ < INT32_MIN,
+    // 当kvStartIdx - qStartIdx超出范围后，kernel侧转为float会造成丢失精度。
+    OP_CHECK_IF(kvStartIdx_ - qStartIdx_ > POS_SHIFT_MAX || kvStartIdx_ - qStartIdx_ < POS_SHIFT_MIN,
                 OP_LOGE(ifaContext_->opName,
                         "kvStartIdx - qStartIdx should >= %d and <= %d, but qStartIdx = %ld, kvStartIdx = %ld.",
-                        INT32_MIN, INT32_MAX, qStartIdx_, kvStartIdx_),
+                        POS_SHIFT_MIN, POS_SHIFT_MAX, qStartIdx_, kvStartIdx_),
                 return false);
     return true;
 }
