@@ -371,6 +371,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::PostTiling()
 {
     auto tilingDataSize = sizeof(GMMFinalizeRoutingTilingData);
     context_->SetBlockDim(aicoreParams_.aicNum);
+    context_->SetScheduleMode(1);
     OP_CHECK_IF(tilingDataSize % sizeof(uint64_t) != 0,
                 OP_LOGE(context_->GetNodeName(), "Tiling data size[%zu] is not aligned to 8", tilingDataSize),
                 return ge::GRAPH_FAILED);
