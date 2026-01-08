@@ -915,12 +915,11 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetSparseBlockInfo
 }
 
 ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoBn2MultiBlkSparse() {
-    if (fBaseParams.isSparse) {
-        if (fBaseParams.layoutType == INPUT_FROAMT_TND) {
-            return GetBlockInfoOfTNDForBn2();
-        } else {
-            return GetSparseBlockInfoBn2();
-        }
+
+    if (fBaseParams.layoutType == INPUT_FROAMT_TND) {
+        return GetBlockInfoOfTNDForBn2();
+    } else if (fBaseParams.isSparse) {
+        return GetSparseBlockInfoBn2();
     } else {
         int64_t blockStarts[CORE_LIST_NUM];
         int64_t blockEnds[CORE_LIST_NUM];
@@ -966,7 +965,21 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoSparse()
         }
     }
     if (fBaseParams.splitAxis == SplitAxisEnum::BN2 && fBaseParams.isBn2MultiBlk) {
-        return DoBn2MultiBlkSparse();
+        bool earlyReturn = true;
+        bool res = DoBn2MultiBlkSparse();
+        // 当BN2多基本块场景，上方函数判断遇到无效行、列后，需要走S1S2模板，性能达到最优
+        OP_LOGD("DoBn2MultiBlkSparse", "fBaseParams.isInvalidCol %d, fBaseParams.isInvalidRow %d",
+            fBaseParams.isInvalidCol, fBaseParams.isInvalidRow);
+        if ((fBaseParams.isInvalidCol || fBaseParams.isInvalidRow)) {
+            fBaseParams.isBn2 = false;
+            fBaseParams.isBn2MultiBlk = false;
+            fBaseParams.isDeterministic = (context_->GetDeterministic() == 1);
+            fBaseParams.splitAxis = SplitAxisEnum::BN2GS1S2;
+            earlyReturn = false;
+        }
+        if (earlyReturn) {
+            return res;
+        }
     }
     fBaseParams.splitAxis = fBaseParams.isBn2 ? SplitAxisEnum::BN2 : SplitAxisEnum::BN2GS1S2;
     if (fBaseParams.layoutType == INPUT_FROAMT_TND) {
@@ -2976,6 +2989,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::PostTiling()
 
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetParseS1S2OuterInfo(int64_t (*parseInfo)[ARRAY_LENGTH])
 {
+    std::vector<bool> invalidS1Array(fBaseParams.s1Outer, false);
     for (int64_t i = 0; i < fBaseParams.s2Outer; i++) {
         int64_t leftIntersectionPoint = std::max(0L, int64_t(fBaseParams.cvS2Inner * i) - fBaseParams.s2Token);
         if (leftIntersectionPoint > int64_t(fBaseParams.s1)) {
@@ -2997,19 +3011,23 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetParseS1S2OuterInfo(int64_t
         } else {
             parseInfo[i][LENGTH_IDX] = parseInfo[i - 1][LENGTH_IDX] + tmpSize;
         }
+        if (parseInfo[i][BEGIN_IDX] >= parseInfo[i][END_IDX]) {
+            fBaseParams.isInvalidCol = true;
+        }
+        // check invalid row or col block for BN2
+        for (int64_t j = 0; j < invalidS1Array.size(); j++) {
+            if (j >= parseInfo[i][BEGIN_IDX] && j < parseInfo[i][END_IDX]) {
+                invalidS1Array[j] = true;
+            }
+        }
         OP_LOGD("Sparse", " idx = %ld: Begin = %ld, End = %ld, Length = %ld, total_Length = %ld", i, parseInfo[i][0],
                   parseInfo[i][1], tmpSize, parseInfo[i][LENGTH_IDX]);
     }
-    if ((parseInfo[fBaseParams.s2Outer - 1][LENGTH_IDX] <= 1) && fBaseParams.d <= BN2_MAX_D &&
-        fBaseParams.n1 == fBaseParams.n2 && (fBaseParams.queryType != ge::DT_FLOAT) && 
-        fBaseParams.queryType != ge::DT_FLOAT8_E5M2 && fBaseParams.queryType != ge::DT_FLOAT8_E4M3FN &&
-	    fBaseParams.queryType != ge::DT_HIFLOAT8 &&
-        fBaseParams.d == fBaseParams.d1 && !fBaseParams.hasRope && (fBaseParams.tailZeroCount == 0)) {
-        fBaseParams.isBn2 = true;
-        fBaseParams.isBn2MultiBlk = false;
-        fBaseParams.isDeterministic = false;
-        fBaseParams.splitAxis = SplitAxisEnum::BN2;
-        fBaseParams.deterSparseType = static_cast<uint32_t>(DeterSparseType::NO_DETER);
+    for (int64_t j = 0; j < invalidS1Array.size(); j++) {
+        if (!invalidS1Array[j]) {
+            fBaseParams.isInvalidRow = true;
+            break;
+        }
     }
 }
 
@@ -3411,6 +3429,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::FillBlockInfoLoadBalanceForBn
     acturalBlockInfo[fBaseParams.b + 1][0] = 0; // 存最大的acutalblocks1s2，用于下界
     OP_LOGD("FillBlockInfoLoadBalanceForBn2", "SparseMode %u, find band index %u", fBaseParams.sparseMode, fBaseParams.bandIdx);
     float batchTotalValidBlk;
+    std::vector<bool> invalidS1Array;
     for (int64_t i = 0; i < fBaseParams.b; i++) {
         int64_t actualS1Len = fBaseParams.actualSeqQlen[i];
         int64_t actualS2Len = fBaseParams.actualSeqKvlen[i];
@@ -3419,9 +3438,11 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::FillBlockInfoLoadBalanceForBn
         auto actualS1Outer = (actualS1Len + fBaseParams.s1CvInner - 1) / fBaseParams.s1CvInner;
         auto actualS2Outer = (actualS2Len + fBaseParams.cvS2Inner - 1) / fBaseParams.cvS2Inner;
         totalBlockInfo[i][0] = actualS1Outer * actualS2Outer;
-        // 针对S为0的场景，pre中增加initGm为0的操作
-        if (totalBlockInfo[i][0] == 0) {
-            fBaseParams.sValueZeroUnderTND = true;
+        invalidS1Array.assign(actualS1Outer, false);
+        // 针对S2为0的场景，pre中增加initGm为0的操作
+        if ((actualS2Outer == 0) != (actualS1Outer == 0)) {
+            fBaseParams.isInvalidCol = (actualS1Outer == 0);
+            fBaseParams.isInvalidRow = (actualS2Outer == 0);
         }
 
         // 对unpad场景的token值做二次校正
@@ -3450,6 +3471,24 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::FillBlockInfoLoadBalanceForBn
                 acturalBlockInfo[i][j] = acturalS1Num / static_cast<float>(fBaseParams.s1CvInner);
                 batchTotalValidBlk += acturalBlockInfo[i][j];
                 acturalBlockInfo[fBaseParams.b][0] += acturalBlockInfo[i][j] * fBaseParams.n2 * fBaseParams.g;
+
+                if (acturalS1Begin >= acturalS1End) {
+                    fBaseParams.isInvalidCol = true;
+                }
+                // check invalid row or col block for BN2
+                for (int64_t k = 0; k < invalidS1Array.size(); k++) {
+                    if (k >= acturalS1Begin && k < acturalS1End) {
+                        invalidS1Array[k] = true;
+                    }
+                }
+            }
+        }
+
+        // BN2场景下检查是否无效基本块行，用于清零GM
+        for (int64_t j = 0; j < invalidS1Array.size(); j++) {
+            if (!invalidS1Array[j]) {
+                fBaseParams.isInvalidRow = true;
+                break;
             }
         }
 
