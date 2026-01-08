@@ -357,6 +357,8 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeTndLayout(const gert::Shape &query
     }
     s1Size = *std::max_element(actualSeqLenData.begin(), actualSeqLenData.end());
     s2Size = *std::max_element(actualSeqLenKvData.begin(), actualSeqLenKvData.end());
+    OP_CHECK_IF(s1Size <= 0,
+                OPS_REPORT_VECTOR_INNER_ERR(opName, "s1Size should be larger than 0."), return false);
     OP_CHECK_IF(n1Size != queryShape.GetDim(1),
                 OPS_REPORT_VECTOR_INNER_ERR(opName, "head_num is [%ld], but got query dim1 [%ld].", n1Size,
                                             queryShape.GetDim(1)),
