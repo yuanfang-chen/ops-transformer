@@ -75,8 +75,7 @@ __aicore__ inline void MoeV2SortOneCore::SortCompute()
     Concat(concatLocal, expertForSourceRowLocalFp32, tempTensor, this->sortNum / ONE_REPEAT_SORT_NUM);
 
     LocalTensor<float> sortedLocal = sortedBuffer.Get<float>(GetSortLen<float>(this->sortNum));
-    LocalTensor<uint32_t> sourceRowLocal;
-    sourceRowLocal = inLocal[this->sortNum].ReinterpretCast<uint32_t>();
+    LocalTensor<uint32_t> sourceRowLocal = inLocal[this->sortNum].ReinterpretCast<uint32_t>();
     Sort<float, true>(sortedLocal, concatLocal, sourceRowLocal, tempTensor, this->sortNum / ONE_REPEAT_SORT_NUM);
 
     LocalTensor<float> outLocal = sortDataCopyOutQueue.AllocTensor<float>();

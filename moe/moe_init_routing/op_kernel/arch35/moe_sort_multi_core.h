@@ -273,9 +273,9 @@ __aicore__ inline void MoeSortMultiCore::Init(GM_ADDR expertForSourceRow, GM_ADD
   this->vmsTilingData = &(tilingData->vmsMiddleComputeParamsOp);
   this->sortOutTilingData = &(tilingData->sortOutComputeParamsOp);
 
-  this->blockIdx = GetBlockIdx();
   this->tileLength = this->vbsTilingData->perCorePerLoopElements;
   this->sortTotalLength = this->vbsTilingData->perCoreElements;
+  this->blockIdx = GetBlockIdx();
   if (this->blockIdx == tilingData->vbsComputeParamsOp.needCoreNum - 1) {
     this->tileLength = this->vbsTilingData->lastCorePerLoopElements;
     this->sortTotalLength = this->vbsTilingData->lastCoreElements;

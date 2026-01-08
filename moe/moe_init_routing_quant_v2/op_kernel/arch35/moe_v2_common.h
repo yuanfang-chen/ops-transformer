@@ -93,15 +93,15 @@ __aicore__ inline int64_t Ceil(int64_t a, int64_t b)
 }
 
 template <typename T>
-__aicore__ inline T Min(T a, T b)
-{
-    return a > b ? b : a;
-}
-
-template <typename T>
 __aicore__ inline T Max(T a, T b)
 {
     return a < b ? b : a;
+}
+
+template <typename T>
+__aicore__ inline T Min(T a, T b)
+{
+    return a > b ? b : a;
 }
 
 template <HardEvent event>

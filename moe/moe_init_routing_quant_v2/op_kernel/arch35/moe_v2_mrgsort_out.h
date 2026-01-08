@@ -45,9 +45,9 @@ private:
 private:
     MoeV2MrgsortParam* param = nullptr;
 
-    GlobalTensor<float> gmInputs[4];
     GlobalTensor<int32_t> gmOutput1;
     GlobalTensor<int32_t> gmOutput2;
+    GlobalTensor<float> gmInputs[4];
 
     LocalTensor<float> ubInputs[4];
     LocalTensor<float> tempBuffer;

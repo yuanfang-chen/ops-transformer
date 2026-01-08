@@ -33,6 +33,8 @@ public:
     __aicore__ inline void Process();
 
 private:
+    template <typename TilingData>
+    __aicore__ inline void InitTilingData(const TilingData* tilingData);
     __aicore__ inline void VBSProcess();
     __aicore__ inline void UBSortProcess(int64_t progress, int64_t size, int64_t sortNum);
     __aicore__ inline void OneCoreVMSProcess(int64_t listNum, int64_t perListElements, int64_t lastListElements);
@@ -125,8 +127,7 @@ __aicore__ inline void MoeV2SortMultiCore::UBSortCompute(int64_t progress, int64
 
     LocalTensor<float> sortedLocal = sortedBuffer.Get<float>(GetSortLen<float>(sortNum));
     LocalTensor<float> outLocal = sortDataCopyOutQueue.AllocTensor<float>();
-    LocalTensor<uint32_t> sourceRowLocal;
-    sourceRowLocal = inLocal[sortNum].ReinterpretCast<uint32_t>();
+    LocalTensor<uint32_t> sourceRowLocal = inLocal[sortNum].ReinterpretCast<uint32_t>();
     Sort<float, true>(outLocal, concatLocal, sourceRowLocal, sortedLocal, sortNum / ONE_REPEAT_SORT_NUM);
 
     sortDataCopyOutQueue.EnQue<float>(outLocal);
@@ -297,9 +298,7 @@ __aicore__ inline void MoeV2SortMultiCore::SortOutProcess()
 }
 
 template <typename TilingData>
-__aicore__ inline void MoeV2SortMultiCore::Init(
-    GM_ADDR expertIdx, GM_ADDR expertTokensCountOrCumsum, GM_ADDR expertTokensBeforeCapacity, GM_ADDR workspace,
-    const TilingData* tilingData, TPipe* tPipe)
+__aicore__ inline void MoeV2SortMultiCore::InitTilingData(const TilingData* tilingData)
 {
     this->totalLength = tilingData->n * tilingData->k;
     this->coreNum = tilingData->coreNum;
@@ -331,7 +330,14 @@ __aicore__ inline void MoeV2SortMultiCore::Init(
         sortCoreLoopElements = this->vbsTilingData->perCorePerLoopElements;
         sortCoreLastLoopElements = this->vbsTilingData->perCoreLastLoopElements;
     }
+}
 
+template <typename TilingData>
+__aicore__ inline void MoeV2SortMultiCore::Init(
+    GM_ADDR expertIdx, GM_ADDR expertTokensCountOrCumsum, GM_ADDR expertTokensBeforeCapacity, GM_ADDR workspace,
+    const TilingData* tilingData, TPipe* tPipe)
+{
+    InitTilingData(tilingData);
     this->pipe = tPipe;
     expertIdxGm.SetGlobalBuffer(
         (__gm__ int32_t*)expertIdx + this->blockIdx * tilingData->vbsComputeParamsOp.perCoreElements,
