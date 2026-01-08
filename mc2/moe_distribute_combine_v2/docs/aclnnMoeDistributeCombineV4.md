@@ -734,8 +734,8 @@ aclnnStatus aclnnMoeDistributeCombineV4(
     #include <unordered_set>
     #include "acl/acl.h"
     #include "hccl/hccl.h"
-    #include "aclnnop/aclnn_moe_distribute_dispatch_V4.h"
-    #include "aclnnop/aclnn_moe_distribute_combine_V4.h"
+    #include "aclnnop/aclnn_moe_distribute_dispatch_v4.h"
+    #include "aclnnop/aclnn_moe_distribute_combine_v4.h"
 
     #define CHECK_RET(cond, return_expr) \
         do {                             \
@@ -1018,7 +1018,8 @@ aclnnStatus aclnnMoeDistributeCombineV4(
         /**************************************** 调用dispatch warm up********************************************/
         // 模拟动态缩容场景，需要先运行一遍正常情况建立通信域；调用第一阶段接口
         ret = aclnnMoeDistributeDispatchV4GetWorkspaceSize(x, expertIds, (quantMode > 0 ? scales : nullptr), nullptr,
-                expertScales, nullptr, hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
+                expertScales, nullptr, nullptr, // performanceInfoOptional
+                hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
                 args.tpRankId, expertShardType, sharedExpertNum,sharedExpertRankNum, quantMode, globalBs,
                 expertTokenNumsType, nullptr, zeroExpertNum, copyExpertNum, constExpertNum, expandX, dynamicScales, expandIdx, expertTokenNums, epRecvCounts,
                 tpRecvCounts, expandScales, &dispatchWorkspaceSize, &dispatchExecutor);
@@ -1043,7 +1044,8 @@ aclnnStatus aclnnMoeDistributeCombineV4(
         if (availableRank.find(args.rankId) != availableRank.end()) {
             // 调用第一阶段接口
         ret = aclnnMoeDistributeDispatchV4GetWorkspaceSize(x, expertIds, (quantMode > 0 ? scales : nullptr), nullptr,
-                expertScales, elasticInfo, hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
+                expertScales, elasticInfo, nullptr, // performanceInfoOptional
+                hcomEpName, EP_WORLD_SIZE, args.epRankId, moeExpertNum, hcomTpName, TP_WORLD_SIZE,
                 args.tpRankId, expertShardType, sharedExpertNum,sharedExpertRankNum, quantMode, globalBs,
                 expertTokenNumsType, nullptr, zeroExpertNum, copyExpertNum, constExpertNum, expandX, dynamicScales, expandIdx, expertTokenNums, epRecvCounts,
                 tpRecvCounts, expandScales, &dispatchWorkspaceSize, &dispatchExecutor);
