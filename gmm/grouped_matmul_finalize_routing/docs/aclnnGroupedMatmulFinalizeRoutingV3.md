@@ -457,7 +457,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
       <td></td>
       <td>FLOAT8_E8M0</td>
       <td>ND</td>
-      <td>shape支持四维，在MX量化场景下，支持的维度为(m,Ceil(k/64) ,2) 并且数据类型支持FLOAT8_E8M0</td>
+      <td>shape支持三维，在MX量化场景下，支持的维度为(m,Ceil(k/64) ,2) 并且数据类型支持FLOAT8_E8M0</td>
       <td>×</td>
     </tr>
     <tr>
@@ -720,8 +720,8 @@ MXFP4| FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT8_E8M0 | BFLOAT1
 - 在MXFP4/MXFP8场景中，offsetOptional、antiquantScaleOptional、antiquantOffsetOptional必须设置为空。
 - 在MXFP4场景中，必须满足k必须为偶数的约束。在x2非转置的情况下，n必须为偶数。
 - 在MXFP4/MXFP8场景中，支持x2转置或者非转置。x2与scale的转置属性必须保持一致。
-- e 必须小于1024。
-- 在MXFP4 场景下，k不能为2。
+- e 必须小于等于1024。
+- 在MXFP4场景中，k不能为2。
 
 ## 调用示例
 在Atlas A2,A3产品上示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
