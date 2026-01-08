@@ -1510,7 +1510,7 @@ bool IFATilingV2::CheckKeyValuePrefixConsistency(const gert::Shape keyPrefixShap
 }
 
 bool IFATilingV2::CheckActualSharedPrefixLen(const gert::Tensor *actualSharedPrefixLenInput,
-                                             const gert::Shape keyPrefixShape, uint32_t prefixSSize_)
+                                             const gert::Shape keyPrefixShape, uint32_t prefixSSizeLocal)
 {
   uint32_t actualPrefixlenDim = actualSharedPrefixLenInput->GetStorageShape().GetDimNum();
   OP_CHECK_IF((actualPrefixlenDim != 1),
@@ -1523,9 +1523,9 @@ bool IFATilingV2::CheckActualSharedPrefixLen(const gert::Tensor *actualSharedPre
   OP_CHECK_IF((actualSharedPrefixLenInput->GetData<int64_t>() == nullptr),
               OP_LOGE(ifaContext_->opName, "actualSharedPrefixLen datas is null!"), return false);
   actualSharedPrefixLen_ = actualSharedPrefixLenInput->GetData<int64_t>()[0];
-  OP_CHECK_IF((actualSharedPrefixLen_ > prefixSSize_) || (actualSharedPrefixLen_ < 0),
+  OP_CHECK_IF((actualSharedPrefixLen_ > prefixSSizeLocal) || (actualSharedPrefixLen_ < 0),
               OP_LOGE(ifaContext_->opName, "actualSharedPrefixLen(%ld) must be in range[0, %ld]!",
-                      actualSharedPrefixLen_, prefixSSize_),
+                      actualSharedPrefixLen_, prefixSSizeLocal),
               return false);
   return true;
 }
@@ -4216,7 +4216,7 @@ void IFATilingV2::IFATilingDataconvert() {
   inputParams.set_isPostQuantBF16(isPostQuantBF16_);  //伪量化暂不支持后量化，默认值
 }
 
-ge::graphStatus IFATilingV2::IncreFlashAttentionSetTilingData(gert::TilingContext& ifaContext_,
+ge::graphStatus IFATilingV2::IncreFlashAttentionSetTilingData(gert::TilingContext& ifaContextLocal,
                                                             IncreFlashAttentionTilingDataV2& tilingData) {
   return ge::GRAPH_SUCCESS;
 }
