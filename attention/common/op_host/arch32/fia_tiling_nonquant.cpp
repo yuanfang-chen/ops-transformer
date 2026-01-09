@@ -632,7 +632,7 @@ void FiaTilingNonQuant::CalcScheduleMode()
 }
 
 void FiaTilingNonQuant::GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, int64_t actSeqLensKv,
-                                        int64_t &safePreToken, int64_t &safeNextToken)
+                                        int64_t &safePreToken, int64_t &safeNextToken) const
 {
     if (mode == SparseMode::DEFAULT_MASK) {
         safePreToken = std::max(-actSeqLensKv, safePreToken);
