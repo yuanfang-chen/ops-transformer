@@ -159,19 +159,12 @@ static bool CheckXDimValid(const gert::TilingContext *context, const OpType opTy
     const char *nodeName = context->GetNodeName();
     // context->GetInputShape在函数CheckInputTensorDim中已经校验
     size_t xDimNum = context->GetInputShape(X_INDEX)->GetStorageShape().GetDimNum();
-    // quant_reduce_scatter算子的x一定是2维，即x.shape(bs, h)
-    bool inValidDimNum = xDimNum != TWO_DIMS;
-    if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-        // quant_all_reduce算子的x可能是2维或者3维，即x.shape(b, s, h)
-        inValidDimNum = inValidDimNum && (xDimNum != THREE_DIMS);
-        OP_TILING_CHECK(inValidDimNum,
-                        OP_LOGE(nodeName, "xDimNum is invalid, it should be 2 or 3, but the actual input xDimNum is %lu.", xDimNum),
-                        return false);
-    } else {
-        OP_TILING_CHECK(inValidDimNum,
-                        OP_LOGE(nodeName, "xDimNum is invalid, it should be 2, but the actual input xDimNum is %lu.", xDimNum),
-                        return false);
-    }
+    // quant_all_reduce和quant_reduce_scatter算子的x可能是2维或者3维，即x.shape(bs, h)或x.shape(b, s, h)
+    bool inValidDimNum = (xDimNum != TWO_DIMS) && (xDimNum != THREE_DIMS);
+    OP_TILING_CHECK(inValidDimNum,
+                    OP_LOGE(nodeName, "xDimNum is invalid, it should be 2 or 3, but the actual input xDimNum is %lu.", xDimNum),
+                    return false);
+
     return true;
 }
 
@@ -189,30 +182,17 @@ static bool CheckScalesDimValid(const gert::TilingContext *context, TilingRunInf
     size_t scalesDim = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDimNum();
     if (runInfo.quantMode == TG_QUANT_MOD) {
         // TG量化: scales.shape(bs, h/128)或(b, s, h/128)
-        bool invalidScalesDim = scalesDim != TWO_DIMS;
-        if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-            invalidScalesDim = invalidScalesDim && (scalesDim != THREE_DIMS);
-            OP_TILING_CHECK(invalidScalesDim,
-                            OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2 or 3, but actual value is %lu.", scalesDim),
-                            return false);
-        } else {
-            OP_TILING_CHECK(invalidScalesDim,
-                            OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2, but actual value is %lu.", scalesDim),
-                            return false);
-        }
+        bool invalidScalesDim = (scalesDim != TWO_DIMS) && (scalesDim != THREE_DIMS);
+        OP_TILING_CHECK(invalidScalesDim,
+                        OP_LOGE(nodeName, "In TG quantmode, scalesDim should be 2 or 3, but actual value is %lu.", scalesDim),
+                        return false);
+
     } else if (runInfo.quantMode == MX_QUANT_MOD) {
         // MX量化: scales.shape(bs, h/64, 2)或(b, s, h/64, 2)
-        bool invalidScalesDim = scalesDim != THREE_DIMS;
-        if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-            invalidScalesDim = invalidScalesDim && (scalesDim != FOUR_DIMS);
-            OP_TILING_CHECK(invalidScalesDim,
-                            OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3 or 4, but actual value is %lu.", scalesDim),
-                            return false);
-        } else {
-            OP_TILING_CHECK(invalidScalesDim,
-                            OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3, but actual value is %lu.", scalesDim),
-                            return false);
-        }
+        bool invalidScalesDim = (scalesDim != THREE_DIMS) && (scalesDim != FOUR_DIMS);
+        OP_TILING_CHECK(invalidScalesDim,
+                        OP_LOGE(nodeName, "In MX quantmode, scaleDim should be 3 or 4, but actual value is %lu.", scalesDim),
+                        return false);
     }
     return true;
 }
@@ -234,7 +214,7 @@ static bool CheckTensorEmpty(const gert::TilingContext *context, const OpType op
     uint64_t scalesValueTwo = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ONE);
     // 校验是否为空tensor
     bool emptyTensor = xValueOne == 0 || xValueTwo == 0 || scalesValueOne == 0 || scalesValueTwo == 0;
-    if (opType == OpType::OP_QUANT_ALL_REDUCE && xDimNum == THREE_DIMS) {
+    if (xDimNum == THREE_DIMS) {
         uint64_t xValueThree = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
         uint64_t scalesValueThree = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
         emptyTensor = emptyTensor || (xValueThree == 0 || scalesValueThree == 0);
@@ -271,7 +251,7 @@ static bool CheckXDim(const gert::TilingContext *context, TilingRunInfo &runInfo
     uint64_t xValueBS = xValueOne;
     // 泛化场景下h必须是128的倍数。只有x是2维时，当前轴才是h。当x是3维时，当前轴是s，后一个轴才是h
     uint64_t xValueH = xValueTwo;
-    if (opType == OpType::OP_QUANT_ALL_REDUCE && xDimNum == THREE_DIMS) {
+    if (xDimNum == THREE_DIMS) {
         xValueBS = xValueOne * xValueTwo;
         xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
     }
@@ -280,21 +260,14 @@ static bool CheckXDim(const gert::TilingContext *context, TilingRunInfo &runInfo
                             "x b*s dim should be multiple of ranksize, but actual x b*s dim is %lu, ranksize is %u.",
                             xValueBS, runInfo.rankSize),
                     return false);
-    if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-        // quant_all_reduce算子的h必须在[1024, 8192]之间，且能被128整除
-        OP_TILING_CHECK(
-            xValueH < H_VALUE_LOWER_LIMIT || xValueH > H_VALUE_UPPER_LIMIT || xValueH % TG_QUANT_NUMBER != 0,
-            OP_LOGE(nodeName,
-                    "x h dim is invalid, which should be in [1024, 8192] and 128 multiple, but actual value is %lu.",
-                    xValueH),
-            return false);
-    } else {
-        // quant_reduce_scatter算子的h必须为5120和7168
-        OP_TILING_CHECK(
-            xValueH != H_VALUE_5120 && xValueH != H_VALUE_7168,
-            OP_LOGE(nodeName, "x h dim is invalid, which should be 5120 or 7168, but actual value is %lu.", xValueH),
-            return false);
-    }
+
+    // quant_all_reduce 和 quant_reduce_scatter算子的h必须在[1024, 8192]之间，且能被128整除
+    OP_TILING_CHECK(
+        xValueH < H_VALUE_LOWER_LIMIT || xValueH > H_VALUE_UPPER_LIMIT || xValueH % TG_QUANT_NUMBER != 0,
+        OP_LOGE(nodeName,
+                "x h dim is invalid, which should be in [1024, 8192] and 128 multiple, but actual value is %lu.",
+                xValueH),
+        return false);
     return true;
 }
 
@@ -314,7 +287,7 @@ static bool CheckScalesDim(const gert::TilingContext *context, TilingRunInfo &ru
     size_t scalesDim = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDimNum();
     if (runInfo.quantMode == TG_QUANT_MOD) {
         // TG量化: scales.shape(bs, h/128)或(b, s, h/128)
-        if (opType == OpType::OP_QUANT_ALL_REDUCE && scalesDim == THREE_DIMS) {
+        if (scalesDim == THREE_DIMS) {
             xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
             scalesValueH = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
         }
@@ -326,7 +299,7 @@ static bool CheckScalesDim(const gert::TilingContext *context, TilingRunInfo &ru
     } else if (runInfo.quantMode == MX_QUANT_MOD) {
         // MX量化: scales.shape(bs, h/64, 2)或(b, s, h/64, 2)
         uint64_t scalesValueLast = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
-        if (opType == OpType::OP_QUANT_ALL_REDUCE && scalesDim == FOUR_DIMS) {
+        if (scalesDim == FOUR_DIMS) {
             xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
             scalesValueH = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
             scalesValueLast = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_THREE);
@@ -373,6 +346,130 @@ static bool CheckInputTensorDim(const gert::TilingContext *context, TilingRunInf
 }
 
 /**
+ * @brief 检查输出维度大小的合法性
+ */
+static bool CheckOutputDimSize(const gert::TilingContext *context, size_t outputDim, size_t xDimNum, 
+                               OpType opType, const char *nodeName)
+{
+    bool invalidOutputDim = false;
+    if (opType == OpType::OP_QUANT_ALL_REDUCE) {
+        // 对于quant_all_reduce，输出维度必须与与输入维度一致, 必须是2维或3维
+        invalidOutputDim = outputDim != xDimNum;
+        OP_TILING_CHECK(invalidOutputDim,
+                        OP_LOGE(nodeName, "Invalid output dim %lu for quant_all_reduce, expected %lu (2D or 3D)", 
+                                outputDim, xDimNum),
+                        return false);
+    } else {
+        // 对于quant_reduce_scatter，输出维度必须是2维
+        invalidOutputDim = outputDim != TWO_DIMS;
+        OP_TILING_CHECK(invalidOutputDim,
+                        OP_LOGE(nodeName, "Invalid output dim %lu for quant_reduce_scatter, expected 2D", outputDim),
+                        return false);
+    }
+    return true;
+}
+
+/**
+ * @brief 检查quant_all_reduce的输出形状
+ */
+static bool CheckAllReduceOutputShape(const gert::TilingContext *context, const gert::StorageShape *outputShape,
+                                      size_t outputDim, size_t xDimNum, TilingRunInfo &runInfo, const char *nodeName)
+{
+    uint64_t outputValueOne = outputShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t outputValueTwo = outputShape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t xValueOne = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t xValueTwo = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+    
+    // 对于quant_all_reduce算子，output.shape必须等于x.shape
+    bool invalidShape = (xValueOne != outputValueOne) || (xValueTwo != outputValueTwo); // 校验前两维的大小
+    
+    // quant_all_reduce算子支持三维，output可能需要校验第3维
+    if (outputDim == THREE_DIMS) {
+        uint64_t outputValueThree = outputShape->GetStorageShape().GetDim(DIM_TWO);
+        uint64_t xValueThree = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
+        OP_LOGI(nodeName, "output dim2 is %lu, x dim2 is %lu", outputValueThree, xValueThree);
+        invalidShape = invalidShape || (xValueThree != outputValueThree); // 校验第三维的大小
+        OP_TILING_CHECK(invalidShape,
+                        OP_LOGE(nodeName,
+                                "output shape is invalid, which was mismatch with x shape,"
+                                "actual output shape is (%lu, %lu, %lu), x shape is (%lu, %lu, %lu), rankSize is %u.",
+                                outputValueOne, outputValueTwo, outputValueThree, xValueOne, xValueTwo, xValueThree, runInfo.rankSize),
+                        return false);
+    } else {
+        OP_TILING_CHECK(invalidShape,
+                        OP_LOGE(nodeName,
+                                "output shape is invalid, which was mismatch with x shape,"
+                                "actual output shape is (%lu, %lu), x shape is (%lu, %lu), rankSize is %u.",
+                                outputValueOne, outputValueTwo, xValueOne, xValueTwo, runInfo.rankSize),
+                        return false);
+    }
+    
+    return true;
+}
+
+/**
+ * @brief 检查quant_reduce_scatter的输出形状, 当输入x为3D时
+ */
+static bool CheckReduceScatter3DShape(const gert::TilingContext *context,
+                                      uint64_t outputValueOne, uint64_t outputValueTwo,
+                                      uint64_t xValueOne, uint64_t xValueTwo,
+                                      TilingRunInfo &runInfo, const char *nodeName)
+{
+    // 若X为3维，则要对b,s进行合轴，再与output判断是否合法
+    uint64_t xValueBS = xValueOne * xValueTwo;
+    uint64_t xValueThree = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
+    bool invalidShape = xValueBS / runInfo.rankSize != outputValueOne; // 校验bs轴
+    invalidShape = invalidShape || (xValueThree != outputValueTwo); // 校验h轴
+    OP_TILING_CHECK(invalidShape,
+                    OP_LOGE(nodeName,
+                            "output shape is invalid, which was calculated with x shape,"
+                            "actual output shape is (%lu, %lu), x shape is (%lu, %lu, %lu), rankSize is %u.",
+                            outputValueOne, outputValueTwo, xValueOne, xValueTwo, xValueThree, runInfo.rankSize),
+                    return false);
+    return true;
+}
+
+/**
+ * @brief 检查quant_reduce_scatter的的输出形状, 当输入x为2D时
+ */
+static bool CheckReduceScatter2DShape(uint64_t outputValueOne, uint64_t outputValueTwo,
+                                      uint64_t xValueOne, uint64_t xValueTwo,
+                                      TilingRunInfo &runInfo, const char *nodeName)
+{
+    // 若X为2维, 逐个校验即可
+    bool invalidShape = xValueOne / runInfo.rankSize != outputValueOne; // 校验bs轴
+    invalidShape = invalidShape || (xValueTwo != outputValueTwo); // 校验h轴
+    OP_TILING_CHECK(invalidShape,
+                    OP_LOGE(nodeName,
+                            "output shape is invalid, which was calculated with x shape,"
+                            "actual output shape is (%lu, %lu), x shape is (%lu, %lu), rankSize is %u.",
+                            outputValueOne, outputValueTwo, xValueOne, xValueTwo, runInfo.rankSize),
+                    return false);
+    return true;
+}
+
+/**
+ * @brief 检查quant_reduce_scatter的输出形状
+ */
+static bool CheckReduceScatterOutputShape(const gert::TilingContext *context, const gert::StorageShape *outputShape,
+                                          size_t outputDim, size_t xDimNum, TilingRunInfo &runInfo, const char *nodeName)
+{
+    uint64_t outputValueOne = outputShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t outputValueTwo = outputShape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t xValueOne = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t xValueTwo = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+    
+    // 对于quant_reduce_scatter算子, 输出output一定为2维，判断x维度大小决定是否b,s合轴
+    if (xDimNum == THREE_DIMS) {
+        return CheckReduceScatter3DShape(context, outputValueOne, outputValueTwo, 
+                                         xValueOne, xValueTwo, runInfo, nodeName);
+    } else {
+        return CheckReduceScatter2DShape(outputValueOne, outputValueTwo, 
+                                         xValueOne, xValueTwo, runInfo, nodeName);
+    }
+}
+
+/**
  * @brief 校验output的维度
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @param runInfo: 封装的doTiling所需要的参数
@@ -384,41 +481,20 @@ static bool CheckOutputDim(const gert::TilingContext *context, TilingRunInfo &ru
     // context->GetOutputShape在函数CheckOutputTensorDim中已经校验
     const gert::StorageShape *outputShape = context->GetOutputShape(OUTPUT_INDEX);
     size_t outputDim = outputShape->GetStorageShape().GetDimNum();
-    // output的shape与x对应，quant_reduce_scatter算子的output一定是2维
-    bool invalidOutputDim = outputDim != TWO_DIMS;
-    if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-        // quant_all_reduce算子的output可能是2维或者3维
-        invalidOutputDim = invalidOutputDim && (outputDim != THREE_DIMS);
+    // context->GetInputShape在函数CheckInputTensorDim中已经校验
+    size_t xDimNum = context->GetInputShape(X_INDEX)->GetStorageShape().GetDimNum();
+
+    // 检查output的维度大小  
+    if (!CheckOutputDimSize(context, outputDim, xDimNum, opType, nodeName)) {
+        return false;
     }
-    OP_TILING_CHECK(invalidOutputDim,
-                    OP_LOGE(nodeName, "outputShape is invalid, the actual input outputDim is %lu", outputDim),
-                    return false);
-    // 检查x和output维度关系，output.shape = x.shape
-    uint64_t outputValueOne = outputShape->GetStorageShape().GetDim(DIM_ZERO);
-    uint64_t outputValueTwo = outputShape->GetStorageShape().GetDim(DIM_ONE);
-    // context->GetInputShape在CheckInputTensorDim函数中校验过
-    uint64_t xValueOne = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
-    uint64_t xValueTwo = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
-    bool invalidShape = xValueTwo != outputValueTwo;
+
+    // 检查输出output形状与输入x形状的关系
     if (opType == OpType::OP_QUANT_ALL_REDUCE) {
-        invalidShape = invalidShape || (xValueOne != outputValueOne);
+        return CheckAllReduceOutputShape(context, outputShape, outputDim, xDimNum, runInfo, nodeName);
     } else {
-        invalidShape = invalidShape || (xValueOne / runInfo.rankSize != outputValueOne);
+        return CheckReduceScatterOutputShape(context, outputShape, outputDim, xDimNum, runInfo, nodeName);
     }
-    // quant_all_reduce算子的output可能需要校验第3维
-    if (opType == OpType::OP_QUANT_ALL_REDUCE && outputDim == THREE_DIMS) {
-        uint64_t outputValueThree = outputShape->GetStorageShape().GetDim(DIM_TWO);
-        uint64_t xValueThree = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
-        OP_LOGI(nodeName, "output dim2 is %lu, x dim2 is %lu", outputValueThree, xValueThree);
-        invalidShape = invalidShape || (xValueThree != outputValueThree);
-    }
-    OP_TILING_CHECK(invalidShape,
-                    OP_LOGE(nodeName,
-                            "output shape is invalid, which was caculated with x shape,"
-                            "actual output shape is (%lu, %lu), x shape is (%lu, %lu), rankSize is %u.",
-                            outputValueOne, outputValueTwo, xValueOne, xValueTwo, runInfo.rankSize),
-                    return false);
-    return true;
 }
 
 /**

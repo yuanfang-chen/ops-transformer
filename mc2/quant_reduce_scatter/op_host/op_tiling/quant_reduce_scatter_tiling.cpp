@@ -72,13 +72,19 @@ static void SetTilingData(gert::TilingContext *context, QuantReduceScatterTiling
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     context->SetBlockDim(ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum));
     tilingData.quantReduceScatterTilingInfo.aivNum = aivNum;
-    tilingData.quantReduceScatterTilingInfo.bs = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
-    tilingData.quantReduceScatterTilingInfo.hiddenSize =
-        context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
-    tilingData.quantReduceScatterTilingInfo.scaleHiddenSize =
-        context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ONE);
-    tilingData.quantReduceScatterTilingInfo.totalWinSize = 
-        mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+    uint64_t xValueBS = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t scalesValueH = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+    // 3d场景，context->GetInputShape在函数CheckInputTensorDim中已经校验
+    if (context->GetInputShape(X_INDEX)->GetStorageShape().GetDimNum() == THREE_DIMS) {
+        xValueBS = xValueBS * context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+        xValueH = context->GetInputShape(X_INDEX)->GetStorageShape().GetDim(DIM_TWO);
+        scalesValueH = context->GetInputShape(SCALES_INDEX)->GetStorageShape().GetDim(DIM_TWO);
+    }
+    tilingData.quantReduceScatterTilingInfo.bs = xValueBS;
+    tilingData.quantReduceScatterTilingInfo.hiddenSize = xValueH;
+    tilingData.quantReduceScatterTilingInfo.scaleHiddenSize = scalesValueH;
+    tilingData.quantReduceScatterTilingInfo.totalWinSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
 }
 
 /**
