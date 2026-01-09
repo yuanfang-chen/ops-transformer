@@ -676,12 +676,15 @@ __aicore__ inline void VecOp<SFAGT>::GatherKV(const int64_t n2Index, uint64_t cu
     uint64_t orgOutWsOffset = outWsOffset;
     uint32_t i;
 
+    bool isLast = runInfo.isLastBasicBlock && subBlockIdx == 1;
+
     for (i = curBlk; i < curBlk + curActualSelCntOffset / maxSelCnt * maxSelCnt; i += maxSelCnt) {
         int64_t keyOffset1 = topkIndicesGm.GetValue(gmOffset + i) * selectedBlockSize;
         int64_t keyOffset2 = topkIndicesGm.GetValue(gmOffset + i + 1) * selectedBlockSize;
 
         uint32_t s2OrgStride = keyOffset2 - keyOffset1 - selectedBlockSize;
         intriParamsKey.blockCount = 2;
+        intriParamsKey.blockLen = selectedBlockSize * dimDqk * sizeof(T1);
 
         mte2WaitMte3EventId = mergePingPong ? mte2WaitMte3Pong : mte2WaitMte3;
         mte3WaitMte2EventId = mergePingPong ? mte3WaitMte2Pong : mte3WaitMte2;
@@ -693,10 +696,14 @@ __aicore__ inline void VecOp<SFAGT>::GatherKV(const int64_t n2Index, uint64_t cu
         LocalTensor<T1> &gatherTensor = mergePingPong ? gatherTensorPing : gatherTensorPong;
         LocalTensor<T1> &gatherRopeTensor = mergePingPong ? gatherRopePing : gatherRopePong;
 
-        if (keyOffset2 <= keyOffset1 || selectedBlockSize >= 64) {
+        bool isActualLast = isLast && i >= runInfo.actualSelCntOffset - 2;
+        if (keyOffset2 <= keyOffset1 || selectedBlockSize >= 64 || isActualLast) {
             intriParamsKey.blockCount = 1;
             DataCopyPad(gatherTensor, keyGm[runInfo.keyGmOffset + keyOffset1 * dimN2 * dimDqk], intriParamsKey, padParams);
             if (selectedBlockSize < 64) {
+                intriParamsKey.blockLen = isActualLast ? 
+                                          runInfo.lastBlockSize * dimDqk * sizeof(T1) : 
+                                          selectedBlockSize * dimDqk * sizeof(T1);
                 DataCopyPad(gatherTensor[selectedBlockSize * dimDqk], keyGm[runInfo.keyGmOffset + keyOffset2 * dimN2 * dimDqk], intriParamsKey, padParams);
             }
         } else {
@@ -706,11 +713,15 @@ __aicore__ inline void VecOp<SFAGT>::GatherKV(const int64_t n2Index, uint64_t cu
         if constexpr (HAS_ROPE) {
             intriParamsRope.blockCount = 2;
             intriParamsRope.srcStride = s2OrgStride * dimN2 * dimRope * sizeof(T1);
+            intriParamsRope.blockLen = selectedBlockSize * dimRope * sizeof(T1);
 
-            if (keyOffset2 <= keyOffset1 || selectedBlockSize >= 64) {
+            if (keyOffset2 <= keyOffset1 || selectedBlockSize >= 64 || isActualLast) {
                 intriParamsRope.blockCount = 1;
                 DataCopyPad(gatherRopeTensor, keyRopeGm[runInfo.keyRopeGmOffset + keyOffset1 * dimN2 * dimRope], intriParamsRope, padParams);
                 if (selectedBlockSize < 64) {
+                    intriParamsRope.blockLen = isActualLast ? 
+                                               runInfo.lastBlockSize * dimRope * sizeof(T1) : 
+                                               selectedBlockSize * dimRope * sizeof(T1);
                     DataCopyPad(gatherRopeTensor[selectedBlockSize * dimRope], keyRopeGm[runInfo.keyRopeGmOffset + keyOffset2 * dimN2 * dimRope], intriParamsRope, padParams);  
                 }
             } else {
@@ -745,10 +756,14 @@ __aicore__ inline void VecOp<SFAGT>::GatherKV(const int64_t n2Index, uint64_t cu
         LocalTensor<T1> &gatherRopeTensor = mergePingPong ? gatherRopePing : gatherRopePong;
 
         intriParamsKey.blockCount = 1;
+        intriParamsRope.blockCount = 1;
+        if (i == runInfo.actualSelCntOffset - 1 && isLast) {
+            intriParamsKey.blockLen = runInfo.lastBlockSize * dimDqk * sizeof(T1);
+            intriParamsRope.blockLen = runInfo.lastBlockSize * dimRope * sizeof(T1);
+        }
         DataCopyPad(gatherTensor, keyGm[runInfo.keyGmOffset + keyOffset1 * dimN2 * dimDqk], intriParamsKey, padParams);
 
         if constexpr (HAS_ROPE) {
-            intriParamsRope.blockCount = 1;
             DataCopyPad(gatherRopeTensor, keyRopeGm[runInfo.keyRopeGmOffset + keyOffset1 * dimN2 * dimRope], intriParamsRope, padParams);
         }
         

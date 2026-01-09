@@ -214,7 +214,7 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::Process(
 
         if (cubeBlockIdx < usedCoreNum && task > 0) {
             int64_t taskMod = runInfo[1 - mmPingPongIdx].task & 1;
-            CrossCoreWaitFlag<2, PIPE_FIX>(taskMod == 0 ? CUBE_WAIT_VEC_PING : CUBE_WAIT_VEC_PONG);
+            CrossCoreWaitFlag<2, PIPE_MTE2>(taskMod == 0 ? CUBE_WAIT_VEC_PING : CUBE_WAIT_VEC_PONG);
             cubeOp.cube345Process(runInfo[1 - mmPingPongIdx], lastblkCntOffset, 1 - mmPingPongIdx);
             CrossCoreSetFlag<2, PIPE_FIX>(SCATTER_SYNC_FLAG);
         }
@@ -288,7 +288,7 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::CubeCompute(CubeOp<SFA
     }
     cubeOp.cube12Process(runInfo[mmPingPongIdx], blkCntOffset, mmPingPongIdx);
     CrossCoreSetFlag<2, PIPE_FIX>(taskMod == 0 ? VEC_WAIT_CUBE_PING : VEC_WAIT_CUBE_PONG);
-    CrossCoreWaitFlag<2, PIPE_FIX>(taskMod == 0 ? CUBE_WAIT_VEC_PONG : CUBE_WAIT_VEC_PING);
+    CrossCoreWaitFlag<2, PIPE_MTE2>(taskMod == 0 ? CUBE_WAIT_VEC_PONG : CUBE_WAIT_VEC_PING);
     cubeOp.cube345Process(runInfo[1 - mmPingPongIdx], lastblkCntOffset, 1 - mmPingPongIdx);
     SaveLastInfo();
 }
@@ -434,10 +434,10 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::GetTndSeqLen(const GM_
 template <typename SFAGT>
 __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::GetActualSelCount(const int64_t t1Idx, const int64_t n2Idx, int32_t &actSelBlkCount)
 {
-    auto maxS2Blk = CeilDiv(curS2, selectedBlockSize);
+    int64_t maxS2Blk = (curS2 + selectedBlockSize - 1) / selectedBlockSize;
     if constexpr(ATTEN_ENABLE) {
         int64_t newMaxS2 = Max(curS2 - curS1 + s1Index + 1, 0);
-        maxS2Blk = CeilDiv(newMaxS2, selectedBlockSize);
+        maxS2Blk = (newMaxS2 + selectedBlockSize - 1) / selectedBlockSize;
     }
     actualSelectedBlockCount = Min(selectedBlockCount, maxS2Blk);
 
