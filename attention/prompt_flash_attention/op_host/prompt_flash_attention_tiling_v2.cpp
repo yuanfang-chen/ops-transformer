@@ -2397,7 +2397,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskCrossover(ContextParamsForPFATiling&
             return false);
     }
     // FP16 mask type does not support invalid line correction.
-    OP_CHECK_IF((maskDataType == ge::DT_FLOAT16 && tilingData.promptAttentionBaseParams.get_isRowInvalid()),
+    OP_CHECK_IF((contextKeyParams.attentionMask != nullptr && maskDataType == ge::DT_FLOAT16 && tilingData.promptAttentionBaseParams.get_isRowInvalid()),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "maskType[%s] should not be float16 when innerPrecise = 2 or 3",
             GetPfaDataTypeStr(maskDataType).c_str()),
