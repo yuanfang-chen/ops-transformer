@@ -16,7 +16,7 @@
 
 ## 功能说明
 
-- 接口功能：完成量化的Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**。支持K-C[量化模式](../../../docs/context/量化介绍.md)
+- 接口功能：完成量化的Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**。支持K-C[量化模式](../../../docs/zh/context/量化介绍.md)
 - 计算公式:
   假设x1的shape为(BS, H1), x2的shape为(H1, H2)
     - K-C量化模式：
@@ -25,7 +25,7 @@
       permutedOut = computeOut.view(BS, rankSize, H2 / rankSize).permute(1, 0, 2) \\
       output = AlltoAll(permutedOut).view(rankSize * BS, H2 / rankSize)
       $$
-    - K-C量化模式带bias：
+    - K-C量化模式后加bias：
       $$
       computeOut = (x1 @ x2) * x1Scale * x2Scale  + bias \\
       permutedOut = computeOut.view(BS, rankSize, H2 / rankSize).permute(1, 0, 2) \\
@@ -34,7 +34,7 @@
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用 “aclnnQuantMatmulAlltoAllGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantMatmulAlltoAll”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 “aclnnQuantMatmulAlltoAllGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnQuantMatmulAlltoAll”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(
@@ -96,7 +96,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>输入</td>
     <td>融合算子的左矩阵输入，对应公式中的x1</td>
     <td>该输入作为MatMul计算的左矩阵输入</td>
-    <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+    <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
     <td>ND</td>
     <td>2维, shape为(BS, H1)</td>
     <td>x</td>
@@ -106,7 +106,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>输入</td>
     <td>融合算子的右矩阵输入，对应公式中的x2</td>
     <td>直接作为MatMul计算的右矩阵输入</td>
-    <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+    <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
     <td>ND</td>
     <td>2维，shape为(H1, H2)</td>
     <td>x</td>
@@ -116,7 +116,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>输入</td>
     <td>可选输入, 阵乘运算后累加的偏置，对应公式中的bias</td>
     <td>传入非空时生效</td>
-    <td>K-C量化模式且x1/x2为FLOAT8_E4M3FN/FLOAT8_E5M2时，该参数类型为FLOAT32</td>
+    <td>K-C量化模式且x1/x2为FLOAT8_E4M3FN/FLOAT8_E5M2时，该参数类型为FLOAT32；K-C量化模式后加bias且x1/x2为INT8时，该参数类型为BFLOAT16、FLOAT16、FLOAT32</td>
     <td>ND</td>
     <td>1维，shape为(H2,)</td>
     <td>x</td>
@@ -126,9 +126,9 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>输入</td>
     <td>左矩阵的量化系数</td>
     <td>对应公式中的x1Scale</td>
-    <td>K-C量化模式且x1为FLOAT8_E4M3FN/FLOAT8_E5M2时，该参数类型为FLOAT32</td>
+    <td>FLOAT32</td>
     <td>ND</td>
-    <td>K-C量化模式下是1维, shape为(BS,)</td>
+    <td>1维, shape为(BS,)</td>
     <td>x</td>
     </tr>
     <tr>
@@ -136,9 +136,9 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>输入</td>
     <td>右矩阵的量化系数</td>
     <td>对应公式中的x2Scale</td>
-    <td>K-C量化模式且x2为FLOAT8_E4M3FN/FLOAT8_E5M2时，该参数类型为FLOAT32</td>
+    <td>FLOAT32</td>
     <td>ND</td>
-    <td>K-C量化模式下是1维, shape为(H2,)</td>
+    <td>1维, shape为(H2,)</td>
     <td>x</td>
     </tr>
     <tr>
@@ -233,7 +233,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>groupSize</td>
     <td>输入</td>
     <td>用于Matmul计算三个方向上的量化分组大小</td>
-    <td>预留参数，K-C量化模式下仅支持配置为0，取值不生效。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+    <td>预留参数，仅支持配置为0，取值不生效。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
     <td>INT</td>
     <td>-</td>
     <td>-</td>
@@ -291,10 +291,10 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </tr>
     </tbody></table>
 
-    x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../docs/context/量化介绍.md)关系如下:
+    x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../docs/zh/context/量化介绍.md)关系如下:
     * 0: 不量化
     * 1: pertensor
-    * 2: perchanenl
+    * 2: perchannel
     * 3: pertoken
     * 4: pergroup
     * 5: perblock
@@ -303,7 +303,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
 
 - **返回值**
 
-    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。  
+    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。  
 
     第一段接口完成入参校验，出现以下场景时报错：
 
@@ -373,18 +373,18 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </table>
 
 * **返回值：**
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 * 默认支持确定性计算
-* 右矩阵和输出矩阵的H2必须整除rankSize
+* 右矩阵和输出矩阵的H2必须整除NPU卡数
 * 仅支持左矩阵perToken量化，x1QuantMode=3，右矩阵perChannel量化,x2QuantMode=2
 * <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：传入的x1、x2、biasOptional、x1Scale、x2Scale或者output不为空指针
 * <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：x1、x2计算输入的数据类型必须为INT8，output计算输出的数据类型为BFLOAT16时，biasOptional的数据类型为FLOAT或BFLOAT16，output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16
 * H1范围仅支持[1, 65535]
-* rankSize仅支持2,4,8,16
+* NPU卡数仅支持2、4、8、16
   - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持2、4、8卡
-  - <term>昇腾910_95 AI处理器</term>：支持2,4,8,16卡
+  - <term>昇腾910_95 AI处理器</term>：支持2、4、8、16卡
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
