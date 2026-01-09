@@ -871,9 +871,6 @@ static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *no
     // 校验特殊专家和FullMesh_v2不能同时启用
     OP_TILING_CHECK((isSetCommAlg && (zeroComputeExpertNum > 0)), OP_LOGE(nodeName, "Cannot support zeroComputeExpert when comm_alg = fullmesh_v2"),
         return false);
-    // 校验二维isExpertMask和FullMesh_v2不能同时启用
-    OP_TILING_CHECK((isSetCommAlg && isExpertMask), OP_LOGE(nodeName, "Cannot support ExpertMask when comm_alg = fullmesh_v2"),
-        return false);
     // 检查comm_alg和tpWorldSize是否冲突
     OP_TILING_CHECK(isSetCommAlg && (tpWorldSize == TP_WORLD_SIZE_TWO), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, tp_world_size cannot be 2."),
         return false);
