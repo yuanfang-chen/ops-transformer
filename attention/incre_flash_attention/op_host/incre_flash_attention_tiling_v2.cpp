@@ -492,7 +492,7 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
             "When layout is TND, T of query[%ld] should be equal to the query's actual sequence lengths[%ld].", tOfQuery, actualSeqLastSizeOfQuery);
         return ge::GRAPH_FAILED;
       }
-      if (!pageAttentionFlag_ && tOfkv != actualSeqLastSize) {
+      if (!pageAttentionFlag_ && tOfkv != 0 && tOfkv != actualSeqLastSize) { // 在kv不是空tensor时，T值应与actualseqkv中最后一个batch的值相等
         OP_LOGE(ifaContext_->opName,
             "When layout is TND, T of kv[%ld] should be equal to the kv's actual sequence lengths[%ld].", tOfkv, actualSeqLastSize);
         return ge::GRAPH_FAILED;
@@ -507,7 +507,8 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
       "Dim of Out[%lu] should be equal to Dim of Query[%u]", headDimOut_, headDim_);
     return ge::GRAPH_FAILED;
   }
-  if ((!pageAttentionFlag_) && (static_cast<uint64_t>(headDimK_) != headDimOut_ || static_cast<uint64_t>(headDimV_) != headDimOut_)) {
+  if ((!pageAttentionFlag_) && !(headDimK_ == 0 && headDimV_ == 0) &&
+    (static_cast<uint64_t>(headDimK_) != headDimOut_ || static_cast<uint64_t>(headDimV_) != headDimOut_)) { // 在kv不是空tensor时，D值应与out的D相等
     OP_LOGE(ifaContext_->opName,
       "When not in pageAttention scenario, Dim of Out[%lu] should be equal to Dim of Key[%u] and Dim of Value[%u]", headDimOut_, headDimK_, headDimV_);
     return ge::GRAPH_FAILED;
