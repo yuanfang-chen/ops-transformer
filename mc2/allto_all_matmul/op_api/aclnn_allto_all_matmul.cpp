@@ -43,6 +43,7 @@ static constexpr int64_t NEG_TWO = -2;
 static constexpr int64_t ZERO = 0;
 static constexpr size_t MAX_GROUP_LEN = 128U;
 static constexpr size_t TWO_DIMS = 2U;
+static constexpr size_t ONE_DIM = 1U;
 
 // 检查必要输入是否为空，必须非空
 static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* output) {
@@ -136,6 +137,31 @@ static bool CheckGroupLength(const char *group)
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "Required group name length in range (0, 128), but it is %zu.", len);
         return false;
+    }
+    return true;
+}
+
+// 校验输入属性shape
+bool CheckShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional,
+                bool transposeX2, const aclTensor* output, const aclTensor* alltoAllOutOptional)
+{
+    // 校验维度
+    OP_CHECK_WRONG_DIMENSION(x1, TWO_DIMS, return false);
+    OP_CHECK_WRONG_DIMENSION(x2, TWO_DIMS, return false);
+    OP_CHECK_WRONG_DIMENSION(output, TWO_DIMS, return false);
+    if (alltoAllOutOptional != nullptr) {
+        OP_CHECK_WRONG_DIMENSION(alltoAllOutOptional, TWO_DIMS, return false);
+    }
+    // 校验bias的维度和shape
+    auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
+    if (biasOptional != nullptr){
+        OP_CHECK_WRONG_DIMENSION(biasOptional, ONE_DIM, return false);
+        auto biasDim = biasOptional->GetViewShape().GetDim(0);
+        if (biasDim != nVal) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+            "The n-axis of x2 and bias should be same, but x2's n-axis is: %ld and bias's n-axis is: %ld.", nVal, biasDim);
+            return false;
+        }
     }
     return true;
 }
@@ -254,26 +280,28 @@ static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const 
 
 static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2, const aclTensor *biasOptional,
                                         const aclIntArray* alltoAllAxesOptional, const char *group,
-                                        bool transposeX1, const aclTensor *output, const aclTensor *alltoAllOutOptional)
+                                        bool transposeX1, bool transposeX2, const aclTensor *output, const aclTensor *alltoAllOutOptional)
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
     // 2. 检查空tensor
     CHECK_RET(CheckNotEmptyTensor(x1, x2), ACLNN_ERR_PARAM_INVALID);
-    // 3. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
+    // 3. 检查shape
+    CHECK_RET(CheckShape(x1, x2, biasOptional, transposeX2, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
+    // 4. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(CheckAllDtypesValid(x1, x2, biasOptional, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
-    // 4. 检查alltoallAxes是否为空或者[-2,-1]
+    // 5. 检查alltoallAxes是否为空或者[-2,-1]
     CHECK_RET(CheckAlltoAllAxes(alltoAllAxesOptional), ACLNN_ERR_PARAM_INVALID);
-    // 5. 检查transposeX1是否合法, 目前不能为true
+    // 6. 检查transposeX1是否合法, 目前不能为true
     CHECK_RET(CheckTransposeX1(transposeX1), ACLNN_ERR_PARAM_INVALID);
-    // 6. 检查group长度是否小于等于128
+    // 7. 检查group长度是否小于等于128
     CHECK_RET(CheckGroupLength(group), ACLNN_ERR_PARAM_INVALID);
-    // 7. 检查输入的数据格式是否为ND
+    // 8. 检查输入的数据格式是否为ND
     CHECK_RET(CheckFormat(x1, x2, biasOptional, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
-    // 8. 兼容性处理非ND格式
+    // 9. 兼容性处理非ND格式
     CHECK_RET(ReFormatNotND(x1, x2, biasOptional, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
     // 如果所有检查都通过，且reformat也通过，输出参数检查成功
-    OP_LOGD("aclnnMatmulAlltoAll checkParams success");
+    OP_LOGD("aclnnAlltoAllMatmul checkParams success");
     return ACLNN_SUCCESS;
 }
 } // namespace
@@ -300,13 +328,8 @@ extern "C" aclnnStatus InnerAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
                                                            const aclTensor *alltoAllOutOptional,
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    // 需要使用的默认值常量定义
-    const int64_t WORLD_SIZE = -1;
-    const int64_t Y_DTYPE = 28;
-    const int64_t X1_QUANT_DTYPE = 28;
-    const int64_t COMM_QUANT_DTYPE = 28;
-    const int64_t QUANT_MODE = 0;
-    const int64_t GROUP_SIZE = 0;
+    // ACL和GE的datatype枚举值对undefined定义不同，inner接口进入到算子内部，需要使用GE枚举值，因此此处使用的枚举值为28
+    const int64_t GE_UNDEFINED = 28;
     // 根据算子原型定义默认值
     aclTensor* x1ScaleOptional = nullptr;
     aclTensor* x2ScaleOptional = nullptr;
@@ -316,15 +339,15 @@ extern "C" aclnnStatus InnerAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
     const aclTensor* out = output;
     const aclTensor* all2AllOutOptional = alltoAllOutOptional;
     char* str_group = const_cast<char*>(group);
-    int64_t worldSize = WORLD_SIZE;
-    int64_t yDtype = Y_DTYPE;
-    int64_t x1QuantMode = QUANT_MODE;
-    int64_t x2QuantMode = QUANT_MODE;
-    int64_t commQuantMode = QUANT_MODE;
-    int64_t x1QuantDtype = X1_QUANT_DTYPE;
-    int64_t commQuantDtype = COMM_QUANT_DTYPE;
-    int64_t groupSize = GROUP_SIZE;
-    bool all2AllOutFlag = true;
+    int64_t worldSize = -1;
+    int64_t yDtype = GE_UNDEFINED;
+    int64_t x1QuantMode = 0;
+    int64_t x2QuantMode = 0;
+    int64_t commQuantMode = 0;
+    int64_t x1QuantDtype = 2;
+    int64_t commQuantDtype = GE_UNDEFINED;
+    int64_t groupSize = 0;
+    bool all2AllOutFlag = alltoAllOutOptional == nullptr ? false : true;
     aclnnStatus ret = aclnnInnerAlltoAllMatmulGetWorkspaceSize(
         x1, x2, biasOptional, x1ScaleOptional, x2ScaleOptional, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
         str_group, worldSize, alltoAllAxesOptional, yDtype, x1QuantMode, x2QuantMode, commQuantMode, x1QuantDtype, commQuantDtype,
@@ -340,7 +363,7 @@ extern "C" aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
                                                            const aclTensor *output, const aclTensor *alltoAllOutOptional,
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, output, alltoAllOutOptional);
+    aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, alltoAllOutOptional);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     aclnnStatus ret = InnerAlltoAllMatmulGetWorkspaceSize(
         x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, alltoAllOutOptional, workspaceSize, executor);
