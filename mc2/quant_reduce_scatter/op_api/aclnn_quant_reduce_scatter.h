@@ -29,8 +29,12 @@ extern "C" {
  * 算子功能：实现quant + reduceScatter融合计算
  * @brief aclnnQuantReduceScatter的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
- * @param [in] x: 公式中的输入x，不支持空Tensor，支持的维度为2维，shape为(BS,H)，当量化方式为pertoken-pergroup量化时，数据类型支持：INT8, HIFLOAT8, FLOAT8_E4M3FN, FLOAT8_E5M2，当量化方式为mx量化时，数据类型支持：FLOAT8_E4M3FN, FLOAT8_E5M2，数据格式为ND。
- * @param [in] scales: 公式中的输入scales，不支持空Tensor，当量化方式为pertoken-pergroup量化时支持的维度为2维，shape为(BS,H/128)，数据类型支持：FLOAT，当量化方式为mx量化时支持的维度为3维，shape为(BS,H/64,2)，数据类型支持：FLOAT8_E8M0，数据格式为ND。
+ * @param [in] x: 公式中的输入x，不支持空Tensor，支持的维度为2-3维，shape为(BS, H)或者(B, S, H)，
+ * 当量化方式为mx量化时，数据类型支持：FLOAT8_E4M3FN、FLOAT8_E5M2，数据格式支持ND，
+ * 当量化方式为pertoken-pergroup量化时，数据类型支持：INT8, HIFLOAT8, FLOAT8_E4M3FN, FLOAT8_E5M2，数据格式支持ND。
+ * @param [in] scales: 公式中的输入scales，不支持空Tensor，
+ * 当量化方式为mx量化时，支持的维度为3-4维，shape必须对应x的shape为(BS, H/64, 2)或者(B, S, H/64, 2)，数据类型支持：FLOAT8_E8M0，数据格式支持ND，
+ * 当量化方式为pertoken-pergroup量化时，支持的维度为2-3维，shape必须对应x的shape为(BS, H/128)或者(B, S, H/128)，数据类型支持：FLOAT，数据格式支持ND。
  * @param [in] group: 通信域标识，数据类型支持：string。
  * @param [in] reduceOp: 公式中的reduce操作类型，默认值：sum，当前版本只支持sum，数据类型支持：string。
  * @param [out] output: 公式中的输出output，不支持空Tensor，支持的维度为2维，shape为(BS/rankNum,H)，数据类型支持：FLOAT16, BFLOAT16, FLOAT，数据格式为ND。
