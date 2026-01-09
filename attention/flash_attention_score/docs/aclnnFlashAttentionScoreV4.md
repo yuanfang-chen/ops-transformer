@@ -592,7 +592,7 @@ aclnnStatus aclnnFlashAttentionScoreV4(
   - 配置为8时，当每个sequence的q、kv等长时支持可选输入realShiftOptional，针对全局做pse生成。支持q方向进行外切，需要外切前每个sequence的q、kv等长，外切后传入的actualSeqQLenOptional
 - 部分场景下，如果计算量过大可能会导致算子执行超时（aicore error类型报错，errorStr为：timeout or trap error），此时建议做轴切分处理，注：这里的计算量会受B、S、N、D等参数的影响，值越大计算量越大。
 - band场景，preTokens和nextTokens之间必须要有交集。
-- prefixOptional稀疏计算场景，场景包括sequence长度相等的场景下sparseMode=5、sparseMode=6；sequence长度不相等的场景下sparseMode=6。这两种场景下，当Sq > Skv时，prefix的N值取值范围\[0, Skv\]；当Sq <= Skv时，prefix的N值取值范围\[Skv-Sq, Skv\]。当sparseModeOptional=5、prefix的N > Skv时，执行全计算。
+- prefixOptional稀疏计算场景，场景包括sequence长度相等的场景下sparseMode=5、sparseMode=6；sequence长度不相等的场景下sparseMode=6。这两种场景下，当Sq > Skv时，prefix的N值取值范围\[0, Skv\]；当Sq <= Skv时，prefix的N值取值范围\[Skv-Sq, Skv\]。当sparseModeOptional=5、prefix的N > Skv或prefixOptional不传时执行全计算，sparseModeOptional=6要求prefixOptional必传。
 - realShiftOptional Sq大于1024时如果配置BNHS、1NHS，需要Sq和Skv等长。
 [0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。
 - actualSeqQLenOptional输入支持某个Batch上的S长度为0，此时不支持可选输入realShiftOptional。

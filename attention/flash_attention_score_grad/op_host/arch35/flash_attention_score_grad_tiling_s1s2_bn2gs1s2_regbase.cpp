@@ -191,43 +191,34 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetQKVStartIdx()
 {
     fBaseParams.qStartIdx = 0;
     fBaseParams.kvStartIdx = 0;
+
     auto qStartIdxTensor = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::Q_START_IDX));
-    if (qStartIdxTensor == nullptr) {
-        OP_LOGW(context_, "[%s]qStartIdxTensor is null pointer", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2");
-        return;
+    if (qStartIdxTensor != nullptr) {
+        auto &qStartIdxShape = qStartIdxTensor->GetShape().GetStorageShape();
+        if (qStartIdxShape.GetDimNum() >= 1 && qStartIdxShape.GetDim(0) != 0) {
+            /* Get Data from tensor. */
+            const int64_t *value = qStartIdxTensor->GetData<int64_t>();
+            if (value != nullptr) {
+                fBaseParams.qStartIdx = value[0];
+                OP_LOGD(context_, "[%s]SetQKVStartIdx qStartIdx: %ld", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2",
+                        fBaseParams.qStartIdx);
+            }
+        }
     }
-    auto &qStartIdxShape = qStartIdxTensor->GetShape().GetStorageShape();
-    if (qStartIdxShape.GetDimNum() != 1 || qStartIdxShape.GetDim(0) == 0) {
-        OP_LOGW(context_, "[%s]qStartIdxShape is invalid %lu %ld", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2",
-                  qStartIdxShape.GetDimNum(), qStartIdxShape.GetDim(0));
-        return;
-    }
-    /* Get Data from tensor. */
-    const int64_t *value = qStartIdxTensor->GetData<int64_t>();
-    if (value == nullptr) {
-        OP_LOGW(context_, "[%s]qStartIdxShape data is null pointer", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2");
-        return;
-    }
-    fBaseParams.qStartIdx = value[0];
 
     auto kvStartIdxTensor = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::KV_START_IDX));
-    if (kvStartIdxTensor == nullptr) {
-        OP_LOGW(context_, "[%s]kvStartIdxTensor is null pointer", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2");
-        return;
+    if (kvStartIdxTensor != nullptr) {
+        auto &kvStartIdxShape = kvStartIdxTensor->GetShape().GetStorageShape();
+        if (kvStartIdxShape.GetDimNum() >= 1 && kvStartIdxShape.GetDim(0) != 0) {
+            /* Get Data from tensor. */
+            const int64_t *kvValue = kvStartIdxTensor->GetData<int64_t>();
+            if (kvValue != nullptr) {
+                fBaseParams.kvStartIdx = kvValue[0];
+                OP_LOGD(context_, "[%s]SetQKVStartIdx kvStartIdx: %ld", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2",
+                        fBaseParams.kvStartIdx);
+            }
+        }
     }
-    auto &kvStartIdxShape = kvStartIdxTensor->GetShape().GetStorageShape();
-    if (kvStartIdxShape.GetDimNum() != 1 || kvStartIdxShape.GetDim(0) == 0) {
-        OP_LOGW(context_, "[%s]kvStartIdxShape is invalid %lu %ld", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2",
-                  kvStartIdxShape.GetDimNum(), kvStartIdxShape.GetDim(0));
-        return;
-    }
-    /* Get Data from tensor. */
-    const int64_t *kvValue = kvStartIdxTensor->GetData<int64_t>();
-    if (kvValue == nullptr) {
-        OP_LOGW(context_, "[%s]qStartIdxShape data is null pointer", "FlashAttentionScoreGradTilingS1s2Bn2gs1s2");
-        return;
-    }
-    fBaseParams.kvStartIdx = kvValue[0];
 }
 
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessDropoutIsDivisibleBy8()
@@ -390,6 +381,11 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessOptionalInp
         OP_LOGE(context_, "Sparse capability must be supported under prefix compress mode, pls check input params");
         return ge::GRAPH_FAILED;
     }
+    if (fBaseParams.isSparse == false && fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::PREFIX)) {
+        // 与71处理逻辑保持一致
+        OP_LOGD("Sparse FLAG", "Set sparse_mode from PREFIX to ALL_MASK because of empty or nullptr prefixN.");
+        fBaseParams.sparseMode = static_cast<uint32_t>(SparseMode::ALL_MASK);
+ 	}
 
     if (CheckAttenMaskShape() != ge::GRAPH_SUCCESS) {
         PrintShapeInfo();
