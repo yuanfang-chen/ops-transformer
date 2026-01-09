@@ -24,7 +24,6 @@ set(A5_OPS_BLACK_LIST
     "inplace_matmul_all_reduce_add_rms_norm;"
     "matmul_all_reduce_add_rms_norm;"
     "moe_distribute_buffer_reset;"
-    "moe_update_expert;"
     "moe_token_permute_with_routing_map;"
     "moe_distribute_combine_teardown;"
     "moe_distribute_dispatch_setup;"

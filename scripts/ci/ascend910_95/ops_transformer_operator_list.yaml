@@ -69,6 +69,7 @@ operator_group_10:
   - moe_distribute_dispatch_v2
   - quant_all_reduce
   - quant_reduce_scatter
+  - moe_update_expert
 operator_group_11:
   - fused_infer_attention_score,10-3
 operator_group_12:
