@@ -17,6 +17,7 @@
 
 #include "all_gather_matmul_base.h"
 #include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_perblock.h"
+#include "../../common/inc/kernel/qbmm_mix_perblock_noncontiguous.h"
 
 /**
  * 1、依赖tiling结构QuantBatchMatmulV3TilingData
@@ -114,8 +115,11 @@ __aicore__ inline void AllGatherQuantPerBlock<AType, BType, CType, MmType, CoreT
     this->tPipe_->Destroy();
     this->tPipe_->Init();
     MmType op;
+    // Local compute do not need 'strideCount', set to 0.
+    uint32_t strideCount = 0;
     op.Init(this->addrs_->aGM, this->addrs_->bGM, this->addrs_->biasGM, this->quantAddrs_->scale1GM, 
-            this->quantAddrs_->scale2GM, cGM, this->addrs_->workspaceGM, this->localInfo_.mmTiling, this->tPipe_);
+            this->quantAddrs_->scale2GM, cGM, this->addrs_->workspaceGM, this->localInfo_.mmTiling, this->tPipe_,
+            this->batchWeight_, strideCount, false);
     op.Process();
 }
 
@@ -130,33 +134,17 @@ template <typename AType, typename BType, typename CType, class MmType, Mc2CoreT
 __aicore__ inline void AllGatherQuantPerBlock<AType, BType, CType, MmType, CoreType>::QuantMatmulGatherCompute(
     MmType& mmOp, uint32_t count, const Mc2Tiling::MC2TileInfo& tileInfo, bool isTail)
 {
-    auto cRankOffset = static_cast<uint64_t>(this->paramInTiling_->rankM) *
-                       static_cast<uint64_t>(this->paramInTiling_->rankN) * sizeof(CType);  // c矩阵rank偏移
-    auto aRankOffset = static_cast<uint64_t>(this->paramInTiling_->rankM) *
-                       static_cast<uint64_t>(this->paramInTiling_->rankK) * sizeof(AType);  // a矩阵rank偏移
-
+    uint32_t strideCount = this->paramInTiling_->rankM;
     // 按照切分的片数进行逐片处理
     for (uint32_t i = 0; i < count; i++) {
         // 开始计算前确认是否搬运完成，debug模式只做本片内计算，则不需要判断搬运状态
         this->HcclWait(i, isTail);
-        // 计算其他卡搬运过来的数据
-        for (uint32_t j = 0; j < this->paramInTiling_->rankDim; j++) {
-            uint32_t rank = (this->rankId_ + j) % this->paramInTiling_->rankDim;  // 当前核所要访问的rank数据
-            if (rank == this->rankId_) {                                          // 本rank已计算过则跳过
-                continue;
-            }
-            auto aCalcAddr = this->addrs_->aGM;
-            // 计算C矩阵的首地址并更新数据地址
-            auto cCalcAddr = this->addrs_->cGM + static_cast<uint64_t>(rank) * cRankOffset;
-            auto gatherScaleAddr = this->gatherScaleAddr_ + static_cast<uint64_t>(rank) * this->oneRankBlockSizeOffset_;
-            aCalcAddr += static_cast<uint64_t>(rank) * aRankOffset;
-            this->tPipe_->Destroy();
-            this->tPipe_->Init();
-            mmOp.Init(aCalcAddr, this->addrs_->bGM, this->addrs_->biasGM, this->quantAddrs_->scale1GM, gatherScaleAddr,
-                      cCalcAddr, this->addrs_->workspaceGM, tileInfo.mmTiling, this->tPipe_);
-            // matmul计算
-            mmOp.Process();
-        }
+        this->tPipe_->Destroy();
+        this->tPipe_->Init();
+        mmOp.Init(this->addrs_->aGM, this->addrs_->bGM, this->addrs_->biasGM, this->quantAddrs_->scale1GM, this->gatherScaleAddr_,
+                  this->addrs_->cGM, this->addrs_->workspaceGM, tileInfo.mmTiling, this->tPipe_, this->batchWeight_, strideCount, true);
+        // batchmatmul计算
+        mmOp.Process();
         // 刷新下一个tile片的A、C矩阵地址
         // 到计算尾块时，因为已经加上了所有整块的地址大小，尾块不需要重新计算起始地址
         this->addrs_->aGM += tileInfo.aAddrOffset;

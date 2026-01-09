@@ -54,6 +54,15 @@ constexpr uint64_t GROUP_M_OFFSET = 32;
 constexpr uint64_t GROUP_N_OFFSET = 16;
 constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
 
+constexpr int32_t IDX_K_LOW = 2;
+constexpr int32_t IDX_K_HIGH = 3;
+constexpr int32_t IDX_N_LOW = 4;
+constexpr int32_t IDX_N_HIGH = 5;
+constexpr int32_t IDX_B_LOW = 6;
+
+constexpr uint32_t X1_INDEX = 0;
+constexpr uint32_t X2_INDEX = 1;
+
 }  // namespace
 
 bool AllGatherQuantBmmTiling::IsCapable()
@@ -652,25 +661,61 @@ AllGatherQuantBmmTiling::AllGatherQuantBmmTiling(gert::TilingContext* context)
     allGatherMatmulTilingDataFp8_ = context_->GetTilingData<AllGatherMatmulTilingDataFp8>();
 }
 
+void AllGatherQuantBmmHelper::AnalyzeBatchInfo(const gert::Shape &oriShapeA, const gert::Shape &oriShapeB)
+{
+    (void)oriShapeA;
+    (void)oriShapeB;
+    auto x1Shape = GetX1Shape(X1_INDEX);
+    auto x2Shape = GetX2Shape(X2_INDEX);
+    auto outShape = GetOutputShape(0);
+    int32_t numDimA = static_cast<int32_t>(x1Shape.GetDimNum());
+    int32_t numDimB = static_cast<int32_t>(x2Shape.GetDimNum());
+    int32_t numDimC = static_cast<int32_t>(outShape.GetDimNum());
+    inputParams_.batchA4 = numDimA > IDX_K_LOW ? x1Shape.GetDim(numDimA - IDX_K_HIGH) : 1;
+    inputParams_.batchA3 = numDimA > IDX_K_HIGH ? x1Shape.GetDim(numDimA - IDX_N_LOW) : 1;
+    inputParams_.batchA2 = numDimA > IDX_N_LOW ? x1Shape.GetDim(numDimA - IDX_N_HIGH) : 1;
+    inputParams_.batchA1 = numDimA > IDX_N_HIGH ? x1Shape.GetDim(numDimA - IDX_B_LOW) : 1;
+    inputParams_.batchB4 = numDimB > IDX_K_LOW ? x2Shape.GetDim(numDimB - IDX_K_HIGH) : 1;
+    inputParams_.batchB3 = numDimB > IDX_K_HIGH ? x2Shape.GetDim(numDimB - IDX_N_LOW) : 1;
+    inputParams_.batchB2 = numDimB > IDX_N_LOW ? x2Shape.GetDim(numDimB - IDX_N_HIGH) : 1;
+    inputParams_.batchB1 = numDimB > IDX_N_HIGH ? x2Shape.GetDim(numDimB - IDX_B_LOW) : 1;
+    inputParams_.batchC4 = numDimC > IDX_K_LOW ? outShape.GetDim(numDimC - IDX_K_HIGH) : 1UL;
+    inputParams_.batchC3 = numDimC > IDX_K_HIGH ? outShape.GetDim(numDimC - IDX_N_LOW) : 1UL;
+    inputParams_.batchC2 = numDimC > IDX_N_LOW ? outShape.GetDim(numDimC - IDX_N_HIGH) : 1UL;
+    inputParams_.batchC1 = numDimC > IDX_N_HIGH ? outShape.GetDim(numDimC - IDX_B_LOW) : 1UL;
+}
+
+void AllGatherQuantBmmHelper::SetBatch()
+{
+    if (inputParams_.isPerBlock) {
+        batch4_ = tilingProcesser_.args_.rankDim - 1; // 本卡数据先在本卡计算，因此batch matmul只用计算rankDim - 1 张卡通信的数据
+    }
+}
+
 const gert::Shape AllGatherQuantBmmHelper::GetX1Shape(const size_t index)
 {
     (void)index;
+    SetBatch();
     if (tilingProcesser_.args_.isATrans) {
-        return gert::Shape(
-            {static_cast<int64_t>(tilingProcesser_.args_.kValue), static_cast<int64_t>(tilingProcesser_.args_.mValue)});
+        return gert::Shape({batch1_, batch2_, batch3_, batch4_, static_cast<int64_t>(tilingProcesser_.args_.kValue), static_cast<int64_t>(tilingProcesser_.args_.mValue)});
     }
-    return gert::Shape(
-        {static_cast<int64_t>(tilingProcesser_.args_.mValue), static_cast<int64_t>(tilingProcesser_.args_.kValue)});
+    return gert::Shape({batch1_, batch2_, batch3_, batch4_, static_cast<int64_t>(tilingProcesser_.args_.mValue), static_cast<int64_t>(tilingProcesser_.args_.kValue)});
 }
+
 const gert::Shape AllGatherQuantBmmHelper::GetX2Shape(const size_t index)
 {
     (void)index;
     if (tilingProcesser_.args_.isBTrans) {
-        return gert::Shape(
-            {static_cast<int64_t>(tilingProcesser_.args_.nValue), static_cast<int64_t>(tilingProcesser_.args_.kValue)});
+        return gert::Shape({1, 1, 1, 1, static_cast<int64_t>(tilingProcesser_.args_.nValue), static_cast<int64_t>(tilingProcesser_.args_.kValue)});
     }
-    return gert::Shape(
-        {static_cast<int64_t>(tilingProcesser_.args_.kValue), static_cast<int64_t>(tilingProcesser_.args_.nValue)});
+    return gert::Shape({1, 1, 1, 1, static_cast<int64_t>(tilingProcesser_.args_.kValue), static_cast<int64_t>(tilingProcesser_.args_.nValue)}); // x2构造4维全1 Batch，防止matmul规则自动融合x1/output的batch轴
+}
+
+const gert::Shape AllGatherQuantBmmHelper::GetOutputShape(const size_t index)
+{
+    (void)index;
+    SetBatch();
+    return gert::Shape({batch1_, batch2_, batch3_, batch4_, static_cast<int64_t>(tilingProcesser_.args_.mValue), static_cast<int64_t>(tilingProcesser_.args_.nValue)});
 }
 
 const gert::Shape& AllGatherQuantBmmHelper::GetScaleShape(const size_t index)

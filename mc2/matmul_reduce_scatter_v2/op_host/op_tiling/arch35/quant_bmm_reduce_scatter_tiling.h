@@ -104,6 +104,7 @@ public:
                                 DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &data);
     const gert::Shape GetX1Shape(const size_t index) override;
     const gert::Shape GetX2Shape(const size_t index) override;
+    const gert::Shape GetOutputShape(const size_t index) override;
     const gert::Shape &GetScaleShape(const size_t index) override;
     const gert::StorageShape *GetPertokenShape(const size_t index) override;
     const gert::StorageShape *GetBiasShape(const size_t index) override;
@@ -111,11 +112,17 @@ public:
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus DoLibApiTiling() override;
     void PrintTilingInputParam(Mc2QuantBatchMatmulInfo &quantBatchMatmulInfo) const;
+    void AnalyzeBatchInfo(const gert::Shape &oriShapeA, const gert::Shape &oriShapeB) override;
     ge::graphStatus PostTiling() override;
+    void SetBatch();
 
 private:
     QuantBmmReduceScatterTiling &tilingProcesser_;
     mc2tiling::TilingArgs &tilingArgs_;
+    uint32_t batch1_{1};
+    uint32_t batch2_{1};
+    uint32_t batch3_{1};
+    uint32_t batch4_{1};
 };
 } // namespace optiling
 

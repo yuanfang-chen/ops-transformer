@@ -22,8 +22,8 @@
 #include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_perblock.h"
 #include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_cube_on_the_fly.h"
 #include "../../common/new_mc2_mm/kernel/mc2_quant_batch_matmul.h"
+#include "../../common/inc/kernel/qbmm_mix_perblock_noncontiguous.h"
 #include "matmul_reduce_scatter_v2_c_tiling.h"
-
 
 #define TEMPLATE_CLASS_PARAMS template <typename AType, typename BType, typename CType, typename ScaleType, \
                                         class MMClass, bool IsPerBlock, bool ATrans, bool BTrans>
@@ -74,6 +74,7 @@ private:
     Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;        // CCU模式
     AscendC::HcclHandle handles_[MAX_HANDLE];  // 最大支持64个handleId
     uint64_t preCoreNum_ = 0;
+    uint32_t batchWeight_[MAX_HANDLE] = {0};
 };
 
 TEMPLATE_CLASS_PARAMS
@@ -98,6 +99,9 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::Init(
     x2ScaleGM_ = x2ScaleGM;
     rankId_ = context_->rankId;
     auto&& cfg = tilingData_->param;
+    for (uint32_t j = 0; j < cfg.rankDim; j++) {
+        batchWeight_[j] = j;
+    }
     // 划分workspace
     gmToFloat_ = workspaceGM;
     workspaceGM_ = gmToFloat_ + cfg.cToFloatLen;
@@ -137,7 +141,9 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulReduce
     this->tPipe_->Destroy();
     this->tPipe_->Init();
     MMClass op;
-    op.Init(aGM_, bGM_, biasGM_, x2ScaleGM_, x1ScaleGM_, cWork, workspaceGM_, &qBMmtiling, tPipe_);
+    uint32_t strideCount = cfg.rankM / cfg.rankDim;
+    op.Init(aGM_, bGM_, biasGM_, x2ScaleGM_, x1ScaleGM_, cWork, workspaceGM_, &qBMmtiling, tPipe_,
+            batchWeight_, strideCount, false);
     op.Process();
     SyncAll<false>();
     uint64_t stride = 0;
@@ -269,28 +275,19 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPerblock(
     auto shift = isTail ? cfg.tileCnt : 0;
     uint64_t stride = 0;
     uint8_t repeat = 1;
+    uint32_t strideCount = cfg.rankM / cfg.rankDim;
 
-    // 卡内偏移
-    uint64_t x1ScaleOffset = static_cast<uint64_t>(tiling.M / BLOCK_SIZE) *
-                             CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE) * sizeof(ScaleType);
-    // 卡间偏移
-    uint64_t rx1ScaleOffset = static_cast<uint64_t>(cfg.rankM / BLOCK_SIZE) *
-                              CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE) / cfg.rankDim * sizeof(ScaleType);
-
+     // 卡内偏移
+     uint64_t x1ScaleOffset = static_cast<uint64_t>(tiling.M / BLOCK_SIZE) *
+                              CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE) * sizeof(ScaleType);
     for (uint32_t i = 0; i < tileCnt; i++) {
-        for (uint32_t j = 0; j < cfg.rankDim; j++) {
-            // 计算A和C矩阵的首地址
-            auto aWorkAddr = aAddr + static_cast<uint64_t>(j) * raOffset;
-            auto cWorkAddr = cWork + static_cast<uint64_t>(j) * cOffset;
-            auto x1ScaleWorkAddr = x1ScaleAddr + static_cast<uint64_t>(j) * rx1ScaleOffset;
-            this->tPipe_->Destroy();
-            this->tPipe_->Init();
-            MMClass op;
-            op.Init(
-                aWorkAddr, bGM_, biasGM_, x2ScaleGM_, x1ScaleWorkAddr, cWorkAddr, workspaceGM_, &qBMmtiling, tPipe_);
-            op.Process();
-            PipeBarrier<PIPE_V>();
-        }
+        this->tPipe_->Destroy();
+        this->tPipe_->Init();
+        MMClass op;
+        op.Init(aAddr, bGM_, biasGM_, x2ScaleGM_, x1ScaleAddr, cWork, workspaceGM_, &qBMmtiling, tPipe_,
+                batchWeight_, strideCount, false);
+        op.Process();
+        PipeBarrier<PIPE_V>();
         SyncAll<false>();
         if ASCEND_IS_AIC {
             recvCount = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? 1 : recvCount;

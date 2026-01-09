@@ -26,6 +26,7 @@ namespace AllGatherMatmulImpl
 {
 using namespace AscendC;
 constexpr uint64_t PERBLOCK_BLOCK_SIZE = 128;
+constexpr uint32_t MAX_RANK_DIM = 64;
 template <typename AType, typename CType, Mc2CoreType CoreType>
 class AllGatherMatmulBase
 {
@@ -63,9 +64,10 @@ public:
             addrs_->workspaceGM += paramInTiling_->gatherLen;
         }
         gatherScaleAddr_ = addrs_->workspaceGM;
-        
+
         UpdateNotifyFlag();
         UpdateMC2TileInfo();
+        UpdateBatchWeight();
     }
 
 protected:
@@ -154,6 +156,7 @@ protected:
     GM_ADDR gatherScale1Addr_;
     GM_ADDR gatherScaleAddr_;
     AscendC::HcclHandle hcclHandleIdList[MAX_HANDLE_WITH_SCALE1]; /* hccl handle */
+    uint32_t batchWeight_[MAX_RANK_DIM] = {0};
 
 private:
     __aicore__ inline void UpdateNotifyFlag()
@@ -180,6 +183,19 @@ private:
             tailInfo_.cOffset =
                 (uint64_t)tailInfo_.mmTiling->matmulTiling.M * (uint64_t)tailInfo_.mmTiling->matmulTiling.N;
             tailInfo_.cAddrOffset = tailInfo_.cOffset * sizeof(CType);
+        }
+    }
+
+    __aicore__ inline void UpdateBatchWeight()
+    {
+        // 计算batch权重值
+        uint32_t k = 0;
+        for (uint32_t j = 0; j < paramInTiling_->rankDim; j++) {
+            if (j == rankId_) {
+                continue;
+            }
+            batchWeight_[k] = j;
+            k++;
         }
     }
 };

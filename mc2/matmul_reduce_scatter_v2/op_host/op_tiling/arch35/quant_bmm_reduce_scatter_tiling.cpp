@@ -46,6 +46,13 @@ constexpr uint64_t MX_SCALE_DIM = 3;
 constexpr uint64_t GROUP_M_OFFSET = 32;
 constexpr uint64_t GROUP_N_OFFSET = 16;
 constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
+
+constexpr int32_t IDX_K_LOW = 2;
+constexpr int32_t IDX_K_HIGH = 3;
+constexpr int32_t IDX_N_LOW = 4;
+constexpr int32_t IDX_N_HIGH = 5;
+constexpr int32_t IDX_B_LOW = 6;
+
 // output
 constexpr uint32_t Y_INDEX = 0;
 constexpr uint32_t AMAX_INDEX = 1;
@@ -636,21 +643,61 @@ QuantBmmReduceScatterTiling::QuantBmmReduceScatterTiling(gert::TilingContext* co
     quantBmmMatmulReducescatterTilingData_=context->GetTilingData<QuantBatchMatmulV3ReduceScatterTilingData>();
 }
 
+void QuantBmmReduceScatterHelper::AnalyzeBatchInfo(const gert::Shape &oriShapeA, const gert::Shape &oriShapeB)
+{
+    (void)oriShapeA;
+    (void)oriShapeB;
+    auto x1Shape = GetX1Shape(X1_INDEX);
+    auto x2Shape = GetX2Shape(X2_INDEX);
+    int32_t numDimA = static_cast<int32_t>(x1Shape.GetDimNum());
+    int32_t numDimB = static_cast<int32_t>(x2Shape.GetDimNum());
+    inputParams_.batchA4 = numDimA > IDX_K_LOW ? x1Shape.GetDim(numDimA - IDX_K_HIGH) : 1;
+    inputParams_.batchA3 = numDimA > IDX_K_HIGH ? x1Shape.GetDim(numDimA - IDX_N_LOW) : 1;
+    inputParams_.batchA2 = numDimA > IDX_N_LOW ? x1Shape.GetDim(numDimA - IDX_N_HIGH) : 1;
+    inputParams_.batchA1 = numDimA > IDX_N_HIGH ? x1Shape.GetDim(numDimA - IDX_B_LOW) : 1;
+    inputParams_.batchB4 = numDimB > IDX_K_LOW ? x2Shape.GetDim(numDimB - IDX_K_HIGH) : 1;
+    inputParams_.batchB3 = numDimB > IDX_K_HIGH ? x2Shape.GetDim(numDimB - IDX_N_LOW) : 1;
+    inputParams_.batchB2 = numDimB > IDX_N_LOW ? x2Shape.GetDim(numDimB - IDX_N_HIGH) : 1;
+    inputParams_.batchB1 = numDimB > IDX_N_HIGH ? x2Shape.GetDim(numDimB - IDX_B_LOW) : 1;
+    auto outShape = GetOutputShape(0);
+    int32_t numDimC = static_cast<int32_t>(outShape.GetDimNum());
+    inputParams_.batchC4 = numDimC > IDX_K_LOW ? outShape.GetDim(numDimC - IDX_K_HIGH) : 1UL;
+    inputParams_.batchC3 = numDimC > IDX_K_HIGH ? outShape.GetDim(numDimC - IDX_N_LOW) : 1UL;
+    inputParams_.batchC2 = numDimC > IDX_N_LOW ? outShape.GetDim(numDimC - IDX_N_HIGH) : 1UL;
+    inputParams_.batchC1 = numDimC > IDX_N_HIGH ? outShape.GetDim(numDimC - IDX_B_LOW) : 1UL;
+}
+
+void QuantBmmReduceScatterHelper::SetBatch()
+{
+    if (inputParams_.isPerBlock) {
+        batch4_ = tilingArgs_.rankDim;
+    }
+}
+
 const gert::Shape QuantBmmReduceScatterHelper::GetX1Shape(const size_t index)
 {
     (void)index;
+    SetBatch();
     if (tilingArgs_.isATrans) {
-        return gert::Shape({static_cast<int64_t>(tilingArgs_.kValue), static_cast<int64_t>(tilingArgs_.mValue)});
+        return gert::Shape({batch1_, batch2_, batch3_, batch4_, static_cast<int64_t>(tilingArgs_.kValue), static_cast<int64_t>(tilingArgs_.mValue)});
     }
-    return gert::Shape({static_cast<int64_t>(tilingArgs_.mValue), static_cast<int64_t>(tilingArgs_.kValue)});
+    return gert::Shape({batch1_, batch2_, batch3_, batch4_, static_cast<int64_t>(tilingArgs_.mValue), static_cast<int64_t>(tilingArgs_.kValue)});
 }
+
 const gert::Shape QuantBmmReduceScatterHelper::GetX2Shape(const size_t index)
 {
     (void)index;
     if (tilingArgs_.isBTrans) {
-        return gert::Shape({static_cast<int64_t>(tilingArgs_.nValue), static_cast<int64_t>(tilingArgs_.kValue)});
+        return gert::Shape({1, 1, 1, 1, static_cast<int64_t>(tilingArgs_.nValue), static_cast<int64_t>(tilingArgs_.kValue)});
     }
-    return gert::Shape({static_cast<int64_t>(tilingArgs_.kValue), static_cast<int64_t>(tilingArgs_.nValue)});
+    return gert::Shape({1, 1, 1, 1, static_cast<int64_t>(tilingArgs_.kValue), static_cast<int64_t>(tilingArgs_.nValue)}); // x2构造4维全1 Batch，防止matmul规则自动融合x1/output的batch轴
+}
+
+const gert::Shape QuantBmmReduceScatterHelper::GetOutputShape(const size_t index)
+{
+    (void)index;
+    SetBatch();
+    return gert::Shape({batch1_, batch2_, batch3_, batch4_, static_cast<int64_t>(tilingArgs_.mValue), static_cast<int64_t>(tilingArgs_.nValue)});
 }
 
 const gert::Shape &QuantBmmReduceScatterHelper::GetScaleShape(const size_t index)

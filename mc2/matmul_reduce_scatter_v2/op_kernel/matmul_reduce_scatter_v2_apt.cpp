@@ -84,7 +84,7 @@ using namespace MatmulReduceScatterV2Impl;
         __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                            \
         if (tilingData.msg.debugMode != static_cast<uint8_t>(MC2_DEBUG_ONLY_AICPU)) {                                 \
             using mmClass =                                                                                           \
-                Mc2QuantBatchMatmulV3::MatMulPerBlockASW<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y,                     \
+                Mc2QuantBatchMatmulV3::MatMulPerBlockASWNonContiguous<DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y,        \
                                                          CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, __VA_ARGS__>;\
             templateClass<DTYPE_X1, DTYPE_X2, DTYPE_Y, float, mmClass, true, __VA_ARGS__> op;                         \
             op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,          \
