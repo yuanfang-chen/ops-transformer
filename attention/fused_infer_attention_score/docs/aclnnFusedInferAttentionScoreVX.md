@@ -977,7 +977,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 - 支持全量化场景，即输入query/key/value全为FLOAT8_E4M3FN，queryRope和keyRope为BFLOAT16，输出为BFLOAT16的场景：
                     - 入参dequantScaleQuery、keyAntiquantScale、valueAntiquantScale需要同时存在，且数据类型仅支持FP32.
                     - 不支持传入deqScale1、quantScale1、deqScale2、quantScale2、quantOffset2、keyAntiquantOffset、valueAntiquantOffset(即不为nullptr)，否则报错并返回。
-                    - queryQuantMode仅支持per-token叠加per-head模式，keyAntiquantMode和valueAntiquantMode仅支持per-tensor模式。
+                    - queryQuantMode仅支持per-token叠加per-head模式，queryQuantMode=3，且shape与query相比仅少一个维度D。keyAntiquantMode和valueAntiquantMode仅支持per-tensor模式，keyAntiquantMode和valueAntiquantMode均为0，且shape必须为\(1\)。
                     - key&value&keyRope支持ND输入。
             - 当query的d等于128时：
                 - queryRope配置时要求queryRope的shape中b、n、s与query一致，d为64；
