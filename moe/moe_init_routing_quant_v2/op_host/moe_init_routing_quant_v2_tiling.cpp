@@ -178,6 +178,17 @@ ge::graphStatus MoeInitRoutingQuantV2TilingBase::CheckInt4Info()
                    "The secnod dim of x should be a multiple of 2 when expendedx is int4, but got [%ld]", cols);
         CHECK_FAIL(context_, quantMode != 1, "Attr quant_mode should be 1 when expendedx is int4.");
         CHECK_FAIL(context_, dropPadMode != 0, "Attr drop_pad_mode should be 0 when expendedx is int4.");
+        auto scaleShapePtr = context_->GetOptionalInputShape(INDEX_SCALE);
+        if (scaleShapePtr != nullptr) {
+            auto scaleDesc = context_->GetOptionalInputDesc(INDEX_SCALE);
+            CHECK_NULL(context_, scaleDesc, "scale");
+            auto smoothShape = scaleShapePtr->GetStorageShape();
+            size_t smoothDimNum = smoothShape.GetDimNum();
+            CHECK_FAIL(context_, smoothDimNum != static_cast<size_t>(NUM_TWO), "The dim number of scale should be 2.");
+            CHECK_FAIL(
+                context_, smoothShape.GetDim(0) != 1,
+                "The first dim of scale should be 1 when expendedx is int4, but got [%ld].", smoothShape.GetDim(0));
+        }
     }
     return ge::GRAPH_SUCCESS;
 }

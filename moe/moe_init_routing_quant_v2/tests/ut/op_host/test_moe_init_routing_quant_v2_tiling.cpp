@@ -341,6 +341,23 @@ TEST_F(MoeInitRoutingQuantV2Tiling, moe_init_routing_quant_v2_tiling_int4_fulllo
     /*N=*/8, /*H=*/30, /*K=*/6, 
     /*activeNum=*/32, /*C=*/0, /*E=*/8,
     /*dropPadMode=*/0, /*countFlag=*/1, /*tokenFlag=*/false,
+    /*quantMode=*/1, /*dqFlag=*/1, 
+    /*optionalDt=*/ge::DT_INT4, /*optionalDtypePosi=*/3
+  );
+  
+  uint64_t expectTilingKey = 21000;
+  string expectTilingData = "64 8 30 6 0 8 0 1 0 1 0 0 1 48 1 48 48 48 1 48 48 8160 0 2040 48 0 1 1 1 1 1 1 0 0 0 0 0 48 0 1 1 1 1 1 1 1 1 30 30 1 48 32 1 1 1 1 1 1 1 1 30 30 1 ";
+  std::vector<size_t> expectWorkspaces = {16779296};
+  
+  ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+// 性能模板+dynamic quant+int4
+TEST_F(MoeInitRoutingQuantV2Tiling, moe_init_routing_quant_v2_tiling_int4_fullload_scale_error) {
+  auto tilingContextPara = RunNormalCase(
+    /*N=*/8, /*H=*/30, /*K=*/6, 
+    /*activeNum=*/32, /*C=*/0, /*E=*/8,
+    /*dropPadMode=*/0, /*countFlag=*/1, /*tokenFlag=*/false,
     /*quantMode=*/1, /*dqFlag=*/0, 
     /*optionalDt=*/ge::DT_INT4, /*optionalDtypePosi=*/3
   );
@@ -349,7 +366,7 @@ TEST_F(MoeInitRoutingQuantV2Tiling, moe_init_routing_quant_v2_tiling_int4_fulllo
   string expectTilingData = "64 8 30 6 0 8 0 1 0 2 0 0 1 48 1 48 48 48 1 48 48 8160 0 2040 48 0 1 1 1 1 1 1 0 0 0 0 0 48 0 1 1 1 1 1 1 1 1 30 30 1 48 32 1 1 1 1 1 1 1 1 30 30 1 ";
   std::vector<size_t> expectWorkspaces = {16779296};
   
-  ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+  ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, 0, "", {});
 }
 
 // 性能模板+dynamic quant+int4 pad 
@@ -358,7 +375,7 @@ TEST_F(MoeInitRoutingQuantV2Tiling, moe_init_routing_quant_v2_tiling_int4_fulllo
     /*N=*/8, /*H=*/30, /*K=*/6, 
     /*activeNum=*/32, /*C=*/0, /*E=*/8,
     /*dropPadMode=*/1, /*countFlag=*/1, /*tokenFlag=*/false,
-    /*quantMode=*/1, /*dqFlag=*/0, 
+    /*quantMode=*/1, /*dqFlag=*/1, 
     /*optionalDt=*/ge::DT_INT4, /*optionalDtypePosi=*/3
   );
   
@@ -375,7 +392,7 @@ TEST_F(MoeInitRoutingQuantV2Tiling, moe_init_routing_quant_v2_tiling_int4_fulllo
     /*N=*/8, /*H=*/30, /*K=*/6, 
     /*activeNum=*/32, /*C=*/0, /*E=*/8,
     /*dropPadMode=*/0, /*countFlag=*/1, /*tokenFlag=*/false,
-    /*quantMode=*/0, /*dqFlag=*/0, 
+    /*quantMode=*/0, /*dqFlag=*/1, 
     /*optionalDt=*/ge::DT_INT4, /*optionalDtypePosi=*/3
   );
   
