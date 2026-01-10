@@ -440,7 +440,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetSplitAxis()
     }
 
     if (!fBaseParams.isBn2 && !fBaseParams.hasRope && fBaseParams.d <= BN2_MAX_D &&
-        (fBaseParams.layoutType == INPUT_FROAMT_TND || fBaseParams.isAllSame) && fBaseParams.n1 == fBaseParams.n2 &&
+        (fBaseParams.layoutType == INPUT_FROAMT_TND || fBaseParams.isAllSame && !fBaseParams.isDeterministic) && fBaseParams.n1 == fBaseParams.n2 &&
         (fBaseParams.queryType != ge::DT_FLOAT) && !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8)) {
         fBaseParams.layoutType = INPUT_FROAMT_TND;
         fBaseParams.splitAxis = SplitAxisEnum::BN2S2;
