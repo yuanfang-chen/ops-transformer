@@ -730,7 +730,7 @@ __aicore__ inline void MoeV2GatherDynamicQuant<T, quantType>::Init(
         pipe->InitBuffer(mulBuf, ONE_REPEAT_NUM);
         constScaleTensor = tempScaleBuf.Get<float>();
         maxValueTensor = maxValueBuf.Get<float>();
-        mulTensor = tempScaleBuf.Get<float>();
+        mulTensor = mulBuf.Get<float>();
 
         Duplicate<float>(constScaleTensor, DYNAMIC_QUANT_INT4_SYM_SCALE, MAX_VALUE_NUM);
         Duplicate<float>(maxValueTensor, 1.0, MAX_VALUE_NUM);
