@@ -568,6 +568,8 @@ ge::graphStatus QuantBmmReduceScatterTiling::PostTiling()
     uint32_t usedCoreNum =
         std::max(MutableTCubeTileTilingData().usedCoreNum, MutableTCubeTailTilingData().usedCoreNum);
     context_->SetBlockDim(usedCoreNum);
+    // 独占全核，设置以后会让所有核空闲以后才启动，有多核同步指令需要设置避免出现网络挂死
+    context_->SetScheduleMode(1);
     return ge::GRAPH_SUCCESS;
 }
 
