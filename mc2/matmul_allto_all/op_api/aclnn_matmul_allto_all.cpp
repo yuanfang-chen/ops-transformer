@@ -252,12 +252,8 @@ extern "C" aclnnStatus InnerMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, 
                                                            bool transposeX1, bool transposeX2, const aclTensor *output,
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    // 需要使用的默认值常量定义
-    const int64_t WORLD_SIZE = -1;
-    const int64_t Y_DTYPE = 28;
-    const int64_t COMM_QUANT_DTYPE = 28;
-    const int64_t QUANT_MODE = 0;
-    const int64_t GROUP_SIZE = 0;
+    // ACL和GE的datatype枚举值对undefined定义不同，inner接口进入到算子内部，需要使用GE枚举值，因此此处使用的枚举值为28
+    const int64_t GE_UNDEFINED = 28;
     // 根据算子原型定义默认值
     aclTensor* x1ScaleOptional = nullptr;
     aclTensor* x2ScaleOptional = nullptr;
@@ -266,13 +262,13 @@ extern "C" aclnnStatus InnerMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, 
     aclTensor* x2OffsetOptional = nullptr;
     const aclTensor* out = output;
     char* str_group = const_cast<char*>(group);
-    int64_t worldSize = WORLD_SIZE;
-    int64_t yDtype = Y_DTYPE;
-    int64_t x1QuantMode = QUANT_MODE;
-    int64_t x2QuantMode = QUANT_MODE;
-    int64_t commQuantMode = QUANT_MODE;
-    int64_t commQuantDtype = COMM_QUANT_DTYPE;
-    int64_t groupSize = GROUP_SIZE;
+    int64_t worldSize = -1;
+    int64_t yDtype = GE_UNDEFINED;
+    int64_t x1QuantMode = 0;
+    int64_t x2QuantMode = 0;
+    int64_t commQuantMode = 0;
+    int64_t commQuantDtype = GE_UNDEFINED;
+    int64_t groupSize = 0;
     aclnnStatus ret = aclnnInnerMatmulAlltoAllGetWorkspaceSize(
         x1, x2, biasOptional, x1ScaleOptional, x2ScaleOptional, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
         str_group, worldSize, alltoAllAxesOptional, yDtype, x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype,
