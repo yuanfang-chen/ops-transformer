@@ -3201,11 +3201,12 @@ int64_t PromptFlashAttentionTilingV2::GetCalcBlockNumsOneHead(int64_t actualSeqL
     uint32_t sOuterSize, uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed) {
     if (!isAttenMaskUsed) {
         int64_t outerBlockNums = (actualSeqLength + sOuterSize - 1) / sOuterSize;
-        int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize;
+        int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize + (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize; 
         int64_t toCalcBlockNums = innerBlockNums * outerBlockNums;
         return toCalcBlockNums;
     } else {
         int64_t innerBlockNums = (actualSeqLengthKV + static_cast<int64_t>(sInnerSize) - 1) /
+            static_cast<int64_t>(sInnerSize) + (actualSharedPrefixLen + static_cast<int64_t>(sInnerSize) - 1) /
             static_cast<int64_t>(sInnerSize);
         int64_t blockSeqLengthKV = innerBlockNums * static_cast<int64_t>(sInnerSize);
         int64_t outerBlockNums = (actualSeqLength + static_cast<int64_t>(sOuterSize) - 1) /
@@ -3343,7 +3344,7 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
             (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize;
         multiSmaxsInnerLoopTimes = std::max(multiSmaxsInnerLoopTimes, sInnerLoopTimes[sIdx]);
 
-        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx] + actualSharedPrefixLen, sOuterSize,
+        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx], sOuterSize,
             sInnerSize, preTokensLeftUp, nextTokensLeftUp, isAttenMaskUsed);
     }
     singleCoreParams->set_multiSmaxsInnerLoopTimes(multiSmaxsInnerLoopTimes);
