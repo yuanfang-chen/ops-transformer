@@ -179,7 +179,7 @@ private:
     __gm__ int32_t* gm_accum;
 
     DequantRunner<YType> dequantRunner;
-
+    Arch::Resource<Arch::AtlasA2> resource;
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
 };
 

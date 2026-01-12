@@ -36,14 +36,14 @@
 #define DEQUANT_ARGS_CALL() \
     rowNum, colNum, perChannelScale, perTokenScale, workspace, reinterpret_cast<GM_ADDR>(output), \
     tileM0, tileN0, pValue, swizzlDirect, swizzlCount, \
-    blockIdx, coreNum, worldSize, needPerChannel, needPerToken
+    blockIdx, coreNum, worldSize, resource, needPerChannel, needPerToken
 
 #define DEQUANT_ARGS_FUN() \
     uint32_t rowNum, uint32_t colNum, __gm__ float32_t *perChannelScale, __gm__ float32_t *perTokenScale, \
     __gm__ int32_t *workspace, GM_ADDR output,                                                            \
     uint32_t tileM0, uint32_t tileN0, uint32_t pValue, uint32_t swizzlDirect, uint32_t swizzlCount,       \
     uint32_t blockIdx, uint32_t coreNum, uint32_t worldSize,                                               \
-    bool needPerChannel = false, bool needPerToken = false
+    Arch::Resource<Arch::AtlasA2> resource, bool needPerChannel = false, bool needPerToken = false
 
 template <typename OutputType> 
 class DequantRunner {
@@ -143,7 +143,6 @@ public:
 private:
     uint32_t m0;
     uint32_t n0;
-    Arch::Resource<ArchTag> resource;
 };
 
 #endif // CATLASS_GEMM_KERNEL_TEMPLATE_DEQUANT_HPP
