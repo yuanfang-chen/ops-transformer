@@ -28,7 +28,6 @@ if (BUILD_OPEN_PROJECT)  # custom
                     -DENABLE_CV_COMM_VIA_SSBUF=true
         )
     endif()
-
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE allto_all_matmul allto_all_matmul ACLNNTYPE aclnn aclnn_inner)
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)

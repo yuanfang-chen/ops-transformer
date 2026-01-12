@@ -16,6 +16,15 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
     set(MC2_OPT ON PARENT_SCOPE)
     set(elastic_receivable_info_collect_depends mc2/common mc2/3rd mc2/moe_distribute_dispatch PARENT_SCOPE)
+
+    # --cce-auto-sync=off：指定CCE编译器是否自动执行线程间或模块间的同步操作
+    set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
+    if("${CONDITION_UNIT}" STREQUAL "ascend910_93")
+        add_ops_compile_options(
+            OP_NAME ElasticReceivableInfoCollect
+            OPTIONS --cce-auto-sync=off
+        )
+    endif()
 else()
     add_mc2_modules_sources(OPTYPE elastic_receivable_info_collect ACLNNTYPE aclnn_inner)
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
