@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file matmul_allto_all_tiling_data.h
+ * \file matmul_allto_all_tiling_data_arch35.h
  * \brief 定义tiling_data
  */
-#ifndef MATMUL_ALLTO_ALL_TILING_H
-#define MATMUL_ALLTO_ALL_TILING_H
+#ifndef MATMUL_ALLTO_ALL_TILING_DATA_ARCH35_H
+#define MATMUL_ALLTO_ALL_TILING_DATA_ARCH35_H
 
 #include <cstdint>
 #include <kernel_tiling/kernel_tiling.h>
@@ -34,15 +34,23 @@ struct MatmulAlltoAllTilingInfo {
     uint64_t permuteLen;  // 重排空间大小
     uint32_t biasLen;     // bias地址大小
     uint32_t aicCoreNum;  // 核数
-    uint8_t hcclDataType; // hccl通信枚举值
+    uint64_t hcclDataType; // hccl通信枚举值
 };
 
 struct MatmulAlltoAllTilingData {
-    Mc2InitTiling mc2InitTiling;                       // 初始化通信任务配置
-    Mc2CcTiling mc2CcTiling;                           // 具体每个通信任务的参数配置
-    MatmulAlltoAllTilingInfo matmulAlltoAllTilingInfo; // 传递给kernel的tiling info
-    Mc2MatMulV3TilingData mc2MmV3TileTilingData;       // 通算切分头块matmul tiling数据
-    Mc2MatMulV3TilingData mc2MmV3TailTilingData;       // 通算切分尾块matmul tiling数据
+    Mc2InitTiling mc2InitTiling; // 初始化通信任务配置
+    Mc2CcTiling mc2CcTiling;     // 具体每个通信任务的参数配置
+    MatmulAlltoAllTilingInfo matmulAlltoAllTilingInfo;
+    Mc2MatMulV3TilingData mc2MmV3TileTilingData;  // 通算切分头块matmul tiling数据
+    Mc2MatMulV3TilingData mc2MmV3TailTilingData;  // 通算切分尾块matmul tiling数据
+};
+
+struct QuantMatmulAlltoAllTilingData {
+    Mc2InitTiling mc2InitTiling; // 初始化通信任务配置
+    Mc2CcTiling mc2CcTiling;     // 具体每个通信任务的参数配置
+    MatmulAlltoAllTilingInfo quantMatmulAlltoAllTilingInfo;
+    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams mc2QuantBmmV3TileTilingData;
+    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams mc2QuantBmmV3TailTilingData;
 };
 
 // 量化tiling结构体

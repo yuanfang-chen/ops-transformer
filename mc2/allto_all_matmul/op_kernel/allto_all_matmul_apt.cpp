@@ -10,21 +10,53 @@
 
 /*!
  * \file allto_all_matmul.cpp
- * \brief kernel内核实现
+ * \brief
  */
+#include <cstring>
 #include <kernel_operator.h>
 #include <lib/matmul_intf.h>
-#include "arch35/allto_all_matmul_tiling_data.h"
-#include "arch35/allto_all_matmul_tiling_key.h"
-#include "arch35/allto_all_matmul.h"
+#include "common.h"
+#include "./arch35/template_head.h"
+#include "./arch35/allto_all_matmul_tiling_key.h"
+#include "./arch35/allto_all_matmul_tiling_data.h"
+#include "./arch35/allto_all_matmul_arch35.h"
 
 using namespace AscendC;
+using namespace MC2KernelTemplate;
 using namespace AlltoAllMatmulImpl;
 
-template <uint32_t QUANT_MODE, bool X2_TRANSPOSE, uint32_t BIAS_DTYPE>
+#ifndef ALLTO_ALL_MATMUL_APT_FP_IMPL
+#define ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe)   \
+    do {    \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1, AlltoAllMatmulTilingData, CommunicationType); \
+        CommunicationType commImplName(&tilingData);    \
+        DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);   \
+        TransposeType transposeImplName(&pipe); \
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(Mc2MatMulV3TilingData, ComputationType); \
+        ComputationType matmulImplName(&pipe); \
+        using SchedulerContextType = PipelineContext<FpQuantExtraData, Mc2MatMulV3TilingData>;  \
+        using SchedulerType = MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType, ComputationType, SchedulerContextType>;   \
+        SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &matmulImplName);    \
+        AlltoAllMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulTilingData> op(&SchedulerImpl); \
+        op.Init(x1, x2, bias, y, all2all_out, workspaceGM, &tilingData, &pipe); \
+        op.Process();   \
+    } while (0)
+#endif
+
+template <uint32_t QUANTMODE, bool X2TRANSPOSE, uint32_t DTYPEBIAS>
 __global__ __aicore__ void allto_all_matmul(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1_scale, GM_ADDR x2_scale, GM_ADDR comm_scale, GM_ADDR x1_offset,
                                             GM_ADDR x2_offset, GM_ADDR y, GM_ADDR all2all_out, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(AlltoAllMatmulTilingData);
     GET_TILING_DATA_WITH_STRUCT(AlltoAllMatmulTilingData, tilingData, tilingGM);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    TPipe pipe;
+
+    if constexpr (DTYPEBIAS == DTYPE_BIAS_SAME_WITH_X) {
+        using DtypeBias = DTYPE_X1;
+        ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe);
+    } else if constexpr (DTYPEBIAS == DTYPE_BIAS_FP32) {
+        using DtypeBias = float;
+        ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe);
+    }
 }

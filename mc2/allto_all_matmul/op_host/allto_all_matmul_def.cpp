@@ -64,7 +64,7 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         this->Output("all2all_out")
-            .ParamType(OPTIONAL)
+            .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         this->Attr("group").AttrType(REQUIRED).String();

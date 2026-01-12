@@ -110,7 +110,7 @@
                     "index": 1,
                     "dtype": "float16",
                     "format": "ND",
-                    "paramType": "optional",
+                    "paramType": "required",
                     "shape": [
                         -2
                     ],
@@ -297,7 +297,7 @@
                     "index": 1,
                     "dtype": "float16",
                     "format": "ND",
-                    "paramType": "optional",
+                    "paramType": "required",
                     "shape": [
                         -2
                     ],
@@ -484,7 +484,7 @@
                     "index": 1,
                     "dtype": "bfloat16",
                     "format": "ND",
-                    "paramType": "optional",
+                    "paramType": "required",
                     "shape": [
                         -2
                     ],
@@ -671,7 +671,7 @@
                     "index": 1,
                     "dtype": "bfloat16",
                     "format": "ND",
-                    "paramType": "optional",
+                    "paramType": "required",
                     "shape": [
                         -2
                     ],

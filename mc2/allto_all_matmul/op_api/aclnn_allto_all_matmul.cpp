@@ -306,6 +306,16 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
 }
 } // namespace
 
+static bool IsAll2AllOut(const aclTensor *alltoAllOut)
+{
+  OP_CHECK_NULL(alltoAllOut, return false);
+  if (alltoAllOut->IsEmpty()) {
+    OP_LOGD("AlltoAllMatmul, get alltoAll out is empty.");
+    return false;
+  }
+  return true;
+}
+
 // L0层两段式接口Inner，根据算子原型op_graph/allto_all_matmul_proto.h，由模板自动生成。非量化L2层接口和量化L2层接口共用一套L0层接口。
 // worldSize为硬件方参数，在aclnn侧不感知。yDtype在aclnn侧不感知。这两个参数需要在Inner接口处声明，在aclnn侧通过默认值传参。
 extern "C" aclnnStatus aclnnInnerAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, const aclTensor *x2, const aclTensor *biasOptional,
@@ -347,7 +357,11 @@ extern "C" aclnnStatus InnerAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
     int64_t x1QuantDtype = 2;
     int64_t commQuantDtype = GE_UNDEFINED;
     int64_t groupSize = 0;
-    bool all2AllOutFlag = alltoAllOutOptional == nullptr ? false : true;
+    bool all2AllOutFlag = IsAll2AllOut(alltoAllOutOptional);
+    //使用空tensor兼容
+    if (!all2AllOutFlag) {
+        alltoAllOutOptional = x1;
+    }
     aclnnStatus ret = aclnnInnerAlltoAllMatmulGetWorkspaceSize(
         x1, x2, biasOptional, x1ScaleOptional, x2ScaleOptional, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
         str_group, worldSize, alltoAllAxesOptional, yDtype, x1QuantMode, x2QuantMode, commQuantMode, x1QuantDtype, commQuantDtype,

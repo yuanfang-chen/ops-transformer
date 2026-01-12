@@ -107,7 +107,10 @@ ge::graphStatus KcQuantMatmulAllToAllTilingBase::SetHcclTiling()
     Mc2CcTilingConfigBuilder allToAllBuilder =
         Mc2CcTilingConfigBuilder::create(contextInfo.group, mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL,
                                          Mc2CcTilingConfigBuilder::AlgConfigType::ALL_TO_ALL);
-    AscendC::Mc2CcTilingConfig allToAllTilingConfig = allToAllBuilder.withCommEngine(mc2tiling::A5_CCU_ENGINE).build();
+    //reducetype接口附带的数据类型优先于调用通信接口传入的数据类型，因此这里需要设置
+    AscendC::Mc2CcTilingConfig allToAllTilingConfig = allToAllBuilder.
+        withReduceType(opName_, AscendC::HcclReduceOp::HCCL_REDUCE_SUM, contextInfo.args_.geCType, contextInfo.args_.geCType).
+        withCommEngine(mc2tiling::A5_CCU_ENGINE).build();
     if (!allToAllBuilder.isSuccess()) {
         OP_LOGE(opName_, "Build hccl tiling config failed: %s", allToAllBuilder.errorMsg().c_str());
         return ge::GRAPH_FAILED;
@@ -387,20 +390,20 @@ ge::graphStatus KcQuantMatmulAllToAllTilingBase::PostTiling()
 void KcQuantMatmulAllToAllTilingBase::SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const
 {
     // 基本字段拷贝
+    tilingInfo.rankM = contextInfo.args_.mValue;
+    tilingInfo.rankN = contextInfo.args_.nValue;
+    tilingInfo.rankK = contextInfo.args_.kValue;
     tilingInfo.tileM = inferredInfo.tileM;
     tilingInfo.tileCnt = inferredInfo.tileCnt;
     tilingInfo.tailM = inferredInfo.tailM;
     tilingInfo.tailCnt = inferredInfo.tailCnt;
-    tilingInfo.rankM = contextInfo.args_.mValue;
-    tilingInfo.rankN = contextInfo.args_.nValue;
-    tilingInfo.rankK = contextInfo.args_.kValue;
     tilingInfo.mmResultLen = inferredInfo.mmResultLen;
     tilingInfo.permuteLen = inferredInfo.permuteLen;
     tilingInfo.biasLen = inferredInfo.biasLen;
     tilingInfo.aicCoreNum = contextInfo.args_.aicCoreNum;
     tilingInfo.rankDim = contextInfo.args_.rankDim;
     tilingInfo.hcclDataType =
-        (static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geAType))); // hccl数据类型
+        (static_cast<uint64_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geCType))); // hccl数据类型
 }
 
 /**

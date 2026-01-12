@@ -141,7 +141,7 @@ ge::graphStatus MatmulAlltoAllTilingUtil::CheckNonQuantTensorDataType(const gert
     auto biasTensorDesc = context->GetOptionalInputDesc(INPUT_BIAS_INDEX);
     if (biasTensorDesc != nullptr) {
         ge::DataType biasDtype = biasTensorDesc->GetDataType();
-        OP_TILING_CHECK((x1Dtype != biasDtype || biasDtype == ge::DT_FLOAT),
+        OP_TILING_CHECK((x1Dtype != biasDtype && biasDtype != ge::DT_FLOAT),
                         OP_LOGE(opName,
                                 "Bias Dtype should be same as x Dtype or support FLOAT32 DType, but bias is %s.",
                                 Ops::Base::ToString(biasDtype).c_str()),

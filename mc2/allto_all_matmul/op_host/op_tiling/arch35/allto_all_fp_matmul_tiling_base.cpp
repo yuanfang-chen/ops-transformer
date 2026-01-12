@@ -165,7 +165,10 @@ ge::graphStatus AllToAllFpMatmulTilingBase::SetHcclTiling()
     Mc2CcTilingConfigBuilder allToAllBuilder =
         Mc2CcTilingConfigBuilder::create(contextInfo.group, mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL,
                                          Mc2CcTilingConfigBuilder::AlgConfigType::ALL_TO_ALL);
-    AscendC::Mc2CcTilingConfig allToAllTilingConfig = allToAllBuilder.withCommEngine(mc2tiling::A5_CCU_ENGINE).build();
+    
+    //reducetype接口附带的数据类型优先于调用通信接口传入的数据类型，因此这里需要设置
+    AscendC::Mc2CcTilingConfig allToAllTilingConfig = allToAllBuilder.withCommEngine(mc2tiling::A5_CCU_ENGINE).
+        withReduceType(opName_, AscendC::HcclReduceOp::HCCL_REDUCE_SUM, contextInfo.args_.geAType, contextInfo.args_.geAType).build();
     if (!allToAllBuilder.isSuccess()) {
         return ge::GRAPH_FAILED;
     }
@@ -238,15 +241,15 @@ void AllToAllFpMatmulTilingBase::SetTilingInfo(AlltoAllMatmulTilingInfo &tilingI
     tilingInfo.tileCnt = inferredInfo.tileCnt;
     tilingInfo.tailM = inferredInfo.tailM;
     tilingInfo.tailCnt = inferredInfo.tailCnt;
-    tilingInfo.rankM = contextInfo.args_.mValue;
+    tilingInfo.rankM = contextInfo.args_.orgMValue;
     tilingInfo.rankN = contextInfo.args_.nValue;
-    tilingInfo.rankK = contextInfo.args_.kValue;
+    tilingInfo.rankK = contextInfo.args_.orgKValue;
     tilingInfo.commLen = inferredInfo.commLen;
     tilingInfo.permuteLen = inferredInfo.permuteLen;
     tilingInfo.biasLen = inferredInfo.biasLen;
     tilingInfo.rankDim = contextInfo.args_.rankDim;
     tilingInfo.hcclDataType =
-        (static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geAType))); // hccl数据类型
+        (static_cast<uint64_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geAType))); // hccl数据类型
 }
 
 /**
