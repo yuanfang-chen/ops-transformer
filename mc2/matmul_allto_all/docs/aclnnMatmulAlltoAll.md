@@ -256,10 +256,14 @@ aclnnStatus aclnnMatmulAlltoAll(
 ## 约束说明
 
 * 默认支持确定性计算
-* 右矩阵和输出矩阵的H2必须整除rankSize
-* 仅支持BS为0的空tensor
+* 右矩阵和输出矩阵的H2必须整除NPU卡数
+* 不支持空tensor
+* x1、x2计算输入的数据类型要和output计算输出的数据类型一致，传入的x1、x2或者output不为空指针。
+  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：output计算输出的数据类型为FLOAT16时，biasOptional计算输入的数据类型支持FLOAT16；output计算输出的数据类型为BFLOAT16时，biasOptional计算输入的数据类型支持FLOAT32。
 * H1范围仅支持[1, 65535]
-* ranSize仅支持2,4,8,16
+* NPU卡数仅支持2、4、8、16
+  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持2、4、8卡
+  - <term>昇腾910_95 AI处理器</term>：支持2、4、8、16卡
 * x1、x2、output的数据类型必须一致
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
