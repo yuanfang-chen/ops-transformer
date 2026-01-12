@@ -143,6 +143,9 @@ attention:
       - attention/nsa_compress_attention_infer
     options:
       - nsa_compress_attention_infer
+    test:
+        examples: True
+        ut: False
 
   nsa_compress_grad:
     module: True
