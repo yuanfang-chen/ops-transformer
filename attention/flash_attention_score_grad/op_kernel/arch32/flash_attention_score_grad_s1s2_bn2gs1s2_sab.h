@@ -3538,7 +3538,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
     }
     AscendC::PipeBarrier<PIPE_V>();
 
-    if (has_sink) { 
+    if (unlikely(has_sink)) {
         AscendC::PipeBarrier<PIPE_ALL>();
         DataCopy(dyvBuffer, vecClc1Buffer, s1ExtendSubGraph * s2ExtendAlign);
         AscendC::PipeBarrier<PIPE_ALL>();
@@ -3572,7 +3572,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
         Cast(vecCopyOutBuffer, vecClc1Buffer, RoundMode::CAST_ROUND, s1ExtendSubGraph * s2ExtendAlign);
     }
 
-    if (has_sink) {
+    if (unlikely(has_sink)) {
         // SubGrapSink
         AscendC::PipeBarrier<PIPE_V>();
         for (int32_t tmpS1Idx = 0; tmpS1Idx < s1ExtendSubGraph; tmpS1Idx++) {
@@ -3803,7 +3803,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
     }
 
     // workspace is n1 * b * s1Outer * s2Outer * subcore
-    if (TilingData->s1s2BNGS1S2BaseParams.sink == 1) {        
+    if (unlikely(TilingData->s1s2BNGS1S2BaseParams.sink == 1)) {
         int32_t s1Pad = (TilingData->postTilingData.s1 + 255) / 256 * 256;
         int32_t s2Pad = (TilingData->postTilingData.s2 + 255) / 256 * 256;
         int32_t dataSizePerS1S2 = s1Pad * s2Pad / TilingData->postTilingData.baseMN;
