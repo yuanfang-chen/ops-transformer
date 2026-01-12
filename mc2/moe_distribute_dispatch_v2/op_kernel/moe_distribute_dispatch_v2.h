@@ -20,6 +20,7 @@
 #include "moe_distribute_dispatch_v2_tiling.h"
 #include "moe_distribute_v2_constant.h"
 #include "moe_distribute_dispatch_v2_quant.h"
+#include "moe_distribute_elastic.h"
 
 #include "moe_distribute_v2_base.h"
 #if __has_include("../moe_distribute_dispatch/check_winsize.h")
@@ -66,7 +67,6 @@ private:
     __aicore__ inline void ZeroComputeExpertMaskCal();
     __aicore__ inline void SetStatus();
     __aicore__ inline void BufferInit();
-    __aicore__ inline void InitElasticInfo(bool isWaitDispatch = false);
     __aicore__ inline void WaitDispatch();
     __aicore__ inline void GetCumSum(LocalTensor<int32_t> &outLocal, uint32_t totalCount);
     __aicore__ inline void AllGatherSetStatusAndWait();
@@ -158,7 +158,6 @@ private:
     TBuf<> maskBuf_;
     TBuf<> validExpertIndexBuf_;
     TBuf<> validBsIndexTBuf_;
-    TBuf<> elasticInfoBuf_;
     TBuf<> gatherMaskTBuf_;
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> xQueue_;  // 非量化使用，量化场景接收也可使用
     TQue<QuePosition::VECIN, 1> xInQueue_;                         // 量化使用，量化前的输入
@@ -188,7 +187,7 @@ private:
     uint32_t epWorldSize_{0};
     uint32_t epWorldSizeOriginal_{0};
     uint32_t tpWorldSize_{0};
-    int32_t epRankId_{0};
+    uint32_t epRankId_{0};
     int32_t epRankIdOriginal_{0};
     uint32_t tpGatherRankId_{0};  // gather 对端ID
     uint32_t tpRankId_{0};        // 本卡 ID
@@ -253,30 +252,8 @@ private:
     DataCopyParams hCommuCopyOutParams_;
 
     MoeDistributeDispatchV2Quant<TemplateMC2TypeFunc> quantInst_;
+    MoeDistributeElastic elasticInst_;
 };
-
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::InitElasticInfo(bool isWaitDispatch)
-{
-    uint32_t elasticInfoSize = (ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSizeOriginal_)*sizeof(int32_t);
-    uint32_t elasticInfoSizeAlign = Ceil(elasticInfoSize, UB_ALIGN) * UB_ALIGN;
-    tpipe_->InitBuffer(elasticInfoBuf_, elasticInfoSizeAlign);
-    if (!isWaitDispatch) {
-        totalUsedUB_ += elasticInfoSizeAlign;
-    }
-    elasticInfoTensor_ = elasticInfoBuf_.Get<int32_t>();
-    DataCopyExtParams elasticInfoParams = {1U, static_cast<uint32_t>((ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSizeOriginal_) * sizeof(int32_t)), 0U, 0U, 0U};
-    DataCopyPadExtParams<int32_t> elasticInfoCopyPadParams{false, 0U, 0U, 0U};
-    DataCopyPad(elasticInfoTensor_, elasticInfoGMTensor_, elasticInfoParams, elasticInfoCopyPadParams);
-    SyncFunc<AscendC::HardEvent::MTE2_S>();
-    isScalingDownFlag_ = elasticInfoTensor_.GetValue(0);
-    if (!isWaitDispatch && isScalingDownFlag_) {
-        epWorldSize_ = elasticInfoTensor_.GetValue(EP_WORLD_SIZE_IDX);
-        sharedExpertRankNum_ = elasticInfoTensor_.GetValue(SHARE_RANK_NUM_IDX);
-        moeExpertNum_ = elasticInfoTensor_.GetValue(MOE_NUM_IDX);
-        epRankId_ = elasticInfoTensor_.GetValue(ELASTIC_INFO_OFFSET + epRankId_);
-    } 
-}
 
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::Init(
@@ -315,8 +292,12 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::Init(
     tpipe_->InitBuffer(dataStateBuf, UB_ALIGN);
     dataState_ = InitWinState(selfDataStatusGMTensor_, winContext_[COMM_EP_IDX], epRankIdOriginal_, moeExpertNum_, epWorldSizeOriginal_, globalBS_, dataStateBuf);
     elasticInfoGMTensor_.SetGlobalBuffer((__gm__ int32_t*)(elasticInfo));
+    elasticInst_.SetElasticInitParams(tpipe_, elasticInfoGMTensor_);
     if (hasElasticInfoFlag_) {
-        InitElasticInfo(false);
+        totalUsedUB_ += elasticInst_.GetElasticInfoSizeAlign(epWorldSizeOriginal_);
+        elasticInst_.InitElasticInfoTensor(epWorldSizeOriginal_, elasticInfoTensor_);
+        isScalingDownFlag_ = elasticInfoTensor_.GetValue(0);
+        elasticInst_.InitElasticInfo(isScalingDownFlag_, epWorldSize_, sharedExpertRankNum_, moeExpertNum_, epRankId_, moeExpertNumPerRank_);
     }
 
     if (epRankId_ < sharedExpertRankNum_) {
@@ -1061,7 +1042,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::WaitDispatc
     float sumOfFlag = static_cast<float>(-1.0);
     DataCopyParams intriParams{static_cast<uint16_t>(recStatusNumPerCore_), 1, 0, 0};
     if (isScalingDownFlag_) {
-        InitElasticInfo(true);
+        elasticInst_.InitElasticInfoTensor(epWorldSizeOriginal_, elasticInfoTensor_);
     }
     uint64_t timeoutCheckStart = static_cast<uint64_t>(GetSystemCycle());
     uint64_t timeoutCheckEnd, timeoutCheckDuration;
