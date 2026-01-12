@@ -129,7 +129,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-static void SetHcommCfg([[maybe_unused]] gert::TilingContext *context, MoeDistributeBufferResetTilingData *tiling,
+static ge::graphStatus SetHcommCfg([[maybe_unused]] gert::TilingContext *context, MoeDistributeBufferResetTilingData *tiling,
                         const std::string group)
 {
     OP_LOGD(A_INNER_DEBUG_BUFFER_RESET, "MoeDistributeBufferReset group = %s", group.c_str());
@@ -138,8 +138,11 @@ static void SetHcommCfg([[maybe_unused]] gert::TilingContext *context, MoeDistri
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType1, algConfigAllToAllStr);
     mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE); // 通过不拉起AICPU，提高算子退出性能
-    mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling);
-    mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling) != 0,
+        OP_LOGE(context->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling) != 0,
+        OP_LOGE(context->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext *context)
@@ -158,7 +161,8 @@ ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext *context)
                     OP_LOGE(A_INNER_DEBUG_BUFFER_RESET, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
 
     // Set HcommCfg
-    SetHcommCfg(context, tilingData, group);
+    OP_TILING_CHECK(SetHcommCfg(context, tilingData, group) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
 
     // Set TilingKey
     uint64_t tilingKey = INIT_TILINGKEY;

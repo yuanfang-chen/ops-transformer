@@ -71,7 +71,7 @@ protected:
 
     void PrintAllTilingData();
     ge::graphStatus DoVersion2Tiling();
-    void SetMc2Hcomm(Mc2Tiling::RCSTiling &rcsCfg);
+    ge::graphStatus SetMc2Hcomm(Mc2Tiling::RCSTiling &rcsCfg);
     ge::graphStatus SetRawTilingData();
     ge::graphStatus CheckInput() override;
 

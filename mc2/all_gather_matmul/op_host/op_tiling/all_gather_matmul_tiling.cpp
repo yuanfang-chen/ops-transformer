@@ -526,7 +526,7 @@ static void SetSocParam(AllGatherMatmulTilingData* tilingData, const char* group
   tilingData->socParam.isND2NZ = 1U; 
 }
 
-static void InitHcclParam(AllGatherMatmulTilingData* tilingData, const char* group)
+static ge::graphStatus InitHcclParam(gert::TilingContext *context, AllGatherMatmulTilingData* tilingData, const char* group)
 {
   std::string algConfig = (tilingData->socParam.isA3 == 0) ?
     "AllGather=level0:fullmesh" : "AllGather=level0:doublering";
@@ -535,8 +535,11 @@ static void InitHcclParam(AllGatherMatmulTilingData* tilingData, const char* gro
                                  static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT) :
                                  static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT);
   mc2CcTilingConfig.SetSkipBufferWindowCopy(skipBufferWindowCopy);
-  mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
-  mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
+  OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling) != 0,
+    OP_LOGE(context->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+  OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,
+    OP_LOGE(context->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
+  return ge::GRAPH_SUCCESS;
 }
 
 static ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext *context) {
@@ -594,7 +597,8 @@ static ge::graphStatus AllGatherMatmulTilingFunc(gert::TilingContext *context) {
   }
 
   SetMatmulTilingAllGatherMatmul(context, *tilingData, args);
-  InitHcclParam(tilingData, group);
+  OP_TILING_CHECK(InitHcclParam(context, tilingData, group) != ge::GRAPH_SUCCESS,
+    OP_LOGE(context->GetNodeName(), "Tiling InitHcclParam failed."), return ge::GRAPH_FAILED);
   return ge::GRAPH_SUCCESS;
 }
 

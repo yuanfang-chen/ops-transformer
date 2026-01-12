@@ -79,7 +79,7 @@ protected:
     Mc2Tiling::RCSTiling &MutableRCSTilingDataA5() const;
 
     ge::graphStatus DoAdaptSlidWindowTiling();
-    void SetMc2Hcomm();
+    ge::graphStatus SetMc2Hcomm();
     ge::graphStatus CheckInput() override;
     bool CommonParamCheck() const;
     bool PerblockSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape) const;

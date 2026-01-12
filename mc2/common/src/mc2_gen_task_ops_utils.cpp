@@ -129,12 +129,13 @@ ge::Status Mc2GenTaskOpsUtils::InsertHiddenInputsForAicoreTask(
         argDescInfos.insert(argDescInfos.begin() + insert_idx,
                             ge::ArgDescInfo::CreateHiddenInput(ge::HiddenInputSubType::kHcom));
     }
-    auto args_format_str = ge::ArgsFormatSerializer::Serialize(argDescInfos).GetString();
-    if (aicore_task.SetArgsFormat(args_format_str) != ge::GRAPH_SUCCESS) {
+
+    auto argDescInfosSerialize = ge::ArgsFormatSerializer::Serialize(argDescInfos);
+    if (aicore_task.SetArgsFormat(argDescInfosSerialize.GetString()) != ge::GRAPH_SUCCESS) {
         OPS_LOG_E(context->GetNodeName(), "Failed to set args format for aicore task.");
         return ge::GRAPH_FAILED;
     }
-    OPS_LOG_I(context->GetNodeName(), "aicore ArgsFormat: %s", args_format_str);
+    OPS_LOG_I(context->GetNodeName(), "aicore ArgsFormat: %s", argDescInfosSerialize.GetString());
 
     return ge::GRAPH_SUCCESS;
 }

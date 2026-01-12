@@ -564,13 +564,13 @@ static bool CheckInputAndOutput(gert::TilingContext* context, GroupedMatMulAllto
     return true;
 }
 
-static void SetHcclTiling(const gert::TilingContext* context, GroupedMatMulAlltoAllvTilingData* tilingData)
+static ge::graphStatus SetHcclTiling(const gert::TilingContext* context, GroupedMatMulAlltoAllvTilingData* tilingData)
 {
     uint32_t alltoAllvCmd = 8U;
     std::string alltoAllvConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
 
     auto attrs = context->GetAttrs();
-    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(C_INNER_DEBUG, "GetAttrs returned nullptr!"), return );
+    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(C_INNER_DEBUG, "GetAttrs returned nullptr!"), return ge::GRAPH_FAILED);
     auto groupEpPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
 
     const uint32_t alltoAllvReduceType = 0u;
@@ -579,20 +579,22 @@ static void SetHcclTiling(const gert::TilingContext* context, GroupedMatMulAllto
     OP_TILING_CHECK(
         mc2tiling::HCCL_DATA_TYPE.find(outputDataType) == mc2tiling::HCCL_DATA_TYPE.end(),
         OP_LOGE(C_INNER_DEBUG, "%s is Unsupported outputdata type!", Ops::Base::ToString(outputDataType).c_str()),
-        return );
+        return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         mc2tiling::HCCL_DATA_TYPE.find(inputDataType) == mc2tiling::HCCL_DATA_TYPE.end(),
         OP_LOGE(C_INNER_DEBUG, "%s is Unsupported inputdata type!", Ops::Base::ToString(inputDataType).c_str()),
-        return );   
+        return ge::GRAPH_FAILED);   
 
     auto alltoAllvDstDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(outputDataType)->second);
     auto alltoAllvSrcDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(inputDataType)->second);
 
     Mc2CcTilingConfig hcclCcTilingConfig(groupEpPtr, alltoAllvCmd, alltoAllvConfig, 
                                          alltoAllvReduceType, alltoAllvDstDataType, alltoAllvSrcDataType);
-    hcclCcTilingConfig.GetTiling(tilingData->hcclInitTiling);
-    hcclCcTilingConfig.GetTiling(tilingData->alltoAllvCcTiling);
-    return;
+    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(tilingData->hcclInitTiling) != 0,
+        OP_LOGE(C_INNER_DEBUG, "mc2CcTilingConfig mc2tiling GetTiling hcclInitTiling failed"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(tilingData->alltoAllvCcTiling) != 0,
+        OP_LOGE(C_INNER_DEBUG, "mc2CcTilingConfig mc2tiling GetTiling alltoAllvCcTiling failed"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 static ge::graphStatus ComputeBaseMNK(GroupedMatMulAlltoAllvTilingData* tilingData, const PlatFormMemSize PLATFORM_SIZE)
@@ -817,7 +819,8 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
     tilingData->commonTilingInfo.aicCoreNum = aicNum;
 
     // Set HCCL tiling
-    SetHcclTiling(context, tilingData);
+    OP_TILING_CHECK(SetHcclTiling(context, tilingData) != ge::GRAPH_SUCCESS,
+        OP_LOGE(C_INNER_DEBUG, "SetHcclTiling Failed!"), return ge::GRAPH_FAILED);
 
     // Set matmul tiling
     OP_TILING_CHECK(

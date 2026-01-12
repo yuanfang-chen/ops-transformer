@@ -45,7 +45,7 @@ static void PrintTilingDataInfo(gert::TilingContext *context, QuantReduceScatter
  * @param runInfo: 封装的doTiling所需要的参数
  * @return
  */
-static void SetHcommCfg(const gert::TilingContext *context, QuantReduceScatterTilingData *tilingData,
+static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, QuantReduceScatterTilingData *tilingData,
                         const TilingRunInfo &runInfo)
 {
     const char *nodeName = context->GetNodeName();
@@ -54,8 +54,11 @@ static void SetHcommCfg(const gert::TilingContext *context, QuantReduceScatterTi
                                                  "AlltoAll=level0:fullmesh;level1:pairwise");
     // MTE方式必要适配
     mc2CcTilingConfig.SetCommEngine(AIV_TYPE);
-    mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
-    mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling) != 0,
+        OP_LOGE(nodeName, "mc2CcTilingConfig mc2InitTiling GetTiling failed"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,
+        OP_LOGE(nodeName, "mc2CcTilingConfig mc2CcTiling GetTiling failed"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 /**
@@ -127,7 +130,8 @@ static ge::graphStatus QuantReduceScatterTilingFunc(gert::TilingContext *context
                         ge::GRAPH_SUCCESS,
                     OP_LOGE(nodeName, "tiling check failed in quant_reduce_scatter."), return ge::GRAPH_FAILED);
 
-    SetHcommCfg(context, tilingData, runInfo);
+    OP_TILING_CHECK(SetHcommCfg(context, tilingData, runInfo) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
     SetTilingData(context, *tilingData);
     SetTilingKey(context);
     PrintTilingDataInfo(context, *tilingData);

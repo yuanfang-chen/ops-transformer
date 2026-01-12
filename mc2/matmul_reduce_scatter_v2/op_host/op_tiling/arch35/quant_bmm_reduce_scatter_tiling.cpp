@@ -359,7 +359,7 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckInput()
     return ge::GRAPH_SUCCESS;
 }
 
-void QuantBmmReduceScatterTiling::SetMc2Hcomm()
+ge::graphStatus QuantBmmReduceScatterTiling::SetMc2Hcomm()
 {
     quantBmmMatmulReducescatterTilingData_->hcommCfg.opType = (
         static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER));
@@ -380,8 +380,11 @@ void QuantBmmReduceScatterTiling::SetMc2Hcomm()
                                                  quantBmmMatmulReducescatterTilingData_->hcommCfg.reduceType, 
                                                  quantBmmMatmulReducescatterTilingData_->hcommCfg.dstDataType, 
                                                  quantBmmMatmulReducescatterTilingData_->hcommCfg.srcDataType);
-    mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2InitTiling);
-    mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2CcTiling);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2InitTiling) != 0,
+        OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2CcTiling) != 0,
+        OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 void QuantBmmReduceScatterTiling::SetScene()
@@ -422,7 +425,8 @@ bool QuantBmmReduceScatterTiling::CheckPerblockM()
 ge::graphStatus QuantBmmReduceScatterTiling::DoOpTiling()
 {
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
-    SetMc2Hcomm();
+    OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
+        OP_LOGE(opName_, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
     SetRcsTilingData(MutableRCSTilingDataA5());
 
     if ((quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) ||

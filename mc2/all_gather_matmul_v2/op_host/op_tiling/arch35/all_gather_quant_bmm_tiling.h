@@ -61,7 +61,7 @@ protected:
     Mc2Tiling::RCSTiling &MutableRCSTilingDataA5();
 
     ge::graphStatus DoAdaptSlidWindowTiling();
-    void SetMc2Hcomm();
+    ge::graphStatus SetMc2Hcomm();
     void SetTilingKeyParams();
     ge::graphStatus CheckGroupSize();
     ge::graphStatus CheckPerBlockScaleInput();

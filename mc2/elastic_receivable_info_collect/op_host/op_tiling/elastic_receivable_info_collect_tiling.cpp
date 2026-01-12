@@ -147,7 +147,7 @@ static ge::graphStatus SetWorkSpace(const char *nodeName, gert::TilingContext *c
     return ge::GRAPH_SUCCESS;
 }
 
-static void SetHcommCfg(const char *nodeName, [[maybe_unused]] gert::TilingContext *context,
+static ge::graphStatus SetHcommCfg(const char *nodeName, [[maybe_unused]] gert::TilingContext *context,
                         ElasticReceivableInfoCollectTilingData *tiling, const std::string group)
 {
     OP_LOGD(nodeName, "ElasticReceivableInfoCollect group = %s", group.c_str());
@@ -156,8 +156,11 @@ static void SetHcommCfg(const char *nodeName, [[maybe_unused]] gert::TilingConte
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType1, algConfigAllToAllStr);
     mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE); // 通过不拉起AICPU，提高算子退出性能
-    mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling);
-    mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling1);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling) != 0,
+        OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling1) != 0,
+        OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling1 failed"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus ElasticReceivableInfoCollectTilingFunc(gert::TilingContext *context)
@@ -180,7 +183,8 @@ ge::graphStatus ElasticReceivableInfoCollectTilingFunc(gert::TilingContext *cont
                     OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
 
     // Set HcommCfg
-    SetHcommCfg(nodeName, context, tilingData, group);
+    OP_TILING_CHECK(SetHcommCfg(nodeName, context, tilingData, group) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
 
     // Set TilingKey
     uint64_t tilingKey = INIT_TILINGKEY;

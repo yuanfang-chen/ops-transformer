@@ -530,14 +530,18 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
         uint32_t opType = 6;
         std::string algConfig = "AllGather=level0:fullmesh";
         AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
-        mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
-        mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling) != 0,
+            OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,
+            OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     } else {
         uint32_t opType = 18;
         std::string algConfig = "MultiPut=level0:fullmesh";
         AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
-        mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
-        mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling) != 0,
+            OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,
+            OP_LOGE(nodeName, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     }
 
     PrintfTilingData(context, info, coctiling);

@@ -62,7 +62,9 @@ ge::graphStatus AllGatherMatmulTilingV2::DoOpTiling()
 {
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     GE_ASSERT_GRAPH_SUCCESS(SetRawTilingData());
-    SetMc2Hcomm(MutableRCSTilingData());
+    OP_TILING_CHECK(SetMc2Hcomm(MutableRCSTilingData()) != ge::GRAPH_SUCCESS,
+                    VECTOR_INNER_ERR_REPORT_TILING(opName_, "Fail to set Mc2Hcomm."),
+                    return ge::GRAPH_FAILED);
     SetRcsTilingData(MutableRCSTilingData());
     DoSplitMTiling(MutableRCSTilingData());
     GE_ASSERT_GRAPH_SUCCESS(DoVersion2Tiling());
@@ -183,7 +185,7 @@ ge::graphStatus AllGatherMatmulTilingV2::DoVersion2Tiling()
     return ge::GRAPH_SUCCESS;
 }
 
-void AllGatherMatmulTilingV2::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCfg)
+ge::graphStatus AllGatherMatmulTilingV2::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCfg)
 {
     allGatherMatmulTilingDataV2_->hcommCfg.opType = (
         static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER));
@@ -205,8 +207,11 @@ void AllGatherMatmulTilingV2::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCfg)
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT) :
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT);
     mc2CcTilingConfig.SetSkipBufferWindowCopy(skipBufferWindowCopy);
-    mc2CcTilingConfig.GetTiling(allGatherMatmulTilingDataV2_->mc2InitTiling);
-    mc2CcTilingConfig.GetTiling(allGatherMatmulTilingDataV2_->mc2CcTiling);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(allGatherMatmulTilingDataV2_->mc2InitTiling) != 0,
+        OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(allGatherMatmulTilingDataV2_->mc2CcTiling) != 0,
+        OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 
