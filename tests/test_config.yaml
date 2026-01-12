@@ -997,7 +997,6 @@ mc2:
         - mc2/inplace_matmul_all_reduce_add_rms_norm
       test:
         examples: False
-        ut: False
       options:
         - inplace_matmul_all_reduce_add_rms_norm
         - matmul_all_reduce_add_rms_norm
@@ -1014,7 +1013,6 @@ mc2:
       ut_cov_exclude:
         - mc2/matmul_all_reduce
       test:
-        ut: False
       options:
         - matmul_all_reduce
 
@@ -1031,7 +1029,6 @@ mc2:
       ut_cov_exclude:
         - mc2/matmul_all_reduce_add_rms_norm
       test:
-        ut: False
       options:
         - matmul_all_reduce_add_rms_norm
 

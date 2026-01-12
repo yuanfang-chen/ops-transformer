@@ -30,7 +30,7 @@
    )
  if(UT_TEST_ALL OR OP_HOST_UT)
    list(FILTER OPTILING_SRCS EXCLUDE REGEX "src/mc2_hcom_topo_info\\.cpp")
-   file(GLOB MC2_TILING_UT_STUB ${UT_COMMON_INC}/mc2_hcom_topology_mocker.cpp)
+   file(GLOB MC2_TILING_UT_STUB ${UT_COMMON_INC}/mc2_hcom_topology_mocker.cpp ${UT_COMMON_INC}/op_cache_tiling.cpp)
    add_library(mc2_tiling_ut_stub SHARED ${MC2_TILING_UT_STUB})
    target_include_directories(mc2_tiling_ut_stub PRIVATE
      ${OPS_TRANSFORMER_DIR}/mc2/common/inc
