@@ -120,6 +120,7 @@ WeightQuantMMAllReduceTilingKeyParams WeightQuantAsTilingTransferHelper::GetWeig
 {
     WeightQuantMMAllReduceTilingKeyParams tplParam;
     tplParam.transB = matmulInfoPtr_->transB;
+    tplParam.templateCustom = static_cast<uint8_t>(mte2Config_);
     tplParam.antiQuantType = static_cast<uint8_t>(matmulInfoPtr_->antiQuantType);
     tplParam.quantType = static_cast<uint8_t>(matmulInfoPtr_->quantType);
     tplParam.hasAntiQuantOffset = matmulInfoPtr_->hasAntiQuantOffset;
@@ -214,6 +215,7 @@ uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
         WeightQuantTPLPatams_.biasIsExist,          \
         SET_NOT_USE_FP_MM_TILING,                   \
         SET_NOT_USE_QUANT_MM_TILING,                \
+        WeightQuantTPLPatams_.templateCustom,       \
         WeightQuantTPLPatams_.antiQuantType,        \
         WeightQuantTPLPatams_.quantType,            \
         WeightQuantTPLPatams_.hasAntiQuantOffset,   \
@@ -221,11 +223,11 @@ uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
         WeightQuantTPLPatams_.weightFormat);
     OP_LOGD(opName_, "Mc2MatmulAllReduce: transB, biasIsExist is: [%d,%d].",                \
             WeightQuantTPLPatams_.transB, WeightQuantTPLPatams_.biasIsExist);
-    OP_LOGD(opName_, "Mc2MatmulAllReduce: antiQuantType, quantType, "                       \
-            "hasAntiQuantOffset, isBiasFp32, weightFormat is: [%u,%u,%d,%d,%u].",           \
-            WeightQuantTPLPatams_.antiQuantType, WeightQuantTPLPatams_.quantType,           \
-            WeightQuantTPLPatams_.hasAntiQuantOffset, WeightQuantTPLPatams_.isBiasFp32,     \
-            WeightQuantTPLPatams_.weightFormat);
+    OP_LOGD(opName_, "Mc2MatmulAllReduce: templateCustom, antiQuantType, quantType, "       \
+            "hasAntiQuantOffset, isBiasFp32, weightFormat is: [%u, %u,%u,%d,%d,%u].",       \
+            WeightQuantTPLPatams_.templateCustom, WeightQuantTPLPatams_.antiQuantType,      \
+            WeightQuantTPLPatams_.quantType, WeightQuantTPLPatams_.hasAntiQuantOffset,      \
+            WeightQuantTPLPatams_.isBiasFp32, WeightQuantTPLPatams_.weightFormat);
     OP_LOGD(opName_, "Mc2MatmulAllReduce: weight_quant_TilingKey=%lu.", tilingKey);
     return tilingKey;
 }
