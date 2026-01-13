@@ -94,6 +94,10 @@ while [[ $# -gt 0 ]]; do
         ENABLE_STATIC="$2"
         shift 2
         ;;
+    --enable_experimental)
+ 	    ENABLE_EXPERIMENTAL="$2"
+ 	    shift 2
+ 	    ;;
     --enable_ccache)
         ENABLE_CCACHE="$2"
         shift 2
@@ -151,6 +155,7 @@ function build() {
         -DOPS_COMPILE_OPTIONS="${CONVERT_OPS_COMPILE_OPTIONS}" \
         -DASCEND_COMPUTE_UNIT=${CONVERT_ASCEND_COMPUTE_UNIT} \
         -DASCEND_OP_NAME=${CONVERT_ASCEND_OP_NAME} \
+        -DENABLE_EXPERIMENTAL=${ENABLE_EXPERIMENTAL} \
         -DENABLE_CCACHE=${ENABLE_CCACHE} \
         -DBUILD_OPS_RTY_KERNEL=${BUILD_OPS_RTY_KERNEL} \
         -DENABLE_BUILT_IN=${ENABLE_BUILT_IN} \
