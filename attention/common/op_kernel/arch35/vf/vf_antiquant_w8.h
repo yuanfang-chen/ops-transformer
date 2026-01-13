@@ -201,23 +201,6 @@ __simd_vf__ void AntiquantVFImplW8PerTokenNz(__ubuf__ uint8_t* ubSrcAddr, __ubuf
       __ubuf__ uint8_t* ubSrcTemp = ubSrcAddr + rowStride * rowLoopIdx + colSrcStride * colLoopIdx;
       __ubuf__ Q_T* ubDstAddrTmp = ubDstAddr + rowStride * rowLoopIdx + colDstStride * colLoopIdx;
 
-      // 前半组
-      MicroAPI::LoadAlign<uint8_t, MicroAPI::LoadDist::DIST_UNPACK_B8>(
-          (MicroAPI::RegTensor<uint8_t>&)vKvData, ubSrcTemp);
-      if constexpr (std::is_same<Q_T, bfloat16_t>::value) {
-        MicroAPI::Cast<half, KV_T, castTrait>(vCastFp16Res, vKvData, kvTypeMaskAll);
-        MicroAPI::Cast<Q_T, half, castTrait1>(vRes, vCastFp16Res, kvTypeMaskAll);
-      } else {
-        MicroAPI::Cast<Q_T, KV_T, castTrait>(vRes, vKvData, kvTypeMaskAll);
-      }
-
-      if constexpr (hasOffset) {
-        MicroAPI::Add<Q_T, MicroAPI::MaskMergeMode::ZEROING>(vRes, vRes, vOffsetFirst, qTypeMaskAll);
-      }
-      MicroAPI::Mul<Q_T, MicroAPI::MaskMergeMode::ZEROING>(vRes, vRes, vScaleFirst, qTypeMaskAll);
-
-      MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp, vRes, qTypeMaskAll);
-
       // 后半组
       MicroAPI::LoadAlign<uint8_t, MicroAPI::LoadDist::DIST_UNPACK_B8>(
           (MicroAPI::RegTensor<uint8_t>&)vKvData, ubSrcTemp + dealBaseNum);
@@ -234,6 +217,23 @@ __simd_vf__ void AntiquantVFImplW8PerTokenNz(__ubuf__ uint8_t* ubSrcAddr, __ubuf
       MicroAPI::Mul<Q_T, MicroAPI::MaskMergeMode::ZEROING>(vRes, vRes, vScaleBack, qTypeMaskAll);
 
       MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp + dealBaseNum, vRes, qTypeMaskAll);
+
+      // 前半组
+      MicroAPI::LoadAlign<uint8_t, MicroAPI::LoadDist::DIST_UNPACK_B8>(
+          (MicroAPI::RegTensor<uint8_t>&)vKvData, ubSrcTemp);
+      if constexpr (std::is_same<Q_T, bfloat16_t>::value) {
+        MicroAPI::Cast<half, KV_T, castTrait>(vCastFp16Res, vKvData, kvTypeMaskAll);
+        MicroAPI::Cast<Q_T, half, castTrait1>(vRes, vCastFp16Res, kvTypeMaskAll);
+      } else {
+        MicroAPI::Cast<Q_T, KV_T, castTrait>(vRes, vKvData, kvTypeMaskAll);
+      }
+
+      if constexpr (hasOffset) {
+        MicroAPI::Add<Q_T, MicroAPI::MaskMergeMode::ZEROING>(vRes, vRes, vOffsetFirst, qTypeMaskAll);
+      }
+      MicroAPI::Mul<Q_T, MicroAPI::MaskMergeMode::ZEROING>(vRes, vRes, vScaleFirst, qTypeMaskAll);
+
+      MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp, vRes, qTypeMaskAll);
     }
   }
 }
