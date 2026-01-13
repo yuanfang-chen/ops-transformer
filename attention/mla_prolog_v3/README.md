@@ -140,7 +140,7 @@
         - 如果B、S、T取值为0，则query、query_rope输出空Tensor，kv_cache、kr_cache不做更新。
         - 如果Skv取值为0，则query、query_rope、dequant_scale_q_nope正常计算，kv_cache、kr_cache不做更新，即输出空Tensor。
 -   特殊约束
-    - per-tile量化模式下，ckvkr_repo_mode和quant_scale_repo_mode必须同时为1。
+    - per-tile量化模式下，ckvkr_repo_mode和quant_scale_repo_mode必须同时为1；其他量化模式以及非量化场景下，ckvkr_repo_mode和quant_scale_repo_mode必须同时为0。
     - per-tile量化模式下，cache_mode只支持PA_BSND, BSND和TND。
     - 当ckvkr_repo_mode值为1时，kr_cache必须为空Tensor（即shape的乘积为0）。
 -  aclnnMlaPrologV3WeightNz接口支持场景：
