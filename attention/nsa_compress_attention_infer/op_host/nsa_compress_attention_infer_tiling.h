@@ -49,6 +49,17 @@ TILING_DATA_FIELD_DEF(uint32_t, workSpaceElemNum);
 TILING_DATA_FIELD_DEF(uint32_t, mm1ResWorkSpaceSize);
 TILING_DATA_FIELD_DEF(uint32_t, mm2InWorkSpaceSize);
 TILING_DATA_FIELD_DEF(uint32_t, scoreInWorkSpaceSize);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreResultEleNum);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreResultCol);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreResultColPad);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreReduceRound);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreReduceCol);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreReduceColPad);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreReduceTailCol);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreReduceTailColPad);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreWorkSpaceSize);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreParamValidCol);
+TILING_DATA_FIELD_DEF(uint32_t, impScoreParamHasPrefix);
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(NsaCompressAttentionInferBaseParamsOp, NsaCompressAttentionInferBaseParams)
 
@@ -173,6 +184,7 @@ private:
     ge::graphStatus ParamsPostCheck();
     ge::graphStatus SoftmaxTiling();
     ge::graphStatus TopKTiling();
+    void FillImpScoreTilingData();
     ge::graphStatus FillTilingData();
     ge::graphStatus CalcWorkSpace();
     ge::graphStatus CalcTilingKey();
@@ -180,6 +192,7 @@ private:
     ge::graphStatus CheckSelKvSeqlen();
     ge::graphStatus GetMaxQSeqlen();
     ge::graphStatus CheckAttenMask();
+    ge::graphStatus CheckImpScoreParam();
 
 private:
     uint32_t batchSize_ = 0;
@@ -229,6 +242,19 @@ private:
     uint32_t mm2InWorkSpaceSize_ = 0;
     uint32_t scoreInWorkSpaceSize_ = 0;
     uint32_t topKInWorkSpaceSize_ = 0;
+
+    bool useImpScoreOpt_ = false;
+    uint32_t impScoreParamValidCol_ = 0;
+    bool impScoreParamHasPrefix_ = true;
+    uint32_t impScoreReduceRound_ = 0;
+    uint32_t impScoreReduceCol_ = 0;
+    uint32_t impScoreReduceColPad_ = 0;
+    uint32_t impScoreReduceTailCol_ = 0;
+    uint32_t impScoreReduceTailColPad_ = 0;
+    uint32_t impScoreResultEleNum_ = 0;
+    uint32_t impScoreResultCol_ = 0;
+    uint32_t impScoreResultColPad_ = 0;
+    uint32_t impScoreWorkSpaceSize_ = 0;
 
     uint32_t rowLenPerHeadCore_ = 0;
     uint32_t rowLenPerTailCore_ = 0;

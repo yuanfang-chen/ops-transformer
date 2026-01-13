@@ -64,6 +64,8 @@ constexpr uint32_t BLOCK_SIZE = 16;
 constexpr uint32_t COLLEN_ALIGNED_REQUIRED = 16;
 constexpr uint32_t NUM_VECTOR_PER_CUBE = 2;
 constexpr uint32_t ALIGNED_32 = 32;
+constexpr uint32_t ALIGNED_8 = 8;
+constexpr uint32_t IMP_SCORE_PARAM_ROW = 128;
 
 constexpr int64_t MAX_ACTUALQSEQLEN = 4;
 constexpr int64_t MIN_ACTUALQSEQLEN = 1;

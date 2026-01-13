@@ -33,22 +33,34 @@ constexpr uint32_t BLOCK_SIZE = 16;
 constexpr uint32_t SOFTMAX_BLOCK_SIZE = 32;
 constexpr int32_t MM1_READY = 0;
 constexpr int32_t SOFTMAX_READY = 1;
-constexpr int32_t MM2_READY = 2;
+constexpr int32_t IMPORTANCE_SCORE_READY = 2;
+constexpr int32_t MM2_READY = 3;
+constexpr uint32_t IMPORTANCE_SCORE_PARAM_ROW = 128;
+constexpr uint32_t IMPORTANCE_SCORE_EVENT_ID = 4;
+constexpr uint32_t FP32_CUBE_BLOCK_SIZE = 8 * 16;
+constexpr uint32_t CUBE_BLOCK_SIZE = 16 * 16;
+constexpr uint32_t ALIGNED_8 = 8;
+constexpr uint32_t L1_SIZE = 512 * 1024 / sizeof(float);
+constexpr uint32_t L0A_PING_PONG_SIZE = 64 * 1024 / 2 / sizeof(float);
+constexpr uint32_t L0C_PING_PONG_SIZE = 128 * 1024 / 2 / sizeof(float);
 constexpr uint32_t BUFFER_NUM = 1;
 constexpr uint64_t SYNC_MODE2 = 2;
 constexpr uint32_t BASE_TOPK_ELEM_NUM_OFFSET = 8192;
+constexpr uint32_t NUM64 = 64;
 
 enum class LAYOUT : uint8_t {
     TND = 0,
     BSND
 };
 
-template <typename Q_T, typename KV_T, typename OUT_T, LAYOUT LAYOUT_T = LAYOUT::TND, typename... Args>
+template <typename Q_T, typename KV_T, typename OUT_T, LAYOUT LAYOUT_T = LAYOUT::TND, bool IMP_SCORE_OPT_=false,
+          typename... Args>
 struct NCAIType {
     using queryType = Q_T;
     using kvType = KV_T;
     using outputType = OUT_T;
     static constexpr LAYOUT layout = LAYOUT_T;
+    static constexpr bool IMP_SCORE_OPT = IMP_SCORE_OPT_;
 };
 
 } // namespace NSA_COMPRESS_ATTENTION_INFER

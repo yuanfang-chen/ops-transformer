@@ -43,8 +43,8 @@ public:
     __aicore__ inline NsaCompressAttentionInferAic(){};
 
     __aicore__ inline void Init(GM_ADDR query, GM_ADDR key, GM_ADDR value, 
-        GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR output, GM_ADDR topkIndicesOut, 
-        GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData);
+        GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR output,
+        GM_ADDR topkIndicesOut, GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData);
 
     __aicore__ inline void Process();
 
@@ -66,6 +66,13 @@ protected:
     GlobalTensor<float> mm1ResGm;
     GlobalTensor<float> scoreInGm;
     GlobalTensor<Q_T> mm2InGm;
+    AscendC::GlobalTensor<float> impScoreResultGm_;
+    AscendC::GlobalTensor<float> impScoreParamGm_;
+    AscendC::LocalTensor<float> impScoreL1aTensor;
+    AscendC::LocalTensor<float> impScoreL0aTensor;
+    AscendC::LocalTensor<float> impScoreL1bTensor;
+    AscendC::LocalTensor<float> impScoreL0bTensor;
+    AscendC::LocalTensor<float> impScoreL0cTensor;
 
     AsdopsBuffer<ArchType::ASCEND_V220> buf;
     LocalTensor<Q_T> l1qBufAddrTensor;
@@ -107,6 +114,18 @@ protected:
     uint32_t mm1ResWorkSpaceSize;
     uint32_t mm2InWorkSpaceSize;
     uint32_t scoreInWorkSpaceSize;
+    uint32_t topKInWorkSpaceSize;
+    uint32_t curSeqlen_;
+    uint32_t curSeqlenRound_;
+    uint32_t impScoreWorkSpaceSize_;
+    uint32_t impScoreResultEleNum_;
+    uint32_t impScoreResultOffset_;
+    uint32_t impScoreResultRelativeOffset_;
+    uint32_t impScoreResultCol_;
+    uint32_t impScoreResultColPad_;
+    uint16_t impScoreParamValidCol_;
+    uint16_t impScoreParamTotalCol_;
+    bool impScoreParamHasPrefix_;
 
     uint32_t processPerBatch;
     uint32_t kvHeadSplitSize;
@@ -131,7 +150,7 @@ protected:
     __aicore__ inline void CopyKToL1(const uint32_t kvSeqTile, const uint32_t kvSeqTileRound,
                                      const uint32_t strideK, const uint32_t kCoreOffset,
                                      const uint32_t l1kPingPongFlag);
-    __aicore__ inline void CopyPVToL1(const uint32_t pRowNum, const uint32_t pRowNumRound, const int64_t curSeqlen,
+    __aicore__ inline void CopyPVToL1(const uint32_t pRowNum, const uint32_t pRowNumRound,
                                       const uint32_t kvSeqTile, const uint32_t kvSeqTileRound, const uint32_t strideV,
                                       const uint64_t pCoreOffset, const uint32_t vCoreOffset,
                                       const uint32_t l0abPingPongFlag, const uint32_t l1pvPingPongFlag);
@@ -148,20 +167,30 @@ protected:
                                          const uint32_t l0abPingPongFlag, const uint32_t l0cPingPongFlag,
                                          const uint32_t sIdx);
     __aicore__ inline void CopySToWorkSpace(const uint32_t qRowNum, const uint32_t qRowNumRound,
-                                            const uint32_t kvSeqTileRound, const uint32_t curSeqlenRound,
-                                            const uint32_t curKvHeadIdx, const uint32_t sIdx,
-                                            const uint32_t l0cPingPongFlag, const uint32_t mm1ResPingPongFlag);
+                                            const uint32_t kvSeqTileRound, const uint32_t curKvHeadIdx,
+                                            const uint32_t sIdx, const uint32_t l0cPingPongFlag,
+                                            const uint32_t mm1ResPingPongFlag);
     __aicore__ inline void CopyOToGm(const uint32_t pRowNum, const uint32_t pRowNumRound,
                                      const uint32_t oCoreOffset, const uint32_t l0cPingPongFlag);
     __aicore__ inline void ProcessMm1(const uint32_t processIdx);
     __aicore__ inline void ProcessMm2(const uint32_t processIdx);
     __aicore__ inline void PreProcess(const uint32_t processIdx);
+    __aicore__ inline uint8_t CeilCubeBlock(uint32_t len, uint32_t block_size) {
+        return (len + block_size - 1) / block_size;
+    }
+    __aicore__ inline void ProcessImportanceScore(const uint32_t processIdx, const uint32_t kvHeadOffset,
+                                                  const uint32_t curKvHeadNum);
+    __aicore__ inline void SplitImportanceScoreL0A(const uint16_t totalRow, const uint16_t l1LoopIdx,
+                                                   const uint16_t l1LoopCol);
+    __aicore__ inline void ProcessImportanceScoreMmad(uint16_t totalRow, bool l0PingPongFlag);
+    __aicore__ inline void CopyImportanceScoreOut(bool useAtomicAdd, uint16_t totalRow, bool l0PingPongFlag);
+    __aicore__ inline void LoadImportanceScoreParam();
 };
 
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::Init(GM_ADDR query, GM_ADDR key, GM_ADDR value, 
-    GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR output, 
-    GM_ADDR topkIndicesOut, GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData)
+    GM_ADDR blockTable, GM_ADDR actualQSeqLen, GM_ADDR actualKvSeqLen, GM_ADDR output, GM_ADDR topkIndicesOut,
+    GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData)
 {
     this->aicNum = GetBlockNum();
     this->splitBNTilingData = tilingData->splitBNParams;
@@ -179,8 +208,14 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::Init(GM_ADDR quer
     this->actualKvSeqLenGm.SetGlobalBuffer((__gm__ int64_t *)actualKvSeqLen);
     this->outGm.SetGlobalBuffer((__gm__ OUT_T *)output);
     this->mm1ResGm.SetGlobalBuffer((__gm__ float *)workspace);
-    this->scoreInGm.SetGlobalBuffer((__gm__ float *)(workspace + mm1ResWorkSpaceSize));
-    this->mm2InGm.SetGlobalBuffer((__gm__ Q_T *)(workspace + mm1ResWorkSpaceSize + scoreInWorkSpaceSize));
+    uint64_t offset = mm1ResWorkSpaceSize;
+    this->scoreInGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+    offset += scoreInWorkSpaceSize;
+    this->mm2InGm.SetGlobalBuffer((__gm__ Q_T *)(workspace + offset));
+    offset += mm2InWorkSpaceSize + topKInWorkSpaceSize;
+    impScoreResultGm_.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+    offset += impScoreWorkSpaceSize_;
+    impScoreParamGm_.SetGlobalBuffer((__gm__ float *)(workspace + offset));
 
     l1qBufAddrOffset = 0;
     l1kBufAddrOffset = BASE_L1_BUF_ADDR_OFFSET;
@@ -195,6 +230,12 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::Init(GM_ADDR quer
     l0aBufTensor = buf.GetBuffer<BufferType::ASCEND_L0A, Q_T>(0);
     l0bBufTensor = buf.GetBuffer<BufferType::ASCEND_L0B, KV_T>(0);
     l0cBufTensor = buf.GetBuffer<BufferType::ASCEND_L0C, float>(0);
+
+    impScoreL1aTensor = buf.GetBuffer<BufferType::ASCEND_CB, float>(0);
+    impScoreL0aTensor = buf.GetBuffer<BufferType::ASCEND_L0A, float>(0);
+    impScoreL1bTensor = buf.GetBuffer<BufferType::ASCEND_CB, float>(0);
+    impScoreL0bTensor = buf.GetBuffer<BufferType::ASCEND_L0B, float>(0);
+    impScoreL0cTensor = buf.GetBuffer<BufferType::ASCEND_L0C, float>(0);
 }
 
 template <typename NCAIType> 
@@ -215,6 +256,15 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::InitTilingData(co
     mm1ResWorkSpaceSize = tilingData->baseParams.mm1ResWorkSpaceSize;
     mm2InWorkSpaceSize = tilingData->baseParams.mm2InWorkSpaceSize;
     scoreInWorkSpaceSize = tilingData->baseParams.scoreInWorkSpaceSize;
+
+    topKInWorkSpaceSize = tilingData->baseParams.topKInWorkSpaceSize;
+    impScoreWorkSpaceSize_ = tilingData->baseParams.impScoreWorkSpaceSize;
+    impScoreResultEleNum_ = tilingData->baseParams.impScoreResultEleNum;
+    impScoreResultCol_ = tilingData->baseParams.impScoreResultCol;
+    impScoreResultColPad_ = tilingData->baseParams.impScoreResultColPad;
+    impScoreParamValidCol_ = tilingData->baseParams.impScoreParamValidCol;
+    impScoreParamHasPrefix_ = tilingData->baseParams.impScoreParamHasPrefix;
+    impScoreParamTotalCol_ = impScoreParamValidCol_ + impScoreParamHasPrefix_;
 
     coreNumUsed = tilingData->splitBNParams.coreNumUsed;
     processNum = tilingData->splitBNParams.processNum;
@@ -282,7 +332,6 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopyKToL1(const u
 template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopyPVToL1(const uint32_t pRowNum,
                                                                           const uint32_t pRowNumRound,
-                                                                          const int64_t curSeqlen,
                                                                           const uint32_t kvSeqTile,
                                                                           const uint32_t kvSeqTileRound,
                                                                           const uint32_t strideV,
@@ -300,7 +349,7 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopyPVToL1(const 
                                          pRowNum, // nValue
                                          kvSeqTile, // dValue
                                          0,           // srcNdMatrixStride, unused
-                                         curSeqlen,        // srcDValue
+                                         curSeqlen_,        // srcDValue
                                          pRowNumRound,   // dstNzC0Stride
                                          1,           // dstNzNStride
                                          0));         // dstNzMatrixStride, unused
@@ -466,7 +515,6 @@ template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopySToWorkSpace(const uint32_t qRowNum,
                                                                                 const uint32_t qRowNumRound,
                                                                                 const uint32_t kvSeqTileRound,
-                                                                                const uint32_t curSeqlenRound,
                                                                                 const uint32_t curKvHeadIdx,
                                                                                 const uint32_t sIdx,
                                                                                 const uint32_t l0cPingPongFlag,
@@ -477,13 +525,13 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopySToWorkSpace(
         kvSeqTileRound, // nSize
         qRowNum, // mSize
         qRowNumRound,   // srcStride
-        curSeqlenRound,   // dstStride
+        curSeqlenRound_,   // dstStride
         false);      // enRelu
     intriParams.quantPre = QuantMode_t::NoQuant;
     AscendC::Fixpipe<float, float, AscendC::CFG_ROW_MAJOR>(
         mm1ResGm[mm1ResPingPongFlag * (mm1ResWorkSpaceSize / DOUBLE_BUFFER / sizeof(float)) + // db offset
                  cubeBlockIdx * workSpaceElemNum +                    // core offset
-                 curKvHeadIdx * qSeqLenCurProcess * groupSize * curSeqlenRound +          // row offset
+                 curKvHeadIdx * qSeqLenCurProcess * groupSize * curSeqlenRound_ +          // row offset
                  sIdx * blockSize],                                   // column offset
         l0cBufTensor[l0cPingPongFlag * BASE_L0C_BLOCK_ELEM_NUM],
         intriParams);
@@ -528,16 +576,14 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm1(const 
         uint32_t qRowNumRound = (qRowNum + 16U - 1) / 16U * 16U;
 
         CopyQToL1(qRowNum, qRowNumRound, headSizeQkRound, actualKvHeadIdx, l1qPingPongFlag);
-        int64_t curSeqlen = actualKvSeqLenGm.GetValue(bIdx);
-        int64_t curSeqlenRound = AlignUp(curSeqlen, 16L);
-        uint32_t sLoop = (static_cast<uint32_t>(curSeqlen) + blockSize - 1) / blockSize;
+        uint32_t sLoop = (static_cast<uint32_t>(curSeqlen_) + blockSize - 1) / blockSize;
         uint32_t kvSeqTile = blockSize;
 
         for (uint32_t sIdx = 0; sIdx < sLoop; sIdx++) {
             uint32_t l1kPingPongFlag = (curKvHeadIdx * sLoop + sIdx) % 2;
             uint32_t l0cPingPongFlag = (curKvHeadIdx * sLoop + sIdx) % 2;
             if (sIdx == sLoop - 1) {
-                kvSeqTile = curSeqlen - sIdx * blockSize;
+                kvSeqTile = curSeqlen_ - sIdx * blockSize;
             }
             uint32_t kvSeqTileRound = AlignUp(kvSeqTile, 16U);
             uint32_t blockTableOffset = maxBlockNumPerBatch * bIdx + sIdx;
@@ -553,7 +599,7 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm1(const 
 
             PerformQKMmad(qRowNum, kvSeqTile, l0cPingPongFlag);
 
-            CopySToWorkSpace(qRowNum, qRowNumRound, kvSeqTileRound, curSeqlenRound,
+            CopySToWorkSpace(qRowNum, qRowNumRound, kvSeqTileRound,
                              curKvHeadIdx, sIdx, l0cPingPongFlag, mm1ResPingPongFlag);
         }
     }
@@ -574,21 +620,19 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm2(const 
             uint32_t pRowNum = groupSize;
             uint32_t pRowNumRound = AlignUp(pRowNum, 16U);
             uint32_t headSizeVoRound = AlignUp(headSizeVo, 16U);
-            int64_t curSeqlen = actualKvSeqLenGm.GetValue(bIdx);
-            uint32_t sLoop = (static_cast<uint32_t>(curSeqlen) + blockSize - 1) / blockSize;
-            int64_t curSeqlenRound = AlignUp(curSeqlen, 16L);
+            uint32_t sLoop = (static_cast<uint32_t>(curSeqlen_) + blockSize - 1) / blockSize;
             uint32_t kvSeqTile = blockSize;
             uint32_t l0cPingPongFlag = (curKvHeadIdx * qSeqLenCurProcess + qSeqLenCurProcessIndex) % 2;
             for (uint32_t sIdx = 0; sIdx < sLoop; sIdx++) {
                 uint32_t l1pvPingPongFlag = (curKvHeadIdx * qSeqLenCurProcess * sLoop + qSeqLenCurProcessIndex * sLoop + sIdx) % 2;
                 uint32_t l0abPingPongFlag = (curKvHeadIdx * qSeqLenCurProcess * sLoop + qSeqLenCurProcessIndex * sLoop + sIdx) % 2;
                 if (sIdx == sLoop - 1) {
-                    kvSeqTile = curSeqlen - sIdx * blockSize;
+                    kvSeqTile = curSeqlen_ - sIdx * blockSize;
                 }
                 uint32_t kvSeqTileRound = AlignUp(kvSeqTile, 16U);
                 uint64_t pCoreOffset = mm2InPingPongFlag * (mm2InWorkSpaceSize / 2 / 2) +
                                     cubeBlockIdx * workSpaceElemNum +
-                                    (curKvHeadIdx * qSeqLenCurProcess + qSeqLenCurProcessIndex) * groupSize * curSeqlen +
+                                    (curKvHeadIdx * qSeqLenCurProcess + qSeqLenCurProcessIndex) * groupSize * curSeqlen_ +
                                     sIdx * blockSize;
                 uint32_t blockTableOffset = maxBlockNumPerBatch * bIdx + sIdx;
                 uint32_t blockIdx = blockTableGm.GetValue(blockTableOffset);
@@ -596,7 +640,7 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessMm2(const 
                 uint32_t vHiddenOffset = actualKvHeadIdx * headSizeVo;
                 uint32_t vCoreOffset = vBlockOffset + vHiddenOffset;
 
-                CopyPVToL1(pRowNum, pRowNumRound, curSeqlen, kvSeqTile, kvSeqTileRound, strideV,
+                CopyPVToL1(pRowNum, pRowNumRound, kvSeqTile, kvSeqTileRound, strideV,
                         pCoreOffset, vCoreOffset, l0abPingPongFlag, l1pvPingPongFlag);
 
                 LoadPVToL0(pRowNum, pRowNumRound, headSizeVoRound, kvSeqTileRound, l1pvPingPongFlag, l0abPingPongFlag);
@@ -634,6 +678,179 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::PreProcess(const 
     uint32_t kvHeadSplitIdx = processOffsetInCurBatch % kvHeadSplitNum;
     kvHeadOffset = kvHeadSplitIdx * kvHeadSplitSize;
     curKvHeadNum = (kvHeadSplitIdx == kvHeadSplitNum - 1) ? (kvHeadNum - kvHeadOffset) : kvHeadSplitSize;
+    curSeqlen_ = actualKvSeqLenGm.GetValue(bIdx);
+    curSeqlenRound_ = AlignUp(curSeqlen_, 16L);
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessImportanceScore(
+    const uint32_t processIdx, const uint32_t kvHeadOffset, const uint32_t curKvHeadNum)
+{
+    AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+    LoadImportanceScoreParam();
+    AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+
+    uint16_t totalRow = curKvHeadNum * groupSize;
+
+    uint16_t l1LoopMaxCol = L1_SIZE / totalRow / IMPORTANCE_SCORE_PARAM_ROW * IMPORTANCE_SCORE_PARAM_ROW;
+    uint16_t l1LoopCount = (curSeqlen_ + l1LoopMaxCol - 1) / l1LoopMaxCol;
+    uint16_t l1LoopTailCol = curSeqlen_ % l1LoopMaxCol == 0 ? l1LoopMaxCol : curSeqlen_ % l1LoopMaxCol;
+    uint32_t scoreOffset = cubeBlockIdx * workSpaceElemNum;
+
+    Nd2NzParams l1CopyParam {
+        1,                               // ndNum
+        totalRow,                        // nValue
+        l1LoopMaxCol,                    // dValue
+        0,                               // srcNdMatrixStride
+        (uint16_t)(curSeqlen_),          // srcDValue
+        (uint16_t)AlignUp(totalRow, 8),  // dstNzC0Stride
+        1,                               // dstNzNStride
+        0                                // dstNzMatrixStride
+    };
+
+    impScoreResultOffset_ = cubeBlockIdx * impScoreResultEleNum_;
+    impScoreResultRelativeOffset_ = 0;
+    for (uint16_t l1LoopIdx = 0, l1LoopCol = l1LoopMaxCol; l1LoopIdx < l1LoopCount; l1LoopIdx++) {
+        if (l1LoopIdx + 1 == l1LoopCount) {
+            l1LoopCol = l1LoopTailCol;
+            l1CopyParam.dValue = l1LoopCol;
+        }
+        AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+        AscendC::DataCopy(impScoreL1aTensor, scoreInGm[scoreOffset], l1CopyParam);
+
+        AscendC::SetFlag<HardEvent::MTE2_MTE1>(IMPORTANCE_SCORE_EVENT_ID);
+        AscendC::WaitFlag<HardEvent::MTE2_MTE1>(IMPORTANCE_SCORE_EVENT_ID);
+
+        SplitImportanceScoreL0A(totalRow, l1LoopIdx, l1LoopCol);
+
+        scoreOffset += l1LoopMaxCol;
+    }
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::SplitImportanceScoreL0A(
+    const uint16_t totalRow, const uint16_t l1LoopIdx, const uint16_t l1LoopCol)
+{
+    uint8_t blockColCount = CeilCubeBlock(IMPORTANCE_SCORE_PARAM_ROW, 8);
+    uint8_t blockRowCount = CeilCubeBlock(totalRow, 16);
+    LoadData2DParams loadParams { 0,               // startIndex
+                                  blockColCount,   // repeatTimes
+                                  blockRowCount,   // srcStride
+                                  0,               // sid
+                                  0,               // dstGap
+                                  false,           // ifTranspose
+                                  0 };             // addrMode
+    bool useAtomicAdd = false;
+    uint32_t l1ASrcOffset = 0;
+    uint32_t l1ASrcOffsetGap = FP32_CUBE_BLOCK_SIZE;
+    uint32_t l1ASrcOffsetRoundGap = blockRowCount * (blockColCount - 1) * FP32_CUBE_BLOCK_SIZE;
+    uint32_t l0ADstOffset = 0;
+    uint32_t l0ADstOffsetGap = blockColCount * FP32_CUBE_BLOCK_SIZE;
+    uint16_t l0LoopCount = (l1LoopCol + IMPORTANCE_SCORE_PARAM_ROW - 1) / IMPORTANCE_SCORE_PARAM_ROW;
+    AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(IMPORTANCE_SCORE_EVENT_ID + 1);
+    AscendC::SetFlag<AscendC::HardEvent::FIX_M>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::SetFlag<AscendC::HardEvent::FIX_M>(IMPORTANCE_SCORE_EVENT_ID + 1);
+    bool l0PingPongFlag = false;
+    for (uint16_t l0LoopIdx = 0; l0LoopIdx < l0LoopCount; l0LoopIdx++) {
+        l0ADstOffset = l0PingPongFlag * L0A_PING_PONG_SIZE;
+        AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+        for (uint16_t row = 0; row < blockRowCount; row++) {
+            AscendC::LoadData(impScoreL0aTensor[l0ADstOffset], impScoreL1aTensor[l1ASrcOffset], loadParams);
+            l1ASrcOffset += l1ASrcOffsetGap;
+            l0ADstOffset += l0ADstOffsetGap;
+        }
+        AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+        if (l0LoopIdx + 1 == l0LoopCount) {
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+        }
+        ProcessImportanceScoreMmad(totalRow, l0PingPongFlag);
+
+        useAtomicAdd = (l1LoopIdx > 0 || l0LoopIdx > 0) && impScoreParamHasPrefix_;
+
+        CopyImportanceScoreOut(useAtomicAdd, totalRow, l0PingPongFlag);
+
+        impScoreResultOffset_ += impScoreParamValidCol_;
+        impScoreResultRelativeOffset_ += impScoreParamValidCol_;
+        l1ASrcOffset += l1ASrcOffsetRoundGap;
+        l0PingPongFlag = !l0PingPongFlag;
+    }
+    AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(IMPORTANCE_SCORE_EVENT_ID + 1);
+    AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(IMPORTANCE_SCORE_EVENT_ID + 1);
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::ProcessImportanceScoreMmad(
+    uint16_t totalRow, bool l0PingPongFlag)
+{
+    AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+    AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+
+    AscendC::Mmad(
+           impScoreL0cTensor[l0PingPongFlag * L0C_PING_PONG_SIZE],
+           impScoreL0aTensor[l0PingPongFlag * L0A_PING_PONG_SIZE],
+           impScoreL0bTensor,
+           AscendC::MmadParams(totalRow, impScoreParamTotalCol_, IMPORTANCE_SCORE_PARAM_ROW, 0, false, true));
+    AscendC::PipeBarrier<PIPE_M>();
+    AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+    AscendC::SetFlag<AscendC::HardEvent::M_FIX>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::CopyImportanceScoreOut(
+    bool useAtomicAdd, uint16_t totalRow, bool l0PingPongFlag)
+{
+    AscendC::WaitFlag<AscendC::HardEvent::M_FIX>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+    if (likely(useAtomicAdd)) {
+        AscendC::SetAtomicAdd<float>();
+    }
+    auto copyCol = impScoreParamTotalCol_;
+    if (impScoreResultRelativeOffset_ + copyCol >= impScoreResultColPad_) {
+        copyCol = impScoreResultColPad_ - impScoreResultRelativeOffset_ - 1;
+    }
+    AscendC::FixpipeParamsV220 intriParams {
+        copyCol,                // nSize
+        totalRow,                              // mSize
+        totalRow,                              // srcStride
+        impScoreResultColPad_,                 // dstStride
+        false                                  // enRelu
+    };
+
+    AscendC::Fixpipe<float, float, AscendC::CFG_ROW_MAJOR>(
+        impScoreResultGm_[impScoreResultOffset_], impScoreL0cTensor[l0PingPongFlag * L0C_PING_PONG_SIZE], intriParams);
+
+    if (likely(useAtomicAdd)) {
+        AscendC::SetAtomicNone();
+    }
+    AscendC::SetFlag<AscendC::HardEvent::FIX_M>(IMPORTANCE_SCORE_EVENT_ID + l0PingPongFlag);
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::LoadImportanceScoreParam()
+{
+    uint8_t colPad = CeilCubeBlock(impScoreParamTotalCol_, 16) * 16;
+    Nd2NzParams l1CopyParam {
+        1,                           // ndNum
+        impScoreParamTotalCol_,      // nValue
+        IMPORTANCE_SCORE_PARAM_ROW,  // dValue
+        0,                           // srcNdMatrixStride
+        IMPORTANCE_SCORE_PARAM_ROW,  // srcDValue
+        colPad,               // dstNzC0Stride
+        1,                           // dstNzNStride
+        0                            // dstNzMatrixStride
+    };
+    AscendC::DataCopy(impScoreL1bTensor, impScoreParamGm_, l1CopyParam);
+
+    AscendC::SetFlag<HardEvent::MTE2_MTE1>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<HardEvent::MTE2_MTE1>(IMPORTANCE_SCORE_EVENT_ID);
+
+    AscendC::LoadData(
+        impScoreL0bTensor,
+        impScoreL1bTensor,
+        AscendC::LoadData2dParams(0, colPad * IMPORTANCE_SCORE_PARAM_ROW * sizeof(float) / 512, 1,
+                                  0, 0, false, 0));
 }
 
 template <typename NCAIType>
@@ -660,6 +877,10 @@ __aicore__ inline void NsaCompressAttentionInferAic<NCAIType>::Process()
         ProcessMm1(processIdx);
         CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(MM1_READY);
         CrossCoreWaitFlag(SOFTMAX_READY);
+        if constexpr(NCAIType::IMP_SCORE_OPT) {
+            ProcessImportanceScore(processIdx, kvHeadOffset, curKvHeadNum);
+            CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(IMPORTANCE_SCORE_READY);
+        }
         ProcessMm2(processIdx);
     }
     AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(0);
@@ -714,6 +935,11 @@ protected:
     GlobalTensor<float> scoreInGm;
     GlobalTensor<float> topKInGm;
     GlobalTensor<Q_T> mm2InGm;
+    AscendC::GlobalTensor<float> impScoreResultGm_;
+    AscendC::GlobalTensor<float> impScoreParamGm_;
+    AscendC::LocalTensor<float> impScoreReduceResult_;
+    AscendC::LocalTensor<uint8_t> impScoreReduceTmpBuffer_;
+    AscendC::LocalTensor<int32_t> impScoreReduceResultInt_;
 
     AsdopsBuffer<ArchType::ASCEND_V220> buf;
     __gm__ uint8_t *blocktablePtr = nullptr;
@@ -745,6 +971,16 @@ protected:
     uint32_t mm2InWorkSpaceSize;
     uint32_t scoreInWorkSpaceSize;
     uint32_t topKInWorkSpaceSize;
+    uint32_t impScoreWorkSpaceSize_;
+    uint32_t impScoreResultEleNum_;
+    uint32_t impScoreResultCol_;
+    uint32_t impScoreResultColPad_;
+    bool impScoreParamHasPrefix_;
+    uint32_t impScoreReduceRound_;
+    uint32_t impScoreReduceCol_;
+    uint32_t impScoreReduceColPad_;
+    uint32_t impScoreReduceTailCol_;
+    uint32_t impScoreReduceTailColPad_;
 
     uint32_t processPerBatch;
     uint32_t kvHeadSplitSize;
@@ -843,6 +1079,11 @@ protected:
     // importance score
     __aicore__ inline void InitImportanceScoreParams();
     __aicore__ inline void ProcessImportanceScore(uint32_t processIdx);
+    __aicore__ inline void ClearImpScoreWorspace();
+    __aicore__ inline void GenerateImpScoreParam();
+    __aicore__ inline void ProcessImportanceScoreForCube(uint32_t processIdx);
+    __aicore__ inline void ComputeImportanceScoreReduce(uint32_t colLoopIdx, uint32_t reduceCol, uint32_t reduceColPad,
+                                                        uint32_t srcOffset);
     __aicore__ inline void ProcessImpScoreS2Loop(uint32_t loopCnt, uint32_t processIdx, uint32_t taskId, uint32_t startRowIdx, uint32_t endRowIdx);
     __aicore__ inline void ComputeImpScoreValue(uint32_t loopCnt, uint32_t loopOutS2, uint32_t taskId, uint32_t baseS2Id, uint32_t startRowIdx,
                                                 uint32_t endRowIdx, uint32_t startJ);
@@ -880,9 +1121,16 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::Init(GM_ADDR quer
     this->topkOutGm.SetGlobalBuffer((__gm__ int32_t *)topkIndicesOut);
 
     mm1ResGm.SetGlobalBuffer((__gm__ float *)workspace);
-    scoreInGm.SetGlobalBuffer((__gm__ float *)(workspace + mm1ResWorkSpaceSize));
-    mm2InGm.SetGlobalBuffer((__gm__ Q_T *)(workspace + mm1ResWorkSpaceSize + scoreInWorkSpaceSize));
-    topKInGm.SetGlobalBuffer((__gm__ float *)(workspace + mm1ResWorkSpaceSize + scoreInWorkSpaceSize + mm2InWorkSpaceSize));
+    uint64_t offset = mm1ResWorkSpaceSize;
+    scoreInGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+    offset += scoreInWorkSpaceSize;
+    mm2InGm.SetGlobalBuffer((__gm__ Q_T *)(workspace + offset));
+    offset += mm2InWorkSpaceSize;
+    topKInGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+    offset += topKInWorkSpaceSize;
+    impScoreResultGm_.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+    offset += impScoreWorkSpaceSize_;
+    impScoreParamGm_.SetGlobalBuffer((__gm__ float *)(workspace + offset));
 }
 
 template <typename NCAIType> 
@@ -907,6 +1155,23 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::InitTilingData(co
     mm2InWorkSpaceSize = tilingData->baseParams.mm2InWorkSpaceSize;
     scoreInWorkSpaceSize = tilingData->baseParams.scoreInWorkSpaceSize;
     topKInWorkSpaceSize = tilingData->baseParams.topKInWorkSpaceSize;
+    impScoreWorkSpaceSize_ = tilingData->baseParams.impScoreWorkSpaceSize;
+    impScoreResultEleNum_ = tilingData->baseParams.impScoreResultEleNum;
+    impScoreResultCol_ = tilingData->baseParams.impScoreResultCol;
+    impScoreResultColPad_ = tilingData->baseParams.impScoreResultColPad;
+    impScoreParamHasPrefix_ = tilingData->baseParams.impScoreParamHasPrefix;
+    impScoreReduceRound_ = tilingData->baseParams.impScoreReduceRound;
+    impScoreReduceCol_ = tilingData->baseParams.impScoreReduceCol;
+    impScoreReduceColPad_ = tilingData->baseParams.impScoreReduceColPad;
+    impScoreReduceTailCol_ = tilingData->baseParams.impScoreReduceTailCol;
+    impScoreReduceTailColPad_ = tilingData->baseParams.impScoreReduceTailColPad;
+    impScoreReduceResult_ = buf.GetBuffer<BufferType::ASCEND_UB, float>(
+        groupSize * impScoreReduceColPad_ * sizeof(float));
+    impScoreReduceResultInt_ = buf.GetBuffer<BufferType::ASCEND_UB, int32_t>(
+        groupSize * impScoreReduceColPad_ * sizeof(float));
+    // since reduce sum isReuseSource flag is true, should not use this buffer
+    impScoreReduceTmpBuffer_ = buf.GetBuffer<BufferType::ASCEND_UB, uint8_t>(
+        (groupSize + 1) * impScoreReduceColPad_ * sizeof(float));
 
     coreNumUsed = tilingData->splitBNParams.coreNumUsed;
 
@@ -1043,11 +1308,16 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::Process()
     AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(0); // softmax搬入等待softmax计算结束
     AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(4); // softmax搬入等待softmax搬出结束
     AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(5); // topk搬入等待topk搬出结束
-    AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(1); // score搬入等score搬出结束，由于ub上使用了同一块地址
     AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(2); // topk搬入等待topk计算结束
-    AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
-    AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(1); // score搬出等待topk搬入结束
+    if constexpr(!NCAIType::IMP_SCORE_OPT) {
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(1); // score搬入等score搬出结束，由于ub上使用了同一块地址
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(1); // score搬出等待topk搬入结束
+    }
     AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(3); // softmax搬入等待topk搬出结束
+    if (vecBlockIdx == 0) {
+        GenerateImpScoreParam();
+    }
     for (uint32_t processIdx = cubeBlockIdx; processIdx < processNum; processIdx+=aicNum) {
         PreProcessOffset(processIdx);
         PreProcess(processIdx);
@@ -1055,11 +1325,19 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::Process()
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(3); // softmax搬入等待topk搬出结束
         // Softmax
         ProcessSoftmax(processIdx);
+        ClearImpScoreWorspace();
         CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SOFTMAX_READY);
+        if constexpr(NCAIType::IMP_SCORE_OPT) {
+        CrossCoreWaitFlag(IMPORTANCE_SCORE_READY);
+        }
         AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(0);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(0); // score搬入等softmax搬出结束
         // ImportanceScore
-        ProcessImportanceScore(processIdx);
+        if constexpr(NCAIType::IMP_SCORE_OPT) {
+            ProcessImportanceScoreForCube(processIdx);
+        } else {
+            ProcessImportanceScore(processIdx);
+        }
         AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(2); // topk搬入等score搬出结束
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(2); // topk搬入等score搬出结束
         AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0); // topk Duplicate等score搬出结束
@@ -1073,10 +1351,12 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::Process()
     AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(0); // softmax搬入等待softmax计算结束
     AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(4); // softmax搬入等待softmax搬出结束
     AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(5); // topk搬入等待topk搬出结束
-    AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(1); // score搬入等score搬出结束，由于ub上使用了同一块地址
     AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(2); // topk搬入等待topk计算结束
-    AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
-    AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(1); // score搬出等待topk搬入结束
+    if constexpr(!NCAIType::IMP_SCORE_OPT) {
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(1); // score搬入等score搬出结束，由于ub上使用了同一块地址
+        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(1); // score搬出等待topk搬入结束
+    }
     AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(3); // softmax搬入等待topk搬出结束
 }
 
@@ -1144,8 +1424,10 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::SoftmaxCopyOut(Da
 {   
     DataCopyPad(mm2InGm[mm2InWorkSpaceOffset], softmaxOut16bufTensor, splitCopyoutParams);
 
+    if constexpr(!NCAIType::IMP_SCORE_OPT) {
     if (ridx == 0) {
-        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+            AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+        }
     }
     DataCopyPad(scoreInGm[scoreInWorkSpaceOffset], softmaxOut32bufTensor, splitCopyout32Params);
 }
@@ -1273,6 +1555,152 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessImportance
 }
 
 template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ClearImpScoreWorspace()
+{
+    if constexpr(NCAIType::IMP_SCORE_OPT) {
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(0);
+        AscendC::Duplicate(pslcTensor, 0.0f, impScoreResultEleNum_);
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(0);
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(0);
+        AscendC::DataCopy(impScoreResultGm_[cubeBlockIdx * impScoreResultEleNum_], pslcTensor,
+                          impScoreResultEleNum_);
+    }
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::GenerateImpScoreParam()
+{
+    uint32_t slcNum = selectSize / compStrideD;
+    uint32_t cmpNum = compSizeL / compStrideD;
+    uint32_t cmpNumPad = AlignUp(cmpNum, ALIGNED_8);
+    uint32_t windowSize = slcNum + cmpNum - 1;
+    uint32_t paramCol = IMPORTANCE_SCORE_PARAM_ROW;
+    bool hasPrefix = compSizeL != compStrideD;
+    uint32_t paramRow = IMPORTANCE_SCORE_PARAM_ROW / slcNum + hasPrefix;
+    auto slideWindowTensor = buf.GetBuffer<BufferType::ASCEND_UB, float>(0);
+    auto patternTensor = buf.GetBuffer<BufferType::ASCEND_UB, uint32_t>(NUM64 * sizeof(float));
+    auto impScoreParamTensor = buf.GetBuffer<BufferType::ASCEND_UB, float>((NUM64 + ALIGNED_8) * sizeof(float));
+    AscendC::Duplicate(slideWindowTensor, 0.0f, NUM64);
+    AscendC::Duplicate(impScoreParamTensor, 0.0f, paramRow * paramCol);
+    AscendC::PipeBarrier<PIPE_V>();
+    uint32_t row = 0;
+    uint64_t mask[] = {(1UL << (cmpNum)) - 1};
+    uint64_t rsvdCnt = 0;
+    for (uint32_t i = 0; i < slcNum; ++i) {
+        AscendC::Adds(slideWindowTensor[ALIGNED_8], slideWindowTensor[ALIGNED_8], 1.0f, mask, 1, {1, 1, ALIGNED_8, ALIGNED_8});
+        AscendC::PipeBarrier<PIPE_V>();
+        mask[0] <<= 1;
+    }
+    if (hasPrefix) {
+         patternTensor.SetValue(0, mask[0]);
+         AscendC::GatherMask(impScoreParamTensor, slideWindowTensor[ALIGNED_8], patternTensor, true, NUM64, {1, 1, ALIGNED_8, ALIGNED_8}, rsvdCnt);
+         AscendC::PipeBarrier<PIPE_V>();
+         ++row;
+     }
+    for (uint32_t dstBaseOffset = paramCol, dstRelativeOffset = 0, dstActualOffset = 0, dstActualOffsetPad = 0; row < paramRow; ++row) {
+        dstActualOffset = dstBaseOffset + dstRelativeOffset;
+        uint32_t remain = dstActualOffset % ALIGNED_8;
+        if (remain == 0) {
+            AscendC::Copy(impScoreParamTensor[dstActualOffset], slideWindowTensor[ALIGNED_8], windowSize, 1, {1, 1, ALIGNED_8, ALIGNED_8});
+        } else {
+            dstActualOffsetPad = dstActualOffset - remain;
+            patternTensor.SetValue(0, ((1UL << (windowSize + remain)) - 1) << (ALIGNED_8 - remain));
+            AscendC::GatherMask(impScoreParamTensor[dstActualOffsetPad], slideWindowTensor, patternTensor, true, NUM64, {1, 1, ALIGNED_8, ALIGNED_8}, rsvdCnt);
+        }
+        AscendC::PipeBarrier<PIPE_V>();
+        dstBaseOffset += paramCol;
+        dstRelativeOffset += slcNum;
+        dstActualOffset += slcNum;
+    }
+    AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(0);
+    AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(0);
+    AscendC::DataCopy(impScoreParamGm_, impScoreParamTensor, paramCol * paramRow);
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessImportanceScoreForCube(uint32_t processIdx)
+{
+    uint32_t srcBaseOffset = vecBlockIdx / 2 * impScoreResultEleNum_ + impScoreParamHasPrefix_;
+    uint32_t srcOffset;
+    uint32_t dstBaseOffset = vecBlockIdx / 2 * workSpaceElemNum / groupSize;
+    uint32_t dstOffset;
+    if (vecBlockIdx % 2 != 0) {
+        srcBaseOffset += rowNumVec0 * impScoreResultColPad_;
+        dstBaseOffset += rowNumVec0 / groupSize * maxOutS2;
+    }
+    uint16_t reduceRowLoopCount = impSocreCoreRowCount / groupSize;
+    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(IMPORTANCE_SCORE_EVENT_ID);
+    for (uint32_t rowLoopIdx = 0; rowLoopIdx < reduceRowLoopCount; rowLoopIdx++) {
+        srcOffset = srcBaseOffset;
+        dstOffset = dstBaseOffset;
+        for (uint32_t colLoopIdx = 0, reduceCol = impScoreReduceCol_, reduceColPad = impScoreReduceColPad_;
+             colLoopIdx < impScoreReduceRound_; colLoopIdx++) {
+            if (colLoopIdx + 1 == impScoreReduceRound_) {
+                reduceCol = impScoreReduceTailCol_;
+                reduceColPad = impScoreReduceTailColPad_;
+            }
+
+            ComputeImportanceScoreReduce(colLoopIdx, reduceCol, reduceColPad, srcOffset);
+
+            DataCopyParams copyOutParam {
+                1,                                      // blockCount
+                (uint16_t)(reduceCol * sizeof(float)),  // blockLen
+                0,                                      // srcStride
+                0                                       //dstStride
+            };
+            AscendC::DataCopyPad(topKInGm[dstOffset], impScoreReduceResult_, copyOutParam);
+
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(IMPORTANCE_SCORE_EVENT_ID);
+
+            srcOffset += impScoreReduceColPad_;
+            dstOffset += impScoreReduceColPad_;
+        }
+        srcBaseOffset += groupSize * impScoreResultColPad_;
+        dstBaseOffset += maxOutS2;
+    }
+    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(IMPORTANCE_SCORE_EVENT_ID);
+}
+
+template <typename NCAIType>
+__aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeImportanceScoreReduce(
+    uint32_t colLoopIdx, uint32_t reduceCol, uint32_t reduceColPad, uint32_t srcOffset)
+{
+    DataCopyParams copyInParam {
+        (uint16_t)groupSize,
+        (uint16_t)(reduceColPad / ALIGNED_8),
+        (uint16_t)((impScoreResultColPad_ - reduceColPad) / ALIGNED_8),
+        0
+    };
+    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::DataCopy(pslcTensor, impScoreResultGm_[srcOffset], copyInParam);
+    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(IMPORTANCE_SCORE_EVENT_ID);
+    uint32_t shape[] = { groupSize, reduceColPad };
+    AscendC::ReduceSum<float, AscendC::Pattern::Reduce::RA, true>(
+        impScoreReduceResult_, pslcTensor, impScoreReduceTmpBuffer_, shape, true);
+
+    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(IMPORTANCE_SCORE_EVENT_ID);
+
+    AscendC::SetFlag<AscendC::HardEvent::V_S>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<AscendC::HardEvent::V_S>(IMPORTANCE_SCORE_EVENT_ID);
+    if (colLoopIdx == 0) {
+        impScoreReduceResultInt_.SetValue(0, FLOAT_TYPE_MASK);
+    }
+    if (colLoopIdx + 1 == impScoreReduceRound_) {
+        if (reduceCol > 1) {
+            impScoreReduceResultInt_.SetValue(reduceCol - 2, FLOAT_TYPE_MASK);
+        }
+        impScoreReduceResultInt_.SetValue(reduceCol - 1, FLOAT_TYPE_MASK);
+    }
+    AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(IMPORTANCE_SCORE_EVENT_ID);
+    AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(IMPORTANCE_SCORE_EVENT_ID);
+}
+
+template <typename NCAIType>
 __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessImpScoreS2Loop(uint32_t loopCnt, uint32_t processIdx, uint32_t taskId, uint32_t startRowIdx, uint32_t endRowIdx)
 {
     // S2方向上的切分
@@ -1298,8 +1726,10 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeImpScoreVa
     uint32_t blockLength = maxBaseS2 * 4;
 
     if (startJ == outS2 - 1) {
+        if constexpr(!NCAIType::IMP_SCORE_OPT) {
         if (taskId == loopCnt - 1) {
-            AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+            }
         }
         AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(1);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(1);
@@ -1318,8 +1748,10 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ComputeImpScoreVa
 
     ImpScoreDataCopyIn(inputOffsetGm, rowCount, blockLength);
 
+    if constexpr(!NCAIType::IMP_SCORE_OPT) {
     if ((taskId == loopCnt - 1) && (baseS2Id == loopOutS2 - 1)) {
-        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+            AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(0); // softmax搬出等待score搬入结束
+        }
     }
     uint32_t baseS2Align = ((blockLength + 63) / 64 * 64) / 4;
     uint32_t rowAlign = (rowCount + 15) / 16 * 16;
@@ -1507,8 +1939,10 @@ __aicore__ inline void NsaCompressAttentionInferAiv<NCAIType>::ProcessTopK()
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(5); // topk搬入等待topk搬出结束
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(2); // topk搬入等待topk计算结束
         TopkCopyIn(splitCopyintopkParams);
+        if constexpr(!NCAIType::IMP_SCORE_OPT) {
         if (taskId == perCoreGroup - 1) {
-            AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(1); // score搬出等待topk搬入结束
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(1); // score搬出等待topk搬入结束
+            }
         }
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(2); // topk计算等待topk搬入结束
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(2); // topk计算等待topk搬入结束
@@ -1570,12 +2004,12 @@ public:
     __aicore__ inline NsaCompressAttentionInfer(){};
 
     __aicore__ inline void Run(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR blockTable, GM_ADDR actualQSeqLen, 
-        GM_ADDR actualKvSeqLen, GM_ADDR actualSelKvSeqLen, GM_ADDR output, GM_ADDR topkIndicesOut,
-        GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData) {
+        GM_ADDR actualKvSeqLen, GM_ADDR actualSelKvSeqLen, GM_ADDR output,
+        GM_ADDR topkIndicesOut, GM_ADDR workspace, const NsaCompressAttentionInferTilingData *__restrict tilingData) {
         #ifdef __DAV_C220_CUBE__
             NsaCompressAttentionInferAic<NCAIType> opAic;
-            opAic.Init(query, key, value, blockTable, actualQSeqLen, actualKvSeqLen, output, topkIndicesOut, 
-                workspace, tilingData);
+            opAic.Init(query, key, value, blockTable, actualQSeqLen, actualKvSeqLen, output,
+                topkIndicesOut, workspace, tilingData);
             opAic.Process();
 
         #elif __DAV_C220_VEC__
