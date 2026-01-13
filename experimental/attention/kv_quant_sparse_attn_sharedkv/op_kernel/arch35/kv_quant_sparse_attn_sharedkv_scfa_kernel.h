@@ -290,6 +290,8 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     if ASCEND_IS_AIV {
         auto &baseParams = this->tilingData->baseParams;
         constInfo.softmaxScale = static_cast<float>(baseParams.softmaxScale);
+        constInfo.blockSize = baseParams.paBlockSize;
+        // PRINTF("blocksize is %d\n", constInfo.blockSize);
     }
 
     InitUniqueConstInfo();
