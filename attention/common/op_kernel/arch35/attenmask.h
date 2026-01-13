@@ -179,7 +179,7 @@ __aicore__ inline int64_t ComputeOffsetForNoCompress(const RunInfo<isInfer> &run
         int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize + runInfo.vecCoreOffset;
         int64_t s2Offset = 0;
         if constexpr (enableKVPrefix) {
-            if (runInfo.s2LoopCount < constInfo.prefixLoopCount) {
+            if ((runInfo.s2LoopCount + runInfo.s2StartIdx / constInfo.s2BaseSize) < constInfo.prefixLoopCount) {
                 s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * constInfo.s2BaseSize;
             } else {
                 s2Offset = runInfo.s2StartIdx + (runInfo.s2LoopCount - constInfo.prefixLoopCount) * constInfo.s2BaseSize + constInfo.actualKVPrefixSize;
@@ -405,7 +405,7 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
         int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize;
         int64_t s2Offset = 0;
         if constexpr (enableKVPrefix) {
-            if (runInfo.s2LoopCount < constInfo.prefixLoopCount) {
+            if ((runInfo.s2LoopCount + runInfo.s2StartIdx / constInfo.s2BaseSize) < constInfo.prefixLoopCount) {
                 s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * constInfo.s2BaseSize;
             } else {
                 s2Offset = runInfo.s2StartIdx + (runInfo.s2LoopCount - constInfo.prefixLoopCount) * constInfo.s2BaseSize + constInfo.actualKVPrefixSize;
