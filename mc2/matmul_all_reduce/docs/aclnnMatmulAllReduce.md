@@ -95,7 +95,7 @@ aclnnStatus aclnnMatmulAllReduce(
           <td>BFLOAT16、FLOAT16</td>
           <td>ND</td>
           <td>2</td>
-          <td>√</td>
+          <td>×</td>
         </tr>
         <tr>
           <td>bias</td>

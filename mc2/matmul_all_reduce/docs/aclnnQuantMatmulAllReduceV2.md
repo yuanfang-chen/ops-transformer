@@ -108,7 +108,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV2(
           <td>INT8</td>
           <td>ND</td>
           <td>2</td>
-          <td>√</td>
+          <td>×</td>
         </tr>
         <tr>
           <td>biasOptional</td>

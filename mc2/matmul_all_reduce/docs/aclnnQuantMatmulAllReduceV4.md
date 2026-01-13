@@ -179,7 +179,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
           <td>INT8、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8、FLOAT4_E2M1、FLOAT4_E1M2。</td>
           <td>ND</td>
           <td>2</td>
-          <td>√</td>
+          <td>×</td>
         </tr>
         <tr>
           <td>biasOptional</td>
@@ -295,7 +295,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
           <td>commQuantMode</td>
           <td>输入</td>
           <td>静态量化和动态量化的标志位。</td>
-          <td><ul><li>数值为0和1。仅在x1和x2为FLOAT8_E4M3或FLOAT8_E5M2时支持1，为1时走Pertile量化Fp8通信场景。</li></ul></td>
+          <td><ul><li>数值为0和1。仅在x1和x2为FLOAT8_E4M3FN或FLOAT8_E5M2时支持1，为1时走Pertile量化Fp8通信场景。</li></ul></td>
           <td>INT64</td>
           <td>-</td>
           <td>-</td>

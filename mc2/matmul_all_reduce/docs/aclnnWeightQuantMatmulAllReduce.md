@@ -99,7 +99,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>参见<a href="#约束说明" target="_blank">约束说明。</td>
           <td>ND</td>
           <td>2</td>
-          <td>√</td>
+          <td>×</td>
         </tr>
         <tr>
           <td>bias</td>

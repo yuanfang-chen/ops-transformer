@@ -514,10 +514,10 @@ ge::graphStatus MatmulAllReduceTilingBase::CheckRanksizePlatformSupported() cons
         !rankSizeSupported,
         VECTOR_INNER_ERR_REPORT_TILING(
             context_->GetNodeName(),
-            "rank size %u is not supported by socversion id:%d yet;"
-            "A2 supports rank size 1,2,4,8"
-            "A5 supports rank size 1,2,4,8,16,32,64"
-            "Ascend 310P supports rank size 1,2,4",
+            "rank size %u is not supported by socversion id:%d yet; "
+            "A2 supports rank size 1,2,4,8, "
+            "A5 supports rank size 1,2,4,8,16,32,64, "
+            "Ascend 310P supports rank size 1,2,4.",
             rankSize_, static_cast<int32_t>(socVersion_)),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
