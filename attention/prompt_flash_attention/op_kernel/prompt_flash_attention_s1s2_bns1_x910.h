@@ -77,6 +77,22 @@ __aicore__ inline int32_t FirstGreaterEqual(const I32VecView& v, int32_t lower)
     return -1;
 }
 
+__aicore__ inline int32_t SecondGreaterEqual(const I32VecView& v, int32_t lower)
+{
+    if (!v.IsValid()) return -1;
+
+    int32_t found = 0;
+    for (uint32_t i = 0; i < v.len; ++i) {
+        const int32_t x = v.ptr[i];
+        if (x == -1) break;        // reached padding
+        if (x >= lower) {
+            ++found;
+            if (found == 2) return (int32_t)i; // second >= lower
+        }
+    }
+    return -1;
+}
+
 using namespace matmul;
 template<typename PFAT>
 class PromptFlashAttentionS1s2Bns1X910 : public PromptFlashAttentionS1s2Bns1X910Base<PFAT> {
@@ -574,6 +590,7 @@ protected:
             LocalTensor<T> tmpSoftmaxResUb = mmResUb.template ReinterpretCast<T>();
             DataCopy(tmpBmm1ResGmDb, tmpSoftmaxResUb, this->mm1GmUbCopyParam[ubPingpong]);
         } else {
+            // bool isLastBlock = params->isBlockSparse ? params->isInnerTail : params->isLastInnerIter;
             if constexpr (PFAT::MM_TYPE == MatMulType::MM_IBSHARE_NORM && PFAT::calcMode == OptimizationMode::HighPerformance) {
                 PFAComputeParam *params = this->headParams;
                 if (params->isLastInnerIter && params->singleProcessSInnerBmmTail <= SINGLE_PROCESS_SINNER_BMMTAIL_LIMIT) {
@@ -653,8 +670,8 @@ protected:
                 this->template ElewiseCompute<U>(this->mmResUb[ubPingpong], souterSize, params->singleProcessSInnerSizeNow,
                                              params->maskCopyInCol, params->useMask, this->bmm1ResCopyInEvent[ubPingpong], 0);
             }
-
-            this->isSoftmaxResNeedUpdate = (params->isFirstInnerIter ||
+            bool firstIter = params->isBlockSparse ? params->isFirstComputedIter : params->isFirstInnerIter;
+            this->isSoftmaxResNeedUpdate = (firstIter ||
                                             this->softmaxSouterStepLen == 0 ||
                                             souterOffset / this->softmaxSouterStepLen >= MAX_SUBSOUTER_NUM) ?
                                             this->tilingData->promptAttentionBaseParams.isRowInvalid :
@@ -666,7 +683,7 @@ protected:
             const uint32_t basicSoftmaxSinner = 64;
             const uint32_t basicSoftmaxSouter = 8;
             const uint32_t basicSoftmaxK = 1024;
-            if (params->isFirstInnerIter) {
+            if (firstIter) {
                 if ((params->singleProcessSInnerBmmTail % basicSoftmaxSinner == 0)
                     && (params->singleProcessSInnerBmmTail <= basicSoftmaxK)
                     && (souterSize % basicSoftmaxSouter == 0)) {
@@ -877,6 +894,12 @@ protected:
         dst->pseShiftCopyInCol = src->pseShiftCopyInCol;
         dst->pseShiftInnerTailAlign = src->pseShiftInnerTailAlign;
         dst->pseShiftPadSize = src->pseShiftPadSize;
+
+        // For block sparsity
+        dst->isBlockSparse = src->isBlockSparse;
+        dst->isFirstComputedIter = src->isFirstComputedIter;
+        dst->isSecondComputedIter = src->isSecondComputedIter;
+        dst->isLastComputedIter = src->isLastComputedIter;
 
         dst->unalignSInner = src->unalignSInner;
         dst->tensorAOffset = src->tensorAOffset;
@@ -2043,9 +2066,14 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::Bmm1ResDoVecBmm2C
     LocalTensor<computeType> bmm2ResUb;
     uint32_t resShapeSize;
 
+    // Select parameters for block-sparse
+    bool firstIter = params->isBlockSparse ? params->isFirstComputedIter : params->isFirstInnerIter;
+    bool secondIter = params->isBlockSparse ? params->isSecondComputedIter : params->isSecondInnerIter;
+    bool lastIter = params->isBlockSparse ? params->isLastComputedIter : params->isLastInnerIter;
+
     // Handling the current loop softmax，using headParams.
     this->Res1VecCompute(params);
-    if (params->isFirstInnerIter) {
+    if (firstIter) {
         ProcessLastSouterLoopFinalRes();  // Process the output of the last task souter loop. All internal calls require the use of preHeadParams.
         if constexpr (!IsSameType<T, KV_T>::value && IsSameType<KV_T, int8_t>::value) {
             if constexpr (PFAT::msdMode == MsdMode::MSD_OFF) {
@@ -2053,7 +2081,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::Bmm1ResDoVecBmm2C
             }
         }
         this->Bmm2ComputeIterate(params->taskBatch, params->batchNOffset, params->sInnerOffsetDataSize);
-    } else if (params->isSecondInnerIter) {    
+    } else if (secondIter) {    
         if (this->preHeadParams->fakeMsg) {
             this->bmm2.WaitIterateAll();
             this->Bmm2ComputeIterate(params->taskBatch, params->batchNOffset, params->sInnerOffsetDataSize);
@@ -2104,7 +2132,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::Bmm1ResDoVecBmm2C
         } 
     }
 
-    if (params->isLastInnerIter) {
+    if (lastIter) {
         // copy sle
         if (this->tilingData->promptAttentionBaseParams.isSoftMaxLseEnable) {
             this->SoftmaxLseCopyOut(this->softmaxSumUb, this->softmaxMaxUb);
@@ -2114,7 +2142,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::Bmm1ResDoVecBmm2C
         DataCopy(softmaxSumTmp, this->softmaxSumUb, this->softmaxSumSize);
         PipeBarrier<PIPE_V>();
         this->copyOutPrevIter = true;
-        this->needAdd = !params->isFirstInnerIter;    // When the first loop is the last loop, no add is required.
+        this->needAdd = !firstIter;    // When the first loop is the last loop, no add is required.
     }
 }
 
@@ -2138,7 +2166,9 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::CheckRowInvalid(i
     bool pretokenCrossSouter2 =
          preTokens < 0 && preTokens + params->actualSeqLengthKVPerBatch > params->sOuterOffset &&
          preTokens + params->actualSeqLengthKVPerBatch < (params->sOuterOffset + params->singleProcessSOuterSize);
-    if (params->isFirstInnerIter && (nextokenCrossSouter || pretokenCrossSouter || pretokenCrossSouter2)) {
+    
+    bool firstIter = params->isBlockSparse ? params->isFirstComputedIter : params->isFirstInnerIter;
+    if (firstIter && (nextokenCrossSouter || pretokenCrossSouter || pretokenCrossSouter2)) {
         params->kernelInvalidRow = 1;
     } else {
         params->kernelInvalidRow = 0;
@@ -2177,7 +2207,8 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
     params->taskBatch = curBatch;
     this->isSoftmaxLseNeedUpdate = false;
 
-    if (!rowSabi.IsValid()) {    // old loop
+    params->isBlockSparse = rowSabi.IsValid();
+    if (!params->isBlockSparse) {    // old loop
         for (int32_t sInnerLoopIdx = startIndex; sInnerLoopIdx < endIndex; sInnerLoopIdx++) {
             params->sInnerLoopOffset = sInnerLoopIdx;  // S2 Align offset
             params->isFirstInnerIter = (sInnerLoopIdx == startIndex);
@@ -2303,22 +2334,32 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
             }
         }
     } else {
-        // Right now we use endIndex and startIndex are additional constraints that can "slice" the SABI blocks, excluding some
-        // Normally, they should be 0 and len(kv chunks), so they practically have no impact, unless someone changes the caller 
+        // rowSabi must be sorted ascending and contain unique block indices.
+        // startIndex/endIndex are dense bounds; rowSabi provides active blocks within.
         int32_t firstSabiIdx = FirstGreaterEqual(rowSabi, startIndex);
+        int32_t secondSabiIdx = SecondGreaterEqual(rowSabi, startIndex);
         int32_t lastSabiIdx = LastValidLowerThan(rowSabi, endIndex);
         if (firstSabiIdx < 0 || lastSabiIdx < firstSabiIdx) {
-            // nothing to do, shouldn't happen
             return;
         }
-        // Use sabi block indices
+
         int32_t computedBlocks = 0;
-        for (int32_t  chunkIdx = firstSabiIdx; chunkIdx <= lastSabiIdx; ++chunkIdx, ++computedBlocks) {
+        for (int32_t chunkIdx = firstSabiIdx; chunkIdx <= lastSabiIdx; ++chunkIdx, ++computedBlocks) {
             int32_t sInnerLoopIdx = rowSabi.Get(static_cast<uint32_t>(chunkIdx));
             params->sInnerLoopOffset = sInnerLoopIdx;  // S2 Align offset
-            params->isFirstInnerIter = (chunkIdx == firstSabiIdx);
-            params->isSecondInnerIter = (chunkIdx == (firstSabiIdx + 1));
-            params->isLastInnerIter = (chunkIdx == lastSabiIdx);
+
+            // ----------------------------
+            // Computed-order semantics (sparse order)
+            // ----------------------------
+            params->isFirstComputedIter  = (chunkIdx == firstSabiIdx);
+            params->isSecondComputedIter = (chunkIdx == secondSabiIdx);
+            params->isLastComputedIter   = (chunkIdx == lastSabiIdx);
+
+            // Keep legacy flags if other code still expects dense meaning:
+            params->isFirstInnerIter  = (sInnerLoopIdx == startIndex);
+            params->isSecondInnerIter = (sInnerLoopIdx == (startIndex + 1));
+            params->isLastInnerIter   = (sInnerLoopIdx == (endIndex - 1));
+
             if constexpr (PFAT::enablePrefix) {
                 params->isPrefixInnerIter = sInnerLoopIdx * basicSInnerSize < this->actualKVPrefixLen;
             } else {
@@ -2358,6 +2399,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
                 params->singleProcessSInnerBmmTail = params->singleProcessSInnerSize;
                 params->maskCopyInCol = params->singleProcessSInnerSize;
                 params->pseShiftCopyInCol = params->singleProcessSInnerSize;
+                // Apply lastMargin only if it's the dense last boundary.
                 if (params->isLastInnerIter) {
                     if constexpr (PFAT::enablePrefix) {
                         lastInnerMargin = 0;

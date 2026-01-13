@@ -124,6 +124,12 @@ struct PFAComputeParam {
     bool isFirstInnerIter;
     bool isSecondInnerIter;
     bool isLastInnerIter;
+    // NEW: computed-order flags (block-sparse “sequence”)
+    bool isBlockSparse = false;
+    bool isFirstComputedIter = false;
+    bool isSecondComputedIter = false;
+    bool isLastComputedIter = false;
+
     bool isInnerTail;
     bool useMask;
     bool usePseShift;
