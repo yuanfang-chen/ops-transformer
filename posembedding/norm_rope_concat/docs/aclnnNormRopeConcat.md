@@ -23,8 +23,8 @@
 
 -   计算公式（以Query（视频）和EncoderQuery（文本）为例）：
 	  $$
-    hiddenState_q = \text{LayerNorm}(query, normQueryWeight, normQueryBias, eps) \\
-    hiddenState_{eq} = \text{LayerNorm}(encoderQuery, normEncoderQueryWeight, normEncoderQueryBias, eps) \\
+    hiddenState_q = \text{Norm}(query, normQueryWeight, normQueryBias, eps) \\
+    hiddenState_{eq} = \text{Norm}(encoderQuery, normEncoderQueryWeight, normEncoderQueryBias, eps) \\
     concatedHiddenState = \text{Concat}(hiddenState_q, hiddenState_{eq}) \\
     transposedHiddenState = \text{Transpose}(concatedHiddenState, (0, 2, 1, 3)) \\
     hiddenState = \text{RoPE}(concatedHiddenState, ropeSin, ropeCos)
@@ -43,7 +43,17 @@
         queryVar_{b,s,n} = \frac{1}{D}\sum_{i=0}^{D}(query-queryMean_{b,s,n})^2 \\
         queryRstd_{b,s,n}=  \frac{1}{\sqrt{queryVar_{b,s,n}+\epsilon}} \\
         hiddenState_q = (query-queryMean)*queryRstd$$
-        当`normType =LAYER_NORM_AFFINE`时，在上面的基础上
+        当`normType = LAYER_NORM_AFFINE`时，在上面的基础上
+        $$
+        hiddenState_q = normQueryWeight*hiddenState_q + normQueryBias
+        $$
+        当`normType = RMS_NORM`时：
+        $$
+        queryMs = \frac{1}{D}\sum_{i=0}^{D}(query_{b,s,n})^2 \\
+        queryRms = \frac{1}{\sqrt{queryMs+\epsilon}} \\
+        hiddenState_q = query * queryRms
+        $$
+        当`normType = RMS_NORM_AFFINE`时，在上面的基础上
         $$
         hiddenState_q = normQueryWeight*hiddenState_q + normQueryBias
         $$
@@ -206,7 +216,7 @@ aclnnStatus aclnnNormRopeConcat(
         <td>normQueryWeight</td>
         <td>输入</td>
         <td>表示LayerNorm的仿射变换参数，作用在Query上。</td>
-        <td>可选，normType=2时需要提供。</td>
+        <td>可选，normType=2或4时需要提供。</td>
         <td>FLOAT16、BFLOAT16、FLOAT</td>
         <td>ND</td>
         <td>[D]</td>
@@ -216,7 +226,7 @@ aclnnStatus aclnnNormRopeConcat(
         <td>normQueryBias</td>
         <td>输入</td>
         <td>表示LayerNorm的仿射变换参数，作用在Query上。</td>
-        <td>可选，normType=2时需要提供。</td>
+        <td>可选，normType=2或4时需要提供。</td>
         <td>FLOAT16、BFLOAT16、FLOAT</td>
         <td>ND</td>
         <td>[D]</td>
@@ -226,7 +236,7 @@ aclnnStatus aclnnNormRopeConcat(
         <td>normKeyWeight</td>
         <td>输入</td>
         <td>表示LayerNorm的仿射变换参数，作用在Key上。</td>
-        <td>可选，normType=2时需要提供。</td>
+        <td>可选，normType=2或4时需要提供。</td>
         <td>FLOAT16、BFLOAT16、FLOAT</td>
         <td>ND</td>
         <td>[D]</td>
@@ -236,7 +246,7 @@ aclnnStatus aclnnNormRopeConcat(
         <td>normKeyBias</td>
         <td>输入</td>
         <td>表示LayerNorm的仿射变换参数，作用在Key上。</td>
-        <td>可选，normType=2时需要提供。</td>
+        <td>可选，normType=2或4需要提供。</td>
         <td>FLOAT16、BFLOAT16、FLOAT</td>
         <td>ND</td>
         <td>[D]</td>
