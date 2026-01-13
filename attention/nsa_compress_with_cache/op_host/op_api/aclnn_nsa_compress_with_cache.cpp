@@ -152,8 +152,8 @@ aclnnNsaCompressWithCacheGetWorkspaceSize(const aclTensor *input, const aclTenso
               ACLNN_ERR_INNER_NULLPTR);
     // 检查空tensor
     if (CheckIsEmptyTensor(input, weight, outputCache)) {
-        OP_LOGE(ACLNN_ERR_INNER_TILING_ERROR, "[NSACompressWithCache] do not support empty input/weight/outputCache.");
-        return ACLNN_ERR_INNER_TILING_ERROR;
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "[NSACompressWithCache] do not support empty input/weight/outputCache.");
+        return ACLNN_ERR_PARAM_INVALID;
     }
     // 检查是否ND格式
     if (!CheckNDFormat(input, weight, slotMapping, blockTableOptional, outputCache)) {
