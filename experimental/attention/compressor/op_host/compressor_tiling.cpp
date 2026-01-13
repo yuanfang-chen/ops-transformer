@@ -176,7 +176,7 @@ ge::graphStatus CompressorTiling::SetScenarioInfo()
 ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
     innerSplitParams_->mBaseSize = 256;
-    innerSplitParams_->dBaseSize = 64 * coff;
+    innerSplitParams_->dBaseSize = 128 / coff;
 
     return ge::GRAPH_SUCCESS;
 }

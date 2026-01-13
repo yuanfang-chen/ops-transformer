@@ -101,7 +101,7 @@ private:
     CompressorBlockCube<COMP> blockCube_;
     CompressorBlockVector<COMP> vectorService;
     static constexpr uint32_t PRELOAD_NUM = 2;
-    
+
     using X_T = typename AscendC::Conditional<COMP::xDtype == X_DTYPE::BF16, bfloat16_t, half>::type;
     using T = float;
     using MM1_OUT_T = T;
@@ -478,6 +478,7 @@ __aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(const RunInfo &info)
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeMm1(const RunInfo &info) {
     printf("[COMPUTE] MM1 curBStart:%d curBEnd:%d curSStart:%d curSEnd:%d\n", curBStart, curBEnd, curSStart, curSEnd);
+    blockCube_.ComputeMm1(info);
 }
 
 template <typename COMP>
