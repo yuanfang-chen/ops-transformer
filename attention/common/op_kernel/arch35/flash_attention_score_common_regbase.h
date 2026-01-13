@@ -14,10 +14,9 @@
 #ifndef FLASH_ATTENTION_SCORE_COMMON_REGBASE_H
 #define FLASH_ATTENTION_SCORE_COMMON_REGBASE_H
 
-#include "kernel_operator.h"
+#include "kernel_basic_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
-#include "lib/matrix/matmul/tiling.h"
 #include "stdarg.h"
 #include "pse.h"
 #include "util_regbase.h"
@@ -25,30 +24,6 @@
 using matmul::MatmulType;
 using namespace AscendC;
 using namespace regbaseutil;
-
-__aicore__ inline constexpr MatmulConfig GetFACustomCfg(bool enableSetTail = true,
-    const IterateMode iterateMode = IterateMode::ITERATE_MODE_DEFAULT, bool isC1Shared = false,
-    uint32_t sharedC1BufferSize = 64 * 1024, uint32_t singleM = 0, uint32_t singleN = 0, uint32_t singleK = 0,
-    uint32_t baseM = 0, uint32_t baseN = 0, uint32_t baseK = 0, bool enableSetDefineData = false,
-    bool isA2B2Shared = false)
-{
-    MatmulShapeParams shapeParams = {singleM, singleN, singleK, baseM, baseN, baseK};
-    auto mmCfg = GetMMConfig<MatmulConfigMode::CONFIG_NORM>(shapeParams);
-    mmCfg.intrinsicsCheck = false;
-    mmCfg.enUnitFlag = false;
-    mmCfg.enableInit = false;
-    mmCfg.enableSetBias = false;
-    mmCfg.enableQuantVector = false;
-    mmCfg.isBiasBatch = false;
-
-    mmCfg.isCO1Shared = isC1Shared;
-    mmCfg.iterateMode = iterateMode;
-    mmCfg.enableSetTail = enableSetTail;
-    mmCfg.enableSetDefineData = enableSetDefineData;
-    mmCfg.isA2B2Shared = isA2B2Shared;
-    mmCfg.sharedCO1BufferSize = sharedC1BufferSize;
-    return mmCfg;    
-}
 
 constexpr uint64_t BLOCK_BYTE = 32;
 constexpr int32_t SOFTMAX_M_ALIGNED_SIZE = 8;

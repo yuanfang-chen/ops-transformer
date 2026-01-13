@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "kernel_operator.h"
+#include "kernel_basic_intf.h"
 #include "../../../common/op_kernel/arch35/util_regbase.h"
 #include <cstdint>
 

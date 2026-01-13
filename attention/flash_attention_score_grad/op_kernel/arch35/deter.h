@@ -16,7 +16,7 @@
 #ifndef FLASH_ATTENTION_SCORE_GRAD_DETER_H_
 #define FLASH_ATTENTION_SCORE_GRAD_DETER_H_
 
-#include "kernel_operator.h"
+#include "kernel_basic_intf.h"
 #include "common.h"
 
 

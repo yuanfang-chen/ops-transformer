@@ -16,7 +16,7 @@
 #ifndef FLASH_ATTENTION_SCORE_REGBASE_EMPTY_TENSOR_H
 #define FLASH_ATTENTION_SCORE_REGBASE_EMPTY_TENSOR_H
 
-#include "kernel_operator.h"
+#include "kernel_basic_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "flash_attention_score_template_tiling_key.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"

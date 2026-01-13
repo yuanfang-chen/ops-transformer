@@ -16,7 +16,7 @@
 #ifndef FLASH_ATTENTION_SCORE_DROP_MASK_ADAPTER_REGBASE_H
 #define FLASH_ATTENTION_SCORE_DROP_MASK_ADAPTER_REGBASE_H
 
-#include "kernel_operator.h"
+#include "kernel_basic_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 
 class FlashAttentionScoreDropMaskAdapterRegbase {

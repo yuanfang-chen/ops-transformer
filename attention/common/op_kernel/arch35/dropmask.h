@@ -16,6 +16,7 @@
 #ifndef DROPMASK_H
 #define DROPMASK_H
 
+#include "adv_api/math/philox.h"
 #include "util_regbase.h"
 
 using namespace AscendC;

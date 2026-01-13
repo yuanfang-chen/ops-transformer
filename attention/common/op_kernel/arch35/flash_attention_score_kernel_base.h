@@ -21,7 +21,7 @@
 #endif
 #include "flash_attention_score_block_vec_infer.h"
 #include "flash_attention_score_common_regbase.h"
-#include "kernel_operator.h"
+#include "kernel_basic_intf.h"
 #include "attenmask.h"
 
 // 线上编包
@@ -32,6 +32,7 @@
 #include "pse.h"
 #include "infer_flash_attention_comm.h"
 #include "kernel_operator_list_tensor_intf.h"
+#include "adv_api/utils/init_global_memory.h"
 
 using matmul::MatmulType;
 using namespace AscendC;
@@ -533,7 +534,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
             this->s1SizeAcc += runParam.actualS1Size;
             this->s2SizeAcc += runParam.actualS2Size;
             runParam.b1SSOffset += runParam.actualS1Size * runParam.actualS2Size;
-            if (hasDrop) {
+            if constexpr (hasDrop) {
                 runParam.b1SSOffsetAlign16 += runParam.actualS1Size * Align(runParam.actualS2Size);
             }
             runParam.boIdx++;
@@ -557,7 +558,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         runParam.b1SSOffset = runParam.boIdx * constInfo.s1S2;
         runParam.actualS1Size = constInfo.s1Size;
         runParam.actualS2Size = constInfo.s2Size;
-        if (hasDrop) {
+        if constexpr (hasDrop) {
             runParam.b1SSOffsetAlign16 = runParam.boIdx * constInfo.s1Size * Align(constInfo.s2Size);
         }
     }
