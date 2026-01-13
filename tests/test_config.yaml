@@ -144,7 +144,6 @@ attention:
     options:
       - nsa_compress_attention_infer
     test:
-        examples: True
         ut: False
 
   nsa_compress_grad:
@@ -933,7 +932,6 @@ mc2:
         - mc2/allto_all_matmul
       test:
         examples: False
-        ut: False
       options:
         - allto_all_matmul
 
@@ -1015,7 +1013,6 @@ mc2:
         - mc2/matmul_all_reduce/README.md
       ut_cov_exclude:
         - mc2/matmul_all_reduce
-      test:
       options:
         - matmul_all_reduce
 
@@ -1031,7 +1028,6 @@ mc2:
         - mc2/matmul_all_reduce_add_rms_norm/README.md
       ut_cov_exclude:
         - mc2/matmul_all_reduce_add_rms_norm
-      test:
       options:
         - matmul_all_reduce_add_rms_norm
 
@@ -1050,21 +1046,21 @@ mc2:
       options:
         - matmul_reduce_scatter
 
-    # matmul_allto_all:
-    #   module: True
-    #   src:
-    #     - mc2/matmul_allto_all
-    #     - mc2/common
-    #     - mc2/3rd
-    #   exclude:
-    #     - mc2/matmul_allto_all/docs
-    #     - mc2/matmul_allto_all/README.md
-    #   ut_cov_exclude:
-    #     - mc2/matmul_allto_all
-    #   test:
-    #     examples: False
-    #   options:
-    #     - matmul_allto_all
+    matmul_allto_all:
+      module: True
+      src:
+        - mc2/matmul_allto_all
+        - mc2/common
+        - mc2/3rd
+      exclude:
+        - mc2/matmul_allto_all/docs
+        - mc2/matmul_allto_all/README.md
+      ut_cov_exclude:
+        - mc2/matmul_allto_all
+      test:
+        examples: False
+      options:
+        - matmul_allto_all
 
     matmul_reduce_scatter_v2:
       module: True
