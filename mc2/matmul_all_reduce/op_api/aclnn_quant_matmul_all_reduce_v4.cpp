@@ -180,7 +180,7 @@ static bool IsAclnnPreTransposed(const aclTensor* x2)
 {
     auto viewFormat = ge::GetPrimaryFormat(x2->GetViewFormat());
     auto storageFormat = ge::GetPrimaryFormat(x2->GetStorageFormat());
-    bool isAclnnPreTransposed = op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND310P &&
+    bool isAclnnPreTransposed = op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2002 &&
                                 viewFormat == Format::FORMAT_ND && storageFormat == Format::FORMAT_FRACTAL_NZ;
     OP_LOGD("MatmulAllReduce, IsAclnnPreTransposed=%d.", isAclnnPreTransposed);
     return isAclnnPreTransposed;
@@ -332,7 +332,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4GetWorkspaceSize(
     aclTensor* offset = nullptr;
     int64_t antiquantGroupSize = 0;
     auto tempX2 = x2;
-    if (op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND310P && IsWeightNZFormat(x2)) {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_2002 && IsWeightNZFormat(x2)) {
         if (x2->GetTensor() == nullptr) {
             OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Tensor of x2 is null.");
             return ACLNN_ERR_INNER_NULLPTR;
@@ -371,7 +371,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 {
     uint64_t timeStamp = NnopbaseMsprofSysTime();
     if (NnopbaseSetHcclServerType) {
-        if (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910_95) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }

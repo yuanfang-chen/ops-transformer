@@ -58,7 +58,7 @@ class matmul_all_reduce_test : public testing::Test {
 
 TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_no_bias) {
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -98,7 +98,7 @@ TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_no_bias) {
 
 TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_bias_cube) {
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -141,7 +141,7 @@ TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_bias_cube) {
 
 TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_no_bias_l2cache_cube) {
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -207,7 +207,7 @@ TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_no_bias_l2cache_cube) {
 
 TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_empty_k) {
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
