@@ -770,65 +770,65 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 {
     bmm1ResBuf.WaitCrossCore();
 
-    // LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod2].template Get<float>();
-    // LocalTensor<float> maxUb = this->softmaxMaxBuf[runInfo.multiCoreIdxMod2].template Get<float>();
-    // LocalTensor<float> expUb = this->softmaxExpBuf[runInfo.taskIdMod2].template Get<T>();
-    // int64_t stage1Offset = runInfo.taskIdMod2;
-    // auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<Q_T>();
+    LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod2].template Get<float>();
+    LocalTensor<float> maxUb = this->softmaxMaxBuf[runInfo.multiCoreIdxMod2].template Get<float>();
+    LocalTensor<float> expUb = this->softmaxExpBuf[runInfo.taskIdMod2].template Get<T>();
+    int64_t stage1Offset = runInfo.taskIdMod2;
+    auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<Q_T>();
 
-    // LocalTensor<uint8_t> apiTmpBuffer = this->commonTBuf.template Get<uint8_t>();
-    // LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
+    LocalTensor<uint8_t> apiTmpBuffer = this->commonTBuf.template Get<uint8_t>();
+    LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
 
     // TODO v0尾块填充-inf处理
-    // if (runInfo.s2LoopCount == 0) {
-    //     if (likely(runInfo.s2RealSize == 128)) {
-    //         ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
-    //             stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
-    //             static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-    //     } else if(runInfo.s2RealSize <= 64){
-    //         ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
-    //             stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
-    //             static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-    //     } else if(runInfo.s2RealSize < 128){
-    //         ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
-    //             stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
-    //             static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-    //     }
-    // } else {
-    //     if (likely(runInfo.s2RealSize == 128)) {
-    //         ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
-    //             stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
-    //             static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-    //     } else if (runInfo.s2RealSize <= 64) {
-    //         ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
-    //             stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
-    //             static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-    //     } else if(runInfo.s2RealSize < 128){
-    //         ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
-    //             stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
-    //             static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-    //     }
-    // }
+    if (runInfo.s2LoopCount == 0) {
+        if (likely(runInfo.s2RealSize == 128)) {
+            ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
+                stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
+        } else if(runInfo.s2RealSize <= 64){
+            ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
+                stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
+        } else if(runInfo.s2RealSize < 128){
+            ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
+                stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
+        }
+    } else {
+        if (likely(runInfo.s2RealSize == 128)) {
+            ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
+                stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
+        } else if (runInfo.s2RealSize <= 64) {
+            ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
+                stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
+        } else if(runInfo.s2RealSize < 128){
+            ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
+                stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
+        }
+    }
     bmm1ResBuf.SetCrossCore();
 
     // ===================DataCopy to L1 ====================
-    // this->stage1OutQue[stage1Offset].template EnQue(stage1CastTensor);
-    // this->stage1OutQue[stage1Offset].template DeQue<Q_T>();
+    this->stage1OutQue[stage1Offset].template EnQue(stage1CastTensor);
+    this->stage1OutQue[stage1Offset].template DeQue<Q_T>();
 
     outputBuf.WaitCrossCore();
-    // LocalTensor<Q_T> mm2AL1Tensor = outputBuf.GetTensor<Q_T>();
-    // DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
-    //     {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
-    //     (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
-    //     (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+    LocalTensor<Q_T> mm2AL1Tensor = outputBuf.GetTensor<Q_T>();
+    DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
+        {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
+        (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
+        (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
 
-    // this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
+    this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
 
     outputBuf.SetCrossCore();
     // ======================================================
-    // if (runInfo.s2LoopCount != 0) {
-    //     SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
-    // }
+    if (runInfo.s2LoopCount != 0) {
+        SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
+    }
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -1022,6 +1022,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe,
 
     SoftmaxInitBuffer();
     
+    tPipe->InitBuffer(commonTBuf, 512);
     tPipe->InitBuffer(stage1OutQue[0], 1, 8448); // （32 + 1） * 128 * 2(bf16)
     tPipe->InitBuffer(stage1OutQue[1], 1, 8448);
     tPipe->InitBuffer(stage2OutBuf, 32 * dTemplateAlign64 * sizeof(T)); //s1Base/cv_ratio * 512 * 4(float)
