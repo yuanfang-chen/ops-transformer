@@ -99,8 +99,8 @@ struct FaShapeInfo {
 };
 
 static bool StrideLimited() {
-    auto socVersion = GetCurrentPlatformInfo().GetSocVersion();
-    if (socVersion == SocVersion::ASCEND910B || socVersion == SocVersion::ASCEND910_93) {
+    NpuArch npuArch = GetCurrentPlatformInfo().GetCurNpuArch();
+    if (npuArch == NpuArch::DAV_2201) {
         return true;
     }
     return false;
@@ -908,7 +908,7 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
     const aclTensor *keyRope = nullptr;
     
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }
@@ -1001,7 +1001,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreGetWorkspaceSize(
     const aclTensor *keyRope = nullptr;
     
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }
@@ -1093,7 +1093,7 @@ aclnnStatus aclnnFlashAttentionScoreV2GetWorkspaceSize(
     const aclTensor *keyRope = nullptr;
     
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }
@@ -1180,7 +1180,7 @@ aclnnStatus aclnnFlashAttentionScoreV3GetWorkspaceSize(
     const aclTensor *keyRope = nullptr;
     
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }
@@ -1376,7 +1376,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV2GetWorkspaceSize(
     const aclTensor *keyRope = nullptr;
     
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }
@@ -1476,7 +1476,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV3GetWorkspaceSize(
     const aclTensor *sinkOptional = nullptr;
     
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }
@@ -1578,7 +1578,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4GetWorkspaceSize(
     const aclTensor *keyRope = nullptr;
     
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }
@@ -1675,7 +1675,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5GetWorkspaceSize(
     }
 
     //检查format是否符合要求
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (StrideLimited()) {
         CHECK_RET(CheckFormat(query, queryRope, key, keyRope, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, 
             sinkOptional, softmaxMaxOut, softmaxSumOut, attentionOutOut), ACLNN_ERR_PARAM_INVALID);
     }

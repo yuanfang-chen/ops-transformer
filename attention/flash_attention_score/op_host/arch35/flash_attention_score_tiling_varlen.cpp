@@ -192,8 +192,8 @@ protected:
 
     bool IsCapable() override
     {
-        if (socVersion != platform_ascendc::SocVersion::ASCEND910_95) {
-            OP_LOGD(opName, "Current soc version is not platform_ascendc::SocVersion::ASCEND910_95.");
+        if (npuArch != NpuArch::DAV_3510) {
+            OP_LOGD(opName, "Current npu arch is not dav-3510.");
             return false;
         }
         if (tilingKeyLayout != LayoutType::LAYOUT_TND) {
@@ -708,6 +708,6 @@ protected:
     }
 };
 
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(FlashAttentionScore, FlashAttentionScoreTilingVarLen, (int32_t)platform_ascendc::SocVersion::ASCEND910_95, 82);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(FlashAttentionScore, FlashAttentionScoreTilingVarLen, (int32_t)NpuArch::DAV_3510, 82);
 } // namespace FA
 } // namespace optiling

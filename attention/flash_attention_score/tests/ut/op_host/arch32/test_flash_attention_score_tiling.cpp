@@ -31,7 +31,7 @@ protected:
 TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_0)
 {
     optiling::FlashAttentionScoreCompileInfo compileInfo = {
-        24, 48, 196608, 524288, 131072, 201326592, platform_ascendc::SocVersion::ASCEND910B};
+        24, 48, 196608, 524288, 131072, 201326592, platform_ascendc::SocVersion::ASCEND910B, NpuArch::DAV_2201};
     gert::TilingContextPara tilingContextPara(
         "FlashAttentionScore",
         {
@@ -109,7 +109,7 @@ TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_0)
 TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_1)
 {
     optiling::FlashAttentionScoreCompileInfo compileInfo = {
-        24, 48, 196608, 524288, 131072, 201326592, platform_ascendc::SocVersion::ASCEND910B};
+        24, 48, 196608, 524288, 131072, 201326592, platform_ascendc::SocVersion::ASCEND910B, NpuArch::DAV_2201};
     gert::TilingContextPara tilingContextPara(
         "FlashAttentionScore",
         {
@@ -189,7 +189,7 @@ TEST_F(FlashAttentionScoreTiling, FlashAttentionScore_tiling_2)
     int64_t actual_seq_qlist[] = {13,14,81};
     int64_t actual_seq_kvlist[] = {13,14,81};
     optiling::FlashAttentionScoreCompileInfo compileInfo = {
-        24, 48, 196608, 524288, 131072, 201326592, platform_ascendc::SocVersion::ASCEND910B};
+        24, 48, 196608, 524288, 131072, 201326592, platform_ascendc::SocVersion::ASCEND910B, NpuArch::DAV_2201};
     gert::TilingContextPara tilingContextPara(
         "FlashAttentionScore",
         {
