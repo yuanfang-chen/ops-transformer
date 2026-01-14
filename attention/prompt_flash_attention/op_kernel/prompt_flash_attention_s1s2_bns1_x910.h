@@ -2704,7 +2704,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
                               this->tilingData->promptAttentionSingleCoreParams.singleProcessSOuterSize - 1) /
                               this->tilingData->promptAttentionSingleCoreParams.singleProcessSOuterSize;
     int64_t sNumMulHeadNum = this->tilingData->promptAttentionBaseParams.headNumSize * sNum;
-    int64_t totalTilingN = sNumMulHeadNum * sOuterBlockNum; //total number of Qblocks * number of heads Qblocks = L/128
+    int64_t totalTilingN = sNumMulHeadNum * sOuterBlockNum; //total number of Qblocks * number of heads; Qblocks = L/128
 
     int64_t sInnerFirstToken;
     int64_t sInnerLastToken;
@@ -2761,12 +2761,22 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
             params->multiSeqOffset = this->CalMultiSeqOffset(sIdx);
         }
 
-        if (sOuterLoopIdx == 0) {
-            params->singleProcessSOuterSize = this->singleProcessSOuterSizeTail;
-            params->sOuterOffset = 0;
+        int64_t physRow;
+        if (isSabi) {   // iterate top down instead of bottom up, so that tail is in the end as expected
+            physRow = sOuterBlockNum - 1 - sOuterLoopIdx;   // convert reversed traversal -> forward row id
+
+            bool isTailRow = (physRow == sOuterBlockNum - 1);
+            params->singleProcessSOuterSize = isTailRow ? this->singleProcessSOuterSizeTail
+                                                        : this->singleProcessSOuterSizeWhole;
+            params->sOuterOffset = physRow * this->singleProcessSOuterSizeWhole;
         } else {
-            params->singleProcessSOuterSize = this->singleProcessSOuterSizeWhole;
-            params->sOuterOffset = this->singleProcessSOuterSizeTail + (sOuterLoopIdx-1) * this->singleProcessSOuterSizeWhole;
+            if (sOuterLoopIdx == 0) {
+                params->singleProcessSOuterSize = this->singleProcessSOuterSizeTail;
+                params->sOuterOffset = 0;
+            } else {
+                params->singleProcessSOuterSize = this->singleProcessSOuterSizeWhole;
+                params->sOuterOffset = this->singleProcessSOuterSizeTail + (sOuterLoopIdx-1) * this->singleProcessSOuterSizeWhole;
+            }
         }
         if (nextTokens < 0 && params->sOuterOffset < ((nextTokens * (-1)) /
             this->singleProcessSOuterSizeWhole * this->singleProcessSOuterSizeWhole)) {
@@ -2784,7 +2794,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
             // Block sparsity
             if (isSabi) {
                 const uint32_t headIdx = static_cast<uint32_t>(params->batchNOffset);
-                const uint32_t queryChunkRow = static_cast<uint32_t>(sOuterLoopIdx);
+                const uint32_t queryChunkRow = static_cast<uint32_t>(physRow);
                 sabiRow = t3.At(headIdx, queryChunkRow);
             }
         }
