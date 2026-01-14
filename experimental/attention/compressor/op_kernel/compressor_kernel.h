@@ -187,7 +187,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;                                                     // D方向的基本块
     constInfo.coreGroupNum = constInfo.usedCoreNum / constInfo.dBasicBlockNum;                                              // 核分为多少组
     constInfo.singleCoreDealTcBasicNum = (constInfo.tcBasicBlockNum + constInfo.coreGroupNum - 1) / constInfo.coreGroupNum; // 处理的最大基本块数量
-    constInfo.dIdx = (((constInfo.aiCoreIdx + 1) % constInfo.dBasicBlockNum) - 1) * constInfo.dBaseSize;                    // 每个核处理的d方向的索引
+    constInfo.dIdx = ((constInfo.aiCoreIdx + 1) % constInfo.dBasicBlockNum) * constInfo.dBaseSize;                    // 每个核处理的d方向的索引
     // printf("[BASEINFO] tcSize:%u tcBaseSize:%u tcBasicBlockNum:%u dBasicBlockNum:%u coreGroupNum:%u singleCoreDealTcBasicNum:%u\n", constInfo.tcSize, constInfo.tcBaseSize, constInfo.tcBasicBlockNum, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.singleCoreDealTcBasicNum);
     InitWorkspace(workspace);
     if ASCEND_IS_AIC {
@@ -248,7 +248,7 @@ __aicore__ inline void CompressorKernel<COMP>::InitWorkspace(__gm__ uint8_t *wor
 
     // vec1Res 
     vec1ResGm.SetGlobalBuffer(
-        (__gm__ VEC1_OUT_T *)(workspace + offset + constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize));
+        (__gm__ VEC1_OUT_T *)(workspace + offset + constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize;
 }
 
@@ -528,7 +528,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         
         // 获取各切分轴的起始核结束索引
         CalcParams(extraInfo0);
-        extraInfo0.vec1ResOffset = constInfo.dIdx + vec2Info.dealScSize * dbWorkspaceRatio * (constInfo.vec1ResSize / constInfo.tcBaseSize);
+        extraInfo0.vec1ResOffset = vec2Info.dealScSize * dbWorkspaceRatio * constInfo.headDim;
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
             if (isNeedExcute) {
