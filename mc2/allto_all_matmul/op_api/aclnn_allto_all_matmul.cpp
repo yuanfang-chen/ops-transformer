@@ -310,7 +310,7 @@ static bool IsAll2AllOut(const aclTensor *alltoAllOut)
 {
   OP_CHECK_NULL(alltoAllOut, return false);
   if (alltoAllOut->IsEmpty()) {
-    OP_LOGD("AlltoAllMatmul, get alltoAll out is empty.");
+    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "This is an error in InnerAlltoAllMatmulGetWorkspaceSize, alltoAll out do not support empty tensor.");
     return false;
   }
   return true;
@@ -358,10 +358,6 @@ extern "C" aclnnStatus InnerAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
     int64_t commQuantDtype = GE_UNDEFINED;
     int64_t groupSize = 0;
     bool all2AllOutFlag = IsAll2AllOut(alltoAllOutOptional);
-    //使用空tensor兼容
-    if (!all2AllOutFlag) {
-        alltoAllOutOptional = x1;
-    }
     aclnnStatus ret = aclnnInnerAlltoAllMatmulGetWorkspaceSize(
         x1, x2, biasOptional, x1ScaleOptional, x2ScaleOptional, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
         str_group, worldSize, alltoAllAxesOptional, yDtype, x1QuantMode, x2QuantMode, commQuantMode, x1QuantDtype, commQuantDtype,
