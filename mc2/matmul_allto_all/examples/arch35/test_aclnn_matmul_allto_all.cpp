@@ -1,15 +1,15 @@
 /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
- * \file test_aclnn_allto_all_matmul.cpp
+ * \file test_aclnn_matmul_allto_all.cpp
  * \brief aclnn测试样例
  */
 #include <thread>
@@ -19,20 +19,20 @@
 #include <vector>
 #include <acl/acl.h>
 #include <hccl/hccl.h>
-#include "aclnnop/aclnn_allto_all_matmul.h"
+#include "aclnnop/aclnn_matmul_allto_all.h"
 
 int ndev = 2;
 
 #define CHECK_RET(cond, return_expr) \
 do {                               \
-if (!(cond)) {                   \
-return_expr;                   \
-}                                \
+    if (!(cond)) {                   \
+    return_expr;                   \
+    }                                \
 } while (0)
 
 #define LOG_PRINT(message, ...)     \
 do {                              \
-printf(message, ##__VA_ARGS__); \
+    printf(message, ##__VA_ARGS__); \
 } while (0)
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape) {
@@ -71,34 +71,30 @@ struct Args {
     aclrtContext context;
 };
 
-int launchOneThreadAlltoAllMatmul(Args &args)
-{
+int launchOneThreadMatmulAlltoAll(Args &args) {
     int ret;
     ret = aclrtSetCurrentContext(args.context);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSetCurrentContext failed. ERROR: %d\n", ret); return ret);
-    char hcom_name[128] = {0};
+    char hcom_name[128];
     ret = HcclGetCommName(args.hcclComm, hcom_name);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret = %d \n", ret); return -1);
     LOG_PRINT("[INFO] rank %d hcom: %s stream: %p, context : %p\n", args.rankId, hcom_name, args.stream,
             args.context);
 
     std::vector<int64_t> x1Shape = {32, 64};
-    std::vector<int64_t> x2Shape = {64 * ndev, 128};
+    std::vector<int64_t> x2Shape = {64, 128};
     std::vector<int64_t> biasShape = {128};
-    std::vector<int64_t> outShape = {32 / ndev, 128};
-    std::vector<int64_t> alltoalloutShape = {32 / ndev, 64 * ndev};
+    std::vector<int64_t> outShape = {32 * ndev, 128 / ndev};
     void *x1DeviceAddr = nullptr;
     void *x2DeviceAddr = nullptr;
     void *biasDeviceAddr = nullptr;
     void *outDeviceAddr = nullptr;
-    void *alltoalloutDeviceAddr = nullptr;
     aclTensor *x1 = nullptr;
     aclTensor *x2 = nullptr;
     aclTensor *bias = nullptr;
     aclTensor *out = nullptr;
-    aclTensor *alltoallout = nullptr;
 
-    int64_t a2aAxes[2] = {-2, -1};
+    int64_t a2aAxes[2] = {-1, -2};
     aclIntArray* alltoAllAxesOptional = aclCreateIntArray(a2aAxes, static_cast<uint64_t>(2));
     uint64_t workspaceSize = 0;
     aclOpExecutor *executor;
@@ -108,12 +104,10 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     long long x2ShapeSize = GetShapeSize(x2Shape);
     long long biasShapeSize = GetShapeSize(biasShape);
     long long outShapeSize = GetShapeSize(outShape);
-    long long alltoalloutShapeSize = GetShapeSize(alltoalloutShape);
     std::vector<int16_t> x1HostData(x1ShapeSize, 1);
     std::vector<int16_t> x2HostData(x2ShapeSize, 1);
     std::vector<int16_t> biasHostData(biasShapeSize, 1);
     std::vector<int16_t> outHostData(outShapeSize, 0);
-    std::vector<int16_t> alltoalloutHostData(alltoalloutShapeSize, 0);
     // 创建 tensor
     ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_FLOAT16, &x1);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -123,25 +117,23 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_FLOAT16, &out);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(alltoalloutHostData, alltoalloutShape, &alltoalloutDeviceAddr, aclDataType::ACL_FLOAT16, &alltoallout);
-    CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 调用第一段接口
-    ret = aclnnAlltoAllMatmulGetWorkspaceSize(x1, x2, bias, alltoAllAxesOptional, hcom_name, false, false,
-                                            out, alltoallout, &workspaceSize, &executor);
+    ret = aclnnMatmulAlltoAllGetWorkspaceSize(x1, x2, bias, alltoAllAxesOptional, hcom_name, false, false,
+                                            out, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,
-            LOG_PRINT("aclnnAlltoAllMatmulGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+            LOG_PRINT("aclnnMatmulAlltoAllGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     // 根据第一段接口计算出的workspaceSize申请device内存
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
     }
     // 调用第二段接口
-    ret = aclnnAlltoAllMatmul(workspaceAddr, workspaceSize, executor, args.stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnAlltoAllMatmul failed. ERROR: %d\n", ret); return ret);
+    ret = aclnnMatmulAlltoAll(workspaceAddr, workspaceSize, executor, args.stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnMatmulAlltoAll failed. ERROR: %d\n", ret); return ret);
     //（固定写法）同步等待任务执行结束
     ret = aclrtSynchronizeStreamWithTimeout(args.stream, 10000);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
-    LOG_PRINT("device%d aclnnAlltoAllMatmul execute success \n", args.rankId);
+    LOG_PRINT("device%d aclnnMatmulAlltoAll execute success \n", args.rankId);
     // 释放device资源，需要根据具体API的接口定义修改
     if (x1 != nullptr) {
         aclDestroyTensor(x1);
@@ -155,9 +147,6 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     if (out != nullptr) {
         aclDestroyTensor(out);
     }
-    if (alltoallout != nullptr) {
-        aclDestroyTensor(alltoallout);
-    }
     if (x1DeviceAddr != nullptr) {
         aclrtFree(x1DeviceAddr);
     }
@@ -170,28 +159,28 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     if (outDeviceAddr != nullptr) {
         aclrtFree(outDeviceAddr);
     }
-    if (alltoalloutDeviceAddr != nullptr) {
-        aclrtFree(alltoalloutDeviceAddr);
-    }
     if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);
     }
+
     aclrtDestroyStream(args.stream);
     HcclCommDestroy(args.hcclComm);
     aclrtDestroyContext(args.context);
     aclrtResetDevice(args.rankId);
+
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
-    // 本样例基于Atlas A2实现，必须在Atlas A2上运行
-    int ret = aclInit(nullptr);
+    // 本样例基于Atlas A5实现，必须在Atlas A5上运行
+    int ret;
     int32_t devices[ndev];
     for (int i = 0; i < ndev; i++) {
         devices[i] = i;
     }
     HcclComm comms[128];
+    ret = aclInit(nullptr);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclInit failed. ERROR: %d\n", ret); return ret);
     // 初始化集合通信域
     for (int i = 0; i < ndev; i++) {
@@ -218,7 +207,7 @@ int main(int argc, char *argv[])
         args[rankId].hcclComm = comms[rankId];
         args[rankId].stream = stream[rankId];
         args[rankId].context = context[rankId];
-        threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadAlltoAllMatmul, std::ref(args  [rankId])));
+        threads[rankId].reset(new(std::nothrow) std::thread(&launchOneThreadMatmulAlltoAll, std::ref(args  [rankId])));
     }
     for (uint32_t rankId = 0; rankId < ndev; rankId++) {
         threads[rankId]->join();

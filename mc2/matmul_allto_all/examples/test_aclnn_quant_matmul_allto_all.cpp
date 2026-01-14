@@ -20,9 +20,9 @@
 #include <vector>
 #include <acl/acl.h>
 #include <hccl/hccl.h>
-#include "../op_api/aclnn_quant_matmul_allto_all.h"
+#include "aclnnop/aclnn_quant_matmul_allto_all.h"
 
-int ndev = 8;
+int ndev = 2;
 
 #define CHECK_RET(cond, return_expr) \
 do {                               \
@@ -104,7 +104,7 @@ int launchOneThreadQuantMatmulAlltoAll(Args &args) {
     int64_t x1QuantMode = 3;
     int64_t x2QuantMode = 2;
     int64_t commQuantMode = 0;
-    int64_t commQuantDtype = 28;
+    int64_t commQuantDtype = -1;
     int64_t groupSize = 0;
 
     int64_t a2aAxes[2] = {-1, -2};
