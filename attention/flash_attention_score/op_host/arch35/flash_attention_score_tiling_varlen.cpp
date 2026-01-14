@@ -509,8 +509,10 @@ protected:
     int64_t GetS2RealSize(uint8_t sparseType, int32_t bOutIdx, int64_t s1OutIdx)
     {
         int64_t s2RealSize = s2Size;
-        if (sparseType == static_cast<uint8_t>(SparseEnum::CAUSAL) && s1Size == s2Size) {
+        if (sparseType == static_cast<uint8_t>(SparseEnum::CAUSAL)) {
             s2RealSize = s1BasicBlock * (s1OutIdx + 1);
+        } else if (sparseType == static_cast<uint8_t>(SparseEnum::RIGHT_DOWN_CAUSAL)) {
+            s2RealSize = s1BasicBlock * (s1OutIdx + 1) + actualSeqLenKvData[bOutIdx] - actualSeqLenData[bOutIdx];
         } else if (sparseType == static_cast<uint8_t>(SparseEnum::PREFIX)) {
             s2RealSize = std::max(s1BasicBlock * (s1OutIdx + 1) - s1Size + s2Size, prefixNData[bOutIdx]);
         }
