@@ -93,6 +93,7 @@ aclnnStatus aclnnSparseFlashAttentionGradGetWorkspaceSize(
     int64_t              preTokens,
     int64_t              nextTokens,
     bool                 deterministic,
+    int64_t              attentionMode,
     const aclTensor     *dQueryOut,
     const aclTensor     *dKeyOut,
     const aclTensor     *dValueOut,
@@ -392,6 +393,17 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             与整网确定性参数use_deterministic_algorithms保持一致
             </td>
             <td>BOOL</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+        </tr>
+        <td>attentionMode</td>
+            <td>输入</td>
+            <td>表示attention的模式。</td>
+            <td>
+            仅支持传入2，表示MLA-absorb模式，即计算过程中会将query和key的nope部分分别和query_rope和key_rope的rope部分沿头维度（D）拼接，合并形成最终的query和key用于后续计算，且key和value共享同一份底层张量数据
+            </td>
+            <td>INT64</td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
@@ -877,6 +889,7 @@ int main() {
   int64_t preTokens = 2147483647;
   int64_t nextTokens = 2147483647;
   bool deterministic = false;
+  int64_t attentionMode = 2;
   char layout[5] = {'T', 'N', 'D', 0};
   
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
@@ -885,7 +898,7 @@ int main() {
   
   // 调用aclnnSparseFlashAttentionGrad第一段接口
   ret = aclnnSparseFlashAttentionGradGetWorkspaceSize(q, k, v, sparseIndices, dOut, out, softmaxMax, softmaxSum, actSeqQLen, actSeqKvLen,
-            qRope, kRope, scaleValue, sparseBlockSize, layout, sparseMode, preTokens, nextTokens, deterministic, dq, dk, dv, dqRope, dkRope, 
+            qRope, kRope, scaleValue, sparseBlockSize, layout, sparseMode, preTokens, nextTokens, deterministic, attentionMode, dq, dk, dv, dqRope, dkRope, 
             &workspaceSize, &executor);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnSparseFlashAttentionGradGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
   

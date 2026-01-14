@@ -73,7 +73,8 @@ enum class AttrIndex : uint32_t {
     SPARSE_MODE,
     PRE_TOKENS,
     NEXT_TOKENS,
-    DETERMINISTIC
+    DETERMINISTIC,
+    ATTENTION_MODE
 };
 
 struct SparseFlashAttentionGradCompileInfo {

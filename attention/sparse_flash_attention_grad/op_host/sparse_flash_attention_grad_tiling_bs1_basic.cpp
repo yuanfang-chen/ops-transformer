@@ -424,6 +424,11 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
         OP_LOGE(context_, "SparseFlashAttentionGrad only support sparse_mode=0 or 3, now sparse_mode=%d.", sparse_mode);
         return ge::GRAPH_FAILED;
     }
+    auto atten_mode = *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::ATTENTION_MODE));
+    if (atten_mode != 2) {
+        OP_LOGE(context_, "SparseFlashAttentionGrad only support attention_mode=2 now, but got attention_mode=%d.", atten_mode);
+        return ge::GRAPH_FAILED;
+    }
 
     if (dimDq != dimDk) {
         OP_LOGE(context_, "head_dim of Query[%ld] should be equal to head_dim of Key[%ld].", dimDq, dimDk);
