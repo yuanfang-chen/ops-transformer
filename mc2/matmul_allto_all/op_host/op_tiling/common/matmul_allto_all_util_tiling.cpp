@@ -569,6 +569,48 @@ ge::graphStatus MatmulAlltoAllTilingUtil::SetDataTypeInfo(const gert::TilingCont
     return ge::GRAPH_SUCCESS;
 }
 
+/**
+ * @brief 设置算子的数据类型信息
+ *
+ * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称
+ * @param contextInfo 存储了tiling的过程信息
+ * @return ge::graphStatus
+ */
+ge::graphStatus MatmulAlltoAllTilingUtil::SetKcDataTypeInfo(const gert::TilingContext *context, const char *opName,
+                                                        TilingContextInfo &contextInfo)
+{
+    const gert::StorageShape *matrixBias = context->GetOptionalInputShape(INPUT_BIAS_INDEX);
+    ge::DataType aType = context->GetInputDesc(INPUT_X1_INDEX)->GetDataType();
+    ge::DataType bType = context->GetInputDesc(INPUT_X2_INDEX)->GetDataType();
+    ge::DataType cType = context->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
+    ge::DataType biasType;
+    bool isBias = true;
+    if (matrixBias == nullptr) {
+        isBias = false;
+        biasType = cType;
+    } else {
+        biasType = context->GetOptionalInputDesc(INPUT_BIAS_INDEX)->GetDataType();
+    }
+
+    contextInfo.args_.outputDtypeSize = mc2tiling::GetDataTypeSize(opName, cType);
+    contextInfo.args_.inputDtypeSize = mc2tiling::GetDataTypeSize(opName, aType);
+    contextInfo.args_.isBias = isBias;
+    contextInfo.args_.geCType = cType;
+    contextInfo.args_.geBiasType = biasType;
+    contextInfo.args_.geAType = aType;
+    contextInfo.args_.geBType = bType;
+    contextInfo.args_.cType = mc2tiling::ConvertGeTypeToMmType(opName, cType);
+    contextInfo.args_.aType = mc2tiling::ConvertGeTypeToMmType(opName, aType);
+    contextInfo.args_.bType = mc2tiling::ConvertGeTypeToMmType(opName, bType);
+    contextInfo.args_.biasType = mc2tiling::ConvertGeTypeToMmType(opName, biasType);
+    return ge::GRAPH_SUCCESS;
+}
+ 	 
+/**
+ * @brief 设置算子的数据类型信息
+ *
+ * 
 
 /**
  * @brief 功能函数：获取算子对应的QUANT类型

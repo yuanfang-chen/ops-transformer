@@ -54,6 +54,7 @@ private:
     uint64_t mmMvalueLen = 0;
     void PrintKcQuantMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
     void PrintKcQuantMMV3TilingData(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
+    void PrintExtendMatmulTiling(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
 };
 
 class KcQuantMatmulAlltoAllHelper : public Mc2AdaptiveSlidingWindowTiling {
@@ -63,6 +64,7 @@ public:
     const gert::Shape GetX1Shape(const size_t index) override;
     const gert::Shape GetX2Shape(const size_t index) override;
     const gert::Shape& GetScaleShape(const size_t index) override;
+    const gert::StorageShape* GetOffsetShape(const size_t index);
     const gert::StorageShape* GetPertokenShape(const size_t index) override;
     const gert::StorageShape* GetBiasShape(const size_t index) override;
     ge::graphStatus GetShapeAttrsInfo() override;
