@@ -60,7 +60,6 @@ __aicore__ inline void AntiquantVFImplW4PerTokenGroupNz(LocalTensor<KV_T>& antiq
     const uint32_t colBaseSize = 16; // 16列
     const uint32_t dealBaseNum = 128; // 128个元素
     const uint32_t doubleRowBaseSize = 16;
-    const uint32_t grpNum = (baseSize + 31) / 32;
 
     const uint32_t rowScaleStride = doubleRowBaseSize;
     const uint32_t rowDstStride = doubleRowBaseSize * colBaseSize;
@@ -70,7 +69,7 @@ __aicore__ inline void AntiquantVFImplW4PerTokenGroupNz(LocalTensor<KV_T>& antiq
     const uint16_t innerLoopCnt = 2;//D方向，每个group内部的VF基本块循环次数（=2）
     const uint16_t colLoopCnt = static_cast<uint16_t>(baseSize /(colBaseSize*innerLoopCnt));
     const uint16_t rowLoopCnt = static_cast<uint16_t>((dealRowCount + doubleRowBaseSize - 1) / doubleRowBaseSize); // 16行对齐
-    const uint32_t colScaleStride = copyTotalS; //S2方向，UB地址连续的长度，=taskParam.copyTotalS
+    const uint32_t colScaleStride = (copyTotalS + 31) / 32 * 32; //伪量化参数32byte对齐
 
     for (uint16_t rowLoop = 0; rowLoop < rowLoopCnt; rowLoop++) {
       uint16_t rowLoopIdx = rowLoopCnt - 1 - rowLoop;
@@ -81,17 +80,6 @@ __aicore__ inline void AntiquantVFImplW4PerTokenGroupNz(LocalTensor<KV_T>& antiq
         for(uint16_t innerLoopIdx = 0; innerLoopIdx < innerLoopCnt; innerLoopIdx++) {
           __ubuf__ uint8_t* ubSrcTemp = ubSrcAddr + rowSrcStride * rowLoopIdx + colLoopIdx * innerLoopCnt * colSrcStride + innerLoopIdx * colSrcStride;
           __ubuf__ Q_T* ubDstAddrTmp = ubDstAddr + rowDstStride * rowLoopIdx + colLoopIdx * innerLoopCnt * colDstStride + innerLoopIdx * colDstStride;
-          // 前半组
-          MicroAPI::LoadAlign<uint8_t, MicroAPI::LoadDist::DIST_UNPACK4_B8>(
-              (MicroAPI::RegTensor<uint8_t>&)vKvData, ubSrcTemp);
-          MicroAPI::Cast<bfloat16_t, KV_T, castTraitW4>(vRes, vKvData, kvTypeMaskAll);
-          MicroAPI::Mul<bfloat16_t, MicroAPI::MaskMergeMode::ZEROING>(vRes, vRes, vScaleFirst, qTypeMaskAll);
-          if constexpr (std::is_same<Q_T, bfloat16_t>::value) {
-            MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp, vRes, qTypeMaskAll);
-          } else {
-            MicroAPI::Cast<half, bfloat16_t, castTraitW4_1>(vCastFp16Res, vRes, qTypeMaskAll);
-            MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp, vCastFp16Res, qTypeMaskAll);
-          }
           // 后半组
           MicroAPI::LoadAlign<uint8_t, MicroAPI::LoadDist::DIST_UNPACK4_B8>(
               (MicroAPI::RegTensor<uint8_t>&)vKvData, ubSrcTemp + 64);
@@ -102,6 +90,17 @@ __aicore__ inline void AntiquantVFImplW4PerTokenGroupNz(LocalTensor<KV_T>& antiq
           } else {
             MicroAPI::Cast<half, bfloat16_t, castTraitW4_1>(vCastFp16Res, vRes, qTypeMaskAll);
             MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp + dealBaseNum, vCastFp16Res, qTypeMaskAll);
+          }
+          // 前半组
+          MicroAPI::LoadAlign<uint8_t, MicroAPI::LoadDist::DIST_UNPACK4_B8>(
+              (MicroAPI::RegTensor<uint8_t>&)vKvData, ubSrcTemp);
+          MicroAPI::Cast<bfloat16_t, KV_T, castTraitW4>(vRes, vKvData, kvTypeMaskAll);
+          MicroAPI::Mul<bfloat16_t, MicroAPI::MaskMergeMode::ZEROING>(vRes, vRes, vScaleFirst, qTypeMaskAll);
+          if constexpr (std::is_same<Q_T, bfloat16_t>::value) {
+            MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp, vRes, qTypeMaskAll);
+          } else {
+            MicroAPI::Cast<half, bfloat16_t, castTraitW4_1>(vCastFp16Res, vRes, qTypeMaskAll);
+            MicroAPI::StoreAlign<Q_T, MicroAPI::StoreDist::DIST_NORM_B16>(ubDstAddrTmp, vCastFp16Res, qTypeMaskAll);
           }
         }
       }
@@ -1169,8 +1168,9 @@ __simd_vf__ void AntiqScalePerTokenGroupByVFImpl(__ubuf__ uint8_t *ub_src_addr, 
     __ubuf__ uint8_t *ub_src_addr = (__ubuf__ uint8_t *)(scaleInUb.GetPhyAddr());
     __ubuf__ half *ub_dst_addr = (__ubuf__ half *)(scaleResUb.GetPhyAddr());
     __ubuf__ half *ub_dst_addr_ = ub_dst_addr + 128;
-    uint16_t loop_cnt = dealRowCount * grpNum / 128;
-    uint32_t tailSize = dealRowCount * grpNum % 128; // loop_cnt如果不是整数，则有尾块
+    uint32_t dealRowCountAlign = (dealRowCount + 31) / 32 * 32;
+    uint16_t loop_cnt = dealRowCountAlign * grpNum / 128;
+    uint32_t tailSize = dealRowCountAlign * grpNum % 128; // loop_cnt如果不是整数，则有尾块
     if (tailSize != 0) {
       loop_cnt = loop_cnt + 1;
     }
