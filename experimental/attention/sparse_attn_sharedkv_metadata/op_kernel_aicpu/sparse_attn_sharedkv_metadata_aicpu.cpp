@@ -58,7 +58,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
 
   coreNum_ = 24U;
   sparseMode_ = 4;
-  preToken_ = winLeft_ - 1;
+  preToken_ = (winLeft_ > -1) ? winLeft_ - 1 : INT64_MAX;
   nextToken_ = 0;
   attentionMode_ = 1;
   isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
@@ -255,6 +255,9 @@ Range<uint32_t> SparseAttnSharedkvMetadataCpuKernel::CalcS2Range(
     if (s2FirstToken >= static_cast<int64_t>(batchCache.s2Size) || s2LastToken < 0 || s2LastToken < s2FirstToken) {
         s2Start = 0U;
         s2End = 0U;
+        // win_left = 0时，会出现s2LastToken < s2FirstToken，所以此处也要处理winS2LastToken信息
+        s2LastToken = Clip(s2LastToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
+        winS2LastToken = s2LastToken;
         return std::make_pair(s2Start, s2End);
     }
     // get valid range
@@ -435,53 +438,53 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcCostInfo(SplitContext &splitContex
     }
 }
 
-void SparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext)
-{
-    const SplitInfo &splitInfo = splitContext.splitInfo;
-    const CostInfo &costInfo = splitContext.costInfo;
+//void SparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext)
+//{
+//    const SplitInfo &splitInfo = splitContext.splitInfo;
+//    const CostInfo &costInfo = splitContext.costInfo;
 
-    bool UpdateS1G = false;
-    bool UpdateBatch = false;
+//    bool UpdateS1G = false;
+//    bool UpdateBatch = false;
 
-    // Update S2
-    if (assignContext.curS2Idx >= assignContext.s1GCache.s2End) {    // 边界assignInfo.s2End是取不到的开区间
-        assignContext.curS2Idx = 0U;
-        assignContext.curS1GIdx++;
-        UpdateS1G = true;
-    }
+//    // Update S2
+//    if (assignContext.curS2Idx >= assignContext.s1GCache.s2End) {    // 边界assignInfo.s2End是取不到的开区间
+//        assignContext.curS2Idx = 0U;
+//        assignContext.curS1GIdx++;
+//        UpdateS1G = true;
+//    }
 
-    // Update S1G
-    if (assignContext.curS1GIdx >= splitInfo.s1GBaseNum[assignContext.curBIdx]) {
-        assignContext.curS1GIdx = 0U;
-        assignContext.curBN2Idx++;
-    }
+//    // Update S1G
+//    if (assignContext.curS1GIdx >= splitInfo.s1GBaseNum[assignContext.curBIdx]) {
+//        assignContext.curS1GIdx = 0U;
+//        assignContext.curBN2Idx++;
+//    }
 
-    // Update Batch
-    if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {  // 所有负载全部分配完，设置最后一个核的右开区间，返回
-        assignContext.curS1GIdx = 0U;
-        assignContext.curS2Idx = 0U;
-        assignContext.isFinished = true;
-        return;
-    }
+//    // Update Batch
+//    if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {  // 所有负载全部分配完，设置最后一个核的右开区间，返回
+//        assignContext.curS1GIdx = 0U;
+//        assignContext.curS2Idx = 0U;
+//        assignContext.isFinished = true;
+//        return;
+//    }
 
-    if (assignContext.curBN2Idx / kvHeadNum_ != assignContext.curBIdx) {
-        assignContext.curBIdx = assignContext.curBN2Idx / kvHeadNum_;
-        assignContext.curS1GIdx = 0U;
-        UpdateBatch = true;
-        UpdateS1G = true;
-    }
+//    if (assignContext.curBN2Idx / kvHeadNum_ != assignContext.curBIdx) {
+//        assignContext.curBIdx = assignContext.curBN2Idx / kvHeadNum_;
+//        assignContext.curS1GIdx = 0U;
+//        UpdateBatch = true;
+//        UpdateS1G = true;
+//    }
 
-    // Update Cache
-    if (UpdateBatch) {
-        CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
-        assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
-        assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
-    }
-    if (UpdateS1G) {
-        CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
-        assignContext.curS2Idx = (supportFd) ? assignContext.s1GCache.winS2Start : 0;
-    }
-}
+//    // Update Cache
+//    if (UpdateBatch) {
+//        CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
+//        assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
+//        assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+//    }
+//    if (UpdateS1G) {
+//        CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
+//        assignContext.curS2Idx = assignContext.s1GCache.s2Start;
+//    }
+//}
 
 void SparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &splitContext, AssignContext &assignContext)
 {
@@ -514,7 +517,7 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &spli
         assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
         assignContext.curS1GIdx = 0U;
         CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
-        assignContext.curS2Idx = (supportFd) ? assignContext.s1GCache.winS2Start : 0;
+        assignContext.curS2Idx = assignContext.s1GCache.s2Start;
     }
 }
 
@@ -540,8 +543,25 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByRow(const SplitContext &splitC
             assignContext.curS1GIdx++;
             CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
         }while(assignContext.s1GCache.s1GBlock == 0);
-        assignContext.curS2Idx = (supportFd) ? assignContext.s1GCache.winS2Start : 0;
+        assignContext.curS2Idx = assignContext.s1GCache.s2Start;
     }
+}
+
+int64_t SparseAttnSharedkvMetadataCpuKernel::CalcCurBlockCost(AssignContext &assignContext)
+{
+    int64_t curCost = 0;
+    if (assignContext.curS2Idx < assignContext.s1GCache.cmpS2Start) {
+        curCost = assignContext.s1GCache.winS1GNormalBlockCost;
+        if (assignContext.curS2Idx == (assignContext.s1GCache.cmpS2Start - 1U)) {
+            curCost = assignContext.s1GCache.winS1GLastBlockCost;
+        }
+    } else {
+        curCost = assignContext.s1GCache.cmpS1GNormalBlockCost;
+        if (assignContext.curS2Idx == (assignContext.s1GCache.s2End - 1U)) {
+            curCost = assignContext.s1GCache.cmpS1GLastBlockCost;
+        }
+    }
+    return curCost
 }
 
 void SparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext)
@@ -550,16 +570,19 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContext &spli
         return;
     }
 
-    int64_t curCost = assignContext.s1GCache.s1GNormalBlockCost;
-    if (assignContext.curS2Idx == (assignContext.s1GCache.s2End - 1U)) {
-        curCost = assignContext.s1GCache.s1GLastBlockCost;
-    }
+    //int64_t curCost = assignContext.s1GCache.s1GNormalBlockCost;
+    //if (assignContext.curS2Idx == (assignContext.s1GCache.s2End - 1U)) {
+    //    curCost = assignContext.s1GCache.s1GLastBlockCost;
+    //}
+
+    int64_t curCost = CalcCurBlockCost(assignContext);
 
     while (IsWithinTolerance(assignContext.coreCache.costLimit, curCost / FA_TOLERANCE_RATIO, 
             assignContext.coreCache.cost + curCost)) { // (costLimit - curCostOnCore) * FA_TOLERANCE_RATIO > curCost；至少分配1块
         assignContext.coreCache.cost += curCost;
         assignContext.coreCache.block++;
         assignContext.curS2Idx++;
+        curCost = CalcCurBlockCost(assignContext);
         // 当前batch被分配一块出去，更新剩余负载
         assignContext.bN2Cost = assignContext.bN2Cost - curCost;
         // 当前行被分配一块出去，更新剩余负载
@@ -569,28 +592,28 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContext &spli
     }
 }
 
-void SparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext)
-{
-    if (assignContext.isFinished) {
-        return;
-    }
+//void SparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext)
+//{
+//    if (assignContext.isFinished) {
+//        return;
+//    }
 
-    int64_t curCost = assignContext.s1GCache.s1GNormalBlockCost;
-    if (assignContext.curS2Idx == (assignContext.s1GCache.s2End - 1U)) {
-        curCost = assignContext.s1GCache.s1GLastBlockCost;
-    }
+//    int64_t curCost = assignContext.s1GCache.s1GNormalBlockCost;
+//    if (assignContext.curS2Idx == (assignContext.s1GCache.s2End - 1U)) {
+//        curCost = assignContext.s1GCache.s1GLastBlockCost;
+//    }
 
-    assignContext.coreCache.cost += curCost;
-    assignContext.coreCache.block++;
-    assignContext.curS2Idx++;
-    // 当前batch被分配一块出去，更新剩余负载
-    assignContext.bN2Cost = assignContext.bN2Cost - curCost;
-    assignContext.bN2Block--;
-    // 当前行被分配一块出去，更新剩余负载
-    assignContext.s1GCache.s1GCost = assignContext.s1GCache.s1GCost - curCost;
-    assignContext.s1GCache.s1GBlock--;
-    UpdateCursor(splitContext, assignContext); 
-}
+//    assignContext.coreCache.cost += curCost;
+//    assignContext.coreCache.block++;
+//    assignContext.curS2Idx++;
+//    // 当前batch被分配一块出去，更新剩余负载
+//    assignContext.bN2Cost = assignContext.bN2Cost - curCost;
+//    assignContext.bN2Block--;
+//    // 当前行被分配一块出去，更新剩余负载
+//    assignContext.s1GCache.s1GCost = assignContext.s1GCache.s1GCost - curCost;
+//    assignContext.s1GCache.s1GBlock--;
+//    UpdateCursor(splitContext, assignContext); 
+//}
 
 bool SparseAttnSharedkvMetadataCpuKernel::IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes)
 {
@@ -654,7 +677,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
     assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
     CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
     CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
-    assignContext.curS2Idx = (supportFd) ? assignContext.s1GCache.winS2Start : 0;
+    assignContext.curS2Idx = assignContext.s1GCache.s2Start;
 
     for (uint32_t i = 0; i < coreNum; ++i) {
         if (result.maxCost > costLimit) {
@@ -703,7 +726,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
         }
 
         // 更新S2切分信息
-        if (assignContext.curS2Idx > assignContext.s1GCache.winS2Start &&
+        if (assignContext.curS2Idx > assignContext.s1GCache.s2Start &&
             assignContext.curS2Idx <= assignContext.s1GCache.s2End) {
             assignContext.curKvSplitPart++;
         }
