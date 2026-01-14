@@ -76,9 +76,9 @@ struct ConstInfo {
     uint32_t sEnd = 0U;
 
     // 分核相关
-    uint32_t usedCoreNum = 24;
-    uint32_t dBaseSize = 64;
-    uint32_t mBaseSize = 256;
+    uint32_t usedCoreNum = 0;
+    uint32_t dBaseSize = 0;
+    uint32_t mBaseSize = 0;
     uint32_t tcSize = 0;
     uint32_t tcBaseSize = 0;
     uint32_t tcBasicBlockNum = 0;
@@ -127,6 +127,9 @@ struct RunInfo {
     uint32_t scStart = 0;
     uint32_t scEnd = 0;
     uint32_t dealScSize = 0;
+
+    // vec1Res offset
+    uint64_t vec1ResOffset = 0;
 };
 
 struct MSplitInfo {
