@@ -19,12 +19,12 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_v2_tiling.h"
 #include "moe_distribute_v2_base.h"
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
-#if __has_include("../moe_distribute_dispatch/check_winsize.h")
-#include "../moe_distribute_dispatch/check_winsize.h"
 #else
-#include "../../moe_distribute_dispatch/op_kernel/check_winsize.h"
+#include "../../common/inc/kernel/moe_distribute_base.h"
 #endif
+#include "check_winsize.h"
 
 namespace Mc2Kernel {
 constexpr uint32_t STATE_SIZE = 2048 * 1024; // 2M

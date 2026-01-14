@@ -33,8 +33,8 @@
 #include "mc2_log.h"
 #include "register/tilingdata_base.h"
 #include "tiling/mc2_tiling_utils.h"
-#include "../../../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_tiling.h"
-#include "../../../op_kernel/moe_distribute_combine_tiling_key.h"
+#include "../../../op_kernel/moe_distribute_combine_v2_tiling.h"
+#include "../../../op_kernel/moe_distribute_combine_v2_tiling_key.h"
 using namespace Mc2Tiling;
 
 namespace {

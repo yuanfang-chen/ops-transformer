@@ -35,10 +35,10 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
-#include "../../op_kernel/moe_distribute_combine_tiling.h"
+#include "../../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_tiling.h"
 
 #include "tiling/moe_tiling_base.h"
-#include "arch35/moe_distribute_combine_tiling_arch35.h"
+#include "../../../moe_distribute_combine_v2/op_host/op_tiling/arch35/moe_distribute_combine_tiling_arch35.h"
 #include "moe_distribute_combine_tiling_a2a3.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "mc2_hcom_topo_info.h"

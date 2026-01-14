@@ -23,11 +23,10 @@
 #include "moe_distribute_elastic.h"
 
 #include "moe_distribute_v2_base.h"
-#if __has_include("../moe_distribute_dispatch/check_winsize.h")
-#include "../moe_distribute_dispatch/check_winsize.h"
+#include "check_winsize.h"
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
-#else
-#include "../../moe_distribute_dispatch/op_kernel/check_winsize.h"
+#else 
 #include "../../common/inc/kernel/moe_distribute_base.h"
 #endif
 

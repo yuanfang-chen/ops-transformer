@@ -18,14 +18,12 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_v2_tiling.h"
-#if __has_include("../moe_distribute_dispatch/check_winsize.h")
-#include "../moe_distribute_dispatch/check_winsize.h"
+#include "check_winsize.h"
+#if __has_include( "../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
 #else
-#include "../../moe_distribute_dispatch/op_kernel/check_winsize.h"
 #include "../../common/inc/kernel/moe_distribute_base.h"
 #endif
-
 namespace MoeDistributeDispatchV2FullMeshImpl {
 constexpr uint8_t BUFFER_NUM = 2;        // 多buf
 constexpr uint32_t STATE_OFFSET = 32U;  // 状态空间偏移地址

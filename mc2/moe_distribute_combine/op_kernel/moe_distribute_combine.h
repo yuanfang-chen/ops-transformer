@@ -17,11 +17,12 @@
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
-#include "moe_distribute_combine_tiling.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../moe_distribute_combine_v2/moe_distribute_combine_tiling.h" 
 #else
 #include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_tiling.h" 
 #endif
 namespace MoeDistributeCombineImpl {
 constexpr uint8_t BUFFER_NUM = 2; // 多buf

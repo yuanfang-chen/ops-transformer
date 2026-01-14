@@ -20,7 +20,7 @@
 #include "moe_distribute_v2_base.h"
 
 #if defined(__DAV_C310__)
-#include "../moe_distribute_dispatch/quantize_functions.h"
+#include "quantize_functions.h"
 #endif
 
 namespace Mc2Kernel {

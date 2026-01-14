@@ -19,17 +19,11 @@
 #include "moe_distribute_dispatch_v2_tiling_key.h"
 
 #if defined(__DAV_C310__)
-#include "../moe_distribute_dispatch/arch35/moe_distribute_dispatch_arch35.h"
+#include "arch35/moe_distribute_dispatch_arch35.h"
 #else
-#if __has_include("../moe_distribute_dispatch/moe_distribute_dispatch_a2.h")
-#include "../moe_distribute_dispatch/moe_distribute_dispatch_a2.h"
-#include "../moe_distribute_dispatch/moe_distribute_dispatch_a2_layered.h"
-#include "../moe_distribute_dispatch/moe_distribute_dispatch_a2_layered_aicpu.h"
-#else
-#include "../../moe_distribute_dispatch/op_kernel/moe_distribute_dispatch_a2.h"
-#include "../../moe_distribute_dispatch/op_kernel/moe_distribute_dispatch_a2_layered.h"
-#include "../../moe_distribute_dispatch/op_kernel/moe_distribute_dispatch_a2_layered_aicpu.h"
-#endif
+#include "moe_distribute_dispatch_a2.h"
+#include "moe_distribute_dispatch_a2_layered.h"
+#include "moe_distribute_dispatch_a2_layered_aicpu.h"
 #endif // defined(__DAV_C310__)
 
 #if defined(__DAV_C310__)

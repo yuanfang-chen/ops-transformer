@@ -18,7 +18,7 @@
 #include "lib/hccl/hccl.h"
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
-#include "../../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h"
+#include "../moe_distribute_combine_v2_tiling.h"
 
 
 namespace MoeDistributeCombineA5Impl {

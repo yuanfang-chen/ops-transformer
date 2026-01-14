@@ -17,17 +17,11 @@
 #include "moe_distribute_combine_v2_tiling_key.h"
 
 #ifdef __DAV_C310__
-#include "../moe_distribute_combine/arch35/moe_distribute_combine_arch35.h"
+#include "arch35/moe_distribute_combine_arch35.h"
 #else
-#if __has_include("../moe_distribute_combine/moe_distribute_combine_a2.h")
-#include "../moe_distribute_combine/moe_distribute_combine_a2.h"
-#include "../moe_distribute_combine/moe_distribute_combine_a2_layered.h"
-#include "../moe_distribute_combine/moe_distribute_combine_a2_layered_aicpu.h"
-#else
-#include "../../moe_distribute_combine/op_kernel/moe_distribute_combine_a2.h"
-#include "../../moe_distribute_combine/op_kernel/moe_distribute_combine_a2_layered.h"
-#include "../../moe_distribute_combine/op_kernel/moe_distribute_combine_a2_layered_aicpu.h"
-#endif // __has_include
+#include "moe_distribute_combine_a2.h"
+#include "moe_distribute_combine_a2_layered.h"
+#include "moe_distribute_combine_a2_layered_aicpu.h"
 #endif // __DAV_C310__
 #include "moe_distribute_combine_v2_tiling.h"
 #include "moe_distribute_combine_v2.h"

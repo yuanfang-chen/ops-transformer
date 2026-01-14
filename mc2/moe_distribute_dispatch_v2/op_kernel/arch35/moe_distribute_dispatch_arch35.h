@@ -20,7 +20,7 @@
 #include "common.h"
 #include "../quantize_functions.h"
 #include "kernel_operator.h"
-#include "../../moe_distribute_dispatch_v2/moe_distribute_dispatch_v2_tiling.h"
+#include "../moe_distribute_dispatch_v2_tiling.h"
 
 namespace MoeDistributeDispatchA5Impl {
 constexpr uint8_t BUFFER_NUM = 2;

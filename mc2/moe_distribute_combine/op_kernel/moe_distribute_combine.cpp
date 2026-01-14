@@ -17,13 +17,20 @@
 #include "moe_distribute_combine_tiling_key.h"
 
 #ifdef __DAV_C310__
-#include "arch35/moe_distribute_combine_arch35.h"
+#include "../moe_distribute_combine_v2/arch35/moe_distribute_combine_arch35.h"
 #else
 #include "moe_distribute_combine.h"
-#include "moe_distribute_combine_tiling.h"
-#include "moe_distribute_combine_a2.h"
-#include "moe_distribute_combine_a2_layered.h"
-#include "moe_distribute_combine_a2_layered_aicpu.h"
+#if __has_include("../moe_distribute_combine_v2/moe_distribute_combine_tiling.h")
+#include "../moe_distribute_combine_v2/moe_distribute_combine_tiling.h"
+#include "../moe_distribute_combine_v2/moe_distribute_combine_a2.h"
+#include "../moe_distribute_combine_v2/moe_distribute_combine_a2_layered.h"
+#include "../moe_distribute_combine_v2/moe_distribute_combine_a2_layered_aicpu.h"
+#else
+#include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_tiling.h"
+#include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_a2.h"
+#include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_a2_layered.h"
+#include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_a2_layered_aicpu.h"
+#endif
 using namespace MoeDistributeCombineImpl;
 using namespace MoeDistributeCombineA2Impl;
 #endif
