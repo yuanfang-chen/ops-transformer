@@ -176,10 +176,10 @@ struct S1GCache {
     uint32_t s1GIdx { 0U };
     uint32_t s2Start { 0U };
     uint32_t s2End { 0U };
-    uint32_t winS2Start { 0U };
-    uint32_t winS2End { 0U };
-    uint32_t cmpS2Start { 0U };
-    uint32_t cmpS2End { 0U };
+    //uint32_t winS2Start { 0U };
+    //uint32_t winS2End { 0U };
+    uint32_t cmpS2Start { 0U };  // win部分与cmp部分的切分点
+    //uint32_t cmpS2End { 0U };
     int64_t s1GCost { 0 };
     int64_t s1GLastBlockCost { 0 };
     uint32_t s1GBlock { 0U };
