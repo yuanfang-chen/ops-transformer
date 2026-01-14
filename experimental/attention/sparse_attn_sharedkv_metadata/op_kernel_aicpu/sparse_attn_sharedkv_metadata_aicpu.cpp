@@ -318,7 +318,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
         actCmpS2LastTokenSize = std::min(cmpS2LastTokenSize, topK_);
     }
     // Calculate cmpS2TailSize
-    s1GCache.cmpS2TailSize = actCmpS2LastTokenSize % s2BaseSize_;
+    s1GCache.cmpS2TailSize = (actCmpS2LastTokenSize + 1U) % s2BaseSize_;
 
     // 将token长度转化为token索引，然后由token索引计算s2索引
     s1GCache.cmpS2End = (actCmpS2LastTokenSize == 0) ? 0 : (actCmpS2LastTokenSize - 1) / s2BaseSize_ + 1U;
