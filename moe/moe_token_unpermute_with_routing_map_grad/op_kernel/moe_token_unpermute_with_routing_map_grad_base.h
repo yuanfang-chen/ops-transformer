@@ -138,6 +138,13 @@ __aicore__ inline void MTE3ToSSync()
     WaitFlag<HardEvent::MTE3_S>(eventIDMTE3ToS);
 }
 
+__aicore__ inline void MTE3ToVSync()
+{
+    event_t eventIDMTE3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
+    SetFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
+    WaitFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
+}
+
 __aicore__ inline void VToSSync()
 {
     event_t eventIDVToS = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_S));

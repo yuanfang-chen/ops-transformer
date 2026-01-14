@@ -28,10 +28,13 @@ constexpr uint32_t FP32_BLOCK_NUM = 8;
 constexpr uint32_t H_BUFFER_NUM = 8;
 constexpr uint32_t BLOCK_SIZE_512 = 512;
 constexpr uint32_t MAX_TOP_K = 512;
-constexpr uint32_t REDUCESUM_ONEREPEAT_CALNUM = 256 / sizeof(float);
+constexpr uint32_t REDUCESUM_ONEREPEAT_CALNUM = 64; // 256 / sizeof(float);
 constexpr uint32_t BUFFER_NUM = 2;
 constexpr int64_t INDICES_RESERVE_MAX_NUM = 256;
 constexpr int64_t H_LOOP_ALIGN_BUFFER_LENGTH = 512;
+constexpr int64_t H_BUFFER_NUM_PAD_FALSE = 3;
+constexpr int64_t H_FP32_BUFFER_NUM_PAD_FALSE = 3;
+constexpr int64_t SIZE_OF_FLOAT = 4;
 constexpr uint32_t MIN_SPILT_H_SIZE = 1;
 constexpr size_t ATTR_DROP_AND_PAD_IDX = 0;
 constexpr size_t INPUT_UNPERMUTEDOUTPUTD_IDX = 0;
@@ -47,8 +50,6 @@ constexpr uint32_t UNPERMUTE_GRAD_DIM_NUM = 2;
 constexpr uint32_t INDEX_DIM_NUM = 1;
 constexpr size_t PROB_NONE_PERLOOP_NUM = 1;
 constexpr size_t INDICES_FP32_BUFFER_NUM = 2;
-constexpr size_t H_BUFFER_NUM_PAD_FALSE = 3;
-constexpr size_t H_FP32_BUFFER_NUM_PAD_FALSE = 3;
 
 template <typename T>
 inline auto AlignUp(T num, T rnd) -> T
@@ -219,7 +220,7 @@ static ge::graphStatus TilingForProbNotNonePadTrue(
     int64_t inputBlockAlignEleNum = BLOCK_SIZE_32 / inputTypeLength;
     int64_t totalUbSize = tiling.get_totalUbSize();
     int64_t hiddenSizeAlign = AlignUp<int64_t>(hiddenSize, inputBlockAlignEleNum);
-    int64_t hiddenSizeTmpMax = (totalUbSize - BLOCK_SIZE_32 - H_LOOP_ALIGN_BUFFER_LENGTH * sizeof(float)) /
+    int64_t hiddenSizeTmpMax = (totalUbSize - BLOCK_SIZE_32 - H_LOOP_ALIGN_BUFFER_LENGTH * SIZE_OF_FLOAT) /
                                (BUFFER_NUM * (H_BUFFER_NUM + inputTypeLength));
     if (hiddenSizeTmpMax < hiddenSizeAlign) { // hiddensize需要切分
         hiddenSizeAlign = AlignDown<int64_t>(hiddenSizeTmpMax, inputBlockAlignEleNum);
@@ -290,13 +291,13 @@ static ge::graphStatus TilingForProbNotNonePadFalse(
     int64_t indicesReserveNumAlign = AlignUp<int64_t>(indicesReserveNum, inputBlockAlignEleNum);
     int64_t numExpertAlign = AlignUp<int64_t>(numExpert, BLOCK_SIZE_32);
     int64_t probTypeLength = GetLengthByType(context->GetInputDesc(INPUT_PROB_IDX)->GetDataType());
-    int64_t hiddenSizeTmpMax =
-        (tiling.get_totalUbSize() - numExpertAlign - numExpertAlign * probTypeLength -
-         inputTypeLength * indicesReserveNumAlign - indicesReserveNumAlign * sizeof(float) * INDICES_FP32_BUFFER_NUM) /
-        (H_BUFFER_NUM_PAD_FALSE * BUFFER_NUM * inputTypeLength + H_FP32_BUFFER_NUM_PAD_FALSE * sizeof(float));
+    int64_t remainSize = tiling.get_totalUbSize() - numExpertAlign - numExpertAlign * probTypeLength -
+        inputTypeLength * INDICES_RESERVE_MAX_NUM - INDICES_RESERVE_MAX_NUM * SIZE_OF_FLOAT * INDICES_FP32_BUFFER_NUM;
+    int64_t hiddenNum = H_BUFFER_NUM_PAD_FALSE * BUFFER_NUM * inputTypeLength + H_FP32_BUFFER_NUM_PAD_FALSE * SIZE_OF_FLOAT;
+    int64_t hiddenSizeTmpMax = remainSize / hiddenNum;
     OP_CHECK_IF(
         hiddenSizeTmpMax < MIN_SPILT_H_SIZE,
-        OP_LOGE(context->GetNodeName(), "The input shape of routingMap is too large."),
+        OP_LOGE(context->GetNodeName(), "The experts_num is too large."),
         return ge::GRAPH_FAILED);
     hiddenSizeAlign = hiddenSizeTmpMax < hiddenSizeAlign ? AlignDown<int64_t>(hiddenSizeTmpMax, inputBlockAlignEleNum) :
                                                            hiddenSizeAlign;

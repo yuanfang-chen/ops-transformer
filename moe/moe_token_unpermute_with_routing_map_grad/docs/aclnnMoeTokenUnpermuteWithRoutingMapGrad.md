@@ -277,15 +277,27 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
             <td>输入和输出的数据类型和数据格式不在支持的范围之内。</td>
             </tr>
             <tr>
-            <td rowspan="4"> ACLNN_ERR_INNER_TILING_ERROR </td>
-            <td rowspan="4"> 561002 </td>
+            <td rowspan="8"> ACLNN_ERR_INNER_TILING_ERROR </td>
+            <td rowspan="8"> 561002 </td>
             <td>输入probsOptional非空，且paddedMode为false时，topK_num > 512。</td>
             </tr>
             <tr>
             <td>输入probsOptional非空，且paddedMode为false时，topK_num大于experts_num。</td>
             </tr>
             <tr>
+            <td>输入probsOptional非空，且paddedMode为false时，196608 - (probTypeLen + 1) * numExpertAlign-(tokenTypeLen + 8) * 256 / (6 * tokenTypeLen + 12) < 1。</td>
+            </tr>
+            <tr>
             <td>输入probsOptional非空，且paddedMode为true时，capacity大于tokens_num。</td>
+            </tr>
+            <tr>
+            <td>输入probsOptional非空，且paddedMode为true时，hidden_size在输入unpermutedTokensGrad是BFLOAT16或FLOAT16时，大于4972544，hidden_size在输入unpermutedTokensGrad是FLOAT时，大于4149248。</td>
+            </tr>
+            <tr>
+            <td>输入probsOptional非空时，输入routingMapOptional或permutedTokensOptional为空。</td>
+            </tr>
+            <tr>
+            <td>输入probsOptional非空时，probsOptional数据类型与unpermutedTokensGrad不同且unpermutedTokensGrad不是BFLOAT16。</td>
             </tr>
             <tr>
             <td>输入或输出的shape不符合要求。</td>

@@ -154,20 +154,16 @@ __aicore__ inline void MoeTokenUnpermuteWithRoutingMapGradProbNotNoneDropPadTrue
         }
         // 对tmpBufferProbGradReduceSum做ReduceSum，计算当前行对应的prob梯度
         this->ReduceSumFunc(probGradReduceSumLocal, probGradReduceSumLocal, this->hiddenSizeLoopTimes);
-        VToSSync();
-        float probGradTemp = probGradReduceSumLocal.GetValue(0);
-        ProbsT probGrad;
-        if constexpr (IsSameType<ProbsT, bfloat16_t>::value) {
-            probGrad = AscendC::ToBfloat16(probGradTemp);
-        } else if constexpr (IsSameType<ProbsT, half>::value) {
-            probGrad = static_cast<half>(probGradTemp);
+        if constexpr (IsSameType<ProbsT, float>::value) {
+            Copy(probGradOutLocal, probGradReduceSumLocal, 1, 1, {1, 1, 8, 8});
         } else {
-            probGrad = probGradTemp;
+            Cast(probGradOutLocal, probGradReduceSumLocal, RoundMode::CAST_RINT, 1);
         }
-        probGradOutLocal.SetValue(0, probGrad);
-        SToMTE3Sync();
+
+        VToMTE3Sync();
         copyParams.blockLen = this->probTypeSize;
         DataCopyPad(this->probGradGm[probOffset], probGradOutLocal, copyParams);
+        MTE3ToVSync();
     }
 }
 
