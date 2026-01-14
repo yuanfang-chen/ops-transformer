@@ -119,7 +119,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>数据类型与key1/value1/key2/value2的数据类型一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -129,7 +129,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>数据类型与query/value1/key2/value2的数据类型一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -139,7 +139,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>数据类型与query/key1/key2/value2的数据类型一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -149,7 +149,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>数据类型与query/key1/value1/value2的数据类型一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -159,7 +159,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>数据类型与query/key1/value1/key2的数据类型一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -169,7 +169,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>-</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -184,7 +184,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           </td>
           <td>BOOL、UINT8</td>
           <td>ND</td>
-          <td>0、2、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -194,7 +194,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>输出的shape类型为[B,H,M,N,8]。</td>
           <td>FLOAT</td>
           <td>ND</td>
-          <td>0、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -204,7 +204,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>输出的shape类型为[B,H,M,N,8]。</td>
           <td>FLOAT</td>
           <td>ND</td>
-          <td>0、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -214,7 +214,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>数据类型和shape类型与query保持一致。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -224,7 +224,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>-</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -234,7 +234,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>-</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -244,7 +244,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>-</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -254,7 +254,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>-</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -264,7 +264,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
           <td>-</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
-          <td>0、3、4</td>
+          <td>5</td>
           <td>√</td>
         </tr>
         <tr>
@@ -322,12 +322,14 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
       <td>传入参数是必选输入，输出或者必选属性，且是空指针。</td>
     </tr>
     <tr>
-      <td rowspan="2">ACLNN_ERR_PARAM_INVALID</td>
-      <td rowspan="2">161002</td>
-      <td>query、key1、value1、key2、value2、dy、attenMaskOptional、softmaxMax、softmaxSum、attentionIn、dqOut、dk1Out、dv1Out、dk2Out、dv2Out的数据类型不在支持的范围内。</td>
+      <td rowspan="1">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="1">161002</td>
+      <td>query、key1、value1、key2、value2、dy、attenMaskOptional、softmaxMax、softmaxSum、attentionIn、dqOut、dk1Out、dv1Out、dk2Out、dv2Out的数据类型或数据格式不在支持的范围内。</td>
     </tr>
     <tr>
-      <td>query、key1、value1、key2、value2、dy、attenMaskOptional、softmaxMax、softmaxSum、attentionIn、dqOut、dk1Out、dv1Out、dk2Out、dv2Out的数据格式不在支持的范围内。</td>
+      <td rowspan="1">ACLNN_ERR_INNER_TILING_ERROR</td>
+      <td rowspan="1">561002</td>
+      <td>tiling发生异常，query、key1、value1、key2、value2、dy、attenMaskOptional、softmaxMax、softmaxSum、attentionIn不符合约束说明。</td>
     </tr>
   </tbody>
   </table>
@@ -384,6 +386,12 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
   - N：取值范围为1\~1M。
   - K：取值范围为1\~1M。
   - D：取值范围为32\~256。
+
+- query与key1的第0/2/4轴需相同。
+- key1与value1 shape需相同。
+- key2与value2 shape需相同。
+- query与dy/attentionIn shape需相同。
+- softmaxMax与softmaxSum shape需相同。
 
 ## 调用示例
 

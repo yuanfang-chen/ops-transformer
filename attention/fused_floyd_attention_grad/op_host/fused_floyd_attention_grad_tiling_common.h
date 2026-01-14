@@ -54,6 +54,7 @@ constexpr uint32_t PREFIX_COMPRESS_S1_SIZE = 3072;
 constexpr uint32_t ATTEN_MASK_COMPRESS_LIMIT = 2048;
 constexpr uint32_t BOOL_BLOCK_NUMS = 32;
 constexpr uint32_t DROPOUT4BIT_LEN = 16;
+constexpr uint64_t SUPPORT_DIM_NUM = 5;
 const int64_t UB_BASIC_LIMIT_SIZE = 8 * 1024;
 const int64_t SAB_TND_SIZE = 1024;
 
@@ -97,10 +98,10 @@ const std::vector<std::vector<size_t>> LAYOUT_TO_AXIS{
 
 enum InputIndex {
     QUERY = 0,
-    KEY,
-    VALUE,
     KEY_1,
     VALUE_1,
+    KEY_2,
+    VALUE_2,
     DY,
     ATTEN_MASK,
     SOFTMAX_MAX,
@@ -229,14 +230,11 @@ template <typename T> static T AlignUp(T num1, T num2)
     }
     return (num1 + num2 - 1) / num2 * num2;
 }
-ge::graphStatus CheckSoftmaxMaxShape(gert::TilingContext *context, int64_t b, int64_t n, int64_t s1, int64_t s2);
-ge::graphStatus CheckSoftmaxSumShape(gert::TilingContext *context, int64_t b, int64_t n, int64_t s1, int64_t s2);
-ge::graphStatus CheckAttentionInShape1(gert::TilingContext *context);
-ge::graphStatus CheckSoftmaxDtype1(gert::TilingContext *context);
-ge::graphStatus CheckAttentionInDtype1(gert::TilingContext *context);
-ge::graphStatus CheckShapeValid1(gert::TilingContext *context, int64_t b, int64_t n, int64_t s1, int64_t s2, int64_t d);
-ge::graphStatus CheckDtypeValid1(gert::TilingContext *context);
-bool IsSameShape1(const gert::StorageShape *aShape, const gert::StorageShape *bShape);
+ge::graphStatus CheckSoftmaxMaxAndSumShape(gert::TilingContext *context, int64_t b, int64_t n, int64_t s1, int64_t s2, uint8_t inputIdx);
+ge::graphStatus CheckAttentionMaskShape(gert::TilingContext *context, int64_t b, int64_t s1, int64_t s3);
+ge::graphStatus CheckSupportShape(gert::TilingContext *context);
+ge::graphStatus CheckInputShapeValid(gert::TilingContext *context, int64_t b, int64_t n, int64_t s1, int64_t s2, int64_t s3, int64_t d);
+bool CheckSameShape(const gert::StorageShape *aShape, const gert::StorageShape *bShape);
 bool isTndSABHit(gert::TilingContext *context);
 
 // dq/dv/dk vdup and dropMask bit2bool

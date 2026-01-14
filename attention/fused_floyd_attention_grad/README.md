@@ -77,42 +77,42 @@
       <td>query</td>
       <td>输入</td>
       <td>公式中的输入Q。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>key1</td>
       <td>输入</td>
       <td>公式中的输入K1。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>value1</td>
       <td>输入</td>
       <td>公式中的输入V1。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>key2</td>
       <td>输入</td>
       <td>公式中的输入K2。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>value2</td>
       <td>输入</td>
       <td>公式中的输入V2。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>dy</td>
       <td>输入</td>
       <td>公式中的输入dY。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
@@ -138,35 +138,35 @@
       <td>dqOut</td>
       <td>输出</td>
       <td>公式中的dQ，表示query的梯度。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>dk1Out</td>
       <td>输出</td>
       <td>公式中的dK1，表示key1的梯度。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>dv1Out</td>
       <td>输出</td>
       <td>公式中的dV1，表示value1的梯度。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>dk2Out</td>
       <td>输出</td>
       <td>公式中的dK2，表示key2的梯度。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>dv2Out</td>
       <td>输出</td>
       <td>公式中的dV2，表示value2的梯度。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
   </tbody>
@@ -182,6 +182,12 @@
   - N：取值范围为1\~1M。
   - K：取值范围为1\~1M。
   - D：取值范围为32\~256。
+
+- query与key1的第0/2/4轴需相同。
+- key1与value1 shape需相同。
+- key2与value2 shape需相同。
+- query与dy/attentionIn shape需相同。
+- softmaxMax与softmaxSum shape需相同。
 
 ## 调用说明
 

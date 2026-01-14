@@ -30,6 +30,7 @@ constexpr uint32_t VALUE1_INPUT_INDEX = 2;
 constexpr uint32_t KEY2_INPUT_INDEX = 3;
 constexpr uint32_t VALUE2_INPUT_INDEX = 4;
 constexpr uint32_t DY_INPUT_INDEX = 5;
+constexpr uint32_t ATTEN_MASK_INPUT_INDEX = 6;
 constexpr uint32_t SOFTMAX_MAX = 7;
 constexpr uint32_t SOFTMAX_SUM = 8;
 constexpr uint32_t ATTENTION_IN = 9;
@@ -138,18 +139,12 @@ static ge::graphStatus CheckAttrs(gert::TilingContext *context)
 static ge::graphStatus CheckBaseInput(gert::TilingContext *context){
     auto &queryShape = context->GetInputShape(QUERY_INPUT_INDEX)->GetStorageShape();
     auto &keyShape = context->GetInputShape(KEY1_INPUT_INDEX)->GetStorageShape();
-    auto &valueShape = context->GetInputShape(VALUE1_INPUT_INDEX)->GetStorageShape();
-    auto &key2Shape = context->GetInputShape(KEY1_INPUT_INDEX)->GetStorageShape();
-    auto &value2Shape = context->GetInputShape(VALUE1_INPUT_INDEX)->GetStorageShape();
     OP_CHECK_IF(
         (queryShape.GetDim(0) != keyShape.GetDim(0) ||
         queryShape.GetDim(1) != keyShape.GetDim(1) ||
         queryShape.GetDim(4) != keyShape.GetDim(4)),
         OP_LOGE(context, "query or key shape is invalid"),
         return ge::GRAPH_FAILED);
-
-    OP_CHECK_IF((keyShape != valueShape), OP_LOGE(context, "key1's shape should be same as value1"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF((key2Shape != value2Shape), OP_LOGE(context, "key2's shape should be same as value2"), return ge::GRAPH_FAILED);
 
     return ge::SUCCESS;
 }

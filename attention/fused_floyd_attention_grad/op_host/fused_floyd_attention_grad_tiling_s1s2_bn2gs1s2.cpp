@@ -161,9 +161,7 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::GetPlatformInfo()
 ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::GetBaseShapeInfo() {
     // 待公共模板实现后，会删除该函数  直接继承基类
     const gert::StorageShape *queryShape = context_->GetInputShape(QUERY); // [B, N2, G, S1, D]
-    const gert::StorageShape *keyShape = context_->GetInputShape(KEY);     // [B, N2, 1, S2, D]
-    const gert::StorageShape *valueShape = context_->GetInputShape(VALUE);
-    const gert::StorageShape *dyShape = context_->GetInputShape(DY);
+    const gert::StorageShape *keyShape = context_->GetInputShape(KEY_1);     // [B, N2, 1, S2, D]
 
     const char *inputLayout = "BNSD";
 
@@ -195,15 +193,6 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::GetBaseShapeInfo() {
             OP_LOGE(context_, "n2 is 0."),
             return ge::GRAPH_FAILED);
 
-    auto ret = IsSameShape1(queryShape, dyShape);
-    OP_CHECK_IF(!ret,
-                OP_LOGE(context_, "FAG different shape queryShape and dyShape"),
-                return ge::GRAPH_FAILED);
-    ret = IsSameShape1(keyShape, valueShape);
-    OP_CHECK_IF(!ret,
-                OP_LOGE(context_, "FAG different shape keyShape and valueShape"),
-                return ge::GRAPH_FAILED);
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -221,8 +210,6 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::GetShapeAttrsInfo()
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }
-
-    const char *inputLayout ="BNSD";
 
     fBaseParams.n1 = fBaseParams.n2 * fBaseParams.g;
     fBaseParams.s1Align = (fBaseParams.s1 + INPUT_ALIGN - 1) / INPUT_ALIGN * INPUT_ALIGN;
@@ -294,16 +281,11 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::GetShapeAttrsInfo()
         fBaseParams.attenMaskDtype = ATTEN_MASK_TYPE_U8_BOOL;
     }
 
-    ret = CheckDtypeValid1(context_);
-    OP_CHECK_IF(ret != ge::GRAPH_SUCCESS,
-               OP_LOGE(context_, "dtype is invalid."),
-               return ge::GRAPH_FAILED);
-
     fBaseParams.isSparse = false;
     OP_LOGD(context_, "FAG S1s2Bn2gs1s2 sparse mode = %u, sparse %s.", fBaseParams.sparseMode,
               fBaseParams.isSparse ? "enable" : "disable");
 
-    return CheckShapeValid1(context_, fBaseParams.b, fBaseParams.n2, fBaseParams.g, fBaseParams.s1, fBaseParams.d);
+    return CheckInputShapeValid(context_, fBaseParams.b, fBaseParams.n2, fBaseParams.g, fBaseParams.s1, fBaseParams.s2, fBaseParams.d);
 }
 
 ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DoOpTiling()
@@ -348,10 +330,6 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DoSplit()
     fBaseParams.s1CvRatio = 1; //1
     fBaseParams.s2CvRatio = 1; //8
 
-    // b不等于0，前面已做判断
-    int64_t s2Avg = (fBaseParams.t2 + fBaseParams.b - 1) / fBaseParams.b;
-    int64_t s1Avg = (fBaseParams.t1 + fBaseParams.b - 1) / fBaseParams.b;
-
     uint32_t s1Inner = 64;
     uint32_t s2Inner = 128;
     fBaseParams.gInner = 16; 
@@ -360,8 +338,6 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DoSplit()
         fBaseParams.bmmS1base = 16;
     }
 
-    std::tuple<uint32_t, uint32_t, uint32_t> bestSplitRes = FuzzyForBestSplit();
-    // uint32_t s1Inner = std::get<0>(bestSplitRes);
     uint32_t s1CvInner = s1Inner * fBaseParams.s1CvRatio;
     OP_CHECK_IF(s1CvInner == 0,
                OP_LOGE(context_, "divisor s1CvInner is 0."),
@@ -397,7 +373,6 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DoSplit()
         OP_LOGE(context_, "baseMN or s2Outer or s1Outer is 0."),
         return ge::GRAPH_FAILED);
 
-    // uint32_t sfmgdInner = std::get<2>(bestSplitRes);
     uint32_t sfmgdInner = 128; //先写死
 
     OP_CHECK_IF(sfmgdInner == 0,
@@ -448,54 +423,6 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DoSparse()
     std::copy(std::begin(blockEnds), std::end(blockEnds), std::begin(fBaseParams.blockEnds));
     
     return ge::GRAPH_SUCCESS;
-}
-
-std::tuple<uint32_t, uint32_t, uint32_t> FusedFloydAttentionGradTilingS1s2Bn2gs1s2::FuzzyForBestSplit()
-{
-    uint32_t s1Inner = std::min(INITIAL_S1_SPLIT_NUM, fBaseParams.s1Align);
-    uint32_t s2Inner = std::min(INITIAL_S2_SPLIT_NUM, fBaseParams.s2Align);
-
-    bool left = true;
-    while (!CheckFuzzyArgsLegal(s1Inner, s2Inner)) {
-        if (left) {
-            s1Inner = s1Inner - FRACTAL_NUM;
-        } else {
-            s2Inner = s2Inner - FRACTAL_NUM;
-        }
-        left = !left;
-    }
-
-    s2Inner = s2Inner > SOFTMAX_PERF ? s2Inner / SOFTMAX_PERF * SOFTMAX_PERF : s2Inner;
-    uint32_t first = s1Inner;
-    uint32_t second = s2Inner;
-
-    uint32_t tmpBufferSize =
-        (fBaseParams.ubSize - first * second * BASIC_BLOCK_MULTIPLE - first * SHAPE_INFO * fBaseParams.calTypeSize) /
-        BYTE_BLOCK * BYTE_BLOCK;
-    if (fBaseParams.mm1IsNZOut) {
-        tmpBufferSize = tmpBufferSize - TEMP_BUFFER_REMAIN_SIZE;
-    }
-    fBaseParams.tmpBufferSize = tmpBufferSize;
-    OP_LOGD(context_, "s1Inner = %d, s2Inner = %d, tmpBufferSize = %d", first, second, tmpBufferSize);
-
-    // softmaxfront
-    // init d split factor use s2Inner
-    uint32_t third = 0;
-    uint32_t dInner = std::min(static_cast<int64_t>(s2Inner), fBaseParams.d);
-    while (dInner > 0) {
-        auto softmaxgradShape = ge::Shape({s1Inner, dInner});
-        uint32_t softmaxgradTmpSize =
-            AscendC::GetSoftMaxGradMinTmpSize(softmaxgradShape, fBaseParams.calTypeSize, true, false);
-        if (fBaseParams.tmpBufferSize < softmaxgradTmpSize) {
-            dInner -= FRACTAL_NUM;
-        } else {
-            third = dInner;
-            break;
-        }
-    }
-
-    third = third > SOFTMAX_PERF ? third / SOFTMAX_PERF * SOFTMAX_PERF : third;
-    return std::tie(std::min(first, 128u), std::min(second, 64u), std::min(third, 64u));
 }
 
 bool FusedFloydAttentionGradTilingS1s2Bn2gs1s2::CheckFuzzyArgsLegal(uint32_t s1Inner, uint32_t s2Inner)
