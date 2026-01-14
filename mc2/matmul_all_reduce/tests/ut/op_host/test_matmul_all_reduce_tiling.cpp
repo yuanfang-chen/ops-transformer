@@ -130,7 +130,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_1)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 33554433UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "c041fb764afc3b4d";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_1_k_zero)
@@ -163,7 +165,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_1_k_zero)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 17UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "960dd341d68fc34a";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_2)
@@ -196,7 +200,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_2)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 33554497UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "083da6251c73359f";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_3)
@@ -229,7 +235,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_3)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 33554497UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "5ff458558edc6918";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_4)
@@ -262,7 +270,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_4)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 33554433UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "a23f0181da54e26a";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_5)
@@ -295,7 +305,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_5)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 33554433UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "71d0ddbf5e16d61b";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_6)
@@ -328,7 +340,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_6)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 33554497UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "38de9015a3034bf9";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_Weight_NZ)
@@ -361,7 +375,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_Weight_NZ
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 134217985UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "7951e5b80962975c";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_tiling_a8w8_310p)
@@ -398,7 +414,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_tiling_a8w8_310p)
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 9UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "f2c1638610c7a521";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_tiling_float16_empty_k_310p_nz)
@@ -431,7 +449,9 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_tiling_float16_empty_k_310p
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 134217745UL;
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
+    const std::string expectTilingDataHash = "364aee1152606e9d";
+    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey,
+        expectTilingDataHash, {}, 0, true);
 }
 
 namespace {

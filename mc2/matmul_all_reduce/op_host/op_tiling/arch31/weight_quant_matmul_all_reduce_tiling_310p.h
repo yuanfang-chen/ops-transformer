@@ -86,8 +86,8 @@ class WeightQuantMatmulAllReduceTiling310P : public MatmulAllReduceTilingBase
                 return;
             }
             std::stringstream ss;
-            ss << "cubeBlockDimN: " << static_cast<uint32_t>(tilingData_->cubeBlockDimN)
-               << " cubeBlockDimM: " << static_cast<uint32_t>(tilingData_->cubeBlockDimM)
+            ss << " cubeNumBlocksN: " << static_cast<uint32_t>(tilingData_->cubeBlockDimN)
+               << " cubeNumBlocksM: " << static_cast<uint32_t>(tilingData_->cubeBlockDimM)
                << " AL1Pingpong: " << static_cast<uint32_t>(tilingData_->AL1Pingpong)
                << " BL1Pingpong: " << static_cast<uint32_t>(tilingData_->BL1Pingpong)
                << " kAlign: " << tilingData_->kAlign << " nAlign: " << tilingData_->nAlign

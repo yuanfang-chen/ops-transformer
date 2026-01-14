@@ -258,8 +258,8 @@ void WeightQuantMatmulAllReduceTilingA5::PrintMatmulAsTiling(bool isTail)
         tiling = weightQuantMatmulAllReduceA5Fp8TilingData_.tailMmASTiling;
     }
 
-    OP_LOGD(opName_, "Tiling.cubeBlockDimN=%u.", tiling.cubeBlockDimN);
-    OP_LOGD(opName_, "Tiling.cubeBlockDimM=%u.", tiling.cubeBlockDimM);
+    OP_LOGD(opName_, "Tiling.cubeNumBlocksN=%u.", tiling.cubeBlockDimN);
+    OP_LOGD(opName_, "Tiling.cubeNumBlocksM=%u.", tiling.cubeBlockDimM);
     OP_LOGD(opName_, "Tiling.hasBias=%u.", tiling.hasBias);
     OP_LOGD(opName_, "Tiling.firstTailBlockCoun=%u.", tiling.firstTailBlockCount);
     OP_LOGD(opName_, "Tiling.secondTailBlockCount=%u.", tiling.secondTailBlockCount);
@@ -288,8 +288,8 @@ void WeightQuantMatmulAllReduceTilingA5::PrintExtendMatmulTiling(bool isTail)
         tiling = weightQuantMatmulAllReduceA5TilingData_.tailRegBaseMmTiling;
     }
 
-    OP_LOGD(opName_, "Tiling.cubeBlockDimN=%u.", tiling.cubeBlockDimN);
-    OP_LOGD(opName_, "Tiling.cubeBlockDimM=%u.", tiling.cubeBlockDimM);
+    OP_LOGD(opName_, "Tiling.cubeNumBlocksN=%u.", tiling.cubeBlockDimN);
+    OP_LOGD(opName_, "Tiling.cubeNumBlocksM=%u.", tiling.cubeBlockDimM);
     OP_LOGD(opName_, "Tiling.vecCoreParallel=%u.", tiling.vecCoreParallel);
     OP_LOGD(opName_, "Tiling.reserve1=%u.", tiling.reserve1);
     OP_LOGD(opName_, "Tiling.AL1Pingpong=%u.", tiling.AL1Pingpong);
