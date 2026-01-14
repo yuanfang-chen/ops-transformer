@@ -23,8 +23,6 @@
 #include "../../../op_kernel/arch32/weight_quant_matmul_all_reduce_tiling_data.h"
 #ifdef __CCE_KT_TEST__
 #include "kernel_log.h"
-#else
-#define __aicore__ [aicore]
 #endif
 
 #define GET_TILING_DATA(tiling_data, tiling_arg)    \
