@@ -362,11 +362,19 @@ void GetUsrWorkSpaceSize(uint32_t nElemAlign, uint32_t elementSize, uint64_t &us
     info.hasAAlign = hasAAlign;
     info.hasBAlign = hasBAlign;
     if (info.hasAAlign) {
-        info.aAlignSize = static_cast<uint64_t>((info.isTransposeX1 ? info.K * mAlign : info.M * kAlign) * elementSize);
+        if (elementSize != 0) {
+            info.aAlignSize = static_cast<uint64_t>((info.isTransposeX1 ? info.K * mAlign : info.M * kAlign) * elementSize);
+        } else {
+            info.aAlignSize = static_cast<uint64_t>((info.isTransposeX1 ? info.K * mAlign : info.M * kAlign) / 2);
+        }
         userWorkSpaceSize += info.aAlignSize;
     }
     if (info.hasBAlign) {
-        info.bAlignSize = static_cast<uint64_t>((info.isTransposeX2 ? info.N * kAlign : info.K * nAlign) * elementSize);
+        if (elementSize != 0) {
+            info.bAlignSize = static_cast<uint64_t>((info.isTransposeX2 ? info.N * kAlign : info.K * nAlign) * elementSize);
+        } else {
+            info.bAlignSize = static_cast<uint64_t>((info.isTransposeX2 ? info.N * kAlign : info.K * nAlign) / 2);
+        }
         userWorkSpaceSize += info.bAlignSize;
     }
     if (info.quantFlag) {
@@ -486,7 +494,10 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
     auto aType = context->GetInputTensor(0)->GetDataType();
     auto bType = context->GetInputTensor(1)->GetDataType();
     auto cType = context->GetOutputDesc(0)->GetDataType();
-    info.quantFlag = (aType == ge::DT_INT8) && (bType == ge::DT_INT8) && (cType == ge::DT_BF16 || cType == ge::DT_FLOAT16);
+    bool isA4W4 = (aType == ge::DT_INT4) && (bType == ge::DT_INT4);
+    bool isA8W8 = (aType == ge::DT_INT8) && (bType == ge::DT_INT8);
+    bool isOutputTypeValid = (cType == ge::DT_BF16 || cType == ge::DT_FLOAT16);
+    info.quantFlag = (isA4W4 || isA8W8) && isOutputTypeValid;
     if (info.quantFlag) {
         OP_TILING_CHECK(!CheckDtypeX2(context, info, cType), VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "AllGatherMatmulV2 AIV mode invalid x2Scale."), return ge::GRAPH_FAILED);
         info.dequantType = DequantType::PER_CHANNEL;
@@ -519,8 +530,15 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
     SetTilingData(tilingData->cocTiling, info, rankSize);
 
     // workspace
-    uint32_t elementSize = D_TYPE_SIZE_MAP.at(aType);
-    uint32_t nElemAlign = HALF_KBYTE / elementSize;
+    uint32_t elementSize = 0;
+    uint32_t nElemAlign = 0;
+    if (aType == ge::DT_INT4) {
+        nElemAlign = HALF_KBYTE * 2;
+    } else {
+        elementSize = D_TYPE_SIZE_MAP.at(aType);
+        nElemAlign = HALF_KBYTE / elementSize;
+    }
+    
     uint64_t userWorkSpaceSize = 0;
     GetUsrWorkSpaceSize(nElemAlign, elementSize, userWorkSpaceSize, rankSize, info);
     workSpaces[0] = SYSTEM_NEED_WORKSPACE + userWorkSpaceSize;

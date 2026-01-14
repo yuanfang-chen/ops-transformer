@@ -90,7 +90,7 @@ static const std::initializer_list<op::DataType> FP8_DTYPE_SUPPORT_LIST = {
 static const std::initializer_list<op::DataType> OUT_DTYPE_SUPPORT_LIST = BIAS_DTYPE_SUPPORT_LIST;
 
 static const std::initializer_list<op::DataType> AIV_MODE_INPUT_DTYPE_SUPPORT_LIST = {
-  op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_INT8
+  op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_INT8, op::DataType::DT_INT4
 };
 
 static const std::initializer_list<op::DataType> AIV_MODE_OUTPUT_DTYPE_SUPPORT_LIST = {
@@ -233,8 +233,8 @@ static aclnnStatus CheckParams(const aclTensor *x1, const aclTensor *x2, const a
   return ACLNN_SUCCESS;
 }
 
-static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclTensor *x2, const aclTensor *output,
-                                                const aclTensor *gatherOut, bool isTransA, int64_t streamMode)
+static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclTensor *x2, const aclTensor *bias, const aclTensor *output,
+                                                const aclTensor *gatherOut, bool isTransA, bool isTransB, int64_t streamMode)
 {
   CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
 
@@ -250,8 +250,8 @@ static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclT
     return false;
   });
 
-  const auto kValX1 = x1->GetViewShape().GetDim(1);
-  const auto kValX2 = x2->GetViewShape().GetDim(0);
+  const auto kValX1 = x1->GetStorageShape().GetDim(1);
+  const auto kValX2 = x2->GetStorageShape().GetDim(isTransB ? 1 : 0);
   OP_API_CHECK((kValX1 != kValX2), {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
     "The k-axis of x1 and x2 should be same, but x1's k-axis is: %ld and x2's k-axis is: %ld.", kValX1, kValX2);
@@ -268,8 +268,8 @@ static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclT
     });
   }
 
-  const auto nVal1 = x2->GetViewShape().GetDim(1);
-  const auto nVal2 = output->GetViewShape().GetDim(1);
+  const auto nVal1 = x2->GetStorageShape().GetDim(isTransB ? 0 : 1);
+  const auto nVal2 = output->GetStorageShape().GetDim(1);
   OP_API_CHECK((nVal1 != nVal2), {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
     "The n-axis of x2 and output should be same, but x2's n-axis is: %ld and output's n-axis is: %ld.", nVal1, nVal2);
@@ -481,6 +481,14 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeCCUMode(const aclTensor* x1, const 
   return ret;
 }
 
+bool IsTransposeX2(const aclTensor* x1, const aclTensor* x2, bool isTransX1) 
+{
+  const auto kValX1 = x1->GetStorageShape().GetDim(isTransX1 ? 0 : 1);
+  const auto x2Dim0 = x2->GetStorageShape().GetDim(0);
+  const auto x2Dim1 = x2->GetStorageShape().GetDim(1);
+  return (kValX1 != x2Dim0) && (kValX1 == x2Dim1);
+}
+
 aclnnStatus allGatherMatmulV2GetWorkspaceSizeAIVMode(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias,
                                                    const aclTensor* x1Scale, const aclTensor* x2Scale,
                                                    const aclTensor* quantScale, int64_t blockSize, const char* group,
@@ -491,12 +499,12 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeAIVMode(const aclTensor* x1, const 
 {
     OP_LOGD("allGatherMatmulV2GetWorkspaceSizeAIVMode start");
     bool transposeX1 = IsTransposeLastTwoDims(x1);
-    bool transposeX2 = IsTransposeLastTwoDims(x2);
+    bool transposeX2 = IsTransposeX2(x1, x2, transposeX1);
     uint32_t rankSize = 0;
     bool isAmaxOut = false;
     bool isGatherOut = IsGatherOut(gatherOut);
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
-    CHECK_RET(CheckParamsAndShapeForAIVMode(x1, x2, output, gatherOut, transposeX1, streamMode), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckParamsAndShapeForAIVMode(x1, x2, bias, output, gatherOut, transposeX1, transposeX2, streamMode), ACLNN_ERR_PARAM_INVALID);
     aclnnStatus ret = aclnnInnerAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, quantScale, group,
                                                                 transposeX1, transposeX2, gatherIndex, commTurn,
                                                                 rankSize, blockSize, groupSize, isGatherOut, isAmaxOut,
