@@ -228,9 +228,7 @@ __global__ __aicore__ void matmul_all_reduce(
     GM_ADDR dequantGM, GM_ADDR pertokenGM, GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM,
     GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-#ifdef __CCE_KT_TEST__
-    REGISTER_TILING_DEFAULT(MatmulAllReduce910TilingData);
-#endif
+    REGISTER_TILING_DEFAULT(Mc2Tiling::QuantMatmulAllReduceTilingDataA5); //按当前最大的结构体申请内存
     if (workspaceGM == nullptr) {
         return;
     }
@@ -242,7 +240,7 @@ __global__ __aicore__ void matmul_all_reduce(
 
     TPipe tPipe;
 
-    if constexpr (APT_MM_TYPE == MMTYPE_NULL_TENSOR) {
+    if constexpr (APT_MM_TYPE == MMTYPE_FP_NULL_TENSOR || APT_MM_TYPE == MMTYPE_WEIQUANT_NULL_TENSOR) {
         INVOKE_MC2_EMPTY_TENSOR_OP_IMPL();
     } else if constexpr (APT_MM_TYPE == MMTYPE_FP_MM) {
         fp_matmul_all_reduce<APT_PARAMS_FP_MM>(

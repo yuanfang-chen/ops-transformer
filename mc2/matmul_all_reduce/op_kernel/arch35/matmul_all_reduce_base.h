@@ -19,6 +19,7 @@
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #include "matmul_all_reduce_add_x3.h"
+#include "matmul_all_reduce_tiling_struct_ar35.h"
 
 namespace MatmulAllReduceImpl {
 using namespace AscendC;
@@ -150,8 +151,8 @@ protected:
     MC2GmAddrs* addrs_;
     QuantGmAddrs* quantAddrs_;
     ArnGmAddrs* arnAddrs_;
-    Mc2Msg* msgInTiling_;
-    RCSTiling* paramInTiling_;
+    Mc2Tiling::Mc2Msg* msgInTiling_;
+    Mc2Tiling::RCSTiling* paramInTiling_;
     MC2TileInfo tileInfo_, tailInfo_;
     TPipe* tPipe_;
     Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;

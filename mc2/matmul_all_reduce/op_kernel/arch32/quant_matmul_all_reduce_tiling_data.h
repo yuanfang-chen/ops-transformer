@@ -8,19 +8,30 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/*!
- * \file mc2_copy_quant_matmul_params.h
+ /*!
+ * \file unquant_matmul_all_reduce_tiling_data.h
  * \brief
  */
 
-#ifndef __MC2_COPY_QUANT_MATMUL_PARAMS_H__
-#define __MC2_COPY_QUANT_MATMUL_PARAMS_H__
+#ifndef QUANT_MATMUL_ALL_REDUCE_TILING_DATA_H
+#define QUANT_MATMUL_ALL_REDUCE_TILING_DATA_H
 
-#include "quant_batch_matmul_v3/op_host/op_tiling/quant_batch_matmul_v3_tiling.h"
-#include "quant_batch_matmul_v3/op_kernel/arch35/quant_batch_matmul_v3_tiling_data.h"
+#include "kernel_tiling/kernel_tiling.h"
 
-namespace optiling {
-void CopyQuantBatchMatmulParams(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& quantBatchMatmulParams, 
-    Mc2QuantBatchMatmulV3TilingData& quantBmmV3TilingData);
-}
+#include "../../common/inc/kernel/mc2_tiling_struct.h"
+#include "../../3rd/quant_batch_matmul_v3/op_kernel/quant_batch_matmul_v3_tiling_data.h"
+
+namespace Mc2Tiling {
+
+#pragma pack(push, 8)
+// 8 means 8 bytes aligned
+struct alignas(8) QuantMatmulAllReduceTilingData{
+    Mc2Tiling::Mc2Msg msg;
+    Mc2Tiling::RCSTiling param;
+    Mc2QuantBatchMatmulV3TilingData tilematmulTiling;
+    Mc2QuantBatchMatmulV3TilingData tailmatmulTiling;
+};
+#pragma pack(pop)
+
+}  // namespace Mc2Tiling
 #endif

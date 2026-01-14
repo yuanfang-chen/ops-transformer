@@ -19,6 +19,7 @@
 #include "lib/matmul_intf.h"
 #include "../../mat_mul_v3/op_kernel/mat_mul_v3_common.h"
 #include "batch_mat_mul_v3_com_base_block_struct.h"
+#include "batch_mat_mul_v3_tiling_data.h"
 
 using namespace AscendC;
 using namespace matmul;
