@@ -263,7 +263,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithEpGrad(
     <tr>
       <td> ACLNN_ERR_PARAM_INVALID </td>
       <td> 161002 </td>
-      <td>输入和输出的数据类型不在支持的范围内。</td>
+      <td>输入和输出的数据类型或数据格式不在支持的范围内。</td>
     </tr>
     <tr>
       <td rowspan="3"> ACLNN_ERR_INNER_TILING_ERROR </td>
