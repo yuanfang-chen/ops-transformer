@@ -901,10 +901,10 @@ __aicore__ inline void FAGBlockVec<TEMPLATE_ARGS>::DequantAndCopy2L1(Buffer<Buff
 
     // attenMaskOrYInQue申请的UB size=VEC_M*VEC_N*4B，足够fp8拷入使用
     LocalTensor<INPUT_TYPE> valueB8Tensor = attenMaskOrYInQue.AllocTensor<INPUT_TYPE>();
-    DataCopyPad(valueB8Tensor, valueGm[srcGmOffset],
+    DataCopyPad(valueB8Tensor.template ReinterpretCast<uint8_t>(), valueGm[srcGmOffset].template ReinterpretCast<uint8_t>(),
         {static_cast<uint16_t>(runInfo.halfS2RealSize),
-        static_cast<uint16_t>(constInfo.commonConstInfo.dSizeV * sizeof(INPUT_TYPE)),
-        static_cast<uint16_t>(transpose_stride), static_cast<uint16_t>(dstBlockStride)},
+        static_cast<uint32_t>(constInfo.commonConstInfo.dSizeV * sizeof(INPUT_TYPE)),
+        static_cast<uint32_t>(transpose_stride), dstBlockStride, 0},
         {true, 0, static_cast<uint8_t>((constInfo.dAlignToBlock - constInfo.commonConstInfo.dSizeV)), 0});
 
     attenMaskOrYInQue.EnQue(valueB8Tensor);
