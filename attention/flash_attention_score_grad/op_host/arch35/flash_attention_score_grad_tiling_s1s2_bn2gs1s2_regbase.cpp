@@ -1536,7 +1536,6 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDDenseDeterParam()
     if (fBaseParams.deterSparseType != static_cast<uint32_t>(DeterSparseType::DETER_DENSE)) {
         return;
     }
-    fBaseParams.splitAxis = SplitAxisEnum::BN2GS1S2;
     DeterPrefixData deterPrefixData;
     int64_t s1Max = 0;
     int64_t s2Max = 0;
@@ -1546,27 +1545,31 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDDenseDeterParam()
         int64_t actualS2Outer =
             CeilDivideBy(fBaseParams.actualSeqKvlen[i], fBaseParams.s2Inner * fBaseParams.s2CvRatio);
         deterPrefixData.deterPrefix.push_back(deterPrefixData.deterPrefix.back() + fBaseParams.actualSeqQlen[i] * fBaseParams.actualSeqKvlen[i]);
-        deterPrefixData.prefix0.push_back(deterPrefixData.prefix0.back() + actualS1Outer * actualS2Outer);
+        deterPrefixData.prefix1.push_back(deterPrefixData.prefix1.back() + actualS1Outer * actualS2Outer);
         deterPrefixData.deterPrefixAlign.push_back(
             deterPrefixData.deterPrefixAlign.back() +
             fBaseParams.actualSeqQlen[i] *
                 AlignTo(fBaseParams.actualSeqKvlen[i], static_cast<int64_t>(ConstAxisTemplateNum::NUM16)));
         s1Max = actualS1Outer > s1Max ? actualS1Outer : s1Max;
         s2Max = actualS2Outer > s2Max ? actualS2Outer : s2Max;
+        deterPrefixData.mNewList.push_back(actualS1Outer);
+        deterPrefixData.nNewList.push_back(actualS2Outer);
     }
-    int64_t totalArea = deterPrefixData.prefix0.back() * fBaseParams.n1;
+    int64_t totalArea = deterPrefixData.prefix1.back() * fBaseParams.n1;
     if (fBaseParams.g == 1) {
         fBaseParams.deterMaxRound = std::max(CeilDivideBy(totalArea, static_cast<int64_t>(fBaseParams.aicNum)), s1Max);
     } else {
         fBaseParams.deterMaxRound = std::max({CeilDivideBy(totalArea, static_cast<int64_t>(fBaseParams.aicNum)), s1Max * fBaseParams.g, s2Max});
     }
 
-    deterPrefixData.prefix0 = SliceVector(deterPrefixData.prefix0, fBaseParams.deterPrefixStep);
+    deterPrefixData.prefix0 = SliceVector(deterPrefixData.prefix1, fBaseParams.deterPrefixStep);
     deterPrefixData.deterPrefix = SliceVector(deterPrefixData.deterPrefix, fBaseParams.deterPrefixStep);
     deterPrefixData.deterPrefixAlign = SliceVector(deterPrefixData.deterPrefixAlign, fBaseParams.deterPrefixStep);
     std::copy(deterPrefixData.prefix0.begin(), deterPrefixData.prefix0.end(), fBaseParams.deterPrefix0);
     std::copy(deterPrefixData.deterPrefix.begin(), deterPrefixData.deterPrefix.end(), fBaseParams.deterPrefix);
     std::copy(deterPrefixData.deterPrefixAlign.begin(), deterPrefixData.deterPrefixAlign.end(), fBaseParams.deterPrefixAlign);
+    deterPrefixData.prefix1.push_back(fBaseParams.deterMaxRound);
+    CalcleTNDDenseBns2DeterParam(deterPrefixData);
     return;
 }
 
@@ -1878,7 +1881,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterSplitDkOffs
         }
         TndBandDeterRoundInfo tndBandDeterRoundInfo;
         for (uint64_t round = deterPrefixData.prefix1.back(); round > 0; round--) {
-            auto oriCoordinateInfo = CalTNDDenseIndex(deterPrefixData, coreId + 1, round);
+            auto oriCoordinateInfo = CalTNDDenseIndex<static_cast<uint32_t>(DeterSparseType::DETER_BAND)>(deterPrefixData, coreId + 1, round, fBaseParams.n1 % static_cast<int64_t>(fBaseParams.aicNum));
             int64_t w, x, y;
             std::tie(w, x, y) = oriCoordinateInfo;
             int64_t batchId = CeilDivideBy(w, N12);
@@ -1913,7 +1916,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterSplitDkOffs
     }
 }
 
-void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterSyncRounds(std::vector<std::pair<uint64_t, uint64_t>> &syncRounds, std::vector<std::pair<uint64_t, uint64_t>> &syncRoundRanges) {
+void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDDeterSyncRounds(std::vector<std::pair<uint64_t, uint64_t>> &syncRounds, std::vector<std::pair<uint64_t, uint64_t>> &syncRoundRanges) {
     if (syncRounds.size() + syncRoundRanges.size() > CORE_LIST_NUM) {
         fBaseParams.startNeedSyncRound[0] = 1;
         fBaseParams.endNeedSyncRound[0] = std::numeric_limits<uint64_t>::max();
@@ -1962,6 +1965,75 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandDeterSyncRounds(
     }
 }
 
+void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDDenseBns2DeterParam(DeterPrefixData &deterPrefixData)
+{
+    if (fBaseParams.splitAxis != SplitAxisEnum::BN2S2) {
+        return;
+    }
+
+    // 最多允许coreNum列分给不同的核fBaseParams.deterMaxRound
+    if (!SupportTNDBns2(deterPrefixData, fBaseParams.deterMaxRound)) {
+        fBaseParams.splitAxis = SplitAxisEnum::BN2GS1S2;
+        return;
+    }
+
+    // BNS2分核按顺序分核，存在前后两核收尾分同一列的情况，计算可能分开的列
+    std::vector<std::pair<uint64_t, uint64_t>> syncRounds, syncRoundRanges;
+    std::fill(std::begin(fBaseParams.startNeedSyncRound), std::end(fBaseParams.startNeedSyncRound), static_cast<uint64_t>(0));
+    std::fill(std::begin(fBaseParams.endNeedSyncRound), std::end(fBaseParams.endNeedSyncRound), static_cast<uint64_t>(0));
+    std::fill(std::begin(fBaseParams.separateDkOffset), std::end(fBaseParams.separateDkOffset), static_cast<int64_t>(-1));
+    CalcleTNDDenseDeterSplitDkOffset(deterPrefixData, syncRounds, syncRoundRanges);
+    std::copy(std::begin(fBaseParams.separateDkOffset), std::end(fBaseParams.separateDkOffset), std::begin(fBaseParams.deterPrefix2));
+
+    CalcleTNDDeterSyncRounds(syncRounds, syncRoundRanges);
+}
+
+void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDDenseDeterSplitDkOffset(DeterPrefixData &deterPrefixData, std::vector<std::pair<uint64_t, uint64_t>> &syncRounds, std::vector<std::pair<uint64_t, uint64_t>> &syncRoundRanges)
+{
+    int64_t precoreLastBatchStartRound = 0;
+    for (uint32_t coreId = 0; coreId < CORE_LIST_NUM; coreId++) {
+        if (fBaseParams.deterMaxRound == 0 || coreId > fBaseParams.aicNum - 1) {
+            continue;
+        }
+        auto actualSeqKvlenTensor = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::ACTUAL_SEQ_KV_LEN));
+        const int64_t *kvValue = actualSeqKvlenTensor->GetData<int64_t>();
+
+        TndBandDeterRoundInfo tndBandDeterRoundInfo;
+        for (uint64_t round = fBaseParams.deterMaxRound; round > 0; round--) {
+            auto oriCoordinateInfo = CalTNDDenseIndex<static_cast<uint32_t>(DeterSparseType::DETER_DENSE)>(deterPrefixData,
+                coreId + 1, round, fBaseParams.n1);
+            int64_t w, x, y;
+            std::tie(w, x, y) = oriCoordinateInfo;
+
+            int64_t batchId = CeilDivideBy(w, fBaseParams.n1);
+            if (w == -1 || batchId > fBaseParams.b) {
+                continue;
+            }
+            int64_t m = deterPrefixData.mNewList[batchId - 1];
+            int64_t n = deterPrefixData.nNewList[batchId - 1];
+
+            if (fBaseParams.separateDkOffset[coreId] == -1 && x < m && round == fBaseParams.deterMaxRound) {
+                fBaseParams.separateDkOffset[coreId] = GetKeyOffset(kvValue, w, y);
+            }
+            SetCoreRoundInfo(tndBandDeterRoundInfo, round, w);
+        }
+        if (coreId != 0) {
+            uint64_t startSyncRound = precoreLastBatchStartRound;
+            uint64_t endSyncRound = tndBandDeterRoundInfo.coreFirstBatchLastRound;
+            if (startSyncRound > endSyncRound) {
+                syncRounds.push_back(std::make_pair(startSyncRound, endSyncRound));
+            } else {
+                syncRoundRanges.push_back(std::make_pair(startSyncRound, endSyncRound));
+            }
+        }
+        if (coreId == 0) {
+            precoreLastBatchStartRound = 1; // 如果在0-1核上涉及切BN轴，那么0核的起点就是第一个roundid = 1
+        } else {
+            precoreLastBatchStartRound = tndBandDeterRoundInfo.coreLastBatchStartRound;
+        }
+    }
+}
+
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandBns2DeterParam(
     DeterPrefixData &deterPrefixData)
 {
@@ -1970,7 +2042,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandBns2DeterParam(
     }
 
     // 最多允许coreNum列分给不同的核
-    if (!SupportTNDBns2(deterPrefixData)) {
+    if (!SupportTNDBns2(deterPrefixData, deterPrefixData.prefix1.back())) {
         fBaseParams.splitAxis = SplitAxisEnum::BN2GS1S2;
         OP_LOGD("CalcleTNDBandBns2DeterParam", "Not support BNS2, change to BN2GS1S2.");
         return;
@@ -1987,16 +2059,15 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDBandBns2DeterParam(
     CalcleTNDBandDeterSplitDkOffset(deterPrefixData, syncRounds , syncRoundRanges);
     std::copy(std::begin(fBaseParams.separateDkOffset), std::end(fBaseParams.separateDkOffset), std::begin(fBaseParams.deterPrefix2));
 
-    CalcleTNDBandDeterSyncRounds(syncRounds, syncRoundRanges);
+    CalcleTNDDeterSyncRounds(syncRounds, syncRoundRanges);
 }
 
-bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SupportTNDBns2(DeterPrefixData &deterPrefixData)
+bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SupportTNDBns2(DeterPrefixData &deterPrefixData, int64_t round)
 {
-    int64_t r1 = deterPrefixData.prefix1.back();
     for (int64_t b = 0; b < fBaseParams.b; b++) {
         int64_t m = deterPrefixData.mNewList[b];
         int64_t n = deterPrefixData.nNewList[b];
-        if ((r1 / Gcd(m, r1)) >= n) {
+        if ((round / Gcd(m, round)) >= n) {
             continue;
         }
         return false;
@@ -2142,11 +2213,11 @@ bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::IsSeparateS2(std::tuple<int64
     return isSeparate;
 }
 
-std::tuple<int64_t, int64_t, int64_t> FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalTNDDenseIndex(DeterPrefixData &deterPrefixData, int64_t coreId, int64_t roundId)
+template<const uint32_t deterSparseType>
+std::tuple<int64_t, int64_t, int64_t> FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalTNDDenseIndex(DeterPrefixData &deterPrefixData, int64_t coreId, int64_t roundId, int64_t N1)
 {
-    int64_t unPadRoundMax{deterPrefixData.prefix1[fBaseParams.b + 1]}, ID{(coreId - 1) * unPadRoundMax + roundId},
-        N1{fBaseParams.n1 % static_cast<int64_t>(fBaseParams.aicNum)}, w{0};
-    while ((w + 1) < fBaseParams.b && ID > deterPrefixData.prefix1[w + 1] * N1) {
+    int64_t unPadRoundMax{deterPrefixData.prefix1[fBaseParams.b + 1]}, ID{(coreId - 1) * unPadRoundMax + roundId}, w{0};
+    while (w < fBaseParams.b && ID > deterPrefixData.prefix1[w + 1] * N1) {
         w += 1;
     }
     int64_t delta = ID - deterPrefixData.prefix1[w] * N1;
@@ -2155,16 +2226,20 @@ std::tuple<int64_t, int64_t, int64_t> FlashAttentionScoreGradTilingUs1s2Bs2Regba
         return std::make_tuple(-1, -1, -1);
     }
 
-    int64_t m{deterPrefixData.mNewList[w]}, n{deterPrefixData.nNewList[w]}, p{deterPrefixData.pNewList[w]}, q{deterPrefixData.qNewList[w]};
-    if (p + q <= m) {
-        if (n >= m) {
-            n = p + q - 1;
+    int64_t m{deterPrefixData.mNewList[w]}, n{deterPrefixData.nNewList[w]}, p, q;
+    if constexpr(deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_BAND)) {
+        p = deterPrefixData.pNewList[w];
+        q = deterPrefixData.qNewList[w];
+        if (p + q <= m) {
+            if (n >= m) {
+                n = p + q - 1;
+            } else {
+                m = p + q - 1;
+            }
         } else {
-            m = p + q - 1;
-        }
-    } else {
-        if (p + q <= n) {
-            n = p + q - 1;
+            if (p + q <= n) {
+                n = p + q - 1;
+            }
         }
     }
 
@@ -2529,7 +2604,8 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetWorkspaceSize4Deter(size_t
     }
 
     if (fBaseParams.splitAxis == SplitAxisEnum::BN2S2 &&
-        fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_BAND)) {
+        (fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_BAND) ||
+        fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_DENSE))) {
         postTilingData_->set_deterGmOffset(workspaceSize);
         workspaceSize += (fBaseParams.s2Inner * fBaseParams.sfmgdInner * CORE_LIST_NUM * FP32_BYTES + GM_ALIGN) /
                          GM_ALIGN * GM_ALIGN * NUM_TWO;
@@ -4068,7 +4144,9 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SaveToTilingData()
     s1s2BNGS1S2SplitCoreParams_->set_maxValidBBLen(fBaseParams.maxValidBBLen);
     s1s2BNGS1S2SplitCoreParams_->set_noNeedDeter(fBaseParams.noNeedDeter);
     s1s2BNGS1S2SplitCoreParams_->set_deterMaxRound(fBaseParams.deterMaxRound);
-    if (fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_BAND) && fBaseParams.layoutType == INPUT_FROAMT_TND) {
+    if ((fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_BAND) ||
+        fBaseParams.deterSparseType == static_cast<uint32_t>(DeterSparseType::DETER_DENSE)) &&
+        fBaseParams.layoutType == INPUT_FROAMT_TND) {
         s1s2BNGS1S2SplitCoreParams_->set_dqIsNeedDeter(fBaseParams.startNeedSyncRound);
         s1s2BNGS1S2SplitCoreParams_->set_dkDvIsNeedDeter(fBaseParams.endNeedSyncRound);
     } else {

@@ -288,20 +288,25 @@
      uint8_t GetSparseType();
      int64_t GetTotalPerBatchNum(uint8_t sparseType);
      bool SupportTrans2BS2N2GD();
-     bool SupportTNDBns2(DeterPrefixData &deterPrefixData);
+     bool SupportTNDBns2(DeterPrefixData &deterPrefixData, int64_t round);
      void CalcleDeterParam();
      void CalcleCausalDeterParam();
      void CalcleBandDeterParam();
      void CalcleTNDDeterParam();
      void CalcleTNDBandDeterParam();
+
      void CalcleTNDCausalDeterPrefix(DeterPrefixData &deterPrefixData,
                                      int64_t &m0Max, int64_t &m1Max, int64_t &m2Max);
      void CalcleTNDCausalDeterParam();
      void CalcleTNDCausalDeterParamNormal(DeterPrefixData &deterPrefixData, const int64_t m0Max, const int64_t m1Max, const int64_t m2Max);
      void CalcleTNDCausalDeterParamGQA(DeterPrefixData &deterPrefixData, const int64_t m0Max, const int64_t m1Max, const int64_t m2Max);
      void CalcleTNDDenseDeterParam();
-     void CalcleTNDBandDeterSyncRounds(std::vector<std::pair<uint64_t, uint64_t>> &syncRounds,
-                                       std::vector<std::pair<uint64_t, uint64_t>> &syncRoundRanges);
+     void CalcleTNDDenseBns2DeterParam(DeterPrefixData &deterPrefixData);
+     void CalcleTNDDeterSyncRounds(std::vector<std::pair<uint64_t, uint64_t>> &syncRounds,
+                                   std::vector<std::pair<uint64_t, uint64_t>> &syncRoundRanges);
+     void CalcleTNDDenseDeterSplitDkOffset(DeterPrefixData &deterPrefixData,
+                                           std::vector<std::pair<uint64_t, uint64_t>> &syncRounds,
+                                           std::vector<std::pair<uint64_t, uint64_t>> &syncRoundRanges);
      void UpdateSeparateDkOffset(
          std::tuple<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t> &coordinateInfo,
          TndBandDeterRoundInfo &tndBandDeterRoundInfo);
@@ -323,9 +328,9 @@
      int64_t GetKeyOffset(const int64_t *kvValue, int64_t w, int64_t y);
      bool IsSeparateS2(
          std::tuple<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t> &coordinateInfo);
-     std::tuple<int64_t, int64_t, int64_t>
-     CalTNDDenseIndex(DeterPrefixData &deterPrefixData,
-                      int64_t coreId, int64_t roundId);
+     template<const uint32_t deterSparseType>
+     std::tuple<int64_t, int64_t, int64_t> CalTNDDenseIndex(DeterPrefixData &deterPrefixData,
+                                                            int64_t coreId, int64_t roundId, int64_t N1);
      void CalcleActualToken(int64_t batchIdx, int64_t &actualCalcS1Token, int64_t &actualCalcS2Token);
      void GetWorkspaceSize4Deter(size_t &workspaceSize);
      void GetIsDeterArr();
