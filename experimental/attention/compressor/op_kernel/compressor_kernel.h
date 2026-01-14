@@ -528,7 +528,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         
         // 获取各切分轴的起始核结束索引
         CalcParams(extraInfo0);
-        extraInfo0.vec1ResOffset = vec2Info.dealScSize * dbWorkspaceRatio * constInfo.headDim;
+        extraInfo0.vec1ResOffset = vec2Info.dealScSize * constInfo.headDim;
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
             if (isNeedExcute) {
