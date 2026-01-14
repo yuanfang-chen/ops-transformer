@@ -93,7 +93,10 @@ def gen_quest_prefill_inputs(
     maxblocks = maxblocks.contiguous()
     minblocks = minblocks.contiguous()
 
-    return k_cache, block_tables, seq_lens, metadata_block_tables, maxblocks, minblocks
+    # return tuple 
+    ret = (k_cache, block_tables, seq_lens, metadata_block_tables, maxblocks, minblocks)
+    
+    return ret
 
 
 def compare_tensors(ref: torch.Tensor, custom: torch.Tensor, *, 

@@ -33,7 +33,7 @@ bool is_bfloat16(const at::Tensor& tensor) {
 /*****************************************************************************/
 /*** Prefill metadata kernel                                               ***/
 /*****************************************************************************/
-extern void launch_quest_prefill_metadata(
+void launch_quest_prefill_metadata(
     uint32_t blockDim, void *l2ctrl, void *stream,
     uint8_t *k_cache,
     uint8_t *block_tables,

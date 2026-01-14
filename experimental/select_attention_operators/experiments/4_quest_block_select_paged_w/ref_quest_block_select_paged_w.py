@@ -187,7 +187,7 @@ def ref_quest_paged_fast(query: torch.Tensor,              # (batch_size, num_he
     group_size = num_heads // num_kv_heads
 
 
-    # [batch_size, num_kv_heads, head_dim]
+    # The shape of grouped_query should be [batch_size, num_kv_heads, head_dim]
     grouped_query = query.view(batch_size, num_kv_heads, group_size, head_dim).mean(dim=2)  
 
     # Output tensor for selected indices

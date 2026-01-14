@@ -76,7 +76,10 @@ def gen_quest_paged_w_inputs(batch_size: int,
     metadata_block_tables = metadata_block_tables.to(device).contiguous()
     seq_lens = seq_lens.to(device).contiguous()
     
-    return query, maxblocks, minblocks, metadata_block_tables, seq_lens, tokens_since_metadata_update
+    # return tuple
+    ret = (query, maxblocks, minblocks, metadata_block_tables, seq_lens, tokens_since_metadata_update)
+    
+    return ret
 
 
 def compare_indices(reference: torch.Tensor, custom: torch.Tensor, tol_percentage: float = 0.02, 

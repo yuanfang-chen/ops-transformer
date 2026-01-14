@@ -27,7 +27,7 @@ setup(
             name=PACKAGE_NAME,
             sources=['torch_interface.cpp'],
             extra_library_dirs=[os.path.join(CURRENT_DIR, 'lib')],  # location of custom lib{name}.so 
-            extra_libraries=['quest_prefill_metadata', 'quest_block_select_paged'],  # names of custom lib{name}.so files
+            extra_libraries=['quest_prefill_metadata', 'quest_block_select_paged'],  # names of custom lib{name}.so 
             extra_link_args=[
                 '-L', os.path.join(CURRENT_DIR, 'lib'),  # Linker path to the shared library dir
                 '-lquest_prefill_metadata',       # Shared library 1/2 name
