@@ -15,7 +15,7 @@ from typing import Callable
 import pytest
 import torch
 import torch_npu
-from select_attn_decoding_ops import quest_block_select_paged, quest_block_select_paged_in_out
+from select_attn_ops import quest_block_select_paged, quest_block_select_paged_in_out
 from gen_data_quest_block_select_paged import gen_quest_paged_inputs, compare_indices
 from ref_quest_block_select_paged import ref_quest_block_select_paged
 

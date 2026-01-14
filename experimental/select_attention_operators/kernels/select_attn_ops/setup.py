@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from ascendc_extension import ascendc_extension
 CURRENT_DIR = os.path.dirname(__file__)
 
-PACKAGE_NAME = 'select_attn_decoding_ops'
+PACKAGE_NAME = 'select_attn_ops'
 VERSION = '0.3.1'
 num_cores = os.environ.get('NUM_CORES', 0)
 
@@ -27,10 +27,10 @@ setup(
             name=PACKAGE_NAME,
             sources=['torch_interface.cpp'],
             extra_library_dirs=[os.path.join(CURRENT_DIR, 'lib')],  # location of custom lib{name}.so 
-            extra_libraries=['quest_block_select', 'quest_block_select_paged'],  # names of custom lib{name}.so files
+            extra_libraries=['quest_prefill_metadata', 'quest_block_select_paged'],  # names of custom lib{name}.so files
             extra_link_args=[
                 '-L', os.path.join(CURRENT_DIR, 'lib'),  # Linker path to the shared library dir
-                '-lquest_block_select',       # Shared library 1/2 name
+                '-lquest_prefill_metadata',       # Shared library 1/2 name
                 '-lquest_block_select_paged'  # Shared library 2/2 name
             ],
             runtime_library_dirs=[os.path.join(CURRENT_DIR, 'lib')],  # add the directory to RPATH

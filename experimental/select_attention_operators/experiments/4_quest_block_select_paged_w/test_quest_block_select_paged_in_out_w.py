@@ -14,7 +14,7 @@ Wide range testing (for validation) -> Run this file with pytest <filename>
 import pytest
 import torch
 import torch_npu
-from select_attn_decoding_ops import quest_block_select_paged_in_out_w
+from select_attn_ops import quest_block_select_paged_in_out_w
 from ref_quest_block_select_paged_w import ref_quest_block_select_paged_w
 from gen_data_quest_block_select_paged_w import gen_quest_paged_w_inputs, compare_indices
 

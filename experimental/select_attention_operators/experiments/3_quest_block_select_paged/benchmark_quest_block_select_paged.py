@@ -21,7 +21,7 @@ import itertools
 import torch
 import torch_npu
 
-from select_attn_decoding_ops import quest_block_select_paged, quest_block_select_paged_in_out
+from select_attn_ops import quest_block_select_paged, quest_block_select_paged_in_out
 from ref_quest_block_select_paged import ref_quest_block_select_paged
 from gen_data_quest_block_select_paged import gen_quest_paged_inputs, ceil_div, compare_indices
 

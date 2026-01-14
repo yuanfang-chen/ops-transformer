@@ -10,8 +10,7 @@ High performance Ascend-910B kernels for sparse attention pattern prediction for
 |   |-- 3_quest_block_select_paged - quest sparse mask predictor using metadata
 |   |-- 4_quest_block_select_paged_w -  quest sparse mask predictor using metadata with extra sink+window features
 |-- kernels - python packages, each having one or more ascendc kernels and a single torch interface
-|   |-- select_attn_decoding_ops - predictor kernels (quest predictors of sparse pattern duting LLM decoding)
-|   `-- select_attn_prefill_ops - metadata construction kernels (prefill kernels)
+|   |-- select_attn_ops - predictor kernels (quest predictors of sparse pattern duting LLM decoding)
 `-- scripts
     |-- build_kernels.sh - builds all kernels
     `-- init_cann.sh - initialize the environment and Ascend device version
@@ -58,7 +57,7 @@ help(quest_block_select_paged_in_out_w)
 <summary>Prints:</summary>
 
 ```
-Help on built-in function quest_block_select_paged_in_out_w in module select_attn_decoding_ops:
+Help on built-in function quest_block_select_paged_in_out_w in module select_attn_ops:
 
 quest_block_select_paged_in_out_w(...) method of builtins.PyCapsule instance
     quest_block_select_paged_in_out_w(query: torch.Tensor, maxblocks: torch.Tensor, minblocks: torch.Tensor, metadata_block_tables: torch.Tensor, seq_lens: torch.Tensor, tokens_since_metadata_update: int, selected_indices: torch.Tensor) -> None
@@ -116,7 +115,7 @@ quest_block_select_paged_in_out_w(...) method of builtins.PyCapsule instance
 
 ## Development Workflow for a new kernel "OP"
 1. Add new kernel implementations in the `kernels/` directory in one of 2 ways:
-   1) under an existing python package e.g. `kernels/select_attn_decoding_ops/`. Then add your kernel code as new OP.cpp, add a compilation line to compile.sh, add a torch interface inside troch_interface.cpp
+   1) under an existing python package e.g. `kernels/select_attn_ops/`. Then add your kernel code as new OP.cpp, add a compilation line to compile.sh, add a torch interface inside troch_interface.cpp
    2) as a new python package: `kernels/OP/`, with a OP.cpp kernel implementation; torch_interface.cpp, compile.sh, build.sh in it.
 2. Create a dedicated experiment directory `experiments/5_OP` and implement in it the following programs:
     - *ref_OP.py* - start off by implementing a reference python model for correctness.

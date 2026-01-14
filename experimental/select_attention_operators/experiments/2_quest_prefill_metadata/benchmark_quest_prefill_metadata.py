@@ -18,7 +18,7 @@ import itertools
 import torch
 import torch_npu
 
-from select_attn_prefill_ops import quest_prefill_metadata
+from select_attn_ops import quest_prefill_metadata
 from ref_quest_prefill_metadata import ref_quest_prefill_metadata
 from gen_data_quest_prefill_metadata import gen_quest_prefill_inputs, ceil_div, compare_tensors
 

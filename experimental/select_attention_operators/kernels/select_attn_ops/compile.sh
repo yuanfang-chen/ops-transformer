@@ -10,7 +10,6 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
 #
 # This script only compiles the AscendC operator and creates a shared library file in lib directory
-
 # `bisheng` CLI: https://www.hiascend.com/document/detail/zh/canncommercial/800/developmentguide/opdevg/BishengCompiler/atlas_bisheng_10_0003.html
 # Adapted from: https://gitee.com/ascend/mstt/tree/master/sample/pytorch_adapter
 
@@ -23,9 +22,8 @@ fi
 
 # to place the .so library there
 mkdir -p lib
-rm -f lib/libquest_prefill_metadata.so
 
-# normal compilation
+rm -f lib/libquest_prefill_metadata.so
 bisheng -fPIC -shared -xcce -O2 -std=c++17 \
     --cce-soc-version=$SOC_VERSION --cce-soc-core-type=VecCore \
     -I${ASCEND_TOOLKIT_HOME}/compiler/tikcpp/tikcfw \
@@ -33,3 +31,12 @@ bisheng -fPIC -shared -xcce -O2 -std=c++17 \
     -I${ASCEND_TOOLKIT_HOME}/compiler/tikcpp/tikcfw/interface \
     -I${ASCEND_TOOLKIT_HOME}/include \
     -o lib/libquest_prefill_metadata.so quest_prefill_metadata.cpp
+
+rm -f lib/libquest_block_select_paged.so
+bisheng -fPIC -shared -xcce -O2 -std=c++17 \
+    --cce-soc-version=$SOC_VERSION --cce-soc-core-type=VecCore \
+    -I${ASCEND_TOOLKIT_HOME}/compiler/tikcpp/tikcfw \
+    -I${ASCEND_TOOLKIT_HOME}/compiler/tikcpp/tikcfw/impl \
+    -I${ASCEND_TOOLKIT_HOME}/compiler/tikcpp/tikcfw/interface \
+    -I${ASCEND_TOOLKIT_HOME}/include \
+    -o lib/libquest_block_select_paged.so quest_block_select_paged.cpp
