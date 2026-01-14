@@ -240,7 +240,8 @@ private:
   uint32_t GetS2SeqSize(uint32_t bIdx);
   int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
   int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
-  Range<uint32_t> CalcS2Range(uint32_t s1GIdx,const BatchCache &batchCache);
+  Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
+  //Range<uint32_t> CalcS2Range(uint32_t s1GIdx,const BatchCache &batchCache);
   int64_t WinCalcCost(uint32_t basicM, uint32_t basicS2);
   int64_t CmpCalcCost(uint32_t basicM, uint32_t basicS2);
   BlockCost<int64_t> CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,
@@ -261,6 +262,7 @@ private:
   void UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext);
   void AssignByBatch(const SplitContext &splitContext, AssignContext &assignContext);
   void AssignByRow(const SplitContext &splitContext, AssignContext &assignContext);
+  int64_t CalcCurBlockCost(AssignContext &assignContext);
   void AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext);
   void ForceAssign(const SplitContext &splitContext, AssignContext &assignContext);
 
@@ -318,7 +320,6 @@ private:
   bool supportFd = false;
   uint32_t sparseMode_ = 0;
   uint32_t attentionMode_ = 1;
-  uint32_t winS2LastToken = 0;
 
 private:
   enum class ParamId : uint32_t {
