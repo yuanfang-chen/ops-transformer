@@ -75,7 +75,8 @@ def ref_quest_paged_slow(query: torch.Tensor,              # (batch_size, num_he
     if query.dtype == torch.bfloat16: 
         query = query.float()   
 
-    assert head_dim == head_dim_blocks, f"Query dimension {head_dim} doesn't match block dimension {head_dim_blocks}" 
+    if head_dim != head_dim_blocks:
+        raise ValueError(f"Query dimension {head_dim} doesn't match block dimension {head_dim_blocks}")
     
     # Output tensor for selected indices
     selected_indices = torch.zeros(batch_size, num_kv_heads, k, dtype=torch.int32, device=query.device) - 1
@@ -179,7 +180,8 @@ def ref_quest_paged_fast(query: torch.Tensor,              # (batch_size, num_he
     if query.dtype == torch.bfloat16:
         query = query.float()
     
-    assert head_dim == head_dim_blocks, f"Query dimension {head_dim} doesn't match block dimension {head_dim_blocks}"
+    if head_dim != head_dim_blocks:
+        raise ValueError(f"Query dimension {head_dim} doesn't match block dimension {head_dim_blocks}")
     
     # Step 1: Reduce query across num_heads dimension to get grouped_query [batch_size, num_kv_heads, head_dim]
     group_size = num_heads // num_kv_heads
@@ -226,7 +228,6 @@ def ref_quest_paged_fast(query: torch.Tensor,              # (batch_size, num_he
         block_scores = torch.sum(channel_max_product, dim=-1)
         
         # Reshape to combine blocks and block_size [num_valid_blocks * block_size, num_kv_heads]
-        # [num_kv_heads, num_valid_blocks * block_size]
         all_scores = block_scores.permute(2, 0, 1).reshape(num_kv_heads, -1)  
 
         # add sink

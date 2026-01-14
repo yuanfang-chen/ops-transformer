@@ -37,7 +37,8 @@ def gen_quest_paged_inputs(batch_size: int,
     - metadata_block_tables: [batch_size, mmbpr]
     - seq_lens: [batch_size]
     """
-    assert(num_meta_blocks >= batch_size * mmbpr)
+    if not (num_meta_blocks >= batch_size * mmbpr):
+        raise ValueError(f"num_meta_blocks ({num_meta_blocks}) must be >= batch_size * mmbpr ({batch_size * mmbpr})")
 
     # reset the SEED each time to be able to reproduce individual failed tests 
     # out of a loop of tests

@@ -45,8 +45,11 @@ def ref_quest_prefill_metadata(
     num_kv_heads = k_cache.shape[2]
     head_dim = k_cache.shape[3]
 
-    assert(block_size == 128)
-    assert(head_dim == 128)
+    if (block_size != 128):
+        raise ValueError("block_size must be 128")
+    
+    if (head_dim != 128):
+        raise ValueError("head_dim must be 128")
 
     # ---- iterate over a single request at a time ----
     for r in range(batch_size):

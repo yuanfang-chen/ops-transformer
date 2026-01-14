@@ -67,7 +67,8 @@ def ref_quest_paged_slow(query: torch.Tensor,              # (batch_size, num_he
     num_meta_blocks, block_size, num_kv_heads, d_blocks = maxblocks.shape
     mmbpr = metadata_block_tables.shape[1]
     
-    assert head_dim == d_blocks, f"Query dimension {head_dim} doesn't match block dimension {d_blocks}"
+    if head_dim != d_blocks:
+        raise ValueError(f"Query dimension {head_dim} doesn't match block dimension {d_blocks}")
 
     if query.dtype == torch.bfloat16:
         query = query.float()    
@@ -140,7 +141,8 @@ def ref_quest_paged_fast(query: torch.Tensor,              # (batch_size, num_he
     num_meta_blocks, block_size, num_kv_heads, d_blocks = maxblocks.shape
     mmbpr = metadata_block_tables.shape[1]
     
-    assert head_dim == d_blocks, f"Query dimension {head_dim} doesn't match block dimension {d_blocks}"
+    if head_dim != d_blocks:
+        raise ValueError(f"Query dimension {head_dim} doesn't match block dimension {d_blocks}")
     
     # Step 1: Reduce query across num_heads dimension to get grouped_query [batch_size, num_kv_heads, head_dim]
     heads_per_group = num_heads // num_kv_heads
@@ -154,19 +156,13 @@ def ref_quest_paged_fast(query: torch.Tensor,              # (batch_size, num_he
     # Output tensor for selected indices
     selected_indices = torch.zeros(batch_size, num_kv_heads, k, dtype=torch.int32, device=query.device) - 1
     
-    # Process each request in the batch
     for b in range(batch_size):
         num_valid_blocks = min(ceil_div(seq_lens[b].item(), block_size * block_size), mmbpr)
         if num_valid_blocks == 0:
             continue
             
-        # Get the metadata block indices for this batch
         meta_block_ids = metadata_block_tables[b, :num_valid_blocks]  # [num_valid_blocks]
-        
-        # Get grouped query for this batch [num_kv_heads, head_dim]
         batch_query = grouped_query[b]  # [num_kv_heads, head_dim]
-        
-        # Focus on relevant maxblocks and minblocks [num_valid_blocks, block_size, num_kv_heads, head_dim]
         relevant_maxblocks = maxblocks[meta_block_ids]  # [num_valid_blocks, block_size, num_kv_heads, head_dim]
         relevant_minblocks = minblocks[meta_block_ids]  # [num_valid_blocks, block_size, num_kv_heads, head_dim]
 
@@ -189,7 +185,6 @@ def ref_quest_paged_fast(query: torch.Tensor,              # (batch_size, num_he
         block_scores = torch.sum(channel_max_product, dim=-1)
         
         # Reshape to combine blocks and block_size [num_valid_blocks * block_size, num_kv_heads]
-        # [num_kv_heads, num_valid_blocks * block_size]
         all_scores = block_scores.permute(2, 0, 1).reshape(num_kv_heads, -1)
 
         # Get top-k indices from the global indices

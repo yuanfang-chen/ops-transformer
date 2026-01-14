@@ -98,8 +98,8 @@ def benchmark_quest_prefill():
     print("=" * 106)
     print(f"  {DTYPE=}  {BLOCK_SIZE=}  {HEAD_DIM=}  {SAME_SEQ_LEN_ALL_REQS=}")
     print("=" * 106)
-    print(f"{'N':>3} {'B':>3} {'Seq_len':>10} {'Outputs_equal':>15} "
-          f"{'Ref_Latency_[usec]':>18} {'Our_Latency_[usec]':>18} {'Ref_BW_[TB/sec]':>16} {'Our_BW_[TB/sec]':>16}")
+    print(f"{'N':>3} {'B':>3} {'Seq_len':>10} {'Outputs_equal':>16} "
+          f"{'Ref_Latency_[usec]':>19} {'Our_Latency_[usec]':>19} {'Ref_BW_[TB/sec]':>17} {'Our_BW_[TB/sec]':>17}")
     print("-" * 106)
 
     for n, b, mkbpr in itertools.product(num_kv_heads_vals, batch_size_vals, mkbpr_vals):
@@ -209,27 +209,27 @@ def benchmark_quest_prefill():
             ref_bw = total_bytes / ref_duration / 1e6  # TB/s
         
         ####### Print results #######
-        print(f"{n:>3} {b:>3} {seq_len:>10} {are_equal:>15} ", end='')
+        print(f"{n:>3} {b:>3} {seq_len:>10} {are_equal:>16} ", end='')
         
         if run_ref and ref_duration is not None: 
-            print(f"{ref_duration:>18.2f} ", end='')
+            print(f"{ref_duration:>19.2f} ", end='')
         else: 
-            print(f"{'N/A':>18} ", end='')
+            print(f"{'N/A':>19} ", end='')
         
         if run_our and our_duration is not None: 
-            print(f"{our_duration:>18.2f} ", end='')
+            print(f"{our_duration:>19.2f} ", end='')
         else: 
-            print(f"{'N/A':>18} ", end='')
+            print(f"{'N/A':>19} ", end='')
         
         if run_ref and ref_bw is not None: 
-            print(f"{ref_bw:>16.3f} ", end='')
+            print(f"{ref_bw:>17.3f} ", end='')
         else: 
-            print(f"{'N/A':>16} ", end='')
+            print(f"{'N/A':>17} ", end='')
         
         if run_our and our_bw is not None: 
-            print(f"{our_bw:>16.3f}")
+            print(f"{our_bw:>17.3f}")
         else: 
-            print(f"{'N/A':>16}")
+            print(f"{'N/A':>17}")
 
     print("=" * 106)
 
