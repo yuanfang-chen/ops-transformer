@@ -146,8 +146,8 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedParams
         this->queryGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->gSize,
             sharedParams->s1Size, sharedParams->dSize);
     } else {  // SAS_LAYOUT::TND
-        GlobalTensor<int64_t> actualSeqQLen;
-        actualSeqQLen.SetGlobalBuffer((__gm__ int64_t *)cuSeqlensQ);
+        GlobalTensor<int32_t> actualSeqQLen;
+        actualSeqQLen.SetGlobalBuffer((__gm__ int32_t *)cuSeqlensQ);
         this->queryGm.offsetCalculator.Init(sharedParams->n2Size, sharedParams->gSize, sharedParams->dSize,
             actualSeqQLen, sharedParams->actualSeqLengthsSize);
     }

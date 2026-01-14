@@ -286,7 +286,7 @@ class ActualSeqLensParser<ActualSeqLensMode::ACCUM> {
 public:
     __aicore__ inline ActualSeqLensParser() = default;
 
-    __aicore__ inline void Init(GlobalTensor<int64_t> actualSeqLengthsGm, uint32_t actualLenDims)
+    __aicore__ inline void Init(GlobalTensor<int32_t> actualSeqLengthsGm, uint32_t actualLenDims)
     {
         this->actualSeqLengthsGm = actualSeqLengthsGm;
         this->actualLenDims = actualLenDims;
@@ -313,7 +313,7 @@ public:
         return actualSeqLengthsGm.GetValue(actualLenDims - 1);
     }
 private:
-    GlobalTensor<int64_t> actualSeqLengthsGm;
+    GlobalTensor<int32_t> actualSeqLengthsGm;
     uint32_t actualLenDims;
 };
 
@@ -322,7 +322,7 @@ class ActualSeqLensParser<ActualSeqLensMode::BY_BATCH> {
 public:
     __aicore__ inline ActualSeqLensParser() = default;
 
-    __aicore__ inline void Init(GlobalTensor<int64_t> actualSeqLengthsGm, uint32_t actualLenDims, int64_t defaultVal)
+    __aicore__ inline void Init(GlobalTensor<int32_t> actualSeqLengthsGm, uint32_t actualLenDims, int64_t defaultVal)
     {
         this->actualSeqLengthsGm = actualSeqLengthsGm;
         this->actualLenDims = actualLenDims;
@@ -340,7 +340,7 @@ public:
         return actualSeqLengthsGm.GetValue(bIdx);
     }
 private:
-    GlobalTensor<int64_t> actualSeqLengthsGm;
+    GlobalTensor<int32_t> actualSeqLengthsGm;
     uint32_t actualLenDims;
     int64_t defaultVal;
 };
@@ -531,7 +531,7 @@ struct OffsetCalculatorImpl<FORMAT, FormatCategory::GM_Q_OUT_TND> {
 
     __aicore__ inline OffsetCalculatorImpl() = default;
 
-    __aicore__ inline void Init(uint32_t n2, uint32_t g, uint32_t d, GlobalTensor<int64_t> actualSeqLengthsGmQ,
+    __aicore__ inline void Init(uint32_t n2, uint32_t g, uint32_t d, GlobalTensor<int32_t> actualSeqLengthsGmQ,
                                 uint32_t actualLenQDims)
     {
         actualSeqLensQParser.Init(actualSeqLengthsGmQ, actualLenQDims);
@@ -660,7 +660,7 @@ struct OffsetCalculatorImpl<FORMAT, FormatCategory::GM_KV_TND> {
 
     __aicore__ inline OffsetCalculatorImpl() = default;
 
-    __aicore__ inline void Init(uint32_t n2, uint32_t d, GlobalTensor<int64_t> actualSeqLengthsGmKV,
+    __aicore__ inline void Init(uint32_t n2, uint32_t d, GlobalTensor<int32_t> actualSeqLengthsGmKV,
                                 uint32_t actualLenKVDims)
     {
         actualSeqLensKVParser.Init(actualSeqLengthsGmKV, actualLenKVDims);
