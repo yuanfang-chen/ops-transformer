@@ -587,19 +587,20 @@ template <typename COMP>
     uint32_t scLoopTimes = 0;
     uint32_t dLoopTimes = 0;
     uint32_t splitSize = BLOCK_VEC_BASE_BUFFER_SIZE / (constInfo_.cmpRatio * static_cast<uint32_t>(COMP::coff) * sizeof(T));
-    if (splitSize < constInfo_.headDim) {
+    if (splitSize < constInfo_.dBaseSize) {
         scLoopTimes = 1;
-        dLoopTimes = (constInfo_.headDim + (splitSize - 1)) / splitSize;
+        dLoopTimes = (constInfo_.dBaseSize + (splitSize - 1)) / splitSize;
     } else {
         dLoopTimes = 1;
-        scLoopTimes = splitSize / constInfo_.headDim;
+        scLoopTimes = splitSize / constInfo_.dBaseSize;
     }
-    uint32_t sStart = info.sStart;
+    uint32_t sStart = mSplitInfo.vecStartS;
     uint32_t sEnd = 0;
-    uint32_t bStart = info.bStart;
+    uint32_t bStart = mSplitInfo.vecStartB;
     uint32_t bEnd = 0;
-    uint32_t remaindTcNum = info.dealTcNum;             // 剩余需要处理的Tc块
+    uint32_t remaindTcNum = mSplitInfo.dealTcNum;             // 剩余需要处理的Tc块
     uint32_t tmpTcNum = 0;
+    // printf("[SetMSplitInfo] vecStartB:%u vecEndB:%u vecStartS:%u vecEndS:%u dealTcNum:%u\n", mSplitInfo.vecStartB, mSplitInfo.vecEndB, mSplitInfo.vecStartS, mSplitInfo.vecEndS, mSplitInfo.dealTcNum);
     for (uint32_t i = 0; i < scLoopTimes; i++) {
         for (uint32_t j = 0; j < dLoopTimes; j++) {
             // 计算当前需要处理的splitSize个Tc块的b、s的开始结束索引
@@ -609,7 +610,7 @@ template <typename COMP>
             tmpTcNum = splitSize <= remaindTcNum ? splitSize : remaindTcNum;
             remaindTcNum -= tmpTcNum;
             CalcTcEndIdx(bStart, sStart, tmpTcNum, bEnd, sEnd);
-            printf("[CalcTcEndIdx] bStart:%u bEnd:%u sStart:%u sEnd:%u\n", bStart, bEnd, sStart, sEnd);
+            // printf("[CalcTcEndIdx] bStart:%u bEnd:%u sStart:%u sEnd:%u\n", bStart, bEnd, sStart, sEnd);
             for (uint32_t k = bStart; k <= bEnd; k++) {
                 // 计算当前batch的seq 开始结束索引
                 curActSeqLength_ = GetSeqLength(k);
@@ -621,7 +622,7 @@ template <typename COMP>
                 if (k == bEnd) {
                     curSEnd = sEnd;
                 }
-                printf("[IDX] b:%u sStart:%u sEnd:%u curSStart:%u curSEnd:%u\n", k, sStart, sEnd, curSStart, curSEnd);
+                // printf("[IDX] b:%u sStart:%u sEnd:%u curSStart:%u curSEnd:%u\n", k, sStart, sEnd, curSStart, curSEnd);
                 // 从UB拷贝到32k空间
                 // 存state
                 // 从state取

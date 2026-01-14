@@ -98,7 +98,7 @@ private:
 
     // ==============================Service Define==============================
     CompressorBlockVector<COMP> vectorService;
-    static constexpr uint32_t PRELOAD_NUM = 2;
+    static constexpr uint32_t dbWorkspaceRatio = 2;
     
     using X_T = typename AscendC::Conditional<X_DTYPE, bfloat16_t, half>::type;
     using T = float;
@@ -171,7 +171,6 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     startPosGm_.SetGlobalBuffer((__gm__ int32_t *)startPos);
 
     InitTilingData();
-    InitWorkspace(workspace);
 
     // 初始化 curActSeqLength、start_pos TODO考虑为None， 
     if (COMP::xLayout == X_LAYOUT::TH) {
@@ -184,12 +183,13 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     // 计算分核基本信息
     constInfo.tcSize = CalcTcSize();
     constInfo.tcBaseSize = constInfo.mBaseSize / constInfo.cmpRatio;
-    constInfo.tcBasicBlockNum = (constInfo.tcSize + constInfo.tcBaseSize - 1) / constInfo.tcBaseSize;       // TC方向的基本块
-    constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;                           // D方向的基本块
-    constInfo.coreGroupNum = constInfo.usedCoreNum / constInfo.dBasicBlockNum;                        // 核分为多少组
+    constInfo.tcBasicBlockNum = (constInfo.tcSize + constInfo.tcBaseSize - 1) / constInfo.tcBaseSize;                       // TC方向的基本块
+    constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;                                                     // D方向的基本块
+    constInfo.coreGroupNum = constInfo.usedCoreNum / constInfo.dBasicBlockNum;                                              // 核分为多少组
     constInfo.singleCoreDealTcBasicNum = (constInfo.tcBasicBlockNum + constInfo.coreGroupNum - 1) / constInfo.coreGroupNum; // 处理的最大基本块数量
-    constInfo.dIdx = ((constInfo.aiCoreIdx + 1) % constInfo.dBasicBlockNum) - 1;                  // 每个核处理的d方向的索引
+    constInfo.dIdx = (((constInfo.aiCoreIdx + 1) % constInfo.dBasicBlockNum) - 1) * constInfo.dBaseSize;                    // 每个核处理的d方向的索引
     // printf("[BASEINFO] tcSize:%u tcBaseSize:%u tcBasicBlockNum:%u dBasicBlockNum:%u coreGroupNum:%u singleCoreDealTcBasicNum:%u\n", constInfo.tcSize, constInfo.tcBaseSize, constInfo.tcBasicBlockNum, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.singleCoreDealTcBasicNum);
+    InitWorkspace(workspace);
     if ASCEND_IS_AIC {
 
     } else {
@@ -233,7 +233,6 @@ __aicore__ inline void CompressorKernel<COMP>::InitTilingData() {
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::InitWorkspace(__gm__ uint8_t *workspace) {
-    static constexpr uint32_t dbWorkspaceRatio = PRELOAD_NUM;
     uint64_t offset = 0;
     // preMm1ResGm
     preMm1ResGm.SetGlobalBuffer(
@@ -247,9 +246,9 @@ __aicore__ inline void CompressorKernel<COMP>::InitWorkspace(__gm__ uint8_t *wor
                              constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.curMm1ResSize));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.curMm1ResSize;
 
-    // vec1Res
+    // vec1Res 
     vec1ResGm.SetGlobalBuffer(
-        (__gm__ VEC1_OUT_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * constInfo.vec1ResSize));
+        (__gm__ VEC1_OUT_T *)(workspace + offset + constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize;
 }
 
@@ -529,6 +528,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         
         // 获取各切分轴的起始核结束索引
         CalcParams(extraInfo0);
+        extraInfo0.vec1ResOffset = constInfo.dIdx + vec2Info.dealScSize * dbWorkspaceRatio * (constInfo.vec1ResSize / constInfo.tcBaseSize);
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
             if (isNeedExcute) {
