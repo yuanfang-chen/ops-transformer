@@ -42,8 +42,8 @@ template<bool IsFullMesh, bool IsNd2Nz, bool IsBias>
 __global__ __aicore__ void all_gather_matmul(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR gatherOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(AllGatherMatmulTilingData);
-    #if __CCE_AICORE__ == 310
-    #else
+    // allgathermatmul算子kernel侧代码不支持A5
+    #if __CCE_AICORE__ != 310
         auto tiling = (__gm__ AllGatherMatmulTilingData*)tilingGM;
         __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));
         __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));

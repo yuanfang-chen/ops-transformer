@@ -44,8 +44,8 @@ template<bool IsFullMesh, bool IsNd2Nz, bool IsBias>
 __global__ __aicore__ void matmul_reduce_scatter(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(MatmulReduceScatterTilingData);
-    #if __CCE_AICORE__ == 310
-    #else
+    // matmulreducescatter算子kernel侧代码不支持A5
+    #if __CCE_AICORE__ != 310
         auto tiling = (__gm__ MatmulReduceScatterTilingData*)tilingGM;
         __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));
         __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));
