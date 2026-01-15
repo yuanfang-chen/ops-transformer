@@ -4,7 +4,8 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                 |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term> |    √     |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 
 ## 功能说明
@@ -58,28 +59,20 @@ aclnnRingAttentionUpdateV2(
 
 - **参数说明**
 
-    - prevAttnOut(aclTensor*,计算输入)：Device侧的aclTensor，公式中的prev_attn_out，第一次FlashAttention的输出，输入shape和inputLayoutOptional属性保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。当输入数据排布inputLayoutOptional为TND时，D限制为64的倍数。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT16、FLOAT、BFLOAT16
-    - prevSoftmaxMax(aclTensor*,计算输入)：Device侧的aclTensor，公式中的prev_softmax_max，第一次FlashAttention的softmax的max结果，输入shape为(B,N,S,8)或(T,N,8)，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。此处B为batch size，N为head number，S为sequence length，T为time。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT
-    - prevSoftmaxSum(aclTensor*,计算输入)：Device侧的aclTensor，公式中的prev_softmax_sum，第一次FlashAttention的softmax的sum结果，输入shape和prevSoftmaxMax保持一致，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT
-    - curAttnOut(aclTensor*,计算输入)：Device侧的aclTensor，公式中的cur_attn_out，第二次FlashAttention的输出，数据类型和输入shape和prevAttnOut保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。当输入数据排布inputLayoutOptional为TND时，D限制为64的倍数。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT16、FLOAT、BFLOAT16
-    - curSoftmaxMax(aclTensor*,计算输入)：Device侧的aclTensor，公式中的cur_softmax_max，第二次FlashAttention的softmax的max结果，输入shape和prevSoftmaxMax保持一致，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT
-    - curSoftmaxSum(aclTensor*,计算输入)：Device侧的aclTensor，公式中的cur_softmax_sum，第二次FlashAttention的softmax的sum结果，输入shape和prevSoftmaxMax保持一致，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT
-    - actualSeqQlenOptional(aclTensor*,计算输入)：Device侧的aclTensor，从0开始的sequence length的累加。当数据排布inputLayoutOptional为TND时，需要传入该参数，这是一个从0开始递增至T的整数aclTensor。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持INT64
+    - prevAttnOut(aclTensor*,计算输入)：Device侧的aclTensor，公式中的prev_attn_out，第一次FlashAttention的输出，数据类型支持FLOAT16、FLOAT、BFLOAT16，输入shape和inputLayoutOptional属性保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
+      * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：当输入数据排布inputLayoutOptional为TND时，D限制为64的倍数
+    - prevSoftmaxMax(aclTensor*,计算输入)：Device侧的aclTensor，公式中的prev_softmax_max，第一次FlashAttention的softmax的max结果，数据类型支持FLOAT，输入shape为(B,N,S,8)或(T,N,8)，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。此处B为batch size，N为head number，S为sequence length，T为time。
+    - prevSoftmaxSum(aclTensor*,计算输入)：Device侧的aclTensor，公式中的prev_softmax_sum，第一次FlashAttention的softmax的sum结果，数据类型支持FLOAT，输入shape和prevSoftmaxMax保持一致，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
+    - curAttnOut(aclTensor*,计算输入)：Device侧的aclTensor，公式中的cur_attn_out，第二次FlashAttention的输出，数据类型支持FLOAT16、FLOAT、BFLOAT16，数据类型和输入shape和prevAttnOut保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
+      * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：当输入数据排布inputLayoutOptional为TND时，D限制为64的倍数
+    - curSoftmaxMax(aclTensor*,计算输入)：Device侧的aclTensor，公式中的cur_softmax_max，第二次FlashAttention的softmax的max结果，数据类型支持FLOAT，输入shape和prevSoftmaxMax保持一致，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
+    - curSoftmaxSum(aclTensor*,计算输入)：Device侧的aclTensor，公式中的cur_softmax_sum，第二次FlashAttention的softmax的sum结果，数据类型支持FLOAT，输入shape和prevSoftmaxMax保持一致，最后一维8个数字相同，且需要为正数，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
+    - actualSeqQlenOptional(aclTensor*,计算输入)：Device侧的aclTensor，从0开始的sequence length的累加，数据类型支持INT64。当数据排布inputLayoutOptional为TND时，需要传入该参数，这是一个从0开始递增至T的整数aclTensor。
     - inputLayoutOptional(char*,计算输入)：Host侧的char*常量，prevAttnOut和curAttnOut的数据排布。当前支持“TND”和“SBH”。
     - inputSoftmaxLayoutOptional(char*,计算输入)：Host侧的char*常量，prevSoftmaxMax、prevSoftmaxSum、curSoftmaxMax和curSoftmaxSum数据排布。当输入数据排布inputLayoutOptional为TND时生效，当前支持空字符串、“SBH”和“TND”。通过此开关控制是否对softmaxMax相关输入做转置操作。
-    - attnOutOut(aclTensor*,计算输出)：Device侧的aclTensor，公式中的attn_out，通过两次结果更新后的输出，数据类型和输出shape和prevAttnOut保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT16、FLOAT、BFLOAT16
-    - softmaxMaxOut(aclTensor*,计算输出)：Device侧的aclTensor，公式中的softmax_max，通过两次结果更新后的softmax的max，输出shape和prevSoftmaxMax保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT
-    - softmaxSumOut(aclTensor*,计算输出)：Device侧的aclTensor，公式中的softmax_sum，通过两次结果更新后的softmax的sum，输出shape和prevSoftmaxMax保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-        * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT
+    - attnOutOut(aclTensor*,计算输出)：Device侧的aclTensor，公式中的attn_out，通过两次结果更新后的输出，数据类型支持FLOAT16、FLOAT、BFLOAT16，数据类型和输出shape和prevAttnOut保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
+    - softmaxMaxOut(aclTensor*,计算输出)：Device侧的aclTensor，公式中的softmax_max，通过两次结果更新后的softmax的max，数据类型支持FLOAT，输出shape和prevSoftmaxMax保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
+    - softmaxSumOut(aclTensor*,计算输出)：Device侧的aclTensor，公式中的softmax_sum，通过两次结果更新后的softmax的sum，数据类型支持FLOAT，输出shape和prevSoftmaxMax保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
     - workspaceSize(uint64_t*, 出参)：返回需要在Device侧申请的workspace大小。
     - executor(aclOpExecutor**, 出参)：返回op执行器，包含了算子计算流程。
 
@@ -172,9 +165,14 @@ aclnnRingAttentionUpdateV2(
 
 - 确定性计算：
   - aclnnRingAttentionUpdateV2默认确定性实现。
-- 当inputLayoutOptional为“TND”时，prevAttnOut的最后一个维度需要为64的倍数。
 - 当inputLayoutOptional为“TND”时，actualSeqQlenOptional为必填。
-- 当inputLayoutOptional为“TND”时，请注意N和D的大小，限制为：N<=256, D<=768。
+- 当inputLayoutOptional为“TND”时，其中：
+    - N：
+      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：N<=256。
+      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：N<=256。
+    - D：
+      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：D<=768且D为64的倍数。
+      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：D<=768且D为64的倍数。
 - **当inputLayoutOptional为“TND”时，inputSoftmaxLayoutOptional才生效。inputSoftmaxLayoutOptional只支持三种输入：空字符串、“SBH”、“TND”**
 
 ## 调用示例
