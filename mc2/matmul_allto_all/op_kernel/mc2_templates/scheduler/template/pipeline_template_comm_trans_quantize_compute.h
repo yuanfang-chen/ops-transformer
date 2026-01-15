@@ -64,9 +64,6 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
     context_ = (ContextType *)updateContext;
     commStage_->Update(context_->taskCnt, context_->sendBuffer, context_->recvBuffer, context_->sendOffset,
                        context_->recvOffset, context_->sendCount, context_->strideCount, context_->hcclDataType);
-    // 是否我要单独写一个Update
-    quantStage_->Init(context_->quantInputAddr, context_->smoothScaleAddr, context_->quantOutputAddr,
-                      context_->quantOutputScaleAddr, context_->rowNum, context_->colNum, context_->calBuffSize);
     computeStage_->Update(context_->aGM, context_->bGM, context_->cGM, context_->biasGM, &(context_->extraData),
                           context_->tilingData);
 }
@@ -93,6 +90,17 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
             context_->transposeDstAddr = (GM_ADDR)((uint64_t)context_->transposeDstAddr + context_->transposeDstOffset);
             AscendC::SyncAll<true>();
 
+            // 是否我要单独写一个Update
+            quantStage_->Init(context_->quantInputAddr, context_->smoothScaleAddr, context_->quantOutputAddr,
+                              context_->quantOutputScaleAddr, context_->rowNum, context_->colNum,
+                              context_->calBuffSize);
+            context_->quantInputAddr = (GM_ADDR)((uint64_t)context_->quantInputAddr + context_->quantInputAddrOffset);
+            context_->smoothScaleAddr =
+                (GM_ADDR)((uint64_t)context_->smoothScaleAddr + context_->smoothScaleAddrOffset);
+            context_->quantOutputAddr =
+                (GM_ADDR)((uint64_t)context_->quantOutputAddr + context_->quantOutputAddrOffset);
+            context_->quantOutputScaleAddr =
+                (GM_ADDR)((uint64_t)context_->quantOutputScaleAddr + context_->quantOutputScaleAddrOffset);
             quantStage_->Process();
 
             CrossCoreSetFlag<0, PIPE_MTE3>(8);

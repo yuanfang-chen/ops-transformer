@@ -507,6 +507,6 @@ public:
         tPipe_->InitBuffer(rawInputQue_, ONE_FACTOR, alignedCols * sizeof(quantInputDataType));
         tPipe_->InitBuffer(quantOutputQue_, ONE_FACTOR, alignedCols * sizeof(quantOutputDataType));
     }
-}
+};
 } // namespace MC2KernelTemplate
 #endif

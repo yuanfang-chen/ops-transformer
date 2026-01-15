@@ -54,6 +54,10 @@ struct PipelineContext {
     uint64_t rowNum;
     uint64_t colNum;
     uint64_t calBuffSize;
+    uint64_t quantInputAddrOffset;
+    uint64_t smoothScaleAddrOffset;
+    uint64_t quantOutputAddrOffset;
+    uint64_t quantOutputScaleOffset;
 };
 }; // namespace MC2KernelTemplate
 
