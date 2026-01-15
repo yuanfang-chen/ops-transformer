@@ -302,21 +302,12 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
     }
 
     cubeSOuterOffset += (runParam.nextTokensPerBatch < 0) ? -runParam.nextTokensPerBatch : 0;
-#if (__NPU_ARCH__ == 5102)
     if constexpr (useDn) { 
         runParam.s1RealSizeAlign32 = ((runParam.s1RealSize + 31) >> 5 << 5); // 5 and 31 for 32align factor
         runParam.halfS1RealSize = runParam.s1RealSize <= 16 ? runParam.s1RealSize : runParam.s1RealSizeAlign32; // 16 for 32align factor
     } else {
         runParam.halfS1RealSize = runParam.s1RealSize;
     }
-#else
-    if constexpr (useDn) { 
-        runParam.s1RealSizeAlign32 = ((runParam.s1RealSize + 31) >> 5 << 5); // 5 and 31 for 32align factor
-        runParam.halfS1RealSize = runParam.s1RealSize <= 16 ? runParam.s1RealSize : runParam.s1RealSizeAlign32 / 2;
-    } else {
-        runParam.halfS1RealSize = (runParam.s1RealSize + 1) >> 1;
-    }
-#endif
     runParam.firstHalfS1RealSize = runParam.halfS1RealSize;
     if (constInfo.subBlockIdx == 1) {
         runParam.halfS1RealSize = runParam.s1RealSize - runParam.halfS1RealSize;

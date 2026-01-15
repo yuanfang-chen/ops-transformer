@@ -51,11 +51,7 @@ constexpr uint16_t ADD_NUM_63 = 63;
 
 constexpr uint32_t L0C_SHARED_SIZE_64K = 64 * 1024;
 constexpr uint32_t L0C_SHARED_SIZE_128K = 128 * 1024;
-#if (__NPU_ARCH__ == 5102)
 constexpr uint32_t CV_RATIO = 1;
-#else
-constexpr uint32_t CV_RATIO = 2;
-#endif
 constexpr uint64_t SYNC_MODE = 4;
 constexpr uint64_t MM2_RES_INTRA_EVENT[2] = {7, 8}; // mm2ResIntraEvent
 constexpr uint64_t MM1_RES_INTRA_EVENT[2] = {9, 10}; //mm1ResIntraEvent

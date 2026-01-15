@@ -16,9 +16,7 @@
 #ifndef FLASH_ATTENTION_SCORE_KERNEL_BASE_H_
 #define FLASH_ATTENTION_SCORE_KERNEL_BASE_H_
 #include "flash_attention_score_block_cube.h"
-#if  (__NPU_ARCH__ != 5102)
 #include "flash_attention_score_block_vec_train.h"
-#endif
 #include "flash_attention_score_block_vec_infer.h"
 #include "flash_attention_score_common_regbase.h"
 #include "kernel_basic_intf.h"
@@ -152,11 +150,6 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
 {
     fa_base_matmul::idCounterNum = 0;
     constInfo.subBlockIdx = GetSubBlockIdx();
-#if (__NPU_ARCH__ == 5102)
-    constInfo.aivIdx = GetBlockIdx();
-    this->aicIdx = constInfo.aivIdx;
-    this->tilingData = tiling;
-#else
     if ASCEND_IS_AIC {
         this->aicIdx = GetBlockIdx();
     } else {
@@ -164,7 +157,6 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         this->aicIdx = constInfo.aivIdx >> 1;
         this->tilingData = tiling;
     }
-#endif
     this->pipe = tPipe;
     vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx, 
         attenMaskInfo, pseInfo);

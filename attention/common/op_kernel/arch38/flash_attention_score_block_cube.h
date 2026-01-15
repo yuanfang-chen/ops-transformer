@@ -137,11 +137,8 @@ public:
     static constexpr uint32_t l1BaseD = isFp8 ? 256: ((IsSameType<INPUT_T, float>::value) ? (dBaseSize > 128 ? 96 : 128): 128);
     using mm2ResPos = typename std::conditional<bmm2Write2Ub, Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>,
         Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD>>::type;
-
-#if (__NPU_ARCH__ == 5102)
-        GlobalTensor<uint32_t> deqScaleQKGm;
-        GlobalTensor<uint32_t> deqScaleVGm;
-#endif
+    GlobalTensor<uint32_t> deqScaleQKGm;
+    GlobalTensor<uint32_t> deqScaleVGm;
 
     __aicore__ inline FABlockCube() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr,
@@ -150,9 +147,7 @@ public:
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *key, __gm__ uint8_t *value,
         CVSharedParams<isInfer, isPa> *sharedParams, AttenMaskInfo *attenMaskInfo,
         __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr);
-#if (__NPU_ARCH__ == 5102)
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *deqScaleQK, __gm__ uint8_t *deqScaleV, ConstInfo<isInfer, hasRope> &constInfo);
-#endif
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
         RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo);
 
@@ -183,9 +178,7 @@ private:
     __aicore__ inline void IterateBmm1Dn(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo);
 
-#if (__NPU_ARCH__ == 5102)
     __aicore__ inline void InitQuant(ConstInfo<isInfer, hasRope> &constInfo, __gm__ uint8_t *deqScaleQK, __gm__ uint8_t *deqScaleV);
-#endif
 
     // --------------------Bmm2--------------------------
     __aicore__ inline void IterateBmm2L1SplitN(mm2ResPos &outputBuf,
@@ -296,7 +289,6 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitCubeInput(
     InitGmTensor(sharedParams, actualSeqQlenAddr, actualSeqKvlenAddr);
 }
 
-#if (__NPU_ARCH__ == 5102)
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint8_t *deqScaleQK,
     __gm__ uint8_t *deqScaleV, ConstInfo<isInfer, hasRope> &constInfo)
@@ -324,7 +316,6 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitQuant(ConstInfo<isInfer, 
         }
     }
 }
-#endif
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitLocalBuffer() {
@@ -1318,9 +1309,7 @@ public:
     __aicore__ inline void IterateBmm2(mm2ResPos &outputBuf,
         BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf,RunInfo<isInfer> &runInfo,
         ConstInfo<isInfer, hasRope> &constInfo) {}
-#if (__NPU_ARCH__ == 5102)
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *deqScaleQK, __gm__ uint8_t *deqScaleV, ConstInfo<isInfer, hasRope> &constInfo) {}
-#endif
 };
 
 template <typename T>

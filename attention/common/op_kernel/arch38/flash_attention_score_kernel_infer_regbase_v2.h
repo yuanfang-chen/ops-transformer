@@ -251,11 +251,9 @@ __aicore__ inline void FlashAttentionScoreKernelInferRegbaseV2<CubeBlockType, Ve
     }
     ProcessMainLoop();
     if constexpr (isFd) {
-        if constexpr ((g_coreType == AscendC::AIV) || (__NPU_ARCH__ == 5102)) {
-            SyncAll();
-            this->vecBlock.InitFDBuffers(this->constInfo);
-            this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
-        }
+        SyncAll();
+        this->vecBlock.InitFDBuffers(this->constInfo);
+        this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
     }
 }
 

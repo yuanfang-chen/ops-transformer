@@ -730,7 +730,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
 TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::SoftmaxInitBuffer()
 {
-#if (__NPU_ARCH__ == 5102)
     tPipe->InitBuffer(softmaxSumBuf[0], 512); // [64, 1]
     tPipe->InitBuffer(softmaxSumBuf[1], 512); // [64, 1]
     tPipe->InitBuffer(softmaxSumBuf[2], 512); // [64, 1]
@@ -742,19 +741,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::SoftmaxInitBuffer()
     tPipe->InitBuffer(softmaxExpBuf[0], 512); // [64, 1]
     tPipe->InitBuffer(softmaxExpBuf[1], 512); // [64, 1]
     tPipe->InitBuffer(softmaxExpBuf[2], 512); // [64, 1]
-#else
-    tPipe->InitBuffer(softmaxSumBuf[0], 256); // [64, 1]
-    tPipe->InitBuffer(softmaxSumBuf[1], 256); // [64, 1]
-    tPipe->InitBuffer(softmaxSumBuf[2], 256); // [64, 1]
-    tPipe->InitBuffer(maxBrdcst, 1, 2048); // [64, 8]
-    tPipe->InitBuffer(sumBrdcst, 1, 2048); // [64, 8]
-    tPipe->InitBuffer(softmaxMaxBuf[0], 256); // [64, 1]
-    tPipe->InitBuffer(softmaxMaxBuf[1], 256); // [64, 1]
-    tPipe->InitBuffer(softmaxMaxBuf[2], 256); // [64, 1]
-    tPipe->InitBuffer(softmaxExpBuf[0], 256); // [64, 1]
-    tPipe->InitBuffer(softmaxExpBuf[1], 256); // [64, 1]
-    tPipe->InitBuffer(softmaxExpBuf[2], 256); // [64, 1]
-#endif
 }
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
