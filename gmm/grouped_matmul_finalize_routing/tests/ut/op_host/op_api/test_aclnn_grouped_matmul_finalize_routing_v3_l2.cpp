@@ -635,7 +635,7 @@ TEST_F(l2_GroupedMatmulFinalizeRoutingV3_test, ascend91095_test_opapi_MXFP8_ille
                         OUTPUT(out_desc));
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
 TEST_F(l2_GroupedMatmulFinalizeRoutingV3_test, ascend91095_test_opapi_MXFP4_illegal_case)
@@ -664,7 +664,7 @@ TEST_F(l2_GroupedMatmulFinalizeRoutingV3_test, ascend91095_test_opapi_MXFP4_ille
                         OUTPUT(out_desc));
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
 TEST_F(l2_GroupedMatmulFinalizeRoutingV3_test, ascend91095_test_opapi_MXFP4_illegal_case2)
@@ -693,5 +693,5 @@ TEST_F(l2_GroupedMatmulFinalizeRoutingV3_test, ascend91095_test_opapi_MXFP4_ille
                         OUTPUT(out_desc));
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }

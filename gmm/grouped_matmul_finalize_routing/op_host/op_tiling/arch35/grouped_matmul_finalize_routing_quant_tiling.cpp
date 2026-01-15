@@ -90,6 +90,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeAttrs()
                 return false);
     inputParams_.transA = transposeXPtr != nullptr ? *transposeXPtr : false;
     inputParams_.transB = transposeWeightPtr != nullptr ? *transposeWeightPtr : false;
+    inputParams_.groupType = SPLIT_M;
     sharedInputWeight_ = *shareInputWeightPtr;
     OP_CHECK_IF(!CheckOptionalAttr(), OP_LOGE(context_->GetNodeName(), "Check Optional Attrs Failed."), return false);
     return true;

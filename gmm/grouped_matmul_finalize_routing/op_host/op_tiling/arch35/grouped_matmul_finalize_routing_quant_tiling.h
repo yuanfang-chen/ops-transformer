@@ -58,6 +58,7 @@ constexpr uint32_t DIM_NUM_WEIGHT = 3;
 constexpr uint32_t DIM_NUM_SCALE = 4;
 constexpr uint32_t DIM_NUM_Y = 2;
 constexpr uint32_t OUT_DTYPE_BF16_INDEX = 2;
+constexpr int32_t SPLIT_M = 0;
 } // namespace GroupedMatmulFinalizeRoutingArch35TilingConstant
 
 class GroupedMatmulFinalizeRoutingQuantTiling : public GroupedQbmmTiling {
