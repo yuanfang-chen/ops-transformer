@@ -1835,7 +1835,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             <td>FLOAT32</td>
             <td><ul><li>需与keyAntiquantScaleOptional, valueAntiquantScaleOptional同时存在</li>
                     <li>queryQuantMode仅支持per-token叠加per-head模式,queryQuantMode为3</li>
-                    <li>shape与query相比仅少一个维度D</li></ul></td>
+                    <li>shape与query相比仅少一个维度D，例如inputLayout=BSH/BSND时，dequantScaleQuery_shape为(B,S,N)</li></ul></td>
         </tr>
         <tr>
             <td colspan="3">不支持左padding、tensorlist、pse、prefix、伪量化、后量化</td>
