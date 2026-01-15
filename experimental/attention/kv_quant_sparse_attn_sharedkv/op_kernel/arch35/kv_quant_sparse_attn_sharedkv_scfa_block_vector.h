@@ -845,10 +845,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 
     outputBuf.WaitCrossCore();
     LocalTensor<Q_T> mm2AL1Tensor = outputBuf.GetTensor<Q_T>();
-    DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
-        {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
-        (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
-        (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+    if (likely(runInfo.halfS1RealSize != 0)) {
+        DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
+            {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
+            (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
+            (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+    }
 
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
 
@@ -860,7 +862,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2(
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2 (
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm2ResBuf, RunInfo &runInfo,
     ConstInfo &constInfo) {
     bmm2ResBuf.WaitCrossCore();
@@ -904,7 +906,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2(
 
 TEMPLATES_DEF_NO_DEFAULT
 template <typename VEC2_RES_T>
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::Bmm2DataCopyOut(
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::Bmm2DataCopyOut (
     RunInfo &runInfo, ConstInfo &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     LocalTensor<OUTPUT_T> attenOut;
@@ -921,21 +923,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::Bmm2DataCopyOut(
     dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
     dataCopyParams.srcStride = (dSizeAligned64 - constInfo.dSizeV) >> 4;
     dataCopyParams.dstStride = constInfo.attentionOutStride;
-    dataCopyParams.blockCount = runInfo.vec2S1RealSize;
+    dataCopyParams.blockCount = runInfo.vec2S1RealSize * constInfo.gSize;
 
-    int64_t attenOutOffset = constInfo.dSizeV;
-    if (constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::TND)) {
-        attenOutOffset = 0;
-        dataCopyParams.blockLen *= constInfo.gSize;
-        dataCopyParams.blockCount /= constInfo.gSize;
-    } else if (constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::BSND)) {
-        attenOutOffset = 0;
-        dataCopyParams.blockLen *= constInfo.gSize;
-        dataCopyParams.blockCount /= constInfo.gSize;
-    }
-
-    DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
-        attenOut, dataCopyParams);
+    DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut, dataCopyParams);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
