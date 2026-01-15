@@ -119,20 +119,16 @@ struct SplitResult {
 // 分核功能模块内部使用：记录切分信息
 struct SplitInfo {
     std::vector<uint32_t> s1GBaseNum {};                   // S1G方向，切了多少个基本块
-    std::vector<uint32_t> winS2BaseNum {};                    // win部分S2方向，切了多少个基本块
-    std::vector<uint32_t> cmpS2BaseNum {};                    // cmp部分S2方向，切了多少个基本块
+    std::vector<uint32_t> s2BaseNum {};                    // S2方向，切了多少个基本块
     std::vector<uint32_t> s1GTailSize {};                  // S1G方向，尾块size
-    std::vector<uint32_t> winS2TailSize {};                   // win部分S2方向，尾块size
-    std::vector<uint32_t> cmpS2TailSize {};                   // cmp部分S2方向，尾块size
+    std::vector<uint32_t> s2TailSize {};                   // S2方向，尾块size
     bool isKvSeqAllZero { true };
 
     explicit SplitInfo(uint32_t batchSize) :
         s1GBaseNum(batchSize),
-        winS2BaseNum(batchSize),
-        cmpS2BaseNum(batchSize),
+        s2BaseNum(batchSize),
         s1GTailSize(batchSize),
-        winS2TailSize(batchSize),
-        cmpS2TailSize(batchSize) {}
+        s2TailSize(batchSize) {}
 };
 
 // 分核功能模块内部使用：记录batch的开销信息
