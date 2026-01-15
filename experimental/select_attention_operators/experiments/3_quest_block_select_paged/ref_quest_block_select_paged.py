@@ -90,41 +90,41 @@ def ref_quest_paged_slow(query: torch.Tensor,              # (batch_size, num_he
         # Average to get grouped query
         grouped_query[:, group, :] = group_sum / heads_per_group
     
-    # Step 2: Process each batch and head
-    for b in range(batch_size):
+    # Step 2: Process each (batch, head) pair in a flattened loop
+    batch_head_pairs = [(b, n) for b in range(batch_size) for n in range(num_kv_heads)]
+    for b, n in batch_head_pairs:
         # Determine how many metadata blocks are valid for this request
         num_valid_blocks = ceil_div(seq_lens[b].item(), block_size * block_size)
         num_valid_blocks = min(num_valid_blocks, mmbpr)
 
-        for n in range(num_kv_heads):
-            current_query = grouped_query[b, n, :]  # Shape: (head_dim,)
-            all_scores = torch.zeros(num_valid_blocks * block_size, 
-                                     dtype=query.dtype if query.dtype == torch.float16 else torch.float32, 
-                                     device=query.device)
-            
-            for block_idx in range(num_valid_blocks):
-                meta_block_id = metadata_block_tables[b, block_idx].item()
-                maxblock = maxblocks[meta_block_id, :, n, :]  # (block_size, head_dim)
-                minblock = minblocks[meta_block_id, :, n, :]  # (block_size, head_dim)
+        current_query = grouped_query[b, n, :]  # Shape: (head_dim,)
+        all_scores = torch.zeros(num_valid_blocks * block_size, 
+                                 dtype=query.dtype if query.dtype == torch.float16 else torch.float32, 
+                                 device=query.device)
+        
+        for block_idx in range(num_valid_blocks):
+            meta_block_id = metadata_block_tables[b, block_idx].item()
+            maxblock = maxblocks[meta_block_id, :, n, :]  # (block_size, head_dim)
+            minblock = minblocks[meta_block_id, :, n, :]  # (block_size, head_dim)
 
-                if minblock.dtype == torch.bfloat16:
-                    minblock = minblock.float()     
-                if maxblock.dtype == torch.bfloat16:
-                    maxblock = maxblock.float()                
+            if minblock.dtype == torch.bfloat16:
+                minblock = minblock.float()     
+            if maxblock.dtype == torch.bfloat16:
+                maxblock = maxblock.float()                
 
-                prod_max = current_query.unsqueeze(0) * maxblock  # (block_size, head_dim)
-                prod_min = current_query.unsqueeze(0) * minblock  # (block_size, head_dim)
-                channel_max_product = torch.maximum(prod_max, prod_min)  # (block_size, head_dim)
-                
-                # Reduce sum the last dimension (head_dim to 1)
-                scores = torch.sum(channel_max_product, dim=1)  # (block_size,)
-                
-                # Store scores with their global indices
-                all_scores[block_idx * block_size: (block_idx + 1) * block_size] = scores
+            prod_max = current_query.unsqueeze(0) * maxblock  # (block_size, head_dim)
+            prod_min = current_query.unsqueeze(0) * minblock  # (block_size, head_dim)
+            channel_max_product = torch.maximum(prod_max, prod_min)  # (block_size, head_dim)
             
-            eff_num_scores = len(all_scores)
-            eff_k = min(k, eff_num_scores)            
-            selected_indices[b, n, :] = torch.topk(all_scores, eff_k, dim=-1)[1] 
+            # Reduce sum the last dimension (head_dim to 1)
+            scores = torch.sum(channel_max_product, dim=1)  # (block_size,)
+            
+            # Store scores with their global indices
+            all_scores[block_idx * block_size: (block_idx + 1) * block_size] = scores
+        
+        eff_num_scores = len(all_scores)
+        eff_k = min(k, eff_num_scores)            
+        selected_indices[b, n, :] = torch.topk(all_scores, eff_k, dim=-1)[1] 
     return selected_indices
 
 
@@ -137,9 +137,9 @@ def ref_quest_paged_fast(query: torch.Tensor,              # (batch_size, num_he
     """
     FAST paged quest reference functionality - vectorized implementation
     """
-    batch_size, num_heads, head_dim = query.shape
-    num_meta_blocks, block_size, num_kv_heads, d_blocks = maxblocks.shape
     mmbpr = metadata_block_tables.shape[1]
+    num_meta_blocks, block_size, num_kv_heads, d_blocks = maxblocks.shape
+    batch_size, num_heads, head_dim = query.shape
     
     if head_dim != d_blocks:
         raise ValueError(f"Query dimension {head_dim} doesn't match block dimension {d_blocks}")

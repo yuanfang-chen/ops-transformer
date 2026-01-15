@@ -226,23 +226,24 @@ def log_header(custom_kernel: Callable, dtype: torch.dtype):
     logger.info(f"  custom_kernel={custom_kernel.__name__} {dtype=}\n  {BLOCK_SIZE=}  {HEAD_DIM=}  "
                 f"{SAME_SEQ_LEN_ALL_REQS=}")
     logger.info(f"{'H':>3} {'N':>3} {'B':>3} {'MMBPR':>6} {'Max_seq_len':>12} {'k':>4} "
-                f"{'Outputs_equal':>15} {'Ref_Latency_[usec]':>18} {'Our_Latency_[usec]':>18} {'Ref_BW_[TB/sec]':>16} "
-                f"{'Our_BW_[TB/sec]':>16}")
+                f"{'Outputs_equal':>15} {'Ref_Latency_[usec]':>18} {'Our_Latency_[usec]':>18} "
+                f"{'Ref_BW_[TB/sec]':>16} {'Our_BW_[TB/sec]':>16}")
 
 
 def log_results_row(h: int, n: int, b: int, mmbpr: int, k: int, are_equal: str,
-                    ref_duration: float, our_duration: float, ref_bw: float, our_bw: float):
+                    ref_time: float, our_time: float, 
+                    ref_bw: float, our_bw: float):
     """Log a single row of benchmark results."""
     max_seq_len = mmbpr * BLOCK_SIZE * BLOCK_SIZE
     row = f"{h:>3} {n:>3} {b:>3} {mmbpr:>6} {max_seq_len:>12} {k:>4} {are_equal:>15} "
     
-    if ref_duration is not None:
-        row += f"{ref_duration:>18.2f} "
+    if ref_time is not None:
+        row += f"{ref_time:>18.2f} "
     else:
         row += f"{'N/A':>18} "
 
-    if our_duration is not None:
-        row += f"{our_duration:>18.2f} "
+    if our_time is not None:
+        row += f"{our_time:>18.2f} "
     else:
         row += f"{'N/A':>18} "
 
@@ -288,9 +289,9 @@ def benchmark_quest_block_select_paged(custom_kernel: Callable, dtype: torch.dty
             are_equal = check_correctness(custom_kernel, b, h, n, mmbpr, k, dtype)
         
         # Initialize results
-        our_duration = None
+        our_time = None
         our_bw = None
-        ref_duration = None
+        ref_time = None
         ref_bw = None
         
         # Our implementation benchmark
@@ -298,19 +299,19 @@ def benchmark_quest_block_select_paged(custom_kernel: Callable, dtype: torch.dty
             if custom_kernel == quest_block_select_paged_in_out:
                 our_ids = torch.zeros((b, n, k), dtype=torch.int32, device="npu:0") 
             else: 
-                our_ids =None
+                our_ids = None
             input_sets = generate_input_sets(n_warmup, n_repeat, b, h, n, mmbpr, dtype)
-            our_duration, our_bw = (
+            our_time, our_bw = (
                 benchmark_implementation(custom_kernel, input_sets, n_warmup, n_repeat, k, b, h, n, mmbpr, our_ids)
             )
 
         # Reference implementation benchmark
         if run_ref:
             input_sets = generate_input_sets(n_warmup, n_repeat, b, h, n, mmbpr, dtype)
-            ref_duration, ref_bw = benchmark_reference(input_sets, n_warmup, n_repeat, k, b, h, n, mmbpr)
+            ref_time, ref_bw = benchmark_reference(input_sets, n_warmup, n_repeat, k, b, h, n, mmbpr)
         
         # Log results
-        log_results_row(h, n, b, mmbpr, k, are_equal, ref_duration, our_duration, ref_bw, our_bw)
+        log_results_row(h, n, b, mmbpr, k, are_equal, ref_time, our_time, ref_bw, our_bw)
 
 
 

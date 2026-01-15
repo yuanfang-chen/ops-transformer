@@ -29,7 +29,7 @@ def ref_quest_prefill_metadata(
             k_cache[kv_block_id, :, n, :]  → shape (block_size, head_dim)
         3.  Reduce-max and reduce-min **along the token axis** (dim 0)
             maxblock[meta_block_id, :, n, :] ← max(tokens)   (block_size → 1 per channel)
-            minblock[meta_block_id, :, n, :] ← min(tokens)   (block_size → 1 per channel)
+            minblock[meta_blk_id, :, n, :] ← min(tokens)   (block_size → 1 per channel)
         4.  Write the two metadata blocks to
             maxblocks[metadata_block_tables[r], :, n, :]
             minblocks[metadata_block_tables[r], :, n, :]
@@ -64,12 +64,9 @@ def ref_quest_prefill_metadata(
     
             # iterate over one kv block (block_size tokens)
             for blk in range(num_kv_blocks_todo_curr_iter):
-                if (blk == num_kv_blocks_todo_curr_iter - 1) and (meta_blk == num_meta_blocks_in_request - 1):
-                    # tail (last KV block) - do not reduce over all tokens!
-                    ntokens_reduced_so_far = meta_blk * block_size * block_size + blk * block_size
-                    ntokens_to_reduce = seq_lens[r] - ntokens_reduced_so_far
-                else:
-                    ntokens_to_reduce = block_size
+                is_last = (blk == num_kv_blocks_todo_curr_iter - 1) and (meta_blk == num_meta_blocks_in_request - 1)
+                ntokens_to_reduce = _calculate_tokens_to_reduce(is_last, seq_lens[r], meta_blk, blk, block_size)
+                
                 kv_block_id = block_tables[r, meta_blk * block_size + blk].item()   # global block id
                 kv_block = k_cache[kv_block_id, :ntokens_to_reduce, :, :]  # (block_size, num_kv_heads, head_dim)
                 maxblocks[meta_blk_id, blk, :, :] = kv_block.max(dim=0)[0]
@@ -80,3 +77,12 @@ def ref_quest_prefill_metadata(
             if (num_unused_metadata_tokens > 0):
                 maxblocks[meta_blk_id, num_kv_blocks_todo_curr_iter:, :, :] = 0
                 minblocks[meta_blk_id, num_kv_blocks_todo_curr_iter:, :, :] = 0              
+
+def _calculate_tokens_to_reduce(is_last_block: bool, seq_len: torch.Tensor, meta_blk: int, blk: int, 
+                                block_size: int) -> int:
+    """Calculate number of tokens to reduce for a block."""
+    if is_last_block:
+        ntokens_reduced_so_far = meta_blk * block_size * block_size + blk * block_size
+        return seq_len - ntokens_reduced_so_far
+    else:
+        return block_size

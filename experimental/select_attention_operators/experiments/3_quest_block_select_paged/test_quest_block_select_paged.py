@@ -12,6 +12,7 @@ Single input testing (for debugging) -> Run this file with python <filename>
 Wide range testing (for validation) -> Run this file with pytest <filename>
 """
 import logging
+from itertools import product
 from typing import Callable
 import pytest
 import torch
@@ -101,19 +102,19 @@ def construct_quest_paged_parameter_sets(custom_kernel_vals, dtype_vals, batch_s
     - num_heads is a multiple of num_kv_heads (num_heads = num_kv_heads * G for natural G)
     """
     param_set_lst = []
-    for ck in custom_kernel_vals:
-        for dtype in dtype_vals:
-            for b in batch_size_vals:
-                for h in num_heads_vals:
-                    for n in num_kv_heads_vals:
-                        # Apply constraints: num_kv_heads ≤ num_heads and num_heads is multiple of num_kv_heads
-                        if n <= h and h % n == 0:
-                            for mmbpr in mmbpr_vals:
-                                for k in k_vals:
-                                    # Apply constraints: k should be multiple of 8 for "out-preallcated" kernel
-                                    if k % 8 == 0:
-                                        param_set_lst.append((ck, dtype, b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k))
+    for ck, dtype, b, h, n, mmbpr, k in product(custom_kernel_vals, dtype_vals, batch_size_vals, 
+                                               num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals):
+        # Input constraints: 
+        # num_kv_heads ≤ num_heads and num_heads is multiple of num_kv_heads
+        constraint_a = n <= h and h % n == 0
+        # k should be multiple of 8 for "out-preallcated" kernel
+        constraint_b = k % 8 == 0
+
+        # Apply constraints
+        if constraint_a and constraint_b:
+            param_set_lst.append((ck, dtype, b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k))
     return param_set_lst
+
 
 
 ########################### Test 1 - Basic functionality ###########################

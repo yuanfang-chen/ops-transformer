@@ -130,16 +130,12 @@ def run_our_warmup(input_sets: list, n_warmup: int, b: int, n: int, k: int) -> t
     """Run warmup iterations for our implementation."""
     our_ids = torch.zeros((b, n, k), dtype=torch.int32, device="npu:0")
     for i in range(n_warmup):
-        (
-            query,
-            maxblocks,
-            minblocks,
-            metadata_block_tables,
-            seq_lens,
-            tokens_since_metadata_update,
+        (query, maxblocks, minblocks,
+         metadata_block_tables, seq_lens,
+         tokens_since_metadata_update,
         ) = input_sets[i]
-        quest_block_select_paged_in_out_w(query, maxblocks, minblocks, metadata_block_tables, seq_lens, 
-                                          tokens_since_metadata_update, our_ids)
+        quest_block_select_paged_in_out_w(query, maxblocks, minblocks, metadata_block_tables, 
+                                          seq_lens, tokens_since_metadata_update, our_ids)
     return our_ids
 
 

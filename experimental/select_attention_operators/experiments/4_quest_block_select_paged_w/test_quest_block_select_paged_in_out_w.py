@@ -11,6 +11,7 @@
 Single input testing (for debugging) -> Run this file with python <filename>
 Wide range testing (for validation) -> Run this file with pytest <filename>
 """
+from itertools import product
 import logging
 import pytest
 import torch
@@ -95,15 +96,11 @@ def construct_quest_paged_parameter_sets(dtype_vals, batch_size_vals, num_heads_
     - num_heads is a multiple of num_kv_heads (num_heads = num_kv_heads * G for natural G)
     """
     param_set_lst = []
-    for dtype in dtype_vals:
-        for b in batch_size_vals:
-            for h in num_heads_vals:
-                for n in num_kv_heads_vals:
-                    # Apply constraints: num_kv_heads ≤ num_heads and num_heads is multiple of num_kv_heads
-                    if n <= h and h % n == 0:
-                        for mmbpr in mmbpr_vals:
-                            for k in k_vals:
-                                param_set_lst.append((dtype, b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k))
+    for dtype, b, h, n, mmbpr, k in product(dtype_vals, batch_size_vals, num_heads_vals, 
+                                           num_kv_heads_vals, mmbpr_vals, k_vals):
+        # Apply constraints: num_kv_heads ≤ num_heads and num_heads is multiple of num_kv_heads
+        if n <= h and h % n == 0:
+            param_set_lst.append((dtype, b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k))
     return param_set_lst
 
 ########################### Test 1 - Basic functionality ###########################
