@@ -1293,7 +1293,7 @@ static ge::graphStatus MoeDistributeCombineA2CheckAttrAndSetTiling(const gert::T
         maxEpWorldSizeA2 = MAX_EP_WORLD_SIZE_A2_LAYERED;
     }
     OP_TILING_CHECK(epWorldSizePtr == nullptr || *epWorldSizePtr <= 0 || *epWorldSizePtr > maxEpWorldSizeA2 ||
-        *epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0,
+        ((*epWorldSizePtr > RANK_NUM_PER_NODE_A2) && (*epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0)),
         OP_LOGE(K_INNER_DEBUG, "epWorldSize is invalid."), return GRAPH_FAILED);
     OP_TILING_CHECK(epRankIdPtr == nullptr || *epRankIdPtr < 0 || *epRankIdPtr >= *epWorldSizePtr,
         OP_LOGE(K_INNER_DEBUG, "epRankId is invalid."), return GRAPH_FAILED);
@@ -1608,6 +1608,14 @@ static uint64_t MoeDistributeCombineA2CalcTilingKey(const bool isLayered, const 
     return tilingKey;
 }
 
+static std::string MoeDistributeCombineA2GetAlgConfig(int32_t epWorldSize, bool isLayered)
+{
+    if (epWorldSize <= RANK_NUM_PER_NODE_A2) {
+        return "BatchWrite=level0:fullmesh";
+    }
+    return isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
+}
+
 static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext* context)
 {
     const char *nodeName = context->GetNodeName();
@@ -1639,7 +1647,9 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
     context->SetBlockDim(blockDim);
-    context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+    if (info.epWorldSize > RANK_NUM_PER_NODE_A2) {
+        context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+    }
 
     uint64_t tilingKey = MoeDistributeCombineA2CalcTilingKey(isLayered, commQuantMode);
     context->SetTilingKey(tilingKey);
@@ -1653,7 +1663,8 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-    std::string algConfig = isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
+    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    std::string algConfig = MoeDistributeCombineA2GetAlgConfig(*epWorldSizePtr, isLayered);
     uint32_t opType = 18; // DispatchCombine
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
