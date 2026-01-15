@@ -2044,8 +2044,9 @@ __aicore__ inline constexpr UbFormat GetOutUbFormat() {
 * actDataLen: 一行需要拷贝的元素数
 * srcRowStride: gm上两行数据起始位置之间间隔元素数
 * dstRowStride: ub上两行数据起始位置之间间隔元素数
+* enableLargeStride默认为false, 当srcStrideOfDataCopy超过datacopypad范围时开启
 */
-template <typename T>
+template <typename T, bool enableLargeStride = false>
 __aicore__ inline void CopySingleMatrixNDToND(LocalTensor<T> ubTensor, const GlobalTensor<T> gmTensor,
                                                 uint32_t dealRowCount, uint32_t actDataLen, uint64_t srcRowStride, uint64_t dstRowStride)
 {
@@ -2057,48 +2058,51 @@ __aicore__ inline void CopySingleMatrixNDToND(LocalTensor<T> ubTensor, const Glo
         actDataLen = actDataLen / HALF_SIZE_DIVISOR;
         srcRowStride = srcRowStride / HALF_SIZE_DIVISOR;
     }
-    uint64_t srcStrideOfDataCopyPad = (srcRowStride - actDataLen) * sizeof(T);
-    //srcStrideOfDataCopyPad超过datacopypad范围时，循环拷贝
-    if (unlikely(srcStrideOfDataCopyPad > UINT32_MAX_VALUE)) {
-        DataCopyExtParams dataCopyParams;
-        dataCopyParams.blockCount = 1;
-        dataCopyParams.blockLen = actDataLen * sizeof(T);
-        dataCopyParams.srcStride = 0;
-        dataCopyParams.dstStride = 0;
-
-        DataCopyPadExtParams<T> dataCopyPadParams;
-        dataCopyPadParams.isPad = true;
-        dataCopyPadParams.leftPadding = 0;
-        dataCopyPadParams.rightPadding = (blockElemNum - (actDataLen % blockElemNum)) % blockElemNum;
-        dataCopyPadParams.paddingValue = 0;
-        for (uint32_t i = 0; i < dealRowCount; ++i) {
-            DataCopyPad(ubTensor[i * dstRowStride], gmTensor[i * srcRowStride], dataCopyParams, dataCopyPadParams);
-        }
-    } else {
-        bool isPad = ((actDataLen % blockElemNum) != 0 || (srcRowStride % blockElemNum) != 0 || (dstRowStride % blockElemNum) != 0); //判断是否32字节对齐，确定是否走datacopypad
-        uint64_t srcStrideOfDataCopy =  (srcRowStride - actDataLen) / blockElemNum;
-        //满足datacopypad范围，在有pad或srcStrideOfDataCopy不符合datacopy范围时，使用datacopypad一次拷贝完成
-        if (unlikely(isPad || (srcStrideOfDataCopy > UINT16_MAX_VALUE))) {
+    if constexpr (enableLargeStride) {
+        uint64_t srcStrideOfDataCopyPad = (srcRowStride - actDataLen) * sizeof(T);
+        if (unlikely(srcStrideOfDataCopyPad > UINT32_MAX_VALUE)) {
             DataCopyExtParams dataCopyParams;
-            dataCopyParams.blockCount = static_cast<uint16_t>(dealRowCount); //外部传入
+            dataCopyParams.blockCount = 1;
             dataCopyParams.blockLen = actDataLen * sizeof(T);
-            dataCopyParams.srcStride = (srcRowStride - actDataLen) * sizeof(T);
-            dataCopyParams.dstStride = (dstRowStride - actDataLen) / blockElemNum; //外部传入
+            dataCopyParams.srcStride = 0;
+            dataCopyParams.dstStride = 0;
 
             DataCopyPadExtParams<T> dataCopyPadParams;
             dataCopyPadParams.isPad = true;
             dataCopyPadParams.leftPadding = 0;
             dataCopyPadParams.rightPadding = (blockElemNum - (actDataLen % blockElemNum)) % blockElemNum;
             dataCopyPadParams.paddingValue = 0;
-            DataCopyPad(ubTensor, gmTensor, dataCopyParams, dataCopyPadParams);
-        } else {  //其他情况使用datacopy一次拷贝完成
-            DataCopyParams repeatParams;
-            repeatParams.blockCount = static_cast<uint16_t>(dealRowCount);
-            repeatParams.blockLen = actDataLen / blockElemNum;
-            repeatParams.srcStride = (srcRowStride - actDataLen) / blockElemNum;
-            repeatParams.dstStride = (dstRowStride - actDataLen) / blockElemNum;
-            DataCopy(ubTensor, gmTensor, repeatParams);
+
+            for (uint32_t i = 0; i < dealRowCount; ++i) {
+                DataCopyPad(ubTensor[i * dstRowStride], gmTensor[i * srcRowStride], dataCopyParams, dataCopyPadParams);
+            }
+            return;
         }
+    }
+    bool isPad = ((actDataLen % blockElemNum) != 0 || (srcRowStride % blockElemNum) != 0 ||
+                  (dstRowStride % blockElemNum) != 0); // 判断是否32字节对齐，确定是否走datacopypad
+    uint64_t srcStrideOfDataCopy = (srcRowStride - actDataLen) / blockElemNum;
+    // 在有pad或srcStrideOfDataCopy不符合datacopy范围时，使用datacopypad拷贝完成
+    if (unlikely(isPad || (srcStrideOfDataCopy > UINT16_MAX_VALUE))) {
+        DataCopyExtParams dataCopyParams;
+        dataCopyParams.blockCount = static_cast<uint16_t>(dealRowCount); // 外部传入
+        dataCopyParams.blockLen = actDataLen * sizeof(T);
+        dataCopyParams.srcStride = (srcRowStride - actDataLen) * sizeof(T);
+        dataCopyParams.dstStride = (dstRowStride - actDataLen) / blockElemNum; // 外部传入
+
+        DataCopyPadExtParams<T> dataCopyPadParams;
+        dataCopyPadParams.isPad = true;
+        dataCopyPadParams.leftPadding = 0;
+        dataCopyPadParams.rightPadding = (blockElemNum - (actDataLen % blockElemNum)) % blockElemNum;
+        dataCopyPadParams.paddingValue = 0;
+        DataCopyPad(ubTensor, gmTensor, dataCopyParams, dataCopyPadParams);
+    } else { // 其他情况使用datacopy拷贝完成
+        DataCopyParams repeatParams;
+        repeatParams.blockCount = static_cast<uint16_t>(dealRowCount);
+        repeatParams.blockLen = actDataLen / blockElemNum;
+        repeatParams.srcStride = (srcRowStride - actDataLen) / blockElemNum;
+        repeatParams.dstStride = (dstRowStride - actDataLen) / blockElemNum;
+        DataCopy(ubTensor, gmTensor, repeatParams);
     }
 }
 
