@@ -862,6 +862,24 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "deqScale1, quantScale1 or deqScale2 is empty tensor in per-tensor quant scenario."),
         return false);
+    const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
+    const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
+    const size_t dIdx = (inputLayout == InputLayout::TND || inputLayout == InputLayout::BSH) ? 2U : 3U; // TND/BSH:2; BSND/BNSD/BNSD_BSND:3
+    uint64_t keyShapeD = keyShape->GetStorageShape().GetDim(dIdx);
+    uint64_t valueShapeD = valueShape->GetStorageShape().GetDim(dIdx);
+    if (inputLayout == InputLayout::BSH) {
+        int32_t nKV = *contextKeyParams.numKeyValueHeads;
+        if (nKV == 0) {
+            nKV = *contextKeyParams.headsNumber;
+        }
+        keyShapeD = static_cast<uint64_t>(keyShapeD / nKV);
+        valueShapeD = static_cast<uint64_t>(valueShapeD / nKV);
+    }
+    OP_CHECK_IF(keyShapeD != valueShapeD,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "The D size of keyInputShape and valueInputShape must be equal in per-tensor quant scenario, but now keyShapeD is %lu, valueShapeD is %lu.",
+            keyShapeD, valueShapeD),
+        return false);
     return true;           
 }                                       
 
