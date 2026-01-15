@@ -22,7 +22,6 @@ operator_group_1:
   - all_gather_matmul_v2
   - inplace_matmul_all_reduce_add_rms_norm
   - matmul_reduce_scatter_v2
-  - moe_distribute_combine_add_rms_norm
   - grouped_mat_mul_all_reduce
   - grouped_matmul
   - grouped_matmul_swiglu_quant
