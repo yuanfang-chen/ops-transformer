@@ -1500,17 +1500,17 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         </thead>
         <tbody>
             <tr>
-                <td rowspan="9">输入，输出为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)的场景</td>
+                <td rowspan="9">输入INT8，输出为INT8/FP8的场景</td>
                 <td>query</td>
-                <td>类型为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)</td>
+                <td>类型为INT8</td>
             </tr>
             <tr>
                 <td>key</td>
-                <td>类型为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)。与query保持一致</td>
+                <td>类型为INT8</td>
             </tr>
             <tr>
                 <td>value</td>
-                <td>类型为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)，与query保持一致</td>
+                <td>类型为INT8</td>
             </tr>
             <tr>
                 <td>deqScale1</td>
@@ -1573,17 +1573,17 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 <td>类型为FLOAT16。</td>
             </tr>
             <tr>
-                <td rowspan="9">输入FLOAT16或BFLOAT16，输出为INT8的场景</td>
+                <td rowspan="9">输入FLOAT16或BFLOAT16，输出为INT8/FP8的场景</td>
                 <td>query</td>
-                <td>类型为FLOAT16或BFLOAT16。</td>
+                <td>类型为FLOAT16/BFLOAT16。</td>
             </tr>
             <tr>
                 <td>key</td>
-                <td>类型为FLOAT16或BFLOAT16。</td>
+                <td>类型为FLOAT16/BFLOAT16/INT8/FLOAT8_E4M3FN/HIFLOAT8。</td>
             </tr>
             <tr>
                 <td>value</td>
-                <td>类型为FLOAT16或BFLOAT16。</td>
+                <td>类型为FLOAT16/BFLOAT16/INT8/FLOAT8_E4M3FN/HIFLOAT8。</td>
             </tr>
             <tr>
                 <td>deqScale1</td>
