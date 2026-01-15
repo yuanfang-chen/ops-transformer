@@ -25,7 +25,7 @@ class test_aclnn_quant_matmul_allto_all : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "test_aclnn_quant_matmul_allto_all SetUp" << endl;
     }
 

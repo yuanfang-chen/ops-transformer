@@ -453,10 +453,11 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
 extern "C" aclnnStatus aclnnQuantMatmulAlltoAll(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
-            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
-        } else {
+        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        } else {
+            OP_LOGE(ACLNN_ERR_INNER,
+                "This is an error in launch aicore, aclnnMatmulAlltoAll only support ASCEND910B.");
         }
     }
     aclnnStatus ret = aclnnInnerMatmulAlltoAll(workspace, workspaceSize, executor, stream);
