@@ -307,7 +307,7 @@ void quest_block_select_paged_in_out(at::Tensor query,
     TORCH_CHECK(D == minblocks.size(DIM3), "Head dimension D mismatch: expected ", D, " from query, got ", minblocks.size(DIM3), " from minblocks");
     TORCH_CHECK(num_meta_blocks == minblocks.size(DIM0), "num_meta_blocks mismatch: inferred ", num_meta_blocks, " from maxblocks, got ", minblocks.size(DIM0), " from minblocks");
     TORCH_CHECK(k > 0, "k must be positive, got ", k);
-    TORCH_CHECK(MMBPR < MAXMBPR, "maximum metablocks per request (MMBPR) cannot exceed ", MAXMBPR, " for this kernel. Your MMBPR=", MMBPR, " as inferred from dim=1 of metadata_block_tables argument.");
+    TORCH_CHECK(MMBPR <= MAXMBPR, "maximum metablocks per request (MMBPR) cannot exceed ", MAXMBPR, " for this kernel. Your MMBPR=", MMBPR, " as inferred from dim=1 of metadata_block_tables argument.");
     TORCH_CHECK(H / N <= BLOCK_SIZE, "H/N head group size cannot exceed BLOCK_SIZE=",BLOCK_SIZE, " given H/N=", H/N);
     TORCH_CHECK(B == selected_indices.size(DIM0), "selected indices 0 dim must have size: ",B, " given: ",selected_indices.size(DIM0));
     TORCH_CHECK(N == selected_indices.size(DIM1), "selected indices 1 dim must have size: ",N, " given: ",selected_indices.size(DIM1));
