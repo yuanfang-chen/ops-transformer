@@ -568,7 +568,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         }
     }
     if ASCEND_IS_AIC {
-        cubeService.FreeBuffers(info);
+        cubeService.FreeBuffers(pipe_);
     }
 
 }
