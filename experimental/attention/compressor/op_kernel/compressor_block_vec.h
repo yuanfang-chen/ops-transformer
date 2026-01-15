@@ -363,7 +363,7 @@ template <typename COMP>
 template <typename COMP>
  __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const Compressor::RunInfo &info)
 {
-    // DumpTensor(mm1ResTensor, 1, 128 * 256);
+    DumpTensor(mm1ResTensor, 1, 128 * 256);
     // TODO 1分核
     SetMSplitInfo(info);
     uint32_t scLoopTimes = 0;

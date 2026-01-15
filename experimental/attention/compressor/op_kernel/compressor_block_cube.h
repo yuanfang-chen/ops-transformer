@@ -338,7 +338,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t dValue = kBase;
         uint32_t srcDValue = constInfo_.hSize;
         uint32_t dstNzC0Stride = info.dealTcNum * constInfo_.cmpRatio;
-        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], wgateGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
+        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
         ubOffset += constInfo_.cmpRatio * kBase;
         mSizeFinish += constInfo_.cmpRatio;
@@ -375,7 +375,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         if constexpr (COMP::coff == COFF::OVERLAP) {
             dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
         }
-        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], wgateGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
+        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
         ubOffset += (canCopyCnt + tailHolderCnt) * kBase;
 
         curSIdx_ += canCopyCnt;
@@ -490,8 +490,8 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
             WaitFlag<HardEvent::MTE1_MTE2>(X_EVENT0 + xBufId);
             WaitFlag<HardEvent::MTE1_MTE2>(W_EVENT0 + wBufId);
 
-            LocalTensor<X_T> xL1Tensor = xBufL1.GetWithOffset<X_T>(xBufId * (L1_X_SIZE / sizeof(X_T)), L1_X_SIZE);
-            LocalTensor<X_T> wL1Tensor = wBufL1.GetWithOffset<X_T>(wBufId * (L1_W_SIZE / sizeof(X_T)), L1_W_SIZE);
+            LocalTensor<X_T> xL1Tensor = xBufL1.GetWithOffset<X_T>((L1_X_SIZE / sizeof(X_T)), xBufId * L1_X_SIZE);
+            LocalTensor<X_T> wL1Tensor = wBufL1.GetWithOffset<X_T>((L1_W_SIZE / sizeof(X_T)), wBufId * L1_W_SIZE);
             for (uint32_t nL1 = 0; nL1 < nSize; nL1 += N_L1_BASE) {
                 // nLockId = nL1 / N_L1_BASE
                 WaitFlag<HardEvent::MTE1_MTE2>(N_LOCK_EVENT0 + nLockId);
@@ -527,11 +527,11 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                         // 获取L0C
                         l0cBufId = (nL1 / N_L1_BASE) * 2 + (mL1 / M_L1_BASE); // 2: m方向最多两块, 两块用不满时, 第二块L0C空着
                         WaitFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId);
-                        LocalTensor<T> cL0Tensor = tmpBufL0C.GetWithOffset<T>(l0cBufId * (L0C_PP_SIZE / sizeof(T)), L0C_PP_SIZE);
+                        LocalTensor<T> cL0Tensor = tmpBufL0C.GetWithOffset<T>((L0C_PP_SIZE / sizeof(T)), l0cBufId * L0C_PP_SIZE);
                         {
                             WaitFlag<HardEvent::M_MTE1>(L0AB_EVENT0 + l0abBufId);
-                            LocalTensor<X_T> aL0Tensor = tmpBufL0A.GetWithOffset<X_T>(l0abBufId * (L0A_PP_SIZE / sizeof(X_T)), L0A_PP_SIZE);
-                            LocalTensor<X_T> bL0Tensor = tmpBufL0B.GetWithOffset<X_T>(l0abBufId * (L0B_PP_SIZE / sizeof(X_T)), L0B_PP_SIZE);
+                            LocalTensor<X_T> aL0Tensor = tmpBufL0A.GetWithOffset<X_T>((L0A_PP_SIZE / sizeof(X_T)), l0abBufId * L0A_PP_SIZE);
+                            LocalTensor<X_T> bL0Tensor = tmpBufL0B.GetWithOffset<X_T>((L0B_PP_SIZE / sizeof(X_T)), l0abBufId * L0B_PP_SIZE);
                             // 当Coff=2时，nL1=0时计算的是pre数据，nL1=N_L1_BASE时计算的是cur数据
                             // LoadAToL0(mL1, nL1);
                             uint32_t K_L0_BASE = K_L1_BASE;
@@ -554,7 +554,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             uint32_t nSizeAlign = N_L1_BASE;
                             uint32_t nIdx = nL1 / N_L1_BASE;
                             CopyL0CDataToUb(mm1ResTensor, cL0Tensor, isLastM ? 1 : 0, mSizeAlign, nSizeAlign, nIdx);
-                            // DumpTensor(cL0Tensor, 1, 128 * 128);
+                            DumpTensor(cL0Tensor, 1, 128 * 128);
                         }
                         SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId);
                     }

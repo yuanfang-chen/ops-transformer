@@ -143,11 +143,26 @@ def cpu_compressor(
     rope_sin = rope_sin.to(torch.float32).numpy()
     rope_cos = rope_cos.to(torch.float32).numpy()
     matmul_dtype = np.float32
+    for i in range(wkv.shape[1] // 128):
+        leftH = i * 128
+        rightH = (i + 1) * 128
+        np.array(np.matmul(x[:, leftH:rightH], wkv[:, leftH:rightH].T, dtype=matmul_dtype)).tofile(f'/home/j00454571/data/new_kv_state_{i}.bin')
+        np.array(np.matmul(x[:, leftH:rightH], wgate[:, leftH:rightH].T, dtype=matmul_dtype)).tofile(f'/home/j00454571/data/new_score_state_{i}.bin')
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
-    print("new_kv_state:")
-    print(new_kv_state)
+    np.array(x).tofile('/home/j00454571/data/x.bin')
+    print(x)
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
-    print("new_score_state:")
+    np.array(wkv).tofile('/home/j00454571/data/wkv.bin')
+    print(wkv)
+    print("wkv rowsum:")
+    print(np.sum(wkv, axis=-1, keepdims=True))
+    np.array(wgate).tofile('/home/j00454571/data/wgate.bin')
+    print(wgate)
+    print("wgate rowsum:")
+    print(np.sum(wgate, axis=-1, keepdims=True))
+    np.array(new_kv_state).tofile('/home/j00454571/data/new_kv_state.bin')
+    print(new_kv_state)
+    np.array(new_score_state).tofile('/home/j00454571/data/new_score_state.bin')
     print(new_score_state)
 
     B = len(start_pos)
@@ -305,8 +320,8 @@ class TestCustomCompressor(TestCase):
 
         ### ======================== set input params start ========================
         date_type = torch.bfloat16
-        hidden_size = 4096
-        head_dim = 512
+        hidden_size = 256
+        head_dim = 128
         rope_head_dim = 64
         norm_eps = 1e-6
         coff = 1 # 1:no overlap 2:overlap
@@ -403,7 +418,7 @@ class TestCustomCompressor(TestCase):
             rope_sin_shape = (B, (S + cmp_ratio - 1) // cmp_ratio, rope_head_dim)
             rope_cos_shape = rope_sin_shape
 
-        x = torch.tensor(np.random.uniform(-10, 10, x_shape)).to(date_type)
+        x = torch.tensor(np.random.uniform(-10.0, 10.0, x_shape)).to(date_type)
         wkv = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(date_type)
         wgate = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(date_type)
         ape = torch.tensor(np.random.uniform(-10, 10, (cmp_ratio, coff * head_dim))).to(torch.float32)
@@ -463,7 +478,7 @@ class TestCustomCompressor(TestCase):
                 rotary_mode = rotary_mode
             )
         )
-        print(npu_out)
+        # print(npu_out)
 
 
 if __name__ == "__main__":
