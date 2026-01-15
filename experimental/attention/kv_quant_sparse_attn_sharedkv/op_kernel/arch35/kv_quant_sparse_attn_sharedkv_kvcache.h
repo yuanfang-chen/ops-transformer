@@ -61,7 +61,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     runParam.actualS1Size = actualS1Size;
     runParam.actualS2Size = actualS2Size;
     runParam.nextTokensPerBatch = runParam.actualS2Size - runParam.actualS1Size;
-    runParam.preTokensPerBatch = -(runParam.actualS2Size - runParam.actualS1Size - constInfo.oriWinLeft);
+    runParam.preTokensPerBatch = -(runParam.actualS2Size - runParam.actualS1Size - constInfo.oriWinLeft + 1);
     runParam.preTokensPerBatch = Min(runParam.preTokensPerBatch, runParam.actualS1Size);
 
     // 根据nextToken, 剔除行无效区域
@@ -106,9 +106,9 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo 
     int32_t s1LoopTimes = 0;
     runParam.qSNumInOneBlock = constInfo.s1BaseSize / constInfo.gSize; // 不切G轴, 计算每个基本快可以拷贝多少行s
     if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
-        s1LoopTimes = Min(runParam.actualS1Size, constInfo.s1BaseSize); // 对于SCFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
+        s1LoopTimes = runParam.actualS1Size; // 对于SCFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
     } else { // SWA/CFA
-        s1LoopTimes = runParam.qSNumInOneBlock; // 不需要取topk, 每次计算gSize行, 循环qs次
+        s1LoopTimes = (runParam.actualS1Size + runParam.qSNumInOneBlock - 1) / runParam.qSNumInOneBlock; // 不需要取topk, 每次计算gSize行, 循环qs次
     }
     // 不是最后一个bn, 赋值souterBlockNum
     if (!lastBN) {
