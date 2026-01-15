@@ -328,7 +328,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::LoadDataToL0A(size_t l0Offset,
     // 以M*K矩阵为例,源矩阵K轴方向搬运长度(qkD个f16)，单位为32B,取值范围：nStep属于[0,255]
     loadData2DParamsA.kStep = 128 * sizeof(X_T) / 32;
     loadData2DParamsA.srcStride = ((constInfo_.cmpRatio + 256) + 15) / 16;
-    loadData2DParamsA.dstStride = 1;
+    loadData2DParamsA.dstStride = 128 / 16;
     LoadData(aL0Tensor_[l0Offset], aL1Tensor_[l1Offset], loadData2DParamsA);
 }
 
