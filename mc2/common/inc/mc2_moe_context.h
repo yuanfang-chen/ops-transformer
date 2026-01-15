@@ -9,28 +9,17 @@
  */
 
 /*!
- * \file distribute_barrier_tiling.h
+ * \file mc2_moe_context.h
  * \brief
  */
-#ifndef DISTRIBUTE_BARRIER_TILING_H
-#define DISTRIBUTE_BARRIER_TILING_H
-#include <cstdint>
-#include "kernel_tiling/kernel_tiling.h"
 
-struct DistributeBarrierInfo {
-    uint32_t worldSize;
-    uint32_t rankId;
-    uint32_t aivNum;                     // aivNum
-    uint64_t totalUbSize;
-    uint64_t totalWinSize;
-    bool isInputTimeOut;
-    bool isInputElasticInfo;
+#ifndef MC2_MOE_CONTEXT_H
+#define MC2_MOE_CONTEXT_H
+
+struct Mc2MoeContext {
+    int32_t epRankId;
+    uint64_t kfcContextAddr; // host kfc方案中，需要传递通信API所需的地址
+    uint64_t epHcclBuffer_[1024];
 };
 
-struct DistributeBarrierTilingData {
-    // Mc2InitTiling mc2InitTiling;
-    // Mc2CcTiling mc2CcTiling1;
-    DistributeBarrierInfo distributeBarrierInfo;
-};
-
-#endif // DISTRIBUTE_BARRIER_TILING_H
+#endif //MC2_MOE_CONTEXT_H

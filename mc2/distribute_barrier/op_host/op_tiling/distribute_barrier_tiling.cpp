@@ -40,9 +40,9 @@ using namespace ge;
 namespace optiling {
 constexpr uint64_t INIT_TILINGKEY = 10000UL;
 
-constexpr uint32_t INPUT_X_INDEX = 0U;
-constexpr uint32_t TIME_OUT_INDEX = 1U;
-constexpr uint32_t ELASTIC_INFO_INDEX = 2U;
+constexpr uint32_t INPUT_X_INDEX = 1U;
+constexpr uint32_t TIME_OUT_INDEX = 2U;
+constexpr uint32_t ELASTIC_INFO_INDEX = 3U;
 constexpr uint32_t ONE_DIM = 1U;
 constexpr uint32_t ELASTIC_METAINFO_OFFSET = 4U;
 constexpr uint32_t RANK_LIST_NUM = 2U;
@@ -158,24 +158,6 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context) {
   return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus SetHcommCfg([[maybe_unused]] gert::TilingContext *context,
-                        DistributeBarrierTilingData *tiling,
-                        const std::string group) {
-  OPS_LOG_D(A_INNER_DEBUG_BARRIER, "distributeBarrier group = %s",
-            group.c_str());
-  uint32_t opType1 = OP_TYPE_ALL_TO_ALL;
-  std::string algConfigAllToAllStr = "AlltoAll=level0:fullmesh;level1:pairwise";
-
-  AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType1,
-                                               algConfigAllToAllStr);
-  mc2CcTilingConfig.SetCommEngine(mc2tiling::AIV_ENGINE);   // 通过不拉起AICPU，提高算子退出性能
-  OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tiling->mc2InitTiling) != 0,
-      OP_LOGE(context->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
-  OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tiling->mc2CcTiling1) != 0,
-      OP_LOGE(context->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling1 failed"), return ge::GRAPH_FAILED);
-  return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus DistributeBarrierTilingFunc(gert::TilingContext *context) {
   const char *nodeName = context->GetNodeName();
   DistributeBarrierTilingData *tilingData =
@@ -204,10 +186,6 @@ ge::graphStatus DistributeBarrierTilingFunc(gert::TilingContext *context) {
       SetWorkSpace(context) != ge::GRAPH_SUCCESS,
       OPS_LOG_E(A_INNER_DEBUG_BARRIER, "Tiling set workspace failed."),
       return ge::GRAPH_FAILED);
-
-  // Set HcommCfg
-  OP_TILING_CHECK(SetHcommCfg(context, tilingData, group) != ge::GRAPH_SUCCESS,
-      OP_LOGE(nodeName, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
   
   // Set numBlocks
   uint32_t numBlocks = 1U;
