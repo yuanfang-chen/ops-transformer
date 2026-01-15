@@ -723,12 +723,12 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         <ul>
             <li>Q_S为1且不带rope输入时该参数无效。</li>
             <li>inputLayout为TND、TND_NTD、NTD_TND时，综合约束请见<a href="#约束说明">约束说明</a>。</li>
-            <li>sparseMode为0时，代表defaultMask模式，如果attenmask未传入则不做mask操作，忽略preTokens和nextTokens（内部赋值为INT\_MAX）；如果传入，则需要传入完整的attenmask矩阵（S1 \* S2），表示preTokens和nextTokens之间的部分需要计算；要求preTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。 </li>
-            <li>sparseMode为1时，代表allMask，必须传入完整的attenmask矩阵（S1 \* S2）。</li>
-            <li>sparseMode为2时，代表leftUpCausal模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
-            <li>sparseMode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景，需要传入优化后的attenmask矩阵（2048\*2048）。</li>
-            <li>sparseMode为4时，代表band模式的mask，需要传入优化后的attenmask矩阵（2048\*2048）；要求preTokens > -actualSeqLengths，nextTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。</li>
-            <li>sparseMode为5、6、7、8时，分别代表prefix、global、dilated、block\_local，均暂不支持。</li>
+            <li>sparseMode为0时，代表defaultMask模式，如果attenmask未传入则不做mask操作，忽略preTokens和nextTokens（内部赋值为INT_MAX）；如果传入，则需要传入完整的attenmask矩阵（S1 * S2），表示preTokens和nextTokens之间的部分需要计算；要求preTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。 </li>
+            <li>sparseMode为1时，代表allMask，必须传入完整的attenmask矩阵（S1 * S2）。</li>
+            <li>sparseMode为2时，代表leftUpCausal模式的mask，需要传入优化后的attenmask矩阵（2048*2048）。</li>
+            <li>sparseMode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景，需要传入优化后的attenmask矩阵（2048*2048）。</li>
+            <li>sparseMode为4时，代表band模式的mask，需要传入优化后的attenmask矩阵（2048*2048）；要求preTokens > -actualSeqLengths，nextTokens > -actualSeqLengthsKv，preTokens + nextTokens >= 0，在perfix场景，actualSeqLengthsKv要叠加prefix长度。</li>
+            <li>sparseMode为5、6、7、8时，分别代表prefix、global、dilated、block_local，均暂不支持。</li>
             <li>用户不特意指定时建议传入0。</li>
         </ul>
         </td>
@@ -1274,7 +1274,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 <td>0</td>
                 <td>
                     <ul>
-                        <li>per-channel模式：hape可支持(2, N, 1, D)，(2, N, D)，(2, H)，N为numKeyValueHeads。参数数据类型和query数据类型相同</li>
+                        <li>per-channel模式：shape可支持(2, N, 1, D)，(2, N, D)，(2, H)，N为numKeyValueHeads。参数数据类型和query数据类型相同</li>
                         <li>per-tensor模式,shape为(2)，数据类型和query数据类型相同</li>
                     </ul>
                 </td>
@@ -1288,7 +1288,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             <tr>
                 <td>per-token</td>
                 <td>1</td>
-                <td>shape为\(2, B, S\), 数据类型固定为FLOAT32</td>
+                <td>shape为(2, B, S), 数据类型固定为FLOAT32</td>
             </tr>
             <tr>
                 <td rowspan="11">分离</td>
@@ -1921,8 +1921,8 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             <tr>
                 <td colspan="2">
                     <ul>
-                        <li> 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小\(128,
-                            256\)进行分块，并分别将每个块内的数据量化成FLOAT8_E4M3FN或HIFLOAT8类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale
+                        <li> 在使用FP8 per-block全量化策略时，输入的query、key和value在量化前以float16或bfloat16格式存储。量化过程对张量按指定块大小(128,
+                            256)进行分块，并分别将每个块内的数据量化成FLOAT8_E4M3FN或HIFLOAT8类型，同时得到反量化系数dequantScaleQuery、keyAntiquantScale和valueAntiquantScale
                         </li>
                         <li>与不支持叠加任何高阶特性</li>
                     </ul>
@@ -1933,7 +1933,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
 
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
-```c++
+  ```c++
   #include <iostream>
   #include <vector>
   #include <math.h>
@@ -2126,4 +2126,4 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
       aclFinalize();
       return 0;
   }
-```
+  ```
