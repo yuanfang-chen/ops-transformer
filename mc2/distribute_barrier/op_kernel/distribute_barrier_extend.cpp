@@ -13,20 +13,21 @@
  * \brief
  */
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "distribute_barrier_tiling.h"
 #include "distribute_barrier.h"
 
 using namespace AscendC;
 using namespace DistributeBarrierImpl;
 
-extern "C" __global__ __aicore__ void distribute_barrier(GM_ADDR xRef, GM_ADDR timeOut, GM_ADDR elasticInfo,
-                                                         GM_ADDR xRefOut, GM_ADDR workspaceGM, GM_ADDR tilingGM) {
+extern "C" __global__ __aicore__ void distribute_barrier_extend(GM_ADDR mc2context, GM_ADDR xRef, GM_ADDR timeOut,
+                                                                GM_ADDR elasticInfo, GM_ADDR xRefOut,
+                                                                GM_ADDR workspaceGM, GM_ADDR tilingGM) {
   REGISTER_TILING_DEFAULT(DistributeBarrierTilingData);
   TPipe pipe;
 
   GET_TILING_DATA_WITH_STRUCT(DistributeBarrierTilingData, tilingData, tilingGM);
   DistributeBarrier<DTYPE_X_REF> op;
-  op.Init(nullptr, timeOut, elasticInfo, workspaceGM, &pipe, &tilingData);
+  op.Init(mc2context, timeOut, elasticInfo, workspaceGM, &pipe, &tilingData);
   op.Process();
 }
