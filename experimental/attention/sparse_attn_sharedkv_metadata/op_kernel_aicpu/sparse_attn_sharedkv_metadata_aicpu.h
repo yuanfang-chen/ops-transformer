@@ -119,20 +119,16 @@ struct SplitResult {
 // 分核功能模块内部使用：记录切分信息
 struct SplitInfo {
     std::vector<uint32_t> s1GBaseNum {};                   // S1G方向，切了多少个基本块
-    std::vector<uint32_t> winS2BaseNum {};                    // win部分S2方向，切了多少个基本块
-    std::vector<uint32_t> cmpS2BaseNum {};                    // cmp部分S2方向，切了多少个基本块
+    std::vector<uint32_t> s2BaseNum {};                    // S2方向，切了多少个基本块
     std::vector<uint32_t> s1GTailSize {};                  // S1G方向，尾块size
-    std::vector<uint32_t> winS2TailSize {};                   // win部分S2方向，尾块size
-    std::vector<uint32_t> cmpS2TailSize {};                   // cmp部分S2方向，尾块size
+    std::vector<uint32_t> s2TailSize {};                   // S2方向，尾块size
     bool isKvSeqAllZero { true };
 
     explicit SplitInfo(uint32_t batchSize) :
         s1GBaseNum(batchSize),
-        winS2BaseNum(batchSize),
-        cmpS2BaseNum(batchSize),
+        s2BaseNum(batchSize),
         s1GTailSize(batchSize),
-        winS2TailSize(batchSize),
-        cmpS2TailSize(batchSize) {}
+        s2TailSize(batchSize) {}
 };
 
 // 分核功能模块内部使用：记录batch的开销信息
@@ -178,7 +174,7 @@ struct S1GCache {
     uint32_t s2End { 0U };
     uint32_t winS2Start { 0U };
     uint32_t winS2End { 0U };
-    uint32_t cmpS2Start { 0U };
+    uint32_t cmpS2Start { 0U };  // win部分与cmp部分的切分点
     uint32_t cmpS2End { 0U };
     int64_t s1GCost { 0 };
     int64_t s1GLastBlockCost { 0 };
@@ -192,6 +188,8 @@ struct S1GCache {
     int64_t cmpS1GCost { 0 };
     int64_t cmpS1GLastBlockCost { 0 };
     int64_t cmpS1GNormalBlockCost { 0 };
+    int64_t cmpS2TailSize {0};
+    int64_t winS2TailSize {0};
 };
 
 // 分核功能模块内部使用：记录分配过程中，当前核的负载信息
@@ -238,7 +236,8 @@ private:
   uint32_t GetS2SeqSize(uint32_t bIdx);
   int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
   int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
-  Range<uint32_t> CalcS2Range(uint32_t s1GIdx,const BatchCache &batchCache);
+  Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
+  //Range<uint32_t> CalcS2Range(uint32_t s1GIdx,const BatchCache &batchCache);
   int64_t WinCalcCost(uint32_t basicM, uint32_t basicS2);
   int64_t CmpCalcCost(uint32_t basicM, uint32_t basicS2);
   BlockCost<int64_t> CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,
@@ -246,6 +245,8 @@ private:
 
   // cache calculation
   void CalcBatchCache(uint32_t bIdx, const SplitContext &splitContext, BatchCache &batchCache);
+  void CalcWinS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void CalcCmpS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
   void CalcS1GCache(uint32_t s1GIdx, const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache);
   void CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes);
   void ClearTmpResult(SplitResult &tmpRes);
@@ -259,6 +260,7 @@ private:
   void UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext);
   void AssignByBatch(const SplitContext &splitContext, AssignContext &assignContext);
   void AssignByRow(const SplitContext &splitContext, AssignContext &assignContext);
+  int64_t CalcCurBlockCost(AssignContext &assignContext);
   void AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext);
   void ForceAssign(const SplitContext &splitContext, AssignContext &assignContext);
 
@@ -316,7 +318,6 @@ private:
   bool supportFd = false;
   uint32_t sparseMode_ = 0;
   uint32_t attentionMode_ = 1;
-  uint32_t winS2LastToken = 0;
 
 private:
   enum class ParamId : uint32_t {
