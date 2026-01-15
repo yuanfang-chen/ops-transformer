@@ -16,7 +16,8 @@ Measures:
 *  effective bandwidth (TB/s) - bytes moved / time
 *  correctness comparison with reference implementation
 """
-from typing import Callable
+import logging
+from typing import Callable, Tuple, List, Any
 import itertools
 import torch
 import torch_npu
@@ -25,6 +26,10 @@ from select_attn_ops import quest_block_select_paged, quest_block_select_paged_i
 from ref_quest_block_select_paged import ref_quest_block_select_paged
 from gen_data_quest_block_select_paged import gen_quest_paged_inputs, ceil_div, compare_indices
 
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 torch.npu.set_device("npu:0")
 BLOCK_SIZE = 128
@@ -67,7 +72,186 @@ def bytes_moved_paged_select(batch_size: int, num_heads: int, num_kv_heads: int,
 
 
 # --------------------------------------------------------------------------- #
-#  benchmark body
+#  Configuration and setup functions
+# --------------------------------------------------------------------------- #
+def get_benchmark_configurations(custom_kernel: Callable) -> Tuple[List[int], List[int], List[int], List[int], List[int]]:
+    """Get benchmark configuration parameters."""
+    batch_size_vals = [10, 20, 24, 32]
+    num_heads_vals = [32]
+    num_kv_heads_vals = [8]
+    mmbpr_vals = [1, 2, 4, 6]
+    
+    if custom_kernel == quest_block_select_paged:
+        k_vals = [4, 8, 12, 16]
+    elif custom_kernel == quest_block_select_paged_in_out:
+        k_vals = [8, 16, 24, 32]
+    else:
+        raise ValueError(f"Unknown custom_kernel: {custom_kernel}")
+    
+    return batch_size_vals, num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals
+
+
+def generate_input_sets(n_warmup: int, n_repeat: int, b: int, h: int, n: int, mmbpr: int, dtype: torch.dtype) -> List[Tuple]:
+    """Generate multiple input sets for benchmarking."""
+    input_sets = []
+    for i in range(n_warmup + n_repeat):
+        query, maxblocks, minblocks, metadata_block_tables, seq_lens = gen_quest_paged_inputs(
+            b, h, n, BLOCK_SIZE, HEAD_DIM,
+            num_meta_blocks=b * mmbpr,
+            mmbpr=mmbpr,
+            same_seq_len_all_reqs=SAME_SEQ_LEN_ALL_REQS,
+            device="npu:0", 
+            dtype=dtype)
+        input_sets.append((query, maxblocks, minblocks, metadata_block_tables, seq_lens))
+    return input_sets
+
+
+# --------------------------------------------------------------------------- #
+#  Correctness checking
+# --------------------------------------------------------------------------- #
+def check_correctness(custom_kernel: Callable, b: int, h: int, n: int, mmbpr: int, k: int, dtype: torch.dtype) -> str:
+    """Check correctness between custom and reference implementations."""
+    query, maxblocks, minblocks, metadata_block_tables, seq_lens = gen_quest_paged_inputs(
+        b, h, n, BLOCK_SIZE, HEAD_DIM,
+        num_meta_blocks=b * mmbpr,
+        mmbpr=mmbpr,
+        same_seq_len_all_reqs=SAME_SEQ_LEN_ALL_REQS,
+        device="npu:0", 
+        dtype=dtype)
+    
+    ref_ids = ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
+    
+    if custom_kernel == quest_block_select_paged:
+        our_ids = quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
+    elif custom_kernel == quest_block_select_paged_in_out:
+        our_ids = torch.zeros((b, n, k), dtype=torch.int32, device=query.device)
+        quest_block_select_paged_in_out(query, maxblocks, minblocks, metadata_block_tables, seq_lens, our_ids)
+    else:
+        raise ValueError(f"Unknown custom_kernel: {custom_kernel}")            
+    
+    tol_percentage = 0.02
+    are_equal = compare_indices(ref_ids, our_ids, tol_percentage, verbose=False)
+    return "yes" if are_equal else "no"
+
+
+# --------------------------------------------------------------------------- #
+#  Benchmark execution functions
+# --------------------------------------------------------------------------- #
+def run_warmup(custom_kernel: Callable, input_sets: List[Tuple], n_warmup: int, k: int, our_ids: torch.Tensor = None) -> None:
+    """Run warmup iterations."""
+    for i in range(n_warmup):
+        query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[i]
+        if custom_kernel == quest_block_select_paged:
+            quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
+        elif custom_kernel == quest_block_select_paged_in_out:
+            quest_block_select_paged_in_out(query, maxblocks, minblocks, metadata_block_tables, seq_lens, our_ids)
+        else:
+            raise ValueError(f"Unknown custom_kernel: {custom_kernel}")
+        
+        ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
+    
+    torch.npu.synchronize()
+
+
+def benchmark_implementation(custom_kernel: Callable, input_sets: List[Tuple], n_warmup: int, 
+                           n_repeat: int, k: int, b: int, h: int, n: int, mmbpr: int, 
+                           our_ids: torch.Tensor = None) -> Tuple[float, float]:
+    """Benchmark a single implementation and return duration and bandwidth."""
+    # Warmup
+    run_warmup(custom_kernel, input_sets, n_warmup, k, our_ids)
+    
+    # Measurement
+    start = torch.npu.Event(enable_timing=True)
+    end = torch.npu.Event(enable_timing=True)
+    
+    start.record()
+    for i in range(n_warmup, n_warmup + n_repeat):
+        query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[i]
+        if custom_kernel == quest_block_select_paged:
+            quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
+        elif custom_kernel == quest_block_select_paged_in_out:
+            quest_block_select_paged_in_out(query, maxblocks, minblocks, metadata_block_tables, seq_lens, our_ids)
+        else:
+            raise ValueError(f"Unknown custom_kernel: {custom_kernel}")
+    end.record()
+    torch.npu.synchronize()
+    
+    duration = start.elapsed_time(end) / n_repeat * 1000  # ms to μs
+    total_bytes = bytes_moved_paged_select(b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k, input_sets[0][4])
+    bandwidth = total_bytes / duration / 1e6  # TB/s
+    
+    return duration, bandwidth
+
+
+def benchmark_reference(input_sets: List[Tuple], n_warmup: int, n_repeat: int, k: int, 
+                       b: int, h: int, n: int, mmbpr: int) -> Tuple[float, float]:
+    """Benchmark reference implementation."""
+    # Warmup
+    for i in range(n_warmup):
+        query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[i]
+        ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
+    torch.npu.synchronize()
+    
+    # Measurement
+    start = torch.npu.Event(enable_timing=True)
+    end = torch.npu.Event(enable_timing=True)
+    
+    start.record()
+    for repetition in range(n_warmup, n_warmup + n_repeat):
+        query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[repetition]
+        ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
+    end.record()
+    torch.npu.synchronize()
+    
+    duration = start.elapsed_time(end) / n_repeat * 1000  # ms to μs
+    total_bytes_moved = bytes_moved_paged_select(b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k, input_sets[0][4])
+    bandwidth = total_bytes_moved / duration / 1e6  # TB/s
+    
+    return duration, bandwidth
+
+
+# --------------------------------------------------------------------------- #
+#  Output functions
+# --------------------------------------------------------------------------- #
+def log_header(custom_kernel: Callable, dtype: torch.dtype):
+    """Log benchmark header."""
+    logger.info(f"  custom_kernel={custom_kernel.__name__} {dtype=}\n  {BLOCK_SIZE=}  {HEAD_DIM=}  {SAME_SEQ_LEN_ALL_REQS=}")
+    logger.info(f"{'H':>3} {'N':>3} {'B':>3} {'MMBPR':>6} {'Max_seq_len':>12} {'k':>4} "
+                f"{'Outputs_equal':>15} {'Ref_Latency_[usec]':>18} {'Our_Latency_[usec]':>18} {'Ref_BW_[TB/sec]':>16} "
+                f"{'Our_BW_[TB/sec]':>16}")
+
+
+def log_results_row(h: int, n: int, b: int, mmbpr: int, k: int, are_equal: str,
+                    ref_duration: float, our_duration: float, ref_bw: float, our_bw: float):
+    """Log a single row of benchmark results."""
+    max_seq_len = mmbpr * BLOCK_SIZE * BLOCK_SIZE
+    row = f"{h:>3} {n:>3} {b:>3} {mmbpr:>6} {max_seq_len:>12} {k:>4} {are_equal:>15} "
+    
+    if ref_duration is not None:
+        row += f"{ref_duration:>18.2f} "
+    else:
+        row += f"{'N/A':>18} "
+
+    if our_duration is not None:
+        row += f"{our_duration:>18.2f} "
+    else:
+        row += f"{'N/A':>18} "
+
+    if ref_bw is not None:
+        row += f"{ref_bw:>16.3f} "
+    else:
+        row += f"{'N/A':>16} "
+
+    if our_bw is not None:
+        row += f"{our_bw:>16.3f}"
+    else:
+        row += f"{'N/A':>16}"
+    
+    logger.info(row)
+
+
+# --------------------------------------------------------------------------- #
+#  Main benchmark function
 # --------------------------------------------------------------------------- #
 def benchmark_quest_block_select_paged(custom_kernel: Callable, dtype: torch.dtype):
     """
@@ -79,168 +263,41 @@ def benchmark_quest_block_select_paged(custom_kernel: Callable, dtype: torch.dty
     n_repeat = 10
     n_warmup = 1
     
-    batch_size_vals = [10, 20, 24, 32]
-    num_heads_vals = [32]
-    num_kv_heads_vals = [8]
-    mmbpr_vals = [1, 2, 4, 6] # if custom_kernel == quest_block_select_paged_in_out else [1, 2, 4, 8, 16]
-
-    if custom_kernel == quest_block_select_paged:
-        k_vals = [4, 8, 12, 16]
-    elif custom_kernel == quest_block_select_paged_in_out:
-        k_vals = [8, 16, 24, 32]
-    else:
-        raise ValueError(f"Unknown custom_kernel: {custom_kernel}")
-
     if not run_our and not run_ref:
-        print("Nothing to run, must set run_our=True or run_ref=True")
+        logger.info("Nothing to run, must set run_our=True or run_ref=True")
         return
 
-    print("=" * 124)
-    print(f"  custom_kernel={custom_kernel.__name__} {dtype=}\n  {BLOCK_SIZE=}  {HEAD_DIM=}  {SAME_SEQ_LEN_ALL_REQS=}")
-    print("=" * 124)
-    print(f"{'H':>3} {'N':>3} {'B':>3} {'MMBPR':>6} {'Max_seq_len':>12} {'k':>4} "
-          f"{'Outputs_equal':>15} {'Ref_Latency_[usec]':>18} {'Our_Latency_[usec]':>18} {'Ref_BW_[TB/sec]':>16} "
-          f"{'Our_BW_[TB/sec]':>16}")
-    print("-" * 124)
+    log_header(custom_kernel, dtype)
+    
+    batch_size_vals, num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals = get_benchmark_configurations(custom_kernel)
 
     for b, h, n, mmbpr, k in itertools.product(batch_size_vals, num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals):
         
-        ######## Check correctness #######
+        # Check correctness
         are_equal = "N/A"
         if run_our and run_ref:
-            query, maxblocks, minblocks, metadata_block_tables, seq_lens = gen_quest_paged_inputs(
-                    b, h, n, BLOCK_SIZE, HEAD_DIM,
-                    num_meta_blocks=b * mmbpr,
-                    mmbpr=mmbpr,
-                    same_seq_len_all_reqs=SAME_SEQ_LEN_ALL_REQS,
-                    device="npu:0", 
-                    dtype=dtype)
-            ref_ids = ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
-            if custom_kernel == quest_block_select_paged:
-                our_ids = quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
-            elif custom_kernel == quest_block_select_paged_in_out:
-                our_ids = torch.zeros((b, n, k), dtype=torch.int32, device=query.device)
-                quest_block_select_paged_in_out(query, maxblocks, minblocks, metadata_block_tables, seq_lens, our_ids)
-            else:
-                raise ValueError(f"Unknown custom_kernel: {custom_kernel}")            
-            tol_percentage = 0.02
-            are_equal = compare_indices(ref_ids, our_ids, tol_percentage, verbose=False)
-            are_equal = "yes" if are_equal else "no"
+            are_equal = check_correctness(custom_kernel, b, h, n, mmbpr, k, dtype)
         
-        ########## Our Implementation ##########
-        # Our implementation - generate multiple input sets
-        if run_our:        
-            input_sets = []
-            for i in range(n_warmup + n_repeat):
-                query, maxblocks, minblocks, metadata_block_tables, seq_lens = \
-                    gen_quest_paged_inputs(
-                        b, h, n, BLOCK_SIZE, HEAD_DIM,
-                        num_meta_blocks=b * mmbpr,
-                        mmbpr=mmbpr,
-                        same_seq_len_all_reqs=SAME_SEQ_LEN_ALL_REQS,
-                        device="npu:0", 
-                        dtype=dtype)
-                input_sets.append((query, maxblocks, minblocks, metadata_block_tables, seq_lens))
-            
-            # Our implementation - Warm-up runs
-            for i in range(n_warmup):
-                query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[i]
-                if run_our:
-                    if custom_kernel == quest_block_select_paged:
-                        quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
-                    elif custom_kernel == quest_block_select_paged_in_out:
-                        quest_block_select_paged_in_out(query, maxblocks, minblocks, metadata_block_tables, seq_lens, 
-                                                        our_ids)
-                    else:
-                        raise ValueError(f"Unknown custom_kernel: {custom_kernel}") 
-                if run_ref:
-                    ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
-            torch.npu.synchronize()
-
-            # Our implementation - measurements 
-            our_duration = None
-            our_bw = None
-            start = torch.npu.Event(enable_timing=True)
-            end = torch.npu.Event(enable_timing=True)
-
-            start.record()
-            for i in range(n_warmup, n_warmup + n_repeat):
-                query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[i]
-                if custom_kernel == quest_block_select_paged:
-                    quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
-                elif custom_kernel == quest_block_select_paged_in_out:
-                    quest_block_select_paged_in_out(query, maxblocks, minblocks, metadata_block_tables, seq_lens, 
-                                                    our_ids)
-                else:
-                    raise ValueError(f"Unknown custom_kernel: {custom_kernel}")                
-            end.record()
-            torch.npu.synchronize()
-            
-            our_duration = start.elapsed_time(end) / n_repeat * 1000  # ms to μs
-            total_bytes = bytes_moved_paged_select(b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k, seq_lens)
-            our_bw = total_bytes / our_duration / 1e6  # TB/s
-
-
-        ########## Reference ##########
-        # Reference implementation - generate multiple input sets
-        if run_ref:        
-            input_sets = []
-            for i in range(n_warmup + n_repeat):
-                query, maxblocks, minblocks, metadata_block_tables, seq_lens = \
-                    gen_quest_paged_inputs(b, h, n, BLOCK_SIZE, HEAD_DIM,
-                        num_meta_blocks=b * mmbpr,
-                        mmbpr=mmbpr, same_seq_len_all_reqs=SAME_SEQ_LEN_ALL_REQS,
-                        device="npu:0", dtype=dtype)
-                input_sets.append((query, maxblocks, minblocks, metadata_block_tables, seq_lens))
-            
-            # Reference implementation - Warm-up runs
-            for i in range(n_warmup):
-                query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[i]
-                ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
-            torch.npu.synchronize()
-            
-            # Reference implementation - measurement
-            ref_duration = None
-            ref_bw = None
-            start = torch.npu.Event(enable_timing=True)
-            end = torch.npu.Event(enable_timing=True)
-            
-            start.record()
-            for repetition in range(n_warmup, n_warmup + n_repeat):
-                query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[repetition]
-                ref_quest_block_select_paged(query, maxblocks, minblocks, metadata_block_tables, seq_lens, k)
-            end.record()
-            torch.npu.synchronize()
-            
-            ref_duration = start.elapsed_time(end) / n_repeat * 1000  # ms to μs
-            total_bytes_moved = bytes_moved_paged_select(b, h, n, BLOCK_SIZE, HEAD_DIM, mmbpr, k, seq_lens)
-            ref_bw = total_bytes_moved / ref_duration / 1e6  # TB/s
+        # Initialize results
+        our_duration = None
+        our_bw = None
+        ref_duration = None
+        ref_bw = None
         
-        ####### Print results row into the table #######
-        max_seq_len = mmbpr * BLOCK_SIZE * BLOCK_SIZE
-        print(f"{h:>3} {n:>3} {b:>3} {mmbpr:>6} {max_seq_len:>12} {k:>4} {are_equal:>15} ", end='')
+        # Our implementation benchmark
+        if run_our:
+            our_ids = torch.zeros((b, n, k), dtype=torch.int32, device="npu:0") if custom_kernel == quest_block_select_paged_in_out else None
+            input_sets = generate_input_sets(n_warmup, n_repeat, b, h, n, mmbpr, dtype)
+            our_duration, our_bw = benchmark_implementation(custom_kernel, input_sets, n_warmup, n_repeat, k, b, h, n, mmbpr, our_ids)
+
+        # Reference implementation benchmark
+        if run_ref:
+            input_sets = generate_input_sets(n_warmup, n_repeat, b, h, n, mmbpr, dtype)
+            ref_duration, ref_bw = benchmark_reference(input_sets, n_warmup, n_repeat, k, b, h, n, mmbpr)
         
-        if ref_duration and run_ref is not None:
-            print(f"{ref_duration:>18.2f} ", end='')
-        else:
-            print(f"{'N/A':>18} ", end='')
+        # Log results
+        log_results_row(h, n, b, mmbpr, k, are_equal, ref_duration, our_duration, ref_bw, our_bw)
 
-        if our_duration and run_our is not None:
-            print(f"{our_duration:>18.2f} ", end='')
-        else:
-            print(f"{'N/A':>18} ", end='')
-
-        if ref_bw and run_ref is not None:
-            print(f"{ref_bw:>16.3f} ", end='')
-        else:
-            print(f"{'N/A':>16} ", end='')
-
-        if our_bw and run_our is not None:
-            print(f"{our_bw:>16.3f}")
-        else:
-            print(f"{'N/A':>16}")
-
-    print("=" * 124)
 
 
 # --------------------------------------------------------------------------- #

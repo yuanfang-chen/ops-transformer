@@ -93,7 +93,6 @@ def gen_quest_prefill_inputs(
     maxblocks = maxblocks.contiguous()
     minblocks = minblocks.contiguous()
 
-    # return tuple 
     ret = (k_cache, block_tables, seq_lens, metadata_block_tables, maxblocks, minblocks)
     
     return ret
