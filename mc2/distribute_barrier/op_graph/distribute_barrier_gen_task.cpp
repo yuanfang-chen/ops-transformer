@@ -65,6 +65,6 @@ ge::Status DistributeBarrierGenTaskFunc(const gert::ExeResGenerationContext *con
 }
 
 IMPL_OP_CT(DistributeBarrier).CalcOpParam(DistributeBarrierCalcParamFunc).GenerateTask(DistributeBarrierGenTaskFunc);
-REGISTER_EXT_TASK_TYPE(DistributeBarrier, fe::ExtTaskType::kAicoreTask);
+// REGISTER_EXT_TASK_TYPE(DistributeBarrier, fe::ExtTaskType::kAicoreTask);
 #endif
 } // namespace ops

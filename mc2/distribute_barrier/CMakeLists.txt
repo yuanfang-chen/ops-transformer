@@ -18,4 +18,7 @@ foreach(SUB_DIR ${CURRENT_DIRS})
     endif()
 endforeach()
 
+target_link_libraries(opapi PRIVATE
+    ${ASCEND_CANN_PACKAGE_PATH}/lib64/libops_base.so)
+
 set(MC2_COMPILE ${SUB_MC2_COMPILE} PARENT_SCOPE)
