@@ -563,6 +563,8 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
 
 以<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>为例，调用aclnnMoeDistributeDispatchV3和aclnnMoeDistributeCombineAddRmsNormV2接口
 
+    具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+
 - 示例代码如下，仅供参考
     ```Cpp
     #include <thread>

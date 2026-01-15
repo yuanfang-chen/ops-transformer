@@ -26,8 +26,8 @@
 - 计算公式：
 
 $$
+expandXOut = AllToAllV(agOut)\\
 agOut = AllGatherV(X)\\
-expandXOut = AllToAllV(agOut)
 $$
 
 - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：该接口必须与`aclnnMoeDistributeCombineV2`配套使用。
