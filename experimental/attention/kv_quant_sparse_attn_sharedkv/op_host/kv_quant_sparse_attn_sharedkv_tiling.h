@@ -139,6 +139,7 @@ TILING_DATA_FIELD_DEF(int64_t, oriWinRight)
 TILING_DATA_FIELD_DEF(int64_t, sparseBlockSize)
 TILING_DATA_FIELD_DEF(int64_t, dSize)
 TILING_DATA_FIELD_DEF(int64_t, dSizeV)
+TILING_DATA_FIELD_DEF(int64_t, dSizeNope)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvBaseParamsOp, KvQuantSparseAttnSharedkvBaseParams)
 
@@ -201,8 +202,6 @@ struct SASParaInfo {
     const uint32_t *oriWinRight = nullptr;
     const char *layoutQ = nullptr;
     const char *layoutKv = nullptr;
-    const uint32_t *dSize = nullptr;
-    const uint32_t *dSizeV = nullptr;
 };
 
 // -----------算子Tiling入参信息类---------------
@@ -451,6 +450,8 @@ public:
     ge::graphStatus GetQkHeadDim();
     ge::graphStatus GetSparseBlockCount();
     ge::graphStatus GetActualseqInfo();
+    ge::graphStatus GetDSizeQ();
+    ge::graphStatus GetDSizeKV();
     void GenerateInfo(SASTilingInfo &sasInfo);
     ge::graphStatus Parse(SASTilingInfo &sasInfo);
 
@@ -481,6 +482,8 @@ public:
     bool isSameSeqAllKVTensor_ = true;
     uint32_t actualLenDimsKV_ = 0;
     uint32_t actualLenDimsQ_ = 0;
+    uint32_t dSizeQ_ = 0;
+    uint32_t dSizeKV_ = 0;
     // Layout
     SASLayout qLayout_ = SASLayout::BSND;
     SASLayout outLayout_ = SASLayout::BSND;

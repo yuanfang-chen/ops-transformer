@@ -294,18 +294,12 @@ public:
 
     __aicore__ inline int64_t GetTBase(uint32_t bIdx) const
     {
-        if (bIdx == 0) {
-            return 0;
-        }
-        return actualSeqLengthsGm.GetValue(bIdx - 1);
+        return actualSeqLengthsGm.GetValue(bIdx);
     }
 
     __aicore__ inline int64_t GetActualSeqLength(uint32_t bIdx) const
     {
-        if (bIdx == 0) {
-            return actualSeqLengthsGm.GetValue(0);
-        }
-        return (actualSeqLengthsGm.GetValue(bIdx) - actualSeqLengthsGm.GetValue(bIdx - 1));
+        return (actualSeqLengthsGm.GetValue(bIdx + 1) - actualSeqLengthsGm.GetValue(bIdx));
     }
 
     __aicore__ inline int64_t GetTSize() const

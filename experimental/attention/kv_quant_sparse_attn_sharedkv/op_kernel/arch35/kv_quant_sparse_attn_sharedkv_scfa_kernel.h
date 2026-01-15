@@ -208,7 +208,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     bmm2Buffers.Init(ubBufferManager, mm2ResultSize);
     if ASCEND_IS_AIV {
         bmm2Buffers.Get().SetCrossCore();
-        bmm2Buffers.Get().SetCrossCore();
     }
     bmm1Buffers.Init(ubBufferManager, mm1ResultSize);
     if ASCEND_IS_AIV {
