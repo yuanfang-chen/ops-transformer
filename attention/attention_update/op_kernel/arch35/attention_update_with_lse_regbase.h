@@ -78,8 +78,8 @@ __aicore__ inline void AttentionUpdateWithLse<goType>::Init(GM_ADDR lse, GM_ADDR
         (blockIdx_ == tilingData_->usedCoreNum - 1) ? tilingData_->lastCoreCount : tilingData_->perCoreCount;
     perCorePerLoopCount_ = AscendC::Std::min(tilingData_->perCorePerLoopCount, bshPerCoreCount);
     bshInLoop_ = AscendC::Std::min(tilingData_->bshInLoop, perCorePerLoopCount_);
-    uint64_t perCorePerLoopCountAlign = CeilAlign(perCorePerLoopCount_, lseBlockNum_);
-    dAlignNum_ = CeilAlign(tilingData_->d, goBlockNum_);
+    uint64_t perCorePerLoopCountAlign = Ops::Base::CeilAlign(perCorePerLoopCount_, lseBlockNum_);
+    dAlignNum_ = Ops::Base::CeilAlign(tilingData_->d, goBlockNum_);
 
     lseList_ = AscendC::ListTensorDesc(reinterpret_cast<__gm__ void *>(lse));
     goList_ = AscendC::ListTensorDesc(reinterpret_cast<__gm__ void *>(go));
@@ -114,13 +114,13 @@ __aicore__ inline void AttentionUpdateWithLse<goType>::Process()
         }
 
         uint64_t lseGmOffset = blockIdx_ * tilingData_->perCoreCount + bshUbLoopNum * perCorePerLoopCount_;
-        uint64_t bshAlignNum = CeilAlign(perLoopCount, lseBlockNum_);
+        uint64_t bshAlignNum = Ops::Base::CeilAlign(perLoopCount, lseBlockNum_);
         CopyLseToUb(lseGmOffset, perLoopCount, bshAlignNum);
         ComputeMaxVF(bshAlignNum);
         CopyLseMaxToGm(lseGmOffset, perLoopCount);
 
-        int64_t bshInLoopNum = bshInLoop_;                      // 核内循环，bshInLoop整块数据量
-        int64_t bshInLoops = CeilDiv(perLoopCount, bshInLoop_); // 核内循环，bshInLoop循环总数
+        int64_t bshInLoopNum = bshInLoop_;                                 // 核内循环，bshInLoop整块数据量
+        int64_t bshInLoops = Ops::Base::CeilDiv(perLoopCount, bshInLoop_); // 核内循环，bshInLoop循环总数
         for (uint64_t bshInLoopCount = 0; bshInLoopCount < bshInLoops; bshInLoopCount++) {
             uint64_t goOffset = (blockIdx_ * tilingData_->perCoreCount + bshUbLoopNum * perCorePerLoopCount_ +
                                  bshInLoopCount * bshInLoop_) *
@@ -172,8 +172,8 @@ __aicore__ inline void AttentionUpdateWithLse<goType>::ComputeMaxVF(uint32_t cur
     uint16_t spSize = static_cast<uint16_t>(tilingData_->sp);
 
     uint32_t dtypeSize = sizeof(float);
-    uint32_t VL = GetVRegSize() / dtypeSize;
-    uint16_t vfLoop = CeilDiv(blockStride, VL);
+    uint32_t VL = VREG_SIZE / dtypeSize;
+    uint16_t vfLoop = Ops::Base::CeilDiv(blockStride, VL);
 
     __VEC_SCOPE__
     {
@@ -265,8 +265,8 @@ __aicore__ inline void AttentionUpdateWithLse<goType>::ComputeOutVF(uint32_t lse
     uint16_t spSize = static_cast<uint16_t>(tilingData_->sp);
 
     uint32_t dtypeSize = sizeof(float);
-    uint64_t VL = GetVRegSize() / dtypeSize;
-    uint16_t vfLoop = CeilDiv(tilingData_->d, VL);
+    uint64_t VL = VREG_SIZE / dtypeSize;
+    uint16_t vfLoop = Ops::Base::CeilDiv(tilingData_->d, VL);
 
     __VEC_SCOPE__
     {

@@ -17,43 +17,16 @@
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
-#include "../../inc/load_store_utils.h"
+#include "op_kernel/load_store_utils.h"
+#include "op_kernel/math_util.h"
+#include "op_kernel/platform_util.h"
 
 namespace AttentionUpdateOpt {
 using namespace AscendC;
 
-__aicore__ inline constexpr uint32_t GetUbBlockSize()
-{
-    return 32U;
-}
-
-__aicore__ inline constexpr uint32_t GetVRegSize()
-{
-#if __CCE_AICORE__ == 310
-    return AscendC::VECTOR_REG_WIDTH;
-#else
-    return 256U;
-#endif
-}
-
-__aicore__ inline uint64_t CeilDiv(uint64_t a, uint64_t b)
-{
-    using type = typename std::conditional<sizeof(uint64_t) == sizeof(uint8_t) || sizeof(uint64_t) == sizeof(uint16_t),
-                                           uint32_t, uint64_t>::type;
-    type res = (static_cast<type>(a) + static_cast<type>(b) - 1) / static_cast<type>(b);
-    return static_cast<uint64_t>(res);
-}
-
-__aicore__ inline uint64_t CeilAlign(uint64_t a, uint64_t b)
-{
-    using type = typename std::conditional<sizeof(uint64_t) == sizeof(uint8_t) || sizeof(uint64_t) == sizeof(uint16_t),
-                                           uint32_t, uint64_t>::type;
-    type res = (static_cast<type>(a) + static_cast<type>(b) - 1) / static_cast<type>(b) * static_cast<type>(b);
-    return static_cast<uint64_t>(res);
-}
-
 static constexpr uint32_t BUFFER_NUM = 2;
-static constexpr uint32_t UB_BLOCK_SIZE = GetUbBlockSize();
+static constexpr uint32_t UB_BLOCK_SIZE = Ops::Base::GetUbBlockSize();
+static constexpr uint32_t VREG_SIZE = Ops::Base::GetVRegSize();
 
 } // namespace AttentionUpdateOpt
 #endif // ATTENTION_UPDATE_BASE_REGBASE_H_
