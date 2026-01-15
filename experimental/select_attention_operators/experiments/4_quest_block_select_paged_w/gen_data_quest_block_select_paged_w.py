@@ -44,12 +44,12 @@ def gen_quest_paged_w_inputs(batch_size: int,
     - seq_lens: [batch_size]
     - tokens_since_metadata_update: int
     """
-    if not (num_meta_blocks >= batch_size * mmbpr):
-        raise ValueError(f"num_meta_blocks ({num_meta_blocks}) must be >= batch_size * mmbpr ({batch_size * mmbpr})")
-
     # reset the SEED each time to be able to reproduce individual failed tests 
     # out of a loop of tests
     torch.manual_seed(SEED)
+
+    if not (num_meta_blocks >= batch_size * mmbpr):
+        raise ValueError(f"num_meta_blocks ({num_meta_blocks}) must be >= batch_size * mmbpr ({batch_size * mmbpr})")
 
     # Generate query tensor [batch_size, num_heads, head_dim]
     query = torch.empty(batch_size, num_heads, head_dim, dtype=dtype).uniform_(-1, 1)

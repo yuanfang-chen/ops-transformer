@@ -46,10 +46,10 @@ def gen_quest_paged_inputs(batch_size: int,
         raise ValueError(f"num_meta_blocks ({num_meta_blocks}) must be >= batch_size * mmbpr ({batch_size * mmbpr})")
 
     torch.manual_seed(SEED)
-    query = torch.empty(batch_size, num_heads, head_dim, dtype=dtype).uniform_(-1, 1)
-    maxblocks = torch.empty(num_meta_blocks, block_size, num_kv_heads, head_dim, dtype=dtype).uniform_(-1, 1)
-    minblocks = torch.empty(num_meta_blocks, block_size, num_kv_heads, head_dim, dtype=dtype).uniform_(-1, 1)
     metadata_block_tables = torch.randint(0, num_meta_blocks, (batch_size, mmbpr), dtype=torch.int32)
+    minblocks = torch.empty(num_meta_blocks, block_size, num_kv_heads, head_dim, dtype=dtype).uniform_(-1, 1)
+    maxblocks = torch.empty(num_meta_blocks, block_size, num_kv_heads, head_dim, dtype=dtype).uniform_(-1, 1)
+    query = torch.empty(batch_size, num_heads, head_dim, dtype=dtype).uniform_(-1, 1)
     
     # Generate sequence lengths [batch_size]
     # Sequence lengths should be reasonable values (e.g., between 1 and some max length)

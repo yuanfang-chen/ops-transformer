@@ -220,15 +220,15 @@ def log_header():
     """Log benchmark header."""
     logger.info(f"  {DTYPE=}  {BLOCK_SIZE=}  {HEAD_DIM=}  {SAME_SEQ_LEN_ALL_REQS=}")
     logger.info(f"{'H':>3} {'N':>3} {'B':>3} {'MMBPR':>6} {'Max_seq_len':>12} {'k':>4} "
-                f"{'Outputs_equal':>15} {'Ref_Latency_[usec]':>18} {'Our_Latency_[usec]':>18} {'Ref_BW_[TB/sec]':>16} "
-                f"{'Our_BW_[TB/sec]':>16}")
+                f"{'Outputs_equal':>16} {'Ref_Latency_[usec]':>19} {'Our_Latency_[usec]':>19} {'Ref_BW_[TB/sec]':>17} "
+                f"{'Our_BW_[TB/sec]':>17}")
 
 
 def log_results_row(h: int, n: int, b: int, mmbpr: int, k: int, are_equal: str,
                     ref_duration: float, our_duration: float, ref_bw: float, our_bw: float):
     """Log a single row of benchmark results."""
     max_seq_len = mmbpr * BLOCK_SIZE * BLOCK_SIZE
-    row = f"{h:>3} {n:>3} {b:>3} {mmbpr:>6} {max_seq_len:>12} {k:>4} {are_equal:>15} "
+    row = f"{h:>3} {n:>3} {b:>3} {mmbpr:>6} {max_seq_len:>12} {k:>4} {are_equal:>16} "
     
     if ref_duration is not None:
         row += f"{ref_duration:>18.2f} "
@@ -236,19 +236,19 @@ def log_results_row(h: int, n: int, b: int, mmbpr: int, k: int, are_equal: str,
         row += f"{'N/A':>18} "
 
     if our_duration is not None:
-        row += f"{our_duration:>18.2f} "
+        row += f"{our_duration:>19.2f} "
     else:
-        row += f"{'N/A':>18} "
+        row += f"{'N/A':>19} "
 
     if ref_bw is not None:
-        row += f"{ref_bw:>16.3f} "
+        row += f"{ref_bw:>17.3f} "
     else:
-        row += f"{'N/A':>16} "
+        row += f"{'N/A':>17} "
 
     if our_bw is not None:
-        row += f"{our_bw:>16.3f}"
+        row += f"{our_bw:>17.3f}"
     else:
-        row += f"{'N/A':>16}"
+        row += f"{'N/A':>17}"
     
     logger.info(row)
 

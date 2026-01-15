@@ -78,6 +78,7 @@ def ref_quest_prefill_metadata(
                 maxblocks[meta_blk_id, num_kv_blocks_todo_curr_iter:, :, :] = 0
                 minblocks[meta_blk_id, num_kv_blocks_todo_curr_iter:, :, :] = 0              
 
+
 def _calculate_tokens_to_reduce(is_last_block: bool, seq_len: torch.Tensor, meta_blk: int, blk: int, 
                                 block_size: int) -> int:
     """Calculate number of tokens to reduce for a block."""
