@@ -21,6 +21,7 @@
 #include "compressor_template_tiling_key.h"
 #include "compressor_tiling_data.h"
 #include "compressor_block_vec.h"
+#include "compressor_block_cube.h"
 
 using namespace AscendC;
 
@@ -97,6 +98,7 @@ private:
     static constexpr bool X_DTYPE = COMP::xDtype == X_DTYPE::BF16;
 
     // ==============================Service Define==============================
+    CompressorBlockCube<COMP> cubeService;
     CompressorBlockVector<COMP> vectorService;
     static constexpr uint32_t dbWorkspaceRatio = 2;
     
@@ -191,7 +193,10 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     // printf("[BASEINFO] tcSize:%u tcBaseSize:%u tcBasicBlockNum:%u dBasicBlockNum:%u coreGroupNum:%u singleCoreDealTcBasicNum:%u\n", constInfo.tcSize, constInfo.tcBaseSize, constInfo.tcBasicBlockNum, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.singleCoreDealTcBasicNum);
     InitWorkspace(workspace);
     if ASCEND_IS_AIC {
-
+        cubeService.InitParams(constInfo);
+        cubeService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
+                        cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
+        cubeService.InitBuffers(pipe_);
     } else {
         vectorService.InitParams(constInfo);
         vectorService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
@@ -502,6 +507,7 @@ __aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(const RunInfo &info)
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeMm1(const RunInfo &info) {
     // printf("[COMPUTE] MM1 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
+    // cubeService.ComputeMm1(info);
 }
 
 template <typename COMP>
@@ -560,6 +566,9 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                 }
             }
         }
+    }
+    if ASCEND_IS_AIC {
+        cubeService.FreeBuffers(pipe_);
     }
 
 }
