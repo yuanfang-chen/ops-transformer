@@ -456,7 +456,12 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
         SetFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
         WaitFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
         WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
-        topk_(topkIndexLocal_, topkValueLocal_, topkInputLocal_, CeilAlign(validS2Len, 256));
+        if (CeilAlign(validS2Len, 256) >= topkCount) {
+            topk_(topkIndexLocal_, topkValueLocal_, topkInputLocal_, CeilAlign(validS2Len, 256));
+        } else {
+            AscendC::CreateVecIndex(topkIndexLocal_.ReinterpretCast<int32_t>(), (int32_t)zero, validS2Len);
+            AscendC::DataCopy(topkValueLocal_, topkInputLocal_, validS2Len);
+        }
         
         // indiceOutGm coord (bIdx, s1Idx, (vecId * mCore  + i))
         // auto indiceOutGmOffset = (bIdx * constInfo_.qSeqSize + s1Idx + (vecId * mCore  + i)) * topkCount;
@@ -465,11 +470,12 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
             uint64_t mask[1];
             mask[0] = ~0;
             mask[0] = mask[0] << (validS2Len % 8);
-            Duplicate(topkIndexLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8], neg, mask, 1, 1, 0);
             PipeBarrier<PIPE_V>();
+            Duplicate(topkIndexLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8], neg, mask, 1, 1, 0);
+            
             if (validS2Len + 64 < topkCount) {
-                Duplicate(topkIndexLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8 + 64], neg, CeilAlign(topkCount - (validS2Len / 8 * 8 + 64), 8));
                 PipeBarrier<PIPE_V>();
+                Duplicate(topkIndexLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8 + 64], neg, CeilAlign(topkCount - (validS2Len / 8 * 8 + 64), 8));
             }
         }
         SetFlag<HardEvent::V_MTE2>(TOPK_V_MTE2_EVENT);
