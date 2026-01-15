@@ -817,10 +817,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 
     outputBuf.WaitCrossCore();
     LocalTensor<Q_T> mm2AL1Tensor = outputBuf.GetTensor<Q_T>();
-    DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
-        {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
-        (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
-        (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+    if (likely(runInfo.halfS1RealSize != 0)) {
+        DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
+            {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
+            (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
+            (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
+    }
 
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
 
