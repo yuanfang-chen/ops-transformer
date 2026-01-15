@@ -2,6 +2,7 @@
 
 ## 🔥Latest News
 
+- [2025/12] 部分开源算子支持Ascend 950PR/Ascend 950DT；支持了grouped matmul算子<<<>>>调用示例，方便用户自定义使用；Experimental工程支持，支持Pytorch接口调用和自定义算子编译与部署。
 - [2025/09] ops-transformer项目首次上线。
 
 ## 🚀概述
