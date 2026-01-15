@@ -1422,7 +1422,9 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
     context->SetBlockDim(blockDim);
-    context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+    if (info.epWorldSize > RANK_NUM_PER_NODE_A2) {
+        context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+    }
 
     uint64_t tilingKey = MoeDistributeDispatchA2CalcTilingKey(context, isLayered);
     context->SetTilingKey(tilingKey);
