@@ -140,6 +140,7 @@ TILING_DATA_FIELD_DEF(int64_t, sparseBlockSize)
 TILING_DATA_FIELD_DEF(int64_t, dSize)
 TILING_DATA_FIELD_DEF(int64_t, dSizeV)
 TILING_DATA_FIELD_DEF(int64_t, dSizeNope)
+TILING_DATA_FIELD_DEF(int64_t, dSizeVInput)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvBaseParamsOp, KvQuantSparseAttnSharedkvBaseParams)
 
@@ -234,6 +235,7 @@ public:
     int64_t ropeHeadDim = 0;
     uint32_t dSize = 0;
     uint32_t dSizeV = 0;
+    uint32_t dSizeVInput = 0;
     float softmaxScale = 0;
     int64_t cmpRatio = 0;
     uint64_t oriMaskMode = 0;
@@ -259,7 +261,6 @@ public:
     ge::DataType oriKvType = ge::DT_FLOAT16;
     ge::DataType cmpKvType = ge::DT_FLOAT16;
     ge::DataType outputType = ge::DT_FLOAT16;
-
 
     // Layout
     SASLayout qLayout = SASLayout::BSND;

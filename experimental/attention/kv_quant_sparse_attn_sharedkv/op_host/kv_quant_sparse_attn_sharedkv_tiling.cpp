@@ -481,7 +481,8 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.cmpKvType = cmpKvType_;
     sasInfo.outputType = outputType_;
     sasInfo.dSize = dSizeQ_;
-    sasInfo.dSizeV = dSizeKV_;
+    sasInfo.dSizeV = 512; // TODO 暂时写死
+    sasInfo.dSizeVInput = dSizeKV_;
 
     // sasInfo.l2CacheSize = l2CacheSize_;
 
@@ -646,6 +647,7 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilin
     tilingData_.baseParams.set_dSize(tilingInfo->dSize);
     tilingData_.baseParams.set_dSizeV(tilingInfo->dSizeV);
     tilingData_.baseParams.set_dSizeNope(448);// TODO 暂时写死
+    tilingData_.baseParams.set_dSizeVInput(tilingInfo->dSizeVInput);
 
     tilingData_.singleCoreParams.set_usedCoreNum(blockDim);
 

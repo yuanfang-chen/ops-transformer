@@ -76,6 +76,7 @@ enum class SparseType : uint8_t {
     int64_t s2LoopEndIdx;          /* S2方向的循环控制信息 souter层确定 */ \
     int64_t s2LineStartIdx = 0;    /* S2方向按行的起始位置 */ \
     int64_t s2LineEndIdx;          /* S2方向按行的结束位置 */ \
+    int64_t s2CmpLineEndIdx; \
     /* cube视角的sOuter，在SAMEAB场景中cubeSOuterSize为两倍的 halfS1RealSize souter层确定 */ \
     uint32_t s1RealSize; \
     uint32_t s1RealSizeAlign32;    /* dn场景使用 */ \
@@ -175,6 +176,7 @@ struct RunInfo {
     uint32_t s2BaseSize; \
     int64_t dSize; \
     int64_t dSizeV; \
+    int64_t dSizeVInput; \
     int64_t dBasicBlock; \
     int64_t dSizeNope; /* for v0 */ \
     int64_t dSizeRope; \
@@ -281,8 +283,9 @@ struct RunInfo {
     uint32_t gSize;  \
     uint32_t s1Size;  \
     uint32_t s2Size;  \
-    uint32_t dSize : 16;  \
-    uint32_t dSizeV : 16;  \
+    uint32_t dSize : 10;  \
+    uint32_t dSizeV : 10;  \
+    uint32_t dSizeVInput : 12;  \
     uint32_t sparseBlockCount; \
     int64_t sparseBlockSize; \
     float softmaxScale; \
