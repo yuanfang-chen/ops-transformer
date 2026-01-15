@@ -17,6 +17,7 @@
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
+#include "../../grouped_matmul_utils.h"
 
 #define LOCAL_TEMPLATE_CLASS_PARAMS                                                                              \
     template <class xType, class wType, class biasType, class scaleType, class yType, CubeFormat wFormat,        \
