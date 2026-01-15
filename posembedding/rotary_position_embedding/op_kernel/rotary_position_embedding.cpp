@@ -25,6 +25,7 @@ using namespace AscendC;
 using namespace RotateHalfN;
 using namespace RotateInterleavedN;
 using namespace RotateMatrix;
+using namespace matmul;
 
 extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_ADDR cos, GM_ADDR sin, GM_ADDR rotate,
                                                                 GM_ADDR y, GM_ADDR workspace, GM_ADDR tiling)
@@ -215,11 +216,41 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
         interleavedSplitBSNPad.Process();
     }
 
-    if (TILING_KEY_IS(3013)) {
+    if (TILING_KEY_IS(3011)) {
+        using aT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+        using bT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+        using cT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+        using MT = matmul::MatmulImpl<aT, bT, cT>;
+        MT mm;
+
+        TPipe pipe;
+        KERNEL_TASK_TYPE(3011, KERNEL_TYPE_MIX_AIC_1_2);
+        RotateMatrixAll<float, float, MT> op(mm);
+        op.Init(x, cos, sin, rotate, y, usrWorkspace, tilingData, &pipe);
+        op.Process();
+    } else if (TILING_KEY_IS(3012)) {
+        using aT = MatmulType<TPosition::GM, CubeFormat::ND, half>;
+        using bT = MatmulType<TPosition::GM, CubeFormat::ND, half>;
+        using cT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+        using MT = matmul::MatmulImpl<aT, bT, cT>;
+        MT mm;
+
+        TPipe pipe;
+        KERNEL_TASK_TYPE(3012, KERNEL_TYPE_MIX_AIC_1_2);
+        RotateMatrixAll<half, half, MT> op(mm);
+        op.Init(x, cos, sin, rotate, y, usrWorkspace, tilingData, &pipe);
+        op.Process();
+    } else if (TILING_KEY_IS(3013)) {
+        using aT = MatmulType<TPosition::GM, CubeFormat::ND, bfloat16_t>;
+        using bT = MatmulType<TPosition::GM, CubeFormat::ND, bfloat16_t>;
+        using cT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+        using MT = matmul::MatmulImpl<aT, bT, cT>;
+        MT mm;
+
         TPipe pipe;
         KERNEL_TASK_TYPE(3013, KERNEL_TYPE_MIX_AIC_1_2);
-        RotateMatrixBNSD<bfloat16_t> rm;
-        rm.Init(x, cos, sin, rotate, y, usrWorkspace, tilingData, &pipe);
-        rm.Process();
-    }
+        RotateMatrixAll<bfloat16_t, bfloat16_t, MT> op(mm);
+        op.Init(x, cos, sin, rotate, y, usrWorkspace, tilingData, &pipe);
+        op.Process();
+    } 
 }

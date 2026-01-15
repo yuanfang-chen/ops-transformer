@@ -70,7 +70,7 @@
       $$
 
 - rotate推荐使用场景
-  - interleave模式
+  - interleave模式，且B * N * S > 28800。
   - half模式仅在以下场景时推荐使用：输入矩阵x需要在最后一个维度切分多份时，每一份都需要调用aclnnRotaryPositionEmbedding接口进行旋转位置编码计算，可以通过构造旋转编码矩阵实现一次调用获得性能收益，以x的layout为BSND需要切分为3份为例：
      x切分为3份，$x = [x1|x2|x3]_{(dim=4)} ∈ R^{B×S×N×D}, x1 ∈ R^{B×S×N×D1},x2 ∈ R^{B×S×N×D2},x3 ∈ R^{B×S×N×D3}, 其中D = D1 + D2 + D3$，那么可以构造一个rotate矩阵，实现调用一次aclnnRotaryPositionEmbeddingV2接口完成x的旋转位置编码计算功能，rotate矩阵构造如下：
      $$rotate = diag(rotate1, rotate2, rotate3) = \begin{pmatrix}rotate1&0&0\\0&rotate2&0\\0&0&rotate3\\\end{pmatrix}$$
@@ -171,7 +171,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
       <td>输入</td>
       <td>旋转矩阵</td>
       <td>与x数据类型一致。</td>
-      <td>BFLOAT16</td>
+      <td>BFLOAT16、FLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>2</td>
       <td>-</td>
@@ -212,7 +212,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
   - 参数mode约束：
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品 </term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件 </term>：0=half，1=interleave。V2接口不同mode参数约束和V1接口相同，开发者可以根据mode在调用示例的辅助矩阵rotate生成中选择合适的rotate生成方式。
     
-  - 参数rotate当前仅支持BFLOAT16类型。
+  - 参数rotate当前支持BFLOAT16、FLOAT16、FLOAT32类型。
 - **返回值：**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -299,7 +299,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
 
-  输入张量x支持BNSD、BSND、SBND、TND排布。
+  输入张量x支持BNSD、BSND、SBND排布。
   输入张量x、cos、sin及输出张量y的D维度大小必须相同，满足D<896，且必须为2的倍数。
   输入张量x和输出张量y的shape必须完全相同。
   输入张量cos和sin的shape必须完全相同.
@@ -311,13 +311,11 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
       - 当（D/2）% (32/inputDtypeSize) != 0时，需满足B * N * 2 <= (S + coreNum -1) / coreNum 或者 D >= 80
     - 当x为BSND时，cos、sin支持1S1D、BS1D、BSND
     - 当x为SBND时，cos、sin支持S11D、SB1D、SBND
-    - 当x为TND时，cos、sin支持T1D、TND
   - interleave模式：
-    - B * N < 1000（N<1000当x为TND）
+    - B * N < 1000
     - 当x为BNSD时，cos、sin支持11SD
     - 当x为BSND时，cos、sin支持1S1D
     - 当x为SBND时，cos、sin支持S11D
-    - 当x为TND时，cos、sin支持T1D
 
 ## 调用示例
 

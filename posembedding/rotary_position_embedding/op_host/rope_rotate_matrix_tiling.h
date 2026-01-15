@@ -18,7 +18,7 @@
 #include "rotary_position_embedding_tiling.h"
 
 namespace optiling {
-constexpr uint32_t ROTATE_ATTR_IDX = 3;
+constexpr uint32_t ROTATE_INPUT_IDX = 3;
 
 class RopeRotateMatrixTilingClass : public RotaryPosEmbeddingMembaseTilingClass {
 public:
@@ -36,7 +36,7 @@ protected:
     {
         if ((socVersion_ == platform_ascendc::SocVersion::ASCEND910B || 
              socVersion_ == platform_ascendc::SocVersion::ASCEND910_93) && 
-             context_->GetOptionalInputDesc(ROTATE_ATTR_IDX) != nullptr) {
+             context_->GetOptionalInputDesc(ROTATE_INPUT_IDX) != nullptr) {
             return true;
         }
         return false;
