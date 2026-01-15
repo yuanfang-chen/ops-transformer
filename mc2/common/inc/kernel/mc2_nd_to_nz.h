@@ -570,9 +570,9 @@ __aicore__ inline void CastBFtoFloat(GM_ADDR dst, GM_ADDR src, int size, TBuf<TP
     WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
 
     // 5. UB数据拷贝至GM
-    uint16_t cpOutLen = size * sizeof(float);
-    DataCopyParams cpOutParams{1, cpOutLen, 0, 0};
-    DataCopyPad(gmDst, yLocal, cpOutParams);
+    uint32_t cpOutLen = size * sizeof(float);
+    DataCopyExtParams cpOutExtParams{1, cpOutLen, 0, 0, 0};
+    DataCopyPad(gmDst, yLocal, cpOutExtParams);
     CrossCoreSetFlag<SET_FLAG_MODE_2, PIPE_MTE3>(EVENT_ID_5);
 #endif
 }
