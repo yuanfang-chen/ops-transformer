@@ -144,7 +144,11 @@ def cpu_compressor(
     rope_cos = rope_cos.to(torch.float32).numpy()
     matmul_dtype = np.float32
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
+    print("new_kv_state:")
+    print(new_kv_state)
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
+    print("new_score_state:")
+    print(new_score_state)
 
     B = len(start_pos)
     head_dim = wkv.shape[0] // coff
@@ -305,22 +309,22 @@ class TestCustomCompressor(TestCase):
         head_dim = 512
         rope_head_dim = 64
         norm_eps = 1e-6
-        coff = 2 # 1:no overlap 2:overlap
-        cmp_ratio = 4
+        coff = 1 # 1:no overlap 2:overlap
+        cmp_ratio = 128
         rotary_mode = 2
         update_flag = 1
 
-        B = 5
-        S_max = 8192
+        B = 1
+        S_max = 16384
         block_size = 128
-        start_pos = [10, 12, 0, 2, 5] # (B,)
-        seqused = [7, 8, 2, 4, 5] # (B,), None时cu_seqlens的数据全部参与计算，否则按传参实际值计算
+        start_pos = [8192] # (B,)
+        seqused = [1] # (B,), None时cu_seqlens的数据全部参与计算，否则按传参实际值计算
         # seqused = None
 
         # BS是否合轴
         bs_combine_flag = True
         if bs_combine_flag:
-            cu_seqlens = [0, 7, 15, 17, 30, 35] # (B+1,), None时表示非BSh，否则为Th
+            cu_seqlens = [0, 1] # (B+1,), None时表示非BSh，否则为Th
             if seqused is not None:
                 S = max(seqused)
             else:
@@ -330,7 +334,7 @@ class TestCustomCompressor(TestCase):
                         S = cu_seqlens[i + 1] - cu_seqlens[i]
         else:
             cu_seqlens = None
-            S = 20 # 作为x的shape[1]
+            S = 1 # 作为x的shape[1]
         ### ======================== set input params finish ========================
 
         ### ======================== check input params start ========================

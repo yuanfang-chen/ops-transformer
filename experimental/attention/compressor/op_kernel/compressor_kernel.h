@@ -205,6 +205,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         vectorService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
                         cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
         vectorService.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
+        vectorService.InitBuffers(pipe_);
     }
     
 }

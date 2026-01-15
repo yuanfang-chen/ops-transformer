@@ -69,6 +69,8 @@ protected:
     GlobalTensor<T> vec1ResGm_;
     GlobalTensor<T> preMm1ResGm_;
     GlobalTensor<T> curMm1ResGm_;
+    TBuf<TPosition::VECIN> mm1ResUb;
+    LocalTensor<T> mm1ResTensor;
     TBuf<TPosition::VECCALC> shareBuffer_;
 
 private:
@@ -130,6 +132,9 @@ __aicore__ inline void CompressorBlockVector<COMP>::Init(
 template <typename COMP> 
 __aicore__ inline void CompressorBlockVector<COMP>::InitBuffers(TPipe *pipe)
 {
+    // UB
+    pipe->InitBuffer(mm1ResUb, 128 * 1024);
+    mm1ResTensor = mm1ResUb.Get<T>();
     pipe->InitBuffer(shareBuffer_, BLOCK_VEC_BASE_BUFFER_SIZE);
 }
 
@@ -358,6 +363,7 @@ template <typename COMP>
 template <typename COMP>
  __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const Compressor::RunInfo &info)
 {
+    // DumpTensor(mm1ResTensor, 1, 128 * 256);
     // TODO 1分核
     SetMSplitInfo(info);
     uint32_t scLoopTimes = 0;
