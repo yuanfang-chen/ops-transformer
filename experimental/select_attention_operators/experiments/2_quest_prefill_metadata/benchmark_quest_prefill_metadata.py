@@ -215,7 +215,8 @@ def log_header():
     """Log benchmark header."""
     logger.info(f"  {DTYPE=}  {BLOCK_SIZE=}  {HEAD_DIM=}  {SAME_SEQ_LEN_ALL_REQS=}")
     logger.info(f"{'N':>3} {'B':>3} {'Seq_len':>10} {'Outputs_equal':>16} "
-                f"{'Ref_Latency_[usec]':>19} {'Our_Latency_[usec]':>19} {'Ref_BW_[TB/sec]':>17} {'Our_BW_[TB/sec]':>17}")
+                f"{'Ref_Latency_[usec]':>19} {'Our_Latency_[usec]':>19} "
+                f"{'Ref_BW_[TB/sec]':>17} {'Our_BW_[TB/sec]':>17}")
 
 
 def log_results_row(n: int, b: int, seq_len: int, are_equal: str, ref_duration: float, 
@@ -273,23 +274,23 @@ def benchmark_quest_prefill():
             are_equal = check_correctness(b, n, mkbpr, mmbpr)
 
         # Initialize results
-        our_duration = None
+        our_time = None
         our_bw = None
-        ref_duration = None
+        ref_time = None
         ref_bw = None
 
         # Our implementation benchmark
         if run_our:
             input_sets = generate_input_sets(n_warmup, n_repeat, b, n, mkbpr, mmbpr)
-            our_duration, our_bw = benchmark_custom_implementation(input_sets, n_warmup, n_repeat, b, n, mkbpr, mmbpr)
+            our_time, our_bw = benchmark_custom_implementation(input_sets, n_warmup, n_repeat, b, n, mkbpr, mmbpr)
 
         # Reference implementation benchmark
         if run_ref:
             input_sets = generate_input_sets(n_warmup, n_repeat, b, n, mkbpr, mmbpr)
-            ref_duration, ref_bw = benchmark_reference_implementation(input_sets, n_warmup, n_repeat, b, n, mkbpr, mmbpr)
+            ref_time, ref_bw = benchmark_reference_implementation(input_sets, n_warmup, n_repeat, b, n, mkbpr, mmbpr)
         
         # Log results
-        log_results_row(n, b, seq_len, are_equal, ref_duration, our_duration, ref_bw, our_bw)
+        log_results_row(n, b, seq_len, are_equal, ref_time, our_time, ref_bw, our_bw)
 
 
 # --------------------------------------------------------------------------- #

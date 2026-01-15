@@ -74,7 +74,9 @@ def bytes_moved_paged_select(batch_size: int, num_heads: int, num_kv_heads: int,
 # --------------------------------------------------------------------------- #
 #  Configuration and setup functions
 # --------------------------------------------------------------------------- #
-def get_benchmark_configurations(custom_kernel: Callable) -> Tuple[List[int], List[int], List[int], List[int], List[int]]:
+def get_benchmark_input_sets(
+        custom_kernel: Callable
+        ) -> Tuple[List[int], List[int], List[int], List[int], List[int]]:
     """Get benchmark configuration parameters."""
     batch_size_vals = [10, 20, 24, 32]
     num_heads_vals = [32]
@@ -91,7 +93,9 @@ def get_benchmark_configurations(custom_kernel: Callable) -> Tuple[List[int], Li
     return batch_size_vals, num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals
 
 
-def generate_input_sets(n_warmup: int, n_repeat: int, b: int, h: int, n: int, mmbpr: int, dtype: torch.dtype) -> List[Tuple]:
+def generate_input_sets(
+        n_warmup: int, n_repeat: int, b: int, h: int, n: int, mmbpr: int, dtype: torch.dtype
+        ) -> List[Tuple]:
     """Generate multiple input sets for benchmarking."""
     input_sets = []
     for _ in range(n_warmup + n_repeat):
@@ -109,7 +113,9 @@ def generate_input_sets(n_warmup: int, n_repeat: int, b: int, h: int, n: int, mm
 # --------------------------------------------------------------------------- #
 #  Correctness checking
 # --------------------------------------------------------------------------- #
-def check_correctness(custom_kernel: Callable, b: int, h: int, n: int, mmbpr: int, k: int, dtype: torch.dtype) -> str:
+def check_correctness(
+        custom_kernel: Callable, b: int, h: int, n: int, mmbpr: int, k: int, dtype: torch.dtype
+        ) -> str:
     """Check correctness between custom and reference implementations."""
     query, maxblocks, minblocks, metadata_block_tables, seq_lens = gen_quest_paged_inputs(
         b, h, n, BLOCK_SIZE, HEAD_DIM,
@@ -137,7 +143,9 @@ def check_correctness(custom_kernel: Callable, b: int, h: int, n: int, mmbpr: in
 # --------------------------------------------------------------------------- #
 #  Benchmark execution functions
 # --------------------------------------------------------------------------- #
-def run_warmup(custom_kernel: Callable, input_sets: List[Tuple], n_warmup: int, k: int, our_ids: torch.Tensor = None) -> None:
+def run_warmup(
+        custom_kernel: Callable, input_sets: List[Tuple], n_warmup: int, k: int, our_ids: torch.Tensor = None
+        ) -> None:
     """Run warmup iterations."""
     for i in range(n_warmup):
         query, maxblocks, minblocks, metadata_block_tables, seq_lens = input_sets[i]
@@ -215,7 +223,8 @@ def benchmark_reference(input_sets: List[Tuple], n_warmup: int, n_repeat: int, k
 # --------------------------------------------------------------------------- #
 def log_header(custom_kernel: Callable, dtype: torch.dtype):
     """Log benchmark header."""
-    logger.info(f"  custom_kernel={custom_kernel.__name__} {dtype=}\n  {BLOCK_SIZE=}  {HEAD_DIM=}  {SAME_SEQ_LEN_ALL_REQS=}")
+    logger.info(f"  custom_kernel={custom_kernel.__name__} {dtype=}\n  {BLOCK_SIZE=}  {HEAD_DIM=}  "
+                f"{SAME_SEQ_LEN_ALL_REQS=}")
     logger.info(f"{'H':>3} {'N':>3} {'B':>3} {'MMBPR':>6} {'Max_seq_len':>12} {'k':>4} "
                 f"{'Outputs_equal':>15} {'Ref_Latency_[usec]':>18} {'Our_Latency_[usec]':>18} {'Ref_BW_[TB/sec]':>16} "
                 f"{'Our_BW_[TB/sec]':>16}")
@@ -269,7 +278,7 @@ def benchmark_quest_block_select_paged(custom_kernel: Callable, dtype: torch.dty
 
     log_header(custom_kernel, dtype)
     
-    batch_size_vals, num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals = get_benchmark_configurations(custom_kernel)
+    batch_size_vals, num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals = get_benchmark_input_sets(custom_kernel)
 
     for b, h, n, mmbpr, k in itertools.product(batch_size_vals, num_heads_vals, num_kv_heads_vals, mmbpr_vals, k_vals):
         
@@ -286,9 +295,14 @@ def benchmark_quest_block_select_paged(custom_kernel: Callable, dtype: torch.dty
         
         # Our implementation benchmark
         if run_our:
-            our_ids = torch.zeros((b, n, k), dtype=torch.int32, device="npu:0") if custom_kernel == quest_block_select_paged_in_out else None
+            if custom_kernel == quest_block_select_paged_in_out:
+                our_ids = torch.zeros((b, n, k), dtype=torch.int32, device="npu:0") 
+            else: 
+                our_ids =None
             input_sets = generate_input_sets(n_warmup, n_repeat, b, h, n, mmbpr, dtype)
-            our_duration, our_bw = benchmark_implementation(custom_kernel, input_sets, n_warmup, n_repeat, k, b, h, n, mmbpr, our_ids)
+            our_duration, our_bw = (
+                benchmark_implementation(custom_kernel, input_sets, n_warmup, n_repeat, k, b, h, n, mmbpr, our_ids)
+            )
 
         # Reference implementation benchmark
         if run_ref:
