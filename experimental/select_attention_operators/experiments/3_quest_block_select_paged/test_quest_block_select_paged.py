@@ -11,6 +11,7 @@
 Single input testing (for debugging) -> Run this file with python <filename>
 Wide range testing (for validation) -> Run this file with pytest <filename>
 """
+import logging
 from typing import Callable
 import pytest
 import torch
@@ -19,6 +20,10 @@ from select_attn_ops import quest_block_select_paged, quest_block_select_paged_i
 from gen_data_quest_block_select_paged import gen_quest_paged_inputs, compare_indices
 from ref_quest_block_select_paged import ref_quest_block_select_paged
 
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 DEVICE = "npu:0"
 BLOCK_SIZE = 128
@@ -64,23 +69,23 @@ def test_quest_paged_kernel(custom_kernel: Callable, dtype: torch.dtype, batch_s
     # Compare results
     cfg_str = f"{dtype=}, {batch_size=}, {num_heads=}, {num_kv_heads=}, {block_size=}, {head_dim=}, {mmbpr=}, {k=}"
     if verbose:
-        print("Input shapes:")
-        print(f"  query: {query.shape}")
-        print(f"  maxblocks: {maxblocks.shape}")
-        print(f"  minblocks: {minblocks.shape}")
-        print(f"  metadata_block_tables: {metadata_block_tables.shape}")
-        print(f"  seq_lens: {seq_lens.shape}")
-        print(f"  Sequence lengths: {seq_lens.tolist()}")
-        print(" ========== Reference torch implementation output ========= ")
-        print("ids ref:", ref_ids)
-        print(ref_ids.shape)       
-        print(" ========== Custom ascendc implementation output ========== ")
-        print("ids custom:", custom_ids)
-        print(custom_ids.shape)
-        print(" ========== DIFF =========== ")
-        print("ids difference:", ref_ids - custom_ids)
-        print(" ==================== SUMMARY ================== ")
-        print(cfg_str)
+        logger.info("Input shapes:")
+        logger.info(f"  query: {query.shape}")
+        logger.info(f"  maxblocks: {maxblocks.shape}")
+        logger.info(f"  minblocks: {minblocks.shape}")
+        logger.info(f"  metadata_block_tables: {metadata_block_tables.shape}")
+        logger.info(f"  seq_lens: {seq_lens.shape}")
+        logger.info(f"  Sequence lengths: {seq_lens.tolist()}")
+        logger.info(" ========== Reference torch implementation output ========= ")
+        logger.info("ids ref:", ref_ids)
+        logger.info(ref_ids.shape)       
+        logger.info(" ========== Custom ascendc implementation output ========== ")
+        logger.info("ids custom:", custom_ids)
+        logger.info(custom_ids.shape)
+        logger.info(" ========== DIFF =========== ")
+        logger.info("ids difference:", ref_ids - custom_ids)
+        logger.info(" ==================== SUMMARY ================== ")
+        logger.info(cfg_str)
     indices_match = compare_indices(ref_ids, custom_ids, verbose=verbose)               
     
     # Assert all comparisons pass
@@ -215,5 +220,4 @@ if __name__ == "__main__":
     test_quest_paged_kernel(custom_kernel=quest_block_select_paged_in_out,
                             dtype=torch.bfloat16, batch_size=20, num_heads=32, num_kv_heads=8, block_size=128, 
                             head_dim=128, mmbpr=1, k=16, verbose=True)  # fails bfloat16
-    print("Manual smoke test PASSED")
-
+    logger.info("Manual smoke test PASSED")

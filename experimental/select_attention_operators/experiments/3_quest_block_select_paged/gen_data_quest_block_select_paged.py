@@ -7,10 +7,15 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
 
+import logging
 import math
 from typing import Tuple, List
 import torch
 import torch_npu
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 SEED = 42
 
@@ -117,8 +122,8 @@ def compare_indices(reference: torch.Tensor, custom: torch.Tensor,
     # test summary
     test_ok = n_violating_elems <= tol_count
     if verbose: 
-        print(f"{'PASSED' if test_ok else 'FAILED'} - ", end='')
-        print(f"{n_violating_elems}/{reference.numel()} indices are incorrect (allowed:{tol_count})")    
+        logger.info(f"{'PASSED' if test_ok else 'FAILED'} - ", end='')
+        logger.info(f"{n_violating_elems}/{reference.numel()} indices are incorrect (allowed:{tol_count})")  
     
     return test_ok
 

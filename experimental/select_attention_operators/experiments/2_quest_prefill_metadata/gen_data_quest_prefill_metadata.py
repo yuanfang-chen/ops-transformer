@@ -10,8 +10,13 @@
 # synthetic data factory for quest_prefill_metadata
 
 from typing import Tuple
+import logging
 import torch
 import torch_npu
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 SEED = 42
 
@@ -105,17 +110,17 @@ def compare_tensors(ref: torch.Tensor, custom: torch.Tensor, *,
     compare tensors with a relaxed fp16 tolerance
     """
     if ref.shape != custom.shape:
-        print(f"ERROR: shape mismatch  ref={ref.shape}  custom={custom.shape}")
+        logger.info(f"ERROR: shape mismatch  ref={ref.shape}  custom={custom.shape}")
         return False
     try:
         torch.testing.assert_close(ref, custom, rtol=rtol, atol=atol)
         if verbose: 
-            print("PASSED")
+            logger.info("PASSED")
         return True
     except AssertionError as e:
         if verbose: 
-            print("FAILED")
-        print(e)
+            logger.info("FAILED")
+        logger.info(e)
         return False
 
 

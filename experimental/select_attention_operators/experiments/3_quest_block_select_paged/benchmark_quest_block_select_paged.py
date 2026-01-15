@@ -94,7 +94,7 @@ def get_benchmark_configurations(custom_kernel: Callable) -> Tuple[List[int], Li
 def generate_input_sets(n_warmup: int, n_repeat: int, b: int, h: int, n: int, mmbpr: int, dtype: torch.dtype) -> List[Tuple]:
     """Generate multiple input sets for benchmarking."""
     input_sets = []
-    for i in range(n_warmup + n_repeat):
+    for _ in range(n_warmup + n_repeat):
         query, maxblocks, minblocks, metadata_block_tables, seq_lens = gen_quest_paged_inputs(
             b, h, n, BLOCK_SIZE, HEAD_DIM,
             num_meta_blocks=b * mmbpr,

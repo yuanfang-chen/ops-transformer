@@ -97,7 +97,7 @@ def get_benchmark_configurations():
 def generate_input_sets(n_warmup: int, n_repeat: int, b: int, n: int, mkbpr: int, mmbpr: int):
     """Generate multiple input sets for benchmarking."""
     input_sets = []
-    for i in range(n_warmup + n_repeat):
+    for _ in range(n_warmup + n_repeat):
         k_cache, block_tables, seq_lens, metadata_block_tables, max_out, min_out = \
             gen_quest_prefill_inputs(
                 b, n, BLOCK_SIZE, HEAD_DIM,

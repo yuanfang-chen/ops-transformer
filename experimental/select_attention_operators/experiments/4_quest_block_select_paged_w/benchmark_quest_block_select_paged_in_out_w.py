@@ -87,7 +87,7 @@ def get_benchmark_configurations() -> tuple:
 def generate_input_sets(n_warmup: int, n_repeat: int, b: int, h: int, n: int, mmbpr: int) -> list:
     """Generate multiple input sets for benchmarking."""
     input_sets = []
-    for i in range(n_warmup + n_repeat):
+    for _ in range(n_warmup + n_repeat):
         query, maxblocks, minblocks, metadata_block_tables, seq_lens, tokens_since_metadata_update = \
             gen_quest_paged_w_inputs(
                 b, h, n, BLOCK_SIZE, HEAD_DIM, num_meta_blocks=b * mmbpr,

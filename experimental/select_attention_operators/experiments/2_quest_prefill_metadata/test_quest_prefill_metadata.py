@@ -12,6 +12,7 @@ Single input testing (for debugging) -> Run this file with python <filename>
 Wide range testing (for validation) -> Run this file with pytest <filename>
 """
 from itertools import product
+import logging
 import pytest
 import torch
 import torch_npu
@@ -19,6 +20,10 @@ from select_attn_ops import quest_prefill_metadata
 from ref_quest_prefill_metadata import ref_quest_prefill_metadata
 from gen_data_quest_prefill_metadata import gen_quest_prefill_inputs, compare_tensors, ceil_div
 
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 DEVICE = "npu:0"
 BLOCK_SIZE = 128
@@ -87,18 +92,18 @@ def test_prefill_kernel(dtype: torch.dtype,
     min_ok = compare_tensors(min_ref, min_out)
     assert max_ok and min_ok, "maxblocks or minblocks mismatch"
     if verbose:
-        print(" ==================== maxblocks =================== ")
-        print(f"{max_ref=}")
-        print(f"{max_out=}")
-        print(" ==================== minblocks =================== ")
-        print(f"{min_ref=}")
-        print(f"{min_out=}")    
-        print(" ==================== SUMMARY =================== ")
-        print(f"{batch_size=} {num_kv_heads=} {block_size=} {head_dim=} "
-              f"{mkbpr=} {mmbpr=} {dtype=} {num_kv_blocks=} {num_meta_blocks=}")
-        print("maxblocks - ", end='')
+        logger.info(" ==================== maxblocks =================== ")
+        logger.info(f"{max_ref=}")
+        logger.info(f"{max_out=}")
+        logger.info(" ==================== minblocks =================== ")
+        logger.info(f"{min_ref=}")
+        logger.info(f"{min_out=}")    
+        logger.info(" ==================== SUMMARY =================== ")
+        logger.info(f"{batch_size=} {num_kv_heads=} {block_size=} {head_dim=} "
+                    f"{mkbpr=} {mmbpr=} {dtype=} {num_kv_blocks=} {num_meta_blocks=}")
+        logger.info("maxblocks - ", end='')
         compare_tensors(max_ref, max_out)    
-        print("minblocks - ", end='')
+        logger.info("minblocks - ", end='')
         compare_tensors(min_ref, min_out)    
 
 
@@ -208,4 +213,4 @@ def test_large_batch(dtype: torch.dtype, batch_size: int, num_kv_heads: int, mkb
 if __name__ == "__main__":
     test_prefill_kernel(dtype=torch.bfloat16, batch_size=20, num_kv_heads=8, block_size=128, 
                         head_dim=128, mkbpr=128, ssar=False, verbose=True) # passes 
-    print("Manual smoke test PASSED")
+    logger.info("Manual smoke test PASSED")
