@@ -249,6 +249,8 @@ private:
 
   // cache calculation
   void CalcBatchCache(uint32_t bIdx, const SplitContext &splitContext, BatchCache &batchCache);
+  void CalcWinS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void CalcCmpS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
   void CalcS1GCache(uint32_t s1GIdx, const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache);
   void CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes);
   void ClearTmpResult(SplitResult &tmpRes);
