@@ -79,6 +79,7 @@ protected:
     static constexpr uint32_t TOPK_MTE3_V_EVENT = EVENT_ID7;
 
     static constexpr uint32_t KSCALE_S_MTE2_EVENT = EVENT_ID7;
+    static constexpr uint32_t MTE3_MTE2_EVENT = EVENT_ID0;
 
 private:
     __aicore__ inline void GetKeyScale(const QLICommon::RunInfo &runInfo, LocalTensor<float> &kScaleUB,
@@ -384,6 +385,8 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
 template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &info)
 {
+    SetFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT);
+    WaitFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT);
     // assert constInfo_.kHeadNum == 1
     // assert topkCount * sizeof(uint32_t) % 32 == 0
     auto mCore = CeilDiv(s1BaseSize_, 2); // 2 aiv
