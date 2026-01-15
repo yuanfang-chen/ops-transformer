@@ -584,6 +584,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessOriKv(Buffer<BufferTy
     PRINTF("sInner is %d\n", runInfo.s2RealSize);
     // todo:tail size
     inputRightBuf.WaitCrossCore();
+#if 0
     int64_t s2V0LoopTimes = runInfo.s2RealSize / 16;
     for (uint32_t i = 0; i < s2V0LoopTimes; i++) {
         int64_t s2ProcessSize = 16;
@@ -640,6 +641,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessOriKv(Buffer<BufferTy
         int64_t ropeGmOffset = runInfo.loop % MERGE_CACHE_GM_BUF_NUM * 512 * 576 + 512 * 512 + (s2GmStartOffset) * blockElementNum;
         CopyOutKvUb2L1(mergeMte3Idx, nopeGmOffset, ropeGmOffset, dealRow);
     }
+#endif
     inputRightBuf.SetCrossCore();
 }
 
@@ -770,6 +772,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 {
     bmm1ResBuf.WaitCrossCore();
 
+#if 0
     LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod2].template Get<float>();
     LocalTensor<float> maxUb = this->softmaxMaxBuf[runInfo.multiCoreIdxMod2].template Get<float>();
     LocalTensor<float> expUb = this->softmaxExpBuf[runInfo.taskIdMod2].template Get<T>();
@@ -785,11 +788,11 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-        } else if(runInfo.s2RealSize <= 64){
+        } else if(runInfo.s2RealSize <= 64) {
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-        } else if(runInfo.s2RealSize < 128){
+        } else if(runInfo.s2RealSize < 128) {
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
@@ -803,34 +806,39 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-        } else if(runInfo.s2RealSize < 128){
+        } else if(runInfo.s2RealSize < 128) {
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
         }
     }
+#endif
     bmm1ResBuf.SetCrossCore();
 
     // ===================DataCopy to L1 ====================
+#if 0
     this->stage1OutQue[stage1Offset].template EnQue(stage1CastTensor);
     this->stage1OutQue[stage1Offset].template DeQue<Q_T>();
+#endif
 
     outputBuf.WaitCrossCore();
+#if 0
     LocalTensor<Q_T> mm2AL1Tensor = outputBuf.GetTensor<Q_T>();
-    if (likely(runInfo.halfS1RealSize != 0)) {
-        DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
-            {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
-            (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
-            (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
-    }
+    DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (BLOCK_BYTE / sizeof(Q_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
+        {s2BaseSize / 16, (uint16_t)runInfo.halfS1RealSize,
+        (uint16_t)(vec1Srcstride - runInfo.halfS1RealSize),
+        (uint16_t)(s1BaseSize - runInfo.halfS1RealSize)});
 
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
+#endif
 
     outputBuf.SetCrossCore();
+#if 0
     // ======================================================
     if (runInfo.s2LoopCount != 0) {
         SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
     }
+#endif
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -853,12 +861,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2(
     if (unlikely(runInfo.s2LoopCount == 0)) {
         DataCopy(vec2ResUb, mmRes, vec2CalcSize);
     } else {
-        LocalTensor<T> expUb = softmaxExpBuf[runInfo.taskIdMod3].template Get<T>();
+        LocalTensor<T> expUb = softmaxExpBuf[runInfo.taskIdMod2].template Get<T>();
         if (runInfo.s2LoopCount < runInfo.s2LoopLimit) {
             FlashUpdateNew<T, Q_T, OUTPUT_T, dTemplateAlign64>(
                     vec2ResUb, mmRes, vec2ResUb, expUb, runInfo.vec2S1RealSize);
         } else {
-            LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
+            LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod2].template Get<float>();
             FlashUpdateLastNew<T, Q_T, OUTPUT_T, dTemplateAlign64>(
                 vec2ResUb, mmRes, vec2ResUb, expUb, sumUb, runInfo.vec2S1RealSize);
         }
@@ -867,7 +875,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2(
     bmm2ResBuf.SetCrossCore();
     if (runInfo.s2LoopCount == runInfo.s2LoopLimit) {
         if (unlikely(runInfo.s2LoopCount == 0)) {
-            LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod3].template Get<float>();
+            LocalTensor<float> sumUb = this->softmaxSumBuf[runInfo.multiCoreIdxMod2].template Get<float>();
             LastDivNew<T, Q_T, OUTPUT_T, dTemplateAlign64>(vec2ResUb, vec2ResUb, sumUb, runInfo.vec2S1RealSize);
         }
 
@@ -1064,6 +1072,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale; 
     sharedParams.dSize = sparseAttnSharedkvBaseParams.dSize;
     sharedParams.dSizeV = sparseAttnSharedkvBaseParams.dSizeV;
+    sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
 
     // pageAttention, rope在C侧搬运时使用
     if constexpr (isPa) {
