@@ -61,7 +61,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     runParam.actualS1Size = actualS1Size;
     runParam.actualS2Size = actualS2Size;
     runParam.nextTokensPerBatch = runParam.actualS2Size - runParam.actualS1Size;
-    runParam.preTokensPerBatch = -(runParam.actualS2Size - runParam.actualS1Size - constInfo.oriWinLeft + 1);
+    runParam.preTokensPerBatch = -(runParam.actualS2Size - runParam.actualS1Size - constInfo.oriWinLeft);
     runParam.preTokensPerBatch = Min(runParam.preTokensPerBatch, runParam.actualS1Size);
 
     // 根据nextToken, 剔除行无效区域
@@ -125,9 +125,11 @@ __aicore__ inline void ComputeSouterParam(RunParamStr& runParam, const ConstInfo
     int64_t cubeSOuterOffset = sOuterLoopIdx * runParam.qSNumInOneBlock;
     if (runParam.actualS1Size == 0) {
         runParam.s1RealSize = 0;
+        runParam.mRealSize = 0;
     } else {
         // actualS1Size在前面已经减去被nextTokensPerBatch截掉的部分
         runParam.s1RealSize = Min(runParam.qSNumInOneBlock, runParam.actualS1Size - cubeSOuterOffset);
+        runParam.mRealSize = runParam.s1RealSize * constInfo.gSize;
     }
 
     cubeSOuterOffset += (runParam.nextTokensPerBatch < 0) ? -runParam.nextTokensPerBatch : 0;
@@ -141,6 +143,17 @@ __aicore__ inline void ComputeSouterParam(RunParamStr& runParam, const ConstInfo
         runParam.sOuterOffset = cubeSOuterOffset;
     }
     runParam.cubeSOuterOffset = cubeSOuterOffset;
+
+    runParam.cubeMOuterOffset = runParam.cubeSOuterOffset * constInfo.gSize;
+    runParam.halfMRealSize = (runParam.mRealSize + 1) >> 1;
+    runParam.firstHalfMRealSize = runParam.halfMRealSize;
+    if (constInfo.subBlockIdx == 1) {
+        runParam.halfMRealSize = runParam.mRealSize - runParam.halfMRealSize;
+        runParam.mOuterOffset = runParam.cubeMOuterOffset + runParam.firstHalfMRealSize;
+    } else {
+        runParam.mOuterOffset = runParam.cubeMOuterOffset;
+    }
+    
 }
 
 TEMPLATE_INTF

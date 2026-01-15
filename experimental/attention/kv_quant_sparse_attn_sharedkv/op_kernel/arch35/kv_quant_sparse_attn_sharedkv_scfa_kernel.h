@@ -271,7 +271,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         // (BS)ND
         constInfo.s1BaseN2GDv = constInfo.s1BaseSize * constInfo.n2GDv;
 
-        constInfo.mm1Ka = constInfo.n2Size * constInfo.gSize * constInfo.dSize;
+        constInfo.mm1Ka = constInfo.n2Size * constInfo.dSize;
         constInfo.mm1Kb = constInfo.n2Size * constInfo.dSize;
         constInfo.mm2Kb = constInfo.n2Dv;
         if ASCEND_IS_AIV {
@@ -280,7 +280,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     } else if constexpr (LAYOUT_T == SAS_LAYOUT::BSND) {
         // BSH/BSNGD
         constInfo.s1BaseN2GDv = constInfo.s1BaseSize * constInfo.n2GDv;
-        constInfo.mm1Ka = constInfo.n2Size * constInfo.gSize * constInfo.dSize;
+        constInfo.mm1Ka = constInfo.n2Size * constInfo.dSize;
         constInfo.mm1Kb = constInfo.n2Size * constInfo.dSize;
         constInfo.mm2Kb = constInfo.n2Dv;
         if ASCEND_IS_AIV {
@@ -494,11 +494,14 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
 {
     // ------------------------S1 Base Related---------------------------
     runInfo.s1RealSize = runParam.s1RealSize;
-    runInfo.s1RealSizeAlign32 = runParam.s1RealSizeAlign32;
     runInfo.halfS1RealSize = runParam.halfS1RealSize;
     runInfo.firstHalfS1RealSize = runParam.firstHalfS1RealSize;
+    runInfo.mRealSize = runParam.mRealSize;
+    runInfo.halfMRealSize = runParam.halfMRealSize;
+    runInfo.firstHalfMRealSize = runParam.firstHalfMRealSize;
 
     runInfo.vec2S1BaseSize = runInfo.halfS1RealSize;  // D>128 这里需要适配
+    runInfo.vec2MBaseSize = runInfo.halfMRealSize;
 
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = constInfo.s2BaseSize;
