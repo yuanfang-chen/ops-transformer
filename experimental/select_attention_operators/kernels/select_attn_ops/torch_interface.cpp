@@ -333,24 +333,10 @@ void quest_block_select_paged_in_out(at::Tensor query,
     auto aclStream = npuStream.stream();
 
     // launch the kernel
-    launch_quest_block_select_paged(
-        blockDims, nullptr, aclStream,
-        query_ptr,
-        maxblocks_ptr,
-        minblocks_ptr,
-        metadata_block_tables_ptr,
-        seq_lens_ptr,
-        selected_indices_ptr,
-        B,
-        N,
-        H,
-        BLOCK_SIZE,
-        D,
-        MMBPR,
-        num_meta_blocks,
+    launch_quest_block_select_paged(blockDims, nullptr, aclStream, query_ptr, maxblocks_ptr, minblocks_ptr,
+        metadata_block_tables_ptr, seq_lens_ptr, selected_indices_ptr, B, N, H, BLOCK_SIZE, D, MMBPR, num_meta_blocks,
         -1, // disable tokens_since_metadata_update feature
-        k_round,
-        use_bfloat16
+        k_round, use_bfloat16
     );
 }
 
