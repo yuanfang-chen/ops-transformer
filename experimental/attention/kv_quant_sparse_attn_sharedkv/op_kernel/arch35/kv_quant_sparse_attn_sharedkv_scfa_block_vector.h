@@ -417,7 +417,7 @@ __simd_vf__ void AntiquantVFImplFp8D448(__ubuf__ int8_t* ubSrcAddr, __ubuf__ Q_T
 template <typename Q_T, typename KV_T>
 __aicore__ inline void AntiquantVFFp8D448(LocalTensor<Q_T>& outputUb,  LocalTensor<KV_T>& inputUb,
                                    LocalTensor<float>& scaleUb, uint32_t dealRowCount) {
-    __ubuf__ int8_t* ubSrcAddr = (__ubuf__ int8_t*)(inputUb.GetPhyAddr());
+    __ubuf__ int8_t* ubSrcAddr = (__ubuf__ int8_t*)(inputUb[64 * sizeof(Q_T)].GetPhyAddr());
     __ubuf__ Q_T* ubDstAddr = (__ubuf__ Q_T*)(outputUb.GetPhyAddr());
     __ubuf__ float* ubScaleAddr = (__ubuf__ float*)(scaleUb.GetPhyAddr());
 
@@ -426,6 +426,7 @@ __aicore__ inline void AntiquantVFFp8D448(LocalTensor<Q_T>& outputUb,  LocalTens
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::DequantKv(int64_t mergeMte3Idx, int64_t dealRow)
 {
+    // srcTensor是rope(448) + nope(64) + scale + pad, dstTensor是nope(448) + rope(64)
     LocalTensor<KV_T> srcTensor = stage0InQue.DeQue<KV_T>();
     LocalTensor<Q_T> antiKvTensorAsB16 = stage0OutQue.AllocTensor<Q_T>();
     LocalTensor<float> floatScale = dequantScaleBuff_.Get<float>();
@@ -434,8 +435,8 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::DequantKv(int64_t mergeMte3I
     // DumpTensor(kvMergUb_, 20001, 1024);
     AntiquantVFFp8D448<Q_T, KV_T>(antiKvTensorAsB16, srcTensor, floatScale, dealRow);
 
-    LocalTensor<Q_T> kRopeUb = srcTensor[448].template ReinterpretCast<Q_T>();
-    LocalTensor<Q_T> kRopeUbNz = antiKvTensorAsB16[448 * (16 + 1)];
+    LocalTensor<Q_T> kRopeUb = srcTensor.template ReinterpretCast<Q_T>();
+    LocalTensor<Q_T> kRopeUbNz = antiKvTensorAsB16[constInfo_.dSizeNope * (16 + 1)];
 
     Copy(kRopeUbNz, kRopeUb,
         constInfo_.dSizeRope, // mask 处理多少列数据
@@ -529,13 +530,13 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessNotSparseKv(Buffer<Bu
         // todo 是否要计算前置偏移 s10Idx
         int64_t s2Idx = i * s2ProcessBaseSize + runInfo.s2LoopCount * constInfo_.s2BaseSize + runInfo.s2StartIdx;
         int64_t startGmOffset = GetKeyBNBOffset(s2Idx, runInfo, s2Idx + 1);
-        uint32_t combineBytes = 640;
+        uint32_t combineBytes = constInfo_.dSizeVInput;
         uint32_t combineDim = combineBytes / sizeof(KV_T);
         uint32_t combineDimAlign = CeilAlign(combineBytes, ConstInfo::BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
         DataCopyExtParams intriParams;
         intriParams.blockCount = s2ProcessSize;
         intriParams.blockLen = combineBytes;
-        intriParams.dstStride = 0; // d 640 = rope 64 * 2 + nope + scale + pad
+        intriParams.dstStride = 0;
         intriParams.srcStride = 0;
         DataCopyPadExtParams<KV_T> padParams;
         padParams.isPad = true;
