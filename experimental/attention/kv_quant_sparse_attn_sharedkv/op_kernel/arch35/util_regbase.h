@@ -183,14 +183,14 @@ struct RunInfo {
     uint32_t needInit; \
     uint32_t s1BaseSize; \
     uint32_t s2BaseSize; \
-    int64_t dSize; \
-    int64_t dSizeV; \
-    int64_t dSizeVInput; \
+    int64_t dSize; /* query d 512 */ \
+    int64_t dSizeV; /* key d 512 */ \
+    int64_t dSizeVInput; /* key inpue d 640 = rope + nope + scale + pad */ \
     int64_t dBasicBlock; \
-    int64_t dSizeNope; /* for v0 */ \
-    int64_t dSizeRope; \
-    int64_t tileSize; /* for v0 */ \
-    int64_t sparseMode = 3; /* for v0 */ \
+    int64_t dSizeNope; /* key nope d 448 */ \
+    int64_t dSizeRope; /* key rope d 64 */ \
+    int64_t tileSize; /* 64 */ \
+    int64_t sparseMode = 3; \
     int64_t gSize; /* g轴的大小 */ \
     int64_t n2Size; \
     int64_t s1Size; /* s1总大小 */ \
