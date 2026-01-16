@@ -45,8 +45,11 @@ public:
     static constexpr uint32_t vec1Srcstride = (s1BaseSize >> 1) + 1; 
     static constexpr uint32_t dVTemplateType = 512;
     static constexpr uint32_t dTemplateAlign64 = Align64Func((uint16_t)dVTemplateType);
+    static constexpr float R0 = 1.0f;
+    static constexpr uint64_t SYNC_SINKS_BUF_FLAG = 6;
 
     SasMetaData metadataVecLocal;
+    bool isSinks = false;
     // ==================== Functions ======================
     __aicore__ inline SCFABlockVec() {};
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
@@ -88,6 +91,7 @@ public:
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
         ConstInfo &constInfo);
+    __aicore__ inline void CopySinksIn(const LocalTensor<T>& maxTensor, int64_t sinksGmOffset ,uint32_t elementNum);
 
     using mm2ResPos = Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>;
     __aicore__ inline void ProcessVec2(mm2ResPos &bmm2ResBuf, RunInfo &runInfo,
@@ -114,7 +118,7 @@ public:
     GlobalTensor<int32_t> oriBlockTableGm;
     GlobalTensor<int32_t> cmpBlockTableGm;
     GlobalTensor<int32_t> blockTableGm_;
-    GlobalTensor<Q_T> sinksGm;
+    GlobalTensor<T> sinksGm;
     // __gm__ int64_t *actualSeqQlenAddr;
     // __gm__ int64_t *actualSeqKvlenAddr;
 
@@ -724,7 +728,10 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
 
     // TODO v0尾块填充-inf处理
-    if (runInfo.s2LoopCount == 0) {
+    // TODO runInfo.s2RealSize通过runInfo手动计算
+    // loopCount = 0 但传入sinks时走update分支，maxUb通过sinks初始化，sumUb初始化为1.0
+    isSinks = false; // TODO 先调试不带sinks
+    if (runInfo.s2LoopCount == 0 && !isSinks) {
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
@@ -739,6 +746,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
         }
     } else {
+        if (isSinks) {
+            // s1切1,vec0: 0 ~ vec0HalfRealSize - 1, vec1: gSize - runInfo.halfS1RealSize ~ gSize
+            int64_t sinksGmOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfS1RealSize;
+            CopySinksIn(maxUb, sinksGmOffset, runInfo.halfS1RealSize);
+            DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfS1RealSize);
+        }
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
@@ -775,6 +788,24 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
     if (runInfo.s2LoopCount != 0) {
         SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
     }
+}
+
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopySinksIn(const LocalTensor<T>& maxTensor, int64_t sinksGmOffset, uint32_t elementNum)
+{
+    DataCopyExtParams dataCopyParams;
+    dataCopyParams.blockCount = 1U;
+    dataCopyParams.blockLen = elementNum * sizeof(T);
+    dataCopyParams.srcStride = 0U;
+    dataCopyParams.dstStride = 0U;
+    DataCopyPadExtParams<T> padParams;
+    padParams.isPad = true;
+    padParams.leftPadding = 0;
+    padParams.rightPadding = CeilAlign(elementNum * sizeof(T), BLOCK_BYTE) / sizeof(T);
+    padParams.paddingValue = 0;
+    DataCopyPad(maxTensor, this->sinksGm[sinksGmOffset], dataCopyParams, padParams);
+    SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
+    WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -919,7 +950,8 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint
         actualSeqLengthsKVGm.SetGlobalBuffer((__gm__ int32_t *)sequsedKv);
     }
     if (sinks != nullptr) {
-        sinksGm.SetGlobalBuffer((__gm__ Q_T *)sinks);
+        sinksGm.SetGlobalBuffer((__gm__ T *)sinks);
+        this->isSinks = true;
     }
 }
 
