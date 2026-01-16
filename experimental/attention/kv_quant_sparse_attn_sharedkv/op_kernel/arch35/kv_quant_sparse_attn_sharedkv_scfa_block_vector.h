@@ -76,10 +76,13 @@ public:
     __aicore__ inline int64_t GetKeyBNBOffset(int64_t realS2Idx, const RunInfo &runInfo, int64_t s2IdLimit);
     __aicore__ inline void GetRealS2Idx(int64_t s2GmOffset, int64_t &realS2Idx, int64_t topkGmBaseOffset,
                                         const RunInfo &runInfo);
-    __aicore__ inline void CopyInKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx, int64_t realS2Idx1,
+    __aicore__ inline void CopyInKvNotSparse(LocalTensor<KV_T> kvMergUb, int64_t v0Loop, int64_t s2ProcessSize,
+        int64_t s2ProcessBaseSize, const RunInfo &runInfo);
+    __aicore__ inline void CopyInKvSparse(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx, int64_t realS2Idx1,
                                     int64_t realS2Idx2, const RunInfo &runInfo);
-    __aicore__ inline void DequantKv(int64_t mergeMte3Idx, int64_t dealRow);
-    __aicore__ inline void CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, int64_t s2Idx, int64_t dealRow);
+    __aicore__ inline void DequantKv(LocalTensor<Q_T> antiKvTensorAsB16, LocalTensor<KV_T> srcTensor, int64_t dealRow, int64_t s2ProcessBaseSize);
+    __aicore__ inline void CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+        LocalTensor<Q_T> antiKvTensorAsB16, int64_t v0Loop, int64_t dealRow, int64_t s2ProcessBaseSize);
     __aicore__ inline void CopyOutMrgeResult(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, int64_t mte2Size, int64_t mte3Size, int64_t s2StartGmOffset,
                                              int64_t mergeMte3Idx, const RunInfo &runInfo);
     __aicore__ inline void CopyInSingleKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx, int64_t realS2Idx,
@@ -249,7 +252,7 @@ SCFABlockVec<TEMPLATE_ARGS>::CopyInSingleKv(int64_t &mte2Size, int64_t mte3Size,
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx,
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvSparse(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx,
                                                           int64_t realS2Idx1, int64_t realS2Idx2,
                                                           const RunInfo &runInfo)
 {
@@ -424,11 +427,10 @@ __aicore__ inline void AntiquantVFFp8D448(LocalTensor<Q_T>& outputUb,  LocalTens
     AntiquantVFImplFp8D448<Q_T, KV_T>(ubSrcAddr, ubDstAddr, ubScaleAddr, dealRowCount);
 }
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::DequantKv(int64_t mergeMte3Idx, int64_t dealRow)
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::DequantKv(LocalTensor<Q_T> antiKvTensorAsB16,
+    LocalTensor<KV_T> srcTensor, int64_t dealRow, int64_t s2ProcessBaseSize)
 {
     // srcTensor是rope(448) + nope(64) + scale + pad, dstTensor是nope(448) + rope(64)
-    LocalTensor<KV_T> srcTensor = stage0InQue.DeQue<KV_T>();
-    LocalTensor<Q_T> antiKvTensorAsB16 = stage0OutQue.AllocTensor<Q_T>();
     LocalTensor<float> floatScale = dequantScaleBuff_.Get<float>();
     CastScale<Q_T, KV_T>(floatScale, srcTensor, dealRow);
     // PRINTF("dealrow is %d\n", dealRow);
@@ -449,18 +451,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::DequantKv(int64_t mergeMte3I
         });
 
     // DumpTensor(antiKvTensorAsB16, 20009, 1024);
-
-    stage0InQue.FreeTensor(srcTensor);
-
-    stage0OutQue.EnQue(antiKvTensorAsB16);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, 
-    int64_t s2Idx, int64_t dealRow)
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+    LocalTensor<Q_T> antiKvTensorAsB16, int64_t v0Loop, int64_t dealRow, int64_t s2ProcessBaseSize)
 {
-    LocalTensor<Q_T> antiKvTensorAsB16 = stage0OutQue.DeQue<Q_T>();
-
     uint64_t blockElementNum = 16;
     DataCopyParams dataCopyParams;
     dataCopyParams.blockCount = (constInfo_.dSizeNope + constInfo_.dSizeRope) / blockElementNum;
@@ -469,8 +465,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutKvUb2L1(Buffer<Buffer
     dataCopyParams.dstGap = constInfo_.s2BaseSize - dealRow;
 
     LocalTensor<Q_T> dst = outputL1.GetTensor<Q_T>();
-    DataCopy(dst[s2Idx * blockElementNum], antiKvTensorAsB16, dataCopyParams);
-    stage0OutQue.FreeTensor(antiKvTensorAsB16);
+    DataCopy(dst[v0Loop * s2ProcessBaseSize * blockElementNum], antiKvTensorAsB16, dataCopyParams);
     
     // keyGm_
     // Nd2NzParams nd2nzPara;
@@ -509,83 +504,87 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutMrgeResult(Buffer<Buf
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessNotSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo)
 {
-    // copy gm to ub, deal page attention
-    // PRINTF("sInner is %d\n", runInfo.s2RealSize);
-    // todo:拷入
-    outputL1.WaitCrossCore();
-
     int64_t s2ProcessBaseSize = 16;
     int64_t s2ProcessSize = s2ProcessBaseSize;
-    int64_t mergeMte3Idx = 0;
-    int64_t s2GmStartOffset = GetSubBlockIdx() == 0 ? 0 : 0;
     int64_t s2V0LoopTimes = (runInfo.s2RealSize + s2ProcessBaseSize - 1) / s2ProcessBaseSize;
     int64_t s2Tail = runInfo.s2RealSize - (s2V0LoopTimes - 1) * s2ProcessBaseSize;
     for (uint32_t i = 0; i < s2V0LoopTimes; i++) {
         if (i == s2V0LoopTimes - 1) {
             s2ProcessSize = s2Tail;
         }
+        // 1、copy kv in, gm ->ub
+        LocalTensor<KV_T> kvInUb = stage0InQue.AllocTensor<KV_T>();
+        CopyInKvNotSparse(kvInUb, i, s2ProcessSize, s2ProcessBaseSize, runInfo);
+        stage0InQue.EnQue(kvInUb);
+        kvInUb = stage0InQue.DeQue<KV_T>();
 
-        LocalTensor<KV_T> kvMergUb = stage0InQue.AllocTensor<KV_T>();
+        // 2、dequant by vf
+        LocalTensor<Q_T> kvDequantOutUb = stage0OutQue.AllocTensor<Q_T>();
+        DequantKv(kvDequantOutUb, kvInUb, s2ProcessSize, s2ProcessBaseSize);
+        stage0InQue.FreeTensor(kvInUb);
+        stage0OutQue.EnQue(kvDequantOutUb);
+        kvDequantOutUb = stage0OutQue.DeQue<Q_T>();
 
-        // todo 是否要计算前置偏移 s10Idx
-        int64_t s2Idx = i * s2ProcessBaseSize + runInfo.s2LoopCount * constInfo_.s2BaseSize + runInfo.s2StartIdx;
-        int64_t startGmOffset = GetKeyBNBOffset(s2Idx, runInfo, s2Idx + 1);
-        uint32_t combineBytes = constInfo_.dSizeVInput;
-        uint32_t combineDim = combineBytes / sizeof(KV_T);
-        uint32_t combineDimAlign = CeilAlign(combineBytes, ConstInfo::BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
-        DataCopyExtParams intriParams;
-        intriParams.blockCount = s2ProcessSize;
-        intriParams.blockLen = combineBytes;
-        intriParams.dstStride = 0;
-        intriParams.srcStride = 0;
-        DataCopyPadExtParams<KV_T> padParams;
-        padParams.isPad = true;
-        padParams.leftPadding = 0;
-        padParams.rightPadding = combineDimAlign - combineDim;
-        padParams.paddingValue = 0;
-        if constexpr (isPa) {
-            // PRINTF("PAGE_ATTENTION=====\n");
-            uint64_t blockTableBaseOffset = runInfo.boIdx * constInfo_.maxBlockNumPerBatch;
-            uint64_t dstOffset = 0;
-            uint32_t copyFinishElmenCnt = 0;
-            // uint32_t curSequence = runInfo.s2BatchOffset;
-            uint32_t curSequence = s2Idx;
-            while (copyFinishElmenCnt < s2ProcessSize) {
-                // PRINTF("copyFinishElmenCnt(%d) < s2ProcessSize(%d)\n", copyFinishElmenCnt, s2ProcessSize);
-                uint64_t blockIdOffset = curSequence / constInfo_.blockSize;
-                uint64_t remainElmenCnt = curSequence % constInfo_.blockSize;
-                uint64_t idInBlockTable = blockTableGm_.GetValue(blockTableBaseOffset + blockIdOffset);
-                uint32_t copyElmenCnt = constInfo_.blockSize - remainElmenCnt;
-                if (copyElmenCnt + copyFinishElmenCnt > s2ProcessSize) {
-                    copyElmenCnt = s2ProcessSize - copyFinishElmenCnt;
-                }
-                uint64_t srcOffset = idInBlockTable * constInfo_.blockSize * constInfo_.n2Size * combineBytes +
-                    remainElmenCnt * constInfo_.n2Size * combineBytes + (uint64_t)(runInfo.n2oIdx * combineBytes); // BlockNum, BlockSize, N, D
-                intriParams.blockCount = copyElmenCnt; // base s2 size
-                DataCopyPad(kvMergUb[dstOffset * combineDimAlign], keyGm_[srcOffset], intriParams, padParams);
-                dstOffset += copyElmenCnt;
-                copyFinishElmenCnt += copyElmenCnt;
-                curSequence += copyElmenCnt;
-            }
-        } else {
-            DataCopyPad(kvMergUb[mergeMte3Idx % 2 * INPUT1_BUFFER_OFFSET / sizeof(KV_T)], keyGm_[startGmOffset * combineDim], intriParams, padParams);
-        }
-
-        stage0InQue.EnQue(kvMergUb);
-
-        // todo dequant and copy ub to l1
-        int32_t dealRow = s2ProcessSize;
-        DequantKv(mergeMte3Idx, dealRow);
-        mergeMte3Idx++;
-        CopyOutKvUb2L1(outputL1, i * s2ProcessBaseSize, dealRow);
+        // 3、copy kv out, ub -> l1
+        CopyOutKvUb2L1(outputL1, kvDequantOutUb, i, s2ProcessSize, s2ProcessBaseSize);
+        stage0OutQue.FreeTensor(kvDequantOutUb);
     }
-    outputL1.SetCrossCore();
+}
+
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTensor<KV_T> kvMergUb, int64_t v0Loop,
+    int64_t s2ProcessSize, int64_t s2ProcessBaseSize, const RunInfo &runInfo)
+{
+    int64_t s2GmStartOffset = GetSubBlockIdx() == 0 ? 0 : 0;
+    // todo 是否要计算前置偏移 s10Idx
+    int64_t s2Idx = v0Loop * s2ProcessBaseSize + runInfo.s2LoopCount * constInfo_.s2BaseSize + runInfo.s2StartIdx;
+    uint32_t combineBytes = constInfo_.dSizeVInput;
+    uint32_t combineDim = combineBytes / sizeof(KV_T);
+    uint32_t combineDimAlign = CeilAlign(combineBytes, ConstInfo::BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
+    DataCopyExtParams intriParams;
+    intriParams.blockCount = s2ProcessSize;
+    intriParams.blockLen = combineBytes;
+    intriParams.dstStride = 0;
+    intriParams.srcStride = 0;
+    DataCopyPadExtParams<KV_T> padParams;
+    padParams.isPad = true;
+    padParams.leftPadding = 0;
+    padParams.rightPadding = combineDimAlign - combineDim;
+    padParams.paddingValue = 0;
+    if constexpr (isPa) {
+        // PRINTF("PAGE_ATTENTION=====\n");
+        uint64_t blockTableBaseOffset = runInfo.boIdx * constInfo_.maxBlockNumPerBatch;
+        uint64_t dstOffset = 0;
+        uint32_t copyFinishElmenCnt = 0;
+        // uint32_t curSequence = runInfo.s2BatchOffset;
+        uint32_t curSequence = s2Idx;
+        while (copyFinishElmenCnt < s2ProcessSize) {
+            // PRINTF("copyFinishElmenCnt(%d) < s2ProcessSize(%d)\n", copyFinishElmenCnt, s2ProcessSize);
+            uint64_t blockIdOffset = curSequence / constInfo_.blockSize;
+            uint64_t remainElmenCnt = curSequence % constInfo_.blockSize;
+            uint64_t idInBlockTable = blockTableGm_.GetValue(blockTableBaseOffset + blockIdOffset);
+            uint32_t copyElmenCnt = constInfo_.blockSize - remainElmenCnt;
+            if (copyElmenCnt + copyFinishElmenCnt > s2ProcessSize) {
+                copyElmenCnt = s2ProcessSize - copyFinishElmenCnt;
+            }
+            uint64_t srcOffset = idInBlockTable * constInfo_.blockSize * constInfo_.n2Size * combineBytes +
+                remainElmenCnt * constInfo_.n2Size * combineBytes + (uint64_t)(runInfo.n2oIdx * combineBytes); // BlockNum, BlockSize, N, D
+            intriParams.blockCount = copyElmenCnt; // base s2 size
+            DataCopyPad(kvMergUb[dstOffset * combineDimAlign], keyGm_[srcOffset], intriParams, padParams);
+            dstOffset += copyElmenCnt;
+            copyFinishElmenCnt += copyElmenCnt;
+            curSequence += copyElmenCnt;
+        }
+    } else {
+        DataCopyPad(kvMergUb, keyGm_[s2Idx * combineDim], intriParams, padParams);
+    }
 }
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo)
 {
+    outputL1.WaitCrossCore(); // 核间同步
     bool isCmp = runInfo.s2LoopCount > runInfo.oriKvLoopEndIdx; // todo:判断条件确认开闭
     isCmp = false;
     if (isCmp) {
@@ -602,6 +601,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
     } else {
         ProcessNotSparseKv(outputL1, runInfo);
     }
+    outputL1.SetCrossCore(); // 核间同步
 }
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo)
@@ -649,7 +649,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessSparseKv(Buffer<Buffe
             break;
         }
         GetRealS2Idx(s2GmOffsetArray + constInfo_.sparseBlockSize, s2IdxArray1, topkGmBaseOffset, runInfo);
-        CopyInKv(mte2Size, mte3Size, mergeMte3Idx, s2IdxArray0, s2IdxArray1, runInfo);
+        CopyInKvSparse(mte2Size, mte3Size, mergeMte3Idx, s2IdxArray0, s2IdxArray1, runInfo);
         if ((mte2Size - mte3Size + 2 * constInfo_.sparseBlockSize > 32) ||
             s2GmOffsetArray + 2 * constInfo_.sparseBlockSize >= s2GmLimit) {
             CopyOutMrgeResult(outputL1, mte2Size, mte3Size, s2GmStartOffset, mergeMte3Idx, runInfo);
