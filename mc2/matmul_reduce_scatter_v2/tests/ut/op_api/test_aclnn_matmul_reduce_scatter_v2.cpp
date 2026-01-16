@@ -22,7 +22,11 @@ namespace {
 
 class MatmulReduceScatterV2AclnnTest : public testing::Test {
 protected:
-    static void SetUpTestCase()	{ cout << "MatmulReduceScatterV2AclnnTest SetUp" << endl; }
+    static void SetUpTestCase()
+    {
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+        cout << "MatmulReduceScatterV2AclnnTest SetUp" << endl;
+    }
     static void TearDownTestCase() { cout << "MatmulReduceScatterV2AclnnTest TearDown" << endl; }
 };
 
@@ -35,11 +39,10 @@ TEST_F(MatmulReduceScatterV2AclnnTest, basic)
     TensorDesc x2_scale = TensorDesc({256, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc quant_scale = TensorDesc({32}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc output = TensorDesc({16, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc amaxOut = TensorDesc({16, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
     auto ut = OP_API_UT(
         aclnnMatmulReduceScatterV2,
         INPUT(x1, x2, bias, x1_scale, x2_scale, quant_scale, 0, "test_group", "sum", 8, 1, 0, "aicpu"),
-        OUTPUT(output, amaxOut)
+        OUTPUT(output, nullptr)
     );
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
@@ -56,11 +59,10 @@ TEST_F(MatmulReduceScatterV2AclnnTest, basic2)
     TensorDesc x2_scale = TensorDesc({32, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc quant_scale = TensorDesc({32}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc output = TensorDesc({16, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc amaxOut = TensorDesc({16, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
     auto ut = OP_API_UT(
         aclnnMatmulReduceScatterV2,
         INPUT(x1, x2, bias, x1_scale, x2_scale, quant_scale, 0, "test_group", "sum", 8, 1, 0, "aicpu"),
-        OUTPUT(output, amaxOut)
+        OUTPUT(output, nullptr)
     );
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
@@ -77,11 +79,10 @@ TEST_F(MatmulReduceScatterV2AclnnTest, 3scale)
     TensorDesc x2_scale = TensorDesc({32, 16, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc quant_scale = TensorDesc({32}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc output = TensorDesc({16, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
-    TensorDesc amaxOut = TensorDesc({16, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
     auto ut = OP_API_UT(
         aclnnMatmulReduceScatterV2,
         INPUT(x1, x2, bias, x1_scale, x2_scale, quant_scale, 0, "test_group", "sum", 8, 1, 0, "aicpu"),
-        OUTPUT(output, amaxOut)
+        OUTPUT(output, nullptr)
     );
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
