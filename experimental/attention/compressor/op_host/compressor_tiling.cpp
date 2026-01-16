@@ -27,6 +27,82 @@ using namespace ge;
 using namespace AscendC;
 namespace optiling {
 
+static const std::string X_NAME = "query";
+static const std::string WKV_NAME = "key";
+static const std::string WGATE_NAME = "value";
+static const std::string KV_STATE_NAME = "sparse_indices";
+static const std::string SCORE_STATE_NAME = "block_table";
+static const std::string APE_NAME = "ape";
+static const std::string NORM_WEIGHT_NAME = "norm_weight";
+static const std::string ROPE_SIN_NAME = "rope_sin";
+static const std::string ROPE_COS_NAME = "rope_cos";
+static const std::string KV_BLOCK_TABLE_NAME = "kv_block_table";
+static const std::string SCORE_BLOCK_TABL_NAME = "score_block_table";
+static const std::string CU_SEQLENS_NAME = "cu_seqlens";
+static const std::string SEQUSED_NAME = "seq_used";
+static const std::string STARTS_POS_NAME = "starts_pos";
+static const std::string ROPE_HEAD_DIM_NAME = "rope_head_dim";
+static const std::string CMP_RATIO_NAME = "cmp_ratio";
+static const std::string COFF_NAME = "coff";
+static const std::string NORM_EPS_NAME = "nrom_eps";
+static const std::string ROTARY_MODE_NAME = "rotary_mode";
+static const std::string CMP_KV_NAME = "cmp_kv";
+std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
+    {X_NAME,                {ge::DT_BF16, ge::DT_FLOAT16}},
+    {WKV_NAME,              {ge::DT_BF16, ge::DT_FLOAT16}},
+    {WGATE_NAME,            {ge::DT_BF16, ge::DT_FLOAT16}},
+    {KV_STATE_NAME,         {ge::DT_FLOAT32}},
+    {SCORE_STATE_NAME,      {ge::DT_FLOAT32}},
+    {APE_NAME,              {ge::DT_FLOAT32}},
+    {NORM_WEIGHT_NAME,      {ge::DT_BF16, ge::DT_FLOAT16}},
+    {ROPE_SIN_NAME,         {ge::DT_BF16, ge::DT_FLOAT16}},
+    {ROPE_COS_NAME,         {ge::DT_BF16, ge::DT_FLOAT16}},
+    {KV_BLOCK_TABLE_NAME,   {ge::DT_INT32}},
+    {SCORE_BLOCK_TABL_NAME, {ge::DT_INT32}},
+    {CU_SEQLENS_NAME,       {ge::DT_INT32}},
+    {SEQUSED_NAME,          {ge::DT_INT32}},
+    {STARTS_POS_NAME,       {ge::DT_INT32}},
+    {CMP_KV_NAME,           {ge::DT_BF16, ge::DT_FLOAT16}}
+};
+static const std::map<std::string, uint32_t> LAYOUT_DIM_MAP = {
+    {"BSH", COMPRESSOR_DIM_NUM_3},
+    {"TH", COMPRESSOR_DIM_NUM_2},
+};
+const std::map<ge::DataType, std::string> DATATYPE_TO_STRING_MAP = {
+    {ge::DT_UNDEFINED, "DT_UNDEFINED"},           // Used to indicate a DataType field has not been set.
+    {ge::DT_FLOAT, "DT_FLOAT"},                   // float type
+    {ge::DT_FLOAT16, "DT_FLOAT16"},               // fp16 type
+    {ge::DT_INT8, "DT_INT8"},                     // int8 type
+    {ge::DT_INT16, "DT_INT16"},                   // int16 type
+    {ge::DT_UINT16, "DT_UINT16"},                 // uint16 type
+    {ge::DT_UINT8, "DT_UINT8"},                   // uint8 type
+    {ge::DT_INT32, "DT_INT32"},                   // uint32 type
+    {ge::DT_INT64, "DT_INT64"},                   // int64 type
+    {ge::DT_UINT32, "DT_UINT32"},                 // unsigned int32
+    {ge::DT_UINT64, "DT_UINT64"},                 // unsigned int64
+    {ge::DT_BOOL, "DT_BOOL"},                     // bool type
+    {ge::DT_DOUBLE, "DT_DOUBLE"},                 // double type
+    {ge::DT_DUAL, "DT_DUAL"},                     // dual output type
+    {ge::DT_DUAL_SUB_INT8, "DT_DUAL_SUB_INT8"},   // dual output int8 type
+    {ge::DT_DUAL_SUB_UINT8, "DT_DUAL_SUB_UINT8"}, // dual output uint8 type
+    {ge::DT_COMPLEX32, "DT_COMPLEX32"},           // complex32 type
+    {ge::DT_COMPLEX64, "DT_COMPLEX64"},           // complex64 type
+    {ge::DT_COMPLEX128, "DT_COMPLEX128"},         // complex128 type
+    {ge::DT_QINT8, "DT_QINT8"},                   // qint8 type
+    {ge::DT_QINT16, "DT_QINT16"},                 // qint16 type
+    {ge::DT_QINT32, "DT_QINT32"},                 // qint32 type
+    {ge::DT_QUINT8, "DT_QUINT8"},                 // quint8 type
+    {ge::DT_QUINT16, "DT_QUINT16"},               // quint16 type
+    {ge::DT_RESOURCE, "DT_RESOURCE"},             // resource type
+    {ge::DT_STRING_REF, "DT_STRING_REF"},         // string ref type
+    {ge::DT_STRING, "DT_STRING"},                 // string type
+    {ge::DT_VARIANT, "DT_VARIANT"},               // dt_variant type
+    {ge::DT_BF16, "DT_BFLOAT16"},                 // dt_bfloat16 type
+    {ge::DT_INT4, "DT_INT4"},                     // dt_variant type
+    {ge::DT_UINT1, "DT_UINT1"},                   // dt_variant type
+    {ge::DT_INT2, "DT_INT2"},                     // dt_variant type
+    {ge::DT_UINT2, "DT_UINT2"}                    // dt_variant type
+};
 
 void CompressorTiling::ConvertRequiredParams(gert::TilingContext &context, CompressorContext &compressorContext)
 {
@@ -51,6 +127,14 @@ void CompressorTiling::ConvertRequiredParams(gert::TilingContext &context, Compr
 
     compressorContext.cmpKv.desc = context.GetOutputDesc(CMP_KV_OUTPUT_INDEX);
     compressorContext.cmpKv.shape = context.GetOutputShape(CMP_KV_OUTPUT_INDEX);
+    
+    compressorContext.dtype = compressorContext.x.desc->GetDataType();
+    auto xDimNum = compressorContext.shape->GetStorageShape().GetDimNum();
+    if (xDimNum == COMPRESSOR_DIM_NUM_3) {
+        compressorContext.layout = "BSH";
+    } else if (xDimNum == COMPRESSOR_DIM_NUM_2) {
+        compressorContext.layout = "TH";
+    }
 }
 
 void CompressorTiling::ConvertOptionalParams(gert::TilingContext &context, CompressorContext &compressorContext)
@@ -126,7 +210,7 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
         baseParams_->hiddenSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_2);
         baseParams_->tokenSize = baseParams_->batchSize * baseParams_->seqSize;
     } else {
-        baseParams_->batchSize = context_->blockTable.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
+        baseParams_->batchSize = context_->cuSeqlens.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) - 1;
         baseParams_->tokenSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
         baseParams_->hiddenSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
     }
@@ -134,7 +218,7 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
     baseParams_->headDim = context_->normWeight.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
     baseParams_->cmpRatio = static_cast<uint32_t>(*context_->cmpRatio);
     baseParams_->csSize = baseParams_->seqSize - (baseParams_->seqSize %  baseParams_->cmpRatio);
-    baseParams_->cgSize = baseParams_->seqSize / baseParams_->cmpRatio;
+    baseParams_->cgSize = (baseParams_->seqSize + baseParams_->cmpRatio - 1) / baseParams_->cmpRatio;
     baseParams_->ropeHeadDim = static_cast<uint32_t>(*context_->ropeHeadDim);
     baseParams_->normEps = static_cast<float>(*context_->normEps);
     baseParams_->reciprocalD = 1.0 / baseParams_->headDim;
@@ -202,21 +286,23 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorContext &context, CompressorTilingData* tilingData)
+ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilingData)
 {
-    this->context_ = &context;
     this->baseParams_ = &tilingData->baseParams;
     this->pageAttentionParams_ = &tilingData->pageAttentionParams;
     this->outerSplitParams_ = &tilingData->outerSplitParams;
     this->innerSplitParams_ = &tilingData->innerSplitParams;
     this->workspaceParams_ = &tilingData->workspaceParams;
     
-
     using StatusFunction = std::function<ge::graphStatus()>;
     std::vector<StatusFunction> requiredTilingFuncs {
+        std::bind(&CompressorTiling::CheckRequiredParaExistence, this),
+        std::bind(&CompressorTiling::CheckSinglePara, this),
         std::bind(&CompressorTiling::GetNpuInfo, this),
         std::bind(&CompressorTiling::SetBaseInfo, this),
         std::bind(&CompressorTiling::SetPageAttentionInfo, this),
+        std::bind(&CompressorTiling::CheckFeature, this),
+        std::bind(&CompressorTiling::CheckMultiParaConsistency, this),
         std::bind(&CompressorTiling::SetInnerSplitInfo, this),
         std::bind(&CompressorTiling::SetWorkSpaceInfo, this),
         std::bind(&CompressorTiling::SetScenarioInfo, this),
@@ -282,6 +368,486 @@ ge::graphStatus CompressorTiling::GenTilingKey() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus CompressorTiling::CheckSinglePara() const
+{
+
+    if (ge::GRAPH_SUCCESS != CheckSingleParaX() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaWkv() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaWgate() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaKvState() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaScoreState() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaApe() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaNormWeight() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaRopeSin() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaRopeCos() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaKvBlockTable() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaScoreBlockTable() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaCuSeqlens() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaSeqused() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaStartPos() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaCmpKv() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaRopeHeadDim() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaCmpRatio() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaCoff() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaNormEps() ||
+        ge::GRAPH_SUCCESS != CheckSingleParaRotaryMode()) {
+        return ge::GRAPH_FAILED;
+    }
+}
+
+template <typename T>
+ge::graphStatus CompressorTiling::CheckFeatureValueSupport(const T *featureValue,
+    const std::vector<T> &expectFeatureValList, const std::string &name) const
+{
+    if (std::find(expectFeatureValList.begin(), expectFeatureValList.end(), *featureValue) == expectFeatureValList.end()) {
+        LogErrorNumberSupport(expectFeatureValList, *featureValue, name, "feature value");
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+template <typename T>
+ge::graphStatus CompressorTiling::CheckAttrValueSupport(const T *attrValue,
+    const std::vector<T> &expectAttrValList, const std::string &name) const
+{
+    if (attrValue == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
+
+    if (std::find(expectAttrValList.begin(), expectAttrValList.end(), *attrValue) == expectAttrValList.end()) {
+        LogErrorNumberSupport(expectAttrValList, *attrValue, name, "attr value");
+        return ge::GRAPH_FAILED;
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
+template <typename T>
+void CompressorTiling::LogErrorNumberSupport(const std::vector<T> &expectNumberList,
+    const T &actualValue, const std::string &name, const std::string subName) const
+{
+    std::ostringstream oss;
+    for (size_t i = 0; i < expectNumberList.size(); ++i) {
+        oss << std::to_string(expectNumberList[i]);
+        if (i < expectNumberList.size() - 1) {
+            oss << ", ";
+        }
+    }
+
+    OP_LOGE("Compressor", "%s %s only supports %s, but got %s",
+              name.c_str(), subName.c_str(), oss.str().c_str(), std::to_string(actualValue).c_str());
+}
+
+ge::graphStatus CompressorTiling::CheckDimNumInLayoutSupport(const std::string &layout, const gert::StorageShape *shape,
+                                                             const std::string &name) const
+{
+    const auto& dimIt = LAYOUT_DIM_MAP.find(layout);
+    OP_CHECK_IF(shape->GetStorageShape().GetDimNum() != dimIt->second,
+        OP_LOGE("Compressor", "When layout is %s, %s dimension should be %zu, but it's %zu",
+            layout.c_str(), name.c_str(), dimIt->second,
+            shape->GetStorageShape().GetDimNum()),
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc,
+                                                   const std::string &name) const
+{
+    if (desc != nullptr) {
+        const auto &it = DTYPE_SUPPORT_MAP.find(name);
+        OP_CHECK_IF(it == DTYPE_SUPPORT_MAP.end(),
+                    OP_LOGE("Compressor", "%s datatype support list should be specify in DTYPE_SUPPORT_MAP", name.c_str()),
+                    return ge::GRAPH_FAILED);
+        auto &expectDtypeList = it->second;
+        OP_CHECK_IF(std::find(expectDtypeList.begin(), expectDtypeList.end(), desc->GetDataType()) ==
+                        expectDtypeList.end(),
+                    LogErrorDtypeSupport(expectDtypeList, desc->GetDataType(), name), return ge::GRAPH_FAILED);
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+void CompressorTiling::LogErrorDtypeSupport(const std::vector<ge::DataType> &expectDtypeList,
+                                            const ge::DataType &actualDtype, const std::string &name) const
+{
+    std::ostringstream oss;
+    for (size_t i = 0; i < expectDtypeList.size(); ++i) {
+        oss << QSFADataTypeToSerialString(expectDtypeList[i]);
+        if (i < expectDtypeList.size() - 1) {
+            oss << ", ";
+        }
+    }
+    OP_LOGE("Compressor", "Tensor %s only supports dtype %s, but got %s", name.c_str(), oss.str().c_str(),
+            QSFADataTypeToSerialString(actualDtype).c_str());
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaX() const
+{
+    const std::vector<uint32_t> xDimNumList = {COMPRESSOR_DIM_NUM_2, COMPRESSOR_DIM_NUM_3};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->x.desc, X_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->x.shape, xDimNumList, X_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(context_->layout, context_->x.shape, X_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaWkv() const
+{
+    const std::vector<uint32_t> wkvDimNumList = {COMPRESSOR_DIM_NUM_2};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->wkv.desc, WKV_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->wkv.shape, wkvDimNumList, WKV_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaWgate() const
+{
+    const std::vector<uint32_t> wgateDimNumList = {COMPRESSOR_DIM_NUM_2};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->wgate.desc, WGATE_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->wgate.shape, wgateDimNumList, WGATE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaKvState() const
+{
+    const std::vector<uint32_t> kvStateDimNumList = {COMPRESSOR_DIM_NUM_3};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->kvState.desc, KV_STATE_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->kvState.shape, kvStateDimNumList, KV_STATE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaScoreState() const
+{
+    const std::vector<uint32_t> scoreStateDimNumList = {COMPRESSOR_DIM_NUM_3};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->scoreState.desc, SCORE_STATE_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->scoreState.shape, scoreStateDimNumList, SCORE_STATE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaApe() const
+{
+    const std::vector<uint32_t> apeDimNumList = {COMPRESSOR_DIM_NUM_2};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->ape.desc, APE_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->ape.shape, apeDimNumList, APE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaNormWeight() const
+{
+    const std::vector<uint32_t> normWeightDimNumList = {COMPRESSOR_DIM_NUM_1};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->normWeight.desc, NORM_WEIGHT_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->normWeight.shape, normWeightDimNumList, NORM_WEIGHT_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaRopeSin() const
+{
+    std::vector<uint32_t> ropeSinDimNumList = {};
+    if (context_->layout == "BSH") {
+        ropeSinDimNumList = {COMPRESSOR_DIM_NUM_3};
+    } else {
+        ropeSinDimNumList = {COMPRESSOR_DIM_NUM_2};
+    }
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->ropeSin.desc, ROPE_SIN_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->ropeSin.shape, ropeSinDimNumList, ROPE_SIN_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(context_->layout, context_->ropeSin.shape, ROPE_SIN_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaRopeCos() const
+{
+    std::vector<uint32_t> ropeCosDimNumList = {};
+    if (context_->layout == "BSH") {
+        ropeCosDimNumList = {COMPRESSOR_DIM_NUM_3};
+    } else {
+        ropeCosDimNumList = {COMPRESSOR_DIM_NUM_2};
+    }
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->ropeCos.desc, ROPE_COS_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->ropeCos.shape, ropeCosDimNumList, ROPE_COS_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(context_->layout, context_->ropeCos.shape, ROPE_COS_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaKvBlockTable() const
+{
+    if (context_->kvBlockTable.desc == nullptr){
+        return ge::GRAPH_SUCCESS;
+    }
+    const std::vector<uint32_t> kvBlockTableDimNumList = {COMPRESSOR_DIM_NUM_2};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->kvBlockTable.desc, KV_BLOCK_TABLE_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->kvBlockTable.shape, kvBlockTableDimNumList, KV_BLOCK_TABLE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaScoreBlockTable() const
+{
+    if (context_->scoreBlockTable.desc == nullptr){
+        return ge::GRAPH_SUCCESS;
+    }
+    const std::vector<uint32_t> scoreBlockTableDimNumList = {COMPRESSOR_DIM_NUM_2};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->scoreBlockTable.desc, SCORE_BLOCK_TABLE_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->scoreBlockTable.shape, scoreBlockTableDimNumList, SCORE_BLOCK_TABLE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaCuSeqlens() const
+{
+    if (context_->cuSeqlens.desc == nullptr){
+        return ge::GRAPH_SUCCESS;
+    }
+    const std::vector<uint32_t> cuSeqlensDimNumList = {COMPRESSOR_DIM_NUM_1};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->cuSeqlens.desc, CU_SEQLENS_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->cuSeqlens.shape, cuSeqlensDimNumList, CU_SEQLENS_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaSeqused() const
+{
+    if (context_->seqUsed.desc == nullptr){
+        return ge::GRAPH_SUCCESS;
+    }
+    const std::vector<uint32_t> seqUsedDimNumList = {COMPRESSOR_DIM_NUM_1};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->seqUsed.desc, SEQUSED_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->seqUsed.shape, seqUsedDimNumList, SEQUSED_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaStartPos() const
+{
+    if (context_->startPos.desc == nullptr){
+        return ge::GRAPH_SUCCESS;
+    }
+    const std::vector<uint32_t> startPosDimNumList = {COMPRESSOR_DIM_NUM_1};
+    if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->startPos.desc, START_POS_NAME) ||
+        ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->startPos.shape, startPosDimNumList, START_POS_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaRopeHeadDim()const
+{
+    if (ge::graphStatus CompressorTiling::CheckAttrValueSupport(context_->ropeHeadDim, ROPE_HEAD_DIM, ROPE_HEAD_DIM_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaCmpRatio()const
+{
+    if (ge::graphStatus CompressorTiling::CheckAttrValueSupport(context_->cmpRatio, CMP_RATIO, CMP_RATIO_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaCoff()const
+{
+    if (ge::graphStatus CompressorTiling::CheckAttrValueSupport(context_->coff, COFF, COFF_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaNormEps()const
+{
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckSingleParaRotaryMode()const
+{
+    if (ge::GRAPH_SUCCESS != CheckAttrValueSupport(context_->rotaryMode, ROTARY_MODE, ROTARY_MODE_NAME)) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckRequiredParaExistence() const
+{
+    if (CheckRequiredInOutExistence() != ge::GRAPH_SUCCESS || CheckRequiredAttrExistence() != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckRequiredInOutExistence() const
+{
+    OP_CHECK_IF(context_->x.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor x is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->x.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor x is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wkv.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor wkv is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wkv.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor wkv is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wgate.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor wgate is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wgate.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor wgate is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->kvState.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor kvState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->kvState.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor kvState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreState.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor scoreState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreState.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor scoreState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ape.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor ape is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ape.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor ape is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->normWeight.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor normWeight is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->normWeight.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor normWeight is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeSin.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor ropeSin is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeSin.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor ropeSin is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeCos.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor ropeCos is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeCos.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor ropeCos is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->cmpKv.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->cmpKv.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
+    if (context_->layout == "BSH"){
+        OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
+        OP_LOGE("Compressor", "In BSH situation, desc of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
+        OP_LOGE("Compressor", "In BSH situation, shape of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckRequiredAttrExistence() const
+{
+    OP_CHECK_IF(context_->ropeHeadDim == nullptr, OP_LOGE("Compressor", "attr ropeHeadDim is nullptr"),
+               return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(context_->cmpRatio == nullptr, OP_LOGE("Compressor", "attr cmpRatio is nullptr"),
+               return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckFeature() const
+{
+    CheckFeatureValueSupport(baseParams_->batchSize, HEAD_DIM, "headDim");
+    OP_CHECK_IF(baseParams_->hiddenSize > MAX_HIDDEN_SIZE || baseParams_->hiddenSize < MIN_HIDDEN_SIZE ||
+                    baseParams_->hiddenSize % ALIGN_FACTOR_HIDDEN_SIZE != 0,
+                OP_LOGE("Compressor", "hiddenSize should be whthin [1k, 10k] and be 512-aligned"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(pageAttentionParams_->blockSize > MAX_BLOCK_SIZE || pageAttentionParams_->blockSize < MIN_BLOCK_SIZE ||
+                    pageAttentionParams_->blockSize % ALIGN_FACTOR_BLOCK_SIZE_SIZE != 0,
+                OP_LOGE("Compressor", "blockSize should be whthin [16, 1024] and be 16-aligned"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckShapeConsistency() const
+{
+    if (CheckShapeConsistencyRope() != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    auto coffD = coff * baseParams_->headDim;
+    OP_CHECK_IF(context_->kvBlockTable.shape != nullptr && 
+                context_->kvBlockTable.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
+                OP_LOGE("Compressor", "kvBlockTable shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreBlockTable.shape != nullptr &&
+                context_->scoreBlockTable.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
+                OP_LOGE("Compressor", "scoreBlockTable shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->cuSeqlens.shape != nullptr && 
+                context_->cuSeqlens.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != (baseParams_->batchSize + 1),
+                OP_LOGE("Compressor", "cuSeqlens shape dim 0 should be equal to batchSize + 1"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->seqUsed.shape != nullptr && 
+                context_->seqUsed.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
+                OP_LOGE("Compressor", "seqUsed shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->startPos.shape != nullptr && 
+                context_->startPos.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
+                OP_LOGE("Compressor", "startPos shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wkv.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != baseParams_->hiddenSize,
+                OP_LOGE("Compressor", "wkv shape dim 1 should be equal to hiddenSize"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wgate.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != baseParams_->hiddenSize,
+                OP_LOGE("Compressor", "wgate shape dim 1 should be equal to hiddenSize"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wkv.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != coffD,
+                OP_LOGE("Compressor", "wkv shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wgate.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != coffD,
+                OP_LOGE("Compressor", "wgate shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->kvState.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_2) != coffD,
+                OP_LOGE("Compressor", "kvState shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreState.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_2) != coffD,
+                OP_LOGE("Compressor", "scoreState shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ape.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != coffD,
+                OP_LOGE("Compressor", "ape shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreState.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != pageAttentionParams_->blockNum &&
+                context_->scoreState.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != pageAttentionParams_->blockSize,
+                OP_LOGE("Compressor", "scoreState shape dim 0 and dim 1 should be equal to kvState"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ape.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != baseParams_->cmpRatio,
+                OP_LOGE("Compressor", "ape shape dim 0 should be equal to cmpRatio"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CompressorTiling::CheckShapeConsistencyRope() const
+{
+    auto cmpT = std::min(baseParams_->tokenSize, baseParams_->tokenSize / baseParams_->cmpRatio + baseParams_->batchSize);
+    if(context_->layout == "BSH"){
+        OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
+                    OP_LOGE("Compressor", "ropeSin shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
+                    OP_LOGE("Compressor", "ropeCos shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != baseParams_->cgSize,
+                    OP_LOGE("Compressor", "ropeSin shape dim 1 should be equal to ceil(seqSize / cmpRatio)"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != baseParams_->cgSize,
+                    OP_LOGE("Compressor", "ropeCos shape dim 1 should be equal to ceil(seqSize / cmpRatio)"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF( context_->ropeSin.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_2) != baseParams_->ropeHeadDim,
+                    OP_LOGE("Compressor", "ropeSin shape dim 2 should be equal to ropeHeadDi)"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_2) != baseParams_->ropeHeadDim,
+                    OP_LOGE("Compressor", "ropeCos shape dim 2 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
+    } else {
+        OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != cmpT,
+                    OP_LOGE("Compressor", "ropeSin shape dim 0 should be equal to min(tokenSize, tokenSize / cmpRatio + batchSize)"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_0) != cmpT,
+                    OP_LOGE("Compressor", "ropeCos shape dim 0 should be equal to min(tokenSize, tokenSize / cmpRatio + batchSize)"),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != baseParams_->ropeHeadDim,
+            OP_LOGE("Compressor", "ropeSin shape dim 1 should be equal to ropeHeadDi)"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDimNum(COMPRESSOR_DIM_INDEX_1) != baseParams_->ropeHeadDim,
+            OP_LOGE("Compressor", "ropeCos shape dim 1 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
+    }
+}
+
+ge::graphStatus CompressorTiling::CheckDtypeConsistencyX(const gert::CompileTimeTensorDesc *desc,
+                                                         const std::string &name) const
+{
+    OP_CHECK_IF(desc->GetDataType() == context_->dtype,
+                OP_LOGE("Compressor", "%s datatype should be same with x", name.c_str()),
+                return ge::GRAPH_FAILED);
+}
+
+ge::graphStatus CompressorTiling::CheckDtypeConsistency(const gert::CompileTimeTensorDesc *desc,
+                                                        const std::string &name) const
+{
+    if (CheckDtypeConsistencyX(context_->wkv.desc, WKV_NAME) != ge::GRAPH_SUCCESS ||
+        CheckDtypeConsistencyX(context_->wgate.desc, WGATE_NAME) != ge::GRAPH_SUCCESS ||
+        CheckDtypeConsistencyX(context_->normWeight.desc, NORM_WEIGHT_NAME) != ge::GRAPH_SUCCESS ||
+        CheckDtypeConsistencyX(context_->ropeSin.desc, ROPE_SIN_NAME) != ge::GRAPH_SUCCESS ||
+        CheckDtypeConsistencyX(context_->ropeCos.desc, ROPE_COS_NAME) != ge::GRAPH_SUCCESS ||
+        CheckDtypeConsistencyX(context_->cmpKv.desc, CMP_KV_NAME) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+}
+
+ge::graphStatus CompressorTiling::CheckMultiParaConsistency() const
+{
+    if (CheckShapeConsistency() != ge::GRAPH_SUCCESS || CheckDtypeConsistency != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context)
 {
     OP_CHECK_IF(context == nullptr, OPS_REPORT_VECTOR_INNER_ERR("Compressor", "Context is nullptr."),
@@ -294,13 +860,12 @@ CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context)
         OP_LOGE(context->GetNodeName(), "Error occurred while converting tilingContext to Compressor context");
         return ge::GRAPH_FAILED;
     }
-
-    CompressorTiling compressorTiling;
+    CompressorTiling compressorTiling(compressorContext);
     CompressorTilingData* tilingData = context->GetTilingData<CompressorTilingData>();
     OP_CHECK_IF(tilingData == nullptr,
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "TilingData is nullptr."),
             return ge::GRAPH_FAILED);
-    if (compressorTiling.RunBigKernelTiling(compressorContext, tilingData) == ge::SUCCESS) {
+    if (compressorTiling.RunBigKernelTiling(tilingData) == ge::SUCCESS) {
         // TODO genTilingKey
         context->SetTilingKey(compressorContext.tilingKey);
         context->SetBlockDim(compressorContext.blockDim);
