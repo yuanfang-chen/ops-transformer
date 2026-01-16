@@ -135,8 +135,9 @@ TEST_F(GatherPaKvCacheProto, gather_pa_kv_cache_infershape_3)
 
 TEST_F(GatherPaKvCacheProto, gather_pa_kv_cache_inferdtype)
 {
-    ASSERT_NE(gert::DefaultOpImplSpaceRegistryV2::GetInstance().GetOpImpl("GatherPaKvCache"), nullptr);
-    auto data_type_func = gert::DefaultOpImplSpaceRegistryV2::GetInstance().GetOpImpl("GatherPaKvCache")->infer_datatype;
+    auto spaceRegistry = gert::DefaultOpImplSpaceRegistryV2::GetInstance().GetSpaceRegistry();
+    ASSERT_NE(spaceRegistry, nullptr);
+    auto data_type_func = spaceRegistry->GetOpImpl("GatherPaKvCache")->infer_datatype;
     ASSERT_NE(data_type_func, nullptr);
     ge::DataType inputDtype = ge::DT_INT8;
     ge::DataType inputReDtype = ge::DT_INT32;
