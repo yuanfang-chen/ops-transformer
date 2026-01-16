@@ -27,10 +27,11 @@ namespace ops {
     constexpr uint32_t ROPE_COS_INPUT_INDEX = 8;
 
     // INPUT(OPTION)
-    constexpr uint32_t BLOCK_TABLE_INPUT_INDEX = 9;
-    constexpr uint32_t CU_SEQ_LEN_INPUT_INDEX = 10;
-    constexpr uint32_t SEQ_USED_INPUT_INDEX = 11;
-    constexpr uint32_t START_POS_INPUT_INDEX = 12;
+    constexpr uint32_t KV_BLOCK_TABLE_INPUT_INDEX = 9;
+    constexpr uint32_t SCORE_BLOCK_TABLE_INPUT_INDEX = 10;
+    constexpr uint32_t CU_SEQ_LEN_INPUT_INDEX = 11;
+    constexpr uint32_t SEQ_USED_INPUT_INDEX = 12;
+    constexpr uint32_t START_POS_INPUT_INDEX = 13;
 
     // ATTR
     constexpr uint32_t ROPE_HEAD_DIM_ATTR_INDEX = 0;
@@ -70,21 +71,23 @@ ge::graphStatus GetCompressorShapeDim(const gert::InferShapeContext* context, Co
     OPS_LOG_E_IF_NULL(context, wkvShape, return ge::GRAPH_FAILED)
     auto wgateShape = context->GetRequiredInputShape(WEIGHT_WGATE_INPUT_INDEX);  // (coff * D, H)
     OPS_LOG_E_IF_NULL(context, wgateShape, return ge::GRAPH_FAILED)
-    auto kvStateShape = context->GetRequiredInputShape(KV_STATE_INPUT_INDEX);    // (max_bs/block_num, coff * r, coff * D)
+    auto kvStateShape = context->GetRequiredInputShape(KV_STATE_INPUT_INDEX);    // (block_num, block_size, coff * D)
     OPS_LOG_E_IF_NULL(context, kvStateShape, return ge::GRAPH_FAILED)
-    auto scoreStateShape = context->GetRequiredInputShape(SCORE_STATE_INPUT_INDEX);    // (max_bs/block_num, coff * r, coff * D)
+    auto scoreStateShape = context->GetRequiredInputShape(SCORE_STATE_INPUT_INDEX);    // (block_num, block_size, coff * D)
     OPS_LOG_E_IF_NULL(context, scoreStateShape, return ge::GRAPH_FAILED)
     auto apeShape = context->GetRequiredInputShape(APE_INPUT_INDEX);    // (r, coff * D)
     OPS_LOG_E_IF_NULL(context, apeShape, return ge::GRAPH_FAILED)
     auto normWeightShape = context->GetRequiredInputShape(NORM_WEIGHT_INPUT_INDEX);    // (D)
     OPS_LOG_E_IF_NULL(context, normWeightShape, return ge::GRAPH_FAILED)
-    auto ropeSinShape = context->GetRequiredInputShape(ROPE_SIN_INPUT_INDEX);    // (B, s / r, rD)
+    auto ropeSinShape = context->GetRequiredInputShape(ROPE_SIN_INPUT_INDEX);    // (B, ceil(S / r), rD) | (min(T, T/r + B), rD)
     OPS_LOG_E_IF_NULL(context, ropeSinShape, return ge::GRAPH_FAILED)
-    auto ropeCosShape = context->GetRequiredInputShape(ROPE_COS_INPUT_INDEX);    // (B, s / r, rD)
+    auto ropeCosShape = context->GetRequiredInputShape(ROPE_COS_INPUT_INDEX);    // (B, ceil(S / r), rD) | (min(T, T/r + B), rD)
     OPS_LOG_E_IF_NULL(context, ropeCosShape, return ge::GRAPH_FAILED)
-    auto blockTableShape = context->GetRequiredInputShape(BLOCK_TABLE_INPUT_INDEX);    // (B,)
-    OPS_LOG_E_IF_NULL(context, blockTableShape, return ge::GRAPH_FAILED)
-    auto cuSeqlensShape = context->GetRequiredInputShape(CU_SEQ_LEN_INPUT_INDEX);    // (B,)
+    auto kvBlockTableShape = context->GetRequiredInputShape(KV_BLOCK_TABLE_INPUT_INDEX);    // (B, sMax/block_size)
+    OPS_LOG_E_IF_NULL(context, kvBlockTableShape, return ge::GRAPH_FAILED)
+    auto scoreBlockTableShape = context->GetRequiredInputShape(SCORE_BLOCK_TABLE_INPUT_INDEX);    // (B, sMax/block_size)
+    OPS_LOG_E_IF_NULL(context, scoreBlockTableShape, return ge::GRAPH_FAILED)
+    auto cuSeqlensShape = context->GetRequiredInputShape(CU_SEQ_LEN_INPUT_INDEX);    // (B+1,)
     OPS_LOG_E_IF_NULL(context, cuSeqlensShape, return ge::GRAPH_FAILED)
     auto seqUsedShape = context->GetRequiredInputShape(SEQ_USED_INPUT_INDEX);    // (B,)
     OPS_LOG_E_IF_NULL(context, seqUsedShape, return ge::GRAPH_FAILED)
