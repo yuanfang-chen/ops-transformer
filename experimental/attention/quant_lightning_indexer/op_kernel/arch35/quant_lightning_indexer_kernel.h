@@ -24,10 +24,12 @@
 #include "quant_lightning_indexer_common.h"
 #include "quant_lightning_indexer_service_vector.h"
 #include "quant_lightning_indexer_service_cube.h"
+#include "quant_lightning_indexer_metadata.h"
 
 namespace QLIKernel {
 using namespace QLICommon;
 using namespace matmul;
+using namespace optiling::detail;
 using AscendC::CacheMode;
 using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
@@ -56,9 +58,9 @@ public:
     __aicore__ inline QLIPreload(){};
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *weights,
                                 __gm__ uint8_t *queryScale, __gm__ uint8_t *keyScale, __gm__ uint8_t *actualSeqLengthsQ,
-                                __gm__ uint8_t *actualSeqLengthsK, __gm__ uint8_t *blockTable, __gm__ uint8_t *metadata,
-                                __gm__ uint8_t *sparseIndices, __gm__ uint8_t *workspace,
-                                const QLITilingData *__restrict tiling, TPipe *tPipe);
+                                __gm__ uint8_t *actualSeqLengthsK, __gm__ uint8_t *blockTable,
+                                const LiqMetaData *__restrict metadata, __gm__ uint8_t *sparseIndices,
+                                __gm__ uint8_t *workspace, const QLITilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
 
     // =================================类型定义区=================================
@@ -127,6 +129,7 @@ protected:
     __aicore__ inline void InitActualSeqLen(__gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengthsK);
     // ================================Split Core================================
     __aicore__ inline void SplitCore(uint32_t curCoreIdx, uint32_t &coreNum, QLICommon::SplitCoreInfo &info);
+    __aicore__ inline void SplitCoreByAICPU(uint32_t curCoreIdx, const LiqMetaData *__restrict metadata);
     __aicore__ inline uint32_t GetS2BaseBlockNumOnMask(uint32_t s1gIdx, uint32_t actS1Size, uint32_t actS2SizeOrig);
     __aicore__ inline uint32_t GetTotalBaseBlockNum();
     // ================================Process functions================================
@@ -363,6 +366,72 @@ __aicore__ void inline QLIPreload<QLIT>::SplitCore(uint32_t curCoreIdx, uint32_t
 }
 
 template <typename QLIT>
+__aicore__ inline void QLIPreload<QLIT>::SplitCoreByAICPU(uint32_t curCoreIdx, const LiqMetaData *__restrict metadata)
+{
+    usedCoreNum = metadata->usedCoreNum;
+    if (aiCoreIdx != 0) {
+        splitCoreInfo.bN2Start = static_cast<uint32_t>(metadata->bN2End[aiCoreIdx - 1]);
+        splitCoreInfo.gS1Start = static_cast<uint32_t>(metadata->mEnd[aiCoreIdx - 1]);
+        splitCoreInfo.s2Start = static_cast<uint32_t>(metadata->s2End[aiCoreIdx - 1]);
+    } else {
+        splitCoreInfo.bN2Start = 0;
+        splitCoreInfo.gS1Start = 0;
+        splitCoreInfo.s2Start = 0;
+    }
+
+    splitCoreInfo.bN2End = static_cast<uint32_t>(metadata->bN2End[aiCoreIdx]);
+    splitCoreInfo.gS1End = static_cast<uint32_t>(metadata->mEnd[aiCoreIdx]);
+    splitCoreInfo.s2End  = static_cast<uint32_t>(metadata->s2End[aiCoreIdx]);
+
+    if (splitCoreInfo.s2End != 0) {
+        // 此时只需要s2End往前退一格，bN2End和gS1End都不变
+        splitCoreInfo.s2End = splitCoreInfo.s2End - 1;
+    } else {
+        if (splitCoreInfo.gS1End != 0) {
+            // splitCoreInfo.gS1End != 0 splitCoreInfo.s2End == 0 时，gS1End需要往前退一格, bN2End不变
+            // 此时需要使用bIdx获取实际Actal S2来计算出 s2End
+            splitCoreInfo.gS1End = splitCoreInfo.gS1End - 1;
+            // 需要获取当前的Actaul S2
+            uint32_t bIdx = splitCoreInfo.bN2End % constInfo.kHeadNum;
+            uint32_t actS1Size, actS2Size, actS2SizeOrig;
+            GetS1S2ActualSeqLen(bIdx, actS1Size, actS2Size, actS2SizeOrig);
+            // s2的切块数量
+            uint32_t s2BaseNum;
+            if (constInfo.attenMaskFlag) {
+                s2BaseNum = GetS2BaseBlockNumOnMask(splitCoreInfo.gS1End, actS1Size, actS2SizeOrig);
+            } else {
+                s2BaseNum = CeilDiv(actS2Size, constInfo.s2BaseSize);
+            }
+            splitCoreInfo.s2End = s2BaseNum - 1;
+        } else { 
+            // splitCoreInfo.gS1End == 0 splitCoreInfo.s2End == 0 时，bN2End需要往前退一格
+            // 此时需要使用bIdx获取实际Actal S1和S2来计算出 gS1End 和 s2End
+            splitCoreInfo.bN2End = splitCoreInfo.bN2End - 1;
+
+            // 需要获取当前的Actaul S1 S2
+            uint32_t bIdx = splitCoreInfo.bN2End % constInfo.kHeadNum;
+            uint32_t actS1Size, actS2Size, actS2SizeOrig;
+            GetS1S2ActualSeqLen(bIdx, actS1Size, actS2Size, actS2SizeOrig);
+
+            // s1的切块数量
+            uint32_t s1GBaseNum = CeilDiv(actS1Size, constInfo.s1BaseSize);
+            splitCoreInfo.gS1End = s1GBaseNum - 1;
+
+            // s2的切块数量
+            uint32_t s2BaseNum;
+            if (constInfo.attenMaskFlag) {
+                s2BaseNum = GetS2BaseBlockNumOnMask(splitCoreInfo.gS1End, actS1Size, actS2SizeOrig);
+            } else {
+                s2BaseNum = CeilDiv(actS2Size, constInfo.s2BaseSize);
+            }
+            splitCoreInfo.s2End = s2BaseNum - 1;
+        }
+    }
+
+    splitCoreInfo.isLD = false;
+}
+
+template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::DealActSeqLenIsZero(uint32_t bIdx, uint32_t n2Idx, uint32_t s1Start)
 {
     if ASCEND_IS_AIV {
@@ -393,9 +462,9 @@ template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *weights,
                                               __gm__ uint8_t *queryScale, __gm__ uint8_t *keyScale,
                                               __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengthsK,
-                                              __gm__ uint8_t *blockTable, __gm__ uint8_t *metadata, __gm__ uint8_t *sparseIndices,
-                                              __gm__ uint8_t *workspace, const QLITilingData *__restrict tiling,
-                                              TPipe *tPipe)
+                                              __gm__ uint8_t *blockTable, const LiqMetaData *__restrict metadata,
+                                              __gm__ uint8_t *sparseIndices, __gm__ uint8_t *workspace,
+                                              const QLITilingData *__restrict tiling, TPipe *tPipe)
 {
     if ASCEND_IS_AIV {
         tmpBlockIdx = GetBlockIdx();  // vec:0-47
@@ -409,7 +478,11 @@ __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint
     InitActualSeqLen(actualSeqLengthsQ, actualSeqLengthsK);
 
     // 计算分核
-    SplitCore(aiCoreIdx, usedCoreNum, splitCoreInfo);
+    if (metadata != nullptr) {
+        SplitCoreByAICPU(aiCoreIdx, metadata);
+    } else {
+        SplitCore(aiCoreIdx, usedCoreNum, splitCoreInfo);
+    }
 
     pipe = tPipe;
     // workspace 内存排布
