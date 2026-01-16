@@ -43,7 +43,7 @@ template <typename T, typename T2, uint32_t s1BaseSize = 64, uint32_t s2BaseSize
 __aicore__ inline void ProcessVec1NoUpdate(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& srcTensor, 
     const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor, const LocalTensor<T>& inMaxTensor,
-    const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
+    const LocalTensor<T>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
 {
     if constexpr (oriNRange == EQ_128_SCFA) {
         ProcessVec1NoUpdateImpl128<T, T2, s1BaseSize, s2BaseSize>(
@@ -61,7 +61,7 @@ template <typename T, typename T2, uint32_t s1BaseSize = 64, uint32_t s2BaseSize
 __aicore__ inline void ProcessVec1Update(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& srcTensor, 
     const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor, const LocalTensor<T>& inMaxTensor,
-    const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
+    const LocalTensor<T>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
 {
     if constexpr (oriNRange == EQ_128_SCFA) {
         ProcessVec1UpdateImpl128<T, T2, s1BaseSize, s2BaseSize>(
@@ -79,7 +79,7 @@ template <typename T, typename T2, bool isUpdate = false, uint32_t s1BaseSize = 
 __aicore__ inline void ProcessVec1Vf(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& srcTensor, 
     const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor, const LocalTensor<T>& inMaxTensor,
-    const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
+    const LocalTensor<T>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
 {
     static_assert(IsSameType<T, float>::value, "VF mul_sel_softmaxflashv2_cast_nz, T must be float");
     static_assert(IsSameType<T2, bfloat16_t>::value, "VF mul_sel_softmaxflashv2_cast_nz, T2 must be bfloat16");
@@ -129,7 +129,7 @@ template <typename T>
 __aicore__ inline void SCFAUpdateExpSumAndExpMax(
     const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor,
     const LocalTensor<T>& expMaxTensor, const LocalTensor<T>& inExpSumTensor,
-    const LocalTensor<T>& inMaxTensor,  const LocalTensor<uint8_t>& sharedTmpBuffer, const uint32_t m)
+    const LocalTensor<T>& inMaxTensor,  const LocalTensor<T>& sharedTmpBuffer, const uint32_t m)
 {
     __ubuf__ T * maxUb = (__ubuf__ T*)maxTensor.GetPhyAddr();
     __ubuf__ T * inMaxUb = (__ubuf__ T*)inMaxTensor.GetPhyAddr();
@@ -150,9 +150,7 @@ __simd_vf__ inline void DuplicateSumWithR0VF(__ubuf__ T * sumUb, const T R0, uin
     AscendC::MicroAPI::MaskReg preg_m = AscendC::MicroAPI::UpdateMask<T>(m);
     AscendC::MicroAPI::UnalignRegForStore ureg;
     AscendC::MicroAPI::Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, T>(vreg_sum, R0, preg_m);
-    // TODO POST_MODE_UPDATE？
-    AscendC::MicroAPI::StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(sumUb, vreg_sum, ureg, m);
-    AscendC::MicroAPI::StoreUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(sumUb, ureg, 0);
+    AscendC::MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(sumUb, vreg_sum, preg_m);
 }
 
 template <typename T>
