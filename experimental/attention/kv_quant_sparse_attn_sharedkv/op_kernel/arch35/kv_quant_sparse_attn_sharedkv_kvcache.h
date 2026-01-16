@@ -134,17 +134,7 @@ __aicore__ inline void ComputeSouterParam(RunParamStr& runParam, const ConstInfo
 
     cubeSOuterOffset += (runParam.nextTokensPerBatch < 0) ? -runParam.nextTokensPerBatch : 0;
 
-    runParam.halfS1RealSize = (runParam.s1RealSize + 1) >> 1;
-    runParam.firstHalfS1RealSize = runParam.halfS1RealSize;
-    if (constInfo.subBlockIdx == 1) {
-        runParam.halfS1RealSize = runParam.s1RealSize - runParam.halfS1RealSize;
-        runParam.sOuterOffset = cubeSOuterOffset + runParam.firstHalfS1RealSize;
-    } else {
-        runParam.sOuterOffset = cubeSOuterOffset;
-    }
-    runParam.cubeSOuterOffset = cubeSOuterOffset;
-
-    runParam.cubeMOuterOffset = runParam.cubeSOuterOffset * constInfo.gSize;
+    runParam.cubeMOuterOffset = cubeSOuterOffset * constInfo.gSize;
     runParam.halfMRealSize = (runParam.mRealSize + 1) >> 1;
     runParam.firstHalfMRealSize = runParam.halfMRealSize;
     if (constInfo.subBlockIdx == 1) {
@@ -153,7 +143,16 @@ __aicore__ inline void ComputeSouterParam(RunParamStr& runParam, const ConstInfo
     } else {
         runParam.mOuterOffset = runParam.cubeMOuterOffset;
     }
-    
+
+    runParam.halfS1RealSize = (runParam.s1RealSize + 1) >> 1;
+    runParam.firstHalfS1RealSize = runParam.halfS1RealSize;
+    if (constInfo.subBlockIdx == 1) {
+        runParam.halfS1RealSize = runParam.s1RealSize - runParam.halfS1RealSize;
+        runParam.sOuterOffset = cubeSOuterOffset + runParam.halfMRealSize / constInfo.gSize;
+    } else {
+        runParam.sOuterOffset = cubeSOuterOffset;
+    }
+    runParam.cubeSOuterOffset = cubeSOuterOffset;
 }
 
 TEMPLATE_INTF
@@ -176,6 +175,9 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr& runParam, const ConstIn
             runParam.attentionOutOffset = attentionOutSeqOffset +
                 runParam.sOuterOffset * constInfo.n2GDv + runParam.n2oIdx * constInfo.gDv +
                 runParam.goIdx * constInfo.dSizeV;
+        }
+        if (constInfo.subBlockIdx == 1) {
+            runParam.attentionOutOffset += runParam.mOuterOffset * constInfo.dSizeV;
         }
     }
 }

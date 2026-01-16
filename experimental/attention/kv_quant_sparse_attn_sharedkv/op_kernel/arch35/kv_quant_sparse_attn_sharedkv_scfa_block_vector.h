@@ -862,11 +862,11 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2 (
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec2(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm2ResBuf, RunInfo &runInfo,
     ConstInfo &constInfo) {
     bmm2ResBuf.WaitCrossCore();
-    if (unlikely(runInfo.vec2S1BaseSize == 0)) {
+    if (unlikely(runInfo.vec2MBaseSize == 0)) {
         bmm2ResBuf.SetCrossCore();
         return;
     }
