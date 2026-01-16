@@ -373,7 +373,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t srcDValue = constInfo_.hSize;
         uint32_t dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + 15) / 16 * 16;
         if constexpr (COMP::coff == COFF::OVERLAP) {
-            dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
+            dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16; // TODO: L1->L0搬运时未16对齐
         }
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
         ubOffset += (canCopyCnt + tailHolderCnt) * kBase;
@@ -553,7 +553,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             uint32_t mSizeAlign = (mDealSize + 15) / 16 * 16;
                             uint32_t nSizeAlign = N_L1_BASE;
                             uint32_t nIdx = nL1 / N_L1_BASE;
-                            CopyL0CDataToUb(mm1ResTensor, cL0Tensor, isLastM ? 1 : 0, mSizeAlign, nSizeAlign, nIdx);
+                            CopyL0CDataToUb(mm1ResTensor, cL0Tensor, (mL1 == 0) ? 0 : 1, mSizeAlign, nSizeAlign, nIdx);
                             // DumpTensor(cL0Tensor, 1, 128 * 128);
                         }
                         SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId);

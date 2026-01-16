@@ -154,12 +154,8 @@ def cpu_compressor(
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
     np.array(wkv).tofile('/home/j00454571/data/wkv.bin')
     print(wkv)
-    print("wkv rowsum:")
-    print(np.sum(wkv, axis=-1, keepdims=True))
     np.array(wgate).tofile('/home/j00454571/data/wgate.bin')
     print(wgate)
-    print("wgate rowsum:")
-    print(np.sum(wgate, axis=-1, keepdims=True))
     np.array(new_kv_state).tofile('/home/j00454571/data/new_kv_state.bin')
     print(new_kv_state)
     np.array(new_score_state).tofile('/home/j00454571/data/new_score_state.bin')
@@ -320,8 +316,8 @@ class TestCustomCompressor(TestCase):
 
         ### ======================== set input params start ========================
         date_type = torch.bfloat16
-        hidden_size = 256
-        head_dim = 128
+        hidden_size = 4096
+        head_dim = 256
         rope_head_dim = 64
         norm_eps = 1e-6
         coff = 1 # 1:no overlap 2:overlap
