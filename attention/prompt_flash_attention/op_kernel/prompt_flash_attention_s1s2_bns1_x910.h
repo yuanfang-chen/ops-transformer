@@ -77,18 +77,39 @@ __aicore__ inline int32_t FirstGreaterEqual(const I32VecView& v, int32_t lower)
     return -1;
 }
 
-__aicore__ inline int32_t SecondGreaterEqual(const I32VecView& v, int32_t lower)
-{
-    if (!v.IsValid()) return -1;
+// Uint8 to save space for hacky variable-passing solution
+struct U8VecView {
+    const __gm__ uint8_t* ptr = nullptr;
+    uint32_t len = 0;
+    __aicore__ inline bool IsValid() const { return ptr && len; }
+    __aicore__ inline uint8_t GetU8(uint32_t i) const { return ptr[i]; }
+    __aicore__ inline int32_t Get(uint32_t i) const { return int32_t(ptr[i]); }
+};
 
-    int32_t found = 0;
-    for (uint32_t i = 0; i < v.len; ++i) {
-        const int32_t x = v.ptr[i];
-        if (x == -1) break;        // reached padding
-        if (x >= lower) {
-            ++found;
-            if (found == 2) return (int32_t)i; // second >= lower
-        }
+struct U8T3View {
+    const __gm__ uint8_t* base = nullptr;
+    uint32_t d0=0,d1=0,d2=0;
+    uint32_t totalLen = 0;
+
+    __aicore__ inline U8VecView At(uint32_t i0, uint32_t i1) const {
+        U8VecView v{};
+        if (!base || !d2 || !totalLen) return v;
+        if (i0 >= d0 || i1 >= d1) return v;
+        const uint64_t idx = (uint64_t(i0) * d1 + i1) * d2;
+        const uint64_t end = idx + d2;
+        if (end > totalLen) return v;
+        v.ptr = base + idx;
+        v.len = d2;
+        return v;
+    }
+};
+
+__aicore__ inline int32_t FirstGreaterEqualU8(const U8VecView& v, int32_t lower) {
+    if (!v.IsValid()) return -1;
+    for (uint32_t i=0;i<v.len;++i) {
+        const uint8_t x = v.GetU8(i);
+        if (x == 255) break;
+        if (int32_t(x) >= lower) return int32_t(i);
     }
     return -1;
 }
@@ -128,7 +149,7 @@ protected:
 
     __aicore__ inline void ComputeEachCoreSInnerLoop();
 
-    __aicore__ inline void SInnerLoopFunc(int64_t sInnerFirstToken, int64_t sInnerEndToken, int curBatch, int64_t preTokens, int64_t nextTokens, I32VecView rowSabi = {});
+    __aicore__ inline void SInnerLoopFunc(int64_t sInnerFirstToken, int64_t sInnerEndToken, int curBatch, int64_t preTokens, int64_t nextTokens, U8VecView rowSabi = {});   // Change to I32 in case
 
     __aicore__ inline void ComputeEachCore(uint32_t coreIdx);
 
@@ -2177,7 +2198,8 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::CheckRowInvalid(i
 
 template<typename PFAT>
 __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(int64_t sInnerFirstToken, int64_t sInnerLastToken, int curBatch,
-                                                                            int64_t preTokens, int64_t nextTokens, I32VecView rowSabi) {
+                                                                            int64_t preTokens, int64_t nextTokens, U8VecView rowSabi) {
+                                                                            // int64_t preTokens, int64_t nextTokens, I32VecView rowSabi) {
     // params passing on references. When tailParams, params also update accordingly.
     PFAComputeParam *&params = this->tailParams;                // Configure new tasks, which will be placed at the end of the queue. Use tailParams.
     int32_t basicSInnerSize = (int32_t)(params->singleProcessSInnerSize);
@@ -2208,6 +2230,11 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
     this->isSoftmaxLseNeedUpdate = false;
 
     params->isBlockSparse = rowSabi.IsValid();
+    // TODO (mmarz): remove this if condition once sabi is passed properly
+    if (rowSabi.IsValid() && endIndex > 255) {
+        // u8 encoding can't represent block indices >=255
+        params->isBlockSparse = false;   // fall back to dense path
+    }
     if (!params->isBlockSparse) {    // old loop
         for (int32_t sInnerLoopIdx = startIndex; sInnerLoopIdx < endIndex; sInnerLoopIdx++) {
             params->sInnerLoopOffset = sInnerLoopIdx;  // S2 Align offset
@@ -2336,24 +2363,30 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
     } else {
         // rowSabi must be sorted ascending and contain unique block indices.
         // startIndex/endIndex are dense bounds; rowSabi provides active blocks within.
-        int32_t firstSabiIdx = FirstGreaterEqual(rowSabi, startIndex);
-        int32_t secondSabiIdx = SecondGreaterEqual(rowSabi, startIndex);
-        int32_t lastSabiIdx = LastValidLowerThan(rowSabi, endIndex);
-        if (firstSabiIdx < 0 || lastSabiIdx < firstSabiIdx) {
-            return;
-        }
+        // int32_t firstSabiIdx  = FirstGreaterEqual(rowSabi, startIndex);
+        int32_t firstSabiIdx  = FirstGreaterEqualU8(rowSabi, startIndex);
+        if (firstSabiIdx < 0) return;
 
+        bool done = false;
         int32_t computedBlocks = 0;
-        for (int32_t chunkIdx = firstSabiIdx; chunkIdx <= lastSabiIdx; ++chunkIdx, ++computedBlocks) {
+        for (int32_t chunkIdx = firstSabiIdx; !done && chunkIdx < (int32_t)rowSabi.len; ++chunkIdx) {
             int32_t sInnerLoopIdx = rowSabi.Get(static_cast<uint32_t>(chunkIdx));
+            // if (sInnerLoopIdx == -1) break;
+            if (sInnerLoopIdx == 255) break;
+            if (sInnerLoopIdx >= endIndex) break;
             params->sInnerLoopOffset = sInnerLoopIdx;  // S2 Align offset
 
-            // ----------------------------
-            // Computed-order semantics (sparse order)
-            // ----------------------------
-            params->isFirstComputedIter  = (chunkIdx == firstSabiIdx);
-            params->isSecondComputedIter = (chunkIdx == secondSabiIdx);
-            params->isLastComputedIter   = (chunkIdx == lastSabiIdx);
+            params->isFirstComputedIter  = (computedBlocks == 0);
+            params->isSecondComputedIter = (computedBlocks == 1);
+            const bool lastElement = (chunkIdx == (int32_t)rowSabi.len - 1);
+            if (lastElement) {
+                done = true;
+            } else {
+                const int32_t nxt = rowSabi.Get((uint32_t)(chunkIdx + 1));
+                // done = (nxt == -1) || (nxt >= endIndex);
+                done = (nxt == 255) || (nxt >= endIndex);
+            }
+            params->isLastComputedIter = done;
 
             // Keep legacy flags if other code still expects dense meaning:
             params->isFirstInnerIter  = (sInnerLoopIdx == startIndex);
@@ -2479,6 +2512,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
                 this->tailParams = nextTailParams;
                 this->queSize++;
             }
+            ++computedBlocks;
         }
     }
 }
@@ -2703,7 +2737,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
     int64_t sOuterBlockNum = (actualSeqLengthsIdx +
                               this->tilingData->promptAttentionSingleCoreParams.singleProcessSOuterSize - 1) /
                               this->tilingData->promptAttentionSingleCoreParams.singleProcessSOuterSize;
-    int64_t sNumMulHeadNum = this->tilingData->promptAttentionBaseParams.headNumSize * sNum;
+    int64_t sNumMulHeadNum = this->tilingData->promptAttentionBaseParams.headNumSize * sNum;    // num_heads * batch_size
     int64_t totalTilingN = sNumMulHeadNum * sOuterBlockNum; //total number of Qblocks * number of heads; Qblocks = L/128
 
     int64_t sInnerFirstToken;
@@ -2715,7 +2749,8 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
     const int64_t dbgLast  = this->tilingData->promptAttentionBaseParams.debugSInnerLastToken;
     
     // For SABI blocks
-    I32VecView sabiRow{};  // per-iteration, reset later
+    // I32VecView sabiRow{};  // per-iteration, reset later
+    U8VecView sabiRow{};
 
     const uint32_t d0  = this->tilingData->promptAttentionBaseParams.debugT3D0;
     const uint32_t d1  = this->tilingData->promptAttentionBaseParams.debugT3D1;
@@ -2734,17 +2769,24 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
 
     const bool isSabi = sabiMetaOk;
 
-    I32T3View t3{};
+    // I32T3View t3{};
+    // if (isSabi) {
+    //     const __gm__ int32_t* base =
+    //         reinterpret_cast<const __gm__ int32_t*>(this->gmTilingBase + off);
+    //     t3 = I32T3View{ base, d0, d1, d2, len };
+    // }
+
+    U8T3View t3{};
     if (isSabi) {
-        const __gm__ int32_t* base =
-            reinterpret_cast<const __gm__ int32_t*>(this->gmTilingBase + off);
-        t3 = I32T3View{ base, d0, d1, d2, len };
+        const __gm__ uint8_t* base =
+            reinterpret_cast<const __gm__ uint8_t*>(this->gmTilingBase + off);
+        t3 = U8T3View{ base, d0, d1, d2, len };
     }
 
     for (int64_t tilingIdx = coreIdx; tilingIdx < totalTilingN; tilingIdx += (blockNum - (tilingIdx % blockNum)) * 2 - 1) {
         int64_t sIdxMulbatchNOffset = tilingIdx % sNumMulHeadNum;
-        sIdx = sIdxMulbatchNOffset % sNum;
-        params->batchNOffset = sIdxMulbatchNOffset / sNum;
+        sIdx = sIdxMulbatchNOffset % sNum;  // batch id
+        params->batchNOffset = sIdxMulbatchNOffset / sNum;  // head
         this->CalPrefixCoreOffset(params);
         int64_t sOuterLoopIdx = sOuterBlockNum - 1 - (tilingIdx / sNumMulHeadNum);
         this->GetSingleCoreParam(sIdx);
@@ -2793,9 +2835,10 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
             
             // Block sparsity
             if (isSabi) {
-                const uint32_t headIdx = static_cast<uint32_t>(params->batchNOffset);
-                const uint32_t queryChunkRow = static_cast<uint32_t>(physRow);
-                sabiRow = t3.At(headIdx, queryChunkRow);
+                const uint32_t H = static_cast<uint32_t>(this->tilingData->promptAttentionBaseParams.headNumSize); 
+                const uint32_t bh = static_cast<uint32_t>(sIdx * H + params->batchNOffset);
+
+                sabiRow = t3.At(bh, static_cast<uint32_t>(physRow));
             }
         }
         if (sInnerLastToken <= sInnerFirstToken) {

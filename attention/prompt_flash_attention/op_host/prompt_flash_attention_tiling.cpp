@@ -41,6 +41,9 @@
 #include <cerrno>
 #include <climits>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 using namespace ge;
 using namespace AscendC;
@@ -6830,6 +6833,93 @@ static inline bool ParseDebugT3Env(const char* env,
     return true;
 }
 
+static inline std::vector<uint8_t> ParseU8CsvSentinel255(const char* s)
+{
+    std::vector<uint8_t> out;
+    if (!s || !*s) return out;
+
+    const char* p = s;
+    while (*p) {
+        // skip separators/whitespace
+        while (*p == ' ' || *p == '\t' || *p == ',') ++p;
+        if (!*p) break;
+
+        // parse optional sign
+        bool neg = false;
+        if (*p == '-') { neg = true; ++p; }
+
+        // parse digits
+        unsigned v = 0;
+        const char* start = p;
+        while (*p >= '0' && *p <= '9') {
+            v = v * 10u + unsigned(*p - '0');
+            ++p;
+        }
+        if (p == start) break; // invalid token -> stop (debug)
+
+        // encode
+        if (neg) {
+            // Only -1 is supported in this debug format
+            out.push_back(255);
+        } else {
+            // assume 0..254; if you want "ok to crash", don't clamp
+            out.push_back(v > 254 ? 255 : static_cast<uint8_t>(v));
+        }
+
+        // allow trailing spaces then optional comma
+        while (*p == ' ' || *p == '\t') ++p;
+        if (*p == ',') ++p;
+    }
+    return out;
+}
+
+static inline bool ParseDebugT3EnvU8(const char* env,
+                                    uint32_t& d0, uint32_t& d1, uint32_t& d2,
+                                    std::vector<uint8_t>& flat8)
+{
+    if (!env || !*env) return false;
+
+    // Find D= and V= without making substrings if you want extra speed,
+    // but keeping your current string approach is fine for debug.
+    std::string str(env);
+
+    const auto dPos = str.find("D=");
+    const auto vPos = str.find("V=");
+    if (dPos == std::string::npos || vPos == std::string::npos) return false;
+
+    const auto semi = str.find(';', dPos);
+    if (semi == std::string::npos) return false;
+
+    const std::string dims = str.substr(dPos + 2, semi - (dPos + 2));
+    if (!ParseDims3(dims, d0, d1, d2)) return false;
+
+    const char* vals = str.c_str() + (vPos + 2);
+    flat8 = ParseU8CsvSentinel255(vals);
+    return true;
+}
+
+static inline bool ReadWholeFileToString(const char* path, std::string& out)
+{
+    out.clear();
+    if (!path || !*path) return false;
+
+    std::ifstream f(path, std::ios::in | std::ios::binary);
+    if (!f) return false;
+
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    out = ss.str();
+
+    // Trim trailing whitespace/newlines (so ParseDebugT3Env tolerates file ending newline)
+    while (!out.empty()) {
+        char c = out.back();
+        if (c == '\n' || c == '\r' || c == ' ' || c == '\t') out.pop_back();
+        else break;
+    }
+    return !out.empty();
+}
+
+
 PFA_EXTERN_C ge::graphStatus TilingPromptFlashAttention(gert::TilingContext* context)
 {
     if (context == nullptr) {
@@ -6882,47 +6972,56 @@ PFA_EXTERN_C ge::graphStatus TilingPromptFlashAttention(gert::TilingContext* con
     tilingData->promptAttentionBaseParams.debugT3D1 = 0;
     tilingData->promptAttentionBaseParams.debugT3D2 = 0;
 
-    if (const char* env = std::getenv("PFA_BLOCKS")) {
+    std::string blocksStr;
+    const char* blocks = nullptr;
+
+    // Option A: file path from env (recommended, no ABI changes)
+    if (const char* p = std::getenv("PFA_BLOCKS_FILE")) {
+        if (ReadWholeFileToString(p, blocksStr)) {
+            blocks = blocksStr.c_str();
+        }
+    }
+    // Optional: keep env as fallback (remove this if you truly want file-only)
+    if (!blocks) {
+        blocks = std::getenv("PFA_BLOCKS");
+    }
+    if (blocks) {
         uint32_t d0 = 0, d1 = 0, d2 = 0;
-        std::vector<int32_t> flat;
+        std::vector<uint8_t> flat8;
 
-        if (ParseDebugT3Env(env, d0, d1, d2, flat) && d0 && d1 && d2) {
+        if (ParseDebugT3EnvU8(blocks, d0, d1, d2, flat8) && d0 && d1 && d2) {
             const uint64_t want = uint64_t(d0) * uint64_t(d1) * uint64_t(d2);
+            const uint64_t bytesLogical = want; // u8
 
-            // Avoid overflow in bytes calculation
-            if (want <= (std::numeric_limits<uint64_t>::max)() / sizeof(int32_t)) {
-                const uint64_t bytes = want * sizeof(int32_t);
+            // Ensure exactly want elements; pad with 255 sentinel
+            if (flat8.size() < want) {
+                flat8.resize((size_t)want, 255);
+            } else if (flat8.size() > want) {
+                flat8.resize((size_t)want);
+            }
 
-                // Normalize vector length to exactly "want"
-                if (flat.size() < want) {
-                    flat.resize(static_cast<size_t>(want), 0);
-                } else if (flat.size() > want) {
-                    flat.resize(static_cast<size_t>(want));
-                }
+            uint8_t* base = reinterpret_cast<uint8_t*>(raw->GetData());
+            const uint64_t cap = raw->GetCapacity();
 
-                // Append after struct; align to 16 for safety.
-                uint8_t* base = reinterpret_cast<uint8_t*>(raw->GetData());
-                const uint64_t cap = raw->GetCapacity();
-                const uint64_t off = AlignUp(sizeof(PromptFlashAttentionTilingData), 16);
-                const uint64_t used = off + bytes;
+            const uint64_t off = AlignUp(sizeof(PromptFlashAttentionTilingData), 16);
+            const uint64_t bytesStored = AlignUp(bytesLogical, 16);
+            const uint64_t used = off + bytesStored;
 
-                // Make sure used size fits in buffer and SetDataSize takes a sane value
-                if (used <= cap && used <= (std::numeric_limits<uint32_t>::max)()) {
-                    std::memcpy(base + off, flat.data(), static_cast<size_t>(bytes));
+            if (used <= cap && used <= (std::numeric_limits<uint32_t>::max)()) {
+                std::memset(base + off, 0xFF, (size_t)bytesStored); // pad to 255
+                std::memcpy(base + off, flat8.data(), (size_t)bytesLogical);
 
-                    tilingData->promptAttentionBaseParams.debugT3D0 = d0;
-                    tilingData->promptAttentionBaseParams.debugT3D1 = d1;
-                    tilingData->promptAttentionBaseParams.debugT3D2 = d2;
-                    tilingData->promptAttentionBaseParams.debugT3Len = static_cast<uint32_t>(want);
-                    tilingData->promptAttentionBaseParams.debugT3OffsetBytes = static_cast<uint32_t>(off);
+                tilingData->promptAttentionBaseParams.debugT3D0 = d0;
+                tilingData->promptAttentionBaseParams.debugT3D1 = d1;
+                tilingData->promptAttentionBaseParams.debugT3D2 = d2;
+                tilingData->promptAttentionBaseParams.debugT3Len = (uint32_t)want;
+                tilingData->promptAttentionBaseParams.debugT3OffsetBytes = (uint32_t)off;
 
-                    // Ensure the runtime copies the tail bytes (struct + appended int32 array).
-                    raw->SetDataSize(static_cast<uint32_t>(used));
-                } else {
-                    // Leave disabled if it doesn't fit
-                    tilingData->promptAttentionBaseParams.debugT3Len = 0;
-                    tilingData->promptAttentionBaseParams.debugT3OffsetBytes = 0;
-                }
+                raw->SetDataSize((uint32_t)used);
+            } else {
+                // Leave disabled if it doesn't fit
+                tilingData->promptAttentionBaseParams.debugT3Len = 0;
+                tilingData->promptAttentionBaseParams.debugT3OffsetBytes = 0;
             }
         }
     }

@@ -12,11 +12,13 @@ Measures:
 import math
 import itertools
 import os
+from pathlib import Path
+import tempfile
 
 import torch
 import torch_npu
 
-device = "npu:1"
+device = "npu:0"
 torch.npu.set_device(device)
 
 DTYPE = torch.bfloat16
@@ -24,8 +26,9 @@ INPUT_LAYOUT = "BNSD"  # [B, num_heads, seq_len, head_dim]
 
 # Parameter sweeps (adjust as needed)
 B_VALS = [1]
-H_VALS = [24]
-S_VALS = [8192]  # S_q = S_kv
+H_VALS = [3]
+S_VALS = [118_806]  # S_q = S_kv
+# S_VALS = [50_000]  # S_q = S_kv
 D_VALS = [128]   # head dimension
 
 N_REPEATS = 20
@@ -35,7 +38,7 @@ N_WARMUP = 2
 # 'sparse_block' does not pass tests because current kernel does not support different masks for different heads.
 # 'sparse_block_all_same' is the same, but with all masks which are the same.
 # 'blocks_optimized' is the new optimized version written by us
-ATTENTION_MATRIX = "blocks_optimized"   # "sparse_block", "sparse_block_all_same", "lower_triangular", "band", "custom", "vertical_band" "dense" "blocks_optimized"
+ATTENTION_MATRIX = "blocks_optimized_batched"   # "sparse_block", "sparse_block_all_same", "lower_triangular", "band", "custom", "vertical_band" "dense" "blocks_optimized" "blocks_optimized_batched"
 
 # For block mask and vertical band mask
 SPARSITY_VALS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
@@ -44,6 +47,7 @@ SPARSITY_VALS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 BLOCK_SIZE_Q = 128
 BLOCK_SIZE_KV = 512
 BLOCK_MASK_SEED = 1234
+USE_FRAME = True
 
 # For the band mask
 BAND_PRE_TOKENS = 8
@@ -51,23 +55,27 @@ BAND_POST_TOKENS = 2
 
 # Print tensors for manual comparisons
 PRINT_OUTPUTS = False
+PRINT_MASK = False
 # For printing tensor differneces in blocks
 PRINT_BLOCK_EQUALITY = False
-PRINT_HEIGHT = 4
+PRINT_HEIGHT = 128
 PRINT_WIDTH = 8
 
 if ATTENTION_MATRIX == 'vertical_band':
     START_BAND = 256
 
-RUN_REFERENCE = True
+RUN_REFERENCE = False
+TORCH_REFERENCE = True  # If False, will instead run the torch_npu reference
+if RUN_REFERENCE and not TORCH_REFERENCE:
+    assert H_VALS == [1], "Cannot run torch_npu reference with more than 1 head. For short inputs, use the torch reference, for long inputs test only with H=1"
 
-# torch.set_printoptions(
-#     threshold=100_000_000,
-#     linewidth=400,
-#     edgeitems=3,
-#     precision=4,
-#     sci_mode=False
-# )
+torch.set_printoptions(
+    threshold=100_000_000,
+    linewidth=400,
+    edgeitems=3,
+    precision=4,
+    sci_mode=False
+)
 # torch.set_printoptions(sci_mode=False)
 
 # --------------------------------------------------------------------------- #
@@ -139,7 +147,78 @@ def generate_sparse_blocks_by_row(
 
     return rows
 
+def generate_sparse_blocks_by_row_with_frame(
+    S_q: int,
+    S_kv: int,
+    block_size_q: int,
+    block_size_kv: int,
+    sparsity: float,
+    seed: int,
+    pad_value: int = -1,
+) -> list[list[int]]:
+    """
+    Constraints (post-sparsity selection):
+      - first 8 block-cols of each row are always included (if they exist)
+      - first 29 block-rows contain all blocks
+      - last row contains all blocks
+      - each row always includes the last block-col
+    Output:
+      - shape [n_block_rows][n_block_cols]
+      - each row: sorted selected cols, then pad_value to the end
+    """
+    sparsity = max(0.0, min(1.0, float(sparsity)))
 
+    n_block_rows = math.ceil(S_q / block_size_q)
+    n_block_cols = math.ceil(S_kv / block_size_kv)
+    if n_block_rows == 0 or n_block_cols == 0:
+        return []
+
+    last_col = n_block_cols - 1
+
+    # Base target count from sparsity.
+    K = int(round(n_block_cols * (1.0 - sparsity)))
+    K = max(1, min(K, n_block_cols))
+
+    g = torch.Generator(device="cpu")
+    g.manual_seed(seed)
+
+    # Forced columns for EVERY non-fully-dense row:
+    # first 8 cols (or fewer if n_block_cols < 8) + last col
+    forced_prefix = set(range(min(8, n_block_cols)))
+    forced_always = set(forced_prefix)
+    forced_always.add(last_col)
+
+    # Ensure K is at least large enough to contain the forced set (unless fully dense anyway)
+    K = max(K, len(forced_always))
+
+    rows: list[list[int]] = []
+    for r in range(n_block_rows):
+        fully_dense = (r < 29) or (r == n_block_rows - 1)
+
+        if fully_dense:
+            cols = list(range(n_block_cols))
+        else:
+            forced = set(forced_always)
+
+            need = K - len(forced)
+            if need <= 0:
+                cols = sorted(forced)
+            else:
+                candidates = [c for c in range(n_block_cols) if c not in forced]
+                # sample without replacement
+                perm = torch.randperm(len(candidates), generator=g).tolist()
+                extra = [candidates[i] for i in perm[:need]]
+                cols = sorted(list(forced) + extra)
+
+        cols = cols + [pad_value] * (n_block_cols - len(cols))
+        rows.append(cols)
+
+    return rows
+
+if USE_FRAME:
+    generate_sparse_blocks_by_row = generate_sparse_blocks_by_row_with_frame
+
+# Normal version
 def make_block_mask(
     S_q: int,
     S_kv: int,
@@ -171,6 +250,49 @@ def make_block_mask(
                 mask[row_start:row_end, col_start:col_end] = False
 
     return mask.unsqueeze(0).unsqueeze(0)
+
+# # Q-tail on top
+# def make_block_mask(
+#     S_q: int,
+#     S_kv: int,
+#     block_size_q: int,
+#     block_size_kv: int,
+#     sparse_blocks_by_row: list[list[int]],
+#     device: str = "cpu",
+# ) -> torch.Tensor:
+#     """
+#     Builds a dense boolean mask [1, 1, S_q, S_kv] from sparse block columns.
+
+#     True  = masked
+#     False = allowed
+
+#     The uneven (short) block-row, if any, is the FIRST one.
+#     """
+#     n_block_rows = math.ceil(S_q / block_size_q)
+#     n_block_cols = math.ceil(S_kv / block_size_kv)
+
+#     mask = torch.ones((S_q, S_kv), dtype=torch.bool, device=device)
+
+#     # Size of the first (possibly uneven) block row
+#     first_block_q = S_q - (n_block_rows - 1) * block_size_q
+
+#     rows_to_process = min(n_block_rows, len(sparse_blocks_by_row))
+
+#     row_start = 0
+#     for r in range(rows_to_process):
+#         # First row may be smaller; others are full-sized
+#         row_height = first_block_q if r == 0 else block_size_q
+#         row_end = min(row_start + row_height, S_q)
+
+#         for c in sparse_blocks_by_row[r]:
+#             if 0 <= c < n_block_cols:
+#                 col_start = c * block_size_kv
+#                 col_end = min(col_start + block_size_kv, S_kv)
+#                 mask[row_start:row_end, col_start:col_end] = False
+
+#         row_start = row_end  # advance to next block row
+
+#     return mask.unsqueeze(0).unsqueeze(0)
 
 def generate_sparse_blocks_by_row_per_head(
     S_q: int,
@@ -504,6 +626,42 @@ def gen_pfa_inputs(
 
     return q, k, v, actseqlen, actseqlenkv
 
+# --------------------------------------------------------------------------- #
+#  New method that can also take sabi_blocks as input
+# --------------------------------------------------------------------------- #
+
+def prompt_flash_attention_npu(q, k, v, sabi_blocks: torch.Tensor = None, **kwargs):
+    if sabi_blocks is not None:
+        b, heads, rows, cols = sabi_blocks.shape
+
+        # Flatten in (head, row, k) order. Values are block-column indices.
+        vals = sabi_blocks.reshape(-1).tolist()
+        assert len(vals) == b * heads * rows * cols
+
+        # # Env variable
+        # os.environ["PFA_BLOCKS"] = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
+
+        # File
+        # Build the exact same payload string
+        blocks_payload = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
+        blocks_path = Path(tempfile.gettempdir()) / f"pfa_blocks.txt"
+        blocks_path.write_text(blocks_payload, encoding="utf-8")
+        os.environ["PFA_BLOCKS_FILE"] = str(blocks_path)
+
+    return torch_npu.npu_prompt_flash_attention(q, k, v, **kwargs)
+
+def prompt_flash_attention_npu(q, k, v, sabi_blocks: torch.Tensor = None, **kwargs):
+    if sabi_blocks is not None:
+        b, heads, rows, cols = sabi_blocks.shape
+
+        # Flatten in (head, row, k) order. Values are block-column indices.
+        vals = sabi_blocks.reshape(-1).tolist()
+        assert len(vals) == b * heads * rows * cols
+
+        # Env variable
+        os.environ["PFA_BLOCKS"] = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
+
+    return torch_npu.npu_prompt_flash_attention(q, k, v, **kwargs)
 
 # --------------------------------------------------------------------------- #
 #  benchmark body
@@ -534,10 +692,12 @@ def benchmark_prompt_flash_attention():
         B_VALS, H_VALS, S_VALS, D_VALS, SPARSITY_VALS
     ):
         s_q = s_kv
+        # Default parameters
         scale = 1.0 / math.sqrt(float(d))
-
         pre_tok = 2147483647     # default pre-token value
         post_tok = 0     # default post-token value
+        sabi_blocks = None
+
         # Mask is broadcastable over [B, H, S_q, S_kv].
         if ATTENTION_MATRIX == "sparse_block":
             # Build a block-wise attention mask for this (S_q, S_kv)
@@ -623,22 +783,46 @@ def benchmark_prompt_flash_attention():
             per_head_block_indices = generate_sparse_blocks_by_row_per_head(
                 s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, sparsity, num_heads=h, base_seed=BLOCK_MASK_SEED
             )
-            atten_mask = make_block_mask_per_head(
-                s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, per_head_block_indices, device=device
-            )
+            if RUN_REFERENCE:
+                atten_mask = make_block_mask_per_head(
+                    s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, per_head_block_indices, device=device
+                )
             
             heads = len(per_head_block_indices)
-            assert heads == h
             rows = len(per_head_block_indices[0]) if h > 0 else 0      # n_block_rows
             cols = len(per_head_block_indices[0][0]) if (h > 0 and rows > 0) else 0  # blocks per row
 
             # Flatten in (head, row, k) order. Values are block-column indices.
             vals = [c for head in per_head_block_indices for row in head for c in row]
 
+            # # Environment variable option
             os.environ["PFA_BLOCKS"] = f"D={h}x{rows}x{cols};V=" + ",".join(map(str, vals))
 
             npu_atten_mask = None
             sm = 0
+        elif ATTENTION_MATRIX == "blocks_optimized_batched":
+            per_batch_head_block_indices = []
+            for bidx in range(b):
+                per_head_block_indices = generate_sparse_blocks_by_row_per_head(
+                    s_q, s_kv,
+                    BLOCK_SIZE_Q, BLOCK_SIZE_KV,
+                    sparsity, num_heads=h,
+                    base_seed=BLOCK_MASK_SEED + bidx
+                )
+                per_batch_head_block_indices.append(per_head_block_indices)
+
+            sabi_blocks = torch.tensor(per_batch_head_block_indices, dtype=torch.long, device="cpu")
+            
+            if RUN_REFERENCE:
+                atten_masks = []
+                for block_indices in per_batch_head_block_indices:
+                    atten_mask = make_block_mask_per_head(
+                        s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, block_indices, device=device
+                    )
+                    atten_masks.append(atten_mask)
+            
+            npu_atten_mask=None
+            sm=0
         elif ATTENTION_MATRIX == "custom":
             atten_mask = make_custom_mask(
                 s_q,
@@ -654,9 +838,9 @@ def benchmark_prompt_flash_attention():
             npu_atten_mask = atten_mask
             sm = 0
 
-        # if atten_mask is not None:
-        #     print(atten_mask.int())
-        #     print(atten_mask.shape)
+        if PRINT_MASK and atten_mask is not None:
+            print(atten_mask.int())
+            print(atten_mask.shape)
 
         ######## Check correctness ########
         are_equal_ref = "N/A"
@@ -667,10 +851,11 @@ def benchmark_prompt_flash_attention():
             )
 
             # Our operator (NPU)
-            out_our = torch_npu.npu_prompt_flash_attention(
+            out_our = prompt_flash_attention_npu(
                 q,
                 k,
                 v,
+                sabi_blocks=sabi_blocks,
                 actual_seq_lengths=actseqlen,
                 actual_seq_lengths_kv=actseqlenkv,
                 num_heads=h,
@@ -683,7 +868,25 @@ def benchmark_prompt_flash_attention():
             )
 
             # Reference implementation (matmul+softmax+matmul) with same mask
-            out_ref = ref_prompt_flash_attention_bf16(q, k, v, scale, atten_mask=atten_mask)
+            if TORCH_REFERENCE:
+                out_ref = ref_prompt_flash_attention_bf16(q, k, v, scale, atten_mask=atten_mask)
+            else:
+                os.environ.pop("PFA_BLOCKS", None)
+                os.environ.pop("PFA_BLOCKS_FILE", None)
+                out_ref = torch_npu.npu_prompt_flash_attention(
+                    q,
+                    k,
+                    v,
+                    actual_seq_lengths=actseqlen,
+                    actual_seq_lengths_kv=actseqlenkv,
+                    num_heads=h,
+                    input_layout=INPUT_LAYOUT,
+                    scale_value=scale,
+                    atten_mask=atten_mask,
+                    sparse_mode=1,
+                    pre_tokens=pre_tok,
+                    next_tokens=post_tok,
+                )
 
             # Compare on CPU for convenience
             out_our_cpu = out_our.cpu()
@@ -715,10 +918,11 @@ def benchmark_prompt_flash_attention():
             # Warm-up
             for i in range(n_warmup):
                 q, k, v, actseqlen, actseqlenkv = input_sets[i]
-                torch_npu.npu_prompt_flash_attention(
+                prompt_flash_attention_npu(
                     q,
                     k,
                     v,
+                    sabi_blocks=sabi_blocks,
                     actual_seq_lengths=actseqlen,
                     actual_seq_lengths_kv=actseqlenkv,
                     num_heads=h,
@@ -738,10 +942,11 @@ def benchmark_prompt_flash_attention():
             start.record()
             for i in range(n_warmup, n_warmup + n_repeat):
                 q, k, v, actseqlen, actseqlenkv = input_sets[i]
-                torch_npu.npu_prompt_flash_attention(
+                prompt_flash_attention_npu(
                     q,
                     k,
                     v,
+                    sabi_blocks=sabi_blocks,
                     actual_seq_lengths=actseqlen,
                     actual_seq_lengths_kv=actseqlenkv,
                     num_heads=h,
