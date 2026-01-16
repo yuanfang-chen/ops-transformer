@@ -36,7 +36,7 @@ constexpr uint32_t HCCL_WORLDSIZE_POS = 1U;
 constexpr uint32_t UB_ALIGN = 32U;
 
 // dispatchv2所需常量段
-constexpr uint64_t DISPATCH_STATE_WIN_OFFSET = 900UL * 1024UL;
+constexpr uint64_t DISPATCH_STATE_WIN_OFFSET = 768UL * 1024UL;
 constexpr uint8_t BUFFER_NUM = 2;        // 多buf
 constexpr uint8_t BUFFER_SINGLE = 1; 
 constexpr uint32_t STATE_OFFSET = 32U;  // 状态空间偏移地址
@@ -45,7 +45,7 @@ constexpr uint8_t COMM_EP_IDX = 0;
 constexpr uint8_t COMM_TP_IDX = 1;
 constexpr uint8_t QUANT_PADDING_VALUE = 0;
 // 先写死这个偏移，如果TP固定为2，可直接往起始数据偏移开始读写
-constexpr uint64_t WIN_STATE_OFFSET = 450UL * 1024UL;
+constexpr uint64_t WIN_STATE_OFFSET = 384UL * 1024UL;
 constexpr uint64_t TIMEOUT_DETECTION_THRESHOLD = 50000UL;
 constexpr uint64_t CYCLES_PER_US = 50UL;
 constexpr uint64_t TIMEOUT_DETECTION_TX_UNITS = 8UL;
@@ -74,7 +74,7 @@ constexpr uint32_t PERGROUP_DYNAMIC_QUANT = 3;
 constexpr uint32_t MX_QUANT = 4;
 
 // combinev2额外所需常量段
-constexpr uint64_t COMBINE_STATE_WIN_OFFSET = 950UL * 1024UL;   // combine 0/1状态区偏移，为dispatch预留50k大小
+constexpr uint64_t COMBINE_STATE_WIN_OFFSET = 818UL * 1024UL;   // combine 0/1状态区偏移，为dispatch预留50k大小
 constexpr uint32_t COMBINE_STATE_OFFSET = 64U * 1024U;  // 本卡状态空间偏移地址，前面的地址给dispatch用
 constexpr uint8_t EP_DOMAIN = 0;
 constexpr uint8_t TP_DOMAIN = 1;
@@ -89,7 +89,7 @@ constexpr uint32_t INT8_DIVIVE = 2;
 
 // combineARN额外所需常量段
 constexpr uint64_t COMBINE_ARN_STATE_SIZE = 1024UL * 1024UL; // 1M
-constexpr uint64_t COMBINE_ARN_STATE_WIN_OFFSET = 975UL * 1024UL;  // 预留48*512内存
+constexpr uint64_t COMBINE_ARN_STATE_WIN_OFFSET = 818UL * 1024UL;
 constexpr uint32_t NUM_PER_REP_FP32 = 64U;  // ONE_REPEAT_BYTE_SIZE / sizeof(float)
 constexpr float ZERO = 0;
 constexpr float ONE = 1;
