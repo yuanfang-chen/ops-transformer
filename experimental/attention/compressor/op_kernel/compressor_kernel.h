@@ -23,10 +23,11 @@
 #include "compressor_comm.h"
 #if (__CCE_AICORE__ == 220)
 #include "arch32/compressor_block_cube.h"
+#include "arch32/compressor_block_vec.h"
 #else
 #include "arch35/compressor_block_cube.h"
+#include "arch35/compressor_block_vec.h"
 #endif
-#include "compressor_block_vec.h"
 
 using namespace AscendC;
 
@@ -103,10 +104,11 @@ private:
     // 常量
     static constexpr uint64_t SYNC_MODE2 = 2;
     static constexpr uint32_t SYNC_C1_V1_FLAG = 6;
+    static constexpr uint32_t SYNC_V1_C1_FLAG = 7;
 
     // ==============================Service Define==============================
     CompressorBlockCube<COMP> blockCube_;
-    CompressorBlockVector<COMP> vectorService;
+    CompressorBlockVector<COMP> blockVec_;
     static constexpr uint32_t dbWorkspaceRatio = 1;
 
     using X_T = typename AscendC::Conditional<COMP::xDtype == X_DTYPE::BF16, bfloat16_t, half>::type;
@@ -212,16 +214,14 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
             kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
         blockCube_.InitBuffers(pipe_);
     } else {
-        vectorService.InitParams(constInfo);
-        vectorService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, 
-        kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut); 
-        #if __CCE_AICORE__ == 310
-            //
-        #else 
-            vectorService.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
-        #endif
+        blockVec_.InitParams(constInfo);
+        blockVec_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
+                        cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
+        blockVec_.InitBuffers(pipe_);
+#if (__CCE_AICORE__ == 220)
+        blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
+#endif
     }
-    
 }
 
 template <typename COMP>
@@ -521,13 +521,13 @@ __aicore__ inline void CompressorKernel<COMP>::ComputeMm1(const RunInfo &info) {
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeVec1(const RunInfo &info) {
     // printf("[COMPUTE] VEC1 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
-    vectorService.ComputeVec1(info);
+    blockVec_.ComputeVec1(info);
 }
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeVec2(const RunInfo &info) {
     // printf("[COMPUTE] VEC2 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
-    vectorService.ComputeVec2(info);
+    blockVec_.ComputeVec2(info);
 }
 
 template <typename COMP>
@@ -536,7 +536,8 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
     if ASCEND_IS_AIC {
         blockCube_.AllocEventID(pipe_);
     } else {
-        vectorService.AllocEventID();
+        blockVec_.AllocEventID();
+        CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
     }
 
     RunInfo extraInfo[1];
@@ -552,6 +553,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
             if (isNeedExcute) {
+                CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
                 ComputeMm1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG);
             }
@@ -559,6 +561,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
             if (isNeedExcute) {
                 CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
+                CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
             }
             if ((i + 1) % constInfo.nSize == 1) {
                 vec2Info.bStart = extraInfo0.bStart;
@@ -576,15 +579,16 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                     vec2Info.bEnd = extraInfo0.bEnd;
                     vec2Info.sEnd = extraInfo0.sEnd;
                     vec2Info.scEnd = extraInfo0.scEnd;
-                    ComputeVec2(vec2Info);
+                    // ComputeVec2(vec2Info);
                 }
             }
         }
     }
     if ASCEND_IS_AIC {
+        CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
         blockCube_.FreeEventID(pipe_);
     } else {
-        vectorService.FreeEventID();
+        blockVec_.FreeEventID();
     }
 
 }

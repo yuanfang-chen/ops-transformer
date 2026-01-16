@@ -103,6 +103,7 @@ constexpr uint32_t DIM_IDX_THREE = 3;
 constexpr uint32_t DIM_IDX_FOUR = 4;
 
 // Dim Num
+constexpr uint32_t DIM_NUM_ONE = 1;
 constexpr uint32_t DIM_NUM_TWO = 2;
 constexpr uint32_t DIM_NUM_THREE = 3;
 constexpr uint32_t DIM_NUM_FOUR = 4;
@@ -453,6 +454,7 @@ public:
     ge::graphStatus GetActualseqInfo();
     ge::graphStatus GetDSizeQ();
     ge::graphStatus GetDSizeKV();
+    ge::graphStatus GetSinks();
     void GenerateInfo(SASTilingInfo &sasInfo);
     ge::graphStatus Parse(SASTilingInfo &sasInfo);
 

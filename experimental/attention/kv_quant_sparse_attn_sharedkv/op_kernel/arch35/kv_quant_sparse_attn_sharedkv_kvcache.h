@@ -253,7 +253,7 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo 
         0, runParam.actualS2Size);
     runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
         runParam.s1RealSize, 0, runParam.actualS2Size);
-    runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - runParam.s2LineStartIdx / s2BaseSize;
+    runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
     if constexpr (TEMPLATE_MODE == SASTemplateMode::SWA_TEMPLATE_MODE) {
         runParam.cmpKvLoopEndIdx = 0;
         runParam.s2CmpLineEndIdx = 0;

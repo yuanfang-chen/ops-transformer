@@ -30,6 +30,7 @@ static const std::string CMP_BLOCK_TABLE_NAME = "cmp_block_table";
 // static const std::string QUERY_ROPE_NAME = "query_rope";
 // static const std::string KEY_ROPE_NAME = "key_rope";
 // static const std::string ATTEN_OUT_NAME = "attention_out";
+static const std::string SINKS_NAME = "sinks";
 
 std::string SASLayoutToSerialString(SASLayout layout)
 {
@@ -457,6 +458,23 @@ ge::graphStatus SASInfoParser::GetDSizeQ() {
 ge::graphStatus SASInfoParser::GetDSizeKV() {
     dSizeKV_ = GetAxisNum(oriKvShape_, SASAxis::D, kvLayout_);
     return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus SASInfoParser::GetSinks()
+{
+    if(opParamInfo_.sequsedKv.tensor != nullptr){
+        uint32_t oriDimNum = opParamInfo_.oriBlockTable.tensor->GetStorageShape().GetDimNum();
+        if(oriDimNum != DIM_NUM_ONE){
+            OP_LOGE(opName_, "the dim num of sinks is %u, it should be %u.", oriDimNum, DIM_NUM_ONE);
+            return ge::GRAPH_FAILED;
+        }
+
+        int64_t oriDimension = opParamInfo_.sequsedKv.tensor->GetStorageShape().GetDim(0);
+        if(oriDimension != gSize_){
+            OP_LOGE(opName_, "sinks's dimension(%ld) should be equal to query head num(%u).", oriDimension, gSize_);
+            return ge::GRAPH_FAILED;
+        }
+    }
 }
 
 void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
