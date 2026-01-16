@@ -33,6 +33,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "../../../op_kernel/matmul_all_reduce.cpp"
 using namespace std;
+using namespace Mc2Tiling;
 
 extern uint8_t* g_hcclContextReserved[2];
 struct HcclCombinOpParams {
@@ -83,7 +84,7 @@ TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_no_bias) {
             MATMUL_ALLREDUCE_INT8_COMM_F, 0, 0, SET_NOT_USE_FM_MM_TPL_TILING, SET_NOT_USE_QUANT_MM_TPL_TILING,
             SET_NOT_USE_WEIGHT_QUANT_MM_TPL_TILING>(aGM, bGM, biasGM, addGM, antiquantScaleGM, antiquantOffsetGM,
             dequantGM, pertokenGM, commQuantScale1GM, commQuantScale2GM, cGM, workspaceGM, tilingGM);
-    };   
+    };
     ICPU_SET_TILING_KEY(260);
     ICPU_RUN_KF(matmul_all_reduce_wrapper, 20, aGM, bGM, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, output, workspace, tiling);
 
@@ -153,7 +154,7 @@ TEST_F(matmul_all_reduce_test, matmul_all_reduce_test_no_bias_l2cache_cube) {
     tilingData->param.aicCoreNum = 8;
     tilingData->param.rankDim = 1;
     tilingData->param.tileCnt = 1;
-    Mc2L2cacheTilePara tileL2cacheTiling;
+    Mc2Tiling::Mc2L2cacheTilePara tileL2cacheTiling;
     tilingData->tileL2cacheTiling.mTileCntL2 = 1;
     tilingData->tileL2cacheTiling.nTileCntL2 = 2;
     tilingData->tileL2cacheTiling.mTileBlock = 1;

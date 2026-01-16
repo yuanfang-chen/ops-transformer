@@ -16,7 +16,11 @@
 #define MC2_ALLREDUCE_COMM_H
 
 #include "lib/hccl/hccl.h"
+#ifdef __CCE_KT_TEST__
+#include "../../common/inc/kernel/mc2_tiling_struct.h"
+#else
 #include "../common/inc/kernel/mc2_tiling_struct.h"
+#endif
 
 #if defined(__CCE_KT_TEST__)
 #define SET_G_CORE_TYPE_IS_AIV thread_local int g_coreType = 2

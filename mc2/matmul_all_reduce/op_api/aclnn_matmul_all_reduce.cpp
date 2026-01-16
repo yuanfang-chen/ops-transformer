@@ -130,3 +130,4 @@ aclnnStatus aclnnMatmulAllReduce(
 #ifdef __cplusplus
 }
 #endif
+

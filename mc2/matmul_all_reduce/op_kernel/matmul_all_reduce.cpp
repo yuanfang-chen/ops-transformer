@@ -341,6 +341,9 @@ __global__ __aicore__ void matmul_all_reduce(
     GM_ADDR dequantGM, GM_ADDR pertokenGM, GM_ADDR commQuantScale1GM, GM_ADDR commQuantScale2GM, GM_ADDR cGM,
     GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
+#ifdef __CCE_KT_TEST__
+    REGISTER_TILING_DEFAULT(Mc2Tiling::WeightQuantMatmulAllReduceTilingData);
+#else
     // context中tilingdata对应的内存空间，是由kernel此处注册，即max(sizeof(TilingData0),...,sizeof(TilingData1))。
     // 当前AscendC并不能根据tiling_key中ASCENDC_TPL_TILING_STRUCT_SEL定义的结构体来识别上述逻辑
     // 假如直接REGISTER_TILING_DEFAULT注册size最大的tilingdata，而不用REGISTER_TILING_FOR_TILINGKEY注册所有结构体
@@ -363,6 +366,7 @@ __global__ __aicore__ void matmul_all_reduce(
     REGISTER_TILING_FOR_TILINGKEY("(MM_TYPE == MATMUL_ALLREDUCE_MM_TYPE_FP_MM) && \
         (AICORE_TYPE == ASCEND_310P) && (FORMAT_B == FORMAT_B_NZ)",
         Mc2Tiling::MatmulAllReduceTilingData);
+#endif
     if (workspaceGM == nullptr) {
         return;
     }

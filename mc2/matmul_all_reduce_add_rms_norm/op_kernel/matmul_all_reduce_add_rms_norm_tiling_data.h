@@ -18,7 +18,7 @@
 
 #include "kernel_tiling/kernel_tiling.h"
 
-#if defined(__CCE_AICORE__)
+#if __has_include("../matmul_all_reduce/arch32/quant_matmul_all_reduce_tiling_data.h")
 #include "../common/inc/kernel/mc2_tiling_struct.h"
 #include "../matmul_all_reduce/arch32/quant_matmul_all_reduce_tiling_data.h"
 #include "../matmul_all_reduce/arch32/unquant_matmul_all_reduce_tiling_data.h"

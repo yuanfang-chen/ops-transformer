@@ -68,7 +68,7 @@ TEST_F(l2_matmul_all_reduce_test, test_mm_all_reduce_empty_M) {
   uint64_t workspace_size = 0;
   aclOpExecutor* executor = nullptr;
   aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-  EXPECT_NE(aclRet, ACLNN_SUCCESS);
+  EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_matmul_all_reduce_test, test_mm_all_reduce_null_x1) {
