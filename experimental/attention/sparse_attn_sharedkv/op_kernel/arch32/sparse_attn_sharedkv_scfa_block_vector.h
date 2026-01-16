@@ -12,8 +12,8 @@
  * \file sparse_flash_attention_service_vector_mla.h
  * \brief
  */
-#ifndef SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
-#define SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
+#ifndef SPARSE_ATTN_SHAREDKV_SCFA_BLOCK_VECTOR_H
+#define SPARSE_ATTN_SHAREDKV_SCFA_BLOCK_VECTOR_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -246,7 +246,7 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::InitBuffer
     pipe->InitBuffer(softmaxSumDefaultBuff, ConstInfo::BUFFER_SIZE_BYTE_1K);
 
     pipe->InitBuffer(sinksBuff, MAX_N1_SIZE * sizeof(SINKS_T));
-    pipe->InitBuffer(sinksBrcbBuff, MAX_N1_SIZE * sizeof(SINKS_T) * BLOCK_ELEMENT_NUM);
+    pipe->InitBuffer(sinksBrcbBuff, MAX_N1_SIZE * sizeof(SINKS_T) * BLOCK_ELEMENT_NUM * 3U);  // 分配256+N1大小内存，其中256是m轴VEC最大切块
 
     nValueUb = nValueBuff.Get<T>();
     cofValueUb = cofValueBuff.Get<T>();
@@ -346,7 +346,7 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::FreeEventI
     WaitFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
 }
 
-template <typename SFAT> __aicore__ inline void SASVectorBlock<SFAT>::CopySinksIn()
+template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::CopySinksIn()
 {
     DataCopyExtParams dataCopyParams;
     dataCopyParams.blockCount = 1U;
@@ -366,13 +366,13 @@ template <typename SFAT> __aicore__ inline void SASVectorBlock<SFAT>::CopySinksI
     repeatParams.blockLen = constInfo.qHeadNum;
     repeatParams.srcStride = 0U;
     repeatParams.dstStride = 0U;
-    for (uint32_t i ; i <= 256U / constInfo.qHeadNum; i++) {
+    for (uint32_t i = 1U; i <= 256U / constInfo.qHeadNum; i++) {
         DataCopy(sinksBrcbUb[constInfo.qHeadNum * BLOCK_ELEMENT_NUM * i], sinksBrcbUb, repeatParams);
     }
     PipeBarrier<PIPE_V>();
 }
 
-template <typename SFAT> __aicore__ inline void SASVectorBlock<SFAT>::SliceAndContactSinksValue(uint32_t nIdx, uint32_t dealRowCount)
+template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::SliceAndContactSinksValue(uint32_t nIdx, uint32_t dealRowCount)
 {
     uint32_t repeatTimesOnce = 128;  //由于WholeReduceMax接口中repeatTimes支持范围（0,255），因此需要分多次调用WholeReduceMax，这里就使用每次repeatTime=128
     uint32_t loopTimes = (dealRowCount + repeatTimesOnce - 1) / repeatTimesOnce;
@@ -392,7 +392,7 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::InitSoftma
 {
     CopySinksIn();
     Duplicate(softmaxMaxDefaultUb, SOFTMAX_MIN_NUM, SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T));
-    Duplicate(softmaxSumDefaultUb, ConstInfo::FLOAT_ZERO, SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T));
+    Duplicate(softmaxSumDefaultUb, R0, SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T));
 }
 
 template <typename SAST>

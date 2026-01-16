@@ -76,11 +76,14 @@ enum class SparseType : uint8_t {
     int64_t s2LoopEndIdx;          /* S2方向的循环控制信息 souter层确定 */ \
     int64_t s2LineStartIdx = 0;    /* S2方向按行的起始位置 */ \
     int64_t s2LineEndIdx;          /* S2方向按行的结束位置 */ \
+    int64_t s2CmpLineEndIdx; \
     /* cube视角的sOuter，在SAMEAB场景中cubeSOuterSize为两倍的 halfS1RealSize souter层确定 */ \
     uint32_t s1RealSize; \
-    uint32_t s1RealSizeAlign32;    /* dn场景使用 */ \
     uint32_t halfS1RealSize; \
     uint32_t firstHalfS1RealSize; \
+    uint32_t mRealSize; \
+    uint32_t halfMRealSize; \
+    uint32_t firstHalfMRealSize; \
     int64_t tensorQOffset;         /* query的offset souter层确定 */ \
     int64_t attentionOutOffset;    /* attentionOut的offset souter层确定 */ \
     int32_t actualS1Size;      /* Q的actualSeqLength */ \
@@ -100,6 +103,8 @@ struct RunParamStr {  // 分核与切块需要使用到参数
     // NBS1循环生产的数据
     int64_t sOuterOffset;               // 单个S内 souter的 souterIdx * halfS1RealSize souter层确定
     int64_t cubeSOuterOffset;           // 单个S内 souter的 souterIdx * halfS1RealSize souter层确定
+    int64_t mOuterOffset;
+    int64_t cubeMOuterOffset;
     int64_t keyCoreOffset;              // BN方向上，不同BN的Key的offset batch层确定
     int64_t valueCoreOffset;            // BN方向上，不同BN的value的offset batch层确定
     int64_t keyOffset;              // mm1 Key 的offset,后续更名为KFinalOffset
@@ -127,13 +132,17 @@ struct RunParamStr {  // 分核与切块需要使用到参数
     int64_t n2oIdx = 0; /* n2轴的index */ \
     int64_t goIdx = 0; /* g轴的index */ \
     int32_t s1RealSize; \
-    int32_t s1RealSizeAlign32; \
     int32_t halfS1RealSize; /* vector侧实际的s1基本块大小，如果Cube基本块=128，那么halfS1RealSize=64 */ \
     int32_t firstHalfS1RealSize; /* 当s1RealSize不是2的整数倍时，v0比v1少计算一行，计算subblock偏移的时候需要使用v0的s1 size */ \
+    int32_t mRealSize; \
+    int32_t halfMRealSize; \
+    int32_t firstHalfMRealSize; \
     int32_t s2RealSize; /* s2方向基本块的真实长度 */ \
     int64_t s2AlignedSize; /* s2方向基本块对齐到16之后的长度 */ \
     int32_t vec2S1BaseSize; /* vector2侧开循环之后，经过切分的S1大小，例如把64切分成两份32 */ \
     int32_t vec2S1RealSize; /* vector2侧开循环之后，经过切分的S1的尾块大小，例如把63切分成两份32和31，第二份的实际大小是31 */ \
+    int32_t vec2MBaseSize; \
+    int32_t vec2MRealSize; \
     int64_t vecCoreOffset; /* vec核基于cube核起始处s1方向偏移 */ \
     int64_t queryOffset; /* mm1 Query的offset*/\
     int64_t keyOffset; /* mm1 Key的offset */ \
@@ -151,7 +160,8 @@ struct RunParamStr {  // 分核与切块需要使用到参数
     uint8_t taskIdMod3; \
     uint8_t multiCoreIdxMod2 = 0; \
     uint8_t multiCoreIdxMod3 = 0; \
-    int64_t sOuterOffset
+    int64_t sOuterOffset; \
+    int64_t mOuterOffset;
 
 struct RunInfo {
     COMMON_RUN_INFO;
@@ -169,15 +179,18 @@ struct RunInfo {
 
 #define COMMON_CONST_INFO \
     /* 全局的基本块信息 */ \
+    uint32_t bSize; \
+    uint32_t needInit; \
     uint32_t s1BaseSize; \
     uint32_t s2BaseSize; \
-    int64_t dSize; \
-    int64_t dSizeV; \
+    int64_t dSize; /* query d 512 */ \
+    int64_t dSizeV; /* key d 512 */ \
+    int64_t dSizeVInput; /* key inpue d 640 = rope + nope + scale + pad */ \
     int64_t dBasicBlock; \
-    int64_t dSizeNope; /* for v0 */ \
-    int64_t dSizeRope; \
-    int64_t tileSize; /* for v0 */ \
-    int64_t sparseMode = 3; /* for v0 */ \
+    int64_t dSizeNope; /* key nope d 448 */ \
+    int64_t dSizeRope; /* key rope d 64 */ \
+    int64_t tileSize; /* 64 */ \
+    int64_t sparseMode = 3; \
     int64_t gSize; /* g轴的大小 */ \
     int64_t n2Size; \
     int64_t s1Size; /* s1总大小 */ \
@@ -229,7 +242,6 @@ struct RunInfo {
     int64_t s1BaseBN2GDv; \
     int32_t s1BaseDv; \
     int32_t s2BaseDv; \
-    int64_t s1OuterSize; \
     /* matmul跳读参数 */ \
     int64_t mm1Ka; \
     int64_t mm1Kb; \
@@ -240,10 +252,10 @@ struct RunInfo {
     uint8_t layoutType; \
     uint8_t subBlockIdx;\
     bool softMaxCheckRes; \
-    int64_t matmulMSize     /* 在matmul运算中，左矩阵的M轴大小需要区分GS1合轴与不合轴的情况 */
+    int64_t matmulMSize; /* 在matmul运算中，左矩阵的M轴大小需要区分GS1合轴与不合轴的情况 */ 
 
 #define INFER_CONST_INFO \
-    /* 推理新增 */ \
+    /* 推理 */ \
     bool isActualLenDimsNull; /* 判断是否有actualseq */ \
     bool isActualLenDimsKVNull; /* 判断是否有actualseq_kv */ \
     bool isGqa; \
@@ -279,8 +291,9 @@ struct RunInfo {
     uint32_t gSize;  \
     uint32_t s1Size;  \
     uint32_t s2Size;  \
-    uint32_t dSize : 16;  \
-    uint32_t dSizeV : 16;  \
+    uint32_t dSize : 10;  \
+    uint32_t dSizeV : 10;  \
+    uint32_t dSizeVInput : 12;  \
     uint32_t sparseBlockCount; \
     int64_t sparseBlockSize; \
     float softmaxScale; \
@@ -295,10 +308,6 @@ struct RunInfo {
     int64_t kvQuantMode; \
     int64_t tileSize; \
     int64_t ropeHeadDim; \
-    /* core params */ \
-    volatile int64_t multiCoreInnerOffset;  /* 二次赋值的变量需要volatile修饰 */ \
-    volatile int64_t multiCoreInnerLimit;  /* 二次赋值的变量需要volatile修饰 */ \
-    uint32_t s1OuterSize;  \
     uint32_t coreNum;  \
     uint32_t needInit : 1; \
     uint32_t layoutType : 4;  \
@@ -307,8 +316,10 @@ struct RunInfo {
     uint32_t actualSeqLengthsSize; \
     uint32_t actualSeqLengthsKVSize; \
     uint32_t splitKVNum; /* FD */ \
-    uint32_t bnStartIdx; \
-    uint32_t bnEndIdx;
+    /* pa params */  \
+    uint32_t blockSize; \
+    uint32_t oriMaxBlockNumPerBatch; \
+    uint32_t cmpMaxBlockNumPerBatch; 
 
 
 struct ConstInfo{

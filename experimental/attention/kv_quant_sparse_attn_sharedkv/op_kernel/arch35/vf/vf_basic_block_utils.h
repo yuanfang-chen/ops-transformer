@@ -82,12 +82,5 @@ constexpr static AscendC::MicroAPI::CastTrait castTraitRintThree = {
     AscendC::MicroAPI::MaskMergeMode::ZEROING,
     AscendC::RoundMode::CAST_RINT,
 };
-
-#define USE_MLA_FULLQUANT_V1_P(vreg_exp, vreg_rowmax_p, MaskReg)    \
-    do {                                                            \
-        Muls(vreg_exp, vreg_exp, fp8e4m3MaxValue, MaskReg);         \
-        Div(vreg_exp, vreg_exp, vreg_rowmax_p, MaskReg);            \
-    } while (0)
-} // namespace
-
+}
 #endif // VF_BASIC_BLOCK_UTILS_H

@@ -36,7 +36,7 @@ public:
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("cmp_sparse_indices")
-            .ParamType(REQUIRED)
+            .ParamType(OPTIONAL)
             .DataType({ge::DT_INT32, ge::DT_INT32})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();

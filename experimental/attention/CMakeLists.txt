@@ -9,7 +9,6 @@
 # -----------------------------------------------------------------------------------------------------------
 
 set(OPTEST_NAME optest_${PKG_NAME})
-set(CMAKE_BUILD_TYPE Debug)
 
 file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
 foreach(SUB_DIR ${CURRENT_DIRS})

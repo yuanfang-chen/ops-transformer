@@ -240,12 +240,22 @@ function(merge_graph_headers)
   set(oneValueArgs TARGET OUT_DIR)
   cmake_parse_arguments(MGPROTO "" "${oneValueArgs}" "" ${ARGN})
   get_target_property(proto_headers ${GRAPH_PLUGIN_NAME}_proto_headers INTERFACE_SOURCES)
+
   add_custom_command(OUTPUT ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
     COMMAND ${ASCEND_PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/util/merge_proto.py
     ${proto_headers}
     --output-file ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
   )
-  add_custom_target(${MGPROTO_TARGET} ALL
+
+  add_custom_command(
+    OUTPUT ${MGPROTO_OUT_DIR}/ops_proto_transformer.cpp
+    COMMAND ${CMAKE_COMMAND} -E copy
+      ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
+      ${MGPROTO_OUT_DIR}/ops_proto_transformer.cpp
     DEPENDS ${MGPROTO_OUT_DIR}/ops_proto_transformer.h
+  )
+
+  add_custom_target(${MGPROTO_TARGET} ALL
+    DEPENDS ${MGPROTO_OUT_DIR}/ops_proto_transformer.h ${MGPROTO_OUT_DIR}/ops_proto_transformer.cpp
   )
 endfunction()

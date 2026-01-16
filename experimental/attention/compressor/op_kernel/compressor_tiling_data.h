@@ -35,6 +35,7 @@ namespace optiling {
         float normEps;                  // RMSNorm eps
         float reciprocalD;              // 1分之D
         uint32_t usedCoreNum;           // 使用核数
+        uint32_t nSize;                 // 控制v2积攒的轮数
     };
 
     struct CompressorPageAttentionParams {

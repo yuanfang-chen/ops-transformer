@@ -77,6 +77,11 @@ template <typename T1, typename T2> __aicore__ inline T1 Min(T1 a, T2 b)
     return (a > b) ? (b) : (a);
 }
 
+template <typename T1, typename T2> __aicore__ inline T1 Max(T1 a, T2 b)
+{
+    return (a > b) ? (a) : (b);
+}
+
 template <typename T> __aicore__ inline size_t BlockAlign(size_t s)
 {
     if constexpr (IsSameType<T, int4b_t>::value) {
@@ -132,6 +137,7 @@ struct RunInfo {
     int64_t threshold;
     uint32_t curTopKIdx = 0;
     uint64_t curOffsetInSparseBlock = 0;
+    bool isOri = true;  // 判断当前块是在Ori部分还是Cmp部分
 };
 
 struct ConstInfo {
@@ -176,6 +182,8 @@ struct ConstInfo {
     uint64_t kvSeqSize = 0ULL;        // kv最大S长度
     uint64_t qSeqSize = 1ULL;         // q最大S长度
     int64_t kvCacheBlockSize = 0;    // PA场景的block size
+    int64_t orikvCacheBlockSize = 0;
+    int64_t cmpkvCacheBlockSize = 0;
     uint32_t oriMaxBlockNumPerBatch = 0; // PA场景的最大单batch block number
     uint32_t cmpMaxBlockNumPerBatch =0;
     uint32_t splitKVNum = 0U;         // S2核间切分的切分份数
@@ -215,8 +223,8 @@ struct ConstInfo {
     int64_t cmpRatio = 0;
 
     // win
-    int64_t oriWinRight = 0;
-    int64_t oriWinLeft = 128;
+    int32_t oriWinRight = 0;
+    int32_t oriWinLeft = 128;
 
     // attention模式与量化模式
     ATTENTION_MODE attentionMode = ATTENTION_MODE::MLA_ABSORB;

@@ -14,7 +14,6 @@
  */
 #include "register/op_impl_registry.h"
 #include "../op_kernel_aicpu/lightning_indexer_quant_metadata.h"
-#include "../op_graph/lightning_indexer_quant_metadata_proto.h"
 
 using namespace ge;
 

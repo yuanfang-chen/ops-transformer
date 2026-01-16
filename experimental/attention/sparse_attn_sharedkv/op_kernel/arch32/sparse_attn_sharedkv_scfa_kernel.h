@@ -337,10 +337,8 @@ template <typename SAST>
 __aicore__ inline uint32_t SparseAttnSharedkvScfa<SAST>::GetActualSeqLenKV(uint32_t bIdx)
 {
     if constexpr (KV_LAYOUT_T == SAS_LAYOUT::TND) {
-        if (bIdx > 0) {
-            return actualSeqLengthsKVGm.GetValue(bIdx) - actualSeqLengthsKVGm.GetValue(bIdx - 1);
-        } else if (bIdx == 0) {
-            return actualSeqLengthsKVGm.GetValue(0);
+        if (bIdx >= 0) {
+            return actualSeqLengthsKVGm.GetValue(bIdx + 1) - actualSeqLengthsKVGm.GetValue(bIdx);
         } else {
             return 0;
         }
@@ -450,7 +448,7 @@ __aicore__ inline bool SparseAttnSharedkvScfa<SAST>::IsSkip( uint32_t s2LoopIdx)
 {
 
     bool isSkip = false;
-    // 一个基本块只能是
+    // 一个基本块只能是ori或者cmp
     if (s2LoopIdx < tempLoopInfo.oriLoopTimes) {
         isSkip = OriSkip(s2LoopIdx);
     } else {
@@ -670,18 +668,26 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::CalcParams(uint32_t loop, u
     info.tensorBOffset = tensorBCoreOffset;
     info.tensorBRopeOffset = tensorBRopeCoreOffset;
     info.attenOutOffset = tensorACoreOffset;
+    
+    if (s2LoopIdx < tempLoopInfo.oriLoopTimes) {
+        info.isOri = true;
+        uint64_t sInnerOffsetDataSize = info.s2Idx * constInfo.s2BaseSize;
+        if (s2LoopIdx + 1 == tempLoopInfo.oriLoopTimes) {
+            info.actualSingleProcessSInnerSize = tempLoopInfo.actS2SizeOri - sInnerOffsetDataSize;
+        } else {
+            info.actualSingleProcessSInnerSize = constInfo.s2BaseSize;
+        }
 
-    uint64_t sInnerOffsetDataSize = info.s2Idx * constInfo.s2BaseSize;
-    info.s2BatchOffset = s2BatchBaseOffset + sInnerOffsetDataSize;
-
-    info.actS2SizeOri = tempLoopInfo.actS2SizeOri;
-    //计算实际基本块size
-    if (tempLoopInfo.actS2Size > sInnerOffsetDataSize) {
-        info.actualSingleProcessSInnerSize = tempLoopInfo.actS2Size - sInnerOffsetDataSize;
-        info.actualSingleProcessSInnerSize = info.actualSingleProcessSInnerSize > constInfo.s2BaseSize ?
-                                            constInfo.s2BaseSize : info.actualSingleProcessSInnerSize;
     } else {
-        info.actualSingleProcessSInnerSize = 0;
+        info.isOri = false;
+        uint64_t sInnerOffsetDataSize = (s2LoopIdx - tempLoopInfo.oriLoopTimes) * constInfo.s2BaseSize;
+        info.actualSingleProcessSInnerSize = tempLoopInfo.actS2Size / constInfo.cmpRatio - sInnerOffsetDataSize;
+        if (info.actualSingleProcessSInnerSize <= 0) {
+            info.actualSingleProcessSInnerSize = 0;
+        } else {
+            info.actualSingleProcessSInnerSize = info.actualSingleProcessSInnerSize < constInfo.s2BaseSize ?
+                            info.actualSingleProcessSInnerSize : constInfo.s2BaseSize;
+        }
     }
     info.actualSingleProcessSInnerSizeAlign =
         SASAlign((uint32_t)info.actualSingleProcessSInnerSize, (uint32_t)SASVectorBlock<SAST>::BYTE_BLOCK);
@@ -790,12 +796,11 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
             uint32_t cmpSplitNum = (tempLoopInfo.actS2Size / constInfo.cmpRatio + constInfo.s2BaseSize - 1) / constInfo.s2BaseSize;
             uint32_t s2SplitNum = oriSplitNum + cmpSplitNum;
             bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == constInfo.gS1End);
-            
             tempLoopInfo.s2LoopTimes = s2SplitNum;
             tempLoopInfo.oriLoopTimes = oriSplitNum;
             tempLoopInfo.cmpLoopTimes = cmpSplitNum;
             uint32_t s2LoopEnd = (isEnd && constInfo.s2End != 0) ? constInfo.s2End : tempLoopInfo.s2LoopTimes;
-            tempLoopInfo.s2LoopTimes = s2LoopEnd - constInfo.s2Start;
+            tempLoopInfo.s2LoopTimes = s2LoopEnd;
             // 分核修改后需要打开
             // 当前s2是否被切，决定了输出是否要写到attenOut上
             tempLoopInfo.tndIsS2SplitCore =
@@ -869,10 +874,8 @@ __aicore__ inline uint64_t
 SparseAttnSharedkvScfa<SAST>::GetBalanceActualSeqLengths(GlobalTensor<int32_t> &actualSeqLengths, uint32_t bIdx)
 {
     if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
-        if (bIdx > 0) {
-            return actualSeqLengths.GetValue(bIdx) - actualSeqLengths.GetValue(bIdx - 1);
-        } else if (bIdx == 0) {
-            return actualSeqLengths.GetValue(0);
+        if (bIdx >= 0) {
+            return actualSeqLengths.GetValue(bIdx + 1) - actualSeqLengths.GetValue(bIdx);
         } else {
             return 0;
         }

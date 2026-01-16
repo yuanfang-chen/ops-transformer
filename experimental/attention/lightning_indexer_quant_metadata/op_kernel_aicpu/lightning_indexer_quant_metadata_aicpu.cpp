@@ -28,23 +28,27 @@ bool LightningIndexerQuantMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
   metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
 
 
-  bool requiredAttrs = GetAttrValue(ctx, "batch_size", batchSize_) &&
-                       GetAttrValue(ctx, "query_seq_size", querySeqSize_) &&
-                       GetAttrValue(ctx, "query_head_num", queryHeadNum_) &&
-                       GetAttrValue(ctx, "kv_seq_size", kvSeqSize_) &&
-                       GetAttrValue(ctx, "kv_head_num", kvHeadNum_) &&
-                       GetAttrValue(ctx, "aic_core_num", aicCoreNum_) && 
-                       GetAttrValue(ctx, "aiv_core_num", aivCoreNum_);
+  bool requiredAttrs = GetAttrValue(ctx, "aic_core_num", aicCoreNum_) && 
+                       GetAttrValue(ctx, "aiv_core_num", aivCoreNum_) &&
+                       GetAttrValue(ctx, "soc_version", socVersion_) &&
+                       GetAttrValue(ctx, "num_heads_q", numHeadsQ_) &&
+                       GetAttrValue(ctx, "num_heads_k", numHeadsK_) &&
+                       GetAttrValue(ctx, "head_dim", headDim_) &&
+                       GetAttrValue(ctx, "query_quant_mode", queryQuantMode_) &&
+                       GetAttrValue(ctx, "key_quant_mode", keyQuantMode_);
   if (!requiredAttrs) {
     return false;
   }
 
   coreNum_ = aicCoreNum_;
   // attributes optional
+  GetAttrValueOpt(ctx, "batch_size", batchSize_);
+  GetAttrValueOpt(ctx, "max_seqlen_q", maxSeqlenQ_);
+  GetAttrValueOpt(ctx, "max_seqlen_k", maxSeqlenK_);
   GetAttrValueOpt(ctx, "layout_query", layoutQuery_);
   GetAttrValueOpt(ctx, "layout_key", layoutKV_);
+  GetAttrValueOpt(ctx, "sparse_count", sparseCount_);
   GetAttrValueOpt(ctx, "sparse_mode", sparseMode_);
-  GetAttrValueOpt(ctx, "soc_version", soc_version_);
   GetAttrValueOpt(ctx, "is_fd", supportFd_);
   GetAttrValueOpt(ctx, "pre_tokens", preToken_);
   GetAttrValueOpt(ctx, "next_tokens", nextToken_);
@@ -58,14 +62,40 @@ bool LightningIndexerQuantMetadataCpuKernel::ParamsCheck() {
     return true; 
 }
 
+ValidSocVersion LightningIndexerQuantMetadataCpuKernel::ProcessSocVersion() {
+    if (socVersion_ == "Ascend910_9392" || socVersion_ == "ASCEND910B" || socVersion_ == "ascend910B" ||
+                socVersion_ == "Ascend910B" || socVersion_ == "Ascend910_93" || socVersion_ == "Ascend910" ||
+                socVersion_ == "ascend910" || socVersion_ == "ASCEND910") {
+        return ValidSocVersion::ASCEND910B;
+    } else if (socVersion_ == "Ascend910_9589" || socVersion_ == "ASCEND910D" || socVersion_ == "ascend910D" ||
+                socVersion_ == "Ascend910D" || socVersion_ == "Ascend910_95") {
+        return ValidSocVersion::ASCEND910D;
+    }
+    
+    return ValidSocVersion::RESERVED_VERSION;
+}
+
 bool LightningIndexerQuantMetadataCpuKernel::ParamsInit() {
     
-    groupSize_ = queryHeadNum_ / kvHeadNum_;
-    mBaseSize_ = 4 * groupSize_;
-    if (soc_version_=="ascend910B"){
-        s2BaseSize_ = 2048U; //仅用于A3
+    groupSize_ = numHeadsQ_ / numHeadsK_;
+    if (actSeqLenQ_ != nullptr) {
+        auto shape = actSeqLenQ_->GetTensorShape();
+        const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
+        if (s1Ptr[0] == 0 && layoutQuery_ == "TND") {
+            batchSize_ = shape->GetDimSize(0) - 1;
+        } else {
+            batchSize_ = shape->GetDimSize(0);
+        }
+    }
+    mBaseSize_ = 256;
+    
+    ValidSocVersion validSocVersion = ProcessSocVersion();
+    if (validSocVersion == ValidSocVersion::ASCEND910B){
+        s2BaseSize_ = 2048U; // 仅用于A3
+    } else if (validSocVersion == ValidSocVersion::ASCEND910D){
+        s2BaseSize_ = 128U; // 仅用于A5
     } else {
-        s2BaseSize_ = 128U;
+        s2BaseSize_ = 128U; // 其他情况
     }
 
     gS1BaseSizeOfFd_ = 1U;
@@ -75,12 +105,16 @@ bool LightningIndexerQuantMetadataCpuKernel::ParamsInit() {
 uint32_t LightningIndexerQuantMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 {
     if (actSeqLenQ_ == nullptr) {
-        return querySeqSize_;
+        return maxSeqlenQ_;
     }
     const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
     if (layoutQuery_ == "TND") {
-        return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx]) :
-           static_cast<uint32_t>(s1Ptr[bIdx] - s1Ptr[bIdx - 1U]);
+        if (s1Ptr[0] == 0) {
+             return static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);       
+        } else {
+            return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx]) :
+                static_cast<uint32_t>(s1Ptr[bIdx] - s1Ptr[bIdx - 1U]);
+        }
     } else {
         return static_cast<uint32_t>(s1Ptr[bIdx]);
     }
@@ -90,18 +124,21 @@ uint32_t LightningIndexerQuantMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
 {
     uint32_t s2Size = 0;
     if (actSeqLenKV_ == nullptr) {
-        s2Size = kvSeqSize_;
+        s2Size = maxSeqlenK_;
     } else {
         const int32_t *s2Ptr = (int32_t*)actSeqLenKV_->GetData();
         if (layoutKV_ == "TND") {
-            s2Size = (bIdx == 0) ? static_cast<uint32_t>(s2Ptr[bIdx]) :
-            static_cast<uint32_t>(s2Ptr[bIdx] - s2Ptr[bIdx - 1U]);
+            if (s2Ptr[0] == 0) {
+                s2Size = static_cast<uint32_t>(s2Ptr[bIdx + 1U] - s2Ptr[bIdx]);
+            } else {
+                s2Size = (bIdx == 0) ? static_cast<uint32_t>(s2Ptr[bIdx]) :
+                static_cast<uint32_t>(s2Ptr[bIdx] - s2Ptr[bIdx - 1U]);
+            }
         } else {
             s2Size = static_cast<uint32_t>(s2Ptr[bIdx]);
         }
         s2Size = s2Size/cmpRatio_;
     }
-
     return s2Size;
 }
 
@@ -335,8 +372,8 @@ void LightningIndexerQuantMetadataCpuKernel::CalcCostInfo(SplitContext &splitCon
     // 计算batch的负载并记录，用于按batch分配，需要按行计算起止点，统计块数、负载
     for (uint32_t bIdx = 0; bIdx < batchSize_; bIdx++) {
         CalcBatchCost(bIdx, splitContext, costInfo);
-        costInfo.totalCost += costInfo.bN2CostOfEachBatch[bIdx] * kvHeadNum_;
-        costInfo.totalBlockNum += costInfo.bN2BlockOfEachBatch[bIdx] * kvHeadNum_;
+        costInfo.totalCost += costInfo.bN2CostOfEachBatch[bIdx] * numHeadsK_;
+        costInfo.totalBlockNum += costInfo.bN2BlockOfEachBatch[bIdx] * numHeadsK_;
     }
 }
 
@@ -362,15 +399,15 @@ void LightningIndexerQuantMetadataCpuKernel::UpdateCursor(const SplitContext &sp
     }
 
     // Update Batch
-    if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {  // 所有负载全部分配完，设置最后一个核的右开区间，返回
+    if (assignContext.curBN2Idx == batchSize_ * numHeadsK_) {  // 所有负载全部分配完，设置最后一个核的右开区间，返回
         assignContext.curS1GIdx = 0U;
         assignContext.curS2Idx = 0U;
         assignContext.isFinished = true;
         return;
     }
 
-    if (assignContext.curBN2Idx / kvHeadNum_ != assignContext.curBIdx) {
-        assignContext.curBIdx = assignContext.curBN2Idx / kvHeadNum_;
+    if (assignContext.curBN2Idx / numHeadsK_ != assignContext.curBIdx) {
+        assignContext.curBIdx = assignContext.curBN2Idx / numHeadsK_;
         assignContext.curS1GIdx = 0U;
         UpdateBatch = true;
         UpdateS1G = true;
@@ -402,7 +439,7 @@ void LightningIndexerQuantMetadataCpuKernel::AssignByBatch(const SplitContext &s
         assignContext.curBN2Idx++;
 
         // to the end
-        if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {
+        if (assignContext.curBN2Idx == batchSize_ * numHeadsK_) {
             assignContext.curS1GIdx = 0U;
             assignContext.curS2Idx = 0U;
             assignContext.isFinished = true;
@@ -410,8 +447,8 @@ void LightningIndexerQuantMetadataCpuKernel::AssignByBatch(const SplitContext &s
         }
 
         // next batch
-        if (assignContext.curBN2Idx / kvHeadNum_ != assignContext.curBIdx) {
-            assignContext.curBIdx = assignContext.curBN2Idx / kvHeadNum_;
+        if (assignContext.curBN2Idx / numHeadsK_ != assignContext.curBIdx) {
+            assignContext.curBIdx = assignContext.curBN2Idx / numHeadsK_;
             CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
         }
 
@@ -520,7 +557,7 @@ void LightningIndexerQuantMetadataCpuKernel::RecordFDInfo(const SplitContext &sp
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
     // 需要规约的行是上一个核的切分点所在位置
-    uint32_t splitBIdx = result.bN2End[assignContext.curCoreIdx - 1U] / kvHeadNum_;
+    uint32_t splitBIdx = result.bN2End[assignContext.curCoreIdx - 1U] / numHeadsK_;
     uint32_t splitS1GIdx = result.gS1End[assignContext.curCoreIdx - 1U];
     uint32_t s1Size = GetS1SeqSize(splitBIdx);
 
@@ -711,7 +748,7 @@ bool LightningIndexerQuantMetadataCpuKernel::BalanceSchedule() {
     // 全空case
     if (splitContext.splitInfo.isKvSeqAllZero) {
         splitRes_.usedCoreNum = 1U;
-        splitRes_.bN2End[0] = batchSize_ * kvHeadNum_;
+        splitRes_.bN2End[0] = batchSize_ * numHeadsK_;
         splitRes_.gS1End[0] = 0U;
         splitRes_.s2End[0] = 0U;
         return true;

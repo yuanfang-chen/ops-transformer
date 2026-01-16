@@ -12,8 +12,8 @@
  * \file sparse_flash_attention_service_cube_mla.h
  * \brief use 7 buffer for matmul l1, better pipeline
  */
-#ifndef SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H
-#define SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H
+#ifndef SPARSE_ATTN_SHAREDKV_SCFA_BLOCK_CUBE_H
+#define SPARSE_ATTN_SHAREDKV_SCFA_BLOCK_CUBE_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -642,7 +642,7 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
                             kvMergeGm_[info.loop % 4 * N_WORKSPACE_SIZE * kSize + (constInfo.headDim >> 1) +
                                     nL1 * N_SPLIT_SIZE * constInfo.headDim],
                             nd2nzPara);
-
+            }
             SetFlag<HardEvent::MTE2_MTE1>(mte21KVIds[kb]);
             WaitFlag<HardEvent::MTE2_MTE1>(mte21KVIds[kb]);
             mL1Size = M_SPLIT_SIZE;
@@ -732,6 +732,7 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
     }
     qpL1BufIter += mL1Loops;
 }
+
 
 template <typename SAST>
 __aicore__ inline void SASCubeBlock<SAST>::ComputeMm2(const RunInfo &info, const MSplitInfo mSplitInfo)

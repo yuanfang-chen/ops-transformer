@@ -22,10 +22,12 @@ __attribute__((visibility("default"))) aclnnStatus
 aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
     const aclTensor* cuSeqLensQOptional,
     const aclTensor* sequsedKvOptional,
-    int64_t batchSize,
     int64_t numHeadsQ,
     int64_t numHeadsKv,
     int64_t headDim,
+    int64_t batchSizeOptional,
+    int64_t maxSeqlenQOptional,
+    int64_t maxSeqlenKvOptional,
     int64_t topKOptional,
     int64_t cmpRatioOptional,
     int64_t oriMaskModeOptional,
@@ -36,9 +38,6 @@ aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
     char *layoutKvOptional,
     bool hasOriKvOptional,
     bool hasCmpKvOptional,
-    char *socVersion,
-    int64_t aicCoreNum,
-    int64_t aivCoreNum,
     const aclTensor* metaData,
     uint64_t* workspaceSize,
     aclOpExecutor** executor);

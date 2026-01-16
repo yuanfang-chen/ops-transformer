@@ -413,7 +413,8 @@ ge::graphStatus SASInfoParser::GetMaxBlockNumPerBatch()
 
 ge::graphStatus SASInfoParser::GetBlockSize()
 {
-    blockSize_ = GetAxisNum(oriKvShape_, SASAxis::Bs, kvLayout_);
+    oriBlockSize_ = GetAxisNum(oriKvShape_, SASAxis::Bs, kvLayout_);
+    cmpBlockSize_ = GetAxisNum(cmpKvShape_, SASAxis::Bs, kvLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -422,7 +423,7 @@ ge::graphStatus SASInfoParser::GetS2SizeForPageAttention()
     if (GetMaxBlockNumPerBatch() != ge::GRAPH_SUCCESS || GetBlockSize() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    s2Size_ = oriMaxBlockNumPerBatch_ * blockSize_;
+    s2Size_ = oriMaxBlockNumPerBatch_ * oriBlockSize_;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -517,7 +518,10 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.totalBlockNum = (opParamInfo_.oriKv.tensor != nullptr) ?
         opParamInfo_.oriKv.tensor->GetStorageShape().GetDim(0) : 0;
     // sasInfo.pageAttentionFlag = (kvStorageMode_ == KvStorageMode::PAGE_ATTENTION);
-    sasInfo.sparseBlockSize = blockSize_;
+    sasInfo.sparseBlockSize = 1;
+    sasInfo.blockSize = oriBlockSize_;
+    sasInfo.oriBlockSize = oriBlockSize_;
+    sasInfo.cmpBlockSize = cmpBlockSize_;
     sasInfo.blockTypeSize = sizeof(float);
     sasInfo.oriMaxBlockNumPerBatch = oriMaxBlockNumPerBatch_;
     sasInfo.cmpMaxBlockNumPerBatch = cmpMaxBlockNumPerBatch_;
@@ -672,6 +676,8 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     workspaceSize += V1_DECODE_DATA_NUM * S1_BASE_SIZE * V1_RES_ELEM_TYPE * TOPK_MAX_SIZE * V1_RES_ELEM_SIZE * aicNum;
     // 临时存储Decode中间参数信息大小: 2(头/尾)*8(s1Base)*16(paramNum)*sizeof(int64_t)*24=48k
     workspaceSize += V1_DECODE_DATA_NUM * S1_BASE_SIZE * V1_DECODE_PARAM_NUM * V1_DECODE_PARAM_ELEM_SIZE * aicNum;
+
+    workspaceSize = 120 * 1024 * 1024;
     size_t *workSpaces = context_->GetWorkspaceSizes(1);
     workSpaces[0] = workspaceSize;
 
@@ -681,6 +687,8 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     tilingData_.baseParams.set_qSeqSize(tilingInfo->s1Size);
     tilingData_.baseParams.set_nNumOfQInOneGroup(tilingInfo->gSize);
     tilingData_.baseParams.set_paBlockSize(tilingInfo->blockSize);
+    tilingData_.baseParams.set_oriBlockSize(tilingInfo->oriBlockSize);
+    tilingData_.baseParams.set_cmpBlockSize(tilingInfo->cmpBlockSize);
     tilingData_.baseParams.set_oriMaxBlockNumPerBatch(tilingInfo->oriMaxBlockNumPerBatch);
     tilingData_.baseParams.set_actualLenDimsQ(tilingInfo->actualLenDimsQ);
     tilingData_.baseParams.set_actualLenDimsKV(tilingInfo->actualLenDimsKV);
@@ -711,7 +719,7 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     uint32_t inputKvLayout = static_cast<uint32_t>(tilingInfo->kvLayout);
 
     uint32_t tilingKey =
-        GET_TPL_TILING_KEY(0U, qLayout, inputKvLayout, static_cast<uint32_t>(perfMode_));
+        GET_TPL_TILING_KEY(0U, qLayout, inputKvLayout, static_cast<uint32_t>(tilingInfo->perfMode));
     context_->SetTilingKey(tilingKey);
 
     return ge::GRAPH_SUCCESS;

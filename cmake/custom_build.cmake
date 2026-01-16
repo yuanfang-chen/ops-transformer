@@ -492,6 +492,16 @@ if (BUILD_OPEN_PROJECT)
         )
     endif()
 
+    merge_graph_headers(
+        TARGET merge_ops_proto ALL
+        OUT_DIR ${ASCEND_GRAPH_CONF_DST}
+    )
+
+    add_dependencies(cust_proto merge_ops_proto)
+    target_sources(cust_proto PRIVATE
+        ${ASCEND_GRAPH_CONF_DST}/ops_proto_transformer.cpp
+    )
+
     redefine_file_macro(
             TARGET_NAME
             op_host_aclnn

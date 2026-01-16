@@ -554,7 +554,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             uint32_t nSizeAlign = N_L1_BASE;
                             uint32_t nIdx = nL1 / N_L1_BASE;
                             CopyL0CDataToUb(mm1ResTensor, cL0Tensor, (mL1 == 0) ? 0 : 1, mSizeAlign, nSizeAlign, nIdx);
-                            DumpTensor(cL0Tensor, 1, 128 * 128);
+                            // DumpTensor(cL0Tensor, 1, 128 * 128);
                         }
                         SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId);
                     }

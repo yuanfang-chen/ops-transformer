@@ -128,6 +128,8 @@ TILING_DATA_FIELD_DEF(uint32_t, batchSize)
 TILING_DATA_FIELD_DEF(uint32_t, qSeqSize)
 TILING_DATA_FIELD_DEF(uint32_t, kvSeqSize)
 TILING_DATA_FIELD_DEF(int64_t, paBlockSize)
+TILING_DATA_FIELD_DEF(int64_t, oriBlockSize)
+TILING_DATA_FIELD_DEF(int64_t, cmpBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, oriMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, nNumOfQInOneGroup)
 TILING_DATA_FIELD_DEF(uint32_t, actualLenDimsQ)
@@ -239,6 +241,8 @@ public:
     uint32_t blockTypeSize = 0;
     uint32_t oriMaxBlockNumPerBatch = 0;
     int32_t blockSize = 0;
+    int32_t oriBlockSize = 0;
+    int32_t cmpBlockSize = 0;
     uint32_t cmpMaxBlockNumPerBatch = 0;
     uint32_t totalBlockNum = 0;
 
@@ -487,7 +491,8 @@ public:
     // PageAttention
     uint32_t oriMaxBlockNumPerBatch_ = 0;
     uint32_t cmpMaxBlockNumPerBatch_ = 0;
-    int32_t blockSize_ = 0;
+    int32_t oriBlockSize_ = 0;
+    int32_t cmpBlockSize_ = 0;
 
     // template mode
     SASTemplateMode perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
