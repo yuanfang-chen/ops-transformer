@@ -38,6 +38,7 @@
 #include "aclnn_grouped_matmul_util.h"
 #include "aclnn_grouped_matmul_910_95_checker.h"
 #include "aclnn_grouped_matmul_weight_quant_910_95_checker.h"
+#include "grouped_matmul_no_quant_910_95_checker.h"
 
 using namespace op;
 
@@ -1093,6 +1094,10 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
       return gmm::AclnnGroupedMatmul91095Checker<aclTensorList>(gmmParams).CheckGroupedMatmul91095();
     } else if (IsWeightQuant(gmmParams.xDtype, weightDtype)) {
       return gmm::AclnnGroupedMatmulWeightQuant91095Checker(gmmParams).CheckGroupedMatmulWeightQuant91095();
+    } else {
+      CHECK_RET(gmm::AclnnGroupedMatmulNoQuant91095Checker(gmmParams).CheckGroupedMatmulNoQuant91095() ==
+                    ACLNN_SUCCESS,
+                ACLNN_ERR_PARAM_INVALID);
     }
   }
   if (gmmParams.xDtype == DataType::DT_INT8 && weightDtype == DataType::DT_INT4) {
