@@ -51,7 +51,7 @@ TEST_F(GatherPaKvCacheProto, gather_pa_kv_cache_infershape_0)
             {"is_seq_lens_cumsum", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
         }
     );
-    std::vector<std::vector<int64_t>> expectOutputShape = {{9547, 16, 144}, {9547, 16, 128}};
+    std::vector<std::vector<int64_t>> expectOutputShape = {{18933, 3232}, {18933, 3232}};
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
