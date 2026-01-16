@@ -373,7 +373,8 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
 ## 约束说明
 * 默认支持确定性计算
 * 右矩阵和输出矩阵的H2必须整除NPU卡数
-* 仅支持左矩阵perToken量化，x1QuantMode=3，右矩阵perChannel量化,x2QuantMode=2
+* 不支持空tensor
+* 仅支持左矩阵perToken量化，x1QuantMode=3，右矩阵perChannel量化，x2QuantMode=2
 * <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：传入的x1、x2、biasOptional、x1Scale、x2Scale或者output不为空指针
 * <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：x1、x2计算输入的数据类型必须为INT8，output计算输出的数据类型为BFLOAT16时，biasOptional的数据类型为FLOAT或BFLOAT16，output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16
 * H1范围仅支持[1, 65535]
@@ -479,7 +480,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
         int64_t x1QuantMode = 3;
         int64_t x2QuantMode = 2;
         int64_t commQuantMode = 0;
-        int64_t commQuantDtype = 28;
+        int64_t commQuantDtype = -1;
         int64_t groupSize = 0;
 
         int64_t a2aAxes[2] = {-1, -2};

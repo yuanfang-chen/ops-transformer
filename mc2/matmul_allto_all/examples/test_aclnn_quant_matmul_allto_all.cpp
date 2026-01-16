@@ -104,7 +104,7 @@ int launchOneThreadQuantMatmulAlltoAll(Args &args) {
     int64_t x1QuantMode = 3;
     int64_t x2QuantMode = 2;
     int64_t commQuantMode = 0;
-    int64_t commQuantDtype = 28;
+    int64_t commQuantDtype = -1;
     int64_t groupSize = 0;
 
     int64_t a2aAxes[2] = {-1, -2};

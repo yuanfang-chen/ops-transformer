@@ -47,8 +47,6 @@ enum class NnopbaseHcclServerType : uint32_t {
 };
 
 // 需要使用的常量定义
-static constexpr int64_t COMM_QUANT_DTYPE = 28;
-static constexpr int64_t GROUP_SIZE = 0;
 static constexpr int64_t ZERO = 0;
 static constexpr int64_t ONE_DIM = 1;
 
@@ -108,12 +106,12 @@ static bool CheckReservedParams(int64_t commQuantMode, int64_t commQuantDtype, i
                 "The commQuantMode is a reserved parameter that should be 0, but it is %ld.", commQuantMode);
         return false;
     }
-    if (commQuantDtype != COMM_QUANT_DTYPE) {
+    if (commQuantDtype != ACL_DT_UNDEFINED) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
-                "The commQuantDtype is a reserved parameter that should be 28, but it is %ld.", commQuantDtype);
+                "The commQuantDtype is a reserved parameter that should be -1, but it is %ld.", commQuantDtype);
         return false;
     }
-    if (groupSize != GROUP_SIZE) {
+    if (groupSize != ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
                 "The groupSize is a reserved parameter that should be 0, but it is %ld.", groupSize);
         return false;
@@ -122,11 +120,11 @@ static bool CheckReservedParams(int64_t commQuantMode, int64_t commQuantDtype, i
 }
 
 //检查是否有空tensor
-static bool CheckNotEmptyTensor(const aclTensor* x1, const aclTensor* x2) {
+static bool CheckNotEmptyTensor(const aclTensor* x1, const aclTensor* x2, bool transposeX2) {
     auto mVal = x1->GetViewShape().GetDim(0);
     auto kVal1 = x1->GetViewShape().GetDim(1);
-    auto kVal2 = x2->GetViewShape().GetDim(0);
-    auto nVal = x2->GetViewShape().GetDim(1);
+    auto kVal2 = transposeX2 ? x2->GetViewShape().GetDim(1) : x2->GetViewShape().GetDim(0);
+    auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
     OP_API_CHECK((mVal == ZERO), {
       OP_LOGE(ACLNN_ERR_PARAM_INVALID,
       "X1 is empty tensor with zero dimM, which is unsupported.");
@@ -236,44 +234,6 @@ static bool ReFormatNotND(const aclTensor* x1, const aclTensor* x2, const aclTen
     return true;
 }
 
-// 根据API定义，列出quant_matmul_allto_all pertoken-perchannel K-C量化输入X所能支持的所有dtype
-static const std::initializer_list<op::DataType> X_DTYPE_KC_SUPPORT_LIST = {
-    op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2
-};
-
-// 根据API定义，列出quant_matmul_allto_all pertoken-perchannel K-C量化输入Scale所能支持的所有dtype
-static const std::initializer_list<op::DataType> SCALES_DTYPE_KC_SUPPORT_LIST = {
-    op::DataType::DT_FLOAT
-};
-
-// 根据API定义，列出quant_matmul_allto_all pertoken-perchannel K-C量化输入Bias所能支持的所有dtype
-static const std::initializer_list<op::DataType> BIAS_DTYPE_KC_SUPPORT_LIST = {
-    op::DataType::DT_FLOAT
-};
-
-// 根据API定义，列出quant_matmul_allto_all pertoken-perchannel K-C量化输出Output所能支持的所有dtype
-static const std::initializer_list<op::DataType> OUTPUT_DTYPE_KC_SUPPORT_LIST = {
-    op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_FLOAT
-};
-
-// 检查输入、属性、输出数据类型是否在K-C量化的支持列表之内
-static bool CheckKCDtypesValid(const aclTensor* x1, const aclTensor* x2,
-                               const aclTensor* x1Scale, const aclTensor* x2Scale,
-                               const aclTensor* biasOptional, const aclTensor* output)
-{
-    OP_CHECK_DTYPE_NOT_SUPPORT(x1, X_DTYPE_KC_SUPPORT_LIST, return false);
-    OP_CHECK_DTYPE_NOT_SUPPORT(x2, X_DTYPE_KC_SUPPORT_LIST, return false);
-    OP_CHECK_DTYPE_NOT_SUPPORT(x1Scale, SCALES_DTYPE_KC_SUPPORT_LIST, return false);
-    OP_CHECK_DTYPE_NOT_SUPPORT(x2Scale, SCALES_DTYPE_KC_SUPPORT_LIST, return false);
-    if (biasOptional != nullptr) {
-        OP_CHECK_DTYPE_NOT_SUPPORT(biasOptional, BIAS_DTYPE_KC_SUPPORT_LIST, return false);
-    }
-    OP_CHECK_DTYPE_NOT_SUPPORT(output, OUTPUT_DTYPE_KC_SUPPORT_LIST, return false);
-    // 检查输入x1和x2是否dtype一致，必须一致
-    OP_CHECK_DTYPE_NOT_SAME(x1, x2, return false);
-    return true;
-}
-
 static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST_X = {
     op::DataType::DT_INT8
 };
@@ -324,11 +284,7 @@ static bool CheckDtypesValid(const aclTensor* x1, const aclTensor* x2,
     bool isAllDtypesValid = false;
     // 目前只有KC量化场景，后续场景直接在这里补充判断
     if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::PERTOKEN_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
-        if(op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910B) {
-            isAllDtypesValid = CheckKCBiasDtypesValid(x1, x2, x1Scale, x2Scale, biasOptional, output);
-        } else {
-            isAllDtypesValid = CheckKCDtypesValid(x1, x2, x1Scale, x2Scale, biasOptional, output);
-        }
+        isAllDtypesValid = CheckKCBiasDtypesValid(x1, x2, x1Scale, x2Scale, biasOptional, output);
     }
     if (!isAllDtypesValid) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -376,7 +332,7 @@ static aclnnStatus CheckAndHandleParams(const aclTensor* x1, const aclTensor* x2
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x1, x2, biasOptional, x1Scale, x2Scale, output), ACLNN_ERR_PARAM_NULLPTR);
     // 2. 检查空tensor
-    CHECK_RET(CheckNotEmptyTensor(x1, x2), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNotEmptyTensor(x1, x2, transposeX2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查shape
     CHECK_RET(CheckShape(x1, x2, biasOptional, transposeX2, output), ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckScaleShape(x1, x2, x1Scale, x2Scale, transposeX2), ACLNN_ERR_PARAM_INVALID);
@@ -431,16 +387,25 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
         x1, x2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
         x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, groupSize, transposeX1, transposeX2, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
-    // Inner接口部分入参类型和aclnn接口不一致，需要重新包装，同时Inner接口额外需要worldSize和yDtype，根据算子原型模板定义初始化默认值进行传参
-    const int64_t WORLD_SIZE = -1;
-    const int64_t Y_DTYPE = 28;
+    // Inner接口部分入参类型和aclnn接口不一致，需要重新包装，同时Inner接口额外需要部分参数，按算子原型模板和实际业务逻辑生成
     const aclTensor* out = output;
-    int64_t worldSize = WORLD_SIZE;
-    int64_t yDtype = Y_DTYPE;
+    int64_t worldSize = -1;
     char* str_group = const_cast<char*>(group);
+    // ACL和GE的datatype枚举值对undefined定义不同，inner接口进入到算子内部，需要使用GE枚举值
+    commQuantDtype = op::DataType::DT_UNDEFINED;
+    // 生成yDtype，图模式需要
+    int64_t enumYDtype = op::DataType::DT_UNDEFINED;
+    auto yDtype = output->GetDataType();
+    if (yDtype == op::DataType::DT_FLOAT) {
+        enumYDtype = 0;
+    } else if (yDtype == op::DataType::DT_FLOAT16) {
+        enumYDtype = 1;
+    } else if (yDtype == op::DataType::DT_BF16) {
+        enumYDtype = 27;
+    }
     aclnnStatus ret = aclnnInnerMatmulAlltoAllGetWorkspaceSize(
         x1, x2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
-        str_group, worldSize, alltoAllAxesOptional, yDtype, x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype,
+        str_group, worldSize, alltoAllAxesOptional, enumYDtype, x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype,
         transposeX1, transposeX2, groupSize, out, workspaceSize, executor);
     OP_LOGD("QuantMatmulAlltoAll, aclnnnInnerGetWorkspaceSize ret %d.", ret);
     if (ret != ACLNN_SUCCESS) {

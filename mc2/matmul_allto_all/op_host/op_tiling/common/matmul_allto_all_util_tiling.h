@@ -147,6 +147,8 @@ public:
     static ge::graphStatus SetShapeInfo(const gert::TilingContext *context, TilingContextInfo &contextInfo);
     static ge::graphStatus SetDataTypeInfo(const gert::TilingContext *context, const char *opName,
                                            TilingContextInfo &contextInfo);
+    static ge::graphStatus SetKcDataTypeInfo(const gert::TilingContext *context, const char *opName,
+                                            TilingContextInfo &contextInfo);
 };
 
 // Builder模式成员函数通常使用小写字母开头

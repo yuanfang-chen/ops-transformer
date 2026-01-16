@@ -69,8 +69,6 @@ public:
     __aicore__ inline void Process();
 
 private:
-    __aicore__ inline void AIVInit();
-    __aicore__ inline void AICInit();
     __aicore__ inline void CatlassMatmul();
     __aicore__ inline void QuantCatlassMatmul();
 
@@ -123,32 +121,6 @@ __aicore__ inline void MatmulAlltoAll<TemplateMMA2AFunc>::Init(GM_ADDR aGM, GM_A
 
     commUtil.SetArgs(&rank, rank_size, tilingData);
     gm_peer_mem = reinterpret_cast<__gm__ cType*>(commUtil.buff[rank]);   //注意注意，quant是aiv使用，非quant是aic使用
-
-    MatmulAlltoAll<TemplateMMA2AFunc>::AICInit();
-
-    MatmulAlltoAll<TemplateMMA2AFunc>::AIVInit();
-}
-
-template <TemplateMMA2AClass>
-__aicore__ inline void MatmulAlltoAll<TemplateMMA2AFunc>::AICInit()
-{
-    if ASCEND_IS_AIC {
-        SetLoadDataPaddingValue(0);
-        SetAtomicNone();
-        SetFixpipeNz2ndFlag(1, 0, 0);
-    }
-}
-
-template <TemplateMMA2AClass>
-__aicore__ inline void MatmulAlltoAll<TemplateMMA2AFunc>::AIVInit()
-{
-    if ASCEND_IS_AIV {
-        SetAtomicNone();
-        SetMaskNormImpl();
-        SetVectorMask<int32_t>((uint64_t)-1, (uint64_t)-1);
-
-        commCount = DivCeil(commUtil.m_loop, commUtil.p_value);
-    }
 }
 
 template <TemplateMMA2AClass>
@@ -206,7 +178,7 @@ __aicore__ inline void MatmulAlltoAll<TemplateMMA2AFunc>::CatlassMatmul()
         using TileCopy = TileCopyOpt;
 
         using BlockEpilogue = void;
-        using BlockScheduler30 = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>; // Todo:swizzle改为动态shape
+        using BlockScheduler30 = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
         GemmCoord processSize{static_cast<uint32_t>(commUtil.m), static_cast<uint32_t>(commUtil.n), static_cast<uint32_t>(commUtil.k)};
 
         if (commUtil.m0 == 128) {
@@ -381,6 +353,7 @@ __aicore__ inline void MatmulAlltoAll<TemplateMMA2AFunc>::Process()
     } else {
         CatlassMatmul();
         if ASCEND_IS_AIV {
+            commCount = DivCeil(commUtil.m_loop, commUtil.p_value);
             commUtil.ResetIpcFlags(2);
             PipeBarrier<PIPE_ALL>();
 

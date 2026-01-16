@@ -109,7 +109,7 @@ void MatmulAllToAllTilingBase::SetUserWorkSpace()
     // MatmulAlltoAll先进行计算，需要有对应的空间先存放结果，假设x1(m,k),
     // x2(k,n),那么计算结果大小为m*n,这里申请的是一块总的空间，通算切分的头尾块偏移由kernel侧自行计算
     inferredInfo.mmResultLen = mc2tiling::AlignUp(
-        contextInfo.args_.mValue * contextInfo.args_.nValue * contextInfo.args_.inputDtypeSize, alignAddrLen);
+        contextInfo.args_.mValue * contextInfo.args_.nValue * contextInfo.args_.outputDtypeSize, alignAddrLen);
     // 重排空间等于mm计算结果空间
     inferredInfo.permuteLen = inferredInfo.mmResultLen;
     if (contextInfo.args_.isBias) {

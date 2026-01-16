@@ -19,7 +19,7 @@
 #include <vector>
 #include <acl/acl.h>
 #include <hccl/hccl.h>
-#include "../op_api/aclnn_matmul_allto_all.h"
+#include "aclnnop/aclnn_matmul_allto_all.h"
 
 int ndev = 8;
 
