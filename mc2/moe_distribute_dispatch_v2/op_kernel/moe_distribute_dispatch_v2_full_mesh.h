@@ -674,6 +674,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::All
         SyncFunc<AscendC::HardEvent::V_S>();
         SendToMoeExpert(inQueue, expertMaskBuf, outBuf);
     }
+    PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateMC2TypeClass>

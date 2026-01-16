@@ -126,6 +126,7 @@ namespace {
     constexpr uint64_t MAX_OUT_DTYPE_SIZE = 2UL;
     constexpr uint64_t UB_ALIGN = 32UL;
     constexpr int64_t ELASTIC_METAINFO_OFFSET = 4;
+    constexpr int64_t CEIL_ALIGN32 = 8;
 
     // A2定义
     const char *K_INNER_DEBUG = "MoeDistributeDispatchV2 Tiling Debug";
@@ -575,14 +576,17 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
         tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum);
     uint32_t localMoeExpertNum = static_cast<uint32_t>(moeExpertNum) / (static_cast<uint32_t>(epWorldSize) - static_cast<uint32_t>(sharedExpertRankNum));
     uint32_t lastDim = localMoeExpertNum * static_cast<uint32_t>(epWorldSize);
-    std::vector<int64_t> srcShapeDim = {1, lastDim};	
-    auto srcShape = ge::Shape(srcShapeDim);
-    uint32_t cumSumUBMaxValue = 0;
-    uint32_t cumSumUBMinValue = 0;
-    AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, cumSumUBMaxValue, cumSumUBMinValue);
-    tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue = static_cast<uint32_t>(cumSumUBMinValue);    
-    OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 cumSumUBMinValue = %d\n", lastDim,
-        tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue);
+    if (isSetCommAlg) {
+        lastDim = ((lastDim + CEIL_ALIGN32 - 1) / CEIL_ALIGN32) * CEIL_ALIGN32;
+        std::vector<int64_t> srcShapeDim = {1, lastDim};
+        auto srcShape = ge::Shape(srcShapeDim);
+        uint32_t cumSumUBMaxValue = 0;
+        uint32_t cumSumUBMinValue = 0;
+        AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, cumSumUBMaxValue, cumSumUBMinValue);
+        tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue = static_cast<uint32_t>(cumSumUBMinValue);    
+        OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 cumSumUBMinValue = %d\n", lastDim,
+            tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
