@@ -16,9 +16,6 @@
 #include "lib/matmul_intf.h"
 #include "moe_distribute_combine_tiling_key.h"
 
-#ifdef __DAV_C310__
-#include "../moe_distribute_combine_v2/arch35/moe_distribute_combine_arch35.h"
-#else
 #include "moe_distribute_combine.h"
 #if __has_include("../moe_distribute_combine_v2/moe_distribute_combine_tiling.h")
 #include "../moe_distribute_combine_v2/moe_distribute_combine_tiling.h"
@@ -33,7 +30,6 @@
 #endif
 using namespace MoeDistributeCombineImpl;
 using namespace MoeDistributeCombineA2Impl;
-#endif
 
 using namespace Mc2Tiling;
 using namespace AscendC;
@@ -46,23 +42,19 @@ __global__ __aicore__ void moe_distribute_combine(GM_ADDR expandX, GM_ADDR exper
                                                 GM_ADDR expandScales, GM_ADDR XOut, GM_ADDR workspaceGM,
                                                 GM_ADDR tilingGM)
 {
-#ifdef __DAV_C310__
-    REGISTER_TILING_DEFAULT(MoeDistributeCombineV2TilingData);
-#else
     REGISTER_TILING_DEFAULT(MoeDistributeCombineA2TilingData);
+    REGISTER_TILING_FOR_TILINGKEY("ArchTag == TILINGKEY_TPL_A5", MoeDistributeCombineTilingData);
     REGISTER_TILING_FOR_TILINGKEY("ArchTag == TILINGKEY_TPL_A3", MoeDistributeCombineTilingData);
     REGISTER_TILING_FOR_TILINGKEY("ArchTag == TILINGKEY_TPL_A2", MoeDistributeCombineA2TilingData);
-#endif
 
     TPipe pipe;
     
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
 #ifdef __DAV_C310__
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
-        GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
-        MoeDistributeCombineA5Impl::MoeDistributeCombineA5<DTYPE_EXPAND_X, int32_t> op;
-        op.Init(expandX, expertIds, expandIdx, epSendCount, tpSendCount, nullptr, scales, nullptr, 
-                XOut, workspaceGM, &pipe, &tilingData);
+        GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineTilingData, tilingData, tilingGM);
+        MoeDistributeCombine<DTYPE_EXPAND_X, int32_t, HasTp, QuantMode == TILINGKEY_INT8_QUANT> op;
+        op.Init(expandX, expertIds, expandIdx, epSendCount, tpSendCount, scales, XOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     }
 #else

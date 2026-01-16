@@ -34,7 +34,6 @@ constexpr uint32_t HCCL_DFX_NUM = 2U;
 constexpr uint32_t HCCL_EPRANKId_POS = 0U;
 constexpr uint32_t HCCL_WORLDSIZE_POS = 1U;
 constexpr uint32_t UB_ALIGN = 32U;
-constexpr uint64_t A5_MTE_STATE_WIN_SIZE = 1024UL * 1024UL;
 
 // dispatchv2所需常量段
 constexpr uint64_t DISPATCH_STATE_WIN_OFFSET = 900UL * 1024UL;

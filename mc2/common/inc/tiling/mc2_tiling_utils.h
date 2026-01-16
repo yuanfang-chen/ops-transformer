@@ -23,6 +23,7 @@
 #include "exe_graph/runtime/tiling_context.h"
 #include "formulaic_tiling_datatype.h"
 #include "graph/utils/type_utils.h"
+#include "mc2_hcom_topo_info.h"
 #include "matmul_formulaic_tiling.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "tiling/tiling_api.h"
@@ -50,9 +51,8 @@ constexpr char HCCL_DETERMINISTIC[] = "HCCL_DETERMINISTIC";
 3：AIV 4：AIV_ONLY（A2/3支持 A5不支持） 5：CCU_MS（A2/3支持 A5不支持）
 6：CCU_SCHED（A2/3支持 A5不支持） 7：AICPU_UB/ROCE（A5不支持）
 **/
-constexpr uint8_t AIV_ENGINE = 2;
+constexpr uint8_t AIV_ENGINE = 3;
 constexpr uint8_t A5_CCU_ENGINE = 5;
-constexpr uint8_t A5_AIV_ENGINE = 3;
 constexpr uint8_t Y_INDEX = 3;
 constexpr uint8_t COMM_ALG_DEFAULT = 0;
 constexpr uint8_t COMM_ALG_FULL_MESH = 1;
@@ -60,6 +60,7 @@ constexpr uint8_t COMM_ALG_DOUBLE_RING = 2;
 constexpr uint8_t COMM_ALG_SWITCH_WING = 3;
 constexpr uint8_t COMM_VERSION3 = 3;
 constexpr double COMM_GROW_RATIO = 1.15;
+constexpr uint64_t MTE_STATE_ZONE_SIZE = 1024UL * 1024UL;
 
 constexpr uint64_t LARGE_K = 8192;
 constexpr uint64_t LARGE_N = 5120;
@@ -209,6 +210,42 @@ const std::map<platform_ascendc::SocVersion, std::set<uint32_t>>
 const std::set<ge::Format> SUPPORTED_FORMAT = {
     ge::FORMAT_NCL,  ge::FORMAT_NCDHW, ge::FORMAT_DHWCN,
     ge::FORMAT_NHWC, ge::FORMAT_NCHW,  ge::FORMAT_ND};
+
+inline ge::graphStatus GetCclBufferSize(const char* groupStr, uint64_t* cclBufferSize, const char* nodeName)
+{
+    HcclComm hcclComm;
+    OP_TILING_CHECK(Mc2Hcom::MC2HcomTopology::CommGetCclBufferSizeByGroup(groupStr, cclBufferSize, &hcclComm)
+        != HCCL_SUCCESS, OP_LOGE(nodeName, "CommGetCclBufferSizeByGroup failed"), return ge::GRAPH_FAILED);
+    if (hcclComm == nullptr) {
+        OP_TILING_CHECK(Mc2Hcom::MC2HcomTopology::CommGetGroupLocalWindowSize(groupStr, cclBufferSize) != HCCL_SUCCESS,
+            OP_LOGE(nodeName, "GetGroupLocalWindowSize from topoInfo failed"), return ge::GRAPH_FAILED);
+        OP_LOGD(nodeName, "Get cclBufferSize by topoInfo");
+    } else {
+        OP_LOGD(nodeName, "Get cclBufferSize from HCCL");
+    }
+    OP_TILING_CHECK(*cclBufferSize == 0,
+            OP_LOGE(nodeName, "Get cclBufferSize failed, cclBufferSize is 0"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const char *nodeName,
+    uint64_t &hcclBufferSizeEp, uint64_t &maxWindowSizeEp, uint32_t attrGroupEpIndex)
+{
+    auto attrs = context->GetAttrs();
+    if (mc2tiling::GetSocVersion(context) == "Ascend910_95") {
+        // A5 暂不支持 Hccl CommGetBufSizeCfg 接口，此处暂作规避
+        hcclBufferSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+        // A5 上前 1MB 作为状态区，剩余空间用作数据区
+        maxWindowSizeEp = hcclBufferSizeEp - MTE_STATE_ZONE_SIZE;
+    } else {
+        auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(attrGroupEpIndex));
+        OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &hcclBufferSizeEp, nodeName) != ge::GRAPH_SUCCESS,
+            OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
+            return ge::GRAPH_FAILED);
+        maxWindowSizeEp = hcclBufferSizeEp;
+    }
+    return ge::GRAPH_SUCCESS;
+}
 }  // namespace mc2tiling
 
 #endif

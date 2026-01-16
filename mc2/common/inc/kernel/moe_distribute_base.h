@@ -27,6 +27,7 @@ constexpr uint32_t TIME_CYCLE = 50; // 系统cycle数转换成时间的基准单
 
 namespace Mc2Kernel {
 constexpr uint32_t HCCL_MTE_MAX_RANK_NUM = 32;
+constexpr uint64_t A5_MTE_STATE_WIN_SIZE = 1024UL * 1024UL;
 }
 
 struct HcclSignalInfo {
@@ -442,4 +443,78 @@ __aicore__ inline void RecordRankCommDuration(AscendC::LocalTensor<int32_t> perf
     int32_t duration = static_cast<int32_t>(endTime - startTime); // int32_t可以表示2^31(us)，约35min在实际场景下满足需要
     performanceInfoU32Tensor.SetValue(rankId * sizeof(int64_t) / sizeof(int32_t), duration); // 使用int32_t是因为atomicAdd不支持int64_t类型，这里只赋值到int64_t的低32位。
 }
+
+namespace Mc2Kernel {
+#ifdef __DAV_C310__ // A5 implmentation
+using HcclOpParam = HcclCombinOpParam;
+
+__aicore__ inline uint32_t GetRankId(__gm__ HcclOpParam * winContext)
+{
+    return winContext->rankId;
+}
+
+__aicore__ inline uint32_t GetRankDim(__gm__ HcclOpParam * winContext)
+{
+    return winContext->rankDim;
+}
+
+__aicore__ inline uint64_t GetWinSize(__gm__ HcclOpParam * winContext)
+{
+    return winContext->winSize;
+}
+
+__aicore__ inline GM_ADDR GetStatusDataSpaceGm(__gm__ HcclOpParam * winContext)
+{
+    return (GM_ADDR)(winContext->windowsIn[winContext->rankId]);
+}
+
+__aicore__ inline GM_ADDR GetBaseWindAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
+{
+    return (GM_ADDR)(winContext->windowsIn[rankId] + A5_MTE_STATE_WIN_SIZE);
+}
+
+__aicore__ inline GM_ADDR GetBaseWindStateAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
+{
+    return (GM_ADDR)(winContext->windowsIn[rankId]);
+}
+#else // A3 implementation
+using HcclOpParam = HcclOpResParam;
+
+__aicore__ inline uint32_t GetRankId(__gm__ HcclOpParam * winContext)
+{
+    return winContext->localUsrRankId;
+}
+
+__aicore__ inline uint32_t GetRankDim(__gm__ HcclOpParam * winContext)
+{
+    return winContext->rankSize;
+}
+
+__aicore__ inline uint64_t GetWinSize(__gm__ HcclOpParam * winContext)
+{
+    return winContext->winSize;
+}
+
+__aicore__ inline GM_ADDR GetStatusDataSpaceGm(__gm__ HcclOpParam * winContext)
+{
+    return (GM_ADDR)(winContext->localWindowsExp);
+}
+
+__aicore__ inline GM_ADDR GetBaseWindAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
+{
+    if (rankId == curRankId) {
+        return (GM_ADDR)(winContext->localWindowsIn);
+    }
+    return (GM_ADDR)(((HcclRankRelationResV2 *)(winContext->remoteRes[rankId].nextDevicePtr))->windowsIn);
+}
+
+__aicore__ inline GM_ADDR GetBaseWindStateAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
+{
+    if (rankId == curRankId) {
+        return (GM_ADDR)(winContext->localWindowsExp);
+    }
+    return (GM_ADDR)(((HcclRankRelationResV2 *)(winContext->remoteRes[rankId].nextDevicePtr))->windowsExp);
+}
+#endif // __DAV_C310__
+} // Mc2Kernel
 #endif // MOE_DISTRIBUTE_BASE_H

@@ -36,87 +36,15 @@ __aicore__ inline void SyncFunc()
 using namespace AscendC;
 using namespace Mc2Kernel;
 
-#ifdef __DAV_C310__ // A5 implmentation
-using HcclOpParam = HcclCombinOpParam;
-
-__aicore__ inline uint32_t GetRankId(__gm__ HcclOpParam * winContext)
-{
-    return winContext->rankId;
-}
-
-__aicore__ inline uint32_t GetRankDim(__gm__ HcclOpParam * winContext)
-{
-    return winContext->rankDim;
-}
-
-__aicore__ inline uint64_t GetWinSize(__gm__ HcclOpParam * winContext)
-{
-    return winContext->winSize;
-}
-
-__aicore__ inline GM_ADDR GetStatusDataSpaceGm(__gm__ HcclOpParam * winContext)
-{
-    return (GM_ADDR)(winContext->windowsIn[winContext->rankId]);
-}
-
-__aicore__ inline GM_ADDR GetBaseWindAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
-{
-    return (GM_ADDR)(winContext->windowsIn[rankId] + A5_MTE_STATE_WIN_SIZE);
-}
-
-__aicore__ inline GM_ADDR GetBaseWindStateAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
-{
-    return (GM_ADDR)(winContext->windowsIn[rankId]);
-}
-#else // A3 implementation
-using HcclOpParam = HcclOpResParam;
-
-__aicore__ inline uint32_t GetRankId(__gm__ HcclOpParam * winContext)
-{
-    return winContext->localUsrRankId;
-}
-
-__aicore__ inline uint32_t GetRankDim(__gm__ HcclOpParam * winContext)
-{
-    return winContext->rankSize;
-}
-
-__aicore__ inline uint64_t GetWinSize(__gm__ HcclOpParam * winContext)
-{
-    return winContext->winSize;
-}
-
-__aicore__ inline GM_ADDR GetStatusDataSpaceGm(__gm__ HcclOpParam * winContext)
-{
-    return (GM_ADDR)(winContext->localWindowsExp);
-}
-
-__aicore__ inline GM_ADDR GetBaseWindAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
-{
-    if (rankId == curRankId) {
-        return (GM_ADDR)(winContext->localWindowsIn);
-    }
-    return (GM_ADDR)(((HcclRankRelationResV2 *)(winContext->remoteRes[rankId].nextDevicePtr))->windowsIn);
-}
-
-__aicore__ inline GM_ADDR GetBaseWindStateAddrByRankId(__gm__ HcclOpParam * winContext, const int32_t rankId, const int32_t curRankId)
-{
-    if (rankId == curRankId) {
-        return (GM_ADDR)(winContext->localWindowsExp);
-    }
-    return (GM_ADDR)(((HcclRankRelationResV2 *)(winContext->remoteRes[rankId].nextDevicePtr))->windowsExp);
-}
-#endif // __DAV_C310__
-
-__aicore__ inline uint32_t InitWinState(GlobalTensor<uint32_t> selfDataStatusGMTensor, __gm__ HcclOpParam * winContext, uint32_t epRankIdOriginal,
+__aicore__ inline uint32_t InitWinState(GlobalTensor<uint32_t> selfDataStatusGMTensor, __gm__ Mc2Kernel::HcclOpParam * winContext, uint32_t epRankIdOriginal,
                                            uint32_t moeExpertNum, uint32_t epWorldSizeOriginal, uint32_t globalBS, TBuf<> dataStateBuf)
 {
     LocalTensor<uint64_t> dataStateLocalTensor64 = dataStateBuf.Get<uint64_t>();
     LocalTensor<uint32_t> dataStateLocalTensor = dataStateBuf.Get<uint32_t>();
     DataCopy(dataStateLocalTensor, selfDataStatusGMTensor, UB_ALIGN / sizeof(uint32_t));
     SyncFunc<AscendC::HardEvent::MTE2_S>();
-    uint32_t epRankIdHccl = GetRankId(winContext);
-    uint32_t epWorldSizeHccl = GetRankDim(winContext);
+    uint32_t epRankIdHccl = Mc2Kernel::GetRankId(winContext);
+    uint32_t epWorldSizeHccl = Mc2Kernel::GetRankDim(winContext);
     uint32_t dataState = dataStateLocalTensor.GetValue(ZERONE_STATE_POS);
     dataStateLocalTensor.SetValue(ZERONE_STATE_POS, dataState == 0 ? 1 : 0);
     dataStateLocalTensor.SetValue(OPOSITION_POS, 1);

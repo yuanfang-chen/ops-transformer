@@ -78,26 +78,22 @@ private:
     __aicore__ inline void SplitCoreCal();
     __aicore__ inline void SetStatus();
     __aicore__ inline void WaitDispatch();
-    __aicore__ GM_ADDR GetWinAddrByRankId(const int32_t rankId, const uint8_t domain, const uint8_t expertLocalId = 0U)
+    __aicore__ GM_ADDR GetWinAddrByRankId(const int32_t rankId, const uint8_t domain, const uint32_t expertLocalId = 0U)
     {
         if (domain == EP_DOMAIN) {
-            return (GM_ADDR)((epRankId_ == rankId) ? epWinContext_->localWindowsIn :
-                ((HcclRankRelationResV2 *)(epWinContext_->remoteRes[rankId].nextDevicePtr))->windowsIn) +
+            return Mc2Kernel::GetBaseWindAddrByRankId(epWinContext_, rankId, epRankId_) +
                 winDataSizeOffsetEp_ + expertLocalId * expertPerSizeOnWin_;
         } else {
-            return (GM_ADDR)((tpRankId_ == rankId) ? tpWinContext_->localWindowsIn : ((HcclRankRelationResV2 *)(
-                tpWinContext_->remoteRes[rankId].nextDevicePtr))->windowsIn) + winDataSizeOffsetTp_;
+            return Mc2Kernel::GetBaseWindAddrByRankId(tpWinContext_, rankId, tpRankId_) + winDataSizeOffsetTp_;
         }
     }
 
     __aicore__ GM_ADDR GetWinStateAddrByRankId(const int32_t rankId, const uint8_t domain)
     {
         if (domain == EP_DOMAIN) {
-            return (GM_ADDR)((epRankId_ == rankId) ? epWinContext_->localWindowsExp : ((HcclRankRelationResV2 *)(
-                epWinContext_->remoteRes[rankId].nextDevicePtr))->windowsExp) + dataState_ * WIN_STATE_OFFSET;
+            return Mc2Kernel::GetBaseWindStateAddrByRankId(epWinContext_, rankId, epRankId_) + dataState_ * WIN_STATE_OFFSET;
         } else {
-            return (GM_ADDR)((tpRankId_ == rankId) ? tpWinContext_->localWindowsExp : ((HcclRankRelationResV2 *)(
-                tpWinContext_->remoteRes[rankId].nextDevicePtr))->windowsExp) + dataState_ * WIN_STATE_OFFSET;
+            return Mc2Kernel::GetBaseWindStateAddrByRankId(tpWinContext_, rankId, tpRankId_) + dataState_ * WIN_STATE_OFFSET;
         }
     }
 
@@ -153,8 +149,8 @@ private:
     uint32_t firstTpTokenEndIdx_{0};
     uint32_t firstTpTokenEndOffset_{0};
     uint32_t endTok_{0};
-    __gm__ HcclOpResParam *epWinContext_{nullptr};
-    __gm__ HcclOpResParam *tpWinContext_{nullptr};
+    __gm__ Mc2Kernel::HcclOpParam *epWinContext_{nullptr};
+    __gm__ Mc2Kernel::HcclOpParam *tpWinContext_{nullptr};
     uint64_t epDataOffsetOnWin_{0};
     uint32_t tpDataOffsetOnWin_{0};
     uint32_t epStateOffsetOnWin_{0};
@@ -238,9 +234,9 @@ __aicore__ inline void MoeDistributeCombine<TemplateMC2TypeFunc>::Init(GM_ADDR e
     epRankId_ = tilingData->moeDistributeCombineInfo.epRankId;
     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     auto contextGM1 = AscendC::GetHcclContext<1>();
-    epWinContext_ = (__gm__ HcclOpResParam *)contextGM0;
+    epWinContext_ = (__gm__ Mc2Kernel::HcclOpParam *)contextGM0;
     GlobalTensor<int32_t> selfDataStatusTensor;
-    GM_ADDR statusDataSpaceGm = (GM_ADDR)epWinContext_->localWindowsExp;
+    GM_ADDR statusDataSpaceGm = Mc2Kernel::GetStatusDataSpaceGm(epWinContext_);
     selfDataStatusTensor.SetGlobalBuffer((__gm__ int32_t*)(statusDataSpaceGm + STATE_WIN_OFFSET));
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(
         selfDataStatusTensor[coreIdx_ * UB_ALIGN]);
@@ -304,7 +300,7 @@ __aicore__ inline void MoeDistributeCombine<TemplateMC2TypeFunc>::Init(GM_ADDR e
     }
 
     if constexpr (IsNeedReduceScatter) {
-        tpWinContext_ = (__gm__ HcclOpResParam *)contextGM1;
+        tpWinContext_ = (__gm__ Mc2Kernel::HcclOpParam *)contextGM1;
         tpSendCountGM_.SetGlobalBuffer((__gm__ int32_t *)tpSendCount);
         tpWorldSize_ = tilingData->moeDistributeCombineInfo.tpWorldSize;
         tpRankId_ = tilingData->moeDistributeCombineInfo.tpRankId;
