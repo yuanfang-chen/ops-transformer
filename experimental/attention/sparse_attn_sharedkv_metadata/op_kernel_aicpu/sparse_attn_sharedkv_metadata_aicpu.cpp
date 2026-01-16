@@ -37,6 +37,9 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
   bool requiredAttrs = GetAttrValue(ctx, "num_heads_q", queryHeadNum_) &&
                        GetAttrValue(ctx, "num_heads_kv", kvHeadNum_) &&
                        GetAttrValue(ctx, "head_dim", headDim_);
+                       GetAttrValueOpt(ctx, "soc_version", socVersion_);
+                       GetAttrValueOpt(ctx, "aic_core_num", aicCoreNum_);
+                       GetAttrValueOpt(ctx, "aiv_core_num", aivCoreNum_);
   if (!requiredAttrs) {
     return false;
   }
@@ -56,7 +59,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
   GetAttrValueOpt(ctx, "has_ori_kv", hasOriKV_);
   GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKV_);
 
-  coreNum_ = 24U;
+  coreNum_ = aicCoreNum_;
   sparseMode_ = 4;
   preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
   nextToken_ = 0;
@@ -70,21 +73,41 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
   return true;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_t topK_) {
-    groupSize_ = queryHeadNum_ / kvHeadNum_;
-    uint32_t MBaseBlockLen = 128U;
-    uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
-    if (cmpRatio_ > 1) {
-        if (topK_ > 0) {
-            isSCFA = true;
-            s1BlockLen = 1U;
-        } else {
-            isCFA = true;
-        }
+ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
+    if (socVersion_ == "Ascend910_9392" || socVersion_ == "ASCEND910B" || socVersion_ == "ascend910B" ||
+                socVersion_ == "Ascend910B" || socVersion_ == "Ascend910_93" || socVersion_ == "Ascend910" ||
+                socVersion_ == "ascend910" || socVersion_ == "ASCEND910") {
+        return ValidSocVersion::ASCEND910B;
+    } else if (socVersion_ == "Ascend910_9589" || socVersion_ == "ASCEND910D" || socVersion_ == "ascend910D" ||
+                socVersion_ == "Ascend910D" || socVersion_ == "Ascend910_95") {
+        return ValidSocVersion::ASCEND910D;
     }
-    mBaseSize_ = groupSize_ * s1BlockLen;
-    s2BaseSize_ = 512U;
-    gS1BaseSizeOfFd_ = 8U;
+    
+    return ValidSocVersion::RESERVED_VERSION;
+}
+
+bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_t topK_) {
+    ValidSocVersion validSocVersion = ProcessSocVersion();
+    if (validSocVersion == ValidSocVersion::ASCEND910B) {
+        groupSize_ = queryHeadNum_ / kvHeadNum_;
+        uint32_t MBaseBlockLen = 128U;
+        uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
+        if (cmpRatio_ > 1) {
+            if (topK_ > 0) {
+                isSCFA = true;
+                s1BlockLen = 1U;
+            } else {
+                isCFA = true;
+            }
+        }
+        mBaseSize_ = groupSize_ * s1BlockLen;
+        s2BaseSize_ = 512U;
+        gS1BaseSizeOfFd_ = 8U;
+    } else if (validSocVersion == ValidSocVersion::ASCEND910D){
+        mBaseSize_ = 64;
+        s2BaseSize_ = 128U;
+        gS1BaseSizeOfFd_ = 8U;
+    }
     return true;
 }
 
