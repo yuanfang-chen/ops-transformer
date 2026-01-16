@@ -29,7 +29,11 @@ class l2_aclnn_elastic_receivable_info_collect_test : public testing::Test {
     cout << "l2_aclnn_elastic_receivable_info_collect_test SetUp" << endl;
   }
 
-  static void TearDownTestCase() { cout << "l2_aclnn_elastic_receivable_info_collect_test TearDown" << endl; }
+  static void TearDownTestCase()
+  {
+    op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+    cout << "l2_aclnn_elastic_receivable_info_collect_test TearDown" << endl;
+  }
 };
 
 TEST_F(l2_aclnn_elastic_receivable_info_collect_test, test_aclnn_elastic_receivable_info_collect_api) {

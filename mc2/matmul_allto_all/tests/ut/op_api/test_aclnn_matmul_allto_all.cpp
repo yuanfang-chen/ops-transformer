@@ -29,7 +29,11 @@ protected:
         cout << "test_aclnn_matmul_allto_all SetUp" << endl;
     }
 
-    static void TearDownTestCase() { cout << "test_aclnn_matmul_allto_all TearDown" << endl; }
+    static void TearDownTestCase()
+    {
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "test_aclnn_matmul_allto_all TearDown" << endl;
+    }
 };
 
 // ut用例结构体

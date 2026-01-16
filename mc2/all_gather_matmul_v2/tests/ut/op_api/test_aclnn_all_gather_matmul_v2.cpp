@@ -27,7 +27,11 @@ protected:
         op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
 		cout << "AllGatherMatmulV2AclnnTest SetUp" << endl;
 	}
-    static void TearDownTestCase() { cout << "AllGatherMatmulV2AclnnTest TearDown" << endl; }
+    static void TearDownTestCase()
+  	{
+		op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+		cout << "AllGatherMatmulV2AclnnTest TearDown" << endl;
+	}
 };
 
 TEST_F(AllGatherMatmulV2AclnnTest, test_all_gather_first_api_1)

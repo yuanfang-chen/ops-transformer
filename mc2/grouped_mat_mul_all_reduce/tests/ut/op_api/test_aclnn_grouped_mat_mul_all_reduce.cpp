@@ -36,6 +36,7 @@ protected:
     }
     static void TearDownTestCase()
     {
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "gemm_test TearDown" << endl;
     }
 };

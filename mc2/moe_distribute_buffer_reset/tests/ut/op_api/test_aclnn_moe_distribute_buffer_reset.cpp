@@ -33,7 +33,11 @@ class l2_aclnn_moe_distribute_buffer_reset_test : public testing::Test {
     cout << "l2_aclnn_moe_distribute_buffer_reset_test SetUp" << endl;
   }
 
-  static void TearDownTestCase() { cout << "l2_aclnn_moe_distribute_buffer_reset_test TearDown" << endl; }
+  static void TearDownTestCase()
+  {
+    op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+    cout << "l2_aclnn_moe_distribute_buffer_reset_test TearDown" << endl;
+  }
 };
 
 TEST_F(l2_aclnn_moe_distribute_buffer_reset_test, test_aclnn_moe_distribute_buffer_reset_api) {

@@ -34,7 +34,11 @@ protected:
         op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
         cout << "test_aclnn_quant_all_reduce SetUp" << endl;
     }
-    static void TearDownTestCase() { cout << "test_aclnn_quant_all_reduce TearDown" << endl; }
+    static void TearDownTestCase()
+    {
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "test_aclnn_quant_all_reduce TearDown" << endl;
+    }
 };
 
 struct QuantAllReduceAclnnTestParam {

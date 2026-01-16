@@ -27,7 +27,11 @@ protected:
         op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
         cout << "MatmulReduceScatterV2AclnnTest SetUp" << endl;
     }
-    static void TearDownTestCase() { cout << "MatmulReduceScatterV2AclnnTest TearDown" << endl; }
+    static void TearDownTestCase()
+    {
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "MatmulReduceScatterV2AclnnTest TearDown" << endl;
+    }
 };
 
 TEST_F(MatmulReduceScatterV2AclnnTest, basic)
