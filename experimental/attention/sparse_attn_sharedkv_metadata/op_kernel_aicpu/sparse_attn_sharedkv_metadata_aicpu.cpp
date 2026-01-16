@@ -58,7 +58,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
 
   coreNum_ = 24U;
   sparseMode_ = 4;
-  preToken_ = (static_cast<int64_t>(winLeft_) > -1) ? static_cast<int64_t>(winLeft_) - 1 : INT64_MAX;
+  preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
   nextToken_ = 0;
   attentionMode_ = 1;
   isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
@@ -348,7 +348,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
     int64_t winS2FirstToken = winS2TokenRange.first;
     int64_t winS2LastToken = winS2TokenRange.second;
     if (winS2FirstToken >= static_cast<int64_t>(batchCache.s2Size) || winS2LastToken < 0 || 
-            winS2LastToken < winS2FirstToken || winLeft_ == 0) {
+            winS2LastToken < winS2FirstToken) {
         winS2FirstToken = 0;
         winS2LastToken = 0;
         s1GCache.winS2Start = 0;

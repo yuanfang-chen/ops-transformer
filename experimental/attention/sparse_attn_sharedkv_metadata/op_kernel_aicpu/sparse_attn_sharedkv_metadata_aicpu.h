@@ -295,8 +295,8 @@ private:
   uint32_t cmpRatio_ = 1;
   uint32_t winMaskMode_ = 4;
   uint32_t cmpMaskMode_ = 3;
-  uint32_t winLeft_ = 128;
-  uint32_t winRight_ = 0;
+  int64_t winLeft_ = 128;
+  int64_t winRight_ = 0;
   std::string layoutQuery_ = "BSND";
   std::string layoutKV_ = "PA_ND";
   bool hasOriKV_ = true;
