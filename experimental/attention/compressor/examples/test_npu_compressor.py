@@ -317,7 +317,7 @@ class TestCustomCompressor(TestCase):
         ### ======================== set input params start ========================
         date_type = torch.bfloat16
         hidden_size = 4096
-        head_dim = 256
+        head_dim = 128
         rope_head_dim = 64
         norm_eps = 1e-6
         coff = 1 # 1:no overlap 2:overlap

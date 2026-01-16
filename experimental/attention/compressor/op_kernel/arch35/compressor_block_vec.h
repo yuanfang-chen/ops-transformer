@@ -19,7 +19,7 @@
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
-#include "compressor_comm.h"
+#include "../compressor_comm.h"
 
 using namespace AscendC;
 
@@ -82,11 +82,6 @@ protected:
     GlobalTensor<T> vec1ResGm_;
     GlobalTensor<T> preMm1ResGm_;
     GlobalTensor<T> curMm1ResGm_;
-    TBuf<TPosition::VECIN> mm1ResUb;
-    LocalTensor<T> mm1ResTensor;
-    TBuf<TPosition::VECCALC> kvBuff_;
-    TBuf<TPosition::VECCALC> scoreBuff_;
-    TBuf<> inputBuf1; // 32K * 2
 
 private:
     __aicore__ inline uint32_t GetStartPos(uint32_t bIdx);
@@ -121,6 +116,29 @@ private:
     GlobalTensor<T> kvStateGm_;
     GlobalTensor<T> scoreStateGm_;
     GlobalTensor<T> apeGm_;
+
+    // ================================Local Buffer区====================================
+    TBuf<TPosition::VECIN> mm1ResUb;
+    LocalTensor<T> mm1ResTensor;
+
+    TBuf<TPosition::VECCALC> kvBuff_;
+    TBuf<TPosition::VECCALC> scoreBuff_;
+    TBuf<> inputBuf1; // 32K * 2
+
+    // // in queue
+    // TQue<QuePosition::VECIN, 1> inputQue1;
+    // TQue<QuePosition::VECIN, 1> inputQue2;
+    // // out queue
+    // TQue<QuePosition::VECOUT, 1> outputQue1;
+    // TQue<QuePosition::VECOUT, 1> outputQue2;
+
+    // // 临时tbuf
+    // TBuf<> tmpBuff1;
+    // TBuf<> softmaxMaxBuff;
+    // TBuf<> softmaxExpBuff;
+    // TBuf<> softmaxSumBuff;
+    // TBuf<> softmaxMaxDefaultBuff;
+    // TBuf<> softmaxSumDefaultBuff;
 };
 
 template <typename COMP>
@@ -587,7 +605,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::GetScIdxInfo(uint32_t bStart
 template <typename COMP>
  __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &info)
 {
-    DumpTensor(mm1ResTensor, 1, 128 * 256);
+    DumpTensorForDim2(mm1ResTensor, 2, 128 * 256, 256, 128);
     // TODO 1分核
     SetMSplitInfo(info);
     uint32_t scLoopTimes = 0;
