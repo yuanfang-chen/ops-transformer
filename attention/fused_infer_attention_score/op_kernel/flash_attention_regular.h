@@ -296,12 +296,12 @@ namespace SplitFuse {
                 int32_t nextTokenEndLen = 0;
                 int32_t preTokenStartLen = 0;
                 int32_t preTokenEndLen = 0;
-                uint32_t kvSLoopNumTotal = 0;
                 int32_t delStartRow = 0;
                 int32_t delEndRow = qSeqlen;
                 bool notPreMask = true;
                 bool notNextMask = true;
                 bool moveZero = false;
+                uint32_t kvSLoopNumTotal = 0;
                 if (maskType != 0U && sparseMode != 4U) {
                     int64_t diffS = kvSeqlen - qSeqlen;
                     diffS = (diffS < 0) ? 0 : diffS;
@@ -337,6 +337,8 @@ namespace SplitFuse {
                     } else if (nextTokenStartLen < 0 && nextToken != SPARSE_MODE_INT_MAX) {
                         delEndRow = -leftPointNextToken;
                     }
+                } else {
+                    kvSLoopNumTotal = NpuArch::Detail::Alignment::CeilDiv(noSkipKvS, MAX_KV_STACK_LEN);
                 }
 
                 uint32_t blockStackNum = (MAX_KV_STACK_LEN - 1 + pagedBlockSize) / pagedBlockSize;
@@ -526,7 +528,7 @@ namespace SplitFuse {
                         Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxReady);
 #endif
                     }
-                    if ((kvSIdx >= preKVNum) && (kvSIdx - preKVNum >= startIdx)) {
+                    if (kvSIdx >= startIdx + preKVNum) {
                         uint32_t nowkvSIdx = kvSIdx - preKVNum;
                         if (nowkvSIdx + 1 > kvSLoopNumTotal - 1U) {
                             stackSeqTile = noSkipKvS - nowkvSIdx * MAX_KV_STACK_LEN;
