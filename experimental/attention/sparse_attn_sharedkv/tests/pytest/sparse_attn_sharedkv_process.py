@@ -13,15 +13,18 @@
 import test_sas
 import torch
 import torch_npu
-import check_valid_param
+# import check_valid_param
 import pytest
 import random
 import numpy as np
 import math
 import custom_ops as ops
 
-DATA_RANGE_LEFT = 1
-DATA_RANGE_RIGHT = 1
+DATA_RANGE_LEFT = -10
+DATA_RANGE_RIGHT = 10
+
+np.random.seed(42)
+torch.manual_seed(42)
 
 class GeneralizedSFA:
     def __init__(self, layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, block_num2,
@@ -440,8 +443,6 @@ def test_sas_process(params):
     cmp_v_bnsd = cmp_k_bnsd.clone()
     ori_v_in_pa_shape = ori_k_in_pa_shape.clone()
     cmp_v_in_pa_shape = cmp_k_in_pa_shape.clone()
-    # TODO: metadata
-    metadata = torch.zeros((10), dtype=torch.int32)
 
     test_sas = GeneralizedSFA(layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K,
                               block_num1, block_num2, block_size, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio,
@@ -457,7 +458,34 @@ def test_sas_process(params):
     cu_seqlens_q = cu_seqlens_q.npu()
     seqused_kv = seqused_kv.npu()
     sinks = sinks.npu()
-    metadata = metadata.npu()
+
+    # 获取最长 q
+    if layout_q == 'TND':
+        seq_lens = cu_seqlens_q[1:] - cu_seqlens_q[:-1]
+        max_seqlen_q = torch.max(seq_lens).item()
+    else:
+        max_seqlen_q = torch.max(cu_seqlens_q).item()
+
+    metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+        num_heads_q=N1,
+        num_heads_kv=N2,
+        head_dim=D,
+        cu_seqlens_q=cu_seqlens_q,
+        seqused_kv=seqused_kv,
+        batch_size=B,
+        max_seqlen_q=max_seqlen_q,
+        max_seqlen_kv=ori_max_s2,
+        topk=K,
+        cmp_ratio=cmp_ratio,
+        ori_mask_mode=ori_mask_mode,
+        cmp_mask_mode=cmp_mask_mode,
+        ori_win_left=ori_win_left,
+        ori_win_right=ori_win_right,
+        layout_q=layout_q,
+        layout_kv=layout_kv,
+        has_ori_kv=ori_k_in_pa_shape != None,
+        has_cmp_kv=cmp_k_in_pa_shape != None)
+
 
     npu_result = torch.ops.custom.npu_sparse_attn_sharedkv(q,
                                                            ori_kv=ori_k_in_pa_shape,
