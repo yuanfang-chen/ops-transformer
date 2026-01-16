@@ -177,7 +177,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr& runParam, const ConstIn
                 runParam.goIdx * constInfo.dSizeV;
         }
         if (constInfo.subBlockIdx == 1) {
-            runParam.attentionOutOffset += runParam.mOuterOffset * constInfo.dSizeV;
+            runParam.attentionOutOffset += runParam.halfMRealSize * constInfo.dSizeV;
         }
     }
 }

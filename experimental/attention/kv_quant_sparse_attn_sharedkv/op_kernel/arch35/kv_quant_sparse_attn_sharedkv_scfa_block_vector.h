@@ -882,6 +882,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutAttentionOut(
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitOutputSingleCore(ConstInfo &constInfo, __gm__ uint8_t *cuSeqlensQ)
 {
+#if 0
     uint32_t coreNum = GetBlockNum();
     uint32_t vecBlockIdx = GetBlockIdx(); // vec:0-47
     uint64_t totalOutputSize = 0;
@@ -906,6 +907,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitOutputSingleCore(ConstIn
         }
     }
     SyncAll();
+#endif
 }
 
 TEMPLATES_DEF_NO_DEFAULT
