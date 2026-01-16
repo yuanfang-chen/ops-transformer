@@ -638,8 +638,8 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
         ## 如export FIRST_RANK_ID=0
         export RANK_TABLE_FILE=/home/path/to/rank_table_m2.json
         export FIRST_RANK_ID=<设备的起始rank_id>
-        ## EP_WORLD_SIZE说明：根据当前机器的卡数设置该变量，以两机16卡为例，将两台机器设置为16
-        export EP_WORLD_SIZE=16
+        ## ENV_DEV_NUM说明：根据当前机器的卡数设置该变量，以两机16卡为例，将两台机器设置为16
+        export ENV_DEV_NUM=16
         ```
     
     - 机器数量设置：

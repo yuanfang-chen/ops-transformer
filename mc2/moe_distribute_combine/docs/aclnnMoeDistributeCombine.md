@@ -581,8 +581,8 @@ aclnnStatus aclnnMoeDistributeCombine(
         ## 如export FIRST_RANK_ID=0
         export RANK_TABLE_FILE=/home/path/to/rank_table_m2.json
         export FIRST_RANK_ID=<设备的起始rank_id>
-        ## EP_WORLD_SIZE说明：根据当前机器的卡数设置该变量，以两机16卡为例，将两台机器设置为16
-        export EP_WORLD_SIZE=16
+        ## ENV_DEV_NUM说明：根据当前机器的卡数设置该变量，以两机16卡为例，将两台机器设置为16
+        export ENV_DEV_NUM=16
         ```
     
     - 机器数量设置：
@@ -597,9 +597,9 @@ aclnnStatus aclnnMoeDistributeCombine(
     - 环境变量配置：
 
         ```bash
-        # 运行前需设置一个环境变量EP_WORLD_SIZE，无需配置ranktable文件以及环境变量RANK_TABLE_FILE、FIRST_RANK_ID。
-        ## EP_WORLD_SIZE说明：根据当前机器的卡数设置该变量，以单机16卡为例，将单台机器设置为16
-        export EP_WORLD_SIZE=16
+        # 运行前需设置一个环境变量ENV_DEV_NUM，无需配置ranktable文件以及环境变量RANK_TABLE_FILE、FIRST_RANK_ID。
+        ## ENV_DEV_NUM说明：根据当前机器的卡数设置该变量，以单机16卡为例，将单台机器设置为16
+        export ENV_DEV_NUM=16
         ```
        
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
