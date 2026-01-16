@@ -55,8 +55,10 @@ void CompressorTiling::ConvertRequiredParams(gert::TilingContext &context, Compr
 
 void CompressorTiling::ConvertOptionalParams(gert::TilingContext &context, CompressorContext &compressorContext)
 {
-    compressorContext.blockTable.desc = context.GetOptionalInputDesc(BLOCK_TABLE_INPUT_INDEX);
-    compressorContext.blockTable.shape = context.GetOptionalInputShape(BLOCK_TABLE_INPUT_INDEX);
+    compressorContext.kvBlockTable.desc = context.GetOptionalInputDesc(KV_BLOCK_TABLE_INPUT_INDEX);
+    compressorContext.kvBlockTable.shape = context.GetOptionalInputShape(KV_BLOCK_TABLE_INPUT_INDEX);
+    compressorContext.scoreBlockTable.desc = context.GetOptionalInputDesc(SCORE_BLOCK_TABLE_INPUT_INDEX);
+    compressorContext.scoreBlockTable.shape = context.GetOptionalInputShape(SCORE_BLOCK_TABLE_INPUT_INDEX);
     compressorContext.cuSeqlens.desc = context.GetOptionalInputDesc(CU_SEQ_LEN_INPUT_INDEX);
     compressorContext.cuSeqlens.shape = context.GetOptionalInputShape(CU_SEQ_LEN_INPUT_INDEX);
     compressorContext.seqUsed.desc = context.GetOptionalInputDesc(SEQ_USED_INPUT_INDEX);
@@ -126,7 +128,7 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
         baseParams_->hiddenSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_2);
         baseParams_->tokenSize = baseParams_->batchSize * baseParams_->seqSize;
     } else {
-        baseParams_->batchSize = context_->blockTable.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
+        baseParams_->batchSize = context_->kvBlockTable.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
         baseParams_->tokenSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
         baseParams_->hiddenSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
     }
@@ -150,7 +152,7 @@ ge::graphStatus CompressorTiling::SetPageAttentionInfo()
 {
     pageAttentionParams_->blockNum = context_->kvState.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
     pageAttentionParams_->blockSize = context_->kvState.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
-    pageAttentionParams_->maxBlockNumPerBatch = context_->blockTable.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
+    pageAttentionParams_->maxBlockNumPerBatch = context_->kvBlockTable.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
 
     return ge::GRAPH_SUCCESS;
 }

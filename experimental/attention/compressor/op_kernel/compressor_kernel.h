@@ -49,7 +49,8 @@ public:
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *blockTable,
+        __gm__ uint8_t *kvBlockTable,
+        __gm__ uint8_t *scoreBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -125,7 +126,8 @@ private:
     GlobalTensor<X_T> ropeSinGm_;
     GlobalTensor<X_T> ropeCosGm_;
     GlobalTensor<X_T> normWeightGm_;
-    GlobalTensor<int32_t> blockTableGm_;
+    GlobalTensor<int32_t> kvBlockTableGm_;
+    GlobalTensor<int32_t> scoreBlockTableGm_;
     GlobalTensor<int32_t> cuSeqlensGm_;
     GlobalTensor<int32_t> sequsedGm_;
     GlobalTensor<int32_t> startPosGm_;
@@ -147,7 +149,8 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *blockTable,
+        __gm__ uint8_t *kvBlockTable,
+        __gm__ uint8_t *scoreBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -175,7 +178,8 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     ropeSinGm_.SetGlobalBuffer((__gm__ X_T *)ropeSin);
     ropeCosGm_.SetGlobalBuffer((__gm__ X_T *)ropeCos);
     normWeightGm_.SetGlobalBuffer((__gm__ X_T *)normWeight);
-    blockTableGm_.SetGlobalBuffer((__gm__ int32_t *)blockTable);
+    kvBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)kvBlockTable);
+    scoreBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)scoreBlockTable);
     if constexpr (COMP::xLayout == X_LAYOUT::TH) {
         cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
     }
@@ -206,8 +210,8 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     InitWorkspace(workspace);
     if ASCEND_IS_AIC {
         blockCube_.InitParams(constInfo);
-        blockCube_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable,
-            cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
+        blockCube_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, 
+            kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
         blockCube_.InitBuffers(pipe_);
     } else {
         blockVec_.InitParams(constInfo);

@@ -50,7 +50,8 @@ public:
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *blockTable,
+        __gm__ uint8_t *kvBlockTable,
+        __gm__ uint8_t *scoreBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -72,8 +73,8 @@ public:
     __aicore__ inline void SetMSplitInfo(const Compressor::RunInfo &info);
     __aicore__ inline void InitVec1GlobalTensor(GlobalTensor<T> preMm1ResGm, GlobalTensor<T> curMm1ResGm, GlobalTensor<T> vec1ResGm);
     __aicore__ inline void ComputeVec2(const Compressor::RunInfo &info);
-    __aicore__ inline void WriteToCacheState(GlobalTensor<T> &state, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
-    __aicore__ inline void ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
+    __aicore__ inline void WriteToCacheState(GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTableGm, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
+    __aicore__ inline void ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTableGm, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
     __aicore__ inline void ProcessSingleBatch(uint32_t batchIdx);
     __aicore__ inline void ProcessSingleBatch(uint32_t batchIdx, uint64_t batchStartSeqIdx, uint64_t batchEndSeqIdx, uint32_t dLoop, uint32_t dealDSize,
         LocalTensor<T> &mmResRight, LocalTensor<T> &mmResLeft);
@@ -117,7 +118,8 @@ private:
     MSplitInfo mSplitInfo = {};
     GlobalTensor<int32_t> startPosGm_;
     GlobalTensor<int32_t> cuSeqlensGm_;
-    GlobalTensor<int32_t> blockTableGm_;
+    GlobalTensor<int32_t> kvBlockTableGm_;
+    GlobalTensor<int32_t> scoreBlockTableGm_;
     GlobalTensor<T> kvStateGm_;
     GlobalTensor<T> scoreStateGm_;
     GlobalTensor<T> apeGm_;
@@ -141,7 +143,8 @@ __aicore__ inline void CompressorBlockVector<COMP>::Init(
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *blockTable,
+        __gm__ uint8_t *kvBlockTable,
+        __gm__ uint8_t *scoreBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -151,7 +154,8 @@ __aicore__ inline void CompressorBlockVector<COMP>::Init(
 {
     startPosGm_.SetGlobalBuffer((__gm__ int32_t *)startPos);
     cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
-    blockTableGm_.SetGlobalBuffer((__gm__ int32_t *)blockTable);
+    kvBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)kvBlockTable);
+    scoreBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)scoreBlockTable);
     kvStateGm_.SetGlobalBuffer((__gm__ T *)kvStateOut);
     scoreStateGm_.SetGlobalBuffer((__gm__ T *)scoreStateOut);
     apeGm_.SetGlobalBuffer((__gm__ T *)ape);
@@ -216,7 +220,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetBsLength(uint32_t ind
 }
 
 template <typename COMP>
-__aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(GlobalTensor<T> &state, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
+__aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTableGm_, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
 {
     uint64_t blockTablebaseOffset = batchIdx * constInfo_.maxBlockNumPerBatch;
     uint32_t curSeqIdx = 0;
@@ -243,7 +247,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(GlobalTens
 }
 
 template <typename COMP>
-__aicore__ inline void CompressorBlockVector<COMP>::ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
+__aicore__ inline void CompressorBlockVector<COMP>::ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTableGm_, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
 {
     uint64_t blockTablebaseOffset = batchIdx * constInfo_.maxBlockNumPerBatch;
     uint32_t curSeqIdx = 0;
@@ -341,16 +345,16 @@ template <typename COMP> __aicore__ inline void CompressorBlockVector<COMP>::Pro
         if (isSaveState) {
             // 左和右都需要考虑
             // 1.存右边
-            WriteToCacheState(kvStateGm_, mmResRight[startOffset + dealDSize * dLoop], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
-            WriteToCacheState(scoreStateGm_, mmResRight[startOffset + dealDSize * dLoop + constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
+            WriteToCacheState(kvStateGm_, kvBlockTableGm_, mmResRight[startOffset + dealDSize * dLoop], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
+            WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, mmResRight[startOffset + dealDSize * dLoop + constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
             // 2.存左边
-            WriteToCacheState(kvStateGm_, mmResLeft[startOffset + dealDSize * dLoop - constInfo_.cmpRatio * constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
-            WriteToCacheState(scoreStateGm_, mmResLeft[startOffset + dealDSize * dLoop + constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
+            WriteToCacheState(kvStateGm_, kvBlockTableGm_, mmResLeft[startOffset + dealDSize * dLoop - constInfo_.cmpRatio * constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
+            WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, mmResLeft[startOffset + dealDSize * dLoop + constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
             // 2. 右边存最后一个尾块
             if ((batchStartSeqIdx + startPos) == startPos) {
                 // 第4种情况，左上角有个r块需要存
-                WriteToCacheState(kvStateGm_, mmResLeft[startOffset], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
-                WriteToCacheState(scoreStateGm_, mmResLeft[startOffset + constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);  
+                WriteToCacheState(kvStateGm_, kvBlockTableGm_, mmResLeft[startOffset], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);
+                WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, mmResLeft[startOffset + constInfo_.dBaseSize], batchIdx, startSeqIdx, endSeqIdx, dStartIdx, dEndIdx);  
             }
         }
         if (isCompress) {
@@ -368,8 +372,8 @@ template <typename COMP> __aicore__ inline void CompressorBlockVector<COMP>::Pro
                     copyStartSeqId = startPos - cntFromState;
                     copyEndSeqId = startPos;
                     // 第一块拷贝
-                    ReadFromCacheState(kvLocal[mmResBaseOffset_ + dealDSize], kvStateGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd); // 拷贝的右边
-                    ReadFromCacheState(scoreLocal[mmResBaseOffset_ + dealDSize], scoreStateGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd); // 拷贝的右边
+                    ReadFromCacheState(kvLocal[mmResBaseOffset_ + dealDSize], kvStateGm_, kvBlockTableGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd); // 拷贝的右边
+                    ReadFromCacheState(scoreLocal[mmResBaseOffset_ + dealDSize], scoreStateGm_, scoreBlockTableGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd); // 拷贝的右边
                 }
             }
             if (coff_ == 2) {  // 拷贝左边数据
@@ -383,8 +387,8 @@ template <typename COMP> __aicore__ inline void CompressorBlockVector<COMP>::Pro
                     if (startPos >= constInfo_.cmpRatio) {
                         copyStartSeqId = startPos - startPos % constInfo_.cmpRatio;
                         copyEndSeqId = copyStartSeqId + cntFromState;
-                        ReadFromCacheState(kvLocal[mmResBaseOffset_], kvStateGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
-                        ReadFromCacheState(scoreLocal[mmResBaseOffset_], scoreStateGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
+                        ReadFromCacheState(kvLocal[mmResBaseOffset_], kvStateGm_, kvBlockTableGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
+                        ReadFromCacheState(scoreLocal[mmResBaseOffset_], scoreStateGm_, scoreBlockTableGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
                     }
                 } else if (startSeqIdx - constInfo_.cmpRatio < startPos) {
                         // 左边数据需要拷贝一个尾块和一个完整r块
@@ -392,8 +396,8 @@ template <typename COMP> __aicore__ inline void CompressorBlockVector<COMP>::Pro
                         if (cntFromState > 0) {
                             copyStartSeqId = startPos - startPos % constInfo_.cmpRatio;
                             copyEndSeqId = startPos + constInfo_.cmpRatio;
-                            ReadFromCacheState(kvLocal[(copyEndSeqId - copyStartSeqId) * dealDSize], kvStateGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
-                            ReadFromCacheState(scoreLocal[(copyEndSeqId - copyStartSeqId) * dealDSize], scoreStateGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
+                            ReadFromCacheState(kvLocal[(copyEndSeqId - copyStartSeqId) * dealDSize], kvStateGm_, kvBlockTableGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
+                            ReadFromCacheState(scoreLocal[(copyEndSeqId - copyStartSeqId) * dealDSize], scoreStateGm_, scoreBlockTableGm_, batchIdx, copyStartSeqId, copyEndSeqId, dStart, dEnd);
                         }
                     }
             }
