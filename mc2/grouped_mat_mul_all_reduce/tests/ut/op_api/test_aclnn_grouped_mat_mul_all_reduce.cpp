@@ -22,6 +22,7 @@
 #include "op_api_ut_common/tensor_desc.h"
 #include "op_api_ut_common/scalar_desc.h"
 #include "op_api_ut_common/op_api_ut.h"
+#include "opdev/platform.h"
 
 
 using namespace std;
@@ -30,6 +31,7 @@ class l2_grouped_mat_mul_all_reduce_test : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "gemm_test SetUp" << endl;
     }
     static void TearDownTestCase()

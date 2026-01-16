@@ -27,7 +27,11 @@ using namespace std;
 namespace MoeDistributeCombineV2 {
 class l2_moe_distribute_combine_v2_test : public testing::Test {
  protected:
-  static void SetUpTestCase() { cout << "l2_moe_distribute_combine_test SetUp" << endl; }
+  static void SetUpTestCase()
+  {
+    op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+    cout << "l2_moe_distribute_combine_test SetUp" << endl;
+  }
 
   static void TearDownTestCase() { cout << "l2_moe_distribute_combine_test TearDown" << endl; }
 };

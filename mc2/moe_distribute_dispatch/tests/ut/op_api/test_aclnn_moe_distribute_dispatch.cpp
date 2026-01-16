@@ -23,7 +23,11 @@ using namespace std;
 namespace MoeDistributeDispatch {
 class l2_aclnn_moe_distribute_dispatch_test : public testing::Test {
  protected:
-  static void SetUpTestCase() { cout << "l2_aclnn_moe_distribute_dispatch_test SetUp" << endl; }
+  static void SetUpTestCase()
+  {
+    op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+    cout << "l2_aclnn_moe_distribute_dispatch_test SetUp" << endl;
+  }
 
   static void TearDownTestCase() { cout << "l2_aclnn_moe_distribute_dispatch_test TearDown" << endl; }
 };

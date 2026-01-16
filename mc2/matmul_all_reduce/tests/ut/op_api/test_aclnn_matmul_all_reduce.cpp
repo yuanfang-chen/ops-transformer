@@ -27,7 +27,11 @@ namespace MatmulAllReduceUT {
 
 class l2_matmul_all_reduce_test : public testing::Test {
  protected:
-  static void SetUpTestCase() { cout << "l2_matmul_all_reduce_test SetUp" << endl; }
+  static void SetUpTestCase()
+  {
+    op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+    cout << "l2_matmul_all_reduce_test SetUp" << endl;
+  }
 
   static void TearDownTestCase() { cout << "l2_matmul_all_reduce_test TearDown" << endl; }
 };

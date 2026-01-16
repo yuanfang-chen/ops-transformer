@@ -24,7 +24,11 @@ using namespace std;
 namespace MatmulReduceScatter {
 class l2_aclnn_matmul_reduce_scatter_test : public testing::Test {
  protected:
-  static void SetUpTestCase() { cout << "l2_aclnn_matmul_reduce_scatter_test SetUp" << endl; }
+  static void SetUpTestCase()
+  {
+    op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+    cout << "l2_aclnn_matmul_reduce_scatter_test SetUp" << endl;
+  }
 
   static void TearDownTestCase() { cout << "l2_aclnn_matmul_reduce_scatter_test TearDown" << endl; }
 };
