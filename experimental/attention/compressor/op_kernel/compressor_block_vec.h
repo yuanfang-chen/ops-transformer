@@ -566,7 +566,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::GetScIdxInfo(uint32_t bStart
     outputScSize = v2TcEnd - v2TcStart;
     uint32_t scEnd = 0;
     uint32_t bEnd = 0;
-    CalcScEndIdx(bStart, scStart, dealScSize, bEnd, scEnd);
+    CalcScEndIdx(bStart, scStart, v2TcStart, bEnd, scEnd);
     outputSStart = scEnd;
     outputBStart = bEnd;
     // 处理跳batch
