@@ -21,7 +21,11 @@
 #include "compressor_template_tiling_key.h"
 #include "compressor_tiling_data.h"
 #include "compressor_comm.h"
-#include "compressor_block_cube.h"
+#if (__CCE_AICORE__ == 220)
+#include "arch32/compressor_block_cube.h"
+#else
+#include "arch35/compressor_block_cube.h"
+#endif
 #include "compressor_block_vec.h"
 
 using namespace AscendC;
