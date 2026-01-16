@@ -273,7 +273,7 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm2SCFA(Buffer<Buff
                         (uint32_t)constInfo.dSizeV, // singleN 512
                         (uint32_t)s2BaseSize,       // singleK 128
                         0,    // isLeftTranspose    // todo: useDn?
-                        1     // isRightTranspose
+                        0     // isRightTranspose
                     };
     MatmulN<Q_T, Q_T, T, 64, 128, 128, ABLayout::MK, ABLayout::KN>(
         inputLeftBuf.GetTensor<Q_T>(),
