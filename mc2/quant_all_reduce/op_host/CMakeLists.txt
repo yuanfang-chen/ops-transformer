@@ -12,7 +12,11 @@ if (BUILD_OPEN_PROJECT)  # custom
     target_sources(op_host_aclnnInner PRIVATE
         quant_all_reduce_def.cpp
     )
-    add_mc2_modules_sources(OPTYPE quant_all_reduce quant_all_reduce ACLNNTYPE aclnn aclnn_inner)
+    add_modules_sources(
+        OP_API_INDEPENDENT ON 
+        OP_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../op_api 
+        OP_MC2_ENABLE ON 
+        OPTYPE quant_all_reduce quant_all_reduce ACLNNTYPE aclnn aclnn_inner)
     set(MC2_OPT ON PARENT_SCOPE)
     set(quant_all_reduce_depends mc2/common mc2/3rd mc2/quant_reduce_scatter PARENT_SCOPE)
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
