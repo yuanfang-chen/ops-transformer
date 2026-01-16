@@ -48,8 +48,8 @@
 
 #endif
 
-enum class inferFaLayOutTypeEnum { None = 0, LAYOUT_BSH = 1, LAYOUT_SBH = 2, LAYOUT_BNSD = 3, LAYOUT_TND = 4, LAYOUT_NTD_TND = 5};
-enum class inferPFALayoutTypeEnum { LAYOUT_BSH = 0, LAYOUT_BNSD = 1, LAYOUT_TND = 2};
+enum class inferFaLayOutTypeEnum { None = 0, LAYOUT_BSH = 1, LAYOUT_SBH = 2, LAYOUT_BNSD = 3, LAYOUT_TND = 4, LAYOUT_NTD_TND = 5, LAYOUT_NTD = 6};
+enum class inferPFALayoutTypeEnum { LAYOUT_BSH = 0, LAYOUT_BNSD = 1, LAYOUT_TND = 2, LAYOUT_NTD = 3};
 enum class inferDTemplateType {
     Aligned16 = 16,
     Aligned32 = 32,
@@ -96,23 +96,28 @@ enum class inferImplModeEnum {
 #define ImplMode_AA_HIGH_PERFORMANCE 1
 #define ImplMode_AA_INVALID_LINE_HIGH_PRECISION 2
 
-static constexpr  inferFaLayOutTypeEnum InOutLayoutTypeValue[4][2] ={
+static constexpr  inferFaLayOutTypeEnum InOutLayoutTypeValue[5][2] ={
     {inferFaLayOutTypeEnum::LAYOUT_BNSD, inferFaLayOutTypeEnum::LAYOUT_BNSD},
     {inferFaLayOutTypeEnum::LAYOUT_BSH, inferFaLayOutTypeEnum::LAYOUT_BSH},
     {inferFaLayOutTypeEnum::LAYOUT_TND, inferFaLayOutTypeEnum::LAYOUT_TND},
-    {inferFaLayOutTypeEnum::LAYOUT_BNSD, inferFaLayOutTypeEnum::LAYOUT_BSH}, 
+    {inferFaLayOutTypeEnum::LAYOUT_BNSD, inferFaLayOutTypeEnum::LAYOUT_BSH},
+    {inferFaLayOutTypeEnum::LAYOUT_NTD, inferFaLayOutTypeEnum::LAYOUT_NTD},
 };
 
-static constexpr  inferPFALayoutTypeEnum InOutLayoutPFATypeValue[3][2] ={
+static constexpr  inferPFALayoutTypeEnum InOutLayoutPFATypeValue[5][2] ={
     {inferPFALayoutTypeEnum::LAYOUT_BNSD, inferPFALayoutTypeEnum::LAYOUT_BNSD},
     {inferPFALayoutTypeEnum::LAYOUT_BSH, inferPFALayoutTypeEnum::LAYOUT_BSH},
     {inferPFALayoutTypeEnum::LAYOUT_TND, inferPFALayoutTypeEnum::LAYOUT_TND},
+    {inferPFALayoutTypeEnum::LAYOUT_BNSD, inferPFALayoutTypeEnum::LAYOUT_BSH}, // bsndout占位
+    {inferPFALayoutTypeEnum::LAYOUT_NTD, inferPFALayoutTypeEnum::LAYOUT_NTD},
 };
 
 #define InOutLayoutType_BNSD_BNSD 0
 #define InOutLayoutType_BSH_BSH 1 //BSND由于排布与BSH一样，因此两个会编译成相同取值
 #define InOutLayoutType_TND_TND 2
 #define InOutLayoutType_BNSD_BSND 3
+#define InOutLayoutType_NTD_NTD 4
+
 struct ConfigParams {
     inferS1TemplateType s1;
     inferS2TemplateType s2;

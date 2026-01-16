@@ -36,8 +36,10 @@ __aicore__ inline constexpr GmFormat GetQueryGmFormat() {
         return GmFormat::SBNGD;
     } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BNSD) {
         return GmFormat::BNGSD;
-    } else {
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_TND) {
         return GmFormat::TNGD;
+    } else {
+        return GmFormat::NGTD;
     }
 }
 
@@ -49,8 +51,10 @@ __aicore__ inline constexpr GmFormat GetKVGmFormat() {
         return GmFormat::SBND;
     } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BNSD) {
         return GmFormat::BNSD;
-    } else {
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_TND) {
         return GmFormat::TND;
+    } else {
+        return GmFormat::NTD;
     }
 }
 

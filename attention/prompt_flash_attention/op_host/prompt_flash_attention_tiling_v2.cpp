@@ -192,6 +192,7 @@ enum class LayoutType : uint8_t {
     LAYOUT_SBH = 2,
     LAYOUT_BNSD = 3,
     LAYOUT_TND = 4,
+    LAYOUT_NTD = 5,
 };
 
 enum class PfaSparseEnum : uint8_t {
@@ -344,6 +345,8 @@ bool PromptFlashAttentionTilingV2::SetInputLayout(const char* layout) {
         inputLayout = InputLayout::BSH;
     } else if (layoutStr == "TND") {
         inputLayout = InputLayout::TND;
+    } else if (layoutStr == "NTD") {
+        inputLayout = InputLayout::NTD;
     } else if (layoutStr == "BSND") {
         inputLayout = InputLayout::BSND;
     } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND") { // Reuse BNSD process for BNSD_BSND
@@ -436,7 +439,7 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
         n = shape->GetStorageShape().GetDim(2); // 2 for head dim
         d = shape->GetStorageShape().GetDim(3); // 3 for D dim
         h = n * d;
-    } else if ((inputLayout == InputLayout::TND)) {
+    } else if ((inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD)) {
         if (isKVHasPrefix && inputName == "keysharedprefix") {
             return false;
         }
@@ -447,8 +450,8 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
             b = static_cast<int64_t>(contextKeyParams.actualSequenceLengthQ->GetShapeSize());
             s = (inputName == "query") ? GetMaxSeq(contextKeyParams.actualSequenceLengthQ) : GetMaxSeq(contextKeyParams.actualSequenceLengthKV);
         }
-        t = shape->GetStorageShape().GetDim(0);
-        n = shape->GetStorageShape().GetDim(1);
+        t = inputLayout == InputLayout::TND ? shape->GetStorageShape().GetDim(0) : shape->GetStorageShape().GetDim(1);
+        n = inputLayout == InputLayout::TND ? shape->GetStorageShape().GetDim(1) : shape->GetStorageShape().GetDim(0);
         d = shape->GetStorageShape().GetDim(2); // 2 for D dim
         h = n * d;
     } else {
@@ -460,10 +463,10 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
 bool PromptFlashAttentionTilingV2::GetAndCheckShape(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& shapeInfo, const gert::StorageShape* shape, const std::string& sName) const {
     std::string layoutStr(contextKeyParams.layout);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 3 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 4 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
 
@@ -516,10 +519,10 @@ bool PromptFlashAttentionTilingV2::GetAndCheckShape(ContextParamsForPFATiling& c
 bool PromptFlashAttentionTilingV2::GetAndCheckRopeShape(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& shapeInfo,
     PFAShapeInfo& ropeShapeInfo, const gert::StorageShape* shape, const std::string& sName, const std::string& rName) const {
     std::string layoutStr(contextKeyParams.layout);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 3 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 4 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
 
@@ -694,7 +697,8 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
     const size_t queryDim = queryShape->GetStorageShape().GetDimNum();
     const size_t keyDim = keyShape->GetStorageShape().GetDimNum();
     const size_t valueDim = valueShape->GetStorageShape().GetDimNum();
-    const size_t nIdx = (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND) ? 1U : 2U; // BNSD/TND: 1; BSND:2
+    const size_t nIdx = (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND) ? 1U : // BNSD/TND: 1
+        (inputLayout == InputLayout::BSND) ? 2U : 0U; //  BSND:2; NTD:0
 
     if (((inputLayout == InputLayout::BNSD) || (inputLayout == InputLayout::BSND)) && (!enablePA)) {
         if ((queryDim == 4) && (keyDim == 4) && (valueDim == 4)) { // dim num: 4
@@ -713,6 +717,16 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
             valueShapeHeadNum = valueShape->GetStorageShape().GetDim(nIdx);
         } else {
             OP_LOGE(contextKeyParams.opName, "input dim of q(%zu), k(%zu), v(%zu) must be 3 for TND format!",
+                queryDim, keyDim, valueDim);
+            return false;
+        }
+    } else if ((inputLayout == InputLayout::NTD) && (!enablePA)) {
+        if ((queryDim == 3) && (keyDim == 3) && (valueDim == 3)) { // dim num: 3
+            queryShapeHeadNum = queryShape->GetStorageShape().GetDim(nIdx);
+            keyShapeHeadNum = keyShape->GetStorageShape().GetDim(nIdx);
+            valueShapeHeadNum = valueShape->GetStorageShape().GetDim(nIdx);
+        } else {
+            OP_LOGE(contextKeyParams.opName, "input dim of q(%zu), k(%zu), v(%zu) must be 3 for NTD format!",
                 queryDim, keyDim, valueDim);
             return false;
         }
@@ -912,9 +926,9 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             "now dequantScaleQuery's type is %s, KeyAntiquantScale's type is %s, valueAntiquantScale's type is %s.",
             GetPfaDataTypeStr(dequantScaleQueryType).c_str(), GetPfaDataTypeStr(KeyAntiquantScaleType).c_str(), GetPfaDataTypeStr(valueAntiquantScaleType).c_str()),
         return false);
-    OP_CHECK_IF((inputLayout == InputLayout::TND),
+    OP_CHECK_IF((inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "In per-block quant scenario, the layout TND is not supported."),
+            "In per-block quant scenario, the layout TND/NTD is not supported."),
         return false);
     OP_CHECK_IF((queryShapeInfo.d > 128) || (keyShapeInfo.d > 128) || (valueShapeInfo.d > 128), // 128 is the limit for d.
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -1159,7 +1173,7 @@ bool PromptFlashAttentionTilingV2::CheckPAKeyValueShape(ContextParamsForPFATilin
         dataTypeSizeValue = dataTypeSizeArray[inputTypeIndex];
     }
 
-    if (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND) {
+    if (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) {
         OP_CHECK_IF(((keyDim != KV_CACHE_DIM_NUMS_3) && (keyDim != KV_CACHE_DIM_NUMS_4) && (keyDim != KV_CACHE_DIM_NUMS_5)), 
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, // dim num: 3/4
             "the layout of query is %s, key and value layout should be [>=%ld, %d, %u] or [>=%ld, %u, %d, %u] or [>=%ld, %u, %u, %d, %d] when PA enable.",
@@ -1497,9 +1511,10 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
 
     // 隔离高阶特性
     std::string layoutStr(contextKeyParams.layout);
+    bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "NTD" || layoutStr == "NTD_TND";
     bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope ||
         enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList ||
-        enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || layoutStr == "BNSD_BSND";
+        enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || isTransposeLayout;
 
     return !hasCrossoverAttr;
 }
@@ -1517,7 +1532,7 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
     // check layout
     OP_CHECK_IF((!SetInputLayout(contextKeyParams.layout)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
-            "Invalid input layout:%s. Currently only TND/BSH/BNSD/BSND/BSND_BNSD layout are supported.", 
+            "Invalid input layout:%s. Currently only TND/NTD/BSH/BNSD/BSND/BSND_BNSD layout are supported.", 
             contextKeyParams.layout),
         return false);
 
@@ -1876,8 +1891,8 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
     }
     // The prefix does not support TND, tensorlist, pfa mla, ifa mla, left padding and alibi
     OP_CHECK_IF(
-        (inputLayout == InputLayout::TND),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when TND is used, system prefix is not supported!"),
+        (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when TND/NTD is used, system prefix is not supported!"),
         return false);
     OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when tensorlist is used, system prefix is not supported!"),
@@ -1929,24 +1944,24 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
 }
 
 bool PromptFlashAttentionTilingV2::CheckActSeq(const ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const {
-    if (inputLayout != InputLayout::TND) {
+    if (inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD) {
         return true;
     }
 
     const gert::Tensor* actSeqLen = contextKeyParams.actualSequenceLengthQ;
     const gert::Tensor* actSeqLenKV = contextKeyParams.actualSequenceLengthKV;
     OP_CHECK_IF(actSeqLen == nullptr,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthQ can not be nullptr"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD, actualSequenceLengthQ can not be nullptr"),
         return false);
     OP_CHECK_IF(actSeqLenKV == nullptr,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthKV can not be nullptr"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD, actualSequenceLengthKV can not be nullptr"),
         return false);
 
     auto batchOfQuery = actSeqLen->GetShapeSize();
     auto batchOfKey = actSeqLenKV->GetShapeSize();
     OP_CHECK_IF(batchOfQuery != batchOfKey,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When layout is TND, the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
+            "When layout is TND/NTD, the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
             "batch size of actualSequenceLengthQ = %ld, batch size of actualSequenceLengthKV = %ld",
             batchOfQuery, batchOfKey),
         return false);
@@ -1983,17 +1998,34 @@ bool PromptFlashAttentionTilingV2::CheckActSeq(const ContextParamsForPFATiling& 
 
     const gert::StorageShape* queryShape = contextKeyParams.queryInputShape;
     const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
-    OP_CHECK_IF(actSeqLen->GetData<int64_t>()[batchSize - 1] != queryShape->GetStorageShape().GetDim(0),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When layout is TND, the last element of Actual_seq_lengths(%ld) must be equal to T(%ld)",
-            actSeqLen->GetData<int64_t>()[batchSize - 1], queryShape->GetStorageShape().GetDim(0)),
-        return false);
-    if (!enablePA) {
-        OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[batchSize - 1] != keyShape->GetStorageShape().GetDim(0),
+    if (inputLayout == InputLayout::TND) {
+        OP_CHECK_IF(actSeqLen->GetData<int64_t>()[batchSize - 1] != queryShape->GetStorageShape().GetDim(0),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "When layout is TND, the last element of Actual_seq_lengths_kv(%ld) must be equal to T(%ld)",
-                actSeqLenKV->GetData<int64_t>()[batchSize - 1], keyShape->GetStorageShape().GetDim(0)),
+            "When layout is TND, the last element of Actual_seq_lengths(%ld) must be equal to T(%ld)",
+                actSeqLen->GetData<int64_t>()[batchSize - 1], queryShape->GetStorageShape().GetDim(0)),
             return false);
+    } else {
+        OP_CHECK_IF(actSeqLen->GetData<int64_t>()[batchSize - 1] != queryShape->GetStorageShape().GetDim(1),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When layout is NTD, the last element of Actual_seq_lengths(%ld) must be equal to T(%ld)",
+                actSeqLen->GetData<int64_t>()[batchSize - 1], queryShape->GetStorageShape().GetDim(1)),
+            return false);       
+    }
+
+    if (!enablePA) {
+        if (inputLayout == InputLayout::TND) {
+            OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[batchSize - 1] != keyShape->GetStorageShape().GetDim(0),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is TND, the last element of Actual_seq_lengths_kv(%ld) must be equal to T(%ld)",
+                    actSeqLenKV->GetData<int64_t>()[batchSize - 1], keyShape->GetStorageShape().GetDim(0)),
+                return false);
+        } else {
+            OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[batchSize - 1] != keyShape->GetStorageShape().GetDim(1),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is NTD, the last element of Actual_seq_lengths_kv(%ld) must be equal to T(%ld)",
+                    actSeqLenKV->GetData<int64_t>()[batchSize - 1], keyShape->GetStorageShape().GetDim(1)),
+                return false);
+        }
     }
 
     return true;
@@ -2009,9 +2041,9 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
 
     std::string layoutStr(contextKeyParams.layout);
     if (enableActSeqLen) {   // check the length of actual_seq_lengthsQ, whether is 1 or batch size
-        OP_CHECK_IF(enableIFAMLA && (inputLayout != InputLayout::TND),
+        OP_CHECK_IF(enableIFAMLA && (inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "The layout is %s, Actual_seq_lengths cannot be configured in MLA and non-TND scenarios, only supported when layout is TND!", layoutStr.c_str()),
+                "The layout is %s, Actual_seq_lengths cannot be configured in MLA and non-TND/NTD scenarios, only supported when layout is TND!", layoutStr.c_str()),
             return false);
         OP_CHECK_IF((actSeqLenDims < queryShapeInfo.b) && (actSeqLenDims > actSeqLenDimsQMin),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -2021,7 +2053,7 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
         uint32_t actSeqLengthSize = std::min(static_cast<uint32_t>(actSeqLenDims), queryShapeInfo.b);
         for (uint32_t i = LOOP_BEGIN_NUM; i < actSeqLengthSize; ++i) {
             int64_t actSeqTmp = actSeqLen->GetData<int64_t>()[i];
-            if (inputLayout == InputLayout::TND && i >= 1) {
+            if ((inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) && i >= 1) {
                 actSeqTmp -= actSeqLen->GetData<int64_t>()[i - 1];
             }
             OP_CHECK_IF(actSeqTmp < 0 || actSeqTmp > queryShapeInfo.s, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -2032,6 +2064,8 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
                 enablePFAMerge = false;
             }
         }
+
+        tSize = actSeqLen->GetData<int64_t>()[actSeqLengthSize - 1];
     }
 
     if (enableActSeqLenKV) { // check the length of actual_seq_lengthsKV,whether is 1 or batch size
@@ -2045,7 +2079,7 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
         uint32_t actSeqLengthKVSize = std::min(static_cast<uint32_t>(actSeqLenKVDims), queryShapeInfo.b);
         for (uint32_t i = LOOP_BEGIN_NUM; i < actSeqLengthKVSize; ++i) {
             int64_t actSeqKVTmp = static_cast<int64_t>(actSeqLenKV->GetData<int64_t>()[i]);
-            if (inputLayout == InputLayout::TND && !enablePA && i >= 1) {
+            if ((inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) && !enablePA && i >= 1) {
                 actSeqKVTmp -= static_cast<int64_t>(actSeqLenKV->GetData<int64_t>()[i - 1]);
             }
             if (!enableTensorList && !enablePA) {
@@ -2450,6 +2484,36 @@ bool PromptFlashAttentionTilingV2::CheckTNDLayoutCrossover(ContextParamsForPFATi
     return true;
 }
 
+bool PromptFlashAttentionTilingV2::CheckNTDLayoutCrossover(ContextParamsForPFATiling& contextKeyParams) {
+    if (inputLayout != InputLayout::NTD) {
+        return true;
+    }
+
+    if (enablePFAMLA || enablePFARope) {
+        OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is NTD, full quant is not supported!"),
+            return false);
+        
+        OP_CHECK_IF(enablePostQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, When layout is NTD, post quant is not supported!"),
+            return false);
+    }
+
+    OP_CHECK_IF(enableLeftPadding,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, left padding is not supported!"),
+        return false);
+    
+    OP_CHECK_IF(enableTensorList,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, tensorlist is not supported!"),
+        return false);
+
+    OP_CHECK_IF(enablePseShift,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, pse is not supported!"),
+        return false);
+
+    return true;
+}
+
 bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV) {
     uint32_t lenDims = queryShapeInfo.b; // The current length of the actSeqLen array is equal to batch size b.
@@ -2458,14 +2522,14 @@ bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATili
     actSeqLenDims = (actSeqLenData != nullptr) ? actSeqLenData->GetShapeSize() : 0;
     actSeqLenKVDims = (actSeqLenDataKV != nullptr) ? actSeqLenDataKV->GetShapeSize() : 0;
 
-    if (inputLayout == InputLayout::TND) {
+    if (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) {
         if ((actSeqLenData == nullptr) || (actSeqLenDataKV == nullptr)) {
             return false;
         }
         middleActualSeqLengths = static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[lenDims-1]);
     }
     for (uint32_t i = LOOP_BEGIN_NUM; i < lenDims; i++) {
-        if (inputLayout == InputLayout::TND) {
+        if (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) {
             actualSeqLengths[i] = (i == 0) ? static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[0]) :
                 static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[i]) - static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[i - 1]);
             actualSeqLengthsKV[i] = static_cast<uint32_t>(actSeqLenDataKV->GetData<int64_t>()[i]);
@@ -2774,6 +2838,7 @@ void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& cont
     tilingData.promptAttentionBaseParams.set_seqSize(queryShapeInfo.s);
     tilingData.promptAttentionBaseParams.set_headNumSize(queryShapeInfo.n);
     tilingData.promptAttentionBaseParams.set_batchSize(queryShapeInfo.b);
+    tilingData.promptAttentionBaseParams.set_tSize(tSize);
 
     SetTilingDataAttribute(contextKeyParams, tilingData);
 }
@@ -3398,6 +3463,8 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyLayoutType() {
         inOutLayoutType = InOutLayoutType_BNSD_BNSD;
     } else if (inputLayout == InputLayout::TND) {
         inOutLayoutType = InOutLayoutType_TND_TND;
+    } else if (inputLayout == InputLayout::NTD) {
+        inOutLayoutType = InOutLayoutType_NTD_NTD;
     } else if (inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND) {
         inOutLayoutType = InOutLayoutType_BSH_BSH;
     }
@@ -4028,6 +4095,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckCrossoverAttribute(ContextPar
         return ge::GRAPH_FAILED;
     }
 
+    if (!CheckNTDLayoutCrossover(contextKeyParams)) {
+        return ge::GRAPH_FAILED;
+    }
+
     if (!CheckAlibiPseCrossover(contextKeyParams)) {
         return ge::GRAPH_FAILED;
     }
@@ -4170,6 +4241,7 @@ void PromptFlashAttentionTilingV2::SetLayoutType()
         {InputLayout::TND, LayoutType::LAYOUT_TND},
         {InputLayout::BSND, LayoutType::LAYOUT_BSND},
         {InputLayout::BNSD, LayoutType::LAYOUT_BNSD},
+        {InputLayout::NTD, LayoutType::LAYOUT_NTD},
     };
     auto itr = layoutStrToLayoutTypeMap.find(inputLayout);
     if (itr == layoutStrToLayoutTypeMap.end()) {
@@ -4308,6 +4380,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
     SetLayoutType();
     auto &inputParams = faTilingAdapter.inputParamsRegbase;
     inputParams.set_bSize(tilingData.promptAttentionBaseParams.get_batchSize());
+    inputParams.set_tSize(tilingData.promptAttentionBaseParams.get_tSize());
     // 将GS1合轴与不合轴场景下，有不同含义的n2Size、gSize与s1Size参数，转化为各自实际的值
     if (enableIFAMLA || enableIFA || enablePFAMerge) {
         inputParams.set_n2Size(tilingData.promptAttentionBaseParams.get_headNumSize());
@@ -4372,7 +4445,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
     inputParams.set_isKvContinuous(tilingData.promptAttentionBaseParams.get_isKvContinuous());
     inputParams.set_fromFused(tilingData.promptAttentionBaseParams.get_fromFused());
     inputParams.set_isBSNDOut(tilingData.promptAttentionBaseParams.get_isBSNDOut());
-    inputParams.set_isGqa(tilingData.promptAttentionBaseParams.get_isIFA() || enablePFAMerge);
+    inputParams.set_isGqa((tilingData.promptAttentionBaseParams.get_isIFA() && inputLayout != InputLayout::NTD) || enablePFAMerge);
     inputParams.set_isSoftMaxLseEnable(tilingData.promptAttentionBaseParams.get_isSoftMaxLseEnable());
     inputParams.set_isActualSharedPrefixLenNull(tilingData.promptAttentionBaseParams.get_isActualSharedPrefixLenNull());
     inputParams.set_isQHasLeftPadding(tilingData.promptAttentionBaseParams.get_isQHasLeftPadding());

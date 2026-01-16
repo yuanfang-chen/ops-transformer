@@ -230,7 +230,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     if constexpr (hasAtten) {
         attenMaskInfo.prefixNAddr = prefix;
     }
-    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
         actualSeqQlenAddr = (__gm__ int64_t *)actualSeqLengths;
         actualSeqKvlenAddr = (__gm__ int64_t *)actualSeqLengthsKv;
     } else {
@@ -349,6 +349,8 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     constInfo.s2BaseSize = s2BaseSize;
     // 计算轴的乘积
 
+    constInfo.bSize = sharedParams.bSize;
+    constInfo.tSize = sharedParams.tSize;
     constInfo.n2Size = sharedParams.n2Size;
     constInfo.s1Size = sharedParams.s1Size;
     constInfo.s2Size = sharedParams.s2Size;
@@ -447,6 +449,20 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         }
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
         // bnsd
+        constInfo.s1BaseDv = s1BaseSize * constInfo.dSizeV;
+        constInfo.s2BaseDv = s2BaseSize * constInfo.dSizeV;
+        if constexpr (hasRope) {
+            constInfo.mm1RopeKa = constInfo.dSizeRope;
+            constInfo.mm1RopeKb = constInfo.dSizeRope;
+        }
+        constInfo.mm1Ka = constInfo.dSize;
+        constInfo.mm1Kb = constInfo.dSize;
+        constInfo.mm2Kb = constInfo.dSizeV;
+        if ASCEND_IS_AIV {
+            constInfo.attentionOutStride = 0;
+        }
+    } else if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
+        // NG(BS)D
         constInfo.s1BaseDv = s1BaseSize * constInfo.dSizeV;
         constInfo.s2BaseDv = s2BaseSize * constInfo.dSizeV;
         if constexpr (hasRope) {
