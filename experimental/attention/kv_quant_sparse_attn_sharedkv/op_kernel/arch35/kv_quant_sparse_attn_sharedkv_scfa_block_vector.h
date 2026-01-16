@@ -724,13 +724,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
     int64_t stage1Offset = runInfo.taskIdMod2;
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<Q_T>();
 
-    LocalTensor<uint8_t> apiTmpBuffer = this->commonTBuf.template Get<uint8_t>();
+    LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
 
     // TODO v0尾块填充-inf处理
-    // TODO runInfo.s2RealSize通过runInfo手动计算
+    // TODO cfa也要做sinks
     // loopCount = 0 但传入sinks时走update分支，maxUb通过sinks初始化，sumUb初始化为1.0
-    isSinks = false; // TODO 先调试不带sinks
     if (runInfo.s2LoopCount == 0 && !isSinks) {
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
@@ -746,11 +745,11 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
         }
     } else {
-        if (isSinks) {
-            // s1切1,vec0: 0 ~ vec0HalfRealSize - 1, vec1: gSize - runInfo.halfS1RealSize ~ gSize
-            int64_t sinksGmOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfS1RealSize;
-            CopySinksIn(maxUb, sinksGmOffset, runInfo.halfS1RealSize);
-            DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfS1RealSize);
+        if (runInfo.s2LoopCount == 0 && isSinks) {
+            // s1切1,vec0: 0 ~ halfMRealSize - 1, vec1: gSize - halfMRealSize ~ gSize
+            int64_t sinksGmOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
+            CopySinksIn(maxUb, sinksGmOffset, runInfo.halfMRealSize);
+            DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfMRealSize);
         }
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
@@ -785,7 +784,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 
     outputBuf.SetCrossCore();
     // ======================================================
-    if (runInfo.s2LoopCount != 0) {
+    if (runInfo.s2LoopCount != 0 || (runInfo.s2LoopCount == 0 && isSinks)) {
         SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
     }
 }
@@ -799,10 +798,6 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopySinksIn(const LocalTenso
     dataCopyParams.srcStride = 0U;
     dataCopyParams.dstStride = 0U;
     DataCopyPadExtParams<T> padParams;
-    padParams.isPad = true;
-    padParams.leftPadding = 0;
-    padParams.rightPadding = CeilAlign(elementNum * sizeof(T), BLOCK_BYTE) / sizeof(T);
-    padParams.paddingValue = 0;
     DataCopyPad(maxTensor, this->sinksGm[sinksGmOffset], dataCopyParams, padParams);
     SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
     WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);

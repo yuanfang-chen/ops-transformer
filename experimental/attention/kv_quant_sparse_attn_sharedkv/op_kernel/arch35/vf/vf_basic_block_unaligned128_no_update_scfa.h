@@ -109,7 +109,7 @@ template <typename T, typename T2, uint32_t s1BaseSize = 64, uint32_t s2BaseSize
 __aicore__ inline void ProcessVec1NoUpdateGeneralImpl128(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& srcTensor, 
     const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor, const LocalTensor<T>& inMaxTensor,
-    const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
+    const LocalTensor<T>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
 {
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
     // stride, high 16bits: blockStride (65*16*2/32)，单位block, low 16bits: repeatStride (1)
