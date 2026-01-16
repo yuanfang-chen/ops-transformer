@@ -1755,7 +1755,7 @@ MlaS1s2Bn2gs1SameABBaseApi<TILING_TYPE, implMode, layOutType, hasAtten, INPUT_T,
     int32_t loop = this->valueDSizeAlign16 / repeatMaxSize;
     int32_t remain = this->valueDSizeAlign16 % repeatMaxSize;
     int64_t softmaxTempOffset = s1oIdx * extraInfo.vec2S1BaseSize * 8;
-    int64_t gsAsixSize = extraInfo.vec2S1RealSize * extraInfo.gBaseSize;
+    int64_t gsAxisSize = extraInfo.vec2S1RealSize * extraInfo.gBaseSize;
 
     if (this->softmaxReduceSize == 1) {
         LocalTensor<T> softmaxTemp = this->commonTBuf.template Get<T>();
@@ -1763,11 +1763,11 @@ MlaS1s2Bn2gs1SameABBaseApi<TILING_TYPE, implMode, layOutType, hasAtten, INPUT_T,
         PipeBarrier<PIPE_V>();
         for (int i = 0; i < loop; ++i) {
             Mul(bmm2ResUb[i * repeatMaxSize], softmaxTemp[softmaxTempOffset], bmm2ResUb[i * repeatMaxSize],
-                repeatMaxSize, gsAsixSize, repeatParams);
+                repeatMaxSize, gsAxisSize, repeatParams);
         }
         if (remain) {
             Mul(bmm2ResUb[loop * repeatMaxSize], softmaxTemp[softmaxTempOffset],
-                bmm2ResUb[loop * repeatMaxSize], remain, gsAsixSize, repeatParams);
+                bmm2ResUb[loop * repeatMaxSize], remain, gsAxisSize, repeatParams);
         }
     } else {
         for (int i = 0; i < loop; ++i) {
