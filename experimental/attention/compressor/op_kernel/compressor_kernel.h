@@ -213,6 +213,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         blockCube_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, 
             kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
         blockCube_.InitBuffers(pipe_);
+        blockCube_.InitGlobalBuffers(preMm1ResGm, curMm1ResGm);
     } else {
         blockVec_.InitParams(constInfo);
         blockVec_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
@@ -255,19 +256,19 @@ __aicore__ inline void CompressorKernel<COMP>::InitWorkspace(__gm__ uint8_t *wor
     // preMm1ResGm
     preMm1ResGm.SetGlobalBuffer(
         (__gm__ MM1_OUT_T *)(workspace + offset +
-                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.preMm1ResSize));
-    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.preMm1ResSize;
+                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.preMm1ResSize * sizeof(MM1_OUT_T)));
+    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.preMm1ResSize * sizeof(MM1_OUT_T);
 
     // curMm1ResGm
     curMm1ResGm.SetGlobalBuffer(
         (__gm__ MM1_OUT_T *)(workspace + offset +
-                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.curMm1ResSize));
-    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.curMm1ResSize;
+                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.curMm1ResSize * sizeof(MM1_OUT_T)));
+    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.curMm1ResSize * sizeof(MM1_OUT_T);
 
     // vec1Res 
     vec1ResGm.SetGlobalBuffer(
-        (__gm__ VEC1_OUT_T *)(workspace + offset + constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum));
-    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize;
+        (__gm__ VEC1_OUT_T *)(workspace + offset + constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum * sizeof(VEC1_OUT_T)));
+    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize * sizeof(VEC1_OUT_T);
 }
 
 template <typename COMP>

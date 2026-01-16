@@ -327,7 +327,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         }
     }
 
-    uint32_t ubOffset = mStart * kBase;
+    uint32_t ubOffset = mStart * (32 / sizeof(X_T));
     uint32_t mSizeFinish = 0;
     if (copyLastCmpBlock) {
         uint32_t bStartPos = GetStartPos(constInfo_.batchSize - 1);
@@ -342,7 +342,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t dstNzC0Stride = info.dealTcNum * constInfo_.cmpRatio;
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
-        ubOffset += constInfo_.cmpRatio * kBase;
+        ubOffset += constInfo_.cmpRatio * (32 / sizeof(X_T));
         mSizeFinish += constInfo_.cmpRatio;
     }
     while (mSizeFinish < mDealSize) {
@@ -366,7 +366,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         }
 
         // 跳过batch头部的预留行
-        ubOffset += headHolderCnt * kBase;
+        ubOffset += headHolderCnt * (32 / sizeof(X_T));
 
         uint64_t sIdx = GetTIdxByBatch(curBIdx_) + curSIdx_;
         uint64_t gmOffset = sIdx * constInfo_.hSize + hIdx;
@@ -378,7 +378,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
             dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16; // TODO: L1->L0搬运时未16对齐
         }
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
-        ubOffset += (canCopyCnt + tailHolderCnt) * kBase;
+        ubOffset += (canCopyCnt + tailHolderCnt) * (32 / sizeof(X_T));
 
         curSIdx_ += canCopyCnt;
         if (curSIdx_ == bSeqUsed) {

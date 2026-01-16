@@ -24,6 +24,7 @@ using namespace AscendC;
 namespace Compressor {
 
 template<typename COMP> class CompressorBlockCube {
+using MM1_OUT_T = float;
 public:
     __aicore__ inline CompressorBlockCube(){};
     __aicore__ inline void InitParams(const ConstInfo &constInfo);
@@ -46,6 +47,7 @@ public:
         __gm__ uint8_t *kvStateOut,
         __gm__ uint8_t *scoreStateOut);
     __aicore__ inline void InitBuffers(TPipe *pipe);
+    __aicore__ inline void InitGlobalBuffers(const GlobalTensor<MM1_OUT_T>& preMm1ResGm, const GlobalTensor<MM1_OUT_T>& curMm1ResGm);
     __aicore__ inline void AllocEventID(TPipe *pipe);
     __aicore__ inline void FreeEventID(TPipe *pipe);
     __aicore__ inline void ComputeMm1(const RunInfo &info);
@@ -76,6 +78,8 @@ private:
     GlobalTensor<X_T> xGm_;
     GlobalTensor<X_T> wkvGm_;
     GlobalTensor<X_T> wgateGm_;
+    GlobalTensor<MM1_OUT_T>preMm1ResGm;
+    GlobalTensor<MM1_OUT_T>curMm1ResGm;
     GlobalTensor<int32_t> cuSeqlensGm_;
     GlobalTensor<int32_t> sequsedGm_;
     GlobalTensor<int32_t> startPosGm_;
@@ -176,6 +180,12 @@ __aicore__ inline void CompressorBlockCube<COMP>::InitBuffers(TPipe *pipe)
     pipe->InitBuffer(tmpBufL0A, L0A_PP_SIZE * 2);
     pipe->InitBuffer(tmpBufL0B, L0B_PP_SIZE * 2);
     pipe->InitBuffer(tmpBufL0C, L0C_PP_SIZE * 2);
+}
+
+__aicore__ inline void CompressorBlockCube<COMP>::InitGlobalBuffers(const GlobalTensor<MM1_OUT_T>& preMm1ResGm, const GlobalTensor<MM1_OUT_T>& curMm1ResGm)
+{
+    this->preMm1ResGm = preMm1ResGm;
+    this->curMm1ResGm = curMm1ResGm;
 }
 
 template <typename COMP>
@@ -314,7 +324,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         }
     }
 
-    uint32_t ubOffset = mStart * kBase;
+    uint32_t ubOffset = mStart * (32 / sizeof(X_T));
     uint32_t mSizeFinish = 0;
     if (copyLastCmpBlock) {
         uint32_t bStartPos = GetStartPos(constInfo_.batchSize - 1);
@@ -329,7 +339,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t dstNzC0Stride = info.dealTcNum * constInfo_.cmpRatio;
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
-        ubOffset += constInfo_.cmpRatio * kBase;
+        ubOffset += constInfo_.cmpRatio * (32 / sizeof(X_T));
         mSizeFinish += constInfo_.cmpRatio;
     }
 
@@ -354,7 +364,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         }
 
         // 跳过batch头部的预留行
-        ubOffset += headHolderCnt * kBase;
+        ubOffset += headHolderCnt * (32 / sizeof(X_T));
 
         uint64_t sIdx = GetTIdxByBatch(curBIdx_) + curSIdx_;
         uint64_t gmOffset = sIdx * constInfo_.hSize + hIdx;
@@ -366,7 +376,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
             dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
         }
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
-        ubOffset += (canCopyCnt + tailHolderCnt) * kBase;
+        ubOffset += (canCopyCnt + tailHolderCnt) * (32 / sizeof(X_T));
 
         curSIdx_ += canCopyCnt;
         if (curSIdx_ == bSeqUsed) {
@@ -441,7 +451,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::MatrixMmad(LocalTensor<T> cL0T
     }
     mmadParams.n = nDealSize;
     mmadParams.k = kActSize;
-    mmadParams.cmatrixInitVal = isInitL0C;
+    mmadParams.cmatrixInitVal = true;
     mmadParams.cmatrixSource = false;
     Mmad(cL0Tensor, aL0Tensor, bL0Tensor, mmadParams);
     AscendC::PipeBarrier<PIPE_M>();
@@ -539,20 +549,35 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             SetFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0cBufId);
                             WaitFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0cBufId);
                             // FixPipe();
-                            // if (kL1Idx != 0 && h != 0) {
-                            //     SetAtomicAdd<MM_OUT_T>();
-                            // }
-                            // FixpipeParamsV220 fixParams;
-                            // fixParams.mSize = mDealSize;
-                            // fixParams.nSize = N_L0_BASE;
-                            // fixParams.srcStride = mDealSize;
-                            // fixParams.dstStride = N_L0_BASE;
-                            // fixParams.ndNum = 1;
-                            // Fixpipe(preMm1ResGm, cL0Tensor, fixParams);
+                            if (kL1Idx != 0 || h != 0) {
+                                SetAtomicAdd<MM1_OUT_T>();
+                            }
+                            if constexpr (COFF::coff == COFF::OVERLAP) {
+                                FixpipeParamsV220 fixParams;
+                                fixParams.mSize = (mDealSize + 15) / 16 * 16;
+                                fixParams.nSize = N_L1_BASE;
+                                fixParams.srcStride = mDealSize;
+                                fixParams.dstStride = constInfo_.dBaseSize * 2;
+                                fixParams.ndNum = 1;
+                                if (nL1 < nSize / 2) {
+                                    Fixpipe(preMm1ResGm[mL1*M_L1_BASE*nSize+nL1], cL0Tensor, fixParams);
+                                } else {
+                                    Fixpipe(curMm1ResGm[mL1*M_L1_BASE*nSize+nL1], cL0Tensor, fixParams);
+                                }
+                            } else {
+                                FixpipeParamsV220 fixParams;
+                                fixParams.mSize = (mDealSize + 15) / 16 * 16;
+                                fixParams.nSize = N_L1_BASE;
+                                fixParams.srcStride = mDealSize;
+                                fixParams.dstStride = constInfo_.dBaseSize * 2;
+                                fixParams.ndNum = 1;
+                                Fixpipe(curMm1ResGm[mL1*M_L1_BASE*nSize+nL1], cL0Tensor, fixParams);
+                            }
+
                             
-                            // if (kL1Idx != 0 && h != 0) {
-                            //     SetAtomicNone();
-                            // }
+                            if (kL1Idx != 0 || h != 0) {
+                                SetAtomicNone();
+                            }
                         }
                         SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId);
                         l0cBufId = (l0cBufId + 1) % 2;
