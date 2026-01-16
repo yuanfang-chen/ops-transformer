@@ -87,18 +87,20 @@ ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
 }
 
 bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_t topK_) {
+    groupSize_ = queryHeadNum_ / kvHeadNum_;
+    if (cmpRatio_ > 1) {
+        if (topK_ > 0) {
+            isSCFA = true;
+        } else {
+            isCFA = true;
+        }
+    }
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910B) {
-        groupSize_ = queryHeadNum_ / kvHeadNum_;
         uint32_t MBaseBlockLen = 128U;
         uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
-        if (cmpRatio_ > 1) {
-            if (topK_ > 0) {
-                isSCFA = true;
-                s1BlockLen = 1U;
-            } else {
-                isCFA = true;
-            }
+        if (isSCFA) {
+            s1BlockLen = 1U;
         }
         mBaseSize_ = groupSize_ * s1BlockLen;
         s2BaseSize_ = 512U;
