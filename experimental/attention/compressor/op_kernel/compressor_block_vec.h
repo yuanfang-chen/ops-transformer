@@ -82,6 +82,8 @@ protected:
     GlobalTensor<T> vec1ResGm_;
     GlobalTensor<T> preMm1ResGm_;
     GlobalTensor<T> curMm1ResGm_;
+    TBuf<TPosition::VECIN> mm1ResUb;
+    LocalTensor<T> mm1ResTensor;
     TBuf<TPosition::VECCALC> kvBuff_;
     TBuf<TPosition::VECCALC> scoreBuff_;
     TBuf<> inputBuf1; // 32K * 2
@@ -158,6 +160,9 @@ __aicore__ inline void CompressorBlockVector<COMP>::Init(
 template <typename COMP> 
 __aicore__ inline void CompressorBlockVector<COMP>::InitBuffers(TPipe *pipe)
 {
+    // UB
+    pipe->InitBuffer(mm1ResUb, 128 * 1024);
+    mm1ResTensor = mm1ResUb.Get<T>();
     pipe->InitBuffer(kvBuff_, BLOCK_VEC_BASE_BUFFER_SIZE);
     pipe->InitBuffer(scoreBuff_, BLOCK_VEC_BASE_BUFFER_SIZE);
 }
@@ -582,6 +587,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::GetScIdxInfo(uint32_t bStart
 template <typename COMP>
  __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &info)
 {
+    DumpTensor(mm1ResTensor, 1, 128 * 256);
     // TODO 1分核
     SetMSplitInfo(info);
     uint32_t scLoopTimes = 0;

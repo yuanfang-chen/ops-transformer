@@ -20,8 +20,13 @@
 #include "compressor_vector_comm.h"
 #include "compressor_template_tiling_key.h"
 #include "compressor_tiling_data.h"
+#include "compressor_comm.h"
+#if (__CCE_AICORE__ == 220)
+#include "arch32/compressor_block_cube.h"
+#else
+#include "arch35/compressor_block_cube.h"
+#endif
 #include "compressor_block_vec.h"
-#include "compressor_block_cube.h"
 
 using namespace AscendC;
 
@@ -97,14 +102,13 @@ private:
     // 常量
     static constexpr uint64_t SYNC_MODE2 = 2;
     static constexpr uint32_t SYNC_C1_V1_FLAG = 6;
-    static constexpr bool X_DTYPE = COMP::xDtype == X_DTYPE::BF16;
 
     // ==============================Service Define==============================
-    CompressorBlockCube<COMP> cubeService;
+    CompressorBlockCube<COMP> blockCube_;
     CompressorBlockVector<COMP> vectorService;
     static constexpr uint32_t dbWorkspaceRatio = 1;
-    
-    using X_T = typename AscendC::Conditional<X_DTYPE, bfloat16_t, half>::type;
+
+    using X_T = typename AscendC::Conditional<COMP::xDtype == X_DTYPE::BF16, bfloat16_t, half>::type;
     using T = float;
     using MM1_OUT_T = T;
     using VEC1_OUT_T = T;
@@ -170,14 +174,18 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     ropeCosGm_.SetGlobalBuffer((__gm__ X_T *)ropeCos);
     normWeightGm_.SetGlobalBuffer((__gm__ X_T *)normWeight);
     blockTableGm_.SetGlobalBuffer((__gm__ int32_t *)blockTable);
-    cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
-    sequsedGm_.SetGlobalBuffer((__gm__ int32_t *)seqUsed);
+    if constexpr (COMP::xLayout == X_LAYOUT::TH) {
+        cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
+    }
+    if (seqUsed != nullptr) {
+        sequsedGm_.SetGlobalBuffer((__gm__ int32_t *)seqUsed);
+    }
     startPosGm_.SetGlobalBuffer((__gm__ int32_t *)startPos);
 
     InitTilingData();
 
     // 初始化 curActSeqLength、start_pos TODO考虑为None， 
-    if (COMP::xLayout == X_LAYOUT::TH) {
+    if constexpr (COMP::xLayout == X_LAYOUT::TH) {
         curActSeqLength = cuSeqlensGm_.GetValue(1);
         accSeqLength = curActSeqLength;
         // printf("[Init] curActSeqLength:%u\n", curActSeqLength);
@@ -195,21 +203,19 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     // printf("[BASEINFO] tcSize:%u tcBaseSize:%u tcBasicBlockNum:%u dBasicBlockNum:%u coreGroupNum:%u singleCoreDealTcBasicNum:%u\n", constInfo.tcSize, constInfo.tcBaseSize, constInfo.tcBasicBlockNum, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.singleCoreDealTcBasicNum);
     InitWorkspace(workspace);
     if ASCEND_IS_AIC {
-        cubeService.InitParams(constInfo);
-        cubeService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
-                        cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
-        cubeService.InitBuffers(pipe_);
+        blockCube_.InitParams(constInfo);
+        blockCube_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable,
+            cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
+        blockCube_.InitBuffers(pipe_);
     } else {
         vectorService.InitParams(constInfo);
         vectorService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
                         cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut); 
-        cubeService.InitBuffers(pipe_);
         #if __CCE_AICORE__ == 310
             //
         #else 
             vectorService.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
         #endif
-        vectorService.AllocEventID();
     }
     
 }
@@ -505,7 +511,7 @@ __aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(const RunInfo &info)
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeMm1(const RunInfo &info) {
     // printf("[COMPUTE] MM1 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
-    // cubeService.ComputeMm1(info);
+    blockCube_.ComputeMm1(info);
 }
 
 template <typename COMP>
@@ -523,6 +529,12 @@ __aicore__ inline void CompressorKernel<COMP>::ComputeVec2(const RunInfo &info) 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::Process() {
     // printf("CompressorKernel::Process!!!!!\n");
+    if ASCEND_IS_AIC {
+        blockCube_.AllocEventID(pipe_);
+    } else {
+        vectorService.AllocEventID();
+    }
+
     RunInfo extraInfo[1];
     GetCurCoreStartIdx();
 
@@ -566,7 +578,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         }
     }
     if ASCEND_IS_AIC {
-        cubeService.FreeBuffers(pipe_);
+        blockCube_.FreeEventID(pipe_);
     } else {
         vectorService.FreeEventID();
     }
