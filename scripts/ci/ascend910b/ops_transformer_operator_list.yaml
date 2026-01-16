@@ -87,6 +87,8 @@ operator_group_8:
   - matmul_reduce_scatter
   - matmul_all_reduce
   - matmul_all_reduce_add_rms_norm
+  - matmul_allto_all
+  - allto_all_matmul
   - moe_distribute_combine
   - moe_distribute_combine_v2
   - moe_distribute_dispatch
