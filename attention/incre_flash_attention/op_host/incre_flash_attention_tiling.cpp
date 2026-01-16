@@ -282,21 +282,24 @@ ge::graphStatus IFATiling::QKVPreProcess()
     if (GetInOutLayoutAndProcessQInfo(layout, sOfQuery, sOfHeadnum, kDimNum) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    
-    if (GetRopeAndGqaFlag(sOfQuery, kDimNum, sOfHeadnum, layout) != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
-
     qSeqSize_ = sOfQuery;
-
     if (layout == "TND" || layout == "TND_NTD") {
         if (QKVPreProcess4TND(layout) != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-    } else {
-        qSeqSize_ = sOfQuery;
+        sOfQuery = qSeqSize_;
+        if (isWorkspace_ && ifaContext_->blockTable.tensor != nullptr) {
+            uint32_t tndBatchSize = ifaContext_->blockTable.tensor->GetStorageShape().GetDim(0);
+            if (tndBatchSize != 0) {
+                sOfQuery = (tSeqSize_ + tndBatchSize - 1) / tndBatchSize;
+            }
+        }
     }
     s1SplitSize_ = qSeqSize_;
+
+    if (GetRopeAndGqaFlag(sOfQuery, kDimNum, sOfHeadnum, layout) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -405,14 +408,13 @@ ge::graphStatus IFATiling::GetRopeAndGqaFlag(const uint32_t sOfQuery, const uint
         OP_CHECK_IF(sOfQuery > 16, OP_LOGE(ifaContext_->opName, "QueryS(%u) should not be bigger than 16 in MLA.", sOfQuery),
                    return ge::GRAPH_FAILED);
     }
+    OP_CHECK_IF(layout == "TND" && headDim_ == 512 && !ropeFlag_, OP_LOGE(ifaContext_->opName,
+        "When D is 512, inputlayout %s q_rope and k_rope should not be null!", layout.c_str()), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus IFATiling::QKVPreProcess4TND(const std::string layout)
 {
-    OP_CHECK_IF(!ropeFlag_, OP_LOGE(ifaContext_->opName, "When D is 512, inputlayout %s q_rope and k_rope should not be null!", layout.c_str()),
-                return ge::GRAPH_FAILED);
-
     auto qType = ifaContext_->query.desc->GetDataType();
     uint32_t qTypeSize = GetTypeSize(qType);
     if (qTypeSize == NUM_BYTES_UNDEF) {
@@ -1245,6 +1247,9 @@ ge::graphStatus IFATiling::CheckKVAntiQuantMode()
         OP_LOGE(ifaContext_->opName, "antiquantMode value[%u] should be 0 or 1 in GQA KV NZ", antiquantMode_);
         return ge::GRAPH_FAILED;
     }
+    OP_CHECK_IF(gqaKvNZFlag_ && inputLayout_ == IfaLayout::TND && antiquantMode_ == DEQUANT_PER_TOKEN_MODE,
+        OP_LOGE(ifaContext_->opName, "Per token antiquant mode is not supported when layout is TND in GQA KV NZ."),
+        return ge::GRAPH_FAILED);
     if ((antiquantMode_ != DEQUANT_PER_CHANNEL_MODE) &&
             (antiquantMode_ != DEQUANT_PER_TOKEN_MODE) &&
             (antiquantMode_ != DEQUANT_PER_TENSOR_HEAD_MODE) &&
@@ -2022,7 +2027,7 @@ ge::graphStatus IFATiling::SplitUnbalanced() {
     }
 
     if (ropeFlag_ || gqaMtpFlag_) {
-        if (inputLayout_ == IfaLayout::BSH_BSND) {
+        if (inputLayout_ == IfaLayout::BSH_BSND || (gqaKvNZFlag_ && inputLayout_ == IfaLayout::TND)) {
             s1SplitSize_ = gMax_ / nNumOfQInOneGroup_;
             if (s1SplitSize_ > qSeqSize_) {
                 s1SplitSize_ = qSeqSize_;
@@ -2053,7 +2058,7 @@ ge::graphStatus IFATiling::SplitUnbalanced() {
 ge::graphStatus IFATiling::SplitBN()
 {
     uint32_t bn;
-    if (inputLayout_ == IfaLayout::BSH_BSND) {
+    if (inputLayout_ == IfaLayout::BSH_BSND || (gqaKvNZFlag_ && inputLayout_ == IfaLayout::TND)) {
         bn = batchSize_ * numKvHeads_ * s1Outer_;
     } else {
         bn = batchSize_ * numKvHeads_ * gOuter_;
@@ -2099,7 +2104,7 @@ void IFATiling::GetEstimatedLoad(int64_t &estimatedLoad) const
 std::vector<int64_t> IFATiling::InitSparseValidArray(const int64_t *actualLens) const
 {
     uint32_t outer;
-    if (inputLayout_ == IfaLayout::BSH_BSND) {
+    if (inputLayout_ == IfaLayout::BSH_BSND || (gqaKvNZFlag_ && inputLayout_ == IfaLayout::TND)) {
         outer = s1Outer_;
     } else {
         outer = gOuter_;
@@ -2237,7 +2242,7 @@ void IFATiling::SetSparseStartIdx(const std::vector<int64_t> &sparseValidArray, 
 ge::graphStatus IFATiling::SplitBN_V0()
 {
     uint32_t bn;
-    if (inputLayout_ == IfaLayout::BSH_BSND) {
+    if (inputLayout_ == IfaLayout::BSH_BSND || (gqaKvNZFlag_ && inputLayout_ == IfaLayout::TND)) {
         bn = batchSize_ * numKvHeads_ * s1Outer_;
     } else {
         bn = batchSize_ * numKvHeads_ * gOuter_;
