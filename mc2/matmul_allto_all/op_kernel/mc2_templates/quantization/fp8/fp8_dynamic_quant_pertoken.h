@@ -186,11 +186,12 @@ public:
         const uint32_t columnsPerRow = totalDataCount / rowBatch;
         const uint32_t broadcastShape[TWO_FACTOR] = {rowBatch, columnsPerRow};
         const uint32_t sourceShape[TWO_FACTOR] = {rowBatch, 1};
+        const uint32_t smoothSourceShape[TWO_FACTOR] = {1, columnsPerRow};
 
         // 2. 乘平滑系数，按行平滑
         if (this->hasSmooth_) {
-            Cast(tempStat, localSmoothScale, RoundMode::CAST_NONE, rowBatch);
-            Broadcast<float, TWO_FACTOR, 1, false>(workBuf, tempStat, broadcastShape, sourceShape);
+            Cast(tempStat, localSmoothScale, RoundMode::CAST_NONE, columnsPerRow);
+            Broadcast<float, TWO_FACTOR, 1, false>(workBuf, tempStat, broadcastShape, smoothSourceShape);
             Mul(floatData, floatData, workBuf, totalDataCount);
             PipeBarrier<PIPE_V>();
         }
@@ -303,7 +304,7 @@ public:
         quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)this->quantOutputScaleAddr_ + scaleOffset, curRows);
         // smooth的数据类型与input一致
         if (this->hasSmooth_) {
-            smoothScaleGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->smoothScaleAddr_ + scaleOffset, curRows);
+            smoothScaleGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->smoothScaleAddr_, this->colNum_);
         }
 
         // ALIGN_NUM为8，目的是为了保证bufDatCnt*sizeof(float)与32B对齐
@@ -324,7 +325,7 @@ public:
 
         if (this->hasSmooth_) {
             tPipe_->InitBuffer(smoothScaleQue_, TWO_FACTOR,
-                               Ceil(curRows * sizeof(quantInputDataType), UB_DATABLOCK) * UB_DATABLOCK);
+                               Ceil(this->colNum_ * sizeof(quantInputDataType), UB_DATABLOCK) * UB_DATABLOCK);
         }
     }
 
@@ -352,7 +353,8 @@ public:
         if (this->hasSmooth_) {
             // GM->UB
             LocalTensor<quantInputDataType> sScale = smoothScaleQue_.AllocTensor<quantInputDataType>();
-            DataCopyExtParams sParams{1, static_cast<uint32_t>(curRows * sizeof(quantInputDataType)), 0, 0};
+            // smooth获取的是完整的
+            DataCopyExtParams sParams{1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0};
             DataCopyPad(sScale, smoothScaleGM_, sParams, padExtParams);
             smoothScaleQue_.EnQue(sScale);
         }
@@ -407,27 +409,27 @@ public:
 
         tPipe_->InitBuffer(smoothScaleQue_, ONE_FACTOR, smoothScaleDataSize);
         tPipe_->InitBuffer(quantScaleQue_, ONE_FACTOR, quantScaleDataSize);
-
+        // TODO 要修改smooth
         LocalTensor<quantInputDataType> coreSmoothScales = smoothScaleQue_.AllocTensor<quantInputDataType>();
         LocalTensor<float> coreQuantScales = quantScaleQue_.AllocTensor<float>();
-
+        // 量化系数提升为float类型
+        LocalTensor<float> workBuf = workBuf_.Get<float>();
         if (this->hasSmooth_) {
-            DataCopyExtParams sParams{1, static_cast<uint32_t>(this->rowsThisCore_ * sizeof(quantInputDataType)), 0, 0};
+            DataCopyExtParams sParams{1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0};
             DataCopyPadExtParams<quantInputDataType> padExtParams{false, 0, 0, 0};
             // GM->UB
             DataCopyPad(coreSmoothScales,
-                        GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->smoothScaleAddr_ +
-                                                         this->startRowThisCore_),
-                        sParams, padExtParams);
+                        GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->smoothScaleAddr_), sParams,
+                        padExtParams);
+            Cast(workBuf_, coreSmoothScales, RoundMode::CAST_RINT, this->colNum_);
         }
 
         for (uint64_t r = 0; r < this->rowsThisCore_; ++r) {
-            float s = this->hasSmooth_ ? coreSmoothScales.GetValue(r) : 1.0f;
-            float rowMax = ProcessRowMaxAcrossSegments(this->startRowThisCore_ + r, maxCols, s);
+            float rowMax = ProcessRowMaxAcrossSegments(this->startRowThisCore_ + r, maxCols, workBuf_);
             // 除零保护
             float scale = (rowMax > 0.0f) ? (rowMax * this->recipFP8MaxLimit_) : 1.0f;
             float recipScale = (rowMax > 0.0f) ? (this->fp8MaxLimit_ / rowMax) : 1.0f;
-            ProcessRowQuantAcrossSegments(this->startRowThisCore_ + r, maxCols, s, recipScale);
+            ProcessRowQuantAcrossSegments(this->startRowThisCore_ + r, maxCols, workBuf_, recipScale);
             coreQuantScales.SetValue(r, (float)scale);
         }
         // UB ->GM
@@ -439,7 +441,8 @@ public:
         quantScaleQue_.FreeTensor(coreQuantScales);
     }
 
-    __aicore__ inline float ProcessRowMaxAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols, float smoothScalar)
+    __aicore__ inline float ProcessRowMaxAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols,
+                                                        LocalTensor<float> smoothTensor)
     {
         float rowMax = 0.0f;
         for (uint32_t cOffset = 0; cOffset < this->colNum_; cOffset += maxCols) {
@@ -454,8 +457,9 @@ public:
                         {1, static_cast<uint32_t>(curCols * sizeof(quantInputDataType)), 0, 0}, {false, 0, 0, 0});
 
             Cast(floatData, rawIn, RoundMode::CAST_NONE, curCols);
-            if (this->hasSmooth_)
-                Muls(floatData, floatData, smoothScalar, curCols);
+            if (this->hasSmooth_) {
+                Mul(floatData, floatData, smoothTensor[cOffset], curCols);
+            }
             Abs(floatData, floatData, curCols);
             PipeBarrier<PIPE_V>();
             ReduceMaxInplace(floatData, curCols);
@@ -465,8 +469,8 @@ public:
         return rowMax;
     }
 
-    __aicore__ inline void ProcessRowQuantAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols, float smoothScalar,
-                                                         float recipScale)
+    __aicore__ inline void ProcessRowQuantAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols,
+                                                         LocalTensor<float> smoothTensor, float recipScale)
     {
         for (uint32_t cOffset = 0; cOffset < this->colNum_; cOffset += maxCols) {
             uint32_t curCols = Min(maxCols, (uint32_t)this->colNum_ - cOffset);
@@ -481,8 +485,9 @@ public:
                         {1, (uint32_t)(curCols * sizeof(quantInputDataType)), 0, 0}, {false, 0, 0, 0});
 
             Cast(floatData, rawIn, RoundMode::CAST_NONE, curCols);
-            if (this->hasSmooth_)
-                Muls(floatData, floatData, smoothScalar, curCols);
+            if (this->hasSmooth_) {
+                Mul(floatData, floatData, smoothTensor[cOffset], curCols);
+            }
             Muls(floatData, floatData, recipScale, curCols);
             Cast(quantOut, floatData, RoundMode::CAST_RINT, curCols);
             // UB->GM
