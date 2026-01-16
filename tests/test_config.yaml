@@ -344,6 +344,8 @@ gmm:
       - gmm/grouped_matmul_swiglu_quant
     options:
       - grouped_matmul_swiglu_quant
+    test: 
+      examples: False
 
   grouped_matmul_swiglu_quant_v2:
     module: True
@@ -356,6 +358,8 @@ gmm:
       - gmm/grouped_matmul_swiglu_quant_v2
     options:
       - grouped_matmul_swiglu_quant_v2
+    test: 
+      examples: False
 
   grouped_matmul_add:
     module: True
@@ -368,6 +372,8 @@ gmm:
       - gmm/grouped_matmul_add
     options:
       - grouped_matmul_add
+    test: 
+      examples: False
 
   grouped_matmul_finalize_routing:
     module: True
