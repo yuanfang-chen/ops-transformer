@@ -68,13 +68,12 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     Mc2Tiling::MatmulReduceScatterV2TilingData* tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe) {
     tilingData_ = tilingData;
     auto&& cfg = tilingData_->param;
-    auto&& msg = tilingData_->msg;
     hccl_.Init(contextGM, mc2InitTiling);
     hccl_.SetCcTiling(mc2CcTiling);
     context_ = (__gm__ HcclCombinOpParam *)(contextGM);
     tPipe_ = tPipe;
-    debugMode_ = msg.debugMode;
-    dataType_ = static_cast<AscendC::HcclDataType>(msg.dataType);
+    dataType_ = static_cast<AscendC::HcclDataType>(tilingData_->dataType);
+    debugMode_ = tilingData_->debugMode;
     aGM_ = aGM;
     bGM_ = bGM;
     cGM_ = cGM;

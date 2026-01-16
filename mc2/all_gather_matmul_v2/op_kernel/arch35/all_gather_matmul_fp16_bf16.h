@@ -74,7 +74,6 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
     // 获取tilingdata数据
     tilingData_ = tilingData;
     auto&& cfg = tilingData_->param;
-    auto&& msg = tilingData_->msg;
     // 获取 context
     context_ = contextGM;
     // 初始化Hccl类
@@ -84,8 +83,8 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::I
     tPipe_ = tPipe;
 
     // 其它
-    debugMode_ = msg.debugMode;
-    dataType_ = static_cast<AscendC::HcclDataType>(msg.dataType);
+    debugMode_ = tilingData_->debugMode;
+    dataType_ = static_cast<AscendC::HcclDataType>(tilingData_->dataType);
     aGM_ = aGM;
     bGM_ = bGM;
     cGM_ = cGM;

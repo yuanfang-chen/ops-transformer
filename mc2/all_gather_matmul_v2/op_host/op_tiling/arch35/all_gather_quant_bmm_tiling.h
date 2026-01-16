@@ -57,7 +57,6 @@ protected:
     DequantBmm::Mc2L2cacheTileParams &MutableTCubeTailTilingTileL2();
     DequantBmm::Mc2SlidingWindowParams &MutableTCubeTailTilingWindowParam();
 
-    Mc2Tiling::Mc2Msg &MutableMc2MsgDataA5();
     Mc2Tiling::RCSTiling &MutableRCSTilingDataA5();
 
     ge::graphStatus DoAdaptSlidWindowTiling();

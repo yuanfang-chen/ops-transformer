@@ -81,7 +81,7 @@ protected:
     bool SetCommAlgo();
     // tiling
     void DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling, 
-                           ::TCubeTiling& tailTiling, Mc2Tiling::Mc2Msg& msg, bool useHcclApi);
+                           ::TCubeTiling& tailTiling, uint32_t& debugMode, uint32_t& dataType);
     void SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg);
     void DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg);
     virtual ge::graphStatus CheckInput()
@@ -107,8 +107,7 @@ protected:
     void SetTilingArgsDataType();
     void SetTilingArgsGatherStatus();
     void SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling, 
-                                 ::TCubeTiling& tailTiling, Mc2Tiling::Mc2Msg& msg,
-                                 uint8_t debugMode);
+                                 ::TCubeTiling& tailTiling, uint32_t debugMode);
 
     mc2tiling::TilingArgs args_;
     platform_ascendc::SocVersion socVersion_;

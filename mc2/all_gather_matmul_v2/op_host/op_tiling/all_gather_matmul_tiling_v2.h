@@ -51,10 +51,6 @@ protected:
     {
         return allGatherMatmulTilingDataV2_->param;
     }
-    Mc2Tiling::Mc2Msg &MutableMc2MsgData()
-    {
-        return allGatherMatmulTilingDataV2_->msg;
-    }
 
     Mc2MatMulV3TilingData &MutableMC2MatmulV3LocalTilingData()
     {

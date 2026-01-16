@@ -25,12 +25,9 @@ namespace Mc2Tiling {
 struct AllGatherMatmulTilingDataV2 {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
-    uint32_t version;
-    uint32_t hcommCnt;
-    MC2ServerCfg serverCfg;
-    MC2HcommCfg hcommCfg;
-    Mc2Msg msg;
     RCSTiling param;
+    uint32_t dataType;
+    uint32_t debugMode;
     Mc2MatMulV3TilingData mc2MmV3LocalTilingData;
     Mc2MatMulV3TilingData mc2MmV3TileTilingData;
     Mc2MatMulV3TilingData mc2MmV3TailTilingData;
@@ -39,12 +36,9 @@ struct AllGatherMatmulTilingDataV2 {
 struct AllGatherMatmulTilingDataFp8 {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
-    uint32_t version;
-    uint32_t hcommCnt;
-    MC2ServerCfg serverCfg;
-    MC2HcommCfg hcommCfg;
-    Mc2Msg msg;
     RCSTiling param;
+    uint32_t dataType;
+    uint32_t debugMode;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams quantBmmv3LocalTiling;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams quantBmmv3TileTiling;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams quantBmmv3TailTiling;

@@ -365,7 +365,7 @@ ge::graphStatus AllGatherMatmulTilingBase::AnalyzeShapeAttr()
 void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, 
                                                         ::TCubeTiling& mmTiling,
                                                         ::TCubeTiling& tailTiling, 
-                                                        Mc2Tiling::Mc2Msg& msg, uint8_t debugMode)
+                                                        uint32_t debugMode)
 {
     // 只通信不计算模式下，如果没有gatherOut且K > N, recvOff和sendCnt需要根据N计算
     auto columnNum = args_.orgKValue;
@@ -379,24 +379,6 @@ void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rc
                 args_.orgKValue, args_.orgNValue);
         columnNum = args_.orgNValue;
     }
-
-    // GatherA
-    msg.sendOff = (mmTiling.M * args_.orgKValue * args_.inputDtypeSize);
-    msg.recvOff = (mmTiling.M * columnNum * args_.inputDtypeSize);
-    msg.sendCnt = (mmTiling.M * columnNum);
-    msg.recvCnt = (mmTiling.M * args_.orgKValue * rcsCfg.rankDim);
-
-    // 支持多个尾块的场景
-    msg.tailSendOff = (tailTiling.M * args_.orgKValue * args_.inputDtypeSize);
-    msg.tailRecvOff = (tailTiling.M * columnNum * args_.inputDtypeSize);
-    msg.tailSendCnt = (tailTiling.M * columnNum);
-    msg.tailRecvCnt = (tailTiling.M * args_.orgKValue * rcsCfg.rankDim);
-
-    // 总共发送的次数
-    msg.totalCnt = (rcsCfg.rankM * rcsCfg.rankK);
-    msg.turnNum = (rcsCfg.tileCnt + rcsCfg.tailCnt);  // 总轮次
-    msg.tailNum = rcsCfg.tailCnt;                         // 尾块的轮次
-    msg.stride = (rcsCfg.rankM * rcsCfg.rankK);       // 跳写间隔
 }
 
 
@@ -405,49 +387,15 @@ void AllGatherMatmulTilingBase::SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rc
 void AllGatherMatmulTilingBase::DoAllGatherTiling(Mc2Tiling::RCSTiling& rcsCfg, 
                                                   ::TCubeTiling& mmTiling, 
                                                   ::TCubeTiling& tailTiling,
-                                                  Mc2Tiling::Mc2Msg& msg, bool useHcclApi)
+                                                  uint32_t& debugMode, uint32_t& dataType)
 {
-    auto debugMode = mc2tiling::Mc2TilingUtils::GetDebugMode();
-    msg.debugMode = debugMode;
-    msg.commAlg = args_.commAlg;  // 设置通信算法
-    msg.commType = rcsCfg.commtype;
-    msg.reduceOp = rcsCfg.subtype;
+    auto debugMode_ = mc2tiling::Mc2TilingUtils::GetDebugMode();
+    debugMode = debugMode_;
 
-    msg.waitPolicy = 1;
-    msg.rspPolicy = 1;
-    msg.exitPolicy = 0;
-    msg.taskType = (static_cast<uint8_t>(mc2tiling::KfcTaskType::KFC_TASK_HCC_TASK_DELIVER));
+    SetMC2AllGatherDataInfo(rcsCfg, mmTiling, tailTiling, debugMode_);
 
-    msg.commOrder = 0;                                            // 0先AiCPU后MM; 1为先MM后AICPU
-    msg.reuseMode = rcsCfg.tileCnt + rcsCfg.tailCnt;  // 数据空间被使用
-    msg.stepSize = mc2tiling::Mc2TilingUtils::GetDebugStepSize();
+    dataType = (static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));  // hccl数据类型
 
-    SetMC2AllGatherDataInfo(rcsCfg, mmTiling, tailTiling, msg, debugMode);
-
-    // workspace 地址
-    if (rcsCfg.gatherLen == 0) {  // 说明不使用workspace
-        msg.useBufferType = (
-            static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT));  // 不使用workspace作为recvbuf
-        msg.workspaceOff = 0;
-    } else {
-        msg.useBufferType = (
-            static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT));  // 使用workspace作为recvbuf
-        msg.workspaceOff = (mc2tiling::WORK_SPACE_OFFSET);
-    }
-
-    // 消息队列的开始 device notify write/read value偏移
-    msg.notifyOff = (sizeof(mc2tiling::KFCMsgBody));
-    msg.notifyBeginCnt = rcsCfg.tileCnt + rcsCfg.tailCnt;  // notift write value的使用个数
-    msg.notifyEndCnt = 1;                                              // notift read value的使用个数
-
-    msg.funID = mc2tiling::GATHER_FUNC_ID;
-    msg.dataType = (static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));  // hccl数据类型
-    msg.groupNum = 1;  // 只需要1个消息
-    if (useHcclApi) {
-        msg.preparePosition = 1;
-    } else {
-        msg.preparePosition = 0;
-    }
     // 计算一下额外申请的内存
     storageA_ = GetStorageA(rcsCfg);
 }

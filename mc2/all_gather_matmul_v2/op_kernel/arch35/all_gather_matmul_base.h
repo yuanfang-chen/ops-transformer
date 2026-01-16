@@ -35,8 +35,9 @@ public:
                                           Mc2Tiling::AllGatherMatmulTilingDataFp8* tilingData, GM_ADDR contextGM, TPipe* tPipe)
         : addrs_(addrs), quantAddrs_(quantAddrs), tPipe_(tPipe)
     {
-        msgInTiling_ = &tilingData->msg;
         paramInTiling_ = &tilingData->param;
+        dataType_ = static_cast<AscendC::HcclDataType>(tilingData->dataType);
+        debugMode_ = tilingData->debugMode;
         context_ = contextGM;
     }
     __aicore__ inline void Init(__gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling)
@@ -44,8 +45,6 @@ public:
         hccl_.Init(context_, mc2InitTiling);
         hccl_.SetCcTiling(mc2CcTiling);
         rankId_ = ((__gm__ HcclCombinOpParam*)context_)->rankId;
-        debugMode_ = msgInTiling_->debugMode;
-        dataType_ = static_cast<AscendC::HcclDataType>(msgInTiling_->dataType);
         // 计算scale1的数据个数及地址偏移
         nBlockSizeCnt_ = (tileInfo_.mmTiling->matmulTiling.Ka + PERBLOCK_BLOCK_SIZE - 1) / PERBLOCK_BLOCK_SIZE;
         oneCommBlockSizeOffset_ = static_cast<uint64_t>(tileInfo_.mmTiling->matmulTiling.M / PERBLOCK_BLOCK_SIZE) * 
@@ -136,7 +135,6 @@ protected:
 
     MC2GmAddrs* addrs_ = nullptr;
     QuantGmAddrs* quantAddrs_ = nullptr;
-    Mc2Tiling::Mc2Msg* msgInTiling_ = nullptr;
     Mc2Tiling::RCSTiling* paramInTiling_ = nullptr;
     Mc2Tiling::MC2TileInfo localInfo_;
     Mc2Tiling::MC2TileInfo tileInfo_;

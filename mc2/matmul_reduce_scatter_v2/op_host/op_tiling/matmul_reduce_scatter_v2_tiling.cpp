@@ -68,7 +68,6 @@ void MatmulReduceScatterV2Tiling::PrintAllTilingData() const
 {
     if (matmulReduceScatterV2TilingData_->param.rankID == 0) {
         PrintRCSTilingData(context_->GetNodeName(), matmulReduceScatterV2TilingData_->param);
-        PrintMc2MsgData(context_->GetNodeName(), matmulReduceScatterV2TilingData_->msg);
         OP_LOGD(opName_, "MutableMC2MmV3TileTilingData matmulTiling");
         PrintMMV3TilingData(context_->GetNodeName(), matmulReduceScatterV2TilingData_->mC2Mmv3TileTilingData);
         if (matmulReduceScatterV2TilingData_->param.tailM > 0) {
@@ -93,23 +92,13 @@ ge::graphStatus MatmulReduceScatterV2Tiling::CheckInput()
 
 ge::graphStatus MatmulReduceScatterV2Tiling::SetMc2Hcomm()
 {
-    matmulReduceScatterV2TilingData_->hcommCfg.opType = (
-        static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER));
-    matmulReduceScatterV2TilingData_->hcommCfg.srcDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    matmulReduceScatterV2TilingData_->hcommCfg.dstDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    matmulReduceScatterV2TilingData_->version = mc2tiling::COMM_VERSION3;
-    matmulReduceScatterV2TilingData_->hcommCnt = static_cast<uint32_t>(1);
-    
     const uint32_t opType = static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
     const std::string rsConfig = "ReduceScatter=level0:fullmesh";
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig, 
-                                                matmulReduceScatterV2TilingData_->hcommCfg.reduceType,
-                                                matmulReduceScatterV2TilingData_->hcommCfg.dstDataType, 
-                                                matmulReduceScatterV2TilingData_->hcommCfg.srcDataType);
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig, 0,
+                                                static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
+                                                static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulReduceScatterV2TilingData_->mc2InitTiling) != 0,
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulReduceScatterV2TilingData_->mc2CcTiling) != 0,
@@ -171,7 +160,8 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoOpTiling()
     DoSplitMTiling(matmulReduceScatterV2TilingData_->param);
     GE_ASSERT_GRAPH_SUCCESS(DoAllMatmulTiling());
     SetTilingResult(matmulReduceScatterV2TilingData_->param, MutableMC2MmV3TileTilingData().tCubeTiling,
-                    MutableMC2MmV3TailTilingData().tCubeTiling, matmulReduceScatterV2TilingData_->msg);
+                    MutableMC2MmV3TailTilingData().tCubeTiling, matmulReduceScatterV2TilingData_->debugMode,
+                    matmulReduceScatterV2TilingData_->dataType);
     return ge::GRAPH_SUCCESS;
 }
 

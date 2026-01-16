@@ -386,21 +386,13 @@ ge::graphStatus AllGatherQuantBmmTiling::CheckInput()
 
 ge::graphStatus AllGatherQuantBmmTiling::SetMc2Hcomm()
 {
-    allGatherMatmulTilingDataFp8_->hcommCfg.opType = (
-        static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER));
-    allGatherMatmulTilingDataFp8_->hcommCfg.srcDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    allGatherMatmulTilingDataFp8_->hcommCfg.dstDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    allGatherMatmulTilingDataFp8_->version = COMM_VERSION3;
-    allGatherMatmulTilingDataFp8_->hcommCnt = 1;  // allgather 通信域数量为1
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
     std::string algConfig = "AllGather=level0:fullmesh";
-    Mc2CcTilingConfig mc2CcTilingConfig(group, allGatherMatmulTilingDataFp8_->hcommCfg.opType, algConfig, 
-                                        allGatherMatmulTilingDataFp8_->hcommCfg.reduceType, 
-                                        allGatherMatmulTilingDataFp8_->hcommCfg.dstDataType, 
-                                        allGatherMatmulTilingDataFp8_->hcommCfg.srcDataType);
+    Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER), 
+                                        algConfig, 0, 
+                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
+                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
     uint8_t skipBufferWindowCopy = (allGatherMatmulTilingDataFp8_->param.gatherLen == 0) ? 
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT) :
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT);
@@ -421,7 +413,7 @@ ge::graphStatus AllGatherQuantBmmTiling::DoOpTiling()
     DoSplitMTiling(MutableRCSTilingDataA5());
     GE_ASSERT_GRAPH_SUCCESS(DoAdaptSlidWindowTiling());
     DoAllGatherTiling(MutableRCSTilingDataA5(), MutableTCubeTileTilingData(), MutableTCubeTailTilingData(),
-                      MutableMc2MsgDataA5(), true);
+                      allGatherMatmulTilingDataFp8_->debugMode, allGatherMatmulTilingDataFp8_->dataType);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -553,7 +545,6 @@ ge::graphStatus AllGatherQuantBmmTiling::PostTiling()
         Mc2PrintTCubeTilingParams(context_->GetNodeName(), MutableTCubeTileTilingParams());
         Mc2PrintTCubeTilingL2cache(context_->GetNodeName(), MutableTCubeTileTilingTileL2());
         Mc2PrintTCubeTilingWindowParam(context_->GetNodeName(), MutableTCubeTileTilingWindowParam());
-        PrintMc2MsgData(context_->GetNodeName(), MutableMc2MsgDataA5());
         
         if (MutableRCSTilingDataA5().tailM > 0) {
             OP_LOGD(opName_, "tail exist");
@@ -569,10 +560,7 @@ ge::graphStatus AllGatherQuantBmmTiling::PostTiling()
     context_->SetScheduleMode(1);
     return ge::GRAPH_SUCCESS;
 }
-Mc2Tiling::Mc2Msg& AllGatherQuantBmmTiling::MutableMc2MsgDataA5()
-{
-    return allGatherMatmulTilingDataFp8_->msg;
-}
+
 Mc2Tiling::RCSTiling& AllGatherQuantBmmTiling::MutableRCSTilingDataA5()
 {
     return allGatherMatmulTilingDataFp8_->param;

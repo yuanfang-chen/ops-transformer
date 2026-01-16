@@ -77,9 +77,9 @@ protected:
     virtual ge::graphStatus CheckInput() { return ge::GRAPH_SUCCESS; }
     inline mc2tiling::TilingArgs GetMc2tilingArgs() { return args_; };
     void SetTilingResult(Mc2Tiling::RCSTiling &rcsCfg, ::TCubeTiling &mmTiling, 
-                         ::TCubeTiling &tailTiling, Mc2Tiling::Mc2Msg &msg);
+                         ::TCubeTiling &tailTiling, uint32_t& debugMode, uint32_t& dataType);
     void SetMsgDataInfo(Mc2Tiling::RCSTiling &rcsCfg, ::TCubeTiling &mmTiling, 
-                        ::TCubeTiling &tailTiling, Mc2Tiling::Mc2Msg &msg, uint8_t debugMode);
+                        ::TCubeTiling &tailTiling, uint32_t debugMode);
     mc2tiling::TilingArgs args_;
     platform_ascendc::SocVersion socVersion_;
     const char* opName_ = nullptr;

@@ -481,7 +481,7 @@ ge::graphStatus MatmulReduceScatterTilingBase::GetShapeAttrsInfo()
 
 void MatmulReduceScatterTilingBase::SetMsgDataInfo(Mc2Tiling::RCSTiling &rcsCfg, 
                                                    ::TCubeTiling &mmTiling, ::TCubeTiling &tailTiling, 
-                                                   Mc2Tiling::Mc2Msg &msg, uint8_t debugMode)
+                                                   uint32_t debugMode)
 {
     // 只通信不计算模式下，如果没有gatherOut且K > N, recvOff和sendCnt需要根据N计算
     auto columnNum = args_.orgKValue;
@@ -494,64 +494,21 @@ void MatmulReduceScatterTilingBase::SetMsgDataInfo(Mc2Tiling::RCSTiling &rcsCfg,
             args_.orgKValue, args_.orgNValue);
         columnNum = args_.orgNValue;
     }
-
-    // ReduceScatter
-    msg.sendOff = (mmTiling.M * columnNum * args_.outputDtypeSize * args_.rankDim);
-    msg.recvOff = (mmTiling.M * args_.orgNValue * args_.outputDtypeSize);
-    msg.sendCnt = (mmTiling.M * columnNum * args_.rankDim);
-    msg.recvCnt = (mmTiling.M * args_.orgNValue);
-    // 公式化Tiling策略，会有多个尾块
-    msg.tailSendOff = (tailTiling.M * columnNum * args_.outputDtypeSize * args_.rankDim);
-    msg.tailRecvOff = (tailTiling.M * args_.orgNValue * args_.outputDtypeSize);
-    msg.tailSendCnt = (tailTiling.M * columnNum * rcsCfg.rankDim);
-    msg.tailRecvCnt = (tailTiling.M * args_.orgNValue);
-
-    // 总共发送的次数
-    msg.totalCnt = (rcsCfg.rankM * rcsCfg.rankN);
-    msg.turnNum = (rcsCfg.tileCnt + rcsCfg.tailCnt); // 总轮次
-    msg.tailNum = rcsCfg.tailCnt;                        // 尾块的轮次
-    msg.stride = 0;                                            // 跳写间隔
 }
 
 // tiling
 
 void MatmulReduceScatterTilingBase::SetTilingResult(Mc2Tiling::RCSTiling &rcsCfg, 
                                                     ::TCubeTiling &mmTiling, ::TCubeTiling &tailTiling, 
-                                                    Mc2Tiling::Mc2Msg &msg)
+                                                    uint32_t& debugMode, uint32_t& dataType)
 {
-    auto debugMode = mc2tiling::Mc2TilingUtils::GetDebugMode();
-    msg.exitPolicy = 0;
-    msg.taskType = (static_cast<uint8_t>(mc2tiling::KfcTaskType::KFC_TASK_HCC_TASK_DELIVER));
-    msg.waitPolicy = 1;
-    msg.rspPolicy = 1;
+    auto debugMode_ = mc2tiling::Mc2TilingUtils::GetDebugMode();
 
-    msg.debugMode = debugMode;
-    msg.commAlg = args_.commAlg; // 设置通信算法
-    msg.commType = rcsCfg.commtype;
-    msg.reduceOp = rcsCfg.subtype;
+    debugMode = debugMode_;
 
-    msg.commOrder = 1;                                           // 0先AiCPU后MM; 1为先MM后AICPU
-    msg.reuseMode = rcsCfg.tileCnt + rcsCfg.tailCnt; // 数据空间被使用
-    msg.stepSize = mc2tiling::Mc2TilingUtils::GetDebugStepSize();
+    SetMsgDataInfo(rcsCfg, mmTiling, tailTiling, debugMode_);
 
-    SetMsgDataInfo(rcsCfg, mmTiling, tailTiling, msg, debugMode);
-
-    // workspace 地址
-    msg.useBufferType = (static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT));
-    msg.workspaceOff = mc2tiling::WORK_SPACE_OFFSET;
-
-    // 消息队列的开始  device notify write/read value偏移
-    msg.notifyOff = sizeof(mc2tiling::KFCMsgBody);
-    msg.notifyBeginCnt = rcsCfg.tileCnt + rcsCfg.tailCnt; // notify write value的使用个数
-    msg.notifyEndCnt = 1;                                                   // notify read value的使用个数
-
-    msg.funID = mc2tiling::REDUCE_SCATTER_FUNC_ID;
-    msg.dataType = (static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType))); // hccl数据类型
-    msg.groupNum = 1;                                                    // 只需要1个消息
-    msg.preparePosition = 1;
-    msg.sendArgIndex = 0;               // x1
-    msg.recvArgIndex = RECV_ARG_INDEX;  // y
-    msg.commOutArgIndex = 0xff;         // gather_out
+    dataType = (static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType))); // hccl数据类型
     return;
 }
 } // namespace optiling

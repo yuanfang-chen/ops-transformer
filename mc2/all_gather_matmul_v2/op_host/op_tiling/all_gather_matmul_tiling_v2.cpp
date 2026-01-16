@@ -69,7 +69,8 @@ ge::graphStatus AllGatherMatmulTilingV2::DoOpTiling()
     DoSplitMTiling(MutableRCSTilingData());
     GE_ASSERT_GRAPH_SUCCESS(DoVersion2Tiling());
     DoAllGatherTiling(MutableRCSTilingData(), MutableMC2MatmulV3TileTilingData().tCubeTiling,
-                      MutableMC2MatmulV3TailTilingData().tCubeTiling, MutableMc2MsgData(), true);
+                      MutableMC2MatmulV3TailTilingData().tCubeTiling, allGatherMatmulTilingDataV2_->debugMode, 
+                      allGatherMatmulTilingDataV2_->dataType);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -95,7 +96,6 @@ void AllGatherMatmulTilingV2::PrintAllTilingData()
     PrintRCSTilingData(context_->GetNodeName(), MutableRCSTilingData());
     Mc2PrintMMV3TilingData(context_->GetNodeName(), MutableMC2MatmulV3LocalTilingData());
     Mc2PrintMMV3TilingData(context_->GetNodeName(), MutableMC2MatmulV3TileTilingData());
-    PrintMc2MsgData(context_->GetNodeName(), MutableMc2MsgData());
     if (MutableRCSTilingData().tailM <= 0) {
         return;
     }
@@ -187,22 +187,13 @@ ge::graphStatus AllGatherMatmulTilingV2::DoVersion2Tiling()
 
 ge::graphStatus AllGatherMatmulTilingV2::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCfg)
 {
-    allGatherMatmulTilingDataV2_->hcommCfg.opType = (
-        static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER));
-    allGatherMatmulTilingDataV2_->hcommCfg.srcDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    allGatherMatmulTilingDataV2_->hcommCfg.dstDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-
-    allGatherMatmulTilingDataV2_->version = COMM_VERSION3;  // 新版本
-    allGatherMatmulTilingDataV2_->hcommCnt = 1;             // allgather 通信域数量为1
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
     std::string algConfig = "AllGather=level0:fullmesh";
-    Mc2CcTilingConfig mc2CcTilingConfig(group, allGatherMatmulTilingDataV2_->hcommCfg.opType, algConfig, 
-                                        allGatherMatmulTilingDataV2_->hcommCfg.reduceType, 
-                                        allGatherMatmulTilingDataV2_->hcommCfg.dstDataType, 
-                                        allGatherMatmulTilingDataV2_->hcommCfg.srcDataType);
+    Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER), 
+                                        algConfig, 0, 
+                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
+                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
     uint8_t skipBufferWindowCopy = (allGatherMatmulTilingDataV2_->param.gatherLen == 0) ? 
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT) :
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT);

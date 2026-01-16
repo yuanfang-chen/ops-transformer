@@ -361,25 +361,14 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckInput()
 
 ge::graphStatus QuantBmmReduceScatterTiling::SetMc2Hcomm()
 {
-    quantBmmMatmulReducescatterTilingData_->hcommCfg.opType = (
-        static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER));
-    quantBmmMatmulReducescatterTilingData_->hcommCfg.reduceType = (
-        static_cast<uint32_t>(mc2tiling::HcclReduceOp::HCCL_REDUCE_SUM));
-    quantBmmMatmulReducescatterTilingData_->version = (mc2tiling::COMM_VERSION3);  // 使用高阶api，version设置为3
-    quantBmmMatmulReducescatterTilingData_->hcommCnt = static_cast<uint32_t>(1);             // reducescatter 通信域数量为1
-    quantBmmMatmulReducescatterTilingData_->hcommCfg.srcDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-    quantBmmMatmulReducescatterTilingData_->hcommCfg.dstDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-
     const uint32_t opType = static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
     const std::string rsConfig = "ReduceScatter=level0:fullmesh";
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig, 
-                                                 quantBmmMatmulReducescatterTilingData_->hcommCfg.reduceType, 
-                                                 quantBmmMatmulReducescatterTilingData_->hcommCfg.dstDataType, 
-                                                 quantBmmMatmulReducescatterTilingData_->hcommCfg.srcDataType);
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig,
+                                                 static_cast<uint32_t>(mc2tiling::HcclReduceOp::HCCL_REDUCE_SUM), 
+                                                 static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)), 
+                                                 static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2InitTiling) != 0,
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantBmmMatmulReducescatterTilingData_->mc2CcTiling) != 0,
@@ -440,7 +429,7 @@ ge::graphStatus QuantBmmReduceScatterTiling::DoOpTiling()
         MutableRCSTilingDataA5().tileCnt = 1;
     }
     SetTilingResult(MutableRCSTilingDataA5(), MutableTCubeTileTilingData(), MutableTCubeTailTilingData(),
-                    MutableMc2MsgDataA5());
+                    quantBmmMatmulReducescatterTilingData_->debugMode, quantBmmMatmulReducescatterTilingData_->dataType);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -557,7 +546,6 @@ ge::graphStatus QuantBmmReduceScatterTiling::PostTiling()
     if (MutableRCSTilingDataA5().rankID == 0) {
         PrintRCSTilingData(context_->GetNodeName(), MutableRCSTilingDataA5());
         PrintTCubeTilingData(context_->GetNodeName(), MutableTCubeTileTilingData());
-        PrintMc2MsgData(context_->GetNodeName(), MutableMc2MsgDataA5());
         PrintTCubeTilingParams(context_->GetNodeName(), MutableTCubeTilingParam());
         PrintTCubeTilingWindowParam(context_->GetNodeName(), MutableTCubeTilingSlidingWindow());
         PrintTCubeTilingL2cache(context_->GetNodeName(), MutableTCubeTilingL2cache());
@@ -577,10 +565,6 @@ ge::graphStatus QuantBmmReduceScatterTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-Mc2Tiling::Mc2Msg &QuantBmmReduceScatterTiling::MutableMc2MsgDataA5() const
-{
-    return quantBmmMatmulReducescatterTilingData_->msg;
-}
 Mc2Tiling::RCSTiling &QuantBmmReduceScatterTiling::MutableRCSTilingDataA5() const
 {
     return quantBmmMatmulReducescatterTilingData_->param;

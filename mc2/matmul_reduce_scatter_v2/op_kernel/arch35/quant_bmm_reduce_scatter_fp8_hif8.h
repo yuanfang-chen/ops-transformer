@@ -88,9 +88,8 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::Init(
     hccl_.SetCcTiling(mc2CcTiling);
     context_ = (__gm__ HcclCombinOpParam *)(contextGM);
     tPipe_ = tPipe;
-    auto&& msg = tilingData_->msg;
-    debugMode_ = msg.debugMode;
-    dataType_ = static_cast<AscendC::HcclDataType>(msg.dataType);
+    debugMode_ = tilingData_->debugMode;
+    dataType_ = static_cast<AscendC::HcclDataType>(tilingData_->dataType);
     aGM_ = aGM;
     bGM_ = bGM;
     cGM_ = cGM;
