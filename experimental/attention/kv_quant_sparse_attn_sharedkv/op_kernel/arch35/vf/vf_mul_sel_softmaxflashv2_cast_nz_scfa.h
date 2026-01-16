@@ -21,6 +21,9 @@
 #include "vf_basic_block_aligned128_no_update_scfa.h"
 #include "vf_basic_block_aligned128_update_scfa.h"
 #include "vf_basic_block_unaligned64_update_scfa.h"
+#include "vf_basic_block_unaligned64_no_update_scfa.h"
+#include "vf_basic_block_unaligned128_no_update_scfa.h"
+#include "vf_basic_block_unaligned128_update_scfa.h"
 
 using namespace regbaseutil;
 
@@ -45,6 +48,12 @@ __aicore__ inline void ProcessVec1NoUpdate(
     if constexpr (oriNRange == EQ_128_SCFA) {
         ProcessVec1NoUpdateImpl128<T, T2, s1BaseSize, s2BaseSize>(
             dstTensor, srcTensor, expSumTensor, maxTensor, inMaxTensor, sharedTmpBuffer, m, originN, scale, minValue);
+    } else if constexpr (oriNRange == GT_0_AND_LTE_64_SCFA){
+        ProcessVec1NoUpdateImpl64<T, T2, s1BaseSize, s2BaseSize>(
+            dstTensor, srcTensor, expSumTensor, maxTensor, inMaxTensor, sharedTmpBuffer, m, originN, scale, minValue);
+    } else if constexpr (oriNRange == GT_64_AND_LTE_128_SCFA){
+        ProcessVec1NoUpdateGeneralImpl128<T, T2, s1BaseSize, s2BaseSize>(
+            dstTensor, srcTensor, expSumTensor, maxTensor, inMaxTensor, sharedTmpBuffer, m, originN, scale, minValue);
     }
 }
 
@@ -59,6 +68,9 @@ __aicore__ inline void ProcessVec1Update(
             dstTensor, srcTensor, inMaxTensor, sharedTmpBuffer, m, originN, scale, minValue);
     } else if constexpr (oriNRange == GT_0_AND_LTE_64_SCFA) {
         ProcessVec1UpdateImpl64<T, T2, s1BaseSize, s2BaseSize>(
+            dstTensor, srcTensor, inMaxTensor, sharedTmpBuffer, m, originN, scale, minValue);
+    } else if constexpr (oriNRange == GT_64_AND_LTE_128_SCFA){
+        ProcessVec1UpdateGeneralImpl128<T, T2, s1BaseSize, s2BaseSize>(
             dstTensor, srcTensor, inMaxTensor, sharedTmpBuffer, m, originN, scale, minValue);
     }
 }
@@ -132,5 +144,22 @@ __aicore__ inline void SCFAUpdateExpSumAndExpMax(
     UpdateExpSumAndExpMaxVF<T>(maxUb, inMaxUb, expMaxUb, expSumUb, inExpSumUb, tmpExpSumUb, tmpMaxUb, m);
 }
 
+template <typename T> 
+__simd_vf__ inline void DuplicateSumWithR0VF(__ubuf__ T * sumUb, const T R0, uint32_t m) {
+    AscendC::MicroAPI::RegTensor<T> vreg_sum;
+    AscendC::MicroAPI::MaskReg preg_m = AscendC::MicroAPI::UpdateMask<T>(m);
+    AscendC::MicroAPI::UnalignRegForStore ureg;
+    AscendC::MicroAPI::Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, T>(vreg_sum, R0, preg_m);
+    // TODO POST_MODE_UPDATE？
+    AscendC::MicroAPI::StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(sumUb, vreg_sum, ureg, m);
+    AscendC::MicroAPI::StoreUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(sumUb, ureg, 0);
+}
+
+template <typename T>
+__aicore__ inline void DuplicateSumWithR0(const LocalTensor<T>& sumTensor, const T R0, uint32_t m)
+{
+    __ubuf__ T * sumUb = (__ubuf__ T*)sumTensor.GetPhyAddr();
+    DuplicateSumWithR0VF<T>(sumUb, R0, m);
+}
 } // namespace
 #endif // MUL_SEL_SOFTMAX_FLASH_V2_CAST_NZ_SCFA_INTERFACE_H
