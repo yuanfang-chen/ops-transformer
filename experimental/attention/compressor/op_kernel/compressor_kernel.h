@@ -191,7 +191,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;                                                     // D方向的基本块
     constInfo.coreGroupNum = constInfo.usedCoreNum / constInfo.dBasicBlockNum;                                              // 核分为多少组
     constInfo.singleCoreDealTcBasicNum = (constInfo.tcBasicBlockNum + constInfo.coreGroupNum - 1) / constInfo.coreGroupNum; // 处理的最大基本块数量
-    constInfo.dIdx = ((constInfo.aiCoreIdx + 1) % constInfo.dBasicBlockNum) * constInfo.dBaseSize;                    // 每个核处理的d方向的索引
+    constInfo.dIdx = (constInfo.aiCoreIdx % constInfo.dBasicBlockNum) * constInfo.dBaseSize;                    // 每个核处理的d方向的索引
     // printf("[BASEINFO] tcSize:%u tcBaseSize:%u tcBasicBlockNum:%u dBasicBlockNum:%u coreGroupNum:%u singleCoreDealTcBasicNum:%u\n", constInfo.tcSize, constInfo.tcBaseSize, constInfo.tcBasicBlockNum, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.singleCoreDealTcBasicNum);
     InitWorkspace(workspace);
     if ASCEND_IS_AIC {
@@ -203,6 +203,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         vectorService.InitParams(constInfo);
         vectorService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
                         cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut); 
+        cubeService.InitBuffers(pipe_);
         #if __CCE_AICORE__ == 310
             //
         #else 
@@ -566,6 +567,8 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
     }
     if ASCEND_IS_AIC {
         cubeService.FreeBuffers(pipe_);
+    } else {
+        vectorService.FreeEventID(pipe_);
     }
 
 }
