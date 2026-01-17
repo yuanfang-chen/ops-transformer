@@ -182,6 +182,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::InitBuffers(TPipe *pipe)
     pipe->InitBuffer(tmpBufL0C, L0C_PP_SIZE * 2);
 }
 
+template <typename COMP>
 __aicore__ inline void CompressorBlockCube<COMP>::InitGlobalBuffers(const GlobalTensor<MM1_OUT_T>& preMm1ResGm, const GlobalTensor<MM1_OUT_T>& curMm1ResGm)
 {
     this->preMm1ResGm = preMm1ResGm;
@@ -552,7 +553,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             if (kL1Idx != 0 || h != 0) {
                                 SetAtomicAdd<MM1_OUT_T>();
                             }
-                            if constexpr (COFF::coff == COFF::OVERLAP) {
+                            if constexpr (COMP::coff == COFF::OVERLAP) {
                                 FixpipeParamsV220 fixParams;
                                 fixParams.mSize = (mDealSize + 15) / 16 * 16;
                                 fixParams.nSize = N_L1_BASE;
