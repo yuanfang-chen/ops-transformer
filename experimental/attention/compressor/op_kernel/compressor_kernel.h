@@ -216,7 +216,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         blockCube_.InitGlobalBuffers(preMm1ResGm, curMm1ResGm);
     } else {
         blockVec_.InitParams(constInfo);
-        blockVec_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
+        blockVec_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, kvBlockTable, scoreBlockTable, 
                         cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
         blockVec_.InitBuffers(pipe_);
 #if (__CCE_AICORE__ == 220)
