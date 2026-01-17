@@ -21,6 +21,17 @@
 
 using namespace AscendC;
 
+template <class T>
+__inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __gm__ uint8_t *p_metadata, T *metadata)
+{
+    constexpr uint64_t all_bytes = sizeof(T);
+#if defined(ASCENDC_CPU_DEBUG) || defined(__DAV_C220_CUBE__) || defined(__DAV_C310_CUBE__) || defined(__DAV_310R6_CUBE__) || defined(__GET_CODE_CHANNEL__)
+    copy_data_align64((uint8_t*)metadata, (__gm__ uint8_t*)p_metadata, all_bytes);
+#else
+    copy_data_align64((uint8_t*)metadata, (__gm__ uint8_t*)p_metadata, all_bytes);
+#endif
+}
+
 #define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
     do {                                                                                          \
         using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
@@ -30,8 +41,14 @@ using namespace AscendC;
         templateClass<CubeBlockType, VecBlockType> op;                                            \
         GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tiling_data_in, tiling);                     \
         const tilingdataClass *__restrict tiling_data = &tiling_data_in;                          \
+        SasMetaData *__restrict meta_data = nullptr;                                              \
+        SasMetaData metadataTmp;                                                                  \
+        if (metadata != nullptr) {                                                                \
+            InitMetaData<SasMetaData>(metadata, &metadataTmp);                                    \
+            meta_data = &metadataTmp;                                                             \
+        }                                                                                         \
         op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
-                seqUsedKV, sinks, metadata, attentionOut, user, tiling_data, tiling, &tPipe);     \
+                seqUsedKV, sinks, meta_data, attentionOut, user, tiling_data, tiling, &tPipe);     \
         op.Process();                                                                             \
     } while (0)
 
