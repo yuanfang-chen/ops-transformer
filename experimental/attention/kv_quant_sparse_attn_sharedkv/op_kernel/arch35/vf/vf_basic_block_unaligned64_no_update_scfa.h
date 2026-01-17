@@ -46,7 +46,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     AscendC::MicroAPI::MaskReg preg_all = AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
     AscendC::MicroAPI::MaskReg preg_all_b16 = AscendC::MicroAPI::CreateMask<uint16_t, AscendC::MicroAPI::MaskPattern::ALL>();
     AscendC::MicroAPI::MaskReg preg_src_n = AscendC::MicroAPI::UpdateMask<float>(pltSrcN);
-    AscendC::MicroAPI::MaskReg preg_src_n_b16 = AscendC::MicroAPI::UpdateMask<uint16_t>(pltSrcN);
+    AscendC::MicroAPI::MaskReg preg_src_n_b16 = AscendC::MicroAPI::CreateMask<uint16_t, AscendC::MicroAPI::MaskPattern::H>();
     AscendC::MicroAPI::MaskReg preg_ori_src_n = AscendC::MicroAPI::UpdateMask<T>(pltOriginalN);
 
     // x_max = max(src, axis=-1, keepdims=True)
