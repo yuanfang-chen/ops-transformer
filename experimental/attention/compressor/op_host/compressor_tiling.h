@@ -50,10 +50,11 @@ namespace optiling {
     constexpr uint32_t ROPE_COS_INPUT_INDEX = 8;
 
     // INPUT(OPTION)
-    constexpr uint32_t BLOCK_TABLE_INPUT_INDEX = 9;
-    constexpr uint32_t CU_SEQ_LEN_INPUT_INDEX = 10;
-    constexpr uint32_t SEQ_USED_INPUT_INDEX = 11;
-    constexpr uint32_t START_POS_INPUT_INDEX = 12;
+    constexpr uint32_t KV_BLOCK_TABLE_INPUT_INDEX = 9;
+    constexpr uint32_t SCORE_BLOCK_TABLE_INPUT_INDEX = 10;
+    constexpr uint32_t CU_SEQ_LEN_INPUT_INDEX = 11;
+    constexpr uint32_t SEQ_USED_INPUT_INDEX = 12;
+    constexpr uint32_t START_POS_INPUT_INDEX = 13;
 
     // ATTR
     constexpr uint32_t ROPE_HEAD_DIM_ATTR_INDEX = 0;
@@ -112,11 +113,11 @@ struct CompressorBaseShapeInfo {
     uint32_t drSize = 0; // Dr
 };
 
-constexpr std::vector<int> ROPE_HEAD_DIM {64};
-constexpr std::vector<int> COFF {1, 2};
-constexpr std::vector<int> CMP_RATIO {2, 4, 8, 46, 32, 64, 128};
-constexpr std::vector<int> ROTARY_MODE {1, 2};
-constexpr std::vector<uint32_t> HEAD_DIM {128, 512};
+const std::vector<int> ROPE_HEAD_DIM {64};
+const std::vector<int> COFF {1, 2};
+const std::vector<int> CMP_RATIO {2, 4, 8, 46, 32, 64, 128};
+const std::vector<int> ROTARY_MODE {1, 2};
+const std::vector<uint32_t> HEAD_DIM {128, 512};
 
 enum class ROTARY_MODE:uint8_t {
     HALF = 1,
@@ -137,7 +138,8 @@ struct CompressorContext {
     RequiredParaInfo normWeight;
     RequiredParaInfo ropeSin;
     RequiredParaInfo ropeCos;
-    OptionalParaInfo blockTable;
+    OptionalParaInfo kvBlockTable;
+    OptionalParaInfo scoreBlockTable;
     OptionalParaInfo cuSeqlens;
     OptionalParaInfo seqUsed;
     OptionalParaInfo startPos;
@@ -157,9 +159,11 @@ struct CompressorContext {
     uint32_t blockDim;
 };
 
+static std::string DataTypeToSerialString(ge::DataType type);
+
 class CompressorTiling {
 public:
-    explicit CompressorTiling(CompressorContext &context) : context_(context) {}
+    explicit CompressorTiling(CompressorContext *context) : context_(context) {}
     ~CompressorTiling() = default;
 
     static ge::graphStatus ConvertContext(gert::TilingContext &context, CompressorContext &compressorContext);
@@ -178,11 +182,13 @@ private:
     ge::graphStatus CalcWorkSpace();
     ge::graphStatus CheckSinglePara() const;
     ge::graphStatus GenTilingKey() const;
+    template <typename T>
     ge::graphStatus CheckFeatureValueSupport(const T *featureValue, const std::vector<T> &expectFeatureValList,
                                              const std::string &name) const;
-    
+    template <typename T>
     ge::graphStatus CheckAttrValueSupport(const T *attrValue, const std::vector<T> &expectAttrValList,
                                           const std::string &name) const;
+    template <typename T>
     void LogErrorNumberSupport(const std::vector<T> &expectNumberList, const T &actualValue, const std::string &name,
                                const std::string subName) const;
     ge::graphStatus CheckDimNumInLayoutSupport(const std::string &layout, const gert::StorageShape *shape,
@@ -190,6 +196,8 @@ private:
     ge::graphStatus CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
     void LogErrorDtypeSupport(const std::vector<ge::DataType> &expectDtypeList, const ge::DataType &actualDtype,
                               const std::string &name) const;
+    ge::graphStatus CheckDimNumSupport(const gert::StorageShape *shape, const std::vector<uint32_t> &expectDimNumList,
+                                       const std::string &name) const;
     ge::graphStatus CheckSingleParaX() const;
     ge::graphStatus CheckSingleParaWkv() const;
     ge::graphStatus CheckSingleParaWgate() const;
@@ -204,6 +212,7 @@ private:
     ge::graphStatus CheckSingleParaCuSeqlens() const;
     ge::graphStatus CheckSingleParaSeqused() const;
     ge::graphStatus CheckSingleParaStartPos() const;
+    ge::graphStatus CheckSingleParaCmpKv() const;
     ge::graphStatus CheckSingleParaRopeHeadDim() const;
     ge::graphStatus CheckSingleParaCmpRatio() const;
     ge::graphStatus CheckSingleParaCoff() const;
@@ -216,9 +225,10 @@ private:
     ge::graphStatus CheckShapeConsistency() const;
     ge::graphStatus CheckShapeConsistencyRope() const;
     ge::graphStatus CheckDtypeConsistencyX(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
-    ge::graphStatus CheckDtypeConsistency(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
+    ge::graphStatus CheckDtypeConsistency() const;
     ge::graphStatus CheckMultiParaConsistency() const;
-    
+    ge::graphStatus CheckDimNumConsistency() const;
+
     size_t ubSize_ = 0;
     size_t l1Size_ = 0;
     size_t l0cSize_ = 0;
