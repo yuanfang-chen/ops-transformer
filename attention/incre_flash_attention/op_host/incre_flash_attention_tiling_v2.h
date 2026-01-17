@@ -148,7 +148,7 @@ private:
   void SetEmptyTensor();
   void IncreFlashAttentionInitOutputSplit();
   void IncreFlashAttentionInitSoftmaxLseOutputSplit();
-  bool CheckEmptyTensor(int64_t loopTimes);
+  bool CheckEmptyTensor();
   ge::graphStatus InitInOutMode();
   ge::graphStatus KvShapePostProcess();
   ge::graphStatus CheckKvCache();

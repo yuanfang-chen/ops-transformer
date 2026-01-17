@@ -658,14 +658,16 @@ ge::graphStatus IFATilingV2::CheckKVHeadNum(const gert::StorageShape *inputShape
     return ge::GRAPH_SUCCESS;
 }
 
-bool IFATilingV2::CheckEmptyTensor(int64_t loopTimes) {
-  for (int64_t size = 0; size < loopTimes; ++size) {
+bool IFATilingV2::CheckEmptyTensor() {
+  for (int64_t size = 0; size < ifaContext_->kCache.size(); ++size) {
     auto keyTensorInList = ifaContext_->kCache[size];
-    auto valueTensorInList = ifaContext_->vCache[size];
-    if (keyTensorInList->GetStorageShape().GetShapeSize() != 0) {
+    if (keyTensorInList != nullptr && keyTensorInList->GetStorageShape().GetShapeSize() != 0) {
       return false;
     }
-    if (valueTensorInList->GetStorageShape().GetShapeSize() != 0) {
+  }
+  for (int64_t size = 0; size < ifaContext_->vCache.size(); ++size) {
+    auto valueTensorInList = ifaContext_->vCache[size];
+    if (valueTensorInList != nullptr && valueTensorInList->GetStorageShape().GetShapeSize() != 0) {
       return false;
     }
   }
@@ -715,7 +717,7 @@ ge::graphStatus IFATilingV2::CheckKVShapePre() {
     return ge::GRAPH_SUCCESS;
   }
   if (inputLayout_ == IfaLayout::TND) {
-    if (CheckEmptyTensor(1)) { // 1:TND场景下不使能tensorlist，kCache size为1
+    if (CheckEmptyTensor()) {
       emptyTensor_ = true;
       return ge::GRAPH_SUCCESS;
     }
@@ -724,11 +726,11 @@ ge::graphStatus IFATilingV2::CheckKVShapePre() {
   }
   /* kv continuous */
   if (batchOfQuery == batchOfKey) {
-    emptyTensor_ = CheckEmptyTensor(1); // 1: 非tensorlist场景，kCache size为1
+    emptyTensor_ = CheckEmptyTensor();
     return ge::GRAPH_SUCCESS;
   }
   /* kv not continuous */
-  if (CheckEmptyTensor(batchOfQuery)) {
+  if (CheckEmptyTensor()) {
     emptyTensor_ = true;
     return ge::GRAPH_SUCCESS;
   }
@@ -791,6 +793,10 @@ ge::graphStatus IFATilingV2::CheckLse() const
              OP_LOGE(ifaContext_->opName, "Datatype of lseOut is %s, which is not supported.",
                        DataTypeToString(lseOutType_).c_str()),
              return ge::GRAPH_FAILED);
+
+  if (emptyTensor_) { // q、out为空时，lse为空则不输出，不为空则输出inf，不做拦截
+    return ge::GRAPH_SUCCESS;
+  }
 
   if (inputLayout_ == IfaLayout::TND) {
     OP_CHECK_IF(lseShape->GetStorageShape().GetDimNum() != 3,
@@ -959,7 +965,7 @@ ge::graphStatus IFATilingV2::CheckKvCacheValue(uint32_t kDimNum) const {
 
 ge::graphStatus IFATilingV2::KvShapePostProcess() {
   if (pageAttentionFlag_) {
-    if (CheckEmptyTensor(1)) { // 1:pa场景下不使能tensorlist，kCache size为1
+    if (CheckEmptyTensor()) {
       emptyTensor_ = true;
       return ge::GRAPH_SUCCESS;
     }
@@ -1015,22 +1021,22 @@ ge::graphStatus IFATilingV2::KvShapePostProcess() {
 }
 
 void IFATilingV2::IncreFlashAttentionInitSoftmaxLseOutputSplit() {
-  int64_t totalSize = ifaContext_->lseOut.shape->GetStorageShape().GetShapeSize();
-  tilingData_->outputParams.set_totalLseOutputSize(totalSize);
+  totalSizeLse_ = ifaContext_->lseOut.shape->GetStorageShape().GetShapeSize();
+  tilingData_->outputParams.set_totalLseOutputSize(totalSizeLse_);
 }
 
 void IFATilingV2::IncreFlashAttentionInitOutputSplit() {
-  int64_t totalSize = ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize();
+  totalSize_ = ifaContext_->attenOut.shape->GetStorageShape().GetShapeSize();
   // Upward rounding, coreNum has been verified to be non-zero when obtained.
-  uint32_t singleCoreSize = (totalSize + coreNum_ - 1) / (coreNum_);
+  singleCoreSize_ = (totalSize_ + coreNum_ - 1) / (coreNum_);
 
   if (enablePostQuant_) {
     // requiring that the number of points allocated to each kernel must be even.
-    singleCoreSize = ((singleCoreSize + 1) / 2) * 2; // 2 : fill in 0
+    singleCoreSize_ = ((singleCoreSize_ + 1) / 2) * 2; // 2 : fill in 0
   }
 
-  tilingData_->outputParams.set_singleCoreSize(singleCoreSize);
-  tilingData_->outputParams.set_totalOutputSize(totalSize);
+  tilingData_->outputParams.set_singleCoreSize(singleCoreSize_);
+  tilingData_->outputParams.set_totalOutputSize(totalSize_);
 }
 
 void IFATilingV2::SetEmptyTensor() {

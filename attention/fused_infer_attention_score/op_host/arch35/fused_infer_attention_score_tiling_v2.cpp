@@ -664,6 +664,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
     auto tempV = context_->GetDynamicInputShape(VALUE_INDEX, 0);
     auto tempOut = context_->GetOutputShape(ATTENTION_OUT_INDEX);
     auto tempLse = context_->GetOutputShape(SOFTMAX_LSE_INDEX);
+    bool qOutEmptyTensor = false;
     uint32_t queryD = 1U;
     uint32_t valueD = 1U;
     OP_CHECK_IF((tempQ == nullptr),
@@ -681,6 +682,9 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "query shape size is %llu byte, but attention Out shape size is %llu byte, they cannot be empty while the other is not",
             tempQ->GetStorageShape().GetShapeSize(), tempOut->GetStorageShape().GetShapeSize()),
         return ge::GRAPH_FAILED);
+    if (tempQ->GetStorageShape().GetShapeSize() == 0 && tempOut->GetStorageShape().GetShapeSize() == 0) {
+        qOutEmptyTensor = true;
+    }
 
     OP_CHECK_IF((tempQ->GetStorageShape().GetShapeSize() == gert::Shape::kInvalidDimValue),
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Get the shape size of Query failed!"),
@@ -946,48 +950,50 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "SoftmaxLse shape is null, but SoftmaxLseFlag is true!"),
                 return ge::GRAPH_FAILED);
 
-            if (inputLayoutStr == "TND") {
-                OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_3)), // 3：lse shape TN1
-                    OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is TND SoftmaxLse shape dim should be 3, but got %zu!",
-                        tempLse->GetStorageShape().GetDimNum()),
-                    return ge::GRAPH_FAILED);
-                OP_CHECK_IF(
-                    (((tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != t) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || // 0: the first dimension 1: the second dimension
-                    (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != 1))), // 2: the third dimension
-                    OPS_REPORT_VECTOR_INNER_ERR(
-                        context_->GetNodeName(),
-                        "Layout is TND SoftmaxLse shape size[%ld, %ld, %ld] does not match TN1[%ld, %u, 1]!",
-                        tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
-                        tempLse->GetStorageShape().GetDim(QUERY_DIM_2), t, tempN), // 2: the third dimension
-                    return ge::GRAPH_FAILED);
-            } else if (inputLayoutStr == "NTD") {
-                OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_3)), // 3：lse shape NT1
-                    OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is NTD SoftmaxLse shape dim should be 3, but got %zu!",
-                        tempLse->GetStorageShape().GetDimNum()),
-                    return ge::GRAPH_FAILED);
-                OP_CHECK_IF(
-                    (((tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != t) || // 0: the first dimension 1: the second dimension
-                    (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != 1))), // 2: the third dimension
-                    OPS_REPORT_VECTOR_INNER_ERR(
-                        context_->GetNodeName(),
-                        "Layout is NTD SoftmaxLse shape size[%ld, %ld, %ld] does not match TN1[%ld, %u, 1]!",
-                        tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
-                        tempLse->GetStorageShape().GetDim(QUERY_DIM_2), t, tempN), // 2: the third dimension
-                    return ge::GRAPH_FAILED);
-            } else {
-                OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_4)), // 4：lse shape BNS1
-                    OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is %s, SoftmaxLse shape dim should be 4, but got %zu!",
-                    inputLayoutStr.c_str(), tempLse->GetStorageShape().GetDimNum()),
-                    return ge::GRAPH_FAILED);
-                OP_CHECK_IF(
-                    (((tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != b) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || // 0: the first dimension 1: the second dimension
-                      (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != s) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_3) != 1))), // 2: the third dimension 3: the fourth dimension
-                    OPS_REPORT_VECTOR_INNER_ERR(
-                        context_->GetNodeName(),
-                        "SoftmaxLse shape size[%ld, %ld, %ld, %ld] does not match BNS1[%ld, %u, %ld, 1]!",
-                        tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
-                        tempLse->GetStorageShape().GetDim(QUERY_DIM_2), tempLse->GetStorageShape().GetDim(QUERY_DIM_3), b, tempN, s), // 2: the third dimension 3: the fourth dimension
-                    return ge::GRAPH_FAILED);
+            if (!qOutEmptyTensor) { // q、out为空时，lse为空则不输出，不为空则输出inf，不做拦截
+                if (inputLayoutStr == "TND") {
+                    OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_3)), // 3：lse shape TN1
+                        OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is TND SoftmaxLse shape dim should be 3, but got %zu!",
+                            tempLse->GetStorageShape().GetDimNum()),
+                        return ge::GRAPH_FAILED);
+                    OP_CHECK_IF(
+                        (((tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != t) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || // 0: the first dimension 1: the second dimension
+                        (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != 1))), // 2: the third dimension
+                        OPS_REPORT_VECTOR_INNER_ERR(
+                            context_->GetNodeName(),
+                            "Layout is TND SoftmaxLse shape size[%ld, %ld, %ld] does not match TN1[%ld, %u, 1]!",
+                            tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
+                            tempLse->GetStorageShape().GetDim(QUERY_DIM_2), t, tempN), // 2: the third dimension
+                        return ge::GRAPH_FAILED);
+                } else if (inputLayoutStr == "NTD") {
+                    OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_3)), // 3：lse shape NT1
+                        OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is NTD SoftmaxLse shape dim should be 3, but got %zu!",
+                            tempLse->GetStorageShape().GetDimNum()),
+                        return ge::GRAPH_FAILED);
+                    OP_CHECK_IF(
+                        (((tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != t) || // 0: the first dimension 1: the second dimension
+                        (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != 1))), // 2: the third dimension
+                        OPS_REPORT_VECTOR_INNER_ERR(
+                            context_->GetNodeName(),
+                            "Layout is NTD SoftmaxLse shape size[%ld, %ld, %ld] does not match TN1[%ld, %u, 1]!",
+                            tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
+                            tempLse->GetStorageShape().GetDim(QUERY_DIM_2), t, tempN), // 2: the third dimension
+                        return ge::GRAPH_FAILED);
+                } else {
+                    OP_CHECK_IF(((tempLse->GetStorageShape().GetDimNum() != QUERY_DIM_4)), // 4：lse shape BNS1
+                        OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "Layout is %s, SoftmaxLse shape dim should be 4, but got %zu!",
+                        inputLayoutStr.c_str(), tempLse->GetStorageShape().GetDimNum()),
+                        return ge::GRAPH_FAILED);
+                    OP_CHECK_IF(
+                        (((tempLse->GetStorageShape().GetDim(QUERY_DIM_0) != b) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_1) != tempN) || // 0: the first dimension 1: the second dimension
+                        (tempLse->GetStorageShape().GetDim(QUERY_DIM_2) != s) || (tempLse->GetStorageShape().GetDim(QUERY_DIM_3) != 1))), // 2: the third dimension 3: the fourth dimension
+                        OPS_REPORT_VECTOR_INNER_ERR(
+                            context_->GetNodeName(),
+                            "SoftmaxLse shape size[%ld, %ld, %ld, %ld] does not match BNS1[%ld, %u, %ld, 1]!",
+                            tempLse->GetStorageShape().GetDim(QUERY_DIM_0), tempLse->GetStorageShape().GetDim(QUERY_DIM_1), // 0: the first dimension 1: the second dimension
+                            tempLse->GetStorageShape().GetDim(QUERY_DIM_2), tempLse->GetStorageShape().GetDim(QUERY_DIM_3), b, tempN, s), // 2: the third dimension 3: the fourth dimension
+                        return ge::GRAPH_FAILED);
+                }
             }
         }
         if (tempCompileInfoPtr.socShortName != platform_ascendc::SocVersion::ASCEND910_95 && tempCompileInfoPtr.socShortName != platform_ascendc::SocVersion::ASCEND910_55) {
