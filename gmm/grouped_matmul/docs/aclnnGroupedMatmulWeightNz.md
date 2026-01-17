@@ -332,7 +332,14 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
     <td>actType</td>
     <td>输入</td>
     <td>代表激活函数类型。</td>
-    <td>取值范围为0-5。综合约束请参见<a href="#约束说明">约束说明</a>。</td>
+    <td>取值范围为0-5。<br>
+    0：GMMActType::GMM_ACT_TYPE_NONE<br>
+    1：GMMActType::GMM_ACT_TYPE_RELU<br>
+    2：GMMActType::GMM_ACT_TYPE_GELU_TANH<br>
+    3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC（不支持）<br>
+    4：GMMActType::GMM_ACT_TYPE_FAST_GELU<br>
+    5：GMMActType::GMM_ACT_TYPE_SILU<br>
+综合约束请参见<a href="#约束说明">约束说明</a>。</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -501,14 +508,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 - **公共约束**
   - 如果传入groupListOptional，当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列，且长度不能为1；groupListType为2时，groupListOptional的第二列数据必须为非负数列，且长度不能为1。
   - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
-  - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5，当前只支持传入0，枚举值如下：
-    * 0：GMMActType::GMM_ACT_TYPE_NONE；
-    * 1：GMMActType::GMM_ACT_TYPE_RELU；
-    * 2：GMMActType::GMM_ACT_TYPE_GELU_TANH；
-    * 3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC（不支持）；
-    * 4：GMMActType::GMM_ACT_TYPE_FAST_GELU；
-    * 5：GMMActType::GMM_ACT_TYPE_SILU；
-
+  - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。
 <details>
 <summary><term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term></summary>
 
