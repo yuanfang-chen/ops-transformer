@@ -50,7 +50,7 @@ __simd_vf__ void ProcessVec1UpdateImpl64VF(
     AscendC::MicroAPI::MaskReg preg_all_b16 = AscendC::MicroAPI::CreateMask<uint16_t, AscendC::MicroAPI::MaskPattern::ALL>();
     AscendC::MicroAPI::MaskReg preg_ori_src_n = AscendC::MicroAPI::UpdateMask<T>(pltOriginalN);
     AscendC::MicroAPI::MaskReg preg_src_n = AscendC::MicroAPI::UpdateMask<T>(pltSrcN);
-    AscendC::MicroAPI::MaskReg preg_src_n_b16 = AscendC::MicroAPI::UpdateMask<uint16_t>(pltSrcN);
+    AscendC::MicroAPI::MaskReg preg_src_n_b16 = AscendC::MicroAPI::CreateMask<uint16_t, AscendC::MicroAPI::MaskPattern::H>();
 
     // x_max = max(src, axis=-1, keepdims=True)
     for (uint16_t i = 0; i < m; ++i) {
@@ -110,7 +110,7 @@ __aicore__ inline void ProcessVec1UpdateImpl64(
     const uint32_t blockStride = s1BaseSize >> 1 | 0x1;
     const uint32_t repeatStride = 1;
     uint32_t pltOriginalN = originN;
-    uint32_t pltSrcN = floatRepSize;
+    uint32_t pltSrcN = s2BaseSize;
 
     __ubuf__ T2 * expUb = (__ubuf__ T2*)dstTensor.GetPhyAddr();
     __ubuf__ T * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
