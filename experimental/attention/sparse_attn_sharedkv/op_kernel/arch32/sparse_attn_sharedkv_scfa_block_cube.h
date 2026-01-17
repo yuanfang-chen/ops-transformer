@@ -849,7 +849,7 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                     nd2nzPara.srcNdMatrixStride = 0;
                     nd2nzPara.dstNzMatrixStride = 0;
                     DataCopy(bL1Tensor[(kL1 - kOffset) * 128 * N_SPLIT_SIZE],
-                             kvMergeGm_[info.cmpLoop % 4 * N_WORKSPACE_SIZE * 576 + kL1 * 128 * constInfo.headDim +
+                             kvMergeGm_[info.cmpLoop % 4 * N_WORKSPACE_SIZE * 512 + kL1 * 128 * constInfo.headDim +
                              nL1 * N_SPLIT_SIZE], nd2nzPara);
                 }
             }
