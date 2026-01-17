@@ -517,10 +517,10 @@ aclnnStatus aclnnMoeDistributeCombine(
       - 对于MoE专家，当`globalBs`为0时，需满足 (A >= BS * epWorldSize * min(localExpertNum, K))；当`globalBs`非0时，需满足 (A >= globalBs * min(localExpertNum, K))。
     - **H**：表示hidden size（隐藏层大小）：
       - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：取值范围(0, 7168]，且需为32的整数倍。
-      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：取值为7168。
+      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>昇腾910_95 AI处理器</term>：取值为7168。
     - **BS**：表示batch sequence size（本卡最终输出的token数量）：
       - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：取值范围为 (0 < BS ≤ 256)。
-      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：取值范围为 (0 < BS ≤ 512)。
+      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>昇腾910_95 AI处理器</term>：取值范围为 (0 < BS ≤ 512)。
     - **K**：表示选取topK个专家，需满足 (0 < K ≤ moeExpertNum)：
       - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：取值范围为 (0 < K ≤ 16)。
       - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>昇腾910_95 AI处理器</term>：取值范围为 (0 < K ≤ 8)。
@@ -537,7 +537,7 @@ aclnnStatus aclnnMoeDistributeCombine(
    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
         - ep通信域内：设置大小要求 (≥ 2) 且满足 (1024^2 * (HCCL_BUFFSIZE - 2) / 2 ≥ BS * 2 * (H + 128) * (epWorldSize * localExpertNum + K + 1))，其中`localExpertNum`需使用MoE专家卡的本卡专家数。
         - tp通信域内：设置大小要求\>=A * (H * 2 + 128) * 2。
-   - <term>昇腾910_95 AI处理器</term>：要求 (≥ aivNum * 512 + 2 * epWorldSize * BS * H * 2 * localExpertNum)，其中`aivNum`表示核数，`localExpertNum`需使用MoE专家卡的本卡专家数。
+   - <term>昇腾910_95 AI处理器</term>：设置大小要求 (≥ 2) 且满足 (1024^2 * (HCCL_BUFFSIZE - 2) / 2 ≥ BS * 2 * (H + 128) * (epWorldSize * localExpertNum + K + 1))，其中`localExpertNum`需使用MoE专家卡的本卡专家数。
 
 8. **HCCL_INTRA_PCIE_ENABLE和HCCL_INTRA_ROCE_ENABLE**：
    <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：设置环境变量`HCCL_INTRA_PCIE_ENABLE = 1`和`HCCL_INTRA_ROCE_ENABLE = 0`可减少跨机通信数据量，可能提升算子性能。此时，`HCCL_BUFFSIZE`要求 (≥ moeExpertNum * BS * (H * sizeof(dtypeX) + 4 * ((K + 7) / 8 * 8) * sizeof(uint32)) + 4MB + 100MB)；且对于入参`moeExpertNum`，仅要求 (moeExpertNum % (epWorldSize - sharedExpertRankNum) = 0)，不要求 (moeExpertNum / (epWorldSize - sharedExpertRankNum) ≤ 24)。
