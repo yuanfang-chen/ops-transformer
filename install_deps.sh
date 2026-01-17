@@ -50,7 +50,7 @@ detect_os() {
         if [[ -f /etc/debian_version ]]; then
             OS="debian"
             PKG_MANAGER="apt"
-        elif [[ -f /etc/redhat-release ]] || [[ -f /etc/euleros-release ]]; then
+        elif [[ -f /etc/redhat-release ]] || [[ -f /etc/euleros-release ]] || [[ -f /etc/openEuler-release ]]; then
             OS="rhel"
             if command -v dnf &> /dev/null; then
                 PKG_MANAGER="dnf"
@@ -132,9 +132,9 @@ install_gcc() {
     local curr_ver=""
 
     if command -v gcc &> /dev/null; then
-        curr_ver=$(gcc --version | awk '/^gcc/ {print $4}')
+        curr_ver=$(gcc --version | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
     elif command -v g++ &> /dev/null; then
-        curr_ver=$(g++ --version | awk '/^g\+\+/ {print $4}')
+        curr_ver=$(g++ --version | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
     else
         curr_ver="0.0.0"
     fi
