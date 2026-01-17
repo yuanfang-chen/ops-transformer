@@ -4,13 +4,12 @@
 
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
-|  <term>昇腾910_95 AI处理器</term>   |     ×    |
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     ×    |
 |  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
-|  <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>     |     √    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
 |  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
 |  <term>Atlas 推理系列产品</term>    |    ×     |
 |  <term>Atlas 训练系列产品</term>    |     ×    |
-|  <term>Atlas 200/300/500 推理产品</term>       |     ×    |
 
 ## 功能说明
 
@@ -61,9 +60,9 @@ aclnnStatus aclnnRecurrentGatedDeltaRule(
     aclrtStream   stream)
 ```
 
-### aclnnRecurrentGatedDeltaRuleGetWorkspaceSize
+## aclnnRecurrentGatedDeltaRuleGetWorkspaceSize
 
-- 参数说明
+- **参数说明**
 
   <table style="undefined; table-layout: fixed; width: 1450px"><colgroup>
   <col style="width: 170px">
@@ -223,11 +222,12 @@ aclnnStatus aclnnRecurrentGatedDeltaRule(
   
   其中 $B$ 表示batch size，令 $L_i$ 表示第i个序列的长度，则 $T=\sum_i^B L_i$ 表示累积序列长度。$N_k$ 表示key的头数，$N_v$ 表示value的头数，$D_k$ 表示key向量的维度，$D_v$ 表示value向量的维度。
 
-- 返回值
+- **返回值**
 
   aclnnStatus： 返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
   第一段接口完成入参校验，出现以下场景时报错：
+
   <table style="undefined;table-layout: fixed; width: 1050px"><colgroup>
   <col style="width: 250px">
   <col style="width: 130px">
@@ -261,9 +261,10 @@ aclnnStatus aclnnRecurrentGatedDeltaRule(
   </table>
 
 
-### aclnnRecurrentGatedDeltaRule
+## aclnnRecurrentGatedDeltaRule
 
-- 参数说明
+- **参数说明**
+
   <table style="undefined;table-layout: fixed; width: 1050px"><colgroup>
   <col style="width: 250px">
   <col style="width: 130px">
@@ -300,11 +301,12 @@ aclnnStatus aclnnRecurrentGatedDeltaRule(
   </tbody>
   </table>
 
-- 返回值
+- **返回值**
   aclnnStatus： 返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 
 ## 约束说明
+
 - 确定性计算：
   - aclnnRecurrentGatedDeltaRule默认确定性实现。
 - 输入shape大小需满足约束：$L_i \le 8$，$N_k \le 256$，$N_v \le 256$，$D_k \le 256$，$D_v \le 256$。

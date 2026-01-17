@@ -5,10 +5,13 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
 |<term>Atlas A2 训练系列产品</term>|      √     |
-|<term>Atlas 800I A2 推理产品</term>|      ×     |
-|<term>A200I A2 Box 异构组件</term>|      ×     |
+|<term>Atlas A2 推理系列产品</term>|      ×     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
@@ -26,41 +29,37 @@
     attention\_out = einsum(weights, value) + einsum(weights, value1)
     $$
     
-    
 
-## 算子原型
-
-```c++
-REG_OP(FusedFloydAttention)
-    .INPUT(query, TensorType({DT_FLOAT16, DT_BF16}))  # [BHNMD]
-    .INPUT(key_0, TensorType({DT_FLOAT16, DT_BF16}))  # [BHNKD]
-    .INPUT(key_1, TensorType({DT_FLOAT16, DT_BF16}))  # [BHKMD]
-    .INPUT(value_0, TensorType({DT_FLOAT16, DT_BF16})) # same as key_0
-    .INPUT(value_1, TensorType({DT_FLOAT16, DT_BF16})) # same as key_1
-    .OPTIONAL_INPUT(atten_mask, TensorType({DT_BOOL, DT_UINT8}))
-    .OUTPUT(softmax_max, TensorType({DT_FLOAT32}))
-    .OUTPUT(softmax_sum, TensorType({DT_FLOAT32}))
-    .OUTPUT(attention_out, TensorType({DT_FLOAT16, DT_BF16})) # [BHNMD]
-    .ATTR(scale_value, Float, 1.0)
-    .OP_END_FACTORY_REG(FusedFloydAttention)
-```
-
-参数解释请参见**算子执行接口**。
-
-
-## 算子执行接口
+## 函数原型
 
 每个算子分为[两段式接口](common/两段式接口.md)，必须先调用“aclnnFusedFloydAttentionGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnFusedFloydAttention”接口执行计算。
 
-* `aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(const aclTensor *query, const aclTensor *key_0, const aclTensor *value_0, const aclTensor *key_1, const aclTensor *value_1, const aclTensor *attenMaskOptional, double scaleValueOptional, const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut, uint64_t *workspaceSize, aclOpExecutor **executor)`
-* `aclnnStatus aclnnFusedFloydAttention(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, const aclrtStream stream)`
+```Cpp
+aclnnStatus aclnnFusedFloydAttentionGetWorkspaceSize(
+    const aclTensor *query, 
+    const aclTensor *key_0, 
+    const aclTensor *value_0, 
+    const aclTensor *key_1, 
+    const aclTensor *value_1, 
+    const aclTensor *attenMaskOptional, 
+    double           scaleValueOptional, 
+    const aclTensor *softmaxMaxOut, 
+    const aclTensor *softmaxSumOut, 
+    const aclTensor *attentionOutOut, 
+    uint64_t        *workspaceSize, 
+    aclOpExecutor  **executor)
+```
 
-**说明**：
+```Cpp
+aclnnStatus aclnnFusedFloydAttention(
+    void             *workspace, 
+    uint64_t          workspaceSize, 
+    aclOpExecutor    *executor, 
+    const aclrtStream stream)
+```
 
-- 算子执行接口对外屏蔽了算子内部实现逻辑以及不同代际NPU的差异，且开发者无需编译算子，实现了算子的精简调用。
-- 若开发者不使用算子执行接口的调用算子，也可以定义基于Ascend IR的算子描述文件，通过ATC工具编译获得算子om文件，然后加载模型文件执行算子，详细调用方法可参见《应用开发指南》的[单算子调用 > 单算子模型执行](https://hiascend.com/document/redirect/CannCommunityCppOpcall)章节。
 
-### aclnnFusedFloydAttentionGetWorkspaceSize
+## aclnnFusedFloydAttentionGetWorkspaceSize
 
 - **参数说明：**
 
@@ -85,20 +84,71 @@ REG_OP(FusedFloydAttention)
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](common/aclnn返回码.md)。
 
-  ```
   第一段接口完成入参校验，若出现以下错误码，则对应原因为：
-  - 返回161001（ACLNN_ERR_PARAM_NULLPTR）：如果传入参数是必选输入，输出或者必选属性，且是空指针，则返回161001。
-  - 返回161002（ACLNN_ERR_PARAM_INVALID）：query、key_0、value_0、key_1、value_1、attenMaskOptional、softmaxMaxOut、softmaxSumOut、attentionOutOut的数据类型和数据格式不在支持的范围内。
-  ```
 
-### aclnnFusedFloydAttention
+    <table style="undefined;table-layout: fixed; width: 1146px"><colgroup>
+    <col style="width: 283px">
+    <col style="width: 120px">
+    <col style="width: 743px">
+    </colgroup>
+    <thead>
+    <tr>
+        <th>返回值</th>
+        <th>错误码</th>
+        <th>描述</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>ACLNN_ERR_PARAM_NULLPTR</td>
+        <td>161001</td>
+        <td>如果传入参数是必选输入，输出或者必选属性，且是空指针，则返回161001。</td>
+    </tr>
+    <tr>
+        <td>ACLNN_ERR_PARAM_INVALID</td>
+        <td>161002</td>
+        <td>query、key_0、value_0、key_1、value_1、attenMaskOptional、softmaxMaxOut、softmaxSumOut、attentionOutOut的数据类型和数据格式不在支持的范围内。</td>
+    </tr>
+    </tbody>
+    </table>
+
+## aclnnFusedFloydAttention
 
 - **参数说明：**
 
-  -   workspace（void\*，入参）：在Device侧申请的workspace内存起址。
-  -   workspaceSize（uint64\_t，入参）：在Device侧申请的workspace大小，由第一段接口aclnnFlashAttentionScoreGetWorkspaceSize获取。
-  -   executor（aclOpExecutor\*，入参）：op执行器，包含了算子计算流程。
-  -   stream（aclrtStream，入参）：指定执行任务的AscendCL stream流。
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
+    </colgroup>
+    <thead>
+    <tr>
+        <th>参数名</th>
+        <th>输入/输出</th>
+        <th>描述</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>workspace</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace内存地址。</td>
+    </tr>
+    <tr>
+        <td>workspaceSize</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace大小，由第一段接口aclnnFlashAttentionScoreGetWorkspaceSize获取。</td>
+    </tr>
+    <tr>
+        <td>executor</td>
+        <td>输入</td>
+        <td>op执行器，包含了算子计算流程。</td>
+    </tr>
+    <tr>
+        <td>stream</td>
+        <td>输入</td>
+        <td>指定执行任务的Stream。</td>
+    </tr>
+    </tbody>
+    </table>
 
 -   **返回值：**
 

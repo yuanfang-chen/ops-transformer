@@ -4,13 +4,12 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -92,8 +91,8 @@
     scatter_mode:"None"/"Nct"
     ```
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：仅支持场景一、二、四、五、六。
-- <term>昇腾910_95 AI处理器</term>：仅支持场景二、三。
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：仅支持场景一、二、四、五、六。
+- <term>Ascend 950PR/Ascend 950DT</term>：仅支持场景二、三。
 
 ## 参数说明
 <table style="undefined;table-layout: fixed; width: 1576px"><colgroup>
@@ -184,9 +183,9 @@
     </tr>
   </tbody></table>
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：<br>
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：<br>
 key/value数据类型仅支持：FLOAT16、BFLOAT16、INT8；<br>cacheMode当传空指针或"Norm"时，仅支持ND内存排布格式，当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布格式；<br>scatterMode当传空指针或"None"时，表示更新的key和value是非压缩状态且连续，当传"Alibi"时，表示更新key和value是基于Alibi结构的压缩状态，当传"Rope"时，表示更新key和value是基于Rope结构的压缩状态，当传"Omni"时，表示更新key和value是基于Omni结构的压缩状态，当传"Nct"时，表示更新的key和value是非压缩状态但非连续；<br>strides和offsets仅当scatterMode为"Nct"时生效，分别表示strideK和strideV、offsetK和offsetV。<br>
-- <term>昇腾910_95 AI处理器</term>：<br>key/value数据类型支持：FLOAT16、FLOAT、BFLOAT16、INT8、UINT8、INT16、UINT16、INT32、UINT32、HIFLOAT8、FLOAT8_E5M2、FLOAT8_E4M3FN；<br>cacheMode当传空指针或"Norm"时，仅支持ND内存排布格式；scatterMode、strides、offsets参数无效。<br>
+- <term>Ascend 950PR/Ascend 950DT</term>：<br>key/value数据类型支持：FLOAT16、FLOAT、BFLOAT16、INT8、UINT8、INT16、UINT16、INT32、UINT32、HIFLOAT8、FLOAT8_E5M2、FLOAT8_E4M3FN；<br>cacheMode当传空指针或"Norm"时，仅支持ND内存排布格式；scatterMode、strides、offsets参数无效。<br>
 
 ## 约束说明
   * 输入shape限制：

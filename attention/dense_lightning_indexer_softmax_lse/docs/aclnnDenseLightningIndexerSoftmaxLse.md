@@ -5,13 +5,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      ×     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品 </term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -386,7 +385,9 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
         </tr>
         </tbody>
     </table>
+
 - 规格约束
+
     <table style="undefined;table-layout: fixed; width: 942px"><colgroup>
         <col style="width: 100px">
         <col style="width: 300px">
@@ -462,6 +463,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
 算子具体的流程图的变量传递如所示。
 
 - 计算max_index,sum_index
+
 ```mermaid
 graph LR
     subgraph 子图2 ["<div style='font-size:12px;padding:19px;'></div>"]
@@ -482,6 +484,7 @@ graph LR
     classDef niceBox fill:#fff0f5,stroke:none,stroke-width:0px,rx:15px,ry:15px,padding:1px, width:1400px ,height:410px
     class 子图1 niceBox
 ```
+
 ## 附录
 
 #### 1. 缓存机制

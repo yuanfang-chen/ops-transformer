@@ -10,7 +10,6 @@
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -781,6 +780,7 @@ graph LR
     classDef niceBox fill:#fff0f5,stroke:none,stroke-width:0px,rx:15px,ry:15px,padding:1px, width:1400px ,height:600px
     class 子图4 niceBox
 ```
+
 ## 附录
 
 #### 1. 缓存机制
@@ -1025,6 +1025,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLossGetWorkspaceSize(
         </tr>
         </tbody>
     </table>
+    
 边界值场景说明：
 
 1、当输入数据为nan时，输出也为nan。

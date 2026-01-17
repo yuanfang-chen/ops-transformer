@@ -4,17 +4,17 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    ×     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    ×     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    ×     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    ×     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品 </term>                             |    √     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
+
 ## 功能说明
 
-+ 算子功能：完成swin-transformer场景的Attention计算，相较于SwinAttentionScore算子，支持int8量化功能
-+ 计算公式如下：
+- 算子功能：完成swin-transformer场景的Attention计算，相较于SwinAttentionScore算子，支持int8量化功能
+- 计算公式：
 
 $$
 out= Softmax(QK^T + bias1 + bias2)V
@@ -24,12 +24,40 @@ $$
 
 每个算子分为[两段式接口](common/两段式接口.md)，必须先调用“aclnnSwinAttentionScoreQuantGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnSwinAttentionScoreQuant”接口执行计算。
 
-* `aclnnStatus aclnnSwinAttentionScoreQuantGetWorkspaceSize(const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *scaleQuant, const aclTensor *scaleDequant1, const aclTensor *scaleDequant2, const aclTensor *biasQuantOptional, const aclTensor *biasDequant1Optional, const aclTensor *biasDequant2Optional, const aclTensor *paddingMask1Optional, const aclTensor *paddingMask2Optional, bool queryTranspose, bool keyTranspose, bool valueTranspose, int64_t softmaxAxes, const aclTensor *out, uint64_t *workspaceSize, aclOpExecutor **executor)`
-* `aclnnStatus aclnnSwinAttentionScoreQuant(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)`
+```Cpp
+aclnnStatus aclnnSwinAttentionScoreQuantGetWorkspaceSize(
+    const aclTensor *query, 
+    const aclTensor *key, 
+    const aclTensor *value, 
+    const aclTensor *scaleQuant, 
+    const aclTensor *scaleDequant1, 
+    const aclTensor *scaleDequant2, 
+    const aclTensor *biasQuantOptional, 
+    const aclTensor *biasDequant1Optional, 
+    const aclTensor *biasDequant2Optional, 
+    const aclTensor *paddingMask1Optional, 
+    const aclTensor *paddingMask2Optional, 
+    bool             queryTranspose, 
+    bool             keyTranspose, 
+    bool             valueTranspose, 
+    int64_t          softmaxAxes, 
+    const aclTensor *out, 
+    uint64_t        *workspaceSize, 
+    aclOpExecutor  **executor)
+```
+
+```Cpp
+aclnnStatus aclnnSwinAttentionScoreQuant(
+    void          *workspace, 
+    uint64_t       workspaceSize, 
+    aclOpExecutor *executor, 
+    aclrtStream    stream)
+```
 
 ## aclnnSwinAttentionScoreQuantGetWorkspaceSize
 
 * **参数说明**：
+
   - query(aclTensor*,计算输入)：表示输入样本的查询张量，Device侧的aclTensor，公式中的Q，维度支持四维，输入维度[N,C,S,H]需要和key、value保持一致，其中N代表batch size，C为通道深度，S为序列长度，H为headNum，S<=1024，H=32/64，NC维度支持任意值，数据类型支持INT8，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。
   - key(aclTensor*,计算输入): 表示输入样本的每个位置的特征张量，Device侧的aclTensor，公式中的K，维度支持四维，输入维度[N,C,S,H]需要和query、value保持一致，S<=1024，H=32/64，NC维度支持任意值，数据类型支持INT8，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。
   - value(aclTensor*,计算输入): 表示计算注意力后的每个位置值张量，Device侧的aclTensor，公式中的V，维度支持四维，输入维度[N,C,S,H]需要和query、key保持一致，S<=1024，H=32/64，NC维度支持任意值，数据类型支持INT8，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。
@@ -48,29 +76,83 @@ $$
   - out(aclTensor*, 计算输出)：Device侧的aclTensor，维度支持四维，输出维度[N,C,S,H]，S<=1024，H=32/64，数据类型支持FLOAT16，不支持[非连续的Tensor](common/非连续的Tensor.md)，[数据格式](common/数据格式.md)支持ND。
   - workspaceSize(uint64_t*, 出参)：返回需要在Device侧申请的workspace大小。
   - executor(aclOpExecutor**, 出参)：返回op执行器，包含了算子计算流程。
+
 * **返回值**：
+
   aclnnStatus：返回状态码，具体参见[aclnn返回码](./common/aclnn返回码.md)。
 
-  ```
   第一段接口完成入参校验，若出现以下错误码，则对应原因为：
-  返回161001(ACLNN_ERR_PARAM_NULLPTR): 1. 传入的tensor是空指针。
-  返回161002(ACLNN_ERR_PARAM_INVALID): 1. 输入或输出参数的数据类型/数据格式不在支持的范围。
-  ```
+
+    <table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 281px">
+    <col style="width: 119px">
+    <col style="width: 749px">
+    </colgroup>
+    <thead>
+    <tr>
+        <th>返回值</th>
+        <th>错误码</th>
+        <th>描述</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>ACLNN_ERR_PARAM_NULLPTR</td>
+        <td>161001</td>
+        <td>传入的tensor是空指针。</td>
+    </tr>
+    <tr>
+        <td>ACLNN_ERR_PARAM_INVALID</td>
+        <td>161002</td>
+        <td>入或输出参数的数据类型/数据格式不在支持的范围。</td>
+    </tr>
+    </tbody>
+    </table>
 
 ## aclnnSwinAttentionScoreQuant
 
 * **参数说明**
 
-  - workspace(void *，入参)：在Device侧申请的workspace内存地址。
-  - workspaceSize(uint64_t，入参)：在Device侧申请的workspace大小，由第一段接口aclnnSwinAttentionScoreQuantGetWorkspaceSize获取。
-  - executor(aclOpExecutor *，入参)：op执行器，包含了算子计算流程。
-  - stream(aclrtStream，入参)：指定执行任务的Stream。
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
+    </colgroup>
+    <thead>
+    <tr>
+        <th>参数名</th>
+        <th>输入/输出</th>
+        <th>描述</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>workspace</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace内存地址。</td>
+    </tr>
+    <tr>
+        <td>workspaceSize</td>
+        <td>输入</td>
+        <td>在Device侧申请的workspace大小，由第一段接口aclnnSwinAttentionScoreQuantGetWorkspaceSize获取。</td>
+    </tr>
+    <tr>
+        <td>executor</td>
+        <td>输入</td>
+        <td>op执行器，包含了算子计算流程。</td>
+    </tr>
+    <tr>
+        <td>stream</td>
+        <td>输入</td>
+        <td>指定执行任务的Stream。</td>
+    </tr>
+    </tbody>
+    </table>
 
 * **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](common/aclnn返回码.md)。
 
 ## 约束说明
+
 - QKV输入维度是[N,C,S,H]的情况下，S<=1024，H=32/64，NC维度支持任意值
 - 不支持维度是[N,C,S,H]的QKV转置后输入
 - 只支持非对称量化
@@ -80,6 +162,7 @@ $$
 ## 调用示例
 
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](common/编译与运行样例.md)。
+
 ```Cpp
 #include <iostream>
 #include <vector>

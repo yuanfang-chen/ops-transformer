@@ -6,16 +6,16 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
 
 
 ## 功能说明
+
 -  **接口功能**：推理场景，Multi-Head Latent Attention前处理的计算。主要计算过程分为五路；
     -  首先对输入$x$乘以$W^{DQ}$进行下采样和RmsNorm后分为两路，第一路乘以$W^{UQ}$和$W^{UK}$经过两次上采样后得到$q^N$；第二路乘以$W^{QR}$后经过旋转位置编码（ROPE）得到$q^R$。
     -  第三路是输入$x$乘以$W^{DKV}$进行下采样和RmsNorm后传入Cache中得到$k^C$；
@@ -83,7 +83,9 @@
 
 
 ## 函数原型
+
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnMlaPrologV2WeightNzGetWorkspaceSize”接口获取入参并根据流程计算所需workspace大小，再调用“aclnnMlaPrologV2WeightNz”接口执行计算。
+
 ```cpp
 aclnnStatus aclnnMlaPrologV2WeightNzGetWorkspaceSize(
   const aclTensor *tokenX, 
@@ -114,6 +116,7 @@ aclnnStatus aclnnMlaPrologV2WeightNzGetWorkspaceSize(
   uint64_t        *workspaceSize, 
   aclOpExecutor  **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnMlaPrologV2WeightNz(
   void              *workspace, 
@@ -124,7 +127,8 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
 
 
 ## aclnnMlaPrologV2WeightNzGetWorkspaceSize
-- 参数说明
+
+- **参数说明**
 
   | 参数名                     | 输入/输出 | 描述             | 使用说明       | 数据类型       | 数据格式   | 维度(shape)    |非连续Tensor |
   |----------------------------|-----------|----------------------------------------------|----------------|----------------|------------|-----------------|-------|
@@ -156,7 +160,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
   | workspaceSize              | 输出      | 返回需在Device侧申请的workspace大小。  | - 仅用于输出结果，无需输入配置 - 数据类型为uint64_t* | -              | -          | -                                  |-   |
   | executor                   | 输出      | 返回op执行器，包含算子计算流程。        | - 仅用于输出结果，无需输入配置 - 数据类型为aclOpExecutor**    | -              | -          | -                                  |-   |
 
-- 返回值
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。</br>
   第一段接口完成入参校验，出现以下场景时报错：
@@ -167,8 +171,10 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
     | ACLNN_ERR_PARAM_INVALID | 161002               | 输入参数的 shape（维度/尺寸）、dtype（数据类型）不在接口支持的范围内。 |
     | ACLNN_ERR_RUNTIME_ERROR | 361001               | API 内存调用 NPU Runtime 接口时发生异常（如 Runtime 服务未启动、内存申请失败等）。 |
     | ACLNN_ERR_INNER_TILING_ERROR | 561002          | tiling发生异常，入参的dtype类型或者shape错误。 |
+
 ## aclnnMlaPrologV2WeightNz
-- 参数说明
+
+- **参数说明**
 
   | 参数名        | 参数类型         | 含义                                                                 |
   |---------------|------------------|----------------------------------------------------------------------|
@@ -178,7 +184,8 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
   | stream        | aclrtStream      | 指定执行任务的Stream。                                   |
       
 
-- 返回值
+- **返回值**
+
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
