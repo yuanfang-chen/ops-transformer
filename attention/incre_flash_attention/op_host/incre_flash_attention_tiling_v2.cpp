@@ -3469,7 +3469,11 @@ ge::graphStatus IFATilingV2::CalcWorkSpace() {
   workspaceSize_ += cubeL1UbSize * coreNum_;
   // L0C
   workspaceSize_ += cubeL0CUbSize * coreNum_;
-  if (splitKVFlag_) {
+  if (isMaxWorkspace_) { // 计算maxWorkSpaceSize时默认开启FD且使用最大核数进行归约
+    uint32_t maxAccumOutSize = aicNum_ * headDimAlign_;
+    uint32_t maxLogSumExpSize = aicNum_ * (BYTE_BLOCK / sizeof(float));
+    workspaceSize_ += (maxAccumOutSize + maxLogSumExpSize * 2) * blockTypeSize_;  // 2 : sMax 和 sSum
+  } else if (splitKVFlag_) {
     workspaceSize_ += (tilingData_->splitKVParams.get_accumOutSize() +
                        tilingData_->splitKVParams.get_logSumExpSize() * 2) * blockTypeSize_;  // 2 : sMax 和 sSum
   }
