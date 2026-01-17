@@ -393,6 +393,7 @@ uint64_t MoeInitRoutingV2TilingBase::GetTilingKey() const
     if (isFullLoad) {
         return TILING_KEY_HIGH_PERFORMANCE;
     }
+    context_->SetScheduleMode(1);
 
     bool histWithRegBase = regBase && expertNum <= HIST_REGBASE_MAX_EXPERT_NUM;
     if (dropPadMode == 0) {

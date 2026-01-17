@@ -582,6 +582,7 @@ uint64_t MoeInitRoutingQuantV2TilingBase::GetTilingKey() const
     if (isFullLoad) {
         return static_cast<uint64_t>(TILING_KEY_PERF_BASE + static_cast<int64_t>(quantMode) * TILING_KEY_QUANT_BASE);
     }
+    context_->SetScheduleMode(1);
     return static_cast<uint64_t>(
         static_cast<int64_t>(TILING_KEY_BASE) +
         static_cast<int64_t>(quantMode) * static_cast<int64_t>(TILING_KEY_QUANT_BASE) +
