@@ -433,7 +433,7 @@ public:
     ge::graphStatus GetInOutDataType();
     ge::graphStatus GetQueryAndOutLayout();
     ge::graphStatus GetKvLayout();
-    ge::graphStatus GetSASTemplateMode();
+    ge::graphStatus GetSASTemplateMode(SASTilingInfo &sasInfo);
     void SetSASShape();
     ge::graphStatus GetN1Size();
     ge::graphStatus GetN2Size();

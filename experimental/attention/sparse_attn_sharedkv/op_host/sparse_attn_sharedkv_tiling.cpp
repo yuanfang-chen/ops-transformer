@@ -192,15 +192,15 @@ ge::graphStatus SASInfoParser::GetInOutDataType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetSASTemplateMode()
+ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
 {
     if (opParamInfo_.oriKv.desc != nullptr) {
         if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr) {
-            perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
+            sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
         } else if (opParamInfo_.cmpKv.desc != nullptr) {
-            perfMode_ = SASTemplateMode::CFA_TEMPLATE_MODE;
+            sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
         } else {
-            perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
+            sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
         }
         return ge::GRAPH_SUCCESS;
     } else {
@@ -542,7 +542,6 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.qLayout = qLayout_;
     sasInfo.kvLayout = kvLayout_;
     sasInfo.outLayout = outLayout_;
-    sasInfo.perfMode = perfMode_;
 }
 
 ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
@@ -563,7 +562,7 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
     if (ge::GRAPH_SUCCESS != GetInOutDataType() ||
         ge::GRAPH_SUCCESS != GetQueryAndOutLayout() ||
         ge::GRAPH_SUCCESS != GetKvLayout() ||
-        ge::GRAPH_SUCCESS != GetSASTemplateMode()) {
+        ge::GRAPH_SUCCESS != GetSASTemplateMode(sasInfo)) {
         return ge::GRAPH_FAILED;
     }
 
@@ -611,7 +610,7 @@ static ge::graphStatus TilingPrepareForSparseAttnSharedkv(gert::TilingParseConte
 void SparseAttnSharedkvTiling::CalcUbBmm(SASTilingInfo *tilingInfo)
 {
     uint32_t cubeMSize = tilingInfo->gSize * tilingInfo->s1Size;
-    uint32_t maxMSize = mBaseSize_; 
+    uint32_t maxMSize = mBaseSize_;
     if (cubeMSize > maxMSize) {
         cubeMSize = maxMSize;
     }

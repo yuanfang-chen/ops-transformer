@@ -35,7 +35,7 @@ public:
     __aicore__ inline void InitParams(const ConstInfo &constInfo);
     __aicore__ inline void InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<KV_T> oriKvGm,
                                                GlobalTensor<KV_T> cmpKV, GlobalTensor<MM_OUT_T> mm1ResGm);
-    __aicore__ inline void InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTensor<MM_OUT_T> mm2ResGm, 
+    __aicore__ inline void InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTensor<MM_OUT_T> mm2ResGm,
                                                GlobalTensor<OUT_T> attentionOutGm);
     __aicore__ inline void InitBuffers(TPipe *pipe);
     __aicore__ inline void UpdateKey(GlobalTensor<KV_T> keyGm);
@@ -179,7 +179,7 @@ SWACubeBlock<SAST>::InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<
 
 template <typename SAST>
 __aicore__ inline void
-SWACubeBlock<SAST>::InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTensor<MM_OUT_T> mm2ResGm, 
+SWACubeBlock<SAST>::InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTensor<MM_OUT_T> mm2ResGm,
                                         GlobalTensor<OUT_T> attentionOutGm)
 {
     // mm2
@@ -458,14 +458,14 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
         }
     }
     qpL1BufIter += mL1Loops;
-    printf("process mm1 \n");
+    // printf("process mm1 \n");
 }
 
 
 template <typename SAST>
 __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const MSplitInfo mSplitInfo)
 {
-    printf("process mm2 \n");
+    // printf("process mm2 \n");
 }
 
 #endif
