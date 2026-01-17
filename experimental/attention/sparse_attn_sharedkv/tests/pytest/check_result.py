@@ -124,8 +124,8 @@ def check_result(expect, result):
     atol=0.000025
     max_error_idx = 10000000
 
-    real_data = result.cpu().numpy()
-    data_compe = expect.cpu().numpy()
+    real_data = result.cpu().to(torch.float32).numpy()
+    data_compe = expect.cpu().to(torch.float32).numpy()
     real_data = real_data.flatten()
     data_compe = data_compe.flatten()
     if real_data.size == 0 and real_data.size == data_compe.size:
