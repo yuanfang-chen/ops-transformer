@@ -377,20 +377,20 @@ __aicore__ inline void MoeDistributeDispatchA2LayeredAicpu<TemplateMC2TypeA2laye
     GlobalTensor<int32_t> tokenCntGlobalTensor;
     tokenCntGlobalTensor.SetGlobalBuffer((__gm__ int32_t*)(tokenCntGlobalAddr));
     uint32_t realBS = tokenCntGlobalTensor.GetValue(0);
-    PipeBarrier<PIPE_ALL>();
 
     if(realBS == 0){
         uint32_t copyTokenNum = aivNum_ < globalBs_ ? aivNum_ : globalBs_;
         LocalTensor<int16_t> zeroTemp = tBuf.GetWithOffset<int16_t>(copyTokenNum * sizeof(int16_t), 0);
+        SyncFunc<AscendC::HardEvent::S_V>();
         Duplicate<int16_t>(zeroTemp, 0, RoundUp(copyTokenNum, B16_PER_BLOCK));
-        PipeBarrier<PIPE_ALL>();
         GlobalTensor<int16_t> combineInnerCnt;
         combineInnerCnt.SetGlobalBuffer((__gm__ int16_t*)(epRecvCountsGM_ + combineInnerCntOffset +
                                         globalBs_* curServerId * sizeof(int16_t)));
         DataCopyExtParams innerCntWriteCountsParams{1, static_cast<uint32_t>(copyTokenNum * sizeof(int16_t)), 0, 0, 0};
+        // datacopy需要在Duplicate和SetGlobalBuffer之后完成，UB->GM的MTE3等待PIPE_V和PIPE_S
+        SyncFunc<AscendC::HardEvent::V_MTE3>();
         SyncFunc<AscendC::HardEvent::S_MTE3>();
         DataCopyPad(combineInnerCnt, zeroTemp, innerCntWriteCountsParams);
-        PipeBarrier<PIPE_ALL>();
         return;
     }
     LocalTensor<int32_t> localUB = tBuf.GetWithOffset<int32_t>(RoundUp(realBS * alignK_, BITS32_PER_BLOCK),
@@ -488,7 +488,7 @@ __aicore__ inline void MoeDistributeDispatchA2LayeredAicpu<TemplateMC2TypeA2laye
     DataCopyExtParams innerCntWriteCountsParams{1, static_cast<uint32_t>(copyTokenNum * sizeof(int16_t)), 0, 0, 0};
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopyPad(combineInnerCnt, innerCntLt, innerCntWriteCountsParams);
-    PipeBarrier<PIPE_ALL>(); // 不确定连续两个GMdatacopypad是否会有影响，先隔离
+    PipeBarrier<PIPE_MTE3>(); // 不确定连续两个GMdatacopypad是否会有影响，先隔离
     GlobalTensor<int32_t> combineInnerOffset;
     combineInnerOffset.SetGlobalBuffer((__gm__ int32_t*)(epRecvCountsGM_ + combineInnerCntIndexOffset +
                                                  globalBs_* axisK_ * curServerId * sizeof(int32_t)));
@@ -497,8 +497,6 @@ __aicore__ inline void MoeDistributeDispatchA2LayeredAicpu<TemplateMC2TypeA2laye
                                                    0, 0, 0};
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopyPad(combineInnerOffset, innerOffsetLt, innerOffsetWriteCountsParams);
-    PipeBarrier<PIPE_ALL>();
-    PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateMC2TypeA2layeredAicpuClass>
@@ -618,7 +616,7 @@ __aicore__ inline void MoeDistributeDispatchA2LayeredAicpu<TemplateMC2TypeA2laye
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopyPad(combineOuterCnt, outerCntLt, outerCntWriteCountsParams);
 
-    PipeBarrier<PIPE_ALL>(); // 不确定连续两个GMdatacopypad是否会有影响，先隔离
+    PipeBarrier<PIPE_MTE3>(); // 不确定连续两个GMdatacopypad是否会有影响，先隔离
 
     GlobalTensor<int32_t> combineOuterOffset;
     combineOuterOffset.SetGlobalBuffer((__gm__ int32_t*)(epRecvCountsGM_ + combineOuterCntIndexOffset));
