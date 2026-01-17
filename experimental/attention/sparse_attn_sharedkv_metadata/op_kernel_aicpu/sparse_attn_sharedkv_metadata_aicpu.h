@@ -46,6 +46,12 @@ enum class SparseMode : uint8_t {
     SPARSE_BUTT,
 };
 
+enum class ValidSocVersion {
+    ASCEND910B = 0,
+    ASCEND910D,
+    RESERVED_VERSION = 99999
+};
+
 template<class T>
 using Range = std::pair<T, T>;
 
@@ -230,7 +236,7 @@ private:
   bool ParamsInit(uint32_t cmpRatio_, uint32_t topK_);
   bool BalanceSchedule();
   bool GenMetaData();
-  
+  ValidSocVersion ProcessSocVersion();
   // util
   uint32_t GetS1SeqSize(uint32_t bIdx);
   uint32_t GetS2SeqSize(uint32_t bIdx);
@@ -295,12 +301,14 @@ private:
   uint32_t cmpRatio_ = 1;
   uint32_t winMaskMode_ = 4;
   uint32_t cmpMaskMode_ = 3;
-  uint32_t winLeft_ = 128;
-  uint32_t winRight_ = 0;
+  int64_t winLeft_ = 128;
+  int64_t winRight_ = 0;
   std::string layoutQuery_ = "BSND";
   std::string layoutKV_ = "PA_ND";
   bool hasOriKV_ = true;
   bool hasCmpKV_ = true;
+  uint32_t aicCoreNum_ = 24U;
+  uint32_t aivCoreNum_ = 48U;
 
   // attr
   uint32_t coreNum_ = 24U; // new
@@ -312,7 +320,7 @@ private:
   uint32_t s2BaseSize_ = 0;
   uint32_t gS1BaseSizeOfFd_ = 0;
   bool isS1G_ = true;
-  SplitResult splitRes_ {24, 2};
+  SplitResult splitRes_ {36, 2};
   bool isCFA = false;
   bool isSCFA = false;
   bool supportFd = false;

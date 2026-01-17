@@ -37,6 +37,9 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
   bool requiredAttrs = GetAttrValue(ctx, "num_heads_q", queryHeadNum_) &&
                        GetAttrValue(ctx, "num_heads_kv", kvHeadNum_) &&
                        GetAttrValue(ctx, "head_dim", headDim_);
+                       GetAttrValueOpt(ctx, "soc_version", socVersion_);
+                       GetAttrValueOpt(ctx, "aic_core_num", aicCoreNum_);
+                       GetAttrValueOpt(ctx, "aiv_core_num", aivCoreNum_);
   if (!requiredAttrs) {
     return false;
   }
@@ -56,9 +59,9 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
   GetAttrValueOpt(ctx, "has_ori_kv", hasOriKV_);
   GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKV_);
 
-  coreNum_ = 24U;
+  coreNum_ = aicCoreNum_;
   sparseMode_ = 4;
-  preToken_ = (static_cast<int64_t>(winLeft_) > -1) ? static_cast<int64_t>(winLeft_) - 1 : INT64_MAX;
+  preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
   nextToken_ = 0;
   attentionMode_ = 1;
   isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
@@ -70,21 +73,43 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
   return true;
 }
 
+ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
+    if (socVersion_ == "Ascend910_9392" || socVersion_ == "ASCEND910B" || socVersion_ == "ascend910B" ||
+                socVersion_ == "Ascend910B" || socVersion_ == "Ascend910_93" || socVersion_ == "Ascend910" ||
+                socVersion_ == "ascend910" || socVersion_ == "ASCEND910") {
+        return ValidSocVersion::ASCEND910B;
+    } else if (socVersion_ == "Ascend910_9589" || socVersion_ == "ASCEND910D" || socVersion_ == "ascend910D" ||
+                socVersion_ == "Ascend910D" || socVersion_ == "Ascend910_95") {
+        return ValidSocVersion::ASCEND910D;
+    }
+    
+    return ValidSocVersion::RESERVED_VERSION;
+}
+
 bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_t topK_) {
     groupSize_ = queryHeadNum_ / kvHeadNum_;
-    uint32_t MBaseBlockLen = 128U;
-    uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
     if (cmpRatio_ > 1) {
         if (topK_ > 0) {
             isSCFA = true;
-            s1BlockLen = 1U;
         } else {
             isCFA = true;
         }
     }
-    mBaseSize_ = groupSize_ * s1BlockLen;
-    s2BaseSize_ = 512U;
-    gS1BaseSizeOfFd_ = 8U;
+    ValidSocVersion validSocVersion = ProcessSocVersion();
+    if (validSocVersion == ValidSocVersion::ASCEND910B) {
+        uint32_t MBaseBlockLen = 128U;
+        uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
+        if (isSCFA) {
+            s1BlockLen = 1U;
+        }
+        mBaseSize_ = groupSize_ * s1BlockLen;
+        s2BaseSize_ = 512U;
+        gS1BaseSizeOfFd_ = 8U;
+    } else if (validSocVersion == ValidSocVersion::ASCEND910D){
+        mBaseSize_ = 64;
+        s2BaseSize_ = 128U;
+        gS1BaseSizeOfFd_ = 8U;
+    }
     return true;
 }
 
@@ -201,8 +226,8 @@ BlockCost<int64_t> SparseAttnSharedkvMetadataCpuKernel::CalcCostTable(uint32_t s
         typeCost[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK] = (s1GTailSize == 0U) ? 0U : CmpCalcCost(s1GTailSize, s2NormalSize);
         typeCost[CMP_NORMAL_BLOCK][CMP_TAIL_BLOCK] = (cmpS2TailSize == 0U) ? 0U : CmpCalcCost(s1NormalSize, cmpS2TailSize);
         typeCost[CMP_TAIL_BLOCK][CMP_TAIL_BLOCK] = (s1GTailSize == 0U || cmpS2TailSize == 0U) ? 0U : CmpCalcCost(s1GTailSize, cmpS2TailSize);
-        return typeCost;
     }
+    return typeCost;
 }
 
 Range<int64_t> SparseAttnSharedkvMetadataCpuKernel::CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache)
@@ -348,7 +373,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
     int64_t winS2FirstToken = winS2TokenRange.first;
     int64_t winS2LastToken = winS2TokenRange.second;
     if (winS2FirstToken >= static_cast<int64_t>(batchCache.s2Size) || winS2LastToken < 0 || 
-            winS2LastToken < winS2FirstToken || winLeft_ == 0) {
+            winS2LastToken < winS2FirstToken) {
         winS2FirstToken = 0;
         winS2LastToken = 0;
         s1GCache.winS2Start = 0;
