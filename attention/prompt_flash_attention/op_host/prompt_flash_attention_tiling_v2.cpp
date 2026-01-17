@@ -1861,7 +1861,7 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
             "When MLAFullQuant enables, dataType of dequantScaleQuery(%s), KeyAntiquantScale(%s) and valueAntiquantScale(%s) must be float32.",
             GetPfaDataTypeStr(contextKeyParams.dequantScaleQueryType).c_str(), GetPfaDataTypeStr(contextKeyParams.KeyAntiquantScaleType).c_str(),
             GetPfaDataTypeStr(contextKeyParams.valueAntiquantScaleType).c_str()), return false);
-    OP_CHECK_IF((!CheckQScaleShape4MLAFullQuant(contextKeyParams) && !CheckKVScaleShape4MLAFullQuant(contextKeyParams)),
+    OP_CHECK_IF((!CheckQScaleShape4MLAFullQuant(contextKeyParams) || !CheckKVScaleShape4MLAFullQuant(contextKeyParams)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, check dequantScaleQuery, keyAntiQuantScale or valueAntiquantScale shape failed."), return false);
     // 全量化暂不支持 keyAntiquantOffset, valueAntiquantOffset, quantScale1, dequantScale1, dequantScale2
