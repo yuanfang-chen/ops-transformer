@@ -49,8 +49,8 @@ private:
 
 template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::Init()
+__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType,
+                                                                      ComputationType, ContextType>::Init()
 {
     commStage_->Init();
 }
@@ -58,7 +58,7 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
 template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
           typename ContextType>
 __aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, ComputationType,
+MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
                                                ContextType>::ChangeSpecification(void *updateContext)
 {
     context_ = (ContextType *)updateContext;
@@ -71,8 +71,8 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
 template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
           typename ContextType>
 __aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::Process(
-    uint32_t taskCnt)
+MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
+                                               ContextType>::Process(uint32_t taskCnt)
 {
     uint32_t index;
     for (index = 0; index < taskCnt; index++) {
@@ -90,13 +90,12 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
             context_->transposeDstAddr = (GM_ADDR)((uint64_t)context_->transposeDstAddr + context_->transposeDstOffset);
             AscendC::SyncAll<true>();
 
-            // 是否我要单独写一个Update
-            quantStage_->Init(context_->quantInputAddr, context_->smoothScaleAddr, context_->quantOutputAddr,
+            quantStage_->Init(context_->quantInputAddr, nullptr, context_->quantOutputAddr,
                               context_->quantOutputScaleAddr, context_->rowNum, context_->colNum,
                               context_->calBuffSize);
             context_->quantInputAddr = (GM_ADDR)((uint64_t)context_->quantInputAddr + context_->quantInputAddrOffset);
-            context_->smoothScaleAddr =
-                (GM_ADDR)((uint64_t)context_->smoothScaleAddr + context_->smoothScaleAddrOffset);
+            // context_->smoothScaleAddr =
+            //     (GM_ADDR)((uint64_t)context_->smoothScaleAddr + context_->smoothScaleAddrOffset);
             context_->quantOutputAddr =
                 (GM_ADDR)((uint64_t)context_->quantOutputAddr + context_->quantOutputAddrOffset);
             context_->quantOutputScaleAddr =
@@ -117,8 +116,8 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
 
 template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::End()
+__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType,
+                                                                      ComputationType, ContextType>::End()
 {
     commStage_->End();
     computeStage_->End();

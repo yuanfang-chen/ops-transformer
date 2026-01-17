@@ -26,3 +26,5 @@ namespace MC2KernelTemplate {
 #endif
 
 } // namespace MC2KernelTemplate
+
+#endif

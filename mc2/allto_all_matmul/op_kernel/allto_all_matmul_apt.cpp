@@ -20,6 +20,7 @@
 #include "./arch35/allto_all_matmul_tiling_key.h"
 #include "./arch35/allto_all_matmul_tiling_data.h"
 #include "./arch35/allto_all_matmul_arch35.h"
+#include "./arch35/allto_all_kc_quant_matmul_arch35.h"
 
 using namespace AscendC;
 using namespace MC2KernelTemplate;
@@ -50,12 +51,13 @@ __global__ __aicore__ void allto_all_matmul(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
                                             GM_ADDR comm_scale, GM_ADDR x1_offset, GM_ADDR x2_offset, GM_ADDR y,
                                             GM_ADDR all2all_out, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    REGISTER_TILING_DEFAULT(AlltoAllMatmulTilingData);
-    GET_TILING_DATA_WITH_STRUCT(AlltoAllMatmulTilingData, tilingData, tilingGM);
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
 
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
+    REGISTER_TILING_DEFAULT(AlltoAllMatmulTilingData);
+    GET_TILING_DATA_WITH_STRUCT(AlltoAllMatmulTilingData, tilingData, tilingGM);
+
     if constexpr (DTYPEBIAS == DTYPE_BIAS_SAME_WITH_X) {
         using DtypeBias = DTYPE_X1;
         ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe);
@@ -70,39 +72,25 @@ __global__ __aicore__ void allto_all_matmul(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1, AlltoAllKcQuantMatmulTilingData,
                                       CommunicationType);
     CommunicationType commImplName(&tilingData);
+
     DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);
     TransposeType transposeImplName(&pipe);
-    DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams,
-                                                            ComputationType);
-    ComputationType matmulImplName(&pipe);
-    const AlltoAllKcQuantMatmulTilingData *kcQuantTilingData = &tilingData;
-    const AlltoAllMatmulTilingInfo *tilingInfo = &(kcQuantTilingData->alltoAllKcQuantMatmulTilingInfo);
-    const uint64_t x1QuantDtype = tilingInfo->x1QuantDtype;
-    if (x1QuantDtype == 0) {
-        // 显式指定模板参数为 fp8_e5m2_t
-        DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN(DTYPE_X1, fp8_e5m2_t, DynamicQuantType);
-        DynamicQuantType dynamicQuantImplName(&pipe);
-        using SchedulerContextType = PipelineContext<QuantExtraData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>;
-        using SchedulerType =
-            MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, DynamicQuantType,
-                                                           ComputationType, SchedulerContextType>;
-        SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &dynamicQuantImplName, &matmulImplName);
-        AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulTilingData> op(&SchedulerImpl);
-        op.Init(x1, x2, bias, y, all2all_out, x1_scale, x2_scale, x2_offset, workspaceGM, &tilingData, &pipe);
-        op.Process();
-    } else {
-        // 显式指定模板参数为 fp8_e4m3_t
-        DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN(DTYPE_X1, fp8_e4m3_t, DynamicQuantType);
-        DynamicQuantType dynamicQuantImplName(&pipe);
 
-        using SchedulerContextType = PipelineContext<QuantExtraData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>;
-        using SchedulerType =
-            MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, DynamicQuantType,
-                                                           ComputationType, SchedulerContextType>;
-        SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &dynamicQuantImplName, &matmulImplName);
-        AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulTilingData> op(&SchedulerImpl);
-        op.Init(x1, x2, bias, y, all2all_out, x1_scale, x2_scale, x2_offset, workspaceGM, &tilingData, &pipe);
-        op.Process();
-    }
+    // TODO:临时处理，后续要根据x1QuantDType来进行操作
+    DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN(DTYPE_X1, DTYPE_X2, DynamicQuantType);
+    DynamicQuantType dynamicQuantImplName(&pipe);
+
+    // TODO:同上
+    DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT_TEMP(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams, ComputationType);
+    ComputationType matmulImplName(&pipe);
+
+    using SchedulerContextType = PipelineContext<QuantExtraData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>;
+    using SchedulerType =
+        MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, DynamicQuantType,
+                                                        ComputationType, SchedulerContextType>;
+    SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &dynamicQuantImplName, &matmulImplName);
+    AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllKcQuantMatmulTilingData> op(&SchedulerImpl);
+    op.Init(x1, x2, bias, y, all2all_out, x1_scale, x2_scale, x2_offset, workspaceGM, &tilingData, &pipe);
+    op.Process();
 #endif
 }

@@ -18,6 +18,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #define FP8_DYNAMIC_QUANT_PERTOKEN_H
 
 namespace MC2KernelTemplate {
+using namespace AscendC;
 
 constexpr uint32_t ALIGN_NUM = 8;
 constexpr uint32_t TWO_FACTOR = 2;
@@ -41,8 +42,8 @@ __aicore__ inline T Min(T a, T b)
     return (a > b) ? (b) : (a);
 }
 
-template <typename T1, typename T2>
-__aicore__ inline T2 Ceil(T1 x, T1 y)
+template <typename T>
+__aicore__ inline T Ceil(T x, T y)
 {
     return (x + y - 1) / y;
 }
@@ -161,69 +162,69 @@ public:
         WholeReduceMax(srcLocal, srcLocal, mask, 1, 8, 1, 8);
     }
 
-    /**
-     * @brief 动态量化的计算, 支持多行
-     *
-     */
-    __aicore__ inline void DynamicQuantMultiToken(uint32_t rowBatch, uint32_t totalDataCount,
-                                                  LocalTensor<quantInputDataType> localInputRaw,
-                                                  LocalTensor<float> localSmoothScale,
-                                                  LocalTensor<quantOutputDataType> localOutput,
-                                                  LocalTensor<float> localScale)
-    {
-        // 绑定成员变量到局部 Tensor
-        LocalTensor<float> floatData = floatDataBuf_.Get<float>();
-        LocalTensor<float> workBuf = workBuf_.Get<float>();
-        LocalTensor<float> tempStat = tempStatBuf_.Get<float>();
-        LocalTensor<uint8_t> mask = maskBuf_.Get<uint8_t>();
-        // 使用tensor前n个数据参与计算，设置count时，需要保证count个元素所占空间256字节对齐，Co
-        uint32_t compareCnt = (Ceil(rowBatch * sizeof(float), COMPARE_ALIGN_LEN) * COMPARE_ALIGN_LEN) / sizeof(float);
+    // /**
+    //  * @brief 动态量化的计算, 支持多行
+    //  *
+    //  */
+    // __aicore__ inline void DynamicQuantMultiToken(uint32_t rowBatch, uint32_t totalDataCount,
+    //                                               LocalTensor<quantInputDataType> localInputRaw,
+    //                                               LocalTensor<float> localSmoothScale,
+    //                                               LocalTensor<quantOutputDataType> localOutput,
+    //                                               LocalTensor<float> localScale)
+    // {
+    //     // 绑定成员变量到局部 Tensor
+    //     LocalTensor<float> floatData = floatDataBuf_.Get<float>();
+    //     LocalTensor<float> workBuf = workBuf_.Get<float>();
+    //     LocalTensor<float> tempStat = tempStatBuf_.Get<float>();
+    //     LocalTensor<uint8_t> mask = maskBuf_.Get<uint8_t>();
+    //     // 使用tensor前n个数据参与计算，设置count时，需要保证count个元素所占空间256字节对齐，Co
+    //     uint32_t compareCnt = (Ceil(rowBatch * sizeof(float), COMPARE_ALIGN_LEN) * COMPARE_ALIGN_LEN) / sizeof(float);
 
-        // 1. 输入数据类型转换为FLOAT
-        Cast(floatData, localInputRaw, RoundMode::CAST_NONE, totalDataCount);
-        PipeBarrier<PIPE_V>();
+    //     // 1. 输入数据类型转换为FLOAT
+    //     Cast(floatData, localInputRaw, RoundMode::CAST_NONE, totalDataCount);
+    //     PipeBarrier<PIPE_V>();
 
-        const uint32_t columnsPerRow = totalDataCount / rowBatch;
-        const uint32_t broadcastShape[TWO_FACTOR] = {rowBatch, columnsPerRow};
-        const uint32_t sourceShape[TWO_FACTOR] = {rowBatch, 1};
-        const uint32_t smoothSourceShape[TWO_FACTOR] = {1, columnsPerRow};
+    //     const uint32_t columnsPerRow = totalDataCount / rowBatch;
+    //     const uint32_t broadcastShape[TWO_FACTOR] = {rowBatch, columnsPerRow};
+    //     const uint32_t sourceShape[TWO_FACTOR] = {rowBatch, 1};
+    //     const uint32_t smoothSourceShape[TWO_FACTOR] = {1, columnsPerRow};
 
-        // 2. 乘平滑系数，按行平滑
-        if (this->hasSmooth_) {
-            Cast(tempStat, localSmoothScale, RoundMode::CAST_NONE, columnsPerRow);
-            Broadcast<float, TWO_FACTOR, 1, false>(workBuf, tempStat, broadcastShape, smoothSourceShape);
-            Mul(floatData, floatData, workBuf, totalDataCount);
-            PipeBarrier<PIPE_V>();
-        }
+    //     // 2. 乘平滑系数，按行平滑
+    //     if (this->hasSmooth_) {
+    //         Cast(tempStat, localSmoothScale, RoundMode::CAST_NONE, columnsPerRow);
+    //         Broadcast<float, TWO_FACTOR, 1, false>(workBuf, tempStat, broadcastShape, smoothSourceShape);
+    //         Mul(floatData, floatData, workBuf, totalDataCount);
+    //         PipeBarrier<PIPE_V>();
+    //     }
 
-        // 3. 计算绝对值和单行最大值
-        Abs(tempStat, floatData, totalDataCount);
-        PipeBarrier<PIPE_V>();
-        // 结果存放在 workBuf (形状为 [rowBatch, 1])
-        ReduceMax<float, AscendC::Pattern::Reduce::AR, true>(workBuf, tempStat, broadcastShape, false);
-        // 防除零操作1，找到最大值为0的位置
-        CompareScalar(mask, workBuf, 0.0f, AscendC::CMPMODE::NE, compareCnt);
-        PipeBarrier<PIPE_V>();
+    //     // 3. 计算绝对值和单行最大值
+    //     Abs(tempStat, floatData, totalDataCount);
+    //     PipeBarrier<PIPE_V>();
+    //     // 结果存放在 workBuf (形状为 [rowBatch, 1])
+    //     ReduceMax<float, AscendC::Pattern::Reduce::AR, true>(workBuf, tempStat, broadcastShape, false);
+    //     // 防除零操作1，找到最大值为0的位置
+    //     CompareScalar(mask, workBuf, 0.0f, AscendC::CMPMODE::NE, compareCnt);
+    //     PipeBarrier<PIPE_V>();
 
-        // 4. 获取结果量化参数  rowMax / fp8Max
-        Duplicate(tempStat, this->recipFP8MaxLimit_, rowBatch);
-        // 防除零操作2，直接将最大值为0的位置设置为最大值，这样相乘后得到的量化系数为1，且对于第五步计算得到的量化乘数也为1
-        Select(workBuf, mask, workBuf, this->fp8MaxLimit_, AscendC::SELMODE::VSEL_TENSOR_SCALAR_MODE, rowBatch);
-        Mul(localScale, workBuf, tempStat, rowBatch);
-        PipeBarrier<PIPE_V>();
+    //     // 4. 获取结果量化参数  rowMax / fp8Max
+    //     Duplicate(tempStat, this->recipFP8MaxLimit_, rowBatch);
+    //     // 防除零操作2，直接将最大值为0的位置设置为最大值，这样相乘后得到的量化系数为1，且对于第五步计算得到的量化乘数也为1
+    //     Select(workBuf, mask, workBuf, this->fp8MaxLimit_, AscendC::SELMODE::VSEL_TENSOR_SCALAR_MODE, rowBatch);
+    //     Mul(localScale, workBuf, tempStat, rowBatch);
+    //     PipeBarrier<PIPE_V>();
 
-        // 5. 计算量化的乘数 fp8Max / rowMax
-        Duplicate(tempStat, this->fp8MaxLimit_, rowBatch);
-        Div(tempStat, tempStat, workBuf, rowBatch);
-        PipeBarrier<PIPE_V>();
+    //     // 5. 计算量化的乘数 fp8Max / rowMax
+    //     Duplicate(tempStat, this->fp8MaxLimit_, rowBatch);
+    //     Div(tempStat, tempStat, workBuf, rowBatch);
+    //     PipeBarrier<PIPE_V>();
 
-        // 6. 获取量化结果 x * (fp8Max/rowMax) -> fp8
-        Broadcast<float, TWO_FACTOR, 1, false>(workBuf, tempStat, broadcastShape, sourceShape);
-        Mul(floatData, floatData, workBuf, totalDataCount);
-        PipeBarrier<PIPE_V>();
+    //     // 6. 获取量化结果 x * (fp8Max/rowMax) -> fp8
+    //     Broadcast<float, TWO_FACTOR, 1, false>(workBuf, tempStat, broadcastShape, sourceShape);
+    //     Mul(floatData, floatData, workBuf, totalDataCount);
+    //     PipeBarrier<PIPE_V>();
 
-        Cast(localOutput, floatData, RoundMode::CAST_RINT, totalDataCount);
-    }
+    //     Cast(localOutput, floatData, RoundMode::CAST_RINT, totalDataCount);
+    // }
 
     __aicore__ inline void Init(GM_ADDR quantInputAddr, GM_ADDR smoothScaleAddr, GM_ADDR quantOutputAddr,
                                 GM_ADDR quantOutputScaleAddr, uint64_t rowNum, uint64_t colNum, uint64_t calBuffSize)
@@ -270,248 +271,332 @@ public:
         if (GetBlockIdx() >= this->usedCoreAivNum_) {
             return;
         }
-        if (this->maxProcRows_ > 0) {
-            ProcessMultiTokens();
-        } else {
-            ProcessLargeRows();
-        }
-    }
-
-    __aicore__ inline void ProcessMultiTokens()
-    {
-        for (uint64_t offset = 0; offset < this->rowsThisCore_; offset += this->procRows_) {
-            uint32_t curRows =
-                static_cast<uint32_t>(Min(static_cast<uint64_t>(this->procRows_), this->rowsThisCore_ - offset));
-
-            InitTileResources(this->startRowThisCore_ + offset, curRows);
-            ProcessTile(curRows, this->colNum_);
-        }
-    }
-
-    __aicore__ inline void InitTileResources(uint64_t globalRowOffset, uint64_t curRows)
-    {
-        tPipe_->Reset();
-
-        uint64_t inputOffset = globalRowOffset * this->colNum_;
-        uint64_t outputOffset = globalRowOffset * this->colNum_;
-        uint64_t scaleOffset = globalRowOffset;
-
-        // 重新设置 Global Buffer 地址
-        quantInputGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->quantInputAddr_ + inputOffset,
-                                      curRows * this->colNum_);
-        quantOutputGM_.SetGlobalBuffer((__gm__ quantOutputDataType *)this->quantOutputAddr_ + outputOffset,
-                                       curRows * this->colNum_);
-        quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)this->quantOutputScaleAddr_ + scaleOffset, curRows);
-        // smooth的数据类型与input一致
-        if (this->hasSmooth_) {
-            smoothScaleGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->smoothScaleAddr_, this->colNum_);
-        }
-
-        // ALIGN_NUM为8，目的是为了保证bufDatCnt*sizeof(float)与32B对齐
-        uint32_t alignedColNum = Ceil(this->colNum_, ALIGN_NUM) * ALIGN_NUM;
-        uint32_t bufDataCnt = curRows * alignedColNum;
-
-        // 初始化成员 TBuf
-        tPipe_->InitBuffer(floatDataBuf_, bufDataCnt * sizeof(float));
-        tPipe_->InitBuffer(workBuf_, bufDataCnt * sizeof(float));
-        tPipe_->InitBuffer(tempStatBuf_, bufDataCnt * sizeof(float));
-        uint32_t maskCnt = (Ceil(curRows, ALIGN_NUM) * ALIGN_NUM);
-        tPipe_->InitBuffer(maskBuf_, maskCnt * sizeof(uint8_t));
-
-        // 初始化关键 Queue
-        tPipe_->InitBuffer(rawInputQue_, TWO_FACTOR, bufDataCnt * sizeof(quantInputDataType));
-        tPipe_->InitBuffer(quantOutputQue_, TWO_FACTOR, bufDataCnt * sizeof(quantOutputDataType));
-        tPipe_->InitBuffer(quantScaleQue_, TWO_FACTOR, Ceil(curRows * sizeof(float), UB_DATABLOCK) * UB_DATABLOCK);
-
-        if (this->hasSmooth_) {
-            tPipe_->InitBuffer(smoothScaleQue_, TWO_FACTOR,
-                               Ceil(this->colNum_ * sizeof(quantInputDataType), UB_DATABLOCK) * UB_DATABLOCK);
-        }
+        ProcessOneToken();
+        // if (this->maxProcRows_ > 0) {
+        //     ProcessMultiTokens();
+        // } else {
+        //     ProcessLargeRows();
+        // }
     }
 
     /**
-     * @brief pertoken动态量化一个形为（curRows,colNum)的数据块
+     * @brief 假设一次能搬入和处理一行
      *
-     * @param curRows 当前处理的总行数
-     * @param colNum  一行数据包含的元素个数
+     * @return __aicore__
      */
-    __aicore__ inline void ProcessTile(uint64_t curRows, uint32_t colNum)
+        __aicore__ inline void ProcessOneToken()
     {
-        LocalTensor<quantInputDataType> rawInLocal = rawInputQue_.AllocTensor<quantInputDataType>();
-        // 保证32对齐
-        uint32_t inputAlign = UB_DATABLOCK / sizeof(quantInputDataType);
-        uint32_t alignedColNum = Ceil(this->colNum_, inputAlign) * inputAlign;
-
-        // GM->UB
-        DataCopyExtParams copyParams = {
-            static_cast<uint16_t>(curRows), static_cast<uint32_t>(colNum * sizeof(quantInputDataType)), 0,
-            static_cast<uint32_t>(alignedColNum - colNum) * sizeof(quantInputDataType) / UB_DATABLOCK};
-        DataCopyPadExtParams<quantInputDataType> padExtParams{false, 0, 0, 0};
-        DataCopyPad(rawInLocal, quantInputGM_, copyParams, padExtParams);
-        rawInputQue_.EnQue(rawInLocal);
-
-        if (this->hasSmooth_) {
-            // GM->UB
-            LocalTensor<quantInputDataType> sScale = smoothScaleQue_.AllocTensor<quantInputDataType>();
-            // smooth获取的是完整的
-            DataCopyExtParams sParams{1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0};
-            DataCopyPad(sScale, smoothScaleGM_, sParams, padExtParams);
-            smoothScaleQue_.EnQue(sScale);
-        }
-        ComputeAndMoveOut(curRows, curRows * alignedColNum, colNum, alignedColNum);
-    }
-
-    __aicore__ inline void ComputeAndMoveOut(uint64_t curRows, uint32_t padCalCnt, uint32_t colNum,
-                                             uint32_t alignedColNum)
-    {
-        LocalTensor<quantInputDataType> rawIn = rawInputQue_.DeQue<quantInputDataType>();
-        LocalTensor<quantOutputDataType> quantOut = quantOutputQue_.AllocTensor<quantOutputDataType>();
-        LocalTensor<float> scaleOut = quantScaleQue_.AllocTensor<float>();
-
-        LocalTensor<quantInputDataType> smoothScale;
-        if (this->hasSmooth_) {
-            smoothScale = smoothScaleQue_.DeQue<quantInputDataType>();
-        }
-
-        // 1. 执行量化计算 (UB -> UB)
-        DynamicQuantMultiToken(static_cast<uint32_t>(curRows), padCalCnt, rawIn, smoothScale, quantOut, scaleOut);
-
-        // 2. 将结果数据写回 GM (UB -> GM)
-        DataCopyExtParams outDataParams = {
-            static_cast<uint16_t>(curRows), static_cast<uint32_t>(colNum * sizeof(quantOutputDataType)),
-            static_cast<uint32_t>((alignedColNum - colNum) * sizeof(quantOutputDataType) / UB_DATABLOCK), 0};
-        DataCopyPad(quantOutputGM_, quantOut, outDataParams);
-
-        // 3. 将 Scale 写回 GM (UB -> GM)
-        DataCopyExtParams outScaleParams = {1, static_cast<uint32_t>(curRows * sizeof(float)), 0, 0};
-        DataCopyPad(quantOutputScaleGM_, scaleOut, outScaleParams);
-
-        // 4. 释放资源
-        rawInputQue_.FreeTensor(rawIn);
-        quantOutputQue_.FreeTensor(quantOut);
-        quantScaleQue_.FreeTensor(scaleOut);
-        if (this->hasSmooth_) {
-            smoothScaleQue_.FreeTensor(smoothScale);
-        }
-    }
-
-    __aicore__ inline void ProcessLargeRows()
-    {
-        uint32_t maxCols = GetMaxProcCols();
-        maxCols = (maxCols / ALIGN_NUM) * ALIGN_NUM;
-
         tPipe_->Reset();
-        InitSegmentResources(maxCols);
+        // 1.初始化资源，计算对齐后的字节数
+        uint32_t inputSize = Ceil(static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
+        uint32_t outputSize = Ceil(static_cast<uint32_t>(this->colNum_ * sizeof(quantOutputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
+        // 
+        uint32_t floatBufSize = Ceil(static_cast<uint32_t>(this->colNum_ * sizeof(float)), UB_DATABLOCK) * UB_DATABLOCK;
 
-        uint32_t smoothScaleDataSize =
-            Ceil(this->rowsThisCore_ * sizeof(quantInputDataType), UB_DATABLOCK) * UB_DATABLOCK;
-        uint32_t quantScaleDataSize = Ceil(this->rowsThisCore_ * sizeof(float), UB_DATABLOCK) * UB_DATABLOCK;
+        quantInputGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->quantInputAddr_);
+        quantOutputGM_.SetGlobalBuffer((__gm__ quantOutputDataType *)this->quantOutputAddr_);
+        quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)this->quantOutputScaleAddr_);
 
-        tPipe_->InitBuffer(smoothScaleQue_, ONE_FACTOR, smoothScaleDataSize);
-        tPipe_->InitBuffer(quantScaleQue_, ONE_FACTOR, quantScaleDataSize);
-        // TODO 要修改smooth
-        LocalTensor<quantInputDataType> coreSmoothScales = smoothScaleQue_.AllocTensor<quantInputDataType>();
+        tPipe_->InitBuffer(workBuf_, UB_DATABLOCK); // Reduce 32
+        tPipe_->InitBuffer(floatDataBuf_, floatBufSize);
+        tPipe_->InitBuffer(rawInputQue_, ONE_FACTOR, inputSize);
+        tPipe_->InitBuffer(quantOutputQue_, ONE_FACTOR, outputSize);
+        tPipe_->InitBuffer(quantScaleQue_, ONE_FACTOR,
+                           Ceil(static_cast<uint32_t>(this->rowsThisCore_ * sizeof(float)), UB_DATABLOCK) * UB_DATABLOCK);                           
+
+        LocalTensor<float> workData = workBuf_.Get<float>();
+        LocalTensor<float> floatBufData = floatDataBuf_.Get<float>();
         LocalTensor<float> coreQuantScales = quantScaleQue_.AllocTensor<float>();
-        // 量化系数提升为float类型
-        LocalTensor<float> workBuf = workBuf_.Get<float>();
-        if (this->hasSmooth_) {
-            DataCopyExtParams sParams{1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0};
-            DataCopyPadExtParams<quantInputDataType> padExtParams{false, 0, 0, 0};
-            // GM->UB
-            DataCopyPad(coreSmoothScales,
-                        GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->smoothScaleAddr_), sParams,
-                        padExtParams);
-            Cast(workBuf_, coreSmoothScales, RoundMode::CAST_RINT, this->colNum_);
-        }
 
+        // 2. 逐行处理
         for (uint64_t r = 0; r < this->rowsThisCore_; ++r) {
-            float rowMax = ProcessRowMaxAcrossSegments(this->startRowThisCore_ + r, maxCols, workBuf_);
-            // 除零保护
+            float maxValue, minValue;
+            uint64_t globalRowIdx = this->startRowThisCore_ + r;
+            // ---  ---
+            LocalTensor<quantInputDataType> rawInputTensor = rawInputQue_.AllocTensor<quantInputDataType>();
+            DataCopyPad(rawInputTensor,
+                        quantInputGM_[globalRowIdx * this->colNum_],
+                        {1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0, 0}, {false, 0, 0, 0});
+
+            rawInputQue_.EnQue(rawInputTensor);
+            LocalTensor<quantInputDataType> inLocal = rawInputQue_.DeQue<quantInputDataType>();
+
+            Cast(floatBufData, inLocal, RoundMode::CAST_NONE, this->colNum_);
+            PipeBarrier<PIPE_V>();
+
+            AscendC::ReduceMax<float>(workData, floatBufData, floatBufData, this->colNum_, false);
+            maxValue = workData.GetValue(0);
+            PipeBarrier<PIPE_V>();
+            AscendC::ReduceMin<float>(workData, floatBufData, floatBufData, this->colNum_, false);
+            minValue = workData.GetValue(0);
+            PipeBarrier<PIPE_V>();
+            
+            float rowMax = Max(maxValue, (-minValue));
+            // 确定量化系数
             float scale = (rowMax > 0.0f) ? (rowMax * this->recipFP8MaxLimit_) : 1.0f;
             float recipScale = (rowMax > 0.0f) ? (this->fp8MaxLimit_ / rowMax) : 1.0f;
-            ProcessRowQuantAcrossSegments(this->startRowThisCore_ + r, maxCols, workBuf_, recipScale);
-            coreQuantScales.SetValue(r, (float)scale);
-        }
-        // UB ->GM
-        DataCopyExtParams outScaleParams = {1, static_cast<uint32_t>(this->rowsThisCore_ * sizeof(float)), 0, 0};
-        DataCopyPad(GlobalTensor<float>((__gm__ float *)this->quantOutputScaleAddr_ + this->startRowThisCore_),
-                    coreQuantScales, outScaleParams);
+            coreQuantScales.SetValue(r, scale);
 
-        smoothScaleQue_.FreeTensor(coreSmoothScales);
-        quantScaleQue_.FreeTensor(coreQuantScales);
-    }
-
-    __aicore__ inline float ProcessRowMaxAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols,
-                                                        LocalTensor<float> smoothTensor)
-    {
-        float rowMax = 0.0f;
-        for (uint32_t cOffset = 0; cOffset < this->colNum_; cOffset += maxCols) {
-            uint32_t curCols = Min(maxCols, (uint32_t)this->colNum_ - cOffset);
-
-            LocalTensor<float> floatData = floatDataBuf_.Get<float>();
-            LocalTensor<quantInputDataType> rawIn = rawInputQue_.AllocTensor<quantInputDataType>();
-            // GM->UB
-            DataCopyPad(rawIn,
-                        GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->quantInputAddr_ +
-                                                         globalRowIdx * this->colNum_ + cOffset),
-                        {1, static_cast<uint32_t>(curCols * sizeof(quantInputDataType)), 0, 0}, {false, 0, 0, 0});
-
-            Cast(floatData, rawIn, RoundMode::CAST_NONE, curCols);
-            if (this->hasSmooth_) {
-                Mul(floatData, floatData, smoothTensor[cOffset], curCols);
-            }
-            Abs(floatData, floatData, curCols);
-            PipeBarrier<PIPE_V>();
-            ReduceMaxInplace(floatData, curCols);
-            rowMax = Max(rowMax, floatData.GetValue(0));
-            rawInputQue_.FreeTensor(rawIn);
-        }
-        return rowMax;
-    }
-
-    __aicore__ inline void ProcessRowQuantAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols,
-                                                         LocalTensor<float> smoothTensor, float recipScale)
-    {
-        for (uint32_t cOffset = 0; cOffset < this->colNum_; cOffset += maxCols) {
-            uint32_t curCols = Min(maxCols, (uint32_t)this->colNum_ - cOffset);
-
-            LocalTensor<float> floatData = floatDataBuf_.Get<float>();
-            LocalTensor<quantInputDataType> rawIn = rawInputQue_.AllocTensor<quantInputDataType>();
+            // 开始量化
             LocalTensor<quantOutputDataType> quantOut = quantOutputQue_.AllocTensor<quantOutputDataType>();
-            // GM->UB
-            DataCopyPad(rawIn,
-                        GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->quantInputAddr_ +
-                                                         globalRowIdx * this->colNum_ + cOffset),
-                        {1, (uint32_t)(curCols * sizeof(quantInputDataType)), 0, 0}, {false, 0, 0, 0});
+            Muls(floatBufData, floatBufData, recipScale, this->colNum_);
+            Cast(quantOut, floatBufData, RoundMode::CAST_RINT, this->colNum_);
 
-            Cast(floatData, rawIn, RoundMode::CAST_NONE, curCols);
-            if (this->hasSmooth_) {
-                Mul(floatData, floatData, smoothTensor[cOffset], curCols);
-            }
-            Muls(floatData, floatData, recipScale, curCols);
-            Cast(quantOut, floatData, RoundMode::CAST_RINT, curCols);
-            // UB->GM
-            DataCopyPad(GlobalTensor<quantOutputDataType>((__gm__ quantOutputDataType *)this->quantOutputAddr_ +
-                                                          globalRowIdx * this->colNum_ + cOffset),
-                        quantOut, {1, (uint32_t)(curCols * sizeof(quantOutputDataType)), 0, 0});
+            // 搬出量化结果
+            quantOutputQue_.EnQue<quantOutputDataType>(quantOut);
+            LocalTensor<quantOutputDataType> quantOutPutTensor = quantOutputQue_.DeQue<quantOutputDataType>();
 
-            rawInputQue_.FreeTensor(rawIn);
-            quantOutputQue_.FreeTensor(quantOut);
+            DataCopyPad(quantOutputGM_[globalRowIdx * this->colNum_],
+                        quantOutPutTensor,
+                        {1, static_cast<uint32_t>(this->colNum_ * sizeof(quantOutputDataType)), 0, 0, 0});
+
+            rawInputQue_.FreeTensor(inLocal);
+            quantOutputQue_.FreeTensor(quantOutPutTensor);
         }
+
+        quantScaleQue_.EnQue<float>(coreQuantScales);
+        LocalTensor<float> scaleOutTensor = quantScaleQue_.DeQue<float>();
+
+        DataCopyExtParams outScaleParams = {1, static_cast<uint32_t>(this->rowsThisCore_ * sizeof(float)), 0, 0, 0};
+        DataCopyPad(quantOutputScaleGM_[this->startRowThisCore_], scaleOutTensor, outScaleParams);
+        quantScaleQue_.FreeTensor(scaleOutTensor);
     }
 
-    __aicore__ inline void InitSegmentResources(uint32_t curCols)
-    {
-        uint32_t alignedCols = Ceil(curCols, ALIGN_NUM) * ALIGN_NUM;
-        uint32_t alignedBytes = alignedCols * sizeof(float);
+    // __aicore__ inline void ProcessMultiTokens()
+    // {
+    //     for (uint64_t offset = 0; offset < this->rowsThisCore_; offset += this->procRows_) {
+    //         uint32_t curRows =
+    //             static_cast<uint32_t>(Min(static_cast<uint64_t>(this->procRows_), this->rowsThisCore_ - offset));
 
-        tPipe_->InitBuffer(floatDataBuf_, alignedBytes);
-        tPipe_->InitBuffer(workBuf_, alignedBytes);
-        tPipe_->InitBuffer(tempStatBuf_, alignedBytes);
+    //         InitTileResources(this->startRowThisCore_ + offset, curRows);
+    //         ProcessTile(curRows, this->colNum_);
+    //     }
+    // }
 
-        tPipe_->InitBuffer(rawInputQue_, ONE_FACTOR, alignedCols * sizeof(quantInputDataType));
-        tPipe_->InitBuffer(quantOutputQue_, ONE_FACTOR, alignedCols * sizeof(quantOutputDataType));
-    }
+    // __aicore__ inline void InitTileResources(uint64_t globalRowOffset, uint64_t curRows)
+    // {
+    //     tPipe_->Reset();
+
+    //     uint64_t inputOffset = globalRowOffset * this->colNum_;
+    //     uint64_t outputOffset = globalRowOffset * this->colNum_;
+    //     uint64_t scaleOffset = globalRowOffset;
+
+    //     // 重新设置 Global Buffer 地址
+    //     quantInputGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->quantInputAddr_ + inputOffset,
+    //                                   curRows * this->colNum_);
+    //     quantOutputGM_.SetGlobalBuffer((__gm__ quantOutputDataType *)this->quantOutputAddr_ + outputOffset,
+    //                                    curRows * this->colNum_);
+    //     quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)this->quantOutputScaleAddr_ + scaleOffset, curRows);
+    //     // smooth的数据类型与input一致
+    //     if (this->hasSmooth_) {
+    //         smoothScaleGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->smoothScaleAddr_, this->colNum_);
+    //     }
+
+    //     // ALIGN_NUM为8，目的是为了保证bufDatCnt*sizeof(float)与32B对齐
+    //     uint32_t alignedColNum = Ceil(this->colNum_, ALIGN_NUM) * ALIGN_NUM;
+    //     uint32_t bufDataCnt = curRows * alignedColNum;
+
+    //     // 初始化成员 TBuf
+    //     tPipe_->InitBuffer(floatDataBuf_, bufDataCnt * sizeof(float));
+    //     tPipe_->InitBuffer(workBuf_, bufDataCnt * sizeof(float));
+    //     tPipe_->InitBuffer(tempStatBuf_, bufDataCnt * sizeof(float));
+    //     uint32_t maskCnt = (Ceil(curRows, ALIGN_NUM) * ALIGN_NUM);
+    //     tPipe_->InitBuffer(maskBuf_, maskCnt * sizeof(uint8_t));
+
+    //     // 初始化关键 Queue
+    //     tPipe_->InitBuffer(rawInputQue_, TWO_FACTOR, bufDataCnt * sizeof(quantInputDataType));
+    //     tPipe_->InitBuffer(quantOutputQue_, TWO_FACTOR, bufDataCnt * sizeof(quantOutputDataType));
+    //     tPipe_->InitBuffer(quantScaleQue_, TWO_FACTOR, Ceil(curRows * sizeof(float), UB_DATABLOCK) * UB_DATABLOCK);
+
+    //     if (this->hasSmooth_) {
+    //         tPipe_->InitBuffer(smoothScaleQue_, TWO_FACTOR,
+    //                            Ceil(this->colNum_ * sizeof(quantInputDataType), UB_DATABLOCK) * UB_DATABLOCK);
+    //     }
+    // }
+
+    // /**
+    //  * @brief pertoken动态量化一个形为（curRows,colNum)的数据块
+    //  *
+    //  * @param curRows 当前处理的总行数
+    //  * @param colNum  一行数据包含的元素个数
+    //  */
+    // __aicore__ inline void ProcessTile(uint64_t curRows, uint32_t colNum)
+    // {
+    //     LocalTensor<quantInputDataType> rawInLocal = rawInputQue_.AllocTensor<quantInputDataType>();
+    //     // 保证32对齐
+    //     uint32_t inputAlign = UB_DATABLOCK / sizeof(quantInputDataType);
+    //     uint32_t alignedColNum = Ceil(this->colNum_, inputAlign) * inputAlign;
+
+    //     // GM->UB
+    //     DataCopyExtParams copyParams = {
+    //         static_cast<uint16_t>(curRows), static_cast<uint32_t>(colNum * sizeof(quantInputDataType)), 0,
+    //         static_cast<uint32_t>(alignedColNum - colNum) * sizeof(quantInputDataType) / UB_DATABLOCK};
+    //     DataCopyPadExtParams<quantInputDataType> padExtParams{false, 0, 0, 0};
+    //     DataCopyPad(rawInLocal, quantInputGM_, copyParams, padExtParams);
+    //     rawInputQue_.EnQue(rawInLocal);
+
+    //     if (this->hasSmooth_) {
+    //         // GM->UB
+    //         LocalTensor<quantInputDataType> sScale = smoothScaleQue_.AllocTensor<quantInputDataType>();
+    //         // smooth获取的是完整的
+    //         DataCopyExtParams sParams{1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0};
+    //         DataCopyPad(sScale, smoothScaleGM_, sParams, padExtParams);
+    //         smoothScaleQue_.EnQue(sScale);
+    //     }
+    //     ComputeAndMoveOut(curRows, curRows * alignedColNum, colNum, alignedColNum);
+    // }
+
+    // __aicore__ inline void ComputeAndMoveOut(uint64_t curRows, uint32_t padCalCnt, uint32_t colNum,
+    //                                          uint32_t alignedColNum)
+    // {
+    //     LocalTensor<quantInputDataType> rawIn = rawInputQue_.DeQue<quantInputDataType>();
+    //     LocalTensor<quantOutputDataType> quantOut = quantOutputQue_.AllocTensor<quantOutputDataType>();
+    //     LocalTensor<float> scaleOut = quantScaleQue_.AllocTensor<float>();
+
+    //     LocalTensor<quantInputDataType> smoothScale;
+    //     if (this->hasSmooth_) {
+    //         smoothScale = smoothScaleQue_.DeQue<quantInputDataType>();
+    //     }
+
+    //     // 1. 执行量化计算 (UB -> UB)
+    //     DynamicQuantMultiToken(static_cast<uint32_t>(curRows), padCalCnt, rawIn, smoothScale, quantOut, scaleOut);
+
+    //     // 2. 将结果数据写回 GM (UB -> GM)
+    //     DataCopyExtParams outDataParams = {
+    //         static_cast<uint16_t>(curRows), static_cast<uint32_t>(colNum * sizeof(quantOutputDataType)),
+    //         static_cast<uint32_t>((alignedColNum - colNum) * sizeof(quantOutputDataType) / UB_DATABLOCK), 0};
+    //     DataCopyPad(quantOutputGM_, quantOut, outDataParams);
+
+    //     // 3. 将 Scale 写回 GM (UB -> GM)
+    //     DataCopyExtParams outScaleParams = {1, static_cast<uint32_t>(curRows * sizeof(float)), 0, 0};
+    //     DataCopyPad(quantOutputScaleGM_, scaleOut, outScaleParams);
+
+    //     // 4. 释放资源
+    //     rawInputQue_.FreeTensor(rawIn);
+    //     quantOutputQue_.FreeTensor(quantOut);
+    //     quantScaleQue_.FreeTensor(scaleOut);
+    //     if (this->hasSmooth_) {
+    //         smoothScaleQue_.FreeTensor(smoothScale);
+    //     }
+    // }
+
+    // __aicore__ inline void ProcessLargeRows()
+    // {
+    //     uint32_t maxCols = GetMaxProcCols();
+    //     maxCols = (maxCols / ALIGN_NUM) * ALIGN_NUM;
+
+    //     tPipe_->Reset();
+    //     InitSegmentResources(maxCols);
+
+    //     uint32_t smoothScaleDataSize =
+    //         Ceil(this->rowsThisCore_ * sizeof(quantInputDataType), UB_DATABLOCK) * UB_DATABLOCK;
+    //     uint32_t quantScaleDataSize = Ceil(this->rowsThisCore_ * sizeof(float), UB_DATABLOCK) * UB_DATABLOCK;
+
+    //     tPipe_->InitBuffer(smoothScaleQue_, ONE_FACTOR, smoothScaleDataSize);
+    //     tPipe_->InitBuffer(quantScaleQue_, ONE_FACTOR, quantScaleDataSize);
+    //     // TODO 要修改smooth
+    //     LocalTensor<quantInputDataType> coreSmoothScales = smoothScaleQue_.AllocTensor<quantInputDataType>();
+    //     LocalTensor<float> coreQuantScales = quantScaleQue_.AllocTensor<float>();
+    //     // 量化系数提升为float类型
+    //     LocalTensor<float> workBuf = workBuf_.Get<float>();
+    //     if (this->hasSmooth_) {
+    //         DataCopyExtParams sParams{1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0};
+    //         DataCopyPadExtParams<quantInputDataType> padExtParams{false, 0, 0, 0};
+    //         // GM->UB
+    //         DataCopyPad(coreSmoothScales,
+    //                     GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->smoothScaleAddr_), sParams,
+    //                     padExtParams);
+    //         Cast(workBuf_, coreSmoothScales, RoundMode::CAST_RINT, this->colNum_);
+    //     }
+
+    //     for (uint64_t r = 0; r < this->rowsThisCore_; ++r) {
+    //         float rowMax = ProcessRowMaxAcrossSegments(this->startRowThisCore_ + r, maxCols, workBuf_);
+    //         // 除零保护
+    //         float scale = (rowMax > 0.0f) ? (rowMax * this->recipFP8MaxLimit_) : 1.0f;
+    //         float recipScale = (rowMax > 0.0f) ? (this->fp8MaxLimit_ / rowMax) : 1.0f;
+    //         ProcessRowQuantAcrossSegments(this->startRowThisCore_ + r, maxCols, workBuf_, recipScale);
+    //         coreQuantScales.SetValue(r, (float)scale);
+    //     }
+    //     // UB ->GM
+    //     DataCopyExtParams outScaleParams = {1, static_cast<uint32_t>(this->rowsThisCore_ * sizeof(float)), 0, 0};
+    //     DataCopyPad(GlobalTensor<float>((__gm__ float *)this->quantOutputScaleAddr_ + this->startRowThisCore_),
+    //                 coreQuantScales, outScaleParams);
+
+    //     smoothScaleQue_.FreeTensor(coreSmoothScales);
+    //     quantScaleQue_.FreeTensor(coreQuantScales);
+    // }
+
+    // __aicore__ inline float ProcessRowMaxAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols,
+    //                                                     LocalTensor<float> smoothTensor)
+    // {
+    //     float rowMax = 0.0f;
+    //     for (uint32_t cOffset = 0; cOffset < this->colNum_; cOffset += maxCols) {
+    //         uint32_t curCols = Min(maxCols, (uint32_t)this->colNum_ - cOffset);
+
+    //         LocalTensor<float> floatData = floatDataBuf_.Get<float>();
+    //         LocalTensor<quantInputDataType> rawIn = rawInputQue_.AllocTensor<quantInputDataType>();
+    //         // GM->UB
+    //         DataCopyPad(rawIn,
+    //                     GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->quantInputAddr_ +
+    //                                                      globalRowIdx * this->colNum_ + cOffset),
+    //                     {1, static_cast<uint32_t>(curCols * sizeof(quantInputDataType)), 0, 0}, {false, 0, 0, 0});
+
+    //         Cast(floatData, rawIn, RoundMode::CAST_NONE, curCols);
+    //         if (this->hasSmooth_) {
+    //             Mul(floatData, floatData, smoothTensor[cOffset], curCols);
+    //         }
+    //         Abs(floatData, floatData, curCols);
+    //         PipeBarrier<PIPE_V>();
+    //         ReduceMaxInplace(floatData, curCols);
+    //         rowMax = Max(rowMax, floatData.GetValue(0));
+    //         rawInputQue_.FreeTensor(rawIn);
+    //     }
+    //     return rowMax;
+    // }
+
+    // __aicore__ inline void ProcessRowQuantAcrossSegments(uint64_t globalRowIdx, uint32_t maxCols,
+    //                                                      LocalTensor<float> smoothTensor, float recipScale)
+    // {
+    //     for (uint32_t cOffset = 0; cOffset < this->colNum_; cOffset += maxCols) {
+    //         uint32_t curCols = Min(maxCols, (uint32_t)this->colNum_ - cOffset);
+
+    //         LocalTensor<float> floatData = floatDataBuf_.Get<float>();
+    //         LocalTensor<quantInputDataType> rawIn = rawInputQue_.AllocTensor<quantInputDataType>();
+    //         LocalTensor<quantOutputDataType> quantOut = quantOutputQue_.AllocTensor<quantOutputDataType>();
+    //         // GM->UB
+    //         DataCopyPad(rawIn,
+    //                     GlobalTensor<quantInputDataType>((__gm__ quantInputDataType *)this->quantInputAddr_ +
+    //                                                      globalRowIdx * this->colNum_ + cOffset),
+    //                     {1, (uint32_t)(curCols * sizeof(quantInputDataType)), 0, 0}, {false, 0, 0, 0});
+
+    //         Cast(floatData, rawIn, RoundMode::CAST_NONE, curCols);
+    //         if (this->hasSmooth_) {
+    //             Mul(floatData, floatData, smoothTensor[cOffset], curCols);
+    //         }
+    //         Muls(floatData, floatData, recipScale, curCols);
+    //         Cast(quantOut, floatData, RoundMode::CAST_RINT, curCols);
+    //         // UB->GM
+    //         DataCopyPad(GlobalTensor<quantOutputDataType>((__gm__ quantOutputDataType *)this->quantOutputAddr_ +
+    //                                                       globalRowIdx * this->colNum_ + cOffset),
+    //                     quantOut, {1, (uint32_t)(curCols * sizeof(quantOutputDataType)), 0, 0});
+
+    //         rawInputQue_.FreeTensor(rawIn);
+    //         quantOutputQue_.FreeTensor(quantOut);
+    //     }
+    // }
+
+    // __aicore__ inline void InitSegmentResources(uint32_t curCols)
+    // {
+    //     uint32_t alignedCols = Ceil(curCols, ALIGN_NUM) * ALIGN_NUM;
+    //     uint32_t alignedBytes = alignedCols * sizeof(float);
+
+    //     tPipe_->InitBuffer(floatDataBuf_, alignedBytes);
+    //     tPipe_->InitBuffer(workBuf_, alignedBytes);
+    //     tPipe_->InitBuffer(tempStatBuf_, alignedBytes);
+
+    //     tPipe_->InitBuffer(rawInputQue_, ONE_FACTOR, alignedCols * sizeof(quantInputDataType));
+    //     tPipe_->InitBuffer(quantOutputQue_, ONE_FACTOR, alignedCols * sizeof(quantOutputDataType));
+    // }
 };
 } // namespace MC2KernelTemplate
 #endif

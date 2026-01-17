@@ -45,6 +45,15 @@ namespace MC2KernelTemplate {
 
 #endif
 
+#ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT_TEMP
+#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT_TEMP(TilingType, ComputationType) \
+    using ComputationType = QuantMatmul<\
+        Mc2QuantBatchMatmulV3::Mc2QuantBmmPertokenRegbaseKernel<DTYPE_X2, DTYPE_X2, float, float, float,\
+            DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE, float, Mc2QuantBatchMatmulV3::Mc2QuantBmmAswBlock>,\
+        QuantExtraData, TilingType>
+
+#endif
+
 #ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_WEIGHT_QUANT
 #define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_WEIGHT_QUANT() \
     do {} while (0)
