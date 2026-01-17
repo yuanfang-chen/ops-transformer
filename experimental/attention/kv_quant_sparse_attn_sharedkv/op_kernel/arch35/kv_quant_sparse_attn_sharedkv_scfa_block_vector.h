@@ -956,12 +956,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::SoftmaxInitBuffer()
 {
-    tPipe->InitBuffer(softmaxSumBuf[0], 128); // 64/ 2*sizeof(float) = 128
-    tPipe->InitBuffer(softmaxSumBuf[1], 128); 
-    tPipe->InitBuffer(softmaxMaxBuf[0], 128); 
-    tPipe->InitBuffer(softmaxMaxBuf[1], 128); 
-    tPipe->InitBuffer(softmaxExpBuf[0], 128); 
-    tPipe->InitBuffer(softmaxExpBuf[1], 128); 
+    tPipe->InitBuffer(softmaxSumBuf[0], 256); // 64/ 2*sizeof(float) = 128, VF至少操作256B
+    tPipe->InitBuffer(softmaxSumBuf[1], 256);
+    tPipe->InitBuffer(softmaxMaxBuf[0], 256);
+    tPipe->InitBuffer(softmaxMaxBuf[1], 256);
+    tPipe->InitBuffer(softmaxExpBuf[0], 256);
+    tPipe->InitBuffer(softmaxExpBuf[1], 256);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -970,9 +970,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe,
     // ub buffer
     // v0
     constInfo_ = constInfo;
-    pipe->InitBuffer(v0ValidSizeBuff, ConstInfo::BUFFER_SIZE_BYTE_8K);
+    // pipe->InitBuffer(v0ValidSizeBuff, ConstInfo::BUFFER_SIZE_BYTE_8K);
     pipe->InitBuffer(dequantScaleBuff_, 128 * 16 * 2 * sizeof(float));
-    v0ValidSizeUb_ = v0ValidSizeBuff.Get<int32_t>();
+    // v0ValidSizeUb_ = v0ValidSizeBuff.Get<int32_t>();
 
     uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * sizeof(T);
     uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
