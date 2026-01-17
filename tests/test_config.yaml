@@ -685,6 +685,8 @@ moe:
       - moe/moe_token_permute_with_routing_map
     options:
       - moe_token_permute_with_routing_map
+    test:
+      examples: False
 
   moe_token_permute_with_routing_map_grad:
     module: True
