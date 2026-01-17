@@ -54,7 +54,7 @@ enum class QUANT_SCALE_REPO_MODE {
 };
 
 template <typename Q_T, typename KV_T, typename OUT_T, const bool FLASH_DECODE = false,
-	  SAS_LAYOUT LAYOUT_T = SAS_LAYOUT::BSND, SAS_LAYOUT KV_LAYOUT_T = SAS_LAYOUT::PA_ND, 
+	  SAS_LAYOUT LAYOUT_T = SAS_LAYOUT::BSND, SAS_LAYOUT KV_LAYOUT_T = SAS_LAYOUT::PA_ND,
       typename... Args>
 struct SASType {
     using queryType = Q_T;
@@ -67,19 +67,24 @@ struct SASType {
 };
 
 // ================================Util functions==================================
-template <typename T> __aicore__ inline T SASAlign(T num, T rnd)
+template <typename T1, typename T2> __aicore__ inline T1 SASAlign(T1 num, T2 rnd)
 {
-    return (((rnd) == 0) ? 0 : (((num) + (rnd) - 1) / (rnd) * (rnd)));
+    return (rnd == 0) ? 0 : ((num + rnd - 1) / rnd * rnd);
+}
+
+template <typename T1, typename T2> __aicore__ inline T1 CeilDiv(T1 num, T2 rnd)
+{
+    return (rnd == 0) ? 0 : ((num + rnd - 1) / rnd);
 }
 
 template <typename T1, typename T2> __aicore__ inline T1 Min(T1 a, T2 b)
 {
-    return (a > b) ? (b) : (a);
+    return (a > b) ? b : a;
 }
 
 template <typename T1, typename T2> __aicore__ inline T1 Max(T1 a, T2 b)
 {
-    return (a > b) ? (a) : (b);
+    return (a > b) ? a : b;
 }
 
 template <typename T> __aicore__ inline size_t BlockAlign(size_t s)
@@ -92,36 +97,38 @@ template <typename T> __aicore__ inline size_t BlockAlign(size_t s)
 }
 
 struct RunInfo {
-    uint32_t loop;
-    uint32_t bIdx;
-    uint32_t gIdx;
-    uint32_t s1Idx;
-    uint32_t s2Idx;
-    uint32_t bn2IdxInCurCore;
-    uint32_t curSInnerLoopTimes;
-    uint64_t tndBIdxOffsetForQ;
-    uint64_t tndBIdxOffsetForKV;
-    uint64_t tensorAOffset;
-    uint64_t tensorBOffset;
-    uint64_t tensorARopeOffset;
-    uint64_t tensorBRopeOffset;
-    uint64_t attenOutOffset;
-    uint64_t attenMaskOffset;
-    uint64_t topKBaseOffset;
-    uint32_t actualSingleProcessSInnerSize;
-    uint32_t actualSingleProcessSInnerSizeAlign;
-    bool isFirstSInnerLoop;
-    bool isChangeBatch;
-    uint32_t s2BatchOffset;
-    uint32_t gSize;
-    uint32_t s1Size;
-    uint32_t s2Size;
-    uint32_t mSize;
-    uint32_t mSizeV;
-    uint32_t mSizeVStart;
-    uint32_t tndIsS2SplitCore;
-    uint32_t tndCoreStartKVSplitPos;
-    bool isBmm2Output;
+    uint32_t loop = 0;
+    uint32_t cmpLoop = 0; // 用于判断取 用于merge的4块GM 中的哪一块
+    uint32_t bIdx = 0;
+    uint32_t gIdx = 0;
+    uint32_t s1Idx = 0;
+    uint32_t s2Idx = 0;
+    uint32_t relativeS2Idx = 0;
+    uint32_t bn2IdxInCurCore = 0;
+    uint32_t curSInnerLoopTimes = 0;
+    uint64_t tndBIdxOffsetForQ = 0;
+    uint64_t tndBIdxOffsetForKV = 0;
+    uint64_t tensorAOffset = 0;
+    uint64_t tensorBOffset = 0;
+    uint64_t tensorARopeOffset = 0;
+    uint64_t tensorBRopeOffset = 0;
+    uint64_t attenOutOffset = 0;
+    uint64_t attenMaskOffset = 0;
+    uint64_t topKBaseOffset = 0;
+    uint32_t actualSingleProcessSInnerSize = 0;
+    uint32_t actualSingleProcessSInnerSizeAlign = 0;
+    bool isFirstSInnerLoop = false;
+    bool isChangeBatch = false;
+    uint32_t s2BatchOffset = 0;
+    uint32_t gSize = 0;
+    uint32_t s1Size = 0;
+    uint32_t s2Size = 0;
+    uint32_t mSize = 0;
+    uint32_t mSizeV = 0;
+    uint32_t mSizeVStart = 0;
+    uint32_t tndIsS2SplitCore = 0;
+    uint32_t tndCoreStartKVSplitPos = 0;
+    bool isBmm2Output = false;
     bool isValid = false;
 
     static constexpr uint32_t n2Idx = 0;
@@ -129,15 +136,18 @@ struct RunInfo {
     uint64_t actS2SizeOri = 0ULL;
     uint64_t curActualSeqLenOri = 0ULL;
 
-    uint32_t gS1Idx;
+    uint32_t gS1Idx = 0;
     uint64_t actS2Size = 1;
-    uint32_t actMBaseSize;
-    bool isLastS2Loop;
+    uint64_t actOriS2Size = 1;
+    uint32_t actMBaseSize = 0;
+    bool isLastS2Loop = 0;
     int32_t nextTokensPerBatch = 0;
-    int64_t threshold;
+    int64_t threshold = 0;
     uint32_t curTopKIdx = 0;
     uint64_t curOffsetInSparseBlock = 0;
     bool isOri = true;  // 判断当前块是在Ori部分还是Cmp部分
+    uint64_t s2StartPoint = 0;
+    int64_t cmpS2IdLimit = 0;
 };
 
 struct ConstInfo {
@@ -175,13 +185,15 @@ struct ConstInfo {
     uint64_t batchSize = 0ULL;
     uint64_t gSize = 0ULL;
     uint64_t qHeadNum = 0ULL;
-    uint64_t kvHeadNum;
-    uint64_t headDim;
-    uint64_t headDimRope;
-    uint64_t combineHeadDim; // quantScaleRepoMode为Combine模式时=headDim+headDimRope, 否则=headDim
+    uint64_t kvHeadNum = 0;
+    uint64_t headDim = 0;
+    uint64_t headDimRope = 0;
+    uint64_t combineHeadDim = 0; // quantScaleRepoMode为Combine模式时=headDim+headDimRope, 否则=headDim
     uint64_t kvSeqSize = 0ULL;        // kv最大S长度
     uint64_t qSeqSize = 1ULL;         // q最大S长度
     int64_t kvCacheBlockSize = 0;    // PA场景的block size
+    uint64_t paCmpBlockSize = 0;
+    uint64_t paOriBlockSize = 0;
     int64_t orikvCacheBlockSize = 0;
     int64_t cmpkvCacheBlockSize = 0;
     uint32_t oriMaxBlockNumPerBatch = 0; // PA场景的最大单batch block number

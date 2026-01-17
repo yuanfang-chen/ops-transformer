@@ -75,7 +75,7 @@ public:
     __aicore__ inline void ProcessAmlaNupdate(const RunInfo &info, const MSplitInfo &mSplitInfo);
     __aicore__ inline void ComputeLogSumExpAndCopyToGm(const RunInfo &info, const MSplitInfo &mSplitInfo,
                                                        LocalTensor<T> &softmaxSumUb, LocalTensor<T> &softmaxMaxUb);
-    __aicore__ inline void CopyFALseToGm(const RunInfo &info, const MSplitInfo &mSplitInfo, 
+    __aicore__ inline void CopyFALseToGm(const RunInfo &info, const MSplitInfo &mSplitInfo,
                                         LocalTensor<T> &softmaxSumUb, LocalTensor<T> &softmaxMaxUb);
     __aicore__ inline void SetBmm2FirstSInnerBias(const RunInfo &info, const MSplitInfo &mSplitInfo);
     // ================================Vecotr2==========================================
@@ -198,7 +198,7 @@ private:
 };
 
 // ============================== init ==============================================
-template <typename SAST> 
+template <typename SAST>
 __aicore__ inline void SWAVectorBlock<SAST>::InitBuffers(TPipe *pipe)
 {
     pipe->InitBuffer(inputBuff1, ConstInfo::BUFFER_SIZE_BYTE_32K * 2); // 2:pingpong
@@ -326,8 +326,8 @@ __aicore__ inline void SWAVectorBlock<SAST>::ProcessVec1L(const RunInfo &info)
         }
         // move lse for flash decode or FA
     }
-    
-    printf("process vec1 \n");
+
+    // printf("process vec1 \n");
 }
 
 // =======================vec2=============================
@@ -338,7 +338,7 @@ template <typename SAST> __aicore__ inline void SWAVectorBlock<SAST>::ProcessVec
     for (uint32_t i = 0; i < nBufferLoopTimes; i++) {
         CrossCoreWaitFlag(constInfo.syncC2V2);
     }
-    printf("process vec2 \n");
+    // printf("process vec2 \n");
 }
 
 
