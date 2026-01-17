@@ -175,11 +175,10 @@ __aicore__ inline void MoeGatingTopKGenerlized<T>::ComputeX()
         PipeBarrier<PIPE_V>();
     }
     if (normType_ == 1) { // sigmoid
-            LocalTensor<uint8_t> calcNormTmpTensor = calcTmpBuf_.Get<uint8_t>();
-            Sigmoid(xNormTensor, xInLocalTensor, calcNormTmpTensor, expertCountAlign_);
-            PipeBarrier<PIPE_V>();
-    }
-    else if (normType_ == 0) { // softmax
+        LocalTensor<uint8_t> calcNormTmpTensor = calcTmpBuf_.Get<uint8_t>();
+        Sigmoid(xNormTensor, xInLocalTensor, calcNormTmpTensor, expertCountAlign_);
+        PipeBarrier<PIPE_V>();
+    } else if (normType_ == 0) { // softmax
         LocalTensor<float> reduceValueTensor = calcTmpBuf_.Get<float>();
         LocalTensor<float> calcTmp = calcTmpBuf_.Get<float>()[BLOCK_BYTES];
         ReduceMax(reduceValueTensor, xInLocalTensor, calcTmp, expertCountAlign_);
@@ -204,7 +203,7 @@ __aicore__ inline void MoeGatingTopKGenerlized<T>::ComputeX()
         WaitFlag<HardEvent::S_V>(eventIdSToV);
         Muls(xNormTensor, xNormTensor, 1.0f / sumValue, expertCountAlign_);
         PipeBarrier<PIPE_V>();
-        }
+    }
     if (addBias_) {
         Add(xNormWithBiasTensor, xNormTensor, biasTensor, expertCountAlign_);
     } else {
@@ -282,7 +281,7 @@ __aicore__ inline void MoeGatingTopKGenerlized<T>::SelectTopKGroupIndex()
 
     uint64_t rsvdCnt = 0; // 用于保存筛选后保留下来的元素个数
     PipeBarrier<PIPE_V>();
-    if (groupSelectMode_ == 1) {              // top2 sum
+    if (groupSelectMode_ == 1) {                          // top2 sum
                                                           // 提取每组组前两个元素
         maskTensor.SetValue(0, static_cast<uint32_t>(5)); // b0101
         maskTensor.SetValue(1, static_cast<uint32_t>(0));
@@ -526,8 +525,8 @@ __aicore__ inline void MoeGatingTopKGenerlized<T>::SelectTopKExpertScore()
     PipeBarrier<PIPE_V>();
     Gather(yOutTensor, xNormTensor, topKExpertIdWithByte.template ReinterpretCast<uint32_t>(), static_cast<uint32_t>(0),
            k_);
-    bool needRenorm = (normType_ == 1 ) ||  // 情况1：sigmoid + renorm
-                      (normType_ == 0 && renorm_ == 1);   // 情况3：softmax + renorm
+    bool needRenorm = (normType_ == 1) ||               // 情况1：sigmoid + renorm
+                      (normType_ == 0 && renorm_ == 1); // 情况3：softmax + renorm
     if (needRenorm) {
         LocalTensor<float> maxValueTensor = calcTmpBuf_.Get<float>();
         LocalTensor<float> tmpTensor = calcTmpBuf_.Get<float>()[32];

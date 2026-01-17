@@ -129,7 +129,7 @@ __aicore__ inline void MoeGatingTopKWithoutGroup<T>::ComputeX()
         LocalTensor<uint8_t> calcNormTmpTensor = calcTmpBuf_.Get<uint8_t>();
         Sigmoid(xNormTensor, xInLocalTensor, calcNormTmpTensor, expertCount_);
         PipeBarrier<PIPE_V>();
-    } else if(normType_ == 0) { // softmax
+    } else if (normType_ == 0) { // softmax
         LocalTensor<float> reduceValueTensor = calcTmpBuf_.Get<float>();
         LocalTensor<float> calcTmp = calcTmpBuf_.Get<float>()[8];
         ReduceMax(reduceValueTensor, xInLocalTensor, calcTmp, expertCount_);
@@ -228,8 +228,8 @@ __aicore__ inline void MoeGatingTopKWithoutGroup<T>::SelectTopKExpertScore()
     PipeBarrier<PIPE_V>();
     Gather(yOutTensor, xNormTensor, topKExpertIdWithByte.template ReinterpretCast<uint32_t>(), static_cast<uint32_t>(0),
            k_);
-    bool needRenorm = (normType_ == 1 ) ||  // 情况1：sigmoid + renorm
-            (normType_ == 0 && renorm_ == 1);   // 情况3：softmax + renorm
+    bool needRenorm = (normType_ == 1) ||               // 情况1：sigmoid + renorm
+                      (normType_ == 0 && renorm_ == 1); // 情况3：softmax + renorm
     if (needRenorm == 1) {
         LocalTensor<float> maxValueTensor = calcTmpBuf_.Get<float>();
         LocalTensor<float> tmpTensor = calcTmpBuf_.Get<float>()[BLOCK_BYTES];
