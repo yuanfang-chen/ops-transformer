@@ -600,13 +600,13 @@ static ge::graphStatus TilingPrepareForKvQuantSparseAttnSharedkv(gert::TilingPar
 // --------------------------SparseAttnSharedkvTiling类成员函数定义-----------------------
 ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
 {
-    // if (opParamInfo_.cmpKv.tensor != nullptr) {
-    //     perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
-    // } else if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
-    //     perfMode_ = SASTemplateMode::CFA_TEMPLATE_MODE;
-    // } else {
-    //     perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
-    // }
+    if (tilingInfo->opParamInfo.cmpKv.tensor == nullptr) {
+        perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
+    } else if (tilingInfo->opParamInfo.cmpSparseIndices.tensor != nullptr) {
+        perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
+    } else {
+        perfMode_ = SASTemplateMode::CFA_TEMPLATE_MODE;
+    }
     // -------------set blockdim-----------------
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(tilingInfo->platformInfo);
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();

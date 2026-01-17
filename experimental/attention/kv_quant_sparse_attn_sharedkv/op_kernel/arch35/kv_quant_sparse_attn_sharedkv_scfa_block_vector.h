@@ -591,8 +591,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo)
 {
     outputL1.WaitCrossCore(); // 核间同步
-    bool isCmp = runInfo.s2LoopCount > runInfo.oriKvLoopEndIdx; // todo:判断条件确认开闭
-    isCmp = false;
+    bool isCmp = runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx;
     if (isCmp) {
         keyGm_ = cmpKVGm;
         blockTableGm_ = cmpBlockTableGm;
