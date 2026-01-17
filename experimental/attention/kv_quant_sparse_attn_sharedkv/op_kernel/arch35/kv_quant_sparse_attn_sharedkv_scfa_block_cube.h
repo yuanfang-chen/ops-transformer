@@ -271,7 +271,7 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm2SCFA(Buffer<Buff
     mm2ResL0C.Wait<HardEvent::FIX_M>(); // 占用
     MMParam param = {(uint32_t)s1BaseSize,          // singleM 64
                         (uint32_t)constInfo.dSizeV, // singleN 512
-                        (uint32_t)s2BaseSize,       // singleK 128
+                        (uint32_t)runInfo.s2RealSize, // singleK 128
                         0,    // isLeftTranspose    // todo: useDn?
                         0     // isRightTranspose
                     };

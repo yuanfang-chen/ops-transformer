@@ -85,7 +85,7 @@ public:
                                     int64_t realS2Idx2, const RunInfo &runInfo);
     __aicore__ inline void DequantKv(LocalTensor<Q_T> antiKvTensorAsB16, LocalTensor<KV_T> srcTensor, int64_t dealRow, int64_t s2ProcessBaseSize);
     __aicore__ inline void CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
-        LocalTensor<Q_T> antiKvTensorAsB16, int64_t v0Loop, int64_t dealRow, int64_t s2StartOffset);
+        LocalTensor<Q_T> antiKvTensorAsB16, int64_t v0Loop, int64_t dealRow, int64_t s2StartOffset, const RunInfo &runInfo);
     __aicore__ inline void CopyOutMrgeResult(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, int64_t mte2Size, int64_t mte3Size, int64_t s2StartGmOffset,
                                              int64_t mergeMte3Idx, const RunInfo &runInfo);
     __aicore__ inline void CopyInSingleKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx, int64_t realS2Idx,
@@ -459,14 +459,14 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::DequantKv(LocalTensor<Q_T> a
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
-    LocalTensor<Q_T> antiKvTensorAsB16, int64_t v0Loop, int64_t dealRow, int64_t s2StartOffset)
+    LocalTensor<Q_T> antiKvTensorAsB16, int64_t v0Loop, int64_t dealRow, int64_t s2StartOffset, const RunInfo &runInfo)
 {
     uint64_t blockElementNum = 16;
     DataCopyParams dataCopyParams;
     dataCopyParams.blockCount = (constInfo_.dSizeNope + constInfo_.dSizeRope) / blockElementNum;
     dataCopyParams.blockLen = dealRow;
     dataCopyParams.srcGap = 17 - dealRow; // 16 + 1
-    dataCopyParams.dstGap = constInfo_.s2BaseSize - dealRow;
+    dataCopyParams.dstGap = ((runInfo.s2RealSize + 15) >> 4 << 4) - dealRow;
 
     LocalTensor<Q_T> dst = outputL1.GetTensor<Q_T>();
     DataCopy(dst[s2StartOffset * blockElementNum], antiKvTensorAsB16, dataCopyParams);
@@ -533,7 +533,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessNotSparseKv(Buffer<Bu
         kvDequantOutUb = stage0OutQue.DeQue<Q_T>();
 
         // 3、copy kv out, ub -> l1
-        CopyOutKvUb2L1(outputL1, kvDequantOutUb, i, dealRow, s2StartOffset);
+        CopyOutKvUb2L1(outputL1, kvDequantOutUb, i, dealRow, s2StartOffset, runInfo);
         stage0OutQue.FreeTensor(kvDequantOutUb);
     }
 }
