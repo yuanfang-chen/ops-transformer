@@ -124,7 +124,7 @@ uint32_t LightningIndexerQuantMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
 {
     uint32_t s2Size = 0;
     if (actSeqLenKV_ == nullptr) {
-        s2Size = maxSeqlenK_;
+        s2Size = maxSeqlenK_ * cmpRatio_;
     } else {
         const int32_t *s2Ptr = (int32_t*)actSeqLenKV_->GetData();
         if (layoutKV_ == "TND") {
@@ -137,7 +137,6 @@ uint32_t LightningIndexerQuantMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
         } else {
             s2Size = static_cast<uint32_t>(s2Ptr[bIdx]);
         }
-        s2Size = s2Size/cmpRatio_;
     }
     return s2Size;
 }
@@ -263,10 +262,18 @@ Range<uint32_t> LightningIndexerQuantMetadataCpuKernel::CalcS2Range(
     s2FirstToken = Clip(s2FirstToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
     s2LastToken = Clip(s2LastToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
 
-    s2Start = static_cast<uint32_t>(s2FirstToken) / s2BaseSize_;
-    s2End = static_cast<uint32_t>(s2LastToken) / s2BaseSize_ + 1U; // end of block index, Right-open interval
+    uint32_t s2CmpLength = (s2LastToken - s2FirstToken + 1)/cmpRatio_;
+    if (s2CmpLength == 0) {
+        s2Start = 0U;
+        s2End = 0U;
+        return std::make_pair(s2Start, s2End);       
+    } else {
+        s2Start = 0U; //TODO:sparse mode =4 
+        s2End = (s2CmpLength + s2BaseSize_ - 1) / s2BaseSize_ + 1U; // end of block index, Right-open interval
+        return std::make_pair(s2Start, s2End);
+    }
 
-    return std::make_pair(s2Start, s2End);
+
 }
 
 void LightningIndexerQuantMetadataCpuKernel::CalcBatchCache(
