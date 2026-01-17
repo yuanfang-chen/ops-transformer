@@ -158,6 +158,7 @@ private:
     uint32_t copyExpertNum_{0};
     uint32_t constExpertNum_{0};
     uint32_t moeExpertNum_{0};
+    uint32_t moeExpertOriginalNum_{0};
     uint32_t globalBS_{0};
     __gm__ Mc2Kernel::HcclOpParam *epWinContext_{nullptr};
     __gm__ Mc2Kernel::HcclOpParam *tpWinContext_{nullptr};
@@ -351,6 +352,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitTilingAt
     copyExpertNum_ = tilingData->moeDistributeCombineV2Info.copyExpertNum;
     constExpertNum_ = tilingData->moeDistributeCombineV2Info.constExpertNum;
     moeExpertNum_ = tilingData->moeDistributeCombineV2Info.moeExpertNum;
+    moeExpertOriginalNum_ = tilingData->moeDistributeCombineV2Info.moeExpertNum;
     enableSpecialExpert_ = (constExpertNum_ + zeroExpertNum_ + copyExpertNum_ > 0U);
 }
 
@@ -566,8 +568,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::MaskSpecialE
     uint32_t calcCnt = Ceil(mask * sizeof(int32_t), ALIGNED_LEN_256) * ALIGNED_LEN_256 / sizeof(int32_t);
     Cast(expertIdsFloat, expertIdsTensor_, RoundMode::CAST_NONE, calcCnt);
     PipeBarrier<PIPE_V>();
-    int32_t tmpMoeExpertNum = static_cast<int32_t>(moeExpertNum_);
-    CompareScalar(maskTensor, expertIdsFloat, static_cast<float>(tmpMoeExpertNum), AscendC::CMPMODE::LT, calcCnt);
+    int32_t moeExpertNumInt32 = static_cast<int32_t>(moeExpertOriginalNum_);
+    CompareScalar(maskTensor, expertIdsFloat, static_cast<float>(moeExpertNumInt32), AscendC::CMPMODE::LT, calcCnt);
     PipeBarrier<PIPE_V>();    
     if (isInputExpertMaskFlag_) {
         Cast(maskCalcTensor, expertMaskTensor_.ReinterpretCast<uint8_t>(), RoundMode::CAST_NONE, calcCnt);
@@ -1148,17 +1150,17 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::LocalWindowC
             }
             scaleVal = expertScalesLocal_.GetValue(index);
 
-            if (expert_id < moeExpertNum_) {
+            if (expert_id < moeExpertOriginalNum_) {
                 ProcessMoeExpert(tokenIndexOffset, topkId, scaleVal);
                 index++;
-            } else if (expert_id < moeExpertNum_ + zeroExpertNum_) {
+            } else if (expert_id < moeExpertOriginalNum_ + zeroExpertNum_) {
                 // 零专家不需要任何操作
                 index++;
-            } else if (expert_id < moeExpertNum_ + zeroExpertNum_ + copyExpertNum_) {
+            } else if (expert_id < moeExpertOriginalNum_ + zeroExpertNum_ + copyExpertNum_) {
                 ProcessCopyExpert(tokenIndex, scaleVal);
                 index++;
-            } else if (expert_id < moeExpertNum_ + zeroExpertNum_ + copyExpertNum_ + constExpertNum_) {
-                uint32_t const_expert_idx = expert_id - (moeExpertNum_ + zeroExpertNum_ + copyExpertNum_);
+            } else if (expert_id < moeExpertOriginalNum_ + zeroExpertNum_ + copyExpertNum_ + constExpertNum_) {
+                uint32_t const_expert_idx = expert_id - (moeExpertOriginalNum_ + zeroExpertNum_ + copyExpertNum_);
                 ProcessConstantExpert(tokenIndex, const_expert_idx, scaleVal);
                 index++;
             }
