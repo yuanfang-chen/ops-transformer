@@ -37,7 +37,7 @@ TEST_PARAMS = {
         "cmp_ratio": [4],
         "ori_mask_mode": [4],
         "cmp_mask_mode": [3],
-        "ori_win_left": [128],
+        "ori_win_left": [127],
         "ori_win_right": [0]
 
         # decode首case
@@ -62,7 +62,7 @@ TEST_PARAMS = {
         # "cmp_ratio": [4],
         # "ori_mask_mode": [4],
         # "cmp_mask_mode": [3],
-        # "ori_win_left": [128],
+        # "ori_win_left": [127],
         # "ori_win_right": [0]
 
         # prefill首case
@@ -87,7 +87,7 @@ TEST_PARAMS = {
         # "cmp_ratio": [4],
         # "ori_mask_mode": [4],
         # "cmp_mask_mode": [3],
-        # "ori_win_left": [128],
+        # "ori_win_left": [127],
         # "ori_win_right": [0]
     }
 }
