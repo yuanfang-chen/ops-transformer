@@ -9,18 +9,18 @@
  */
  
 /*!
- * \file sparse_flash_attention_antiquant_metadata.h
+ * \file sparse_attn_sharedkv_metadata.h
  * \brief
  */
 
-#ifndef SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_H
-#define SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_H
+#ifndef SPARSE_ATTN_SHAREDKV_METADATA_H	 
+#define SPARSE_ATTN_SHAREDKV_METADATA_H
 
 #include <cstdint>
 
 namespace optiling {
-const uint32_t AIC_CORE_NUM = 24;
-const uint32_t AIV_CORE_NUM = 24 * 2;
+const uint32_t AIC_CORE_NUM = 36;
+const uint32_t AIV_CORE_NUM = 36 * 2;
 const uint32_t MAX_FD_NUM = AIC_CORE_NUM;
 constexpr uint32_t SAS_META_SIZE = 1024;
 using SAS_METADATA_T = int32_t;
