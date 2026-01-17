@@ -68,7 +68,7 @@ protected:
 private:
     bool needTransX2 = false;
     bool hasBias = false;
-    bool isQuant = false;
+    uint32_t quantType = TILINGKEY_TPL_NOQUANT;
     uint32_t biasDtype_ = 0;
     uint32_t rankSize = 0;
     uint32_t orgM = 0;

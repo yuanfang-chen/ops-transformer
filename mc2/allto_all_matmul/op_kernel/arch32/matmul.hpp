@@ -263,6 +263,7 @@ public:
                         blockSizeCoord, nextBlockSizeCoord, isFirstBlock, hasNextBlock);
                 }
             }
+            AscendC::PipeBarrier<PIPE_ALL>();
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(flagIdx);
         }
     }

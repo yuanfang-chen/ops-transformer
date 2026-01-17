@@ -20,6 +20,16 @@
 - 计算公式:
   假设x1输入shape为(BS, H)
 
+  - **量化场景：**
+  $$
+  commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+  permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+  output_{quant} = x1 @ x2 \\
+  output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+  output = output + bias
+  $$
+
+  - **伪量化场景：**
   $$
   commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
   permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -97,7 +107,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>x1</td>
     <td>输入</td>
     <td>融合算子的左矩阵输入，对应公式中的x1</td>
-    <td>该输入进行AlltoAll通信与Permute操作后结果作为MatMul计算的左矩阵输入</td>
+    <td>该输入进行AlltoAll通信与Permute操作后结果作为MatMul计算的左矩阵输入。若数据类型为int4，H仅支持偶数</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>2维, shape为(BS, H)</td>
@@ -107,7 +117,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>x2</td>
     <td>输入</td>
     <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵，对应公式中的x2</td>
-    <td>直接作为MatMul计算的右矩阵输入</td>
+    <td>作为MatMul计算的右矩阵输入。若数据类型为int4，N仅支持偶数</td>
     <td>INT8</td>
     <td>ND</td>
     <td>2维，shape为(H*rankSize, N)</td>
@@ -116,8 +126,8 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <tr>
     <td>biasOptional</td>
     <td>输入</td>
-    <td>可选输入，阵乘运算后累加的偏置，对应公式中的bias。</td>
-    <td></td>
+    <td>可选输入，矩阵乘运算后累加的偏置，对应公式中的bias。</td>
+    <td>-</td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
     <td>ND</td>
     <td>1维，shape为(N)</td>
@@ -127,11 +137,11 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>x1ScaleOptional</td>
     <td>输入</td>
     <td>可选输入，左矩阵的量化系数</td>
-    <td>预留参数，暂不支持输入静态的x1Scale</td>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
+    <td>当前仅A4W4时需要配置</td>
+    <td>FLOAT32</td>
+    <td>ND</td>
+    <td>1维，shape为(BS / rankSize,)</td>
+    <td>x</td>
     </tr>
     <tr>
     <td>x2Scale</td>
@@ -175,7 +185,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>alltoAllAxesOptional</td>
     <td>输入</td>
     <td>可选输入，AlltoAll和Pemute数据交换的方向</td>
-    <td>仅支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H)转为(BS / rankSize, rankSize * H)</td>
+    <td>仅支持配置空或者[-2, -1]，传入空时默认按[-2, -1]处理，表示将输入由(BS, H)转为(BS / rankSize, rankSize * H)</td>
     <td>aclIntArray*(元素类型INT64)</td>
     <td>ND</td>
     <td>1维，shape为(2)</td>
@@ -194,8 +204,8 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <tr>
     <td>x1QuantMode</td>
     <td>输入</td>
-    <td>量化Matmul左矩阵的量化方式</td>
-    <td>AlltoAll通信与Permute操作后的结果，按照该参数配置量化后作为MatMul计算的左矩阵输入，当前仅支持配置为3，表示PerToken动态量化</td>
+    <td>左矩阵的量化方式</td>
+    <td>当前仅支持配置为3，表示PerToken量化</td>
     <td>INT</td>
     <td>-</td>
     <td>-</td>
@@ -204,8 +214,8 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <tr>
     <td>x2QuantMode</td>
     <td>输入</td>
-    <td>左矩阵的量化方式</td>
-    <td>当前仅支持配置为2，表示PerChannel</td>
+    <td>右矩阵的量化方式</td>
+    <td>当前仅支持配置为2，表示PerChannel量化</td>
     <td>INT</td>
     <td>-</td>
     <td>-</td>
@@ -260,8 +270,8 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>配置为True时左矩阵Shape为(H, BS)，暂不支持配置为True</td>
     <td>bool</td>
     <td>ND</td>
-    <td></td>
-    <td></td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>transposeX2</td>
@@ -270,15 +280,15 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>配置为True时右矩阵Shape为(N, rankSize * H)</td>
     <td>bool</td>
     <td>ND</td>
-    <td></td>
-    <td></td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>output</td>
     <td>输入</td>
     <td>最终的计算结果</td>
-    <td>数据类型与输入x1保持一致</td>
-    <td>FLOAT16、BFLOAT16、FLOAT32</td>
+    <td>A16W8时数据类型与输入x1保持一致</td>
+    <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>2维，shape为(BS / rankSize, N)</td>
     <td>x</td>
@@ -287,8 +297,8 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>alltoAllOutOptional</td>
     <td>可选输出</td>
     <td>接收AlltoAll和Permute后的内容，数据类型与输入x1保持一致</td>
-    <td>传入nullptr时表示不输出通信输出</td>
-    <td>FLOAT16、BFLOAT16</td>
+    <td>传入nullptr时表示不输出通信输出。当前该参数必须传入与x1同类型的矩阵</td>
+    <td>FLOAT16、BFLOAT16、INT4</td>
     <td>ND</td>
     <td>2维，shape为(BS / rankSize, rankSize * H)</td>
     <td>x</td>
@@ -297,11 +307,11 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>executor</td>
     <td>输出</td>
     <td>返回op执行器，包含了算子的计算流程。</td>
-    <td></td>
+    <td>-</td>
     <td>aclOpExecutor*</td>
     <td>ND</td>
-    <td></td>
-    <td></td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     </tbody></table>
 
@@ -382,9 +392,28 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 
 ## 约束说明
 
-* 默认支持确定性计算
-* 参数说明中shape使用的变量BS必须整除rankSize
-* x1、output、alltoAllOutOptional的数据类型必须一致
+* 默认支持确定性计算。
+* <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持2、4、8卡。
+* 参数说明中shape使用的变量BS必须整除rankSize。
+* 类型约束：
+    * x1、alltoAllOutOptional的数据类型必须一致
+    * A16W8时，x1、x2、biasOptional和output支持的数据类型组合有：
+        | x1 | x2 | biasOptional | output |
+        | :------: | :------: | :------: | :------: |
+        | FLOAT16 | INT8 | FLOAT16 | FLOAT16 |
+        | FLOAT16 | INT8 | FLOAT32 | FLOAT16 |
+        | BFLOAT16 | INT8 | BFLOAT16 | BFLOAT16 |
+        | BFLOAT16 | INT8 | FLOAT32 | BFLOAT16 |
+    * A4W4时，x1、x2、biasOptional和output支持的数据类型组合有：
+        | x1 | x2 | biasOptional | output |
+        | :------: | :------: | :------: | :------: |
+        | INT4 | INT4 | FLOAT16 | FLOAT16 |
+        | INT4 | INT4 | FLOAT32 | FLOAT16 |
+        | INT4 | INT4 | BFLOAT16 | BFLOAT16 |
+        | INT4 | INT4 | FLOAT32 | BFLOAT16 |
+* 维度约束：
+    * A16W8时，rankSize * H必须整除32；rankSize * H取值范围：[32, 6144]
+    * A4W4时，H与N必须为偶数；rankSize * H取值范围：[4, 45000]
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
@@ -404,9 +433,9 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 #include <vector>
 #include <acl/acl.h>
 #include <hccl/hccl.h>
-#include "../op_api/aclnn_allto_all_quant_matmul.h"
+#include "aclnnop/aclnn_allto_all_quant_matmul.h"
 
-int ndev = 8;
+int ndev = 2;
 
 #define CHECK_RET(cond, return_expr) \
 do {                               \
@@ -472,7 +501,7 @@ int launchOneThreadAlltoAllQuantMatmul(Args &args)
     std::vector<int64_t> biasShape = {128};
     std::vector<int64_t> x2ScaleShape = {128};
     std::vector<int64_t> outShape = {32 / ndev, 128};
-    std::vector<int64_t> allToAllOutShape = {16, 64 * ndev};
+    std::vector<int64_t> allToAllOutShape = {32 / ndev, 64 * ndev};
     void *x1DeviceAddr = nullptr;
     void *x2DeviceAddr = nullptr;
     void *biasDeviceAddr = nullptr;
@@ -484,9 +513,9 @@ int launchOneThreadAlltoAllQuantMatmul(Args &args)
     aclTensor *bias = nullptr;
     aclTensor *x1ScaleOptional = nullptr;
     aclTensor *x2Scale = nullptr;
-    aclTensor* commScaleOptional = nullptr,
-    aclTensor* x1OffsetOptional = nullptr,
-    aclTensor* x2OffsetOptional = nullptr,
+    aclTensor* commScaleOptional = nullptr;
+    aclTensor* x1OffsetOptional = nullptr;
+    aclTensor* x2OffsetOptional = nullptr;
     aclTensor *out = nullptr;
     aclTensor *allToAllOut = nullptr;
 

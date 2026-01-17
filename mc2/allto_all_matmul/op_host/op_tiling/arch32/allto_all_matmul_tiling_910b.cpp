@@ -80,7 +80,12 @@ const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITH_BIAS = {
     {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
     {ge::DT_BF16, ge::DT_INT8, ge::DT_FLOAT, ge::DT_BF16},
     {ge::DT_BF16, ge::DT_INT8, ge::DT_BF16, ge::DT_BF16},
-    {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16, ge::DT_FLOAT16}
+    {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT, ge::DT_FLOAT16},
+    {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16, ge::DT_FLOAT16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT, ge::DT_BF16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_BF16, ge::DT_BF16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT, ge::DT_FLOAT16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT16, ge::DT_FLOAT16}
 };
 const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
     {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16},
@@ -420,17 +425,33 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
     ge::DataType yDtype = yDesc->GetDataType();
     auto biasTensorDesc = context_->GetOptionalInputDesc(INPUT_BIAS_INDEX);
 
+    auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
+    auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
+    // 校验 scale 张量，量化模式
     if (x2Dtype == ge::DT_INT8) {
-        // 校验 scale 张量不为空，量化模式
-        auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
-        auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
         OP_TILING_CHECK((x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
                         OP_LOGE(opName_, "x2Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
-        isQuant = true;
+        quantType = TILINGKEY_TPL_A16W8;
+    }
+    if (x2Dtype == ge::DT_INT4) {  // A4W4检测
+        OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x1Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
+        ge::DataType x1ScaleDtype = x1ScaleTensorDesc->GetDataType();
+        OP_TILING_CHECK(x1ScaleDtype != ge::DT_FLOAT,
+                        OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
+                        return ge::GRAPH_FAILED);
+        
+        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x2Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
+        ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
+        OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
+                        OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
+                        return ge::GRAPH_FAILED);
+        quantType = TILINGKEY_TPL_A4W4;
     }
 
     // 校验 bias 数据类型（如果存在）
@@ -439,7 +460,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
         ge::DataType biasDtype = biasTensorDesc->GetDataType();
         vector<uint32_t> paramsType = {x1Dtype, x2Dtype, biasDtype, yDtype};
 
-        if (isQuant) {  // 仅在quant时，才需要区分bias的类别；如果非quant模式，还设置该变量，那么非quant模式的tilingkey的数量会翻3倍
+        if (quantType != TILINGKEY_TPL_NOQUANT) {  // 仅在quant时，才需要区分bias的类别；如果非quant模式，还设置该变量，那么非quant模式的tilingkey的数量会翻3倍
             if (biasDtype == ge::DT_FLOAT16) {
                 biasDtype_ = TILINGKEY_TPL_FP16;
             } else if (biasDtype == ge::DT_BF16) {
@@ -513,18 +534,47 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     if (status != ge::GRAPH_SUCCESS)
         return status;
 
-    // 校验量化场景中scale的shape信息
+    // INT4计算时，需要额外验证维度为偶数
     auto x1TensorDesc = context_->GetInputDesc(INPUT_X1_INDEX);
     ge::DataType x1Dtype = x1TensorDesc->GetDataType();
     info.M = x1Shape->GetStorageShape().GetDim(0);
     info.K = x1Shape->GetStorageShape().GetDim(1);
     uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(0);
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
-    info.N = (info.K * info.rankSize == x2Dim1) ? x2Dim0 : x2Dim1;
-    if (isQuant) {
-        orgM = info.M;
-        orgN = info.N;
-        orgK = info.K;
+    bool isTrans = info.K * info.rankSize == x2Dim1;
+    info.N = isTrans ? x2Dim0 : x2Dim1;
+
+    if (quantType == TILINGKEY_TPL_A4W4) {
+        OP_TILING_CHECK((info.K % 2 == 1), 
+                        OP_LOGE(opName_, "The x1 second dim should be an even number, but it is %lu.", info.K),
+                        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((info.N % 2 == 1), 
+                        OP_LOGE(opName_, "The x2 %s dim should be an even number, but it is %lu.",
+                        isTrans ? "first" : "second",
+                        info.N),
+                        return ge::GRAPH_FAILED);
+    }
+
+    // 校验量化场景中scale的shape信息
+    orgM = info.M;
+    orgN = info.N;
+    orgK = info.K;
+    if (quantType == TILINGKEY_TPL_A16W8) {
+        const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
+        uint64_t x2ScaleShapeDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
+        uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(0);
+        OP_TILING_CHECK((x2ScaleDim0 != info.N),
+                        OP_LOGE(opName_, "The x2Scale dimNum0 should be %u, but actual value is %lu.", info.N, x2ScaleDim0),
+                        return ge::GRAPH_FAILED);
+    }
+    if (quantType == TILINGKEY_TPL_A4W4) {
+        const gert::StorageShape *x1ScaleShape = context_->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
+        uint64_t x1ScaleShapeDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
+        uint64_t x1ScaleDim0 = x1ScaleShape->GetStorageShape().GetDim(0);
+        OP_TILING_CHECK((x1ScaleDim0 != info.M / info.rankSize),  // ALLTOALL后，m轴缩小为原来的1/rankSize
+                        OP_LOGE(opName_, "The x1Scale dimNum0 should be %u, but actual value is %lu.", info.M / info.rankSize, x1ScaleDim0),
+                        return ge::GRAPH_FAILED);
+
         const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
         uint64_t x2ScaleShapeDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(0);
@@ -714,7 +764,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
  */
 uint64_t AlltoAllMatmulTiling910b::GetTilingKey() const
 {
-    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, isQuant, needTransX2, biasDtype_);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, needTransX2, quantType, biasDtype_);
     OP_LOGD(opName_, "TilingKey is [%lu] in AllToAllMatmul.", tilingKey);
     return tilingKey;
 }
@@ -765,13 +815,19 @@ void AlltoAllMatmulTiling910b::CalcQuantTokenNumPerUb(const CoCTiling &cocTiling
 }
 
 void AlltoAllMatmulTiling910b::CalcQuantWorkspaceSize(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info) {
-    CalcQuantTokenNumPerUb(cocTilingData, info);
-    uint32_t numPerRankM = cocTilingData.m0 * cocTilingData.pValue;
-    uint32_t midOutputKSize = orgK * rankSize;
-    info.quantSize = numPerRankM * midOutputKSize * MAX_BLOCK_COUNT;  // int8类型的A需要占用的空间大小
-    info.quantScaleSize = Block32B<float>::AlignUp(orgM) * sizeof(float) / rankSize;  // A反量化参数所需要的空间大小
-    info.dequantSize = orgM * orgN * sizeof(int32_t);
-    quantWorkspaceSize = info.quantSize + info.quantScaleSize + info.dequantSize;
+    info.dequantSize = orgM * orgN * sizeof(int32_t);  // 量化则需要空间存放中间结果
+    if (quantType == TILINGKEY_TPL_A16W8) {
+        CalcQuantTokenNumPerUb(cocTilingData, info);
+        uint32_t numPerRankM = cocTilingData.m0 * cocTilingData.pValue;
+        uint32_t midOutputKSize = orgK * rankSize;
+        info.quantSize = numPerRankM * midOutputKSize * MAX_BLOCK_COUNT;  // int8类型的A需要占用的空间大小
+        info.quantScaleSize = Block32B<float>::AlignUp(orgM) * sizeof(float) / rankSize;  // A反量化参数所需要的空间大小
+
+        quantWorkspaceSize = info.quantSize + info.quantScaleSize + info.dequantSize;
+    }
+    if (quantType == TILINGKEY_TPL_A4W4) {
+        quantWorkspaceSize = info.dequantSize;
+    }
 }
 
 /**
@@ -784,7 +840,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Get workspace failed"), return ge::GRAPH_FAILED);
     size_t wsSize = SYSTEM_NEED_WORKSPACE;
-    if (isQuant) {
+    if (quantType != TILINGKEY_TPL_NOQUANT) {  // int4不必加这个
         wsSize += quantWorkspaceSize;
     }
     workspaces[0] = wsSize;

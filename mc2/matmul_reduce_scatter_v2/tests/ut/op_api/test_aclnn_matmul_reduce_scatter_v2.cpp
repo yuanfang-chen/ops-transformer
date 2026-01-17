@@ -22,9 +22,8 @@ namespace {
 
 class MatmulReduceScatterV2AclnnTest : public testing::Test {
 protected:
-    static void SetUpTestCase()
-    {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+    static void SetUpTestCase()	{
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "MatmulReduceScatterV2AclnnTest SetUp" << endl;
     }
     static void TearDownTestCase()

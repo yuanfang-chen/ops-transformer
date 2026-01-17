@@ -238,12 +238,12 @@ static bool ReFormatNotND(const aclTensor* x1, const aclTensor* x2, const aclTen
 
 // 根据API定义，列出allto_all_quant_matmul非量化输入X1所能支持的所有dtype
 static const std::initializer_list<op::DataType> X1_DTYPE_SUPPORT_LIST = {
-    op::DataType::DT_FLOAT16, op::DataType::DT_BF16
+    op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_INT4
 };
 
 // 根据API定义，列出allto_all_quant_matmul非量化输入X2所能支持的所有dtype
 static const std::initializer_list<op::DataType> X2_DTYPE_SUPPORT_LIST = {
-    op::DataType::DT_INT8
+    op::DataType::DT_INT8, op::DataType::DT_INT4
 };
 
 // 根据API定义，列出allto_all_quant_matmul非量化输入X2SCALE所能支持的所有dtype
@@ -263,15 +263,6 @@ static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const 
     OP_CHECK_DTYPE_NOT_SUPPORT(x2, X2_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(x2Scale, X2SCALE_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(output, OUTPUT_DTYPE_SUPPORT_LIST, return false);
-    OP_CHECK_DTYPE_NOT_SAME(x1, output, return false);
-    if (biasOptional != nullptr) {
-        if (biasOptional->GetDataType() != op::DataType::DT_FLOAT && biasOptional->GetDataType() != x1->GetDataType()) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnAlltoAllQuantMatmul, biasOptional dtype should be x1Dtype, but it is %s .",
-                op::ToString(biasOptional->GetDataType()).GetString());
-            return false;
-        }
-    }
     OP_CHECK_DTYPE_NOT_SUPPORT(alltoAllOutOptional, X1_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SAME(x1, alltoAllOutOptional, return false);
     return true;
@@ -346,14 +337,14 @@ extern "C" aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(const aclTensor*
     const aclTensor* biasOptional, const aclTensor* x1ScaleOptional, const aclTensor* x2Scale, const aclTensor* commScaleOptional,
     const aclTensor* x1OffsetOptional, const aclTensor* x2OffsetOptional, const char* group, const aclIntArray* alltoAllAxesOptional,
     int64_t x1QuantMode, int64_t x2QuantMode, int64_t commQuantMode, int64_t commQuantDtype, int64_t x1QuantDtype, int64_t groupSize,
-    bool transposeX1, bool transposeX2, const aclTensor* output, const aclTensor* all2AllOutOptional, uint64_t* workspaceSize, aclOpExecutor** executor)
+    bool transposeX1, bool transposeX2, const aclTensor* output, const aclTensor* alltoAllOutOptional, uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, x2Scale, alltoAllAxesOptional, group, transposeX1, output, all2AllOutOptional);
+    aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, x2Scale, alltoAllAxesOptional, group, transposeX1, output, alltoAllOutOptional);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     aclnnStatus ret = InnerAlltoAllQuantMatmulGetWorkspaceSize(
         x1, x2, biasOptional, x1ScaleOptional, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
         x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, x1QuantDtype, groupSize,
-        transposeX1, transposeX2, output, all2AllOutOptional, workspaceSize, executor);
+        transposeX1, transposeX2, output, alltoAllOutOptional, workspaceSize, executor);
     OP_LOGD("AlltoAllQuantMatmul, end ret %d", ret);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER,

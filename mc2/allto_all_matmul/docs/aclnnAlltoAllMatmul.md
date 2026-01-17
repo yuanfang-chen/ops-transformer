@@ -97,7 +97,7 @@ aclnnStatus aclnnAlltoAllMatmul(
     <tr>
     <td>biasOptional</td>
     <td>可选输入</td>
-    <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
+    <td>矩阵乘运算后累加的偏置，对应公式中的bias。</td>
     <td></td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
     <td>ND</td>
@@ -284,7 +284,7 @@ aclnnStatus aclnnAlltoAllMatmul(
 #include <vector>
 #include <acl/acl.h>
 #include <hccl/hccl.h>
-#include "../op_api/aclnn_allto_all_matmul.h"
+#include "aclnnop/aclnn_allto_all_matmul.h"
 
 int ndev = 2;
 
@@ -351,17 +351,17 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     std::vector<int64_t> x2Shape = {64 * ndev, 128};
     std::vector<int64_t> biasShape = {128};
     std::vector<int64_t> outShape = {32 / ndev, 128};
-    std::vector<int64_t> allToAllOutShape = {16, 64 * ndev};
+    std::vector<int64_t> alltoalloutShape = {32 / ndev, 64 * ndev};
     void *x1DeviceAddr = nullptr;
     void *x2DeviceAddr = nullptr;
     void *biasDeviceAddr = nullptr;
     void *outDeviceAddr = nullptr;
-    void *allToAllOutDeviceAddr = nullptr;
+    void *alltoalloutDeviceAddr = nullptr;
     aclTensor *x1 = nullptr;
     aclTensor *x2 = nullptr;
     aclTensor *bias = nullptr;
     aclTensor *out = nullptr;
-    aclTensor *allToAllOut = nullptr;
+    aclTensor *alltoallout = nullptr;
 
     int64_t a2aAxes[2] = {-2, -1};
     aclIntArray* alltoAllAxesOptional = aclCreateIntArray(a2aAxes, static_cast<uint64_t>(2));
@@ -373,12 +373,12 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     long long x2ShapeSize = GetShapeSize(x2Shape);
     long long biasShapeSize = GetShapeSize(biasShape);
     long long outShapeSize = GetShapeSize(outShape);
-    long long allToAllOutShapeSize = GetShapeSize(allToAllOutShape);
+    long long alltoalloutShapeSize = GetShapeSize(alltoalloutShape);
     std::vector<int16_t> x1HostData(x1ShapeSize, 1);
     std::vector<int16_t> x2HostData(x2ShapeSize, 1);
     std::vector<int16_t> biasHostData(biasShapeSize, 1);
     std::vector<int16_t> outHostData(outShapeSize, 0);
-    std::vector<int16_t> allToAllOutHostData(allToAllOutShapeSize, 0);
+    std::vector<int16_t> alltoalloutHostData(alltoalloutShapeSize, 0);
     // 创建 tensor
     ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_FLOAT16, &x1);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -388,11 +388,11 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_FLOAT16, &out);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(allToAllOutHostData, allToAllOutShape, &allToAllOutDeviceAddr, aclDataType::ACL_FLOAT16, &allToAllOut);
+    ret = CreateAclTensor(alltoalloutHostData, alltoalloutShape, &alltoalloutDeviceAddr, aclDataType::ACL_FLOAT16, &alltoallout);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 调用第一段接口
     ret = aclnnAlltoAllMatmulGetWorkspaceSize(x1, x2, bias, alltoAllAxesOptional, hcom_name, false, false,
-                                            out, allToAllOut, &workspaceSize, &executor);
+                                            out, alltoallout, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,
             LOG_PRINT("aclnnAlltoAllMatmulGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     // 根据第一段接口计算出的workspaceSize申请device内存
@@ -406,7 +406,7 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     //（固定写法）同步等待任务执行结束
     ret = aclrtSynchronizeStreamWithTimeout(args.stream, 10000);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
-    LOG_PRINT("device%d aclnnMatmulAlltoAll execute success \n", args.rankId);
+    LOG_PRINT("device%d aclnnAlltoAllMatmul execute success \n", args.rankId);
     // 释放device资源，需要根据具体API的接口定义修改
     if (x1 != nullptr) {
         aclDestroyTensor(x1);
@@ -420,8 +420,8 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     if (out != nullptr) {
         aclDestroyTensor(out);
     }
-    if (allToAllOut != nullptr) {
-        aclDestroyTensor(allToAllOut);
+    if (alltoallout != nullptr) {
+        aclDestroyTensor(alltoallout);
     }
     if (x1DeviceAddr != nullptr) {
         aclrtFree(x1DeviceAddr);
@@ -434,6 +434,9 @@ int launchOneThreadAlltoAllMatmul(Args &args)
     }
     if (outDeviceAddr != nullptr) {
         aclrtFree(outDeviceAddr);
+    }
+    if (alltoalloutDeviceAddr != nullptr) {
+        aclrtFree(alltoalloutDeviceAddr);
     }
     if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);

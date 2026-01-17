@@ -17,6 +17,7 @@
 #define ALL_TO_ALL_MATMUL_UTIL
 
 #include "allto_all_matmul_tiling.h"
+#include "../../3rd/template_linear_algebra/include/template_linear_algebra/numeric_size.hpp"
 #include <cstdint>
 
 using namespace AscendC;
@@ -28,7 +29,7 @@ constexpr static int32_t FLAG_ZERO_IDX = 0;
 constexpr static int32_t FLAG_ONE_IDX = 1;
 constexpr static int32_t USED_UB_SIZE = 160 * 1024;
 constexpr static int32_t FLAG_OFFSET = 180 * 1024 * 1024 / sizeof(int32_t);
-constexpr static uint32_t UB_OFFSET = 97440;  // 根据类型变动这个值   / sizeof(int16_t)
+constexpr static uint32_t UB_OFFSET = 97440;  // 根据类型变动这个值
 constexpr static uint32_t BLOCK_ALIGN_BYTES = 32U;
 constexpr static uint32_t BLOCK_NUM_OF_UB_OFFSET = UB_OFFSET / BLOCK_ALIGN_BYTES;
 constexpr static float MAX_INT8 = 127.0f;
@@ -36,7 +37,7 @@ constexpr static float MAX_INT8 = 127.0f;
 template <typename T, size_t SIZE>
 struct BaseBlock {
     static_assert((SIZE & (SIZE - 1)) == 0, "Invalid block size");
-    static constexpr size_t size = SIZE / sizeof(T);
+    static constexpr size_t size = Catlass::BytesToBits(SIZE) / Catlass::SizeOfBits<T>::value;
 
     static __aicore__ inline size_t Count(size_t len)
     {
@@ -190,15 +191,14 @@ public:
         CopyUbufToGmAlignB16(buff, ubTensor, 1, sizeof(int32_t), 0, 0);
     }
 
-    template <typename T>
-    __aicore__ inline void MoveResultFromSrcToPeerMem(__gm__ T *gmSrc, __gm__ T *gmDst, int32_t tokenNum)
+    __aicore__ inline void CopyTokensFromGMToGM(__gm__ int8_t *gmSrc, __gm__ int8_t *gmDst, uint32_t copyBytes, uint32_t srcKBytes, uint32_t dstKBytes)
     {
-        LocalTensor<T> ubTensor = uBuf_.AllocTensor<T>();
-        LocalTensor<T> copyTensor0 = ubTensor;
-        LocalTensor<T> copyTensor1 = ubTensor[ub_offset];
+        LocalTensor<int8_t> ubTensor = uBuf_.AllocTensor<int8_t>();
+        LocalTensor<int8_t> copyTensor0 = ubTensor;
+        LocalTensor<int8_t> copyTensor1 = ubTensor[ub_offset];
 
-        constexpr uint32_t elemPerUbBlock = BLOCK_ALIGN_BYTES / sizeof(T);
-        uint32_t blockPerToken = DivCeil(k, elemPerUbBlock);  // 每个token占用多少格子
+        uint32_t tokenNum = copyBytes / srcKBytes;
+        uint32_t blockPerToken = DivCeil(srcKBytes, BLOCK_ALIGN_BYTES);  // 每个token占用多少格子
         uint32_t copyTokenPerTime = BLOCK_NUM_OF_UB_OFFSET / blockPerToken;  // 一次搬运多少token
         uint32_t copyTimes = DivCeil(tokenNum, copyTokenPerTime);
         uint32_t actualCopyTokenPerTime = copyTokenPerTime;
@@ -210,53 +210,19 @@ public:
                 actualCopyTokenPerTime = tokenNum - (copyTimes - 1) * copyTokenPerTime;
             }
             auto eventId = (copyIdx & 1) ? EVENT_ID0 : EVENT_ID1;
-            LocalTensor<T> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
+            LocalTensor<int8_t> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
             WaitFlag<HardEvent::MTE3_MTE2>(eventId);
-            CopyGmToUbufAlignB16(copyTensor, gmSrc, actualCopyTokenPerTime, k * sizeof(T), 0, 0);
+            CopyGmToUbufAlignB16(copyTensor, gmSrc, actualCopyTokenPerTime, srcKBytes, 0, 0);
             SetFlag<HardEvent::MTE2_MTE3>(eventId);
             WaitFlag<HardEvent::MTE2_MTE3>(eventId);
-            CopyUbufToGmAlignB16(gmDst, copyTensor, actualCopyTokenPerTime, k * sizeof(T), 0, (rankSize - 1) * k * sizeof(T));
-            gmDst += tokenSize * actualCopyTokenPerTime;
-            gmSrc += k * actualCopyTokenPerTime;
+            CopyUbufToGmAlignB16(gmDst, copyTensor, actualCopyTokenPerTime, srcKBytes, 0, dstKBytes - srcKBytes);
+            gmDst += dstKBytes * actualCopyTokenPerTime;  // int_8占用一个字节，可直接作为地址偏移
+            gmSrc += srcKBytes * actualCopyTokenPerTime;
             SetFlag<HardEvent::MTE3_MTE2>(eventId);
         }
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-        uBuf_.FreeTensor<T>(ubTensor);
-    }
-
-    template <typename T>
-    __aicore__ inline void MoveResultFromPeerMemToOutput(__gm__ T *gmSrc, __gm__ T *gmDst, int32_t tokenNum)
-    {
-        LocalTensor<T> ubTensor = uBuf_.AllocTensor<T>();
-        LocalTensor<T> copyTensor0 = ubTensor;
-        LocalTensor<T> copyTensor1 = ubTensor[ub_offset];
-
-        constexpr uint32_t elemPerUbBlock = BLOCK_ALIGN_BYTES / sizeof(T);
-        uint32_t blockPerToken = DivCeil(tokenSize, elemPerUbBlock);  // 每个token占用多少格子
-        uint32_t copyTokenPerTime = BLOCK_NUM_OF_UB_OFFSET / blockPerToken;  // 一次搬运多少token
-        uint32_t copyTimes = DivCeil(tokenNum, copyTokenPerTime);
-        uint32_t actualCopyTokenPerTime = copyTokenPerTime;
-
-        SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-        SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-        for (int32_t copyIdx = 0; copyIdx < copyTimes; ++copyIdx) {
-            if (copyIdx == copyTimes - 1) {  // 最后一次可能不为copyTokenPerTime
-                actualCopyTokenPerTime = tokenNum - (copyTimes - 1) * copyTokenPerTime;
-            }
-            auto eventId = (copyIdx & 1) ? EVENT_ID0 : EVENT_ID1;
-            LocalTensor<T> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
-            WaitFlag<HardEvent::MTE3_MTE2>(eventId);
-            CopyGmToUbufAlignB16(copyTensor, gmSrc, actualCopyTokenPerTime, tokenSize * sizeof(T), 0, 0);
-            SetFlag<HardEvent::MTE2_MTE3>(eventId);
-            WaitFlag<HardEvent::MTE2_MTE3>(eventId);
-            CopyUbufToGmAlignB16(gmDst, copyTensor, actualCopyTokenPerTime, tokenSize * sizeof(T), 0, 0);
-            gmDst += tokenSize * actualCopyTokenPerTime;
-            gmSrc += tokenSize * actualCopyTokenPerTime;
-            SetFlag<HardEvent::MTE3_MTE2>(eventId);
-        }
-        WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-        WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
+        uBuf_.FreeTensor<int8_t>(ubTensor);
     }
 
     __aicore__ inline void ResetIpcFlags(int32_t flagNum)
@@ -317,6 +283,8 @@ public:
     uint32_t m;
     uint32_t k;
     uint32_t n;
+    uint32_t kBytes;
+    uint32_t tokenBytes;
     uint64_t quantSize;
     uint64_t dequantSize;
     uint64_t quantScaleSize;
