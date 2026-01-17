@@ -55,7 +55,7 @@ class GeneralizedSFA:
         self.ori_win_right = ori_win_right
 
     def calulate_by_bnsd(self, q_bnsd, ori_k_bnsd, cmp_k_bnsd, cmp_sparse_indices_bnsd, cu_seqlens_q, seqused_kv, sinks):
-        attn_out = torch.zeros(q_bnsd.shape, dtype=torch.float)
+        attn_out = torch.zeros(q_bnsd.shape, dtype=q_bnsd.dtype)
         B = q_bnsd.shape[0]
         act_q = prefix_sum_to_original(cu_seqlens_q)
         G = int(self.N1 / self.N2)
@@ -88,7 +88,7 @@ class GeneralizedSFA:
                     if self.ori_mask_mode == 4:
                         ori_threshold = cur_ori_act_kv - cur_act_q + i_S1 + 1
                         ori_win_end = ori_threshold + self.ori_win_right
-                        ori_win_start = max(ori_threshold - self.ori_win_left, 0)
+                        ori_win_start = max(ori_threshold - self.ori_win_left - 1, 0)
 
                     cur_ori_k_bnsd = ori_k_bnsd[i_B, i_N2, ori_win_start:ori_win_end, :]
                     if empty_flag:
@@ -104,14 +104,14 @@ class GeneralizedSFA:
                     mm1_res = torch.matmul(q_curr_fp32, k_concat_fp32.T)
                     scale_res = mm1_res * self.softmax_scale
                     softmax_res = self.sinks_softmax(scale_res, cur_sinks_expand)
-                    mm2_res = torch.matmul(softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float), v_concat_fp32)
+                    mm2_res = torch.matmul(softmax_res, v_concat_fp32)
                     # mm1_res降精度引入误差，以输入全1、ori_s2=128、cmp_s2=32、s1=1、scale_value=0.01为例
                     # softmax之后  1/(160+math.exp(1-5.12)) = 0.006249365513072936
                     # mm2之后 0.006249365513072936*160 = 0.9998984820916699
                     # 实际softmax之后转bf16为 0.006256103515625
                     # 最终结果 0.006256103515625*160 = 1.0009765625
                     # import pdb; pdb.set_trace()
-                    attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = mm2_res
+                    attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = mm2_res.to(dtype=q_bnsd.dtype)
         # import pdb; pdb.set_trace()
         return attn_out
 
