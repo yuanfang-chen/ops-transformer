@@ -44,7 +44,7 @@ public:
 
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
                                        __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
-                                       __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
+                                       __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData *metadata,
                                        __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
                                        const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
                                        __gm__ uint8_t *gmTiling, TPipe *tPipe);
@@ -53,7 +53,7 @@ private:
     __aicore__ inline void ProcessMainLoop();
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-        __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata, __gm__ uint8_t *workspace,
+        __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData& metadata, __gm__ uint8_t *workspace,
         const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitMMResBuf();
@@ -90,6 +90,7 @@ private:
     using keyGmType = typename std::conditional<TEMPLATE_MODE == SASTemplateMode::SWA_TEMPLATE_MODE, int8_t, GlobalTensor<KV_T>>::type;
     GlobalTensor<KV_T> oriKeyGm; // kv不连续场景需要使用来获取shape
     keyGmType cmpKeyGm; // kv不连续场景需要使用来获取shape
+    FlashDecodeResult fdRes;
     SasMetaData metadataLocal;
     __gm__ int32_t *actualSeqQlenAddr;
     __gm__ int32_t *actualSeqKvlenAddr;
@@ -108,7 +109,7 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Init(
     __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
     __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
-    __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
+    __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData *metadata,
     __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
     const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
     __gm__ uint8_t *gmTiling, TPipe *tPipe)
@@ -123,15 +124,37 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         this->tilingData = tiling;
     }
     if (metadata != nullptr) {
-        // metadataLocal = *(__gm__ SasMetaData *)metadata;
+        metadataLocal.usedCoreNum = metadata->usedCoreNum;
+        metadataLocal.mBaseSize = metadata->mBaseSize;
+        metadataLocal.s2BaseSize = metadata->s2BaseSize;
+        for (uint32_t i = 0; i < AIC_CORE_NUM; ++i) {
+            metadataLocal.bN2End[i] = metadata->bN2End[i];
+            metadataLocal.mEnd[i] = metadata->mEnd[i];
+            metadataLocal.s2End[i] = metadata->s2End[i];
+            metadataLocal.headFdDataIdx[i] = metadata->headFdDataIdx[i];
+        }
+        metadataLocal.fdRes = this->fdRes;
+        metadataLocal.fdRes.fdNum = metadata->fdRes.fdNum;
+        for (uint32_t i = 0; i < MAX_FD_NUM; ++i) {
+            metadataLocal.fdRes.fdBN2Idx[i] = metadata->fdRes.fdBN2Idx[i];
+            metadataLocal.fdRes.fdMIdx[i] = metadata->fdRes.fdMIdx[i];
+            metadataLocal.fdRes.fdS2SplitNum[i] = metadata->fdRes.fdS2SplitNum[i];
+        }
+
+        const uint32_t *bN2End = metadataLocal.bN2End;
+        const uint32_t *mEnd = metadataLocal.mEnd;
+        const uint32_t *s2End = metadataLocal.s2End;
+
+        constInfo.s1BaseSize = metadataLocal.mBaseSize;
+        constInfo.s2BaseSize = metadataLocal.s2BaseSize;
     }
-    metadataLocal.usedCoreNum = 1;
-    metadataLocal.mBaseSize = 64;
-    metadataLocal.s2BaseSize = 128;
-    metadataLocal.bN2End[0] = 1;
-    metadataLocal.mEnd[0] = 1;
-    constInfo.s1BaseSize = metadataLocal.mBaseSize;
-    constInfo.s2BaseSize = metadataLocal.s2BaseSize;
+    // metadataLocal.usedCoreNum = 1;
+    // metadataLocal.mBaseSize = 64;
+    // metadataLocal.s2BaseSize = 128;
+    // metadataLocal.bN2End[0] = 1;
+    // metadataLocal.mEnd[0] = 1;
+    // constInfo.s1BaseSize = metadataLocal.mBaseSize;
+    // constInfo.s2BaseSize = metadataLocal.s2BaseSize;
     this->pipe = tPipe;
     vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx, metadataLocal);
     if ASCEND_IS_AIV {
@@ -165,7 +188,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         constInfo.needInit = this->sharedParams.needInit;
     }
     this->ComputeConstexpr();
-    this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedKv, sinks, metadata,
+    this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedKv, sinks, metadataLocal,
         workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
 }
@@ -174,7 +197,7 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitGlobalBuffer(
     __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
     __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-    __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata, __gm__ uint8_t *workspace,
+    __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData& metadata, __gm__ uint8_t *workspace,
     const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
 {
     // 初始化vector用到的global buffer
