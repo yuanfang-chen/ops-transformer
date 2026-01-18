@@ -172,7 +172,7 @@ SWACubeBlock<SAST>::InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<
     // mm1
     this->queryGm = queryGm;
     this->oriKvGm = oriKvGm;
-    if (constInfo.templateMode == CFA_TEMPLATE) {
+    if (constInfo.templateMode == CFA_TEMPLATE) { // FIXME: constInfo.templateMode没有赋值，无法路由到这里，需通过tilingkey
         this->cmpKvGm = cmpKvGm;
     }
     this->mm1ResGm = mm1ResGm;
