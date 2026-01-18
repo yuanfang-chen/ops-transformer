@@ -37,19 +37,19 @@ def display_output_np_isclose(real_data, expect_data, start, end, expect_fp32_da
             diff_abs = "inf" if "inf" in str(expect_data[j]) else "nan"
             if expect_fp32_data is not None:
                 print_log('%08d \t %-7s \t %-7s \t %-7s \t %-7s \t %-7s' % (
-                    start + idx + 1, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
             else:
                 print_log('%08d \t %-7s \t %-7s \t %-7s \t %-7s' % (
-                    start + idx + 1, expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx, expect_data[j], real_data[j], diff_abs, diff_rate))
         else:
             diff_abs = abs(np.float64(
                 expect_data[j]) - np.float64(real_data[j]))
             if expect_fp32_data is not None:
                 print_log('%08d \t %0.7f \t %0.7f \t %0.7f \t %0.7f \t %0.7f' % (
-                    start + idx + 1, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
             else:
                 print_log('%08d \t %0.7f \t %0.7f \t %0.7f \t %0.7f' % (
-                    start + idx + 1, expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx, expect_data[j], real_data[j], diff_abs, diff_rate))
 
     print_log(
         '---------------------------------------------------------------------------------------')

@@ -338,7 +338,7 @@ ge::graphStatus SASInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::T
 
 ge::graphStatus SASInfoParser::GetActualSeqLenQSize(uint32_t &size)
 {
-    return GetActualSeqLenSize(size, opParamInfo_.sequsedKv.tensor, qLayout_, "cuSeqLensQ");
+    return GetActualSeqLenSize(size, opParamInfo_.cuSeqLensQ.tensor, qLayout_, "cuSeqLensQ");
 }
 
 ge::graphStatus SASInfoParser::GetBatchSize()
