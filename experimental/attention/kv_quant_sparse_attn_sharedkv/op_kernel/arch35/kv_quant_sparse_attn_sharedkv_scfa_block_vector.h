@@ -543,7 +543,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
     int64_t dealRow, int64_t s2StartOffset, const RunInfo &runInfo)
 {
     // todo 是否要计算前置偏移 s10Idx
-    int64_t s2Idx = s2StartOffset + runInfo.s2LoopCount * constInfo_.s2BaseSize + runInfo.s2StartIdx;
+    int64_t s2LoopCount = (runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx) ? \
+        (runInfo.s2LoopCount - runInfo.oriKvLoopEndIdx) : runInfo.s2LoopCount;
+    int64_t s2Idx = s2StartOffset + s2LoopCount * constInfo_.s2BaseSize + runInfo.s2StartIdx;
     uint32_t combineBytes = constInfo_.dSizeVInput;
     uint32_t combineDim = combineBytes / sizeof(KV_T);
     uint32_t combineDimAlign = CeilAlign(combineBytes, ConstInfo::BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
