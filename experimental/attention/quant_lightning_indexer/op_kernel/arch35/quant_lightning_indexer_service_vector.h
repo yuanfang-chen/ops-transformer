@@ -330,19 +330,18 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     //weightsGm --> weightUB_ 
     int64_t weightGmOffset = info.tensorWeightsOffset + curAivS1Idx * kHeadNum_ * gSize_;
     DataCopyPadExtParams<float> padWeightsParams{false, 0, 0, 0};
-    DataCopyExtParams DataCopyExtParams;
-    DataCopyExtParams.blockCount = 1;
-    DataCopyExtParams.blockLen = curAivS1ProcNum * gSize_* sizeof(float);
-    DataCopyExtParams.srcStride = 0;
-    DataCopyExtParams.dstStride = 0;
+    DataCopyExtParams qwDataCopyExtParams;
+    qwDataCopyExtParams.blockCount = 1;
+    qwDataCopyExtParams.blockLen = curAivS1ProcNum * gSize_* sizeof(float);
+    qwDataCopyExtParams.srcStride = 0;
+    qwDataCopyExtParams.dstStride = 0;
     DataCopyPad(weightUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_], 
-                weightsGm[weightGmOffset], DataCopyExtParams, padWeightsParams);
+                weightsGm[weightGmOffset], qwDataCopyExtParams, padWeightsParams);
 
     //qScaleGm  -->  qScaleUB_
     DataCopyPadExtParams<float> padQScaleParams{false, 0, 0, 0};
-    DataCopyExtParams.blockLen = curAivS1ProcNum * gSize_* sizeof(float);
     DataCopyPad(qScaleUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_], 
-                qScaleGm[weightGmOffset], DataCopyExtParams, padQScaleParams);
+                qScaleGm[weightGmOffset], qwDataCopyExtParams, padQScaleParams);
 
     //kScaleGm  -->  kScaleUB_
     GetKeyScale(info, kScaleUB_, info.bIdx, curS2Idx, s2BaseSize_);
@@ -363,8 +362,8 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     WaitFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + (info.loop % 2));
     //outUB_ --->  scoreGm
     int64_t vec1OutGmOffset = blockId_ % 2 == 0 ? curS2Idx : 
-                            CeilDiv(s1BaseSize_, 2) * CeilAlign(constInfo_.kSeqSize, s2BaseSize_) + curS2Idx;
-    DataCopyParams copyOutParams;
+                            CeilDiv(curS1ProcNum, 2) * CeilAlign(constInfo_.kSeqSize, s2BaseSize_) + curS2Idx;
+    DataCopyExtParams copyOutParams;
     copyOutParams.blockCount = curAivS1ProcNum;
     copyOutParams.blockLen = s2BaseSize_ * sizeof(SCORE_T);
     copyOutParams.srcStride = 0;

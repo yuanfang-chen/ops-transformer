@@ -65,6 +65,7 @@ public:
 
     // 初始化LocalTensor
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo);
+    __aicore__ inline void InitSinksBuffer();
     // 初始化attentionOutGM
     __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo &constInfo, __gm__ uint8_t *cuSeqlensQ);
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
@@ -94,7 +95,6 @@ public:
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
         ConstInfo &constInfo);
-    __aicore__ inline void CopySinksIn(const LocalTensor<T>& maxTensor, int64_t sinksGmOffset ,uint32_t elementNum);
 
     using mm2ResPos = Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>;
     __aicore__ inline void ProcessVec2(mm2ResPos &bmm2ResBuf, RunInfo &runInfo,
@@ -127,6 +127,7 @@ public:
 
     /* =====================V侧UB变量==================== */
     TBuf<> commonTBuf; // common的复用空间
+    TBuf<> sinksBuf;
     TQue<QuePosition::VECOUT, 1> stage1OutQue[2];
     TQue<QuePosition::VECIN, 2> stage0InQue; // for v0 input
     TQue<QuePosition::VECOUT, 2> stage0OutQue; // for v0 output
@@ -750,8 +751,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
     } else {
         if (runInfo.s2LoopCount == 0 && isSinks) {
             // s1切1,vec0: 0 ~ halfMRealSize - 1, vec1: gSize - halfMRealSize ~ gSize
-            int64_t sinksGmOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
-            CopySinksIn(maxUb, sinksGmOffset, runInfo.halfMRealSize);
+            int64_t sinksOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
+            LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
+            DataCopy(maxUb, sinksUb[sinksOffset], runInfo.halfMRealSize);
             DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfMRealSize);
         }
         if (likely(runInfo.s2RealSize == 128)) {
@@ -790,20 +792,6 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
     if (runInfo.s2LoopCount != 0 || (runInfo.s2LoopCount == 0 && isSinks)) {
         SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
     }
-}
-
-TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopySinksIn(const LocalTensor<T>& maxTensor, int64_t sinksGmOffset, uint32_t elementNum)
-{
-    DataCopyExtParams dataCopyParams;
-    dataCopyParams.blockCount = 1U;
-    dataCopyParams.blockLen = elementNum * sizeof(T);
-    dataCopyParams.srcStride = 0U;
-    dataCopyParams.dstStride = 0U;
-    DataCopyPadExtParams<T> padParams;
-    DataCopyPad(maxTensor, this->sinksGm[sinksGmOffset], dataCopyParams, padParams);
-    SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
-    WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -967,6 +955,22 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::SoftmaxInitBuffer()
 }
 
 TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitSinksBuffer()
+{
+    LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
+    const uint32_t maxN = 128; // N最大支持128, sink shape是[N]
+    DataCopyExtParams dataCopyParams;
+    dataCopyParams.blockCount = 1U;
+    dataCopyParams.blockLen = maxN * sizeof(T);
+    dataCopyParams.srcStride = 0U;
+    dataCopyParams.dstStride = 0U;
+    DataCopyPadExtParams<T> padParams;
+    DataCopyPad(sinksUb, this->sinksGm, dataCopyParams, padParams);
+    SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
+    WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
+}
+
+TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo)
 {
     // ub buffer
@@ -980,8 +984,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe,
     uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
 
     SoftmaxInitBuffer();
-    
+
     tPipe->InitBuffer(commonTBuf, 512);
+    tPipe->InitBuffer(sinksBuf, 512);
 
     tPipe->InitBuffer(stage0InQue, 2, 640 * 16 * sizeof(KV_T));
     tPipe->InitBuffer(stage0OutQue, 2, 512 * (16 + 1) * sizeof(Q_T));
@@ -997,6 +1002,10 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe,
     vToMte3Id[1] = GetTPipePtr()->AllocEventID<HardEvent::V_MTE3>();
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[1]);
+
+    if (this->isSinks) {
+        InitSinksBuffer();
+    }
 }
 
 TEMPLATES_DEF_NO_DEFAULT
