@@ -98,7 +98,7 @@ class GeneralizedSFA:
                             empty_flag = True
                         else:
                             empty_flag = False
-                        cur_cmp_k = cmp_k_bnsd[i_B, i_N2, i_S1, :threshold]
+                        cur_cmp_k = cmp_k_bnsd[i_B, i_N2, :threshold, :]
                     else:
                         empty_flag = True
                         cur_cmp_k = []
@@ -537,44 +537,110 @@ def test_sas_process(params):
     else:
         max_seqlen_q = torch.max(cu_seqlens_q).item()
 
-    metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
-        num_heads_q=N1,
-        num_heads_kv=N2,
-        head_dim=D,
-        cu_seqlens_q=cu_seqlens_q,
-        seqused_kv=seqused_kv,
-        batch_size=B,
-        max_seqlen_q=max_seqlen_q,
-        max_seqlen_kv=ori_max_s2,
-        topk=K,
-        cmp_ratio=cmp_ratio,
-        ori_mask_mode=ori_mask_mode,
-        cmp_mask_mode=cmp_mask_mode,
-        ori_win_left=ori_win_left,
-        ori_win_right=ori_win_right,
-        layout_q=layout_q,
-        layout_kv=layout_kv,
-        has_ori_kv=ori_k_in_pa_shape != None,
-        has_cmp_kv=cmp_k_in_pa_shape != None)
-
-    npu_result = torch.ops.custom.npu_sparse_attn_sharedkv(q,
-                                                           ori_kv=ori_k_in_pa_shape,
-                                                           cmp_kv=cmp_k_in_pa_shape,
-                                                           cmp_sparse_indices=cmp_sparse_indices,
-                                                           ori_block_table=ori_block_table,
-                                                           cmp_block_table=cmp_block_table,
-                                                           cu_seqlens_q=cu_seqlens_q,
-                                                           seqused_kv=seqused_kv,
-                                                           sinks=sinks,
-                                                           metadata=metadata,
-                                                           softmax_scale=softmax_scale,
-                                                           cmp_ratio=cmp_ratio,
-                                                           ori_mask_mode=ori_mask_mode,
-                                                           cmp_mask_mode=cmp_mask_mode,
-                                                           ori_win_left=ori_win_left,
-                                                           ori_win_right=ori_win_right,
-                                                           layout_q=layout_q,
-                                                           layout_kv=layout_kv)
+    if template_idx == 0:
+        metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+            num_heads_q=N1,
+            num_heads_kv=N2,
+            head_dim=D,
+            cu_seqlens_q=cu_seqlens_q,
+            seqused_kv=seqused_kv,
+            batch_size=B,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_kv=ori_max_s2,
+            ori_mask_mode=ori_mask_mode,
+            ori_win_left=ori_win_left,
+            ori_win_right=ori_win_right,
+            layout_q=layout_q,
+            layout_kv=layout_kv,
+            has_ori_kv=ori_k_in_pa_shape != None,
+            has_cmp_kv=cmp_k_in_pa_shape != None)
+        npu_result = torch.ops.custom.npu_sparse_attn_sharedkv(q,
+                                                               ori_kv=ori_k_in_pa_shape,
+                                                               ori_block_table=ori_block_table,
+                                                               cu_seqlens_q=cu_seqlens_q,
+                                                               seqused_kv=seqused_kv,
+                                                               sinks=sinks,
+                                                               metadata=metadata,
+                                                               softmax_scale=softmax_scale,
+                                                               ori_mask_mode=ori_mask_mode,
+                                                               ori_win_left=ori_win_left,
+                                                               ori_win_right=ori_win_right,
+                                                               layout_q=layout_q,
+                                                               layout_kv=layout_kv)
+    elif template_idx == 1:
+        metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+            num_heads_q=N1,
+            num_heads_kv=N2,
+            head_dim=D,
+            cu_seqlens_q=cu_seqlens_q,
+            seqused_kv=seqused_kv,
+            batch_size=B,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_kv=ori_max_s2,
+            cmp_ratio=cmp_ratio,
+            ori_mask_mode=ori_mask_mode,
+            cmp_mask_mode=cmp_mask_mode,
+            ori_win_left=ori_win_left,
+            ori_win_right=ori_win_right,
+            layout_q=layout_q,
+            layout_kv=layout_kv,
+            has_ori_kv=ori_k_in_pa_shape != None,
+            has_cmp_kv=cmp_k_in_pa_shape != None)
+        npu_result = torch.ops.custom.npu_sparse_attn_sharedkv(q,
+                                                               ori_kv=ori_k_in_pa_shape,
+                                                               cmp_kv=cmp_k_in_pa_shape,
+                                                               ori_block_table=ori_block_table,
+                                                               cmp_block_table=cmp_block_table,
+                                                               cu_seqlens_q=cu_seqlens_q,
+                                                               seqused_kv=seqused_kv,
+                                                               sinks=sinks,
+                                                               metadata=metadata,
+                                                               softmax_scale=softmax_scale,
+                                                               cmp_ratio=cmp_ratio,
+                                                               ori_mask_mode=ori_mask_mode,
+                                                               cmp_mask_mode=cmp_mask_mode,
+                                                               ori_win_left=ori_win_left,
+                                                               ori_win_right=ori_win_right,
+                                                               layout_q=layout_q,
+                                                               layout_kv=layout_kv)
+    else:
+        metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+            num_heads_q=N1,
+            num_heads_kv=N2,
+            head_dim=D,
+            cu_seqlens_q=cu_seqlens_q,
+            seqused_kv=seqused_kv,
+            batch_size=B,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_kv=ori_max_s2,
+            topk=K,
+            cmp_ratio=cmp_ratio,
+            ori_mask_mode=ori_mask_mode,
+            cmp_mask_mode=cmp_mask_mode,
+            ori_win_left=ori_win_left,
+            ori_win_right=ori_win_right,
+            layout_q=layout_q,
+            layout_kv=layout_kv,
+            has_ori_kv=ori_k_in_pa_shape != None,
+            has_cmp_kv=cmp_k_in_pa_shape != None)
+        npu_result = torch.ops.custom.npu_sparse_attn_sharedkv(q,
+                                                                ori_kv=ori_k_in_pa_shape,
+                                                                cmp_kv=cmp_k_in_pa_shape,
+                                                                cmp_sparse_indices=cmp_sparse_indices,
+                                                                ori_block_table=ori_block_table,
+                                                                cmp_block_table=cmp_block_table,
+                                                                cu_seqlens_q=cu_seqlens_q,
+                                                                seqused_kv=seqused_kv,
+                                                                sinks=sinks,
+                                                                metadata=metadata,
+                                                                softmax_scale=softmax_scale,
+                                                                cmp_ratio=cmp_ratio,
+                                                                ori_mask_mode=ori_mask_mode,
+                                                                cmp_mask_mode=cmp_mask_mode,
+                                                                ori_win_left=ori_win_left,
+                                                                ori_win_right=ori_win_right,
+                                                                layout_q=layout_q,
+                                                                layout_kv=layout_kv)
 
     torch.npu.synchronize()
 
