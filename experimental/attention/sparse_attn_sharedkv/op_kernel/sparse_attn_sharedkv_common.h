@@ -55,6 +55,7 @@ enum class QUANT_SCALE_REPO_MODE {
 
 template <typename Q_T, typename KV_T, typename OUT_T, const bool FLASH_DECODE = false,
 	  SAS_LAYOUT LAYOUT_T = SAS_LAYOUT::BSND, SAS_LAYOUT KV_LAYOUT_T = SAS_LAYOUT::PA_ND,
+      int TEMPLATE_MODE = 0,
       typename... Args>
 struct SASType {
     using queryType = Q_T;
@@ -64,6 +65,7 @@ struct SASType {
     static constexpr SAS_LAYOUT layout = LAYOUT_T;
     static constexpr SAS_LAYOUT kvLayout = KV_LAYOUT_T;
     static constexpr bool pageAttention = (KV_LAYOUT_T == SAS_LAYOUT::PA_ND);
+    static constexpr int templateMode = TEMPLATE_MODE;
 };
 
 // ================================Util functions==================================
