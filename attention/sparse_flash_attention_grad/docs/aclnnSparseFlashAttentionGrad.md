@@ -4,8 +4,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 
@@ -67,7 +71,6 @@
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnSparseFlashAttentionGradGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnSparseFlashAttentionGrad”接口执行计算。
-
 ```c++
 aclnnStatus aclnnSparseFlashAttentionGradGetWorkspaceSize(
     const aclTensor     *query, 
@@ -89,6 +92,7 @@ aclnnStatus aclnnSparseFlashAttentionGradGetWorkspaceSize(
     int64_t              preTokens,
     int64_t              nextTokens,
     bool                 deterministic,
+    int64_t              attentionMode,
     const aclTensor     *dQueryOut,
     const aclTensor     *dKeyOut,
     const aclTensor     *dValueOut,
@@ -393,6 +397,17 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>-</td>
             <td>-</td>
         </tr>
+        <td>attentionMode</td>
+            <td>输入</td>
+            <td>表示attention的模式。</td>
+            <td>
+            仅支持传入2，表示MLA-absorb模式，即计算过程中会将query和key的nope部分分别和query_rope和key_rope的rope部分沿头维度（D）拼接，合并形成最终的query和key用于后续计算，且key和value共享同一份底层张量数据
+            </td>
+            <td>INT64</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+        </tr>
         <tr>
             <td>dQuery</td>
             <td>输出</td>
@@ -470,7 +485,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
 
 - **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -617,7 +632,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
         </tr>
         </tbody>
     </table>
+
 - 规格约束
+
     <table style="undefined;table-layout: fixed; width: 942px"><colgroup>
         <col style="width: 100px">
         <col style="width: 300px">
@@ -874,6 +891,7 @@ int main() {
   int64_t preTokens = 2147483647;
   int64_t nextTokens = 2147483647;
   bool deterministic = false;
+  int64_t attentionMode = 2;
   char layout[5] = {'T', 'N', 'D', 0};
   
   // 3. 调用CANN算子库API，需要修改为具体的Api名称
@@ -882,7 +900,7 @@ int main() {
   
   // 调用aclnnSparseFlashAttentionGrad第一段接口
   ret = aclnnSparseFlashAttentionGradGetWorkspaceSize(q, k, v, sparseIndices, dOut, out, softmaxMax, softmaxSum, actSeqQLen, actSeqKvLen,
-            qRope, kRope, scaleValue, sparseBlockSize, layout, sparseMode, preTokens, nextTokens, deterministic, dq, dk, dv, dqRope, dkRope, 
+            qRope, kRope, scaleValue, sparseBlockSize, layout, sparseMode, preTokens, nextTokens, deterministic, attentionMode, dq, dk, dv, dqRope, dkRope, 
             &workspaceSize, &executor);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnSparseFlashAttentionGradGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
   

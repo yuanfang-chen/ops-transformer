@@ -140,6 +140,7 @@ public:
         this->Attr("pre_tokens").AttrType(OPTIONAL).Int(2147483647);
         this->Attr("next_tokens").AttrType(OPTIONAL).Int(2147483647);
         this->Attr("deterministic").AttrType(OPTIONAL).Bool(false);
+        this->Attr("attention_mode").AttrType(OPTIONAL).Int(0);
 
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
