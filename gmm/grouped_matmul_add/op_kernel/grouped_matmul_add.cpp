@@ -15,7 +15,7 @@
  */
 
 #ifdef __CCE_KT_TEST__
-#include "stub_def.h"
+#include "stub_def.h" 
 #include "stub_fun.h"
 #endif
 
