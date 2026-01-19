@@ -220,7 +220,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
                         cuSeqlens, seqUsed, startPos, cmpKvOut);
         blockVec_.InitBuffers(pipe_);
 #if __CCE_AICORE__ == 310
-        blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
+        blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm, vec2InputGm);
 #else 
         blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm, vec2InputGm);
 #endif
@@ -271,11 +271,11 @@ __aicore__ inline void CompressorKernel<COMP>::InitWorkspace(__gm__ uint8_t *wor
 
     // vec1Res 
     vec1ResGm.SetGlobalBuffer(
-        (__gm__ VEC1_OUT_T *)(workspace + offset + (constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum) * sizeof(VEC1_OUT_T)));
+        (__gm__ VEC1_OUT_T *)(workspace + offset + (constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.dBasicBlockNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum) * sizeof(VEC1_OUT_T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize * sizeof(VEC1_OUT_T);
     // vec2Input
     vec2InputGm.SetGlobalBuffer(
-        (__gm__ VEC1_OUT_T *)(workspace + beforeVecOffset +  (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum * sizeof(VEC1_OUT_T)));
+        (__gm__ VEC1_OUT_T *)(workspace + beforeVecOffset +  (constInfo.aiCoreIdx / constInfo.dBasicBlockNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum * sizeof(VEC1_OUT_T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize * sizeof(VEC1_OUT_T);
 }
 
@@ -557,6 +557,14 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         RunInfo &extraInfo0 = extraInfo[0];
         // 获取各切分轴的起始核结束索引
         CalcParams(extraInfo0);
+        if ((i % constInfo.nSize) == 0) {
+            vec2Info.bStart = extraInfo0.bStart;
+            vec2Info.sStart = extraInfo0.sStart;
+            vec2Info.scStart = extraInfo0.scStart;
+            vec2Info.dealTcNum = 0;
+            vec2Info.dealScSize = 0;
+        }
+
         extraInfo0.vec1ResOffset = vec2Info.dealScSize * constInfo.headDim;
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
@@ -570,13 +578,6 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                 CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
-            }
-            if ((i + 1) % constInfo.nSize == 1) {
-                vec2Info.bStart = extraInfo0.bStart;
-                vec2Info.sStart = extraInfo0.sStart;
-                vec2Info.scStart = extraInfo0.scStart;
-                vec2Info.dealTcNum = 0;
-                vec2Info.dealScSize = 0;
             }
             vec2Info.dealTcNum += extraInfo0.dealTcNum;
             vec2Info.dealScSize += extraInfo0.dealScSize;
