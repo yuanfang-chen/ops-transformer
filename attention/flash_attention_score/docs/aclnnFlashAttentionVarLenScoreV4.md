@@ -141,6 +141,16 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
         <td>√</td>
       </tr>
       <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attenMaskOptional</td>
         <td>输入</td>
         <td>公式中的atten_mask。</td>
@@ -244,7 +254,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
         <td>innerPrecise</td>
         <td>输入</td>
         <td>用于提升精度。</td>
-        <td>暂未使用。</td>
+        <td>TND格式下不支持该功能，默认配置为0即可。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -289,6 +299,16 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
         <td>ND</td>
         <td>[N,T,8]或[T,N,8]</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>softmaxOutOut</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>attentionOutOut</td>
