@@ -335,7 +335,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t nValue = bSeqUsed - tmpSeqId;
         uint32_t dValue = kBase;
         uint32_t srcDValue = constInfo_.hSize;
-        uint32_t dstNzC0Stride = info.dealTcNum * constInfo_.cmpRatio;
+        uint32_t dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + 15) / 16 * 16;
         if constexpr (COMP::coff == COFF::OVERLAP) {
             dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
         }
