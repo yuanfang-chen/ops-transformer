@@ -487,7 +487,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
         </ul>
         </td>
-        <td>FLOAT16、BFLOAT16、INT8</td>
+        <td>FLOAT16、BFLOAT16、INT8、INT4/INT32</td>
         <td>ND</td>
         <td>
         <ul>
@@ -509,7 +509,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             <li>综合约束请见<a href="#约束说明">约束说明</a>。</li>
         </ul>
         </td>
-        <td>FLOAT16、BFLOAT16、INT8</td>
+        <td>FLOAT16、BFLOAT16、INT8、INT4/INT32</td>
         <td>ND</td>
         <td>
         <ul>
@@ -1725,9 +1725,12 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 <td colspan="2">
                     <ul>
                         <li>公共前缀的S加上key或value的S的结果，要满足原先key或value的S的限制</li>
-                        <li>prefix不支持PageAttention场景、不支持左padding场景、不支持tensorlist场景</li>
+                        <li>prefix不支持PageAttention场景、不支持左padding场景、不支持tensorlist场景、不支持alibi场景、不支持TND场景、不支持PFA MLA（包括D不等长合ROPE独立输入）场景、不支持IFA MLA场景</li>
                         <li>sparse为0或1时，如果传入attenmask，则S2需大于等于actualSharedPrefixLen与key的S长度之和</li>
-                        <li>不支持输入qkv全部为INT8/FP8的情况</li>
+                        <li>不支持输入qkv全部为INT8/FP8/HiF8(perblock/pertensor全量化)的情况</li>
+                        <li>支持后量化（int8）场景</li>
+                        <li>qs>1场景下，支持perchannel/pertensor/pertoken伪量化并且key/value为INT8的情况</li>
+                        <li>qs=1场景下，支持perchannel伪量化并且key/value为INT8、INT4/INT32的情况，pertensor伪量化并且key/value为INT8的情况，pertensorhead伪量化并且key/value为INT8的情况，pertoken伪量化并且key/value为INT8、INT4/INT32的情况，pertokenhead伪量化并且key/value为INT8、INT4/INT32的情况，pertoken（PA）伪量化并且key/value为INT8的情况，pertokenhead（PA）伪量化并且key/value为INT8的情况，perchannel伪量化并且key为INT8、INT4/INT32与pertoken伪量化并且value为INT8、INT4/INT32的情况</li>
                     </ul>
                 </td>
             <tr>
