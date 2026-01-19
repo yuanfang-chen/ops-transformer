@@ -88,17 +88,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLse() const
         return ge::GRAPH_SUCCESS;
     }
 
-    if (ropeMode_ == RopeMode::ROPE_SPLIT && vHeadDim_ == 512U) {
-        std::string layout = opParamInfo_.layOut;
-        const std::vector<std::string> unsupportedLayoutList = {"BSH_NBSD", "BSND_NBSD", "BNSD_NBSD, TND_NTD"};
-        OP_CHECK_IF(std::find(unsupportedLayoutList.begin(), unsupportedLayoutList.end(), layout) != unsupportedLayoutList.end(),
-            OP_LOGE(opName_,
-                    "In %s situation with softmax_lse, when the head dim of value is %u, layout only "
-                    "supports BSH, BSND, BNSD, TND, but got %s",
-                    QuantModeToSerialString(quantMode_).c_str(), vHeadDim_, layout.c_str()),
-            return ge::GRAPH_FAILED);
-    }
-
     return ge::GRAPH_SUCCESS;
 }
 
