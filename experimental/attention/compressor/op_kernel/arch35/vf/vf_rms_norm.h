@@ -18,19 +18,17 @@
 #include "kernel_tensor.h"
 
 // constexpr uint64_t FLOAT_REP_SIZE = 64;
-struct RmsNormParam{
-    float reciprocal;
-    float epsilon;
-    uint32_t row;
-    uint32_t col;
-    float scale;
-    uint16_t isScaleEnable;
-};
+// struct RmsNormParam{
+//     float reciprocal;
+//     float epsilon;
+//     uint32_t row;
+//     uint32_t col;
+// };
 
 //repeatTimes——D轴的分块数
 template <typename T, typename GammaType>
 __simd_vf__ void RmsNormVFImpl(__ubuf__ T * inputBuf, __ubuf__ GammaType * gammaBuf, __ubuf__ T * outputBuf, 
-                                uint32_t cnt, uint32_t repeatTimes, const RmsNormParam rmsNormParams)
+                               uint32_t repeatTimes, float reciprocal, float epsilon)
 {
     MicroAPI::RegTensor<T> vregSum;
     MicroAPI::RegTensor<T> vregSumReduce;
@@ -45,7 +43,7 @@ __simd_vf__ void RmsNormVFImpl(__ubuf__ T * inputBuf, __ubuf__ GammaType * gamma
 
     MicroAPI::Duplicate<T,T>(vregSum, 0.0f);
 
-    for(uint16_t i = 0; i < uint16_t(repeatTimes); ++i){
+    for(uint32_t i = 0; i < repeatTimes; ++i){
         MicroAPI::RegTensor<T> vregX;
         MicroAPI::RegTensor<T> vregXSquare;
         uint64_t loopOffset = i * FLOAT_REP_SIZE;
@@ -56,12 +54,12 @@ __simd_vf__ void RmsNormVFImpl(__ubuf__ T * inputBuf, __ubuf__ GammaType * gamma
     }
 
     MicroAPI::Reduce<MicroAPI::ReduceType::SUM, T, T, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSum, maskAll);
-    MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, rmsNormParams.reciprocal, maskFirst);
-    MicroAPI::Adds<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, rmsNormParams.epsilon, maskFirst);
+    MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, reciprocal, maskFirst);
+    MicroAPI::Adds<T, T, MicroAPI::MaskMergeMode::ZEROING>(vregSumReduce, vregSumReduce, epsilon, maskFirst);
     MicroAPI::Sqrt(vregSquareRoot, vregSumReduce, maskFirst);
     MicroAPI::Duplicate<T, MicroAPI::HighLowPart::LOWEST, MicroAPI::MaskMergeMode::ZEROING>(vregDiv, vregSquareRoot, maskAll);
 
-    for(uint16_t i = 0; i < uint16_t(repeatTimes); ++i){
+    for(uint32_t i = 0; i < repeatTimes; ++i){
         MicroAPI::RegTensor<T> vregX;
         MicroAPI::RegTensor<GammaType> vregGamma;
         MicroAPI::RegTensor<T> vregGammaCast;
@@ -84,23 +82,23 @@ __simd_vf__ void RmsNormVFImpl(__ubuf__ T * inputBuf, __ubuf__ GammaType * gamma
  * @param inputLocal 输入tensor [row, col]
  * @param gammaLocal gamma参数tensor [row, col]
  * @param rmsNormParams rmsNrom计算所需系数，包括
-          row 行数
+          row 行数  1
           col 列数，对应headSizeCq或headSizeCkv
           reciprocal ，1/N
           epsilon，防止除零极小数
  */
 template <typename T, typename GammaType>
-__aicore__ inline void RmsNormVF(const LocalTensor<T> &outputLocal, const LocalTensor<T> &inputLocal, const LocalTensor<GammaType> &gammaLocal,
-    const RmsNormParam rmsNormParams) 
+__aicore__ inline void RmsNormVF(LocalTensor<T> outputLocal, const LocalTensor<T> inputLocal, const LocalTensor<GammaType> gammaLocal,
+    float reciprocal, float epsilon, uint32_t row, uint32_t col) 
 {
-    uint32_t cnt = rmsNormParams.row * rmsNormParams.col;
+    uint32_t cnt = row * col;
     uint32_t repeatTimes = (cnt + FLOAT_REP_SIZE - 1) / FLOAT_REP_SIZE;
 
     __ubuf__ T * inputBuf = (__ubuf__ T *)inputLocal.GetPhyAddr();
     __ubuf__ GammaType * gammaBuf = (__ubuf__ GammaType *)gammaLocal.GetPhyAddr();
     __ubuf__ T * outputBuf = (__ubuf__ T *)outputLocal.GetPhyAddr();
     
-    RmsNormVFImpl<T, GammaType>(inputBuf, gammaBuf, outputBuf, cnt, repeatTimes, rmsNormParams);
+    RmsNormVFImpl<T, GammaType>(inputBuf, gammaBuf, outputBuf, repeatTimes, reciprocal, epsilon);
 }
 
 

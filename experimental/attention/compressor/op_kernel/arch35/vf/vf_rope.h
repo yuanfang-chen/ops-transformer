@@ -177,29 +177,32 @@ __aicore__ inline void HalfAlignVF(
     }
 }
 
-template <typename T>
+template <typename T, typename ROPET>
 __aicore__ inline void InterleaveModeVF(
-    const LocalTensor<T>& sinTensor, const LocalTensor<T>& cosTensor, const LocalTensor<T>& inTensor,
-    const LocalTensor<T>& outTensor, uint32_t dLen, uint16_t currSNum, uint16_t currDNum)
+    const LocalTensor<ROPET>& sinTensor, const LocalTensor<ROPET>& cosTensor, const LocalTensor<T>& inTensor,
+    const LocalTensor<ROPET>& outTensor, uint32_t dLen, uint16_t currSNum, uint16_t currDNum)
 {
-    __local_mem__ T* sinUb = (__local_mem__ T*)sinTensor.GetPhyAddr();
-    __local_mem__ T* cosUb = (__local_mem__ T*)cosTensor.GetPhyAddr();
+    __local_mem__ ROPET* sinUb = (__local_mem__ ROPET*)sinTensor.GetPhyAddr();
+    __local_mem__ ROPET* cosUb = (__local_mem__ ROPET*)cosTensor.GetPhyAddr();
     __local_mem__ T* inUb = (__local_mem__ T*)inTensor.GetPhyAddr();
-    __local_mem__ T* outUb = (__local_mem__ T*)outTensor.GetPhyAddr();
-    uint16_t repeatTimes = dLen / VL_FLOAT32_SIZE;
+    __local_mem__ ROPET* outUb = (__local_mem__ ROPET*)outTensor.GetPhyAddr();
+    uint16_t repeatTimes = dLen / VL_FLOAT32_SIZE;//(每个寄存器256字节，最多存放数据256/4=64element，因此需要使用寄存器的数量)
     uint32_t dAlignLen = Ops::Base::CeilAlign(dLen, static_cast<uint32_t>(BLOCK_TYPE_SIZE / sizeof(T)));
-    uint16_t loopNum = repeatTimes / 2;
-    uint32_t tailNum = dLen - loopNum * 2 * VL_FLOAT32_SIZE;
+    //Dlen(8对齐、32/4)RD=64
+    uint16_t loopNum = repeatTimes / 2;//(开两个寄存器)
+    uint32_t tailNum = dLen - loopNum * 2 * VL_FLOAT32_SIZE;//(尾块数据数)
     uint16_t tailTwoVL = tailNum / VL_FLOAT32_SIZE;
-    uint16_t tailOneVL = (tailTwoVL == 1) ? 0 : 1;
+    uint16_t tailOneVL = (tailTwoVL == 1 && tailNum > 0) ? 0 : 1;
     uint32_t tailLen = tailNum % VL_FLOAT32_SIZE;
     __local_mem__ T* currInUb;
-    __local_mem__ T* currOutUb;
-    __local_mem__ T* currSinUb;
-    __local_mem__ T* currCosUb;
-    __local_mem__ T* tailSinUb;
-    __local_mem__ T* tailCosUb;
-
+    __local_mem__ ROPET* currOutUb;
+    __local_mem__ ROPET* currSinUb;
+    __local_mem__ ROPET* currCosUb;
+    __local_mem__ ROPET* tailSinUb;
+    __local_mem__ ROPET* tailCosUb;
+    // printf("interleavemode\n");
+    // printf("dLen:[%u]----currSNum:[%u]--currDNum:[%u]--loopNum[%u]---tailNum[%u]--tailTwoVL[%u]--tailOneVL[%u]--tailLen[%u]",
+    // dLen,currSNum,currDNum,loopNum,tailNum,tailTwoVL,tailOneVL,tailLen);
     __VEC_SCOPE__
     {
         MicroAPI::RegTensor<float> vregFormerCos;
@@ -214,34 +217,38 @@ __aicore__ inline void InterleaveModeVF(
         MicroAPI::RegTensor<float> vregLatterOut;
         MicroAPI::MaskReg pregLoop;
         MicroAPI::MaskReg pregTail;
-        for (uint16_t sIdx = 0; sIdx < currSNum; sIdx++) {
+        for (uint16_t sIdx = 0; sIdx < currSNum; sIdx++) {//sc轴
             currSinUb = sinUb + sIdx * dAlignLen;
             currCosUb = cosUb + sIdx * dAlignLen;
-            for (uint16_t idxD = 0; idxD < currDNum; idxD++) {
+            for (uint16_t idxD = 0; idxD < currDNum; idxD++) {//D轴
                 uint32_t updateCnt = dLen;
-                currInUb = inUb + (sIdx * currDNum + idxD) * dAlignLen;
-                currOutUb = outUb + (sIdx * currDNum + idxD) * dAlignLen;
+                currInUb = inUb + (sIdx * currDNum + idxD) * dAlignLen;//将后64个element取出，因此对于SC轴上的每行数据，
+                currOutUb = outUb + (sIdx * currDNum + idxD) * dAlignLen;//将数据64个element输出到sc轴上每行的最后64位上，
                 pregLoop = MicroAPI::CreateMask<float, MicroAPI::MaskPattern::ALL>();
-                for (uint16_t i = 0; i < loopNum; i++) {
-                    uint32_t evenOffSet = (i * 2) * VL_FLOAT32_SIZE;
-                    uint32_t oddOffset = evenOffSet + VL_FLOAT32_SIZE;
+                for (uint16_t i = 0; i < loopNum; i++) {//循环次数
+                    uint32_t evenOffSet = (i * 2) * VL_FLOAT32_SIZE;//前64个element
+                    uint32_t oddOffset = evenOffSet + VL_FLOAT32_SIZE;//后64个element
+                    //数据拷贝，两个寄存器分别拷贝
                     LoadOneTensorForDtypeT<T>(currInUb, vregFormerIn, pregLoop, evenOffSet);
                     LoadOneTensorForDtypeT<T>(currInUb, vregLatterIn, pregLoop, oddOffset);
-                    LoadOneTensorForDtypeT<T>(currCosUb, vregFormerCos, pregLoop, evenOffSet);
-                    LoadOneTensorForDtypeT<T>(currCosUb, vregLatterCos, pregLoop, oddOffset);
-                    LoadOneTensorForDtypeT<T>(currSinUb, vregFormerSin, pregLoop, evenOffSet);
-                    LoadOneTensorForDtypeT<T>(currSinUb, vregLatterSin, pregLoop, oddOffset);
+                    LoadOneTensorForDtypeT<ROPET>(currCosUb, vregFormerCos, pregLoop, evenOffSet);
+                    LoadOneTensorForDtypeT<ROPET>(currCosUb, vregLatterCos, pregLoop, oddOffset);
+                    LoadOneTensorForDtypeT<ROPET>(currSinUb, vregFormerSin, pregLoop, evenOffSet);
+                    LoadOneTensorForDtypeT<ROPET>(currSinUb, vregLatterSin, pregLoop, oddOffset);
                     MicroAPI::Mul(vregFormerCos, vregFormerCos, vregFormerIn, pregLoop);
                     MicroAPI::Mul(vregLatterCos, vregLatterCos, vregLatterIn, pregLoop);
                     MicroAPI::DeInterleave<float>(vregEven, vregOdd, vregFormerIn, vregLatterIn);
+                    //解交织,将前64个和后64个数据的奇数位数据和偶数位数据分别拿出来，并进行拼接EVEN存放奇数位数据，ODD存放偶数位数据
                     MicroAPI::Muls(vregOdd, vregOdd, float(-1.0), pregLoop);
                     MicroAPI::Interleave<float>(vregFormerIn, vregLatterIn, vregOdd, vregEven);
+                    //交织生成与sin相乘的数据
                     MicroAPI::Mul(vregFormerSin, vregFormerSin, vregFormerIn, pregLoop);
                     MicroAPI::Add(vregFormerCos, vregFormerCos, vregFormerSin, pregLoop);
                     MicroAPI::Mul(vregLatterSin, vregLatterSin, vregLatterIn, pregLoop);
                     MicroAPI::Add(vregLatterCos, vregLatterCos, vregLatterSin, pregLoop);
-                    StoreOneTensorForDtypeT<T>(currOutUb, vregFormerCos, pregLoop, evenOffSet);
-                    StoreOneTensorForDtypeT<T>(currOutUb, vregLatterCos, pregLoop, oddOffset);
+                    //拷贝输出数据
+                    StoreOneTensorForDtypeT<ROPET>(currOutUb, vregFormerCos, pregLoop, evenOffSet);//前64个元素
+                    StoreOneTensorForDtypeT<ROPET>(currOutUb, vregLatterCos, pregLoop, oddOffset);//后64个元素
                 }
 
                 currInUb = inUb + (sIdx * currDNum + idxD) * dAlignLen + (loopNum * 2 * VL_FLOAT32_SIZE);
@@ -254,10 +261,10 @@ __aicore__ inline void InterleaveModeVF(
                     pregTail = MicroAPI::UpdateMask<float>(updateCnt);
                     LoadOneTensorForDtypeT<T>(currInUb, vregFormerIn, pregLoop, 0);
                     LoadOneTensorForDtypeT<T>(currInUb, vregLatterIn, pregTail, VL_FLOAT32_SIZE);
-                    LoadOneTensorForDtypeT<T>(tailCosUb, vregFormerCos, pregLoop, 0);
-                    LoadOneTensorForDtypeT<T>(tailCosUb, vregLatterCos, pregTail, VL_FLOAT32_SIZE);
-                    LoadOneTensorForDtypeT<T>(tailSinUb, vregFormerSin, pregLoop, 0);
-                    LoadOneTensorForDtypeT<T>(tailSinUb, vregLatterSin, pregTail, VL_FLOAT32_SIZE);
+                    LoadOneTensorForDtypeT<ROPET>(tailCosUb, vregFormerCos, pregLoop, 0);
+                    LoadOneTensorForDtypeT<ROPET>(tailCosUb, vregLatterCos, pregTail, VL_FLOAT32_SIZE);
+                    LoadOneTensorForDtypeT<ROPET>(tailSinUb, vregFormerSin, pregLoop, 0);
+                    LoadOneTensorForDtypeT<ROPET>(tailSinUb, vregLatterSin, pregTail, VL_FLOAT32_SIZE);
                     MicroAPI::Mul(vregFormerCos, vregFormerCos, vregFormerIn, pregLoop);
                     MicroAPI::Mul(vregLatterCos, vregLatterCos, vregLatterIn, pregTail);
                     MicroAPI::DeInterleave<float>(vregEven, vregOdd, vregFormerIn, vregLatterIn);
@@ -267,29 +274,28 @@ __aicore__ inline void InterleaveModeVF(
                     MicroAPI::Add(vregFormerCos, vregFormerCos, vregFormerSin, pregLoop);
                     MicroAPI::Mul(vregLatterSin, vregLatterSin, vregLatterIn, pregTail);
                     MicroAPI::Add(vregLatterCos, vregLatterCos, vregLatterSin, pregTail);
-                    StoreOneTensorForDtypeT<T>(currOutUb, vregFormerCos, pregLoop, 0);
-                    StoreOneTensorForDtypeT<T>(currOutUb, vregLatterCos, pregTail, VL_FLOAT32_SIZE);
+                    StoreOneTensorForDtypeT<ROPET>(currOutUb, vregFormerCos, pregLoop, 0);
+                    StoreOneTensorForDtypeT<ROPET>(currOutUb, vregLatterCos, pregTail, VL_FLOAT32_SIZE);
                 }
 
                 // 尾块小于VL时,只读取VL
-                for (uint16_t i = 0; i < tailOneVL; i++) {
+                for (uint16_t i = 0; i < tailOneVL ; i++) {
                     uint32_t updateCnt = tailLen;
                     pregTail = MicroAPI::UpdateMask<float>(updateCnt);
                     LoadOneTensorForDtypeT<T>(currInUb, vregFormerIn, pregTail, 0);
-                    LoadOneTensorForDtypeT<T>(tailCosUb, vregFormerCos, pregTail, 0);
-                    LoadOneTensorForDtypeT<T>(tailSinUb, vregFormerSin, pregTail, 0);
+                    LoadOneTensorForDtypeT<ROPET>(tailCosUb, vregFormerCos, pregTail, 0);
+                    LoadOneTensorForDtypeT<ROPET>(tailSinUb, vregFormerSin, pregTail, 0);
                     MicroAPI::Mul(vregFormerCos, vregFormerCos, vregFormerIn, pregTail);
                     MicroAPI::DeInterleave<float>(vregEven, vregOdd, vregFormerIn, vregLatterIn);
                     MicroAPI::Muls(vregOdd, vregOdd, float(-1.0), pregTail);
                     MicroAPI::Interleave<float>(vregFormerIn, vregLatterIn, vregOdd, vregEven);
                     MicroAPI::Mul(vregFormerSin, vregFormerSin, vregFormerIn, pregTail);
                     MicroAPI::Add(vregFormerCos, vregFormerCos, vregFormerSin, pregTail);
-                    StoreOneTensorForDtypeT<T>(currOutUb, vregFormerCos, pregTail, 0);
+                    StoreOneTensorForDtypeT<ROPET>(currOutUb, vregFormerCos, pregTail, 0);
                 }
             }
         }
     }
 }
-
 
 #endif

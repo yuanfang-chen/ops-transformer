@@ -220,7 +220,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
                         cuSeqlens, seqUsed, startPos, cmpKvOut);
         blockVec_.InitBuffers(pipe_);
 #if __CCE_AICORE__ == 310
-		//
+        blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
 #else 
         blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm, vec2InputGm);
 #endif
@@ -545,10 +545,8 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
     if ASCEND_IS_AIC {
         blockCube_.AllocEventID(pipe_);
     } else {
-#if __CCE_AICORE__ == 310
         blockVec_.AllocEventID();
         CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
-#endif
     }
 
     RunInfo extraInfo[1];
@@ -557,16 +555,13 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
     RunInfo vec2Info{};
     for (uint32_t i = 0; i < constInfo.singleCoreDealTcBasicNum; ++i) {
         RunInfo &extraInfo0 = extraInfo[0];
-        
         // 获取各切分轴的起始核结束索引
         CalcParams(extraInfo0);
         extraInfo0.vec1ResOffset = vec2Info.dealScSize * constInfo.headDim;
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
             if (isNeedExcute) {
-#if __CCE_AICORE__ == 310
                 CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
-#endif
                 ComputeMm1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG);
             }
@@ -574,9 +569,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
             if (isNeedExcute) {
                 CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
-#if __CCE_AICORE__ == 310
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
-#endif
             }
             if ((i + 1) % constInfo.nSize == 1) {
                 vec2Info.bStart = extraInfo0.bStart;
@@ -594,20 +587,19 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                     vec2Info.bEnd = extraInfo0.bEnd;
                     vec2Info.sEnd = extraInfo0.sEnd;
                     vec2Info.scEnd = extraInfo0.scEnd;
-                    ComputeVec2(vec2Info);
+                    // 累计已压缩的块为0时, 不需要执行后续计算
+                    if (vec2Info.dealScSize) {
+                        ComputeVec2(vec2Info);
+                    }
                 }
             }
         }
     }
     if ASCEND_IS_AIC {
-#if __CCE_AICORE__ == 310
-		CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
-#endif
+        CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
         blockCube_.FreeEventID(pipe_);
     } else {
-#if __CCE_AICORE__ == 310
         blockVec_.FreeEventID();
-#endif
     }
 
 }
