@@ -16,7 +16,7 @@
 #ifndef OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_SPLIT_FUSION_H
 #define OP_KERNEL_GROUPED_MATMUL_SWIGLU_QUANT_SPLIT_FUSION_H
 
-#include "kernel_tiling/kernel_tiling.h"
+#include "kernel_tiling/kernel_tiling.h" 
 #include "lib/matmul_intf.h"
 #include "grouped_matmul_swiglu_quant_v2_utils.h"
 
