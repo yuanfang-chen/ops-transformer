@@ -16,7 +16,6 @@
 #ifndef COMPRESSOR_BLOCK_CUBE_H
 #define COMPRESSOR_BLOCK_CUBE_H
 
-#include "kernel_operator.h"
 #include "../compressor_comm.h"
 
 using namespace AscendC;
@@ -43,9 +42,7 @@ public:
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut);
+        __gm__ uint8_t *cmpKvOut);
     __aicore__ inline void InitBuffers(TPipe *pipe);
     __aicore__ inline void InitGlobalBuffers(const GlobalTensor<MM1_OUT_T>& preMm1ResGm, const GlobalTensor<MM1_OUT_T>& curMm1ResGm);
     __aicore__ inline void AllocEventID(TPipe *pipe);
@@ -152,9 +149,7 @@ template <typename COMP> __aicore__ inline void CompressorBlockCube<COMP>::Init(
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut)
+        __gm__ uint8_t *cmpKvOut)
 {
     xGm_.SetGlobalBuffer((__gm__ X_T *)x);
     wkvGm_.SetGlobalBuffer((__gm__ X_T *)wKv);
@@ -338,9 +333,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t dValue = kBase;
         uint32_t srcDValue = constInfo_.hSize;
         uint32_t dstNzC0Stride = info.dealTcNum * constInfo_.cmpRatio;
-        if constexpr (COMP::coff == COFF::OVERLAP) {
-            dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
-        }
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
         ubOffset += constInfo_.cmpRatio * (32 / sizeof(X_T));
@@ -416,7 +408,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::LoadAToL0(LocalTensor<X_T> aL0
         loadData2DParams.dstGap = 0;
         loadData2DParams.ifTranspose = false;
         LoadData(aL0Tensor[16 * i * kBase], xL1Tensor[xTensorOffset], loadData2DParams);
-        xTensorOffset += 16 * (32 / sizeof(X_T));
     }
 // #else
 //     LoadData2DParamsV2 loadData2DParamsV2;

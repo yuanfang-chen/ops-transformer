@@ -126,7 +126,7 @@ ge::graphStatus SetCompressorShapeDim(const CompressorProtoShapeParam &shapePara
         cmpKvShape->SetDim(DIM_INDEX_2, shapeParam.H);
     } else {
         cmpKvShape->SetDimNum(DIM_NUM_2);                   // (T, N, Hckv)
-        cmpKvShape->SetDim(DIM_INDEX_0, shapeParam.T);
+        cmpKvShape->SetDim(DIM_INDEX_0, shapeParam.Sr);
         cmpKvShape->SetDim(DIM_INDEX_1, shapeParam.H);
     }
 

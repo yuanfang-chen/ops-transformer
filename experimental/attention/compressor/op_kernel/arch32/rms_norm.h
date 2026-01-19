@@ -40,7 +40,7 @@ __aicore__ inline void RmsNorm(const LocalTensor<float> &dstLocal, const LocalTe
 {
     uint64_t cnt = rmsNormParams.row * rmsNormParams.col;
     LocalTensor<float> temp1Local = shareTmpUb.ReinterpretCast<float>();
-    LocalTensor<float> temp2Local = tempLocal[cnt];
+    LocalTensor<float> temp2Local = temp1Local[cnt];
 
     // temp1Local = srcLocal ^ 2
     Mul(temp1Local, srcLocal, srcLocal, cnt);

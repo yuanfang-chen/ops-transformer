@@ -55,9 +55,7 @@ public:
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut);
+        __gm__ uint8_t *cmpKvOut);
     // =================================资源管理=================================
     __aicore__ inline void InitBuffers(TPipe *pipe);
     __aicore__ inline void AllocEventID();
@@ -73,8 +71,8 @@ public:
     __aicore__ inline void SetMSplitInfo(const Compressor::RunInfo &info);
     __aicore__ inline void InitVec1GlobalTensor(GlobalTensor<T> preMm1ResGm, GlobalTensor<T> curMm1ResGm, GlobalTensor<T> vec1ResGm);
     __aicore__ inline void ComputeVec2(const Compressor::RunInfo &info);
-    __aicore__ inline void WriteToCacheState(GlobalTensor<T> &state, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
-    __aicore__ inline void ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
+    __aicore__ inline void WriteToCacheState(GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTable, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
+    __aicore__ inline void ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTable, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd);
     __aicore__ inline void ProcessSingleBatch(uint32_t batchIdx);
     __aicore__ inline void ProcessSingleBatch(uint32_t batchIdx, uint64_t batchStartSeqIdx, uint64_t batchEndSeqIdx, uint32_t dLoop, uint32_t dealDSize,
         LocalTensor<T> &mmResRight, LocalTensor<T> &mmResLeft);
@@ -166,16 +164,14 @@ __aicore__ inline void CompressorBlockVector<COMP>::Init(
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut)
+        __gm__ uint8_t *cmpKvOut)
 {
     startPosGm_.SetGlobalBuffer((__gm__ int32_t *)startPos);
     cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
     kvBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)kvBlockTable);
     scoreBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)scoreBlockTable);
-    kvStateGm_.SetGlobalBuffer((__gm__ T *)kvStateOut);
-    scoreStateGm_.SetGlobalBuffer((__gm__ T *)scoreStateOut);
+    kvStateGm_.SetGlobalBuffer((__gm__ T *)kvState);
+    scoreStateGm_.SetGlobalBuffer((__gm__ T *)scoreState);
     apeGm_.SetGlobalBuffer((__gm__ T *)ape);
 }
 
@@ -238,7 +234,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetBsLength(uint32_t ind
 }
 
 template <typename COMP>
-__aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(GlobalTensor<T> &state,  GlobalTensor<int32_t> &blockTableGm_, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
+__aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTableGm_, LocalTensor<T> &input, uint32_t batchIdx, uint32_t startSeqIdx, uint32_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
 {
     uint64_t blockTablebaseOffset = batchIdx * constInfo_.maxBlockNumPerBatch;
     uint32_t curSeqIdx = 0;
@@ -265,7 +261,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(GlobalTens
 }
 
 template <typename COMP>
-__aicore__ inline void CompressorBlockVector<COMP>::ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
+__aicore__ inline void CompressorBlockVector<COMP>::ReadFromCacheState(LocalTensor<T> &output, GlobalTensor<T> &state, GlobalTensor<int32_t> &blockTableGm_, uint32_t batchIdx, uint64_t startSeqIdx, uint64_t endSeqIdx, uint32_t dStart, uint32_t dEnd)
 {
     uint64_t blockTablebaseOffset = batchIdx * constInfo_.maxBlockNumPerBatch;
     uint32_t curSeqIdx = 0;
@@ -609,7 +605,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::GetScIdxInfo(uint32_t bStart
 template <typename COMP>
  __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &info)
 {
-    DumpTensorForDim2(mm1ResTensor, 2, 128 * 256, 256, 128);
+    // DumpTensorForDim2(mm1ResTensor, 2, 128 * 256, 256, 128);
     // TODO 1分核
     SetMSplitInfo(info);
     uint32_t scLoopTimes = 0;

@@ -55,8 +55,6 @@ public:
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
         __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut,
         __gm__ uint8_t *workspace);
     __aicore__ inline void Process();
 
@@ -136,6 +134,7 @@ private:
     GlobalTensor<MM1_OUT_T> preMm1ResGm;
     GlobalTensor<MM1_OUT_T> curMm1ResGm;
     GlobalTensor<VEC1_OUT_T> vec1ResGm;
+    GlobalTensor<VEC1_OUT_T> vec2InputGm;
 };
 
 template <typename COMP>
@@ -155,8 +154,6 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
         __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut,
         __gm__ uint8_t *workspace) {
     // printf("[VERSION] 20260110-001\n");
     // printf("CompressorKernel::Init!!!!!\n");
@@ -211,16 +208,21 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     if ASCEND_IS_AIC {
         blockCube_.InitParams(constInfo);
         blockCube_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, 
-            kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
+            kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut);
         blockCube_.InitBuffers(pipe_);
+#if __CCE_AICORE__ == 310
+#else
         blockCube_.InitGlobalBuffers(preMm1ResGm, curMm1ResGm);
+#endif
     } else {
         blockVec_.InitParams(constInfo);
         blockVec_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, kvBlockTable, scoreBlockTable, 
-                        cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
+                        cuSeqlens, seqUsed, startPos, cmpKvOut);
         blockVec_.InitBuffers(pipe_);
-#if (__CCE_AICORE__ == 220)
-        blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
+#if __CCE_AICORE__ == 310
+		//
+#else 
+        blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm, vec2InputGm);
 #endif
     }
 }
@@ -246,7 +248,7 @@ __aicore__ inline void CompressorKernel<COMP>::InitTilingData() {
     constInfo.preMm1ResSize = tilingData_->workspaceParams.preMm1ResSize;
     constInfo.curMm1ResSize = tilingData_->workspaceParams.curMm1ResSize;
     constInfo.nSize =  tilingData_->baseParams.nSize;
-    constInfo.vec1ResSize = tilingData_->workspaceParams.vec1ResSize * constInfo.nSize;
+    constInfo.vec1ResSize = tilingData_->workspaceParams.vec1ResSize;
     // printf("[TILINGDATA] cmpRatio:%u batchSize:%u mBaseSize:%u dBaseSize:%u\n", constInfo.cmpRatio, constInfo.batchSize, constInfo.mBaseSize, constInfo.dBaseSize);
 }
 
@@ -265,9 +267,15 @@ __aicore__ inline void CompressorKernel<COMP>::InitWorkspace(__gm__ uint8_t *wor
                              constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.curMm1ResSize * sizeof(MM1_OUT_T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.curMm1ResSize * sizeof(MM1_OUT_T);
 
+    uint64_t beforeVecOffset = offset;
+
     // vec1Res 
     vec1ResGm.SetGlobalBuffer(
-        (__gm__ VEC1_OUT_T *)(workspace + offset + constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum * sizeof(VEC1_OUT_T)));
+        (__gm__ VEC1_OUT_T *)(workspace + offset + (constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum) * sizeof(VEC1_OUT_T)));
+    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize * sizeof(VEC1_OUT_T);
+    // vec2Input
+    vec2InputGm.SetGlobalBuffer(
+        (__gm__ VEC1_OUT_T *)(workspace + beforeVecOffset +  (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum * sizeof(VEC1_OUT_T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize * sizeof(VEC1_OUT_T);
 }
 
@@ -537,8 +545,10 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
     if ASCEND_IS_AIC {
         blockCube_.AllocEventID(pipe_);
     } else {
+#if __CCE_AICORE__ == 310
         blockVec_.AllocEventID();
         CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
+#endif
     }
 
     RunInfo extraInfo[1];
@@ -554,7 +564,9 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
             if (isNeedExcute) {
+#if __CCE_AICORE__ == 310
                 CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
+#endif
                 ComputeMm1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG);
             }
@@ -562,7 +574,9 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
             if (isNeedExcute) {
                 CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
+#if __CCE_AICORE__ == 310
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
+#endif
             }
             if ((i + 1) % constInfo.nSize == 1) {
                 vec2Info.bStart = extraInfo0.bStart;
@@ -580,16 +594,20 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                     vec2Info.bEnd = extraInfo0.bEnd;
                     vec2Info.sEnd = extraInfo0.sEnd;
                     vec2Info.scEnd = extraInfo0.scEnd;
-                    // ComputeVec2(vec2Info);
+                    ComputeVec2(vec2Info);
                 }
             }
         }
     }
     if ASCEND_IS_AIC {
-        CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
+#if __CCE_AICORE__ == 310
+		CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
+#endif
         blockCube_.FreeEventID(pipe_);
     } else {
+#if __CCE_AICORE__ == 310
         blockVec_.FreeEventID();
+#endif
     }
 
 }
