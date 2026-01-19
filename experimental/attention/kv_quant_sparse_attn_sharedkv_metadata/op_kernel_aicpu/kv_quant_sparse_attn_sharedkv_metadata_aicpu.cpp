@@ -834,8 +834,12 @@ optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)met
     return true;
 }
 
-static const char *SaskernelType = "KVQuantSparseAttnSharedkvMetadata";
-REGISTER_CPU_KERNEL(SaskernelType, KVQuantSparseAttnSharedkvMetadataCpuKernel);
+//static const char *SaskernelType = "KVQuantSparseAttnSharedkvMetadata";
+//REGISTER_CPU_KERNEL(SaskernelType, KVQuantSparseAttnSharedkvMetadataCpuKernel);
+namespace {
+    static const char *kernelType = "KVQuantSparseAttnSharedkvMetadata";
+    REGISTER_CPU_KERNEL(kernelType, KVQuantSparseAttnSharedkvMetadataCpuKernel);
+}
 
 }; // namespace aicpu
 

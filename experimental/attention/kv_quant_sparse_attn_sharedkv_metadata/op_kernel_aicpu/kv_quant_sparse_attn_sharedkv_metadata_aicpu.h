@@ -224,10 +224,10 @@ struct AssignContext {
     CoreCache coreCache {};
 };
 
-class KVQuantKVQuantSparseAttnSharedkvMetadataCpuKernel : public CpuKernel {
+class KVQuantSparseAttnSharedkvMetadataCpuKernel : public CpuKernel {
 public:
-  KVQuantKVQuantSparseAttnSharedkvMetadataCpuKernel() = default;
-  ~KVQuantKVQuantSparseAttnSharedkvMetadataCpuKernel() = default;
+  KVQuantSparseAttnSharedkvMetadataCpuKernel() = default;
+  ~KVQuantSparseAttnSharedkvMetadataCpuKernel() = default;
   uint32_t Compute(CpuKernelContext &ctx) override;
 
 private:
