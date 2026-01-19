@@ -31,6 +31,8 @@ constexpr uint32_t STATE_OFFSET = 32U;  // 状态空间偏移地址
 constexpr uint32_t UB_ALIGN = 32U;       // UB按32字节对齐
 constexpr uint8_t COMM_NUM = 2;  // 通信域大小
 constexpr uint8_t COMM_EP_IDX = 0;
+constexpr float INT4_MAX_VALUE = 7.0f;      // INT4 量化最大值
+constexpr float INT8_MAX_VALUE = 127.0f;    // INT8 量化最大值
 constexpr uint64_t WIN_STATE_OFFSET = 500UL * 1024UL;
 constexpr uint64_t STATE_WIN_OFFSET = 950UL * 1024UL;
 constexpr uint64_t CUMSUM_FLAG_OFFSET = 1000UL * 1024UL;
@@ -54,6 +56,18 @@ __aicore__ inline void SyncFunc()
 
 #define TemplateMC2TypeClass typename XType, typename ExpandXOutType, bool StaticQuant, bool DynamicQuant, bool IsSmoothScaleExist, bool IsNeedAllgather
 #define TemplateMC2TypeFunc XType, ExpandXOutType, StaticQuant, DynamicQuant, IsSmoothScaleExist, IsNeedAllgather
+
+// 宏：计算 x * sizeof(TYPE)（字节数），其中sizeof为逻辑字节大小
+// 对于 int4b_t: x * 0.5 = x >> 1
+// 对于其他类型: x * sizeof(TYPE)
+#define MUL_SIZEOF(x, TYPE) \
+    (IsSameType<TYPE, int4b_t>::value ? ((x) >> 1) : ((x) * sizeof(TYPE)))
+
+// 宏：计算 x / SIZEOF(TYPE)（元素数），其中sizeof为逻辑字节大小
+// 对于 int4b_t: x / 0.5 = x << 1
+// 对于其他类型: x / sizeof(TYPE)
+#define DIV_SIZEOF(x, TYPE) \
+    (IsSameType<TYPE, int4b_t>::value ? ((x) << 1) : ((x) / sizeof(TYPE)))
 
 using namespace AscendC;
 template <TemplateMC2TypeClass>
@@ -263,13 +277,13 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Set
     moeExpertNumPerRank_ = moeExpertNum_ / moeExpertRankNum_;
     lastCore_ = aivNum_ - 1;
     expertIdsCnt_ = axisBS_ * axisK_;
-    hOutSize_ = axisH_ * sizeof(ExpandXOutType);
-    axisHExpandXAlignSize_ = Ceil(axisH_ * sizeof(ExpandXOutType), UB_ALIGN) * UB_ALIGN;
+    hOutSize_ = MUL_SIZEOF(axisH_, ExpandXOutType);
+    axisHExpandXAlignSize_ = Ceil(hOutSize_, UB_ALIGN) * UB_ALIGN;
     tokenQuantAlign_ = axisHExpandXAlignSize_ / sizeof(int32_t);
     hOutSizeAlign_ = axisHExpandXAlignSize_ + UB_ALIGN * BUFFER_NUM;
     blockCntPerToken_ = Ceil(hOutSizeAlign_, SPLIT_BLOCK_DATA_SIZE);
     hCommuSize_ = blockCntPerToken_ * SPLIT_BLOCK_SIZE;
-    axisHCommu_ = hCommuSize_ / sizeof(ExpandXOutType);
+    axisHCommu_ = DIV_SIZEOF(hCommuSize_, ExpandXOutType);
     expertPerSizeOnWin_ = axisMaxBS_ * hCommuSize_;
     totalExpertNum_ = sharedExpertRankNum_ + moeExpertNum_;
     statusCntAlign_ = Ceil(totalExpertNum_, 8) * 8;   // 8 = UB_ALIGN / sizeof(int32_t)
@@ -340,7 +354,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Ini
     windowInstatusFp32Tensor_.SetGlobalBuffer((__gm__ float*)(statusSpaceGM_));
     windowGM_ = GetWindAddrByRankId(epRankId_);
     hCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XType)), 0U, 0U, 0U};
-    expandXCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(ExpandXOutType)), 0U, 0U, 0U};
+    expandXCopyParams_ = {1U, static_cast<uint32_t>(MUL_SIZEOF(axisH_, ExpandXOutType)), 0U, 0U, 0U};
 }
 
 template <TemplateMC2TypeClass>
@@ -399,8 +413,20 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Qua
         PipeBarrier<PIPE_V>();
         ReduceMaxInplace(floatLocalAbsTemp_, axisH_);
 
+        // INT4 量化需要限制最大值为2.56
+        if constexpr (IsSameType<ExpandXOutType, int4b_t>::value) {
+            PipeBarrier<PIPE_V>();
+            Min(floatLocalAbsTemp, floatLocalAbsTemp, float(2.56), axisH_);
+            PipeBarrier<PIPE_V>();
+        }
+
         SyncFunc<AscendC::HardEvent::V_S>();
-        dynamicScale = float(127.0) / floatLocalAbsTemp_.GetValue(0);
+        // 根据输出类型选择最大值：INT4使用7.0，INT8使用127.0
+        if constexpr (IsSameType<ExpandXOutType, int4b_t>::value) {
+            dynamicScale = float(INT4_MAX_VALUE) / floatLocalAbsTemp_.GetValue(0);
+        } else {
+            dynamicScale = float(INT8_MAX_VALUE) / floatLocalAbsTemp_.GetValue(0);
+        }
         SyncFunc<AscendC::HardEvent::S_V>();
         Muls(floatLocalTemp_, floatLocalTemp_, dynamicScale, axisH_);
         PipeBarrier<PIPE_V>();
@@ -411,9 +437,9 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Qua
     PipeBarrier<PIPE_V>();
     SetDeqScale((half)1.000000e+00f);
     PipeBarrier<PIPE_V>();
-
+    
     Cast(halfLocalTemp, int32LocalTemp, RoundMode::CAST_ROUND, axisH_);
-
+    
     PipeBarrier<PIPE_V>();
     Cast(tempTensor_, halfLocalTemp, RoundMode::CAST_TRUNC, axisH_);
     PipeBarrier<PIPE_V>();
@@ -441,7 +467,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Tok
     // 64：偏移前一次拷贝的256字节； 56 = （480 - 256） / sizeof(int32_t); 16、15分别为dst、src相邻迭代间地址步长
     Copy(outTensorInt32[flagPadOffset_ / sizeof(int32_t) + 64], tempTensorInt32[64], uint64_t(56), uint8_t(blockCntPerToken_), {1, 1, 16, 15});
     SyncFunc<AscendC::HardEvent::V_MTE3>();
-    DataCopy(dstWinGMTensor, outTensor_[flagPadOffset_ / sizeof(ExpandXOutType)], axisHCommu_);
+    DataCopy(dstWinGMTensor, outTensor_[DIV_SIZEOF(flagPadOffset_, ExpandXOutType)], axisHCommu_);
     flagPadOffset_ = hCommuSize_ - flagPadOffset_;
 }
 
@@ -456,12 +482,15 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Tok
     xInTensor = inQueue.DeQue<XType>();
     FillTriple(xInTensor, srcTokenIndex, toExpertIndex);
     SyncFunc<AscendC::HardEvent::S_V>();
+    // 使用宏统一处理地址偏移和长度计算
     // 128 = 256 / sizeof(ExpandXOutType) 一次操作字节数; 16、15分别为dst、src相邻迭代间地址步长
-    Copy(outTensor_[flagPadOffset_ / sizeof(ExpandXOutType)], xInTensor, uint64_t(128), uint8_t(blockCntPerToken_), {1, 1, 16, 15});
-    // 128：偏移前一次拷贝的256字节； 112 = （480 - 256） / sizeof(ExpandXOutType); 16、15分别为dst、src相邻迭代间地址步长
-    Copy(outTensor_[flagPadOffset_ / sizeof(ExpandXOutType) + 128], xInTensor[128], uint64_t(112), uint8_t(blockCntPerToken_), {1, 1, 16, 15});
+    uint64_t copyLen1 = DIV_SIZEOF(256, ExpandXOutType);
+    uint64_t copyLen2 = DIV_SIZEOF(480 - 256, ExpandXOutType);
+    Copy(outTensor_[DIV_SIZEOF(flagPadOffset_, ExpandXOutType)], xInTensor, copyLen1, uint8_t(blockCntPerToken_), {1, 1, 16, 15});
+    // copyLen2：偏移前一次拷贝的256字节后的剩余部分; 16、15分别为dst、src相邻迭代间地址步长
+    Copy(outTensor_[DIV_SIZEOF(flagPadOffset_, ExpandXOutType) + copyLen1], xInTensor[copyLen1], copyLen2, uint8_t(blockCntPerToken_), {1, 1, 16, 15});
     SyncFunc<AscendC::HardEvent::V_MTE3>();
-    DataCopy(dstWinGMTensor, outTensor_[flagPadOffset_ / sizeof(ExpandXOutType)], axisHCommu_);
+    DataCopy(dstWinGMTensor, outTensor_[DIV_SIZEOF(flagPadOffset_, ExpandXOutType)], axisHCommu_);
     flagPadOffset_ = hCommuSize_ - flagPadOffset_;
     inQueue.FreeTensor<XType>(xInTensor);
 }
@@ -975,7 +1004,8 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Cop
         static_cast<uint32_t>((blockCntPerToken_ * SPLIT_BLOCK_DATA_SIZE) / UB_ALIGN - 1), 0U, 0U};
     DataCopyPadExtParams<ExpandXOutType> srcTokenPadParams{false, 0U, 0U, 0U};
 
-    DataCopyPad(xTmpTensor_, dataFlagGlobal[expertFinishNumTensor_(index) * hCommuSize_ / sizeof(ExpandXOutType)],
+    // 使用宏统一处理地址偏移计算
+    DataCopyPad(xTmpTensor_, dataFlagGlobal[expertFinishNumTensor_(index) * DIV_SIZEOF(hCommuSize_, ExpandXOutType)],
                 srcTokenCopyParams, srcTokenPadParams);
     SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
     if constexpr (DynamicQuant || StaticQuant) {

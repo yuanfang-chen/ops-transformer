@@ -323,9 +323,31 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
     auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
     OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
     if (quantMode != NO_SCALES) {
-        OP_TILING_CHECK(expandXDesc->GetDataType() != ge::DT_INT8,
-            OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be int8, but is %s.",
+        // 支持INT8、INT4和INT32输出类型（INT32是INT4的伪装，用于torch调用）
+        OP_TILING_CHECK((expandXDesc->GetDataType() != ge::DT_INT8) && 
+            (expandXDesc->GetDataType() != ge::DT_INT4) && (expandXDesc->GetDataType() != ge::DT_INT32),
+            OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be int8, int4, or int32, but is %s.",
             Ops::Base::ToString(expandXDesc->GetDataType()).c_str()), return false);
+        
+        auto xShape = xDesc->GetShape();
+        auto xDimNum = xShape.GetDimNum();
+        if (xDimNum > 0) {
+            int64_t xLastDim = xShape.GetDim(xDimNum - 1);
+            auto expandXShape = expandXDesc->GetShape();
+            int64_t expandXLastDim = expandXShape.GetDim(expandXShape.GetDimNum() - 1);
+            
+            // 如果输出类型是INT32（实际是INT4），检查输入的最后一个维度是输出的8倍
+            if (expandXDesc->GetDataType() == ge::DT_INT32) {
+                OP_TILING_CHECK(xLastDim != (expandXLastDim * 8),
+                    OP_LOGE(nodeName, "If expandX dataType is int32 (int4 packed), the last dim of x must be 8 times the last dim of expandX, "
+                    "but x last dim is (%ld) and expandX last dim is (%ld).", xLastDim, expandXLastDim), return false);
+            } else if (expandXDesc->GetDataType() == ge::DT_INT4) {
+                // 如果输出类型是INT4，检查最后一维是否能被2整除（因为2个int4打包成1个字节）
+                OP_TILING_CHECK((xLastDim % 2) != 0,
+                    OP_LOGE(nodeName, "If expandX dataType is int4, the last dim of x must be divisible by 2, but the last dim is (%ld).",
+                    xLastDim), return false);
+            }
+        }
     } else {
         OP_TILING_CHECK(expandXDesc->GetDataType() != xDesc->GetDataType(),
             OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be equal to x dataType %s, but is %s.",

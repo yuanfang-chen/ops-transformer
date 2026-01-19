@@ -34,6 +34,8 @@ constexpr uint32_t STATE_SIZE = 1024 * 1024; // 1M
 constexpr uint8_t COMM_NUM = 2;  // 通信域大小
 constexpr uint8_t COMM_EP_IDX = 0;
 constexpr uint8_t COMM_TP_IDX = 1;
+constexpr float INT4_MAX_VALUE = 7.0f;      // INT4 量化最大值
+constexpr float INT8_MAX_VALUE = 127.0f;    // INT8 量化最大值
 // 先写死这个偏移，如果TP固定为2，可直接往起始数据偏移开始读写
 constexpr uint64_t WIN_STATE_OFFSET = 500UL * 1024UL;
 constexpr uint64_t STATE_WIN_OFFSET = 950UL * 1024UL;
@@ -58,6 +60,19 @@ constexpr uint32_t  MAX_UB_SIZE = 170U * 1024U;
 
 #define TemplateMC2TypeClass typename XType, typename ExpandXOutType, bool StaticQuant, bool DynamicQuant, bool IsSmoothScaleExist, bool IsNeedAllgather
 #define TemplateMC2TypeFunc XType, ExpandXOutType, StaticQuant, DynamicQuant, IsSmoothScaleExist, IsNeedAllgather
+
+
+// 宏：计算 x * sizeof(TYPE)（字节数），其中sizeof为逻辑字节大小
+// 对于 int4b_t: x * 0.5 = x >> 1
+// 对于其他类型: x * sizeof(TYPE)
+#define MUL_SIZEOF(x, TYPE) \
+    (IsSameType<TYPE, int4b_t>::value ? ((x) >> 1) : ((x) * sizeof(TYPE)))
+
+// 宏：计算 x / SIZEOF(TYPE)（元素数），其中sizeof为逻辑字节大小
+// 对于 int4b_t: x / 0.5 = x << 1
+// 对于其他类型: x / sizeof(TYPE)
+#define DIV_SIZEOF(x, TYPE) \
+    (IsSameType<TYPE, int4b_t>::value ? ((x) << 1) : ((x) / sizeof(TYPE)))
 
 using namespace AscendC;
 using namespace MoeDistributeV2Base;
@@ -377,14 +392,14 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::Init(
     sendTpCountOutGM_ = tpSendCountsOut;
     recvCntWorkspaceGM_ = workspaceGM;
 
-    hOutSize_ = axisH_ * sizeof(ExpandXOutType);
+    hOutSize_ = MUL_SIZEOF(axisH_, ExpandXOutType);
     hOutSizeAlign_ = Ceil(hOutSize_, UB_ALIGN) * UB_ALIGN; // scale起始放置偏移
     uint32_t hScaleSizeAlign = hOutSizeAlign_ + UB_ALIGN; // 填充三元组起始偏移
     tokenQuantAlign_ = hScaleSizeAlign / sizeof(int32_t);
     // 实际搬运大小，搬运token_align32B + 32B(float) + 3*4B(三元组)
     uint32_t hScaleIdxSize = hScaleSizeAlign + EXPAND_IDX_INFO * sizeof(int32_t);
     hAlignWinSize_ = Ceil(hScaleIdxSize, WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN; // win区token起始地址对齐512
-    hAlignWinCnt_ = hAlignWinSize_ / sizeof(ExpandXOutType);
+    hAlignWinCnt_ = DIV_SIZEOF(hAlignWinSize_, ExpandXOutType);
     expertPerSizeOnWin_ = axisMaxBS_ * hAlignWinSize_;
     if (sharedExpertRankNum_ != 0U) {
         sharedUsedAivNum_ = (aivNum_ * sharedExpertNum_) / (axisK_ + sharedExpertNum_);
@@ -514,11 +529,11 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::Init(
     dstExpIdTensor_ = dstExpBuf_.Get<int32_t>();
     subExpIdTensor_ = subExpBuf_.Get<int32_t>();
 
-    uint32_t axisHCommu = hScaleIdxSize / sizeof(ExpandXOutType); // 有效搬运长度
+    uint32_t axisHCommu = DIV_SIZEOF(hScaleIdxSize, ExpandXOutType);
     floatDataCopyParams_ = {1U, sizeof(float), 0U, 0U, 0U};
     xCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XType)), 0U, 0U, 0U};
-    hCommuCopyOutParams_ = {1U, static_cast<uint32_t>(axisHCommu * sizeof(ExpandXOutType)), 0U, 0U, 0U};
-    expandXCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(ExpandXOutType)), 0U, 0U, 0U};
+    hCommuCopyOutParams_ = {1U, static_cast<uint32_t>(MUL_SIZEOF(axisHCommu, ExpandXOutType)), 0U, 0U, 0U};
+    expandXCopyParams_ = {1U, static_cast<uint32_t>(MUL_SIZEOF(axisH_, ExpandXOutType)), 0U, 0U, 0U};
 }
 
 template <TemplateMC2TypeClass>
@@ -1021,12 +1036,25 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::QuantProces
         PipeBarrier<PIPE_V>();
         ReduceMaxInplace(floatLocalAbsTemp, axisH_);
 
+        // INT4 量化需要限制最大值为2.56
+        if constexpr (IsSameType<ExpandXOutType, int4b_t>::value) {
+            PipeBarrier<PIPE_V>();
+            Min(floatLocalAbsTemp, floatLocalAbsTemp, float(2.56), axisH_);
+            PipeBarrier<PIPE_V>();
+        }
+
         SyncFunc<AscendC::HardEvent::V_S>();
-        dynamicScale = float(127.0) / floatLocalAbsTemp.GetValue(0);
+        // 根据输出类型选择最大值：INT4使用7.0，INT8使用127.0
+        if constexpr (IsSameType<ExpandXOutType, int4b_t>::value) {
+            dynamicScale = float(INT4_MAX_VALUE) / floatLocalAbsTemp.GetValue(0);
+        } else {
+            dynamicScale = float(INT8_MAX_VALUE) / floatLocalAbsTemp.GetValue(0);
+        }
         SyncFunc<AscendC::HardEvent::S_V>();
         Muls(floatLocalTemp, floatLocalTemp, dynamicScale, axisH_);
         PipeBarrier<PIPE_V>();
     }
+
     LocalTensor<half> halfLocalTemp = floatLocalTemp.ReinterpretCast<half>();
     LocalTensor<int32_t> int32LocalTemp = floatLocalTemp.ReinterpretCast<int32_t>();
     Cast(int32LocalTemp, floatLocalTemp, RoundMode::CAST_RINT, axisH_);
@@ -1040,7 +1068,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::QuantProces
     Cast(xOutTensor_, halfLocalTemp, RoundMode::CAST_TRUNC, axisH_);
 
     floatLocalTemp = xOutTensor_.template ReinterpretCast<float>();
-    floatLocalTemp.SetValue(hOutSizeAlign_ / sizeof(float), float(1.0) / dynamicScale); // int8->float32
+    floatLocalTemp.SetValue(hOutSizeAlign_ / sizeof(float), float(1.0) / dynamicScale); // int8/int4->float32
 }
 
 template <TemplateMC2TypeClass>
