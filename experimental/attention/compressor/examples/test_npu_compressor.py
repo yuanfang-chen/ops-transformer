@@ -586,7 +586,7 @@ class TestCustomCompressor(TestCase):
         bs_combine_flag = True
         
         #decode2
-        head_dim = 128
+        head_dim = 512
         coff = 1
         cmp_ratio = 128
         B = 1
