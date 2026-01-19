@@ -54,7 +54,7 @@ namespace detail {
         struct FlashDecodeResult fdRes;             // FD信息
     };
 };
-static_assert(SAS_META_SIZE * sizeof(SAS_METADATA_T) >= sizeof(detail::SasMetaData));
+static_assert(SCFA_META_SIZE * sizeof(SCFA_METADATA_T) >= sizeof(detail::SasMetaData));
 };
 
 #endif
