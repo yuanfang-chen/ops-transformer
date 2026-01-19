@@ -1021,9 +1021,9 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
     DataCopy(statusTensor[FLAG_SIZE * 2], TokenFlagGtU64[(nextTokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)],
         FLAG_SIZE / sizeof(uint64_t));
     SyncFunc<AscendC::HardEvent::MTE2_S>();
-    uint64_t endFlagValue = statusTensor[0].GetValue();
-    uint64_t tokenFlagValue = statusTensor[FLAG_SIZE].GetValue();
-    uint64_t nextTokenFlagValue = statusTensor[FLAG_SIZE * 2].GetValue();
+    uint64_t endFlagValue = statusTensor.GetValue(0);
+    uint64_t tokenFlagValue = statusTensor.GetValue(FLAG_SIZE);
+    uint64_t nextTokenFlagValue = statusTensor.GetValue(FLAG_SIZE * 2);
 
     //等到发送结束信号，没等到token结束信号，则返回结束等待状态
     if (nextTokenFlagValue == SHOULD_SEND_FLAG_VALUE) {
