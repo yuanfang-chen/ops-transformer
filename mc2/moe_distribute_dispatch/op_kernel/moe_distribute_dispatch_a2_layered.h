@@ -19,11 +19,7 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_tiling.h"
-#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
-#else
-#include "../../common/inc/kernel/moe_distribute_base.h"
-#endif
 
 namespace MoeDistributeDispatchA2Impl {
 #define TemplateMC2TypeA2layeredClass typename XType, typename ExpandXOutType,bool StaticQuant, bool DynamicQuant, bool IsSmoothScaleExist
@@ -378,10 +374,6 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     GlobalTensor<uint64_t> magicGt;
     magicGt.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[rankId_ % SERVER_RANK_SIZE] + IPC_MAGIC_OFFSET) +
                                             aivId_ * UB_32B_ALIGN / sizeof(uint64_t));
-    // magicVal_ = magicGt.GetValue(0) + 1UL;
-    // magicGt.SetValue(0, magicVal_);
-    // DataCacheCleanAndInvalid<uint64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
-    //         AscendC::DcciDst::CACHELINE_OUT>(magicGt);
     DataCopy(tempLocal, magicGt, UB_32B_ALIGN / sizeof(uint64_t));
     SyncFunc<AscendC::HardEvent::MTE2_S>();
     tempLocal(0) += 1;
