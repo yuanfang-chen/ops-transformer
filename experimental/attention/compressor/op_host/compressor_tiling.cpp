@@ -583,12 +583,7 @@ ge::graphStatus CompressorTiling::CheckSingleParaNormWeight() const
 
 ge::graphStatus CompressorTiling::CheckSingleParaRopeSin() const
 {
-    std::vector<uint32_t> ropeSinDimNumList = {};
-    if (context_->layout == "BSH") {
-        ropeSinDimNumList = {COMPRESSOR_DIM_NUM_3};
-    } else {
-        ropeSinDimNumList = {COMPRESSOR_DIM_NUM_2};
-    }
+    std::vector<uint32_t> ropeSinDimNumList = {COMPRESSOR_DIM_NUM_2, COMPRESSOR_DIM_NUM_3};
     if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->ropeSin.desc, ROPE_SIN_NAME) ||
         ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->ropeSin.shape, ropeSinDimNumList, ROPE_SIN_NAME) ||
         ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(context_->layout, context_->ropeSin.shape, ROPE_SIN_NAME)) {
@@ -599,12 +594,7 @@ ge::graphStatus CompressorTiling::CheckSingleParaRopeSin() const
 
 ge::graphStatus CompressorTiling::CheckSingleParaRopeCos() const
 {
-    std::vector<uint32_t> ropeCosDimNumList = {};
-    if (context_->layout == "BSH") {
-        ropeCosDimNumList = {COMPRESSOR_DIM_NUM_3};
-    } else {
-        ropeCosDimNumList = {COMPRESSOR_DIM_NUM_2};
-    }
+    std::vector<uint32_t> ropeCosDimNumList = {COMPRESSOR_DIM_NUM_2, COMPRESSOR_DIM_NUM_3};
     if (ge::GRAPH_SUCCESS != CheckDtypeSupport(context_->ropeCos.desc, ROPE_COS_NAME) ||
         ge::GRAPH_SUCCESS != CheckDimNumSupport(context_->ropeCos.shape, ropeCosDimNumList, ROPE_COS_NAME) ||
         ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(context_->layout, context_->ropeCos.shape, ROPE_COS_NAME)) {
@@ -758,11 +748,11 @@ ge::graphStatus CompressorTiling::CheckRequiredInOutExistence() const
     OP_CHECK_IF(context_->ropeCos.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor ropeCos is nullptr"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->cmpKv.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->cmpKv.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
-    if (context_->layout == "BSH"){
+    if (context_->layout == "TH"){
         OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
-        OP_LOGE("Compressor", "In BSH situation, desc of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE("Compressor", "In TH situation, desc of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
-        OP_LOGE("Compressor", "In BSH situation, shape of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE("Compressor", "In TH situation, shape of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -839,28 +829,28 @@ ge::graphStatus CompressorTiling::CheckShapeConsistencyRope() const
     auto cmpT = std::min(baseParams_->tokenSize, baseParams_->tokenSize / baseParams_->cmpRatio + baseParams_->batchSize);
     if(context_->layout == "BSH"){
         OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
-                    OP_LOGE("Compressor", "ropeSin shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+                    OP_LOGE("Compressor", "In BSH situation, ropeSin shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != baseParams_->batchSize,
-                    OP_LOGE("Compressor", "ropeCos shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
+                    OP_LOGE("Compressor", "In BSH situation, ropeCos shape dim 0 should be equal to batchSize"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != baseParams_->cgSize,
-                    OP_LOGE("Compressor", "ropeSin shape dim 1 should be equal to ceil(seqSize / cmpRatio)"), return ge::GRAPH_FAILED);
+                    OP_LOGE("Compressor", "In BSH situation, ropeSin shape dim 1 should be equal to ceil(seqSize / cmpRatio)"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != baseParams_->cgSize,
-                    OP_LOGE("Compressor", "ropeCos shape dim 1 should be equal to ceil(seqSize / cmpRatio)"), return ge::GRAPH_FAILED);
+                    OP_LOGE("Compressor", "In BSH situation, ropeCos shape dim 1 should be equal to ceil(seqSize / cmpRatio)"), return ge::GRAPH_FAILED);
         OP_CHECK_IF( context_->ropeSin.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_2) != baseParams_->ropeHeadDim,
-                    OP_LOGE("Compressor", "ropeSin shape dim 2 should be equal to ropeHeadDi)"), return ge::GRAPH_FAILED);
+                    OP_LOGE("Compressor", "In BSH situation, ropeSin shape dim 2 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_2) != baseParams_->ropeHeadDim,
-                    OP_LOGE("Compressor", "ropeCos shape dim 2 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
+                    OP_LOGE("Compressor", "In BSH situation, ropeCos shape dim 2 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != cmpT,
-                    OP_LOGE("Compressor", "ropeSin shape dim 0 should be equal to min(tokenSize, tokenSize / cmpRatio + batchSize)"),
+                    OP_LOGE("Compressor", "In TH situation, ropeSin shape dim 0 should be equal to min(tokenSize, tokenSize / cmpRatio + batchSize)"),
                     return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != cmpT,
-                    OP_LOGE("Compressor", "ropeCos shape dim 0 should be equal to min(tokenSize, tokenSize / cmpRatio + batchSize)"),
+                    OP_LOGE("Compressor", "In TH situation, ropeCos shape dim 0 should be equal to min(tokenSize, tokenSize / cmpRatio + batchSize)"),
                     return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->ropeSin.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != baseParams_->ropeHeadDim,
-            OP_LOGE("Compressor", "ropeSin shape dim 1 should be equal to ropeHeadDi)"), return ge::GRAPH_FAILED);
+            OP_LOGE("Compressor", "In TH situation, ropeSin shape dim 1 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != baseParams_->ropeHeadDim,
-            OP_LOGE("Compressor", "ropeCos shape dim 1 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
+            OP_LOGE("Compressor", "In TH situation, ropeCos shape dim 1 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
