@@ -20,7 +20,7 @@
  #include "grouped_matmul.h"
  
  #ifdef GMM_A4W4
- namespace GROUPED_MATMUL{
+ namespace GROUPED_MATMUL{ 
  using namespace matmul;
  using namespace AscendC;
  
