@@ -1,0 +1,200 @@
+import torch
+import numpy as np
+import collections
+import torch.distributed as dist
+from torch.distributed import ReduceOp
+import torch_npu
+import random
+
+import ctypes
+from atk.configs.dataset_config import InputDataset
+from atk.configs.results_config import TaskResult
+from atk.tasks.api_execute import register
+from atk.tasks.api_execute.base_api import BaseApi
+from atk.tasks.api_execute.aclnn_base_api import AclnnBaseApi
+from atk.tasks.dataset.base_dataset import OpsDataset
+from atk.tasks.backends.lib_interface.acl_wrapper import AclTensor
+from atk.tasks.backends.lib_interface.acl_wrapper import AclFormat
+
+torch.use_deterministic_algorithms(True)
+@register("function_matmul_reduce_satter_v2")
+class MatmulReduceScatterV2(BaseApi):
+    def init(self, task_result: TaskResult):
+        super(MatmulReduceScatterV2, self).init(task_result)
+        self.dist_task_info = task_result.dist_task_info
+
+def get_cpp_func_signature_type(self):
+    return "aclnnStatus aclnnMatmulReduceScatterV2GetWorkspaceSize(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias, \
+                                               const aclTensor* x1Scale, const aclTensor* x2Scale, \
+                                               const aclTensor* quantScale, int64_t blockSize, const char* group, \
+                                               const char* reduceOp, int64_t commTurn, int64_t streamMode, \
+                                               int64_t groupSize, const char* commMode, aclTensor* output, \
+                                               aclTensor* amaxOutOptional, uint64_t* workspaceSize, \
+                                               aclOpExecutor** executor);"
+
+def __call__(self, input_data: InputDataset, with_output: bool = False):
+    rank_id = int(self.dist_task_info.rank)
+    world_size = self.dist_task_info.world_size
+    x1 = input_data.kwargs["x1"]
+    x2 = input_data.kwargs["x2"]
+    x1_scale = input_data.kwargs["x1_scale"]
+    x2_scale = input_data.kwargs["x2_scale"]
+    output_dtype = input_data.kwargs['output_dtype']
+    is_format_nz = input_data.kwargs["isFormatNz"]
+    use_int64 = input_data.kwargs['use_int64']
+    comm_mode = input_data.kwargs['commMode']
+    use_x1_scale = input_data.kwargs['use_x1_scale']
+
+    if x2_scale is None:
+        dequantType = 0
+    elif x1_scale is not None:
+        dequantType = 2
+    else:
+        dequantType = 1
+    if x2.shape[0]!=x1.shape[1] and x2.shape[1] == x1.shape[1]:
+        x2 = x2.transpose(0, 1)
+    print(f"comm_mode = {comm_mode}, dequant type = {dequantType}, is_format_nz = {is_format_nz}, output_dtype= {output_dtype}")
+
+    if self.name == "cpu":
+        if dequantType == 0:
+            x1 = x1.cpu().to(torch.float32)
+            x2 = x2.cpu().to(torch.float32).contiguous()
+            output = torch.matmul(x1, x2)
+        else:
+            x1 = x1.cpu().to(torch.int32)
+            x2 = x2.cpu().to(torch.int32)
+            output = torch.matmul(x1, x2).to(torch.int32)
+            x2_scale = x2_scale.cpu()
+            if dequantType == 1:
+                output = (output * x2_scale).to(torch.float32)
+            elif dequantType==2:
+                x1_scale = x1_scale.cpu()
+                output = (output * x2_scale * x1_scale).to(torch.float32)
+        print("CPU EXEC STEP1\n")         
+        dist.all_reduce(output, op=dist.ReduceOp.SUM)
+        scatter_shape_m = x1.shape[0] // world_size
+        scatter_output = output.narrow(0, rank_id * scatter_shape_m, scatter_shape_m)
+        # print(f"scatter_output =============================================================================== {scatter_output.shape}")
+        return scatter_output
+
+    if self.dist_task_info.is_bm:
+        
+        if x1.shape == []:
+            return torch.tensor([])
+
+        tensor_scatter_shape = [x1.shape[0] // world_size, x2.shape[1]]
+        if dequantType:
+            if use_int64:    # x2_scale为int64时，融合算子不支持mc2组合，fp32计算。
+                output_dtype = torch.float16 
+            if output_dtype is None:
+                output_dtype = torch.bfloat16   #不指定output_dtype为时,输出和mc2默认值保持一致
+        if dequantType==0:
+            output = torch.matmul(x1, x2)
+        elif dequantType==1:
+            output = torch_npu.npu_quant_matmul(x1=x1, x2=x2, scale=x2_scale.squeeze(0), output_dtype=output_dtype)
+        else:
+            output = torch_npu.npu_quant_matmul(x1=x1, x2=x2, scale=x2_scale.squeeze(0), pertoken_scale=x1_scale.squeeze(-1), output_dtype=output_dtype)
+
+        if output_dtype is None:
+            output_dtype = output.dtype
+        
+        tensor_scatter = torch.zeros(tensor_scatter_shape, dtype=output.dtype).npu()
+        dist._reduce_scatter_base(tensor_scatter, output, op=ReduceOp.SUM) 
+        scatter_output = tensor_scatter
+        return scatter_output
+    else:
+        print("Enter CALL Func else\n")
+        if dist.is_available():
+            from torch.distributed.distributed_c10d import _get_default_group
+            default_pg = _get_default_group()
+            if torch.__version__ > '2.0.1':
+                hcomm_info = default_pg._get_backend(torch.device("npu")).get_hccl_comm_name(rank_id)
+            else:
+                hcomm_info = default_pg.get_hccl_comm_name(rank_id)
+        if is_format_nz:
+            x2 = torch_npu.npu_format_cast(x2, 29)
+        if use_int64:
+            x2_scale = torch_npu.npu_trans_quant_param(x2_scale)
+        output_npu = torch_npu.npu_mm_reduce_scatter_base(x1, x2,
+                                                            hcomm_info, world_size, reduce_op="sum", bias=None, comm_mode=comm_mode,
+                                                            x1_scale=x1_scale, x2_scale=x2_scale, output_dtype=output_dtype)
+        print(output_npu.shape, output_npu.dtype, torch.isnan(output_npu).any(), torch.isinf(output_npu).any())
+        return output_npu
+
+def init_by_input_data(self, input_data: InputDataset):
+    rank_id = self.dist_task_info.rank
+    if self.device == 'pyaclnn' and dist.is_available():
+        print("enter pyaclnn")
+        from torch.distributed.distributed_c10d import _get_default_group
+        default_pg = _get_default_group()
+        if torch.__version__ > '2.0.1':
+            hcomm_info = default_pg._get_backend(torch.device("npu")).get_hccl_comm_name(rank_id)
+        else:
+            hcomm_info = default_pg.get_hccl_comm_name(rank_id)
+        input_data.kwargs['group'] = hcomm_info
+
+    OpsDataset.seed_everything()
+    x1 = input_data.kwargs['x1']
+    x2 = input_data.kwargs["x2"]
+    if x2.shape[0] != x1.shape[1] and x2.shape[1] == x1.shape[1]:
+        input_data.kwargs["x2"] = input_data.kwargs["x2"].transpose(0, 1)
+    if x1.dtype != torch.int8:
+        input_data.kwargs['x1_scale'] = None 
+        input_data.kwargs['x2_scale'] = None 
+        input_data.kwargs['output_dtype'] = None
+        input_data.kwargs['use_int64'] = None
+        return
+    if not input_data.kwargs['use_x1_scale']:
+        input_data.kwargs['x1_scale'] = None
+    if input_data.kwargs['x2_scale'].dtype == torch.int64:
+        input_data.kwargs['output_dtype'] = None
+
+@register("aclnn_matmul_reduce_scatter_v2")
+class AclnnMatmulReduceScatterV2(AclnnBaseApi):
+    def init(self, task_result: TaskResult, backend):
+        super(AclnnMatmulReduceScatterV2, self).init(task_result, backend)
+        self.dist_task_info = task_result.dist_task_info
+        self.is_format_nz = False
+
+def init_by_input_data(self, input_data: InputDataset):
+    input_data.kwargs["reduceOp"] = "sum"
+    if input_data.kwargs["isFormatNz"]:
+        input_data.kwargs['x2'] = torch_npu.npu_format_cast(input_data.kwargs['x2'], 29)
+        self.is_format_nz = True
+
+    use_int64 = input_data.kwargs["use_int64"]
+    use_x1_scale = input_data.kwargs["use_x1_scale"]
+    if use_int64:
+        input_data.kwargs["x2_scale"] = torch_npu.npu_trans_quant_param(input_data.kwargs["x2_scale"])
+
+    input_data.kwargs.pop("output_dtype")
+    input_data.kwargs.pop("isFormatNz")
+    input_data.kwargs.pop("use_x1_scale")
+    input_data.kwargs.pop("use_int64")
+
+    input_args, output_packages = super().init_by_input_data(input_data)
+
+    input_args[2] = self.get_null_tensor_pte()
+    input_args[5] = self.get_null_tensor_pte()
+
+    if input_data.kwargs["x1"].dtype != torch.int8:
+        input_args[3] = self.get_null_tensor_pte()
+        input_args[4] = self.get_null_tensor_pte()
+
+    if not use_x1_scale:
+        input_args[3] = self.get_null_tensor_pte()
+
+    input_args.insert(len(input_args), self.get_null_tensor_pte())
+    torch.npu.synchronize()
+    return input_args, output_packages
+
+def get_format(self, input_data: InputDataset, index=None, name=None):
+    if name == "x2" and self.is_format_nz:
+        return AclFormat.ACL_FORMAT_FRACTAL_NZ
+    return AclFormat.ACL_FORMAT_ND
+
+def get_null_tensor_pte(self):
+    acl_tensor_ptr = ctypes.POINTER(AclTensor)
+    null_void_ptr = ctypes.c_void_p(None)
+    null_tensor_ptr = ctypes.cast(null_void_ptr, acl_tensor_ptr)
+    return null_tensor_ptr
