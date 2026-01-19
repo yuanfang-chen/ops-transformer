@@ -25,8 +25,8 @@ DEVICE_ID = 0
 torch_npu.npu.set_device(int(DEVICE_ID))
 torch.npu.config.allow_internal_format = True
 
-# dump_path=None
-dump_path='/home/c00580445/scripts/tmp'
+dump_path=None
+# dump_path='/home/c00580445/scripts/tmp'
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
@@ -456,7 +456,7 @@ def cpu_compressor(
             # print(list(ape[start_seq_id_in_sc : end_seq_idx_in_sc, :]))
             # 1.判断块是否需要存储到state
             # 2.判断块是否需要压缩
-            save_flag = True if start_seq_idx >= (compress_seq_id - cmp_ratio) else False
+            save_flag = True if start_seq_idx >= (compress_seq_id - (coff - 1) * cmp_ratio) else False
             compress_flag = True if start_seq_idx < compress_seq_id else False
             # print(f"b_idx={b_idx}, batch_seq_idx={batch_seq_idx}, start_seq_idx={start_seq_idx}, end_seq_idx={end_seq_idx}, start_offset={start_offset}, end_offset={end_offset}, save_flag={save_flag}, compress_flag={compress_flag}")
 
@@ -614,7 +614,7 @@ class TestCustomCompressor(TestCase):
                         S = cu_seqlens[i + 1] - cu_seqlens[i]
         else:
             cu_seqlens = None
-            S = 1 # 作为x的shape[1]
+            S = 16384 # 作为x的shape[1]
         ### ======================== set input params finish ========================
 
         ### ======================== check input params start ========================

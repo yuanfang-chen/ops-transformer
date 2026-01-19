@@ -146,6 +146,36 @@ struct MSplitInfo {
     uint32_t dealTcNum = 0U;
 };
 
+struct BlockInfo {
+    __aicore__ inline BlockInfo(uint32_t bIdx, uint32_t sIdx, uint32_t dealSeqSize) :
+        bIdx(bIdx), sIdx(sIdx), dealSeqSize(dealSeqSize) {};
+    uint32_t bIdx = 0U;
+    uint32_t sIdx = 0U;
+    uint32_t dealSeqSize = 0;
+
+    uint32_t isFirst = true;
+    uint32_t bSeqUsed = 0U;
+    uint32_t bStartPos = 0U;
+    uint32_t headHolderSeqCnt = 0U;
+    uint32_t validSeqCnt = 0U;
+    uint32_t tailHolderSeqCnt = 0U;
+    uint32_t dealTcSize = 0U;
+    uint32_t tailValidSeqCnt = 0U;
+    uint32_t compressTcSize = 0U;
+};
+
+// BUFFER的字节数
+static constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32;
+static constexpr uint32_t BUFFER_SIZE_BYTE_64B = 64;
+static constexpr uint32_t BUFFER_SIZE_BYTE_256B = 256;
+static constexpr uint32_t BUFFER_SIZE_BYTE_512B = 512;
+static constexpr uint32_t BUFFER_SIZE_BYTE_1K = 1024;
+static constexpr uint32_t BUFFER_SIZE_BYTE_2K = 2048;
+static constexpr uint32_t BUFFER_SIZE_BYTE_4K = 4096;
+static constexpr uint32_t BUFFER_SIZE_BYTE_8K = 8192;
+static constexpr uint32_t BUFFER_SIZE_BYTE_16K = 16384;
+static constexpr uint32_t BUFFER_SIZE_BYTE_32K = 32768;
+
 // BLOCK和REPEAT的字节数
 static constexpr uint64_t BYTE_BLOCK = 32UL;
 static constexpr uint32_t REPEAT_BLOCK_BYTE = 256U;
@@ -184,7 +214,16 @@ __aicore__ inline void DumpTensorForDim2(LocalTensor<T> tensor, uint32_t desc, u
 {
     uint32_t array2[] = {static_cast<uint32_t>(row), static_cast<uint32_t>(col)};
     AscendC::ShapeInfo shapeInfo(2, array2);
-    AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
+    // AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
+}
+
+template <typename T>
+__aicore__ inline void DumpTensorForDim2(LocalTensor<T> tensor, uint32_t desc, uint32_t dumpSize)
+{
+    uint32_t col = 32 / sizeof(T);
+    uint32_t array2[] = {static_cast<uint32_t>(dumpSize / col), static_cast<uint32_t>(col)};
+    AscendC::ShapeInfo shapeInfo(2, array2);
+    // AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
 }
 
 }
