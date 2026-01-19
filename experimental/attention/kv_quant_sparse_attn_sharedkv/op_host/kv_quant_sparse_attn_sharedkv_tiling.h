@@ -180,7 +180,7 @@ END_TILING_DATA_DEF
 
 REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkv, KvQuantSparseAttnSharedkvTilingData)
 
-struct SASParaInfo {
+struct KvQuantSASParaInfo {
     SASTilingRequiredParaInfo q = {nullptr, nullptr};
     SASTilingOptionalParaInfo oriKv = {nullptr, nullptr};
     SASTilingOptionalParaInfo cmpKv = {nullptr, nullptr};
@@ -207,11 +207,11 @@ struct SASParaInfo {
 };
 
 // -----------算子Tiling入参信息类---------------
-class SASTilingInfo {
+class KvQuantSASTilingInfo {
 public:
     const char *opName = nullptr;
     fe::PlatFormInfos *platformInfo = nullptr;
-    SASParaInfo opParamInfo;
+    KvQuantSASParaInfo opParamInfo;
 
     // Base Param
     platform_ascendc::SocVersion socVersion = platform_ascendc::SocVersion::ASCEND910B;
@@ -276,10 +276,10 @@ public:
 
 
 // -----------算子Tiling入参信息解析及Check类---------------
-class SASTilingCheck {
+class KvQuantSASTilingCheck {
 public:
-    explicit SASTilingCheck(const SASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
-    ~SASTilingCheck() = default;
+    explicit KvQuantSASTilingCheck(const KvQuantSASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
+    ~KvQuantSASTilingCheck() = default;
     virtual ge::graphStatus Process();
 private:
     // void Init();
@@ -369,8 +369,8 @@ private:
 private:
     const char *opName_;
     fe::PlatFormInfos *platformInfo_;
-    SASParaInfo opParamInfo_;
-    const SASTilingInfo &sasInfo_;
+    KvQuantSASParaInfo opParamInfo_;
+    const KvQuantSASTilingInfo &sasInfo_;
 
     uint32_t bSize_ = 0;
     uint32_t n1Size_ = 0;
@@ -410,14 +410,14 @@ private:
 
 };
 
-std::string SASLayoutToSerialString(SASLayout layout);
+std::string KvQuantSASLayoutToSerialString(SASLayout layout);
 
 
 
-class SASInfoParser {
+class KvQuantSASInfoParser {
 public:
-    explicit SASInfoParser(gert::TilingContext *context) : context_(context) {}
-    ~SASInfoParser() = default;
+    explicit KvQuantSASInfoParser(gert::TilingContext *context) : context_(context) {}
+    ~KvQuantSASInfoParser() = default;
 
     ge::graphStatus CheckRequiredInOutExistence() const;
     ge::graphStatus CheckRequiredAttrExistence() const;
@@ -455,14 +455,14 @@ public:
     ge::graphStatus GetDSizeQ();
     ge::graphStatus GetDSizeKV();
     ge::graphStatus GetSinks();
-    void GenerateInfo(SASTilingInfo &sasInfo);
-    ge::graphStatus Parse(SASTilingInfo &sasInfo);
+    void GenerateInfo(KvQuantSASTilingInfo &sasInfo);
+    ge::graphStatus Parse(KvQuantSASTilingInfo &sasInfo);
 
 public:
     gert::TilingContext *context_ = nullptr;
     const char *opName_;
     fe::PlatFormInfos *platformInfo_;
-    SASParaInfo opParamInfo_;
+    KvQuantSASParaInfo opParamInfo_;
 
     bool HasAxis(const SASAxis &axis, const SASLayout &layout, const gert::Shape &shape) const;
     size_t GetAxisIdx(const SASAxis &axis, const SASLayout &layout) const;
@@ -518,7 +518,7 @@ public:
 class KvQuantSparseAttnSharedkvTiling {
 public:
     explicit KvQuantSparseAttnSharedkvTiling(gert::TilingContext *context) : context_(context){};
-    ge::graphStatus DoOpTiling(SASTilingInfo *tilingInfo);
+    ge::graphStatus DoOpTiling(KvQuantSASTilingInfo *tilingInfo);
 
 private:
     gert::TilingContext *context_ = nullptr;
@@ -528,7 +528,7 @@ private:
     uint64_t workspaceSize_{0};
     uint64_t tilingKey_{0};
 
-    SASTilingInfo *sasInfo_ = nullptr;
+    KvQuantSASTilingInfo *sasInfo_ = nullptr;
 };
 
 }

@@ -19,8 +19,8 @@
 #include <cstdint>
 
 namespace optiling {
-static constexpr uint32_t AIC_CORE_NUM = 32;  //TODO 根据编译宏确定 aicpu与kernel的宏保持一致
-const uint32_t AIV_CORE_NUM = 32 * 2;
+static constexpr uint32_t AIC_CORE_NUM = 36;  //TODO 根据编译宏确定 aicpu与kernel的宏保持一致
+const uint32_t AIV_CORE_NUM = 36 * 2;
 static constexpr uint32_t MAX_FD_NUM = AIC_CORE_NUM;
 constexpr uint32_t SCFA_META_SIZE = 1024;
 using SCFA_METADATA_T = int32_t;
