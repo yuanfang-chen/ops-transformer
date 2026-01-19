@@ -144,9 +144,6 @@ struct MSplitInfo {
     uint32_t vecEndB = 0U;
     uint32_t vecEndS = 0U;
     uint32_t dealTcNum = 0U;
-    // vec1Res offset
-    uint64_t vec1StartOffset = 0;
-    uint64_t vec1ResOffset = 0;
 };
 
 struct BlockInfo {
