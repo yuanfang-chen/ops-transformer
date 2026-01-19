@@ -479,8 +479,22 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Init(
     InitTilingData();
     InitActualSeqLen(cuSeqlensQ, seqUsedKV);
 
-    // 初始化计算参数 分和函數沒有
-    InitCalcParamsEach();
+    // 分核
+    if (metadata != nullptr) {
+        metadataPtr = metadata;
+        usedCoreNum = metadataPtr -> usedCoreNum;
+        if (aiCoreIdx != 0) {
+            constInfo.bN2Start = static_cast<uint32_t>(metadataPtr -> bN2End[aiCoreIdx - 1]);
+            constInfo.gS1Start = static_cast<uint32_t>(metadataPtr -> mEnd[aiCoreIdx - 1]);
+            constInfo.s2Start = static_cast<uint32_t>(metadataPtr -> s2End[aiCoreIdx - 1]);
+        }
+        constInfo.bN2End = static_cast<uint32_t>(metadataPtr -> bN2End[aiCoreIdx]);
+        constInfo.gS1End = static_cast<uint32_t>(metadataPtr -> mEnd[aiCoreIdx]);
+        constInfo.s2End  = static_cast<uint32_t>(metadataPtr -> s2End[aiCoreIdx]);
+    } else {
+        InitCalcParamsEach();
+    }
+
     pipe = tPipe;
 
     // init global buffer
