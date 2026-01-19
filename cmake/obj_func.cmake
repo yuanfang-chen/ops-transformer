@@ -11,7 +11,7 @@
 # useage: add_modules_sources(DIR OPTYPE ACLNNTYPE)
 # ACLNNTYPE 支持类型aclnn/aclnn_inner/aclnn_exclude
 # OPTYPE 和 ACLNNTYPE 需一一对应
-
+ 
 # 用于custom自定算子包host侧obj生成
 macro(add_modules_sources)
   set(oneValueArgs OP_API_INDEPENDENT OP_API_DIR)
