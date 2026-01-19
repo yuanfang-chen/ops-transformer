@@ -4,8 +4,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
+|<term>昇腾910_95 AI处理器</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 |<term>Atlas 200I/300/500 推理产品</term>|      ×     |
 
 
@@ -34,7 +38,7 @@ RainFusionAttention输入query、key、value的数据排布格式支持从多种
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用"aclnnRainFusionAttentionGetWorkspaceSize"接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnRainFusionAttention"接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用"aclnnRainFusionAttentionGetWorkspaceSize"接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnRainFusionAttention"接口执行计算。
 ```c++
 aclnnStatus aclnnRainFusionAttentionGetWorkspaceSize(
   const aclTensor   *query,
@@ -97,7 +101,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>query</td>
       <td>输入</td>
-      <td>公式中的query。</td>
+      <td>Device侧的aclTensor，公式中的query。</td>
       <td>-</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -107,7 +111,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>key</td>
       <td>输入</td>
-      <td>公式中的key。</td>
+      <td>Device侧的aclTensor，公式中的key。</td>
       <td>-</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -117,7 +121,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>value</td>
       <td>输入</td>
-      <td>公式中的value。</td>
+      <td>Device侧的aclTensor，公式中的value。</td>
       <td>-</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -127,7 +131,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>selectIdx</td>
       <td>输入</td>
-      <td>稀疏块索引数组，指定每个Q块选择的KV块索引。</td>
+      <td>Device侧的aclTensor，稀疏块索引数组，指定每个Q块选择的KV块索引。</td>
       <td>
         <ul>
           <li>shape为[QBlockNum, headNum, maxKvBlockNum]。</li>
@@ -143,7 +147,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>selectNumIdx</td>
       <td>输入</td>
-      <td>每个Q块实际选择的KV块数量。</td>
+      <td>Device侧的aclTensor，每个Q块实际选择的KV块数量。</td>
       <td>
         <ul>
           <li>shape为[QBlockNum, headNum]。</li>
@@ -174,7 +178,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>attenMaskOptional</td>
       <td>输入</td>
-      <td>公式中的atten_mask。</td>
+      <td>Device侧的aclTensor，公式中的atten_mask。</td>
       <td>当前不支持，传入nullptr。</td>
       <td>BOOL</td>
       <td>ND</td>
@@ -214,7 +218,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>blockTableOptional</td>
       <td>输入</td>
-      <td>Block表用于PagedAttention。</td>
+      <td>Device侧的aclTensor，Block表用于PagedAttention。</td>
       <td>当前不支持，传入nullptr。</td>
       <td>INT32</td>
       <td>ND</td>
@@ -294,7 +298,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>attentionOut</td>
       <td>输出</td>
-      <td>公式中的attentionOut。</td>
+      <td>Device侧的aclTensor，公式中的attentionOut。</td>
       <td>数据类型和shape与query保持一致。</td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
@@ -304,7 +308,7 @@ aclnnStatus aclnnRainFusionAttention(
     <tr>
       <td>softmaxLseOptional</td>
       <td>输出</td>
-      <td>Softmax计算的log-sum-exp中间结果。</td>
+      <td>Device侧的aclTensor，Softmax计算的log-sum-exp中间结果。</td>
       <td>当前不支持，传入nullptr。</td>
       <td>FLOAT</td>
       <td>ND</td>
@@ -337,7 +341,7 @@ aclnnStatus aclnnRainFusionAttention(
 
 - **返回值：**
 
-返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
 <col style="width: 319px">
 <col style="width: 144px">
@@ -415,7 +419,7 @@ aclnnStatus aclnnRainFusionAttention(
 
 - **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 
 ## 约束说明
@@ -439,7 +443,7 @@ aclnnStatus aclnnRainFusionAttention(
 
 ## 调用示例
 
-示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/context/编译与运行样例.md)。
+示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```c++
 #include <iostream>
