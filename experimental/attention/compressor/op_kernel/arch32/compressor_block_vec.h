@@ -49,6 +49,10 @@ public:
     __aicore__ inline void InitApe();
     // =================================资源管理=================================
     __aicore__ inline void InitBuffers(TPipe *pipe);
+        __aicore__ inline void InitVec1GlobalTensor(GlobalTensor<T> preMm1ResGm, GlobalTensor<T> curMm1ResGm,
+                                                    GlobalTensor<T> vec1ResGm, GlobalTensor<T> vec2InputGm);
+    __aicore__ inline void AllocEventID();
+    __aicore__ inline void FreeEventID();
     // =================================执行计算=================================
     __aicore__ inline void ComputeVec1(const Compressor::RunInfo &info);
     __aicore__ inline uint32_t GetBasicNum();
@@ -62,8 +66,7 @@ public:
                                         uint32_t &scEnd);
     __aicore__ inline void CalcGlobalScStart(uint32_t bStart, uint32_t scStart);
     __aicore__ inline void SetMSplitInfo(const Compressor::RunInfo &info);
-    __aicore__ inline void InitVec1GlobalTensor(GlobalTensor<T> preMm1ResGm, GlobalTensor<T> curMm1ResGm,
-                                                GlobalTensor<T> vec1ResGm, GlobalTensor<T> vec2InputGm);
+
     // vec2
     __aicore__ inline void ComputeVec2(const Compressor::RunInfo &info);
     __aicore__ inline void SplitCoreV2(const Compressor::RunInfo& info);
@@ -247,6 +250,16 @@ __aicore__ inline void CompressorBlockVector<COMP>::InitVec1GlobalTensor(GlobalT
     this->curMm1ResGm_ = curMm1ResGm;
     this->vec1ResGm_ = vec1ResGm;
     this->vec2InputGm_ = vec2InputGm;
+}
+
+template <typename COMP> 
+__aicore__ inline void CompressorBlockVector<COMP>::AllocEventID()
+{
+}
+
+template <typename COMP> 
+__aicore__ inline void CompressorBlockVector<COMP>::FreeEventID()
+{
 }
 
 template <typename COMP>
