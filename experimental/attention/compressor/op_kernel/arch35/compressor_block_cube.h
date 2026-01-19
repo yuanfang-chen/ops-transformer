@@ -44,9 +44,7 @@ public:
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut);
+        __gm__ uint8_t *cmpKvOut);
     __aicore__ inline void InitBuffers(TPipe *pipe);
     __aicore__ inline void AllocEventID(TPipe *pipe);
     __aicore__ inline void FreeEventID(TPipe *pipe);
@@ -156,9 +154,7 @@ template <typename COMP> __aicore__ inline void CompressorBlockCube<COMP>::Init(
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut)
+        __gm__ uint8_t *cmpKvOutt)
 {
     xGm_.SetGlobalBuffer((__gm__ X_T *)x);
     wkvGm_.SetGlobalBuffer((__gm__ X_T *)wKv);
@@ -556,7 +552,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             uint32_t nSizeAlign = N_L1_BASE;
                             uint32_t nIdx = nL1 / N_L1_BASE;
                             CopyL0CDataToUb(mm1ResTensor, cL0Tensor, (mL1 == 0) ? 0 : 1, mSizeAlign, nSizeAlign, nIdx);
-                            DumpTensorForDim2(cL0Tensor, 1, 128 * 128, 1024, 16);
+                            // DumpTensorForDim2(cL0Tensor, 1, 128 * 128, 1024, 16);
                         }
                         SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId);
                     }

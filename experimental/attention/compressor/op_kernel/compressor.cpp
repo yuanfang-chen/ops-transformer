@@ -63,8 +63,6 @@ __global__ __aicore__ void compressor(
             seqUsed,
             startPos,
             cmpKvOut,
-            kvStateOut,
-            scoreStateOut,
             workspace);
     op.Process();
 

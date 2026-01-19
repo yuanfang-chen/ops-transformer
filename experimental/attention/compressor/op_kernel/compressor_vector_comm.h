@@ -76,7 +76,11 @@ __aicore__ inline void ColumnSum(const LocalTensor<float> &dstLocal, const Local
                 Add(shareTmpUb, shareTmpUb, shareTmpUb[i * col], i * col);
                 PipeBarrier<PIPE_V>();
             }
-            Add(dstLocal, shareTmpUb, shareTmpUb[col], col);
+            if (mask == 2) {
+                DataCopy(dstLocal, shareTmpUb, col);
+            } else {
+                Add(dstLocal, shareTmpUb, shareTmpUb[col], col);
+            }
             PipeBarrier<PIPE_V>();
             break;
         }
@@ -121,7 +125,11 @@ __aicore__ inline void ColumnMax(const LocalTensor<float> &dstLocal, const Local
                 Max(shareTmpUb, shareTmpUb, shareTmpUb[i * col], i * col);
                 PipeBarrier<PIPE_V>();
             }
-            Max(dstLocal, shareTmpUb, shareTmpUb[col], col);
+            if (mask == 2) {
+                DataCopy(dstLocal, shareTmpUb, col);
+            } else {
+                Max(dstLocal, shareTmpUb, shareTmpUb[col], col);
+            }
             PipeBarrier<PIPE_V>();
             break;
         }
