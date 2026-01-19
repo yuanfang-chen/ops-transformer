@@ -103,6 +103,7 @@ constexpr uint32_t DIM_IDX_THREE = 3;
 constexpr uint32_t DIM_IDX_FOUR = 4;
 
 // Dim Num
+constexpr uint32_t DIM_NUM_ONE = 1;
 constexpr uint32_t DIM_NUM_TWO = 2;
 constexpr uint32_t DIM_NUM_THREE = 3;
 constexpr uint32_t DIM_NUM_FOUR = 4;
@@ -139,6 +140,8 @@ TILING_DATA_FIELD_DEF(int64_t, oriWinRight)
 TILING_DATA_FIELD_DEF(int64_t, sparseBlockSize)
 TILING_DATA_FIELD_DEF(int64_t, dSize)
 TILING_DATA_FIELD_DEF(int64_t, dSizeV)
+TILING_DATA_FIELD_DEF(int64_t, dSizeNope)
+TILING_DATA_FIELD_DEF(int64_t, dSizeVInput)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvBaseParamsOp, KvQuantSparseAttnSharedkvBaseParams)
 
@@ -201,8 +204,6 @@ struct SASParaInfo {
     const uint32_t *oriWinRight = nullptr;
     const char *layoutQ = nullptr;
     const char *layoutKv = nullptr;
-    const uint32_t *dSize = nullptr;
-    const uint32_t *dSizeV = nullptr;
 };
 
 // -----------算子Tiling入参信息类---------------
@@ -235,6 +236,7 @@ public:
     int64_t ropeHeadDim = 0;
     uint32_t dSize = 0;
     uint32_t dSizeV = 0;
+    uint32_t dSizeVInput = 0;
     float softmaxScale = 0;
     int64_t cmpRatio = 0;
     uint64_t oriMaskMode = 0;
@@ -260,7 +262,6 @@ public:
     ge::DataType oriKvType = ge::DT_FLOAT16;
     ge::DataType cmpKvType = ge::DT_FLOAT16;
     ge::DataType outputType = ge::DT_FLOAT16;
-
 
     // Layout
     SASLayout qLayout = SASLayout::BSND;
@@ -451,6 +452,9 @@ public:
     ge::graphStatus GetQkHeadDim();
     ge::graphStatus GetSparseBlockCount();
     ge::graphStatus GetActualseqInfo();
+    ge::graphStatus GetDSizeQ();
+    ge::graphStatus GetDSizeKV();
+    ge::graphStatus GetSinks();
     void GenerateInfo(SASTilingInfo &sasInfo);
     ge::graphStatus Parse(SASTilingInfo &sasInfo);
 
@@ -481,6 +485,8 @@ public:
     bool isSameSeqAllKVTensor_ = true;
     uint32_t actualLenDimsKV_ = 0;
     uint32_t actualLenDimsQ_ = 0;
+    uint32_t dSizeQ_ = 0;
+    uint32_t dSizeKV_ = 0;
     // Layout
     SASLayout qLayout_ = SASLayout::BSND;
     SASLayout outLayout_ = SASLayout::BSND;

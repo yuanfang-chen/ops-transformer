@@ -239,7 +239,6 @@ private:
     size_t libapiSize_ = 0;
     size_t workspaceSize_ = 0;
     uint8_t coff = 0;
-    uint32_t nSize_ = 2;    // v2阶段积攒的轮数
 
     uint32_t mBaseSize = 0;
     uint32_t dbaseSize = 0;

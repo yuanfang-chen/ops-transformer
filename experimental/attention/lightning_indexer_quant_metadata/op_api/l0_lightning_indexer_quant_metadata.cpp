@@ -31,35 +31,41 @@ const aclTensor* LightningIndexerQuantMetadata(
     const aclTensor* actualSeqLengthsKeyOptional,
     int64_t aicCoreNum,
     int64_t aivCoreNum,
-    int64_t batchSize,
-    int64_t querySeqSize,
-    int64_t queryHeadNum,
-    int64_t kvSeqSize,
-    int64_t kvHeadNum,
+    const char* socVersion,
+    int64_t numHeadsQ,
+    int64_t numHeadsK,
+    int64_t headDim,
+    int64_t queryQuantMode,
+    int64_t keyQuantMode,
+    int64_t batchSizeOptional,
+    int64_t maxSeqlenQOptional,
+    int64_t maxSeqlenKOptional,
     char* layoutQueryOptional,
     char* layoutKeyOptional,
+    int64_t sparseCountOptional,
     int64_t sparseModeOptional,
-    char* socVersionOptional,
     bool isFdOptional,
-    int64_t  preTokensOptional,
-    int64_t  nextTokensOptional,
+    int64_t preTokensOptional,
+    int64_t nextTokensOptional,
     int64_t cmpRatioOptional,
     const aclTensor* metaData,
     aclOpExecutor* executor) {
-  L0_DFX(LightningIndexerQuantMetadata, actualSeqLengthsQueryOptional, actualSeqLengthsKeyOptional, aicCoreNum, 
-         aivCoreNum, batchSize, querySeqSize, queryHeadNum, kvSeqSize, kvHeadNum, layoutQueryOptional, 
-         layoutKeyOptional, sparseModeOptional, socVersionOptional, isFdOptional, preTokensOptional, nextTokensOptional, cmpRatioOptional, metaData);
+  L0_DFX(LightningIndexerQuantMetadata, actualSeqLengthsQueryOptional, actualSeqLengthsKeyOptional, aicCoreNum, aivCoreNum, socVersion,
+                         numHeadsQ, numHeadsK, headDim, queryQuantMode, keyQuantMode, batchSizeOptional, maxSeqlenQOptional,  
+                         maxSeqlenKOptional, layoutQueryOptional, layoutKeyOptional, sparseCountOptional, sparseModeOptional,
+                         isFdOptional, preTokensOptional, nextTokensOptional, cmpRatioOptional, metaData);
 
   static internal::AicpuTaskSpace space("LightningIndexerQuantMetadata");
 
   auto ret = ADD_TO_LAUNCHER_LIST_AICPU(
       LightningIndexerQuantMetadata,
-      OP_ATTR_NAMES({"aic_core_num", "aiv_core_num", "batch_size", "query_seq_size",
-                     "query_head_num", "kv_seq_size", "kv_head_num", "layout_query",
-                     "layout_key", "sparse_mode", "soc_version", "is_fd","pre_tokens","next_tokens","cmp_ratio"}),
+      OP_ATTR_NAMES({"aic_core_num", "aiv_core_num", "soc_version", "num_heads_q", "num_heads_k", "head_dim", "query_quant_mode",
+                     "key_quant_mode", "batch_size", "max_seqlen_q", "max_seqlen_k", "layout_query", "layout_key", "sparse_count",
+                     "sparse_mode", "is_fd", "pre_tokens", "next_tokens", "cmp_ratio"}),
       OP_INPUT(actualSeqLengthsQueryOptional, actualSeqLengthsKeyOptional), OP_OUTPUT(metaData),
-      OP_ATTR(aicCoreNum, aivCoreNum, batchSize, querySeqSize, queryHeadNum, kvSeqSize, kvHeadNum,
-              layoutQueryOptional, layoutKeyOptional, sparseModeOptional, socVersionOptional, isFdOptional, preTokensOptional, nextTokensOptional, cmpRatioOptional));
+      OP_ATTR(aicCoreNum, aivCoreNum, socVersion, numHeadsQ, numHeadsK, headDim, queryQuantMode, keyQuantMode,
+              batchSizeOptional, maxSeqlenQOptional, maxSeqlenKOptional, layoutQueryOptional, layoutKeyOptional, 
+              sparseCountOptional, sparseModeOptional, isFdOptional, preTokensOptional, nextTokensOptional, cmpRatioOptional));
   OP_CHECK(ret == ACL_SUCCESS,
            OP_LOGE(ACLNN_ERR_INNER_NULLPTR,
                    "LightningIndexerQuantMetadata"

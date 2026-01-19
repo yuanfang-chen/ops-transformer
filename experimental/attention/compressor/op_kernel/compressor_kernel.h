@@ -20,7 +20,14 @@
 #include "compressor_vector_comm.h"
 #include "compressor_template_tiling_key.h"
 #include "compressor_tiling_data.h"
-#include "compressor_block_vec.h"
+#include "compressor_comm.h"
+#if (__CCE_AICORE__ == 220)
+#include "arch32/compressor_block_cube.h"
+#include "arch32/compressor_block_vec.h"
+#else
+#include "arch35/compressor_block_cube.h"
+#include "arch35/compressor_block_vec.h"
+#endif
 
 using namespace AscendC;
 
@@ -42,7 +49,8 @@ public:
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *blockTable,
+        __gm__ uint8_t *kvBlockTable,
+        __gm__ uint8_t *scoreBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -60,8 +68,10 @@ private:
     __aicore__ inline uint32_t GetSeqLength(uint32_t index);
     __aicore__ inline uint32_t GetStartPos(uint32_t index);
     __aicore__ inline void GetCurCoreStartIdx();
-    __aicore__ inline void CalcParams(RunInfo &info);
     __aicore__ inline uint32_t GetBasicNum();
+    __aicore__ inline uint32_t GetRemainTcNum(uint32_t sStart, uint32_t headSize, uint32_t cmpRatio, uint32_t seqLength);
+    __aicore__ inline uint32_t GetTcHeadSize(uint32_t curStartPos, uint32_t cmpRatio, uint32_t seqLength);
+    __aicore__ inline void CalcParams(RunInfo &info);
     __aicore__ inline void InitTilingData();
     __aicore__ inline bool IsNeedExcute(const RunInfo &info);
     __aicore__ inline uint32_t GetStartIdx();
@@ -94,13 +104,14 @@ private:
     // 常量
     static constexpr uint64_t SYNC_MODE2 = 2;
     static constexpr uint32_t SYNC_C1_V1_FLAG = 6;
-    static constexpr bool X_DTYPE = COMP::xDtype == X_DTYPE::BF16;
+    static constexpr uint32_t SYNC_V1_C1_FLAG = 7;
 
     // ==============================Service Define==============================
-    CompressorBlockVector<COMP> vectorService;
-    static constexpr uint32_t PRELOAD_NUM = 2;
-    
-    using X_T = typename AscendC::Conditional<X_DTYPE, bfloat16_t, half>::type;
+    CompressorBlockCube<COMP> blockCube_;
+    CompressorBlockVector<COMP> blockVec_;
+    static constexpr uint32_t dbWorkspaceRatio = 1;
+
+    using X_T = typename AscendC::Conditional<COMP::xDtype == X_DTYPE::BF16, bfloat16_t, half>::type;
     using T = float;
     using MM1_OUT_T = T;
     using VEC1_OUT_T = T;
@@ -115,7 +126,8 @@ private:
     GlobalTensor<X_T> ropeSinGm_;
     GlobalTensor<X_T> ropeCosGm_;
     GlobalTensor<X_T> normWeightGm_;
-    GlobalTensor<int32_t> blockTableGm_;
+    GlobalTensor<int32_t> kvBlockTableGm_;
+    GlobalTensor<int32_t> scoreBlockTableGm_;
     GlobalTensor<int32_t> cuSeqlensGm_;
     GlobalTensor<int32_t> sequsedGm_;
     GlobalTensor<int32_t> startPosGm_;
@@ -137,7 +149,8 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *blockTable,
+        __gm__ uint8_t *kvBlockTable,
+        __gm__ uint8_t *scoreBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -165,16 +178,20 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     ropeSinGm_.SetGlobalBuffer((__gm__ X_T *)ropeSin);
     ropeCosGm_.SetGlobalBuffer((__gm__ X_T *)ropeCos);
     normWeightGm_.SetGlobalBuffer((__gm__ X_T *)normWeight);
-    blockTableGm_.SetGlobalBuffer((__gm__ int32_t *)blockTable);
-    cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
-    sequsedGm_.SetGlobalBuffer((__gm__ int32_t *)seqUsed);
+    kvBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)kvBlockTable);
+    scoreBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)scoreBlockTable);
+    if constexpr (COMP::xLayout == X_LAYOUT::TH) {
+        cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
+    }
+    if (seqUsed != nullptr) {
+        sequsedGm_.SetGlobalBuffer((__gm__ int32_t *)seqUsed);
+    }
     startPosGm_.SetGlobalBuffer((__gm__ int32_t *)startPos);
 
     InitTilingData();
-    InitWorkspace(workspace);
 
     // 初始化 curActSeqLength、start_pos TODO考虑为None， 
-    if (COMP::xLayout == X_LAYOUT::TH) {
+    if constexpr (COMP::xLayout == X_LAYOUT::TH) {
         curActSeqLength = cuSeqlensGm_.GetValue(1);
         accSeqLength = curActSeqLength;
         // printf("[Init] curActSeqLength:%u\n", curActSeqLength);
@@ -184,21 +201,28 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     // 计算分核基本信息
     constInfo.tcSize = CalcTcSize();
     constInfo.tcBaseSize = constInfo.mBaseSize / constInfo.cmpRatio;
-    constInfo.tcBasicBlockNum = (constInfo.tcSize + constInfo.tcBaseSize - 1) / constInfo.tcBaseSize;       // TC方向的基本块
-    constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;                           // D方向的基本块
-    constInfo.coreGroupNum = constInfo.usedCoreNum / constInfo.dBasicBlockNum;                        // 核分为多少组
+    constInfo.tcBasicBlockNum = (constInfo.tcSize + constInfo.tcBaseSize - 1) / constInfo.tcBaseSize;                       // TC方向的基本块
+    constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;                                                     // D方向的基本块
+    constInfo.coreGroupNum = constInfo.usedCoreNum / constInfo.dBasicBlockNum;                                              // 核分为多少组
     constInfo.singleCoreDealTcBasicNum = (constInfo.tcBasicBlockNum + constInfo.coreGroupNum - 1) / constInfo.coreGroupNum; // 处理的最大基本块数量
-    constInfo.dIdx = ((constInfo.aiCoreIdx + 1) % constInfo.dBasicBlockNum) - 1;                  // 每个核处理的d方向的索引
+    constInfo.dIdx = (constInfo.aiCoreIdx % constInfo.dBasicBlockNum) * constInfo.dBaseSize;                    // 每个核处理的d方向的索引
     // printf("[BASEINFO] tcSize:%u tcBaseSize:%u tcBasicBlockNum:%u dBasicBlockNum:%u coreGroupNum:%u singleCoreDealTcBasicNum:%u\n", constInfo.tcSize, constInfo.tcBaseSize, constInfo.tcBasicBlockNum, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.singleCoreDealTcBasicNum);
+    InitWorkspace(workspace);
     if ASCEND_IS_AIC {
-
+        blockCube_.InitParams(constInfo);
+        blockCube_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, 
+            kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
+        blockCube_.InitBuffers(pipe_);
+        blockCube_.InitGlobalBuffers(preMm1ResGm, curMm1ResGm);
     } else {
-        vectorService.InitParams(constInfo);
-        vectorService.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, blockTable, 
+        blockVec_.InitParams(constInfo);
+        blockVec_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, kvBlockTable, scoreBlockTable, 
                         cuSeqlens, seqUsed, startPos, cmpKvOut, kvStateOut, scoreStateOut);
-        vectorService.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
+        blockVec_.InitBuffers(pipe_);
+#if (__CCE_AICORE__ == 220)
+        blockVec_.InitVec1GlobalTensor(preMm1ResGm, curMm1ResGm, vec1ResGm);
+#endif
     }
-    
 }
 
 template <typename COMP>
@@ -228,24 +252,23 @@ __aicore__ inline void CompressorKernel<COMP>::InitTilingData() {
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::InitWorkspace(__gm__ uint8_t *workspace) {
-    static constexpr uint32_t dbWorkspaceRatio = PRELOAD_NUM;
     uint64_t offset = 0;
     // preMm1ResGm
     preMm1ResGm.SetGlobalBuffer(
         (__gm__ MM1_OUT_T *)(workspace + offset +
-                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.preMm1ResSize));
-    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.preMm1ResSize;
+                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.preMm1ResSize * sizeof(MM1_OUT_T)));
+    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.preMm1ResSize * sizeof(MM1_OUT_T);
 
     // curMm1ResGm
     curMm1ResGm.SetGlobalBuffer(
         (__gm__ MM1_OUT_T *)(workspace + offset +
-                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.curMm1ResSize));
-    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.curMm1ResSize;
+                             constInfo.aiCoreIdx * dbWorkspaceRatio * constInfo.curMm1ResSize * sizeof(MM1_OUT_T)));
+    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.curMm1ResSize * sizeof(MM1_OUT_T);
 
-    // vec1Res
+    // vec1Res 
     vec1ResGm.SetGlobalBuffer(
-        (__gm__ VEC1_OUT_T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * constInfo.vec1ResSize));
-    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize;
+        (__gm__ VEC1_OUT_T *)(workspace + offset + constInfo.dIdx + (constInfo.aiCoreIdx / constInfo.coreGroupNum) * dbWorkspaceRatio * constInfo.vec1ResSize * constInfo.dBasicBlockNum * sizeof(VEC1_OUT_T)));
+    offset += GetBlockNum() * dbWorkspaceRatio * constInfo.vec1ResSize * sizeof(VEC1_OUT_T);
 }
 
 template <typename COMP>
@@ -307,6 +330,7 @@ __aicore__ inline void CompressorKernel<COMP>::GetCurCoreStartIdx() {
     // Tc的开始位置
     tcStart = (constInfo.aiCoreIdx / constInfo.dBasicBlockNum) * constInfo.tcBaseSize * constInfo.singleCoreDealTcBasicNum;
     if (tcStart >= constInfo.tcSize) {
+        tcStart = constInfo.tcSize;
         curBEnd = constInfo.batchSize;
         return;
     }
@@ -325,10 +349,8 @@ __aicore__ inline void CompressorKernel<COMP>::GetCurCoreStartIdx() {
 
         // 加上头块，若有
         uint32_t curBasicNum = 0;
-        uint32_t headSize = 0;
+        uint32_t headSize = GetTcHeadSize(curStartPos, constInfo.cmpRatio, curActSeqLength);
         if (curStartPos % constInfo.cmpRatio != 0) {
-            headSize = constInfo.cmpRatio - curStartPos % constInfo.cmpRatio;
-            headSize = headSize > curActSeqLength ? curActSeqLength : headSize;
             curBasicNum++;
         }
         // 加上中间整块及尾块
@@ -366,6 +388,32 @@ __aicore__ inline uint32_t CompressorKernel<COMP>::GetBasicNum() {
 }
 
 template <typename COMP>
+__aicore__ inline uint32_t CompressorKernel<COMP>::GetTcHeadSize(uint32_t curStartPos, uint32_t cmpRatio, uint32_t seqLength) {
+    // 计算头块大小
+    uint32_t headSize = 0;
+    if (curStartPos % cmpRatio != 0) {
+        headSize = (cmpRatio - curStartPos % cmpRatio);
+        headSize = headSize > seqLength ? seqLength : headSize;     // 处理seq不足head大小的情况
+    }
+
+    return headSize;
+}
+
+template <typename COMP>
+__aicore__ inline uint32_t CompressorKernel<COMP>::GetRemainTcNum(uint32_t sStart, uint32_t headSize, uint32_t cmpRatio, uint32_t seqLength) {
+    // 计算当前batch剩余的Tc块数量
+    uint32_t curRemainTcNum = 0;
+    if (sStart == 0) {
+        curRemainTcNum = (seqLength - headSize + cmpRatio - 1) / cmpRatio;
+        curRemainTcNum = headSize == 0 ? curRemainTcNum : curRemainTcNum + 1;
+    } else {
+        curRemainTcNum = (seqLength - sStart + cmpRatio - 1) / cmpRatio;
+    }
+
+    return curRemainTcNum;
+}
+
+template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
     if (curBStart >= constInfo.batchSize) {
         return;
@@ -375,7 +423,7 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
     curSStart = curSEnd;
     info.scStart = curScEnd;
 
-    // sEnd到了seq末尾，下一个seq
+    // sEnd到了seq末尾，切换到下一个batch
     curActSeqLength = GetSeqLength(curBStart);
     if (curSStart == curActSeqLength) {
         curBStart++;
@@ -386,103 +434,73 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
     info.bStart = curBStart;
     info.sStart = curSStart;
     
+    // 1. 计算本次需要处理的Tc块数量
     uint32_t dealTcNum = constInfo.tcBaseSize + tcStart <= constInfo.tcSize ? constInfo.tcBaseSize : constInfo.tcSize - tcStart;
     info.dealTcNum = dealTcNum;
-    tcStart += dealTcNum;
+    tcStart += dealTcNum;           // 更新全局tc块起始偏移，下次使用
     uint32_t accBasicNum = 0;
     info.dealScSize = 0;
+
+    uint32_t tcNumCount = dealTcNum;
     
     for (uint32_t bIdx = curBStart; bIdx < constInfo.batchSize; ++bIdx) {
         curBEnd = bIdx;
         info.bEnd = curBEnd;
-        if (bIdx == curBStart) {
-            curActSeqLength = GetSeqLength(bIdx);
-            curStartPos = GetStartPos(bIdx);
-            uint32_t curRemainTcNum = 0;
-            // 计算起始batch的剩余seq长度 起始位置计算头块
-            uint32_t headSize = 0;
-            if (curStartPos % constInfo.cmpRatio != 0) {
-                headSize = (constInfo.cmpRatio - curStartPos % constInfo.cmpRatio);
-                headSize = headSize > curActSeqLength ? curActSeqLength : headSize;
+
+        curActSeqLength = GetSeqLength(bIdx);
+        curStartPos = GetStartPos(bIdx);
+        uint32_t headSize = GetTcHeadSize(curStartPos, constInfo.cmpRatio, curActSeqLength);
+        uint32_t curBatchTcNum = GetRemainTcNum(curSStart, headSize, constInfo.cmpRatio, curActSeqLength);  // 当前batch需要处理的Tc块
+        uint32_t curDealTcNum = (tcNumCount >= curBatchTcNum) ? curBatchTcNum : tcNumCount;         // 本次能处理多少个Tc块
+
+        tcNumCount -= curDealTcNum;                                                                         // 更新需要处理Tc块的计数
+        bool isSeqFinish = (curDealTcNum == curBatchTcNum);                                                 // 处理到当前batch的末尾
+        bool hasTail = ((curActSeqLength - headSize) % constInfo.cmpRatio) != 0;                            // 是否存在尾块
+
+        uint32_t curValidSc = curDealTcNum;                                                                    // 更新sc
+        if (isSeqFinish && hasTail && curValidSc > 0) {
+            curValidSc --;
+        }
+        info.dealScSize += curValidSc;
+        // 2. 当前batch全部处理完
+        if (isSeqFinish) {
+            curSEnd = curActSeqLength;
+            uint32_t curBatchTotalTcNum = GetRemainTcNum(0, headSize, constInfo.cmpRatio, curActSeqLength);  // 当前batch总Tc块
+            uint32_t tcNumBefore = curBatchTotalTcNum - curDealTcNum;
+            info.scEnd = tcNumBefore + curDealTcNum;
+
+            if (hasTail && info.scEnd > 0) {
+                info.scEnd--;
             }
-            if (curSStart == 0) {
-                curRemainTcNum = (curActSeqLength - headSize + constInfo.cmpRatio - 1) / constInfo.cmpRatio;
-                curRemainTcNum = headSize == 0 ? curRemainTcNum : curRemainTcNum + 1;
-            } else {
-                curRemainTcNum = (curActSeqLength - curSStart + constInfo.cmpRatio - 1) / constInfo.cmpRatio;
-            }
-            info.dealScSize += curRemainTcNum;
-            // 剔除尾块求scNum
-            if ((curActSeqLength - headSize) % constInfo.cmpRatio != 0) {
-                // TODO 需考虑会不会减翻，curActSeqLength不小于等于0就不会
-                info.dealScSize--;
-            }
-            // printf("[GetEndIdx]  bIdx:%u accBasicNum:%u dealTcNum:%u curRemainTcNum:%u headSize:%u curStartPos:%u curActSeqLength:%u \n", bIdx, accBasicNum, dealTcNum, curRemainTcNum, headSize, curStartPos, curActSeqLength);
-            if (curRemainTcNum > dealTcNum) {
-                info.scEnd = dealTcNum;
-                if (curSStart == 0) {
-                    if (headSize == 0) {
-                        curSEnd = curSStart + dealTcNum * constInfo.cmpRatio;
-                    } else {
-                        curSEnd = curSStart + headSize + (dealTcNum - 1) * constInfo.cmpRatio;
-                    }
-                    info.sEnd = curSEnd;
-                    return;
-                } else {
-                    curSEnd = curSStart + dealTcNum * constInfo.cmpRatio;
-                    info.sEnd = curSEnd;
-                    return;
-                }
-            } else if (curRemainTcNum == dealTcNum || bIdx == constInfo.batchSize - 1) {
-                curSEnd = curActSeqLength;
-                info.sEnd = curSEnd;
-                info.scEnd = dealTcNum - 1;
-                return;
-            } else {
-                accBasicNum += curRemainTcNum;
-            }
+            curScEnd = info.scEnd;
         } else {
-            curActSeqLength = GetSeqLength(bIdx);
-            curStartPos = GetStartPos(bIdx);
-            uint32_t curBasicNum = GetBasicNum();
-            // printf("[GetEndIdx] accBasicNum:%u curBasicNum:%u dealTcNum:%u\n", accBasicNum, curBasicNum, dealTcNum);
-            uint32_t curBasicNumEnd = dealTcNum - accBasicNum;
-            if (accBasicNum + curBasicNum > dealTcNum) {
-                uint32_t headSize = 0;
-                if (curStartPos % constInfo.cmpRatio != 0) {
-                    headSize = constInfo.cmpRatio - curStartPos % constInfo.cmpRatio;
-                    // 处理seq不足head大小的情况
-                    headSize = headSize > curActSeqLength ? curActSeqLength : headSize;
-                }
-                if (headSize == 0) {
-                    curSEnd = curBasicNumEnd * constInfo.cmpRatio;
-                } else {
-                    curSEnd = headSize + (curBasicNumEnd - 1) * constInfo.cmpRatio;
-                }
-                curSEnd = curSEnd > curActSeqLength ? curActSeqLength : curSEnd;
-                info.sEnd = curSEnd;
-                info.scEnd = curBasicNumEnd;
-                info.dealScSize += curBasicNumEnd;
-                return;
-            } else if (accBasicNum + curBasicNum == dealTcNum) {
+            // 3. 处理到当前batch刚好攒满需要处理的Tc块
+            uint32_t remainSLen = 0;
+            if (curSStart == 0) {
+                // 加上头块如果有
+                uint32_t midTc = (headSize > 0) ? (curDealTcNum - 1) : curDealTcNum;
+                remainSLen = headSize + midTc * constInfo.cmpRatio;
+            } else {
+                remainSLen = curDealTcNum * constInfo.cmpRatio;
+            }
+
+            curSEnd = curSStart + remainSLen;
+            // 尾块处理
+            if (curSEnd > curActSeqLength) {
                 curSEnd = curActSeqLength;
-                info.sEnd = curSEnd;
-                info.scEnd = curBasicNumEnd - 1;
-                info.dealScSize = info.dealScSize + curBasicNumEnd - 1;
-                return;
             }
-            accBasicNum += curBasicNum;
-            // 处理scNum
-            info.dealScSize += curBasicNum;
-            uint32_t headSize = 0;
-            if (curStartPos % constInfo.cmpRatio != 0) {
-                headSize = constInfo.cmpRatio - curStartPos % constInfo.cmpRatio;
-                // 处理seq不足head大小的情况
-                headSize = headSize > curActSeqLength ? curActSeqLength : headSize;
-            }
-            if ((curActSeqLength - headSize) % constInfo.cmpRatio != 0) {
-                info.dealScSize--;
-            }
+
+            info.scEnd = info.scStart + curValidSc;
+        }
+        // printf("[CalcParams] dealTcNum:%u headSize:%u curBatchTcNum:%u curDealTcNum:%u curDealTcNum:%u tcNumCount:%u\n", dealTcNum, headSize, curBatchTcNum, curDealTcNum, tcNumCount);
+        // printf("[CalcParams] sStart:%u sEnd:%u scStart:%u scEnd:%u\n", info.sStart, info.sEnd, info.scStart, info.scEnd);
+        info.sEnd = curSEnd;
+        curScEnd = info.scEnd;
+
+        if (tcNumCount > 0) {
+            curSStart = 0;
+        } else {
+            break;
         }
     }
 }
@@ -498,23 +516,31 @@ __aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(const RunInfo &info)
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeMm1(const RunInfo &info) {
     // printf("[COMPUTE] MM1 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
+    blockCube_.ComputeMm1(info);
 }
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeVec1(const RunInfo &info) {
     // printf("[COMPUTE] VEC1 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
-    vectorService.ComputeVec1(info);
+    blockVec_.ComputeVec1(info);
 }
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeVec2(const RunInfo &info) {
     // printf("[COMPUTE] VEC2 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
-    vectorService.ComputeVec2(info);
+    blockVec_.ComputeVec2(info);
 }
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::Process() {
     // printf("CompressorKernel::Process!!!!!\n");
+    if ASCEND_IS_AIC {
+        blockCube_.AllocEventID(pipe_);
+    } else {
+        blockVec_.AllocEventID();
+        CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
+    }
+
     RunInfo extraInfo[1];
     GetCurCoreStartIdx();
 
@@ -524,9 +550,11 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         
         // 获取各切分轴的起始核结束索引
         CalcParams(extraInfo0);
+        extraInfo0.vec1ResOffset = vec2Info.dealScSize * constInfo.headDim;
         bool isNeedExcute = IsNeedExcute(extraInfo0);
         if ASCEND_IS_AIC {
             if (isNeedExcute) {
+                CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
                 ComputeMm1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG);
             }
@@ -534,6 +562,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
             if (isNeedExcute) {
                 CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
+                CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
             }
             if ((i + 1) % constInfo.nSize == 1) {
                 vec2Info.bStart = extraInfo0.bStart;
@@ -551,10 +580,16 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                     vec2Info.bEnd = extraInfo0.bEnd;
                     vec2Info.sEnd = extraInfo0.sEnd;
                     vec2Info.scEnd = extraInfo0.scEnd;
-                    ComputeVec2(vec2Info);
+                    // ComputeVec2(vec2Info);
                 }
             }
         }
+    }
+    if ASCEND_IS_AIC {
+        CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
+        blockCube_.FreeEventID(pipe_);
+    } else {
+        blockVec_.FreeEventID();
     }
 
 }

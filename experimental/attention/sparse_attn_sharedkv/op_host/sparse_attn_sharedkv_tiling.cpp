@@ -192,15 +192,15 @@ ge::graphStatus SASInfoParser::GetInOutDataType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetSASTemplateMode()
+ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
 {
     if (opParamInfo_.oriKv.desc != nullptr) {
         if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr) {
-            perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
+            sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
         } else if (opParamInfo_.cmpKv.desc != nullptr) {
-            perfMode_ = SASTemplateMode::CFA_TEMPLATE_MODE;
+            sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
         } else {
-            perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
+            sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
         }
         return ge::GRAPH_SUCCESS;
     } else {
@@ -338,7 +338,7 @@ ge::graphStatus SASInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::T
 
 ge::graphStatus SASInfoParser::GetActualSeqLenQSize(uint32_t &size)
 {
-    return GetActualSeqLenSize(size, opParamInfo_.sequsedKv.tensor, qLayout_, "cuSeqLensQ");
+    return GetActualSeqLenSize(size, opParamInfo_.cuSeqLensQ.tensor, qLayout_, "cuSeqLensQ");
 }
 
 ge::graphStatus SASInfoParser::GetBatchSize()
@@ -413,7 +413,8 @@ ge::graphStatus SASInfoParser::GetMaxBlockNumPerBatch()
 
 ge::graphStatus SASInfoParser::GetBlockSize()
 {
-    blockSize_ = GetAxisNum(oriKvShape_, SASAxis::Bs, kvLayout_);
+    oriBlockSize_ = GetAxisNum(oriKvShape_, SASAxis::Bs, kvLayout_);
+    cmpBlockSize_ = GetAxisNum(cmpKvShape_, SASAxis::Bs, kvLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -422,7 +423,7 @@ ge::graphStatus SASInfoParser::GetS2SizeForPageAttention()
     if (GetMaxBlockNumPerBatch() != ge::GRAPH_SUCCESS || GetBlockSize() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    s2Size_ = oriMaxBlockNumPerBatch_ * blockSize_;
+    s2Size_ = oriMaxBlockNumPerBatch_ * oriBlockSize_;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -517,7 +518,10 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.totalBlockNum = (opParamInfo_.oriKv.tensor != nullptr) ?
         opParamInfo_.oriKv.tensor->GetStorageShape().GetDim(0) : 0;
     // sasInfo.pageAttentionFlag = (kvStorageMode_ == KvStorageMode::PAGE_ATTENTION);
-    sasInfo.sparseBlockSize = blockSize_;
+    sasInfo.sparseBlockSize = 1;
+    sasInfo.blockSize = oriBlockSize_;
+    sasInfo.oriBlockSize = oriBlockSize_;
+    sasInfo.cmpBlockSize = cmpBlockSize_;
     sasInfo.blockTypeSize = sizeof(float);
     sasInfo.oriMaxBlockNumPerBatch = oriMaxBlockNumPerBatch_;
     sasInfo.cmpMaxBlockNumPerBatch = cmpMaxBlockNumPerBatch_;
@@ -538,7 +542,6 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.qLayout = qLayout_;
     sasInfo.kvLayout = kvLayout_;
     sasInfo.outLayout = outLayout_;
-    sasInfo.perfMode = perfMode_;
 }
 
 ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
@@ -559,7 +562,7 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
     if (ge::GRAPH_SUCCESS != GetInOutDataType() ||
         ge::GRAPH_SUCCESS != GetQueryAndOutLayout() ||
         ge::GRAPH_SUCCESS != GetKvLayout() ||
-        ge::GRAPH_SUCCESS != GetSASTemplateMode()) {
+        ge::GRAPH_SUCCESS != GetSASTemplateMode(sasInfo)) {
         return ge::GRAPH_FAILED;
     }
 
@@ -607,7 +610,7 @@ static ge::graphStatus TilingPrepareForSparseAttnSharedkv(gert::TilingParseConte
 void SparseAttnSharedkvTiling::CalcUbBmm(SASTilingInfo *tilingInfo)
 {
     uint32_t cubeMSize = tilingInfo->gSize * tilingInfo->s1Size;
-    uint32_t maxMSize = mBaseSize_; 
+    uint32_t maxMSize = mBaseSize_;
     if (cubeMSize > maxMSize) {
         cubeMSize = maxMSize;
     }
@@ -683,6 +686,8 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     tilingData_.baseParams.set_qSeqSize(tilingInfo->s1Size);
     tilingData_.baseParams.set_nNumOfQInOneGroup(tilingInfo->gSize);
     tilingData_.baseParams.set_paBlockSize(tilingInfo->blockSize);
+    tilingData_.baseParams.set_oriBlockSize(tilingInfo->oriBlockSize);
+    tilingData_.baseParams.set_cmpBlockSize(tilingInfo->cmpBlockSize);
     tilingData_.baseParams.set_oriMaxBlockNumPerBatch(tilingInfo->oriMaxBlockNumPerBatch);
     tilingData_.baseParams.set_actualLenDimsQ(tilingInfo->actualLenDimsQ);
     tilingData_.baseParams.set_actualLenDimsKV(tilingInfo->actualLenDimsKV);

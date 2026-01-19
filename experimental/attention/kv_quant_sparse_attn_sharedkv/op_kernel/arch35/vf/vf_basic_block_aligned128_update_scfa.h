@@ -26,7 +26,7 @@ namespace SCFaVectorApi {
 template <typename T, typename T2, uint32_t s1BaseSize = 128, uint32_t s2BaseSize = 128>
 __simd_vf__ void ProcessVec1UpdateImpl128VF(
     __ubuf__ T2 * expUb,  __ubuf__ T * srcUb, __ubuf__ T * inMaxUb,
-    __ubuf__ T * tmpExpSumUb, __ubuf__ T * tmpMaxUb, const uint32_t blockStride, const uint32_t repeatStride, 
+    __ubuf__ T * tmpExpSumUb, __ubuf__ T * tmpMaxUb, __ubuf__ T * tmpMaxUb2, const uint32_t blockStride, const uint32_t repeatStride, 
     const uint16_t m, const T scale, const T minValue)
 {
     AscendC::MicroAPI::RegTensor<float> vreg_input_x;
@@ -72,14 +72,14 @@ __simd_vf__ void ProcessVec1UpdateImpl128VF(
            ((__ubuf__ T *&)tmpMaxUb), ureg_max, 0);
     AscendC::MicroAPI::LoadAlign(vreg_in_max, inMaxUb);
     AscendC::MicroAPI::LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
-    AscendC::MicroAPI::LoadAlign(vreg_cur_max, tmpMaxUb); // 获取新的max[s1, 1]
+    AscendC::MicroAPI::LoadAlign(vreg_cur_max, tmpMaxUb2); // 获取新的max[s1, 1]
     AscendC::MicroAPI::Max(vreg_max_new, vreg_cur_max, vreg_in_max, preg_all); // 计算新、旧max的最大值
     AscendC::MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
-       (__ubuf__ T *&)tmpMaxUb, vreg_max_new, preg_all);
+       (__ubuf__ T *&)tmpMaxUb2, vreg_max_new, preg_all);
     AscendC::MicroAPI::LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
 
     for (uint16_t i = 0; i < m; ++i) {
-        AscendC::MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_max_brc, tmpMaxUb + i);
+        AscendC::MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vreg_max_brc, tmpMaxUb2 + i);
         AscendC::MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
            vreg_input_x, vreg_input_x_unroll, srcUb + i * s2BaseSize);
         AscendC::MicroAPI::ExpSub(vreg_exp_even, vreg_input_x, vreg_max_brc, preg_all);
@@ -109,7 +109,7 @@ __simd_vf__ void ProcessVec1UpdateImpl128VF(
 template <typename T, typename T2, uint32_t s1BaseSize = 64, uint32_t s2BaseSize = 128>
 __aicore__ inline void ProcessVec1UpdateImpl128(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& srcTensor, const LocalTensor<T>& inMaxTensor, 
-    const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
+    const LocalTensor<T>& sharedTmpBuffer, const uint16_t m, const uint32_t originN, const T scale, const T minValue)
 {
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
     // stride, high 16bits: blockStride (m*16*2/32), low 16bits: repeatStride (1)
@@ -121,9 +121,10 @@ __aicore__ inline void ProcessVec1UpdateImpl128(
     __ubuf__ T * inMaxUb = (__ubuf__ T*)inMaxTensor.GetPhyAddr();
     __ubuf__ T * tmpExpSumUb = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr();
     __ubuf__ T * tmpMaxUb = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
+    __ubuf__ T * tmpMaxUb2 = (__ubuf__ T*)sharedTmpBuffer.GetPhyAddr() + 64;
 
     ProcessVec1UpdateImpl128VF <T, T2, s1BaseSize, s2BaseSize>(
-        expUb, srcUb, inMaxUb, tmpExpSumUb, tmpMaxUb, blockStride, repeatStride, m, scale, minValue);
+        expUb, srcUb, inMaxUb, tmpExpSumUb, tmpMaxUb, tmpMaxUb2, blockStride, repeatStride, m, scale, minValue);
 }
 } // namespace
 

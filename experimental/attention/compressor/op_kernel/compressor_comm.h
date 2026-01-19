@@ -76,9 +76,9 @@ struct ConstInfo {
     uint32_t sEnd = 0U;
 
     // 分核相关
-    uint32_t usedCoreNum = 24;
-    uint32_t dBaseSize = 64;
-    uint32_t mBaseSize = 256;
+    uint32_t usedCoreNum = 0;
+    uint32_t dBaseSize = 0;
+    uint32_t mBaseSize = 0;
     uint32_t tcSize = 0;
     uint32_t tcBaseSize = 0;
     uint32_t tcBasicBlockNum = 0;
@@ -119,12 +119,17 @@ struct RunInfo {
     uint32_t sStart = 0;
     uint32_t bEnd = 0;
     uint32_t sEnd = 0;
+    uint32_t bStartSeqIdx = 0;
+    uint32_t bEndSeqIdx = 0;
     uint32_t dealTcNum = 0;
 
     // v2分核信息 sc是左闭右开
     uint32_t scStart = 0;
     uint32_t scEnd = 0;
     uint32_t dealScSize = 0;
+
+    // vec1Res offset
+    uint64_t vec1ResOffset = 0;
 };
 
 struct MSplitInfo {
@@ -145,6 +150,36 @@ static constexpr uint32_t REPEAT_STRIDE_NUM = REPEAT_BLOCK_BYTE / BYTE_BLOCK; //
 static constexpr uint32_t REPEAT_MAX_NUM = 255;
 static constexpr uint32_t BRCB_NUM = 8;
 static constexpr uint32_t MAX_R = 256;
+
+template <typename T>
+__aicore__ inline void CopySingleMatrixNDToNZ(LocalTensor<T> l1Tensor, const GlobalTensor<T> gmTensor,
+    uint32_t nValue, uint32_t dValue, uint32_t srcDValue, uint32_t dstNzC0Stride)
+{
+    Nd2NzParams nd2nzPara;
+    nd2nzPara.ndNum = 1;
+    nd2nzPara.nValue = nValue; //nd矩阵的行数
+    if constexpr (IsSameType<T, int4b_t>::value) {
+        constexpr uint32_t HALF_SIZE_DIVISOR = 2;
+        nd2nzPara.dValue = dValue / HALF_SIZE_DIVISOR;
+        nd2nzPara.srcDValue = srcDValue / HALF_SIZE_DIVISOR;
+    } else {
+        nd2nzPara.dValue = dValue; //nd矩阵的列数
+        nd2nzPara.srcDValue = srcDValue; //同一nd矩阵相邻行起始地址间的偏移
+    }
+    nd2nzPara.dstNzC0Stride = dstNzC0Stride;
+    nd2nzPara.dstNzNStride = 1;
+    nd2nzPara.srcNdMatrixStride = 0;
+    nd2nzPara.dstNzMatrixStride = 0;
+    DataCopy(l1Tensor, gmTensor, nd2nzPara);
+}
+
+template <typename T>
+__aicore__ inline void DumpTensorForDim2(LocalTensor<T> tensor, uint32_t desc, uint32_t dumpSize, uint32_t row, uint32_t col)
+{
+    uint32_t array2[] = {static_cast<uint32_t>(row), static_cast<uint32_t>(col)};
+    AscendC::ShapeInfo shapeInfo(2, array2);
+    AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
+}
 
 }
 #endif

@@ -45,6 +45,12 @@ enum class SparseMode : uint8_t {
     SPARSE_BUTT,
 };
 
+enum class ValidSocVersion {
+    ASCEND910B = 0,
+    ASCEND910D,
+    RESERVED_VERSION = 99999
+};
+
 template<class T>
 using Range = std::pair<T, T>;
 
@@ -214,6 +220,7 @@ private:
     bool ParamsInit();
     bool BalanceSchedule();
     bool GenMetaData();
+    ValidSocVersion ProcessSocVersion();
 
   // util
     uint32_t GetS1SeqSize(uint32_t bIdx);
@@ -262,18 +269,21 @@ private:
     // output
     Tensor *metaData_ = nullptr;
     // attributes
-    std::string soc_version_ = "ascend910B";//新增
+    std::string socVersion_ = "";//新增
     bool supportFd_ = false; //新增。是否开启LD
     uint32_t cmpRatio_ = 4; //新增,LIQ压缩率
     uint32_t aicCoreNum_ = 24U;
     uint32_t aivCoreNum_ = 48U;
     uint32_t batchSize_ = 0;
-    uint32_t querySeqSize_ = 0;
-    uint32_t queryHeadNum_ = 0;
-    uint32_t kvSeqSize_ = 0;
-    uint32_t kvHeadNum_ = 0;
+    uint32_t maxSeqlenQ_ = 0;
+    uint32_t maxSeqlenK_ = 0;
+    uint32_t numHeadsQ_ = 0;
+    uint32_t numHeadsK_ = 0;
     uint32_t headDim_ = 0;
     uint32_t topKSize_ = 0;
+    uint32_t queryQuantMode_ = 0;
+    uint32_t keyQuantMode_ = 0;
+    uint32_t sparseCount_ = 0;
     uint32_t sparseBlockSize_ = 0;
     uint32_t sparseBlockCount_ = 0; // new
     std::string layoutQuery_ = "BSND";

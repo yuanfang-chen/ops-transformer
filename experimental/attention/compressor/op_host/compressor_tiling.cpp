@@ -245,10 +245,10 @@ ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 {
     workspaceParams_->preMm1ResSize = 0;
     if (coff == 2) {
-        workspaceParams_->preMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize;
+        workspaceParams_->preMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;      // 2 wkv和score合一起
     }
-    workspaceParams_->curMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize;
-    workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * baseParams_->nSize;
+    workspaceParams_->curMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;          // 2 wkv和score合一起
+    workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize / baseParams_->cmpRatio * innerSplitParams_->dBaseSize * baseParams_->nSize;
 
     return ge::GRAPH_SUCCESS;
 }
