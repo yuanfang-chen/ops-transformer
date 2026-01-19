@@ -28,10 +28,10 @@ using namespace AscendC;
 namespace optiling {
 
 static const std::string X_NAME = "query";
-static const std::string WKV_NAME = "key";
-static const std::string WGATE_NAME = "value";
-static const std::string KV_STATE_NAME = "sparse_indices";
-static const std::string SCORE_STATE_NAME = "block_table";
+static const std::string WKV_NAME = "wkv";
+static const std::string WGATE_NAME = "wgate";
+static const std::string KV_STATE_NAME = "kv_state";
+static const std::string SCORE_STATE_NAME = "score_state";
 static const std::string APE_NAME = "ape";
 static const std::string NORM_WEIGHT_NAME = "norm_weight";
 static const std::string ROPE_SIN_NAME = "rope_sin";
@@ -807,16 +807,16 @@ ge::graphStatus CompressorTiling::CheckShapeConsistency() const
     OP_CHECK_IF(context_->wgate.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != baseParams_->hiddenSize,
                 OP_LOGE("Compressor", "wgate shape dim 1 should be equal to hiddenSize"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->wkv.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != coffD,
-                OP_LOGE("Compressor", "wkv shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
+                OP_LOGE("Compressor", "wkv shape dim 0 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->wgate.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != coffD,
-                OP_LOGE("Compressor", "wgate shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
+                OP_LOGE("Compressor", "wgate shape dim 0 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->kvState.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_2) != coffD,
                 OP_LOGE("Compressor", "kvState shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->scoreState.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_2) != coffD,
                 OP_LOGE("Compressor", "scoreState shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->ape.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != coffD,
                 OP_LOGE("Compressor", "ape shape dim 1 should be equal to coff * headDim"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->scoreState.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != pageAttentionParams_->blockNum &&
+    OP_CHECK_IF(context_->scoreState.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != pageAttentionParams_->blockNum ||
                 context_->scoreState.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != pageAttentionParams_->blockSize,
                 OP_LOGE("Compressor", "scoreState shape dim 0 and dim 1 should be equal to kvState"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->ape.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) != baseParams_->cmpRatio,
