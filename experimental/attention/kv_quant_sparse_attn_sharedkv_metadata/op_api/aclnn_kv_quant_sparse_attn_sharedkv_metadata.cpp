@@ -10,12 +10,12 @@
  */
 
 /*!
- * \file aclnn_sparse_attn_sharedkv_metadata.cpp
+ * \file aclnn_kv_quant_sparse_attn_sharedkv_metadata.cpp
  * \brief
  */
 
-#include "aclnn_sparse_attn_sharedkv_metadata.h"
-#include "l0_sparse_attn_sharedkv_metadata.h"
+#include "aclnn_kv_quant_sparse_attn_sharedkv_metadata.h"
+#include "l0_kv_quant_sparse_attn_sharedkv_metadata.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/reshape.h"
 #include "aclnn/aclnn_base.h"
@@ -55,7 +55,7 @@ static aclnnStatus ParamsCheck(const aclTensor* cuSeqLensQOptional,
   return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
+aclnnStatus aclnnKVQuantSparseAttnSharedkvMetadataGetWorkspaceSize(
     const aclTensor* cuSeqLensQOptional,
     const aclTensor* sequsedKvOptional,
     int64_t numHeadsQ,
@@ -77,7 +77,7 @@ aclnnStatus aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
     const aclTensor* metaData,
     uint64_t* workspaceSize,
     aclOpExecutor** executor) {
-  L2_DFX_PHASE_1(aclnnSparseAttnSharedkvMetadata,
+  L2_DFX_PHASE_1(aclnnKVQuantSparseAttnSharedkvMetadata,
                  DFX_IN(cuSeqLensQOptional, sequsedKvOptional, numHeadsQ, numHeadsKv, headDim, batchSizeOptional, 
                         maxSeqlenQOptional, maxSeqlenKvOptional, topKOptional, cmpRatioOptional, oriMaskModeOptional, 
                         cmpMaskModeOptional, oriWinLeftOptional, oriWinRightOptional, layoutQOptional, layoutKvOptional, 
@@ -97,7 +97,7 @@ aclnnStatus aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
   uint32_t aicCoreNum = npuInfo.GetCubeCoreNum();
   uint32_t aivCoreNum = npuInfo.GetVectorCoreNum();
   const char* socVersion = npuInfo.GetSocLongVersion().c_str();
-  auto output = l0op::SparseAttnSharedkvMetadata(
+  auto output = l0op::KVQuantSparseAttnSharedkvMetadata(
       cuSeqLensQOptional, sequsedKvOptional, numHeadsQ, numHeadsKv, headDim, batchSizeOptional, maxSeqlenQOptional, 
       maxSeqlenKvOptional, topKOptional, cmpRatioOptional, oriMaskModeOptional, cmpMaskModeOptional, oriWinLeftOptional, 
       oriWinRightOptional, layoutQOptional, layoutKvOptional, hasOriKvOptional, hasCmpKvOptional, socVersion, aicCoreNum, aivCoreNum, metaData, 
@@ -110,9 +110,9 @@ aclnnStatus aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
 }
 
 __attribute__((visibility("default"))) aclnnStatus
-aclnnSparseAttnSharedkvMetadata(void *workspace, uint64_t workspaceSize,
+aclnnKVQuantSparseAttnSharedkvMetadata(void *workspace, uint64_t workspaceSize,
                                 aclOpExecutor *executor, aclrtStream stream) {
-  L2_DFX_PHASE_2(aclnnSparseAttnSharedkvMetadata);
+  L2_DFX_PHASE_2(aclnnKVQuantSparseAttnSharedkvMetadata);
   return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 

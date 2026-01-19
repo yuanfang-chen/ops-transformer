@@ -10,18 +10,18 @@
  */
 
 /*!
- * \file sparse_attn_sharedkv_metadata_proto.h
+ * \file kv_quant_sparse_attn_sharedkv_metadata_proto.h
  * \brief
  */
-#ifndef SPARSE_ATTN_SHAREDKV_METADATA_PROTO_H
-#define SPARSE_ATTN_SHAREDKV_METADATA_PROTO_H
+#ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_PROTO_H
+#define KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_PROTO_H
 
 #include "graph/operator_reg.h"
 #include "graph/types.h"
 
 namespace ge {
 
-REG_OP(SparseAttnSharedkvMetadata)
+REG_OP(KVQuantSparseAttnSharedkvMetadata)
     .OPTIONAL_INPUT(cu_seqlens_q, TensorType({DT_INT32}))
     .OPTIONAL_INPUT(seqused_kv, TensorType({DT_INT32}))
     .OUTPUT(metadata, TensorType({DT_INT32}))
@@ -44,8 +44,7 @@ REG_OP(SparseAttnSharedkvMetadata)
     .REQUIRED_ATTR(soc_version, String)
     .REQUIRED_ATTR(aic_core_num, Int)
     .REQUIRED_ATTR(aiv_core_num, Int)
-    .OP_END_FACTORY_REG(SparseAttnSharedkvMetadata)
-
+    .OP_END_FACTORY_REG(KVQuantSparseAttnSharedkvMetadata)
 } // namespace ge
 
-#endif // SPARSE_ATTN_SHAREDKV_METADATA_PROTO_H
+#endif // KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_PROTO_H

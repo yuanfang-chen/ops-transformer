@@ -10,31 +10,31 @@
  */
 
 /*!
- * \file sparse_attn_sharedkv_metadata_infershape.cpp
+ * \file kv_quant_sparse_attn_sharedkv_metadata_infershape.cpp
  * \brief
  */
 #include "register/op_impl_registry.h"
-#include "../../sparse_attn_sharedkv/op_kernel/sparse_attn_sharedkv_metadata.h"
+#include "../../kv_quant_sparse_attn_sharedkv/op_kernel/kv_quant_sparse_attn_sharedkv_metadata.h"
 
 using namespace ge;
 
 namespace ops {
-static ge::graphStatus InferShapeSparseAttnSharedkvMetadata(gert::InferShapeContext* context)
+static ge::graphStatus InferShapeKVQuantSparseAttnSharedkvMetadata(gert::InferShapeContext* context)
 {
     gert::Shape* oShape = context->GetOutputShape(0);
     // output shape (SAS_METADATA_T, )
     oShape->SetDimNum(1);
-    oShape->SetDim(0, optiling::SAS_META_SIZE);
+    oShape->SetDim(0, optiling::SCFA_META_SIZE);
     return GRAPH_SUCCESS;
 }
 
-static ge::graphStatus InferDtypeSparseAttnSharedkvMetadata(gert::InferDataTypeContext* context)
+static ge::graphStatus InferDtypeKVQuantSparseAttnSharedkvMetadata(gert::InferDataTypeContext* context)
 {
     context->SetOutputDataType(0, DT_INT32);
     return GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(SparseAttnSharedkvMetadata)
-    .InferShape(InferShapeSparseAttnSharedkvMetadata)
-    .InferDataType(InferDtypeSparseAttnSharedkvMetadata);
+IMPL_OP_INFERSHAPE(KVQuantSparseAttnSharedkvMetadata)
+    .InferShape(InferShapeKVQuantSparseAttnSharedkvMetadata)
+    .InferDataType(InferDtypeKVQuantSparseAttnSharedkvMetadata);
 } // namespace ops

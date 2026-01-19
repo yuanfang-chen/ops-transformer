@@ -9,8 +9,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
-#define ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#ifndef ACLNN_KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#define ACLNN_KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 
 #include "aclnn/aclnn_base.h"
 
@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 __attribute__((visibility("default"))) aclnnStatus
-aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
+aclnnKVQuantSparseAttnSharedkvMetadataGetWorkspaceSize(
     const aclTensor* cuSeqLensQOptional,
     const aclTensor* sequsedKvOptional,
     int64_t numHeadsQ,
@@ -43,7 +43,7 @@ aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
     aclOpExecutor** executor);
 
 __attribute__((visibility("default"))) aclnnStatus
-aclnnSparseAttnSharedkvMetadata(void* workspace,
+aclnnKVQuantSparseAttnSharedkvMetadata(void* workspace,
                                 uint64_t workspaceSize,
                                 aclOpExecutor* executor,
                                 aclrtStream stream);
@@ -52,4 +52,4 @@ aclnnSparseAttnSharedkvMetadata(void* workspace,
 }
 #endif
 
-#endif // ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#endif // ACLNN_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_AICPU_H

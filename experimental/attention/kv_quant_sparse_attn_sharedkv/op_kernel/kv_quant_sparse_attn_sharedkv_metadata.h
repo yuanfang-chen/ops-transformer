@@ -9,12 +9,12 @@
  */
  
 /*!
- * \file sparse_flash_attention_antiquant_metadata.h
+ * \file kv_quant_sparse_attn_sharedkv_metadata.h
  * \brief
  */
 
-#ifndef KVQUANT_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_H
-#define KVQUANT_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_H
+#ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_H
+#define KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_H
 
 #include <cstdint>
 
