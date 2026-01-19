@@ -239,6 +239,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.preToken = tilingData->maskParams.preToken;
     constInfo.nextToken = tilingData->maskParams.nextToken;
     constInfo.isRowInvalid = (tilingData->maskParams.isRowInvalid != 0);
+    constInfo.isExistRowInvalid = (tilingData->maskParams.isExistRowInvalid != 0);
     constInfo.isLegacyIfa = tilingData->baseParams.isLegacyIfa;
     constInfo.softmaxLseFlag = tilingData->baseParams.softmaxLseFlag;
 
@@ -276,6 +277,9 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.systemPrefixMaxLen = tilingData->prefixParams.prefixMaxLen;
     constInfo.systemPrefixFlag = tilingData->prefixParams.prefixFlag;
     constInfo.systemPrefixLen = tilingData->prefixParams.prefixLen;
+
+    constInfo.isPostQuantPerChn = tilingData->postquantParams.isPerChnOut;
+    constInfo.isPostQuantTypeBf16 = tilingData->postquantParams.isOutQuantTypeBf16;
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
@@ -283,7 +287,13 @@ __aicore__ inline bool FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 {
     // TND、NTD场景且无attentionMask,不需要初始化
     if constexpr (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
-        if (!constInfo.attenMaskFlag) {
+         /*
+            * tiling中提前算好了是否可能出现无效行, 正常从tiling中提取这个标记位(constInfo.isExistRowInvalid),
+            * 对于FD场景, 有可能整体是没有无效行的, 但当前FD处理的这部分s2是无效的。为规避潜在的风险，只要带mask(constInfo.isExistRowInvalid)
+            * 就认为可能存在无效行
+        */
+        bool isExistRowInvalid = FLASH_DECODE ? constInfo.attenMaskFlag : constInfo.isExistRowInvalid;        
+        if (!isExistRowInvalid) {
             return false;
         }
     }
@@ -309,7 +319,13 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
             uint64_t singleInitOutputSize = tailSize < singleCoreSize ? tailSize : singleCoreSize;
             WaitFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
             if (tmpBlockIdx * singleCoreSize < totalOutputSize && singleInitOutputSize > 0) {
-                matmul::InitOutput<OUT_T>(attentionOutGm[tmpBlockIdx * singleCoreSize], singleInitOutputSize, 0);
+                if constexpr (IsSameType<OUT_T, int8_t>::value) {
+                    GlobalTensor<half> attentionOutTmpGm;
+                    attentionOutTmpGm.SetGlobalBuffer(reinterpret_cast<__gm__ half *>(attentionOutGm.GetPhyAddr(0)));
+                    matmul::InitOutput<half>(attentionOutTmpGm[tmpBlockIdx * singleCoreSize / 2], singleInitOutputSize / 2, 0);
+                } else {
+                    matmul::InitOutput<OUT_T>(attentionOutGm[tmpBlockIdx * singleCoreSize], singleInitOutputSize, 0);
+                }
             }
             SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         }
@@ -471,7 +487,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
         if constexpr (FLASH_DECODE) {
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm, 
-                                       actualSeqLengthsGmQ, actualSeqLengthsGm);
+                                       actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
             if (constInfo.softmaxLseFlag) {
                 fdService.InitSoftmaxLseGm(softmaxLseGm);
             }
@@ -761,9 +777,12 @@ __aicore__ inline bool FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
 __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBlockType>::DealZeroActSeqLen(uint32_t &bN2Cur, uint32_t &gS1Cur, uint32_t &s2Cur)
 {
+    uint32_t n2Idx = GetN2Idx(bN2Cur);
+    uint32_t bIdx = GetBIdx(bN2Cur);
+    
     // 对整个batch的结果置0
     if constexpr (POST_QUANT) { // out int8
-  
+        vectorService.DealZeroActSeqLenWithPostQuant(bIdx, n2Idx);  
     } else {
         uint32_t n2Idx = GetN2Idx(bN2Cur);
         uint32_t bIdx = GetBIdx(bN2Cur);

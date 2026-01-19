@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------------------------------------
 
 set -e
-RELEASE_TARGETS=("ophost" "opapi" "opgraph")
+RELEASE_TARGETS=("ophost" "opapi" "opgraph" "onnxplugin")
 UT_TARGETS=()
 ########################################################################################################################
 # 预定义变量
@@ -53,6 +53,7 @@ OP_KERNEL_UT=FALSE
 OP_API=FALSE
 OP_HOST=FALSE
 OP_GRAPH=FALSE
+ONNX_PLUGIN=FALSE
 OP_KERNEL=FALSE
 SOC_ARRAY=()
 ENABLE_UT_EXEC=TRUE
@@ -174,6 +175,19 @@ function help_info() {
                 echo "    bash build.sh --opgraph -j16 -O3"
                 return
                 ;;
+            onnxplugin)
+                echo "ONNXPlugin Build Options:"
+                echo $dotted_line
+                echo "    --onnxplugin           Build onnxplugin library"
+                echo "    -j[n]                  Compile thread nums, default is 8, eg: -j8"
+                echo "    -O[n]                  Compile optimization options, support [O0 O1 O2 O3], eg:-O3"
+                echo "    --debug                Build with debug mode"
+                echo $dotted_line
+                echo "Examples:"
+                echo "    bash build.sh --onnxplugin -j16 -O3"
+                echo "    bash build.sh --onnxplugin --debug"
+                return
+                ;;
             opkernel)
                 echo "Opkernel Build Options:"
                 echo $dotted_line
@@ -287,6 +301,7 @@ function help_info() {
     echo "    --soc Compile binary with specified Ascend SoC, like: --soc=ascend310p,ascend910b, use ',' to separate different SoC"
     echo "    --vendor_name Specify the custom operator package vendor name, like: --vendor_name=customize, default to custom"
     echo "    --opgraph build graph_plugin_transformer.so"
+    echo "    --onnxplugin build op_transformer_onnx_plugin.so"
     echo "    --opapi build opapi_transformer.so"
     echo "    --ophost build ophost_transformer.so"
     echo "    --opkernel build binary kernel"
@@ -347,6 +362,15 @@ function clean_build_out()
     fi
 
     mkdir -p ${BUILD_OUT_DIR}
+}
+
+function clean_third_party()
+{
+    THIRD_PARTY_PATH=${BASE_PATH}/third_party
+    if [ -d "${THIRD_PARTY_PATH}" ]; then
+        rm -rf ${THIRD_PARTY_PATH}/abseil-cpp
+        rm -rf ${THIRD_PARTY_PATH}/ascend_protobuf
+    fi
 }
 
 function cmake_config()
@@ -412,10 +436,18 @@ function build_example()
             echo "${EXAMPLE_NAME} do not have eager example"
             return 2
         fi
+        ABSOLUTE_MC2_PATH=$(realpath ${BUILD_PATH}/../mc2) # mc2目录绝对路径
+        ABSOLUTE_EXAMPLES_MC2_PATH=$(realpath ${BUILD_PATH}/../examples/mc2)
+        ABSOLUTE_EXPERIMENTAL_MC2_PATH=$(realpath ${BUILD_PATH}/../experimental/mc2)
         for file in "${files[@]}"; do
             echo "Start compile and run example file: $file"
+            REAL_FILE_PATH=$(realpath "$file")
+            MC2_APPEND_INCLUDE_AND_LIBRARY=""
+            if [[ "$REAL_FILE_PATH" == "${ABSOLUTE_MC2_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXAMPLES_MC2_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXPERIMENTAL_MC2_PATH}"* ]]; then
+                MC2_APPEND_INCLUDE_AND_LIBRARY="-lpthread -Wl,--no-as-needed -lhccl -lhccl_fwk"
+            fi
             if [[ "${PKG_MODE}" == "" ]]; then
-                g++ ${file} -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lopapi_transformer -lascendcl -lnnopbase -lpthread -lhccl -lhccl_fwk -lc_sec -o test_aclnn_${EXAMPLE_NAME}
+                g++ ${file} -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lopapi_transformer -lascendcl -lnnopbase -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME}
             elif [[ "${PKG_MODE}" == "cust" ]]; then
                 if [[ "${vendor_name}" == "" ]]; then
                     vendor_name="custom"
@@ -428,15 +460,7 @@ function build_example()
                     CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/lib"
                     CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/include"
                 fi
-                ABSOLUTE_MC2_PATH=$(realpath ${BUILD_PATH}/../mc2)
-                ABSOLUTE_EXAMPLES_PATH=$(realpath ${BUILD_PATH}/../examples/mc2)
-                ABSOLUTE_EXPERIMENTAL_MC2_PATH=$(realpath ${BUILD_PATH}/../experimental/mc2)
-                REAL_FILE_PATH=$(realpath "$file")
-                MC2_APPEND_INCLUDE_AND_LIBRARY=""
-                if [[ "$REAL_FILE_PATH" == "${ABSOLUTE_MC2_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXAMPLES_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXPERIMENTAL_MC2_PATH}"* ]]; then
-                    MC2_APPEND_INCLUDE_AND_LIBRARY="-lpthread -lhccl -lhccl_fwk"
-                fi
-                g++ ${file} -I ${INCLUDE_PATH} -I ${CUST_INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} ${MC2_APPEND_INCLUDE_AND_LIBRARY} -lc_sec -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
+                g++ ${file} -I ${INCLUDE_PATH} -I ${CUST_INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
             else
                 echo "Error: pkg_mode(${PKG_MODE}) must be cust."
                 help_info "run_example"
@@ -827,6 +851,7 @@ for arg in "$@"; do
             --ophost) SHOW_HELP="ophost" ;;
             --opapi) SHOW_HELP="opapi" ;;
             --opgraph) SHOW_HELP="opgraph" ;;
+            --onnxplugin) SHOW_HELP="onnxplugin" ;;
             --ophost_test) SHOW_HELP="ophost_test" ;;
             --opapi_test) SHOW_HELP="opapi_test" ;;
             --opgraph_test) SHOW_HELP="opgraph_test" ;;
@@ -1044,6 +1069,12 @@ while [[ $# -gt 0 ]]; do
         OP_GRAPH=TRUE
         shift
         ;;
+    --onnxplugin)
+        BUILD_LIBS+=("op_transformer_onnx_plugin")
+        ENABLE_CREATE_LIB=TRUE
+        ONNX_PLUGIN=TRUE
+        shift
+        ;;
     --opapi)
         BUILD_LIBS+=("opapi_transformer")
         ENABLE_CREATE_LIB=TRUE
@@ -1103,6 +1134,7 @@ while [[ $# -gt 0 ]]; do
     --make_clean)
         clean
         clean_build_out
+        clean_third_party
         shift
         ;;
     --cann_3rd_lib_path=*)

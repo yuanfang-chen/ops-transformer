@@ -12,6 +12,9 @@ cmake_minimum_required(VERSION 3.16)
 
 project(cann_ops-transformer)
 
+set(CMAKE_C_FLAGS_RELEASE "")
+set(CMAKE_CXX_FLAGS_RELEASE "")
+
 option(BUILD_OPEN_PROJECT         "Build open ascend ops project."  ON)
 option(BUILD_OPS_RTY_KERNEL       "Build return yellow kernel."     OFF)
 option(ENABLE_CCACHE              "Enable ccache capability"        ON)
@@ -113,6 +116,8 @@ if (BUILD_OPEN_PROJECT)
         include(cmake/dependencies.cmake)
         include(cmake/variables.cmake)
         include(cmake/obj_func.cmake)
+        include(cmake/third_party/abseil-cpp.cmake)
+        include(cmake/third_party/ascend_protobuf.cmake)
 
         include(cmake/third_party/makeself-fetch.cmake)
         include(cmake/custom_build.cmake)
@@ -518,6 +523,13 @@ if (BUILD_OPS_RTY_KERNEL)
                 DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
                 OPTIONAL
         )
+
+        if(EXISTS ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}_apt.py)
+            install(FILES ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}_apt.py
+                DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
+                OPTIONAL
+            )
+        endif()
     endforeach ()
 
     install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/

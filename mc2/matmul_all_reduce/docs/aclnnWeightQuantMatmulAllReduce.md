@@ -89,7 +89,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
           <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
           <td><ul><li>当前版本仅支持二维输入。</li><li>支持转置/不转置场景。</li></ul></td>
           <td>-</td>
-          <td>ND</td>
+          <td>ND、FRACTAL_NZ</td>
           <td>2</td>
           <td>√</td>
         </tr>
@@ -234,7 +234,9 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 
 - **返回值**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+    第一阶段接口完成入参校验，出现以下场景报错：
 
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
@@ -266,6 +268,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
     </tr>
     </tbody>
     </table>
+
 ## aclnnWeightQuantMatmulAllReduce
 
 - **参数说明**
@@ -301,6 +304,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <td>指定执行任务的stream。</td>
     </tr>
     </tbody></table>
+
 -   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -329,6 +333,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+
     ```Cpp
     #include <iostream>
     #include <vector>
