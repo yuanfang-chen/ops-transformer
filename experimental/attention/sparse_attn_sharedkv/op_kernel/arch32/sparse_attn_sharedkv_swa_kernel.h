@@ -434,7 +434,6 @@ __aicore__ inline bool SparseAttnSharedkvSwa<SAST>::CmpSkip(uint32_t relativeS2L
 {
     // 理论这里不需要，由外面S2_loop上界控制
     uint32_t cmpS2LimitIdx = CeilDiv(tempLoopInfo.actCmpS2Size, constInfo.s2BaseSize);
-    // printf("[sparse3] tempLoopInfo.actOriS2Size=%u, tempLoopInfo.actS1Size=%u, tempLoopInfo.s1StartIdx=%u, cmpS2LimitIdx=%u, relativeS2LoopIdx=%u\n", tempLoopInfo.actOriS2Size, tempLoopInfo.actS1Size, tempLoopInfo.s1StartIdx, cmpS2LimitIdx, relativeS2LoopIdx);
     if (relativeS2LoopIdx <= cmpS2LimitIdx) {
         return false;
     } else {
@@ -790,7 +789,7 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
                 s2SplitNum = oriSplitNum + cmpSplitNum;
                 tempLoopInfo.cmpLoopTimes = cmpSplitNum;
             }
-            bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == constInfo.gS1End);
+            bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == gS1LoopEnd);
 
             tempLoopInfo.s2LoopTimes = s2SplitNum;
             tempLoopInfo.oriLoopTimes = oriSplitNum;
