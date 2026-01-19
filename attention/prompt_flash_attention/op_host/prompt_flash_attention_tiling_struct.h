@@ -1,3 +1,11 @@
+/*
+ * @Author: j60100428 jingsong5@h-partners.com
+ * @Date: 2026-01-19 11:01:44
+ * @LastEditors: j60100428 jingsong5@h-partners.com
+ * @LastEditTime: 2026-01-19 14:24:41
+ * @FilePath: \ops-transformer_synchronize\attention\prompt_flash_attention\op_host\prompt_flash_attention_tiling_struct.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 /**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
@@ -24,6 +32,7 @@ enum class InputLayout {
     BSND,
     BNSD_BSND,
     TND,
+    NTD,
     NTD_TND,
     NZ,
     BBH,
