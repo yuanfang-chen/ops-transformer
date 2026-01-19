@@ -21,6 +21,7 @@ DEVICE_ID = 0
 torch_npu.npu.set_device(int(DEVICE_ID))
 torch.npu.config.allow_internal_format = True
 
+
 def get_seq_used_by_batch(batch_idx, S, seqused, cu_seqlens):
     if seqused is not None:
         return seqused[batch_idx]
