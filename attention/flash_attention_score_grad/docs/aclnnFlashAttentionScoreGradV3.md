@@ -150,7 +150,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的Q。</td>
         <td>数据类型与keyIn/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -160,7 +160,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的K。</td>
         <td>数据类型与query/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -170,7 +170,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的V。</td>
         <td>数据类型与query/keyIn一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -180,7 +180,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的dY。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -190,7 +190,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>可选输入</td>
         <td>公式中的pse。</td>
         <td>数据类型与query的数据类型一致,该参数需要与pseType配套使用。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[B,N,Sq,Skv]、[B,N,1,Skv]、[1,N,Sq,Skv]、[B,N,1024,Skv]、[1,N,1024,Skv]、[B,N]、[N]</td>
         <td>√</td>
@@ -204,6 +204,36 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>ND</td>
         <td>0、1</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>qStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
+        <td>-</td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>0、1</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>kvStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的key和value的sequence在全局中的起始索引。</td>
+        <td>-</td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>0、1</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>attenMaskOptional</td>
@@ -236,11 +266,21 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>√</td>
       </tr>
       <tr>
+        <td>softmaxInOptional</td>
+        <td>输入</td>
+        <td>注意力正向计算的中间输出。</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attentionInOptional</td>
         <td>可选输入</td>
         <td>注意力正向的最终输出。</td>
         <td>数据类型和shape与query一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -326,6 +366,16 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>-</td>
       </tr>
       <tr>
+        <td>innerPrecise</td>
+        <td>输入</td>
+        <td>内部计算精度控制。</td>
+        <td>保留参数，暂未使用。</td>
+        <td>INT64</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>sparseMode</td>
         <td>输入</td>
         <td>稀疏模式。</td>
@@ -350,7 +400,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输出</td>
         <td>公式中的dQ，query的梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
         <td>√</td>
@@ -360,7 +410,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输出</td>
         <td>公式中的dK，keyIn的梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
         <td>√</td>
@@ -370,7 +420,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输出</td>
         <td>公式中的dV，value的梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
         <td>√</td>
@@ -379,7 +429,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>dpseOut</td>
         <td>输出</td>
         <td>d(pse)梯度。</td>
-        <td>暂未使用。</td>
+        <td>保留参数，暂未使用。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
