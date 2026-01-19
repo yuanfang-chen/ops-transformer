@@ -141,31 +141,21 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
             metadataLocal.fdRes.fdS2SplitNum[i] = metadata->fdRes.fdS2SplitNum[i];
         }
 
-        const uint32_t *bN2End = metadataLocal.bN2End;
-        const uint32_t *mEnd = metadataLocal.mEnd;
-        const uint32_t *s2End = metadataLocal.s2End;
-
         constInfo.s1BaseSize = metadataLocal.mBaseSize;
         constInfo.s2BaseSize = metadataLocal.s2BaseSize;
+        sharedParams.coreNum = metadataLocal.usedCoreNum;
     }
-    // metadataLocal.usedCoreNum = 1;
-    // metadataLocal.mBaseSize = 64;
-    // metadataLocal.s2BaseSize = 128;
-    // metadataLocal.bN2End[0] = 1;
-    // metadataLocal.mEnd[0] = 1;
-    // constInfo.s1BaseSize = metadataLocal.mBaseSize;
-    // constInfo.s2BaseSize = metadataLocal.s2BaseSize;
+
     this->pipe = tPipe;
-    vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx, metadataLocal);
+    vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx);
     if ASCEND_IS_AIV {
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
         constInfo.dSizeV = this->sharedParams.dSizeV;
-        constInfo.actualSeqLenSize = this->sharedParams.actualSeqLengthsSize;
         constInfo.needInit = this->sharedParams.needInit;
     }
-    vecBlock.CleanOutput(attentionOut, constInfo, cuSeqlensQ);
+    vecBlock.CleanOutput(attentionOut, constInfo);
     /* cube侧不依赖sharedParams的scalar前置 */
     InitMMResBuf();
     if ASCEND_IS_AIC {
@@ -184,7 +174,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
         constInfo.dSizeV = this->sharedParams.dSizeV;
-        constInfo.actualSeqLenSize = this->sharedParams.actualSeqLengthsSize;
         constInfo.needInit = this->sharedParams.needInit;
     }
     this->ComputeConstexpr();
@@ -314,7 +303,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         auto &baseParams = this->tilingData->baseParams;
         constInfo.softmaxScale = static_cast<float>(baseParams.softmaxScale);
         constInfo.blockSize = baseParams.paBlockSize;
-        // PRINTF("blocksize is %d\n", constInfo.blockSize);
     }
 
     InitUniqueConstInfo();
@@ -327,7 +315,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         this->constInfo.splitKVNum = this->sharedParams.splitKVNum;
         this->constInfo.sInnerLoopSize = CeilDivision(this->constInfo.s2Size, this->constInfo.splitKVNum);
     }
-    // this->constInfo.actualSeqLenSize = this->sharedParams.actualSeqLengthsSize;
+    this->constInfo.actualSeqLenSize = this->sharedParams.actualSeqLengthsSize;
     this->constInfo.actualSeqLenKVSize = this->sharedParams.actualSeqLengthsKVSize;
     this->constInfo.isActualLenDimsNull = static_cast<bool>(this->sharedParams.isActualSeqLengthsNull);
     this->constInfo.isActualLenDimsKVNull = static_cast<bool>(this->sharedParams.isActualSeqLengthsKVNull);
