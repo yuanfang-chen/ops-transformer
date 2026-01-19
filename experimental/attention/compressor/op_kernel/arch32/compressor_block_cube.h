@@ -338,6 +338,9 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t dValue = kBase;
         uint32_t srcDValue = constInfo_.hSize;
         uint32_t dstNzC0Stride = info.dealTcNum * constInfo_.cmpRatio;
+        if constexpr (COMP::coff == COFF::OVERLAP) {
+            dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
+        }
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
         ubOffset += constInfo_.cmpRatio * (32 / sizeof(X_T));
@@ -413,6 +416,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::LoadAToL0(LocalTensor<X_T> aL0
         loadData2DParams.dstGap = 0;
         loadData2DParams.ifTranspose = false;
         LoadData(aL0Tensor[16 * i * kBase], xL1Tensor[xTensorOffset], loadData2DParams);
+        xTensorOffset += 16 * (32 / sizeof(X_T));
     }
 // #else
 //     LoadData2DParamsV2 loadData2DParamsV2;
