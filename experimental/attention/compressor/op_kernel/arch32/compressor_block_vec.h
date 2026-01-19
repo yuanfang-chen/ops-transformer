@@ -57,6 +57,7 @@ public:
     __aicore__ inline void ComputeVec1(const Compressor::RunInfo &info);
     __aicore__ inline uint32_t GetBasicNum();
     __aicore__ inline uint32_t GetScSize();
+    __aicore__ inline uint32_t GetScSize(uint32_t bStart, uint32_t sStart, uint32_t bEnd, uint32_t sEnd);
     __aicore__ inline void GetScIdxInfo(uint32_t bStart, uint32_t scStart, uint32_t dealScSize, uint32_t v2TcStart,
                                         uint32_t v2TcEnd, uint32_t &outputBStart, uint32_t &outputSStart,
                                         uint32_t &outputScSize);
@@ -378,7 +379,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
     // bool hasHead = coff_ == 2 && batchStartSeqIdx != 0;
     while (seqIdx < batchEndSeqIdx) {
         globalStartSeqIdx = Trunc(startPos + seqIdx, constInfo_.cmpRatio);
-        srcStartOffset = (processNum * constInfo_.cmpRatio + MemstartSeqIdx) * 2 * constInfo_.dBaseSize;
+        srcStartOffset = mSplitInfo.vec1StartOffset + (processNum * constInfo_.cmpRatio + MemstartSeqIdx) * 2 * constInfo_.dBaseSize;
         dstStartOffset = (compressorNum * constInfo_.cmpRatio + MemstartSeqIdx) * totalDSize;
         if (coff_ == 2) {
             // printf("L Offset:%d\n", dstStartOffset);
@@ -418,14 +419,14 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
         if ((batchEndSeqIdx + startPos) % constInfo_.cmpRatio != 0 && tempProcessNum > 1) {
             // 将左侧倒数第一个矩阵，和右侧倒数两个矩阵刷入state
             // printf("WRD2\n");
-            startSeqIdx = max(Trunc(startPos + seqUsed - constInfo_.cmpRatio, constInfo_.cmpRatio), startPos + batchStartSeqIdx);
-            endSeqIdx = Trunc(startPos + seqUsed, constInfo_.cmpRatio);
-            stateDOffset = constInfo_.headDim * (coff_ - 1) + constInfo_.dIdx + dealDSize * dLoop;
-            ubOffset = ubStartOffset + (tempProcessNum - 2) * constInfo_.cmpRatio * totalDSize + (startSeqIdx - Trunc(startSeqIdx, constInfo_.cmpRatio)) * totalDSize + (coff_ - 1) * dealDSize;
-            WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
-            WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
-            
             if (coff_ == 2) {
+                startSeqIdx = max(Trunc(startPos + seqUsed - constInfo_.cmpRatio, constInfo_.cmpRatio), startPos + batchStartSeqIdx);
+                endSeqIdx = Trunc(startPos + seqUsed, constInfo_.cmpRatio);
+                stateDOffset = constInfo_.headDim * (coff_ - 1) + constInfo_.dIdx + dealDSize * dLoop;
+                ubOffset = ubStartOffset + (tempProcessNum - 2) * constInfo_.cmpRatio * totalDSize + (startSeqIdx - Trunc(startSeqIdx, constInfo_.cmpRatio)) * totalDSize + (coff_ - 1) * dealDSize;
+                WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
+                WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
+            
                 // printf("WLD1\n");
                 stateDOffset = constInfo_.dIdx + dealDSize * dLoop;
                 ubOffset = ubStartOffset + (tempProcessNum - 1) * constInfo_.cmpRatio * totalDSize + (startSeqIdx - Trunc(startSeqIdx, constInfo_.cmpRatio)) * totalDSize;
@@ -440,7 +441,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
             ubOffset = ubStartOffset + (tempProcessNum - 1) * constInfo_.cmpRatio * totalDSize + (coff_ - 1) * dealDSize;
             WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset,dealDSize);
             WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
-        } else {
+        } else if (coff_ == 2 || (batchEndSeqIdx + startPos) % constInfo_.cmpRatio != 0){
             // 将右侧倒数第一个矩阵刷入state
             // printf("WRD1\n");
             startSeqIdx = max(Trunc(startPos + seqUsed - 1, constInfo_.cmpRatio), startPos + batchStartSeqIdx);
@@ -456,7 +457,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
             WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
             // DumpTensor(scoreStateGm_[425920], 290, 128*128);
         }
-    } else if (startPos + batchEndSeqIdx == Trunc(startPos + seqUsed, constInfo_.cmpRatio)) {
+    } else if (coff_ == 2 && startPos + batchEndSeqIdx == Trunc(startPos + seqUsed, constInfo_.cmpRatio)) {
         // 将右侧倒数第一个矩阵刷入state
         // printf("WRD1\n");
         startSeqIdx = max(startPos + batchEndSeqIdx - constInfo_.cmpRatio, startPos + batchStartSeqIdx);
@@ -560,7 +561,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetBasicNum()
 template <typename COMP>
 __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize()
 {
-    // 获取 m方向上对应基本单元Tc的个数
+    // 获取 当前batch压缩后的Sc的个数
     uint32_t curBasicNum = 0;
     uint32_t headSize = 0;
     if (curStartPos_ % constInfo_.cmpRatio != 0) {
@@ -571,6 +572,50 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize()
     // 加上中间整块及尾块
     curBasicNum += (curActSeqLength_ - headSize) / constInfo_.cmpRatio;
     return curBasicNum;
+}
+
+template <typename COMP>
+__aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize(uint32_t bStart, uint32_t sStart, uint32_t bEnd, uint32_t sEnd)
+{
+    // 获取 当前batch压缩后的Sc的个数
+    uint32_t totalScSize = 0;
+    if (bStart == bEnd) {
+        if (sStart == 0) {
+            uint32_t headSize = 0;
+            if (sEnd > 0 && curStartPos_ % constInfo_.cmpRatio != 0) {
+                headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
+                headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
+                totalScSize += 1;
+            }
+            totalScSize += (sEnd - headSize) / constInfo_.cmpRatio;
+        } else {
+            totalScSize += (sEnd - sStart) / constInfo_.cmpRatio;
+        }
+        return totalScSize;
+    }
+    for (uint32_t bIdx = bStart; bIdx <= bEnd; ++bIdx) {
+        curActSeqLength_ = GetSeqLength(bIdx);
+        curStartPos_ = GetStartPos(bIdx);
+        uitn32_t curScSize = GetScSize();
+        if (bIdx == bStart) {
+            if (sStart == 0) {
+                totalScSize += curScSize;
+            } else {
+                totalScSize += (curActSeqLength_ - sStart) / constInfo_.cmpRatio;
+            }
+        } else if (bIdx == bEnd) {
+            uint32_t headSize = 0;
+            if (sEnd > 0 && curStartPos_ % constInfo_.cmpRatio != 0) {
+                headsize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
+                headsize = headsize > curActSeqLength_ ? curActSeqLength_ : headsize;
+                totalScSize += 1;
+            }
+            totalScSize += (sEnd - headSize) / constInfo_.cmpRatio;
+        } else {
+            totalScSize += curScSize;
+        }
+    }
+    return totalScSize;
 }
 
 template <typename COMP>
@@ -587,9 +632,14 @@ __aicore__ inline void CompressorBlockVector<COMP>::SetMSplitInfo(const Compress
     CalcTcEndIdx(mSplitInfo.vecStartB, mSplitInfo.vecStartS, mSplitInfo.dealTcNum, bEnd, sEnd);
     mSplitInfo.vecEndB = bEnd;
     mSplitInfo.vecEndS = sEnd;
+    mSplitInfo.vsc1StartOffset = 0;
+    mSplitInfo.vsc1ResOffset = info.vsc1ResOffset;
+
     if (GetBlockIdx() % 2 == 1) {
+        mSplitInfo.vsc1ResOffset += GetScSize(mSplitInfo.vecStartB, mSplitInfo.vecStartS,  mSplitInfo.vecEndB,  mSplitInfo.vecEndS) * constInfo_.headDim;
         mSplitInfo.vecStartB = bEnd;
         mSplitInfo.vecStartS = sEnd;
+        mSplitInfo.vsc1StartOffset = mSplitInfo.dealTcNum * constInfo_.cmpRatio * constInfo_.dBaseSize * 2;
         mSplitInfo.dealTcNum = info.dealTcNum - mSplitInfo.dealTcNum;
         if (sEnd == curActSeqLength_ && mSplitInfo.dealTcNum > 0) {
             mSplitInfo.vecStartB++;
@@ -837,7 +887,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &i
                 WaitFlag<HardEvent::V_MTE3>(EVENT_ID2);
                 DataCopyParams copyParams{static_cast<uint16_t>(curCompressorNum), static_cast<uint16_t>(CeilDivT(dealDSize, FP32_BLOCK_ELEMENT_NUM)), 0, static_cast<uint16_t>(CeilDivT(constInfo_.headDim - dealDSize, FP32_BLOCK_ELEMENT_NUM))};
                 // printf("vec1ResGm_ pos: %d, info.vec1ResOffset: %d\n", info.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize, info.vec1ResOffset);
-                DataCopy(vec1ResGm_[info.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize], outputLocal_[preCompressorNum * dealDSize], copyParams);
+                DataCopy(vec1ResGm_[mSplitInfo.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize], outputLocal_[preCompressorNum * dealDSize], copyParams);
                 // DumpTensor(outputLocal_[preCompressorNum * dealDSize], 10011, curCompressorNum*dealDSize);
                 // DumpTensor(vec1ResGm_[info.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize], 1001, curCompressorNum*dealDSize);
                 // DumpTensor(vec1ResGm_, 100111, 256);
