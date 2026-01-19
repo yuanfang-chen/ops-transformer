@@ -278,8 +278,8 @@ public:
 // -----------算子Tiling入参信息解析及Check类---------------
 class KvQuantSASTilingCheck {
 public:
-    explicit KvQuantSASTilingCheck(const KvQuantSASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
-    ~KvQuantSASTilingCheck() = default;
+    explicit SASTilingCheck(const SASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
+    ~SASTilingCheck() = default;
     virtual ge::graphStatus Process();
 private:
     // void Init();
@@ -369,8 +369,8 @@ private:
 private:
     const char *opName_;
     fe::PlatFormInfos *platformInfo_;
-    KvQuantSASParaInfo opParamInfo_;
-    const KvQuantSASTilingInfo &sasInfo_;
+    SASParaInfo opParamInfo_;
+    const SASTilingInfo &sasInfo_;
 
     uint32_t bSize_ = 0;
     uint32_t n1Size_ = 0;
