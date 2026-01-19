@@ -631,17 +631,12 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::CalcParams(uint32_t loop, ui
     uint64_t tndBIdxOffsetForKV = tempLoopInfo.actualSeqKVPrefixSum * constInfo.kvHeadNum * constInfo.headDim;
 
     if (info.isFirstSInnerLoop) {
-        info.tensorAOffset = tndBIdxOffsetForQ + info.gS1Idx * constInfo.headDim;
-        info.tensorBOffset = tndBIdxOffsetForKV + info.n2Idx * constInfo.headDim; // 当前为PA场景，该变量失效
-        info.attenOutOffset = info.tensorAOffset;
-        // if constexpr(LAYOUT_T == SAS_LAYOUT::BSND) {     // B,S1,N2 K
-        //     info.topKBaseOffset = (info.bIdx * constInfo.qSeqSize + tempLoopInfo.s1StartIdx) * constInfo.kvHeadNum *
-        //                           constInfo.sparseBlockCount + info.n2Idx * constInfo.sparseBlockCount;
-        // } else if (LAYOUT_T == SAS_LAYOUT::TND) {        // T N2 K
-        //     info.topKBaseOffset = (tempLoopInfo.actualSeqQPrefixSum + tempLoopInfo.s1StartIdx) * constInfo.kvHeadNum *
-        //                           constInfo.sparseBlockCount + info.n2Idx * constInfo.sparseBlockCount;
-        // }
+        tensorACoreOffset = tndBIdxOffsetForQ + info.gS1Idx * constInfo.headDim;
+        tensorBCoreOffset = tndBIdxOffsetForKV + info.n2Idx * constInfo.headDim; // 当前为PA场景，该变量失效
     }
+    info.tensorAOffset = tensorACoreOffset;
+    info.tensorBOffset = tensorBCoreOffset; // 当前为PA场景，该变量失效
+    info.attenOutOffset = tensorACoreOffset;
 
     if (s2LoopIdx < tempLoopInfo.oriLoopTimes) {
         // S2首次循环只能在ori_kv
@@ -758,11 +753,11 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
         // tempLoopInfo.cmpMaskRight = static_cast<int64_t>(tempLoopInfo.actS2SizeOri) - static_cast<int64_t>(tempLoopInfo.actS1Size);
 
         // 此处均为闭区间
-        tempLoopInfo.oriMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size + constInfo.oriWinRight;
-        tempLoopInfo.oriMaskLeft = Max(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size - constInfo.oriWinLeft + 1, 0);
-        if (constInfo.templateMode == CFA_TEMPLATE) {
-            tempLoopInfo.cmpMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size;
-        }
+        // tempLoopInfo.oriMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size + constInfo.oriWinRight;
+        // tempLoopInfo.oriMaskLeft = Max(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size - constInfo.oriWinLeft + 1, 0);
+        // if (constInfo.templateMode == CFA_TEMPLATE) {
+        //     tempLoopInfo.cmpMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size;
+        // }
 
         if (tempLoopInfo.actS1Size == 0) {
             continue;
@@ -777,7 +772,16 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
             tempLoopInfo.s1StartIdx = tempLoopInfo.gS1Idx / constInfo.gSize;
             tempLoopInfo.s1EndIdx = Min((tempLoopInfo.s1StartIdx + constInfo.mBaseSize / constInfo.gSize - 1),
                                         tempLoopInfo.actS1Size - 1);
-            GetSparseActualSeqLen(); // 无效
+            // GetSparseActualSeqLen(); // 无效
+            // 此处均为闭区间
+            tempLoopInfo.oriMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size +
+                                        static_cast<int32_t>(tempLoopInfo.s1EndIdx) + constInfo.oriWinRight;
+            tempLoopInfo.oriMaskLeft = Max(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size +
+                                        static_cast<int32_t>(tempLoopInfo.s1EndIdx) - constInfo.oriWinLeft, 0);
+            if (constInfo.templateMode == CFA_TEMPLATE) {
+                tempLoopInfo.cmpMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size;
+                GetSparseActualSeqLen();
+            }
             UpdateInnerLoopCond();
             if (tempLoopInfo.curActSeqLenIsZero) {
                 // DealActSeqLenIsZero(tempLoopInfo.bIdx, gS1LoopIdx, tempLoopInfo.n2Idx);

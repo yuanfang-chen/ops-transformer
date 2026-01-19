@@ -48,16 +48,14 @@ public:
     static constexpr float R0 = 1.0f;
     static constexpr uint64_t SYNC_SINKS_BUF_FLAG = 6;
 
-    SasMetaData metadataVecLocal;
     bool isSinks = false;
     // ==================== Functions ======================
     __aicore__ inline SCFABlockVec() {};
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
-        CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, SasMetaData &metadataLocal) {
+        CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx) {
         if ASCEND_IS_AIV {
             tPipe = pipe;
             tilingData = tiling;
-            metadataVecLocal = metadataLocal;
             this->InitCubeVecSharedParams(sharedParams, aicIdx, subBlockIdx);
             this->GetExtremeValue(this->negativeFloatScalar);
         }
@@ -65,13 +63,12 @@ public:
 
     // 初始化LocalTensor
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo);
-    __aicore__ inline void InitSinksBuffer();
     // 初始化attentionOutGM
-    __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo &constInfo, __gm__ uint8_t *cuSeqlensQ);
+    __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo &constInfo);
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv,
         __gm__ uint8_t *sinks);
-    __aicore__ inline void InitOutputSingleCore(ConstInfo &constInfo, __gm__ uint8_t *cuSeqlensQ);
+    __aicore__ inline void InitOutputSingleCore(ConstInfo &constInfo);
 
     // ==================== Vector0 ======================
     __aicore__ inline void ProcessSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo);
@@ -153,6 +150,7 @@ private:
     __aicore__ inline void SoftmaxInitBuffer();
     __aicore__ inline void InitCubeVecSharedParams(CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx);
     __aicore__ inline void GetExtremeValue(T &negativeScalar);
+    __aicore__ inline void InitSinksBuffer();
 
     // for V0
     static constexpr uint64_t MERGE_CACHE_GM_BUF_NUM = 4;
@@ -175,13 +173,6 @@ private:
     TBuf<> dequantScaleBuff_;         // 32K
 
     LocalTensor<int32_t> v0ValidSizeUb_;
-    // ============v0 compute, for debug==========
-    TBuf<> inputBuff2;  // 32K
-    TBuf<> outputBuff1; // 32K
-    TBuf<> outputBuff2; // 4K
-
-    TBuf<> tmpBuff2;         // 8K
-    // ============v0 compute, for debug==========
 };
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -871,43 +862,36 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutAttentionOut(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitOutputSingleCore(ConstInfo &constInfo, __gm__ uint8_t *cuSeqlensQ)
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitOutputSingleCore(ConstInfo &constInfo)
 {
-#if 0
     uint32_t coreNum = GetBlockNum();
-    uint32_t vecBlockIdx = GetBlockIdx(); // vec:0-47
     uint64_t totalOutputSize = 0;
-    GlobalTensor<int32_t>actualSeqQLenGM;
-    if (cuSeqlensQ != nullptr) {
-        actualSeqQLenGM.SetGlobalBuffer((__gm__ int32_t *)cuSeqlensQ);
-    }
 
     // n2 = 1, n1 = gn2 = gSize
-    if(constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::BSND)) {
+    if (constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::BSND)) {
         totalOutputSize = constInfo.bSize * constInfo.gSize * constInfo.s1Size * constInfo.dSizeV;
-    }else if(constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::TND)) {
-        totalOutputSize = actualSeqQLenGM.GetValue(constInfo.actualSeqLenSize) * constInfo.gSize * constInfo.dSizeV;
+    } else if(constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::TND)) {
+        totalOutputSize = constInfo.s1Size * constInfo.gSize * constInfo.dSizeV;
     }
 
     if (coreNum != 0) {
-    uint64_t singleCoreSize = (totalOutputSize + (2 * coreNum) - 1) / (2 * coreNum);  // 2 means c:v = 1:2
-    uint64_t tailSize = totalOutputSize - vecBlockIdx * singleCoreSize;
-    uint64_t singleInitOutputSize = tailSize < singleCoreSize ? tailSize : singleCoreSize;
+        uint64_t singleCoreSize = (totalOutputSize + (CV_RATIO * coreNum) - 1) / (CV_RATIO * coreNum);
+        uint64_t tailSize = totalOutputSize - constInfo.aivIdx * singleCoreSize;
+        uint64_t singleInitOutputSize = tailSize < singleCoreSize ? tailSize : singleCoreSize;
         if (singleInitOutputSize > 0) {
-            matmul::InitOutput<OUTPUT_T>(this->attentionOutGm[vecBlockIdx * singleCoreSize], singleInitOutputSize, 0);
+            matmul::InitOutput<OUTPUT_T>(this->attentionOutGm[constInfo.aivIdx * singleCoreSize], singleInitOutputSize, 0);
         }
     }
     SyncAll();
-#endif
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo &constInfo, __gm__ uint8_t *cuSeqlensQ) 
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo &constInfo) 
 {
     if ASCEND_IS_AIV {
         this->attentionOutGm.SetGlobalBuffer((__gm__ OUTPUT_T *)attentionOut);
         if (constInfo.needInit == 1) {
-            InitOutputSingleCore(constInfo, cuSeqlensQ);
+            InitOutputSingleCore(constInfo);
         }
     }
 }
@@ -920,10 +904,10 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint
     oriKVGm.SetGlobalBuffer((__gm__ KV_T *)(oriKV));
     oriBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)oriBlockTable);
 
-    // if constexpr (TEMPLATE_MODE != SASTemplateMode::SWA_TEMPLATE_MODE) { // useless
-    cmpKVGm.SetGlobalBuffer((__gm__ KV_T *)cmpKV);
-    cmpBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)cmpBlockTable);
-    // }
+    if constexpr (TEMPLATE_MODE != SASTemplateMode::SWA_TEMPLATE_MODE) {
+        cmpKVGm.SetGlobalBuffer((__gm__ KV_T *)cmpKV);
+        cmpBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)cmpBlockTable);
+    }
 
     if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
         cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
@@ -1050,9 +1034,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
         sharedParams.isActualSeqLengthsNull = 0U; // flase  
     }
 
-    sharedParams.coreNum = metadataVecLocal.usedCoreNum;
     /* 多核切分偏移计算 */
-    sharedParams.needInit = 1; //
+    if (sharedParams.s1Size > sharedParams.s2Size) {
+        sharedParams.needInit = 1;
+    } else {
+        sharedParams.needInit = 0;
+    }
 
     if ASCEND_IS_AIV {
         if (subBlockIdx == 0) {
@@ -1081,12 +1068,12 @@ class SCFABlockVecDummy {
 public:
     // TODO 是否需要补充其他函数
     __aicore__ inline SCFABlockVecDummy() {};
-    __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo &constInfo, __gm__ uint8_t *cuSeqlensQ) {}
+    __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo &constInfo) {}
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv,
         __gm__ uint8_t *sinks) {}
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
-        CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, SasMetaData &metadataLocal) {};
+        CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx) {};
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo) {}
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
