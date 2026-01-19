@@ -9,8 +9,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
-#define ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#ifndef ACLNN_KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#define ACLNN_KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 
 #include "aclnn/aclnn_base.h"
 
@@ -19,16 +19,24 @@ extern "C" {
 #endif
 
 __attribute__((visibility("default"))) aclnnStatus
-aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
+aclnnKVQuantSparseAttnSharedkvMetadataGetWorkspaceSize(
+    const aclTensor* q,
     const aclTensor* cuSeqLensQOptional,
-    const aclTensor* sequsedKvOptional,
+    const aclTensor* cuSeqLensOriKvOptional,
+    const aclTensor* cuSeqLensCmpKvOptional,
+    const aclTensor* sequsedOriKvOptional,
+    const aclTensor* sequsedCmpKvOptional,
     int64_t numHeadsQ,
     int64_t numHeadsKv,
     int64_t headDim,
     int64_t batchSizeOptional,
     int64_t maxSeqlenQOptional,
     int64_t maxSeqlenKvOptional,
-    int64_t topKOptional,
+    int64_t oriTopKOptional,
+    int64_t cmpTopKOptional,
+    int64_t kvQuantMode,
+    int64_t tileSizeOptional,
+    int64_t ropeHeadDimOptional,
     int64_t cmpRatioOptional,
     int64_t oriMaskModeOptional,
     int64_t cmpMaskModeOptional,
@@ -43,7 +51,7 @@ aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
     aclOpExecutor** executor);
 
 __attribute__((visibility("default"))) aclnnStatus
-aclnnSparseAttnSharedkvMetadata(void* workspace,
+aclnnKVQuantSparseAttnSharedkvMetadata(void* workspace,
                                 uint64_t workspaceSize,
                                 aclOpExecutor* executor,
                                 aclrtStream stream);
@@ -52,4 +60,4 @@ aclnnSparseAttnSharedkvMetadata(void* workspace,
 }
 #endif
 
-#endif // ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#endif // ACLNN_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_AICPU_H

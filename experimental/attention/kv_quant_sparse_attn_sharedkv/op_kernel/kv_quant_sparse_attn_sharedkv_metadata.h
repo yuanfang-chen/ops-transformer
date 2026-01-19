@@ -9,21 +9,21 @@
  */
  
 /*!
- * \file sparse_flash_attention_antiquant_metadata.h
+ * \file kv_quant_sparse_attn_sharedkv_metadata.h
  * \brief
  */
 
-#ifndef KVQUANT_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_H
-#define KVQUANT_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_H
+#ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_H
+#define KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_H
 
 #include <cstdint>
 
 namespace optiling {
-static constexpr uint32_t AIC_CORE_NUM = 32;  //TODO 根据编译宏确定 aicpu与kernel的宏保持一致
-const uint32_t AIV_CORE_NUM = 32 * 2;
-static constexpr uint32_t MAX_FD_NUM = AIC_CORE_NUM;
-constexpr uint32_t SCFA_META_SIZE = 1024;
-using SCFA_METADATA_T = int32_t;
+const uint32_t AIC_CORE_NUM = 36;
+const uint32_t AIV_CORE_NUM = 36 * 2;
+const uint32_t MAX_FD_NUM = AIC_CORE_NUM;
+constexpr uint32_t SAS_META_SIZE = 1024;
+using SAS_METADATA_T = int32_t;
 
 namespace detail {
     // 分核功能模块输出：FD信息，包含需要归约的数据索引及其分核信息
@@ -54,7 +54,7 @@ namespace detail {
         struct FlashDecodeResult fdRes;             // FD信息
     };
 };
-static_assert(SCFA_META_SIZE * sizeof(SCFA_METADATA_T) >= sizeof(detail::SasMetaData));
+static_assert(SAS_META_SIZE * sizeof(SAS_METADATA_T) >= sizeof(detail::SasMetaData));
 };
 
 #endif

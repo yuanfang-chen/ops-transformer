@@ -9,8 +9,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef L0_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_AICPU_H
-#define L0_SPARSE_FLASH_ATTENTION_ANTIQUANT_METADATA_AICPU_H
+#ifndef L0_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#define L0_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 
 #include "opdev/op_executor.h"
 

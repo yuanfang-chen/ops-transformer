@@ -12,11 +12,11 @@
  */
 
 /*!
- * \file l0_sparse_attn_sharedkv_metadata.cpp
+ * \file l0_kv_quant_sparse_attn_sharedkv_metadata.cpp
  * \brief
  */
 
-#include "l0_sparse_attn_sharedkv_metadata.h"
+#include "l0_kv_quant_sparse_attn_sharedkv_metadata.h"
 #include "opdev/aicpu/aicpu_task.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/op_def.h"
@@ -27,18 +27,26 @@
 
 using namespace op;
 namespace l0op {
-OP_TYPE_REGISTER(SparseAttnSharedkvMetadata);
+OP_TYPE_REGISTER(KVQuantSparseAttnSharedkvMetadata);
 
-const aclTensor* SparseAttnSharedkvMetadata(
+const aclTensor* KVQuantSparseAttnSharedkvMetadata(
+    const aclTensor* q,
     const aclTensor* cuSeqLensQOptional,
-    const aclTensor* sequsedKvOptional,
+    const aclTensor* cuSeqLensOriKvOptional,
+    const aclTensor* cuSeqLensCmpKvOptional,
+    const aclTensor* sequsedOriKvOptional,
+    const aclTensor* sequsedCmpKvOptional,
     int64_t numHeadsQ,
     int64_t numHeadsKv,
     int64_t headDim,
     int64_t batchSizeOptional,
     int64_t maxSeqlenQOptional,
     int64_t maxSeqlenKvOptional,
-    int64_t topKOptional,
+    int64_t oriTopKOptional,
+    int64_t cmpTopKOptional,
+    int64_t kvQuantMode,
+    int64_t tileSizeOptional,
+    int64_t ropeHeadDimOptional,
     int64_t cmpRatioOptional,
     int64_t oriMaskModeOptional,
     int64_t cmpMaskModeOptional,
@@ -53,16 +61,16 @@ const aclTensor* SparseAttnSharedkvMetadata(
     int64_t aivCoreNum,
     const aclTensor* metaData,
     aclOpExecutor* executor) {
-  L0_DFX(SparseAttnSharedkvMetadata, cuSeqLensQOptional, sequsedKvOptional, numHeadsQ, numHeadsKv, headDim, 
+  L0_DFX(KVQuantSparseAttnSharedkvMetadata, cuSeqLensQOptional, sequsedKvOptional, numHeadsQ, numHeadsKv, headDim, 
          batchSizeOptional, maxSeqlenQOptional, maxSeqlenKvOptional, topKOptional, cmpRatioOptional, 
          oriMaskModeOptional, cmpMaskModeOptional, oriWinLeftOptional, oriWinRightOptional,
          layoutQOptional, layoutKvOptional, hasOriKvOptional, hasCmpKvOptional, socVersion, aicCoreNum, aivCoreNum, metaData);
 
   static internal::AicpuTaskSpace space(
-      "SparseAttnSharedkvMetadata");
+      "KVQuantSparseAttnSharedkvMetadata");
 
   auto ret = ADD_TO_LAUNCHER_LIST_AICPU(
-      SparseAttnSharedkvMetadata,
+      KVQuantSparseAttnSharedkvMetadata,
       OP_ATTR_NAMES({"num_heads_q", "num_heads_kv", "head_dim", "batch_size", "max_seqlen_q", "max_seqlen_kv", 
                      "topk", "cmp_ratio", "ori_mask_mode", "cmp_mask_mode",
                      "ori_win_left", "ori_win_right", "layout_q", "layout_kv",
@@ -75,7 +83,7 @@ const aclTensor* SparseAttnSharedkvMetadata(
               aicCoreNum, aivCoreNum));
   OP_CHECK(ret == ACL_SUCCESS,
            OP_LOGE(ACLNN_ERR_INNER_NULLPTR,
-                   "SparseAttnSharedkvMetadata"
+                   "KVQuantSparseAttnSharedkvMetadata"
                    " ADD_TO_LAUNCHER_LIST_AICPU failed."),
            return nullptr);
   return metaData;

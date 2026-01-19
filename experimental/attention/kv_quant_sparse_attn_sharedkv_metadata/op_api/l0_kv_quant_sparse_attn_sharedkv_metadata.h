@@ -9,17 +9,13 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
-#define ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#ifndef L0_KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
+#define L0_KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 
-#include "aclnn/aclnn_base.h"
+#include "opdev/op_executor.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-__attribute__((visibility("default"))) aclnnStatus
-aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
+namespace l0op {
+const aclTensor* KVQuantSparseAttnSharedkvMetadata(
     const aclTensor* cuSeqLensQOptional,
     const aclTensor* sequsedKvOptional,
     int64_t numHeadsQ,
@@ -38,18 +34,11 @@ aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
     char *layoutKvOptional,
     bool hasOriKvOptional,
     bool hasCmpKvOptional,
+    const char *socVersion,
+    int64_t aicCoreNum,
+    int64_t aivCoreNum,
     const aclTensor* metaData,
-    uint64_t* workspaceSize,
-    aclOpExecutor** executor);
+    aclOpExecutor* executor);
+} // namespace l0op
 
-__attribute__((visibility("default"))) aclnnStatus
-aclnnSparseAttnSharedkvMetadata(void* workspace,
-                                uint64_t workspaceSize,
-                                aclOpExecutor* executor,
-                                aclrtStream stream);
-
-#ifdef __cplusplus
-}
 #endif
-
-#endif // ACLNN_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
