@@ -58,8 +58,8 @@ static const std::map<SASLayout, size_t> SAS_LAYOUT_DIM_MAP = {
     {SASLayout::PA_ND, DIM_NUM_FOUR},
 };
 
-// --------------------------SASInfoParser类成员函数定义-------------------------------------
-ge::graphStatus SASInfoParser::CheckRequiredInOutExistence() const
+// --------------------------KvQuantSASInfoParser类成员函数定义-------------------------------------
+ge::graphStatus KvQuantSASInfoParser::CheckRequiredInOutExistence() const
 {
     OP_CHECK_IF(opParamInfo_.q.shape == nullptr, OP_LOGE(opName_, "Shape of tensor q is nullptr"),
                return ge::GRAPH_FAILED);
@@ -67,12 +67,12 @@ ge::graphStatus SASInfoParser::CheckRequiredInOutExistence() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::CheckRequiredAttrExistence() const
+ge::graphStatus KvQuantSASInfoParser::CheckRequiredAttrExistence() const
 {
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::CheckRequiredParaExistence() const
+ge::graphStatus KvQuantSASInfoParser::CheckRequiredParaExistence() const
 {
     if (CheckRequiredInOutExistence() != ge::GRAPH_SUCCESS ||
         CheckRequiredAttrExistence() != ge::GRAPH_SUCCESS) {
@@ -82,7 +82,7 @@ ge::graphStatus SASInfoParser::CheckRequiredParaExistence() const
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetOpName()
+ge::graphStatus KvQuantSASInfoParser::GetOpName()
 {
     if (context_->GetNodeName() == nullptr) {
         OP_LOGE("KvQuantSparseAttnSharedkv", "opName got from TilingContext is nullptr");
@@ -92,7 +92,7 @@ ge::graphStatus SASInfoParser::GetOpName()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetNpuInfo()
+ge::graphStatus KvQuantSASInfoParser::GetNpuInfo()
 {
     platformInfo_ = context_->GetPlatformInfo();
     OP_CHECK_IF(platformInfo_ == nullptr, OP_LOGE(opName_, "GetPlatformInfo is nullptr."), return ge::GRAPH_FAILED);
@@ -117,7 +117,7 @@ ge::graphStatus SASInfoParser::GetNpuInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-void SASInfoParser::GetOptionalInputParaInfo()
+void KvQuantSASInfoParser::GetOptionalInputParaInfo()
 {
     opParamInfo_.oriKv.tensor = context_->GetOptionalInputTensor(ORI_KV_INDEX);
     opParamInfo_.oriKv.desc = context_->GetOptionalInputDesc(ORI_KV_INDEX);
@@ -138,20 +138,20 @@ void SASInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.metadata.desc = context_->GetOptionalInputDesc(METADATA_INDEX);
 }
 
-void SASInfoParser::GetInputParaInfo()
+void KvQuantSASInfoParser::GetInputParaInfo()
 {
     opParamInfo_.q.desc = context_->GetInputDesc(Q_INDEX);
     opParamInfo_.q.shape = context_->GetInputShape(Q_INDEX);
     GetOptionalInputParaInfo();
 }
 
-void SASInfoParser::GetOutputParaInfo()
+void KvQuantSASInfoParser::GetOutputParaInfo()
 {
     opParamInfo_.attnOut.desc = context_->GetOutputDesc(ATTN_OUT_INDEX);
     opParamInfo_.attnOut.shape = context_->GetOutputShape(ATTN_OUT_INDEX);
 }
 
-ge::graphStatus SASInfoParser::GetAttrParaInfo()
+ge::graphStatus KvQuantSASInfoParser::GetAttrParaInfo()
 {
     auto attrs = context_->GetAttrs();
     OP_CHECK_IF(attrs == nullptr, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "attrs got from ge is nullptr"),
@@ -175,7 +175,7 @@ ge::graphStatus SASInfoParser::GetAttrParaInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetOpParaInfo()
+ge::graphStatus KvQuantSASInfoParser::GetOpParaInfo()
 {
     GetInputParaInfo();
     GetOutputParaInfo();
@@ -185,7 +185,7 @@ ge::graphStatus SASInfoParser::GetOpParaInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetInOutDataType()
+ge::graphStatus KvQuantSASInfoParser::GetInOutDataType()
 {
     qType_ = opParamInfo_.q.desc->GetDataType();
     outputType_ = opParamInfo_.attnOut.desc->GetDataType();
@@ -198,7 +198,7 @@ ge::graphStatus SASInfoParser::GetInOutDataType()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetQueryAndOutLayout()
+ge::graphStatus KvQuantSASInfoParser::GetQueryAndOutLayout()
 {
     // 获取q和attnOut的Layout基准值
     // layoutQuery: {qLayout, outLayout}
@@ -219,7 +219,7 @@ ge::graphStatus SASInfoParser::GetQueryAndOutLayout()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetKvLayout()
+ge::graphStatus KvQuantSASInfoParser::GetKvLayout()
 {
     const map<string, SASLayout> layoutKVMap = {
         {"PA_ND",     SASLayout::PA_ND},
@@ -238,7 +238,7 @@ ge::graphStatus SASInfoParser::GetKvLayout()
 
 // =============Parser function====================
 
-bool SASInfoParser::HasAxis(const SASAxis &axis, const SASLayout &layout, const gert::Shape &shape) const
+bool KvQuantSASInfoParser::HasAxis(const SASAxis &axis, const SASLayout &layout, const gert::Shape &shape) const
 {
     const auto& layoutIt = SAS_LAYOUT_AXIS_MAP.find(layout);
     if (layoutIt == SAS_LAYOUT_AXIS_MAP.end()) {
@@ -257,19 +257,19 @@ bool SASInfoParser::HasAxis(const SASAxis &axis, const SASLayout &layout, const 
     return true;
 }
 
-size_t SASInfoParser::GetAxisIdx(const SASAxis &axis, const SASLayout &layout) const
+size_t KvQuantSASInfoParser::GetAxisIdx(const SASAxis &axis, const SASLayout &layout) const
 {
     const std::vector<SASAxis>& axes = SAS_LAYOUT_AXIS_MAP.find(layout)->second;
     const auto& axisIt = std::find(axes.begin(), axes.end(), axis);
     return std::distance(axes.begin(), axisIt);
 }
 
-uint32_t SASInfoParser::GetAxisNum(const gert::Shape &shape, const SASAxis &axis,const SASLayout &layout) const
+uint32_t KvQuantSASInfoParser::GetAxisNum(const gert::Shape &shape, const SASAxis &axis,const SASLayout &layout) const
 {
     return HasAxis(axis, layout, shape) ? shape.GetDim(GetAxisIdx(axis, layout)) : invalidDimValue_;
 }
 
-void SASInfoParser::SetSASShape()
+void KvQuantSASInfoParser::SetSASShape()
 {
     qShape_ = opParamInfo_.q.shape->GetStorageShape();
     if (opParamInfo_.oriKv.tensor != nullptr) {
@@ -283,13 +283,13 @@ void SASInfoParser::SetSASShape()
     }
 }
 
-ge::graphStatus SASInfoParser::GetN1Size()
+ge::graphStatus KvQuantSASInfoParser::GetN1Size()
 {
     n1Size_ = GetAxisNum(qShape_, SASAxis::N, qLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetN2Size()
+ge::graphStatus KvQuantSASInfoParser::GetN2Size()
 {
     if (opParamInfo_.oriKv.tensor != nullptr) {
         n2Size_ = GetAxisNum(oriKvShape_, SASAxis::N, kvLayout_);
@@ -299,7 +299,7 @@ ge::graphStatus SASInfoParser::GetN2Size()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetGSize()
+ge::graphStatus KvQuantSASInfoParser::GetGSize()
 {
     if (n2Size_ != 0) {
         gSize_ = n1Size_ / n2Size_;
@@ -307,7 +307,7 @@ ge::graphStatus SASInfoParser::GetGSize()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
+ge::graphStatus KvQuantSASInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
     SASLayout &layout, const std::string &name) const
 {
     if ((tensor == nullptr)) {
@@ -325,12 +325,12 @@ ge::graphStatus SASInfoParser::GetActualSeqLenSize(uint32_t &size, const gert::T
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetActualSeqLenQSize(uint32_t &size)
+ge::graphStatus KvQuantSASInfoParser::GetActualSeqLenQSize(uint32_t &size)
 {
     return GetActualSeqLenSize(size, opParamInfo_.sequsedKv.tensor, qLayout_, "cuSeqLensQ");
 }
 
-ge::graphStatus SASInfoParser::GetBatchSize()
+ge::graphStatus KvQuantSASInfoParser::GetBatchSize()
 {
     // 获取B基准值
     // 1、非TND时, 以query的batch_size维度为基准;
@@ -343,7 +343,7 @@ ge::graphStatus SASInfoParser::GetBatchSize()
     }
 }
 
-ge::graphStatus SASInfoParser::GetQTSize()
+ge::graphStatus KvQuantSASInfoParser::GetQTSize()
 {
     // 获取query的T基准值
     // 1、非TND时, 以query的batch_size维度为基准;
@@ -352,7 +352,7 @@ ge::graphStatus SASInfoParser::GetQTSize()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetS1Size()
+ge::graphStatus KvQuantSASInfoParser::GetS1Size()
 {
     // 获取S1基准值
     // 1、非TND时, 以query的S维度为基准;
@@ -366,7 +366,7 @@ ge::graphStatus SASInfoParser::GetS1Size()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetMaxBlockNumPerBatch()
+ge::graphStatus KvQuantSASInfoParser::GetMaxBlockNumPerBatch()
 {
     if (opParamInfo_.oriBlockTable.tensor == nullptr) {
         OP_LOGE(opName_, "the layout_kv is %s, blockTable must be provided.", SASLayoutToSerialString(kvLayout_).c_str());
@@ -400,13 +400,13 @@ ge::graphStatus SASInfoParser::GetMaxBlockNumPerBatch()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetBlockSize()
+ge::graphStatus KvQuantSASInfoParser::GetBlockSize()
 {
     blockSize_ = GetAxisNum(oriKvShape_, SASAxis::Bs, kvLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetS2SizeForPageAttention()
+ge::graphStatus KvQuantSASInfoParser::GetS2SizeForPageAttention()
 {
     if (GetMaxBlockNumPerBatch() != ge::GRAPH_SUCCESS || GetBlockSize() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
@@ -415,13 +415,13 @@ ge::graphStatus SASInfoParser::GetS2SizeForPageAttention()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetS2Size()
+ge::graphStatus KvQuantSASInfoParser::GetS2Size()
 {
     // 获取S2基准值:PAGE_ATTENTION时, S2 = block_table.dim1 * block_size
     return GetS2SizeForPageAttention();
 }
 
-ge::graphStatus SASInfoParser::GetQkHeadDim()
+ge::graphStatus KvQuantSASInfoParser::GetQkHeadDim()
 {
     // 获取qkHeadDim基准值
     // 以query的D维度为基准
@@ -429,7 +429,7 @@ ge::graphStatus SASInfoParser::GetQkHeadDim()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetSparseBlockCount()
+ge::graphStatus KvQuantSASInfoParser::GetSparseBlockCount()
 {
     if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
         sparseBlockCount_ = GetAxisNum(cmpSparseIndicesShape_, SASAxis::K, qLayout_);
@@ -438,7 +438,7 @@ ge::graphStatus SASInfoParser::GetSparseBlockCount()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetActualseqInfo()
+ge::graphStatus KvQuantSASInfoParser::GetActualseqInfo()
 {
     maxActualseq_ = static_cast<uint32_t>(s2Size_);
     if (opParamInfo_.sequsedKv.tensor != nullptr) {
@@ -450,17 +450,17 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetDSizeQ() {
+ge::graphStatus KvQuantSASInfoParser::GetDSizeQ() {
     dSizeQ_ = GetAxisNum(qShape_, SASAxis::D, qLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetDSizeKV() {
+ge::graphStatus KvQuantSASInfoParser::GetDSizeKV() {
     dSizeKV_ = GetAxisNum(oriKvShape_, SASAxis::D, kvLayout_);
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASInfoParser::GetSinks()
+ge::graphStatus KvQuantSASInfoParser::GetSinks()
 {
     if(opParamInfo_.sequsedKv.tensor != nullptr){
         uint32_t oriDimNum = opParamInfo_.oriBlockTable.tensor->GetStorageShape().GetDimNum();
@@ -477,7 +477,7 @@ ge::graphStatus SASInfoParser::GetSinks()
     }
 }
 
-void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
+void KvQuantSASInfoParser::GenerateInfo(KvQuantSASTilingInfo &sasInfo)
 {
     sasInfo.opName = opName_;
     sasInfo.platformInfo = platformInfo_;
@@ -534,7 +534,7 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.outLayout = outLayout_;
 }
 
-ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
+ge::graphStatus KvQuantSASInfoParser::Parse(KvQuantSASTilingInfo &sasInfo)
 {
 
     if (context_ == nullptr) {
@@ -579,7 +579,7 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus SASTilingCheck::Process()
+ge::graphStatus KvQuantSASTilingCheck::Process()
 {
     // Init();
     // if (CheckSinglePara() != ge::GRAPH_SUCCESS ||
@@ -598,7 +598,7 @@ static ge::graphStatus TilingPrepareForKvQuantSparseAttnSharedkv(gert::TilingPar
 }
 
 // --------------------------SparseAttnSharedkvTiling类成员函数定义-----------------------
-ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
+ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo *tilingInfo)
 {
     if (tilingInfo->opParamInfo.cmpKv.tensor == nullptr) {
         perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
@@ -691,13 +691,13 @@ ge::graphStatus TilingKvQuantSparseAttnSharedkv(gert::TilingContext *context)
 {
     OP_CHECK_IF(context == nullptr, OPS_REPORT_VECTOR_INNER_ERR("KvQuantSparseAttnSharedkv", "Tiling context is null."),
                return ge::GRAPH_FAILED);
-    SASTilingInfo sasInfo;
-    SASInfoParser sasInfoParser(context);
+    KvQuantSASTilingInfo sasInfo;
+    KvQuantSASInfoParser sasInfoParser(context);
     if (sasInfoParser.Parse(sasInfo) != ge::GRAPH_SUCCESS) {
         //return ge::GRAPH_FAILED;
     }
 
-    SASTilingCheck sasTilingChecker(sasInfo);
+    KvQuantSASTilingCheck sasTilingChecker(sasInfo);
     if (sasTilingChecker.Process() != ge::GRAPH_SUCCESS) {
         //return ge::GRAPH_FAILED;
     }

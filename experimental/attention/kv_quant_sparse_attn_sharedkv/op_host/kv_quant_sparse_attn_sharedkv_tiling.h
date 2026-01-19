@@ -207,7 +207,7 @@ struct SASParaInfo {
 };
 
 // -----------算子Tiling入参信息类---------------
-class SASTilingInfo {
+class KvQuantSASTilingInfo {
 public:
     const char *opName = nullptr;
     fe::PlatFormInfos *platformInfo = nullptr;
@@ -278,7 +278,7 @@ public:
 // -----------算子Tiling入参信息解析及Check类---------------
 class SASTilingCheck {
 public:
-    explicit SASTilingCheck(const SASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
+    explicit SASTilingCheck(const KvQuantSASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
     ~SASTilingCheck() = default;
     virtual ge::graphStatus Process();
 private:
@@ -370,7 +370,7 @@ private:
     const char *opName_;
     fe::PlatFormInfos *platformInfo_;
     SASParaInfo opParamInfo_;
-    const SASTilingInfo &sasInfo_;
+    const KvQuantSASTilingInfo &sasInfo_;
 
     uint32_t bSize_ = 0;
     uint32_t n1Size_ = 0;
@@ -414,10 +414,10 @@ std::string SASLayoutToSerialString(SASLayout layout);
 
 
 
-class SASInfoParser {
+class KvQuantSASInfoParser {
 public:
-    explicit SASInfoParser(gert::TilingContext *context) : context_(context) {}
-    ~SASInfoParser() = default;
+    explicit KvQuantSASInfoParser(gert::TilingContext *context) : context_(context) {}
+    ~KvQuantSASInfoParser() = default;
 
     ge::graphStatus CheckRequiredInOutExistence() const;
     ge::graphStatus CheckRequiredAttrExistence() const;
@@ -455,8 +455,8 @@ public:
     ge::graphStatus GetDSizeQ();
     ge::graphStatus GetDSizeKV();
     ge::graphStatus GetSinks();
-    void GenerateInfo(SASTilingInfo &sasInfo);
-    ge::graphStatus Parse(SASTilingInfo &sasInfo);
+    void GenerateInfo(KvQuantSASTilingInfo &sasInfo);
+    ge::graphStatus Parse(KvQuantSASTilingInfo &sasInfo);
 
 public:
     gert::TilingContext *context_ = nullptr;
@@ -518,7 +518,7 @@ public:
 class KvQuantSparseAttnSharedkvTiling {
 public:
     explicit KvQuantSparseAttnSharedkvTiling(gert::TilingContext *context) : context_(context){};
-    ge::graphStatus DoOpTiling(SASTilingInfo *tilingInfo);
+    ge::graphStatus DoOpTiling(KvQuantSASTilingInfo *tilingInfo);
 
 private:
     gert::TilingContext *context_ = nullptr;
@@ -528,7 +528,7 @@ private:
     uint64_t workspaceSize_{0};
     uint64_t tilingKey_{0};
 
-    SASTilingInfo *sasInfo_ = nullptr;
+    KvQuantSASTilingInfo *sasInfo_ = nullptr;
 };
 
 }
