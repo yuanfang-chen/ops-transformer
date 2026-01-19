@@ -19,11 +19,11 @@
 #include <cstdint>
 
 namespace optiling {
-const uint32_t AIC_CORE_NUM = 36;
+static constexpr uint32_t AIC_CORE_NUM = 36;  //TODO 根据编译宏确定 aicpu与kernel的宏保持一致
 const uint32_t AIV_CORE_NUM = 36 * 2;
-const uint32_t MAX_FD_NUM = AIC_CORE_NUM;
-constexpr uint32_t SAS_META_SIZE = 1024;
-using SAS_METADATA_T = int32_t;
+static constexpr uint32_t MAX_FD_NUM = AIC_CORE_NUM;
+constexpr uint32_t SCFA_META_SIZE = 1024;
+using SCFA_METADATA_T = int32_t;
 
 namespace detail {
     // 分核功能模块输出：FD信息，包含需要归约的数据索引及其分核信息

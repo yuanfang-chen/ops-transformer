@@ -40,6 +40,12 @@ __aicore__ inline T Align(T num, T rnd)
     return (((rnd) == 0) ? 0 : (((num) + (rnd)-1) / (rnd) * (rnd)));
 }
 
+template <typename T>
+__aicore__ inline T Trunc(T num, T rnd)
+{
+    return ((rnd) == 0) ? 0 : (((num) / (rnd) * (rnd)));
+}
+
 enum class X_LAYOUT : std::uint8_t {
     BSH = static_cast<std::uint8_t>(0),
     TH = static_cast<std::uint8_t>(1)
@@ -56,8 +62,8 @@ enum class COFF : std::uint8_t {
 };
 
 enum class ROTARY_MODE : std::uint8_t {
-    HALF = static_cast<std::uint8_t>(0),
-    INTERLEAVE = static_cast<std::uint8_t>(1)
+    HALF = static_cast<std::uint8_t>(1),
+    INTERLEAVE = static_cast<std::uint8_t>(2)
 };
 
 template <X_LAYOUT X_L, X_DTYPE X_T, COFF C, ROTARY_MODE Rotary_Mode, typename... Args>

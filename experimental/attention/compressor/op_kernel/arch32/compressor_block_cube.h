@@ -16,7 +16,6 @@
 #ifndef COMPRESSOR_BLOCK_CUBE_H
 #define COMPRESSOR_BLOCK_CUBE_H
 
-#include "kernel_operator.h"
 #include "../compressor_comm.h"
 
 using namespace AscendC;
@@ -43,9 +42,7 @@ public:
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut);
+        __gm__ uint8_t *cmpKvOut);
     __aicore__ inline void InitBuffers(TPipe *pipe);
     __aicore__ inline void InitGlobalBuffers(const GlobalTensor<MM1_OUT_T>& preMm1ResGm, const GlobalTensor<MM1_OUT_T>& curMm1ResGm);
     __aicore__ inline void AllocEventID(TPipe *pipe);
@@ -152,9 +149,7 @@ template <typename COMP> __aicore__ inline void CompressorBlockCube<COMP>::Init(
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
-        __gm__ uint8_t *cmpKvOut,
-        __gm__ uint8_t *kvStateOut,
-        __gm__ uint8_t *scoreStateOut)
+        __gm__ uint8_t *cmpKvOut)
 {
     xGm_.SetGlobalBuffer((__gm__ X_T *)x);
     wkvGm_.SetGlobalBuffer((__gm__ X_T *)wKv);

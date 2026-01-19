@@ -144,7 +144,7 @@ __aicore__ inline void SCFAUpdateExpSumAndExpMax(
     UpdateExpSumAndExpMaxVF<T>(maxUb, inMaxUb, expMaxUb, expSumUb, inExpSumUb, tmpExpSumUb, tmpMaxUb, m);
 }
 
-template <typename T> 
+template <typename T>
 __simd_vf__ inline void DuplicateSumWithR0VF(__ubuf__ T * sumUb, const T R0, uint32_t m) {
     AscendC::MicroAPI::RegTensor<T> vreg_sum;
     AscendC::MicroAPI::MaskReg preg_m = AscendC::MicroAPI::UpdateMask<T>(m);

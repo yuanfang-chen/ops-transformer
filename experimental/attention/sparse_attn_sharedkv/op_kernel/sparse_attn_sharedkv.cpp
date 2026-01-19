@@ -31,12 +31,7 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
 #if defined(ASCENDC_CPU_DEBUG) || defined(__DAV_C220_CUBE__) || defined(__DAV_C310_CUBE__) || defined(__DAV_310R6_CUBE__) || defined(__GET_CODE_CHANNEL__)
     copy_data_align64((uint8_t*)metadata, (__gm__ uint8_t *)p_metadata, all_bytes);
 #else
-    __ubuf__ uint8_t *metadata_in_ub = (__ubuf__ uint8_t *)get_imm(0);
-    constexpr uint32_t len_burst = (all_bytes + 31) / 32;
-    copy_gm_to_ubuf(((__ubuf__ uint8_t *)metadata_in_ub), p_metadata, 0, 1,len_burst, 0, 0);
-    set_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
-    wait_flag(PIPE_MTE2, PIPE_S, EVENT_ID0);
-    copy_data_align64((uint8_t*)metadata, (__ubuf__ uint8_t *)metadata_in_ub, all_bytes);
+    copy_data_align64((uint8_t*)metadata, (__gm__ uint8_t *)p_metadata, all_bytes);
 #endif
 }
 
@@ -73,19 +68,19 @@ sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_
     if constexpr (ORIG_DTYPE_Q == DT_FLOAT16 && ORIG_DTYPE_ORI_KV == DT_FLOAT16 && ORIG_DTYPE_ATTN_OUT == DT_FLOAT16) {
         if constexpr (TEMPLATE_MODE == SCFA_TEMPLATE) {
             SAS_OP_IMPL(SparseAttnSharedkvScfa, SparseAttnSharedkvTilingData, half, half, half,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T));
+                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
         } else {
             SAS_OP_IMPL(SparseAttnSharedkvSwa, SparseAttnSharedkvTilingData, half, half, half,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T));
+                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
         }
     }
     if constexpr (ORIG_DTYPE_Q == DT_BF16 && ORIG_DTYPE_ORI_KV == DT_BF16 && ORIG_DTYPE_ATTN_OUT == DT_BF16) {
         if constexpr (TEMPLATE_MODE == SCFA_TEMPLATE) {
             SAS_OP_IMPL(SparseAttnSharedkvScfa, SparseAttnSharedkvTilingData, bfloat16_t, bfloat16_t, bfloat16_t,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T));
+                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
         } else {
             SAS_OP_IMPL(SparseAttnSharedkvSwa, SparseAttnSharedkvTilingData, bfloat16_t, bfloat16_t, bfloat16_t,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T));
+                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
         }
 
     }
