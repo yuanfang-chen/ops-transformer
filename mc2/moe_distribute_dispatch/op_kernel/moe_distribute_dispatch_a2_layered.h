@@ -338,7 +338,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     moeExpertNumInServer_ = SERVER_RANK_SIZE * localMoeExpertNum_;
 
     //UB init
-    tpipe_->InitBuffer(statusBuf_, FLAG_SIZE);
+    tpipe_->InitBuffer(statusBuf_, FLAG_SIZE * 3); // GetArrivedTokenInfo需要获取三个Flag
 
     tpipe_->InitBuffer(rdmaInBuf_, UB_32B_ALIGN);
     ubLocal = rdmaInBuf_.Get<uint64_t>();
@@ -1012,22 +1012,18 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
     TokensGtU8.SetGlobalBuffer((__gm__ uint8_t*)(windowInGM_));
 
     LocalTensor<uint64_t> statusTensor = statusBuf_.Get<uint64_t>();
-    DataCopy(statusTensor, readStatusTensor_[(serverIdx) * STATE_OFFSET / sizeof(uint64_t)],
-        FLAG_SIZE / sizeof(uint64_t));
-    SyncFunc<AscendC::HardEvent::MTE2_S>();
-    uint64_t endFlagValue = statusTensor.GetValue(0);
-
     uint32_t TokenOffset = serverIdx * SERVER_SIZE_ON_WIN + tokenIdx * tokenStructLen_;
-    DataCopy(statusTensor, TokenFlagGtU64[(TokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)],
-        FLAG_SIZE / sizeof(uint64_t));
-    SyncFunc<AscendC::HardEvent::MTE2_S>();
-    uint64_t tokenFlagValue = statusTensor.GetValue(0);
-
     uint32_t nextTokenOffset = serverIdx * SERVER_SIZE_ON_WIN + (tokenIdx + 1) * tokenStructLen_;
-    DataCopy(statusTensor, TokenFlagGtU64[(nextTokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)],
+    DataCopy(statusTensor[0], readStatusTensor_[(serverIdx) * STATE_OFFSET / sizeof(uint64_t)],
+        FLAG_SIZE / sizeof(uint64_t));
+    DataCopy(statusTensor[FLAG_SIZE], TokenFlagGtU64[(TokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)],
+        FLAG_SIZE / sizeof(uint64_t));
+    DataCopy(statusTensor[FLAG_SIZE * 2], TokenFlagGtU64[(nextTokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)],
         FLAG_SIZE / sizeof(uint64_t));
     SyncFunc<AscendC::HardEvent::MTE2_S>();
-    uint64_t nextTokenFlagValue = statusTensor.GetValue(0);
+    uint64_t endFlagValue = statusTensor[0].GetValue();
+    uint64_t tokenFlagValue = statusTensor[FLAG_SIZE].GetValue();
+    uint64_t nextTokenFlagValue = statusTensor[FLAG_SIZE * 2].GetValue();
 
     //等到发送结束信号，没等到token结束信号，则返回结束等待状态
     if (nextTokenFlagValue == SHOULD_SEND_FLAG_VALUE) {
