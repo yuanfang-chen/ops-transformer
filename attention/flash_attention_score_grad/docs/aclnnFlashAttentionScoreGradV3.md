@@ -150,7 +150,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的Q。</td>
         <td>数据类型与keyIn/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -160,7 +160,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的K。</td>
         <td>数据类型与query/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -170,7 +170,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的V。</td>
         <td>数据类型与query/keyIn一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -180,7 +180,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输入</td>
         <td>公式中的dY。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -190,7 +190,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>可选输入</td>
         <td>公式中的pse。</td>
         <td>数据类型与query的数据类型一致,该参数需要与pseType配套使用。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[B,N,Sq,Skv]、[B,N,1,Skv]、[1,N,Sq,Skv]、[B,N,1024,Skv]、[1,N,1024,Skv]、[B,N]、[N]</td>
         <td>√</td>
@@ -240,7 +240,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>可选输入</td>
         <td>注意力正向的最终输出。</td>
         <td>数据类型和shape与query一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]</td>
         <td>√</td>
@@ -350,7 +350,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输出</td>
         <td>公式中的dQ，query的梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
         <td>√</td>
@@ -360,7 +360,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输出</td>
         <td>公式中的dK，keyIn的梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
         <td>√</td>
@@ -370,7 +370,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
         <td>输出</td>
         <td>公式中的dV，value的梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[BNSD]、[BSND]、[BSH]、[SBH]	</td>
         <td>√</td>
@@ -505,11 +505,11 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
 - 输入key/value的shape除D外必须一致，在query/key/value的D大小相同的情况下，query/dy的shape必须一致。
 - 支持输入query/dy的N和key/value的N不相等，但必须成比例关系，即Nq/Nkv必须是非0整数，Nq取值范围1~256。
 - 关于数据shape的约束，以inputLayout的BSND、BNSD为例（BSH、SBH下H=N\*D），其中：
-    - B：取值范围为1\~2M。带prefixOptional的时候B最大支持2K。
-    - N：取值范围为1\~256。
-    - S：取值范围为1\~1M。
-    - D：取值范围为1\~768。
-    - KeepProb: 取值范围为(0, 1].
+  - B：取值范围为1\~2M。带prefixOptional的时候B最大支持2K。
+  - N：取值范围为1\~256。
+  - S：取值范围为1\~1M。
+  - D：取值范围为1\~768。
+  - KeepProb: 取值范围为(0, 1].
 - query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N。
 - pseShiftOptional：如果Sq大于1024的每个batch的Sq与Skv等长且是sparseMode为0、2、3的下三角掩码场景，可使能alibi位置编码压缩，此时只需要输入原始PSE最后1024行，实现内存优化，即alibi_compress = ori_pse[:, :, -1024:, :]，具体如下：
   - 参数每个batch不相同时，shape为BNHSkv(H=1024)。
@@ -526,11 +526,11 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
   | 2 | 内部生成pse 先mul再add | - |
   | 3 | 内部生成pse 先mul再add再sqrt | - |
 - sparseMode的约束如下:
-    - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量；
-    - 配置为1、2、3、5时，用户配置的preTokens、nextTokens不会生效；
-    - 配置为0、4时，须保证attenMaskOptional与preTokens、nextTokens的范围一致。
-    - 用户不特意指定时建议传入0。
-    - sparse不同模式的详细说明请参见[sparse模式说明](../../../docs/zh/context/sparse_mode参数说明.md)。
+  - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量；
+  - 配置为1、2、3、5时，用户配置的preTokens、nextTokens不会生效；
+  - 配置为0、4时，须保证attenMaskOptional与preTokens、nextTokens的范围一致。
+  - 用户不特意指定时建议传入0。
+  - sparse不同模式的详细说明请参见[sparse模式说明](../../../docs/zh/context/sparse_mode参数说明.md)。
 - 部分场景下，如果计算量过大可能会导致算子执行超时(aicore error类型报错，errorStr为：timeout or trap error)
   ，此时建议做轴切分处理，注：这里的计算量会受B、S、N、D等参数的影响，值越大计算量越大。
 - 关于softmaxMax与softmaxSum参数的约束：输入格式固定为\[B, N, S, 8\],TND的输入格式除外，此时为\[T, N, 8\],注：T=B*S。

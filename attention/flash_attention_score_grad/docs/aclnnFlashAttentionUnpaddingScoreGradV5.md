@@ -1,6 +1,7 @@
 # aclnnFlashAttentionUnpaddingScoreGradV5
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
@@ -15,37 +16,37 @@
 - 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。增加`sinkInOptional`可选输入。
 
 - 计算公式：
-  
+
   已知注意力的正向计算公式为：
-  
+
   $$
   =Dropout(Softmax(Mask(\frac{QK^T+pse}{\sqrt{d}}),atten\_mask),keep\_prob)V
   $$
-  
+
   为方便表达，以变量$S$和$P$表示计算公式：
-  
+
   $$
   =Mask(\frac{QK^T+pse}{\sqrt{d}}),atten\_mask
   $$
-  
+
   $$
   =Dropout(Softmax(S),keep\_prob)
   $$
-  
+
   $$
   =PV
   $$
-  
+
   则注意力的反向计算公式为：
-  
+
   $$
   V=P^TdY
   $$
-  
+
   $$
   Q=\frac{((dS)*K)}{\sqrt{d}}
   $$
-  
+
   $$
   K=\frac{((dS)^T*Q)}{\sqrt{d}}
   $$
@@ -154,7 +155,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的Q。</td>
         <td>数据类型与keyIn/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -174,7 +175,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的K。</td>
         <td>数据类型与query/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -194,7 +195,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的V。</td>
         <td>数据类型与query/keyIn一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -204,7 +205,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的dY。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -214,7 +215,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>可选输入</td>
         <td>公式中的pse。</td>
         <td>数据类型与query的数据类型一致,该参数需要与pseType配套使用。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[B,N,1024,Skv]、[1,N,1024,Skv]、[B,N]、[N]</td>
         <td>√</td>
@@ -434,7 +435,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输出</td>
         <td>公式中的dQ，Query梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -444,7 +445,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输出</td>
         <td>公式中的dK，Key梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -454,7 +455,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输出</td>
         <td>公式中的dV，Value梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -592,12 +593,12 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 - 支持输入query的N和key/value的N不相等，但必须成比例关系，即Nq/Nkv必须是非0整数，Nq取值范围1~256。
 - 关于数据shape的约束，以inputLayout的TND为例，其中：
 
-    -   T(B*S)：取值范围为1\~1M。
-    -   B：取值范围为1\~2M。带prefixOptional的时候B最大支持1K。
-    -   N：取值范围为1\~256。
-    -   S：取值范围为1\~1M。
-    -   D：取值范围为1\~768。
-    -   KeepProb: 取值范围为(0, 1]。
+  -   T(B*S)：取值范围为1\~1M。
+  -   B：取值范围为1\~2M。带prefixOptional的时候B最大支持1K。
+  -   N：取值范围为1\~256。
+  -   S：取值范围为1\~1M。
+  -   D：取值范围为1\~768。
+  -   KeepProb: 取值范围为(0, 1]。
 - query、key、value数据排布格式仅支持TND，T是B和S合轴紧密排列的数据（每个batch的SeqLenQ和SeqLenKV），其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N。
 - pseShiftOptional：如果Sq大于1024的每个batch的Sq与Skv等长且是sparseMode为0、2、3的下三角掩码场景，可使能alibi位置编码压缩，此时只需要输入原始PSE最后1024行，实现内存优化，即alibi_compress = ori_pse[:, :, -1024:, :]，具体如下：
   - 参数每个batch不相同时，shape为BNHSkv(H=1024)。
@@ -611,7 +612,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
   | 1 | 外部传入pse 先add再mul | 跟[FlashAttentionScoreGrad](./aclnnFlashAttentionScoreGrad.md)实现一致。 |
   | 2 | 内部生成pse 先mul再add | - |
   | 3 | 内部生成pse 先mul再add再sqrt | - |
-- sparseMode的约束如下: 
+- sparseMode的约束如下:
   - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量；
   - 配置为1、2、3、5时，用户配置的preTokens、nextTokens不会生效；
   - sparseMode配置为0、4时，须保证attenMaskOptional与preTokens、nextTokens的范围一致。
@@ -622,7 +623,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 - 不同数据格式详情请参见[数据格式](../../../docs/zh/context/数据格式.md)。
 - 部分场景下，如果计算量过大可能会导致算子执行超时(aicore error类型报错，errorStr为：timeout or trap error)，此时建议做轴切分处理，注：这里的计算量会受B、S、N、D等参数的影响，值越大计算量越大。
 - prefixOptional稀疏计算仅支持压缩场景，sparseMode=6，当Sq > Skv时，prefix的N值取值范围\[0, Skv\]，当Sq <= Skv时，prefix的N值取值范围\[Skv-Sq, Skv\]。
-[0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。
+  [0] - actualSeqKvLenOptional[0] + qStartIdxOptional - kvStartIdxOptional == 0（本功能属实验性功能）。
 - actualSeqQLenOptional输入支持某个Batch上的S长度为0，此时不支持可选输入pseShiftOptional。
 - 关于softmaxMax与softmaxSum参数的约束：输入格式固定为\[B, N, S, 8\]，TND的输入格式除外，此时为\[T, N, 8\]，注：T=B*S。
 - headNum的取值必须和传入的Query中的N值保持一致。
