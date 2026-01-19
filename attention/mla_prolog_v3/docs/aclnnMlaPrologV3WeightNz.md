@@ -680,7 +680,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>NULLPTR</td>
     </tr>
     <tr>
-      <td> dequantScaleQNopeOutOptional </td>
+      <td> dequantScaleQNormOutOptional </td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
