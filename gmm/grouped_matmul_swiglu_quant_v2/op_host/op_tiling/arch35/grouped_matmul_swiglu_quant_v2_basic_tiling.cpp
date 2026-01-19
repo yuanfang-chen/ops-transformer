@@ -24,7 +24,7 @@
 using namespace Ops::Transformer::OpTiling;
 using namespace GroupedMatmulSwigluQuantParamsV2;
 using namespace optiling::GmmConstant;
-namespace optiling {
+namespace optiling{
 void GroupedMatmulSwigluQuantDavidV2Tiling::Reset()
 {
     tilingData_.SetDataPtr(context_->GetRawTilingData()->GetData());
@@ -75,7 +75,7 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeAttrs()
     ge::DataType quantDtype = static_cast<ge::DataType>(*quantDtypePtr);
     OP_CHECK_IF(std::find(quantDtypeSupportList.begin(), quantDtypeSupportList.end(), quantDtype) ==
                     quantDtypeSupportList.end(),
-                OP_LOGE(inputParams_.opName, "In mx quantization mode, quantDtype should be in {FLOAT8_E4M3,"
+                OP_LOGE(inputParams_.opName, "In mx quant mode, quantDtype should be in {FLOAT8_E4M3,"
                         " FLOAT8_E5M2, FLOAT4_E2M1, FLOAT4_E1M2}, but actual value is %s.",
                         ge::TypeUtils::DataTypeToSerialString(quantDtype).c_str()),
                 return false);
@@ -105,15 +105,15 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeDtype()
     return CheckDtype();
 }
 
-bool GroupedMatmulSwigluQuantDavidV2Tiling::IsFp4(ge::DataType dtype) {
+bool GroupedMatmulSwigluQuantDavidV2Tiling::IsFp4(ge::DataType dtype) const{
     return dtype == ge::DT_FLOAT4_E1M2 || dtype == ge::DT_FLOAT4_E2M1;
 }
 
-bool GroupedMatmulSwigluQuantDavidV2Tiling::IsFp8(ge::DataType dtype) {
+bool GroupedMatmulSwigluQuantDavidV2Tiling::IsFp8(ge::DataType dtype) const{
     return dtype == ge::DT_FLOAT8_E4M3FN || dtype == ge::DT_FLOAT8_E5M2;
 }
 
-bool GroupedMatmulSwigluQuantDavidV2Tiling::IsFp4Input() {
+bool GroupedMatmulSwigluQuantDavidV2Tiling::IsFp4Input() const{
     return IsFp4(inputParams_.aDtype) && IsFp4(inputParams_.bDtype);
 }
 
@@ -123,6 +123,18 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::IsFp8Input() {
 
 bool GroupedMatmulSwigluQuantDavidV2Tiling::CheckDtype()
 {
+    // 校验x和weight数据类型一致性：不能一个是fp4，一个是fp8
+ 	bool xIsFp4 = IsFp4(inputParams_.aDtype);
+ 	bool xIsFp8 = IsFp8(inputParams_.aDtype);
+ 	bool weightIsFp4 = IsFp4(inputParams_.bDtype);
+ 	bool weightIsFp8 = IsFp8(inputParams_.bDtype);
+ 	     
+ 	OP_CHECK_IF((xIsFp4 && weightIsFp8) || (xIsFp8 && weightIsFp4),
+ 	            OP_LOGE(inputParams_.opName,
+ 	                    "The dtype of x and weight should both be FLOAT8 or FLOAT4, but x dtype is %s, weight dtype is %s.",
+ 	                    ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+ 	                    ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
+ 	            return false);
     OP_CHECK_IF(!(IsFp4Input() || IsFp8Input()),
                 OP_LOGE(inputParams_.opName,
                         "Only FLOAT8 or FLOAT4 inputs are supported, but x dtype is %s, weight dtype is %s.",
@@ -162,6 +174,38 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::SetQuantModeForGMMSwigluQuant()
     return false;
 }
 
+bool GroupedMatmulSwigluQuantDavidV2Tiling::CheckDims() const
+{
+    auto aInnerSize = inputParams_.transA ? inputParams_.mSize : inputParams_.kSize;
+    auto bInnerSize = inputParams_.transB ? inputParams_.kSize : inputParams_.nSize;
+    OP_CHECK_IF(
+        IsFp4Input() && (aInnerSize % B4_DATACOPY_MIN_NUM != 0 || bInnerSize % B4_DATACOPY_MIN_NUM != 0),
+        OP_LOGE(inputParams_.opName, "When inputs are FLOAT4, x and weight inner axis element number should be even."),
+        return false);
+
+    
+    // MXFP4场景不支持K=2
+    OP_CHECK_IF(IsFp4Input() && inputParams_.kSize == MXFP4_K_MIN_VALUE,
+                OP_LOGE(inputParams_.opName,
+                        "When the dtypes of x and weight are DT_FLOAT4_E1M2 or DT_FLOAT4_E2M1,"
+                        " the K value should be greater than 2, but actual value is %lu.",
+                        inputParams_.kSize),
+                return false);
+    // MXFP4场景下，当输出类型为FP4时，N需要满足为大于等于4的偶数
+    if (IsFp4Input() && IsFp4(inputParams_.outDataDtype)) {
+            OP_CHECK_IF(inputParams_.nSize < MXFP4_N_MIN_VALUE || inputParams_.nSize % EVEN_FACTOR != 0,
+                        OP_LOGE(inputParams_.opName,
+                                "When inputs and output are FLOAT4, N value should be even and greater or equal to 4, "
+                                "but actual N is %lu.",
+                                inputParams_.nSize),
+                        return false);
+    }
+    // MX量化场景下，N为128对齐
+    OP_CHECK_IF(inputParams_.nSize % GmmConstant::BASIC_BLOCK_SIZE_128 != 0,
+                OP_LOGE(inputParams_.opName, "Weight n axis element number should be an integer multiple of 128."),
+                return false);
+    return true;
+}
 bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeInputs()
 {
     auto xStorageShape = context_->GetInputShape(X_INDEX);
@@ -191,16 +235,7 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeInputs()
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
                return false);
     OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(inputParams_.opName, "SetMKN failed."), return false);
-    auto aInnerSize = inputParams_.transA ? inputParams_.mSize : inputParams_.kSize;
-    auto bInnerSize = inputParams_.transB ? inputParams_.kSize : inputParams_.nSize;
-    OP_CHECK_IF(
-        IsFp4Input() && (aInnerSize % B4_DATACOPY_MIN_NUM != 0 || bInnerSize % B4_DATACOPY_MIN_NUM != 0),
-        OP_LOGE(inputParams_.opName, "When inputs are FLOAT4, x and weight inner axis element number shoud be even."),
-        return false);
-    OP_CHECK_IF(inputParams_.nSize % GmmConstant::BASIC_BLOCK_SIZE_128 != 0,
-                OP_LOGE(inputParams_.opName, "Weight n axis element number shoud be an integer multiple of 128."),
-                return false);
-
+    OP_CHECK_IF(!CheckDims(), OP_LOGE(inputParams_.opName, "SetQuantModeForGMMSwigluQuant failed."), return false);
     OP_CHECK_IF(!SetQuantModeForGMMSwigluQuant(),
                OP_LOGE(inputParams_.opName, "SetQuantModeForGMMSwigluQuant failed."), return false);
 
