@@ -864,7 +864,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadState(const LocalTensor<
             uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
             uint64_t srcBaseOffset = 0;
             // PRINTF("copySeqCnt:%d, bIdx:%d, startSeqIdx:%d, endSeqIdx:%d, dStartIdx:%d dDealSize:%d\n",
-                copySeqCnt, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+            //     copySeqCnt, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
             ReadFromCacheState(kvLocal, kvStateGm_, kvBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
             ReadFromCacheState(scoreLocal, scoreStateGm_, scoreBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
         }
@@ -970,7 +970,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::DealVec1BaseBlock(const RunI
     while (blockInfo.dealSeqSize > 0) {
         UpdateBlockInfo(blockInfo);
         // PRINTF("DealVec1BaseBlock bIdx:%d sIdx:%d headHolderSeqCnt:%d validSeqCnt:%d tailHolderSeqCnt:%d dealSeqSize:%d\n",
-            blockInfo.bIdx, blockInfo.sIdx, blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, blockInfo.tailHolderSeqCnt, blockInfo.dealSeqSize);
+        //     blockInfo.bIdx, blockInfo.sIdx, blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, blockInfo.tailHolderSeqCnt, blockInfo.dealSeqSize);
 
         LocalTensor<T> scoreLocal = tmpBuff1.Get<T>();
         OverLapScore(scoreLocal, startTcIdx, blockInfo.dealTcSize, dStartIdx, dDealSize);
