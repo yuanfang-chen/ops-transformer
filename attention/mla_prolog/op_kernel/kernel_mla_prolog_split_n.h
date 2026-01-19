@@ -469,11 +469,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MmQcQrParamInit() {
     if constexpr (MLAPT::enableGroupComputeOpt) {
         mmQcQrParam_.baseN = 128;
     } else {
-        if (mmQcQrParam_.m <= 64) {
-            mmQcQrParam_.baseN = 256;
-        } else {
-            mmQcQrParam_.baseN = 128;
-        }
+        mmQcQrParam_.baseN = 128;
     }
     mmQcQrParam_.stepK = 4;
     mmQcQrParam_.kL1StepSize = mmQcQrParam_.baseK * mmQcQrParam_.stepK;

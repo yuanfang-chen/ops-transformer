@@ -175,10 +175,6 @@ ge::graphStatus MlaPrologTilingCheck::CheckAttrs() const
 ge::graphStatus MlaPrologTilingCheck::CheckDims() const
 {
     if (GetSocVersionShortName() == platform_ascendc::SocVersion::ASCEND910_95) {
-        OP_CHECK_IF(context_.tokenX.shape->GetStorageShape().GetDimNum() != MLA_PROLOG_DIM_NUM_3,
-            OP_LOGE(context_.opName, "TokenX shape dim num allows only %u, got %zu.",
-                MLA_PROLOG_DIM_NUM_3, context_.tokenX.shape->GetStorageShape().GetDimNum()),
-            return ge::GRAPH_FAILED);
         OP_CHECK_IF(scenarioInfo_.quantMode_ != QUANT_MODE::NO_QUANT && scenarioInfo_.quantMode_ != QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR &&
             scenarioInfo_.quantMode_ != QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT,
             OP_LOGE(context_.opName, "QUANT_MODE allows only %u, %u, %u, got %u.",
