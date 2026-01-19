@@ -6,13 +6,12 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -20,12 +19,15 @@
 - 计算公式:
   假设x1的shape为(BS, H1), x2的shape为(H1, H2)
     - K-C量化模式：
+
       $$
       computeOut = (x1 @ x2 + bias) * x1Scale * x2Scale \\
       permutedOut = computeOut.view(BS, rankSize, H2 / rankSize).permute(1, 0, 2) \\
       output = AlltoAll(permutedOut).view(rankSize * BS, H2 / rankSize)
       $$
+
     - K-C量化模式后加bias：
+
       $$
       computeOut = (x1 @ x2) * x1Scale * x2Scale  + bias \\
       permutedOut = computeOut.view(BS, rankSize, H2 / rankSize).permute(1, 0, 2) \\
@@ -373,28 +375,32 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </table>
 
 * **返回值：**
+
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+
 * 默认支持确定性计算
 * 右矩阵和输出矩阵的H2必须整除NPU卡数
 * 不支持空tensor
 * 仅支持左矩阵perToken量化，x1QuantMode=3，右矩阵perChannel量化，x2QuantMode=2
-* <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：传入的x1、x2、biasOptional、x1Scale、x2Scale或者output不为空指针
-* <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：x1、x2计算输入的数据类型必须为INT8，output计算输出的数据类型为BFLOAT16时，biasOptional的数据类型为FLOAT或BFLOAT16，output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16
+* <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：传入的x1、x2、biasOptional、x1Scale、x2Scale或者output不为空指针
+* <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：x1、x2计算输入的数据类型必须为INT8，output计算输出的数据类型为BFLOAT16时，biasOptional的数据类型为FLOAT或BFLOAT16，output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16
 * H1范围仅支持[1, 65535]
 * NPU卡数仅支持2、4、8、16
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持2、4、8卡
-  - <term>昇腾910_95 AI处理器</term>：支持2、4、8、16卡
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡
+  - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+
     ```Cpp
     #include <thread>
     #include <iostream>

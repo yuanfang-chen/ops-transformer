@@ -6,13 +6,12 @@
 
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
-|  <term>昇腾910_95 AI处理器</term>   |     √    |
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
 |  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
-|  <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>     |     √    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
 |  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
 |  <term>Atlas 推理系列产品</term>    |     √    |
 |  <term>Atlas 训练系列产品</term>    |     ×    |
-|  <term>Atlas 200/300/500 推理产品</term>       |     ×    |
 
 ## 功能说明
 
@@ -60,6 +59,7 @@
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnMoeInitRoutingV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMoeInitRoutingV2”接口执行计算。
+
 ```cpp
 aclnnStatus aclnnMoeInitRoutingV2GetWorkspaceSize(
     const aclTensor  *x, 
@@ -77,6 +77,7 @@ aclnnStatus aclnnMoeInitRoutingV2GetWorkspaceSize(
     uint64_t         *workspaceSize, 
     aclOpExecutor   **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnMoeInitRoutingV2(
     void             *workspace, 
@@ -253,8 +254,8 @@ aclnnStatus aclnnMoeInitRoutingV2(
       </tr>
     </tbody></table>
 
-    -   <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：输入expertIdx数据类型支持INT32，要求是一个2D的shape [numRows, k]。
-    -   <term>昇腾910_95 AI处理器</term> ：输入expertIdx数据类型支持INT32、INT64，要求是一个2D的shape [numRows, k]或者1D的shape [numRows]，当shape为1D时表示k=1。
+    -   <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：输入expertIdx数据类型支持INT32，要求是一个2D的shape [numRows, k]。
+    -   <term>Ascend 950PR/Ascend 950DT</term> ：输入expertIdx数据类型支持INT32、INT64，要求是一个2D的shape [numRows, k]或者1D的shape [numRows]，当shape为1D时表示k=1。
     -   <term>Atlas 推理系列产品</term>：输入expertIdx数据类型支持INT32，要求是一个2D的shape [numRows, k]，dropPadMode仅支持0。
 
 - **返回值：**
@@ -307,7 +308,9 @@ aclnnStatus aclnnMoeInitRoutingV2(
     </table>
 
 ## aclnnMoeInitRoutingV2
+
 -   **参数说明：**
+
     <table style="undefined;table-layout: fixed; width: 1179px"> <colgroup>
     <col style="width: 169px">
     <col style="width: 130px">
@@ -341,9 +344,11 @@ aclnnStatus aclnnMoeInitRoutingV2(
         <td>指定执行任务的Stream。</td>
     </tr>
     </tbody></table>
+
 -   **返回值：**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+    
 ## 约束说明
 
 - 确定性计算：

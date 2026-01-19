@@ -6,13 +6,12 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -259,11 +258,11 @@ aclnnStatus aclnnMatmulAlltoAll(
 * 右矩阵和输出矩阵的H2必须整除NPU卡数
 * 不支持空tensor
 * x1、x2计算输入的数据类型要和output计算输出的数据类型一致，传入的x1、x2或者output不为空指针。
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：output计算输出的数据类型为FLOAT16时，biasOptional计算输入的数据类型支持FLOAT16；output计算输出的数据类型为BFLOAT16时，biasOptional计算输入的数据类型支持FLOAT32。
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：output计算输出的数据类型为FLOAT16时，biasOptional计算输入的数据类型支持FLOAT16；output计算输出的数据类型为BFLOAT16时，biasOptional计算输入的数据类型支持FLOAT32。
 * H1范围仅支持[1, 65535]
 * NPU卡数仅支持2、4、8、16
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持2、4、8卡
-  - <term>昇腾910_95 AI处理器</term>：支持2、4、8、16卡
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡
+  - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡
 * x1、x2、output的数据类型必须一致
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
@@ -274,7 +273,8 @@ aclnnStatus aclnnMatmulAlltoAll(
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+
     ```Cpp
     #include <thread>
     #include <iostream>

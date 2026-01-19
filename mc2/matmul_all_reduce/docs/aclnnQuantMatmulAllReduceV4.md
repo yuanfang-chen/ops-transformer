@@ -6,13 +6,12 @@
 
 | 产品                                                                                     | 是否支持 |
 | :--------------------------------------------------------------------------------------- | :------: |
-| 昇腾910_95 AI处理器                                                                      |    √    |
+| Ascend 950PR/Ascend 950DT                                                                      |    √    |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品 </term>                        |    ×    |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件 </term> |    ×    |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品 </term> |    ×    |
 | <term>Atlas 200I/500 A2 推理产品 </term>                                         |    ×    |
 | <term>Atlas 推理系列产品</term>                                                 |    ×    |
 | <term>Atlas 训练系列产品 </term>                                                 |    ×    |
-| <term>Atlas 200/300/500 推理产品 </term>                                         |    ×    |
 
 ## 功能说明
 
@@ -36,21 +35,25 @@
     $$
     output = (AllGather(reduceSumOutput_{int8}) * commQuantScale2Optional);
     $$
+
   - 公式2：x1，x2为INT8，无x1ScaleOptional，x2Scale为INT64/UINT64，可选biasOptional为INT32，out为BFLOAT16/FLOAT16：
 
     $$
     output = AllReduce((x1@x2 + biasOptional) * x2Scale + x3Optional)
     $$
+
   - 公式3：x1，x2为INT8，x1ScaleOptional为FLOAT32，x2Scale为FLOAT32/BFLOAT16，可选biasOptional为INT32, out为FLOAT16/BFLOAT16：
 
     $$
     output = AllReduce((x1@x2 + biasOptional) * x2Scale * x1ScaleOptional + x3Optional)
     $$
+
   - 公式4：x1，x2为FLOAT4_E2M1/FLOAT4_E1M2/FLOAT8_E4M3FN/FLOAT8_E5M2，x1ScaleOptional为FLOAT8_E8M0，x2Scale为FLOAT8_E8M0，可选biasOptional为FLOAT32, out为FLOAT16/BFLOAT16/FLOAT32：
 
     $$
     output = AllReduce((x1* x1ScaleOptional)@(x2* x2Scale) + biasOptional + x3Optional)
     $$
+
   - 公式5：x1，x2为FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8，x1ScaleOptional为FLOAT32，x2Scale为FLOAT32，可选bias为FLOAT32, out为FLOAT16/BFLOAT16/FLOAT32：
 
     $$
@@ -62,6 +65,7 @@
     $$
     output_{pq} = AllReduce(\sum_{0}^{\left \lfloor \frac{k}{128} \right \rfloor} (x1_{pr}@x2_{rq}*(x1ScaleOptional_{pr}*x2Scale_{rq})) + x3)
     $$
+    
    - 公式7：x1，x2为FLOAT8_E4M3FN/FLOAT8_E5M2，x1ScaleOptional为FLOAT32，x2Scale为FLOAT32，可选biasOptional为FLOAT32，当commQuantMode为1时，out为FLOAT16/BFLOAT16/FLOAT32:
 
     $$
@@ -416,8 +420,8 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 ## 约束说明
 
 - 确定性计算：
-  - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件：`aclnnQuantMatmulAllReduceV4`默认非确定性实现，支持通过`aclrtCtxSetSysParamOpt`开启确定性。
-  - 昇腾910_95 AI处理器：`aclnnQuantMatmulAllReduceV4`默认确定性实现。
+  - Atlas A2 训练系列产品/Atlas A2 推理系列产品：`aclnnQuantMatmulAllReduceV4`默认非确定性实现，支持通过`aclrtCtxSetSysParamOpt`开启确定性。
+  - Ascend 950PR/Ascend 950DT：`aclnnQuantMatmulAllReduceV4`默认确定性实现。
 - 增量场景不使能MC2，全量场景使能MC2。
 - 输入x1可为2维或者3维，其shape为(b, s, k)或者(m, k)。x2必须是2维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等。
 - m大小不超过2147483647，x1与x2的最后一维大小不超过65535，x1的最后一维指k，x2的最后一维指转置时的k或非转置时的n。
@@ -437,7 +441,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
 
   ```Cpp
   #include <iostream>

@@ -4,13 +4,12 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -18,11 +17,11 @@
 
     `aclnnMatmulReduceScatterV2`接口是对`aclnnMatmulReduceScatter`接口的功能扩展，在支持x1和x2输入类型为FLOAT16/BFLOAT16的基础上，新增功能如下：
     
-    -   <term>昇腾910_95 AI处理器</term>：
+    -   <term>Ascend 950PR/Ascend 950DT</term>：
 
         -   新增了对低精度数据类型FLOAT8_E4M3FN/FLOAT8_E5M2/HIFLOAT8的支持。支持pertensor、perblock[量化方式](../../docs/zh/context/量化介绍.md)。
     
-    -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+    -   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
         
         -   新增了对低精度数据类型INT8的支持。支持pertoken/perchannel[量化方式](../../docs/zh/context/量化介绍.md)。
 
@@ -239,7 +238,7 @@
     </tbody>
 </table>
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - commMode为aicpu时，x1、x2、bias数据类型支持FLOAT16、BFLOAT16，其中bias当前版本仅支持为0的输入；commMode为aiv时，x1、x2数据类型支持FLOAT16、BFLOAT16、INT8, x1的shape为[m, k]，x2的shape为[k, n]，bias当前版本仅支持输入nullptr。
     - 在commMode为aicpu时，x1Scale、x2Scale仅支持输入nullptr。在commMode为aiv时，x1Scale数据类型支持FLOAT，x2Scale数据类型支持FLOAT、INT64，INT64数据类型仅在output数据类型为FLOAT16场景支持。当x1和x2数据类型为FLOAT16/BFLOAT16时，x1Scale、x2Scale仅支持输入为nullptr。在pertoken场景，x1Scale的shape为(m, 1)。在perchannel场景，x2Scale的shape为(1, n)。
     - groupSize当前版本仅支持输入为0。
@@ -251,7 +250,7 @@
     - groupSize当前版本仅支持输入为0。
     - 当前仅支持aiv模式，aiv模式下使用AI VECTOR核完成通信任务，commMode当前版本仅支持输入“aiv”。
 
-- <term>昇腾910_95 AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
     - x1、x2数据类型支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8, x1的shape为[m, k]，x2的shape为[k, n]。在mx量化场景下，当前x2仅支持转置场景。bias数据类型支持FLOAT16、BFLOAT16、FLOAT。如果x1的数据类型是FLOAT16、BFLOAT16，则bias的数据类型必须为FLOAT16、BFLOAT16。如果x1的数据类型是FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8时，在pertensor和mx量化场景下，bias的数据类型必须为FLOAT。在perblock场景下，仅支持输入为nullptr。
     - x1Scale、x2Scale数据类型支持FLOAT、FLOAT8_E8M0。当x1和x2数据类型为FLOAT16/BFLOAT16时，二者仅支持输入为nullptr。在pertensor场景下，shape为[1]。在perblock场景下，x1Scale的shape为[ceildiv(m, 128), ceildiv(k, 128)]，x2Scale的shape为[ceildiv(k, 128), ceildiv(n, 128)]。在pertensor和perblock场景下，二者数据类型支持FLOAT。在mx量化场景下，数据类型为FLOAT8_E8M0，x1Scale的shape为(m, ceilDiv(k, 64), 2)，x2Scale的shape为(ceilDiv(k, 64), n, 2)，且x2Scale仅支持转置场景。
     - 当x1Scale/x2Scale输入都是2维，且数据类型都为FLOAT时，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[128, 128, 128]，对应groupSize的值为549764202624；当x1Scale/x2Scale输入都是3维，且数据类型都为FLOAT8_E8M0时，[groupSizeM, groupSizeN, groupSizeK]取值组合仅支持[1, 1, 32]，对应groupSize的值为4295032864；其他场景输入，groupSize当前版本仅支持输入0。
@@ -259,7 +258,7 @@
     - output数据类型支持FLOAT16、BFLOAT16、FLOAT，
 
 ## 约束说明
--   <term>昇腾910_95 AI处理器</term>：
+-   <term>Ascend 950PR/Ascend 950DT</term>：
     - 只支持x2矩阵转置/不转置，x1矩阵仅支持不转置场景。
     - 输入x1为2维，其shape为\(m, k\)，m须为卡数rank\_size的整数倍。
     - 输入x2必须是2维，其shape为\(k, n\)，轴满足mm算子入参要求，k轴相等，且k轴取值范围为\[256, 65535\)。
@@ -275,7 +274,7 @@
     - 在perblock场景下， x1的m轴为rank\_size * 128的整数倍。
     - 支持2、4、8、16、32、64卡。
 
--   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+-   <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - 只支持x2矩阵转置/不转置，x1矩阵仅支持不转置场景。
     - 输入x1为2维，其shape为\(m, k\)，m须为卡数rank\_size的整数倍。
     - 输入x2必须是2维，其shape为\(k, n\)，轴满足mm算子入参要求，k轴相等，且k轴取值范围为\[256, 65535\)。

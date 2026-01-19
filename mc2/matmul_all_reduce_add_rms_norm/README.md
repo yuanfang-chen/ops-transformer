@@ -4,13 +4,12 @@
 
 | 产品 | 是否支持 |
 | ---- | :----: |
-| <term>昇腾910_95 AI处理器</term> | x |
+| <term>Ascend 950PR/Ascend 950DT</term> | x |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term> | x |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> | √ |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> | √ |
 | <term>Atlas 200I/500 A2 推理产品</term> | x |
 | <term>Atlas 推理系列产品</term> | x |
 | <term>Atlas 训练系列产品</term> | x |
-| <term>Atlas 200/300/500 推理产品</term> | x |
 
 ## 功能说明
 
@@ -207,7 +206,7 @@
 * 属性reduceOp当前版本仅支持输入"sum"。
 * 属性commTurn当前版本仅支持输入0。
 * 支持1、2、4、8卡，并且仅支持hccs链路all mesh组网。
-* <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：一个模型中的通算融合MC2算子，仅支持相同通信域。类型要一致。
+* <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：一个模型中的通算融合MC2算子，仅支持相同通信域。类型要一致。
 
 ## 调用说明
 

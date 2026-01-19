@@ -7,13 +7,12 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -47,6 +46,7 @@
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnMoeTokenPermuteWithEpGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMoeTokenPermuteWithEp”接口执行计算。
+
 ```cpp
 aclnnStatus aclnnMoeTokenPermuteGetWorkspaceSize(
     const aclTensor  *tokens, 
@@ -58,6 +58,7 @@ aclnnStatus aclnnMoeTokenPermuteGetWorkspaceSize(
     uint64_t         *workspaceSize, 
     aclOpExecutor   **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnMoeTokenPermute(
     void             *workspace, 
@@ -217,7 +218,9 @@ aclnnStatus aclnnMoeTokenPermute(
     </table>
 
 ## aclnnMoeTokenPermute
+
 -   **参数说明：**
+
     <table style="undefined;table-layout: fixed; width: 1180px"> 
       <colgroup>
         <col style="width: 250px">
@@ -258,6 +261,7 @@ aclnnStatus aclnnMoeTokenPermute(
 -   **返回值：**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+    
 ## 约束说明
 
 - 确定性计算：

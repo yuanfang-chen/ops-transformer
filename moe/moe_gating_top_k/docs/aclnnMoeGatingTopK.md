@@ -54,6 +54,7 @@
 ## 函数原型
 
 每个算子分为两段式接口，必须先调用“aclnnMoeGatingTopKGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMoeGatingTopK”接口执行计算。
+
 ```Cpp
 aclnnStatus aclnnMoeGatingTopKGetWorkspaceSize(
   const aclTensor *x, 
@@ -73,6 +74,7 @@ aclnnStatus aclnnMoeGatingTopKGetWorkspaceSize(
   uint64_t        *workspaceSize, 
   aclOpExecutor  **executor)
 ```
+
 ```Cpp
 aclnnStatus aclnnMoeGatingTopK(
   void          *workspace, 
@@ -273,7 +275,9 @@ aclnnStatus aclnnMoeGatingTopK(
 -   **返回值：**
 
     <p>aclnnStatus：返回状态码，具体参见<a href="../../../docs/zh/context/aclnn返回码.md">aclnn返回码</a>。</p>
+
     <p>第一段接口完成入参校验，出现以下场景报错：</p>
+
     <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
     <col style="width: 319px">
     <col style="width: 144px">
@@ -314,6 +318,7 @@ aclnnStatus aclnnMoeGatingTopK(
 ## aclnnMoeGatingTopK
 
 -   **参数说明：**
+
     <table style="undefined;table-layout: fixed; width: 953px"><colgroup>
     <col style="width: 173px">
     <col style="width: 112px">
@@ -354,6 +359,7 @@ aclnnStatus aclnnMoeGatingTopK(
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+
 - 确定性计算：
   - aclnnMoeGatingTopK默认确定性实现。
 

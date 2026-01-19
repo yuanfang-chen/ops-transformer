@@ -6,13 +6,16 @@
 
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
+<<<<<<< HEAD
 |  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
+=======
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     ×    |
+>>>>>>> 16db4f0e... 整改产品名称
 |  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
-|  <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>     |     √    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
 |  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
 |  <term>Atlas 推理系列产品</term>    |     ×    |
 |  <term>Atlas 训练系列产品</term>    |     ×    |
-|  <term>Atlas 200/300/500 推理产品</term>       |     ×    |
 
 ## 功能说明
 
@@ -67,10 +70,13 @@
 
   2.以sortedRowIdx做位置映射得出expandedRowIdxOut：
     - rowIdxType等于1时, 输出scatter索引
+
       $$
       expandedRowIdxOut[i]=sortedRowIdx[i]
       $$
+
     - rowIdxType等于0时, 输出gather索引
+
       $$
       expandedRowIdxOut[sortedRowIdx[i]]=i
       $$
@@ -83,12 +89,14 @@
 
   4.如果quantMode不等于-1, 计算quant结果：
      - 静态quant
+
      $$
      quantResult=round((x∗scaleOptional)+offsetOptional)
      $$
      
     - 动态quant：
         - 若不输入scale：
+
             $$
             dynamicQuantScaleOutOptional = row\_max(abs(x)) / 127
             $$
@@ -96,7 +104,9 @@
             $$
             quantResult = round(x / dynamicQuantScaleOutOptional)
             $$
+
         - 若输入scale:
+
             $$
             dynamicQuantScaleOutOptional = row\_max(abs(x * scaleOptional)) / 127
             $$
@@ -108,24 +118,32 @@
   5.若活跃的expert范围为全专家范围时，按照Scatter索引搬运token；反之按照Gather索引搬运token。在dropPadMode为1时将每个专家需要处理的Token个数对齐为expertCapacity个，超过expertCapacity个的Token会被Drop，不足的会用0填充。得出expandedXOut：
     - 非量化场景
       - 按照Scatter索引搬运
+
       $$
       expandedXOut[i]=x[scatterRowIdx[i] // K]
       $$
+
       - 按照Gather索引搬运
+
       $$
       expandedXOut[gatherRowIdx[i]]=x[i // K]
       $$
+
     - 量化场景
       - 按照Scatter索引搬运
+
       $$
       expandedXOut[i]=quantResult[scatterRowIdx[i] // K]
       $$
+
       - 按照Gather索引搬运
+
       $$
       expandedXOut[gatherRowIdx[i]]=quantResult[i // K]
       $$
 
   6.expandedRowIdxOut的有效元素数量availableIdxNum，计算方式为expertIdx中activeExpertRangeOptional范围内的元素的个数
+
     $$
     availableIdxNum = |\{x\in expertIdx| expert\_start \le x<expert\_end \ \}|
     $$
@@ -133,6 +151,7 @@
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 “aclnnMoeInitRoutingV3GetWorkspaceSize”接口获取入参并计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnMoeInitRoutingV3”接口执行计算。
+
 ```Cpp
 aclnnStatus aclnnMoeInitRoutingV3GetWorkspaceSize(
   const aclTensor   *x, 
@@ -155,6 +174,7 @@ aclnnStatus aclnnMoeInitRoutingV3GetWorkspaceSize(
   uint64_t          *workspaceSize, 
   aclOpExecutor    **executor)
 ```
+
 ```Cpp
 aclnnStatus aclnnMoeInitRoutingV3(
   void          *workspace, 
@@ -427,7 +447,9 @@ aclnnStatus aclnnMoeInitRoutingV3(
 -   **返回值**
 
     <p>aclnnStatus：返回状态码，具体参见<a href="../../../docs/zh/context/aclnn返回码.md">aclnn返回码</a>。</p>
+
     <p>第一段接口完成入参校验，出现以下场景报错：</p>
+    
     <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
     <col style="width: 319px">
     <col style="width: 144px">

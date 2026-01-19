@@ -6,13 +6,12 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    ×     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    ×     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -21,6 +20,7 @@
   假设x1输入shape为(BS, H)
 
   - **量化场景：**
+
   $$
   commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
   permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -30,6 +30,7 @@
   $$
 
   - **伪量化场景：**
+  
   $$
   commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
   permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -393,7 +394,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 ## 约束说明
 
 * 默认支持确定性计算。
-* <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：支持2、4、8卡。
+* <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡。
 * 参数说明中shape使用的变量BS必须整除rankSize。
 * 类型约束：
     * x1、alltoAllOutOptional的数据类型必须一致
@@ -423,7 +424,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 
 说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>
 
 ```cpp
 #include <thread>
