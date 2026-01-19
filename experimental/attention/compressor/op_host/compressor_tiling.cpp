@@ -395,6 +395,7 @@ ge::graphStatus CompressorTiling::CheckSinglePara() const
         ge::GRAPH_SUCCESS != CheckSingleParaRotaryMode()) {
         return ge::GRAPH_FAILED;
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 template <typename T>
@@ -778,7 +779,9 @@ ge::graphStatus CompressorTiling::CheckRequiredAttrExistence() const
 
 ge::graphStatus CompressorTiling::CheckFeature() const
 {
-    CheckFeatureValueSupport(&baseParams_->batchSize, HEAD_DIM, "headDim");
+    if (ge::GRAPH_SUCCESS != CheckFeatureValueSupport(&baseParams_->headDim, HEAD_DIM, "headDim")) {
+        return ge::GRAPH_FAILED;
+    }
     OP_CHECK_IF(baseParams_->hiddenSize > MAX_HIDDEN_SIZE || baseParams_->hiddenSize < MIN_HIDDEN_SIZE ||
                     baseParams_->hiddenSize % ALIGN_FACTOR_HIDDEN_SIZE != 0,
                 OP_LOGE("Compressor", "hiddenSize should be whthin [1k, 10k] and be 512-aligned"), return ge::GRAPH_FAILED);
@@ -859,14 +862,16 @@ ge::graphStatus CompressorTiling::CheckShapeConsistencyRope() const
         OP_CHECK_IF(context_->ropeCos.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) != baseParams_->ropeHeadDim,
             OP_LOGE("Compressor", "ropeCos shape dim 1 should be equal to ropeHeadDim"), return ge::GRAPH_FAILED);
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::CheckDtypeConsistencyX(const gert::CompileTimeTensorDesc *desc,
                                                          const std::string &name) const
 {
-    OP_CHECK_IF(desc->GetDataType() == context_->dtype,
+    OP_CHECK_IF(desc->GetDataType() != context_->dtype,
                 OP_LOGE("Compressor", "%s datatype should be same with x", name.c_str()),
                 return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::CheckDtypeConsistency() const
@@ -879,6 +884,7 @@ ge::graphStatus CompressorTiling::CheckDtypeConsistency() const
         CheckDtypeConsistencyX(context_->cmpKv.desc, CMP_KV_NAME) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::CheckDimNumConsistency() const
@@ -890,6 +896,7 @@ ge::graphStatus CompressorTiling::CheckDimNumConsistency() const
                 OP_LOGE("Compressor", "ropeCos dim num should be equal to x"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(xDimNum != context_->cmpKv.shape->GetStorageShape().GetDimNum(),
                 OP_LOGE("Compressor", "cmpKv dim num should be equal to x"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::CheckMultiParaConsistency() const
