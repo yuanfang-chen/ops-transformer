@@ -336,7 +336,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
     0：GMMActType::GMM_ACT_TYPE_NONE<br>
     1：GMMActType::GMM_ACT_TYPE_RELU<br>
     2：GMMActType::GMM_ACT_TYPE_GELU_TANH<br>
-    3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC（不支持）<br>
+    3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC<br>
     4：GMMActType::GMM_ACT_TYPE_FAST_GELU<br>
     5：GMMActType::GMM_ACT_TYPE_SILU<br>
 综合约束请参见<a href="#约束说明">约束说明</a>。</td>
@@ -418,21 +418,22 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
     </tbody>
     </table>
 
-    - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-        - 上表数据类型列中的角标“1”代表该系列支持的数据类型，角标“2”代表该系列不支持的数据类型。
-        - `weight`可使用`aclnnCalculateMatmulWeightSizeV2`及`aclnnTransMatmulWeight`完成ND到NZ转换。当传入INT32时，接口内部将每个INT32识别成8个INT4。
-    - <term>Atlas 推理系列产品</term>：
-        - 仅支持FLOAT16。`weight`仅支持FRACTAL_NZ格式，且需通过辅助接口转换。
-        - `scaleOptional`、`offsetOptional`等量化/非对称量化参数功能暂不支持，需传空指针。
-        - `groupType`只支持m轴分组(0)。`actType`只支持0。`tuningConfigOptional`不支持。
-    - <term>昇腾910_95 AI处理器</term>：
-        - 上表数据类型列中的角标“2”代表该系列支持的数据类型。
-        - `x`支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、INT8。
-        - `weight`支持FLOAT16、BFLOAT16、FLOAT4_E2M1、INT8、INT4。支持FRACTAL_NZ格式。可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。当数据类型为FLOAT4_E2M1时，还需要在aclnnNpuFormatCast调用后，调用aclnnCast接口将FLOAT32表示的FLOAT4_E2M1转换为正确的类型。但当为INT4类型时，需要使用aclnnConvertWeightToInt4Pack接口完成数据格式从ND到NZ和数据类型从INT32到INT4的转换。当传入FLOAT32或者INT32时，接口内部每个FLOAT32/INT32识别成8个FLOAT4_E2M1/INT4。
-        - `scaleOptional`支持UINT64/INT64/BFLOAT16/FLOAT32。`offsetOptional`、`antiquantOffsetOptional`暂不支持。
-        - `groupType`支持m轴分组，仅非量化支持不分组。
-        - `quantGroupSize`暂不支持。
-        - `actType`只支持0。
+  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+      - 上表数据类型列中的角标“1”代表该系列支持的数据类型，角标“2”代表该系列不支持的数据类型。
+      - `weight`可使用`aclnnCalculateMatmulWeightSizeV2`及`aclnnTransMatmulWeight`完成ND到NZ转换。当传入INT32时，接口内部将每个INT32识别成8个INT4。
+      - 非A8W8场景`actType`只支持0。A8W8场景`actType`不支持3。
+  - <term>Atlas 推理系列产品</term>：
+      - 仅支持FLOAT16。`weight`仅支持FRACTAL_NZ格式，且需通过辅助接口转换。
+      - `scaleOptional`、`offsetOptional`等量化/非对称量化参数功能暂不支持，需传空指针。
+      - `groupType`只支持m轴分组(0)。`actType`只支持0。`tuningConfigOptional`不支持。
+  - <term>昇腾910_95 AI处理器</term>：
+      - 上表数据类型列中的角标“2”代表该系列支持的数据类型。
+      - `x`支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、INT8。
+      - `weight`支持FLOAT16、BFLOAT16、FLOAT4_E2M1、INT8、INT4。支持FRACTAL_NZ格式。可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。当数据类型为FLOAT4_E2M1时，还需要在aclnnNpuFormatCast调用后，调用aclnnCast接口将FLOAT32表示的FLOAT4_E2M1转换为正确的类型。但当为INT4类型时，需要使用aclnnConvertWeightToInt4Pack接口完成数据格式从ND到NZ和数据类型从INT32到INT4的转换。当传入FLOAT32或者INT32时，接口内部每个FLOAT32/INT32识别成8个FLOAT4_E2M1/INT4。
+      - `scaleOptional`支持UINT64/INT64/BFLOAT16/FLOAT32。`offsetOptional`、`antiquantOffsetOptional`暂不支持。
+      - `groupType`支持m轴分组，仅非量化支持不分组。
+      - `quantGroupSize`暂不支持。
+      - `actType`只支持0。
 
   - **返回值：**
 
@@ -573,6 +574,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 <summary><term>Atlas 推理系列产品</term></summary>
 
   - 输入输出只支持float16的数据类型，输出y的n轴大小需要是16的倍数。
+    - actType只支持传0
 
     支持场景中单表示单tensor，多表示多tensor，表示顺序为x、weight、y。例如单多单表示支持x为单tensor、weight多tensor、y单tensor的场景。
     | groupType | 支持场景 | 场景限制 |
