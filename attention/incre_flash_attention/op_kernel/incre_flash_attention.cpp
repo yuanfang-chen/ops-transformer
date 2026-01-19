@@ -1,3 +1,11 @@
+/*
+ * @Author: j60100428 jingsong5@h-partners.com
+ * @Date: 2026-01-19 16:01:56
+ * @LastEditors: j60100428 jingsong5@h-partners.com
+ * @LastEditTime: 2026-01-19 16:46:04
+ * @FilePath: \ops-transformer_synchronize\attention\incre_flash_attention\op_kernel\incre_flash_attention.cpp
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 /**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
@@ -29,13 +37,11 @@ incre_flash_attention_FIAS(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ ui
                         __gm__ uint8_t *keyRopeAntiquantScale, __gm__ uint8_t *dequantScaleQuery, __gm__ uint8_t *attentionOut,
                         __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
-#if (__NPU_ARCH__ != 5102)
     incre_flash_attention_FIAS_arch32(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths, deqScale1, quantScale1,
                                     deqScale2, quantScale2, quantOffset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize,
                                     kvPaddingSize, keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset, keySharedPrefix,
                                     valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale, dequantScaleQuery,
                                     attentionOut, softmaxLse, workspace, tiling);
-#endif
 }
 extern "C" __global__ __aicore__ void
 incre_flash_attention(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pseShift,
