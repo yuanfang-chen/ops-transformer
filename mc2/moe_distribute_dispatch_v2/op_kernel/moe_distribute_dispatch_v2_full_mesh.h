@@ -84,10 +84,14 @@ private:
     __aicore__ inline void MaxSizeCal();
     __aicore__ inline void CalValidBSCnt(LocalTensor<bool> maskStrideTensor);
     __aicore__ inline void CalValidExpIdx(LocalTensor<bool> maskInputTensor);
+    __aicore__ inline void GenerateGatherMaskTensor(uint32_t maskCnt);
+    __aicore__ inline void MaskZeroComputeExpert(uint32_t maskCnt);
+    __aicore__ inline void ZeroComputeExpertMaskCal();
     __aicore__ inline void SetTilingDataAndCal(const MoeDistributeDispatchV2TilingData *tilingData);
     __aicore__ inline void SendToSharedExpert(TQue<QuePosition::VECIN, 1> inQueue, TBuf<> outBuf);
     __aicore__ inline void SendToMoeExpert(TQue<QuePosition::VECIN, 1> inQueue, TBuf<> expertMaskBuf, TBuf<> outBuf);
     __aicore__ inline void CalExpertSendNum(TBuf<> outBuf, TBuf<> expertMaskBuf);
+    __aicore__ inline void ExpertActiveMaskInit();
     __aicore__ inline void ExpertActiveMaskCal();
     __aicore__ inline void AllToAllDispatch();
     __aicore__ inline void CalCumSum();
@@ -796,6 +800,7 @@ template <TemplateMC2TypeFullmeshClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::CalAndSendCnt()
 {
     uint32_t startExpertId, endExpertId, sendExpertNum;
+    uint32_t maskCnt = isTokenMaskFlag_ ? (activeMaskBsCnt_ * axisK_) : expertIdsCnt_;
     SplitToCore(totalExpertNum_, aivUsedCumSum_, startExpertId, endExpertId, sendExpertNum, false);
     if (startExpertId >= totalExpertNum_) {return;}
     uint64_t mask[2] = { 0x101010101010101, 0 }; // 一次性操作256字节，也是64个int32_t，每8个数将首个设置为0x3F800000
@@ -814,7 +819,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
             }
         } else if (sendToMoeExpTokenCnt_ > 0) { // 当前处理卡为moe专家卡
             int32_t curMoeExpertId = curExpertId - sharedExpertRankNum_;
-            CalTokenSendExpertCnt(curMoeExpertId, expertIdsCnt_, curExpertCnt);
+            CalTokenSendExpertCnt(curMoeExpertId, maskCnt, curExpertCnt);
         }
         statusTensor_.SetValue(cntPosIndex, curExpertCnt);
         SyncFunc<AscendC::HardEvent::S_MTE3>();
@@ -1389,6 +1394,18 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
 }
 
 template <TemplateMC2TypeFullmeshClass>
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::ExpertActiveMaskInit()
+{
+    uint32_t axisBSAlign = Ceil(axisBS_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
+    uint32_t xActivateMaskSize = axisBS_ * (Ceil(axisK_ * sizeof(bool), UB_ALIGN) * UB_ALIGN) * sizeof(half);
+    tpipe_->InitBuffer(validBsIndexTBuf_, axisBSAlign);
+    uint32_t validBufferSize = expertIdsSize_ > xActivateMaskSize ? expertIdsSize_ : xActivateMaskSize;
+    tpipe_->InitBuffer(validExpertIndexBuf_, validBufferSize);
+    validBsIndexTensor_ = validBsIndexTBuf_.Get<int32_t>();
+    gatherMaskTensor_ = gatherMaskTBuf_.Get<uint32_t>();
+}
+
+template <TemplateMC2TypeFullmeshClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::ExpertActiveMaskCal()
 {
     // 计算当前有效bs数量, stride搬入xActiveMask进行sum计算, 用于moe专家发送
@@ -1408,35 +1425,97 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
 }
 
 template <TemplateMC2TypeFullmeshClass>
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::MaskZeroComputeExpert(uint32_t maskCnt)
+{
+    LocalTensor<int32_t> expertsIndexTensor = dstExpBuf_.Get<int32_t>();
+    int32_t maskTensorInt16Cnt = Ceil(expertIdsCnt_, UB_ALIGN / 2);
+    LocalTensor<uint8_t> maskTensorInt8 = validExpertIndexBuf_.Get<uint8_t>(); // bs*k*1
+    LocalTensor<uint32_t> maskTensorInt32 = validExpertIndexBuf_.Get<uint32_t>(); // bs*k*1
+    LocalTensor<half> expertIdsTensorCast = subExpBuf_.Get<half>(); // bs*k*4
+    LocalTensor<int32_t> validExpertIndexTensor = validExpertIndexBuf_.Get<int32_t>();
+    int32_t moeExpertNumInt32 = static_cast<int32_t>(moeExpertNum_);
+
+    DataCopyExtParams expertIdsCntParams = {1U, static_cast<uint32_t>(expertIdsCnt_ * sizeof(uint32_t)), 0U, 0U, 0U};
+    DataCopyPadExtParams<int32_t> expertIdsCntCopyPadParams{false, 0U, 0U, 0U};
+    DataCopyPad(validExpertIdsTensor_, expertIdsGMTensor_, expertIdsCntParams, expertIdsCntCopyPadParams);
+    SyncFunc<AscendC::HardEvent::MTE2_V>();
+    PipeBarrier<PIPE_V>();
+    SetDeqScale((half)1.000000e+00f);
+    PipeBarrier<PIPE_V>();
+    Cast(expertIdsTensorCast, validExpertIdsTensor_, RoundMode::CAST_NONE, expertIdsCnt_);
+    Duplicate<uint32_t>(maskTensorInt32, 0, Ceil(expertIdsCnt_, UB_ALIGN));
+    PipeBarrier<PIPE_V>();
+    uint32_t calcCnt = Ceil(expertIdsCnt_ * sizeof(half), SIZE_ALIGN_256) * SIZE_ALIGN_256 / sizeof(half);
+    // 逐元素比较一个tensor中的元素和另一个Scalar的大小，如果比较后的结果为真，则输出结果的对应比特位为1，否则为0。筛掉零计算量专家
+    CompareScalar(maskTensorInt8, expertIdsTensorCast, static_cast<half>(moeExpertNumInt32), AscendC::CMPMODE::LT, calcCnt);
+    PipeBarrier<PIPE_V>();
+    LocalTensor<uint16_t> maskTensorInt16 = validExpertIndexBuf_.Get<uint16_t>(); // 空间bs*k*1
+    LocalTensor<uint16_t> gatherMaskTensorint16 = gatherMaskTBuf_.Get<uint16_t>(); // 空间bs*k*4
+    /* 特殊专家的maskTensorInt16和之前的gatherMaskTensor_结果按位相与，AND 支持uint16， gatherMaskTensor_和gatherMaskTensorint16是同一个地址 */
+    And(gatherMaskTensorint16, gatherMaskTensorint16, maskTensorInt16, maskTensorInt16Cnt);
+    PipeBarrier<PIPE_V>();
+    // 再筛一次
+    CreateVecIndex(expertsIndexTensor, 0, expertIdsCnt_);
+    PipeBarrier<PIPE_V>();
+    GatherMask(validExpertIndexTensor, expertsIndexTensor, gatherMaskTensor_, true, maskCnt, {1, 1, 0, 0}, sendToMoeExpTokenCnt_);
+    SyncFunc<AscendC::HardEvent::V_S>();
+}
+
+template <TemplateMC2TypeFullmeshClass>
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::GenerateGatherMaskTensor(uint32_t maskCnt)
+{
+    Duplicate<uint32_t>(gatherMaskTensor_, 0, Ceil(expertIdsCnt_, UB_ALIGN));
+    PipeBarrier<PIPE_V>();
+    Duplicate<uint32_t>(gatherMaskTensor_, 0xFFFFFFFF, Ceil(maskCnt, UB_ALIGN));
+    PipeBarrier<PIPE_V>();
+}
+
+template <TemplateMC2TypeFullmeshClass>
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::ZeroComputeExpertMaskCal()
+{
+    uint32_t maskCnt = expertIdsCnt_;
+    if (isTokenMaskFlag_) { // 一维
+        maskCnt = activeMaskBsCnt_ * axisK_;
+    }
+
+    if (!isExpertMaskFlag_) { // 非二维要生成gatherMaskTensor_
+        GenerateGatherMaskTensor(maskCnt);
+    }
+
+    // 零计算量专家剪枝
+    MaskZeroComputeExpert(maskCnt);
+}
+
+template <TemplateMC2TypeFullmeshClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::ExpIdsCopyAndMaskCal()
 {
     activeMaskBsCnt_ = axisBS_;
     sendToMoeExpTokenCnt_ = axisBS_ * axisK_;
     validExpertIdsTensor_ = expertIdsBuf_.Get<int32_t>();
 
-    if (isExpertMaskFlag_) {
-        uint32_t axisBSAlign = Ceil(axisBS_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
-        uint32_t xActivateMaskSize = axisBS_ * (Ceil(axisK_ * sizeof(bool), UB_ALIGN) * UB_ALIGN) * sizeof(half);
-        tpipe_->InitBuffer(validBsIndexTBuf_, axisBSAlign);
-        uint32_t validBufferSize = expertIdsSize_ > xActivateMaskSize ? expertIdsSize_ : xActivateMaskSize;
-        tpipe_->InitBuffer(validExpertIndexBuf_, validBufferSize);
-        validBsIndexTensor_ = validBsIndexTBuf_.Get<int32_t>();
-        gatherMaskTensor_ = gatherMaskTBuf_.Get<uint32_t>();
-        ExpertActiveMaskCal();
+    if (isExpertMaskFlag_ || (zeroComputeExpertNum_ != 0)) {
+        ExpertActiveMaskInit();
     }
 
     if (isTokenMaskFlag_) {
         TokenActiveMaskCal();
     }
 
+    if (isExpertMaskFlag_) {
+        ExpertActiveMaskCal();
+    }
     if (activeMaskBsCnt_ == 0) { // DataCopyPad不能拷贝0个
         return;
     }
+    if (zeroComputeExpertNum_ != 0) {
+        ZeroComputeExpertMaskCal();
+    }
+
     Duplicate<int32_t>(validExpertIdsTensor_, -1, int32_t(expertIdsBufSize_ / sizeof(int32_t)));
     PipeBarrier<PIPE_V>();
 
     // 拷贝bs*k个专家id 到local  补齐到32 字节对齐  bs*k = 3*3 = 9 expertIdsAlignCnt= 16 补7个 填充-1
-    if (isExpertMaskFlag_) {
+    if (isExpertMaskFlag_ || (zeroComputeExpertNum_ != 0)) {
         LocalTensor<int32_t> tmpExpertIdsTensor = subExpBuf_.Get<int32_t>();
         LocalTensor<float> tmpExpertIdsTensorFloat = subExpBuf_.Get<float>();
         LocalTensor<uint8_t> gatherMaskTensorInt8 = gatherMaskTensor_.ReinterpretCast<uint8_t>();
