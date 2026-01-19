@@ -159,7 +159,7 @@ private:
     uint32_t moeExpertNumInServer_{0};
     uint32_t localMoeExpertNum_{0};
     uint32_t SERVER_SIZE_ON_WIN{0};
-    uint32_t RANK_SIZE_ON_IPC{0};
+    uint64_t RANK_SIZE_ON_IPC{0};
     uint32_t WIN_SIZE{0};
     uint32_t bufferId_{0};
     uint32_t totalSize_{0};
@@ -1307,7 +1307,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             DataCopyExtParams copyTokenParams{static_cast<uint16_t>(1),
                 static_cast<uint32_t>(tokenCntInBatch * tokenStructLen_), 0, 0, 0};
             DataCopyPadExtParams<uint8_t> padParams;
-            uint32_t srcIpcOffset = srIdx * RANK_SIZE_ON_IPC + batchIdx * tokenCntInUB * tokenStructLen_;
+            uint64_t srcIpcOffset = srIdx * RANK_SIZE_ON_IPC + batchIdx * tokenCntInUB * tokenStructLen_;
             DataCopyPad(localUB, srcIpcGt[srcIpcOffset], copyTokenParams, padParams);
             SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
             DataCopyExtParams writeTokenParams{static_cast<uint16_t>(tokenCntInBatch),
