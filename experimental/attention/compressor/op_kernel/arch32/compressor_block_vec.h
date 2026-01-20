@@ -380,7 +380,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
     while (seqIdx < batchEndSeqIdx) {
         globalStartSeqIdx = Trunc(startPos + seqIdx, constInfo_.cmpRatio);
         srcStartOffset = mSplitInfo.vec1StartOffset + (processNum * constInfo_.cmpRatio + MemstartSeqIdx) * 2 * constInfo_.dBaseSize;
-        dstStartOffset = (compressorNum * constInfo_.cmpRatio + MemstartSeqIdx) * totalDSize;
+        dstStartOffset = MemstartSeqIdx * totalDSize;
         if (coff_ == 2) {
             // printf("L Offset:%d\n", dstStartOffset);
             DataCopy(kvLocal_[dstStartOffset], preMm1ResGm_[srcStartOffset + dealDSize * dLoop], copyParams);
@@ -401,7 +401,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
     // DumpTensor(scoreLocal_[127*64], 297, 64);
     SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
     WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
-    dstStartOffset = compressorNum * constInfo_.cmpRatio * totalDSize;
+    dstStartOffset = 0;
     // printf("dstStartOffset:%d\n", dstStartOffset);
     processNum += tempProcessNum;
     compressorNum += tempCompressorNum;
@@ -859,12 +859,12 @@ __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &i
                 // DumpTensor(kvLocal_[preCompressorNum * rCnt], 709, 512);
                 PipeBarrier<PIPE_ALL>();
                 for (uint32_t r = 0; r < curCompressorNum; r++) {
-                    ColumnSoftMax(scoreLocal_[(preCompressorNum + r) * rCnt], scoreLocal_[(preCompressorNum + r) * rCnt], tempLocal_[(preCompressorNum + r) * rCnt], coff_ * constInfo_.cmpRatio, dealDSize);
+                    ColumnSoftMax(scoreLocal_[r * rCnt], scoreLocal_[r * rCnt], tempLocal_[r * rCnt], coff_ * constInfo_.cmpRatio, dealDSize);
                 }
                 PipeBarrier<PIPE_V>();
                 // DumpTensor(scoreLocal_[preCompressorNum * rCnt], 714, 512);
                 // DumpTensor(kvLocal_[preCompressorNum * rCnt], 674, 64);
-                Mul(kvLocal_[preCompressorNum * rCnt], kvLocal_[preCompressorNum * rCnt], scoreLocal_[preCompressorNum * rCnt], (curCompressorNum) * rCnt);
+                Mul(kvLocal_, kvLocal_, scoreLocal_, curCompressorNum * rCnt);
                 // DumpTensor(scoreLocal_[preCompressorNum * rCnt], 676, 64);
                 // DumpTensor(kvLocal_[preCompressorNum * rCnt], 719, 512);
                 PipeBarrier<PIPE_V>();
@@ -875,7 +875,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &i
                 // printf("offset-0:%d, offset:%d, len:%d\n", preCompressorNum * dealDSize, (preCompressorNum + 16) * rCnt, BLOCK_VEC_BASE_BUFFER_SIZE / sizeof(float));
                 // DumpTensor(outputLocal_[preCompressorNum * dealDSize], 725, dealDSize);
                 for (uint32_t r = 0; r < curCompressorNum; r++) {
-                    ColumnSum(outputLocal_[(preCompressorNum + r) * dealDSize], kvLocal_[(preCompressorNum + r) * rCnt], tempLocal_[(preCompressorNum + r)  * rCnt], coff_ * constInfo_.cmpRatio, dealDSize);
+                    ColumnSum(outputLocal_[r * dealDSize], kvLocal_[r * rCnt], tempLocal_[r  * rCnt], coff_ * constInfo_.cmpRatio, dealDSize);
                     // DumpTensor(outputLocal_[preCompressorNum * dealDSize], 683 + r, dealDSize);
                     // printf("r:%d, preCompressorNum:%d, offset:%d\n", r, preCompressorNum, (preCompressorNum + r) * dealDSize);
                 }
@@ -886,7 +886,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &i
                 WaitFlag<HardEvent::V_MTE3>(EVENT_ID2);
                 DataCopyParams copyParams{static_cast<uint16_t>(curCompressorNum), static_cast<uint16_t>(CeilDivT(dealDSize, FP32_BLOCK_ELEMENT_NUM)), 0, static_cast<uint16_t>(CeilDivT(constInfo_.headDim - dealDSize, FP32_BLOCK_ELEMENT_NUM))};
                 // printf("vec1ResGm_ pos: %d, info.vec1ResOffset: %d\n", info.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize, info.vec1ResOffset);
-                DataCopy(vec1ResGm_[mSplitInfo.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize], outputLocal_[preCompressorNum * dealDSize], copyParams);
+                DataCopy(vec1ResGm_[mSplitInfo.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize], outputLocal_, copyParams);
                 // DumpTensor(outputLocal_[preCompressorNum * dealDSize], 10011, curCompressorNum*dealDSize);
                 // DumpTensor(vec1ResGm_[info.vec1ResOffset + preCompressorNum * constInfo_.headDim + j * dealDSize], 1001, curCompressorNum*dealDSize);
                 // DumpTensor(vec1ResGm_, 100111, 256);
