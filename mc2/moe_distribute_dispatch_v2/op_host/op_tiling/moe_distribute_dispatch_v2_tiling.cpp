@@ -329,11 +329,11 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
             OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be int8, int4, or int32, but is %s.",
             Ops::Base::ToString(expandXDesc->GetDataType()).c_str()), return false);
         
-        auto xShape = xDesc->GetShape();
+        auto xShape = context->GetInputShape(X_INDEX)->GetStorageShape();
         auto xDimNum = xShape.GetDimNum();
         if (xDimNum > 0) {
             int64_t xLastDim = xShape.GetDim(xDimNum - 1);
-            auto expandXShape = expandXDesc->GetShape();
+            auto expandXShape = context->GetOutputShape(OUTPUT_EXPAND_X_INDEX)->GetStorageShape();
             int64_t expandXLastDim = expandXShape.GetDim(expandXShape.GetDimNum() - 1);
             
             // 如果输出类型是INT32（实际是INT4），检查输入的最后一个维度是输出的8倍

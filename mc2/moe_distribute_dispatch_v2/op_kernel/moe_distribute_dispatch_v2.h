@@ -1054,7 +1054,6 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::QuantProces
         Muls(floatLocalTemp, floatLocalTemp, dynamicScale, axisH_);
         PipeBarrier<PIPE_V>();
     }
-
     LocalTensor<half> halfLocalTemp = floatLocalTemp.ReinterpretCast<half>();
     LocalTensor<int32_t> int32LocalTemp = floatLocalTemp.ReinterpretCast<int32_t>();
     Cast(int32LocalTemp, floatLocalTemp, RoundMode::CAST_RINT, axisH_);
