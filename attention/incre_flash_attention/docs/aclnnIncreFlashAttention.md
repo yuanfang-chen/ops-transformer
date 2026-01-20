@@ -245,13 +245,12 @@ aclnnStatus aclnnIncreFlashAttention(
 
   第一段接口完成入参校验，出现以下场景时报错：
 
-  <div style="overflow-x: auto;">
-  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-  <col style="width: 250px">
-  <col style="width: 180px">
-  <col style="width: 600px">
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 280px">
+  <col style="width: 119px">
+  <col style="width: 751px">
   </colgroup>
-  <table><thead>
+  <thead>
     <tr>
       <th>返回值</th>
       <th>错误码</th>
@@ -275,19 +274,17 @@ aclnnStatus aclnnIncreFlashAttention(
     </tr>
   </tbody>
   </table>
-  </div>
 
 ## aclnnIncreFlashAttention
 
 - **参数说明**
 
-  <div style="overflow-x: auto;  margin-top: -10px;">
-  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-  <col style="width: 250px">
-  <col style="width: 130px">
-  <col style="width: 650px">
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
   </colgroup>
-  <table><thead>
+  <thead>
     <tr>
       <th>参数名</th>
       <th>输入/输出</th>
@@ -316,16 +313,16 @@ aclnnStatus aclnnIncreFlashAttention(
     </tr>
   </tbody>
   </table>
-  </div>
 
 - **返回值**  
+
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ##   约束说明
 
 - 确定性计算：
   - aclnnIncreFlashAttention默认确定性实现。
-- <term>Atlas A2 训练系列产品/Atlas A2 推理产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
   - 支持B轴小于等于65536，N轴小于等于256，D轴小于等于512。
   - query数据类型支持FLOAT16、BFLOAT16，attentionOut、key和value数据类型支持FLOAT16和BFLOAT16。
   - numKeyValueHeads数据类型支持INT64。

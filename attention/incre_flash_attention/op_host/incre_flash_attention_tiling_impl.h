@@ -63,7 +63,6 @@ public:
     bool IsValidFlag560B();
     bool IsValidFlag();
 
-
 private:
     ge::graphStatus GetNpuInfo();
     ge::graphStatus PreProcess();
