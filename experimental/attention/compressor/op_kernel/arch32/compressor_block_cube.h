@@ -339,7 +339,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         if constexpr (COMP::coff == COFF::OVERLAP) {
             dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
         }
-        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset + rOffset], nValue, dValue, srcDValue, dstNzC0Stride);
+        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset + rOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
         ubOffset += constInfo_.cmpRatio * (32 / sizeof(X_T));
         mSizeFinish += constInfo_.cmpRatio;
