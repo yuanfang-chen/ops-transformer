@@ -550,8 +550,8 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetBasicNum()
     uint32_t headSize = 0;
     if (curStartPos_ % constInfo_.cmpRatio != 0) {
         headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
-        headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
-        curBasicNum++;
+        headSize = headSize > curActSeqLength_ ? 0 : headSize;
+        curBasicNum = headSize > 0 ? curBasicNum + 1 : curBasicNum;
     }
     // 加上中间整块及尾块
     curBasicNum += (curActSeqLength_ - headSize + constInfo_.cmpRatio - 1) / constInfo_.cmpRatio;
@@ -566,8 +566,8 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize()
     uint32_t headSize = 0;
     if (curStartPos_ % constInfo_.cmpRatio != 0) {
         headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
-        headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
-        curBasicNum++;
+        headSize = headSize > curActSeqLength_ ? 0 : headSize;
+        curBasicNum = headSize > 0 ? curBasicNum + 1 : curBasicNum;
     }
     // 加上中间整块及尾块
     curBasicNum += (curActSeqLength_ - headSize) / constInfo_.cmpRatio;
@@ -584,7 +584,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize(uint32_t bStar
             uint32_t headSize = 0;
             if (sEnd > 0 && curStartPos_ % constInfo_.cmpRatio != 0) {
                 headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
-                headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
+                headSize = headSize > curActSeqLength_ ? 0 : headSize;
                 totalScSize += 1;
             }
             totalScSize += (sEnd - headSize) / constInfo_.cmpRatio;
@@ -607,7 +607,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize(uint32_t bStar
             uint32_t headSize = 0;
             if (sEnd > 0 && curStartPos_ % constInfo_.cmpRatio != 0) {
                 headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
-                headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
+                headSize = headSize > curActSeqLength_ ? 0 : headSize;
                 totalScSize += 1;
             }
             totalScSize += (sEnd - headSize) / constInfo_.cmpRatio;
@@ -666,7 +666,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalcTcEndIdx(uint32_t bStart
             uint32_t headSize = 0;
             if (curStartPos_ % constInfo_.cmpRatio != 0) {
                 headSize = (constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio);
-                headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
+                headSize = headSize > curActSeqLength_ ? 0 : headSize;
             }
             if (sStart == 0) {
                 curRemainTcNum = (curActSeqLength_ - headSize + constInfo_.cmpRatio - 1) / constInfo_.cmpRatio;
@@ -705,7 +705,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalcTcEndIdx(uint32_t bStart
                 if (curStartPos_ % constInfo_.cmpRatio != 0) {
                     headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
                     // 处理seq不足head大小的情况
-                    headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
+                    headSize = headSize > curActSeqLength_ ? 0 : headSize;
                 }
                 uint32_t curBasicNumEnd = dealTcNum - accBasicNum;
                 if (headSize == 0) {
