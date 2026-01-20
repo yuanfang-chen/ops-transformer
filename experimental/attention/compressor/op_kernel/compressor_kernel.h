@@ -531,7 +531,7 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
 template <typename COMP>
 __aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(uint32_t curBasicBlockIdx) {
     // 处理v2的非完整轮，修正后的需要循环的次数
-    uint32_t fixBasicBlockNum = (constInfo.realDealBasicBlockNum + constInfo.nSize - 1) / constInfo.nSize;
+    uint32_t fixBasicBlockNum = (constInfo.realDealBasicBlockNum + constInfo.nSize - 1) / constInfo.nSize * constInfo.nSize;
     if (constInfo.curGroupIdx > constInfo.tailGroupIdx || curBasicBlockIdx >= fixBasicBlockNum) {
         return false;
     }
