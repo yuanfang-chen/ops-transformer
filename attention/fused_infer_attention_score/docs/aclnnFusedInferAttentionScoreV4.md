@@ -105,7 +105,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
 ## aclnnFusedInferAttentionScoreV4GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1550px">
         <colgroup>
@@ -789,7 +789,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -826,12 +826,12 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
 ## aclnnFusedInferAttentionScoreV4
 
-- **参数说明：**
+- **参数说明**
 
-    <table style="undefined;table-layout: fixed; width: 900px"><colgroup>
-    <col style="width: 150px">
-    <col style="width: 100px">
-    <col style="width: 650px">
+    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    <col style="width: 168px">
+    <col style="width: 128px">
+    <col style="width: 854px">
     </colgroup>
     <thead>
         <tr>
@@ -863,7 +863,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
