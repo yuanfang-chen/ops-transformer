@@ -118,64 +118,28 @@ BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvBaseParams)
 TILING_DATA_FIELD_DEF(uint32_t, batchSize)
 TILING_DATA_FIELD_DEF(uint32_t, qSeqSize)
 TILING_DATA_FIELD_DEF(uint32_t, kvSeqSize)
-TILING_DATA_FIELD_DEF(int64_t, paBlockSize)
+TILING_DATA_FIELD_DEF(uint32_t, paBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, oriMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, cmpMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, nNumOfQInOneGroup)
 TILING_DATA_FIELD_DEF(uint32_t, sparseBlockCount)
-TILING_DATA_FIELD_DEF(uint32_t, actualLenDimsQ)
-TILING_DATA_FIELD_DEF(uint32_t, actualLenDimsKV)
-
-
-TILING_DATA_FIELD_DEF(int64_t, kvQuantMode)
-TILING_DATA_FIELD_DEF(int64_t, tileSize)
-TILING_DATA_FIELD_DEF(int64_t, ropeHeadDim)
 TILING_DATA_FIELD_DEF(float, softmaxScale) // 即 scaleValue
-TILING_DATA_FIELD_DEF(int64_t, cmpRatio)
+TILING_DATA_FIELD_DEF(uint32_t, tileSize)
+TILING_DATA_FIELD_DEF(uint32_t, ropeHeadDim)
+TILING_DATA_FIELD_DEF(uint32_t, cmpRatio)
 TILING_DATA_FIELD_DEF(uint32_t, outputLayout)
-TILING_DATA_FIELD_DEF(uint64_t, oriMaskMode)
-TILING_DATA_FIELD_DEF(uint64_t, cmpMaskMode)
-TILING_DATA_FIELD_DEF(int64_t, oriWinLeft)
-TILING_DATA_FIELD_DEF(int64_t, oriWinRight)
-TILING_DATA_FIELD_DEF(int64_t, sparseBlockSize)
-TILING_DATA_FIELD_DEF(int64_t, dSize)
-TILING_DATA_FIELD_DEF(int64_t, dSizeV)
-TILING_DATA_FIELD_DEF(int64_t, dSizeNope)
-TILING_DATA_FIELD_DEF(int64_t, dSizeVInput)
+TILING_DATA_FIELD_DEF(uint32_t, oriMaskMode)
+TILING_DATA_FIELD_DEF(uint32_t, cmpMaskMode)
+TILING_DATA_FIELD_DEF(int32_t, oriWinLeft)
+TILING_DATA_FIELD_DEF(int32_t, oriWinRight)
+TILING_DATA_FIELD_DEF(uint32_t, sparseBlockSize)
+TILING_DATA_FIELD_DEF(uint32_t, dSize)
+TILING_DATA_FIELD_DEF(uint32_t, dSizeVInput)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvBaseParamsOp, KvQuantSparseAttnSharedkvBaseParams)
 
-BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvSingleCoreParams)
-TILING_DATA_FIELD_DEF(uint32_t, usedCoreNum);
-END_TILING_DATA_DEF
-REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvSingleCoreParamsOp, KvQuantSparseAttnSharedkvSingleCoreParams)
-
-BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvSingleCoreTensorSize)
-TILING_DATA_FIELD_DEF(uint32_t, mmResUbSize);
-TILING_DATA_FIELD_DEF(uint32_t, bmm2ResUbSize);
-END_TILING_DATA_DEF
-REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvSingleCoreTensorSizeOp, KvQuantSparseAttnSharedkvSingleCoreTensorSize)
-
-BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvSplitKVParams)
-TILING_DATA_FIELD_DEF(uint32_t, s2)             // S2切分份数
-TILING_DATA_FIELD_DEF(uint32_t, accumOutSize)   // FD workspace
-TILING_DATA_FIELD_DEF(uint32_t, logSumExpSize)  // FD workspace
-END_TILING_DATA_DEF
-REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvSplitKVParamsOp, KvQuantSparseAttnSharedkvSplitKVParams)
-
-// 内切基本块参数
-BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvInnerSplitParams)
-TILING_DATA_FIELD_DEF(uint32_t, mBaseSize)
-TILING_DATA_FIELD_DEF(uint32_t, s2BaseSize)
-END_TILING_DATA_DEF
-REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkvInnerSplitParamsOp, KvQuantSparseAttnSharedkvInnerSplitParams)
-
 BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvTilingData)
 TILING_DATA_FIELD_DEF_STRUCT(KvQuantSparseAttnSharedkvBaseParams, baseParams);
-TILING_DATA_FIELD_DEF_STRUCT(KvQuantSparseAttnSharedkvSplitKVParams, splitKVParams);
-TILING_DATA_FIELD_DEF_STRUCT(KvQuantSparseAttnSharedkvSingleCoreParams, singleCoreParams);
-TILING_DATA_FIELD_DEF_STRUCT(KvQuantSparseAttnSharedkvSingleCoreTensorSize, singleCoreTensorSize);
-TILING_DATA_FIELD_DEF_STRUCT(KvQuantSparseAttnSharedkvInnerSplitParams, innerSplitParams);
 END_TILING_DATA_DEF
 
 REGISTER_TILING_DATA_CLASS(KvQuantSparseAttnSharedkv, KvQuantSparseAttnSharedkvTilingData)

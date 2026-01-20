@@ -136,7 +136,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
         constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = this->sharedParams.dSizeV;
+        constInfo.dSizeV = this->sharedParams.dSize;
         constInfo.needInit = this->sharedParams.needInit;
     }
     vecBlock.CleanOutput(attentionOut, constInfo);
@@ -152,13 +152,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         for (int i = 0; i < sizeof(CVSharedParams) / sizeof(uint32_t); ++i, ++tempTilingSSbuf, ++tempTiling) {
             *tempTiling = *tempTilingSSbuf;
         }
-    }
-    if ASCEND_IS_AIC {
-        constInfo.bSize = this->sharedParams.bSize;
-        constInfo.gSize = this->sharedParams.gSize;
-        constInfo.s1Size = this->sharedParams.s1Size;
-        constInfo.dSizeV = this->sharedParams.dSizeV;
-        constInfo.needInit = this->sharedParams.needInit;
     }
     this->ComputeConstexpr();
     this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedKv, sinks,
@@ -188,7 +181,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     uint64_t singleCoreOffset = 0;
     vecBlock.InitGlobalBuffer(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable,
         cuSeqlensQ, sequsedKv, sinks);
-    cubeBlock.InitCubeInput(&sharedParams, cuSeqlensQ);
+    cubeBlock.InitCubeInput(cuSeqlensQ, constInfo);
 }
 
 template <typename CubeBlockType, typename VecBlockType>
@@ -231,19 +224,22 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::ComputeConstexpr()
 {
     // 计算轴的乘积
-    // ConstInfo.bSize = sharedParams.bSize;
+    if ASCEND_IS_AIC {
+        constInfo.bSize = this->sharedParams.bSize;
+        constInfo.gSize = this->sharedParams.gSize;
+        constInfo.s1Size = this->sharedParams.s1Size;
+        constInfo.dSizeV = this->sharedParams.dSize;
+        constInfo.needInit = this->sharedParams.needInit;
+    }
     constInfo.n2Size = sharedParams.n2Size;
-    // constInfo.s1Size = sharedParams.s1Size;
     constInfo.s2Size = sharedParams.s2Size;
     constInfo.dSize = sharedParams.dSize;
     constInfo.dSizeVInput = sharedParams.dSizeVInput;
-    // constInfo.dSizeV = sharedParams.dSizeV;
-    constInfo.dBasicBlock = Align64Func((uint16_t)constInfo.dSizeV);
-    constInfo.dSizeNope = 448;
-    constInfo.dSizeRope = 64;
-    constInfo.tileSize = 64;
+    constInfo.dSizeRope = sharedParams.dSizeRope;
+    constInfo.dSizeNope = constInfo.dSize - constInfo.dSizeRope;
+    constInfo.tileSize = sharedParams.tileSize;
     constInfo.sparseBlockCount = sharedParams.sparseBlockCount;
-    constInfo.sparseBlockSize = sharedParams.sparseBlockSize;
+    constInfo.sparseBlockSize = 1;
     constInfo.cmpRatio = sharedParams.cmpRatio;
     constInfo.oriWinLeft = sharedParams.oriWinLeft;
     constInfo.oriWinRight = sharedParams.oriWinRight;
@@ -268,8 +264,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         constInfo.s1BaseN2GDv = constInfo.s1BaseSize * constInfo.n2GDv;
 
         constInfo.mm1Ka = constInfo.n2Size * constInfo.dSize;
-        constInfo.mm1Kb = constInfo.n2Size * constInfo.dSize;
-        constInfo.mm2Kb = constInfo.n2Dv;
         if ASCEND_IS_AIV {
             constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
         }
@@ -277,18 +271,15 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         // BSH/BSNGD
         constInfo.s1BaseN2GDv = constInfo.s1BaseSize * constInfo.n2GDv;
         constInfo.mm1Ka = constInfo.n2Size * constInfo.dSize;
-        constInfo.mm1Kb = constInfo.n2Size * constInfo.dSize;
-        constInfo.mm2Kb = constInfo.n2Dv;
         if ASCEND_IS_AIV {
             constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
         }
     }
     if ASCEND_IS_AIV {
-        auto &baseParams = this->tilingData->baseParams;
-        constInfo.softmaxScale = static_cast<float>(baseParams.softmaxScale);
-        constInfo.blockSize = baseParams.paBlockSize;
-        constInfo.oriMaxBlockNumPerBatch = baseParams.oriMaxBlockNumPerBatch;
-        constInfo.cmpMaxBlockNumPerBatch = baseParams.cmpMaxBlockNumPerBatch;
+        constInfo.softmaxScale = sharedParams.softmaxScale;
+        constInfo.blockSize = sharedParams.blockSize;
+        constInfo.oriMaxBlockNumPerBatch = sharedParams.oriMaxBlockNumPerBatch;
+        constInfo.cmpMaxBlockNumPerBatch = sharedParams.cmpMaxBlockNumPerBatch;
     }
 
     InitUniqueConstInfo();
@@ -297,12 +288,8 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
 {
-    if constexpr (isFd) {
-        this->constInfo.splitKVNum = this->sharedParams.splitKVNum;
-        this->constInfo.sInnerLoopSize = CeilDivision(this->constInfo.s2Size, this->constInfo.splitKVNum);
-    }
-    this->constInfo.actualSeqLenSize = this->sharedParams.actualSeqLengthsSize;
-    this->constInfo.actualSeqLenKVSize = this->sharedParams.actualSeqLengthsKVSize;
+    this->constInfo.actualSeqLenSize = this->sharedParams.bSize + 1;
+    this->constInfo.actualSeqLenKVSize = this->sharedParams.bSize;
     this->constInfo.isActualLenDimsNull = static_cast<bool>(this->sharedParams.isActualSeqLengthsNull);
     this->constInfo.isActualLenDimsKVNull = static_cast<bool>(this->sharedParams.isActualSeqLengthsKVNull);
 }
@@ -465,13 +452,9 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     runInfo.taskIdMod3 = taskId % 3;
     runInfo.s2LoopLimit = s2LoopLimit;
 
-    if constexpr (isFd) {
-        runInfo.flashDecodeS2Idx = this->aicIdx % constInfo.splitKVNum;
-    }
     runInfo.actualS1Size = runParam.actualS1Size;
     runInfo.actualS2Size = runParam.actualS2Size;
     runInfo.attentionOutOffset = runParam.attentionOutOffset;
-    runInfo.queryOffset = runParam.tensorQOffset;
     runInfo.sOuterOffset = runParam.sOuterOffset;
     this->ComputeBmm1Tail(runInfo, runParam);
     InitUniqueRunInfo(runParam, runInfo);
