@@ -226,5 +226,14 @@ __aicore__ inline void DumpTensorForDim2(LocalTensor<T> tensor, uint32_t desc, u
     // AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
 }
 
+template <typename T>
+__aicore__ inline void DumpTensorForDim2(GlobalTensor<T> tensor, uint32_t desc, uint32_t dumpSize)
+{
+    uint32_t col = 32 / sizeof(T);
+    uint32_t array2[] = {static_cast<uint32_t>(dumpSize / col), static_cast<uint32_t>(col)};
+    AscendC::ShapeInfo shapeInfo(2, array2);
+    // AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
+}
+
 }
 #endif
