@@ -640,30 +640,18 @@ def prompt_flash_attention_npu(q, k, v, sabi_blocks: torch.Tensor = None, **kwar
         vals = sabi_blocks.reshape(-1).tolist()
         assert len(vals) == b * heads * rows * cols
 
-        # # Env variable
-        # os.environ["PFA_BLOCKS"] = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
-
-        # File
-        # Build the exact same payload string
-        blocks_payload = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
-        blocks_path = Path(tempfile.gettempdir()) / f"pfa_blocks.txt"
-        blocks_path.write_text(blocks_payload, encoding="utf-8")
-        os.environ["PFA_BLOCKS_FILE"] = str(blocks_path)
-
-    return npu_prompt_flash_attention(q, k, v, **kwargs)
-
-def prompt_flash_attention_npu(q, k, v, sabi_blocks: torch.Tensor = None, **kwargs):
-    if sabi_blocks is not None:
-        b, heads, rows, cols = sabi_blocks.shape
-
-        # Flatten in (head, row, k) order. Values are block-column indices.
-        vals = sabi_blocks.reshape(-1).tolist()
-        assert len(vals) == b * heads * rows * cols
-
         # Env variable
         os.environ["PFA_BLOCKS"] = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
 
+        # File
+        # Build the exact same payload string
+        # blocks_payload = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
+        # blocks_path = Path(tempfile.gettempdir()) / f"pfa_blocks.txt"
+        # blocks_path.write_text(blocks_payload, encoding="utf-8")
+        # os.environ["PFA_BLOCKS_FILE"] = str(blocks_path)
+
     return npu_prompt_flash_attention(q, k, v, **kwargs)
+
 
 # --------------------------------------------------------------------------- #
 #  benchmark body

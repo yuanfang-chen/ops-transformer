@@ -14,6 +14,9 @@
 #include "acl/acl.h"
 #include "aclnnop/aclnn_prompt_flash_attention_v3.h"
 
+const static int64_t PFA_SPARSE_HIGH_PRECISION_NO_MASK = 10;
+const static int64_t PFA_SPARSE_HIGH_PRECISION_BAND = 14;
+
 // Helper function to convert torch dtype to ACL dtype
 aclDataType get_acl_dtype(const at::Tensor& tensor) {
     if (tensor.scalar_type() == at::kBFloat16) {
@@ -69,10 +72,10 @@ aclTensor* create_acl_tensor(const at::Tensor& tensor) {
  */
 
 at::Tensor npu_prompt_flash_attention(
-    at::Tensor query,
-    at::Tensor key, 
-    at::Tensor value,
-    c10::optional<at::Tensor> atten_mask = c10::nullopt,
+    const at::Tensor &query,
+    const at::Tensor &key, 
+    const at::Tensor &value,
+    const c10::optional<at::Tensor> &atten_mask = c10::nullopt,
     c10::optional<std::vector<int64_t>> actual_seq_lengths_opt = c10::nullopt,
     c10::optional<std::vector<int64_t>> actual_seq_lengths_kv_opt = c10::nullopt,
     c10::optional<int64_t> num_heads_opt = c10::nullopt,
@@ -128,35 +131,43 @@ at::Tensor npu_prompt_flash_attention(
     at::Tensor output = torch::empty_like(query);
     aclTensor* output_tensor = create_acl_tensor(output);
     
+    int64_t inner_precise = 1;
+
+    if (sparse_mode >= PFA_SPARSE_HIGH_PRECISION_NO_MASK && sparse_mode <= PFA_SPARSE_HIGH_PRECISION_BAND) {
+        // for sparse in range [10,14], set inner calculate mode to high-precision
+        inner_precise = 0;
+        sparse_mode -= PFA_SPARSE_HIGH_PRECISION_NO_MASK;
+    }
+    
     // Get workspace size
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     void* workspace_addr = nullptr;
     
     int ret = aclnnPromptFlashAttentionV3GetWorkspaceSize(
-        query_tensor, //     const aclTensor   *query,
-        key_tensor,  //     const aclTensor   *key,
-        value_tensor, //     const aclTensor   *value,
-        nullptr, //     const aclTensor   *pseShift,
-        atten_mask_tensor, //     const aclTensor   *attenMask,
-        actual_seq_lengths_array, //     const aclIntArray *actualSeqLengths,
-        actual_seq_lengths_kv_array, //     const aclIntArray *actualSeqLengthsKv,
-        nullptr, //     const aclTensor   *deqScale1,
-        nullptr, //     const aclTensor   *quantScale1,
-        nullptr, //     const aclTensor   *deqScale2,
-        nullptr, //     const aclTensor   *quantScale2,
-        nullptr, //     const aclTensor   *quantOffset2,
-        num_heads,  //     int64_t            numHeads,
-        scale_value, //     double             scaleValue,
-        pre_tokens, //     int64_t            preTokens,
-        next_tokens, //     int64_t            nextTokens,
-        layer_out.data(), //     char              *inputLayout,
-        num_key_value_heads, //     int64_t            numKeyValueHeads,
-        sparse_mode, //     int64_t            sparseMode,
-        0, //     int64_t            innerPrecise,
-        output_tensor, //     const aclTensor   *attentionOut,
-        &workspace_size, //     uint64_t          *workspaceSize,
-        &executor); //     aclOpExecutor     **executor)
+        query_tensor,                 //  const aclTensor   *query,
+        key_tensor,                   //  const aclTensor   *key,
+        value_tensor,                 //  const aclTensor   *value,
+        nullptr,                      //  const aclTensor   *pseShift,
+        atten_mask_tensor,            //  const aclTensor   *attenMask,
+        actual_seq_lengths_array,     //  const aclIntArray *actualSeqLengths,
+        actual_seq_lengths_kv_array,  //  const aclIntArray *actualSeqLengthsKv,
+        nullptr,                      //  const aclTensor   *deqScale1,
+        nullptr,                      //  const aclTensor   *quantScale1,
+        nullptr,                      //  const aclTensor   *deqScale2,
+        nullptr,                      //  const aclTensor   *quantScale2,
+        nullptr,                      //  const aclTensor   *quantOffset2,
+        num_heads,                    //  int64_t            numHeads,
+        scale_value,                  //  double             scaleValue,
+        pre_tokens,                   //  int64_t            preTokens,
+        next_tokens,                  //  int64_t            nextTokens,
+        layer_out.data(),             //  char              *inputLayout,
+        num_key_value_heads,          //  int64_t            numKeyValueHeads,
+        sparse_mode,                  //  int64_t            sparseMode,
+        inner_precise,                //  int64_t            innerPrecise,
+        output_tensor,                //  const aclTensor   *attentionOut,
+        &workspace_size,              //  uint64_t          *workspaceSize,
+        &executor);                   //  aclOpExecutor     **executor)
 
     TORCH_CHECK(ret == ACL_SUCCESS, "aclnnPromptFlashAttentionV3GetWorkspaceSize failed with error: ", ret);
     
