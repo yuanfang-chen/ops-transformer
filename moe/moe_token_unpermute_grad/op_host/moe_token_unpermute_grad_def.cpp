@@ -15,16 +15,6 @@
 #include "register/op_def_registry.h"
 
 namespace ops {
-
-static const std::vector<ge::Format> formats = {
-    ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
-    ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND
-};
-static const std::vector<ge::DataType> tokenTypes = {
-    ge::DT_BF16, ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
-    ge::DT_FLOAT, ge::DT_FLOAT
-};
-
 class MoeTokenUnpermuteGrad : public OpDef
 {
 public:
@@ -32,44 +22,74 @@ public:
     {
         this->Input("permuted_tokens")
             .ParamType(REQUIRED)
-            .DataType(tokenTypes)
-            .Format(formats)
-            .UnknownShapeFormat(formats)
+            .DataType(
+                {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
+                 ge::DT_FLOAT, ge::DT_FLOAT})
+            .Format(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("unpermuted_tokens_grad")
             .ParamType(REQUIRED)
-            .DataType(tokenTypes)
-            .Format(formats)
-            .UnknownShapeFormat(formats)
+            .DataType(
+                {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
+                 ge::DT_FLOAT, ge::DT_FLOAT})
+            .Format(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("sorted_indices")
             .ParamType(REQUIRED)
             .DataType(
                 {ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32, ge::DT_INT32,
                  ge::DT_INT32, ge::DT_INT32})
-            .Format(formats)
-            .UnknownShapeFormat(formats)
+            .Format(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("probs")
             .ParamType(OPTIONAL)
             .DataType(
                 {ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT, ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT, ge::DT_BF16,
                  ge::DT_FLOAT16, ge::DT_FLOAT})
-            .Format(formats)
-            .UnknownShapeFormat(formats)
+            .Format(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
         this->Output("permuted_tokens_grad")
             .ParamType(REQUIRED)
-            .DataType(tokenTypes)
-            .Format(formats)
-            .UnknownShapeFormat(formats);
+            .DataType(
+                {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
+                 ge::DT_FLOAT, ge::DT_FLOAT})
+            .Format(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND});
         this->Output("probs_grad")
             .ParamType(REQUIRED)
             .DataType(
                 {ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT, ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT, ge::DT_BF16,
                  ge::DT_FLOAT16, ge::DT_FLOAT})
-            .Format(formats)
-            .UnknownShapeFormat(formats);
+            .Format(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat(
+                {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                 ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND});
         this->Attr("padded_mode").AttrType(OPTIONAL).Bool(false);
         this->Attr("restore_shape").AttrType(OPTIONAL).ListInt({1, 1});
 
