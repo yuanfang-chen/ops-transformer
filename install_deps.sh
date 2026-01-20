@@ -26,6 +26,12 @@ run_command() {
     fi
 }
 
+#* 如果有 sudo 则使用 sudo
+if command -v sudo &>/dev/null && [ "$EUID" -ne 0 ]; then
+    try_sudo="sudo"
+else
+    try_sudo=""
+fi
 
 version_ge() {
     # 版本比较，版本形式：xx.xx.xx
@@ -91,17 +97,17 @@ install_python() {
     echo "安装python..."
     case "$OS" in
         debian)
-            run_command sudo $PKG_MANAGER update
-            run_command sudo $PKG_MANAGER install -y python3 python3-pip python3-dev
+            run_command $try_sudo $PKG_MANAGER update
+            run_command $try_sudo $PKG_MANAGER install -y python3 python3-pip python3-dev
             ;;
         rhel)
             if grep -q "release 7" /etc/redhat-release; then
-                run_command sudo $PKG_MANAGER install -y centos-release-scl
-                run_command sudo $PKG_MANAGER install -y rh-python38 rh-python38-python-devel
+                run_command $try_sudo $PKG_MANAGER install -y centos-release-scl
+                run_command $try_sudo $PKG_MANAGER install -y rh-python38 rh-python38-python-devel
                 run_command source /opt/rh/rh-python38/enable
                 echo "需要执行 'source /opt/rh/rh-python38/enable' 激活python3.8"
             else
-                run_command sudo $PKG_MANAGER install -y python3 python3-pip python3-devel
+                run_command $try_sudo $PKG_MANAGER install -y python3 python3-pip python3-devel
             fi
             ;;
         macos)
@@ -147,19 +153,19 @@ install_gcc() {
     echo "安装GCC..."
     case "$OS" in
         debian)
-            run_command sudo $PKG_MANAGER update
-            run_command sudo $PKG_MANAGER install -y gcc-9 g++-9
-            run_command sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 \
+            run_command $try_sudo $PKG_MANAGER update
+            run_command $try_sudo $PKG_MANAGER install -y gcc-9 g++-9
+            run_command $try_sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 \
                 --slave /usr/bin/g++ g++ /usr/bin/g++-9
             ;;
         rhel)
             if grep -q "release 7" /etc/redhat-release; then
-                run_command sudo $PKG_MANAGER install -y centos-release-scl
-                run_command sudo $PKG_MANAGER install -y devtoolset-9-gcc devtoolset-9-gcc-c++
+                run_command $try_sudo $PKG_MANAGER install -y centos-release-scl
+                run_command $try_sudo $PKG_MANAGER install -y devtoolset-9-gcc devtoolset-9-gcc-c++
                 run_command source /opt/rh/devtoolset-9/enable
                 echo "需要执行 'source /opt/rh/devtoolset-9/enable' 激活GCC9"
             else
-                run_command sudo $PKG_MANAGER install -y gcc gcc-c++
+                run_command $try_sudo $PKG_MANAGER install -y gcc gcc-c++
             fi
             ;;
         macos)
@@ -206,22 +212,22 @@ install_cmake() {
     case "$OS" in
         debian)
             if grep -q "Ubuntu 18.04" /etc/os-release; then
-                run_command wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
-                run_command echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
-                run_command sudo apt update
-                run_command sudo apt install -y cmake
+                run_command wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | $try_sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+                run_command echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | $try_sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+                run_command $try_sudo apt update
+                run_command $try_sudo apt install -y cmake
             else
-                run_command sudo $PKG_MANAGER update
-                run_command sudo $PKG_MANAGER install -y cmake
+                run_command $try_sudo $PKG_MANAGER update
+                run_command $try_sudo $PKG_MANAGER install -y cmake
             fi
             ;;
         rhel)
             if grep -q "release 7" /etc/redhat-release; then
-                run_command sudo $PKG_MANAGER install -y epel-release
-                run_command sudo $PKG_MANAGER install -y cmake3
-                run_command sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
+                run_command $try_sudo $PKG_MANAGER install -y epel-release
+                run_command $try_sudo $PKG_MANAGER install -y cmake3
+                run_command $try_sudo ln -s /usr/bin/cmake3 /usr/bin/cmake
             else
-                run_command sudo $PKG_MANAGER install -y cmake
+                run_command $try_sudo $PKG_MANAGER install -y cmake
             fi
             ;;
         macos)
@@ -268,7 +274,7 @@ install_pigz() {
     echo "安装pigz..."
     case "$OS" in
         debian|rhel)
-            run_command sudo $PKG_MANAGER install -y pigz
+            run_command $try_sudo $PKG_MANAGER install -y pigz
             ;;
         macos)
             run_command brew install pigz
@@ -295,7 +301,7 @@ install_dos2unix() {
     echo "安装dos2unix..."
     case "$OS" in
         debian|rhel)
-            run_command sudo $PKG_MANAGER install -y dos2unix
+            run_command $try_sudo $PKG_MANAGER install -y dos2unix
             ;;
         macos)
             run_command brew install dos2unix
@@ -336,13 +342,13 @@ install_googletest() {
     case "$OS" in
         debian)
             # 安装libgtest-dev
-            run_command sudo $PKG_MANAGER install -y libgtest-dev
+            run_command $try_sudo $PKG_MANAGER install -y libgtest-dev
             # 检查gtest源码目录是否存在
             if [ ! -d "$gtest_src_dir"]; then
                 echo "未找到googletest源码目录：$gtest_src_dir"
                 echo "尝试重新安装libgtest-dev..."
-                run_command sudo $PKG_MANAGER purge -y libgtest-dev
-                run_command sudo $PKG_MANAGER install -y libgtest-dev
+                run_command $try_sudo $PKG_MANAGER purge -y libgtest-dev
+                run_command $try_sudo $PKG_MANAGER install -y libgtest-dev
                 # 再次检查目录
                 if [ ! -d "$gtest_src_dir" ]; then
                     echo "仍然无法找到$gtest_src_dir，请手动安装："
@@ -353,12 +359,12 @@ install_googletest() {
             fi
             # 强制在gtest源码目录执行cmake（即使cd失败也能正确执行）
             echo "进入$gtest_src_dir编译..."
-            run_command sudo cmake -S "$gtest_src_dir" -B "$gtest_src_dir/build"
-            run_command sudo make -C "$gtest_src_dir/build"
-            run_command sudo cp "$gtest_src_dir/build/lib/"*.a /usr/lib
+            run_command $try_sudo cmake -S "$gtest_src_dir" -B "$gtest_src_dir/build"
+            run_command $try_sudo make -C "$gtest_src_dir/build"
+            run_command $try_sudo cp "$gtest_src_dir/build/lib/"*.a /usr/lib
             ;;
         rhel)
-            run_command sudo $PKG_MANAGER install -y gtest gtest-devel
+            run_command $try_sudo $PKG_MANAGER install -y gtest gtest-devel
             ;;
         macos)
             run_command brew install googletest
