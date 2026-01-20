@@ -628,8 +628,6 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadFromCacheState(const Loc
         if (copyFinishRowCnt + copyRowCnt > seqCnt) {
             copyRowCnt = seqCnt - copyFinishRowCnt;
         }
-        // printf("idInBlockTable=%d, remainRowCnt=%d, dBasicBlockNum=%d, aiCoreIdx=%d, curSeqIdx=%d, seqCnt=%d, endSeqIdx=%d, startSeqIdx=%d, copyFinishRowCnt=%d\n",
-        //     idInBlockTable, remainRowCnt, constInfo_.dBasicBlockNum, constInfo_.aiCoreIdx, curSeqIdx, seqCnt, endSeqIdx, startSeqIdx, copyFinishRowCnt);
         if (idInBlockTable == 0) {
             // print error log
         }
@@ -643,11 +641,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadFromCacheState(const Loc
         copyParams.blockLen = dDealSize / (32 / sizeof(T));
         copyParams.dstStride = (coff * dDealSize - dDealSize) / (32 / sizeof(T));
         copyParams.srcStride = (coff * constInfo_.headDim - dDealSize) / (32 / sizeof(T));
-        // printf("stateOffset=%d, copyRowCnt=%d, dDealSize=%d, dstStride=%d, srcStride=%d\n",
-        //         stateOffset, copyRowCnt, dDealSize, (coff * constInfo_.headDim - dDealSize), (coff * dDealSize - dDealSize));
         DataCopy(output, state[stateOffset], copyParams);
-        // AscendC::DumpTensor(state[stateOffset], 120, 64);
-        // AscendC::DumpTensor(output, 121, 64);
 
         copyFinishRowCnt += copyRowCnt;
         curSeqIdx += copyRowCnt;
@@ -672,8 +666,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(const Glob
         if (copyFinishRowCnt + copyRowCnt > seqCnt) {
             copyRowCnt = seqCnt - copyFinishRowCnt;
         }
-        // printf("idInBlockTable=%d, remainRowCnt=%d, dBasicBlockNum=%d, aiCoreIdx=%d, curSeqIdx=%d, seqCnt=%d, endSeqIdx=%d, startSeqIdx=%d, copyFinishRowCnt=%d\n",
-        //     idInBlockTable, remainRowCnt, constInfo_.dBasicBlockNum, constInfo_.aiCoreIdx, curSeqIdx, seqCnt, endSeqIdx, startSeqIdx, copyFinishRowCnt);
+
         if (idInBlockTable != 0) { // 32
             uint64_t stateOffset = idInBlockTable * constInfo_.blockSize * coff * constInfo_.headDim +
                 remainRowCnt * coff * constInfo_.headDim +
@@ -684,10 +677,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(const Glob
             copyParams.blockLen = dDealSize / (32 / sizeof(T));
             copyParams.dstStride = (coff * constInfo_.headDim - dDealSize) / (32 / sizeof(T));
             copyParams.srcStride = (coff * dDealSize - dDealSize) / (32 / sizeof(T));
-            // printf("stateOffset=%d, copyRowCnt=%d, dDealSize=%d, dstStride=%d, srcStride=%d\n",
-            //     stateOffset, copyRowCnt, dDealSize, (coff * constInfo_.headDim - dDealSize), (coff * dDealSize - dDealSize));
             DataCopy(state[stateOffset], input, copyParams);
-            // AscendC::DumpTensor(state[stateOffset], 110, 64);
         }
 
         copyFinishRowCnt += copyRowCnt;
@@ -722,7 +712,6 @@ __aicore__ inline void CompressorBlockVector<COMP>::SaveLeftFirst(const LocalTen
     uint64_t endSeqIdx = bStartPos + bSeqUsed;
     uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
     uint64_t srcBaseOffset = (endIdxInBlock - copySeqCnt) * coff * dDealSize;
-    // printf("--SaveLeftFirst-----srcBaseOffset=%d, endIdxInBlock=%d, copySeqCnt=%d\n", srcBaseOffset, endIdxInBlock, copySeqCnt);
     WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], preBIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
     WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], preBIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
 }
@@ -736,22 +725,16 @@ __aicore__ inline void CompressorBlockVector<COMP>::SaveState(const LocalTensor<
         // 存右边
         if (blockInfo.sIdx + blockInfo.validSeqCnt == blockInfo.bSeqUsed) {
             uint32_t copySeqCnt = constInfo_.cmpRatio - blockInfo.tailHolderSeqCnt;
-            if (blockInfo.tailHolderSeqCnt >= 0) {
-                if (blockInfo.validSeqCnt < copySeqCnt) {
-                    copySeqCnt = blockInfo.validSeqCnt;
+            if (blockInfo.tailHolderSeqCnt > 0) {
+                if (blockInfo.validSeqCnt - copySeqCnt > constInfo_.cmpRatio) {
+                    copySeqCnt += constInfo_.cmpRatio;
                 } else {
-                    if (blockInfo.validSeqCnt - copySeqCnt > constInfo_.cmpRatio) {
-                        copySeqCnt += constInfo_.cmpRatio;
-                    } else {
-                        copySeqCnt += blockInfo.validSeqCnt - copySeqCnt;
-                    }
+                    copySeqCnt += blockInfo.validSeqCnt - copySeqCnt;
                 }
             }
             uint64_t endSeqIdx = blockInfo.bStartPos + blockInfo.sIdx + blockInfo.validSeqCnt;
             uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
             uint64_t srcBaseOffset = (blockInfo.headHolderSeqCnt + blockInfo.validSeqCnt - copySeqCnt) * coff * dDealSize;
-            // printf("headHolderSeqCnt=%d, validSeqCnt=%d, copySeqCnt=%d, tailHolderSeqCnt=%d\n", blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, copySeqCnt, blockInfo.tailHolderSeqCnt);
-            // printf("--srcStride=%d--\n", (srcBaseOffset + dDealSize));
             WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + dDealSize], blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
             WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + dDealSize], blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
         } else if (blockInfo.sIdx + blockInfo.validSeqCnt + constInfo_.cmpRatio > blockInfo.bSeqUsed) {
@@ -837,7 +820,6 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadState(const LocalTensor<
             uint64_t endSeqIdx = blockInfo.bStartPos;
             uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
             uint64_t srcBaseOffset = 0;
-            // printf("--headHolderSeqCnt=%d, validSeqCnt=%d, copySeqCnt=%d, tailHolderSeqCnt=%d\n", blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, copySeqCnt, blockInfo.tailHolderSeqCnt);
             ReadFromCacheState(kvLocal[dDealSize], kvStateGm_, kvBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
             ReadFromCacheState(scoreLocal[dDealSize], scoreStateGm_, scoreBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
         }
@@ -851,10 +833,9 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadState(const LocalTensor<
                 } else {
                     // 存在前一个压缩组, 左侧数据全部在state中
                     uint32_t copySeqCnt = constInfo_.cmpRatio;
-                    uint64_t endSeqIdx = blockInfo.bStartPos / constInfo_.cmpRatio * constInfo_.cmpRatio;
+                    uint64_t endSeqIdx = blockInfo.bStartPos / constInfo_.cmpRatio;
                     uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
                     uint64_t srcBaseOffset = 0;
-                    // printf("-1-headHolderSeqCnt=%d, validSeqCnt=%d, copySeqCnt=%d, tailHolderSeqCnt=%d\n", blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, copySeqCnt, blockInfo.tailHolderSeqCnt);
                     ReadFromCacheState(kvLocal, kvStateGm_, kvBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
                     ReadFromCacheState(scoreLocal, scoreStateGm_, scoreBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
                 }
