@@ -74,15 +74,12 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
 }
 
 ValidSocVersion KVQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
-    if (socVersion_ == "Ascend910_9392" || socVersion_ == "ASCEND910B" || socVersion_ == "ascend910B" ||
-                socVersion_ == "Ascend910B" || socVersion_ == "Ascend910_93" || socVersion_ == "Ascend910" ||
-                socVersion_ == "ascend910" || socVersion_ == "ASCEND910") {
-        return ValidSocVersion::ASCEND910B;
-    } else if (socVersion_ == "Ascend910_9589" || socVersion_ == "ASCEND910D" || socVersion_ == "ascend910D" ||
-                socVersion_ == "Ascend910D" || socVersion_ == "Ascend910_95") {
+    const std::string ascend910D = "Ascend910_95";
+    if (socVersion_.find(ascend910D) != std::string::npos) {
         return ValidSocVersion::ASCEND910D;
+    } else {
+        return ValidSocVersion::ASCEND910B;
     }
-    
     return ValidSocVersion::RESERVED_VERSION;
 }
 
@@ -833,9 +830,6 @@ optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)met
     }
     return true;
 }
-
-//static const char *SaskernelType = "KVQuantSparseAttnSharedkvMetadata";
-//REGISTER_CPU_KERNEL(SaskernelType, KVQuantSparseAttnSharedkvMetadataCpuKernel);
 namespace {
     static const char *kernelType = "KVQuantSparseAttnSharedkvMetadata";
     REGISTER_CPU_KERNEL(kernelType, KVQuantSparseAttnSharedkvMetadataCpuKernel);
