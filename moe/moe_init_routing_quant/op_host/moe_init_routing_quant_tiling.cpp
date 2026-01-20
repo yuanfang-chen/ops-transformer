@@ -87,7 +87,6 @@ private:
     void ShowTilingData();
     void Tinlig4VBSMultiCoreCompute(QuantVBSComputeTilingData* tilingData);
     void Tinlig4VBSOneCoreCompute(QuantVBSComputeTilingData* tilingData);
-    int64_t CalPerLoopMaxRows(int64_t maxColsOneLoop, int64_t kFactor);
 
     int64_t aivNum;
     int64_t sortLoopMaxElement = 0;
@@ -346,6 +345,8 @@ ge::graphStatus MoeInitRoutingQuantTilingBase::GetWorkspaceSize()
 ge::graphStatus MoeInitRoutingQuantTilingBase::PostTiling()
 {
     context_->SetBlockDim(aivNum);
+    // 涉及核间同步的算子必须设置schedule_mode为1，独占全核
+    context_->SetScheduleMode(1);
     size_t* currentWorkspace = context_->GetWorkspaceSizes(1);
     currentWorkspace[0] = workspaceSize_;
     auto rawTilingData = context_->GetRawTilingData();
@@ -543,14 +544,6 @@ void MoeInitRoutingQuantTilingBase::Tiling4GatherOutComputeSplitK()
             tilingData->get_lastCorePerLoopRows());
 }
 
-int64_t MoeInitRoutingQuantTilingBase::CalPerLoopMaxRows(int64_t maxColsOneLoop, int64_t kFactor)
-{
-    return (static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO - kFactor * ONE_BLOCK_BYTE) / 
-           (static_cast<int64_t>(sizeof(int32_t)) * kFactor + (maxColsOneLoop + ONE_BLOCK_BYTE) *
-           (inuptXDtypeSize_ + static_cast<int64_t>(sizeof(float) + sizeof(int16_t))) + 
-           maxColsOneLoop * inuptXDtypeSize_ + ONE_BLOCK_BYTE);
-}
-
 void MoeInitRoutingQuantTilingBase::Tiling4GatherOutComputeSplitN()
 {
     auto tilingData = &moeInitRoutingTilingData.gatherOutComputeParamsOp;
@@ -565,12 +558,20 @@ void MoeInitRoutingQuantTilingBase::Tiling4GatherOutComputeSplitN()
 
     int64_t maxColsOneLoop = std::min(MAX_COLS_ONE_LOOP / NUM_FOUR, moeInitRoutingTilingData.get_cols());
     int64_t kFactor = moeInitRoutingTilingData.get_k();
-    int64_t perLoopMaxRows = CalPerLoopMaxRows(maxColsOneLoop, kFactor);
+    int64_t perLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO - kFactor * ONE_BLOCK_BYTE) /
+                             (static_cast<int64_t>(sizeof(int32_t)) * kFactor +
+                              (maxColsOneLoop + ONE_BLOCK_BYTE) *
+                                  (inuptXDtypeSize_ + static_cast<int64_t>(sizeof(float) + sizeof(int16_t))) +
+                              maxColsOneLoop * inuptXDtypeSize_ + ONE_BLOCK_BYTE);
     OP_LOGD(opName, "perLoopMaxRows is %ld", perLoopMaxRows);
     while (perLoopMaxRows <= 0) {
         OP_LOGW(opName, "perLoopMaxRows is %ld, less than 0", perLoopMaxRows);
         kFactor = kFactor / NUM_TWO;
-        perLoopMaxRows = CalPerLoopMaxRows(maxColsOneLoop, kFactor);
+        perLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO - kFactor * ONE_BLOCK_BYTE) /
+                         (static_cast<int64_t>(sizeof(int32_t)) * kFactor +
+                          (maxColsOneLoop + ONE_BLOCK_BYTE) *
+                              (inuptXDtypeSize_ + static_cast<int64_t>(sizeof(float) + sizeof(int16_t))) +
+                          maxColsOneLoop * inuptXDtypeSize_ + ONE_BLOCK_BYTE);
     }
 
     tilingData->set_maxColsOneLoop(maxColsOneLoop);
@@ -588,13 +589,15 @@ void MoeInitRoutingQuantTilingBase::Tiling4GatherOutComputeSplitN()
     tilingData->set_needCoreNum(Ops::Base::CeilDiv(realRows, tilingData->get_perCoreRows()));
     tilingData->set_perCorePerLoopRows(std::min(tilingData->get_perCoreRows(), perLoopMaxRows));
 
-    tilingData->set_perCoreLastLoopRows(tilingData->get_perCoreRows() -
+    tilingData->set_perCoreLastLoopRows(
+        tilingData->get_perCoreRows() -
         (Ops::Base::CeilDiv(tilingData->get_perCoreRows(), tilingData->get_perCorePerLoopRows()) - 1) *
             tilingData->get_perCorePerLoopRows());
     tilingData->set_needCoreNum(Ops::Base::CeilDiv(realRows, tilingData->get_perCoreRows()));
     tilingData->set_lastCoreRows(realRows - (tilingData->get_needCoreNum() - 1) * tilingData->get_perCoreRows());
     tilingData->set_lastCorePerLoopRows(std::min(tilingData->get_lastCoreRows(), perLoopMaxRows));
-    tilingData->set_lastCoreLastLoopRows(tilingData->get_lastCoreRows() -
+    tilingData->set_lastCoreLastLoopRows(
+        tilingData->get_lastCoreRows() -
         (Ops::Base::CeilDiv(tilingData->get_lastCoreRows(), tilingData->get_lastCorePerLoopRows()) - 1) *
             tilingData->get_lastCorePerLoopRows());
 }

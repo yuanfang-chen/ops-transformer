@@ -39,7 +39,6 @@ private:
     __aicore__ inline void Compute();
     __aicore__ inline void CopyOut(int64_t progress, int64_t colsProgress, LocalTensor<int32_t>& indicesLocal);
     __aicore__ inline void UpdataOffset(int64_t progress, int64_t colsProgress);
-    __aicore__ inline void ParseTilingData(const MoeInitRoutingQuantTilingData* tilingData);
 
 private:
     TPipe* pipe;
@@ -186,9 +185,11 @@ __aicore__ inline void MoeGatherOut<T>::CopyOut(
 }
 
 template <typename T>
-__aicore__ inline void MoeGatherOut<T>::ParseTilingData(
-    const MoeInitRoutingQuantTilingData* tilingData)
+__aicore__ inline void MoeGatherOut<T>::Init(
+    GM_ADDR inputActivations, GM_ADDR expandSrcToDstRow, GM_ADDR expandedActivations,
+    const MoeInitRoutingQuantTilingData* tilingData, TPipe* tPipe)
 {
+    this->pipe = tPipe;
     this->blockIdx = GetBlockIdx();
     this->gatherOutTilingData = &(tilingData->gatherOutComputeParamsOp);
 
@@ -217,16 +218,6 @@ __aicore__ inline void MoeGatherOut<T>::ParseTilingData(
         this->perLoopK = this->gatherOutTilingData->perCorePerLoopK;
         this->lastLoopK = this->gatherOutTilingData->perCoreLastLoopK;
     }
-}
-
-template <typename T>
-__aicore__ inline void MoeGatherOut<T>::Init(
-    GM_ADDR inputActivations, GM_ADDR expandSrcToDstRow, GM_ADDR expandedActivations,
-    const MoeInitRoutingQuantTilingData* tilingData, TPipe* tPipe)
-{
-    this->pipe = tPipe;
-    ParseTilingData(tilingData);
-
     if (this->gatherOutTilingData->splitFlag == SPLIT_N) {
         inputActivationsGm.SetGlobalBuffer(
             (__gm__ T*)inputActivations + this->blockIdx * this->gatherOutTilingData->perCoreRows * this->cols,
@@ -241,8 +232,10 @@ __aicore__ inline void MoeGatherOut<T>::Init(
             tilingData->n * tilingData->k);
     }
 
-    expandedActivationsGm.SetGlobalBuffer((__gm__ int8_t*)expandedActivations, this->n * this->k * this->cols);
-    pipe->InitBuffer(inputActivationsCopyInQueue, BUFFER_NUM,
+    expandedActivationsGm.SetGlobalBuffer(
+        (__gm__ int8_t*)expandedActivations, tilingData->n * tilingData->k * this->cols);
+    pipe->InitBuffer(
+        inputActivationsCopyInQueue, BUFFER_NUM,
         this->perLoopRows * Align(this->maxColsOneLoop, sizeof(int8_t)) * sizeof(T));
     pipe->InitBuffer(
         floatQueue, BUFFER_NUM, this->perLoopRows * Align(this->maxColsOneLoop, sizeof(int8_t)) * sizeof(float));

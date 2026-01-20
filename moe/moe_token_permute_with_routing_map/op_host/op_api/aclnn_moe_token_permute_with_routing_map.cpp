@@ -80,7 +80,9 @@ static inline bool CheckDtypeValid(
     if (probsOptional != nullptr) {
         // 检查groupIdxOptional的数据类型是否在支持列表内
         OP_CHECK_DTYPE_NOT_SUPPORT(probsOptional, dtype_list, return false);
-        OP_CHECK_DTYPE_NOT_MATCH(tokens, probsOptional->GetDataType(), return false);
+        if (probsOptional->GetDataType() != op::DataType::DT_FLOAT || tokens->GetDataType() != op::DataType::DT_BF16) {
+            OP_CHECK_DTYPE_NOT_MATCH(tokens, probsOptional->GetDataType(), return false);
+        }
     }
     if (permuteProbsOutOptional != nullptr) {
         // 检查groupIdxOptional的数据类型是否在支持列表内
@@ -169,21 +171,6 @@ static aclnnStatus CheckParams(
     }
     return ACLNN_SUCCESS;
 }
-
-static aclnnStatus ProbsOptionalHandler(
-    const aclTensor* probsOptional, const aclTensor* permuteProbsOpOut, aclTensor* permuteProbsOutOptional,
-    aclOpExecutor* executor)
-{
-    if (probsOptional != nullptr) {
-        CHECK_RET(permuteProbsOpOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
-
-        // 如果出参out是非连续Tensor，需要把计算完的连续Tensor转非连续
-        auto permuteProbsResult = l0op::ViewCopy(permuteProbsOpOut, permuteProbsOutOptional, executor);
-        CHECK_RET(permuteProbsResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    }
-    return ACLNN_SUCCESS;
-}
-
 } // namespace
 
 aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGetWorkspaceSize(
@@ -244,9 +231,14 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGetWorkspaceSize(
     auto sortedIndicesResult = l0op::ViewCopy(sortedIndicesOpOut, sortedIndicesOut, uniqueExecutor.get());
     CHECK_RET(sortedIndicesResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
-    CHECK_RET(ProbsOptionalHandler(probsOptional,  MoeTokenPermuteWithRoutingMapOut[1], permuteProbsOutOptional,
-                                   uniqueExecutor.get()) == ACLNN_SUCCESS,
-              ACLNN_ERR_INNER_NULLPTR);
+    if (probsOptional != nullptr) {
+        auto permuteProbsOpOut = MoeTokenPermuteWithRoutingMapOut[1];
+        CHECK_RET(permuteProbsOpOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+        // 如果出参out是非连续Tensor，需要把计算完的连续Tensor转非连续
+        auto permuteProbsResult = l0op::ViewCopy(permuteProbsOpOut, permuteProbsOutOptional, uniqueExecutor.get());
+        CHECK_RET(permuteProbsResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
 
     const aclTensor* permuteTokensOpOut;
     #ifdef BUILD_OPEN_PROJECT_API
