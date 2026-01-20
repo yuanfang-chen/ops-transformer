@@ -6,20 +6,20 @@
 
 | 产品                                                                   | 是否支持 |
 |:-------------------------------------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                                                |    √    |
+| <term>Ascend 950PR/Ascend 950DT</term>                                                |    √    |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>                        |    √    |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √    |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √    |
 | <term>Atlas 200I/500 A2 推理产品</term>                                         |    ×    |
 | <term>Atlas 推理系列产品 </term>                                                |    ×    |
 | <term>Atlas 训练系列产品</term>                                                 |    ×    |
-| <term>Atlas 200/300/500 推理产品</term>                                         |    ×    |
+
 
 ## 功能说明
 
 - 接口功能：执行单路旋转位置编码计算。
 - 计算公式：
 
-  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
     - 不传入rotate参数（推荐half模式1D使用）：
 
@@ -75,6 +75,7 @@
      x切分为3份，$x = [x1|x2|x3]_{(dim=4)} ∈ R^{B×S×N×D}, x1 ∈ R^{B×S×N×D1},x2 ∈ R^{B×S×N×D2},x3 ∈ R^{B×S×N×D3}, 其中D = D1 + D2 + D3$，那么可以构造一个rotate矩阵，实现调用一次aclnnRotaryPositionEmbeddingV2接口完成x的旋转位置编码计算功能，rotate矩阵构造如下：
      $$rotate = diag(rotate1, rotate2, rotate3) = \begin{pmatrix}rotate1&0&0\\0&rotate2&0\\0&0&rotate3\\\end{pmatrix}$$
      其中rotate1、rotate2、rotate3分别为x1、x2、x3的旋转编码矩阵，单个旋转矩阵构建参考调用示例。
+
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用“aclnnRotaryPositionEmbeddingV2GetWorkspaceSize”接口获取入参并根据流程计算所需workspace大小，再调用“aclnnRotaryPositionEmbeddingV2”接口执行计算。
@@ -210,10 +211,11 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
   </table>
 
   - 参数mode约束：
-    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品 </term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件 </term>：0=half，1=interleave。V2接口不同mode参数约束和V1接口相同，开发者可以根据mode在调用示例的辅助矩阵rotate生成中选择合适的rotate生成方式。
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品 </term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品 </term>：0=half，1=interleave。V2接口不同mode参数约束和V1接口相同，开发者可以根据mode在调用示例的辅助矩阵rotate生成中选择合适的rotate生成方式。
     
   - 参数rotate当前支持BFLOAT16、FLOAT16、FLOAT32类型。
-- **返回值：**
+
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -255,7 +257,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
 
 ## aclnnRotaryPositionEmbeddingV2
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1155px"><colgroup>
   <col style="width: 173px">
@@ -291,13 +293,14 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
     </tr>
   </tbody>
   </table>
-- **返回值：**
+  
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
   输入张量x支持BNSD、BSND、SBND排布。
   输入张量x、cos、sin及输出张量y的D维度大小必须相同，满足D<896，且必须为2的倍数。

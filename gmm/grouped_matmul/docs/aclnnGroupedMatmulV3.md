@@ -6,13 +6,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      √     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -22,13 +21,13 @@
   - m轴分组：$k_i$各组相同，$weight_i/y_i$可以在$n_i$上拼接。
 
     相较于[GroupedMatmul](aclnnGroupedMatmul.md)接口，**此接口新增：**
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - 非量化场景，支持weight转置（转置指若shape为[M,K]时，则stride为[1,M],数据排布为[K,M]的场景）。
     - 支持m轴和k轴分组，由groupType表示。
     - x、weight、y都为单tensor非量化场景支持x，weight输入都为float32类型。
     - 量化、伪量化场景，支持weight转置，支持weight为单tensor。
     - 对于[aclnnGroupedMatmulGetWorkspaceSize](aclnnGroupedMatmul.md)接口支持的特性，该接口不支持x为单tensor，weight/y为多tensor场景。
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - 伪量化场景，支持weight转置，支持x，weight，y均为单tensor。
     - 支持m轴和k轴分组，由groupType表示。
     - 对于[aclnnGroupedMatmulGetWorkspaceSize](aclnnGroupedMatmul.md)接口支持的特性，该接口不支持x为单tensor，weight/y为多tensor场景。
@@ -94,7 +93,7 @@ aclnnStatus aclnnGroupedMatmulV3(
 
 ## aclnnGroupedMatmulV3GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1483px"><colgroup>
   <col style="width: 210px">
@@ -253,7 +252,7 @@ aclnnStatus aclnnGroupedMatmulV3(
     </tr>
   </tbody></table>
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - x支持FLOAT16、BFLOAT16、INT8、FLOAT32
     - weight支持FLOAT16、BFLOAT16、INT8、FLOAT32
     - biasOptional支持FLOAT16、FLOAT32、INT32
@@ -266,7 +265,7 @@ aclnnStatus aclnnGroupedMatmulV3(
     - y支持FLOAT16
     - groupType支持m轴分组
     - 不支持scaleOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - x支持FLOAT16、BFLOAT16、FLOAT32
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - biasOptional支持FLOAT16、BFLOAT16、FLOAT32
@@ -274,7 +273,7 @@ aclnnStatus aclnnGroupedMatmulV3(
     - 不支持scaleOptional、offsetOptional
     - groupType支持m轴分组和不分组，仅非量化支持k轴分组。
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -319,7 +318,7 @@ aclnnStatus aclnnGroupedMatmulV3(
 
 ## aclnnGroupedMatmulV3
 
-- **参数说明：**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 834px"><colgroup>
     <col style="width: 118px">
@@ -356,7 +355,7 @@ aclnnStatus aclnnGroupedMatmulV3(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -366,7 +365,7 @@ aclnnStatus aclnnGroupedMatmulV3(
   - aclnnGroupedMatmulV3默认确定性实现。
 - 如果传入groupListOptional，groupListOptional必须为非负递增数列，groupListOptional长度不能为1。
 - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
   - 非量化场景支持的输入类型为：
     - x为FLOAT16、weight为FLOAT16、biasOptional为FLOAT16、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为FLOAT16；
     - x为BFLOAT16、weight为BFLOAT16、biasOptional为FLOAT32、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为BFLOAT16；
@@ -398,7 +397,7 @@ aclnnStatus aclnnGroupedMatmulV3(
       |:---------:|:-------:| :------ |
       | 0 | 单单单 |1）仅支持splitItem为2/3<br>2）weight中tensor需为3维，x，y中tensor需为2维<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值与x中tensor的第一维相等，当groupListType为1时，数值的总和与x中tensor的第一维相等<br>4）groupListOptional第1维最大支持1024， 即最多支持1024个group<br>5）支持weight转置，不支持x转置 |
 
-- <term>昇腾910_95 AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
 
   <details>
     <summary><term>非量化量化场景约束</term></summary>

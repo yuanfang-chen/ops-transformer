@@ -6,23 +6,23 @@
 
 | 产品                                                                | 是否支持 |
 |:------------------------------------------------------------------|:----:|
-| <term>昇腾910_95 AI处理器</term>                                       |  ×   |
+| <term>Ascend 950PR/Ascend 950DT</term>                                       |  ×   |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>                      |  √   |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |  √   |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |  √   |
 | <term>Atlas 200I/500 A2 推理产品</term>                               |  ×   |
 | <term>Atlas 推理系列产品</term>                                        |  ×   |
 | <term>Atlas 训练系列产品</term>                                         |  ×   |
-| <term>Atlas 200/300/500 推理产品</term>                               |  ×   |
 
 ## 功能说明
 
-- 接口功能：GroupedMatmul和MoeFinalizeRouting的融合算子，GroupedMatmul计算后的输出按照索引做combine动作，支持w为AI处理器亲和数据排布格式(NZ)。
+GroupedMatmul和MoeFinalizeRouting的融合算子，GroupedMatmul计算后的输出按照索引做combine动作，支持w为AI处理器亲和数据排布格式(NZ)。
 本接口相较于[aclnnGroupedMatmulFinalizeRoutingWeightNz](aclnnGroupedMatmulFinalizeRoutingWeightNz.md)，新增对INT4类型weight矩阵的支持，并新增入参offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、tuningConfigOptional，其中前三个参数当前为预留参数，暂不生效，传入空指针即可。tuningConfigOptional是调优参数，数组中的第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值合理进行tiling切分，性能更优。请根据实际情况选择合适的接口。
 
 
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnGroupedMatmulFinalizeRoutingWeightNzV2”接口执行计算。
+
 ```cpp
 aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(
     const aclTensor   *x1,
@@ -59,7 +59,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 
 ## aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
   <col style="width: 170px">
   <col style="width: 120px">
@@ -305,7 +305,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
@@ -346,7 +346,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 
 ## aclnnGroupedMatmulFinalizeRoutingWeightNzV2
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 953px"><colgroup>
     <col style="width: 173px">
     <col style="width: 112px">
@@ -382,11 +382,12 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+
 - 确定性计算：
   - aclnnGroupedMatmulFinalizeRoutingWeightNzV2默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 
@@ -400,6 +401,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 | INT8 | INT4 | INT64   | FLOAT32 | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT | IntArray             |
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
   ```Cpp

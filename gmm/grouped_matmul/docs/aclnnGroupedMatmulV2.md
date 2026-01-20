@@ -6,24 +6,23 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
 - 接口功能：实现分组矩阵乘计算，每组矩阵乘的维度大小可以不同。基本功能为矩阵乘，如$y_i[m_i,n_i]=x_i[m_i,k_i] \times weight_i[k_i,n_i], i=1...g$，其中g为分组个数，$m_i/k_i/n_i$为对应shape。
     相较于[GroupedMatmul](aclnnGroupedMatmul.md)接口，**此接口新增**：
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - 支持不同分组轴，由groupType表示。
     - 非量化场景，支持x，weight转置（转置指若shape为[M,K]时，则stride为[1,  M],数据排布为[K,M]的场景）。
     - 非量化场景支持x，weight输入都为float32类型。
     - 量化、伪量化场景，支持weight转置，支持weight为单tensor。
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - 支持不同分组轴，由groupType表示。
     - 非量化场景支持x，weight输入都为float32类型。
     - 伪量化场景，支持weight转置，支持x，weight，y均为单tensor。
@@ -83,7 +82,7 @@ aclnnStatus aclnnGroupedMatmulV2(
 
 ## aclnnGroupedMatmulV2GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1483px"><colgroup>
   <col style="width: 210px">
@@ -244,12 +243,12 @@ aclnnStatus aclnnGroupedMatmulV2(
     </tr>
   </tbody></table>
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - x支持FLOAT16、BFLOAT16、INT8、FLOAT32
     - weight支持FLOAT16、BFLOAT16、INT8、FLOAT32
     - biasOptional支持FLOAT16、FLOAT32、INT32
     - y支持FLOAT16、BFLOAT16、INT8、FLOAT32
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - x支持FLOAT16、BFLOAT16、FLOAT32
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - biasOptional支持FLOAT16、BFLOAT16、FLOAT32
@@ -257,7 +256,7 @@ aclnnStatus aclnnGroupedMatmulV2(
     - 不支持scaleOptional、offsetOptional
     - groupType支持m轴分组和不分组，仅非量化支持k轴分组
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -302,7 +301,7 @@ aclnnStatus aclnnGroupedMatmulV2(
 
 ## aclnnGroupedMatmulV2
 
-- **参数说明：**
+- **参数说明**
     <table style="undefined;table-layout: fixed; width: 834px"><colgroup>
     <col style="width: 118px">
     <col style="width: 87px">
@@ -338,7 +337,7 @@ aclnnStatus aclnnGroupedMatmulV2(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -346,7 +345,7 @@ aclnnStatus aclnnGroupedMatmulV2(
 
 - 确定性计算：
   - aclnnGroupedMatmulV2默认确定性实现。
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
   - 非量化场景支持的输入类型为：
     - x为FLOAT16、weight为FLOAT16、biasOptional为FLOAT16、scaleOptional为 空、offsetOptional为空、antiquantScaleOptional为空、 antiquantOffsetOptional为空、y为FLOAT16；
     - x为BFLOAT16、weight为BFLOAT16、biasOptional为FLOAT32、scaleOptional 为空、offsetOptional为空、antiquantScaleOptional为空、 antiquantOffsetOptional为空、y为BFLOAT16；
@@ -374,7 +373,7 @@ aclnnStatus aclnnGroupedMatmulV2(
   - x和weight中每一组tensor的最后一维大小都应小于65536。$x_i$的最后一维指当属性transpose_x为false时$x_i$的K轴或当transpose_x为true时$x_i$的M轴。$weight_i$的最后一维指当属性transpose_weight为false时$weight_i$的N轴或当transpose_weight为true时$weight_i$的K轴。
   - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
 
-- <term>昇腾910_95 AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
     <details>
     <summary>非量化场景约束</summary>
       <a id="非量化场景约束"></a>

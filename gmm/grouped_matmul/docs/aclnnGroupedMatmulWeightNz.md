@@ -3,15 +3,15 @@
 [📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/gmm/grouped_matmul)
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      √     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -24,7 +24,7 @@
 
       - 输入的weight的数据格式支持AI处理器亲和数据排布格式（FRACTAL_NZ）。
       - 新增参数quantGroupSize，整数型参数，代表分组量化（per-group）的分组大小，不涉及分组量化时，填0。
-      - <term>昇腾910_95 AI处理器</term>：暂不支持quantGroupSize参数。
+      - <term>Ascend 950PR/Ascend 950DT</term>：暂不支持quantGroupSize参数。
 
   - **计算公式**：
 
@@ -111,6 +111,7 @@
 
         其中antiquant\_scale_i为weight矩阵pergroup量化参数，scale_i为weight矩阵perchannel量化参数，per\_token\_scale_i为
         pertoken量化参数。
+        
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGroupedMatmulWeightNzGetWorkspaceSize”接口获取入参并根据计算流程计算所需workspace大小，再调用“aclnnGroupedMatmulWeightNz”接口执行计算。
@@ -152,7 +153,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 
 ## aclnnGroupedMatmulWeightNzGetWorkspaceSize
 
-  - **参数说明：**
+  - **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1550px;">
     <colgroup>
@@ -359,7 +360,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
     <td>quantGroupSize</td>
     <td>输入</td>
     <td>代表分组量化（per-group）的分组大小。</td>
-    <td>不涉及分组量化时，填0。<term>昇腾910_95 AI处理器</term>暂不支持。</td>
+    <td>不涉及分组量化时，填0。<term>Ascend 950PR/Ascend 950DT</term>暂不支持。</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -418,7 +419,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
     </tbody>
     </table>
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
       - 上表数据类型列中的角标“1”代表该系列支持的数据类型，角标“2”代表该系列不支持的数据类型。
       - `weight`可使用`aclnnCalculateMatmulWeightSizeV2`及`aclnnTransMatmulWeight`完成ND到NZ转换。当传入INT32时，接口内部将每个INT32识别成8个INT4。
       - 非A8W8场景`actType`只支持0。A8W8场景`actType`不支持3。
@@ -426,7 +427,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
       - 仅支持FLOAT16。`weight`仅支持FRACTAL_NZ格式，且需通过辅助接口转换。
       - `scaleOptional`、`offsetOptional`等量化/非对称量化参数功能暂不支持，需传空指针。
       - `groupType`只支持m轴分组(0)。`actType`只支持0。`tuningConfigOptional`不支持。
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
       - 上表数据类型列中的角标“2”代表该系列支持的数据类型。
       - `x`支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、INT8。
       - `weight`支持FLOAT16、BFLOAT16、FLOAT4_E2M1、INT8、INT4。支持FRACTAL_NZ格式。可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。当数据类型为FLOAT4_E2M1时，还需要在aclnnNpuFormatCast调用后，调用aclnnCast接口将FLOAT32表示的FLOAT4_E2M1转换为正确的类型。但当为INT4类型时，需要使用aclnnConvertWeightToInt4Pack接口完成数据格式从ND到NZ和数据类型从INT32到INT4的转换。当传入FLOAT32或者INT32时，接口内部每个FLOAT32/INT32识别成8个FLOAT4_E2M1/INT4。
@@ -435,7 +436,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
       - `quantGroupSize`暂不支持。
       - `actType`只支持0。
 
-  - **返回值：**
+  - **返回值**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -489,7 +490,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 
 ## aclnnGroupedMatmulWeightNz
 
-  - **参数说明：**
+  - **参数说明**
 
     |参数名| 输入/输出   |    描述|
     |-------|---------|----------------|
@@ -498,7 +499,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
     |executor|输入|op执行器，包含了算子计算流程。|
     |stream|输入|指定执行任务的Stream。|
 
-  - **返回值：**
+  - **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -511,7 +512,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
   - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
   - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。
 <details>
-<summary><term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term></summary>
+<summary><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term></summary>
 
   - 非量化场景支持的输入类型为：
 
@@ -583,7 +584,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 </details>
 
 <details>
-<summary><term>昇腾910_95 AI处理器</term></summary>
+<summary><term>Ascend 950PR/Ascend 950DT</term></summary>
 
   - 当前支持非量化场景、伪量化场景与全量化场景
   - 非量化场景支持的数据类型为：

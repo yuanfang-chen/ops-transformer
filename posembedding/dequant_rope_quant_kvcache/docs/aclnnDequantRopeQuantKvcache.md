@@ -6,13 +6,13 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    ×     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    ×     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
+
 
 ## 功能说明
 
@@ -72,12 +72,44 @@
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnDequantRopeQuantKvcacheGetWorkspaceSize”接口获取入参并根据流程计算所需workspace大小，再调用“aclnnDequantRopeQuantKvcache”接口执行计算。
 
-* `aclnnStatus aclnnDequantRopeQuantKvcacheGetWorkspaceSize(const aclTensor *x, const aclTensor *cos, const aclTensor *sin, aclTensor *kCacheRef, aclTensor *vCacheRef, const aclTensor *indices, const aclTensor *scaleK, const aclTensor *scaleV, const aclTensor *offsetKOptional, const aclTensor *offsetVOptional, const aclTensor *weightScaleOptional, const aclTensor *activationScaleOptional, const aclTensor *biasOptional, const aclIntArray *sizeSplits, char *quantModeOptional, char *layoutOptional, bool kvOutput, char *cacheModeOptional, const aclTensor *qOut, const aclTensor *kOut, const aclTensor *vOut, uint64_t *workspaceSize, aclOpExecutor **executor)`
-* `aclnnStatus aclnnDequantRopeQuantKvcache(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)`
+```Cpp
+aclnnStatus aclnnDequantRopeQuantKvcacheGetWorkspaceSize(
+  const aclTensor   *x, 
+  const aclTensor   *cos, 
+  const aclTensor   *sin, 
+  aclTensor         *kCacheRef, 
+  aclTensor         *vCacheRef, 
+  const aclTensor   *indices, 
+  const aclTensor   *scaleK, 
+  const aclTensor   *scaleV, 
+  const aclTensor   *offsetKOptional, 
+  const aclTensor   *offsetVOptional, 
+  const aclTensor   *weightScaleOptional, 
+  const aclTensor   *activationScaleOptional, 
+  const aclTensor   *biasOptional, 
+  const aclIntArray *sizeSplits, 
+  char              *quantModeOptional, 
+  char              *layoutOptional, 
+  bool               kvOutput, 
+  char              *cacheModeOptional, 
+  const aclTensor   *qOut, 
+  const aclTensor   *kOut, 
+  const aclTensor   *vOut, 
+  uint64_t          *workspaceSize, 
+  aclOpExecutor    **executor)
+```
+
+```Cpp
+aclnnStatus aclnnDequantRopeQuantKvcache(
+  void*          workspace, 
+  uint64_t       workspaceSize, 
+  aclOpExecutor* executor, 
+  aclrtStream    stream)
+```
 
 ## aclnnDequantRopeQuantKvcacheGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   
   * x(aclTensor\*，计算输入)：公式中的用于切分的输入`x`，Device侧的aclTensor，shape为[B，S，H]或[B，H]，H=(Nq+Nkv+Nkv)*D，数据类型支持FLOAT16、INT32、BFLOAT16。支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND，shape维度只支持2维或3维。
   * cos(aclTensor\*，计算输入)：公式中的用于位置编码的输入`cos`，Device侧的aclTensor，`x`为3维时shape为[B，S，1，D]，`x`为二维时shape为[B，D]，数据类型支持FLOAT16、BFLOAT16，数据类型和`sin`保持一致。支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND，shape维度只支持2维或4维。
@@ -102,25 +134,78 @@
   * vOut(aclTensor\*，计算输出)：公式中的输出`vOut`，表示经过处理的v，Device侧的aclTensor，当`kvOutput`为false时，`vOut`为空；否则`x`为3维时shape为[B，S，Nkv，D]，`x`为二维时shape为[B，Nkv，D]。数据类型和`sin`保持一致。不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
   * workspaceSize(uint64_t\*，出参)：返回需要在Device侧申请的workspace大小。
   * executor(aclOpExecutor\*\*，出参)：返回op执行器，包含了算子计算流程。
-- **返回值：**
+
+- **返回值**
   
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
-  ```
   第一段接口完成入参校验，出现以下场景时报错：
-    161001(ACLNN_ERR_PARAM_NULLPTR): 1. 输入和输出的Tensor是空指针。
-    161002(ACLNN_ERR_PARAM_INVALID): 1. 输入和输出的数据类型不在支持的范围内。
-  ```
+
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 269px">
+  <col style="width: 119px">
+  <col style="width: 762px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>返回值</th>
+      <th>错误码</th>
+      <th>描述</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
+      <td>161001</td>
+      <td>输入和输出的Tensor是空指针。</td>
+    </tr>
+    <tr>
+      <td>ACLNN_ERR_PARAM_INVALID</td>
+      <td>161002</td>
+      <td>输入和输出的数据类型不在支持的范围内。</td>
+    </tr>
+  </tbody>
+  </table>
 
 ## aclnnDequantRopeQuantKvcache
 
-- **参数说明：**
+- **参数说明**
   
-  * workspace(void\*，入参)：在Device侧申请的workspace内存地址。
-  * workspaceSize(uint64_t，入参)：在Device侧申请的workspace大小，由第一段接口aclnnDequantRopeQuantKvcacheGetWorkspaceSize获取。
-  * executor(aclOpExecutor\*，入参)：op执行器，包含了算子计算流程。
-  * stream(aclrtStream，入参)：指定执行任务的Stream。
-- **返回值：**
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>参数名</th>
+      <th>输入/输出</th>
+      <th>描述</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td>workspace</td>
+      <td>输入</td>
+      <td>在Device侧申请的workspace内存地址。</td>
+    </tr>
+    <tr>
+      <td>workspaceSize</td>
+      <td>输入</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnDequantRopeQuantKvcacheGetWorkspaceSize获取。</td>
+    </tr>
+    <tr>
+      <td>executor</td>
+      <td>输入</td>
+      <td>op执行器，包含了算子计算流程。</td>
+    </tr>
+    <tr>
+      <td>stream</td>
+      <td>输入</td>
+      <td>指定执行任务的Stream。</td>
+    </tr>
+  </tbody>
+  </table>
+
+- **返回值**
   
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

@@ -13,7 +13,7 @@
   </tr></thead>
 <tbody>
   <tr>
-    <td>昇腾910_95 AI处理器</td>
+    <td>Ascend 950PR/Ascend 950DT</td>
     <td style="text-align: center;">×</td>
   </tr>
   <tr>
@@ -21,7 +21,7 @@
     <td style="text-align: center;">×</td>
   </tr>
   <tr>
-    <td>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</td>
+    <td>Atlas A2 训练系列产品/Atlas A2 推理系列产品</td>
     <td style="text-align: center;">√</td>
   </tr>
   <tr>
@@ -131,7 +131,7 @@
 </tbody>
 </table>
 
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>昇腾910_95 AI处理器</term>：数据类型支持FLOAT16。
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：数据类型支持FLOAT16。
 
 ## 约束说明
 - 当前不支持用户直接调用

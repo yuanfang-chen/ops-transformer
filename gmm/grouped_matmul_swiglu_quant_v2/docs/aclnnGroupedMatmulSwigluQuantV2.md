@@ -6,19 +6,18 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
-- 接口功能：融合GroupedMatmul 、dequant、swiglu和quant，详细解释见计算公式。本接口相较于[aclnnGroupedMatmulSwigluQuant](../../grouped_matmul_swiglu_quant/docs/aclnnGroupedMatmulSwigluQuant.md)，新增了MXFP8、MXFP4量化场景（仅昇腾910_95 AI处理器支持），参数weight, weightScale, weightAssistMatrix的字段类型变为tensorlist，请根据实际情况选择合适的接口。
+- 接口功能：融合GroupedMatmul 、dequant、swiglu和quant，详细解释见计算公式。本接口相较于[aclnnGroupedMatmulSwigluQuant](../../grouped_matmul_swiglu_quant/docs/aclnnGroupedMatmulSwigluQuant.md)，新增了MXFP8、MXFP4量化场景（仅Ascend 950PR/Ascend 950DT支持），参数weight, weightScale, weightAssistMatrix的字段类型变为tensorlist，请根据实际情况选择合适的接口。
 - 计算公式：
-  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     <details>
     <summary>量化场景A8W8（A指激活矩阵，W指权重矩阵，8指INT8数据类型）：</summary>
     <a id="量化场景A8W8"></a>
@@ -149,7 +148,7 @@
           $Q_{i} = \left\lfloor \frac{S_{i}}{Q\_scale_{i}} \right\rceil$
     </details>
 
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     <details>
     <summary>MX量化场景：</summary>
 
@@ -231,7 +230,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
 
 ## aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize
 
-  - **参数说明：**
+  - **参数说明**
     <table style="undefined;table-layout: fixed;width: 1567px"><colgroup>
     <col style="width: 170px">
     <col style="width: 120px">
@@ -466,7 +465,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     </tbody>
     </table>
 
-    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
       - X仅支持INT8量化数据类型、不支持其他数据类型。
       - weight仅支持非转置，支持INT8、INT4、INT32数据类型，ND格式shape形如{(E, K, N)}，NZ格式下，当weight数据类型是INT8时shape形如{(E, N / 32, K / 16, 16, 32)}，INT4时shape形如{(E, N / 64, K / 16, 16， 64)}，INT32时shape形如{(E, N / 64, K / 16, 16， 8)}。
       - weightScale，A8W8场景支持FLOAT、FLOAT16、BFLOAT16数据类型，shape只支持2维，形如{(E, N)}；A8W4场景支持UINT64数据类型，shape支持2维和3维，其中per-channel的shape形如{(E, N)}，per-group的shape形如{(E, KGroupCount, N)}。
@@ -478,14 +477,14 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       - A8W4场景，不支持x的尾轴长度大于等于20000。
       - output仅支持数据类型INT8，shape支持2维，形如(M, N / 2)。
       - outputScale仅支持数据类型FLOAT，shape支持1维，形如(M,)。
-    - <term>昇腾910_95 AI处理器</term>：
+    - <term>Ascend 950PR/Ascend 950DT</term>：
       - weight支持转置，仅支持ND格式。
       - 支持dequantMode参数：当前仅支持取值2。
       - 支持dequantDtype参数：当前仅支持取值0。
       - 支持quantMode参数：当前仅支持取值2。
 
 
-- **返回值：**
+- **返回值**
   
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -544,7 +543,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
 
 ## aclnnGroupedMatmulSwigluQuantV2
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed;width: 1150px"><colgroup>
     <col style="width: 167px">
     <col style="width: 123px">
@@ -561,12 +560,13 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
-  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+
+  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - A8W8/A8W4量化场景下需满足以下约束条件：
         - 数据类型需要满足下表：
         <table style="undefined;table-layout: fixed; width: 1134px"><colgroup>
@@ -610,7 +610,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       - A8W4场景下，不支持N轴长度超过10240，不支持x的尾轴长度大于等于20000。
       
 
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - MX量化场景下需满足以下约束条件：
         - 数据类型需要满足下表：
         <table style="undefined;table-layout: fixed; width: 1134px"><colgroup>
@@ -694,7 +694,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
 
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
-  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     ```cpp
     #include <iostream>
     #include <vector>
@@ -922,7 +922,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     }
     ```
 
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     ```cpp
     #include <iostream>
     #include <memory>

@@ -6,13 +6,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      √     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -23,11 +22,11 @@
 
     相较于[GroupedMatmulV3](aclnnGroupedMatmulV3.md)接口，**此接口新增：**
   - 支持groupListOptional中数值为分组轴上每组大小。
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
     - 支持静态量化（pertensor+perchannel）（量化方式请参见[量化介绍](../../../docs/zh/context/量化介绍.md)，下同）BFLOAT16和FLOAT16输出，带激活及不带激活场景
     - 支持动态量化（pertoken+perchannel）BFLOAT16和FLOAT16输出，带激活及不带激活场景。
     - 支持伪量化weight是INT4的输入，不带激活场景，支持perchannel和pergroup两种模式。
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - 支持静态量化（1.pertensor-perchannel(T-C)；2.pertensor-pertensor(T-T)）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。
     - 支持动态量化（1.pertoken-perchannel(K-C)；2.pertoken-pertensor(K-T)；3.pertensor-pertensor(T-T)；4.pertensor-perchannel(T-C)；4.mx量化；5.pergroup-perblock(G-B)）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。
     - 支持伪量化weight是INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8的输入，不带激活场景，仅支持perchannel模式。
@@ -44,33 +43,47 @@
     $$
 
   - **量化场景（静态量化，T-C && T-T量化，无perTokenScaleOptional）：**
+
     $$
       y_i=(x_i\times weight_i) * scale_i + offset_i
     $$
-  - x为INT8，bias为INT32
+
+    - x为INT8，bias为INT32
+
+        $$
+          y_i=(x_i\times weight_i + bias_i) * scale_i + offset_i
+        $$
+
+    - x为INT8，bias为BFLOAT16/FLOAT16/FLOAT32，无offset
+
+        $$
+          y_i=(x_i\times weight_i) * scale_i + bias_i
+        $$
+
+    - **量化场景（动态量化，T-T && T-C && K-T && K-C量化）：**
+
       $$
-        y_i=(x_i\times weight_i + bias_i) * scale_i + offset_i
+      y_i=(x_i\times weight_i) * scale_i * per\_token\_scale_i
       $$
-  - x为INT8，bias为BFLOAT16/FLOAT16/FLOAT32，无offset
-      $$
-        y_i=(x_i\times weight_i) * scale_i + bias_i
-      $$
-  - **量化场景（动态量化，T-T && T-C && K-T && K-C量化）：**
-    $$
-     y_i=(x_i\times weight_i) * scale_i * per\_token\_scale_i
-    $$
-  - x为INT8，bias为INT32
-      $$
-        y_i=(x_i\times weight_i + bias_i) * scale_i * per\_token\_scale_i
-      $$
-  - x为INT8，bias为BFLOAT16/FLOAT16/FLOAT32
-      $$
-        y_i=(x_i\times weight_i) * scale_i * per\_token\_scale_i  + bias_i
-      $$
+
+    - x为INT8，bias为INT32
+
+        $$
+          y_i=(x_i\times weight_i + bias_i) * scale_i * per\_token\_scale_i
+        $$
+
+    - x为INT8，bias为BFLOAT16/FLOAT16/FLOAT32
+
+        $$
+          y_i=(x_i\times weight_i) * scale_i * per\_token\_scale_i  + bias_i
+        $$
+
   - **量化场景（动态量化，MX && G-B量化）：**
+
     $$
     y_i[m,n] = \sum_{j=0}^{kLoops-1} ((\sum_{k=0}^{gsK-1} (xSlice_i * weightSlice_i)) * (per\_token\_scale_i[m/gsM, j] * scale_i[j, n/gsN])) + bias_i[n]
     $$
+
     其中，gsM,gsN和gsK分别代表M/N/K轴的量化的block size，$xSlice_i$代表$x_i$第m行长度为gsK的向量，$weightSlice_i$代表$weight_i$第n列长度为gsK的向量，K轴均从j * gsK起始切片，j的取值范围[0, kLoops), kLoops=ceil($K_i$ / gsK)，支持最后的切片长度不足gsK。
 
   - **伪量化场景：**
@@ -117,7 +130,7 @@ aclnnStatus aclnnGroupedMatmulV4(
 
 ## aclnnGroupedMatmulV4GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1483px"><colgroup>
   <col style="width: 210px">
@@ -353,7 +366,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     </tr>
   </tbody></table>
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
     - x支持FLOAT16、BFLOAT16、FLOAT32、INT8、INT4
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8、INT4，格式支持ND、FRACTAL_NZ
     - biasOptional支持FLOAT16、FLOAT32、INT32
@@ -370,7 +383,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - out支持FLOAT16
     - groupType支持m轴分组
     - 不支持scaleOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、perTokenScaleOptional
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - x支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT32、FLOAT4_E1M2、FLOAT4_E2M1
     - weight支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT32、FLOAT4_E1M2、FLOAT4_E2M1，当x与weight都为int8时支持ND和FRACTAL_NZ格式，其余场景只支持ND格式。使用weightNz特性时可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。
     - biasOptional支持INT32、BFLOAT16、FLOAT16、FLOAT32，在输入x为INT8、FLOAT16、BFLOAT16、FLOAT32时支持INT32、BFLOAT16、FLOAT16、FLOAT32，在输入x为FLOAT4_E1M2、FLOAT4_E2M1时仅支持FLOAT32，其它类型输入需传空指针
@@ -382,7 +395,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - 不支持offsetOptional
     - groupType支持m轴分组，仅非量化和量化支持k轴分组，仅非量化和伪量化支持不分组
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -427,7 +440,7 @@ aclnnStatus aclnnGroupedMatmulV4(
 
 ## aclnnGroupedMatmulV4
 
-- **参数说明：**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 834px"><colgroup>
     <col style="width: 118px">
@@ -464,7 +477,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -473,7 +486,7 @@ aclnnStatus aclnnGroupedMatmulV4(
 - 确定性说明：aclnnGroupedMatmulV4默认确定性实现。
 - 如果传入groupListOptional，当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列；groupListType为2时，groupListOptional的第二列数据必须为非负数列，且长度不能为1。
 - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
   - 非量化场景支持的输入类型为：
     - x为FLOAT16、weight为FLOAT16、biasOptional为FLOAT16、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、perTokenScaleOptional为空、activationInputOptional为空、out为FLOAT16。
     - x为BFLOAT16、weight为BFLOAT16、biasOptional为FLOAT32、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、perTokenScaleOptional为空、activationInputOptional为空、out为BFLOAT16。

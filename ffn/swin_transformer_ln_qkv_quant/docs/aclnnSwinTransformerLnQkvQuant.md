@@ -1,17 +1,18 @@
 # aclnnSwinTransformerLnQkvQuant
 
 ## 产品支持情况
+
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- |:----:|
-| <term>昇腾910_95 AI处理器</term>                             |  ×   |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |  ×   |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |  ×   |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |  ×   |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |  ×   |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |  ×   |
 | <term>Atlas 推理系列产品</term>                             |  √   |
 | <term>Atlas 训练系列产品</term>                              |  ×   |
-| <term>Atlas 200/300/500 推理产品</term>                      |  ×   |
 
 ## 功能说明
+
 - 算子功能：Swin Transformer 网络模型 完成 Q、K、V 的计算。  
 - 计算公式：  
 
@@ -19,6 +20,7 @@
   其中，weight 是 Q、K、V 三个矩阵权重的拼接。
 
 ## 函数原型
+
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnSwinTransformerLnQkvQuantGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnSwinTransformerLnQkvQuant”接口执行计算。
 
 ```cpp
@@ -45,6 +47,7 @@ aclnnStatus aclnnSwinTransformerLnQkvQuantGetWorkspaceSize(
   uint64_t        *workspaceSize, 
   aclOpExecutor   **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnSwinTransformerLnQkvQuant(
   void          *workspace, 
@@ -54,7 +57,9 @@ aclnnStatus aclnnSwinTransformerLnQkvQuant(
 ```
 
 ## aclnnSwinTransformerLnQkvQuantGetWorkspaceSize
+
 - **参数说明**：
+
   <table style="undefined;table-layout: fixed; width: 1587px"><colgroup>
   <col style="width: 159px">
   <col style="width: 127px">
@@ -300,6 +305,7 @@ aclnnStatus aclnnSwinTransformerLnQkvQuant(
   </tbody></table>  
 
 - **返回值**：
+
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
@@ -329,6 +335,7 @@ aclnnStatus aclnnSwinTransformerLnQkvQuant(
   </table>
 
 ## aclnnSwinTransformerLnQkvQuant
+
 - **参数说明**：
 
   <table style="undefined;table-layout: fixed; width: 1000px"><colgroup>
@@ -367,9 +374,11 @@ aclnnStatus aclnnSwinTransformerLnQkvQuant(
   </table>
 
 - **返回值**：
+
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+
 - 确定性计算：
   - aclnnSwinTransformerLnQkvQuant默认确定性实现。
 - seqLength只支持32/64。
@@ -379,6 +388,7 @@ aclnnStatus aclnnSwinTransformerLnQkvQuant(
 - weight需要转置。
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```Cpp

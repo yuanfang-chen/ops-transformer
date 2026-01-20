@@ -4,13 +4,12 @@
 
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
-|  <term>昇腾910_95 AI处理器</term>   |     ×    |
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     ×    |
 |  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     ×    |
-|  <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>     |     ×    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     ×    |
 |  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
 |  <term>Atlas 推理系列产品</term>    |     √    |
 |  <term>Atlas 训练系列产品</term>    |     ×    |
-|  <term>Atlas 200/300/500 推理产品</term>       |     ×    |
 
 ## 功能说明
 
@@ -36,6 +35,7 @@
 
   4.分组矩阵乘+反量化
     - 4.1 若输入的$scale_{weight}$数据类型为FLOAT32, 则：
+
   $$
     \begin{aligned}
       x^{*}_{quantized} &= x_{quantized}[group[i-1]:group[i]]\\
@@ -47,7 +47,9 @@
       out^{*}_{quantized} &= (x^{*}_{quantized}@weight_{quantized}[i] + bias) * scale_{weight}[i] * scale^{*}_{x}
     \end{aligned}
   $$
+
   - 4.2 若输入的$scale_{weight}$数据类型为INT64, 则：
+
     $$
     x^{*}_{quantized} = x_{quantized}[group[i-1]:group[i]] \\
     out^{*}_{quantized} = out_{quantized}[group[i-1]:group[i]] \\
@@ -56,12 +58,14 @@
     $$
 
     特别说明：如果是上述4.2场景，说明$scale_{weight}$输入前已经和$scale_{x}$做过了矩阵乘运算，因此算子内部计算时省略了该步骤，这要求必须是pertensor静态量化的场景。即输入前要对$scale_{weight}做如下处理得到INT64类型的数据：
+
     $$
     scale_{weight} = scale_{weight} * scale_{x} \\
     scale_{weight} = torch.tensor(np.frombuffer(scale_{weight}.numpy().astype(np.float32). \\tobytes(), dtype=np.int32).astype(np.int64)).reshape(scale_{weight})
     $$
 
 ## 函数原型
+
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnQuantGroupedMatmulDequantGetWorkspaceSize”接口获取入参并根据流程计算所需workspace大小，再调用“aclnnQuantGroupedMatmulDequant”接口执行计算。
 
 ```Cpp
@@ -92,7 +96,7 @@ aclnnStatus aclnnQuantGroupedMatmulDequant(
 
 ## aclnnQuantGroupedMatmulDequantGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1300px"><colgroup>
   <col style="width: 101px">
@@ -247,45 +251,46 @@ aclnnStatus aclnnQuantGroupedMatmulDequant(
       - 在transposeWeight为false情况下各个维度表示：（g，n1，k1，k0，n0），其中k0 = 16，n0 = 32，k1和x的k需要满足以下关系：ceilDiv（k，16）= k1。
       - 可使用aclnnCalculateMatmulWeightSizeV2接口以及aclnnTransMatmulWeight接口完成输入Format从ND到FRACTAL_NZ格式的转换。
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
- 第一段接口会完成入参校验，出现以下场景时报错：
 
-<table style="undefined;table-layout: fixed; width: 1048px"><colgroup>
-<col style="width: 319px">
-<col style="width: 108px">
-<col style="width: 621px">
-</colgroup>
-<thead>
-  <tr>
-    <th>返回码</th>
-    <th>错误码</th>
-    <th>描述</th>
-  </tr></thead>
-<tbody>
-  <tr>
-    <td>ACLNN_ERR_PARAM_NULLPTR</td>
-    <td>161001</td>
-    <td>如果传入参数是必选输入，输出或者必选属性，且是空指针。</td>
-  </tr>
-  <tr>
-    <td>ACLNN_ERR_PARAM_INVALID</td>
-    <td>161002</td>
-    <td><li>如果传入参数类型为aclTensor且其数据类型不在支持的范围之内。</li><li>weight的shape中n或者k不能被16整除。</li></td>
-  </tr>
-  <tr>
-    <td rowspan="3">aclnnAdvanceStepGetWorkspaceSize failed</td>
-    <td rowspan="3">561002</td>
-    <td>如果传入参数类型为aclTensor且其shape与上述参数说明不符。</td>
-  </tr>
-</tbody>
-</table>
+  第一段接口会完成入参校验，出现以下场景时报错：
+
+  <table style="undefined;table-layout: fixed; width: 1048px"><colgroup>
+  <col style="width: 319px">
+  <col style="width: 108px">
+  <col style="width: 621px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>返回码</th>
+      <th>错误码</th>
+      <th>描述</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
+      <td>161001</td>
+      <td>如果传入参数是必选输入，输出或者必选属性，且是空指针。</td>
+    </tr>
+    <tr>
+      <td>ACLNN_ERR_PARAM_INVALID</td>
+      <td>161002</td>
+      <td><li>如果传入参数类型为aclTensor且其数据类型不在支持的范围之内。</li><li>weight的shape中n或者k不能被16整除。</li></td>
+    </tr>
+    <tr>
+      <td rowspan="3">aclnnAdvanceStepGetWorkspaceSize failed</td>
+      <td rowspan="3">561002</td>
+      <td>如果传入参数类型为aclTensor且其shape与上述参数说明不符。</td>
+    </tr>
+  </tbody>
+  </table>
 
 
 ## aclnnFatreluMul
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 953px"><colgroup>
   <col style="width: 173px">
@@ -323,7 +328,7 @@ aclnnStatus aclnnQuantGroupedMatmulDequant(
   </table>
 
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus: 返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

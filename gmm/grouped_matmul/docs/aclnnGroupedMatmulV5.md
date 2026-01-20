@@ -6,13 +6,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      √     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -29,7 +28,7 @@
 
 - 版本演进：
 
-  |版本变化      | Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件<br>Atlas A3 训练系列产品/Atlas A3 推理系列产品 |昇腾910_95 AI处理器|Atlas 推理系列产品 |
+  |版本变化      | Atlas A2 训练系列产品/Atlas A2 推理系列产品<br>Atlas A3 训练系列产品/Atlas A3 推理系列产品 |Ascend 950PR/Ascend 950DT|Atlas 推理系列产品 |
   |---------|---------|----------------|----------------|
   |V4 -> V5|  增加可选参数tuningConfigOptional，调优参数。数组中第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值进行最优tiling。   |  /  | / |
   |V1 -> V4|     支持不同分组轴，由groupType表示。<br />非量化场景，支持x，weight转置（转置指若shape为[M,K]时，则stride为[1, M],数据排布为[K,M]的场景）。<br />量化、伪量化场景，支持weight转置，支持weight为单tensor。<br />x、weight、y都为单tensor非量化场景，支持x，weight输入都为float32类型。<br />支持静态量化（pertensor+perchannel）（量化方式请参见[量化介绍](../../../docs/zh/context/量化介绍.md)，下同）BFLOAT16和FLOAT16输出，带激活及不带激活场景。<br />支持动态量化（pertoken+perchannel）BFLOAT16和FLOAT16输出，带激活及不带激活场景。<br />支持伪量化weight是INT4的输入，不带激活场景，支持perchannel和pergroup两种模式。     |支持不同分组轴，由groupType表示。<br />非量化场景，支持x，weight转置（转置指若shape为[M,K]时，则stride为[1, M],数据排布为[K,M]的场景）。<br />支持静态量化（1.pertensor-perchannel；2.pertensor-pertensor）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。<br />支持动态量化（1.pertoken-perchannel；2.pertoken-pertensor；3.pertensor-pertensor；4.mx量化；5.pergroup-perblock）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。<br />支持伪量化weight是INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8的输入，不带激活场景，仅支持perchannel模式。| / |
@@ -74,7 +73,7 @@ aclnnStatus aclnnGroupedMatmulV5(
 
 ## aclnnGroupedMatmulV5GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1550px;">
   <colgroup>
@@ -324,13 +323,13 @@ aclnnStatus aclnnGroupedMatmulV5(
   </table>
 
 
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
 
     - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
     - 输入参数x、weight均不支持INT16类型，且x不支持int4类型；
     - 输出参数out不支持INT32、INT8类型。
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
 
     - 上表数据类型列中的角标“2”代表该系列不支持的数据类型。
     - 不支持FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8、FLOAT8_E8M0类型。
@@ -339,7 +338,7 @@ aclnnStatus aclnnGroupedMatmulV5(
 
   - <term>Atlas 推理系列产品</term>：仅支持x、weight、out均为FLOAT16的场景，其中weight仅支持NZ数据格式。
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -393,7 +392,7 @@ aclnnStatus aclnnGroupedMatmulV5(
 
 ## aclnnGroupedMatmulV5
 
-- **参数说明：**
+- **参数说明**
 
   |参数名| 输入/输出   |    描述|
   |-------|---------|----------------|
@@ -402,7 +401,7 @@ aclnnStatus aclnnGroupedMatmulV5(
   |executor|输入|op执行器，包含了算子计算流程。|
   |stream|输入|指定执行任务的Stream。|
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -418,7 +417,7 @@ aclnnStatus aclnnGroupedMatmulV5(
     |---------|---------|----------------|--------|--------|--|
     |非量化|FLOAT16|FLOAT16|FLOAT16|[非量化场景约束](#atlas推理系列产品)|[计算公式](#非量化场景)|
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
 
     |场景名|    x    |    weight      |   out | 约束说明|计算公式|
     |---------|---------|----------------|--------|--------|--|
@@ -431,9 +430,9 @@ aclnnStatus aclnnGroupedMatmulV5(
     |伪量化-A16W8|BFLOAT16/FLOAT16|INT8|BFLOAT16/FLOAT16|[A16W8场景约束](#a16w4场景约束)|[计算公式](#伪量化场景)|
     |伪量化-A16W4|BFLOAT16/FLOAT16|INT4|BFLOAT16/FLOAT16|[A16W4场景约束](#a16w4场景约束)|[计算公式](#伪量化场景)|
 
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
 
-    详见[昇腾910_95 AI处理器](#昇腾910_95AI处理器)
+    详见[Ascend 950PR/Ascend 950DT](#昇腾910_95AI处理器)
 <a id="计算公式"></a>
 - 计算公式
   <a id="非量化场景"></a>
@@ -495,7 +494,7 @@ aclnnStatus aclnnGroupedMatmulV5(
 - 确定性计算：
   - aclnnGroupedMatmulV5默认确定性实现。
 <details>
-<summary><term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term></summary>
+<summary><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term></summary>
 
   - **公共约束**
   <a id="公共约束"></a>
@@ -782,7 +781,7 @@ aclnnStatus aclnnGroupedMatmulV5(
 <a id="昇腾910_95AI处理器"></a>
 
 <details>
-<summary><term>昇腾910_95 AI处理器</term></summary>
+<summary><term>Ascend 950PR/Ascend 950DT</term></summary>
 
   - 公共约束：
 

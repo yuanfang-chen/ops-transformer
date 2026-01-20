@@ -4,13 +4,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      √     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -214,11 +213,11 @@
 </table>
 
 
-- <term>昇腾910_95 AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
   - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
   - 输入参数x、weight均不支持INT16类型，且x不支持int4类型。
   - 输出参数out不支持INT32、INT8类型。
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
   - 上表数据类型列中的角标“2”代表该系列不支持的数据类型。
   - 不支持FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8、FLOAT8_E8M0类型。
   - 输入参数biasOptional不支持BFLOAT16。
@@ -227,7 +226,7 @@
   - 仅支持x、weight、out均为FLOAT16的场景，其中weight仅支持NZ数据格式。
 
 ## 约束说明
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
     - 输入数据类型和格式如下说明（1.除weight外，其余格式都为ND；2.groupList是否传值与使用场景有关，具体请参考<a href="#groupType-constraints">groupType支持场景</a>约束）：
 
       |  类型  |    x    |    weight       |  bias        | scale  | offset     | antiquantScale | antiquantOffset | perTokenScale | groupList | activationInput | activationQuantScale | activationQuantOffset | out     |
@@ -306,7 +305,7 @@
       |:---------:|:-------:| :------ |
       | 0 | 单单单 |1）仅支持splitItem为2/3<br>2）weight中tensor需为3维，x，y中tensor需为2维<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值与x中tensor的第一维相等，当groupListType为1时，数值的总和与x中tensor的第一维相等<br>4）groupListOptional第1维最大支持1024，即最多支持1024个group<br>5）支持weight转置，不支持x转置 |
 
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - 非量化场景支持的数据类型为：
       - 以下入参为空：scaleOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、perTokenScaleOptional、activationInputOptional、activationQuantScaleOptional、activationQuantOffsetOptional、actType、activationFeatureOutOptional
       - 不为空的参数支持的数据类型组合要满足下表

@@ -6,13 +6,12 @@
 
 | 产品                                                                | 是否支持 |
 |:------------------------------------------------------------------|:----:|
-| <term>昇腾910_95 AI处理器</term>                                       |  ×   |
+| <term>Ascend 950PR/Ascend 950DT</term>                                       |  ×   |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>                      |  √   |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |  √   |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |  √   |
 | <term>Atlas 200I/500 A2 推理产品</term>                               |  ×   |
 | <term>Atlas 推理系列产品</term>                                        |  ×   |
 | <term>Atlas 训练系列产品</term>                                         |  ×   |
-| <term>Atlas 200/300/500 推理产品</term>                               |  ×   |
 
 ## 功能说明
 
@@ -21,6 +20,7 @@
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnGroupedMatmulFinalizeRouting”接口执行计算。
+
 ```cpp
 aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSize(
   const aclTensor *x, 
@@ -52,7 +52,9 @@ aclnnStatus aclnnGroupedMatmulFinalizeRouting(
 ```
 
 ## aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSize
-- **参数说明：**
+
+- **参数说明**
+
   <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
   <col style="width: 170px">
   <col style="width: 120px">
@@ -288,7 +290,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRouting(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
@@ -329,7 +331,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRouting(
 
 ## aclnnGroupedMatmulFinalizeRouting
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 953px"><colgroup>
   <col style="width: 173px">
   <col style="width: 112px">
@@ -365,7 +367,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRouting(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -384,6 +386,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRouting(
   - 在该场景中，biasOptional代表离线计算的辅助结果，值要求为$8 \times w \times scaleOptional$，并在第一维累加。
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
   ```Cpp

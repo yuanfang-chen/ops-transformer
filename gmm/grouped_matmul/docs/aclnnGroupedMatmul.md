@@ -6,13 +6,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
-|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -80,7 +79,7 @@ aclnnStatus aclnnGroupedMatmul(
 
 ## aclnnGroupedMatmulGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed;width: 1540px"><colgroup>
     <col style="width: 170px">
@@ -268,16 +267,16 @@ aclnnStatus aclnnGroupedMatmul(
       </tr>
     <tbody></table>
 
-  - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - x、weight支持FLOAT16、BFLOAT16、INT8
     - y支持FLOAT16、BFLOAT16、INT8、FLOAT32
-  - <term>昇腾910_95 AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - x支持FLOAT16、BFLOAT16、FLOAT32
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - y支持FLOAT16、BFLOAT16、FLOAT32
     - 不支持scaleOptional、offsetOptional
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -322,7 +321,8 @@ aclnnStatus aclnnGroupedMatmul(
 
 ## aclnnGroupedMatmul
 
-- **参数说明：**
+- **参数说明**
+
     <table>
     <thead>
       <tr><th>参数名</th><th>输入/输出</th><th>描述</th></tr>
@@ -335,7 +335,7 @@ aclnnStatus aclnnGroupedMatmul(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -343,7 +343,7 @@ aclnnStatus aclnnGroupedMatmul(
 
 - 确定性计算：
   - aclnnGroupedMatmul默认确定性实现。
-- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
   - 非量化场景支持的输入类型为：
     - x为FLOAT16、weight为FLOAT16、biasOptional为FLOAT16、scaleOptional为 空、offsetOptional为空、antiquantScaleOptional为空、 antiquantOffsetOptional为空、y为FLOAT16；
     - x为BFLOAT16、weight为BFLOAT16、biasOptional为FLOAT32、scaleOptional 为空、offsetOptional为空、antiquantScaleOptional为空、 antiquantOffsetOptional为空、y为BFLOAT16；
@@ -368,7 +368,7 @@ aclnnStatus aclnnGroupedMatmul(
   - x和weight中每一组tensor的最后一维大小都应小于65536。$x_i$的最后一维指当属 性transpose_x为false时$x_i$的K轴或当transpose_x为true时$x_i$的M轴。  $weight_i$的最后一维指当属性transpose_weight为false时$weight_i$的N轴或当  transpose_weight为true时$weight_i$的K轴。
   - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值  2147483647。
 
-- <term>昇腾910_95 AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
     <details>
     <summary>非量化场景约束</summary>
       <a id="非量化场景约束"></a>
