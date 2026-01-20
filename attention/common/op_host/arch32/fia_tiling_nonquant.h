@@ -72,6 +72,8 @@ private:
     void CalcWorkspaceSize();
     void CalcMaxWorkspaceSize();
     void CalcBlockDim(uint32_t coreNum);
+    void GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, int64_t actSeqLensKv, int64_t &safePreToken, int64_t &safeNextToken) const;
+    bool IsExistRowInvalid(const BaseInfo &baseInfo);
 
     bool splitKVFlag_ = false;
 

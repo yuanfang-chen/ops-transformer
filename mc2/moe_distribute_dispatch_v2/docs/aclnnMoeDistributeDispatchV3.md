@@ -452,7 +452,7 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
     - constExpertNum 当前版本不支持，传0即可。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-    - commAlg 当前版本不支持，传空指针即可。
+    - commAlg 支持""、"fullmesh_v1"、"fullmesh_v2"三种输入方式。""：默认值，使能fullmesh_v1模板；"fullmesh_v1"：使能fullmesh_v1模板；"fullmesh_v2"：使能fullmesh_v2模板，其中fullmesh_v2模板仅在tpWorldSize取值为1时生效，且不支持各卡Bs不一致、动态缩容、使能xActiveMaskOptional和特殊专家等场景。
     - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(Bs, )，2D时shape为(Bs, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
     - expertScalesOptional 当前版本不支持，传空指针即可。
     - epWorldSize 取值范围[2, 768]。
@@ -468,9 +468,9 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
     - expandScalesOut 当前版本不支持该输出。
     - quantMode 支持0（非量化）、2（动态量化）。
     - elasticInfoOptional 可选择传入有效数据或填空指针，传入空指针时表示不使能动态缩容功能；当传入有效数据时，要求是一个1D的Tensor，shape为 <code>(4 + 2 * epWorldSize, )</code>。Tensor中的前四个数字分别表示是否缩容，缩容后实际rank数，缩容后共享专家使用的rank数，缩容后moe专家的个数，后2 * epWorldSize表示2个rank映射表，缩容后本卡中因部分rank异常而从EP通信域中剔除，第一个Table的映射关系为Table1[epRankId]=localEpRankId或-1，localEpRankId表示新EP通信域中的rank Index，-1表示epRankId这张卡从通信域中被剔除，第二个Table映射关系为Table2[localEpRankId] = epRankId。
-    - zeroExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1, 合法的零专家的ID的值是<code>[moeExpertNum, moeExpertNum + zeroExpertNum)</code>。
-    - copyExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，专家ID范围<code>[moeExpertNum + zeroExpertNum, moeExpertNum + zeroExpertNum + copyExpertNum)</code>。
-    - constExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，专家ID范围<code>[moeExpertNum + zeroExpertNum + copyExpertNum, moeExpertNum + zeroExpertNum + copyExpertNum + constExpertNum)</code>。
+    - zeroExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1, 合法的零专家的ID的值是<code>[moeExpertNum, moeExpertNum + zeroExpertNum)</code>，当`comm_alg`设置为"fullmesh_v2"时，当前版本不支持，传0即可。
+    - copyExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，专家ID范围<code>[moeExpertNum + zeroExpertNum, moeExpertNum + zeroExpertNum + copyExpertNum)</code>，当`comm_alg`设置为"fullmesh_v2"时，当前版本不支持，传0即可。
+    - constExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，专家ID范围<code>[moeExpertNum + zeroExpertNum + copyExpertNum, moeExpertNum + zeroExpertNum + copyExpertNum + constExpertNum)</code>，当`comm_alg`设置为"fullmesh_v2"时，当前版本不支持，传0即可。
 
 ### 返回值
 
