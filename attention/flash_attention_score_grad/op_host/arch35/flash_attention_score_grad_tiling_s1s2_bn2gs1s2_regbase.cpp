@@ -1586,6 +1586,11 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleTNDCausalDeterPrefix(De
             fBaseParams.actualSeqQlen[i] *
                 AlignTo(fBaseParams.actualSeqKvlen[i], static_cast<int64_t>(ConstAxisTemplateNum::NUM16)));
 
+        // left_up_causal场景下，如果m<n, 需要将n裁剪为m
+        if (actualS1Outer < actualS2Outer) {
+            actualS2Outer = actualS1Outer;
+        }
+
         m0Max = std::max(m0Max, fBaseParams.g * (NUM_TWO * actualS1Outer - actualS2Outer + 1));
         deterPrefixData.prefix0.push_back(deterPrefixData.prefix0.back() + (NUM_TWO * actualS1Outer - actualS2Outer + 1) * actualS2Outer);
 
