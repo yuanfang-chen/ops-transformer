@@ -559,9 +559,9 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                                 fixParams.dstStride = constInfo_.dBaseSize * 2;
                                 fixParams.ndNum = 1;
                                 if (nL1 < nSize / 2) {
-                                    Fixpipe(preMm1ResGm[mL1*nSize+nL1], cL0Tensor, fixParams);
+                                    Fixpipe(preMm1ResGm[mL1 * constInfo_.dBaseSize * 2], cL0Tensor, fixParams);
                                 } else {
-                                    Fixpipe(curMm1ResGm[mL1*nSize+nL1], cL0Tensor, fixParams);
+                                    Fixpipe(curMm1ResGm[mL1 * constInfo_.dBaseSize * 2], cL0Tensor, fixParams);
                                 }
                             } else {
                                 FixpipeParamsV220 fixParams;
