@@ -20,10 +20,22 @@ import numpy as np
 import math
 import custom_ops as ops
 
+DATA_RANGE_LEFT = -2
+DATA_RANGE_RIGHT = 2
+FP8_DATA_RANGE_LEFT = -1
+FP8_DATA_RANGE_RIGHT = 1
+
+'''
+DATA_RANGE_LEFT = -35
+DATA_RANGE_RIGHT = 20
+FP8_DATA_RANGE_LEFT = -10
+FP8_DATA_RANGE_RIGHT = 10
+
 DATA_RANGE_LEFT = 1
 DATA_RANGE_RIGHT = 1
 FP8_DATA_RANGE_LEFT = 1
 FP8_DATA_RANGE_RIGHT = 1
+'''
 
 class GeneralizedSFAQuant:
     def __init__(self, layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, block_num2,
@@ -58,8 +70,8 @@ class GeneralizedSFAQuant:
         self.rope_head_dim = rope_head_dim
         self.template_run_mode = template_run_mode
 
-    def calulate_by_bnsd(self, q_bnsd, ori_k_bnsd, cmp_k_bnsd, cmp_sparse_indices_bnsd, cu_seqlens_q, seqused_kv, sinks):
-        attn_out = torch.zeros(q_bnsd.shape, dtype=torch.float)
+    def calculate_by_bnsd(self, q_bnsd, ori_k_bnsd, cmp_k_bnsd, cmp_sparse_indices_bnsd, cu_seqlens_q, seqused_kv, sinks):
+        attn_out = torch.zeros(q_bnsd.shape, dtype=q_bnsd.dtype)
         B = q_bnsd.shape[0]
         act_q = prefix_sum_to_original(cu_seqlens_q)
         G = int(self.N1 / self.N2)
@@ -68,7 +80,6 @@ class GeneralizedSFAQuant:
             print(f"i_B = {i_B}/{B}")
             cur_act_q = act_q[i_B]
             cur_ori_act_kv = seqused_kv[i_B]
-            cur_cmp_act_kv = math.floor(cur_ori_act_kv / self.cmp_ratio)
             for i_N2 in range(self.N2):
                 print(f"    i_N2 = {i_N2}/{self.N2}")
                 cur_sinks = sinks[i_N2 * G:(i_N2 + 1) * G]
@@ -94,11 +105,11 @@ class GeneralizedSFAQuant:
                     if self.template_run_mode == "SCFA":
                         topk_id = cmp_sparse_indices_bnsd[i_B, i_N2, i_S1, :]
 
-                        empty_flag, k_sparse = self.gather_cmp_kv(cmp_k_bnsd, topk_id, i_B, i_N2, i_S1, cur_cmp_act_kv, cur_act_q)
+                        empty_flag, k_sparse = self.gather_cmp_kv(cmp_k_bnsd, topk_id, i_B, i_N2, i_S1, cur_ori_act_kv, cur_act_q)
                         if empty_flag != True:
                             k_concat = torch.concat([cur_ori_k_bnsd, k_sparse], dim=0)
                     elif self.template_run_mode == "CFA":
-                        empty_flag, k_sparse = self.mask_cmp_kv(cmp_k_bnsd, i_B, i_N2, i_S1, cur_cmp_act_kv, cur_act_q)
+                        empty_flag, k_sparse = self.mask_cmp_kv(cmp_k_bnsd, i_B, i_N2, i_S1, cur_ori_act_kv, cur_act_q)
                         if empty_flag != True:
                             k_concat = torch.concat([cur_ori_k_bnsd, k_sparse], dim=0)
 
@@ -110,22 +121,19 @@ class GeneralizedSFAQuant:
 
                     mm1_res = torch.matmul(q_curr_fp32, k_concat_fp32.T)
                     scale_res = mm1_res * self.softmax_scale
-                    softmax_res = self.sinks_softmax(scale_res, cur_sinks_expand)
-                    mm2_res = torch.matmul(softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float), v_concat_fp32)
-                    # mm1_res降精度引入误差，以输入全1、ori_s2=128、cmp_s2=32、s1=1、scale_value=0.01为例
-                    # softmax之后  1/(160+math.exp(1-5.12)) = 0.006249365513072936
-                    # mm2之后 0.006249365513072936*160 = 0.9998984820916699
-                    # 实际softmax之后转bf16为 0.006256103515625
-                    # 最终结果 0.006256103515625*160 = 1.0009765625
-                    # import pdb; pdb.set_trace()
-                    attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = mm2_res
-        # import pdb; pdb.set_trace()
+                    softmax_res, softmax_sum = self.sinks_softmax(scale_res, cur_sinks_expand)
+                    softmax_res = softmax_res.to(q_bnsd.dtype).to(torch.float32)
+                    mm2_res = torch.matmul(softmax_res, v_concat_fp32)
+                    v2_res = torch.div(mm2_res, softmax_sum)
+                    attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = v2_res
         return attn_out
 
     def gather_cmp_kv(self, k_tensor, topk_id, i_B, i_N2, i_S1, cur_act_kv, cur_act_q, sparse_block_size=1):
         s2_sparse = list()
+        cur_cmp_act_kv = math.floor(cur_act_kv / self.cmp_ratio)
+        threshold = 0
         if self.cmp_mask_mode == 3:
-            threshold = cur_act_kv - cur_act_q + i_S1 + 1
+            threshold = math.floor((cur_act_kv - cur_act_q + i_S1 + 1) / self.cmp_ratio)
         valid_count = min(self.K, math.ceil(threshold / sparse_block_size))
         for i_valid in range(valid_count):
             cur_topk_id = topk_id[i_valid]
@@ -133,7 +141,7 @@ class GeneralizedSFAQuant:
             if cur_topk_id == -1:
                 break
             begin_idx = cur_topk_id * sparse_block_size
-            end_idx = begin_idx + sparse_block_size if begin_idx + sparse_block_size <= cur_act_kv else cur_act_kv
+            end_idx = begin_idx + sparse_block_size if begin_idx + sparse_block_size <= cur_cmp_act_kv else cur_cmp_act_kv
             if begin_idx >= threshold:
                 continue
             if end_idx <= threshold:
@@ -152,10 +160,11 @@ class GeneralizedSFAQuant:
     def mask_cmp_kv(self, k_tensor, i_B, i_N2, i_S1, cur_act_kv, cur_act_q):
         threshold = 0
         if self.cmp_mask_mode == 3:
-            threshold = cur_act_kv - cur_act_q + i_S1 + 1
-        empty_flag = False
+            threshold = (cur_act_kv - cur_act_q + i_S1 + 1) // self.cmp_ratio
+        empty_flag = True
+        k_sparse = None
         if threshold > 0:
-            empty_flag = True
+            empty_flag = False
             k_sparse = k_tensor[i_B, i_N2, :threshold, :]
         return empty_flag, k_sparse
 
@@ -166,8 +175,7 @@ class GeneralizedSFAQuant:
         x_sub = x - x_max
         y = torch.exp(x_sub)
         x_sum = y.sum(dim=-1, keepdims=True) + torch.exp(sinks - x_max)
-        ans = y / x_sum
-        return ans
+        return y, x_sum
 
     def trans_shape_to_bnsd(self, tensor, shape, layout, act_seq=None):
         if layout in ["BSND"]:
@@ -233,7 +241,7 @@ class GeneralizedSFAQuant:
             cmp_sparse_indices_bnsd, cmp_sparse_indices_bnsd_shape = self.trans_shape_to_bnsd(cmp_sparse_indices,
                                                                     cmp_sparse_indices.shape, self.layout_q, cu_seqlens_q)
 
-        attn_out = self.calulate_by_bnsd(q_bnsd, ori_k_bnsd, cmp_k_bnsd, cmp_sparse_indices_bnsd, cu_seqlens_q,
+        attn_out = self.calculate_by_bnsd(q_bnsd, ori_k_bnsd, cmp_k_bnsd, cmp_sparse_indices_bnsd, cu_seqlens_q,
                                          seqused_kv, sinks)
 
         attn_out = self.trans_bnsd_to_target_layout(attn_out, self.layout_q, cu_seqlens_q)
@@ -306,7 +314,7 @@ def gen_cmp_sparse_indices_bsnd(cmp_ratio, B, S1, N2, K, seqused_kv, cmp_mask_mo
         for i_N2 in range(N2):
             for i_S1 in range(S1):
                 if cmp_mask_mode == 3:
-                    cur_valid_s2_max = math.floor(cur_act_kv / cmp_ratio) - S1 + i_S1 + 1
+                    cur_valid_s2_max = math.floor((cur_act_kv - S1 + i_S1 + 1) / cmp_ratio)
                 else:
                     raise ValueError(f"cmp_mask_mode only support 3, which is {cmp_mask_mode}")
 
@@ -326,7 +334,7 @@ def gen_cmp_sparse_indices_tnd(cmp_ratio, B, T1, N2, K, cu_seqlens_q, seqused_kv
         for i_N2 in range(N2):
             for i_S1 in range(cur_act_q):
                 if cmp_mask_mode == 3:
-                    cur_valid_s2_max = math.floor(cur_act_kv / cmp_ratio) - cur_act_q + i_S1 + 1
+                    cur_valid_s2_max = math.floor((cur_act_kv - cur_act_q + i_S1 + 1) / cmp_ratio)
 
                 valid_blocks_max = max(0, cur_valid_s2_max)
                 block_indices = torch.randperm(valid_blocks_max).to(torch.int32)
@@ -534,7 +542,7 @@ def test_sas_quant_process(params):
         cmp_k_in_pa_shape = None
         cmp_sparse_indices = None
         cmp_block_table = None
-    elif template_run_mode == "CWA":
+    elif template_run_mode == "CFA":
         cmp_k_in_pa_shape = cmp_k_in_pa_shape.npu()
         cmp_block_table = cmp_block_table.npu()
         cmp_sparse_indices = None
