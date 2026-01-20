@@ -551,7 +551,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetBasicNum()
     if (curStartPos_ % constInfo_.cmpRatio != 0) {
         headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
         headSize = headSize > curActSeqLength_ ? 0 : headSize;
-        curBasicNum++;
+        curBasicNum = headSize > 0 ? curBasicNum + 1 : curBasicNum;
     }
     // 加上中间整块及尾块
     curBasicNum += (curActSeqLength_ - headSize + constInfo_.cmpRatio - 1) / constInfo_.cmpRatio;
@@ -567,7 +567,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize()
     if (curStartPos_ % constInfo_.cmpRatio != 0) {
         headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
         headSize = headSize > curActSeqLength_ ? 0 : headSize;
-        curBasicNum++;
+        curBasicNum = headSize > 0 ? curBasicNum + 1 : curBasicNum;
     }
     // 加上中间整块及尾块
     curBasicNum += (curActSeqLength_ - headSize) / constInfo_.cmpRatio;
