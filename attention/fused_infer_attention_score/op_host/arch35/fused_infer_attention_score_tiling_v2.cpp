@@ -998,7 +998,7 @@ ge::graphStatus FusedInferAttentionScoreTilingV2::DoOpTiling() {
                 }
             }
         }
-        if (ascendcPlatform.GetCurArch() != NpuArch::DAV_3510) {
+        if (ascendcPlatform.GetCurNpuArch() != NpuArch::DAV_3510) {
             OP_CHECK_IF((((contextParamsForPFATiling.inputDataType == ge::DT_INT8) || (contextParamsForPFATiling.kDataType == ge::DT_INT8) ||
                 (contextParamsForPFATiling.outputDataType == ge::DT_INT8)) && (queryD % D_ALIGN_32 != 0)),
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "D(%u) of query should be 32 elements aligned when int8 is involved!", queryD),
