@@ -92,7 +92,12 @@ class GeneralizedSFA:
                         topk_id = cmp_sparse_indices_bnsd[i_B, i_N2, i_S1, :]
                         empty_flag, cur_cmp_k = self.gather_cmp_kv(cmp_k_bnsd, topk_id, i_B, i_N2, i_S1, cur_ori_act_kv,
                                                                    cur_act_q)
-                        cmp_s2_loop_time = math.ceil(cur_cmp_k / s2_base_size)
+                        if cur_cmp_k == []:
+                            cmp_s2_loop_time = 0
+                            cur_cmp_k_fp32 = cur_cmp_k
+                        else:
+                            cmp_s2_loop_time = math.ceil(cur_cmp_k / s2_base_size)
+                            cur_cmp_k_fp32 = cur_cmp_k.to(dtype=torch.float32)
                     elif template_idx == 1:
                         threshold = 0
                         if self.cmp_mask_mode == 3:
@@ -102,10 +107,17 @@ class GeneralizedSFA:
                         else:
                             empty_flag = False
                         cur_cmp_k = cmp_k_bnsd[i_B, i_N2, :threshold, :]
-                        cmp_s2_loop_time = math.ceil(cur_cmp_k / s2_base_size)
+                        if cur_cmp_k == []:
+                            cmp_s2_loop_time = 0
+                            cur_cmp_k_fp32 = cur_cmp_k
+                        else:
+                            cmp_s2_loop_time = math.ceil(cur_cmp_k / s2_base_size)
+                            cur_cmp_k_fp32 = cur_cmp_k.to(dtype=torch.float32)
+
                     else:
                         empty_flag = True
                         cur_cmp_k = []
+                        cur_cmp_k_fp32 = []
                         cmp_s2_loop_time = 0
 
                     if self.ori_mask_mode == 4:
@@ -117,11 +129,11 @@ class GeneralizedSFA:
 
                     cur_attn_out = attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :]
 
-                    ori_s2_loop_time = math.ceil(cur_ori_k_bnsd.size(2) / s2_base_size)
+                    ori_s2_loop_time = math.ceil(cur_ori_k_bnsd.size(0) / s2_base_size)
                     total_s2_loop_time = ori_s2_loop_time + cmp_s2_loop_time
 
                     cur_ori_k_bnsd_fp32 = cur_ori_k_bnsd.to(dtype=torch.float32)
-                    row_sum = torch.empty((G, 1), dtype=torch.float32).uniform_(1.0, 1.0)
+                    row_sum = torch.empty((G), dtype=torch.float32).uniform_(1.0, 1.0)
                     row_max = torch.empty((G, 1), dtype=torch.float32)
                     row_max = cur_sinks
 
@@ -131,34 +143,36 @@ class GeneralizedSFA:
                                 k_tile = cur_ori_k_bnsd_fp32[i_S2 * s2_base_size:(i_S2 + 1) * s2_base_size, :]
                             else:
                                 k_tile = cur_ori_k_bnsd_fp32[i_S2 * s2_base_size:, :]
-
-                            v_tile = k_tile.clone()
-
                         else: # cmp_kv
                             if i_S2 < total_s2_loop_time - 1:
-                                k_tile = cur_cmp_k[i_S2 * s2_base_size:(i_S2 + 1) * s2_base_size, :]
+                                k_tile = cur_cmp_k_fp32[(i_S2 - ori_s2_loop_time) * s2_base_size:(i_S2 + 1) * s2_base_size, :]
                             else:
-                                k_tile = cur_cmp_k[i_S2 * s2_base_size:, :]
+                                k_tile = cur_cmp_k_fp32[(i_S2 - ori_s2_loop_time) * s2_base_size:, :]
+                        v_tile = k_tile.clone()
 
                         mm1_res = torch.matmul(q_curr_fp32, k_tile.T)
                         scale_res = mm1_res * self.softmax_scale  # 外层for S1 循环，据实拷入数据，因此不需要mask
 
                         row_max_old = row_max.clone()
                         row_max_tmp = torch.max(scale_res, dim=1)[0]
-                        row_max_tmp = row_max_tmp.unsqueeze(1)
+                        # row_max_tmp = row_max_tmp.unsqueeze(1)
                         row_max = torch.max(row_max, row_max_tmp)
                         update_mul = torch.exp(row_max_old - row_max)
 
-                        A = torch.exp(scale_res - row_max)
+                        row_max_expand = row_max.unsqueeze(1)
+                        update_mul_expand = update_mul.unsqueeze(1)
+
+                        A = torch.exp(scale_res - row_max_expand)
                         row_sum = update_mul * row_sum + torch.sum(A, dim=1)
 
                         A = A.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
 
                         cur_o = torch.matmul(A, v_tile)
 
-                        cur_attn_out = cur_attn_out * update_mul + cur_o
+                        cur_attn_out = cur_attn_out * update_mul_expand + cur_o
+                    row_sum_expand = row_sum.unsqueeze(1)
 
-                    attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (cur_attn_out / row_sum).to(dtype=q_bnsd.dtype)
+                    attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (cur_attn_out / row_sum_expand).to(dtype=q_bnsd.dtype)
 
                     # if empty_flag:
                     #     k_concat = cur_ori_k_bnsd

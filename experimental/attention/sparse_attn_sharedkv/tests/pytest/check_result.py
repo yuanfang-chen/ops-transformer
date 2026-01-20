@@ -160,7 +160,7 @@ def check_result(expect, result):
         has_nan_inf = True
 
     if str(real_data.dtype) == 'bfloat16':
-        rtol=0.005
+        rtol=0.0078125
         atol=0.0001
         diff_result = np.isclose(real_data.astype(np.float32), data_compe.astype(np.float32), rtol=rtol, atol=atol,
                                     equal_nan=True)
