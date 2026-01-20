@@ -94,7 +94,7 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, 
     }
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910B) {
-        uint32_t MBaseBlockLen = 512U;
+        uint32_t MBaseBlockLen = 128U;
         uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
         if (isSCFA) {
             s1BlockLen = 1U;
