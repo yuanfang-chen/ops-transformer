@@ -5,7 +5,7 @@
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |
-| :----------------------------------------------------------- | :------：|
+| :----------------------------------------------------------- | :------:|
 | <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
@@ -250,7 +250,7 @@ aclnnStatus aclnnMatmulReduceScatterV2(
         <td>输出</td>
         <td>MM计算的最大值结果，即公式中的amaxOut。</td>
         <td>当前版本仅支持nullptr或空tensor。</td>
-        <td>FLOAT16</td>
+        <td>FLOAT</td>
         <td>ND</td>
         <td>1</td>
         <td>×</td>
