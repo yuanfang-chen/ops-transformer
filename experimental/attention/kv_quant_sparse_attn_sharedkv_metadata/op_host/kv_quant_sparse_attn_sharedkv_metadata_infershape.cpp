@@ -14,7 +14,8 @@
  * \brief
  */
 #include "register/op_impl_registry.h"
-#include "../../kv_quant_sparse_attn_sharedkv/op_kernel/kv_quant_sparse_attn_sharedkv_metadata.h"
+// #include "../../kv_quant_sparse_attn_sharedkv/op_kernel/kv_quant_sparse_attn_sharedkv_metadata.h"
+#include "../op_kernel_aicpu/kv_quant_sparse_attn_sharedkv_metadata.h"
 
 using namespace ge;
 
