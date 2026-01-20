@@ -23,9 +23,9 @@
 #include "attenmask.h"
 
 // 线上编包
-#include "../../../common/op_kernel/matmul.h"
-#include "../../../common/op_kernel/FixpipeOut.h"
-#include "../../../common/op_kernel/CopyInL1.h"
+#include "../matmul.h"
+#include "../FixpipeOut.h"
+#include "../CopyInL1.h"
 
 #include "pse.h"
 #include "infer_flash_attention_comm.h"
@@ -350,7 +350,8 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     // 计算轴的乘积
 
     constInfo.bSize = sharedParams.bSize;
-    constInfo.tSize = sharedParams.tSize;
+    constInfo.t1Size = sharedParams.t1Size;
+    constInfo.t2Size = sharedParams.t2Size;
     constInfo.n2Size = sharedParams.n2Size;
     constInfo.s1Size = sharedParams.s1Size;
     constInfo.s2Size = sharedParams.s2Size;
