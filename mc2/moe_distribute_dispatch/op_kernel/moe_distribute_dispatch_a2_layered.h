@@ -30,8 +30,8 @@ template <TemplateMC2TypeA2layeredClass>
 class MoeDistributeDispatchA2Layered {
 public:
     constexpr static uint32_t STATE_OFFSET = 512; // 状态空间偏移地址
-    constexpr static uint32_t STATUS_SIZE_LAYERED = 1024 * 1024; // 1M
-    constexpr static uint32_t RDMA_BUFFER_ALIGN = 4 * 1024;
+    constexpr static uint64_t STATUS_SIZE_LAYERED = 1024 * 1024UL; // 1M
+    constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024;
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
     constexpr static uint32_t UB_32B_ALIGN = 32U;
     constexpr static uint32_t B64_PER_BLOCK = UB_32B_ALIGN / sizeof(int64_t); // 4
@@ -47,7 +47,7 @@ public:
     constexpr static uint32_t IPC_BUFF_ALIGN = 512;
     constexpr static int32_t  IPC_FLAG_STEP_1 = 0x0d0d0d0d;
     constexpr static uint32_t TBUF_TEMP_OFFSET = 8 * 1024;
-    constexpr static uint32_t MAX_BS_NUM = 256;
+    constexpr static uint32_t MAX_BS_NUM = 512;
     constexpr static uint32_t TBUF_OFFSET_ALIGN_B32_CNT = 2 * 1024 / sizeof(int32_t);
     constexpr static uint64_t SHOULD_SEND_FLAG_VALUE = 0x0f0f0f0f;
     constexpr static uint64_t END_OF_WRITE_FLAG_VALUE = 0xffffffff;
@@ -56,7 +56,7 @@ public:
     constexpr static uint32_t WAIT_STATUS = 1;
     constexpr static uint32_t ARRIVAL_STATUS = 2;
     constexpr static uint32_t SKIP_STATUS = 3;
-    constexpr static uint32_t RDMA_DATA_SIZE = 100U * 1024U * 1024U;
+    constexpr static uint64_t RDMA_DATA_SIZE = 100U * 1024U * 1024U;
     constexpr static uint32_t EXTRA_TOKEN_INFO_NUM = 4U; // 专家信息 权重信息 量化Scale 到达标志位
 
 template <typename T>
@@ -123,8 +123,12 @@ private:
     LocalTensor<uint64_t> ubLocal;
     LocalTensor<uint32_t> ubLocalHead;
     LocalTensor<int32_t> performanceInfoI32Tensor_;
+    LocalTensor<uint64_t> dstServerAddrLT_;
+    LocalTensor<uint64_t> srcServerAddrLT_;
 
     TBuf<> statusBuf_;
+    TBuf<QuePosition::VECCALC> dstServerAddrBuf_;
+    TBuf<QuePosition::VECCALC> srcServerAddrBuf_;
     TBuf<> performanceInfoBuf_;
     TBuf<QuePosition::VECCALC> tBuf;
     TBuf<TPosition::VECOUT> rdmaInBuf_;
@@ -158,16 +162,16 @@ private:
     uint32_t moeExpertNum_{0}; // moe专家卡数, 等于worldSize_ - 共享专家卡数
     uint32_t moeExpertNumInServer_{0};
     uint32_t localMoeExpertNum_{0};
-    uint32_t SERVER_SIZE_ON_WIN{0};
-    uint32_t RANK_SIZE_ON_IPC{0};
-    uint32_t WIN_SIZE{0};
+    uint64_t SERVER_SIZE_ON_WIN{0};
+    uint64_t RANK_SIZE_ON_IPC{0};
+    uint64_t WIN_SIZE{0};
     uint32_t bufferId_{0};
-    uint32_t totalSize_{0};
-    uint32_t totalWinSize_{0};
-    uint32_t halfWinSize_{0};
+    uint64_t totalSize_{0};
+    uint64_t totalWinSize_{0};
+    uint64_t halfWinSize_{0};
     uint32_t serverNum{0};
     uint32_t expertTokenNumsType_{0};
-    uint32_t shareMemOffset_{0};
+    uint64_t shareMemOffset_{0};
     uint32_t tokenUbSize_{0};
     uint32_t performanceInfoSize_{0};
     bool needPerformanceInfo_{false};
@@ -202,7 +206,7 @@ private:
     uint32_t innerExpIdNumInUB_{0};
     uint32_t innerCntNumInUB_{0};
     uint32_t innerOffsetNumInUB_{0};
-    uint32_t innerTableSize_{0};
+    uint64_t innerTableSize_{0};
 
     uint32_t maxBSInUBForOuter_{0};
     uint32_t outerSendTokenInfoNumInUB_{0};
@@ -211,8 +215,8 @@ private:
     uint32_t outerCntSizeInUB_{0};
     uint32_t outerOffsetNumInUB_{0};
     // RDMA预留给Inner表的空间
-    uint32_t innerTableDataOffset_{0};
-    uint32_t innerTableFlagOffset_{0};
+    uint64_t innerTableDataOffset_{0};
+    uint64_t innerTableFlagOffset_{0};
 
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
     __gm__ HcclA2CombineOpParam *winContext_{nullptr};
@@ -247,17 +251,17 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     moeExpertNum_ = tilingData.moeDistributeDispatchInfo.moeExpertNum;
     localMoeExpertNum_ = moeExpertNum_ / worldSize_;
     totalSize_ = winContext_->winSize;
-    totalWinSize_ =  100 * 1024 * 1024; //100 MB for RDMA
+    totalWinSize_ = 100 * 1024 * 1024; // 100 MB for RDMA
+    serverNum = worldSize_ / SERVER_RANK_SIZE;
     shareMemOffset_ = totalWinSize_;
     halfWinSize_ = totalWinSize_ / 2;
     WIN_SIZE = halfWinSize_ - STATUS_SIZE_LAYERED;
     expertTokenNumsType_ = tilingData.moeDistributeDispatchInfo.expertTokenNumsType;
     aivId_ = GetBlockIdx();
     expertIdsCnt_ = axisBS_ * axisK_;
-    serverNum = worldSize_ / SERVER_RANK_SIZE;
-    uint32_t tokenFlagSize = STATE_OFFSET * (worldSize_ + 1);
-    uint32_t innerTableFlagTotalSize_ = STATE_OFFSET * (serverNum + 1);
-    uint32_t innerTableDataTotalSize_ = STATUS_SIZE_LAYERED - tokenFlagSize - innerTableFlagTotalSize_;
+    uint64_t tokenFlagSize = STATE_OFFSET * (worldSize_ + 1);
+    uint64_t innerTableFlagTotalSize_ = STATE_OFFSET * (serverNum + 1);
+    uint64_t innerTableDataTotalSize_ = STATUS_SIZE_LAYERED - tokenFlagSize - innerTableFlagTotalSize_;
     innerTableSize_ = innerTableDataTotalSize_ / serverNum;
     innerTableDataOffset_ = tokenFlagSize;
     innerTableFlagOffset_ = innerTableDataOffset_ + innerTableDataTotalSize_;
@@ -265,7 +269,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     uint64_t winSizeMin = moeExpertNum_ * axisBS_ * (axisH_ * sizeof(XType) + EXTRA_TOKEN_INFO_NUM * alignK_ * sizeof(uint32_t)) +
         IPC_DATA_OFFSET + RDMA_DATA_SIZE; // 考虑负载极其不均衡时，HCCL BUFFSIZE需要开的大小
 
-    //RDMA buffer init
+    // RDMA buffer init
     bufferChosenGlobal_.SetGlobalBuffer((__gm__ uint32_t*)(windowInGM_ + WIN_SIZE + worldSize_ * STATE_OFFSET));
     bufferId_ = bufferChosenGlobal_(0);
     windowInGM_ = windowInGM_ + halfWinSize_ * bufferId_;
@@ -273,12 +277,13 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     RANK_SIZE_ON_IPC = (totalSize_ - totalWinSize_ - IPC_DATA_OFFSET) / (localMoeExpertNum_ * worldSize_);
     RANK_SIZE_ON_IPC = (RANK_SIZE_ON_IPC / IPC_BUFF_ALIGN) * IPC_BUFF_ALIGN;
 
-    //IPC buffer init
+    // IPC buffer init
     for (int i = 0; i < SERVER_RANK_SIZE; i++) {
         shareAddrs[i] = (__gm__ uint8_t *)(reinterpret_cast<uint64_t>(hccl_.GetWindowsInAddr(
             rankId_ / SERVER_RANK_SIZE * SERVER_RANK_SIZE + i) + shareMemOffset_));
     }
-    SERVER_SIZE_ON_WIN = WIN_SIZE / serverNum;
+    uint32_t halfServerNum = serverNum / 2;
+    SERVER_SIZE_ON_WIN = WIN_SIZE / halfServerNum;
     SERVER_SIZE_ON_WIN = (SERVER_SIZE_ON_WIN / RDMA_BUFFER_ALIGN) * RDMA_BUFFER_ALIGN;
 
     //TokenStruct info init
@@ -320,8 +325,8 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     weightsGM_ = expertScales;
 
     //RDMA send/recv global tensor init
-    sendTokensU8Tensor_.SetGlobalBuffer((__gm__ uint8_t*)(windowOutGM_));
-    sendStatusTensor_.SetGlobalBuffer((__gm__ uint64_t*)(windowOutGM_ + WIN_SIZE));
+    sendTokensU8Tensor_.SetGlobalBuffer((__gm__ uint8_t*)(windowOutGM_ + shareMemOffset_ + FLAG_SIZE));
+    sendStatusTensor_.SetGlobalBuffer((__gm__ uint64_t*)(windowOutGM_ + shareMemOffset_));
     readStatusTensor_.SetGlobalBuffer((__gm__ uint64_t*)(windowInGM_ + WIN_SIZE));
     readInnerStatusTensor_.SetGlobalBuffer((__gm__ uint64_t*)(windowInGM_ + WIN_SIZE + innerTableFlagOffset_));
 
@@ -346,8 +351,26 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     tpipe_->InitBuffer(rdmaInBuf2_, UB_32B_ALIGN);
     ubLocalHead = rdmaInBuf2_.Get<uint32_t>();
 
+    tpipe_->InitBuffer(dstServerAddrBuf_, RoundUp(serverNum * sizeof(uint64_t), UB_32B_ALIGN));
+    dstServerAddrLT_ = dstServerAddrBuf_.Get<uint64_t>();
+    tpipe_->InitBuffer(srcServerAddrBuf_, RoundUp(serverNum * sizeof(uint64_t), UB_32B_ALIGN));
+    srcServerAddrLT_ = srcServerAddrBuf_.Get<uint64_t>();
     tpipe_->InitBuffer(tBuf, TBUF_SIZE);
 
+    for (uint32_t serverId = 0; serverId < serverNum; ++serverId) {
+        uint32_t dstRankId = serverId * SERVER_RANK_SIZE + rankId_;
+        if (serverId < halfServerNum) {
+            dstServerAddrLT_[serverId] = (uint64_t)(hccl_.GetWindowsInAddr(dstRankId) + (halfWinSize_ * bufferId_ * 1UL) +
+                                                        (serverId_ * SERVER_SIZE_ON_WIN * 1UL));
+            srcServerAddrLT_[serverId] = (uint64_t)(hccl_.GetWindowsInAddr(rankId_) + (halfWinSize_ * bufferId_ * 1UL) +
+                                                        (serverId_ * SERVER_SIZE_ON_WIN * 1UL));
+        } else {
+            dstServerAddrLT_[serverId] = (uint64_t)(hccl_.GetWindowsOutAddr(dstRankId) + (halfWinSize_ * bufferId_ * 1UL) +
+                                                        ((serverId_ - halfServerNum) * SERVER_SIZE_ON_WIN * 1UL));
+            srcServerAddrLT_[serverId] = (uint64_t)(hccl_.GetWindowsOutAddr(rankId_) + (halfWinSize_ * bufferId_ * 1UL) +
+                                                        ((serverId_ - halfServerNum) * SERVER_SIZE_ON_WIN * 1UL));
+        }
+    }
     needPerformanceInfo_ = performanceInfo != nullptr;
     if (unlikely(needPerformanceInfo_)) {
         performanceInfoSize_ = worldSize_;
@@ -777,16 +800,18 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     //计算单个token在ub中占用buffer大小，量化情况下还包含量化所学workspace
     uint32_t singleTokenUBSize = tokenStructLen_;
     uint32_t quantTokenUBSize = 0;
+    uint32_t tokenLtSize = tokenStructLen_;
     if constexpr (DynamicQuant) {
         quantTokenUBSize = tokenStructLen_ > axisH_ * sizeof(XType) ? tokenStructLen_ : axisH_ * sizeof(XType);
         singleTokenUBSize = quantTokenUBSize + axisH_ * sizeof(float);
+        tokenLtSize = quantTokenUBSize;
     }
     uint32_t maxTokenNumInUB = tokenUbSize_ / singleTokenUBSize;
     uint32_t batchNum = (sendTokenNum + maxTokenNumInUB - 1) / maxTokenNumInUB;
 
 
     LocalTensor<uint8_t> tokenTensorU8_ =
-        tBuf.GetWithOffset<uint8_t>(maxTokenNumInUB * tokenStructLen_, TBUF_TEMP_OFFSET);
+        tBuf.GetWithOffset<uint8_t>(maxTokenNumInUB * tokenLtSize, TBUF_TEMP_OFFSET);
     LocalTensor<uint64_t> tokenTempTensorU64_ = tokenTensorU8_.template ReinterpretCast<uint64_t>();
     LocalTensor<XType> tokenLt = tokenTensorU8_.template ReinterpretCast<XType>();
     LocalTensor<float> tokenCastLt; //仅量化使用
@@ -853,7 +878,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
                     AscendC::DcciDst::CACHELINE_OUT>(sendServerInfoTemp);
             PipeBarrier<PIPE_ALL>();
         }
-        uint32_t tokenWinOutOffset = startTokenId * tokenStructLen_;
+        uint64_t tokenWinOutOffset = startTokenId * static_cast<uint64_t>(tokenStructLen_);
         DataCopy(sendTokensU8Tensor_[tokenWinOutOffset], tokenTensorU8_, currentTokenNum * tokenStructLen_);
         PipeBarrier<PIPE_ALL>();
         startTokenId += currentTokenNum;
@@ -926,9 +951,8 @@ SendDataToServer(uint32_t destServerId)
     uint64_t destServerMask = (1UL << destServerId);
 
     // 根据BufferID选择对应WindowBuffer -> 根据对应本机的Server选择Dst对应预留区域
-    uint64_t dstRdmaAddr = (uint64_t)(hccl_.GetWindowsInAddr(dstRankId) + (halfWinSize_ * bufferId_ * 1UL) +
-                                    (serverId_ * SERVER_SIZE_ON_WIN * 1UL));
-    uint64_t srcRdmaAddrBase = (uint64_t)(hccl_.GetWindowsOutAddr(rankId_) + (halfWinSize_ * bufferId_ * 1UL));
+    uint64_t dstRdmaAddr = dstServerAddrLT_[destServerId];
+    uint64_t srcRdmaAddrBase = (uint64_t)(sendTokensU8Tensor_.GetPhyAddr());
     LocalTensor<uint64_t> sendTokenInfoLocalTensor =
         tBuf.GetWithOffset<uint64_t>((axisBS_ * FLAG_SIZE)/sizeof(uint64_t), 0);
     DataCopy(sendTokenInfoLocalTensor, tokenAddrFlagStructGlobalU64Tensor_, (axisBS_ * FLAG_SIZE)/sizeof(uint64_t));
@@ -1017,8 +1041,8 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
     GlobalTensor<uint64_t> TokenFlagGtU64;
     GlobalTensor<uint8_t> TokensGtU8;
 
-    TokenFlagGtU64.SetGlobalBuffer((__gm__ uint64_t*)(windowInGM_));
-    TokensGtU8.SetGlobalBuffer((__gm__ uint8_t*)(windowInGM_));
+    TokenFlagGtU64.SetGlobalBuffer((__gm__ uint64_t*)(srcServerAddrLT_[serverIdx]));
+    TokensGtU8.SetGlobalBuffer((__gm__ uint8_t*)(srcServerAddrLT_[serverIdx]));
 
     LocalTensor<uint64_t> statusTensor = statusBuf_.Get<uint64_t>();
     DataCopy(statusTensor, readStatusTensor_[(serverIdx) * STATE_OFFSET / sizeof(uint64_t)],
@@ -1026,13 +1050,13 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
     PipeBarrier<PIPE_ALL>();
     uint64_t endFlagValue = statusTensor.GetValue(0);
 
-    uint32_t TokenOffset = serverIdx * SERVER_SIZE_ON_WIN + tokenIdx * tokenStructLen_;
+    uint32_t TokenOffset = tokenIdx * tokenStructLen_;
     DataCopy(statusTensor, TokenFlagGtU64[(TokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)],
         FLAG_SIZE / sizeof(uint64_t));
     PipeBarrier<PIPE_ALL>();
     uint64_t tokenFlagValue = statusTensor.GetValue(0);
 
-    uint32_t nextTokenOffset = serverIdx * SERVER_SIZE_ON_WIN + (tokenIdx + 1) * tokenStructLen_;
+    uint32_t nextTokenOffset = (tokenIdx + 1) * tokenStructLen_;
     DataCopy(statusTensor, TokenFlagGtU64[(nextTokenOffset + flagOffsetInStruct_) / sizeof(uint64_t)],
         FLAG_SIZE / sizeof(uint64_t));
     PipeBarrier<PIPE_ALL>();
@@ -1089,7 +1113,7 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
         return SKIP_STATUS;
     } else {
         GlobalTensor<uint8_t> TokensGtU8;
-        TokensGtU8.SetGlobalBuffer((__gm__ uint8_t*)(windowOutGM_));
+        TokensGtU8.SetGlobalBuffer((__gm__ uint8_t*)((uint64_t)(sendTokensU8Tensor_.GetPhyAddr())));
         if (justExpInfo) {
             DataCopy(localUB_U8, TokensGtU8[tokenIdx * tokenStructLen_ + expOffsetInStruct_], expLenInStruct_);
         } else {
@@ -1171,13 +1195,13 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             }
 
             //本卡需要发送
-            uint32_t targetExpOffset = (targetExpId % localMoeExpertNum_) * worldSize_ * RANK_SIZE_ON_IPC;// 第几个Exp段
-            uint32_t targetServerOffset = formServerId * SERVER_RANK_SIZE * RANK_SIZE_ON_IPC;// 第几个Server段
-            uint32_t targetRankOffset = (rankId_ % SERVER_RANK_SIZE) * RANK_SIZE_ON_IPC;// 第几个Rank段
-            uint32_t targetTokenOffset = tokenStructLen_ * targetTokenIdx;  // 第几个Token位
-            uint32_t targetOffset = targetExpOffset + targetServerOffset + targetRankOffset + targetTokenOffset; // 总偏移
+            uint64_t targetExpOffset = (targetExpId % localMoeExpertNum_) * worldSize_ * RANK_SIZE_ON_IPC;// 第几个Exp段
+            uint64_t targetServerOffset = formServerId * SERVER_RANK_SIZE * RANK_SIZE_ON_IPC;// 第几个Server段
+            uint64_t targetRankOffset = (rankId_ % SERVER_RANK_SIZE) * RANK_SIZE_ON_IPC;// 第几个Rank段
+            uint64_t targetTokenOffset = static_cast<uint64_t>(tokenStructLen_) * targetTokenIdx;  // 第几个Token位
+            uint64_t targetOffset = targetExpOffset + targetServerOffset + targetRankOffset + targetTokenOffset; // 总偏移
             targetTokenIpcGt.SetGlobalBuffer((__gm__ uint8_t*)(shareAddrs[targetRankId % SERVER_RANK_SIZE] +
-                IPC_DATA_OFFSET + targetOffset));
+                static_cast<uint64_t>(IPC_DATA_OFFSET) + targetOffset));
             PipeBarrier<PIPE_ALL>();
             DataCopy(targetTokenIpcGt, localUB_U8, tokenStructLen_);
             PipeBarrier<PIPE_ALL>();
@@ -1307,7 +1331,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             DataCopyExtParams copyTokenParams{static_cast<uint16_t>(1),
                 static_cast<uint32_t>(tokenCntInBatch * tokenStructLen_), 0, 0, 0};
             DataCopyPadExtParams<uint8_t> padParams;
-            uint32_t srcIpcOffset = srIdx * RANK_SIZE_ON_IPC + batchIdx * tokenCntInUB * tokenStructLen_;
+            uint64_t srcIpcOffset = srIdx * RANK_SIZE_ON_IPC + batchIdx * tokenCntInUB * tokenStructLen_;
             DataCopyPad(localUB, srcIpcGt[srcIpcOffset], copyTokenParams, padParams);
             SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
             DataCopyExtParams writeTokenParams{static_cast<uint16_t>(tokenCntInBatch),
