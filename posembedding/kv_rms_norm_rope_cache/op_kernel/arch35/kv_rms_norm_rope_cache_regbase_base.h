@@ -64,8 +64,20 @@ static constexpr AscendC::MicroAPI::CastTrait CAST_INT16_TO_FP16 = {
     AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::UNKNOWN, AscendC::MicroAPI::MaskMergeMode::ZEROING,
     AscendC::RoundMode::CAST_ROUND};
 
+constexpr int64_t BLOCK_SIZE = 32;
+// Constants for buffer counts to replace magic numbers
+constexpr int32_t BUFFER_COUNT_SINGLE = 1;
+constexpr int32_t BUFFER_COUNT_DOUBLE = 2;
+
+// Constants for channel counts in buffer size calculations to replace magic numbers
+constexpr int32_t COS_SIN_CHANNEL_COUNT = 4; // Real/Imaginary for Cos/Sin
+constexpr int32_t K_SCALE_OFFSET_CHANNEL_COUNT = 4; // Real/Imaginary for Scale/Offset (K)
+constexpr int32_t V_SCALE_OFFSET_CHANNEL_COUNT = 2; // Scale/Offset (V)
+constexpr int32_t WORKSPACE_FLOAT_VECTOR_COUNT = 2; // Number of float vectors in workspace
+
 constexpr static int64_t CONST_ZERO = 0;
 constexpr static int64_t CONST_ONE = 1;
+constexpr static float CONST_MINUS_ONE = -1.0;
 constexpr static int64_t CONST_TWO = 2;
 constexpr static int64_t CONST_THREE = 3;
 constexpr static int64_t CONST_FOUR = 4;

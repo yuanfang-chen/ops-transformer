@@ -17,17 +17,6 @@
 #include "kv_rms_norm_rope_cache_regbase_base.h"
 
 namespace KvRmsNormRopeCache {
-constexpr int64_t BLOCK_SIZE = 32;
-
-// Constants for buffer counts to replace magic numbers
-constexpr int32_t BUFFER_COUNT_SINGLE = 1;
-constexpr int32_t BUFFER_COUNT_DOUBLE = 2;
-
-// Constants for channel counts in buffer size calculations to replace magic numbers
-constexpr int32_t COS_SIN_CHANNEL_COUNT = 4; // Real/Imaginary for Cos/Sin
-constexpr int32_t K_SCALE_OFFSET_CHANNEL_COUNT = 4; // Real/Imaginary for Scale/Offset (K)
-constexpr int32_t V_SCALE_OFFSET_CHANNEL_COUNT = 2; // Scale/Offset (V)
-constexpr int32_t WORKSPACE_FLOAT_VECTOR_COUNT = 2; // Number of float vectors in workspace
 
 using namespace AscendC;
 template <typename T_KV, typename T_K_CACHE, typename T_V_CACHE>
