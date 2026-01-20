@@ -413,17 +413,10 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Qua
         PipeBarrier<PIPE_V>();
         ReduceMaxInplace(floatLocalAbsTemp_, axisH_);
 
-        // INT4 量化需要限制最大值为2.56
-        if constexpr (IsSameType<ExpandXOutType, int4b_t>::value) {
-            PipeBarrier<PIPE_V>();
-            Min(floatLocalAbsTemp_, floatLocalAbsTemp_, float(2.56), axisH_);
-            PipeBarrier<PIPE_V>();
-        }
-
         SyncFunc<AscendC::HardEvent::V_S>();
         // 根据输出类型选择最大值：INT4使用7.0，INT8使用127.0
         if constexpr (IsSameType<ExpandXOutType, int4b_t>::value) {
-            dynamicScale = float(INT4_MAX_VALUE) / floatLocalAbsTemp_.GetValue(0);
+            dynamicScale = float(INT4_MAX_VALUE) / min(floatLocalAbsTemp_.GetValue(0), float(2.56));
         } else {
             dynamicScale = float(INT8_MAX_VALUE) / floatLocalAbsTemp_.GetValue(0);
         }
