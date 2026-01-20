@@ -263,7 +263,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDimLayout(const gert::Sh
             OP_CHECK_IF(kSize > BUFFER_SIZE_BYTE_8K || kSize % BUFFER_SIZE_BYTE_1K > 0,
                 OP_LOGE(opName, "topK(%d) should be small than 8192, and should be an integer multiple of 1024.", kSize),
                 return false);
-            topKRange = (kSize <= BUFFER_SIZE_BYTE_2K) ? TopKRange::RANGE_0_2K : TopKRange::RANGE_2K_8K;           
+            topkSize = (TopKRange) kSize;
             if (hasRope) {
                 dQueryRopeSize = queryRopeShape.GetDim(2);
                 dKeyRopeSize = keyRopeShape.GetDim(2);
@@ -293,7 +293,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDimLayout(const gert::Sh
             OP_CHECK_IF(kSize > BUFFER_SIZE_BYTE_8K || kSize % BUFFER_SIZE_BYTE_1K > 0,
                 OP_LOGE(opName, "topK(%d) should be small than 8192, and should be an integer multiple of 1024.", kSize),
                 return false);
-            topKRange = (kSize <= BUFFER_SIZE_BYTE_2K) ? TopKRange::RANGE_0_2K : TopKRange::RANGE_2K_8K;
+            topkSize = (TopKRange) kSize;
             if (hasRope) {
                 dQueryRopeSize = queryRopeShape.GetDim(3);
                 dKeyRopeSize = keyRopeShape.GetDim(3);
@@ -937,7 +937,7 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::DoOpTiling()
 
 uint64_t SparseLightningIndexerGradKLLossTilingBase::GetTilingKey() const
 {
-    return GET_TPL_TILING_KEY(static_cast<uint8_t>(hasRope), static_cast<uint8_t>(topKRange), static_cast<uint8_t>(tilingKeyLayout), 
+    return GET_TPL_TILING_KEY(static_cast<uint8_t>(hasRope), static_cast<uint32_t>(topkSize), static_cast<uint8_t>(tilingKeyLayout), 
         static_cast<uint8_t>(tilingKeyLayout), static_cast<uint8_t>(sparseMode), static_cast<uint8_t>(deterministic));
 }
 

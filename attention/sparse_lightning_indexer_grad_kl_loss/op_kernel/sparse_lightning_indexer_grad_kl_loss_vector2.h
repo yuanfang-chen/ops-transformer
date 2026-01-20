@@ -150,7 +150,8 @@ __aicore__ inline void SLIKLLossVector2Service<SLIT>::ProcessVector2()
     int32_t t2End = Min(t2Start + avgCost, totalCost);
 
     int32_t t2ProcessSize = UB_ROW_SIZE;
-    int32_t t2TailSize = ((t2End - t2Start) % UB_ROW_SIZE == 0) ? UB_ROW_SIZE : ((t2End - t2Start) % UB_ROW_SIZE);
+    int32_t tailSize = (t2End - t2Start) % UB_ROW_SIZE;
+    int32_t t2TailSize = (!tailSize) ? UB_ROW_SIZE : (tailSize);
     int32_t pingPongIdx = 0;
 
     LocalTensor<MM3_OUT_T> copyInUb;
