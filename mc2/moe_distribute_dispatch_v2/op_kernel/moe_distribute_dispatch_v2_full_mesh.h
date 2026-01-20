@@ -416,7 +416,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFunc>::Qua
         // INT4 量化需要限制最大值为2.56
         if constexpr (IsSameType<ExpandXOutType, int4b_t>::value) {
             PipeBarrier<PIPE_V>();
-            Min(floatLocalAbsTemp, floatLocalAbsTemp, float(2.56), axisH_);
+            Min(floatLocalAbsTemp_, floatLocalAbsTemp_, float(2.56), axisH_);
             PipeBarrier<PIPE_V>();
         }
 
