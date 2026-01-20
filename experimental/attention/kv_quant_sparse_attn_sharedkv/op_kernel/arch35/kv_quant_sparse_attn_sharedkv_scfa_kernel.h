@@ -46,14 +46,13 @@ public:
                                        __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
                                        __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData *metadata,
                                        __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
-                                       const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
-                                       __gm__ uint8_t *gmTiling, TPipe *tPipe);
+                                       const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
 private:
     __aicore__ inline void ProcessMainLoop();
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-        __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData& metadata, __gm__ uint8_t *workspace,
+        __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
         const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitMMResBuf();
@@ -91,7 +90,7 @@ private:
     GlobalTensor<KV_T> oriKeyGm; // kv不连续场景需要使用来获取shape
     keyGmType cmpKeyGm; // kv不连续场景需要使用来获取shape
     FlashDecodeResult fdRes;
-    SasMetaData metadataLocal;
+    SasMetaData *metadataLocal;
     __gm__ int32_t *actualSeqQlenAddr;
     __gm__ int32_t *actualSeqKvlenAddr;
     /* 核Index信息 */
@@ -111,8 +110,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable,
     __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData *metadata,
     __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
-    const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
-    __gm__ uint8_t *gmTiling, TPipe *tPipe)
+    const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
 {
     fa_base_matmul::idCounterNum = 0;
     constInfo.subBlockIdx = GetSubBlockIdx();
@@ -123,28 +121,14 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         this->aicIdx = constInfo.aivIdx >> 1;
         this->tilingData = tiling;
     }
-    if (metadata != nullptr) {
-        metadataLocal.usedCoreNum = metadata->usedCoreNum;
-        metadataLocal.mBaseSize = metadata->mBaseSize;
-        metadataLocal.s2BaseSize = metadata->s2BaseSize;
-        for (uint32_t i = 0; i < AIC_CORE_NUM; ++i) {
-            metadataLocal.bN2End[i] = metadata->bN2End[i];
-            metadataLocal.mEnd[i] = metadata->mEnd[i];
-            metadataLocal.s2End[i] = metadata->s2End[i];
-            metadataLocal.headFdDataIdx[i] = metadata->headFdDataIdx[i];
-        }
-        metadataLocal.fdRes = this->fdRes;
-        metadataLocal.fdRes.fdNum = metadata->fdRes.fdNum;
-        for (uint32_t i = 0; i < MAX_FD_NUM; ++i) {
-            metadataLocal.fdRes.fdBN2Idx[i] = metadata->fdRes.fdBN2Idx[i];
-            metadataLocal.fdRes.fdMIdx[i] = metadata->fdRes.fdMIdx[i];
-            metadataLocal.fdRes.fdS2SplitNum[i] = metadata->fdRes.fdS2SplitNum[i];
-        }
 
-        constInfo.s1BaseSize = metadataLocal.mBaseSize;
-        constInfo.s2BaseSize = metadataLocal.s2BaseSize;
-        sharedParams.coreNum = metadataLocal.usedCoreNum;
+    if (metadata == nullptr) {
+        return;
     }
+    metadataLocal = metadata;
+    constInfo.s1BaseSize = metadataLocal->mBaseSize;
+    constInfo.s2BaseSize = metadataLocal->s2BaseSize;
+    sharedParams.coreNum = metadataLocal->usedCoreNum;
 
     this->pipe = tPipe;
     vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx);
@@ -177,7 +161,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         constInfo.needInit = this->sharedParams.needInit;
     }
     this->ComputeConstexpr();
-    this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedKv, sinks, metadataLocal,
+    this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedKv, sinks,
         workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
 }
@@ -186,7 +170,7 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::InitGlobalBuffer(
     __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
     __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-    __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, SasMetaData& metadata, __gm__ uint8_t *workspace,
+    __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
     const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
 {
     // 初始化vector用到的global buffer
@@ -346,12 +330,12 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         return;
     }
     // 从meta data解析分核信息
-    int64_t bN2StartIdx = this->aicIdx == 0 ? 0 : metadataLocal.bN2End[this->aicIdx - 1];
-    int64_t bN2EndIdx = metadataLocal.bN2End[this->aicIdx];
-    int64_t gS1StartIdx = this->aicIdx == 0 ? 0 : metadataLocal.mEnd[this->aicIdx - 1];
-    int64_t nextGs1Idx = metadataLocal.mEnd[this->aicIdx];
-    int64_t s2StartIdx = this->aicIdx == 0 ? 0 : metadataLocal.s2End[this->aicIdx - 1];
-    int64_t s2EndIdx = metadataLocal.s2End[this->aicIdx];
+    int64_t bN2StartIdx = this->aicIdx == 0 ? 0 : metadataLocal->bN2End[this->aicIdx - 1];
+    int64_t bN2EndIdx = metadataLocal->bN2End[this->aicIdx];
+    int64_t gS1StartIdx = this->aicIdx == 0 ? 0 : metadataLocal->mEnd[this->aicIdx - 1];
+    int64_t nextGs1Idx = metadataLocal->mEnd[this->aicIdx];
+    int64_t s2StartIdx = this->aicIdx == 0 ? 0 : metadataLocal->s2End[this->aicIdx - 1];
+    int64_t s2EndIdx = metadataLocal->s2End[this->aicIdx];
     int64_t s2LoopLimit = 0;
 
     if (bN2StartIdx == bN2EndIdx) {
