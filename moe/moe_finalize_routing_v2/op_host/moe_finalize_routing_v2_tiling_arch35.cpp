@@ -73,14 +73,14 @@ protected:
     bool IsKHFullLoad();
     bool IsHFullLoad();
     ge::graphStatus CheckShapeAndDtypeIsValid();
+    ge::graphStatus CheckPartShapeAndDtypeIsValid();
+    ge::graphStatus FinalCheckShapeAndDtypeIsValid();
     ge::graphStatus GetRow(const gert::StorageShape* expandedRowIdxShape);
     ge::graphStatus CheckBiasShape(const gert::StorageShape* biasShape);
     ge::graphStatus GetECH(const gert::StorageShape* expandedXShape);
     ge::graphStatus GetK(const gert::StorageShape* scalesShape);
     int64_t RowsHSize(int64_t rowFactor, bool scalesInUb);
-    int64_t RowsHSizeForKHFullLoad(int64_t rowFactor, bool scalesInUb);
     int64_t CalcRowFactor(int64_t ubSizeRemained, bool scalesInUb);
-    int64_t CalcRowFactorForKHFullLoad(int64_t ubSizeRemained, bool scalesInUb);
     void SetFullLoadTilingData(int64_t rowOfFormerBlock, int64_t rowOfTailBlock, int64_t rowFactor);
     ge::graphStatus DoOpTilingRowKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock);
     ge::graphStatus DoOpTilingKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock);
@@ -233,7 +233,6 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckBiasShape(const gert::StorageS
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
 {
-    gert::Shape bsk = {row, k};
     gert::Shape rowIdxShape = {row * k};
     gert::Shape bsh = {row, h};
 
@@ -272,6 +271,23 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
             OP_LOGE(context_->GetNodeName(), "dtype of x2 is invalid."),
             return ge::GRAPH_FAILED);
     }
+
+    OP_CHECK_IF(
+            CheckPartShapeAndDtypeIsValid() != ge::GRAPH_SUCCESS,
+            OP_LOGE(context_->GetNodeName(), "CheckPartShapeAndDtypeIsValid failed."),
+            return ge::GRAPH_FAILED);
+    
+    OP_CHECK_IF(
+            FinalCheckShapeAndDtypeIsValid() != ge::GRAPH_SUCCESS,
+            OP_LOGE(context_->GetNodeName(), "FinalCheckShapeAndDtypeIsValid failed."),
+            return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckPartShapeAndDtypeIsValid()
+{
+    gert::Shape bsh = {row, h};
+
     auto x2Shape = context_->GetOptionalInputShape(X2_IDX);
     if (x2Shape) {
         OP_CHECK_IF(
@@ -315,6 +331,14 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
             scaleDtypeKey = BFLOAT16_TILING_KEY;
         }
     }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
+{
+    gert::Shape bsk = {row, k};
+    gert::Shape bsh = {row, h};
+
     auto scalesShape = context_->GetOptionalInputShape(SCALES_IDX);
     if (scalesShape) {
         OP_CHECK_IF(
@@ -417,43 +441,6 @@ int64_t MoeFinalizeRoutingV2Regbase::RowsHSize(int64_t rowFactor, bool scalesInU
            /* y */ Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * sizeof(float)), blockSize_) * blockSize_;
 }
 
-int64_t MoeFinalizeRoutingV2Regbase::RowsHSizeForKHFullLoad(int64_t rowFactor, bool scalesInUb)
-{
-    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) *
-               Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * dtypeSize), blockSize_) * blockSize_ +
-           (scalesInUb && hasScales_ ? 1 : 0) *
-               Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * scaleDtypeSize), blockSize_) * blockSize_ +
-           (hasBias_ ? 1 : 0) * 
-               (Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * h * dtypeSize), blockSize_) * blockSize_ +
-               Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * sizeof(int32_t)), blockSize_) * blockSize_) +
-               Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * h * dtypeSize), blockSize_) * blockSize_ +
-               Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * sizeof(int32_t)), blockSize_) * blockSize_ +
-               Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * sizeof(float)), blockSize_) * blockSize_;
-}
-
-int64_t MoeFinalizeRoutingV2Regbase::CalcRowFactorForKHFullLoad(int64_t ubSizeRemained, bool scalesInUb)
-{
-    int64_t rowFactor = 1;
-    int64_t factor = 1;
-    while (RowsHSizeForKHFullLoad(rowFactor, scalesInUb) <= ubSizeRemained) {
-        factor *= TWO;
-        rowFactor *= factor;
-    }
-    int64_t upper = rowFactor;
-    int64_t lower = rowFactor / factor;
-    while (upper - lower > 1) {
-        int64_t mid = (lower + upper) / TWO;
-        int64_t size = RowsHSizeForKHFullLoad(mid, scalesInUb);
-        if (size <= ubSizeRemained) {
-            lower = mid;
-        } else {
-            upper = mid;
-        }
-    }
-    rowFactor = lower;
-    return rowFactor;
-}
-
 int64_t MoeFinalizeRoutingV2Regbase::CalcRowFactor(int64_t ubSizeRemained, bool scalesInUb)
 {
     int64_t rowFactor = 1;
@@ -517,17 +504,11 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingRowKHFullLoad(int64_t row
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
-    int64_t rowFactor = 1;
-    if (k == 1) {
-        int64_t ubSizeRemained = ubSize_ / DOUBLE_BUFFER;
-        rowFactor = CalcRowFactorForKHFullLoad(ubSizeRemained, true);
-    } else {
-        int64_t kHAlignedByte = k * hAligned * dtypeSize;	
-        int64_t hasBiasvalue = hasBias_ ? kHAlignedByte : 0;	
-        int64_t ubSizeRemained = ubSize_ / DOUBLE_BUFFER - kHAlignedByte - hasBiasvalue;
-        rowFactor = CalcRowFactor(ubSizeRemained, true);
-    }
-    SetFullLoadTilingData(rowOfFormerBlock, rowOfTailBlock, rowFactor);	
+    int64_t kHAlignedByte = k * hAligned * dtypeSize;
+    int64_t hasBiasvalue = hasBias_ ? kHAlignedByte : 0;
+    int64_t ubSizeRemained = ubSize_ / DOUBLE_BUFFER - kHAlignedByte - hasBiasvalue;
+    int64_t rowFactor = CalcRowFactor(ubSizeRemained, true);
+    SetFullLoadTilingData(rowOfFormerBlock, rowOfTailBlock, rowFactor);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -664,16 +645,9 @@ bool MoeFinalizeRoutingV2Regbase::IsKHFullLoad()
     int64_t hAligned32Byte = Ops::Base::CeilDiv(static_cast<uint64_t>(h * sizeof(float)), blockSize_) * blockSize_;
     int64_t hasBiasvalue = hasBias_ ? kHAlignedByte : 0;
     int64_t hasScalevalue = hasScales_ ? scalesAlignedByte : 0;
-    int64_t expandedRowIdxAlignedByte = 
-        Ops::Base::CeilDiv(static_cast<uint64_t>(k * sizeof(int32_t)), blockSize_) * blockSize_;
-    int64_t hasExpandedRowIdxValue = k == 1 ? expandedRowIdxAlignedByte : 0;
-    int64_t expertIdxAlignedByte = 
-        Ops::Base::CeilDiv(static_cast<uint64_t>(k * sizeof(int32_t)), blockSize_) * blockSize_;
-    int64_t hasExpertIdxValue = (hasBias_ && k == 1) ? expertIdxAlignedByte : 0;
-    int64_t totalSize = DOUBLE_BUFFER * (kHAlignedByte + hasBiasvalue + hasScalevalue + hasExpandedRowIdxValue +
-                                        hasExpertIdxValue +
-                                        (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) * hAlignedByte +
-                                        hAligned32Byte * OUTPUT_BUFFER_NUM);
+    int64_t totalSize = DOUBLE_BUFFER * (kHAlignedByte + hasBiasvalue + hasScalevalue +
+                                         (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) * hAlignedByte +
+                                         hAligned32Byte * OUTPUT_BUFFER_NUM);
     return totalSize <= ubSize_;
 }
 
