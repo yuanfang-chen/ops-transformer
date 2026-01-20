@@ -427,11 +427,35 @@ function build_example()
     elif [[ "${EXAMPLE_MODE}" == "graph" ]]; then
         pattern="test_geir_"
     fi
-
-    files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/${pattern}*.cpp"))
-    if [[ "$ASCEND_SOC_UNITS" == "ascend910_95" ]]; then
-        files+=($(find ../ -path "*/${EXAMPLE_NAME}/examples/arch35/${pattern}*.cpp"))
+    # No soc provided.
+    if [[ -z "$ASCEND_SOC_UNITS" ]]; then
+        ASCEND_SOC_UNITS="ascend910b"
     fi
+    is_soc_support=""
+    for support_unit in "${SUPPORT_COMPUTE_UNIT_SHORT[@]}"; do
+        if [[ "$support_unit" == "$ASCEND_SOC_UNITS" ]]; then
+            is_soc_support="true"
+            break
+        fi
+    done
+    if [[ -z "$is_soc_support" ]]; then
+        echo "Currently $ASCEND_SOC_UNITS is not supported, please input a valid soc."
+        return 1
+    fi
+    # Obtain the example file corresponding to the input soc unit.
+    if [[ "$ASCEND_SOC_UNITS" == "ascend910_95" ]]; then
+        # 1. ascend910_95/ascend950 example is independent of other soc units.
+        files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/arch35/${pattern}*.cpp"))
+        if [[ -z "$files" ]]; then
+            # 2. Example is shared with other soc units, or the current operator only supports ascend910_95/ascend950.
+            files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/${pattern}*.cpp"))
+        fi
+    else
+        # Except for ascend910_95/ascend950, the examples of other soc units are temporarily shared. 
+        # If you need to add independent examples, you can refer to the method of adding a directory for isolation.
+        files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/${pattern}*.cpp"))
+    fi
+    # Compile and Execute
     if [[ "${EXAMPLE_MODE}" == "eager" ]]; then
         if [ -z "$files" ]; then
             echo "${EXAMPLE_NAME} do not have eager example"
