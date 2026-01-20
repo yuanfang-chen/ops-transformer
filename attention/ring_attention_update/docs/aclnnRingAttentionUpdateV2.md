@@ -9,7 +9,7 @@
 
 ## 功能说明
 
-- 算子功能：将两次FlashAttention的输出根据其不同的softmax的max和sum更新。**与[RingAttentionUpdate](./aclnnRingAttentionUpdate.md)接口的区别是：在输入排布为TND的场景下，原RingAttentionUpdate接口中的softmax相关输入的数据排布为BNS8，RingAttentionUpdateV2 接口支持传入字符串参数 inputSoftmaxLayout，用于控制 softmax 相关输入的数据排布是否与attention保持一致（即采用 TND 排布）。**
+- 接口功能：将两次FlashAttention的输出根据其不同的softmax的max和sum更新。**与[RingAttentionUpdate](./aclnnRingAttentionUpdate.md)接口的区别是：在输入排布为TND的场景下，原RingAttentionUpdate接口中的softmax相关输入的数据排布为BNS8，RingAttentionUpdateV2 接口支持传入字符串参数 inputSoftmaxLayout，用于控制 softmax 相关输入的数据排布是否与attention保持一致（即采用 TND 排布）。**
 - 计算公式：
 
 $$
@@ -56,7 +56,7 @@ aclnnRingAttentionUpdateV2(
 
 ## aclnnRingAttentionUpdateV2GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
     - prevAttnOut(aclTensor*,计算输入)：Device侧的aclTensor，公式中的prev_attn_out，第一次FlashAttention的输出，输入shape和inputLayoutOptional属性保持一致，支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。当输入数据排布inputLayoutOptional为TND时，D限制为64的倍数。
         * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT16、FLOAT、BFLOAT16
@@ -82,31 +82,90 @@ aclnnRingAttentionUpdateV2(
         * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：数据类型支持FLOAT
     - workspaceSize(uint64_t*, 出参)：返回需要在Device侧申请的workspace大小。
     - executor(aclOpExecutor**, 出参)：返回op执行器，包含了算子计算流程。
-- **返回值：**
+
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-  ```
   第一段接口完成入参校验，出现以下场景时报错：
-  161001(ACLNN_ERR_PARAM_NULLPTR)：1. 传入的prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut是空指针。
-  161002(ACLNN_ERR_PARAM_INVALID)：1. prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut数据类型不在支持的范围之内。
-                                   2. prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut的shape不支持。
-  561002 (ACLNN_ERR_INNER_TILING_ERROR)：1. 当actualSeqQlenOptional有输入时，输入数据格式不在支持的范围之内。
-                                         2. 当inputSoftmaxLayoutOptional输入值不在支持范围之内。
-  ```
+
+  <table style="undefined;table-layout: fixed; width: 1218px"><colgroup>
+  <col style="width: 325px">
+  <col style="width: 124px">
+  <col style="width: 769px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>返回值</th>
+      <th>错误码</th>
+      <th>描述</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
+      <td>161001</td>
+      <td>传入的prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut是空指针。</td>
+    </tr>
+    <tr>
+      <td rowspan="2">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="2">161002</td>
+      <td>prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut数据类型不在支持的范围之内。</td>
+    </tr>
+    <tr>
+      <td>prevAttnOut、prevSoftmaxMax、prevSoftmaxSum、curAttnOut、curSoftmaxMax、curSoftmaxSum、attnOutOut、softmaxMaxOut、softmaxSumOut的shape不支持。</td>
+    </tr>
+    <tr>
+      <td rowspan="2">ACLNN_ERR_INNER_TILING_ERROR</td>
+      <td rowspan="2">561002</td>
+      <td>当actualSeqQlenOptional有输入时，输入数据格式不在支持的范围之内。</td>
+    </tr>
+    <tr>
+      <td>当inputSoftmaxLayoutOptional输入值不在支持范围之内。</td>
+    </tr>
+  </tbody>
+  </table>
 
 ## aclnnRingAttentionUpdateV2
 
-- **参数说明：**
+- **参数说明**
 
-| 参数名                      | 输入/输出 | 描述                                                                             |
-| ----------------------------- | ----------- | ---------------------------------------------------------------------------------- |
-| workspace（void*）         | 输入      | 在Device侧申请的workspace内存地址。                                              |
-| workspaceSize（uint64_t）  | 输入      | 在Device侧申请的workspace大小，由第一段接口aclnnInplaceAddGetWorkspaceSize获取。 |
-| executor（aclOpExecutor*） | 输入      | op执行器，包含了算子计算流程。                                                   |
-| stream（aclrtStream）       | 输入      | 指定执行任务的Stream。                                                           |
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>参数名</th>
+      <th>输入/输出</th>
+      <th>描述</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td>workspace</td>
+      <td>输入</td>
+      <td>在Device侧申请的workspace内存地址。</td>
+    </tr>
+    <tr>
+      <td>workspaceSize</td>
+      <td>输入</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnRingAttentionUpdateV2GetWorkspaceSize获取。</td>
+    </tr>
+    <tr>
+      <td>executor</td>
+      <td>输入</td>
+      <td>op执行器，包含了算子计算流程。</td>
+    </tr>
+    <tr>
+      <td>stream</td>
+      <td>输入</td>
+      <td>指定执行任务的Stream。</td>
+    </tr>
+  </tbody>
+  </table>
 
-- **返回值：**
+- **返回值**
+
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明

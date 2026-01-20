@@ -1,6 +1,7 @@
 # aclnnFlashAttentionVarLenScoreV5
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
@@ -85,7 +86,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
 
 ## aclnnFlashAttentionVarLenScoreV5GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1452px"><colgroup>
     <col style="width: 174px">
@@ -402,7 +403,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
     </tbody>
   </table>
   
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -445,7 +446,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
 
 ## aclnnFlashAttentionVarLenScoreV5
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
@@ -483,7 +484,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
   </table>
 
 
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

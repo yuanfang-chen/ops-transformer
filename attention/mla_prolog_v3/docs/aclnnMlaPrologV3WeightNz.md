@@ -6,11 +6,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 
 ## 功能说明
+
 -  **功能更新**：（相对于aclnnMlaPrologV2weightNz的差异）
     -  新增Query与Key的尺度矫正因子，分别对应qcQrScale（$\alpha_q$）与kcScale（$\alpha_{kv}$）。
     -  新增可选输入参数（例如actualSeqLenOptional、kNopeClipAlphaOptional、queryNormFlag、weightQuantMode、kvCacheQuantMode、queryQuantMode、ckvkrRepoMode、quantScaleRepoMode、tileSize、queryNormOptional和dequantScaleQNormOptional等），将cache_mode由必选改为可选。
@@ -82,7 +83,9 @@
 
 
 ## 函数原型
+
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnMlaPrologV3WeightNzGetWorkspaceSize”接口获取入参并根据流程计算所需workspace大小，再调用“aclnnMlaPrologV3WeightNz”接口执行计算。
+
 ```cpp
 aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     const aclTensor *tokenX,
@@ -125,6 +128,7 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     uint64_t *workspaceSize,
     aclOpExecutor **executor)
 ```
+
 ```cpp
 aclnnStatus aclnnMlaPrologV3WeightNz(
   void *workspace,
@@ -135,9 +139,10 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
 
 
 ## aclnnMlaPrologV3WeightNzGetWorkspaceSize
-- 参数说明
 
-  | 参数名                     | 输入/输出 | 描述             | 使用说明       | 数据类型       | Ascend 950PR/Ascend 950DT AI处理器支持数据类型| 数据格式   | 维度(shape)    |非连续Tensor |
+- **参数说明**
+
+  | 参数名                     | 输入/输出 | 描述             | 使用说明       | 数据类型       | Ascend 950PR/Ascend 950DT支持数据类型| 数据格式   | 维度(shape)    |非连续Tensor |
   |----------------------------|-----------|----------------------------------------------|----------------|----------------|-|------------|-----------------|-------|
   | tokenX          | 输入      | 公式中用于计算Query和Key的输入tensor，Device侧的aclTensor。    | - 支持B=0,S=0,T=0的空Tensor   | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN | ND    | - BS合轴：(T,He) <br>- BS非合轴：(B,S,He)         |×   |
   | weightDq        | 输入      | 公式中用于计算Query的下采样权重矩阵$W^{DQ}$，Device侧的aclTensor。<br>在不转置的情况下各个维度的表示：（k，n）| - 不支持空Tensor      | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN | FRACTAL_NZ | (He,Hcq)                      |×   |
@@ -180,9 +185,10 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | workspaceSize              | 输出      | 返回需在Device侧申请的workspace大小。  | - 仅用于输出结果，无需输入配置 - 数据类型为uint64_t* | -              | -| -          | -                                  |-   |
   | executor                   | 输出      | 返回op执行器，包含算子计算流程。        | - 仅用于输出结果，无需输入配置 - 数据类型为aclOpExecutor**    | -              | -| -          | -                                  |-   |
 
-- 返回值
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。</br>
+
   第一段接口完成入参校验，出现以下场景时报错：
     
     | 返回值                 | 错误码               | 描述                                                                 |
@@ -191,8 +197,10 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     | ACLNN_ERR_PARAM_INVALID | 161002               | 输入参数的 shape（维度/尺寸）、dtype（数据类型）不在接口支持的范围内。 |
     | ACLNN_ERR_RUNTIME_ERROR | 361001               | API 内存调用 NPU Runtime 接口时发生异常（如 Runtime 服务未启动、内存申请失败等）。 |
     | ACLNN_ERR_INNER_TILING_ERROR | 561002          | tiling发生异常，入参的dtype类型或者shape错误。 |
+
 ## aclnnMlaPrologV3WeightNz
-- 参数说明
+
+- **参数说明**
 
   | 参数名        | 参数类型         | 含义                                                                 |
   |---------------|------------------|----------------------------------------------------------------------|
@@ -202,7 +210,8 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | stream        | aclrtStream      | 指定执行任务的Stream。                                   |
       
 
-- 返回值
+- **返回值**
+
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
@@ -223,7 +232,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | Dr           | qk 位置编码维度                | 取值固定为：64                                                              |
   | Nkv          | kv 的 head 数                  | 取值固定为：1                                                               |
   | BlockNum     | PagedAttention 场景下的块数    | 1. 当CacheMode="PA_BSND"/"PA_NZ"时，取值大于或等于 `(B*S)/BlockSize` 向上取整的结果。<br> 2. 当CacheMode="PA_BLK_BSND"/"PA_BLK_NZ"时，取值大于或等于`B` * `(S / BlockSize)`向上取整的结果（即`B * Ceil(S/BlockSize)`）。注：BS合轴场景，每个Batch中的S长度可以不同，因此BlockNum的取值需大于或等于各Batch中S长度除以BlockSize后的向上取整结果相加。 |
-  | BlockSize    | PagedAttention 场景下的块大小  | 取值范围：16~1024，且为16的倍数<br> Ascend 950PR/Ascend 950DT AI处理器取值范围：16、128                                              |
+  | BlockSize    | PagedAttention 场景下的块大小  | 取值范围：16~1024，且为16的倍数<br> Ascend 950PR/Ascend 950DT取值范围：16、128                                              |
   | T            | BS 合轴后的大小                | 取值范围：不限制；注：若采用 BS 合轴，此时 tokenX、ropeSin、ropeCos 均为 2 维，cacheIndex 为 1 维，queryOut、queryRopeOut 为 3 维 |
   | Dtile        | kvCache的D维度的大小           | - Per-tile量化场景下，取值固定为656 <br> - 其他场景下，取值固定为Hckv（512）                                                       |
 
@@ -337,6 +346,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   </table>
 
 - 在不同量化场景下，参数的dtype组合需要满足如下条件：
+
   <div style="overflow-x: auto; width: 100%;">
   <table style="table-layout: auto;" border="1">
     <tr>
@@ -668,7 +678,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>NULLPTR</td>
     </tr>
     <tr>
-      <td> dequantScaleQNopeOutOptional </td>
+      <td> dequantScaleQNormOutOptional </td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
