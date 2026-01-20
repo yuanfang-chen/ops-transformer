@@ -14,8 +14,7 @@
  */
 
 #include "kv_quant_sparse_attn_sharedkv_metadata_aicpu.h"
-// #include "../../kv_quant_sparse_attn_sharedkv/op_kernel/kv_quant_sparse_attn_sharedkv_metadata.h"
-#include "kv_quant_sparse_attn_sharedkv_metadata.h"
+#include "../../kv_quant_sparse_attn_sharedkv/op_kernel/kv_quant_sparse_attn_sharedkv_metadata.h"
 #include "../../common/aicpu/cpu_context_util.h"
 #include <cstdio>
 #include <math.h>
@@ -804,61 +803,31 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
     return true;
 }
 
-// bool KVQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
-// optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
-//     metaDataPtr->usedCoreNum = splitRes_.usedCoreNum;
-//     metaDataPtr->fdRes.fdNum = splitRes_.numOfFdHead;
-//     metaDataPtr->fdRes.fdUsedVecNum = splitRes_.usedVecNumOfFd;
-//     metaDataPtr->mBaseSize = mBaseSize_;
-//     metaDataPtr->s2BaseSize = s2BaseSize_;
-//     metaDataPtr->fdRes.fdBalanceMBaseSize = gS1BaseSizeOfFd_;
-
-//     for (size_t i = 0; i < coreNum_; ++i) {
-//         metaDataPtr->bN2End[i] = splitRes_.bN2End[i];
-//         metaDataPtr->mEnd[i] = splitRes_.gS1End[i];
-//         metaDataPtr->s2End[i] = splitRes_.s2End[i];
-//         metaDataPtr->fdRes.fdBN2Idx[i] = splitRes_.fdRes.bN2IdxOfFdHead[i];
-//         metaDataPtr->fdRes.fdMIdx[i] = splitRes_.fdRes.gS1IdxOfFdHead[i];
-//         metaDataPtr->fdRes.fdS2SplitNum[i] = splitRes_.fdRes.s2SplitNumOfFdHead[i];
-//         metaDataPtr->headFdDataIdx[i] = splitRes_.fdRes.s2SplitStartIdxOfCore[i];
-//         metaDataPtr->fdRes.fdBalanceMSplitNum[i] = splitRes_.fdRes.gS1SplitNumOfFdHead[i];
-//         metaDataPtr->fdRes.fdBalanceMTailSize[i] = splitRes_.fdRes.gS1LastPartSizeOfFdHead[i];
-//     }
-//     if (splitRes_.numOfFdHead > 0U) {
-//         for (size_t i = 0; i < coreNum_ * 2U; ++i) {
-//             metaDataPtr->fdRes.fdBalanceEndIdx1[i] = splitRes_.fdRes.gS1IdxEndOfFdHead[i];
-//             metaDataPtr->fdRes.fdBalanceEndIdx2[i] = splitRes_.fdRes.gS1IdxEndOfFdHeadSplit[i];
-//         }
-//     }
-//     return true;
-// }
-
 bool KVQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
-    optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
+optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
+    metaDataPtr->usedCoreNum = splitRes_.usedCoreNum;
+    metaDataPtr->fdRes.fdNum = splitRes_.numOfFdHead;
+    metaDataPtr->fdRes.fdUsedVecNum = splitRes_.usedVecNumOfFd;
+    metaDataPtr->mBaseSize = mBaseSize_;
+    metaDataPtr->s2BaseSize = s2BaseSize_;
+    metaDataPtr->fdRes.fdBalanceMBaseSize = gS1BaseSizeOfFd_;
 
     for (size_t i = 0; i < coreNum_; ++i) {
-        if (i < splitRes_.usedCoreNum) {
-            metaDataPtr->coreMetadata[i].cubeMetadata[0] = 1;
-        } else {
-            metaDataPtr->coreMetadata[i].cubeMetadata[0] = 0;
-            continue;
+        metaDataPtr->bN2End[i] = splitRes_.bN2End[i];
+        metaDataPtr->mEnd[i] = splitRes_.gS1End[i];
+        metaDataPtr->s2End[i] = splitRes_.s2End[i];
+        metaDataPtr->fdRes.fdBN2Idx[i] = splitRes_.fdRes.bN2IdxOfFdHead[i];
+        metaDataPtr->fdRes.fdMIdx[i] = splitRes_.fdRes.gS1IdxOfFdHead[i];
+        metaDataPtr->fdRes.fdS2SplitNum[i] = splitRes_.fdRes.s2SplitNumOfFdHead[i];
+        metaDataPtr->headFdDataIdx[i] = splitRes_.fdRes.s2SplitStartIdxOfCore[i];
+        metaDataPtr->fdRes.fdBalanceMSplitNum[i] = splitRes_.fdRes.gS1SplitNumOfFdHead[i];
+        metaDataPtr->fdRes.fdBalanceMTailSize[i] = splitRes_.fdRes.gS1LastPartSizeOfFdHead[i];
+    }
+    if (splitRes_.numOfFdHead > 0U) {
+        for (size_t i = 0; i < coreNum_ * 2U; ++i) {
+            metaDataPtr->fdRes.fdBalanceEndIdx1[i] = splitRes_.fdRes.gS1IdxEndOfFdHead[i];
+            metaDataPtr->fdRes.fdBalanceEndIdx2[i] = splitRes_.fdRes.gS1IdxEndOfFdHeadSplit[i];
         }
-        if (i == 0) {
-            metaDataPtr->coreMetadata[i].cubeMetadata[1] = 0;
-            metaDataPtr->coreMetadata[i].cubeMetadata[2] = 0;
-            metaDataPtr->coreMetadata[i].cubeMetadata[3] = 0;
-        } else {
-            metaDataPtr->coreMetadata[i].cubeMetadata[1] = splitRes_.bN2End[i-1];
-            metaDataPtr->coreMetadata[i].cubeMetadata[2] = splitRes_.gS1End[i-1];
-            metaDataPtr->coreMetadata[i].cubeMetadata[3] = splitRes_.s2End[i-1];
-        }
-
-        metaDataPtr->coreMetadata[i].cubeMetadata[4] = splitRes_.bN2End[i];
-        metaDataPtr->coreMetadata[i].cubeMetadata[5] = splitRes_.gS1End[i];
-        metaDataPtr->coreMetadata[i].cubeMetadata[6] = splitRes_.s2End[i];
-
-        metaDataPtr->coreMetadata[i].cubeMetadata[7] = 0;
-        metaDataPtr->coreMetadata[i].cubeMetadata[8] = 0;
     }
     return true;
 }
