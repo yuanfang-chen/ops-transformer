@@ -105,7 +105,7 @@ public:
         npuArch = static_cast<int32_t>(ascendcPlatform.GetCurNpuArch());
         OP_LOGI(context, "NpuArch is %d", npuArch);
         if (npuArch == static_cast<int32_t>(NpuArch::DAV_RESV)) {
-            OPS_REPORT_VECTOR_INNER_ERR(op_type, "Do op tiling failed, cannot npuArch.");
+            OPS_REPORT_VECTOR_INNER_ERR(op_type, "Do op tiling failed, cannot find npuArch.");
             return ge::GRAPH_FAILED;
         }
         auto tilingTemplateRegistryMap = GetTilingTemplates(op_type, npuArch);
