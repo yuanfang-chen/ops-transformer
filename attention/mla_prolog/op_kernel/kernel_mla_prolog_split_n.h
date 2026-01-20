@@ -469,10 +469,14 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MmQcQrParamInit() {
     if constexpr (MLAPT::enableGroupComputeOpt) {
         mmQcQrParam_.baseN = 128;
     } else {
-        if (mmQcQrParam_.m <= 64) {
-            mmQcQrParam_.baseN = 256;
-        } else {
+        if constexpr (std::is_same<mmInputType, FP8E4M3>::value) { // FP8全量化场景下L1B用满，修改baseN会造成内存踩踏
             mmQcQrParam_.baseN = 128;
+        } else {
+            if (mmQcQrParam_.m <= 64) {	// FP8全量化场景，scale需要额外占用L1，该优化不适用
+                mmQcQrParam_.baseN = 256;
+            } else { 
+                mmQcQrParam_.baseN = 128;
+            }
         }
     }
     mmQcQrParam_.stepK = 4;
