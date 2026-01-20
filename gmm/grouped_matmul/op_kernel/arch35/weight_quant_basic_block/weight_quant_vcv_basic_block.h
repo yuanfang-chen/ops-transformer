@@ -237,7 +237,7 @@ __aicore__ inline void GMM_WQ_VCV_BASIC_BLOCK_CLASS::IterateNzKnWithKAiv(uint64_
             ubConsumeConfig.l1RequireVfComputeRealK = antiquantRealK;
             ubConsumeConfig.kWeightLowBitUbOffset = antiquantKOffset;
             vecCompute_.WeightAntiQuantCompute(ubConsumeConfig, weightS8L1_[(cvLoopIdx_ & 1) * weightS8L1DbOffset_],
-                                               l1ConsumeConfig);
+                                               l1ConsumeConfig, nullptr);
 
             SetAivToAic<PIPE_MTE3>(SYNC_AIV_AIC_FLAG);
         }

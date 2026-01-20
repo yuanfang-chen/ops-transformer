@@ -75,6 +75,8 @@ private:
                                      const TCubeTiling *__restrict matmulTiling);
     __aicore__ inline void InitSync();
     __aicore__ inline uint64_t CheckMaxSpace(const BasicBlockOffsetParam &param);
+    __aicore__ inline uint64_t MxA8W4Init(TBuf<TPosition::TSCM> &l1Tbuf, uint64_t weightL1Space,
+                                          uint64_t mxBiasL1DbOffset);
     __aicore__ inline void CopyAGmToL1SingleBuffer(const BasicBlockOffsetParam &param, int64_t kaGmOffset,
                                                    int64_t kbL1RealSize, int64_t biasRealN, uint64_t cvLoopIdx,
                                                    int64_t aGmOffset);
@@ -464,6 +466,27 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::PrefetchA(uint64_t aPrefetchSiz
     PipeBarrier<PIPE_MTE2>();
 }
 
+WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
+__aicore__ inline uint64_t WQBMM_CUBE_COMPUTE_CLASS::MxA8W4Init(TBuf<TPosition::TSCM> &l1Tbuf, uint64_t weightL1Space,
+                                                                uint64_t mxBiasL1DbOffset)
+{
+    constexpr uint64_t biasL1Space = BIAS_L1_SIZE * KB_UNIT;
+    constexpr uint64_t mxScaleL1Space = MX_SCALE_L1_SIZE * KB_UNIT; // scaleA/B单块分配空间
+    uint64_t aL1Offset = weightL1Space + biasL1Space + (mxScaleL1Space << 1);
+    uint64_t aL1Space = L1_SIZE * KB_UNIT - DOUBLE_BUFFER_NUM * aL1Offset; // L1上A可占据剩余空间
+    aL1DbOffset_ = aL1Space >> 1;
+    // MxA8W4场景bias类型为B16，各项l1Space均以B8元素个数计，计算B16偏移需除以2
+    biasL1_ = l1Tbuf.Get<biasType>()[weightL1Space >> 1];
+    biasL1DbOffset_ = mxBiasL1DbOffset;
+
+    mxScaleAL1_ = l1Tbuf.Get<fp8_e8m0_t>()[weightL1Space + biasL1Space];
+    mxScaleAL1DbOffset_ = (mxScaleL1Space << 1) + aL1Space;
+
+    mxScaleBL1_ = l1Tbuf.Get<fp8_e8m0_t>()[weightL1Space + biasL1Space + mxScaleL1Space];
+    mxScaleBL1DbOffset_ = (mxScaleL1Space << 1) + aL1Space;
+    return aL1Offset;
+}
+
 // 场景1： 使能a prefetch。必须先更新地址再init
 // 场景2： gm地址变化需要实时获取场景，必须先init再更新地址
 WQBMM_CUBE_COMPUTE_TEMPLATE_PARAM
@@ -491,22 +514,7 @@ __aicore__ inline void WQBMM_CUBE_COMPUTE_CLASS::Init(TBuf<TPosition::TSCM> &l1T
         uint64_t aL1Space = L1_SIZE_WITH_QUANTSCALE * KB_UNIT - DOUBLE_BUFFER_NUM * aL1Offset;  // L1上A可占据剩余空间
         aL1DbOffset_ = aL1Space >> 1;
     } else if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
-        biasL1Space = BIAS_L1_SIZE * KB_UNIT;
-        uint64_t mxScaleL1Space = MX_SCALE_L1_SIZE * KB_UNIT; // scaleA/B单块分配空间
-
-        aL1Offset = weightL1Space + biasL1Space + (mxScaleL1Space << 1);
-        uint64_t aL1Space = L1_SIZE * KB_UNIT - DOUBLE_BUFFER_NUM * aL1Offset;  // L1上A可占据剩余空间
-        aL1DbOffset_ = aL1Space >> 1;
-
-        // MxA8W4场景bias类型为B16，各项l1Space均以B8元素个数计，计算B16偏移需除以2
-        biasL1_ = l1Tbuf.Get<biasType>()[weightL1Space >> 1];
-        biasL1DbOffset_ = mxBiasL1DbOffset;
-
-        mxScaleAL1_ = l1Tbuf.Get<fp8_e8m0_t>()[weightL1Space + biasL1Space];
-        mxScaleAL1DbOffset_ = (mxScaleL1Space << 1) + aL1Space;
-
-        mxScaleBL1_ = l1Tbuf.Get<fp8_e8m0_t>()[weightL1Space + biasL1Space + mxScaleL1Space];
-        mxScaleBL1DbOffset_ = (mxScaleL1Space << 1) + aL1Space;
+        aL1Offset = MxA8W4Init(l1Tbuf, weightL1Space, mxBiasL1DbOffset);
     } else if (matmulTiling->isBias) {
         uint64_t aL1Space = L1_SIZE * KB_UNIT - DOUBLE_BUFFER_NUM * aL1Offset;  // L1上A可占据剩余空间
         aL1DbOffset_ = aL1Space >> 1;
