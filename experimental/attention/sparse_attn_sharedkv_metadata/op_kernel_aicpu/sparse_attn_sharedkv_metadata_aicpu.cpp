@@ -74,15 +74,12 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
 }
 
 ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
-    if (socVersion_ == "Ascend910_9392" || socVersion_ == "ASCEND910B" || socVersion_ == "ascend910B" ||
-                socVersion_ == "Ascend910B" || socVersion_ == "Ascend910_93" || socVersion_ == "Ascend910" ||
-                socVersion_ == "ascend910" || socVersion_ == "ASCEND910") {
-        return ValidSocVersion::ASCEND910B;
-    } else if (socVersion_ == "Ascend910_9589" || socVersion_ == "ASCEND910D" || socVersion_ == "ascend910D" ||
-                socVersion_ == "Ascend910D" || socVersion_ == "Ascend910_95") {
+    const std::string ascend910D = "Ascend910_95";
+    if (socVersion_.find(ascend910D) != std::string::npos) {
         return ValidSocVersion::ASCEND910D;
+    } else {
+        return ValidSocVersion::ASCEND910B;
     }
-    
     return ValidSocVersion::RESERVED_VERSION;
 }
 
@@ -97,7 +94,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_
     }
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910B) {
-        uint32_t MBaseBlockLen = 128U;
+        uint32_t MBaseBlockLen = 512U;
         uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
         if (isSCFA) {
             s1BlockLen = 1U;
@@ -833,9 +830,6 @@ optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)met
     }
     return true;
 }
-
-//static const char *SaskernelType = "SparseAttnSharedkvMetadata";
-//REGISTER_CPU_KERNEL(SaskernelType, SparseAttnSharedkvMetadataCpuKernel);
 namespace {
     static const char *kernelType = "SparseAttnSharedkvMetadata";
     REGISTER_CPU_KERNEL(kernelType, SparseAttnSharedkvMetadataCpuKernel);
