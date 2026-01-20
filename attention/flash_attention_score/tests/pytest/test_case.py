@@ -26,7 +26,7 @@ import torch
 # actual_seq_qlen:可选; TND下必选;query实际的序列长度
 # actual_seq_kvlen:可选; TND下必选;key&value实际的序列长度
 
-# keep_prob:可选; dropout的保留概率：keep_prob = 1 - dropout_p;dropout的cpu实现方式基于昇腾950 AI处理器
+# keep_prob:可选; dropout的保留概率：keep_prob = 1 - dropout_p;dropout的cpu实现方式基于Ascend 950PR/Ascend 950DT
 # seed:可选; 随机种子，用于随机数生成
 
 # sparse_mode:可选; sparse模式, [0, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -56,14 +56,13 @@ TestCases = {
         "sparse_mode": 3,  # causal=true
     },
     "MLA_02": {
-        "B": 4,
         "N1": 16,
         "N2": 8,
-        "Sq": 256,
+        "actual_seq_qlen": [256],
         "D": 128,
         "DRope": 64,  # rope head-dim
-        "input_layout": "BSND",
-        "dtype": torch.float16,
+        "input_layout": "TND",
+        "dtype": torch.bfloat16,
         "sparse_mode": 3,
     },
     "MLA_03": {
@@ -160,9 +159,6 @@ TestCases = {
         "input_layout": "TND",
         "dtype": torch.bfloat16,
         "sparse_mode": 3,
-        "pse_type": 2,  # special alibi
-        "pse_layout": "bn",  # for generate golden data
-        "keep_prob": 0.9,  # keep_prob = 1 - dropout_p
     },
     "TND_02": {
         "N1": 8,
