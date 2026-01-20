@@ -71,7 +71,7 @@ private:
     __aicore__ inline uint32_t GetTcHeadSize(uint32_t curStartPos, uint32_t cmpRatio, uint32_t seqLength);
     __aicore__ inline void CalcParams(RunInfo &info);
     __aicore__ inline void InitTilingData();
-    __aicore__ inline bool IsNeedExcute(const RunInfo &info);
+    __aicore__ inline bool IsNeedExcute(uint32_t curBasicBlockIdx);
     __aicore__ inline uint32_t GetStartIdx();
     __aicore__ inline uint32_t GetEndIdx();
     __aicore__ inline void ComputeMm1(const RunInfo &info);
@@ -87,6 +87,7 @@ private:
 
     uint32_t accSeqLength = 0;
     uint32_t curActSeqLength = 0;
+    uint32_t lastActSeqLength = 0;
     uint32_t curStartPos = 0;
     uint32_t preActSeqIdx = 0;
     uint32_t preStartPosIdx = 0;
@@ -191,7 +192,10 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     if constexpr (COMP::xLayout == X_LAYOUT::TH) {
         curActSeqLength = cuSeqlensGm_.GetValue(1);
         accSeqLength = curActSeqLength;
+        lastActSeqLength = cuSeqlensGm_.GetValue(constInfo.batchSize) - cuSeqlensGm_.GetValue(constInfo.batchSize - 1);
         // printf("[Init] curActSeqLength:%u\n", curActSeqLength);
+    } else {
+        lastActSeqLength = constInfo.sSize;
     }
     curStartPos = startPosGm_.GetValue(0);
 
@@ -203,6 +207,13 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     constInfo.coreGroupNum = constInfo.usedCoreNum / constInfo.dBasicBlockNum;                                              // 核分为多少组
     constInfo.singleCoreDealTcBasicNum = (constInfo.tcBasicBlockNum + constInfo.coreGroupNum - 1) / constInfo.coreGroupNum; // 处理的最大基本块数量
     constInfo.dIdx = (constInfo.aiCoreIdx % constInfo.dBasicBlockNum) * constInfo.dBaseSize;                    // 每个核处理的d方向的索引
+
+    // 计算当前核需要处理多少基本块
+    constInfo.curGroupIdx = constInfo.aiCoreIdx / constInfo.coreGroupNum;                                                                               // 当前组id
+    constInfo.tailGroupIdx = constInfo.tcBasicBlockNum / constInfo.singleCoreDealTcBasicNum;                                                            // 尾组所在id
+    constInfo.tailBasicBlockNum = constInfo.tcBasicBlockNum % constInfo.singleCoreDealTcBasicNum == 0 ?
+                                constInfo.singleCoreDealTcBasicNum : constInfo.tcBasicBlockNum % constInfo.singleCoreDealTcBasicNum;                     // 尾组处理基本块数量
+    constInfo.realDealBasicBlockNum = constInfo.curGroupIdx < constInfo.tailGroupIdx ? constInfo.singleCoreDealTcBasicNum : constInfo.tailBasicBlockNum; // 当前组实际处理的基本块
     // printf("[BASEINFO] tcSize:%u tcBaseSize:%u tcBasicBlockNum:%u dBasicBlockNum:%u coreGroupNum:%u singleCoreDealTcBasicNum:%u\n", constInfo.tcSize, constInfo.tcBaseSize, constInfo.tcBasicBlockNum, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.singleCoreDealTcBasicNum);
     InitWorkspace(workspace);
     if ASCEND_IS_AIC {
@@ -401,7 +412,7 @@ __aicore__ inline uint32_t CompressorKernel<COMP>::GetTcHeadSize(uint32_t curSta
     uint32_t headSize = 0;
     if (curStartPos % cmpRatio != 0) {
         headSize = (cmpRatio - curStartPos % cmpRatio);
-        headSize = headSize > seqLength ? seqLength : headSize;     // 处理seq不足head大小的情况
+        headSize = headSize > seqLength ? 0 : headSize;     // 处理seq不足head大小的情况
     }
 
     return headSize;
@@ -423,7 +434,7 @@ __aicore__ inline uint32_t CompressorKernel<COMP>::GetRemainTcNum(uint32_t sStar
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
-    if (curBStart >= constInfo.batchSize) {
+    if (curBEnd == constInfo.batchSize - 1 && curSEnd == lastActSeqLength) {
         return;
     }
 
@@ -517,8 +528,8 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
 }
 
 template <typename COMP>
-__aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(const RunInfo &info) {
-    if (info.bStart == constInfo.batchSize) {
+__aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(uint32_t curBasicBlockIdx) {
+    if (constInfo.curGroupIdx > constInfo.tailGroupIdx || curBasicBlockIdx >= constInfo.realDealBasicBlockNum) {
         return false;
     }
     return true;
@@ -581,9 +592,10 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                 CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
+                vec2Info.dealTcNum += extraInfo0.dealTcNum;
+                vec2Info.dealScSize += extraInfo0.dealScSize;
             }
-            vec2Info.dealTcNum += extraInfo0.dealTcNum;
-            vec2Info.dealScSize += extraInfo0.dealScSize;
+            
             // 累积N个基本块/最后一次循环
             if ((i + 1) % constInfo.nSize == 0 || (i + 1) == constInfo.singleCoreDealTcBasicNum) {
                 SyncAll();
