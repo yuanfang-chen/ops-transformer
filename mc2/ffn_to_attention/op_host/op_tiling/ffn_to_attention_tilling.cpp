@@ -34,6 +34,7 @@
 using namespace AscendC;
 using namespace ge;
 using namespace Mc2Tiling;
+using std::string;
 
 namespace MC2Tiling {
 constexpr char FFN_TO_ATTN_WIN_TYPE_ENV[] = "ASCEND_FFN_TO_ATTN_WIN_TYPE";

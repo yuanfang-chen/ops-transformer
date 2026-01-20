@@ -22,6 +22,7 @@
 #include "../../../common/op_host/fia_tiling_templates_registry.h"
 
 using namespace AscendC;
+using std::string;
 namespace optiling {
 // FIA新TilingKey, 18位编码, IFA原有TilingKey是17位, 新的TilingKey只是把最高位从1X->10X
 // MLA dtype: Q=BF16 KV=BF16 OUT=BF16

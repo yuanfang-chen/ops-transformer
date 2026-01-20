@@ -36,6 +36,7 @@
 
 using namespace AscendC;
 using namespace ge;
+using std::string;
 
 namespace optiling {
 constexpr uint64_t INIT_TILINGKEY = 10000UL;

@@ -30,6 +30,7 @@
 
 using namespace ge;
 using namespace AscendC;
+using std::string;
 namespace optiling {
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000200100, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000100200100, FAInferTilingData)

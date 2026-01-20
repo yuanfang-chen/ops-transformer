@@ -26,6 +26,7 @@
 
 using namespace ge;
 using namespace AscendC;
+using std::string;
 using namespace matmul_tiling;
 namespace optiling {
 namespace v2 {

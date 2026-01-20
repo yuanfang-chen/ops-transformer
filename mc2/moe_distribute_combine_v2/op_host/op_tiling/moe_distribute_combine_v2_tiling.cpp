@@ -41,6 +41,7 @@
 using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
+using std::string;
 
 namespace {
     constexpr uint32_t OP_VERSION_2 = 2;

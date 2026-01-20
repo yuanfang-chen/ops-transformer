@@ -27,6 +27,7 @@
 using namespace ge;
 using namespace AscendC;
 using namespace matmul_tiling;
+using std::string;
 namespace optiling {
 constexpr uint32_t BYTE_BLOCK = 32; // The block size of datacopy, which moves data at the block granularity.
 constexpr uint32_t SOFTMAX_BUFFER_NUM = 3;

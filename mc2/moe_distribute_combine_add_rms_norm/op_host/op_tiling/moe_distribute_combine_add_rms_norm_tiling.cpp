@@ -39,6 +39,7 @@
 
 using namespace AscendC;
 using namespace ge;
+using std::string;
 
 namespace {
     constexpr uint32_t EXPAND_X_INDEX = 0;

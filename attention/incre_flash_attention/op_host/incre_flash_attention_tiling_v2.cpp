@@ -34,6 +34,7 @@
 using namespace ge;
 using namespace AscendC;
 using namespace optiling::v2;
+using std::string;
 namespace optiling {
 void TilingGetTempCompileInfo(platform_ascendc::PlatformAscendC& ascendcPlatform, PromptFlashAttentionCompileInfo& compileInfo);
 const int64_t tokenDefault = 2147483647;  // for token default value

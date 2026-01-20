@@ -40,6 +40,7 @@
 using namespace AscendC;
 using namespace ge;
 using namespace Mc2Moe;
+using std::string;
 
 namespace {
 
