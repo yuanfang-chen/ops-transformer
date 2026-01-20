@@ -325,18 +325,21 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
     if (copyLastCmpBlock) {
         uint32_t bStartPos = GetStartPos(constInfo_.batchSize - 1);
         uint32_t bSeqUsed = GetSeqUsed(constInfo_.batchSize - 1);
-        uint32_t tmpSeqId = (bStartPos + bSeqUsed + constInfo_.cmpRatio - 1) / constInfo_.cmpRatio * constInfo_.cmpRatio - constInfo_.cmpRatio - bStartPos;
-
-        uint64_t sIdx = GetTIdxByBatch(constInfo_.batchSize - 1) + tmpSeqId;
+        uint32_t len = (bStartPos + bSeqUsed + constInfo_.cmpRatio - 1) % constInfo_.cmpRatio + 1;
+        if (len > bSeqUsed) {
+            len = bSeqUsed;
+        }
+        uint32_t rOffset = (bStartPos + bSeqUsed - len) % constInfo_.cmpRatio * (32 / sizeof(X_T));
+        uint64_t sIdx = GetTIdxByBatch(constInfo_.batchSize - 1) + bSeqUsed - len;
         uint64_t gmOffset = sIdx * constInfo_.hSize + hIdx;
-        uint32_t nValue = bSeqUsed - tmpSeqId;
+        uint32_t nValue = len;
         uint32_t dValue = kBase;
         uint32_t srcDValue = constInfo_.hSize;
         uint32_t dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + 15) / 16 * 16;
         if constexpr (COMP::coff == COFF::OVERLAP) {
             dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
         }
-        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
+        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset + rOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
         ubOffset += constInfo_.cmpRatio * (32 / sizeof(X_T));
         mSizeFinish += constInfo_.cmpRatio;
@@ -401,7 +404,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::LoadAToL0(LocalTensor<X_T> aL0
         mSize += constInfo_.cmpRatio;
     }
     uint32_t xTensorOffset = mStart * (32 / sizeof(X_T));
-// #if (__CCE_AICORE__ == 220)
     uint32_t mLoop = (mDealSize + 15) / 16;
     for (uint32_t i = 0; i < mLoop; i++) {
         LoadData2DParams loadData2DParams;
@@ -412,17 +414,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::LoadAToL0(LocalTensor<X_T> aL0
         loadData2DParams.ifTranspose = false;
         LoadData(aL0Tensor[16 * i * kBase], xL1Tensor[xTensorOffset], loadData2DParams);
     }
-// #else
-//     LoadData2DParamsV2 loadData2DParamsV2;
-//     loadData2DParamsV2.mStartPosition = 0;
-//     loadData2DParamsV2.kStartPosition = 0;
-//     loadData2DParamsV2.mStep = (mDealSize + 15) / 16;
-//     loadData2DParamsV2.kStep = kBase / 16;
-//     loadData2DParamsV2.srcStride = (mSize + 15) / 16;
-//     loadData2DParamsV2.dstStride = loadData2DParamsV2.mStep;
-//     loadData2DParamsV2.ifTranspose = false;
-//     LoadData(aL0Tensor, xL1Tensor[xTensorOffset], loadData2DParamsV2);
-// #endif
 }
 
 template <typename COMP>
@@ -444,7 +435,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::MatrixMmad(LocalTensor<T> cL0T
     LocalTensor<X_T> bL0Tensor, uint32_t mActSize, uint32_t nDealSize, uint32_t kActSize, bool isInitL0C)
 {
     MmadParams mmadParams;
-    mmadParams.m = mActSize;
+    mmadParams.m = (mActSize + 15) / 16 * 16;
     if (mmadParams.m == 1) {
         mmadParams.m = 16;
     }
@@ -555,24 +546,23 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                                 FixpipeParamsV220 fixParams;
                                 fixParams.mSize = (mDealSize + 15) / 16 * 16;
                                 fixParams.nSize = N_L1_BASE;
-                                fixParams.srcStride = mDealSize;
+                                fixParams.srcStride = (mDealSize + 15) / 16 * 16;   // 需要16对齐
                                 fixParams.dstStride = constInfo_.dBaseSize * 2;
                                 fixParams.ndNum = 1;
                                 if (nL1 < nSize / 2) {
-                                    Fixpipe(preMm1ResGm[mL1*nSize+nL1], cL0Tensor, fixParams);
+                                    Fixpipe(preMm1ResGm[mL1 * constInfo_.dBaseSize * 2], cL0Tensor, fixParams);
                                 } else {
-                                    Fixpipe(curMm1ResGm[mL1*nSize+nL1], cL0Tensor, fixParams);
+                                    Fixpipe(curMm1ResGm[mL1 * constInfo_.dBaseSize * 2], cL0Tensor, fixParams);
                                 }
                             } else {
                                 FixpipeParamsV220 fixParams;
                                 fixParams.mSize = (mDealSize + 15) / 16 * 16;
                                 fixParams.nSize = N_L1_BASE;
-                                fixParams.srcStride = mDealSize;
+                                fixParams.srcStride = (mDealSize + 15) / 16 * 16;   // 需要16对齐
                                 fixParams.dstStride = constInfo_.dBaseSize * 2;
                                 fixParams.ndNum = 1;
                                 Fixpipe(curMm1ResGm[mL1*nSize+nL1], cL0Tensor, fixParams);
                             }
-
                             
                             if (kL1Idx != 0 || h != 0) {
                                 SetAtomicNone();
@@ -604,4 +594,4 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
 
 } // namespace Compressor
 
-#endif // COMPRESSOR_BLOCK_VECTOR_H
+#endif // COMPRESSOR_BLOCK_CUBE_H

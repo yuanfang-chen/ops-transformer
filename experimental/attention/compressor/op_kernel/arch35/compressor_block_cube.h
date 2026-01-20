@@ -328,18 +328,21 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
     if (copyLastCmpBlock) {
         uint32_t bStartPos = GetStartPos(constInfo_.batchSize - 1);
         uint32_t bSeqUsed = GetSeqUsed(constInfo_.batchSize - 1);
-        uint32_t tmpSeqId = (bStartPos + bSeqUsed + constInfo_.cmpRatio - 1) / constInfo_.cmpRatio * constInfo_.cmpRatio - constInfo_.cmpRatio - bStartPos;
-
-        uint64_t sIdx = GetTIdxByBatch(constInfo_.batchSize - 1) + tmpSeqId;
+                uint32_t len = (bStartPos + bSeqUsed + constInfo_.cmpRatio - 1) % constInfo_.cmpRatio + 1;
+        if (len > bSeqUsed) {
+            len = bSeqUsed;
+        } 
+        uint32_t rOffset = (bStartPos + bSeqUsed - len) % constInfo_.cmpRatio * (32 / sizeof(X_T));
+        uint64_t sIdx = GetTIdxByBatch(constInfo_.batchSize - 1) + bSeqUsed - len;
         uint64_t gmOffset = sIdx * constInfo_.hSize + hIdx;
-        uint32_t nValue = bSeqUsed - tmpSeqId;
+        uint32_t nValue = len;
         uint32_t dValue = kBase;
         uint32_t srcDValue = constInfo_.hSize;
         uint32_t dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + 15) / 16 * 16;
         if constexpr (COMP::coff == COFF::OVERLAP) {
             dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
         }
-        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
+        CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset + rOffset], nValue, dValue, srcDValue, dstNzC0Stride);
 
         ubOffset += constInfo_.cmpRatio * (32 / sizeof(X_T));
         mSizeFinish += constInfo_.cmpRatio;
@@ -430,7 +433,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::MatrixMmad(LocalTensor<T> cL0T
     LocalTensor<X_T> bL0Tensor, uint32_t mActSize, uint32_t nDealSize, uint32_t kActSize, bool isInitL0C)
 {
     MmadParams mmadParams;
-    mmadParams.m = mActSize;
+    mmadParams.m = (mActSize + 15) / 16 * 16;
     if (mmadParams.m == 1) {
         mmadParams.m = 16;
     }
@@ -582,4 +585,4 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
 
 } // namespace Compressor
 
-#endif // COMPRESSOR_BLOCK_VECTOR_H
+#endif // COMPRESSOR_BLOCK_CUBE_H
