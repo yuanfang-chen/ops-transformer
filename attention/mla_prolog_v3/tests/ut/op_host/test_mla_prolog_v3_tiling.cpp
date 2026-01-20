@@ -68,7 +68,7 @@ protected:
 
     static void TearDownTestCase()
     {
-        std::cout << "MlaPrologV3 TearDown" << std::endl;
+        std::cout <<  "MlaPrologV3 TearDown" << std::endl;
     }
 };
 
