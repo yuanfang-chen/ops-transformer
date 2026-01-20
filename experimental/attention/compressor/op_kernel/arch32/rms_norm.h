@@ -73,7 +73,7 @@ __aicore__ inline void RmsNorm(const LocalTensor<float> &dstLocal, const LocalTe
     PipeBarrier<PIPE_V>();
 
     // temp1Local[row, 8] = brc(temp2Local[row, 1])
-    Brcb(temp1Local, temp2Local, CeilDivT(rmsNormParams.row, BRCB_NUM), {1, 1});   
+    Brcb(temp1Local, temp2Local, CeilDivT(rmsNormParams.row, BRCB_NUM), {1, 8});   
     PipeBarrier<PIPE_V>();
 
     // dstLocal = srcLocal / temp1Local(sum)
