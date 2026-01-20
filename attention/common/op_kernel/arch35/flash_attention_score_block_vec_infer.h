@@ -837,15 +837,9 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::PostQuant(ConstInfo<isInf
             }
         }
     } else {
-#if (__NPU_ARCH__ == 5102)
-        float quantScale2 = 1;
-        float quantOffset2 = 1;
-        AscendQuant(attenOut, vec2ResUb, quantScale2, quantOffset2, vec2ResUb.GetSize());
-#else
         PostQuantPerTensorImpl<T, OUTPUT_T, true>(
             attenOut, vec2ResUb, constInfo.postQuantScaleValue, constInfo.postQuantOffsetValue, runInfo.vec2S1RealSize,
             constInfo.dSizeV, dSizeAligned64);
-#endif
     }
 }
 

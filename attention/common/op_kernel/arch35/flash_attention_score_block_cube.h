@@ -1246,9 +1246,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     mm1ResL0C.Set<HardEvent::M_FIX>(); // 通知
     mm1ResL0C.Wait<HardEvent::M_FIX>(); //等待L0C
 
-#if (__NPU_ARCH__ != 5102)
     outputBuf.WaitCrossCore();
-#endif
+
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams; // L0C→UB
     fixpipeParams.nSize = (runInfo.s2RealSize + 7) >> 3 << 3; // L0C上的bmm1结果矩阵N方向的size大小; 同mmadParams.n; 为什么要8个元素对齐(32B对齐) // 128
     fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小(必须为偶数) // 128

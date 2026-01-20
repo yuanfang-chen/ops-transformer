@@ -15,7 +15,7 @@
 
 #ifndef PROMPT_FLASH_ATTENTION_ENTRY_310_H_
 #define PROMPT_FLASH_ATTENTION_ENTRY_310_H_
-#if (__NPU_ARCH__ != 5102)
+
 #include "kernel/prompt_flash_attention_normal_bns1_preload.h"
 #include "matmul_modules/pfa_policy_data.h"
 #include "prompt_flash_attention_zero_output.h"
@@ -24,11 +24,7 @@
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
 #include "../../../common/op_kernel/arch35/flash_attention_kvsame_bn2gs1s2.h"
-#else
-#include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_regbase_v2.h"
-#include "prompt_flash_attention_dummy.h"
-namespace optiling {};
-#endif
+
 using namespace regbaseutil;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
