@@ -82,7 +82,7 @@ private:
     TEventID eventIdsMToMte1_[L0_BUF_NUM];
     TEventID eventIdsMte1ToM_[L0_BUF_NUM];
 
-    uint64_t l0LooIdx_ = 0;
+    uint64_t l0LoopIdx_ = 0;
     uint64_t l0KSize_;
     uint64_t scaleAFactor_ = 1;
     uint64_t scaleBFactor_ = 1;
@@ -138,7 +138,7 @@ __aicore__ inline void WQBMM_BASIC_API_V1_CLASS::Iterate(bool isLastGmK, bool is
     for (uint64_t l1KOffset = 0; l1KOffset < basicApiParams.l1KSize; l1KOffset += l0KSize_) {
         bool isLastL1K = l1KOffset + l0KSize_ >= basicApiParams.l1KSize;
         uint64_t realL0k = isLastL1K ? basicApiParams.l1KSize - l1KOffset : l0KSize_;
-        uint64_t loopId = l0LooIdx_ % L0_BUF_NUM;
+        uint64_t loopId = l0LoopIdx_ & (L0_BUF_NUM - 1); // 等价于 l0LoopIdx_ % L0_BUF_NUM，减少scalar
         WaitFlag<HardEvent::M_MTE1>(eventIdsMToMte1_[loopId]);
         LoadAL1ToL0A(realL0k, loopId, l1KOffset, basicApiParams.l0MSize, basicApiParams.l1KSize, aL1, aMxScaleL1);
         LoadBL1ToL0B(realL0k, loopId, l1KOffset, basicApiParams.l0NSize, basicApiParams.l1KSize, bL1, bMxScaleL1);
@@ -150,7 +150,7 @@ __aicore__ inline void WQBMM_BASIC_API_V1_CLASS::Iterate(bool isLastGmK, bool is
             PipeBarrier<PIPE_M>();
         }
         SetFlag<HardEvent::M_MTE1>(eventIdsMToMte1_[loopId]);
-        l0LooIdx_++;
+        l0LoopIdx_++;
     }
 }
 
@@ -250,7 +250,6 @@ __aicore__ inline void WQBMM_BASIC_API_V1_CLASS::GetTensorC(uint64_t mL0Size, ui
     } else {
         fixParams.quantPre = QuantMode_t::QF322F16_PRE;
     }
-
     fixParams.deqScalar = FP32_64_AS_UINT64;
     fixParams.unitFlag = UNIT_FLAG_ENABLE_AUTO_CLOSE;
     fixParams.params.ndNum = 1;
