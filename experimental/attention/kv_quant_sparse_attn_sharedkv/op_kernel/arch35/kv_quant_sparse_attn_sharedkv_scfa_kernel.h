@@ -303,6 +303,8 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         auto &baseParams = this->tilingData->baseParams;
         constInfo.softmaxScale = static_cast<float>(baseParams.softmaxScale);
         constInfo.blockSize = baseParams.paBlockSize;
+        constInfo.oriMaxBlockNumPerBatch = baseParams.oriMaxBlockNumPerBatch;
+        constInfo.cmpMaxBlockNumPerBatch = baseParams.cmpMaxBlockNumPerBatch;
     }
 
     InitUniqueConstInfo();

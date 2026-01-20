@@ -266,7 +266,6 @@ struct RunInfo {
     /* service mm1 mm2 pageAttention */ \
     uint32_t blockSize; \
     uint32_t paLayoutType; \
-    uint32_t maxBlockNumPerBatch; /* for v0 */ \
     uint32_t oriMaxBlockNumPerBatch; \
     uint32_t cmpMaxBlockNumPerBatch; \
     bool rsvd1; \

@@ -172,6 +172,7 @@ private:
     TBuf<> dequantScaleBuff_;         // 32K
 
     LocalTensor<int32_t> v0ValidSizeUb_;
+    uint32_t maxBlockNumPerBatch;
 };
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -213,7 +214,7 @@ __aicore__ inline int64_t SCFABlockVec<TEMPLATE_ARGS>::GetkeyOffset(int64_t s2Id
     if constexpr (isPa) {
         int64_t blkTableIdx = s2Idx / constInfo_.blockSize;
         int64_t blkTableOffset = s2Idx % constInfo_.blockSize;
-        realkeyOffset = blockTableGm_.GetValue(runInfo.boIdx * constInfo_.maxBlockNumPerBatch + blkTableIdx) *
+        realkeyOffset = blockTableGm_.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
                                 static_cast<int64_t>(constInfo_.blockSize) * constInfo_.dSizeVInput +
                                 blkTableOffset * constInfo_.dSizeVInput; // BlockNum, BlockSize, N(1), D
     } else {
@@ -513,7 +514,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
     padParams.paddingValue = 0;
     if constexpr (isPa) {
         // PRINTF("PAGE_ATTENTION=====\n");
-        uint64_t blockTableBaseOffset = runInfo.boIdx * constInfo_.maxBlockNumPerBatch;
+        uint64_t blockTableBaseOffset = runInfo.boIdx * maxBlockNumPerBatch;
         uint64_t dstOffset = 0;
         uint32_t copyFinishElmenCnt = 0;
         // uint32_t curSequence = runInfo.s2BatchOffset;
@@ -549,10 +550,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
     if (isCmp) {
         keyGm_ = cmpKVGm;
         blockTableGm_ = cmpBlockTableGm;
+        maxBlockNumPerBatch = constInfo_.cmpMaxBlockNumPerBatch;
         // todo block size可以不同
     } else {
         keyGm_ = oriKVGm;
         blockTableGm_ = oriBlockTableGm;
+        maxBlockNumPerBatch = constInfo_.oriMaxBlockNumPerBatch;
     }
 
     // if ((TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) && (isCmp)) {
