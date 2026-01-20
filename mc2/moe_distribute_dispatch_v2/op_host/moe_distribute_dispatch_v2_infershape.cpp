@@ -188,17 +188,7 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
     expandXShape->SetDimNum(DIM_TWO);
     auto realA = ((*tpWorldSize == 0) ? a : (a * *tpWorldSize));
     expandXShape->SetDim(0U, realA);
-    // 如果输出是INT32（实际是INT4），最后一个维度需要除以8（8个INT4打包成1个INT32）
-    auto expandXOutDtype = context->GetOutputDataType(DISPATCH_OUTPUT_EXPAND_X_INDEX);
-    if (expandXOutDtype == ge::DT_INT32) {
-        // INT32是INT4的伪装，8个INT4打包成1个INT32
-        OP_CHECK_IF((h % 8) != 0,
-            OP_LOGE(context->GetNodeName(), "If expandX dataType is int32 (int4 packed), the last dim of x must be divisible by 8, but the last dim is (%ld).", h),
-            return ge::GRAPH_FAILED);
-        expandXShape->SetDim(1U, h / 8);
-    } else {
-        expandXShape->SetDim(1U, h);
-    }
+    expandXShape->SetDim(1U, h);
     OP_LOGD(context->GetNodeName(), "expandx shape is :%s after infershape.",
         Ops::Base::ToString(*expandXShape).c_str());
 
@@ -262,15 +252,12 @@ static ge::graphStatus InferDataTypeMoeDistributeDispatchV2(gert::InferDataTypeC
     bool quantFlag = ((scalesType != ge::DT_UNDEFINED) ? true : false);
     OP_LOGD(context->GetNodeName(), "quantFlag id %d.", quantFlag);
     
-    // 检查输出数据类型是否已设置（用于支持INT4和INT32）
-    // INT32用于torch调用，实际是INT4打包成INT32（8个INT4打包成1个INT32）
-    const auto expandXOutDtype = context->GetOutputDataType(DISPATCH_OUTPUT_EXPAND_X_INDEX);
-    if (expandXOutDtype == ge::DT_INT4 || expandXOutDtype == ge::DT_INT32) {
-        // 如果输出类型已设置为INT4或INT32，则保持原样
-        // INT32是INT4的伪装，实际需要按照INT4计算
-        context->SetOutputDataType(DISPATCH_OUTPUT_EXPAND_X_INDEX, expandXOutDtype);
-    } else if (quantFlag || (*quantMode != 0)) {
-        context->SetOutputDataType(DISPATCH_OUTPUT_EXPAND_X_INDEX, ge::DT_INT8);
+    if (quantFlag || (*quantMode != 0)) {
+        if (*quantMode == 3) {
+            context->SetOutputDataType(DISPATCH_OUTPUT_EXPAND_X_INDEX, ge::DT_INT4);
+        } else {
+            context->SetOutputDataType(DISPATCH_OUTPUT_EXPAND_X_INDEX, ge::DT_INT8);
+        }
     } else {
         context->SetOutputDataType(DISPATCH_OUTPUT_EXPAND_X_INDEX, xDtype);
     }
