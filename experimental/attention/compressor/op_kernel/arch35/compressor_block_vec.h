@@ -331,16 +331,7 @@ __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetBasicNum() {
 
 template <typename COMP>
 __aicore__ inline uint32_t CompressorBlockVector<COMP>::GetScSize() {
-    // 获取 m方向上对应基本单元Tc的个数
-    uint32_t curBasicNum = 0;
-    uint32_t headSize = 0;
-    if (curStartPos_ % constInfo_.cmpRatio != 0) {
-        headSize = constInfo_.cmpRatio - curStartPos_ % constInfo_.cmpRatio;
-        headSize = headSize > curActSeqLength_ ? curActSeqLength_ : headSize;
-        curBasicNum++;
-    }
-    // 加上中间整块及尾块
-    curBasicNum += (curActSeqLength_ - headSize) / constInfo_.cmpRatio;
+    uint32_t curBasicNum = (curStartPos_ + curActSeqLength_) / constInfo_.cmpRatio - curStartPos_ / constInfo_.cmpRatio;
     return curBasicNum;
 }
 
@@ -974,8 +965,8 @@ __aicore__ inline void CompressorBlockVector<COMP>::UpdateBlockInfo(BlockInfo &b
     // 计算头部占位行数、有效数据行数、尾部占位行数
     blockInfo.headHolderSeqCnt = (blockInfo.bStartPos + blockInfo.sIdx) % constInfo_.cmpRatio;
     blockInfo.validSeqCnt = blockInfo.bSeqUsed - blockInfo.sIdx;
-    if (blockInfo.validSeqCnt > blockInfo.dealSeqSize) {
-        blockInfo.validSeqCnt = blockInfo.dealSeqSize;
+    if (blockInfo.headHolderSeqCnt + blockInfo.validSeqCnt > blockInfo.dealSeqSize) {
+        blockInfo.validSeqCnt = blockInfo.dealSeqSize - blockInfo.headHolderSeqCnt;
     }
     blockInfo.tailHolderSeqCnt = constInfo_.cmpRatio - (blockInfo.bStartPos + blockInfo.sIdx + blockInfo.validSeqCnt) % constInfo_.cmpRatio;
     if (blockInfo.tailHolderSeqCnt == constInfo_.cmpRatio) {
@@ -1136,7 +1127,6 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockVector<COMP>::DealVec2BaseBlock(const Compressor::RunInfo& info, uint32_t startRow, uint32_t dealRowCount)
 {
     uint32_t computeSize = dealRowCount * constInfo_.headDim;
-    // int64_t inGmOffset = vec1ResGmStart + startRow * constInfo_.headDim;
     int64_t inGmOffset = startRow * constInfo_.headDim;
     // CopyIn
     LocalTensor<T> vec1ResUb = inputQue1.AllocTensor<T>();

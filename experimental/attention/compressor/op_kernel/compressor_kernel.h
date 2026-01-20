@@ -464,6 +464,9 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
         tcNumCount -= curDealTcNum;                                                                         // 更新需要处理Tc块的计数
         bool isSeqFinish = (curDealTcNum == curBatchTcNum);                                                 // 处理到当前batch的末尾
         bool hasTail = ((curActSeqLength - headSize) % constInfo.cmpRatio) != 0;                            // 是否存在尾块
+        if ((curActSeqLength == headSize) && ((curStartPos + curActSeqLength) % constInfo.cmpRatio != 0)) {
+            hasTail = true;
+        }
 
         uint32_t curValidSc = curDealTcNum;                                                                    // 更新sc
         if (isSeqFinish && hasTail && curValidSc > 0) {
