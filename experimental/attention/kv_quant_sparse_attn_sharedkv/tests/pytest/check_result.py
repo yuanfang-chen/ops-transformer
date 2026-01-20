@@ -118,14 +118,14 @@ def display_error_output(real_data, expect_data, err_idx, relative_diff):
 # fuzz 中 precision_method == 1的精度对比方式
 def check_result(expect, result):
     diff_thd=0.01
-    pct_thd=0.05
+    pct_thd=0.005
     max_diff_hd=0.1
     rtol=0.005
     atol=0.000025
     max_error_idx = 10000000
 
-    real_data = result.cpu().to(dtype=torch.float).numpy()
-    data_compe = expect.cpu().numpy()
+    real_data = result.cpu().to(torch.float).numpy()
+    data_compe = expect.cpu().to(torch.float).numpy()
     real_data = real_data.flatten()
     data_compe = data_compe.flatten()
     if real_data.size == 0 and real_data.size == data_compe.size:
