@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # benchmark_prompt_flash_attention_pfa.py
 """
-Benchmark driver for torch_npu.npu_prompt_flash_attention.
+Benchmark driver for torch_pfa.npu_prompt_flash_attention.
 
 Measures:
 *  latency (usec) - NPU timer
@@ -17,6 +17,8 @@ import tempfile
 
 import torch
 import torch_npu
+# from torch_npu import npu_prompt_flash_attention  # UNCOMMENT TO USE OFF-THE-SHELF torch_npu interface
+from torch_pfa import npu_prompt_flash_attention  # pre-requisite: go to attention/prompt_flash_attention/torch_interface and running "bash build.sh"
 
 device = "npu:0"
 torch.npu.set_device(device)
@@ -648,7 +650,7 @@ def prompt_flash_attention_npu(q, k, v, sabi_blocks: torch.Tensor = None, **kwar
         blocks_path.write_text(blocks_payload, encoding="utf-8")
         os.environ["PFA_BLOCKS_FILE"] = str(blocks_path)
 
-    return torch_npu.npu_prompt_flash_attention(q, k, v, **kwargs)
+    return npu_prompt_flash_attention(q, k, v, **kwargs)
 
 def prompt_flash_attention_npu(q, k, v, sabi_blocks: torch.Tensor = None, **kwargs):
     if sabi_blocks is not None:
@@ -661,7 +663,7 @@ def prompt_flash_attention_npu(q, k, v, sabi_blocks: torch.Tensor = None, **kwar
         # Env variable
         os.environ["PFA_BLOCKS"] = f"D={b*heads}x{rows}x{cols};V=" + ",".join(map(str, vals))
 
-    return torch_npu.npu_prompt_flash_attention(q, k, v, **kwargs)
+    return npu_prompt_flash_attention(q, k, v, **kwargs)
 
 # --------------------------------------------------------------------------- #
 #  benchmark body
@@ -859,6 +861,7 @@ def benchmark_prompt_flash_attention():
                 actual_seq_lengths=actseqlen,
                 actual_seq_lengths_kv=actseqlenkv,
                 num_heads=h,
+                num_key_value_heads=h,
                 input_layout=INPUT_LAYOUT,
                 scale_value=scale,
                 atten_mask=npu_atten_mask,
@@ -873,7 +876,7 @@ def benchmark_prompt_flash_attention():
             else:
                 os.environ.pop("PFA_BLOCKS", None)
                 os.environ.pop("PFA_BLOCKS_FILE", None)
-                out_ref = torch_npu.npu_prompt_flash_attention(
+                out_ref = npu_prompt_flash_attention(
                     q,
                     k,
                     v,
