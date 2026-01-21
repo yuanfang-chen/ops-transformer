@@ -70,29 +70,6 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
 }
 
 TEMPLATE_INTF
-__aicore__ inline void GetKeyCoreOffsetParam(RunParamStr& runParam, const ConstInfo &constInfo, 
-    int32_t sIdx, __gm__ int64_t *actualSeqKvlenAddr)
-{
-    uint64_t keyInnerOffsetSize = 0;
-    if constexpr (LAYOUT_T == SAS_LAYOUT::BSND) {
-        // 这是从KV的GM 到 每一个batch的开始地址 所需要的偏移量，即每一个batch需要偏移前面一整个batch的长度
-        keyInnerOffsetSize = sIdx * constInfo.n2S2D;
-        runParam.keyCoreOffset = keyInnerOffsetSize + runParam.n2oIdx * constInfo.dSize;
-    } else if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
-        if constexpr (!isPa) {
-            keyInnerOffsetSize = actualSeqKvlenAddr[sIdx] * constInfo.n2D;
-        } else {
-            keyInnerOffsetSize = sIdx * constInfo.n2S2D;
-        }
-        runParam.keyCoreOffset = keyInnerOffsetSize + runParam.n2oIdx * constInfo.dSize;
-    } else {
-        uint64_t headStrideK = constInfo.s2D;
-        keyInnerOffsetSize = sIdx * constInfo.n2Size * headStrideK;
-        runParam.keyCoreOffset = keyInnerOffsetSize + runParam.n2oIdx * headStrideK;
-    }
-}
-
-TEMPLATE_INTF
 __aicore__ inline void ComputeParamBatch(RunParamStr& runParam, const ConstInfo &constInfo,
     __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t *actualSeqKvlenAddr)
 {
@@ -213,31 +190,6 @@ __aicore__ inline int64_t ClipSInnerTokenCube(int64_t sInnerToken, int64_t minVa
     return sInnerToken;
 }
 
-// TEMPLATE_INTF
-// __aicore__ inline bool IsOriKvSkip(RunParamStr& runParam, const ConstInfo &constInfo) // TODO 加上runInfo入参, 判断移到循环内部
-// {
-//     int64_t oriRight = runParam.actualS2Size - runParam.actualS1SizeOri;
-//     int64_t oriLeft = oriRight - constInfo.oriWinLeft;
-//     int64_t oriLeftS2Idx = oriLeft / constInfo.s2BaseSize;
-//     int64_t oriRightS2Idx = oriRight / constInfo.s2BaseSize;
-//     if (runInfo.s2LoopCount < oriLeft || runInfo.s2LoopCount > oriRightS2Idx) {
-//         return true;
-//     }
-//     return false;
-// }
-
-// TEMPLATE_INTF
-// __aicore__ inline bool IsCmpKvSkip(RunParamStr& runParam, const ConstInfo &constInfo)
-// {
-//     int64_t oriLoopCount = (runParam.actualS2Size + constInfo.s2BaseSize - 1) / constInfo.s2BaseSize;
-//     int64_t cmpS2Len = (runParam.actualS2Size - runParam.actualS1SizeOri) / constInfo.cmpRatio;
-//     int64_t cmpLoopCount = (cmpS2Len + constInfo.s2BaseSize - 1) / constInfo.s2BaseSize;
-//     if (runInfo.s2LoopCount < oriLoopCount || runInfo.s2LoopCount > cmpLoopCount) {
-//         return true;
-//     }
-//     return false;
-// }
-
 TEMPLATE_INTF
 __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo &constInfo)
 {
@@ -271,7 +223,6 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo 
 TEMPLATE_INTF
 __aicore__ inline void InitTaskParamByRun(const RunParamStr& runParam, RunInfo &runInfo)
 {
-    runInfo.keyOffset = runParam.keyOffset;
     runInfo.boIdx = runParam.boIdx;
     runInfo.preTokensPerBatch = runParam.preTokensPerBatch;
     runInfo.nextTokensPerBatch = runParam.nextTokensPerBatch;

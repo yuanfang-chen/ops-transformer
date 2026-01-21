@@ -648,10 +648,7 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     tilingData_.baseParams.set_paBlockSize(tilingInfo->blockSize);
     tilingData_.baseParams.set_oriMaxBlockNumPerBatch(tilingInfo->oriMaxBlockNumPerBatch);
     tilingData_.baseParams.set_cmpMaxBlockNumPerBatch(tilingInfo->cmpMaxBlockNumPerBatch);
-    tilingData_.baseParams.set_actualLenDimsQ(tilingInfo->actualLenDimsQ);
-    tilingData_.baseParams.set_actualLenDimsKV(tilingInfo->actualLenDimsKV);
 
-    tilingData_.baseParams.set_kvQuantMode(tilingInfo->kvQuantMode);
     tilingData_.baseParams.set_tileSize(tilingInfo->tileSize);
     tilingData_.baseParams.set_ropeHeadDim(tilingInfo->ropeHeadDim);
     tilingData_.baseParams.set_softmaxScale(tilingInfo->softmaxScale);
@@ -663,11 +660,7 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     tilingData_.baseParams.set_oriWinRight(tilingInfo->oriWinRight);
     tilingData_.baseParams.set_sparseBlockSize(tilingInfo->sparseBlockSize);
     tilingData_.baseParams.set_dSize(tilingInfo->dSize);
-    tilingData_.baseParams.set_dSizeV(tilingInfo->dSizeV);
-    tilingData_.baseParams.set_dSizeNope(448);// TODO 暂时写死
     tilingData_.baseParams.set_dSizeVInput(tilingInfo->dSizeVInput);
-
-    tilingData_.singleCoreParams.set_usedCoreNum(blockDim);
 
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());

@@ -48,7 +48,7 @@ public:
 
     __aicore__ inline SCFABlockCube() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query);
-    __aicore__ inline void InitCubeInput(CVSharedParams *sharedParams, __gm__ uint8_t *cuSeqlensQ);
+    __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo);
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
         RunInfo &runInfo, ConstInfo &constInfo);
@@ -60,7 +60,7 @@ public:
 
 private:
     __aicore__ inline void InitLocalBuffer();
-    __aicore__ inline void InitGmTensor(CVSharedParams *sharedParams, __gm__ uint8_t *cuSeqlensQ);
+    __aicore__ inline void InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo);
     __aicore__ inline void CalcS1Coord(RunInfo &runInfo, ConstInfo &constInfo);
 
     __aicore__ inline void IterateBmm1SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
@@ -113,10 +113,10 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitCubeBlock(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitCubeInput(CVSharedParams *sharedParams, __gm__ uint8_t *cuSeqlensQ)
+__aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo)
 {
     if ASCEND_IS_AIC {
-        InitGmTensor(sharedParams, cuSeqlensQ);
+        InitGmTensor(cuSeqlensQ, constInfo);
     }
 }
 
@@ -139,17 +139,16 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitLocalBuffer() {
 
 /* 初始化GmTensor,设置shape信息并计算strides */
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedParams *sharedParams,
-    __gm__ uint8_t *cuSeqlensQ)
+__aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo)
 {
     if constexpr (LAYOUT_T == SAS_LAYOUT::BSND) {
-        this->queryGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->gSize,
-            sharedParams->s1Size, sharedParams->dSize);
+        this->queryGm.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize,
+            constInfo.s1Size, constInfo.dSize);
     } else {  // SAS_LAYOUT::TND
         GlobalTensor<int32_t> actualSeqQLen;
         actualSeqQLen.SetGlobalBuffer((__gm__ int32_t *)cuSeqlensQ);
-        this->queryGm.offsetCalculator.Init(sharedParams->n2Size, sharedParams->gSize, sharedParams->dSize,
-            actualSeqQLen, sharedParams->actualSeqLengthsSize);
+        this->queryGm.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.dSize,
+            actualSeqQLen, constInfo.actualSeqLenSize);
     }
 }
 
@@ -310,7 +309,7 @@ class SCFABlockCubeDummy {
 public:
     __aicore__ inline SCFABlockCubeDummy() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query) {}
-    __aicore__ inline void InitCubeInput(CVSharedParams *sharedParams, __gm__ uint8_t *cuSeqlensQ) {}
+    __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo) {}
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
         RunInfo &runInfo, ConstInfo &constInfo) {}
