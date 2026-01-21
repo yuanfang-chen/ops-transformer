@@ -1729,9 +1729,85 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                         <li>sparse为0或1时，如果传入attenmask，则S2需大于等于actualSharedPrefixLen与key的S长度之和</li>
                         <li>不支持输入qkv全部为INT8/FP8/HiF8(perblock/pertensor全量化)的情况</li>
                         <li>支持后量化（int8）场景</li>
-                        <li>qs>1场景下，支持perchannel/pertensor/pertoken伪量化并且key/value为INT8的情况</li>
-                        <li>qs=1场景下，支持perchannel伪量化并且key/value为INT8、INT4/INT32的情况，pertensor伪量化并且key/value为INT8的情况，pertensorhead伪量化并且key/value为INT8的情况，pertoken伪量化并且key/value为INT8、INT4/INT32的情况，pertokenhead伪量化并且key/value为INT8、INT4/INT32的情况，pertoken（PA）伪量化并且key/value为INT8的情况，pertokenhead（PA）伪量化并且key/value为INT8的情况，perchannel伪量化并且key为INT8、INT4/INT32与pertoken伪量化并且value为INT8、INT4/INT32的情况</li>
                     </ul>
+                    <ul>
+                        <li>qs &gt; 1 时，伪量化 key / value 分离场景支持范围如下：</li>
+                    </ul>
+                    <table style="table-layout: fixed; width: 600px" border="1" cellpadding="6" cellspacing="0">
+                        <colgroup>
+                            <col style="width: 300px">
+                            <col style="width: 300px">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                            <th>伪量化方式</th>
+                            <th>key / value 支持 dtype</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>perchannel</td>
+                                <td>INT8</td>
+                            </tr>
+                             <tr>
+                                <td>pertensor</td>
+                                <td>INT8</td>
+                            </tr>
+                            <tr>
+                                <td>pertoken</td>
+                                <td>INT8</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <ul>
+                        <li>qs = 1 时，伪量化 key / value 分离场景支持范围如下：</li>
+                    </ul> 
+                    <table style="table-layout: fixed; width: 600px" border="1" cellpadding="6" cellspacing="0">   
+                        <colgroup>
+                            <col style="width: 300px">
+                            <col style="width: 300px">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                            <th>伪量化方式</th>
+                            <th>key / value 支持 dtype</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>perchannel</td>
+                                <td>INT8、INT4(INT32)</td>
+                            </tr>
+                            <tr>
+                                <td>pertensor</td>
+                                <td>INT8</td>
+                            </tr>
+                            <tr>
+                                <td>pertensorhead</td>
+                                <td>INT8</td>
+                            </tr>
+                            <tr>
+                                <td>pertoken</td>
+                                <td>INT8、INT4(INT32)</td>
+                            </tr>
+                            <tr>
+                                <td>key:perchannel + value:pertoken</td>
+                                <td>INT8、INT4(INT32)</td>
+                            </tr>
+                            <tr>
+                                <td>pertokenhead</td>
+                                <td>INT8、INT4(INT32)</td>
+                            </tr>
+                            <tr>
+                                <td>pertoken(PA)</td>
+                                <td>INT8</td>
+                            </tr>
+                            <tr>
+                                <td>pertokenhead(PA)</td>
+                                <td>INT8</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </td>
             <tr>
         </tbody>
