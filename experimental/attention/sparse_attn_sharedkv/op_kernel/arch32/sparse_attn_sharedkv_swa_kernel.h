@@ -222,8 +222,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Ini
     constInfo.oriMaxBlockNumPerBatch = tilingData->baseParams.oriMaxBlockNumPerBatch;
     constInfo.kvCacheBlockSize = tilingData->baseParams.paBlockSize;
 
-    constInfo.paOriBlockSize = 128;
-    constInfo.paCmpBlockSize = 128;
+    constInfo.paOriBlockSize = tilingData->baseParams.oriBlockSize;
+    constInfo.paCmpBlockSize = tilingData->baseParams.cmpBlockSize;
     // constInfo.orikvCacheBlockSize = tilingData->baseParams.oriBlockSize;
     // constInfo.cmpkvCacheBlockSize = tilingData->baseParams.cmpBlockSize;
     constInfo.outputLayout = static_cast<SAS_LAYOUT>(tilingData->baseParams.outputLayout);
