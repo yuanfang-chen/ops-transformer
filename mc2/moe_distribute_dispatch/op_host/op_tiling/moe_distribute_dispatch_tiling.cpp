@@ -37,7 +37,6 @@
 #include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_tiling.h"
 #include "../../op_kernel/moe_distribute_dispatch_tiling_key.h"
 #include "tiling/moe_tiling_base.h"
-#include "../../../moe_distribute_dispatch_v2/op_host/op_tiling/arch35/moe_distribute_dispatch_tiling_arch35.h"
 #include "moe_distribute_dispatch_tiling_a2a3.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "mc2_hcom_topo_info.h"
