@@ -13,6 +13,7 @@
 #include "opdev/op_dfx.h"
 #include "opdev/op_executor.h"
 #include "aclnn_kernels/common/op_error_check.h"
+#include "external/aclnn_kernels/aclnn_platform.h"
 #include "posembedding/rotary_position_embedding/op_host/op_api/aclnn_rotary_position_embedding.h"
 
 using namespace op;
@@ -38,7 +39,7 @@ aclnnStatus aclnnInterleaveRopeGetWorkspaceSize(
     const aclTensor* x, const aclTensor* cos, const aclTensor* sin, aclTensor* out, uint64_t* workspaceSize,
     aclOpExecutor** executor)
 {
-    bool useRotaryPositionEmbedding = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95;
+    bool useRotaryPositionEmbedding = Ops::Transformer::AclnnUtil::IsRegbase();
     if (useRotaryPositionEmbedding) {
         const aclTensor* defaultRotate = nullptr;
         return aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(
@@ -50,7 +51,7 @@ aclnnStatus aclnnInterleaveRopeGetWorkspaceSize(
 
 aclnnStatus aclnnInterleaveRope(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)
 {
-    bool useRotaryPositionEmbedding = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95;
+    bool useRotaryPositionEmbedding = Ops::Transformer::AclnnUtil::IsRegbase();
     if (useRotaryPositionEmbedding) {
         return aclnnInnerRotaryPositionEmbedding(workspace, workspaceSize, executor, stream);
     } else {

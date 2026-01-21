@@ -10,7 +10,7 @@
 
 /*!
  * \file rope_with_sin_cos_cache_apt.cpp
- * \brief 910_95 (A5) 平台入口文件，复用 membase 实现逻辑
+ * \brief 950 (A5) 平台入口文件，复用 membase 实现逻辑
  */
 #include "kernel_operator.h"
 #include "arch35/rope_with_sin_cos_cache_fp32.h"

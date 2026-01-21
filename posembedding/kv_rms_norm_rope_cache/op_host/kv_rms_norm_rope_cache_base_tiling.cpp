@@ -18,6 +18,7 @@
 #include "register/op_impl_registry.h"
 #include "util/math_util.h"
 #include "op_common/op_host/util/platform_util.h"
+#include "tiling_base/tiling_util.h"
 
 namespace optiling {
 std::tuple<int64_t, int64_t, int64_t, int64_t> KvRmsNormRopeCacheTilingBase::GetShapeTuple(
@@ -272,8 +273,7 @@ ge::graphStatus KvRmsNormRopeCacheTilingBase::GetShapeAttrsInfo()
 {
     OP_CHECK_IF(
         context_ == nullptr, OP_LOGE(context_->GetNodeName(), "context_ can not be nullptr."), return ge::GRAPH_FAILED);
-    const auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
-    isRegbase_ = ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910_95;
+    isRegbase_ = Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_);
     // GetQuantMode
     quantMode_ = GetQuantMode(context_);
     // Basic info
