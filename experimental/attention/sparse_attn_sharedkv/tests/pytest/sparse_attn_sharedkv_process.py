@@ -101,7 +101,7 @@ class GeneralizedSFA:
                     elif template_idx == 1:
                         threshold = 0
                         if self.cmp_mask_mode == 3:
-                            threshold = math.floor((cur_ori_act_kv - cur_act_q + i_S1 + 1) / (self.cmp_ratio))
+                            threshold = math.floor((cur_ori_act_kv.size(0) - cur_act_q + i_S1 + 1) / (self.cmp_ratio))
                         if threshold == 0:
                             empty_flag = True
                         else:
@@ -111,7 +111,7 @@ class GeneralizedSFA:
                             cmp_s2_loop_time = 0
                             cur_cmp_k_fp32 = cur_cmp_k
                         else:
-                            cmp_s2_loop_time = math.ceil(cur_cmp_k / s2_base_size)
+                            cmp_s2_loop_time = math.ceil(cur_cmp_k.size(0) / s2_base_size)
                             cur_cmp_k_fp32 = cur_cmp_k.to(dtype=torch.float32)
 
                     else:
