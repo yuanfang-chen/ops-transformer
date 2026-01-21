@@ -602,6 +602,12 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::Init(
     mulWorkSpaceGm.SetGlobalBuffer((__gm__ T1 *)(workspace + workspaceOffsets +
                                                  cCubeBlockIdx * matmulWorkspaceSize * GM_DOUBLE_BUFFER));
 
+    dsinksumWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace +
+                                        TilingData->postTilingData.dsinksumWorkSpaceOffset / sizeof(float));
+
+    dsinksumDataSizeGm.SetGlobalBuffer((__gm__ uint32_t *)workspace +
+                                       TilingData->postTilingData.dsinksumDataSizeOffset / sizeof(uint32_t));
+
     uint64_t pseAlibiAddr = (workspaceOffsets + cubeCoreNum * matmulWorkspaceSize * INPUT_NUMS *
                              GM_DOUBLE_BUFFER + ADDR_ALIGN_SIZE) / ADDR_ALIGN_SIZE * ADDR_ALIGN_SIZE;
     this->pseAlibiGm.SetGlobalBuffer((__gm__ half*)(workspace + pseAlibiAddr + cBlockIdx * pseAlibiOffset));
@@ -630,12 +636,6 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::Init(
  
         dvDtmWsGm.SetGlobalBuffer((__gm__ float *)(workspace + workspaceOffsets));
     }
-
-    dsinksumWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace +
-                            TilingData->postTilingData.dsinksumWorkSpaceOffset / sizeof(float));
-
-    dsinksumDataSizeGm.SetGlobalBuffer((__gm__ uint32_t *)workspace +
-                            TilingData->postTilingData.dsinksumDataSizeOffset / sizeof(uint32_t));
 
     if constexpr (IS_DROP == ENABLE) {
         if constexpr (INPUT_LAYOUT != TND) {
@@ -3611,6 +3611,13 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
     if (unlikely(has_sink)) {
         // SubGrapSink
         AscendC::PipeBarrier<PIPE_V>();
+        for (int32_t tmpS1Idx = 0; tmpS1Idx < s1ExtendSubGraph; tmpS1Idx++) {
+            for (int32_t tmpS2Idx = s2Extend; tmpS2Idx < s2ExtendAlign; tmpS2Idx++) {
+                simpleSoftmaxResBuf.SetValue(tmpS1Idx * s2ExtendAlign + tmpS2Idx, static_cast<float>(0.0));
+                dyvBuffer.SetValue(tmpS1Idx * s2ExtendAlign + tmpS2Idx, static_cast<float>(0.0));
+            }
+        }
+        AscendC::PipeBarrier<PIPE_ALL>();
         Mul(dyvBuffer, dyvBuffer, simpleSoftmaxResBuf, s1ExtendSubGraph * s2ExtendAlign);
         AscendC::PipeBarrier<PIPE_V>();
 
@@ -3624,29 +3631,28 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
         Duplicate(learnable_sink, static_cast<float> (getsink), s1ExtendSubGraph * 8);
         AscendC::PipeBarrier<PIPE_V>();
 
-
-        LocalTensor<float> vecInBuffer3 =
-        unifiedBuffer.GetWithOffset<float>(8 * 1024 / sizeof(float), T2BlockBegin);
+        LocalTensor<float> vecInBuffer3 = unifiedBuffer.GetWithOffset<float>(8 * 1024 / sizeof(float), T2BlockBegin);
         int64_t softMaxOffset = 0;
         if constexpr (INPUT_LAYOUT == TND) {
             if(tndSoftmaxIn){
                 int64_t innerRowOffsetLeft = unlikely(dbParam.bIdx == 0) ? 0 : ((__gm__ int64_t *)actual_seq_qlen_addr)[dbParam.bIdx - 1] * 32 / sizeof(float);
                 int64_t originInnerBatchOffset = ((dbParam.n2Idx * g + dbParam.gIdx) * dbParam.actualS1Len +
-                                dbParam.s1oIdx * s1CvInner + curS1Idx * s1VecSize) * 32 / sizeof(float);
+                                                  dbParam.s1oIdx * s1CvInner + curS1Idx * s1VecSize) * 32 / sizeof(float);
                 softMaxOffset = ((((__gm__ int64_t *)actual_seq_qlen_addr)[b - 1] * 32 / sizeof(float)) * (dbParam.n2Idx * g + dbParam.gIdx) + innerRowOffsetLeft + originInnerBatchOffset % (dbParam.actualS1Len * 32 / sizeof(float)));
             }else {
                 if (dbParam.bIdx > 0) {
                     softMaxOffset = ((__gm__ int64_t *)actual_seq_qlen_addr)[dbParam.bIdx - 1] * n2 * g * 32 / sizeof(float);
                 }
                 softMaxOffset += ((dbParam.n2Idx * g + dbParam.gIdx) * dbParam.actualS1Len +
-                                dbParam.s1oIdx * s1CvInner + curS1Idx * s1VecSize) * 32 / sizeof(float);
+                                  dbParam.s1oIdx * s1CvInner + curS1Idx * s1VecSize) * 32 / sizeof(float);
             }
         } else {
             softMaxOffset = (((dbParam.bIdx * n2 + dbParam.n2Idx) * g + dbParam.gIdx) * s1 + dbParam.s1oIdx * s1CvInner +
-                            curS1Idx * s1VecSize) * 32 / sizeof(float);
+                             curS1Idx * s1VecSize) * 32 / sizeof(float);
         }
         CopyInSoftMax(vecInBuffer3, s1ExtendSubGraph, softMaxOffset);
 
+        // simple softmax
         AscendC::PipeBarrier<PIPE_V>();
         Sub(learnable_sink, learnable_sink, vecInBuffer3[s1ExtendSubGraph*8], s1ExtendSubGraph*8);
         AscendC::PipeBarrier<PIPE_V>();
@@ -3670,7 +3676,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::SubGrapB(int64_t curIdx, int64_
         AscendC::PipeBarrier<PIPE_V>();
 
         int s1Pad = (TilingData->s1s2BNGS1S2BaseParams.s1 + 255)/256*256;
-        int s2Pad = (TilingData->s1s2BNGS1S2BaseParams.s2 + 255)/256*256; 
+        int s2Pad = (TilingData->s1s2BNGS1S2BaseParams.s2 + 255)/256*256;
 
         int dataSizePerN1 = b * s2Outer * s1Outer;
 
@@ -3690,7 +3696,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
 
     s2VecSize = dbParam.s2CvExtend > VEC_S2_LEN ? VEC_S2_LEN : dbParam.s2CvExtend;
     s2VecLoop = s2VecSize == 0 ? 0 : CeilDiv(dbParam.s2CvExtend, s2VecSize);
-   if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
+    if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
         if (dbParam.s2CvExtend < VEC_S2_LEN * 2) {
             s2VecSize = AlignUp(CeilDiv(dbParam.s2CvExtend, 2), C0_SIZE);
             s2VecLoop = 2;
@@ -3700,7 +3706,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
             s2VecLoop = 1;
         }
     }
-    uint32_t s2AlignFactor = BLOCK_SIZE / 2;   // float32 also align to 16.
+    uint32_t s2AlignFactor = BLOCK_SIZE / 2; // float32 also align to 16.
     if constexpr (IS_DROP == ENABLE || IS_ATTEN_MASK == ENABLE) {
         // last dim 32B align
         s2AlignFactor = BLOCK_SIZE / sizeof(uint8_t);
@@ -3744,7 +3750,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
     // SoftmaxGradFront
     ///////////////////////////////////////////////////////////////
     sfmgOffset = 0;
-    if constexpr(INPUT_LAYOUT == TND) {
+    if constexpr (INPUT_LAYOUT == TND) {
         if (dbParam.bIdx > 0) {
             sfmgOffset = n2 * g * ((__gm__ int64_t *)actual_seq_qlen_addr)[dbParam.bIdx - 1] * 8;
         }
@@ -3786,7 +3792,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
         // for compute dropout mask
         dropMaskInfo.firstAxis = s1ExtendSubGraph;
 
-        
+
         event_t mte2WaitMte3A = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
         event_t mte2WaitMte3B = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
         SubGrapA(loopCnt, curS1Idx, curS2Idx, dbParam, mte2WaitMte3A);
@@ -3795,24 +3801,23 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
         GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3A);
         GetTPipePtr()->ReleaseEventID<HardEvent::MTE3_MTE2>(mte2WaitMte3B);
     }
+
+    // workspace is n1 * b * s1Outer * s2Outer * subcore
     if (unlikely(TilingData->s1s2BNGS1S2BaseParams.sink == 1)) {
-        int dsinksumLoc = cSubIdx;
-        dsinksumLoc += 2 * dbParam.s2oIdx;
-        dsinksumLoc +=  2 * s2Outer * dbParam.s1oIdx;
-        dsinksumLoc +=  2 * s2Outer * s1Outer * dbParam.bIdx;   
-
-        int s1Pad = (TilingData->postTilingData.s1 + 255)/256*256;
-        int s2Pad = (TilingData->postTilingData.s2 + 255)/256*256;
-        int dataSizePerN1 = TilingData->postTilingData.b *s1Pad * s2Pad / TilingData->postTilingData.baseMN;
-
-        dsinksumLoc += dataSizePerN1 * dbParam.gIdx;
-        dsinksumLoc += dataSizePerN1 * g * dbParam.n2Idx;
+        int32_t s1Pad = (TilingData->postTilingData.s1 + 255) / 256 * 256;
+        int32_t s2Pad = (TilingData->postTilingData.s2 + 255) / 256 * 256;
+        int32_t dataSizePerS1S2 = s1Pad * s2Pad / TilingData->postTilingData.baseMN;
+        int32_t dataSizePerN1 = TilingData->postTilingData.b * dataSizePerS1S2;
+        int32_t dsinksumLoc = cSubIdx;
+        dsinksumLoc += dbParam.s2oIdx * 2;
+        dsinksumLoc += dbParam.s1oIdx * s2Pad / 256 * 2;
+        dsinksumLoc += (dbParam.gIdx + g * dbParam.n2Idx) * dataSizePerN1 + dbParam.bIdx * dataSizePerS1S2;
 
         LocalTensor<float> localDsink = unifiedBuffer.GetWithOffset<float>(8, DbBegin + 1024);
         AscendC::PipeBarrier<PIPE_ALL>();
         localDsink.SetValue(0, dsinkSumLocal);
         AscendC::PipeBarrier<PIPE_ALL>();
-        DataCopyPad(dsinksumWorkSpaceGm[dsinksumLoc], localDsink, {1,sizeof(float),0,0});
+        DataCopyPad(dsinksumWorkSpaceGm[dsinksumLoc], localDsink, {1, sizeof(float), 0, 0});
         AscendC::PipeBarrier<PIPE_ALL>();
     }
 }
