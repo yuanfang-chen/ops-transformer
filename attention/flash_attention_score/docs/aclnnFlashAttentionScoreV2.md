@@ -260,7 +260,7 @@ aclnnStatus aclnnFlashAttentionScoreV2(
         <td>innerPrecise</td>
         <td>输入</td>
         <td>用于提升精度。</td>
-        <td>-</td>
+        <td>默认配置为0即可。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
