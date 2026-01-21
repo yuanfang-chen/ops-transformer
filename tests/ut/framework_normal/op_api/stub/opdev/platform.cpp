@@ -83,6 +83,11 @@ const PlatformInfo& GetCurrentPlatformInfo()
     return *g_platformInfo;
 }
 
+NpuArch PlatformInfo::GetCurNpuArch() const
+{
+    return NpuArch::DAV_2201;
+}
+
 ge::AscendString ToString(SocVersion socVersion)
 {
     static const std::map<SocVersion, std::string> kSocVersionMap = {
