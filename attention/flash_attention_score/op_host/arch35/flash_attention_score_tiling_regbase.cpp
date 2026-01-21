@@ -973,10 +973,6 @@ bool FlashAttentionScoreTilingRegbase::IsUseSpliteCoreMode(SparseMode inputSpars
 
 void FlashAttentionScoreTilingRegbase::SetSplitCoreModeParam()
 {
-    if (tilingKeyLayout == LayoutType::LAYOUT_TND) {
-        return;
-    }
-
     CalcThresholdForS2Size();
 
     // 索引从0开始，需要将基本块个数减1

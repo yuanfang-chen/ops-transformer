@@ -506,6 +506,36 @@ protected:
         return true;
     }
 
+    bool IsUsesplit(SparseMode inputSparseMode) {
+        if (inputSparseMode == SparseMode::LEFT_UP_CAUSAL || inputSparseMode == SparseMode::RIGHT_DOWN_CAUSAL) {
+            for (auto i = 0; i < bSize; i++) {
+                // 当前采用保守判断条件，当同batch中S1、S2均超过阈值时开启分核优化
+                if (actualSeqLenData[i] >= thresholdS2Size && actualSeqLenKvData[i] > thresholdS2Size) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    void SetSplitCoreModeParam()
+    {
+        CalcThresholdForS2Size();
+
+        // 索引从0开始，需要将基本块个数减1
+        if ((sparseMode == static_cast<int64_t>(SparseMode::LEFT_UP_CAUSAL)) &&
+            IsUseSpliteCoreMode(SparseMode::LEFT_UP_CAUSAL)) {
+            splitCoreMode = SplitCoreMode::SQ_MULTI_CORE_FIRST;
+        } else if ((sparseMode == static_cast<int64_t>(SparseMode::RIGHT_DOWN_CAUSAL)) &&
+            IsUseSpliteCoreMode(SparseMode::RIGHT_DOWN_CAUSAL)) {
+            splitCoreMode = SplitCoreMode::SQ_MULTI_CORE_FIRST;
+        }
+
+        OP_LOGD(context_, "sparseMode: %ld, firstFullLoadS1OuterIdx: %ld, splitCoreMode: %d, s2SizeThreshold: %d.",
+            sparseMode, firstFullLoadS1OuterIdx, splitCoreMode, thresholdS2Size);
+    }
+
     int64_t GetS2RealSize(uint8_t sparseType, int32_t bOutIdx, int64_t s1OutIdx)
     {
         int64_t s2RealSize = s2Size;
