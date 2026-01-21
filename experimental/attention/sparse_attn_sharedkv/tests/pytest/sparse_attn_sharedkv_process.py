@@ -187,7 +187,8 @@ class GeneralizedSFA:
                             row_sum = row_sum + torch.sum(cur_softmax_res, dim=1)
                             tmp_scale = torch.exp(row_max / log_2 + ni) * log_2
                             tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
-                            cur_softmax_res = cur_softmax_res * tmp_scale_16
+                            tmp_scale_16_expand = tmp_scale_16.unsequeeze(1)
+                            cur_softmax_res = cur_softmax_res * tmp_scale_16_expand
 
                             cur_softmax_res = cur_softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
                             cur_o = torch.matmul(cur_softmax_res, v_tile)
@@ -198,13 +199,15 @@ class GeneralizedSFA:
                             if i_S2 != 0:
                                 N = torch.clamp((ni - ni_old), min=-30).to(torch.float32) + eps
                                 N_up = (N * torch.tensor(2 ** (23), dtype=torch.float32)).to(torch.int32)
-                                O_int = O_flash.view(torch.int32) + N_up
+                                N_up_expand = N_up.unsequeeze(1)
+                                O_int = O_flash.view(torch.int32) + N_up_expand
                                 O_fp = O_int.view(torch.float32)
                                 O_flash = O_fp + cur_o
                             else:
                                 O_flash = O_flash + cur_o
                             rcof_old = rcof
-                        attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (O_flash / row_sum / tmp_scale_16).to(dtype=q_bnsd.dtype)
+                        row_sum_expand = row_sum.unsequeeze(1)
+                        attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (O_flash / row_sum_expand / tmp_scale_16_expand).to(dtype=q_bnsd.dtype)
                         #     cur_softmax_res = torch.exp(scale_res - row_max_expand)
                         #     row_sum = update_mul * row_sum + torch.sum(cur_softmax_res, dim=1)
 
