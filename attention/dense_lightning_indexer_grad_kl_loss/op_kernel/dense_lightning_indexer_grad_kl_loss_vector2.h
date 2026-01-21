@@ -127,8 +127,8 @@ __aicore__ inline void DLIKLLossVector2Service<DLIT>::ProcessVectorDk()
 
     uint32_t loopTimes = CeilDiv(constInfo.dKeySingleCoreSize, DLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_16K);
 
-    SetFlag<HardEvent::V_MTE2>(EVENT_ID0);
-    SetFlag<HardEvent::V_MTE2>(EVENT_ID1);
+    SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
+    SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
     for (int64_t loopIdx = 0; loopIdx < loopTimes; loopIdx++) {
         uint32_t dKeyGmOffsetCur = constInfo.dKeyGmOffset + loopIdx * DLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_16K;
         uint32_t processNum = DLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_16K;
@@ -142,22 +142,22 @@ __aicore__ inline void DLIKLLossVector2Service<DLIT>::ProcessVectorDk()
         LocalTensor<MM4_OUT_T> dKeyIndexUbIn = pingPongFlag ? ubInFloatPong_ : ubInFloatPing_;
         LocalTensor<OUT_T> dKeyIndexUbOut = pingPongFlag ? ubOutHalfPong_ : ubOutHalfPing_;
 
-        WaitFlag<HardEvent::V_MTE2>(eventId);
+        WaitFlag<HardEvent::MTE3_MTE2>(eventId);
         DataCopy(dKeyIndexUbIn, dKeyIndexGmIn[dKeyGmOffsetCur], processNum);
         SetFlag<HardEvent::MTE2_V>(eventId);
 
         WaitFlag<HardEvent::MTE2_V>(eventId);
         Cast(dKeyIndexUbOut, dKeyIndexUbIn, RoundMode::CAST_ROUND, processNum);
         SetFlag<HardEvent::V_MTE3>(eventId);
-        SetFlag<HardEvent::V_MTE2>(eventId);
 
         WaitFlag<HardEvent::V_MTE3>(eventId);
         DataCopy(dKeyIndexGmOut[dKeyGmOffsetCur], dKeyIndexUbOut, processNum);
+        SetFlag<HardEvent::MTE3_MTE2>(eventId);
         
         pingPongFlag = 1 - pingPongFlag;
     }
-    WaitFlag<HardEvent::V_MTE2>(EVENT_ID0);
-    WaitFlag<HardEvent::V_MTE2>(EVENT_ID1);
+    WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
+    WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
 }
 
 
