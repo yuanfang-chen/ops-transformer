@@ -642,7 +642,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadFromCacheState(const Loc
         copyParams.srcStride = (coff * constInfo_.headDim - dDealSize) / (32 / sizeof(T));
         // printf("stateOffset=%d, copyRowCnt=%d, dDealSize=%d, dstStride=%d, srcStride=%d\n",
         //         stateOffset, copyRowCnt, dDealSize, (coff * constInfo_.headDim - dDealSize), (coff * dDealSize - dDealSize));
-        DataCopy(output, state[stateOffset], copyParams);
+        DataCopy(output[copyFinishRowCnt * coff * dDealSize], state[stateOffset], copyParams);
         // AscendC::DumpTensor(state[stateOffset], 120, 64);
         // AscendC::DumpTensor(output, 121, 64);
 
@@ -684,7 +684,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::WriteToCacheState(const Glob
             copyParams.srcStride = (coff * dDealSize - dDealSize) / (32 / sizeof(T));
             // printf("stateOffset=%d, copyRowCnt=%d, dDealSize=%d, dstStride=%d, srcStride=%d\n",
             //     stateOffset, copyRowCnt, dDealSize, (coff * constInfo_.headDim - dDealSize), (coff * dDealSize - dDealSize));
-            DataCopy(state[stateOffset], input, copyParams);
+            DataCopy(state[stateOffset], input[copyFinishRowCnt * coff * dDealSize], copyParams);
             // AscendC::DumpTensor(state[stateOffset], 110, 64);
         }
 
