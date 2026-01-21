@@ -4,8 +4,13 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
+|<term>昇腾910_95 AI处理器</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
-|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列加速卡产品</term>|      √     |
+|<term>Atlas 训练系列产品</term>|      ×     |
+|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 产品形态详细说明请参见[昇腾产品形态说明](https://www.hiascend.com/document/redirect/CannCommunityProductForm)。
 
@@ -19,13 +24,11 @@
     $$
     y=activation(x * W1 + b1) * W2 + b2
     $$
-
   - **量化场景：**
 
     $$
     y=((activation((x * W1 + b1) * deqScale1) * scale + offset) * W2 + b2) * deqScale2
     $$
-
   - **伪量化场景：**
 
     $$
@@ -81,50 +84,68 @@ y = FFN(x, weight1, weight2, tokens, bias1, bias2, activateType)  # 具体参数
     N1表示第一个matmul的输出通道数。
     K2表示第二个matmul的输入通道数。
     N2表示第二个matmul的输出通道数，对应transform中的H。
-    <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：E表示有专家场景的专家数；G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数。
+    <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：E表示有专家场景的专家数；G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数。
 
 - **参数说明：**
 
   - x（aclTensor\*，计算输入）：必选参数，Device侧的aclTensor，公式中的输入x，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16、INT8，支持输入的维度最少是2维[M, K1]，最多是8维。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16、INT8，支持输入的维度最少是2维[M, K1]，最多是8维。
+      - <term>Atlas 推理系列加速卡产品</term>：数据类型支持FLOAT16，支持输入的维度是2维[M, K1]。
   - weight1（aclTensor\*，计算输入）：必选参数，Device侧的aclTensor，专家的权重数据，公式中的W1，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16、INT8、INT4，输入在有/无专家时分别为[E, K1, N1]/[K1, N1]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16、INT8、INT4，输入在有/无专家时分别为[E, K1, N1]/[K1, N1]。
+      - <term>Atlas 推理系列加速卡产品</term>：数据类型支持FLOAT16，支持输入的维度是2维[K1, N1]。
   - weight2（aclTensor\*，计算输入）：必选参数，Device侧的aclTensor，专家的权重数据，公式中的W2，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16、INT8、INT4，输入在有/无专家时分别为[E, K2, N2]/[K2, N2]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16、INT8、INT4，输入在有/无专家时分别为[E, K2, N2]/[K2, N2]。
+      - <term>Atlas 推理系列加速卡产品</term>：数据类型支持FLOAT16，支持输入的维度是2维[K2, N2]。
   - expertTokens（aclIntArray\*，计算输入）：可选参数，Host侧的aclIntArray类型，代表各专家的token数，数据类型支持INT64，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：若不为空时可支持的最大长度为256个。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：若不为空时可支持的最大长度为256个。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - bias1（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，权重数据修正值，公式中的b1，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、FLOAT32、INT32，输入在有/无专家时分别为[E, N1]/[N1]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、FLOAT32、INT32，输入在有/无专家时分别为[E, N1]/[N1]。
+      - <term>Atlas 推理系列加速卡产品</term>：数据类型支持FLOAT16，支持输入的维度是1维[N1]。
   - bias2（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，权重数据修正值，公式中的b2，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、FLOAT32、INT32，输入在有/无专家时分别为[E, N2]/[N2]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、FLOAT32、INT32，输入在有/无专家时分别为[E, N2]/[N2]。
+      - <term>Atlas 推理系列加速卡产品</term>：数据类型支持FLOAT16，支持输入的维度是1维[N2]。
   - scale（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，量化参数，量化缩放系数，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT32，per-tensor下输入在有/无专家时均为一维向量，输入元素个数在有/无专家时分别为[E]/[1]；per-channel下输入在有/无专家时为二维向量/一维向量，输入元素个数在有/无专家时分别为[E, N1]/[N1]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT32，per-tensor下输入在有/无专家时均为一维向量，输入元素个数在有/无专家时分别为[E]/[1]；per-channel下输入在有/无专家时为二维向量/一维向量，输入元素个数在有/无专家时分别为[E, N1]/[N1]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - offset（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，量化参数，量化偏移量，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT32，一维向量，输入元素个数在有/无专家时分别为[E]/[1]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT32，一维向量，输入元素个数在有/无专家时分别为[E]/[1]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - deqScale1（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，量化参数，第一个matmul的反量化缩放系数，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持UINT64、INT64、FLOAT32、BFLOAT16，输入在有/无专家时分别为[E, N1]/[N1]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持UINT64、INT64、FLOAT32、BFLOAT16，输入在有/无专家时分别为[E, N1]/[N1]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - deqScale2（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，量化参数，第二个matmul的反量化缩放系数，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持UINT64、INT64、FLOAT32、BFLOAT16，输入在有/无专家时分别为[E, N2]/[N2]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持UINT64、INT64、FLOAT32、BFLOAT16，输入在有/无专家时分别为[E, N2]/[N2]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - antiquantScale1（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，伪量化参数，第一个matmul的缩放系数，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N1]/[N1]，per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N1]/[N1]，per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - antiquantScale2（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，伪量化参数，第二个matmul的缩放系数，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N2]/[N2]，per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N2]/[N2]，per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - antiquantOffset1（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，伪量化参数，第一个matmul的偏移量，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N1]/[N1]，per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N1]/[N1]，per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
   - antiquantOffset2（aclTensor\*，计算输入）：可选参数，Device侧的aclTensor，伪量化参数，第二个matmul的偏移量，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N2]/[N2]，per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16，per-channel下输入在有/无专家时分别为[E, N2]/[N2]，per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传空指针。
+
   - activation（char\*，计算输入）：必选参数，Host侧的属性值，代表使用的激活函数，公式中的activation。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：当前支持fastgelu/gelu/relu/silu以及geglu/swiglu/reglu。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：当前支持fastgelu/gelu/relu/silu以及geglu/swiglu/reglu。
+      - <term>Atlas 推理系列加速卡产品</term>：当前支持fastgelu/gelu/relu/silu。
   - innerPrecise（int64\_t，计算输入）：可选参数，Host侧的int，表示高精度或者高性能选择。数据类型支持INT64。
       - innerPrecise为0时，代表开启高精度模式，非量化场景下必选参数都为FLOAT16时，算子内部激活层输入输出都采用FLOAT32数据类型计算。
       - innerPrecise为1时，代表高性能模式。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：该参数仅在非量化场景下必选参数都为FLOAT16时生效，其余场景不区分高精度和高性能。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：该参数仅在非量化场景下必选参数都为FLOAT16时生效，其余场景不区分高精度和高性能。
+      - <term>Atlas 推理系列加速卡产品</term>：只支持传1。
   - tokensIndexFlag（bool，计算输入）：可选参数，Host侧的bool，指示expertTokens是否为索引值，数据类型支持bool。
 
     - tokensIndexFlag为true时，表示expertTokens为索引值。
     - tokensIndexFlag为false时，表示expertTokens为各专家的token数。
   - y（aclTensor\*，计算输出）：Device侧的aclTensor，公式中的输出y，[数据格式](../../../docs/zh/context/数据格式.md)支持ND，输出维度与x一致。
-      - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持FLOAT16、BFLOAT16。
+      - <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：数据类型支持FLOAT16、BFLOAT16。
+      - <term>Atlas 推理系列加速卡产品</term>：数据类型支持FLOAT16。
   - workspaceSize（uint64\_t\*，出参）：返回用户需要在Device侧申请的workspace大小。
   - executor（aclOpExecutor\*\*，出参）：返回op执行器，包含了算子计算流程。
 - **返回值：**
@@ -153,7 +174,7 @@ y = FFN(x, weight1, weight2, tokens, bias1, bias2, activateType)  # 具体参数
 - 确定性计算：
   - aclnnFFNV2默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - 所有场景下需满足K1=N2, K1<65536, K2<65536, M轴在32Byte对齐后小于INT32的最大值。
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
   - 有专家时，专家数据的总数需要与x的M保持一致。
   - 激活层为geglu/swiglu/reglu时，仅支持无专家分组时的FLOAT16高性能场景（FLOAT16场景指类型为aclTensor的必选参数数据类型都为FLOAT16的场景），且N1=2\*K2。
   - 激活层为gelu/fastgelu/relu/silu时，支持有专家或无专家分组的FLOAT16高精度及高性能场景、BFLOAT16场景、量化场景及伪量化场景，且N1=K2。
@@ -173,6 +194,10 @@ y = FFN(x, weight1, weight2, tokens, bias1, bias2, activateType)  # 具体参数
   - 伪量化场景，per-group下，antiquantScale1和antiquantOffset1中的组数G要能被K1整除，antiquantScale2和antiquantOffset2中的组数G要能被K2整除。
   - innerPrecise参数在BFLOAT16非量化场景，只能配置为0；FLOAT16非量化场景，可以配置为0或者1；量化或者伪量化场景，0和1都可配置，但是配置后不生效。
   - tokensIndexFlag为true且有专家（expertTokens不为空）时，expertTokens中的数值必须满足：如果i和j都是expertTokens中有效的数组索引，且j大于i，那么expertTokens中第j个元素的数值大于或者等于expertTokens中第i个元素的数值。
+
+- <term>Atlas 推理系列加速卡产品</term>：
+  - 只支持无专家场景。
+  - 需满足N1=K2。
 
 ## 算子原型
 
@@ -211,6 +236,7 @@ REG_OP(FFN)
 #include <vector>
 #include "acl/acl.h"
 #include "aclnnop/aclnn_ffn_v2.h"
+#include "aclnn/opdev/fp16_t.h"
 
 #define CHECK_RET(cond, return_expr) \
   do {                               \
@@ -246,7 +272,7 @@ int Init(int32_t deviceId, aclrtStream* stream) {
 template <typename T>
 int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr,
                     aclDataType dataType, aclTensor** tensor) {
-  auto size = GetShapeSize(shape) * sizeof(T);
+  auto size = GetShapeSize(shape) * aclDataTypeSize(dataType);
   // 调用aclrtMalloc申请device侧内存
   auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtMalloc failed. ERROR: %d\n", ret); return ret);
@@ -289,10 +315,10 @@ int main() {
   aclTensor* out = nullptr;
   aclTensor* weight1 = nullptr;
   aclTensor* weight2 = nullptr;
-  std::vector<float> selfHostData = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
-  std::vector<float> outHostData = {0, 0, 0, 0};
-  std::vector<float> weight1HostData = {0.1, 0.2, 0.3, 0.4};
-  std::vector<float> weight2HostData = {0.4, 0.3, 0.2, 0.1};
+  std::vector<op::fp16_t> selfHostData = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
+  std::vector<op::fp16_t> outHostData = {0, 0, 0, 0};
+  std::vector<op::fp16_t> weight1HostData = {0.1, 0.2, 0.3, 0.4};
+  std::vector<op::fp16_t> weight2HostData = {0.4, 0.3, 0.2, 0.1};
   // 创建self aclTensor
   ret = CreateAclTensor(selfHostData, selfShape, &selfDeviceAddr, aclDataType::ACL_FLOAT16, &self);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -332,12 +358,12 @@ int main() {
 
   // 5. 获取输出的值，将device侧内存上的结果拷贝至host侧，需要根据具体API的接口定义修改
   auto size = GetShapeSize(outShape);
-  std::vector<float> resultData(size, 0);
+  std::vector<op::fp16_t> resultData(size, 0);
   ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), outDeviceAddr,
                     size * sizeof(resultData[0]), ACL_MEMCPY_DEVICE_TO_HOST);
   CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
   for (int64_t i = 0; i < size; i++) {
-    LOG_PRINT("result[%ld] is: %f\n", i, resultData[i]);
+    std::cout << "index: " << i << ": " << static_cast<float>(resultData[i]) << std::endl;
   }
 
   // 6. 释放aclTensor，需要根据具体API的接口定义修改
