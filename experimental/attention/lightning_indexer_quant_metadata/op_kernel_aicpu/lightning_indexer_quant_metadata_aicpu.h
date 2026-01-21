@@ -302,7 +302,7 @@ private:
     uint32_t s2BaseSize_ = 0;
     uint32_t gS1BaseSizeOfFd_ = 0;
     bool isS1G_ = true;
-    SplitResult splitRes_ {24, 2};
+    SplitResult splitRes_ {36, 2};
 
 private:
     enum class ParamId : uint32_t {

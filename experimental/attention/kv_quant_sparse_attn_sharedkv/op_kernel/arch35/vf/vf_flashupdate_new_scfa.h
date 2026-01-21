@@ -46,10 +46,9 @@ __simd_vf__ inline void FlashUpdateBasicVF(__ubuf__ float * dstUb, __ubuf__ floa
         for (uint16_t j = 0; j < dLoops; ++j) {
             AscendC::MicroAPI::LoadAlign(vreg_input_pre, preUb + i * srcD + j * floatRepSize);
             AscendC::MicroAPI::LoadAlign(vreg_input_cur, curUb + i * srcD + j * floatRepSize);
-            AscendC::MicroAPI::Mul(vreg_mul, vreg_exp_max, vreg_input_pre, preg_all);
-            AscendC::MicroAPI::Add(vreg_add, vreg_mul, vreg_input_cur, preg_all);
+            AscendC::MicroAPI::MulDstAdd(vreg_input_pre, vreg_exp_max, vreg_input_cur, preg_all);
             AscendC::MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
-                (__ubuf__ T *&)dstUb + i * srcD + j * floatRepSize, vreg_add, preg_all);
+                (__ubuf__ T *&)dstUb + i * srcD + j * floatRepSize, vreg_input_pre, preg_all);
         }
     }
 }
@@ -100,9 +99,8 @@ __simd_vf__ inline void FlashUpdateLastBasicVF(__ubuf__ float * dstUb, __ubuf__ 
         for (uint16_t j = 0; j < dLoops; ++j) {
             AscendC::MicroAPI::LoadAlign(vreg_input_pre, preUb + i * srcD + j * floatRepSize);
             AscendC::MicroAPI::LoadAlign(vreg_input_cur, curUb + i * srcD + j * floatRepSize);
-            AscendC::MicroAPI::Mul(vreg_mul, vreg_exp_max, vreg_input_pre, preg_all);
-            AscendC::MicroAPI::Add(vreg_add, vreg_mul, vreg_input_cur, preg_all);
-            AscendC::MicroAPI::Div(vreg_div, vreg_add, vreg_exp_sum, preg_all);
+            AscendC::MicroAPI::MulDstAdd(vreg_input_pre, vreg_exp_max, vreg_input_cur, preg_all);
+            AscendC::MicroAPI::Div(vreg_div, vreg_input_pre, vreg_exp_sum, preg_all);
             AscendC::MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                 (__ubuf__ T *&)dstUb + i * srcD + j * floatRepSize, vreg_div, preg_all);
         }

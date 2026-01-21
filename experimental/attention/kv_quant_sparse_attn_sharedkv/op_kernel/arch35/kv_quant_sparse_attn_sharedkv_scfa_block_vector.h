@@ -39,6 +39,8 @@ namespace BaseApi {
 TEMPLATES_DEF
 class SCFABlockVec {
 public:
+    // BUFFER的字节数
+    static constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32;
     /* =================编译期常量的基本块信息================= */
     static constexpr uint32_t s1BaseSize = 64; 
     static constexpr uint32_t s2BaseSize = 128; 
@@ -118,8 +120,6 @@ public:
     GlobalTensor<int32_t> cmpBlockTableGm;
     GlobalTensor<int32_t> blockTableGm_;
     GlobalTensor<T> sinksGm;
-    // __gm__ int64_t *actualSeqQlenAddr;
-    // __gm__ int64_t *actualSeqKvlenAddr;
 
     /* =====================V侧UB变量==================== */
     TBuf<> commonTBuf; // common的复用空间
@@ -155,7 +155,6 @@ private:
     static constexpr uint64_t MERGE_CACHE_GM_BUF_NUM = 4;
     static constexpr uint64_t SYNC_OUTPUT_BUF1_FLAG = 4;
     static constexpr uint64_t SYNC_OUTPUT_BUF2_FLAG = 5;
-    static constexpr uint32_t INPUT1_BUFFER_OFFSET = ConstInfo::BUFFER_SIZE_BYTE_32K;
     static constexpr uint32_t LIMIT_DEAL_ROW = 16U;
 
     ConstInfo constInfo_ = {};
@@ -172,6 +171,7 @@ private:
     TBuf<> dequantScaleBuff_;         // 32K
 
     LocalTensor<int32_t> v0ValidSizeUb_;
+    uint32_t maxBlockNumPerBatch;
 };
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -213,7 +213,7 @@ __aicore__ inline int64_t SCFABlockVec<TEMPLATE_ARGS>::GetkeyOffset(int64_t s2Id
     if constexpr (isPa) {
         int64_t blkTableIdx = s2Idx / constInfo_.blockSize;
         int64_t blkTableOffset = s2Idx % constInfo_.blockSize;
-        realkeyOffset = blockTableGm_.GetValue(runInfo.boIdx * constInfo_.maxBlockNumPerBatch + blkTableIdx) *
+        realkeyOffset = blockTableGm_.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
                                 static_cast<int64_t>(constInfo_.blockSize) * constInfo_.dSizeVInput +
                                 blkTableOffset * constInfo_.dSizeVInput; // BlockNum, BlockSize, N(1), D
     } else {
@@ -239,7 +239,7 @@ SCFABlockVec<TEMPLATE_ARGS>::CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t st
     uint32_t combineBytes = 640;
     intriParams.blockLen = combineBytes;
     uint32_t combineDim = combineBytes / sizeof(KV_T);
-    uint32_t combineDimAlign = CeilAlign(combineBytes, ConstInfo::BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
+    uint32_t combineDimAlign = CeilAlign(combineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
     padParams.isPad = true;
     padParams.leftPadding = 0;
     padParams.rightPadding = combineDimAlign - combineDim;
@@ -285,7 +285,7 @@ __aicore__ inline uint32_t SCFABlockVec<TEMPLATE_ARGS>::CopyInKvSparse(LocalTens
 
         // 当前仅支持COMBINE模式
         uint32_t combineDim = combineBytes / sizeof(KV_T);
-        uint32_t combineDimAlign = CeilAlign(combineBytes, ConstInfo::BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
+        uint32_t combineDimAlign = CeilAlign(combineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
         padParams.isPad = true;
         padParams.leftPadding = 0;
         padParams.rightPadding = combineDimAlign - combineDim;
@@ -500,7 +500,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
     int64_t s2Idx = s2StartOffset + s2LoopCount * constInfo_.s2BaseSize + runInfo.s2StartIdx;
     uint32_t combineBytes = constInfo_.dSizeVInput;
     uint32_t combineDim = combineBytes / sizeof(KV_T);
-    uint32_t combineDimAlign = CeilAlign(combineBytes, ConstInfo::BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
+    uint32_t combineDimAlign = CeilAlign(combineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
     DataCopyExtParams intriParams;
     intriParams.blockCount = dealRow;
     intriParams.blockLen = combineBytes;
@@ -513,7 +513,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
     padParams.paddingValue = 0;
     if constexpr (isPa) {
         // PRINTF("PAGE_ATTENTION=====\n");
-        uint64_t blockTableBaseOffset = runInfo.boIdx * constInfo_.maxBlockNumPerBatch;
+        uint64_t blockTableBaseOffset = runInfo.boIdx * maxBlockNumPerBatch;
         uint64_t dstOffset = 0;
         uint32_t copyFinishElmenCnt = 0;
         // uint32_t curSequence = runInfo.s2BatchOffset;
@@ -549,10 +549,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
     if (isCmp) {
         keyGm_ = cmpKVGm;
         blockTableGm_ = cmpBlockTableGm;
+        maxBlockNumPerBatch = constInfo_.cmpMaxBlockNumPerBatch;
         // todo block size可以不同
     } else {
         keyGm_ = oriKVGm;
         blockTableGm_ = oriBlockTableGm;
+        maxBlockNumPerBatch = constInfo_.oriMaxBlockNumPerBatch;
     }
 
     // if ((TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) && (isCmp)) {
@@ -642,8 +644,6 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
     LocalTensor<T> apiTmpBuffer = this->commonTBuf.template Get<T>();
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
 
-    // TODO v0尾块填充-inf处理
-    // TODO cfa也要做sinks
     // loopCount = 0 但传入sinks时走update分支，maxUb通过sinks初始化，sumUb初始化为1.0
     if (runInfo.s2LoopCount == 0 && !isSinks) {
         if (likely(runInfo.s2RealSize == 128)) {
@@ -834,11 +834,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint
     }
 
     if (cuSeqlensQ != nullptr) {
-        // actualSeqQlenAddr = (__gm__ int64_t *)cuSeqlensQ;
         actualSeqLengthsQGm.SetGlobalBuffer((__gm__ int32_t *)cuSeqlensQ);
     }
     if (sequsedKv != nullptr) {
-        // actualSeqKvlenAddr = (__gm__ int64_t *)sequsedKv;
         actualSeqLengthsKVGm.SetGlobalBuffer((__gm__ int32_t *)sequsedKv);
     }
     if (sinks != nullptr) {
@@ -880,9 +878,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe,
     // ub buffer
     // v0
     constInfo_ = constInfo;
-    // pipe->InitBuffer(v0ValidSizeBuff, ConstInfo::BUFFER_SIZE_BYTE_8K);
     pipe->InitBuffer(dequantScaleBuff_, 128 * 16 * 2 * sizeof(float));
-    // v0ValidSizeUb_ = v0ValidSizeBuff.Get<int32_t>();
 
     uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * sizeof(T);
     uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
@@ -922,22 +918,17 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     sharedParams.gSize = sparseAttnSharedkvBaseParams.nNumOfQInOneGroup; 
     sharedParams.s1Size = sparseAttnSharedkvBaseParams.qSeqSize;
     sharedParams.s2Size = sparseAttnSharedkvBaseParams.kvSeqSize;
-    sharedParams.actualSeqLengthsSize = sparseAttnSharedkvBaseParams.actualLenDimsQ;
-    sharedParams.actualSeqLengthsKVSize = sparseAttnSharedkvBaseParams.actualLenDimsKV;
     sharedParams.sparseBlockCount = sparseAttnSharedkvBaseParams.sparseBlockCount;
-    sharedParams.sparseBlockSize = sparseAttnSharedkvBaseParams.sparseBlockSize;
     sharedParams.cmpRatio = sparseAttnSharedkvBaseParams.cmpRatio;
     sharedParams.oriMaskMode = sparseAttnSharedkvBaseParams.oriMaskMode;
     sharedParams.cmpMaskMode = sparseAttnSharedkvBaseParams.cmpMaskMode;
     sharedParams.oriWinLeft = sparseAttnSharedkvBaseParams.oriWinLeft;
     sharedParams.oriWinRight = sparseAttnSharedkvBaseParams.oriWinRight;
     sharedParams.layoutType = sparseAttnSharedkvBaseParams.outputLayout; 
-    sharedParams.kvQuantMode = sparseAttnSharedkvBaseParams.kvQuantMode;
     sharedParams.tileSize = sparseAttnSharedkvBaseParams.tileSize;
-    sharedParams.ropeHeadDim = sparseAttnSharedkvBaseParams.ropeHeadDim;
+    sharedParams.dSizeRope = sparseAttnSharedkvBaseParams.ropeHeadDim;
     sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale; 
     sharedParams.dSize = sparseAttnSharedkvBaseParams.dSize;
-    sharedParams.dSizeV = sparseAttnSharedkvBaseParams.dSizeV;
     sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
 
     // pageAttention, rope在C侧搬运时使用

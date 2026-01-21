@@ -305,6 +305,7 @@ __simd_vf__ inline void SoftmaxDndBase128(__ubuf__ T *x_softmax, __ubuf__ float 
         Add(vreg_x_sum_3_0, vreg_x_sum_3_0, vreg_x_sum_3_2, preg_all);
         Add(vreg_x_sum_3_1, vreg_x_sum_3_1, vreg_x_sum_3_3, preg_all);
 
+        LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         for (uint16_t iter_m = 0; iter_m < ReduceSize; ++iter_m) {
             LoadAlign(vreg_x_exp_0_0, src_ub0_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc * 4);
             LoadAlign(vreg_x_exp_0_1, src_ub0_1 + iter_m * RowSize + ReduceSize * RowSize * iter_sc * 4);
@@ -395,6 +396,7 @@ __simd_vf__ inline void SoftmaxDndBase128(__ubuf__ T *x_softmax, __ubuf__ float 
         Add(vreg_x_sum_0_0, vreg_x_sum_0_0, vreg_x_sum_0_2, preg_all);
         Add(vreg_x_sum_0_1, vreg_x_sum_0_1, vreg_x_sum_0_3, preg_all);
 
+        LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         for (uint16_t iter_m = 0; iter_m < ReduceSize; ++iter_m) {
             LoadAlign(vreg_x_exp_0_0, src_ub0_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc);
             LoadAlign(vreg_x_exp_0_1, src_ub0_1 + iter_m * RowSize + ReduceSize * RowSize * iter_sc);
@@ -572,6 +574,7 @@ __simd_vf__ inline void SoftmaxDndBase64(__ubuf__ T *x_softmax, __ubuf__ float *
         Add(vreg_x_sum_2_0, vreg_x_sum_2_0, vreg_x_sum_2_1, preg_all);
         Add(vreg_x_sum_3_0, vreg_x_sum_3_0, vreg_x_sum_3_1, preg_all);
 
+        LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         for (uint16_t iter_m = 0; iter_m < ReduceSize; ++iter_m) {
             LoadAlign(vreg_x_exp_0_0, src_ub0_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc * 4);
             LoadAlign(vreg_x_exp_1_0, src_ub1_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc * 4);
@@ -626,6 +629,7 @@ __simd_vf__ inline void SoftmaxDndBase64(__ubuf__ T *x_softmax, __ubuf__ float *
         }
         Add(vreg_x_sum_0_0, vreg_x_sum_0_0, vreg_x_sum_0_1, preg_all);
 
+        LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         for (uint16_t iter_m = 0; iter_m < ReduceSize; ++iter_m) {
             LoadAlign(vreg_x_exp_0_0, src_ub0_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc);
             Div(vreg_x_softmax_0, vreg_x_exp_0_0, vreg_x_sum_0_0, preg_all);
@@ -824,6 +828,7 @@ __simd_vf__ inline void SoftmaxDndBase32(__ubuf__ T *x_softmax, __ubuf__ float *
         Add(vreg_x_sum_2_0, vreg_x_sum_2_0, vreg_x_sum_2_1, preg_all);
         Add(vreg_x_sum_3_0, vreg_x_sum_3_0, vreg_x_sum_3_1, preg_all);
 
+        LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         for (uint16_t iter_m = 0; iter_m < ReduceSize; ++iter_m) {
             LoadAlign(vreg_x_exp_0_0, src_ub0_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc * 4);
             LoadAlign(vreg_x_exp_1_0, src_ub1_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc * 4);
@@ -883,6 +888,7 @@ __simd_vf__ inline void SoftmaxDndBase32(__ubuf__ T *x_softmax, __ubuf__ float *
         }
         Add(vreg_x_sum_0_0, vreg_x_sum_0_0, vreg_x_sum_0_1, preg_all);
 
+        LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         for (uint16_t iter_m = 0; iter_m < ReduceSize; ++iter_m) {
             LoadAlign(vreg_x_exp_0_0, src_ub0_0 + iter_m * RowSize + ReduceSize * RowSize * iter_sc);
 

@@ -222,8 +222,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Ini
     constInfo.oriMaxBlockNumPerBatch = tilingData->baseParams.oriMaxBlockNumPerBatch;
     constInfo.kvCacheBlockSize = tilingData->baseParams.paBlockSize;
 
-    constInfo.paOriBlockSize = 128;
-    constInfo.paCmpBlockSize = 128;
+    constInfo.paOriBlockSize = tilingData->baseParams.oriBlockSize;
+    constInfo.paCmpBlockSize = tilingData->baseParams.cmpBlockSize;
     // constInfo.orikvCacheBlockSize = tilingData->baseParams.oriBlockSize;
     // constInfo.cmpkvCacheBlockSize = tilingData->baseParams.cmpBlockSize;
     constInfo.outputLayout = static_cast<SAS_LAYOUT>(tilingData->baseParams.outputLayout);
@@ -742,6 +742,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
         if (constInfo.gS1Start != constInfo.gS1End || constInfo.s2Start != constInfo.s2End) {
             constInfo.bN2End += 1;
         }
+    } else if ((constInfo.gS1End != 0) || (constInfo.s2End != 0)){
+        constInfo.bN2End += 1;
     }
     for (uint32_t bN2LoopIdx = constInfo.bN2Start; bN2LoopIdx < constInfo.bN2End; bN2LoopIdx++) {
         GetBN2Idx(bN2LoopIdx, tempLoopInfo.bIdx, tempLoopInfo.n2Idx);

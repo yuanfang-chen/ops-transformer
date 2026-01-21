@@ -15,7 +15,6 @@ import torch
 from testcases_sas import ENABLED_PARAMS
 import check_result
 import check_valid_param
-import sparse_attn_sharedkv_process
 import sparse_attn_sharedkv_process_quant
 import pytest
 

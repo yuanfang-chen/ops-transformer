@@ -32,6 +32,7 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
 #endif
 }
 
+#if defined(__DAV_C310_CUBE__)
 #define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
     do {                                                                                          \
         using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
@@ -39,19 +40,37 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
             BaseApi::SCFABlockVecDummy<__VA_ARGS__>, BaseApi::SCFABlockVec<__VA_ARGS__>>::type;   \
         templateClass<CubeBlockType, VecBlockType> op;                                            \
-        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tiling_data_in, tiling);                     \
-        const tilingdataClass *__restrict tiling_data = &tiling_data_in;                          \
-        SasMetaData *__restrict meta_data = nullptr;                                              \
+        SasMetaData *__restrict metadataPtr = nullptr;                                            \
         SasMetaData metadataTmp;                                                                  \
         if (metadata != nullptr) {                                                                \
             InitMetaData<SasMetaData>(metadata, &metadataTmp);                                    \
-            meta_data = &metadataTmp;                                                             \
+            metadataPtr = &metadataTmp;                                                           \
         }                                                                                         \
         op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
-                seqUsedKV, sinks, meta_data, attentionOut, user, tiling_data, tiling, &tPipe);     \
+                seqUsedKV, sinks, metadataPtr, attentionOut, user, nullptr, &tPipe);              \
         op.Process();                                                                             \
     } while (0)
-
+#else
+#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
+    do {                                                                                          \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
+            BaseApi::SCFABlockCube<__VA_ARGS__>, BaseApi::SCFABlockCubeDummy<__VA_ARGS__>>::type; \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
+            BaseApi::SCFABlockVecDummy<__VA_ARGS__>, BaseApi::SCFABlockVec<__VA_ARGS__>>::type;   \
+        templateClass<CubeBlockType, VecBlockType> op;                                            \
+        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                       \
+        const tilingdataClass *__restrict tilingData = &tilingDataIn;                             \
+        SasMetaData *__restrict metadataPtr = nullptr;                                            \
+        SasMetaData metadataTmp;                                                                  \
+        if (metadata != nullptr) {                                                                \
+            InitMetaData<SasMetaData>(metadata, &metadataTmp);                                    \
+            metadataPtr = &metadataTmp;                                                           \
+        }                                                                                         \
+        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
+                seqUsedKV, sinks, metadataPtr, attentionOut, user, tilingData, &tPipe);           \
+        op.Process();                                                                             \
+    } while (0)
+#endif
 
 template<int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE>
  __global__ __aicore__ void
