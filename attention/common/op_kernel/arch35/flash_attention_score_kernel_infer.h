@@ -277,6 +277,22 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
     int64_t bnIndex, int64_t gS1Index, RunParamStr<isInfer> &runParam)
 {
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
+        if (runParam.boIdx == 0) {
+            this->s1SizeAcc = 0;
+            this->s2SizeAcc = 0;
+        } else {
+            this->s1SizeAcc = this->actualSeqQlenAddr[runParam.boIdx - 1];
+            if constexpr (isPa) {
+                this->s2SizeAcc = 0;
+                for (uint32_t boIdx = 0; boIdx < runParam.boIdx; boIdx++) {
+                    this->s2SizeAcc += this->actualSeqKvlenAddr[boIdx];
+                }
+            } else {
+                this->s2SizeAcc = this->actualSeqKvlenAddr[runParam.boIdx - 1];
+            }
+        }
+    }
     // GS1合轴时，g轴信息包含在gS1中；GS1不合轴时，g轴信息包含在bn2g中；
     if (this->constInfo.isGqa) {
         runParam.goIdx = gS1Index / this->constInfo.s1OuterSize;

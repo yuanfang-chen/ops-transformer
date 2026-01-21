@@ -600,7 +600,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         runInfo.multiCoreIdxMod2 = multiCoreInnerIdx & 1;
         runInfo.multiCoreIdxMod3 = multiCoreInnerIdx % 3;
     }
-    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
         runInfo.boIdx = runParam.boIdx;
         runInfo.s1SizeAcc = s1SizeAcc;
         runInfo.s2SizeAcc = s2SizeAcc;
