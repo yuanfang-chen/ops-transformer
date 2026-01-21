@@ -156,47 +156,27 @@ class GeneralizedSFA:
 
                             row_max_old = row_max.clone()
                             row_max_tmp = torch.max(scale_res, dim=1)[0]
-                            # row_max_tmp = row_max_tmp.unsqueeze(1)
                             row_max = torch.max(row_max, row_max_tmp)
                             update_mul = torch.exp(row_max_old - row_max)
-
                             row_max_expand = row_max.unsqueeze(1)
-                            update_mul_expand = update_mul.unsqueeze(1)
-
                             log_2 = torch.log(torch.tensor(2.0))
+
                             if i_S2 == 0:
                                 ni = torch.round((-row_max) / log_2)
                                 ni_old = ni.clone()
-                                cur_softmax_res = torch.exp(scale_res - row_max_expand)
-                                row_sum = update_mul * row_sum + torch.sum(cur_softmax_res, dim=1)
-                                tmp_scale = torch.exp(row_max / log_2 + ni) * log_2
-                                tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
-                                tmp_scale_16_expand = tmp_scale_16.unsqueeze(1)
-                                cur_softmax_res = cur_softmax_res * tmp_scale_16_expand
                             else:
                                 rcof = tmp_scale / tmp_scale_16
                                 ni_old = ni.clone()
                                 ni = torch.round((-row_max) / log_2)
-                                cur_softmax_res = torch.exp(scale_res - row_max_expand)
-                                row_sum = update_mul * row_sum + torch.sum(cur_softmax_res, dim=1)
-                                tmp_scale = torch.exp(row_max / log_2 + ni) * log_2
-                                tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
-                                tmp_scale_16_expand = tmp_scale_16.unsqueeze(1)
-                                cur_softmax_res = cur_softmax_res * tmp_scale_16_expand
 
-
-                            # ni = torch.round((-row_max) / log_2)
-                            # ni_old = ni.clone()
-                            # cur_softmax_res = torch.exp(scale_res - row_max_expand)
-                            # row_sum = row_sum + torch.sum(cur_softmax_res, dim=1)
-                            # tmp_scale = torch.exp(row_max / log_2 + ni) * log_2
-                            # tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
-                            # tmp_scale_16_expand = tmp_scale_16.unsqueeze(1)
-                            # cur_softmax_res = cur_softmax_res * tmp_scale_16_expand
-
+                            cur_softmax_res = torch.exp(scale_res - row_max_expand)
+                            row_sum = update_mul * row_sum + torch.sum(cur_softmax_res, dim=1)
+                            tmp_scale = torch.exp(row_max / log_2 + ni) * log_2
+                            tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
+                            tmp_scale_16_expand = tmp_scale_16.unsqueeze(1)
+                            cur_softmax_res = cur_softmax_res * tmp_scale_16_expand
                             cur_softmax_res = cur_softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
                             cur_o = torch.matmul(cur_softmax_res, v_tile)
-
                             rcof = tmp_scale / tmp_scale_16
                             eps = (rcof_old / rcof - 1) * 1.5
 
@@ -212,6 +192,8 @@ class GeneralizedSFA:
                             rcof_old = rcof
                         row_sum_expand = row_sum.unsqueeze(1)
                         attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (O_flash / row_sum_expand / tmp_scale_16_expand).to(dtype=q_bnsd.dtype)
+
+
                         #     cur_softmax_res = torch.exp(scale_res - row_max_expand)
                         #     row_sum = update_mul * row_sum + torch.sum(cur_softmax_res, dim=1)
 
