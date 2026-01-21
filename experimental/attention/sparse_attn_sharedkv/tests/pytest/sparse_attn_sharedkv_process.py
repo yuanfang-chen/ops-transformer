@@ -90,32 +90,27 @@ class GeneralizedSFA:
                     q_curr = q_bnsd[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :]
                     q_curr_fp32 = q_curr.to(dtype=torch.float32)
 
-                    if template_idx == 2:
-                        topk_id = cmp_sparse_indices_bnsd[i_B, i_N2, i_S1, :]
-                        empty_flag, cur_cmp_k = self.gather_cmp_kv(cmp_k_bnsd, topk_id, i_B, i_N2, i_S1, cur_ori_act_kv,
-                                                                   cur_act_q)
-                        if cur_cmp_k == []:
-                            cmp_s2_loop_time = 0
-                            cur_cmp_k_fp32 = cur_cmp_k
-                        else:
-                            cmp_s2_loop_time = math.ceil(cur_cmp_k.size(0) / s2_base_size)
-                            cur_cmp_k_fp32 = cur_cmp_k.to(dtype=torch.float32)
-                    elif template_idx == 1:
-                        threshold = 0
-                        if self.cmp_mask_mode == 3:
-                            threshold = math.floor((cur_ori_act_kv.size(0) - cur_act_q + i_S1 + 1) / (self.cmp_ratio))
-                        if threshold == 0:
-                            empty_flag = True
-                        else:
-                            empty_flag = False
-                        cur_cmp_k = cmp_k_bnsd[i_B, i_N2, :threshold, :]
-                        if cur_cmp_k == []:
-                            cmp_s2_loop_time = 0
-                            cur_cmp_k_fp32 = cur_cmp_k
-                        else:
-                            cmp_s2_loop_time = math.ceil(cur_cmp_k.size(0) / s2_base_size)
-                            cur_cmp_k_fp32 = cur_cmp_k.to(dtype=torch.float32)
+                    if template_idx == 1 or template_idx == 2:
+                        if template_idx == 1:
+                            threshold = 0
+                            if self.cmp_mask_mode == 3:
+                                threshold = math.floor((cur_ori_act_kv.size(0) - cur_act_q + i_S1 + 1) / (self.cmp_ratio))
+                            if threshold == 0:
+                                empty_flag = True
+                            else:
+                                empty_flag = False
+                            cur_cmp_k = cmp_k_bnsd[i_B, i_N2, :threshold, :]
 
+                        else:
+                            topk_id = cmp_sparse_indices_bnsd[i_B, i_N2, i_S1, :]
+                            empty_flag, cur_cmp_k = self.gather_cmp_kv(cmp_k_bnsd, topk_id, i_B, i_N2, i_S1, cur_ori_act_kv,
+                                                                    cur_act_q)
+                        if cur_cmp_k == []:
+                            cmp_s2_loop_time = 0
+                            cur_cmp_k_fp32 = cur_cmp_k
+                        else:
+                            cmp_s2_loop_time = math.ceil(cur_cmp_k.size(0) / s2_base_size)
+                            cur_cmp_k_fp32 = cur_cmp_k.to(dtype=torch.float32)
                     else:
                         empty_flag = True
                         cur_cmp_k = []
@@ -136,9 +131,12 @@ class GeneralizedSFA:
                         total_s2_loop_time = ori_s2_loop_time + cmp_s2_loop_time
 
                         cur_ori_k_bnsd_fp32 = cur_ori_k_bnsd.to(dtype=torch.float32)
-                        row_sum = torch.empty((G), dtype=torch.float32).uniform_(1.0, 1.0)
+                        row_sum = torch.empty((G), dtype=torch.float32).uniform_(1.0, 1.0)  # due to sinks
                         row_max = torch.empty((G, 1), dtype=torch.float32)
                         row_max = cur_sinks
+                        O_flash = torch.empty((G, q_bnsd.shape[3]), dtype=torch.float32).uniform_(0.0, 0.0) # FIXME: 暂时用q_D
+
+                        rcof_old = torch.empty((G), dtype=torch.float32).uniform_(1.0, 1.0)
 
                         for i_S2 in range(total_s2_loop_time):
                             if i_S2 < ori_s2_loop_time: # ori_kv
@@ -165,18 +163,59 @@ class GeneralizedSFA:
                             row_max_expand = row_max.unsqueeze(1)
                             update_mul_expand = update_mul.unsqueeze(1)
 
-                            A = torch.exp(scale_res - row_max_expand)
-                            row_sum = update_mul * row_sum + torch.sum(A, dim=1)
+                            # if i_S2 == 0:
+                            #     ni = torch.round((-row_max) / torch.log(2))
+                            #     ni_old = ni.clone()
+                            #     cur_softmax_res = torch.exp(scale_res - row_max_expand)
+                            #     row_sum = row_sum + torch.sum(cur_softmax_res, dim=1)
+                            #     tmp_scale = torch.exp(row_max / torch.log(2) + ni) * torch.log(2)
+                            #     tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
+                            #     cur_softmax_res = cur_softmax_res * tmp_scale_16
+                            # else:
+                            #     ni_old = ni.clone()
+                            #     ni = torch.round((-row_max) / torch.log(2))
+                            #     cur_softmax_res = torch.exp(scale_res - row_max_expand)
+                            #     row_sum = update_mul *row_sum + torch.sum(cur_softmax_res, dim=1)
+                            #     tmp_scale = torch.exp(row_max / torch.log(2) + ni) * torch.log(2)
+                            #     tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
+                            #     cur_softmax_res = cur_softmax_res * tmp_scale_16
 
-                            A = A.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
+                            log_2 = torch.log(torch.tensor(2.0))
+                            ni = torch.round((-row_max) / log_2)
+                            ni_old = ni.clone()
+                            cur_softmax_res = torch.exp(scale_res - row_max_expand)
+                            row_sum = row_sum + torch.sum(cur_softmax_res, dim=1)
+                            tmp_scale = torch.exp(row_max / log_2 + ni) * log_2
+                            tmp_scale_16 = tmp_scale.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
+                            cur_softmax_res = cur_softmax_res * tmp_scale_16
 
-                            cur_o = torch.matmul(A, v_tile)
+                            cur_softmax_res = cur_softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
+                            cur_o = torch.matmul(cur_softmax_res, v_tile)
 
-                            cur_attn_out = cur_attn_out * update_mul_expand + cur_o
-                        row_sum_expand = row_sum.unsqueeze(1)
+                            rcof = tmp_scale / tmp_scale_16
+                            eps = (rcof_old / rcof - 1) * 1.5
 
-                        attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (cur_attn_out / row_sum_expand).to(dtype=q_bnsd.dtype)
+                            if i_S2 != 0:
+                                N = torch.clamp((ni - ni_old), min=-30).to(torch.float32) + eps
+                                N_up = (N * torch.tensor(2 ** (23), dtype=torch.float32)).to(torch.int32)
+                                O_int = O_flash.view(torch.int32) + N_up
+                                O_fp = O_int.view(torch.float32)
+                                O_flash = O_fp + cur_o
+                            else:
+                                O_flash = O_flash + cur_o
+                            rcof_old = rcof
+                        attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (O_flash / row_sum / tmp_scale_16).to(dtype=q_bnsd.dtype)
+                        #     cur_softmax_res = torch.exp(scale_res - row_max_expand)
+                        #     row_sum = update_mul * row_sum + torch.sum(cur_softmax_res, dim=1)
 
+                        #     cur_softmax_res = cur_softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float)
+
+                        #     cur_o = torch.matmul(cur_softmax_res, v_tile)
+
+                        #     cur_attn_out = cur_attn_out * update_mul_expand + cur_o
+                        # row_sum_expand = row_sum.unsqueeze(1)
+
+                        # attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = (cur_attn_out / row_sum_expand).to(dtype=q_bnsd.dtype)
                     else:
                         if empty_flag:
                             k_concat = cur_ori_k_bnsd
