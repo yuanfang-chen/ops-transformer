@@ -15,9 +15,10 @@
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
+#include "quant_lightning_indexer_metadata.h"
 #if (__CCE_AICORE__ == 310)
     #include "arch35/quant_lightning_indexer_kernel.h"
-    #include "arch35/quant_lightning_indexer_metadata.h"
+    
 #else
     #include "arch32/quant_lightning_indexer_kernel.h"
 #endif
