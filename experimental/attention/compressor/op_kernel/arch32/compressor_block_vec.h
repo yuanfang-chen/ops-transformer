@@ -456,6 +456,14 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
             // DumpTensor(scoreStateGm_[425920], 289, 128*128);
             WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
             // DumpTensor(scoreStateGm_[425920], 290, 128*128);
+            if (coff_ == 2 && (batchEndSeqIdx + startPos) % constInfo_.cmpRatio != 0) {
+                startSeqIdx = max(Trunc(startPos + seqUsed - constInfo_.cmpRatio, constInfo_.cmpRatio), startPos);
+                endSeqIdx = Trunc(startPos + seqUsed, constInfo_.cmpRatio);
+                stateDOffset = constInfo_.dIdx + dealDSize * dLoop;
+                ubOffset = ubStartOffset + (tempProcessNum - 1) * constInfo_.cmpRatio * totalDSize + (startSeqIdx - Trunc(startSeqIdx, constInfo_.cmpRatio)) * totalDSize;
+                WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
+                WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
+            }
         }
     } else if (coff_ == 2 && (startPos + batchEndSeqIdx) == Trunc(startPos + seqUsed, constInfo_.cmpRatio)) {
         // 将右侧倒数第一个矩阵刷入state
@@ -470,15 +478,16 @@ __aicore__ inline void CompressorBlockVector<COMP>::ProcessSingleBatch(uint32_t 
     if (coff_ == 2 && batchStartSeqIdx == 0) {
         // 将左侧第一个矩阵刷入state
         // printf("WLU1\n");
-        uint32_t preSeqUsed = batchIdx == 0 ? GetSeqLength(constInfo_.batchSize - 1) : GetSeqLength(batchIdx - 1); 
-        uint32_t preStartPos = batchIdx == 0 ? GetStartPos(constInfo_.batchSize - 1) : GetStartPos(batchIdx - 1);
+        uint32_t preBatchIdx = batchIdx == 0 ? constInfo_.batchSize - 1 : batchIdx - 1;
+        uint32_t preSeqUsed =  GetSeqLength(preBatchIdx); 
+        uint32_t preStartPos = GetStartPos(preBatchIdx);
         startSeqIdx = max(Trunc(preStartPos + preSeqUsed - 1, constInfo_.cmpRatio), preStartPos);
         endSeqIdx = preStartPos + preSeqUsed;
         stateDOffset = constInfo_.dIdx + dealDSize * dLoop;
         ubOffset = ubStartOffset + (startSeqIdx - Trunc(startSeqIdx, constInfo_.cmpRatio)) * totalDSize;
         // printf("startSeqIdx:%d, endSeqIdx:%d, stateDOffset:%d, ubOffset:%d\n", startSeqIdx, endSeqIdx, stateDOffset, ubOffset);
-        WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
-        WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], batchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
+        WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal_[ubOffset], preBatchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
+        WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal_[ubOffset], preBatchIdx, startSeqIdx, endSeqIdx, stateDOffset, dealDSize);
     }
     SetFlag<HardEvent::MTE3_V>(EVENT_ID1);
     WaitFlag<HardEvent::MTE3_V>(EVENT_ID1);
@@ -761,8 +770,8 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalcScEndIdx(uint32_t bStart
                 scEnd = curBasicNumEnd;
                 return;
             }
-            accScSize += curBasicNum;
         }
+        accScSize += curBasicNum;
     }
 }
 
