@@ -196,7 +196,9 @@ struct RunInfo {
     uint32_t sparseBlockCount; \
     uint32_t actualSeqLenSize; /* 用户输入的actualseq的长度 */ \
     uint32_t actualSeqLenKVSize; /* 用户输入的actualseq_kv的长度 */ \
-    uint32_t blockSize; \
+    /* service mm1 mm2 pageAttention */ \
+    uint32_t oriBlockSize; \
+    uint32_t cmpBlockSize; \
     uint32_t paLayoutType; \
     uint32_t oriMaxBlockNumPerBatch; \
     uint32_t cmpMaxBlockNumPerBatch; \
@@ -230,9 +232,10 @@ struct RunInfo {
     uint32_t cmpMaskMode : 6; \
     int32_t oriWinLeft; \
     int32_t oriWinRight; \
-    uint32_t tileSize : 16; \
+    uint32_t tileSize : 8; \
     /* pa params */  \
-    uint32_t blockSize : 16; \
+    uint32_t oriBlockSize : 12; \
+    uint32_t cmpBlockSize : 12; \
     uint32_t oriMaxBlockNumPerBatch; \
     uint32_t cmpMaxBlockNumPerBatch;
 

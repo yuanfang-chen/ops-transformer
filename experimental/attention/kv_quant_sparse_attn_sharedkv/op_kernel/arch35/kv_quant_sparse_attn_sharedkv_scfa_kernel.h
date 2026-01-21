@@ -277,7 +277,8 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     }
     if ASCEND_IS_AIV {
         constInfo.softmaxScale = sharedParams.softmaxScale;
-        constInfo.blockSize = sharedParams.blockSize;
+        constInfo.oriBlockSize = sharedParams.oriBlockSize;
+        constInfo.cmpBlockSize = sharedParams.cmpBlockSize;
         constInfo.oriMaxBlockNumPerBatch = sharedParams.oriMaxBlockNumPerBatch;
         constInfo.cmpMaxBlockNumPerBatch = sharedParams.cmpMaxBlockNumPerBatch;
     }
@@ -327,10 +328,12 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     int64_t s2EndIdx = metadataLocal->s2End[this->aicIdx];
     int64_t s2LoopLimit = 0;
 
-    if (bN2StartIdx == bN2EndIdx) {
-        if ((gS1StartIdx != nextGs1Idx) || (s2StartIdx != s2EndIdx)) {
+    if (likely(actualCoreNums - 1) > this->aicIdx) {
+        if (nextGs1Idx != 0) {
             bN2EndIdx++;
         }
+    } else {
+        bN2EndIdx = this->constInfo.bSize * this->constInfo.n2Size;
     }
 
     int64_t taskId = 0;
