@@ -861,7 +861,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ComputeVec1(const RunInfo &i
                     }
                 }
                 uint32_t preCompressorNum = compressorNum;
-                ProcessSingleBatch(k, sStart, sEnd, j, dealDSize, compressorNum, processTcNum, ape);
+                ProcessSingleBatch(k, curSStart, curSEnd, j, dealDSize, compressorNum, processTcNum, ape);
                 uint32_t curCompressorNum = compressorNum - preCompressorNum;
                 // printf("rcnt:%d, curCompressorNum:%d, compressorNum:%d, preCompressorNum:%d\n", rCnt, curCompressorNum, compressorNum, preCompressorNum);
                 // DumpTensor(scoreLocal_[preCompressorNum * rCnt], 708, 512);
