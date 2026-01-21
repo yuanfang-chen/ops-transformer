@@ -975,7 +975,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
                 keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
                 keyAntiquantScaleShape->GetStorageShape().GetDim(2)),
             return false);
-        OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
+        OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.n) ||
                     (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.t / fp8KVBlockSize + valueShapeInfo.b) ||
                     (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.d, fp8KVBlockSize)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
