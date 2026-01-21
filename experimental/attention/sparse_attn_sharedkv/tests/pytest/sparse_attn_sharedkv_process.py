@@ -98,7 +98,7 @@ class GeneralizedSFA:
                             cmp_s2_loop_time = 0
                             cur_cmp_k_fp32 = cur_cmp_k
                         else:
-                            cmp_s2_loop_time = math.ceil(cur_cmp_k / s2_base_size)
+                            cmp_s2_loop_time = math.ceil(cur_cmp_k.size(0) / s2_base_size)
                             cur_cmp_k_fp32 = cur_cmp_k.to(dtype=torch.float32)
                     elif template_idx == 1:
                         threshold = 0
