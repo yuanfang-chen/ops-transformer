@@ -111,8 +111,8 @@ static const uint64_t DIM_NUM_1 = 1;
 char defaultSoftmaxInLayout[] = "";
 
 static bool StrideLimited() {
-    auto socVersion = GetCurrentPlatformInfo().GetSocVersion();
-    if (socVersion == SocVersion::ASCEND910B || socVersion == SocVersion::ASCEND910_93) {
+    NpuArch npuArch = GetCurrentPlatformInfo().GetCurNpuArch();
+    if (npuArch == NpuArch::DAV_2201) {
         return true;
     }
     return false;

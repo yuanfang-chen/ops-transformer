@@ -416,6 +416,7 @@
  
      FuzzyBaseInfoParamsRegbase fBaseParams;
      platform_ascendc::SocVersion socVersion;
+     NpuArch npuArch = NpuArch::DAV_RESV;
  };
  
  class FlashAttentionScoreGradTilingUnpaddedAttensionRegbase : public FlashAttentionScoreGradTilingUs1s2Bs2Regbase {

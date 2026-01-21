@@ -691,7 +691,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetPlatformInfo()
         auto compileInfoPtr = reinterpret_cast<const FlashAttentionScoreGradCompileInfo *>(context_->GetCompileInfo());
         OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_CUBE_INNER_ERR(context_->GetNodeName(), "compile_info is null"),
                    return ge::GRAPH_FAILED);
-        socVersion = compileInfoPtr->socVersion;
+        npuArch = compileInfoPtr->npuArch;
         fBaseParams.coreNum = compileInfoPtr->aivNum;
         fBaseParams.aicNum = compileInfoPtr->aicNum;
         fBaseParams.ubSize = compileInfoPtr->ubSize;
@@ -701,7 +701,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetPlatformInfo()
         fBaseParams.l2CacheSize = compileInfoPtr->l2CacheSize;
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-        socVersion = ascendcPlatform.GetSocVersion();
+        npuArch = ascendcPlatform.GetCurNpuArch();
         coreNum = ascendcPlatform.GetCoreNumAiv();
         fBaseParams.coreNum = coreNum;
         fBaseParams.aicNum = ascendcPlatform.GetCoreNumAic();
@@ -728,7 +728,7 @@ bool FlashAttentionScoreGradTilingUnpaddedAttensionRegbase::IsCapable()
 
     auto actualSeqQLenTensor = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::ACTUAL_SEQ_Q_LEN));
     OP_LOGD(context_, "coreNum is %lu", fBaseParams.coreNum);
-    if (socVersion == platform_ascendc::SocVersion::ASCEND910_95 && actualSeqQLenTensor != nullptr &&
+    if (npuArch == NpuArch::DAV_3510 && actualSeqQLenTensor != nullptr &&
         actualSeqQLenTensor->GetShapeSize() != 0) {
         OP_LOGD(context_, "FlashAttentionScoreGradTilingUnpaddedAttensionRegbase hit");
         return true;
@@ -742,7 +742,7 @@ bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::IsCapable()
     if (strcmp(tndSoftmaxIn, "") != 0) return false;
 
     // 基础模板 全部支持
-    if (socVersion == platform_ascendc::SocVersion::ASCEND910_95) {
+    if (npuArch == NpuArch::DAV_3510) {
         OP_LOGD(context_, "FlashAttentionScoreGradTilingUs1s2Bs2Regbase hit");
         return true;
     }
@@ -4181,7 +4181,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SaveToTilingData()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUs1s2Bs2Regbase, (int32_t)platform_ascendc::SocVersion::ASCEND910_95, 950);
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUnpaddedAttensionRegbase, (int32_t)platform_ascendc::SocVersion::ASCEND910_95, 900);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUs1s2Bs2Regbase, (int32_t)NpuArch::DAV_3510, 950);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUnpaddedAttensionRegbase, (int32_t)NpuArch::DAV_3510, 900);
 }
 } // namespace optiling
