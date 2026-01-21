@@ -31,7 +31,7 @@
 
 ## 功能说明
 
-- 接口功能：适配增量&全量推理场景的FlashAttention算子，既可以支持全量计算场景（PromptFlashAttention），也可支持增量计算场景（IncreFlashAttention）。当Query矩阵的S为1，进入IncreFlashAttention分支，其余场景进入PromptFlashAttention分支。相比于FusedInferAttentionScoreV2，本接口新增queryRopeOptional、keyRopeOptional、keyRopeAntiquantScaleOptional参数。
+- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV2，本接口新增queryRopeOptional、keyRopeOptional、keyRopeAntiquantScaleOptional参数。
 
 - 计算公式：
 
@@ -729,7 +729,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       <tr>
         <td>workspaceSize</td>
         <td>输入</td>
-        <td>在Device侧申请的workspace大小，由第一段接口aclnnPromptFlashAttentionV3GetWorkspaceSize获取。</td>
+        <td>在Device侧申请的workspace大小，由第一段接口aclnnFusedInferAttentionScoreV3GetWorkspaceSize获取。</td>
       </tr>
       <tr>
         <td>executor</td>
@@ -753,7 +753,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
 ## 约束说明
 
 - 确定性计算：
-  - aclnnPromptFlashAttentionV3默认确定性实现。
+  - aclnnFusedInferAttentionScoreV3默认确定性实现。
 - 该接口与PyTorch配合使用时，需要保证CANN相关包与PyTorch相关包的版本匹配。
 
 - 入参为空的处理：算子内部需要判断参数query是否为空，如果是空则直接返回。参数query不为空Tensor，参数key、value为空tensor（即S2为0），则attentionOut填充为全零。attentionOut为空Tensor时，AscendCLNN框架会处理。其余在上述参数说明中标注了“可传入nullptr”的入参为空指针时，不进行处理。
