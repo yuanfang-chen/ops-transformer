@@ -15,6 +15,7 @@
 #define MC2_QUANT_BATCH_MATMUL_V3_BF16_H
 
 #include "quant_batch_matmul_v3_base.h"
+#include "adv_api/quantization/ascend_dequant.h"
 
 namespace AscendC {
 

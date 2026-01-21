@@ -12,7 +12,7 @@
  * \file moe_distribute_dispatch_v2.cpp
  * \brief
  */
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "moe_distribute_dispatch_v2.h"
 #include "moe_distribute_dispatch_v2_tiling.h"
 #include "moe_distribute_dispatch_v2_full_mesh.h"

@@ -16,6 +16,9 @@
 #ifndef MTE_COMMON_H
 #define MTE_COMMON_H
 
+#include "adv_api/hccl/hccl.h"
+#include "adv_api/reduce/sum.h"
+
 namespace QuantMTECommImpl {
 
 using namespace AscendC;

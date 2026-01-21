@@ -15,7 +15,7 @@
 #ifndef MATMUL_ALL_REDUCE_EMPTY_TENSOR_K_GENERAL_H
 #define MATMUL_ALL_REDUCE_EMPTY_TENSOR_K_GENERAL_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "../common.h"
 #include "matmul_all_reduce_add_x3.h"
 #include "matmul_all_reduce_tiling_struct_ar35.h"

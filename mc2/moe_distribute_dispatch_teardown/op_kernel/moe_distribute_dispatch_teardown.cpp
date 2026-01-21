@@ -13,7 +13,7 @@
  * \brief kernel内核实现
  */
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "moe_distribute_dispatch_teardown_tiling.h"
 
 using namespace AscendC;

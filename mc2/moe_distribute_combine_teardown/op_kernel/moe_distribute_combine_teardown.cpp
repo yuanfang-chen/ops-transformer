@@ -12,7 +12,7 @@
  * \file moe_distribute_combine_teardown.cpp
  * \brief
  */
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "moe_distribute_combine_teardown_tiling.h"
 
 using namespace AscendC;

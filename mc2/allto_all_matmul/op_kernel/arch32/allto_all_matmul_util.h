@@ -17,6 +17,7 @@
 #define ALL_TO_ALL_MATMUL_UTIL
 
 #include "allto_all_matmul_tiling.h"
+#include "adv_api/hccl/hccl.h"
 #include "../../3rd/template_linear_algebra/include/template_linear_algebra/numeric_size.hpp"
 #include <cstdint>
 

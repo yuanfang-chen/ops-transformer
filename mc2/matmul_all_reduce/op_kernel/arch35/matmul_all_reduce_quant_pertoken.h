@@ -16,11 +16,10 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_PERTOKEN_H
 #define MATMUL_ALL_REDUCE_QUANT_PERTOKEN_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 
-#include "kernel_operator_intf.h"
 #include "matmul_all_reduce_base.h"
 #include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_online_dynamic.h"
 #include "matmul_all_reduce_add_x3.h"

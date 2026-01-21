@@ -15,7 +15,7 @@
 #ifndef ALL_GATHER_QUANT_BMM_H
 #define ALL_GATHER_QUANT_BMM_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #include "lib/hccl/hccl.h"

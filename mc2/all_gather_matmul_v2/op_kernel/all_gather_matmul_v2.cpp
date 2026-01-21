@@ -14,7 +14,7 @@
  */
 
 #include "lib/matmul_intf.h"
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "all_gather_matmul_aiv_mode.h"
 #include "all_gather_matmul_aiv_mode_tiling.h"
 

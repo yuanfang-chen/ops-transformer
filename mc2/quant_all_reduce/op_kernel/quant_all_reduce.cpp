@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "quant_all_reduce_tiling_data.h"
 #include "quant_all_reduce_tiling_key.h"
 #include "quant_all_reduce_mte_one_shot.h"

@@ -16,7 +16,9 @@
 #ifndef MATMUL_ALL_REDUCE_DYNAMIC_QUANT_PERTILE_UTILS_H
 #define MATMUL_ALL_REDUCE_DYNAMIC_QUANT_PERTILE_UTILS_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
+#include "adv_api/pad/broadcast.h"
+#include "adv_api/reduce/reduce.h"
 
 namespace AscendC {
 

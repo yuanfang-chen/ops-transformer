@@ -16,7 +16,7 @@
 #define ELASTIC_RECEIVABLE_TEST_H
 
 #include "elastic_receivable_test.h"
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "elastic_receivable_test_tiling.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")

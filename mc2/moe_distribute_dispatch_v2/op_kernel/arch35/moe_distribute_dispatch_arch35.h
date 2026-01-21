@@ -19,7 +19,8 @@
 #include "lib/hccl/hccl.h"
 #include "common.h"
 #include "../quantize_functions.h"
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
+#include "adv_api/reduce/sum.h"
 #include "../moe_distribute_dispatch_v2_tiling.h"
 
 namespace MoeDistributeDispatchA5Impl {

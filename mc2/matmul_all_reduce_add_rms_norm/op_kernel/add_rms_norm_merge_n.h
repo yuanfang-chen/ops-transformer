@@ -15,6 +15,8 @@
 #ifndef MC2_ADD_RMS_NORM_MERGE_N_H
 #define MC2_ADD_RMS_NORM_MERGE_N_H
 #include "rms_norm_base.h"
+#include "adv_api/pad/broadcast.h"
+#include "adv_api/quantization/ascend_dequant.h"
 
 using namespace AscendC;
 

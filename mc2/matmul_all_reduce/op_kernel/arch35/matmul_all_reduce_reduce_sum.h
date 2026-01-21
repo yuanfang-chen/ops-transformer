@@ -16,7 +16,7 @@
 #ifndef MATMUL_ALL_REDUCE_REDUCE_SUM_H
 #define MATMUL_ALL_REDUCE_REDUCE_SUM_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 
 namespace MatmulAllReduceReduceSumImpl {
 using namespace AscendC;

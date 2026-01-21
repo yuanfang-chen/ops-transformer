@@ -12,7 +12,7 @@
  * \file all_gather_matmul.cpp
  * \brief
  */
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 #include "all_gather_matmul_tiling.h"
 #include "all_gather_matmul_tiling_key.h"

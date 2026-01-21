@@ -13,8 +13,8 @@
  * \brief
  */
 #include <cstring>
-#include <kernel_operator.h>
 #include <lib/matmul_intf.h>
+#include "basic_api/kernel_basic_intf.h"
 #include "common.h"
 #include "./arch35/template_head.h"
 #include "./arch35/allto_all_matmul_tiling_key.h"

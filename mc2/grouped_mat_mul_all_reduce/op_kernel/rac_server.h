@@ -15,7 +15,7 @@
 #ifndef GMM_AR_RAC_SERVET_H_
 #define GMM_AR_RAC_SERVET_H_
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 
 namespace AscendC {
 

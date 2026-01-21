@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "moe_distribute_dispatch_tiling_key.h"
 
 #if __has_include("../moe_distribute_dispatch_v2/moe_distribute_dispatch_tiling.h")

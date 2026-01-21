@@ -15,11 +15,10 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_COMMFP8_MIXED_CALC_H
 #define MATMUL_ALL_REDUCE_QUANT_COMMFP8_MIXED_CALC_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 
-#include "kernel_operator_intf.h"
 #include "matmul_all_reduce_base.h"
 #include "matmul_all_reduce_dynamic_quant_pertile.h"
 #include "matmul_all_reduce_dynamic_quant_pertile_utils.h"

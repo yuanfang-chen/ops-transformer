@@ -15,7 +15,7 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_PERTOKEN_COMM_INT8_H
 #define MATMUL_ALL_REDUCE_QUANT_PERTOKEN_COMM_INT8_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 #ifdef __CCE_KT_TEST__
 #include "rac_server_stub.h"

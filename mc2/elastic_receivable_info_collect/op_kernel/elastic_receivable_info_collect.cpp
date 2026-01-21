@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "elastic_receivable_info_collect_tiling.h"
 #include "elastic_receivable_info_collect.h"
 

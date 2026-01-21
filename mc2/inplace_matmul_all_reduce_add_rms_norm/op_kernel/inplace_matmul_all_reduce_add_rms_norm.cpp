@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 
 #if defined(__CCE_KT_TEST__)

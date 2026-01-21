@@ -15,7 +15,8 @@
 #ifndef MOE_DISTRIBUTE_COMBINE_ADD_RMS_NORM_H
 #define MOE_DISTRIBUTE_COMBINE_ADD_RMS_NORM_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
+#include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
 #if __has_include("../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h")
 #include "../moe_distribute_dispatch_v2/moe_distribute_v2_constant.h"

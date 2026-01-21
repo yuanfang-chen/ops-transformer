@@ -12,7 +12,7 @@
  * \file moe_distribute_buffer_reset.cpp
  * \brief
  */
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "moe_distribute_buffer_reset_tiling.h"
 #include "moe_distribute_buffer_reset.h"
 

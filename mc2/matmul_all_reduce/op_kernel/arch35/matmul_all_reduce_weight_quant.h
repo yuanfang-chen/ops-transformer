@@ -15,7 +15,7 @@
 #ifndef MATMUL_ALL_REDUCE_WEIGHT_QUANT_H
 #define MATMUL_ALL_REDUCE_WEIGHT_QUANT_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #include "../../3rd/weight_quant_batch_matmul_v2/op_kernel/weight_quant_batch_matmul_v2_constant.h"

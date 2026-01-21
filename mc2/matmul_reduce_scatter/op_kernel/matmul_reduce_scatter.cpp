@@ -12,7 +12,7 @@
  * \file matmul_reduce_scatter.cpp
  * \brief
  */
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
 
 #include "matmul_reduce_scatter_tiling.h"

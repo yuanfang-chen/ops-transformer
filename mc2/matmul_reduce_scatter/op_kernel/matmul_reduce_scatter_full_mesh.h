@@ -16,7 +16,8 @@
 #define MATMUL_REDUCE_SCATTER_FULL_MESH_H
 
 #include "matmul_reduce_scatter_base.h"
-#include "kernel_operator_intf.h"
+#include "basic_api/kernel_basic_intf.h"
+#include "adv_api/hccl/hccl.h"
 
 namespace AscendC {
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, bool BNd2Nz, bool Bias2Float>

@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "distribute_barrier_tiling.h"
 #include "distribute_barrier.h"
 
