@@ -103,6 +103,11 @@ struct ConstInfo {
     float normEps = 0;
     float reciprocalD = 0;
 
+    uint32_t curGroupIdx = 0;
+    uint32_t tailGroupIdx = 0;
+    uint32_t tailBasicBlockNum = 0;
+    uint32_t realDealBasicBlockNum = 0;
+
     // pageAttention
     uint32_t blockNum = 0;
     uint32_t blockSize = 0;
