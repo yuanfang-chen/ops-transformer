@@ -1784,7 +1784,8 @@ class FiaOpPreprocess():
         self.preprocess_kv()
         self.preprocess_shared_prefix()
         self.preprocess_pse_shift()
-        self.preprocess_atten_mask()
+        # 需要保证输入的mask是正确的
+        # self.preprocess_atten_mask()
         self.preprocess_block_table()
         self.preprocess_kv_cache()
         self.preprocess_post_quant()
@@ -1847,11 +1848,9 @@ class FiaOpPreprocess():
                 block_table[batch_idx][block_num_cur_batch_idx] = (block_idx_list[block_idx])
                 block_idx += 1
         self.op_params.block_table.data = block_table
+        if self.params['is_benchmark_task']:
+            np.save(f"./block_table_{self.params['case_id']}.npy", block_table)
 
-        ids = FiaOpParam.get_param_index("block_table")
-        tools.modify_alcnn_input_file(ids=ids, origin_index=[ids], type='tensor', mode='rewrite',
-                                      tensors=torch.tensor(block_table, dtype=torch.int32),
-                                      params=self.params)
 
     def _generate_cache(self, cache_shape, tensor_bnsd, shape_bnsd, src_dtype, dst_dtype):
         block_table_dim1 = self.op_params.block_table.shape[1]
@@ -1859,6 +1858,7 @@ class FiaOpPreprocess():
         block_table = self.op_params.block_table.data
         max_s_batch = block_table_dim1 * block_size
         B, N, S, D = shape_bnsd
+        cache_shape = [int(item) for item in cache_shape]
         cache = np.zeros(cache_shape)
         if len(cache_shape) == 3:  # BSH
             # trans kv to bsh(此处使用的tensor, 没有经过n的扩展)
@@ -1963,16 +1963,10 @@ class FiaOpPreprocess():
         # 将kv cache 生成新的bin文件
         k_cache_index = FiaOpParam.get_param_index("k_cache")
         v_cache_index = FiaOpParam.get_param_index("v_cache")
-        tools.modify_alcnn_input_file(ids=k_cache_index, origin_index=[k_cache_index], type='tensor_list',
-                                      mode='rewrite',
-                                      tensors=[k_cache],
-                                      params=self.params,
-                                      data_dtype=self.params['dtype_input'][1])
-        tools.modify_alcnn_input_file(ids=v_cache_index, origin_index=[v_cache_index], type='tensor_list',
-                                      mode='rewrite',
-                                      tensors=[v_cache],
-                                      params=self.params,
-                                      data_dtype=self.params['dtype_input'][2])
+        if self.params['is_benchmark_task']:
+            np.save(f"./k_cache_{self.params['case_id']}.npy", k_cache)
+            np.save(f"./v_cache_{self.params['case_id']}.npy", v_cache)
+
 
     def preprocess_kv_cache(self):
         # 2、将kv shape 统一转换成bsh
@@ -1998,40 +1992,10 @@ class FiaOpPreprocess():
         if self.op_params.action_type in ["bm_output_gold", "bm_output"]:
             return
 
-        fia_debug_func_begin("begin FiaOpPreprocess.preprocess_pse_shift")
-        maya = get_slopes(self.op_params.pse_shift.shape[1])
-        maya = maya.numpy()
-
-        pse_shift = np.zeros(self.op_params.pse_shift.shape)
-        for n in range(self.op_params.pse_shift.shape[1]):
-            alibi_biases = np.zeros([1, self.op_params.pse_shift.shape[-1]])
-            for x in range(0, self.op_params.pse_shift.shape[-1]):
-                alibi_biases[0, x] = -1 * x
-            pse_shift[:, n:n + 1, :, :] = alibi_biases * maya[n]
-        pse_shift = pse_shift.astype(np.float32)
-        # 覆写
-        if self.op_params.pse_shift.dtype == "float16":
-            pse_shift = pse_shift.astype(np.float16)
-            pse_shift[pse_shift == -math.inf] = -65504
-            self.op_params.pse_shift.data = pse_shift
-            p_tensor = torch.tensor(pse_shift, dtype=torch.float16)
-        elif self.op_params.pse_shift.dtype == "bfloat16":
-            pse_shift = pse_shift.astype(tf.bfloat16.as_numpy_dtype)
-            pse_shift[pse_shift == -math.inf] = -65504
-            self.op_params.pse_shift.data = pse_shift
-            p_tensor = torch.tensor(pse_shift.astype(np.float32), dtype=torch.bfloat16)
-        else:
-            raise ValueError(f"wrong p_tensor dtype!")
-
-        ids = FiaOpParam.get_param_index("pse_shift")
-        tools.modify_alcnn_input_file(ids=ids, origin_index=[ids], type='tensor', mode='rewrite', tensors=p_tensor,
-                                      params=self.params)
-
     def preprocess_atten_mask(self):
         # >> m预处理：1、将m扩展为BN1S  2、padding场景下，偏移部分设置为1 3、针对FP16格式，将tensor转成0/1
         sparse_mode = self.op_params.sparse_mode
         q_shape_bnsd = self.op_params.query.bnsd_shape
-
         randoms = 0
         mrandom_type = "NORMAL"
         if 'mrandomtype' in self.params:
@@ -2482,8 +2446,7 @@ class FiaOpForward():
     def compute_bnsd(self):
         y = self.attention_out_bnsd.data
         lse = self.lse_bnsd.data
-        if (
-                self.op_params.q_padding_size_flag or self.op_params.kv_padding_size_flag) and self.op_params.sparse_mode == 0:
+        if (self.op_params.q_padding_size_flag or self.op_params.kv_padding_size_flag) and self.op_params.sparse_mode == 0:
             self.op_params.pre_tokens = 2147483647
             self.op_params.next_tokens = 2147483647
         for b_idx in range(self.op_params.batch):
@@ -2579,7 +2542,6 @@ class FiaOpForward():
             return torch.zeros(self.op_params.output.shape)
 
         self.fia_op_preprocess.preprocess()
-
         self.query = self.op_params.query
         self.key = self.op_params.key
         self.value = self.op_params.value
@@ -2656,6 +2618,7 @@ class FiaOpForward():
             raise ValueError(f"Unsupported mode {self.mode}")
 
 # ATK 处理逻辑
+arr_tuple_none = -9223372036854775808
 dtype_map = {
     torch.float16: "fp16",
     torch.bfloat16: "bf16",
@@ -2663,10 +2626,130 @@ dtype_map = {
     torch.int8: "int8",
     torch.bool: "bool",
     torch.int32: "int32",
-    torch.int64: "int64",
+    torch.int64: "int32",
     torch.uint8: "uin8",
     torch.float64: "fp64"
 }
+
+def overwrite_structured_mask(input_data):
+    """
+    根据 sparseMode 强制修改 attenMask 的数值结构：
+    Mode 2/3: 下三角保留 (Causal)，上三角遮蔽。
+    Mode 4:   Band 结构。
+    """
+    mode = input_data.kwargs.get('sparseMode', 0)
+    mask_tensor = input_data.kwargs.get('attenMaskOptional', None)
+
+    query = input_data.kwargs["query"].cpu().to(dtype=torch.float32).numpy()
+    inputLaout = input_data.kwargs["inputLayout"]
+    pfaFlag = False
+    if inputLaout == "BNSD":
+        pfaFlag = query.shape[2] > 1
+    if inputLaout in ['BSH', 'BSND']:
+        pfaFlag = query.shape[1] > 1
+
+    # 如果没有 mask 或者 mode 是 0/1 (Default/All)，通常保持随机或全零即可，不做强制修改
+    # (或者根据需求，Mode 0 也可以重写，这里主要处理 2,3,4)
+    if mask_tensor is None or mode not in [2, 3, 4] or pfaFlag == False:
+        return
+
+    # 获取 Mask 的 Shape (预期是 2048x2048 或 [B, 1, 2048, 2048])
+    shape = mask_tensor.shape
+    # 获取最后两个维度
+    S = shape[-2]
+    KVS = shape[-1]
+    
+    # 构造标准的结构化 Mask (numpy)
+    # PFA 定义: 1 代表遮蔽(Masked), 0 代表保留(Keep)
+    new_mask = np.zeros((S, KVS), dtype=np.int8)
+    
+    if mode == 2 or mode == 3: 
+        # Mode 2 (LeftUpCausal) / Mode 3 (RightDownCausal)
+        # 构造上三角 Mask (k=1 表示对角线往上一格开始全是 1)
+        new_mask = np.triu(np.ones((S, KVS), dtype=np.int8), k=1)
+        
+    elif mode == 4:
+        # Mode 4 (Band)
+        # 需要读取 preTokens 和 nextTokens
+        # 注意：Generator生成的可能是 Tensor 或 int，要做兼容处理
+        pre_t = input_data.kwargs.get('preTokens', 2147483647)
+        next_t = input_data.kwargs.get('nextTokens', 2147483647)
+        
+        # 如果是 Tensor/List 取第一个值简化处理 (因为 Mode 4 Mask 是固定的 2048x2048)
+        if hasattr(pre_t, 'item'): pre_t = pre_t.item()
+        if isinstance(pre_t, (list, tuple)): pre_t = pre_t[0]
+        if hasattr(next_t, 'item'): next_t = next_t.item()
+        if isinstance(next_t, (list, tuple)): next_t = next_t[0]
+        
+        # 利用广播机制生成 Band
+        rows = np.arange(S)[:, None]
+        cols = np.arange(KVS)[None, :]
+        # 遮蔽条件: j > i + next  OR  j < i - pre
+        mask_condition = (cols > rows + next_t) | (cols < rows - pre_t)
+        new_mask[mask_condition] = 1
+
+    # --- 将构造好的 2D Mask 广播回原始 Shape ---
+    
+    # 1. 转回 Tensor
+    # 保持和原 Mask 相同的 dtype (通常是 bool 或 int8)
+    orig_dtype = mask_tensor.dtype
+    new_mask_tensor = torch.from_numpy(new_mask).to(orig_dtype)
+    
+    # 2. 恢复维度 (Broadcast)
+    # 如果原 Mask 是 [B, 1, 2048, 2048]，需要把 2D 扩展回去
+    if len(shape) == 4:
+        # [2048, 2048] -> [1, 1, 2048, 2048] -> [B, 1, 2048, 2048]
+        new_mask_tensor = new_mask_tensor.unsqueeze(0).unsqueeze(0)
+        new_mask_tensor = new_mask_tensor.expand(shape[0], shape[1], -1, -1).contiguous()
+    elif len(shape) == 3:
+        new_mask_tensor = new_mask_tensor.unsqueeze(0)
+        new_mask_tensor = new_mask_tensor.expand(shape[0], -1, -1).contiguous()
+    # 3. 覆盖回 input_data
+    input_data.kwargs['attenMaskOptional'] = new_mask_tensor
+    return input_data
+
+def load_kv_cache(input_data: InputDataset, case_id):
+    key_shape = list(input_data.kwargs["key"][0].shape)
+    if len(key_shape) == 3:
+        H = key_shape[2]
+    else:
+        # 注意：这里如果 GQA 场景下 numKeyValueHeads != numHeads，计算 H 可能需要调整
+        # 但既然我们约束了 GQA=1，这里暂时安全
+        H = input_data.kwargs["numHeads"] * key_shape[3]
+
+    blocktable_shape = list(input_data.kwargs["blockTableOptional"].shape)
+    
+    # [关键修正]
+    # 原错误逻辑: cache_shape = [blocktable_shape[1], input_data.kwargs["blockSize"], H]
+    # 修正逻辑: cache_shape[0] 应该是总 Block 数 (Batch * MaxBlocks)
+    total_blocks = blocktable_shape[0] * blocktable_shape[1]
+    cache_shape = [total_blocks, input_data.kwargs["blockSize"], H]
+
+    base_path = "."
+    files_to_clean = [
+        os.path.join(base_path, f"k_cache_{case_id}.npy"),
+        os.path.join(base_path, f"v_cache_{case_id}.npy"),
+        os.path.join(base_path, f"block_table_{case_id}.npy"),
+    ]
+    try:
+        # --- 文件加载和处理（正常逻辑） ---
+        k_cache = np.load(files_to_clean[0])
+        v_cache = np.load(files_to_clean[1])
+        block_table = np.load(files_to_clean[2])
+    finally:
+        for f_path in files_to_clean:
+            if os.path.exists(f_path):
+                os.remove(f_path)
+
+    k_cache_tensor = torch.tensor(k_cache, dtype=torch.float32).to(dtype=input_data.kwargs["key"][0].dtype).reshape(cache_shape).npu()
+    v_cache_tensor = torch.tensor(v_cache, dtype=torch.float32).to(dtype=input_data.kwargs["value"][0].dtype).reshape(cache_shape).npu()
+    
+    input_data.kwargs["key"][0] = k_cache_tensor
+    input_data.kwargs["value"][0] = v_cache_tensor
+
+    block_table_tensor = torch.tensor(block_table, dtype=torch.int32)
+    input_data.kwargs["blockTableOptional"] = torch.tensor(block_table_tensor, dtype=torch.int32).reshape(blocktable_shape).npu()
+    return
 
 def aclnn_op_func_fia_cpu(input_data : InputDataset, case_id, is_benchmark_task):
     tensor_list = [None] * 29
@@ -2718,8 +2801,8 @@ def aclnn_op_func_fia_cpu(input_data : InputDataset, case_id, is_benchmark_task)
         tensor_list[1] = key = input_data.kwargs["key"][0].to(dtype=torch.float16).numpy()
         tensor_list[2] = value = input_data.kwargs["value"][0].to(dtype=torch.float16).numpy()
         
-    tensor_list[3] = pse = input_data.kwargs["pseShiftOptional"] if input_data.kwargs["pseShiftOptional"] != None else np.array([], dtype=np.float32)
-    tensor_list[4] = attenmask = input_data.kwargs["attenMaskOptional"] if input_data.kwargs["attenMaskOptional"] != None else np.array([], dtype=np.float32)
+    tensor_list[3] = pse = input_data.kwargs["pseShiftOptional"].to(dtype=torch.float32).numpy() if input_data.kwargs["pseShiftOptional"] != None else np.array([], dtype=np.float32)
+    tensor_list[4] = attenmask = input_data.kwargs["attenMaskOptional"].to(dtype=torch.bool).numpy() if input_data.kwargs["attenMaskOptional"] != None else np.array([], dtype=np.float32)
 
     tensor_list[5] = dequantscale1 = input_data.kwargs["deqScale1Optional"].to(dtype=torch.float32).numpy() if input_data.kwargs["deqScale1Optional"] != None else np.array([], dtype=np.float32)
     tensor_list[6] = quantscale1 = input_data.kwargs["quantScale1Optional"].to(dtype=torch.float32).numpy() if input_data.kwargs["quantScale1Optional"] != None else np.array([], dtype=np.float32)
@@ -2731,15 +2814,15 @@ def aclnn_op_func_fia_cpu(input_data : InputDataset, case_id, is_benchmark_task)
     tensor_list[11] = antiquantoffset = input_data.kwargs["antiquantOffsetOptional"].to(dtype=torch.float32).numpy() if input_data.kwargs["antiquantOffsetOptional"] != None else np.array([], dtype=np.float32)
     tensor_list[12] = blocktable = input_data.kwargs["blockTableOptional"] if input_data.kwargs["blockTableOptional"] != None else np.array([], dtype=np.int32)
 
-    tensor_list[13] = q_padding_size = input_data.kwargs["queryPaddingSizeOptional"] if input_data.kwargs["queryPaddingSizeOptional"] != None else np.array([], dtype=np.uint64)
-    tensor_list[14] = padding_size = input_data.kwargs["kvPaddingSizeOptional"] if input_data.kwargs["kvPaddingSizeOptional"] != None else np.array([], dtype=np.uint64)
+    tensor_list[13] = q_padding_size = input_data.kwargs["queryPaddingSizeOptional"].to(dtype=torch.int32).numpy() if input_data.kwargs["queryPaddingSizeOptional"] != None else np.array([], dtype=np.uint64)
+    tensor_list[14] = padding_size = input_data.kwargs["kvPaddingSizeOptional"].to(dtype=torch.int32).numpy() if input_data.kwargs["kvPaddingSizeOptional"] != None else np.array([], dtype=np.uint64)
     tensor_list[15] = k_antiquantscale = input_data.kwargs["keyAntiquantScaleOptional"] if input_data.kwargs["keyAntiquantScaleOptional"] != None else np.array([], dtype=np.float32)
     tensor_list[16] = k_antiquantoffset = input_data.kwargs["keyAntiquantOffsetOptional"] if input_data.kwargs["keyAntiquantOffsetOptional"] != None else np.array([], dtype=np.float32)
     tensor_list[17] = v_antiquantscale = input_data.kwargs["valueAntiquantScaleOptional"] if input_data.kwargs["valueAntiquantScaleOptional"] != None else np.array([], dtype=np.float32)
 
     tensor_list[18] = v_antiquantoffset = input_data.kwargs["valueAntiquantOffsetOptional"] if input_data.kwargs["valueAntiquantOffsetOptional"] != None else np.array([], dtype=np.float32)
-    tensor_list[19] = k_prefix = input_data.kwargs["keySharedPrefixOptional"] if input_data.kwargs["keySharedPrefixOptional"] != None else np.array([], dtype=np.int8)
-    tensor_list[20] = v_prefix = input_data.kwargs["valueSharedPrefixOptional"] if input_data.kwargs["valueSharedPrefixOptional"] != None else np.array([], dtype=np.int8)
+    tensor_list[19] = k_prefix = input_data.kwargs["keySharedPrefixOptional"].to(dtype=torch.float32).numpy() if input_data.kwargs["keySharedPrefixOptional"] != None else np.array([], dtype=np.int8)
+    tensor_list[20] = v_prefix = input_data.kwargs["valueSharedPrefixOptional"].to(dtype=torch.float32).numpy() if input_data.kwargs["valueSharedPrefixOptional"] != None else np.array([], dtype=np.int8)
     
     tensor_list[23] = q_rope = input_data.kwargs["queryRopeOptional"] if input_data.kwargs["queryRopeOptional"] != None else np.array([], dtype=np.float32)
     tensor_list[24] = k_rope = input_data.kwargs["keyRopeOptional"] if input_data.kwargs["keyRopeOptional"] != None else np.array([], dtype=np.float32)
@@ -2761,17 +2844,26 @@ def aclnn_op_func_fia_cpu(input_data : InputDataset, case_id, is_benchmark_task)
         params['flaglist'][3] = 1
         dtype_input[3] = dtype_map[input_data.kwargs["pseShiftOptional"].dtype]
         shape_input[3] = list(input_data.kwargs["pseShiftOptional"].shape)
-    
+
     if input_data.kwargs["attenMaskOptional"] != None:
         params['flaglist'][4] = 1
+        range_input[4][0] = [0, 1]
         dtype_input[4] = dtype_map[input_data.kwargs["attenMaskOptional"].dtype]
         shape_input[4] = list(input_data.kwargs["attenMaskOptional"].shape)
     
-    if input_data.kwargs["actualSeqLengthsOptional"] != None:
+    if input_data.kwargs["actualSeqLengthsOptional"][0] != arr_tuple_none:
+        params["actualseqlengths"] = list(input_data.kwargs["actualSeqLengthsOptional"])
         params['flaglist'][5] = 1
+    else:
+        Q_S = shape_input[0][1] if input_data.kwargs["inputLayout"] in ['BSND', 'BSH'] else shape_input[0][2]
+        params["actualseqlengths"] = [Q_S]
 
-    if input_data.kwargs["actualSeqLengthsKvOptional"] != None:
+    if input_data.kwargs["actualSeqLengthsKvOptional"][0] != arr_tuple_none:
+        params["actualseqlengthskv"] = list(input_data.kwargs["actualSeqLengthsKvOptional"])
         params['flaglist'][6] = 1
+    else:
+        KV_S = shape_input[1][1] if input_data.kwargs["inputLayout"] in ['BSND', 'BSH'] else shape_input[1][2]
+        params["actualseqlengthskv"] = [KV_S]
 
     if input_data.kwargs["deqScale1Optional"] != None:
         params['flaglist'][7] = 1
@@ -2818,6 +2910,30 @@ def aclnn_op_func_fia_cpu(input_data : InputDataset, case_id, is_benchmark_task)
         cache_shape = [block_num, input_data.kwargs["blockSize"], input_data.kwargs["numKeyValueHeads"] * headdim]
         shape_input[21] = cache_shape
         shape_input[22] = cache_shape
+    
+    if input_data.kwargs["queryPaddingSizeOptional"] != None:
+        params['flaglist'][15] = 1
+        range_input[15][0] = q_padding_size
+        dtype_input[13] = dtype_map[input_data.kwargs["queryPaddingSizeOptional"].dtype]
+        shape_input[13] = list(input_data.kwargs["queryPaddingSizeOptional"].shape)
+    
+    if input_data.kwargs["kvPaddingSizeOptional"] != None:
+        params['flaglist'][16] = 1
+        range_input[16][0] = padding_size
+        dtype_input[14] = dtype_map[input_data.kwargs["kvPaddingSizeOptional"].dtype]
+        shape_input[14] = list(input_data.kwargs["kvPaddingSizeOptional"].shape)
+    
+    if input_data.kwargs["keySharedPrefixOptional"] != None:
+        params['flaglist'][21] = 1
+        # range_input[15][0] = q_padding_size
+        dtype_input[19] = dtype_map[input_data.kwargs["keySharedPrefixOptional"].dtype]
+        shape_input[19] = list(input_data.kwargs["keySharedPrefixOptional"].shape)
+    
+    if input_data.kwargs["valueSharedPrefixOptional"] != None:
+        params['flaglist'][22] = 1
+        # range_input[16][0] = padding_size
+        dtype_input[20] = dtype_map[input_data.kwargs["valueSharedPrefixOptional"].dtype]
+        shape_input[20] = list(input_data.kwargs["valueSharedPrefixOptional"].shape)
 
     params["actualseqlengths"] = list(input_data.kwargs["actualSeqLengthsOptional"])
     params["actualseqlengthskv"] = list(input_data.kwargs["actualSeqLengthsKvOptional"])
@@ -2843,6 +2959,7 @@ def aclnn_op_func_fia_cpu(input_data : InputDataset, case_id, is_benchmark_task)
     params['format_input'] = format_input
     params['type_input'] = type_input
     params['action_type'] = 'bm'
+
     output = FiaOpForward(tensor_list, params).forward()
     
     return output.to(dtype=input_data.kwargs["query"].dtype)
@@ -2851,6 +2968,9 @@ def aclnn_op_func_fia_cpu(input_data : InputDataset, case_id, is_benchmark_task)
 class fusedInferAttentionScoreApi(BaseApi):
     def __init__(self, task_result: TaskResult):
         super(fusedInferAttentionScoreApi, self).__init__(task_result)
+    
+    def init_by_input_data(self, input_data: InputDataset):
+        input_data = overwrite_structured_mask(input_data)
     
     def __call__(self, input_data: InputDataset, with_output: bool = False):
         if input_data.kwargs["softmaxLseFlag"] == True:
@@ -2866,9 +2986,25 @@ class aclnnFusedInferAttentionScoreApi(AclnnBaseApi):
         super(aclnnFusedInferAttentionScoreApi, self).__init__(task_result, backend)
     
     def init_by_input_data(self, input_data: InputDataset):
+        torch.npu.synchronize()
         input_args = []  # 算子的入参列表
         if input_data.kwargs["blockTableOptional"] != None: 
             load_kv_cache(input_data, self.task_result.case_config.id)
+        
+        # 处理actual输入None
+        if input_data.kwargs["actualSeqLengthsOptional"][0] == arr_tuple_none:
+            q_shape = list(input_data.kwargs["query"].shape)
+            q_s = q_shape[1] if input_data.kwargs["inputLayout"] in ['BSND', 'BSH'] else q_shape[2]
+            temp_list = list(input_data.kwargs["actualSeqLengthsOptional"])
+            temp_list[0] = q_s
+            input_data.kwargs["actualSeqLengthsOptional"] = tuple(temp_list)
+        if input_data.kwargs["actualSeqLengthsKvOptional"][0] == arr_tuple_none:
+            kv_shape = list(input_data.kwargs["key"][0].shape)
+            kv_s = kv_shape[1] if input_data.kwargs["inputLayout"] in ['BSND', 'BSH'] else kv_shape[2]
+            temp_list = list(input_data.kwargs["actualSeqLengthsKvOptional"])
+            temp_list[0] = kv_s
+            input_data.kwargs["actualSeqLengthsKvOptional"] = tuple(temp_list)
+        
         input_args, output_packages = super().init_by_input_data(input_data)
         output_packages = []  # 算子的出参数据包列表
         input_args.pop()
@@ -2878,6 +3014,14 @@ class aclnnFusedInferAttentionScoreApi(AclnnBaseApi):
             output_packages.append(input_args[-1])
         else:
             output_packages.append(input_args[-2])
+        
+         # 将所有type是tensor values是None的输入 改为AclTensor类型的空指针
+        for i, (name, kwarg) in enumerate(input_data.kwargs.items()):
+            if kwarg is None and self.task_result.case_config.inputs[i].type == "tensor":
+                from atk.tasks.backends.lib_interface.acl_wrapper import TensorPtr
+                input_args[i] = TensorPtr()
+            elif name == "actualSeqLengthsOptional" and self.task_result.case_config.inputs[i][0].dtype == "bool":
+                input_args[i] = pointer(AclIntArray)()
         return input_args, output_packages
 
     def __call__(self):
