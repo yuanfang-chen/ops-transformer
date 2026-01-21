@@ -100,7 +100,7 @@ __aicore__ inline void MoeV2SortMultiCore<T>::VBSCopyIn(int64_t progress, int64_
 
     LocalTensor<int32_t> rowIdxLocal = inLocal[sortNum].template ReinterpretCast<int32_t>();
     int64_t startValue = this->blockIdx * this->vbsTilingData->perCoreElements + inOffset;
-    SetWaitFlag<HardEvent::MTE2_S>(HardEvent::MTE2_S);
+    SetWaitFlag<HardEvent::MTE3_S>(HardEvent::MTE3_S);
     ArithProgressionPerf(rowIdxLocal, startValue, 1, size);
     sortDataCopyInQueue.EnQue(inLocal);
 }
