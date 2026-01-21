@@ -91,12 +91,25 @@ ge::graphStatus FiaInfoParser::CheckRequiredParaExistence() const
 
 ge::graphStatus FiaInfoParser::GetEmptyTensorFlag()
 {
-    if (opParamInfo_.query.shape->GetStorageShape().GetShapeSize() == 0) {
-        if (opParamInfo_.attenOut.shape->GetStorageShape().GetShapeSize() == 0) {
+    if ((opParamInfo_.query.shape->GetStorageShape().GetShapeSize() == 0 &&
+        opParamInfo_.attenOut.shape->GetStorageShape().GetShapeSize() != 0) ||
+        (opParamInfo_.query.shape->GetStorageShape().GetShapeSize() != 0 &&
+        opParamInfo_.attenOut.shape->GetStorageShape().GetShapeSize() == 0)) {
+            OP_LOGE(opName_, "query shape size is %llu byte, but attention Out shape size is %llu byte, they cannot be empty while the other is not",
+            opParamInfo_.query.shape->GetStorageShape().GetShapeSize(), opParamInfo_.attenOut.shape->GetStorageShape().GetShapeSize());
+            return ge::GRAPH_FAILED;
+    }
+    if (opParamInfo_.query.shape->GetStorageShape().GetShapeSize() == 0 &&
+        opParamInfo_.attenOut.shape->GetStorageShape().GetShapeSize() == 0) {
             emptyTensorFlag_ = true;
+            return ge::GRAPH_SUCCESS;
+    }
+    if (*opParamInfo_.softmaxLseFlag) {
+        if ((opParamInfo_.lseOut.shape == nullptr) || (opParamInfo_.lseOut.shape->GetStorageShape().GetShapeSize() == 0)) {
+            OP_LOGE(opName_, "lse Flag is %u, but lse shape size is 0 byte",
+            *opParamInfo_.softmaxLseFlag);
+            return ge::GRAPH_FAILED;
         }
-        // attentionOut 的 shapesize不为0，在check函数中会校验一致性，不需要处理
-        return ge::GRAPH_SUCCESS;
     }
     for(auto &kTensor : kCache_) {
         if (kTensor->GetStorageShape().GetShapeSize() != 0) {
@@ -986,6 +999,7 @@ void FiaInfoParser::GenerateFeatureInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.qPaddingSizeFlag = qPaddingSizeFlag_;
     fiaInfo.kvPaddingSizeFlag = kvPaddingSizeFlag_;
     fiaInfo.softmaxLseFlag = *opParamInfo_.softmaxLseFlag;
+    fiaInfo.totalLseSize = (opParamInfo_.lseOut.shape == nullptr) ? 0 : opParamInfo_.lseOut.shape->GetStorageShape().GetShapeSize();
     fiaInfo.isMaxWorkspace = isMaxWorkspace_;
     fiaInfo.isLegacyIfa = isLegacyIfa_;
     fiaInfo.preToken = preToken_;
@@ -1028,6 +1042,7 @@ void FiaInfoParser::GenerateInfo(FiaTilingInfo &fiaInfo)
     fiaInfo.kCache = kCache_;
     fiaInfo.vCache = vCache_;
 
+    fiaInfo.totalOutputSize = opParamInfo_.attenOut.shape->GetStorageShape().GetShapeSize();
     fiaInfo.l2CacheOffFlag = false;
     fiaInfo.totalBlockNum = kCache_[0]->GetStorageShape().GetDim(0);
     fiaInfo.scaleValue = *opParamInfo_.scaleValue;
@@ -1087,13 +1102,13 @@ ge::graphStatus FiaInfoParser::Parse(FiaTilingInfo &fiaInfo)
         ge::GRAPH_SUCCESS != CheckRequiredParaExistence()) {
         return ge::GRAPH_FAILED;
     }
-    if (ge::GRAPH_SUCCESS != GetEmptyTensorFlag()) {
-        return ge::GRAPH_FAILED;
-    }
     if (ge::GRAPH_SUCCESS != GetInOutDataType() ||
         ge::GRAPH_SUCCESS != GetQueryAndOutLayout() ||
         ge::GRAPH_SUCCESS != GetKvStorageMode() ||
         ge::GRAPH_SUCCESS != GetKvLayout()) {
+        return ge::GRAPH_FAILED;
+    }
+    if (ge::GRAPH_SUCCESS != GetEmptyTensorFlag()) {
         return ge::GRAPH_FAILED;
     }
     if (ge::GRAPH_SUCCESS != ParseAxisInfo()) {
@@ -1113,15 +1128,18 @@ ge::graphStatus FiaInfoParser::ParseAxisInfo()
         return ge::GRAPH_FAILED;
     }
     SetFiaShape();
-    if (ge::GRAPH_SUCCESS != GetGSize() ||
+    if (ge::GRAPH_SUCCESS != GetBatchSize() ||
         ge::GRAPH_SUCCESS != GetQTSize() ||
+        ge::GRAPH_SUCCESS != GetS1Size() ||
+        ge::GRAPH_SUCCESS != GetValueHeadDim()) {
+        return ge::GRAPH_FAILED;
+    }
+    if (emptyTensorFlag_) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (ge::GRAPH_SUCCESS != GetGSize() ||
         ge::GRAPH_SUCCESS != GetKTSize() ||
         ge::GRAPH_SUCCESS != GetQkHeadDim() ||
-        ge::GRAPH_SUCCESS != GetValueHeadDim() ||
-        ge::GRAPH_SUCCESS != GetLegacyIfaFlag() ||
-        ge::GRAPH_SUCCESS != GetUpdateInfo() ||
-        ge::GRAPH_SUCCESS != GetBatchSize() ||
-        ge::GRAPH_SUCCESS != GetS1Size() ||
         ge::GRAPH_SUCCESS != GetS2Size() ||
         ge::GRAPH_SUCCESS != GetRopeHeadDim()) {
         return ge::GRAPH_FAILED;
