@@ -3060,7 +3060,11 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::PostTiling()
                                            fBaseParams.coreNum),
                return ge::GRAPH_FAILED);
     context_->SetBlockDim(blockdim);
-
+    
+    // 使用SyncAll，需要设置为batch mode模式，所有核同时启动，否则在多流方式下执行可能会卡死
+    if (fBaseParams.splitAxis != SplitAxisEnum::BN2 || !fBaseParams.isBn2MultiBlk || fBaseParams.layoutType != INPUT_FROAMT_TND) {
+        context_->SetScheduleMode(1);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
