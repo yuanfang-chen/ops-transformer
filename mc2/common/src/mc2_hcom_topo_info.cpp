@@ -184,10 +184,14 @@ HcclResult MC2HcomTopology::CommGetCclBufferSizeByGroup(const char *group, uint6
 }
 
 #ifdef BUILD_OPEN_PROJECT
-HcclResult MC2HcomTopology::CommGetGroupLocalWindowSize([[maybe_unused]] const char *group, uint64_t *cclBufferSize)
+HcclResult MC2HcomTopology::CommGetGroupLocalWindowSize(const char *group, uint64_t *cclBufferSize)
 {
-    *cclBufferSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
-    OP_LOGD("", "Get winSize from GetMaxWindowSize");
+    if (ge::HcomTopoInfo::Instance().GetGroupLocalWindowSize(group, *cclBufferSize) != ge::GRAPH_SUCCESS) {
+        OP_LOGD("", "Get winSize from GetGroupLocalWindowSize=%lu", *cclBufferSize);
+        *cclBufferSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+        return HCCL_SUCCESS;
+    }
+    OP_LOGD("", "Get winSize from GetMaxWindowSize=%lu", *cclBufferSize);
     return HCCL_SUCCESS;
 }
 
