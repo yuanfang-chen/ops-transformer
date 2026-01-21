@@ -782,6 +782,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
         if (constInfo.gS1Start != constInfo.gS1End || constInfo.s2Start != constInfo.s2End) {
             constInfo.bN2End += 1;
         }
+    } else if ((constInfo.gS1End != 0) || (constInfo.s2End != 0)){
+        constInfo.bN2End += 1;
     }
 
     for (uint32_t bN2LoopIdx = constInfo.bN2Start; bN2LoopIdx < constInfo.bN2End; bN2LoopIdx++) {
