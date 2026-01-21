@@ -1021,6 +1021,10 @@ bool FusedFloydAttentionTilingBase::CaclBmmBatch(int64_t tmpS1BasicBlock, int64_
     int64_t batchData = n2BasicBlock * dSize * (tmpS1BasicBlock + s2BaseSize) * 2;
 
     int64_t loops = CeilDiv(batchData, static_cast<int64_t>(aicoreParams_.l1Size));
+    if (loops <= 0) {
+        OP_LOGE(context_, "Function CaclBmmBatch failed.");
+        return false;
+    }
     int32_t bmm1Num = n2BasicBlock / loops;
     tilingData.coreParams.set_bmm1Num(bmm1Num);
 

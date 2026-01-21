@@ -180,17 +180,6 @@ struct TempParams { // 频繁使用的中间态临时变量
     uint32_t apiClcQueueSize = 0;
 };
 
-inline uint32_t Gcd(uint32_t a, uint32_t b) // a >= b
-{
-    if (b > a) {
-        return Gcd(b, a);
-    }
-    if (a % b == 0) {
-        return b;
-    }
-    return Gcd(b, a % b);
-}
-
 inline int64_t CeilCommon(int64_t num1, int64_t num2)
 {
     if (num2 == 0) {

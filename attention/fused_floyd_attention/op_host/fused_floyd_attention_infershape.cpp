@@ -23,8 +23,6 @@ namespace ops {
 
 constexpr int FLA_SOFTMAXMAX_F32_DIM0SHAPE = 8;
 static const uint64_t DIM_NUM_5 = 5;
-static const uint64_t DIM_NUM_3 = 3;
-static const uint64_t DIM_NUM_2 = 2;
 
 ge::graphStatus InferShapeFusedFloydAttention(gert::InferShapeContext *context)
 {
@@ -51,7 +49,7 @@ ge::graphStatus InferShapeFusedFloydAttention(gert::InferShapeContext *context)
     auto headNum = queryShape->GetDim(2); // 2: BHNSD中的N
     shapeS = queryShape->GetDim(3); // 3: BHNSD中的S
 
-    // softmaxMax, fp32: (B, N, S, 8)
+    // softmaxMax, fp32: (B, H, N, S, 8)
     gert::Shape *softmaxMaxShape = context->GetOutputShape(0);
     OP_CHECK_NULL_WITH_CONTEXT(context, softmaxMaxShape);
 

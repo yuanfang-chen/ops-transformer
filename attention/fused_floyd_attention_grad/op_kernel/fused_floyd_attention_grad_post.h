@@ -10,10 +10,9 @@
 
 #ifndef _fused_floyd_attention_grad_POST_H_
 #define _fused_floyd_attention_grad_POST_H_
+#include "kernel_operator.h"
 
 using namespace AscendC;
-
-#include "kernel_operator.h"
 using AscendC::CopyRepeatParams;
 using AscendC::DataCopyExtParams;
 using AscendC::DataCopyParams;

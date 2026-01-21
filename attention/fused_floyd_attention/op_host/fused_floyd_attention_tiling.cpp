@@ -36,6 +36,9 @@ constexpr size_t SOFTMAXSUM_OUPUT_INDEX = 1;
 constexpr size_t ATTENTIONOUT_OUPUT_INDEX = 2;
 constexpr size_t INPUTLAYOUT_ATTRS_INDEX = 5;
 constexpr size_t MIN_COPY_UINT_SIZE = 32;
+constexpr uint32_t TILING_KEY_FP16 = 90;
+constexpr uint32_t TILING_KEY_FP32 = 92;
+constexpr uint32_t TILING_KEY_BF16 = 94;
 
 static uint32_t Ceil(uint32_t num1, uint32_t num2)
 {
@@ -62,11 +65,11 @@ void FusedFloydAttentionEmptyInputTiling::GetTilingKeyAttentionScore4EmptyInput(
         return);
     auto kernelType = context->GetInputDesc(KEY_INPUT_INDEX)->GetDataType();
     if (kernelType == ge::DT_FLOAT16) {
-        tilingKey = 90;
+        tilingKey = TILING_KEY_FP16;
     } else if (kernelType == ge::DT_FLOAT) {
-        tilingKey = 92;
+        tilingKey = TILING_KEY_FP32;
     } else {
-        tilingKey = 94;
+        tilingKey = TILING_KEY_BF16;
     }
 }
 

@@ -99,6 +99,7 @@ public:
             (dqNum < aivNum && dkNum < aivNum) ? std::max(dqNum, dkNum) : aivNum;
         context->SetBlockDim(CalculateTschBlockDim(sliceNum, aicNum, aivNum));
         size_t *workspaces = context->GetWorkspaceSizes(1);
+        // workspace上预留100M
         workspaces[0] = 100 * 1024 * 1024;
         tilingData.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
         context->GetRawTilingData()->SetDataSize(tilingData.GetDataSize());

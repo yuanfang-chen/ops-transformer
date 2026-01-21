@@ -671,6 +671,10 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     size_t workspaceSize = MUL_CORE_SYNC_BUFFER;
     uint32_t s1Inner = std::min(INITIAL_S1_SPLIT_NUM, fBaseParams.s1Align);
+    OP_CHECK_IF(s1Inner <= 0,
+                OP_LOGE(context_,
+                "s1Inner is less than or equal to 0, s1Inner is %u.", s1Inner),
+                return ge::GRAPH_FAILED);
 
     // matmal3 q
     workspaceSize =
@@ -851,7 +855,7 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DoPreTiling()
     tilingData.preTilingData.set_maskTailCoreLastLoopNum(tailCoreUBLastLoopNum);
 
     OP_CHECK_IF(maskUsedCoreNum == 0,
-               OP_LOGE(context_, "divisor maskUsedCoreNumis 0."),
+               OP_LOGE(context_, "divisor maskUsedCoreNum is 0."),
                return ge::GRAPH_FAILED);
     int64_t qPreBlockFactor = (fBaseParams.qSizeAlign + maskUsedCoreNum - 1) / maskUsedCoreNum;
     OP_CHECK_IF(qPreBlockFactor == 0,
