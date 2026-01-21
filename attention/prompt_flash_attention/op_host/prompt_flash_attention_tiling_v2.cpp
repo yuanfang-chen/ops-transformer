@@ -4519,11 +4519,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
     inputParams.set_fromFused(tilingData.promptAttentionBaseParams.get_fromFused());
     inputParams.set_isBSNDOut(tilingData.promptAttentionBaseParams.get_isBSNDOut());
     inputParams.set_isTNDOut(tilingData.promptAttentionBaseParams.get_isTNDOut());
-<<<<<<< HEAD
     inputParams.set_isGqa(tilingData.promptAttentionBaseParams.get_isIFA() || enablePFAMerge);
-=======
-    inputParams.set_isGqa((tilingData.promptAttentionBaseParams.get_isIFA() && inputLayout != InputLayout::NTD) || enablePFAMerge);
->>>>>>> 2891f4a6e... support NTD_TND
     inputParams.set_isSoftMaxLseEnable(tilingData.promptAttentionBaseParams.get_isSoftMaxLseEnable());
     inputParams.set_isActualSharedPrefixLenNull(tilingData.promptAttentionBaseParams.get_isActualSharedPrefixLenNull());
     inputParams.set_isQHasLeftPadding(tilingData.promptAttentionBaseParams.get_isQHasLeftPadding());
