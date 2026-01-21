@@ -918,6 +918,8 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
     const size_t dequeryDim = dequantScaleQueryShape->GetStorageShape().GetDimNum();
     const size_t dekeyDim = keyAntiquantScaleShape->GetStorageShape().GetDimNum();
     const size_t devalueDim = valueAntiquantScaleshape->GetStorageShape().GetDimNum();
+    constexpr uint32_t fp8QBlockSize = 128U; // 128 is SOuterSize
+    constexpr uint32_t fp8KVBlockSize = 256U; // 256 is SInnerSize
     // When PA and tensorlist are enable, they may affect the shape parsing of query, key and value,
     OP_CHECK_IF(enablePA, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "PA is not supported in per-block quant scenario!"),
@@ -951,11 +953,38 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             "dequantScaleQuery, keyAntiquantScale or valueAntiquantScale is nullptr in per-block quant scenario."),
         return false); 
     if (inputLayout == InputLayout::NTD) {
-        OP_CHECK_IF((dequeryDim != 3) || (dekeyDim != 3) || (devalueDim != 3),   // 4 is the number of dimensions of the dequant scale.
+        OP_CHECK_IF((dequeryDim != 3) || (dekeyDim != 3) || (devalueDim != 3),   // 3 is the number of dimensions of the dequant scale.
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "inputLayout is NTD, dequantscale's dim must be 4 in per-block quant scenario," 
+                "When layout is NTD, dequantscale's dim must be 3 in per-block quant scenario," 
                 "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
                 dequeryDim, dekeyDim, devalueDim),
+            return false);
+        OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.n) ||
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.t / fp8QBlockSize + queryShapeInfo.b) ||
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, fp8KVBlockSize)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is NTD, dequantScaleQueryShape must be [%u, %u, %u] in per-block quant scenario, now is  [%u, %u, %u].",
+                queryShapeInfo.n, queryShapeInfo.t / fp8QBlockSize + queryShapeInfo.b, CeilDivision(queryShapeInfo.d, fp8KVBlockSize),
+                dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                dequantScaleQueryShape->GetStorageShape().GetDim(2)),
+            return false); 
+        OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.n) ||
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.t / fp8KVBlockSize + keyShapeInfo.b) ||
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.d, fp8KVBlockSize)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is NTD, keyAntiquantScaleShape must be [%u, %u, %u] in per-block quant scenario, now is [%u, %u, %u].",
+                keyShapeInfo.n, keyShapeInfo.t / fp8KVBlockSize + keyShapeInfo.b, CeilDivision(keyShapeInfo.d, fp8KVBlockSize),
+                keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                keyAntiquantScaleShape->GetStorageShape().GetDim(2)),
+            return false);
+        OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.t / fp8KVBlockSize + valueShapeInfo.b) ||
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.d, fp8KVBlockSize)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is NTD, valueAntiquantScaleshape must be [%u, %u, %u] in per-block quant scenario, now is [%u, %u, %u].",
+                valueShapeInfo.b, valueShapeInfo.t / fp8KVBlockSize + valueShapeInfo.b, CeilDivision(valueShapeInfo.d, fp8KVBlockSize),
+                valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                valueAntiquantScaleshape->GetStorageShape().GetDim(2)),
             return false);
     } else {
         OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
