@@ -101,6 +101,21 @@ attention:
     options:
       - fused_infer_attention_score
 
+  gather_pa_kv_cache:
+    module: True
+    src:
+      - attention/gather_pa_kv_cache
+      - attention/common
+    exclude:
+      - attention/gather_pa_kv_cache/docs
+      - attention/gather_pa_kv_cache/README.md
+    ut_cov_exclude:
+      - attention/gather_pa_kv_cache
+    test:
+        ut: True
+    options:
+      - gather_pa_kv_cache
+
   incre_flash_attention:
     module: True
     src:
@@ -1059,6 +1074,7 @@ mc2:
         - mc2/ffn_to_attention
       test:
         examples: False
+        ut: False   # 框架打桩有问题，opapi用例会挂，暂时屏蔽
       options:
         - ffn_to_attention
 
@@ -1074,6 +1090,7 @@ mc2:
         - mc2/attention_to_ffn
       test:
         examples: False
+        ut: False   # 框架打桩有问题，opapi用例会挂，暂时屏蔽
       options:
         - attention_to_ffn
     moe_distribute_combine:

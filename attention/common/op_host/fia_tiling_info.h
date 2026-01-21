@@ -252,6 +252,8 @@ public:
 
     // empty Tensor
     bool emptyTensorFlag = false;
+    uint64_t totalOutputSize = 0;
+    uint64_t totalLseSize = 0;
 
     // PageAttention
     bool pageAttentionFlag = false;
@@ -294,6 +296,7 @@ public:
 
     // Mask
     bool attenMaskFlag = false;
+    bool isExistRowInvalid = false;
     uint32_t attenMaskBatchStride = 0;
     uint32_t attenMaskStride = 0;
     int32_t sparseMode = 0;
