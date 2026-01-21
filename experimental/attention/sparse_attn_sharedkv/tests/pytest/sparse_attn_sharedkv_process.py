@@ -165,7 +165,6 @@ class GeneralizedSFA:
                                 ni = torch.round((-row_max) / log_2)
                                 ni_old = ni.clone()
                             else:
-                                rcof = tmp_scale / tmp_scale_16
                                 ni_old = ni.clone()
                                 ni = torch.round((-row_max) / log_2)
 
