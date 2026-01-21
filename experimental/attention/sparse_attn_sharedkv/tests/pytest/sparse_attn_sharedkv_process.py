@@ -154,13 +154,12 @@ class GeneralizedSFA:
                                     k_tile = cur_ori_k_bnsd_fp32[i_S2 * s2_base_size:(i_S2 + 1) * s2_base_size, :]
                                 else:
                                     k_tile = cur_ori_k_bnsd_fp32[i_S2 * s2_base_size:, :]
-                                v_tile = k_tile.clone()
                             else: # cmp_kv
                                 if i_S2 < total_s2_loop_time - 1:
                                     k_tile = cur_cmp_k_fp32[(i_S2 - ori_s2_loop_time) * s2_base_size:(i_S2 + 1) * s2_base_size, :]
                                 else:
                                     k_tile = cur_cmp_k_fp32[(i_S2 - ori_s2_loop_time) * s2_base_size:, :]
-
+                            v_tile = k_tile.clone()
                             mm1_res = torch.matmul(q_curr_fp32, k_tile.T)
                             scale_res = mm1_res * self.softmax_scale  # 外层for S1 循环，据实拷入数据，因此不需要mask
 
