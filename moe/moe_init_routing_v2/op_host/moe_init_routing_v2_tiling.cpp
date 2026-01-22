@@ -658,28 +658,27 @@ void MoeInitRoutingV2TilingBase::Tiling4GatherOutCompute()
     int64_t rowSize = (perCoreRows * sizeof(int32_t) + ONE_BLOCK_BYTE - 1) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
     int64_t colSize = (cols * inuptXDtypeSize_ + ONE_BLOCK_BYTE - 1) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
 
-    if (rowSize + colSize < static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO) {
+    int64_t ubSize = static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO;
+    if (rowSize + colSize < ubSize) {
         tilingData->set_perCorePerLoopRows(perCoreRows);
         tilingData->set_perCoreLastLoopRows(perCoreRows);
         tilingData->set_lastCorePerLoopRows(lastCoreRows);
         tilingData->set_lastCoreLastLoopRows(lastCoreRows);
         tilingData->set_perCoreLoops(1);
         tilingData->set_lastCoreLoops(1);
-        tilingData->set_perLoopCols(cols);
-        tilingData->set_lastLoopCols(cols);
+        int64_t loopCols = regBase && (rowSize + colSize * NUM_TWO < ubSize) ? cols * NUM_TWO : cols;
+        tilingData->set_perLoopCols(loopCols);
+        tilingData->set_lastLoopCols(loopCols);
         tilingData->set_colLoops(1);
     } else {
         int64_t baseMaxCols = MAX_COLS_ONE_LOOP;
         int64_t baseMaxColsSize =
             (baseMaxCols * inuptXDtypeSize_ + ONE_BLOCK_BYTE - 1) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
-        int64_t basePerLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO - baseMaxColsSize) /
-                                     static_cast<int64_t>(sizeof(int32_t)) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
+        int64_t basePerLoopMaxRows = (ubSize - baseMaxColsSize) / sizeof(int32_t) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
         if (cols < MAX_COLS_ONE_LOOP) {
-            basePerLoopMaxRows = (static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO - colSize) /
-                                 static_cast<int64_t>(sizeof(int32_t)) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
+            basePerLoopMaxRows = (ubSize - colSize) / sizeof(int32_t) / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
         } else if (perCoreRows < basePerLoopMaxRows) {
-            baseMaxCols = (static_cast<int64_t>(aicoreParams_.ubSize) / NUM_TWO - rowSize) / inuptXDtypeSize_ /
-                          ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
+            baseMaxCols = (ubSize - rowSize) / inuptXDtypeSize_ / ONE_BLOCK_BYTE * ONE_BLOCK_BYTE;
         }
         tilingData->set_perLoopCols(std::min(baseMaxCols, cols));
         tilingData->set_lastLoopCols(GetPerOrLastValue(cols, baseMaxCols));

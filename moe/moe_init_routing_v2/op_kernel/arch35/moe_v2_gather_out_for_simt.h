@@ -18,7 +18,7 @@
 #include "moe_v2_common.h"
 #include "kernel_operator.h"
 
-constexpr int64_t BUFFER_NUM = 1;
+constexpr int64_t BUFFER_NUM = 2;
 
 namespace MoeInitRoutingV2 {
 using namespace AscendC;
@@ -153,7 +153,8 @@ __aicore__ inline void MoeV2GatherOutSimt<T>::CopyOut(int64_t progress)
             DataCopyExtParams dataCopyParams{1, static_cast<uint32_t>(this->colsTileLength * sizeof(T)), 0, 0, 0};
             DataCopyPadExtParams<T> dataCopyPadParams{false, 0, 0, 0};
             DataCopyPad(inLocal, inputXGm[inputOffset], dataCopyParams, dataCopyPadParams);
-            SetWaitFlag<HardEvent::MTE2_MTE3>(HardEvent::MTE2_MTE3);
+            inputActivationsCopyInQueue.EnQue<T>(inLocal);
+            inLocal = inputActivationsCopyInQueue.DeQue<T>();
             DataCopyExtParams intriParams{1, static_cast<uint32_t>(this->colsTileLength * sizeof(T)), 0, 0, 0};
             while (curLoopRow < this->currentLoopRows && initialRow / this->k == row) {
                 int32_t outIndex = indicesLocal.GetValue(curLoopRow);
@@ -205,8 +206,6 @@ __aicore__ inline void MoeV2GatherOutSimt<T>::Init(GM_ADDR inputX, GM_ADDR expan
         this->lastLoopRows = this->gatherOutTilingData->perCoreLastLoopRows;
         this->rowLoops = this->gatherOutTilingData->lastCoreLoops;
     }
-    this->perLoopCols = this->gatherOutTilingData->perLoopCols;
-    this->lastLoopCols = this->gatherOutTilingData->lastLoopCols;
     this->colLoops = this->gatherOutTilingData->colLoops;
 
     inputXGm.SetGlobalBuffer((__gm__ T *)inputX, this->coreRows * this->cols);
@@ -217,9 +216,16 @@ __aicore__ inline void MoeV2GatherOutSimt<T>::Init(GM_ADDR inputX, GM_ADDR expan
 
     expandedRowIdxIndexGm_.SetGlobalBuffer((__gm__ int32_t *)workspace +
                                                Align(this->totalLength_, sizeof(int32_t)) * 2 + this->expertNum_ +
-                                               this->blockIdx * this->gatherOutTilingData->perCoreRows,
-                                           0);
-    pipe->InitBuffer(inputActivationsCopyInQueue, BUFFER_NUM, AlignBytes(this->perLoopCols, sizeof(T)));
+                                               this->blockIdx * this->gatherOutTilingData->perCoreRows, 0);
+    if (this->gatherOutTilingData->perLoopCols > this->cols) {
+        this->perLoopCols = this->cols;
+        this->lastLoopCols = this->cols;
+        pipe->InitBuffer(inputActivationsCopyInQueue, CONSTANT_FOUR, AlignBytes(this->perLoopCols, sizeof(T)));
+    } else {
+        this->perLoopCols = this->gatherOutTilingData->perLoopCols;
+        this->lastLoopCols = this->gatherOutTilingData->lastLoopCols;
+        pipe->InitBuffer(inputActivationsCopyInQueue, BUFFER_NUM, AlignBytes(this->perLoopCols, sizeof(T)));
+    }
     pipe->InitBuffer(expandDstToSrcRowCopyInQueue, BUFFER_NUM, AlignBytes(this->perLoopRows, sizeof(int32_t)));
     pipe->InitBuffer(expandedRowIdxIndexCopyInQueue, BUFFER_NUM, AlignBytes(this->perLoopRows + 1, sizeof(int32_t)));
 }
