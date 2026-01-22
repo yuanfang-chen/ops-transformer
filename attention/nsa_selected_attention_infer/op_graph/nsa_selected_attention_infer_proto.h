@@ -18,7 +18,25 @@
 #include "graph/operator_reg.h"
 
 namespace ge {
-
+/**
+* @brief Function NsaSelectedAttentionInfer.
+*
+* @par Inputs:
+* @li query: A tensor. The type only support float16, bf16.
+* @li key: A tensor. The type only support float16, bf16.
+* @li value: A tensor. The type only support float16, bf16.
+* @li topk_indices: A tensor. The type only support int32.
+* @li atten_mask: A tensor. The type only support bool, uint8.
+* @li block_table: A tensor. The type only support int32.
+* @li actual_q_seq_lengths: A tensor. The type only support int64.
+* @li actual_kv_seq_lengths: A tensor. The type only support int64.
+*
+* @par Outputs:
+* @li attention_out: A tensor. The type only support float16, bf16.
+*
+* @platform: KirinX90, Kirin9030
+*
+*/
 REG_OP(NsaSelectedAttentionInfer)
     .INPUT(query, TensorType({DT_FLOAT16, DT_BF16}))
     .INPUT(key, TensorType({DT_FLOAT16, DT_BF16}))
