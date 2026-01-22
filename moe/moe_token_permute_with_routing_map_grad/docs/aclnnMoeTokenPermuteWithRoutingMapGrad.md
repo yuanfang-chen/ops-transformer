@@ -197,7 +197,7 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
     <tr>
         <td>probsGradOutOptional</td>
         <td>可选输出</td>
-        <td>输入probs的梯度。</td>
+        <td>正向算子输入probs的梯度。</td>
         <td>shape支持2D维度</td>
         <td>同permutedProbsOutputGradOptional</td>
         <td>ND</td>
@@ -310,8 +310,6 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMapGrad(
   - aclnnMoeTokenPermuteWithRoutingMapGrad默认确定性实现。
 
 - 非dropPaddedMode 场景topK_num <= 512
-
-- 不支持混合精度输入，即permutedTokenOutputGrad、permutedProbsOutputGradOptional、tokensGradOut、probsGradOutOptional需要保持相同的数据类型
 
 ## 调用示例
 
