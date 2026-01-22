@@ -369,6 +369,10 @@ template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::SplitCoreByAICPU(uint32_t curCoreIdx, const QliMetaData *__restrict metadata)
 {
     usedCoreNum = metadata->usedCoreNum;
+    if (aiCoreIdx >= usedCoreNum) {
+        return ;
+    }
+
     if (aiCoreIdx != 0) {
         splitCoreInfo.bN2Start = static_cast<uint32_t>(metadata->bN2End[aiCoreIdx - 1]);
         splitCoreInfo.gS1Start = static_cast<uint32_t>(metadata->mEnd[aiCoreIdx - 1]);
