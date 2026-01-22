@@ -294,6 +294,7 @@ __aicore__ inline void MTECommunication<TemplateType>::WriteStatusToWin()
         uint64_t curOffset = (coreOffset + hcclContext_->rankId) * FLOAT_UB_ALIGN_NUM; // 当前核偏移 + 卡偏移， 按32B对齐
         SyncFunc<AscendC::HardEvent::S_MTE3>();
         DataCopy(stateGMTensor[curOffset], statusTensor, FLOAT_UB_ALIGN_NUM); // 按32B对齐拷贝
+        SyncFunc<AscendC::HardEvent::MTE3_S>();
     }
 }
 
