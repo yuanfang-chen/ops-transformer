@@ -1,5 +1,3 @@
-*
-
 # aclnnMatmulAlltoAll
 
 ## 产品支持情况
@@ -16,8 +14,7 @@
 ## 功能说明
 
 - 接口功能：完成Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**。
-- 计算公式:
-  假设x1的shape为(BS, H1), x2的shape为(H1, H2)
+- 计算公式：假设x1的shape为(BS, H1), x2的shape为(H1, H2)，rankSize为NPU卡数
 
   $$
   computeOut = x1 @ x2 + bias \\
@@ -31,36 +28,39 @@
 
 ```cpp
 aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(
-  const aclTensor* x1, 
-  const aclTensor* x2,
-  const aclTensor* biasOptional,
+  const aclTensor*   x1, 
+  const aclTensor*   x2,
+  const aclTensor*   biasOptional,
   const aclIntArray* alltoAllAxesOptional,
-  const char* group,
-  bool transposeX1,
-  bool transposeX2,
-  aclTensor* output,
-  uint64_t *workspaceSize,
-  aclOpExecutor **executor)
+  const char*        group,
+  bool               transposeX1,
+  bool               transposeX2,
+  aclTensor*         output,
+  uint64_t*          workspaceSize,
+  aclOpExecutor**    executor)
 ```
 
 ```cpp
 aclnnStatus aclnnMatmulAlltoAll(
-  void *workspace,
-  uint64_t workspaceSize,
-  aclOpExecutor *executor,
-  aclrtStream stream)
+  void*          workspace,
+  uint64_t       workspaceSize,
+  aclOpExecutor* executor,
+  aclrtStream    stream)
 ```
 
 ## aclnnMatmulAlltoAllGetWorkspaceSize
 
 - ​**参数说明**​：
 
-    <table style="undefined;table-layout: fixed; width: 1392px"> <colgroup>
+    <table style="undefined;table-layout: fixed; width: 1556px"> <colgroup>
+    <col style="width: 154px">
+    <col style="width: 123px">
+    <col style="width: 270px">
+    <col style="width: 295px">
+    <col style="width: 245px">
     <col style="width: 120px">
-    <col style="width: 120px">
-    <col style="width: 160px">
-    <col style="width: 150px">
-    <col style="width: 80px">
+    <col style="width: 203px">
+    <col style="width: 146px">
     </colgroup>
     <thead>
     <tr>
@@ -77,8 +77,8 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>x1</td>
     <td>输入</td>
-    <td>融合算子的左矩阵输入，对应公式中的x1</td>
-    <td>该输入作为MatMul计算的左矩阵输入</td>
+    <td>融合算子的左矩阵输入，对应公式中的x1。</td>
+    <td>该输入作为MatMul计算的左矩阵输入。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>2维, shape为(BS, H1)</td>
@@ -87,8 +87,8 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>x2</td>
     <td>输入</td>
-    <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵</td>
-    <td>直接作为MatMul计算的右矩阵输入</td>
+    <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵。</td>
+    <td>直接作为MatMul计算的右矩阵输入。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>2维，shape为(H1, H2)</td>
@@ -98,7 +98,7 @@ aclnnStatus aclnnMatmulAlltoAll(
     <td>biasOptional</td>
     <td>可选输入</td>
     <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
-    <td></td>
+    <td>支持传入空指针场景；根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
     <td>ND</td>
     <td>1维，shape为(H2)</td>
@@ -107,8 +107,8 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>alltoAllAxesOptional</td>
     <td>输入</td>
-    <td>可选输入，AlltoAll和Pemute数据交换的方向</td>
-    <td>支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H2)转为(BS * rankSize, H2 / rankSize)</td>
+    <td>可选输入，AlltoAll和Pemute数据交换的方向。</td>
+    <td>支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H2)转为(BS * rankSize, H2 / rankSize)。</td>
     <td>aclIntArray*(元素类型INT64)</td>
     <td>ND</td>
     <td>1维，shape为(2)</td>
@@ -117,8 +117,8 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>group</td>
     <td>输入</td>
-    <td>通信域名</td>
-    <td>字符串长度要求(0, 128)</td>
+    <td>Host侧标识列组的字符串，即通信域名称，通过Hccl接口HcclGetCommName获取commName作为该参数。</td>
+    <td>字符串长度要求(0, 128)。</td>
     <td>STRING</td>
     <td>ND</td>
     <td>1维</td>
@@ -127,8 +127,8 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>transposeX1</td>
     <td>输入</td>
-    <td>标识左矩阵是否转置过</td>
-    <td>配置为True时左矩阵Shape为(H1, BS)，暂不支持配置为True</td>
+    <td>标识左矩阵是否转置过。</td>
+    <td>暂不支持配置为True。</td>
     <td>bool</td>
     <td>ND</td>
     <td></td>
@@ -137,8 +137,8 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>transposeX2</td>
     <td>输入</td>
-    <td>标识右矩阵是否转置过</td>
-    <td>配置为True时右矩阵Shape为(H2, H1)</td>
+    <td>标识右矩阵是否转置过。</td>
+    <td>配置为True时右矩阵Shape为(H2, H1)。</td>
     <td>bool</td>
     <td>ND</td>
     <td></td>
@@ -147,8 +147,8 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>output</td>
     <td>输入</td>
-    <td>最终的计算结果</td>
-    <td>数据类型与输入x1保持一致</td>
+    <td>最终的计算结果。</td>
+    <td>数据类型与输入x1保持一致。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     <td>2维，shape为(BS*rankSize, H2/rankSize)</td>
@@ -254,16 +254,18 @@ aclnnStatus aclnnMatmulAlltoAll(
 
 ## 约束说明
 
-* 默认支持确定性计算
-* 右矩阵和输出矩阵的H2必须整除NPU卡数
-* 不支持空tensor
+* 默认支持确定性计算。
+* NPU卡数（rankSize），根据设备型号有不同限制：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡。
+  - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡。
+* 参数说明中shape使用的变量H2必须整除NPU卡数。
+* H1范围仅支持[1, 65535]。
+* BS*rankSize和H2的值不得超过2147483647（INT32_MAX）。
+* 不支持空tensor。
 * x1、x2计算输入的数据类型要和output计算输出的数据类型一致，传入的x1、x2或者output不为空指针。
+* biasOptional的数据类型根据不同设备型号有不同的限制：
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：output计算输出的数据类型为FLOAT16时，biasOptional计算输入的数据类型支持FLOAT16；output计算输出的数据类型为BFLOAT16时，biasOptional计算输入的数据类型支持FLOAT32。
-* H1范围仅支持[1, 65535]
-* NPU卡数仅支持2、4、8、16
-  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡
-  - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡
-* x1、x2、output的数据类型必须一致
+  - <term>Ascend 950PR/Ascend 950DT</term>：x1/x2计算输入的数据类型为FLOAT16时，biasOptional计算输入的数据类型支持FLOAT16和FLOAT32；x1/x2计算输入的数据类型为BFLOAT16时，biasOptional计算输入的数据类型支持BFLOAT16和FLOAT32。
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
@@ -271,10 +273,10 @@ aclnnStatus aclnnMatmulAlltoAll(
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
-说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[ <<HCCL API (C)>>](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[《HCCL API (C)》](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-
+    
     ```Cpp
     #include <thread>
     #include <iostream>
@@ -478,7 +480,8 @@ aclnnStatus aclnnMatmulAlltoAll(
         return 0;
     }
     ```
-- <term>Atlas A5 训练系列产品</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
+    
     ```Cpp
     #include <thread>
     #include <iostream>
