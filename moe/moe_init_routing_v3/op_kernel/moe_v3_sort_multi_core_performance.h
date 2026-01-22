@@ -25,7 +25,7 @@ using namespace AscendC;
 class MoeSortMultiCorePerformance : public MoeSortBase {
 public:
     __aicore__ inline MoeSortMultiCorePerformance(){};
-    __aicore__ inline void Init(GM_ADDR expendedRowIdx, GM_ADDR workspace, const MoeInitRoutingV3TilingData *tilingData,
+    __aicore__ inline void Init(GM_ADDR expendedRowIdx, GM_ADDR workspace, const MoeInitRoutingV3TilingData * __restrict__ tilingData,
                                 TPipe *tPipe);
     __aicore__ inline void Process();
 
@@ -119,7 +119,7 @@ __aicore__ inline void MoeSortMultiCorePerformance::SortOutProcess()
 }
 
 __aicore__ inline void MoeSortMultiCorePerformance::Init(GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                                         const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                         const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     this->totalLength = tilingData->n * tilingData->k;
     this->blockIdx = GetBlockIdx();

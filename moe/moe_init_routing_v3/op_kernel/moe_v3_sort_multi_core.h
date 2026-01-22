@@ -26,7 +26,7 @@ class MoeSortMultiCore : public MoeSortBase {
 public:
     __aicore__ inline MoeSortMultiCore(){};
     __aicore__ inline void Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -299,7 +299,7 @@ __aicore__ inline void MoeSortMultiCore::SortOutProcess()
 }
 
 __aicore__ inline void MoeSortMultiCore::Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                              const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                              const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     this->totalLength = tilingData->n * tilingData->k;
     this->coreNum = tilingData->coreNum;

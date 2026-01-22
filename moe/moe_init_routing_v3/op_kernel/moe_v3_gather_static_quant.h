@@ -28,7 +28,7 @@ class MoeGatherOutQuant {
 public:
     __aicore__ inline MoeGatherOutQuant(){};
     __aicore__ inline void Init(GM_ADDR inputX, GM_ADDR scale, GM_ADDR offset, GM_ADDR expandedRowIdx,
-                                GM_ADDR expandedX, GM_ADDR workspace, const MoeInitRoutingV3TilingData *tilingData,
+                                GM_ADDR expandedX, GM_ADDR workspace, const MoeInitRoutingV3TilingData * __restrict__ tilingData,
                                 TPipe *tPipe);
     __aicore__ inline void Process();
 
@@ -87,7 +87,7 @@ private:
 template <typename T, const int EP>
 __aicore__ inline void MoeGatherOutQuant<T, EP>::Init(GM_ADDR inputX, GM_ADDR scale, GM_ADDR offset,
                                                       GM_ADDR expandedRowIdx, GM_ADDR expandedX, GM_ADDR workspace,
-                                                      const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                      const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
     blockIdx_ = GetBlockIdx();

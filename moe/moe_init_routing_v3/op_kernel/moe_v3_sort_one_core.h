@@ -24,7 +24,7 @@ class MoeSortOneCore : public MoeSortBase {
 public:
     __aicore__ inline MoeSortOneCore(){};
     __aicore__ inline void Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -113,7 +113,7 @@ __aicore__ inline void MoeSortOneCore::CopyOut()
 }
 
 __aicore__ inline void MoeSortOneCore::Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                            const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                            const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     this->pipe = tPipe;
     this->tileLength = Align(tilingData->vbsComputeParamsOp.lastCorePerLoopElements, sizeof(int32_t));

@@ -36,7 +36,7 @@ public:
     __aicore__ inline ExpertTokensCount(){};
     template <bool CALC_ACTUAL_EXPERT_NUM>
     __aicore__ inline void Init(GM_ADDR expandedRowIdx, GM_ADDR expertTokensCount, GM_ADDR workspace,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -91,7 +91,7 @@ template <const int HISTOGRAMTYPE>
 template <bool CALC_ACTUAL_EXPERT_NUM>
 __aicore__ inline void
 ExpertTokensCount<HISTOGRAMTYPE>::Init(GM_ADDR expandedRowIdx, GM_ADDR expertTokensCount, GM_ADDR workspace,
-                                       const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                       const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     coreNum_ = tilingData->coreNum;
     pipe_ = tPipe;

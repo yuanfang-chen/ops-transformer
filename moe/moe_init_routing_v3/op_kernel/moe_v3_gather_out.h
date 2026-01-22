@@ -28,7 +28,7 @@ class MoeGatherOut {
 public:
     __aicore__ inline MoeGatherOut(){};
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR scale, GM_ADDR workspace, GM_ADDR expandedRowIdx, GM_ADDR expandedX,
-                                GM_ADDR expandedScale, const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                GM_ADDR expandedScale, const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
     __aicore__ inline void CopyExpertIn(int64_t progress);
     __aicore__ inline void CopyXIn(int64_t xSrcOffset, int64_t curLoopCols);
@@ -86,7 +86,7 @@ private:
 template <typename T, const int EP>
 __aicore__ inline void MoeGatherOut<T, EP>::Init(GM_ADDR x, GM_ADDR scale, GM_ADDR workspace, GM_ADDR expandedRowIdx,
                                                  GM_ADDR expandedX, GM_ADDR expandedScale,
-                                                 const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                 const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
     blockIdx_ = GetBlockIdx();

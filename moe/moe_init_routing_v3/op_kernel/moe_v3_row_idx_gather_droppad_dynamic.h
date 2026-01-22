@@ -25,7 +25,7 @@ class MoeV3SrcToDstAndGather {
 public:
     __aicore__ inline MoeV3SrcToDstAndGather(){};
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR scale, GM_ADDR expandedRowIdx, GM_ADDR expandedX,
-                                GM_ADDR dynamicQuantScale, GM_ADDR workspace, const TilingData *tilingData,
+                                GM_ADDR dynamicQuantScale, GM_ADDR workspace, const TilingData * __restrict__ tilingData,
                                 TPipe *tPipe);
     __aicore__ inline void Process();
 
@@ -473,7 +473,7 @@ __aicore__ inline void MoeV3SrcToDstAndGather<T, TilingData>::CopyOutRemain()
 template <typename T, typename TilingData>
 __aicore__ inline void MoeV3SrcToDstAndGather<T, TilingData>::Init(GM_ADDR x, GM_ADDR scale, GM_ADDR expandedRowIdx,
                                                                    GM_ADDR expandedX, GM_ADDR dynamicQuantScale,
-                                                                   GM_ADDR workspace, const TilingData *tilingData,
+                                                                   GM_ADDR workspace, const TilingData *  __restrict__  tilingData,
                                                                    TPipe *tPipe)
 {
     int64_t blockNum = GetBlockNum();

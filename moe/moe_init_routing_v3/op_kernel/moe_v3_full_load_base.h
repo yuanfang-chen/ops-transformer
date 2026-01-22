@@ -25,7 +25,7 @@ class MoeV3FullLoadBase {
 public:
     __aicore__ inline MoeV3FullLoadBase(){};
     __aicore__ inline void Init(GM_ADDR expertIdx, GM_ADDR expandedRowIdx, GM_ADDR expertTokensCountOrCumsum,
-                                GM_ADDR workspace, const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                GM_ADDR workspace, const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
 
 protected:
     __aicore__ inline void CopyIn();
@@ -94,7 +94,7 @@ protected:
 template <typename T>
 __aicore__ inline void MoeV3FullLoadBase<T>::Init(GM_ADDR expertIdx, GM_ADDR expandedRowIdx,
                                                   GM_ADDR expertTokensCountOrCumsum, GM_ADDR workspace,
-                                                  const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                  const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     this->gatherOutTilingData_ = &(tilingData->gatherOutComputeParamsOp);
     this->blockIdx_ = GetBlockIdx();

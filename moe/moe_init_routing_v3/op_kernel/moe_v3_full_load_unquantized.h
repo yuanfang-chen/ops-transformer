@@ -26,7 +26,7 @@ public:
     __aicore__ inline MoeV3FullLoadUnquantized(){};
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR expandedX, GM_ADDR expandedRowIdx,
                                 GM_ADDR expertTokensCountOrCumsum, GM_ADDR expandedScale, GM_ADDR workspace,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 protected:
@@ -49,7 +49,7 @@ template <typename T>
 __aicore__ inline void MoeV3FullLoadUnquantized<T>::Init(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR expandedX,
                                                          GM_ADDR expandedRowIdx, GM_ADDR expertTokensCountOrCumsum,
                                                          GM_ADDR expandedScale, GM_ADDR workspace,
-                                                         const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                         const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     MoeV3FullLoadBase<T>::Init(expertIdx, expandedRowIdx, expertTokensCountOrCumsum, workspace, tilingData, tPipe);
     xGm_.SetGlobalBuffer((__gm__ T *)x);

@@ -24,7 +24,7 @@ using namespace AscendC;
 class RowIdxGather {
 public:
     __aicore__ inline RowIdxGather(){};
-    __aicore__ inline void Init(GM_ADDR expandedRowIdx, GM_ADDR workspace, const MoeInitRoutingV3TilingData *tilingData,
+    __aicore__ inline void Init(GM_ADDR expandedRowIdx, GM_ADDR workspace, const MoeInitRoutingV3TilingData * __restrict__ tilingData,
                                 TPipe *tPipe);
     __aicore__ inline void Process();
 
@@ -71,7 +71,7 @@ __aicore__ inline void RowIdxGather::AssistInit()
 }
 
 __aicore__ inline void RowIdxGather::Init(GM_ADDR expandedRowIdx, GM_ADDR workspace,
-                                          const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                          const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
     srcToDstComputeTilingData_ = &(tilingData->srcToDstComputeParamsOp);

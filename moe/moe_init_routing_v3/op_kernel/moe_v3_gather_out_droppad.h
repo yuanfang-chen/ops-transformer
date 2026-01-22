@@ -28,7 +28,7 @@ class MoeGatherOutDroppad {
 public:
     __aicore__ inline MoeGatherOutDroppad(){};
     __aicore__ inline void Init(GM_ADDR inputX, GM_ADDR scale, GM_ADDR expandedRowIdx, GM_ADDR expandedX,
-                                GM_ADDR expandedScale, GM_ADDR workspace, const MoeInitRoutingV3TilingData *tilingData,
+                                GM_ADDR expandedScale, GM_ADDR workspace, const MoeInitRoutingV3TilingData * __restrict__ tilingData,
                                 TPipe *tPipe);
     __aicore__ inline void Process();
 
@@ -122,7 +122,7 @@ __aicore__ inline void MoeGatherOutDroppad<T>::CopyOut(int64_t progress)
 template <typename T>
 __aicore__ inline void MoeGatherOutDroppad<T>::Init(GM_ADDR inputX, GM_ADDR scale, GM_ADDR expandedRowIdx,
                                                     GM_ADDR expandedX, GM_ADDR expandedScale, GM_ADDR workspace,
-                                                    const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                    const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
     blockIdx_ = GetBlockIdx();

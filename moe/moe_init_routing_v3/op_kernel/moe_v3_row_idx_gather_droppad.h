@@ -25,7 +25,7 @@ class MoeV3SrcToDstWithCapacity {
 public:
     __aicore__ inline MoeV3SrcToDstWithCapacity(){};
     __aicore__ inline void Init(GM_ADDR expandedRowIdx, GM_ADDR expandedX, GM_ADDR expandedScale, GM_ADDR workspace,
-                                const TilingData *tilingData, TPipe *tPipe);
+                                const TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -201,7 +201,7 @@ __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::SyncAll()
 template <typename T, typename TilingData>
 __aicore__ inline void MoeV3SrcToDstWithCapacity<T, TilingData>::Init(GM_ADDR expandedRowIdx, GM_ADDR expandedX,
                                                                       GM_ADDR expandedScale, GM_ADDR workspace,
-                                                                      const TilingData *tilingData,
+                                                                      const TilingData * __restrict__ tilingData,
                                                                       TPipe *tPipe) // 增加scale
 {
     int64_t blockNum = GetBlockNum();

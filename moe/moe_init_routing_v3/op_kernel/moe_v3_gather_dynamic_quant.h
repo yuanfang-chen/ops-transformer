@@ -28,7 +28,7 @@ public:
     __aicore__ inline MoeGatherOutDynamicQuant(){};
     __aicore__ inline void Init(GM_ADDR inputX, GM_ADDR quantSmooth, GM_ADDR expandedRowIdx, GM_ADDR expandedX,
                                 GM_ADDR expandedScale, GM_ADDR sortedExpertIdx,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -461,7 +461,7 @@ template <typename T, const int COPYOUTTYPE>
 __aicore__ inline void
 MoeGatherOutDynamicQuant<T, COPYOUTTYPE>::Init(GM_ADDR inputX, GM_ADDR quantSmooth, GM_ADDR sortedExpertIdx,
                                                GM_ADDR expandedRowIdx, GM_ADDR expandedX, GM_ADDR expandedScale,
-                                               const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                               const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
     blockIdx_ = GetBlockIdx();
