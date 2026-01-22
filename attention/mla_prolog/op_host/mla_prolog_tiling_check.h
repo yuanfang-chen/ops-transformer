@@ -17,7 +17,7 @@
 #define MLA_PROLOG_TILING_CHECK_H
 
 #include "mla_prolog_tiling.h"
-
+#include "platform/soc_spec.h"
 namespace optiling {
 
 constexpr uint32_t MAX_B_SIZE = 65536U;
