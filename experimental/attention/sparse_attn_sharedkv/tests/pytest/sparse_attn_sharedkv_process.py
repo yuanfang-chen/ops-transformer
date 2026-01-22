@@ -469,7 +469,7 @@ def gen_ori_kv(ori_kv_type, B, N2, D, block_num1, block_size1, seqused_kv):
         ori_block_num_sum += cur_ori_kv_block_num
 
     if block_num1 < ori_block_num_sum:
-        raise ValueError(f"ori_kv actual_block_num < needed_block_num, which is {block_num1 < ori_block_num_sum}")
+        raise ValueError(f"ori_kv actual_block_num < needed_block_num, which is {block_num1} < {ori_block_num_sum}")
 
     ori_block_id_list = np.arange(block_num1)
     ori_block_id_list = np.random.permutation(ori_block_id_list).astype(np.int32)
@@ -530,7 +530,7 @@ def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_siz
         cmp_block_num_per_batch.append(cur_cmp_kv_block_num)
         cmp_block_num_sum += cur_cmp_kv_block_num
     if block_num2 < cmp_block_num_sum:
-        raise ValueError(f"cmp_kv actual_block_num < needed_block_num, which is {block_num2 < cmp_block_num_sum}")
+        raise ValueError(f"cmp_kv actual_block_num < needed_block_num, which is {block_num2} < {cmp_block_num_sum}")
 
     cmp_block_id_list = np.arange(block_num2)
     cmp_block_id_list = np.random.permutation(cmp_block_id_list).astype(np.int32)
