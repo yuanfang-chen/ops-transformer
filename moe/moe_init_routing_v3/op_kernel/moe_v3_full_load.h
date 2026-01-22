@@ -23,7 +23,7 @@ public:
     __aicore__ inline MoeV3FullLoad(){};
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR offset, GM_ADDR expandedX,
                                 GM_ADDR expandedRowIdx, GM_ADDR expertTokensCountOrCumsum, GM_ADDR expandedScale,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -229,7 +229,7 @@ __aicore__ inline void MoeV3FullLoad::CopyOutDynamicQuant()
 
 __aicore__ inline void MoeV3FullLoad::Init(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR offset,
                                            GM_ADDR expandedX, GM_ADDR expandedRowIdx, GM_ADDR expertTokensCountOrCumsum,
-                                           GM_ADDR expandedScale, const MoeInitRoutingV3TilingData *tilingData,
+                                           GM_ADDR expandedScale, const MoeInitRoutingV3TilingData * __restrict__ tilingData,
                                            TPipe *tPipe)
 {
     this->pipe = tPipe;

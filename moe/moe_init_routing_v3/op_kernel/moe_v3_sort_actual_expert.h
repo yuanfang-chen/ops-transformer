@@ -28,7 +28,7 @@ public:
     __aicore__ inline MoeSortActualExpert(){};
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR expandedX, GM_ADDR expendedRowIdx,
                                 GM_ADDR expertTokensCountOrCumsum, GM_ADDR expandedScale, GM_ADDR workspace,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline bool Process();
     __aicore__ inline void multiCoreGatheredSort();
     __aicore__ inline void CopyOutExpandRowIdx();
@@ -354,7 +354,7 @@ template <typename T>
 __aicore__ inline void MoeSortActualExpert<T>::Init(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR expandedX,
                                                     GM_ADDR expendedRowIdx, GM_ADDR expertTokensCountOrCumsum,
                                                     GM_ADDR expandedScale, GM_ADDR workspace,
-                                                    const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                    const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     this->pipe = tPipe;
     this->totalLength_ = tilingData->n * tilingData->k;

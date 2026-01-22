@@ -24,7 +24,7 @@ class MoeSortOneCore : public MoeSortBase {
 public:
     __aicore__ inline MoeSortOneCore(){};
     __aicore__ inline void Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -55,17 +55,18 @@ __aicore__ inline void MoeSortOneCore::SortCompute()
     LocalTensor<int32_t> expertIdx = inLocal[0];
     LocalTensor<float> expertIdxFp32 = expertIdx.ReinterpretCast<float>();
     Cast(expertIdxFp32, expertIdx, RoundMode::CAST_ROUND, this->tileLength);
-    LocalTensor<uint8_t> maskLocalTensor = sortedBuffer.Get<uint8_t>();
-    AscendC::CompareScalar(maskLocalTensor, expertIdxFp32, static_cast<float>(expertStart_), AscendC::CMPMODE::LT,
-                           (this->totalLength + ONE_REPEAT_COMPARE_NUM - 1) / ONE_REPEAT_COMPARE_NUM *
-                               ONE_REPEAT_COMPARE_NUM);
-
     Muls(expertIdxFp32, expertIdxFp32, (float)-1, this->tileLength);
 
-    LocalTensor<float> floatMinLocalTensor = tempBuffer.Get<float>();
-    Duplicate(floatMinLocalTensor, MIN_FP32, this->tileLength);
-    Select(expertIdxFp32, maskLocalTensor, floatMinLocalTensor, expertIdxFp32, SELMODE::VSEL_TENSOR_TENSOR_MODE,
-           this->totalLength);
+    if (ep_) {
+        LocalTensor<uint8_t> maskLocalTensor = sortedBuffer.Get<uint8_t>();
+        AscendC::CompareScalar(maskLocalTensor, expertIdxFp32, static_cast<float>(-expertStart_), AscendC::CMPMODE::GT,
+                               (this->totalLength + ONE_REPEAT_COMPARE_NUM - 1) / ONE_REPEAT_COMPARE_NUM *
+                                   ONE_REPEAT_COMPARE_NUM);
+        LocalTensor<float> floatMinLocalTensor = tempBuffer.Get<float>();
+        Duplicate(floatMinLocalTensor, MIN_FP32, this->tileLength);
+        Select(expertIdxFp32, maskLocalTensor, floatMinLocalTensor, expertIdxFp32, SELMODE::VSEL_TENSOR_TENSOR_MODE,
+               this->totalLength);
+    }
 
     int64_t duplicateNum = this->totalLength % ONE_REPEAT_SORT_NUM;
     if (duplicateNum > 0) {
@@ -112,13 +113,14 @@ __aicore__ inline void MoeSortOneCore::CopyOut()
 }
 
 __aicore__ inline void MoeSortOneCore::Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                            const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                            const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     this->pipe = tPipe;
     this->tileLength = Align(tilingData->vbsComputeParamsOp.lastCorePerLoopElements, sizeof(int32_t));
     this->sortNum = Ceil(this->tileLength, ONE_REPEAT_SORT_NUM) * ONE_REPEAT_SORT_NUM;
     this->totalLength = tilingData->n * tilingData->k;
     this->coreNum = tilingData->coreNum;
+    this->ep_ = tilingData->ep;
     expertStart_ = tilingData->expertStart;
     expertEnd_ = tilingData->expertEnd;
     rowIdxType_ = tilingData->rowIdxType;

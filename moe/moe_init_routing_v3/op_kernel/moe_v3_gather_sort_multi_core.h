@@ -28,7 +28,7 @@ class MoeGatherSortMultiCore {
 public:
     __aicore__ inline MoeGatherSortMultiCore(){};
     __aicore__ inline void Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -183,7 +183,7 @@ __aicore__ inline void MoeGatherSortMultiCore::CopyOut()
 }
 
 __aicore__ inline void MoeGatherSortMultiCore::Init(GM_ADDR expertIdx, GM_ADDR expendedRowIdx, GM_ADDR workspace,
-                                                    const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                    const MoeInitRoutingV3TilingData * __restrict__ tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
     blockIdx_ = GetBlockIdx();
