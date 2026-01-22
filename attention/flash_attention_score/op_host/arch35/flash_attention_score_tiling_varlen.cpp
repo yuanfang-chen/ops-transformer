@@ -506,7 +506,7 @@ protected:
         return true;
     }
 
-    bool IsUsesplit(SparseMode inputSparseMode) {
+    bool IsUseSpliteCoreMode(SparseMode inputSparseMode) {
         if (inputSparseMode == SparseMode::LEFT_UP_CAUSAL || inputSparseMode == SparseMode::RIGHT_DOWN_CAUSAL) {
             for (auto i = 0; i < bSize; i++) {
                 // 当前采用保守判断条件，当同batch中S1、S2均超过阈值时开启分核优化
