@@ -16,21 +16,19 @@
 #ifndef FLASH_ATTENTION_SCORE_KERNEL_BASE_H_
 #define FLASH_ATTENTION_SCORE_KERNEL_BASE_H_
 #include "flash_attention_score_block_cube.h"
-#include "flash_attention_score_block_vec_train.h"
 #include "flash_attention_score_block_vec_infer.h"
 #include "flash_attention_score_common_regbase.h"
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "attenmask.h"
 
 // 线上编包
-#include "../../../common/op_kernel/matmul.h"
-#include "../../../common/op_kernel/FixpipeOut.h"
-#include "../../../common/op_kernel/CopyInL1.h"
+#include "../matmul.h"
+#include "../FixpipeOut.h"
+#include "../CopyInL1.h"
 
 #include "pse.h"
 #include "infer_flash_attention_comm.h"
 #include "kernel_operator_list_tensor_intf.h"
-#include "adv_api/utils/init_global_memory.h"
 
 using matmul::MatmulType;
 using namespace AscendC;
@@ -50,8 +48,8 @@ public:
                             __gm__ uint8_t *prefix, __gm__ uint8_t *actualSeqLengths,
                             __gm__ uint8_t *actualSeqLengthsKv, __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize, 
                             __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, 
-                            __gm__ uint8_t *deqScaleV, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
-                            __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen, 
+                            __gm__ uint8_t *deqScaleV, __gm__ uint8_t *deqScaleQK, __gm__ uint8_t *quantScaleP,
+                            __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
                             __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum,
                             __gm__ uint8_t *softmaxOut, __gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut,
                             __gm__ uint8_t *workspace, const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe);
@@ -61,15 +59,14 @@ public:
                             __gm__ uint8_t *dropMask, __gm__ uint8_t *paddingMask, __gm__ uint8_t *attenMask,
                             __gm__ uint8_t *prefix, __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *actualSeqLengthsKv,
                             __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
+                            __gm__ uint8_t *deqScaleQK, __gm__ uint8_t *quantScaleP,
                             __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *queryRope,
-                            __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen,
                             __gm__ uint8_t *keyRope, __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize,
                             __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum,
                             __gm__ uint8_t *softmaxOut, __gm__ uint8_t *workspace,
                             const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitMMResBuf();
-    __aicore__ inline void InitActualKVPrefixLen(__gm__ uint8_t *actualSharedPrefixLen);
     __aicore__ inline void ComputeConstexpr();
     __aicore__ inline void SetRunInfo(RunInfo<isInfer> &runInfo, RunParamStr<isInfer> &runParam, int64_t taskId, int64_t s2LoopCount,
                                       int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
@@ -128,9 +125,6 @@ public:
     uint64_t s1SizeAcc;
     uint64_t s2SizeAcc;
 
-    // prefix
-    int64_t actualKVPrefixLen = 0;
-
     /* 模板库Block */
     CubeBlockType cubeBlock;
     VecBlockType vecBlock;
@@ -142,62 +136,31 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     __gm__ uint8_t *paddingMask, __gm__ uint8_t *attenMask, __gm__ uint8_t *prefix, __gm__ uint8_t *actualSeqLengths,
     __gm__ uint8_t *actualSeqLengthsKv, __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize,
     __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
-    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, 
-    __gm__ uint8_t *actualSharedPrefixLen, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
+    __gm__ uint8_t *deqScaleQK, __gm__ uint8_t *quantScaleP,
+    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
     __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut, __gm__ uint8_t *softmaxLse,
     __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
     const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe)
 {
     fa_base_matmul::idCounterNum = 0;
     constInfo.subBlockIdx = GetSubBlockIdx();
-    if ASCEND_IS_AIC {
-        this->aicIdx = GetBlockIdx();
-    } else {
-        constInfo.aivIdx = GetBlockIdx();
-        this->aicIdx = constInfo.aivIdx >> 1;
-        this->tilingData = tiling;
-    }
+    constInfo.aivIdx = GetBlockIdx();
+    this->aicIdx = constInfo.aivIdx;
+    this->tilingData = tiling;
     this->pipe = tPipe;
     vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx, 
         attenMaskInfo, pseInfo);
     vecBlock.CleanOutput(softmaxLse, attentionOut, constInfo);
     /* cube侧不依赖sharedParams的scalar前置 */
     InitMMResBuf();
-    if ASCEND_IS_AIC {
-        cubeBlock.InitCubeBlock(pipe, &l1BufferManager, query, key, value, blockTable, queryRope, keyRope);
-        /* wait kfc message */
-        CrossCoreWaitFlag<SYNC_MODE, PIPE_S>(15);
-        auto tempTilingSSbuf = reinterpret_cast<__ssbuf__ uint32_t*>(0); // 从ssbuf的0地址开始拷贝
-        auto tempTiling = reinterpret_cast<uint32_t *>(&sharedParams);
-        #pragma unroll
-        for (int i = 0; i < sizeof(CVSharedParams<isInfer, isPa>) / sizeof(uint32_t); ++i, ++tempTilingSSbuf, ++tempTiling) {
-            *tempTiling = *tempTilingSSbuf;
-        }
-    }
+    cubeBlock.InitCubeBlock(pipe, &l1BufferManager, query, key, value, blockTable, queryRope, keyRope);
 
-    this->InitActualKVPrefixLen(actualSharedPrefixLen);
     this->ComputeConstexpr();
     this->InitGlobalBuffer(query, key, value, pse, dropMask, paddingMask, attenMask, prefix,
-        actualSeqLengths, actualSeqLengthsKv, deqScaleQ, deqScaleK, deqScaleV, postQuantScale, postQuantOffset,
-        keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, blockTable, queryPaddingSize, 
-        kvPaddingSize, softmaxMax, softmaxSum, softmaxOut, workspace, tiling, tPipe); // gm设置
+        actualSeqLengths, actualSeqLengthsKv, deqScaleQ, deqScaleK, deqScaleV, deqScaleQK, quantScaleP, postQuantScale, postQuantOffset,
+        queryRope, keyRope, blockTable, queryPaddingSize, kvPaddingSize, softmaxMax, softmaxSum, softmaxOut,
+        workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
-}
-
-template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, VecBlockType>::InitActualKVPrefixLen(__gm__ uint8_t *actualSharedPrefixLen) 
-{
-    if constexpr (isInfer) {
-        if constexpr (enableKVPrefix) {
-            constInfo.kvPrefixSize = this->sharedParams.kvPrefixSize;
-            if (!this->sharedParams.isActualSharedPrefixLenNull) {
-                this->actualKVPrefixLen = ((__gm__ int64_t *)actualSharedPrefixLen)[0];
-            } else {
-                this->actualKVPrefixLen = this->sharedParams.kvPrefixSize;
-            }
-            constInfo.actualKVPrefixSize = this->actualKVPrefixLen;
-        }
-    }
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
@@ -205,8 +168,8 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pse, __gm__ uint8_t *dropMask,
     __gm__ uint8_t *paddingMask, __gm__ uint8_t *attenMask, __gm__ uint8_t *prefix, __gm__ uint8_t *actualSeqLengths,
     __gm__ uint8_t *actualSeqLengthsKv, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
-    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, 
-    __gm__ uint8_t*actualSharedPrefixLen, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
+    __gm__ uint8_t *deqScaleQK, __gm__ uint8_t *quantScaleP,
+    __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize,
     __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut, __gm__ uint8_t *workspace,
     const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe)
@@ -230,7 +193,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     if constexpr (hasAtten) {
         attenMaskInfo.prefixNAddr = prefix;
     }
-    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         actualSeqQlenAddr = (__gm__ int64_t *)actualSeqLengths;
         actualSeqKvlenAddr = (__gm__ int64_t *)actualSeqLengthsKv;
     } else {
@@ -244,7 +207,6 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         }
     }
 
-    vecBlock.InitDropOut(dropMask, workspace);
     uint64_t singleCoreOffset = 0;
     if constexpr (!bmm2Write2Ub) {
         int64_t bmm2ResBlock = this->sharedParams.dSizeV;
@@ -265,41 +227,10 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         bmm2ResGmBuffers.Init(gmBufferManager, mm2Offset);
         workspace += (totalOffset + mm2Offset * 3);
     }
-    vecBlock.InitGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, postQuantScale, postQuantOffset,
-        prefix, attenMask, queryPaddingSize, kvPaddingSize, softmaxMax, softmaxSum, workspace, singleCoreOffset,
-        this->aicIdx, constInfo);
-    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND && !isInfer) {
-        if ASCEND_IS_AIV {
-            int64_t actualS1Len;
-            int64_t actualS2Len;
-            for (int64_t i = 0; i < this->sharedParams.bSize; ++i) {
-                this->GetSeqQlenKvlenByBoidx(i, actualS1Len, actualS2Len);
-                if (actualS2Len <= 0 && actualS1Len != 0) {
-                    int64_t accumSize = (i == 0) ? 0 : ((__gm__ int64_t *)this->actualSeqQlenAddr)[i - 1];
-                    if (actualS1Len < 0 && accumSize > 0) {
-                        actualS1Len = constInfo.s1Size - accumSize;
-                        int64_t frontCoreNum = actualS1Len % (this->sharedParams.coreNum * 2);
-                        int64_t splitFactor = frontCoreNum > 0 ? 1 : 0;
-                        int64_t s1SizeInner = actualS1Len / this->sharedParams.coreNum / 2;
-                        int64_t innerOffset1 = (s1SizeInner + splitFactor) * (constInfo.aivIdx >= frontCoreNum ?
-                                            frontCoreNum : constInfo.aivIdx);
-                        int64_t innerOffset2 = s1SizeInner * (constInfo.aivIdx >= frontCoreNum ?
-                                            constInfo.aivIdx - frontCoreNum : 0);
-                        accumSize = accumSize + innerOffset1 + innerOffset2;
-                        actualS1Len = s1SizeInner + (constInfo.aivIdx >= frontCoreNum ? 0 : splitFactor);
-                    }
-                    GlobalTensor<OUTPUT_T> attentionOutEodGm = this->vecBlock.attentionOutGm[accumSize * this->constInfo.n2GDv];
-                    GlobalTensor<float> softmaxMaxEodGm = this->vecBlock.softmaxMaxGm[accumSize * this->constInfo.n2G * 8];
-                    GlobalTensor<float> softmaxSumEodGm = this->vecBlock.softmaxSumGm[accumSize * this->constInfo.n2G * 8];
-                    AscendC::Fill<OUTPUT_T>(attentionOutEodGm, actualS1Len * this->constInfo.n2GDv, static_cast<OUTPUT_T>(0.0));
-                    AscendC::Fill<float>(softmaxMaxEodGm, actualS1Len * this->constInfo.n2G * 8, static_cast<float>(0.0));
-                    AscendC::Fill<float>(softmaxSumEodGm, actualS1Len * this->constInfo.n2G * 8, static_cast<float>(0.0));
-                    SyncAll();
-                }
-            }
-        }
-    }
-    cubeBlock.InitCubeInput(key, value, &sharedParams, &attenMaskInfo, actualSeqQlenAddr, actualSeqKvlenAddr, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen);
+    vecBlock.InitGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, deqScaleQK, quantScaleP, postQuantScale, postQuantOffset,
+        prefix, attenMask, dropMask, queryPaddingSize, kvPaddingSize, softmaxMax, softmaxSum, workspace, singleCoreOffset, this->aicIdx, constInfo);
+    cubeBlock.InitGlobalBuffer(deqScaleQK, deqScaleV, constInfo);
+    cubeBlock.InitCubeInput(key, value, &sharedParams, &attenMaskInfo, actualSeqQlenAddr, actualSeqKvlenAddr);
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
@@ -314,26 +245,16 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     if constexpr (bmm2Write2Ub) {
         if constexpr (!(useDn && isFp8)) {
             ubBufferManager.Init(pipe, mm1ResultSize * 2 + mm2ResultSize * 2);
+            PipeBarrier<PIPE_ALL>();
             bmm2Buffers.Init(ubBufferManager, mm2ResultSize);
-            if ASCEND_IS_AIV {
-                bmm2Buffers.Get().SetCrossCore();
-                bmm2Buffers.Get().SetCrossCore();
-            }
         } else {
             ubBufferManager.Init(pipe, mm1ResultSize * 2 + mm2ResultSize);
             bmm2Buffers.Init(ubBufferManager, mm2ResultSize);
-            if ASCEND_IS_AIV {
-                bmm2Buffers.Get().SetCrossCore();
-            }
         }
     } else {
         ubBufferManager.Init(pipe, mm1ResultSize * 2);
     }
     bmm1Buffers.Init(ubBufferManager, mm1ResultSize);
-    if ASCEND_IS_AIV {
-        bmm1Buffers.Get().SetCrossCore();
-        bmm1Buffers.Get().SetCrossCore();
-    }
 }
  
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
@@ -349,9 +270,6 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     constInfo.s2BaseSize = s2BaseSize;
     // 计算轴的乘积
 
-    constInfo.bSize = sharedParams.bSize;
-    constInfo.t1Size = sharedParams.t1Size;
-    constInfo.t2Size = sharedParams.t2Size;
     constInfo.n2Size = sharedParams.n2Size;
     constInfo.s1Size = sharedParams.s1Size;
     constInfo.s2Size = sharedParams.s2Size;
@@ -396,16 +314,12 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
                 constInfo.mm1Ka = constInfo.dSize;
             }
         }
-        if ASCEND_IS_AIV {
-            constInfo.attentionOutStride = (constInfo.n2G - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
-            if constexpr (isInfer) {
-                if (sharedParams.isPfaGS1Merge == 1) {
-                    constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
-                } else if (sharedParams.isGqa == 1) {
-                    constInfo.attentionOutStride = 0;
-                }
-            }
-        }
+        constInfo.attentionOutStride = (constInfo.n2G - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
+	if constexpr (isInfer) {
+	    if (sharedParams.isGqa) {
+	        constInfo.attentionOutStride = 0;
+	    }
+	}
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
         // BSH/BSNGD
         constInfo.s1BaseN2GDv = s1BaseSize * constInfo.n2GDv;
@@ -421,15 +335,11 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
                 constInfo.mm1Ka = constInfo.dSize;
             }
         }
-        if ASCEND_IS_AIV {
-            constInfo.attentionOutStride =
-                (constInfo.n2G - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
-            if constexpr (isInfer) {
-                if (sharedParams.isPfaGS1Merge == 1) {
-                    constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
-                } else if (sharedParams.isGqa == 1) {
-                    constInfo.attentionOutStride = 0;
-                }
+        constInfo.attentionOutStride =
+            (constInfo.n2G - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
+        if constexpr (isInfer) {
+            if (sharedParams.isGqa) {
+                constInfo.attentionOutStride = 0;
             }
         }
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_SBH) {
@@ -444,10 +354,8 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         constInfo.mm1Ka = sharedParams.bSize * constInfo.n2Size * constInfo.gSize * constInfo.dSize;
         constInfo.mm1Kb = sharedParams.bSize * constInfo.n2Size * constInfo.dSize;
         constInfo.mm2Kb = sharedParams.bSize * constInfo.n2Dv;
-        if ASCEND_IS_AIV {
-            constInfo.attentionOutStride =
-                (sharedParams.bSize * constInfo.n2Size * constInfo.gSize - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
-        }
+        constInfo.attentionOutStride =
+            (sharedParams.bSize * constInfo.n2Size * constInfo.gSize - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
         // bnsd
         constInfo.s1BaseDv = s1BaseSize * constInfo.dSizeV;
@@ -459,53 +367,35 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         constInfo.mm1Ka = constInfo.dSize;
         constInfo.mm1Kb = constInfo.dSize;
         constInfo.mm2Kb = constInfo.dSizeV;
-        if ASCEND_IS_AIV {
-            constInfo.attentionOutStride = 0;
-        }
-    } else if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
-        // NG(BS)D
-        constInfo.s1BaseDv = s1BaseSize * constInfo.dSizeV;
-        constInfo.s2BaseDv = s2BaseSize * constInfo.dSizeV;
-        if constexpr (hasRope) {
-            constInfo.mm1RopeKa = constInfo.dSizeRope;
-            constInfo.mm1RopeKb = constInfo.dSizeRope;
-        }
-        constInfo.mm1Ka = constInfo.dSize;
-        constInfo.mm1Kb = constInfo.dSize;
-        constInfo.mm2Kb = constInfo.dSizeV;
-        if ASCEND_IS_AIV {
-            constInfo.attentionOutStride = 0;
+        constInfo.attentionOutStride = 0;
+    }
+
+    auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
+    if constexpr (pseMode != PseTypeEnum::PSE_NONE_TYPE) {
+        pseInfo.pseLayoutType = inputParamsRegbase.pseShapeType;
+        pseInfo.pseType = inputParamsRegbase.pseType;
+        pseInfo.pseBSize = inputParamsRegbase.pseBSize;
+        pseInfo.pseS1Size = inputParamsRegbase.pseS1Size;
+        pseInfo.pseS2Size = inputParamsRegbase.pseS2Size;
+        pseInfo.pseEncodeType = (uint32_t)inputParamsRegbase.pseEncodeType;
+        pseInfo.pseStride = pseInfo.pseLayoutType == pse1S2 ? 0 : s2BaseSize;
+        pseInfo.qStartIdx = inputParamsRegbase.qStartIdx;
+        pseInfo.kvStartIdx = inputParamsRegbase.kvStartIdx;
+        if (inputParamsRegbase.pseShapeType == pse1S2) {
+            constInfo.gS2 = constInfo.gSize * constInfo.s2Size;
         }
     }
 
-    if ASCEND_IS_AIV {
-        auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
-        if constexpr (pseMode != PseTypeEnum::PSE_NONE_TYPE) {
-            pseInfo.pseLayoutType = inputParamsRegbase.pseShapeType;
-            pseInfo.pseType = inputParamsRegbase.pseType;
-            pseInfo.pseBSize = inputParamsRegbase.pseBSize;
-            pseInfo.pseS1Size = inputParamsRegbase.pseS1Size;
-            pseInfo.pseS2Size = inputParamsRegbase.pseS2Size;
-            pseInfo.pseEncodeType = (uint32_t)inputParamsRegbase.pseEncodeType;
-            pseInfo.pseStride = pseInfo.pseLayoutType == pse1S2 ? 0 : s2BaseSize;
-            pseInfo.qStartIdx = inputParamsRegbase.qStartIdx;
-            pseInfo.kvStartIdx = inputParamsRegbase.kvStartIdx;
-            if (inputParamsRegbase.pseShapeType == pse1S2) {
-                constInfo.gS2 = constInfo.gSize * constInfo.s2Size;
-            }
-        }
-
-        if constexpr (hasAtten) {
-            attenMaskInfo.preTokens = sharedParams.preTokens;
-            attenMaskInfo.nextTokens = sharedParams.nextTokens;
-            attenMaskInfo.compressMode = inputParamsRegbase.attenMaskCompressMode;
-            attenMaskInfo.attenMaskShapeType = inputParamsRegbase.attenMaskShapeType;
-            attenMaskInfo.attenMaskS1Size = inputParamsRegbase.attenMaskS1Size;
-            attenMaskInfo.attenMaskS2Size = inputParamsRegbase.attenMaskS2Size;
-            attenMaskInfo.bandIndex = inputParamsRegbase.bandIndex;
-        }
-        constInfo.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
+    if constexpr (hasAtten) {
+        attenMaskInfo.preTokens = sharedParams.preTokens;
+        attenMaskInfo.nextTokens = sharedParams.nextTokens;
+        attenMaskInfo.compressMode = inputParamsRegbase.attenMaskCompressMode;
+        attenMaskInfo.attenMaskShapeType = inputParamsRegbase.attenMaskShapeType;
+        attenMaskInfo.attenMaskS1Size = inputParamsRegbase.attenMaskS1Size;
+        attenMaskInfo.attenMaskS2Size = inputParamsRegbase.attenMaskS2Size;
+        attenMaskInfo.bandIndex = inputParamsRegbase.bandIndex;
     }
+    constInfo.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
 
     GetDerived()->InitUniqueConstInfo();
 }
@@ -543,7 +433,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
             this->s1SizeAcc += runParam.actualS1Size;
             this->s2SizeAcc += runParam.actualS2Size;
             runParam.b1SSOffset += runParam.actualS1Size * runParam.actualS2Size;
-            if constexpr (hasDrop) {
+            if (hasDrop) {
                 runParam.b1SSOffsetAlign16 += runParam.actualS1Size * Align(runParam.actualS2Size);
             }
             runParam.boIdx++;
@@ -567,7 +457,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         runParam.b1SSOffset = runParam.boIdx * constInfo.s1S2;
         runParam.actualS1Size = constInfo.s1Size;
         runParam.actualS2Size = constInfo.s2Size;
-        if constexpr (hasDrop) {
+        if (hasDrop) {
             runParam.b1SSOffsetAlign16 = runParam.boIdx * constInfo.s1Size * Align(constInfo.s2Size);
         }
     }
@@ -600,7 +490,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         runInfo.multiCoreIdxMod2 = multiCoreInnerIdx & 1;
         runInfo.multiCoreIdxMod3 = multiCoreInnerIdx % 3;
     }
-    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         runInfo.boIdx = runParam.boIdx;
         runInfo.s1SizeAcc = s1SizeAcc;
         runInfo.s2SizeAcc = s2SizeAcc;
@@ -618,11 +508,6 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     runInfo.actualS1Size = runParam.actualS1Size;
     runInfo.actualS2Size = runParam.actualS2Size;
     runInfo.attentionOutOffset = runParam.attentionOutOffset;
-    runInfo.queryOffset = runParam.tensorQOffset;
-    runInfo.qRopeOffset = runParam.qRopeNBGOffset;
-    if constexpr (isInfer) {
-        runInfo.sOuterOffset = runParam.sOuterOffset;
-    }
     this->ComputeBmm1Tail(runInfo, runParam);
     GetDerived()->InitUniqueRunInfo(runParam, runInfo);
 }
@@ -641,24 +526,10 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
 
     // ------------------------S2 Base Related----------------------------
     runInfo.s2RealSize = s2BaseSize;
-    runInfo.s2AlignedSize = runInfo.s2RealSize;
-    if constexpr (enableKVPrefix) {
-        if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
-            if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > constInfo.actualKVPrefixSize) {
-                runInfo.s2RealSize = constInfo.actualKVPrefixSize - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-                runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-            }
-        } else {
-            if (runInfo.s2StartIdx + (runInfo.s2LoopCount - constInfo.prefixLoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx - constInfo.actualKVPrefixSize) {
-                runInfo.s2RealSize = (runInfo.s2EndIdx - constInfo.actualKVPrefixSize) - (runInfo.s2LoopCount - constInfo.prefixLoopCount) * runInfo.s2RealSize - runInfo.s2StartIdx;
-                runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-            }
-        }
-    } else {
-        if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
-            runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
-            runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
-        }
+    runInfo.s2AlignedSize = runInfo.s2RealSize; 
+    if (runInfo.s2StartIdx + (runInfo.s2LoopCount + 1) * runInfo.s2RealSize > runInfo.s2EndIdx) {
+        runInfo.s2RealSize = runInfo.s2EndIdx - runInfo.s2LoopCount * runInfo.s2RealSize - runInfo.s2StartIdx;
+        runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
 }
 }
