@@ -172,6 +172,7 @@ private:
 
     LocalTensor<int32_t> v0ValidSizeUb_;
     uint32_t maxBlockNumPerBatch;
+    uint32_t blockSize;
 };
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -211,10 +212,10 @@ __aicore__ inline int64_t SCFABlockVec<TEMPLATE_ARGS>::GetkeyOffset(int64_t s2Id
     }
     int64_t realkeyOffset = 0;
     if constexpr (isPa) {
-        int64_t blkTableIdx = s2Idx / constInfo_.blockSize;
-        int64_t blkTableOffset = s2Idx % constInfo_.blockSize;
+        int64_t blkTableIdx = s2Idx / blockSize;
+        int64_t blkTableOffset = s2Idx % blockSize;
         realkeyOffset = blockTableGm_.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
-                                static_cast<int64_t>(constInfo_.blockSize) * constInfo_.dSizeVInput +
+                                static_cast<int64_t>(blockSize) * constInfo_.dSizeVInput +
                                 blkTableOffset * constInfo_.dSizeVInput; // BlockNum, BlockSize, N(1), D
     } else {
         realkeyOffset = runInfo.boIdx * constInfo_.s2Size + s2Idx; // BSN(1)D
@@ -520,14 +521,14 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
         uint32_t curSequence = s2Idx;
         while (copyFinishElmenCnt < dealRow) {
             // PRINTF("copyFinishElmenCnt(%d) < s2ProcessSize(%d)\n", copyFinishElmenCnt, s2ProcessSize);
-            uint64_t blockIdOffset = curSequence / constInfo_.blockSize;
-            uint64_t remainElmenCnt = curSequence % constInfo_.blockSize;
+            uint64_t blockIdOffset = curSequence / blockSize;
+            uint64_t remainElmenCnt = curSequence % blockSize;
             uint64_t idInBlockTable = blockTableGm_.GetValue(blockTableBaseOffset + blockIdOffset);
-            uint32_t copyElmenCnt = constInfo_.blockSize - remainElmenCnt;
+            uint32_t copyElmenCnt = blockSize - remainElmenCnt;
             if (copyElmenCnt + copyFinishElmenCnt > dealRow) {
                 copyElmenCnt = dealRow - copyFinishElmenCnt;
             }
-            uint64_t srcOffset = idInBlockTable * constInfo_.blockSize * constInfo_.n2Size * combineBytes +
+            uint64_t srcOffset = idInBlockTable * blockSize * constInfo_.n2Size * combineBytes +
                 remainElmenCnt * constInfo_.n2Size * combineBytes + (uint64_t)(runInfo.n2oIdx * combineBytes); // BlockNum, BlockSize, N, D
             intriParams.blockCount = copyElmenCnt; // base s2 size
             DataCopyPad(kvMergUb[dstOffset * combineDimAlign], keyGm_[srcOffset], intriParams, padParams);
@@ -549,11 +550,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
     if (isCmp) {
         keyGm_ = cmpKVGm;
         blockTableGm_ = cmpBlockTableGm;
+        blockSize = constInfo_.cmpBlockSize;
         maxBlockNumPerBatch = constInfo_.cmpMaxBlockNumPerBatch;
-        // todo block size可以不同
     } else {
         keyGm_ = oriKVGm;
         blockTableGm_ = oriBlockTableGm;
+        blockSize = constInfo_.oriBlockSize;
         maxBlockNumPerBatch = constInfo_.oriMaxBlockNumPerBatch;
     }
 
@@ -860,7 +862,7 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitSinksBuffer()
 {
     LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
-    const uint32_t maxN = 128; // N最大支持128, sink shape是[N]
+    const uint32_t maxN = constInfo_.gSize; // N最大支持128, sink shape是[N]
     DataCopyExtParams dataCopyParams;
     dataCopyParams.blockCount = 1U;
     dataCopyParams.blockLen = maxN * sizeof(T);
@@ -933,7 +935,8 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
 
     // pageAttention, rope在C侧搬运时使用
     if constexpr (isPa) {
-        sharedParams.blockSize = sparseAttnSharedkvBaseParams.paBlockSize;
+        sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.paOriBlockSize;
+        sharedParams.cmpBlockSize = sparseAttnSharedkvBaseParams.paCmpBlockSize;
         sharedParams.oriMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.oriMaxBlockNumPerBatch; 
         sharedParams.cmpMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.cmpMaxBlockNumPerBatch;
     }
