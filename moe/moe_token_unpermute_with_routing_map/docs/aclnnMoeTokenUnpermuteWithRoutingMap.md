@@ -153,7 +153,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
         <td>Shape中的capacity表示每个专家能够处理的token个数。</td>
         <td>BFLOAT16、FLOAT16、FLOAT</td>
         <td>ND</td>
-        <td>paddedMode为false：(tokens_num * topK_num,  hidden_size），<br>paddedMode为true：(experts_num* capacity,  hidden_size）。</td>
+        <td>paddedMode为false：(tokens_num * topK_num,  hidden_size)，<br>paddedMode为true：(experts_num * capacity,  hidden_size)。</td>
         <td>√</td>
       </tr>
       <tr>
@@ -220,10 +220,10 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
         <td>outIndex</td>
         <td>输出</td>
         <td>表示输出的索引值，计算公式中的outIndex。</td>
-        <td>当paddedMode为false时，索引取值范围[0，tokens_num * topK_num - 1]。当paddedMode为true时，索引取值范围[0，experts_num* capacity- 1]。</td>
+        <td>当paddedMode为false时，索引取值范围[0，tokens_num * topK_num - 1]。当paddedMode为true时，索引取值范围[0，experts_num * capacity- 1]。</td>
         <td>INT32</td>
         <td>ND</td>
-        <td>paddedMode为false：(tokens_num * topK_num)，<br>paddedMode为true：(experts_num* capacity)。</td>
+        <td>paddedMode为false：(tokens_num * topK_num)，<br>paddedMode为true：(experts_num * capacity)。</td>
         <td>√</td>
       </tr>
       <tr>
@@ -233,7 +233,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMap(
         <td>索引取值范围[0，tokens_num - 1]。</td>
         <td>INT32</td>
         <td>ND</td>
-        <td>paddedMode为false：(tokens_num * topK_num)，<br>paddedMode为true：(experts_num* capacity)。</td>
+        <td>paddedMode为false：(tokens_num * topK_num)，<br>paddedMode为true：(experts_num * capacity)。</td>
         <td>√</td>
       </tr>
       <tr>

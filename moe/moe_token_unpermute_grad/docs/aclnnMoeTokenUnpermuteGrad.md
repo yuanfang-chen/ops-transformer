@@ -167,7 +167,7 @@ aclnnStatus aclnnMoeTokenUnpermuteGrad(
         <td>-</td>
         <td>与permutedTokens一致。</td>
         <td>ND</td>
-        <td>(tokens_num * topK_num, hidden_size）</td>
+        <td>(tokens_num * topK_num, hidden_size)</td>
         <td>×</td>
       </tr>
       <tr>
