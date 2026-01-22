@@ -199,7 +199,7 @@ __aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo()
 {
     return {.ubWeightOutputHighBitBufferNum = QUADRUPLE_BUFFER_NUM,
             .weightInputLowbitUbTotalSize = 64 * GetKBUnit<int8_t>(), // 64KB
-            .highBitDataUbTotalSize = 64 * GetKBUnit<int8_t>(),       // 64KB
+            .highBitDataUbTotalSize = 128 * GetKBUnit<int8_t>(),       // 128KB
             .biasUbTotalSize = 2 * GetKBUnit<half>(),                 // 2KB
             .biasReducedUbTotalSize = 2 * GetKBUnit<half>(),          // 2KB
             .antiQuantScaleUbTotalSize = 0,
@@ -208,10 +208,10 @@ __aicore__ constexpr UbBufferInfo GetMxA8W4NzBufferInfo()
             .weightInputLowBitUbSingleBufferSize = 64 * GetKBUnit<int8_t>() / vecConfig.ubMte2BufferNum,
             .antiQuantScaleUbSingleBufferSize = 0,
             .antiQuantScaleAfterCastUbSingleBufferSize = 0,
-            .biasUbSingleBufferSize = 2 * GetKBUnit<half>() / QUADRUPLE_BUFFER_NUM,
-            .biasReducedSingleBufferSize = 2 * GetKBUnit<half>() / QUADRUPLE_BUFFER_NUM,
+            .biasUbSingleBufferSize = 2 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
+            .biasReducedSingleBufferSize = 2 * GetKBUnit<half>() / vecConfig.ubMte2BufferNum,
             .antiQuantOffsetUbSingleBufferSize = 0,
-            .highBitDataUbSingleBufferSize = 64 * GetKBUnit<int8_t>() / QUADRUPLE_BUFFER_NUM,
+            .highBitDataUbSingleBufferSize = 128 * GetKBUnit<int8_t>() / QUADRUPLE_BUFFER_NUM,
             .antiQuantScaleMaskBufferSize = 0};
 }
 
@@ -253,8 +253,9 @@ __aicore__ constexpr VfConfig GetVfConfig()
         return {.vfNStandardLen = 256, .vfKStandardLen = 64};
     } else if constexpr (wqmmConfig.antiQuantType == QuantType::MX) {
         if constexpr (IsSameType<xType, fp8_e4m3fn_t>::value) {
-            return {.vfNStandardLen = 256, .vfKStandardLen = 64};
-        } else {
+            // mxA8W4场景动态配置，实际不生效
+            return {.vfNStandardLen = 128, .vfKStandardLen = 256};
+        } else if constexpr (vecConfig.ubMte2InnerSize > 0) {
             return {.vfNStandardLen = 32 * GetKBUnit<half>() / vecConfig.ubMte2InnerSize,
                     .vfKStandardLen = vecConfig.ubMte2InnerSize};
         }
