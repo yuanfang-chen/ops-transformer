@@ -735,6 +735,8 @@ bool MoeInitRoutingV2TilingBase::IsFullLoad()
         this->dropPadMode == 1) {
         return false;
     }
+
+    context_->SetScheduleMode(1);
     int64_t sortBufferNum = is310P ? ONE_CORE_SORT_BUFFER_310P : ONE_CORE_SORT_BUFFER;
 
     int64_t sortSpace =
