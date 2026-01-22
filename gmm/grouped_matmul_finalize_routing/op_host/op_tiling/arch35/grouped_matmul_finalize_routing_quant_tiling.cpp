@@ -41,7 +41,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeAttrs()
     auto attrs = context_->GetAttrs();
     OP_CHECK_IF(attrs == nullptr, OP_LOGE(context_->GetNodeName(), "Attrs is nullptr."), return false);
     OP_CHECK_IF(attrs->GetAttrNum() < ATTR_INDEX_TUNING_CONFIG + 1,
-                OP_LOGE(context_->GetNodeName(), "The num of attrs should be greater than %u, actual is %zu",
+                OP_LOGE(context_->GetNodeName(), "The num of attrs should be greater than %u, actual is  %zu",
                         ATTR_INDEX_TUNING_CONFIG + 1, attrs->GetAttrNum()),
                 return false);
     const float *shareInputWeightPtr = attrs->GetAttrPointer<float>(ATTR_INDEX_SHARE_INPUT_WEIGHT);
