@@ -138,7 +138,8 @@ class GeneralizedSFA:
                         mm1_res = torch.matmul(q_curr_fp32, k_concat_fp32.T)
                         scale_res = mm1_res * self.softmax_scale
                         softmax_res = self.sinks_softmax(scale_res, cur_sinks_expand)
-                        mm2_res = torch.matmul(softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float), v_concat_fp32)
+                        # mm2_res = torch.matmul(softmax_res.to(dtype=q_bnsd.dtype).to(dtype=torch.float), v_concat_fp32)
+                        mm2_res = torch.matmul(softmax_res, v_concat_fp32) # TODO: 暂时保持库上golden不变，待AMLA golden精度问题确认之后，此处改为降精度版本
                         attn_out[i_B, i_N2 * G: (i_N2 + 1) * G, i_S1, :] = mm2_res.to(dtype=q_bnsd.dtype)
                     elif RUN_MODE == 1:
                         ori_s2_loop_time = math.ceil(cur_ori_k_bnsd.size(0) / s2_base_size)
