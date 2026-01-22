@@ -239,7 +239,9 @@ __aicore__ inline void CompressorBlockVector<COMP>::InitBuffers(TPipe *pipe)
     inputQue2.DeQue<X_T>();
     Cast(normWeightUb, normweightInUb, RoundMode::CAST_NONE, constInfo_.headDim);
     inputQue2.FreeTensor(normweightInUb);
-    SetGatherSrcOffset<float>(gatherOffsetUb, constInfo_.headDim);
+    if constexpr (COMP::rotaryMode == Compressor::ROTARY_MODE::INTERLEAVE) {
+        SetGatherSrcOffset<float>(gatherOffsetUb, constInfo_.headDim);
+    }
     gatherOffsetCastUb = gatherOffsetUb.ReinterpretCast<uint32_t>();
     PipeBarrier<PIPE_V>();
 }
@@ -945,6 +947,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::KvMulReduceScore(
         constInfo_.cmpRatio;
     uint32_t rCnt = ReduceSize * dDealSize;
     Mul(kvLocal, kvLocal, scoreLocal, tcDealSize * rCnt);
+    PipeBarrier<PIPE_V>();
     for (uint32_t r = 0; r < tcDealSize; r++) {
         ColumnSum(dstLocal[r * dDealSize], kvLocal[r * rCnt], tmpUb[r  * rCnt], ReduceSize, dDealSize);
     }

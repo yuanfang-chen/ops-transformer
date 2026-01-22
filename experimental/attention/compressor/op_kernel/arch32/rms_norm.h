@@ -80,9 +80,6 @@ __aicore__ inline void RmsNorm(const LocalTensor<float> &dstLocal, const LocalTe
     RowDivs(dstLocal, srcLocal, temp1Local, repeatParams);
     PipeBarrier<PIPE_V>();
 
-    // Cast(xSquareLocal, gammaLocal, RoundMode::CAST_NONE, rmsNormParams.col);
-    // PipeBarrier<PIPE_V>();
-
     // dstLocal = dstLocal * gammaLocal
     MatMulVec(dstLocal, dstLocal, gammaLocal, repeatParams);
 }
