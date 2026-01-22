@@ -96,9 +96,9 @@ private:
         uint32_t copyRowCount, uint32_t copyColCount, uint32_t srcSingleRowCount, uint32_t dstSingleRowCount);
     __aicore__ inline void DataCopyAlignGmToUb(LocalTensor<T> dstLocal, GlobalTensor<T> srcGm,
         uint32_t copyRowCount, uint32_t copyColCount, uint32_t srcSingleRowCount, uint32_t dstSingleRowCount);
-    __aicore__ inline void OverLapScore(LocalTensor<T> scoreLocal,
+    __aicore__ inline void OverLapScore(LocalTensor<T> scoreLocal, const RunInfo &info, 
         uint32_t tcStartIdx, uint32_t tcDealSize, uint32_t dStartIdx, uint32_t dDealSize);
-    __aicore__ inline void OverLapKv(LocalTensor<T> kvLocal,
+    __aicore__ inline void OverLapKv(LocalTensor<T> kvLocal, const RunInfo &info, 
         uint32_t tcStartIdx, uint32_t tcDealSize, uint32_t dStartIdx, uint32_t dDealSize);
     __aicore__ inline void UpdateState(LocalTensor<T> kvLocal, LocalTensor<T> scoreLocal,
         uint32_t startTcIdx, const BlockInfo &blockInfo, uint32_t dStartIdx, uint32_t dDealSize);
@@ -541,7 +541,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::DataCopyAlignGmToUb(LocalTen
 
 template <typename COMP>
 __aicore__ inline void CompressorBlockVector<COMP>::OverLapScore(LocalTensor<T> scoreLocal,
-    uint32_t tcStartIdx, uint32_t tcDealSize, uint32_t dStartIdx, uint32_t dDealSize)
+    const RunInfo &info, uint32_t tcStartIdx, uint32_t tcDealSize, uint32_t dStartIdx, uint32_t dDealSize)
 {
     // scoreUb data layout after overlap when r = 4 and coff = 2:
     //  Tc0_seq01: |--- --D_L--- -|------D_R-----|
@@ -559,7 +559,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::OverLapScore(LocalTensor<T> 
     uint32_t dstSingleRowCount = ((uint32_t)COMP::coff) * dDealSize; // left和right在seq方向是交错存储的
     uint32_t srcScoreUbOffset = (tcStartIdx * constInfo_.cmpRatio) * srcSingleRowElemNum + constInfo_.dBaseSize + dStartIdx;
     if (GetBlockIdx() % 2 == 1) {
-        srcScoreUbOffset += 128  * srcSingleRowElemNum;
+        srcScoreUbOffset += (info.dealTcNum + 1) / 2 * constInfo_.cmpRatio * srcSingleRowElemNum;
     }
 
     uint32_t dstUbOffset = 0;
@@ -574,7 +574,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::OverLapScore(LocalTensor<T> 
 
 template <typename COMP>
 __aicore__ inline void CompressorBlockVector<COMP>::OverLapKv(LocalTensor<T> kvLocal,
-    uint32_t tcStartIdx, uint32_t tcDealSize, uint32_t dStartIdx, uint32_t dDealSize)
+    const RunInfo &info, uint32_t tcStartIdx, uint32_t tcDealSize, uint32_t dStartIdx, uint32_t dDealSize)
 {
     // kvUb data layout after overlap when r = 4 and coff = 2:
     //  Tc0_seq01: |--- --D_L--- -|------D_R-----|
@@ -592,7 +592,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::OverLapKv(LocalTensor<T> kvL
     uint32_t dstSingleRowCount = ((uint32_t)COMP::coff) * dDealSize; // left和right在seq方向是交错存储的
     uint32_t srcKvUbOffset = (tcStartIdx * constInfo_.cmpRatio) * srcSingleRowElemNum + dStartIdx;
     if (GetBlockIdx() % 2 == 1) {
-        srcKvUbOffset += 128  * srcSingleRowElemNum;
+        srcKvUbOffset += (info.dealTcNum + 1) / 2 * constInfo_.cmpRatio * srcSingleRowElemNum;
     }
 
     uint32_t dstUbOffset = 0;
@@ -1024,7 +1024,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::DealVec1BaseBlock(const RunI
         //     blockInfo.bIdx, blockInfo.sIdx, blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, blockInfo.tailHolderSeqCnt, blockInfo.dealSeqSize, blockInfo.compressTcSize);
 
         LocalTensor<T> scoreUb = inputQue1.AllocTensor<T>();
-        OverLapScore(scoreUb, startTcIdx, blockInfo.dealTcSize, dStartIdx, dDealSize);
+        OverLapScore(scoreUb, info, startTcIdx, blockInfo.dealTcSize, dStartIdx, dDealSize);
         inputQue1.EnQue(scoreUb);
         inputQue1.DeQue<T>();
         PipeBarrier<PIPE_V>();
@@ -1046,7 +1046,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::DealVec1BaseBlock(const RunI
         // DumpTensorForDim2(kvLocal, 6, 128 * 64);
 
         LocalTensor<T> kvUb = inputQue1.AllocTensor<T>();
-        OverLapKv(kvUb, startTcIdx, blockInfo.dealTcSize, dStartIdx, dDealSize);
+        OverLapKv(kvUb, info, startTcIdx, blockInfo.dealTcSize, dStartIdx, dDealSize);
         inputQue1.EnQue(kvUb);
         inputQue1.DeQue<T>();
         PipeBarrier<PIPE_V>();
