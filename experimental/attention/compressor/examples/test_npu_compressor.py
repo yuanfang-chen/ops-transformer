@@ -670,8 +670,8 @@ class TestCustomCompressor(TestCase):
                 block_table[i][j] = index[i][j]
         # print(block_table)
         # print(f"block_table.shape = {block_table.shape}")
-        kv_state = torch.tensor(np.random.uniform(-10, 10, (block_num, block_size, coff * head_dim))).to(torch.float32)
-        score_state = torch.tensor(np.random.uniform(-10, 10, (block_num, block_size, coff * head_dim))).to(torch.float32)
+        kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
 
         # other input
         if bs_combine_flag:

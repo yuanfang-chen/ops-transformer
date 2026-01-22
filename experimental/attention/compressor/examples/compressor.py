@@ -652,8 +652,8 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
         next_end_block_id = (next_end - 1) // block_size
         for j in range(next_start_block_id, next_end_block_id + 1):
             block_table[i][j] = index[i][j]
-    kv_state = torch.tensor(np.random.uniform(-10, 10, (block_num, block_size, coff * head_dim))).to(torch.float32)
-    score_state = torch.tensor(np.random.uniform(-10, 10, (block_num, block_size, coff * head_dim))).to(torch.float32)
+    kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+    score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
 
     # other input
     if bs_combine_flag:
