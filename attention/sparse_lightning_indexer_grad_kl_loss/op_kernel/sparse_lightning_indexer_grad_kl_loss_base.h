@@ -68,6 +68,8 @@ public:
     __aicore__ inline void InitBuffer(TPipe *pipe);
     __aicore__ inline void InitWorkspace(__gm__ uint8_t *workspace);
     __aicore__ inline void Process();
+    __aicore__ inline void MainProcess();
+    __aicore__ inline void DeterProcess();
     __aicore__ inline void GetRunInfo(int64_t taskId, int64_t bIdx, int64_t s1Idx, int64_t s1IdxEnd, int64_t accumS1Len, int64_t accumS2Len, 
         int32_t actualSeqLensQ, int32_t actualSeqLensK, SLIGradKLLossRunInfo &runInfo);
 
@@ -111,6 +113,7 @@ private:
     GlobalTensor<T> scatterAddRes;
     GlobalTensor<MM3_OUT_T> bmm3Res;
     GlobalTensor<T> reluGm;
+    GlobalTensor<T> lossRes;
     // local tensor
     TBuf<> gatherTbuf;
     TBuf<> mm1Tbuf;
@@ -180,7 +183,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Init(
                                     actualSeqLengthsQueryGm, actualSeqLengthsKeyGm,
                                     gatherPRes, gatherSYRes);
         vectorService.InitVector1GM(bmm1Res, softmaxMaxGm, softmaxSumGm, bmm2Res, weightGm, psySyncGm,
-                                    lossGm, dWeightGm, reluGm, reluGradRes, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm);
+                                    lossGm, dWeightGm, reluGm, reluGradRes, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm, lossRes);
         vectorService.InitVector2GM(bmm3Res, topKIndexGm, scatterAddRes);
     } else if ASCEND_IS_AIC {
         // initCubeOP
@@ -235,6 +238,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::InitWorkspace
     int64_t bmm2Offset = constInfo.gSizeQueryIndex * topKSize * sizeof(float); // * 2;
     int64_t reluGradOffset = constInfo.gSizeQueryIndex * topKSize * sizeof(float); // * 2;
     int64_t bmm3Offset =  topKSize * constInfo.dSizeQueryIndex * sizeof(float); // * 2;
+    int64_t lossOffset = sizeof(float) * 128; // 为了512Byte对齐
 
     int64_t coreTotalOffset = constInfo.aicIdx *
             (pOffset * constInfo.gatherKeyDbNum + syOffset * constInfo.gatherKeyIndexDbNum +
@@ -276,6 +280,10 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::InitWorkspace
         (__gm__ MM3_OUT_T *)(workspace + totalOffset));
     totalOffset += bmm3Offset * GetBlockNum() * 2;
 
+    lossRes.SetGlobalBuffer(
+        (__gm__ T *)(workspace + totalOffset));
+    totalOffset += lossOffset;
+
     scatterAddRes.SetGlobalBuffer(
         (__gm__ T *)(workspace + totalOffset));
     if ASCEND_IS_AIV {
@@ -292,6 +300,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::InitWorkspace
         int32_t t2Start = Min(constInfo.aivIdx * avgCost, totalCost);
         int32_t t2End = Min(t2Start + avgCost, totalCost);
         AscendC::InitOutput(scatterAddRes[t2Start * constInfo.dSizeQueryIndex], constInfo.dSizeQueryIndex * (t2End - t2Start), static_cast<T>(0));
+        AscendC::InitOutput(lossRes[constInfo.aivIdx], 1, static_cast<T>(0));
     }
     SyncAll();
 }
@@ -383,6 +392,126 @@ __aicore__ inline int64_t SparseLightningIndexerGradKLLossBase<SLIT>::CalcBS1Loo
 template <typename SLIT>
 __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Process()
 {
+    if constexpr (deterministic) {
+        DeterProcess();
+    } else {
+        MainProcess();
+    }
+}
+
+template <typename SLIT>
+__aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::DeterProcess()
+{
+    if ASCEND_IS_AIV {
+        vectorService.AllocEventID();
+    } else {
+        matmulService.AllocEventID();
+    }
+    int64_t coreNum = GetBlockNum();
+    int64_t bS1TotalSize = tilingData->multiCoreParams.totalSize;
+    int64_t extraLoopTimes = 2;
+    int64_t actualBS1Sum = 0;
+    int64_t bIdx = 0;
+    int64_t s1Idx = 0;
+    int64_t taskId = 0;
+
+    int64_t accumS1Len = 0;
+    int64_t accumS2Len = 0;
+    int32_t actualSeqLensQ = 0;
+    int32_t actualSeqLensK = 0;
+    for (int64_t bS1Idx = constInfo.aicIdx; bS1Idx < bS1TotalSize + extraLoopTimes * coreNum; bS1Idx += coreNum) {
+        if (bS1Idx < bS1TotalSize) {
+            if constexpr (LAYOUT_T == SLILayout::TND) {
+                bIdx = FindBIndex(bIdx, bS1Idx, actualBS1Sum);
+                s1Idx = bS1Idx - actualBS1Sum;
+                actualSeqLensQ = GetActualSeqLens(bIdx, constInfo.s1Size, actualSeqLengthsQueryGm, LAYOUT_T, accumS1Len);
+                actualSeqLensK = GetActualSeqLens(bIdx, constInfo.s2Size, actualSeqLengthsKeyGm, KV_LAYOUT_T, accumS2Len);
+            } else {
+                bIdx = bS1Idx / constInfo.s1Size;
+                s1Idx = bS1Idx - bIdx * constInfo.s1Size;
+            }
+        } else {
+            bIdx = 0;
+            s1Idx = bS1TotalSize;
+        }
+
+        SLIGradKLLossRunInfo &runInfoNeg2 = runInfos[(taskId + 1) % 3];       // 上2轮
+        SLIGradKLLossRunInfo &runInfoNeg1 = runInfos[(taskId + 2) % 3];       // 上1轮
+        SLIGradKLLossRunInfo &runInfo0 = runInfos[taskId % 3];                // 当前轮
+
+        GetRunInfo(taskId, bIdx, s1Idx, bS1TotalSize, accumS1Len, accumS2Len, actualSeqLensQ, actualSeqLensK, runInfo0);
+
+        if ASCEND_IS_AIV {
+            CrossCoreWaitFlag<2, PIPE_MTE3>(14);
+        } else {
+            CrossCoreSetFlag<2, PIPE_MTE2>(14);
+        }
+
+        if (runInfo0.isValid) {
+            if ASCEND_IS_AIV {
+                vectorService.ProcessVector0(runInfo0);  // V0
+            }
+        }
+
+        if (runInfoNeg1.isValid) {
+            if ASCEND_IS_AIC {
+                matmulService.ComputeMm1(runInfoNeg1);   // C1
+                matmulService.ComputeMm2(runInfoNeg1);   // C1
+            }
+
+            if ASCEND_IS_AIV {
+                vectorService.ProcessVector1(runInfoNeg1); // V1
+            }
+            if ASCEND_IS_AIC {
+                // matmulService.ComputeMm34(runInfos[(taskId + 2) % 3]); // C2
+                matmulService.ComputeMm5(runInfoNeg1); // C2
+                matmulService.ComputeMm6(runInfoNeg1); // C2
+            }
+        }
+
+        if (runInfoNeg2.isValid) {
+            if ASCEND_IS_AIV {
+                vectorService.ProcessDeterVector2(runInfoNeg2);
+                runInfoNeg2.isValid = false;
+            }
+        }
+        taskId++;
+    }
+
+    if (constInfo.aicIdx + 1 > bS1TotalSize % coreNum) {
+        if ASCEND_IS_AIC {
+            CrossCoreSetFlag<2, PIPE_FIX>(SYNC_C2_TO_V2_SA_FLAG[(taskId - extraLoopTimes) & 1]);
+        }
+        if ASCEND_IS_AIV {
+            SLIGradKLLossRunInfo runInfo;
+            runInfo.taskId = taskId - extraLoopTimes;
+            runInfo.taskIdMod2 = runInfo.taskId & 1;
+            vectorService.ProcessDeterVector2(runInfo);
+        }
+    }
+
+
+    if ASCEND_IS_AIV {
+        vectorService.FreeEventID();
+    } else {
+        matmulService.FreeEventID();
+    }
+    if ASCEND_IS_AIV {
+        vector2Service.InitParams(constInfo, tilingData);
+        vector2Service.InitVector2GM(scatterAddRes, topKIndexGm, dKeyIndexGm, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm, lossRes, lossGm);
+        vector2Service.InitBuffers(pipe);
+    }
+    SyncAll<false>();
+    if ASCEND_IS_AIV {
+        vector2Service.AllocEventID();
+        vector2Service.ProcessVector2();
+        vector2Service.FreeEventID();
+    }
+}
+
+template <typename SLIT>
+__aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::MainProcess()
+{
     if ASCEND_IS_AIV {
         vectorService.AllocEventID();
     } else {
@@ -451,40 +580,12 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Process()
 
             if (runInfoNeg2.isValid) {
                 if ASCEND_IS_AIV {
-                    if constexpr (deterministic){
-                        vectorService.ProcessDeterVector2(runInfoNeg2);
-                    } else {
-                        vectorService.ProcessVector2(runInfoNeg2); // V2 ScatterAdd
-                    }
+                    vectorService.ProcessVector2(runInfoNeg2); // V2 ScatterAdd
                     runInfoNeg2.isValid = false;
                 }
             }
             
             taskId++;
-        }
-    }
-    
-    if constexpr (deterministic){
-        int64_t maxLoop = CalcBS1Loop();
-        if ASCEND_IS_AIV {
-            // 关于SYNC_V2_TO_C2_DETER_SA_FLAG的同步，是为了防止SYNC_C2_TO_V2_SA_FLAG累加到上限
-            CrossCoreSetFlag<2, PIPE_MTE3>(SYNC_V2_TO_C2_DETER_SA_FLAG);
-        }
-        for (; taskId < maxLoop + extraLoopTimes; taskId++) {
-            if ASCEND_IS_AIC {
-                CrossCoreWaitFlag<2, PIPE_FIX>(SYNC_V2_TO_C2_DETER_SA_FLAG);
-                CrossCoreSetFlag<2, PIPE_FIX>(SYNC_C2_TO_V2_SA_FLAG[(taskId - extraLoopTimes) & 1]);
-            }
-            if ASCEND_IS_AIV {
-                SLIGradKLLossRunInfo &runInfo = runInfos[0];
-                runInfo.taskId = taskId - extraLoopTimes;
-                runInfo.taskIdMod2 = runInfo.taskId & 1;
-                vectorService.ProcessDeterVector2(runInfo);
-                CrossCoreSetFlag<2, PIPE_MTE3>(SYNC_V2_TO_C2_DETER_SA_FLAG);
-            }
-        }
-        if ASCEND_IS_AIC {
-            CrossCoreWaitFlag<2, PIPE_FIX>(SYNC_V2_TO_C2_DETER_SA_FLAG);
         }
     }
 
@@ -495,7 +596,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Process()
     }
     if ASCEND_IS_AIV {
         vector2Service.InitParams(constInfo, tilingData);
-        vector2Service.InitVector2GM(scatterAddRes, topKIndexGm, dKeyIndexGm, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm);
+        vector2Service.InitVector2GM(scatterAddRes, topKIndexGm, dKeyIndexGm, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm, lossRes, lossGm);
         vector2Service.InitBuffers(pipe);
     }
     SyncAll<false>();

@@ -954,6 +954,7 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::GetWorkspaceSize()
     int64_t reluGradSize = gSizeQueryIndex * kSize * sizeof(float);
     int64_t psySyncSize = kSize * 2 * sizeof(float); // 2使用DB
     int64_t bmm3Size = kSize * dSizeQueryIndex * sizeof(float);
+    int64_t lossSize = sizeof(float) * 128; // 为了512Byte对齐
     int64_t scatterAddOutSize;
     if (tilingKeyLayout == LayoutType::LAYOUT_TND) {
         scatterAddOutSize = accumS2 * dSizeQueryIndex * sizeof(float); //batch
@@ -962,7 +963,7 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::GetWorkspaceSize()
     }
 
     int64_t singlecoreTotalSize = PING_PONG_VALUE * (pSize + bmm1Size + bmm2Size + reluGradSize + sySize + psySyncSize + bmm3Size);
-    int64_t multicoreTotalsize = singlecoreTotalSize * static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()) + scatterAddOutSize;
+    int64_t multicoreTotalsize = singlecoreTotalSize * static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()) + scatterAddOutSize  + lossSize;
     workspaces[0] = static_cast<size_t>(multicoreTotalsize) + WORK_SPACE_RESERVE_SIZE; // 预留16M空间必须加;
     OP_LOGW(context_, "workspace size:[%ld], multicoreTotalsize:[%ld]", workspaces[0], multicoreTotalsize);
     return ge::GRAPH_SUCCESS;
