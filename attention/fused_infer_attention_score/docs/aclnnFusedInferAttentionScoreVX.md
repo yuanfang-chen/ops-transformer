@@ -1727,89 +1727,70 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                         <li>公共前缀的S加上key或value的S的结果，要满足原先key或value的S的限制</li>
                         <li>prefix不支持PageAttention场景、不支持左padding场景、不支持tensorlist场景、不支持alibi场景、不支持TND场景、不支持PFA MLA（包括D不等长合ROPE独立输入）场景、不支持IFA MLA场景</li>
                         <li>sparse为0或1时，如果传入attenmask，则S2需大于等于actualSharedPrefixLen与key的S长度之和</li>
-                        <li>不支持输入qkv全部为INT8/FP8/HiF8(perblock/pertensor全量化)的情况</li>
+                        <li>不支持输入qkv全部为INT8/FP8/HiF8(per-block/per-tensor全量化)的情况</li>
                         <li>支持后量化（int8）场景</li>
+                        <li>
+                            伪量化key/value合成场景所有量化模式prefix均支持。对于伪量化key/value分离场景，prefix仅支持以下量化模式：
+                        </li>
                     </ul>
-                    <ul>
-                        <li>qs &gt; 1 时，伪量化 key / value 分离场景支持范围如下：</li>
-                    </ul>
-                    <table style="table-layout: fixed; width: 600px" border="1" cellpadding="6" cellspacing="0">
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <table style="table-layout: fixed; width: 680px" border="1" cellpadding="6" cellspacing="0">
                         <colgroup>
-                            <col style="width: 300px">
-                            <col style="width: 300px">
+                            <col style="width: 140px">
+                            <col style="width: 360px">
+                            <col style="width: 180px">
                         </colgroup>
-                        <thead>
+                        <thead style="font-size: 12px;">
                             <tr>
-                            <th>伪量化方式</th>
-                            <th>key / value 支持 dtype</th>
+                                <th>key/value分离场景</th>
+                                <th>伪量化方式</th>
+                                <th>key / value 支持 dtype</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>perchannel</td>
-                                <td>INT8</td>
-                            </tr>
-                             <tr>
-                                <td>pertensor</td>
+                                <td rowspan="2" style="background-color: #f5f5f5; font-weight: 500; text-align: left;">Q_S&gt;1</td>
+                                <td>
+                                    <ul>
+                                        <li>per-channel (per-tensor)</li>
+                                        <li>per-token</li>
+                                    </ul>
+                                </td>
                                 <td>INT8</td>
                             </tr>
                             <tr>
-                                <td>pertoken</td>
-                                <td>INT8</td>
+                                <td colspan="2" style="display: none;"></td>
                             </tr>
-                        </tbody>
-                    </table>
-                    <ul>
-                        <li>qs = 1 时，伪量化 key / value 分离场景支持范围如下：</li>
-                    </ul> 
-                    <table style="table-layout: fixed; width: 600px" border="1" cellpadding="6" cellspacing="0">   
-                        <colgroup>
-                            <col style="width: 300px">
-                            <col style="width: 300px">
-                        </colgroup>
-                        <thead>
                             <tr>
-                            <th>伪量化方式</th>
-                            <th>key / value 支持 dtype</th>
+                                <td rowspan="3" style="background-color: #f5f5f5; font-weight: 500; text-align: left;">Q_S=1</td>
+                                <td>
+                                    <ul>
+                                        <li>per-tensor</li>
+                                        <li>per-tensor叠加per-head</li>
+                                        <li>per-token叠加使用page attention模式管理scale/offset</li>
+                                        <li>per-token叠加per-head并使用page attention模式管理scale/offset</li>
+                                    </ul>
+                                </td>
+ 	                            <td>INT8</td>
                             </tr>
-                        </thead>
-                        <tbody>
                             <tr>
-                                <td>perchannel</td>
+                                <td>
+                                    <ul>
+                                        <li>per-channel</li>
+                                        <li>per-token</li>
+                                        <li>per-token叠加per-head</li>
+                                        <li>key支持per-channel叠加value支持per-token</li>
+                                    </ul>
+                                </td>
                                 <td>INT8、INT4(INT32)</td>
-                            </tr>
-                            <tr>
-                                <td>pertensor</td>
-                                <td>INT8</td>
-                            </tr>
-                            <tr>
-                                <td>pertensorhead</td>
-                                <td>INT8</td>
-                            </tr>
-                            <tr>
-                                <td>pertoken</td>
-                                <td>INT8、INT4(INT32)</td>
-                            </tr>
-                            <tr>
-                                <td>key:perchannel + value:pertoken</td>
-                                <td>INT8、INT4(INT32)</td>
-                            </tr>
-                            <tr>
-                                <td>pertokenhead</td>
-                                <td>INT8、INT4(INT32)</td>
-                            </tr>
-                            <tr>
-                                <td>pertoken(PA)</td>
-                                <td>INT8</td>
-                            </tr>
-                            <tr>
-                                <td>pertokenhead(PA)</td>
-                                <td>INT8</td>
                             </tr>
                         </tbody>
                     </table>
                 </td>
-            <tr>
+            </tr>
         </tbody>
     </table>
 
