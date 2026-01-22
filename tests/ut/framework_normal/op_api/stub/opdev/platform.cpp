@@ -10,10 +10,6 @@
 
 #include "platform.h"
 #include <iostream>
-
-#ifndef __SOC_SPEC_H__
-#define __SOC_SPEC_H__
-
 #include <cstdint>
 #include <string>
 
