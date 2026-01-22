@@ -16,6 +16,7 @@
 #define OPS_BUILT_IN_OP_TILING_RUNTIME_MOE_RE_ROUTING_H_
 
 #include "tiling_base/tiling_base.h"
+#include "tiling_base/tiling_util.h"
 #include "tiling_base/tiling_type.h"
 #include "register/op_impl_registry.h"
 #include "register/tilingdata_base.h"
@@ -26,6 +27,7 @@
 #include "platform/platform_infos_def.h"
 #include "util/math_util.h"
 #include "tiling/platform/platform_ascendc.h"
+
 namespace optiling {
 BEGIN_TILING_DATA_DEF(MoeReRoutingTilingData)
 TILING_DATA_FIELD_DEF(int64_t, coreNum);

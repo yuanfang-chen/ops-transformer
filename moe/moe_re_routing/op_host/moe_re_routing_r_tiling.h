@@ -31,7 +31,7 @@ protected:
     ge::graphStatus PostTiling() override;
     bool IsCapable() override
     {
-        return socVersion_ == platform_ascendc::SocVersion::ASCEND910_95;
+        return Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_);
     }
 
 private:

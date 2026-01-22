@@ -45,7 +45,7 @@ public:
 protected:
     bool IsCapable() override
     {
-        return socVersion == platform_ascendc::SocVersion::ASCEND910_95;
+        return Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_);
     }
 
     // 3、计算数据切分TilingData

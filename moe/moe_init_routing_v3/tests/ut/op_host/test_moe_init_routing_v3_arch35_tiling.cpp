@@ -41,6 +41,27 @@ protected:
     }
 };
 
+static std::string A5SocInfo = 
+    "{\n"
+    "  \"hardware_info\": {\n"
+    "    \"BT_SIZE\": 0,\n"
+    "    \"load3d_constraints\": \"1\",\n"
+    "    \"Intrinsic_fix_pipe_l0c2out\": false,\n"
+    "    \"Intrinsic_data_move_l12ub\": true,\n"
+    "    \"Intrinsic_data_move_l0c2ub\": true,\n"
+    "    \"Intrinsic_data_move_out2l1_nd2nz\": false,\n"
+    "    \"UB_SIZE\": 262144,\n"
+    "    \"L2_SIZE\": 134217728,\n"
+    "    \"L1_SIZE\": 524288,\n"
+    "    \"L0A_SIZE\": 65536,\n"
+    "    \"L0B_SIZE\": 65536,\n"
+    "    \"L0C_SIZE\": 262144,\n"
+    "    \"CORE_NUM\": 32,\n"
+    "    \"socVersion\": \"Ascend910_95\"\n"
+    "  }\n"
+    "}";
+
+
 void RunSuccessTestcase(int64_t N, int64_t H, int64_t K, int64_t expertCapacity, int64_t dropPadMode, int64_t expertTokensNumType,
                           bool expertTokensNumFlag, int64_t quantMode, int64_t isInputScale, ge::DataType xDataType,
                           std::vector<int64_t> aciveExpertRange, int64_t rowIdxType, ge::graphStatus result,
@@ -72,7 +93,7 @@ void RunSuccessTestcase(int64_t N, int64_t H, int64_t K, int64_t expertCapacity,
                                             {"acive_expert_range", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(aciveExpertRange)},
                                             {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(rowIdxType)},
                                         },
-                                        &compileInfo);
+                                        &compileInfo, "Ascend910_95", A5SocInfo, 4096);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
@@ -107,7 +128,7 @@ void RunFailureTestcase(int64_t N, int64_t H, int64_t K, int64_t expertCapacity,
                                             {"acive_expert_range", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(aciveExpertRange)},
                                             {"row_idx_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(rowIdxType)},
                                         },
-                                        &compileInfo);
+                                        &compileInfo, "Ascend910_95", A5SocInfo, 4096);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
@@ -146,7 +167,6 @@ TEST_F(MoeInitRoutingV3Tiling, moe_init_routing_v3_tiling_regbase_04)
     RunSuccessTestcase(160, 96, 1450, 0, 0, 1, true, QUANT_MODE_UNQUANT, 0, ge::DT_FLOAT, {180, 192},
                          ROW_IDX_TYPE_SCATTER, ge::GRAPH_SUCCESS, 1101000, expectTilingData, expectWorkspaces);
 }
-
 
 // 单核 + dynamci quant + scale not None   1020000
 TEST_F(MoeInitRoutingV3Tiling, moe_init_routing_v3_tiling_regbase_05)

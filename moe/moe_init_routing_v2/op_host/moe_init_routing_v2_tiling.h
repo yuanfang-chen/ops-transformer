@@ -19,6 +19,7 @@
 #include "tiling/tiling_api.h"
 #include "log/log.h"
 #include "tiling_base/tiling_base.h"
+#include "tiling_base/tiling_util.h"
 #include "moe_init_routing_v2_tiling_util.h"
 using namespace Ops::Transformer::OpTiling;
 

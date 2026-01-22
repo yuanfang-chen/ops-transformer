@@ -14,6 +14,7 @@
 #include "register/tilingdata_base.h"
 #include "register/op_def_registry.h"
 #include "tiling_base/tiling_base.h"
+#include "tiling_base/tiling_util.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "tiling/tiling_api.h"
 #include "util/math_util.h"
