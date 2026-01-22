@@ -171,7 +171,7 @@ def gen_golden(x, expert_idx, scale, offset, active_num, expert_capacity,
 
 def gen_golden_data_simple(N, H, k, E, dtype, quant_mode, active_num, expert_capacity, 
                             expert_num, drop_pad, expert_token_num_type, 
-                            expert_tokens_num_flag, active_range, row_idx_type):
+                            expert_tokens_num_flag, active_range, row_idx_type, scale_type):
     N = int(N)
     H = int(H)
     k = int(k)
@@ -185,19 +185,28 @@ def gen_golden_data_simple(N, H, k, E, dtype, quant_mode, active_num, expert_cap
     expert_tokens_num_flag = int(expert_tokens_num_flag)
     active_range = eval(active_range)
     row_idx_type = int(row_idx_type)
+    scale_type = int(scale_type)
 
     input_x = np.random.uniform(-2, 2, [N, H]).astype(dtype)
-    input_expertIdx = np.random.randint(0, E, size=(N, k)).astype("int32")
+    input_expertIdx = np.random.randint(active_range[0], active_range[1], size=(N, k)).astype("int32")
     scale = np.random.uniform(-2, 2, [N]).astype(np.float32)
     offset = None
     if quant_mode == 0:
         offset = np.random.uniform(-2, 2, [1]).astype(np.float32)
         scale = np.random.uniform(-2, 2, [1]).astype(np.float32)
+    elif quant_mode == 1:
+        if scale_type == 2:
+            scale = np.random.uniform(-2, 2, [expert_num, H]).astype(np.float32)
+        elif scale_type == 1:
+            scale = np.random.uniform(-2, 2, [1, H]).astype(np.float32)
+        else:
+            scale = None
 
 
     input_x.tofile("./input_x.bin")
     input_expertIdx.tofile("./input_expertIdx.bin")
-    scale.tofile("./scale.bin")
+    if scale_type:
+        scale.tofile("./scale.bin")
     if quant_mode == 0:
         offset.tofile("./offset.bin")
     expanded_x, expanded_row_idx, expert_tokens_count, expanded_scale = gen_golden(input_x, input_expertIdx, scale,
@@ -217,4 +226,4 @@ def gen_golden_data_simple(N, H, k, E, dtype, quant_mode, active_num, expert_cap
 if __name__ == "__main__":
     gen_golden_data_simple(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5],
                             sys.argv[6], sys.argv[7], sys.argv[8], sys.argv[9], sys.argv[10], sys.argv[11],
-                            sys.argv[12], sys.argv[13], sys.argv[14])
+                            sys.argv[12], sys.argv[13], sys.argv[14], sys.argv[15])
