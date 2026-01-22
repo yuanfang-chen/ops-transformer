@@ -566,6 +566,8 @@ def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_siz
     else:
         cmp_sparse_indices = None
     cmp_block_table = torch.tensor(cmp_block_table).to(torch.int32)
+    if cmp_block_table.shape[1] == 0:
+        cmp_block_table = None
     return cmp_k_in_pa_shape, cmp_sparse_indices, cmp_block_table, cmp_k_bnsd
 
 def test_sas_process(params):
@@ -636,7 +638,8 @@ def test_sas_process(params):
 
     if template_idx == 1 or template_idx == 2:
         cmp_k_in_pa_shape = cmp_k_in_pa_shape.npu()
-        cmp_block_table = cmp_block_table.npu()
+        if cmp_block_table is not None:
+            cmp_block_table = cmp_block_table.npu()
     if template_idx == 2:
         cmp_sparse_indices = cmp_sparse_indices.npu()
 
