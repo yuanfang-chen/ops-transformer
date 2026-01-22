@@ -143,6 +143,16 @@ aclnnStatus aclnnFlashAttentionScore(
         <td>√</td>
       </tr>
       <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attenMaskOptional</td>
         <td>输入</td>
         <td>公式中的atten_mask。</td>
@@ -231,7 +241,7 @@ aclnnStatus aclnnFlashAttentionScore(
         <td>innerPrecise</td>
         <td>输入</td>
         <td>用于提升精度。</td>
-        <td>-</td>
+        <td>默认配置为0即可。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -266,6 +276,16 @@ aclnnStatus aclnnFlashAttentionScore(
         <td>ND</td>
         <td>[B,N,Sq,8]</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>softmaxOutOut</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>attentionOutOut</td>

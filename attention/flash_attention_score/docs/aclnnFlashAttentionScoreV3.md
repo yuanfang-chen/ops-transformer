@@ -159,6 +159,16 @@ aclnnStatus aclnnFlashAttentionScoreV3(
         <td>√</td>
       </tr>
       <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attenMaskOptional</td>
         <td>可选输入</td>
         <td>公式中的atten_mask。</td>
@@ -187,6 +197,26 @@ aclnnStatus aclnnFlashAttentionScoreV3(
         <td>prefixOptional</td>
         <td>可选输入</td>
         <td>代表prefix稀疏计算场景每个Batch的N值。</td>
+        <td>-</td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>0、1</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>qStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
+        <td>-</td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>0、1</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>kvStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的key和value的sequence在全局中的起始索引。</td>
         <td>-</td>
         <td>INT64</td>
         <td>ND</td>
@@ -257,7 +287,7 @@ aclnnStatus aclnnFlashAttentionScoreV3(
         <td>innerPrecise</td>
         <td>可选输入</td>
         <td>用于提升精度。</td>
-        <td>-</td>
+        <td>默认配置为0即可。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -302,6 +332,16 @@ aclnnStatus aclnnFlashAttentionScoreV3(
         <td>ND</td>
         <td>[B,N,Sq,8]</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>softmaxOutOut</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>attentionOutOut</td>
