@@ -229,7 +229,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::InitBuffers(TPipe *pipe)
     pipe->InitBuffer(tmpBuff2, BUFFER_SIZE_BYTE_64K);
     pipe->InitBuffer(outputQue1, 1, BUFFER_SIZE_BYTE_16K);
     pipe->InitBuffer(inputQue2, 1, BUFFER_SIZE_BYTE_2K);
-    pipe->InitBuffer(normWeightBuf, BUFFER_SIZE_BYTE_1K);
+    pipe->InitBuffer(normWeightBuf, BUFFER_SIZE_BYTE_4K);
     pipe->InitBuffer(gatherOffsetBuf, BUFFER_SIZE_BYTE_2K);
     normWeightUb = normWeightBuf.Get<T>();
     LocalTensor<X_T> normweightInUb = inputQue2.AllocTensor<X_T>();
@@ -558,6 +558,9 @@ __aicore__ inline void CompressorBlockVector<COMP>::OverLapScore(LocalTensor<T> 
     uint32_t srcSingleRowCount = srcSingleRowElemNum;
     uint32_t dstSingleRowCount = ((uint32_t)COMP::coff) * dDealSize; // left和right在seq方向是交错存储的
     uint32_t srcScoreUbOffset = (tcStartIdx * constInfo_.cmpRatio) * srcSingleRowElemNum + constInfo_.dBaseSize + dStartIdx;
+    if (GetBlockIdx() % 2 == 1) {
+        srcScoreUbOffset += 128  * srcSingleRowElemNum;
+    }
 
     uint32_t dstUbOffset = 0;
     if constexpr (COMP::coff == COFF::OVERLAP) {
@@ -587,15 +590,18 @@ __aicore__ inline void CompressorBlockVector<COMP>::OverLapKv(LocalTensor<T> kvL
     uint32_t copyColCount = dDealSize;
     uint32_t srcSingleRowCount = srcSingleRowElemNum;
     uint32_t dstSingleRowCount = ((uint32_t)COMP::coff) * dDealSize; // left和right在seq方向是交错存储的
-    uint32_t srcScoreUbOffset = (tcStartIdx * constInfo_.cmpRatio) * srcSingleRowElemNum + dStartIdx;
+    uint32_t srcKvUbOffset = (tcStartIdx * constInfo_.cmpRatio) * srcSingleRowElemNum + dStartIdx;
+    if (GetBlockIdx() % 2 == 1) {
+        srcKvUbOffset += 128  * srcSingleRowElemNum;
+    }
 
     uint32_t dstUbOffset = 0;
     if constexpr (COMP::coff == COFF::OVERLAP) {
-        DataCopyAlignGmToUb(kvLocal[dstUbOffset], preMm1ResGm_[srcScoreUbOffset],
+        DataCopyAlignGmToUb(kvLocal[dstUbOffset], preMm1ResGm_[srcKvUbOffset],
             copyRowCount, copyColCount, srcSingleRowCount, dstSingleRowCount);
         dstUbOffset += dDealSize;
     }
-    DataCopyAlignGmToUb(kvLocal[dstUbOffset], curMm1ResGm_[srcScoreUbOffset],
+    DataCopyAlignGmToUb(kvLocal[dstUbOffset], curMm1ResGm_[srcKvUbOffset],
         copyRowCount, copyColCount, srcSingleRowCount, dstSingleRowCount);
 }
 
@@ -1023,7 +1029,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::DealVec1BaseBlock(const RunI
         inputQue1.DeQue<T>();
         PipeBarrier<PIPE_V>();
         LocalTensor<T> scoreLocal = tmpBuff1.Get<T>();
-        DataCopy(scoreLocal, scoreUb, blockInfo.dealTcSize * constInfo_.cmpRatio * dDealSize);
+        DataCopy(scoreLocal, scoreUb, blockInfo.dealTcSize * (uint32_t)COMP::coff * constInfo_.cmpRatio * dDealSize);
         inputQue1.FreeTensor(scoreUb);
 
         // DumpTensorForDim2(scoreLocal, 3, 128 * 64);
@@ -1044,8 +1050,8 @@ __aicore__ inline void CompressorBlockVector<COMP>::DealVec1BaseBlock(const RunI
         inputQue1.EnQue(kvUb);
         inputQue1.DeQue<T>();
         PipeBarrier<PIPE_V>();
-        LocalTensor<T> kvLocal = tmpBuff1.Get<T>();
-        DataCopy(kvLocal, kvUb, blockInfo.dealTcSize * constInfo_.cmpRatio * dDealSize);
+        LocalTensor<T> kvLocal = tmpBuff2.Get<T>();
+        DataCopy(kvLocal, kvUb, blockInfo.dealTcSize * (uint32_t)COMP::coff * constInfo_.cmpRatio * dDealSize);
         inputQue1.FreeTensor(kvUb);
 
         UpdateState(kvLocal, scoreLocal, startTcIdx, blockInfo, dStartIdx, dDealSize); // TODO:MTE2\MTE3, shasha
@@ -1055,7 +1061,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::DealVec1BaseBlock(const RunI
         // DumpTensorForDim2(scoreLocal, 8, 128 * 64);
 
         if (blockInfo.compressTcSize > 0) {
-            LocalTensor<T> tmpUb = tmpBuff1.Get<T>();
+            LocalTensor<T> tmpUb = kvLocal[BUFFER_SIZE_BYTE_32K / sizeof(T)];
             PipeBarrier<PIPE_V>();
             SoftmaxDN(scoreLocal, tmpUb, blockInfo.compressTcSize, dDealSize); // TODO:VEC, yixiao
             // DumpTensorForDim2(scoreLocal, 9, 128 * 64, 128, 64);
@@ -1223,7 +1229,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
 
     // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
     LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
-    LocalTensor<X_T> sinUb = cosUb[BUFFER_SIZE_BYTE_8K];
+    LocalTensor<X_T> sinUb = cosUb[BUFFER_SIZE_BYTE_8K / sizeof(X_T)];
     DataCopy(cosUb, ropeCosGm_[SinCosOffset], computeSize); // TODO:ropeCosGm_上的偏移
     DataCopy(sinUb, ropeSinGm_[SinCosOffset], computeSize); // TODO:ropeSinGm_上的偏移
     inputQue1.EnQue(sinUb);
@@ -1231,8 +1237,8 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
 
 
     LocalTensor<T> ropeCosFp32Local = tmpBuff2.Get<T>();
-    LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K].template ReinterpretCast<T>();
-    LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K].template ReinterpretCast<T>();
+    LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
+    LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
     // DumpTensor(ropeSinLocal_, 100421, computeSize);
     PipeBarrier<PIPE_V>();
     Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, constInfo_.ropeHeadDim * dealRowCount);
