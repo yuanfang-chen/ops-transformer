@@ -243,7 +243,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     constInfo.cmpRatio = sharedParams.cmpRatio;
     constInfo.oriWinLeft = sharedParams.oriWinLeft;
     constInfo.oriWinRight = sharedParams.oriWinRight;
-    // constInfo.gSize = sharedParams.gSize;
     constInfo.s1S2 = constInfo.s1Size * constInfo.s2Size;
     constInfo.gS1 = constInfo.gSize * constInfo.s1Size;
     constInfo.n2G = constInfo.n2Size * constInfo.gSize;
@@ -351,7 +350,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
 
         int64_t gS1LoopEnd = lastBN ? (runParam.s1LoopTimes + PRELOAD_NUM) : runParam.s1LoopTimes;
         for (int64_t gS1Index = gS1StartIdx; gS1Index < gS1LoopEnd; gS1Index++) {
-            // PRINTF("AAA gS1Index = %d, gS1StartIdx = %d, gS1LoopEnd = %d\n", gS1Index, gS1StartIdx, gS1LoopEnd);
             bool notLastTwoLoop = true;
             if (lastBN) {
                 int32_t extraGS1 = gS1Index - runParam.s1LoopTimes;
@@ -382,10 +380,8 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
                 s2LoopLimit = 0;
             }
             for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
-                // PRINTF("AAA s2LoopCount = %d, s2LoopLimit = %d\n", s2LoopCount, s2LoopLimit);
                 if (notLastTwoLoop) {
                     RunInfo &runInfo1 = runInfo[taskId % 3];
-                    // TODO cmp_kv更新start end line2
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(), runInfo1,
