@@ -20,7 +20,7 @@
 
 namespace optiling {
 
-constexpr uint64_t ROPE_ABA_AND_BA_TILING_PRIORITY = 10000;
+constexpr uint64_t ROPE_ABA_AND_BA_TILING_PRIORITY = 20000;
 constexpr int64_t UB_FACTOR = 4;
 constexpr int64_t MAX_COPY_BLOCK_COUNT = 4095;
 constexpr int32_t WORKSPACE_SIZE = 16 * 1024 * 1024;

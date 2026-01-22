@@ -210,13 +210,25 @@ private:
     ge::graphStatus CheckShape();
     ge::graphStatus CheckDtypeAndAttr();
     ge::graphStatus CheckParam();
-    ge::graphStatus CheckShapeRelation(const gert::Shape &qShape, const gert::Shape &kShape,
-                                       const gert::Shape &cosShape, const gert::Shape &sinShape);
-    ge::graphStatus CheckRotaryModeShapeRelation(int64_t d);
-    ge::graphStatus CheckShapeAllPositive(int64_t idx);
+    ge::graphStatus CheckShapeRelation();
+    ge::graphStatus CheckRotaryModeShapeRelation(const int64_t &d);
+    ge::graphStatus CheckShapeAllPositive(const int64_t &idx, const gert::Shape &shape);
     ge::graphStatus CheckShapeAllPositive();
     void ConvertRotaryMode();
     std::string rotaryModeStr_;
+
+    ge::DataType qDataType_;
+    ge::DataType kDataType_;
+    ge::DataType cosDataType_;
+    ge::DataType sinDataType_;
+    ge::DataType qOutDataType_;
+    ge::DataType kOutDataType_;
+    gert::Shape qShape_;
+    gert::Shape kShape_;
+    gert::Shape cosShape_;
+    gert::Shape sinShape_;
+    gert::Shape qOutShape_;
+    gert::Shape kOutShape_;
 };
 
 } // namespace optiling
