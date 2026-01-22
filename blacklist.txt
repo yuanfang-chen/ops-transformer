@@ -41,6 +41,7 @@ attention/flash_attention_score/regbase/op_kernel/flash_attention_score_template
 attention/flash_attention_score/regbase/op_kernel/infer_flash_attention_comm.h
 attention/flash_attention_score/regbase/op_kernel/infer_flash_attention_kvcache.h
 attention/common/op_kernel/arch35/flash_attention_kvsame_bn2gs1s2.h
+attention/common/op_kernel/arch35/pse.h
 attention/flash_attention_score/regbase/op_kernel/infer_flash_attention_sparse.h
 attention/flash_attention_score/regbase/op_kernel/matmul_modules/copy_cube_in/copy_cube_in_sdxl/fa_copy_cube_in_left_sdxl.h
 attention/flash_attention_score/regbase/op_kernel/matmul_modules/copy_cube_in/copy_cube_in_sdxl/fa_copy_cube_in_right_sdxl.h
