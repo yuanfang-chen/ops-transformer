@@ -1,14 +1,16 @@
 # aclnnGroupedMatmulFinalizeRoutingV3
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/gmm/grouped_matmul_finalize_routing)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>昇腾910_95 AI处理器</term>                             |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
-| <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term> |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
-| <term>Atlas 推理系列产品 </term>                             |    ×     |
+| <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 | <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
@@ -17,54 +19,40 @@
 - 接口功能：
 GroupedMatmul和MoeFinalizeRouting的融合算子，GroupedMatmul计算后的输出按照索引做combine动作。
 本接口相较于[aclnnGroupedMatmulFinalizeRoutingV2](aclnnGroupedMatmulFinalizeRoutingV2.md)，新增入参tuningConfigOptional，调优参数。数组中的第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值合理进行tiling切分，性能更优。请根据实际情况选择合适的接口。
-新增了MX量化场景（仅昇腾910_95 AI处理器支持），相关信息参考[量化介绍](../../../docs/zh/context/量化介绍.md)。
+新增了MX量化场景（仅 Ascend 950PR/Ascend 950DT 支持），相关信息参考[量化介绍](../../../docs/zh/context/量化介绍.md)。
 
 - 计算公式：
 
-  - 1.分组矩阵乘法：
+  - 1.分组矩阵乘法GMM：
   
-    对于每个专家 i 确定该专家负责的token范围：
+    $$
+     y_i=(x_i\times weight_i) * scale_i * perTokenScale_i
+    $$
     
-    $$
-    start_{i} = \sum_{j=0}^{i-1} groupList[j] , \quad end_{i} = start_{i} + groupList[i]
-    $$
-
-    对于输出的子张量为：
-    
-    $$
-    X_{expert,i} = x[start_i :end_i, :]
-    $$
-
-    执行矩阵乘法：
-    
-    $$
-    C_{i} = ( X_{expert,i}\cdot W_{i} )\odot xScale_{i} \odot wScale_{i}
-    $$
-
   - 2.路由专家与专家输出分配：
     
-    对于每个token j ,执行路由与输出专家分配：
+    对于每个token j，执行路由与输出专家分配：
     
     $$
-    \mathbf{y}[\mathrm{rowIndex[i]},  :] = \mathbf{y}[\mathrm{rowIndex[i]},  :] + 
-    C_{i(j)}[ j - start_{i(j)}]
+    y[ rowIndex[i] , : ] = y[rowIndex[i], :] + 
+    y_{i(j)}[ j - start_{i(j)}]
     $$
 
-    其中$i(j)$是 token j被分配到的专家索引。$C_{i(j)}[ j - start_{i(j)}]$是该token在对于专家下的计算结果。
+    其中 $i(j)$ 是 token j被分配到的专家索引。$y_{i(j)}[ j - start_{i(j)}]$是该token在对应专家下的计算结果。
 
   - 3.共享专家输出融合：
     
     $$
-     \mathbf{y}[rowIndex[i],:] = \mathbf{y}[rowIndex[i],:] + sharedInputWeight \times sharedInput[j, :]
+     y [rowIndex[i],:] = y[rowIndex[i],:] + sharedInputWeight \times sharedInput[j, :]
     $$
 
-  - 4.共享专家输出融合:最终输出结果是所有专家输出与共享专家输出，按照rowindex所有进行合并的结果，计算过程如下：
+  - 4.共享专家输出融合:最终输出结果是所有专家输出与共享专家输出，按照rowIndex所有进行合并的结果，计算过程如下：
 
     $$
-     \mathbf{y}[rowIndex[i],:] = \sum_{i} \mathbf{C}_i[j'] + sharedInputWeight \times sharedInput[j, :]
+     y[rowIndex[i],:] = \sum_{i \in \mathcal{E}[j]} y_i [j - start_i] + sharedInputWeight \times sharedInput[j, :]
     $$ 
 
-    其中$j'$是 token j在专家i中的局部索引。
+    其中$\mathcal{E}[j]$是表示分配给token j的专家集合。 
 
 ## 函数原型
 
@@ -107,7 +95,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
 
 ## aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize
 
-- **在Atlas A2,A3产品上的参数说明：**
+- **Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品上的参数说明：**
   <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
   <col style="width: 170px">
   <col style="width: 120px">
@@ -354,7 +342,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   </table>
 
 
-- **在910_95处理器上参数说明：**
+- **在 Ascend 950PR/Ascend 950DT 上参数说明：**
   <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
   <col style="width: 170px">
   <col style="width: 120px">
@@ -413,7 +401,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
       <td>输入</td>
       <td>矩阵的偏移</td>
       <td>无</td>
-      <td>FLOAT32</td>
+      <td>BF16</td>
       <td>ND</td>
       <td>shape支持二维，维度为(e, n)，e、n和w的e、n一致</td>
       <td>×</td>
@@ -455,7 +443,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
       <td></td>
       <td>FLOAT8_E8M0</td>
       <td>ND</td>
-      <td>shape支持四维，在MX量化场景下，支持的维度为(m,Ceil(k/64) ,2) 并且数据类型支持FLOAT8_E8M0</td>
+      <td>shape支持三维，在MX量化场景下，支持的维度为(m,Ceil(k/64) ,2) 并且数据类型支持FLOAT8_E8M0</td>
       <td>×</td>
     </tr>
     <tr>
@@ -637,15 +625,6 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
     <tr>
       <td>x1、x2、scaleOptional、biasOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、pertokenScaleOptional、groupListOptional、sharedInputOptional、logitOptional、rowIndexOptional或out的shape是空tensor。</td>
     </tr>
-    <tr>
-      <td>MX量化场景:
-      <br> 1.MXFP4场景下，k不为偶数。
-      <br> 2.MXFP4场景下, x2非转置的情况下，n不为偶数。
-      <br> 3.在MXFP4/MXFP8场景中，支持x2转置。x2与scale的转置属性没有保持一致。
-      <br> 4.e大于1024的情况。
-      <br> 5.MXFP4场景下，k等于2。
-      </td>
-    </tr>
   </tbody></table>
 
 ## aclnnGroupedMatmulFinalizeRoutingV3
@@ -691,6 +670,9 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+- 确定性计算：
+  - aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+
 **伪量化场景支持类型**
 输入和输出支持以下数据类型组合：
 
@@ -703,7 +685,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   - 该场景支持对称量化和非对称量化。在对称量化时，offsetOptional需要设置为空；在非对称量化时，offsetOptional代表离线计算的辅助结果，即为$antiquantOffsetOptional \times scaleOptional$的结果。
   - 在该场景中，antiquantScaleOptional、antiquantOffsetOptional必须设置为空。
 
-**MX场景支持类型**(仅在910_95处理器上支持) {#mx-scenario-support}
+**MX场景支持类型**(仅 Ascend 950PR/Ascend 950DT 支持)
 输入和输出支持以下数据类型组合：
 
 MX量化场景| x1    | x2    | scaleOptional | biasOptional     | pertokenScaleOptional | groupListOptional | sharedInputOptional | logitOptional   | rowIndexOptional | out       |
@@ -715,11 +697,11 @@ MXFP4| FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT8_E8M0 | BFLOAT1
 - 在MXFP4/MXFP8场景中，offsetOptional、antiquantScaleOptional、antiquantOffsetOptional必须设置为空。
 - 在MXFP4场景中，必须满足k必须为偶数的约束。在x2非转置的情况下，n必须为偶数。
 - 在MXFP4/MXFP8场景中，支持x2转置或者非转置。x2与scale的转置属性必须保持一致。
-- e 必须小于1024。
-- 在MXFP4 场景下，k不能为2。
+- e 必须小于等于1024。
+- 在MXFP4场景中，k不能为2。
 
 ## 调用示例
-在Atlas A2,A3产品上示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+在Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品上示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
   ```Cpp
   #include <iostream>
@@ -1028,19 +1010,8 @@ MXFP4| FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT4_E2M1 FLOAT4_E1M2 | FLOAT8_E8M0 | BFLOAT1
   }
   ```
 
-  在910_95处理器上产品上示例代码如下：
+  在 Ascend 950PR/Ascend 950DT 上示例代码如下：
   ```cpp
-  /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
-
-
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -1090,7 +1061,7 @@ int Init(int32_t deviceId, aclrtStream *stream)
 }
 
 template <typename T>
-int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
+aclnnStatus CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
                     aclDataType dataType, aclTensor **tensor)
 {
     auto size = GetShapeSize(shape) * sizeof(T);
@@ -1114,7 +1085,7 @@ int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &
 }
 
 template <typename T>
-int CreateAclTensorWeight(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
+aclnnStatus CreateAclTensorWeight(const std::vector<T> &hostData, const std::vector<int64_t> &shape, void **deviceAddr,
                       aclDataType dataType, aclTensor **tensor)
 {
     auto size = static_cast<uint64_t>(GetShapeSize(shape));
@@ -1241,7 +1212,7 @@ auto Ceil(T1 a, T2 b) -> T1
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     
     // 创建bias aclTensor
-    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_FLOAT, &bias);
+    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_BF16, &bias);
     std::unique_ptr<aclTensor, aclnnStatus (*)(const aclTensor *)> biasTensorPtr(bias, aclDestroyTensor);
     std::unique_ptr<void, aclError (*)(void *)> biasDeviceAddrPtr(biasDeviceAddr, aclrtFree);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
