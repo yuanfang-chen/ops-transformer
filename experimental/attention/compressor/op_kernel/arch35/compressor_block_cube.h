@@ -312,10 +312,15 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
                 if (curBIdx_ == 0) {
                     copyLastCmpBlock = true;
                 } else {
-                    curBIdx_--;
-                    uint32_t bStartPos = GetStartPos(curBIdx_);
-                    uint32_t bSeqUsed = GetSeqUsed(curBIdx_);
-                    curSIdx_ = bStartPos + bSeqUsed == 0 ? 0 : max(Trunc(bStartPos + bSeqUsed - 1, constInfo_.cmpRatio), bStartPos) - bStartPos;
+                    // 取上一个batch的尾
+                    // S=0时向前取B
+                    do {
+                        curBIdx_ = (curBIdx_ - 1 + constInfo_.batchSize) % constInfo_.batchSize;
+                        uint32_t bStartPos = GetStartPos(curBIdx_);
+                        uint32_t bSeqUsed = GetSeqUsed(curBIdx_);
+                    } while (bSeqUsed == 0);
+
+                    curSIdx_ = bSeqUsed - (bStartPos + bSeqUsed) % constInfo_.cmpRatio;
                 }
             } else {
                 curSIdx_ = curSIdx_ < constInfo_.cmpRatio ? 0 : curSIdx_ - constInfo_.cmpRatio;
@@ -334,8 +339,14 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
     uint32_t ubOffset = mStart * (32 / sizeof(X_T));
     uint32_t mSizeFinish = 0;
     if (copyLastCmpBlock) {
-        uint32_t bStartPos = GetStartPos(constInfo_.batchSize - 1);
-        uint32_t bSeqUsed = GetSeqUsed(constInfo_.batchSize - 1);
+        uint32_t lastBIdx = constInfo_.batchSize;
+        // S=0时向前取B
+        do {
+            lastBIdx = (lastBIdx - 1 + constInfo_.batchSize) % constInfo_.batchSize;
+            uint32_t bStartPos = GetStartPos(lastBIdx);
+            uint32_t bSeqUsed = GetSeqUsed(lastBIdx);
+        } while (bSeqUsed == 0);
+
         uint32_t copySeqCnt = (bStartPos + bSeqUsed) % constInfo_.cmpRatio;
         if (copySeqCnt == 0) {
             copySeqCnt = constInfo_.cmpRatio;
@@ -365,6 +376,13 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         }
         uint32_t bSeqUsed = GetSeqUsed(curBIdx_);
         uint32_t bStartPos = GetStartPos(curBIdx_);
+
+        // 如果S=0，直接到下一个B
+        if (bSeqUsed == 0) {
+            curBIdx_++;
+            curSIdx_ = 0;
+            continue;
+        }
 
         uint32_t headHolderCnt = (bStartPos + curSIdx_) % constInfo_.cmpRatio;
         uint32_t canCopyCnt = bSeqUsed - curSIdx_;

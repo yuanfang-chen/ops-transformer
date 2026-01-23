@@ -981,11 +981,12 @@ __aicore__ inline void CompressorBlockVector<COMP>::UpdateBlockInfo(BlockInfo &b
     if (!blockInfo.isFirst) {
         blockInfo.sIdx += blockInfo.validSeqCnt;
         if (blockInfo.sIdx == blockInfo.bSeqUsed) {
-            blockInfo.bIdx++;
             blockInfo.sIdx = 0;
-
-            blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
-            blockInfo.bStartPos = GetStartPos(blockInfo.bIdx);
+            do {
+                blockInfo.bIdx++;
+                blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
+                blockInfo.bStartPos = GetStartPos(blockInfo.bIdx);
+            } while (blockInfo.bSeqUsed == 0);
         }
         if (blockInfo.dealSeqSize == 0) {
             return;
@@ -995,6 +996,11 @@ __aicore__ inline void CompressorBlockVector<COMP>::UpdateBlockInfo(BlockInfo &b
             return;
         }
         blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
+        // 如果S=0，跳B
+        while (blockInfo.bSeqUsed == 0) {
+            blockInfo.bIdx++;
+            blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
+        }
         blockInfo.bStartPos = GetStartPos(blockInfo.bIdx);
         blockInfo.isFirst = false;
     }
