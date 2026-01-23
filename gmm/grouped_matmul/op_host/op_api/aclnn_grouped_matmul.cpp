@@ -2013,7 +2013,8 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
     uniqueExecutor.ReleaseTo(executor);
     return ACLNN_SUCCESS;}
   op::Shape nzShape = (*params.weight)[0]->GetStorageShape();
-  if ((*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
+  if (params.apiVersion == gmm::GMMApiVersion::WeightNz ||
+      (*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
       CHECK_COND(ParamsWeightNzDtype(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "ParamsWeightNzDtype failed.");
       std::vector<const aclTensor *> tensorsVec;
       for (size_t i = 0; i < params.weight->Size(); ++i) {
