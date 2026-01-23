@@ -126,7 +126,7 @@ install_python_deps() {
         local current_ver
         current_ver=$(python3 -c "import numpy; print(numpy.__version__)" 2>/dev/null)
         if [ -n "$current_ver" ]; then
-            echo "numpy $current_ver already installed, skipping pinned version."
+            echo "numpy $current_ver already installed, skipping pinnedf version."
             return
         fi
     fi
