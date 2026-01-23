@@ -574,9 +574,9 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SingleSer
         currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)rankGM);
         currRankWindowOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)localBuf);
 
-        DataCopy(xOutTensor_[PING_IDX], currRankWindowOutGlobal, DATA_OFFSET / sizeof(ExpandXOutType));
+        DataCopy(xOutTensor_[PING_IDX], currRankWindowOutGlobal, statusEntryCount_ * sizeof(int32_t) / sizeof(ExpandXOutType));
         SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-        DataCopy(currRankWindowInGlobal, xOutTensor_[PING_IDX], DATA_OFFSET / sizeof(ExpandXOutType));
+        DataCopy(currRankWindowInGlobal, xOutTensor_[PING_IDX], statusEntryCount_ * sizeof(int32_t) / sizeof(ExpandXOutType));
         SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 
         currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(rankGM + DATA_OFFSET));
@@ -597,10 +597,10 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SingleSer
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
 
-        currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(rankGM + DATA_OFFSET + tokenCount * hCommuSize_));
-        currRankWindowOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(localBuf + DATA_OFFSET + tokenCount * hCommuSize_));
+        currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(rankGM + DATA_OFFSET + tokenCount * hCommuSize_ + SKIP_OFFSET));
+        currRankWindowOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(localBuf + DATA_OFFSET + tokenCount * hCommuSize_ + SKIP_OFFSET));
 
-        DataCopyExtParams copySkipOffsetFlagParams{1, static_cast<uint32_t>(SKIP_OFFSET + sizeof(uint32_t)), 0, 0, 0};
+        DataCopyExtParams copySkipOffsetFlagParams{1, static_cast<uint32_t>(sizeof(uint32_t)), 0, 0, 0};
         DataCopyPadExtParams<ExpandXOutType> padParams{false, 0, 0, 0};
 
         DataCopyPad(xOutTensor_[PING_IDX], currRankWindowOutGlobal, copySkipOffsetFlagParams, padParams);
@@ -608,6 +608,7 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SingleSer
         DataCopyPad(currRankWindowInGlobal, xOutTensor_[PING_IDX], copySkipOffsetFlagParams);
         SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
     }
+    PipeBarrier<PIPE_ALL>(); // 与WaitDispatch的LocalTensor高度重叠
 }
 
 template <TemplateMC2TypeA2Class>
@@ -674,7 +675,7 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::WaitDispa
 {
     if (unlikely(needPerformanceInfo_)) {
         // 避免没有被分配任务的核未初始化performanceInfoI32Tensor_
-        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, RoundUp(performanceInfoSize_ * static_cast<uint32_t>(sizeof(int64_t)), UB_ALIGN) / sizeof(int32_t));
+        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoI32Tensor_.GetSize());
         SyncFunc<AscendC::HardEvent::V_S>();
     }
 
