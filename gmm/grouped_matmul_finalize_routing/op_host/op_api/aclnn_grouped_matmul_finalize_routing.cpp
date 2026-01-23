@@ -344,6 +344,7 @@ static inline bool CheckDimRange(const GroupedMatmulParams &params)
     int64_t x2MaxDimNum = x2StorageFormat == op::Format::FORMAT_FRACTAL_NZ ? MAX_DIM_NUM_NZ + 1 : MAX_DIM_NUM_ND + 1;
     int64_t x2MinDimNum = x2StorageFormat == op::Format::FORMAT_FRACTAL_NZ ? MIN_DIM_NUM_NZ + 1 : MIN_DIM_NUM_ND + 1;
     int64_t x2DimNum = params.x2->GetStorageShape().GetDimNum();
+    OP_LOGE("GroupedMatmulFinalizeRouting CheckDimRange x2DimNum =%lld x2MinDimNum = %lld x2MaxDimNum=%lld ", x2DimNum , x2MinDimNum, x2MaxDimNum);
     CHECK_RET(x2DimNum >= x2MinDimNum && x2DimNum <= x2MaxDimNum, false);
     OP_CHECK_MIN_DIM(params.x1, MIN_DIM_NUM_ND, return false);
     OP_CHECK_MIN_DIM(params.out, MIN_DIM_NUM_ND, return false);
