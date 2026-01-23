@@ -1089,7 +1089,7 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
   if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
     CHECK_COND(isNoActivation, ACLNN_ERR_PARAM_INVALID, "Activation is not supported on Ascend910_95 platforms.");
     if (IsQuant(gmmParams.xDtype, weightDtype)) {
-      return gmm::AclnnGroupedMatmul91095Checker<aclTensorList>(gmmParams).CheckGroupedMatmul91095();
+      return gmm::AclnnGroupedMatmulDAV3510Checker<aclTensorList>(gmmParams).CheckGroupedMatmul91095();
     } else if (IsWeightQuant(gmmParams.xDtype, weightDtype)) {
       return gmm::AclnnGroupedMatmulWeightQuant91095Checker(gmmParams).CheckGroupedMatmulWeightQuant91095();
     }
@@ -1800,7 +1800,7 @@ static bool IsPerTileQuantMode(gmm::GroupedMatmulParams &params)
 {
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
         IsQuant(params.xDtype, (*params.weight)[0]->GetDataType())) {
-        gmm::AclnnGroupedMatmul91095Checker<aclTensorList> checker(params);
+        gmm::AclnnGroupedMatmulDAV3510Checker<aclTensorList> checker(params);
         return checker.IsPerTileQuantMode();
     }
     return false;
