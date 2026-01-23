@@ -21,7 +21,7 @@
 ## 函数原型
 
 ```
-torch_npu.npu_sparse_attn_sharedkv(Tensor q, *, Tensor? ori_kv=None, Tensor? cmp_kv=None, Tensor? cmp_sparse_indices=None, Tensor? ori_block_table=None, Tensor? cmp_block_table=None, Tensor? cu_seqlens_q=None, Tensor? seqused_kv=None, Tensor? sinks=None, Tensor? metadata=None, float softmax_scale=0, int cmp_ratio=0, int ori_mask_mode=4, int cmp_mask_mode=3, int ori_win_left=128, int ori_win_right=0, str layout_q='BSND', str layout_kv='PA_ND') -> Tensor
+torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indices=None, cmp_sparse_indices=None, ori_block_table=None, cmp_block_table=None, cu_seqlens_q=None, cu_seqlens_ori_kv=None, cu_seqlens_cmp_kv=None, seqused_q=None, seqused_kv=None, sinks=None, metadata=None, softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128, ori_win_right=0, layout_q='BSND', layout_kv='PA_ND', return_softmax_lse=False) -> (Tensor, Tensor)
 ```
 
 ## 参数说明
@@ -37,9 +37,9 @@ torch_npu.npu_sparse_attn_sharedkv(Tensor q, *, Tensor? ori_kv=None, Tensor? cmp
 
 -   **cmp_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}$和$\tilde{V}$的一部分，为经过压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`和`float16`，`layout_kv`时shape为[block\_num, block\_size, KV\_N, D]，其中block\_num2为PageAttention时block总数，block\_size2为一个block的token数，block\_size2取值为16的倍数，最大支持1024。`layout_kv`为BSND时shape为[B, S3, KV\_N, D]，`layout_kv`为TND时shape为[T3, KV\_N, D]，其中KV\_N只支持1。
 
--   **ori_sparse_indices**（`Tensor`）：可选参数，代表离散取oriKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, sparse\_size]，当`layout_query`为TND时，shape需要传入[Q\_T, KV\_N, sparse\_size1]，其中sparse\_size为一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，且需要满足sparse\_size1大于0。
+-   **ori_sparse_indices**（`Tensor`）：可选参数，代表离散取oriKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, K1]，当`layout_query`为TND时，shape需要传入[Q\_T, KV\_N, K1]，其中K1为对`ori_kv`一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，且需要满足K1大于0。
 
--   **cmp_sparse_indices**（`Tensor`）：可选参数，代表离散取cmpKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, sparse\_size]，当`layout_query`为TND时，shape需要传入[Q\_T, KV\_N, sparse\_size2]，其中sparse\_size为一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，且需要满足sparse\_size2大于0。
+-   **cmp_sparse_indices**（`Tensor`）：可选参数，代表离散取cmpKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, K2]，当`layout_query`为TND时，shape需要传入[Q\_T, KV\_N, K2]，其中K2为对`cmp_kv`一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，且需要满足K2大于0。
 
 -   **ori_block_table**（`Tensor`）：可选参数，表示PageAttention中oriKvCache存储使用的block映射表。数据格式支持ND，数据类型支持`int32`，shape为2维，其中第一维长度为B，第二维长度不小于所有batch中最大的S2对应的block数量，即S2\_max / block\_size向上取整。
 
@@ -51,37 +51,36 @@ torch_npu.npu_sparse_attn_sharedkv(Tensor q, *, Tensor? ori_kv=None, Tensor? cmp
 
 -   **cu_seqlens_cmp_kv**（`Tensor`）：可选参数，当`layout_kv`为TND时，表示不同Batch中`cmp_kv`的有效token数，维度为B+1，大小为参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须>=前一个元素的值，数据类型支持`int32`。
 
--   **seqused_q**（`Tensor`）：可选参数，表示不同Batch中`q`实际参与运算的token数，维度为B，数据格式支持ND，数据类型支持`int32`和`。
+-   **seqused_q**（`Tensor`）：可选参数，表示不同Batch中`q`实际参与运算的token数，维度为B，数据格式支持ND，数据类型支持`int32`，不输入则所有token均参与运算。
 
--   **seqused_kv**（`Tensor`）：可选参数，表示不同Batch中`ori_kv`实际参与运算的token数，维度为B，数据格式支持ND，数据类型支持`int32`和`。
+-   **seqused_kv**（`Tensor`）：可选参数，表示不同Batch中`ori_kv`实际参与运算的token数，维度为B，数据格式支持ND，数据类型支持`int32`，不输入则所有token均参与运算。
 
 -   **sinks**（`Tensor`）：可选参数，注意力下沉tensor，数据格式支持ND，数据类型支持`float32`，shape为[N1]。
 
--   **metadata**（`Tensor`）：可选参数，为aicpu算子的分核结果，数据格式支持ND，数据类型支持`int32`，shape固定为一维。
+-   **metadata**（`Tensor`）：可选参数，为aicpu算子（npu_sparse_attn_sharedkv_metadata）的分核结果，数据格式支持ND，数据类型支持`int32`，shape固定为[1024]。
 
--   **softmax_scale**（`Tensor`）：可选参数，代表缩放系数，作为Q和K矩阵乘后Muls的scalar值，数据类型支持`float`，默认值为None。
+-   **softmax_scale**（`double`）：可选参数，代表缩放系数，作为q与ori_kv和cmp_kv矩阵乘后Muls的scalar值，数据类型支持`float`，默认值为None，None表示softmax_scale值为1/sqrt(D)。
     
--   **cmp_ratio**（`Tensor`）：可选参数，表示对ori_kv的压缩率，数据类型支持`int`，数据范围支持2/4/8/16/32/64/128，默认值为None。
+-   **cmp_ratio**（`int`）：可选参数，表示对ori_kv的压缩率，数据类型支持`int`，数据范围支持2/4/8/16/32/64/128，默认值为None。
 
--   **ori_mask_mode**（`Tensor`）：可选参数，表示q和ori_kv计算的mask模式，仅支持输入默认值4，代表band模式的mask，数据类型支持`int`。
+-   **ori_mask_mode**（`int`）：可选参数，表示q和ori_kv计算的mask模式，仅支持输入默认值4，代表band模式的mask，数据类型支持`int`。
 
--   **cmp_mask_mode**（`Tensor`）：可选参数，表示q和cmp_kv计算的mask模式，仅支持输入默认值3，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景，数据类型支持`int`。
+-   **cmp_mask_mode**（`int`）：可选参数，表示q和cmp_kv计算的mask模式，仅支持输入默认值3，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景，数据类型支持`int`。
 
--   **ori_win_left**（`Tensor`）：可选参数，表示q和ori_kv计算中q对过去token计算的数量，数据类型支持`int`，数据范围支持ori_win_left>=0，或ori_win_left=-1，-1表示没有限制，默认值为127。
+-   **ori_win_left**（`int`）：可选参数，表示q和ori_kv计算中q对过去token计算的数量，数据类型支持`int`，数据范围支持ori_win_left>=0，或ori_win_left=-1，-1表示没有限制，默认值为127。
 
--   **ori_win_right**（`Tensor`）：可选参数，表示q和cmp_kv计算中q对未来token计算的数量，数据类型支持`int`，仅支持默认值0。
+-   **ori_win_right**（`int`）：可选参数，表示q和ori_kv计算中q对未来token计算的数量，数据类型支持`int`，仅支持默认值0。
 
--   **layout_q**（`Tensor`）：可选参数，用于标识输入q的数据排布格式，用户不特意指定时可传入默认值"BSND"，支持传入BSND和TND。
+-   **layout_q**（`str`）：可选参数，用于标识输入q的数据排布格式，用户不特意指定时可传入默认值"BSND"，支持传入BSND和TND。
 
--   **layout_kv**（`Tensor`）：可选参数，用于标识输入`ori_kv`和`cmp_kv`的数据排布格式，用户不特意指定时可传入默认值"PA_ND"，支持传入TND、BSND和PA\_ND，其中PA\_ND在使能PageAttention时使用。
+-   **layout_kv**（`str`）：可选参数，用于标识输入`ori_kv`和`cmp_kv`的数据排布格式，用户不特意指定时可传入默认值"PA_ND"，支持传入TND、BSND和PA\_ND，其中PA\_ND在使能PageAttention时使用。
 
--   **return_softmax_lse**（`Tensor`）：可选参数，用于表示是否返回softmax_max和softmax_sum。True表示返回，False表示不返回；默认值为False。
+-   **return_softmax_lse**（`bool`）：可选参数，表示是否输出softmax_lse。True表示返回，False表示不返回；默认值为False。
 
 ## 返回值说明
 
 -   **attention\_out**（`Tensor`）：公式中的输出。数据格式支持ND，数据类型支持`bfloat16`和`float16`。当layout\_query为BSND时shape为[B,S1,N1,D]，当layout\_query为TND时shape为[T1,N1,D]。
--   **softmax\_max**（`Tensor`）：可选输出，Attention算法对query乘key的结果，取max得到softmax_max，数据类型支持`float`。当layout\_query为BSND时shape为[B,N2,S1,N1/N2]，当layout\_query为TND时shape为[N2,T1,N1/N2]。
--   **softmax\_sum**（`Tensor`）：可选输出，Attention算法query乘key的结果减去softmax_max, 再取exp，接着求sum，得到softmax_sum，数据类型支持`float`。当layout\_query为BSND时shape为[B,N2,S1,N1/N2]，当layout\_query为TND时shape为[N2,T1,N1/N2]。
+-   **softmax\_lse**（`Tensor`）：可选输出，输出q乘ori_kv的结果先取max得到softmax_max，query乘key的结果减去softmax_max，再取exp，最后取sum，得到softmax_sum，最后对softmax_sum取log，再加上softmax_max得到的结果。，数据类型支持`float`。当layout\_query为BSND时shape为[B,N2,S1,N1/N2]，当layout\_query为TND时shape为[N2,T1,N1/N2]。
 
 ## 约束说明
 
@@ -139,22 +138,22 @@ torch_npu.npu_sparse_attn_sharedkv(Tensor q, *, Tensor? ori_kv=None, Tensor? cmp
     cmp_kv = torch.tensor(np.random.uniform(-5, 10, (block_num2, block_size2, n2, dn))).to(data_type).npu()
     sinks = torch.rand(n1).to(torch.float32).npu()
     attn_out = torch_npu.npu_sparse_attn_sharedkv(q,
-                                                ori_kv=ori_kv,
-                                                cmp_kv=cmp_kv,
-                                                cmp_sparse_indices=cmp_sparse_indices,
-                                                ori_block_table=block_table1,
-                                                cmp_block_table=block_table2,
-                                                cu_seqlens_q=cu_seqlens_q,
-                                                seqused_kv=seqused_kv,
-                                                softmax_scale=softmax_scale,
-                                                cmp_ratio=cmp_ratio,
-                                                sinks=sinks,
-                                                ori_mask_mode=ori_mask_mode,
-                                                cmp_mask_mode=cmp_mask_mode,
-                                                ori_win_left=ori_win_left,
-                                                ori_win_right=ori_win_right,
-                                                layout_q=layout_q,
-                                                layout_kv=layout_kv)
+                                                  ori_kv=ori_kv,
+                                                  cmp_kv=cmp_kv,
+                                                  cmp_sparse_indices=cmp_sparse_indices,
+                                                  ori_block_table=block_table1,
+                                                  cmp_block_table=block_table2,
+                                                  cu_seqlens_q=cu_seqlens_q,
+                                                  seqused_kv=seqused_kv,
+                                                  softmax_scale=softmax_scale,
+                                                  cmp_ratio=cmp_ratio,
+                                                  sinks=sinks,
+                                                  ori_mask_mode=ori_mask_mode,
+                                                  cmp_mask_mode=cmp_mask_mode,
+                                                  ori_win_left=ori_win_left,
+                                                  ori_win_right=ori_win_right,
+                                                  layout_q=layout_q,
+                                                  layout_kv=layout_kv)
 
     ```
 - 图模式调用
@@ -220,22 +219,22 @@ torch_npu.npu_sparse_attn_sharedkv(Tensor q, *, Tensor? ori_kv=None, Tensor? cmp
             cmp_block_table, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, sinks,
             ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv):
             return torch_npu.npu_sparse_attn_sharedkv(q,
-                                                    ori_kv=ori_kv,
-                                                    cmp_kv=cmp_kv,
-                                                    cmp_sparse_indices=cmp_sparse_indices,
-                                                    ori_block_table=ori_block_table,
-                                                    cmp_block_table=cmp_block_table,
-                                                    cu_seqlens_q=cu_seqlens_q,
-                                                    seqused_kv=seqused_kv,
-                                                    softmax_scale=softmax_scale,
-                                                    cmp_ratio=cmp_ratio,
-                                                    sinks=sinks,
-                                                    ori_mask_mode=ori_mask_mode,
-                                                    cmp_mask_mode=cmp_mask_mode,
-                                                    ori_win_left=ori_win_left,
-                                                    ori_win_right=ori_win_right,
-                                                    layout_q=layout_q,
-                                                    layout_kv=layout_kv)
+                                                      ori_kv=ori_kv,
+                                                      cmp_kv=cmp_kv,
+                                                      cmp_sparse_indices=cmp_sparse_indices,
+                                                      ori_block_table=ori_block_table,
+                                                      cmp_block_table=cmp_block_table,
+                                                      cu_seqlens_q=cu_seqlens_q,
+                                                      seqused_kv=seqused_kv,
+                                                      softmax_scale=softmax_scale,
+                                                      cmp_ratio=cmp_ratio,
+                                                      sinks=sinks,
+                                                      ori_mask_mode=ori_mask_mode,
+                                                      cmp_mask_mode=cmp_mask_mode,
+                                                      ori_win_left=ori_win_left,
+                                                      ori_win_right=ori_win_right,
+                                                      layout_q=layout_q,
+                                                      layout_kv=layout_kv)
     mod = torch.compile(Network().npu(), backend=npu_backend, fullgraph=True)
 
     attn_out = mod(q,
