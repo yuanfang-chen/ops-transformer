@@ -111,6 +111,7 @@ private:
     GlobalTensor<T> psySyncGm;
     GlobalTensor<KV_T> reluGradRes;
     GlobalTensor<T> scatterAddRes;
+    GlobalTensor<T> scatterAddResPang;
     GlobalTensor<MM3_OUT_T> bmm3Res;
     GlobalTensor<T> reluGm;
     GlobalTensor<T> lossRes;
@@ -184,7 +185,7 @@ __aicore__ inline void SparseLightningIndexerGradKLLossBase<SLIT>::Init(
                                     gatherPRes, gatherSYRes);
         vectorService.InitVector1GM(bmm1Res, softmaxMaxGm, softmaxSumGm, bmm2Res, weightGm, psySyncGm,
                                     lossGm, dWeightGm, reluGm, reluGradRes, actualSeqLengthsQueryGm, actualSeqLengthsKeyGm, lossRes);
-        vectorService.InitVector2GM(bmm3Res, topKIndexGm, scatterAddRes);
+        vectorService.InitVector2GM(bmm3Res, topKIndexGm, scatterAddRes, scatterAddResPang);
     } else if ASCEND_IS_AIC {
         // initCubeOP
         matmulService.InitParams(constInfo);
