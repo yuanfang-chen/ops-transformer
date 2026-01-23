@@ -15,7 +15,7 @@
 
 #ifndef EPILOGUE_BLOCK_EPILOGUE_SWIGLU_MX_QUANT_H
 #define EPILOGUE_BLOCK_EPILOGUE_SWIGLU_MX_QUANT_H
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
 #include "kernel_operator.h"
 #include "../utils/common_utils.h"
 #include "../utils/device_utils.h"
@@ -23,7 +23,7 @@
 #include "../utils/tensor_utils.h"
 #include "../tile/tile_copy_policy.h"
 
-namespace Act {
+namespace Cgmct {
 namespace Gemm {
 namespace Block {
 
@@ -134,13 +134,6 @@ public:
     __aicore__ inline void operator()(const BlockShape &blockShape, const BlockCoord &blockCoord);
     __aicore__ inline void UpdateGlobalAddr(const BlockCoord &baseOffset);
     __aicore__ inline void UpdateNextProblem(const ProblemShape &problemShape);
-    // static init
-    __host_aicore__ static Params InitParams(Arguments const &args)
-    {
-        Params params = {args.yGmAddr,    args.yScaleGmAddr, args.x2ScaleGmAddr, args.x1ScaleGmAddr,
-                         args.biasGmAddr, args.baseM,        args.baseN};
-        return params;
-    }
 
 private:
     __aicore__ inline void VFDoSwigluForMX(uint16_t mSize);
@@ -323,20 +316,10 @@ __aicore__ inline void BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_
                                         AscendC::MicroAPI::LoadDist::DIST_DINTLV_B16>(
                 vdExp0, vdExp1, srcAddr,
                 vlForHalfNumber_ * 2); // copy two chunks from srcAddr to regbase
-            if constexpr (AscendC::IsSameType<bfloat16_t, half>::value) {
-                AscendC::MicroAPI::Cast<bfloat16_t, bfloat16_t, castTraitHalf2Bf16>(vdExp0BF16, vdExp0, scaleMask1);
-                AscendC::MicroAPI::Cast<bfloat16_t, bfloat16_t, castTraitHalf2Bf16>(vdExp1BF16, vdExp1, scaleMask1);
-                AscendC::MicroAPI::And(vdExpExtract0, (AscendC::MicroAPI::RegTensor<uint16_t> &)vdExp0BF16, expMaskBF16,
-                                       scaleMask1);
-                AscendC::MicroAPI::And(vdExpExtract1, (AscendC::MicroAPI::RegTensor<uint16_t> &)vdExp1BF16, expMaskBF16,
-                                       scaleMask1);
-            } else {
-                AscendC::MicroAPI::And(vdExpExtract0, (AscendC::MicroAPI::RegTensor<uint16_t> &)vdExp0, expMaskBF16,
-                                       scaleMask1);
-                AscendC::MicroAPI::And(vdExpExtract1, (AscendC::MicroAPI::RegTensor<uint16_t> &)vdExp1, expMaskBF16,
-                                       scaleMask1);
-            }
-
+            AscendC::MicroAPI::And(vdExpExtract0, (AscendC::MicroAPI::RegTensor<uint16_t> &)vdExp0, expMaskBF16,
+                                   scaleMask1);
+            AscendC::MicroAPI::And(vdExpExtract1, (AscendC::MicroAPI::RegTensor<uint16_t> &)vdExp1, expMaskBF16,
+                                   scaleMask1);
             AscendC::MicroAPI::Max(vdMaxExp, vdExpExtract0, vdExpExtract1, scaleMask1);
             AscendC::MicroAPI::ReduceMaxWithDataBlock(vdMaxExp, vdMaxExp, scaleMask1);
 
@@ -420,7 +403,6 @@ BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_LOCAL_PARAMS>::ComputeD
         AscendC::MicroAPI::RegTensor<bfloat16_t> vdExp0BF16, vdExp1BF16;
         AscendC::MicroAPI::RegTensor<float> vdExp0FP32Zero, vdExp0FP32One, vdExp1FP32Zero, vdExp1FP32One;
         AscendC::MicroAPI::RegTensor<DataTypeOut> vdExp0FP8Zero, vdExp0FP8One, vdExp1FP8Zero, vdExp1FP8One;
-        AscendC::MicroAPI::RegTensor<bfloat16_t> vdBf16Exp0FP4, vdBf16Exp1FP4;
 
         static constexpr AscendC::MicroAPI::CastTrait castTraitZero = {
             AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::UNKNOWN,
@@ -499,8 +481,6 @@ BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_LOCAL_PARAMS>::ComputeD
         AscendC::MicroAPI::RegTensor<U> vdExp0FP4;
         AscendC::MicroAPI::RegTensor<U> vdExp1FP4;
 
-        AscendC::MicroAPI::RegTensor<bfloat16_t> vdBf16Exp0FP4;
-        AscendC::MicroAPI::RegTensor<bfloat16_t> vdBf16Exp1FP4;
         static constexpr AscendC::MicroAPI::CastTrait castTrait = {
             AscendC::MicroAPI::RegLayout::ZERO, AscendC::MicroAPI::SatMode::UNKNOWN,
             AscendC::MicroAPI::MaskMergeMode::ZEROING, AscendC::RoundMode::CAST_RINT};
@@ -682,7 +662,7 @@ BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_LOCAL_PARAMS>::operator
 }
 } // namespace Block
 } // namespace Gemm
-} // namespace Act
+} // namespace Cgmct
 
 #endif // EPILOGUE_BLOCK_EPILOGUE_SWIGLU_QUANT_H
 #endif
