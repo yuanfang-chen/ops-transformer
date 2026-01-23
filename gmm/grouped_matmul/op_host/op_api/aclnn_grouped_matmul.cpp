@@ -2428,3 +2428,4 @@ aclnnStatus aclnnGroupedMatmulWeightNz(void *workspace, uint64_t workspaceSize, 
 #ifdef __cplusplus
 }
 #endif
+1
