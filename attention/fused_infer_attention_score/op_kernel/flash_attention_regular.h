@@ -459,7 +459,6 @@ namespace SplitFuse {
                                     isLastStackTile);
                             }
                         } else if constexpr (MASK_TYPE == FaiKernel::MaskType::MASK_SWA) {
-                            uint32_t triUp = (nextTokenStartLen > kvSeqlen || nextTokenStartLen < 0 ) ? kvSeqlen : nextTokenStartLen ;
                             bool doTriUPreMask = (sparseMode != 4 || notPreMask) ? false : 
                             (preTokenStartLen >= kvSStartIdx && preTokenStartLen < kvSEndIdx) ||
                             (preTokenEndLen > kvSStartIdx && preTokenEndLen <= kvSEndIdx) ||
@@ -493,7 +492,10 @@ namespace SplitFuse {
                                     nextTokenEndLen,
                                     isLastStackTile);
                             } else {
-                                uint32_t noMaskStackSeqNum = (triUp - startIdx * MAX_KV_STACK_LEN + 1) / MAX_KV_STACK_LEN;
+                                uint32_t alignedKvSeqlenLimit = (nextTokenStartLen > kvSeqlen || nextTokenStartLen < 0 ) ? kvSeqlen : nextTokenStartLen;
+                                bool isLastNoMaskStackTile = (nextTokenStartLen > kvSeqlen) || (nextTokenStartLen < 0);
+                                alignedKvSeqlenLimit = NpuArch::Detail::Alignment::RoundDown(alignedKvSeqlenLimit, MAX_KV_STACK_LEN);
+                                uint32_t noMaskStackSeqNum = (alignedKvSeqlenLimit - startIdx * MAX_KV_STACK_LEN) / MAX_KV_STACK_LEN;
                                 Arch::CrossCoreWaitFlag(qkReady);
                                 epilogueOnlineSoftmax(
                                     gP[gmOffsetP],
@@ -503,7 +505,7 @@ namespace SplitFuse {
                                     layOutS,
                                     actualBlockShapeQK,
                                     (stackSeqCount == 0),
-                                    (stackSeqCount == noMaskStackSeqNum - 1),
+                                    (isLastNoMaskStackTile ? (stackSeqCount == noMaskStackSeqNum) : (stackSeqCount == noMaskStackSeqNum - 1)),
                                     qSBlockSize,
                                     qNBlockSize,
                                     curStackTileMod,
@@ -528,7 +530,7 @@ namespace SplitFuse {
                         Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxReady);
 #endif
                     }
-                    if (kvSIdx >= startIdx + preKVNum) {
+                    if (kvSIdx >= (startIdx + preKVNum)) {
                         uint32_t nowkvSIdx = kvSIdx - preKVNum;
                         if (nowkvSIdx + 1 > kvSLoopNumTotal - 1U) {
                             stackSeqTile = noSkipKvS - nowkvSIdx * MAX_KV_STACK_LEN;
