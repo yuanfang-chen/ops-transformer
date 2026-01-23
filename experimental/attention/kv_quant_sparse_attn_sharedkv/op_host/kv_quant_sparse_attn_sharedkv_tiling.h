@@ -118,7 +118,8 @@ BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvBaseParams)
 TILING_DATA_FIELD_DEF(uint32_t, batchSize)
 TILING_DATA_FIELD_DEF(uint32_t, qSeqSize)
 TILING_DATA_FIELD_DEF(uint32_t, kvSeqSize)
-TILING_DATA_FIELD_DEF(uint32_t, paBlockSize)
+TILING_DATA_FIELD_DEF(uint32_t, paOriBlockSize)
+TILING_DATA_FIELD_DEF(uint32_t, paCmpBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, oriMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, cmpMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, nNumOfQInOneGroup)
@@ -217,7 +218,8 @@ public:
     // PageAttention
     uint32_t blockTypeSize = 0;
     uint32_t oriMaxBlockNumPerBatch = 0;
-    int32_t blockSize = 0;
+    int32_t oriBlockSize = 0;
+    int32_t cmpBlockSize = 0;
     uint32_t cmpMaxBlockNumPerBatch = 0;
     uint32_t totalBlockNum = 0;
 
@@ -458,7 +460,8 @@ public:
     // PageAttention
     uint32_t oriMaxBlockNumPerBatch_ = 0;
     uint32_t cmpMaxBlockNumPerBatch_ = 0;
-    int32_t blockSize_ = 0;
+    int32_t oriBlockSize_ = 0;
+    int32_t cmpBlockSize_ = 0;
     platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
     ge::DataType qType_ = ge::DT_FLOAT16;
     ge::DataType oriKvType_ = ge::DT_FLOAT16;

@@ -499,8 +499,10 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
                 // 加上头块如果有
                 uint32_t midTc = (headSize > 0) ? (curDealTcNum - 1) : curDealTcNum;
                 remainSLen = headSize + midTc * constInfo.cmpRatio;
+                info.scEnd = curValidSc;
             } else {
                 remainSLen = curDealTcNum * constInfo.cmpRatio;
+                info.scEnd = info.scStart + curValidSc;
             }
 
             curSEnd = curSStart + remainSLen;
@@ -508,8 +510,6 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
             if (curSEnd > curActSeqLength) {
                 curSEnd = curActSeqLength;
             }
-
-            info.scEnd = info.scStart + curValidSc;
         }
         // printf("[CalcParams] dealTcNum:%u headSize:%u curBatchTcNum:%u curDealTcNum:%u curDealTcNum:%u tcNumCount:%u\n", dealTcNum, headSize, curBatchTcNum, curDealTcNum, tcNumCount);
         // printf("[CalcParams] sStart:%u sEnd:%u scStart:%u scEnd:%u\n", info.sStart, info.sEnd, info.scStart, info.scEnd);
