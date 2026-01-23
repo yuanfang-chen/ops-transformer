@@ -1,12 +1,12 @@
 /**
- * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /* !
  * \file grouped_matmul_finalize_routing.cc
@@ -140,31 +140,31 @@ static ge::graphStatus SetXAndWShapesForMX(const InferShapeContext *context,cons
 static ge::graphStatus ValidateScaleAndBias(const InferShapeContext *context, const char* op_name, const CheckXandWParams& xAndWParams)
 {
     auto shape_scale = context->GetOptionalInputShape(scaleOptionIndex);
-    OP_CHECK_IF(shape_scale == nullptr, OPS_REPORT_CUBE_INNER_ERR(op_name, "Scale is not given."), return ge::GRAPH_FAILED);
-    OP_LOGD(context->GetNodeName(), "Shape_scale: %s", Shape2String(*shape_scale).c_str());
+    OP_CHECK_IF(shape_scale == nullptr, OPS_REPORT_CUBE_INNER_ERR(op_name, "scale is not given."), return ge::GRAPH_FAILED);
+    OP_LOGD(context->GetNodeName(), "shape_scale: %s", Shape2String(*shape_scale).c_str());
 
     if (shape_scale->GetDimNum() == twoDimNum) {
         OP_CHECK_IF(shape_scale->GetDim(0) != xAndWParams.e || shape_scale->GetDim(1) != xAndWParams.n,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Scale 's size is not (E,N)."), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "scale 's size is not (E,N)."), return ge::GRAPH_FAILED);
         OP_CHECK_IF(!(((xAndWParams.k % NZ_K0_VALUE_INT8) == 0) &&
                 ((xAndWParams.n % NZ_K0_VALUE_INT8_TRANS) == 0) && (xAndWParams.n >= N_VALUE_256)),
                 OPS_REPORT_CUBE_INNER_ERR(op_name, "The input shape (K,N) is not supported"),
                 return ge::GRAPH_FAILED);
     } else if (shape_scale->GetDimNum() == threeDimNum) {
         OP_CHECK_IF(context->GetOptionalInputShape(pertokenScaleOptionIndex) == nullptr,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Pertoken scale is not given."), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "pertoken_scale is not given."), return ge::GRAPH_FAILED);
         OP_CHECK_IF(shape_scale->GetDim(0) != xAndWParams.e || shape_scale->GetDim(2) != xAndWParams.n || shape_scale->GetDim(1) != 1,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Scale 's size is not (E,1,N)."), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "scale 's size is not (E,1,N)."), return ge::GRAPH_FAILED);
         OP_CHECK_IF((context->GetOptionalInputShape(biasOptionIndex) == nullptr || 
             context->GetOptionalInputShape(biasOptionIndex)->GetDim(0) != xAndWParams.e || 
             context->GetOptionalInputShape(biasOptionIndex)->GetDim(DIM_ONE) != xAndWParams.n),
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Bias is not supported."), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "bias is not supported."), return ge::GRAPH_FAILED);
         OP_CHECK_IF(!(((xAndWParams.n % ND_N_VALUE_ALIGN) == 0) && (xAndWParams.k % ND_K0_VALUE_INT8 == 0) &&
                     (xAndWParams.n > N_VALUE_64) && (xAndWParams.k > K_VALUE_128)),
                     OPS_REPORT_CUBE_INNER_ERR(op_name, "The input shape (K,N) is not supported"),
                     return ge::GRAPH_FAILED);
     } else {
-        OP_LOGE(op_name, "Scale shape is not support");
+        OP_LOGE(op_name, "scale shape is not support");
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -176,14 +176,14 @@ static ge::graphStatus ValidatePertokenAndGroupList(const InferShapeContext *con
     if (context->GetOptionalInputShape(pertokenScaleOptionIndex) != nullptr) {
         OP_CHECK_IF(context->GetOptionalInputShape(pertokenScaleOptionIndex)->GetDimNum() != oneDimNum ||
             context->GetOptionalInputShape(pertokenScaleOptionIndex)->GetDim(0) != xAndWParams.m,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Pertoken_scale's size is not (M,)."), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "pertoken_scale's size is not (M,)."), return ge::GRAPH_FAILED);
     }
 
     OP_CHECK_IF(context->GetOptionalInputShape(groupListOptionIndex) == nullptr,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Group_list is not given."), return ge::GRAPH_FAILED);
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "group_list is not given."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context->GetOptionalInputShape(groupListOptionIndex)->GetDimNum() != oneDimNum ||
         context->GetOptionalInputShape(groupListOptionIndex)->GetDim(0) != xAndWParams.e,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Group_list's size is not (e,)."), return ge::GRAPH_FAILED);
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "group_list's size is not (e,)."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -192,16 +192,16 @@ static ge::graphStatus ValidateSharedInputAndLogit(const InferShapeContext *cont
     if (context->GetOptionalInputShape(sharedInputOptionIndex) != nullptr) {
         OP_CHECK_IF(context->GetOptionalInputShape(sharedInputOptionIndex)->GetDimNum() != twoDimNum ||
             context->GetOptionalInputShape(sharedInputOptionIndex)->GetDim(1) != xAndWParams.n,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Shared_input's shape is wrong."), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "shared_input's shape is wrong."), return ge::GRAPH_FAILED);
         bsdp = context->GetOptionalInputShape(sharedInputOptionIndex)->GetDim(0);
-        OP_CHECK_IF(bsdp <= 0, OPS_REPORT_CUBE_INNER_ERR(op_name, "Shared_input first dim must bigger than 0 ."),
+        OP_CHECK_IF(bsdp <= 0, OPS_REPORT_CUBE_INNER_ERR(op_name, "shared_input first dim must bigger than 0 ."),
             return ge::GRAPH_FAILED);
     }
     
     if (context->GetOptionalInputShape(logitOptionIndex) != nullptr) {
         OP_CHECK_IF(context->GetOptionalInputShape(logitOptionIndex)->GetDimNum() != oneDimNum ||
             context->GetOptionalInputShape(logitOptionIndex)->GetDim(0) != xAndWParams.m,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Logit's shape is wrong."), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "logit's shape is wrong."), return ge::GRAPH_FAILED);
     }
     
     return ge::GRAPH_SUCCESS;
@@ -210,10 +210,10 @@ static ge::graphStatus ValidateSharedInputAndLogit(const InferShapeContext *cont
 static ge::graphStatus ValidateRowIndex(const InferShapeContext *context, const char* op_name, const CheckXandWParams& xAndWParams)
 {
     OP_CHECK_IF(context->GetOptionalInputShape(rowIndexOptionIndex) == nullptr,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Row_index is not given."), return ge::GRAPH_FAILED);
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "row_index is not given."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context->GetOptionalInputShape(rowIndexOptionIndex)->GetDimNum() != oneDimNum ||
         context->GetOptionalInputShape(rowIndexOptionIndex)->GetDim(0) != xAndWParams.m,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Row_index's shape is wrong."), return ge::GRAPH_FAILED);
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "row_index's shape is wrong."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -224,22 +224,22 @@ static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, cons
     auto shape_out = context->GetOutputShape(0);
     const int *shared_input_offset = attrs->GetAttrPointer<int>(sharedInputOffsetAttrIndex);
     OP_CHECK_IF(shared_input_offset == nullptr || *shared_input_offset < 0,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Shared_input_offset is smaller than 0."), return ge::GRAPH_FAILED);
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "shared_input_offset is smaller than 0."), return ge::GRAPH_FAILED);
 
     shape_out->SetDimNum(twoDimNum);
     const int *output_bs = attrs->GetAttrPointer<int>(outputBSAttrIndex);
     OP_CHECK_IF(output_bs == nullptr,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Output_bs is not given."), return ge::GRAPH_FAILED);
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "output_bs is not given."), return ge::GRAPH_FAILED);
     if (output_bs != nullptr) {
         OP_CHECK_IF(*output_bs > xAndWParams.m || *output_bs < 0,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "Output_bs is larger than m or smaller than 0 "), return ge::GRAPH_FAILED);
+            OPS_REPORT_CUBE_INNER_ERR(op_name, "output_bs is larger than m or smaller than 0 "), return ge::GRAPH_FAILED);
         shape_out->SetDim(0, *output_bs);
     }
     auto x2_dim = xAndWParams.shape_x2->GetDimNum();
     shape_out->SetDim(1, xAndWParams.shape_x2->GetDim(x2_dim - 1));
     OP_CHECK_IF((bsdp + (*shared_input_offset)) > *output_bs,
         OPS_REPORT_CUBE_INNER_ERR(op_name, "BS/dp add shared_input_offset larger than outputBS."), return ge::GRAPH_FAILED);
-    OP_LOGI(op_name, "Shape out is %ld, %ld", shape_out->GetDim(0), shape_out->GetDim(1));
+    OP_LOGI(op_name, "shape out is %ld, %ld", shape_out->GetDim(0), shape_out->GetDim(1));
     return ge::GRAPH_SUCCESS;
 }
 
@@ -261,7 +261,7 @@ static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const int& b
     shape_out->SetDim(DIM_ONE, xAndWParams.weightTrans ?
                              shape_scale->GetDim(DIM_ONE) :
                              shape_scale->GetDim(DIM_TWO)); // 如果非转置，n为最后一维，如果转置，n为倒数第二维。
-    OP_LOGI(op_name, "Shape out is %ld, %ld", shape_out->GetDim(DIM_ZERO), shape_out->GetDim(DIM_ONE));
+    OP_LOGI(op_name, "shape out is %ld, %ld", shape_out->GetDim(DIM_ZERO), shape_out->GetDim(DIM_ONE));
     return ge::GRAPH_SUCCESS;
 }
 
@@ -270,11 +270,11 @@ static ge::graphStatus ValidateOffsetShape(const InferShapeContext *context, con
     auto shape_offset = context->GetOptionalInputShape(offsetOptionIndex);
     if (shape_offset != nullptr) {
         if (shape_offset->GetDimNum() != threeDimNum) {
-            OP_LOGE(op_name, "Offset shape is not support");
+            OP_LOGE(op_name, "offset shape is not support");
             return ge::GRAPH_FAILED;
         }
         OP_CHECK_IF(shape_offset->GetDim(0) != xAndWParams.e || shape_offset->GetDim(1) != 1 || shape_offset->GetDim(2) != xAndWParams.n,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Offset 's size is not (E,1,N)."), return ge::GRAPH_FAILED);
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "offset 's size is not (E,1,N)."), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -289,8 +289,8 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
 
     auto attrs = context->GetAttrs();
     OP_CHECK_IF(shape_x1 == nullptr || shape_x2 == nullptr || shape_out == nullptr || attrs == nullptr,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "Shape or attrs is null"), return ge::GRAPH_FAILED);
-    OP_LOGD(context->GetNodeName(), "X1_shape: %s, x2_shape: %s", Shape2String(*shape_x1).c_str(), Shape2String(*shape_x2).c_str());
+        OPS_REPORT_CUBE_INNER_ERR(op_name, "shape or attrs is null"), return ge::GRAPH_FAILED);
+    OP_LOGD(context->GetNodeName(), "x1_shape: %s, x2_shape: %s", Shape2String(*shape_x1).c_str(), Shape2String(*shape_x2).c_str());
     
     const bool *transposeWeightPtr = attrs->GetBool(weightTransIndex);
     bool transposeWeight = (transposeWeightPtr != nullptr ? *transposeWeightPtr : false);
@@ -299,7 +299,7 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
     
     // MX量化模式涉及图模式交付不走校验逻辑
     auto shape_scale = context->GetOptionalInputShape(scaleOptionIndex);
-    OP_CHECK_IF(shape_scale == nullptr, OPS_REPORT_CUBE_INNER_ERR(op_name, "Scale is not given."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(shape_scale == nullptr, OPS_REPORT_CUBE_INNER_ERR(op_name, "scale is not given."), return ge::GRAPH_FAILED);
     if (shape_scale->GetDimNum() == fourDimNum) {
         OP_CHECK_IF(SetXAndWShapesForMX(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
         OP_CHECK_IF(SetupOutputForMX(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
