@@ -16,9 +16,9 @@
 #ifndef GROUPED_MATMUL_SWIGLU_QUANT_V2_MXQUANT_H
 #define GROUPED_MATMUL_SWIGLU_QUANT_V2_MXQUANT_H
 
-#include "../../../common/groupedmatmul_act/kernel/kernel_gmm_swiglu_mxquant.h"
-#include "../../../common/groupedmatmul_act/block/block_mx_mm_aic_to_aiv_builder.h"
-#include "../../../common/groupedmatmul_act/block/block_scheduler_gmm_aswt_with_tail_split.h"
+#include "../../../common/cgmct/kernel/kernel_gmm_swiglu_mxquant.h"
+#include "../../../common/cgmct/block/block_mx_mm_aic_to_aiv_builder.h"
+#include "../../../common/cgmct/block/block_scheduler_gmm_aswt_with_tail_split.h"
 
 using namespace Act::Gemm;
 using namespace Act::Gemm::Kernel;
