@@ -17,7 +17,6 @@
 #include "platform/platform_info.h"
 #include "util/math_util.h"
 #include "graph/utils/type_utils.h"
-#include "runtime/rt_external_base.h"
 
 using namespace ge;
 namespace ops {
@@ -34,7 +33,7 @@ constexpr size_t GMMSQ_INDEX_ATTR_QUANT_MODE = 2UL;
 constexpr size_t QUANT_MODE_TYPE = 2;
 constexpr int64_t DYNAMIC_GRAPH_FIRST_INFERSHAPE_DIM_VALUE = -1;
 
-static std::set<std::string> GmmDavidSupportArch = {"3510"};
+static std::set<std::string> GmmDavidSupportSoc = {"Ascend910_95"};
 static const std::unordered_set<ge::DataType> DavidSupportedInputDtypes = {ge::DataType::DT_FLOAT8_E5M2, ge::DataType::DT_FLOAT8_E4M3FN,
                                                           ge::DataType::DT_FLOAT4_E1M2, ge::DataType::DT_FLOAT4_E2M1};
 bool  isSupportedInputDtypeForDavid(ge::DataType dtype)
@@ -100,11 +99,10 @@ static graphStatus InferDataType4GroupedMatmulSwigluQuantV2(gert::InferDataTypeC
     const int64_t* quantMode = attrs->GetInt(GMMSQ_INDEX_ATTR_QUANT_MODE);
     OP_CHECK_NULL_WITH_CONTEXT(context, quantMode);
 
-    int maxlen = 32;
- 	char npuArch[maxlen] = {};
- 	auto ret = rtGetSocSpec("version", "NpuArch", npuArch, maxlen);
- 	std::string npuArchStr(npuArch);
-    if (ret == RT_ERROR_NONE && GmmDavidSupportArch.count(npuArchStr) > 0) {
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optionalInfo;
+    auto ret = fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platformInfo, optionalInfo);
+    if (ret == GRAPH_SUCCESS && GmmDavidSupportSoc.count(platformInfo.str_info.short_soc_version) > 0) {
         auto xDtype = context->GetInputDataType(X_INDEX);
         auto weightDtype = context->GetDynamicInputDataType(WEIGHT_INDEX, 0);
         OP_CHECK_IF(!isSupportedInputDtypeForDavid(xDtype) || !isSupportedInputDtypeForDavid(weightDtype),

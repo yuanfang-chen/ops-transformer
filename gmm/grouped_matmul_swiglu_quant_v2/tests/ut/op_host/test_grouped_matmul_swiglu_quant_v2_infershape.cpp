@@ -27,45 +27,45 @@
      }
  };
 
-//  TEST_F(GroupedMatmulSwigluQuantV2, test_infershape_w8a8_normal_1) {
-//     int m = 1024;
-//     int k = 2048;
-//     int n = 4096;
-//     int e = 16;
-//     gert::StorageShape xShape = {{m, k}, {m, k}};
-//     gert::StorageShape wShape = {{e, k, n}, {e, k, n}};
-//     gert::StorageShape wScaleShape = {{e, n}, {e, n}};
-//     gert::StorageShape xScaleShape = {{m}, {m}};
-//     gert::StorageShape groupListShape = {{e}, {e}};
+ TEST_F(GroupedMatmulSwigluQuantV2, test_infershape_w8a8_normal_1) {
+    int m = 1024;
+    int k = 2048;
+    int n = 4096;
+    int e = 16;
+    gert::StorageShape xShape = {{m, k}, {m, k}};
+    gert::StorageShape wShape = {{e, k, n}, {e, k, n}};
+    gert::StorageShape wScaleShape = {{e, n}, {e, n}};
+    gert::StorageShape xScaleShape = {{m}, {m}};
+    gert::StorageShape groupListShape = {{e}, {e}};
 
-//     gert::InfershapeContextPara infershapeContextPara("GroupedMatmulSwigluQuantV2",
-//         {
-//             {xShape, ge::DT_INT8, ge::FORMAT_ND},
-//             {xScaleShape, ge::DT_FLOAT, ge::FORMAT_ND},
-//             {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
-//             {{wShape}, ge::DT_INT8, ge::FORMAT_FRACTAL_NZ},
-//             {{wScaleShape}, ge::DT_FLOAT, ge::FORMAT_ND},
-//             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-//             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-//             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-//         },
-//         {
-//             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
-//             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-//         },
-//         {
-//             {"dequant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//             {"dequant_dtype", Ops::Transformer::AnyValue::CreateFrom<float>(0)},
-//             {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//             {"quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//             {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-//             {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-//         }
-//     );
+    gert::InfershapeContextPara infershapeContextPara("GroupedMatmulSwigluQuantV2",
+        {
+            {xShape, ge::DT_INT8, ge::FORMAT_ND},
+            {xScaleShape, ge::DT_FLOAT, ge::FORMAT_ND},
+            {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
+            {{wShape}, ge::DT_INT8, ge::FORMAT_FRACTAL_NZ},
+            {{wScaleShape}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            {"dequant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"dequant_dtype", Ops::Transformer::AnyValue::CreateFrom<float>(0)},
+            {"quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+            {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        }
+    );
 
-//     std::vector<std::vector<int64_t>> expectOuputShape = {{m, n / 2}, {m}}; // 预期输出shape
-//     ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOuputShape);
-//  }
+    std::vector<std::vector<int64_t>> expectOuputShape = {{m, n / 2}, {m}}; // 预期输出shape
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOuputShape);
+ }
 
   TEST_F(GroupedMatmulSwigluQuantV2, test_infershape_91095_normal_1) {
     int m = 2048;
