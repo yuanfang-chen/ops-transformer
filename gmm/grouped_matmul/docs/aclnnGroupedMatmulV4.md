@@ -357,7 +357,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - groupType不支持n轴分组
   - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
     - x支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT32、FLOAT4_E1M2、FLOAT4_E2M1
-    - weight支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT32、FLOAT4_E1M2、FLOAT4_E2M1，当x与weight都为int8时支持ND和FRACTAL_NZ格式，其余场景只支持ND格式。使用weightNz特性时可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。
+    - weight支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT32、FLOAT4_E1M2、FLOAT4_E2M1，当x与weight都为int8时支持ND和FRACTAL_NZ格式，其余场景只支持ND格式。当最后两根轴其中一根轴为1（即n=1或k=1）时，x2不支持FRACTAL_NZ格式。使用weightNz特性时可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。
     - biasOptional支持INT32、BFLOAT16、FLOAT16、FLOAT32，在输入x为INT8、FLOAT16、BFLOAT16、FLOAT32时支持INT32、BFLOAT16、FLOAT16、FLOAT32，在输入x为FLOAT4_E1M2、FLOAT4_E2M1时仅支持FLOAT32，其它类型输入需传空指针
     - scaleOptional支持UINT64、INT64、BFLOAT16、FLOAT32、FLOAT8_E8M0
     - perTokenScaleOptional支持FLOAT32、FLOAT8_E8M0
