@@ -468,7 +468,7 @@ def gen_ori_kv(ori_kv_type, B, N2, D, block_num1, block_size1, seqused_kv):
         ori_block_num_sum += cur_ori_kv_block_num
 
     if block_num1 < ori_block_num_sum:
-        raise ValueError(f"ori_kv actual_block_num < needed_block_num, which is {block_num1 < ori_block_num_sum}")
+        raise ValueError(f"ori_kv actual_block_num < needed_block_num, which is {block_num1} < {ori_block_num_sum}")
 
     ori_block_id_list = np.arange(block_num1)
     ori_block_id_list = np.random.permutation(ori_block_id_list).astype(np.int32)
@@ -529,7 +529,7 @@ def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_siz
         cmp_block_num_per_batch.append(cur_cmp_kv_block_num)
         cmp_block_num_sum += cur_cmp_kv_block_num
     if block_num2 < cmp_block_num_sum:
-        raise ValueError(f"cmp_kv actual_block_num < needed_block_num, which is {block_num2 < cmp_block_num_sum}")
+        raise ValueError(f"cmp_kv actual_block_num < needed_block_num, which is {block_num2} < {cmp_block_num_sum}")
 
     cmp_block_id_list = np.arange(block_num2)
     cmp_block_id_list = np.random.permutation(cmp_block_id_list).astype(np.int32)
@@ -565,6 +565,8 @@ def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_siz
     else:
         cmp_sparse_indices = None
     cmp_block_table = torch.tensor(cmp_block_table).to(torch.int32)
+    if cmp_block_table.shape[1] == 0:
+        cmp_block_table = None
     return cmp_k_in_pa_shape, cmp_sparse_indices, cmp_block_table, cmp_k_bnsd
 
 def test_sas_process(params):
@@ -635,7 +637,8 @@ def test_sas_process(params):
 
     if template_idx == 1 or template_idx == 2:
         cmp_k_in_pa_shape = cmp_k_in_pa_shape.npu()
-        cmp_block_table = cmp_block_table.npu()
+        if cmp_block_table is not None:
+            cmp_block_table = cmp_block_table.npu()
     if template_idx == 2:
         cmp_sparse_indices = cmp_sparse_indices.npu()
 
