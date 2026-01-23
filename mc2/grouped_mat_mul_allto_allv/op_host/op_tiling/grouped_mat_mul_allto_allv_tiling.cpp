@@ -21,6 +21,7 @@
 #include "tiling/mc2_tiling_common_var.h"
 #include "mc2_hcom_topo_info.h"
 #include "mc2_log.h"
+#include "tiling/mc2_calc_num_blocks.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/hccl_formulaic_tiling.h"
@@ -920,9 +921,9 @@ static void UpdateTilingKey(uint64_t& tilingKey, const GroupedMatMulAlltoAllvTil
     return;
 }
 
+
 static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* context)
 {
-    uint32_t blockDim = 1U;
     const char* nodeName = context->GetNodeName();
     GroupedMatMulAlltoAllvTilingData* tilingData = context->GetTilingData<GroupedMatMulAlltoAllvTilingData>();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
@@ -938,15 +939,15 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
 
     uint64_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
+    uint64_t blockDim = mc2tiling::GetNumBlocks(aicNum, aivNum, C_INNER_DEBUG);
     uint64_t ubSize = 0LU;
     static const PlatFormMemSize PLATFORM_SIZE(ascendcPlatform);
-
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
-    context->SetBlockDim(blockDim);
-    tilingData->commonTilingInfo.aivCoreNum = aivNum;
-    tilingData->commonTilingInfo.aicCoreNum = aicNum;
 
+    tilingData->commonTilingInfo.aicCoreNum = blockDim;
+    tilingData->commonTilingInfo.aivCoreNum = blockDim * NUM_TWO;    // aic:aiv按照1：2配比
+    context->SetBlockDim(static_cast<uint32_t>(blockDim));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
+    
     // Set HCCL tiling
     OP_TILING_CHECK(SetHcclTiling(context, tilingData) != ge::GRAPH_SUCCESS,
         OP_LOGE(C_INNER_DEBUG, "SetHcclTiling Failed!"), return ge::GRAPH_FAILED);
