@@ -407,6 +407,9 @@ export GRAPH_LIBRARY_STUB_PATH="${ASCEND_HOME_PATH}/lib64/stub"
 export GRAPH_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 
 export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/include/aclnnop"
+export ASCEND_GLOBAL_LOG_LEVEL=2
+export ASCEND_SLOG_PRINT_TO_STDOUT=1
+
 
 function build_example()
 {
