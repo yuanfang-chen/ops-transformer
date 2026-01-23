@@ -29,7 +29,7 @@
 #include "opdev/make_op_executor.h"
 
 #include "../../../grouped_matmul/op_host/op_api/aclnn_grouped_matmul_util.h"
-#include "../../../grouped_matmul/op_host/op_api/aclnn_grouped_matmul_910_95_checker.h"
+#include "../../../grouped_matmul/op_host/op_api/aclnn_grouped_matmul_DAV_3510_checker.h"
 #include "aclnn_quant_grouped_matmul_inplace_add_util.h"
 #include "quant_grouped_matmul_inplace_add.h"
 #include "aclnn_quant_grouped_matmul_inplace_add_910_95_checker.h"
@@ -215,7 +215,7 @@ static aclnnStatus CheckParams(QGmmInPlaceAdd::QuantGroupedMatmulInplaceAddParam
         checkerTC.SetInputName("x1", "x2", "scale1Optional", "scale2", "groupList");
         CHECK_RET(checkerTC.CheckQuantGroupedMatmulInplaceAdd91095() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     } else {
-        auto checker = gmm::AclnnGroupedMatmul91095Checker<aclTensor>(gmmParams);
+        auto checker = gmm::AclnnGroupedMatmulDAV3510Checker<aclTensor>(gmmParams);
         checker.SetInputName("x1", "x2", "scale1Optional", "scale2", "groupList");
         CHECK_RET(checker.CheckGroupedMatmul91095() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     }

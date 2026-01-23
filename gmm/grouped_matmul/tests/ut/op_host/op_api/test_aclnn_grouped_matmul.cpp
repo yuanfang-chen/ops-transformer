@@ -78,7 +78,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910B2_grouped_matmul_fp16)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_static)
+TEST_F(l2_grouped_matmul_test, DAV3510_grouped_matmul_a8w8ofp16_weightNz_static)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -119,7 +119,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_stat
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_pertoken)
+TEST_F(l2_grouped_matmul_test, DAV3510_grouped_matmul_a8w8ofp16_weightNz_pertoken)
 {
     size_t M = 345;
     size_t K = 1280;
