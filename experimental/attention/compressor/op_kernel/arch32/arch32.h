@@ -17,7 +17,7 @@
 #ifndef ARCH_32_H
 #define ARCH_32_H
 
-#include "compressor_block_vec.h"
+#include "compressor_vector_comm.h"
 #include "rms_norm.h"
 #include "rope.h"
 #include "soft_max.h"
