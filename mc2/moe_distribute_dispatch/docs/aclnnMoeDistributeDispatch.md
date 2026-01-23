@@ -578,7 +578,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
 
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
     ```Cpp
     #include <thread>
     #include <iostream>
@@ -618,9 +618,9 @@ aclnnStatus aclnnMoeDistributeDispatch(
     const char* first_rank_id = std::getenv("FIRST_RANK_ID");
     const char* env_dev_num = std::getenv("ENV_DEV_NUM");
 
-    const uint32_t EP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 8 : 16;
-    const uint32_t TP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 2 : 0;
-    const uint32_t DEV_NUM = (!rank_table_file && !first_rank_id) ? EP_WORLD_SIZE * TP_WORLD_SIZE : EP_WORLD_SIZE;
+    uint32_t EP_WORLD_SIZE = 0;
+    uint32_t TP_WORLD_SIZE = 0;
+    uint32_t DEV_NUM = 0;
 
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
     {
@@ -672,13 +672,17 @@ aclnnStatus aclnnMoeDistributeDispatch(
         // 设置场景
         int64_t BS = 8;
         int64_t H = 7168;
-        int64_t K = 3;
+        int64_t K = 1;
         int64_t expertShardType = 0;
         int64_t sharedExpertNum = 0;
         int64_t sharedExpertRankNum = 0;
         if (!rank_table_file && !first_rank_id) {
             sharedExpertNum = 1;
             sharedExpertRankNum = 1;
+        } 
+        if (rank_table_file && !first_rank_id) {
+            sharedExpertNum = 1;
+            sharedExpertRankNum = 0;
         } 
         int64_t moeExpertNum = EP_WORLD_SIZE - sharedExpertRankNum;
         int64_t quantMode = 0;
@@ -988,7 +992,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
         return 0;
     }
 
-    int run_example_on_A3()
+    int run_example_on_A3A5()
     {
         int ret = aclInit(nullptr);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d\n", ret); return ret);
@@ -1079,10 +1083,23 @@ aclnnStatus aclnnMoeDistributeDispatch(
         }
         if (!rank_table_file && !first_rank_id) {
             LOG_PRINT("[INFO] %s are not identified and example on <Atlas A3> will be executed!\n", env_var_name);
-            int ret = run_example_on_A3();
+            EP_WORLD_SIZE = 8;
+            TP_WORLD_SIZE = 2;
+            DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
+            int ret = run_example_on_A3A5();
+        }
+        else if (rank_table_file && !first_rank_id) {
+            LOG_PRINT("[INFO] %s are not identified and example on <Atlas A5> will be executed!\n", env_var_name);
+            EP_WORLD_SIZE = 2;
+            TP_WORLD_SIZE = 1;
+            DEV_NUM = 2;
+            int ret = run_example_on_A3A5();
         }
         else if (rank_table_file && first_rank_id) {
             LOG_PRINT("[INFO] %s are identified and example on <Atlas A2> will be executed!\n", env_var_name);
+            EP_WORLD_SIZE = 16;
+            TP_WORLD_SIZE = 0;
+            DEV_NUM = EP_WORLD_SIZE;
             uint32_t single_machine_dev_num = EP_WORLD_SIZE / MACHINE_NUM;
             std::vector<std::unique_ptr<std::thread>> threads(single_machine_dev_num);
             int ret = aclInit(nullptr);

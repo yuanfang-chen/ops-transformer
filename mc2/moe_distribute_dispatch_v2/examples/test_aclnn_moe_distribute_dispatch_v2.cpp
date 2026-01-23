@@ -53,9 +53,9 @@ const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
 const char* first_rank_id = std::getenv("FIRST_RANK_ID");
 const char* env_dev_num = std::getenv("ENV_DEV_NUM");
 
-const uint32_t EP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 2 : 16;
-const uint32_t TP_WORLD_SIZE = (!rank_table_file && !first_rank_id) ? 1 : 0;
-const uint32_t DEV_NUM = (!rank_table_file && !first_rank_id) ? EP_WORLD_SIZE * TP_WORLD_SIZE : EP_WORLD_SIZE;
+const uint32_t EP_WORLD_SIZE = (!first_rank_id) ? 2 : 16;
+const uint32_t TP_WORLD_SIZE = (!first_rank_id) ? 1 : 0;
+const uint32_t DEV_NUM = (!first_rank_id) ? EP_WORLD_SIZE * TP_WORLD_SIZE : EP_WORLD_SIZE;
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape)
 {
@@ -425,7 +425,7 @@ int run_example_on_A2(int rankId, const char* RANK_TABLE_FILE, const char* FIRST
     return 0;
 }
 
-int run_example_on_A3()
+int run_example_on_A3A5()
 {
     int ret = aclInit(nullptr);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d\n", ret); return ret);
@@ -516,7 +516,11 @@ int main(int argc, char *argv[])
     }
     if (!rank_table_file && !first_rank_id) {
         LOG_PRINT("[INFO] %s are not identified and example on <Atlas A3> will be executed!\n", env_var_name);
-        int ret = run_example_on_A3();
+        int ret = run_example_on_A3A5();
+    }
+    else if (rank_table_file && !first_rank_id) {
+        LOG_PRINT("[INFO] %s are not identified and example on <Atlas A5> will be executed!\n", env_var_name);
+        int ret = run_example_on_A3A5();
     }
     else if (rank_table_file && first_rank_id) {
         LOG_PRINT("[INFO] %s are identified and example on <Atlas A2> will be executed!\n", env_var_name);
