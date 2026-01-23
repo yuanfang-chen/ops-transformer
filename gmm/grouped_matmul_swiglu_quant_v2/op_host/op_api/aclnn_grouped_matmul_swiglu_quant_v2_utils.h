@@ -457,19 +457,24 @@ and greater or equal to 4, but actual value is %lu.",
         return true;
     }
 
-    bool CheckDtypeValid() override
+        bool CheckDtypeValid() override
     {
         DataType xDtype = gmmDsqParams_.x->GetDataType();
-        DataType weightDtype = ((*gmmDsqParams_.weight)[0])->GetDataType();   
+        DataType weightDtype = ((*gmmDsqParams_.weight)[0])->GetDataType();
+        DataType xScaleDtype = gmmDsqParams_.xScale->GetDataType();
+        DataType weightScaleDtype = ((*gmmDsqParams_.weightScale)[0])->GetDataType();
         if ((xDtype == DataType::DT_FLOAT8_E4M3FN || xDtype == DataType::DT_FLOAT8_E5M2) &&
-                   (weightDtype == DataType::DT_FLOAT8_E4M3FN || weightDtype == DataType::DT_FLOAT8_E5M2)) {
+            (weightDtype == DataType::DT_FLOAT8_E4M3FN || weightDtype == DataType::DT_FLOAT8_E5M2)) {
             return CheckFp8DtypeValid();
-        } else if ((xDtype == DataType::DT_FLOAT4_E2M1 || xDtype == DataType::DT_FLOAT4_E1M2) &&
-                   (weightDtype == DataType::DT_FLOAT4_E2M1 || weightDtype == DataType::DT_FLOAT4_E1M2)) {
+        } else if (
+            (xDtype == DataType::DT_FLOAT4_E2M1 || xDtype == DataType::DT_FLOAT4_E1M2) &&
+            (weightDtype == DataType::DT_FLOAT4_E2M1 || weightDtype == DataType::DT_FLOAT4_E1M2)) {
             return CheckFp4DtypeValid();
         } else {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant case with x dtype %s and weight dtype %s is not supported.",
-                    op::ToString(xDtype).GetString(), op::ToString(weightDtype).GetString());
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "When the dtypes of x and weight are %s and %s, \
+and the dtypes of xScale and weightScale are %s and %s is not supported.",
+                    op::ToString(xDtype).GetString(), op::ToString(weightDtype).GetString(),
+                    op::ToString(xScaleDtype).GetString(), op::ToString(weightScaleDtype).GetString());
             return false;
         }
         return true;
