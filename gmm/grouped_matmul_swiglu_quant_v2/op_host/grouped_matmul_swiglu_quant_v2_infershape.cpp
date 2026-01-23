@@ -17,6 +17,7 @@
 #include "platform/platform_info.h"
 #include "util/math_util.h"
 #include "graph/utils/type_utils.h"
+#include "runtime/rt_external_base.h"
 
 using namespace ge;
 namespace ops {
