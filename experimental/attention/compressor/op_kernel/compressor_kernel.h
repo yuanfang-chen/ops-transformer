@@ -17,7 +17,6 @@
 #define COMPRESSOR_KERNEL_H
 
 #include "compressor_comm.h"
-#include "compressor_vector_comm.h"
 #include "compressor_template_tiling_key.h"
 #include "compressor_tiling_data.h"
 #include "compressor_comm.h"
@@ -582,13 +581,13 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         extraInfo0.vec1ResOffset = vec2Info.dealScSize * constInfo.headDim;
         bool isNeedExcute = IsNeedExcute(i);
         if ASCEND_IS_AIC {
-            if (isNeedExcute) {
+            if (isNeedExcute && i < constInfo.realDealBasicBlockNum) {
                 CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
                 ComputeMm1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG);
             }
         } else {
-            if (isNeedExcute) {
+            if (isNeedExcute && i < constInfo.realDealBasicBlockNum) {
                 CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
