@@ -208,7 +208,7 @@ aclnnStatus aclnnInplaceAttentionWorkerScheduler(
 
 ## 约束说明
 
-  - aclnnInplaceAttentionWorkerScheduler默认为确定性实现，暂不支持非确定性实现，确定性计算配置也不会生效。
+  - aclnnInplaceAttentionWorkerScheduler默认为确定性555实现，暂不支持非确定性实现，确定性计算配置也不会生效。
 
 ## 调用示例
 
