@@ -302,6 +302,8 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &info, LocalTensor<X_T> xL1Tensor,
     uint32_t hIdx, uint32_t kBase, uint32_t mStart, uint32_t mDealSize, bool isLastM)
 {
+    uint32_t bStartPos;
+    uint32_t bSeqUsed;
     bool copyLastCmpBlock = false;
     if constexpr (COMP::coff == COFF::OVERLAP) {
         if (mStart == 0) {
@@ -316,8 +318,8 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
                     // S=0时向前取B
                     do {
                         curBIdx_ = (curBIdx_ - 1 + constInfo_.batchSize) % constInfo_.batchSize;
-                        uint32_t bStartPos = GetStartPos(curBIdx_);
-                        uint32_t bSeqUsed = GetSeqUsed(curBIdx_);
+                        bStartPos = GetStartPos(curBIdx_);
+                        bSeqUsed = GetSeqUsed(curBIdx_);
                     } while (bSeqUsed == 0);
 
                     curSIdx_ = bSeqUsed - (bStartPos + bSeqUsed) % constInfo_.cmpRatio;
@@ -343,8 +345,8 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         // S=0时向前取B
         do {
             lastBIdx = (lastBIdx - 1 + constInfo_.batchSize) % constInfo_.batchSize;
-            uint32_t bStartPos = GetStartPos(lastBIdx);
-            uint32_t bSeqUsed = GetSeqUsed(lastBIdx);
+            bStartPos = GetStartPos(lastBIdx);
+            bSeqUsed = GetSeqUsed(lastBIdx);
         } while (bSeqUsed == 0);
 
         uint32_t copySeqCnt = (bStartPos + bSeqUsed) % constInfo_.cmpRatio;
