@@ -364,7 +364,11 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W4A8 InputDataType of logit is wrong."),
                      return ge::GRAPH_FAILED);  
     }
-
+    ValidateFailedDataTypeForMX(context);
+    return ge::GRAPH_FAILED;
+}
+static ge::graphStatus ValidateFailedDataTypeForMX(const gert::InferDataTypeContext *context)
+{
     if (CheckType(context->GetInputDataType(xIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         CheckType(context->GetInputDataType(wIndex), MX_IN_TYPE_SUPPORT_LIST)) {
         OP_CHECK_IF(
@@ -405,7 +409,6 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
                                   "InputDataType is wrong, only support InputDataType of "
                                   "INT4,INT8,FLOAT8_E4M3FN,FLOAT8_E5M2,FLOAT4_E1M2 and FLOAT4_E2M1"),
         return ge::GRAPH_FAILED);
-
     return ge::GRAPH_FAILED;
 }
 
