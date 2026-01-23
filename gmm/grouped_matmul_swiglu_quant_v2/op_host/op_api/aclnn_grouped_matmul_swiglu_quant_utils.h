@@ -211,11 +211,11 @@ protected:
         // 2. 校验输入、输出参数维度
         CHECK_RET(CheckInputOutDims(), ACLNN_ERR_PARAM_INVALID);
 
-        // 3. 校验输入、输出shape参数
-        CHECK_RET(CheckInputOutShape(), ACLNN_ERR_PARAM_INVALID);
-
-        // 4. 检查输入的数据类型是否在支持的数据类型范围之内
+        // 3. 检查输入的数据类型是否在支持的数据类型范围之内
         CHECK_RET(CheckDtypeValid(), ACLNN_ERR_PARAM_INVALID);
+
+        // 4. 校验输入、输出shape参数
+        CHECK_RET(CheckInputOutShape(), ACLNN_ERR_PARAM_INVALID);
 
         // 5. 检查数据形状是否支持
         CHECK_RET(CheckFormat(), ACLNN_ERR_PARAM_INVALID);
