@@ -117,7 +117,9 @@ public:
         : Mc2WeightQuantBatchMatmulV2RegBase(weightQuantMatmulAllReduceTiling.context_),
           tilingProcesser_(weightQuantMatmulAllReduceTiling),
           data_(data)
-    {}
+    {
+        Mc2WeightQuantBatchMatmulV2RegBase::InitCompileInfo();
+    }
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus PostTiling() override;
     WeightQuantMMAllReduceTilingKeyParams GetWeightQuantMMAllReduceTPLParam();
@@ -185,7 +187,9 @@ public:
         : Mc2WeightQuantBatchMatmulV2TilingAS(weightQuantMatmulAllReduceTiling.context_),
           tilingProcesser_(weightQuantMatmulAllReduceTiling),
           mmASTilingdata_(data)
-    {}
+    {
+        Mc2WeightQuantBatchMatmulV2TilingAS::InitCompileInfo();
+    }
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus PostTiling() override;
     void PrintTilingInputParam(std::unique_ptr<Mc2WeightQuantBatchMatmulInfo>& matmulInfo);
