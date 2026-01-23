@@ -18,8 +18,10 @@
 #include "lib/hccl/hccl.h"
 #ifdef __CCE_KT_TEST__
 #include "../../common/inc/kernel/mc2_tiling_struct.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
 #else
 #include "../common/inc/kernel/mc2_tiling_struct.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 
 #if defined(__CCE_KT_TEST__)
@@ -351,13 +353,6 @@ __aicore__ inline void Mc2SyncAll()
     }
 }
 
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 #endif
 } // namespace AscendC
 #endif // MC2_ALLREDUCE_COMM_H

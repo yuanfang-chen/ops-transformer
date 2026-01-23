@@ -22,6 +22,11 @@
 #include "basic_api/kernel_basic_intf.h"
 #include "adv_api/reduce/sum.h"
 #include "../moe_distribute_dispatch_v2_tiling.h"
+#if __has_include("../../common/inc/kernel/mc2_kernel_utils.h")
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#else
+#include "../../../common/inc/kernel/mc2_kernel_utils.h"
+#endif
 
 namespace MoeDistributeDispatchA5Impl {
 constexpr uint8_t BUFFER_NUM = 2;
@@ -46,13 +51,6 @@ constexpr uint32_t PERTOKEN_DYNAMIC_QUANT = 2;
 constexpr uint32_t PERGROUP_DYNAMIC_QUANT = 3;
 constexpr uint32_t MX_QUANT = 4;
 
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 #define TemplateMC2TypeClass \
     typename XType, typename ExpandXOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather

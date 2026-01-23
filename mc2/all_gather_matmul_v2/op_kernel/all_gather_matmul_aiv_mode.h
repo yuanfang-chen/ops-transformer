@@ -60,14 +60,6 @@ constexpr static int32_t FLAG_OFFSET = 180 * 1024 * 1024 / sizeof(int32_t);
 using namespace Catlass;
 
 namespace AllGatherMatmulAIVModeImpl {
-
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 // AGMM : AllGatherMatmulAIVMode
 #define TemplateAGMMClass typename X1Type, typename X2Type, typename BiasType, typename x2ScaleType, typename YType, bool weightNZ, bool TA, bool TB
 #define TemplateAGMMFunc X1Type, X2Type, BiasType, x2ScaleType, YType, weightNZ, TA, TB

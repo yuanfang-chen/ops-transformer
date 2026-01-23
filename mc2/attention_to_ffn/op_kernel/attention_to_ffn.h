@@ -21,8 +21,10 @@
 #include "attention_to_ffn_tiling.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
 #else
 #include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 
 namespace AttentionToFFNImpl {
@@ -40,13 +42,6 @@ constexpr uint32_t RANK_OFFSET_STRIDE = 2; // RankTable第一个为rankCnt，后
 constexpr uint32_t TOKEN_INFO_TABLE_RS = 2; // tokenInfoTable前2位为flag和layer_id
 constexpr uint32_t TOKEN_INFO_TABLE_COPY_BLOCK_CNT = 2; // tokenInfoTable在DataCopy时每次搬运2个int32
 constexpr float INT8_MAX_VALUE = 127.0f;
-
-template<AscendC::HardEvent event>
-__aicore__ inline void SyncFunc() {
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 #define TemplateMC2TypeClass typename XType, bool isQuant, bool isSync, bool isActiveMask
 #define TemplateMC2TypeFunc XType, isQuant, isSync, isActiveMask

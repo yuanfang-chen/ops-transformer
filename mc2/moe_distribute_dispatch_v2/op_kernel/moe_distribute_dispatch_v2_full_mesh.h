@@ -23,8 +23,10 @@
 #include "check_winsize.h"
 #if __has_include( "../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
 #else
 #include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 namespace MoeDistributeDispatchV2FullMeshImpl {
 constexpr uint8_t BUFFER_NUM = 2;        // 多buf
@@ -54,13 +56,6 @@ constexpr uint8_t EP_WORLD_SIZE_IDX = 1;
 constexpr uint8_t SHARE_RANK_NUM_IDX = 2;
 constexpr uint8_t MOE_NUM_IDX = 3;
 constexpr AscendC::CumSumConfig cumSumConfig{true, true, false};
-template<AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 #define TemplateMC2TypeFullmeshClass typename XType, typename ExpandXOutType, bool StaticQuant, \
                                      bool DynamicQuant, bool IsSmoothScaleExist, bool IsNeedAllgather

@@ -46,12 +46,6 @@ using namespace Catlass;
 
 namespace AlltoAllMatmulImpl {
 
-template<AscendC::HardEvent event>
-__aicore__ inline void SyncFunc() {
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 // A2AMM : AlltoAllMatmul
 #define TemplateA2AMMClass typename AType, typename BType, typename BiasType, typename PerTokenScaleType, typename ScaleType, typename CType, typename AllToAllResultType, bool hasBias, bool transB
 #define TemplateA2AMMFunc AType, BType, BiasType, PerTokenScaleType, ScaleType, CType, AllToAllResultType, hasBias, transB

@@ -20,8 +20,10 @@
 #include "moe_distribute_combine_tiling.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
 #else
 #include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 namespace MoeDistributeCombineA2Impl {
 constexpr uint8_t BUFFER_NUM = 2;                       // 多buf
@@ -41,13 +43,7 @@ constexpr uint32_t FLAG_VALUE = 0xFFFFFFFF;
 constexpr uint32_t REPEAT_BYTES = 256;
 constexpr uint64_t MB_SIZE = 1024 * 1024;
 constexpr uint32_t A2_RANK_NUM_PER_SERVER = 8;
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
+
 template <typename T>
 inline __aicore__ T RoundUp(const T val, const T align)
 {

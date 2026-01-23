@@ -24,6 +24,7 @@
 #include "../3rd/rms_norm/op_kernel/rms_norm_base.h"
 #include "../moe_distribute_dispatch_v2/check_winsize.h"
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
 #include "../moe_distribute_combine_v2/moe_distribute_combine_v2_quant.h"
 #include "../moe_distribute_dispatch_v2/moe_distribute_elastic.h"
 #else
@@ -32,19 +33,12 @@
 #include "../../3rd/rms_norm/op_kernel/rms_norm_base.h"
 #include "../../moe_distribute_dispatch_v2/op_kernel/check_winsize.h"
 #include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
 #include "../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_quant.h"
 #include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_elastic.h"
 #endif
 
 namespace MoeDistributeCombineAddRmsNormImpl {
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
-
 #define TemplateMC2TypeClass                                                                                    \
     typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant
 #define TemplateMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant

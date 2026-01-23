@@ -45,14 +45,6 @@ using namespace dequant;
 using namespace padding;
 namespace MatmulReduceScatterV2Impl {
 
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
-
 // MMA2A : MatmulAllToAll
 #define TemplateMMReduceScatterV2Class                                                                                 \
     typename AType, typename BType, typename biasType, typename x2ScaleType, typename cType, bool weight_nz, bool TA,  \

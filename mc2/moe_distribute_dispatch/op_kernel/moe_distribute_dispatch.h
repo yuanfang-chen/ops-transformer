@@ -21,9 +21,11 @@
 #include "kernel_tiling/kernel_tiling.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
 #include "../moe_distribute_dispatch_v2/moe_distribute_dispatch_tiling.h" 
 #else
 #include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
 #include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_tiling.h"
 #endif
 
@@ -42,12 +44,6 @@ constexpr uint64_t WIN_STATE_OFFSET = 512 * 1024;
 constexpr uint64_t STATE_WIN_OFFSET = 900 * 1024;
 constexpr uint32_t TP_STATE_SIZE = 100 * 1024;
 
-template<AscendC::HardEvent event>
-__aicore__ inline void SyncFunc() {
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 #define TemplateMC2TypeClass \
     typename XType, \
