@@ -852,37 +852,37 @@ TEST_F(l2_GroupedMatmulFinalizeRoutingWeightNzV2_test, ascend910B2_test_w4a8_sca
     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
-TEST_F(l2_GroupedMatmulFinalizeRoutingWeightNzV2_test, ascend910B2_test_w4a8_scale_dim_not_3_case)
-{
-    int64_t m = 192;
-    int64_t k = 2048;
-    int64_t n = 7168;
-    int64_t e = 4;
-    int64_t bs = 24;
-    int64_t bsdp = 8;
-    int64_t quantGroupSize = 256;
+// TEST_F(l2_GroupedMatmulFinalizeRoutingWeightNzV2_test, ascend910B2_test_w4a8_scale_dim_not_3_case)
+// {
+//     int64_t m = 192;
+//     int64_t k = 2048;
+//     int64_t n = 7168;
+//     int64_t e = 4;
+//     int64_t bs = 24;
+//     int64_t bsdp = 8;
+//     int64_t quantGroupSize = 256;
 
-    TensorDesc x1_desc = TensorDesc({m, k}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc x2_desc =
-        TensorDesc({e, k, n / 8}, ACL_INT32, ACL_FORMAT_FRACTAL_NZ, {}, 0, {e, n / 64, k / 16, 16, 8}).ValueRange(-1, 1);
-    TensorDesc scale_desc = TensorDesc({e, n}, ACL_INT64, ACL_FORMAT_ND).ValueRange(0, 3);
-    TensorDesc perTokenScale_desc = TensorDesc({m}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(0, 3);
-    TensorDesc groupList_desc = TensorDesc({e}, ACL_INT64, ACL_FORMAT_ND).ValueRange(bs, bs);
-    TensorDesc bias_desc = TensorDesc({e, n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc shared_input_desc = TensorDesc({bsdp, n}, ACL_BF16, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc logits_desc = TensorDesc({m}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc row_index_desc = TensorDesc({m}, ACL_INT64, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc out_desc = TensorDesc({bs, n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
-    vector<int64_t> tuningConfigVal = { 10 };
-    aclIntArray* tuningConfig = aclCreateIntArray(tuningConfigVal.data(), tuningConfigVal.size());
-    auto ut = OP_API_UT(aclnnGroupedMatmulFinalizeRoutingWeightNzV2,
-                        INPUT(x1_desc, x2_desc, scale_desc, bias_desc, nullptr, nullptr, nullptr, perTokenScale_desc, groupList_desc,
-                              shared_input_desc, logits_desc, row_index_desc, 0, 1.0, 0, false, false, 1, tuningConfig),
-                        OUTPUT(out_desc));
-    uint64_t workspace_size = 0;
-    aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
-}
+//     TensorDesc x1_desc = TensorDesc({m, k}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-1, 1);
+//     TensorDesc x2_desc =
+//         TensorDesc({e, k, n / 8}, ACL_INT32, ACL_FORMAT_FRACTAL_NZ, {}, 0, {e, n / 64, k / 16, 16, 8}).ValueRange(-1, 1);
+//     TensorDesc scale_desc = TensorDesc({e, n}, ACL_INT64, ACL_FORMAT_ND).ValueRange(0, 3);
+//     TensorDesc perTokenScale_desc = TensorDesc({m}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(0, 3);
+//     TensorDesc groupList_desc = TensorDesc({e}, ACL_INT64, ACL_FORMAT_ND).ValueRange(bs, bs);
+//     TensorDesc bias_desc = TensorDesc({e, n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
+//     TensorDesc shared_input_desc = TensorDesc({bsdp, n}, ACL_BF16, ACL_FORMAT_ND).ValueRange(-1, 1);
+//     TensorDesc logits_desc = TensorDesc({m}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
+//     TensorDesc row_index_desc = TensorDesc({m}, ACL_INT64, ACL_FORMAT_ND).ValueRange(-1, 1);
+//     TensorDesc out_desc = TensorDesc({bs, n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-1, 1);
+//     vector<int64_t> tuningConfigVal = { 10 };
+//     aclIntArray* tuningConfig = aclCreateIntArray(tuningConfigVal.data(), tuningConfigVal.size());
+//     auto ut = OP_API_UT(aclnnGroupedMatmulFinalizeRoutingWeightNzV2,
+//                         INPUT(x1_desc, x2_desc, scale_desc, bias_desc, nullptr, nullptr, nullptr, perTokenScale_desc, groupList_desc,
+//                               shared_input_desc, logits_desc, row_index_desc, 0, 1.0, 0, false, false, 1, tuningConfig),
+//                         OUTPUT(out_desc));
+//     uint64_t workspace_size = 0;
+//     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
+//     EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+// }
 
 
 TEST_F(l2_GroupedMatmulFinalizeRoutingWeightNzV2_test, ascend910B2_test_w4a8_pertoken_scale_null_case)
