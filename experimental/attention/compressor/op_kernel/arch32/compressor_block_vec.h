@@ -561,7 +561,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::OverLapScore(LocalTensor<T> 
     uint32_t dstSingleRowCount = ((uint32_t)COMP::coff) * dDealSize; // left和right在seq方向是交错存储的
     uint32_t srcScoreUbOffset = (tcStartIdx * constInfo_.cmpRatio) * srcSingleRowElemNum + constInfo_.dBaseSize + dStartIdx;
     if (GetBlockIdx() % 2 == 1) {
-        srcScoreUbOffset += (info.dealTcNum + 1) / 2 * constInfo_.cmpRatio * srcSingleRowElemNum;
+        srcScoreUbOffset += 128 * srcSingleRowElemNum;
     }
 
     uint32_t dstUbOffset = 0;
@@ -594,7 +594,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::OverLapKv(LocalTensor<T> kvL
     uint32_t dstSingleRowCount = ((uint32_t)COMP::coff) * dDealSize; // left和right在seq方向是交错存储的
     uint32_t srcKvUbOffset = (tcStartIdx * constInfo_.cmpRatio) * srcSingleRowElemNum + dStartIdx;
     if (GetBlockIdx() % 2 == 1) {
-        srcKvUbOffset += (info.dealTcNum + 1) / 2 * constInfo_.cmpRatio * srcSingleRowElemNum;
+        srcKvUbOffset += 128 * srcSingleRowElemNum;
     }
 
     uint32_t dstUbOffset = 0;
