@@ -8,19 +8,19 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef OP_API_INC_GROUPED_MATMUL_910_95_CHECKER_H
-#define OP_API_INC_GROUPED_MATMUL_910_95_CHECKER_H
+#ifndef OP_API_INC_GROUPED_MATMUL_DAV_3510_CHECKER_H
+#define OP_API_INC_GROUPED_MATMUL_DAV_3510_CHECKER_H
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_grouped_matmul_util.h"
 
 namespace gmm {
 template<typename T>
-class AclnnGroupedMatmul91095Checker {
+class AclnnGroupedMatmulDAV3510Checker {
 public:
-    explicit AclnnGroupedMatmul91095Checker(const GroupedMatmulParamsBase<T> &gmmParams) : gmmParams_(gmmParams){};
-    ~AclnnGroupedMatmul91095Checker(){};
-    aclnnStatus CheckGroupedMatmul91095() const;
+    explicit AclnnGroupedMatmulDAV3510Checker(const GroupedMatmulParamsBase<T> &gmmParams) : gmmParams_(gmmParams){};
+    ~AclnnGroupedMatmulDAV3510Checker(){};
+    aclnnStatus CheckGroupedMatmulDAV3510() const;
     bool IsPerTileQuantMode() const;
     void SetInputName(const std::string& xName, const std::string& weightName, const std::string& perTokenScaleName,
                         const std::string& scaleName, const std::string& groupTensorName);
