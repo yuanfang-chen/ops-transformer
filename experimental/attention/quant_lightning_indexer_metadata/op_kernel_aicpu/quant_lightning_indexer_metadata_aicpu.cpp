@@ -74,7 +74,12 @@ ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion() {
 }
 
 bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
-    
+
+    auto mode = static_cast<SparseMode>(sparseMode_);
+    if (mode == SparseMode::RIGHT_DOWN_CAUSAL) {
+        preToken_ = 9223372036854775807;
+        nextToken_ = 9223372036854775807;
+    }
     groupSize_ = numHeadsQ_ / numHeadsK_;
     if (actSeqLenQ_ != nullptr) {
         auto shape = actSeqLenQ_->GetTensorShape();
