@@ -1,12 +1,12 @@
 /**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 #include <algorithm>
 
@@ -87,16 +87,18 @@ static void InitShapeAndStrideForGMMSwigluQuantV2(const gert::Shape &originShape
     }
 }
 
-static bool IsFP8BitsDataTypeForGMMSwigluQuantV2(ge::DataType dataType)
+static bool IsFP8FP4BitsDataTypeForGMMSwigluQuantV2(ge::DataType dataType)
 {
     return dataType == ge::DataType::DT_FLOAT8_E4M3FN || dataType == ge::DataType::DT_FLOAT8_E5M2
-           || dataType == ge::DataType::DT_FLOAT8_E8M0;
+           || dataType == ge::DataType::DT_FLOAT8_E8M0 || dataType == ge::DataType::DT_FLOAT4_E1M2
+           || dataType == ge::DataType::DT_FLOAT4_E2M1;
 }
 
 
 static inline aclDataType ToAclDataTypeForGMMSwigluQuantV2(ge::DataType dtype) {
     static const std::vector<DataType> GMMWsiglu_CONVERT_TO_ACL_DataType_LIST = {
-        ge::DataType::DT_FLOAT8_E4M3FN, ge::DataType::DT_FLOAT8_E5M2, ge::DataType::DT_FLOAT8_E8M0};
+        ge::DataType::DT_FLOAT8_E4M3FN, ge::DataType::DT_FLOAT8_E5M2, ge::DataType::DT_FLOAT8_E8M0,
+        ge::DataType::DT_FLOAT4_E1M2, ge::DataType::DT_FLOAT4_E2M1};
     auto iter = std::find(GMMWsiglu_CONVERT_TO_ACL_DataType_LIST.begin(), GMMWsiglu_CONVERT_TO_ACL_DataType_LIST.end(), dtype);
     if (iter == GMMWsiglu_CONVERT_TO_ACL_DataType_LIST.end()) {
         return aclDataType::ACL_DT_UNDEFINED;
@@ -128,7 +130,7 @@ static inline aclTensor *GeTensor2AclTensor(const gert::Tensor *geTensor, bool e
     // convert data type
     auto dataTypeGE = geTensor->GetDataType();
     aclDataType dataType = ACL_DT_UNDEFINED;
-    if (IsFP8BitsDataTypeForGMMSwigluQuantV2(dataTypeGE)) {
+    if (IsFP8FP4BitsDataTypeForGMMSwigluQuantV2(dataTypeGE)) {
         dataType = ToAclDataTypeForGMMSwigluQuantV2(dataTypeGE);
     } else {
         dataType = ToAclDataType(dataTypeGE);
