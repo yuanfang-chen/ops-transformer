@@ -208,7 +208,7 @@ static aclnnStatus CheckShapeSameLengthTensorList(const aclTensorList *tensorLis
   uint64_t groupNum = tensorList1->Size();
   for (uint64_t i = 0; i < groupNum; i++) {
     int64_t dimValue1 = (*tensorList1)[i]->GetViewShape().GetDim(dimIds[0]);
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
       // tensorType[2] indicates whether to verify innerAxisDimId of tensorList1;if so, check if it's less than or equal to 65535.
       if (tensorType[2] == "true" && innerAxisDimId > -1) {
         int64_t innerAxisValue = (*tensorList1)[i]->GetViewShape().GetDim(innerAxisDimId);
@@ -233,7 +233,7 @@ static aclnnStatus CheckShapeDiffLengthTensorList(const aclTensorList *longTenso
   // match those in a tensor list of a single tensor.
   // Specified axis is not a split axis.
   int64_t dimValueSingle = (*singleTensorList)[0]->GetViewShape().GetDim(dimIds[1]);
-  if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+  if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
     // tensorType[2] indicates whether to verify innerAxisdimId of tensorList1; if so, check if it's less than or equal to 65535 excluded 910_95.
     if (tensorType[2] == "true" && innerAxisdimId > -1) {
       int64_t dimValue = (*singleTensorList)[0]->GetViewShape().GetDim(innerAxisdimId);
@@ -1089,7 +1089,7 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
   if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
     CHECK_COND(isNoActivation, ACLNN_ERR_PARAM_INVALID, "Activation is not supported on Ascend910_95 platforms.");
     if (IsQuant(gmmParams.xDtype, weightDtype)) {
-      return gmm::AclnnGroupedMatmulDAV3510Checker<aclTensorList>(gmmParams).CheckGroupedMatmul91095();
+      return gmm::AclnnGroupedMatmulDAV3510Checker<aclTensorList>(gmmParams).CheckGroupedMatmulDAV3510();
     } else if (IsWeightQuant(gmmParams.xDtype, weightDtype)) {
       return gmm::AclnnGroupedMatmulWeightQuant91095Checker(gmmParams).CheckGroupedMatmulWeightQuant91095();
     }
