@@ -653,7 +653,7 @@ class TestCustomCompressor(TestCase):
         for i in range(B):
             cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
             cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
-            if start_pos[i] // cmp_ratio == 0:
+            if start_pos[i] % cmp_ratio == 0:
                 cur_end = start_pos[i]
             cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
             cur_end_block_id = (cur_end - 1) // block_size
@@ -662,7 +662,7 @@ class TestCustomCompressor(TestCase):
             end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
             next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
             next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
-            if (start_pos[i] + end_pos) // cmp_ratio == 0:
+            if (start_pos[i] + end_pos) % cmp_ratio == 0:
                 next_end = start_pos[i] + end_pos
             next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
             next_end_block_id = (next_end - 1) // block_size

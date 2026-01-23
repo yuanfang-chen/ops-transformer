@@ -637,7 +637,7 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
     for i in range(B):
         cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
         cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
-        if start_pos[i] // cmp_ratio == 0:
+        if start_pos[i] % cmp_ratio == 0:
             cur_end = start_pos[i]
         cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
         cur_end_block_id = (cur_end - 1) // block_size
@@ -646,7 +646,7 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
         end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
         next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
         next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
-        if (start_pos[i] + end_pos) // cmp_ratio == 0:
+        if (start_pos[i] + end_pos) % cmp_ratio == 0:
             next_end = start_pos[i] + end_pos
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
@@ -744,19 +744,19 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
 
     # 结果精度对比
     print("\n==========================================================check result=========================================================")
-    if check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out[cmp_kv_mask].to(torch.float32)) == False:
+    if check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32)) == False:
         print(f"test_data = {test_data}")
     print("\n==========================================================check kv state update=========================================================")
-    if check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state[update_kv].to(torch.float32)) == False:
+    if check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32)) == False:
         print(f"test_data = {test_data}")
     print("\n==========================================================check score state update=========================================================")
-    if check_result(cpu_score_state[update_score].to(torch.float32), score_state[update_score].to(torch.float32)) == False:
+    if check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32)) == False:
         print(f"test_data = {test_data}")
     print("\n==========================================================check kv state origin=========================================================")
-    if check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state[~update_kv].to(torch.float32), 0.0) == False:
+    if check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), 0.0) == False:
         print(f"test_data = {test_data}")
     print("\n==========================================================check score state origin=========================================================")
-    if check_result(cpu_score_state[~update_score].to(torch.float32), score_state[~update_score].to(torch.float32), 0.0) == False:
+    if check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), 0.0) == False:
         print(f"test_data = {test_data}")
 
 if __name__ == "__main__":
