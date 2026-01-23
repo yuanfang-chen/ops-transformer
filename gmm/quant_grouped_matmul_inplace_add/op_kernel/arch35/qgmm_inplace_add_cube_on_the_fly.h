@@ -16,9 +16,9 @@
 #ifndef QGMM_INPLACE_ADD_CUBE_ON_THE_FLY_H
 #define QGMM_INPLACE_ADD_CUBE_ON_THE_FLY_H
 
-#include "../../../common/groupedmatmul_act/kernel/kernel_qgmm_inplace_add.h"
-#include "../../../common/groupedmatmul_act/block/block_quant_matmul_builder.h"
-#include "../../../common/groupedmatmul_act/block/block_scheduler_gmm_aswt_with_tail_split.h"
+#include "../../../common/cgmct/kernel/kernel_qgmm_inplace_add.h"
+#include "../../../common/cgmct/block/block_quant_matmul_builder.h"
+#include "../../../common/cgmct/block/block_scheduler_gmm_aswt_with_tail_split.h"
 #include "qgmm_inplace_add_utils.h"
 #include "quant_grouped_matmul_inplace_add_tiling_data.h"
 

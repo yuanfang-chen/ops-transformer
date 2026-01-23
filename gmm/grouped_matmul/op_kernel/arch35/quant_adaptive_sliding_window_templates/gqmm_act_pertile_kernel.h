@@ -15,12 +15,12 @@
 #ifndef GQMM_ACT_PERTILE_KERNEL_H
 #define GQMM_ACT_PERTILE_KERNEL_H
 
-#include "../../../../common/groupedmatmul_act/epilogue/block_epilogue_pertile.h"
-#include "../../../../common/groupedmatmul_act/block/block_mmad_pertile.h"
-#include "../../../../common/groupedmatmul_act/block/block_scheduler_gmm_aswt_with_tail_split.h"
-#include "../../../../common/groupedmatmul_act/block/block_scheduler_policy.h"
-#include "../../../../common/groupedmatmul_act/kernel/kernel_qgmm_pertile.h"
-#include "../../../../common/groupedmatmul_act/policy/dispatch_policy.h"
+#include "../../../../common/cgmct/epilogue/block_epilogue_pertile.h"
+#include "../../../../common/cgmct/block/block_mmad_pertile.h"
+#include "../../../../common/cgmct/block/block_scheduler_gmm_aswt_with_tail_split.h"
+#include "../../../../common/cgmct/block/block_scheduler_policy.h"
+#include "../../../../common/cgmct/kernel/kernel_qgmm_pertile.h"
+#include "../../../../common/cgmct/policy/dispatch_policy.h"
 #include "../../grouped_matmul_utils.h"
 #include "../grouped_matmul_tiling_data_apt.h"
 #include "quant_utils.h"
