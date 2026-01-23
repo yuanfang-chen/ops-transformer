@@ -55,6 +55,7 @@ global_config:
     - common
     - mc2/3rd
     - mc2/common
+    - attention/common/op_kernel
 
 attention:
   flash_attention_score:
