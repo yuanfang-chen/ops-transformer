@@ -21,9 +21,9 @@ using namespace GmmFinalizeRouting;
 
 namespace GmmFinalizeRouting {
 
-constexpr size_t ZERO_DIM = 1UL;
+constexpr size_t ZERO_DIM = 0UL;
 constexpr size_t ONE_DIM = 1UL;
-constexpr size_t TWO_DIM = 3UL;
+constexpr size_t TWO_DIM = 2UL;
 constexpr size_t THERE_DIM = 3UL;
 constexpr size_t FOUR_DIM = 4UL;
 constexpr int64_t GMMFR_SPLIT_SIZE = 64L;
@@ -37,7 +37,7 @@ const std::initializer_list<DataType> MXFP4_IN_TYPE_SUPPORT_LIST = {op::DataType
 const std::initializer_list<DataType> MXFP8_IN_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
 static const std::initializer_list<op::DataType> MX_SCALE_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
 static const std::initializer_list<op::DataType> MX_ROW_INDEX_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
-static const std::initializer_list<op::DataType> MX_BIAS_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> MX_BIAS_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> MX_PERTOKEN_SCALE_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
 static const std::initializer_list<op::DataType> GROUP_LIST_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
 static const std::initializer_list<op::DataType> SHARED_INPUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
@@ -52,17 +52,18 @@ public:
     aclnnStatus CheckParams(GroupedMatmulParams &gmmParams)
     {
         gmmParams_ = gmmParams;
-        
         // 1. 检查参数是否为空指针
         CHECK_RET(CheckNotNull() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
-        // 2. 校验输入、输出参数维度
-        CHECK_RET(CheckInputOutDims() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
-        // 3. 校验输入、输出shape参数
-        CHECK_RET(CheckInputOutShape(), ACLNN_ERR_PARAM_INVALID);
-        // 4. 校验输入、输出shape参数针对MXFP4
-        CHECK_RET(CheckInputOutShapeForMXFP4(), ACLNN_ERR_PARAM_INVALID);
-        // 5. 检查输入的数据类型是否在支持的数据类型范围之内
+        // 2. 检查输入的数据类型是否在支持的数据类型范围之内
         CHECK_RET(CheckDtypeValid(), ACLNN_ERR_PARAM_INVALID);
+        // 3. 校验输入、输出参数维度
+        CHECK_RET(CheckInputOutDims() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+        // 4. 校验输入、输出shape参数
+        CHECK_RET(CheckInputOutShape(), ACLNN_ERR_PARAM_INVALID);
+        // 5. 校验输入、输出shape参数针对MXFP4
+        if (CheckType(gmmParams_.x1->GetDataType(), MXFP4_IN_TYPE_SUPPORT_LIST)) {
+            CHECK_RET(CheckInputOutShapeForMXFP4(), ACLNN_ERR_PARAM_INVALID);
+        }
         return ACLNN_SUCCESS;
     }
 
@@ -102,7 +103,7 @@ public:
         CHECK_COND(xScaleDimNumber == THERE_DIM, ACLNN_ERR_PARAM_INVALID,
                    "The dim num of pertokenscale should be equal 3, current dim is %lu", xScaleDimNumber);
         CHECK_COND(wScaleDimNumber == FOUR_DIM, ACLNN_ERR_PARAM_INVALID,
-                   "The dim num of scale should be equal 4, current dim is %lu", xScaleDimNumber);
+                   "The dim num of scale should be equal 4, current dim is %lu", wScaleDimNumber);
         CHECK_COND(grouplistDimNumber == ONE_DIM, ACLNN_ERR_PARAM_INVALID,
                    "The dim num of grouplist should be equal 1, current dim is %lu", grouplistDimNumber);
         CHECK_COND(logitDimNumber == ONE_DIM, ACLNN_ERR_PARAM_INVALID,
