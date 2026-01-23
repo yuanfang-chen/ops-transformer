@@ -54,7 +54,8 @@ public:
     // =============== vector 2 functions ==============
     __aicore__ inline void InitVector2GM(const GlobalTensor<MM3_OUT_T> &bmm3Res, const GlobalTensor<int32_t> &topK,
         const GlobalTensor<OUT_T> &dKeyIndexGm, GlobalTensor<int64_t> &actualSeqLengthsQ,
-        GlobalTensor<int64_t> &actualSeqLengthsKV, const GlobalTensor<T> &lossRes, GlobalTensor<T> &lossGm);
+        GlobalTensor<int64_t> &actualSeqLengthsKV, const GlobalTensor<T> &lossRes, GlobalTensor<T> &lossGm,
+        GlobalTensor<MM3_OUT_T> &scatterAddResGmPang, GlobalTensor<int64_t> &actualSeqLengthsKeyGm);
     __aicore__ inline void ProcessVector2();
 
 private:
@@ -72,6 +73,8 @@ private:
     GlobalTensor<OUT_T> dKeyIndexGm;
     GlobalTensor<T> lossResGm;
     GlobalTensor<T> lossGm;
+    GlobalTensor<MM3_OUT_T> scatterAddResGmPang;
+    GlobalTensor<int64_t> actualSeqLengthsKeyGm;
 
     // local tensor
     TBuf<> mm3TBuf;         // 64K, 64 * 128 * 4 * 2(DB)
@@ -80,12 +83,15 @@ private:
     TBuf<> lossBuf;         // sizeof(float)
     TBuf<> inputLossBuf;    // aivNum * sizeof(float)
     TBuf<> tmpBuf;          // 2KB
+    TBuf<> scatterAddBuf;
     LocalTensor<MM3_OUT_T> mm3ResUb;
     LocalTensor<int32_t> topKUb;
     LocalTensor<OUT_T> castOutUb;
     LocalTensor<T> lossUb;
     LocalTensor<T> inputLossUb;
     LocalTensor<uint8_t> tmpUb;
+    LocalTensor<MM3_OUT_T> scatterAddUb;
+
 
     static constexpr uint64_t SYNC_SCATTER_BUF_FLAG = 0;
     static constexpr uint64_t SYNC_SCATTER_BUF_PONG_FLAG = 1;
@@ -105,7 +111,8 @@ __aicore__ inline void SLIKLLossVector2Service<SLIT>::InitParams(const struct SL
 template <typename SLIT> 
 __aicore__ inline void SLIKLLossVector2Service<SLIT>::InitVector2GM(const GlobalTensor<MM3_OUT_T> &bmm3Res,
     const GlobalTensor<int32_t> &topK, const GlobalTensor<OUT_T> &dKeyIndexGm,
-    GlobalTensor<int64_t> &actualSeqLengthsQ, GlobalTensor<int64_t> &actualSeqLengthsKV, const GlobalTensor<T> &lossRes, GlobalTensor<T> &lossGm)
+    GlobalTensor<int64_t> &actualSeqLengthsQ, GlobalTensor<int64_t> &actualSeqLengthsKV, const GlobalTensor<T> &lossRes, GlobalTensor<T> &lossGm,
+    GlobalTensor<MM3_OUT_T> &scatterAddResGmPang, GlobalTensor<int64_t> &actualSeqLengthsKeyGm)
 {
     this->bmm3ResGm = bmm3Res;
     this->topKGm = topK;
@@ -114,6 +121,8 @@ __aicore__ inline void SLIKLLossVector2Service<SLIT>::InitVector2GM(const Global
     this->dKeyIndexGm = dKeyIndexGm;
     this->lossResGm = lossRes;
     this->lossGm = lossGm;
+    this->scatterAddResGmPang = scatterAddResGmPang;
+    this->actualSeqLengthsKeyGm = actualSeqLengthsKeyGm;
 }
 
 template <typename SLIT> 
@@ -125,12 +134,14 @@ __aicore__ inline void SLIKLLossVector2Service<SLIT>::InitBuffers(TPipe *pipe)
     pipe->InitBuffer(lossBuf, SLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_512);
     pipe->InitBuffer(inputLossBuf, SLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_512);
     pipe->InitBuffer(tmpBuf, SLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_2K);
+    pipe->InitBuffer(scatterAddBuf, SLIGradKLLossConstInfo::BUFFER_SIZE_BYTE_32K * 2);  // 2:pingpong
 
     mm3ResUb = mm3TBuf.Get<MM3_OUT_T>();
     castOutUb = castOutTBuf.Get<OUT_T>();
     lossUb = lossBuf.Get<T>();
     inputLossUb = inputLossBuf.Get<T>();
     tmpUb = tmpBuf.Get<uint8_t>();
+    scatterAddUb = scatterAddBuf.Get<MM3_OUT_T>();
 }
 
 template <typename SLIT> __aicore__ inline void SLIKLLossVector2Service<SLIT>::AllocEventID()
@@ -174,16 +185,30 @@ __aicore__ inline void SLIKLLossVector2Service<SLIT>::ProcessVector2()
     int32_t pingPongIdx = 0;
 
     LocalTensor<MM3_OUT_T> copyInUb;
+    LocalTensor<MM3_OUT_T> copyInUbPang;
     LocalTensor<OUT_T> copyOutUb;
 
     for (int32_t t2Idx = t2Start; t2Idx < t2End; t2Idx += UB_ROW_SIZE) {
         if (t2Idx + UB_ROW_SIZE >= t2End) {
             t2ProcessSize = t2TailSize;
         }
+        if (deterministic) {
+            WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_SCATTER_BUF_FLAG + pingPongIdx);
+            copyInUb = mm3ResUb[pingPongIdx * (UB_ROW_SIZE * constInfo.dSizeQueryIndex)];
+            copyInUbPang = scatterAddUb[pingPongIdx * (UB_ROW_SIZE * constInfo.dSizeQueryIndex)];
+            DataCopy(copyInUb, bmm3ResGm[t2Idx * constInfo.dSizeQueryIndex], t2ProcessSize * constInfo.dSizeQueryIndex);
+            DataCopy(copyInUbPang, scatterAddResGmPang[t2Idx * constInfo.dSizeQueryIndex], t2ProcessSize * constInfo.dSizeQueryIndex);
 
-        WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_SCATTER_BUF_FLAG + pingPongIdx);
-        copyInUb = mm3ResUb[pingPongIdx * (UB_ROW_SIZE * constInfo.dSizeQueryIndex)];
-        DataCopy(copyInUb, bmm3ResGm[t2Idx * constInfo.dSizeQueryIndex], t2ProcessSize * constInfo.dSizeQueryIndex);
+            SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SCATTER_BUF_FLAG + pingPongIdx);
+            WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SCATTER_BUF_FLAG + pingPongIdx);
+            Add(copyInUb, copyInUb, copyInUbPang, t2ProcessSize * constInfo.dSizeQueryIndex);
+            PipeBarrier<PIPE_V>();
+        }
+        if (!deterministic) {
+            WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_SCATTER_BUF_FLAG + pingPongIdx);
+            copyInUb = mm3ResUb[pingPongIdx * (UB_ROW_SIZE * constInfo.dSizeQueryIndex)];
+            DataCopy(copyInUb, bmm3ResGm[t2Idx * constInfo.dSizeQueryIndex], t2ProcessSize * constInfo.dSizeQueryIndex);
+        }
 
         SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_SCATTER_BUF_FLAG + pingPongIdx);
         WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SCATTER_BUF_FLAG + pingPongIdx);

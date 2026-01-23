@@ -75,7 +75,7 @@ public:
     // =============== vector 2 functions ==============
     __aicore__ inline void ProcessVector2(SLIGradKLLossRunInfo &runInfo);
     __aicore__ inline void InitVector2GM(const GlobalTensor<MM5_OUT_T> &bmm5Res, const GlobalTensor<int32_t> &topK,
-        GlobalTensor<T> &scatterAddRes);
+        GlobalTensor<T> &scatterAddRes, GlobalTensor<T> &scatterAddResPang);
     __aicore__ inline void ProcessDeterVector2(SLIGradKLLossRunInfo &runInfo);
 
 private:
@@ -111,14 +111,15 @@ private:
     __aicore__ inline void VectorLossMoreThan2k(SLIGradKLLossRunInfo &runInfo, int32_t kLoopIdx);
     __aicore__ inline void VectorLossLess2k(SLIGradKLLossRunInfo &runInfo);
     // =============== vector 2 functions ==============
-    __aicore__ inline void ScatterAddCopyOutSingle(const LocalTensor<MM5_OUT_T> &srcUb, int64_t keyBNBOffset);
+    __aicore__ inline void ScatterAddCopyOutSingle(const LocalTensor<MM5_OUT_T> &srcUb, int64_t keyBNBOffset, GlobalTensor<T> &scatterAddResGm);
     __aicore__ inline int32_t GetActualSeqLens(int32_t bIdx, int32_t defaultLens, GlobalTensor<int64_t> &actualSeqLensGm, 
         SLILayout layout, int64_t &accumLen);
     __aicore__ inline int32_t GetS2SparseLen(int32_t s1Idx, int32_t actualSeqLensQ, int32_t actualSeqLensK, SLISparseMode sparseMode);
     __aicore__ inline bool GetBS1Index(int64_t &bIdx, int64_t &s1Idx, int32_t idx, int64_t taskId);
     __aicore__ inline void GetRunInfo(int64_t taskId,  int64_t bIdx, int64_t s1Idx,
         SLIGradKLLossRunInfo &runInfo, int64_t accumS1Len, int64_t accumS2Len, int32_t actualSeqLensQ, int32_t actualSeqLensK);
-    __aicore__ inline void Vector2ScatterAdd(int32_t vRealKSize, GlobalTensor<MM5_OUT_T> &srcGm, int64_t coreKOffset, SLIGradKLLossRunInfo &runInfo);
+    __aicore__ inline void Vector2ScatterAdd(int32_t vRealKSize, GlobalTensor<MM5_OUT_T> &srcGm, int64_t coreKOffset, SLIGradKLLossRunInfo &runInfo, 
+        int32_t idx, GlobalTensor<T> &scatterAddGm);
 
     // =============== vector common variable ==============
     SLIGradKLLossConstInfo constInfo;
@@ -197,6 +198,7 @@ private:
 
     // =============== vector2 variable ==============
     GlobalTensor<T> scatterAddResGm;
+    GlobalTensor<T> scatterAddResGmPang;
     LocalTensor<T> scatterAddUb;
     int32_t scatterAddPingpong = 0;
 
@@ -303,11 +305,12 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::InitVector1GM(const GlobalT
 
 template <typename SLIT> 
 __aicore__ inline void SLIKLLossVectorService<SLIT>::InitVector2GM(const GlobalTensor<MM5_OUT_T> &bmm5Res,
-    const GlobalTensor<int32_t> &topK, GlobalTensor<T> &scatterAddRes)
+    const GlobalTensor<int32_t> &topK, GlobalTensor<T> &scatterAddRes, GlobalTensor<T> &scatterAddResPang)
 {
     this->bmm5ResGm = bmm5Res;
     this->topKGm = topK;
     this->scatterAddResGm = scatterAddRes;
+    this->scatterAddResGmPang = scatterAddResPang;
 }
 
 template <typename SLIT> 
@@ -666,7 +669,7 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::ProcessVector1(SLIGradKLLos
 
 template <typename SLIT>
 __aicore__ inline void
-SLIKLLossVectorService<SLIT>::ScatterAddCopyOutSingle(const LocalTensor<MM5_OUT_T> &srcUb, int64_t keyBNBOffset)
+SLIKLLossVectorService<SLIT>::ScatterAddCopyOutSingle(const LocalTensor<MM5_OUT_T> &srcUb, int64_t keyBNBOffset, GlobalTensor<T> &scatterAddResGm)
 {
     if (keyBNBOffset < 0) {
         return;
@@ -767,7 +770,8 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::GetRunInfo(int64_t taskId, 
 }
 
 template <typename SLIT> 
-__aicore__ inline void SLIKLLossVectorService<SLIT>::Vector2ScatterAdd(int32_t vRealKSize, GlobalTensor<MM5_OUT_T> &srcGm, int64_t coreKOffset, SLIGradKLLossRunInfo &runInfo)
+__aicore__ inline void SLIKLLossVectorService<SLIT>::Vector2ScatterAdd(int32_t vRealKSize, GlobalTensor<MM5_OUT_T> &srcGm, int64_t coreKOffset, SLIGradKLLossRunInfo &runInfo, 
+    int32_t idx, GlobalTensor<T> &scatterAddGm)
 {
     LocalTensor<MM5_OUT_T> scatterAddTmpUb;
     int32_t kSplitSize = ubAllocPolicy.scatterAddUbSize / (2 * sizeof(T) * constInfo.dSizeQueryIndex);
@@ -781,7 +785,9 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::Vector2ScatterAdd(int32_t v
     int64_t s2IdxOffset = runInfo.s2Idx * constInfo.s2BaseSize;
 
     if constexpr (deterministic) {
-        CrossCoreWaitFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+        if (idx % 2 == 0) {
+            CrossCoreWaitFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+        }
     }
 
     SetAtomicAdd<T>();
@@ -831,8 +837,8 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::Vector2ScatterAdd(int32_t v
 
             if (strideInvalid || copyOutOfRange || key1LessThankey2) {
                 // stride溢出、stride为负数、s2超长、topK降序等场景，还原成2条搬运指令
-                ScatterAddCopyOutSingle(scatterAddTmpUb[ub1Offset], keyOffset1);
-                ScatterAddCopyOutSingle(scatterAddTmpUb[ub2Offset], keyOffset2);
+                ScatterAddCopyOutSingle(scatterAddTmpUb[ub1Offset], keyOffset1, scatterAddGm);
+                ScatterAddCopyOutSingle(scatterAddTmpUb[ub2Offset], keyOffset2, scatterAddGm);
             } else {
                 DataCopyExtParams dataCopyParams(
                     keyOffset1Pass + keyOffset1Pass, constInfo.dSizeQueryIndex * sizeof(T), 0, keySrcStride, 0
@@ -840,7 +846,7 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::Vector2ScatterAdd(int32_t v
                 int64_t keyStartOffset = (keyOffset1Pass) ? keyOffset1 : keyOffset2;
                 int64_t ubStartOffset = (keyOffset1Pass) ? ub1Offset : ub2Offset;
                 LocalTensor<T> srcTmpUb = scatterAddTmpUb.template ReinterpretCast<T>();
-                DataCopyPad(scatterAddResGm[keyStartOffset * constInfo.dSizeQueryIndex], srcTmpUb[ubStartOffset], dataCopyParams);
+                DataCopyPad(scatterAddGm[keyStartOffset * constInfo.dSizeQueryIndex], srcTmpUb[ubStartOffset], dataCopyParams);
             }
         }
         SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIdArr[scatterAddPingpong]);
@@ -865,7 +871,13 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::ProcessDeterVector2(SLIGrad
     int64_t accumS2Len = 0;
     int32_t actualSeqLensQ = 0;
     int32_t actualSeqLensK = 0;
+    GlobalTensor<T> scatterAddGm;
     for (int32_t idx = 0; idx < coreNum; idx++) {
+        if (idx % 2 == 0) {
+            scatterAddGm = scatterAddResGm;
+        } else {
+            scatterAddGm = scatterAddResGmPang;
+        }
 
         //重新获取b和S1的值
         if (!GetBS1Index(bIdx, s1Idx, idx, runInfo.taskId)){
@@ -888,8 +900,10 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::ProcessDeterVector2(SLIGrad
         perCoreKSize = SLIGAlign(perCoreKSize, 4);
         int32_t usedCoreNum = CeilDiv(runInfo.kRealSize, perCoreKSize);
         if (constInfo.aicIdx >= usedCoreNum) {
-            CrossCoreWaitFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
-            CrossCoreSetFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+            if (idx % 2 == 0) {
+                CrossCoreWaitFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+                CrossCoreSetFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+            }
             continue;
         }
         tailCoreKSize = runInfo.kRealSize - (usedCoreNum - 1) * perCoreKSize;
@@ -907,15 +921,19 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::ProcessDeterVector2(SLIGrad
             vCoreKOffset = coreKOffset + v0RealKSize;
         }
         if (vRealKSize <= 0) {
-            CrossCoreWaitFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
-            CrossCoreSetFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+            if (idx % 2 == 0) {
+                CrossCoreWaitFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+                CrossCoreSetFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+            }
             continue;
         }
 
         int64_t srcOffset = idx * topKSize * constInfo.dSizeQueryIndex * 2;
         GlobalTensor<MM5_OUT_T> srcGm = bmm5ResGm[srcOffset + (runInfo.taskIdMod2 * topKSize + vCoreKOffset) * constInfo.dSizeQueryIndex];
-        Vector2ScatterAdd(vRealKSize, srcGm, vCoreKOffset, runInfo);
-        CrossCoreSetFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+        Vector2ScatterAdd(vRealKSize, srcGm, vCoreKOffset, runInfo, idx, scatterAddGm);
+        if (idx % 2 == 0) {
+            CrossCoreSetFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
+        }
     }
     CrossCoreWaitFlag<0, PIPE_MTE3>(SYNC_V2_TO_V2_DETER_SA_FLAG_MOD0);
 }
@@ -943,7 +961,7 @@ __aicore__ inline void SLIKLLossVectorService<SLIT>::ProcessVector2(SLIGradKLLos
 
     int srcOffset = constInfo.aicIdx * topKSize * constInfo.dSizeQueryIndex * 2;
     GlobalTensor<MM5_OUT_T> srcGm = bmm5ResGm[srcOffset + (runInfo.taskIdMod2 * topKSize + coreKOffset) * constInfo.dSizeQueryIndex];
-    Vector2ScatterAdd(vRealKSize, srcGm, coreKOffset, runInfo);
+    Vector2ScatterAdd(vRealKSize, srcGm, coreKOffset, runInfo, -1, scatterAddResGm);
 }
 
 template <typename SLIT> 
