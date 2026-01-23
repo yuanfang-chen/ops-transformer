@@ -3169,12 +3169,31 @@ protected:
         s1BasicBlock = std::min(64L, alignedS1);
         // d轴为64
         if (bSize * n1Size * gSize * CeilDiv(s1Size, s1BasicBlock) > static_cast<int64_t>(aivNum)) {
-            s1BasicBlock = std::min(128L, alignedS1);
+            // 动态计算最优 s1BasicBlock
+            auto &coreParams = tilingData->coreParams;
+            s1BasicBlock = find_optimal_s1BasicBlock(s1Size, aicNum);
+            // 可选：限制最大值（例如 128）
+            // s1BasicBlock = std::min(128L, alignedS1);
         }
         s2BasicBlock = std::min(128L, alignedS2);
         if (s2Size % S2_NZTOND_SIZE_64 != 0 && dSize != D_SPECIFIC_SIZE) {
             tilingKeyBmm1Format = CubeFormatEnum::NZ;
         }
+    }
+
+    int64_t find_optimal_s1BasicBlock(int64_t S1, int64_t aicNum, int64_t bOuterSize, int64_t n2OuterSize, int64_t gOuterSize) {
+        int64_t s1BasicBlock = 0;
+        int64_t target_block_size = 256;
+        int64_t s1OuterSize = CeilDiv(S1, target_block_size);
+        int64_t total_size = bSize * n2Size * gSize * s1OuterSize;
+
+        int64_t splitFactor = CeilDiv(total_size, aicNum);
+        int64_t a = bSize * n2Size * gSize * S1/aicNum/splitFactor;
+        int64_t step = 32;
+        int64_t b = CeilDiv(a, step);
+        s1BasicBlock = b*16;
+
+        return s1BasicBlock;
     }
 
     void CalcNRatio() override
