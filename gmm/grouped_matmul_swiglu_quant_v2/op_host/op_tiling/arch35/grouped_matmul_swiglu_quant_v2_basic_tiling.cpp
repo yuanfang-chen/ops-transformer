@@ -46,6 +46,39 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeAttrs()
     OP_CHECK_IF(attrs == nullptr, OP_LOGE(context_->GetNodeName(), "attrs is nullptr."), return false);
     const bool *transposeWeightPtr = attrs->GetAttrPointer<bool>(ATTR_INDEX_TRANS_W);
     inputParams_.transB = transposeWeightPtr != nullptr ? *transposeWeightPtr : false;
+    
+    const int64_t *dequantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_INDEX_DEQUANT_MODE);
+ 	OP_CHECK_IF(dequantModePtr == nullptr, OP_LOGE(context_->GetNodeName(), "The dequantModePtr is nullptr."),
+ 	            return false);
+ 	OP_CHECK_IF(*dequantModePtr != MXQuantMode,
+ 	            OP_LOGE(context_->GetNodeName(),
+ 	            "In mx quant mode, dequantMode should be 2, but actual value is %ld.",
+ 	            *dequantModePtr),
+ 	            return false);
+ 	const int64_t *quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_INDEX_QUANT_MODE);
+ 	OP_CHECK_IF(quantModePtr == nullptr, OP_LOGE(context_->GetNodeName(), "The quantModePtr is nullptr."),
+ 	            return false);
+ 	OP_CHECK_IF(*quantModePtr != MXQuantMode,
+ 	            OP_LOGE(context_->GetNodeName(),
+ 	                    "In mx quant mode, quantMode should be 2, but actual value is %ld.", *quantModePtr),
+ 	            return false);
+ 	const int64_t *dequantDtypePtr = attrs->GetAttrPointer<int64_t>(ATTR_INDEX_DEQUANT_DTYPE);
+ 	OP_CHECK_IF(dequantDtypePtr == nullptr, OP_LOGE(context_->GetNodeName(), "The dequantDtypePtr is nullptr."),
+ 	            return false);
+ 	ge::DataType dequantDtype = static_cast<ge::DataType>(*dequantDtypePtr);
+ 	OP_CHECK_IF(dequantDtype != ge::DT_FLOAT,
+ 	            OP_LOGE(context_->GetNodeName(), "In mx quant mode, dequantDtype should be DT_FLOAT, but"
+ 	                    " actual value is %s.", ge::TypeUtils::DataTypeToSerialString(dequantDtype).c_str()),
+ 	            return false);
+ 	const int64_t *quantDtypePtr = attrs->GetAttrPointer<int64_t>(ATTR_INDEX_QUANT_DTYPE);
+ 	OP_CHECK_IF(quantDtypePtr == nullptr, OP_LOGE(context_->GetNodeName(), "The quantDtypePtr is nullptr."),
+ 	            return false);
+ 	ge::DataType quantDtype = static_cast<ge::DataType>(*quantDtypePtr);
+ 	OP_CHECK_IF(std::find(quantDtypeSupportList.begin(), quantDtypeSupportList.end(), quantDtype) == quantDtypeSupportList.end(),
+ 	OP_LOGE(inputParams_.opName, "In mx quantization mode, quantDtype should be in {FLOAT8_E4M3,"
+ 	        " FLOAT8_E5M2, FLOAT4_E2M1, FLOAT4_E1M2}, but actual value is %s.",
+ 	        ge::TypeUtils::DataTypeToSerialString(quantDtype).c_str()),
+ 	        return false);
     return true;
 }
 
@@ -170,6 +203,11 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeInputs()
 
     OP_CHECK_IF(!SetQuantModeForGMMSwigluQuant(),
                OP_LOGE(inputParams_.opName, "SetQuantModeForGMMSwigluQuant failed."), return false);
+    
+ 	if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+ 	    OP_CHECK_IF(!CheckQuantParamsForMXTypeM(xScaleShape, wScaleShape),
+ 	                OP_LOGE(inputParams_.opName, "CheckShapeForMxQuant failed."), return false);
+ 	}
     return true;
 }
 
@@ -180,9 +218,9 @@ ge::graphStatus GroupedMatmulSwigluQuantDavidV2Tiling::DoOpTiling()
     auto attrs = context_->GetAttrs();
     if (attrs != nullptr) {
         const int64_t *dequantDtypeTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_INDEX_DEQUANT_DTYPE);
-        uint64_t dequantDtype = dequantDtypeTypePtr != nullptr ? static_cast<uint64_t>(*dequantDtypeTypePtr) : 0;
+        int64_t dequantDtype = dequantDtypeTypePtr != nullptr ? static_cast<int64_t>(*dequantDtypeTypePtr) : 0L;
         const int64_t *quantDtypeTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_INDEX_QUANT_DTYPE);
-        uint64_t quantDtype = quantDtypeTypePtr != nullptr ? static_cast<uint64_t>(*quantDtypeTypePtr) : 0;
+        int64_t quantDtype = quantDtypeTypePtr != nullptr ? static_cast<int64_t>(*quantDtypeTypePtr) : 0L;
         tilingData_.gmmSwigluQuantParams.set_quantDtype(static_cast<uint8_t>(quantDtype));
     }
     PrintQuantParams();
