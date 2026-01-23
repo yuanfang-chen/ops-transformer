@@ -86,9 +86,11 @@ static bool CheckDtypeValid(
     const std::initializer_list<op::DataType> dtypeSupportListBiasA5 = {
         DataType::DT_FLOAT16, DataType::DT_BF16, DataType::DT_FLOAT};
 
-    const auto x2DtypeSupportList = DTYPE_SUPPORT_LIST_QUANT;
+    const auto x2DtypeSupportList =
+        (socVersion == op::SocVersion::ASCEND910_95) ? dtypeSupportListQuantA5 : DTYPE_SUPPORT_LIST_QUANT;
 
-    const auto biasDtypeSupportList = dtypeSupportList;
+    const auto biasDtypeSupportList =
+        (socVersion == op::SocVersion::ASCEND910_95) ? dtypeSupportListBiasA5 : dtypeSupportList;
     // 检查x1、x2、bias、scale、offset、x3、output的数据类型是否在算子的支持列表内
     OP_CHECK_DTYPE_NOT_SUPPORT(x1, dtypeSupportList, return false);
     // 对于量化来说，x2只为INT8/INT4
@@ -281,6 +283,13 @@ static bool CheckShape(
     outShape.SetDim(x1Len - 1, x2Dim1);
     OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(output, outShape, return false);
 
+    // 判断output是否为空tensor
+    if (output->IsEmpty()) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Output is empty tensor, output shape is: %s",
+            op::ToString(output->GetViewShape()).GetString());
+        return false;
+    }
+
     // x1 shape [s,m,k], x2 shape [k,n], output shape [s,m,n], bias shape [n]
     if (bias != nullptr) {
         OP_CHECK_WRONG_DIMENSION(bias, ONE_DIM, return false);
@@ -347,8 +356,9 @@ static bool CheckContiguous(const aclTensor *x2, const aclTensor *scale, const a
 {
     // check x2(weight) is transposed, scale and offset should also be transposed
     const bool transposeX2 = IsTransposeLastTwoDims(x2) || IsAclnnPreTransposed(x2);
+    const bool isASCEND910_95 = (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910_95);
     const bool isASCEND910B = (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910B);
-    if (!isASCEND910B) {
+    if ((!isASCEND910_95) && (!isASCEND910B)) {
         return true;
     }
     if (IsAffineInconsistent(scale, transposeX2)) {
@@ -470,6 +480,11 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
     void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, const aclrtStream stream)
 {
     uint64_t timeStamp = NnopbaseMsprofSysTime();
+    if (NnopbaseSetHcclServerType) {
+        if (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910_95) {
+            NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        }
+    }
     aclnnStatus ret = aclnnInnerMatmulAllReduce(workspace, workspaceSize, executor, stream);
     OP_LOGD("WeightQuantMatmulAllReduce, aclnnWeightQuantMatmulAllReduce ret %d", ret);
     if (ret != 0) {
