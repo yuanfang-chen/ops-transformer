@@ -44,7 +44,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w4obf16_autotiling_1aic2aiv)
     size_t K = 2048;
     size_t N = 1024;
     size_t E = 2;
-    optiling::GMMCompileInfo compileInfo = {
+    static optiling::GMMCompileInfo compileInfo = {
         24,//aicNum
         48,//aivNum
         196608,//ubSize
