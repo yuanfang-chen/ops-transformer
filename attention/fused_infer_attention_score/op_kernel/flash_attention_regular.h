@@ -300,7 +300,6 @@ namespace SplitFuse {
                 int32_t delEndRow = qSeqlen;
                 bool notPreMask = true;
                 bool notNextMask = true;
-                bool moveZero = false;
                 uint32_t kvSLoopNumTotal = 0;
                 if (maskType != 0U && sparseMode != 4U) {
                     int64_t diffS = kvSeqlen - qSeqlen;
