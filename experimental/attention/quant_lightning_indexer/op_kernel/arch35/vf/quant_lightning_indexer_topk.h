@@ -17,13 +17,32 @@
 
 #include "kernel_operator.h"
 #include "vf_topk.h"
+#include "vf_topk_16.h"
 
 namespace topk {
-class LITopk {
+template<typename T>
+class LITopk
+{
+public:
+    __aicore__ inline void operator()(LocalTensor<uint32_t>& outputIdxLocal,
+                                      LocalTensor<T>& inputLocal,
+                                      uint32_t s2SeqLen)
+    {
+    }
+};
+
+template<>
+class LITopk<uint32_t> {
 public:
     static __aicore__ inline uint32_t GetSharedTmpBufferSize(uint32_t topK)
     {
-        return 2 * topK * sizeof(uint32_t) + 5 * 256 * sizeof(uint32_t) + 64 * sizeof(uint32_t);
+        return 2 * topK * sizeof(uint32_t) + 5 * 256 * sizeof(uint32_t) + 64 * sizeof(uint32_t) +
+               (topK + 64) * sizeof(uint32_t); // for output value tensor
+    }
+
+    static __aicore__ inline uint32_t GetIndexBufferSize(uint32_t topK)
+    {
+        return (topK + 64) * sizeof(uint32_t);
     }
 
     __aicore__ inline void Init(uint32_t topK, LocalTensor<uint32_t>& sharedTmpBuffer)
@@ -37,27 +56,28 @@ public:
         idx2Local = idx1Local[256]; 
         idx3Local = idx2Local[256]; 
         nkValueLocal = idx3Local[256];
+        outputValueLocal = nkValueLocal[64];
     }
 
     __aicore__ inline void operator()(LocalTensor<uint32_t>& outputIdxLocal,
-                                      LocalTensor<uint32_t>& outputValueLocal,
                                       LocalTensor<uint32_t>& inputLocal,
                                       uint32_t s2SeqLen)
     {
-        LiTopKVF(outputIdxLocal, // filter阶段使用输出value Buf topK * 4B
-                 outputValueLocal, // filter阶段使用输出 Idx Buf topK * 4B
-                 inputLocal, // 输入 s2SeqLen * 4B
-                 tmpIdxLocal, // filter阶段使用暂存index Buf topK * 4B
-                 tmpValueLocal, // filter阶段使用暂存value Buf topK * 4B
-                 histogramsLocal, // 直方图的临时Buf 256 * 4B
-                 idx0Local, // 输入数据第1个8位Buf 256 * 4B
-                 idx1Local, // 输入数据第2个8位Buf 256 * 4B
-                 idx2Local, // 输入数据第3个8位Buf 256 * 4B
-                 idx3Local, // 输入数据第4个8位Buf 256 * 4B
-                 nkValueLocal, // next_k 暂存Buf 64 * 4B
-                 topK,       // topk数量
-                 s2SeqLen); // 输入元素总数
+        topkb32::LiTopKVF(outputIdxLocal, // filter阶段使用输出value Buf topK * 4B
+                          outputValueLocal, // filter阶段使用输出 Idx Buf topK * 4B
+                          inputLocal, // 输入 s2SeqLen * 4B
+                          tmpIdxLocal, // filter阶段使用暂存index Buf topK * 4B
+                          tmpValueLocal, // filter阶段使用暂存value Buf topK * 4B
+                          histogramsLocal, // 直方图的临时Buf 256 * 4B
+                          idx0Local, // 输入数据第1个8位Buf 256 * 4B
+                          idx1Local, // 输入数据第2个8位Buf 256 * 4B
+                          idx2Local, // 输入数据第3个8位Buf 256 * 4B
+                          idx3Local, // 输入数据第4个8位Buf 256 * 4B
+                          nkValueLocal, // next_k 暂存Buf 64 * 4B
+                          topK,       // topk数量
+                          s2SeqLen); // 输入元素总数
     }
+
 private:
     LocalTensor<uint32_t> tmpIdxLocal;     // filter阶段使用暂存index Buf topK * 4B
     LocalTensor<uint32_t> tmpValueLocal;   // filter阶段使用暂存value Buf topK * 4B
@@ -67,7 +87,64 @@ private:
     LocalTensor<uint32_t> idx2Local;       // 输入数据第3个8位Buf 256 * 4B
     LocalTensor<uint32_t> idx3Local;       // 输入数据第4个8位Buf 256 * 4B
     LocalTensor<uint32_t> nkValueLocal; // next_k 暂存Buf 64 * 4B
+    LocalTensor<uint32_t> outputValueLocal; // 输出value tensor
+    uint32_t topK;
+};
+
+
+template<>
+class LITopk<uint16_t> {
+public:
+    static __aicore__ inline uint32_t GetSharedTmpBufferSize(uint32_t topK)
+    {
+        return 2 * topK * sizeof(uint32_t) + 3 * 256 * sizeof(uint32_t) + 64 * sizeof(uint32_t) +
+               (topK + 64) * sizeof(uint32_t); // for output value tensor
+    }
+
+    static __aicore__ inline uint32_t GetIndexBufferSize(uint32_t topK)
+    {
+        return (topK + 64) * sizeof(uint32_t);
+    }
+
+    __aicore__ inline void Init(uint32_t topK, LocalTensor<uint32_t>& sharedTmpBuffer)
+    {
+        this->topK = topK;
+        tmpIdxLocal = sharedTmpBuffer[0];
+        tmpValueLocal = tmpIdxLocal[topK];
+        histogramsLocal = tmpValueLocal[topK];
+        idxHighLocal = histogramsLocal[256];
+        idxLowLocal = idxHighLocal[256]; 
+        nkValueLocal = idxLowLocal[256];
+        outputValueLocal = nkValueLocal[64];
+    }
+
+    __aicore__ inline void operator()(LocalTensor<uint32_t>& outputIdxLocal,
+                                      LocalTensor<uint16_t>& inputLocal,
+                                      uint32_t s2SeqLen)
+    {
+        // AscendC::DumpTensor(inputLocal, GetBlockIdx(), 1024);
+        topkb16::LiTopKVF(outputIdxLocal, // filter阶段使用输出value Buf topK * 4B
+                          outputValueLocal, // filter阶段使用输出 Idx Buf topK * 4B
+                          inputLocal, // 输入 s2SeqLen * 4B
+                          tmpIdxLocal, // filter阶段使用暂存index Buf topK * 4B
+                          tmpValueLocal, // filter阶段使用暂存value Buf topK * 4B
+                          histogramsLocal, // 直方图的临时Buf 256 * 4B
+                          idxHighLocal, // 输入数据高8位Buf 256 * 4B
+                          idxLowLocal, // 输入数据低8位Buf 256 * 4B
+                          nkValueLocal, // next_k 暂存Buf 64 * 4B
+                          topK,       // topk数量
+                          s2SeqLen); // 输入元素总数
+    }
+private:
+    LocalTensor<uint32_t> tmpIdxLocal;     // filter阶段使用暂存index Buf topK * 4B
+    LocalTensor<uint32_t> tmpValueLocal;   // filter阶段使用暂存value Buf topK * 4B
+    LocalTensor<uint32_t> histogramsLocal; // 直方图的临时Buf 256 * 4B
+    LocalTensor<uint32_t> idxHighLocal;       // 输入数据高8位Buf 256 * 4B
+    LocalTensor<uint32_t> idxLowLocal;       // 输入数据低8位Buf 256 * 4B
+    LocalTensor<uint32_t> nkValueLocal; // next_k 暂存Buf 64 * 4B
+    LocalTensor<uint32_t> outputValueLocal; // 输出value tensor
     uint32_t topK;
 };
 }
+
 #endif

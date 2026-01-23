@@ -72,7 +72,7 @@ public:
     static constexpr LI_LAYOUT Q_LAYOUT_T = QLIT::layout;
     static constexpr LI_LAYOUT K_LAYOUT_T = QLIT::keyLayout;
 
-    using SCORE_T = uint32_t;
+    using SCORE_T = typename QLIT::scoreType;
 
     QLIMatmul<QLIT> matmulService;
     QLIVector<QLIT> vectorService;

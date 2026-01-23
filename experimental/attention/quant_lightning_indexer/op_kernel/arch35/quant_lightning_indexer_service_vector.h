@@ -36,9 +36,9 @@ public:
     static constexpr LI_LAYOUT Q_LAYOUT_T = QLIT::layout;
     static constexpr LI_LAYOUT K_LAYOUT_T = QLIT::keyLayout;
     static constexpr bool PAGE_ATTENTION = QLIT::pageAttention;
-    
-    // MM输出数据类型, 当前只支持float
-    using SCORE_T = uint32_t;
+
+    using QK_T = typename QLIT::queryKeyType;
+    using SCORE_T = typename QLIT::scoreType;
 
     __aicore__ inline QLIVector(){};
     __aicore__ inline void ProcessVec1(const QLICommon::RunInfo &info);
@@ -88,7 +88,7 @@ private:
 
     // tmp buff for vector
     TBuf<TPosition::VECCALC> resMm1Buf_;
-    LocalTensor<float> resMm1UB_;
+    LocalTensor<QK_T> resMm1UB_;
     //tmp buff for weight
     TBuf<TPosition::VECCALC> weightBuf_;
     LocalTensor<float> weightUB_;
@@ -98,9 +98,6 @@ private:
     //tmp buff for qScale
     TBuf<TPosition::VECCALC> qScaleBuf_;
     LocalTensor<float> qScaleUB_;
-    //tmp buff for quantWeight
-    TBuf<TPosition::VECCALC> quantWeightBuf_;
-    LocalTensor<float> quantWeightUB_;
     //tmp buff for out
     TBuf<TPosition::VECCALC> outBuf_;
     LocalTensor<SCORE_T> vec1OutUB_;
@@ -108,7 +105,7 @@ private:
 
     // tmp buff for topk
     TBuf<TPosition::VECCALC> topkInputBuf_;
-    LocalTensor<uint32_t> topkInputLocal_;
+    LocalTensor<SCORE_T> topkInputLocal_;
 
     TBuf<TPosition::VECCALC> topkSharedTmpBuf_;
     LocalTensor<uint32_t> topkSharedTmpLocal_;
@@ -116,8 +113,6 @@ private:
     TBuf<TPosition::VECCALC> topkIndexBuf_;
     LocalTensor<uint32_t> topkIndexLocal_;
 
-    TBuf<TPosition::VECCALC> topkValueBuf_;
-    LocalTensor<uint32_t> topkValueLocal_;
 
     TBuf<TPosition::VECCALC> outInvalidBuf_;
     LocalTensor<int32_t> outInvalidLocal_; 
@@ -141,22 +136,20 @@ private:
     uint32_t paramNum_ = 16;
 
     struct QLICommon::ConstInfo constInfo_;
-    topk::LITopk topk_;
+    topk::LITopk<SCORE_T> topkOp_;
 };
 
 template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
 {
-    pipe->InitBuffer(resMm1Buf_, 2 * CeilDiv(constInfo_.mBaseSize, 2) * s2BaseSize_ * sizeof(float));   //大小：2(开dB) * 2 * 64 * 128 * 4 = 128KB
-    resMm1UB_ = resMm1Buf_.Get<float>();//qk
+    pipe->InitBuffer(resMm1Buf_, 2 * CeilDiv(constInfo_.mBaseSize, 2) * s2BaseSize_ * sizeof(QK_T));   //大小：2(开dB) * 2 * 64 * 128 * 4 = 128KB
+    resMm1UB_ = resMm1Buf_.Get<QK_T>();//qk
     pipe->InitBuffer(weightBuf_, 2 * CeilDiv(s1BaseSize_, 2) * gSize_* sizeof(float));   // 大小：2(开dB) * 2 * 64 * 2 = 0.5KB 
     weightUB_ = weightBuf_.Get<float>();//weight
     pipe->InitBuffer(kScaleBuf_, 2 * s2BaseSize_ * sizeof(float));                   // 大小：2(开dB) * 128 * 4 = 1KB
     kScaleUB_ = kScaleBuf_.Get<float>();//kScale
     pipe->InitBuffer(qScaleBuf_, 2 * CeilDiv(s1BaseSize_, 2) * gSize_* sizeof(float));      // 大小：2(开dB) * 2 * 64 * 4 = 1KB
     qScaleUB_ = qScaleBuf_.Get<float>();//qScale
-    pipe->InitBuffer(quantWeightBuf_, 2 * CeilDiv(s1BaseSize_, 2) * gSize_* sizeof(float));   // 大小：2(开dB) * 2 * 64 * 4 = 1KB
-    quantWeightUB_ = quantWeightBuf_.Get<float>();//quantWeight
     pipe->InitBuffer(outBuf_, 2 * CeilDiv(s1BaseSize_, 2) * s2BaseSize_ * sizeof(SCORE_T));      // 大小：2(开dB) * 2 * 128 * 4 = 2KB
     vec1OutUB_ = outBuf_.Get<SCORE_T>();//out
 
@@ -164,20 +157,17 @@ __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
     auto topkCount = constInfo_.sparseCount;
 
     pipe->InitBuffer(topkInputBuf_, CeilAlign(constInfo_.kSeqSize, 256) * sizeof(SCORE_T));                    // 大小：16K * 4 = 64K
-    topkInputLocal_ = topkInputBuf_.Get<uint32_t>();
+    topkInputLocal_ = topkInputBuf_.Get<SCORE_T>();
 
-    auto topkSharedTmpSize = topk::LITopk::GetSharedTmpBufferSize(topkCount);    // 4KB + 5KB + 0.25KB
+    auto topkSharedTmpSize = topk::LITopk<SCORE_T>::GetSharedTmpBufferSize(topkCount);    // 4KB + 5KB + 0.25KB
     pipe->InitBuffer(topkSharedTmpBuf_, topkSharedTmpSize);
     topkSharedTmpLocal_ = topkSharedTmpBuf_.Get<uint32_t>();
 
-    topk_.Init(topkCount, topkSharedTmpLocal_);
+    topkOp_.Init(topkCount, topkSharedTmpLocal_);
 
-    // output of topk need extra 64 elements
-    pipe->InitBuffer(topkIndexBuf_, (topkCount + 64) * sizeof(uint32_t));         // 大小：(512 + 64) * 4 = 2.25KB
-    topkIndexLocal_ = topkIndexBuf_.Get<uint32_t>(); // double buffer for output
-
-    pipe->InitBuffer(topkValueBuf_, (topkCount + 64) * sizeof(uint32_t));         // 大小：(512 + 64) * 4 = 2.25KB
-    topkValueLocal_ = topkValueBuf_.Get<uint32_t>();
+    auto topkIndexBufferSize = topk::LITopk<SCORE_T>::GetIndexBufferSize(topkCount);
+    pipe->InitBuffer(topkIndexBuf_, topkIndexBufferSize);   // 大小：(512 + 64) * 4 = 2.25KB
+    topkIndexLocal_ = topkIndexBuf_.Get<uint32_t>();
 
     //刷-1
     pipe->InitBuffer(outInvalidBuf_, topkCount * sizeof(int32_t));
@@ -368,8 +358,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
                                    resMm1UB_[(info.loop % 2) * CeilDiv(constInfo_.mBaseSize, 2) * s2BaseSize_ + s1IdxTmp * gSize_ * s2BaseSize_], 
                                    weightUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_ + s1IdxTmp * gSize_], 
                                    kScaleUB_[(info.loop % 2) * s2BaseSize_], 
-                                   qScaleUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_ + s1IdxTmp * gSize_], 
-                                   quantWeightUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_ + s1IdxTmp * gSize_], 
+                                   qScaleUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_ + s1IdxTmp * gSize_],
                                    gSize_);
     }
     SetFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + (info.loop % 2));
@@ -452,7 +441,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
         }
         WaitFlag<HardEvent::V_MTE2>(TOPK_V_MTE2_EVENT);
 
-        uint32_t zero = 0;
+        SCORE_T zero = 0;
         int32_t neg = -1;
         if (constInfo_.attenMaskFlag) {
             validS2Len = ((int32_t)i + cuRealAcSeq) / static_cast<int32_t>(constInfo_.cmpRatio);
@@ -470,10 +459,9 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
             WaitFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
             WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
             if (CeilAlign(validS2Len, 256) >= topkCount) {
-                topk_(topkIndexLocal_, topkValueLocal_, topkInputLocal_, CeilAlign(validS2Len, 256));
+                topkOp_(topkIndexLocal_, topkInputLocal_, CeilAlign(validS2Len, 256));
             } else {
                 AscendC::CreateVecIndex(topkIndexLocal_.ReinterpretCast<int32_t>(), (int32_t)zero, validS2Len);
-                AscendC::DataCopy(topkValueLocal_, topkInputLocal_, validS2Len);
             }
         } else {
             WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
