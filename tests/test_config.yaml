@@ -90,8 +90,8 @@ attention:
     exclude:
       - attention/fused_infer_attention_score/docs
       - attention/fused_infer_attention_score/README.md
-    ut_cov_exclude:
-      - attention/fused_infer_attention_score
+    #ut_cov_exclude:
+    #  - attention/fused_infer_attention_score
     # options:
     #   - incre_flash_attention
     #   # - fused_infer_attention_score
@@ -104,8 +104,8 @@ attention:
     exclude:
       - attention/incre_flash_attention/docs
       - attention/incre_flash_attention/README.md
-    ut_cov_exclude:
-      - attention/incre_flash_attention
+    #ut_cov_exclude:
+    #  - attention/incre_flash_attention
     # options:
       # - incre_flash_attention
       # - fused_infer_attention_score
@@ -220,11 +220,12 @@ attention:
     exclude:
       - attention/prompt_flash_attention/docs
       - attention/prompt_flash_attention/README.md
-    ut_cov_exclude:
-      - attention/prompt_flash_attention
+    #ut_cov_exclude:
+    #  - attention/prompt_flash_attention
     # options:
       # - prompt_flash_attention
       # - fused_infer_attention_score
+
   mla_prolog:
       module: True
       src:
@@ -320,6 +321,7 @@ attention:
         ut: True
       options:
         - mla_prolog_v3
+
 gmm:
   grouped_matmul:
     module: True
