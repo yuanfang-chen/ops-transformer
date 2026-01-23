@@ -129,7 +129,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_1)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2000000UL;
+    uint64_t expectTilingKey = 33554433UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -162,7 +162,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_1_k_zero)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2100000UL;
+    uint64_t expectTilingKey = 17UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -195,7 +195,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_2)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2000001UL;
+    uint64_t expectTilingKey = 33554497UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -228,7 +228,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_3)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2000001UL;
+    uint64_t expectTilingKey = 33554497UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -261,7 +261,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_4)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2000000UL;
+    uint64_t expectTilingKey = 33554433UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -294,7 +294,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_5)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2000000UL;
+    uint64_t expectTilingKey = 33554433UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -327,7 +327,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_6)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2000001UL;
+    uint64_t expectTilingKey = 33554497UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -360,7 +360,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_mcut_float16_310P_Weight_NZ
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 67536UL;
+    uint64_t expectTilingKey = 134217985UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -397,7 +397,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_tiling_a8w8_310p)
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 1UL;
+    uint64_t expectTilingKey = 9UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -430,7 +430,7 @@ TEST_F(MatmulAllReduceTiling, matmul_all_reduce_test_tiling_float16_empty_k_310p
         },
         &compileInfo, "Ascend310P", coreNum, ubSize);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
-    uint64_t expectTilingKey = 2100000UL;
+    uint64_t expectTilingKey = 134217745UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
@@ -539,26 +539,26 @@ const string COMPILE_INFO = R"({"hardware_info": {"BT_SIZE": 0, "load3d_constrai
 
 // 用例列表集
 MatmulAllReduceTilingTestParam cases_params[] = {
-{4,"matmul_all_reduce_test_tiling_float16_empty_k",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 0},{0, 8192},{},{},{},{},{},{},{},{},{256, 8192},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000000009UL},
-{4,"matmul_all_reduce_test_tiling_bfloat16",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{12288},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_float16_support_3_dim",COMPILE_INFO,"Ascend910B",20,196608,4096,{1, 8192, 1536},{1536, 12288},{12288},{},{},{},{},{},{},{},{1, 8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_float16_5",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_float16_4",COMPILE_INFO,"Ascend910B",20,196608,4096,{1024, 1536},{1536, 8192},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_float16_3",COMPILE_INFO,"Ascend910B",20,196608,4096,{128, 1536},{1536, 8192},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_float16_2",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,true,true,10000000000000001100UL},
-{4,"matmul_all_reduce_test_mcut_float16_910B_win2win",COMPILE_INFO,"Ascend910B",20,196608,4096,{12290, 15360},{15360, 12288},{},{},{},{},{},{},{},{},{12290, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_big_K",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 0xFFFFFFF},{0xFFFFFFF, 12288},{},{8192, 12288},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,65536UL},
-{4,"matmul_all_reduce_test_tiling_big_N",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 0xFFFFFFF},{},{8192, 0xFFFFFFF},{},{},{},{},{},{},{8192, 0xFFFFFFF},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,65536UL},
-{4,"matmul_all_reduce_test_tiling_float16_unaligned",COMPILE_INFO,"Ascend910B",20,196608,4096,{1, 65536},{65536, 128},{},{},{},{},{},{},{},{},{1, 128},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_float16_1_cube",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,10000000000000001100UL},
-{4,"matmul_all_reduce_test_tiling_float16_1",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{},{8192, 12288},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,65536UL},
-{8,"matmul_all_reduce_test_tiling_int8_bf16",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{8192},{},{},{},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_BF16,false,false,0UL},
-{8,"matmul_all_reduce_test_tiling_int8_1",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{8192},{},{},{},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,0UL},
-{9,"matmul_all_reduce_test_tiling_int8_2",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{1},{256},{},{},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,16UL},
-{10,"matmul_all_reduce_test_tiling_a8w8_910b_mCut_2",COMPILE_INFO,"Ascend910B",20,196608,4096,{4096, 1024},{1024, 8192},{},{},{},{},{8192},{},{8192},{8192},{4096, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,10UL},
-{10,"matmul_all_reduce_test_tiling_a8w8_910b_mCut_1",COMPILE_INFO,"Ascend910B",20,196608,4096,{4096, 6272},{6272, 8192},{},{},{},{},{8192},{},{8192},{8192},{4096, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,10UL},
-{10,"matmul_all_reduce_test_tiling_a8w8_scaleDimNum2_910b",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{1,8192},{},{1,8192},{1,8192},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,10UL},
-{10,"matmul_all_reduce_test_tiling_a8w8_910b",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{8192},{},{8192},{8192},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,10UL},
+{4,"matmul_all_reduce_test_tiling_float16_empty_k",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 0},{0, 8192},{},{},{},{},{},{},{},{},{256, 8192},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,16UL},
+{4,"matmul_all_reduce_test_tiling_bfloat16",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{12288},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_float16_support_3_dim",COMPILE_INFO,"Ascend910B",20,196608,4096,{1, 8192, 1536},{1536, 12288},{12288},{},{},{},{},{},{},{},{1, 8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_float16_5",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_float16_4",COMPILE_INFO,"Ascend910B",20,196608,4096,{1024, 1536},{1536, 8192},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_float16_3",COMPILE_INFO,"Ascend910B",20,196608,4096,{128, 1536},{1536, 8192},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_float16_2",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,true,true,260UL},
+{4,"matmul_all_reduce_test_mcut_float16_910B_win2win",COMPILE_INFO,"Ascend910B",20,196608,4096,{12290, 15360},{15360, 12288},{},{},{},{},{},{},{},{},{12290, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_big_K",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 0xFFFFFFF},{0xFFFFFFF, 12288},{},{8192, 12288},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,256UL},
+{4,"matmul_all_reduce_test_tiling_big_N",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 0xFFFFFFF},{},{8192, 0xFFFFFFF},{},{},{},{},{},{},{8192, 0xFFFFFFF},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,256UL},
+{4,"matmul_all_reduce_test_tiling_float16_unaligned",COMPILE_INFO,"Ascend910B",20,196608,4096,{1, 65536},{65536, 128},{},{},{},{},{},{},{},{},{1, 128},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_float16_1_cube",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{},{},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,260UL},
+{4,"matmul_all_reduce_test_tiling_float16_1",COMPILE_INFO,"Ascend910B",20,196608,4096,{8192, 1536},{1536, 12288},{},{8192, 12288},{},{},{},{},{},{},{8192, 12288},ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,256UL},
+{8,"matmul_all_reduce_test_tiling_int8_bf16",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{8192},{},{},{},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_BF16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_BF16,false,false,8UL},
+{8,"matmul_all_reduce_test_tiling_int8_1",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{8192},{},{},{},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,8UL},
+{9,"matmul_all_reduce_test_tiling_int8_2",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{1},{256},{},{},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT16,ge::DT_FLOAT,ge::DT_FLOAT16,false,false,16392UL},
+{10,"matmul_all_reduce_test_tiling_a8w8_910b_mCut_2",COMPILE_INFO,"Ascend910B",20,196608,4096,{4096, 1024},{1024, 8192},{},{},{},{},{8192},{},{8192},{8192},{4096, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,40UL},
+{10,"matmul_all_reduce_test_tiling_a8w8_910b_mCut_1",COMPILE_INFO,"Ascend910B",20,196608,4096,{4096, 6272},{6272, 8192},{},{},{},{},{8192},{},{8192},{8192},{4096, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,40UL},
+{10,"matmul_all_reduce_test_tiling_a8w8_scaleDimNum2_910b",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{1,8192},{},{1,8192},{1,8192},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,40UL},
+{10,"matmul_all_reduce_test_tiling_a8w8_910b",COMPILE_INFO,"Ascend910B",20,196608,4096,{256, 1536},{1536, 8192},{},{},{},{},{8192},{},{8192},{8192},{256, 8192},ge::DT_INT8,ge::DT_INT8,ge::DT_INT32,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_UINT64,ge::DT_UINT64,ge::DT_FLOAT16,ge::DT_FLOAT16,ge::DT_FLOAT16,false,false,40UL},
 };
 
 // 多线程执行用例集
