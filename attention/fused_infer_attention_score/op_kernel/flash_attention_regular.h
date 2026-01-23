@@ -529,7 +529,7 @@ namespace SplitFuse {
                         Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxReady);
 #endif
                     }
-                    if (kvSIdx >= (startIdx + preKVNum)) {
+                    if (kvSIdx >= startIdx + preKVNum) {
                         uint32_t nowkvSIdx = kvSIdx - preKVNum;
                         if (nowkvSIdx + 1 > kvSLoopNumTotal - 1U) {
                             stackSeqTile = noSkipKvS - nowkvSIdx * MAX_KV_STACK_LEN;
