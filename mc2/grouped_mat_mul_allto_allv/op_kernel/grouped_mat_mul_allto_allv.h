@@ -187,7 +187,7 @@ __aicore__ inline void GroupedMatmulAlltoAllv<GMMATAV>::ShareMatMulCompute()
             GMMCompute<sharedmmType> computeOp2(sharedmm);
             computeOp2.Init(mmxGM_, mmweightGM_, mmyGM_);
             GMMProcess<decltype(computeOp2)> mmOp(computeOp2);
-            mmOp.Init(tilingData_->sharedExpMatmulTiling.baseM, tilingData_->sharedExpMatmulTiling.baseN, 24);
+            mmOp.Init(tilingData_->sharedExpMatmulTiling.baseM, tilingData_->sharedExpMatmulTiling.baseN, tilingData_->commonTilingInfo.aicCoreNum);
 
             uint64_t mmInOffset[1] = {0};
             uint64_t mmOutOffset[1] = {0};
@@ -207,7 +207,7 @@ __aicore__ inline void GroupedMatmulAlltoAllv<GMMATAV>::GmmProcessAlltoallv()
     GMMCompute<gmmType> computeOp(gmm);
     computeOp.Init(gmmxGM_, gmmweightGM_, gmmOutGM_);
     GMMProcess<decltype(computeOp)> gmmOp(computeOp);
-    gmmOp.Init(tilingData_->matmulTiling.baseM, tilingData_->matmulTiling.baseN, 24);
+    gmmOp.Init(tilingData_->matmulTiling.baseM, tilingData_->matmulTiling.baseN, tilingData_->commonTilingInfo.aicCoreNum);
     auto* sendCnt = &tilingData_->aicpuTilingInfo.sendCnt[0];
 
     uint64_t mmInOffset[2] = {0};
