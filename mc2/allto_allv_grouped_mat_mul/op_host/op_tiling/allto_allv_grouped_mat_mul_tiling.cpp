@@ -21,6 +21,7 @@
 #include "tiling/hccl_formulaic_tiling.h"
 #include "mc2_hcom_topo_info.h"
 #include "mc2_log.h"
+#include "tiling/mc2_calc_num_blocks.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
@@ -238,6 +239,7 @@ protected:
     ge::graphStatus SetMMTiling(const gert::TilingContext* context, SetMMTilingParams& params) const;
     ge::graphStatus DoAiCoreTiling(const gert::TilingContext* context);
     uint64_t GetTilingKey(const gert::TilingContext* context) const;
+    ge::graphStatus setNumBlocks(gert::TilingContext* context); 
 
 private:
     int32_t maxM_;
@@ -920,6 +922,34 @@ uint64_t AlltoAllvGmmTiling::GetTilingKey(const gert::TilingContext* context) co
     return tilingKey;
 }
 
+ge::graphStatus AlltoAllvGmmTiling::setNumBlocks(gert::TilingContext* context){
+    auto platformInfo = context->GetPlatformInfo();
+    OPS_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
+
+    // 设置 CV 核数
+    platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
+    uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
+    uint64_t aivNum = ascendcPlatform.GetCoreNumAiv();
+    static const PlatFormMemSize PLATFORM_SIZE(ascendcPlatform);
+    static const platform_ascendc::SocVersion SOC_VERSION = ascendcPlatform.GetSocVersion();
+    libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
+    uint64_t blockDim = mc2tiling::GetNumBlocks(aicNum, aivNum, A_INNER_DEBUG);
+    OP_TILING_CHECK(
+        (PLATFORM_SIZE.ubSize == 0U) || (PLATFORM_SIZE.l1Size == 0U) || (PLATFORM_SIZE.l0CSize == 0U) ||
+        (PLATFORM_SIZE.l0ASize == 0U) || (PLATFORM_SIZE.l0BSize == 0U),
+        OP_LOGE(
+            A_INNER_DEBUG,
+            "platform info is invalid, ubSize=%lu, l1Size=%lu, l0CSize=%lu, l0ASize=%lu, l0BSize=%lu",
+            PLATFORM_SIZE.ubSize, PLATFORM_SIZE.l1Size, PLATFORM_SIZE.l0CSize,
+            PLATFORM_SIZE.l0ASize, PLATFORM_SIZE.l0BSize),
+        return ge::GRAPH_FAILED);
+    tilingData->commonTilingInfo.aicCoreNum = blockDim;
+    tilingData->commonTilingInfo.aivCoreNum = blockDim * NUM_TWO;    // aic:aiv按照1：2配比
+    context->SetBlockDim(static_cast<uint32_t>(blockDim));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus AlltoAllvGmmTiling::RunFusionKernelTiling(gert::TilingContext* context)
 {
     OP_LOGD(A_INNER_DEBUG, "begin RunFusionKernelTiling.");
@@ -928,44 +958,14 @@ ge::graphStatus AlltoAllvGmmTiling::RunFusionKernelTiling(gert::TilingContext* c
         SetHcclTiling(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "set hccl tiling failed!"),
         return ge::GRAPH_FAILED);
 
-    auto platformInfo = context->GetPlatformInfo();
-    OPS_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
-
-    // 设置 CV 核数
-    platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
-    static const uint32_t CORE_NUM = ascendcPlatform.GetCoreNumAiv();
-    static const uint32_t AIC_NUM = ascendcPlatform.GetCoreNumAic();
-    static const uint32_t AIV_NUM = ascendcPlatform.GetCoreNumAiv();
-    static const PlatFormMemSize PLATFORM_SIZE(ascendcPlatform);
-    static const platform_ascendc::SocVersion SOC_VERSION = ascendcPlatform.GetSocVersion();
-
-    tilingData->commonTilingInfo.aicCoreNum = AIC_NUM;
-
-    libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
-
-    OP_TILING_CHECK(
-        (CORE_NUM == 0U || AIC_NUM == 0U || AIV_NUM == 0U),
-        OP_LOGE(
-            A_INNER_DEBUG, "platform[%d] info is invalid, coreNum=%u, aicNum=%u, aivNum=%u",
-            static_cast<int>(SOC_VERSION), CORE_NUM, AIC_NUM, AIV_NUM),
-        return ge::GRAPH_FAILED);
-
-    OP_TILING_CHECK(
-        (PLATFORM_SIZE.ubSize == 0U || PLATFORM_SIZE.l1Size == 0U || PLATFORM_SIZE.l0CSize == 0U ||
-         PLATFORM_SIZE.l0ASize == 0U || PLATFORM_SIZE.l0BSize == 0U),
-        OP_LOGE(
-            A_INNER_DEBUG,
-            "platform[%d] info is invalid, ubSize=%lu, l1Size=%lu, l0CSize=%lu, l0ASize=%lu, l0BSize=%lu",
-            static_cast<int>(SOC_VERSION), PLATFORM_SIZE.ubSize, PLATFORM_SIZE.l1Size, PLATFORM_SIZE.l0CSize,
-            PLATFORM_SIZE.l0ASize, PLATFORM_SIZE.l0BSize),
-        return ge::GRAPH_FAILED);
-
     // aicore tiling
     OP_TILING_CHECK(
-        DoAiCoreTiling(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "GMM_All_Reduce DoAiCoreTiling failed."),
+        DoAiCoreTiling(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "GMMAlltoAllv DoAiCoreTiling failed."),
         return ge::GRAPH_FAILED);
 
-    context->SetBlockDim(ascendcPlatform.CalcTschBlockDim(CORE_NUM, AIC_NUM, AIV_NUM));
+    OP_TILING_CHECK(
+        setNumBlocks(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "GMMAlltoAllv setNumBlocks failed."),
+        return ge::GRAPH_FAILED);
 
     // set workspaces
     size_t* workspaces = context->GetWorkspaceSizes(1); // 1: fixed value
