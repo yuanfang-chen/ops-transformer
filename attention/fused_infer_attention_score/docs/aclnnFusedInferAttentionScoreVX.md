@@ -1858,7 +1858,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
         <tr>
             <td>MASK</td>
             <td>sparseMode</td>
-            <td>仅Q_S大于1时支持sparse为0或3且传入mask</td>
+            <td>仅Q_S大于1时支持sparse为3且传入mask</td>
             <td>-</td>
         </tr>
         <tr>
