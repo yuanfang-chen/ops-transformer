@@ -34,7 +34,7 @@ void NewUpdateMatmulV3Args(optiling::mc2_matmul_v3_advanced::Mc2MatMulV3Args &mm
                         const mc2tiling::TilingArgs &args, const char *opName);
 
 ge::graphStatus NewGetMatmulV3PriorityPolicy(
-    const platform_ascendc::SocVersion socVersion,
+    const NpuArch npuArch,
     std::vector<int32_t> &priorities, const char *opName);
 }  // namespace mc2tiling
 

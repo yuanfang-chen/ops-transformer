@@ -112,8 +112,7 @@ bool CheckSuppportedFormat(ge::Format format);
 bool IsDeterministic();
 bool GetRankSize(const std::string &opName, const char *group,
                  int64_t &rankSize);
-bool CheckRankSize(const platform_ascendc::SocVersion socVersion,
-                   const uint32_t rankSize);
+bool CheckRankSize(const NpuArch npuArch, const uint32_t rankSize);
 uint8_t Mc2GetCommAlgo(int64_t rankDim, uint64_t mValue, const char *group,
                        const gert::TilingContext *context);
 
@@ -123,7 +122,7 @@ bool CheckDataTypeVaild(ge::DataType type,
 void UpdateMatmulV3Args(optiling::mc2_matmul_v3_advanced::Mc2MatMulV3Args &mmV3Args,
                         const mc2tiling::TilingArgs &args, const char *opName);
 ge::graphStatus GetMatmulV3PriorityPolicy(
-    const platform_ascendc::SocVersion socVersion,
+    const NpuArch npuArch,
     std::vector<int32_t> &priorities, const char *opName);
 
 class Mc2TilingUtils {
@@ -135,10 +134,8 @@ class Mc2TilingUtils {
   static ge::graphStatus CommonParamCheck(const gert::TilingContext *context);
   static mc2tiling::HcclDataType GetDataType(ge::DataType type);
   static uint64_t GetMaxWindowSize();
-  static bool CheckRankSize(platform_ascendc::SocVersion socVersion,
-                            uint32_t rankSize);
-  static HcclDataType ConvertGeTypeToHcclType(const std::string &opName,
-                                              ge::DataType type);
+  static bool CheckRankSize(NpuArch npuArch, uint32_t rankSize);
+  static HcclDataType ConvertGeTypeToHcclType(const std::string &opName, ge::DataType type);
 
   template <typename T>
   static uint64_t GetTilingKey(T &tilingData, bool isFullMeshHost = false) {
@@ -182,11 +179,11 @@ const std::map<ge::DataType, mc2tiling::HcclDataType> HCCL_DATA_TYPE = {
     {ge::DataType::DT_BF16, mc2tiling::HcclDataType::HCCL_DATA_TYPE_BFP16},
 };
 
-const std::map<platform_ascendc::SocVersion, std::set<uint32_t>>
+const std::map<NpuArch, std::set<uint32_t>>
     supportedRankSizeSet = {
-        {platform_ascendc::SocVersion::ASCEND310P, {1, 2, 4}},
-        {platform_ascendc::SocVersion::ASCEND910B, {1, 2, 4, 8}},
-        {platform_ascendc::SocVersion::ASCEND910_95, {1, 2, 4, 8, 16, 32, 64}},
+        {NpuArch::DAV_2002, {1, 2, 4}},
+        {NpuArch::DAV_2201, {1, 2, 4, 8}},
+        {NpuArch::DAV_3510, {1, 2, 4, 8, 16, 32, 64}},
 };
 
 const std::set<ge::Format> SUPPORTED_FORMAT = {
