@@ -1229,6 +1229,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
 
     int64_t SinCosOffset = CalcGlobalScStart(OutputBStartIdx, OutputSStartIdx + startRow) * constInfo_.ropeHeadDim;
     uint32_t computeSize = dealRowCount * constInfo_.ropeHeadDim;
+    uint32_t totalSize = dealRowCount * constInfo_.headDim;
 
     // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
     LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
@@ -1252,7 +1253,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
     RotaryPosEmb<COMP::rotaryMode>(normResUb, normResUb, ropeCosFp32Local, ropeSinFp32Local, tempLocal, gatherOffsetCastUb, dealRowCount, 
                                     constInfo_.ropeHeadDim, constInfo_.headDim, constInfo_.headDim - constInfo_.ropeHeadDim);
     PipeBarrier<PIPE_V>();
-    Cast(outputUb, normResUb, RoundMode::CAST_RINT, computeSize);
+    Cast(outputUb, normResUb, RoundMode::CAST_RINT, totalSize);
     PipeBarrier<PIPE_V>();
 }
 
