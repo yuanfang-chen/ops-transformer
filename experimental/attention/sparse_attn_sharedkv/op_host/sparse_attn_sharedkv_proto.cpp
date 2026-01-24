@@ -21,7 +21,7 @@ using namespace ge;
 
 namespace ops {
 constexpr uint32_t QUERY_INPUT_INDEX = 0;
-constexpr uint32_t RETUEN_SOFTMAX_INDEX = 8;
+constexpr uint32_t RETURN_SOFTMAX_INDEX = 8;
 
 ge::graphStatus InferShapeSparseAttnSharedkv(gert::InferShapeContext *context)
 {
@@ -36,7 +36,7 @@ ge::graphStatus InferShapeSparseAttnSharedkv(gert::InferShapeContext *context)
     gert::Shape *softmaxLseShape = context->GetOutputShape(1);
     OPS_LOG_E_IF_NULL(context, attentionOutShape, return ge::GRAPH_FAILED)
     auto attr = context->GetAttrs();
-    const bool *returnSoftmaxLsePtr = attr->GetAttrPointer<bool>(RETUEN_SOFTMAX_INDEX);
+    const bool *returnSoftmaxLsePtr = attr->GetAttrPointer<bool>(RETURN_SOFTMAX_INDEX);
     bool returnSoftmaxLse = (returnSoftmaxLsePtr != nullptr) ? *returnSoftmaxLsePtr : false;
     if (returnSoftmaxLse) {
         *softmaxLseShape = *queryShape;
