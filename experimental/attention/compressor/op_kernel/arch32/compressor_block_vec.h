@@ -1228,7 +1228,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
 {
 
     int64_t SinCosOffset = CalcGlobalScStart(OutputBStartIdx, OutputSStartIdx + startRow) * constInfo_.ropeHeadDim;
-    uint32_t computeSize = dealRowCount * constInfo_.headDim;
+    uint32_t computeSize = dealRowCount * constInfo_.ropeHeadDim;
 
     // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
     LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
@@ -1244,8 +1244,8 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
     LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
     // DumpTensor(ropeSinLocal_, 100421, computeSize);
     PipeBarrier<PIPE_V>();
-    Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, constInfo_.ropeHeadDim * dealRowCount);
-    Cast(ropeSinFp32Local, sinUb, RoundMode::CAST_NONE, constInfo_.ropeHeadDim * dealRowCount);
+    Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, computeSize);
+    Cast(ropeSinFp32Local, sinUb, RoundMode::CAST_NONE, computeSize);
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(sinUb);
 
