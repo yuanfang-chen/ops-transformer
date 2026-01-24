@@ -34,60 +34,61 @@
 
 ## 参数说明
 
-<table style="table-layout: auto; width: 100%">
-  <thead>
-    <tr>
-      <th style="white-space: nowrap">参数名</th>
-      <th style="white-space: nowrap">输入/输出/属性</th>
-      <th style="white-space: nowrap">描述</th>
-      <th style="white-space: nowrap">数据类型</th>
-      <th style="white-space: nowrap">数据格式</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>x</td>
-      <td>输入</td>
-      <td>公式中的`x`。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT32</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>finishedOptional</td>
-      <td>输入</td>
-      <td>表示如果对应的行finished为True，则expert序号直接填num_expert值（即x的最后一个轴大小）。</td>
-      <td>BOOL</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>k</td>
-      <td>属性</td>
-      <td>公式中的`k`，表示topk的k值。</td>
-      <td>INT64</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>yOut</td>
-      <td>输出</td>
-      <td>公式中的`yOut`，表示softmax的topk结果。</td>
-      <td>INT32</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>expertIdxOut</td>
-      <td>输出</td>
-      <td>公式中的`expertIdxOut`，表示topk的indices结果即对应的专家序号。</td>
-      <td>INT32</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>rowIdxOut</td>
-      <td>输出</td>
-      <td>公式中的`rowIdxOut`，指示每个位置对应的原始行位置。</td>
-      <td>INT32</td>
-      <td>ND</td>
-    </tr>
-  </tbody></table>
+  <table style="table-layout: auto; width: 100%">
+    <thead>
+      <tr>
+        <th style="white-space: nowrap">参数名</th>
+        <th style="white-space: nowrap">输入/输出/属性</th>
+        <th style="white-space: nowrap">描述</th>
+        <th style="white-space: nowrap">数据类型</th>
+        <th style="white-space: nowrap">数据格式</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>x</td>
+        <td>输入</td>
+        <td>公式中的`x`。</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>finishedOptional</td>
+        <td>输入</td>
+        <td>表示如果对应的行finished为True，则expert序号直接填num_expert值（即x的最后一个轴大小）。</td>
+        <td>BOOL</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>k</td>
+        <td>属性</td>
+        <td>公式中的`k`，表示topk的k值。</td>
+        <td>INT64</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>yOut</td>
+        <td>输出</td>
+        <td>公式中的`yOut`，表示softmax的topk结果。</td>
+        <td>INT32</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>expertIdxOut</td>
+        <td>输出</td>
+        <td>公式中的`expertIdxOut`，表示topk的indices结果即对应的专家序号。</td>
+        <td>INT32</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>rowIdxOut</td>
+        <td>输出</td>
+        <td>公式中的`rowIdxOut`，指示每个位置对应的原始行位置。</td>
+        <td>INT32</td>
+        <td>ND</td>
+      </tr>
+    </tbody>
+  </table>
 
 ## 约束说明
 

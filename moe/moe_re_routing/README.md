@@ -32,86 +32,88 @@
     - cur_expert是expert_token_num_per_rank的横轴索引，表示该token由卡上专家cur_expert计算。
 
 ## 参数说明
-<table style="undefined;table-layout: fixed; width: 1576px"><colgroup>
-  <col style="width: 170px">
-  <col style="width: 170px">
-  <col style="width: 312px">
-  <col style="width: 213px">
-  <col style="width: 100px">
-  </colgroup>
-  <thead>
-    <tr>
-      <th>参数名</th>
-      <th>输入/输出/属性</th>
-      <th>描述</th>
-      <th>数据类型</th>
-      <th>数据格式</th>
-    </tr></thead>
-  <tbody>
-    <tr>
-      <td>tokens</td>
-      <td>输入</td>
-      <td>表示待重新排布的token。</td>
-      <td>FLOAT16、BF16、INT8</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>expert_token_num_per_rank</td>
-      <td>输入</td>
-      <td>表示每张卡上各个专家处理的token数，对应公式中的`expert_token_num_per_rank`。</td>
-      <td>INT32、INT64</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>per_token_scales</td>
-      <td>可选输入</td>
-      <td>表示每个token对应的scale，需要随token同样进行重新排布。</td>
-      <td>FLOAT</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>permute_tokens</td>
-      <td>输出</td>
-      <td>表示重新排布后的token。</td>
-      <td>FLOAT16、BF16、INT8</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>permute_per_token_scales</td>
-      <td>输出</td>
-      <td>表示重新排布后的per_token_scales。</td>
-      <td>FLOAT</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>permute_token_idx</td>
-      <td>输出</td>
-      <td>表示每个token在原排布方式的索引。</td>
-      <td>INT32</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>expert_token_num</td>
-      <td>输出</td>
-      <td>表示每个专家处理的token数。</td>
-      <td>INT32、INT64</td>
-      <td>ND</td>
-    </tr>
-    <tr>
-      <td>expert_token_num_type</td>
-      <td>可选属性</td>
-      <td>表示输出expert_token_num的模式。0为cumsum模式，1为count模式，默认值为1。</td>
-      <td>INT64</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>idx_type</td>
-      <td>可选属性</td>
-      <td>表示输出permute_token_idx的索引类型。0为gather索引，1为scatter索引，默认值为0。</td>
-      <td>INT64</td>
-      <td>-</td>
-    </tr>
-  </tbody></table>
+
+  <table style="undefined;table-layout: fixed; width: 1576px"><colgroup>
+    <col style="width: 170px">
+    <col style="width: 170px">
+    <col style="width: 312px">
+    <col style="width: 213px">
+    <col style="width: 100px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>参数名</th>
+        <th>输入/输出/属性</th>
+        <th>描述</th>
+        <th>数据类型</th>
+        <th>数据格式</th>
+      </tr></thead>
+    <tbody>
+      <tr>
+        <td>tokens</td>
+        <td>输入</td>
+        <td>表示待重新排布的token。</td>
+        <td>FLOAT16、BF16、INT8</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>expert_token_num_per_rank</td>
+        <td>输入</td>
+        <td>表示每张卡上各个专家处理的token数，对应公式中的`expert_token_num_per_rank`。</td>
+        <td>INT32、INT64</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>per_token_scales</td>
+        <td>可选输入</td>
+        <td>表示每个token对应的scale，需要随token同样进行重新排布。</td>
+        <td>FLOAT</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>permute_tokens</td>
+        <td>输出</td>
+        <td>表示重新排布后的token。</td>
+        <td>FLOAT16、BF16、INT8</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>permute_per_token_scales</td>
+        <td>输出</td>
+        <td>表示重新排布后的per_token_scales。</td>
+        <td>FLOAT</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>permute_token_idx</td>
+        <td>输出</td>
+        <td>表示每个token在原排布方式的索引。</td>
+        <td>INT32</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>expert_token_num</td>
+        <td>输出</td>
+        <td>表示每个专家处理的token数。</td>
+        <td>INT32、INT64</td>
+        <td>ND</td>
+      </tr>
+      <tr>
+        <td>expert_token_num_type</td>
+        <td>可选属性</td>
+        <td>表示输出expert_token_num的模式。0为cumsum模式，1为count模式，默认值为1。</td>
+        <td>INT64</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>idx_type</td>
+        <td>可选属性</td>
+        <td>表示输出permute_token_idx的索引类型。0为gather索引，1为scatter索引，默认值为0。</td>
+        <td>INT64</td>
+        <td>-</td>
+      </tr>
+    </tbody>
+  </table>
 
 
 ## 约束说明
