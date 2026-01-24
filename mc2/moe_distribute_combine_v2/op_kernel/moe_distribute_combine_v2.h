@@ -18,45 +18,20 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_combine_v2_tiling.h"
+#include "moe_distribute_combine_v2_quant.h"
 #include "../common/inc/kernel/moe_distribute_base.h"
 #if __has_include("../moe_distribute_dispatch/check_winsize.h")
 #include "../moe_distribute_dispatch/check_winsize.h"
 #include "../moe_distribute_dispatch_v2/moe_distribute_v2_base.h"
+#include "../moe_distribute_dispatch_v2/moe_distribute_v2_constant.h"
 #else
 #include "../../moe_distribute_dispatch/op_kernel/check_winsize.h"
 #include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_base.h"
+#include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_constant.h"
 #endif
 
 namespace MoeDistributeCombineV2Impl {
-constexpr uint8_t BUFFER_NUM = 2;                        // 多buf
-constexpr uint32_t STATE_OFFSET = 32U;                  // 状态空间偏移地址
-constexpr uint32_t STATE_SIZE = 1024UL * 1024UL; // 1M
-constexpr uint32_t COMBINE_STATE_OFFSET = 64U * 1024U;  // 本卡状态空间偏移地址，前面的地址给dispatch用
-constexpr uint8_t EP_DOMAIN = 0;
-constexpr uint8_t TP_DOMAIN = 1;
-constexpr uint32_t FLOAT_PER_UB_ALIGN = 8U;
-constexpr uint64_t WIN_STATE_OFFSET = 500UL * 1024UL;
-constexpr uint64_t STATE_WIN_OFFSET = 975UL * 1024UL;   // 预留48*512内存
-constexpr uint64_t TIMEOUT_OFFSET = 1000UL * 1024UL;
-constexpr uint64_t TIMEOUT_DETECTION_THRESHOLD = 50000UL;
-constexpr uint64_t CYCLES_PER_US = 50UL;
-constexpr uint64_t TIMEOUT_DETECTION_TX_UNITS = 8UL;
-constexpr uint64_t STATE_HCCL_OFFSET = 32UL;
-constexpr uint32_t EXPAND_IDX_INFO = 3U;                // expand_idx是按3元组保存信息，分别为rank_id token_id topk_id
-constexpr uint32_t ALIGNED_LEN = 256U;                  // blockReduceMax中，最多支持连续256字节数据参与计算
-constexpr float SCALE_PARAM = 127.0;                    // 计算量化参数所需的缩放倍数
-constexpr uint64_t ALIGNED_LEN_256 = 256UL;
-constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
-constexpr uint32_t REDUCE_NUM = 8U;
-constexpr uint32_t ELASTIC_INFO_OFFSET = 4U;
-constexpr uint32_t RANK_LIST_NUM = 2;
-constexpr uint8_t EP_WORLD_SIZE_IDX = 1U;
-constexpr uint8_t SHARE_RANK_NUM_IDX = 2U;
-constexpr uint8_t MOE_NUM_IDX = 3U;
-constexpr uint32_t DIM_NUM = 2;
-constexpr size_t MASK_CALC_NEED_WORKSPACE = 10UL * 1024UL;
 using namespace MoeDistributeV2Base;
-constexpr uint32_t BLOCK_NUM = ALIGNED_LEN / UB_ALIGN;  // blockReduceMax中，最多支持连续256字节数据参与计算
 
 #define TemplateMC2TypeClass typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant
 #define TemplateMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant
@@ -81,7 +56,6 @@ private:
     __aicore__ inline void InitTilingAttrs(const MoeDistributeCombineV2TilingData *tilingData);
     __aicore__ inline void InitElasticInfo(uint32_t &sharedExpertRankNum);
     __aicore__ inline void InitElasticInfoTensor();
-    __aicore__ inline void InitInt8Quant();
     __aicore__ inline void AlltoAllBuffInitAndMaskCal();
     __aicore__ inline void ReduceScatterTrans();
     __aicore__ inline void TokenMaskCalCnt();
@@ -93,8 +67,6 @@ private:
     __aicore__ inline void CustomAdd(LocalTensor<XType> &dst, LocalTensor<XType> &src0, LocalTensor<XType> &src1);
     __aicore__ inline void ExpertAlltoAllDispatchInnerCopyAdd(uint32_t toRankId, uint32_t tokenId, uint32_t topkId, uint32_t tkIndex);
     __aicore__ inline void ExpertAlltoAllDispatchCopyAdd();
-    __aicore__ inline void Int8QuantProcess(); 
-    __aicore__ inline void Int8DequantProcess(LocalTensor<XType> &src);
     __aicore__ inline void ProcessConstantExpert(uint32_t tokenIndex, uint32_t const_expert_idx, float scaleVal);
     __aicore__ inline void ProcessCopyExpert(uint32_t tokenIndex, float scaleVal);
     __aicore__ inline void ProcessMoeExpert(uint32_t tokenIndexOffset, uint32_t topkId, float scaleVal);
@@ -210,7 +182,6 @@ private:
     uint32_t tpRemoteSendCnt_{0};
     uint32_t activeMaskAlignSize_{0};
     uint32_t hExpandXTypeSize_{0};
-    uint32_t hAlign32Size_{0};
     uint32_t hFloatAlign32Size_{0};
     uint32_t hFloatAlign256Size_{0};
     uint32_t hExpandXAlign32Size_{0};
@@ -259,11 +230,9 @@ private:
     TBuf<> xMaxBuf_;
     TBuf<> xScaleMulBuf_;
 
-    LocalTensor<int8_t> castLocalTensor_;
     LocalTensor<half> fp16CastTensor_;
     LocalTensor<float> absFloatTensor_;
     LocalTensor<float> reduceMaxFloatTensor_;
-    LocalTensor<XType> scaleDivTensor_;
     LocalTensor<float> scaleDivFloatTensor_;
     LocalTensor<float> scaleDupLocalTensor_;
     LocalTensor<XType> sendLocalTensor_;
@@ -275,10 +244,8 @@ private:
     LocalTensor<float> mulBufLocal_;
     LocalTensor<float> sumFloatBufLocal_;
 
-    uint32_t mask_{0};
-    uint32_t repeatNum_{0};
     uint32_t scaleNum_{0};
-    float scaleValFloat_;
+    MoeDistributeCombineQuant<TemplateMC2TypeFunc> quantInst_;
 };
 
 template <TemplateMC2TypeClass>
@@ -427,7 +394,6 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitAttrs(co
 
     stateOffset_ = STATE_OFFSET;
     uint32_t hFloatSize = axisH_ * static_cast<uint32_t>(sizeof(float));
-    hAlign32Size_ = Ceil(axisH_, UB_ALIGN) * UB_ALIGN;
     hFloatAlign32Size_ = Ceil(hFloatSize, UB_ALIGN) * UB_ALIGN;
     hFloatAlign256Size_ = Ceil(hFloatSize, ALIGNED_LEN) * ALIGNED_LEN;
     hExpandXTypeSize_ = axisH_ * sizeof(ExpandXType);
@@ -435,17 +401,6 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitAttrs(co
     hAlignWinSize_ = Ceil(hExpandXTypeSize_, WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
     hAlignWinCnt_ = hAlignWinSize_ / sizeof(ExpandXType);
     bsKNum_ = axisBS_ * axisK_;
-}
-
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitInt8Quant()
-{
-    scaleValFloat_ = static_cast<float>(1.0f / SCALE_PARAM);
-    uint32_t scaleGranu = static_cast<uint32_t>(UB_ALIGN / sizeof(float)); // 计算每个block得到的reducemax结果数量
-    scaleNum_ = (hExpandXAlign32Size_ / sizeof(ExpandXType)) / scaleGranu; // 得到有效scale的个数
-    repeatNum_ = static_cast<uint32_t>(hFloatAlign256Size_ / ALIGNED_LEN); // BlockReduceMax 与 Brcb的重复迭代次数，每次256b参与计算
-    mask_ = static_cast<uint32_t>(ALIGNED_LEN / sizeof(float));
-    tokenScaleCnt_ = hAlign32Size_ / sizeof(ExpandXType) + scaleNum_; // int8_align + scale有效个数
 }
 
 template <TemplateMC2TypeClass>
@@ -471,7 +426,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Init(
     CheckWindowSize(totalWinSizeEp_, epWinContext_->winSize, tpipe_, XOut);
 
     if constexpr (IsInt8Quant) {
-        InitInt8Quant();
+        quantInst_.SetQuantInitParams(axisH_);
+        quantInst_.InitInt8Quant(scaleNum_, hExpandXAlign32Size_, hFloatAlign256Size_, tokenScaleCnt_);
     }
 
     PipeBarrier<PIPE_ALL>();
@@ -867,33 +823,6 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertAlltoA
 }
 
 template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Int8QuantProcess()
-{
-    SyncFunc<AscendC::HardEvent::MTE2_V>();
-    castLocalTensor_ = sendLocalTensor_.template ReinterpretCast<int8_t>(); // 长度为int8H_Align + scaleNum
-    scaleDivTensor_ = castLocalTensor_[hAlign32Size_].template ReinterpretCast<XType>(); // 偏移前面的int8
-
-    Cast(winTpSendCountFloatTensor_, gmTpSendCountTensor_, RoundMode::CAST_NONE, axisH_);
-    PipeBarrier<PIPE_V>();
-    Abs(absFloatTensor_, winTpSendCountFloatTensor_, axisH_); // absFloatTensor_ align到256并写0，支持ReduceMax与Brcb
-    PipeBarrier<PIPE_V>();
-    BlockReduceMax(reduceMaxFloatTensor_, absFloatTensor_, repeatNum_, mask_, 1, 1, BLOCK_NUM); // 32->1 256->8
-    PipeBarrier<PIPE_V>();
-    Muls(reduceMaxFloatTensor_, reduceMaxFloatTensor_, scaleValFloat_, scaleNum_); // 有效个数
-    PipeBarrier<PIPE_V>();
-    Cast(scaleDivTensor_, reduceMaxFloatTensor_, RoundMode::CAST_RINT, scaleNum_); // 有效个数
-    PipeBarrier<PIPE_V>();
-    Brcb(scaleDupLocalTensor_, reduceMaxFloatTensor_, repeatNum_, {1, BLOCK_NUM}); // 一次256
-    PipeBarrier<PIPE_V>();
-    Div(winTpSendCountFloatTensor_, winTpSendCountFloatTensor_, scaleDupLocalTensor_, axisH_); // 有效个数
-    PipeBarrier<PIPE_V>();
-    Cast(fp16CastTensor_, winTpSendCountFloatTensor_, RoundMode::CAST_RINT, axisH_);
-    PipeBarrier<PIPE_V>();
-    Cast(castLocalTensor_, fp16CastTensor_, RoundMode::CAST_RINT, axisH_);
-    SyncFunc<AscendC::HardEvent::V_MTE3>();
-}
-
-template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertAlltoAllDispatchInnerCopyAdd(
     uint32_t toRankId, uint32_t tokenId, uint32_t topkId, uint32_t tkIndex)
 {
@@ -930,7 +859,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertAlltoA
             gmTpSendCountQueue_.EnQue(gmTpSendCountTensor_);
             gmTpSendCountTensor_ = gmTpSendCountQueue_.DeQue<ExpandXType>();
             sendLocalTensor_ = xOutQueue_.AllocTensor<ExpandXType>();
-            Int8QuantProcess();
+            quantInst_.Int8QuantProcess(sendLocalTensor_, winTpSendCountFloatTensor_, gmTpSendCountTensor_, 
+                                             fp16CastTensor_, absFloatTensor_, reduceMaxFloatTensor_, scaleDupLocalTensor_);
             xOutQueue_.EnQue(sendLocalTensor_);
             sendLocalTensor_ = xOutQueue_.DeQue<ExpandXType>();
             DataCopyPad(rankWindow_, sendLocalTensor_, xScaleCopyParams);
@@ -1015,26 +945,6 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::WaitDispatch
     }
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopy<float>(stateGMTensor, stateResetTensor_, copyCount);
-}
-
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Int8DequantProcess(LocalTensor<XType>& src)
-{
-    SyncFunc<AscendC::HardEvent::MTE2_V>();
-    castLocalTensor_ = src.template ReinterpretCast<int8_t>();
-    scaleDivTensor_ = src[hAlign32Size_ / 2];
-
-    SyncFunc<AscendC::HardEvent::S_V>();
-    Cast(scaleDivFloatTensor_, scaleDivTensor_, RoundMode::CAST_NONE, scaleNum_);
-    Cast(fp16CastTensor_, castLocalTensor_, RoundMode::CAST_NONE, axisH_);
-    PipeBarrier<PIPE_V>();
-    Cast(absFloatTensor_, fp16CastTensor_, RoundMode::CAST_NONE, axisH_);
-    Brcb(scaleDupLocalTensor_, scaleDivFloatTensor_, repeatNum_, {1, BLOCK_NUM});
-    PipeBarrier<PIPE_V>();
-    Mul(absFloatTensor_, absFloatTensor_, scaleDupLocalTensor_, axisH_);
-    PipeBarrier<PIPE_V>();
-    Cast(src, absFloatTensor_, RoundMode::CAST_RINT, axisH_);
-    PipeBarrier<PIPE_V>();
 }
 
 template <TemplateMC2TypeClass>
@@ -1167,7 +1077,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ProcessMoeEx
     moeSumQueue_.EnQue(tmpUb);
     tmpUb = moeSumQueue_.DeQue<XType>();
     if constexpr (IsInt8Quant) {
-        Int8DequantProcess(tmpUb);
+        quantInst_.Int8DequantProcess(tmpUb, scaleDivFloatTensor_, fp16CastTensor_, absFloatTensor_, scaleDupLocalTensor_);
     }
     Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
     PipeBarrier<PIPE_V>();
@@ -1291,7 +1201,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::LocalWindowC
             moeSumQueue_.EnQue(tmpUb);
             tmpUb = moeSumQueue_.DeQue<XType>();
             if constexpr (IsInt8Quant) {
-                Int8DequantProcess(tmpUb);
+                quantInst_.Int8DequantProcess(tmpUb, scaleDivFloatTensor_, fp16CastTensor_, absFloatTensor_, scaleDupLocalTensor_);
             }
             Cast(rowTmpFloatLocal_, tmpUb, AscendC::RoundMode::CAST_NONE, processLen);
             PipeBarrier<PIPE_V>();
