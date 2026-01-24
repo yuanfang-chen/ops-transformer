@@ -367,7 +367,7 @@ ge::graphStatus TilingCompute(gert::TilingContext* context, const int64_t topK)
     const auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     size_t* workspaces = context->GetWorkspaceSizes(1);
     workspaces[0] = ascendcPlatform.GetLibApiWorkSpaceSize();
-
+    OP_LOGD(context->GetNodeName(), "workspace is %zu", workspaces[0]);
     return context->SetTilingKey(param.core.tilingKey);
 }
 
