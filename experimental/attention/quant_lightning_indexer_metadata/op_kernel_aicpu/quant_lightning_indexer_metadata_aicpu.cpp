@@ -77,8 +77,12 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
 
     auto mode = static_cast<SparseMode>(sparseMode_);
     if (mode == SparseMode::RIGHT_DOWN_CAUSAL) {
+        attentionMode_ = 1;
         preToken_ = 9223372036854775807;
-        nextToken_ = 9223372036854775807;
+    } else if (mode == SparseMode::DEFAULT_MASK) {
+        attentionMode_ = 0;
+    } else if (mode == SparseMode::BAND) {
+        attentionMode_ = 1;
     }
     groupSize_ = numHeadsQ_ / numHeadsK_;
     if (actSeqLenQ_ != nullptr) {
