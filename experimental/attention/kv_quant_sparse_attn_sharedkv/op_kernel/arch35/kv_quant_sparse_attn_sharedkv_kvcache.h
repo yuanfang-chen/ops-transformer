@@ -27,23 +27,22 @@ using namespace AscendC::Impl::Detail;
 
 TEMPLATE_INTF
 __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo &constInfo,
-    __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t * actualSeqKvlenAddr)
+    __gm__ int32_t *cuSeqlensQAddr, __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t * actualSeqKvlenAddr)
 {
     int32_t actualS1Size = 0;
     int32_t actualS2Size = 0;
     int32_t actualSeqMin = 1;
     int32_t actualSeqKVMin = 1;
     int32_t sIdx = runParam.boIdx;
-    if (constInfo.isActualLenDimsNull) {
-        actualS1Size = constInfo.s1Size;
+    if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
+        // actual seq length first
+        actualS1Size = (actualSeqQlenAddr == nullptr) ? (cuSeqlensQAddr[sIdx + 1] - cuSeqlensQAddr[sIdx]) :
+            actualSeqQlenAddr[sIdx];
     } else {
-        if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
-            actualS1Size = actualSeqQlenAddr[sIdx + 1] - actualSeqQlenAddr[sIdx];
-        } else {
-            actualS1Size = (constInfo.actualSeqLenSize == actualSeqMin) ? actualSeqQlenAddr[0] :
-                actualSeqQlenAddr[sIdx];
-        }
+        actualS1Size = (actualSeqQlenAddr == nullptr) ? constInfo.s1Size :
+            actualSeqQlenAddr[sIdx];
     }
+
     if (constInfo.isActualLenDimsKVNull) {
         actualS2Size = constInfo.s2Size;
     } else {
@@ -67,9 +66,9 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
 
 TEMPLATE_INTF
 __aicore__ inline void ComputeParamBatch(RunParamStr& runParam, const ConstInfo &constInfo,
-    __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t *actualSeqKvlenAddr)
+    __gm__ int32_t *cuSeqlensQAddr, __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t *actualSeqKvlenAddr)
 {
-    GetSingleCoreParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, actualSeqQlenAddr, actualSeqKvlenAddr);
+    GetSingleCoreParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, cuSeqlensQAddr, actualSeqQlenAddr, actualSeqKvlenAddr);
 }
 
 TEMPLATE_INTF
@@ -136,13 +135,12 @@ __aicore__ inline void ComputeSouterParam(RunParamStr& runParam, const ConstInfo
 
 TEMPLATE_INTF
 __aicore__ inline void LoopSOuterOffsetInit(RunParamStr& runParam, const ConstInfo &constInfo,
-    int32_t sIdx, __gm__ int32_t *actualSeqQlenAddr)
+    int32_t sIdx, __gm__ int32_t *cuSeqlensQAddr)
 {
     if ASCEND_IS_AIV {
-        int64_t actualSeqLen = 0;
         int64_t seqOffset = 0;
         if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
-            seqOffset = actualSeqQlenAddr[sIdx];
+            seqOffset = cuSeqlensQAddr[sIdx];
         } else {
             seqOffset = sIdx * constInfo.s1Size;
         }
@@ -161,7 +159,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr& runParam, const ConstIn
 
 TEMPLATE_INTF
 __aicore__ inline bool ComputeParamS1(RunParamStr& runParam, const ConstInfo &constInfo,
-    uint32_t sOuterLoopIdx, __gm__ int32_t *actualSeqQlenAddr)
+    uint32_t sOuterLoopIdx, __gm__ int32_t *cuSeqlensQAddr)
 {
     if (runParam.nextTokensPerBatch < 0) {
         if (runParam.s1oIdx < (runParam.nextTokensPerBatch * (-1)) / runParam.qSNumInOneBlock * runParam.qSNumInOneBlock) {
@@ -171,16 +169,16 @@ __aicore__ inline bool ComputeParamS1(RunParamStr& runParam, const ConstInfo &co
 
     ComputeSouterParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, sOuterLoopIdx);
 
-    LoopSOuterOffsetInit<TEMPLATE_INTF_ARGS>(runParam, constInfo, runParam.boIdx, actualSeqQlenAddr);
+    LoopSOuterOffsetInit<TEMPLATE_INTF_ARGS>(runParam, constInfo, runParam.boIdx, cuSeqlensQAddr);
     return false;
 }
 
 TEMPLATE_INTF
-__aicore__ inline bool ComputeLastBN(RunParamStr& runParam, __gm__ int32_t *actualSeqQlenAddr) 
+__aicore__ inline bool ComputeLastBN(RunParamStr& runParam, __gm__ int32_t *cuSeqlensQAddr) 
 {
     if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
         // TND格式下 相邻Batch中当actualSeqQlen相等时则返回true
-        if (runParam.boIdx > 0 && actualSeqQlenAddr[runParam.boIdx + 1] - actualSeqQlenAddr[runParam.boIdx] == 0) {
+        if (runParam.boIdx > 0 && cuSeqlensQAddr[runParam.boIdx + 1] - cuSeqlensQAddr[runParam.boIdx] == 0) {
             return true;
         }
     }
