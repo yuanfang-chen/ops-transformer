@@ -210,8 +210,8 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     // 3. 检查shape
     CHECK_RET(CheckShape(x1, x2, biasOptional, transposeX2, output), ACLNN_ERR_PARAM_INVALID);
     // 4. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
-    // bias的数据类型限制在910_95和910B上有所区别，这里根据芯片版本做区分
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+    // bias的数据类型限制在950和910B上有所区别，这里根据芯片版本做区分
+    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         CHECK_RET(CheckAllDtypesValid(x1, x2, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
     } else {
         CHECK_RET(CheckAllDtypesValid910B(x1, x2, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
@@ -298,7 +298,7 @@ extern "C" aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, 
 extern "C" aclnnStatus aclnnMatmulAlltoAll(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+        if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         } else {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);

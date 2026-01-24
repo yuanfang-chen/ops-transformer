@@ -215,7 +215,6 @@ ge::Status Mc2GenTaskOpsUtils::CommonKFCMc2GenTask(const gert::ExeResGenerationC
     const int64_t attach_stream_id = GetAttachStreamIdByContext(context);
     const int64_t stream_id = context->GetStreamId();
 
-    /* wait aicpu record [aicore] wait */
     // wait task
     ge::KernelLaunchInfo aicpu_wait_for_aicore_task = ge::KernelLaunchInfo::CreateHcomWaitTask(context);
     aicpu_wait_for_aicore_task.SetStreamId(static_cast<uint32_t>(attach_stream_id));

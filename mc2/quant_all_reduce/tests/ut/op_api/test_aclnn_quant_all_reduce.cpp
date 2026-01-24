@@ -31,7 +31,7 @@ class test_aclnn_quant_all_reduce : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+        op::SetPlatformNpuArch(NpuArch::DAV_3510);
         cout << "test_aclnn_quant_all_reduce SetUp" << endl;
     }
     static void TearDownTestCase()

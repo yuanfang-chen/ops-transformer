@@ -25,7 +25,7 @@ class test_aclnn_matmul_allto_all : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+        op::SetPlatformNpuArch(NpuArch::DAV_3510);
         cout << "test_aclnn_matmul_allto_all SetUp" << endl;
     }
 

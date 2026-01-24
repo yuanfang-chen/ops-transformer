@@ -141,7 +141,7 @@ aclnnStatus aclnnAlltoAllvGroupedMatMul(void *workspace, uint64_t workspaceSize,
                                         aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910_95) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }

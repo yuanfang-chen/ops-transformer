@@ -17,8 +17,6 @@
 #include "../../../../../tests/ut/framework_normal/common/hccl_stub.h"
 #include "../../../op_kernel/matmul_reduce_scatter_tiling.h"
 
-#define __aicore__
-
 constexpr uint16_t MAX_TENSOR_CONT = 256;
 constexpr uint16_t MAX_CORE_CONT = 64;
 

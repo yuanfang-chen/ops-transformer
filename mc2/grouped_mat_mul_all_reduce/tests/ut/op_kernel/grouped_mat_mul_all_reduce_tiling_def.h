@@ -21,8 +21,6 @@
 
 #ifdef __CCE_KT_TEST__
 #include "kernel_log.h"
-#else
-#define __aicore__ [aicore]
 #endif
 
 constexpr uint16_t MAX_TENSOR_CNT = 64;

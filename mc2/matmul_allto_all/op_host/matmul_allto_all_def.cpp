@@ -83,9 +83,9 @@ public:
         this->Attr("transpose_x2").AttrType(OPTIONAL).Bool(false);
         this->Attr("group_size").AttrType(OPTIONAL).Int(0);
 
-        // ascend910_95 AI处理器定义OpAICoreConfig变量，定制化配置参数
-        OpAICoreConfig aicoreConfig_910_95;
-        aicoreConfig_910_95.DynamicCompileStaticFlag(true)
+        // ascend950 AI处理器定义OpAICoreConfig变量，定制化配置参数
+        OpAICoreConfig aicoreConfig_950;
+        aicoreConfig_950.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
             .DynamicRankSupportFlag(true)
             .DynamicShapeSupportFlag(true)
@@ -95,7 +95,7 @@ public:
             .ExtendCfgInfo("jitCompile.flag", "static_false") // 动态shape，复用二进制，后续图支持后修改
             .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
             .ExtendCfgInfo("opFile.value", "matmul_allto_all_apt");
-        this->AICore().AddConfig("ascend910_95", aicoreConfig_910_95);
+        this->AICore().AddConfig("ascend910_95", aicoreConfig_950);
 
         // 将group配置为该算子的通信域
         this->MC2().HcclGroup("group");

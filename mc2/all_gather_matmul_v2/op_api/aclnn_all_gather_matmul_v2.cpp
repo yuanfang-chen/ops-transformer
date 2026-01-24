@@ -233,7 +233,7 @@ static aclnnStatus CheckParams(const aclTensor *x1, const aclTensor *x2, const a
   return ACLNN_SUCCESS;
 }
 
-static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclTensor *x2, const aclTensor *bias, const aclTensor *output,
+static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclTensor *x2, const aclTensor *output,
                                                 const aclTensor *gatherOut, bool isTransA, int64_t streamMode)
 {
   CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
@@ -496,7 +496,7 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeAIVMode(const aclTensor* x1, const 
     bool isAmaxOut = false;
     bool isGatherOut = IsGatherOut(gatherOut);
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
-    CHECK_RET(CheckParamsAndShapeForAIVMode(x1, x2, bias, output, gatherOut, transposeX1, streamMode), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckParamsAndShapeForAIVMode(x1, x2, output, gatherOut, transposeX1, streamMode), ACLNN_ERR_PARAM_INVALID);
     aclnnStatus ret = aclnnInnerAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, quantScale, group,
                                                                 transposeX1, transposeX2, gatherIndex, commTurn,
                                                                 rankSize, blockSize, groupSize, isGatherOut, isAmaxOut,
@@ -515,12 +515,15 @@ aclnnStatus aclnnAllGatherMatmulV2GetWorkspaceSize(const aclTensor* x1, const ac
                                                    aclOpExecutor** executor)
 {
     aclnnStatus ret = ACLNN_SUCCESS;
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         ret = allGatherMatmulV2GetWorkspaceSizeCCUMode(x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, group, gatherIndex, commTurn,
                                                        streamMode, groupSize, commMode, output, gatherOut, amaxOut, workspaceSize, executor);
-    } else if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B || GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_93) {
+    } else if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201) {
         ret = allGatherMatmulV2GetWorkspaceSizeAIVMode(x1, x2, bias, x1Scale, x2Scale, quantScale, blockSize, group, gatherIndex, commTurn,
                                                        streamMode, groupSize, commMode, output, gatherOut, amaxOut, workspaceSize, executor);
+    } else {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Unsupported npuArch");
+        return ACLNN_ERR_PARAM_INVALID;
     }
     return ret;
 }
@@ -534,9 +537,9 @@ aclnnStatus aclnnAllGatherMatmulV2(void* workspace, uint64_t workspaceSize, aclO
   }
 
   if (NnopbaseSetHcclServerType) {
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
       NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
-    } else if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B || GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_93) {
+    } else if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201) {
       NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
     }
   }

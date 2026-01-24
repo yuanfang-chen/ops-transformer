@@ -68,7 +68,7 @@ extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
 
 static inline bool IsAscend910A5(void)
 {
-    return op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910_95;
+    return op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510;
 }
 
 static uint8_t GetDebugMode() {

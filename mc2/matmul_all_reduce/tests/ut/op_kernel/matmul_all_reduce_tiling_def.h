@@ -26,7 +26,6 @@
 #if __has_include("../../../../common/inc/hccl_stub.h")
 #include "../../../../../tests/ut/framework_normal/common/hccl_stub.h"
 #endif
-#define __aicore__
 
 #ifdef __CCE_KT_TEST__
 #include "kernel_log.h"

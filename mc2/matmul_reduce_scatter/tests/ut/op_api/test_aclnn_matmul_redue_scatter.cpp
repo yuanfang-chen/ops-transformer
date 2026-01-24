@@ -76,8 +76,7 @@ TEST_F(l2_aclnn_matmul_reduce_scatter_test, test_aclnn_matmul_reduce_scatter_fir
   EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
-TEST_F(l2_aclnn_matmul_reduce_scatter_test, test_six_api_910_95) {
-  fe::PlatformInfoManager::Instance().InitRuntimePlatformInfos("ASCEND910_95");
+TEST_F(l2_aclnn_matmul_reduce_scatter_test, test_six_api_950) {
   TensorDesc x1_desc = TensorDesc({16, 256}, ACL_FLOAT16, ACL_FORMAT_ND);
   TensorDesc x2_desc = TensorDesc({256, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
   TensorDesc bias = TensorDesc({256}, ACL_FLOAT16, ACL_FORMAT_ND);

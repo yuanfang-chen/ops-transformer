@@ -69,8 +69,6 @@ struct AddRMSNormTilingData {
     (tilingData).avg_factor = tilingDataPointer->avg_factor;
 #endif
 
-#define __aicore__
-
 #ifdef __CCE_KT_TEST__
 #include "kernel_log.h"
 #endif
