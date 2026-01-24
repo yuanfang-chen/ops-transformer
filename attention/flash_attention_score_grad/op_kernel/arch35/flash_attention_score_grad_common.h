@@ -34,6 +34,9 @@ constexpr uint8_t SYNC_C5_TO_V4_FLAG = 10;
 constexpr uint8_t DQ_IDX = 0;
 constexpr uint8_t DK_IDX = 1;
 constexpr uint8_t DV_IDX = 2;
+
+constexpr uint32_t MIN_SWIZZLE_S1 = 16384;
+constexpr uint32_t BASE_SWIZZLE_BLOCK_NUM = 8;
  
 template <typename T, bool IS_WRITE_UB>
 struct DqkvResPos {
@@ -66,9 +69,9 @@ __aicore__ constexpr bool GET_IS_L1_REUSE(const uint32_t HEAD_DIM_ALIGN, const b
  
 // max(mm1, mm2, mm3) + mm4 + mm5
 #define IS_DKV_RESIDENT_L0C(CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN)                                                    \
-    (((CUBE_BASEN) * (HEAD_DIM_ALIGN) * sizeof(float)) + ((CUBE_BASEN) * (HEAD_DIM_ALIGN) * sizeof(float)) +                   \
-     ((CUBE_BASEN) > (HEAD_DIM_ALIGN) ? (CUBE_BASEM) * (CUBE_BASEN) * sizeof(float) :                                          \
-                                    (CUBE_BASEM) * (HEAD_DIM_ALIGN) * sizeof(float))) <= L0C_MAX_SIZE
+    (((CUBE_BASEN) * (HEAD_DIM_ALIGN) * sizeof(float)) + ((CUBE_BASEN) * (HEAD_DIM_ALIGN) * sizeof(float)) +           \
+     ((CUBE_BASEN) > (HEAD_DIM_ALIGN) ? (CUBE_BASEM) * (CUBE_BASEN) * sizeof(float) :                                  \
+                                        (CUBE_BASEM) * (HEAD_DIM_ALIGN) * sizeof(float))) <= L0C_MAX_SIZE
 
 #define FagTilingType                                                                                                  \
     const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND> \
