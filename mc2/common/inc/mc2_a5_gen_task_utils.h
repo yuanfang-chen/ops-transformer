@@ -25,7 +25,7 @@
 #include "platform/platform_info.h"
 
 namespace ops {
-const std::set<std::string> PLATFORM_A5 = {"Ascend910_95"};
+const std::set<std::string> NPUARCH_A5 = {"3510"};
 const std::string COMM_ALG_MTE = "mte";
 const std::string COMM_ALG_CCU = "ccu";
 class Mc2A5GenTaskUtils {
@@ -40,7 +40,8 @@ public:
                                             std::vector<domi::TaskDef> &tasks);
   static ge::Status GetArgsFormat(const gert::ExeResGenerationContext *context, domi::TaskDef &aicoreTask,
     std::vector<ge::ArgDesc> &argDescs);
-  static bool IsTargetPlatform(const char *nodeName, const std::set<std::string> &targetPlatform);
+  static bool IsTargetPlatformSocVersion(const char *nodeName, const std::set<std::string> &targetPlatform);
+  static bool IsTargetPlatformNpuArch(const char *nodeName, const std::set<std::string> &targetPlatform);
   static const std::string GetCommAlg(const gert::ExeResGenerationContext *context, const size_t commAlgIdx);
 };
 }
