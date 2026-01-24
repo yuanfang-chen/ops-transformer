@@ -13,6 +13,7 @@
  * \brief
  */
 #include "sparse_lightning_indexer_grad_kl_loss_tiling_general.h"
+#include "tiling_base/tiling_templates_registry.h"
 #include <tiling/tiling_api.h>
 using namespace ge;
 using namespace AscendC;
@@ -268,7 +269,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDimLayout(const gert::Sh
                 dQueryRopeSize = queryRopeShape.GetDim(2);
                 dKeyRopeSize = keyRopeShape.GetDim(2);
             }
-            tilingData->baseParams.set_layoutType(LAYOUT_TND);
+            tilingData->baseParams.set_layoutType(static_cast<uint8_t>(LayoutType::LAYOUT_TND));
             tilingKeyLayout = LayoutType::LAYOUT_TND;
         }
     } else if (layoutLen == 4UL){
@@ -298,7 +299,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDimLayout(const gert::Sh
                 dQueryRopeSize = queryRopeShape.GetDim(3);
                 dKeyRopeSize = keyRopeShape.GetDim(3);
             }
-            tilingData->baseParams.set_layoutType(LAYOUT_BSND);
+            tilingData->baseParams.set_layoutType(static_cast<uint8_t>(LayoutType::LAYOUT_BSND));
             tilingKeyLayout = LayoutType::LAYOUT_BSND;
         }        
     } else {
@@ -938,6 +939,16 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::DoOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::PostTiling()
+{
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::DoLibApiTiling()
+{
+    return ge::GRAPH_SUCCESS;
+}
+
 uint64_t SparseLightningIndexerGradKLLossTilingBase::GetTilingKey() const
 {
     return GET_TPL_TILING_KEY(static_cast<uint8_t>(hasRope), static_cast<uint32_t>(topkSize), static_cast<uint8_t>(tilingKeyLayout), 
@@ -969,4 +980,5 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::GetWorkspaceSize()
     return ge::GRAPH_SUCCESS;
 }
 
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(SparseLightningIndexerGradKLLoss, SparseLightningIndexerGradKLLossTilingBase, std::vector<int32_t>({static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)}), 10);
 } // namespace optiling
