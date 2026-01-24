@@ -98,6 +98,10 @@ while [[ $# -gt 0 ]]; do
         ENABLE_EXPERIMENTAL="$2"
         shift 2
         ;;
+    --enable_tiling_sink)
+        ENABLE_TILING_SINK="$2"
+        shift 2
+        ;;
     --enable_ccache)
         ENABLE_CCACHE="$2"
         shift 2
@@ -160,6 +164,7 @@ function build() {
         -DENABLE_BUILT_IN=${ENABLE_BUILT_IN} \
         -DENABLE_STATIC=${ENABLE_STATIC} \
         -DENABLE_EXPERIMENTAL=${ENABLE_EXPERIMENTAL} \
+        -DENABLE_TILING_SINK=${ENABLE_TILING_SINK} \
         -DOP_DEBUG_CONFIG=${OP_DEBUG_CONFIG} \
         -DCANN_3RD_LIB_PATH=${CANN_3RD_LIB_PATH} \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \

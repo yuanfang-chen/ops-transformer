@@ -40,6 +40,7 @@ ENABLE_BUILT_JIT=FALSE
 ENABLE_BUILT_CUSTOM=FALSE
 ENABLE_STATIC=FALSE
 ENABLE_EXPERIMENTAL=FALSE
+ENABLE_TILING_SINK=FALSE
 ASCEND_SOC_UNITS="ascend910b"
 SUPPORT_COMPUTE_UNIT_SHORT=("ascend910b" "ascend910_93" "ascend910_95" "ascend310p" "kirinx90" "mc62cm12a")
 CMAKE_BUILD_MODE=""
@@ -1172,6 +1173,10 @@ fi
 
 if [ -n "${ascend_op_name}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DASCEND_OP_NAME=${ascend_op_name}"
+    if [[ "${ascend_op_name#*incre_flash_attention}"="$ascend_op_name" && "${ascend_op_name#*fused_infer_attention_score}"="$ascend_op_name" ]]; then
+        echo " 'incre_flash'"
+        CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_TILING_SINK=OFF"
+    fi
 fi
 
 if [ -n "${op_build_tool}" ];then
