@@ -1,12 +1,18 @@
 # aclnnRopeWithSinCosCache
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/posembedding/rope_with_sin_cos_cache)
+
 ## 产品支持情况
 
-| 产品                                                         |  是否支持   |
-| :----------------------------------------------------------- |:-------:|
-| <term>Ascend 950PR/Ascend 950DT</term>                             |    √    |
-| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √    |
-| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √    |
+| 产品                                                         | 是否支持 |
+| :----------------------------------------------------------- | :------: |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
+| <term>Atlas 推理系列产品</term>                             |    ×     |
+| <term>Atlas 训练系列产品</term>                              |    ×     |
+
 
 
 ## 功能说明
@@ -15,6 +21,7 @@
 * 计算公式：
 
     1、**mrope模式**：positions的shape输入是[3, numTokens]：
+
     $$
     cosSin[i] = cosSinCache[positions[i]]
     $$
@@ -64,6 +71,7 @@
     $$
 
     （1）rotate\_half（GPT-NeoX style）计算模式：
+
     $$
     x1, x2 = torch.chunk(queryRot, 2, dim=-1)
     $$
@@ -85,6 +93,7 @@
     $$
 
     （2）rotate\_interleaved（GPT-J style）计算模式：
+
     $$
     x1 = queryRot[..., ::2]
     $$
@@ -102,6 +111,7 @@
     $$
 
     2、**rope模式**：positions的shape输入是[numTokens]：
+
     $$
     cosSin[i] = cosSinCache[positions[i]]
     $$
@@ -119,6 +129,7 @@
     $$
 
     （1）rotate\_half（GPT-NeoX style）计算模式：
+
     $$
     x1, x2 = torch.chunk(queryRot, 2, dim=-1)
     $$
@@ -140,6 +151,7 @@
     $$
 
     （2）rotate\_interleaved（GPT-J style）计算模式：
+
     $$
     x1 = query\_rot[..., ::2]
     $$
@@ -185,7 +197,7 @@ aclnnStatus aclnnRopeWithSinCosCache(
 
 ## aclnnRopeWithSinCosCacheGetWorkspaceSize
 
--   **参数说明**：
+-   **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1550px"><colgroup>
       <col style="width: 170px">
@@ -321,7 +333,7 @@ aclnnStatus aclnnRopeWithSinCosCache(
       </tr>
     </tbody></table>
 
--   **返回值：**
+-   **返回值**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -362,7 +374,7 @@ aclnnStatus aclnnRopeWithSinCosCache(
 
 ## aclnnRopeWithSinCosCache
 
--   **参数说明：**
+-   **参数说明**
     <table style="undefined;table-layout: fixed; width: 1030px"> <colgroup>
     <col style="width: 250px">
     <col style="width: 130px">
@@ -396,13 +408,15 @@ aclnnStatus aclnnRopeWithSinCosCache(
     </tr>
     </tbody></table>
 
--   **返回值：**
+-   **返回值**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+
 - 确定性计算：
   - aclnnRopeWithSinCosCache默认确定性实现。
+
 - queryIn、keyIn、cosSinCache只支持2维shape输入。
 - queryIn、keyIn、cosSinCache输入的数据类型需要保持一致。
 - headSize：数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数。
@@ -411,7 +425,9 @@ aclnnStatus aclnnRopeWithSinCosCache(
 - mrope模式下，mropeSection：取值当前仅支持[16, 24, 24]、[24, 20, 20]和[8, 12, 12]。
 
 ## 调用示例
+
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+
 ```Cpp
 #include <iostream>
 #include <vector>
