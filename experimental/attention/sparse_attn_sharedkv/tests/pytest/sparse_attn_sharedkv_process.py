@@ -673,7 +673,7 @@ def test_sas_process(params):
             layout_kv=layout_kv,
             has_ori_kv=ori_k_in_pa_shape != None,
             has_cmp_kv=cmp_k_in_pa_shape != None)
-        npu_result, softmax_res = torch.ops.custom.npu_sparse_attn_sharedkv(q,
+        npu_result, softmax_lse = torch.ops.custom.npu_sparse_attn_sharedkv(q,
                                                                ori_kv=ori_k_in_pa_shape,
                                                                ori_block_table=ori_block_table,
                                                                cu_seqlens_q=cu_seqlens_q,
@@ -705,7 +705,7 @@ def test_sas_process(params):
             layout_kv=layout_kv,
             has_ori_kv=ori_k_in_pa_shape != None,
             has_cmp_kv=cmp_k_in_pa_shape != None)
-        npu_result, softmax_res = torch.ops.custom.npu_sparse_attn_sharedkv(q,
+        npu_result, softmax_lse = torch.ops.custom.npu_sparse_attn_sharedkv(q,
                                                                ori_kv=ori_k_in_pa_shape,
                                                                cmp_kv=cmp_k_in_pa_shape,
                                                                ori_block_table=ori_block_table,
@@ -742,7 +742,7 @@ def test_sas_process(params):
             layout_kv=layout_kv,
             has_ori_kv=ori_k_in_pa_shape != None,
             has_cmp_kv=cmp_k_in_pa_shape != None)
-        npu_result, softmax_res = torch.ops.custom.npu_sparse_attn_sharedkv(q,
+        npu_result, softmax_lse = torch.ops.custom.npu_sparse_attn_sharedkv(q,
                                                                 ori_kv=ori_k_in_pa_shape,
                                                                 cmp_kv=cmp_k_in_pa_shape,
                                                                 cmp_sparse_indices=cmp_sparse_indices,
