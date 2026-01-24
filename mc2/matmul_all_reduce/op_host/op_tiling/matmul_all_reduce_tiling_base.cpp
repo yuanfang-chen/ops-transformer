@@ -433,6 +433,7 @@ ge::graphStatus MatmulAllReduceTilingBase::GetPlatformInfo()
     supportL0c2Out_ = !val.empty();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     socVersion_ = ascendcPlatform.GetSocVersion();
+    npuArch_ = ascendcPlatform.GetCurNpuArch();
     OP_TILING_CHECK(
         CheckRanksizePlatformSupported() != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(opName_, "Check Ranksize Platform Supported failed"), return ge::GRAPH_FAILED);
@@ -493,16 +494,16 @@ ge::graphStatus MatmulAllReduceTilingBase::PostTiling()
 
 ge::graphStatus MatmulAllReduceTilingBase::CheckRanksizePlatformSupported() const
 {
-    bool rankSizeSupported = mc2tiling::Mc2TilingUtils::CheckRankSize(socVersion_, rankSize_);
+    bool rankSizeSupported = mc2tiling::Mc2TilingUtils::CheckRankSize(npuArch_, rankSize_);
     OP_TILING_CHECK(
         !rankSizeSupported,
         VECTOR_INNER_ERR_REPORT_TILING(
             context_->GetNodeName(),
             "rank size %u is not supported by socversion id:%d yet;"
-            "A2 supports rank size 1,2,4,8"
-            "A5 supports rank size 1,2,4,8,16,32,64"
-            "Ascend 310P supports rank size 1,2,4",
-            rankSize_, static_cast<int32_t>(socVersion_)),
+            "A2(ARCH2201) supports rank size 1,2,4,8"
+            "A5(ARCH3510) supports rank size 1,2,4,8,16,32,64"
+            "Ascend 310P(ARCH2002) supports rank size 1,2,4",
+            rankSize_, static_cast<int32_t>(npuArch_)),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
