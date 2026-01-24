@@ -1895,9 +1895,6 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
         return ge::GRAPH_FAILED;
     }
 
-    if (RouteToFia(context)) {
-        return TilingFusedInferAttentionScoreV3(context);
-    }
     OP_CHECK_IF(CheckQKV(*context) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check query/key/value failed"), return ge::GRAPH_FAILED);
     auto attrs = context->GetAttrs();
@@ -1932,7 +1929,17 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
     // 是否路由到IFA
     bool usingIFA = IsUsingIFA(*context, inputLayoutStr, queryD, queryS);
     bool usingFAI = IsUsingFAI(*context, inputLayoutStr, queryD);
-    if (usingFAI) {
+
+    bool routeToFia = RouteToFia(context);
+    // D=256时，部分case性能劣化，路由到重构前的模板
+    if (queryD == valueD && queryD == 256U &&
+       (inputLayoutStr == "BSH" || inputLayoutStr == "BSND" || inputLayoutStr == "BNSD")) {
+            routeToFia = false;
+    }
+
+    if (routeToFia) {
+        return TilingFusedInferAttentionScoreV3(context);
+    } else if (usingFAI) {
         OP_CHECK_IF(TilingProcess4SplitFuse(context) != ge::GRAPH_SUCCESS,
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "tiling process for split fuse failed"),
             return ge::GRAPH_FAILED);
