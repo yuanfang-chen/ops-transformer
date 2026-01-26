@@ -48,15 +48,15 @@ public:
     __aicore__ inline MoeDistributeCombineV2() {};
     __aicore__ inline void Init(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx, GM_ADDR epSendCount, GM_ADDR tpSendCount,
                                 GM_ADDR expertScales, GM_ADDR xActiveMask, GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX,
-                                GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR XOut,
-                                GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeCombineV2TilingData *tilingData);
+                                GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR performanceInfo, 
+                                GM_ADDR XOut, GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeCombineV2TilingData *tilingData);
     __aicore__ inline void Process();
 private:
     __aicore__ inline void InitInputAndOutput(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx,
                                               GM_ADDR epSendCount, GM_ADDR expertScales, GM_ADDR xActiveMask,
                                               GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX,
                                               GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2,
-                                              GM_ADDR constExpertV, GM_ADDR XOut);
+                                              GM_ADDR constExpertV, GM_ADDR performanceInfo, GM_ADDR XOut);
     __aicore__ inline void InitAttrs(const MoeDistributeCombineV2TilingData *tilingData);
     __aicore__ inline void InitTilingAttrs(const MoeDistributeCombineV2TilingData *tilingData);
     __aicore__ inline void AlltoAllBuffInitAndMaskCal();
@@ -78,7 +78,9 @@ private:
     __aicore__ inline void LocalWindowCopy();
     __aicore__ inline void BuffInit();
     __aicore__ inline void SplitCoreCal();
-    __aicore__ inline void WaitDispatch(uint32_t tokenIndex);
+    __aicore__ inline void WaitDispatch(uint32_t tokenIndex, uint64_t performanceTimeStart);
+    __aicore__ inline void TimeOutDetection(uint64_t stateCheckOffset, LocalTensor<float> stateTensor);
+    __aicore__ inline void PerformanceInfoPerToken(uint32_t tokenIndex, uint64_t performanceTimeStart, LocalTensor<float> stateTensor);
     __aicore__ GM_ADDR GetWinAddrByRankId(const int32_t rankId, const uint8_t domain)
     {
         if (domain == EP_DOMAIN) {
@@ -110,6 +112,7 @@ private:
     GlobalTensor<ExpandIdxType> epSendCountGM_;
     GlobalTensor<ExpandIdxType> tpSendCountGM_;
     GlobalTensor<ExpandIdxType> elasticInfoGM_;
+    GlobalTensor<int32_t> performanceInfoGM_;
     GlobalTensor<float> expertScalesGM_;
     GlobalTensor<XType> sharedExpertXGM_;
     GlobalTensor<XType> expandOutGlobal_;
@@ -134,6 +137,9 @@ private:
     LocalTensor<float> winTpSendCountFloatTensor_;
     LocalTensor<float> gmTpSendCountFloatTensor_;
     LocalTensor<int32_t> elasticInfoTensor_;
+    LocalTensor<int32_t> performanceInfoTensor_;
+    LocalTensor<int32_t> performanceInfoTmpTensor_;
+    LocalTensor<int32_t> firstRecordTensor_;;
     LocalTensor<bool> maskStrideTensor_;
     LocalTensor<bool> maskGenerateTensor_;
     LocalTensor<uint32_t> dataStateLocalTensor_;
@@ -152,6 +158,8 @@ private:
     uint32_t tpRankId_{0};
     uint32_t coreIdx_{0};  // aiv id
     uint32_t sharedExpertNum_{0};
+    uint32_t sharedExpertRankNum_{0};
+    uint32_t rankNumPerShareExpert_{0};
     uint32_t moeExpertPerRankNum_{0};     // 每张卡部署的moe专家数
     uint32_t moeSendNum_{0};              // moeExpertPerRankNum_ * epWorldSize_
     uint32_t bufferNum_{0};
@@ -191,6 +199,8 @@ private:
     uint32_t flagRcvCount_{0};
     uint32_t axisBsAlignSize_{0};
     uint32_t expertScaleBeginIdx_{0};
+    uint32_t performanceInfoSizeAlign_{0};
+    uint32_t tokenNumPerCoreAlign_{0};
 
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> moeQueue_;
     TQue<QuePosition::VECIN, 1> moeSumQueue_;
@@ -215,10 +225,14 @@ private:
     TBuf<> stateBuf_;
     TBuf<> stateResetBuf_;
     TBuf<> expertMaskBuf_;
+    TBuf<> performanceInfoBuf_;
+    TBuf<> performanceInfoTmpBuf_;
+    TBuf<> firstRecordBuf_;
     bool isInputTokenMaskFlag_ = false;
     bool isInputExpertMaskFlag_ = false;
     bool hasSharedExpertX_ = false;
     bool hasElasticInfoFlag_ = false;
+    bool isPerformanceFlag_ = false;
     bool isScalingDownFlag_ = false;
     bool isShareExpertRankFlag_ = false;
     bool enableSpecialExpert_ = false;
@@ -308,7 +322,7 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitInputAndOutput(
     GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx, GM_ADDR epSendCount, GM_ADDR expertScales,
     GM_ADDR xActiveMask, GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX, GM_ADDR constExpertAlpha1,
-    GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR XOut)
+    GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR performanceInfo, GM_ADDR XOut)
 {
     expandXGM_.SetGlobalBuffer((__gm__ ExpandXType*)expandX);
     expertIdsGM_.SetGlobalBuffer((__gm__ ExpandIdxType*)expertIds);
@@ -322,6 +336,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitInputAnd
     constExpertAlpha1GM_.SetGlobalBuffer((__gm__ ExpandXType*)constExpertAlpha1);
     constExpertAlpha2GM_.SetGlobalBuffer((__gm__ ExpandXType*)constExpertAlpha2);
     constExpertVGM_.SetGlobalBuffer((__gm__ ExpandXType*)constExpertV);
+    performanceInfoGM_.SetGlobalBuffer((__gm__ int32_t*)performanceInfo);
 
     expandOutGlobal_.SetGlobalBuffer((__gm__ XType*)XOut);
 }
@@ -336,6 +351,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitTilingAt
     ubSize_ = tilingData->moeDistributeCombineV2Info.totalUbSize;
     globalBS_ = tilingData->moeDistributeCombineV2Info.globalBs;
     hasElasticInfoFlag_ = tilingData->moeDistributeCombineV2Info.hasElasticInfo;
+    isPerformanceFlag_ = tilingData->moeDistributeCombineV2Info.isPerformance;
     epWorldSizeOriginal_ = tilingData->moeDistributeCombineV2Info.epWorldSize;
     epRankId_ = tilingData->moeDistributeCombineV2Info.epRankId;
     epRankIdOriginal_ = tilingData->moeDistributeCombineV2Info.epRankId;
@@ -354,6 +370,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitTilingAt
     constExpertNum_ = tilingData->moeDistributeCombineV2Info.constExpertNum;
     moeExpertNum_ = tilingData->moeDistributeCombineV2Info.moeExpertNum;
     moeExpertOriginalNum_ = tilingData->moeDistributeCombineV2Info.moeExpertNum;
+    sharedExpertRankNum_ = tilingData->moeDistributeCombineV2Info.sharedExpertRankNum;
     enableSpecialExpert_ = (constExpertNum_ + zeroExpertNum_ + copyExpertNum_ > 0U);
 }
 
@@ -361,7 +378,6 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitAttrs(const MoeDistributeCombineV2TilingData *tilingData)
 {
     InitTilingAttrs(tilingData);
-    uint32_t sharedExpertRankNum = tilingData->moeDistributeCombineV2Info.sharedExpertRankNum;
     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     epWinContext_ = (__gm__ Mc2Kernel::HcclOpParam*)contextGM0;
     statusDataSpaceGm_ = Mc2Kernel::GetStatusDataSpaceGm(epWinContext_);
@@ -373,13 +389,15 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitAttrs(co
         DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(elasticInfoGM_);
         isScalingDownFlag_ = elasticInfoGM_.GetValue(0);
         elasticInst_.SetElasticInitParams(tpipe_, elasticInfoGM_);
-        elasticInst_.InitElasticInfo(isScalingDownFlag_, epWorldSize_, sharedExpertRankNum, moeExpertNum_, epRankId_, moeExpertPerRankNum_);
+        elasticInst_.InitElasticInfo(isScalingDownFlag_, epWorldSize_, sharedExpertRankNum_, moeExpertNum_, epRankId_, moeExpertPerRankNum_);
     }
     sharedExpertNum_ = tilingData->moeDistributeCombineV2Info.sharedExpertNum;
     moeSendNum_ = epWorldSize_ * moeExpertPerRankNum_;
-    if (epRankId_ < sharedExpertRankNum) {
+    if (epRankId_ < sharedExpertRankNum_) {
         isShareExpertRankFlag_ = true;
     }
+
+    rankNumPerShareExpert_ = sharedExpertRankNum_ / sharedExpertNum_;
 
     stateOffset_ = STATE_OFFSET;
     uint32_t hFloatSize = axisH_ * static_cast<uint32_t>(sizeof(float));
@@ -397,8 +415,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Init(
     GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx,
     GM_ADDR epSendCount, GM_ADDR tpSendCount, GM_ADDR expertScales,
     GM_ADDR xActiveMask, GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX,
-    GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR XOut,
-    GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeCombineV2TilingData *tilingData)
+    GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR performanceInfo, 
+    GM_ADDR XOut, GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeCombineV2TilingData *tilingData)
 {
     tpipe_ = pipe;
 
@@ -408,7 +426,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Init(
 
     InitInputAndOutput(
         expandX, expertIds, expandIdx, epSendCount, expertScales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1,
-        constExpertAlpha2, constExpertV, XOut);
+        constExpertAlpha2, constExpertV, performanceInfo, XOut);
     InitAttrs(tilingData);
 
     // 检查hcclwinsize是否越界
@@ -448,7 +466,7 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Init(
         tpRankId_ = tilingData->moeDistributeCombineV2Info.tpRankId;
         winDataSizeOffsetTp_ = static_cast<uint64_t>(dataState_) * (tilingData->moeDistributeCombineV2Info.totalWinSizeTp / 2UL);
         tpWindowGM_ = GetWinAddrByRankId(tpRankId_, TP_DOMAIN);
-        CheckWindowSize(totalWinSizeTp_, tpWinContext_->winSize, tpipe_, XOut);
+        CheckWindowSize(totalWinSizeTp_, Mc2Kernel::GetWinSize(tpWinContext_), tpipe_, XOut);
 #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
         for (int temptpRankId = 0; temptpRankId < tpWorldSize_; temptpRankId++) {
             OOMCheckAddrRange<XType>((__gm__ XType*)(GetWinAddrByRankId(temptpRankId, TP_DOMAIN)), totalWinSizeTp_);
@@ -663,6 +681,19 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::AlltoAllBuff
         }
         MaskSpecialExpert();
     }
+    if (isPerformanceFlag_) {
+        uint32_t performanceInfoSize = JUMP_WRITE * epWorldSizeOriginal_ * sizeof(int32_t);
+        performanceInfoSizeAlign_ = Ceil(performanceInfoSize, UB_ALIGN) * UB_ALIGN;
+        tpipe_->InitBuffer(performanceInfoBuf_, performanceInfoSizeAlign_);
+        performanceInfoTensor_ = performanceInfoBuf_.Get<int32_t>();
+        tpipe_->InitBuffer(performanceInfoTmpBuf_, performanceInfoSizeAlign_);
+        performanceInfoTmpTensor_ = performanceInfoTmpBuf_.Get<int32_t>();
+        Duplicate<int32_t>(performanceInfoTensor_, 0, JUMP_WRITE * epWorldSizeOriginal_);
+        uint32_t tokenNumPerCore = flagRcvCount_ * sizeof(int32_t);
+        tokenNumPerCoreAlign_ = Ceil(tokenNumPerCore, UB_ALIGN) * UB_ALIGN;
+        tpipe_->InitBuffer(firstRecordBuf_, tokenNumPerCoreAlign_);
+        firstRecordTensor_ = firstRecordBuf_.Get<int32_t>();
+    }
 }
 
 template <TemplateMC2TypeClass>
@@ -871,7 +902,61 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::CustomAdd(Lo
 }
 
 template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::WaitDispatch(uint32_t tokenIndex)
+__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::TimeOutDetection(uint64_t stateCheckOffset, LocalTensor<float> stateTensor)
+{
+    uint64_t toRankId;
+    GlobalTensor<float> timeoutCheckGMTensor;
+    for (uint32_t index = 0; index < epWorldSize_; index++) {
+        if (isScalingDownFlag_) {
+            toRankId = elasticInfoTensor_.GetValue(ELASTIC_INFO_OFFSET + epWorldSizeOriginal_ + index);
+        } else {
+            toRankId = index;
+        }
+        GM_ADDR timeoutCheckGM = (__gm__ uint8_t*)(GetWinStateAddrByRankId(toRankId, EP_DOMAIN)
+            + stateCheckOffset);
+        
+        timeoutCheckGMTensor.SetGlobalBuffer((__gm__ float*)(timeoutCheckGM));
+        DataCopy<float>(timeoutCheckGMTensor, stateTensor, TIMEOUT_DETECTION_TX_UNITS);
+    }
+}
+
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::PerformanceInfoPerToken(uint32_t tokenIndex, uint64_t performanceTimeStart, LocalTensor<float> stateTensor)
+{
+    SyncFunc<AscendC::HardEvent::MTE2_S>();
+    for (uint32_t i = 0; i < flagRcvCount_; i ++) {
+        uint32_t fromRankId;
+        if (i < axisK_) {
+            uint32_t moeExpertId = expertIdsGM_.GetValue(tokenIndex * axisK_ + i);
+            if (moeExpertId >= moeExpertNum_) {
+                continue;
+            }
+            if (isInputExpertMaskFlag_) {
+                bool maskExpertFlag = expertMaskTensor_.GetValue(tokenIndex * axisK_ + i);
+                if (!maskExpertFlag) {
+                    continue;
+                }
+            }
+            fromRankId = moeExpertId / moeExpertPerRankNum_ + sharedExpertRankNum_;
+        } else {
+            fromRankId = (i - axisK_) * rankNumPerShareExpert_ + epRankId_ % rankNumPerShareExpert_;
+        }
+        if (isScalingDownFlag_) {
+            fromRankId = elasticInfoTensor_.GetValue(ELASTIC_INFO_OFFSET + epWorldSizeOriginal_ + fromRankId);
+        }
+        if (stateTensor.GetValue(i * FLAG_OFFSET) > float(0.5) && firstRecordTensor_.GetValue(i) == 0) {
+            uint64_t performanceTimeCheck = static_cast<uint64_t>(GetSystemCycle());
+            int32_t performanceTimeWait = static_cast<int32_t>((performanceTimeCheck - performanceTimeStart) / CYCLES_PER_US);
+            uint32_t fromRankIdTime = performanceInfoTmpTensor_.GetValue(JUMP_WRITE * fromRankId);
+            uint32_t maxTimeValue = (fromRankIdTime < performanceTimeWait) ? performanceTimeWait : fromRankIdTime;
+            performanceInfoTmpTensor_.SetValue(JUMP_WRITE * fromRankId, maxTimeValue);
+            firstRecordTensor_.SetValue(i, 1);
+        }
+    }
+}
+
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::WaitDispatch(uint32_t tokenIndex, uint64_t performanceTimeStart)
 {
     uint32_t copyCount = flagRcvCount_ * FLOAT_PER_UB_ALIGN;
     uint32_t targetCount = copyCount;
@@ -888,37 +973,34 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::WaitDispatch
     float minTarget = target - (float)0.5;
     float maxTarget = target + (float)0.5;
     SumParams sumParams{1, copyCount, copyCount};
-    if (isScalingDownFlag_) {
-        elasticInst_.InitElasticInfoTensor(epWorldSizeOriginal_, elasticInfoTensor_);
-    }
     uint64_t timeoutCheckStart = static_cast<uint64_t>(GetSystemCycle());
-    uint64_t timeoutCheckEnd, timeoutCheckDuration, toRankId;
+    uint64_t timeoutCheckEnd, timeoutCheckDuration;
     uint64_t stateCheckOffset = ((dataState_ == 0) ? TIMEOUT_OFFSET : (TIMEOUT_OFFSET - WIN_STATE_OFFSET)) - COMBINE_STATE_OFFSET;
     LocalTensor<float> stateTensor = stateBuf_.Get<float>();
+    if (isPerformanceFlag_) {
+        Duplicate<int32_t>(firstRecordTensor_, 0, tokenNumPerCoreAlign_ / sizeof(int32_t));
+        Duplicate<int32_t>(performanceInfoTmpTensor_, 0, performanceInfoSizeAlign_ / sizeof(int32_t));
+        SyncFunc<AscendC::HardEvent::V_S>();
+    }
     while ((localState < minTarget) || (localState > maxTarget)) {
         SyncFunc<AscendC::HardEvent::S_MTE2>();
         DataCopy<float>(stateTensor, stateGMTensor, copyCount);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
+        if (isPerformanceFlag_) {
+            PerformanceInfoPerToken(tokenIndex, performanceTimeStart, stateTensor);
+        }
         Sum(stateTensor, stateTensor, sumParams);
         SyncFunc<AscendC::HardEvent::V_S>();
         localState = stateTensor(0);
         timeoutCheckEnd = static_cast<uint64_t>(GetSystemCycle());
         timeoutCheckDuration = (timeoutCheckEnd - timeoutCheckStart) / CYCLES_PER_US;
         if (timeoutCheckDuration > TIMEOUT_DETECTION_THRESHOLD) {
-            GlobalTensor<float> timeoutCheckGMTensor;
-            for (uint32_t index = 0; index < epWorldSize_; index++) {
-                if (isScalingDownFlag_) {
-                    toRankId = elasticInfoTensor_.GetValue(ELASTIC_INFO_OFFSET + epWorldSizeOriginal_ + index);
-                } else {
-                    toRankId = index;
-                }
-                GM_ADDR timeoutCheckGM = (__gm__ uint8_t*)(GetWinStateAddrByRankId(toRankId, EP_DOMAIN)
-                    + stateCheckOffset);
-                
-                timeoutCheckGMTensor.SetGlobalBuffer((__gm__ float*)(timeoutCheckGM));
-                DataCopy<float>(timeoutCheckGMTensor, stateTensor, TIMEOUT_DETECTION_TX_UNITS);
-            }
+            TimeOutDetection(stateCheckOffset, stateTensor);
         }
+    }
+    if (isPerformanceFlag_) {
+        SyncFunc<AscendC::HardEvent::S_V>();
+        Add(performanceInfoTensor_, performanceInfoTensor_, performanceInfoTmpTensor_, JUMP_WRITE * epWorldSizeOriginal_);
     }
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopy<float>(stateGMTensor, stateResetTensor_, copyCount);
@@ -1122,12 +1204,19 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::LocalWindowC
     const DataCopyExtParams xScaleCopyParams{
         1U, static_cast<uint32_t>(tokenScaleCnt_ * sizeof(ExpandXType)), 0U, 0U, 0U};
     ExpertScaleCopy(beginIndex, endIndex, tokenPerAivNum);
+    uint64_t performanceTimeStart = static_cast<uint64_t>(GetSystemCycle());
+    if (isScalingDownFlag_) {
+        elasticInst_.InitElasticInfoTensor(epWorldSizeOriginal_, elasticInfoTensor_);
+    }
     for (uint32_t curIdx = beginIndex; curIdx < endIndex; curIdx++) {
         uint32_t tokenIndex = curIdx;
         if (isInputExpertMaskFlag_) {
             tokenIndex = validBsIndexTensor_.GetValue(curIdx);
         }
-        WaitDispatch(tokenIndex);
+        WaitDispatch(tokenIndex, performanceTimeStart);
+        if (isPerformanceFlag_) {
+            performanceTimeStart = static_cast<uint64_t>(GetSystemCycle());
+        }
         statePos++;
         dataStateLocalTensor_.SetValue(0, statePos);
         SyncFunc<AscendC::HardEvent::S_MTE3>();
@@ -1202,6 +1291,13 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::LocalWindowC
         Cast(sumBufLocal, sumFloatBufLocal_, AscendC::RoundMode::CAST_RINT, processLen);
         SyncFunc<AscendC::HardEvent::V_MTE3>();
         DataCopyPad(expandOutGlobal_[tokenIndex * axisH_ + tokenOffset], sumBufLocal, expandXCopyParams);
+    }
+    if (isPerformanceFlag_) {
+        SyncFunc<AscendC::HardEvent::V_MTE3>();
+        SetAtomicMax<int32_t>();
+        DataCopyExtParams performanceInfoCopyParams{1U, static_cast<uint32_t>(JUMP_WRITE * epWorldSizeOriginal_ * sizeof(int32_t)), 0U, 0U, 0U};
+        DataCopyPad(performanceInfoGM_, performanceInfoTensor_, performanceInfoCopyParams);
+        SetAtomicNone();
     }
 }
 
