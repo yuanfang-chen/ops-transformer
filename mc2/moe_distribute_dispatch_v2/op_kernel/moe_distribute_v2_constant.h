@@ -93,5 +93,9 @@ constexpr uint64_t COMBINE_ARN_STATE_WIN_OFFSET = 818UL * 1024UL;
 constexpr uint32_t NUM_PER_REP_FP32 = 64U;  // ONE_REPEAT_BYTE_SIZE / sizeof(float)
 constexpr float ZERO = 0;
 constexpr float ONE = 1;
+
+// 其他
+constexpr uint32_t JUMP_WRITE = sizeof(int64_t) / sizeof(int32_t);
+constexpr uint32_t FLAG_OFFSET = STATE_OFFSET / sizeof(float);
 }
 #endif // MOE_DISTRIBUTE_V2_CONSTANT_H

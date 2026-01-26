@@ -19,7 +19,6 @@
 #ifdef BUILD_OPEN_PROJECT
 #include "mc2_gen_task_ops_utils.h"
 #include "mc2_moe_gen_task_ops_utils.h"
-#include "mc2_gen_task_ops_utils_arch35.h"
 #include "register/op_impl_registry.h"
 #include "mc2_log.h"
 #else
@@ -35,10 +34,6 @@ namespace ops {
 #ifdef BUILD_OPEN_PROJECT
 ge::Status MoeDistributeDispatchCalcParamFunc(gert::ExeResGenerationContext *context)
 {
-    if (Mc2GenTaskOpsUtils::IsTargetPlatform(context->GetNodeName(), NPUARCH_A5)) {
-        OPS_LOG_D(context->GetNodeName(), "Do A5 ccu calc param");
-        return Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc(context, "ccu server", "ccu_stream");
-    }
     OPS_LOG_D(context->GetNodeName(), "Do general calc param");
     return Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc(context, "aicpu kfc server", "kfc_stream");
 }
@@ -51,15 +46,7 @@ ge::Status MoeDistributeDispatchGenTaskFunc(const gert::ExeResGenerationContext 
         OPS_LOG_D(context->GetNodeName(), "Do A2 gen task");
         return Mc2MoeGenTaskOpsUtils::Mc2MoeGenTaskCallback(context, tasks);
     }
-<<<<<<< HEAD
-    if (Mc2GenTaskOpsUtils::IsTargetPlatform(nodeName, NPUARCH_A5)) {
-        OPS_LOG_D(nodeName, "Do A5 ccu gen task");
-        return Mc2Arch35GenTaskOpsUtils::Mc2Arch35GenTaskCallBack(context, tasks);
-    }
-    OPS_LOG_D(context->GetNodeName(), "Do A3 gen task");
-=======
     OPS_LOG_D(context->GetNodeName(), "Do A3/A5 gen task");
->>>>>>> fb35a5d0 (dispatch和combine同步至开源仓)
     return Mc2MoeGenTaskOpsUtils::Mc2MoeGenTaskCallbackV2(context, tasks);
 }
 
@@ -70,10 +57,6 @@ IMPL_OP(MoeDistributeDispatch)
 #else // mc2 gen task utils
 ge::Status MoeDistributeDispatchCalcParamFunc(gert::ExeResGenerationContext *context)
 {
-    if (Mc2A5GenTaskUtils::IsTargetPlatform(context->GetNodeName(), NPUARCH_A5)) {
-        OPS_LOG_D(context->GetNodeName(), "Do A5 ccu calc param");
-        return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, "ccu server", "ccu_stream");
-    }
     const ge::AscendString name = "aicpu kfc server";
     const ge::AscendString reuseKey = "kfc_stream";
     return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, name, reuseKey);
@@ -85,9 +68,6 @@ ge::Status MoeDistributeDispatchGenTaskFunc(const gert::ExeResGenerationContext 
     const char *nodeName = context->GetNodeName();
     if (Mc2A5GenTaskUtils::IsTargetPlatform(nodeName, PLATFORM_A2)) {
         return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2GenTaskMoe::Mc2MoeGenTaskCallback);
-    } else if (Mc2A5GenTaskUtils::IsTargetPlatform(nodeName, NPUARCH_A5)) {
-        OPS_LOG_D(context->GetNodeName(), "Do A5 ccu gen task");
-        return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2A5GenTaskUtils::Mc2GenTaskCallBack910A5);
     }
     OPS_LOG_D(context->GetNodeName(), "Do MTE gen task.");
     return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2GenTaskMoe::Mc2MoeGenTaskCallbackV2);
