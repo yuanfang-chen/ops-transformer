@@ -44,6 +44,7 @@ operator_group_4:
   - rotary_position_embedding
   - rotary_position_embedding_grad
   - ring_attention_update
+  - sparse_flash_attention_grad
   - fused_infer_attention_score,10-9
 operator_group_5:
   - flash_attention_score,3-0
