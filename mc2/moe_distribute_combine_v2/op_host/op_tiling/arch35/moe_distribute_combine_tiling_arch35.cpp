@@ -704,16 +704,16 @@ inline ge::graphStatus CheckCommAttrs(const char *nodeName, const MoeDistributeC
 inline void SetPlatformInfo(gert::TilingContext *context, MoeDistributeCombineV2TilingData &tilingData)
 {
     const char *nodeName = context->GetNodeName();
-    uint32_t blockDim = 1U;
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint64_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
     tilingData.moeDistributeCombineV2Info.aivNum = aivNum;
     tilingData.moeDistributeCombineV2Info.totalUbSize = ubSize;
-    OP_LOGD(nodeName, "blockdim = %u, aivNum = %lu, ubsize = %lu", blockDim, aivNum, ubSize);
+    OP_LOGD(nodeName, "numBlocks = %u, aivNum = %lu, ubsize = %lu", numBlocks, aivNum, ubSize);
 }
 
 static void SetTilingKey(gert::TilingContext *context)

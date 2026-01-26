@@ -53,6 +53,9 @@ constexpr uint32_t ELASTIC_INFO_OFFSET = 4U;
 constexpr uint8_t EP_WORLD_SIZE_IDX = 1;
 constexpr uint8_t SHARE_RANK_NUM_IDX = 2;
 constexpr uint8_t MOE_NUM_IDX = 3;
+constexpr uint64_t CYCLES_PER_US = 50UL;
+constexpr uint32_t DURATION_OFFSET = sizeof(int64_t) / sizeof(int32_t);
+constexpr uint32_t FLAG_OFFSET = STATE_OFFSET / sizeof(float);
 constexpr AscendC::CumSumConfig cumSumConfig{true, true, false};
 
 #define TemplateMC2TypeFullmeshClass typename XType, typename ExpandXOutType, bool StaticQuant, \
@@ -64,7 +67,7 @@ template <TemplateMC2TypeFullmeshClass>
 class MoeDistributeDispatchV2FullMesh {
 public:
     __aicore__ inline MoeDistributeDispatchV2FullMesh() {};
-    __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo,
+    __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, GM_ADDR performanceInfo,
                                 GM_ADDR expandXOut, GM_ADDR dynamicScalesOut,GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut,
                                 GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut,
                                 GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData);
@@ -111,7 +114,7 @@ private:
                                                 uint32_t srcTokenIndex, uint32_t toExpertId, uint32_t toExpertIndex);
     __aicore__ inline void TokenToExpert(GlobalTensor<ExpandXOutType> dstWinGMTensor, TQue<QuePosition::VECIN, 1> inQueue,
                                         uint32_t srcTokenIndex, uint32_t toExpertIndex);
-
+    __aicore__ inline void RecordRankCommDuration(LocalTensor<int32_t> &performanceInfoTensor, uint64_t startTime);
     __aicore__ inline GM_ADDR GetWindAddrByRankId(const int32_t rankId)
     {
         if (rankId == epRankIdOriginal_) {
@@ -141,12 +144,15 @@ private:
     GlobalTensor<ExpandXOutType> winTpGatherOutGMTensor_;
     GlobalTensor<int32_t> expandIdxGMTensor_;
     GlobalTensor<int32_t> elasticInfoGMTensor_;
+    GlobalTensor<int32_t> performanceInfoGMTensor_;
 
     LocalTensor<int32_t> statusTensor_;
     LocalTensor<float> workLocalTensor_;
     LocalTensor<int32_t> validExpertIdsTensor_;
     LocalTensor<int32_t> tokenNumToExpertTensor_;
     LocalTensor<int32_t> elasticInfoTensor_;
+    LocalTensor<int32_t> performanceInfoTensor_;
+    LocalTensor<int32_t> performanceFlagTensor_;
     LocalTensor<int32_t> validBsIndexTensor_;
     LocalTensor<float> cumSumTime1Tensor_;
     LocalTensor<float> cumSumTime2Tensor_;
@@ -184,6 +190,8 @@ private:
     TBuf<> elasticInfoBuf_;
     TBuf<> validExpertIndexBuf_;
     TBuf<> validBsIndexTBuf_;
+    TBuf<> performanceInfoBuf_;
+    TBuf<> performanceFlagBuf_;
     GM_ADDR expandXOutGM_;
     GM_ADDR sendCountsOutGM_;
     GM_ADDR sendTpCountOutGM_;
@@ -229,6 +237,7 @@ private:
     bool isTokenMaskFlag_ = false;
     bool isExpertMaskFlag_ = false;
     bool hasElasticInfoFlag_ = false;
+    bool isPerformanceFlag_ = false;
     bool isShareExpertRankFlag_ = false;
     bool isScalingDownFlag_ = false;
     uint64_t totalWinSize_{0};
@@ -289,6 +298,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     epWorldSizeOriginal_ = tilingData->moeDistributeDispatchV2Info.epWorldSize;
     epRankIdOriginal_ = tilingData->moeDistributeDispatchV2Info.epRankId;
     hasElasticInfoFlag_ = tilingData->moeDistributeDispatchV2Info.hasElasticInfo;
+    isPerformanceFlag_ = tilingData->moeDistributeDispatchV2Info.isPerformance;
     epRankId_ = tilingData->moeDistributeDispatchV2Info.epRankId;
     epWorldSize_ = tilingData->moeDistributeDispatchV2Info.epWorldSize;
     sharedExpertRankNum_ = tilingData->moeDistributeDispatchV2Info.sharedExpertRankNum;
@@ -375,10 +385,10 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
 }
 
 template <TemplateMC2TypeFullmeshClass>
-__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::Init(
-    GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, GM_ADDR expandXOut,
-    GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut,
-    GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::Init(GM_ADDR x, GM_ADDR expertIds,
+    GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut,
+    GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut,
+    GM_ADDR tpSendCountsOut, GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
 {
     tpipe_ = pipe;
     aivId_ = GetBlockIdx();
@@ -396,6 +406,9 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     elasticInfoGMTensor_.SetGlobalBuffer((__gm__ int32_t*)(elasticInfo));
     scalesGMTensor_.SetGlobalBuffer((__gm__ float*)scales);
     SetTilingDataAndCal(tilingData);
+    if (isPerformanceFlag_) {
+        performanceInfoGMTensor_.SetGlobalBuffer((__gm__ int32_t*)(performanceInfo));
+    }
     SetDataStatus();
     expandXOutGM_ = expandXOut;
     sendCountsOutGM_ = sendCountsOut;
@@ -845,18 +858,57 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
 }
 
 template <TemplateMC2TypeFullmeshClass>
+__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::RecordRankCommDuration(
+    LocalTensor<int32_t> &performanceInfoTensor, uint64_t startTime)
+{
+    SyncFunc<AscendC::HardEvent::MTE2_S>();
+    uint64_t endTime = static_cast<uint64_t>(GetSystemCycle());
+    int32_t duration = static_cast<int32_t>((endTime - startTime) / CYCLES_PER_US);
+    for (uint32_t i = 0; i < rscvStatusNum_; i ++) {
+        float statusFp32 = statusFp32Tensor_.GetValue(i * FLAG_OFFSET);
+        int32_t performanceFlag = performanceFlagTensor_.GetValue(i);
+        if (statusFp32 > float(0.5) && performanceFlag == 0) { 
+            performanceFlagTensor_.SetValue(i, 1);
+            uint32_t fromLocalRankId = i % epWorldSize_;
+            uint32_t fromRankId = isScalingDownFlag_ ?
+                elasticInfoTensor_.GetValue(ELASTIC_INFO_OFFSET + epWorldSizeOriginal_ + fromLocalRankId) :
+                fromLocalRankId;
+            int32_t savedTime = performanceInfoTensor.GetValue(fromRankId * DURATION_OFFSET);
+            int32_t newValue = (duration > savedTime) ? duration : savedTime;
+            if (newValue != savedTime) {
+                 // 乘2 使用int32_t是因为atomicAdd不支持int64_t类型，这里只赋值到int64_t的低32位。
+                performanceInfoTensor.SetValue(fromRankId * DURATION_OFFSET, duration);
+            }
+        }
+    }
+}
+
+template <TemplateMC2TypeFullmeshClass>
 __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::WaitTokenNumAndCopy()
 {
     // 等cnt+状态位并清理状态位
     float sumOfFlag = static_cast<float>(-1.0);
     float compareTarget = static_cast<float>(1.0) * rscvStatusNum_;
     DataCopyParams copyParams{static_cast<uint16_t>(rscvStatusNum_), 1, 0, 0};
+    uint64_t performanceTimeStart = static_cast<uint64_t>(GetSystemCycle());
     while (sumOfFlag != compareTarget) {
         DataCopy(statusFp32Tensor_, windowInstatusFp32Tensor_, copyParams);
+        if (isPerformanceFlag_) {
+            RecordRankCommDuration(performanceInfoTensor_, performanceTimeStart);
+ 	    }
         SyncFunc<AscendC::HardEvent::MTE2_V>();
         ReduceSum(statusSumOutTensor_, statusFp32Tensor_, tempTime1Tensor_, 1, rscvStatusNum_, 1);
         SyncFunc<AscendC::HardEvent::V_S>();
         sumOfFlag = statusSumOutTensor_.GetValue(0);
+    }
+
+    if (isPerformanceFlag_) {
+        SyncFunc<AscendC::HardEvent::S_MTE3>();
+        SetAtomicMax<int32_t>();
+        DataCopyExtParams performanceInfoCopyParams{1U, static_cast<uint32_t>(epWorldSizeOriginal_* sizeof(int64_t)),
+            0U, 0U, 0U};
+        DataCopyPad(performanceInfoGMTensor_, performanceInfoTensor_, performanceInfoCopyParams);
+        SetAtomicNone();
     }
     uint64_t duplicateMask[2] = { 0x101010101010101, 0 }; // 一次性操作256字节，也是64个int32_t，每8个数将首个设置为0
     PipeBarrier<PIPE_ALL>();
@@ -924,6 +976,31 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         (rscvStatusNum_ * UB_ALIGN) : SIZE_ALIGN_256);
     uint64_t statusBufferCnt = waitStatusBufSize / sizeof(float);
     cumSumUB_ = MAX_UB_SIZE - BUFFER_NUM * gatherMaskOutSize;
+    if (isPerformanceFlag_) {
+        uint32_t performanceFlagSize = rscvStatusNum_ * sizeof(int32_t);
+        uint32_t performanceFlagSizeAlign = Ceil(performanceFlagSize, UB_ALIGN) * UB_ALIGN;
+        uint32_t performanceInfoSize = epWorldSizeOriginal_ * sizeof(int64_t);
+        uint32_t performanceInfoSizeAlign = Ceil(performanceInfoSize, UB_ALIGN) * UB_ALIGN;
+        tpipe_->InitBuffer(performanceInfoBuf_, performanceInfoSizeAlign);
+        performanceInfoTensor_ = performanceInfoBuf_.Get<int32_t>();
+        Duplicate<int32_t>(performanceInfoTensor_, 0, performanceInfoSizeAlign / sizeof(int32_t));
+        tpipe_->InitBuffer(performanceFlagBuf_, performanceFlagSizeAlign);
+        performanceFlagTensor_ = performanceFlagBuf_.Get<int32_t>();
+        Duplicate<int32_t>(performanceFlagTensor_, 0, performanceFlagSizeAlign / sizeof(int32_t));
+        cumSumUB_  = cumSumUB_ - performanceInfoSizeAlign - performanceFlagSizeAlign;
+        if (isScalingDownFlag_) {
+            uint32_t elasticInfoSize = (ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSizeOriginal_) * sizeof(int32_t);
+            uint32_t elasticInfoSizeAlign = Ceil(elasticInfoSize, UB_ALIGN) * UB_ALIGN;
+            tpipe_->InitBuffer(elasticInfoBuf_, elasticInfoSizeAlign);
+            elasticInfoTensor_ = elasticInfoBuf_.Get<int32_t>();
+            DataCopyExtParams elasticInfoParams = {1U, static_cast<uint32_t>(
+                (ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSizeOriginal_) * sizeof(int32_t)), 0U, 0U, 0U};
+            DataCopyPadExtParams<int32_t> elasticInfoCopyPadParams{false, 0U, 0U, 0U};
+            DataCopyPad(elasticInfoTensor_, elasticInfoGMTensor_, elasticInfoParams, elasticInfoCopyPadParams);
+            SyncFunc<AscendC::HardEvent::MTE2_S>();
+            cumSumUB_  = cumSumUB_ - elasticInfoSizeAlign;
+        }
+    }
     tpipe_->InitBuffer(gatherMaskOutBuf, gatherMaskOutSize);
     tpipe_->InitBuffer(cumSumTensorBuf, gatherMaskOutSize);
     tpipe_->InitBuffer(sharedTmpBuf, cumSumUB_);
