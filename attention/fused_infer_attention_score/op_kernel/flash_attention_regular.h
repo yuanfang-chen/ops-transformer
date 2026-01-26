@@ -491,8 +491,8 @@ namespace SplitFuse {
                                     nextTokenEndLen,
                                     isLastStackTile);
                             } else {
-                                uint32_t alignedKvSeqlenLimit = (nextTokenStartLen > kvSeqlen || nextTokenStartLen < 0 ) ? kvSeqlen : nextTokenStartLen;
                                 bool isLastNoMaskStackTile = (nextTokenStartLen > kvSeqlen) || (nextTokenStartLen < 0);
+                                uint32_t alignedKvSeqlenLimit = isLastNoMaskStackTile ? kvSeqlen : nextTokenStartLen;
                                 alignedKvSeqlenLimit = NpuArch::Detail::Alignment::RoundDown(alignedKvSeqlenLimit, MAX_KV_STACK_LEN);
                                 uint32_t noMaskStackSeqNum = (alignedKvSeqlenLimit - startIdx * MAX_KV_STACK_LEN) / MAX_KV_STACK_LEN;
                                 Arch::CrossCoreWaitFlag(qkReady);
