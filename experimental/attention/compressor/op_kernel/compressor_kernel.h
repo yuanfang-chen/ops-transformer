@@ -62,8 +62,8 @@ private:
     __aicore__ inline void InitWorkspace(__gm__ uint8_t *workspace);
     __aicore__ inline uint32_t CalcTcSize();
     // ================================Process functions================================
-    __aicore__ inline uint32_t GetSeqLength(uint32_t index);
-    __aicore__ inline uint32_t GetStartPos(uint32_t index);
+    __aicore__ inline void GetSeqLength(uint32_t index);
+    __aicore__ inline void GetStartPos(uint32_t index);
     __aicore__ inline void GetCurCoreStartIdx();
     __aicore__ inline uint32_t GetBasicNum();
     __aicore__ inline uint32_t GetRemainTcNum(uint32_t sStart, uint32_t headSize, uint32_t cmpRatio, uint32_t seqLength);
@@ -100,6 +100,9 @@ private:
     uint32_t curScEnd = 0;
 
     uint32_t aiCoreIdx = 0;
+
+    bool isExistSeqUsed = false;
+    bool isExistStartPos = false;
 
     // 常量
     static constexpr uint64_t SYNC_MODE2 = 2;
@@ -182,15 +185,22 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     if constexpr (COMP::xLayout == X_LAYOUT::TH) {
         cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
     }
-    if (seqUsed != nullptr) {
+    isExistSeqUsed = (seqUsed != nullptr);
+    isExistStartPos = (startPos != nullptr);
+    if (isExistSeqUsed) {
         sequsedGm_.SetGlobalBuffer((__gm__ int32_t *)seqUsed);
     }
-    startPosGm_.SetGlobalBuffer((__gm__ int32_t *)startPos);
+    if (isExistStartPos) {
+        startPosGm_.SetGlobalBuffer((__gm__ int32_t *)startPos);
+    }
 
     InitTilingData();
 
-    // 初始化 curActSeqLength、start_pos TODO考虑为None， 
-    if constexpr (COMP::xLayout == X_LAYOUT::TH) {
+    // 初始化 curActSeqLength、start_pos
+    if (isExistSeqUsed) {
+        curActSeqLength = sequsedGm_.GetValue(0);
+        lastActSeqLength = sequsedGm_.GetValue(constInfo.batchSize - 1);
+    } else if constexpr (COMP::xLayout == X_LAYOUT::TH) {
         curActSeqLength = cuSeqlensGm_.GetValue(1);
         accSeqLength = curActSeqLength;
         lastActSeqLength = cuSeqlensGm_.GetValue(constInfo.batchSize) - cuSeqlensGm_.GetValue(constInfo.batchSize - 1);
@@ -198,7 +208,10 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     } else {
         lastActSeqLength = constInfo.sSize;
     }
-    curStartPos = startPosGm_.GetValue(0);
+
+    if (isExistStartPos) {
+        curStartPos = startPosGm_.GetValue(0);
+    }
 
     // 计算分核基本信息
     constInfo.tcSize = CalcTcSize();
@@ -299,8 +312,8 @@ __aicore__ inline uint32_t CompressorKernel<COMP>::CalcTcSize() {
     uint32_t totalBasicNum = 0;
 
     for (uint32_t bIdx = 0; bIdx < constInfo.batchSize; ++bIdx) {
-        curStartPos = GetStartPos(bIdx);
-        curActSeqLength = GetSeqLength(bIdx);
+        GetStartPos(bIdx);
+        GetSeqLength(bIdx);
         totalBasicNum += GetBasicNum();
 
         // printf("[CalcTcSize] curActSeqLength:%u totalBasicNum:%d\n", curActSeqLength, totalBasicNum);
@@ -310,36 +323,38 @@ __aicore__ inline uint32_t CompressorKernel<COMP>::CalcTcSize() {
 }
 
 template <typename COMP>
-__aicore__ inline uint32_t CompressorKernel<COMP>::GetSeqLength(uint32_t bIdx) {
+__aicore__ inline void CompressorKernel<COMP>::GetSeqLength(uint32_t bIdx) {
     // printf("[GetSeqLength] preActSeqIdx:%u bIdx:%u\n", preActSeqIdx, bIdx);
-    if (COMP::xLayout == X_LAYOUT::TH) {
-        if (preActSeqIdx != bIdx) {
-            preActSeqIdx = bIdx;
-            if (bIdx == 0) {
-                accSeqLength = cuSeqlensGm_.GetValue(bIdx + 1);
-                return accSeqLength;
-            } else {
-                uint32_t tmpSeqLength = accSeqLength;
-                accSeqLength = cuSeqlensGm_.GetValue(bIdx + 1);
-                return accSeqLength - tmpSeqLength;
-            }
+    if (preActSeqIdx != bIdx) {
+        preActSeqIdx = bIdx;
+        if (isExistSeqUsed) {
+            curActSeqLength = sequsedGm_.GetValue(bIdx);
         } else {
-            return curActSeqLength;
+            if constexpr (COMP::xLayout == X_LAYOUT::TH) {
+                if (bIdx == 0) {
+                    accSeqLength = cuSeqlensGm_.GetValue(bIdx + 1);
+                    curActSeqLength = accSeqLength;
+                } else {
+                    uint32_t tmpSeqLength = accSeqLength;
+                    accSeqLength = cuSeqlensGm_.GetValue(bIdx + 1);
+                    curActSeqLength = accSeqLength - tmpSeqLength;
+                }
+            } else {
+                curActSeqLength = constInfo.sSize;
+            }
         }
-    } else {
-        return constInfo.sSize;
     }
+
 }
 
 template <typename COMP>
-__aicore__ inline uint32_t CompressorKernel<COMP>::GetStartPos(uint32_t bIdx) {
+__aicore__ inline void CompressorKernel<COMP>::GetStartPos(uint32_t bIdx) {
     // printf("[GetStartPos] preStartPosIdx:%u index:%u\n", preStartPosIdx, bIdx);
-    if (preStartPosIdx != bIdx) {
+    if (!isExistStartPos) {
+        curStartPos = 0;
+    } else if (preStartPosIdx != bIdx) {
         curStartPos = startPosGm_.GetValue(bIdx);
         preStartPosIdx = bIdx;
-        return curStartPos;
-    } else {
-        return curStartPos;
     }
 }
 
@@ -367,8 +382,8 @@ __aicore__ inline void CompressorKernel<COMP>::GetCurCoreStartIdx() {
             curScEnd = 0;
             return;
         }
-        curStartPos = GetStartPos(bIdx);
-        curActSeqLength = GetSeqLength(bIdx);
+        GetStartPos(bIdx);
+        GetSeqLength(bIdx);
 
         // 加上头块，若有
         uint32_t curBasicNum = 0;
@@ -445,7 +460,7 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
     info.scStart = curScEnd;
 
     // sEnd到了seq末尾，切换到下一个batch
-    curActSeqLength = GetSeqLength(curBStart);
+    GetSeqLength(curBStart);
     if (curSStart == curActSeqLength) {
         curBStart++;
         curSStart = 0;
@@ -468,8 +483,8 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
         curBEnd = bIdx;
         info.bEnd = curBEnd;
 
-        curActSeqLength = GetSeqLength(bIdx);
-        curStartPos = GetStartPos(bIdx);
+        GetSeqLength(bIdx);
+        GetStartPos(bIdx);
         uint32_t headSize = GetTcHeadSize(curStartPos, constInfo.cmpRatio, curActSeqLength);
         uint32_t curBatchTcNum = GetRemainTcNum(curSStart, headSize, constInfo.cmpRatio, curActSeqLength);  // 当前batch需要处理的Tc块
         uint32_t curDealTcNum = (tcNumCount >= curBatchTcNum) ? curBatchTcNum : tcNumCount;         // 本次能处理多少个Tc块
