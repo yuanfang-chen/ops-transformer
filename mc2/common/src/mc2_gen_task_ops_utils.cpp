@@ -13,7 +13,7 @@
  */
 
 #include "mc2_gen_task_ops_utils.h"
-
+#include "platform/platform_info.h"
 #include "graph/ascend_string.h"
 #include "exe_graph/runtime/exe_res_generation_context.h"
 #include "mc2_log.h"
@@ -39,6 +39,24 @@ bool Mc2GenTaskOpsUtils::IsComputationOnly()
 {
     const char *env = getenv("ASCEND_MC2_DEBUG_MODE");
     return (env != nullptr && std::atoi(env) == 1);
+}
+
+bool Mc2GenTaskOpsUtils::IsTargetPlatform(const char *nodeName, const std::set<std::string> &targetPlatform)
+{
+    fe::PlatFormInfos platform_info;
+    fe::OptionalInfos optional_info;
+    if (fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platform_info, optional_info) !=
+        ge::GRAPH_SUCCESS) {
+        OPS_LOG_E(nodeName, "Cannot get platform info!");
+        return false;
+    }
+    std::string short_soc_version;
+    if (!platform_info.GetPlatformRes("version", "Short_SoC_version", short_soc_version) || short_soc_version.empty()) {
+        OPS_LOG_E(nodeName, "Cannot get short soc version!");
+        return false;
+    }
+    OPS_LOG_D(nodeName, "Get soc version: %s", short_soc_version.c_str());
+    return targetPlatform.count(short_soc_version) > 0;
 }
 
 int64_t Mc2GenTaskOpsUtils::GetAttachStreamIdByContext(const gert::ExeResGenerationContext *context, size_t idx)
@@ -104,11 +122,11 @@ ge::Status Mc2GenTaskOpsUtils::InsertHiddenInputsForAicoreTask(
     }
 
     auto argDescInfosSerialize = ge::ArgsFormatSerializer::Serialize(argDescInfos);
-    std::string argsFormatSerializeStr = std::string(argDescInfosSerialize.GetString(), argDescInfosSerialize.GetLength());
-    if (aicore_task.SetArgsFormat(argsFormatSerializeStr.c_str()) != ge::GRAPH_SUCCESS) {
-        OPS_LOG_E(context->GetNodeName(), "Failed to set args format for aicore task.");
-        return ge::GRAPH_FAILED;
-    }
+    std::string argsFormatSerializeStr = std::string(argDescInfosSerialize.GetString(), argDescInfosSerialize.GetLength());	 
+    if (aicore_task.SetArgsFormat(argsFormatSerializeStr.c_str()) != ge::GRAPH_SUCCESS) {	 
+        OPS_LOG_E(context->GetNodeName(), "Failed to set args format for aicore task.");	 
+        return ge::GRAPH_FAILED;	 
+    }	 
     OPS_LOG_I(context->GetNodeName(), "aicore ArgsFormat: %s", argsFormatSerializeStr.c_str());
 
     return ge::GRAPH_SUCCESS;
