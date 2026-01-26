@@ -418,8 +418,6 @@ def cpu_compressor(
         S = x.shape[1]
         new_kv_state = new_kv_state.reshape(B * S, new_kv_state.shape[-1])
         new_score_state = new_score_state.reshape(B * S, new_score_state.shape[-1])
-        rope_sin = rope_sin.reshape(rope_sin.shape[0] * rope_sin.shape[1], rope_sin.shape[-1])
-        rope_cos = rope_cos.reshape(rope_cos.shape[0] * rope_cos.shape[1], rope_cos.shape[-1])
         cmp_kv = np.zeros(shape=(B, (S + cmp_ratio - 1) // cmp_ratio, head_dim), dtype=matmul_dtype)
     else:
         cmp_kv = np.zeros(shape=(min(x.shape[0], x.shape[0] // cmp_ratio + B), head_dim), dtype=matmul_dtype)
@@ -541,7 +539,6 @@ def cpu_compressor(
                 # print(f"=========RmsNorm {sc_cmp_kv.shape}")
                 # print(list(sc_cmp_kv))
                 # inplace rotary_emb
-                sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[out_sum_sc_cnt, :], rope_cos[out_sum_sc_cnt, :], rotary_mode)
                 # print(f"=========rope_cos {rope_cos.shape}")
                 # print(list(rope_cos))
                 # print(f"=========rope_sin {rope_sin.shape}")
@@ -549,9 +546,11 @@ def cpu_compressor(
                 # print(f"=========rope {sc_cmp_kv.shape}")
                 # print(list(sc_cmp_kv))
                 if bs_combine_flag == False:
+                    sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[b_idx, batch_out_sc_id, :], rope_cos[b_idx, batch_out_sc_id, :], rotary_mode)
                     cmp_kv[b_idx, batch_out_sc_id, :] = sc_cmp_kv
                     cmp_kv_mask[b_idx, batch_out_sc_id, :] = 1
                 else:
+                    sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[out_sum_sc_cnt, :], rope_cos[out_sum_sc_cnt, :], rotary_mode)
                     cmp_kv[out_sum_sc_cnt, :] = sc_cmp_kv
                     cmp_kv_mask[out_sum_sc_cnt, :] = 1
                 batch_out_sc_id = batch_out_sc_id + 1
