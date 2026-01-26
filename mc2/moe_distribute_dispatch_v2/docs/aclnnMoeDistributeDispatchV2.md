@@ -19,9 +19,17 @@
 
 - 计算公式：
 
+    - 情形1：如果不存在tp域通信。
+
     $$
-    expandXOut = AllToAllV(agOut)\\
-    agOut = AllGatherV(X)\\
+    expandXOut = AllToAllV(X)\\
+    $$
+
+    - 情形2：如果存在tp域通信。
+
+    $$
+    allToAllOut = AllToAllV(X)\\
+    expandXOut = AllGatherV(allToAllOut)\\
     $$
 
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：该接口必须与`aclnnMoeDistributeCombineV2`配套使用。
