@@ -322,7 +322,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
                         bSeqUsed = GetSeqUsed(curBIdx_);
                     } while (bSeqUsed == 0);
 
-                    curSIdx_ = bSeqUsed - (bStartPos + bSeqUsed) % constInfo_.cmpRatio;
+                    curSIdx_ = bStartPos + bSeqUsed == 0 ? 0 : max(Trunc(bStartPos + bSeqUsed - 1, constInfo_.cmpRatio), bStartPos) - bStartPos;
                 }
             } else {
                 curSIdx_ = curSIdx_ < constInfo_.cmpRatio ? 0 : curSIdx_ - constInfo_.cmpRatio;
