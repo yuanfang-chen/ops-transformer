@@ -29,7 +29,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
     OpInfo(ControlInfo(true, false),
            ExpectInfo(false,
                         ExpectInfo::kInvalidTilingKey,
-                        ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                        ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
     AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 96}, ge::DataType::DT_FLOAT8_E5M2),
            GenTensor("x2", {512, 128}, ge::DataType::DT_FLOAT8_E5M2),
            GenTensor("scale2", {12, 128, 2}, ge::DataType::DT_FLOAT8_E8M0),
@@ -42,7 +42,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
         OpInfo(ControlInfo(true, false),
             ExpectInfo(false,
                             ExpectInfo::kInvalidTilingKey,
-                            ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                            ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
         AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 96}, ge::DataType::DT_FLOAT8_E5M2),
             GenTensor("x2", {512, 128}, ge::DataType::DT_FLOAT8_E4M3FN),
             GenTensor("scale2", {12, 128, 2}, ge::DataType::DT_FLOAT8_E8M0),
@@ -55,7 +55,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
         OpInfo(ControlInfo(true, false),
             ExpectInfo(false,
                             ExpectInfo::kInvalidTilingKey,
-                            ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                            ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
         AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 128}, ge::DataType::DT_FLOAT8_E4M3FN),
             GenTensor("x2", {512, 96}, ge::DataType::DT_FLOAT8_E5M2),
             GenTensor("scale2", {12, 96, 2}, ge::DataType::DT_FLOAT8_E8M0),
@@ -68,7 +68,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
         OpInfo(ControlInfo(true, false),
             ExpectInfo(false,
                             ExpectInfo::kInvalidTilingKey,
-                            ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                            ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
         AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 96}, ge::DataType::DT_FLOAT8_E4M3FN),
             GenTensor("x2", {512, 128}, ge::DataType::DT_FLOAT8_E4M3FN),
             GenTensor("scale2", {12, 128, 2}, ge::DataType::DT_FLOAT8_E8M0),
@@ -81,7 +81,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
         OpInfo(ControlInfo(true, false),
             ExpectInfo(false,
                             ExpectInfo::kInvalidTilingKey,
-                            ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                            ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
         AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 96}, ge::DataType::DT_HIFLOAT8),
             GenTensor("x2", {512, 128}, ge::DataType::DT_HIFLOAT8),
             GenTensor("scale2", {4, 128}, ge::DataType::DT_FLOAT),
@@ -94,7 +94,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
         OpInfo(ControlInfo(true, false),
             ExpectInfo(false,
                             ExpectInfo::kInvalidTilingKey,
-                            ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                            ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
         AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 96}, ge::DataType::DT_HIFLOAT8),
             GenTensor("x2", {512, 128}, ge::DataType::DT_HIFLOAT8),
             GenTensor("scale2", {4, 128}, ge::DataType::DT_FLOAT),
@@ -107,7 +107,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
         OpInfo(ControlInfo(true, false),
             ExpectInfo(false,
                             ExpectInfo::kInvalidTilingKey,
-                            ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                            ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
         AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 96}, ge::DataType::DT_HIFLOAT8),
             GenTensor("x2", {512, 128}, ge::DataType::DT_HIFLOAT8),
             GenTensor("scale2", {4, 128}, ge::DataType::DT_FLOAT),
@@ -120,7 +120,7 @@ const auto Tc_QGmm_Aclnn_David_Case = ::testing::Values(AclnnQGMMInplaceAddCase(
         OpInfo(ControlInfo(true, false),
             ExpectInfo(false,
                             ExpectInfo::kInvalidTilingKey,
-                            ExpectInfo::kInvalidTilingBlockDim)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */
+                            ExpectInfo::kInvalidTilingNumBlocks)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingNumBlocks */
         AclnnQGMMInplaceAddParam({GenTensor("x1", {512, 96}, ge::DataType::DT_HIFLOAT8),
             GenTensor("x2", {512, 128}, ge::DataType::DT_HIFLOAT8),
             GenTensor("scale2", {4, 52}, ge::DataType::DT_FLOAT),

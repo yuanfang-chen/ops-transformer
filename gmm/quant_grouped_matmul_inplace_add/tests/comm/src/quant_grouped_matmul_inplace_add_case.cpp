@@ -58,10 +58,10 @@ enum class KernelParams {
     SCALE1
 };
 
-bool RunGroupedMatmul(void *func, uint64_t tilingKey, int64_t blockDim, std::vector<TensorIntf *> &inputs,
+bool RunGroupedMatmul(void *func, uint64_t tilingKey, int64_t NumBlocks, std::vector<TensorIntf *> &inputs,
                       std::vector<TensorIntf *> &output, uint8_t *workspace, uint8_t *tilingData)
 {
-    (void)blockDim;
+    (void)NumBlocks;
     // Kernel 运行
     auto kernelFunc = (QuantGroupedMatmulInplaceAddKernelFunc)func;
     ICPU_SET_TILING_KEY(tilingKey);
