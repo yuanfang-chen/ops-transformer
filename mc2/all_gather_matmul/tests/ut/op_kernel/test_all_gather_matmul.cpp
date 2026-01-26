@@ -44,7 +44,7 @@ TEST_F(all_gather_matmul_test, all_gather_matmul_test_no_bias) {
     // std::vector<std::vector<uint64_t>> shapeInfos = {{1024, 12288}, {12288, 1536}};
     // system("cd ./all_gather_matmul_data/ && python3 gen_data.py 1024 12288 1536 'float16'");
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -84,7 +84,7 @@ TEST_F(all_gather_matmul_test, all_gather_matmul_bias) {
     // std::vector<std::vector<uint64_t>> shapeInfos = {{1024, 12288}, {12288, 1536}};
     // system("cd ./all_gather_matmul_data/ && python3 gen_data.py 1024 12288 1536 'float16'");
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -126,7 +126,7 @@ TEST_F(all_gather_matmul_test, all_gather_matmul_test_no_bias_l2cache) {
     // std::vector<std::vector<uint64_t>> shapeInfos = {{1024, 12288}, {12288, 1536}};
     // system("cd ./all_gather_matmul_data/ && python3 gen_data.py 1024 12288 1536 'float16'");
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -186,7 +186,7 @@ TEST_F(all_gather_matmul_test, all_gather_matmul_test_no_bias_l2cache) {
 
 TEST_F(all_gather_matmul_test, all_gather_matmul_test_computation_only) {
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -221,7 +221,7 @@ TEST_F(all_gather_matmul_test, all_gather_matmul_test_computation_only) {
  
 TEST_F(all_gather_matmul_test, all_gather_matmul_test_communication_only) {
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -256,7 +256,7 @@ TEST_F(all_gather_matmul_test, all_gather_matmul_test_communication_only) {
 
 TEST_F(all_gather_matmul_test, all_gather_matmul_test_no_bias_normalization) {
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;

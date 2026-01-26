@@ -85,7 +85,7 @@ ge::graphStatus QuantMatmulAllReduceAddRmsNormTiling::DoOpTiling()
 
     GE_ASSERT_GRAPH_SUCCESS(CommonAddResNormTiling::Tiling4AddRmsNorm(addRmsNormTilingDepend, addRmsNormTilingOutput));
     tilingData_.addRmsNormTilingeKeyData.ARNKeyTile = tilingOutAddRmsNormTile_.tilingKey;
-    tilingData_.addRmsNormTilingeKeyData.ARNBlockDimTile = tilingOutAddRmsNormTile_.blockDim;
+    tilingData_.addRmsNormTilingeKeyData.ARNNumBlocksTile = tilingOutAddRmsNormTile_.numBlocks;
 
     if (HasTail()) {
         addRmsNormTilingDepend.addRmsNormTilingInputFromMm.m = helper_->tailMValue_;
@@ -94,7 +94,7 @@ ge::graphStatus QuantMatmulAllReduceAddRmsNormTiling::DoOpTiling()
         GE_ASSERT_GRAPH_SUCCESS(
             CommonAddResNormTiling::Tiling4AddRmsNorm(addRmsNormTilingDepend, addRmsNormTilingOutputTail));
         tilingData_.addRmsNormTilingeKeyData.ARNKeyTail = tilingOutAddRmsNormTail_.tilingKey;
-        tilingData_.addRmsNormTilingeKeyData.ARNBlockDimTail = tilingOutAddRmsNormTail_.blockDim;
+        tilingData_.addRmsNormTilingeKeyData.ARNNumBlocksTail = tilingOutAddRmsNormTail_.numBlocks;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -171,15 +171,15 @@ ge::graphStatus QuantMatmulAllReduceAddRmsNormTiling::PostTiling()
         return ge::GRAPH_FAILED;
     }
     helper_->PrintTilingData();
-    auto blockDimOfArn = static_cast<uint64_t>(tilingOutAddRmsNormTile_.blockDim);
+    auto numBlocksOfArn = static_cast<uint64_t>(tilingOutAddRmsNormTile_.numBlocks);
     if (HasTail()) {
-        blockDimOfArn = std::max(blockDimOfArn, static_cast<uint64_t>(tilingOutAddRmsNormTail_.blockDim));
+        numBlocksOfArn = std::max(numBlocksOfArn, static_cast<uint64_t>(tilingOutAddRmsNormTail_.numBlocks));
     }
     OP_LOGI(
         helper_->opName_, "ctx block dim: %lu, mc2 block dim %lu, arn block dim %lu", helper_->args_.aicCoreNum,
-        helper_->args_.aicCoreNum, blockDimOfArn);
-    // 当前mc2给的aicCoreNum是硬件规格的最大个数, blockDimOfArn取了尾和非尾的最大值，最大值应该小于等于硬件规格的aiv num
-    GE_ASSERT_TRUE(helper_->args_.aicCoreNum * 2 >= blockDimOfArn);
+        helper_->args_.aicCoreNum, numBlocksOfArn);
+    // 当前mc2给的aicCoreNum是硬件规格的最大个数, numBlocksOfArn取了尾和非尾的最大值，最大值应该小于等于硬件规格的aiv num
+    GE_ASSERT_TRUE(helper_->args_.aicCoreNum * 2 >= numBlocksOfArn);
     context_->SetBlockDim(helper_->args_.aicCoreNum);
     return ge::GRAPH_SUCCESS;
 }

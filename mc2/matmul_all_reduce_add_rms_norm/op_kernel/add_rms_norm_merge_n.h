@@ -27,10 +27,10 @@ class KernelAddRmsNormMergeN
 public:
     __aicore__ inline KernelAddRmsNormMergeN()
     {}
-    __aicore__ inline void Init(GM_ADDR gammaGM, Mc2Tiling::AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t blockDim)
+    __aicore__ inline void Init(GM_ADDR gammaGM, Mc2Tiling::AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t numBlocks)
     {
-        ASSERT(blockDim != 0 && "Block dim can not be zero!");
-        this->blockDim_ = blockDim;
+        ASSERT(numBlocks != 0 && "Block dim can not be zero!");
+        this->numBlocks_ = numBlocks;
         this->numRow_ = tiling.num_row;
         this->numCol_ = tiling.num_col;
         uint32_t numPerBlock = ONE_BLK_SIZE / sizeof(T);
@@ -41,10 +41,10 @@ public:
         this->epsilon_ = tiling.epsilon;
         this->avgFactor_ = (numCol_ != 0) ? (float)1.0 / numCol_ : 0;
 
-        if (GetBlockIdx() < blockDim_ - 1) {
+        if (GetBlockIdx() < numBlocks_ - 1) {
             this->rowWork_ = blockFactor_;
         } else {
-            this->rowWork_ = numRow_ - (blockDim_ - 1) * blockFactor_;
+            this->rowWork_ = numRow_ - (numBlocks_ - 1) * blockFactor_;
         }
         this->gmBlockOffset_ = GetBlockIdx() * blockFactor_ * numCol_;
         this->gmBlockSize_ = rowWork_ * numCol_;
@@ -290,7 +290,7 @@ private:
 
     uint32_t rowWork_ = 1;
     bool isNumColAlign_;
-    uint32_t blockDim_;
+    uint32_t numBlocks_;
     uint64_t gmBlockOffset_;
     uint64_t gmBlockSize_;
 };

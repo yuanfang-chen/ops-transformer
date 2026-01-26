@@ -142,7 +142,7 @@ ge::Status Mc2A5GenTaskUtils::InsertContextForCcuFusion(const gert::ExeResGenera
   // is_all_kernel为true表示优先进行二进制复用，如果没有匹配到则进行在线编译
   aicore_fusion_task_info->set_is_all_kernel(isAllKernel);
   OPS_LOG_I(context->GetNodeName(), "set is all kernel to %u.", isAllKernel);
-  // 设置attribute中的block_dim 
+  // 设置attribute中的numBlocks 
   auto config = aicore_fusion_task_info->mutable_config();
   GE_ASSERT_NOTNULL(config);
   config->add_launch_attribute();
@@ -152,13 +152,13 @@ ge::Status Mc2A5GenTaskUtils::InsertContextForCcuFusion(const gert::ExeResGenera
   auto value = launch_attribute->mutable_value();
   GE_ASSERT_NOTNULL(value);
 
-  int64_t block_dim = 1;
-  if (!context->GetIntAttrVal("tvm_blockdim", block_dim) || block_dim <= 0) {
-    OPS_LOG_I(context->GetNodeName(), "Can't get valid blockdim, get blockdim %ld, set blockdim 1.", block_dim);
-    block_dim = 1;
+  int64_t numBlocks = 1;
+  if (!context->GetIntAttrVal("tvm_blockdim", numBlocks) || numBlocks <= 0) {
+    OPS_LOG_I(context->GetNodeName(), "Can't get valid numBlocks, get numBlocks %ld, set numBlocks 1.", numBlocks);
+    numBlocks = 1;
   }
-  OPS_LOG_I(context->GetNodeName(), "get blockdim %ld", block_dim);
-  value->set_block_dim(block_dim);
+  OPS_LOG_I(context->GetNodeName(), "get numBlocks %ld", numBlocks);
+  value->set_block_dim(numBlocks);
 
   auto aicore_context = aicore_fusion_task_info->mutable_context();
   GE_ASSERT_NOTNULL(aicore_context);

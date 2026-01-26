@@ -76,7 +76,7 @@ constexpr double TIME_UPPER_RATIO = 3.5;
 constexpr double SCATTER_LARGERNK_COMM_GROW_RATIO1 = 1.5;
 constexpr double SCATTER_LARGERNK_COMM_GROW_RATIO2 = 1.2;
 constexpr double CUBE_UTIL_THRESH = 0.85;
-constexpr uint32_t AICPU_BLOCK_DIM_A2 = 6U;
+constexpr uint32_t AICPU_NUM_BLOCKS_A2 = 6U;
 
 constexpr auto DEFAULT_KEY_FOR_FITTING_MAP = "0_0";
 

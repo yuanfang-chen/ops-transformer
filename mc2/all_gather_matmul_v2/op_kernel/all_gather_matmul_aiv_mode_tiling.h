@@ -48,7 +48,7 @@ struct CoCTiling {
     int32_t m = -1;
     int32_t k = -1;
     int32_t n = -1;
-    int32_t blockDim = -1;
+    int32_t numBlocks = -1;
     int32_t rankSize = -1;
 
     int32_t m0 = -1;

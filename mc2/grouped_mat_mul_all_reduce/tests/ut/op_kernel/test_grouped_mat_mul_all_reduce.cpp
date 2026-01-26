@@ -99,7 +99,7 @@ TEST_F(grouped_mat_mul_all_reduce_test, case_float16_1) {
     cout << "=================XXXXXXXXXXXXXXXXXXXXXXXX\n" <<endl;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    uint32_t blockDim = 20;
+    uint32_t numBlocks = 20;
     size_t sysWorkspaceSize = 16 * 1024 * 1024;
     size_t usrWorkspaceSize = 38191616;
     size_t allWorkspaceSize = usrWorkspaceSize + sysWorkspaceSize;
@@ -168,7 +168,7 @@ TEST_F(grouped_mat_mul_all_reduce_test, case_float16_1) {
     uint8_t* y = GROUPED_MATMUL::CreateTensorList<half>(yShapeInfo, "float16", "y", baseDir);
 
     ICPU_SET_TILING_KEY(0);
-    ICPU_RUN_KF(grouped_mat_mul_all_reduce, blockDim, x, weight, bias, group_list, y, workspace, tiling);
+    ICPU_RUN_KF(grouped_mat_mul_all_reduce, numBlocks, x, weight, bias, group_list, y, workspace, tiling);
 
     GROUPED_MATMUL::FreeTensorList<half>(y, yShapeInfo, "float16", "y", baseDir);
     GROUPED_MATMUL::FreeTensorList<half>(x, xShapeInfo, "float16", "x", baseDir);

@@ -942,7 +942,7 @@ ge::graphStatus AlltoAllvGmmTiling::setNumBlocks(gert::TilingContext* context){
     static const PlatFormMemSize PLATFORM_SIZE(ascendcPlatform);
     static const platform_ascendc::SocVersion SOC_VERSION = ascendcPlatform.GetSocVersion();
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
-    uint64_t blockDim = mc2tiling::GetNumBlocks(aicNum, aivNum, A_INNER_DEBUG);
+    uint64_t numBlocks = mc2tiling::GetNumBlocks(aicNum, aivNum, A_INNER_DEBUG);
     OP_TILING_CHECK(
         (PLATFORM_SIZE.ubSize == 0U) || (PLATFORM_SIZE.l1Size == 0U) || (PLATFORM_SIZE.l0CSize == 0U) ||
         (PLATFORM_SIZE.l0ASize == 0U) || (PLATFORM_SIZE.l0BSize == 0U),
@@ -952,9 +952,9 @@ ge::graphStatus AlltoAllvGmmTiling::setNumBlocks(gert::TilingContext* context){
             PLATFORM_SIZE.ubSize, PLATFORM_SIZE.l1Size, PLATFORM_SIZE.l0CSize,
             PLATFORM_SIZE.l0ASize, PLATFORM_SIZE.l0BSize),
         return ge::GRAPH_FAILED);
-    tilingData->commonTilingInfo.aicCoreNum = blockDim;
-    tilingData->commonTilingInfo.aivCoreNum = blockDim * NUM_TWO;    // aic:aiv按照1：2配比
-    context->SetBlockDim(static_cast<uint32_t>(blockDim));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
+    tilingData->commonTilingInfo.aicCoreNum = numBlocks;
+    tilingData->commonTilingInfo.aivCoreNum = numBlocks * NUM_TWO;    // aic:aiv按照1：2配比
+    context->SetBlockDim(static_cast<uint32_t>(numBlocks));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
 
     return ge::GRAPH_SUCCESS;
 }

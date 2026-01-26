@@ -348,8 +348,8 @@ static ge::graphStatus PrintfTilingData(gert::TilingContext *context, AllGatherM
     return ge::GRAPH_SUCCESS;
 }
 
-void GetUsrWorkSpaceSize(uint32_t nElemAlign, uint32_t elementSize, uint32_t blockDim, uint64_t &userWorkSpaceSize, int64_t rankSize,
-                        AllGatherMatmulAIVModeInfo &info, CoCTiling &cocTilingData)
+void GetUsrWorkSpaceSize(uint32_t nElemAlign, uint32_t elementSize, uint64_t &userWorkSpaceSize, int64_t rankSize,
+                        AllGatherMatmulAIVModeInfo &info)
 {
     bool hasAAlign = (!IsMatrixAligned(info.M, info.K, info.isTransposeX1, nElemAlign) && info.M != 1);
     bool hasBAlign = !IsMatrixAligned(info.K, info.N, info.isTransposeX2, nElemAlign);
@@ -473,14 +473,14 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
     mc2tiling::GetRankSize(opName, group, rankSize);
     coctiling.rankSize = rankSize;
 
-    // 2. set blockDim
-    uint32_t blockDim = 1U;
+    // 2. set numBlocks
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     auto aicNum = ascendcPlatform.GetCoreNumAic();
     auto aivNum = ascendcPlatform.GetCoreNumAiv();
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
-    context->SetBlockDim(blockDim);
-    coctiling.blockDim = blockDim;
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
+    context->SetBlockDim(numBlocks);
+    coctiling.numBlocks = numBlocks;
 
     // 3. set tilingKey
     auto aType = context->GetInputTensor(0)->GetDataType();
@@ -522,7 +522,7 @@ ge::graphStatus AllGatherMatmulTilingAIVModeFunc(gert::TilingContext *context)
     uint32_t elementSize = D_TYPE_SIZE_MAP.at(aType);
     uint32_t nElemAlign = HALF_KBYTE / elementSize;
     uint64_t userWorkSpaceSize = 0;
-    GetUsrWorkSpaceSize(nElemAlign, elementSize, blockDim, userWorkSpaceSize, rankSize, info, tilingData->cocTiling);
+    GetUsrWorkSpaceSize(nElemAlign, elementSize, userWorkSpaceSize, rankSize, info);
     workSpaces[0] = SYSTEM_NEED_WORKSPACE + userWorkSpaceSize;
 
     // 5. communication

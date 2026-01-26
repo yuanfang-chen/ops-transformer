@@ -74,7 +74,7 @@ private:
     uint32_t orgM = 0;
     uint32_t orgN = 0;
     uint32_t orgK = 0;
-    uint32_t blockDim = 1U;
+    uint32_t numBlocks = 1U;
     size_t quantWorkspaceSize = 0;
 };
 } // namespace MC2Tiling

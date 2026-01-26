@@ -199,18 +199,18 @@ ge::graphStatus ElasticReceivableTestTilingFunc(gert::TilingContext *context)
     OP_LOGD(nodeName, "cur case tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
 
-    // Set blockDim
-    uint32_t blockDim = 1U;
+    // Set numBlocks
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = AIV_NUM_USED;
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
     context->SetScheduleMode(0);
     tilingData->elasticReceivableTestInfo.totalUbSize = ubSize;
     tilingData->elasticReceivableTestInfo.aivNum = aivNum;
-    OP_LOGD(nodeName, "blockDim=%u, aivNum=%u, ubSize=%lu", blockDim, aivNum, ubSize);
+    OP_LOGD(nodeName, "numBlocks=%u, aivNum=%u, ubSize=%lu", numBlocks, aivNum, ubSize);
 
     PrintTilingDataInfo(nodeName, *tilingData);
     OP_LOGD("ElasticReceivableTest", "tiling process finished successfully!!!");

@@ -18,7 +18,7 @@ using namespace std;
 namespace MatmulAllReduceAddRmsNormUT {
 struct TestParam {
     string caseName;
-    uint32_t blockDim;
+    uint32_t numBlocks;
     uint64_t tilingKey;
 };
 

@@ -1222,19 +1222,19 @@ static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(gert::TilingContext*
     uint64_t tilingKey = CalTilingKey(tpWorldSize, commQuantMode);
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
-    uint32_t blockDim = 1U;
+    uint32_t numBlocks = 1U;
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint64_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
     tilingData->moeDistributeCombineV2Info.aivNum = aivNum;
     tilingData->moeDistributeCombineV2Info.totalUbSize = ubSize;
     UbUsedCal(ubSize, context, tilingData);
     context->SetScheduleMode(1); // 设置为batch mode模式，所有核同时启动
-    OP_LOGD(nodeName, "blockdim = %u, aivNum = %lu, ubsize = %lu", blockDim, aivNum, ubSize);
+    OP_LOGD(nodeName, "numBlocks = %u, aivNum = %lu, ubsize = %lu", numBlocks, aivNum, ubSize);
     PrintTilingDataInfo(nodeName, *tilingData);
 
     return ge::GRAPH_SUCCESS;
@@ -1637,12 +1637,12 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeCombineA2 GetPlatformInfoAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
 
-    uint32_t blockDim = 1U;
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
-    context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
+    context->SetAicpuBlockDim(mc2tiling::AICPU_NUM_BLOCKS_A2);
 
     uint64_t tilingKey = MoeDistributeCombineA2CalcTilingKey(isLayered, commQuantMode);
     context->SetTilingKey(tilingKey);

@@ -169,14 +169,14 @@ ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext *context)
     OP_LOGD(A_INNER_DEBUG_BUFFER_RESET, "cur case tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
 
-    // Set blockDim
-    uint32_t blockDim = 1U;
+    // Set numBlocks
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
     if (tilingData->moeDistributeBufferReset.needSync == NEED_SYNC) {
         context->SetScheduleMode(BATCH_MODE_NEED_SYNC); // 设置batch mode模式，所有核同时启动
     } else {
@@ -185,7 +185,7 @@ ge::graphStatus MoeDistributeBufferResetTilingFunc(gert::TilingContext *context)
 
     tilingData->moeDistributeBufferReset.totalUbSize = ubSize;
     tilingData->moeDistributeBufferReset.aivNum = aivNum;
-    OP_LOGD(A_INNER_DEBUG_BUFFER_RESET, "blockDim=%u, aivNum=%u, ubSize=%lu", blockDim, aivNum, ubSize);
+    OP_LOGD(A_INNER_DEBUG_BUFFER_RESET, "numBlocks=%u, aivNum=%u, ubSize=%lu", numBlocks, aivNum, ubSize);
 
     PrintTilingDataInfo(*tilingData);
     OP_LOGD("MoeDistributeBufferReset", "tiling process finished successfully!!!");

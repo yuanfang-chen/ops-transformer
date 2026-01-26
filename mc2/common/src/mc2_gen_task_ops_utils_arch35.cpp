@@ -142,14 +142,14 @@ ge::Status Mc2Arch35GenTaskOpsUtils::CreateCCUFusionTask(const gert::ExeResGener
     // 获取aicore task
     ge::KernelLaunchInfo prevAicoreTask = ge::KernelLaunchInfo::LoadFromData(context, tasks.back());
 
-    // 设置aicore task的blockdim
-    int64_t blockDim = -1;
-    if (!context->GetIntAttrVal("tvm_blockdim", blockDim) || blockDim <= 0) {
-        OPS_LOG_E(context->GetNodeName(), "Can't get valid blockdim, get blockdim %ld.", blockDim);
+    // 设置aicore task的numBlocks
+    int64_t numBlocks = -1;
+    if (!context->GetIntAttrVal("tvm_blockdim", numBlocks) || numBlocks <= 0) {
+        OPS_LOG_E(context->GetNodeName(), "Can't get valid numBlocks, get numBlocks %ld.", numBlocks);
         return ge::GRAPH_FAILED;
     }
-    prevAicoreTask.SetBlockDim(blockDim);
-    OPS_LOG_I(context->GetNodeName(), "aicore task set blockdim successfully, set blockdim %ld.", blockDim);
+    prevAicoreTask.SetBlockDim(numBlocks);
+    OPS_LOG_I(context->GetNodeName(), "aicore task set numBlocks successfully, set numBlocks %ld.", numBlocks);
 
     // 获取aicore task的args format
     const char *prevArgsFormatStr = prevAicoreTask.GetArgsFormat();

@@ -45,8 +45,8 @@ struct AddRMSNormTilingData{
 struct AddRMSNormTilingeKeyData{
     uint32_t ARNKeyTile;
     uint32_t ARNKeyTail;
-    uint32_t ARNBlockDimTile;
-    uint32_t ARNBlockDimTail;
+    uint32_t ARNNumBlocksTile;
+    uint32_t ARNNumBlocksTail;
 };
 
 struct MatmulAllReduceAddRmsNormTilingData{

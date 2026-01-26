@@ -648,16 +648,16 @@ void MoeDistributeCombineSetupTilingA3::SetPlatformInfo()
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
     uint32_t aivNum = USED_AIV_NUMS;
-    uint32_t blockDim = 1U;
+    uint32_t numBlocks = 1U;
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context_->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context_->SetBlockDim(numBlocks);
     context_->SetAicpuBlockDim(AICPUNUM);
     tilingData_->moeDistributeCombineSetupInfo.totalUbSize = ubSize;
     tilingData_->moeDistributeCombineSetupInfo.aivNum = aivNum;
     context_->SetScheduleMode(1); // 设置为batch mode模式，所有核同时启动
-    OP_LOGD(nodeName_, "blockDim=%u, aivNum=%u, ubSize=%lu", blockDim, aivNum, ubSize);
+    OP_LOGD(nodeName_, "numBlocks=%u, aivNum=%u, ubSize=%lu", numBlocks, aivNum, ubSize);
 }
 
 void MoeDistributeCombineSetupTilingA3::SetHcommCfg()

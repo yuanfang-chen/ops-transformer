@@ -28,9 +28,9 @@ class KernelAddRmsNormSingleN
 public:
     __aicore__ inline KernelAddRmsNormSingleN()
     {}
-    __aicore__ inline void Init(GM_ADDR gammaGM, Mc2Tiling::AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t blockDim)
+    __aicore__ inline void Init(GM_ADDR gammaGM, Mc2Tiling::AddRMSNormTilingData& tiling, TPipe* pipe, uint32_t numBlocks)
     {
-        ASSERT(blockDim != 0 && "Block dim can not be zero!");
+        ASSERT(numBlocks != 0 && "Block dim can not be zero!");
         this->numCol_ = tiling.num_col;
         this->ubFactor_ = tiling.ub_factor;
         this->epsilon_ = tiling.epsilon;

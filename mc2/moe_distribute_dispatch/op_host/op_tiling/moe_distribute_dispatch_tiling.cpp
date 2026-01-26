@@ -577,16 +577,16 @@ static ge::graphStatus MoeDistributeDispatchA3A5TilingFuncImpl(gert::TilingConte
     uint64_t tilingKey = CalTilingKey(isScales, quantMode, tpWorldSize, mc2tiling::GetSocVersion(context) == "Ascend910_95");
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
-    uint32_t blockDim = 1U;
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
     tilingData->moeDistributeDispatchInfo.totalUbSize = ubSize;
     tilingData->moeDistributeDispatchInfo.aivNum = aivNum;
-    OP_LOGD(nodeName, "blockDim=%u, aivNum=%u, ubSize=%lu", blockDim, aivNum, ubSize);
+    OP_LOGD(nodeName, "numBlocks=%u, aivNum=%u, ubSize=%lu", numBlocks, aivNum, ubSize);
     PrintTilingDataInfo(nodeName, *tilingData);
     return ge::GRAPH_SUCCESS;
 }
@@ -792,12 +792,12 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 GetPlatformInfoAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
 
-    uint32_t blockDim = 1U;
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
-    context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
+    context->SetAicpuBlockDim(mc2tiling::AICPU_NUM_BLOCKS_A2);
 
     uint64_t tilingKey = MoeDistributeDispatchA2CalcTilingKey(context, isLayered);
     context->SetTilingKey(tilingKey);

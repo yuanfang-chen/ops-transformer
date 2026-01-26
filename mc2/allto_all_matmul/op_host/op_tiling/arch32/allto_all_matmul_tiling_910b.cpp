@@ -749,7 +749,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
     auto aicNum = ascendcPlatform.GetCoreNumAic();
     auto aivNum = ascendcPlatform.GetCoreNumAiv();
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
 
     CalcQuantWorkspaceSize(tilingData->cocTiling, info);
 
@@ -878,7 +878,7 @@ void AlltoAllMatmulTiling910b::PrintAlltoAllMatmulTilingData(CoCTiling &cocTilin
 ge::graphStatus AlltoAllMatmulTiling910b::PostTiling()
 {
     AlltoAllMatmulTilingData *outTilingData = context_->GetTilingData<AlltoAllMatmulTilingData>();
-    context_->SetBlockDim(blockDim);
+    context_->SetBlockDim(numBlocks);
 
     PrintAlltoAllMatmulTilingData(outTilingData->cocTiling, outTilingData->allToAllMatmulInfo);
     return ge::GRAPH_SUCCESS;

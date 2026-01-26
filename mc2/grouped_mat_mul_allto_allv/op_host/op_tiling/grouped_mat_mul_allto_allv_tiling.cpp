@@ -939,14 +939,14 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
 
     uint64_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
-    uint64_t blockDim = mc2tiling::GetNumBlocks(aicNum, aivNum, C_INNER_DEBUG);
+    uint64_t numBlocks = mc2tiling::GetNumBlocks(aicNum, aivNum, C_INNER_DEBUG);
     uint64_t ubSize = 0LU;
     static const PlatFormMemSize PLATFORM_SIZE(ascendcPlatform);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
 
-    tilingData->commonTilingInfo.aicCoreNum = blockDim;
-    tilingData->commonTilingInfo.aivCoreNum = blockDim * NUM_TWO;    // aic:aiv按照1：2配比
-    context->SetBlockDim(static_cast<uint32_t>(blockDim));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
+    tilingData->commonTilingInfo.aicCoreNum = numBlocks;
+    tilingData->commonTilingInfo.aivCoreNum = numBlocks * NUM_TWO;    // aic:aiv按照1：2配比
+    context->SetBlockDim(static_cast<uint32_t>(numBlocks));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
     
     // Set HCCL tiling
     OP_TILING_CHECK(SetHcclTiling(context, tilingData) != ge::GRAPH_SUCCESS,

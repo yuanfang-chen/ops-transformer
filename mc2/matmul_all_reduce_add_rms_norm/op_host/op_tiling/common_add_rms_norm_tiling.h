@@ -39,7 +39,7 @@ struct AddRMSNormTilingDepend {
           arnCtxInfo(info),
           addRmsNormTilingInputFromMm(mm),
           useMmOutputAsX1Input(b),
-          useHalfBlockDim(half){};
+          useHalfNumBlocks(half){};
     const char* nodeName;
     fe::PlatFormInfos& platFormInfos;
     ARNCtxInfo arnCtxInfo;
@@ -47,12 +47,12 @@ struct AddRMSNormTilingDepend {
     bool useMmOutputAsX1Input{false};
     // 全量化场景下，因为mm的核函数认为aic和aiv配比是1：1,
     // 所以使用到vector的addrms的tiling也需要做一下处理，感知到这个配比
-    bool useHalfBlockDim{false};
+    bool useHalfNumBlocks{false};
 };
 struct TilingOut {
     uint32_t tilingKey;
     uint32_t workSpaceSize;
-    uint32_t blockDim;
+    uint32_t numBlocks;
 };
 struct AddRMSNormTilingOutput {
     Mc2Tiling::AddRMSNormTilingData& addRmsNormTilingData;

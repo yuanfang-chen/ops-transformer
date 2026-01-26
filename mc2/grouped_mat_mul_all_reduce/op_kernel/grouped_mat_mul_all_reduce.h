@@ -36,8 +36,8 @@ struct MNConfig {
     uint32_t baseN;
     uint32_t mIdx;
     uint32_t nIdx;
-    uint32_t blockDimM;
-    uint32_t blockDimN;
+    uint32_t numBlocksM;
+    uint32_t numBlocksN;
     uint32_t singleM;
     uint32_t singleN;
     uint32_t splitM;
@@ -109,15 +109,15 @@ __aicore__ inline void GMMProcess<ComputeType>::Process(HcclServer& hcclServer)
 
         uint32_t lambdaN = Ceil(mnConfig.n, coreNum * mnConfig.baseN);
         mnConfig.singleN = lambdaN * mnConfig.baseN;
-        mnConfig.blockDimN = Ceil(mnConfig.n, mnConfig.singleN);
-        if (coreNum % mnConfig.blockDimN == 0) {
-            mnConfig.splitM = coreNum / mnConfig.blockDimN;
+        mnConfig.numBlocksN = Ceil(mnConfig.n, mnConfig.singleN);
+        if (coreNum % mnConfig.numBlocksN == 0) {
+            mnConfig.splitM = coreNum / mnConfig.numBlocksN;
         } else {
             mnConfig.splitM = 1;
         }
         uint32_t lambdaM = Ceil(mnConfig.m, MAX_TURN_NUM * mnConfig.splitM * mnConfig.baseM);
         mnConfig.singleM = lambdaM * mnConfig.baseM;
-        mnConfig.blockDimM = Ceil(mnConfig.m, mnConfig.singleM);
+        mnConfig.numBlocksM = Ceil(mnConfig.m, mnConfig.singleM);
         mnConfig.tileCnt = Max<uint32_t>(1, mnConfig.m / mnConfig.singleM / mnConfig.splitM);
         uint32_t totalRun = Ceil(mnConfig.m, mnConfig.splitM * mnConfig.singleM);
         if (mnConfig.m < mnConfig.singleM) {
@@ -125,13 +125,13 @@ __aicore__ inline void GMMProcess<ComputeType>::Process(HcclServer& hcclServer)
         }
 
         for (uint32_t i = 0; i < totalRun; ++i) {
-            mnConfig.mIdx = i * mnConfig.splitM + coreIdx / mnConfig.blockDimN;
-            mnConfig.nIdx = coreIdx % mnConfig.blockDimN;
-            if (coreIdx < mnConfig.splitM * mnConfig.blockDimN && mnConfig.mIdx < mnConfig.blockDimM) {
+            mnConfig.mIdx = i * mnConfig.splitM + coreIdx / mnConfig.numBlocksN;
+            mnConfig.nIdx = coreIdx % mnConfig.numBlocksN;
+            if (coreIdx < mnConfig.splitM * mnConfig.numBlocksN && mnConfig.mIdx < mnConfig.numBlocksM) {
                 computeOp.MMCompute(groupIdx, mnConfig);
             }
 #ifndef __CCE_KT_TEST__
-            hcclServer.TurnNotifyRun(coreIdx, mnConfig.blockDimN * mnConfig.splitM, i + 1);
+            hcclServer.TurnNotifyRun(coreIdx, mnConfig.numBlocksN * mnConfig.splitM, i + 1);
 #endif
         }
 #ifndef __CCE_KT_TEST__
@@ -193,11 +193,11 @@ template <class mmType, bool sync>
 __aicore__ inline void GMMCompute<mmType, sync>::MMCompute(uint32_t groupIdx, MNConfig& mnConfig)
 {
     uint32_t curSingleN = mnConfig.singleN;
-    if (mnConfig.nIdx == mnConfig.blockDimN - 1) {
+    if (mnConfig.nIdx == mnConfig.numBlocksN - 1) {
         curSingleN = mnConfig.n - mnConfig.nIdx * curSingleN;
     }
     uint32_t curSingleM = mnConfig.singleM;
-    if (mnConfig.mIdx >= mnConfig.blockDimM - 1) {
+    if (mnConfig.mIdx >= mnConfig.numBlocksM - 1) {
         curSingleM = mnConfig.m - mnConfig.mIdx * curSingleM;
     }
 

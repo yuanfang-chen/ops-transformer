@@ -419,11 +419,11 @@ void GMMAllReduceTiling::CalculateMMTiling(CoreTilingInfo& coreTilingInfo) const
 {
     coreTilingInfo.lambdaN = Ceil(uint32_t(args_.orgNValue), args_.usedCoreNum * uint32_t(baseN_));
     coreTilingInfo.singleN = coreTilingInfo.lambdaN * baseN_;
-    uint32_t blockDimN = Ceil(uint32_t(args_.orgNValue), coreTilingInfo.singleN);
-    if (blockDimN == 0) {
-        blockDimN = 1;
+    uint32_t numBlocksN = Ceil(uint32_t(args_.orgNValue), coreTilingInfo.singleN);
+    if (numBlocksN == 0) {
+        numBlocksN = 1;
     }
-    coreTilingInfo.splitM = (args_.usedCoreNum % blockDimN == 0) ? args_.usedCoreNum / blockDimN : 1;
+    coreTilingInfo.splitM = (args_.usedCoreNum % numBlocksN == 0) ? args_.usedCoreNum / numBlocksN : 1;
     coreTilingInfo.lambdaM = Ceil(uint32_t(args_.orgMValue), MAX_TURN_NUM * coreTilingInfo.splitM * uint32_t(baseM_));
     coreTilingInfo.singleM = coreTilingInfo.lambdaM * baseM_;
     coreTilingInfo.tileTurnNum =
@@ -433,9 +433,9 @@ void GMMAllReduceTiling::CalculateMMTiling(CoreTilingInfo& coreTilingInfo) const
     OP_LOGI(
         opName,
         "m = %lu, n = %lu, baseM_ = %u, baseK_ = %u, baseN_ = %u, tileTurnNum = %u, tailTurnNum = %u,"
-        "splitM = %u, lambdaM = %u, singleM = %u, blockDimN = %u, lambdaN = %u, singleN = %u",
+        "splitM = %u, lambdaM = %u, singleM = %u, numBlocksN = %u, lambdaN = %u, singleN = %u",
         args_.orgMValue, args_.orgNValue, baseM_, baseK_, baseN_, coreTilingInfo.tileTurnNum,
-        coreTilingInfo.tailTurnNum, coreTilingInfo.splitM, coreTilingInfo.lambdaM, coreTilingInfo.singleM, blockDimN,
+        coreTilingInfo.tailTurnNum, coreTilingInfo.splitM, coreTilingInfo.lambdaM, coreTilingInfo.singleM, numBlocksN,
         coreTilingInfo.lambdaN, coreTilingInfo.singleN);
 }
 

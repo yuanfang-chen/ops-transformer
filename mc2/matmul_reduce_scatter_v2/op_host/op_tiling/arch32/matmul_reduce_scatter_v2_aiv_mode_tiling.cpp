@@ -981,7 +981,7 @@ inline ge::graphStatus checkAndResetTilingData_SmallM(CoCTiling &cocTilingData, 
 
     return ge::GRAPH_SUCCESS;
 }
-void GetUsrWorkSpaceSize(uint32_t elementSize, uint32_t blockDim, uint64_t &userWorkSpaceSize,
+void GetUsrWorkSpaceSize(uint32_t elementSize, uint32_t numBlocks, uint64_t &userWorkSpaceSize,
                          MatmulReduceScatterV2AivModeInfo &info, CoCTiling &cocTilingData)
 {
     constexpr int32_t TWO = 2;
@@ -1012,7 +1012,7 @@ void GetUsrWorkSpaceSize(uint32_t elementSize, uint32_t blockDim, uint64_t &user
             info.dequantSize = static_cast<uint64_t>(mAlign * nAlign * sizeof(int32_t));
         } else {
             // 大m场景算法，peermem可能转不下输出矩阵，需要double buffer搬运，因此workspace匹配double buffer空间。
-            info.dequantSize = static_cast<uint64_t>(cocTilingData.pValue * blockDim * cocTilingData.m0 *
+            info.dequantSize = static_cast<uint64_t>(cocTilingData.pValue * numBlocks * cocTilingData.m0 *
                                                      cocTilingData.n0 * TWO * sizeof(int32_t));
         }
     }
@@ -1109,13 +1109,13 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
     int64_t rankSize = 0;
     mc2tiling::GetRankSize(opName, group, rankSize);
 
-    // 2. set blockDim
-    uint32_t blockDim = 1U;
+    // 2. set numBlocks
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     auto aicNum = ascendcPlatform.GetCoreNumAic();
     auto aivNum = ascendcPlatform.GetCoreNumAiv();
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
-    context->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
+    context->SetBlockDim(numBlocks);
 
     auto aType = context->GetInputTensor(A_INDEX)->GetDataType();
     auto bType = context->GetInputTensor(B_INDEX)->GetDataType();
@@ -1170,7 +1170,7 @@ ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *cont
 
     uint32_t elementSize = D_TYPE_SIZE_MAP.at(aType);
     uint64_t userWorkSpaceSize = 0;
-    GetUsrWorkSpaceSize(elementSize, blockDim, userWorkSpaceSize, info, tilingData->cocTiling);
+    GetUsrWorkSpaceSize(elementSize, numBlocks, userWorkSpaceSize, info, tilingData->cocTiling);
     workSpaces[0] = SYSTEM_NEED_WORKSPACE + userWorkSpaceSize;
 
     PrintTilingDataInfo(info, tilingData->cocTiling);
