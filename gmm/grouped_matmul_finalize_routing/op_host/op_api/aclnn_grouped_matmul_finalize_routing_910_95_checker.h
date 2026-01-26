@@ -134,7 +134,7 @@ public:
                                              (gmmParams_.x2)->GetViewShape().GetDim(TWO_DIM);
         int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0);          // 从weight的第0维获取e
         int64_t bsdp = gmmParams_.shareInput->GetViewShape().GetDim(0); // 从share_input 第一维获取bsdp
-
+        int64_t outputBS = gmmParams_.out->GetViewShape().GetDim(0);
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape xScaleExpectShape = {m, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR};
@@ -144,7 +144,7 @@ public:
         op::Shape grouplistExpectShape = {e};
         op::Shape logitExpectShape = {m};
         op::Shape rowindexExpectShape = {m};
-        op::Shape outputExpectShape = {m, n};
+        op::Shape outputExpectShape = {outputBS, n};
 
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.x1, xExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.pertokenScaleOptional, xScaleExpectShape, return false);
@@ -170,16 +170,15 @@ public:
             op::Shape shareInputExpectShape = {bsdp, n};
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.shareInput, shareInputExpectShape, return false);
         }
-
         // groupList的长度应等于weight的专家数
         int64_t groupListLen = gmmParams_.groupList->GetViewShape().GetDim(ZERO_DIM);
         if (groupListLen != e) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "Length of 'groupList' should be equal to the number of experts in weight");
+                    "Length of 'groupList' should be equal to the number of experts in weight. But got %ld.", e);
             return false;
         }
         if (e > MAX_NUM_EXPERTS) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MXFP4/MXFP8 , e must be less than 1024");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MXFP4/MXFP8, e must be less than 1024. But got %ld.", e);
             return false;
         }
         return true;
@@ -197,11 +196,11 @@ public:
         if ((xDtype == DataType::DT_FLOAT4_E2M1 || xDtype == DataType::DT_FLOAT4_E1M2) &&
             (weightDtype == DataType::DT_FLOAT4_E2M1 || weightDtype == DataType::DT_FLOAT4_E1M2)) {
             if (!(k % MOD2 == 0)) {
-                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MXFP4 , k must be divisible by 2");
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MXFP4 , k must be divisible by 2. But got %ld.", k);
                 return false;
             }
             if (gmmParams_.transposeX2 == false && (n % MOD2 != 0)) {
-                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MXFP4 , n must be even when x2 is not transposed");
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In MXFP4 , n must be even when x2 is not transposed. But got %ld.", n);
                 return false;
             }
             if (k == MOD2) {

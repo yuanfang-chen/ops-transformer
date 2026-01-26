@@ -1015,17 +1015,10 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     auto uniqueExecutor = CREATE_EXECUTOR();
     // unpack int32 to int4
     auto tmpWeight = uniqueExecutor.get()->CreateView(x2, viewShape, x2->GetViewOffset());
-    if (tmpWeight == nullptr) {
-        OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "Failed to create view for x2");
-        return ACLNN_ERR_INNER_NULLPTR;
-    }
-
     auto storageShape = x2->GetStorageShape();
     if (tmpWeight->GetDataType() == DataType::DT_INT32) {
         tmpWeight->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
         auto viewShapeDim = viewShape.GetDimNum();
-        auto storageShapeDim = storageShape.GetDimNum();
-        tmpWeight->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
         viewShape[viewShapeDim - 1] *= PER_INT4_IN_U32;
         auto storageShapeDim = storageShape.GetDimNum();
         // The following line adjusts the storage shape because we have a few

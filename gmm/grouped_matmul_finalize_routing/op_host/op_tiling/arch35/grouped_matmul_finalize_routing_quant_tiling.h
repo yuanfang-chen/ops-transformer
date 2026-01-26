@@ -101,6 +101,7 @@ private:
     bool CheckOptionalAttr();
     bool IsFp4Dtype(ge::DataType dtype);
     bool IsFp8Dtype(ge::DataType dtype);
+    bool CheckFp4Shape();
 
     GMMFinalizeRoutingTilingData tilingData_;
     uint64_t sharedInputLen_ = 0;
