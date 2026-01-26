@@ -1217,14 +1217,14 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
     uint32_t computeSize = dealRowCount * constInfo_.ropeHeadDim;
     uint32_t normNum = constInfo_.headDim - constInfo_.ropeHeadDim;
 
+    // 将Tcast成X_T
+ 	Cast(outputUb, normResUb, RoundMode::CAST_ROUND, dealRowCount * constInfo_.headDim);
+
     LocalTensor<T> tmpRopeInUb = tmpBuff1.Get<T>();
     uint32_t offset = computeSize * sizeof(T);
-    LocalTensor<T> tmpNormInUb = tmpBuff1.GetWithOffset<T>(dealRowCount * normNum, offset); // (num, offset)
-    offset += dealRowCount * normNum * sizeof(T);
+    
     LocalTensor<X_T> tmpRopeOutUb = tmpBuff1.GetWithOffset<X_T>(computeSize, offset);
-    offset += computeSize * sizeof(T);
-    LocalTensor<X_T> tmpNormOutUb = tmpBuff1.GetWithOffset<X_T>(dealRowCount * normNum, offset);
-    offset += dealRowCount * normNum * sizeof(X_T);
+    offset += computeSize * sizeof(X_T);
 
     // 分离rope部分
     DataCopyParams ropeCopyParams;
@@ -1261,30 +1261,12 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
     // DumpTensorForDim2(tmpRopeOutUb, 304, computeSize);
     inputQue1.FreeTensor(sinUb);
 
-    // 分离normal部分
-    DataCopyParams normCopyParams;
-    normCopyParams.blockCount = static_cast<uint16_t>(dealRowCount);
-    normCopyParams.blockLen = static_cast<uint16_t>(normNum * sizeof(T) / DATABLOCK_BYTES);
-    normCopyParams.srcStride = static_cast<uint16_t>(constInfo_.ropeHeadDim * sizeof(T) / DATABLOCK_BYTES);
-    normCopyParams.dstStride = 0;
-    DataCopy(tmpNormInUb, normResUb, normCopyParams);
-    PipeBarrier<PIPE_V>();
-    // normal部分cast成X_T
-    Cast(tmpNormOutUb, tmpNormInUb, RoundMode::CAST_ROUND, dealRowCount * normNum);
-
     // normal部分和rope拼接，并搬到outputub
     ropeCopyParams.blockCount = dealRowCount;
     ropeCopyParams.blockLen = static_cast<uint16_t>(constInfo_.ropeHeadDim * sizeof(X_T) / DATABLOCK_BYTES);
     ropeCopyParams.srcStride = 0;
     ropeCopyParams.dstStride = static_cast<uint16_t>(normNum * sizeof(X_T) / DATABLOCK_BYTES);
     DataCopy(outputUb[normNum], tmpRopeOutUb, ropeCopyParams);
-
-    PipeBarrier<PIPE_V>();
-    normCopyParams.blockCount = dealRowCount;
-    normCopyParams.blockLen = static_cast<uint16_t>(normNum * sizeof(X_T) / DATABLOCK_BYTES);
-    normCopyParams.srcStride = 0;
-    normCopyParams.dstStride = static_cast<uint16_t>(constInfo_.ropeHeadDim * sizeof(X_T) / DATABLOCK_BYTES);
-    DataCopy(outputUb, tmpNormOutUb, normCopyParams);
 }
 
 template <typename COMP> 
