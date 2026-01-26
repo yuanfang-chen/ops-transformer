@@ -337,26 +337,26 @@ __simd_vf__ void FindRealIndexVFImpl(__ubuf__ uint32_t* outputIdxBuf, __ubuf__ u
 /**
     输出Idx_Temp
  */
-template<bool ISFIRST>
-__aicore__ inline void LiTopKVF(const LocalTensor<uint16_t>& tmpIdxLocal, // Temp阶段输出的Index;如果s2SeqLen < 16K作为最终输出 (topK + s2SeqLen) * 2B
+template<bool ISOUTVALUE> // 是否输出VALUE
+__aicore__ inline void LiTopKVF(const LocalTensor<uint16_t>& tmpIdxLocal, // Temp阶段输出的Index;如果s2SeqLen < 16K作为最终输出 validLen * 2B
                                 const LocalTensor<uint16_t>& outputValueLocal, // 如果s2SeqLen > 16K并且是首轮输出Value topK * 2B
-                                const LocalTensor<uint16_t>& inputLocal, // 输入Value (topK + s2SeqLen) * 2B
+                                const LocalTensor<uint16_t>& inputValueLocal, // 输入Value validLen * 2B
                                 const LocalTensor<uint32_t>& histogramsLocal, // 直方图 256 * 4B 
                                 const LocalTensor<uint32_t>& idxHighLocal, // 目标桶高八位 256 * 4B 
                                 const LocalTensor<uint32_t>& idxLowLocal, // 目标桶低八位 256 * 4B 
                                 const LocalTensor<uint32_t>& nkValueLocal, // 存储next_k的值 64 * 4B
-                                uint32_t topK,
-                                uint32_t s2SeqLen)
+                                uint32_t topK, // topK元素
+                                uint32_t validLen) // 有效元素个数
 {
     __ubuf__ uint16_t* tmpIdxBuf = (__ubuf__ uint16_t*)tmpIdxLocal.GetPhyAddr();
     __ubuf__ uint16_t* outputValueBuf = (__ubuf__ uint16_t*)outputValueLocal.GetPhyAddr();
-    __ubuf__ uint16_t* inputBuf = (__ubuf__ uint16_t*)inputLocal.GetPhyAddr();
+    __ubuf__ uint16_t* inputValueBuf = (__ubuf__ uint16_t*)inputValueLocal.GetPhyAddr();
     __ubuf__ uint32_t* histogramsBuf = (__ubuf__ uint32_t*)histogramsLocal.GetPhyAddr();
     __ubuf__ uint32_t* idxHighBuf = (__ubuf__ uint32_t*)idxHighLocal.GetPhyAddr();
     __ubuf__ uint32_t* idxLowBuf = (__ubuf__ uint32_t*)idxLowLocal.GetPhyAddr();
     __ubuf__ uint32_t* nkValueBuf = (__ubuf__ uint32_t*)nkValueLocal.GetPhyAddr();
 
-    uint32_t bottomK = s2SeqLen - topK + 1;
+    uint32_t bottomK = validLen - topK + 1;
     uint32_t beginIdx = 0;
     bool flag = true;
 
@@ -364,27 +364,27 @@ __aicore__ inline void LiTopKVF(const LocalTensor<uint16_t>& tmpIdxLocal, // Tem
     const uint16_t repeatSize16 = 128;
     const uint16_t repeatSize32 = 64;
 
-    uint16_t histogramsLoopNum = (s2SeqLen + repeatSize8 - 1) / repeatSize8; 
-    uint16_t inputLoopNum = (s2SeqLen + repeatSize16 - 1) / repeatSize16;
-    uint16_t topkLoopNum = DIV(topK, 64);
-    uint16_t topkLoopNum16 = (topK + repeatSize16 - 1) / repeatSize16;
+    uint16_t histogramsLoopNum = DIV(validLen, repeatSize8); 
+    uint16_t inputLoopNum = DIV(validLen, repeatSize16);
+    uint16_t topkLoopNum = DIV(topK, repeatSize32);
+    uint16_t topkLoopNum16 = DIV(topK, repeatSize16);
 
     // find kth-value
-    HistogramsHighVFImpl<uint16_t>(histogramsBuf, inputBuf, histogramsLoopNum, flag);
+    HistogramsHighVFImpl<uint16_t>(histogramsBuf, inputValueBuf, histogramsLoopNum, flag);
     FindHighTargetBinVFImpl(idxHighBuf, nkValueBuf, histogramsBuf, bottomK);
 
-    HistogramsLowVFImpl<uint16_t>(histogramsBuf, inputBuf, idxHighBuf, histogramsLoopNum, flag);
+    HistogramsLowVFImpl<uint16_t>(histogramsBuf, inputValueBuf, idxHighBuf, histogramsLoopNum, flag);
     FindKthVFImpl(nkValueBuf, histogramsBuf, idxHighBuf, idxLowBuf);
 
     // filter
     // 输出大于k-value的值idx
-    FindIdxGTOutputVFImpl(tmpIdxBuf, inputBuf, (uint32_t)(0), nkValueBuf, inputLoopNum);
+    FindIdxGTOutputVFImpl(tmpIdxBuf, inputValueBuf, (uint32_t)(0), nkValueBuf, inputLoopNum);
     // 输出等于k-value的值idx
-    FindIdxEQOutputVFImpl(tmpIdxBuf, inputBuf, (uint32_t)(0), nkValueBuf, inputLoopNum);
+    FindIdxEQOutputVFImpl(tmpIdxBuf, inputValueBuf, (uint32_t)(0), nkValueBuf, inputLoopNum);
 
-    // 如果s2SeqLen > 16K并且是首轮输出Value
-    if constexpr (ISFIRST) {
-        FindValueOutputVFImpl(outputValueBuf, inputBuf, tmpIdxBuf, topkLoopNum16);
+    // 是否输出Value
+    if constexpr (ISOUTVALUE) {
+        FindValueOutputVFImpl(outputValueBuf, inputValueBuf, tmpIdxBuf, topkLoopNum16);
     }
 }
 
@@ -392,13 +392,13 @@ __aicore__ inline void LiTopKVF(const LocalTensor<uint16_t>& tmpIdxLocal, // Tem
     gather最终的Idx
  */
 __aicore__ inline void LiTopKGatherVF(const LocalTensor<uint32_t>& outputIdxLocal, // 输出Idx topK * 2B
-                                           const LocalTensor<uint16_t>& outputValueLocal, // 输出Value topK * 2B
-                                           const LocalTensor<uint16_t>& inputValueLocal, // 输入Value (topK + s2SeqLen) * 2B
-                                           const LocalTensor<uint16_t>& tmpIdxLocal, // 本轮tmpIdx输入 (topK + s2SeqLen) * 2B
-                                           const LocalTensor<uint32_t>& hisIdxLocal, // 上一轮Idx输入 topK * 4B
-                                           uint32_t topK, // topK元素个数
-                                           uint32_t loopIndex, // 当前循环需要加上得基准Index
-                                           uint32_t s2SeqLen)
+                                      const LocalTensor<uint16_t>& outputValueLocal, // 输出Value topK * 2B
+                                      const LocalTensor<uint16_t>& inputValueLocal, // 输入Value validLen * 2B
+                                      const LocalTensor<uint16_t>& tmpIdxLocal, // 本轮tmpIdx输入 validLen * 2B
+                                      const LocalTensor<uint32_t>& hisIdxLocal, // 上一轮Idx输入 topK * 4B
+                                      uint32_t topK, // topK元素个数
+                                      uint32_t loopBasicIdx, // 当前循环需要加上得基准Index
+                                      uint32_t validLen) // 有效元素个数
 {
     __ubuf__ uint32_t* outputIdxBuf = (__ubuf__ uint32_t*)outputIdxLocal.GetPhyAddr();
     __ubuf__ uint16_t* outputValueBuf = (__ubuf__ uint16_t*)outputValueLocal.GetPhyAddr();
@@ -408,11 +408,10 @@ __aicore__ inline void LiTopKGatherVF(const LocalTensor<uint32_t>& outputIdxLoca
 
     const uint16_t repeatSize32 = 64;
     const uint16_t repeatSize16 = 128;
-    uint16_t topkLoopNum16 = (topK + repeatSize16 - 1) / repeatSize16;
-    uint16_t topkLoopNum32 = (topK + repeatSize32 - 1) / repeatSize32;
+    uint16_t topkLoopNum16 = DIV(topK, repeatSize16);
+    uint16_t topkLoopNum32 = DIV(topK, repeatSize32);
 
-    FindValueOutputVFImpl(outputValueBuf, inputValueBuf, tmpIdxBuf, topkLoopNum16);
-    FindRealIndexVFImpl(outputIdxBuf, tmpIdxBuf, hisIdxBuf, topK, loopIndex, topkLoopNum32);
+    FindRealIndexVFImpl(outputIdxBuf, tmpIdxBuf, hisIdxBuf, topK, loopBasicIdx, topkLoopNum32);
 }
 
 }
