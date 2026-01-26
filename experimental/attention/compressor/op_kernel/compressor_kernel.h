@@ -76,6 +76,8 @@ private:
     __aicore__ inline void ComputeMm1(const RunInfo &info);
     __aicore__ inline void ComputeVec1(const RunInfo &info);
     __aicore__ inline void ComputeVec2(const RunInfo &info);
+    __aicore__ inline void AllocEventID();
+    __aicore__ inline void FreeEventID();
     // ==============================TilingData&TPipe==============================
     TPipe* pipe_;
     const optiling::CompressorTilingData* __restrict tilingData_;
@@ -537,13 +539,25 @@ __aicore__ inline bool CompressorKernel<COMP>::IsNeedExcute(uint32_t curBasicBlo
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeMm1(const RunInfo &info) {
     // printf("[COMPUTE] MM1 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
+    CrossCoreWaitFlag<SYNC_MODE2, PIPE_FIX>(SYNC_V1_C1_FLAG);
     blockCube_.ComputeMm1(info);
+    CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG);
 }
 
 template <typename COMP>
 __aicore__ inline void CompressorKernel<COMP>::ComputeVec1(const RunInfo &info) {
     // printf("[COMPUTE] VEC1 bStart:%u bEnd:%u sStart:%d sEnd:%u dealTcNum:%u\n", info.bStart, info.bEnd, info.sStart, info.sEnd, info.dealTcNum);
+#if (__CCE_AICORE__ == 220)
+    CrossCoreWaitFlag<SYNC_MODE2, PIPE_MTE2>(SYNC_C1_V1_FLAG);
+#else
+    CrossCoreWaitFlag<SYNC_MODE2, PIPE_V>(SYNC_C1_V1_FLAG);
+#endif
     blockVec_.ComputeVec1(info);
+#if (__CCE_AICORE__ == 220)
+    CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
+#else
+    CrossCoreSetFlag<SYNC_MODE2, PIPE_V>(SYNC_V1_C1_FLAG);
+#endif
 }
 
 template <typename COMP>
@@ -553,14 +567,33 @@ __aicore__ inline void CompressorKernel<COMP>::ComputeVec2(const RunInfo &info) 
 }
 
 template <typename COMP>
-__aicore__ inline void CompressorKernel<COMP>::Process() {
-    // printf("CompressorKernel::Process!!!!!\n");
+__aicore__ inline void CompressorKernel<COMP>::AllocEventID() {
     if ASCEND_IS_AIC {
         blockCube_.AllocEventID(pipe_);
     } else {
         blockVec_.AllocEventID();
+#if (__CCE_AICORE__ == 220)
         CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
+#else
+        CrossCoreSetFlag<SYNC_MODE2, PIPE_V>(SYNC_V1_C1_FLAG);
+#endif
     }
+}
+
+template <typename COMP>
+__aicore__ inline void CompressorKernel<COMP>::FreeEventID() {
+    if ASCEND_IS_AIC {
+        CrossCoreWaitFlag<SYNC_MODE2, PIPE_FIX>(SYNC_V1_C1_FLAG);
+        blockCube_.FreeEventID(pipe_);
+    } else {
+        blockVec_.FreeEventID();
+    }
+}
+
+template <typename COMP>
+__aicore__ inline void CompressorKernel<COMP>::Process() {
+    // printf("CompressorKernel::Process!!!!!\n");
+    AllocEventID();
 
     RunInfo extraInfo[1];
     GetCurCoreStartIdx();
@@ -582,15 +615,11 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         bool isNeedExcute = IsNeedExcute(i);
         if ASCEND_IS_AIC {
             if (isNeedExcute && i < constInfo.realDealBasicBlockNum) {
-                CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
                 ComputeMm1(extraInfo0);
-                CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG);
             }
         } else {
             if (isNeedExcute && i < constInfo.realDealBasicBlockNum) {
-                CrossCoreWaitFlag(SYNC_C1_V1_FLAG);
                 ComputeVec1(extraInfo0);
-                CrossCoreSetFlag<SYNC_MODE2, PIPE_MTE3>(SYNC_V1_C1_FLAG);
                 vec2Info.dealTcNum += extraInfo0.dealTcNum;
                 vec2Info.dealScSize += extraInfo0.dealScSize;
             }
@@ -610,13 +639,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
             }
         }
     }
-    if ASCEND_IS_AIC {
-        CrossCoreWaitFlag(SYNC_V1_C1_FLAG);
-        blockCube_.FreeEventID(pipe_);
-    } else {
-        blockVec_.FreeEventID();
-    }
-
+    FreeEventID();
 }
 
 } // namespace Compressor
