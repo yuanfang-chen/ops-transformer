@@ -366,9 +366,10 @@ $$
             - `commAlg` = "hierarchy"并且驱动版本≥25.0.RC1.1时支持(0, 10*1024]且为32的整数倍。
         - `Bs`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 256]。
     - 属性约束：
-        - `epWorldSize`：依commAlg取值，"fullmesh"支持16、32、64、128、256；"hierarchy"支持16、32、64。
+        - `epWorldSize`：依commAlg取值，"fullmesh"支持2、3、4、5、6、7、8、16、32、64、128、256；"hierarchy"支持16、32、64。
         - `moeExpertNum`：取值范围(0, 512]。
-            -  还需满足`moeExpertNum` / `epWorldSize` <= 24，`commAlg` = "hierarchy"无此约束。
+            - 当`commAlg`="fullmesh"且epWorldSize小于等于8时，还需满足moeExpertNum / (epWorldSize - sharedExpertRankNum) <= 120。
+            - 当`commAlg`="fullmesh"且epWorldSize大于8时，还需满足moeExpertNum / (epWorldSize - sharedExpertRankNum) <= 24。
         - `commQuantMode`：2，开启通信int8量化，仅当`commAlg` = "hierarchy"且驱动版本不低于25.0.RC1.1时支持。
     - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
         - `commAlg` = "fullmesh"：要求 >= (`Bs` * `epWorldSize` * min(`localExpertNum`, `K`) * `H` * 4B + 4MB)。
