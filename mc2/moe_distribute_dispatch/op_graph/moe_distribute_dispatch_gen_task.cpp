@@ -26,6 +26,7 @@
 #include "ops_error.h"
 #include "mc2_gen_task_moe.h"
 #include "mc2_gen_task_utils.h"
+#include "mc2_a5_gen_task_utils.h"
 #include "register/op_ct_impl_registry.h"
 #include "register/op_ext_gentask_registry.h"
 #endif
@@ -50,11 +51,15 @@ ge::Status MoeDistributeDispatchGenTaskFunc(const gert::ExeResGenerationContext 
         OPS_LOG_D(context->GetNodeName(), "Do A2 gen task");
         return Mc2MoeGenTaskOpsUtils::Mc2MoeGenTaskCallback(context, tasks);
     }
+<<<<<<< HEAD
     if (Mc2GenTaskOpsUtils::IsTargetPlatform(nodeName, NPUARCH_A5)) {
         OPS_LOG_D(nodeName, "Do A5 ccu gen task");
         return Mc2Arch35GenTaskOpsUtils::Mc2Arch35GenTaskCallBack(context, tasks);
     }
     OPS_LOG_D(context->GetNodeName(), "Do A3 gen task");
+=======
+    OPS_LOG_D(context->GetNodeName(), "Do A3/A5 gen task");
+>>>>>>> fb35a5d0 (dispatch和combine同步至开源仓)
     return Mc2MoeGenTaskOpsUtils::Mc2MoeGenTaskCallbackV2(context, tasks);
 }
 
@@ -84,6 +89,7 @@ ge::Status MoeDistributeDispatchGenTaskFunc(const gert::ExeResGenerationContext 
         OPS_LOG_D(context->GetNodeName(), "Do A5 ccu gen task");
         return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2A5GenTaskUtils::Mc2GenTaskCallBack910A5);
     }
+    OPS_LOG_D(context->GetNodeName(), "Do MTE gen task.");
     return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2GenTaskMoe::Mc2MoeGenTaskCallbackV2);
 }
 
