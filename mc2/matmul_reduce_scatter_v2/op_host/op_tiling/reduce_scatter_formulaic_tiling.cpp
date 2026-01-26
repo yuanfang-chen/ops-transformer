@@ -16,6 +16,12 @@
 #include "mc2_log.h"
 #include "reduce_scatter_formulaic_tiling.h"
 
+void MMPlusReduceScatter::SetCommTimeFactorForA5()
+{
+    commPerf_.ChangeCommTimeFactorByDivision(REDUCESCATTER_COMMTIME_FACTOR);
+    return;
+}
+
 void MMPlusReduceScatter::SetCommTimeFactorForOther()
 {
     // 通算并行时通信有膨胀，大K场景膨胀明显，做特殊处理
@@ -38,7 +44,11 @@ void MMPlusReduceScatter::SetCommTimeFactorForOther()
 
 void MMPlusReduceScatter::SetCommTimeFactor()
 {
-    SetCommTimeFactorForOther();
+    if (clusterInfo_.socType == SocVersion::SOC910_95) {
+        SetCommTimeFactorForA5();
+    } else {
+        SetCommTimeFactorForOther();
+    }
     return;
 }
 
