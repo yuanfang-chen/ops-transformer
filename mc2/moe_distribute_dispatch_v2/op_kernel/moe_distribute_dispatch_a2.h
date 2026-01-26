@@ -16,10 +16,17 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_A2_H
 #define MOE_DISTRIBUTE_DISPATCH_A2_H
 #include <climits>
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
+#include "utils/std/algorithm.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_tiling.h"
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
+#else
+#include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#endif
 
 namespace MoeDistributeDispatchA2Impl {
 constexpr static uint8_t BUFFER_NUM = 2;
@@ -46,12 +53,6 @@ __aicore__ inline T2 RoundUp(const T1 val, const T2 align) {
     return (static_cast<T2>(val) + align - 1) / align * align;
 }
 
-template<AscendC::HardEvent event>
-__aicore__ inline void SyncFunc() {
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 struct TaskInfo {
     uint32_t startTaskId{0};
@@ -893,7 +894,7 @@ template <TemplateMC2TypeA2Class>
 __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::CleanUpFlags()
 {
     if (aivId_ == 0) {
-        Duplicate<int32_t>(statusTensor_, 0, worldSize_ * DATA_OFFSET);
+        Duplicate<int32_t>(statusTensor_, 0, worldSize_ * DATA_OFFSET / sizeof(int32_t));
         SyncFunc<AscendC::HardEvent::V_MTE3>();
         uint32_t dstStrideU32 = dataSizePerRank_ - DATA_OFFSET;
         auto copyStatusParams = DataCopyExtParams{static_cast<uint16_t>(worldSize_), DATA_OFFSET, 0, dstStrideU32, 0};

@@ -96,14 +96,6 @@ __aicore__ inline T Align512(T x)
     return (x + ALIGN_UP_TO_512_MASK) & (~ALIGN_UP_TO_512_MASK);
 }
 
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
-
 template <MicroAPI::HistogramsType htype, typename T, typename U>
 static __aicore__ inline void HistogramsVf(__local_mem__ U* dst, __local_mem__ T* src, uint16_t repeatElm,
                                            uint16_t halfRepeat, uint32_t totalElm, uint16_t repeatTimes)
