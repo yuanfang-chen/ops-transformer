@@ -16,7 +16,11 @@ if (BUILD_OPEN_PROJECT)
 endif()
 
 set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
+<<<<<<< HEAD
 if("${CONDITION_UNIT}" STREQUAL "ascend950")
+=======
+if("${CONDITION_UNIT}" STREQUAL "ascend910_95")
+>>>>>>> 6f3835fb (同步rotary_position_embedding和attention_update优化修改)
     set(rotary_position_embedding_apt_depends posembedding/apply_rotary_pos_emb CACHE INTERNAL "Dependencies for rotary_position_embedding")
     add_ops_compile_options(
         OP_NAME RotaryPositionEmbedding
