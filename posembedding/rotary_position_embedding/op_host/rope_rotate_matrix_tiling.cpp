@@ -99,15 +99,9 @@ __attribute__((always_inline)) inline uint64_t GetBytePerData(uint64_t dtype)
 
 __attribute__((always_inline)) inline uint64_t GetTilingDtype(const ge::DataType &dtype)
 {
-    if (dtype == ge::DT_FLOAT) {
-        return TILING_DTYPE_FP32;
-    }
-    if (dtype == ge::DT_FLOAT16) {
-        return TILING_DTYPE_FP16;
-    }
-    if (dtype == ge::DT_BF16) {
-        return TILING_DTYPE_BF16;
-    }
+    if (dtype == ge::DT_FLOAT) return TILING_DTYPE_FP32;
+    if (dtype == ge::DT_FLOAT16) return TILING_DTYPE_FP16;
+    if (dtype == ge::DT_BF16) return TILING_DTYPE_BF16;
     return TILING_DTYPE_UNKNOWN;
 }
 
@@ -304,9 +298,19 @@ ge::graphStatus RotateMatrixTiling::CheckMode()
     OP_CHECK_NULL_WITH_CONTEXT(context, modePtr);
     auto modeValue = *modePtr;
     uint64_t tilingMode = static_cast<uint64_t>(tilingData_.get_tilingMode());
-    OP_CHECK_IF((modeValue == MODE_ROTATE_INTERLEAVED) && (tilingMode != TILING_MODE_BNSD_BROADCAST_TWODIM &&
-                                                           tilingMode != TILING_MODE_BSND_BROADCAST_TWODIM &&
-                                                           tilingMode != TILING_MODE_SBND_BROADCAST_TWODIM),
+    uint64_t xFirstDim = static_cast<uint64_t>(tilingData_.get_xFirstDim());
+    uint64_t xSecondDim = static_cast<uint64_t>(tilingData_.get_xSecondDim());
+    uint64_t xThirdDim = static_cast<uint64_t>(tilingData_.get_xThirdDim());
+
+    uint64_t rFirstDim = static_cast<uint64_t>(tilingData_.get_cosSinFirstDim());
+    uint64_t rSecondDim = static_cast<uint64_t>(tilingData_.get_cosSinSecondDim());
+    uint64_t rThirdDim = static_cast<uint64_t>(tilingData_.get_cosSinThirdDim());
+    OP_CHECK_IF((modeValue == MODE_ROTATE_INTERLEAVED) && 
+                !(
+                    (rFirstDim == 1 && rSecondDim == 1 && xThirdDim == rThirdDim) ||
+                    (rFirstDim == 1 && rThirdDim == 1 && xSecondDim == rSecondDim) ||
+                    (rSecondDim == 1 && rThirdDim == 1 && xFirstDim == rFirstDim)
+                ),
                 OP_LOGE(context, "Layout format invalid for interleave mode."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -365,7 +369,6 @@ ge::graphStatus RotateMatrixTiling::MatmulTilingProcess(){
         m = tilingData_.get_xFirstDim() * tilingData_.get_xSecondDim() * tilingData_.get_xThirdDim();
         blockNumM = GetCeilDiv(m, baseM);
     }
-
     uint64_t baseN = tilingData_.get_dLength() < BASE_N ? GetCeilDiv(tilingData_.get_dLength(), 16) * 16 : BASE_N;
     uint64_t baseK = tilingData_.get_dLength() < BASE_K ? tilingData_.get_dLength() : BASE_K;
     uint64_t gmLen = tilingData_.get_gmLength();
@@ -407,7 +410,6 @@ ge::graphStatus RotateMatrixTiling::MatmulTilingProcess(){
         OP_LOGE(context->GetNodeName(), "Unsupported tiling dtype: %d", static_cast<int>(tilingDtype));
         return ge::GRAPH_FAILED;
     }
-
     mm_.SetBias(false);
     mm_.SetDim(1);
     if (tilingData_.get_tilingMode() == TILING_MODE_BNSD_BROADCAST_TWODIM ||
@@ -418,7 +420,6 @@ ge::graphStatus RotateMatrixTiling::MatmulTilingProcess(){
         mm_.SetShape(tilingData_.get_xFirstDim() * tilingData_.get_xSecondDim() * tilingData_.get_xThirdDim(), tilingData_.get_dLength(), tilingData_.get_dLength());
         mm_.SetOrgShape(tilingData_.get_xFirstDim() * tilingData_.get_xSecondDim() * tilingData_.get_xThirdDim(), tilingData_.get_dLength(), tilingData_.get_dLength());
     }
-
     mm_.SetFixSplit(baseM, baseN, baseK);
     if (mm_.GetTiling(tilingData_.matmulTiling) == -1) {
         OP_LOGE(context->GetNodeName(), "RotaryPositionEmbedding Get Tiling Failed!");
@@ -455,11 +456,12 @@ ge::graphStatus RotateMatrixTiling::DoRotateMatrixTiling()
         return ge::GRAPH_FAILED;
     }
 
+    GetDimLen();
+
     if (ge::GRAPH_SUCCESS != CheckMode()) {
         OP_LOGE(context, "input mode and tiling mode do not meet the requirements.");
         return ge::GRAPH_FAILED;
     }
-    GetDimLen();
     MatmulTilingProcess();
 
     tilingKey = GetTilingKey(tilingDtype);
