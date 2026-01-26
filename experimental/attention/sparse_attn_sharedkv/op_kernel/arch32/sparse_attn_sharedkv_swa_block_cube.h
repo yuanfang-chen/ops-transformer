@@ -748,10 +748,6 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                 }
 
                 if (k1 == (kL1Loops - 1)) {
-                    if (nL1 == 0 && mL1 == 0) { // 第一次Fixpipe前等待
-                        CrossCoreWaitFlag(constInfo.syncV1NupdateC2);
-                    }
-                    SetAtomicAdd<MM_OUT_T>();
                     // ND
                     FixpipeParamsV220 fixParams;
                     fixParams.nSize = nL1SizeAlign;
@@ -762,9 +758,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                     fixParams.unitFlag = 0b11;
 
                     uint64_t mm2Offset = (mSplitInfo.nBufferStartM + mL1 * M_SPLIT_SIZE) * nSize + nL1 * N_SPLIT_SIZE;
-                    Fixpipe(mm2ResGm[(info.bn2IdxInCurCore % (constInfo.preLoadNum)) *
+                    Fixpipe(mm2ResGm[(info.loop % (constInfo.preLoadNum)) *
                             constInfo.bmm2ResUbSize + mm2Offset], cL0Tensor, fixParams);
-                    SetAtomicNone();
                 }
 
                 if (mL1Loops == 2) {

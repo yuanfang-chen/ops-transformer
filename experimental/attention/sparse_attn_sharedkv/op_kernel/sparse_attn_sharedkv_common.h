@@ -241,12 +241,10 @@ struct ConstInfo {
     uint32_t preLoadNum = 0U;
     uint32_t nBufferMBaseSize = 0U;
     // CUBE和VEC的核间同步EventID
-    uint32_t syncV1NupdateC2 = 0U;
     uint32_t syncV0C1 = 0U;
     uint32_t syncC1V1 = 0U;
     uint32_t syncV1C2 = 0U;
     uint32_t syncC2V2 = 0U;
-    uint32_t syncC2V1 = 0U;
 
     uint32_t mmResUbSize = 0U;   // Matmul1输出结果GM上的大小
     uint32_t vec1ResUbSize = 0U; // Vector1输出结果GM上的大小
