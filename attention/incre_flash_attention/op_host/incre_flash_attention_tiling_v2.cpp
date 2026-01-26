@@ -2670,6 +2670,10 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
       return ge::GRAPH_FAILED;
     }
     kvAntiParamSplitFlag_ = true;
+    OP_CHECK_IF((inputQType_ == ge::DT_FLOAT16 || outputType_ == ge::DT_FLOAT16),
+      OP_LOGE(ifaContext_->opName, "When kv is split, inputQType and outputType only must be BF16, now inputQType is %s, outputType is %s.",
+              optiling::v2::GetPfaDataTypeStr(inputQType_).c_str(), optiling::v2::GetPfaDataTypeStr(outputType_).c_str()),
+        return ge::GRAPH_FAILED);
   }
   if (kvAntiParamSplitFlag_) {
     if ((!kPerChnVPerTokFlag_) && (keyAntiquantMode != valueAntiquantMode)) {
@@ -2683,6 +2687,10 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
       return ge::GRAPH_FAILED;
     }
     if (kPerChnVPerTokFlag_) {
+      OP_CHECK_IF((inputQType_ == ge::DT_BF16 || outputType_ == ge::DT_BF16),
+        OP_LOGE(ifaContext_->opName, "When key in per-channel scenario and value in pre-token scenario, inputQType and outputType only must be FP16, now inputQType is %s, outputType is %s.",
+                optiling::v2::GetPfaDataTypeStr(inputQType_).c_str(), optiling::v2::GetPfaDataTypeStr(outputType_).c_str()),
+          return ge::GRAPH_FAILED);
       if (CheckAntiQuantParam(valueAntiquantMode, valueAntiquantScaleTensor, valueAntiquantOffsetTensor,
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
