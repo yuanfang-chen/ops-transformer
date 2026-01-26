@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file sparse_flash_attention_service_vector_mla.h
+ * \file sparse_attn_sharedkv_swa_block_vector.h
  * \brief
  */
 #ifndef SPARSE_ATTN_SHAREDKV_SWA_BLOCK_VECTOR_H
@@ -95,8 +95,6 @@ public:
     __aicore__ inline void Bmm2FDDataCopyOut(const RunInfo &info, LocalTensor<T> &bmm2ResUb, uint32_t wsMStart,
                                              uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount);
     __aicore__ inline uint64_t CalcAccumOffset(uint32_t bN2Idx, uint32_t gS1Idx);
-    __aicore__ inline void GetConfusionTransposeTiling(int64_t numR, int64_t numC, const uint32_t stackBufferSize,
-                                                       const uint32_t typeSize, ConfusionTransposeTiling &tiling);
 
     // BLOCK和REPEAT的字节数
     static constexpr uint64_t BYTE_BLOCK = 32UL;
@@ -154,9 +152,7 @@ private:
     GlobalTensor<T> accumOutGm;
     GlobalTensor<OUT_T> attentionOutGm;
     GlobalTensor<int32_t> blkTableGm_;
-    // GlobalTensor<KV_T> kvMergeGm_;
     GlobalTensor<KV_T> keyGm_;
-    // GlobalTensor<int32_t> topkGm_;
     GlobalTensor<int32_t> kvValidSizeGm_;
     GlobalTensor<KV_T> oriKvGm_;
     GlobalTensor<KV_T> cmpKvGm_;
@@ -237,7 +233,6 @@ __aicore__ inline void SWAVectorBlock<SAST>::InitBuffers(TPipe *pipe)
     softmaxSumDefaultUb = softmaxSumDefaultBuff.Get<T>();
 
     // v0ValidSizeUb_ = v0ValidSizeBuff.Get<int32_t>();
-
     sinksUb = sinksBuff.Get<SINKS_T>();
     sinksBrcbUb = sinksBrcbBuff.Get<SINKS_T>();
 }
@@ -361,52 +356,6 @@ __aicore__ inline void SWAVectorBlock<SAST>::ElewiseCompute(const RunInfo &info,
                                                             uint32_t dealRowCount, uint32_t columnCount)
 {
     Muls(mmResUb, mmResUb, static_cast<T>(tilingData->baseParams.softmaxScale), dealRowCount * columnCount);
-
-    if (info.isOri) {
-        // SCFA ori_kv 部分不需要mask？ TODO: CFA & SWA 需要
-    } else {
-        // // v0的无效值判断
-        // uint64_t s2ValidSizeFirstPart = v0ValidSizeUb_.GetValue(128 + info.cmpLoop % MERGE_CACHE_GM_BUF_NUM);
-        // uint64_t s2ValidSizeSecondPart = v0ValidSizeUb_.GetValue(256 + info.cmpLoop % MERGE_CACHE_GM_BUF_NUM);
-
-        // int64_t s2ProcessSize = info.actualSingleProcessSInnerSize;
-        // int64_t s2Pair = CeilDiv(s2ProcessSize, 2L * constInfo.sparseBlockSize);
-        // int64_t s2Mid = CeilDiv(s2Pair, 2L) * 2 * constInfo.sparseBlockSize;
-        // if (s2Mid > s2ProcessSize) {
-        //     s2Mid = s2ProcessSize;
-        // }
-        // if (unlikely(s2ValidSizeFirstPart < s2Mid)) {
-        //     int64_t s2StartCeilAlign = CeilAlign(s2ValidSizeFirstPart, 8);
-        //     int64_t s2MidFloorAlign = s2Mid / 8 * 8;
-        //     // 场景一 s2Mid > s2ValidSizeFirstPart + oneBlk
-        //     // 可以推导出s2StartCeilAlign < s2Mid   第一阶段取到s2StartCeilAlign
-        //     // s2StartCeilAlign <= s2MidFloorAlign 第二阶段取到s2MidFloorAlign
-        //     // 场景二 s2Mid <= s2ValidSizeFirstPart + oneBlk
-        //     // 可以推导出 s2StartCeilAlign >= s2Mid 第一阶段取到mid
-        //     // s2StartCeilAlign > s2MidFloorAlign 第二阶段取到s2StartCeilAlign
-        //     SetInfInBlk(mmResUb, dealRowCount, columnCount, s2ValidSizeFirstPart,
-        //                 s2StartCeilAlign >= s2Mid ? s2Mid : s2StartCeilAlign);
-        //     SetMidInf(mmResUb, dealRowCount, columnCount, s2StartCeilAlign, s2MidFloorAlign);
-        //     SetInfInBlk(mmResUb, dealRowCount, columnCount,
-        //                 s2StartCeilAlign <= s2MidFloorAlign ? s2MidFloorAlign : s2StartCeilAlign, s2Mid);
-        // }
-        // if (unlikely(s2ValidSizeSecondPart < s2ProcessSize - s2Mid)) {
-        //     // 场景一 s2Mid + s2ValidSizeSecondPart > s2ProcessSize + oneBlk
-        //     // 可以推导出 s2StartCeilAlign < s2ProcessSize 第一阶段取到s2StartCeilAlign
-        //     // s2StartCeilAlign <= s2EndFloorAlign 第二阶段取到s2EndFloorAlign
-        //     // 场景二 s2Mid + s2ValidSizeSecondPart <= s2ProcessSize + oneBlk
-        //     // 可以推导出 s2StartCeilAlign >= s2ProcessSize 第一阶段取到s2ProcessSize
-        //     // s2StartCeilAlign > s2EndFloorAlign 第二阶段取到s2StartCeilAlign
-        //     int64_t s2StartCeilAlign = CeilAlign(s2Mid + s2ValidSizeSecondPart, 8);
-        //     int64_t s2EndFloorAlign = s2ProcessSize / 8 * 8;
-        //     SetInfInBlk(mmResUb, dealRowCount, columnCount, s2Mid + s2ValidSizeSecondPart,
-        //                 s2StartCeilAlign >= s2ProcessSize ? s2ProcessSize : s2StartCeilAlign);
-        //     SetMidInf(mmResUb, dealRowCount, columnCount, s2StartCeilAlign, s2EndFloorAlign);
-        //     SetInfInBlk(mmResUb, dealRowCount, columnCount,
-        //                 s2StartCeilAlign <= s2EndFloorAlign ? s2EndFloorAlign : s2StartCeilAlign, s2ProcessSize);
-        // }
-    }
-
 }
 
 
@@ -688,23 +637,6 @@ __aicore__ inline void SWAVectorBlock<SAST>::ProcessVec1SingleBuf(const RunInfo 
 
     SliceAndContactSinksValue((mSplitInfo.nBufferStartM + mSplitInfo.vecStartM) % constInfo.qHeadNum, mSplitInfo.vecDealM);
 
-    // if (!info.isOri) {
-    //     DataCopyExtParams dataCopyParams;
-    //     dataCopyParams.blockCount = 1;
-    //     dataCopyParams.blockLen = 256 * sizeof(int32_t);
-    //     dataCopyParams.srcStride = 0;
-    //     dataCopyParams.dstStride = 0;
-    //     DataCopyPadExtParams<int32_t> padParams;
-    //     // 额外偏移128个元素，避免不同loop下v0和v1互相影响
-    //     DataCopyPad(v0ValidSizeUb_[128], kvValidSizeGm_[info.cmpLoop % MERGE_CACHE_GM_BUF_NUM * (128 * 2)],
-    //                 dataCopyParams, padParams);
-    //     SetFlag<HardEvent::MTE2_S>(0);
-    //     if (unlikely(loopCount == 0)) {
-    //         // scalar同步影响较大，挪到循环内部进行
-    //         WaitFlag<HardEvent::MTE2_S>(0);
-    //     }
-    // }
-
     for (uint32_t i = 0, dealSize = mSplitSize; i < loopCount; i++) {
         if (i == (loopCount - 1)) {
             dealSize = tailSplitSize;
@@ -750,11 +682,6 @@ __aicore__ inline void SWAVectorBlock<SAST>::ProcessVec1L(const RunInfo &info)
             uint32_t outIdx = info.loop % (constInfo.preLoadNum);
             auto sumTensor = softmaxSumUb[outIdx * SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T)];
             auto maxTensor = softmaxMaxUb[outIdx * SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T)];
-            // if (info.tndIsS2SplitCore) {
-            //     if constexpr (FLASH_DECODE) {
-            //         ComputeLogSumExpAndCopyToGm(info, mSplitInfo, sumTensor, maxTensor);
-            //     }
-            // }
         }
     }
 }
@@ -823,27 +750,6 @@ __aicore__ inline void SWAVectorBlock<SAST>::ProcessVec2Inner(const RunInfo &inf
                              constInfo.headDim, constInfo.headDim);
         pingpongFlag ^= 1; // pingpong 0 1切换
     }
-}
-
-template <typename SAST>
-__aicore__ inline void SWAVectorBlock<SAST>::GetConfusionTransposeTiling(
-    int64_t numR, int64_t numC, const uint32_t stackBufferSize, const uint32_t typeSize,
-    ConfusionTransposeTiling &tiling)
-{
-    (void)stackBufferSize;
-    uint32_t blockSize = ONE_BLK_SIZE / typeSize;
-    uint32_t height = numC;
-    uint32_t width = numR;
-    uint32_t highBlock = height / BLOCK_CUBE;
-    uint32_t stride = height * blockSize * typeSize / ONE_BLK_SIZE;
-    uint32_t repeat = width / blockSize;
-
-    tiling.param0 = blockSize;
-    tiling.param1 = height;
-    tiling.param2 = width;
-    tiling.param3 = highBlock;
-    tiling.param4 = stride;
-    tiling.param5 = repeat;
 }
 
 template <typename SAST>
