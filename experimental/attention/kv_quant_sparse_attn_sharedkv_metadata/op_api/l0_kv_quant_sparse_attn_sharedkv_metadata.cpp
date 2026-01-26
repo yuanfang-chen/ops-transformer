@@ -72,7 +72,7 @@ const aclTensor* KVQuantSparseAttnSharedkvMetadata(
   auto ret = ADD_TO_LAUNCHER_LIST_AICPU(
       KVQuantSparseAttnSharedkvMetadata,
       OP_ATTR_NAMES({"num_heads_q", "num_heads_kv", "head_dim", "batch_size", "max_seqlen_q", "max_seqlen_kv", 
-                     "ori_topk", "cmp_topk", "kvQuantMode", "tileSizeOptional", "ropeHeadDimOptional", "cmp_ratio", "ori_mask_mode", "cmp_mask_mode",
+                     "ori_topk", "cmp_topk", "kv_quant_mode", "tile_size", "rope_head_dim", "cmp_ratio", "ori_mask_mode", "cmp_mask_mode",
                      "ori_win_left", "ori_win_right", "layout_q", "layout_kv",
                      "has_ori_kv", "has_cmp_kv", "soc_version", "aic_core_num",
                      "aiv_core_num"}),
