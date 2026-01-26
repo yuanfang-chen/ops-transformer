@@ -115,7 +115,7 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     const char* groupTpCombineV2Temp = groupTp;
     if (is910B) {
         groupTpCombineV2Temp = "";
-    } else {
+    } else if (is950) {
         performanceInfoOptionalCombineV2Temp = nullptr;
     }
     aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV2GetWorkspaceSize(
