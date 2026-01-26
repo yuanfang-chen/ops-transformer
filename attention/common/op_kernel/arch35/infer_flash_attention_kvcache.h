@@ -138,9 +138,15 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr<isInfer>& runParam,
                                     runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch :
                                     runParam.actualS1Size;
     } else {
-        runParam.actualS1Size = (runParam.actualS1Size > runParam.actualS2Size + runParam.preTokensPerBatch) ?
-                                    runParam.actualS2Size + runParam.preTokensPerBatch :
-                                    runParam.actualS1Size;
+        if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+            runParam.actualS1Size = (runParam.actualS1Size > runParam.actualS2Size * constInfo.gSize + runParam.preTokensPerBatch) ?
+                                        runParam.actualS2Size * constInfo.gSize + runParam.preTokensPerBatch :
+                                        runParam.actualS1Size;
+        } else {
+            runParam.actualS1Size = (runParam.actualS1Size > runParam.actualS2Size + runParam.preTokensPerBatch) ?
+                                        runParam.actualS2Size + runParam.preTokensPerBatch :
+                                        runParam.actualS1Size;
+        }
     }
 
     // 计算S1的尾块大小，非对齐
@@ -524,8 +530,14 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
         return false;
     }
 
-    int64_t sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
-        0, runParam.actualS2Size);
+    int64_t sInnerFirstToken = 0;
+    if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+        sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>((runParam.cubeSOuterOffset - runParam.preTokensPerBatch) / constInfo.gSize,
+            0, runParam.actualS2Size);
+    } else {
+        sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
+            0, runParam.actualS2Size);
+    }
     runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
         runParam.s1RealSize, 0, runParam.actualS2Size);
     runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - sInnerFirstToken / s2BaseSize;
@@ -718,6 +730,7 @@ __aicore__ inline void InitTaskParamByRun(const RunParamStr<isInfer>& runParam, 
     runInfo.kvLeftPaddingSize = runParam.kvLeftPaddingSize;
     if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
         runInfo.nextTokensOfMlaPerBatch = runParam.nextTokensOfMlaPerBatch;
+        runInfo.preTokensOfMlaPerBatch = runParam.preTokensOfMlaPerBatch;
     }
 }
 
