@@ -1709,10 +1709,10 @@ bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contex
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
             "in range of [1, %u] when enable ifa mla", queryShapeInfo.s, maxQuerySeqLenInIfaMla),
         return false);
-    static const std::set<uint32_t> supportNumHeadInIfaMla = {32U, 64U, 128U}; // ifa mla场景qN支持范围
+    static const std::set<uint32_t> supportNumHeadInIfaMla = {1U, 2U, 4U, 8U, 16U, 32U, 64U, 128U}; // ifa mla场景qN支持范围
     OP_CHECK_IF((supportNumHeadInIfaMla.find(queryShapeInfo.n) == supportNumHeadInIfaMla.end()),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
-            "{32, 64, 128} when enable ifa mla", queryShapeInfo.n),
+            "{1, 2, 4, 8, 16, 32, 64, 128} when enable ifa mla", queryShapeInfo.n),
         return false);
     const int32_t nKV = *contextKeyParams.numKeyValueHeads; // ifa mla场景不支持g = 1, 因此在nKV用默认值0, nQ替代也属于异常场景
     OP_CHECK_IF((nKV != 1U),
@@ -2477,21 +2477,13 @@ bool PromptFlashAttentionTilingV2::CheckMaskCrossIFAMLA(ContextParamsForPFATilin
     if (sparseMode == nullptr) {
         return true;
     }
-    if (queryS == 1U) {
-        OP_CHECK_IF(!((*sparseMode == SPARSE_MODE_NO_MASK) && (!enableMask)),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "Only support sparse 0 without mask when ifa mla and query's sequence length is 1, "
-                "input sparse mode is %d and there has%smask",
-                *sparseMode, enableMask ? " " : " no "),
-            return false);
-    } else {
-        OP_CHECK_IF(!(((*sparseMode == SPARSE_MODE_RIGHT_DOWN) && (enableMask)) || ((*sparseMode == SPARSE_MODE_NO_MASK) && (!enableMask))),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "Only support sparse 3 with mask, or sparse 0 without mask when ifa mla and query's sequence length is > 1, "
-                "input sparse mode is %d and there has%smask",
-                *sparseMode, enableMask ? " " : " no "),
-            return false);
-    }
+    OP_CHECK_IF(!(((*sparseMode == SPARSE_MODE_RIGHT_DOWN) && (enableMask)) || (*sparseMode == SPARSE_MODE_NO_MASK) || ((*sparseMode == SPARSE_MODE_BAND) && (enableMask))),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Only support sparse 3 with mask, sparse 4 with mask, or sparse 0 when ifa mla, "
+            "input sparse mode is %d and there has%smask",
+            *sparseMode, enableMask ? " " : " no "),
+        return false);
+    
     return true;
 }
 
