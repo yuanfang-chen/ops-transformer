@@ -15,8 +15,7 @@
 
 #ifndef MATMUL_KERNEL_KERNEL_QGMM_PERTILE_H
 #define MATMUL_KERNEL_KERNEL_QGMM_PERTILE_H
-#include "kernel_operator.h"
-#include "kernel_operator_intf.h"
+#include "kernel_basic_intf.h"
 #include "../utils/common_utils.h"
 #include "../utils/fill_utils.h"
 #include "../utils/grouped_matmul_constant.h"
@@ -25,14 +24,14 @@
 #include "../utils/coord_utils.h"
 #include "../utils/tensor_utils.h"
 
-namespace Act {
+namespace Cgmct {
 namespace Gemm {
 namespace Kernel {
 #define QGMM_PERTILE_KERNEL_CLASS_TEM_PARAMS                                                                           \
     template <class ProblemShape, class BlockMmad, class BlockEpilogue, class BlockScheduler>
 #define QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler
 
-using namespace Act::Gemm::GroupedMatmul;
+using namespace Cgmct::Gemm::GroupedMatmul;
 
 namespace {
 constexpr uint64_t IDX_A_OFFSET = 0UL;
@@ -359,6 +358,6 @@ QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGrou
 
 } // namespace Kernel
 } // namespace Gemm
-} // namespace Act
+} // namespace Cgmct
 
 #endif
