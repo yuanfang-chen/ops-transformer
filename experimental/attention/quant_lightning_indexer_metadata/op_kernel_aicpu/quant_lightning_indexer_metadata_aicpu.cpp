@@ -22,6 +22,7 @@ QuantLightningIndexerMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
 
 bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
   // input
+  query_ = ctx.Input(static_cast<uint32_t>(ParamId::query));
   actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
   actSeqLenKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenKV));
   // output
@@ -49,7 +50,6 @@ bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
   GetAttrValueOpt(ctx, "layout_key", layoutKV_);
   GetAttrValueOpt(ctx, "sparse_count", sparseCount_);
   GetAttrValueOpt(ctx, "sparse_mode", sparseMode_);
-  GetAttrValueOpt(ctx, "is_fd", supportFd_);
   GetAttrValueOpt(ctx, "pre_tokens", preToken_);
   GetAttrValueOpt(ctx, "next_tokens", nextToken_);
   GetAttrValueOpt(ctx, "cmp_ratio", cmpRatio_);
