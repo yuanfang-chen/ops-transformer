@@ -330,6 +330,13 @@ std::string GetPfaDataTypeStr(ge::DataType type) {
 }
 } // namespace v2
 
+namespace arch38 {
+std::string GetPfaDataTypeStr(ge::DataType type) {
+    ge::DataType findDype = (g_strDataTypePfa.find(type) == g_strDataTypePfa.end()) ? ge::DT_UNDEFINED : type;
+    return g_strDataTypePfa.at(findDype);
+}
+} // namespace arch38
+
 ge::graphStatus PromptFlashAttentionTiling::ConvertContextToPFAParams(gert::TilingContext* context, ContextParamsForPFATiling& contextKeyParams) const
 {
     contextKeyParams.opName = context->GetNodeName();
@@ -6521,5 +6528,5 @@ PFA_EXTERN_C ge::graphStatus PromptFlashAttentionTiling::DoOpTiling() {
         PromptFlashAttentionSetTilingData(context_, tilingData);
         return ret;
 }
-REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTiling, std::vector<int32_t>({static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND310P), static_cast<int32_t>(platform_ascendc::SocVersion::KIRINX90)}), 91);
+REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTiling, std::vector<int32_t>({static_cast<int32_t>(NpuArch::DAV_2201), static_cast<int32_t>(NpuArch::DAV_2002), static_cast<int32_t>(NpuArch::DAV_3003)}), 91);
 }

@@ -66,7 +66,7 @@ ${op_name}                              # 替换为实际算子名的小写下�
 └── CMakeLists.txt                      # 算子cmakelist入口
 ```
 
-若`${op_class}`为全新算子分类需额外在`cmake/custom_build.cmake`中添加`add_subdirectory(${op_class})`，否则无法正常编译。
+若```${op_class}```为全新算子分类需额外在`cmake/custom_build.cmake`中添加```add_subdirectory(${op_class})```，否则无法正常编译。
 
 ```
 if(ENABLE_EXPERIMENTAL)
@@ -81,7 +81,7 @@ endif()
 ```
 
 ## 算子定义
-算子定义需要完成两个交付件：`README.md` `${op_name}_def.cpp`
+算子定义需要完成两个交付件：`README.md` ```${op_name}_def.cpp```
 
 **交付件1：README.md**
 
@@ -104,7 +104,7 @@ endif()
 
 ### 代码实现
 
-Tiling一共需要三个交付件：`${op_name}_tiling.cpp` `${op_name}_tiling_key.h` `${op_name}_tiling_data.h`
+Tiling一共需要三个交付件：```${op_name}_tiling.cpp``` ```${op_name}_tiling_key.h``` ```${op_name}_tiling_data.h```
 
 **交付件1：${op_name}_tiling.cpp**
 
@@ -229,7 +229,7 @@ graph LR
 
 ### 代码实现
 
-Kernel一共需要两个交付件：`${op_name}.cpp` `${op_name}.h`
+Kernel一共需要两个交付件：```${op_name}.cpp``` ```${op_name}.h```
 
 **交付件1：${op_name}.cpp**
 
@@ -323,7 +323,7 @@ __aicore__ inline void AddExample<T>::Init(GM_ADDR x, GM_ADDR y, GM_ADDR z, cons
     inputGMX.SetGlobalBuffer((__gm__ T*)x + blockLength_ * AscendC::GetBlockIdx(), blockLength_);
     ...
     // 3.3 初始化队列长度
-    pipe.InitBuffer(inputQueueX, BUFFER_NUM, tileLength_ * sizeof(T));
+    pipe.InitBuffer(inputQueueX_, BUFFER_NUM, tileLength_ * sizeof(T));
     ...
 }
 
@@ -382,7 +382,7 @@ __aicore__ inline void AddExample<T>::Process()
     # 安装run包
     ./build_out/cann-ops-transformer-${vendor_name}_linux-${arch}.run
     ```
-    自定义算子包安装在`${ASCEND_HOME_PATH}/opp/vendors`路径中，`${ASCEND_HOME_PATH}`表示CANN软件安装目录，可提前在环境变量中配置。
+    自定义算子包安装在```${ASCEND_HOME_PATH}/opp/vendors```路径中，```${ASCEND_HOME_PATH}```表示CANN软件安装目录，可提前在环境变量中配置。
     
 4. **（可选）删除自定义算子包。**
 

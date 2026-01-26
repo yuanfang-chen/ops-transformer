@@ -15,6 +15,7 @@
 #include "opdev/op_errno.h"
 #include "opdev/op_executor.h"
 #include "aclnn/aclnn_base.h"
+#include "aclnn_kernels/cast.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/pad.h"
 #include "aclnn_kernels/reshape.h"
@@ -393,7 +394,7 @@ static aclnnStatus AnalysisInputShapeInfo(const aclTensor *query, const aclTenso
               shapeInfo.basicBlock = PAD_BASIC_BLOCK;
     }
 
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         shapeInfo.needPad = false;
     } else if (shapeInfo.inputLayout != InputLayout::TND && (shapeInfo.axes.d % shapeInfo.basicBlock != 0 || shapeInfo.axes.d > shapeInfo.axes.dV)) {
             shapeInfo.needPad = true;
@@ -450,6 +451,11 @@ static aclnnStatus ContiguousInput(const aclTensor *&query, const aclTensor *&ke
     if (attenMask) {
         attenMask = l0op::Contiguous(attenMask, executor);
         CHECK_RET(attenMask != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        // Ascend910_95兼容mask输入float16类型，转换成uint8类型复用VF
+        DataType attenMaskDataType = attenMask->GetDataType();
+        if (attenMaskDataType == DataType::DT_FLOAT16) {
+            attenMask = l0op::Cast(attenMask, DataType::DT_UINT8, executor);
+        }
     }
     return ACLNN_SUCCESS;
 }

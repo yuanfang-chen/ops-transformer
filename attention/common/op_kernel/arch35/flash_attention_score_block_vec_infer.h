@@ -139,7 +139,8 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedParams(
 {
     auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
     sharedParams.bSize = inputParamsRegbase.bSize;
-    sharedParams.tSize = inputParamsRegbase.tSize;
+    sharedParams.t1Size = inputParamsRegbase.t1Size;
+    sharedParams.t2Size = inputParamsRegbase.t2Size;
     sharedParams.n2Size = inputParamsRegbase.n2Size;
     sharedParams.gSize = inputParamsRegbase.gSize;
     sharedParams.s1Size = inputParamsRegbase.s1Size;
@@ -171,6 +172,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitCubeVecSharedParams(
         sharedParams.isPostQuantBF16 = inputParamsRegbase.isPostQuantBF16;
     }
     sharedParams.isBSNDOut = inputParamsRegbase.isBSNDOut;
+    sharedParams.isTNDOut = inputParamsRegbase.isTNDOut;
     sharedParams.fromFused = inputParamsRegbase.fromFused;
     sharedParams.isRowInvalid = inputParamsRegbase.isRowInvalid;
     sharedParams.headNumRatio = inputParamsRegbase.headNumRatio;
@@ -461,7 +463,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
     intriParams1.blockLen = sizeof(float);
     intriParams1.blockCount = runInfo.halfS1RealSize;
     intriParams1.srcStride = 0;
-    if (layout == LayOutTypeEnum::LAYOUT_TND) {
+    if (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
         if (constInfo.isGqa) {
             intriParams1.dstStride = 0;
         } else {

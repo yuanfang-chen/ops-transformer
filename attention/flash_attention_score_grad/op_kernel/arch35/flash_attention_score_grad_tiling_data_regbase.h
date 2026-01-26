@@ -218,13 +218,13 @@
      void set_bandIdx(int64_t val) { bandIdx = val; }
      void set_deterMaxRound(int64_t value) { deterMaxRound = value; }
      void set_dqIsNeedDeter(const uint64_t* val) { 
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              dqIsNeedDeter[i] = val[i];
          }
      }
      void set_dqIsNeedDeter(int index, uint64_t val) { dqIsNeedDeter[index] = val; }
      void set_dkDvIsNeedDeter(const uint64_t* val) { 
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              dkDvIsNeedDeter[i] = val[i];
          }
      }
@@ -241,13 +241,13 @@
      const int64_t* get_blockEnds() const { return blockEnds; }
      int64_t get_blockEnds(int index) const { return blockEnds[index]; }
      void set_blockStarts(const int64_t* val) {
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              blockStarts[i] = val[i];
          }
      }
      void set_blockStarts(int index, int64_t val) { blockStarts[index] = val; }
      void set_blockEnds(const int64_t* val) {
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              blockEnds[i] = val[i];
          }
      }
@@ -401,6 +401,10 @@
      constexpr static int64_t DETER_PREFIX_NUM = 132;
 
      bool coreDivide;
+     uint8_t reserved1; // tilingData需要8字节对齐
+     uint8_t reserved2; // tilingData需要8字节对齐
+     uint8_t reserved3; // tilingData需要8字节对齐
+     uint32_t reserved4; // tilingData需要8字节对齐
      int64_t deterPrefixStep;
      int64_t deterPrefix[DETER_PREFIX_NUM];
      int64_t deterPrefixAlign[DETER_PREFIX_NUM];
@@ -462,25 +466,25 @@
     uint64_t tndPrefixSum[MAX_CORE_NUM];
     void set_tndStartBIdx(const uint64_t *val)
      {
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              tndStartBIdx[i] = val[i];
          }
      }
      void set_tndS1S2PrefixSum(const uint64_t *val)
      {
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              tndS1S2PrefixSum[i] = val[i];
          }
      }
      void set_tndS1S2AlignPrefixSum(const uint64_t *val)
      {
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              tndS1S2AlignPrefixSum[i] = val[i];
          }
      }
      void set_tndPrefixSum(const uint64_t *val)
      {
-         for (int i = 0; i < MAX_CORE_NUM; ++i) {
+         for (uint i = 0; i < MAX_CORE_NUM; ++i) {
              tndPrefixSum[i] = val[i];
          }
      }
