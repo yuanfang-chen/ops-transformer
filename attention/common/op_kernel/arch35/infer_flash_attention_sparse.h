@@ -48,13 +48,26 @@ __aicore__ inline void GetSparseParam(const ConstInfo<isInfer, hasRope> &constIn
             }
         }
         if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
-            runParam.preTokensPerBatch = attenMaskInfo.preTokens - runParam.actualS2Size +
-                runParam.actualS1Size;
-            runParam.nextTokensPerBatch = attenMaskInfo.nextTokens + runParam.actualS2Size -
-                runParam.actualS1Size;
-            if constexpr (enableKVPrefix) {
-                runParam.preTokensPerBatch -= constInfo.actualKVPrefixSize;
-                runParam.nextTokensPerBatch += constInfo.actualKVPrefixSize;
+            if constexpr (hasRope && dTemplateType == DTemplateType::Aligned576) {
+                runParam.preTokensOfMlaPerBatch = attenMaskInfo.preTokens - runParam.actualS2Size + runParam.actualSeqLengthOfMlaPerBatch;
+                runParam.nextTokensOfMlaPerBatch = attenMaskInfo.nextTokens + runParam.actualS2Size - runParam.actualSeqLengthOfMlaPerBatch;
+                if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
+                    runParam.preTokensPerBatch = SPARSE_MODE_INT_DEFAULT;
+                    runParam.nextTokensPerBatch = SPARSE_MODE_INT_DEFAULT;
+                } else {
+                    runParam.preTokensPerBatch = runParam.preTokensOfMlaPerBatch * constInfo.gSize;
+                    runParam.nextTokensPerBatch = runParam.nextTokensOfMlaPerBatch * constInfo.gSize;
+                }
+
+            } else {
+                runParam.preTokensPerBatch = attenMaskInfo.preTokens - runParam.actualS2Size +
+                    runParam.actualS1Size;
+                runParam.nextTokensPerBatch = attenMaskInfo.nextTokens + runParam.actualS2Size -
+                    runParam.actualS1Size;
+                if constexpr (enableKVPrefix) {
+                    runParam.preTokensPerBatch -= constInfo.actualKVPrefixSize;
+                    runParam.nextTokensPerBatch += constInfo.actualKVPrefixSize;
+                }
             }
         }
     }

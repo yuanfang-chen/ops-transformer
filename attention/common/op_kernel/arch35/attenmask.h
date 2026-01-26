@@ -160,7 +160,7 @@ __aicore__ inline void GetAttenMaskComputeMode(int64_t deltaCausalOrNext, int64_
     }
 }
 
-template <bool hasAtten, bool enableKVPrefix, bool isInfer = false, bool hasRope = false>
+template <bool hasAtten, bool enableKVPrefix, DTemplateType dTemplateType = DTemplateType::Aligned128, bool isInfer = false, bool hasRope = false>
 __aicore__ inline int64_t ComputeOffsetForNoCompress(const RunInfo<isInfer> &runInfo, 
     ConstInfo<isInfer, hasRope> &constInfo, AttenMaskInfo &attenMaskInfo)
 {
@@ -177,6 +177,13 @@ __aicore__ inline int64_t ComputeOffsetForNoCompress(const RunInfo<isInfer> &run
             bOffset = runInfo.b1SSAttenMaskOffset;
         }
         int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize + runInfo.vecCoreOffset;
+        if (hasRope && (dTemplateType == DTemplateType::Aligned576) && isInfer) {
+            if (constInfo.layoutType == (uint32_t)LayOutTypeEnum::LAYOUT_BNSD) {
+                s1Offset = s1Offset % constInfo.s1Size;
+            } else {
+                s1Offset = (s1Offset + constInfo.gSize - 1) / constInfo.gSize;
+            }
+        }
         int64_t s2Offset = 0;
         if constexpr (enableKVPrefix) {
             if ((runInfo.s2LoopCount + runInfo.s2StartIdx / constInfo.s2BaseSize) < constInfo.prefixLoopCount) {
@@ -324,7 +331,7 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
 {
     if constexpr (hasAtten == true) {
         if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
-            return ComputeOffsetForNoCompress<hasAtten, enableKVPrefix>(runInfo, constInfo, attenMaskInfo);
+            return ComputeOffsetForNoCompress<hasAtten, enableKVPrefix, dTemplateType>(runInfo, constInfo, attenMaskInfo);
         }
         if (constInfo.layoutType == (uint32_t)LayOutTypeEnum::LAYOUT_TND && !isInfer) {
             // compress mode
@@ -403,6 +410,16 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
             deltaN -= constInfo.actualKVPrefixSize;
         }
         int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize;
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) && isInfer) {
+            if (constInfo.layoutType == (uint32_t)LayOutTypeEnum::LAYOUT_BNSD) {
+                s1Offset = 0;
+            } else {
+                if (runInfo.nextTokensPerBatch < 0) {
+                    s1Offset -= runInfo.nextTokensPerBatch;
+                }
+                s1Offset = (s1Offset + runInfo.vecCoreOffset) / constInfo.gSize;
+            }
+        }
         int64_t s2Offset = 0;
         if constexpr (enableKVPrefix) {
             if ((runInfo.s2LoopCount + runInfo.s2StartIdx / constInfo.s2BaseSize) < constInfo.prefixLoopCount) {
@@ -418,31 +435,29 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
         } else if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::RIGHT_DOWN_CAUSAL_MODE)) {
             deltaCausalOrNext = s1Offset - s2Offset - deltaN;
             if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) && isInfer) {
-                if (constInfo.layoutType == (uint32_t)LayOutTypeEnum::LAYOUT_BNSD) {
-                    deltaCausalOrNext = runInfo.nextTokensOfMlaPerBatch - s2Offset;
-                } else {
+                deltaCausalOrNext = runInfo.nextTokensOfMlaPerBatch + s1Offset - s2Offset;
+            }
+        } else if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
+            if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) && isInfer) {
+                deltaPre = -runInfo.preTokensOfMlaPerBatch + s1Offset - s2Offset - 1;
+                deltaCausalOrNext = runInfo.nextTokensOfMlaPerBatch + s1Offset - s2Offset;
+                attenMaskInfo.attenMaskOffsetPre = ComputeOffsetForCausal(deltaPre, constInfo.s1BaseSize,
+                    constInfo.s2BaseSize, attenMaskInfo.attenMaskS2Size, 0);
+            } else {
+                if constexpr (isInfer) {
+                    /* 推理的S1循环会跳过无效行，训练的不会；原因是推理在最开始存在无效行场景下会对
+                    整个输出进行初始化为0，所以可以跳过无效行，训练由于还需要对max、sum赋值成特殊值，没有跳过无效行，
+                    直接计算。RIGHT_DOWN_CAUSAL_MODE中不需要做这个转换时因为推理的runInfo.actualS1Size已经减掉了无效
+                    的行。*/
                     if (runInfo.nextTokensPerBatch < 0) {
                         s1Offset -= runInfo.nextTokensPerBatch;
                     }
-                    deltaCausalOrNext = (s1Offset + runInfo.vecCoreOffset) / constInfo.gSize - s2Offset + 
-                        runInfo.nextTokensOfMlaPerBatch;
                 }
+                deltaPre = s1Offset - s2Offset - runInfo.preTokensPerBatch - 1;
+                deltaCausalOrNext = s1Offset - s2Offset + runInfo.nextTokensPerBatch;
+                attenMaskInfo.attenMaskOffsetPre = ComputeOffsetForCausal(deltaPre, constInfo.s1BaseSize,
+                    constInfo.s2BaseSize, attenMaskInfo.attenMaskS2Size, runInfo.vecCoreOffset, useDn);
             }
-        } else if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
-            if constexpr (isInfer) {
-                /* 推理的S1循环会跳过无效行，训练的不会；原因是推理在最开始存在无效行场景下会对
-                   整个输出进行初始化为0，所以可以跳过无效行，训练由于还需要对max、sum赋值成特殊值，没有跳过无效行，
-                   直接计算。RIGHT_DOWN_CAUSAL_MODE中不需要做这个转换时因为推理的runInfo.actualS1Size已经减掉了无效
-                   的行。*/
-                if (runInfo.nextTokensPerBatch < 0) {
-                    s1Offset -= runInfo.nextTokensPerBatch;
-                }
-            }
-            deltaPre = s1Offset - s2Offset - runInfo.preTokensPerBatch - 1;
-            deltaCausalOrNext = s1Offset - s2Offset + runInfo.nextTokensPerBatch;
-            attenMaskInfo.attenMaskOffsetPre = ComputeOffsetForCausal(deltaPre, constInfo.s1BaseSize,
-                constInfo.s2BaseSize, attenMaskInfo.attenMaskS2Size, runInfo.vecCoreOffset, useDn);
-            
         } else if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::PREFIX_MODE)) {
             deltaCausalOrNext = s1Offset - s2Offset - deltaN;
             if ((constInfo.s1Size + ((__gm__ int64_t *)attenMaskInfo.prefixNAddr)[runInfo.boIdx]) >
