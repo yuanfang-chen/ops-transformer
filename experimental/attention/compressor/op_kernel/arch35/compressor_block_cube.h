@@ -358,7 +358,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         }
         uint64_t tmpSeqId = bSeqUsed- copySeqCnt;
         uint32_t rOffset = (bStartPos + bSeqUsed - copySeqCnt) % constInfo_.cmpRatio * (32 / sizeof(X_T));
-        uint64_t sIdx = GetTIdxByBatch(constInfo_.batchSize - 1) + tmpSeqId;
+        uint64_t sIdx = GetTIdxByBatch(lastBIdx) + tmpSeqId;
         uint64_t gmOffset = sIdx * constInfo_.hSize + hIdx;
         uint32_t nValue = copySeqCnt;
         uint32_t dValue = kBase;
