@@ -18,40 +18,40 @@
 - **接口功能**：aclnnMoeTokenPermuteWithRoutingMap的反向传播。
 - **计算公式**：
 
-$$
-permuteTokenId， outIndex= sortedIndices.sort(dim=-1)
-$$
+    $$
+    permuteTokenId， outIndex= sortedIndices.sort(dim=-1)
+    $$
 
-$$
-capacity = permutedTokenOutputGrad.size(0) / numExperts
-$$
+    $$
+    capacity = permutedTokenOutputGrad.size(0) / numExperts
+    $$
 
-- probs不为None：
-  
-  $$
-  probsGradOutOptional = zeros(tokens_num， numExperts)
-  $$
-  
-  - paddedMode为true时
-  
-  $$
-  probsGradOutOptional [sortedIndices[i]， i/capacity] = permutedProbsOutputGradOptional[i]
-  $$
-  
-  - paddedMode为false时
-  
-  $$
-  probsGradOutOptional = maskedscatter(probsGradOutOptional，routingMap，permutedProbsOutputGradOptional)
-  $$
-- probs为None：
-  
-  $$
-  tokensGradout= zeros(restoreShapeOptional， dtype=permutedTokens.dtype， device=permutedTokens.device)
-  $$
-  
-  $$
-  tokensGradout[permuteTokenId[i]] += permutedTokens[outIndex[i]]
-  $$
+    - probs不为None：
+    
+    $$
+    probsGradOutOptional = zeros(tokens_num， numExperts)
+    $$
+    
+    - paddedMode为true时
+    
+    $$
+    probsGradOutOptional [sortedIndices[i]， i/capacity] = permutedProbsOutputGradOptional[i]
+    $$
+    
+    - paddedMode为false时
+    
+    $$
+    probsGradOutOptional = maskedscatter(probsGradOutOptional，routingMap，permutedProbsOutputGradOptional)
+    $$
+    - probs为None：
+    
+    $$
+    tokensGradout= zeros(restoreShapeOptional， dtype=permutedTokens.dtype， device=permutedTokens.device)
+    $$
+    
+    $$
+    tokensGradout[permuteTokenId[i]] += permutedTokens[outIndex[i]]
+    $$
 
 ## 函数原型
 

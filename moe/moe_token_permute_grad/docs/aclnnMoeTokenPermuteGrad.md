@@ -56,7 +56,7 @@ aclnnStatus aclnnMoeTokenPermuteGrad(
 
 ## aclnnMoeTokenPermuteGradGetWorkspaceSize
 
-- **参数说明：**：
+- **参数说明：**
 
   <table style="undefined;table-layout: fixed; width: 1550px"><colgroup>
   <col style="width: 187px">
