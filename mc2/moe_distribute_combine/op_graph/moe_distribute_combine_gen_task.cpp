@@ -26,6 +26,7 @@
 #include "ops_error.h"
 #include "mc2_gen_task_moe.h"
 #include "mc2_gen_task_utils.h"
+#include "mc2_a5_gen_task_utils.h"
 #include "register/op_ct_impl_registry.h"
 #include "register/op_ext_gentask_registry.h"
 #endif
@@ -84,6 +85,7 @@ ge::Status MoeDistributeCombineGenTaskFunc(const gert::ExeResGenerationContext *
         OPS_LOG_D(context->GetNodeName(), "Do A5 ccu gen task");
         return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2A5GenTaskUtils::Mc2GenTaskCallBack910A5);
     }
+    OPS_LOG_D(context->GetNodeName(), "Do MTE gen task.");
     return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2GenTaskMoe::Mc2MoeGenTaskCallbackV2);
 }
 
