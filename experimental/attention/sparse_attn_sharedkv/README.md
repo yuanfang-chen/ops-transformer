@@ -7,16 +7,15 @@
 |<term>Atlas A3 推理系列产品</term>   | √  |
 
 ## 功能说明
-- API功能：sparse_attn_sharedkv 是针对大序列长度推理场景的高效注意力计算模块，该模块包含slide_window_attention、compress_flash_attention和sparse_compress_flash_attention，同时兼顾局部和全局注意力。
+- API功能：`SparseAttentionSharedKV`算子旨在完成以下形式的 Attention 计算，支持 Sliding Window Attention、Compressed Attention及两者混合。
 
 - 计算公式：
 
     $$
-    \text{softmax}(\frac{Q@\tilde{K}^T}{\sqrt{d_k}})@\tilde{V}
+    O = \text{softmax}(Q@\tilde{K}^T \cdot \text{softmax\_scale})@\tilde{V}
     $$
 
-    其中$\tilde{K},\tilde{V}$为基于ori_kv、cmp_kv以及cmp_kv入参控制的实际参与计算Key和Value，$d_k$为$Q,\tilde{K}$每一个头的维度。
-    本次公布的`sparse_attn_sharedkv`是面向Sparse Attention的全新算子，针对离散访存进行了指令缩减及搬运聚合的细致优化。
+    其中$\tilde{K}=\tilde{V}$为基于ori_kv、cmp_kv以及cmp_kv等入参控制的实际参与计算的 $KV$。
 
 ## 函数原型
 
@@ -33,9 +32,9 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
 
 - <strong>*</strong>：必选参数，代表其之前的变量是位置相关的，必须按照顺序输入；之后的变量是可选参数，位置无关，需要使用键值对赋值，不赋值会使用默认值。
 
--   **ori_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}$和$\tilde{V}$的一部分，为原始不经压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`和`float16`，`layout_kv`时shape为[block\_num1, block\_size1, KV\_N, D]，其中block\_num1为PageAttention时block总数，block\_size1为一个block的token数，block\_size1取值为16的倍数，最大支持1024。`layout_kv`为BSND时shape为[B, S2, KV\_N, D]，`layout_kv`为TND时shape为[T2, KV\_N, D]，其中KV\_N只支持1。
+-   **ori_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}和\tilde{V}$的一部分，为原始不经压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`和`float16`，`layout_kv`时shape为[block\_num1, block\_size1, KV\_N, D]，其中block\_num1为PageAttention时block总数，block\_size1为一个block的token数，block\_size1取值为16的倍数，最大支持1024。`layout_kv`为BSND时shape为[B, S2, KV\_N, D]，`layout_kv`为TND时shape为[T2, KV\_N, D]，其中KV\_N只支持1。
 
--   **cmp_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}$和$\tilde{V}$的一部分，为经过压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`和`float16`，`layout_kv`时shape为[block\_num, block\_size, KV\_N, D]，其中block\_num2为PageAttention时block总数，block\_size2为一个block的token数，block\_size2取值为16的倍数，最大支持1024。`layout_kv`为BSND时shape为[B, S3, KV\_N, D]，`layout_kv`为TND时shape为[T3, KV\_N, D]，其中KV\_N只支持1。
+-   **cmp_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}和\tilde{V}$的一部分，为经过压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`和`float16`，`layout_kv`时shape为[block\_num, block\_size, KV\_N, D]，其中block\_num2为PageAttention时block总数，block\_size2为一个block的token数，block\_size2取值为16的倍数，最大支持1024。`layout_kv`为BSND时shape为[B, S3, KV\_N, D]，`layout_kv`为TND时shape为[T3, KV\_N, D]，其中KV\_N只支持1。
 
 -   **ori_sparse_indices**（`Tensor`）：可选参数，代表离散取oriKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, K1]，当`layout_query`为TND时，shape需要传入[Q\_T, KV\_N, K1]，其中K1为对`ori_kv`一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，且需要满足K1大于0。
 
