@@ -60,120 +60,120 @@ aclnnStatus aclnnMoeInitRouting(
 
 - **参数说明：**
 
-  <table style="undefined;table-layout: fixed; width: 1543px"><colgroup>
-    <col style="width: 200px">
-    <col style="width: 120px">
-    <col style="width: 300px">
-    <col style="width: 232px">
-    <col style="width: 219px">
-    <col style="width: 121px">
-    <col style="width: 200px">
-    <col style="width: 151px">
-    </colgroup>
-    <thead>
-    <tr>
-        <th>参数名</th>
-        <th>输入/输出</th>
-        <th>描述</th>
-        <th>使用说明</th>
-        <th>数据类型</th>
-        <th>数据格式</th>
-        <th>维度(shape)</th>
-        <th>非连续Tensor</th>
-    </tr></thead>
-    <tbody>
-    <tr>
-        <td>x</td>
-        <td>输入</td>
-        <td>MOE的输入即token特征输入。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
-        <td>ND</td>
-        <td>shape为(NUM_ROWS, H)</td>
-        <td>√</td>
-    </tr>
-    <tr>
-        <td>rowIdx</td>
-        <td>输入</td>
-        <td>指示每个位置对应的原始行位置。</td>
-        <td>rowIdx的数值从0开始，沿着1维递增。</td>
-        <td>INT32</td>
-        <td>ND</td>
-        <td>shape要求与expertIdx 一致</td>
-        <td>√</td>
-    </tr>
-    <tr>
-        <td>expertIdx</td>
-        <td>输入</td>
-        <td>每一行特征对应的K个处理专家。</td>
-        <td>-</td>
-        <td>INT32</td>
-        <td>ND</td>
-        <td>shape为(NUM_ROWS, K)</td>
-        <td>√</td>
-    </tr>
-    <tr>
-        <td>activeNum</td>
-        <td>输入</td>
-        <td>表示expandedXOut的有效行数。</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>expandedXOut</td>
-        <td>输出</td>
-        <td>根据expertIdx进行扩展过的特征。</td>
-        <td>-</td>
-        <td>与x一致</td>
-        <td>ND</td>
-        <td>shape为(min(NUM_ROWS, activeNum) * k, H)</td>
-        <td>x</td>
-    </tr>
-    <tr>
-        <td>expandedRowIdxOut</td>
-        <td>输出</td>
-        <td>expandedX和x的映射关系。</td>
-        <td>-</td>
-        <td>INT32</td>
-        <td>ND</td>
-        <td>shape为(NUM_ROWS*K, )</td>
-        <td>x</td>
-    </tr>
-    <tr>
-        <td>expandedExpertIdxOut</td>
-        <td>输出</td>
-        <td>输出expertIdx排序后的结果。</td>
-        <td>-</td>
-        <td>INT32</td>
-        <td>ND</td>
-        <td>shape为(NUM_ROWS*K, )</td>
-        <td>x</td>
-    </tr>
-    <tr>
-        <td>workspaceSize</td>
-        <td>输出</td>
-        <td>返回需要在Device侧申请的workspace大小。</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>executor</td>
-        <td>输出</td>
-        <td>返回op执行器，包含了算子计算流程。</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-    </tr>
-    </tbody>
-  </table>
+    <table style="undefined;table-layout: fixed; width: 1543px"><colgroup>
+        <col style="width: 200px">
+        <col style="width: 120px">
+        <col style="width: 300px">
+        <col style="width: 232px">
+        <col style="width: 219px">
+        <col style="width: 121px">
+        <col style="width: 200px">
+        <col style="width: 151px">
+        </colgroup>
+        <thead>
+        <tr>
+            <th>参数名</th>
+            <th>输入/输出</th>
+            <th>描述</th>
+            <th>使用说明</th>
+            <th>数据类型</th>
+            <th>数据格式</th>
+            <th>维度(shape)</th>
+            <th>非连续Tensor</th>
+        </tr></thead>
+        <tbody>
+        <tr>
+            <td>x</td>
+            <td>输入</td>
+            <td>MOE的输入即token特征输入。</td>
+            <td>-</td>
+            <td>FLOAT16、BFLOAT16、FLOAT32</td>
+            <td>ND</td>
+            <td>shape为(NUM_ROWS, H)</td>
+            <td>√</td>
+        </tr>
+        <tr>
+            <td>rowIdx</td>
+            <td>输入</td>
+            <td>指示每个位置对应的原始行位置。</td>
+            <td>rowIdx的数值从0开始，沿着1维递增。</td>
+            <td>INT32</td>
+            <td>ND</td>
+            <td>shape要求与expertIdx 一致</td>
+            <td>√</td>
+        </tr>
+        <tr>
+            <td>expertIdx</td>
+            <td>输入</td>
+            <td>每一行特征对应的K个处理专家。</td>
+            <td>-</td>
+            <td>INT32</td>
+            <td>ND</td>
+            <td>shape为(NUM_ROWS, K)</td>
+            <td>√</td>
+        </tr>
+        <tr>
+            <td>activeNum</td>
+            <td>输入</td>
+            <td>表示expandedXOut的有效行数。</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+        </tr>
+        <tr>
+            <td>expandedXOut</td>
+            <td>输出</td>
+            <td>根据expertIdx进行扩展过的特征。</td>
+            <td>-</td>
+            <td>与x一致</td>
+            <td>ND</td>
+            <td>shape为(min(NUM_ROWS, activeNum) * k, H)</td>
+            <td>x</td>
+        </tr>
+        <tr>
+            <td>expandedRowIdxOut</td>
+            <td>输出</td>
+            <td>expandedX和x的映射关系。</td>
+            <td>-</td>
+            <td>INT32</td>
+            <td>ND</td>
+            <td>shape为(NUM_ROWS*K, )</td>
+            <td>x</td>
+        </tr>
+        <tr>
+            <td>expandedExpertIdxOut</td>
+            <td>输出</td>
+            <td>输出expertIdx排序后的结果。</td>
+            <td>-</td>
+            <td>INT32</td>
+            <td>ND</td>
+            <td>shape为(NUM_ROWS*K, )</td>
+            <td>x</td>
+        </tr>
+        <tr>
+            <td>workspaceSize</td>
+            <td>输出</td>
+            <td>返回需要在Device侧申请的workspace大小。</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+        </tr>
+        <tr>
+            <td>executor</td>
+            <td>输出</td>
+            <td>返回op执行器，包含了算子计算流程。</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+        </tr>
+        </tbody>
+        </table>
 
 - **返回值**
 
@@ -274,6 +274,7 @@ aclnnStatus aclnnMoeInitRouting(
 
 - 确定性计算：
   - aclnnMoeInitRouting默认确定性实现。
+
 
 ## 调用示例
 
