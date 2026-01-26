@@ -658,9 +658,6 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
     uint32_t cmpLoop = 0;
     uint32_t gS1LoopEnd = 0;
     bool globalLoopStart = true;
-    if ASCEND_IS_AIC {
-        CrossCoreSetFlag<ConstInfo::SAS_SYNC_MODE2, PIPE_FIX>(constInfo.syncC2V1);
-    }
     // 适配左闭右开
     if (constInfo.bN2Start == constInfo.bN2End) {
         if (constInfo.gS1Start != constInfo.gS1End || constInfo.s2Start != constInfo.s2End) {
@@ -731,9 +728,6 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
             constInfo.s2Start = 0;
         }
         constInfo.gS1Start = 0;
-    }
-    if ASCEND_IS_AIV {
-        CrossCoreWaitFlag(constInfo.syncC2V1);
     }
 }
 
