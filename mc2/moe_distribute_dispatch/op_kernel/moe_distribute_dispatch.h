@@ -44,10 +44,7 @@ constexpr uint64_t WIN_STATE_OFFSET = 512 * 1024;
 constexpr uint64_t STATE_WIN_OFFSET = 900 * 1024;
 constexpr uint32_t TP_STATE_SIZE = 100 * 1024;
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 68ece47d (dispatch和combine同步至开源仓)
 #define TemplateMC2TypeClass \
     typename XType, \
     typename ExpandXOutType, \

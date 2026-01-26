@@ -35,7 +35,11 @@ struct MoeDistributeDispatchV2Info {
     bool isTokenMask;                    // input active mask 1dims or not
     bool isExpertMask;                   // input active mask 2dims or not
     bool hasElasticInfo;                 // has elasticinfo or not
+    bool isPerformance;                  // whether performance or not
     bool isQuant;                        // whether quant or not
+    bool reserved0;
+    bool reserved1;
+    bool reserved2;
     uint64_t totalUbSize;                // epWorldSize
     uint64_t totalWinSizeEp;
     uint64_t totalWinSizeTp;
