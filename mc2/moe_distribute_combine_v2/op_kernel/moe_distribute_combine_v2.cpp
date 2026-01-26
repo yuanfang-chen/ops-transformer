@@ -41,14 +41,14 @@ __aicore__ inline void ExecMoeDistributeCombineV2(GM_ADDR expandX, GM_ADDR exper
                                                 GM_ADDR tpSendCount, GM_ADDR scales, GM_ADDR xActiveMask, 
                                                 GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX, 
                                                 GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2,
-                                                GM_ADDR constExpertV, GM_ADDR XOut, GM_ADDR workspaceGM,
-                                                GM_ADDR tilingGM, TPipe *pipePtr)
+                                                GM_ADDR constExpertV, GM_ADDR performanceInfo, GM_ADDR XOut, 
+                                                GM_ADDR workspaceGM, GM_ADDR tilingGM, TPipe *pipePtr)
 {
     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
     MoeDistributeCombineV2<TemplateMC2TypeFunc> op;
     op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, 
             scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, 
-            constExpertAlpha2, constExpertV, XOut, workspaceGM, pipePtr, &tilingData);
+            constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, pipePtr, &tilingData);
     op.Process();
 }
 }
@@ -120,7 +120,7 @@ __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR ex
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
         ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, HasTp, QuantMode == TILINGKEY_INT8_QUANT>(
         expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, 
-        elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, tilingGM, &pipe);
+        elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, tilingGM, &pipe);
     }
 #endif
 }
