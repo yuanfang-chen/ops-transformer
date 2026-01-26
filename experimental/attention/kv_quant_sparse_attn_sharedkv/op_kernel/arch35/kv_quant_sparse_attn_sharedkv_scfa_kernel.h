@@ -132,7 +132,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     sharedParams.coreNum = metadataLocal->usedCoreNum;
 
     this->pipe = tPipe;
-    vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx);
+    vecBlock.InitVecBlock(tPipe, this->tilingData, this->sharedParams, this->aicIdx, constInfo.subBlockIdx, cuSeqlensQ, sequsedKv);
     if ASCEND_IS_AIV {
         constInfo.bSize = this->sharedParams.bSize;
         constInfo.gSize = this->sharedParams.gSize;
@@ -186,8 +186,7 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     }
 
     uint64_t singleCoreOffset = 0;
-    vecBlock.InitGlobalBuffer(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable,
-        cuSeqlensQ, sequsedQ, sequsedKv, sinks);
+    vecBlock.InitGlobalBuffer(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, sinks);
     cubeBlock.InitCubeInput(cuSeqlensQ, constInfo);
 }
 
@@ -304,17 +303,10 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType>::Process()
 {
     // SyncAll Cube和Vector都需要调用
-    // if (this->sharedParams.needInit) {
-    //     SyncAll<false>();
-    // }
-    ProcessMainLoop();
-    if constexpr (isFd) {
-        if ASCEND_IS_AIV {
-            // SyncAll();
-            // this->vecBlock.InitFDBuffers(this->constInfo);
-            // this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
-        }
+    if (this->sharedParams.needInit) {
+        SyncAll<false>();
     }
+    ProcessMainLoop();
 }
 
 template <typename CubeBlockType, typename VecBlockType>
