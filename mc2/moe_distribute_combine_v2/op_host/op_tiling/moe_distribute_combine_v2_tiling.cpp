@@ -1303,7 +1303,7 @@ static ge::graphStatus MoeDistributeCombineA2CheckAttrAndSetTiling(const gert::T
         maxEpWorldSizeA2 = MAX_EP_WORLD_SIZE_A2_LAYERED;
     }
     OP_TILING_CHECK(epWorldSizePtr == nullptr || *epWorldSizePtr <= 0 || *epWorldSizePtr > maxEpWorldSizeA2 ||
-        *epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0,
+        ((*epWorldSizePtr > RANK_NUM_PER_NODE_A2) && (*epWorldSizePtr % RANK_NUM_PER_NODE_A2 != 0)),
         OP_LOGE(K_INNER_DEBUG, "epWorldSize is invalid."), return GRAPH_FAILED);
     OP_TILING_CHECK(epRankIdPtr == nullptr || *epRankIdPtr < 0 || *epRankIdPtr >= *epWorldSizePtr,
         OP_LOGE(K_INNER_DEBUG, "epRankId is invalid."), return GRAPH_FAILED);
@@ -1572,6 +1572,12 @@ static ge::graphStatus MoeDistributeCombineCheckCommAlg(const gert::TilingContex
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(K_INNER_DEBUG, "attrs is null."), return ge::GRAPH_FAILED);
     auto commAlg = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMM_ALG_INDEX));
+    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    if ((epWorldSizePtr != nullptr) && (*epWorldSizePtr <= RANK_NUM_PER_NODE_A2)) {
+        isLayered = false;
+        OP_LOGD(K_INNER_DEBUG, "epWorldSize <= 8, use default fullmesh algorithm.");
+        return ge::GRAPH_SUCCESS;
+    }
     if (commAlg == nullptr || strlen(commAlg) == 0 || strcmp(commAlg, "0") == 0) {
         OP_LOGW(K_INNER_DEBUG, "Attr commAlg is invalid, please configure fullmesh or hierarchy.");
 
@@ -1618,6 +1624,14 @@ static uint64_t MoeDistributeCombineA2CalcTilingKey(const bool isLayered, const 
     return tilingKey;
 }
 
+static std::string MoeDistributeCombineA2GetAlgConfig(int32_t epWorldSize, bool isLayered)
+{
+    if (epWorldSize <= RANK_NUM_PER_NODE_A2) {
+        return "BatchWrite=level0:fullmesh";
+    }
+    return isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
+}
+
 static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext* context)
 {
     const char *nodeName = context->GetNodeName();
@@ -1649,7 +1663,8 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
     context->SetBlockDim(blockDim);
-    context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+    uint32_t aicpuBlockDim = info.epWorldSize > RANK_NUM_PER_NODE_A2 ? mc2tiling::AICPU_BLOCK_DIM_A2 : 1;
+    context->SetAicpuBlockDim(aicpuBlockDim);
 
     uint64_t tilingKey = MoeDistributeCombineA2CalcTilingKey(isLayered, commQuantMode);
     context->SetTilingKey(tilingKey);
@@ -1663,7 +1678,8 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     // 3. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-    std::string algConfig = isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
+    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    std::string algConfig = MoeDistributeCombineA2GetAlgConfig(*epWorldSizePtr, isLayered);
     uint32_t opType = 18; // DispatchCombine
 
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
