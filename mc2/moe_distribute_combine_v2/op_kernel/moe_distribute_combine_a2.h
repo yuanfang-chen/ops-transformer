@@ -288,9 +288,9 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::Init(GM_AD
     if (unlikely(needPerformanceInfo_)) {
         performanceInfoSize_ = worldSize_;
         performanceInfoI32GMTensor_.SetGlobalBuffer((__gm__ int32_t *)performanceInfo);
-        tpipe_->InitBuffer(performanceInfoBuf_, performanceInfoSize_ * sizeof(int64_t));
+        tpipe_->InitBuffer(performanceInfoBuf_, RoundUp(performanceInfoSize_, B64_PER_BLOCK) * sizeof(int64_t));
         performanceInfoI32Tensor_ = performanceInfoBuf_.Get<int32_t>();
-        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoSize_ * sizeof(int64_t) / sizeof(int32_t));
+        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, RoundUp(performanceInfoSize_, B64_PER_BLOCK) * sizeof(int64_t) / sizeof(int32_t));
     }
     SplitCoreCal();
 }
@@ -396,6 +396,7 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::SingleServ
         localOutWindow_.SetGlobalBuffer((__gm__ ExpandXType *)(windowOutGM_ + dstRankId * rankSizeOnWin_));
 
         uint32_t rankTokenNum = GetRankTokenNumAndDataCopy2WindowOut(sendCountInfo, localOutWindow_, dstRankId);
+        SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 
         GlobalTensor<ExpandXType> dstGlobal;
         dstGlobal.SetGlobalBuffer((__gm__ ExpandXType *)(hccl_.GetWindowsInAddr(dstRankId) +
@@ -488,6 +489,9 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::AlltoAllDi
     if (isSingleServer_) {
         SingleServerDispatch(sendCountLocal);
         SyncAll<true>();
+        if (coreIdx_ == 0) {
+            bufferIdGlobal_(0) = bufferId_ ^ 1;
+        }
     } else {
         ConstructBatchWriteInfo(sendCountLocal);
         SyncAll<true>();
@@ -653,7 +657,8 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::CopyPerfor
 {
     if (unlikely(needPerformanceInfo_)) {
         AscendC::SetAtomicAdd<int32_t>();
-        AscendC::DataCopy(performanceInfoI32GMTensor_, performanceInfoI32Tensor_, performanceInfoSize_ * sizeof(int64_t) / sizeof(int32_t));
+        AscendC::DataCopyPad(performanceInfoI32GMTensor_, performanceInfoI32Tensor_,
+            {1, static_cast<uint32_t>(performanceInfoSize_ * sizeof(int64_t)), 0, 0, 0});
         AscendC::SetAtomicNone();
     }
 }

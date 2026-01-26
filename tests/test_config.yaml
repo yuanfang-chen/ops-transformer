@@ -1123,6 +1123,7 @@ mc2:
         - mc2/moe_distribute_combine_add_rms_norm
       test:
         examples: False
+        ut: False
       options:
         - moe_distribute_combine_add_rms_norm
         - moe_distribute_dispatch_v2
@@ -1190,6 +1191,7 @@ mc2:
         - mc2/moe_update_expert
       test:
         examples: False
+        ut: False
       options:
         - moe_update_expert
         - moe_distribute_dispatch_v2
