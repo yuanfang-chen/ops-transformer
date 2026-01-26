@@ -25,8 +25,7 @@ DEVICE_ID = 0
 torch_npu.npu.set_device(int(DEVICE_ID))
 torch.npu.config.allow_internal_format = True
 
-dump_path=None
-# dump_path='/home/c00580445/scripts/tmp'
+print_flag = False
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
@@ -366,39 +365,26 @@ def cpu_compressor(
     for i in range(wkv.shape[1] // 128):
         leftH = i * 128
         rightH = (i + 1) * 128
-        # if dump_path:
-            # print(f"====================mmad{i} kv")
-            # tmp_mmad_kv = np.array(np.matmul(x[:, leftH:rightH], wkv[:, leftH:rightH].T, dtype=matmul_dtype))
-            # tmp_mmad_kv.tofile(f'{dump_path}/new_kv_state_{i}.bin')
-            # for j in range(tmp_mmad_kv.shape[1] // 128):
-            #     print(tmp_mmad_kv[:, j*128:(j+1)*128])
-            # print(tmp_mmad_kv)
-            # print(f"====================mmad{i} score")
-            # tmp_mamd_score = np.array(np.matmul(x[:, leftH:rightH], wgate[:, leftH:rightH].T, dtype=matmul_dtype))
-            # tmp_mamd_score.tofile(f'{dump_path}/new_score_state_{i}.bin')
-            # for j in range(tmp_mamd_score.shape[1] // 128):
-            #     print(tmp_mamd_score[:, j*128:(j+1)*128])
-            # print(tmp_mamd_score)
+        if print_flag:
+            print(f"====================mmad{i} kv")
+            tmp_mmad_kv = np.array(np.matmul(x[:, leftH:rightH], wkv[:, leftH:rightH].T, dtype=matmul_dtype))
+            for j in range(tmp_mmad_kv.shape[1] // 128):
+                print(tmp_mmad_kv[:, j*128:(j+1)*128])
+            print(tmp_mmad_kv)
+            print(f"====================mmad{i} score")
+            tmp_mamd_score = np.array(np.matmul(x[:, leftH:rightH], wgate[:, leftH:rightH].T, dtype=matmul_dtype))
+            for j in range(tmp_mamd_score.shape[1] // 128):
+                print(tmp_mamd_score[:, j*128:(j+1)*128])
+            print(tmp_mamd_score)
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
-    if dump_path:
-        np.array(x).tofile(f'{dump_path}/x.bin')
-        # print(x)
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
-    if dump_path:
-        # np.array(wkv).tofile(f'{dump_path}/wkv.bin')
-        # print(wkv)
-        # np.array(wgate).tofile(f'{dump_path}/wgate.bin')
-        # print(wgate)
+    if print_flag:
         print(f"====================new_kv_state: {new_kv_state.shape}")
-        np.array(new_kv_state).tofile(f'{dump_path}/new_kv_state.bin')
         for k in range(new_kv_state.reshape(x.shape[0], -1).shape[1] // 128):
             print(list(new_kv_state[:, k*128:(k+1)*128]))
-        # print(new_kv_state.tolist())
         print(f"====================new_score_state: {new_score_state.shape}")
-        np.array(new_score_state).tofile(f'{dump_path}/new_score_state.bin')
         for k in range(new_score_state.reshape(x.shape[0], -1).shape[1] // 128):
             print(list(new_score_state[:, k*128:(k+1)*128]))
-        # print(new_score_state.tolist())
 
     B = len(start_pos)
     head_dim = wkv.shape[0] // coff
@@ -416,6 +402,7 @@ def cpu_compressor(
         cmp_kv = np.zeros(shape=(B, (S + cmp_ratio - 1) // cmp_ratio, head_dim), dtype=matmul_dtype)
     else:
         cmp_kv = np.zeros(shape=(min(x.shape[0], x.shape[0] // cmp_ratio + B), head_dim), dtype=matmul_dtype)
+    cmp_kv_mask = np.zeros_like(cmp_kv, dtype=bool)
     out_cu_seqlen = [0] * (B + 1)
     out_seqused = [0] * B
 
@@ -526,24 +513,29 @@ def cpu_compressor(
                 sc_data = sc_kv_state * sc_score_state
                 # reduce sum
                 sc_cmp_kv = np.sum(sc_data, axis=0, keepdims=True)
-                print(f"=========reduce sum {sc_cmp_kv.shape}")
-                print(list(sc_cmp_kv))
+                if print_flag:
+                    print(f"=========reduce sum {sc_cmp_kv.shape}")
+                    print(list(sc_cmp_kv))
                 # RmsNorm
                 sc_cmp_kv = rms_norm(sc_cmp_kv, norm_weight, norm_eps)
-                print(f"=========RmsNorm {sc_cmp_kv.shape}")
-                print(list(sc_cmp_kv))
+                if print_flag:
+                    print(f"=========RmsNorm {sc_cmp_kv.shape}")
+                    print(list(sc_cmp_kv))
                 # inplace rotary_emb
                 sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[out_sum_sc_cnt, :], rope_cos[out_sum_sc_cnt, :], rotary_mode)
-                print(f"=========rope_cos {rope_cos.shape}")
-                print(list(rope_cos))
-                print(f"=========rope_sin {rope_sin.shape}")
-                print(list(rope_sin))
-                print(f"=========rope {sc_cmp_kv.shape}")
-                print(list(sc_cmp_kv))
+                if print_flag:
+                    print(f"=========rope_cos {rope_cos.shape}")
+                    print(list(rope_cos))
+                    print(f"=========rope_sin {rope_sin.shape}")
+                    print(list(rope_sin))
+                    print(f"=========rope {sc_cmp_kv.shape}")
+                    print(list(sc_cmp_kv))
                 if bs_combine_flag == False:
                     cmp_kv[b_idx, batch_out_sc_id, :] = sc_cmp_kv
+                    cmp_kv_mask[b_idx, batch_out_sc_id, :] = 1
                 else:
                     cmp_kv[out_sum_sc_cnt, :] = sc_cmp_kv
+                    cmp_kv_mask[out_sum_sc_cnt, :] = 1
                 batch_out_sc_id = batch_out_sc_id + 1
                 out_sum_sc_cnt = out_sum_sc_cnt + 1
 
@@ -557,7 +549,7 @@ def cpu_compressor(
     print(f"out_seqused: {out_seqused}")
     print(f"cmp_kv.shape:{cmp_kv.shape}")
     cmp_kv_torch = torch.tensor(cmp_kv).to(x_dtype)
-    return cmp_kv_torch
+    return cmp_kv_torch, cmp_kv_mask
 
 class TestCustomCompressor(TestCase):
     def test_compressor_eager(self):
@@ -567,44 +559,26 @@ class TestCustomCompressor(TestCase):
         ### ======================== set input params start ========================
         date_type = torch.bfloat16
         hidden_size = 4096
-        # head_dim = 512
         rope_head_dim = 64
         norm_eps = 1e-6
-        # coff = 1 # 1:no overlap 2:overlap
-        # cmp_ratio = 128
+        coff = 1 # 1:no overlap 2:overlap
+        cmp_ratio = 128
         rotary_mode = 2
-        update_flag = 1
+        head_dim = 512
+        cu_seqlens = [0, 1]
 
-        # B = 1
+
+        B = 1
         S_max = 16384
         block_size = 128
-        # start_pos = [8191] * B # (B,)
+        start_pos = [8191] * B # (B,)
         seqused = None # (B,), None时cu_seqlens的数据全部参与计算，否则按传参实际值计算
-        # seqused = None
 
         # BS是否合轴
         bs_combine_flag = True
-        
-        #decode2
-        head_dim = 512
-        coff = 1
-        cmp_ratio = 128
-        B = 1
-        start_pos = [8191] * B
-        cu_seqlens = [0, 1]
-
-        #prefill2
-        # head_dim = 128
-        # coff = 1
-        # cmp_ratio = 128
-        # B = 1
-        # start_pos = [0] * B
-        # cu_seqlens = [0, 256]
+        update_flag = 1
 
         if bs_combine_flag:
-            # cu_seqlens = [0, 1] # (B+1,), None时表示非BSh，否则为Th
-            # cu_seqlens = list(range(0, 25, 3)) # (B+1,), None时表示非BSh，否则为Th
-            # cu_seqlens = list(range(0, 9, 1)) # (B+1,), None时表示非BSh，否则为Th
             if seqused is not None:
                 S = max(seqused)
             else:
@@ -647,8 +621,6 @@ class TestCustomCompressor(TestCase):
         shuffled_indices = torch.randperm(block_num)
         index = torch.arange(1, block_num + 1, 1, dtype=torch.int32)
         index = index[shuffled_indices].reshape(B, max_block_num_per_batch)
-        # print(index)
-        # block_table = index
         block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
         for i in range(B):
             cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
@@ -668,8 +640,6 @@ class TestCustomCompressor(TestCase):
             next_end_block_id = (next_end - 1) // block_size
             for j in range(next_start_block_id, next_end_block_id + 1):
                 block_table[i][j] = index[i][j]
-        # print(block_table)
-        # print(f"block_table.shape = {block_table.shape}")
         kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
         score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
 
@@ -690,22 +660,16 @@ class TestCustomCompressor(TestCase):
         norm_weight = torch.tensor(np.random.uniform(-10, 10, (head_dim))).to(date_type)
         rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(date_type)
         rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(date_type)
-        print(f"rope_sin_shape: {rope_sin_shape}")
         ### ======================== gen input data finish =============================
 
         ### ======================== execute cpu start =================================
-        # print("+++++++before cpu+++++++")
-        # print(kv_state[25, 127])
-        # print(score_state[25, 127])
+
         cpu_kv_state = kv_state.clone()
         cpu_score_state = score_state.clone()
-        cpu_out = cpu_compressor(
+        cpu_out, cmp_kv_mask = cpu_compressor(
             x, wkv, wgate, cpu_kv_state, cpu_score_state, ape, norm_weight, rope_sin, rope_cos,
             block_table=block_table, cu_seqlens=cu_seqlens, seqused=seqused, start_pos=start_pos,
             rope_head_dim=rope_head_dim, cmp_ratio=cmp_ratio, coff=coff, norm_eps=norm_eps, rotary_mode=rotary_mode)
-        # print("+++++++after cpu+++++++")
-        # print(cpu_kv_state[25, 127])
-        # print(cpu_score_state[25, 127])
         update_kv = cpu_kv_state != kv_state
         update_score = cpu_score_state != score_state
         # print(f"cpu_out:{cpu_out}")
@@ -729,11 +693,8 @@ class TestCustomCompressor(TestCase):
             seqused = torch.tensor(seqused).to(torch.int32).to("npu:%s" % DEVICE_ID)
         ### ======================== execute npu finish ================================
         # start run custom ops
-        # print("+++++++before npu+++++++")
-        # print(kv_state[25, 127])
-        # print(score_state[25, 127])
         npu_out = (
-            torch.ops.custom.npu_compressor(
+            torch.ops.custom.compressor(
                 x,
                 wkv,
                 wgate,
@@ -755,9 +716,7 @@ class TestCustomCompressor(TestCase):
                 rotary_mode = rotary_mode
             )
         )
-        # print('+++++++++after npu++++++++')
-        # print(kv_state[25, 127])
-        # print(score_state[25, 127])
+
         print(f"x: shape {x.shape}, dtype: {x.dtype}")
         print(f"wkv: shape {wkv.shape}, dtype: {wkv.dtype}")
         print(f"wgate: shape {wgate.shape}, dtype: {wgate.dtype}")
@@ -773,21 +732,15 @@ class TestCustomCompressor(TestCase):
 
         # 结果精度对比
         print("\n==========================================================check result=========================================================")
-        if check_result(cpu_out.to(torch.float32), npu_out.to(torch.float32)) == False:
-            print(f"test_data = {test_data}")
+        check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32))
         print("\n==========================================================check kv state update=========================================================")
-        if check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state[update_kv].to(torch.float32)) == False:
-            print(f"test_data = {test_data}")
+        check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32))
         print("\n==========================================================check score state update=========================================================")
-        if check_result(cpu_score_state[update_score].to(torch.float32), score_state[update_score].to(torch.float32)) == False:
-            print(f"test_data = {test_data}")
+        check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32))
         print("\n==========================================================check kv state origin=========================================================")
-        if check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state[~update_kv].to(torch.float32), 0.0) == False:
-            print(f"test_data = {test_data}")
+        check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), 0.0)
         print("\n==========================================================check score state origin=========================================================")
-        if check_result(cpu_score_state[~update_score].to(torch.float32), score_state[~update_score].to(torch.float32), 0.0) == False:
-            print(f"test_data = {test_data}")
-
+        check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), 0.0)
 
 
 if __name__ == "__main__":

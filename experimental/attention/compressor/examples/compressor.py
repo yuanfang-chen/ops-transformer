@@ -26,8 +26,7 @@ DEVICE_ID = 0
 torch_npu.npu.set_device(int(DEVICE_ID))
 torch.npu.config.allow_internal_format = True
 
-dump_path=None
-# dump_path='/home/c00580445/scripts/tmp'
+print_flag = False
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
@@ -367,39 +366,26 @@ def cpu_compressor(
     for i in range(wkv.shape[1] // 128):
         leftH = i * 128
         rightH = (i + 1) * 128
-        # if dump_path:
-            # print(f"====================mmad{i} kv")
-            # tmp_mmad_kv = np.array(np.matmul(x[:, leftH:rightH], wkv[:, leftH:rightH].T, dtype=matmul_dtype))
-            # tmp_mmad_kv.tofile(f'{dump_path}/new_kv_state_{i}.bin')
-            # for j in range(tmp_mmad_kv.shape[1] // 128):
-            #     print(tmp_mmad_kv[:, j*128:(j+1)*128])
-            # print(tmp_mmad_kv)
-            # print(f"====================mmad{i} score")
-            # tmp_mamd_score = np.array(np.matmul(x[:, leftH:rightH], wgate[:, leftH:rightH].T, dtype=matmul_dtype))
-            # tmp_mamd_score.tofile(f'{dump_path}/new_score_state_{i}.bin')
-            # for j in range(tmp_mamd_score.shape[1] // 128):
-            #     print(tmp_mamd_score[:, j*128:(j+1)*128])
-            # print(tmp_mamd_score)
+        if print_flag:
+            print(f"====================mmad{i} kv")
+            tmp_mmad_kv = np.array(np.matmul(x[:, leftH:rightH], wkv[:, leftH:rightH].T, dtype=matmul_dtype))
+            for j in range(tmp_mmad_kv.shape[1] // 128):
+                print(tmp_mmad_kv[:, j*128:(j+1)*128])
+            print(tmp_mmad_kv)
+            print(f"====================mmad{i} score")
+            tmp_mamd_score = np.array(np.matmul(x[:, leftH:rightH], wgate[:, leftH:rightH].T, dtype=matmul_dtype))
+            for j in range(tmp_mamd_score.shape[1] // 128):
+                print(tmp_mamd_score[:, j*128:(j+1)*128])
+            print(tmp_mamd_score)
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
-    if dump_path:
-        np.array(x).tofile(f'{dump_path}/x.bin')
-        # print(x)
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
-    if dump_path:
-        # np.array(wkv).tofile(f'{dump_path}/wkv.bin')
-        # print(wkv)
-        # np.array(wgate).tofile(f'{dump_path}/wgate.bin')
-        # print(wgate)
+    if print_flag:
         print(f"====================new_kv_state: {new_kv_state.shape}")
-        np.array(new_kv_state).tofile(f'{dump_path}/new_kv_state.bin')
         for k in range(new_kv_state.reshape(x.shape[0], -1).shape[1] // 128):
             print(list(new_kv_state[:, k*128:(k+1)*128]))
-        # print(new_kv_state.tolist())
         print(f"====================new_score_state: {new_score_state.shape}")
-        np.array(new_score_state).tofile(f'{dump_path}/new_score_state.bin')
         for k in range(new_score_state.reshape(x.shape[0], -1).shape[1] // 128):
             print(list(new_score_state[:, k*128:(k+1)*128]))
-        # print(new_score_state.tolist())
 
     B = len(start_pos)
     head_dim = wkv.shape[0] // coff
@@ -528,20 +514,23 @@ def cpu_compressor(
                 sc_data = sc_kv_state * sc_score_state
                 # reduce sum
                 sc_cmp_kv = np.sum(sc_data, axis=0, keepdims=True)
-                # print(f"=========reduce sum {sc_cmp_kv.shape}")
-                # print(list(sc_cmp_kv))
+                if print_flag:
+                    print(f"=========reduce sum {sc_cmp_kv.shape}")
+                    print(list(sc_cmp_kv))
                 # RmsNorm
                 sc_cmp_kv = rms_norm(sc_cmp_kv, norm_weight, norm_eps)
-                # print(f"=========RmsNorm {sc_cmp_kv.shape}")
-                # print(list(sc_cmp_kv))
+                if print_flag:
+                    print(f"=========RmsNorm {sc_cmp_kv.shape}")
+                    print(list(sc_cmp_kv))
                 # inplace rotary_emb
                 sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[out_sum_sc_cnt, :], rope_cos[out_sum_sc_cnt, :], rotary_mode)
-                # print(f"=========rope_cos {rope_cos.shape}")
-                # print(list(rope_cos))
-                # print(f"=========rope_sin {rope_sin.shape}")
-                # print(list(rope_sin))
-                # print(f"=========rope {sc_cmp_kv.shape}")
-                # print(list(sc_cmp_kv))
+                if print_flag:
+                    print(f"=========rope_cos {rope_cos.shape}")
+                    print(list(rope_cos))
+                    print(f"=========rope_sin {rope_sin.shape}")
+                    print(list(rope_sin))
+                    print(f"=========rope {sc_cmp_kv.shape}")
+                    print(list(sc_cmp_kv))
                 if bs_combine_flag == False:
                     cmp_kv[b_idx, batch_out_sc_id, :] = sc_cmp_kv
                     cmp_kv_mask[b_idx, batch_out_sc_id, :] = 1
@@ -707,7 +696,7 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
     ### ======================== execute npu finish ================================
     # start run custom ops
     npu_out = (
-        torch.ops.custom.npu_compressor(
+        torch.ops.custom.compressor(
             x,
             wkv,
             wgate,
@@ -744,20 +733,20 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
 
     # 结果精度对比
     print("\n==========================================================check result=========================================================")
-    if check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32)) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32))
+
     print("\n==========================================================check kv state update=========================================================")
-    if check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32)) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32))
+
     print("\n==========================================================check score state update=========================================================")
-    if check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32)) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32))
+
     print("\n==========================================================check kv state origin=========================================================")
-    if check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), 0.0) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), 0.0)
+
     print("\n==========================================================check score state origin=========================================================")
-    if check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), 0.0) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), 0.0)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
