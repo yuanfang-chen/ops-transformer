@@ -374,7 +374,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::PostTiling()
     context_->SetBlockDim(aicoreParams_.aicNum);
     context_->SetScheduleMode(1);
     OP_CHECK_IF(tilingDataSize % sizeof(uint64_t) != 0,
-                OP_LOGE(context_->GetNodeName(), "Tiling data  size[%zu] is not aligned to 8", tilingDataSize),
+                OP_LOGE(context_->GetNodeName(), "Tiling data size[%zu] is not aligned to 8", tilingDataSize),
                 return ge::GRAPH_FAILED);
     error_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
                            reinterpret_cast<void *>(&tilingData_), tilingDataSize);

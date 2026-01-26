@@ -12,7 +12,6 @@
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
@@ -95,7 +94,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
 
 ## aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize
 
-- **Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品上的参数说明：**
+- **Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品上的参数说明**
   <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
   <col style="width: 170px">
   <col style="width: 120px">
@@ -342,7 +341,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   </table>
 
 
-- **在 Ascend 950PR/Ascend 950DT 上参数说明：**
+- **在 Ascend 950PR/Ascend 950DT 上参数说明**
   <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
   <col style="width: 170px">
   <col style="width: 120px">
@@ -588,7 +587,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
     </tr>
   </tbody>
   </table>
-- **返回值：**
+
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
@@ -629,7 +629,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
 
 ## aclnnGroupedMatmulFinalizeRoutingV3
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 953px"><colgroup>
     <col style="width: 173px">
     <col style="width: 112px">
@@ -665,11 +665,12 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
+
 - 确定性计算：
   - aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 
