@@ -448,7 +448,7 @@ __aicore__ inline void RecordRankCommDuration(AscendC::LocalTensor<int32_t> perf
 }
 
 namespace Mc2Kernel {
-#ifdef __DAV_C310__ // A5 implmentation
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) // A5 implmentation
 using HcclOpParam = HcclCombinOpParam;
 
 __aicore__ inline uint32_t GetRankId(__gm__ HcclOpParam * winContext)

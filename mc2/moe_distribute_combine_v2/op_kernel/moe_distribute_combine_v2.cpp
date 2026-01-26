@@ -20,7 +20,7 @@
 #include "lib/matmul_intf.h"
 #include "moe_distribute_combine_v2_tiling_key.h"
 
-#ifdef __DAV_C310__
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
 #include "arch35/moe_distribute_combine_arch35.h"
 #else
 #include "moe_distribute_combine_a2.h"
@@ -31,7 +31,7 @@
 #include "moe_distribute_combine_v2.h"
 #include "moe_distribute_combine_v2_layered.h"
 
-#ifndef __DAV_C310__
+#if !(defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510))
 using namespace MoeDistributeCombineA2Impl;
 #endif // __DAV_C310__
 
@@ -70,13 +70,13 @@ __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR ex
 
 {
     REGISTER_TILING_DEFAULT(MoeDistributeCombineV2TilingData);
-#ifndef __DAV_C310__
+#if !(defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510))
     REGISTER_TILING_FOR_TILINGKEY("ArchTag == TILINGKEY_TPL_A2", MoeDistributeCombineA2TilingData);
 #endif
     TPipe pipe;
 
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
-#ifdef __DAV_C310__
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
         MoeDistributeCombineA5Impl::MoeDistributeCombineA5<DTYPE_EXPAND_X, int32_t> op;
