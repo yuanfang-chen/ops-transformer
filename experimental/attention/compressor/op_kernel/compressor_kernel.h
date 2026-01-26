@@ -76,6 +76,8 @@ private:
     __aicore__ inline void ComputeMm1(const RunInfo &info);
     __aicore__ inline void ComputeVec1(const RunInfo &info);
     __aicore__ inline void ComputeVec2(const RunInfo &info);
+    __aicore__ inline void AllocEventID();
+    __aicore__ inline void FreeEventID();
     // ==============================TilingData&TPipe==============================
     TPipe* pipe_;
     const optiling::CompressorTilingData* __restrict tilingData_;
@@ -565,8 +567,7 @@ __aicore__ inline void CompressorKernel<COMP>::ComputeVec2(const RunInfo &info) 
 }
 
 template <typename COMP>
-__aicore__ inline void CompressorKernel<COMP>::Process() {
-    // printf("CompressorKernel::Process!!!!!\n");
+__aicore__ inline void CompressorKernel<COMP>::AllocEventID() {
     if ASCEND_IS_AIC {
         blockCube_.AllocEventID(pipe_);
     } else {
@@ -577,6 +578,22 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
         CrossCoreSetFlag<SYNC_MODE2, PIPE_V>(SYNC_V1_C1_FLAG);
 #endif
     }
+}
+
+template <typename COMP>
+__aicore__ inline void CompressorKernel<COMP>::FreeEventID() {
+    if ASCEND_IS_AIC {
+        CrossCoreWaitFlag<SYNC_MODE2, PIPE_FIX>(SYNC_V1_C1_FLAG);
+        blockCube_.FreeEventID(pipe_);
+    } else {
+        blockVec_.FreeEventID();
+    }
+}
+
+template <typename COMP>
+__aicore__ inline void CompressorKernel<COMP>::Process() {
+    // printf("CompressorKernel::Process!!!!!\n");
+    AllocEventID();
 
     RunInfo extraInfo[1];
     GetCurCoreStartIdx();
@@ -622,13 +639,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
             }
         }
     }
-    if ASCEND_IS_AIC {
-        CrossCoreWaitFlag<SYNC_MODE2, PIPE_FIX>(SYNC_V1_C1_FLAG);
-        blockCube_.FreeEventID(pipe_);
-    } else {
-        blockVec_.FreeEventID();
-    }
-
+    FreeEventID();
 }
 
 } // namespace Compressor
