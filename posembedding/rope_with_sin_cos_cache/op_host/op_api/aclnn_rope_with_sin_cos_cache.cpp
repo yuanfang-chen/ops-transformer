@@ -20,6 +20,7 @@
 #include "rsqrt.h"
 #include "aclnn_kernels/cast.h"
 #include "aclnn_rope_with_sin_cos_cache.h"
+#include "aclnn_rope_with_sin_cos_cache_v2.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "external/aclnn_kernels/aclnn_platform.h"
 #include "aclnn/aclnn_base.h"
@@ -56,6 +57,8 @@ static const std::initializer_list<op::DataType> positions_dtype_list = {op::Dat
 static const std::initializer_list<op::DataType> emptyDtypes = {};
 
 static const std::initializer_list<std::vector<int64_t>> mrope_support_list = {{16, 24, 24}, {8, 12, 12}, {24, 20, 20}}; // 支持的mrope输入
+
+static const std::initializer_list<int64_t> cache_mode_support_list = {0, 1};
 
 static const std::initializer_list<DataType>& GetSupportDtypeList()
 {
@@ -162,6 +165,15 @@ static bool CheckMropeSection(const std::vector<int64_t> &target, const std::vec
     return false;
 }
 
+static bool checkCacheMode(const int64_t target, const std::initializer_list<int64_t> support)
+{
+    for (const auto &item : support) {
+        if (item == target)
+            return true;
+    }
+    return false;
+}
+
 static aclnnStatus CheckParams(const aclTensor *positions, const aclTensor *queryIn, const aclTensor *keyIn,
                                const aclTensor *cosSinCache, const aclIntArray *mropeSection, aclTensor *queryOut,
                                aclTensor *keyOut)
@@ -192,15 +204,13 @@ static aclnnStatus CheckParams(const aclTensor *positions, const aclTensor *quer
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSize(
+// 在这里新增一个common
+aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSizeCommon(
     const aclTensor* positions, const aclTensor* queryIn, const aclTensor* keyIn, const aclTensor* cosSinCache,
-    const aclIntArray* mropeSection, int64_t headSize, bool isNeoxStyle, aclTensor* queryOut, aclTensor* keyOut,
+    const aclIntArray* mropeSection, int64_t headSize, bool isNeoxStyle, bool cacheMode, aclTensor* queryOut, aclTensor* keyOut,
     uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    L2_DFX_PHASE_1(
-        aclnnRopeWithSinCosCache, DFX_IN(positions, queryIn, keyIn, cosSinCache, mropeSection, headSize, isNeoxStyle),
-        DFX_OUT(queryOut, keyOut));
-    // 固定写法，创建OpExecutor
+   // 固定写法，创建OpExecutor
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
@@ -224,7 +234,7 @@ aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSize(
 
     std::tuple<aclTensor*, aclTensor*> result = l0op::RopeWithSinCosCache(
         positionsContiguous, queryIn, keyIn, cosSinCacheContiguous, mropeSection, headSize, isNeoxStyle, queryStride, keyStride,
-        numQheads, numKheads, uniqueExecutor.get());
+        numQheads, numKheads, cacheMode,uniqueExecutor.get());
     auto query = std::get<0>(result);
     CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto key = std::get<1>(result);
@@ -242,11 +252,92 @@ aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSize(
     return ACLNN_SUCCESS;
 }
 
+aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSize(
+    const aclTensor* positions, const aclTensor* queryIn, const aclTensor* keyIn, const aclTensor* cosSinCache,
+    const aclIntArray* mropeSection, int64_t headSize, bool isNeoxStyle, aclTensor* queryOut, aclTensor* keyOut,
+    uint64_t* workspaceSize, aclOpExecutor** executor)
+{
+    // V1版本只支持cacheMode为0
+    int64_t cacheMode = 0;
+    L2_DFX_PHASE_1(
+        aclnnRopeWithSinCosCache, DFX_IN(positions, queryIn, keyIn, cosSinCache, mropeSection, headSize, isNeoxStyle, cacheMode),
+        DFX_OUT(queryOut, keyOut));
+    // // 固定写法，创建OpExecutor
+    // auto uniqueExecutor = CREATE_EXECUTOR();
+    // CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
+
+    // // 固定写法，将输入positions转换成连续的tensor
+    // auto positionsContiguous = l0op::Contiguous(positions, uniqueExecutor.get());
+    // CHECK_RET(positionsContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    
+    // // 固定写法，将输入cosSinCosCache转换成连续的tensor
+    // auto cosSinCacheContiguous = l0op::Contiguous(cosSinCache, uniqueExecutor.get());
+    // CHECK_RET(cosSinCacheContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    // // 固定写法，参数检查
+    // auto ret = CheckParams(positions, queryIn, keyIn, cosSinCache, mropeSection, queryOut, keyOut);
+    // CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    // CHECK_RET(headSize != 0, ACLNN_ERR_PARAM_INVALID);
+    // int64_t numQheads = queryIn->GetViewShape()[1] / headSize;
+    // int64_t numKheads = keyIn->GetViewShape()[1] / headSize;
+
+    // int64_t queryStride = queryIn->GetViewStrides()[0];
+    // int64_t keyStride = keyIn->GetViewStrides()[0];
+
+    // std::tuple<aclTensor*, aclTensor*> result = l0op::RopeWithSinCosCache(
+    //     positionsContiguous, queryIn, keyIn, cosSinCacheContiguous, mropeSection, headSize, isNeoxStyle, queryStride, keyStride,
+    //     numQheads, numKheads, cacheMode,uniqueExecutor.get());
+    // auto query = std::get<0>(result);
+    // CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    // auto key = std::get<1>(result);
+    // CHECK_RET(key != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    // // 固定写法，将计算结果拷贝到输出out上，out可能是非连续的tensor
+    // auto queryViewCopyResult = l0op::ViewCopy(query, queryOut, uniqueExecutor.get());
+    // CHECK_RET(queryViewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    // auto keyViewCopyResult = l0op::ViewCopy(key, keyOut, uniqueExecutor.get());
+    // CHECK_RET(keyViewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    // // 固定写法，获取计算过程中需要使用的workspace大小--ok
+    // *workspaceSize = uniqueExecutor->GetWorkspaceSize();
+    // uniqueExecutor.ReleaseTo(executor);
+    // return ACLNN_SUCCESS;
+    return aclnnRopeWithSinCosCacheGetWorkspaceSizeCommon(positions, queryIn, keyIn, cosSinCache, mropeSection,
+                                                          headSize, isNeoxStyle, cacheMode, queryOut, keyOut,
+                                                          workspaceSize, executor);
+}
+
 // 固定写法，获取计算过程中需要使用的workspace大小--ok
 aclnnStatus aclnnRopeWithSinCosCache(
     void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnRopeWithSinCosCache);
+    return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
+}
+
+aclnnStatus aclnnRopeWithSinCosCacheV2GetWorkspaceSize(
+    const aclTensor* positions, const aclTensor* queryIn, const aclTensor* keyIn, const aclTensor* cosSinCache,
+    const aclIntArray* mropeSection, int64_t headSize, bool isNeoxStyle, int64_t cacheMode, aclTensor* queryOut, aclTensor* keyOut,
+    uint64_t* workspaceSize, aclOpExecutor** executor)
+{
+    L2_DFX_PHASE_1(
+        aclnnRopeWithSinCosCacheV2, DFX_IN(positions, queryIn, keyIn, cosSinCache, mropeSection, headSize, isNeoxStyle, cacheMode),
+        DFX_OUT(queryOut, keyOut));
+
+    OP_CHECK(checkCacheMode(cacheMode, cache_mode_support_list),
+             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "cacheMode only support 0 or 1, but got %ld", cacheMode),
+             return ACLNN_ERR_PARAM_INVALID);
+
+    return aclnnRopeWithSinCosCacheGetWorkspaceSizeCommon(positions, queryIn, keyIn, cosSinCache, mropeSection,
+                                                          headSize, isNeoxStyle, cacheMode, queryOut, keyOut,
+                                                          workspaceSize, executor);
+}
+
+// 固定写法，获取计算过程中需要使用的workspace大小--ok
+aclnnStatus aclnnRopeWithSinCosCacheV2(
+    void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)
+{
+    L2_DFX_PHASE_2(aclnnRopeWithSinCosCacheV2);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
