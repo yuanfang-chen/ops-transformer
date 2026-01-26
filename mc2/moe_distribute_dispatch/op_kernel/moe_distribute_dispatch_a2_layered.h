@@ -380,7 +380,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     magicVal_ = tempLocal(0);
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopy(magicGt, tempLocal, UB_32B_ALIGN / sizeof(uint64_t));
-    SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
+    PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateMC2TypeA2layeredClass>
@@ -463,7 +463,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     HeadGlobalTensor.SetGlobalBuffer((__gm__ uint32_t*)curHardwareHead);
     AscendC::DataCopyExtParams copyParamsHead{1, 1 * sizeof(uint32_t), 0, 0, 0};
     AscendC::DataCopyPad(HeadGlobalTensor, ubLocalHead, copyParamsHead);
-    SyncFunc<AscendC::HardEvent::MTE3_S>();
+    PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateMC2TypeA2layeredClass>
@@ -1410,12 +1410,15 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
         SyncAll<true>();
         SetIpcFlag(IPC_FLAG_STEP_1);
         WaitIpcFlag(IPC_FLAG_STEP_1);
+        PipeBarrier<PIPE_ALL>();
         SyncAll<true>();
         Ipc2Out();
         if (aivId_ < serverNum) {
             PipeBarrier<PIPE_ALL>();
             CleanUp();
         }
+
+        PipeBarrier<PIPE_ALL>();
         SyncAll<true>();
         CopyPerformanceInfo();
         hccl_.Finalize();
