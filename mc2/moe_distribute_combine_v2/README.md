@@ -179,11 +179,11 @@
   </tr>
   <tr>
   <tr>
-   <td>performanceInfoOptional</td>
-   <td>可选输入</td>
-   <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
-   <td>INT64</td>
-   <td>ND</td>
+    <td>performanceInfoOptional</td>
+    <td>可选输入</td>
+    <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
+    <td>INT64</td>
+    <td>ND</td>
   </tr>
   <tr>
    <td>groupEp</td>

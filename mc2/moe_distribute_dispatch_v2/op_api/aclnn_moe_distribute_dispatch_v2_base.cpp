@@ -103,7 +103,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const char* groupTpDispatchV2Temp = groupTp;
     if (is910B) {
         groupTpDispatchV2Temp = "";
-    } else {
+    } else if (is950) {
         performanceInfoOptionalDispatchV2Temp = nullptr;
     }
 
