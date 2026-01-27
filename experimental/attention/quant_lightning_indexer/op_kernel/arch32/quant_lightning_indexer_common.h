@@ -120,10 +120,10 @@ struct SplitCoreInfo {
     bool isLD = false;  // 当前核是否需要进行Decode归约任务
 };
 
-template <typename T>
-__aicore__ inline T Align(T num, T rnd)
+template <typename T1, typename T2>
+__aicore__ inline T1 Align(T1 num, T2 rnd)
 {
-    return (((rnd) == 0) ? 0 : (((num) + (rnd)-1) / (rnd) * (rnd)));
+    return (((rnd) == 0) ? 0 : (((num) + (rnd) - 1) / (rnd) * (rnd)));
 }
 
 template <typename T1, typename T2>
