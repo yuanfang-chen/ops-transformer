@@ -374,7 +374,8 @@ ge::graphStatus Tiling4MoeComputeExpertTokens(gert::TilingContext* context)
         OP_LOGE(context->GetNodeName(), "CalcNumOfExpertTiling fail."),
         return ge::GRAPH_FAILED);
 
-    // 设置tilingKey
+    // 设置tilingKey，所有场景都开启SetScheduleMode = BatchMode
+    context->SetScheduleMode(1);
     bool isSortedExpertOverBound = (tilingData.get_sortedExpertNum() > BSK_BOUND_NUM);
     bool isNumOfExpertOverBound = (tilingData.get_numOfExpert() > E_BOUND_NUM);
     if (!isSortedExpertOverBound && !isNumOfExpertOverBound) {
