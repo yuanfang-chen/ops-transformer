@@ -12,7 +12,7 @@
  */
 
 /*!
- * \file l0_sparse_flash_attention_antiquant_metadata.cpp
+ * \file l0_sparse_attn_sharedkv_metadata.cpp
  * \brief
  */
 

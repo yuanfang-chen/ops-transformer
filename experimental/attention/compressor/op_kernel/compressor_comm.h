@@ -40,6 +40,12 @@ __aicore__ inline T Align(T num, T rnd)
     return (((rnd) == 0) ? 0 : (((num) + (rnd)-1) / (rnd) * (rnd)));
 }
 
+template <typename T>
+__aicore__ inline T Trunc(T num, T rnd)
+{
+    return ((rnd) == 0) ? 0 : (((num) / (rnd) * (rnd)));
+}
+
 enum class X_LAYOUT : std::uint8_t {
     BSH = static_cast<std::uint8_t>(0),
     TH = static_cast<std::uint8_t>(1)
@@ -56,8 +62,8 @@ enum class COFF : std::uint8_t {
 };
 
 enum class ROTARY_MODE : std::uint8_t {
-    HALF = static_cast<std::uint8_t>(0),
-    INTERLEAVE = static_cast<std::uint8_t>(1)
+    HALF = static_cast<std::uint8_t>(1),
+    INTERLEAVE = static_cast<std::uint8_t>(2)
 };
 
 enum class EMPTY_TENSOR_MODE:uint8_t {
@@ -99,8 +105,13 @@ struct ConstInfo {
     uint32_t headDim = 0;
     uint32_t ropeHeadDim = 0;
     uint32_t cmpRatio = 0;
-    float normEps = 0;
+    float normEps = 1e-6;
     float reciprocalD = 0;
+
+    uint32_t curGroupIdx = 0;
+    uint32_t tailGroupIdx = 0;
+    uint32_t tailBasicBlockNum = 0;
+    uint32_t realDealBasicBlockNum = 0;
 
     // pageAttention
     uint32_t blockNum = 0;
@@ -143,7 +154,41 @@ struct MSplitInfo {
     uint32_t vecEndB = 0U;
     uint32_t vecEndS = 0U;
     uint32_t dealTcNum = 0U;
+    // vec1Res offset
+    uint64_t vec1StartOffset = 0;
+    uint64_t vec1ResOffset = 0;
 };
+
+struct BlockInfo {
+    __aicore__ inline BlockInfo(uint32_t bIdx, uint32_t sIdx, uint32_t dealSeqSize) :
+        bIdx(bIdx), sIdx(sIdx), dealSeqSize(dealSeqSize) {};
+    uint32_t bIdx = 0U;
+    uint32_t sIdx = 0U;
+    uint32_t dealSeqSize = 0;
+
+    uint32_t isFirst = true;
+    uint32_t bSeqUsed = 0U;
+    uint32_t bStartPos = 0U;
+    uint32_t headHolderSeqCnt = 0U;
+    uint32_t validSeqCnt = 0U;
+    uint32_t tailHolderSeqCnt = 0U;
+    uint32_t dealTcSize = 0U;
+    uint32_t tailValidSeqCnt = 0U;
+    uint32_t compressTcSize = 0U;
+};
+
+// BUFFER的字节数
+static constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32;
+static constexpr uint32_t BUFFER_SIZE_BYTE_64B = 64;
+static constexpr uint32_t BUFFER_SIZE_BYTE_256B = 256;
+static constexpr uint32_t BUFFER_SIZE_BYTE_512B = 512;
+static constexpr uint32_t BUFFER_SIZE_BYTE_1K = 1024;
+static constexpr uint32_t BUFFER_SIZE_BYTE_2K = 2048;
+static constexpr uint32_t BUFFER_SIZE_BYTE_4K = 4096;
+static constexpr uint32_t BUFFER_SIZE_BYTE_8K = 8192;
+static constexpr uint32_t BUFFER_SIZE_BYTE_16K = 16384;
+static constexpr uint32_t BUFFER_SIZE_BYTE_32K = 32768;
+static constexpr uint32_t BUFFER_SIZE_BYTE_64K = 65536;
 
 // BLOCK和REPEAT的字节数
 static constexpr uint64_t BYTE_BLOCK = 32UL;
@@ -183,7 +228,25 @@ __aicore__ inline void DumpTensorForDim2(LocalTensor<T> tensor, uint32_t desc, u
 {
     uint32_t array2[] = {static_cast<uint32_t>(row), static_cast<uint32_t>(col)};
     AscendC::ShapeInfo shapeInfo(2, array2);
-    AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
+    // AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
+}
+
+template <typename T>
+__aicore__ inline void DumpTensorForDim2(LocalTensor<T> tensor, uint32_t desc, uint32_t dumpSize)
+{
+    uint32_t col = 32 / sizeof(T);
+    uint32_t array2[] = {static_cast<uint32_t>(dumpSize / col), static_cast<uint32_t>(col)};
+    AscendC::ShapeInfo shapeInfo(2, array2);
+    // AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
+}
+
+template <typename T>
+__aicore__ inline void DumpTensorForDim2(GlobalTensor<T> tensor, uint32_t desc, uint32_t dumpSize)
+{
+    uint32_t col = 32 / sizeof(T);
+    uint32_t array2[] = {static_cast<uint32_t>(dumpSize / col), static_cast<uint32_t>(col)};
+    AscendC::ShapeInfo shapeInfo(2, array2);
+    // AscendC::DumpTensor(tensor, desc, dumpSize, shapeInfo);
 }
 
 }

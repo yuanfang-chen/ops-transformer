@@ -76,13 +76,13 @@ struct InnerSplitParams {
 constexpr uint32_t Q_INDEX = 0;
 constexpr uint32_t ORI_KV_INDEX = 1;
 constexpr uint32_t CMP_KV_INDEX = 2;
-constexpr uint32_t CMP_SPARSE_INDICES_INDEX = 3;
-constexpr uint32_t ORI_BLOCK_TABLE_INDEX = 4;
-constexpr uint32_t CMP_BLOCK_TABLE_INDEX = 5;
-constexpr uint32_t CU_SEQLENS_Q_INDEX = 6;
-constexpr uint32_t SEQUSED_KV_INDEX = 7;
-constexpr uint32_t SINKS_INDEX = 8;
-constexpr uint32_t METADATA_INDEX = 9;
+constexpr uint32_t CMP_SPARSE_INDICES_INDEX = 4;
+constexpr uint32_t ORI_BLOCK_TABLE_INDEX = 5;
+constexpr uint32_t CMP_BLOCK_TABLE_INDEX = 6;
+constexpr uint32_t CU_SEQLENS_Q_INDEX = 7;
+constexpr uint32_t SEQUSED_KV_INDEX = 11;
+constexpr uint32_t SINKS_INDEX = 12;
+constexpr uint32_t METADATA_INDEX = 13;
 // Outputs Index
 constexpr uint32_t ATTN_OUT_INDEX = 0;
 
@@ -115,7 +115,6 @@ constexpr uint32_t NUM_BYTES_FLOAT = 4;
 constexpr uint32_t NUM_BYTES_FLOAT16 = 2;
 constexpr uint32_t NUM_BYTES_BF16 = 2;
 constexpr uint32_t BYTE_BLOCK = 32;
-// const uint32_t SAS_MAX_AIC_CORE_NUM = 26; // 25 + 1 保证数组8字节对齐
 
 // 入参限制常量
 constexpr uint32_t HEAD_DIM_LIMIT = 128;
@@ -160,13 +159,6 @@ TILING_DATA_FIELD_DEF(int64_t, cmpRatio)
 TILING_DATA_FIELD_DEF(uint64_t, cmpMaskMode)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(SparseAttnSharedkvCmpParamsOp, SparseAttnSharedkvCmpParams)
-
-// // 内切基本块参数
-// BEGIN_TILING_DATA_DEF(SparseAttnSharedkvInnerSplitParams)
-// // TILING_DATA_FIELD_DEF(uint32_t, mBaseSize)
-// // TILING_DATA_FIELD_DEF(uint32_t, s2BaseSize)
-// END_TILING_DATA_DEF
-// REGISTER_TILING_DATA_CLASS(SparseAttnSharedkvInnerSplitParamsOp, SparseAttnSharedkvInnerSplitParams)
 
 BEGIN_TILING_DATA_DEF(SparseAttnSharedkvTilingData)
 TILING_DATA_FIELD_DEF_STRUCT(SparseAttnSharedkvSwaParams, baseParams);
@@ -261,11 +253,6 @@ public:
     SASTemplateMode perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
 
 };
-
-
-// // -----------算子CompileInfo定义-------------------
-// struct SASCompileInfo {};
-
 
 // -----------算子Tiling入参信息解析及Check类---------------
 class SASTilingCheck {
@@ -372,7 +359,6 @@ private:
     int64_t s2Size_ = 0;
     uint32_t qkHeadDim_ = 0;
     uint32_t vHeadDim_ = 0;
-    uint32_t ropeHeadDim_ = 0;
     uint32_t qTSize_ = 0; // 仅TND时生效
     uint32_t kvTSize_ = 0; // 仅TND时生效
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;

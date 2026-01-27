@@ -252,7 +252,7 @@ private:
     uint32_t aivNum_ = 0;
     size_t libapiSize_ = 0;
     size_t workspaceSize_ = 0;
-    uint8_t coff = 0;
+    uint8_t coff = 1;
 
     uint32_t mBaseSize = 0;
     uint32_t dbaseSize = 0;
@@ -261,7 +261,6 @@ private:
     CompressorContext *context_ = nullptr;
     CompressorBaseParams *baseParams_ = nullptr;
     CompressorPageAttentionParams *pageAttentionParams_ = nullptr;
-    CompressorOuterSplitParams *outerSplitParams_ = nullptr;
     CompressorInnerSplitParams *innerSplitParams_ = nullptr;
     CompressorWorkspaceParams *workspaceParams_ = nullptr;
 

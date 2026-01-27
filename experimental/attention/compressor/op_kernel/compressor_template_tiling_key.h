@@ -34,7 +34,7 @@ ASCENDC_TPL_ARGS_DECL(compressor, // 算子唯一标识，与opType保持一致
     ASCENDC_TPL_UINT_DECL(COFF, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, 1, 2),
     // bit:7-8  rotary_mode 1:half 2:interleave
     ASCENDC_TPL_UINT_DECL(ROTARY_MODE, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, 1, 2),
-    // bit:9  empty_tensor_mode 0:non_empty 1:rmpty_x
+    // bit:9  empty_tensor_mode 0:non_empty 1:empty_x
     ASCENDC_TPL_UINT_DECL(EMPTY_TENSOR_MODE, ASCENDC_TPL_1_BW, ASCENDC_TPL_UI_LIST, 0, 1),
 );
 

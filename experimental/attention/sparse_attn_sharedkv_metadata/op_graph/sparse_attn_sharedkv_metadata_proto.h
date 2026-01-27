@@ -10,7 +10,7 @@
  */
 
 /*!
- * \file sparse_flash_attention_antiquant_metadata_proto.h
+ * \file sparse_attn_sharedkv_metadata_proto.h
  * \brief
  */
 #ifndef SPARSE_ATTN_SHAREDKV_METADATA_PROTO_H

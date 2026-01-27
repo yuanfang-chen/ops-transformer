@@ -74,15 +74,12 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
 }
 
 ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
-    if (socVersion_ == "Ascend910_9392" || socVersion_ == "ASCEND910B" || socVersion_ == "ascend910B" ||
-                socVersion_ == "Ascend910B" || socVersion_ == "Ascend910_93" || socVersion_ == "Ascend910" ||
-                socVersion_ == "ascend910" || socVersion_ == "ASCEND910") {
-        return ValidSocVersion::ASCEND910B;
-    } else if (socVersion_ == "Ascend910_9589" || socVersion_ == "ASCEND910D" || socVersion_ == "ascend910D" ||
-                socVersion_ == "Ascend910D" || socVersion_ == "Ascend910_95") {
+    const std::string ascend910D = "Ascend910_95";
+    if (socVersion_.find(ascend910D) != std::string::npos) {
         return ValidSocVersion::ASCEND910D;
+    } else {
+        return ValidSocVersion::ASCEND910B;
     }
-    
     return ValidSocVersion::RESERVED_VERSION;
 }
 
@@ -472,6 +469,53 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcCostInfo(SplitContext &splitContex
     }
 }
 
+void SparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext) {
+    const SplitInfo &splitInfo = splitContext.splitInfo;
+    const CostInfo &costInfo = splitContext.costInfo;
+
+    bool UpdateS1G = false;
+    bool UpdateBatch = false;
+
+    // Update S2
+    if (assignContext.curS2Idx >= assignContext.s1GCache.s2End) {    // 边界assignInfo.s2End是取不到的开区间
+        assignContext.curS2Idx = 0U;
+        assignContext.curS1GIdx++;
+        UpdateS1G = true;
+    }
+
+    // Update S1G
+    if (assignContext.curS1GIdx >= splitInfo.s1GBaseNum[assignContext.curBIdx]) {
+        assignContext.curS1GIdx = 0U;
+        assignContext.curBN2Idx++;
+    }
+
+    // Update Batch
+    if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {  // 所有负载全部分配完，设置最后一个核的右开区间，返回
+        assignContext.curS1GIdx = 0U;
+        assignContext.curS2Idx = 0U;
+        assignContext.isFinished = true;
+        return;
+    }
+
+    if (assignContext.curBN2Idx / kvHeadNum_ != assignContext.curBIdx) {
+        assignContext.curBIdx = assignContext.curBN2Idx / kvHeadNum_;
+        assignContext.curS1GIdx = 0U;
+        UpdateBatch = true;
+        UpdateS1G = true;
+    }
+
+    // Update Cache
+    if (UpdateBatch) {
+        CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
+        assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
+        assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+    }
+    if (UpdateS1G) {
+        CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
+        assignContext.curS2Idx = (supportFd) ? assignContext.s1GCache.winS2Start : 0;
+    }
+}
+
 void SparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &splitContext, AssignContext &assignContext)
 {
     if (assignContext.isFinished) {
@@ -571,6 +615,25 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContext &spli
         assignContext.s1GCache.s1GBlock--;
         curCost = CalcCurBlockCost(assignContext);
     }
+}
+
+void SparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext) {
+    if (assignContext.isFinished) {
+        return;
+    }
+
+    int64_t curCost = CalcCurBlockCost(assignContext);
+
+    assignContext.coreCache.cost += curCost;
+    assignContext.coreCache.block++;
+    assignContext.curS2Idx++;
+    // 当前batch被分配一块出去，更新剩余负载
+    assignContext.bN2Cost = assignContext.bN2Cost - curCost;
+    assignContext.bN2Block--;
+    // 当前行被分配一块出去，更新剩余负载
+    assignContext.s1GCache.s1GCost = assignContext.s1GCache.s1GCost - curCost;
+    assignContext.s1GCache.s1GBlock--;
+    UpdateCursor(splitContext, assignContext);
 }
 
 bool SparseAttnSharedkvMetadataCpuKernel::IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes)
@@ -833,9 +896,10 @@ optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)met
     }
     return true;
 }
-
-static const char *SaskernelType = "SparseAttnSharedkvMetadata";
-REGISTER_CPU_KERNEL(SaskernelType, SparseAttnSharedkvMetadataCpuKernel);
+namespace {
+    static const char *kernelType = "SparseAttnSharedkvMetadata";
+    REGISTER_CPU_KERNEL(kernelType, SparseAttnSharedkvMetadataCpuKernel);
+}
 
 }; // namespace aicpu
 

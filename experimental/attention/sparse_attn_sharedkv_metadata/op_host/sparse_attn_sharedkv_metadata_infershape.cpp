@@ -10,7 +10,7 @@
  */
 
 /*!
- * \file sparse_flash_attention_antiquant_metadata_infershape.cpp
+ * \file sparse_attn_sharedkv_metadata_infershape.cpp
  * \brief
  */
 #include "register/op_impl_registry.h"

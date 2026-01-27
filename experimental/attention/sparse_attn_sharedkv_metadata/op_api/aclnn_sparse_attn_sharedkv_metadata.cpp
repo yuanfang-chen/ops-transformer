@@ -10,7 +10,7 @@
  */
 
 /*!
- * \file aclnn_sparse_flash_attention_antiquant_metadata.cpp
+ * \file aclnn_sparse_attn_sharedkv_metadata.cpp
  * \brief
  */
 

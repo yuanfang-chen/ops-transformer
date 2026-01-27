@@ -18,7 +18,7 @@
 #define RMS_NORM_H
 
 #include "../compressor_comm.h"
-#include "../compressor_vector_comm.h"
+#include "compressor_vector_comm.h"
 
 namespace Compressor {
 /**
@@ -40,7 +40,7 @@ __aicore__ inline void RmsNorm(const LocalTensor<float> &dstLocal, const LocalTe
 {
     uint64_t cnt = rmsNormParams.row * rmsNormParams.col;
     LocalTensor<float> temp1Local = shareTmpUb.ReinterpretCast<float>();
-    LocalTensor<float> temp2Local = tempLocal[cnt];
+    LocalTensor<float> temp2Local = temp1Local[cnt];
 
     // temp1Local = srcLocal ^ 2
     Mul(temp1Local, srcLocal, srcLocal, cnt);
@@ -73,15 +73,12 @@ __aicore__ inline void RmsNorm(const LocalTensor<float> &dstLocal, const LocalTe
     PipeBarrier<PIPE_V>();
 
     // temp1Local[row, 8] = brc(temp2Local[row, 1])
-    Brcb(temp1Local, temp2Local, CeilDivT(rmsNormParams.row, BRCB_NUM), {1, 1});   
+    Brcb(temp1Local, temp2Local, CeilDivT(rmsNormParams.row, BRCB_NUM), {1, 8});   
     PipeBarrier<PIPE_V>();
 
     // dstLocal = srcLocal / temp1Local(sum)
     RowDivs(dstLocal, srcLocal, temp1Local, repeatParams);
     PipeBarrier<PIPE_V>();
-
-    // Cast(xSquareLocal, gammaLocal, RoundMode::CAST_NONE, rmsNormParams.col);
-    // PipeBarrier<PIPE_V>();
 
     // dstLocal = dstLocal * gammaLocal
     MatMulVec(dstLocal, dstLocal, gammaLocal, repeatParams);

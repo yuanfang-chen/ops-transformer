@@ -24,7 +24,7 @@
 #include "quant_lightning_indexer_common.h"
 #include "quant_lightning_indexer_service_vector.h"
 #include "quant_lightning_indexer_service_cube.h"
-#include "quant_lightning_indexer_metadata.h"
+#include "../quant_lightning_indexer_metadata.h"
 
 namespace QLIKernel {
 using namespace QLICommon;
@@ -59,7 +59,7 @@ public:
     __aicore__ inline QLIPreload(){};
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *weights,
                                 __gm__ uint8_t *queryScale, __gm__ uint8_t *keyScale, __gm__ uint8_t *actualSeqLengthsQ,
-                                __gm__ uint8_t *actualSeqLengthsK, __gm__ uint8_t *blockTable, const LiqMetaData *__restrict metadata,
+                                __gm__ uint8_t *actualSeqLengthsK, __gm__ uint8_t *blockTable, const QliMetaData *__restrict metadata,
                                 __gm__ uint8_t *sparseIndices, __gm__ uint8_t *workspace,
                                 const QLITilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
@@ -249,7 +249,7 @@ template <typename QLIT>
 __aicore__ inline uint32_t QLIPreload<QLIT>::GetS2BaseBlockNumOnMask(uint32_t s1gIdx, uint32_t actS1Size,
                                                                      uint32_t actS2SizeOrig)
 {
-    if (actS2SizeOrig == 0) {
+    if (actS2SizeOrig / constInfo.cmpRatio == 0) {
         return 0;
     }
     uint32_t s1Offset = constInfo.s1BaseSize * s1gIdx;
@@ -394,7 +394,7 @@ template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *weights,
                                               __gm__ uint8_t *queryScale, __gm__ uint8_t *keyScale,
                                               __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengthsK,
-                                              __gm__ uint8_t *blockTable, const LiqMetaData *__restrict metadata, __gm__ uint8_t *sparseIndices,
+                                              __gm__ uint8_t *blockTable, const QliMetaData *__restrict metadata, __gm__ uint8_t *sparseIndices,
                                               __gm__ uint8_t *workspace, const QLITilingData *__restrict tiling,
                                               TPipe *tPipe)
 {

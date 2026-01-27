@@ -17,7 +17,7 @@
 #define ROPE_H
 
 #include "../compressor_comm.h"
-#include "../compressor_vector_comm.h"
+#include "compressor_vector_comm.h"
 
 namespace Compressor {
 
@@ -32,6 +32,11 @@ __aicore__ inline void SetGatherSrcOffset(const LocalTensor<int32_t> &gatherOffs
     for (uint32_t i = 0; i < 8; i++) {
         gatherOffsetLocal.SetValue(i, i ^ 1);
     }
+    
+    event_t eventId_S_V = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::S_V));
+    SetFlag<HardEvent::S_V>(eventId_S_V);
+    WaitFlag<HardEvent::S_V>(eventId_S_V);
+
     int32_t scalarValue = 8;
     while (scalarValue < count) {
         int32_t nextValue = scalarValue * 2;
@@ -51,33 +56,36 @@ __aicore__ inline void SetGatherSrcOffset(const LocalTensor<int32_t> &gatherOffs
 
 /**
  * @brief RotaryPosEmb 同时做row行的RotaryPosEmb，每一行的元素为col
- * @param dstLocal 输出tensor [row, col]，支持和srcLocal是同一块空间
- * @param srcLocal 输入tensor [row, col]
+ * @param dstLocal 输出tensor [row, actualCol]，支持和srcLocal是同一块空间
+ * @param srcLocal 输入tensor [row, actualCol]
  * @param cosLocal cos系数tensor [row, col]
  * @param sinLocal sin系数tensor [row, col]
  * @param shareTmpUb 临时buffer 内部需要的空间为 [row * col * sizeof(float)]
  * @param gatherOffsetcastLocal 用于interleave模式的offset，数据类型需要为uint64_t
  * @param row 待处理的行数
  * @param col 待处理的列数
+ * @param actualCol 实际列数
+ * @param baseAddr 计算基地址
  */
 template <ROTARY_MODE MODE>
 __aicore__ inline void RotaryPosEmb(const LocalTensor<float> &dstLocal, const LocalTensor<float> &srcLocal,
                                     const LocalTensor<float> &cosLocal, const LocalTensor<float> &sinLocal,
                                     const LocalTensor<float> &shareTmpUb,
-                                    const LocalTensor<uint32_t> &gatherOffsetcastLocal, uint64_t row, uint64_t col)
+                                    const LocalTensor<uint32_t> &gatherOffsetcastLocal, uint32_t row, uint32_t col,
+                                    uint32_t actualCol, uint64_t baseAddr)
 {
     uint64_t cnt = row * col;
     uint32_t half_col = col >> 1;
     uint64_t rsvdCnt = 0;
     LocalTensor<float> reArrLocal = shareTmpUb.ReinterpretCast<float>();
     if constexpr (MODE == ROTARY_MODE::HALF) {
-        DataCopy(reArrLocal, srcLocal[half_col],
+        DataCopy(reArrLocal, srcLocal[baseAddr + half_col],
                  {static_cast<uint16_t>(row), static_cast<uint16_t>(CeilDivT(half_col, FP32_BLOCK_ELEMENT_NUM)),
-                  static_cast<uint16_t>(CeilDivT(half_col, FP32_BLOCK_ELEMENT_NUM)),
+                  static_cast<uint16_t>(CeilDivT(actualCol - half_col, FP32_BLOCK_ELEMENT_NUM)),
                   static_cast<uint16_t>(CeilDivT(half_col, FP32_BLOCK_ELEMENT_NUM))});
-        DataCopy(reArrLocal[half_col], srcLocal,
+        DataCopy(reArrLocal[half_col], srcLocal[baseAddr],
                  {static_cast<uint16_t>(row), static_cast<uint16_t>(CeilDivT(half_col, FP32_BLOCK_ELEMENT_NUM)),
-                  static_cast<uint16_t>(CeilDivT(half_col, FP32_BLOCK_ELEMENT_NUM)),
+                  static_cast<uint16_t>(CeilDivT(actualCol - half_col, FP32_BLOCK_ELEMENT_NUM)),
                   static_cast<uint16_t>(CeilDivT(half_col, FP32_BLOCK_ELEMENT_NUM))});
         PipeBarrier<PIPE_V>();
         Muls(reArrLocal, reArrLocal, float(-1), half_col, row,
@@ -85,8 +93,14 @@ __aicore__ inline void RotaryPosEmb(const LocalTensor<float> &dstLocal, const Lo
               static_cast<uint8_t>(CeilDivT(static_cast<uint32_t>(col), FP32_BLOCK_ELEMENT_NUM))});
     } else if constexpr (MODE == ROTARY_MODE::INTERLEAVE) {
         for (uint32_t i = 0; i < row; i++) {
-            Gather(reArrLocal[i * col], srcLocal[i * col], gatherOffsetcastLocal, 0, col);
+            Gather(reArrLocal[i * col], srcLocal[i * actualCol + baseAddr], gatherOffsetcastLocal, 0, col);
         }
+        // printf("gatherOffsetcastLocal");
+        // DumpTensor(gatherOffsetcastLocal, 1004, 64);
+        // printf("srcLocal[baseAddr]");
+        // DumpTensor(srcLocal[baseAddr], 1005, 64);
+        // printf("reArrLocal");
+        // DumpTensor(reArrLocal, 1006, 64);
         PipeBarrier<PIPE_V>();
         uint32_t repeatTimes = cnt / FP32_REPEAT_ELEMENT_NUM;
         uint32_t remainer = cnt % FP32_REPEAT_ELEMENT_NUM;
@@ -104,11 +118,19 @@ __aicore__ inline void RotaryPosEmb(const LocalTensor<float> &dstLocal, const Lo
         }
         ResetMask();
     }
+   
     PipeBarrier<PIPE_V>();
-    Mul(dstLocal, srcLocal, cosLocal, cnt);
+    BinaryRepeatParams computeParams{1,
+                                     1,
+                                     1,
+                                     static_cast<uint8_t>(CeilDivT(actualCol, FP32_BLOCK_ELEMENT_NUM)),
+                                     static_cast<uint8_t>(CeilDivT(actualCol, FP32_BLOCK_ELEMENT_NUM)),
+                                     static_cast<uint8_t>(CeilDivT(col, FP32_BLOCK_ELEMENT_NUM))};
+    Mul(dstLocal[baseAddr], srcLocal[baseAddr], cosLocal, col, row, computeParams);
     Mul(reArrLocal, reArrLocal, sinLocal, cnt);
     PipeBarrier<PIPE_V>();
-    Add(dstLocal, dstLocal, reArrLocal, cnt);
+    Add(dstLocal[baseAddr], dstLocal[baseAddr], reArrLocal, col, row, computeParams);
 }
-} // namespace Compressor
+}
+
 #endif
