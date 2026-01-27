@@ -651,6 +651,7 @@ __aicore__ inline void CompressorKernel<COMP>::Process() {
                         ComputeVec2(vec2Info);
                     }
                 }
+                SyncAll();
             }
         }
     }
