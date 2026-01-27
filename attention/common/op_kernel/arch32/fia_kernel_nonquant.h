@@ -323,7 +323,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
                 if constexpr (IsSameType<OUT_T, int8_t>::value) {
                     GlobalTensor<half> attentionOutTmpGm;
                     attentionOutTmpGm.SetGlobalBuffer(reinterpret_cast<__gm__ half *>(attentionOutGm.GetPhyAddr(0)));
-                    matmul::InitOutput<half>(attentionOutTmpGm[tmpBlockIdx * singleCoreSize / 2], singleInitOutputSize / 2, 0);
+                    matmul::InitOutput<half>(attentionOutTmpGm[tmpBlockIdx * singleCoreSize / 2], (singleInitOutputSize + 1) / 2, 0);
                 } else {
                     matmul::InitOutput<OUT_T>(attentionOutGm[tmpBlockIdx * singleCoreSize], singleInitOutputSize, 0);
                 }
