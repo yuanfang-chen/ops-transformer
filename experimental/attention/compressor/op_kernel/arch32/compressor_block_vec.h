@@ -87,7 +87,7 @@ private:
     __aicore__ inline uint32_t GetStartPos(uint32_t bIdx);
     __aicore__ inline uint32_t GetSeqLength(uint32_t bIdx);
     __aicore__ inline uint32_t GetBsLength(uint32_t index);
-    __aicore__ inline uint64_t CalcGlobalScStart(uint32_t bStart, uint32_t scStart, uint32_t bEnd, uint32_t scEnd, uint64_t &globalScStart);
+    __aicore__ inline void CalcGlobalScStart(uint32_t bStart, uint32_t scStart, uint32_t bEnd, uint32_t scEnd, uint64_t &globalScStart);
     __aicore__ inline void UpdateOutputIdx(uint32_t &outputBStart, uint32_t &outputSStart, uint32_t &dealScSize, uint32_t &curDealScSize);
     __aicore__ inline void DealVec1BaseBlock(const RunInfo &info, BlockInfo &blockInfo, uint32_t startTcIdx, uint32_t dStartIdx, uint32_t dDealSize);
     __aicore__ inline void UpdateBlockInfo(BlockInfo &blockInfo);
@@ -1282,6 +1282,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::SplitCoreV2(const Compressor
     // Input: syncAll前每组cube核处理的实际数据块在batch及s方向的起止idx及实际数据量(m方向)
     // Output: 每个vec核的处理数据块在m方向的起止位置及输出到Gm上的起始位置
     uint32_t coreNum = constInfo_.dBasicBlockNum * 2; // 组中有多少个vec核:16
+    usedCoreNum = coreNum;
     uint32_t currCoreIdx = GetBlockIdx(); // 当前vec核ID
     uint32_t curVecCoreGroupIdx = currCoreIdx / coreNum; // 当前vec核所在组ID
     vec1ResGmStart = curVecCoreGroupIdx * constInfo_.nSize * constInfo_.tcBaseSize * constInfo_.headDim;
@@ -1325,7 +1326,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::SplitCoreV2(const Compressor
 }
 
 template <typename COMP> 
-__aicore__ inline uint64_t CompressorBlockVector<COMP>::CalcGlobalScStart(uint32_t bStart, uint32_t scStart, uint32_t bEnd,
+__aicore__ inline void CompressorBlockVector<COMP>::CalcGlobalScStart(uint32_t bStart, uint32_t scStart, uint32_t bEnd,
                                                                             uint32_t scEnd, uint64_t &globalScStart)
 {
     for (uint32_t bIdx = bStart; bIdx < bEnd; ++bIdx) {
@@ -1339,7 +1340,6 @@ __aicore__ inline uint64_t CompressorBlockVector<COMP>::CalcGlobalScStart(uint32
     }
     globalScStart -= scStart;
     globalScStart += scEnd;
-    return globalScStart;
 }
 
 template <typename COMP> 
