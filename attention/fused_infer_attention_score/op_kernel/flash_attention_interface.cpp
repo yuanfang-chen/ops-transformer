@@ -49,6 +49,8 @@ namespace SplitFuse {
         using LayoutV = layout::RowMajor;
         using ElementS = IntermCalcPrec;
         using LayoutS = layout::RowMajor;
+        using ElementSink = InputDtypeQ;
+        using LayoutSink = layout::RowMajor;
         using ElementP = InputDtypeQ;
         using LayoutP = layout::RowMajor;
         using ElementO = InputDtypeQ;
@@ -68,6 +70,7 @@ namespace SplitFuse {
         using QType = Gemm::GemmType<ElementQ, LayoutQ>;
         using KType = Gemm::GemmType<ElementK, LayoutK>;
         using SType = Gemm::GemmType<ElementS, LayoutS>;
+        using SinkType = Gemm::GemmType<ElementSink, LayoutSink>;
         using BlockMmadQK = Gemm::Block::BlockMmad<DispatchPolicyQK, L1TileShapeQK, L0TileShapeQK,
                                                    QType, KType, SType>;
 
@@ -75,7 +78,7 @@ namespace SplitFuse {
         using PType = Gemm::GemmType<ElementP, LayoutP>;
         using maskType = Gemm::GemmType<ElementMask, LayoutMask>;
         using EpilogueOnlineSoftmax =
-            Epilogue::Block::BlockEpilogue<DispatchPolicyOnlineSoftmax, PType, SType, maskType>;
+            Epilogue::Block::BlockEpilogue<DispatchPolicyOnlineSoftmax, PType, SType, maskType, SinkType>;
 
         using L1TileShapePV = GemmShape<128, 128, 256>;
         using L0TileShapePV = GemmShape<128, 128, 128>;
