@@ -134,15 +134,19 @@ ge::graphStatus SetCompressorShapeDim(const CompressorProtoShapeParam &shapePara
 
 ge::graphStatus InferDataTypeCompressor(gert::InferDataTypeContext* context)
 {
+    OP_CHECK_IF(context == nullptr, OPS_REPORT_VECTOR_INNER_ERR("Compressor", "Context is nullptr."),
+               return ge::GRAPH_FAILED);
     OPS_LOG_I(context->GetNodeName(), "Enter Compressor inferDataType impl.");
 
-     context->SetOutputDataType(CMP_KV_OUTPUT_INDEX, context->GetRequiredInputDataType(TOKEN_X_INPUT_INDEX));
+    context->SetOutputDataType(CMP_KV_OUTPUT_INDEX, context->GetRequiredInputDataType(TOKEN_X_INPUT_INDEX));
 
     return GRAPH_SUCCESS;
 }
 
 ge::graphStatus InferShapeCompressor(gert::InferShapeContext* context)
 {
+    OP_CHECK_IF(context == nullptr, OPS_REPORT_VECTOR_INNER_ERR("Compressor", "Context is nullptr."),
+               return ge::GRAPH_FAILED);
     OPS_LOG_I(context->GetNodeName(), "Enter Compressor infershape impl.");
 
     CompressorProtoShapeParam shapeParam {};
