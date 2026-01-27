@@ -98,6 +98,16 @@ struct OptionalParaInfo {
     const gert::Tensor *tensor;
 };
 
+enum class LayoutType {
+    LAYOUT_BSH,
+    LAYOUT_TH    
+};
+
+enum class EMPTY_TENSOR_MODE:uint8_t {
+    NON_EMPTY = 0,
+    EMPTY_X = 1
+};
+
 CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context);
 struct CompressorBaseShapeInfo {
     uint32_t bSize = 0; // B
@@ -150,9 +160,10 @@ struct CompressorContext {
     const int *cmpRatio;
     const float *normEps;
     const int *rotaryMode;
+    EMPTY_TENSOR_MODE emptyTensorMode;
 
     ge::DataType dtype = ge::DT_BF16; 
-    std::string layout = "BSH"; 
+    LayoutType layout = LayoutType::LAYOUT_BSH; 
 
     size_t *workSpaces;
     uint64_t tilingKey;
@@ -196,8 +207,10 @@ private:
     ge::graphStatus CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc, const std::string &name) const;
     void LogErrorDtypeSupport(const std::vector<ge::DataType> &expectDtypeList, const ge::DataType &actualDtype,
                               const std::string &name) const;
-    ge::graphStatus CheckDimNumSupport(const gert::StorageShape *shape, const std::vector<uint32_t> &expectDimNumList,
-                                       const std::string &name) const;
+    ge::graphStatus CheckDimNumSupport(const gert::StorageShape *shape, const std::string &name) const;
+    ge::graphStatus LogErrorShapeConsistency(const std::string &name, const gert::StorageShape *shape,
+                                             const uint32_t &dimNum, const std::string &subName,
+                                             const uint32_t &expectNum) const;
     ge::graphStatus CheckSingleParaX() const;
     ge::graphStatus CheckSingleParaWkv() const;
     ge::graphStatus CheckSingleParaWgate() const;
@@ -228,6 +241,7 @@ private:
     ge::graphStatus CheckDtypeConsistency() const;
     ge::graphStatus CheckMultiParaConsistency() const;
     ge::graphStatus CheckDimNumConsistency() const;
+    ge::graphStatus CheckEmptyTensor() const;
 
     size_t ubSize_ = 0;
     size_t l1Size_ = 0;

@@ -17,7 +17,7 @@
  
 using namespace Compressor;
 
-template<uint8_t XLayout, uint8_t XDType, uint8_t Coff, uint8_t RotaryMode>
+template<uint8_t XLayout, uint8_t XDType, uint8_t Coff, uint8_t RotaryMode, uint8_t EmptyTensorMode>
 __global__ __aicore__ void compressor(
     __gm__ uint8_t *x,
     __gm__ uint8_t *wKv,
@@ -41,6 +41,10 @@ __global__ __aicore__ void compressor(
     REGISTER_TILING_DEFAULT(optiling::CompressorTilingData);
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     GET_TILING_DATA_WITH_STRUCT(optiling::CompressorTilingData, tilingDataIn, tiling);
+    constexpr auto emptyMode = static_cast<EMPTY_TENSOR_MODE>(EmptyTensorMode);
+    if constexpr (emptyMode == EMPTY_TENSOR_MODE::EMPTY_X) {
+        return;
+    }    
     const optiling::CompressorTilingData *__restrict tilingData = &tilingDataIn;
     TPipe pipe;
     constexpr auto xLayout = static_cast<X_LAYOUT>(XLayout);
