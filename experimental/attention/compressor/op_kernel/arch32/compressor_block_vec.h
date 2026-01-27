@@ -714,16 +714,16 @@ __aicore__ inline void CompressorBlockVector<COMP>::SaveLeftFirst(const LocalTen
     uint32_t coff = static_cast<uint32_t>(COMP::coff);
     uint32_t preBIdx = 0;
     // 左边为上一个batch或者最后一个batch的数据
-    if (blockInfo.bIdx == 0) {
-        // 左边为最后一个batch的数据
-        preBIdx = constInfo_.batchSize - 1;
-    } else {
-        //左边为上一个batch数据
-        preBIdx = blockInfo.bIdx - 1;
-    }
+    preBIdx = (blockInfo.bIdx - 1 + constInfo_.batchSize) % constInfo_.batchSize;
 
     uint32_t bSeqUsed = GetSeqUsed(preBIdx);
     uint32_t bStartPos = GetStartPos(preBIdx);
+    // S=0时，跳B
+    while (bSeqUsed == 0) {
+        preBIdx = (preBIdx - 1 + constInfo_.batchSize) % constInfo_.batchSize;
+        bSeqUsed = GetSeqUsed(preBIdx);
+        bStartPos = GetStartPos(preBIdx);
+    }
 
     uint32_t endIdxInBlock = (bStartPos + bSeqUsed) % constInfo_.cmpRatio;
     if (endIdxInBlock == 0) {
@@ -988,11 +988,15 @@ __aicore__ inline void CompressorBlockVector<COMP>::UpdateBlockInfo(BlockInfo &b
     if (!blockInfo.isFirst) {
         blockInfo.sIdx += blockInfo.validSeqCnt;
         if (blockInfo.sIdx == blockInfo.bSeqUsed) {
-            blockInfo.bIdx++;
             blockInfo.sIdx = 0;
-
-            blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
-            blockInfo.bStartPos = GetStartPos(blockInfo.bIdx);
+            do {
+                if (blockInfo.bIdx > constInfo_.batchSize) {
+                    break;
+                }
+                blockInfo.bIdx++;
+                blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
+                blockInfo.bStartPos = GetStartPos(blockInfo.bIdx);
+            } while (blockInfo.bSeqUsed == 0);
         }
         if (blockInfo.dealSeqSize == 0) {
             return;
@@ -1002,6 +1006,14 @@ __aicore__ inline void CompressorBlockVector<COMP>::UpdateBlockInfo(BlockInfo &b
             return;
         }
         blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
+        // 如果S=0，跳B
+        while (blockInfo.bSeqUsed == 0) {
+            if (blockInfo.bIdx > constInfo_.batchSize) {
+                break;
+            }
+            blockInfo.bIdx++;
+            blockInfo.bSeqUsed = GetSeqUsed(blockInfo.bIdx);
+        }
         blockInfo.bStartPos = GetStartPos(blockInfo.bIdx);
         blockInfo.isFirst = false;
     }
