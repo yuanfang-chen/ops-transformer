@@ -307,13 +307,13 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
 
 ge::graphStatus CompressorTiling::CheckEmptyTensor() const
 {
-    if (context_->layout == LayoutType::LAYOUT_BSH && baseParams_->batchSize == 0 ||
-        context_->layout == LayoutType::LAYOUT_TH && baseParams_->tokenSize == 0) {
+    if (context_->layout == LayoutType::LAYOUT_BSH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) == 0 ||
+        context_->layout == LayoutType::LAYOUT_TH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0) {
         context_->emptyTensorMode = EMPTY_TENSOR_MODE::EMPTY_X;
-        return ge::GRAPH_SUCCESS;
     } else {
         context_->emptyTensorMode = EMPTY_TENSOR_MODE::NON_EMPTY;
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilingData)
