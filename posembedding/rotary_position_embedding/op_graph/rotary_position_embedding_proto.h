@@ -25,9 +25,8 @@ namespace ge {
  * float or bfloat16.
  * @li cos: A 4D tensor which is "cos" in rotary position embedding, format supports ND, data type must be the same as
  * "x", and shape must be the same as "sin".
- * @li rotate: An optional 2D tensor which is the transformation matrix for position transformation of the "x" in rotary
- * position embedding, format supports ND, data type must be the same as "x", both dimensions are the same and equal to
- * the last dimension of "x".
+ * @li sin: A 4D tensor which is "sin" in rotary position embedding, format supports ND, data type must be the same as
+ * "x", and shape must be the same as "cos".
  * @par Outputs:
  * y: A 4D tensor which is the result of rotary position embedding, format supports ND, data type must be the same as
  * "x", and shape must be the same as "x".
@@ -55,7 +54,6 @@ REG_OP(RotaryPositionEmbedding)
     .INPUT(x, TensorType({DT_FLOAT16, DT_FLOAT, DT_BFLOAT16}))
     .INPUT(cos, TensorType({DT_FLOAT16, DT_FLOAT, DT_BFLOAT16}))
     .INPUT(sin, TensorType({DT_FLOAT16, DT_FLOAT, DT_BFLOAT16}))
-    .OPTIONAL_INPUT(rotate, TensorType({DT_FLOAT16, DT_FLOAT, DT_BFLOAT16}))
     .OUTPUT(y, TensorType({DT_FLOAT16, DT_FLOAT, DT_BFLOAT16}))
     .ATTR(mode, Int, 0)
     .OP_END_FACTORY_REG(RotaryPositionEmbedding)

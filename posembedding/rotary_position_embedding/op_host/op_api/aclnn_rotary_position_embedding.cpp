@@ -15,9 +15,8 @@ extern "C" {
 #endif
 
 extern aclnnStatus aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(const aclTensor* x, const aclTensor* cos,
-                                                                     const aclTensor* sin, const aclTensor* rotate, int64_t mode,
-                                                                     aclTensor* out, uint64_t* workspaceSize,
-                                                                     aclOpExecutor** executor);
+                                                                     const aclTensor* sin, int64_t mode, aclTensor* out,
+                                                                     uint64_t* workspaceSize, aclOpExecutor** executor);
 extern aclnnStatus aclnnInnerRotaryPositionEmbedding(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
                                                      aclrtStream stream);
 
@@ -25,8 +24,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingGetWorkspaceSize(const aclTensor* x, con
                                                          int64_t mode, aclTensor* out, uint64_t* workspaceSize,
                                                          aclOpExecutor** executor)
 {
-    const aclTensor* defaultRotate = nullptr;
-    return aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(x, cos, sin, defaultRotate, mode, out, workspaceSize, executor);
+    return aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(x, cos, sin, mode, out, workspaceSize, executor);
 }
 
 aclnnStatus aclnnRotaryPositionEmbedding(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
