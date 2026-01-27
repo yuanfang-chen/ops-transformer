@@ -14,7 +14,7 @@ if (BUILD_OPEN_PROJECT)
     )
     if(CONDITION_UNIT STREQUAL "ascend910_95")
         add_ops_compile_options(
-                OP_NAME MoeFinalizeRouting
+                OP_NAME MoeInitRouting
                 OPTIONS --cce-auto-sync=on
                 -Wno-deprecated-declarations
                 -Werror
@@ -23,7 +23,7 @@ if (BUILD_OPEN_PROJECT)
         )
     else()
         add_ops_compile_options(
-                OP_NAME MoeFinalizeRouting
+                OP_NAME MoeInitRouting
                 OPTIONS --cce-auto-sync=on
                 -Wno-deprecated-declarations
                 -Werror
