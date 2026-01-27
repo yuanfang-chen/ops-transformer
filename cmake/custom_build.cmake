@@ -292,11 +292,6 @@ if("${ASCEND_OP_NAME}" STREQUAL "add_example")
     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
 endif()
 
-if("${ASCEND_OP_NAME}" STREQUAL "all_gather_add")
-    add_subdirectory(examples/mc2)
-    list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${ASCEND_OP_NAME})
-endif()
-
 list(APPEND OP_LIST ${COMPILED_OPS})
 list(APPEND OP_DIR_LIST ${COMPILED_OP_DIRS})
 
@@ -305,7 +300,7 @@ if(ENABLE_TEST)
         if (NOT EXISTS "${OP_DIR}/tests/CMakeLists.txt")
             continue()
         endif()
-
+        
         file(READ "${OP_DIR}/tests/CMakeLists.txt" CML_CONTENT)
         if (CML_CONTENT MATCHES "OpsTest_Level2_AddOp")
             set(UTEST_FRAMEWORK_OLD TRUE CACHE BOOL "UTEST_FRAMEWORK_OLD" FORCE)
@@ -685,10 +680,12 @@ foreach (_op_name ${OP_LIST})
             DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
             OPTIONAL
     )
+
     install(FILES ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}_apt.py
-        DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
-        OPTIONAL
+            DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
+            OPTIONAL
     )
+    
 endforeach ()
 
 install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
@@ -698,6 +695,15 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
 install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
+
+#install(DIRECTORY ${OPS_ADV_DIR}/common/catlass
+#        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
+#)
+
+#install(DIRECTORY ${OPS_ADV_DIR}/common/tla
+#        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
+#)
+
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
 )
@@ -705,7 +711,7 @@ install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/3rd
 )
-        
+
 foreach (op_dir ${OP_DIR_LIST})
     get_filename_component(_op_name "${op_dir}" NAME)
     set(CURRENT_KERNEL_DIR "${op_dir}/op_kernel")
