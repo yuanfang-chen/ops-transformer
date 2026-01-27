@@ -606,7 +606,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         curS2Offset += copyRowCnt;
                     }
                 } else {
-                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + kL0Size * kL1;
+                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + 128 * kL1; // 128：非尾块的kL0Size大小
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
