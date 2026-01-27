@@ -787,10 +787,10 @@ ge::graphStatus CompressorTiling::CheckRequiredInOutExistence() const
     OP_CHECK_IF(context_->scoreBlockTable.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor scoreBlockTable is nullptr"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->cmpKv.shape == nullptr, OP_LOGE("Compressor", "Shape of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->cmpKv.desc == nullptr, OP_LOGE("Compressor", "Desc of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
-    if (context_->layout == LayoutType::LAYOUT_BSH){
+    if (context_->layout == LayoutType::LAYOUT_TH){
         OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
         OP_LOGE("Compressor", "In TH situation, desc of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
-        OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
+        OP_CHECK_IF(context_->cuSeqlens.shape == nullptr, 
         OP_LOGE("Compressor", "In TH situation, shape of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
