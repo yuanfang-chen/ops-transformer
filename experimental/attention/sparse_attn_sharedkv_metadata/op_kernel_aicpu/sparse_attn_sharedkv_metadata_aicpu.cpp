@@ -118,14 +118,14 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_
 uint32_t SparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 {
     // 1. 如果 SeqUsedQ_ 传了，直接使用
-    if (SeqUsedQ_ != nullptr) {
+    if (SeqUsedQ_ != nullptr && SeqUsedQ_->GetData() != nullptr) {
         const int32_t *seqUsedPtr = static_cast<const int32_t*>(SeqUsedQ_->GetData());
         return static_cast<uint32_t>(seqUsedPtr[bIdx]);
     }
     // 2. SeqUsedQ_ 没传，判断 Layout
     if (layoutQuery_ == "TND") {
         // 如果是 TND，尝试使用 actSeqLenQ_
-        if (actSeqLenQ_ != nullptr) {
+        if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
             const int32_t *s1Ptr =static_cast<const int32_t*>(actSeqLenQ_->GetData());
             return static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);
         }
@@ -137,14 +137,14 @@ uint32_t SparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 uint32_t SparseAttnSharedkvMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
 {
     // 1. 如果 SeqUsedKV_ 传了，直接使用
-    if (SeqUsedKV_ != nullptr) {
+    if (SeqUsedKV_ != nullptr && SeqUsedKV_->GetData() != nullptr) {
         const int32_t *seqUsedPtr = static_cast<const int32_t*>(SeqUsedKV_->GetData());
         return static_cast<uint32_t>(seqUsedPtr[bIdx]);
     }
     // 2. SeqUsedKV_ 没传，判断 Layout
     if (layoutKV_ == "TND") {
         // 如果是 TND，尝试使用 actSeqLenOriKV_
-        if (actSeqLenOriKV_ != nullptr) {
+        if (actSeqLenOriKV_ != nullptr && actSeqLenOriKV_->GetData() != nullptr) {
             const int32_t *s2Ptr = static_cast<const int32_t*>(actSeqLenOriKV_->GetData());
             return static_cast<uint32_t>(s2Ptr[bIdx + 1U] - s2Ptr[bIdx]);
         }
