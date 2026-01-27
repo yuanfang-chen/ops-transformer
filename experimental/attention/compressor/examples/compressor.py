@@ -28,8 +28,6 @@ DEVICE_ID = 0
 torch_npu.npu.set_device(int(DEVICE_ID))
 torch.npu.config.allow_internal_format = True
 
-print_flag = False
-
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
 
@@ -161,11 +159,9 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
         return result, 0.0, max_error
     overflows_count = data_compe[np.isinf(data_compe)].size + data_compe[np.isnan(data_compe)].size
 
-
     if overflows_count > 0:
         print_log('Overflow,size:%s,benchmark_output:%s, %s' % (
             overflows_count, data_compe[np.isinf(data_compe)][0:10], data_compe[np.isnan(data_compe)][0:10]))
-
 
     split_count = int(end - start + 1) if end != start else 1
     print_log('split_count:%s; max_diff_hd:%s;' %
@@ -372,26 +368,9 @@ def cpu_compressor(
     for i in range(wkv.shape[1] // 128):
         leftH = i * 128
         rightH = (i + 1) * 128
-        if print_flag:
-            print(f"====================mmad{i} kv")
-            tmp_mmad_kv = np.array(np.matmul(x[:, leftH:rightH], wkv[:, leftH:rightH].T, dtype=matmul_dtype))
-            for j in range(tmp_mmad_kv.shape[1] // 128):
-                print(tmp_mmad_kv[:, j*128:(j+1)*128])
-            print(tmp_mmad_kv)
-            print(f"====================mmad{i} score")
-            tmp_mamd_score = np.array(np.matmul(x[:, leftH:rightH], wgate[:, leftH:rightH].T, dtype=matmul_dtype))
-            for j in range(tmp_mamd_score.shape[1] // 128):
-                print(tmp_mamd_score[:, j*128:(j+1)*128])
-            print(tmp_mamd_score)
+
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
-    if print_flag:
-        print(f"====================new_kv_state: {new_kv_state.shape}")
-        for k in range(new_kv_state.reshape(x.shape[0], -1).shape[1] // 128):
-            print(list(new_kv_state[:, k*128:(k+1)*128]))
-        print(f"====================new_score_state: {new_score_state.shape}")
-        for k in range(new_score_state.reshape(x.shape[0], -1).shape[1] // 128):
-            print(list(new_score_state[:, k*128:(k+1)*128]))
 
     B = len(start_pos)
     head_dim = wkv.shape[0] // coff
@@ -514,22 +493,11 @@ def cpu_compressor(
                 sc_data = sc_kv_state * sc_score_state
                 # reduce sum
                 sc_cmp_kv = np.sum(sc_data, axis=0, keepdims=True)
-                if print_flag:
-                    print(f"=========reduce sum {sc_cmp_kv.shape}")
-                    print(list(sc_cmp_kv))
+
                 # RmsNorm
                 sc_cmp_kv = rms_norm(sc_cmp_kv, norm_weight, norm_eps)
-                if print_flag:
-                    print(f"=========RmsNorm {sc_cmp_kv.shape}")
-                    print(list(sc_cmp_kv))
+
                 # inplace rotary_emb
-                if print_flag:
-                    print(f"=========rope_cos {rope_cos.shape}")
-                    print(list(rope_cos))
-                    print(f"=========rope_sin {rope_sin.shape}")
-                    print(list(rope_sin))
-                    print(f"=========rope {sc_cmp_kv.shape}")
-                    print(list(sc_cmp_kv))
                 if bs_combine_flag == False:
                     sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[b_idx, batch_out_sc_id, :], rope_cos[b_idx, batch_out_sc_id, :], rotary_mode)
                     cmp_kv[b_idx, batch_out_sc_id, :] = sc_cmp_kv
@@ -540,7 +508,6 @@ def cpu_compressor(
                     cmp_kv_mask[out_sum_sc_cnt, :] = 1
                 batch_out_sc_id = batch_out_sc_id + 1
                 out_sum_sc_cnt = out_sum_sc_cnt + 1
-
 
             # update loop idx
             batch_seq_idx = end_seq_idx - batch_start_pos
@@ -742,7 +709,6 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
     check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), data_type, 0.0)
     print("\n==========================================================check score state origin=========================================================")
     check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), data_type, 0.0)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
