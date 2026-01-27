@@ -1299,7 +1299,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 <td>
                     <ul>
                         <li>per-channel模式：shape为(1, N, 1, D)，(1, N, D)，(1, H)，(N, 1, D)，(N, D)，(H)。参数数据类型和query数据类型相同</li>
-                        <li>per-tensor模式：shape为(1)，数据类型和query数据类型相同，仅当key、value数据类型为INT8、INT4(INT32)</li>
+                        <li>per-tensor模式：shape为(1)，数据类型和query数据类型相同，仅当key、value数据类型为INT8时支持</li>
                     </ul>
                 </td>
                 <td rowspan="10">
@@ -1319,7 +1319,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
                 <td>
                     <ul>
                         <li>per-channel模式：shape为(1, N, 1, D)，(1, N, D)，(1, H)。参数数据类型和query数据类型相同</li>
-                        <li>per-tensor模式：shape为(1)，数据类型和query数据类型相同，仅当key、value数据类型为INT8、INT4(INT32)</li>
+                        <li>per-tensor模式：shape为(1)，数据类型和query数据类型相同，仅当key、value数据类型为INT8时支持</li>
                     </ul>
                 </td>
             </tr>
@@ -1336,7 +1336,7 @@ aclnnStatus aclnnFusedInferAttentionScoreVX(
             </tr>
             <tr>
                 <td>per-tensor叠加per-head</td>
-                <td>支持kv_dtype为INT8、INT4(INT32)</td>
+                <td>支持kv_dtype为INT8</td>
                 <td>-</td>
                 <td>2</td>
                 <td>shape为(N),数据类型和query数据类型相同</td>
