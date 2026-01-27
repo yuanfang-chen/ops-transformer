@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This program is free software, you can redistribute it and/or modify.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file kv_rms_norm_rope_cache_regbase_full_load_tiling.cpp
@@ -34,9 +34,9 @@ constexpr static int64_t CONST_SEVEN = 7;
 constexpr static int64_t CONST_EIGHT = 8;
 constexpr static int64_t CONST_SIXTY_THREE = 63;
 
-constexpr static int64_t CONST_BRCFLAG_ZERO = 1;
+constexpr static int64_t CONST_BRCFLAG_ZERO = 0;
 constexpr static int64_t CONST_BRCFLAG_ONE = 1;
-constexpr static int64_t CONST_BRCFLAG_TWO = 1;
+constexpr static int64_t CONST_BRCFLAG_TWO = 2;
 
 using namespace Ops::Base;
 
@@ -287,5 +287,5 @@ ge::graphStatus KvRmsNormRopeCacheRegbaseFullLoadTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE("KvRmsNormRopeCache", KvRmsNormRopeCacheRegbaseFullLoadTiling, TEMPLATE_D_FULL_LOAD_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(KvRmsNormRopeCache, KvRmsNormRopeCacheRegbaseFullLoadTiling, TEMPLATE_D_FULL_LOAD_PRIORITY);
 } // namespace optiling

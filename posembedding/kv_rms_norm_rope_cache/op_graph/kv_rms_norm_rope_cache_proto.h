@@ -1,13 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
- 
+ * This program is free software, you can redistribute it and/or modify.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 /*!
  * \file kv_rms_norm_rope_cache_proto.h
  * \brief
@@ -23,7 +22,7 @@ namespace ge {
  * @brief The fusion operator of RMSNorm, RotaryPositionEmbedding and Update KVCache.
  *
  * @par Inputs:
- * @li kv: A tensor. The type support float16 and bfloat16 .Its shape is [Bkv,N,Skv,D]. Format: ND.
+ * @li kv: A tensor. The type support float16 and bfloat16 .Its shape is [Bkv,N,Skv,D] or [Bkv,N,Skv,Dk] when v is not None. Format: ND.
  * @li gamma: A tensor, used in RMS Norm. Its type is consistent with kv. Its shape is [Dv,]. Format: ND.
  * @li cos: A tensor, from position embedding. Its type is consistent with kv. Its shape is [Bkv,1,Skv,Dk] or
  * [Bkv,1,1,Dk]. Format: ND.
@@ -47,6 +46,7 @@ namespace ge {
  * @li c_kv_offset: A tensor. The type support float32. When the data type of ckv_cache is int8 and the corresponding
  * input exists with the quantization scenario being asymmetric quantization, this parameter input is required. Its
  * shape can be [N,Dk], [Dk,] or [1,]. Format: ND.
+ * @li v: A tensor. The type support float16 and bfloat16. Its shape is [Bkv,N,Skv,Dv]. Format: ND.
  *
  * @par Outputs:
  * @li k_cache: A tensor. Its type is consistent with kv or int8. When the cache_mode is in PA scenario, its shape is
@@ -106,6 +106,7 @@ REG_OP(KvRmsNormRopeCache)
     .OPTIONAL_INPUT(c_kv_scale, TensorType({DT_FLOAT}))
     .OPTIONAL_INPUT(k_rope_offset, TensorType({DT_FLOAT}))
     .OPTIONAL_INPUT(c_kv_offset, TensorType({DT_FLOAT}))
+    .OPTIONAL_INPUT(v, TensorType({DT_FLOAT, DT_FLOAT16, DT_BF16}))
     .OUTPUT(k_cache, TensorType({DT_FLOAT, DT_FLOAT16, DT_BF16, DT_INT8}))
     .OUTPUT(ckv_cache, TensorType({DT_FLOAT, DT_FLOAT16, DT_BF16, DT_INT8}))
     .OUTPUT(k_rope, TensorType({DT_FLOAT, DT_FLOAT16, DT_BF16}))
