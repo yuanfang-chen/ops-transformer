@@ -12,13 +12,13 @@
 
 using namespace gmm;
 
-aclnnStatus AclnnGroupedMatmulNoQuant91095Checker::CheckGroupedMatmulNoQuant91095() const
+aclnnStatus AclnnGroupedMatmulNoQuantDAV3510Checker::CheckGroupedMatmulNoQuantDAV3510() const
 {
     CHECK_COND(CheckEmptyTensor() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "gmm check empty tensor failed.");
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulNoQuant91095Checker::CheckEmptyTensor() const
+aclnnStatus AclnnGroupedMatmulNoQuantDAV3510Checker::CheckEmptyTensor() const
 {
     for (size_t i = 0; i < gmmParams_.x->Size(); ++i) {
         auto shape = (*gmmParams_.x)[i]->GetViewShape();

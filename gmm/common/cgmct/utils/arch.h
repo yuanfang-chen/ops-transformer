@@ -19,15 +19,15 @@
 namespace Cgmct {
 namespace Gemm {
 namespace Arch {
-struct Ascend910B {};
-struct Ascend910_95 {};
+struct DAV_2201 {};
+struct DAV_3510 {};
 } // namespace Arch
 
 // buffer size
 constexpr static int64_t L0A_SIZE = 64 * 1024;
 constexpr static int64_t L0B_SIZE = 64 * 1024;
 
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101) // for Ascend910_95
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101) // for DAV_3510
 constexpr static int64_t L0C_SIZE = 256 * 1024;
 #else
 constexpr static int64_t L0C_SIZE = 128 * 1024;

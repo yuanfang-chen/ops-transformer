@@ -2023,7 +2023,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingGMM(gert::TilingContext* context) {
   ge::DataType weightDtype = w0Desc->GetDataType();
   auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
   OP_CHECK_NULL_WITH_CONTEXT(context, compileInfoPtr);
-  if (compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND910_95) {
+  if (compileInfoPtr->npuArch == NpuArch::DAV_3510) {
       // 全量化：双8bits或双4bits(不会有A4W2)
       bool isQuant = xDType == ge::DT_FLOAT4_E1M2 || xDType == ge::DT_FLOAT4_E2M1 || xDType == ge::DT_INT4 ||
                      (ge::GetSizeByDataType(xDType) == 1 && ge::GetSizeByDataType(weightDtype) == 1);
@@ -2075,6 +2075,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForGMM(gert::TilingParseContext* c
   compileInfoPtr->aicNum = ascendcPlatform.GetCoreNumAic();
   compileInfoPtr->aivNum = ascendcPlatform.GetCoreNumAiv();
   compileInfoPtr->socVersion = ascendcPlatform.GetSocVersion();
+  compileInfoPtr->npuArch = ascendcPlatform.GetCurNpuArch();
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfoPtr->ubSize);
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, compileInfoPtr->l1Size);
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, compileInfoPtr->l0ASize);
