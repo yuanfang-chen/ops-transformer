@@ -156,9 +156,6 @@ private:
     GlobalTensor<UPDATE_T> vec2ResGm;
 
     GlobalTensor<T> accumOutGm;
-    GlobalTensor<T> lseSumFdGm;
-    GlobalTensor<T> lseMaxFdGm;
-
     // ================================Init functions==================================
     __aicore__ inline void InitTilingData();
     __aicore__ inline void InitCalcParamsEach();
@@ -226,7 +223,7 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Ini
     constInfo.syncC1V1 = SYNC_C1_V1_FLAG;
     constInfo.syncV1C2 = SYNC_V1_C2_FLAG;
     constInfo.syncC2V2 = SYNC_C2_V2_FLAG;
-    constInfo.templateMode = TEMPLATE_MODE; // TODO 使用模版参数优化
+    constInfo.templateMode = TEMPLATE_MODE;
 
     // cmp
     if (constInfo.templateMode == CFA_TEMPLATE) {
@@ -315,15 +312,7 @@ SparseAttnSharedkvSwa<SAST>::GetActualSeqLenQ(uint32_t bIdx)
 template <typename SAST>
 __aicore__ inline int32_t SparseAttnSharedkvSwa<SAST>::GetActualSeqLenKV(uint32_t bIdx)
 {
-    if constexpr (KV_LAYOUT_T == SAS_LAYOUT::TND) {
-        // if (bIdx > 0) {
-        //     return actualSeqLengthsKVGm.GetValue(bIdx) - actualSeqLengthsKVGm.GetValue(bIdx - 1);
-        // } else if (bIdx == 0) {
-        //     return actualSeqLengthsKVGm.GetValue(0);
-        // } else {
-        //     return 0;
-        // }
-    } else {
+    if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
         tempLoopInfo.actualSeqKVPrefixSum = static_cast<uint64_t>(bIdx * constInfo.kvSeqSize);
         if (constInfo.actualLenDimsKV == 0) {
             return static_cast<int32_t>(constInfo.kvSeqSize);
@@ -364,7 +353,6 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Upd
     tempLoopInfo.mBasicSizeTail = (tempLoopInfo.actS1Size * constInfo.gSize) % constInfo.mBaseSize;
     tempLoopInfo.mBasicSizeTail =
         (tempLoopInfo.mBasicSizeTail == 0) ? constInfo.mBaseSize : tempLoopInfo.mBasicSizeTail;
-    // tempLoopInfo.s2LoopTimes = 0;
 }
 
 template <typename SAST>
@@ -399,7 +387,6 @@ __aicore__ inline bool SparseAttnSharedkvSwa<SAST>::CmpSkip(uint32_t relativeS2L
 template <typename SAST>
 __aicore__ inline bool SparseAttnSharedkvSwa<SAST>::IsSkipTile(uint32_t s2LoopIdx)
 {
-
     bool isSkip = false;
     // 一个基本块只能是ori或者cmp
     if (s2LoopIdx < tempLoopInfo.oriLoopTimes) {
@@ -491,7 +478,7 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Init(
 
     if ASCEND_IS_AIV {
         vectorBlock.InitParams(constInfo, tilingData);
-        vectorBlock.InitVec1GlobalTensor(mm1ResGm, vec1ResGm, actualSeqLengthsQGm, actualSeqLengthsKVGm, lseMaxFdGm, lseSumFdGm, sinksGm);
+        vectorBlock.InitVec1GlobalTensor(mm1ResGm, vec1ResGm, actualSeqLengthsQGm, actualSeqLengthsKVGm, sinksGm);
         vectorBlock.InitVec2GlobalTensor(accumOutGm, vec2ResGm, mm2ResGm, attentionOutGm);
     }
 
@@ -594,7 +581,7 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::CalcParams(uint32_t loop, ui
         }
     }
 
-    info.actualSingleProcessSInnerSizeAlign = SASAlign(info.actualSingleProcessSInnerSize, SASVectorBlock<SAST>::BYTE_BLOCK);  // TODO: 为什么是32ele对齐
+    info.actualSingleProcessSInnerSizeAlign = SASAlign(info.actualSingleProcessSInnerSize, SASVectorBlock<SAST>::BYTE_BLOCK);
 }
 
 template <typename SAST>
@@ -694,7 +681,6 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
             }
             UpdateInnerLoopCond();
             if (tempLoopInfo.curActSeqLenIsZero) {
-                // DealActSeqLenIsZero(tempLoopInfo.bIdx, gS1LoopIdx, tempLoopInfo.n2Idx);
                 if ASCEND_IS_AIV {
                     InitAllZeroOutput(tempLoopInfo.bIdx, tempLoopInfo.s1StartIdx, tempLoopInfo.n2Idx);
                 }
