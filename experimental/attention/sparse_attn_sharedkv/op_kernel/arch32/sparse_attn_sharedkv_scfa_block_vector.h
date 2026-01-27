@@ -249,8 +249,8 @@ SASVectorBlock<SAST>::InitParams(const struct ConstInfo &constInfo,
 }
 
 template <typename SAST>
-__aicore__ inline void SASVectorBlock<SAST>::InitVec0GlobalTensor(const GlobalTensor<int32_t> &kvValidSizeGm, 
-    const GlobalTensor<KV_T> &kvMergeGm, const GlobalTensor<KV_T> &oriKvGm, const GlobalTensor<KV_T> &cmpKvGm, 
+__aicore__ inline void SASVectorBlock<SAST>::InitVec0GlobalTensor(const GlobalTensor<int32_t> &kvValidSizeGm,
+    const GlobalTensor<KV_T> &kvMergeGm, const GlobalTensor<KV_T> &oriKvGm, const GlobalTensor<KV_T> &cmpKvGm,
     const GlobalTensor<int32_t> &oriBlockTableGm, const GlobalTensor<int32_t> &cmpBlockTableGm)
 {
     this->kvValidSizeGm_ = kvValidSizeGm;
