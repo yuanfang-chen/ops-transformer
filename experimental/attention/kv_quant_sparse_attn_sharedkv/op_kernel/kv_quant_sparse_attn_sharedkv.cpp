@@ -21,17 +21,6 @@
 
 using namespace AscendC;
 
-template <class T>
-__inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __gm__ uint8_t *p_metadata, T *metadata)
-{
-    constexpr uint64_t all_bytes = sizeof(T);
-#if defined(ASCENDC_CPU_DEBUG) || defined(__DAV_C220_CUBE__) || defined(__DAV_C310_CUBE__) || defined(__DAV_310R6_CUBE__) || defined(__GET_CODE_CHANNEL__)
-    copy_data_align64((uint8_t*)metadata, (__gm__ uint8_t*)p_metadata, all_bytes);
-#else
-    copy_data_align64((uint8_t*)metadata, (__gm__ uint8_t*)p_metadata, all_bytes);
-#endif
-}
-
 #if defined(__DAV_C310_CUBE__)
 #define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
     do {                                                                                          \
@@ -40,14 +29,8 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
             BaseApi::SCFABlockVecDummy<__VA_ARGS__>, BaseApi::SCFABlockVec<__VA_ARGS__>>::type;   \
         templateClass<CubeBlockType, VecBlockType> op;                                            \
-        SasMetaData *__restrict metadataPtr = nullptr;                                            \
-        SasMetaData metadataTmp;                                                                  \
-        if (metadata != nullptr) {                                                                \
-            InitMetaData<SasMetaData>(metadata, &metadataTmp);                                    \
-            metadataPtr = &metadataTmp;                                                           \
-        }                                                                                         \
         op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
-                seqUsedKV, sinks, metadataPtr, attentionOut, user, nullptr, &tPipe);              \
+                seqUsedQ, seqUsedKV, sinks, metadata, attentionOut, user, nullptr, &tPipe);    \
         op.Process();                                                                             \
     } while (0)
 #else
@@ -60,14 +43,8 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
         templateClass<CubeBlockType, VecBlockType> op;                                            \
         GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                       \
         const tilingdataClass *__restrict tilingData = &tilingDataIn;                             \
-        SasMetaData *__restrict metadataPtr = nullptr;                                            \
-        SasMetaData metadataTmp;                                                                  \
-        if (metadata != nullptr) {                                                                \
-            InitMetaData<SasMetaData>(metadata, &metadataTmp);                                    \
-            metadataPtr = &metadataTmp;                                                           \
-        }                                                                                         \
         op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
-                seqUsedKV, sinks, metadataPtr, attentionOut, user, tilingData, &tPipe);           \
+                seqUsedQ, seqUsedKV, sinks, metadata, attentionOut, user, tilingData, &tPipe); \
         op.Process();                                                                             \
     } while (0)
 #endif
@@ -75,10 +52,10 @@ __inline__ __attribute__((always_inline)) __aicore__ void InitMetaData(const __g
 template<int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE>
  __global__ __aicore__ void
 kv_quant_sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
-                       __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t* oriBlockTable,
-                       __gm__ uint8_t* cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-                       __gm__ uint8_t *seqUsedKV, __gm__ uint8_t *sinks,
-                       __gm__ uint8_t *metadata, __gm__ uint8_t *attentionOut,
+                       __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t* oriBlockTable,
+                       __gm__ uint8_t* cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *cuSeqlensOriKv,
+                       __gm__ uint8_t *cuSeqlensCmpKv, __gm__ uint8_t *seqUsedQ, __gm__ uint8_t *seqUsedKV,
+                       __gm__ uint8_t *sinks, __gm__ uint8_t *metadata, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmax_lse, 
                        __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
