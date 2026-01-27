@@ -712,7 +712,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
     <tr>
       <td>workspaceSize</td>
       <td>输入</td>
-      <td>在Device侧申请的workspace大小，由第一段接口aclnnPromptFlashAttentionV3GetWorkspaceSize获取。</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnFusedInferAttentionScoreV3GetWorkspaceSize获取。</td>
     </tr>
     <tr>
       <td>executor</td>
@@ -778,10 +778,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - 支持TND、NTD_TND；
       - TND场景，数据类型仅支持FLOAT16、BFLOAT16；NTD_TND场景，数据类型仅支持BFLOAT16；
       - TND场景，当head配比为GQA/MQA时（即必须完整传入numHeads和numKeyValueHeads参数，且numHeads是numKeyValueHeads的整数倍，且二者不相等），有如下约束：
-        - 当数据类型为FLOAT16时，支持sparse=0且不传mask，或sparse=3且传入优化后的attentionMask；
-        - 当数据类型为BFLOAT16时，有如下约束：
-          - Q_D、K_D、V_D相等且小于等于256场景下，支持sparse=0且不传mask，或sparse=3，4且传入优化后的attentionMask，仅支持GQA和innerPrecise=0场景，要求  preTokens >= -actualSeqLengths、nextTokens >= -actualSeqLengthsKv、preTokens + nextTokens >= 0;
-          - Q_D、K_D等于192，V_D等于128/192场景下，支持sparse=0且不传mask，或sparse=3，4且传入优化后的attentionMask;
+        - 当数据类型为FLOAT16、BFLOAT16时，支持sparse=0且不传mask，或sparse=3且传入优化后的attentionMask：
+ 	           - Q_D、K_D、V_D相等且小于等于256或Q_D、K_D等于192，V_D等于128/192场景下，支持sparse=4且传入优化后的attentionMask，要求preTokens>=-actualSeqLengths、nextTokens>=-actualSeqLengthsKv、preTokens+nextTokens>=0;
         - 仅支持innerPrecise=0，即不带行无效的高精度模式；
         - 支持page attention，kv cache排布格式支持BnBsH（blocknum, blocksize, H），H不大于65535，blockSize仅支持128；
       - TND场景，当head配比为MHA时，有如下约束：
@@ -825,7 +823,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - 当query的d等于512时：
         - queryRope配置时要求query的s为1-16、n为32、64、128，d为512，queryRope的shape中b、n、s与query一致，d为64；
         - keyRope配置时要求key的n为1，d为512，keyRope的shape中b、n、s与key一致，d为64；
-        - sparse：Q_S等于1时只支持sparse=0且不传mask，Q_S大于1时只支持sparse为0或3且传入mask；
+        - sparse：Q_S等于1时只支持sparse=0且不传mask，Q_S大于1时支持sparse为0且不传mask或sparse为3且传入mask；
         - key&value支持ND输入。
         - inputLayout：BSH、BSND、BNSD、TND。
         - 支持actualSeqLengths、actualSeqLengthsKv参数; 当配置Q_S大于1（即MTP）且key&value的normal部分复用同一份数据场景下，仅inputLayout为TND时支持配置actualSeqLengths参数，其他layout不支持。

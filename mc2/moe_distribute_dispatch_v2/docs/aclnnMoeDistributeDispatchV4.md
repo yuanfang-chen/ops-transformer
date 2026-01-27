@@ -17,10 +17,18 @@
 
 - 计算公式：
 
-$$
-expandXOut = AllToAllV(agOut)\\
-agOut = AllGatherV(X)\\
-$$
+    - 情形1：如果不存在tp域通信。
+
+    $$
+    expandXOut = AllToAllV(X)\\
+    $$
+
+    - 情形2：如果存在tp域通信。
+
+    $$
+    allToAllOut = AllToAllV(X)\\
+    expandXOut = AllGatherV(allToAllOut)\\
+    $$
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：该接口必须与`aclnnMoeDistributeCombineV4`配套使用。
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：该接口必须与`aclnnMoeDistributeCombineV4`或`aclnnMoeDistributeCombineAddRmsNormV2`配套使用。
@@ -166,8 +174,8 @@ aclnnStatus aclnnMoeDistributeDispatchV4(
   <tr>
    <td>performanceInfoOptional</td>
    <td>输入</td>
-   <td>表示各卡通信耗时打点信息。结合DeepXTrace工具使用，可动态记录各卡通信时间。</td>
-   <td>单次算子调用各卡通信耗时会累加到该Tensor上，用户使用前按需清零。</td>
+   <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。</td>
+   <td>单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
    <td>INT64</td>
    <td>ND</td>
    <td>-</td>
@@ -623,21 +631,7 @@ aclnnStatus：返回状态码，具体参见[aclnn](../../../docs/zh/context/acl
 
 ## 调用示例
 
-<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：类似下文<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>调用示例，其中V4接口相较于V3接口新增的场景参数按上述参数说明传值即可。
-
-
-- 文件准备：
-  1.新建dispatchDemo目录，按照下方指导在dispatchDemo下新建aclnnDispatchDemo.cpp，buildCombine.sh文件并参考如下代码修改。
-
-  2.安装cann包，并根据下方指导编译运行dispatchDemo。
-
--  编译脚本
-    ```bash
-    #!/bin/bash
-    cann_path="/path/to/cann_env" # 更改cann包环境的路径
-    g++ "aclnnDispatchDemo.cpp" -o dispatchDemo -I"$cann_path/latest/include/" -I"$cann_path/latest/include/aclnnop/" \
-                        -L="$cann_path/latest/lib64/" -lascendcl -lnnopbase -lopapi_math -lop_common -lpthread -lhccl
-    ```
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：请参考[aclnnMoeDistributeDispatchV2](../docs/aclnnMoeDistributeDispatchV2.md)中调用示例的准备部分和示例代码，按照上文的约束说明重新设置涉及的变量，其中V4接口相较于V3接口新增的场景参数按上述参数说明传值即可。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
        
