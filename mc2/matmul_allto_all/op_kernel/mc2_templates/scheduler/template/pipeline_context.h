@@ -48,16 +48,14 @@ struct PipelineContext {
     uint64_t hcclDataType;
     // quantization
     GM_ADDR quantInputAddr;
-    // GM_ADDR smoothScaleAddr;
     GM_ADDR quantOutputAddr;
     GM_ADDR quantOutputScaleAddr;
     uint64_t rowNum;
     uint64_t colNum;
     uint64_t calBuffSize;
     uint64_t quantInputAddrOffset;
-    // uint64_t smoothScaleAddrOffset;
     uint64_t quantOutputAddrOffset;
-    uint64_t quantOutputScaleOffset;
+    uint64_t quantOutputScaleAddrOffset;
 };
 }; // namespace MC2KernelTemplate
 

@@ -93,24 +93,17 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
             quantStage_->Init(context_->quantInputAddr, nullptr, context_->quantOutputAddr,
                               context_->quantOutputScaleAddr, context_->rowNum, context_->colNum,
                               context_->calBuffSize);
+            quantStage_->Process();
+            quantStage_->Destroy();
+
             context_->quantInputAddr = (GM_ADDR)((uint64_t)context_->quantInputAddr + context_->quantInputAddrOffset);
-            // context_->smoothScaleAddr =
-            //     (GM_ADDR)((uint64_t)context_->smoothScaleAddr + context_->smoothScaleAddrOffset);
             context_->quantOutputAddr =
                 (GM_ADDR)((uint64_t)context_->quantOutputAddr + context_->quantOutputAddrOffset);
             context_->quantOutputScaleAddr =
                 (GM_ADDR)((uint64_t)context_->quantOutputScaleAddr + context_->quantOutputScaleAddrOffset);
-            quantStage_->Process();
-
-            CrossCoreSetFlag<0, PIPE_MTE3>(8);
-            CrossCoreWaitFlag(8);
-            CrossCoreSetFlag<2, PIPE_MTE3>(9);
-        }
-        if ASCEND_IS_AIC {
-            CrossCoreWaitFlag(9);
-            computeStage_->Process(index == 0);
         }
         AscendC::SyncAll<false>();
+        computeStage_->Process(index == 0);
     }
 }
 
