@@ -179,6 +179,7 @@ private:
     void FillFullKVPertileQuantParamInfo();
     void FillMxfp8FullQuantParamInfo();
     void FillMxfp8FullKVQuantParamInfo();
+    void FillMxfp8FullKVPertileParamInfo();
 
     void GenActualParamInfo();
     // =================================全量参数校验=================================
