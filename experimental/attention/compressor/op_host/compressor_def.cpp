@@ -13,10 +13,10 @@
 namespace ops {
 class Compressor : public OpDef {
 public:
-    const uint32_t ROPE_HEAD_DIM_VALUE = 64;
-    const uint32_t CMP_RATIO_VALUE = 4;
-    const uint32_t COFF_VALUE = 1;
-    const uint32_t ROTARY_MODE_VALUE = 1;
+    constexpr uint32_t ROPE_HEAD_DIM_VALUE = 64;
+    constexpr uint32_t CMP_RATIO_VALUE = 4;
+    constexpr uint32_t COFF_VALUE = 1;
+    constexpr uint32_t ROTARY_MODE_VALUE = 1;
 
     explicit Compressor(const char *name) : OpDef(name)
     {

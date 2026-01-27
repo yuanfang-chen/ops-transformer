@@ -122,7 +122,6 @@ ge::graphStatus CompressorTiling::GetNpuInfo()
 
 ge::graphStatus CompressorTiling::SetBaseInfo()
 {
-    constexpr uint32_t VALUE_TWO = 2;
     if (context_->x.shape->GetStorageShape().GetDimNum() == COMPRESSOR_DIM_NUM_3) {
         baseParams_->batchSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
         baseParams_->seqSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
@@ -143,7 +142,7 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
     baseParams_->normEps = static_cast<float>(*context_->normEps);
     baseParams_->reciprocalD = 1.0 / baseParams_->headDim;
     coff = static_cast<uint8_t>(*context_->coff);
-    baseParams_->nSize = VALUE_TWO;
+    baseParams_->nSize = 2; // 2:每个核处理两个基本块后做全核同步
 
     OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u", baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff);
     
@@ -161,9 +160,8 @@ ge::graphStatus CompressorTiling::SetPageAttentionInfo()
 
 ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 {
-    constexpr uint32_t VALUE_TWO = 2;
     workspaceParams_->preMm1ResSize = 0;
-    if (coff == VALUE_TWO) {
+    if (coff == 2) { // 2:需要做overlap
         workspaceParams_->preMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;      // 2 wkv和score合一起
     }
     workspaceParams_->curMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;          // 2 wkv和score合一起
@@ -180,10 +178,8 @@ ge::graphStatus CompressorTiling::SetScenarioInfo()
 
 ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
-    constexpr uint32_t VALUE_256 = 256;
-    constexpr uint32_t VALUE_128 = 128;
-    innerSplitParams_->mBaseSize = VALUE_256;
-    innerSplitParams_->dBaseSize = VALUE_128 / coff;
+    innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
+    innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
 
     return ge::GRAPH_SUCCESS;
 }
@@ -192,13 +188,12 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
 {
     constexpr uint32_t MM1_RES_ELEM_SIZE = 4;      // 4: fp32
     constexpr uint32_t V1_RES_ELEM_SIZE = 2;       // 2: fp16/bf16
-    constexpr uint32_t VALUE_1024 = 1024;
     workspaceSize_ = libapiSize_;
     workspaceSize_ += aicNum_ * workspaceParams_->preMm1ResSize * MM1_RES_ELEM_SIZE;
     workspaceSize_ += aicNum_ * workspaceParams_->curMm1ResSize * MM1_RES_ELEM_SIZE;
     workspaceSize_ += aicNum_ * workspaceParams_->vec1ResSize * V1_RES_ELEM_SIZE;
     
-    workspaceSize_ += VALUE_1024 * VALUE_1024 * VALUE_1024;
+    workspaceSize_ += 1024 * 1024 * 1024; // 1024:申请workspace大小
     if (context_->workSpaces) {
         context_->workSpaces[0] = workspaceSize_;
     }
