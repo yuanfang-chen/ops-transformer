@@ -120,7 +120,7 @@ uint32_t KVQuantSparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
         return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx + 1U]) :
            static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);
     } else {
-        return static_cast<uint32_t>(s1Ptr[bIdx + 1]);
+        return querySeqSize_;
     }
 }
 
