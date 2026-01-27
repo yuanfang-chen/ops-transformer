@@ -17,6 +17,7 @@ if(BUILD_OPEN_PROJECT)
     src/matmul_performance.cpp
     src/mc2_common_infershape.cpp
     src/mc2_copy_quant_matmul_params.cpp
+    src/mc2_gen_task_ops_utils_arch35.cpp
     src/mc2_gen_task_ops_utils.cpp
     src/mc2_hcom_topo_info.cpp
     src/mc2_log.cpp
