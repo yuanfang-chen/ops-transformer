@@ -141,7 +141,8 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
         queryNormDataType = aclDataType::ACL_FLOAT8_E4M3FN;
     }
     auto queryNormHolder = TensorHolder(queryNormOutOptional, queryNormDataType, std::string("queryNormOut"));
-    auto dequantScaleQNormHolder = TensorHolder(dequantScaleQNormOutOptional, aclDataType::ACL_FLOAT, std::string("dequantScaleQNormOut"));
+    aclDataType dequantScaleQNormType = weightQuantMode == 3 ? aclDataType::ACL_FLOAT8_E8M0 : aclDataType::ACL_FLOAT;
+    auto dequantScaleQNormHolder = TensorHolder(dequantScaleQNormOutOptional, dequantScaleQNormType, std::string("dequantScaleQNormOut"));
     if (dequantScaleQNopeOutOptional == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Failed to create the holder of tensor dequantScaleQNopeOu!");
         return ge::GRAPH_FAILED;
