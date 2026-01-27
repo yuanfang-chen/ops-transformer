@@ -8,6 +8,26 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
+set(A5_OPS_BLACK_LIST
+
+    "mla_prolog;"
+    "mla_prolog_v2;"
+    "mla_prolog_v3;"
+    "allto_all_all_gather_batch_mat_mul;"
+    "batch_mat_mul_reduce_scatter_allto_all;"
+    "distribute_barrier;"
+    "elastic_receivable_info_collect;"
+    "elastic_receivable_test;"
+    "grouped_mat_mul_all_reduce;"
+    "inplace_matmul_all_reduce_add_rms_norm;"
+    "matmul_all_reduce_add_rms_norm;"
+    "moe_distribute_buffer_reset;"
+    "moe_token_permute_with_routing_map;"
+    "moe_distribute_combine_teardown;"
+    "moe_distribute_dispatch_setup;"
+    "moe_distribute_dispatch_teardown;"
+) # A5算子黑名单
+
 function(filter_copy_files SELECTED_FILES SELECTED_DIRS)
     set(_selected_files "")
     set(_selected_dirs "")
@@ -104,6 +124,13 @@ function(op_add_subdirectory OP_LIST OP_DIR_LIST)
         endif()
         get_filename_component(OP_NAME "${OP_DIR}" NAME)
 
+        if ("ascend910_95" IN_LIST ASCEND_COMPUTE_UNIT AND ENABLE_BUILT_IN)
+            list(FIND A5_OPS_BLACK_LIST "${OP_NAME}" INDEX)
+            if(NOT INDEX EQUAL -1)
+                continue()
+            endif()
+        endif()
+
         if (NOT BUILD_OPEN_PROJECT)
             if (EXISTS ${TOP_DIR}/asl/ops/cann/ops/built-in/tbe/impl/ascendc/${OP_NAME})
                 continue()
@@ -159,11 +186,11 @@ function(op_add_depend_directory)
         if (DEFINED ${op_name}_depends)
             foreach(depend_info ${${op_name}_depends})
                 if (ENABLE_EXPERIMENTAL)
- 	                set(depend_info_update "experimental/${depend_info}")
- 	            else()
- 	                set(depend_info_update ${depend_info})
- 	            endif()
- 	            if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${depend_info_update}/op_host/CMakeLists.txt AND NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/${depend_info_update}/CMakeLists.txt)
+                    set(depend_info_update "experimental/${depend_info}")
+                else()
+                    set(depend_info_update ${depend_info})
+                endif()
+                if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${depend_info_update}/op_host/CMakeLists.txt AND NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/${depend_info_update}/CMakeLists.txt)
                     continue()
                 endif ()
 
@@ -371,8 +398,12 @@ function(add_ops_src_copy)
             set(OPS_UTILS_INC_KERNEL_DIR ${_ROOT_OPS_SRC_DIR}/ascendc/common)
             add_custom_command(OUTPUT ${OPS_UTILS_INC_KERNEL_DIR}
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/regbase
+                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/catlass
+                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/tla
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
                     COMMAND cp -rf ${OPS_ADV_UTILS_KERNEL_INC}/*.* ${OPS_UTILS_INC_KERNEL_DIR}
+                    COMMAND cp -rf ${OPS_ADV_CATLASS}/* ${OPS_UTILS_INC_KERNEL_DIR}/catlass
+                    COMMAND cp -rf ${OPS_ADV_TLA}/* ${OPS_UTILS_INC_KERNEL_DIR}/tla
                     COMMAND cp -rf ${OPS_CGMCT}/* ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
             )
 
@@ -383,24 +414,32 @@ function(add_ops_src_copy)
     endif ()
 
     set(MC2_OPS_LIST "matmul_reduce_scatter;"
+        "matmul_reduce_scatter_v2;"
         "grouped_mat_mul_allto_allv;"
         "grouped_mat_mul_all_reduce;"
         "batch_mat_mul_reduce_scatter_allto_all;"
         "allto_allv_grouped_mat_mul;"
         "allto_all_all_gather_batch_mat_mul;"
         "distribute_barrier;"
+        "moe_distribute_buffer_reset;"
         "moe_distribute_combine_add_rms_norm;"
         "moe_distribute_dispatch;"
         "moe_distribute_combine;"
         "moe_distribute_dispatch_v2;"
         "moe_distribute_combine_v2;"
+        "elastic_receivable_info_collect;"
         "moe_update_expert;"
+        "elastic_receivable_test;"
         "all_gather_matmul;"
+        "all_gather_matmul_v2;"
         "matmul_all_reduce;"
+        "matmul_all_reduce_apt;"
         "matmul_all_reduce_add_rms_norm;"
         "inplace_matmul_all_reduce_add_rms_norm;"
         "quant_reduce_scatter;"
+        "quant_all_reduce;"
         "matmul_allto_all;"
+        "allto_all_matmul;"
         "attention_to_ffn;"
         "ffn_to_attention;"
     ) # mc2算子列表
@@ -526,10 +565,10 @@ function(add_bin_compile_target)
             if (DEFINED ${op_file}_depends)
                 foreach(depend_info ${${op_file}_depends})
                     if (ENABLE_EXPERIMENTAL)
- 	                    set(depend_info_update "experimental/${depend_info}")
- 	                else()
- 	                    set(depend_info_update ${depend_info})
- 	                endif()
+                        set(depend_info_update "experimental/${depend_info}")
+                    else()
+                        set(depend_info_update ${depend_info})
+                    endif()
                     get_filename_component(_depend_op_name "${depend_info}" NAME)
                     set(_depend_op_target ${_depend_op_name}_${BINARY_COMPUTE_UNIT}_src_copy)
                     add_ops_src_copy(
