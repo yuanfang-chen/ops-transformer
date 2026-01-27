@@ -109,6 +109,20 @@ static bool CheckShapeValid(const aclTensor* routingMap, const aclTensor* probsO
                 ACLNN_ERR_PARAM_INVALID, "The dimensions of probs should be two, but got %ld.",
                 static_cast<int64_t>(probsDimNum)),
             return false);
+        OP_CHECK(
+            probsOptional->GetViewShape().GetDim(1) == routingMap->GetViewShape().GetDim(1),
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID, "The dim 1 of probs %ld should be same with routingMap's dim 0 %ld.",
+                static_cast<int64_t>(probsOptional->GetViewShape().GetDim(1)),
+                static_cast<int64_t>(routingMap->GetViewShape().GetDim(1))),
+            return false);
+        OP_CHECK(
+            probsOptional->GetViewShape().GetDim(0) == routingMap->GetViewShape().GetDim(0),
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID, "The dim 0 of probs %ld should be same with routingMap's dim 0 %ld.",
+                static_cast<int64_t>(probsOptional->GetViewShape().GetDim(0)),
+                static_cast<int64_t>(routingMap->GetViewShape().GetDim(0))),
+            return false);
     }
 
     return true;
