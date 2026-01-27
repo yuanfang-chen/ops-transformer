@@ -284,8 +284,6 @@ private:
     // ge::graphStatus CheckSingleParaQuery() const;
     // ge::graphStatus CheckSingleParaKey() const;
     // ge::graphStatus CheckSingleParaValue() const;
-    // ge::graphStatus CheckSingleParaQueryRope() const;
-    // ge::graphStatus CheckSingleParaKeyRope() const;
     // ge::graphStatus CheckSingleParaAttenOut() const;
     // ge::graphStatus CheckSingleParaNumHeads() const;
     // ge::graphStatus CheckSingleParaKvHeadNums() const;
@@ -295,7 +293,6 @@ private:
     // ge::graphStatus CheckSingleParaSparseIndices() const;
     // ge::graphStatus CheckSinglePara() const;
     // ge::graphStatus CheckMultiParaConsistency() const;
-    // ge::graphStatus CheckRopeExistence();
     // ge::graphStatus CheckExists(const void *pointer, const std::string &name) const;
     // ge::graphStatus CheckNotExists(const void *pointer, const std::string &name) const;
     // ge::graphStatus CheckExistsByMap(const std::map<std::string, const void *> &paramMap) const;
@@ -311,13 +308,7 @@ private:
     // ge::graphStatus GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
     //     const SASLayout &layout, const std::string &name) const;
     // void SetSASShapeCompare();
-    // ge::graphStatus CheckQRope();
-    // ge::graphStatus CheckQRopeShape();
-    // ge::graphStatus CheckVAndKRopeShapeForBatchContinuous();
     // uint32_t GetTypeSize(ge::DataType dtype) const;
-    // ge::graphStatus CheckVAndKRopeShapeForPageAttention();
-    // ge::graphStatus CheckVAndKRopeShape();
-    // ge::graphStatus CheckVAndKRope();
     // ge::graphStatus CheckTopK();
     // ge::graphStatus CheckTopkShape();
     // ge::graphStatus CheckBlockTable() const;

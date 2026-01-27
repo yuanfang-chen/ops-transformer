@@ -366,14 +366,14 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
             if (info.isOri) {
                 uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint;
                 while (copyFinishRowCnt < nL1Size) {
-                    copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize; // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
                     if (copyFinishRowCnt + copyRowCnt > nL1Size) {
                         copyRowCnt = nL1Size - copyFinishRowCnt;
                     }
                     Position startPos;
                     startPos.bIdx = info.bIdx;
                     startPos.n2Idx = info.n2Idx;
-                    // startPos.s2Idx = idInTopK * constInfo.sparseBlockSize + curOffsetInSparseBlock;
                     startPos.s2Idx = curS2Offset;
                     // 256、32等待7buf命名更改
                     startPos.dIdx = kL1 * 256;  // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
@@ -395,7 +395,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
             } else {
                 uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + nL1 * N_SPLIT_SIZE;
                 while (copyFinishRowCnt < nL1Size) {
-                    copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize; // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize;
                     if (copyFinishRowCnt + copyRowCnt > nL1Size) {
                         copyRowCnt = nL1Size - copyFinishRowCnt;
                     }
@@ -497,7 +498,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
 
                     Fixpipe(mm1ResGm[(info.loop % (constInfo.preLoadNum)) * constInfo.mmResUbSize + nL1 * N_SPLIT_SIZE +
                                      (mSplitInfo.nBufferStartM + mL1 * M_SPLIT_SIZE) *
-                                         info.actualSingleProcessSInnerSizeAlign],
+                                      info.actualSingleProcessSInnerSizeAlign],
                             cL0Tensor, fixParams);
                 }
                 if (mL1Loops == 2) {
@@ -606,7 +607,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         curS2Offset += copyRowCnt;
                     }
                 } else {
-                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + 128 * kL1; // 128：非尾块的kL0Size大小
+                    // 128：非尾块的kL0Size大小
+                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + 128 * kL1;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
