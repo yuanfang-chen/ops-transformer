@@ -373,9 +373,7 @@ __aicore__ inline void SASVectorBlock<SAST>::ElewiseCompute(const RunInfo &info,
 {
     Muls(mmResUb, mmResUb, static_cast<T>(tilingData->baseParams.softmaxScale), dealRowCount * columnCount);
 
-    if (info.isOri) {
-        // SCFA ori_kv 部分不需要mask？ TODO: CFA & SWA 需要
-    } else {
+    if (!info.isOri) {
         // v0的无效值判断
         uint64_t s2ValidSizeFirstPart = v0ValidSizeUb_.GetValue(128 + info.cmpLoop % MERGE_CACHE_GM_BUF_NUM);
         uint64_t s2ValidSizeSecondPart = v0ValidSizeUb_.GetValue(256 + info.cmpLoop % MERGE_CACHE_GM_BUF_NUM);
@@ -417,7 +415,6 @@ __aicore__ inline void SASVectorBlock<SAST>::ElewiseCompute(const RunInfo &info,
                         s2StartCeilAlign <= s2EndFloorAlign ? s2EndFloorAlign : s2StartCeilAlign, s2ProcessSize);
         }
     }
-
 }
 
 template <typename SAST>

@@ -310,13 +310,13 @@ template <typename SAST>
 __aicore__ inline int32_t SparseAttnSharedkvScfa<SAST>::GetActualSeqLenKV(uint32_t bIdx)
 {
     if constexpr (KV_LAYOUT_T == SAS_LAYOUT::TND) {
-        // if (bIdx > 0) {
-        //     return actualSeqLengthsKVGm.GetValue(bIdx) - actualSeqLengthsKVGm.GetValue(bIdx - 1);
-        // } else if (bIdx == 0) {
-        //     return actualSeqLengthsKVGm.GetValue(0);
-        // } else {
-        //     return 0;
-        // }
+        if (bIdx > 0) {
+            return actualSeqLengthsKVGm.GetValue(bIdx) - actualSeqLengthsKVGm.GetValue(bIdx - 1);
+        } else if (bIdx == 0) {
+            return actualSeqLengthsKVGm.GetValue(0);
+        } else {
+            return 0;
+        }
     } else {
         tempLoopInfo.actualSeqKVPrefixSum = static_cast<uint64_t>(bIdx * constInfo.kvSeqSize);
         if (constInfo.actualLenDimsKV == 0) {

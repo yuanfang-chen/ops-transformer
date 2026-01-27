@@ -537,7 +537,6 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
 
 ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
 {
-
     if (context_ == nullptr) {
         OP_LOGE("SparseFlashAttention", "tiling context is nullptr!");
         return ge::GRAPH_FAILED;
@@ -582,13 +581,6 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
 
 ge::graphStatus SASTilingCheck::Process()
 {
-    // Init();
-    // if (CheckSinglePara() != ge::GRAPH_SUCCESS ||
-    //     CheckParaExistence() != ge::GRAPH_SUCCESS ||
-    //     CheckFeature() != ge::GRAPH_SUCCESS ||
-    //     CheckMultiParaConsistency() != ge::GRAPH_SUCCESS) {
-    //     return ge::GRAPH_FAILED;
-    // }
     return ge::GRAPH_SUCCESS;
 }
 

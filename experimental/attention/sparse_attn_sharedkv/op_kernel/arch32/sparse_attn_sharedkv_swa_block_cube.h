@@ -83,8 +83,6 @@ private:
     static constexpr uint32_t mte21QPIds[4] = {L1_EVENT0, L1_EVENT1, L1_EVENT2, L1_EVENT3}; // mte12复用
     static constexpr uint32_t mte21KVIds[3] = {L1_EVENT4, L1_EVENT5, L1_EVENT6};
 
-    // uint32_t kvCacheBlockSize = 0;
-    // uint32_t maxBlockNumPerBatch = 0;
     ConstInfo constInfo{};
 
     // L1分成3块buf, 用于记录
@@ -161,7 +159,7 @@ SWACubeBlock<SAST>::InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<
     // mm1
     this->queryGm = queryGm;
     this->oriKvGm = oriKvGm;
-    if (constInfo.templateMode == CFA_TEMPLATE) { // FIXME: constInfo.templateMode没有赋值，无法路由到这里，需通过tilingkey
+    if (constInfo.templateMode == CFA_TEMPLATE) {
         this->cmpKvGm = cmpKvGm;
     }
     this->mm1ResGm = mm1ResGm;
@@ -185,7 +183,6 @@ SWACubeBlock<SAST>::InitPageAttentionInfo(GlobalTensor<KV_T> oriKvGm, // const G
                                           GlobalTensor<int32_t> cmpBlockTableGm)
 {
     this->oriKvGm = oriKvGm;
-    // this->kvMergeGm_ = kvMergeGm;
     this->oriBlockTableGm = oriBlockTableGm;
     if (constInfo.templateMode == CFA_TEMPLATE) {
         this->cmpBlockTableGm = cmpBlockTableGm;
