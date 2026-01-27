@@ -103,11 +103,11 @@ ge::graphStatus QLIInfoParser::GetNpuInfo()
     OP_CHECK_IF(aicNum == 0 || aivNum == 0, OP_LOGE(opName_, "num of core obtained is 0."), return GRAPH_FAILED);
 
     socVersion_ = ascendcPlatform.GetSocVersion();
-    if ((socVersion_ != platform_ascendc::SocVersion::ASCEND910B) &&
-        (socVersion_ != platform_ascendc::SocVersion::ASCEND910_93)) {
-        OP_LOGE(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
-        return GRAPH_FAILED;
-    }
+    // if ((socVersion_ != platform_ascendc::SocVersion::ASCEND910B) &&
+    //     (socVersion_ != platform_ascendc::SocVersion::ASCEND910_93)) {
+    //     OP_LOGE(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
+    //     return GRAPH_FAILED;
+    // }
     OP_CHECK_IF(context_->GetWorkspaceSizes(1) == nullptr, OP_LOGE(opName_, "workSpaceSize got from ge is nullptr"),
                return ge::GRAPH_FAILED);
     OP_CHECK_IF(context_->GetRawTilingData() == nullptr,
