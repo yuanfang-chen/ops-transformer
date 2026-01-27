@@ -13,9 +13,9 @@
 import itertools
 import torch
 import torch_npu
-from testcases_qli import ENABLED_PARAMS
-import check_result_a5
-import qli_single
+from test_quant_lightning_indexer_paramset import ENABLED_PARAMS
+import result_compare_method
+import quant_lightning_indexer_golden
 import pytest
 
 
@@ -114,13 +114,13 @@ for _, params in enumerate(ENABLED_PARAMS):
         # print("test_data:", test_data)
 
         # 获得cpu结果(真值)和算子结果（测试值）
-        cpu_result, npu_result, topk_value = qli_single.qli_output_single(test_data)
+        cpu_result, npu_result, topk_value = quant_lightning_indexer_golden.qli_output_single(test_data)
 
         
         print("npu_result", npu_result)
         print("cpu_result:", cpu_result)
 
         # 结果精度对比
-        result, fulfill_percent = check_result_a5._compare_res(cpu_result, npu_result)
+        result, fulfill_percent = result_compare_method.check_result(cpu_result, npu_result, topk_value, test_data)
         print("result", result)
         print("result", fulfill_percent)
