@@ -51,8 +51,9 @@ public:
                                                 const GlobalTensor<int32_t> &cmpBlockTableGm);
     __aicore__ inline void InitVec1GlobalTensor(GlobalTensor<MM1_OUT_T> mm1ResGm, GlobalTensor<KV_T> vec1ResGm,
                                                 GlobalTensor<int32_t> actualSeqLengthsQGm,
-                                                GlobalTensor<int32_t> actualSeqLengthsKVGm, GlobalTensor<T> lseMaxFdGm,
-                                                GlobalTensor<T> lseSumFdGm, GlobalTensor<int32_t> topKGm, GlobalTensor<T> sinksGm);
+                                                GlobalTensor<int32_t> actualSeqLengthsKVGm,
+                                                GlobalTensor<T> lseMaxFdGm, GlobalTensor<T> lseSumFdGm,
+                                                GlobalTensor<int32_t> topKGm, GlobalTensor<T> sinksGm);
     __aicore__ inline void InitVec2GlobalTensor(GlobalTensor<T> accumOutGm, GlobalTensor<UPDATE_T> vec2ResGm,
                                                 GlobalTensor<MM2_OUT_T> mm2ResGm, GlobalTensor<OUT_T> attentionOutGm);
     __aicore__ inline void AllocEventID();
@@ -227,7 +228,8 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::InitBuffer
     pipe->InitBuffer(softmaxSumDefaultBuff, ConstInfo::BUFFER_SIZE_BYTE_1K);
 
     pipe->InitBuffer(sinksBuff, MAX_N1_SIZE * sizeof(SINKS_T));
-    pipe->InitBuffer(sinksBrcbBuff, MAX_N1_SIZE * sizeof(SINKS_T) * BLOCK_ELEMENT_NUM * 3U);  // 分配256+N1大小内存，其中256是m轴VEC最大切块
+    // 分配256+N1大小内存，其中256是m轴VEC最大切块
+    pipe->InitBuffer(sinksBrcbBuff, MAX_N1_SIZE * sizeof(SINKS_T) * BLOCK_ELEMENT_NUM * 3U);
 
     softmaxMaxUb = softmaxMaxBuff.Get<T>();
     softmaxSumUb = softmaxSumBuff.Get<T>();
@@ -247,16 +249,16 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::InitBuffer
 template <typename SAST>
 __aicore__ inline void
 SASVectorBlock<SAST>::InitParams(const struct ConstInfo &constInfo,
-                                                 const SparseAttnSharedkvTilingData *__restrict tilingData)
+    const SparseAttnSharedkvTilingData *__restrict tilingData)
 {
     this->constInfo = constInfo;
     this->tilingData = tilingData;
 }
 
 template <typename SAST>
-__aicore__ inline void SASVectorBlock<SAST>::InitVec0GlobalTensor(
-    const GlobalTensor<int32_t> &kvValidSizeGm,  const GlobalTensor<KV_T> &kvMergeGm, const GlobalTensor<KV_T> &oriKvGm,
-    const GlobalTensor<KV_T> &cmpKvGm, const GlobalTensor<int32_t> &oriBlockTableGm, const GlobalTensor<int32_t> &cmpBlockTableGm)
+__aicore__ inline void SASVectorBlock<SAST>::InitVec0GlobalTensor(const GlobalTensor<KV_T> &kvMergeGm, 
+    const GlobalTensor<KV_T> &oriKvGm, const GlobalTensor<KV_T> &cmpKvGm, 
+    const GlobalTensor<int32_t> &oriBlockTableGm, const GlobalTensor<int32_t> &cmpBlockTableGm)
 {
     this->kvValidSizeGm_ = kvValidSizeGm;
     this->kvMergeGm_ = kvMergeGm;
@@ -285,9 +287,7 @@ __aicore__ inline void SASVectorBlock<SAST>::InitVec1GlobalTensor(
 
 template <typename SAST>
 __aicore__ inline void SASVectorBlock<SAST>::InitVec2GlobalTensor(GlobalTensor<T> accumOutGm,
-                                                                    GlobalTensor<UPDATE_T> vec2ResGm,
-                                                                    GlobalTensor<MM2_OUT_T> mm2ResGm,
-                                                                    GlobalTensor<OUT_T> attentionOutGm)
+    GlobalTensor<UPDATE_T> vec2ResGm, GlobalTensor<MM2_OUT_T> mm2ResGm, GlobalTensor<OUT_T> attentionOutGm)
 {
     this->accumOutGm = accumOutGm;
     this->vec2ResGm = vec2ResGm;
@@ -343,7 +343,8 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::CopySinksI
 
 template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::SliceAndContactSinksValue(uint32_t nIdx, uint32_t dealRowCount)
 {
-    uint32_t repeatTimesOnce = 128;  //由于WholeReduceMax接口中repeatTimes支持范围（0,255），因此需要分多次调用WholeReduceMax，这里就使用每次repeatTime=128
+    //WholeReduceMax接口中repeatTimes支持范围（0,255），因此需要分多次调用WholeReduceMax，每次repeatTime=128
+    uint32_t repeatTimesOnce = 128;
     uint32_t loopTimes = (dealRowCount + repeatTimesOnce - 1) / repeatTimesOnce;
     uint32_t repeatTimes = repeatTimesOnce;
 
@@ -351,8 +352,9 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::SliceAndCo
         if (loop == loopTimes - 1) {
             repeatTimes = dealRowCount - loop * repeatTimesOnce;
         }
-        WholeReduceMax(softmaxMaxDefaultUb[loop * repeatTimesOnce], sinksBrcbUb[(nIdx + loop * repeatTimesOnce) * BLOCK_ELEMENT_NUM],
-            BLOCK_ELEMENT_NUM * BLOCK_ELEMENT_NUM, repeatTimes, 1, 0, 1, ReduceOrder::ORDER_ONLY_VALUE);
+        WholeReduceMax(softmaxMaxDefaultUb[loop * repeatTimesOnce], 
+        sinksBrcbUb[(nIdx + loop * repeatTimesOnce) * BLOCK_ELEMENT_NUM], BLOCK_ELEMENT_NUM * BLOCK_ELEMENT_NUM,
+        repeatTimes, 1, 0, 1, ReduceOrder::ORDER_ONLY_VALUE);
         PipeBarrier<PIPE_V>();
     }
 }
@@ -366,8 +368,8 @@ template <typename SAST> __aicore__ inline void SASVectorBlock<SAST>::InitSoftma
 
 template <typename SAST>
 __aicore__ inline void SASVectorBlock<SAST>::ElewiseCompute(const RunInfo &info,
-                                                                            const LocalTensor<T> &mmResUb,
-                                                                            uint32_t dealRowCount, uint32_t columnCount)
+                                                            const LocalTensor<T> &mmResUb,
+                                                            uint32_t dealRowCount, uint32_t columnCount)
 {
     Muls(mmResUb, mmResUb, static_cast<T>(tilingData->baseParams.softmaxScale), dealRowCount * columnCount);
 
@@ -420,8 +422,7 @@ __aicore__ inline void SASVectorBlock<SAST>::ElewiseCompute(const RunInfo &info,
 
 template <typename SAST>
 __aicore__ inline void SASVectorBlock<SAST>::SetInfInBlk(const LocalTensor<T> &mmResUb,
-                                                                         uint32_t dealRowCount, uint32_t columnCount,
-                                                                         uint64_t startId, uint64_t endId)
+    uint32_t dealRowCount, uint32_t columnCount, uint64_t startId, uint64_t endId)
 {
     //       startId     endId
     // x x x   0      0   0     x x x
@@ -448,8 +449,7 @@ __aicore__ inline void SASVectorBlock<SAST>::SetInfInBlk(const LocalTensor<T> &m
 
 template <typename SAST>
 __aicore__ inline void SASVectorBlock<SAST>::SetMidInf(const LocalTensor<T> &mmResUb,
-                                                                       uint32_t dealRowCount, uint32_t columnCount,
-                                                                       uint64_t startId, uint64_t endId)
+    uint32_t dealRowCount, uint32_t columnCount, uint64_t startId, uint64_t endId)
 {
     if (startId >= endId) {
         return;
@@ -556,7 +556,8 @@ __aicore__ inline void SASVectorBlock<SAST>::ProcessVec1SingleBuf(const RunInfo 
     uint32_t loopCount = (mSplitInfo.vecDealM + mSplitSize - 1) / mSplitSize;
     uint32_t tailSplitSize = mSplitInfo.vecDealM - (loopCount - 1) * mSplitSize;
 
-    SliceAndContactSinksValue((mSplitInfo.nBufferStartM + mSplitInfo.vecStartM) % constInfo.qHeadNum, mSplitInfo.vecDealM);
+    SliceAndContactSinksValue((mSplitInfo.nBufferStartM + mSplitInfo.vecStartM) %
+                               constInfo.qHeadNum, mSplitInfo.vecDealM);
 
     if (!info.isOri) {
         DataCopyExtParams dataCopyParams;
@@ -1011,7 +1012,8 @@ SASVectorBlock<SAST>::DealBmm2ResBaseBlock(const RunInfo &info, const MSplitInfo
 
         uint32_t idx = info.loop % (constInfo.preLoadNum);
         LocalTensor<T> expUb = v0ValidSizeBuff.Get<T>()[384]; // sumUb用临时内存 16 * 32B  = 512B
-        Brcb(expUb, softmaxExpUb[idx * SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T) + baseOffset], (dealRowCount + 7) / 8, {1, 8});
+        Brcb(expUb, softmaxExpUb[idx * SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T) + baseOffset],
+            (dealRowCount + 7) / 8, {1, 8});
         PipeBarrier<PIPE_V>();
 
         RowMuls(bmm2ResPreUb, bmm2ResPreUb, expUb, dealRowCount, columnCount, actualColumnCount);
@@ -1026,7 +1028,8 @@ SASVectorBlock<SAST>::DealBmm2ResBaseBlock(const RunInfo &info, const MSplitInfo
     if (info.isLastS2Loop) {
         uint32_t idx = info.loop % (constInfo.preLoadNum);
         LocalTensor<T> tmpSumUb = v0ValidSizeBuff.Get<T>()[384]; // sumUb用临时内存 16 * 32B  = 512B
-        Brcb(tmpSumUb, softmaxSumUb[idx * SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T) + baseOffset], (dealRowCount + 7) / 8, {1, 8});
+        Brcb(tmpSumUb, softmaxSumUb[idx * SOFTMAX_TMP_BUFFER_OFFSET / sizeof(T) + baseOffset],
+            (dealRowCount + 7) / 8, {1, 8});
         PipeBarrier<PIPE_V>();
         RowDivs(bmm2ResUb, bmm2ResUb, tmpSumUb, dealRowCount, columnCount, actualColumnCount);
         PipeBarrier<PIPE_V>();
