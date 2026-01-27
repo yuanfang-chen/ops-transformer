@@ -43,6 +43,7 @@ macro(add_modules_sources)
     set(COMPILED_OPS ${COMPILED_OPS} ${OP_NAME} CACHE STRING "Compiled Ops" FORCE)
     set(COMPILED_OP_DIRS ${COMPILED_OP_DIRS} ${PARENT_DIR} CACHE STRING "Compiled Ops Dirs" FORCE)
   endif()
+
   # opapi 默认全部编译
   file(GLOB OPAPI_SRCS ${OP_API_SRC_DIR}/*.cpp)
   if (OPAPI_SRCS)
@@ -96,6 +97,7 @@ macro(add_modules_sources)
       ${SOURCE_DIR}/op_tiling/arch35/*.cpp
       ${SOURCE_DIR}/../op_graph/fallback_*.cpp
       ${SOURCE_DIR}/../graph_plugin/fallback_*.cpp)
+
   if (OPTILING_SRCS OR SUB_OPTILING_SRC)
     # tiling
     add_tiling_modules()
