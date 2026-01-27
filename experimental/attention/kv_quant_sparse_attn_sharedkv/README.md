@@ -6,16 +6,15 @@
 |<term>Atlas A5 推理系列产品</term>   | √  |
 
 ## 功能说明
-- API功能：kv_quant_sparse_attn_sharedkv 是针对大序列长度推理场景的高效注意力计算模块，该模块包含slide_window_attention、compress_flash_attention和sparse_compress_flash_attention，同时兼顾局部和全局注意力。
+- API功能：KVQuantSparseAttentionSharedKV 算子旨在完成以下形式的Attention计算，支持Sliding Window Attention、Compressed Flash Attention及两者混合：
 
 - 计算公式：
 
     $$
-    \text{softmax}(\frac{Q@\tilde{K}^T}{\sqrt{d_k}})@\tilde{V}
+    O = \text{softmax}(Q@\tilde{K}^T \cdot \text{softmax\_scale})@\tilde{V}
     $$
 
-    其中$\tilde{K},\tilde{V}$为基于ori_kv、cmp_kv以及cmp_kv入参控制的实际参与计算Key和Value，$d_k$为$Q,\tilde{K}$每一个头的维度。
-    本次公布的`kv_quant_sparse_attn_sharedkv`是面向Sparse Attention的全新算子，针对离散访存进行了指令缩减及搬运聚合的细致优化。
+    其中$\tilde{K}=\tilde{V}$为基于入参控制的实际参与计算的$KV$。
 
 ## 函数原型
 
@@ -193,7 +192,35 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
     import torchair
     from torchair.configs.compiler_config import CompilerConfig
 
+    class Network(torch.nn.Module):
+        def __init__(self):
+            super(Network, self).__init__()
 
+        def forward(self, q, ori_kv, cmp_kv, cmp_sparse_indices, ori_block_table, 
+            cmp_block_table, cu_seqlens_q, seqused_kv, sinks, metadata, kv_quant_mode, tile_size, rope_head_dim, 
+            softmax_scale, cmp_ratio, ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv):
+            return torch_npu.npu_kv_quant_sparse_attn_sharedkv(
+                                                q=q,
+                                                ori_kv=ori_kv,
+                                                cmp_kv=cmp_kv,
+                                                cmp_sparse_indices=cmp_sparse_indices,
+                                                ori_block_table=ori_block_table,
+                                                cmp_block_table=cmp_block_table,
+                                                cu_seqlens_q=cu_seqlens_q,
+                                                seqused_kv=seqused_kv,
+                                                sinks=sinks,
+                                                metadata=metadata,
+                                                kv_quant_mode=kv_quant_mode,
+                                                tile_size=tile_size,
+                                                rope_head_dim=rope_head_dim,
+                                                softmax_scale=softmax_scale,
+                                                cmp_ratio=cmp_ratio,
+                                                ori_mask_mode=ori_mask_mode,
+                                                cmp_mask_mode=cmp_mask_mode,
+                                                ori_win_left=ori_win_left,
+                                                ori_win_right=ori_win_right,
+                                                layout_q=layout_q,
+                                                layout_kv=layout_kv)
 
     layout_q="TND"
     layout_kv="PA_ND"
@@ -245,37 +272,6 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
     metadata[35:67] = torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) # 32个数 mEnd
     metadata[67:99] = torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) # 32个数 s2End
     metadata = metadata.npu()
-
-    class Network(torch.nn.Module):
-        def __init__(self):
-            super(Network, self).__init__()
-
-        def forward(self, q, ori_kv, cmp_kv, cmp_sparse_indices, ori_block_table, 
-            cmp_block_table, cu_seqlens_q, seqused_kv, sinks, metadata, kv_quant_mode, tile_size, rope_head_dim, 
-            softmax_scale, cmp_ratio, ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv):
-            return torch_npu.npu_kv_quant_sparse_attn_sharedkv(
-                                                q=q,
-                                                ori_kv=ori_kv,
-                                                cmp_kv=cmp_kv,
-                                                cmp_sparse_indices=cmp_sparse_indices,
-                                                ori_block_table=ori_block_table,
-                                                cmp_block_table=cmp_block_table,
-                                                cu_seqlens_q=cu_seqlens_q,
-                                                seqused_kv=seqused_kv,
-                                                sinks=sinks,
-                                                metadata=metadata,
-                                                kv_quant_mode=kv_quant_mode,
-                                                tile_size=tile_size,
-                                                rope_head_dim=rope_head_dim,
-                                                softmax_scale=softmax_scale,
-                                                cmp_ratio=cmp_ratio,
-                                                ori_mask_mode=ori_mask_mode,
-                                                cmp_mask_mode=cmp_mask_mode,
-                                                ori_win_left=ori_win_left,
-                                                ori_win_right=ori_win_right,
-                                                layout_q=layout_q,
-                                                layout_kv=layout_kv)
-
 
     npu_mode = Network().npu()
     config = CompilerConfig()
