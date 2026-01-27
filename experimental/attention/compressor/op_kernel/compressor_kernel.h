@@ -461,7 +461,8 @@ __aicore__ inline void CompressorKernel<COMP>::CalcParams(RunInfo &info) {
 
     // sEnd到了seq末尾，切换到下一个batch
     GetSeqLength(curBStart);
-    if (curSStart == curActSeqLength) {
+    // 跳batch处理，batch=0且seq=0时不跳
+    if (curSStart == curActSeqLength && (curBStart != 0 || curActSeqLength != 0)) {
         curBStart++;
         curSStart = 0;
         info.scStart = 0;
