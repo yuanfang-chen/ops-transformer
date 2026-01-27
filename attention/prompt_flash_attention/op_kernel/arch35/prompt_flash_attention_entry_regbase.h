@@ -15,7 +15,6 @@
 
 #ifndef PROMPT_FLASH_ATTENTION_ENTRY_310_H_
 #define PROMPT_FLASH_ATTENTION_ENTRY_310_H_
-#if (__NPU_ARCH__ != 5102)
 #include "kernel/prompt_flash_attention_normal_bns1_preload.h"
 #include "matmul_modules/pfa_policy_data.h"
 #include "prompt_flash_attention_zero_output.h"
@@ -23,26 +22,24 @@
 #include "prompt_flash_attention_template_tiling_key_enum.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
-#include "../../../common/op_kernel/arch35/flash_attention_kvsame_bn2gs1s2.h"
-#else
-#include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_regbase_v2.h"
-#include "prompt_flash_attention_dummy.h"
-namespace optiling {};
-#endif
+#include "../../../common/op_kernel/arch35/flash_attention_kernel_noquant_mla.h"
+
 using namespace regbaseutil;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-#define REGBASE_COPY_TILING_DATA_ASCEND910_95_KVSAME_BASEAPI(tiling)                                                    \
+#define REGBASE_COPY_TILING_DATA_ASCEND950_KVSAME_BASEAPI(tiling)                                                    \
     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                           \
     const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                  \
 
-#define INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(templateClass, ...)                                               \
+#define INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(templateClass, ...)                                               \
     do {                                                                                                                \
         TPipe tPipe;                                                                                                    \
         __gm__ uint8_t *user = GetUserWorkspace(workspace);                                                               \
-        REGBASE_COPY_TILING_DATA_ASCEND910_95_KVSAME_BASEAPI(tiling);                                                   \
-        templateClass<__VA_ARGS__> op;                                                                                  \
+        REGBASE_COPY_TILING_DATA_ASCEND950_KVSAME_BASEAPI(tiling);                                                   \
+        using CubeBlockType = FABlockCubeNoquantMla<__VA_ARGS__>;                                                   \
+        using VecBlockType = BaseApi::FABlockVecInfer<__VA_ARGS__>;                                                     \
+        templateClass<CubeBlockType, VecBlockType> op;                                                                  \
         op.Init(query, key, value, pseShift, attenMask, actualSeqLengths,                                               \
                 actualSeqLengthsKV, blocktable, postQuantScale, postQuantOffset, queryRope, keyRope, softmaxLse, attentionOut,                           \
                 user, tilingData, &tPipe);                                                                              \
@@ -103,33 +100,11 @@ using namespace regbaseutil;
     INVOKE_PFA_TILING_DATA_V2(tiling)
 #endif
 
-#if (__NPU_ARCH__ == 5102)
-#define PFA_REGBASE_COPY_TILING_DATA(tiling)                                                                                                \
-    GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                                           \
-    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                                 \
- 
-#define INVOKE_PFA_GENERAL_OP_IMPL_REGBASE_V2_FA_BASEAPI(templateClass, ...)                                 \
-    do {                                                                                                                                \
-        if (query == nullptr) {return;}                                                                                                 \
-        PFA_REGBASE_COPY_TILING_DATA(tiling);                                                                                           \
-        TPipe tPipe;                                                                                                                    \
-        using CubeBlockType = BaseApi::FABlockCube<__VA_ARGS__>; \
-        using VecBlockType = BaseApi::FABlockVecInfer<__VA_ARGS__>; \
-        templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
-        op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
-            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, nullptr, nullptr, deq_scale2,                                 \
-            deq_scale1, quant_scale1, postQuantScale, postQuantOffset, queryRope, keyRope,                                                           \
-            nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);                                             \
-        op.Process();                                                                                                                   \
-    } while (0)
-#else
-
 #ifdef __DAV_C310_CUBE__ // CUBE 实现
-
 #define PFA_REGBASE_COPY_TILING_DATA(tiling)                                                                     \
     const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = nullptr
 
-#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA(templateClass, vec1ResultSize, qkvSize, ...)                                     \
+#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA(templateClass, vec1ResultSize, qkvSize, ...)                                     \
     do {                                                                                                     \
         templateClass<__VA_ARGS__> op;                                                                       \
         TPipe tPipe;                                                                                         \
@@ -148,7 +123,7 @@ using namespace regbaseutil;
         REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.bmm1, (TCubeTiling *)nullptr, op.bmm2, (TCubeTiling *)nullptr);           \
     } while (0)
 
-#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
+#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
     do {                                                                                                                                \
         if (query == nullptr) {return;}                                                                                                 \
         TPipe tPipe;                                                                                                                    \
@@ -165,7 +140,7 @@ using namespace regbaseutil;
     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                                           \
     const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                                 \
 
-#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA(templateClass, vec1ResultSize, qkvSize, ...)\
+#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA(templateClass, vec1ResultSize, qkvSize, ...)\
     do {                                                                                                 \
         if (query == nullptr) {return;}                                                                  \
         PFA_REGBASE_COPY_TILING_DATA(tiling);                                                            \
@@ -180,7 +155,7 @@ using namespace regbaseutil;
         op.Process();                                                                                                                   \
     } while (0)
 
-#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
+#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
     do {                                                                                                                                \
         if (query == nullptr) {return;}                                                                                                 \
         PFA_REGBASE_COPY_TILING_DATA(tiling);                                                                                           \
@@ -193,7 +168,6 @@ using namespace regbaseutil;
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \
         op.Process();                                                                                                                   \
     } while (0)
-#endif
 #endif
 
 #define INVOKE_PFA_GENERAL_OP_IMPL_V2(templateClass, ...)                                                                  \
@@ -219,23 +193,12 @@ using namespace regbaseutil;
         op.InitQuant(deq_scale1, quant_scale1, deq_scale2, postQuantScale, postQuantOffset);                                \
         op.Process();                                                                                                   \
     } while (0)
-#define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(templateClass, ...)                                                                  \
-    do {                                                                                                                \
-        if (query == nullptr) {return;}                                                                                 \
-        TPipe tPipe;                                                                                                    \
-        INVOKE_PFA_TILING_DATA_55(tiling);                                                                              \
-        templateClass<__VA_ARGS__> op;                                                                                  \
-        REGIST_MATMUL_OBJ(&tPipe, GetSysWorkSpacePtr(), op.mm1.mm, bmm1tiling, op.mm2.mm, bmm2tiling);                        \
-        op.Init(query, key, value, pseShift, attenMask, actualSeqLengths, actualSeqLengthsKV, blocktable, queryPaddingSize,         \
-                kvPaddingSize, queryRope, keyRope, attentionOut, softmaxLse, user, tiling_data, &tPipe);                                    \
-        op.Process();                                                                                                   \
-    } while (0)
 // kv is empty tensor, return zero output
-#define INVOKE_PFA_ZERO_OP_IMPL_V2(templateClass, ...)                                                  \
+#define INVOKE_PFA_ZERO_OP_IMPL_V2(T)                                                                   \
     TPipe tPipe;                                                                                        \
-    INVOKE_PFA_TILING_DATA_95(tiling);                                                                  \
-    PromptFlashAttentionZeroOutPut<half> op;                                                            \
-    op.Init(attentionOut, tiling_data);                                                                 \
+    PFA_REGBASE_COPY_TILING_DATA(tiling);                                                               \
+    PromptFlashAttentionZeroOutPut<T> op;                                                               \
+    op.Init(attentionOut, softmaxLse, tilingData);                                                      \
     op.Process();                                                                                       \
     return
 #define INVOKE_PFA_DUMMY(templateClass, ...)                                                            \
@@ -267,58 +230,62 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
     REGISTER_TILING_DEFAULT(PFAFullQuantTilingData);
     REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) == 31", FlashAttentionScoreSimplifiedTilingData);
     if constexpr (emptyTensor == true) {
-        INVOKE_PFA_ZERO_OP_IMPL_V2();
+        # if (ORIG_DTYPE_ATTENTION_OUT != DT_FLOAT16 && ORIG_DTYPE_ATTENTION_OUT != DT_BF16)
+            INVOKE_PFA_ZERO_OP_IMPL_V2(fp8_e4m3fn_t);
+        #else
+            INVOKE_PFA_ZERO_OP_IMPL_V2(half);
+        #endif
         return;
     }
     // 非量化用新模板
     #if (ORIG_DTYPE_QUERY == DT_FLOAT16 && ORIG_DTYPE_KEY == DT_FLOAT16 && ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16)
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
-        // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI会报结构体的某些变量不存在
+        // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI会报结构体的某些变量不存在
         // 原因：不使用constexpr，所有组合都会在编译阶段进入该函数，因此会出现hasRope字段为false的情况导致变量不存在
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, half, true, isPa, false); //实际模板参数hasRope为false，但模板需要其为true，选择在kernel直接写入，tiling不做修改
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, half, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false); //实际模板参数hasRope为false，但模板需要其为true，选择在kernel直接写入，tiling不做修改
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, half,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, half,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, half,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, half,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }    
     #endif
     #if (ORIG_DTYPE_QUERY == DT_BF16 && ORIG_DTYPE_KEY == DT_BF16 && ORIG_DTYPE_ATTENTION_OUT == DT_BF16)
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
-        // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI会报结构体的某些变量不存在
+        // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI会报结构体的某些变量不存在
         // 原因：不使用constexpr，所有组合都会在编译阶段进入该函数，因此会出现hasRope字段为false的情况导致变量不存在    
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, bfloat16_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, bfloat16_t, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
-            }
+        }
 
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, bfloat16_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, bfloat16_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }    
     #endif
@@ -326,25 +293,25 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
     #if (ORIG_DTYPE_QUERY == DT_FLOAT16 && ORIG_DTYPE_KEY == DT_FLOAT16 && ORIG_DTYPE_ATTENTION_OUT == DT_INT8)
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
-        // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI会报结构体的某些变量不存在
+        // 计算参数，这个地方必须先用constexpr将表达式的值计算出来，否则INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI会报结构体的某些变量不存在
         // 原因：不使用constexpr，所有组合都会在编译阶段进入该函数，因此会出现hasRope字段为false的情况导致变量不存在    
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, int8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, int8_t, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
             }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, int8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, int8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, int8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, int8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }    
     #endif
@@ -353,22 +320,22 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, hifloat8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, hifloat8_t, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, hifloat8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, hifloat8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, hifloat8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, hifloat8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }    
     #endif
@@ -377,22 +344,22 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, half, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, fp8_e4m3fn_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, half, float, fp8_e4m3fn_t, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, fp8_e4m3fn_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, fp8_e4m3fn_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, fp8_e4m3fn_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, half, float, fp8_e4m3fn_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }    
     #endif
@@ -401,22 +368,22 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, int8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, int8_t, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+            s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, int8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, int8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, int8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, int8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }    
     #endif
@@ -425,22 +392,22 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, hifloat8_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, hifloat8_t, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, hifloat8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, hifloat8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, hifloat8_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, hifloat8_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }
     #endif
@@ -449,22 +416,22 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         // 解析两个合并字段
         PARSE_PARAMS_NoQuant(inOutLayoutType, config, pseMode, quantMode, hasAttenMask, hasRope, isPa, isFd, emptyTensor, pFAMatMulType, enableKVPrefix);
         if constexpr(dTemplateType == DTemplateType::Aligned576) {
-            INVOKE_FA_OP_IMPL_ASCEND910_95_KVSAME_BASEAPI(FlashAttentionKvsameBN2GS1S2, bfloat16_t, float, ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType,
-                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, fp8_e4m3fn_t, true, isPa, false);
+            INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(FAKernelNoquantMla, bfloat16_t, float, fp8_e4m3fn_t, ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType,
+                s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType, static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, true, true, isPa, false);
             return;
         }
         constexpr uint64_t vec1ResultSize = static_cast<uint64_t>(s1TemplateType) * static_cast<uint64_t>(s2TemplateType) * 2;
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, fp8_e4m3fn_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, fp8_e4m3fn_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, fp8_e4m3fn_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, bfloat16_t, float, fp8_e4m3fn_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }
     #endif
@@ -483,14 +450,14 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, half,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, half,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, half,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, half,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }
     #endif
@@ -501,14 +468,14 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, half,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, half,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, half,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, half,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd);
         }
     #endif
@@ -519,14 +486,14 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, bfloat16_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, bfloat16_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, hifloat8_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd);
         }
     #endif
@@ -537,161 +504,22 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
         if constexpr(dTemplateType == DTemplateType::Aligned512) {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else if constexpr (quantMode == FULLQUANT_MODE_PER_TOKEN_HEAD) { // mla fullquant
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * (static_cast<uint64_t>(dVTemplateType) >> 1),
                 static_cast<uint64_t>(s2TemplateType) * (static_cast<uint64_t>(dVTemplateType) >> 1)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInferMlaFullquant, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInferMlaFullquant, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         } else {
             constexpr uint64_t qkvSizeRsv2 = MAX(MAX(static_cast<uint64_t>(s1TemplateType), static_cast<uint64_t>(s2TemplateType)) * static_cast<uint64_t>(dTemplateType),
                 static_cast<uint64_t>(s2TemplateType) * static_cast<uint64_t>(dTemplateType)) * 2;
-            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_95_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
-                ImplModeEnum::AA_HIGH_PRECISION, outputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
+            INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(BaseApi::FlashAttentionScoreKernelInfer, vec1ResultSize, qkvSizeRsv2, fp8_e4m3fn_t, float, bfloat16_t,
+                ImplModeEnum::AA_HIGH_PRECISION, inputLayoutType, s1TemplateType, s2TemplateType, dTemplateType, dVTemplateType,
                 static_cast<PseTypeEnum>(pseMode), hasAttenMask, false, hasRope, true, isPa, isFd, enableKVPrefix);
         }
-    #endif
-#elif defined (__DAV_310R6__)
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
-    TILING_KEY_IS(1000000000000001612);
-    TILING_KEY_IS(1002112000000101612);
-    TILING_KEY_IS(1001111000000101612);
-    TILING_KEY_IS(1002112000000001612);
-    TILING_KEY_IS(1001111000000001612);
-    TILING_KEY_IS(1002112000000111112);
-    TILING_KEY_IS(1001111000000111112);
-    TILING_KEY_IS(1002112000000011112);
-    TILING_KEY_IS(1001111000000011112);
-    TILING_KEY_IS(1002112000100001612);
-    TILING_KEY_IS(1002112000100101612);
-    TILING_KEY_IS(1002112000020001612);
-    TILING_KEY_IS(1002112000120001612);
-    TILING_KEY_IS(1002112000020101612);
-    TILING_KEY_IS(1002112000120101612);
-    TILING_KEY_IS(1002112000200001612);
-    TILING_KEY_IS(1002112000200101612);
-    TILING_KEY_IS(1002112000220001612);
-    TILING_KEY_IS(1002112000220101612);
-    TILING_KEY_IS(1000000000000000020);
-    #if TILING_KEY_VAR == 1000000000000001612
-        // BNSD layout HighPrecision, No mask, No pse, vector split
-        INVOKE_PFA_GENERAL_OP_IMPL_V2(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   NO_CONSTANT, NO_CONSTANT, NO_CONSTANT>);
-    #elif TILING_KEY_VAR == 1002112000000101612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, half, uint8_t, half, half,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1001111000000101612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, half, uint8_t, half, half,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_64, DSIZE_CONST_64>);
-    #elif TILING_KEY_VAR == 1002112000000001612 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1001111000000001612 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_64, DSIZE_CONST_64>);
-    #elif TILING_KEY_VAR == 1002112000000111112 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, bfloat16_t, uint8_t, bfloat16_t, bfloat16_t,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1001111000000111112 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, bfloat16_t, uint8_t, bfloat16_t, bfloat16_t,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_64, DSIZE_CONST_64>);
-    #elif TILING_KEY_VAR == 1002112000000011112 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, bfloat16_t, uint8_t, bfloat16_t, bfloat16_t,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1001111000000011112 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, bfloat16_t, uint8_t, bfloat16_t, bfloat16_t,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_64, DSIZE_CONST_64>);
-    #elif TILING_KEY_VAR == 1002112000100001612 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, mask int8 no band, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,
-                                   PFAMask::ENABLE_MASK_NO_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1002112000100101612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, mask int8 no band, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, half, uint8_t, half, half,
-                                   PFAMask::ENABLE_MASK_NO_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1002112000020001612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128 ,Page Attention
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128, PFAMatMulType::MM_PA>);
-    #elif TILING_KEY_VAR == 1002112000120001612 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, mask int8 no band, No pse, vector split, qkD 128 vD 128 ,Page Attention
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,d
-                                   PFAMask::ENABLE_MASK_NO_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128, PFAMatMulType::MM_PA>);
-    #elif TILING_KEY_VAR == 1002112000020101612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, no mask, No pse, vector split, qkD 128 vD 128 ,Page Attention
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, half, uint8_t, half, half,
-                                   PFAMask::DISABLE_MASK, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128, PFAMatMulType::MM_PA>);
-    #elif TILING_KEY_VAR == 1002112000120101612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, mask int8 no band, No pse, vector split, qkD 128 vD 128 ,Page Attention
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, half, uint8_t, half, half,
-                                   PFAMask::ENABLE_MASK_NO_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128, PFAMatMulType::MM_PA>);
-    #elif TILING_KEY_VAR == 1002112000200001612 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, mask band, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,
-                                   PFAMask::ENABLE_MASK_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1002112000200101612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, mask band, No pse, vector split, qkD 128 vD 128
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, half, uint8_t, half, half,
-                                   PFAMask::ENABLE_MASK_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128>);
-    #elif TILING_KEY_VAR == 1002112000220001612 // tilingkey of ASCEND910_55
-        // BNSD layout HighPrecision, mask band, No pse, vector split, qkD 128 vD 128, Page Attention
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BNSD, half, uint8_t, half, half,
-                                   PFAMask::ENABLE_MASK_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128, PFAMatMulType::MM_PA>);
-    #elif TILING_KEY_VAR == 1002112000220101612 // tilingkey of ASCEND910_55
-        // BSH layout HighPrecision, mask band, No pse, vector split, qkD 128 vD 128, Page Attention
-        INVOKE_PFA_GENERAL_OP_IMPL_ASCEND910_55(PromptFlashAttentionNormalBNS1Preload, PFAType<PFALayout::BSH, half, uint8_t, half, half,
-                                   PFAMask::ENABLE_MASK_BAND, PFAPse::DISABLE_PSE,
-                                   RunMode::HighPrecision, SplitCoreMode::SPLIT_NBS_VECTOR,
-                                   SOUTER_CONST_64, SINNER_CONST_128, DSIZE_CONST_128, DSIZE_CONST_128, PFAMatMulType::MM_PA>);
-    #elif TILING_KEY_VAR == 1000000000000000020
-        INVOKE_PFA_ZERO_OP_IMPL_V2(*);
     #endif
 #endif
 }

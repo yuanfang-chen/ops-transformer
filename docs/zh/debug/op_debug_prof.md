@@ -6,7 +6,7 @@
 
 算子运行过程中，如果出现算子执行失败、精度异常等问题，可以打印各阶段信息，如Kernel中间结果，进行问题分析和定位。
 
-以`AddExample`算子为例，常见调试方法如下：
+常见调试方法如下：
 
 * **printf**
 
@@ -78,7 +78,7 @@
    
    之后进入算子可执行文件所在目录，执行如下命令：
    ```bash
-   msprof op simulator --output=$PWD/pipline_auto --kernel-name"AddExample" ./test_aclnn_add_example
+   msprof op simulator --output=$PWD/pipeline_auto --kernel-name "AddExample" ./test_aclnn_add_example
    ```
    采集结果在本项目`$PWD/pipeline_auto/OPPROF_**`目录中。
    其中流水相关文件路径为`OPPROF**/simulator/visualize_data.bin`，可以借助[MindStudio Insight](https://www.hiascend.com/document/redirect/MindStudioInsight)工具查看。

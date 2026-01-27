@@ -87,7 +87,7 @@ aclnnStatus aclnnQuantMatmulAllReduce(
           <td>MatMul计算的右矩阵，即计算公式中的x2。</td>
           <td><ul><li>当前版本仅支持两维输入。</li><li>支持转置/不转置场景。</li></ul></td>
           <td>INT8</td>
-          <td>ND</td>
+          <td>ND、FRACTAL_NZ</td>
           <td>2</td>
           <td>√</td>
         </tr>
@@ -198,7 +198,9 @@ aclnnStatus aclnnQuantMatmulAllReduce(
 
 - **返回值**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+    第一阶段接口完成入参校验，出现以下场景报错：
 
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
@@ -230,6 +232,7 @@ aclnnStatus aclnnQuantMatmulAllReduce(
     </tr>
     </tbody>
     </table>
+
 ## aclnnQuantMatmulAllReduce
 
 - **参数说明**
@@ -265,6 +268,7 @@ aclnnStatus aclnnQuantMatmulAllReduce(
         <td>指定执行任务的stream。</td>
     </tr>
     </tbody></table>
+    
 -   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。

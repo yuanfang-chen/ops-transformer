@@ -242,7 +242,9 @@ if (BUILD_OPEN_PROJECT)
         foreach (OP_UT_LIST ${OP_UT_DIR_LIST})
             # 仅通过op_add_subdirectory添加的算子目录，需要在这里add tests
             if(OP_UT_LIST IN_LIST OP_DIR_LIST)
-                add_subdirectory(${OP_UT_LIST}/tests)
+                if (EXISTS "${OP_UT_LIST}/tests/CMakeLists.txt")
+                    add_subdirectory(${OP_UT_LIST}/tests)
+                endif()
             endif()
         endforeach ()
 
@@ -263,12 +265,23 @@ foreach (OP_DIR ${OP_DIR_LIST})
         if(EXISTS "${OP_DIR}/op_graph/CMakeLists.txt")
             add_subdirectory(${OP_DIR}/op_graph)
         endif()
+        if(EXISTS "${OP_DIR}/op_kernel_aicpu/CMakeLists.txt")
+            add_subdirectory(${OP_DIR}/op_kernel_aicpu)
+        endif()
     else()
         add_subdirectory(${OP_DIR})
     endif()
 endforeach ()
 
-add_subdirectory(attention)
+if(ENABLE_EXPERIMENTAL)
+    # genop新增experimental算子分类
+    # add_subdirectory(${op_class})
+    add_subdirectory(experimental/attention)
+else()
+    # genop新增非experimental算子分类
+    # add_subdirectory(${op_class})
+    add_subdirectory(attention)
+endif()
 
 if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
         add_subdirectory(tests/ut/framework_normal)
@@ -279,11 +292,20 @@ if("${ASCEND_OP_NAME}" STREQUAL "add_example")
     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
 endif()
 
+if("${ASCEND_OP_NAME}" STREQUAL "all_gather_add")
+    add_subdirectory(examples/mc2)
+    list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${ASCEND_OP_NAME})
+endif()
+
 list(APPEND OP_LIST ${COMPILED_OPS})
 list(APPEND OP_DIR_LIST ${COMPILED_OP_DIRS})
 
 if(ENABLE_TEST)
     foreach (OP_DIR ${OP_DIR_LIST})
+        if (NOT EXISTS "${OP_DIR}/tests/CMakeLists.txt")
+            continue()
+        endif()
+
         file(READ "${OP_DIR}/tests/CMakeLists.txt" CML_CONTENT)
         if (CML_CONTENT MATCHES "OpsTest_Level2_AddOp")
             set(UTEST_FRAMEWORK_OLD TRUE CACHE BOOL "UTEST_FRAMEWORK_OLD" FORCE)
@@ -670,10 +692,6 @@ foreach (_op_name ${OP_LIST})
 endforeach ()
 
 install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
-)
-
-install(DIRECTORY ${OPS_ADV_DIR}/common/tla
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 

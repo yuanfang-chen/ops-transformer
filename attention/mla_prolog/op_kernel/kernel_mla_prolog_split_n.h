@@ -191,7 +191,8 @@ private:
     uint32_t curStepVecBackToken_;
     uint32_t curVecTokenMax_;
     bool enableSmoothScalesCq_;
-    static constexpr uint32_t cvRatio_ = MLAPT::cvRatio; // 默认cv 1:2
+    static constexpr uint32_t cvMode = MLAPT::cvRatio; // 编译态，默认cv1:2
+    uint32_t cvRatio_ = 2U; // 默认cv 1:2
 
     struct DequantTool {
         GlobalTensor<dequantScaleType> deQuantScaleCqGm_;
@@ -301,12 +302,18 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::Init(
     __gm__ uint8_t *workspace) {
     blockIdx_ = GetBlockIdx(); // cube:0-23  vec:0-47
     if ASCEND_IS_AIV {
+        cvRatio_ = GetSubBlockNum(); // CV1:2场景返回2，其他场景返回1
         cubeBlockIdx_ = blockIdx_ / cvRatio_;
     } else {
         cubeBlockIdx_ = blockIdx_;
     }
     curVectorBlockNum_ = static_cast<int64_t>(baseParams_->stepBatchSize);
     vectorCoreNum_ = static_cast<int64_t>(baseParams_->vectorBlockNum); // aivNum 48
+    if (cvMode == 1 && cvRatio_ == 2) { // 编译态cv1:1，运行态cv1:2
+        if (vectorCoreNum_ < curVectorBlockNum_) {
+            vectorCoreNum_ = vectorCoreNum_ * 2; // 修正为运行态vector数目
+        }
+    }
     curVecTokenMax_ = (curVectorBlockNum_ + vectorCoreNum_ - 1) / vectorCoreNum_;
     enableSmoothScalesCq_ = smoothScaleCq == nullptr ? false : true;
     // GM
@@ -462,7 +469,15 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MmQcQrParamInit() {
     if constexpr (MLAPT::enableGroupComputeOpt) {
         mmQcQrParam_.baseN = 128;
     } else {
-        mmQcQrParam_.baseN = 128;
+        if constexpr (std::is_same<mmInputType, FP8E4M3>::value) { // FP8全量化场景下L1B用满，修改baseN会造成内存踩踏
+            mmQcQrParam_.baseN = 128;
+        } else {
+            if (mmQcQrParam_.m <= 64) {	// FP8全量化场景，scale需要额外占用L1，该优化不适用
+                mmQcQrParam_.baseN = 256;
+            } else { 
+                mmQcQrParam_.baseN = 128;
+            }
+        }
     }
     mmQcQrParam_.stepK = 4;
     mmQcQrParam_.kL1StepSize = mmQcQrParam_.baseK * mmQcQrParam_.stepK;
@@ -589,6 +604,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::CubeBufferInit() {
 
     SetFlag<HardEvent::FIX_M>(L0C_EVENT0);
     SetFlag<HardEvent::FIX_M>(L0C_EVENT1);
+
+    SetFlag<HardEvent::MTE1_MTE2>(SCALE_EVENT);
 
     bufParam_.aL0BufAddr = aBufL0_.GetBufferAddr(aBufL0_.Get<mmInputType>().GetBufferHandle());
     bufParam_.bL0BufAddr = bBufL0_.GetBufferAddr(bBufL0_.Get<mmInputType>().GetBufferHandle());
@@ -759,6 +776,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::Process() {
 
         WaitFlag<HardEvent::FIX_M>(L0C_EVENT0);
         WaitFlag<HardEvent::FIX_M>(L0C_EVENT1);
+
+        WaitFlag<HardEvent::MTE1_MTE2>(SCALE_EVENT);
     }
 }
 
@@ -798,8 +817,14 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::AicProcess(AicOffset &aicOffs
     } else {
         MatmulAndSyncQcQr(aicOffset);
     }
+    if constexpr (std::is_same<mmQcQrInputType, FP8E4M3>::value) {
+        WaitFlag<HardEvent::MTE1_MTE2>(SCALE_EVENT); // FP8场景下Scale不做db，需要等scale用完才能做mmQn
+    }
     PreloadQnAndSync(aicOffset, mmQnLoops);
     MatmulQnSyncDynamicQuantAndMulQr<needQnDynamicQuant>(aicOffset.qcOffset, aicOffset.weightUkOffset, aicOffset.qnResOffset, mmQnLoops);
+    if constexpr (std::is_same<mmQcQrInputType, FP8E4M3>::value) {
+        SetFlag<HardEvent::MTE1_MTE2>(SCALE_EVENT); // FP8场景下Scale不做db，需要mmQn用完才能做下一轮
+    }
     if constexpr (!needQnDynamicQuant) {
         // MatmulQn的结果直接输出到 queryOut, qnOffset需要按Batch轴偏移
         aicOffset.qnResOffset += static_cast<int64_t>(baseParams_->stepBatchSize) * static_cast<int64_t>(baseParams_->headSizeCkv) *
@@ -1122,17 +1147,13 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MatmulQnWeightPreload(int64_t
     }
     int64_t weightOffset = weightUkOffset;
     for (int32_t i = 0; i < subLoopTimes; ++i) {
-        if (i < 2) { // preload double buffer
+        if (i < 1) { // preload double buffer
             LoadL1B<mmQnInputType, DataFormat::ND, false>(weightUkGm_[weightOffset], 
                 mmQnParam_.n, mmQnParam_.k, mmQnParam_.k, bufParam_);
             WaitFlag<HardEvent::MTE2_MTE1>(B_EVENT0 + (bufParam_.bL1BufIter & 1u));
-            bufParam_.bL1BufIter++;
             weightOffset += static_cast<int64_t>(baseParams_->dimHeadSizeQc) *
                 static_cast<int64_t>(baseParams_->headSizeCkv);
         }
-    }
-    if (subLoopTimes == 1) {
-        bufParam_.bL1BufIter--;
     }
 }
 
@@ -1156,7 +1177,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MatmulQnSyncDynamicQuantAndMu
         if constexpr (MLAPT::enableDequantOpt) {
             CrossCoreWaitFlag(FINISH_VEC_DEQUANT_QC_SPLIT_N);
         }
-        if (i < 2) {
+        if (i < 1) {
             MatmulFullLoad<mmQnInputType, mmQnOutputType, true, true>(mmQnResGm_[qnResOffset], mmQcQrResDequantGm_[qcOffset],
                 weightUkGm_[weightUkOffset], mmQnParam_, bufParam_);
         } else {
@@ -1504,8 +1525,8 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RmsNormAndScatterCkv(LocalTen
             paTokenIndex = cacheIndexGm_(rmsNormAndScatterCkvParams.tokenIndex);
         }
         ScatterCache<kvCacheType, (MLAPT::cacheMode == CACHE_MODE::PA_NZ)>(kvCacheGm_, outputLocal,
-                ScatterCacheParams{baseParams_->blockSize, paTokenIndex, vectorRow_,
-                    baseParams_->headSizeCkv, baseParams_->dtileSize});
+            ScatterCacheParams{baseParams_->blockSize, paTokenIndex, vectorRow_,
+                baseParams_->headSizeCkv, baseParams_->dtileSize});
         // 刷新量化scale
         if (isPertile && baseParams_->quantScaleRepoMode == 1U) {
             // BSND:
@@ -1606,7 +1627,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::RopeAndScatterKr(
                 ScatterCacheParams{baseParams_->blockSize, paTokenIndex, vectorRow_,
                     static_cast<int64_t>(baseParams_->dimHeadRope * sizeof(krCacheType)), baseParams_->dtileSize});
         } else {
-    ScatterCache<krCacheType, (MLAPT::cacheMode == CACHE_MODE::PA_NZ)>(krCacheGm_, outputKrLocal,
+            ScatterCache<krCacheType, (MLAPT::cacheMode == CACHE_MODE::PA_NZ)>(krCacheGm_, outputKrLocal,
                 ScatterCacheParams{baseParams_->blockSize, paTokenIndex,
                     vectorRow_, baseParams_->dimHeadRope, baseParams_->dimHeadRope});
         }
@@ -2001,13 +2022,13 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::DequantAndRopeSplitNSyncMMQcQ
         // RopeQrSplitN
         while ((colOffsetRope + colQc + colQr) <= colOffsetCube) {
             // cv1:1时，为了防止UB内存溢出，每次处理一半的数量
-            if constexpr (cvRatio_ == 1) {
+            if (cvRatio_ == 1) {
                 ropeCnt = ropeCntDown;
             }
             RopeQrSplitN(RopeQrSplitNParams{ropeQrOffset, ropeQrResOffset, 
                         inputOffsetRope, deqScaleOffset, outputOffsetRope, ropeStride, ropeDstStride, deQuantScaleCqOffset, 0, ropeCnt});
             // cv1:1时，还需处理第二次，第二次在第一次的基础上计算偏移等
-            if constexpr (cvRatio_ == 1) {
+            if (cvRatio_ == 1) {
                 RopeQrSplitN(RopeQrSplitNParams{ropeQrOffset, ropeQrResOffset,
                         static_cast<uint32_t>(inputOffsetRope + ropeCntDown * ropeStride), deqScaleOffset, 
                         static_cast<uint32_t>(outputOffsetRope + ropeCntDown * baseParams_->headSizeQr), 
@@ -2149,7 +2170,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::DynamicQuantQnAndMulQrSyncMMQ
     // per-head循环
     for (int64_t loopIdx = 0; loopIdx < mmQnLoops; loopIdx++) {
         CrossCoreWaitFlag(FINISH_MM_QN_SPLIT_N);
-        DynamicQuantQnWithMulQr<ropeOutputType, dequantScaleQNopeType, queryOutputType, cvRatio_>(
+        DynamicQuantQnWithMulQr<ropeOutputType, dequantScaleQNopeType, queryOutputType>(
                             dequantScaleQNopeGm_[scaleQueryNopeOffset],
                             queryOutGm_[dynamicQuantQueryResOffset],
                             qrOutGm_[qrPostProcessResOffset],
@@ -2158,7 +2179,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::DynamicQuantQnAndMulQrSyncMMQ
                             baseParams_->numHeadSize, queryOutStride,
                             // Rope Post Process
                             qrOutGm_[qrPostProcessResOffset],
-                            quantScaleCkv, baseParams_->dimHeadRope, qrOutputStride);
+                            quantScaleCkv, baseParams_->dimHeadRope, qrOutputStride, cvRatio_);
 
         dynamicQuantQueryOffset += static_cast<int64_t>(baseParams_->headSizeCkv);
         scaleQueryNopeOffset += 1;

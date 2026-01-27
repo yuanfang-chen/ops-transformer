@@ -64,7 +64,7 @@ aclnnStatus aclnnFlashAttentionScore(
 
 ## aclnnFlashAttentionScoreGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1452px"><colgroup>
     <col style="width: 174px">
@@ -137,6 +137,16 @@ aclnnStatus aclnnFlashAttentionScore(
         <td>ND</td>
         <td>0、1</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>attenMaskOptional</td>
@@ -227,7 +237,7 @@ aclnnStatus aclnnFlashAttentionScore(
         <td>innerPrecise</td>
         <td>输入</td>
         <td>用于提升精度。</td>
-        <td>-</td>
+        <td>默认配置为0即可。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -264,6 +274,16 @@ aclnnStatus aclnnFlashAttentionScore(
         <td>√</td>
       </tr>
       <tr>
+        <td>softmaxOutOut</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attentionOutOut</td>
         <td>输出</td>
         <td>计算公式的最终输出。</td>
@@ -296,7 +316,7 @@ aclnnStatus aclnnFlashAttentionScore(
     </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -334,7 +354,7 @@ aclnnStatus aclnnFlashAttentionScore(
 
 ## aclnnFlashAttentionScore
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
   <col style="width: 121px">
@@ -370,7 +390,7 @@ aclnnStatus aclnnFlashAttentionScore(
   </tbody>
   </table>
 
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

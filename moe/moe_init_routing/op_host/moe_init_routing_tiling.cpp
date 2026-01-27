@@ -124,6 +124,10 @@ ge::graphStatus MoeInitRountingTilingBase::GetPlatformInfo()
     uint64_t ubSizePlatForm;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
     aicoreParams_.ubSize = ubSizePlatForm;
+    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910_95) {
+        aicoreParams_.ubSize = ubSizePlatForm - SIMT_UB_SIZE_BYTE;
+        mrgSortListMaxElement = 2048; // 单次排序大小，在david上设置成2048
+    }
     moeInitRoutingTilingData.set_coreNum(aivNum);
     return ge::GRAPH_SUCCESS;
 }
@@ -339,6 +343,8 @@ ge::graphStatus MoeInitRountingTilingBase::PostTiling()
     size_t* currentWorkspace = context_->GetWorkspaceSizes(1);
     currentWorkspace[0] = workspaceSize_;
     context_->SetLocalMemorySize(aicoreParams_.ubSize);
+    // 涉及核间同步的算子必须设置schedule_mode为1，独占全核
+    context_->SetScheduleMode(1);
     moeInitRoutingTilingData.SaveToBuffer(
         context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(moeInitRoutingTilingData.GetDataSize());
@@ -565,8 +571,8 @@ void MoeInitRountingTilingBase::Tiling4GatherOutComputeSplitN()
     tilingData->set_lastCoreLastLoopK(
         moeInitRoutingTilingData.get_k() - (Ops::Base::CeilDiv(moeInitRoutingTilingData.get_k(), kFactor) - 1) * kFactor);
 
-    tilingData->set_perCoreRows(perCoreRows);
     tilingData->set_activateRows(activateNum * moeInitRoutingTilingData.get_k());
+    tilingData->set_perCoreRows(perCoreRows);
     tilingData->set_needCoreNum(Ops::Base::CeilDiv(realRows, tilingData->get_perCoreRows()));
     tilingData->set_perCorePerLoopRows(std::min(tilingData->get_perCoreRows(), perLoopMaxRows));
 

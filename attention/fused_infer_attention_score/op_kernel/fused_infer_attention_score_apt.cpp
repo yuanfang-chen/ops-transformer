@@ -6,13 +6,14 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */ 
+ */
 
 /*!
  * \file fused_infer_attention_score_apt.cpp 
  * \brief
  */
-#include "kernel_operator.h"
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
 #include "kernel_operator_list_tensor_intf.h"
 // ifa must include before pfa
 #define FIA_ENABLE_MLA

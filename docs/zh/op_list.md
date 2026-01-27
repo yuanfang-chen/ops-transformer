@@ -36,6 +36,16 @@
   </tr>
   <tr>
     <td>attention</td>
+    <td><a href="../../attention/attention_worker_scheduler/README.md">attention_worker_scheduler</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>AI CPU</td>
+    <td>Attention和FFN分离部署场景下，Attention侧数据扫描算子。</td>
+  </tr>
+  <tr>
+    <td>attention</td>
     <td><a href="../../attention/flash_attention_score/README.md">flash_attention_score</a></td>
     <td>√</td>
     <td>√</td>
@@ -66,7 +76,7 @@
   </tr>
   <tr>
     <td>attention</td>
-    <td><a href="../attention/gather_pa_kv_cache/README.md">gather_pa_kv_cache</a></td>
+    <td><a href="../../attention/gather_pa_kv_cache/README.md">gather_pa_kv_cache</a></td>
     <td>√</td>
     <td>√</td>
     <td>√</td>
@@ -293,6 +303,16 @@
     <td>√</td>
     <td>AI Core</td>
     <td>全量推理场景的FlashAttention算子。</td>
+  </tr>
+  <tr>
+    <td>ffn</td>
+    <td><a href="../../ffn/ffn_worker_scheduler/README.md">ffn_worker_scheduler</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>AI CPU</td>
+    <td>Attention和FFN分离场景下，FFN侧数据扫描算子。</td>
   </tr>
   <tr>
     <td>ffn</td>
@@ -639,7 +659,7 @@
     <td><a href="../../moe/moe_gating_top_k/README.md">moe_gating_top_k</a></td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>√</td>
     <td>AI Core</td>
     <td>MoE计算中，对输入x做Sigmoid计算，对计算结果分组进行排序，最后根据分组排序的结果选取前k个专家。</td>
@@ -659,7 +679,7 @@
     <td><a href="../../moe/moe_gating_top_k_softmax_v2/README.md">moe_gating_top_k_softmax_v2</a></td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>√</td>
     <td>AI Core</td>
     <td>MoE计算中，如果renorm=0，先对x的输出做Softmax计算，再取topk操作；如果renorm=1，先对x的输出做topk操作，再进行Softmax操作。</td>
@@ -669,7 +689,7 @@
     <td><a href="../../moe/moe_init_routing/README.md">moe_init_routing</a></td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>√</td>
     <td>AI Core</td>
     <td>MoE的routing计算，根据<a href="../../moe/moe_gating_top_k_softmax/docs/aclnnMoeGatingTopKSoftmax.md">aclnnMoeGatingTopKSoftmax</a>的计算结果做routing处理。</td>
@@ -689,7 +709,7 @@
     <td><a href="../../moe/moe_init_routing_quant_v2/README.md">moe_init_routing_quant_v2</a></td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>√</td>
     <td>AI Core</td>
     <td>MoE的routing计算，根据<a href="../../moe/moe_gating_top_k_softmax_v2/docs/aclnnMoeGatingTopKSoftmaxV2.md">aclnnMoeGatingTopKSoftmaxV2</a>的计算结果做routing处理。</td>
@@ -700,7 +720,7 @@
     <td>√</td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>以MoeGatingTopKSoftmax算子的输出x和expert_idx作为输入，并输出Routing矩阵expanded_x等结果供后续计算使用。</td>
   </tr>
@@ -740,7 +760,7 @@
     <td>√</td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>MoE的permute计算，根据索引indices将tokens广播并排序。</td>
   </tr>
@@ -750,7 +770,7 @@
     <td>√</td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>aclnnMoeTokenPermute的反向传播计算。</td>
   </tr>
@@ -800,7 +820,7 @@
     <td>√</td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>根据sortedIndices存储的下标，获取permutedTokens中存储的输入数据；如果存在probs数据，permutedTokens会与probs相乘；最后进行累加求和，并输出计算结果。</td>
   </tr>
@@ -810,7 +830,7 @@
     <td>√</td>
     <td>√</td>
     <td>√</td>
-    <td>×</td>
+    <td>√</td>
     <td>AI Core</td>
     <td>aclnnMoeTokenUnpermuteGrad的反向传播。</td>
   </tr>

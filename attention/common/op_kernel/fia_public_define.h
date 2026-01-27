@@ -15,7 +15,8 @@
 #ifndef FIA_PUBLIC_DEFINE_H
 #define FIA_PUBLIC_DEFINE_H
 
-#include "kernel_operator.h"
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
 
@@ -217,6 +218,9 @@ struct ConstInfo {
     uint32_t systemPrefixLen = 0;
     uint64_t systemPrefixMaxLen = 0;
     uint32_t subBlockNum = 2; // AI Core上 AIC与AIV的数量默认为1:2
+
+    bool isPostQuantPerChn = false;
+    bool isPostQuantTypeBf16 = false;
 };
 
 struct FusedTransposeInfo {

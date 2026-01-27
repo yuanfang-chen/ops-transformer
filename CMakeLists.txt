@@ -12,6 +12,9 @@ cmake_minimum_required(VERSION 3.16)
 
 project(cann_ops-transformer)
 
+set(CMAKE_C_FLAGS_RELEASE "")
+set(CMAKE_CXX_FLAGS_RELEASE "")
+
 option(BUILD_OPEN_PROJECT         "Build open ascend ops project."  ON)
 option(BUILD_OPS_RTY_KERNEL       "Build return yellow kernel."     OFF)
 option(ENABLE_CCACHE              "Enable ccache capability"        ON)
@@ -34,10 +37,10 @@ set(ASCEND_COMPUTE_UNIT           "ascend910b"           CACHE   STRING   "soc t
 set(ASCEND_OP_NAME                "ALL"                           CACHE   STRING   "operators that need to be compiled")
 set(ARCH_DIRECTORY                ""                           CACHE   STRING   "arch directory that need to be compiled")
 set(VENDOR_NAME                   "custom"                     CACHE   STRING   "vendor name")
-set(ASCEND_ALL_COMPUTE_UNIT       "ascend910b;ascend910_93;ascend910_95;kirinx90" CACHE STRING "all soc list")
+set(ASCEND_ALL_COMPUTE_UNIT       "ascend910b;ascend910_93;ascend910_95;mc62cm12a;kirinx90" CACHE STRING "all soc list")
 
-set(SOC_VERSION_LIST ascend910b ascend910_93 ascend910_95 kirinx90)
-set(ARCH_DIRECTORY_LIST arch32 arch32 arch35 arch32)
+set(SOC_VERSION_LIST ascend310p ascend910b ascend910_93 ascend910_95 mc62cm12a kirinx90)
+set(ARCH_DIRECTORY_LIST arch20 arch32 arch32 arch35 arch38 arch32)
 
 foreach(SOC_VERSION ${ASCEND_COMPUTE_UNIT})
   list(FIND SOC_VERSION_LIST ${SOC_VERSION} INDEX)
@@ -113,6 +116,9 @@ if (BUILD_OPEN_PROJECT)
         include(cmake/dependencies.cmake)
         include(cmake/variables.cmake)
         include(cmake/obj_func.cmake)
+        include(cmake/third_party/eigen.cmake)
+        include(cmake/third_party/abseil-cpp.cmake)
+        include(cmake/third_party/ascend_protobuf.cmake)
 
         include(cmake/third_party/makeself-fetch.cmake)
         include(cmake/custom_build.cmake)
@@ -135,6 +141,9 @@ if (BUILD_OPEN_PROJECT)
             include(cmake/package.cmake)
             pack_built_in()
         else()
+            message(STATUS "Start building custom package.")
+            include(cmake/symbol.cmake)
+            gen_cust_aicpu_symbol()
             include(cmake/package.cmake)
             pack_tiling_sink()
         endif()
@@ -518,6 +527,13 @@ if (BUILD_OPS_RTY_KERNEL)
                 DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
                 OPTIONAL
         )
+
+        if(EXISTS ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}_apt.py)
+            install(FILES ${ASCEND_IMPL_OUT_DIR}/dynamic/${_op_name}_apt.py
+                DESTINATION ${IMPL_DYNAMIC_INSTALL_DIR}
+                OPTIONAL
+            )
+        endif()
     endforeach ()
 
     install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/

@@ -17,7 +17,7 @@
 
 #include "moe_v3_common.h"
 #include "kernel_operator.h"
-#include "../../inc/load_store_utils.h"
+#include "op_kernel/load_store_utils.h"
 
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
@@ -29,7 +29,7 @@ public:
     __aicore__ inline MoeGatherOutDynamicQuant(){};
     __aicore__ inline void Init(GM_ADDR inputX, GM_ADDR quantSmooth, GM_ADDR expandedRowIdx, GM_ADDR expandedX,
                                 GM_ADDR expandedScale, GM_ADDR sortedExpertIdx,
-                                const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe);
+                                const MoeInitRoutingV3Arch35TilingData *tilingData, TPipe *tPipe);
     __aicore__ inline void Process();
 
 private:
@@ -61,7 +61,7 @@ private:
     GlobalTensor<int32_t> expandedExpertIdxGm_;
     GlobalTensor<int32_t> expertTotalCountGm_;
 
-    const MoeV3GatherOutComputeTilingData *gatherOutTilingData_;
+    const MoeV3Arch35GatherOutComputeTilingData *gatherOutTilingData_;
 
     int64_t needCoreNum_;
     int64_t blockIdx_;
@@ -412,7 +412,7 @@ template <typename T>
 __aicore__ inline void MoeGatherOutDynamicQuant<T>::Init(GM_ADDR inputX, GM_ADDR quantSmooth, GM_ADDR sortedExpertIdx,
                                                          GM_ADDR expandedRowIdx, GM_ADDR expandedX,
                                                          GM_ADDR expandedScale,
-                                                         const MoeInitRoutingV3TilingData *tilingData, TPipe *tPipe)
+                                                         const MoeInitRoutingV3Arch35TilingData *tilingData, TPipe *tPipe)
 {
     pipe_ = tPipe;
     blockIdx_ = GetBlockIdx();

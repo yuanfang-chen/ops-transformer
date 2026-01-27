@@ -15,7 +15,8 @@
 #ifndef FIA_BLOCK_VEC_NONQUANT_MLA_H
 #define FIA_BLOCK_VEC_NONQUANT_MLA_H
 
-#include "kernel_operator.h"
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -404,7 +405,7 @@ __aicore__ inline void FiaBlockVecNonQuantMla<FIAT>::ElewiseCompute(
         maskInfo.nextToken = constInfo.nextToken;
         maskInfo.sparseMode = static_cast<fa_base_vector::SparseMode>(constInfo.sparseMode);
         maskInfo.batchIdx = info.bIdx;
-        maskInfo.batchOffset = constInfo.attenMaskBatchStride;
+        maskInfo.attenMaskBatchStride = constInfo.attenMaskBatchStride;
         maskInfo.attenMaskStride = constInfo.attenMaskStride;
         maskInfo.maskValue = negativeIntScalar;
         if (constInfo.qSeqSize == 1) {

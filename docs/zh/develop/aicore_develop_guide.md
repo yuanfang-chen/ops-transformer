@@ -36,7 +36,7 @@
 ```bash
 # 创建指定算子目录，如bash build.sh --genop=examples/add_example
 # ${op_class}表示算子类型，如attention类。
-# ${op_name}表示算子名的小写下划线形式，如`AddExample`算子对应为add_example。
+# ${op_name}表示算子名的小写下划线形式，如`AddExample`算子对应为add_example，新增算子不允许与已有算子重名。
 bash build.sh --genop=${op_class}/${op_name}
 ```
 
@@ -66,9 +66,22 @@ ${op_name}                              # 替换为实际算子名的小写下�
 └── CMakeLists.txt                      # 算子cmakelist入口
 ```
 
-使用上述命令行创建算子工程后，若要手动删除新创建出的算子工程，需要同时删除与算子工程同目录CMakeLists.txt中新添加的add_subdirectory(${op_class})。
+若```${op_class}```为全新算子分类需额外在`cmake/custom_build.cmake`中添加```add_subdirectory(${op_class})```，否则无法正常编译。
+
+```
+if(ENABLE_EXPERIMENTAL)
+    # genop新增experimental算子分类
+    # add_subdirectory(${op_class})
+    add_subdirectory(experimental/attention)
+else()
+    # genop新增非experimental算子分类
+    # add_subdirectory(${op_class})
+    add_subdirectory(attention)
+endif()
+```
+
 ## 算子定义
-算子定义需要完成两个交付件：`README.md` `${op_name}_def.cpp`
+算子定义需要完成两个交付件：`README.md` ```${op_name}_def.cpp```
 
 **交付件1：README.md**
 
@@ -91,7 +104,7 @@ ${op_name}                              # 替换为实际算子名的小写下�
 
 ### 代码实现
 
-Tiling一共需要三个交付件：`${op_name}_tiling.cpp` `${op_name}_tiling_key.h` `${op_name}_tiling_data.h`
+Tiling一共需要三个交付件：```${op_name}_tiling.cpp``` ```${op_name}_tiling_key.h``` ```${op_name}_tiling_data.h```
 
 **交付件1：${op_name}_tiling.cpp**
 
@@ -216,7 +229,7 @@ graph LR
 
 ### 代码实现
 
-Kernel一共需要两个交付件：`${op_name}.cpp` `${op_name}.h`
+Kernel一共需要两个交付件：```${op_name}.cpp``` ```${op_name}.h```
 
 **交付件1：${op_name}.cpp**
 
@@ -310,7 +323,7 @@ __aicore__ inline void AddExample<T>::Init(GM_ADDR x, GM_ADDR y, GM_ADDR z, cons
     inputGMX.SetGlobalBuffer((__gm__ T*)x + blockLength_ * AscendC::GetBlockIdx(), blockLength_);
     ...
     // 3.3 初始化队列长度
-    pipe.InitBuffer(inputQueueX, BUFFER_NUM, tileLength_ * sizeof(T));
+    pipe.InitBuffer(inputQueueX_, BUFFER_NUM, tileLength_ * sizeof(T));
     ...
 }
 
@@ -349,10 +362,14 @@ __aicore__ inline void AddExample<T>::Process()
     > 说明：编译过程依赖第三方开源软件，联网场景会自动下载，离线编译场景需要自行安装，具体参考[离线编译](../context/build_offline.md)。
 
     ```bash
-    # 编译指定算子，如--ops=add_example
-    bash build.sh --pkg --soc=${soc_version} --vendor_name=${vendor_name} --ops=${op_list}
+    # 编译指定算子，如bash build.sh --pkg --ops=add_example
+    bash build.sh --pkg --soc=${soc_version} --vendor_name=${vendor_name} --ops=${op_list} [--experimental]
     ```
-   
+    - --soc：\$\{soc\_version\}表示NPU型号。Atlas A2系列产品使用"ascend910b"（默认），Atlas A3系列产品使用"ascend910_93"，Ascend 950PR/Ascend 950DT产品使用"ascend950"。
+    - --vendor_name（可选）：\$\{vendor\_name\}表示构建的自定义算子包名，默认名为custom。
+    - --ops（可选）：\$\{op\_list\}表示待编译算子，不指定时默认编译所有算子。格式形如"--ops=add_example"。
+    - --experimental（可选）：若编译的算子为贡献算子，需配置--experimental。
+
     若提示如下信息，说明编译成功：
 
     ```bash
@@ -365,7 +382,7 @@ __aicore__ inline void AddExample<T>::Process()
     # 安装run包
     ./build_out/cann-ops-transformer-${vendor_name}_linux-${arch}.run
     ```
-    自定义算子包安装在`${ASCEND_HOME_PATH}/opp/vendors`路径中，`${ASCEND_HOME_PATH}`表示CANN软件安装目录，可提前在环境变量中配置。
+    自定义算子包安装在```${ASCEND_HOME_PATH}/opp/vendors```路径中，```${ASCEND_HOME_PATH}```表示CANN软件安装目录，可提前在环境变量中配置。
     
 4. **（可选）删除自定义算子包。**
 

@@ -8,10 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/* !
-* \file ffn_to_attention.h
-* \brief
-*/
+/*!
+ * \file ffn_to_attention.h
+ * \brief
+ */
+
 #ifndef FFN_TO_ATTENTION_H
 #define FFN_TO_ATTENTION_H
 
@@ -30,13 +31,6 @@ constexpr uint8_t BUFFER_NUM  = 2; //多buf
 constexpr uint32_t UB_ALIGN = 32; // UB按32字节对齐
 constexpr uint8_t WIN_OFFSET_CNT = 2;
 constexpr uint64_t WIN_ADDR_ALIGN = 512UL;
-
-template<AscendC::HardEvent event>
-__aicore__ inline void SyncFunc() {
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 #define TemplateMC2TypeClass typename xType, bool isInputRankTable
 #define TemplateMC2TypeFunc xType, isInputRankTable

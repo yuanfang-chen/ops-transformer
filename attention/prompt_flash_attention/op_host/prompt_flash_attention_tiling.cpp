@@ -183,6 +183,8 @@ constexpr int64_t ATTEN_MASK_S2_SIZE_DEFAULT_HOST_TILING = 2048;
 constexpr int64_t S1_VEC2_BASE_8_HOST_TILING = 8;
 constexpr int64_t S1_VEC2_MULTIPLIER_2_HOST_TILING = 2;
 
+constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
+
 inline int32_t ConvertValueToIndexMM(int32_t val, int32_t idxBound)
 {
     return (val > PP_MM[idxBound]) ? idxBound : (val / PP_INDEX - 1);
@@ -2958,8 +2960,8 @@ ge::graphStatus PromptFlashAttentionTiling::AtbSplitBlock(ContextParamsForPFATil
     auto platformInfoPtr = context_->GetPlatformInfo();
     OP_CHECK_IF(platformInfoPtr == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "platformInfoPtr is null"), return ge::GRAPH_FAILED);
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    uint32_t nzRealCoreNum = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
+    auto ascendcPlatformLocal = platform_ascendc::PlatformAscendC(platformInfoPtr);
+    uint32_t nzRealCoreNum = ascendcPlatformLocal.CalcTschBlockDim(aivNum, aicNum, aivNum);
     if (nzRealCoreNum == 0U) {
         return ge::GRAPH_FAILED;
     }
@@ -6509,6 +6511,8 @@ PFA_EXTERN_C ge::graphStatus PromptFlashAttentionTiling::DoOpTiling() {
         return ge::GRAPH_FAILED;
     }
     auto platformInfoPtr = context_->GetPlatformInfo();
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
 
     PromptFlashAttentionTilingData tilingData;
     OP_CHECK_IF(memset_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
@@ -6528,5 +6532,5 @@ PFA_EXTERN_C ge::graphStatus PromptFlashAttentionTiling::DoOpTiling() {
         PromptFlashAttentionSetTilingData(context_, tilingData);
         return ret;
 }
-REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTiling, std::vector<int32_t>({static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND310P)}), 91);
+REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTiling, std::vector<int32_t>({static_cast<int32_t>(NpuArch::DAV_2201), static_cast<int32_t>(NpuArch::DAV_2002), static_cast<int32_t>(NpuArch::DAV_3003)}), 91);
 }

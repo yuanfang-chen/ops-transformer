@@ -127,19 +127,48 @@
     map<string, string> socInfos;                                                                                      \
     map<string, string> aicoreSpec;                                                                                    \
     map<string, string> intrinsics;                                                                                    \
-    map<string, string> socversions = {{"Short_SoC_version", tilingContextPara.socVersion_}};                          \
+    map<string, string> versions;                                                                                      \
+    string version = tilingContextPara.socVersion_;                                                                    \
+    if (isNpuArchString(version)) {                                                                                    \
+        versions = {{"NpuArch", tilingContextPara.socVersion_}};                                                       \
+    } else {                                                                                                           \
+        map<string, string> socToArch = {                                                                              \
+            {"Ascend310P", "2002"},                                                                                    \
+            {"Ascend910B", "2201"},                                                                                    \
+            {"Ascend910_93", "2201"},                                                                                  \
+            {"Ascend910_95", "3510"}                                                                                   \
+        };                                                                                                             \
+        versions = {                                                                                                   \
+            {"NpuArch", socToArch[tilingContextPara.socVersion_]},                                                     \
+            {"Short_SoC_version", tilingContextPara.socVersion_}                                                       \
+        };                                                                                                             \
+    }                                                                                                                  \
     GetPlatFormInfos(compileInfoString.c_str(), socInfos, aicoreSpec, intrinsics);                                     \
     auto tilingContext = contextHolder.GetContext();                                                                   \
     tilingContext->GetPlatformInfo()->SetPlatformRes("SoCInfo", socInfos);                                             \
     tilingContext->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicoreSpec);                                        \
     tilingContext->GetPlatformInfo()->SetCoreNumByCoreType("AICore");                                                  \
     tilingContext->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);                           \
-    tilingContext->GetPlatformInfo()->SetPlatformRes("version", socversions);                                          \
+    tilingContext->GetPlatformInfo()->SetPlatformRes("version", versions);                                             \
     /* 3. get tiling func */                                                                                           \
     auto spaceRegistry = gert::DefaultOpImplSpaceRegistryV2::GetInstance().GetSpaceRegistry();                         \
     auto tilingFunc = spaceRegistry->GetOpImpl(tilingContextPara.opName_.c_str())->tiling;                             \
     /* 4. check tiling func */                                                                                         \
     auto tilingRet = tilingFunc(tilingContext);
+
+static bool isNpuArchString(string version)
+{
+    if(version.empty()){
+        return false;
+    }
+
+    for(char c : version) {
+        if (!std::isdigit(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    return true;
+}
 
 template <typename T>
 static string to_string(void* buf, size_t size, unordered_set<size_t> mask={})
@@ -189,7 +218,6 @@ static void GetPlatFormInfos(const char* compileInfoStr, map<string, string>& so
                                        {"cube_core_cnt", "cube_core_cnt"},
                                        {"vector_core_cnt", "vector_core_cnt"},
                                        {"core_type_list", "core_type_list"}};
-    socInfos["core_type_list"] = "AICore";
 
     for (auto &t : socInfoKeys) {
         if (compileInfoJson.contains("hardware_info") && compileInfoJson["hardware_info"].contains(t.second)) {
@@ -201,6 +229,14 @@ static void GetPlatFormInfos(const char* compileInfoStr, map<string, string>& so
             }
         }
     }
+
+    if (socInfos.find("cube_core_cnt") != socInfos.end() &&
+        socInfos.find("vector_core_cnt") != socInfos.end()) {
+        socInfos["core_type_list"] = "CubeCore,VectorCore";
+    } else {
+        socInfos["core_type_list"] = "AICore";
+    }
+
     map<string, string> aicoreSpecKeys = {{"ub_size", "UB_SIZE"},
                                           {"l0_a_size", "L0A_SIZE"},
                                           {"l0_b_size", "L0B_SIZE"},

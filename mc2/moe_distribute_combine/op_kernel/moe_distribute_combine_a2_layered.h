@@ -16,7 +16,13 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_combine_tiling.h"
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
+#include "../common/inc/kernel/mc2_kernel_utils.h"
+#else
+#include "../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#endif
 
 namespace MoeDistributeCombineA2Impl {
 
@@ -63,6 +69,7 @@ public:
     constexpr static uint32_t RDMA_DATA_SIZE = 100U * 1024U * 1024U;
     constexpr static uint32_t VEC_LEN = 256U;
     constexpr static uint32_t MAGIC_OFFSET = 2U * 1024U * 1024U - 32U * 32U;
+    constexpr static uint32_t FLAG_BUFF_SIZE = 1024U;
     constexpr static uint32_t EXTRA_TOKEN_INFO_NUM = 4U; // 专家信息 权重信息 量化Scale 到达标志位
     constexpr static uint64_t MB_SIZE = 1024UL * 1024UL;
     constexpr static bool DynamicQuant = std::is_same<ExpandXTransType, int8_t>::value;
@@ -73,13 +80,7 @@ public:
     constexpr static uint64_t GM2IPC_SYNC_FLAG = 12345ULL;
     constexpr static uint64_t RDMA_TOKEN_ARRIVED_FLAG = 123ULL;
     constexpr static uint64_t RDMA_TOKEN_END_FLAG = 321ULL;
-    template <AscendC::HardEvent event>
-    __aicore__ inline void SyncFunc()
-    {
-        int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-        AscendC::SetFlag<event>(eventID);
-        AscendC::WaitFlag<event>(eventID);
-    }
+
     template <typename T>
     inline __aicore__ T RoundUp(const T val, const T align)
     {
@@ -519,7 +520,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     ipcSliceNodeSize = ipcSliceSize * SERVER_RANK_SIZE;
     constexpr uint32_t EXPAND_SCALES_BYTES = 32U;
     uint32_t tokenSize = axisHExpandXTypeSize_ + EXPAND_SCALES_BYTES;
-    maxBsInRankSizeOnIpc = (ipcSliceSize - IPC_DATA_OFFSET) / localMoeExpertNum_ / tokenSize;
+    maxBsInRankSizeOnIpc = ipcSliceSize / localMoeExpertNum_ / tokenSize;
     // 初始化baseBuffOffset
     uint32_t baseBuffOffset = TBUF_TEMP_OFFSET;
     // 申请LocalTensor : sendCount 以及计算偏移
@@ -737,8 +738,8 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     offsetIndex = offsetIndexs[processTokenNum];
     uint32_t copyNum = copyNums[processTokenNum];
     uint32_t dataOffset = dataOffsets[processTokenNum];
-
     uint32_t tokenOffset = 0;
+    auto flagDataCopyParams = DataCopyParams{1U, static_cast<uint16_t>(sizeof(uint64_t)), 0, 0};
     for (uint32_t i = 0U; i < totalCopyLen; i++) {
         uint32_t targetLocalServerExpertId = offsetReduceLocal.GetValue(offsetIndex) / offsetNumPerExpert;
         uint32_t targetIpcRank = (targetLocalServerExpertId / localMoeExpertNum_) + (rankId_ / SERVER_RANK_SIZE) * SERVER_RANK_SIZE;
@@ -791,7 +792,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
                     SyncFunc<AscendC::HardEvent::V_MTE3>();
                     DataCopy(localOutWindow_[dataOffset], dataInLocal, axisH_ / 2 + scaleNumAlign); // int8数据+scale值
                     PipeBarrier<PIPE_MTE3>();
-                    DataCopy(shareFlagGlobal_[(serverId_ + 1) * 1024 + tokenOffset * 4], rdmaFlagLocal, 4);
+                    DataCopyPad(shareFlagGlobal_[(serverId_ + 1) * FLAG_BUFF_SIZE + tokenOffset], rdmaFlagLocal, flagDataCopyParams);
                 } else {
 
                     PipeBarrier<PIPE_V>();
@@ -815,7 +816,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
                     SyncFunc<AscendC::HardEvent::V_MTE3>();
                     DataCopy(localOutWindow_[dataOffset], dataInLocal, axisH_ / 2 + scaleNumAlign); // int8数据+scale值
                     PipeBarrier<PIPE_MTE3>();
-                    DataCopy(shareFlagGlobal_[(serverId_ + 1) * 1024 + tokenOffset * 4], rdmaFlagLocal, 4);
+                    DataCopyPad(shareFlagGlobal_[(serverId_ + 1) * FLAG_BUFF_SIZE + tokenOffset], rdmaFlagLocal, flagDataCopyParams);
                 }
             } else {
                 PipeBarrier<PIPE_V>();
@@ -823,7 +824,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
                 SyncFunc<AscendC::HardEvent::V_MTE3>();
                 DataCopy(localOutWindow_[tokenOffset  * axisH_], dataInLocal, axisH_); // int8数据+scale值
                 PipeBarrier<PIPE_MTE3>();
-                DataCopy(shareFlagGlobal_[(serverId_ + 1) * 1024 + tokenOffset * 4], rdmaFlagLocal, 4);
+                DataCopyPad(shareFlagGlobal_[(serverId_ + 1) * FLAG_BUFF_SIZE + tokenOffset], rdmaFlagLocal, flagDataCopyParams);
             }
             processTokenNum++;
             offsetIndex = offsetIndexs[processTokenNum];
@@ -835,7 +836,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     PipeBarrier<PIPE_ALL>();
     rdmaFlagLocal(0) = RDMA_TOKEN_END_FLAG + magicValue;
     tokenOffset = coreNumPerServer * processTokenNum + coreIdx_ % coreNumPerServer;
-    DataCopy(shareFlagGlobal_[(serverId_ + 1) * 1024 + tokenOffset * 4], rdmaFlagLocal, 4);
+    DataCopyPad(shareFlagGlobal_[(serverId_ + 1) * FLAG_BUFF_SIZE + tokenOffset], rdmaFlagLocal, flagDataCopyParams);
     SyncAll<true>();
 }
 
@@ -869,10 +870,12 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
                                       checkServer * rankSizeOnWin_ * SERVER_RANK_SIZE);
     uint64_t dstrdmaAddr = (uint64_t)(hccl_.GetWindowsInAddr(tragRankId) + halfWinSize_ * bufferId_ +
                                       (rankId_ / SERVER_RANK_SIZE) * rankSizeOnWin_ * SERVER_RANK_SIZE);
+    auto flagDataCopyParams = DataCopyExtParams{1U, static_cast<uint16_t>(sizeof(uint64_t)), 0, 0, 0};
+    auto flagPadParams = DataCopyPadExtParams<uint64_t>{false, 0, 0, 0};
     while (!stopFlag) {
         for(uint32_t i = 0U; i < copyOnceNum; i++){
             while (true) {
-                DataCopy(checkRdmaLocal[64], shareFlagGlobal_[(checkServer + 1) * 1024 + copySum * 4], 4);
+                DataCopyPad(checkRdmaLocal[64], shareFlagGlobal_[(checkServer + 1) * FLAG_BUFF_SIZE + copySum], flagDataCopyParams, flagPadParams);
                 PipeBarrier<PIPE_ALL>();
                 if (checkRdmaLocal.GetValue(64) == (RDMA_TOKEN_ARRIVED_FLAG + magicValue)) {
                     copySum++;

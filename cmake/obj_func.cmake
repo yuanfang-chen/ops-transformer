@@ -14,27 +14,35 @@
 
 # 用于custom自定算子包host侧obj生成
 macro(add_modules_sources)
-  set(oneValueArgs OP_API_INDEPENDENT OP_API_DIR)
+  set(oneValueArgs OP_API_INDEPENDENT OP_API_DIR OP_MC2_ENABLE)
   set(multiValueArgs OPTYPE ACLNNTYPE)
 
   cmake_parse_arguments(MODULE "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
+  if (NOT DEFINED MODULE_OP_MC2_ENABLE)
+    set(MODULE_OP_MC2_ENABLE OFF)
+  endif()
+
   # 该段代码作用为兼容op_api新旧目录结构(旧： 嵌套于op_host下； 新： 与op_host同级)
   if (NOT DEFINED MODULE_OP_API_INDEPENDENT)
     set(MODULE_OP_API_INDEPENDENT OFF)
   endif()
-    if(MODULE_OP_API_INDEPENDENT)
-      # 新结构：op_api与op_host同级，需要指定有效路径
-      if (NOT DEFINED MODULE_OP_API_DIR OR NOT EXISTS "${MODULE_OP_API_DIR}")
-        message(FATAL_ERROR "OP_API_INDEPENDENT=ON时，必须传递有效的OP_API_DIR路径")
-      endif()
-      set(OP_API_SRC_DIR "${MODULE_OP_API_DIR}")
-    else()
-      # 旧结构：op_api嵌套在op_host目录下
-      set(OP_API_SRC_DIR "${SOURCE_DIR}/op_api")
+  if(MODULE_OP_API_INDEPENDENT)
+    # 新结构：op_api与op_host同级，需要指定有效路径
+    if (NOT DEFINED MODULE_OP_API_DIR OR NOT EXISTS "${MODULE_OP_API_DIR}")
+      message(FATAL_ERROR "OP_API_INDEPENDENT=ON时，必须传递有效的OP_API_DIR路径")
+    endif()
+    set(OP_API_SRC_DIR "${MODULE_OP_API_DIR}")
+  else()
+    # 旧结构：op_api嵌套在op_host目录下
+    set(OP_API_SRC_DIR "${SOURCE_DIR}/op_api")
   endif()
 
+  if (MODULE_OP_MC2_ENABLE)
+    set(COMPILED_OPS ${COMPILED_OPS} ${OP_NAME} CACHE STRING "Compiled Ops" FORCE)
+    set(COMPILED_OP_DIRS ${COMPILED_OP_DIRS} ${PARENT_DIR} CACHE STRING "Compiled Ops Dirs" FORCE)
+  endif()
   # opapi 默认全部编译
   file(GLOB OPAPI_SRCS ${OP_API_SRC_DIR}/*.cpp)
   if (OPAPI_SRCS)
@@ -52,9 +60,12 @@ macro(add_modules_sources)
       )
     endif()
   endif()
-  file(GLOB OPAPI_HEADERS ${OP_API_SRC_DIR}/aclnn_*.h)
-  if (OPAPI_HEADERS)
-    target_sources(${OPHOST_NAME}_aclnn_exclude_headers INTERFACE ${OPAPI_HEADERS})
+
+  if (NOT MODULE_OP_MC2_ENABLE)
+    file(GLOB OPAPI_HEADERS ${OP_API_SRC_DIR}/aclnn_*.h)
+    if (OPAPI_HEADERS)
+      target_sources(${OPHOST_NAME}_aclnn_exclude_headers INTERFACE ${OPAPI_HEADERS})
+    endif()
   endif()
 
   # 是否编译该算子已经由op_add_subdirectory和每个二级目录判断完毕，默认走到这里全编
@@ -92,10 +103,14 @@ macro(add_modules_sources)
     # target_include_directories(${OPHOST_NAME}_tiling_obj PRIVATE ${SOURCE_DIR}/../../ ${SOURCE_DIR})
   endif()
 
-  file(GLOB AICPU_SRCS ${SOURCE_DIR}/*_aicpu*.cpp)
-  if(AICPU_SRCS)
-    add_aicpu_kernel_modules()
-    target_sources(${OPHOST_NAME}_aicpu_obj PRIVATE ${AICPU_SRCS})
+  if (MODULE_OP_MC2_ENABLE)
+    file(GLOB GENTASK_SRCS
+        ${SOURCE_DIR}/../op_graph/*_gen_task*.cpp
+    )
+    if(GENTASK_SRCS)
+      add_opmaster_ct_gentask_modules()
+      target_sources(${OPHOST_NAME}_opmaster_ct_gentask_obj PRIVATE ${GENTASK_SRCS})
+    endif()
   endif()
 
   if (MODULE_OPTYPE)
@@ -214,103 +229,6 @@ macro(add_modules_sources_with_soc)
     add_tiling_modules()
     target_sources(${OPHOST_NAME}_tiling_obj PRIVATE ${OPTILING_SRCS} ${SUB_OPTILING_SRC})
     # target_include_directories(${OPHOST_NAME}_tiling_obj PRIVATE ${SOURCE_DIR}/../../ ${SOURCE_DIR})
-  endif()
-
-  file(GLOB AICPU_SRCS ${SOURCE_DIR}/*_aicpu*.cpp)
-  if(AICPU_SRCS)
-    add_aicpu_kernel_modules()
-    target_sources(${OPHOST_NAME}_aicpu_obj PRIVATE ${AICPU_SRCS})
-  endif()
-
-  if (MODULE_OPTYPE)
-    list(LENGTH MODULE_OPTYPE OpTypeLen)
-    list(LENGTH MODULE_ACLNNTYPE AclnnTypeLen)
-    if(NOT ${OpTypeLen} EQUAL ${AclnnTypeLen})
-      message(FATAL_ERROR "OPTYPE AND ACLNNTYPE Should be One-to-One")
-    endif()
-    math(EXPR index "${OpTypeLen} - 1")
-    foreach(i RANGE ${index})
-      list(GET MODULE_OPTYPE ${i} OpType)
-      list(GET MODULE_ACLNNTYPE ${i} AclnnType)
-      if (${AclnnType} STREQUAL "aclnn" OR ${AclnnType} STREQUAL "aclnn_inner" OR ${AclnnType} STREQUAL "aclnn_exclude")
-        file(GLOB OPDEF_SRCS ${SOURCE_DIR}/${OpType}_def*.cpp)
-
-        if (OPDEF_SRCS)
-          target_sources(${OPHOST_NAME}_opdef_${AclnnType}_obj INTERFACE ${OPDEF_SRCS})
-        endif()
-      elseif(${AclnnType} STREQUAL "no_need_aclnn")
-        message(STATUS "aicpu or host aicpu no need aclnn.")
-      else()
-        message(FATAL_ERROR "ACLNN TYPE UNSPPORTED, ONLY SUPPORT aclnn/aclnn_inner/aclnn_exclude")
-      endif()
-    endforeach()
-  else()
-    file(GLOB OPDEF_SRCS ${SOURCE_DIR}/*_def*.cpp)
-    if(OPDEF_SRCS)
-      message(FATAL_ERROR
-      "Should Manually specify aclnn/aclnn_inner/aclnn_exclude\n"
-      "usage: add_modules_sources(OPTYPE optypes ACLNNTYPE aclnntypes)\n"
-      "example: add_modules_sources(OPTYPE add ACLNNTYPE aclnn_exclude)"
-      )
-    endif()
-  endif()
-endmacro()
-
-macro(add_mc2_modules_sources)
-  set(multiValueArgs OPTYPE ACLNNTYPE)
-
-  cmake_parse_arguments(MODULE "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-  set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
-  #opapi 默认全部编译
-  file(GLOB OPAPI_SRCS ${SOURCE_DIR}/../op_api/*.cpp)
-  if (OPAPI_SRCS)
-    # aclnn
-    add_opapi_modules()
-    target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OPAPI_SRCS})
-  endif()
-
-  # 获取算子层级目录名称，判断是否编译该算子
-  get_filename_component(PARENT_DIR ${SOURCE_DIR} DIRECTORY)
-  get_filename_component(OP_NAME ${PARENT_DIR} NAME)
-  list(FIND ASCEND_OP_NAME ${OP_NAME} INDEX)
-  # 记录全局的COMPILED_OPS和COMPILED_OP_DIRS，其中COMPILED_OP_DIRS只记录到算子名，例如moe/moe_token_permute_with_routing_map_grad
-  set(COMPILED_OPS ${COMPILED_OPS} ${OP_NAME} CACHE STRING "Compiled Ops" FORCE)
-  set(COMPILED_OP_DIRS ${COMPILED_OP_DIRS} ${PARENT_DIR} CACHE STRING "Compiled Ops Dirs" FORCE)
-  
-  file(GLOB OPINFER_SRCS ${SOURCE_DIR}/*_infershape*.cpp)
-  if (OPINFER_SRCS)
-    # proto
-    add_infer_modules()
-    target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${OPINFER_SRCS})
-  endif()
-
-  file(GLOB_RECURSE OPTILING_SRCS
-      ${SOURCE_DIR}/op_tiling/*.cpp
-      ${SOURCE_DIR}/op_tiling/arch35/*.cpp
-      ${SOURCE_DIR}/op_tiling/common/*.cpp
-      ${SOURCE_DIR}/../op_graph/fallback*.cpp
-  )
-  if (OPTILING_SRCS)
-    # tiling
-    add_tiling_modules()
-    target_sources(${OPHOST_NAME}_tiling_obj PRIVATE 
-      ${OPTILING_SRCS}
-      ${OPS_TRANSFORMER_DIR}/mc2/common/src/matmul_formulaic_tiling.cpp
-      ${OPS_TRANSFORMER_DIR}/mc2/common/src/mc2_tiling_utils.cpp
-      ${OPS_TRANSFORMER_DIR}/mc2/common/src/mc2_matmul_tiling_cfg.cpp
-      ${OPS_TRANSFORMER_DIR}/mc2/common/src/mc2_log.cpp
-      ${OPS_TRANSFORMER_DIR}/mc2/3rd/ops_legacy/op_tiling/op_cache_tiling.cpp
-      ${OPS_TRANSFORMER_DIR}/mc2/3rd/ops_legacy/op_tiling/runtime_kb_api.cpp
-    )
-  endif()
-
-  file(GLOB GENTASK_SRCS
-      ${SOURCE_DIR}/../op_graph/*_gen_task*.cpp
-  )
-  if(GENTASK_SRCS)
-    add_opmaster_ct_gentask_modules()
-    target_sources(${OPHOST_NAME}_opmaster_ct_gentask_obj PRIVATE ${GENTASK_SRCS})
   endif()
 
   file(GLOB AICPU_SRCS ${SOURCE_DIR}/*_aicpu*.cpp)
@@ -608,3 +526,171 @@ macro(add_graph_plugin_sources)
     target_sources(${GRAPH_PLUGIN_NAME}_proto_headers INTERFACE ${GRAPH_PLUGIN_PROTO_HEADERS})
   endif()
 endmacro()
+
+function(protobuf_generate_external comp c_var h_var)
+  if (NOT ARGN)
+    message(SEND_ERROR "Error: protobuf_generate_external() called without any proto files")
+    return()
+  endif()
+
+  set(${c_var})
+  set(${h_var})
+  set(_add_target FALSE)
+
+  set(extra_option "")
+  foreach(arg ${ARGN})
+    if ("${arg}" MATCHES "--proto_path")
+      set(extra_option ${arg})
+    endif()
+  endforeach()
+
+  foreach(file ${ARGN})
+    if ("${file}" STREQUAL "TARGET")
+      set(_add_target TRUE)
+      continue()
+    endif()
+
+    if ("${file}" MATCHES "--proto_path")
+      continue()
+    endif()
+
+    get_filename_component(abs_file ${file} ABSOLUTE)
+    get_filename_component(file_name ${file} NAME_WE)
+    get_filename_component(file_dir ${abs_file} PATH)
+    get_filename_component(parent_subdir ${file_dir} NAME)
+
+    if ("${parent_subdir}" STREQUAL "proto")
+      set(proto_output_path ${CMAKE_BINARY_DIR}/proto/${comp}/proto)
+    else()
+      set(proto_output_path ${CMAKE_BINARY_DIR}/proto/${comp}/proto/${parent_subdir})
+    endif()
+    list(APPEND ${c_var} "${proto_output_path}/${file_name}.pb.cc")
+    list(APPEND ${h_var} "${proto_output_path}/${file_name}.pb.h")
+
+    add_custom_command(
+      OUTPUT "${proto_output_path}/${file_name}.pb.cc" "${proto_output_path}/${file_name}.pb.h"
+      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${proto_output_path}"
+      COMMAND ${CMAKE_COMMAND} -E echo "generate proto cpp_out ${comp} by ${abs_file}"
+      COMMAND ${Protobuf_PROTOC_EXECUTABLE} -I${file_dir} ${extra_option} --cpp_out=${proto_output_path} ${abs_file}
+      DEPENDS ${abs_file} ascend_protobuf_build_transformer
+      COMMENT "Running C++ protocol buffer compiler on ${file}" VERBATIM)
+
+  endforeach()
+
+    if (_add_target)
+      add_custom_target(
+        ${comp} DEPENDS ${${c_var}} ${${h_var}}) 
+    endif()
+
+    set_source_files_properties(${${c_var}} ${${h_var}} PROPERTIES GENERATED TRUE)
+    set(${c_var} ${${c_var}} PARENT_SCOPE)
+    set(${h_var} ${${h_var}} PARENT_SCOPE)
+
+endfunction()
+
+function(add_onnx_plugin_modules)
+  if (NOT TARGET ${ONNX_PLUGIN_NAME}_obj)
+    set(ge_onnx_proto_srcs
+      ${ASCEND_DIR}/include/proto/ge_onnx.proto)
+    
+    protobuf_generate_external(onnx ge_onnx_proto_cc ge_onnx_proto_h ${ge_onnx_proto_srcs})
+
+    add_library(${ONNX_PLUGIN_NAME}_obj OBJECT ${ge_onnx_proto_h})
+    # 为特定目标设置C++14标准
+    set_target_properties(${ONNX_PLUGIN_NAME}_obj PROPERTIES
+      CXX_STANDARD 14
+      CXX_STANDARD_REQUIRED ON
+      CXX_EXTENSIONS OFF
+    )
+    target_include_directories(${ONNX_PLUGIN_NAME}_obj PRIVATE ${OP_PROTO_INCLUDE} ${Protobuf_INCLUDE} ${Protobuf_PATH} ${CMAKE_BINARY_DIR}/proto ${ONNX_PLUGIN_COMMON_INCLUDE} ${JSON_INCLUDE_DIR} ${ABSL_SOURCE_DIR})
+    target_compile_definitions(${ONNX_PLUGIN_NAME}_obj PRIVATE OPS_UTILS_LOG_SUB_MOD_NAME="ONNX_PLUGIN" LOG_CPP)
+
+    if(BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG)
+      target_compile_options(
+        ${ONNX_PLUGIN_NAME}_obj PRIVATE -Dgoogle=ascend_private -fvisibility=hidden -Wno-shadow -Wno-unused-parameter
+      )
+    else()
+      target_compile_options(
+        ${ONNX_PLUGIN_NAME}_obj PRIVATE $<$<NOT:$<BOOL:${ENABLE_TEST}>>:-DDISABLE_COMPILE_V1> -Dgoogle=ascend_private
+                                       -fvisibility=hidden -Wno-shadow -Wno-unused-parameter
+      )
+    endif()
+
+    target_link_libraries(
+      ${ONNX_PLUGIN_NAME}_obj
+      PRIVATE $<BUILD_INTERFACE:$<IF:$<BOOL:${ENABLE_TEST}>,intf_llt_pub_asan_cxx14,intf_pub_cxx14>>
+              $<BUILD_INTERFACE:dlog_headers>
+              $<$<TARGET_EXISTS:ops_base_util_objs>:$<TARGET_OBJECTS:ops_base_util_objs>>
+              $<$<TARGET_EXISTS:ops_base_infer_objs>:$<TARGET_OBJECTS:ops_base_infer_objs>>
+              json
+      )
+  endif()
+
+endfunction()
+
+macro(add_onnx_plugin_sources)
+  set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+  file(GLOB ONNX_PLUGIN_SRCS ${SOURCE_DIR}/*_onnx_plugin.cpp)
+  if(ONNX_PLUGIN_SRCS)
+    add_onnx_plugin_modules()
+    target_sources(${ONNX_PLUGIN_NAME}_obj PRIVATE ${ONNX_PLUGIN_SRCS})
+  else()
+    message(WARNING "No onnx plugin source files found in ${SOURCE_DIR}")
+  endif()
+endmacro()
+
+# useage: add_aicpu_kernel_modules()
+# 添加aicpu kernel object
+function(add_aicpu_kernel_modules)
+  message(STATUS "add_aicpu_kernel_modules")
+  if(NOT TARGET ${OPHOST_NAME}_aicpu_obj)
+    add_library(${OPHOST_NAME}_aicpu_obj OBJECT)
+    target_include_directories(${OPHOST_NAME}_aicpu_obj PRIVATE ${AICPU_INCLUDE})
+    target_compile_definitions(
+            ${OPHOST_NAME}_aicpu_obj PRIVATE _FORTIFY_SOURCE=2 google=ascend_private
+            $<$<BOOL:${ENABLE_TEST}>:ASCEND_AICPU_UT>
+    )
+    target_compile_options(
+            ${OPHOST_NAME}_aicpu_obj PRIVATE $<$<NOT:$<BOOL:${ENABLE_TEST}>>:-DDISABLE_COMPILE_V1> -Dgoogle=ascend_private
+            -fvisibility=hidden ${AICPU_DEFINITIONS}
+    )
+    target_link_libraries(
+            ${OPHOST_NAME}_aicpu_obj
+            PRIVATE $<BUILD_INTERFACE:$<IF:$<BOOL:${ENABLE_TEST}>,intf_llt_pub_asan_cxx17,intf_pub_cxx17>>
+            $<BUILD_INTERFACE:dlog_headers>
+    )
+  endif()
+endfunction()
+
+# useage: add_aicpu_cust_kernel_modules(target_name)
+# 添加aicpu cust kernel object target
+function(add_aicpu_cust_kernel_modules target_name)
+  message(STATUS "add_aicpu_cust_kernel_modules for ${target_name}")
+  if(NOT TARGET ${target_name})
+    add_library(${target_name} OBJECT)
+    target_include_directories(${target_name} PRIVATE ${AICPU_INCLUDE})
+    target_compile_definitions(
+            ${target_name} PRIVATE
+            _FORTIFY_SOURCE=2 _GLIBCXX_USE_CXX11_ABI=1
+            google=ascend_private
+            $<$<BOOL:${ENABLE_TEST}>:ASCEND_AICPU_UT>
+    )
+    target_compile_options(
+            ${target_name} PRIVATE
+            $<$<NOT:$<BOOL:${ENABLE_TEST}>>:-DDISABLE_COMPILE_V1> -Dgoogle=ascend_private
+            -fvisibility=hidden ${AICPU_DEFINITIONS}
+    )
+    target_link_libraries(
+            ${target_name}
+            PRIVATE $<BUILD_INTERFACE:$<IF:$<BOOL:${ENABLE_TEST}>,intf_llt_pub_asan_cxx17,intf_pub_cxx17>>
+            $<BUILD_INTERFACE:dlog_headers>
+            -Wl,--no-whole-archive
+            Eigen3::EigenTransformer
+    )
+    if (NOT ${target_name} IN_LIST AICPU_CUST_OBJ_TARGETS)
+      set(AICPU_CUST_OBJ_TARGETS ${AICPU_CUST_OBJ_TARGETS} ${target_name} CACHE INTERNAL "All aicpu cust obj targets")
+    endif()
+  endif()
+endfunction()

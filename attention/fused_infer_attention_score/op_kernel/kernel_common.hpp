@@ -28,7 +28,8 @@
 #include "attn_infra/arch/resource.hpp"
 #include "attn_infra/epilogue/block/block_epilogue.hpp"
 #include "attn_infra/epilogue/dispatch_policy.hpp"
-#include "kernel_operator.h"
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 
@@ -49,6 +50,7 @@ namespace KernelCommon {
     constexpr uint32_t NUM_128 = 128;
     constexpr uint32_t NUM_256 = 256;
     constexpr uint32_t FLOAT_SIZE = 4;
+    constexpr int64_t SPARSE_MODE_INT_MAX = 2147483647;
 
     template <typename T>
     __aicore__ inline
@@ -64,7 +66,7 @@ namespace KernelCommon {
         return (a > b) ? a : b;
     }
 
-    namespace FaiKenel {
+    namespace FaiKernel {
         constexpr uint32_t BLOCK_SIZE = 16;
 
         enum class cvPipeLineType : uint32_t {
@@ -75,7 +77,8 @@ namespace KernelCommon {
         enum class MaskType : uint32_t {
             NO_MASK = 0,
             MASK_CAUSAL = 1,
-            MASK_SPEC = 2
+            MASK_SPEC = 2,
+            MASK_SWA = 4
         };
 
         enum class inputLayout : uint32_t {

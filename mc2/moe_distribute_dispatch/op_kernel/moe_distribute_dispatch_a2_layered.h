@@ -19,7 +19,13 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_tiling.h"
+#if __has_include("../common/inc/kernel/mc2_kernel_utils.h")
+#include "../common/inc/kernel/mc2_kernel_utils.h"
 #include "../common/inc/kernel/moe_distribute_base.h"
+#else
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#include "../../common/inc/kernel/moe_distribute_base.h"
+#endif
 
 namespace MoeDistributeDispatchA2Impl {
 #define TemplateMC2TypeA2layeredClass typename XType, typename ExpandXOutType,bool StaticQuant, bool DynamicQuant, bool IsSmoothScaleExist
@@ -838,7 +844,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             uint32_t tokenId = startTokenId + tokenIndex;
             uint32_t startExpId = tokenId * axisK_;
             uint32_t flagOffset = (tokenIndex * tokenStructLen_ + flagOffsetInStruct_) / sizeof(uint64_t);
-            tokenTempTensorU64_(flagOffset) = SHOULD_SEND_FLAG_VALUE;
+            tokenTempTensorU64_(flagOffset) = SHOULD_SEND_FLAG_VALUE + magicVal_;
             uint64_t sendServerInfo = 0;
             for (uint32_t i = 0; i < axisK_; i++) {
                 uint32_t expertId = static_cast<uint32_t>(expertIdsI16Tensor_(startExpId + i));  // 读取expId
@@ -1039,7 +1045,7 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
     uint64_t nextTokenFlagValue = statusTensor.GetValue(0);
 
     //等到发送结束信号，没等到token结束信号，则返回结束等待状态
-    if (nextTokenFlagValue == SHOULD_SEND_FLAG_VALUE) {
+    if (nextTokenFlagValue == SHOULD_SEND_FLAG_VALUE + magicVal_) {
         if (justExpInfo) {
             DataCopy(localUB_U8, TokensGtU8[TokenOffset + expOffsetInStruct_], expLenInStruct_);
         } else {
@@ -1054,7 +1060,7 @@ __aicore__ inline uint32_t MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layer
         PipeBarrier<PIPE_ALL>();
         return WAIT_STATUS;
     } else { //得到上个token->可以处理
-        if (tokenFlagValue == SHOULD_SEND_FLAG_VALUE) {
+        if (tokenFlagValue == SHOULD_SEND_FLAG_VALUE + magicVal_) {
             if (justExpInfo) {
                 DataCopy(localUB_U8, TokensGtU8[TokenOffset + expOffsetInStruct_], expLenInStruct_);
             } else {

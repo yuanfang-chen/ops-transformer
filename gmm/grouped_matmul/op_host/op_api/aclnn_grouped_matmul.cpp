@@ -38,6 +38,7 @@
 #include "aclnn_grouped_matmul_util.h"
 #include "aclnn_grouped_matmul_910_95_checker.h"
 #include "aclnn_grouped_matmul_weight_quant_910_95_checker.h"
+#include "grouped_matmul_no_quant_950_checker.h"
 
 using namespace op;
 
@@ -709,8 +710,6 @@ static aclnnStatus CheckNonQuantMatmulDataType(const gmm::GroupedMatmulParams &g
   DataType biasDtype = gmmParams.xDtype == DataType::DT_BF16 ? DataType::DT_FLOAT : gmmParams.xDtype;
   // 910_95支持bf16的bias
   if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
-    CHECK_COND(gmmParams.xDtype != DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
-               "float32 do not supported on Ascend910_95");
     if (gmmParams.biasOptional != nullptr) {
       biasDtype = (*gmmParams.biasOptional)[0]->GetDataType();
       CHECK_COND(biasDtype == gmmParams.xDtype || biasDtype == DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
@@ -833,16 +832,22 @@ static aclnnStatus CheckGroupedMatmulAntiQuant(const gmm::GroupedMatmulParams &g
              "GMM Xtype:%s Wtype:%s: antiquant cases do not support splited axis is k.", sXtype.c_str(), sWtype.c_str());
   CHECK_COND(gmmParams.antiquantScaleOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
              "GMM Xtype:%s Wtype:%s: antiquantScale must not be nullptr in antiquant, but now is nullptr.", sXtype.c_str(), sWtype.c_str());
-  CHECK_COND(gmmParams.antiquantOffsetOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
-             "GMM Xtype:%s Wtype:%s: antiquantOffset must not be nullptr in antiquant, but now is nullptr.", sXtype.c_str(), sWtype.c_str());
+  DataType w0Dtype = (*gmmParams.weight)[0]->GetDataType();
+  bool isAntiquantInt4 = w0Dtype == DataType::DT_INT4;
+
+  CHECK_COND(((isAntiquantInt4 && gmmParams.isSingleWeight) || gmmParams.antiquantOffsetOptional != nullptr),
+             ACLNN_ERR_PARAM_INVALID,
+             "GMM Xtype:%s Wtype:%s: antiquantOffset must not be nullptr in antiquant, but now is nullptr.",
+             sXtype.c_str(), sWtype.c_str());
   // check the shape of antiquantScale and antiquantOffset
   CHECK_COND(CheckOptionalTensorList(gmmParams, gmmParams.antiquantScaleOptional, "antiquantScale") == ACLNN_SUCCESS,
              ACLNN_ERR_PARAM_INVALID, "Invalid antiquantScale");
-  CHECK_COND(CheckOptionalTensorList(gmmParams, gmmParams.antiquantOffsetOptional, "antiquantOffset") == ACLNN_SUCCESS,
-             ACLNN_ERR_PARAM_INVALID, "Invalid antiquantOffset");
-  DataType w0Dtype = (*gmmParams.weight)[0]->GetDataType();
+  if (gmmParams.antiquantOffsetOptional != nullptr) {
+      CHECK_COND(
+          CheckOptionalTensorList(gmmParams, gmmParams.antiquantOffsetOptional, "antiquantOffset") == ACLNN_SUCCESS,
+          ACLNN_ERR_PARAM_INVALID, "Invalid antiquantOffset");
+  }
   // check perGroupNum
-  bool isAntiquantInt4 = w0Dtype == DataType::DT_INT4;
   if (isAntiquantInt4) {
     auto antiquantScale0Shape = (*gmmParams.antiquantScaleOptional)[0]->GetViewShape();
     size_t antiquantScale0DimNum = antiquantScale0Shape.GetDimNum();
@@ -853,27 +858,38 @@ static aclnnStatus CheckGroupedMatmulAntiQuant(const gmm::GroupedMatmulParams &g
                "pergroupSize should be even when weight is transposed in A16W4-pergroup case, but now is %ld", pergroupSize);
     for (size_t i = 0; i < gmmParams.antiquantScaleOptional->Size(); ++i) {
       auto antiquantScaleShape = (*gmmParams.antiquantScaleOptional)[i]->GetViewShape();
-      auto antiquantOffsetShape = (*gmmParams.antiquantOffsetOptional)[i]->GetViewShape();
       size_t antiquantScaleDimNum = antiquantScaleShape.GetDimNum();
-      size_t antiquantOffsetDimNum = antiquantOffsetShape.GetDimNum();
-      CHECK_COND(antiquantScaleDimNum == antiquantScale0DimNum && antiquantScale0DimNum == antiquantOffsetDimNum,
+      CHECK_COND(antiquantScaleDimNum == antiquantScale0DimNum,
                  ACLNN_ERR_PARAM_INVALID, "antiquantScale[%zu]'s dim num[%zu] is not equal with first tensor's dim"
-                 " num[%zu] or antiquantOffset[%zu]'s dim num[%zu] is not equal with antiquantScale[0]'s dim num[%zu]",
-                 i, antiquantScaleDimNum, antiquantScale0DimNum, i, antiquantOffsetDimNum, antiquantScale0DimNum);
+                 " num[%zu]",
+                 i, antiquantScaleDimNum, antiquantScale0DimNum);
       auto wShape = (*gmmParams.weight)[i]->GetViewShape();
       int64_t pergroupSizeOfScale = GetPergroupSize(gmmParams, w0DimNum, wShape, antiquantScaleShape);
-      int64_t pergroupSizeOfOffset = GetPergroupSize(gmmParams, w0DimNum, wShape, antiquantOffsetShape);
-      CHECK_COND(pergroupSizeOfScale == pergroupSize && pergroupSizeOfOffset == pergroupSize, ACLNN_ERR_PARAM_INVALID,
-                 "antiquantScale[%zu]'s pergroup size[%ld] or antiquantOffset[%zu]'s pergroup size[%ld]"
-                 "is not the required value[%ld]", i, pergroupSizeOfScale, i, pergroupSizeOfOffset, pergroupSize);
+      CHECK_COND(pergroupSizeOfScale == pergroupSize, ACLNN_ERR_PARAM_INVALID,
+                 "antiquantScale[%zu]'s pergroup size[%ld] is not the required value[%ld]",
+                 i, pergroupSizeOfScale, pergroupSize);
+      if (gmmParams.antiquantOffsetOptional != nullptr) {
+        auto antiquantOffsetShape = (*gmmParams.antiquantOffsetOptional)[i]->GetViewShape();
+        size_t antiquantOffsetDimNum = antiquantOffsetShape.GetDimNum();
+        CHECK_COND(antiquantScale0DimNum == antiquantOffsetDimNum,
+                 ACLNN_ERR_PARAM_INVALID,
+                 "antiquantOffset[%zu]'s dim num[%zu] is not equal with antiquantScale[0]'s dim num[%zu]",
+                 i, antiquantOffsetDimNum, antiquantScale0DimNum);
+        int64_t pergroupSizeOfOffset = GetPergroupSize(gmmParams, w0DimNum, wShape, antiquantOffsetShape);
+        CHECK_COND(pergroupSizeOfOffset == pergroupSize, ACLNN_ERR_PARAM_INVALID,
+                  "antiquantOffset[%zu]'s pergroup size[%ld] is not the required value[%ld]",
+                   i, pergroupSizeOfOffset, pergroupSize);
+      }
     }
   }
   CHECK_COND(CheckTensorListDataType(gmmParams.antiquantScaleOptional, gmmParams.xDtype) == ACLNN_SUCCESS,
              ACLNN_ERR_PARAM_INVALID, "GMM: antiquantScale dtype does not match with x dtype[%s].",
              gmm::dTypeToString(gmmParams.xDtype).c_str());
-  CHECK_COND(CheckTensorListDataType(gmmParams.antiquantOffsetOptional, gmmParams.xDtype) == ACLNN_SUCCESS,
-             ACLNN_ERR_PARAM_INVALID, "GMM: antiquantOffset dtype does not match with x dtype[%s].",
+  if (gmmParams.antiquantOffsetOptional != nullptr) {
+    CHECK_COND(CheckTensorListDataType(gmmParams.antiquantOffsetOptional, gmmParams.xDtype) == ACLNN_SUCCESS,
+              ACLNN_ERR_PARAM_INVALID, "GMM: antiquantOffset dtype does not match with x dtype[%s].",
              gmm::dTypeToString(gmmParams.xDtype).c_str());
+  }
   CHECK_COND(IsGmmQuantEmpty(gmmParams) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
              "Detected antiquant, but quant inputs is not empty!");
   return ACLNN_SUCCESS;
@@ -1075,6 +1091,10 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
       return gmm::AclnnGroupedMatmul91095Checker<aclTensorList>(gmmParams).CheckGroupedMatmul91095();
     } else if (IsWeightQuant(gmmParams.xDtype, weightDtype)) {
       return gmm::AclnnGroupedMatmulWeightQuant91095Checker(gmmParams).CheckGroupedMatmulWeightQuant91095();
+    } else {
+      CHECK_RET(gmm::AclnnGroupedMatmulNoQuant950Checker(gmmParams).CheckGroupedMatmulNoQuant950() ==
+                    ACLNN_SUCCESS,
+                ACLNN_ERR_PARAM_INVALID);
     }
   }
   if (gmmParams.xDtype == DataType::DT_INT8 && weightDtype == DataType::DT_INT4) {
@@ -1087,10 +1107,10 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
   }
   if ((gmmParams.xDtype == DataType::DT_BF16 || gmmParams.xDtype == DataType::DT_FLOAT16 ||
        gmmParams.xDtype == DataType::DT_FLOAT) && gmmParams.xDtype == weightDtype) {
-    if (gmmParams.apiVersion == gmm::GMMApiVersion::V1) {
-      CHECK_COND(gmmParams.xDtype != DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
-                 "aclnnGroupedMatmul does not support x or weight dtype float32.");
-    }
+        if (gmmParams.apiVersion == gmm::GMMApiVersion::V1 && (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B || GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_93)) {
+          CHECK_COND(gmmParams.xDtype != DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
+                    "aclnnGroupedMatmul does not support x or weight dtype float32 on both ASCEND910B and ASCEND910_93 platforms.");
+        }
     CHECK_COND(CheckNonQuantMatmulDataType(gmmParams, weightDtype) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
                "check no quant case dtype failed.");
     CHECK_COND(isNoActivation, ACLNN_ERR_PARAM_INVALID, "non quant case dose not support activation.");
@@ -1385,14 +1405,16 @@ static aclnnStatus CheckCaseNoSplit(const gmm::GroupedMatmulParams &gmmParams) {
     }
     // check the inner dim of x is less than 65535
     size_t xKDimValue = (*gmmParams.x)[i]->GetViewShape().GetDim(xDimNum - 1UL);  // x always is not transposed
-    CHECK_COND(xKDimValue <= MAX_INNER_AXIS, ACLNN_ERR_PARAM_INVALID,
+    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+      CHECK_COND(xKDimValue <= MAX_INNER_AXIS, ACLNN_ERR_PARAM_INVALID,
                "x[%lu] dim %lu value %lu should less or equal to 65535.", i, xDimNum - 1, xKDimValue);
+    }
     size_t weightKDimValue = (*gmmParams.weight)[i]->GetViewShape().GetDim(0);
     CHECK_COND(xKDimValue == weightKDimValue, ACLNN_ERR_PARAM_INVALID,
                "x[%lu] dim %lu value %lu should equal to weight[%lu] dim 0 value %lu.",
                i, xDimNum - 1, xKDimValue, i, weightKDimValue);
     size_t weightNDimValue = (*gmmParams.weight)[i]->GetViewShape().GetDim(1);
-    if (!gmmParams.transposeWeight) {  // if weight is not transposed, check N aisx; otherwise, check K axis, which can be skiped
+    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95 && !gmmParams.transposeWeight) {  // if weight is not transposed, check N aisx; otherwise, check K axis, which can be skiped
       CHECK_COND(weightNDimValue <= MAX_INNER_AXIS, ACLNN_ERR_PARAM_INVALID,
                 "w[%lu] dim %d value %lu should less or equal to 65535.", i, 1, weightNDimValue);
     }
@@ -1438,7 +1460,8 @@ static aclnnStatus CheckParamDifferentGroupType(const gmm::GroupedMatmulParams &
   if (gmmParams.groupType == gmm::NO_SPLIT) {
     CHECK_COND(!gmmParams.transposeX, ACLNN_ERR_PARAM_INVALID,
                "When x, weight and y are all separated, x can not be transposed.");
-    CHECK_COND(!(gmmParams.apiVersion == gmm::GMMApiVersion::V1 && gmmParams.transposeWeight), ACLNN_ERR_PARAM_INVALID,
+    CHECK_COND(!(gmmParams.apiVersion == gmm::GMMApiVersion::V1 && gmmParams.transposeWeight) ||
+ 	              GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95, ACLNN_ERR_PARAM_INVALID,
                "in this version, when x, weight and y are all separated, weight can not be transposed.");
     CHECK_COND(CheckCaseNoSplit(gmmParams) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
                "Invalid inputs!");
@@ -1735,8 +1758,11 @@ static void SetParamsTensorEmpty(gmm::GroupedMatmulParams &params, aclOpExecutor
   CreateEmptyTensor(aclDataType::ACL_FLOAT16, params.antiquantScaleOptional, emptyAntiquantScaleList, executor);
 
   aclTensorList *emptyAntiquantOffsetList = nullptr;
-  CreateEmptyTensor(aclDataType::ACL_FLOAT16, params.antiquantOffsetOptional, emptyAntiquantOffsetList, executor);
-
+  if(params.xDtype == DataType::DT_BF16 && weightDtype == DataType::DT_INT4) { // A16W4
+    CreateEmptyTensor(aclDataType::ACL_BF16, params.antiquantOffsetOptional, emptyAntiquantOffsetList, executor);
+  } else {
+    CreateEmptyTensor(aclDataType::ACL_FLOAT16, params.antiquantOffsetOptional, emptyAntiquantOffsetList, executor);
+  }
   aclTensorList *emptyPerTokenScaleList = nullptr;
   CreateEmptyTensor(aclDataType::ACL_FLOAT, params.perTokenScaleOptional, emptyPerTokenScaleList, executor);
 
@@ -1841,8 +1867,10 @@ static aclnnStatus ParamsDataContiguous(gmm::GroupedMatmulParams &params, aclOpE
              "Contiguous offsetOptional failed.");
   CHECK_COND(DataContiguous(params.antiquantScaleOptional, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
              "Contiguous antiquantScaleOptional failed.");
-  CHECK_COND(DataContiguous(params.antiquantOffsetOptional, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
-             "Contiguous antiquantOffsetOptional failed.");
+  if (params.antiquantOffsetOptional != nullptr) {
+    CHECK_COND(DataContiguous(params.antiquantOffsetOptional, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
+              "Contiguous antiquantOffsetOptional failed.");
+  }
   CHECK_COND(DataContiguous(params.perTokenScaleOptional, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
              "Contiguous perTokenScaleOptional failed.");
   if (params.groupTensorOptional != nullptr) {

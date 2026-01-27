@@ -89,6 +89,7 @@ else()
     target_include_directories(${COMMON_NAME}_obj
       PRIVATE
       ${C_SEC_INCLUDE}
+      ${NPURUNTIME_INCLUDE_DIRS}
       ${TILINGAPI_INC_DIRS}
       ${METADEF_INCLUDE_DIRS}
       ${OPS_TRANSFORMER_DIR}/common/include
@@ -124,6 +125,7 @@ if (NOT BUILD_OPS_RTY_KERNEL)
             BUILD_ALWAYS TRUE
             BUILD_BYPRODUCTS
         )
+        add_subdirectory(src/framework)
     else()
         add_subdirectory(src/tiling_sink)
     endif()

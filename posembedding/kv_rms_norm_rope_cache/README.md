@@ -4,6 +4,7 @@
 
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
 |  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     ×    |
 |  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     ×    |
 
@@ -189,13 +190,13 @@
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
     </tr>
-
+    
   </tbody></table>
 
 ## 约束说明
 
   * 输入shape限制：
-      * kv为四维张量，shape为[Bkv,N,Skv,D]，Bkv为输入kv的batch size，Skv为输入kv的sequence length，大小由用户输入场景决定，无明确限制。
+      * kv为四维张量，shape为[Bkv,N,Skv,D]，Bkv为输入kv的batch size，Skv为输入kv的sequence length，大小由用户输入场景决定，无明确限制。 
       * N为输入kv的head number。此算子与DeepSeekV3网络结构强相关，仅支持N=1的场景，不存在N非1的场景。
       * D为输入kv的head dim。rms_norm计算所需数据Dv和rope计算所需数据Dk由输入kv的D切分而来。故Dk、Dv大小需满足Dk+Dv=D。同时，Dk需满足rope规则。根据rope规则，Dk为偶数。
       * 若cacheModeOptional为PA场景（cacheModeOptional为PA、PA_BNSD、PA_NZ、PA_BLK_BNSD、PA_BLK_NZ），其shape[BlockNum,BlockSize,N,Dk]中BlockSize需32B对齐。

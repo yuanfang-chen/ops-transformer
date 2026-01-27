@@ -15,6 +15,7 @@ import shutil
 import logging
 import json
 
+
 def to_camel_case(name: str) -> str:
     parts = name.split('_')
     return ''.join(p.capitalize() for p in parts if p)

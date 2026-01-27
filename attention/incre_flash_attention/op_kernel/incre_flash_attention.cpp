@@ -13,7 +13,8 @@
  * \brief
  */
 
-#include "kernel_operator.h"
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
 
 #if (__NPU_ARCH__ == 5102)
 #ifdef NOT_DYNAMIC_COMPILE
@@ -23,8 +24,8 @@
 #endif
 #else
 #include "incre_flash_attention_arch32.h"
-
 #endif
+
 using namespace AscendC;
 
 extern "C" __global__ __aicore__ void

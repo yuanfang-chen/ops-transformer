@@ -49,6 +49,7 @@ TILING_DATA_FIELD_DEF(uint64_t, parallNum);            // for A8W4 MSD
 TILING_DATA_FIELD_DEF(uint64_t, quantGroupNum);        // for A8W4 MSD
 TILING_DATA_FIELD_DEF(uint64_t, isPreTiling);
 TILING_DATA_FIELD_DEF(uint32_t, withOffset);
+TILING_DATA_FIELD_DEF(uint32_t, isOutputDisableL2Cache);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(GMMBaseParamsOp, GMMBaseParams)
 
@@ -113,7 +114,7 @@ public:
     ge::graphStatus Init(const gert::TilingContext *context);
     ge::graphStatus RunFusionKernelTiling(gert::TilingContext *context);
     ge::graphStatus A8W4Tiling(gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
-
+    ge::graphStatus A16W4MsdTiling(gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
 protected:
     bool IsAivAicRatioTwoRequired();
     bool IsFixedAxisMoveCondition();
@@ -143,6 +144,7 @@ protected:
     const gert::Shape &wShape);
     ge::graphStatus DivideUbAndSetWorkspace(gert::TilingContext *context, const uint32_t &aicNum);
     ge::graphStatus DynamicTilingSingleN(gert::TilingContext *context, const uint32_t &aicNum, const GMMCompileInfo *compileInfoPtr);
+    ge::graphStatus IsOutputDisableL2Cache(gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
     int32_t FindBestSingleN(const uint32_t &aicNum);
     bool TryFullLoadA(int32_t baseM, const GMMCompileInfo *compileInfoPtr);
     void DivideUbAndSetWorkspaceAntiquant(size_t *workspaces, const uint32_t &aicNum, uint32_t &ubSize);
@@ -162,6 +164,10 @@ protected:
     void PrintTilingInfo(gert::TilingContext *context);
     void GMMSetTplTilingKey(gert::TilingContext *context);
     uint32_t GetTplDataType(const ge::DataType &dtype);
+    ge::graphStatus CheckA16W4MsdEnable(uint64_t mSize, uint64_t antiquantGroupNum, const gert::TilingContext *context,
+                                        const GMMCompileInfo *compileInfoPtr);
+    uint64_t GetWithOffset(const gert::TilingContext *context);
+
 private:
     int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
     int32_t kList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
@@ -201,6 +207,7 @@ private:
     int64_t tuningConfigWorkspace_ = 0L;
     uint64_t FixedAxisMoveWorkspace_ = 0L;
     bool isA4W4_ = false;
+    bool isA16W16_ = false;
     bool isA8W4FakeA8W8_ = false;
     bool isFixedAxisMove_ = false;
     uint64_t A8W4noMsdSpace_ = 0;

@@ -12,7 +12,6 @@
  * \file flash_attention_interface.cpp
  * \brief
  */
-#include "kernel_operator.h"
 #include "flash_attention_regular.h"
 using namespace NpuArch;
 
@@ -22,8 +21,8 @@ namespace SplitFuse {
         typename InputDtypeKv = half,
         typename IntermCalcPrec = float,
         bool PagedCacheFlag = false,
-        FaiKenel::MaskType maskCategory = FaiKenel::MaskType::NO_MASK,
-        FaiKenel::inputLayout inLayout = FaiKenel::inputLayout::TND,
+        FaiKernel::MaskType maskCategory = FaiKernel::MaskType::NO_MASK,
+        FaiKernel::inputLayout inLayout = FaiKernel::inputLayout::TND,
         Epilogue::LseMode lseMode = Epilogue::LseMode::NONE,
         Epilogue::SinkMode sinkMode = Epilogue::SinkMode::DISABLE>
     __global__ __aicore__ void FAInfer(
@@ -71,7 +70,7 @@ namespace SplitFuse {
         using BlockMmadQK = Gemm::Block::BlockMmad<DispatchPolicyQK, L1TileShapeQK, L0TileShapeQK,
                                                    QType, KType, SType>;
 
-        using DispatchPolicyOnlineSoftmax = Epilogue::EpilogueAtlasA2OnlineSoftmax<lseMode, sinkMode, IntermCalcPrec>;
+        using DispatchPolicyOnlineSoftmax = Epilogue::EpilogueAtlasA2OnlineSoftmax<lseMode, sinkMode, static_cast<Epilogue::MaskMode>(maskCategory), IntermCalcPrec>;
         using PType = Gemm::GemmType<ElementP, LayoutP>;
         using maskType = Gemm::GemmType<ElementMask, LayoutMask>;
         using EpilogueOnlineSoftmax =

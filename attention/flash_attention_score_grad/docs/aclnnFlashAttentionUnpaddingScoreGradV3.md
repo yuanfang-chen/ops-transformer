@@ -1,6 +1,7 @@
 # aclnnFlashAttentionUnpaddingScoreGradV3
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
@@ -119,7 +120,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV3GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1529px"><colgroup>
     <col style="width: 198px">
     <col style="width: 120px">
@@ -226,7 +227,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
       <tr>
         <td>paddingMaskOptional</td>
         <td>输入</td>
-        <td>预留参数。</td>
+        <td>预留参数，暂未使用。</td>
         <td>调用时需传空。</td>
         <td>-</td>
         <td>-</td>
@@ -287,7 +288,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>softmaxInOptional</td>
         <td>输入</td>
         <td>正向softmax的中间输出。</td>
-        <td>暂未使用。</td>
+        <td>预留参数，暂未使用。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -387,7 +388,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>dpseOut</td>
         <td>输出</td>
         <td>d(pse)梯度。</td>
-        <td>暂未使用。</td>
+        <td>预留参数，暂未使用。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -457,7 +458,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
         <td>innerPrecise</td>
         <td>输入</td>
         <td>内部计算精度控制。</td>
-        <td>暂未使用。</td>
+        <td>保留参数，暂未使用。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -506,7 +507,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
     </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -542,7 +543,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV3
 
--   **参数说明：**
+-   **参数说明**
     <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
     <col style="width: 153px">
     <col style="width: 121px">
@@ -578,7 +579,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

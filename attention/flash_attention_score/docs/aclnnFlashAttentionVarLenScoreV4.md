@@ -1,6 +1,7 @@
 # aclnnFlashAttentionVarLenScoreV4
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      √     |
@@ -66,7 +67,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
 
 ## aclnnFlashAttentionVarLenScoreV4GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1452px"><colgroup>
     <col style="width: 174px">
@@ -139,6 +140,16 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
         <td>ND</td>
         <td>0、1</td>
         <td>√</td>
+      </tr>
+      <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
       <tr>
         <td>attenMaskOptional</td>
@@ -244,7 +255,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
         <td>innerPrecise</td>
         <td>输入</td>
         <td>用于提升精度。</td>
-        <td>暂未使用。</td>
+        <td>默认配置为0即可。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -291,6 +302,16 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
         <td>√</td>
       </tr>
       <tr>
+        <td>softmaxOutOut</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attentionOutOut</td>
         <td>输出</td>
         <td>计算公式的最终输出。</td>
@@ -323,7 +344,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
     </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -361,7 +382,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
 
 ## aclnnFlashAttentionVarLenScoreV4
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
@@ -399,7 +420,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
   </table>
 
 
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -425,6 +446,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
   - 参数每个batch不相同时，shape为BNHSkv(H=1024)。
   - 每个batch相同时，shape为1NHSkv(H=1024)。
   - 如不使用该参数可传入nullptr。  
+- innerPrecise：当前0、1为保留配置值，2为使能无效行计算，其功能是避免在计算过程中存在整行mask进而导致精度有损失，但是该配置会导致性能下降。 如果算子可判断出存在无效行场景，会自动使能无效行计算，例如sparseMode为3，Sq > Skv场景。 
 - sparseMode的约束如下: 
   - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量；
   - 配置为1、2、3、5、6时，用户配置的preTokens、nextTokens不会生效；

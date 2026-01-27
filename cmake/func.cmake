@@ -69,7 +69,6 @@ function(op_add_subdirectory OP_LIST OP_DIR_LIST)
     if(ENABLE_EXPERIMENTAL)
         message(STATUS "Build experimental module")
         file(GLOB OP_HOST_CMAKE_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/experimental/attention/**/op_host/CMakeLists.txt"
         "${CMAKE_CURRENT_SOURCE_DIR}/experimental/ffn/**/op_host/CMakeLists.txt"
         "${CMAKE_CURRENT_SOURCE_DIR}/experimental/gmm/**/op_host/CMakeLists.txt"
         "${CMAKE_CURRENT_SOURCE_DIR}/experimental/mc2/**/op_host/CMakeLists.txt"
@@ -87,6 +86,10 @@ function(op_add_subdirectory OP_LIST OP_DIR_LIST)
                 "${CMAKE_CURRENT_SOURCE_DIR}/moe/**/op_host/CMakeLists.txt"
                 "${CMAKE_CURRENT_SOURCE_DIR}/ffn/**/op_host/CMakeLists.txt"
                 "${CMAKE_CURRENT_SOURCE_DIR}/mc2/**/op_host/CMakeLists.txt"
+                "${CMAKE_CURRENT_SOURCE_DIR}/posembedding/**/framework/CMakeLists.txt"
+                "${CMAKE_CURRENT_SOURCE_DIR}/moe/**/framework/CMakeLists.txt"
+                "${CMAKE_CURRENT_SOURCE_DIR}/ffn/**/framework/CMakeLists.txt"
+                "${CMAKE_CURRENT_SOURCE_DIR}/mc2/**/framework/CMakeLists.txt"
             )
             List(APPEND OP_HOST_CMAKE_FILES ${CANNDEV_OPS_HOST_CMAKE_FILES})
         endif()
@@ -116,6 +119,10 @@ function(op_add_subdirectory OP_LIST OP_DIR_LIST)
         endif ()
 
         if (ENABLE_TEST)
+            if (NOT EXISTS "${OP_DIR}/tests/CMakeLists.txt")
+                continue()
+            endif()
+            
             file(READ "${OP_DIR}/tests/CMakeLists.txt" CML_CONTENT)
             if (CML_CONTENT MATCHES "OpsTest_Level2_AddOp")
                 set(UTEST_FRAMEWORK_OLD TRUE CACHE BOOL "UTEST_FRAMEWORK_OLD" FORCE)
@@ -151,7 +158,12 @@ function(op_add_depend_directory)
     foreach(op_name ${DEP_OP_LIST})
         if (DEFINED ${op_name}_depends)
             foreach(depend_info ${${op_name}_depends})
-                if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${depend_info}/op_host/CMakeLists.txt AND NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/${depend_info}/CMakeLists.txt)
+                if (ENABLE_EXPERIMENTAL)
+ 	                set(depend_info_update "experimental/${depend_info}")
+ 	            else()
+ 	                set(depend_info_update ${depend_info})
+ 	            endif()
+ 	            if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${depend_info_update}/op_host/CMakeLists.txt AND NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/${depend_info_update}/CMakeLists.txt)
                     continue()
                 endif ()
 
@@ -163,7 +175,7 @@ function(op_add_depend_directory)
                 endif ()
 
                 if (NOT ${_depend_op_name} IN_LIST DEP_OP_LIST)
-                    list(APPEND _OP_DEPEND_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/${depend_info})
+                    list(APPEND _OP_DEPEND_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/${depend_info_update})
                 endif ()
             endforeach()
         endif()
@@ -359,9 +371,7 @@ function(add_ops_src_copy)
             set(OPS_UTILS_INC_KERNEL_DIR ${_ROOT_OPS_SRC_DIR}/ascendc/common)
             add_custom_command(OUTPUT ${OPS_UTILS_INC_KERNEL_DIR}
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/regbase
-                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/tla
                     COMMAND cp -rf ${OPS_ADV_UTILS_KERNEL_INC}/*.* ${OPS_UTILS_INC_KERNEL_DIR}
-                    COMMAND cp -rf ${OPS_ADV_TLA}/* ${OPS_UTILS_INC_KERNEL_DIR}/tla
             )
 
             add_custom_target(${OPS_UTILS_INC_KERNEL_TARGET}
@@ -387,6 +397,8 @@ function(add_ops_src_copy)
         "matmul_all_reduce;"
         "matmul_all_reduce_add_rms_norm;"
         "inplace_matmul_all_reduce_add_rms_norm;"
+        "quant_reduce_scatter;"
+        "matmul_allto_all;"
         "attention_to_ffn;"
         "ffn_to_attention;"
     ) # mc2算子列表
@@ -511,13 +523,18 @@ function(add_bin_compile_target)
 
             if (DEFINED ${op_file}_depends)
                 foreach(depend_info ${${op_file}_depends})
+                    if (ENABLE_EXPERIMENTAL)
+ 	                    set(depend_info_update "experimental/${depend_info}")
+ 	                else()
+ 	                    set(depend_info_update ${depend_info})
+ 	                endif()
                     get_filename_component(_depend_op_name "${depend_info}" NAME)
                     set(_depend_op_target ${_depend_op_name}_${BINARY_COMPUTE_UNIT}_src_copy)
                     add_ops_src_copy(
                             TARGET_NAME
                             ${_depend_op_target}
                             SRC
-                            ${CMAKE_SOURCE_DIR}/${depend_info}
+                            ${CMAKE_SOURCE_DIR}/${depend_info_update}
                             DST
                             ${SRC_OUT_DIR}/${_depend_op_name}
                             COMPUTE_UNIT
@@ -566,9 +583,17 @@ function(add_bin_compile_target)
         set(_group "1-0")
         if (DEFINED ASCEND_OP_NAME AND NOT "${ASCEND_OP_NAME}" STREQUAL "")
             if (NOT "${ASCEND_OP_NAME}" STREQUAL "all" AND NOT "${ASCEND_OP_NAME}" STREQUAL "ALL")
-                if (${op_file} IN_LIST ASCEND_OP_NAME)
-                    list(LENGTH ASCEND_OP_NAME _len)
+                string(REGEX MATCH "^(.*_apt)$" _match_apt ${op_file})
+                if(_match_apt)
+                    #如果以_apt结尾，使用去掉后缀的文件名进行查找
+                    string(REGEX REPLACE "_apt$" "" _op_file_strip_apt ${op_file})
+                    list(FIND ASCEND_OP_NAME ${_op_file_strip_apt} _index)
+                else()
                     list(FIND ASCEND_OP_NAME ${op_file} _index)
+                    set(_op_file_strip_apt ${op_file})
+                endif()
+                if (${op_file} IN_LIST ASCEND_OP_NAME OR ${_op_file_strip_apt} IN_LIST ASCEND_OP_NAME)
+                    list(LENGTH ASCEND_OP_NAME _len)
                     math(EXPR _next_index "${_index} + 1")
                     if (${_next_index} LESS ${_len})
                         list(GET ASCEND_OP_NAME ${_next_index} _group_str)

@@ -9,7 +9,7 @@
 
 ## 功能说明
 
-- 算子功能：根据blockTables中的blockId值、seqLens中key/value的seqLen从keyCache/valueCache中将内存不连续的token搬运、拼接成连续的key/value序列。
+- 接口功能：根据blockTables中的blockId值、seqLens中key/value的seqLen从keyCache/valueCache中将内存不连续的token搬运、拼接成连续的key/value序列。
 - 计算逻辑：
   - keyRef/valueRef的第一个维度取决于seq_lens大小。
   - 如果isSeqLensCumsum为true，则seqLens中最后一个值即为keyRef/valueRef的第一个维度大小： keyRef[dim0] = seqLens[-1]
@@ -19,6 +19,7 @@
   - 每个token大小控制在148k以内，例如，对于fp16/bf16类型， num_heads * head_size(keyRef/valueRef)取128*576。
 
 - 示例：
+
   ```
     keyCache_shape: [128, 128, 16, 144]
     valueCache_shape: [128, 128, 16, 128]
@@ -35,12 +36,32 @@
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnGatherPaKvCacheGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnGatherPaKvCache”接口执行计算。
 
-- `aclnnStatus aclnnGatherPaKvCacheGetWorkspaceSize(const aclTensor *keyCache, const aclTensor *valueCache, const aclTensor *blockTables, const aclTensor *seqLens, aclTensor *keyRef, aclTensor *valueRef, const aclTensor *seqOffsetOptional, char* cacheMode, bool isSeqLensCumsum, uint64_t *workspaceSize, aclOpExecutor **executor)`
-- `aclnnStatus aclnnGatherPaKvCache(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)`
+```Cpp
+aclnnStatus aclnnGatherPaKvCacheGetWorkspaceSize(
+  const aclTensor *keyCache, 
+  const aclTensor *valueCache, 
+  const aclTensor *blockTables, 
+  const aclTensor *seqLens, 
+  aclTensor       *keyRef, 
+  aclTensor       *valueRef, 
+  const aclTensor *seqOffsetOptional, 
+  char*            cacheMode, 
+  bool             isSeqLensCumsum, 
+  uint64_t        *workspaceSize, 
+  aclOpExecutor  **executor)
+```
+
+```Cpp
+aclnnStatus aclnnGatherPaKvCache(
+  void          *workspace, 
+  uint64_t       workspaceSize, 
+  aclOpExecutor *executor, 
+  aclrtStream    stream)
+```
 
 ## aclnnGatherPaKvCacheGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
   - keyCache(aclTensor*，计算输入)：Device侧的aclTensor，表示在当前层存储的key向量缓存。当cacheMode为"Norm"时，shape为[num_blocks, block_size, num_heads, head_size_k]。当cacheMode为"PA_NZ"时，shape为[num_blocks, num_heads * head_size_k // elenum_aligned, block_size, elenum_aligned](b8场景 ：elenum_aligned=32，b16场景为16，b32场景为8。b8表示每个数据元素位宽是8bit，如INT8；b16表示每个数据元素位宽是16bit，如INT16；b32表示每个数据元素位宽是32bit，如INT32)。不支持[非连续的Tensor](../../../docs/zh/context/非连续的Tensor.md)，不支持空Tensor。
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：数据类型支持INT8、FLOAT16、BFLOAT16，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
@@ -64,31 +85,83 @@
 
   - executor(aclOpExecutor**, 出参)：返回op执行器，包含了算子计算流程。
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
-  ```
   第一段接口完成入参校验，出现以下场景时报错：
-  返回161001(ACLNN_ERR_PARAM_NULLPTR)：1. 输入是空指针。
-  返回161002(ACLNN_ERR_PARAM_INVALID)：1. 输入数据类型不在支持的范围内。
-                                      2. 输入的维数不匹配。
-                                      3. 输入的数据类型不一致。
-  ```
+  <table style="undefined;table-layout: fixed; width: 1147px"><colgroup>
+    <col style="width: 283px">
+    <col style="width: 120px">
+    <col style="width: 744px">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>返回值</th>
+        <th>错误码</th>
+        <th>描述</th>
+      </tr></thead>
+    <tbody>
+      <tr>
+        <td>ACLNN_ERR_PARAM_NULLPTR</td>
+        <td>161001</td>
+        <td>输入是空指针。</td>
+      </tr>
+      <tr>
+        <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+        <td rowspan="3">161002</td>
+        <td>输入数据类型不在支持的范围内。</td>
+      </tr>
+      <tr>
+        <td>输入的维数不匹配。</td>
+      </tr>
+      <tr>
+        <td>输入的数据类型不一致。</td>
+      </tr>
+    </tbody>
+    </table>
+
 ## aclnnGatherPaKvCache
 
-- **参数说明：**
+- **参数说明**
 
-  - workspace(void*, 入参)：在Device侧申请的workspace内存地址。
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>参数名</th>
+      <th>输入/输出</th>
+      <th>描述</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td>workspace</td>
+      <td>输入</td>
+      <td>在Device侧申请的workspace内存地址。</td>
+    </tr>
+    <tr>
+      <td>workspaceSize</td>
+      <td>输入</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnGatherPaKvCacheGe.tWorkspaceSize获取。</td>
+    </tr>
+    <tr>
+      <td>executor</td>
+      <td>输入</td>
+      <td>op执行器，包含了算子计算流程。</td>
+    </tr>
+    <tr>
+      <td>stream</td>
+      <td>输入</td>
+      <td>指定执行任务的Stream。</td>
+    </tr>
+  </tbody>
+  </table>
 
-  - workspaceSize(uint64_t, 入参)：在Device侧申请的workspace大小，由第一段接口aclnnGatherPaKvCacheGe.tWorkspaceSize获取。
 
-  - executor(aclOpExecutor*, 入参)：op执行器，包含了算子计算流程。
-
-  - stream(aclrtStream, 入参)：指定执行任务的Stream。
-
-
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
