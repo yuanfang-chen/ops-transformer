@@ -298,6 +298,8 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &info, LocalTensor<X_T> xL1Tensor,
     uint32_t hIdx, uint32_t kBase, uint32_t mStart, uint32_t mDealSize, bool isLastM)
 {
+    uint32_t bStartPos;
+    uint32_t bSeqUsed;
     bool copyLastCmpBlock = false;
     if constexpr (COMP::coff == COFF::OVERLAP) {
         if (mStart == 0) {
