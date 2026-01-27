@@ -255,7 +255,7 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
     epRecvCountShape->SetDimNum(DIM_ONE);
     if (IsPlatform(context, "Ascend910B")) {
         if (expertScalesShape != nullptr) {
-            epRecvCountShape->SetDim(0U, *epWorldSize * localExpertNum + globalBsReal * 2 * k * (*epWorldSize) / RANK_NUM_PER_NODE); // 2：globalbs * 2kn memory size, to support different bs in ranks
+            epRecvCountShape->SetDim(0U, *epWorldSize * localExpertNum + globalBsReal * 2 * k * ((*epWorldSize) / RANK_NUM_PER_NODE)); // 2：globalbs * 2kn memory size, to support different bs in ranks
         } else {
             epRecvCountShape->SetDim(0U, *epWorldSize * localExpertNum);
         }

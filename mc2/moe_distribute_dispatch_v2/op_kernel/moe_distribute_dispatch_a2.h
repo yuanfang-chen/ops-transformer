@@ -45,6 +45,8 @@ constexpr static uint32_t U32_PER_ITEM = BW_ITEM_SIZE / sizeof(uint32_t);
 constexpr static uint32_t SKIP_OFFSET = 512;
 constexpr static int32_t FLAG_VALUE = 0xFFFFFFFF;
 constexpr uint32_t A2_RANK_NUM_PER_SERVER = 8;
+constexpr static uint32_t BITS_PER_U32 = 32; // 单个uint32_t的bit数
+constexpr static uint32_t VEC_UB_ALIGN = 256; // Vector指令进行Repeat时的粒度
 
 template <typename T1, typename T2>
 __aicore__ inline T2 RoundUp(const T1 val, const T2 align) {
@@ -204,7 +206,7 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::Init(
     zeroComputeExpertNum_ = tilingData.moeDistributeDispatchInfo.zeroComputeExpertNum;
     totalSize_ = winContext_->winSize / BUFFER_NUM;
     dataSize_ = totalSize_ - STATE_SIZE;
-    dataSizePerRank_ = dataSize_ / worldSize_;
+    dataSizePerRank_ = dataSize_ / worldSize_ / UB_ALIGN * UB_ALIGN;
     moeExpertNum_ = tilingData.moeDistributeDispatchInfo.moeExpertNum;
     localMoeExpertNum_ = moeExpertNum_ / worldSize_;
     aivId_ = GetBlockIdx();
@@ -266,7 +268,7 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::AllocTens
     // statusEntry contains the number of tokens received by each expert
     // and a flag indicating whether the recv buffer has received data.
     statusEntryCount_ = RoundUp(localMoeExpertNum_ + 1, BITS32_PER_BLOCK);
-    uint32_t statusWorldSize = statusEntryCount_ * worldSize_;
+    uint32_t statusWorldSize = RoundUp(statusEntryCount_ * worldSize_ * sizeof(int32_t), VEC_UB_ALIGN) / sizeof(int32_t);
     statusTensor_ = LocalTensor<int32_t>{TPosition::LCM, 0, statusWorldSize};
 
     uint32_t batchWriteU32Size = U32_PER_ITEM * worldTaskInfo_.taskNum;
@@ -296,8 +298,8 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::AllocTens
     smoothScalesTensor_ = LocalTensor<float>{TPosition::LCM, smoothScalesAddr, axisH_};
 
     if (unlikely(needPerformanceInfo_)) {
-        uint32_t performanceInfoI32Addr = smoothScalesAddr + axisH_;
-        performanceInfoI32Tensor_ = LocalTensor<int32_t>{TPosition::LCM, performanceInfoI32Addr, performanceInfoSize_ * sizeof(int64_t) / sizeof(int32_t)};
+        uint32_t performanceInfoI32Addr = smoothScalesAddr + axisH_ * sizeof(float);
+        performanceInfoI32Tensor_ = LocalTensor<int32_t>{TPosition::LCM, performanceInfoI32Addr, RoundUp(performanceInfoSize_ * static_cast<uint32_t>(sizeof(int64_t)), UB_ALIGN) / sizeof(int32_t)};
     }
 
     uint32_t validExpIndexAddr = AscendC::TOTAL_UB_SIZE - expertIdsLength;
@@ -558,6 +560,9 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::ReorderTo
 template <TemplateMC2TypeA2Class>
 __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SingleServerSendToMoeExpert()
 {
+    if (aivId_ == 0) {
+        bufferChosenGlobal_(0) = bufferChosen_ ^ 1;
+    }
     for (uint32_t rankIndex = worldTaskInfo_.startTaskId; rankIndex < worldTaskInfo_.endTaskId; ++rankIndex) {
         uint32_t startExpertId = rankIndex * localMoeExpertNum_;
         uint32_t currentIndex = rankIndex - worldTaskInfo_.startTaskId;
@@ -570,9 +575,9 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SingleSer
         currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)rankGM);
         currRankWindowOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)localBuf);
 
-        DataCopy(xOutTensor_[PING_IDX], currRankWindowOutGlobal, DATA_OFFSET / sizeof(ExpandXOutType));
+        DataCopy(xOutTensor_[PING_IDX], currRankWindowOutGlobal, statusEntryCount_ * sizeof(int32_t) / sizeof(ExpandXOutType));
         SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-        DataCopy(currRankWindowInGlobal, xOutTensor_[PING_IDX], DATA_OFFSET / sizeof(ExpandXOutType));
+        DataCopy(currRankWindowInGlobal, xOutTensor_[PING_IDX], statusEntryCount_ * sizeof(int32_t) / sizeof(ExpandXOutType));
         SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 
         currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(rankGM + DATA_OFFSET));
@@ -593,10 +598,10 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SingleSer
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
         WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
 
-        currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(rankGM + DATA_OFFSET + tokenCount * hCommuSize_));
-        currRankWindowOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(localBuf + DATA_OFFSET + tokenCount * hCommuSize_));
+        currRankWindowInGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(rankGM + DATA_OFFSET + tokenCount * hCommuSize_ + SKIP_OFFSET));
+        currRankWindowOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(localBuf + DATA_OFFSET + tokenCount * hCommuSize_ + SKIP_OFFSET));
 
-        DataCopyExtParams copySkipOffsetFlagParams{1, static_cast<uint32_t>(SKIP_OFFSET + sizeof(uint32_t)), 0, 0, 0};
+        DataCopyExtParams copySkipOffsetFlagParams{1, static_cast<uint32_t>(sizeof(uint32_t)), 0, 0, 0};
         DataCopyPadExtParams<ExpandXOutType> padParams{false, 0, 0, 0};
 
         DataCopyPad(xOutTensor_[PING_IDX], currRankWindowOutGlobal, copySkipOffsetFlagParams, padParams);
@@ -604,6 +609,7 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SingleSer
         DataCopyPad(currRankWindowInGlobal, xOutTensor_[PING_IDX], copySkipOffsetFlagParams);
         SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
     }
+    PipeBarrier<PIPE_ALL>(); // 与WaitDispatch的LocalTensor高度重叠
 }
 
 template <TemplateMC2TypeA2Class>
@@ -670,7 +676,7 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::WaitDispa
 {
     if (unlikely(needPerformanceInfo_)) {
         // 避免没有被分配任务的核未初始化performanceInfoI32Tensor_
-        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoSize_ * sizeof(int64_t) / sizeof(int32_t));
+        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoI32Tensor_.GetSize());
         SyncFunc<AscendC::HardEvent::V_S>();
     }
 
@@ -739,56 +745,76 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::GetStatus
     uint32_t epRecvCountsTempSize = localMoeExpertNumAlign_ * worldSize_;
     epRecvCountsTempLocal_ = LocalTensor<int32_t>{TPosition::LCM, epRecvCountsTempAddr, epRecvCountsTempSize};
     uint32_t epRecvCountsOutAddr = epRecvCountsTempAddr + epRecvCountsTempSize * sizeof(int32_t);
-    uint32_t epRecvCountsOutSize = RoundUp(moeExpertNum_, BITS32_PER_BLOCK);
+    uint32_t worldSizeAlign = RoundUp(worldSize_, BITS32_PER_BLOCK);
+    uint32_t epRecvCountsOutSize = localMoeExpertNum_ * worldSizeAlign;
     epRecvCountsOutLocal_ = LocalTensor<int32_t>{TPosition::LCM, epRecvCountsOutAddr, epRecvCountsOutSize};
     uint16_t srcStrideU16 = (statusEntryCount_ - localMoeExpertNumAlign_) / BITS32_PER_BLOCK;
     uint16_t worldSizeU16 = (uint16_t)worldSize_;
     DataCopyParams copyParamsMultiple{worldSizeU16, static_cast<uint16_t>(localMoeExpertNumAlign_ / BITS32_PER_BLOCK), srcStrideU16, 0};
     DataCopy(epRecvCountsTempLocal_, statusTensor_, copyParamsMultiple);
-    uint64_t mask4Adds = localMoeExpertNum_;
     PipeBarrier<PIPE_V>();
     for (uint32_t rankIndex = 1; rankIndex < worldSize_; ++rankIndex) {
         uint32_t statusOffset = rankIndex * localMoeExpertNumAlign_;
         Add(epRecvCountsTempLocal_[statusOffset], epRecvCountsTempLocal_[statusOffset - localMoeExpertNumAlign_],
-            epRecvCountsTempLocal_[statusOffset], mask4Adds, 1, {1, 1, 1, 8, 8, 8});
+            epRecvCountsTempLocal_[statusOffset], localMoeExpertNum_);
         PipeBarrier<PIPE_V>();
     }
-    uint32_t patternAddr = epRecvCountsOutAddr + RoundUp(moeExpertNum_ * sizeof(int32_t), UB_ALIGN);
-    auto patternLocal = LocalTensor<uint32_t>{TPosition::LCM, patternAddr, localMoeExpertNumAlign_};
-    Duplicate<uint32_t>(patternLocal, 0, localMoeExpertNumAlign_);
+    uint32_t patternAddr = epRecvCountsOutAddr + epRecvCountsOutSize * sizeof(int32_t);
+    uint32_t patternSize = localMoeExpertNumAlign_;
+    if (worldSizeAlign != worldSize_) {
+        // worldSize_不为8的倍数时，epRecvCounts 需要多进行一次 GatherMask。
+        // 此段代码计算这次额外操作所需的 Pattern 内存大小上限：每个长度为 worldSizeAlign 的对齐块中，只取前 worldSize_ 个元素进行采集。
+        uint32_t requiredPattern = RoundUp(((worldSizeAlign + BITS_PER_U32 - 1) / BITS_PER_U32), BITS32_PER_BLOCK);
+        patternSize = requiredPattern > patternSize ? requiredPattern : patternSize;
+    }
+    auto patternLocal = LocalTensor<uint32_t>{TPosition::LCM, patternAddr, patternSize};
+    Duplicate<uint32_t>(patternLocal, 0, patternSize);
     SyncFunc<AscendC::HardEvent::V_S>();
-    patternLocal(0) = 1;
     srcStrideU16 = localMoeExpertNumAlign_ * sizeof(int32_t) / UB_ALIGN;
     int32_t previousSum = 0;
     uint64_t rsvdCnt = 0;
-    mask4Adds = worldSize_;
     uint32_t mask4Gather = localMoeExpertNumAlign_;
-    for (uint32_t expertIndex = 0; expertIndex < localMoeExpertNum_; expertIndex++) {
-        SyncFunc<AscendC::HardEvent::S_V>();
-        GatherMask(epRecvCountsOutLocal_[expertIndex * worldSize_], epRecvCountsTempLocal_, patternLocal, true, mask4Gather,
-            {1, worldSizeU16, srcStrideU16, 0}, rsvdCnt);
-        PipeBarrier<PIPE_V>();
-        Adds(epRecvCountsOutLocal_[expertIndex * worldSize_], epRecvCountsOutLocal_[expertIndex * worldSize_], previousSum,
-            worldSize_);
-        SyncFunc<AscendC::HardEvent::V_S>();
-        previousSum = epRecvCountsOutLocal_(expertIndex * worldSize_ + worldSize_ - 1);
-        patternLocal(0) = patternLocal(0) << 1;
+    uint32_t patternCount = (localMoeExpertNum_ + BITS_PER_U32 - 1)/ BITS_PER_U32;
+    uint32_t remainingMoeExperts = localMoeExpertNum_;
+    for (uint32_t patternIdx = 0; patternIdx < patternCount; ++patternIdx) {
+        patternLocal(patternIdx) = 1;
+        uint32_t currentExpertBatchSize = remainingMoeExperts > BITS_PER_U32 ? BITS_PER_U32 : remainingMoeExperts;
+        uint32_t expertBatchStartIdx = patternIdx * BITS_PER_U32;
+        for (uint32_t expertIndex = expertBatchStartIdx; expertIndex < expertBatchStartIdx + currentExpertBatchSize; ++expertIndex) {
+            SyncFunc<AscendC::HardEvent::S_V>();
+            GatherMask(epRecvCountsOutLocal_[expertIndex * worldSizeAlign], epRecvCountsTempLocal_, patternLocal, true, mask4Gather,
+                {1, worldSizeU16, srcStrideU16, 0}, rsvdCnt);
+            PipeBarrier<PIPE_V>();
+            Adds(epRecvCountsOutLocal_[expertIndex * worldSizeAlign], epRecvCountsOutLocal_[expertIndex * worldSizeAlign], previousSum, worldSize_);
+            SyncFunc<AscendC::HardEvent::V_S>();
+            previousSum = epRecvCountsOutLocal_(expertIndex * worldSizeAlign + worldSize_ - 1);
+            patternLocal(patternIdx) = patternLocal(patternIdx) << 1;
+        }
+        remainingMoeExperts -= currentExpertBatchSize;
+        patternLocal(patternIdx) = 0;
     }
+    if (worldSizeAlign != worldSize_) {
+        mask4Gather = worldSizeAlign;
+        uint16_t repeatTimes = static_cast<uint16_t>(localMoeExpertNum_);
+        uint16_t src0RepeatStride = static_cast<uint16_t>(worldSizeAlign * sizeof(int32_t) / UB_ALIGN);
+
+        patternCount = (worldSize_ + BITS_PER_U32 - 1) / BITS_PER_U32;
+        Duplicate<uint32_t>(patternLocal, UINT32_MAX, patternCount);
+        SyncFunc<AscendC::HardEvent::V_S>();
+        patternLocal(patternCount - 1) = (1 << (worldSize_ % BITS_PER_U32)) - 1;
+        SyncFunc<AscendC::HardEvent::S_V>();
+        GatherMask(epRecvCountsOutLocal_, epRecvCountsOutLocal_, patternLocal, true, mask4Gather,
+            {1, repeatTimes, src0RepeatStride, 0}, rsvdCnt);
+        SyncFunc<AscendC::HardEvent::V_S>(); // localWindowCopy需要用到
+    }
+
     if (aivId_ == aivNum_ - 1) {
         uint32_t expertTokenNumsW64Addr = patternAddr + localMoeExpertNumAlign_ * sizeof(uint32_t);
         auto expertTokenNumsW64Local = LocalTensor<int32_t>{TPosition::LCM, expertTokenNumsW64Addr,
                                                             localMoeExpertNum_ * (sizeof(int64_t) / sizeof(int32_t))};
         if (expertTokenNumsType_ == 0) {
-            mask4Gather = worldSize_;
-            patternLocal(0) = 0;
-            patternLocal((worldSize_ - 1) / 32) = 1 << ((worldSize_ - 1) % 32);
-            srcStrideU16 = worldSize_ * sizeof(int32_t) / UB_ALIGN;
-            SyncFunc<AscendC::HardEvent::S_V>();
-            GatherMask(epRecvCountsTempLocal_, epRecvCountsOutLocal_, patternLocal, true, mask4Gather,
-                {1, static_cast<uint16_t>(localMoeExpertNum_), srcStrideU16, 0}, rsvdCnt);
-            SyncFunc<AscendC::HardEvent::V_S>();
             for (int i = 0; i < localMoeExpertNum_; i++) {
-                expertTokenNumsW64Local(i * 2) = epRecvCountsTempLocal_(i);
+                expertTokenNumsW64Local(i * 2) = epRecvCountsOutLocal_((i + 1) * worldSize_ - 1);
                 expertTokenNumsW64Local(i * 2 + 1) = 0;
             }
         } else {
@@ -807,10 +833,10 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::GetStatus
         GlobalTensor<int32_t> epRecvCountsGlobal;
         epRecvCountsGlobal.SetGlobalBuffer((__gm__ int32_t*)(epRecvCountsGM_));
         SyncFunc<AscendC::HardEvent::V_MTE3>();
-        DataCopy(epRecvCountsGlobal, epRecvCountsOutLocal_, moeExpertNum_);
+        DataCopyExtParams epRecvCountPadParams{1, static_cast<uint32_t>(moeExpertNum_ * sizeof(int32_t)), 0, 0, 0};
+        DataCopyPad(epRecvCountsGlobal, epRecvCountsOutLocal_, epRecvCountPadParams);
     }
 }
-
 
 template <TemplateMC2TypeA2Class>
 __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::LocalWindowCopy()
@@ -881,7 +907,8 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::CopyPerfo
 {
     if (unlikely(needPerformanceInfo_)) {
         AscendC::SetAtomicAdd<int32_t>();
-        AscendC::DataCopy(performanceInfoI32GMTensor_, performanceInfoI32Tensor_, performanceInfoSize_ * sizeof(int64_t) / sizeof(int32_t));
+        AscendC::DataCopyPad(performanceInfoI32GMTensor_, performanceInfoI32Tensor_,
+            {1, static_cast<uint32_t>(performanceInfoSize_ * sizeof(int64_t)), 0, 0, 0});
         AscendC::SetAtomicNone();
         PipeBarrier<PIPE_ALL>();
     }
