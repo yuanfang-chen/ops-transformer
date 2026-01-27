@@ -46,7 +46,7 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
 
 -   **block\_table**（`Tensor`）：可选参数，表示PageAttention中KV存储使用的block映射表，数据格式支持$ND$，数据类型支持`int32`。PageAttention场景下，block\_table必须为二维，第一维长度需要等于B，第二维长度不能小于maxBlockNumPerSeq(maxBlockNumPerSeq为每个batch中最大actual\_seq\_lengths\_key对应的block数量)，支持block_size取值为16的整数倍，最大支持到1024。
 
--   **metadata**（`Tensor`）：可选参数，QuantLightningIndexerMetadata算子传入的分核信息，包含使用核数、分块大小以及每个核处理数据的起始点等内容，shape大小为2048。
+-   **metadata**（`Tensor`）：可选参数，QuantLightningIndexerMetadata算子传入的分核信息，包含使用核数、分块大小以及每个核处理数据的起始点等内容，shape大小为1024。
 
 -   **query\_quant\_mode**（`int`）：可选参数，用于标识输入`query`的量化模式，当前支持Per-Token-Head量化模式，当前仅支持传入0。
 
