@@ -14,6 +14,9 @@
 #include "tiling_context_faker.h"
 #include "tiling_case_executor.h"
 #include "mc2_hcom_topology_mocker.h"
+#include "kernel_tiling/kernel_tiling.h"
+
+constexpr uint64_t MC2_TILING_DATA_RESERVED_LEN = (sizeof(Mc2InitTiling) + sizeof(Mc2CcTiling)) / sizeof(uint64_t);
 
 inline void Mc2ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
                                const Mc2Hcom::MockValues&     hcomTopologyMockValues,
