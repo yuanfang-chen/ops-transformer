@@ -18,21 +18,21 @@
 
 #include "ascendc/host_api/tiling/template_argument.h"
 
-inline constexpr uint32_t ASCENDC_TPL_1_BW = 1; // 每个参数占用1个bit位
-inline constexpr uint32_t ASCENDC_TPL_2_BW = 2; // 每个参数占用2个bit位
-inline constexpr uint32_t ASCENDC_TPL_4_BW = 4; // 每个参数占用4个bit位
+inline constexpr uint32_t ASCENDC_TPL_1_BW_NEW = 1; // 每个参数占用1个bit位
+inline constexpr uint32_t ASCENDC_TPL_2_BW_NEW = 2; // 每个参数占用2个bit位
+inline constexpr uint32_t ASCENDC_TPL_4_BW_NEW = 4; // 每个参数占用4个bit位
 
 // 可表示的tilingkey范围为64bit，注意不可超过限制
 ASCENDC_TPL_ARGS_DECL(compressor, // 算子唯一标识，与opType保持一致
     // 可能需要切分之后的headdim
     // bit:0 LAYOUT 0:BSH 1:TH 
-    ASCENDC_TPL_UINT_DECL(X_LAYOUT, ASCENDC_TPL_1_BW, ASCENDC_TPL_UI_LIST, 0, 1),
+    ASCENDC_TPL_UINT_DECL(X_LAYOUT, ASCENDC_TPL_1_BW_NEW, ASCENDC_TPL_UI_LIST, 0, 1),
     // bit:1-4 x的dtype  0:BF16 1:FP16
-    ASCENDC_TPL_UINT_DECL(X_DTYPE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST, 0, 1),
+    ASCENDC_TPL_UINT_DECL(X_DTYPE, ASCENDC_TPL_4_BW_NEW, ASCENDC_TPL_UI_LIST, 0, 1),
     // bit:5-6  coff 0:无需overlap 1:需要overlap
-    ASCENDC_TPL_UINT_DECL(COFF, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, 1, 2),
+    ASCENDC_TPL_UINT_DECL(COFF, ASCENDC_TPL_2_BW_NEW, ASCENDC_TPL_UI_LIST, 1, 2),
     // bit:7  rotary_mode 0:half 1:interleave
-    ASCENDC_TPL_UINT_DECL(ROTARY_MODE, ASCENDC_TPL_2_BW, ASCENDC_TPL_UI_LIST, 1, 2),
+    ASCENDC_TPL_UINT_DECL(ROTARY_MODE, ASCENDC_TPL_2_BW_NEW, ASCENDC_TPL_UI_LIST, 1, 2),
 );
 
 ASCENDC_TPL_SEL(
