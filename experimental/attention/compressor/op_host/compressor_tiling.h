@@ -189,9 +189,7 @@ private:
     CompressorPageAttentionParams *pageAttentionParams_ = nullptr;
     CompressorInnerSplitParams *innerSplitParams_ = nullptr;
     CompressorWorkspaceParams *workspaceParams_ = nullptr;
-
 };
-
 } // optiling
 
 #endif

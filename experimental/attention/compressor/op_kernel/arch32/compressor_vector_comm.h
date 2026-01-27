@@ -49,6 +49,7 @@ struct RmsNormParam {
 __aicore__ inline void ColumnSum(const LocalTensor<float> &dstLocal, const LocalTensor<float> &srcLocal,
                                      const LocalTensor<float> &shareTmpUb, uint32_t row, uint32_t col)
 {
+    const uint32_t VALUE_TWO = 2;
     // 行数为1时，直接将srcLocal复制到dstLocal
     if (unlikely(row == 1)) {
         DataCopy(dstLocal, srcLocal, row * col);
@@ -58,12 +59,12 @@ __aicore__ inline void ColumnSum(const LocalTensor<float> &dstLocal, const Local
     for (uint32_t mask = MAX_R << 1; mask > 1; mask >>= 1) {
         if (row & mask) {
             // 将输入对半求和后放进临时空间
-            Add(shareTmpUb, srcLocal, srcLocal[mask * col / 2], mask * col / 2);
+            Add(shareTmpUb, srcLocal, srcLocal[mask * col / VALUE_TWO], mask * col / VALUE_TWO);
             PipeBarrier<PIPE_V>();
             // 将余量加到前一半上
             if (unlikely(row > mask)) {
                 if ((row - mask) > (mask >> 1)) {
-                    Add(shareTmpUb, shareTmpUb, srcLocal[mask * col], mask * col / 2);
+                    Add(shareTmpUb, shareTmpUb, srcLocal[mask * col], mask * col / VALUE_TWO);
                     PipeBarrier<PIPE_V>();
                     Add(shareTmpUb, shareTmpUb, srcLocal[(mask + (mask >> 1)) * col], (row - mask - (mask >> 1)) * col);
                     PipeBarrier<PIPE_V>();
@@ -77,7 +78,7 @@ __aicore__ inline void ColumnSum(const LocalTensor<float> &dstLocal, const Local
                 Add(shareTmpUb, shareTmpUb, shareTmpUb[i * col], i * col);
                 PipeBarrier<PIPE_V>();
             }
-            if (mask == 2) {
+            if (mask == VALUE_TWO) {
                 DataCopy(dstLocal, shareTmpUb, col);
             } else {
                 Add(dstLocal, shareTmpUb, shareTmpUb[col], col);
@@ -99,6 +100,7 @@ __aicore__ inline void ColumnSum(const LocalTensor<float> &dstLocal, const Local
 __aicore__ inline void ColumnMax(const LocalTensor<float> &dstLocal, const LocalTensor<float> &srcLocal,
                                      const LocalTensor<float> &shareTmpUb, uint32_t row, uint32_t col)
 {
+    const uint32_t VALUE_TWO = 2;
     // 行数为1时，直接将srcLocal复制到dstLocal
     if (unlikely(row == 1)) {
         DataCopy(dstLocal, srcLocal, row * col);
@@ -108,12 +110,12 @@ __aicore__ inline void ColumnMax(const LocalTensor<float> &dstLocal, const Local
     for (uint32_t mask = MAX_R << 1; mask > 1; mask >>= 1) {
         if (row & mask) {
             // 将输入对半求最大值后放进临时空间
-            Max(shareTmpUb, srcLocal, srcLocal[mask * col / 2], mask * col / 2);
+            Max(shareTmpUb, srcLocal, srcLocal[mask * col / VALUE_TWO], mask * col / VALUE_TWO);
             PipeBarrier<PIPE_V>();
             // 将余量和前一半求最大值后加到前一半上
             if (unlikely(row > mask)) {
                 if ((row - mask) > (mask >> 1)) {
-                    Max(shareTmpUb, shareTmpUb, srcLocal[mask * col], mask * col / 2);
+                    Max(shareTmpUb, shareTmpUb, srcLocal[mask * col], mask * col / VALUE_TWO);
                     PipeBarrier<PIPE_V>();
                     Max(shareTmpUb, shareTmpUb, srcLocal[(mask + (mask >> 1)) * col], (row - mask - (mask >> 1)) * col);
                     PipeBarrier<PIPE_V>();
@@ -127,7 +129,7 @@ __aicore__ inline void ColumnMax(const LocalTensor<float> &dstLocal, const Local
                 Max(shareTmpUb, shareTmpUb, shareTmpUb[i * col], i * col);
                 PipeBarrier<PIPE_V>();
             }
-            if (mask == 2) {
+            if (mask == VALUE_TWO) {
                 DataCopy(dstLocal, shareTmpUb, col);
             } else {
                 Max(dstLocal, shareTmpUb, shareTmpUb[col], col);

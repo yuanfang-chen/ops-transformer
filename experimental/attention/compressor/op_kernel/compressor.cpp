@@ -65,5 +65,4 @@ __global__ __aicore__ void compressor(
             cmpKvOut,
             workspace);
     op.Process();
-
 }

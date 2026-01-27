@@ -94,7 +94,6 @@ ge::graphStatus GetCompressorShapeDim(const gert::InferShapeContext* context, Co
     auto startPosShape = context->GetRequiredInputShape(START_POS_INPUT_INDEX);    // (B,)
     OPS_LOG_E_IF_NULL(context, startPosShape, return ge::GRAPH_FAILED)
 
-
     if (xShape->GetDimNum() == DIM_NUM_3) {                // BS
         shapeParam.isBsMerge = false;
         shapeParam.B = xShape->GetDim(DIM_INDEX_0);

@@ -18,10 +18,9 @@
 
 #include "ascendc/host_api/tiling/template_argument.h"
 
-#define ASCENDC_TPL_1_BW 1 // 每个参数占用1个bit位
-#define ASCENDC_TPL_2_BW 2 // 每个参数占用2个bit位
-#define ASCENDC_TPL_4_BW 4 // 每个参数占用4个bit位
-
+inline constexpr uint32_t ASCENDC_TPL_1_BW = 1; // 每个参数占用1个bit位
+inline constexpr uint32_t ASCENDC_TPL_2_BW = 2; // 每个参数占用2个bit位
+inline constexpr uint32_t ASCENDC_TPL_4_BW = 4; // 每个参数占用4个bit位
 
 // 可表示的tilingkey范围为64bit，注意不可超过限制
 ASCENDC_TPL_ARGS_DECL(compressor, // 算子唯一标识，与opType保持一致

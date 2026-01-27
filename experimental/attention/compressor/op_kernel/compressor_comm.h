@@ -173,28 +173,28 @@ struct BlockInfo {
 };
 
 // BUFFER的字节数
-static constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32;
-static constexpr uint32_t BUFFER_SIZE_BYTE_64B = 64;
-static constexpr uint32_t BUFFER_SIZE_BYTE_256B = 256;
-static constexpr uint32_t BUFFER_SIZE_BYTE_512B = 512;
-static constexpr uint32_t BUFFER_SIZE_BYTE_1K = 1024;
-static constexpr uint32_t BUFFER_SIZE_BYTE_2K = 2048;
-static constexpr uint32_t BUFFER_SIZE_BYTE_4K = 4096;
-static constexpr uint32_t BUFFER_SIZE_BYTE_8K = 8192;
-static constexpr uint32_t BUFFER_SIZE_BYTE_16K = 16384;
-static constexpr uint32_t BUFFER_SIZE_BYTE_32K = 32768;
-static constexpr uint32_t BUFFER_SIZE_BYTE_64K = 65536;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_64B = 64;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_256B = 256;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_512B = 512;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_1K = 1024;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_2K = 2048;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_4K = 4096;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_8K = 8192;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_16K = 16384;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_32K = 32768;
+inline constexpr uint32_t BUFFER_SIZE_BYTE_64K = 65536;
 
 // BLOCK和REPEAT的字节数
-static constexpr uint64_t BYTE_BLOCK = 32UL;
-static constexpr uint32_t REPEAT_BLOCK_BYTE = 256U;
+inline constexpr uint64_t BYTE_BLOCK = 32UL;
+inline constexpr uint32_t REPEAT_BLOCK_BYTE = 256U;
 // BLOCK和REPEAT的FP32元素数
-static constexpr uint32_t FP32_BLOCK_ELEMENT_NUM = BYTE_BLOCK / sizeof(float); // 8
-static constexpr uint32_t FP32_REPEAT_ELEMENT_NUM = REPEAT_BLOCK_BYTE / sizeof(float); // 64
-static constexpr uint32_t REPEAT_STRIDE_NUM = REPEAT_BLOCK_BYTE / BYTE_BLOCK; // 8
-static constexpr uint32_t REPEAT_MAX_NUM = 255;
-static constexpr uint32_t BRCB_NUM = 8;
-static constexpr uint32_t MAX_R = 256;
+inline constexpr uint32_t FP32_BLOCK_ELEMENT_NUM = BYTE_BLOCK / sizeof(float); // 8
+inline constexpr uint32_t FP32_REPEAT_ELEMENT_NUM = REPEAT_BLOCK_BYTE / sizeof(float); // 64
+inline constexpr uint32_t REPEAT_STRIDE_NUM = REPEAT_BLOCK_BYTE / BYTE_BLOCK; // 8
+inline constexpr uint32_t REPEAT_MAX_NUM = 255;
+inline constexpr uint32_t BRCB_NUM = 8;
+inline constexpr uint32_t MAX_R = 256;
 
 template <typename T>
 __aicore__ inline void CopySingleMatrixNDToNZ(LocalTensor<T> l1Tensor, const GlobalTensor<T> gmTensor,

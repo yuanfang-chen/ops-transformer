@@ -122,6 +122,7 @@ ge::graphStatus CompressorTiling::GetNpuInfo()
 
 ge::graphStatus CompressorTiling::SetBaseInfo()
 {
+    constexpr uint32_t VALUE_TWO = 2;
     if (context_->x.shape->GetStorageShape().GetDimNum() == COMPRESSOR_DIM_NUM_3) {
         baseParams_->batchSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0);
         baseParams_->seqSize = context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1);
@@ -142,7 +143,7 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
     baseParams_->normEps = static_cast<float>(*context_->normEps);
     baseParams_->reciprocalD = 1.0 / baseParams_->headDim;
     coff = static_cast<uint8_t>(*context_->coff);
-    baseParams_->nSize = 2;
+    baseParams_->nSize = VALUE_TWO;
 
     OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u", baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff);
     
@@ -160,8 +161,9 @@ ge::graphStatus CompressorTiling::SetPageAttentionInfo()
 
 ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 {
+    constexpr uint32_t VALUE_TWO = 2;
     workspaceParams_->preMm1ResSize = 0;
-    if (coff == 2) {
+    if (coff == VALUE_TWO) {
         workspaceParams_->preMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;      // 2 wkv和score合一起
     }
     workspaceParams_->curMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;          // 2 wkv和score合一起
@@ -172,15 +174,16 @@ ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 
 ge::graphStatus CompressorTiling::SetScenarioInfo()
 {
-    // TODO set mode
 
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
-    innerSplitParams_->mBaseSize = 256;
-    innerSplitParams_->dBaseSize = 128 / coff;
+    constexpr uint32_t VALUE_256 = 256;
+    constexpr uint32_t VALUE_128 = 128;
+    innerSplitParams_->mBaseSize = VALUE_256;
+    innerSplitParams_->dBaseSize = VALUE_128 / coff;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -189,14 +192,13 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
 {
     constexpr uint32_t MM1_RES_ELEM_SIZE = 4;      // 4: fp32
     constexpr uint32_t V1_RES_ELEM_SIZE = 2;       // 2: fp16/bf16
-
+    constexpr uint32_t VALUE_1024 = 1024;
     workspaceSize_ = libapiSize_;
     workspaceSize_ += aicNum_ * workspaceParams_->preMm1ResSize * MM1_RES_ELEM_SIZE;
     workspaceSize_ += aicNum_ * workspaceParams_->curMm1ResSize * MM1_RES_ELEM_SIZE;
     workspaceSize_ += aicNum_ * workspaceParams_->vec1ResSize * V1_RES_ELEM_SIZE;
     
-    // TODO 为后面改动预留
-    workspaceSize_ += 1024 * 1024 * 1024;
+    workspaceSize_ += VALUE_1024 * VALUE_1024 * VALUE_1024;
     if (context_->workSpaces) {
         context_->workSpaces[0] = workspaceSize_;
     }
@@ -212,7 +214,6 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorContext &context,
     this->pageAttentionParams_ = &tilingData->pageAttentionParams;
     this->innerSplitParams_ = &tilingData->innerSplitParams;
     this->workspaceParams_ = &tilingData->workspaceParams;
-    
 
     using StatusFunction = std::function<ge::graphStatus()>;
     std::vector<StatusFunction> requiredTilingFuncs {
@@ -239,7 +240,6 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorContext &context,
         }
     }
 
-    // TODO 使用所有核
     baseParams_->usedCoreNum = aicNum_;
 
     context_->blockDim = aicNum_;
@@ -251,7 +251,6 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorContext &context,
 
 ge::graphStatus CompressorTiling::GenTilingKey() const
 {
-
     // 0:BF16, 1:FP16
     uint8_t dtype = 0;
     // 0: BSH 1:TH
@@ -303,7 +302,6 @@ CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context)
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "TilingData is nullptr."),
             return ge::GRAPH_FAILED);
     if (compressorTiling.RunBigKernelTiling(compressorContext, tilingData) == ge::SUCCESS) {
-        // TODO genTilingKey
         context->SetTilingKey(compressorContext.tilingKey);
         context->SetBlockDim(compressorContext.blockDim);
         return ge::GRAPH_SUCCESS;

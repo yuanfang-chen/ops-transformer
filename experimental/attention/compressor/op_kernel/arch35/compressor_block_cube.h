@@ -131,7 +131,6 @@ private:
     // =================================Loop======================================
     uint32_t curBIdx_ = 0;
     uint32_t curSIdx_ = 0;
-
 };
 
 template <typename COMP>
@@ -389,7 +388,7 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
         uint32_t srcDValue = constInfo_.hSize;
         uint32_t dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + 15) / 16 * 16;
         if constexpr (COMP::coff == COFF::OVERLAP) {
-            dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16; // TODO: L1->L0搬运时未16对齐
+            dstNzC0Stride = (info.dealTcNum * constInfo_.cmpRatio + constInfo_.cmpRatio + 15) / 16 * 16;
         }
         CopySingleMatrixNDToNZ(xL1Tensor[ubOffset], xGm_[gmOffset], nValue, dValue, srcDValue, dstNzC0Stride);
         ubOffset += (canCopyCnt + tailHolderCnt) * (32 / sizeof(X_T));
@@ -549,15 +548,12 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             LocalTensor<X_T> aL0Tensor = tmpBufL0A.GetWithOffset<X_T>((L0A_PP_SIZE / sizeof(X_T)), l0abBufId * L0A_PP_SIZE);
                             LocalTensor<X_T> bL0Tensor = tmpBufL0B.GetWithOffset<X_T>((L0B_PP_SIZE / sizeof(X_T)), l0abBufId * L0B_PP_SIZE);
                             // 当Coff=2时，nL1=0时计算的是pre数据，nL1=N_L1_BASE时计算的是cur数据
-                            // LoadAToL0(mL1, nL1);
                             uint32_t K_L0_BASE = K_L1_BASE;
                             LoadAToL0(aL0Tensor, xL1Tensor, mL1, mDealSize, K_L0_BASE, mSize, (nL1 > 0));
-                            // LoadBToL0(nL1);
                             uint32_t N_L0_BASE = N_L1_BASE;
                             LoadBToL0(bL0Tensor, wL1Tensor, nL1, N_L0_BASE, N_L0_BASE, K_L0_BASE);
                             SetFlag<HardEvent::MTE1_M>(L0AB_EVENT0 + l0abBufId);
                             WaitFlag<HardEvent::MTE1_M>(L0AB_EVENT0 + l0abBufId);
-                            // Mmad();
                             MatrixMmad(cL0Tensor, aL0Tensor, bL0Tensor, mDealSize, N_L0_BASE, K_L0_BASE, (h == 0) && (kL1Idx == 0));
                             SetFlag<HardEvent::M_MTE1>(L0AB_EVENT0 + l0abBufId);
                             l0abBufId = (l0abBufId + 1) % 2;
@@ -565,12 +561,10 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                         if ((h + K_SIZE >= hSize) && (kL1Idx + 1 == K_L1_LOOP)) {
                             SetFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0cBufId);
                             WaitFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0cBufId);
-                            // FixPipe();
                             uint32_t mSizeAlign = (mDealSize + 15) / 16 * 16;
                             uint32_t nSizeAlign = N_L1_BASE;
                             uint32_t nIdx = nL1 / N_L1_BASE;
                             CopyL0CDataToUb(mm1ResTensor, cL0Tensor, (mL1 == 0) ? 0 : 1, mSizeAlign, nSizeAlign, nIdx);
-                            // DumpTensorForDim2(cL0Tensor, 1, 128 * 128, 1024, 16);
                         }
                         SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + l0cBufId);
                     }
@@ -592,7 +586,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
             wBufId = (wBufId + 1) % 2;
         }
     }
-
 }
 
 } // namespace Compressor

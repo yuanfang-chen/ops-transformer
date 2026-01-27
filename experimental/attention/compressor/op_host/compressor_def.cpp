@@ -13,6 +13,11 @@
 namespace ops {
 class Compressor : public OpDef {
 public:
+    const uint32_t ROPE_HEAD_DIM_VALUE = 64;
+    const uint32_t CMP_RATIO_VALUE = 4;
+    const uint32_t COFF_VALUE = 1;
+    const uint32_t ROTARY_MODE_VALUE = 1;
+
     explicit Compressor(const char *name) : OpDef(name)
     {
         this->Input("x")
@@ -97,11 +102,11 @@ public:
             .ParamType(REQUIRED)
             .DataTypeList({ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND});
-        this->Attr("rope_head_dim").AttrType(REQUIRED).Int(64);
-        this->Attr("cmp_ratio").AttrType(REQUIRED).Int(4);
-        this->Attr("coff").AttrType(OPTIONAL).Int(1);
+        this->Attr("rope_head_dim").AttrType(REQUIRED).Int(ROPE_HEAD_DIM_VALUE);
+        this->Attr("cmp_ratio").AttrType(REQUIRED).Int(CMP_RATIO_VALUE);
+        this->Attr("coff").AttrType(OPTIONAL).Int(COFF_VALUE);
         this->Attr("norm_eps").AttrType(OPTIONAL).Float(1e-6f);
-        this->Attr("rotary_mode").AttrType(OPTIONAL).Int(1);
+        this->Attr("rotary_mode").AttrType(OPTIONAL).Int(ROTARY_MODE_VALUE);
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)

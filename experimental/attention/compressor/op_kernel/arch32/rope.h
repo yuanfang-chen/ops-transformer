@@ -95,12 +95,6 @@ __aicore__ inline void RotaryPosEmb(const LocalTensor<float> &dstLocal, const Lo
         for (uint32_t i = 0; i < row; i++) {
             Gather(reArrLocal[i * col], srcLocal[i * actualCol + baseAddr], gatherOffsetcastLocal, 0, col);
         }
-        // printf("gatherOffsetcastLocal");
-        // DumpTensor(gatherOffsetcastLocal, 1004, 64);
-        // printf("srcLocal[baseAddr]");
-        // DumpTensor(srcLocal[baseAddr], 1005, 64);
-        // printf("reArrLocal");
-        // DumpTensor(reArrLocal, 1006, 64);
         PipeBarrier<PIPE_V>();
         uint32_t repeatTimes = cnt / FP32_REPEAT_ELEMENT_NUM;
         uint32_t remainer = cnt % FP32_REPEAT_ELEMENT_NUM;
