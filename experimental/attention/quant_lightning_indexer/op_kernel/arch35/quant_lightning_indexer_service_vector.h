@@ -80,6 +80,7 @@ protected:
     static constexpr uint32_t KSCALE_S_MTE2_EVENT = EVENT_ID7;
     static constexpr uint32_t MTE3_MTE2_EVENT = EVENT_ID0;
     static constexpr uint32_t V_MTE2_EVENT = EVENT_ID7;
+    static constexpr uint32_t V_MTE2_EVENT1 = EVENT_ID2;
 
 private:
     __aicore__ inline void GetKeyScale(const QLICommon::RunInfo &runInfo, LocalTensor<float> &kScaleUB,
@@ -104,18 +105,20 @@ private:
     // tmp buff for LD
 
     // tmp buff for topk
-    TBuf<TPosition::VECCALC> topkInputBuf_;
-    LocalTensor<SCORE_T> topkInputLocal_;
+    TBuf<TPosition::VECCALC> mrgValueBuf_;
+    LocalTensor<SCORE_T> mrgValueLocal_;
+
+    TBuf<TPosition::VECCALC> indicesOutBuf_;
+    LocalTensor<uint32_t> indicesOutLocal_;
+
+    TBuf<TPosition::VECCALC> scoreOutBuf_;
+    LocalTensor<uint16_t> scoreOutLocal_;
 
     TBuf<TPosition::VECCALC> topkSharedTmpBuf_;
     LocalTensor<uint32_t> topkSharedTmpLocal_;
 
-    TBuf<TPosition::VECCALC> topkIndexBuf_;
-    LocalTensor<uint32_t> topkIndexLocal_;
-
-
     TBuf<TPosition::VECCALC> outInvalidBuf_;
-    LocalTensor<int32_t> outInvalidLocal_; 
+    LocalTensor<int32_t> outInvalidLocal_;
 
     int32_t blockId_ = -1;
     // para for vector
@@ -130,6 +133,8 @@ private:
     int32_t s2BaseSize_ = 0;
     int32_t kCacheBlockSize_ = 0;
     int32_t maxBlockNumPerBatch_ = 0;
+    uint32_t topkCount_ = 0;
+    uint32_t trunkLen_ = 0;
 
     // para for LD
     uint32_t mrgListNum_ = 4;
@@ -154,23 +159,24 @@ __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
     vec1OutUB_ = outBuf_.Get<SCORE_T>();//out
 
     // Topk
-    auto topkCount = constInfo_.sparseCount;
 
-    pipe->InitBuffer(topkInputBuf_, CeilAlign(constInfo_.kSeqSize, 256) * sizeof(SCORE_T));                    // 大小：16K * 4 = 64K
-    topkInputLocal_ = topkInputBuf_.Get<SCORE_T>();
+    pipe->InitBuffer(mrgValueBuf_, (topkCount_ + trunkLen_) * sizeof(SCORE_T));     // 大小：(Topk + 每次排序长度) * 4
+    mrgValueLocal_ = mrgValueBuf_.Get<SCORE_T>();
+    
+    pipe->InitBuffer(indicesOutBuf_, topkCount_ * sizeof(uint32_t));                    // 大小：topkCount_ * 4
+    indicesOutLocal_ = indicesOutBuf_.Get<uint32_t>();
 
-    auto topkSharedTmpSize = topk::LITopk<SCORE_T>::GetSharedTmpBufferSize(topkCount);    // 4KB + 5KB + 0.25KB
+    pipe->InitBuffer(scoreOutBuf_, topkCount_ * sizeof(SCORE_T));                    // 大小：topkCount_ * 2
+    scoreOutLocal_ = scoreOutBuf_.Get<SCORE_T>();
+
+
+    uint64_t topkSharedTmpSize = topkOp_.GetSharedTmpBufferSize();    // 4KB + 5KB + 0.25KB
     pipe->InitBuffer(topkSharedTmpBuf_, topkSharedTmpSize);
     topkSharedTmpLocal_ = topkSharedTmpBuf_.Get<uint32_t>();
-
-    topkOp_.Init(topkCount, topkSharedTmpLocal_);
-
-    auto topkIndexBufferSize = topk::LITopk<SCORE_T>::GetIndexBufferSize(topkCount);
-    pipe->InitBuffer(topkIndexBuf_, topkIndexBufferSize);   // 大小：(512 + 64) * 4 = 2.25KB
-    topkIndexLocal_ = topkIndexBuf_.Get<uint32_t>();
+    topkOp_.InitBuffers(topkSharedTmpLocal_);
 
     //刷-1
-    pipe->InitBuffer(outInvalidBuf_, topkCount * sizeof(int32_t));
+    pipe->InitBuffer(outInvalidBuf_, topkCount_ * sizeof(int32_t));
     outInvalidLocal_ = outInvalidBuf_.Get<int32_t>();
 }
 
@@ -197,6 +203,9 @@ __aicore__ inline void QLIVector<QLIT>::InitParams(const struct QLICommon::Const
     kCacheBlockSize_ = constInfo.kCacheBlockSize;
     maxBlockNumPerBatch_ = constInfo.maxBlockNumPerBatch;
     blockId_ = GetBlockIdx();
+    trunkLen_ = 16384;  //
+    topkCount_ =constInfo.sparseCount;
+    topkOp_.Init(topkCount_, trunkLen_);
 }
 
 template <typename QLIT>
@@ -232,6 +241,7 @@ __aicore__ inline void QLIVector<QLIT>::AllocEventID()
 
     SetFlag<HardEvent::V_MTE2>(TOPK_V_MTE2_EVENT);
     SetFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
+    SetFlag<HardEvent::V_MTE2>(V_MTE2_EVENT1);
 }
 
 template <typename QLIT>
@@ -244,6 +254,7 @@ __aicore__ inline void QLIVector<QLIT>::FreeEventID()
 
     WaitFlag<HardEvent::V_MTE2>(TOPK_V_MTE2_EVENT);
     WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
+    WaitFlag<HardEvent::V_MTE2>(V_MTE2_EVENT1);
 }
 
 template <typename QLIT>
@@ -389,10 +400,6 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
 {
     SetFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT);
     WaitFlag<HardEvent::MTE3_MTE2>(MTE3_MTE2_EVENT);
-    // assert constInfo_.kHeadNum == 1
-    // assert topkCount * sizeof(uint32_t) % 32 == 0
-    auto mCore = CeilDiv(s1BaseSize_, 2); // 2 aiv
-    auto m = 2 * mCore;
 
     int64_t curS1Idx = info.gS1Idx * s1BaseSize_;	 
     int64_t curS2Idx = info.s2Idx * s2BaseSize_;	 
@@ -400,29 +407,15 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
     int64_t curAivS1Idx = curS1Idx + (blockId_ % 2) * CeilDiv(curS1ProcNum, 2);
     int64_t curAivS1ProcNum = (blockId_ % 2 == 0) ? CeilDiv(curS1ProcNum, 2) : curS1ProcNum / 2; 
 
-    auto actS2Size = info.actS2Size;
-    auto topkCount = constInfo_.sparseCount;
-
-    auto vecId = blockId_ % 2;
-    auto bIdx = info.bIdx;
-    
-    // scoreGm  shape                             stride
-    // (m,        MAX_S2_16K)         (MAX_S2_16K,                   1)
-    // (2, mCore, MAX_S2_16K)         (mCore*MAX_S2_16K, MAX_S2_16K, 1)
     AscendC::DataCopyExtParams copyInParams;
     copyInParams.blockCount = 1;
-    
     copyInParams.srcStride = 0;
     copyInParams.dstStride = 0;
     copyInParams.rsv = 0;
 
-    // indiceOutGm              shape                                               stride
-    // (b,  s,                                  topk)      (s*topk,                                        topk, 1)
-    // (b,  s / s1BaseSize_, s1BaseSize_,       topk)      (s*topk, s1BaseSize_*topk,                      topk, 1)
-    // (b,  s / s1BaseSize_, 2, s1BaseSize_/2,  topk)      (s*topk, s1BaseSize_*topk, s1BaseSize_/2*topk,  topk, 1)
     AscendC::DataCopyParams copyOutParams;
     copyOutParams.blockCount = 1;
-    copyOutParams.blockLen = topkCount * sizeof(uint32_t); // bytes
+    copyOutParams.blockLen = topkCount_ * sizeof(uint32_t); // bytes
     copyOutParams.srcStride = 0;
     copyOutParams.dstStride = 0;
 
@@ -433,61 +426,86 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
     int32_t validS2Len = cuRealAcSeq;
 
     for (uint32_t i = 0; i < curAivS1ProcNum; i++) {
-        // scoreGm coord (vecId, i, 0)
-        auto rowIdx = vecId * CeilDiv(curS1ProcNum, 2) + i;
-        auto vecOffset = vecId * CeilDiv(s1BaseSize_, 2) + i;
-        if (rowIdx > s1BaseSize_) {
-            return;
-        }
-        WaitFlag<HardEvent::V_MTE2>(TOPK_V_MTE2_EVENT);
-
+        uint32_t rowIdx = blockId_ % 2 * CeilDiv(curS1ProcNum, 2) + i;
+        uint32_t vecOffset = blockId_ % 2 * CeilDiv(s1BaseSize_, 2) + i;
+        
         SCORE_T zero = 0;
         int32_t neg = -1;
         if (constInfo_.attenMaskFlag) {
             validS2Len = ((int32_t)i + cuRealAcSeq) / static_cast<int32_t>(constInfo_.cmpRatio);
         }
 
-        if (validS2Len > 0) {
-            Duplicate(topkInputLocal_[validS2Len / 256 * 256], zero, CeilAlign(validS2Len, 256) - validS2Len / 256 * 256);
-            copyInParams.blockLen = validS2Len * sizeof(SCORE_T); // byte
-            uint8_t rightPad = CeilAlign(validS2Len, 8) - validS2Len;
-            AscendC::DataCopyPadExtParams<SCORE_T> padParams{true, 0, rightPad, 0};
-            SetFlag<HardEvent::V_MTE2>(V_MTE2_EVENT);
-            WaitFlag<HardEvent::V_MTE2>(V_MTE2_EVENT);
-            AscendC::DataCopyPad(topkInputLocal_, scoreGm[vecOffset * CeilAlign(constInfo_.kSeqSize, s2BaseSize_)], copyInParams, padParams);
-            SetFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
-            WaitFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
-            WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
-            if (CeilAlign(validS2Len, 256) >= topkCount) {
-                topkOp_(topkIndexLocal_, topkInputLocal_, CeilAlign(validS2Len, 256));
+        if (validS2Len <= 0) {
+            Duplicate(indicesOutLocal_.ReinterpretCast<int32_t>(), neg, topkCount_);
+            SetFlag<HardEvent::V_MTE3>(TOPK_V_MTE3_EVENT);
+            WaitFlag<HardEvent::V_MTE3>(TOPK_V_MTE3_EVENT);
+            AscendC::DataCopyPad(indiceOutGm[info.indiceOutOffset + (curS1Idx + rowIdx) * topkCount_], indicesOutLocal_.ReinterpretCast<int32_t>(), copyOutParams);
+            continue;
+        }
+
+        WaitFlag<HardEvent::V_MTE2>(TOPK_V_MTE2_EVENT);
+        WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
+
+        AscendC::DataCopyPadExtParams<SCORE_T> padParams{true, 0, 0, 0};
+        if (validS2Len >= topkCount_) {
+            uint32_t s2LoopNum = CeilAlign(validS2Len, trunkLen_);
+            if (s2LoopNum == 1) {
+                uint32_t validS2LenAlign = CeilAlign(validS2Len, 256);
+                Duplicate(mrgValueLocal_[validS2Len / 256 * 256], zero, validS2LenAlign - validS2Len / 256 * 256);
+                SetFlag<HardEvent::V_MTE2>(V_MTE2_EVENT);
+                WaitFlag<HardEvent::V_MTE2>(V_MTE2_EVENT);
+                copyInParams.blockLen = validS2Len * sizeof(SCORE_T); // byte
+                AscendC::DataCopyPadExtParams<SCORE_T> padParams{true, 0, 0, 0};
+                AscendC::DataCopyPad(mrgValueLocal_, scoreGm[vecOffset * CeilAlign(constInfo_.kSeqSize, s2BaseSize_)], copyInParams, padParams);
+                SetFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
+                WaitFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
+                topkOp_(mrgValueLocal_, indicesOutLocal_, scoreOutLocal_, validS2LenAlign, 0, 1);
             } else {
-                AscendC::CreateVecIndex(topkIndexLocal_.ReinterpretCast<int32_t>(), (int32_t)zero, validS2Len);
+                for (uint32_t loopIdx = 0; loopIdx < s2LoopNum; loopIdx++) {
+                    if (loopIdx == 0) {
+                        copyInParams.blockLen = trunkLen_ * sizeof(SCORE_T); // byte
+                        AscendC::DataCopyPad(mrgValueLocal_, scoreGm[vecOffset * CeilAlign(constInfo_.kSeqSize, s2BaseSize_)], copyInParams, padParams);
+                        SetFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
+                        WaitFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
+                        topkOp_(mrgValueLocal_, indicesOutLocal_, scoreOutLocal_, trunkLen_, loopIdx, s2LoopNum);
+                        continue;
+                    }
+                    uint32_t validTrunkLen = (loopIdx * trunkLen_ + trunkLen_) > validS2Len ? validS2Len % trunkLen_ : trunkLen_;
+                    uint32_t offset = vecOffset * CeilAlign(constInfo_.kSeqSize, s2BaseSize_) + loopIdx * trunkLen_;
+                    AscendC::DataCopyPad(mrgValueLocal_, scoreOutLocal_, topkCount_);
+                    copyInParams.blockLen = validTrunkLen * sizeof(SCORE_T); // byte
+                    if (validTrunkLen < trunkLen_) {
+                        Duplicate(mrgValueLocal_[topkCount_ + validTrunkLen / 256 * 256], zero, CeilAlign(validTrunkLen, 256) - validTrunkLen / 256 * 256);
+                        SetFlag<HardEvent::V_MTE2>(V_MTE2_EVENT);
+                        WaitFlag<HardEvent::V_MTE2>(V_MTE2_EVENT);
+                    }
+                    WaitFlag<HardEvent::V_MTE2>(V_MTE2_EVENT1);
+                    AscendC::DataCopyPad(mrgValueLocal_[topkCount_], scoreGm[offset], copyInParams, padParams);
+                    SetFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
+                    WaitFlag<HardEvent::MTE2_V>(TOPK_MTE2_V_EVENT);
+                    topkOp_(mrgValueLocal_, indicesOutLocal_, scoreOutLocal_, CeilAlign(topkCount_ + validTrunkLen, 256), loopIdx, s2LoopNum);
+                    SetFlag<HardEvent::V_MTE2>(V_MTE2_EVENT1);
+                }
             }
         } else {
-            WaitFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
+            AscendC::CreateVecIndex(indicesOutLocal_.ReinterpretCast<int32_t>(), (int32_t)zero, validS2Len);
         }
         
-        // indiceOutGm coord (bIdx, s1Idx, (vecId * mCore  + i))
-        // auto indiceOutGmOffset = (bIdx * constInfo_.qSeqSize + s1Idx + (vecId * mCore  + i)) * topkCount;
-        // indiceOutOffset
-        if (validS2Len <= 0) {
-            Duplicate(topkIndexLocal_.ReinterpretCast<int32_t>(), neg, topkCount);
-        } else if (validS2Len < topkCount) {
-            uint64_t mask[1];
-            mask[0] = ~0;
-            mask[0] = mask[0] << (validS2Len % 8);
+        uint64_t mask[1];
+        mask[0] = ~0;
+        mask[0] = mask[0] << (validS2Len % 8);
+        PipeBarrier<PIPE_V>();
+        Duplicate(indicesOutLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8], neg, mask, 1, 1, 0);
+        
+        if (validS2Len / 8 * 8 + 64 < topkCount_) {
             PipeBarrier<PIPE_V>();
-            Duplicate(topkIndexLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8], neg, mask, 1, 1, 0);
-            
-            if (validS2Len + 64 < topkCount) {
-                PipeBarrier<PIPE_V>();
-                Duplicate(topkIndexLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8 + 64], neg, CeilAlign(topkCount - (validS2Len / 8 * 8 + 64), 8));
-            }
+            Duplicate(indicesOutLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8 + 64], neg, topkCount_ - (validS2Len / 8 * 8 + 64));
         }
+
         SetFlag<HardEvent::V_MTE2>(TOPK_V_MTE2_EVENT);
         SetFlag<HardEvent::V_MTE3>(TOPK_V_MTE3_EVENT);
         WaitFlag<HardEvent::V_MTE3>(TOPK_V_MTE3_EVENT);
-        AscendC::DataCopyPad(indiceOutGm[info.indiceOutOffset + (curS1Idx + rowIdx) * topkCount], topkIndexLocal_.ReinterpretCast<int32_t>(), copyOutParams);
+        AscendC::DataCopyPad(indiceOutGm[info.indiceOutOffset + (curS1Idx + rowIdx) * topkCount_], indicesOutLocal_.ReinterpretCast<int32_t>(), copyOutParams);
         SetFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
     }
 }
