@@ -28,8 +28,6 @@ DEVICE_ID = 0
 torch_npu.npu.set_device(int(DEVICE_ID))
 torch.npu.config.allow_internal_format = True
 
-dump_path=None
-
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
 
@@ -161,11 +159,9 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
         return result, 0.0, max_error
     overflows_count = data_compe[np.isinf(data_compe)].size + data_compe[np.isnan(data_compe)].size
 
-
     if overflows_count > 0:
         print_log('Overflow,size:%s,benchmark_output:%s, %s' % (
             overflows_count, data_compe[np.isinf(data_compe)][0:10], data_compe[np.isnan(data_compe)][0:10]))
-
 
     split_count = int(end - start + 1) if end != start else 1
     print_log('split_count:%s; max_diff_hd:%s;' %
@@ -374,19 +370,7 @@ def cpu_compressor(
         rightH = (i + 1) * 128
 
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
-    if dump_path:
-        np.array(x).tofile(f'{dump_path}/x.bin')
-
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
-    if dump_path:
-        print(f"====================new_kv_state: {new_kv_state.shape}")
-        np.array(new_kv_state).tofile(f'{dump_path}/new_kv_state.bin')
-        for k in range(new_kv_state.reshape(x.shape[0], -1).shape[1] // 128):
-            print(list(new_kv_state[:, k*128:(k+1)*128]))
-        print(f"====================new_score_state: {new_score_state.shape}")
-        np.array(new_score_state).tofile(f'{dump_path}/new_score_state.bin')
-        for k in range(new_score_state.reshape(x.shape[0], -1).shape[1] // 128):
-            print(list(new_score_state[:, k*128:(k+1)*128]))
 
     B = len(start_pos)
     head_dim = wkv.shape[0] // coff
@@ -509,9 +493,11 @@ def cpu_compressor(
                 sc_data = sc_kv_state * sc_score_state
                 # reduce sum
                 sc_cmp_kv = np.sum(sc_data, axis=0, keepdims=True)
+
                 # RmsNorm
                 sc_cmp_kv = rms_norm(sc_cmp_kv, norm_weight, norm_eps)
 
+                # inplace rotary_emb
                 if bs_combine_flag == False:
                     sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[b_idx, batch_out_sc_id, :], rope_cos[b_idx, batch_out_sc_id, :], rotary_mode)
                     cmp_kv[b_idx, batch_out_sc_id, :] = sc_cmp_kv
@@ -522,7 +508,6 @@ def cpu_compressor(
                     cmp_kv_mask[out_sum_sc_cnt, :] = 1
                 batch_out_sc_id = batch_out_sc_id + 1
                 out_sum_sc_cnt = out_sum_sc_cnt + 1
-
 
             # update loop idx
             batch_seq_idx = end_seq_idx - batch_start_pos
@@ -679,7 +664,7 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
     # ======================== execute npu finish ================================
     # start run custom ops
     npu_out = (
-        torch.ops.custom.npu_compressor(
+        torch.ops.custom.compressor(
             x,
             wkv,
             wgate,
@@ -715,20 +700,15 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
 
     # 结果精度对比
     print("\n==========================================================check result=========================================================")
-    if check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32), data_type) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32), data_type)
     print("\n==========================================================check kv state update=========================================================")
-    if check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32), data_type) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32), data_type)
     print("\n==========================================================check score state update=========================================================")
-    if check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32), data_type) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32), data_type)
     print("\n==========================================================check kv state origin=========================================================")
-    if check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), data_type, 0.0) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), data_type, 0.0)
     print("\n==========================================================check score state origin=========================================================")
-    if check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), data_type, 0.0) == False:
-        print(f"test_data = {test_data}")
+    check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), data_type, 0.0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
