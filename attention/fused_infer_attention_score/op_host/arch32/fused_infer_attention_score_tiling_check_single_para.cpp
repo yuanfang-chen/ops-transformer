@@ -393,7 +393,7 @@ ge::graphStatus FiaTilingCheck::CheckSingleParaKvPaddingSize() const
  	    const std::vector<size_t> kvpaddingsizeDimNumList = {DIM_NUM_ONE};
  	    const std::vector<int64_t> kvpaddingsizeShapeNumList = {SHAPE_NUM_ONE};
  	    if (ge::GRAPH_SUCCESS != CheckShapeSupport(opParamInfo_.kvPaddingSize.tensor, kvpaddingsizeShapeNumList, KV_PADDING_SIZE_NAME) ||
-            ge::GRAPH_SUCCESS != CheckDimNumSupport(opParamInfo_.kvPaddingSize.tensor, kvpaddingsizeDimNumList, KV_PADDING_SIZE_NAME)) {
+ 	        ge::GRAPH_SUCCESS != CheckDimNumSupport(opParamInfo_.kvPaddingSize.tensor, kvpaddingsizeDimNumList, KV_PADDING_SIZE_NAME)) {
  	        return ge::GRAPH_FAILED;
  	    }
  	}
