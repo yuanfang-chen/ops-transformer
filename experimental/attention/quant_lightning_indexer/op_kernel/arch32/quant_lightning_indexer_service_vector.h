@@ -53,6 +53,7 @@ public:
                                               GlobalTensor<half> kScaleGm, GlobalTensor<int32_t> indiceOutGm,
                                               GlobalTensor<int32_t> blockTableGm);
     __aicore__ inline void CleanInvalidOutput(int64_t invalidS1offset);
+    __aicore__ inline int32_t AlignS2(int32_t cuS2Len);
     __aicore__ inline void AllocEventID();
     __aicore__ inline void FreeEventID();
     __aicore__ inline void InitLDBuffers(TPipe *pipe);
@@ -321,6 +322,20 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec0(const QLICommon::RunInfo &in
 }
 
 template <typename QLIT>
+__aicore__ inline int32_t QLIVector<QLIT>::AlignS2(int32_t cuS2Len)
+{
+    // 限制：当前cuS2Len最大为2048，暂不考虑更长
+    // 该函数目的是将cuS2Len对齐到形如 32*(4^n)*m 的形式 (m ∈ [1, 3])，方便后续sort/merge
+    if (cuS2Len <= 128) {
+        return Align(cuS2Len, 32);
+    } else if (cuS2Len <= 512) {
+        return Align(cuS2Len, 128);
+    } else {
+        return Align(cuS2Len, 512);
+    }
+}
+
+template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &info)
 {
     int32_t cuBaseS1Idx = info.gS1Idx * s1BaseSize_;
@@ -366,8 +381,8 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
         int32_t cuS2Len = cuBaseS2Idx + s2BaseSize_ >= cuRealAcSeq ? cuRealAcSeq - cuBaseS2Idx : s2BaseSize_;
         int32_t cuS1Idx = cuS1BeginIdxPerAiv + innerS1Idx;
         if (cuRealAcSeq > 0 && cuS2Len > 0) {
-            int32_t cuS2LenVecAlign = CeilDiv(cuS2Len, s2BaseSize_) * s2BaseSize_;
-            // int32_t cuS2LenVecAlign = Align(cuS2Len, 32);
+            // int32_t cuS2LenVecAlign = CeilDiv(cuS2Len, s2BaseSize_) * s2BaseSize_;
+            int32_t cuS2LenVecAlign = AlignS2(cuS2Len);
             LocalTensor<float> mmInUb = inQueue_.AllocTensor<float>();
             LocalTensor<float> kScaleUb = mmInUb[cuS2LenVecAlign];
             LocalTensor<half> kScaleTUb = kScaleUb.template ReinterpretCast<half>()[cuS2LenVecAlign];
@@ -406,7 +421,8 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             Adds(sortIndiceUbInt, globalTopkIndice_, static_cast<int32_t>(cuBaseS2Idx), cuS2Len);
             PipeBarrier<PIPE_V>();
             LocalTensor<float> tmpSortBuf = sortBuff[2 * cuS2LenVecAlign];
-            printf("[hl] core_id=%u, cuS2Len=%u, cuRealAcSeq=%u\n", GetBlockIdx(), cuS2Len, cuRealAcSeq);
+            printf("[hl] core_id=%u, cuS2Len=%u, cuRealAcSeq=%u， cuS2LenVecAlign=%u\n",
+                   GetBlockIdx(), cuS2Len, cuRealAcSeq, cuS2LenVecAlign);
             QLIServiceVec::SortAll(sortBuff, tmpSortBuf, cuS2LenVecAlign);  // TODO: 改为align 32
             PipeBarrier<PIPE_V>();
             QLIServiceVec::MergeSort(globalTopkUb_[innerS1Idx * BASE_TOPK_VALUE_IDX_SIZE], BASE_TOPK, sortBuff,
