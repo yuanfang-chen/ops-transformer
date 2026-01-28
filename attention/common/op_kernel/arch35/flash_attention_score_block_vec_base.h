@@ -438,6 +438,17 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaAttenMaskCopyIn(
         this->MlaBoolCopyInRegbase(attenMaskUb, srcTensor, maskOffset, runInfo.halfS1RealSize, runInfo.s2RealSize,
             attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo, runInfo);
         attenMaskInQue.template EnQue(attenMaskUb);
+        if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
+            LocalTensor<uint8_t> attenMaskUbPre = attenMaskInQuePre.template AllocTensor<uint8_t>();
+            this->MlaBoolCopyInRegbase(attenMaskUbPre, srcTensor, attenMaskInfo.attenMaskOffsetPre, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo, runInfo);
+            attenMaskInQuePre.template EnQue(attenMaskUbPre);
+            attenMaskInQuePre.template DeQue<uint8_t>();
+            attenMaskInQue.template DeQue<uint8_t>();
+            MergeBandModeMask<hasAtten>(attenMaskUbPre, attenMaskUb, runInfo.halfS1RealSize, constInfo.s2BaseSize);
+            attenMaskInQuePre.template FreeTensor(attenMaskUbPre);
+            attenMaskInQue.template EnQue(attenMaskUb);
+        }
     }
 }
 
@@ -474,7 +485,17 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBoolCopyInRegbase(
     if ((hasRope && (dTemplateType == DTemplateType::Aligned576)) &&
         (constInfo.layoutType != static_cast<uint32_t>(LayOutTypeEnum::LAYOUT_BNSD))) {
         intriParams.blockCount = 1;
-        DataCopyPad(dstTensor, srcTensor[srcOffset], intriParams, padParams);
+        if (isMlaNoQuant) {
+            for (int i = 0; i < s1Size; i++) {
+                DataCopyPad(dstTensor[i * s2BaseSize], srcTensor[srcOffset], intriParams, padParams);
+                // 下一行出现跨 G 时
+                if ((runInfo.sOuterOffset + i + 1) % constInfo.gSize == 0) {
+                    srcOffset += totalS2Size;
+                }
+            }
+        } else {
+            DataCopyPad(dstTensor, srcTensor[srcOffset], intriParams, padParams);
+        }
         SetFlag<HardEvent::MTE2_V>(mte2ToV);
         WaitFlag<HardEvent::MTE2_V>(mte2ToV);
         return;
@@ -602,7 +623,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
 
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
-    constexpr bool useMlaSgdFlag = ((isMlaFullQuant || isMlaNoQuant) && layout != LayOutTypeEnum::LAYOUT_BNSD);
+    constexpr bool useMlaSgdFlag = ((isMlaFullQuant) && layout != LayOutTypeEnum::LAYOUT_BNSD);
     if (runInfo.s2LoopCount == 0) {
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, hasDrop, useMlaSgdFlag, isMlaFullQuant>(
@@ -1165,7 +1186,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::RowInvalid(LocalTenso
             attenMaskInfoPtr->compressMode != static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE))) {
             return;
         }
-        if ((isMlaFullQuant || isMlaNoQuant) && attenMaskInfoPtr->compressMode == static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
+        if (isMlaFullQuant && attenMaskInfoPtr->compressMode == static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
             return;
         }
         int64_t vec2MaxBufOffset = ComputeOffsetForSoftmax(runInfo, vec2S1Idx);
