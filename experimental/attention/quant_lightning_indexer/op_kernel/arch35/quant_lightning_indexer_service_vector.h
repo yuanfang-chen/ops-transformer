@@ -491,11 +491,13 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
             AscendC::CreateVecIndex(indicesOutLocal_.ReinterpretCast<int32_t>(), (int32_t)zero, validS2Len);
         }
         
-        uint64_t mask[1];
-        mask[0] = ~0;
-        mask[0] = mask[0] << (validS2Len % 8);
-        PipeBarrier<PIPE_V>();
-        Duplicate(indicesOutLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8], neg, mask, 1, 1, 0);
+        if (validS2Len < topkCount_) {
+            uint64_t mask[1];
+            mask[0] = ~0;
+            mask[0] = mask[0] << (validS2Len % 8);
+            PipeBarrier<PIPE_V>();
+            Duplicate(indicesOutLocal_.ReinterpretCast<int32_t>()[validS2Len / 8 * 8], neg, mask, 1, 1, 0);
+        }
         
         if (validS2Len / 8 * 8 + 64 < topkCount_) {
             PipeBarrier<PIPE_V>();
