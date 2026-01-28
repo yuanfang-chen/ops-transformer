@@ -206,6 +206,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         lastActSeqLength = cuSeqlensGm_.GetValue(constInfo.batchSize) - cuSeqlensGm_.GetValue(constInfo.batchSize - 1);
         // printf("[Init] curActSeqLength:%u\n", curActSeqLength);
     } else {
+        curActSeqLength = constInfo.sSize;
         lastActSeqLength = constInfo.sSize;
     }
 
