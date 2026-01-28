@@ -259,6 +259,10 @@ attention:
         - attention/mla_prolog_v2/op_host/fallback_mla_prolog_v2.cpp
         - attention/mla_prolog_v3/op_host/op_api/aclnn_mla_prolog_v3.cpp
         - attention/mla_prolog_v3/op_host/fallback_mla_prolog_v3.cpp
+        - attention/mla_prolog_v3/op_host/mla_prolog_v3_def.cpp
+        - attention/mla_prolog_v3/op_host/op_api/aclnn_mla_prolog_v3_weight_nz.cpp
+        - attention/mla_prolog/op_host/mla_prolog_infershape.h
+        - attention/mla_prolog/op_host/mla_prolog_tiling_check.cpp
       exclude:
         - attention/mla_prolog/docs
         - attention/mla_prolog/README.md
@@ -326,6 +330,9 @@ attention:
         - attention/mla_prolog_v2/op_host/fallback_mla_prolog_v2.cpp
         - attention/mla_prolog_v3/op_host/op_api/aclnn_mla_prolog_v3.cpp
         - attention/mla_prolog_v3/op_host/fallback_mla_prolog_v3.cpp
+        - attention/mla_prolog_v3/op_host/mla_prolog_v3_def.cpp
+        - attention/mla_prolog_v3/op_host/op_api/aclnn_mla_prolog_v3_weight_nz.cpp
+        - attention/mla_prolog/op_host/mla_prolog_infershape.h
       test:
         examples: False
         ut: True
