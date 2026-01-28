@@ -48,6 +48,7 @@ namespace SplitFuse {
 
         using ElementMask = typename EpilogueOnlineSoftmax::ElementMask;
         using LayoutMask = typename EpilogueOnlineSoftmax::LayoutMask;
+        using ElementSink = typename EpilogueOnlineSoftmax::ElementSink;
 
         using ElementO = typename EpilogueRescaleO::ElementOutput;
         using LayoutO = typename EpilogueRescaleO::LayoutOutput;
@@ -121,8 +122,8 @@ namespace SplitFuse {
             AscendC::GlobalTensor<ElementOTmp> gOUpdate;
             gOUpdate.SetGlobalBuffer((__gm__ ElementOTmp *)(params.workSpace +
                 mm1OutSize + smOnlineOutSize + mm2OutSize));
-            AscendC::GlobalTensor<bfloat16_t> gSink;
-            gSink.SetGlobalBuffer((__gm__ bfloat16_t *)(params.sink));
+            AscendC::GlobalTensor<ElementSink> gSink;
+            gSink.SetGlobalBuffer((__gm__ ElementSink *)(params.sink));
 
             uint32_t coreIdx = AscendC::GetBlockIdx();
             uint32_t coreNum = AscendC::GetBlockNum();
@@ -225,10 +226,8 @@ namespace SplitFuse {
             uint32_t curTotalTaskNum = firstBatchTaskNum;
 
             //  prepare for addding sink
-            bool isLastStackTile = false;
             // Go through each task.
             for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
-                isLastStackTile = false;
                 // Get the offset of each core on the GM.
                 while (taskIdx >= curTotalTaskNum) {
                     ++curBatch;
@@ -367,7 +366,6 @@ namespace SplitFuse {
                         } else {
                             stackSeqTile = MAX_KV_STACK_LEN;
                         }
-                        isLastStackTile = (kvSIdx + 1) >= kvSLoopNumTotal;
                         uint32_t curStackTileMod = stackSeqCount % (PRE_LAUNCH + 1U);
                         uint64_t gmOffsetS =
                             static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
@@ -438,8 +436,7 @@ namespace SplitFuse {
                                     triUp,
                                     triDown,
                                     kvSStartIdx,
-                                    kvSEndIdx,
-                                    isLastStackTile);
+                                    kvSEndIdx);
                             } else {
                                 uint32_t noMaskStackSeqNum = (triUp + 1) / MAX_KV_STACK_LEN;
                                 Arch::CrossCoreWaitFlag(qkReady);
@@ -454,8 +451,7 @@ namespace SplitFuse {
                                     (stackSeqCount == noMaskStackSeqNum - 1),
                                     qSBlockSize,
                                     qNBlockSize,
-                                    curStackTileMod,
-                                    isLastStackTile);
+                                    curStackTileMod);
                             }
                         } else if constexpr (MASK_TYPE == FaiKernel::MaskType::MASK_SWA) {
                             bool doTriUPreMask = (sparseMode != 4 || notPreMask) ? false : 
@@ -488,8 +484,7 @@ namespace SplitFuse {
                                     preTokenStartLen,
                                     preTokenEndLen,
                                     nextTokenStartLen,
-                                    nextTokenEndLen,
-                                    isLastStackTile);
+                                    nextTokenEndLen);
                             } else {
                                 bool isLastNoMaskStackTile = (nextTokenStartLen > kvSeqlen) || (nextTokenStartLen < 0);
                                 uint32_t alignedKvSeqlenLimit = isLastNoMaskStackTile ? kvSeqlen : nextTokenStartLen;
@@ -507,8 +502,7 @@ namespace SplitFuse {
                                     (isLastNoMaskStackTile ? (stackSeqCount == noMaskStackSeqNum) : (stackSeqCount == noMaskStackSeqNum - 1)),
                                     qSBlockSize,
                                     qNBlockSize,
-                                    curStackTileMod,
-                                    isLastStackTile);
+                                    curStackTileMod);
                             }
                         } else {
                             Arch::CrossCoreWaitFlag(qkReady);
@@ -523,8 +517,7 @@ namespace SplitFuse {
                                 0,
                                 qSBlockSize,
                                 qNBlockSize,
-                                curStackTileMod,
-                                isLastStackTile);
+                                curStackTileMod);
                         }
                         Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxReady);
 #endif
