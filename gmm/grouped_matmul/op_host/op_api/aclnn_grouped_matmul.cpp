@@ -1090,7 +1090,7 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
     ACLNN_ERR_PARAM_INVALID, "Check310PlatformForFunction failed.");
   if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
     CHECK_COND(isNoActivation, ACLNN_ERR_PARAM_INVALID,
-               "ActiveType[%ld] is not supported on this platform.", gmmParams.activeType);
+               "ActType[%ld] is not supported on this platform.", gmmParams.activeType);
     if (IsQuant(gmmParams.xDtype, weightDtype)) {
       return gmm::AclnnGroupedMatmulDAV3510Checker<aclTensorList>(gmmParams).CheckGroupedMatmulDAV3510();
     } else if (IsWeightQuant(gmmParams.xDtype, weightDtype)) {
