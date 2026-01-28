@@ -2538,6 +2538,13 @@ bool PromptFlashAttentionTilingV2::CheckTNDLayoutCrossover(ContextParamsForPFATi
         return true;
     }
 
+    std::string layoutStr(contextKeyParams.layout);
+    if (enableIFAMLA && layoutStr == "TND_NTD") { // Decode MLA
+        OP_CHECK_IF(enablePostQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In Decode MLA scenario, when layout is TND_NTD, post quant is not supported!"),
+            return false);
+    }
+
     OP_CHECK_IF(enableLeftPadding,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, left padding is not supported!"),
         return false);
@@ -2561,12 +2568,6 @@ bool PromptFlashAttentionTilingV2::CheckNTDLayoutCrossover(ContextParamsForPFATi
     OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, full quant is not supported!"),
         return false);
-
-    if (enableIFAMLA) { // Decode MLA
-        OP_CHECK_IF(enablePostQuant,
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In Decode MLA scenario, when layout is NTD, post quant is not supported!"),
-            return false);
-    }
 
     if (!enablePFAMLA && !enablePFARope && !enableIFAMLA) { // GQA
         OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
