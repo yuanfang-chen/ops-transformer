@@ -64,4 +64,16 @@ public:
     AlltoAllvGmmAicpuTiling aicpuTiling;
 };
 
+// TODO
+#pragma pack(push, 8)
+struct QuantAlltoAllvGroupedMatmulTilingData {
+    Mc2InitTiling hcclInitTiling;
+    Mc2CcTiling alltoAllvCcTiling;
+    AlltoAllvGmmCommonTilingInfo commonTilingInfo;
+    AlltoAllvGmmAicpuTiling aicpuTiling;
+    Mc2GroupedMatmulTilingData::GMMQuantTilingData gmmQuantTilingData;
+    Mc2GroupedMatmulTilingData::GMMQuantTilingData mmQuantTilingData;
+};
+#pragma pack(pop)
+
 #endif // __ALL_TO_ALLV_GROUPED_MAT_MUL_TILING_H__
