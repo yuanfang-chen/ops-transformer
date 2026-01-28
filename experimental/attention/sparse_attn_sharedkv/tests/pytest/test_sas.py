@@ -86,12 +86,15 @@ def test_example(param_combinations):
     cmp_mask_mode = param_combinations['cmp_mask_mode']
     ori_win_left = param_combinations['ori_win_left']
     ori_win_right = param_combinations['ori_win_right']
+    q_datarange = [-10, 10]
+    ori_kv_datarange = [-10, 10]
+    cmp_kv_datarange = [-10, 10]
 
     torch_npu.npu.set_device(0)
 
     test_data = layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, \
                 block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, \
-                ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right
+                ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, q_datarange, ori_kv_datarange, cmp_kv_datarange
     print("test_data:", test_data)
 
     # # 输入参数的合法性校验
