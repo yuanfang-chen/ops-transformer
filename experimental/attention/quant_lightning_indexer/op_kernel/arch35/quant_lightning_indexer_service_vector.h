@@ -448,7 +448,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
 
         AscendC::DataCopyPadExtParams<SCORE_T> padParams{true, 0, 0, 0};
         if (validS2Len >= topkCount_) {
-            uint32_t s2LoopNum = CeilAlign(validS2Len, trunkLen_);
+            uint32_t s2LoopNum = (validS2Len + trunkLen_ - 1) / trunkLen_;
             if (s2LoopNum == 1) {
                 uint32_t validS2LenAlign = CeilAlign(validS2Len, 256);
                 Duplicate(mrgValueLocal_[validS2Len / 256 * 256], zero, validS2LenAlign - validS2Len / 256 * 256);
@@ -472,7 +472,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
                     }
                     uint32_t validTrunkLen = (loopIdx * trunkLen_ + trunkLen_) > validS2Len ? validS2Len % trunkLen_ : trunkLen_;
                     uint32_t offset = vecOffset * CeilAlign(constInfo_.kSeqSize, s2BaseSize_) + loopIdx * trunkLen_;
-                    AscendC::DataCopyPad(mrgValueLocal_, scoreOutLocal_, topkCount_);
+                    AscendC::DataCopy(mrgValueLocal_, scoreOutLocal_, topkCount_);
                     copyInParams.blockLen = validTrunkLen * sizeof(SCORE_T); // byte
                     if (validTrunkLen < trunkLen_) {
                         Duplicate(mrgValueLocal_[topkCount_ + validTrunkLen / 256 * 256], zero, CeilAlign(validTrunkLen, 256) - validTrunkLen / 256 * 256);
