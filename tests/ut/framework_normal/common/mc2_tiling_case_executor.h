@@ -21,11 +21,12 @@ inline void Mc2ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
                                uint64_t                       expectTilingKey = 0, 
                                const std::string&             expectTilingData = "",
                                const std::vector<size_t>&     expectWorkspaces = {},
-                               uint64_t                       tilingDataReservedLen = 0)
+                               uint64_t                       tilingDataReservedLen = 0,
+                               bool                           useHashTilingData = false)
 {
     Mc2Hcom::MC2HcomTopologyMocker::GetInstance().SetValues(hcomTopologyMockValues);
     ExecuteTestCase(tilingContextPara, expectResult, expectTilingKey, expectTilingData, expectWorkspaces,
-        tilingDataReservedLen);
+        tilingDataReservedLen, useHashTilingData);
     Mc2Hcom::MC2HcomTopologyMocker::GetInstance().Reset();
 }
 

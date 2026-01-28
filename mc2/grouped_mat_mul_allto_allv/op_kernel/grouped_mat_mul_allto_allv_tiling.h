@@ -18,6 +18,11 @@
 
 #include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
+#if __has_include("../gmm/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h")
+#include "../../../gmm/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#else
+#include "../grouped_matmul_apt/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#endif
 
 constexpr uint32_t MAX_EXPERT_SIZE = 512U; // 最大通信域专家的数量
 
@@ -54,5 +59,17 @@ public:
     TCubeTiling sharedExpMatmulTiling;
     GmmAlltoAllvAicpuTiling aicpuTilingInfo;
 };
+
+#pragma pack(push, 8)
+struct QuantGroupedMatMulAlltoAllvTilingData {
+    Mc2InitTiling hcclInitTiling;
+    Mc2CcTiling alltoAllvCcTiling;
+    GmmAlltoAllvCommonTilingInfo commonTilingInfo;
+    TCubeTiling matmulTiling;
+    TCubeTiling sharedExpMatmulTiling;
+    GmmAlltoAllvAicpuTiling aicpuTilingInfo;
+    GroupedMatmulTilingData::GMMQuantTilingData* gmmQuantTilingDataList;
+};
+#pragma pack(pop)
 
 #endif // __GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
