@@ -22,7 +22,7 @@
 #include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 namespace AscendC {
-constexpr static int64_t MAX_RANK_NUM = 32;  // 支持的最大卡数
+constexpr static int64_t MAX_RANK_NUM = 64;  // 支持的最大卡数
 struct HcclA5OpResParam {
     uint64_t workSpace; // client 和server 之间通信的地址
     uint64_t workSpaceSize; // client和server之间通信空间的大小
