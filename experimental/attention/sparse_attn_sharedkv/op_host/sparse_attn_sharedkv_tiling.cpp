@@ -188,7 +188,8 @@ ge::graphStatus SASInfoParser::GetInOutDataType()
 
 ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
 {
-    bool usePaCmpPaButNotPassed = (kvLayout_ == "PA_ND") && opParamInfo_.cmpBlockTable.desc == nullptr;
+    std::string layout(opParamInfo_.layoutKv);
+    bool usePaCmpPaButNotPassed = (layout == "PA_ND") && opParamInfo_.cmpBlockTable.desc == nullptr;
     if (opParamInfo_.oriKv.desc != nullptr) {
         if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr &&
             !usePaCmpPaButNotPassed) {
