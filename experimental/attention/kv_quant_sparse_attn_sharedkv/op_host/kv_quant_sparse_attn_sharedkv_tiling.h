@@ -73,13 +73,13 @@ enum class KvStorageMode : uint32_t {
 constexpr uint32_t Q_INDEX = 0;
 constexpr uint32_t ORI_KV_INDEX = 1;
 constexpr uint32_t CMP_KV_INDEX = 2;
-constexpr uint32_t CMP_SPARSE_INDICES_INDEX = 3;
-constexpr uint32_t ORI_BLOCK_TABLE_INDEX = 4;
-constexpr uint32_t CMP_BLOCK_TABLE_INDEX = 5;
-constexpr uint32_t CU_SEQLENS_Q_INDEX = 6;
-constexpr uint32_t SEQUSED_KV_INDEX = 7;
-constexpr uint32_t SINKS_INDEX = 8;
-constexpr uint32_t METADATA_INDEX = 9;
+constexpr uint32_t CMP_SPARSE_INDICES_INDEX = 4;
+constexpr uint32_t ORI_BLOCK_TABLE_INDEX = 5;
+constexpr uint32_t CMP_BLOCK_TABLE_INDEX = 6;
+constexpr uint32_t CU_SEQLENS_Q_INDEX = 7;
+constexpr uint32_t SEQUSED_KV_INDEX = 11;
+constexpr uint32_t SINKS_INDEX = 12;
+constexpr uint32_t METADATA_INDEX = 13;
 // Outputs Index
 constexpr uint32_t ATTN_OUT_INDEX = 0;
 
@@ -118,7 +118,8 @@ BEGIN_TILING_DATA_DEF(KvQuantSparseAttnSharedkvBaseParams)
 TILING_DATA_FIELD_DEF(uint32_t, batchSize)
 TILING_DATA_FIELD_DEF(uint32_t, qSeqSize)
 TILING_DATA_FIELD_DEF(uint32_t, kvSeqSize)
-TILING_DATA_FIELD_DEF(uint32_t, paBlockSize)
+TILING_DATA_FIELD_DEF(uint32_t, paOriBlockSize)
+TILING_DATA_FIELD_DEF(uint32_t, paCmpBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, oriMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, cmpMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, nNumOfQInOneGroup)
@@ -217,7 +218,8 @@ public:
     // PageAttention
     uint32_t blockTypeSize = 0;
     uint32_t oriMaxBlockNumPerBatch = 0;
-    int32_t blockSize = 0;
+    int32_t oriBlockSize = 0;
+    int32_t cmpBlockSize = 0;
     uint32_t cmpMaxBlockNumPerBatch = 0;
     uint32_t totalBlockNum = 0;
 
@@ -245,90 +247,6 @@ public:
     explicit KvQuantSASTilingCheck(const KvQuantSASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
     ~KvQuantSASTilingCheck() = default;
     virtual ge::graphStatus Process();
-private:
-    // void Init();
-    // void LogErrorDtypeSupport(const std::vector<ge::DataType> &expectDtypeList,
-    //     const ge::DataType &actualDtype, const std::string &name) const;
-    // ge::graphStatus CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc,
-    //     const std::string &name) const;
-    // template <typename T> void LogErrorNumberSupport(const std::vector<T> &expectNumberList,
-    //     const T &actualValue, const std::string &name, const std::string subName) const;
-    // template <typename T> void LogErrorDimNumSupport(const std::vector<T> &expectNumberList,
-    //     const T &actualValue, const std::string &name) const;
-    // ge::graphStatus CheckDimNumSupport(const gert::StorageShape *shape,
-    //     const std::vector<size_t> &expectDimNumList, const std::string &name) const;
-    // ge::graphStatus CheckDimNumInLayoutSupport(const SASLayout &layout,
-    //     const gert::StorageShape *shape, const std::string &name) const;
-    // void LogErrorLayoutSupport(const std::vector<SASLayout> &expectLayoutList,
-    //     const SASLayout &actualLayout, const std::string &name) const;
-    // ge::graphStatus GetExpectedShape(gert::Shape &shapeExpected,
-    // const SASTilingShapeCompareParam &param, const SASLayout &layout) const;
-    // ge::graphStatus CompareShape(SASTilingShapeCompareParam &param,
-    //     const gert::Shape &shape, const SASLayout &layout, const std::string &name) const;
-    // ge::graphStatus CheckLayoutSupport(const SASLayout &actualLayout, const std::string &name) const;
-    // ge::graphStatus CheckSingleParaQuery() const;
-    // ge::graphStatus CheckSingleParaKey() const;
-    // ge::graphStatus CheckSingleParaValue() const;
-    // ge::graphStatus CheckSingleParaQueryRope() const;
-    // ge::graphStatus CheckSingleParaKeyRope() const;
-    // ge::graphStatus CheckSingleParaAttenOut() const;
-    // ge::graphStatus CheckSingleParaNumHeads() const;
-    // ge::graphStatus CheckSingleParaKvHeadNums() const;
-    // ge::graphStatus CheckSingleParaLayout() const;
-    // ge::graphStatus CheckSingleParaSparseMode() const;
-    // ge::graphStatus CheckSingleParaSparseBlockSize() const;
-    // ge::graphStatus CheckSingleParaSparseIndices() const;
-    // ge::graphStatus CheckSinglePara() const;
-    // ge::graphStatus CheckMultiParaConsistency() const;
-    // ge::graphStatus CheckRopeExistence();
-    // ge::graphStatus CheckExists(const void *pointer, const std::string &name) const;
-    // ge::graphStatus CheckNotExists(const void *pointer, const std::string &name) const;
-    // ge::graphStatus CheckExistsByMap(const std::map<std::string, const void *> &paramMap) const;
-    // ge::graphStatus CheckNotExistsByMap(const std::map<std::string, const void *> &paramMap) const;
-    // ge::graphStatus CheckExistenceByMap(std::map<std::string, const void *> &existMap,
-    //     std::map<std::string, const void *> &notExistMap) const;
-    // template <typename T> ge::graphStatus CheckAttrValueByMap(
-    //     std::map<std::string, std::pair<const T *, T>> &attrMap) const;
-    // ge::graphStatus CheckParaExistenceNoquant() const;
-    // ge::graphStatus CheckParaExistenceGqaNoquant() const;
-    // ge::graphStatus CheckParaExistence() const;
-    // ge::graphStatus CheckParaExistence();
-    // ge::graphStatus GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
-    //     const SASLayout &layout, const std::string &name) const;
-    // void SetSASShapeCompare();
-    // ge::graphStatus CheckQRope();
-    // ge::graphStatus CheckQRopeShape();
-    // ge::graphStatus CheckVAndKRopeShapeForBatchContinuous();
-    // uint32_t GetTypeSize(ge::DataType dtype) const;
-    // ge::graphStatus CheckVAndKRopeShapeForPageAttention();
-    // ge::graphStatus CheckVAndKRopeShape();
-    // ge::graphStatus CheckVAndKRope();
-    // ge::graphStatus CheckTopK();
-    // ge::graphStatus CheckTopkShape();
-    // ge::graphStatus CheckBlockTable() const;
-    // ge::graphStatus CheckDTypeConsistency(const ge::DataType &actualDtype,
-    // const ge::DataType &expectDtype, const std::string &name) const;
-
-    // ge::graphStatus CheckAttenOut();
-    // ge::graphStatus CheckAttenOutShape();
-    // ge::graphStatus CheckActualSeqLensQ();
-    // ge::graphStatus CheckActualSeqLensQShape();
-    // ge::graphStatus CheckActualSeqLensQDType();
-    // ge::graphStatus CheckActualSeqLens();
-    // ge::graphStatus CheckActualSeqLensDType();
-    // ge::graphStatus CheckActualSeqLensShape();
-    // ge::graphStatus CheckMultiParaConsistency();
-
-    // ge::graphStatus CheckFeatureNoQuantShape() const;
-    // ge::graphStatus CheckFeatureNoQuantLayout() const;
-    // ge::graphStatus CheckFeatureNoQuantDtype() const;
-    // ge::graphStatus CheckFeatureNoquantPa() const;
-    // ge::graphStatus CheckFeatureNoquant() const;
-    // ge::graphStatus CheckFeature() const;
-    // ge::graphStatus CheckFeature() const;
-
-    // ge::graphStatus CheckSingleParaPreTokens() const;
-    // ge::graphStatus CheckSingleParaNextTokens() const;
 
 private:
     const char *opName_;
@@ -458,7 +376,8 @@ public:
     // PageAttention
     uint32_t oriMaxBlockNumPerBatch_ = 0;
     uint32_t cmpMaxBlockNumPerBatch_ = 0;
-    int32_t blockSize_ = 0;
+    int32_t oriBlockSize_ = 0;
+    int32_t cmpBlockSize_ = 0;
     platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
     ge::DataType qType_ = ge::DT_FLOAT16;
     ge::DataType oriKvType_ = ge::DT_FLOAT16;

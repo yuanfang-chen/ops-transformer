@@ -49,7 +49,8 @@ enum class VselrIndexEnum {GT_64_AND_LTE_128_INDEX = 0, GT_0_AND_LTE_64_INDEX = 
 struct RunParamStr {  // 分核与切块需要使用到参数
     COMMON_RUN_PARAM;
     /* 推理新增 */
-    int64_t s1LoopTimes;
+    int64_t gs1LoopStartIdx;
+    int64_t gs1LoopEndIdx;
     // BN循环生产的数据
     int64_t preTokensPerBatch = MAX_PRE_NEXT_TOKENS; // 左上顶点的pretoken
     int64_t nextTokensPerBatch = MAX_PRE_NEXT_TOKENS; // 左上顶点的nexttoken
@@ -196,7 +197,9 @@ struct RunInfo {
     uint32_t sparseBlockCount; \
     uint32_t actualSeqLenSize; /* 用户输入的actualseq的长度 */ \
     uint32_t actualSeqLenKVSize; /* 用户输入的actualseq_kv的长度 */ \
-    uint32_t blockSize; \
+    /* service mm1 mm2 pageAttention */ \
+    uint32_t oriBlockSize; \
+    uint32_t cmpBlockSize; \
     uint32_t paLayoutType; \
     uint32_t oriMaxBlockNumPerBatch; \
     uint32_t cmpMaxBlockNumPerBatch; \
@@ -222,7 +225,6 @@ struct RunInfo {
     uint32_t isActualSeqLengthsNull : 1; \
     uint32_t isActualSeqLengthsKVNull : 1; \
     uint32_t sparseBlockCount; \
-    uint32_t coreNum;  \
     float softmaxScale; \
     uint32_t cmpRatio : 9; \
     uint32_t dSizeRope : 11; \
@@ -230,9 +232,10 @@ struct RunInfo {
     uint32_t cmpMaskMode : 6; \
     int32_t oriWinLeft; \
     int32_t oriWinRight; \
-    uint32_t tileSize : 16; \
+    uint32_t tileSize : 8; \
     /* pa params */  \
-    uint32_t blockSize : 16; \
+    uint32_t oriBlockSize : 12; \
+    uint32_t cmpBlockSize : 12; \
     uint32_t oriMaxBlockNumPerBatch; \
     uint32_t cmpMaxBlockNumPerBatch;
 

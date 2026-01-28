@@ -14,7 +14,7 @@
  */
 
 #include "kv_quant_sparse_attn_sharedkv_metadata_aicpu.h"
-#include "../../kv_quant_sparse_attn_sharedkv/op_kernel/kv_quant_sparse_attn_sharedkv_metadata.h"
+#include "../../common/aicpu/kv_quant_sparse_attn_sharedkv_metadata.h"
 #include "../../common/aicpu/cpu_context_util.h"
 #include <cstdio>
 #include <math.h>
@@ -120,7 +120,7 @@ uint32_t KVQuantSparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
         return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx + 1U]) :
            static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);
     } else {
-        return static_cast<uint32_t>(s1Ptr[bIdx + 1]);
+        return querySeqSize_;
     }
 }
 
@@ -469,6 +469,53 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostInfo(SplitContext &spli
     }
 }
 
+void KVQuantSparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext) {
+    const SplitInfo &splitInfo = splitContext.splitInfo;
+    const CostInfo &costInfo = splitContext.costInfo;
+
+    bool UpdateS1G = false;
+    bool UpdateBatch = false;
+
+    // Update S2
+    if (assignContext.curS2Idx >= assignContext.s1GCache.s2End) {    // 边界assignInfo.s2End是取不到的开区间
+        assignContext.curS2Idx = 0U;
+        assignContext.curS1GIdx++;
+        UpdateS1G = true;
+    }
+
+    // Update S1G
+    if (assignContext.curS1GIdx >= splitInfo.s1GBaseNum[assignContext.curBIdx]) {
+        assignContext.curS1GIdx = 0U;
+        assignContext.curBN2Idx++;
+    }
+
+    // Update Batch
+    if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {  // 所有负载全部分配完，设置最后一个核的右开区间，返回
+        assignContext.curS1GIdx = 0U;
+        assignContext.curS2Idx = 0U;
+        assignContext.isFinished = true;
+        return;
+    }
+
+    if (assignContext.curBN2Idx / kvHeadNum_ != assignContext.curBIdx) {
+        assignContext.curBIdx = assignContext.curBN2Idx / kvHeadNum_;
+        assignContext.curS1GIdx = 0U;
+        UpdateBatch = true;
+        UpdateS1G = true;
+    }
+
+    // Update Cache
+    if (UpdateBatch) {
+        CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
+        assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
+        assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+    }
+    if (UpdateS1G) {
+        CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
+        assignContext.curS2Idx = (supportFd) ? assignContext.s1GCache.winS2Start : 0;
+    }
+}
+
 void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &splitContext, AssignContext &assignContext)
 {
     if (assignContext.isFinished) {
@@ -568,6 +615,25 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContex
         assignContext.s1GCache.s1GBlock--;
         curCost = CalcCurBlockCost(assignContext);
     }
+}
+
+void KVQuantSparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext) {
+    if (assignContext.isFinished) {
+        return;
+    }
+
+    int64_t curCost = CalcCurBlockCost(assignContext);
+
+    assignContext.coreCache.cost += curCost;
+    assignContext.coreCache.block++;
+    assignContext.curS2Idx++;
+    // 当前batch被分配一块出去，更新剩余负载
+    assignContext.bN2Cost = assignContext.bN2Cost - curCost;
+    assignContext.bN2Block--;
+    // 当前行被分配一块出去，更新剩余负载
+    assignContext.s1GCache.s1GCost = assignContext.s1GCache.s1GCost - curCost;
+    assignContext.s1GCache.s1GBlock--;
+    UpdateCursor(splitContext, assignContext);
 }
 
 bool KVQuantSparseAttnSharedkvMetadataCpuKernel::IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes)
@@ -804,30 +870,31 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
 }
 
 bool KVQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
-optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
-    metaDataPtr->usedCoreNum = splitRes_.usedCoreNum;
-    metaDataPtr->fdRes.fdNum = splitRes_.numOfFdHead;
-    metaDataPtr->fdRes.fdUsedVecNum = splitRes_.usedVecNumOfFd;
-    metaDataPtr->mBaseSize = mBaseSize_;
-    metaDataPtr->s2BaseSize = s2BaseSize_;
-    metaDataPtr->fdRes.fdBalanceMBaseSize = gS1BaseSizeOfFd_;
+    optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
 
     for (size_t i = 0; i < coreNum_; ++i) {
-        metaDataPtr->bN2End[i] = splitRes_.bN2End[i];
-        metaDataPtr->mEnd[i] = splitRes_.gS1End[i];
-        metaDataPtr->s2End[i] = splitRes_.s2End[i];
-        metaDataPtr->fdRes.fdBN2Idx[i] = splitRes_.fdRes.bN2IdxOfFdHead[i];
-        metaDataPtr->fdRes.fdMIdx[i] = splitRes_.fdRes.gS1IdxOfFdHead[i];
-        metaDataPtr->fdRes.fdS2SplitNum[i] = splitRes_.fdRes.s2SplitNumOfFdHead[i];
-        metaDataPtr->headFdDataIdx[i] = splitRes_.fdRes.s2SplitStartIdxOfCore[i];
-        metaDataPtr->fdRes.fdBalanceMSplitNum[i] = splitRes_.fdRes.gS1SplitNumOfFdHead[i];
-        metaDataPtr->fdRes.fdBalanceMTailSize[i] = splitRes_.fdRes.gS1LastPartSizeOfFdHead[i];
-    }
-    if (splitRes_.numOfFdHead > 0U) {
-        for (size_t i = 0; i < coreNum_ * 2U; ++i) {
-            metaDataPtr->fdRes.fdBalanceEndIdx1[i] = splitRes_.fdRes.gS1IdxEndOfFdHead[i];
-            metaDataPtr->fdRes.fdBalanceEndIdx2[i] = splitRes_.fdRes.gS1IdxEndOfFdHeadSplit[i];
+        if (i < splitRes_.usedCoreNum) {
+            metaDataPtr->coreMetadata[i].faMetadata[0] = 1;
+        } else {
+            metaDataPtr->coreMetadata[i].faMetadata[0] = 0;
+            continue;
         }
+        if (i == 0) {
+            metaDataPtr->coreMetadata[i].faMetadata[1] = 0;
+            metaDataPtr->coreMetadata[i].faMetadata[2] = 0;
+            metaDataPtr->coreMetadata[i].faMetadata[3] = 0;
+        } else {
+            metaDataPtr->coreMetadata[i].faMetadata[1] = splitRes_.bN2End[i-1];
+            metaDataPtr->coreMetadata[i].faMetadata[2] = splitRes_.gS1End[i-1];
+            metaDataPtr->coreMetadata[i].faMetadata[3] = splitRes_.s2End[i-1];
+        }
+
+        metaDataPtr->coreMetadata[i].faMetadata[4] = splitRes_.bN2End[i];
+        metaDataPtr->coreMetadata[i].faMetadata[5] = splitRes_.gS1End[i];
+        metaDataPtr->coreMetadata[i].faMetadata[6] = splitRes_.s2End[i];
+
+        metaDataPtr->coreMetadata[i].faMetadata[7] = 0;
+        metaDataPtr->coreMetadata[i].faMetadata[8] = 0;
     }
     return true;
 }
@@ -838,4 +905,3 @@ namespace {
 }
 
 }; // namespace aicpu
-

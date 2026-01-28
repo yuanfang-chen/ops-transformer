@@ -23,13 +23,8 @@ using std::string;
 using std::pair;
 namespace optiling {
 
-// static const std::string QUERY_NAME = "query";
 static const std::string ORI_BLOCK_TABLE_NAME = "ori_block_table";
 static const std::string CMP_BLOCK_TABLE_NAME = "cmp_block_table";
-// static const std::string SPARSE_INDICES_NAME = "sparse_indices";
-// static const std::string QUERY_ROPE_NAME = "query_rope";
-// static const std::string KEY_ROPE_NAME = "key_rope";
-// static const std::string ATTEN_OUT_NAME = "attention_out";
 static const std::string SINKS_NAME = "sinks";
 
 std::string KvQuantSASLayoutToSerialString(SASLayout layout)
@@ -107,12 +102,6 @@ ge::graphStatus KvQuantSASInfoParser::GetNpuInfo()
         OP_LOGE(opName_, "SOC Version[%d] is not support.", (int32_t)socVersion_);
         return GRAPH_FAILED;
     }
-    // OP_CHECK_IF(context_->GetWorkspaceSizes(1) == nullptr, OP_LOGE(opName_, "workSpaceSize got from ge is nullptr"),
-    //            return ge::GRAPH_FAILED);
-    // OP_CHECK_IF(context_->GetRawTilingData() == nullptr,
-    //            OP_LOGE(context_->GetNodeName(), "RawTilingData got from GE context is nullptr."),
-    //            return ge::GRAPH_FAILED);
-    // ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L2, l2CacheSize_);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -402,7 +391,12 @@ ge::graphStatus KvQuantSASInfoParser::GetMaxBlockNumPerBatch()
 
 ge::graphStatus KvQuantSASInfoParser::GetBlockSize()
 {
-    blockSize_ = GetAxisNum(oriKvShape_, SASAxis::Bs, kvLayout_);
+    if (opParamInfo_.oriKv.tensor != nullptr) {
+        oriBlockSize_ = GetAxisNum(oriKvShape_, SASAxis::Bs, kvLayout_);
+    }
+    if (opParamInfo_.cmpKv.tensor != nullptr) {
+        cmpBlockSize_ = GetAxisNum(cmpKvShape_, SASAxis::Bs, kvLayout_);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -411,7 +405,7 @@ ge::graphStatus KvQuantSASInfoParser::GetS2SizeForPageAttention()
     if (GetMaxBlockNumPerBatch() != ge::GRAPH_SUCCESS || GetBlockSize() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    s2Size_ = oriMaxBlockNumPerBatch_ * blockSize_;
+    s2Size_ = oriMaxBlockNumPerBatch_ * oriBlockSize_;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -499,16 +493,14 @@ void KvQuantSASInfoParser::GenerateInfo(KvQuantSASTilingInfo &sasInfo)
     sasInfo.cmpKvType = cmpKvType_;
     sasInfo.outputType = outputType_;
     sasInfo.dSize = dSizeQ_;
-    sasInfo.dSizeV = 512; // TODO 暂时写死
+    sasInfo.dSizeV = 512;
     sasInfo.dSizeVInput = dSizeKV_;
-
-    // sasInfo.l2CacheSize = l2CacheSize_;
 
     sasInfo.totalBlockNum = (opParamInfo_.oriKv.tensor != nullptr) ?
         opParamInfo_.oriKv.tensor->GetStorageShape().GetDim(0) : 0;
-    // sasInfo.pageAttentionFlag = (kvStorageMode_ == KvStorageMode::PAGE_ATTENTION);
     sasInfo.sparseBlockSize = 1; // 写死为1
-    sasInfo.blockSize = blockSize_;
+    sasInfo.oriBlockSize = oriBlockSize_;
+    sasInfo.cmpBlockSize = cmpBlockSize_;
     sasInfo.blockTypeSize = sizeof(float);
     sasInfo.oriMaxBlockNumPerBatch = oriMaxBlockNumPerBatch_;
     sasInfo.cmpMaxBlockNumPerBatch = cmpMaxBlockNumPerBatch_;
@@ -645,7 +637,8 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     tilingData_.baseParams.set_qSeqSize(tilingInfo->s1Size);
     tilingData_.baseParams.set_sparseBlockCount(tilingInfo->sparseBlockCount);
     tilingData_.baseParams.set_nNumOfQInOneGroup(tilingInfo->gSize);
-    tilingData_.baseParams.set_paBlockSize(tilingInfo->blockSize);
+    tilingData_.baseParams.set_paOriBlockSize(tilingInfo->oriBlockSize);
+    tilingData_.baseParams.set_paCmpBlockSize(tilingInfo->cmpBlockSize);
     tilingData_.baseParams.set_oriMaxBlockNumPerBatch(tilingInfo->oriMaxBlockNumPerBatch);
     tilingData_.baseParams.set_cmpMaxBlockNumPerBatch(tilingInfo->cmpMaxBlockNumPerBatch);
 
