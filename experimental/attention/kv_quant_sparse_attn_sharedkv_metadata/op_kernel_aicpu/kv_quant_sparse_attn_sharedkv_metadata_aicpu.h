@@ -18,12 +18,12 @@
 #ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 #define KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 
+#include <vector>
+#include <string>
+#include <array>
 #include "cpu_context.h"
 #include "cpu_kernel.h"
 #include "cpu_tensor.h"
-#include <array>
-#include <string>
-#include <vector>
 
 namespace aicpu {
 constexpr int64_t FA_TOLERANCE_RATIO = 2;
@@ -243,7 +243,6 @@ private:
   int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
   int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
   Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
-  //Range<uint32_t> CalcS2Range(uint32_t s1GIdx,const BatchCache &batchCache);
   int64_t WinCalcCost(uint32_t basicM, uint32_t basicS2);
   int64_t CmpCalcCost(uint32_t basicM, uint32_t basicS2);
   BlockCost<int64_t> CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,

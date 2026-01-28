@@ -288,7 +288,6 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(const BlockCost
         s1GCache.winS1GCost = 0;
         s1GCache.winS1GLastBlockCost = 0;
         s1GCache.winS1GNormalBlockCost = 0;
-        //return;
     } else {
         //计算 Win 方向 Block 数量及 Cost
         s1GCache.winS1GBlock = s1GCache.winS2End - s1GCache.winS2Start;
@@ -874,27 +873,27 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
 
     for (size_t i = 0; i < coreNum_; ++i) {
         if (i < splitRes_.usedCoreNum) {
-            metaDataPtr->coreMetadata[i].faMetadata[0] = 1;
+            metaDataPtr->coreMetadata[i].faMetadata[FA_CORE_ENABLE_INDEX] = 1;
         } else {
-            metaDataPtr->coreMetadata[i].faMetadata[0] = 0;
+            metaDataPtr->coreMetadata[i].faMetadata[FA_CORE_ENABLE_INDEX] = 0;
             continue;
         }
         if (i == 0) {
-            metaDataPtr->coreMetadata[i].faMetadata[1] = 0;
-            metaDataPtr->coreMetadata[i].faMetadata[2] = 0;
-            metaDataPtr->coreMetadata[i].faMetadata[3] = 0;
+            metaDataPtr->coreMetadata[i].faMetadata[FA_BN2_START_INDEX] = 0;
+            metaDataPtr->coreMetadata[i].faMetadata[FA_M_START_INDEX] = 0;
+            metaDataPtr->coreMetadata[i].faMetadata[FA_S2_START_INDEX] = 0;
         } else {
-            metaDataPtr->coreMetadata[i].faMetadata[1] = splitRes_.bN2End[i-1];
-            metaDataPtr->coreMetadata[i].faMetadata[2] = splitRes_.gS1End[i-1];
-            metaDataPtr->coreMetadata[i].faMetadata[3] = splitRes_.s2End[i-1];
+            metaDataPtr->coreMetadata[i].faMetadata[FA_BN2_START_INDEX] = splitRes_.bN2End[i-1];
+            metaDataPtr->coreMetadata[i].faMetadata[FA_M_START_INDEX] = splitRes_.gS1End[i-1];
+            metaDataPtr->coreMetadata[i].faMetadata[FA_S2_START_INDEX] = splitRes_.s2End[i-1];
         }
 
-        metaDataPtr->coreMetadata[i].faMetadata[4] = splitRes_.bN2End[i];
-        metaDataPtr->coreMetadata[i].faMetadata[5] = splitRes_.gS1End[i];
-        metaDataPtr->coreMetadata[i].faMetadata[6] = splitRes_.s2End[i];
+        metaDataPtr->coreMetadata[i].faMetadata[FA_BN2_END_INDEX] = splitRes_.bN2End[i];
+        metaDataPtr->coreMetadata[i].faMetadata[FA_M_END_INDEX] = splitRes_.gS1End[i];
+        metaDataPtr->coreMetadata[i].faMetadata[FA_S2_END_INDEX] = splitRes_.s2End[i];
 
-        metaDataPtr->coreMetadata[i].faMetadata[7] = 0;
-        metaDataPtr->coreMetadata[i].faMetadata[8] = 0;
+        metaDataPtr->coreMetadata[i].faMetadata[FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = 0;
+        metaDataPtr->coreMetadata[i].faMetadata[FA_FD_VECTOR_NUM_INDEX] = 0;
     }
     return true;
 }
