@@ -333,7 +333,7 @@ template <typename SAST>
 __aicore__ inline void SparseAttnSharedkvSwa<SAST>::GetSparseActualSeqLen()
 {
     // 行无效通过ori部分判断, ori部分如果有行无效那么ori和cmp都有
-    if (tempLoopInfo.oriMaskRight < 0 && tempLoopInfo.s1EndIdx < -(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size)) {
+    if (tempLoopInfo.s1EndIdx < -(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size)) {
         tempLoopInfo.actCmpS2Size = 0;
         return;
     }
@@ -682,7 +682,7 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
             }
             GetSparseActualSeqLen();
             UpdateInnerLoopCond();
-            if (tempLoopInfo.curActSeqLenIsZero && tempLoopInfo.oriMaskRight < 0) {
+            if (tempLoopInfo.curActSeqLenIsZero) {
                 if ASCEND_IS_AIV {
                     InitAllZeroOutput(tempLoopInfo.bIdx, tempLoopInfo.s1StartIdx, tempLoopInfo.n2Idx);
                 }
