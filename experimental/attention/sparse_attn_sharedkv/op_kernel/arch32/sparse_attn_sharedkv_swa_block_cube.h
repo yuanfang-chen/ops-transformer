@@ -22,6 +22,7 @@
 #include "lib/matrix/matmul/tiling.h"
 #include "../sparse_attn_sharedkv_common.h"
 
+namespace SASKernel{
 template <typename SAST> class SWACubeBlock {
 public:
     // 中间计算数据类型为float, 高精度模式
@@ -772,5 +773,5 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
     }
     qpL1BufIter += mL1Loops;
 }
-
+}
 #endif
