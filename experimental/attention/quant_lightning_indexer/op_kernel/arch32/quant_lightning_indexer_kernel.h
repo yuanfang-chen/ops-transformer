@@ -733,6 +733,10 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessBaseBlock(uint32_t loop, uint64_
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::ProcessDecode()
 {
+    // TODO: 当前case所有核都不需要LD，因此直接return，等适配metadata之后，暂时关闭LD
+    if (!splitCoreInfo.isLD) {
+        return;
+    }
     if ASCEND_IS_AIV {
         vectorService.InitLDBuffers(pipe);
         ICachePreLoad(LD_PREFETCH_LEN);
