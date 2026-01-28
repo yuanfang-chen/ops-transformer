@@ -313,7 +313,21 @@ ge::graphStatus CompressorTiling::CheckEmptyTensor() const
         context_->layout == LayoutType::LAYOUT_TH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0) {
         context_->emptyTensorMode = EMPTY_TENSOR_MODE::EMPTY_X;
     } else {
+        if (context_->x.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->wkv.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->wgate.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->kvState.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->scoreState.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->ape.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->normWeight.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->ropeSin.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->ropeCos.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->kvBlockTable.shape->GetStorageShape().GetShapeSize() == 0 ||
+            context_->scoreBlockTable.shape->GetStorageShape().GetShapeSize() == 0) {
+            return ge::GRAPH_FAILED;
+        }
         context_->emptyTensorMode = EMPTY_TENSOR_MODE::NON_EMPTY;
+        OP_LOGI(context_->opName, "Only input tensor x supports empty state");
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -870,13 +884,6 @@ ge::graphStatus CompressorTiling::CheckShapeConsistency() const
     OP_CHECK_IF(actualDim0 != expectDim0 || actualDim1 != expectDim1,
         OP_LOGE("Compressor", "scoreState shape dim0 should be blockNum(%u), dim1 should be blockSize(%u), but got dim0=%u, dim1=%u",
                 expectDim0, expectDim1, actualDim0, actualDim1), return ge::GRAPH_FAILED);
-    const auto& kvBlockTableShape = context_->kvBlockTable.shape->GetStorageShape();
-    const auto& scoreBlockTableShape = context_->scoreBlockTable.shape->GetStorageShape();
-    actualDim0 = kvBlockTableShape.GetDim(COMPRESSOR_DIM_INDEX_0) * kvBlockTableShape.GetDim(COMPRESSOR_DIM_INDEX_1);
-    actualDim1 = scoreBlockTableShape.GetDim(COMPRESSOR_DIM_INDEX_0) * scoreBlockTableShape.GetDim(COMPRESSOR_DIM_INDEX_1);
-    OP_CHECK_IF(actualDim0 < expectDim0 || actualDim1 < expectDim0,
-        OP_LOGE("Compressor", "kvBlockTable and scoreBlockTable shape dim0 * dim1 should be not less than blockNum(%u), but got kvBlockTable=%u, scoreBlockTable=%u",
-                expectDim0, actualDim0, actualDim1), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
