@@ -15,7 +15,6 @@
 #ifndef MUL_SEL_SOFTMAX_FLASH_V2_CAST_NZ_SCFA_INTERFACE_H
 #define MUL_SEL_SOFTMAX_FLASH_V2_CAST_NZ_SCFA_INTERFACE_H
 
-// #include "kernel_tensor.h"
 #include "../util_regbase.h"
 #include "../kv_quant_sparse_attn_sharedkv_common_arch35.h"
 #include "vf_basic_block_aligned128_no_update_scfa.h"
