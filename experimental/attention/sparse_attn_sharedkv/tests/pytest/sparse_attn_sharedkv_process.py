@@ -28,7 +28,7 @@ DATA_RANGE_RIGHT = 10
 # 1 切S2
 # 2 AMLA
 
-RUN_MODE = 0
+RUN_MODE = 1
 
 np.random.seed(42)
 torch.manual_seed(42)
@@ -449,16 +449,11 @@ def gen_cmp_sparse_indices_tnd(cmp_ratio, B, T1, N2, K, cu_seqlens_q, seqused_kv
                 cmp_sparse_indices[s1_prefix + i_S1, i_N2, :valid_blocks_topk] = block_indices[0:valid_blocks_topk]
     return cmp_sparse_indices
 
-# def gen_ori_kv(params):
-#     layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, block_num2, \
-#     block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, ori_mask_mode, cmp_mask_mode, \
-#     ori_win_left, ori_win_right = params
-def gen_ori_kv(ori_kv_type, B, N2, D, block_num1, block_size1, seqused_kv):
+def gen_ori_kv(ori_kv_type, B, N2, D, block_num1, block_size1, seqused_kv, data_range_left=DATA_RANGE_LEFT, data_range_right=DATA_RANGE_RIGHT):
     ori_max_s2 = max(seqused_kv)
     ori_max_block_num_per_batch = math.ceil(ori_max_s2 / block_size1)
 
-    ori_k_bnsd = torch.tensor(np.random.uniform(DATA_RANGE_LEFT, DATA_RANGE_RIGHT,
-                              (B, N2, ori_max_s2, D))).to(ori_kv_type)
+    ori_k_bnsd = (torch.rand((B, N2, ori_max_s2, D)) * (data_range_left - data_range_right) + data_range_left).to(ori_kv_type)
     ori_block_num_per_batch = []
     ori_block_num_sum = 0
 
@@ -501,7 +496,7 @@ def gen_ori_kv(ori_kv_type, B, N2, D, block_num1, block_size1, seqused_kv):
     return ori_k_in_pa_shape, ori_block_table, ori_k_bnsd
 
 def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_size2, cu_seqlens_q, seqused_kv, cmp_ratio,
-               cmp_mask_mode, template_idx):
+               cmp_mask_mode, template_idx, data_range_left=DATA_RANGE_LEFT, data_range_right=DATA_RANGE_RIGHT):
     if cmp_ratio is None:
         raise ValueError(f"cmp_ratio can't be None")
 
@@ -519,8 +514,7 @@ def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_siz
     cmp_max_s2 = math.floor(ori_max_s2 / cmp_ratio)
     cmp_max_block_num_per_batch = math.ceil(cmp_max_s2 / block_size2)
 
-    cmp_k_bnsd = torch.tensor(np.random.uniform(DATA_RANGE_LEFT, DATA_RANGE_RIGHT,
-                              (B, N2, cmp_max_s2, D))).to(cmp_kv_type)
+    cmp_k_bnsd = (torch.rand((B, N2, cmp_max_s2, D)) * (data_range_left - data_range_right) + data_range_left).to(cmp_kv_type)
     cmp_block_num_per_batch = []
     cmp_block_num_sum = 0
     for cur_ori_act_kv in seqused_kv:
@@ -572,7 +566,7 @@ def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_siz
 def test_sas_process(params):
     layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, block_num2, \
     block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, ori_mask_mode, cmp_mask_mode, \
-    ori_win_left, ori_win_right = params
+    ori_win_left, ori_win_right, q_datarange, ori_kv_datarange, cmp_kv_datarange = params
 
     if len(seqused_kv) != B:
         raise ValueError(f"len(seqused_kv) != B, which is {len(seqused_kv)} != {B}")
@@ -585,10 +579,12 @@ def test_sas_process(params):
 
     # generate q
     if layout_q == "BSND":
-        q = torch.tensor(np.random.uniform(DATA_RANGE_LEFT, DATA_RANGE_RIGHT, (B, S1, N1, D))).to(q_type)
+        S1, B = int(S1), int(B)
+        q = (torch.rand((B, S1, N1, D)) * (q_datarange[1] - q_datarange[0]) + q_datarange[0]).to(q_type)
         act_q = B * [S1]
     elif layout_q == "TND":
-        q = torch.tensor(np.random.uniform(DATA_RANGE_LEFT, DATA_RANGE_RIGHT, (T1, N1, D))).to(q_type)
+        T1, B = int(T1), int(B)
+        q = (torch.rand((T1, N1, D)) * (q_datarange[1] - q_datarange[0]) + q_datarange[0]).to(q_type)
         if len(cu_seqlens_q) != (B + 1):
             raise ValueError(f"len(cu_seqlens_q) != B + 1, which is {len(cu_seqlens_q)} != {B + 1}")
         else:
@@ -605,29 +601,32 @@ def test_sas_process(params):
 
     # 路由到三个算子的逻辑：
     template_idx = 0
-    if K is None :
+    if K is None or K == ['None']:
         if cmp_ratio is None:
             template_idx = 0  # SWA
         else:
             template_idx = 1  # CFA
+            cmp_ratio, block_size2, block_num2 = int(cmp_ratio), int(block_size2), int(block_num2)
     else:
         template_idx = 2  # SCFA
+        K, cmp_ratio, block_size2, block_num2 = int(K), int(cmp_ratio), int(block_size2), int(block_num2)
 
     ori_k_in_pa_shape, ori_block_table, ori_k_bnsd = gen_ori_kv(ori_kv_type, B, N2, D, block_num1, block_size1,
-                                                                seqused_kv)
+                                                                seqused_kv, ori_kv_datarange[0], ori_kv_datarange[1])
     if template_idx == 1 or template_idx == 2:
         cmp_k_in_pa_shape, cmp_sparse_indices, cmp_block_table, cmp_k_bnsd = gen_cmp_kv(layout_q, cmp_kv_type, B, S1,
                                                                                         T1, N2, D, K, block_num2,
                                                                                         block_size2, cu_seqlens_q,
                                                                                         seqused_kv, cmp_ratio,
-                                                                                        cmp_mask_mode, template_idx)
+                                                                                        cmp_mask_mode, template_idx,
+                                                                                        cmp_kv_datarange[0], cmp_kv_datarange[1])
     else:
         cmp_k_in_pa_shape = None
         cmp_sparse_indices = None
         cmp_block_table = None
         cmp_k_bnsd = None
 
-    sinks = torch.tensor(np.random.uniform(DATA_RANGE_LEFT/10, DATA_RANGE_RIGHT/10, (N1))).to(torch.float)
+    sinks = (torch.rand((N1,)) * (q_datarange[1] - q_datarange[0])/10 + q_datarange[0]/10).to(torch.float)
 
     test_sas = GeneralizedSFA(layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K,
                               block_num1, block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale,
