@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This program is free software, you can redistribute it and/or modify.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file kv_rms_norm_rope_cache_infershape.cpp
@@ -33,6 +33,7 @@ constexpr size_t OUTPUT_IDX_C_KV = 3;
 constexpr size_t HEAD_SIZE_SHAPE_IDX = 3;
 constexpr size_t EXPECT_DIM_NUM = 4;
 constexpr int64_t UNKNOWN_DIM_VALUE_ = -1LL;
+constexpr int64_t RMS_NORM_LENGTH_V2 = 192;
 
 inline ge::graphStatus SetAllUnknownDim(const int64_t rank, gert::Shape* output_shape)
 {
@@ -51,7 +52,7 @@ graphStatus InferShape4KvRmsNormRopeCache(gert::InferShapeContext* context)
     OP_CHECK_NULL_WITH_CONTEXT(context, kCacheInputShape);
     const gert::Shape* vCacheInputShape = context->GetInputShape(INPUT_IDX_V_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context, vCacheInputShape);
-    const gert::Shape* kvInputShape = context->GetInputShape(0);
+    const gert::Shape* kvInputShape = context->GetInputShape(INPUT_IDX_KV);
     OP_CHECK_NULL_WITH_CONTEXT(context, kvInputShape);
     const gert::Shape* cosInputShape = context->GetInputShape(INPUT_IDX_COS);
     OP_CHECK_NULL_WITH_CONTEXT(context, cosInputShape);
@@ -70,6 +71,7 @@ graphStatus InferShape4KvRmsNormRopeCache(gert::InferShapeContext* context)
     int64_t kvDimSize = kvInputShape->GetDimNum();
     int64_t cosDimSize = cosInputShape->GetDimNum();
     int64_t gammaDimSize = gammaInputShape->GetDimNum();
+    int64_t methodMode = gammaInputShape->GetDim(gammaDimSize - 1) == RMS_NORM_LENGTH_V2 ? 1 : 0;
 
     *kCacheShape = *kCacheInputShape;
     *vCacheShape = *vCacheInputShape;
@@ -87,13 +89,25 @@ graphStatus InferShape4KvRmsNormRopeCache(gert::InferShapeContext* context)
             return ge::GRAPH_FAILED;
         }
     }
-    // 根据gamma和cos的最后1维设置kRopeShape和cKvShape的最后1维
-    if (!Ops::Base::IsUnknownRank(*cosInputShape)) {
-        kRopeShape->SetDim(HEAD_SIZE_SHAPE_IDX, cosInputShape->GetDim(cosDimSize - 1));
+    
+    if (methodMode == 0) {
+         // v1版本根据gamma和cos的最后1维设置kRopeShape和cKvShape的最后1维
+        if (!Ops::Base::IsUnknownRank(*cosInputShape)) {
+            kRopeShape->SetDim(HEAD_SIZE_SHAPE_IDX, cosInputShape->GetDim(cosDimSize - 1));
+        }
+        if (!Ops::Base::IsUnknownRank(*gammaInputShape)) {
+            cKvShape->SetDim(HEAD_SIZE_SHAPE_IDX, gammaInputShape->GetDim(gammaDimSize - 1));
+        }
+    } else {
+         // v2版本根据gamma和vCache的最后1维设置kRopeShape和cKvShape的最后1维
+        if (!Ops::Base::IsUnknownRank(*gammaInputShape)) {
+            kRopeShape->SetDim(HEAD_SIZE_SHAPE_IDX, gammaInputShape->GetDim(gammaDimSize - 1));
+        }
+        if (!Ops::Base::IsUnknownRank(*vCacheInputShape)) {
+            cKvShape->SetDim(HEAD_SIZE_SHAPE_IDX, vCacheInputShape->GetDim(kvDimSize - 1));
+        }
     }
-    if (!Ops::Base::IsUnknownRank(*gammaInputShape)) {
-        cKvShape->SetDim(HEAD_SIZE_SHAPE_IDX, gammaInputShape->GetDim(gammaDimSize - 1));
-    }
+
     OP_LOGD(context, "End to do InferShape4KvRmsNormRopeCache.");
     return GRAPH_SUCCESS;
 }
