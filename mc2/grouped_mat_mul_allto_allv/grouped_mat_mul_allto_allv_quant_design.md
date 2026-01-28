@@ -91,17 +91,9 @@ classDiagram
         +uint64_t taskM, taskK, taskN
         +uint32_t taskLocalExpertNum, taskEpWorldSize
         +uint32_t loopMainExpertNum, loopTailExpertNum, loopTotalCount
-        +uint64_t wsGmmOffset, wsGmmSize
-        +uint64_t wsQuantOffset, wsQuantSize
-        +uint64_t wsCommOffset, wsCommSize
+        +uint64_t wsGmmSize
         +uint16_t commSendCnt[]
         +uint16_t commRecvCnt[]
-    }
-    
-    class WorkspaceInfo {
-        +uint64_t gmmWsOffset, gmmWsSize
-        +uint64_t quantWsOffset, quantWsSize
-        +uint64_t commWsOffset, commWsSize
     }
     
     class GmmTilingArray {
@@ -242,7 +234,7 @@ constexpr uint32_t MAX_EP_RANK_SIZE = 256U;
 ```cpp
 /**
  * QuantGmmA2avTilingInfo 核心配置信息
- * 合并了任务维度、流水线切分、Workspace 偏移以及通信计数
+ * 合并了任务维度、流水线切分、Workspace 大小以及通信计数
  * 通过命名前缀区分逻辑分组：task, loop, ws, comm
  */
 struct QuantGmmA2avTilingInfo {
@@ -258,13 +250,8 @@ struct QuantGmmA2avTilingInfo {
     uint32_t loopTailExpertNum;                     // 尾块：最后一次 loop 处理几个专家
     uint32_t loopTotalCount;                        // 总 loop 次数
 
-    // --- Workspace Info (Workspace 偏移与大小) ---
-    uint64_t wsGmmOffset;                           // GMM workspace 偏移
+    // --- Workspace Info (Workspace 大小) ---
     uint64_t wsGmmSize;                             // GMM workspace 大小
-    uint64_t wsQuantOffset;                         // Quant workspace 偏移
-    uint64_t wsQuantSize;                           // Quant workspace 大小
-    uint64_t wsCommOffset;                          // Comm workspace 偏移
-    uint64_t wsCommSize;                            // Comm workspace 大小
 
     // --- Comm Info (通信计数数组) ---
     // 每专家发送到各 rank 的 token 数
@@ -412,7 +399,7 @@ public:
     /**
      * 初始化
      * @param a2avTiling   HCCL AlltoAllV Tiling 信息
-     * @param tilingInfo   扁平化的核心配置信息（包含 Workspace 偏移与通信计数）
+     * @param tilingInfo   扁平化的核心配置信息（包含 Workspace 大小与通信计数）
      * @param workspace    Workspace 基地址
      * @param sendBuf      发送缓冲区基地址（GMM 输出）
      * @param recvBuf      接收缓冲区基地址（最终输出）
