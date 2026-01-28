@@ -470,8 +470,8 @@ ge::graphStatus QLIInfoParser::GetGSize()
 ge::graphStatus QLIInfoParser::GetBatchSize()
 {
     // 获取B基准值
-    // 1、非TND/NTD时, 以query的batch_size维度为基准;
-    // 2、Q和K都为TND/NTD时, actual_seq_lens_q必须传入, 以actual_seq_lens_q数组的长度为B轴大小
+    // 1、非TND时, 以query的batch_size维度为基准;
+    // 2、Q和K都为TND时, actual_seq_lens_q必须传入, 以actual_seq_lens_q数组的长度为B轴大小
     // 3、Q为TND，K为PA_BSND时，以actual_seq_lens_k数组的长度为B轴大小
     if (qLayout_ == DataLayout::BSND) {
         bSize_ = opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_ZERO);
@@ -481,11 +481,11 @@ ge::graphStatus QLIInfoParser::GetBatchSize()
             opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_TWO),
             opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_THREE));
         return ge::GRAPH_SUCCESS;
-    } else {  // BSND
-    uint32_t bSizeQuery;
-    uint32_t bSizeKey;
-    GetActualSeqLenSize(bSizeQuery, opParamInfo_.actualSeqLengthsQ.tensor, "input actual_seq_lengths_query");
-    GetActualSeqLenSize(bSizeKey, opParamInfo_.actualSeqLengthsK.tensor, "input actual_seq_lengths_key");
+    } else {  // TND
+        uint32_t bSizeQuery;
+        uint32_t bSizeKey;
+        GetActualSeqLenSize(bSizeQuery, opParamInfo_.actualSeqLengthsQ.tensor, "input actual_seq_lengths_query");
+        GetActualSeqLenSize(bSizeKey, opParamInfo_.actualSeqLengthsK.tensor, "input actual_seq_lengths_key");
         if (kLayout_ == DataLayout::TND) {
             OP_CHECK_IF(bSizeQuery != bSizeKey,
                 OP_LOGE(opName_, "the lengths of actual_seq_lengths_query is %u, %u respectively, they must be same.",
