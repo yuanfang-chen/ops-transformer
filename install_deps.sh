@@ -142,7 +142,10 @@ install_python_deps() {
         tornado \
         absl-py \
         "decorator>=5.1.0" \
-        --quiet --timeout=60
+        attrs \
+        jinja2 \
+        -i https://pypi.tuna.tsinghua.edu.cn/simple
+        --timeout=60
     echo "CANN Python dependencies installed."
 }
 
