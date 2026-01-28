@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This program is free software, you can redistribute it and/or modify.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file kv_rms_norm_rope_cache_tiling_def.h
@@ -39,6 +39,7 @@ struct KvRmsNormRopeCacheTilingData {
     int8_t isOutputKv = true;
     int8_t isKQuant = 1;
     int8_t isVQuant = 1;
+    int64_t methodMode = 0;
 };
 #define DTYPE_KV half
 #define DTYPE_K_CACHE int8_t
@@ -75,9 +76,20 @@ inline void InitTilingData(uint8_t* tiling, KvRmsNormRopeCacheTilingData* const_
     KvRmsNormRopeCacheTilingData tilingData;                                          \
     INIT_TILING_DATA(KvRmsNormRopeCacheTilingData, tilingDataPointer, tilingPointer); \
     (tilingData).blockDim = tilingDataPointer->blockDim;                              \
+    (tilingData).rowsPerBlock = tilingDataPointer->rowsPerBlock;                      \
     (tilingData).cacheLength = tilingDataPointer->cacheLength;                        \
+    (tilingData).batchSize = tilingDataPointer->batchSize;                            \
+    (tilingData).numHead = tilingDataPointer->numHead;                                \
+    (tilingData).seqLength = tilingDataPointer->seqLength;                            \
+    (tilingData).blockSize = tilingDataPointer->blockSize;                            \
+    (tilingData).blockFactor = tilingDataPointer->blockFactor;                        \
+    (tilingData).ubFactor = tilingDataPointer->ubFactor;                              \
     (tilingData).epsilon = tilingDataPointer->epsilon;                                \
-    (tilingData).reciprocal = tilingDataPointer->reciprocal;
+    (tilingData).reciprocal = tilingDataPointer->reciprocal;                          \
+    (tilingData).isOutputKv = tilingDataPointer->isOutputKv;                          \
+    (tilingData).isKQuant = tilingDataPointer->isKQuant;                              \
+    (tilingData).isVQuant = tilingDataPointer->isVQuant;                              \
+    (tilingData).methodMode = tilingDataPointer->methodMode;
 #endif
 
 #ifndef _KV_RMS_NORM_ROPE_CACHE_TILING_H_
@@ -106,6 +118,7 @@ struct KvRmsNormRopeCacheTilingData {
     int8_t isOutputKv = true;
     int8_t isKQuant = 1;
     int8_t isVQuant = 1;
+    int64_t methodMode = 0;
 };
 #define DTYPE_KV half
 #define DTYPE_K_CACHE int8_t
@@ -123,7 +136,18 @@ struct KvRmsNormRopeCacheTilingData {
     KvRmsNormRopeCacheTilingData tilingData;                                          \
     INIT_TILING_DATA(KvRmsNormRopeCacheTilingData, tilingDataPointer, tilingPointer); \
     (tilingData).blockDim = tilingDataPointer->blockDim;                              \
+    (tilingData).rowsPerBlock = tilingDataPointer->rowsPerBlock;                      \
     (tilingData).cacheLength = tilingDataPointer->cacheLength;                        \
+    (tilingData).batchSize = tilingDataPointer->batchSize;                            \
+    (tilingData).numHead = tilingDataPointer->numHead;                                \
+    (tilingData).seqLength = tilingDataPointer->seqLength;                            \
+    (tilingData).blockSize = tilingDataPointer->blockSize;                            \
+    (tilingData).blockFactor = tilingDataPointer->blockFactor;                        \
+    (tilingData).ubFactor = tilingDataPointer->ubFactor;                              \
     (tilingData).epsilon = tilingDataPointer->epsilon;                                \
-    (tilingData).reciprocal = tilingDataPointer->reciprocal;
+    (tilingData).reciprocal = tilingDataPointer->reciprocal;                          \
+    (tilingData).isOutputKv = tilingDataPointer->isOutputKv;                          \
+    (tilingData).isKQuant = tilingDataPointer->isKQuant;                              \
+    (tilingData).isVQuant = tilingDataPointer->isVQuant;                              \
+    (tilingData).methodMode = tilingDataPointer->methodMode;
 #endif
