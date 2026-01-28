@@ -108,6 +108,13 @@ struct ConstInfo {
     uint32_t actualLenDims = 0U;   // KV 的actualSeqLength 的维度
     bool isAccumSeqS1 = false;     // 是否累加模式
     bool isAccumSeqS2 = false;     // 是否累加模式
+
+    uint32_t s2Start = 0U;
+    uint32_t s2End = 0U;
+    uint32_t bN2Start = 0U;
+    uint32_t bN2End = 0U;
+    uint32_t gS1Start = 0U;
+    uint32_t gS1End = 0U;
 };
 
 struct SplitCoreInfo {

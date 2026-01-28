@@ -31,6 +31,7 @@ using namespace QLICommon;
 using namespace QLIServiceVec;
 using namespace matmul;
 using namespace optiling::detail;
+using namespace optiling;
 using AscendC::CacheMode;
 using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
@@ -60,7 +61,7 @@ public:
     __aicore__ inline QLIPreload(){};
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *weights,
                                 __gm__ uint8_t *queryScale, __gm__ uint8_t *keyScale, __gm__ uint8_t *actualSeqLengthsQ,
-                                __gm__ uint8_t *actualSeqLengthsK, __gm__ uint8_t *blockTable, const QliMetaData *__restrict metadata,
+                                __gm__ uint8_t *actualSeqLengthsK, __gm__ uint8_t *blockTable, __gm__ uint8_t *metadata,
                                 __gm__ uint8_t *sparseIndices, __gm__ uint8_t *workspace,
                                 const QLITilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
@@ -96,6 +97,7 @@ public:
 
 protected:
     TPipe *pipe = nullptr;
+    GlobalTensor<uint32_t> metadataGm;
 
     // offset
     uint64_t queryCoreOffset = 0ULL;
@@ -156,7 +158,7 @@ protected:
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::InitTilingData(const QLITilingData *__restrict tilingData)
 {
-    usedCoreNum = tilingData->usedCoreNum;
+    // usedCoreNum = tilingData->usedCoreNum;
     constInfo.batchSize = tilingData->bSize;
     constInfo.qHeadNum = constInfo.gSize = tilingData->gSize;
     constInfo.kSeqSize = tilingData->s2Size;
@@ -292,6 +294,25 @@ template <typename QLIT>
 __aicore__ void inline QLIPreload<QLIT>::SplitCore(uint32_t curCoreIdx, uint32_t &coreNum,
                                                    QLICommon::SplitCoreInfo &info)
 {
+    // if (aiCoreIdx != 0) {
+    //         constInfo.bN2Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_BN2_START_INDEX, false));
+    //         constInfo.gS1Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_M_START_INDEX, false));
+    //         constInfo.s2Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_S2_START_INDEX, false));
+    //     }
+    //     constInfo.bN2End = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_BN2_END_INDEX, false));
+    //     constInfo.gS1End = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_M_END_INDEX, false));
+    //     constInfo.s2End  = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_S2_END_INDEX, false));
+    // }
+
+    // if (aiCoreIdx != 0) {
+    //         constInfo.bN2Start = metadataGm.GetValue();
+    //         constInfo.gS1Start = metadataGm.GetValue();
+    //         constInfo.s2Start = metadataGm.GetValue();
+    //     }
+    //     constInfo.bN2End = metadataGm.GetValue();
+    //     constInfo.gS1End = metadataGm.GetValue();
+    //     constInfo.s2End  = metadataGm.GetValue();
+    // }
     // 当前还未接入metadata，S2的分块没有考虑margin
     uint32_t totalBlockNum = GetTotalBaseBlockNum();
     uint32_t minBlockPerCore = totalBlockNum / coreNum;
@@ -401,9 +422,9 @@ template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *weights,
                                               __gm__ uint8_t *queryScale, __gm__ uint8_t *keyScale,
                                               __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengthsK,
-                                              __gm__ uint8_t *blockTable, const QliMetaData *__restrict metadata, __gm__ uint8_t *sparseIndices,
-                                              __gm__ uint8_t *workspace, const QLITilingData *__restrict tiling,
-                                              TPipe *tPipe)
+                                              __gm__ uint8_t *blockTable, __gm__ uint8_t *metadata,
+                                              __gm__ uint8_t *sparseIndices, __gm__ uint8_t *workspace,
+                                              const QLITilingData *__restrict tiling, TPipe *tPipe)
 {
     if ASCEND_IS_AIV {
         tmpBlockIdx = GetBlockIdx();  // vec:0-47
@@ -415,6 +436,8 @@ __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint
 
     InitTilingData(tiling);
     InitActualSeqLen(actualSeqLengthsQ, actualSeqLengthsK);
+
+    metadataGm.SetGlobalBuffer((__gm__ uint32_t *)metadata);
 
     // 计算分核
     SplitCore(aiCoreIdx, usedCoreNum, splitCoreInfo);
@@ -596,7 +619,12 @@ __aicore__ inline void QLIPreload<QLIT>::CalcRunInfo(uint32_t loop, uint32_t s2L
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::Process()
 {
-    if (usedCoreNum == 0) {
+    // uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_CORE_ENABLE_INDEX, false));
+    // if (hasLoad == 0) {
+    //     return;
+    // }
+
+    if (usedCoreNum == 0) {  // TODO: 删除usedCoreNum
         // 没有计算任务，直接清理输出
         ProcessInvalid();
         return;
