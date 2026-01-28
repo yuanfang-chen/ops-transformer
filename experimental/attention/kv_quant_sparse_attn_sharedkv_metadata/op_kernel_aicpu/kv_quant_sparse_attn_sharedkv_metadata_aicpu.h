@@ -224,10 +224,10 @@ struct AssignContext {
     CoreCache coreCache {};
 };
 
-class KVQuantSparseAttnSharedkvMetadataCpuKernel : public CpuKernel {
+class KvQuantSparseAttnSharedkvMetadataCpuKernel : public CpuKernel {
 public:
-  KVQuantSparseAttnSharedkvMetadataCpuKernel() = default;
-  ~KVQuantSparseAttnSharedkvMetadataCpuKernel() = default;
+  KvQuantSparseAttnSharedkvMetadataCpuKernel() = default;
+  ~KvQuantSparseAttnSharedkvMetadataCpuKernel() = default;
   uint32_t Compute(CpuKernelContext &ctx) override;
 
 private:
@@ -284,7 +284,6 @@ private:
   CpuKernelContext *context_ = nullptr;
 
   // input
-  Tensor *q_ = nullptr;
   Tensor *actSeqLenQ_ = nullptr;
   Tensor *actSeqLenOriKV_ = nullptr;
   Tensor *actSeqLenCmpKV_ = nullptr;
@@ -335,12 +334,11 @@ private:
 private:
   enum class ParamId : uint32_t {
     // input
-    q = 0,
-    actSeqLenQ = 1,
-    actSeqLenOriKV = 2,
-    actSeqLenCmpKV = 3,
-    SeqUsedQ = 4,
-    SeqUsedKV = 5,
+    actSeqLenQ = 0,
+    actSeqLenOriKV = 1,
+    actSeqLenCmpKV = 2,
+    SeqUsedQ = 3,
+    SeqUsedKV = 4,
     // output
     metaData = 0,
   };
