@@ -1,12 +1,12 @@
 /**
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file compressor_block_cube.h
@@ -126,7 +126,6 @@ private:
     // =================================Loop======================================
     uint32_t curBIdx_ = 0;
     uint32_t curSIdx_ = 0;
-
 };
 
 template <typename COMP>
@@ -233,7 +232,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyWeightGmToL1(const RunInfo
     // hIdx: hidden_size轴的索引ID
     // kBase: hidden_size轴单次往L1搬运的长度, 128
     // nLoopIdx: D方向L1搬运的循环ID, 0/1
-    //      
     //      coff=1时, nLoopIdx=0, 搬运wkv nBase, nLoopIdx=1, 搬运wgate nBase
     if constexpr (COMP::coff == COFF::OVERLAP) {
         // coff=2时, constInfo_.dBaseSize = 64, wkv和wgate在D轴各占一半
@@ -255,9 +253,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyWeightGmToL1(const RunInfo
         } else {
             CopySingleMatrixNDToNZ(wL1Tensor[ubOffset], wgateGm_[gmOffset], constInfo_.dBaseSize, kBase, constInfo_.hSize, constInfo_.dBaseSize);
         }
-        // uint32_t array2[] = {static_cast<uint32_t>(1024), static_cast<uint32_t>(16)};
-        // AscendC::ShapeInfo shapeInfo(2, array2);
-        // DumpTensor(wL1Tensor[ubOffset], 1, 128 * 128, shapeInfo);
     }
 }
 
@@ -419,9 +414,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::CopyXGmToL1(const RunInfo &inf
 
         mSizeFinish += headHolderCnt + canCopyCnt + tailHolderCnt;
     }
-    // uint32_t array2[] = {static_cast<uint32_t>(1024), static_cast<uint32_t>(16)};
-    // AscendC::ShapeInfo shapeInfo(2, array2);
-    // DumpTensor(xL1Tensor, 2, 128 * 128, shapeInfo);
 }
 
 template <typename COMP>
@@ -548,28 +540,19 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
                             uint32_t K_L0_BASE = K_L1_BASE;
                             LoadAToL0(aL0Tensor, xL1Tensor, mL1, mDealSize, K_L0_BASE, mSize, (nL1 > 0));
                             uint32_t N_L0_BASE = N_L1_BASE;
-                            // InitConstValueParams<X_T> initParams;
-                            // initParams.repeatTimes = 8;
-                            // initParams.blockNum = 8;
-                            // initParams.dstGap = 0;
-                            // initParams.initValue = 1;
-                            // AscendC::InitConstValue(bL0Tensor, initParams);
+
                             LoadBToL0(bL0Tensor, wL1Tensor, nL1, N_L0_BASE, N_L0_BASE, K_L0_BASE);
                             SetFlag<HardEvent::MTE1_M>(L0AB_EVENT0 + l0abBufId);
                             WaitFlag<HardEvent::MTE1_M>(L0AB_EVENT0 + l0abBufId);
                             MatrixMmad(cL0Tensor, aL0Tensor, bL0Tensor, mDealSize, N_L0_BASE, K_L0_BASE, (h == 0) && (kL1Idx == 0));
-                            // if (kL1Idx > 0) {
-                            //     uint32_t array2[] = {static_cast<uint32_t>(1024), static_cast<uint32_t>(16)};
-                            //     AscendC::ShapeInfo shapeInfo(2, array2);
-                            //     DumpTensor(cL0Tensor, 3, 128 * 128, shapeInfo);
-                            // }
+
                             SetFlag<HardEvent::M_MTE1>(L0AB_EVENT0 + l0abBufId);
                             l0abBufId = (l0abBufId + 1) % 2;
                         }
                         {
                             SetFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0cBufId);
                             WaitFlag<HardEvent::M_FIX>(L0C_EVENT0 + l0cBufId);
-                            // FixPipe();
+
                             if (kL1Idx != 0 || h != 0) {
                                 SetAtomicAdd<MM1_OUT_T>();
                             }
@@ -620,7 +603,6 @@ __aicore__ inline void CompressorBlockCube<COMP>::ComputeMm1(const RunInfo &info
             wBufId = (wBufId + 1) % 2;
         }
     }
-
 }
 
 } // namespace Compressor

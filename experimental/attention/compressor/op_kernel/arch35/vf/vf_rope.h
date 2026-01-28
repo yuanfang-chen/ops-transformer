@@ -200,9 +200,7 @@ __aicore__ inline void InterleaveModeVF(
     __local_mem__ ROPET* currCosUb;
     __local_mem__ ROPET* tailSinUb;
     __local_mem__ ROPET* tailCosUb;
-    // printf("interleavemode\n");
-    // printf("dLen:[%u]----currSNum:[%u]--currDNum:[%u]--loopNum[%u]---tailNum[%u]--tailTwoVL[%u]--tailOneVL[%u]--tailLen[%u]",
-    // dLen,currSNum,currDNum,loopNum,tailNum,tailTwoVL,tailOneVL,tailLen);
+
     __VEC_SCOPE__
     {
         MicroAPI::RegTensor<float> vregFormerCos;
