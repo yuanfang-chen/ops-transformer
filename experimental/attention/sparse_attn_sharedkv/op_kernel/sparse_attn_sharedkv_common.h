@@ -224,6 +224,8 @@ struct RunInfo {
     int64_t cmpS2IdLimit = 0;
     int32_t v0S2DealSize = 0;
     int32_t v0S2Start = 0;
+    uint32_t oriDealSize = 0;
+    int32_t cmpMaskRight = 0;
 };
 
 struct ConstInfo {

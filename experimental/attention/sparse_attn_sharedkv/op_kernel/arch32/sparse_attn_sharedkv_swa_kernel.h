@@ -189,6 +189,7 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::InitTilingData()
     // singleCoreTensorSize
     constInfo.mmResUbSize = tilingData->baseParams.mmResUbSize;
     constInfo.bmm2ResUbSize = tilingData->baseParams.bmm2ResUbSize;
+    constInfo.vec1ResUbSize = 256 * 512; // constInfo.mmResUbSize * msdIterNum
     // baseParams
     constInfo.batchSize = tilingData->baseParams.batchSize;
     constInfo.qHeadNum = constInfo.gSize = tilingData->baseParams.nNumOfQInOneGroup;
@@ -343,7 +344,7 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::UpdateInnerLoopCond()
         return;
     }
     tempLoopInfo.curActSeqLenIsZero = false;
-    tempLoopInfo.mBasicSizeTail = (tempLoopInfo.actS1Size * constInfo.gSize) % constInfo.mBaseSize;
+    tempLoopInfo.mBasicSizeTail = ((tempLoopInfo.s1EndIdx - tempLoopInfo.s1StartIdx + 1) * constInfo.gSize) % constInfo.mBaseSize;
     tempLoopInfo.mBasicSizeTail =
         (tempLoopInfo.mBasicSizeTail == 0) ? constInfo.mBaseSize : tempLoopInfo.mBasicSizeTail;
 }
@@ -473,7 +474,8 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::CalcParams(uint32_t loop, ui
     info.tndCoreStartKVSplitPos = tempLoopInfo.tndCoreStartKVSplitPos;
     info.isBmm2Output = false;
     info.actS1Size = tempLoopInfo.actS1Size;
-
+    info.oriDealSize = tempLoopInfo.oriMaskRight + tempLoopInfo.s1StartIdx - tempLoopInfo.oriMaskLeft - tempLoopInfo.s1EndIdx;
+        info.cmpMaskRight = tempLoopInfo.cmpMaskRight;
     // M方向的尾块
     info.actMBaseSize = tempLoopInfo.mBasicSizeTail;
 
@@ -632,8 +634,7 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::ProcessBalance()
             tempLoopInfo.oriMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size +
                                         static_cast<int32_t>(tempLoopInfo.s1EndIdx) + constInfo.oriWinRight;
             tempLoopInfo.oriMaskLeft = Max(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size +
-                                               static_cast<int32_t>(tempLoopInfo.s1EndIdx) - constInfo.oriWinLeft,
-                                           0);
+                                        static_cast<int32_t>(tempLoopInfo.s1StartIdx) - constInfo.oriWinLeft, 0);
             if (constInfo.templateMode == CFA_TEMPLATE) {
                 tempLoopInfo.cmpMaskRight = tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size;
             }

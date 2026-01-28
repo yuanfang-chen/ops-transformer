@@ -1374,6 +1374,8 @@ void SparseAttnSharedkvTiling::SplitBalanced(SASTilingInfo *tilingInfo)
     uint32_t s2Size = tilingInfo->s2Size;
     sInnerSizeAlign_ = Align(sInnerSize_, BYTE_BLOCK); // 元素个数按照基本块大小对齐
     headDimAlign_ = Align(tilingInfo->qHeadDim, BYTE_BLOCK);
+    mBaseSize_ = tilingInfo->perfMode == SASTemplateMode::SCFA_TEMPLATE_MODE ? 
+        tilingInfo->gSize : 4 * tilingInfo->gSize;
     CalcUbBmm(tilingInfo);
 
     tilingData_.baseParams.set_mBaseSize(mBaseSize_);
@@ -1408,7 +1410,7 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     workspaceSize += PRELOAD_NUM * bmm2ResUbSize_ * MM2_RES_ELEM_SIZE * aicNum;
     workspaceSize += PRELOAD_NUM * bmm2ResUbSize_ * VEC2_RES_ELEM_SIZE * aicNum;
     if (tilingInfo->perfMode == SASTemplateMode::SCFA_TEMPLATE_MODE) {
-        workspaceSize += 4 * 512 * 512 * 2 * aicNum; // 4:bufNum 512:s2Size  512:D 2:sizeof(half)
+        workspaceSize += 3 * 512 * 512 * 2 * aicNum; // 3:bufNum 512:s2Size  512:D 2:sizeof(half)
         workspaceSize += 4 * 128 * 4 * (2 * aicNum); // 4:缓存有效mte2 size长度 128:份数 4:512B对齐长度 2:aiv数量
     }
     size_t *workSpaces = context_->GetWorkspaceSizes(1);

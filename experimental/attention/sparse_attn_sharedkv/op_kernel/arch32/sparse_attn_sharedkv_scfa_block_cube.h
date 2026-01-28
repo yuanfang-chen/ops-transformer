@@ -413,10 +413,8 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
                     nd2nzPara.dstNzNStride = 1;
                     nd2nzPara.srcNdMatrixStride = 0;
                     nd2nzPara.dstNzMatrixStride = 0;
-                    DataCopy(bL1Tensor,
-                             kvMergeGm_[info.cmpLoop % 4 * N_WORKSPACE_SIZE * kSize +
-                                        nL1 * N_SPLIT_SIZE * constInfo.headDim],
-                             nd2nzPara);
+                    DataCopy(bL1Tensor, kvMergeGm_[info.cmpLoop % 3 * N_WORKSPACE_SIZE * kSize +
+                            nL1 * N_SPLIT_SIZE * constInfo.headDim], nd2nzPara);
                 } else {
                     Nd2NzParams nd2nzPara;
                     nd2nzPara.ndNum = 1;
@@ -428,7 +426,7 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
                     nd2nzPara.srcNdMatrixStride = 0;
                     nd2nzPara.dstNzMatrixStride = 0;
                     DataCopy(bL1Tensor,
-                             kvMergeGm_[info.cmpLoop % 4 * N_WORKSPACE_SIZE * kSize + (constInfo.headDim >> 1) +
+                                kvMergeGm_[info.cmpLoop % 3 * N_WORKSPACE_SIZE * kSize + (constInfo.headDim >> 1) +
                                         nL1 * N_SPLIT_SIZE * constInfo.headDim],
                              nd2nzPara);
                 }
@@ -627,9 +625,8 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                     nd2nzPara.srcNdMatrixStride = 0;
                     nd2nzPara.dstNzMatrixStride = 0;
                     DataCopy(bL1Tensor[(kL1 - kOffset) * 128 * N_SPLIT_SIZE],
-                             kvMergeGm_[info.cmpLoop % 4 * N_WORKSPACE_SIZE * 512 + kL1 * 128 * constInfo.headDim +
-                                        nL1 * N_SPLIT_SIZE],
-                             nd2nzPara);
+                             kvMergeGm_[info.cmpLoop % 3 * N_WORKSPACE_SIZE * 512 + kL1 * 128 * constInfo.headDim +
+                             nL1 * N_SPLIT_SIZE], nd2nzPara);
                 }
             }
             SetFlag<HardEvent::MTE2_MTE1>(mte21KVIds[kb]);
