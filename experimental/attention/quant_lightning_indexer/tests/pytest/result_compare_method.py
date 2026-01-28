@@ -22,8 +22,6 @@ from time import time
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
 
-
-
 def cal_relative_diff_np_isclose(real_data, expect_data, type_str='fp16'):
     diff = abs(float(real_data) - float(expect_data))
     result = diff / (np.abs(expect_data) + 10e-10)
@@ -78,7 +76,6 @@ def display_output_np_isclose(real_data, expect_data, start, end, expect_fp32_da
         j = idx + start
         diff_rate = cal_relative_diff_np_isclose(
             real_data[j], expect_data[j])
-
         if "inf" in str(expect_data[j]) or "nan" in str(expect_data[j]):
             diff_abs = "inf" if "inf" in str(expect_data[j]) else "nan"
             if expect_fp32_data is not None:
@@ -96,7 +93,6 @@ def display_output_np_isclose(real_data, expect_data, start, end, expect_fp32_da
             else:
                 print_log('%08d \t %0.7f \t %0.7f \t %0.7f \t %0.7f' % (
                     start + idx + 1, expect_data[j], real_data[j], diff_abs, diff_rate))
-
     print_log(
         '---------------------------------------------------------------------------------------')
     if expect_fp32_data is not None:
@@ -132,7 +128,6 @@ def find_batch_and_position(act_q, x):
     """
     if not act_q:
         return (-1, -1)
-
     # 遍历前缀和列表查找所属批次
     for batch_idx in range(len(act_q)):
         # 计算当前批次的起始位置
@@ -142,7 +137,6 @@ def find_batch_and_position(act_q, x):
             # 计算在当前批次中的位置（偏移量）
             position = x - start
             return (batch_idx, position)
-
     # 超出所有批次范围
     return (-1, -1)
 
@@ -164,7 +158,6 @@ def judge_value_by_isclose(real_data, data_compe):
     else:
         diff_result = np.isclose(real_data, data_compe, rtol=rtol, atol=atol, equal_nan=True)
     err_idx = np.where(diff_result != np.array((True,)))[0]
-
     diff_abs = abs(data_compe - real_data)
     b1 = np.maximum(np.abs(real_data), (np.abs(data_compe)))
     b2 = float((1.0 / (1 << 14)) / diff_thd)
@@ -172,19 +165,11 @@ def judge_value_by_isclose(real_data, data_compe):
     eps = 10e-10
     err_diff = diff_abs / (b + eps)
     err_diff = err_diff[err_idx]
-
     fulfill_percent = float(split_count - err_idx.size) / \
                       float(split_count) * 100.0
-
-    # display_output_np_isclose(real_data, data_compe, start, end)
     pct_thd = (1 - pct_thd) * 100.0
     result = True if (fulfill_percent >= pct_thd) else False
-    if result:
-        print(f'     cpu/npu value 两方is_close对比success')
-    else:
-        print(f'     cpu/npu value 两方is_close对比fail')
     return result
-
 
 def compare_topk_valid(cur_cpu, cur_npu, topk_value, bsn, diff_npu, diff_cpu,
                        cur_npu_output_value=None, cur_cpu_output_value=None, thres=0.0001, return_value_flag=False):
@@ -200,19 +185,15 @@ def compare_topk_valid(cur_cpu, cur_npu, topk_value, bsn, diff_npu, diff_cpu,
     else:
         value_bm = topk_value[b_idx, n2_idx, s1_idx, cur_cpu[-1]]
         element_list = topk_value[b_idx, n2_idx, s1_idx, :]
-
         only_in_npu = npu_set - cpu_set
         only_in_cpu = cpu_set - npu_set
         only_in_npu_list = list(only_in_npu)
         only_in_cpu_list = list(only_in_cpu)
-        # 两个list长度一定相等
         for diff_idx in range(len(only_in_npu_list)):
             element_npu = element_list[only_in_npu_list[diff_idx]]
             element_cpu = element_list[only_in_cpu_list[diff_idx]]
-
             npu_ae = abs(element_npu - value_bm)
             cpu_ae = abs(element_cpu - value_bm)
-
             if value_bm == 0:
                 if npu_ae == 0:
                     npu_re = 0.0
@@ -225,7 +206,6 @@ def compare_topk_valid(cur_cpu, cur_npu, topk_value, bsn, diff_npu, diff_cpu,
             else:
                 npu_re = abs(npu_ae / value_bm)
                 cpu_re = abs(cpu_ae / value_bm)
-
             if npu_re > thres or cpu_re > thres:
                 if return_value_flag:
                     if not judge_value_by_isclose(cur_npu_output_value, cur_cpu_output_value):
@@ -259,7 +239,6 @@ def check_result(expect, result, topk_value, params):
     qk_dtype, dequant_dtype, actual_seq_dtype, act_seq_q, act_seq_k, query_quant_mode,key_quant_mode, layout_query,\
     layout_key, sparse_count, sparse_mode, query_datarange, key_datarange, weights_datarange, q_scale_datarange,\
     k_scale_datarange, cmp_ratio = params
-
     # 处理B+1
     # print(f"===== {act_seq_q} =====")
     if isinstance(act_seq_q, int):
@@ -305,15 +284,12 @@ def check_result(expect, result, topk_value, params):
     elif layout_query in ["TND"]:
         sp = (q_t_size, k_head_num)
         total_rows = q_t_size * k_head_num
-        # act_q = trans_tnd_actseq(act_seq_q)
     else:
         total_rows = 0
         sp = (0, 0)
     print(f"total_line is {total_rows}")
     npu_reshape = npu_output.reshape([total_rows, sparse_count])
     cpu_reshape = cpu_output.reshape([total_rows, sparse_count])
-
-
     start_time = time()
     invalid_data = cpu_reshape != -1
     valid_lens = invalid_data.sum(axis=-1)  # (total_rows,)
@@ -326,22 +302,18 @@ def check_result(expect, result, topk_value, params):
     rows = []
     if np.any(diff_rows):
         rows = np.where(diff_rows)[0]
-
     num_rows = len(rows)
     if num_rows:
         print(f"需要进行第二步比较的batch有{num_rows}")
     else:
         print(f"有效值集合相同，无需进行比较")
-
     for t_id in rows:
         bsn = np.unravel_index(t_id, sp)
         if layout_query == "TND":
             b_idx, s1_idx = find_batch_and_position(act_seq_q, bsn[0])
             bsn = (b_idx, s1_idx, bsn[-1])
-
         cur_cpu_output_value = cpu_reshape[t_id, :]
         cur_npu_output_value = npu_reshape[t_id, :]
-
         npu_pass_t = True
         max_re_t = 0
         valid_len = valid_lens[t_id]
@@ -353,7 +325,6 @@ def check_result(expect, result, topk_value, params):
         if not npu_pass_t:
             npu_pass = False
     end_time = time()
-
     print(f"耗时：{end_time - start_time:.6f} 秒")
     topk_precision = not diff_npu and not diff_cpu
     if topk_precision:
@@ -361,7 +332,6 @@ def check_result(expect, result, topk_value, params):
     else:
         print(f'[fail]TopK精度失败')
     print(f"npu_pass is {npu_pass}")
-
     if real_data.size == 0 and real_data.size == data_compe.size:
         print_log(
             'The npu_output is [],and it is same as bm_output, the result of data_compare is \"Pass\"')
@@ -384,12 +354,9 @@ def check_result(expect, result, topk_value, params):
               (float(split_count), max_diff_hd))
     fulfill_percent = float(split_count - err_idx.size) / \
                         float(split_count) * 100.0
-
     display_output_np_isclose(real_data, data_compe, start, end)
     pct_thd = (1 - pct_thd) * 100.0
-
     result = "Pass" if (npu_pass or topk_precision) else "Failed"
-
     print_log(
         '---------------------------------------------------------------------------------------')
     print_log('Rtol   \t Atol   \t PctThd   \t PctRlt   \t Result')

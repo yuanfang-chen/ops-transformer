@@ -9,7 +9,6 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
-
 import itertools
 import torch
 import torch_npu
@@ -18,13 +17,10 @@ import result_compare_method
 import quant_lightning_indexer_golden
 import pytest
 
-
-
 for _, params in enumerate(ENABLED_PARAMS):
     # 将params的所有字段注册为局部变量
     for key, value in params.items():
         locals()[f"param_{key}"] = value
-
     # 生成所有参数组合
     param_names = [
         "batch_size", "q_seq", "k_seq", "q_t_size", "k_t_size", "q_head_num", "k_head_num","head_dim", 
@@ -32,7 +28,6 @@ for _, params in enumerate(ENABLED_PARAMS):
         "query_quant_mode", "key_quant_mode", "layout_query","layout_key", "sparse_count", "sparse_mode", 
         "query_datarange","key_datarange","weights_datarange","q_scale_datarange","k_scale_datarange","cmp_ratio"
     ]
-
     param_values = [
         locals()["param_batch_size"],
         locals()["param_q_seq"],
@@ -69,7 +64,6 @@ for _, params in enumerate(ENABLED_PARAMS):
         param_dict = dict(zip(param_names, combo))
         locals()["param_combinations"].append(param_dict)
 
-
     @pytest.mark.ci
     @pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
     def test_qli(param_combinations):   # 初始化参数和tensor
@@ -100,26 +94,16 @@ for _, params in enumerate(ENABLED_PARAMS):
         q_scale_datarange = param_combinations['q_scale_datarange']
         k_scale_datarange = param_combinations['k_scale_datarange']
         cmp_ratio = param_combinations['cmp_ratio']
-
-
         torch_npu.npu.set_device(0)
-
-
         test_data = batch_size, q_seq, k_seq, q_t_size, k_t_size, q_head_num, k_head_num, head_dim, block_size, block_num,\
                     qk_dtype, dequant_dtype, actual_seq_dtype, act_seq_q, act_seq_k, query_quant_mode,key_quant_mode, layout_query,\
                     layout_key, sparse_count, sparse_mode, query_datarange, key_datarange, weights_datarange, q_scale_datarange,\
                     k_scale_datarange, cmp_ratio
-        
-
-        # print("test_data:", test_data)
 
         # 获得cpu结果(真值)和算子结果（测试值）
         cpu_result, npu_result, topk_value = quant_lightning_indexer_golden.qli_output_single(test_data)
-
-        
         print("npu_result", npu_result)
         print("cpu_result:", cpu_result)
-
         # 结果精度对比
         result, fulfill_percent = result_compare_method.check_result(cpu_result, npu_result, topk_value, test_data)
         print("result", result)

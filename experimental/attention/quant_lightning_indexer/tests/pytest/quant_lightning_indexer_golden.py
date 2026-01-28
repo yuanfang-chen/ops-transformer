@@ -97,11 +97,11 @@ class GeneralizedQLI:
         for b_idx in range(batch_size):
             curr_actualSeq_q = actualSeqLengths_q[b_idx]
             curr_actualSeq_k = math.floor(actualSeqLengths_k[b_idx] /cmp_ratio)
-            self.cur_actseq_q= curr_actualSeq_q
+            self.cur_actseq_q = curr_actualSeq_q
             self.cur_actseq_k = curr_actualSeq_k
             self.cur_q = q_bnsd_tensor[b_idx:(b_idx + 1), :, :curr_actualSeq_q, :]
             self.cur_k = k_bnsd_tensor[b_idx:(b_idx + 1), :, :curr_actualSeq_k, :]
-            self.cur_wt= wt_bnsd_tensor[b_idx:(b_idx + 1), :, :curr_actualSeq_q, :]
+            self.cur_wt = wt_bnsd_tensor[b_idx:(b_idx + 1), :, :curr_actualSeq_q, :]
             self.cur_q_scale = q_scale_bnsd_tensor[b_idx:(b_idx + 1), :, :curr_actualSeq_q, :]
             self.cur_k_scale = k_scale_bnsd_tensor[b_idx:(b_idx + 1), :, :curr_actualSeq_k]
             if self.sparse_mode != 0:
@@ -195,7 +195,6 @@ class GeneralizedQLI:
                 list_new.append(new_item)
             else:
                 raise ValueError(f'TND情况下 act_seq_len 为非递减数列 act_seq_len={list}')
-
         return list_new
 
     def cal_atten_per_batch(self,b_idx):
@@ -221,7 +220,6 @@ class GeneralizedQLI:
         temp_g = self.group_size
         temp_n2 = self.k_head_num
         temp_b_idx = self.cur_b_idx
-
         actual_selected_count = min(temp_s2, sparse_count)
         reduce_sum = brc_vmul.reshape(temp_b, temp_n2, temp_s1, temp_s2)  
         reduce_sum[0, :, :, :] = reduce_sum[0, :, :, :] * cur_k_scale
@@ -240,9 +238,7 @@ class GeneralizedQLI:
         if sparse_mode == 3:
             for i in range(temp_s1):
                 row_mask = cur_m_broadcasted[0, 0, i, :].to(dtype = torch.bool)
-                # print("row_mask:", row_mask)
                 true_indices = torch.where(~row_mask)[0]
-                # print("true_indices:",true_indices)
                 row_ele = to_be_sort_ele[0, 0, i, true_indices]
                 indices = torch.arange(len(row_ele), device = row_ele.device)
 
@@ -408,25 +404,12 @@ class GeneralizedQLI:
             k_max_s2 = math.floor(max(actualSeqLengths_k)/self.cmp_ratio)
             k_shape = [batch_size, k_head_num, k_max_s2, head_dim]
             k_scale_shape = [batch_size, k_head_num, k_max_s2]
-
-        # query = query.cpu().numpy()
-        # query = query.cpu().to(torch.float32).numpy()
-        # print("query2:", query)
-
-        # key = key.cpu().to(torch.float32).numpy()
         query = query.cpu()
         key = key.cpu()
-        # print("query1 - shape:", query.shape, "dtype:", query.dtype, "device:", query.device)
-        # import pdb; pdb.set_trace()
         weights = weights.cpu()
         query_dequant_scale = query_dequant_scale.cpu()
         key_dequant_scale = key_dequant_scale.cpu()
-
-        # print("query - shape:", query.shape, "dtype:", query.dtype, "device:", query.device)
-        # print("key - shape:", key.shape, "dtype:", key.dtype, "device:", key.device)
-        # print("weights - shape:", weights.shape, "dtype:", weights.dtype, "device:", weights.device)
-        # print("query_dequant_scale - shape:", query_dequant_scale.shape, "dtype:", query_dequant_scale.dtype, "device:", query_dequant_scale.device)
-        # print("key_dequant_scale - shape:", key_dequant_scale.shape, "dtype:", key_dequant_scale.dtype, "device:", key_dequant_scale.device)
+    
         # 将输入转化为BNSD
         ## BSND / TND -> BNSD
         q_bnsd_tensor, q_bnsd_shape = self.trans_shape_to_bnsd(query, q_shape, layout_query,
@@ -451,13 +434,9 @@ class GeneralizedQLI:
         q_scale_bnsd_tensor, q_scale_bnsd_shape = self.trans_shape_to_bnsd(query_dequant_scale, q_scale_shape,
                                                                     layout_query, 
                                                                     q_head_num, actualSeqLengths_q, is_weights)
-
-
         # 将 k n2轴 广播为 n1
         if q_head_num != k_head_num:
             k_bnsd_tensor, k_bnsd_shape = self.broadcast_n_axis(q_head_num, k_head_num, k_bnsd_tensor, k_dtype)
-
-
         self.q_bnsd_tensor = q_bnsd_tensor
         self.q_bnsd_shape = q_bnsd_shape
         self.k_bnsd_tensor = k_bnsd_tensor
@@ -468,7 +447,6 @@ class GeneralizedQLI:
         self.q_scale_bnsd_shape = q_scale_bnsd_shape
         self.k_scale_bnsd_tensor = k_scale_bnsd_tensor
         self.k_scale_bnsd_shape = k_scale_bnsd_shape
-
         # 生成mask, sparse_mode=3时使能
         m_shape_std = [q_bnsd_shape[2], k_bnsd_shape[2]] #m_shape应该是[s1,s2]
         batch = q_bnsd_shape[0]
@@ -480,18 +458,12 @@ class GeneralizedQLI:
         else:
             raise ValueError("unsupported sparse_mode!")
         self.m_tensor = m_tensor
-
         y, y_value = self.cal_atten_bnsd()
-        # y = torch.from_numpy(y)
-        # y_value = torch.from_numpy(y_value)
-
         # TND & PA 需要传入out_shape为BNSD
         out_shape_bnsd = copy.deepcopy(self.q_bnsd_shape)
         out_shape_bnsd[1] = k_head_num
         out_shape_bnsd[-1] = sparse_count
-
         y = self.trans_bnsd_to_layout(y, out_shape_bnsd, layout_query, actualSeqLengths_q)
-
         return y, y_value
 
 def trans_prefix_actseq(self,list):
@@ -506,7 +478,6 @@ def trans_prefix_actseq(self,list):
                 list_new.append(new_item)
             else:
                 raise ValueError(f'PA场景下act seq 为非递减数列 act_seq ={list}')
-
         return list_new
 
 def qli_output_single(params):
@@ -518,7 +489,6 @@ def qli_output_single(params):
     test_qli = GeneralizedQLI(batch_size, q_seq, k_seq, q_t_size, k_t_size, q_head_num, k_head_num, head_dim, block_size, block_num,
                               qk_dtype, dequant_dtype, actual_seq_dtype, act_seq_q, act_seq_k, query_quant_mode,
                               key_quant_mode, layout_query, layout_key, sparse_count, sparse_mode, cmp_ratio)
-
 
     actual_seq_lengths_query = torch.tensor(np.random.uniform(q_seq, q_seq, batch_size)).to(actual_seq_dtype).npu() \
                             if act_seq_q is None else torch.tensor(act_seq_q).to(actual_seq_dtype).npu()
@@ -540,20 +510,19 @@ def qli_output_single(params):
         key_dequant_scale = torch.tensor(np.random.uniform(k_scale_datarange[0], k_scale_datarange[1], (batch_size, k_seq, k_head_num))).to(dequant_dtype).npu()
         block_table = None
         cpu_result, topk_value = test_qli.forward(query, key, weights, query_dequant_scale, key_dequant_scale, actual_seq_lengths_query, actual_seq_lengths_key, block_table)
-
+    
     elif layout_key == "TND":
         key = torch.tensor(np.random.uniform(key_datarange[0], key_datarange[1], (k_t_size, k_head_num, head_dim))).to(qk_dtype).npu()
         key_dequant_scale = torch.tensor(np.random.uniform(k_scale_datarange[0], k_scale_datarange[1], (k_t_size, k_head_num))).to(dequant_dtype).npu()
         block_table = None
         cpu_result, topk_value = test_qli.forward(query, key, weights, query_dequant_scale, key_dequant_scale, actual_seq_lengths_query, actual_seq_lengths_key, block_table)
-
+   
     elif layout_key == "PA_BSND":
         # 以不同batch中最大seq为标准初始化key(bnsd)和key_dequant_scale(bns)
         k_max_s2 = math.floor(max(act_seq_k)/cmp_ratio)
         k_max_block_num_per_batch = math.ceil(k_max_s2 / block_size) #遍历batch得到的最大的block num
         key_bnsd = torch.tensor(np.random.uniform(key_datarange[0], key_datarange[1],(batch_size, k_head_num, k_max_s2, head_dim))).to(qk_dtype)
         key_dequant_scale_bns = torch.tensor(np.random.uniform(k_scale_datarange[0], k_scale_datarange[1], (batch_size, k_head_num, k_max_s2))).to(dequant_dtype)
-
         key_block_num_per_batch = []
         key_block_num_sum = 0
         for cur_act_k in act_seq_k:
@@ -563,7 +532,6 @@ def qli_output_single(params):
             key_block_num_sum += cur_key_block_num
         if block_num < key_block_num_sum:
             raise ValueError(f"key actual block num < needed block num")
-
         # 构建block table
         block_id_list = np.arange(block_num)
         block_id_list = np.random.permutation(block_id_list).astype(np.int32)
@@ -575,7 +543,6 @@ def qli_output_single(params):
                 block_table[batch_idx][i_block_id] = block_id_list[cur_block_id]
                 cur_block_id += 1
             batch_idx += 1
-        
         # 构建PA场景的key
         # [batch_size, s2, k_head_num, head_dim] expand to [batch_size, k_max_block_num_per_batch * block_size, k_head_num, head_dim]
         key_expand = torch.zeros((batch_size, k_head_num, k_max_block_num_per_batch * block_size, head_dim), dtype = qk_dtype)
@@ -590,8 +557,6 @@ def qli_output_single(params):
                     for i_n in range(k_head_num):
                         key[cur_block_id, :, i_n, :] = key_expand[i_batch, i_n, block_start_pos:block_start_pos+block_size,:]
         key = key.npu()
-
-
         # 构建PA场景的key_dequant_scale
         key_dequant_scale_expand = torch.zeros((batch_size, k_head_num, k_max_block_num_per_batch * block_size), dtype= dequant_dtype)
         key_dequant_scale_expand[:,:,:k_max_s2] = key_dequant_scale_bns
@@ -607,43 +572,40 @@ def qli_output_single(params):
         key_dequant_scale = key_dequant_scale.npu()
         cpu_result, topk_value = test_qli.forward(query, key_bnsd, weights, query_dequant_scale, key_dequant_scale_bns, actual_seq_lengths_query, actual_seq_lengths_key, block_table)
         block_table = torch.from_numpy(block_table).to(dtype=torch.int32).npu()
-
-    # 关于metadata的设置
-    metadata = torch_npu.npu_quant_lightning_indexer_metadata(
+    metadata = torch_npu.npu_quant_lightning_indexer_metadata (
                                     query = query,
-                                    num_heads_q=q_head_num,
-                                    num_heads_k=k_head_num,
+                                    num_heads_q = q_head_num,
+                                    num_heads_k = k_head_num,
                                     head_dim = head_dim,
-                                    query_quant_mode=query_quant_mode, 
-                                    key_quant_mode=key_quant_mode,
-                                    actual_seq_lengths_query=actual_seq_lengths_query, 
-                                    actual_seq_lengths_key=actual_seq_lengths_key,
-                                    batch_size=batch_size, 
-                                    max_seqlen_q=q_seq,
-                                    max_seqlen_k=k_seq,  
-                                    layout_query=layout_query, 
-                                    layout_key=layout_key,
-                                    sparse_count=sparse_count, 
-                                    sparse_mode=sparse_mode, 
-                                    pre_tokens=(1<<63)-1, 
-                                    next_tokens=(1<<63)-1, 
-                                    cmp_ratio=cmp_ratio)
+                                    query_quant_mode = query_quant_mode, 
+                                    key_quant_mode = key_quant_mode,
+                                    actual_seq_lengths_query = actual_seq_lengths_query, 
+                                    actual_seq_lengths_key = actual_seq_lengths_key,
+                                    batch_size = batch_size, 
+                                    max_seqlen_q = q_seq,
+                                    max_seqlen_k = k_seq,  
+                                    layout_query = layout_query, 
+                                    layout_key = layout_key,
+                                    sparse_count = sparse_count, 
+                                    sparse_mode = sparse_mode, 
+                                    pre_tokens = (1<<63)-1, 
+                                    next_tokens = (1<<63)-1, 
+                                    cmp_ratio = cmp_ratio)
 
     metadata = metadata.npu()
-
     npu_result,_ = torch.ops.custom.npu_quant_lightning_indexer(query, key, weights, 
                                                     query_dequant_scale,
                                                     key_dequant_scale,
-                                                    actual_seq_lengths_query=actual_seq_lengths_query,
-                                                    actual_seq_lengths_key=actual_seq_lengths_key,
-                                                    block_table=block_table,
+                                                    actual_seq_lengths_query = actual_seq_lengths_query,
+                                                    actual_seq_lengths_key = actual_seq_lengths_key,
+                                                    block_table = block_table,
                                                     metadata = metadata,
-                                                    query_quant_mode=query_quant_mode,
-                                                    key_quant_mode=key_quant_mode,
-                                                    layout_query=layout_query,
-                                                    layout_key=layout_key, 
-                                                    sparse_count=sparse_count,
-                                                    sparse_mode=sparse_mode,
+                                                    query_quant_mode = query_quant_mode,
+                                                    key_quant_mode = key_quant_mode,
+                                                    layout_query = layout_query,
+                                                    layout_key = layout_key, 
+                                                    sparse_count = sparse_count,
+                                                    sparse_mode = sparse_mode,
                                                     pre_tokens = (1<<63)-1,
                                                     next_tokens = (1<<63)-1,
                                                     cmp_ratio = cmp_ratio,

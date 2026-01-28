@@ -13,7 +13,7 @@
 import itertools
 import torch
 import result_compare_method
-import quant_lightning_indexer_pt_loadprocess
+from batch import quant_lightning_indexer_pt_loadprocess
 import pytest
 import random
 import pandas as pd
