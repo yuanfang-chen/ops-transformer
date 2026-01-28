@@ -2,10 +2,14 @@
 
 ## 产品支持情况
 
-| 产品 | 是否支持 |
-| ---- | :----: |
-| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term> | × |
-| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> | √ |
+| 产品                                                         | 是否支持 |
+| :----------------------------------------------------------- | :------: |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    ×     |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
+| <term>Atlas 推理系列产品</term>                             |    ×     |
+| <term>Atlas 训练系列产品</term>                              |    ×     |
 
 ## 功能说明
 
@@ -201,6 +205,7 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
 * 默认支持确定性计算。
 * NPU卡数(world_size)，根据设备型号有不同限制：
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡。
+  - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡。
 * 输入x1必须是2维，其shape为(BS, H1)，BS*rankSize和H2的值不得超过2147483647(INT32_MAX)，不支持非连续输入。
 * 输入x2必须是2维，其shape为(H1, H2)，H2必须整除NPU卡数，H1范围仅支持[1，65535]，H2的值不超过2147483647(INT32_MAX)，不支持非连续输入。
 * bias和x2_scale若非空，其维度必须为1维，shape为(H2，)。
@@ -215,6 +220,9 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../../
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - 非量化场景下，output计算输出的数据类型为FLOAT16时，bias计算输入的数据类型支持FLOAT16；output计算输出的数据类型为BFLOAT16时，bias计算输入的数据类型支持FLOAT32。
     - 量化场景下，支持K-C量化模式后加bias，x1、x2计算输入的数据类型必须为INT8；output计算输出的数据类型为BFLOAT16时，bias的数据类型为FLOAT或BFLOAT16；output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16。
+  - <term>Ascend 950PR/Ascend 950DT</term>：
+    - 非量化场景下，x1/x2计算输入的数据类型为FLOAT16时，bias计算输入的数据类型支持FLOAT16和FLOAT32；x1/x2计算输入的数据类型为BFLOAT16时，bias计算输入的数据类型支持BFLOAT16和FLOAT32。 
+    - 量化场景下，支持K-C量化模式，x1、x2计算输入的数据类型为FLOAT8_E4M3FN、FLOAT8_E5M2，bias的数据类型为FLOAT16、BFLOAT16、FLOAT，可自由组合。
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
