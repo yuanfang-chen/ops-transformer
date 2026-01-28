@@ -23,6 +23,8 @@ from pathlib import Path
 import numpy as np
 import math
 import os
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 save_path = "testcase_0124"
 device_id = 0
@@ -81,9 +83,7 @@ for _, params in enumerate(ENABLED_PARAMS):
     print(locals()["param_combinations"])
 case_id = 0
 
-@pytest.mark.ci
-@pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
-def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
+def sas(param_combinations):   # 初始化参数和tensor
     global case_id
     Testcase_Name = param_combinations['Testcase_Name']
     layout_q = param_combinations['layout_q']
@@ -195,6 +195,18 @@ def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
     
     case_id += 1
     
+@pytest.mark.ci
+@pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
+def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
+    with ProcessPoolExecutor(max_workers=1) as executor:
+        # 创建当前用例子进程
+        future1 = executor.submit(sas, param_combinations)
+        # 检查退出码
+        for future in as_completed([future1]):
+            try:
+                result = future.result()
+            except Exception as e:
+                pytest.fail(f"❌ 当前用例子进程执行失败：{e}")
 
 
     
