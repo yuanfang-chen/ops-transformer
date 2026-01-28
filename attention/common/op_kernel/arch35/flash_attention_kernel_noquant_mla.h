@@ -228,7 +228,7 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
     auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
 
     constInfo.bSize = inputParamsRegbase.bSize;
- 	constInfo.t1Size = inputParamsRegbase.t1Size;
+    constInfo.t1Size = inputParamsRegbase.t1Size;
     constInfo.n2Size = inputParamsRegbase.n2Size;
     constInfo.s1Size = inputParamsRegbase.s1Size;
     constInfo.s2Size = inputParamsRegbase.s2Size;
@@ -421,8 +421,8 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
         constInfo.attentionOutStride = 
             (constInfo.n2Size * constInfo.gSize - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
     } else if (constInfo.isNTDOut == 1) {
- 	    constInfo.attentionOutStride = 0;
- 	} 
+        constInfo.attentionOutStride = 0;
+    } 
 
     // lse output
     constInfo.isSoftmaxLseEnable = inputParamsRegbase.isSoftMaxLseEnable;
