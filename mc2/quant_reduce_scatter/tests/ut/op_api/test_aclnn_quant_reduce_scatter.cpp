@@ -25,7 +25,7 @@ class test_aclnn_quant_reduce_scatter : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND950);
         cout << "test_aclnn_quant_reduce_scatter SetUp" << endl;
     }
 
