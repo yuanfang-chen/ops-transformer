@@ -26,6 +26,7 @@
 #include "sparse_attn_sharedkv_swa_block_vector.h"
 #include "../sparse_attn_sharedkv_metadata.h"
 
+namespace SASKernel{
 using namespace matmul;
 using namespace optiling::detail;
 using namespace optiling;
@@ -765,5 +766,6 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::GetAxisStartIdx(uint32_t bN2
     } else {
         constInfo.gS1Start++;
     }
+}
 }
 #endif // SPARSE_ATTN_SHAREDKV_SWA_KERNEL_H
