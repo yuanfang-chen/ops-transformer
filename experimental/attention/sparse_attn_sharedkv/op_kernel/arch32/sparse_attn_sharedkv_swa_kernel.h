@@ -333,7 +333,8 @@ template <typename SAST>
 __aicore__ inline void SparseAttnSharedkvSwa<SAST>::GetSparseActualSeqLen()
 {
     // 行无效通过ori部分判断, ori部分如果有行无效那么ori和cmp都有
-    if (tempLoopInfo.s1EndIdx < -(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size)) {
+    if (static_cast<int32_t>(tempLoopInfo.s1EndIdx) < -(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size)) {
+        tempLoopInfo.actOriS2Size = 0;
         tempLoopInfo.actCmpS2Size = 0;
         return;
     }
@@ -347,7 +348,7 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::GetSparseActualSeqLen()
 
 template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::UpdateInnerLoopCond()
 {
-    if ((tempLoopInfo.actCmpS2Size == 0 && tempLoopInfo.oriMaskRight < 0) || (tempLoopInfo.actOriS2Size == 0) || (tempLoopInfo.actS1Size == 0)) {
+    if ((tempLoopInfo.actCmpS2Size == 0 && tempLoopInfo.actOriS2Size == 0) || (tempLoopInfo.actS1Size == 0)) {
         tempLoopInfo.curActSeqLenIsZero = true;
         return;
     }
@@ -686,6 +687,7 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
                 if ASCEND_IS_AIV {
                     InitAllZeroOutput(tempLoopInfo.bIdx, tempLoopInfo.s1StartIdx, tempLoopInfo.n2Idx);
                 }
+                tempLoopInfo.actOriS2Size = GetActualSeqLenKV(tempLoopInfo.bIdx);
                 continue;
             }
             uint32_t oriSplitNum = CeilDiv(tempLoopInfo.oriMaskRight - tempLoopInfo.oriMaskLeft + 1, constInfo.s2BaseSize);
