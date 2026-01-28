@@ -225,7 +225,6 @@ namespace SplitFuse {
             uint32_t curQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(qSeqlen, curQSBlockTile);
             uint32_t curTotalTaskNum = firstBatchTaskNum;
 
-            //  prepare for addding sink
             // Go through each task.
             for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
                 // Get the offset of each core on the GM.
