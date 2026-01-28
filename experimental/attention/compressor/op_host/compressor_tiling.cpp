@@ -1,12 +1,12 @@
 /**
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
 * \file compressor_tiling.cpp
@@ -244,7 +244,7 @@ ge::graphStatus CompressorTiling::SetBaseInfo()
     baseParams_->reciprocalD = 1.0 / baseParams_->headDim;
     baseParams_->cgSize = (baseParams_->seqSize + baseParams_->cmpRatio - 1) / baseParams_->cmpRatio; // number of token after compress
     coff = static_cast<uint8_t>(*context_->coff);
-    baseParams_->nSize = 2;
+    baseParams_->nSize = 2; // 2:每个核处理两个基本块后做全核同步
 
     OP_LOGI(context_->opName, "[TILING] bSize:%u  tSize:%u cmpRatio:%u coff:%u", baseParams_->batchSize, baseParams_->tokenSize, baseParams_->cmpRatio, coff);
     
@@ -263,7 +263,7 @@ ge::graphStatus CompressorTiling::SetPageAttentionInfo()
 ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 {
     workspaceParams_->preMm1ResSize = 0;
-    if (coff == 2) {
+    if (coff == 2) { // 2:需要做overlap
         workspaceParams_->preMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;      // 2 wkv和score合一起
     }
     workspaceParams_->curMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;          // 2 wkv和score合一起
@@ -274,15 +274,14 @@ ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 
 ge::graphStatus CompressorTiling::SetScenarioInfo()
 {
-    // TODO set mode
 
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
-    innerSplitParams_->mBaseSize = 256;
-    innerSplitParams_->dBaseSize = 128 / coff;
+    innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
+    innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
 
     return ge::GRAPH_SUCCESS;
 }
@@ -291,14 +290,12 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
 {
     constexpr uint32_t MM1_RES_ELEM_SIZE = 4;      // 4: fp32
     constexpr uint32_t V1_RES_ELEM_SIZE = 2;       // 2: fp16/bf16
-
     workspaceSize_ = libapiSize_;
     workspaceSize_ += aicNum_ * workspaceParams_->preMm1ResSize * MM1_RES_ELEM_SIZE;
     workspaceSize_ += aicNum_ * workspaceParams_->curMm1ResSize * MM1_RES_ELEM_SIZE;
     workspaceSize_ += aicNum_ * workspaceParams_->vec1ResSize * V1_RES_ELEM_SIZE;
     
-    // TODO 为后面改动预留
-    workspaceSize_ += 1024 * 1024 * 1024;
+    workspaceSize_ += 1024 * 1024 * 1024; // 1024:申请workspace大小
     if (context_->workSpaces) {
         context_->workSpaces[0] = workspaceSize_;
     }
@@ -338,7 +335,6 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
     this->pageAttentionParams_ = &tilingData->pageAttentionParams;
     this->innerSplitParams_ = &tilingData->innerSplitParams;
     this->workspaceParams_ = &tilingData->workspaceParams;
-    
     using StatusFunction = std::function<ge::graphStatus()>;
     std::vector<StatusFunction> requiredTilingFuncs {
         std::bind(&CompressorTiling::CheckRequiredParaExistence, this),
@@ -374,7 +370,6 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
         }
     }
 
-    // TODO 使用所有核
     baseParams_->usedCoreNum = aicNum_;
 
     context_->blockDim = aicNum_;
@@ -386,7 +381,6 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
 
 ge::graphStatus CompressorTiling::GenTilingKey() const
 {
-
     // 0:BF16, 1:FP16
     uint8_t dtype = 0;
     // 0: BSH 1:TH

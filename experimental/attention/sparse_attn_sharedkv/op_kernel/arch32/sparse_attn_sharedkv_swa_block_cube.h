@@ -83,8 +83,6 @@ private:
     static constexpr uint32_t mte21QPIds[4] = {L1_EVENT0, L1_EVENT1, L1_EVENT2, L1_EVENT3}; // mte12复用
     static constexpr uint32_t mte21KVIds[3] = {L1_EVENT4, L1_EVENT5, L1_EVENT6};
 
-    // uint32_t kvCacheBlockSize = 0;
-    // uint32_t maxBlockNumPerBatch = 0;
     ConstInfo constInfo{};
 
     // L1分成3块buf, 用于记录
@@ -161,7 +159,7 @@ SWACubeBlock<SAST>::InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<
     // mm1
     this->queryGm = queryGm;
     this->oriKvGm = oriKvGm;
-    if (constInfo.templateMode == CFA_TEMPLATE) { // FIXME: constInfo.templateMode没有赋值，无法路由到这里，需通过tilingkey
+    if (constInfo.templateMode == CFA_TEMPLATE) {
         this->cmpKvGm = cmpKvGm;
     }
     this->mm1ResGm = mm1ResGm;
@@ -185,7 +183,6 @@ SWACubeBlock<SAST>::InitPageAttentionInfo(GlobalTensor<KV_T> oriKvGm, // const G
                                           GlobalTensor<int32_t> cmpBlockTableGm)
 {
     this->oriKvGm = oriKvGm;
-    // this->kvMergeGm_ = kvMergeGm;
     this->oriBlockTableGm = oriBlockTableGm;
     if (constInfo.templateMode == CFA_TEMPLATE) {
         this->cmpBlockTableGm = cmpBlockTableGm;
@@ -366,14 +363,14 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
             if (info.isOri) {
                 uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint;
                 while (copyFinishRowCnt < nL1Size) {
-                    copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize; // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
                     if (copyFinishRowCnt + copyRowCnt > nL1Size) {
                         copyRowCnt = nL1Size - copyFinishRowCnt;
                     }
                     Position startPos;
                     startPos.bIdx = info.bIdx;
                     startPos.n2Idx = info.n2Idx;
-                    // startPos.s2Idx = idInTopK * constInfo.sparseBlockSize + curOffsetInSparseBlock;
                     startPos.s2Idx = curS2Offset;
                     // 256、32等待7buf命名更改
                     startPos.dIdx = kL1 * 256;  // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
@@ -395,7 +392,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
             } else {
                 uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + nL1 * N_SPLIT_SIZE;
                 while (copyFinishRowCnt < nL1Size) {
-                    copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize; // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
+                    copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize;
                     if (copyFinishRowCnt + copyRowCnt > nL1Size) {
                         copyRowCnt = nL1Size - copyFinishRowCnt;
                     }
@@ -497,7 +495,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
 
                     Fixpipe(mm1ResGm[(info.loop % (constInfo.preLoadNum)) * constInfo.mmResUbSize + nL1 * N_SPLIT_SIZE +
                                      (mSplitInfo.nBufferStartM + mL1 * M_SPLIT_SIZE) *
-                                         info.actualSingleProcessSInnerSizeAlign],
+                                      info.actualSingleProcessSInnerSizeAlign],
                             cL0Tensor, fixParams);
                 }
                 if (mL1Loops == 2) {
@@ -555,7 +553,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
         for (uint32_t k1 = 0; k1 < kL1Loops; k1++) { // k切L1, 这里套了一层l0来操作
             if (k1 == (kL1Loops - 1)) {
                 // 尾块
-                kL1Size = kSize - (kL1Loops - 1) * 256;
+                kL1Size = kSize - (kL1Loops - 1) * kL1Size;
                 kL1SizeAlign = SASAlign(kL1Size, 16U);
             }
             kvL1BufIter++;
@@ -563,7 +561,6 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
             WaitFlag<HardEvent::MTE1_MTE2>(mte21KVIds[kb]);
             bL1Tensor = l1KVTensor[kb * L1_BLOCK_OFFSET];
             uint32_t kOffset = k1 * kL0Loops;
-            kL0Size = 128;
             // 此处必须先初始化kL0Size, 再求kL0Loops, 否则由于循环会改变kL0Size大小, 导致kL0Loops错误
             kL0Loops = (kL1Size + kL0Size - 1) / kL0Size;
             kL0SizeAlign = kL0Size;
@@ -574,7 +571,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                     kL0SizeAlign = SASAlign(kL0Size, 16U);
                 }
 
-                uint32_t curSeqIdx = info.s2BatchOffset + (kL1 - kOffset) * 128 + k1 * 256;
+                uint32_t curSeqIdx = info.s2BatchOffset + (kL1 - kOffset) * kL0Size + k1 * kL1Size;
                 uint32_t copyFinishRowCnt = 0;
 
                 if (info.isOri) {
@@ -597,7 +594,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         shape.maxblockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
                         shape.copyRowNum = copyRowCnt;
                         shape.copyRowNumAlign = kL0SizeAlign;
-                        subvTensor = bL1Tensor[(kL1 - kOffset) * 128 * N_SPLIT_SIZE + copyFinishRowCnt * 16];
+                        subvTensor = bL1Tensor[(kL1 - kOffset) * kL0Size * N_SPLIT_SIZE + copyFinishRowCnt * 16];
                         DataCopyPA<KV_T, KV_LAYOUT_T>(subvTensor, oriKvGm, oriBlockTableGm, shape, startPos);
 
                         // 更新循环变量
@@ -606,7 +603,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         curS2Offset += copyRowCnt;
                     }
                 } else {
-                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + 128 * kL1; // 128：非尾块的kL0Size大小
+                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + kL1Size * kL1;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
@@ -628,7 +625,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         shape.maxblockNumPerBatch = constInfo.cmpMaxBlockNumPerBatch;
                         shape.copyRowNum = copyRowCnt;
                         shape.copyRowNumAlign = kL0SizeAlign;
-                        subvTensor = bL1Tensor[(kL1 - kOffset) * 128 * N_SPLIT_SIZE + copyFinishRowCnt * 16];
+                        subvTensor = bL1Tensor[(kL1 - kOffset) * kL0Size * N_SPLIT_SIZE + copyFinishRowCnt * 16];
                         DataCopyPA<KV_T, KV_LAYOUT_T>(subvTensor, cmpKvGm, cmpBlockTableGm, shape, startPos);
                         // 更新循环变量
                         copyFinishRowCnt += copyRowCnt;
