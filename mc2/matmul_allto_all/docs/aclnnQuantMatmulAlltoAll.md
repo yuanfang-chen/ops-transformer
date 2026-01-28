@@ -13,8 +13,8 @@
 
 ## 功能说明
 
-- 接口功能：完成量化的Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**。支持K-C[量化模式](../../../docs/zh/context/量化介绍.md)
-- 计算公式：假设x1的shape为(BS, H1), x2的shape为(H1, H2)，rankSize为NPU卡数
+- 接口功能：完成量化的Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**，支持K-C[量化模式](../../../docs/zh/context/量化介绍.md)。
+- 计算公式：假设x1的shape为(BS, H1)，x2的shape为(H1, H2)，rankSize为NPU卡数。
     - K-C量化模式：
 
       $$
@@ -37,7 +37,7 @@
 
 ```cpp
 aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(
-const aclTensor*   x1,           
+const aclTensor*   x1,
 const aclTensor*   x2,
 const aclTensor*   biasOptional,
 const aclTensor*   x1Scale,
@@ -71,9 +71,9 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
 
 - ​**参数说明**​：
 
-    <table style="undefined;table-layout: fixed; width: 1556px"> <colgroup>
+    <table style="undefined;table-layout: fixed; width: 1687px"> <colgroup>
     <col style="width: 154px">
-    <col style="width: 123px">
+    <col style="width: 254px">
     <col style="width: 270px">
     <col style="width: 295px">
     <col style="width: 245px">
@@ -100,8 +100,8 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>该输入作为MatMul计算的左矩阵输入；根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
     <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
     <td>ND</td>
-    <td>2维, shape为(BS, H1)</td>
-    <td>x</td>
+    <td>2维，shape为(BS, H1)</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>x2</td>
@@ -111,17 +111,17 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8</td>
     <td>ND</td>
     <td>2维，shape为(H1, H2)</td>
-    <td>x</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>biasOptional</td>
-    <td>输入</td>
-    <td>可选输入, 阵乘运算后累加的偏置，对应公式中的bias。</td>
+    <td>可选输入</td>
+    <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
     <td>支持传入空指针场景；根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
     <td>ND</td>
     <td>1维，shape为(H2,)</td>
-    <td>x</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>x1Scale</td>
@@ -130,8 +130,8 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>对应公式中的x1Scale。</td>
     <td>FLOAT32</td>
     <td>ND</td>
-    <td>1维, shape为(BS,)</td>
-    <td>x</td>
+    <td>1维，shape为(BS,)</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>x2Scale</td>
@@ -140,13 +140,13 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>对应公式中的x2Scale。</td>
     <td>FLOAT32</td>
     <td>ND</td>
-    <td>1维, shape为(H2,)</td>
-    <td>x</td>
+    <td>1维，shape为(H2,)</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>commScaleOptional</td>
-    <td>输入</td>
-    <td>可选输入, 低比特通信的量化系数。</td>
+    <td>可选输入</td>
+    <td>低比特通信的量化系数。</td>
     <td>预留参数，暂不支持低比特通信。</td>
     <td>-</td>
     <td>-</td>
@@ -155,8 +155,8 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </tr>
     <tr>
     <td>x1OffsetOptional</td>
-    <td>输入</td>
-    <td>可选输入，左矩阵的量化偏置。</td>
+    <td>可选输入</td>
+    <td>左矩阵的量化偏置。</td>
     <td>预留参数，暂不支持。</td>
     <td>-</td>
     <td>-</td>
@@ -164,8 +164,8 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>-</td>
     <tr>
     <td>x2OffsetOptional</td>
-    <td>输入</td>
-    <td>可选输入，右矩阵的量化偏置。</td>
+    <td>可选输入</td>
+    <td>右矩阵的量化偏置。</td>
     <td>预留参数，暂不支持。</td>
     <td>-</td>
     <td>-</td>
@@ -173,9 +173,9 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>-</td>
     <tr>
     <td>alltoAllAxesOptional</td>
-    <td>输入</td>
-    <td>可选输入，AlltoAll和Pemute数据交换的方向。</td>
-    <td>支持配置空或者[-1,-2]，传入空时默认按[-1,-2]处理，表示将输入由(BS, H2)转为(BS * rankSize, H2 / rankSize)。</td>
+    <td>可选输入</td>
+    <td>AlltoAll和Pemute数据交换的方向。</td>
+    <td>支持配置空或者[-1, -2]，传入空时默认按[-1, -2]处理，表示将输入由(BS, H2)转为(BS * rankSize, H2 / rankSize)。</td>
     <td>aclIntArray*(元素类型INT64)</td>
     <td>ND</td>
     <td>1维，shape为(2)</td>
@@ -184,12 +184,12 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <tr>
     <td>group</td>
     <td>输入</td>
-    <td>Host侧标识列组的字符串，即通信域名称，通过Hccl接口HcclGetCommName获取commName作为该参数。</td>
+    <td>标识列组的字符串，即通信域名称，通过Hccl接口HcclGetCommName获取commName作为该参数。</td>
     <td>字符串长度要求(0, 128)。</td>
     <td>STRING</td>
-    <td>ND</td>
-    <td>1维</td>
-    <td>x</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>x1QuantMode</td>
@@ -225,7 +225,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>commQuantDtype</td>
     <td>输入</td>
     <td>低比特通信的量化类型。</td>
-    <td>预留参数，当前仅支持配置为-1, 表示ACL_DT_UNDEFINED。</td>
+    <td>预留参数，当前仅支持配置为-1，表示ACL_DT_UNDEFINED。</td>
     <td>INT</td>
     <td>-</td>
     <td>-</td>
@@ -275,21 +275,21 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>workspaceSize</td>
     <td>输出</td>
     <td>返回需要在Device侧申请的workspace大小。</td>
-    <td></td>
+    <td>-</td>
     <td>UINT64</td>
-    <td>ND</td>
-    <td></td>
-    <td></td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     <tr>
     <td>executor</td>
     <td>输出</td>
     <td>返回op执行器，包含了算子的计算流程。</td>
-    <td></td>
+    <td>-</td>
     <td>aclOpExecutor*</td>
-    <td>ND</td>
-    <td></td>
-    <td></td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     </tr>
     </tbody></table>
 
@@ -381,17 +381,17 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
 ## 约束说明
 
 * 默认支持确定性计算。
-* NPU卡数（rankSize），根据设备型号有不同限制：
+* NPU卡数(rankSize)，根据设备型号有不同限制：
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡。
   - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡。
 * 参数说明中shape使用的变量H2必须整除NPU卡数。
 * H1范围仅支持[1, 65535]。
-* BS*rankSize和H2的值不得超过2147483647（INT32_MAX）。
+* BS * rankSize和H2的值不得超过2147483647(INT32_MAX)。
 * 目前仅支持左矩阵perToken量化，x1QuantMode=3；右矩阵perChannel量化，x2QuantMode=2。
 * 不支持空tensor。
 * x1、x2和biasOptional计算输入的数据类型根据不同设备型号有不同的限制：
-  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：x1、x2计算输入的数据类型必须为INT8；output计算输出的数据类型为BFLOAT16时，biasOptional的数据类型为FLOAT或BFLOAT16；output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16。
-  - <term>Ascend 950PR/Ascend 950DT</term>：x1、x2计算输入的数据类型为FLOAT8_E4M3FN、FLOAT8_E5M2，biasOptional的数据类型为FLOAT16、BFLOAT16、FLOAT32，可自由组合。
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持K-C量化模式后加bias，x1、x2计算输入的数据类型必须为INT8；output计算输出的数据类型为BFLOAT16时，biasOptional的数据类型为FLOAT或BFLOAT16；output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT16。
+  - <term>Ascend 950PR/Ascend 950DT</term>：支持K-C量化模式，x1、x2计算输入的数据类型为FLOAT8_E4M3FN、FLOAT8_E5M2，biasOptional的数据类型为FLOAT16、BFLOAT16、FLOAT32，可自由组合。
 * 传入的x1、x2、x1Scale、x2Scale或者output不为空指针，且
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：biasOptional不为空指针。
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
@@ -401,7 +401,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
 
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
-说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy, 请参考[《HCCL API (C)》](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
+说明：本示例代码调用了部分HCCL集合通信库接口：HcclGetCommName、HcclCommInitAll、HcclCommDestroy，请参考[《HCCL API (C)》](https://hiascend.com/document/redirect/CannCommunityHcclCppApi)。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
