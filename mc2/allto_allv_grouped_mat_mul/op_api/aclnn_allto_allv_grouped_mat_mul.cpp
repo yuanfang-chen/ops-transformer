@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 #include "aclnn_allto_allv_grouped_mat_mul.h"
+#include "allto_allv_grouped_mat_mul_checker.h"
 #include <algorithm>
 #include "op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
@@ -90,31 +91,6 @@ static aclnnStatus CheckParams(const aclTensor* gmmX, const aclTensor* gmmWeight
     return ACLNN_SUCCESS;
 }
 
-static aclnnStatus CheckSendAndRecv(const aclIntArray* sendCounts, const aclIntArray* recvCounts)
-{
-    if (sendCounts == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sendCounts should not be null.");
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-    if (recvCounts == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "recvCounts should not be null.");
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-    uint64_t recvSize = 0U;  // recvCounts的大小
-    uint64_t sendSize = 0U;  // recvCounts的大小
-    aclGetIntArraySize(recvCounts, &recvSize);
-    aclGetIntArraySize(sendCounts, &sendSize);
-    if (recvSize == 0U) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "recvCounts should not be empty.");
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-    if (sendSize == 0U) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sendCounts should not be empty.");
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-    return ACLNN_SUCCESS;
-}
-
 aclnnStatus aclnnAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor* gmmX, const aclTensor* gmmWeight,
                                                         const aclTensor* sendCountsTensorOptional, 
                                                         const aclTensor* recvCountsTensorOptional, 
@@ -128,7 +104,7 @@ aclnnStatus aclnnAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor* gmmX, c
     auto ret_param = CheckParams(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, 
         mmXOptional, mmWeightOptional, group, epWorldSize, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
-    auto ret_send_and_recv = CheckSendAndRecv(sendCounts, recvCounts);
+    auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
 
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, 
@@ -141,7 +117,7 @@ aclnnStatus aclnnAlltoAllvGroupedMatMul(void *workspace, uint64_t workspaceSize,
                                         aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        if (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910_95) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }
