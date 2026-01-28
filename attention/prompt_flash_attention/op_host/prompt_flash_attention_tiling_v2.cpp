@@ -2568,9 +2568,11 @@ bool PromptFlashAttentionTilingV2::CheckNTDLayoutCrossover(ContextParamsForPFATi
         return true;
     }
 
-    OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, full quant is not supported!"),
-        return false);
+    if (enablePFAMLA || enablePFARope) { // Prefill MLA
+ 	    OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+ 	        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is NTD, full quant is not supported!"),
+ 	        return false);
+ 	}
 
     if (!enablePFAMLA && !enablePFARope && !enableIFAMLA) { // GQA
         OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
