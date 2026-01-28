@@ -1252,82 +1252,34 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::RunInfo& info, LocalTensor<X_T> &outputUb,
     LocalTensor<T> &normResUb, uint32_t startRow, uint32_t dealRowCount)
 {
-    uint32_t bStartIdx = OutputBStartIdx;
-    uint32_t sStartIdx = OutputSStartIdx;
     uint64_t globalScStart = 0;
-    CalcGlobalScStart(0, 0, bStartIdx, sStartIdx, globalScStart);
+    CalcGlobalScStart(0, 0, OutputBStartIdx, OutputSStartIdx, globalScStart);
+    uint64_t SinCosOffset = globalScStart * constInfo_.ropeHeadDim;
+    uint32_t computeSize = dealRowCount * constInfo_.ropeHeadDim;
     uint32_t totalSize = dealRowCount * constInfo_.headDim;
-    uint32_t dealScSize = dealRowCount;
-    uint32_t curDealScSize = 0;
 
-    if constexpr (COMP::xLayout == X_LAYOUT::TH) {
-        curDealScSize = dealRowCount;
-        uint32_t computeSize = curDealScSize * constInfo_.ropeHeadDim;
-        uint64_t SinCosOffset = globalScStart * constInfo_.ropeHeadDim;
-        // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
-        LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
-        LocalTensor<X_T> sinUb = cosUb[BUFFER_SIZE_BYTE_8K / sizeof(X_T)];
-        DataCopy(cosUb, ropeCosGm_[SinCosOffset], computeSize);
-        DataCopy(sinUb, ropeSinGm_[SinCosOffset], computeSize);
-        inputQue1.EnQue(sinUb);
-        inputQue1.DeQue<X_T>();
+    // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
+    LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
+    LocalTensor<X_T> sinUb = cosUb[BUFFER_SIZE_BYTE_8K / sizeof(X_T)];
+    DataCopy(cosUb, ropeCosGm_[SinCosOffset], computeSize); // TODO:ropeCosGm_上的偏移
+    DataCopy(sinUb, ropeSinGm_[SinCosOffset], computeSize); // TODO:ropeSinGm_上的偏移
+    inputQue1.EnQue(sinUb);
+    inputQue1.DeQue<X_T>();
 
-        LocalTensor<T> ropeCosFp32Local = tmpBuff2.Get<T>();
-        LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
-        LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
-        PipeBarrier<PIPE_V>();
-        Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, computeSize);
-        Cast(ropeSinFp32Local, sinUb, RoundMode::CAST_NONE, computeSize);
-        PipeBarrier<PIPE_V>();
-        inputQue1.FreeTensor(sinUb);
 
-        RotaryPosEmb<COMP::rotaryMode>(normResUb, normResUb, ropeCosFp32Local, ropeSinFp32Local, tempLocal, gatherOffsetCastUb, curDealScSize, 
-                                        constInfo_.ropeHeadDim, constInfo_.headDim, constInfo_.headDim - constInfo_.ropeHeadDim);
-        PipeBarrier<PIPE_V>();
-        while (dealScSize > 0) {
-            UpdateOutputIdx(bStartIdx, sStartIdx, dealScSize, curDealScSize);
-        }
-    } else {
-        // 处理BSH有效数据在内存上不连续 （可能存在pad）
-        uint32_t ubProcessedCount = 0;
-        uint32_t preOutputBStartIdx = 0;
-        uint32_t preOutputSStartIdx = 0;
-        while (dealScSize > 0) {
-            // 逐batch计算写出索引
-            preOutputBStartIdx = bStartIdx;
-            preOutputSStartIdx = sStartIdx;
-            UpdateOutputIdx(bStartIdx, sStartIdx, dealScSize, curDealScSize);
-            if (curDealScSize) {
-                uint32_t computeSize = curDealScSize * constInfo_.ropeHeadDim;
-                uint64_t SinCosOffset = globalScStart * constInfo_.ropeHeadDim;
-                // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
-                LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
-                LocalTensor<X_T> sinUb = cosUb[BUFFER_SIZE_BYTE_8K / sizeof(X_T)];
-                DataCopy(cosUb, ropeCosGm_[SinCosOffset], computeSize);
-                DataCopy(sinUb, ropeSinGm_[SinCosOffset], computeSize);
-                inputQue1.EnQue(sinUb);
-                inputQue1.DeQue<X_T>();
+    LocalTensor<T> ropeCosFp32Local = tmpBuff2.Get<T>();
+    LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
+    LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
+    // DumpTensor(ropeSinLocal_, 100421, computeSize);
+    PipeBarrier<PIPE_V>();
+    Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, computeSize);
+    Cast(ropeSinFp32Local, sinUb, RoundMode::CAST_NONE, computeSize);
+    PipeBarrier<PIPE_V>();
+    inputQue1.FreeTensor(sinUb);
 
-                LocalTensor<T> ropeCosFp32Local = tmpBuff2.Get<T>();
-                LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
-                LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
-
-                PipeBarrier<PIPE_V>();
-                Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, computeSize);
-                Cast(ropeSinFp32Local, sinUb, RoundMode::CAST_NONE, computeSize);
-                PipeBarrier<PIPE_V>();
-                inputQue1.FreeTensor(sinUb);
-
-                RotaryPosEmb<COMP::rotaryMode>(normResUb[(dealRowCount - dealScSize - curDealScSize) * constInfo_.headDim],
-                                    normResUb[(dealRowCount - dealScSize - curDealScSize) * constInfo_.headDim],
-                                    ropeCosFp32Local, ropeSinFp32Local, tempLocal, gatherOffsetCastUb, curDealScSize, 
+    RotaryPosEmb<COMP::rotaryMode>(normResUb, normResUb, ropeCosFp32Local, ropeSinFp32Local, tempLocal, gatherOffsetCastUb, dealRowCount, 
                                     constInfo_.ropeHeadDim, constInfo_.headDim, constInfo_.headDim - constInfo_.ropeHeadDim);
-                PipeBarrier<PIPE_V>();
-            }
-            CalcGlobalScStart(preOutputBStartIdx, preOutputSStartIdx, bStartIdx, sStartIdx, globalScStart);
-            ubProcessedCount += curDealScSize;
-        }
-    }
+    PipeBarrier<PIPE_V>();
     Cast(outputUb, normResUb, RoundMode::CAST_RINT, totalSize);
     PipeBarrier<PIPE_V>();
 }
@@ -1392,13 +1344,11 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalcGlobalScStart(uint32_t b
     for (uint32_t bIdx = bStart; bIdx < bEnd; ++bIdx) {
         if constexpr (COMP::xLayout == X_LAYOUT::TH) {
             curActSeqLength_ = GetSeqLength(bIdx);
-            curStartPos_ = GetStartPos(bIdx);
-            globalScStart += GetScSize();
         } else {
             curActSeqLength_ = constInfo_.sSize;
-            curStartPos_ = GetStartPos(bIdx);
-            globalScStart += (curActSeqLength_ + constInfo_.cmpRatio - 1) / constInfo_.cmpRatio;
         }
+        curStartPos_ = GetStartPos(bIdx);
+        globalScStart += GetScSize();
     }
     globalScStart -= scStart;
     globalScStart += scEnd;
