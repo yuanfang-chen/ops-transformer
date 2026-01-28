@@ -56,6 +56,7 @@ static constexpr uint32_t LD_M_NUM_INDEX = 6;
  * @param isAIV 是否为AIV数据，默认为false
  * @return 返回属性的绝对索引
  */
+#ifdef __CCE_AICORE__
 __aicore__ inline uint32_t GetAttrAbsIndex(uint32_t coreIdx, uint32_t metaIdx, bool isAIV=false)
 {
     if (isAIV) {
@@ -64,6 +65,7 @@ __aicore__ inline uint32_t GetAttrAbsIndex(uint32_t coreIdx, uint32_t metaIdx, b
         return LI_METADATA_SIZE * coreIdx + metaIdx;
     }
 }
+#endif
 
 namespace detail {
     struct QliMetaData {
