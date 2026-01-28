@@ -564,9 +564,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
                 <li>仅支持V_D=128/64。</li>
             </ul>
             </td>
-            <td>BFLOAT16</td>
+            <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(Q_N,)</a></td>
+            <td>(Q_N)</a></td>
             <td>×</td>
         </tr>
         <tr>
