@@ -981,7 +981,7 @@ bool CheckSpecConditions(const gert::TilingContext *context)
     bool isLayoutSupported = (inputLayoutStr == "TND") ? true : false;
     bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
     bool isLearnableSink = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
-    bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4 && !isLearnableSink);
+    bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4);
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
     
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
@@ -989,7 +989,7 @@ bool CheckSpecConditions(const gert::TilingContext *context)
         (qDataType == ge::DT_FLOAT16) && (innerPrecise == 1) && !isPageAttention;
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
     bool specConditionFlag = false;
-    if (isLayoutSupported && !isRopeSplitMla && sparseModeSupported &&
+    if (isLayoutSupported && !isLearnableSink && !isRopeSplitMla && sparseModeSupported &&
         (nonMhaConditions || mhaConditions)) {
         int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
         if (!isPageAttention) {

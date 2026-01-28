@@ -1086,10 +1086,6 @@ ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context) {
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
             "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
                 return ge::GRAPH_FAILED);
-        OP_CHECK_IF((sparseMode == 4), 
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-            "When learnable sink is enabled, sparseMode shall not be 4"),
-                return ge::GRAPH_FAILED);
 
         return ge::GRAPH_SUCCESS;
 }
@@ -1327,7 +1323,7 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
 
     bool usingFAI = false;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    if (inputLayoutStr == "TND" && !isRopeSplitMla &&
+    if (inputLayoutStr == "TND" && !isLearnableSink && !isRopeSplitMla &&
         sparseModeSupported && (nonMhaConditions || mhaConditions)) {
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);
