@@ -271,7 +271,7 @@ aclnnStatus aclnnAlltoAllMatmul(
 * 参数说明中shape使用的变量BS必须整除NPU卡数。
 * H*rankSize范围仅支持[1, 65535]。
 * BS和N的值不得超过2147483647（INT32_MAX）。
-* 不支持空tensor。
+* 仅支持输入x1的第一维度（BS）为0的空tensor，其它空tensor均不支持。
 * x1、x2计算输入的数据类型要和output、alltoAllOutOptional计算输出的数据类型一致，传入的x1、x2或者output不为空指针。
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
