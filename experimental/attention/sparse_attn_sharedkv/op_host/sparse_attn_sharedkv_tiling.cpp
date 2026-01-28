@@ -188,11 +188,12 @@ ge::graphStatus SASInfoParser::GetInOutDataType()
 
 ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
 {
+    bool usePaCmpPaButNotPassed = (kvLayout_ == "PA_ND") && opParamInfo_.cmpBlockTable.desc == nullptr;
     if (opParamInfo_.oriKv.desc != nullptr) {
         if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr &&
-            opParamInfo_.cmpBlockTable.desc != nullptr) {
+            !usePaCmpPaButNotPassed) {
             sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
-        } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpBlockTable.desc != nullptr) {
+        } else if (opParamInfo_.cmpKv.desc != nullptr && !usePaCmpPaButNotPassed) {
             sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
         } else {
             sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
