@@ -142,6 +142,8 @@ install_python_deps() {
         tornado \
         absl-py \
         "decorator>=5.1.0" \
+        attrs \
+        jinja2 \
         --quiet --timeout=60
     echo "CANN Python dependencies installed."
 }
