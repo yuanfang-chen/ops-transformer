@@ -981,7 +981,7 @@ bool CheckSpecConditions(const gert::TilingContext *context)
     bool isLayoutSupported = (inputLayoutStr == "TND") ? true : false;
     bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
     bool isLearnableSink = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
-    bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4);
+    bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4 && !isLearnableSink);
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
     
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
