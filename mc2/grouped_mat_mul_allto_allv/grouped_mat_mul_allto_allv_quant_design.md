@@ -120,25 +120,22 @@ classDiagram
     }
     
     class GmmExpertOp {
-        +Init()
-        +ProcessExpert()
-        +GetExpertOutputAddr()
+        +Init(tilingData, tPipe)
+        +InitAddr(x, weight, bias, scaleA, scaleB, y, workspace)
+        +ProcessExpert(uint32_t startExpertIdx, uint32_t expertNum)
+        #UpdateAddr(uint32_t startExpertIdx, uint32_t expertNum)
     }
     
     class HcclA2avOp {
-        +Init(HcclA2avTilingInfo)
-        +Launch()
-        +Prepare()
-        +Commit()
+        +Init(HcclA2avTilingInfo, tilingInfo, sendBuf, recvBuf)
+        +Launch(uint32_t startExpertIdx, uint32_t expertNum)
         +Wait()
         +Finalize()
     }
     
     class QuantHcclA2avOp {
-        +Init(HcclA2avTilingInfo, tilingInfo)
-        +Launch()
-        +Prepare()
-        +Commit()
+        +Init(HcclA2avTilingInfo, tilingInfo, workspace, sendBuf, recvBuf)
+        +Launch(uint32_t startExpertIdx, uint32_t expertNum)
         +Wait()
         +Finalize()
     }
@@ -236,7 +233,7 @@ using GMMQuantTilingData = GroupedMatmulTilingData::GMMQuantTilingData;
 using GMMQuantParams = GroupedMatmulTilingData::GMMQuantParams;
 using GMMArray = GroupedMatmulTilingData::GMMArray;
 
-constexpr uint32_t MAX_EXPERT_PER_EP = 64U;
+constexpr uint32_t MAX_EXPERT_PER_EP = 32U;
 constexpr uint32_t MAX_EP_RANK_SIZE = 256U;
 ```
 
@@ -343,45 +340,44 @@ struct QuantGmmA2avTilingData {
 
 namespace AscendC {
 
-enum class HcclCoreType : uint32_t { AIC = 0, AIV = 1 };
-using TaskID = uint64_t;
-constexpr TaskID INVALID_TASK_ID = 0xFFFFFFFFFFFFFFFFULL;
-
 /**
  * HCCL AlltoAllV 操作封装类
+ * 内部硬编码使用 AIV block 0 执行通信操作
  *
  * @tparam DataType     通信数据类型
  */
 template <typename DataType>
 class HcclA2avOp {
 public:
-    static constexpr HcclCoreType CoreType = HcclCoreType::AIV;
-    static constexpr uint32_t CoreIndex = 0;
-    
     __aicore__ inline HcclA2avOp();
     
     /**
      * 初始化
      * @param a2avTiling  HCCL AlltoAllV Tiling 信息
+     * @param tilingInfo  扁平化的核心配置信息（包含通信计数）
+     * @param sendBuf     发送缓冲区基地址
+     * @param recvBuf     接收缓冲区基地址
      */
-    __aicore__ inline void Init(const HcclA2avTilingInfo* a2avTiling);
+    __aicore__ inline void Init(
+        const HcclA2avTilingInfo* a2avTiling,
+        const QuantGmmA2avTilingInfo* tilingInfo,
+        GM_ADDR sendBuf, GM_ADDR recvBuf);
     
-    __aicore__ inline TaskID Launch(
-        GM_ADDR sendBuf, const uint64_t* sendCounts, const uint64_t* sendOffsets,
-        GM_ADDR recvBuf, const uint64_t* recvCounts, const uint64_t* recvOffsets);
+    /**
+     * 启动通信任务（同步启动接口，内部处理 Prepare/Commit）
+     * @param startExpertIdx  起始专家索引
+     * @param expertNum       专家数量
+     */
+    __aicore__ inline void Launch(uint32_t startExpertIdx, uint32_t expertNum);
     
-    __aicore__ inline TaskID Prepare(
-        GM_ADDR sendBuf, const uint64_t* sendCounts, const uint64_t* sendOffsets,
-        GM_ADDR recvBuf, const uint64_t* recvCounts, const uint64_t* recvOffsets);
+    /**
+     * 等待所有已启动的通信任务完成
+     */
+    __aicore__ inline void Wait();
     
-    __aicore__ inline void Commit(TaskID taskId);
-    __aicore__ inline void Wait(TaskID taskId);
-    __aicore__ inline void WaitAll(TaskID* taskIds, uint32_t count);
     __aicore__ inline void Finalize();
 
 private:
-    Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
-    const HcclA2avTilingInfo* a2avTiling_;
 };
 
 } // namespace AscendC
@@ -403,6 +399,7 @@ namespace AscendC {
 /**
  * 带量化的 HCCL AlltoAllV 操作（鸭子类型）
  * 通信前量化，通信后反量化
+ * 内部硬编码使用 AIV block 0 执行通信与量化操作
  *
  * @tparam InputType    输入数据类型
  * @tparam CommType     通信数据类型（量化后）
@@ -415,33 +412,32 @@ public:
     /**
      * 初始化
      * @param a2avTiling   HCCL AlltoAllV Tiling 信息
-     * @param tilingInfo   扁平化的核心配置信息（包含 Workspace 偏移）
+     * @param tilingInfo   扁平化的核心配置信息（包含 Workspace 偏移与通信计数）
      * @param workspace    Workspace 基地址
+     * @param sendBuf      发送缓冲区基地址（GMM 输出）
+     * @param recvBuf      接收缓冲区基地址（最终输出）
      */
     __aicore__ inline void Init(
         const HcclA2avTilingInfo* a2avTiling,
         const QuantGmmA2avTilingInfo* tilingInfo,
-        GM_ADDR workspace);
+        GM_ADDR workspace,
+        GM_ADDR sendBuf, GM_ADDR recvBuf);
     
-    __aicore__ inline TaskID Launch(
-        GM_ADDR sendBuf, const uint64_t* sendCounts, const uint64_t* sendOffsets,
-        GM_ADDR recvBuf, const uint64_t* recvCounts, const uint64_t* recvOffsets);
+    /**
+     * 启动带量化的通信任务
+     * @param startExpertIdx  起始专家索引
+     * @param expertNum       专家数量
+     */
+    __aicore__ inline void Launch(uint32_t startExpertIdx, uint32_t expertNum);
     
-    __aicore__ inline TaskID Prepare(
-        GM_ADDR sendBuf, const uint64_t* sendCounts, const uint64_t* sendOffsets,
-        GM_ADDR recvBuf, const uint64_t* recvCounts, const uint64_t* recvOffsets);
+    /**
+     * 等待所有已启动的通信任务完成
+     */
+    __aicore__ inline void Wait();
     
-    __aicore__ inline void Commit(TaskID taskId);
-    __aicore__ inline void Wait(TaskID taskId);
-    __aicore__ inline void WaitAll(TaskID* taskIds, uint32_t count);
     __aicore__ inline void Finalize();
 
 private:
-    HcclA2avOp<CommType> hcclOp_;
-    GM_ADDR quantWorkspace_;
-    uint64_t quantWsSize_;
-    GM_ADDR quantSendBuf_;
-    GM_ADDR quantRecvBuf_;
 };
 
 } // namespace AscendC
@@ -475,28 +471,50 @@ public:
     
     __aicore__ inline GmmExpertOp();
     
-    __aicore__ inline void Init(
-        GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
-        GM_ADDR scaleA, GM_ADDR scaleB, GM_ADDR groupList,
-        GM_ADDR y, GM_ADDR workspace,
-        const GMMQuantParams* gmmParams,
-        const TCubeTiling* matmulTiling,
-        const GMMArray* gmmArray,
-        TPipe* tPipe);
+    /**
+     * 初始化
+     * @param tilingData  算子 Tiling 数据
+     * @param tPipe       Pipe 指针
+     */
+    __aicore__ inline void Init(const QuantGmmA2avTilingData* tilingData, TPipe* tPipe);
     
-    // TODO WTL
-    // reply: 暂时保留接口设计
-    __aicore__ inline GM_ADDR ProcessExpert(uint32_t expertIdx);
-    __aicore__ inline GM_ADDR GetExpertOutputAddr(uint32_t expertIdx) const;
-    __aicore__ inline uint32_t GetExpertMSize(uint32_t expertIdx) const;
+    /**
+     * 初始化所有输入输出的基地址
+     * groupList 将在内部根据 sendCounts 自动计算，无需外部传入
+     */
+    __aicore__ inline void InitAddr(
+        GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
+        GM_ADDR scaleA, GM_ADDR scaleB,
+        GM_ADDR y, GM_ADDR workspace);
+    
+    /**
+     * 处理专家计算（内部自动调用 UpdateAddr 更新地址）
+     * @param startExpertIdx  起始专家索引
+     * @param expertNum       专家数量
+     */
+    __aicore__ inline void ProcessExpert(uint32_t startExpertIdx, uint32_t expertNum);
+
+protected:
+    /**
+     * 内部计算并更新 x 和 y 的起始地址，同时计算 groupList
+     * @param startExpertIdx  起始专家索引
+     * @param expertNum       本次处理的专家数量
+     */
+    __aicore__ inline void UpdateAddr(uint32_t startExpertIdx, uint32_t expertNum);
 
 private:
     GmmKernelType gmmKernel_;
+    const QuantGmmA2avTilingData* tilingData_;
+    TPipe* tPipe_;
+    
     GM_ADDR xBase_;
     GM_ADDR weightBase_;
+    GM_ADDR biasBase_;
+    GM_ADDR scaleABase_;
+    GM_ADDR scaleBBase_;
+    GM_ADDR groupListBase_; // 内部计算并存储在 workspace 中
     GM_ADDR yBase_;
-    const GMMQuantParams* gmmParams_;
-    const GMMArray* gmmArray_;
+    GM_ADDR workspaceBase_;
 };
 
 } // namespace AscendC
@@ -524,28 +542,12 @@ class GmmA2avScheduler {
 public:
     __aicore__ inline GmmA2avScheduler();
     
-    __aicore__ inline void Init(
-        GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
-        GM_ADDR scaleA, GM_ADDR scaleB, GM_ADDR groupList,
-        GM_ADDR y, GM_ADDR workspace,
-        const QuantGmmA2avTilingData* tilingData,
-        TPipe* tPipe);
+    __aicore__ inline void Init();
     
     __aicore__ inline void Process();
 
-private:
-    __aicore__ inline void CalcExpertCommParams(
-        uint32_t expertIdx,
-        uint64_t* sendCounts, uint64_t* sendOffsets,
-        uint64_t* recvCounts, uint64_t* recvOffsets);
-    
-    GmmExpertOpType gmmExpertOp_;
-    HcclOpType hcclOp_;
-    const QuantGmmA2avTilingData* tilingData_;
+protected:
     TPipe* tPipe_;
-    
-    static constexpr uint32_t MAX_TASK_COUNT = 64;
-    TaskID taskIds_[MAX_TASK_COUNT];
 };
 
 } // namespace AscendC
@@ -574,23 +576,9 @@ namespace AscendC {
  */
 class QuantGmmA2avKernel {
 public:
-    // 类型别名（从 TilingKey 提取）
-    using GmmOpType = GmmExpertOp<Args...>;
-    
-    // 使用 TilingKey 选择 HcclOp 类型
-    using HcclOpType = HcclA2avOp<HcclCoreTypeVal, CoreIndexVal, half>;
-    using QuantHcclOpType = QuantHcclA2avOp<HcclCoreTypeVal, CoreIndexVal, half, int8_t>;
-    
-    using SchedulerType = GmmA2avScheduler<GmmOpType, HcclOpType>;
-    
     __aicore__ inline QuantGmmA2avKernel();
     
-    __aicore__ inline void Init(
-        GM_ADDR x, GM_ADDR weight, GM_ADDR weightScale, GM_ADDR inputScale,
-        GM_ADDR y, GM_ADDR workspace,
-        GM_ADDR sendCounts, GM_ADDR recvCounts,
-        GM_ADDR expertIds, GM_ADDR groupList,
-        const QuantGmmA2avTilingData* tiling);
+    __aicore__ inline void Init();
     
     __aicore__ inline void Process();
 };
