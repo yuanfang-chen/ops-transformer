@@ -31,7 +31,6 @@ find_package_handle_standard_args(abseil-cpp
         ABSL_SOURCE_DIR)
 
 message("111111111111111 abseil: PROJECT_SOURCE_DIR, ${PROJECT_SOURCE_DIR}, CANN_3RD_LIB_PATH: ${CANN_3RD_LIB_PATH}")
-
 if(abseil-cpp_FOUND)
   message("111111111111111 abseil found")
   message(STATUS "Found abseil-cpp in ${ABSEIL_CACHE_DIR}")
@@ -52,17 +51,17 @@ else()
     message(STATUS "[ThirdPartyLib][abseil-cpp] ${REQ_URL} not found, need download.")
   endif()
 
-  ExternalProject_Add(abseil_build_nn
+  ExternalProject_Add(abseil_build_transformer
                       URL ${REQ_URL}
                       DOWNLOAD_DIR ${CANN_3RD_LIB_PATH}/pkg
                       PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_LIST_DIR}/build/modules/patch/protobuf-hide_absl_symbols.patch
-                      SOURCE_DIR ${PROJECT_SOURCE_DIR}/third_party/abseil-cpp
+                      SOURCE_DIR ${ABSEIL_SOURCE_DIR}
                       CONFIGURE_COMMAND ""
                       BUILD_COMMAND ""
                       INSTALL_COMMAND ""
                       EXCLUDE_FROM_ALL TRUE 
   )
 
-  ExternalProject_Get_Property(abseil_build_nn SOURCE_DIR)
+  ExternalProject_Get_Property(abseil_build_transformer SOURCE_DIR)
   set(ABSL_SOURCE_DIR ${SOURCE_DIR})
 endif()
