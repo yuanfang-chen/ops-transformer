@@ -26,6 +26,7 @@
 #include "sparse_attn_sharedkv_scfa_block_vector.h"
 #include "../sparse_attn_sharedkv_metadata.h"
 
+namespace SASKernel{
 using namespace matmul;
 using namespace optiling::detail;
 using namespace optiling;
@@ -120,7 +121,6 @@ private:
     uint64_t topKBaseOffset = 0ULL;
     uint64_t tensorACoreOffset = 0ULL;
     uint64_t tensorBCoreOffset = 0ULL;
-    uint64_t attenOutOffset = 0ULL;
 
     uint32_t tmpBlockIdx = 0U;
     uint32_t aiCoreIdx = 0U;
@@ -752,5 +752,6 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::GetAxisStartIdx(uint32_t bN
     } else {
         constInfo.gS1Start++;
     }
+}
 }
 #endif // SPARSE_ATTN_SHAREDKV_SCFA_KERNEL_H
