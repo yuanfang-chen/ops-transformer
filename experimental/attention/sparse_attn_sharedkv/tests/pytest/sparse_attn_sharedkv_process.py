@@ -657,10 +657,14 @@ def test_sas_process(params):
 
     if template_idx == 0:
         metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+            q=q,
             num_heads_q=N1,
             num_heads_kv=N2,
             head_dim=D,
             cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_ori_kv=torch.tensor([]).npu(),
+            cu_seqlens_cmp_kv=torch.tensor([]).npu(),
+            seqused_q=torch.tensor([]).npu(),
             seqused_kv=seqused_kv,
             batch_size=B,
             max_seqlen_q=max_seqlen_q,
@@ -687,10 +691,14 @@ def test_sas_process(params):
                                                                layout_kv=layout_kv)
     elif template_idx == 1:
         metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+            q=q,
             num_heads_q=N1,
             num_heads_kv=N2,
             head_dim=D,
             cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_ori_kv=torch.tensor([]).npu(),
+            cu_seqlens_cmp_kv=torch.tensor([]).npu(),
+            seqused_q=torch.tensor([]).npu(),
             seqused_kv=seqused_kv,
             batch_size=B,
             max_seqlen_q=max_seqlen_q,
@@ -723,15 +731,19 @@ def test_sas_process(params):
                                                                layout_kv=layout_kv)
     else:
         metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+            q=q,
             num_heads_q=N1,
             num_heads_kv=N2,
             head_dim=D,
             cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_ori_kv=torch.tensor([]).npu(),
+            cu_seqlens_cmp_kv=torch.tensor([]).npu(),
+            seqused_q=torch.tensor([]).npu(),
             seqused_kv=seqused_kv,
             batch_size=B,
             max_seqlen_q=max_seqlen_q,
             max_seqlen_kv=ori_max_s2,
-            topk=K,
+            cmp_topk=K,
             cmp_ratio=cmp_ratio,
             ori_mask_mode=ori_mask_mode,
             cmp_mask_mode=cmp_mask_mode,
