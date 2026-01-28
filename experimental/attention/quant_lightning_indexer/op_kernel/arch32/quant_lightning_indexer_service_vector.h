@@ -431,7 +431,8 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             bool isS2End = cuBaseS2Idx + s2BaseSize_ >= cuRealAcSeq;
             bool needCopyOutGm = blockS2StartIdx_ == 0 && isS2End;
             // 中间结果保存
-            bool needCopyWsGm = info.isAllLoopEnd || isS2End;
+            // bool needCopyWsGm = info.isAllLoopEnd || isS2End; // TODO: needCopyWsGm目前永远为false
+            bool needCopyWsGm = false;
             if (needCopyOutGm) {
                 LocalTensor<uint32_t> idxULocal = outQueue_.AllocTensor<uint32_t>();
                 ExtractIndex(idxULocal,
