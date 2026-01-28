@@ -195,10 +195,6 @@ should be ceil(k/16), but actual third dim is %ld",
 template <typename T>
 aclnnStatus AclnnGroupedMatmul91095Checker<T>::CheckWeightNzSpecialParams() const
 {
-    CHECK_COND(gmmParams_.apiVersion == gmm::GMMApiVersion::WeightNz || gmmParams_.apiVersion == gmm::GMMApiVersion::V4,
-               ACLNN_ERR_PARAM_INVALID,
-               "WeightNz feature is only supported in aclnnGroupedMatmulWeightNz and aclnnGroupedMatmulV4");
-
     auto wDtype = GetInputTensor(gmmParams_.weight)->GetDataType();
     CHECK_COND(
         gmmParams_.xDtype == DataType::DT_INT8 && wDtype == DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,

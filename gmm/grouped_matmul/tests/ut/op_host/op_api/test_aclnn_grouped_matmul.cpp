@@ -108,12 +108,12 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_stat
     int64_t split_item = 3;
     int64_t dtype = 0;
     bool paddedNum = true;
-    auto ut = OP_API_UT(aclnnGroupedMatmulWeightNz,
-                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
-                              antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
-                              activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
-                              splitItem, groupType, groupListType, actType, tuningConfigOptional, 0),
-                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    auto ut = OP_API_UT(
+        aclnnGroupedMatmulWeightNz,
+        INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional, antiquantOffsetOptional,
+              perTokenScaleOptional, groupListOptional, activationInputOptional, activationQuantScaleOptional,
+              activationQuantOffsetOptional, splitItem, groupType, groupListType, actType, tuningConfigOptional, 0),
+        OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
@@ -149,12 +149,12 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_pert
     int64_t split_item = 3;
     int64_t dtype = 0;
     bool paddedNum = true;
-    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
-                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
-                              antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
-                              activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
-                              splitItem, groupType, groupListType, actType),
-                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    auto ut = OP_API_UT(
+        aclnnGroupedMatmulWeightNz,
+        INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional, antiquantOffsetOptional,
+              perTokenScaleOptional, groupListOptional, activationInputOptional, activationQuantScaleOptional,
+              activationQuantOffsetOptional, splitItem, groupType, groupListType, actType, tuningConfigOptional, 0),
+        OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
