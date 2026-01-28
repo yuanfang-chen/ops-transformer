@@ -1097,7 +1097,7 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
     int64_t tempKD = 0;
     int64_t tempVD = 0;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    bool tempLearnableSinkFlag = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
+    bool isLearnableSinkFlag = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
     
     if (!isPageAttention) {
         tempKD = tempK->GetStorageShape().GetDim(DIM_2);
