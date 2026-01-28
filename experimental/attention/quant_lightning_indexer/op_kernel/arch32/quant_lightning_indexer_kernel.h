@@ -97,7 +97,6 @@ public:
 
 protected:
     TPipe *pipe = nullptr;
-    GlobalTensor<uint32_t> metadataGm;
 
     // offset
     uint64_t queryCoreOffset = 0ULL;
@@ -105,12 +104,13 @@ protected:
     uint64_t keyScaleCoreOffset = 0ULL;
     uint64_t weightsCoreOffset = 0ULL;
     uint64_t indiceOutCoreOffset = 0ULL;
+    uint32_t coreZeroEnable = 1U;
 
     // ================================Global Buffer区=================================
     GlobalTensor<Q_T> queryGm;
     GlobalTensor<K_T> keyGm;
     GlobalTensor<half> weightsGm;
-
+    GlobalTensor<uint32_t> metadataGm;
     GlobalTensor<int32_t> indiceOutGm;
     GlobalTensor<int32_t> blockTableGm;
 
@@ -132,7 +132,8 @@ protected:
     __aicore__ inline void InitBuffers();
     __aicore__ inline void InitActualSeqLen(__gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengthsK);
     // ================================Split Core================================
-    __aicore__ inline void SplitCore(uint32_t curCoreIdx, uint32_t &coreNum, QLICommon::SplitCoreInfo &info);
+    __aicore__ inline void SplitCore();
+    // __aicore__ inline void SplitCore(uint32_t curCoreIdx, uint32_t &coreNum, QLICommon::SplitCoreInfo &info);
     __aicore__ inline uint32_t GetS2BaseBlockNumOnMask(uint32_t s1gIdx, uint32_t actS1Size, uint32_t actS2SizeOrig,
                                                        uint32_t &validS2Len);
     __aicore__ inline uint32_t GetTotalBaseBlockNum();
@@ -291,28 +292,31 @@ __aicore__ inline uint32_t QLIPreload<QLIT>::GetTotalBaseBlockNum()
 
 // 多核版本，双闭区间。基本原则：计算每个核最少处理的块数, 剩余的部分前面的核每个核多处理一块
 template <typename QLIT>
-__aicore__ void inline QLIPreload<QLIT>::SplitCore(uint32_t curCoreIdx, uint32_t &coreNum,
-                                                   QLICommon::SplitCoreInfo &info)
+// __aicore__ void inline QLIPreload<QLIT>::SplitCore(uint32_t curCoreIdx, uint32_t &coreNum,
+//                                                    QLICommon::SplitCoreInfo &info)
+__aicore__ void inline QLIPreload<QLIT>::SplitCore()
 {
-    // if (aiCoreIdx != 0) {
-    //         constInfo.bN2Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_BN2_START_INDEX, false));
-    //         constInfo.gS1Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_M_START_INDEX, false));
-    //         constInfo.s2Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_S2_START_INDEX, false));
-    //     }
-    //     constInfo.bN2End = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_BN2_END_INDEX, false));
-    //     constInfo.gS1End = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_M_END_INDEX, false));
-    //     constInfo.s2End  = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_S2_END_INDEX, false));
-    // }
-
+    constInfo.CoreEnable = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, LI_CORE_ENABLE_INDEX, false));
     if (aiCoreIdx != 0) {
-            constInfo.bN2Start = metadataGm.GetValue();
-            constInfo.gS1Start = metadataGm.GetValue();
-            constInfo.s2Start = metadataGm.GetValue();
-        }
-        constInfo.bN2End = metadataGm.GetValue();
-        constInfo.gS1End = metadataGm.GetValue();
-        constInfo.s2End  = metadataGm.GetValue();
+        constInfo.bN2Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_BN2_START_INDEX, false));
+        constInfo.gS1Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_M_START_INDEX, false));
+        constInfo.s2Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_S2_START_INDEX, false));
     }
+    constInfo.bN2End = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_BN2_END_INDEX, false));
+    constInfo.gS1End = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_M_END_INDEX, false));
+    constInfo.s2End  = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, FA_S2_END_INDEX, false));
+
+    // 如果0核都没有启动，说明所有核都没启动
+    coreZeroEnable = metadataGm.GetValue(GetAttrAbsIndex(0, LI_CORE_ENABLE_INDEX, false));
+    // if (aiCoreIdx != 0) {
+    //         constInfo.bN2Start = metadataGm.GetValue();
+    //         constInfo.gS1Start = metadataGm.GetValue();
+    //         constInfo.s2Start = metadataGm.GetValue();
+    //     }
+    //     constInfo.bN2End = metadataGm.GetValue();
+    //     constInfo.gS1End = metadataGm.GetValue();
+    //     constInfo.s2End  = metadataGm.GetValue();
+    // }
 
     // 当前还未接入metadata，S2的分块没有考虑margin
     // uint32_t totalBlockNum = GetTotalBaseBlockNum();
@@ -438,10 +442,13 @@ __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint
     InitTilingData(tiling);
     InitActualSeqLen(actualSeqLengthsQ, actualSeqLengthsK);
 
-    metadataGm.SetGlobalBuffer((__gm__ uint32_t *)metadata);
+    if (metadata != nullptr) {
+        metadataGm.SetGlobalBuffer((__gm__ uint32_t *)metadata);
+        // 计算分核
+        SplitCore();
+    }
 
-    // 计算分核
-    SplitCore(aiCoreIdx, usedCoreNum, splitCoreInfo);
+    // SplitCore(aiCoreIdx, usedCoreNum, splitCoreInfo);
 
     pipe = tPipe;
     // workspace 内存排布
@@ -629,9 +636,8 @@ __aicore__ inline void QLIPreload<QLIT>::CalcRunInfo(uint32_t loop, uint32_t s2L
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::Process()
 {
-
-
-    if (usedCoreNum == 0) {  // TODO: 删除usedCoreNum，当前metadata可控制每个核是否有任务，此处需知道是否所有核都没有任务。需适配此处空tensor场景
+    if (coreZeroEnable == 0) {
+    // if (usedCoreNum == 0) {  // TODO: 删除usedCoreNum，当前metadata可控制每个核是否有任务，此处需知道是否所有核都没有任务。需适配此处空tensor场景
         // 没有计算任务，直接清理输出
         ProcessInvalid();
         return;
@@ -668,7 +674,8 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessMain()
     // if (hasLoad == 0) {
     //     return;
     // }
-    if (aiCoreIdx >= usedCoreNum) { // TODO:
+    if (constInfo.CoreEnable == 0) {
+    // if (aiCoreIdx >= usedCoreNum) { // TODO:
         // 无任务核直接返回
         return;
     }
