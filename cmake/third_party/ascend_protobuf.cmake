@@ -12,31 +12,37 @@ set(PROTOBUF_VERSION_PKG protobuf-25.1.tar.gz)
 set(ASCEND_PROTOBUF_DIR ${CANN_3RD_LIB_PATH}/ascend_protobuf)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(ascend_protobuf_build_transformer
+find_package_handle_standard_args(ascend_protobuf_build_nn
     FOUND_VAR
-    ascend_protobuf_build_transformer_FOUND
+    ascend_protobuf_build_nn_FOUND
     REQUIRED_VARS
     ASCEND_PROTOBUF_SHARED_INCLUDE
 )
 
 set(ASCEND_PROTOBUF_SOURCE_DIR ${PROJECT_SOURCE_DIR}/third_party/ascend_protobuf)
-if(ascend_protobuf_build_transformer_FOUND AND NOT FORCE_REBUILD_CANN_3RD)
+if(ascend_protobuf_build_nn_FOUND AND NOT FORCE_REBUILD_CANN_3RD)
     message(STATUS "[ThirdPartyLib][ascend protobuf] ascend_protobuf_shared found, skip compile.")
     cmake_print_variables(ASCEND_PROTOBUF_SHARED_INCLUDE)
     cmake_print_variables(ASCEND_PROTOC)
     set(Protobuf_INCLUDE ${ASCEND_PROTOBUF_SHARED_INCLUDE})
     set(Protobuf_PATH ${ASCEND_PROTOC})
     set(Protobuf_PROTOC_EXECUTABLE ${Protobuf_PATH}/protoc)
-    add_library(ascend_protobuf_build_transformer INTERFACE)
+    add_library(ascend_protobuf_build_nn INTERFACE)
 else()
     message(STATUS "[ThirdPartyLib][ascend protobuf] ascend protobuf shared not found, finding binary file.")
     if(EXISTS "${CANN_3RD_LIB_PATH}/protobuf/protobuf-all-25.1.tar.gz")
+        message("111111111111111 protobuf found")
         set(REQ_URL "file://${CANN_3RD_LIB_PATH}/protobuf/protobuf-all-25.1.tar.gz")
         message(STATUS "[ThirdPartyLib][ascend protobuf] found in ${REQ_URL}.")
+    elseif(EXISTS ${CANN_3RD_LIB_PATH}/protobuf/protobuf-25.1.tar.gz)
+        message("111111111111111111 use cache probuf-25.1.tar ")
+        set(REQ_URL "${CANN_3RD_LIB_PATH}/protobuf/protobuf-25.1.tar.gz")
     elseif(EXISTS "${CANN_3RD_LIB_PATH}/pkg/${PROTOBUF_VERSION_PKG}")
+        message("111111111111111 protobuf find in pkg")
         set(REQ_URL "file://${CANN_3RD_LIB_PATH}/pkg/${PROTOBUF_VERSION_PKG}")
         message(STATUS "[ThirdPartyLib][ascend protobuf] found in ${REQ_URL}.")
     else()
+      message("111111111111111 protobuf download")
         set(REQ_URL "https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz")
         message(STATUS "[ThirdPartyLib][ascend protobuf] ${REQ_URL} not found, need download.")
     endif()
@@ -44,7 +50,7 @@ else()
     set(protobuf_CXXFLAGS "-Wno-maybe-uninitialized -Wno-unused-parameter -fPIC -fstack-protector-all -D_FORTIFY_SOURCE=2 -D_GLIBCXX_USE_CXX11_ABI=0 -O2 -Dgoogle=ascend_private")
     set(protobuf_LDFLAGS "-Wl,-z,relro,-z,now,-z,noexecstack")
 
-    ExternalProject_Add(ascend_protobuf_build_transformer
+    ExternalProject_Add(ascend_protobuf_build_nn
                         URL ${REQ_URL}
                         DOWNLOAD_DIR ${CANN_3RD_LIB_PATH}/pkg
                         PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_LIST_DIR}/build/modules/patch/protobuf_25.1_change_version.patch
@@ -71,12 +77,12 @@ else()
                         INSTALL_COMMAND ""
                         EXCLUDE_FROM_ALL TRUE
     )
-    if(TARGET abseil_build_transformer)
-        add_dependencies(ascend_protobuf_build_transformer abseil_build_transformer)
+    if(TARGET abseil_build_nn)
+        add_dependencies(ascend_protobuf_build_nn abseil_build_nn)
     endif()
 
-    ExternalProject_Get_Property(ascend_protobuf_build_transformer SOURCE_DIR)
-    ExternalProject_Get_Property(ascend_protobuf_build_transformer BINARY_DIR)
+    ExternalProject_Get_Property(ascend_protobuf_build_nn SOURCE_DIR)
+    ExternalProject_Get_Property(ascend_protobuf_build_nn BINARY_DIR)
 
     set(Protobuf_INCLUDE ${SOURCE_DIR}/src)
     set(Protobuf_PATH ${BINARY_DIR})
@@ -84,6 +90,6 @@ else()
 
     add_custom_command(
         OUTPUT ${Protobuf_PROTOC_EXECUTABLE}
-        DEPENDS ascend_protobuf_build_transformer
+        DEPENDS ascend_protobuf_build_nn
     )
 endif()

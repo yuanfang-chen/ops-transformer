@@ -15,6 +15,10 @@ project(cann_ops-transformer)
 set(CMAKE_C_FLAGS_RELEASE "")
 set(CMAKE_CXX_FLAGS_RELEASE "")
 
+message("111111111111111111111CANN_3RD_LIB_PATH : ${CANN_3RD_LIB_PATH}")
+message("111111111111111111: ENABLE_VALGRIND: ${ENABLE_VALGRIND}, OP_API_UT: ${OP_API_UT}")
+
+
 option(BUILD_OPEN_PROJECT         "Build open ascend ops project."  ON)
 option(BUILD_OPS_RTY_KERNEL       "Build return yellow kernel."     OFF)
 option(ENABLE_CCACHE              "Enable ccache capability"        ON)

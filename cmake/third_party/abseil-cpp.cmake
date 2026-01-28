@@ -11,6 +11,8 @@
 include(ExternalProject)
 set(ABSEIL_VERSION_PKG abseil-cpp-20230802.1.tar.gz)
 
+set(ABSEIL_CACHE_DIR ${CANN_3RD_LIB_PATH}/lib_cache/abseil-cpp-20230802)
+
 unset(abseil-cpp_FOUND CACHE)
 unset(ABSL_SOURCE_DIR CACHE)
 
@@ -18,7 +20,8 @@ find_path(ABSL_SOURCE_DIR
         NAMES absl/log/absl_log.h
         NO_CMAKE_SYSTEM_PATH
         NO_CMAKE_FIND_ROOT_PATH
-        PATHS ${PROJECT_SOURCE_DIR}/third_party/abseil-cpp)
+        PATHS ${ABSEIL_CACHE_DIR}
+        )
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(abseil-cpp
@@ -27,33 +30,39 @@ find_package_handle_standard_args(abseil-cpp
         REQUIRED_VARS
         ABSL_SOURCE_DIR)
 
-set(ABSEIL_SOURCE_DIR ${PROJECT_SOURCE_DIR}/third_party/abseil-cpp)
+message("111111111111111 abseil: PROJECT_SOURCE_DIR, ${PROJECT_SOURCE_DIR}, CANN_3RD_LIB_PATH: ${CANN_3RD_LIB_PATH}")
+
 if(abseil-cpp_FOUND)
-  message(STATUS "Found abseil-cpp in ${CANN_3RD_LIB_PATH}/abseil-cpp")
+  message("111111111111111 abseil found")
+  message(STATUS "Found abseil-cpp in ${ABSEIL_CACHE_DIR}")
 else()
+  message("111111111111111 abseil lib not found, ${CANN_3RD_LIB_PATH}")
   # 初始化可选参数列表
   if(EXISTS "${CANN_3RD_LIB_PATH}/abseil-cpp/${ABSEIL_VERSION_PKG}")
-      set(REQ_URL "file://${CANN_3RD_LIB_PATH}/abseil-cpp/${ABSEIL_VERSION_PKG}")
+      message("111111111111111 abseil-cpp found")
+      set(REQ_URL "${CANN_3RD_LIB_PATH}/abseil-cpp/${ABSEIL_VERSION_PKG}")
       message(STATUS "[ThirdPartyLib][abseil-cpp] found in ${REQ_URL}.")
   elseif(EXISTS "${CANN_3RD_LIB_PATH}/pkg/${ABSEIL_VERSION_PKG}")
-      set(REQ_URL "file://${CANN_3RD_LIB_PATH}/pkg/${ABSEIL_VERSION_PKG}")
+  message("111111111111111 abseil-cpp found in pkg")
+      set(REQ_URL "${CANN_3RD_LIB_PATH}/pkg/${ABSEIL_VERSION_PKG}")
       message(STATUS "[ThirdPartyLib][abseil-cpp] found in ${REQ_URL}.")
   else()
+  message("111111111111111 abseil-cpp download")
     set(REQ_URL "https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/20230802.1/abseil-cpp-20230802.1.tar.gz")
     message(STATUS "[ThirdPartyLib][abseil-cpp] ${REQ_URL} not found, need download.")
   endif()
 
-  ExternalProject_Add(abseil_build_transformer
+  ExternalProject_Add(abseil_build_nn
                       URL ${REQ_URL}
                       DOWNLOAD_DIR ${CANN_3RD_LIB_PATH}/pkg
                       PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_LIST_DIR}/build/modules/patch/protobuf-hide_absl_symbols.patch
-                      SOURCE_DIR ${ABSEIL_SOURCE_DIR}
+                      SOURCE_DIR ${PROJECT_SOURCE_DIR}/third_party/abseil-cpp
                       CONFIGURE_COMMAND ""
                       BUILD_COMMAND ""
                       INSTALL_COMMAND ""
                       EXCLUDE_FROM_ALL TRUE 
   )
 
-  ExternalProject_Get_Property(abseil_build_transformer SOURCE_DIR)
+  ExternalProject_Get_Property(abseil_build_nn SOURCE_DIR)
   set(ABSL_SOURCE_DIR ${SOURCE_DIR})
 endif()
