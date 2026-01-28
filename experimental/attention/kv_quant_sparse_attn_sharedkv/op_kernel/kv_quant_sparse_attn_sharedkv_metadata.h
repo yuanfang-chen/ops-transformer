@@ -21,7 +21,7 @@
 namespace optiling {
 
 // Constants
-static constexpr uint32_t AIC_CORE_NUM = 36;  // TODO 根据编译宏确定 aicpu与kernel的宏保持一致
+static constexpr uint32_t AIC_CORE_NUM = 36;
 static constexpr uint32_t MAX_AIV_AIC_RATIO = 2;
 constexpr uint32_t SCFA_META_SIZE = 2048;
 using SCFA_METADATA_T = int32_t;
