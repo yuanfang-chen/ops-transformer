@@ -18,6 +18,7 @@
 #include "opdev/op_executor.h"
 #include "common/op_api_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
+#include "external/aclnn_kernels/aclnn_platform.h"
 
 using namespace op;
 
