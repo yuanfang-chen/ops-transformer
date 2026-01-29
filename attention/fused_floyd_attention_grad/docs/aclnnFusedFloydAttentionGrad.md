@@ -5,14 +5,15 @@
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|     ×      |
+|<term>Atlas  推理系列产品</term>|     ×     |
+|<term>Atlas  训练系列产品</term>|     ×     |
 
 ## 功能说明
 
-- 算子功能：训练场景下，FloydAttn相较于传统FA主要是计算qk/pv注意力时会额外将seq作为batch轴从而转换为batchMatmul
+- 接口功能：训练场景下，FloydAttn相较于传统FA主要是计算qk/pv注意力时会额外将seq作为batch轴从而转换为batchMatmul
 - 计算公式：
 
     已知注意力的正向计算公式为：
@@ -84,7 +85,7 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
 
 ## aclnnFusedFloydAttentionGradGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1565px"><colgroup>
       <col style="width: 146px">
@@ -378,10 +379,10 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
 - 关于数据shape的约束，其中：
   - B：取值范围为1\~2K。
   - H：取值范围为1\~256。
-  - M：取值范围为1\~1M。
-  - N：取值范围为1\~1M。
-  - K：取值范围为1\~1M。
-  - D：取值范围为32\~256。
+  - N：取值范围为16\~1M且N%16==0。
+  - M：取值范围为128\~1M且M%128==0。
+  - K：取值范围为128\~1M且K%128==0。
+  - D：取值范围为16\~128。
 
 - query与key1的第0/2/4轴需相同。
 - key1与value1 shape需相同。
@@ -394,9 +395,12 @@ aclnnStatus aclnnFusedFloydAttentionGrad(
 调用示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```c++
-#include
+#include <iostream>
+#include <vector>
+#include <cstdint>
+#include <cmath>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_flash_attention_score.h"
+#include "aclnnop/aclnn_fused_floyd_attention_grad.h"
 
 #define CHECK_RET(cond, return_expr) \
   do {                               \
