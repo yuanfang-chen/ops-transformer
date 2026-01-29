@@ -8,20 +8,17 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/*!
- * \file scheduler_common.h
- * \brief
- */
+#ifndef CHECKER_H
+#define CHECKER_H
 
-#ifndef MC2_PIPELINE_CONTEXT_H
-#define MC2_PIPELINE_CONTEXT_H
+#include "aclnn/aclnn_base.h"
+#include "aclnn_util.h"
+#include "hccl/hccl_types.h"
 
-namespace MC2KernelTemplate {
-template <typename TilingDataType>
-struct SchedulerContext {
-// computation info
-// communication info
-};
-};
+namespace allto_allv_grouped_mat_mul_checker {
 
-#endif
+aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *recvCounts);
+
+} // namespace allto_allv_grouped_mat_mul_checker
+
+#endif //CHECKER_H
