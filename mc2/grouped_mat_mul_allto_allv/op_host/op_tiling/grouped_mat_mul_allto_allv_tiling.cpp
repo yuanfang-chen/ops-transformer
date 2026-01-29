@@ -33,64 +33,6 @@ using namespace ge;
 using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
-constexpr uint32_t GMM_X_INDEX = 0;
-constexpr uint32_t GMM_WEIGHT_INDEX = 1;
-constexpr uint32_t SEND_COUNTS_TENSOR_OPTIONAL_INDEX = 2;
-constexpr uint32_t RECV_COUNTS_TENSOR_OPTIONAL_INDEX = 3;
-constexpr uint32_t MM_X_OPTIONAL_INDEX = 4;
-constexpr uint32_t MM_WEIGHT_OPTIONAL_INDEX = 5;
-constexpr uint32_t OUTPUT_Y_INDEX = 0;
-constexpr uint32_t OUTPUT_MM_Y_OPTIONAL_INDEX = 1;
-
-constexpr uint32_t DIM_TWO = 2;
-constexpr uint32_t DIM_ONE = 1;
-constexpr uint32_t DIM_THREE = 3;
-
-constexpr uint32_t ATTR_GROUP_INDEX = 0;
-constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
-constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
-constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
-constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
-constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
-
-constexpr uint32_t HCCL_CMD_ALLGATHER = 6U;
-constexpr uint32_t HCCL_CMD_ALLTOALLV = 8;
-
-constexpr uint32_t INDEX_TWO = 2U;
-
-constexpr int64_t NUM_ZERO = 0;
-constexpr int64_t NUM_TWO = 2;
-constexpr int64_t NUM_FOUR = 4;
-constexpr int64_t NUM_EIGHT = 8;
-
-constexpr int64_t BEST_L1_PARTA = 256 * 1024;
-constexpr int64_t BEST_L1_PARTB = 128 * 1024;
-constexpr int64_t BEST_BASEN = 256;
-constexpr uint32_t UB_DIVIDE_NUM = 2;
-constexpr uint32_t UB_CALSIZE_PER_BLOCK = 16 * 1024;
-constexpr uint64_t DOUBLE_BUFFER_L0A_L0B = 2;
-constexpr uint64_t DOUBLE_BUFFER_STEPKA_STEPKB = 2;
-constexpr uint32_t SYS_WORKSPACE_SIZE = 16U * 1024U * 1024U;
-constexpr uint32_t MAX_TURN_NUM = 24;
-constexpr int32_t MAX_BASE_K = 128;
-constexpr uint64_t COMM_TILE = 8; // 每卡数据分配几次计算
-constexpr uint64_t MAX_EXPERT_NUM = 256;
-constexpr int64_t MAX_EXPERT_NUM_PER_RANK = 32;
-constexpr int64_t MAX_DIM_VALUE = 65536;
-constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
-constexpr int64_t MAX_BSK_VALUE = 52428800;
-constexpr int64_t RECV_SEND_MIN = static_cast<int64_t>((2 * 1024 * 1024) / 2);         // 2M / sizeof(gmmX)
-
-const char* C_INNER_DEBUG = "GroupedMatMulAlltoAllv Tiling Debug";
-const char* C_INNER_PRINT = "GroupedMatMulAlltoAllv Tiling Print";
-
-static int32_t maxM = 0;
-static int32_t maxN = 0;
-static int32_t maxK = 0;
-static int32_t baseM_ = 0;
-static int32_t baseN_ = 0;
-static int32_t baseK_ = 0;
-
 static uint64_t GMMGetSizePlatForm(
     const platform_ascendc::CoreMemType memType, platform_ascendc::PlatformAscendC ascendcPlatform)
 {
