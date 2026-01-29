@@ -24,7 +24,7 @@
 using namespace Ops::Transformer::OpTiling;
 using namespace GroupedMatmul;
 using namespace optiling::GmmConstant;
-using GMMQuantTilingData = GroupedMatmulTilingData::GMMQuantTilingData;
+using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
 using GMMQuantParams = GroupedMatmulTilingData::GMMQuantParams;
 namespace optiling {
 namespace Mc2GroupedMatmul {
