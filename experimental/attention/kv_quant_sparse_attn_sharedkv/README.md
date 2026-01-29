@@ -154,7 +154,6 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
     sinks = torch.rand(N1).to(torch.float32).npu()
 
     metadata = torch.ops.custom.npu_kv_quant_sparse_attn_sharedkv_metadata(
-        q=q,
         num_heads_q=N1,
         num_heads_kv=N2,
         head_dim=D,
@@ -176,7 +175,8 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
         layout_q=layout_q,
         layout_kv=layout_kv,
         has_ori_kv=True,
-        has_cmp_kv=True)
+        has_cmp_kv=True,
+        device = "npu:0")
 
     attn_out = torch_npu.npu_kv_quant_sparse_attn_sharedkv(
         q=q,
@@ -221,7 +221,6 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
             cmp_block_table, cu_seqlens_q, seqused_kv, sinks, kv_quant_mode, tile_size, rope_head_dim, 
             softmax_scale, cmp_ratio, ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv):
             metadata = torch.ops.custom.npu_kv_quant_sparse_attn_sharedkv_metadata(
-                q=q,
                 num_heads_q=N1,
                 num_heads_kv=N2,
                 head_dim=D,
@@ -243,7 +242,8 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
                 layout_q=layout_q,
                 layout_kv=layout_kv,
                 has_ori_kv=True,
-                has_cmp_kv=True)
+                has_cmp_kv=True,
+                device = "npu:0")
 
             npu_out = torch_npu.npu_kv_quant_sparse_attn_sharedkv(
                 q=q,
@@ -316,12 +316,12 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
     cmp_kv = torch.tensor(np.random.uniform(-5, 10, (cmp_block_num, cmp_block_size, N2, D))).to(cmp_kv_type).npu()
     sinks = torch.rand(N1).to(torch.float32).npu()
 
+    torch._dynamo.reset()
     npu_mode = Network().npu()
     config = CompilerConfig()
-    npu_backend = torchair.get_npu_backend(compiler_config=config)
-    torch._dynamo.reset()
     config.mode = "reduce-overhead"
-    npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=True)
+    npu_backend = torchair.get_npu_backend(compiler_config=config)
+    npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=False)
 
     attn_out = npu_mode(
                 B=B,
