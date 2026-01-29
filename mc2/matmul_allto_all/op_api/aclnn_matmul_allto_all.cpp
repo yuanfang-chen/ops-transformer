@@ -283,10 +283,25 @@ extern "C" aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, 
                                                            bool transposeX1, bool transposeX2, const aclTensor *output,
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output);
+    // 处理非连续Tensor，目前只有支持转置的x2涉及该处理
+    bool notContiguous = Ops::Transformer::IsTransposeLastTwoDims(x2);    // notContiguous标识x2是否是非连续的，通常在pytorch经过.t()会导致x2非连续
+    auto transX2 = x2;    // 复制一个x2
+    if (notContiguous && transposeX2) {    // 当非连续和转置同时生效时，判断为错误用法，直接报错
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2 not contiguous, and set x2 transpose, it is error!");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    if (notContiguous) {    // 只有当非连续时，才会涉及到转连续等情况
+        transposeX2 = !transposeX2;
+        // 把非连续x2转成连续
+        transX2 = TransX2Tensor(x2);
+        CHECK_RET(transX2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
+            x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
+    }
+    aclnnStatus retParam = CheckAndHandleParams(x1, transX2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     aclnnStatus ret = InnerMatmulAlltoAllGetWorkspaceSize(
-        x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, workspaceSize, executor);
+        x1, transX2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, workspaceSize, executor);
     OP_LOGD("MatmulAlltoAll, end ret %d", ret);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER,
