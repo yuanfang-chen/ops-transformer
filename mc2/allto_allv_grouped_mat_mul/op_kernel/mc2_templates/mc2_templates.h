@@ -9,19 +9,14 @@
  */
 
 /*!
- * \file scheduler_common.h
+ * \file mc2_templates.h
  * \brief
  */
+#ifndef MC2_TEMPLATES_H
+#define MC2_TEMPLATES_H
 
-#ifndef MC2_PIPELINE_CONTEXT_H
-#define MC2_PIPELINE_CONTEXT_H
+#include "scheduler/a2av_gmm_scheduler.h"
+#include "communication/hccl_a2av_op.h"
+#include "compute/quant_grouped_matmul.h"
 
-namespace MC2KernelTemplate {
-template <typename TilingDataType>
-struct SchedulerContext {
-// computation info
-// communication info
-};
-};
-
-#endif
+#endif // MC2_TEMPLATES_H
