@@ -1203,6 +1203,8 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
                  " activeType[%ld] is not supported.", gmmParams.activeType);
       return gmm::AclnnGroupedMatmulWeightQuant91095Checker(gmmParams).CheckGroupedMatmulWeightQuant91095();
     } else {
+      CHECK_COND(isNoActivation, ACLNN_ERR_PARAM_INVALID, "When input is No-Quant, activation is not supported on this platforms."
+ 	                  " activeType[%ld] is not supported.", gmmParams.activeType);     
       CHECK_RET(
           gmm::AclnnGroupedMatmulNoQuantDAV3510Checker(gmmParams).CheckGroupedMatmulFunctionParamsNoQuantDAV3510() ==
               ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
