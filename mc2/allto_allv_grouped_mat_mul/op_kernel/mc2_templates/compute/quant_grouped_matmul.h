@@ -16,9 +16,9 @@ class QuantGroupedMatmul {
 public:
     __aicore__ inline void Init(GM_ADDR xGM, GM_ADDR weightGM, GM_ADDR xScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR yGM, const TilingDataType* tilingData, TPipe* tPipe) {
         // TODO
-        // GET_TILING_DATA_MEMBER(GroupedMatmulTilingData::GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tilingGM_);
-        // GET_TILING_DATA_MEMBER(GroupedMatmulTilingData::GMMQuantTilingData, mmTilingData, mmTilingData_, tilingGM_);
-        // GET_TILING_DATA_MEMBER_ADDR(GroupedMatmulTilingData::GMMQuantTilingData, gmmArray, gmmArrayAddr_, tilingGM_);
+        // GET_TILING_DATA_MEMBER(Mc2GroupedMatmulTilingData::GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tilingGM_);
+        // GET_TILING_DATA_MEMBER(Mc2GroupedMatmulTilingData::GMMQuantTilingData, mmTilingData, mmTilingData_, tilingGM_);
+        // GET_TILING_DATA_MEMBER_ADDR(Mc2GroupedMatmulTilingData::GMMQuantTilingData, gmmArray, gmmArrayAddr_, tilingGM_);
 
         // gmmASWKernel.Init(permuteOutGM_,
         //     gmmwGM_, biasGM_, gmmxScaleGM_, 0, gmmWeightScaleGM_, gmmyGM_, workspaceGM_,
