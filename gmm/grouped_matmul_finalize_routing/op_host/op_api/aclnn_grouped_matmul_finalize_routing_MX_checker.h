@@ -139,6 +139,10 @@ public:
                                              (gmmParams_.x2)->GetViewShape().GetDim(TWO_DIM);
         int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0);          // 从weight的第0维获取e
         int64_t outputBS = gmmParams_.out->GetViewShape().GetDim(0);
+        if (k <= 0) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The K value should be positive, but got %ld.", k);
+            return false;
+        }
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape xScaleExpectShape = {m, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR};
