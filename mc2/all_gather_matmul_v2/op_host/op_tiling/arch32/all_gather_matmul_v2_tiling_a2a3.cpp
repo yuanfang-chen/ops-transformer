@@ -9,22 +9,27 @@
  */
 
 /*!
- * \file matmul_reduce_scatter_v2.cpp
+ * \file all_gather_matmul_v2_tiling_a2a3.cpp
  * \brief
  */
-#include "matmul_reduce_scatter_v2_tiling.h"
+
 #include "mc2_log.h"
+#include "tiling_base/tiling_templates_registry.h"
+#include "tiling_func.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "tiling_base/tiling_templates_registry.h"
 #include "platform/platform_infos_def.h"
 
-namespace optiling {
-ge::graphStatus MatmulReduceScatterTilingV2Func(gert::TilingContext *context);
-ge::graphStatus TilingParseForMatmulReduceScatterV2(gert::TilingParseContext *context);
-constexpr uint32_t ATTR_COMMMODE = 10;	
+using namespace AscendC;
+using namespace ge;
 
-ge::graphStatus MatmulReduceScatterTilingV2Func(gert::TilingContext *context)
+namespace optiling
+{
+ge::graphStatus AllGatherMatmulTilingV2FuncA2A3(gert::TilingContext* context);
+ge::graphStatus TilingParseForAllGatherMatmulV2A2A3(gert::TilingParseContext* context);
+constexpr uint32_t ATTR_COMMMODE = 11;
+
+ge::graphStatus AllGatherMatmulTilingV2FuncA2A3(gert::TilingContext* context)
 {
     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
     fe::PlatFormInfos &platformInfo = *platformInfoPtr;
@@ -34,28 +39,25 @@ ge::graphStatus MatmulReduceScatterTilingV2Func(gert::TilingContext *context)
     if (socVersion == "Ascend910B" || socVersion == "Ascend910_93") {
         auto attrs = context->GetAttrs();
         auto commModePtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMMMODE));
-        OP_TILING_CHECK(commModePtr == nullptr,
-            OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is nullPtr."), return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(std::strcmp(commModePtr, "aiv") != 0,
-            OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is invalid. Expect commMode aiv, but cur commMode is %s", commModePtr), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((commModePtr == nullptr || !(std::strcmp(commModePtr, "aiv") == 0)),
+            OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is invalid. commMode is %s", commModePtr), return ge::GRAPH_FAILED);
         if (std::strcmp(commModePtr, "aiv") == 0) {
-            return MatmulReduceScatterTilingV2AivModeFunc(context);
+            return AllGatherMatmulTilingAIVModeFunc(context);
         }
         return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
     }
     return Ops::Transformer::OpTiling::TilingRegistryArch::GetInstance().DoTilingImpl(context);
 }
 
-struct MatmulReduceScatterV2CompileInfo {};
-ge::graphStatus TilingParseForMatmulReduceScatterV2(gert::TilingParseContext *context)
+struct AllGatherMatmulCompileInfo {
+};
+ge::graphStatus TilingParseForAllGatherMatmulV2A2A3(gert::TilingParseContext* context)
 {
     (void)context;
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(MatmulReduceScatterV2)
-    .Tiling(MatmulReduceScatterTilingV2Func)
-    .TilingParse<MatmulReduceScatterV2CompileInfo>(TilingParseForMatmulReduceScatterV2);
-
+IMPL_OP_OPTILING(AllGatherMatmulV2)
+    .Tiling(AllGatherMatmulTilingV2FuncA2A3)
+    .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmulV2A2A3);
 }  // namespace optiling
-
