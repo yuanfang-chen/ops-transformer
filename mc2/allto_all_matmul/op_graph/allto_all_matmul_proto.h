@@ -23,7 +23,7 @@ namespace ge {
  * @par Inputs:
  * two inputs, including:
  * @li x1: A matrix Tensor. The type support bfloat16, float16. The format supports ND.
- * @li x2: A matrix Tensor. The type support bfloat16, float16. The format supports ND.
+ * @li x2: A matrix Tensor. The type support bfloat16, float16, float8_e4m3fn, float8_e5m2. The format supports ND.
  * @li bias: A matrix Tensor. The type support bfloat16, float16, float. The format supports ND.
  * @li x1_scale: A matrix Tensor. The type support float. The format supports ND.
  * @li x2_scale: A matrix Tensor. The type support float. The format supports ND.
@@ -32,7 +32,7 @@ namespace ge {
  * @li x2_offset: A matrix Tensor. The type support float, float16. The format supports ND.
  *
  * @par Outputs:
- * @li y: A matrix Tensor. The type support bfloat16, float16. The format supports ND.
+ * @li y: A matrix Tensor. The type support bfloat16, float16, float. The format supports ND.
  * @li all2all_out: A matrix Tensor. The type support bfloat16, float16. The format supports ND.
  *
  * @par Attributes:
