@@ -30,8 +30,13 @@ namespace MC2Tiling {
  */
 bool AllToAllFpMatmulTilingBase::IsCapable()
 {
-    OP_LOGI(opName_, "Start with AlltoAllFpMatmul tiling.");
-    return true;
+    QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context_, opName_);
+    if (mode == QuantMode::NON_QUANT) {
+        OP_LOGI(opName_, "Start with FpMatmulAllToAll tiling.");
+        return true;
+    }
+    OP_LOGI(opName_, "Skip FpMatmulAllToAll tiling when not NON_QUANT.");
+    return false;
 }
 
 /**
