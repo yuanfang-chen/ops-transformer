@@ -48,14 +48,15 @@ static graphStatus PromptHostExecuteFunc(OpExecuteContext* host_api_ctx)
 
   auto pseShiftGe = host_api_ctx->GetOptionalInputTensor(3);
   auto attenMaskGe = host_api_ctx->GetOptionalInputTensor(4);
-  auto actualSeqLengthsGe = host_api_ctx->GetOptionalInputTensor(5);
+  auto sabiTensorGe = host_api_ctx->GetOptionalInputTensor(5);
+  auto actualSeqLengthsGe = host_api_ctx->GetOptionalInputTensor(6);
 
-  auto actualSeqLengthsGeKv = host_api_ctx->GetOptionalInputTensor(6);
-  auto deq_scale1 = host_api_ctx->GetOptionalInputTensor(7);
-  auto quant_scale1 = host_api_ctx->GetOptionalInputTensor(8);
-  auto deq_scale2 = host_api_ctx->GetOptionalInputTensor(9);
-  auto quant_scale2 = host_api_ctx->GetOptionalInputTensor(10);
-  auto quant_offset2 = host_api_ctx->GetOptionalInputTensor(11);
+  auto actualSeqLengthsGeKv = host_api_ctx->GetOptionalInputTensor(7);
+  auto deq_scale1 = host_api_ctx->GetOptionalInputTensor(8);
+  auto quant_scale1 = host_api_ctx->GetOptionalInputTensor(9);
+  auto deq_scale2 = host_api_ctx->GetOptionalInputTensor(10);
+  auto quant_scale2 = host_api_ctx->GetOptionalInputTensor(11);
+  auto quant_offset2 = host_api_ctx->GetOptionalInputTensor(12);
 
   std::vector<int64_t> actSeqArray;
   if (actualSeqLengthsGe != nullptr) {
@@ -117,7 +118,7 @@ static graphStatus PromptHostExecuteFunc(OpExecuteContext* host_api_ctx)
             sparseMode, innerPrecise);
   }
 
-  auto api_ret = EXEC_OPAPI_CMD(aclnnPromptFlashAttentionV3, query, key, value, pseShiftGe, attenMaskGe, actSeqArray,
+  auto api_ret = EXEC_OPAPI_CMD(aclnnPromptFlashAttentionV3Sabi, query, key, value, pseShiftGe, attenMaskGe, sabiTensorGe, actSeqArray,
                                 actSeqArrayKv, deq_scale1, quant_scale1, deq_scale2, quant_scale2, quant_offset2,
                                 numHeads, dScaleValue, preTokens, nextTokens, layout, kvHeadNum, sparseMode,
                                 innerPrecise, output);
@@ -128,7 +129,7 @@ static graphStatus PromptHostExecuteFunc(OpExecuteContext* host_api_ctx)
   return GRAPH_SUCCESS;
 }
 
-IMPL_OP(PromptFlashAttention).OpExecuteFunc(PromptHostExecuteFunc).HostInputs({5, 6});
+IMPL_OP(PromptFlashAttention).OpExecuteFunc(PromptHostExecuteFunc).HostInputs({6, 7});
 }  // namespace fallback
 
 #ifdef __cplusplus

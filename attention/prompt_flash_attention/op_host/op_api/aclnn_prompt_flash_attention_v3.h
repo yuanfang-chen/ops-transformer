@@ -21,12 +21,13 @@ extern "C" {
  * @brief The first interface of aclnnPromptFlashAttentionV3 is used to calculate the workspace size based on the specific calculation process.
  * @domain aclnn_ops_infer
 */
-__attribute__ ((visibility("default"))) aclnnStatus aclnnPromptFlashAttentionV3GetWorkspaceSize(
+__attribute__ ((visibility("default"))) aclnnStatus aclnnPromptFlashAttentionV3GetWorkspaceSizeSabi(
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask, // attenMask of V3
+    const aclTensor *sabiTensor,
     const aclIntArray *actualSeqLengths,
     const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1,
@@ -49,7 +50,7 @@ __attribute__ ((visibility("default"))) aclnnStatus aclnnPromptFlashAttentionV3G
 /**
  * @brief The second interface of aclnnPromptFlashAttentionV3 is used to perform calculations.
 */
-__attribute__ ((visibility("default"))) aclnnStatus aclnnPromptFlashAttentionV3(
+__attribute__ ((visibility("default"))) aclnnStatus aclnnPromptFlashAttentionV3Sabi(
     void *workspace,
     uint64_t workspaceSize,
     aclOpExecutor *executor,

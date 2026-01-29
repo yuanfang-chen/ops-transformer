@@ -95,4 +95,83 @@ const aclTensor *PromptFlashAttention(
 
     return attentionOutOut;
 }
+
+const aclTensor *PromptFlashAttentionSabi(
+    const aclTensor *query,
+    const aclTensor *key,
+    const aclTensor *value,
+    const aclTensor *pseShift,
+    const aclTensor *attenMask,
+    const aclTensor *sabiTensor,
+    const aclIntArray *actualSeqLengths,
+    const aclIntArray *actualSeqLengthsKv,
+    const aclTensor *deqScale1,
+    const aclTensor *quantScale1,
+    const aclTensor *deqScale2,
+    const aclTensor *quantScale2,
+    const aclTensor *quantOffset2,
+    int64_t numHeads,
+    double scaleValue,
+    int64_t preTokens,
+    int64_t nextTokens,
+    const char *inputLayout,
+    int64_t numKeyValueHeads,
+    int64_t sparseMode,
+    int64_t innerPrecise,
+    const aclTensor *attentionOut,
+    aclOpExecutor *executor) {
+    // std::cout << "PromptFlashAttention 1 sabi" << std::endl;
+    L0_DFX(PromptFlashAttentionSabi, query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengths, actualSeqLengthsKv,
+           deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2,
+           numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads,
+           sparseMode, innerPrecise);
+    // std::cout << "PromptFlashAttention 2 sabi" << std::endl;
+    const aclTensor *actualSeqLengthsTensor = nullptr;
+    if (executor == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "PromptFlashAttentionSabi: executor is nullptr.");
+        return nullptr;
+    }
+
+    if (actualSeqLengths) {
+        actualSeqLengthsTensor = executor->ConvertToTensor(actualSeqLengths, DataType::DT_INT64);
+        const_cast<aclTensor *>(actualSeqLengthsTensor)->SetStorageFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqLengthsTensor)->SetViewFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqLengthsTensor)->SetOriginalFormat(Format::FORMAT_ND);
+    }
+
+    const aclTensor *actualSeqLengthsKvTensor = nullptr;
+    if (actualSeqLengthsKv) {
+        actualSeqLengthsKvTensor = executor->ConvertToTensor(actualSeqLengthsKv, DataType::DT_INT64);
+        const_cast<aclTensor *>(actualSeqLengthsKvTensor)->SetStorageFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqLengthsKvTensor)->SetViewFormat(Format::FORMAT_ND);
+        const_cast<aclTensor *>(actualSeqLengthsKvTensor)->SetOriginalFormat(Format::FORMAT_ND);
+    }
+    // std::cout << "PromptFlashAttention 3 sabi" << std::endl;
+    auto attentionOutOut = executor->AllocTensor(attentionOut->GetDataType(), Format::FORMAT_ND, Format::FORMAT_ND);
+    auto ret = INFER_SHAPE(PromptFlashAttention,
+        OP_INPUT(query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengthsTensor, actualSeqLengthsKvTensor,
+                 deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2),
+        OP_OUTPUT(attentionOutOut),
+        OP_ATTR(numHeads, static_cast<float>(scaleValue), preTokens, nextTokens,
+                inputLayout, numKeyValueHeads, sparseMode, innerPrecise));
+    if (ret != ACLNN_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "PromptFlashAttentionSabi InferShape failed.");
+        return nullptr;
+    }
+
+    // std::cout << "PromptFlashAttention 4 sabi" << std::endl;
+    ret = ADD_TO_LAUNCHER_LIST_AICORE(PromptFlashAttention,
+        OP_INPUT(query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengthsTensor, actualSeqLengthsKvTensor,
+                 deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2),
+        OP_OUTPUT(attentionOutOut),
+        OP_ATTR(numHeads, static_cast<float>(scaleValue), preTokens, nextTokens,
+                inputLayout, numKeyValueHeads, sparseMode, innerPrecise));
+    if (ret != ACLNN_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "PromptFlashAttentionSabi LaunchAicore failed.");
+        return nullptr;
+    }
+    // std::cout << "PromptFlashAttention 5 sabi" << std::endl;
+
+    return attentionOutOut;
+}
 }

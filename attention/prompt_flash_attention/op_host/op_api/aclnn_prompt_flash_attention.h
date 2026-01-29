@@ -27,6 +27,7 @@ __attribute__ ((visibility("default"))) aclnnStatus aclnnPromptFlashAttentionGet
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask,
+    const aclTensor *sabiTensor,
     const aclIntArray *actualSeqLengths,
     int64_t numHeads,
     double scaleValue,

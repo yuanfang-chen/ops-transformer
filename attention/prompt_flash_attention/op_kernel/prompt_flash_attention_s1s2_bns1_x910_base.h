@@ -556,6 +556,9 @@ protected:
     __gm__ uint8_t* currentValue;
     __gm__ uint8_t* blocktable_ptr;
 
+    // For block-sparse attention
+    __gm__ const uint16_t* sabiBaseGm = nullptr; // points to sabi tensor in GM
+
     __gm__ uint32_t* bmm1CBDataPtr[2];
     __gm__ uint32_t* bmm2CBDataPtr[2];
 
@@ -1719,6 +1722,15 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910Base<PFAT>::Init(__gm__ u
     attentionOutInitGm.SetGlobalBuffer((__gm__ half*)attentionOut);
     softmaxLseGm.SetGlobalBuffer((__gm__ float*)softmaxLse);
     workspaceGm.SetGlobalBuffer((__gm__ mmOutputType*)workspace);
+
+    // Get sabi tensor from user workspace
+    constexpr uint32_t kSabiPtrOffBytes = 32; // <-- use your chosen offset (see attention/prompt_flash_attention/op_kernel/prompt_flash_attention.cpp sabiOffset)
+
+    // Host wrote a 64-bit GM address of sabi tensor into user workspace
+    const uint64_t sabiAddr =
+        *reinterpret_cast<__gm__ const uint64_t*>(workspace + kSabiPtrOffBytes);
+
+    this->sabiBaseGm = reinterpret_cast<__gm__ const uint16_t*>(sabiAddr);
 
     pipe = tPipe;
     typeByteNum = tilingData->promptAttentionBaseParams.typeByteNum;

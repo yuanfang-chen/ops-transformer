@@ -48,7 +48,7 @@ __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t* query, __
       prompt_flash_attention_FIAS<Q_T, KV_T, OUT_T, PAGE_ATTENTIOND, LAYOUT_T, KV_LAYOUT_T, FLASH_DECODE, ENABLE_PREFIX, M_Q_QUANTMODE_P_MSD_MODE_I_ANTIQUANTMODE,
                     M_OUTLAYOUT_P_TAIL_MODE_I_ORIGIN_T, M_K_QUANTMODE_P_NEWTILINGFLAG_I_AMLA, M_V_QUANTMODE_P_PRECISION_MODE_I_BALANCE,
                     M_FIAFLAG_P_MMTYPETMP_I_MODEVAL, P_CVDIFF_BASE_FLAG, P_CVDIFF_MLA_FLAG, P_TEMPLATE_VERSION, TEMPLATE_MODE>
-                                  (query, key, value, pse_shift, attenMask, actualSeqLengths, 
+                                  (query, key, value, pse_shift, attenMask, nullptr, actualSeqLengths, 
                                   actualSeqLengthsKV, deq_scale1, quant_scale1,
                                   deq_scale2, quant_scale2, quant_offset2, antiquantScale, 
                                   antiquantOffset, blocktable, queryPaddingSize, kvPaddingSize, 

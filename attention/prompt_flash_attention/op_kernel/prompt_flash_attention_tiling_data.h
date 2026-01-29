@@ -81,6 +81,12 @@ public:
     uint32_t qkHeadSize = 0;
     uint32_t vHeadSize = 0;
     uint32_t gOfMla = 0;
+    // For sabi tensors
+    uint32_t sabiBatchSize = 0;
+    uint32_t sabiHeadNum = 0;
+    uint32_t sabiQblocks = 0;
+    uint32_t sabiKVBlocks = 0;
+    uint32_t sabiLen = 0;
     // Passing parameters through environment variables (host-filled)
     // For vertical bands
     int64_t debugSlice = 0;
@@ -282,6 +288,21 @@ public:
 
     uint32_t get_gOfMla() const { return gOfMla; }
     void set_gOfMla(uint32_t gOfMla) { this->gOfMla = gOfMla; }
+
+    uint32_t get_sabiBatchSize() const { return sabiBatchSize; }
+    void set_sabiBatchSize(uint32_t sabiBatchSize) { this->sabiBatchSize = sabiBatchSize; }
+
+    uint32_t get_sabiHeadNum() const { return sabiHeadNum; }
+    void set_sabiHeadNum(uint32_t sabiHeadNum) { this->sabiHeadNum = sabiHeadNum; }
+
+    uint32_t get_sabiQblocks() const { return sabiQblocks; }
+    void set_sabiQblocks(uint32_t sabiQblocks) { this->sabiQblocks = sabiQblocks; }
+
+    uint32_t get_sabiKVBlocks() const { return sabiKVBlocks; }
+    void set_sabiKVBlocks(uint32_t sabiKVBlocks) { this->sabiKVBlocks = sabiKVBlocks; }
+
+    uint32_t get_sabiLen() const { return sabiLen; }
+    void set_sabiLen(uint32_t sabiLen) { this->sabiLen = sabiLen; }
 };
 
 class PromptAttentionBaseApiBaseParams {

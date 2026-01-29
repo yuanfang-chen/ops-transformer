@@ -68,15 +68,16 @@ constexpr uint32_t KEY_ROPE_INDEX = 4;
 constexpr uint32_t ATTENTION_OUT_INDEX = 0;
 constexpr uint32_t PSE_SHIFT_INDEX = 3;
 constexpr uint32_t ATTEN_MASK_INDEX = 4;
-constexpr uint32_t ACTUAL_SEQ_Q_INDEX = 5;
-constexpr uint32_t ACTUAL_SEQ_KV_INDEX = 6;
-constexpr uint32_t DEQ_SCALE1_INDEX = 7;
-constexpr uint32_t QUANT_SCALE1_INDEX = 8;
-constexpr uint32_t DEQ_SCALE2_INDEX = 9;
-constexpr uint32_t QUANT_SCALE2_INDEX = 10;
-constexpr uint32_t QUANT_OFFSET2_INDEX = 11;
-constexpr uint32_t ANTIQUANT_SCALE_INDEX = 12;
-constexpr uint32_t ANTIQUANT_OFFSET_INDEX = 13;
+constexpr uint32_t SABI_TENSOR_INDEX = 5;
+constexpr uint32_t ACTUAL_SEQ_Q_INDEX = 6;
+constexpr uint32_t ACTUAL_SEQ_KV_INDEX = 7;
+constexpr uint32_t DEQ_SCALE1_INDEX = 8;
+constexpr uint32_t QUANT_SCALE1_INDEX = 9;
+constexpr uint32_t DEQ_SCALE2_INDEX = 10;
+constexpr uint32_t QUANT_SCALE2_INDEX = 11;
+constexpr uint32_t QUANT_OFFSET2_INDEX = 12;
+constexpr uint32_t ANTIQUANT_SCALE_INDEX = 13;
+constexpr uint32_t ANTIQUANT_OFFSET_INDEX = 14;
 
 constexpr uint32_t INPUT_QKV_SHAPE_MIN_DIMS = 2;
 constexpr uint32_t INPUT_QKV_SHAPE_MAX_DIMS = 5;
@@ -398,7 +399,43 @@ static ge::graphStatus ConvertContextToPFAParams(gert::TilingContext* context, C
     contextKeyParams.fromTilingSink = 0U;
     contextKeyParams.pseShift = context->GetOptionalInputTensor(PSE_SHIFT_INDEX);
     contextKeyParams.attentionMask = context->GetOptionalInputTensor(ATTEN_MASK_INDEX);
+    // if (contextKeyParams.attentionMask) {
+    //     auto* t = contextKeyParams.attentionMask;
+
+    //     const uint8_t* p = t->GetData<uint8_t>();
+    //     std::cout << "MASK gert::Tensor obj ptr = " << t << "\n";
+    //     std::cout << "MASK gert::Tensor data ptr = " << (const void*)p << "\n";
+    //     auto shape = t->GetStorageShape();
+    //     std::cout << "MASK rank = " << shape.GetDimNum() << "\n";
+    //     std::cout << "MASK numel = " << shape.GetShapeSize() << "\n";
+    //     std::cout << "MASK total size = " << t->GetSize() << "\n";
+    // }
+    contextKeyParams.sabiTensor = context->GetOptionalInputTensor(SABI_TENSOR_INDEX);
+    // std::cout << "Sabi tensor in prompt_flash_attention_tiling.cpp: " << contextKeyParams.sabiTensor << std::endl;
+    // if (contextKeyParams.sabiTensor) {
+    //     auto* t = contextKeyParams.sabiTensor;
+
+    //     const uint16_t* p = t->GetData<uint16_t>();
+    //     std::cout << "gert::Tensor obj ptr = " << t << "\n";
+    //     std::cout << "gert::Tensor data ptr = " << (const void*)p << "\n";
+    //     auto shape = t->GetStorageShape();
+    //     std::cout << "rank = " << shape.GetDimNum() << "\n";
+    //     std::cout << "numel = " << shape.GetShapeSize() << "\n";
+    //     std::cout << "total size = " << t->GetSize() << "\n";
+    // }
     contextKeyParams.actualSequenceLengthQ = context->GetOptionalInputTensor(ACTUAL_SEQ_Q_INDEX);
+    // if (contextKeyParams.actualSequenceLengthQ) {
+    //     auto* t = contextKeyParams.actualSequenceLengthQ;
+
+    //     const uint8_t* p = t->GetData<uint8_t>();
+    //     std::cout << "SEQ_LEN gert::Tensor obj ptr = " << t << "\n";
+    //     std::cout << "SEQ_LEN gert::Tensor data ptr = " << (const void*)p << "\n";
+    //     auto shape = t->GetStorageShape();
+    //     std::cout << "SEQ_LEN rank = " << shape.GetDimNum() << "\n";
+    //     std::cout << "SEQ_LEN numel = " << shape.GetShapeSize() << "\n";
+    //     std::cout << "SEQ_LEN total size = " << t->GetSize() << "\n";
+    // }
+    // std::cout << "actualSequenceLengthQ in prompt_flash_attention_tiling.cpp: " << contextKeyParams.actualSequenceLengthQ << std::endl;
     contextKeyParams.actualSequenceLengthKV = context->GetOptionalInputTensor(ACTUAL_SEQ_KV_INDEX);
     contextKeyParams.antiquantScale = context->GetOptionalInputTensor(ANTIQUANT_SCALE_INDEX);
     contextKeyParams.antiquantOffset = context->GetOptionalInputTensor(ANTIQUANT_OFFSET_INDEX);
@@ -413,12 +450,17 @@ static ge::graphStatus ConvertContextToPFAParams(gert::TilingContext* context, C
     context->GetOptionalInputDesc(PSE_SHIFT_INDEX)->GetDataType() : contextKeyParams.inputDataType;
     contextKeyParams.maskDataType = (contextKeyParams.attentionMask != nullptr) ?
     context->GetOptionalInputDesc(ATTEN_MASK_INDEX)->GetDataType() : contextKeyParams.inputDataType;
+    contextKeyParams.sabiDataType = (contextKeyParams.sabiTensor != nullptr) ?
+    context->GetOptionalInputDesc(SABI_TENSOR_INDEX)->GetDataType() : contextKeyParams.inputDataType;
+    // std::cout << "SABI data type: " << contextKeyParams.sabiDataType << std::endl;
     contextKeyParams.outputDataType = context->GetOutputDesc(0)->GetDataType();
     contextKeyParams.queryInputShape = context->GetInputShape(QUERY_INDEX);
     contextKeyParams.keyInputShape = context->GetInputShape(KEY_INDEX);
     contextKeyParams.valueInputShape = context->GetInputShape(VALUE_INDEX);
     contextKeyParams.pseShiftShape = context->GetOptionalInputShape(PSE_SHIFT_INDEX);
     contextKeyParams.attentionMaskShape = context->GetOptionalInputShape(ATTEN_MASK_INDEX);
+    contextKeyParams.sabiTensorShape = context->GetOptionalInputShape(SABI_TENSOR_INDEX);
+    // std::cout << "Second round numel = " << contextKeyParams.sabiTensorShape->GetStorageShape().GetShapeSize() << std::endl;
     contextKeyParams.deqScale1Shape = context->GetOptionalInputShape(DEQ_SCALE1_INDEX);
     contextKeyParams.scale1Shape = context->GetOptionalInputShape(QUANT_SCALE1_INDEX);
     contextKeyParams.deqScale2Shape = context->GetOptionalInputShape(DEQ_SCALE2_INDEX);
@@ -451,6 +493,7 @@ static ge::graphStatus ConvertContextToPFAParams(gert::TilingContext* context, C
     contextKeyParams.quantOffset2Type = (context->GetOptionalInputDesc(QUANT_OFFSET2_INDEX) != nullptr) ?
         context->GetOptionalInputDesc(QUANT_OFFSET2_INDEX)->GetDataType() : ge::DT_FLOAT;
 
+    // std::cout << "ConvertContextToPFAParams 2" << std::endl;
     OP_CHECK_IF(contextKeyParams.workspaceSize == nullptr,
                     OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "workSpaceSize got from ge is nullptr"),
                     return ge::GRAPH_FAILED);
@@ -1186,7 +1229,9 @@ ge::graphStatus PromptFlashAttentionTiling::CheckKeyValueParamsConsistency(const
     const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
     const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
     const uint32_t keyDimNum = keyShape->GetStorageShape().GetDimNum();
+    // std::cout << "Key dim num: " << keyDimNum << std::endl;
     const uint32_t valueDimNum = valueShape->GetStorageShape().GetDimNum();
+    // std::cout << "Value dim num: " << keyDimNum << std::endl;
 
     OP_CHECK_IF(contextKeyParams.kDataType != contextKeyParams.vDataType,
                     OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -4092,6 +4137,7 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
     const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
     const gert::StorageShape* pseShiftShape = contextKeyParams.pseShiftShape;
     const gert::StorageShape* attenMaskShape = contextKeyParams.attentionMaskShape;
+    const gert::StorageShape* sabiShape = contextKeyParams.sabiTensorShape;
     const gert::StorageShape* deqScale1Shape = contextKeyParams.deqScale1Shape;
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
@@ -4156,6 +4202,11 @@ ge::graphStatus PromptFlashAttentionTiling::RunBigKernelTilingWithParams(Context
 
     // Set the last dim size of mask.
     SetMaskSize(attenMaskShape, tilingData);
+    
+    // Set the shape of the sabi tensor
+    if (sabiShape != nullptr) {
+        SetSabiSize(sabiShape, tilingData);
+    }
 
     if ((curShortSocName != platform_ascendc::SocVersion::ASCEND310P) && (SetInputLayout(contextKeyParams.layout) != GRAPH_FAILED)
         && InputLayoutIsTNDLike()) {
@@ -5997,6 +6048,38 @@ void PromptFlashAttentionTiling::SetMaskSize(const gert::StorageShape* attenMask
     tilingData->promptAttentionBaseParams.set_maskQsSize(maskQsSize);
 }
 
+void PromptFlashAttentionTiling::SetSabiSize(const gert::StorageShape* sabiTensorShape,
+                                            PromptFlashAttentionTilingData* tilingData) {
+    uint32_t sabiBatchSize = 1;
+    uint32_t sabiHeadNum = 0;
+    uint32_t sabiQblocks = 0;
+    uint32_t sabiKVBlocks = 0;
+
+    if (sabiTensorShape != nullptr) {
+        const auto& shape = sabiTensorShape->GetStorageShape(); // GetOriginShape in case the underlying data is messed up/flattened
+        const int64_t dimNum = shape.GetDimNum();
+
+        // Expect 3D: [H, Q, KV] or 4D: [B, H, Q, KV]
+        if (dimNum >= 3) {
+            sabiKVBlocks = static_cast<uint32_t>(shape.GetDim(dimNum - 1));
+            sabiQblocks  = static_cast<uint32_t>(shape.GetDim(dimNum - 2));
+            sabiHeadNum  = static_cast<uint32_t>(shape.GetDim(dimNum - 3));
+        }
+
+        if (dimNum >= 4) {
+            sabiBatchSize = static_cast<uint32_t>(shape.GetDim(dimNum - 4));
+        } else {
+            sabiBatchSize = 1;  // implicit batch for 3D
+        }
+    }
+
+    tilingData->promptAttentionBaseParams.set_sabiBatchSize(sabiBatchSize);
+    tilingData->promptAttentionBaseParams.set_sabiHeadNum(sabiHeadNum);
+    tilingData->promptAttentionBaseParams.set_sabiQblocks(sabiQblocks);
+    tilingData->promptAttentionBaseParams.set_sabiKVBlocks(sabiKVBlocks);
+    tilingData->promptAttentionBaseParams.set_sabiLen(sabiBatchSize*sabiHeadNum*sabiQblocks*sabiKVBlocks);
+}
+
 ge::graphStatus PromptFlashAttentionTiling::CheckShape(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* queryShape,
                                                        const gert::StorageShape* keyShape, const gert::StorageShape* valueShape, const gert::StorageShape* outShape,
                                                        const gert::StorageShape* pseShiftShape, const gert::StorageShape* attenMaskShape) {
@@ -6922,6 +7005,21 @@ static inline bool ReadWholeFileToString(const char* path, std::string& out)
 
 PFA_EXTERN_C ge::graphStatus TilingPromptFlashAttention(gert::TilingContext* context)
 {
+    // std::cout << "Node: " << context->GetNodeName() << "\n";
+    // for (int i = 0; i < 20; ++i) {
+    //     auto desc = context->GetInputDesc(i);
+    //     auto shape = context->GetInputShape(i);
+    //     std::cout << "in[" << i << "]: desc=" << desc;
+    //     if (desc) std::cout << " dtype=" << desc->GetDataType();
+    //     std::cout << " shape=" << shape << "\n"; // print dims if you can
+    // }
+
+    // for (int k = 0; k < 20; ++k) {
+    //     auto t = context->GetOptionalInputTensor(k);
+    //     std::cout << "optTensor[" << k << "]=" << t << "\n";
+    // }
+
+
     if (context == nullptr) {
         OP_LOGE("PromptFlashAttention", "tiling context is nullptr!");
         return ge::GRAPH_FAILED;

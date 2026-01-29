@@ -28,12 +28,13 @@ extern "C" {
 #endif
 
 namespace {
-aclnnStatus aclnnPromptFlashAttentionV3GetWorkspaceSize(
+aclnnStatus aclnnPromptFlashAttentionV3GetWorkspaceSizeSabi(
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
     const aclTensor *pseShift,
     const aclTensor *attenMask,
+    const aclTensor *sabiTensor,
     const aclIntArray *actualSeqLengths,
     const aclIntArray *actualSeqLengthsKv,
     const aclTensor *deqScale1,
@@ -52,7 +53,7 @@ aclnnStatus aclnnPromptFlashAttentionV3GetWorkspaceSize(
     const aclTensor *attentionOut,
     uint64_t *workspaceSize,
     aclOpExecutor **executor) {
-        return InnerPromptFlashAttentionGetWorkspaceSize(query, key, value, pseShift, attenMask,
+        return InnerPromptFlashAttentionGetWorkspaceSizeSabi(query, key, value, pseShift, attenMask, sabiTensor,
                                                               actualSeqLengths, actualSeqLengthsKv,
                                                               deqScale1, quantScale1, deqScale2,
                                                               quantScale2, quantOffset2,
@@ -61,7 +62,7 @@ aclnnStatus aclnnPromptFlashAttentionV3GetWorkspaceSize(
                                                               innerPrecise, attentionOut, workspaceSize, executor);
     }
 
-aclnnStatus aclnnPromptFlashAttentionV3(
+aclnnStatus aclnnPromptFlashAttentionV3Sabi(
     void *workspace,
     uint64_t workspaceSize,
     aclOpExecutor *executor,

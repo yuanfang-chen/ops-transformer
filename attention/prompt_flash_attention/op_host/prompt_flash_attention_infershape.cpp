@@ -37,9 +37,9 @@ static constexpr uint32_t PFA_ATTR_NUM_HEADS_INDEX = 0;
 static constexpr uint32_t PFA_ATTR_NUM_KV_HEADS_INDEX = 5;
 static constexpr uint32_t PFA_ATTENTION_OUT_INDEX = 0;
 static constexpr uint32_t PFA_ATTR_INPUT_LAYOUT_INDEX = 4;
-static constexpr uint32_t PFA_INPUT_ACTUAL_SEQ_LENGTHS_INDEX = 5;
-static constexpr uint32_t PFA_INPUT_ACTUAL_SEQ_LENGTHS_KV_INDEX = 6;
-static constexpr uint32_t PFA_QUANT_SCALE2_INDEX = 10;
+static constexpr uint32_t PFA_INPUT_ACTUAL_SEQ_LENGTHS_INDEX = 6;
+static constexpr uint32_t PFA_INPUT_ACTUAL_SEQ_LENGTHS_KV_INDEX = 7;
+static constexpr uint32_t PFA_QUANT_SCALE2_INDEX = 11;
 } // namespace ops
 namespace ops {
 static ge::graphStatus InferShapePromptFlashAttention(gert::InferShapeContext *context)

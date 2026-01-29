@@ -17,21 +17,133 @@
 
 #include "prompt_flash_attention_s1s2_bns1_x910_base.h"
 
-struct I32VecView {
-    const __gm__ int32_t* ptr = nullptr;
+// // Int32 sabi tensor
+// struct I32VecView {
+//     const __gm__ int32_t* ptr = nullptr;
+//     uint32_t len = 0;
+
+//     __aicore__ inline bool IsValid() const { return ptr != nullptr && len != 0; }
+//     __aicore__ inline int32_t Get(uint32_t i) const { return ptr[i]; }
+// };
+
+// struct I32T3View {
+//     const __gm__ int32_t* base = nullptr;
+//     uint32_t d0 = 0, d1 = 0, d2 = 0;
+//     uint32_t totalLen = 0; // <-- add this
+
+//     __aicore__ inline I32VecView At(uint32_t i0, uint32_t i1) const {
+//         I32VecView v{};
+//         if (base == nullptr || d2 == 0 || totalLen == 0) return v;
+//         if (i0 >= d0 || i1 >= d1) return v;
+
+//         const uint64_t idx = (static_cast<uint64_t>(i0) * d1 + i1) * d2;
+//         const uint64_t end = idx + d2;
+//         if (end > totalLen) return v;
+
+//         v.ptr = base + idx;
+//         v.len = d2;
+//         return v;
+//     }
+// };
+
+// // 4D view: [b][d0][d1][d2] contiguous row-major
+// struct I32T4View {
+//     const __gm__ int32_t* base = nullptr;
+
+//     uint32_t b  = 0;
+//     uint32_t d0 = 0;
+//     uint32_t d1 = 0;
+//     uint32_t d2 = 0;
+
+//     uint32_t totalLen = 0;
+
+//     // Original 4D -> Vec slice
+//     __aicore__ inline I32VecView At(uint32_t ib, uint32_t i0, uint32_t i1) const {
+//         I32VecView v{};
+//         if (base == nullptr || d2 == 0 || totalLen == 0) return v;
+//         if (ib >= b || i0 >= d0 || i1 >= d1) return v;
+
+//         const uint64_t idx =
+//             ((static_cast<uint64_t>(ib) * d0 + i0) * d1 + i1) * d2;
+
+//         const uint64_t end = idx + d2;
+//         if (end > totalLen) return v;
+
+//         v.ptr = base + idx;
+//         v.len = d2;
+//         return v;
+//     }
+
+//     // 4D -> 3D subview for a fixed batch index.
+//     // Returned view represents [d0][d1][d2] for batch ib.
+//     __aicore__ inline I32T3View AtBatch(uint32_t ib) const {
+//         I32T3View v{};
+//         if (base == nullptr || d2 == 0 || totalLen == 0) return v;
+//         if (ib >= b) return v;
+
+//         const uint64_t batchStride = static_cast<uint64_t>(d0) * d1 * d2;
+//         const uint64_t idx = static_cast<uint64_t>(ib) * batchStride;
+//         const uint64_t end = idx + batchStride;
+//         if (end > totalLen) return v;
+
+//         v.base = base + idx;
+//         v.d0 = d0; v.d1 = d1; v.d2 = d2;
+//         v.totalLen = static_cast<uint32_t>(batchStride); // length of this batch slice
+//         return v;
+//     }
+// };
+
+// __aicore__ inline int32_t LastValidIndex(const I32VecView& v)
+// {
+//     if (!v.IsValid()) return -1;
+//     for (int32_t i = static_cast<int32_t>(v.len) - 1; i >= 0; --i) {
+//         if (v.ptr[i] != -1) return i;
+//     }
+//     return -1;
+// }
+
+// __aicore__ inline int32_t LastValidLowerThan(const I32VecView& v, int32_t limit)
+// {
+//     if (!v.IsValid()) return -1;
+//     for (int32_t i = static_cast<int32_t>(v.len) - 1; i >= 0; --i) {
+//         int32_t x = v.ptr[i];
+//         if (x == -1) continue;
+//         if (x < limit) return i;
+//     }
+//     return -1;
+// }
+
+// __aicore__ inline int32_t FirstGreaterEqual(const I32VecView& v, int32_t lower)
+// {
+//     if (!v.IsValid()) return -1;
+
+//     for (uint32_t i = 0; i < v.len; ++i) {
+//         const int32_t x = v.ptr[i];
+//         if (x == -1) break;                // reached padding
+//         if (x >= lower) return (int32_t)i; // first >= lower
+//     }
+//     return -1;
+// }
+
+// Uint16 version
+
+static constexpr uint16_t kPadU16 = 65535; // 0xFFFF
+
+struct U16VecView {
+    const __gm__ uint16_t* ptr = nullptr;
     uint32_t len = 0;
 
     __aicore__ inline bool IsValid() const { return ptr != nullptr && len != 0; }
-    __aicore__ inline int32_t Get(uint32_t i) const { return ptr[i]; }
+    __aicore__ inline uint16_t Get(uint32_t i) const { return ptr[i]; }
 };
 
-struct I32T3View {
-    const __gm__ int32_t* base = nullptr;
+struct U16T3View {
+    const __gm__ uint16_t* base = nullptr;
     uint32_t d0 = 0, d1 = 0, d2 = 0;
-    uint32_t totalLen = 0; // <-- add this
+    uint32_t totalLen = 0;
 
-    __aicore__ inline I32VecView At(uint32_t i0, uint32_t i1) const {
-        I32VecView v{};
+    __aicore__ inline U16VecView At(uint32_t i0, uint32_t i1) const {
+        U16VecView v{};
         if (base == nullptr || d2 == 0 || totalLen == 0) return v;
         if (i0 >= d0 || i1 >= d1) return v;
 
@@ -45,34 +157,80 @@ struct I32T3View {
     }
 };
 
-__aicore__ inline int32_t LastValidIndex(const I32VecView& v)
+// 4D view: [b][d0][d1][d2] contiguous row-major
+struct U16T4View {
+    const __gm__ uint16_t* base = nullptr;
+
+    uint32_t b  = 0;
+    uint32_t d0 = 0;
+    uint32_t d1 = 0;
+    uint32_t d2 = 0;
+
+    uint32_t totalLen = 0;
+
+    __aicore__ inline U16VecView At(uint32_t ib, uint32_t i0, uint32_t i1) const {
+        U16VecView v{};
+        if (base == nullptr || d2 == 0 || totalLen == 0) return v;
+        if (ib >= b || i0 >= d0 || i1 >= d1) return v;
+
+        const uint64_t idx =
+            ((static_cast<uint64_t>(ib) * d0 + i0) * d1 + i1) * d2;
+
+        const uint64_t end = idx + d2;
+        if (end > totalLen) return v;
+
+        v.ptr = base + idx;
+        v.len = d2;
+        return v;
+    }
+
+    __aicore__ inline U16T3View AtBatch(uint32_t ib) const {
+        U16T3View v{};
+        if (base == nullptr || d2 == 0 || totalLen == 0) return v;
+        if (ib >= b) return v;
+
+        const uint64_t batchStride = static_cast<uint64_t>(d0) * d1 * d2;
+        const uint64_t idx = static_cast<uint64_t>(ib) * batchStride;
+        const uint64_t end = idx + batchStride;
+        if (end > totalLen) return v;
+
+        v.base = base + idx;
+        v.d0 = d0; v.d1 = d1; v.d2 = d2;
+        v.totalLen = static_cast<uint32_t>(batchStride);
+        return v;
+    }
+};
+
+__aicore__ inline int32_t LastValidIndex(const U16VecView& v)
 {
     if (!v.IsValid()) return -1;
+
     for (int32_t i = static_cast<int32_t>(v.len) - 1; i >= 0; --i) {
-        if (v.ptr[i] != -1) return i;
+        if (v.ptr[i] != kPadU16) return i;
     }
     return -1;
 }
 
-__aicore__ inline int32_t LastValidLowerThan(const I32VecView& v, int32_t limit)
+__aicore__ inline int32_t LastValidLowerThan(const U16VecView& v, uint16_t limit)
 {
     if (!v.IsValid()) return -1;
+
     for (int32_t i = static_cast<int32_t>(v.len) - 1; i >= 0; --i) {
-        int32_t x = v.ptr[i];
-        if (x == -1) continue;
+        const uint16_t x = v.ptr[i];
+        if (x == kPadU16) continue;
         if (x < limit) return i;
     }
     return -1;
 }
 
-__aicore__ inline int32_t FirstGreaterEqual(const I32VecView& v, int32_t lower)
+__aicore__ inline int32_t FirstGreaterEqual(const U16VecView& v, uint16_t lower)
 {
     if (!v.IsValid()) return -1;
 
     for (uint32_t i = 0; i < v.len; ++i) {
-        const int32_t x = v.ptr[i];
-        if (x == -1) break;                // reached padding
-        if (x >= lower) return (int32_t)i; // first >= lower
+        const uint16_t x = v.ptr[i];
+        if (x == kPadU16) break;        // reached padding
+        if (x >= lower) return (int32_t)i;
     }
     return -1;
 }
@@ -149,7 +307,7 @@ protected:
 
     __aicore__ inline void ComputeEachCoreSInnerLoop();
 
-    __aicore__ inline void SInnerLoopFunc(int64_t sInnerFirstToken, int64_t sInnerEndToken, int curBatch, int64_t preTokens, int64_t nextTokens, U8VecView rowSabi = {});   // Change to I32 in case
+    __aicore__ inline void SInnerLoopFunc(int64_t sInnerFirstToken, int64_t sInnerEndToken, int curBatch, int64_t preTokens, int64_t nextTokens, U16VecView rowSabi = {});   // Change to I32 in case
 
     __aicore__ inline void ComputeEachCore(uint32_t coreIdx);
 
@@ -2198,7 +2356,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::CheckRowInvalid(i
 
 template<typename PFAT>
 __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(int64_t sInnerFirstToken, int64_t sInnerLastToken, int curBatch,
-                                                                            int64_t preTokens, int64_t nextTokens, U8VecView rowSabi) {
+                                                                            int64_t preTokens, int64_t nextTokens, U16VecView rowSabi) {
                                                                             // int64_t preTokens, int64_t nextTokens, I32VecView rowSabi) {
     // params passing on references. When tailParams, params also update accordingly.
     PFAComputeParam *&params = this->tailParams;                // Configure new tasks, which will be placed at the end of the queue. Use tailParams.
@@ -2231,8 +2389,8 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
 
     params->isBlockSparse = rowSabi.IsValid();
     // TODO (mmarz): remove this if condition once sabi is passed properly
-    if (rowSabi.IsValid() && endIndex > 255) {
-        // u8 encoding can't represent block indices >=255
+    if (rowSabi.IsValid() && endIndex > kPadU16 ) {
+        // u16 encoding can't represent block indices >=kPadU16 
         params->isBlockSparse = false;   // fall back to dense path
     }
     if (!params->isBlockSparse) {    // old loop
@@ -2363,8 +2521,8 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
     } else {
         // rowSabi must be sorted ascending and contain unique block indices.
         // startIndex/endIndex are dense bounds; rowSabi provides active blocks within.
-        // int32_t firstSabiIdx  = FirstGreaterEqual(rowSabi, startIndex);
-        int32_t firstSabiIdx  = FirstGreaterEqualU8(rowSabi, startIndex);
+        int32_t firstSabiIdx  = FirstGreaterEqual(rowSabi, startIndex);
+        // int32_t firstSabiIdx  = FirstGreaterEqualU8(rowSabi, startIndex);
         if (firstSabiIdx < 0) return;
 
         bool done = false;
@@ -2372,7 +2530,8 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
         for (int32_t chunkIdx = firstSabiIdx; !done && chunkIdx < (int32_t)rowSabi.len; ++chunkIdx) {
             int32_t sInnerLoopIdx = rowSabi.Get(static_cast<uint32_t>(chunkIdx));
             // if (sInnerLoopIdx == -1) break;
-            if (sInnerLoopIdx == 255) break;
+            // if (sInnerLoopIdx == 255) break;
+            if (sInnerLoopIdx == kPadU16 ) break;
             if (sInnerLoopIdx >= endIndex) break;
             params->sInnerLoopOffset = sInnerLoopIdx;  // S2 Align offset
 
@@ -2384,7 +2543,8 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::SInnerLoopFunc(in
             } else {
                 const int32_t nxt = rowSabi.Get((uint32_t)(chunkIdx + 1));
                 // done = (nxt == -1) || (nxt >= endIndex);
-                done = (nxt == 255) || (nxt >= endIndex);
+                // done = (nxt == 255) || (nxt >= endIndex);
+                done = (nxt == kPadU16) || (nxt >= endIndex);
             }
             params->isLastComputedIter = done;
 
@@ -2743,32 +2903,34 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
     int64_t sInnerFirstToken;
     int64_t sInnerLastToken;
 
-    // For vertical bands (mmarz)
-    const int64_t debugSlice = this->tilingData->promptAttentionBaseParams.debugSlice;
-    const int64_t dbgFirst = this->tilingData->promptAttentionBaseParams.debugSInnerFirstToken;
-    const int64_t dbgLast  = this->tilingData->promptAttentionBaseParams.debugSInnerLastToken;
+    // // For vertical bands (mmarz)
+    // const int64_t debugSlice = this->tilingData->promptAttentionBaseParams.debugSlice;
+    // const int64_t dbgFirst = this->tilingData->promptAttentionBaseParams.debugSInnerFirstToken;
+    // const int64_t dbgLast  = this->tilingData->promptAttentionBaseParams.debugSInnerLastToken;
     
     // For SABI blocks
     // I32VecView sabiRow{};  // per-iteration, reset later
-    U8VecView sabiRow{};
+    U16VecView sabiRow{};  // per-iteration, reset later
+    // U8VecView sabiRow{};
 
-    const uint32_t d0  = this->tilingData->promptAttentionBaseParams.debugT3D0;
-    const uint32_t d1  = this->tilingData->promptAttentionBaseParams.debugT3D1;
-    const uint32_t d2  = this->tilingData->promptAttentionBaseParams.debugT3D2;
-    const uint32_t len = this->tilingData->promptAttentionBaseParams.debugT3Len;
-    const uint32_t off = this->tilingData->promptAttentionBaseParams.debugT3OffsetBytes;
+    // const uint32_t d0  = this->tilingData->promptAttentionBaseParams.debugT3D0;
+    // const uint32_t d1  = this->tilingData->promptAttentionBaseParams.debugT3D1;
+    // const uint32_t d2  = this->tilingData->promptAttentionBaseParams.debugT3D2;
+    // const uint32_t len = this->tilingData->promptAttentionBaseParams.debugT3Len;
+    // const uint32_t off = this->tilingData->promptAttentionBaseParams.debugT3OffsetBytes;
 
-    // Validate SABI metadata once
-    uint64_t want64 = 0;
-    bool sabiMetaOk = false;
-    if (off != 0 && len != 0 && d0 != 0 && d1 != 0 && d2 != 0) {
-        want64 = uint64_t(d0) * uint64_t(d1) * uint64_t(d2);
-        // strict match for debug payload
-        sabiMetaOk = (want64 == uint64_t(len));
-    }
+    // // Validate SABI metadata once
+    // uint64_t want64 = 0;
+    // bool sabiMetaOk = false;
+    // if (off != 0 && len != 0 && d0 != 0 && d1 != 0 && d2 != 0) {
+    //     want64 = uint64_t(d0) * uint64_t(d1) * uint64_t(d2);
+    //     // strict match for debug payload
+    //     sabiMetaOk = (want64 == uint64_t(len));
+    // }
 
-    const bool isSabi = sabiMetaOk;
+    // const bool isSabi = sabiMetaOk;
 
+    // Read from environment variable
     // I32T3View t3{};
     // if (isSabi) {
     //     const __gm__ int32_t* base =
@@ -2776,11 +2938,38 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
     //     t3 = I32T3View{ base, d0, d1, d2, len };
     // }
 
-    U8T3View t3{};
+    // U8T3View t3{};
+    // if (isSabi) {
+    //     const __gm__ uint8_t* base =
+    //         reinterpret_cast<const __gm__ uint8_t*>(this->gmTilingBase + off);
+    //     t3 = U8T3View{ base, d0, d1, d2, len };
+    // }
+
+    const uint32_t sabiBatchSize  = this->tilingData->promptAttentionBaseParams.sabiBatchSize;
+    const uint32_t sabiheadNum  = this->tilingData->promptAttentionBaseParams.sabiHeadNum;
+    const uint32_t sabiQBlocks  = this->tilingData->promptAttentionBaseParams.sabiQblocks;
+    const uint32_t sabiKVBlocks  = this->tilingData->promptAttentionBaseParams.sabiKVBlocks;
+    const uint32_t sabiLen = this->tilingData->promptAttentionBaseParams.sabiLen;
+
+    // Validate SABI metadata once
+    // TODO (mmarz): remove, len is already computed in the same way
+    uint64_t want64 = 0;
+    bool sabiMetaOk = false;
+    if (sabiLen != 0 && sabiBatchSize != 0 && sabiheadNum != 0 && sabiQBlocks != 0 && sabiKVBlocks != 0) {
+        want64 = uint64_t(sabiBatchSize) * uint64_t(sabiheadNum) * uint64_t(sabiQBlocks) * uint64_t(sabiKVBlocks);
+        // strict match for debug payload
+        sabiMetaOk = (want64 == uint64_t(sabiLen));
+    }
+
+    const bool isSabi = sabiMetaOk;
+    // Read from gm
+    U16T4View t4{};
+    U16T3View t3{};
     if (isSabi) {
-        const __gm__ uint8_t* base =
-            reinterpret_cast<const __gm__ uint8_t*>(this->gmTilingBase + off);
-        t3 = U8T3View{ base, d0, d1, d2, len };
+        const __gm__ uint16_t* base = this->sabiBaseGm;
+        t4 = U16T4View{ base, sabiBatchSize, sabiheadNum, sabiQBlocks, sabiKVBlocks, sabiLen };
+        // For now let's assume bs == 1 
+        t3 = t4.AtBatch(0);
     }
 
     for (int64_t tilingIdx = coreIdx; tilingIdx < totalTilingN; tilingIdx += (blockNum - (tilingIdx % blockNum)) * 2 - 1) {
@@ -2824,11 +3013,11 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
             this->singleProcessSOuterSizeWhole * this->singleProcessSOuterSizeWhole)) {
                 continue;
         }
-        if (debugSlice) {
-            // Vertical band
-            sInnerFirstToken = dbgFirst;
-            sInnerLastToken  = dbgLast;
-        } else {
+        // if (debugSlice) {
+        //     // Vertical band
+        //     sInnerFirstToken = dbgFirst;
+        //     sInnerLastToken  = dbgLast;
+        // } else {
             // Default behavior
             sInnerFirstToken = ClipSInnerToken(params->sOuterOffset - preTokens, 0, params->actualSeqLengthKVPerBatch + this->actualKVPrefixLen);
             sInnerLastToken = ClipSInnerToken(params->sOuterOffset + nextTokens + params->singleProcessSOuterSize, 0, params->actualSeqLengthKVPerBatch + this->actualKVPrefixLen);
@@ -2840,7 +3029,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::ComputeEachCoreBa
 
                 sabiRow = t3.At(bh, static_cast<uint32_t>(physRow));
             }
-        }
+        // }
         if (sInnerLastToken <= sInnerFirstToken) {
             continue;
         }

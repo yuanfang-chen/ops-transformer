@@ -43,6 +43,10 @@ public:
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT16, ge::DT_BOOL, ge::DT_BOOL, ge::DT_BOOL, ge::DT_BOOL, ge::DT_INT8, ge::DT_INT8, ge::DT_INT8, ge::DT_UINT8, ge::DT_UINT8, ge::DT_UINT8, ge::DT_BOOL, ge::DT_INT8, ge::DT_UINT8, ge::DT_FLOAT16, ge::DT_BOOL, ge::DT_BOOL, ge::DT_BOOL, ge::DT_BOOL, ge::DT_INT8, ge::DT_INT8, ge::DT_INT8, ge::DT_UINT8, ge::DT_UINT8, ge::DT_UINT8, ge::DT_BOOL, ge::DT_INT8, ge::DT_UINT8, ge::DT_BOOL, ge::DT_BOOL, ge::DT_INT8, ge::DT_UINT8})
             .FormatList({ge::FORMAT_ND});
+        this->Input("sabi_tensor")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_UINT16})
+            .FormatList({ge::FORMAT_ND});
         this->Input("actual_seq_lengths")
             .ParamType(OPTIONAL)
             .ValueDepend(OPTIONAL)
@@ -139,6 +143,10 @@ public:
             .DataType({ge::DT_BOOL})
             .Format({ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND});
+        config_310p.Input("sabi_tensor")    // Never used
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_UINT16})
+            .FormatList({ge::FORMAT_ND});
         config_310p.Input("actual_seq_lengths")
             .ParamType(OPTIONAL)
             .ValueDepend(OPTIONAL)

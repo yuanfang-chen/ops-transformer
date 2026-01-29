@@ -434,6 +434,32 @@ static aclnnStatus ContiguousInput(const aclTensor *&query, const aclTensor *&ke
     return ACLNN_SUCCESS;
 }
 
+static aclnnStatus ContiguousInputSabi(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value,
+                                   const aclTensor *&pseShift, const aclTensor *&attenMask, const aclTensor *&sabiTensor,
+                                   aclOpExecutor *executor)
+{
+    query = l0op::Contiguous(query, executor);
+    CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    key = l0op::Contiguous(key, executor);
+    CHECK_RET(key != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    value = l0op::Contiguous(value, executor);
+    CHECK_RET(value != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    if (pseShift) {
+        pseShift = l0op::Contiguous(pseShift, executor);
+        CHECK_RET(pseShift != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
+    if (attenMask) {
+        attenMask = l0op::Contiguous(attenMask, executor);
+        CHECK_RET(attenMask != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
+    if (sabiTensor) {
+        sabiTensor = l0op::Contiguous(sabiTensor, executor);
+        CHECK_RET(sabiTensor != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
+    return ACLNN_SUCCESS;
+}
+
 static aclnnStatus reShapeMiddle(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value,
                                  const int64_t *queryValue, uint64_t querySize,
                                  const int64_t *keyValueValue, uint64_t keyValueSize,
@@ -786,9 +812,81 @@ aclnnStatus InnerPromptFlashAttentionGetWorkspaceSize(
     return ACLNN_SUCCESS;
 }
 
+aclnnStatus InnerPromptFlashAttentionGetWorkspaceSizeSabi(
+    const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *pseShift,
+    const aclTensor *attenMask, const aclTensor *sabiTensor, const aclIntArray *actualSeqLengths, const aclIntArray *actualSeqLengthsKv,
+    const aclTensor *deqScale1, const aclTensor *quantScale1, const aclTensor *deqScale2, const aclTensor *quantScale2,
+    const aclTensor *quantOffset2, int64_t numHeads, double scaleValue, int64_t preTokens, int64_t nextTokens,
+    char *inputLayout, int64_t numKeyValueHeads, int64_t sparseMode, int64_t innerPrecise,
+    const aclTensor *attentionOut, uint64_t *workspaceSize, aclOpExecutor **executor)
+{
+    // std::cout << "InnerPromptFlashAttentionGetWorkspaceSize1 Sabi /home/mmarzollo/multimodal/ops-transformer/attention/prompt_flash_attention/op_host/op_api/aclnn_prompt_flash_attention_inner.cpp" << std::endl;
+    // L2_DFX_PHASE_1(InnerPromptFlashAttention,
+    //             DFX_IN(query, key, value, pseShift, attenMask, sabiTensor, actualSeqLengths, actualSeqLengthsKv,
+    //                     deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2,
+    //                     numHeads, scaleValue, preTokens, nextTokens, inputLayout, numKeyValueHeads,
+    //                     sparseMode, innerPrecise),
+    //             DFX_OUT(attentionOut));
+
+    // std::cout << "InnerPromptFlashAttentionGetWorkspaceSize 2 Sabi /home/mmarzollo/multimodal/ops-transformer/attention/prompt_flash_attention/op_host/op_api/aclnn_prompt_flash_attention_inner.cpp" << std::endl;
+
+
+    auto uniqueExecutor = CREATE_EXECUTOR();
+    CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
+
+    // Check if the required input pointer is empty
+    CHECK_RET(CheckNotNull(query, key, value, inputLayout, attentionOut), ACLNN_ERR_PARAM_NULLPTR);
+
+    // When b, n1, s1 = 0, no processing is performed
+    // When n2, s2, d = 0, directly call the l0 interface for processing
+    if (attentionOut->IsEmpty()) {
+        *workspaceSize = 0;
+        uniqueExecutor.ReleaseTo(executor);
+        return ACLNN_SUCCESS;
+    }
+
+    CHECK_RET(CheckTensorDataType(query, key, value, pseShift, attenMask, attentionOut), ACLNN_ERR_PARAM_INVALID);
+
+    FaShapeInfo shapeInfo;
+    CHECK_RET(AnalysisInputShapeInfo(query, key, value, inputLayout, numHeads, numKeyValueHeads, shapeInfo, attentionOut) ==
+              ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+    if (shapeInfo.needPad) {
+        CHECK_RET(CheckTensorFormat(query, key, value, pseShift, attenMask, attentionOut), ACLNN_ERR_PARAM_INVALID);
+    }
+    // std::cout << "InnerPromptFlashAttentionGetWorkspaceSize 3 Sabi /home/mmarzollo/multimodal/ops-transformer/attention/prompt_flash_attention/op_host/op_api/aclnn_prompt_flash_attention_inner.cpp" << std::endl;
+
+    aclOpExecutor *l0Executor = uniqueExecutor.get();
+    CHECK_RET(ContiguousInputSabi(query, key, value, pseShift, attenMask, sabiTensor, l0Executor) == ACLNN_SUCCESS,
+              ACLNN_ERR_INNER_NULLPTR);
+
+    // std::cout << "InnerPromptFlashAttentionGetWorkspaceSize 4 Sabi /home/mmarzollo/multimodal/ops-transformer/attention/prompt_flash_attention/op_host/op_api/aclnn_prompt_flash_attention_inner.cpp" << std::endl;
+
+    CHECK_RET(PreprocessQKVInput(query, key, value, quantScale2, quantOffset2, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_INNER_NULLPTR);
+
+    auto l0AttentionOutOut = l0op::PromptFlashAttentionSabi(query, key, value, pseShift, attenMask, sabiTensor,
+                                                        actualSeqLengths, actualSeqLengthsKv,
+                                                        deqScale1, quantScale1, deqScale2, quantScale2, quantOffset2,
+                                                        numHeads, scaleValue, preTokens, nextTokens,
+                                                        inputLayout,
+                                                        numKeyValueHeads, sparseMode, innerPrecise,
+                                                        attentionOut, l0Executor);
+    // std::cout << "InnerPromptFlashAttentionGetWorkspaceSize 5 Sabi /home/mmarzollo/multimodal/ops-transformer/attention/prompt_flash_attention/op_host/op_api/aclnn_prompt_flash_attention_inner.cpp" << std::endl;
+    CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(PostProcessOutput(l0AttentionOutOut, attentionOut, shapeInfo, l0Executor) == ACLNN_SUCCESS,
+              ACLNN_ERR_INNER_NULLPTR);
+    CHECK_RET(CheckResultOutShapePfa(l0AttentionOutOut, attentionOut), ACLNN_ERR_PARAM_INVALID);
+    auto viewCopyResult = l0op::ViewCopy(l0AttentionOutOut, attentionOut, l0Executor);
+    CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    *workspaceSize = uniqueExecutor->GetWorkspaceSize();
+    uniqueExecutor.ReleaseTo(executor);
+    return ACLNN_SUCCESS;
+}
+
 aclnnStatus InnerPromptFlashAttention(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                            const aclrtStream stream)
 {
+    // std::cout << "InnerPromptFlashAttention /home/mmarzollo/multimodal/ops-transformer/attention/prompt_flash_attention/op_host/op_api/aclnn_prompt_flash_attention_inner.cpp" << std::endl;
     L2_DFX_PHASE_2(InnerPromptFlashAttention);
     // Fixed format. The calculation is completed by calling the framework capability.
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);

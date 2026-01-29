@@ -19,8 +19,8 @@
 using namespace ge;
 using namespace AscendC;
 namespace optiling {
-constexpr uint32_t ACTUAL_SEQ_Q_INDEX_PFA = 5;
-constexpr uint32_t ACTUAL_SEQ_KV_INDEX_PFA = 6;
+constexpr uint32_t ACTUAL_SEQ_Q_INDEX_PFA = 6;
+constexpr uint32_t ACTUAL_SEQ_KV_INDEX_PFA = 7;
 static ge::graphStatus TilingPrepareForPromptFlashAttention(gert::TilingParseContext* context) {
     auto platformInfoPtr = context->GetPlatformInfo();
     OP_CHECK_IF(platformInfoPtr == nullptr,

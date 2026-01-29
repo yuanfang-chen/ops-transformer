@@ -25,6 +25,8 @@ aclDataType get_acl_dtype(const at::Tensor& tensor) {
         return aclDataType::ACL_FLOAT16;
     } else if (tensor.scalar_type() == at::kFloat) {
         return aclDataType::ACL_FLOAT;
+    } else if (tensor.scalar_type() == at::kUInt16) {
+        return aclDataType::ACL_UINT16;
     } else if (tensor.scalar_type() == at::kBool) {
         return aclDataType::ACL_BOOL;
     }
@@ -43,7 +45,8 @@ aclTensor* create_acl_tensor(const at::Tensor& tensor) {
     }
     
     aclDataType dtype = get_acl_dtype(tensor);
-    void* data_ptr = tensor.storage().data_ptr().get();
+    // void* data_ptr = tensor.storage().data_ptr().get();
+    void* data_ptr = tensor.data_ptr();
     
     return aclCreateTensor(shape.data(), shape.size(), dtype, strides.data(), 0, 
                           aclFormat::ACL_FORMAT_ND, shape.data(), shape.size(), data_ptr);
@@ -57,6 +60,7 @@ aclTensor* create_acl_tensor(const at::Tensor& tensor) {
  * @param [in] key Tensor of shape [B, N, T, D] (fp16/bf16) 
  * @param [in] value Tensor of shape [B, N, T, D] (fp16/bf16)
  * @param [in] atten_mask Tensor of shape [B, N, S, T] (bool, optional)
+ * @param [in] sabi_blocks Tensor of shape [B, N, S / Qtile_size, sparsity * T / KVTileSize] (uint16, padded with 65535, optional)
  * @param [in] actual_seq_lengths vector of actual sequence lengths
  * @param [in] actual_seq_lengths_kv vector of actual sequence lengths for key/value
  * @param [in] num_heads number of attention heads
@@ -76,10 +80,11 @@ at::Tensor npu_prompt_flash_attention(
     const at::Tensor &key, 
     const at::Tensor &value,
     const c10::optional<at::Tensor> &atten_mask = c10::nullopt,
+    const c10::optional<at::Tensor> &sabi_blocks = c10::nullopt,
     c10::optional<std::vector<int64_t>> actual_seq_lengths_opt = c10::nullopt,
     c10::optional<std::vector<int64_t>> actual_seq_lengths_kv_opt = c10::nullopt,
     c10::optional<int64_t> num_heads_opt = c10::nullopt,
-    c10::optional<double> scale_value_opt = c10::nullopt,
+    c10::optional<float> scale_value_opt = c10::nullopt,
     c10::optional<int64_t> pre_tokens_opt = c10::nullopt,
     c10::optional<int64_t> next_tokens_opt = c10::nullopt,
     c10::optional<std::string> input_layout_opt = c10::nullopt,
@@ -88,7 +93,7 @@ at::Tensor npu_prompt_flash_attention(
 ) {
     // Set default values
     int64_t num_heads = num_heads_opt.value_or(1);
-    double scale_value = scale_value_opt.value_or(1.0);
+    float scale_value = scale_value_opt.value_or(1.0);
     int64_t pre_tokens = pre_tokens_opt.value_or(2147473647);
     int64_t next_tokens = next_tokens_opt.value_or(0);
     std::string input_layout = input_layout_opt.value_or("BSH");
@@ -99,6 +104,10 @@ at::Tensor npu_prompt_flash_attention(
     if (atten_mask.has_value()) {
         TORCH_CHECK(atten_mask.value().scalar_type() == at::kBool, "atten_mask must be bool tensor");
     }
+
+    if (sabi_blocks.has_value()) {
+        TORCH_CHECK(sabi_blocks.value().scalar_type() == at::kUInt16, "sabi tensor must be uint16 tensor");
+    }
     
     // Create ACL tensors from torch tensors
     aclTensor* query_tensor = create_acl_tensor(query);
@@ -107,6 +116,10 @@ at::Tensor npu_prompt_flash_attention(
     aclTensor* atten_mask_tensor = nullptr;
     if (atten_mask.has_value()) {
         atten_mask_tensor = create_acl_tensor(atten_mask.value());
+    }
+    aclTensor* sabi_tensor = nullptr;
+    if (sabi_blocks.has_value()) {
+        sabi_tensor = create_acl_tensor(sabi_blocks.value());
     }
     
     // Create actual sequence lengths array - handle optional parameters
@@ -144,12 +157,13 @@ at::Tensor npu_prompt_flash_attention(
     aclOpExecutor* executor = nullptr;
     void* workspace_addr = nullptr;
     
-    int ret = aclnnPromptFlashAttentionV3GetWorkspaceSize(
+    int ret = aclnnPromptFlashAttentionV3GetWorkspaceSizeSabi(
         query_tensor,                 //  const aclTensor   *query,
         key_tensor,                   //  const aclTensor   *key,
         value_tensor,                 //  const aclTensor   *value,
         nullptr,                      //  const aclTensor   *pseShift,
         atten_mask_tensor,            //  const aclTensor   *attenMask,
+        sabi_tensor,                  //  const aclTensor   *sabiTensor,
         actual_seq_lengths_array,     //  const aclIntArray *actualSeqLengths,
         actual_seq_lengths_kv_array,  //  const aclIntArray *actualSeqLengthsKv,
         nullptr,                      //  const aclTensor   *deqScale1,
@@ -158,7 +172,7 @@ at::Tensor npu_prompt_flash_attention(
         nullptr,                      //  const aclTensor   *quantScale2,
         nullptr,                      //  const aclTensor   *quantOffset2,
         num_heads,                    //  int64_t            numHeads,
-        scale_value,                  //  double             scaleValue,
+        scale_value,                  //  float              scaleValue,
         pre_tokens,                   //  int64_t            preTokens,
         next_tokens,                  //  int64_t            nextTokens,
         layer_out.data(),             //  char              *inputLayout,
@@ -169,7 +183,7 @@ at::Tensor npu_prompt_flash_attention(
         &workspace_size,              //  uint64_t          *workspaceSize,
         &executor);                   //  aclOpExecutor     **executor)
 
-    TORCH_CHECK(ret == ACL_SUCCESS, "aclnnPromptFlashAttentionV3GetWorkspaceSize failed with error: ", ret);
+    TORCH_CHECK(ret == ACL_SUCCESS, "aclnnPromptFlashAttentionV3GetWorkspaceSizeSabi failed with error: ", ret);
     
     // Allocate workspace if needed
     if (workspace_size > 0) {
@@ -184,9 +198,8 @@ at::Tensor npu_prompt_flash_attention(
     auto aclStream = npuStream.stream();
     
     // Execute the kernel
-    ret = aclnnPromptFlashAttentionV3(workspace_addr, workspace_size, executor, aclStream);
+    ret = aclnnPromptFlashAttentionV3Sabi(workspace_addr, workspace_size, executor, aclStream);
     TORCH_CHECK(ret == ACL_SUCCESS, "aclnnPromptFlashAttentionV3 execution failed with error: ", ret);
-
     
     return output;
 }
@@ -219,10 +232,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         py::arg("key"),
         py::arg("value"),
         py::arg("atten_mask") = c10::optional<at::Tensor>(),
+        py::arg("sabi_blocks") = c10::optional<at::Tensor>(),
         py::arg("actual_seq_lengths") = c10::optional<std::vector<int64_t>>(),
         py::arg("actual_seq_lengths_kv") = c10::optional<std::vector<int64_t>>(),
         py::arg("num_heads") = c10::optional<int64_t>(),
-        py::arg("scale_value") = c10::optional<double>(),
+        py::arg("scale_value") = c10::optional<float>(),
         py::arg("pre_tokens") = c10::optional<int64_t>(),
         py::arg("next_tokens") = c10::optional<int64_t>(),
         py::arg("input_layout") = c10::optional<std::string>(),
