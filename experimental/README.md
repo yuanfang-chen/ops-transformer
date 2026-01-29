@@ -195,3 +195,27 @@ Experimental 是一个轻量级，高性能的算子开发工程模板，它集�
     ```python
     torch.ops.npu_ops_transformer_ext.my_ops(x)
     ```
+
+## 算子使用说明 | Operators Introduction
+
+项目提供的所有算子使用说明如下表：
+
+<table>
+    <thead>
+        <tr>
+            <th>算子分类</th>
+            <th>使用说明</th>
+            <th>说明</th>
+        </tr>
+    </thead>
+<tbody>
+  <tr>
+    <td>attention</td>
+    <td><a href="./attention/Attention算子Experimental使用说明.md">attention使用说明</a></td>
+    <td>Attention融合算子Experimental使用说明</td>
+  </tr>
+  <tr>
+    <td>cm2</td>
+    <td><a href="./mc2/通算融合算子Experimental使用说明.md">mc2使用说明</a></td>
+    <td>通算融合算子Experimental的使用说明</td>
+  </tr>
