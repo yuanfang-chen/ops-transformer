@@ -26,10 +26,10 @@ namespace MC2KernelTemplate {
 template <typename CommOpType, typename ComputationOpType, typename ContextType, typename TilingDataType>
 class A2avGmmScheduler {
 public:
-    __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM,
-        GM_ADDR mmweightOptionalGM,  GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM,
-        GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM,
-        GM_ADDR workspaceGM, TilingDataType tilingData, TPipe *pipe);
+    __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM,
+        GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM,
+        GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, const TilingDataType* tilingData,
+        TPipe *pipe);
 
     __aicore__ inline void Process();
 
@@ -40,19 +40,21 @@ private:
     ComputationOpType computeOp;
     ComputationOpType localComputeOp;
     TilingDataType tilingData_;
+    uint32_t expertNumInOneRank_ = 0U;
 };
 
 template <typename CommOpType, typename ComputationOpType, typename ContextType, typename TilingDataType>
-__aicore__ inline void
-A2avGmmScheduler<CommOpType, ComputationOpType, ContextType, TilingDataType>::Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM,
-        GM_ADDR mmweightOptionalGM, GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM,
-    GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM,
-        GM_ADDR workspaceGM, TilingDataType tilingData, TPipe* tPipe)
+__aicore__ inline void A2avGmmScheduler<CommOpType, ComputationOpType, ContextType, TilingDataType>::Init(
+    GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR gmmxScaleGM,
+    GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM,
+    GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, const TilingDataType* tilingData, TPipe *tPipe)
 {
     tilingData_ = tilingData;
+    expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
     commOp.Init();
     if (tilingData_->commonTilingInfo.isNeedMM) {
-        localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM, tilingData_->mmQuantTilingData, tPipe);
+        localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
+            tilingData_->mmQuantTilingData, tPipe);
     }
     computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, tilingData_->gmmQuantTilingData, tPipe);
 }
@@ -64,15 +66,15 @@ __aicore__ inline void A2avGmmScheduler<CommOpType, ComputationOpType, ContextTy
         localComputeOp.Process();
     }
     commOp.Prepare();
-    // TODO 0 ~ e
-    commOp.Wait();
-    computeOp.Process();
+    for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
+        commOp.Wait();
+        computeOp.Process();
+    }
     End();
 }
 
 template <typename CommOpType, typename ComputationOpType, typename ContextType, typename TilingDataType>
-__aicore__ inline void
-A2avGmmScheduler<CommOpType, ComputationOpType, ContextType, TilingDataType>::End()
+__aicore__ inline void A2avGmmScheduler<CommOpType, ComputationOpType, ContextType, TilingDataType>::End()
 {
     commOp.End();
     computeOp.End();
