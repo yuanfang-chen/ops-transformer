@@ -32,9 +32,9 @@ struct TilingValue {
   TilingValue(int32_t v, std::map<int, std::vector<std::vector<int>>> m = {}) : value(v), conditionMap(std::move(m)) {}
 };
 
-int ClampValue(int32_t value, int32_t min, int32_t max) { return std::max(min, std::min(value, max)); }
+inline int ClampValue(int32_t value, int32_t min, int32_t max) { return std::max(min, std::min(value, max)); }
 
-int32_t CeilDev(int32_t num, int32_t div) {
+inline int32_t CeilDev(int32_t num, int32_t div) {
   if (div == 0) {
     return 0;
   }
