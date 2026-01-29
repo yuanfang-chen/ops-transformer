@@ -1860,6 +1860,8 @@ inline int GetOptimalUbmovenum(int m, int k, int n)
     return TraverseDecisionTree(ubmovenumRule, m, k, n, RANKSIZE_EIGHT, DEFAULT_UBMOVENUM);
 }
 
+ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *context);
+
 } // namespace Tiling_Rank8_A2
 
 
