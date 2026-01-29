@@ -19,6 +19,7 @@ if (BUILD_OPEN_PROJECT)
     add_ops_compile_options(
             OP_NAME KvRmsNormRopeCache
             OPTIONS --cce-auto-sync=on
+                    --cce-simd-vf-fusion=false
                     -Wno-deprecated-declarations
                     -Werror
     )
