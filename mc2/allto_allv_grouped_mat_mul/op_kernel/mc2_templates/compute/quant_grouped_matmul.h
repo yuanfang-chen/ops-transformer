@@ -2,7 +2,8 @@
 #define GMM_EXPERT_OP_H
 
 #include "kernel_operator.h"
-#include "arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "../grouped_matmul_apt/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "../grouped_matmul_apt/op_kernel/arch35/non_quant/grouped_matmul_basic_kernel.h"
 
 using namespace AscendC;
 

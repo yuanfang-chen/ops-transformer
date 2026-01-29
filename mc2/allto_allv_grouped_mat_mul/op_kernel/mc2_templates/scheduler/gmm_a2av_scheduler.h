@@ -16,7 +16,9 @@
 #ifndef PIPELINE_TEMPLATE_QGMMATAV_H
 #define PIPELINE_TEMPLATE_QGMMATAV_H
 
-#include "pipeline_context.h"
+#include "kernel_tiling/kernel_tiling.h"
+#include "basic_api/kernel_basic_intf.h"
+#include "scheduler_common.h"
 
 namespace ATAVKernelTemplate {
 template <typename GmmExpertOpType, typename HcclOpType, typename TilingDataType>

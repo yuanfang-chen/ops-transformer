@@ -48,7 +48,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     using SchedulerType = QGMMKernelPipelineTemplate<ComputationType, CommunicationType, SchedulerContextType>;
     SchedulerType SchedulerImpl(&matmulImplName, &commImplName);
 
-    QuantGmmA2avKernel<SchedulerType, SchedulerContextType, QuantGroupedMatMulAlltoAllvTilingData> op(&SchedulerImpl);
+    QuantGmmA2avKernel<SchedulerType,QuantGroupedMatMulAlltoAllvTilingData> op(&SchedulerImpl);
     op.Init(gmmxGM, gmmweightGM, sendCountsTensorOptionalGM, recvCountsTensorOptionalGM, mmxOptionalGM,
             mmweightOptionalGM, biasGM, gmmxScaleGM, gmmWeightScaleGM, mmxScaleGM, mmWeightScaleGM, gmmyGM,
             mmyOptionalGM, workspaceGM, contextGM, &tilingData, tilingGM, hcclInitTiling, alltoAllvCcTiling,

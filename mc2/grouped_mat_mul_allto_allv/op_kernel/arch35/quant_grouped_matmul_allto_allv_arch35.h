@@ -18,10 +18,11 @@
 
 
 #include "../grouped_mat_mul_allto_allv_tiling.h"
+#include "../../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/scheduler/gmm_a2av_scheduler.h"
 
 namespace GroupedMatmulAlltoAllv {
 using namespace AscendC;
-template <typename SchedulerType, typename SchedulerContextType, typename QuantGroupedMatMulAlltoAllvTilingData>
+template <typename SchedulerType, gmmComputeOp_typename QuantGroupedMatMulAlltoAllvTilingData>
 class QuantGmmA2avKernel
 {
 public:
@@ -38,7 +39,6 @@ private:
     __aicore__ inline void ProcessPipeLine(uint32_t taskCnt);
 
     SchedulerType* pipeLine_;
-    SchedulerContextType pipeLineContext_;
     MatmulAlltoAllTilingDataType* tilingData_;
     TCubeTiling matmulTiling_;
     TCubeTiling sharedMatmulTiling_;
@@ -81,8 +81,8 @@ private:
     static constexpr uint64_t MAX_HANDLE_ID_NUM = 64U;
 };
 
-template <typename SchedulerType, typename SchedulerContextType, typename QuantGroupedMatMulAlltoAllvTilingData>
-__aicore__ inline void QuantGmmA2avKernel<SchedulerType, SchedulerContextType, QuantGroupedMatMulAlltoAllvTilingData>::Init(
+template <typename SchedulerType, gmmComputeOp_typename QuantGroupedMatMulAlltoAllvTilingData>
+__aicore__ inline void QuantGmmA2avKernel<SchedulerType, gmmComputeOp_QuantGroupedMatMulAlltoAllvTilingData>::Init(
         GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM,
         GM_ADDR recvCountsTensorOptionalGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR biasGM, 
         GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM,
@@ -115,8 +115,8 @@ __aicore__ inline void QuantGmmA2avKernel<SchedulerType, SchedulerContextType, Q
 
 }
 
-template <typename SchedulerType, typename SchedulerContextType, typename QuantGroupedMatMulAlltoAllvTilingData>
-__aicore__ inline void QuantGmmA2avKernel<SchedulerType, SchedulerContextType, QuantGroupedMatMulAlltoAllvTilingData>::Process()
+template <typename SchedulerType, gmmComputeOp_typename QuantGroupedMatMulAlltoAllvTilingData>
+__aicore__ inline void QuantGmmA2avKernel<SchedulerType, gmmComputeOp_QuantGroupedMatMulAlltoAllvTilingData>::Process()
 {
     // 启动流水
     ProcessPipeLine(expertNumInOneRank_);
@@ -125,8 +125,8 @@ __aicore__ inline void QuantGmmA2avKernel<SchedulerType, SchedulerContextType, Q
     pipeLine_->End();
 }
 
-template <typename SchedulerType, typename SchedulerContextType, typename QuantGroupedMatMulAlltoAllvTilingData>
-__aicore__ inline void QuantGmmA2avKernel<SchedulerType, SchedulerContextType, QuantGroupedMatMulAlltoAllvTilingData>::ProcessPipeLine(uint32_t taskCnt)
+template <typename SchedulerType, gmmComputeOp_typename QuantGroupedMatMulAlltoAllvTilingData>
+__aicore__ inline void QuantGmmA2avKernel<SchedulerType, gmmComputeOp_QuantGroupedMatMulAlltoAllvTilingData>::ProcessPipeLine(uint32_t taskCnt)
 {
     pipeLine_->Init(gmmxGM_, gmmweightGM_, mmxGM_, mmweightGM_, gmmxScaleGM_, gmmWeightScaleGM_, mmxScaleGM_, mmWeightScaleGM_, gmmyGM_, 
         mmyGM_, workspaceGM_, tilingData_, tPipe_)
