@@ -15,11 +15,11 @@
 #include "aclnn_grouped_matmul_util.h"
 
 namespace gmm {
-class AclnnGroupedMatmulNoQuant950Checker {
+class AclnnGroupedMatmulNoQuantDAV3510Checker {
 public:
-    explicit AclnnGroupedMatmulNoQuant950Checker(const GroupedMatmulParams &gmmParams) : gmmParams_(gmmParams){};
-    ~AclnnGroupedMatmulNoQuant950Checker(){};
-    aclnnStatus CheckGroupedMatmulNoQuant950() const;
+    explicit AclnnGroupedMatmulNoQuantDAV3510Checker(const GroupedMatmulParams &gmmParams) : gmmParams_(gmmParams){};
+    ~AclnnGroupedMatmulNoQuantDAV3510Checker(){};
+    aclnnStatus CheckGroupedMatmulNoQuantDAV3510() const;
 
 private:
     aclnnStatus CheckEmptyTensor() const;

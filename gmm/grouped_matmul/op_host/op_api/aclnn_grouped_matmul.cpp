@@ -1558,7 +1558,7 @@ static aclnnStatus CheckParamDifferentGroupType(const gmm::GroupedMatmulParams &
   DataType weightDtype = (*gmmParams.weight)[0]->GetDataType();
   if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
       IsWeightQuant(gmmParams.xDtype, weightDtype)) {
-    // 伪量化场景91095除了单单单的GroupList，其他校验在AclnnGroupedMatmulWeightQuant91095Checker均已完成，下方校验跳过
+    // 伪量化场景91095除了单单单的GroupList，其他校验在AclnnGroupedMatmulWeightQuantDAV3510Checker均已完成，下方校验跳过
     if (gmmParams.groupType == gmm::SPLIT_M) {
       // check groupList
       size_t batchSizeWeight = (*gmmParams.weight)[0]->GetViewShape().GetDim(0);
@@ -1915,7 +1915,7 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
   DataType weightDtype = (*params.weight)[0]->GetDataType();
   if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95 &&
       IsQuant(params.xDtype, weightDtype)) {
-    gmm::AclnnGroupedMatmul91095Checker<aclTensorList> checker(params);
+    gmm::AclnnGroupedMatmulDAV3510Checker<aclTensorList> checker(params);
     isPerTileQuantMode = checker.IsPerTileQuantMode();
   }
   if (params.transposeX) {
