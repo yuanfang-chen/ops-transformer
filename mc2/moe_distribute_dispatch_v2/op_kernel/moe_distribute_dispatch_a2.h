@@ -47,6 +47,7 @@ constexpr static int32_t FLAG_VALUE = 0xFFFFFFFF;
 constexpr uint32_t A2_RANK_NUM_PER_SERVER = 8;
 constexpr static uint32_t BITS_PER_U32 = 32; // 单个uint32_t的bit数
 constexpr static uint32_t VEC_UB_ALIGN = 256; // Vector指令进行Repeat时的粒度
+constexpr static uint32_t MAX_FUNC_NUM = 32;
 
 template <typename T1, typename T2>
 __aicore__ inline T2 RoundUp(const T1 val, const T2 align) {
@@ -175,6 +176,8 @@ private:
     TaskInfo worldTaskInfo_;
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
     __gm__ HcclOpResParam *winContext_{nullptr};
+    int64_t startTimeGlobal_{0};
+    uint32_t timeIdx_{0};
 };
 
 template <TemplateMC2TypeA2Class>
@@ -244,10 +247,25 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::Init(
 
     needPerformanceInfo_ = performanceInfo != nullptr;
     if (unlikely(needPerformanceInfo_)) {
-        performanceInfoSize_ = worldSize_;
+        performanceInfoSize_ = aivNum_ * MAX_FUNC_NUM;
+        // performanceInfoSize_ = worldSize_;
         performanceInfoI32GMTensor_.SetGlobalBuffer((__gm__ int32_t*)performanceInfo);
     }
+    if (unlikely(needPerformanceInfo_)) {
+        uint32_t expertIdsSize = RoundUp(expertIdsCnt_, BITS32_PER_BLOCK);
+        uint32_t expertIdsLength = expertIdsSize * sizeof(int32_t);
+        uint32_t validExpIndexAddr = AscendC::TOTAL_UB_SIZE - expertIdsLength;
+        uint32_t performanceInfoI32Addr = validExpIndexAddr - RoundUp(performanceInfoSize_ * static_cast<uint32_t>(sizeof(int64_t)), UB_ALIGN);
+        performanceInfoI32Tensor_ = LocalTensor<int32_t>{TPosition::LCM, performanceInfoI32Addr, RoundUp(performanceInfoSize_ * static_cast<uint32_t>(sizeof(int64_t)), UB_ALIGN) / sizeof(int32_t)};
+        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoI32Tensor_.GetSize());
+        PipeBarrier<PIPE_ALL>();
 
+    }
+    // if (unlikely(needPerformanceInfo_)) {
+    //     // 避免没有被分配任务的核未初始化performanceInfoI32Tensor_
+    //     Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoI32Tensor_.GetSize());
+    //     SyncFunc<AscendC::HardEvent::V_S>();
+    // }
     isSingleServer_ = worldSize_ <= A2_RANK_NUM_PER_SERVER;
 
     uint64_t stateSizeMaxSize = 2 * STATE_SIZE; // 2: 实际上是(DATA_OFFSET+SKIP_OFFSET+sizeof(uint32)) + STATE_SIZE，近似计算使用2 * STATE_SIZE
@@ -297,10 +315,10 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::AllocTens
     uint32_t smoothScalesAddr = xfloatOrFlagAddr + axisH_ * sizeof(float);
     smoothScalesTensor_ = LocalTensor<float>{TPosition::LCM, smoothScalesAddr, axisH_};
 
-    if (unlikely(needPerformanceInfo_)) {
-        uint32_t performanceInfoI32Addr = smoothScalesAddr + axisH_ * sizeof(float);
-        performanceInfoI32Tensor_ = LocalTensor<int32_t>{TPosition::LCM, performanceInfoI32Addr, RoundUp(performanceInfoSize_ * static_cast<uint32_t>(sizeof(int64_t)), UB_ALIGN) / sizeof(int32_t)};
-    }
+    // if (unlikely(needPerformanceInfo_)) {
+    //     uint32_t performanceInfoI32Addr = validExpIndexAddr - RoundUp(performanceInfoSize_ * static_cast<uint32_t>(sizeof(int64_t)), UB_ALIGN);
+    //     performanceInfoI32Tensor_ = LocalTensor<int32_t>{TPosition::LCM, performanceInfoI32Addr, RoundUp(performanceInfoSize_ * static_cast<uint32_t>(sizeof(int64_t)), UB_ALIGN) / sizeof(int32_t)};
+    // }
 
     uint32_t validExpIndexAddr = AscendC::TOTAL_UB_SIZE - expertIdsLength;
     validExpIndexTensor_ = LocalTensor<int32_t>{TPosition::LCM, validExpIndexAddr, expertIdsSize};
@@ -674,11 +692,11 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::SendToMoe
 template <TemplateMC2TypeA2Class>
 __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::WaitDispatch()
 {
-    if (unlikely(needPerformanceInfo_)) {
-        // 避免没有被分配任务的核未初始化performanceInfoI32Tensor_
-        Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoI32Tensor_.GetSize());
-        SyncFunc<AscendC::HardEvent::V_S>();
-    }
+    // if (unlikely(needPerformanceInfo_)) {
+    //     // 避免没有被分配任务的核未初始化performanceInfoI32Tensor_
+    //     Duplicate<int32_t>(performanceInfoI32Tensor_, 0, performanceInfoI32Tensor_.GetSize());
+    //     SyncFunc<AscendC::HardEvent::V_S>();
+    // }
 
     if (worldTaskInfo_.taskNum == 0) {
         SyncAll<true>();
@@ -723,10 +741,10 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::WaitDispa
             isVisited(rankId - worldTaskInfo_.startTaskId) = true;
             recvFlagNum++;
             windowInstatusTensor_(dataFlagOffset) = 0;
-            if (unlikely(needPerformanceInfo_)) {
-                auto srcRankId = rankId;
-                RecordRankCommDuration(performanceInfoI32Tensor_, srcRankId, startTime);
-            }
+            // if (unlikely(needPerformanceInfo_)) {
+            //     auto srcRankId = rankId;
+            //     RecordRankCommDuration(performanceInfoI32Tensor_, srcRankId, startTime);
+            // }
         }
     }
     SyncAll<true>();
@@ -918,24 +936,77 @@ template <TemplateMC2TypeA2Class>
 __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::Process()
 {
     if ASCEND_IS_AIV {
+        timeIdx_ = aivId_ * MAX_FUNC_NUM;
+        startTimeGlobal_ = GetCurrentTimestampUs();
         AllocTensor();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
         CalValidTokenCount();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
         IndexSort();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
         ReorderTokens();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
         if (isSingleServer_) {
             SyncAll<true>();
+            if (unlikely(needPerformanceInfo_)) {
+                RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+                startTimeGlobal_ = GetCurrentTimestampUs();
+            }
             SingleServerSendToMoeExpert();
+            if (unlikely(needPerformanceInfo_)) {
+                RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+                startTimeGlobal_ = GetCurrentTimestampUs();
+            }
         } else {
             ConstructBatchWriteInfo();
             SyncAll<true>();
             SendToMoeExpert();
         }
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
         WaitDispatch();
-        CopyPerformanceInfo(); // 避免performanceInfoI32Tensor_被复用，提前搬出性能打点数据
+        // CopyPerformanceInfo(); // 避免performanceInfoI32Tensor_被复用，提前搬出性能打点数据
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
         GetStatusCumSum();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
+
         LocalWindowCopy();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
+
         SyncAll<true>();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
         CleanUpFlags();
+        if (unlikely(needPerformanceInfo_)) {
+            RecordRankCommDuration(performanceInfoI32Tensor_, timeIdx_++, startTimeGlobal_);
+            startTimeGlobal_ = GetCurrentTimestampUs();
+        }
+        CopyPerformanceInfo(); // 避免performanceInfoI32Tensor_被复用，提前搬出性能打点数据
         hccl_.Finalize();
     }
 }
