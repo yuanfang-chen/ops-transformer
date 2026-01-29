@@ -12,7 +12,7 @@
  * \file matmul_reduce_scatter_v2_aiv_mode_tiling.cpp
  * \brief
  */
-#include "matmul_reduce_scatter_v2_tiling.h"
+#include "../matmul_reduce_scatter_v2_tiling.h"
 #include "platform/platform_infos_def.h"
 #include "vector"
 #include "register/tilingdata_base.h"
