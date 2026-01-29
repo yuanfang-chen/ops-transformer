@@ -218,23 +218,21 @@ int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CmpCalcCost(
     return static_cast<int64_t>(6U * cmpAlignBasicM + 10U * cmpAlignBasicS2);                 // 6：M轴系数，10：S2轴系数
 }
 
-BlockCost<int64_t> KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostTable(uint32_t s1NormalSize, 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostTable(uint32_t s1NormalSize, 
     uint32_t s2NormalSize, uint32_t s1GTailSize, uint32_t winS2TailSize, uint32_t cmpS2TailSize)
 {
-    BlockCost<int64_t> typeCost {};
     // win部分cost
-    typeCost[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK] = WinCalcCost(s1NormalSize, s2NormalSize);
-    typeCost[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK] = (s1GTailSize == 0U) ? 0U : WinCalcCost(s1GTailSize, s2NormalSize);
-    typeCost[WIN_NORMAL_BLOCK][WIN_TAIL_BLOCK] = (winS2TailSize == 0U) ? 0U : WinCalcCost(s1NormalSize, winS2TailSize);
-    typeCost[WIN_TAIL_BLOCK][WIN_TAIL_BLOCK] = (s1GTailSize == 0U || winS2TailSize == 0U) ? 0U : WinCalcCost(s1GTailSize, winS2TailSize);
+    typeCost_[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK] = WinCalcCost(s1NormalSize, s2NormalSize);
+    typeCost_[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK] = (s1GTailSize == 0U) ? 0U : WinCalcCost(s1GTailSize, s2NormalSize);
+    typeCost_[WIN_NORMAL_BLOCK][WIN_TAIL_BLOCK] = (winS2TailSize == 0U) ? 0U : WinCalcCost(s1NormalSize, winS2TailSize);
+    typeCost_[WIN_TAIL_BLOCK][WIN_TAIL_BLOCK] = (s1GTailSize == 0U || winS2TailSize == 0U) ? 0U : WinCalcCost(s1GTailSize, winS2TailSize);
     // cmp部分cost
     if (isCFA || isSCFA) {
-        typeCost[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK] = CmpCalcCost(s1NormalSize, s2NormalSize);
-        typeCost[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK] = (s1GTailSize == 0U) ? 0U : CmpCalcCost(s1GTailSize, s2NormalSize);
-        typeCost[CMP_NORMAL_BLOCK][CMP_TAIL_BLOCK] = (cmpS2TailSize == 0U) ? 0U : CmpCalcCost(s1NormalSize, cmpS2TailSize);
-        typeCost[CMP_TAIL_BLOCK][CMP_TAIL_BLOCK] = (s1GTailSize == 0U || cmpS2TailSize == 0U) ? 0U : CmpCalcCost(s1GTailSize, cmpS2TailSize);
+        typeCost_[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK] = CmpCalcCost(s1NormalSize, s2NormalSize);
+        typeCost_[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK] = (s1GTailSize == 0U) ? 0U : CmpCalcCost(s1GTailSize, s2NormalSize);
+        typeCost_[CMP_NORMAL_BLOCK][CMP_TAIL_BLOCK] = (cmpS2TailSize == 0U) ? 0U : CmpCalcCost(s1NormalSize, cmpS2TailSize);
+        typeCost_[CMP_TAIL_BLOCK][CMP_TAIL_BLOCK] = (s1GTailSize == 0U || cmpS2TailSize == 0U) ? 0U : CmpCalcCost(s1GTailSize, cmpS2TailSize);
     }
-    return typeCost;
 }
 
 Range<int64_t> KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache)
@@ -288,7 +286,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCache(
     batchCache.nextTokenLeftUp = CalcNextTokenLeftUp(batchCache.s1Size, batchCache.s2Size);
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(S1GCache &s1GCache, 
                                                             const SplitInfo &splitInfo)
 {
     // 处理win部分block信息
@@ -305,23 +303,23 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(const BlockCost
         uint32_t curWinTailS2Num = (s1GCache.winS2TailSize != 0U) ? 1U : 0U;// Updated check using local var
         uint32_t curWinNormalS2Num = s1GCache.winS1GBlock - curWinTailS2Num;
         if (s1GCache.s1GIdx == (splitInfo.s1GBaseNum[s1GCache.bIdx] - 1U) && splitInfo.s1GTailSize[s1GCache.bIdx] != 0U) {
-            s1GCache.winS1GCost = typeCost[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK] * curWinNormalS2Num +
-                typeCost[WIN_TAIL_BLOCK][WIN_TAIL_BLOCK] * curWinTailS2Num;
-            s1GCache.winS1GLastBlockCost = curWinTailS2Num > 0U ? typeCost[WIN_TAIL_BLOCK][WIN_TAIL_BLOCK] :
-                                            typeCost[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK];
-            s1GCache.winS1GNormalBlockCost = typeCost[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK];
+            s1GCache.winS1GCost = typeCost_[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK] * curWinNormalS2Num +
+                typeCost_[WIN_TAIL_BLOCK][WIN_TAIL_BLOCK] * curWinTailS2Num;
+            s1GCache.winS1GLastBlockCost = curWinTailS2Num > 0U ? typeCost_[WIN_TAIL_BLOCK][WIN_TAIL_BLOCK] :
+                                            typeCost_[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK];
+            s1GCache.winS1GNormalBlockCost = typeCost_[WIN_TAIL_BLOCK][WIN_NORMAL_BLOCK];
         }
         else {
-            s1GCache.winS1GCost = typeCost[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK] * curWinNormalS2Num +
-                typeCost[WIN_NORMAL_BLOCK][WIN_TAIL_BLOCK] * curWinTailS2Num;
-            s1GCache.winS1GLastBlockCost = curWinTailS2Num > 0U ? typeCost[WIN_NORMAL_BLOCK][WIN_TAIL_BLOCK] :
-                                            typeCost[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK];
-            s1GCache.winS1GNormalBlockCost = typeCost[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK];
+            s1GCache.winS1GCost = typeCost_[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK] * curWinNormalS2Num +
+                typeCost_[WIN_NORMAL_BLOCK][WIN_TAIL_BLOCK] * curWinTailS2Num;
+            s1GCache.winS1GLastBlockCost = curWinTailS2Num > 0U ? typeCost_[WIN_NORMAL_BLOCK][WIN_TAIL_BLOCK] :
+                                            typeCost_[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK];
+            s1GCache.winS1GNormalBlockCost = typeCost_[WIN_NORMAL_BLOCK][WIN_NORMAL_BLOCK];
         }
     }
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(S1GCache &s1GCache, 
                                                             const SplitInfo &splitInfo)
 {
     // 处理cmp部分block信息
@@ -338,26 +336,78 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(const BlockCost
         uint32_t curCmpTailS2Num = (s1GCache.cmpS2TailSize != 0U) ? 1U : 0U;// Updated check using local var
         uint32_t curCmpNormalS2Num = s1GCache.cmpS1GBlock - curCmpTailS2Num;
         if (s1GCache.s1GIdx == (splitInfo.s1GBaseNum[s1GCache.bIdx] - 1U) && splitInfo.s1GTailSize[s1GCache.bIdx] != 0U) {
-            s1GCache.cmpS1GCost = typeCost[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK] * curCmpNormalS2Num +
-                typeCost[CMP_TAIL_BLOCK][CMP_TAIL_BLOCK] * curCmpTailS2Num;
-            s1GCache.cmpS1GLastBlockCost = curCmpTailS2Num > 0U ? typeCost[CMP_TAIL_BLOCK][CMP_TAIL_BLOCK] :
-                                                typeCost[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK];
-            s1GCache.cmpS1GNormalBlockCost = typeCost[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK];
+            s1GCache.cmpS1GCost = typeCost_[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK] * curCmpNormalS2Num +
+                typeCost_[CMP_TAIL_BLOCK][CMP_TAIL_BLOCK] * curCmpTailS2Num;
+            s1GCache.cmpS1GLastBlockCost = curCmpTailS2Num > 0U ? typeCost_[CMP_TAIL_BLOCK][CMP_TAIL_BLOCK] :
+                                                typeCost_[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK];
+            s1GCache.cmpS1GNormalBlockCost = typeCost_[CMP_TAIL_BLOCK][CMP_NORMAL_BLOCK];
         } else {
-            s1GCache.cmpS1GCost = typeCost[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK] * curCmpNormalS2Num +
-                typeCost[CMP_NORMAL_BLOCK][CMP_TAIL_BLOCK] * curCmpTailS2Num;
-            s1GCache.cmpS1GLastBlockCost = curCmpTailS2Num > 0U ? typeCost[CMP_NORMAL_BLOCK][CMP_TAIL_BLOCK] :
-                                             typeCost[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK];
-            s1GCache.cmpS1GNormalBlockCost = typeCost[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK];
+            s1GCache.cmpS1GCost = typeCost_[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK] * curCmpNormalS2Num +
+                typeCost_[CMP_NORMAL_BLOCK][CMP_TAIL_BLOCK] * curCmpTailS2Num;
+            s1GCache.cmpS1GLastBlockCost = curCmpTailS2Num > 0U ? typeCost_[CMP_NORMAL_BLOCK][CMP_TAIL_BLOCK] :
+                                             typeCost_[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK];
+            s1GCache.cmpS1GNormalBlockCost = typeCost_[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK];
         }
     }
+}
+
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcBlockRangeAndTailSize(Range<int64_t> &oriS2TokenRange, 
+                                                                            const BatchCache &batchCache, 
+                                                                            S1GCache &s1GCache)
+{
+    int64_t oriS2FirstToken = oriS2TokenRange.first;
+    int64_t oriS2LastToken = oriS2TokenRange.second;
+    // win部分s2起止和tailSize
+    if (oriS2FirstToken >= static_cast<int64_t>(batchCache.s2Size) || oriS2LastToken < 0 || 
+            oriS2LastToken < oriS2FirstToken) {
+        oriS2FirstToken = 0;
+        oriS2LastToken = 0;
+        s1GCache.winS2Start = 0;
+        s1GCache.winS2End = 0;
+        s1GCache.winS2TailSize = 0;
+    } else {
+        oriS2FirstToken = Clip(oriS2FirstToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
+        oriS2LastToken = Clip(oriS2LastToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
+        s1GCache.winS2Start = 0;
+        s1GCache.winS2End = (oriS2LastToken - oriS2FirstToken) / s2BaseSize_ + 1U;
+        s1GCache.winS2TailSize = (oriS2LastToken - oriS2FirstToken + 1) % s2BaseSize_;
+    }
+    // cmp部分s2起止和tailSize
+    s1GCache.cmpS2Start = s1GCache.winS2End;
+    // 计算CmpS2LastToken的长度
+    uint32_t cmpS2LastTokenSize = (cmpRatio_ > 1) ? (oriS2LastToken + 1) / cmpRatio_ : 0;
+    uint32_t actCmpS2LastTokenSize = 0;
+    if (isCFA) {
+        actCmpS2LastTokenSize = cmpS2LastTokenSize;
+    } else if (isSCFA) {
+        // CmpS2LastToken与topk取最小
+        actCmpS2LastTokenSize = std::min(cmpS2LastTokenSize, cmpTopK_);
+    }
+    // 将token长度转化为token索引，然后由token索引计算s2索引
+    s1GCache.cmpS2End = (actCmpS2LastTokenSize == 0) ? s1GCache.cmpS2Start : s1GCache.cmpS2Start + 
+                        (actCmpS2LastTokenSize - 1) / s2BaseSize_ + 1U;
+    // 由token长度计算cmpS2TailSize
+    s1GCache.cmpS2TailSize = actCmpS2LastTokenSize % s2BaseSize_;
+}
+
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::GatherWinAndCmpCache(S1GCache &s1GCache)
+{
+    s1GCache.s2Start = (s1GCache.winS1GBlock > 0) ? s1GCache.winS2Start : s1GCache.cmpS2Start;
+    if (s1GCache.cmpS1GBlock > 0) {
+        s1GCache.s1GLastBlockCost = s1GCache.cmpS1GLastBlockCost;
+        s1GCache.s2End = s1GCache.cmpS2End;
+    } else {
+        s1GCache.s1GLastBlockCost = s1GCache.winS1GLastBlockCost;
+        s1GCache.s2End = s1GCache.winS2End;
+    }
+    s1GCache.s1GBlock = s1GCache.winS1GBlock + s1GCache.cmpS1GBlock;
+    s1GCache.s1GCost = s1GCache.winS1GCost + s1GCache.cmpS1GCost;
 }
 
 void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
     const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache)
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
-
     // 如果s1G是空行，则直接返回
     if (splitInfo.s1GBaseNum[batchCache.bIdx] == 0) {
         s1GCache.s1GCost = 0;
@@ -372,62 +422,20 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
         s1GCache.s2End = 0;
         return;
     }
-
     s1GCache.bIdx = batchCache.bIdx;
     s1GCache.s1GIdx = s1GIdx;
-    // win部分s2起止和tailSize
-    auto winS2TokenRange = CalcS2TokenRange(s1GIdx, batchCache);
-    int64_t winS2FirstToken = winS2TokenRange.first;
-    int64_t winS2LastToken = winS2TokenRange.second;
-    if (winS2FirstToken >= static_cast<int64_t>(batchCache.s2Size) || winS2LastToken < 0 || 
-            winS2LastToken < winS2FirstToken) {
-        winS2FirstToken = 0;
-        winS2LastToken = 0;
-        s1GCache.winS2Start = 0;
-        s1GCache.winS2End = 0;
-        s1GCache.winS2TailSize = 0;
-    } else {
-        winS2FirstToken = Clip(winS2FirstToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
-        winS2LastToken = Clip(winS2LastToken, static_cast<int64_t>(0), static_cast<int64_t>(batchCache.s2Size - 1U));
-        s1GCache.winS2Start = 0;
-        s1GCache.winS2End = (winS2LastToken - winS2FirstToken) / s2BaseSize_ + 1U;
-        s1GCache.winS2TailSize = (winS2LastToken - winS2FirstToken + 1) % s2BaseSize_;
-    }
-    // cmp部分s2起止和tailSize
-    s1GCache.cmpS2Start = s1GCache.winS2End;
-    // 计算CmpS2LastToken的长度
-    uint32_t cmpS2LastTokenSize = (cmpRatio_ > 1) ? (winS2LastToken + 1) / cmpRatio_ : 0;
-    uint32_t actCmpS2LastTokenSize = 0;
-    if (isCFA) {
-        actCmpS2LastTokenSize = cmpS2LastTokenSize;
-    } else if (isSCFA) {
-        // CmpS2LastToken与topk取最小
-        actCmpS2LastTokenSize = std::min(cmpS2LastTokenSize, cmpTopK_);
-    }
-    // 将token长度转化为token索引，然后由token索引计算s2索引
-    s1GCache.cmpS2End = (actCmpS2LastTokenSize == 0) ? s1GCache.cmpS2Start : s1GCache.cmpS2Start + (actCmpS2LastTokenSize - 1) / s2BaseSize_ + 1U;
-    // 由token长度计算cmpS2TailSize
-    s1GCache.cmpS2TailSize = actCmpS2LastTokenSize % s2BaseSize_;
-
+    // 计算ori_kv的token起止
+    auto oriS2TokenRange = CalcS2TokenRange(s1GIdx, batchCache);
+    // 计算win和cmp部分s2起止和tailSize
+    CalcBlockRangeAndTailSize(oriS2TokenRange, batchCache, s1GCache);
     // Calculate CostTable locally
-    BlockCost<int64_t> typeCost = CalcCostTable(mBaseSize_, s2BaseSize_, splitInfo.s1GTailSize[s1GCache.bIdx],
+    CalcCostTable(mBaseSize_, s2BaseSize_, splitInfo.s1GTailSize[s1GCache.bIdx],
                                                 s1GCache.winS2TailSize, s1GCache.cmpS2TailSize);
-
     // 计算win和cmp部分的cost, block信息
-    CalcWinS1GCache(typeCost, s1GCache, splitInfo);
-    CalcCmpS1GCache(typeCost, s1GCache, splitInfo);
-
+    CalcWinS1GCache(s1GCache, splitInfo);
+    CalcCmpS1GCache(s1GCache, splitInfo);
     // 汇总win和cmp部分的cost, block信息
-    s1GCache.s2Start = (s1GCache.winS1GBlock > 0) ? s1GCache.winS2Start : s1GCache.cmpS2Start;
-    if (s1GCache.cmpS1GBlock > 0) {
-        s1GCache.s1GLastBlockCost = s1GCache.cmpS1GLastBlockCost;
-        s1GCache.s2End = s1GCache.cmpS2End;
-    } else {
-        s1GCache.s1GLastBlockCost = s1GCache.winS1GLastBlockCost;
-        s1GCache.s2End = s1GCache.winS2End;
-    }
-    s1GCache.s1GBlock = s1GCache.winS1GBlock + s1GCache.cmpS1GBlock;
-    s1GCache.s1GCost = s1GCache.winS1GCost + s1GCache.cmpS1GCost;
+    GatherWinAndCmpCache(s1GCache);
 }
 
 void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCost(

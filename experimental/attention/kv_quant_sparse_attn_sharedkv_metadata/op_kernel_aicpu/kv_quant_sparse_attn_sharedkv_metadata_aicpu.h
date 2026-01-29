@@ -245,13 +245,15 @@ private:
   Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
   int64_t WinCalcCost(uint32_t basicM, uint32_t basicS2);
   int64_t CmpCalcCost(uint32_t basicM, uint32_t basicS2);
-  BlockCost<int64_t> CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,
+  void CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,
   uint32_t winS2TailSize, uint32_t cmpS2TailSize);
 
   // cache calculation
   void CalcBatchCache(uint32_t bIdx, const SplitContext &splitContext, BatchCache &batchCache);
-  void CalcWinS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
-  void CalcCmpS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void CalcBlockRangeAndTailSize(Range<int64_t> &oriS2TokenRange, const BatchCache &batchCache, S1GCache &s1GCache);
+  void CalcWinS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void CalcCmpS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void GatherWinAndCmpCache(S1GCache &s1GCache);
   void CalcS1GCache(uint32_t s1GIdx, const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache);
   void CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes);
   void ClearTmpResult(SplitResult &tmpRes);
@@ -329,7 +331,7 @@ private:
   bool supportFd = false;
   uint32_t sparseMode_ = 0;
   uint32_t attentionMode_ = 1;
-
+  BlockCost<int64_t> typeCost_;
 private:
   enum class ParamId : uint32_t {
     // input
