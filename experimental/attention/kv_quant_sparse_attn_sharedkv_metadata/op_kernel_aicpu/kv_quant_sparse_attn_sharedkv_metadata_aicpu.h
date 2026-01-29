@@ -270,8 +270,7 @@ private:
   int64_t CalcCurBlockCost(AssignContext &assignContext);
   void AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext);
   void ForceAssign(const SplitContext &splitContext, AssignContext &assignContext);
-  void AssignBlocksToCore(uint32_t coreIdx, const SplitContext &splitContext, AssignContext &assignContext, 
-                            SplitResult &result);
+  void AssignBlocksToCore(const SplitContext &splitContext, AssignContext &assignContext, SplitResult &result);
 
   // FD
   bool IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes);

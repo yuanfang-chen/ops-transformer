@@ -699,11 +699,10 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext
     result.numOfFdHead++;
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(uint32_t coreIdx, const SplitContext &splitContext, 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitContext &splitContext, 
                                                                     AssignContext &assignContext, SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
-    assignContext.curCoreIdx = coreIdx;
     result.fdRes.s2SplitStartIdxOfCore[assignContext.curCoreIdx] = assignContext.curKvSplitPart - 1U;
     
     int64_t avgCost = assignContext.unassignedCost / (coreNum_ - assignContext.curCoreIdx);
@@ -723,9 +722,9 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(uint32_t cor
     if (assignContext.coreCache.block == 0 && supportFd) {
         ForceAssign(splitContext, assignContext);
     }
-    result.bN2End[coreIdx] = assignContext.curBN2Idx;
-    result.gS1End[coreIdx] = assignContext.curS1GIdx;
-    result.s2End[coreIdx] = assignContext.curS2Idx;
+    result.bN2End[assignContext.curCoreIdx] = assignContext.curBN2Idx;
+    result.gS1End[assignContext.curCoreIdx] = assignContext.curS1GIdx;
+    result.s2End[assignContext.curCoreIdx] = assignContext.curS2Idx;
     result.maxCost = std::max(result.maxCost, assignContext.coreCache.cost);
     assignContext.unassignedCost -= assignContext.coreCache.cost;
     // 对之前的归约信息进行记录并清理
@@ -768,7 +767,8 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit
         if (assignContext.isFinished || assignContext.unassignedCost <= 0) {
             break;
         }
-        AssignBlocksToCore(i, splitContext, assignContext, result);
+        assignContext.curCoreIdx = i;
+        AssignBlocksToCore(splitContext, assignContext, result);
     }
     result.usedCoreNum = assignContext.curCoreIdx + 1;
 }
