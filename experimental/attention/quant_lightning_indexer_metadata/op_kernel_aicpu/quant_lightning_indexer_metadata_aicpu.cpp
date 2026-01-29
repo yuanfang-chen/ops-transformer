@@ -22,7 +22,6 @@ QuantLightningIndexerMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
 
 bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
   // input
-  query_ = ctx.Input(static_cast<uint32_t>(ParamId::query));
   actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
   actSeqLenKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenKV));
   // output
