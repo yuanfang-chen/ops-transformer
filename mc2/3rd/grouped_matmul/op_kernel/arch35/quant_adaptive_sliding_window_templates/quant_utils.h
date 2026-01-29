@@ -63,6 +63,11 @@ __aicore__ inline T Min(T a, T b) {
     return a > b ? b : a;
 }
 
+template <uint32_t base, typename T = uint32_t>
+__aicore__ inline T AlignUp(T a) {
+  return (a + base - 1) / base * base;
+}
+
 __aicore__ inline uint64_t CeilDiv(uint64_t a, uint64_t b) {
     if (b == 0) {
         return a;
@@ -149,7 +154,7 @@ __aicore__ inline void InitOutputWithZero(AscendC::GlobalTensor<T> yInitGlobal, 
     // 仿照InitOutput接口取值
     uint64_t initSize = (Mc2QuantUtils::MAX_REPEAT_TIMES * AscendC::ONE_BLK_SIZE) / sizeof(T); // 能存放输出dtype的多少个元素
     uint64_t perCoreSize = Mc2QuantUtils::CeilDiv(ySize, usedCoreNum);
-    perCoreSize = MC2_GROUPED_MATMUL::AlignUp<Mc2QuantUtils::UB_ALIGN_SIZE>(perCoreSize * sizeof(T)) / sizeof(T);
+    perCoreSize = AlignUp<Mc2QuantUtils::UB_ALIGN_SIZE>(perCoreSize * sizeof(T)) / sizeof(T);
     initSize = Mc2QuantUtils::Min(initSize, perCoreSize);
     uint64_t realCoreNum =
         Mc2QuantUtils::Min(Mc2QuantUtils::CeilDiv(ySize, initSize), static_cast<uint64_t>(usedCoreNum));
