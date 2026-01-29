@@ -308,7 +308,7 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
 }
 
 extern "C" aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
-    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
+    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *bias, const aclTensor *gmmXScaleOptional,
     const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
     const aclTensor *gmmWeightOffsetOptional, const aclTensor *sendCountsTensorOptional,
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
@@ -330,7 +330,7 @@ extern "C" aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
 
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(
-        gmmX, gmmWeight, nullptr, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
+        gmmX, gmmWeight, bias, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
         gmmXScaleOptional, gmmWeightScaleOptional, mmXScaleOptional, mmWeightScaleOptional, group, epWorldSize,
         sendCounts, recvCounts, transGmmWeight, transMmWeight, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional,
         workspaceSize, executor);

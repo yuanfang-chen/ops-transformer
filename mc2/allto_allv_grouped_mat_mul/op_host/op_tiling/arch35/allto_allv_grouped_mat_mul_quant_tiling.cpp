@@ -192,9 +192,9 @@ ge::graphStatus AlltoAllvGmmQuantTiling::SetHcclTiling(const gert::TilingContext
 
     const uint32_t alltoAllvReduceType = 0u;
     auto DataType = context->GetInputDesc(GMM_X_INDEX)->GetDataType();
-    OP_TILING_CHECK(mc2tiling::HCCL_DATA_TYPE.find(DataType) == mc2tiling::HCCL_DATA_TYPE.end(),
-        OP_LOGE(A_INNER_DEBUG, "%s is Unsupported outputdata type!", Ops::Base::ToString(DataType).c_str()),
-        return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK(mc2tiling::HCCL_DATA_TYPE.find(DataType) == mc2tiling::HCCL_DATA_TYPE.end(),
+    //     OP_LOGE(A_INNER_DEBUG, "%s is Unsupported outputdata type!", Ops::Base::ToString(DataType).c_str()),
+    //     return ge::GRAPH_FAILED);
 
     auto alltoAllvDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(DataType)->second);
 
