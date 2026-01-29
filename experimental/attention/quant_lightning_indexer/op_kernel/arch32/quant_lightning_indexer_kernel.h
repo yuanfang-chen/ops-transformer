@@ -622,7 +622,7 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessMain()
         if (tempLoopInfo.needDealActS1LessThanS1) {
             DealActSeqLenIsZero(tempLoopInfo.bIdx, tempLoopInfo.n2Idx, tempLoopInfo.actS1Size);
         }
-        constInfo.s2Start = 0;
+        constInfo.gS1Start = 0;
     }
 
     if ASCEND_IS_AIV {
