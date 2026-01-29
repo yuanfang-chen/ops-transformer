@@ -1745,10 +1745,11 @@ static ge::graphStatus MoeDistributeCombineV2TilingFunc(gert::TilingContext* con
                     static_cast<ge::DataType>(expandXDesc->GetDataType())), return ge::GRAPH_FAILED);
 
     std::string socVersion = mc2tiling::GetSocVersion(context);
+    NpuArch npuArch = mc2tiling::GetNpuArch(context);
     ge::graphStatus ret;
     if (socVersion == "Ascend910B") {
         ret = MoeDistributeCombineA2TilingFuncImpl(context);
-    } else if (socVersion == "Ascend950") {
+    } else if (npuArch == NpuArch::DAV_3510) {
         ret = MoeDistributeCombineA5TilingFuncImpl(context);
     } else {
         ret = MoeDistributeCombineA3TilingFuncImpl(context);
