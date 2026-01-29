@@ -22,8 +22,6 @@ namespace ATAVKernelTemplate {
 template <typename GmmExpertOpType, typename HcclOpType, typename TilingDataType>
 class GmmA2avScheduler {
 public:
-    __aicore__ inline GmmA2avScheduler(GmmExpertOpType* computeStage, TransposeType* transStage, HcclOpType* commStage) : gmmComputeOp_(computeStage), commStage_(commStage){};
-
     __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM,
         GM_ADDR mmweightOptionalGM,  GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM,
         GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM, GM_ADDR workspaceGM, 
