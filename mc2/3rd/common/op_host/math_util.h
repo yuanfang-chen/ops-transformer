@@ -12,6 +12,7 @@
  * \file math_util.h
  * \brief
  */
+
 #ifndef MATMUL_COMMON_MATH_UTIL_H_
 #define MATMUL_COMMON_MATH_UTIL_H_
 
