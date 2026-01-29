@@ -9,13 +9,13 @@
  */
 
 /*!
- * \file all_gather_matmul_v2_tiling.cpp
+ * \file all_gather_matmul_v2_tiling_a2a3.cpp
  * \brief
  */
 
-#include "all_gather_matmul_tiling_v2.h"
 #include "mc2_log.h"
 #include "tiling_base/tiling_templates_registry.h"
+#include "tiling_func.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
@@ -25,11 +25,11 @@ using namespace ge;
 
 namespace optiling
 {
-ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context);
-ge::graphStatus TilingParseForAllGatherMatmulV2(gert::TilingParseContext* context);
+ge::graphStatus AllGatherMatmulTilingV2FuncA2A3(gert::TilingContext* context);
+ge::graphStatus TilingParseForAllGatherMatmulV2A2A3(gert::TilingParseContext* context);
 constexpr uint32_t ATTR_COMMMODE = 11;
 
-ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
+ge::graphStatus AllGatherMatmulTilingV2FuncA2A3(gert::TilingContext* context)
 {
     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
     fe::PlatFormInfos &platformInfo = *platformInfoPtr;
@@ -50,13 +50,13 @@ ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
 
 struct AllGatherMatmulCompileInfo {
 };
-ge::graphStatus TilingParseForAllGatherMatmulV2(gert::TilingParseContext* context)
+ge::graphStatus TilingParseForAllGatherMatmulV2A2A3(gert::TilingParseContext* context)
 {
     (void)context;
     return ge::GRAPH_SUCCESS;
 }
 
 IMPL_OP_OPTILING(AllGatherMatmulV2)
-    .Tiling(AllGatherMatmulTilingV2Func)
-    .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmulV2);
+    .Tiling(AllGatherMatmulTilingV2FuncA2A3)
+    .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmulV2A2A3);
 }  // namespace optiling
