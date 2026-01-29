@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include "allto_allv_grouped_mat_mul_tiling.h"
 #include <string>
 #include <numeric>
 #include <climits>
@@ -21,220 +20,19 @@
 #include "tiling/hccl_formulaic_tiling.h"
 #include "mc2_hcom_topo_info.h"
 #include "mc2_log.h"
-#include "tiling/mc2_calc_num_blocks.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
-#include "../../op_kernel/allto_allv_grouped_mat_mul_tiling.h"
 #include "allto_allv_grouped_mat_mul_tiling_base.h"
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "context_util.h"
-#include "../../op_kernel/allto_allv_grouped_mat_mul_tiling_key.h"
+#include "allto_allv_grouped_mat_mul_no_quant_tiling.h"
 
 using namespace ge;
 using namespace AscendC;
 using namespace Ops::Transformer::OpTiling;
 namespace optiling {
-constexpr uint32_t GMM_X_INDEX = 0U;
-constexpr uint32_t OUTPUT_Y_INDEX = 0U;
-constexpr uint32_t GMM_WEIGHT_INDEX = 1U;
-
-constexpr uint32_t SEND_COUNTS_TENSOR_INDEX = 2U;
-constexpr uint32_t RECV_COUNTS_TENSOR_INDEX = 3U;
-constexpr uint32_t MM_X_INDEX = 4U;
-constexpr uint32_t MM_WEIGHT_INDEX = 5U;
-constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0U;
-constexpr uint32_t OUTPUT_MM_Y_INDEX = 1U;
-constexpr uint32_t OUTPUT_PERMUTE_OUT_INDEX = 2U;
-
-constexpr uint32_t DIM_TWO = 2;
-constexpr uint32_t DIM_ONE = 1;
-constexpr uint32_t DIM_THREE = 3;
-
-constexpr uint32_t NUM_ZERO = 0;
-constexpr uint32_t NUM_ONE = 1;
-constexpr uint32_t NUM_TWO = 2;
-constexpr uint32_t NUM_THREE = 3;
-constexpr uint32_t NUM_EIGHT = 8;
-constexpr uint32_t NUM_SIXTEEN = 16;
-constexpr uint32_t NUM_THIRTYTWO = 32;
-constexpr uint32_t NUM_SIXTYFOUR = 64;
-constexpr uint32_t MAX_EXPERT_NUM = 256;
-constexpr uint32_t MAX_BSK = 52428800;
-constexpr uint32_t MAX_SHAPE_SIZE = 65536;
-constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
-
-constexpr uint32_t ATTR_GROUP_INDEX = 0;
-constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
-constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
-constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
-constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
-constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
-constexpr uint32_t ATTR_PERMUTE_OUT_FLAG_INDEX = 6;
-
-constexpr int64_t BEST_L1_PARTA = 256 * 1024;
-constexpr int64_t BEST_L1_PARTB = 128 * 1024;
-constexpr int64_t BEST_BASE_N = 256;
-constexpr uint32_t UB_DIVIDE_NUM = 2;
-constexpr uint32_t UB_CALSIZE_PER_BLOCK = 16 * 1024;
-constexpr uint64_t DOUBLE_BUFFER_L0A_L0B = 2;
-constexpr uint64_t DOUBLE_BUFFER_STEPKA_STEPKB = 2;
-constexpr uint32_t SYS_WORKSPACE_SIZE = 16 * 1024 * 1024;
-constexpr uint32_t MAX_TURN_NUM = 24;
-constexpr int32_t MAX_BASE_K = 128;
-constexpr uint64_t COMM_TILE = 8; // 每卡数据分配几次计算
-
-const char* A_INNER_DEBUG = "AlltoAllvGroupedMatMul Tiling";
-
-static inline uint32_t SixteenAlign(uint32_t a, bool up = false)
-{
-    if (up) {
-        a += 15; // 15: 16 bytes up-align
-    }
-    return a & ~15; // ~15: 16 bytes down-align
-}
-
-static inline uint32_t Ceil(uint32_t a, uint32_t b)
-{
-    if (b == 0) {
-        return a;
-    }
-    return (a + b - 1) / b;
-}
-
-static uint64_t GMMGetSizePlatForm(
-    const platform_ascendc::CoreMemType memType, platform_ascendc::PlatformAscendC ascendcPlatform)
-{
-    uint64_t size = 0;
-    ascendcPlatform.GetCoreMemSize(memType, size);
-    return size;
-}
-
-struct PlatFormMemSize {
-    uint64_t ubSize;
-    uint64_t l1Size;
-    uint64_t l0CSize;
-    uint64_t l0ASize;
-    uint64_t l0BSize;
-
-    explicit PlatFormMemSize(platform_ascendc::PlatformAscendC ascendcPlatform)
-        : ubSize(GMMGetSizePlatForm(platform_ascendc::CoreMemType::UB, ascendcPlatform)),
-          l1Size(GMMGetSizePlatForm(platform_ascendc::CoreMemType::L1, ascendcPlatform)),
-          l0CSize(GMMGetSizePlatForm(platform_ascendc::CoreMemType::L0_C, ascendcPlatform)),
-          l0ASize(GMMGetSizePlatForm(platform_ascendc::CoreMemType::L0_A, ascendcPlatform)),
-          l0BSize(GMMGetSizePlatForm(platform_ascendc::CoreMemType::L0_B, ascendcPlatform))
-    {}
-};
-
-// 定义参数结构体
-struct MMTilingParams {
-    int32_t curMaxM;
-    int32_t curMaxK;
-    int32_t curMaxN;
-    int32_t* curBaseM;
-    int32_t* curBaseK;
-    int32_t* curBaseN;
-};
-
-struct SetMMTilingParams {
-    matmul_tiling::DataType matmulDtype;
-    int32_t curMaxM;
-    int32_t curMaxK;
-    int32_t curMaxN;
-    int32_t curBaseM;
-    int32_t curBaseN;
-    int32_t type;
-};
-
-static void PrintTilingDataGMM(::TCubeTiling msg)
-{
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.usedCoreNum %d.", msg.usedCoreNum);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.M %d.", msg.M);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.N %d.", msg.N);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.Ka %d.", msg.Ka);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.Kb %d.", msg.Kb);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.singleCoreM %d.", msg.singleCoreM);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.singleCoreN %d.", msg.singleCoreN);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.singleCoreK %d.", msg.singleCoreK);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.baseM %d.", msg.baseM);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.baseN %d.", msg.baseN);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.baseK %d.", msg.baseK);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.stepKa %d.", msg.stepKa);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.stepKb %d.", msg.stepKb);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.stepM %d.", msg.stepM);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.stepN %d.", msg.stepN);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.isBias %d.", msg.isBias);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.transLength %d.", msg.transLength);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.iterateOrder %d.", msg.iterateOrder);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.dbL0A %d.", msg.dbL0A);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.dbL0B %d.", msg.dbL0B);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.dbL0C %d.", msg.dbL0C);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.shareMode %d.", msg.shareMode);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.shareL1Size %d.", msg.shareL1Size);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.shareL0CSize %d.", msg.shareL0CSize);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.shareUbSize %d.", msg.shareUbSize);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.batchM %d.", msg.batchM);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.batchN %d.", msg.batchN);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.singleBatchM %d.", msg.singleBatchM);
-    OP_LOGD(A_INNER_DEBUG, " gmmTilingData.singleBatchN %d.", msg.singleBatchN);
-}
-
-static void PrintTilingDataMM(::TCubeTiling msg)
-{
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.usedCoreNum %d.", msg.usedCoreNum);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.M %d.", msg.M);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.N %d.", msg.N);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.Ka %d.", msg.Ka);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.Kb %d.", msg.Kb);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.singleCoreM %d.", msg.singleCoreM);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.singleCoreN %d.", msg.singleCoreN);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.singleCoreK %d.", msg.singleCoreK);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.baseM %d.", msg.baseM);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.baseN %d.", msg.baseN);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.baseK %d.", msg.baseK);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.stepKa %d.", msg.stepKa);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.stepKb %d.", msg.stepKb);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.stepM %d.", msg.stepM);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.stepN %d.", msg.stepN);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.isBias %d.", msg.isBias);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.transLength %d.", msg.transLength);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.iterateOrder %d.", msg.iterateOrder);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.dbL0A %d.", msg.dbL0A);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.dbL0B %d.", msg.dbL0B);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.dbL0C %d.", msg.dbL0C);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.shareMode %d.", msg.shareMode);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.shareL1Size %d.", msg.shareL1Size);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.shareL0CSize %d.", msg.shareL0CSize);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.shareUbSize %d.", msg.shareUbSize);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.batchM %d.", msg.batchM);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.batchN %d.", msg.batchN);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.singleBatchM %d.", msg.singleBatchM);
-    OP_LOGD(A_INNER_DEBUG, " mmTilingData.singleBatchN %d.", msg.singleBatchN);
-}
-
-static void PrintCommonTilingInfo(AlltoAllvGmmCommonTilingInfo &commonTilingInfo)
-{
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.BSK %lu.", commonTilingInfo.BSK);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.BS %lu.", commonTilingInfo.BS);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.H1 %lu.", commonTilingInfo.H1);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.H2 %lu.", commonTilingInfo.H2);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.A %lu.", commonTilingInfo.A);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.N1 %lu.", commonTilingInfo.N1);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.N2 %lu.", commonTilingInfo.N2);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.epWorldSize %lu.", commonTilingInfo.epWorldSize);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.E_ep %lu.", commonTilingInfo.E_ep);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.commOut %lu.", commonTilingInfo.commOut);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.aivCoreNum %lu.", commonTilingInfo.aivCoreNum);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.aicCoreNum %lu.", commonTilingInfo.aicCoreNum);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.isGmmWeightTrans %d.", commonTilingInfo.isGmmWeightTrans);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.isMmWeightTrans %d.", commonTilingInfo.isMmWeightTrans);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.isSendCntsTensor %d.", commonTilingInfo.isSendCntsTensor);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.isRecvCntsTensor %d.", commonTilingInfo.isRecvCntsTensor);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.isPermuteOut %d.", commonTilingInfo.isPermuteOut);
-    OP_LOGD(A_INNER_DEBUG, " commonTilingInfo.isNeedMM %d.", commonTilingInfo.isNeedMM);
-}
-
 class AlltoAllvGmmTiling
 {
 public:
@@ -261,7 +59,6 @@ protected:
     ge::graphStatus SetMMTiling(const gert::TilingContext* context, SetMMTilingParams& params) const;
     ge::graphStatus DoAiCoreTiling(const gert::TilingContext* context);
     uint64_t GetTilingKey(const gert::TilingContext* context) const;
-    ge::graphStatus setNumBlocks(gert::TilingContext* context); 
 
 private:
     int32_t maxM_;
@@ -635,47 +432,62 @@ ge::graphStatus AlltoAllvGmmTiling::CheckAttrsShapeRelation(const gert::TilingCo
 // 检查入参 shape 之间的关系
 ge::graphStatus AlltoAllvGmmTiling::CheckShapeRelation(const gert::TilingContext* context) const
 {
-    OP_TILING_CHECK((context->GetInputShape(GMM_WEIGHT_INDEX) == nullptr) || (context->GetInputShape(GMM_X_INDEX) == nullptr),
-                     OP_LOGE(A_INNER_DEBUG, "GetInputShape gmmX or gmmWeight returned nullptr."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        (context->GetInputShape(GMM_WEIGHT_INDEX) == nullptr) || (context->GetInputShape(GMM_X_INDEX) == nullptr),
+        OP_LOGE(A_INNER_DEBUG, "GetInputShape gmmX or gmmWeight returned nullptr."), return ge::GRAPH_FAILED);
 
     uint64_t gmmWeightH1 = tilingData->commonTilingInfo.isGmmWeightTrans ?
                                context->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape().GetDim(NUM_TWO) :
                                context->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape().GetDim(1);
     uint64_t gmmXH1 = context->GetInputShape(GMM_X_INDEX)->GetStorageShape().GetDim(1);
-    OP_TILING_CHECK(gmmXH1 != gmmWeightH1, OP_LOGE(A_INNER_DEBUG,
-                    "The H1 %lu of gmmX(BSK, H1) should be equal to the H1 %lu of gmmWeight(e, H1, N1) !", gmmXH1, gmmWeightH1),
-                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        gmmXH1 != gmmWeightH1,
+        OP_LOGE(
+            A_INNER_DEBUG, "The H1 %lu of gmmX(BSK, H1) should be equal to the H1 %lu of gmmWeight(e, H1, N1) !",
+            gmmXH1, gmmWeightH1),
+        return ge::GRAPH_FAILED);
 
     if (tilingData->commonTilingInfo.isNeedMM) {
         uint64_t mmXH2 = context->GetOptionalInputShape(MM_X_INDEX)->GetStorageShape().GetDim(1);
         uint64_t mmWeightH2 = tilingData->commonTilingInfo.isMmWeightTrans ?
                                   context->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(1) :
                                   context->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(0);
-        OP_TILING_CHECK(mmXH2 != mmWeightH2, OP_LOGE(A_INNER_DEBUG,
-                        "The H2 %lu of mmX(BS, H2) should be equal to the H2 %lu of mmWeight(H2, N2)!", mmXH2, mmWeightH2),
-                        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(
+            mmXH2 != mmWeightH2,
+            OP_LOGE(
+                A_INNER_DEBUG, "The H2 %lu of mmX(BS, H2) should be equal to the H2 %lu of mmWeight(H2, N2)!", mmXH2,
+                mmWeightH2),
+            return ge::GRAPH_FAILED);
 
         uint64_t mmXBS = context->GetOptionalInputShape(MM_X_INDEX)->GetStorageShape().GetDim(0);
         uint64_t mmYBS = context->GetOutputShape(OUTPUT_MM_Y_INDEX)->GetStorageShape().GetDim(0);
-        OP_TILING_CHECK(mmXBS != mmYBS, OP_LOGE(A_INNER_DEBUG,
-                        "The BS %lu of mmX(BS, H2) should be equal to the BS %lu of mmY(BS, N2)!", mmXBS, mmYBS),
-                        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(
+            mmXBS != mmYBS,
+            OP_LOGE(
+                A_INNER_DEBUG, "The BS %lu of mmX(BS, H2) should be equal to the BS %lu of mmY(BS, N2)!", mmXBS, mmYBS),
+            return ge::GRAPH_FAILED);
     }
 
     if (tilingData->commonTilingInfo.isPermuteOut) {
-        OP_TILING_CHECK((context->GetOutputShape(OUTPUT_GMM_Y_INDEX) == nullptr) ||
-                        (context->GetOutputShape(OUTPUT_PERMUTE_OUT_INDEX) == nullptr),
-                        OP_LOGE(A_INNER_DEBUG, "GetPermuteOutputShape GmmY or permuteOut returned null."),
-                        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(
+            (context->GetOutputShape(OUTPUT_GMM_Y_INDEX) == nullptr) ||
+                (context->GetOutputShape(OUTPUT_PERMUTE_OUT_INDEX) == nullptr),
+            OP_LOGE(A_INNER_DEBUG, "GetPermuteOutputShape GmmY or permuteOut returned null."), return ge::GRAPH_FAILED);
         uint64_t gmmYA = context->GetOutputShape(OUTPUT_GMM_Y_INDEX)->GetStorageShape().GetDim(0);
         uint64_t permuteA = context->GetOutputShape(OUTPUT_PERMUTE_OUT_INDEX)->GetStorageShape().GetDim(0);
         uint64_t permuteH1 = context->GetOutputShape(OUTPUT_PERMUTE_OUT_INDEX)->GetStorageShape().GetDim(1);
-        OP_TILING_CHECK(gmmXH1 != permuteH1, OP_LOGE(A_INNER_DEBUG,
-                        "The H1 %lu of gmmX(BSK, H1) should be equal to the H1 %lu of permuteOut(A, H1)!", gmmXH1, permuteH1),
-                        return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(gmmYA != permuteA, OP_LOGE(A_INNER_DEBUG,
-                        "The A %lu of gmmY(A, H1) should be equal to the A %lu of permuteOut(A, H1)!", gmmYA, permuteA),
-                        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(
+            gmmXH1 != permuteH1,
+            OP_LOGE(
+                A_INNER_DEBUG, "The H1 %lu of gmmX(BSK, H1) should be equal to the H1 %lu of permuteOut(A, H1)!",
+                gmmXH1, permuteH1),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(
+            gmmYA != permuteA,
+            OP_LOGE(
+                A_INNER_DEBUG, "The A %lu of gmmY(A, H1) should be equal to the A %lu of permuteOut(A, H1)!", gmmYA,
+                permuteA),
+            return ge::GRAPH_FAILED);
     }
 
     return ge::GRAPH_SUCCESS;
@@ -727,17 +539,20 @@ ge::graphStatus AlltoAllvGmmTiling::CheckShapeDims(const gert::TilingContext* co
         OP_LOGE(A_INNER_DEBUG, "GetOutputShape gmmY returned null."), return ge::GRAPH_FAILED);
 
     if (context->GetInputShape(GMM_X_INDEX)->GetStorageShape().GetDimNum() != NUM_TWO) {
-        OP_LOGE(A_INNER_DEBUG, "The dim of gmmX(BSK, H1) should be 2, but got %lu!",
+        OP_LOGE(
+            A_INNER_DEBUG, "The dim of gmmX(BSK, H1) should be 2, but got %lu!",
             context->GetInputShape(GMM_X_INDEX)->GetStorageShape().GetDimNum());
         return ge::GRAPH_FAILED;
     }
     if (context->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape().GetDimNum() != NUM_THREE) {
-        OP_LOGE(A_INNER_DEBUG, "The dim of gmmWeight(e, H1, N1) should be 3, but got %lu!",
+        OP_LOGE(
+            A_INNER_DEBUG, "The dim of gmmWeight(e, H1, N1) should be 3, but got %lu!",
             context->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape().GetDimNum());
         return ge::GRAPH_FAILED;
     }
     if (context->GetOutputShape(OUTPUT_GMM_Y_INDEX)->GetStorageShape().GetDimNum() != NUM_TWO) {
-        OP_LOGE(A_INNER_DEBUG, "The dim of gmmY(A, N1) should be 2, but got %lu!",
+        OP_LOGE(
+            A_INNER_DEBUG, "The dim of gmmY(A, N1) should be 2, but got %lu!",
             context->GetOutputShape(OUTPUT_GMM_Y_INDEX)->GetStorageShape().GetDimNum());
         return ge::GRAPH_FAILED;
     }
@@ -758,7 +573,8 @@ ge::graphStatus AlltoAllvGmmTiling::CheckShapeDims(const gert::TilingContext* co
             return ge::GRAPH_FAILED;
         }
         if (context->GetOutputShape(OUTPUT_PERMUTE_OUT_INDEX)->GetStorageShape().GetDimNum() != NUM_TWO) {
-            OP_LOGE(A_INNER_DEBUG, "The dim of permuteOut(A, H1) should be 2, but got %lu!",
+            OP_LOGE(
+                A_INNER_DEBUG, "The dim of permuteOut(A, H1) should be 2, but got %lu!",
                 context->GetOutputShape(OUTPUT_PERMUTE_OUT_INDEX)->GetStorageShape().GetDimNum());
             return ge::GRAPH_FAILED;
         }
@@ -931,34 +747,6 @@ uint64_t AlltoAllvGmmTiling::GetTilingKey(const gert::TilingContext* context) co
     return tilingKey;
 }
 
-ge::graphStatus AlltoAllvGmmTiling::setNumBlocks(gert::TilingContext* context){
-    auto platformInfo = context->GetPlatformInfo();
-    OPS_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
-
-    // 设置 CV 核数
-    platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
-    uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
-    uint64_t aivNum = ascendcPlatform.GetCoreNumAiv();
-    static const PlatFormMemSize PLATFORM_SIZE(ascendcPlatform);
-    static const platform_ascendc::SocVersion SOC_VERSION = ascendcPlatform.GetSocVersion();
-    libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
-    uint64_t numBlocks = mc2tiling::GetNumBlocks(aicNum, aivNum, A_INNER_DEBUG);
-    OP_TILING_CHECK(
-        (PLATFORM_SIZE.ubSize == 0U) || (PLATFORM_SIZE.l1Size == 0U) || (PLATFORM_SIZE.l0CSize == 0U) ||
-        (PLATFORM_SIZE.l0ASize == 0U) || (PLATFORM_SIZE.l0BSize == 0U),
-        OP_LOGE(
-            A_INNER_DEBUG,
-            "platform info is invalid, ubSize=%lu, l1Size=%lu, l0CSize=%lu, l0ASize=%lu, l0BSize=%lu",
-            PLATFORM_SIZE.ubSize, PLATFORM_SIZE.l1Size, PLATFORM_SIZE.l0CSize,
-            PLATFORM_SIZE.l0ASize, PLATFORM_SIZE.l0BSize),
-        return ge::GRAPH_FAILED);
-    tilingData->commonTilingInfo.aicCoreNum = numBlocks;
-    tilingData->commonTilingInfo.aivCoreNum = numBlocks * NUM_TWO;    // aic:aiv按照1：2配比
-    context->SetBlockDim(static_cast<uint32_t>(numBlocks));           // 通算融合场景 AIC_NUM:AIV_NUM = 1:2 默认启动
-
-    return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus AlltoAllvGmmTiling::RunFusionKernelTiling(gert::TilingContext* context)
 {
     OP_LOGD(A_INNER_DEBUG, "begin RunFusionKernelTiling.");
@@ -967,14 +755,45 @@ ge::graphStatus AlltoAllvGmmTiling::RunFusionKernelTiling(gert::TilingContext* c
         SetHcclTiling(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "set hccl tiling failed!"),
         return ge::GRAPH_FAILED);
 
+    auto platformInfo = context->GetPlatformInfo();
+    OPS_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
+
+    // 设置 CV 核数
+    platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
+    static const uint32_t CORE_NUM = ascendcPlatform.GetCoreNumAiv();
+    static const uint32_t AIC_NUM = ascendcPlatform.GetCoreNumAic();
+    static const uint32_t AIV_NUM = ascendcPlatform.GetCoreNumAiv();
+    static const PlatFormMemSize PLATFORM_SIZE(ascendcPlatform);
+    static const platform_ascendc::SocVersion SOC_VERSION = ascendcPlatform.GetSocVersion();
+
+    tilingData->commonTilingInfo.aicCoreNum = AIC_NUM;
+    tilingData->commonTilingInfo.aivCoreNum = AIV_NUM;
+
+    libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
+
+    OP_TILING_CHECK(
+        (CORE_NUM == 0U || AIC_NUM == 0U || AIV_NUM == 0U),
+        OP_LOGE(
+            A_INNER_DEBUG, "platform[%d] info is invalid, coreNum=%u, aicNum=%u, aivNum=%u",
+            static_cast<int>(SOC_VERSION), CORE_NUM, AIC_NUM, AIV_NUM),
+        return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK(
+        (PLATFORM_SIZE.ubSize == 0U || PLATFORM_SIZE.l1Size == 0U || PLATFORM_SIZE.l0CSize == 0U ||
+         PLATFORM_SIZE.l0ASize == 0U || PLATFORM_SIZE.l0BSize == 0U),
+        OP_LOGE(
+            A_INNER_DEBUG,
+            "platform[%d] info is invalid, ubSize=%lu, l1Size=%lu, l0CSize=%lu, l0ASize=%lu, l0BSize=%lu",
+            static_cast<int>(SOC_VERSION), PLATFORM_SIZE.ubSize, PLATFORM_SIZE.l1Size, PLATFORM_SIZE.l0CSize,
+            PLATFORM_SIZE.l0ASize, PLATFORM_SIZE.l0BSize),
+        return ge::GRAPH_FAILED);
+
     // aicore tiling
     OP_TILING_CHECK(
-        DoAiCoreTiling(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "GMMAlltoAllv DoAiCoreTiling failed."),
+        DoAiCoreTiling(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "GMM_All_Reduce DoAiCoreTiling failed."),
         return ge::GRAPH_FAILED);
-    
-    OP_TILING_CHECK(
-        setNumBlocks(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "GMMAlltoAllv setNumBlocks failed."),
-        return ge::GRAPH_FAILED);
+
+    context->SetBlockDim(ascendcPlatform.CalcTschBlockDim(CORE_NUM, AIC_NUM, AIV_NUM));
 
     // set workspaces
     size_t* workspaces = context->GetWorkspaceSizes(1); // 1: fixed value
@@ -1117,58 +936,29 @@ static ge::graphStatus AlltoAllvGmmTilingFuncA3(gert::TilingContext* context)
     return tiling.RunFusionKernelTiling(context);
 }
 
-bool AlltoAllvGmmTilingStruct::IsCapable()
+bool AlltoAllvGmmNoQuantTiling::IsCapable()
 {
-    return true;
+    if (context_->GetInputDesc(GMM_X_INDEX)->GetDataType() == ge::DT_FLOAT16 ||
+        context_->GetInputDesc(GMM_X_INDEX)->GetDataType() == ge::DT_BF16) {
+        return true;
+    }
+    return false;
 }
 
-ge::graphStatus AlltoAllvGmmTilingStruct::DoOpTiling()
+ge::graphStatus AlltoAllvGmmNoQuantTiling::DoOpTiling()
 {
     return AlltoAllvGmmTilingFuncA3(context_);
 }
 
-uint64_t AlltoAllvGmmTilingStruct::GetTilingKey() const
+uint64_t AlltoAllvGmmNoQuantTiling::GetTilingKey() const
 {
     const uint64_t tilingKey = context_->GetTilingKey();
     OP_LOGD(A_INNER_DEBUG, "AlltoAllvGmmTiling get tiling key %lu", tilingKey);
     return tilingKey;
 }
 
-ge::graphStatus AlltoAllvGmmTilingBase::GetPlatformInfo()
-{
-    auto platformInfo = context_->GetPlatformInfo();
-    OP_TILING_CHECK(
-        platformInfo == nullptr, VECTOR_INNER_ERR_REPORT_TILING(A_INNER_DEBUG, "fail to get platform info"),
-        return ge::GRAPH_FAILED);
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    socVersion_ = ascendcPlatform.GetSocVersion();
-
-    return ge::GRAPH_SUCCESS;
-}
-
-// Every thing is done by DoOptiling.
-ge::graphStatus AlltoAllvGmmTilingBase::GetShapeAttrsInfo()
-{
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus AlltoAllvGmmTilingBase::DoLibApiTiling()
-{
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus AlltoAllvGmmTilingBase::GetWorkspaceSize()
-{
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus AlltoAllvGmmTilingBase::PostTiling()
-{
-    return ge::GRAPH_SUCCESS;
-}
-
 // 后续开源至gitcode需要使用__DAV_C310__的宏隔离
-REGISTER_OPS_TILING_TEMPLATE(AlltoAllvGroupedMatMul, AlltoAllvGmmTilingStruct, 0);
+REGISTER_OPS_TILING_TEMPLATE(AlltoAllvGroupedMatMul, AlltoAllvGmmNoQuantTiling, 0);
 
 static ge::graphStatus AlltoAllvGmmTilingFunc(gert::TilingContext* context)
 {

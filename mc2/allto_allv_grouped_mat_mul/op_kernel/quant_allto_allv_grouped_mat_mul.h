@@ -1,4 +1,4 @@
-/**
+/* *
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
@@ -6,7 +6,7 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */
+  */
 
 /* !
  * \file allto_allv_grouped_mat_mul_coarse_grained.h
@@ -18,28 +18,48 @@
 #include "kernel_operator.h"
 #include "kernel_operator_intf.h"
 #include "allto_allv_gmm.h"
-#include "lib/matmul_intf.h"
 #include "allto_allv_grouped_mat_mul_tiling.h"
+#include "../grouped_matmul_apt/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "../grouped_matmul_apt/op_kernel/arch35/non_quant/grouped_matmul_basic_kernel.h"
+
+#if defined(CONST_TILING)
+  #define GET_TILING_ARRAY_MEMBER_ADDR(tilingType, member, subMember, var, tiling)     \
+      GET_TILING_DATA_MEMBER(tilingType, member, arrayObj, tiling);                             \
+      const int32_t* (var) = (const int32_t*)((const uint8_t*)&arrayObj.subMember);
+#else
+  #define GET_TILING_ARRAY_MEMBER_ADDR(tilingType, member, subMember, var, tiling)       \
+    size_t arrayOffset##var = (size_t)(&((tilingType*)0)->member);                              \
+    size_t elementOffset##var = (size_t)(&(((tilingType*)0)->member.subMember));             \
+    __gm__ int32_t* (var) = (__gm__ int32_t*)((tiling) + arrayOffset##var +                     \
+                                               elementOffset##var);
+#endif
 
 namespace AscendC {
 using namespace ALLTO_ALLV_GMM;
-template <typename ATAVGMM>
-class AlltoAllvGmmCoarseGrained
-{
+template <typename ATAVGMMQuant>
+class QuantAlltoAllvGmm {
 public:
-    __aicore__ inline AlltoAllvGmmCoarseGrained()
-    {}
-    __aicore__ inline void Init(
-        GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM,
-        GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM,
-        GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR contextGM, const AlltoAllvGmmTilingData* tilingData,
-        __gm__ void* hcclInitTiling, __gm__ void* alltoAllvCcTiling, TPipe* tPipe);
+    __aicore__ inline QuantAlltoAllvGmm() {}
+    __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM,
+        GM_ADDR recvCountsTensorOptionalGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR biasGM, 
+        GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM,
+        GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR contextGM,
+        const QuantAlltoAllvGroupedMatmulTilingData *tilingData, GM_ADDR tilingGM, __gm__ void *hcclInitTiling, __gm__ void *alltoAllvCcTiling,
+        TPipe *tPipe); // TODO ADD scale
     __aicore__ inline void Process();
-    using X_T = typename ATAVGMM::xType;
-    static constexpr bool NEED_MM = ATAVGMM::isOptionalMm;
-    static constexpr bool NEED_GMMW_TRANS = ATAVGMM::isGmmWeightTrans;
-    static constexpr bool NEED_MMW_TRANS = ATAVGMM::isOptWeightTrans;
 
+    using X_T = typename ATAVGMMQuant::xType;
+    using W_T = typename ATAVGMMQuant::wType;
+    using BIAS_T = typename ATAVGMMQuant::biasType;
+    using SCALE_T = typename ATAVGMMQuant::scaleType;
+    using Y_T = typename ATAVGMMQuant::yType;
+    static constexpr CubeFormat W_FORMAT = ATAVGMMQuant::wFormat;
+    static constexpr bool A_TRANS = ATAVGMMQuant::aTrans;
+    static constexpr bool B_TRANS = ATAVGMMQuant::bTrans;
+    static constexpr bool NEED_MM = ATAVGMMQuant::isOptionalMm;
+    static constexpr bool NEED_GMMW_TRANS = ATAVGMMQuant::isGmmWeightTrans;
+    static constexpr bool NEED_MMW_TRANS = ATAVGMMQuant::isOptWeightTrans;
+    TILING_TYPE* gmmArrayAddrIn;
 private:
     using aType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, X_T, false>;
     using gmmBType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, X_T, NEED_GMMW_TRANS>;
@@ -60,10 +80,20 @@ private:
     GM_ADDR recvCntsGM_ = nullptr;
     GM_ADDR mmxGM_ = nullptr;
     GM_ADDR mmwGM_ = nullptr;
+    GM_ADDR biasGM_ = nullptr;
     GM_ADDR gmmyGM_ = nullptr;
     GM_ADDR mmyGM_ = nullptr;
     GM_ADDR permuteOutGM_ = nullptr;
-    const AlltoAllvGmmTilingData* tilingData_ = nullptr;
+    GM_ADDR workspaceGM_ = nullptr;
+    GM_ADDR gmmxScaleGM_ = nullptr;
+    GM_ADDR gmmWeightScaleGM_ = nullptr;
+    GM_ADDR mmxScaleGM_ = nullptr;
+    GM_ADDR mmWeightScaleGM_ = nullptr;
+    GM_ADDR tilingGM_ = nullptr;
+
+    TPipe *tPipe_;
+
+    const QuantAlltoAllvGroupedMatmulTilingData *tilingData_ = nullptr;
     uint32_t rankId_ = 0U;             // 当前卡ID
     uint32_t rankDim_ = 8U;            // 通信域内卡的数量
     uint32_t expertNumInOneRank_ = 0U; // 单卡上面的专家个数
@@ -81,31 +111,45 @@ private:
 
     GlobalTensor<X_T> gmmxGMTensor_;
     GlobalTensor<X_T> permutedGMTensor_;
+    GlobalTensor<W_T> gmmWeightGMTensor_;
+    GlobalTensor<SCALE_T> gmmxScaleGMTensor_;
+    GlobalTensor<SCALE_T> gmmWeightScaleGMTensor_;
+    GlobalTensor<int64_t> groupListGMTensor_;
 
     uint64_t axisH1_;
     uint64_t axisN1_;
 
-    typename gmmType::MT gmm_;
-    typename mmType::MT mm_;
+    GmmASWKernel<X_T, W_T, BIAS_T, SCALE_T, Y_T, W_FORMAT, A_TRANS, B_TRANS> gmmASWKernel;
+
 };
 
-template <typename ATAVGMM>
-__aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::Init(
-    GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM,
-    GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM,
-    GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR contextGM, const AlltoAllvGmmTilingData* tilingData,
-    __gm__ void* hcclInitTiling, __gm__ void* alltoAllvCcTiling, TPipe* tPipe)
+template <typename ATAVGMMQuant>
+__aicore__ inline void QuantAlltoAllvGmm<ATAVGMMQuant>::Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM,
+        GM_ADDR recvCountsTensorOptionalGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR biasGM, GM_ADDR gmmxScaleGM,
+        GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM,
+        GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR contextGM,
+        const QuantAlltoAllvGroupedMatmulTilingData *tilingData, GM_ADDR tilingGM, __gm__ void *hcclInitTiling, __gm__ void *alltoAllvCcTiling,
+        TPipe *tPipe) // TODO ADD scale
 {
+    GM_ADDR userWorkspace = AscendC::GetUserWorkspace(workspaceGM);
     gmmxGM_ = gmmxGM;
     gmmwGM_ = gmmweightGM;
     sendCntsGM_ = sendCountsTensorOptionalGM;
     recvCntsGM_ = recvCountsTensorOptionalGM;
     mmxGM_ = mmxOptionalGM;
     mmwGM_ = mmweightOptionalGM;
+    gmmxScaleGM_ = gmmxScaleGM;
+    gmmWeightScaleGM_ = gmmWeightScaleGM;
+    mmxScaleGM_ = mmxScaleGM;
+    mmWeightScaleGM_ = mmWeightScaleGM;
     gmmyGM_ = gmmyGM;
     mmyGM_ = mmyOptionalGM;
+    workspaceGM_ = workspaceGM;
     tilingData_ = tilingData;
+    tilingGM_ = tilingGM;
+    tPipe_ = tPipe;
     permuteOutGM_ = tilingData_->commonTilingInfo.isPermuteOut ? permuteOutOptionalGM : workspaceGM;
+    // TODO set scale gm addr
 
     hccl_.Init(contextGM, hcclInitTiling);
     hccl_.SetCcTiling(alltoAllvCcTiling);
@@ -122,12 +166,15 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::Init(
         hcclDataType_ = HCCL_DATA_TYPE_BFP16;
     }
 
-    gmmxGMTensor_.SetGlobalBuffer((__gm__ X_T*)this->gmmxGM_);
-    permutedGMTensor_.SetGlobalBuffer((__gm__ X_T*)this->permuteOutGM_);
+    gmmxGMTensor_.SetGlobalBuffer((__gm__ X_T *)this->gmmxGM_);
+    permutedGMTensor_.SetGlobalBuffer((__gm__ X_T *)this->permuteOutGM_);
+    gmmWeightGMTensor_.SetGlobalBuffer((__gm__ W_T *)this->gmmwGM_);
+    gmmxScaleGMTensor_.SetGlobalBuffer((__gm__ SCALE_T *)this->gmmxScaleGM_);
+    gmmWeightScaleGMTensor_.SetGlobalBuffer((__gm__ SCALE_T *)this->gmmWeightScaleGM_);
+    groupListGMTensor_.SetGlobalBuffer((__gm__ int64_t *)userWorkspace);
 }
 
-template <typename ATAVGMM>
-__aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::Process()
+template <typename ATAVGMMQuant> __aicore__ inline void QuantAlltoAllvGmm<ATAVGMMQuant>::Process()
 {
     HcclAlltoAllvPrepare();
     if (tilingData_->commonTilingInfo.isNeedMM) {
@@ -139,36 +186,37 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::Process()
     HcclFinalize();
 }
 
-template <typename ATAVGMM>
-__aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::CalcMatmul()
+template <typename ATAVGMMQuant> __aicore__ inline void QuantAlltoAllvGmm<ATAVGMMQuant>::CalcMatmul()
 {
-    mm_.Init(&(tilingData_->mmTilingData));
-    GMMCompute<mmType> computeOp(mm_);
-    computeOp.Init(mmxGM_, mmwGM_, mmyGM_);
-    GMMProcess<decltype(computeOp)> mmOp(computeOp);
-    mmOp.Init(
-        tilingData_->mmTilingData.baseM, tilingData_->mmTilingData.baseN, tilingData_->commonTilingInfo.aicCoreNum);
-
     uint64_t mmInOffset[1] = {0};
     uint64_t mmOutOffset[1] = {0};
     uint64_t mmWeightOffset[1] = {0};
     uint32_t tokenNum[1] = {(uint32_t)(tilingData_->commonTilingInfo.BS)};
     if ASCEND_IS_AIC {
-        mmOp.Process(
-            this->rankId_, tilingData_->commonTilingInfo.H2, tilingData_->commonTilingInfo.N2, mmInOffset, mmOutOffset,
-            tokenNum, 1, 0);
+        // 共享专家计算
+        const GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData = tilingData_->gmmQuantTilingDataList[0];
+
+        // 使用类型名而不是变量名
+        GET_TILING_DATA_MEMBER(GroupedMatmulTilingData::GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tilingGM_);
+        GET_TILING_DATA_MEMBER(GroupedMatmulTilingData::GMMQuantTilingData, mmTilingData, mmTilingData_, tilingGM_);
+        GET_TILING_DATA_MEMBER_ADDR(GroupedMatmulTilingData::GMMQuantTilingData, gmmArray, gmmArrayAddr_, tilingGM_);
+
+        gmmASWKernel.Init(permuteOutGM_, // TODO compute offset
+            gmmwGM_, biasGM_, gmmxScaleGM_, 0, gmmWeightScaleGM_, gmmyGM_, workspaceGM_,
+            &gmmQuantParams_, &mmTilingData_, gmmArrayAddr_,  // 添加&取地址符
+            tPipe_);
+        gmmASWKernel.Process();
     }
 }
 
-template <typename ATAVGMM>
-__aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::HcclAlltoAllvPrepare()
+template <typename ATAVGMMQuant> __aicore__ inline void QuantAlltoAllvGmm<ATAVGMMQuant>::HcclAlltoAllvPrepare()
 {
     if ASCEND_IS_AIV {
         if (GetBlockIdx() != 0) {
             return;
         }
-        const auto* sendCnt = &tilingData_->aicpuTiling.sendCnt[0];
-        const auto* recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
+        const auto *sendCnt = &tilingData_->aicpuTiling.sendCnt[0];
+        const auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
         uint64_t alltoAllvRecvOffsetLastSum = 0UL;
         uint64_t alltoAllvSendCnt[MAX_EP_RANK_SIZE] = {0UL};
         uint64_t alltoAllvSendOffset[MAX_EP_RANK_SIZE] = {0UL};
@@ -203,25 +251,25 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::HcclAlltoAllvPrepare(
                     alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
                 }
             }
-            alltoAllvHandleId_[e] = hccl_.AlltoAllV<true>(
-                (__gm__ uint8_t*)this->gmmxGMTensor_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
-                (__gm__ uint8_t*)this->permutedGMTensor_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset,
-                hcclDataType_);
+            alltoAllvHandleId_[e] =
+                hccl_.AlltoAllV<true>((__gm__ uint8_t *)this->gmmxGMTensor_.GetPhyAddr(), alltoAllvSendCnt,
+                alltoAllvSendOffset, hcclDataType_, (__gm__ uint8_t *)this->permutedGMTensor_.GetPhyAddr(),
+                alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
         }
     }
 }
 
-template <typename ATAVGMM>
-__aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::HcclAlltoAllvExec()
+template <typename ATAVGMMQuant> __aicore__ inline void QuantAlltoAllvGmm<ATAVGMMQuant>::HcclAlltoAllvExec()
 {
-    gmm_.Init(&(tilingData_->gmmTilingData));
-    GMMCompute<gmmType> computeOp(gmm_);
-    computeOp.Init(permuteOutGM_, gmmwGM_, gmmyGM_);
-    GMMProcess<decltype(computeOp)> gmmOp(computeOp);
-    gmmOp.Init(
-        tilingData_->gmmTilingData.baseM, tilingData_->gmmTilingData.baseN, tilingData_->commonTilingInfo.aicCoreNum);
+    AscendC::printf("tilingData_->gmmQuantTilingData.mmTilingData.M = %ld\n", tilingData_->gmmQuantTilingData.mmTilingData.M);
 
-    auto* recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
+    // for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
+    //     groupListGMTensor_.SetValue(e, tilingData_->gmmQuantTilingData[e + 1].mmTilingData.M);
+    // }
+    // AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(groupListGMTensor_);
+    // SyncAll<false>();
+
+    auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
 
     uint64_t mmInOffset[2] = {0};
     uint64_t mmOutOffset[2] = {0};
@@ -256,18 +304,21 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::HcclAlltoAllvExec()
         tokenNum[0] = gmmTokennum[e];
 
         if ASCEND_IS_AIC {
-            gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, e);
+            GET_TILING_ARRAY_MEMBER_ADDR(QuantAlltoAllvGroupedMatmulTilingData, gmmQuantTilingData, gmmArray, gmmArrayAddr_, tilingGM_);
+            gmmASWKernel.Init(permuteOutGM_,
+                gmmwGM_, biasGM_, gmmxScaleGM_, 0, gmmWeightScaleGM_, gmmyGM_, workspaceGM_,
+                &tilingData_->gmmQuantTilingData.gmmQuantParams, &tilingData_->gmmQuantTilingData.mmTilingData, gmmArrayAddr_,
+                tPipe_);
+            gmmASWKernel.Process();
         }
     }
 }
 
-template <typename ATAVGMM>
-__aicore__ inline void AlltoAllvGmmCoarseGrained<ATAVGMM>::HcclFinalize()
+template <typename ATAVGMMQuant> __aicore__ inline void QuantAlltoAllvGmm<ATAVGMMQuant>::HcclFinalize()
 {
     if ASCEND_IS_AIV {
         hccl_.Finalize();
     }
 }
-
 } // namespace AscendC
 #endif

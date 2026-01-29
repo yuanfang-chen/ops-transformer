@@ -15,8 +15,15 @@
 #ifndef __ALLTO_ALLV_GMM_UTILS_H__
 #define __ALLTO_ALLV_GMM_UTILS_H__
 
+#if defined(ORIG_DTYPE_GMM_X) && defined(DT_BFLOAT16) && defined(DT_FLOAT16)&& \
+    (ORIG_DTYPE_GMM_X == DT_BFLOAT16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
+    #define ALLTO_ALLV_GMM_NO_QUANT
+#else
+    #define ALLTO_ALLV_GMM_QUANT
+#endif
+
 #include "kernel_tiling/kernel_tiling.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 
 namespace ALLTO_ALLV_GMM {

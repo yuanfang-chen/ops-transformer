@@ -8,25 +8,17 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/*!
- * \file allto_allv_grouped_mat_mul_tiling.h
- * \brief
- */
-#ifndef MC2_ALLTO_ALLV_GROUPED_MATMUL_TILING_STRUCT_H
-#define MC2_ALLTO_ALLV_GROUPED_MATMUL_TILING_STRUCT_H
+#ifndef CHECKER_H
+#define CHECKER_H
 
-#include "allto_allv_grouped_mat_mul_tiling_base.h"
+#include "aclnn/aclnn_base.h"
+#include "aclnn_util.h"
+#include "hccl/hccl_types.h"
 
-namespace optiling {
-class AlltoAllvGmmTilingStruct : public AlltoAllvGmmTilingBase
-{
-public:
-    explicit AlltoAllvGmmTilingStruct(gert::TilingContext* context) : AlltoAllvGmmTilingBase(context){};
+namespace allto_allv_grouped_mat_mul_checker {
 
-protected:
-    ge::graphStatus DoOpTiling() override;
-    uint64_t GetTilingKey() const override;
-    bool IsCapable() override;
-};
-} // namespace optiling
-#endif
+aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *recvCounts);
+
+} // namespace allto_allv_grouped_mat_mul_checker
+
+#endif //CHECKER_H
