@@ -276,7 +276,7 @@ void MatmulAllReduceTilingBase::SetMCutSocVersion(SocVersion& inputSocVersion)
     }
     // __DAV_C310__
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
-        inputSocVersion = SocVersion::SOC910_95;
+        inputSocVersion = SocVersion::SOC950;
         OP_LOGD(opName_, "TileCnt enter 910_95 branch.");
         return;
     }
