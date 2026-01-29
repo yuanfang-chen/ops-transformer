@@ -44,17 +44,6 @@ enum class SASLayout : uint32_t {
     PA_ND = 2
 };
 
-struct SASTilingShapeCompareParam {
-    int64_t B = 1;
-    int64_t S = 1;
-    int64_t N = 1;
-    int64_t D = 1;
-    int64_t T = 1;
-    // PA
-    int64_t Bs = 1;
-    int64_t Bn = 1;
-};
-
 enum class SASAxis : uint32_t {
     B = 0,
     S = 1,
@@ -131,7 +120,6 @@ constexpr uint32_t BYTE_BLOCK = 32;
 constexpr uint32_t HEAD_DIM_LIMIT = 128;
 constexpr uint32_t SPARSE_LIMIT = 2048;
 constexpr uint32_t SPARSE_MODE_LOWER = 3;
-constexpr uint32_t METADATA_LIMIT = 1024;
 
 // -----------算子TilingData定义---------------
 BEGIN_TILING_DATA_DEF(SparseAttnSharedkvSwaParams)
@@ -201,8 +189,6 @@ struct SASParaInfo {
     const char *layoutQ = nullptr;
     const char *layoutKv = nullptr;
 };
-static std::string SASDataTypeToSerialString(ge::DataType type);
-std::string SASLayoutToSerialString(SASLayout layout);
 
 // -----------算子Tiling入参信息类---------------
 class SASTilingInfo {
@@ -220,7 +206,6 @@ public:
     int64_t s2Size = 0;
     uint32_t gSize = 0;
     uint32_t qkHeadDim = 0;
-    uint32_t vHeadDim = 0;
     uint32_t qTSize = 0; // 仅TND时生效
 
     uint32_t actualLenDimsQ = 0;
@@ -273,68 +258,6 @@ public:
     explicit SASTilingCheck(const SASTilingInfo &sasInfo) : sasInfo_(sasInfo) {};
     ~SASTilingCheck() = default;
     virtual ge::graphStatus Process();
-private:
-    void Init();
-
-    void LogErrorDtypeSupport(const std::vector<ge::DataType> &expectDtypeList,
-        const ge::DataType &actualDtype, const std::string &name) const;
-    ge::graphStatus CheckDtypeSupport(const gert::CompileTimeTensorDesc *desc,
-        const std::string &name) const;
-    template <typename T> 
-    void LogErrorNumberSupport(const std::vector<T> &expectNumberList,
-        const T &actualValue, const std::string &name, const std::string subName) const;
-    template <typename T> 
-    void LogErrorDimNumSupport(const std::vector<T> &expectNumberList,
-        const T &actualValue, const std::string &name) const;
-    ge::graphStatus CheckDimNumSupport(const gert::StorageShape *shape,
-        const std::vector<size_t> &expectDimNumList, const std::string &name) const;
-    ge::graphStatus CheckDimNumInLayoutSupport(const SASLayout &layout,
-        const gert::StorageShape *shape, const std::string &name) const;
-    void LogErrorLayoutSupport(const std::vector<SASLayout> &expectLayoutList,
-        const SASLayout &actualLayout, const std::string &name) const;
-    ge::graphStatus GetExpectedShape(gert::Shape &CheckDtypeSupportshapeExpected,
-    const SASTilingShapeCompareParam &param, const SASLayout &layout) const;
-    ge::graphStatus CompareShape(SASTilingShapeCompareParam &param,
-        const gert::Shape &shape, const SASLayout &layout, const std::string &name) const;
-    ge::graphStatus CheckExists(const void *pointer, const std::string &name) const;
-    ge::graphStatus CheckNotExists(const void *pointer, const std::string &name) const;
-    ge::graphStatus CheckExistsByMap(const std::map<std::string, const void *> &paramMap) const;
-    ge::graphStatus CheckNotExistsByMap(const std::map<std::string, const void *> &paramMap) const;
-    ge::graphStatus CheckLayoutSupport(const SASLayout &actualLayout, const std::string &name) const;
-    ge::graphStatus CheckExistenceByMap(std::map<std::string, const void *> &existMap,
-        std::map<std::string, const void *> &notExistMap) const;
-    ge::graphStatus CheckSinglePara() const;
-    ge::graphStatus CheckSingleParaQuery() const;
-    ge::graphStatus CheckSingleParaOriKv() const;
-    ge::graphStatus CheckSingleParaCmpKv() const;
-    ge::graphStatus CheckSingleParaNumHeads() const;
-    ge::graphStatus CheckSingleParaKvHeadNums() const;
-    ge::graphStatus CheckSingleParaCmpSparseIndices() const;
-    ge::graphStatus CheckSingleParaSinks() const;
-    ge::graphStatus CheckSingleParaMetadata() const;
-    ge::graphStatus CheckSingleParaCmpRatio() const;
-    ge::graphStatus CheckSingleParaOriMaskMode() const;
-    ge::graphStatus CheckSingleParaCmpMaskMode() const;
-    ge::graphStatus CheckSingleParaOriWinLeft() const;
-    ge::graphStatus CheckSingleParaOriWinRight() const;
-    ge::graphStatus CheckSingleParaOriBlockTable() const;
-    ge::graphStatus CheckParaExistence() const;
-
-    ge::graphStatus CheckFeature() const;
-    ge::graphStatus CheckFeatureShape() const;
-    ge::graphStatus CheckFeatureLayout() const;
-    ge::graphStatus CheckFeatureDtype() const;
-    ge::graphStatus CheckFeaturePa() const;
-
-    ge::graphStatus CheckMultiParaConsistency();
-    void SetSASShapeCompare();
-    ge::graphStatus CheckDTypeConsistency(const ge::DataType &actualDtype, 
-        const ge::DataType &expectDtype, const std::string &name) const;
-    ge::graphStatus CheckOriAndCmpKv() const;
-    ge::graphStatus CheckAttenOut() const;
-    ge::graphStatus CheckActualSeqLensQ() const;
-    ge::graphStatus CheckActualSeqLens() const;
-    ge::graphStatus CheckBlockTable() const;
 
 private:
     const char *opName_;
@@ -352,11 +275,9 @@ private:
     uint32_t vHeadDim_ = 0;
     uint32_t qTSize_ = 0; // 仅TND时生效
     uint32_t kvTSize_ = 0; // 仅TND时生效
-    int64_t cmpRatio_ = 0;
-    int32_t oriBlockSize_ = 0;
-    int32_t cmpBlockSize_ = 0;
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;
     uint32_t sparseBlockCount_ = 0;
+
     SASLayout qLayout_ = SASLayout::BSND;
     SASLayout outLayout_ = SASLayout::BSND;
     SASLayout kvLayout_ = SASLayout::PA_ND;
@@ -378,16 +299,9 @@ private:
     ge::DataType oriKvType_ = ge::DT_FLOAT16;
     ge::DataType cmpKvType_ = ge::DT_FLOAT16;
     ge::DataType outputType_ = ge::DT_FLOAT16;
-
-    gert::Shape queryShapeCmp_{};
-    gert::Shape oriKvShapeCmp_{};
-    gert::Shape cmpKvShapeCmp_{};
-    gert::Shape oriKvSparseIndicesCmp_{};
-    gert::Shape cmpKvSparseIndicesCmp_{};
-    gert::Shape attenOutShapeCmp_{};
 };
 
-
+std::string SASLayoutToSerialString(SASLayout layout);
 
 template <typename T> inline T Align(T num, T rnd)
 {
