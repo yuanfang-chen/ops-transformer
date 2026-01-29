@@ -255,7 +255,8 @@ __aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, ne
                 mask = AscendC::MicroAPI::UpdateMask<int32_t>(remain);
                 offset = i * expertCountAlign_ + j * repeatCount;
                 ops::LoadOneTensorForDtypeT<T>(xTensorAddr, vreg0, mask, offset);
-                AscendC::MicroAPI::Max(reduceMidRreg, reduceMidRreg, vreg0, mask);
+                AscendC::MicroAPI::Max<float, AscendC::MicroAPI::MaskMergeMode::MERGING>(reduceMidRreg,
+                    reduceMidRreg, vreg0, mask);
             }
             remain = expertCount_;
             mask = AscendC::MicroAPI::UpdateMask<int32_t>(remain);
