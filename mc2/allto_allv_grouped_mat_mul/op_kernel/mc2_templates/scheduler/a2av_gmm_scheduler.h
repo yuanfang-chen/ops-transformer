@@ -38,32 +38,32 @@ public:
         __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->alltoAllvCcTiling));
         expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
         commOp.Init(tilingData_, gmmxGM, permuteOutOptionalGM, hcclInitTiling, alltoAllvCcTiling);
-        if (tilingData_->commonTilingInfo.isNeedMM) {
-            localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
-                workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
-        }
+        // if (tilingData_->commonTilingInfo.isNeedMM) {
+        //     localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
+        //         workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
+        // }
         computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
             &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe);
     }
 
     __aicore__ inline void Process()
     {
-        if (tilingData_->commonTilingInfo.isNeedMM) {
-            localComputeOp.Process(0);
-        }
+        // if (tilingData_->commonTilingInfo.isNeedMM) {
+        //     localComputeOp.Process(0);
+        // }
         commOp.Prepare();
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
             commOp.Wait(e);
             computeOp.Process(e);
         }
-        End();
+        this->End();
     }
-
+protected:
     __aicore__ inline void End()
     {
         commOp.End();
         computeOp.End();
-        localComputeOp.End();
+        // localComputeOp.End();
     }
 
 private:

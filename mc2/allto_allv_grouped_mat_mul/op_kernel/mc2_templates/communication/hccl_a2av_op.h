@@ -103,7 +103,6 @@ public:
 
     __aicore__ inline void End()
     {
-        SyncAll<false>();
         hccl_.Finalize();
     }
 

@@ -310,7 +310,7 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
 }
 
 extern "C" aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
-    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
+    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *bias, const aclTensor *gmmXScaleOptional,
     const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
     const aclTensor *gmmWeightOffsetOptional, const aclTensor *sendCountsTensorOptional,
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
