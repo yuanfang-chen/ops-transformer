@@ -16,8 +16,9 @@
 #define QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
 
 #include "kernel_operator.h"
+#include "mc2/3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
 
-namespace AscendC {
+#pragma once
 
 /**
  * 常量定义
@@ -26,22 +27,19 @@ constexpr uint32_t MAX_EXPERT_PER_EP = 32U;
 constexpr uint32_t MAX_EP_RANK_SIZE = 256U;
 
 /**
- * 量化模式宏定义
+ * 类型复用声明
+ * 复用 Mc2GroupedMatmulTilingData 中的类型定义
  */
-#define QUANT_MODE_NONE 0 // 无量化
-#define QUANT_MODE_TT 1   // PerTensor 量化
-#define QUANT_MODE_2 2    // PerChannel 量化
-#define QUANT_MODE_3 3    // PerToken 量化
-#define QUANT_MODE_4 4    // PerGroup 量化
-#define QUANT_MODE_4 5    // PerBlock 量化
-#define QUANT_MODE_6 6    // Mx Quant 量化
+using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
+using GMMArray = Mc2GroupedMatmulTilingData::GMMArray;
 
 /**
- * 通信量化模式宏定义
+ * GMM Tiling 数组封装
  */
-#define COMM_QUANT_MODE_NONE 0 // 不量化
-#define COMM_QUANT_MODE_INT8 1 // INT8 量化
-#define COMM_QUANT_MODE_INT4 2 // INT4 量化
+struct GmmTilingArray {
+    uint32_t count;                                  // 实际使用的 tiling 数量
+    GMMQuantTilingData array[MAX_EXPERT_PER_EP];     // GMM Tiling 数组
+};
 
 /**
  * QuantGmmA2avTilingInfo 核心配置信息
@@ -93,14 +91,8 @@ struct QuantGmmA2avTilingData {
     QuantGmmA2avTilingInfo tilingInfo;
 
     // ============ 共享专家 GMM Tiling（放在前面）============
-    // 注意：GMMQuantTilingData 需要从 GroupedMatmulTilingData 复用
-    uint8_t sharedGmmTiling[1024]; // 共享专家 GMM Tiling 数据
+    GMMQuantTilingData sharedGmmTiling; // 共享专家 GMM Tiling 数据
 
     // ============ 普通专家 GMM Tiling 数组 ============
-    uint32_t gmmTilingCount;           // 实际使用的 tiling 数量
-    uint8_t gmmTilingArray[32 * 1024]; // 普通专家 GMM Tiling 数组
+    GmmTilingArray gmmTiling; // 普通专家 GMM Tiling 数组
 };
-
-} // namespace AscendC
-
-#endif // QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
