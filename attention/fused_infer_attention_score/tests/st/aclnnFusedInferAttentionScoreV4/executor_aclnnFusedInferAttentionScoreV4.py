@@ -1634,8 +1634,8 @@ def _t_ifaattention_act(ifa_param, device="cpu"):
     sinner = ifa_param['sinner']
     lse_flag = ifa_param['softmax_lse_flag']
     if ifa_param['padding_flag']:
-        s_begin = k_tensor.shape[2] - act_seq - ifa_param['padding_size']
-        s_end = k_tensor.shape[2] - ifa_param['padding_size']
+        s_begin =int(k_tensor.shape[2] - act_seq - ifa_param['padding_size'])
+        s_end = int(k_tensor.shape[2] - ifa_param['padding_size'])
         print(f"left padding--- s_begin:{s_begin}, s_end:{s_end}")
 
     print(
@@ -2237,7 +2237,7 @@ def cut_padding_size(tensor, list, padding_size):
     shape = tensor.shape
     ms = shape[-1]
     for i in range(len(list)):
-        cut_len = ms - padding_size - list[i]
+        cut_len = int(ms - padding_size - list[i])
         tensor[i:(i + 1), ..., :cut_len] = 1
     return tensor
 
@@ -2671,6 +2671,7 @@ def trans_int32_2_int4_tensor_bnsd(tensor_int32, shape_int32):
                         tensor_int4[Bid:Bid + 1, Nid:Nid + 1, Sid:Sid + 1, 8 * Did + i:8 * Did + i + 1] = \
                             int4_data_list[i]
     return tensor_int4, shape_int4
+
 
 
 # pertoken_pa 场景，将scale/offset从BB转为1BS
@@ -3612,10 +3613,6 @@ def aclnn_op_func_ifa_cpu(torch_tensor_list, params):
                 m_tensor = torch.where(m_tensor < 0.8, torch.tensor(0, dtype=torch.float16),
                                        torch.tensor(1, dtype=torch.float16))
                 m_rewrite_flag = True
-            if m_rewrite_flag:
-                print(f"[INFO]rewrite attenmask")
-                tools.modify_alcnn_input_file(ids=4, origin_index=[4], type='tensor', mode='rewrite',
-                                              tensors=m_tensor, params=params, data_range=[0, 2])
             ifa_param['m_tensor'] = _t_broadcast_mask_n(m_tensor, m_shape, numHeads, m_shape[0])
 
     # >> 后量化参数处理：1、给dtype赋值 2、如果是perchannel模式，要将后量化参数统一转换成1n1d格式
