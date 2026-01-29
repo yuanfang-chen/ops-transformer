@@ -122,8 +122,7 @@ __aicore__ inline constexpr static bool IsQuantSenario()
                                         fp4x2_e2m1_t, fp4x2_e1m2_t>) {
         return true;
     }
-    if constexpr (AscendC::IsSameTypeV<L0cT, int32_t> &&
-        (AscendC::IsSameTypeV<CType, bfloat16_t> || AscendC::IsSameTypeV<CType, int32_t>)) {
+    if constexpr (AscendC::IsSameTypeV<L0cT, int32_t> && AscendC::IsSameTypeV<CType, bfloat16_t>) {
         return true;
     }
 #endif
