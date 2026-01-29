@@ -24,7 +24,7 @@ import numpy as np
 import math
 import os
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import concurrent.futures
 
 pt_dir = "/npu/traindata/z00957671/testcase_SAS_SCFA_decode/"
 result_path = Path('result_scfa_decode.xlsx')  # 或使用传入的result_path
@@ -43,7 +43,6 @@ if os.path.isdir(pt_dir):
             locals()["testcase_files"].append(filepath)
 else:
     print(f"错误: 输出目录不存在: {pt_dir}")
-print("files:", locals()["testcase_files"])
 
 # 固定case
 # locals()["testcase_files"] = ["/home/l00947498/pytest_scfa_A5_esl_2/sas_testcase_redline/kvquantSparseAttenShardkv_cfa_readline_Decode_BF16_128_64_1_1_1028_512_640_000018.pt"]
@@ -116,13 +115,14 @@ def sas_aclgraph(testcase_files):   # 初始化参数和tensor
 
 @pytest.mark.graph
 @pytest.mark.parametrize("testcase_files", locals()["testcase_files"])
-def test_sparse_attn_sharedkv(testcase_files):   # 初始化参数和tensor
-    with ProcessPoolExecutor(max_workers=1) as executor:
-        # 创建当前用例子进程
+def test_sparse_attn_sharedkv(testcase_files):   # 初始化参数和tensaor
+    # 线程池
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future1 = executor.submit(sas_aclgraph, testcase_files)
-        # 检查退出码
-        for future in as_completed([future1]):
+        # 等待并获取结果
+        for future in concurrent.futures.as_completed([future1]):
             try:
                 result = future.result()
             except Exception as e:
-                pytest.fail(f"❌ 当前用例子进程执行失败：{e}")
+                pytest.fail(f"当前用例线程执行失败")
+

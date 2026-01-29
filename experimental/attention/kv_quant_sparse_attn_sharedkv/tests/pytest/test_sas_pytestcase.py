@@ -24,7 +24,7 @@ import numpy as np
 import math
 import os
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import concurrent.futures
 
 save_path = "testcase_0124"
 device_id = 0
@@ -197,16 +197,13 @@ def sas(param_combinations):   # 初始化参数和tensor
     
 @pytest.mark.ci
 @pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
-def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
-    with ProcessPoolExecutor(max_workers=1) as executor:
-        # 创建当前用例子进程
+def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensaor
+    # 线程池
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future1 = executor.submit(sas, param_combinations)
-        # 检查退出码
-        for future in as_completed([future1]):
+        # 等待并获取结果
+        for future in concurrent.futures.as_completed([future1]):
             try:
                 result = future.result()
             except Exception as e:
-                pytest.fail(f"❌ 当前用例子进程执行失败：{e}")
-
-
-    
+                pytest.fail(f"当前用例线程执行失败")

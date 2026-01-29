@@ -23,7 +23,7 @@ import numpy as np
 import math
 import os
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import concurrent.futures
 
 pt_dir = "testcase_0124"
 result_path = Path('result_0124.xlsx')  # 或使用传入的result_path
@@ -44,10 +44,8 @@ else:
     print(f"错误: 输出目录不存在: {pt_dir}")
 
 # 固定case
-# print("files:", locals()["testcase_files"])
 # locals()["testcase_files"] = ["sas_case_kvquantSparseAttenShardkv_SWA_decode_TND_BF16_1_64_1_1_10_512_512_64_000000.pt"]
     
-
 def sas(testcase_files):   # 初始化参数和tensor
      # 加载测试数据
     test_data = torch.load(testcase_files, map_location="cpu")
@@ -115,14 +113,14 @@ def sas(testcase_files):   # 初始化参数和tensor
 
 @pytest.mark.ci
 @pytest.mark.parametrize("testcase_files", locals()["testcase_files"])
-def test_sparse_attn_sharedkv(testcase_files):   # 初始化参数和tensor
-    with ProcessPoolExecutor(max_workers=1) as executor:
-        # 创建当前用例子进程
+def test_sparse_attn_sharedkv(testcase_files):   # 初始化参数和tensaor
+    # 线程池
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future1 = executor.submit(sas, testcase_files)
-        # 检查退出码
-        for future in as_completed([future1]):
+        # 等待并获取结果
+        for future in concurrent.futures.as_completed([future1]):
             try:
                 result = future.result()
             except Exception as e:
-                pytest.fail(f"❌ 当前用例子进程执行失败：{e}")
+                pytest.fail(f"当前用例线程执行失败")
 
