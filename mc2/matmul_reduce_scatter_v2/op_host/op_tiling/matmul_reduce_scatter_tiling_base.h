@@ -81,7 +81,7 @@ protected:
     void SetMsgDataInfo(Mc2Tiling::RCSTiling &rcsCfg, ::TCubeTiling &mmTiling, 
                         ::TCubeTiling &tailTiling, uint32_t debugMode);
     mc2tiling::TilingArgs args_;
-    platform_ascendc::SocVersion socVersion_;
+    NpuArch npuArch_;
     const char* opName_ = nullptr;
     int64_t rankSize_{0};
     uint64_t tileMValue_{0};   // mc2 切块后主块M的大小；
