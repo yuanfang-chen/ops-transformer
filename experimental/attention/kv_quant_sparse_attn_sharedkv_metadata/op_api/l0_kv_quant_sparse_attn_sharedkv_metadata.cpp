@@ -55,7 +55,7 @@ const aclTensor* KvQuantSparseAttnSharedkvMetadata(
     std::string layoutKvOptional,
     bool hasOriKvOptional,
     bool hasCmpKvOptional,
-    const char *socVersion,
+    const std::string socVersion,
     int64_t aicCoreNum,
     int64_t aivCoreNum,
     const aclTensor* metaData,
