@@ -1174,7 +1174,7 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
       OP_CHECK_IF( !((wFormat0 == ge::FORMAT_FRACTAL_NZ) || (wFormat0 != FORMAT_FRACTAL_NZ && transposeWeight_ == 0)),
                OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                                            "A4W4 GMM currently supports only weight tensor nz transpose/untranspose input \
-                                            or nd format untranspose input."
+or nd format untranspose input."
                                            ),
                 return ge::GRAPH_FAILED);
   }
@@ -1462,6 +1462,7 @@ ge::graphStatus GMMTiling::CalMMTiling(const gert::TilingContext* context, const
     baseM_ = SPLITK_BASEM_256;
     baseN_ = SPLITK_BASEN_128;
     baseK_ = SPLITK_BASEK_64;
+    baseM_ = baseM_ > maxM_ ? static_cast<int32_t>(SixteenAlign(maxM_, true)) : baseM_;
     return ge::GRAPH_SUCCESS;
   }
   // according to the double buffer enabled L0B, compute baseK
