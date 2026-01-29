@@ -36,10 +36,10 @@ public:
         epWorldSize_ = tilingData_->commonTilingInfo.epWorldSize;
         H1_ = tilingData_->commonTilingInfo.H1;
         N1_ = tilingData_->commonTilingInfo.N1;
-        const auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
+        const auto *sendCnt = &tilingData_->aicpuTiling.sendCnt[0];
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
             for (uint32_t i = 0U; i < epWorldSize_; i++) {
-                expertTokenNum_[e] += static_cast<uint64_t>(recvCnt[e + i * expertNumInOneRank_]);
+                expertTokenNum_[e] += static_cast<uint64_t>(sendCnt[e + i * expertNumInOneRank_]);
             }
         }
     }
