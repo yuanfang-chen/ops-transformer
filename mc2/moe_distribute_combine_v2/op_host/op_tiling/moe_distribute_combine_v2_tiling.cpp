@@ -1767,4 +1767,13 @@ ge::graphStatus TilingParseForMoeDistributeCombineV2(gert::TilingParseContext *c
 IMPL_OP_OPTILING(MoeDistributeCombineV2)
     .Tiling(MoeDistributeCombineV2TilingFunc)
     .TilingParse<MoeDistributeCombineCompileInfo>(TilingParseForMoeDistributeCombineV2);
+
+// Register exception func
+inline void MoeDistributeCombineV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
+{
+    Mc2ExceptionImpl(args, userdata, "MoeDistributeCombineV2");
+}
+
+IMPL_OP(MoeDistributeCombineV2)
+    .ExceptionDumpParseFunc(MoeDistributeCombineV2ExceptionImplWrapper);
 } // namespace optiling
