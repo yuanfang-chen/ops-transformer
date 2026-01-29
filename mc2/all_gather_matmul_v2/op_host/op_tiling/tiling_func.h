@@ -18,7 +18,7 @@
 
 #include <cmath>
 #include <vector>
-#include "../../../op_kernel/all_gather_matmul_aiv_mode_tiling.h"
+#include "../../op_kernel/all_gather_matmul_aiv_mode_tiling.h"
 #include "register/op_def_registry.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
