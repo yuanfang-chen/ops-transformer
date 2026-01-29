@@ -1,4 +1,3 @@
-/**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
@@ -9,27 +8,22 @@
  */
 
 /*!
- * \file all_gather_matmul_v2_tiling.cpp
+ * \file matmul_reduce_scatter_v2_a2a3.cpp
  * \brief
  */
-
-#include "all_gather_matmul_tiling_v2.h"
 #include "mc2_log.h"
-#include "tiling_base/tiling_templates_registry.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
+#include "tiling_base/tiling_templates_registry.h"
 #include "platform/platform_infos_def.h"
+#include "matmul_reduce_scatter_v2_aiv_mode_smallm_tiling.h"
 
-using namespace AscendC;
-using namespace ge;
+namespace optiling {
+ge::graphStatus MatmulReduceScatterTilingV2Func(gert::TilingContext *context);
+ge::graphStatus TilingParseForMatmulReduceScatterV2(gert::TilingParseContext *context);
+constexpr uint32_t ATTR_COMMMODE = 10;	
 
-namespace optiling
-{
-ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context);
-ge::graphStatus TilingParseForAllGatherMatmulV2(gert::TilingParseContext* context);
-constexpr uint32_t ATTR_COMMMODE = 11;
-
-ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
+ge::graphStatus MatmulReduceScatterTilingV2Func(gert::TilingContext *context)
 {
     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
     fe::PlatFormInfos &platformInfo = *platformInfoPtr;
@@ -42,21 +36,22 @@ ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
         OP_TILING_CHECK((commModePtr == nullptr || !(std::strcmp(commModePtr, "aiv") == 0)),
             OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is invalid. commMode is %s", commModePtr), return ge::GRAPH_FAILED);
         if (std::strcmp(commModePtr, "aiv") == 0) {
-            return AllGatherMatmulTilingAIVModeFunc(context);
+            return MatmulReduceScatterTilingV2AivModeFunc(context);
         }
     }
     return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
 }
 
-struct AllGatherMatmulCompileInfo {
-};
-ge::graphStatus TilingParseForAllGatherMatmulV2(gert::TilingParseContext* context)
+struct MatmulReduceScatterV2CompileInfo {};
+ge::graphStatus TilingParseForMatmulReduceScatterV2(gert::TilingParseContext *context)
 {
     (void)context;
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(AllGatherMatmulV2)
-    .Tiling(AllGatherMatmulTilingV2Func)
-    .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmulV2);
+IMPL_OP_OPTILING(MatmulReduceScatterV2)
+    .Tiling(MatmulReduceScatterTilingV2Func)
+    .TilingParse<MatmulReduceScatterV2CompileInfo>(TilingParseForMatmulReduceScatterV2);
+
 }  // namespace optiling
+

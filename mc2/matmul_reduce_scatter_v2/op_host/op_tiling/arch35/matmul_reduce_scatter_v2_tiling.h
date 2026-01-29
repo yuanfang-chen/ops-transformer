@@ -15,7 +15,7 @@
 #ifndef __MATMUL_REDUCE_SCATTER_V2_TILING_H__
 #define __MATMUL_REDUCE_SCATTER_V2_TILING_H__
 
-#include "../matmul_reduce_scatter_tiling_base.h"
+#include "matmul_reduce_scatter_tiling_base.h"
 #include "mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
 #include "mat_mul_v3/op_host/op_tiling/matmul_v3_base_tiling.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_common_advanced.h"
@@ -59,7 +59,6 @@ private:
     Mc2MatMulV3Args mmV3Args_;
     Mc2MatmulV3CompileInfo compileInfo_;
 };
-ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *context);
 } // namespace optiling
 
 
