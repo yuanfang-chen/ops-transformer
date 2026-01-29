@@ -57,6 +57,7 @@ static ge::graphStatus Mc2WeightQuantBatchMatmulV2TilingFunc(gert::TilingContext
         auto platformInfoPtr = context->GetPlatformInfo();
         OP_LOGE_IF(platformInfoPtr == nullptr, ge::GRAPH_FAILED, context->GetNodeName(), "platformInfoPtr is null");
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
+        npuArch = ascendcPlatform.GetCurNpuArch();
         socVersion = ascendcPlatform.GetSocVersion();
         std::string mmad;
         bool res = platformInfoPtr->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_mmad", mmad);
@@ -117,7 +118,7 @@ static ge::graphStatus Mc2TilingParseForWeightQuantBatchMatmulV2(gert::TilingPar
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, compileInfoPtr->l0aSize);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfoPtr->l0bSize);
     compileInfoPtr->workspaceNum = ascendcPlatform.GetLibApiWorkSpaceSize();
-    compileInfoPtr->socVersion = ascendcPlatform.GetSocVersion();
+    compileInfoPtr->npuArch = ascendcPlatform.GetCurNpuArch();
     std::string mmad;
     bool res = platformInfoPtr->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_mmad", mmad);
     compileInfoPtr->supportMmadS8S4 = res && mmad.find("s8s4") != std::string::npos;
