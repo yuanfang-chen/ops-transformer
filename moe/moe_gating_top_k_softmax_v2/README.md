@@ -64,14 +64,14 @@
       <td>k</td>
       <td>属性</td>
       <td>公式中的`k`，表示topk的k值。</td>
-      <td>INT64</td>
+      <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>renorm</td>
       <td>属性</td>
       <td>公式中的`renorm`，表示renorm标记，取值0和1。</td>
-      <td>INT64</td>
+      <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>

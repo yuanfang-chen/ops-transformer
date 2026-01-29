@@ -22,8 +22,8 @@ namespace ge {
 /**
  * @brief compute softmax and topk for moe input.
  * @par Inputs:
- * @li x: A 2D or 3D tensor. Type is:BFloat16, Float16 or Float32. Format support ND.
- * @li finished: An optional tensor. Type is:Bool. Shape is x_shape[:-1]. Format support ND.
+ * @li x: A 2D or 3D tensor, the size of each dimensioin should not exceed the maximum value of int32, which is 2147483647. Type is:BFloat16, Float16 or Float32. Format support ND.
+ * @li finished: An optional tensor, the size of each dimensioin should not exceed the maximum value of int32, which is 2147483647. Type is:Bool. Shape is x_shape[:-1]. Format support ND.
  * @par Outputs:
  * @li y: A tensor. Type is:BFloat16, Float16 or Float32. The data type must be the same as that of x.
        The size of the non-1 axis must be the same as that of the corresponding axis of x.
