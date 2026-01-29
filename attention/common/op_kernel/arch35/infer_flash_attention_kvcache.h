@@ -447,7 +447,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
                     curGIdx = (curS1Idx % 2 == 0) ? curGIdx : (uint32_t)s1TemplateType;
                     curS1Idx /= 2;
                 } else if (constInfo.gSize <= 32) { // G<=32时，每64/G行为一个基本块
-                    curS1Idx *= ((uint32_t)s1TemplateType / constInfo.gSize);
+                    curS1Idx = runParam.cubeSOuterOffset / constInfo.gSize;
                 }
 
                 if (constInfo.subBlockIdx == 1) {
