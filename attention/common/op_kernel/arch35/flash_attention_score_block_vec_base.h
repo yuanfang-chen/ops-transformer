@@ -1201,7 +1201,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut)
 {
     int64_t s1DealSize = runInfo.vec2S1RealSize;
-    int64_t headSize = 0, tailSize = 0;
+    int64_t headSize = 0;
     int64_t attenOutOffset = constInfo.dSizeV;
     int64_t headUbOffset = 0, headGmOffset = 0;
     int64_t curGIdx = runInfo.goIdx, curS1Idx = runInfo.s1oIdx;
@@ -1241,7 +1241,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
         dataCopyParams.srcStride = 0;
         dataCopyParams.dstStride = (constInfo.t1Size * constInfo.dSizeV - constInfo.dSizeV) * sizeof(OUTPUT_T);
         dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
-        if (i == blocks  - 1 && hasTail) {
+        if (i == blocks - 1 && hasTail) {
             dataCopyParams.blockCount = s1DealSize % constInfo.gSize;
         } else {
             dataCopyParams.blockCount = constInfo.gSize;
