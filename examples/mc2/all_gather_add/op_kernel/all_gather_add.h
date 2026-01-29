@@ -60,7 +60,7 @@ private:
     int64_t tileNum_ = 0;
     uint32_t addTileElemNum_ = 0;
     int64_t blockIdx_ = 0;
-    uint64_t strideCount_ = 0;
+    uint64_t elemNumPerRank_ = 0;
 
     HcclHandle handleId_{ INVALID_HANDLE_ID };
 };
@@ -91,10 +91,10 @@ __aicore__ inline void AllGatherAdd::Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM,
 
 __aicore__ inline void AllGatherAdd::HcclPrepare()
 {
-    strideCount_ = tilingData_->gatherTileElemNum * tilingData_->commTurn; // 通信多轮切分，多张卡的数据拼接到gatherOutGM时，相邻数据块的起始地址偏移
+    elemNumPerRank_ = tilingData_->gatherTileElemNum * tilingData_->commTurn; // 通信多轮切分，多张卡的数据拼接到gatherOutGM时，相邻数据块的起始地址偏移
     // 下发通信任务
     handleId_ = hccl_.AllGather<true>(aGM_, gatherGM_, tilingData_->gatherTileElemNum,
-                                      HcclDataType::HCCL_DATA_TYPE_FP16, strideCount_, tilingData_->commTurn);
+                                      HcclDataType::HCCL_DATA_TYPE_FP16, elemNumPerRank_, tilingData_->commTurn);
 }
 
 __aicore__ inline void AllGatherAdd::CopyIn(int32_t progress)
@@ -134,7 +134,7 @@ __aicore__ inline void AllGatherAdd::HcclFinalize()
 __aicore__ inline void AllGatherAdd::CalcAddGmAddr(int32_t commTurn)
 {
     uint32_t commOffset = commTurn * tilingData_->gatherTileElemNum; // 1.根据通信轮次偏移单个通信数据大小
-    uint32_t blockOffset = blockIdx_ / tilingData_->addCoresPerRank * strideCount_; // 2.根据rank数和aivId判断当前核被分到处理哪个rank的通信数据
+    uint32_t blockOffset = blockIdx_ / tilingData_->addCoresPerRank * elemNumPerRank_; // 2.根据rank数和aivId判断当前核被分到处理哪个rank的通信数据
     uint32_t totalOffset = commOffset + blockOffset + (blockIdx_ % tilingData_->addCoresPerRank) * blockElemNum_; // 3.最终偏移需要再加上当前核在所处理rank数据上的偏移
     gatherOutGM.SetGlobalBuffer((__gm__ half*)gatherGM_ + totalOffset, blockElemNum_);
     inputBGM.SetGlobalBuffer((__gm__ half*)bGM_ + totalOffset, blockElemNum_);
