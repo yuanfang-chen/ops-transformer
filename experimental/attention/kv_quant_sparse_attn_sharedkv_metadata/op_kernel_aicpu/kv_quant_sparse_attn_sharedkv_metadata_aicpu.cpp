@@ -700,18 +700,13 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext
 }
 
 void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(uint32_t coreIdx, const SplitContext &splitContext, 
-                                                                    AssignContext &assignContext)
+                                                                    AssignContext &assignContext, SplitResult &result)
 {
-    if (result.maxCost > costLimit) {
-        return;
-    }
-    if (assignContext.isFinished || assignContext.unassignedCost <= 0) {
-        break;
-    }
+    const CostInfo &costInfo = splitContext.costInfo;
     assignContext.curCoreIdx = coreIdx;
     result.fdRes.s2SplitStartIdxOfCore[assignContext.curCoreIdx] = assignContext.curKvSplitPart - 1U;
     
-    int64_t avgCost = assignContext.unassignedCost / (coreNum - assignContext.curCoreIdx);
+    int64_t avgCost = assignContext.unassignedCost / (coreNum_ - assignContext.curCoreIdx);
     assignContext.coreCache = {};
     if (!supportFd) {
         assignContext.coreCache.costLimit = std::max(avgCost, costInfo.maxS1GCost);
@@ -745,12 +740,12 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(uint32_t cor
     }
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
-    int64_t costLimit, const SplitContext &splitContext, SplitResult &result)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit, const SplitContext &splitContext, 
+                                                                SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
 
-    if (coreNum == 0U) {
+    if (coreNum_ == 0U) {
         return;
     }
     result.maxCost = 0U;
@@ -766,8 +761,14 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
     CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
     assignContext.curS2Idx = assignContext.s1GCache.s2Start;
     // 负载分配
-    for (uint32_t i = 0; i < coreNum; ++i) {
-        AssignBlocksToCore(i, assignContext, splitContext);
+    for (uint32_t i = 0; i < coreNum_; ++i) {
+        if (result.maxCost > costLimit) {
+            return;
+        }
+        if (assignContext.isFinished || assignContext.unassignedCost <= 0) {
+            break;
+        }
+        AssignBlocksToCore(i, splitContext, assignContext, result);
     }
     result.usedCoreNum = assignContext.curCoreIdx + 1;
 }
@@ -876,7 +877,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
     splitRes_.maxCost = INT64_MAX;
     splitRes_.usedCoreNum = 1U;
     
-    CalcSplitPlan(coreNum_, splitRes_.maxCost, splitContext, splitRes_);
+    CalcSplitPlan(splitRes_.maxCost, splitContext, splitRes_);
     // 3、存在FD任务，对FD进行负载均衡分配
     if (splitRes_.numOfFdHead > 0U) {
         SplitFD(splitRes_);
