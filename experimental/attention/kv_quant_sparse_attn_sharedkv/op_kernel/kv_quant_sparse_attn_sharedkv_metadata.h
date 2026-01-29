@@ -59,11 +59,13 @@ static constexpr uint32_t FD_M_NUM_INDEX = 5;
  *
  * @return 返回计算得到的属性绝对索引
  */
+#ifdef __CCE_AICORE__
 __aicore__ inline uint32_t GetAttrAbsIndex(uint32_t aicIdx, uint32_t metaIdx, bool isFDMeta=false, uint32_t aivIdx=0)
 {
     uint32_t baseIndex = CORE_METADATA_SIZE * aicIdx + FD_METADATA_SIZE * aivIdx + metaIdx;
     return isFDMeta ? baseIndex + FA_METADATA_SIZE : baseIndex;
 }
+#endif
 
 namespace detail {
     struct CoreMetadata{

@@ -16,8 +16,10 @@
 #include <cstdio>
 #include <cmath>
 #include "kv_quant_sparse_attn_sharedkv_metadata_aicpu.h"
-#include "../../common/aicpu/kv_quant_sparse_attn_sharedkv_metadata.h"
+#include "../../kv_quant_sparse_attn_sharedkv/op_kernel/kv_quant_sparse_attn_sharedkv_metadata.h"
 #include "../../common/aicpu/cpu_context_util.h"
+
+using namespace optiling;
 
 namespace aicpu {
 uint32_t
