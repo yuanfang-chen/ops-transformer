@@ -87,7 +87,7 @@ ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() 
     return ValidSocVersion::RESERVED_VERSION;
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit() {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit() {
     groupSize_ = queryHeadNum_ / kvHeadNum_;
     if (cmpRatio_ > 1) {
         if (cmpTopK_ > 0) {
@@ -788,7 +788,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CopyTmpResult(SplitResult &tmpR
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmpRes)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmpRes)
 {
     uint64_t len = tmpRes.bN2End.size();
     tmpRes.usedCoreNum = 0U;
