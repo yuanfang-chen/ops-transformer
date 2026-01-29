@@ -20,7 +20,10 @@
 
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
+
 constexpr int64_t SIMT_THREAD_NUM = 2048;
+constexpr int8_t OVERFLOW_MODE_CTRL = 60;
+
 constexpr int64_t SPLIT_N = 0;
 constexpr int64_t SPLIT_K = 1;
 constexpr float MIN_FP32 = -3.4e38f;
