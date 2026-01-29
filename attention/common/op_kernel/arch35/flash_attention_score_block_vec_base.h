@@ -1246,8 +1246,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
     if (curGIdx != 0 && constInfo.gSize != 1) { // 首块
         headSize = curGIdx + s1DealSize < constInfo.gSize ? s1DealSize : constInfo.gSize - curGIdx;
         headUbOffset = headSize * constInfo.dSizeV;
-        headGmOffset = runInfo.s1SizeAcc * constInfo.dSizeV + (curS1Idx + 1) * constInfo.dSizeV;
-        
+        headGmOffset = constInfo.dSizeV - curGIdx * constInfo.t1Size * constInfo.dSizeV;
         dataCopyParams.srcStride = 0;
         dataCopyParams.dstStride = (constInfo.t1Size * constInfo.dSizeV - constInfo.dSizeV) * sizeof(OUTPUT_T);
         dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
