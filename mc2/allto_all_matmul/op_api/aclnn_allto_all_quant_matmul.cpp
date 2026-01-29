@@ -292,6 +292,41 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     OP_LOGD("aclnnAlltoAllQuantMatmul checkParams success");
     return ACLNN_SUCCESS;
 }
+
+// 处理支持转置的tensor物理排布不连续问题（x2）
+static const aclTensor *TransX2Tensor(const aclTensor *x2)
+{
+    uint64_t storageShapeDimNum = x2->GetStorageShape().GetDimNum();
+    std::vector<int64_t> storageDim(storageShapeDimNum);
+    for (uint64_t i = 0; i < storageShapeDimNum; i++) {
+        storageDim[i] = x2->GetStorageShape().GetDim(i);
+    }
+
+    uint64_t viewShapeDimNum = x2->GetViewShape().GetDimNum();
+    std::vector<int64_t> viewDim;
+    viewDim.resize(viewShapeDimNum);
+    for (uint64_t i = 0; i < viewShapeDimNum; i++) {
+        viewDim[i] = x2->GetViewShape().GetDim(i);
+    }
+    // transpose the viewshape last two dimensions
+    viewDim[0] = x2->GetViewShape().GetDim(1);
+    viewDim[1] = x2->GetViewShape().GetDim(0);
+
+    aclDataType dataType = aclDataType::ACL_DT_UNDEFINED;
+    aclGetDataType(x2, &dataType);
+    std::vector<int64_t> stride(viewShapeDimNum);
+    auto transStride = x2->GetViewStrides();
+    stride = std::vector<int64_t>(transStride.begin(), transStride.end());
+    // transpose the two dimensions
+    stride[0] = transStride[1];
+    stride[1] = transStride[0];
+
+    auto offset = x2->GetViewOffset();
+    aclFormat format = aclFormat::ACL_FORMAT_ND;
+
+    return aclCreateTensor(viewDim.data(), viewShapeDimNum, dataType, stride.data(), offset, format, storageDim.data(),
+                           storageShapeDimNum, x2->GetTensor()->GetAddr());
+}
 } // namespace
 
 // L0层两段式接口Inner，根据算子原型op_graph/allto_all_quant_matmul_proto.h，由模板自动生成。非量化L2层接口和量化L2层接口共用一套L0层接口。
@@ -339,10 +374,26 @@ extern "C" aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(const aclTensor*
     int64_t x1QuantMode, int64_t x2QuantMode, int64_t commQuantMode, int64_t commQuantDtype, int64_t x1QuantDtype, int64_t groupSize,
     bool transposeX1, bool transposeX2, const aclTensor* output, const aclTensor* alltoAllOutOptional, uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, x2Scale, alltoAllAxesOptional, group, transposeX1, output, alltoAllOutOptional);
+    // 处理非连续Tensor，目前只有支持转置的x2涉及该处理
+    bool notContiguous = Ops::Transformer::IsTransposeLastTwoDims(x2);
+    auto transX2 = x2;
+    if (notContiguous && (x2->GetViewShape().GetDim(0) != x2->GetViewShape().GetDim(1))) {
+        if (!transposeX2) {
+            // x2转置时将两轴shape调换
+            transX2 = TransX2Tensor(x2);
+            CHECK_RET(transX2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+            transposeX2 = !transposeX2;
+            OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
+                x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1)), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
+        } else {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2feilianxu.");
+            return ACLNN_ERR_PARAM_INVALID;
+        }
+    }
+    aclnnStatus retParam = CheckAndHandleParams(x1, transX2, biasOptional, x2Scale, alltoAllAxesOptional, group, transposeX1, output, alltoAllOutOptional);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     aclnnStatus ret = InnerAlltoAllQuantMatmulGetWorkspaceSize(
-        x1, x2, biasOptional, x1ScaleOptional, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
+        x1, transX2, biasOptional, x1ScaleOptional, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
         x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, x1QuantDtype, groupSize,
         transposeX1, transposeX2, output, alltoAllOutOptional, workspaceSize, executor);
     OP_LOGD("AlltoAllQuantMatmul, end ret %d", ret);

@@ -423,8 +423,24 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
                                                                 bool transposeX1, bool transposeX2, const aclTensor* output,
                                                                 uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    // 处理非连续Tensor，目前只有支持转置的x2涉及该处理
+    bool notContiguous = Ops::Transformer::IsTransposeLastTwoDims(x2);
+    auto transX2 = x2;
+    if (notContiguous && (x2->GetViewShape().GetDim(0) != x2->GetViewShape().GetDim(1))) {
+        if (!transposeX2) {
+            // x2转置时将两轴shape调换
+            transX2 = TransX2Tensor(x2);
+            CHECK_RET(transX2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+            transposeX2 = !transposeX2;
+            OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
+                x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1)), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
+        } else {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2feilianxu.");
+            return ACLNN_ERR_PARAM_INVALID;
+        }
+    }
     aclnnStatus retParam = CheckAndHandleParams(
-        x1, x2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
+        x1, transX2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
         x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, groupSize, transposeX1, transposeX2, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     // Inner接口部分入参类型和aclnn接口不一致，需要重新包装，同时Inner接口额外需要部分参数，按算子原型模板和实际业务逻辑生成
@@ -444,7 +460,7 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
         enumYDtype = 27;
     }
     aclnnStatus ret = aclnnInnerMatmulAlltoAllGetWorkspaceSize(
-        x1, x2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
+        x1, transX2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
         str_group, worldSize, alltoAllAxesOptional, enumYDtype, x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype,
         transposeX1, transposeX2, groupSize, out, workspaceSize, executor);
     OP_LOGD("QuantMatmulAlltoAll, aclnnnInnerGetWorkspaceSize ret %d.", ret);
