@@ -33,7 +33,6 @@ const int64_t tokenDefault = 2147483647; // 2147483647 for token default value
 const int32_t sparseDefault = 0;
 constexpr int64_t mFdBaseSizeMla = 8;
 constexpr uint32_t MAX_SPLIT_RATIO = 2;
-constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
 constexpr uint32_t SEQ_LEN_MIN = 4096;
 constexpr uint32_t SEQ_LEN_MAX = 5120;
 constexpr uint32_t HEAD_DIM = 512;
@@ -4168,8 +4167,6 @@ ge::graphStatus IFATiling::DoOpTiling()
         OP_LOGE(context_->GetNodeName(), "Error occurred while converting tilingContext to ifa context");
         return ge::GRAPH_FAILED;
     }
-    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
-    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     return DoSubOpTiling(ifaContext);
 }
 
