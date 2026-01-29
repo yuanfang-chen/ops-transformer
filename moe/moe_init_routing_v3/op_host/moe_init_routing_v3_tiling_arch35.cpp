@@ -80,6 +80,7 @@ const static int64_t QUANT_MODE_STATIC = 0LL;
 const static int64_t QUANT_MODE_DYNAMIC = 1LL;
 const static int64_t QUANT_MODE_MXFP8_E5M2 = 2LL;
 const static int64_t QUANT_MODE_MXFP8_E4M3FN = 3LL;
+const static int64_t QUANT_MODE_HIF8_CAST = 6LL;
 const static int64_t EXPERT_TOKENS_TYPE_COUNT = 1LL;
 const static int64_t EXPERT_TOKENS_TYPE_KEY_VALUE = 2LL;
 const static int64_t DROP_PAD_MODE_DROPLESS = 0LL;
@@ -414,7 +415,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetWorkspaceSize()
     int64_t quantTempWorkspaceSize = aivCoreNum_ * cols_ * (int64_t)sizeof(float);
     workspaceSize_ += sortWorkspaceSize + coreSyncWorkspaceSize + scatterWorkspaceSize +
                       expertTokensCountWorkspaceSize + expertTokenTotalCountWorkspace;
-    if (quantMode_ >= QUANT_MODE_DYNAMIC) {
+    if (quantMode_ >= QUANT_MODE_DYNAMIC && quantMode_ != QUANT_MODE_HIF8_CAST) {
         // DYNAMIC_QUANT、MXFP8_E5M2_QUANT、MXFP8_E4M3FN_QUANT
         workspaceSize_ += quantTempWorkspaceSize;
     }
@@ -554,10 +555,11 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckSetAttrs()
                 return ge::GRAPH_FAILED);
     // quantMode
     OP_CHECK_IF(quantMode_ != QUANT_MODE_UNQUANT && quantMode_ != QUANT_MODE_DYNAMIC &&
-                    quantMode_ != QUANT_MODE_MXFP8_E5M2 && quantMode_ != QUANT_MODE_MXFP8_E4M3FN,
-                OP_LOGE(context_, "Attr quant_mode currently supports (%ld, %ld, %ld, %ld), but got %ld",
+                    quantMode_ != QUANT_MODE_MXFP8_E5M2 && quantMode_ != QUANT_MODE_MXFP8_E4M3FN &&
+                    quantMode_ != QUANT_MODE_HIF8_CAST,
+                OP_LOGE(context_, "Attr quant_mode currently supports (%ld, %ld, %ld, %ld, %ld), but got %ld",
                         QUANT_MODE_UNQUANT, QUANT_MODE_DYNAMIC, QUANT_MODE_MXFP8_E5M2, QUANT_MODE_MXFP8_E4M3FN,
-                        quantMode_),
+                        QUANT_MODE_HIF8_CAST, quantMode_),
                 return ge::GRAPH_FAILED);
     tilingDataPtr_->quantMode = quantMode_;
     // rowIdxType
@@ -609,15 +611,19 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputX()
     using ge::DataType;
     using std::unordered_set;
     static const unordered_set<DataType> UNQUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
+                                                                     DataType::DT_BF16, DataType::DT_INT8, DataType::DT_HIFLOAT8};
+    static const unordered_set<DataType> DYNAMIC_QUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
                                                                      DataType::DT_BF16, DataType::DT_INT8};
     static const std::unordered_set<DataType> MXQUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
                                                                           ge::DataType::DT_BF16};
     unordered_set<DataType> supportedDtypes;
-    if (quantMode_ == QUANT_MODE_MXFP8_E5M2 || quantMode_ == QUANT_MODE_MXFP8_E4M3FN) {
+    if (quantMode_ == QUANT_MODE_MXFP8_E5M2 || quantMode_ == QUANT_MODE_MXFP8_E4M3FN || quantMode_ == QUANT_MODE_HIF8_CAST) {
         supportedDtypes = MXQUANT_SUPPORTED_DTYPES;
+    } else if (quantMode_ == QUANT_MODE_UNQUANT) {
+        supportedDtypes = UNQUANT_SUPPORTED_DTYPES;
     } else {
         //! 出于历史调用的兼容性，这里不拦截quant_mode=1（动态量化）下输入x为int8类型，仅资料说明此时算子输出expandedX、expandedScale无意义
-        supportedDtypes = UNQUANT_SUPPORTED_DTYPES;
+        supportedDtypes = DYNAMIC_QUANT_SUPPORTED_DTYPES;
     }
     OP_CHECK_IF(supportedDtypes.count(xDtype_) == 0,
                 OP_LOGE(context_, "Unsupported dtype of input x: %d under quant_mode: %ld.", xDtype_, quantMode_),
@@ -646,6 +652,12 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputExpertIdx()
 ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::CheckInputScale()");
+    
+    if (quantMode_ == QUANT_MODE_HIF8_CAST && isInputScale_ != 0) {
+        OP_LOGE(context_, "The rank of input scale should be empty under quant_mode %ld, current is %ld",
+                quantMode_, static_cast<int64_t>(scaleShape_.GetDimNum()));
+        return ge::GRAPH_FAILED;
+    }
 
     if (isInputScale_ == 0) {
         return ge::GRAPH_SUCCESS;
@@ -809,6 +821,8 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
         expectedRank = RANK_TWO;
         expectedDim0 = totalLength_;
         expectedDim1 = Ops::Base::CeilAlign<int64_t>(Ops::Base::CeilDiv<int64_t>(cols_, MX_QUANT_BLOCK_SIZE), 2LL);
+    } else if (quantMode_ == QUANT_MODE_HIF8_CAST) {
+        return ge::GRAPH_SUCCESS;
     }
     auto rank = static_cast<int64_t>(expandedScaleShape_.GetDimNum());
     if (expectedRank != -1) {
@@ -1116,6 +1130,8 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     if (quantMode_ == QUANT_MODE_DYNAMIC) {
         colMultiple = DYNAMIC_QUANT_COLS_BUFFER;
         rowMultiple = NUM_FOUR;
+    } else if (quantMode_ == QUANT_MODE_HIF8_CAST && xDtype_ == ge::DataType::DT_BF16) {
+        colMultiple = NUM_TWO * (inputXDtypeSize_ + inputXDtypeSize_ * 2); // BF16->FP32->HIF8
     }
     int64_t perLoopMaxIndicesElements =
         (availUbSize_ - Align(perLoopCols, inputXDtypeSize_) * colMultiple - UB_BLOCK_SIZE * NUM_TWO) / rowMultiple /
