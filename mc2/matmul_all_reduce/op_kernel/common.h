@@ -219,7 +219,7 @@ struct MC2GmAddrs {
 struct QuantGmAddrs {
     GM_ADDR antiquantScaleGM;
     GM_ADDR antiquantOffsetGM;
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     GM_ADDR offsetGM;
 #endif
     GM_ADDR dequantGM;
@@ -234,7 +234,7 @@ struct ArnGmAddrs {
 };
 
 struct MC2TilingHeader {
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     uint32_t version;
     uint32_t hcommCnt;
     Mc2Tiling::MC2ServerCfg serverCfg;
