@@ -573,7 +573,6 @@ def qli_output_single(params):
         cpu_result, topk_value = test_qli.forward(query, key_bnsd, weights, query_dequant_scale, key_dequant_scale_bns, actual_seq_lengths_query, actual_seq_lengths_key, block_table)
         block_table = torch.from_numpy(block_table).to(dtype=torch.int32).npu()
     metadata = torch_npu.npu_quant_lightning_indexer_metadata (
-                                    query = query,
                                     num_heads_q = q_head_num,
                                     num_heads_k = k_head_num,
                                     head_dim = head_dim,
@@ -590,7 +589,8 @@ def qli_output_single(params):
                                     sparse_mode = sparse_mode,
                                     pre_tokens = (1<<63)-1,
                                     next_tokens = (1<<63)-1,
-                                    cmp_ratio = cmp_ratio)
+                                    cmp_ratio = cmp_ratio,
+                                    device='npu:0')
 
     metadata = metadata.npu()
     npu_result,_ = torch.ops.custom.npu_quant_lightning_indexer(query, key, weights,
