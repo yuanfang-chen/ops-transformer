@@ -699,6 +699,52 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext
     result.numOfFdHead++;
 }
 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(uint32_t coreIdx, const SplitContext &splitContext, 
+                                                                    AssignContext &assignContext)
+{
+    if (result.maxCost > costLimit) {
+        return;
+    }
+    if (assignContext.isFinished || assignContext.unassignedCost <= 0) {
+        break;
+    }
+    assignContext.curCoreIdx = coreIdx;
+    result.fdRes.s2SplitStartIdxOfCore[assignContext.curCoreIdx] = assignContext.curKvSplitPart - 1U;
+    
+    int64_t avgCost = assignContext.unassignedCost / (coreNum - assignContext.curCoreIdx);
+    assignContext.coreCache = {};
+    if (!supportFd) {
+        assignContext.coreCache.costLimit = std::max(avgCost, costInfo.maxS1GCost);
+    } else {
+        assignContext.coreCache.costLimit = avgCost;
+    }
+    // 1、按整batch分配
+    AssignByBatch(splitContext, assignContext);
+    // 2、按行分配
+    AssignByRow(splitContext, assignContext);
+    // 3、按块分配
+    AssignByBlock(splitContext, assignContext);
+    // 4、强制分配
+    if (assignContext.coreCache.block == 0 && supportFd) {
+        ForceAssign(splitContext, assignContext);
+    }
+    result.bN2End[coreIdx] = assignContext.curBN2Idx;
+    result.gS1End[coreIdx] = assignContext.curS1GIdx;
+    result.s2End[coreIdx] = assignContext.curS2Idx;
+    result.maxCost = std::max(result.maxCost, assignContext.coreCache.cost);
+    assignContext.unassignedCost -= assignContext.coreCache.cost;
+    // 对之前的归约信息进行记录并清理
+    if (IsNeedRecordFDInfo(assignContext, result)) {
+        RecordFDInfo(splitContext, assignContext, result);
+        assignContext.curKvSplitPart = 1U;
+    }
+    // 更新S2切分信息
+    if (assignContext.curS2Idx > assignContext.s1GCache.s2Start &&
+        assignContext.curS2Idx <= assignContext.s1GCache.s2End) {
+        assignContext.curKvSplitPart++;
+    }
+}
+
 void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
     int64_t costLimit, const SplitContext &splitContext, SplitResult &result)
 {
@@ -719,60 +765,10 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
     CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
     CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
     assignContext.curS2Idx = assignContext.s1GCache.s2Start;
-
+    // 负载分配
     for (uint32_t i = 0; i < coreNum; ++i) {
-        if (result.maxCost > costLimit) {
-            return;
-        }
-        if (assignContext.isFinished || assignContext.unassignedCost <= 0) {
-            break;
-        }
-
-        assignContext.curCoreIdx = i;
-        result.fdRes.s2SplitStartIdxOfCore[assignContext.curCoreIdx] = assignContext.curKvSplitPart - 1U;
-        
-        int64_t avgCost = assignContext.unassignedCost / (coreNum - assignContext.curCoreIdx);
-        assignContext.coreCache = {};
-        if (!supportFd) {
-            assignContext.coreCache.costLimit = std::max(avgCost, costInfo.maxS1GCost);
-        } else {
-            assignContext.coreCache.costLimit = avgCost;
-        }
-        
-        // 1、按整batch分配
-        AssignByBatch(splitContext, assignContext);
-        
-        // 2、按行分配
-        AssignByRow(splitContext, assignContext);
-        
-        // 3、按块分配
-        AssignByBlock(splitContext, assignContext);
-        
-        // 4、强制分配
-        if (assignContext.coreCache.block == 0 && supportFd) {
-            ForceAssign(splitContext, assignContext);
-        }
-        
-        result.bN2End[i] = assignContext.curBN2Idx;
-        result.gS1End[i] = assignContext.curS1GIdx;
-        result.s2End[i] = assignContext.curS2Idx;
-        result.maxCost = std::max(result.maxCost, assignContext.coreCache.cost);
-
-        assignContext.unassignedCost -= assignContext.coreCache.cost;
-
-        // 对之前的归约信息进行记录并清理
-        if (IsNeedRecordFDInfo(assignContext, result)) {
-            RecordFDInfo(splitContext, assignContext, result);
-            assignContext.curKvSplitPart = 1U;
-        }
-
-        // 更新S2切分信息
-        if (assignContext.curS2Idx > assignContext.s1GCache.s2Start &&
-            assignContext.curS2Idx <= assignContext.s1GCache.s2End) {
-            assignContext.curKvSplitPart++;
-        }
+        AssignBlocksToCore(i, assignContext, splitContext);
     }
-
     result.usedCoreNum = assignContext.curCoreIdx + 1;
 }
 
