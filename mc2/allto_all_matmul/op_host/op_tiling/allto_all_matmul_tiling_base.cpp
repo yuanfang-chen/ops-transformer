@@ -44,6 +44,7 @@ ge::graphStatus AllToAllMatmulTilingBase::GetPlatformInfo()
     platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     contextInfo.args_.aicCoreNum = ascendcPlatform.GetCoreNumAic();
     socVersion_ = ascendcPlatform.GetSocVersion();
+    npuArch_ = ascendcPlatform.GetCurNpuArch();
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     return ge::GRAPH_SUCCESS;
 };
