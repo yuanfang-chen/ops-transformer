@@ -649,7 +649,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::ComputeScaleValue(
         tmpSinkUb = sinkQue.DeQue<bfloat16_t>();
     }
     ComputeScaleValue_VF(tmpSinkUb, lseMaxUb, lseSumUb, lseOutputUb, splitSize, constInfo.actualCombineLoopSize,
-                         constInfo.isSoftmaxLseEnable);
+                         constInfo.isSoftmaxLseEnable, constInfo.learnableSinkFlag);
     if (constInfo.isSoftmaxLseEnable) {
         softmaxLseQueue.template EnQue<T>(lseOutputUb);
         softmaxLseQueue.DeQue<T>();
