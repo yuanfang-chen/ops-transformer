@@ -59,7 +59,6 @@ private:
     Mc2MatMulV3Args mmV3Args_;
     Mc2MatmulV3CompileInfo compileInfo_;
 };
-ge::graphStatus MatmulReduceScatterTilingV2AivModeFunc(gert::TilingContext *context);
 } // namespace optiling
 
 
