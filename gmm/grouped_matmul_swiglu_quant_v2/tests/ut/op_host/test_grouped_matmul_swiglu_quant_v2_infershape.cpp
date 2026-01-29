@@ -401,7 +401,7 @@ TEST_F(GroupedMatmulSwigluQuantV2, test_infershape_91095_mxfp4_illegal_1) {
     gert::InfershapeContextPara infershapeContextPara("GroupedMatmulSwigluQuantV2",
         {
             {xShape, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND},
-            {xScaleShape, ge::DT_FLOAT8, ge::FORMAT_ND},
+            {xScaleShape, ge::DT_FLOAT, ge::FORMAT_ND},
             {groupListShape, ge::DT_INT64, ge::FORMAT_ND},
             {{wShape}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND},
             {{wScaleShape}, ge::DT_FLOAT, ge::FORMAT_ND},
