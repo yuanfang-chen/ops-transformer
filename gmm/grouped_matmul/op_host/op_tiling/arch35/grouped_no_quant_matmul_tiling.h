@@ -88,6 +88,7 @@ public:
 protected:
     bool Init(const gert::TilingContext* context);
     bool CalBaseMMTiling(const gert::TilingContext* context, const GMMCompileInfo* compileInfoPtr);
+    bool CalBaseMMTiling4BigN(const gert::TilingContext* context, const GMMCompileInfo* compileInfoPtr);
     void FormulateBasicBlock(const GMMCompileInfo* compileInfoPtr, uint32_t remainCoreNum);
     void CalAswtL1Tiling(const GMMCompileInfo* compileInfoPtr);
     bool CalL1Tiling(const gert::TilingContext* context, const GMMCompileInfo* compileInfoPtr);

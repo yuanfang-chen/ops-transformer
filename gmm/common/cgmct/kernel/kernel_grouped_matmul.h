@@ -377,7 +377,7 @@ public:
         int32_t baseM = params.gmmParams.matmulTiling->baseM;
         int32_t baseN = params.gmmParams.matmulTiling->baseN;
         int32_t baseK = params.gmmParams.matmulTiling->baseK;
-        if (params.gmmParams.weightNoL2Cache == NUM_ONE && baseM > m) {
+        if (baseM > m) {
             bGlobal_.SetL2CacheHint(AscendC::CacheMode::CACHE_MODE_DISABLE);
         } else {
             bGlobal_.SetL2CacheHint(AscendC::CacheMode::CACHE_MODE_NORMAL);
