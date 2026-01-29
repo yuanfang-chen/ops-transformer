@@ -128,7 +128,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>biasOptional</td>
     <td>输入</td>
     <td>可选输入，矩阵乘运算后累加的偏置，对应公式中的bias。</td>
-    <td>-</td>
+    <td>当前仅支持传入bias</td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
     <td>ND</td>
     <td>1维，shape为(N)</td>
@@ -414,7 +414,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
         | INT4 | INT4 | FLOAT32 | BFLOAT16 |
 * 维度约束：
     * A16W8时，rankSize * H必须整除32；rankSize * H取值范围：[32, 6144]
-    * A4W4时，H与N必须为偶数；rankSize * H取值范围：[4, 45000]
+    * A4W4时，H与N必须为偶数；rankSize * H取值范围：[4, 35000]
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
