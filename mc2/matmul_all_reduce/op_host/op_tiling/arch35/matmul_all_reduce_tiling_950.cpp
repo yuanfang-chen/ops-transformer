@@ -30,18 +30,19 @@ void MatmulAllReduceTilingA5::SetMc2Hcomm()
     OP_TILING_CHECK(
         mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType) == mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
         VECTOR_INNER_ERR_REPORT_TILING(
-            opName_, "Cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
-        return );
-    matmulAllReduce910TilingData_.hcommCfg.opType = (
-        static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLREDUCE));
-    matmulAllReduce910TilingData_.hcommCfg.srcDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-    matmulAllReduce910TilingData_.hcommCfg.dstDataType = (
-        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-
-    matmulAllReduce910TilingData_.version = mc2tiling::COMM_VERSION3; // 新版本
-    matmulAllReduce910TilingData_.hcommCnt = 1;                       // allreduce 通信域数量为1
+            opName_, "cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
+        return);
+    const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+    const uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
+    const uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
+    OP_TILING_CHECK(context_->GetAttrs() == nullptr, OP_LOGE(opName_, "failed to get attrs."), return);
+    const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
+    const std::string algConfig = "AllReduce=level0:fullmesh";
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType, algConfig, reduceType, dataType, dataType);
+    mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2InitTiling);
+    mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2CcTiling);
 }
+
 
 void MatmulAllReduceTilingA5::DoEmptyTensorTiling()
 {
@@ -198,11 +199,6 @@ ge::graphStatus MatmulAllReduceTilingA5::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2Ma
     }
 
     return ge::GRAPH_SUCCESS;
-}
-
-Mc2Tiling::Mc2Msg& MatmulAllReduceTilingA5::MutableMc2MsgData()
-{
-    return matmulAllReduce910TilingData_.msg;
 }
 
 Mc2Tiling::RCSTiling& MatmulAllReduceTilingA5::MutableRCSTilingData()

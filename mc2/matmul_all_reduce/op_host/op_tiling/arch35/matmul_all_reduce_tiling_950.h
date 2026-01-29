@@ -50,8 +50,6 @@ protected:
 
     ge::graphStatus Do910Tiling();
 
-    Mc2Tiling::Mc2Msg& MutableMc2MsgData() override;
-
     Mc2Tiling::RCSTiling& MutableRCSTilingData() override;
 
     ::TCubeTiling &MutableTCubeTileTilingData() override
