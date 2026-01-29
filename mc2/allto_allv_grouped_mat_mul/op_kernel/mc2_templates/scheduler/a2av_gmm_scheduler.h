@@ -34,11 +34,11 @@ public:
         auto tiling = (__gm__ TilingDataType *)tilingGM;
         GET_TILING_DATA(tilingData, tilingGM);
         tilingData_ = &tilingData;
-        __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclInitTiling));
-        __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->alltoAllvCcTiling));
-        expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
-        commOp.Init(tilingData_, gmmxGM, permuteOutOptionalGM, hcclInitTiling, alltoAllvCcTiling);
-        // if (tilingData_->commonTilingInfo.isNeedMM) {
+        e_ = tilingData_->taskTilingInfo.e;
+        __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.hcclInitTiling));
+        __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.a2avCcTiling));
+        commOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
+        // if (tilingData_->taskTilingInfo.isNeedMM) {
         //     localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
         //         workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
         // }
@@ -48,16 +48,18 @@ public:
 
     __aicore__ inline void Process()
     {
-        // if (tilingData_->commonTilingInfo.isNeedMM) {
+        // if (tilingData_->taskTilingInfo.isNeedMM) {
         //     localComputeOp.Process(0);
         // }
-        commOp.Prepare();
-        for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
-            commOp.Wait(e);
-            computeOp.Process(e);
+        // TODO commOp.Launch(0, e_);
+        commOp.TempLaunch();
+        for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
+            commOp.Wait(expertIdx);
+            computeOp.Process(expertIdx);
         }
         this->End();
     }
+
 protected:
     __aicore__ inline void End()
     {
@@ -71,7 +73,7 @@ private:
     ComputationOpType computeOp;
     ComputationOpType localComputeOp;
     const TilingDataType *tilingData_;
-    uint32_t expertNumInOneRank_ = 0U;
+    uint32_t e_ = 0U;
 };
 };
 #endif
