@@ -19,7 +19,7 @@
 #include "pipeline_context.h"
 
 namespace ATAVKernelTemplate {
-template <typename GmmExpertOpType, typename HcclOpType, typename ContextType, typename TilingDataType>
+template <typename GmmExpertOpType, typename HcclOpType, typename TilingDataType>
 class GmmA2avScheduler {
 public:
     __aicore__ inline GmmA2avScheduler(GmmExpertOpType* computeStage, TransposeType* transStage, HcclOpType* commStage) : gmmComputeOp_(computeStage), commStage_(commStage){};
@@ -41,8 +41,8 @@ private:
 };
 
 // 初始化各节点
-template <typename GmmExpertOpType, typename HcclOpType, typename ContextType, typename TilingDataType>
-__aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, ContextType>::Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM,
+template <typename GmmExpertOpType, typename HcclOpType, typename TilingDataType>
+__aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, TilingDataType>::Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM,
         GM_ADDR mmweightOptionalGM, GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, 
         GM_ADDR mmyOptionalGM, GM_ADDR workspaceGM, TilingDataType tilingData, TPipe* tPipe)
 {
@@ -55,8 +55,8 @@ __aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, ContextType
 }
 
 //执行流水线
-template <typename GmmExpertOpType, typename HcclOpType, typename ContextType, typename TilingDataType>
-__aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, ContextType>::Process(uint32_t taskCnt)
+template <typename GmmExpertOpType, typename HcclOpType, typename TilingDataType>
+__aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, TilingDataType>::Process(uint32_t taskCnt)
 { 
     if (tilingData_->commonTilingInfo.isNeedMM) {
         mmComputeOp_.Process();
@@ -76,8 +76,8 @@ __aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, ContextType
 }
 
 //释放流水线各节点资源
-template <typename GmmExpertOpType, typename HcclOpType, typename ContextType, typename TilingDataType>
-__aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, ContextType>::End()
+template <typename GmmExpertOpType, typename HcclOpType, typename TilingDataType>
+__aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, TilingDataType>::End()
 {
     gmmComputeOp_->End();
     mmComputeOp_->End();
