@@ -285,8 +285,24 @@ extern "C" aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, 
 {
     aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
+    // 处理非连续Tensor，目前只有支持转置的x2涉及该处理
+    bool notContiguous = Ops::Transformer::IsTransposeLastTwoDims(x2);
+    auto transX2 = x2;
+    if (notContiguous) {
+        if (!transposeX2) {
+            // x2转置时将两轴shape调换
+            transX2 = TransX2Tensor(x2);
+            CHECK_RET(transX2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+            transposeX2 = !transposeX2;
+            OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
+                x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1)), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
+        } else {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2feilianxu.");
+            return ACLNN_ERR_PARAM_INVALID;
+        }
+    }
     aclnnStatus ret = InnerMatmulAlltoAllGetWorkspaceSize(
-        x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, workspaceSize, executor);
+        x1, transX2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, workspaceSize, executor);
     OP_LOGD("MatmulAlltoAll, end ret %d", ret);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER,
