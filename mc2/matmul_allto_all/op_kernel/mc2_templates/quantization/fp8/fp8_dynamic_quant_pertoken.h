@@ -109,6 +109,8 @@ protected:
     float recipFP8MaxLimit_ = 0.0f;
     float fp8MaxLimit_ = 0.0f;
 
+    __aicore__ inline void SetMaxValue();
+
     __aicore__ inline void ProcessOneTokenRegBase();
 
     __aicore__ inline void CalculateMaxRegBase(__local_mem__ quantInputDataType *xAddr, __local_mem__ float *maxAddr);
