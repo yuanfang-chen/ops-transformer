@@ -38,11 +38,11 @@ namespace MoeDistributeCombineV2Impl {
 using namespace MoeDistributeV2Base;
 using namespace Mc2Kernel;
 
-#define TemplateMC2TypeClass typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant
-#define TemplateMC2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant
+#define TemplateCombineV2TypeClass typename ExpandXType, typename XType, typename ExpandIdxType, bool IsNeedReduceScatter, bool IsInt8Quant
+#define TemplateCombineV2TypeFunc ExpandXType, XType, ExpandIdxType, IsNeedReduceScatter, IsInt8Quant
 
 using namespace AscendC;
-template <TemplateMC2TypeClass>
+template <TemplateCombineV2TypeClass>
 class MoeDistributeCombineV2 {
 public:
     __aicore__ inline MoeDistributeCombineV2() {};
@@ -257,12 +257,12 @@ private:
     LocalTensor<float> sumFloatBufLocal_;
 
     uint32_t scaleNum_{0};
-    MoeDistributeCombineQuant<TemplateMC2TypeFunc> quantInst_;
+    MoeDistributeCombineQuant<TemplateCombineV2TypeFunc> quantInst_;
     MoeDistributeElastic elasticInst_;
 };
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::TokenMaskCalCnt()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::TokenMaskCalCnt()
 {
     // 一维mask, 计算得到有效bs数量
     LocalTensor<bool> xActiveMaskTensor = xActMaskTBuf_.Get<bool>();
@@ -281,8 +281,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::TokenMaskCal
     activeMaskBsCnt_ = static_cast<int32_t>(sumOutTensor.GetValue(0));
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertMaskCalCnt()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ExpertMaskCalCnt()
 {
     // 二维mask, 挑选有效token
     uint64_t rsvdCnt = 0;
@@ -318,8 +318,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertMaskCa
     GatherMask(validBsIndexTensor_, bsIndexTensor, maskTensorInt32, true, mask, {1, 1, 0, 0}, activeMaskBsCnt_);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitInputAndOutput(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::InitInputAndOutput(
     GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx, GM_ADDR epSendCount, GM_ADDR expertScales,
     GM_ADDR xActiveMask, GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX, GM_ADDR constExpertAlpha1,
     GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR performanceInfo, GM_ADDR XOut)
@@ -341,8 +341,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitInputAnd
     expandOutGlobal_.SetGlobalBuffer((__gm__ XType*)XOut);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitTilingAttrs(const MoeDistributeCombineV2TilingData *tilingData)
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::InitTilingAttrs(const MoeDistributeCombineV2TilingData *tilingData)
 {
     axisBS_ = tilingData->moeDistributeCombineV2Info.bs;
     axisH_ = tilingData->moeDistributeCombineV2Info.h;
@@ -374,8 +374,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitTilingAt
     enableSpecialExpert_ = (constExpertNum_ + zeroExpertNum_ + copyExpertNum_ > 0U);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitAttrs(const MoeDistributeCombineV2TilingData *tilingData)
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::InitAttrs(const MoeDistributeCombineV2TilingData *tilingData)
 {
     InitTilingAttrs(tilingData);
     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
@@ -410,8 +410,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::InitAttrs(co
     bsKNum_ = axisBS_ * axisK_;
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Init(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::Init(
     GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR expandIdx,
     GM_ADDR epSendCount, GM_ADDR tpSendCount, GM_ADDR expertScales,
     GM_ADDR xActiveMask, GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX,
@@ -481,8 +481,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Init(
     flagRcvCount_ = axisK_ + sharedExpertNum_;
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::BuffInit()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::BuffInit()
 {
     tpipe_->Reset();
     tpipe_->InitBuffer(readStateBuf_, UB_ALIGN);  // 32
@@ -521,8 +521,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::BuffInit()
     tpipe_->InitBuffer(indexCountsBuf_, sendCntNum_ * EXPAND_IDX_INFO * sizeof(int32_t));
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::MaskAlign()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::MaskAlign()
 {
     // 扩展后的二维mask通过GM对齐内轴元素个数
     uint32_t calcCnt = Ceil(axisBS_ * axisK_ * sizeof(half), ALIGNED_LEN_256) * ALIGNED_LEN_256 / sizeof(half);
@@ -540,8 +540,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::MaskAlign()
     SyncFunc<AscendC::HardEvent::MTE2_S>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::GenerateActiveMask(half val)
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::GenerateActiveMask(half val)
 {
     maskStrideTensor_ = tokenBuf_.Get<bool>();
     LocalTensor<half> maskCalcTensor = tokenBuf_.Get<half>();
@@ -564,8 +564,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::GenerateActi
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::MaskSpecialExpert()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::MaskSpecialExpert()
 {
     LocalTensor<int32_t> expertIdsTensor_ = mulBuf_.Get<int32_t>();
     LocalTensor<float> expertIdsFloat = rowTmpFloatBuf_.Get<float>();
@@ -618,8 +618,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::MaskSpecialE
     SyncFunc<AscendC::HardEvent::V_S>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::AlltoAllBuffInitAndMaskCal()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::AlltoAllBuffInitAndMaskCal()
 {
     tpipe_->Reset();
     activeMaskBsCnt_ = axisBS_;
@@ -696,8 +696,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::AlltoAllBuff
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::SplitCoreCal()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::SplitCoreCal()
 {
     // 对需要发送的token数平均分核，得到每个核上处理的卡的数量
     sendCntNum_ = selfSendCnt_ / aivNum_;
@@ -716,8 +716,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::SplitCoreCal
 
 // 当前逻辑为tp=2场景，泛化待重新适配，本卡token在最前面
 // 当tp为2时，直接把对端tp的数据分核处理发送
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ReduceScatterTrans()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ReduceScatterTrans()
 {
     uint32_t tokenTpOffset = selfSendCnt_;
     uint32_t offset = selfSendCnt_ * axisH_;
@@ -756,8 +756,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ReduceScatte
 // 流水流程
 // 46 -> gm -> ub syncall win->gm add -> alltoall
 // 2 -> win wait syncall gm -> ub win ->gm add -> alltoall
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::SetWaitTpStatusAndDisPatch()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::SetWaitTpStatusAndDisPatch()
 {
     PipeBarrier<PIPE_ALL>();
     if ((coreIdx_ >= tpRemoteSendCnt_) && (coreIdx_ >= selfSendCnt_)) {
@@ -794,8 +794,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::SetWaitTpSta
     SyncFunc<AscendC::HardEvent::MTE3_S>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertAlltoAllDispatchCopyAdd()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ExpertAlltoAllDispatchCopyAdd()
 {
     if (sendCntNum_ == 0U) { // 空闲核，直接返回
         return;
@@ -830,8 +830,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertAlltoA
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertAlltoAllDispatchInnerCopyAdd(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ExpertAlltoAllDispatchInnerCopyAdd(
     uint32_t toRankId, uint32_t tokenId, uint32_t topkId, uint32_t tkIndex)
 {
     uint32_t dataCnt = axisH_;
@@ -885,8 +885,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertAlltoA
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::CustomAdd(LocalTensor<XType> &dst,
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::CustomAdd(LocalTensor<XType> &dst,
   LocalTensor<XType> &src0, LocalTensor<XType> &src1)
 {
     if constexpr (AscendC::IsSameType<XType, bfloat16_t>::value) {
@@ -901,8 +901,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::CustomAdd(Lo
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::TimeOutDetection(uint64_t stateCheckOffset, LocalTensor<float> stateTensor)
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::TimeOutDetection(uint64_t stateCheckOffset, LocalTensor<float> stateTensor)
 {
     uint64_t toRankId;
     GlobalTensor<float> timeoutCheckGMTensor;
@@ -920,8 +920,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::TimeOutDetec
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::PerformanceInfoPerToken(uint32_t tokenIndex, uint64_t performanceTimeStart, LocalTensor<float> stateTensor)
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::PerformanceInfoPerToken(uint32_t tokenIndex, uint64_t performanceTimeStart, LocalTensor<float> stateTensor)
 {
     SyncFunc<AscendC::HardEvent::MTE2_S>();
     for (uint32_t i = 0; i < flagRcvCount_; i ++) {
@@ -955,8 +955,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::PerformanceI
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::WaitDispatch(uint32_t tokenIndex, uint64_t performanceTimeStart)
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::WaitDispatch(uint32_t tokenIndex, uint64_t performanceTimeStart)
 {
     uint32_t copyCount = flagRcvCount_ * FLOAT_PER_UB_ALIGN;
     uint32_t targetCount = copyCount;
@@ -1006,8 +1006,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::WaitDispatch
     DataCopy<float>(stateGMTensor, stateResetTensor_, copyCount);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::CalConstExpertAlpha(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::CalConstExpertAlpha(
     GlobalTensor<ExpandXType> constExpertAlphaGM, uint32_t const_expert_idx, float &alphaFloat)
 {
     LocalTensor<ExpandXType> weightLocal = moeSumQueue_.AllocTensor<ExpandXType>();
@@ -1034,8 +1034,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::CalConstExpe
 }
 
 // 处理常量专家
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ProcessConstantExpert(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ProcessConstantExpert(
     uint32_t tokenIndex, uint32_t const_expert_idx, float scaleVal)
 {
     PipeBarrier<PIPE_ALL>();
@@ -1094,8 +1094,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ProcessConst
 }
 
 // 处理拷贝专家
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ProcessCopyExpert(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ProcessCopyExpert(
     uint32_t tokenIndex, float scaleVal)
 {
     DataCopyPadExtParams<ExpandXType> copyPadExtParams{false, 0U, 0U, 0U};
@@ -1115,8 +1115,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ProcessCopyE
 }
 
 // 处理Moe专家
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ProcessMoeExpert(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ProcessMoeExpert(
     uint32_t tokenIndexOffset, uint32_t topkId, float scaleVal)
 {
     uint32_t processLen = axisH_;
@@ -1146,8 +1146,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ProcessMoeEx
     moeSumQueue_.FreeTensor<XType>(tmpUb);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertScaleCopy(
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::ExpertScaleCopy(
     const uint32_t beginIndex, const uint32_t endIndex, const uint32_t tokenPerAivNum)
 {
     expertScaleBeginIdx_ = beginIndex;
@@ -1166,8 +1166,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::ExpertScaleC
     SyncFunc<AscendC::HardEvent::MTE2_S>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::LocalWindowCopy()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::LocalWindowCopy()
 {
     if (activeMaskBsCnt_ == 0U) {
         return;
@@ -1301,8 +1301,8 @@ __aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::LocalWindowC
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeCombineV2<TemplateMC2TypeFunc>::Process()
+template <TemplateCombineV2TypeClass>
+__aicore__ inline void MoeDistributeCombineV2<TemplateCombineV2TypeFunc>::Process()
 {
     if ASCEND_IS_AIV { // 全aiv处理
         if constexpr (IsNeedReduceScatter) {
