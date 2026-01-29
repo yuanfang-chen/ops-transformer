@@ -2646,7 +2646,7 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
                 layoutStr.c_str()), return false);
     }
-        if (!enableIFAMLA) { // GQA and Prefill Mla
+        if (!enablePFAMLA && !enablePFARope && !enableIFAMLA) { // GQA
             OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
                 layoutStr.c_str(), queryShapeInfo.d), return false);
@@ -2668,7 +2668,7 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
                 layoutStr.c_str()), return false);
     }
-        if (!enableIFAMLA) { // GQA and Prefill Mla
+        if (!enablePFAMLA && !enablePFARope && !enableIFAMLA) { // GQA
             OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
                 layoutStr.c_str(), queryShapeInfo.d), return false);
