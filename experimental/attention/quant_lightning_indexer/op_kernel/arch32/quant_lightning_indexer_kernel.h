@@ -121,7 +121,6 @@ protected:
     // aic、aiv核信息
     uint32_t tmpBlockIdx = 0U;
     uint32_t aiCoreIdx = 0U;
-    uint32_t usedCoreNum = 0U;
 
     QLICommon::ConstInfo constInfo{};
     TempLoopInfo tempLoopInfo{};
