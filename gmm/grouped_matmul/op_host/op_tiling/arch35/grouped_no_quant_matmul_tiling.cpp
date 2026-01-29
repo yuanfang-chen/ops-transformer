@@ -56,22 +56,22 @@ bool GroupedNoQuantMatmulTiling::CalBaseMMTiling(const gert::TilingContext *cont
 }
 
 bool GroupedNoQuantMatmulTiling::CalBaseMMTiling4BigN(const gert::TilingContext *context,
-    const GMMCompileInfo *compileInfoPtr)
+                                                      const GMMCompileInfo *compileInfoPtr)
 {
-baseN_ = (n_ / 2 + BASIC_BLOCK_SIZE_16 - 1) / BASIC_BLOCK_SIZE_16 * BASIC_BLOCK_SIZE_16;
-// according to the double buffer enabled L0B, use default baseN_=256 to compute baseM
-baseM_ = (compileInfoPtr->l0CSize / DB_SIZE) / (BASE_N_DEFAULT * GetSizeByDataType(xDType_));
-baseM_ = baseM_ & ~ALIGN_DOWN_16;
-OP_CHECK_IF(baseM_ == 0, OP_LOGE(context->GetNodeName(), "baseM_ cannot be 0."), return false);
+    baseN_ = (n_ / 2 + BASIC_BLOCK_SIZE_16 - 1) / BASIC_BLOCK_SIZE_16 * BASIC_BLOCK_SIZE_16;
+    // according to the double buffer enabled L0B, use default baseN_=256 to compute baseM
+    baseM_ = (compileInfoPtr->l0CSize / DB_SIZE) / (BASE_N_DEFAULT * GetSizeByDataType(xDType_));
+    baseM_ = baseM_ & ~ALIGN_DOWN_16;
+    OP_CHECK_IF(baseM_ == 0, OP_LOGE(context->GetNodeName(), "baseM_ cannot be 0."), return false);
 
-// baseK_ = (compileInfoPtr->l0ASize / DB_SIZE) / (baseM_ * GetSizeByDataType(xDType_));
-uint32_t maxBaseK = static_cast<uint32_t>(compileInfoPtr->l0BSize / (baseN_ *  GetSizeByDataType(weightDtype_)));
-baseK_ = std::min<uint32_t>((compileInfoPtr->l0ASize / DB_SIZE) / (baseM_ * GetSizeByDataType(xDType_)), maxBaseK);
-if (baseK_ > BASE_K_DEFAULT) {
-baseK_ = BASE_K_DEFAULT;
-}
-OP_CHECK_IF(baseK_ == 0, OP_LOGE(context->GetNodeName(), "baseK_ cannot be 0."), return false);
-return CalL1Tiling(context, compileInfoPtr);
+    // baseK_ = (compileInfoPtr->l0ASize / DB_SIZE) / (baseM_ * GetSizeByDataType(xDType_));
+    uint32_t maxBaseK = static_cast<uint32_t>(compileInfoPtr->l0BSize / (baseN_ * GetSizeByDataType(weightDtype_)));
+    baseK_ = std::min<uint32_t>((compileInfoPtr->l0ASize / DB_SIZE) / (baseM_ * GetSizeByDataType(xDType_)), maxBaseK);
+    if (baseK_ > BASE_K_DEFAULT) {
+        baseK_ = BASE_K_DEFAULT;
+    }
+    OP_CHECK_IF(baseK_ == 0, OP_LOGE(context->GetNodeName(), "baseK_ cannot be 0."), return false);
+    return CalL1Tiling(context, compileInfoPtr);
 }
 
 void GroupedNoQuantMatmulTiling::FormulateBasicBlock(const GMMCompileInfo *compileInfoPtr, uint32_t remainCoreNum)
@@ -310,9 +310,9 @@ bool GroupedNoQuantMatmulTiling::CalMatMulTiling(const gert::TilingContext *cont
     } else if (groupType_ == SPLIT_M) {
         // 增加N范围在256,512之间,满足N外轴或weightNz时，走这个分支
         OP_LOGI(context->GetNodeName(), ">>>>>GMM input n:<<<<<%u", n_);
-        if ((transposeWeight_ || weightNzFlag_) && (256 < n_ <= 512)) {
+        if ((transposeWeight_ || weightNzFlag_) && (n_ >256) && (n_ <= 512)) {
             // n轴负载均衡,指定N为384的网络用例，性能穿刺时写死。
-            OP_LOGI(context->GetNodeName(), ">>>>>GMM perf balance need transposeWeight_%u or weightNzFlag_%u and n_%u",(unsigned int)transposeWeight_,(unsigned int)weightNzFlag_,n_);
+            OP_LOGI(context->GetNodeName(), ">>>>>GMM perf balance need transposeWeight_%d or weightNzFlag_%d and n_%u",(int)transposeWeight_,(int)weightNzFlag_,n_);
             FormulateBasicBlock(compileInfoPtr, usedCoreNum_);
             CalcTailBasicBlock(compileInfoPtr);
             CalAswtL1Tiling(compileInfoPtr);
