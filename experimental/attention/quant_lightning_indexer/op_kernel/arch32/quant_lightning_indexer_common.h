@@ -115,7 +115,7 @@ struct ConstInfo {
     uint32_t bN2End = 0U;
     uint32_t gS1Start = 0U;
     uint32_t gS1End = 0U;
-    uint32_t CoreEnable = 0U;
+    uint32_t coreEnable = 0U;
 };
 
 struct SplitCoreInfo {

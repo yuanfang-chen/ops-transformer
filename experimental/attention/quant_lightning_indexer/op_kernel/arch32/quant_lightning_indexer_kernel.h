@@ -292,7 +292,7 @@ __aicore__ inline uint32_t QLIPreload<QLIT>::GetTotalBaseBlockNum()
 template <typename QLIT>
 __aicore__ void inline QLIPreload<QLIT>::SplitCore()
 {
-    constInfo.CoreEnable = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, LI_CORE_ENABLE_INDEX, false));
+    constInfo.coreEnable = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, LI_CORE_ENABLE_INDEX, false));
     if (aiCoreIdx != 0) {
         constInfo.bN2Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, LI_BN2_START_INDEX, false));
         constInfo.gS1Start = metadataGm.GetValue(GetAttrAbsIndex(aiCoreIdx, LI_M_START_INDEX, false));
@@ -570,7 +570,7 @@ template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::ProcessMain()
 {
     // 无任务核直接返回
-    if (constInfo.CoreEnable == 0) {
+    if (constInfo.coreEnable == 0) {
         return;
     }
 
