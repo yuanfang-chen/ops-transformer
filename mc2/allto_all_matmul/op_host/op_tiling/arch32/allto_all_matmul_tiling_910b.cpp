@@ -586,8 +586,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
         const gert::StorageShape *x1ScaleShape = context_->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
         uint64_t x1ScaleShapeDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x1ScaleDim0 = x1ScaleShape->GetStorageShape().GetDim(0);
-        OP_TILING_CHECK((x1ScaleDim0 != info.M / info.rankSize),  // ALLTOALL后，m轴缩小为原来的1/rankSize
-                        OP_LOGE(opName_, "The x1Scale dimNum0 should be %u, but actual value is %lu.", info.M / info.rankSize, x1ScaleDim0),
+        OP_TILING_CHECK((x1ScaleDim0 != info.M),
+                        OP_LOGE(opName_, "The x1Scale dimNum0 should be %u, but actual value is %lu.", info.M, x1ScaleDim0),
                         return ge::GRAPH_FAILED);
 
         const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);

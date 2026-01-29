@@ -109,6 +109,7 @@ __aicore__ inline void AlltoAllMatmulA4W4<TemplateA2AMMFunc>::Init(GM_ADDR aGM, 
     workspaceGM_ = GetUserWorkspace(workspaceGM);
 
     CommBase::SetArgs<AType>(rank, rankSize, tilingData);
+    perTokenScaleGM_ += rank * (m / rankSize) * sizeof(PerTokenScaleType);
     this->ub_offset = Catlass::BytesToBits(UB_OFFSET) / Catlass::SizeOfBits<int8_t>::value;
 
     dequantCGM_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM_);
