@@ -87,6 +87,7 @@ private:
     LocalTensor<float> scalesFp32Tensor_;
     LocalTensor<int8_t> xOutTensor_;
     LocalTensor<int32_t> ffnStatusTensor_;
+    LocalTensor<int32_t> syncStatusWorkspaceTensor_;
     LocalTensor<int32_t> ffnFlagTensor_;
     LocalTensor<float> smoothScalesTensor_;
     LocalTensor<int32_t> expertIdsTensor_;
@@ -99,6 +100,7 @@ private:
     TBuf<> activeMaskBuf_;
     TBuf<> castTempBuf_;
     TBuf<> ffnStatusBuf_;
+    TBuf<> syncStatusWorkspaceBuf_;
     TBuf<> ffnFlagBuf_;
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> xQueue_;  // 非量化使用
     TQue<QuePosition::VECIN, 1> xInQueue_; // 量化使用，量化前的输入
@@ -222,10 +224,8 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::Init(GM_ADDR x, GM_A
     uint32_t expertIdsAlign = Ceil(expertIdsCnt_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN; // 约束32对齐
     uint32_t experTableCntAlign = Ceil(expertRankTableCnt_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN; // 约束32对齐
     tpipe_->InitBuffer(expertIdsBuf_, expertIdsAlign); // 对齐32B
-    tpipe_->InitBuffer(statusBuf_, UB_ALIGN); // 对齐32B
     tpipe_->InitBuffer(ffnFlagBuf_, UB_ALIGN); // 对齐32B
     expertIdsTensor_ = expertIdsBuf_.Get<int32_t>();
-    statusTensor_ = statusBuf_.Get<int32_t>();
     ffnFlagTensor_ = ffnFlagBuf_.Get<int32_t>();
     if constexpr (isQuant) {
         QuantInit(scales);
@@ -235,8 +235,11 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::Init(GM_ADDR x, GM_A
         tpipe_->InitBuffer(xQueue_, BUFFER_NUM, hSize_); // H * 2
     }
     if constexpr (isSync) {
-        tpipe_->InitBuffer(ffnStatusBuf_, UB_ALIGN);
+        uint32_t ffnStatusAlignCnt = Ceil(ffnNum_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
+ 	    tpipe_->InitBuffer(ffnStatusBuf_, ffnStatusAlignCnt); // ffnNum_
+        tpipe_->InitBuffer(syncStatusWorkspaceBuf_, UB_ALIGN);
         ffnStatusTensor_ = ffnStatusBuf_.Get<int32_t>();
+        syncStatusWorkspaceTensor_ = syncStatusWorkspaceBuf_.Get<int32_t>();
         syncStatusWorkspaceGM_ = workspaceGM;
     }
     if constexpr (isActiveMask) {
@@ -390,14 +393,6 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::SetExpertAndRank(uin
         dstExpertId_ = moeExpertNum_ + (topkId - axisK_);  // 前moeExpertNum_个为路由专家，共享专家排在后面
     }
     FindExpertRank(dstExpertId_); // 查表获取当前要发送的rankId以及localExpId
-    
-    if (tokenIdx > 0) {
-        SyncFunc<AscendC::HardEvent::MTE3_S>(); // 等待前面的statusTensor_的搬出
-    }
-    statusTensor_.SetValue(0, localExpId_);
-    if constexpr (isSync) { //异步场景写状态
-        DataCopy(syncStatusGMTensor_[(toRankId_ - ffnStartRankId_) * WORKSPACE_ELEMENT_STRIDE], ffnStatusTensor_, STATUS_REP_STRIDE);
-    }
 }
 
 template <TemplateMC2TypeClass>
@@ -470,8 +465,12 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::SendTokenToFFNByToke
     }
 
     // 当前FFN节点的token Flag位
+    statusTensor_.SetValue(tokenIdx * STATUS_REP_STRIDE, localExpId_);
     SyncFunc<AscendC::HardEvent::S_MTE3>();
-    DataCopyPad(tokenInfoTableGMTensor[TOKEN_INFO_TABLE_RS + tokenOffset], statusTensor_, statusCopyParams);
+    DataCopyPad(tokenInfoTableGMTensor[TOKEN_INFO_TABLE_RS + tokenOffset], statusTensor_[tokenIdx * STATUS_REP_STRIDE], statusCopyParams);
+    if constexpr (isSync) { // 异步场景记录FFN节点发送状态
+        ffnStatusTensor_.SetValue(toRankId_ - ffnStartRankId_, 1);
+    }
 }
 
 template <TemplateMC2TypeClass>
@@ -483,7 +482,11 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::SendTokenToFFN()
     DataCopyExtParams expertIdsCntParams = {1U, static_cast<uint32_t>(expertIdsCnt_ * sizeof(uint32_t)), 0U, 0U, 0U};
     DataCopyPadExtParams<int32_t> copyPadParams{false, 0U, 0U, 0U};
     DataCopyPad(expertIdsTensor_, expertIdsGMTensor_, expertIdsCntParams, copyPadParams);
+
     SplitToCore(totalSendNum_, aivNum_, startId, endId, sendNum_);
+    uint32_t statusCnt = sendNum_ > 0 ? sendNum_ : 1;   // buf复用
+    tpipe_->InitBuffer(statusBuf_, statusCnt * UB_ALIGN); // 对齐32B
+    statusTensor_ = statusBuf_.Get<int32_t>();
     if (startId >= totalSendNum_) {
         return;
     }
@@ -491,24 +494,35 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::SendTokenToFFN()
     for (uint32_t tokenIdx = 0; tokenIdx < sendNum_; ++tokenIdx) {
         SendTokenToFFNByTokenIdx(tokenIdx);
     }
+    if constexpr (isSync) { //异步场景存储token发送状态到workspace
+        for (uint32_t ffnIdx = 0; ffnIdx < ffnNum_; ++ffnIdx) {
+            if (ffnStatusTensor_.GetValue(ffnIdx) == 0) {
+                continue;
+            }
+            DataCopy(syncStatusGMTensor_[ffnIdx * WORKSPACE_ELEMENT_STRIDE], syncStatusWorkspaceTensor_, STATUS_REP_STRIDE);
+        }
+    }
 }
 
 template <TemplateMC2TypeClass>
 __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::SetFFNStatus()
 {
     syncStatusGMTensor_.SetGlobalBuffer((__gm__ int32_t*)syncStatusWorkspaceGM_);
-    Duplicate<int32_t>(ffnStatusTensor_, (int32_t)1, STATUS_REP_STRIDE); //异步场景设置状态
     uint32_t startId = 0;
     uint32_t endId = 0;
     uint32_t sentNum = 0;
+    uint32_t stride = ffnNum_ > STATUS_REP_STRIDE ? ffnNum_ : STATUS_REP_STRIDE;
+    Duplicate<int32_t>(ffnStatusTensor_, (int32_t)0, stride); // 初始化workSpace
+    Duplicate<int32_t>(syncStatusWorkspaceTensor_, (int32_t)1, STATUS_REP_STRIDE); //异步场景设置状态
+
     SplitToCore(ffnNum_, aivNum_, startId, endId, sentNum);
     if (startId >= ffnNum_) {
         return;
     }
-    Duplicate<int32_t>(statusTensor_, (int32_t)0, STATUS_REP_STRIDE); // 初始化workSpace
+
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     for (uint32_t ffnIdx = startId; ffnIdx < endId; ++ffnIdx) {
-        DataCopy(syncStatusGMTensor_[ffnIdx * WORKSPACE_ELEMENT_STRIDE], statusTensor_, STATUS_REP_STRIDE);
+        DataCopy(syncStatusGMTensor_[ffnIdx * WORKSPACE_ELEMENT_STRIDE], ffnStatusTensor_, STATUS_REP_STRIDE);
     }
 }
 
@@ -533,9 +547,9 @@ __aicore__ inline void AttentionToFFN<TemplateMC2TypeFunc>::SetFlagToFFN()
     GM_ADDR toRankAddr;
     for (uint32_t ffnIdx = startFFNId; ffnIdx < endFFNId; ++ffnIdx) {
         if constexpr (isSync) {
-            DataCopy(ffnStatusTensor_, syncStatusGMTensor_[(ffnIdx - ffnStartRankId_) * WORKSPACE_ELEMENT_STRIDE], STATUS_REP_STRIDE);
+            DataCopy(syncStatusWorkspaceTensor_, syncStatusGMTensor_[(ffnIdx - ffnStartRankId_) * WORKSPACE_ELEMENT_STRIDE], STATUS_REP_STRIDE);
             SyncFunc<AscendC::HardEvent::MTE2_S>();
-            if ((ffnStatusTensor_.GetValue(0) == 0)) {
+            if ((syncStatusWorkspaceTensor_.GetValue(0) == 0)) {
                 continue;
             }
         }
