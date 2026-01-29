@@ -40,9 +40,8 @@ ge::graphStatus Mc2BatchMatMulV3Tiling::DoTiling()
     args_.batchInfo = &tempBatchInfo;
     Mc2MatMulTilingCfg tilingCfg(false, context_->GetCompileInfo(), static_cast<void *>(&args_));
     OPS_CHECK_NULL_WITH_CONTEXT(context_, tilingCfg.compileInfo);
-    platform_ascendc::SocVersion socVersion =
-        static_cast<const Mc2MatmulV3CompileInfo *>(tilingCfg.compileInfo)->socVersion;
-    Mc2MMRegisterCfg registerCfg{ "Mc2BatchMatMulV3", socVersion, strategy::GetBatchMatMulV3Priorities(socVersion) };
+    NpuArch npuArch = static_cast<const Mc2MatmulV3CompileInfo *>(tilingCfg.compileInfo)->npuArch;
+    Mc2MMRegisterCfg registerCfg{ "Mc2BatchMatMulV3", npuArch, strategy::GetBatchMatMulV3Priorities(npuArch) };
     return Mc2MMTilingRegistry::GetInstance().DoTilingImpl(context_, tilingCfg, registerCfg);
 }
 
