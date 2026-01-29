@@ -625,17 +625,17 @@ ge::graphStatus AttentionToFFNTilingFunc(gert::TilingContext* context)
     OP_LOGD(ATTN_FFN_INNER_DEBUG, "cur case tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
  
-    // Set blockDim
-    uint32_t blockDim = 1U;
+    // Set numBlocks
+    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     uint64_t ubSize = 0U;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-    context->SetBlockDim(blockDim);
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    context->SetBlockDim(numBlocks);
     tilingData->attentionToFFNInfo.totalUbSize = ubSize;
     tilingData->attentionToFFNInfo.aivNum = aivNum;
-    OP_LOGD(ATTN_FFN_INNER_DEBUG, "blockDim=%u, aivNum=%u, ubSize=%lu", blockDim, aivNum, ubSize);
+    OP_LOGD(ATTN_FFN_INNER_DEBUG, "numBlocks=%u, aivNum=%u, ubSize=%lu", numBlocks, aivNum, ubSize);
  
     PrintTilingDataInfo(*tilingData);
     OP_LOGD("AttentionToFFN", "tiling process finished successfully!!!");
