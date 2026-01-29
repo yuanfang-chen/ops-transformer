@@ -28,7 +28,7 @@ bool ABL1FullLoadExtraCondDefault(uint64_t /* al1SingleCoreSize */, uint64_t /* 
     return true;
 }
 
-bool ABL1FullLoadExtraCond91095(uint64_t al1SingleCoreSize, uint64_t bl1SingleCoreSize)
+bool ABL1FullLoadExtraCondNpuArch3510(uint64_t al1SingleCoreSize, uint64_t bl1SingleCoreSize)
 {
     // 单边矩阵小于64K，MMAD启动较快，AB全载更有优势
     constexpr uint64_t AB_L1_SINGLE_LOAD_THRE = 64 * 1024UL;
@@ -40,13 +40,13 @@ bool ABL1FullLoadExtraCond91095(uint64_t al1SingleCoreSize, uint64_t bl1SingleCo
 
 using ABL1FullLoadExtraCondFunc = bool (*)(uint64_t, uint64_t);
 
-const static std::map<platform_ascendc::SocVersion, ABL1FullLoadExtraCondFunc> ABL1FullLoadExtraCondFuncMap = {
-    {platform_ascendc::SocVersion::ASCEND950, ABL1FullLoadExtraCond91095},
+const static std::map<NpuArch, ABL1FullLoadExtraCondFunc> ABL1FullLoadExtraCondFuncMap = {
+    {NpuArch::DAV_3510, ABL1FullLoadExtraCondNpuArch3510},
 };
 
 using CheckBL1FullLoadFunc = bool (Mc2MatMulV3AswFullLoadTiling::*)(bool&, uint64_t, uint64_t);
-const static std::map<platform_ascendc::SocVersion, CheckBL1FullLoadFunc> CheckBL1FullLoadMap = {
-    {platform_ascendc::SocVersion::ASCEND950, &Mc2MatMulV3AswFullLoadTiling::CheckBL1FullLoad91095},
+const static std::map<NpuArch, CheckBL1FullLoadFunc> CheckBL1FullLoadMap = {
+    {NpuArch::DAV_3510, &Mc2MatMulV3AswFullLoadTiling::CheckBL1FullLoadNpuArch3510},
 };
 
 // ------------------------------ GetStepSmallK -------------------------------------------//
@@ -55,7 +55,7 @@ uint64_t GetStepSmallKDefault(const Mc2MatMulV3Args& /* args */, const Mc2MatMul
     return isBL1FullLoad ? runInfo.stepKa : runInfo.stepKb;
 }
 
-uint64_t GetStepSmallK91095(const Mc2MatMulV3Args& args, const Mc2MatMulV3RunInfo& runInfo, bool isBL1FullLoad)
+uint64_t GetStepSmallKNpuArch3510(const Mc2MatMulV3Args& args, const Mc2MatMulV3RunInfo& runInfo, bool isBL1FullLoad)
 {
     uint64_t stepBigK = runInfo.stepKa;
     uint64_t stepSmallK = runInfo.stepKb;
@@ -88,8 +88,8 @@ uint64_t GetStepSmallK91095(const Mc2MatMulV3Args& args, const Mc2MatMulV3RunInf
 
 using GetStepSmallKFunc = uint64_t (*)(const Mc2MatMulV3Args&, const Mc2MatMulV3RunInfo&, bool);
 
-const static std::map<platform_ascendc::SocVersion, GetStepSmallKFunc> GetStepSmallKFuncMap = {
-    {platform_ascendc::SocVersion::ASCEND950, GetStepSmallK91095},
+const static std::map<NpuArch, GetStepSmallKFunc> GetStepSmallKFuncMap = {
+    {NpuArch::DAV_3510, GetStepSmallKNpuArch3510},
 };
 
 void ResetLoadBalance(Mc2MatMulV3RunInfo& runInfo)
@@ -106,7 +106,7 @@ namespace optiling {
 namespace mc2_matmul_v3_advanced {
 using namespace strategy;
 
-MC2_MM_REGISTER_TILING_TEMPLATE(Mc2MatMulV3, Mc2MatMulV3AswFullLoadTiling, ASCEND950, FULL_LOAD_BASE);
+MC2_MM_REGISTER_TILING_TEMPLATE(Mc2MatMulV3, Mc2MatMulV3AswFullLoadTiling, DAV_3510, FULL_LOAD_BASE);
 
 void Mc2MatMulV3AswFullLoadTiling::FullLoadPre()
 {
@@ -119,9 +119,9 @@ void Mc2MatMulV3AswFullLoadTiling::FullLoadPre()
 
 bool Mc2MatMulV3AswFullLoadTiling::ABL1FullLoadExtraCond(uint64_t al1SingleCoreSize, uint64_t bl1SingleCoreSize) const
 {
-    auto iter = (ABL1FullLoadExtraCondFuncMap.find(compileInfo_.socVersion) == ABL1FullLoadExtraCondFuncMap.end()) ?
+    auto iter = (ABL1FullLoadExtraCondFuncMap.find(compileInfo_.npuArch) == ABL1FullLoadExtraCondFuncMap.end()) ?
                     ABL1FullLoadExtraCondDefault :
-                    ABL1FullLoadExtraCondFuncMap.at(compileInfo_.socVersion);
+                    ABL1FullLoadExtraCondFuncMap.at(compileInfo_.npuArch);
     return iter(al1SingleCoreSize, bl1SingleCoreSize);
 }
 
@@ -156,9 +156,9 @@ void Mc2MatMulV3AswFullLoadTiling::DoABL1FullLoad()
 
 uint64_t Mc2MatMulV3AswFullLoadTiling::GetStepSmallK(bool isBL1FullLoad) const
 {
-    auto iter = (GetStepSmallKFuncMap.find(compileInfo_.socVersion) == GetStepSmallKFuncMap.end()) ?
+    auto iter = (GetStepSmallKFuncMap.find(compileInfo_.npuArch) == GetStepSmallKFuncMap.end()) ?
                     GetStepSmallKDefault :
-                    GetStepSmallKFuncMap.at(compileInfo_.socVersion);
+                    GetStepSmallKFuncMap.at(compileInfo_.npuArch);
     return iter(args_, runInfo_, isBL1FullLoad);
 }
 
@@ -259,7 +259,7 @@ bool Mc2MatMulV3AswFullLoadTiling::CheckBL1FullLoadDefault(
     return true;
 }
 
-bool Mc2MatMulV3AswFullLoadTiling::CheckBL1FullLoad91095(
+bool Mc2MatMulV3AswFullLoadTiling::CheckBL1FullLoadNpuArch3510(
     bool& isKFullLoad, uint64_t kAlignedValue, uint64_t nAlignedValue)
 {
     if (l0C2Out_ != Mc2MatMulV3L0C2Out::ON_THE_FLY) {
@@ -313,7 +313,7 @@ bool Mc2MatMulV3AswFullLoadTiling::CheckBL1FullLoad(bool& isKFullLoad)
     return iter;
 }
 
-void Mc2MatMulV3AswFullLoadTiling::AdjustTiling91095Basic(uint64_t biasBatchDimAll)
+void Mc2MatMulV3AswFullLoadTiling::AdjustTilingNpuArch3510Basic(uint64_t biasBatchDimAll)
 {
     if (args_.bFormat == ge::FORMAT_FRACTAL_NZ) {
         AdjustTilingDefault(biasBatchDimAll);
@@ -406,7 +406,7 @@ void Mc2MatMulV3AswFullLoadTiling::DoBL1FullLoad(bool isKFullLoad, uint64_t aBat
     }
     if (apiLevel_ == Mc2MatMulV3ApiLevel::BASIC_LEVEL) {
         AdjustTilingCommon(aBatchDimAll);
-        AdjustTiling91095Basic(biasBatchDimAll);
+        AdjustTilingNpuArch3510Basic(biasBatchDimAll);
         CalcTailBasicBlockBL1Full();
     } else {
         AdjustTilingCommon(aBatchDimAll);

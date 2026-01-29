@@ -41,8 +41,7 @@ inline ge::graphStatus InitCompileInfo(fe::PlatFormInfos *platformInfo, Mc2Matmu
     std::string mmad;
     bool res = platformInfo->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_mmad", mmad);
     bool supportMmadS8S4 = res && mmad.find("s8s4") != std::string::npos;
-    compileInfoPtr->socVersion =
-        supportMmadS8S4 ? platform_ascendc::SocVersion::RESERVED_VERSION : ascendcPlatform.GetSocVersion();
+    compileInfoPtr->npuArch = supportMmadS8S4 ? NpuArch::DAV_RESV : ascendcPlatform.GetCurNpuArch();
     compileInfoPtr->supportL0c2out = false; // Not used
     compileInfoPtr->supportL12BtBf16 = false; // Not used
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfoPtr->ubSize);
