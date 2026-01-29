@@ -18,9 +18,9 @@
 #ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 #define KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 
-#include <vector>
-#include <string>
 #include <array>
+#include <string>
+#include <vector>
 #include "cpu_context.h"
 #include "cpu_kernel.h"
 #include "cpu_tensor.h"
@@ -233,7 +233,7 @@ public:
 private:
   bool Prepare(CpuKernelContext &ctx);
   bool ParamsCheck();
-  bool ParamsInit(uint32_t cmpRatio_, uint32_t topK_);
+  bool ParamsInit();
   bool BalanceSchedule();
   bool GenMetaData();
   ValidSocVersion ProcessSocVersion();

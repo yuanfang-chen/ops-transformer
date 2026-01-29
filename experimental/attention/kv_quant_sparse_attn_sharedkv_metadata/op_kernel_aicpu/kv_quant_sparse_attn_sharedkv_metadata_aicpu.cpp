@@ -13,11 +13,11 @@
  * \brief
  */
 
+#include <cstdio>
+#include <cmath>
 #include "kv_quant_sparse_attn_sharedkv_metadata_aicpu.h"
 #include "../../common/aicpu/kv_quant_sparse_attn_sharedkv_metadata.h"
 #include "../../common/aicpu/cpu_context_util.h"
-#include <cstdio>
-#include <math.h>
 
 namespace aicpu {
 uint32_t
@@ -65,13 +65,13 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
   GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKV_);
 
   coreNum_ = aicCoreNum_;
-  sparseMode_ = 4;
+  sparseMode_ = static_cast<uint32_t>(SparseMode::BAND);
   preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
   nextToken_ = 0;
   attentionMode_ = 1;
   isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
 
-  return (ParamsCheck() && ParamsInit(cmpRatio_, cmpTopK_));
+  return (ParamsCheck() && ParamsInit());
 }
 
 bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
@@ -88,7 +88,7 @@ ValidSocVersion KVQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() 
     return ValidSocVersion::RESERVED_VERSION;
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_t cmpTopK_) {
+bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit() {
     groupSize_ = queryHeadNum_ / kvHeadNum_;
     if (cmpRatio_ > 1) {
         if (cmpTopK_ > 0) {
@@ -108,7 +108,7 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, 
         s2BaseSize_ = 512U;
         gS1BaseSizeOfFd_ = 8U;
     } else if (validSocVersion == ValidSocVersion::ASCEND910D){
-        mBaseSize_ = 64;
+        mBaseSize_ = 64U;
         s2BaseSize_ = 128U;
         gS1BaseSizeOfFd_ = 8U;
     }
@@ -351,7 +351,6 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(const BlockCost
                                              typeCost[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK];
             s1GCache.cmpS1GNormalBlockCost = typeCost[CMP_NORMAL_BLOCK][CMP_NORMAL_BLOCK];
         }
-        
     }
 }
 
@@ -360,12 +359,14 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
 
-    //// 如果s1G是空行，则直接返回
+    // 如果s1G是空行，则直接返回
     if (splitInfo.s1GBaseNum[batchCache.bIdx] == 0) {
         s1GCache.s1GCost = 0;
         s1GCache.s1GLastBlockCost = 0;
         s1GCache.winS1GNormalBlockCost = 0;
+        s1GCache.winS1GLastBlockCost = 0;
         s1GCache.cmpS1GNormalBlockCost = 0;
+        s1GCache.cmpS1GLastBlockCost = 0;
         s1GCache.s1GBlock = 0;
         s1GCache.s2Start = 0;
         s1GCache.cmpS2Start = 0;
@@ -788,25 +789,25 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CopyTmpResult(SplitResult &tmpR
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmpResult)
+void KVQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmpRes)
 {
-    uint64_t len = tmpResult.bN2End.size();
-    tmpResult.usedCoreNum = 0U;
-    tmpResult.maxCost = 0;
-    tmpResult.numOfFdHead = 0U;
-    tmpResult.maxS2SplitNum = 0U;
-    tmpResult.usedVecNumOfFd = 0U;
+    uint64_t len = tmpRes.bN2End.size();
+    tmpRes.usedCoreNum = 0U;
+    tmpRes.maxCost = 0;
+    tmpRes.numOfFdHead = 0U;
+    tmpRes.maxS2SplitNum = 0U;
+    tmpRes.usedVecNumOfFd = 0U;
 
     for (size_t i = 0; i < len; ++i) {
-        tmpResult.bN2End[i] = 0U;
-        tmpResult.gS1End[i] = 0U;
-        tmpResult.s2End[i] = 0U;
-        tmpResult.fdRes.bN2IdxOfFdHead[i] = 0U;
-        tmpResult.fdRes.gS1IdxOfFdHead[i] = 0U;
-        tmpResult.fdRes.s2SplitNumOfFdHead[i] = 0U;
-        tmpResult.fdRes.s2SplitStartIdxOfCore[i] = 0U;
-        tmpResult.fdRes.gS1SplitNumOfFdHead[i] = 0U;
-        tmpResult.fdRes.gS1LastPartSizeOfFdHead[i] = 0U;
+        tmpRes.bN2End[i] = 0U;
+        tmpRes.gS1End[i] = 0U;
+        tmpRes.s2End[i] = 0U;
+        tmpRes.fdRes.bN2IdxOfFdHead[i] = 0U;
+        tmpRes.fdRes.gS1IdxOfFdHead[i] = 0U;
+        tmpRes.fdRes.s2SplitNumOfFdHead[i] = 0U;
+        tmpRes.fdRes.s2SplitStartIdxOfCore[i] = 0U;
+        tmpRes.fdRes.gS1SplitNumOfFdHead[i] = 0U;
+        tmpRes.fdRes.gS1LastPartSizeOfFdHead[i] = 0U;
     }
 }
 
