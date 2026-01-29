@@ -42,6 +42,7 @@ REG_OP(QuantReduceScatter)
     .REQUIRED_ATTR(group, String)
     .ATTR(reduce_op, String, "sum")
     .ATTR(output_dtype, Int, 27)
+    .REQUIRED_ATTR(world_size, Int)
     .OP_END_FACTORY_REG(QuantReduceScatter)
 } // namespace ge
 
