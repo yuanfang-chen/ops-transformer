@@ -249,9 +249,9 @@ __aicore__ inline void QLIMatmul<QLIT>::KeyNd2NzForPA(uint64_t s2L1RealSize, uin
                                    constInfo_.kCacheBlockSize * constInfo_.kHeadNum * constInfo_.headDim +
                                s2BlkOffset * constInfo_.headDim;
 
-        uint64_t s2Mte2Size = s2L1RealSize;
-        s2Mte2Size = s2BlkOffset + s2Mte2Size >= constInfo_.kCacheBlockSize ? constInfo_.kCacheBlockSize - s2BlkOffset :
-                                                                              s2Mte2Size;
+        uint64_t s2Mte2Size = s2L1RealSize - s2L1Offset;
+        s2Mte2Size = s2BlkOffset + s2Mte2Size >= constInfo_.kCacheBlockSize ? constInfo_.kCacheBlockSize - s2BlkOffset
+                                                                            : s2Mte2Size;
         Nd2NzParams nd2nzPara;
         nd2nzPara.ndNum = 1;
         nd2nzPara.nValue = s2Mte2Size; // 行数
