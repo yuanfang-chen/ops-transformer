@@ -227,7 +227,7 @@
  	           其中,$xScale_{i}$代表的是对应token对应的量化因子
  	         - 3.量化输出结果
  	 
- 	           $Q\_scale_{i} = \frac{max(|S_{i}|)}{127}$
+ 	           $Q\_scale_{i} = \frac{max(|S_{i}|)}{max(type)}$
  	 
  	           $Q_{i} = \lfloor \frac{S_{i}}{Q\_scale_{i}} \rceil$
     </details>
@@ -779,7 +779,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
             <tr>
               <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
               <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
-              <td>FLOAT</td>
+              <td>FLOAT、BF16</td>
               <td>FLOAT</td>
               <td>FLOAT8_E4M3FN、FLOAT8_E5M2</td>
               <td>FLOAT</td>

@@ -31,12 +31,12 @@ constexpr size_t MX_WEIGHT_DIM = 3UL;
 constexpr size_t MX_WEIGHT_SCALE_DIM = 4UL;
 constexpr size_t MX_OUTPUT_DIM = 2UL;
 constexpr size_t MX_OUTPUT_SCALE_DIM = 3UL;
-constexpr size_t PERTOKEN_X_DIM = 2UL;
-constexpr size_t PERTOKEN_X_SCALE_DIM = 1UL;
-constexpr size_t PERTOKEN_WEIGHT_DIM = 3UL;
-constexpr size_t PERTOKEN_WEIGHT_SCALE_DIM = 2UL;
-constexpr size_t PERTOKEN_OUTPUT_DIM = 2UL;
-constexpr size_t PERTOKEN_OUTPUT_SCALE_DIM = 1UL;
+constexpr size_t PERTOKEN_X_DIM = 2;
+constexpr size_t PERTOKEN_X_SCALE_DIM = 1;
+constexpr size_t PERTOKEN_WEIGHT_DIM = 3;
+constexpr size_t PERTOKEN_WEIGHT_SCALE_DIM = 2;
+constexpr size_t PERTOKEN_OUTPUT_DIM = 2;
+constexpr size_t PERTOKEN_OUTPUT_SCALE_DIM = 1;
 constexpr int64_t SWIGLU_SPLIT_FACTOR = 2L;
 constexpr int64_t SWIGLU_SPLIT_SIZE = 64L;
 constexpr int64_t MXFP4_K_CONSTRAINT = 2L;
@@ -44,6 +44,8 @@ constexpr int64_t SWIGLU_N_CONSTRAINT = 2L;
 constexpr int64_t MXFP4_N_CONSTRAINT = 4L;
 constexpr size_t SINGLE_TENSOR_SIZE = 1;
 constexpr int64_t MAX_GROUP_LIST_SIZE = 1024L;
+constexpr int64_t QUNAT_MODE_MX = 2;
+constexpr int64_t QUNAT_MODE_PERTOKEN = 0;
 
 const std::initializer_list<DataType> X_DTYPE_SUPPORT_LIST = {DataType::DT_FLOAT8_E4M3FN, DataType::DT_FLOAT8_E5M2};
 const std::initializer_list<DataType> X_DTYPE_SUPPORT_LIST_MXFP4 = {DataType::DT_FLOAT4_E1M2, DataType::DT_FLOAT4_E2M1};
@@ -197,25 +199,19 @@ protected:
                     gmmDsqParams_.dequantMode);
             return false;
         }
-        if (gmmDsqParams_.quantMode != 2 && gmmDsqParams_.dequantMode != 0) { // 当前版本仅支持quantMode为 0 以及 2
+        if (gmmDsqParams_.quantMode != 2 && gmmDsqParams_.quantMode != 0) { // 当前版本仅支持quantMode为 0 以及 2
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "quantMode should be 0 (pertoken) or 2 (mx), but actual value is %lu.",
                     gmmDsqParams_.quantMode);
             return false;
         }
-        if (gmmDsqParams_.quantMode != gmmDsqParams_.dequantMode) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "quantMode and dequantMode must be equal. Current values: quantMode=%lu, dequantMode=%lu",
-                    gmmDsqParams_.quantMode, gmmDsqParams_.dequantMode);
-            return false;
-        }
         ge::DataType dequantDtype = static_cast<ge::DataType>(gmmDsqParams_.dequantDtype);
-        if (gmmDsqParams_.quantMode == 2 && dequantDtype != ge::DT_FLOAT) {	 
+        if (gmmDsqParams_.quantMode == QUNAT_MODE_MX && dequantDtype != ge::DT_FLOAT) {	 
              OP_LOGE(ACLNN_ERR_PARAM_INVALID,	 
                      "In mx quant mode, dequantDtype should be 0, but actual value is %lu.", 	 
                      gmmDsqParams_.dequantDtype);	 
              return false;	 
         }
-        if (gmmDsqParams_.quantMode == 0 && dequantDtype != ge::DT_FLOAT && dequantDtype != ge::DT_BF16 &&
+        if (gmmDsqParams_.quantMode == QUNAT_MODE_PERTOKEN && dequantDtype != ge::DT_FLOAT && dequantDtype != ge::DT_BF16 &&
             dequantDtype != ge::DT_FLOAT16) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                     "In pertoken quant mode, dequantDtype should be 0, 1, 27, but actual value is %lu.",
@@ -543,9 +539,8 @@ and greater or equal to 4, but actual value is %lu.",
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                     "Quant mode %d is not supported. Supported modes are 0 (pertoken) and 2 (MX).",
                     gmmDsqParams_.quantMode);
-            return ACLNN_ERR_PARAM_INVALID;
+            return false;
         }
-
         return true;
     }
 
