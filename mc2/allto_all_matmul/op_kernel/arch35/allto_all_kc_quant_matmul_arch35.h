@@ -18,6 +18,9 @@
 
 #include "allto_all_matmul_tiling_data.h"
 
+#define KC_DYN_QUANT_FP8E5M2 35
+#define KC_DYN_QUANT_FP8E4M3 36
+
 namespace AlltoAllMatmulImpl {
 using namespace AscendC;
 
@@ -39,9 +42,9 @@ private:
     GM_ADDR x2_;
     GM_ADDR y_;
     GM_ADDR bias_;
-    GM_ADDR smooth_scale_;
-    GM_ADDR x2_scale_;
-    GM_ADDR x2_offset_;
+    GM_ADDR smoothScale_;
+    GM_ADDR x2Scale_;
+    GM_ADDR x2Offset_;
     GM_ADDR workspaceGM_;
     GM_ADDR commOutGM_;
     GM_ADDR transOutGM_;
@@ -69,9 +72,9 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     x2_ = x2;
     y_ = y;
     bias_ = bias;
-    smooth_scale_ = smooth_scale;
-    x2_scale_ = x2_scale;
-    x2_offset_ = x2_offset;
+    smoothScale_ = smooth_scale;
+    x2Scale_ = x2_scale;
+    x2Offset_ = x2_offset;
 
     workspaceGM_ = workspaceGM;
     commOutGM_ = workspaceGM;
@@ -159,8 +162,8 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
         (uint64_t)mc2Tiling_.tileM * (uint64_t)mc2Tiling_.rankN * (uint64_t)sizeof(DTYPE_Y);
     pipeLineContext_.extraData.x1_scale = x1ScaleGM_;
     pipeLineContext_.extraData.x1_scale_offset = (uint64_t)mc2Tiling_.tileM * sizeof(float);
-    pipeLineContext_.extraData.x2_scale = x2_scale_;
-    pipeLineContext_.extraData.x2_offset = x2_offset_;
+    pipeLineContext_.extraData.x2_scale = x2Scale_;
+    pipeLineContext_.extraData.x2_offset = x2Offset_;
     pipeLineContext_.tilingData = &(tilingData_->mc2KcQuantMmTileTilingData);
 
     ProcessPipeLine(taskCnt);
@@ -212,8 +215,8 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.extraData.c_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * (uint64_t)sizeof(DTYPE_Y);
     pipeLineContext_.extraData.x1_scale = x1ScaleGM_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * sizeof(float);
     pipeLineContext_.extraData.x1_scale_offset = (uint64_t)mc2Tiling_.tailM * sizeof(float);
-    pipeLineContext_.extraData.x2_scale = x2_scale_;
-    pipeLineContext_.extraData.x2_offset = x2_offset_;
+    pipeLineContext_.extraData.x2_scale = x2Scale_;
+    pipeLineContext_.extraData.x2_offset = x2Offset_;
     pipeLineContext_.tilingData = &(tilingData_->mc2KcQuantMmTailTilingData);
 
     ProcessPipeLine(taskCnt);

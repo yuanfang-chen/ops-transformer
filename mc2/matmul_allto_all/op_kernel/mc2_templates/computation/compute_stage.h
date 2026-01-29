@@ -37,18 +37,9 @@ namespace MC2KernelTemplate {
 #endif
 
 #ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT
-#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(TilingType, ComputationType) \
+#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(TilingType, ComputationType, MMDtypeX1, MMDtypeX2) \
     using ComputationType = QuantMatmul<\
-        Mc2QuantBatchMatmulV3::Mc2QuantBmmPertokenRegbaseKernel<DTYPE_X1, DTYPE_X2, float, float, float,\
-            DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE, float, Mc2QuantBatchMatmulV3::Mc2QuantBmmAswBlock>,\
-        QuantExtraData, TilingType>
-
-#endif
-
-#ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT_ALLTO_ALL_KC
-#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT_ALLTO_ALL_KC(TilingType, ComputationType, DataTypeX1) \
-    using ComputationType = QuantMatmul<\
-        Mc2QuantBatchMatmulV3::Mc2QuantBmmPertokenRegbaseKernel<DataTypeX1, DTYPE_X2, float, float, float,\
+        Mc2QuantBatchMatmulV3::Mc2QuantBmmPertokenRegbaseKernel<MMDtypeX1, MMDtypeX2, float, float, float,\
             DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE, float, Mc2QuantBatchMatmulV3::Mc2QuantBmmAswBlock>,\
         QuantExtraData, TilingType>
 
