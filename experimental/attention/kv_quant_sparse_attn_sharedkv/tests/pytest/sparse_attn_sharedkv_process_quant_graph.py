@@ -73,7 +73,6 @@ def test_sas_quant_process(test_data, device_id=0):
 
     print("npu_kv_quant_sparse_attn_sharedkv_metadata...")
     metadata = torch.ops.custom.npu_kv_quant_sparse_attn_sharedkv_metadata(
-                                                        q=input['q'].npu() if input['q'] is not None else None,
                                                         num_heads_q = metadata_input['num_heads_q'],
                                                         num_heads_kv = metadata_input['num_heads_kv'],
                                                         head_dim = metadata_input['head_dim'],
@@ -95,7 +94,8 @@ def test_sas_quant_process(test_data, device_id=0):
                                                         layout_q = metadata_input['layout_q'],
                                                         layout_kv = metadata_input['layout_kv'],
                                                         has_ori_kv = metadata_input['has_ori_kv'],
-                                                        has_cmp_kv = metadata_input['has_cmp_kv'])
+                                                        has_cmp_kv = metadata_input['has_cmp_kv'],
+                                                        device = "npu:0")
 
     torch.npu.synchronize()
     metadata.npu()
