@@ -1487,7 +1487,7 @@ static ge::graphStatus TilingParseForQuantBatchMatmulV3(gert::TilingParseContext
     compileInfoPtr->workspaceNum = ascendcPlatform.GetLibApiWorkSpaceSize();
     compileInfoPtr->aicNum = ascendcPlatform.GetCoreNumAic();
     compileInfoPtr->aivNum = ascendcPlatform.GetCoreNumAiv();
-    compileInfoPtr->socVersion = ascendcPlatform.GetSocVersion();
+    compileInfoPtr->npuArch = ascendcPlatform.GetCurNpuArch();
 
     std::string platformRes;
     platformInfoPtr->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_fix_pipe_l0c2out", platformRes);
