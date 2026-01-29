@@ -1,12 +1,12 @@
 /* *
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
-  */
+* Copyright (c) 2025 Huawei Technologies Co., Ltd.
+* This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+* CANN Open Software License Agreement Version 2.0 (the "License").
+* Please refer to the License for details. You may not use this file except in compliance with the License.
+* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+* INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+* See LICENSE in the root of the software repository for the full text of the License.
+*/
 
 #ifndef MC2_HCCL_IMPL_H
 #define MC2_HCCL_IMPL_H
@@ -16,26 +16,25 @@
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
-template <typename TilingDataType, uint32_t SendCnt, uint32_t RecvCnt>
-class HcclA2avOp {
+template <typename TilingDataType, typename hcclDataType> class HcclA2avOp {
 public:
-    __aicore__ inline HcclA2avOp(TilingDataType *tiling) : tiling_(tiling) {}
-
-    __aicore__ inline void Init()
+    __aicore__ inline void Init(const TilingDataType *tilingData, GM_ADDR sendBuffer, GM_ADDR recvBuffer,
+        __gm__ void *hcclInitTiling, __gm__ void *alltoAllvCcTiling)
     {
+        sendBuffer_ = sendBuffer;
+        recvBuffer_ = recvBuffer;
+        tilingData_ = tilingData;
         GM_ADDR hcclContextGm = GetHcclContext<HCCL_GROUP_ID_0>();
-        hccl_.Init(hcclContextGm, (__gm__ void *)(&(tiling->hcclInitTiling)));
-        hccl_.SetCcTiling((__gm__ void *)(&(tiling->alltoAllvCcTiling)));
-        // 获取通信基本信息
+        hccl_.Init(hcclContextGm, hcclInitTiling);
+        hccl_.SetCcTiling(alltoAllvCcTiling);
         rankId_ = hccl_.GetRankId();
         rankDim_ = hccl_.GetRankDim();
-        // 从tiling获取必要参数
-        expertNumInOneRank_ = tiling_->commonTilingInfo.E_ep;
-        axisH1_ = tiling_->commonTilingInfo.H1;
-        axisN1_ = tiling_->commonTilingInfo.N1;
+        expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
+        axisH1_ = tilingData_->commonTilingInfo.H1;
+        axisN1_ = tilingData_->commonTilingInfo.N1;
     }
 
-    __aicore__ inline void Prepare(uint8_t hcclDataType)
+    __aicore__ inline void Prepare()
     {
         if ASCEND_IS_AIC {
             return;
@@ -46,7 +45,6 @@ public:
             }
         }
 
-        // 设置通信数据类型
         if constexpr (std::is_same_v<hcclDataType, bfloat16_t>) {
             hcclDataType_ = HCCL_DATA_TYPE_BFP16;
         } else if constexpr (std::is_same_v<hcclDataType, hifloat8_t>) {
@@ -55,8 +53,8 @@ public:
             hcclDataType_ = HCCL_DATA_TYPE_FP16;
         }
 
-        const auto *sendCnt = tiling_->aicpuTiling.sendCnt[0];
-        const auto *recvCnt = tiling_->aicpuTiling.recvCnt[0];
+        const auto *sendCnt = &tilingData_->aicpuTiling.sendCnt[0];
+        const auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
 
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
             for (uint32_t i = 0U; i < rankDim_; i++) {
@@ -84,12 +82,12 @@ public:
                 }
             }
             alltoAllvHandleId_[e] =
-                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendBuffer, alltoAllvSendCnt, alltoAllvSendOffset,
-                hcclDataType_, (__gm__ uint8_t *)recvBuffer, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
+                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendBuffer_, alltoAllvSendCnt, alltoAllvSendOffset,
+                hcclDataType_, (__gm__ uint8_t *)recvBuffer_, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
         }
     }
 
-    __aicore__ inline void Wait()
+    __aicore__ inline void Wait(uint32_t expertIdx)
     {
         if ASCEND_IS_AIC {
             return;
@@ -99,7 +97,7 @@ public:
                 return;
             }
         }
-        hccl_.Wait(alltoAllvHandleId_[e]);
+        hccl_.Wait(alltoAllvHandleId_[expertIdx]);
         SyncAll<false>();
     }
 
@@ -119,18 +117,18 @@ private:
     static constexpr uint64_t MAX_HANDLE_ID_NUM = 64U;
     static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
 
-    TilingDataType *tiling_;
+    const TilingDataType *tilingData_;
 
     // 通信相关参数
     uint32_t rankId_ = 0U;
-    uint32_t rankDim_ = 8U;
+    uint32_t rankDim_ = 0U;
     uint32_t expertNumInOneRank_ = 0U;
     uint64_t axisH1_ = 0UL;
     uint64_t axisN1_ = 0UL;
 
     // 张量地址
-    __gm__ uint8_t *inputTensor_ = nullptr;
-    __gm__ uint8_t *outputTensor_ = nullptr;
+    __gm__ uint8_t *sendBuffer_ = nullptr;
+    __gm__ uint8_t *recvBuffer_ = nullptr;
 
     // 通信数据结构
     HcclHandle alltoAllvHandleId_[MAX_HANDLE_ID_NUM] = {INVALID_HANDLE_ID};
