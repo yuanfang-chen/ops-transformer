@@ -37,7 +37,6 @@ public:
     static constexpr LI_LAYOUT K_LAYOUT_T = QLIT::keyLayout;
     static constexpr bool PAGE_ATTENTION = QLIT::pageAttention;
     
-
     // MM输出数据类型, 当前只支持float
     using SCORE_T = uint32_t;
 
@@ -145,7 +144,6 @@ private:
     topk::LITopk topk_;
 };
 
-
 template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
 {
@@ -174,7 +172,6 @@ __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
 
     topk_.Init(topkCount, topkSharedTmpLocal_);
 
-    // TODO: merge two InitBuffer
     // output of topk need extra 64 elements
     pipe->InitBuffer(topkIndexBuf_, (topkCount + 64) * sizeof(uint32_t));         // 大小：(512 + 64) * 4 = 2.25KB
     topkIndexLocal_ = topkIndexBuf_.Get<uint32_t>(); // double buffer for output
@@ -191,7 +188,6 @@ template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::InitLDBuffers(TPipe *pipe)
 {
     pipe->Reset();
-    
 }
 
 template <typename QLIT>
@@ -397,7 +393,6 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     SetFlag<HardEvent::MTE3_V>(VEC1_MTE3_V_EVENT + (info.loop % 2));
     
     CrossCoreSetFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_VC_EVENT + info.loop % 2);   //V核处理完，通知C核可以把mm1Res搬运到UB
-    
 }
 
 template <typename QLIT>
@@ -416,13 +411,11 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
     int64_t curAivS1Idx = curS1Idx + (blockId_ % 2) * CeilDiv(curS1ProcNum, 2);
     int64_t curAivS1ProcNum = (blockId_ % 2 == 0) ? CeilDiv(curS1ProcNum, 2) : curS1ProcNum / 2; 
 
-    // TODO: attenMaskFlag
     auto actS2Size = info.actS2Size;
     auto topkCount = constInfo_.sparseCount;
 
     auto vecId = blockId_ % 2;
     auto bIdx = info.bIdx;
-    
     
     // scoreGm  shape                             stride
     // (m,        MAX_S2_16K)         (MAX_S2_16K,                   1)
@@ -509,19 +502,11 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
         AscendC::DataCopyPad(indiceOutGm[info.indiceOutOffset + (curS1Idx + rowIdx) * topkCount], topkIndexLocal_.ReinterpretCast<int32_t>(), copyOutParams);
         SetFlag<HardEvent::MTE3_V>(TOPK_MTE3_V_EVENT);
     }
-
-    // if (不需要LD) {
-          //TOPK算法输出到indiceOutGm
-    // } else {
-    //     scoreGM -> LDScoreGM
-    // }
-    
 }
 
 template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::ProcessLD()
 {
-    
 }
 }  // namespace QLIKernel
 #endif

@@ -521,8 +521,6 @@ __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint
     LDParamGm.SetGlobalBuffer((__gm__ int64_t *)(workspace + offset));
     offset += GetBlockNum() * constInfo.s1BaseSize * LD_PARAM_NUM * sizeof(int64_t);
 
-
-    
     if ASCEND_IS_AIV {
         vectorService.InitParams(constInfo, tiling);
         indiceOutGm.SetGlobalBuffer((__gm__ int32_t *)sparseIndices);
@@ -695,8 +693,6 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessInvalid()
     }
 }
 
-
-
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::ProcessMain()
 {
@@ -745,8 +741,6 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessMain()
     }
 }
 
-
-
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::ProcessBaseBlock(uint32_t loop, uint64_t s2LoopIdx, QLICommon::RunInfo runInfo)
 {
@@ -760,8 +754,6 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessBaseBlock(uint32_t loop, uint64_
         }
     }
 }
-
-
 
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::ProcessDecode()
