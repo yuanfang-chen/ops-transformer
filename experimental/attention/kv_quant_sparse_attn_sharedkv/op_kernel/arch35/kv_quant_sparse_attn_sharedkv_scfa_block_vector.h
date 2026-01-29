@@ -46,11 +46,11 @@ public:
     static constexpr uint32_t s2BaseSize = 128; 
     static constexpr uint32_t vec1Srcstride = (s1BaseSize >> 1) + 1; 
     static constexpr uint32_t dVTemplateType = 512;
-    static constexpr uint32_t dTemplateAlign64 = Align64Func((uint16_t)dVTemplateType);
+    static constexpr uint32_t dTemplateAlign64 = Align64Func(dVTemplateType);
+    static constexpr uint32_t dVTemplateTypeInput = 640;
     static constexpr float R0 = 1.0f;
     static constexpr uint64_t SYNC_SINKS_BUF_FLAG = 6;
 
-    bool isSinks = false;
     // ==================== Functions ======================
     __aicore__ inline SCFABlockVec() {};
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
@@ -76,10 +76,16 @@ public:
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks);
     __aicore__ inline void InitOutputSingleCore(ConstInfo &constInfo);
-
-    // ==================== Vector0 ======================
-    __aicore__ inline void ProcessSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void ProcessVec0(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo);
+    __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
+        Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
+        ConstInfo &constInfo);
+    using mm2ResPos = Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>;
+    __aicore__ inline void ProcessVec2(mm2ResPos &bmm2ResBuf, RunInfo &runInfo,
+        ConstInfo &constInfo);
+
+private:
+    __aicore__ inline void ProcessSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void ProcessNotSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline int64_t GetkeyOffset(int64_t s2Idx, const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void GetRealCmpS2Idx(int64_t &token0Idx, int64_t &token1Idx, int64_t s2IdxInBase,
@@ -94,29 +100,23 @@ public:
     __aicore__ inline void CopyOutMrgeResult(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, int64_t mte2Size, int64_t mte3Size, int64_t s2keyOffset,
                                              int64_t mergeMte3Idx, const RunInfo &runInfo);
     __aicore__ inline void CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset);
-    // ==================== Vector1 ======================
-    __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
-        Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo &runInfo,
-        ConstInfo &constInfo);
-
-    using mm2ResPos = Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>;
-    __aicore__ inline void ProcessVec2(mm2ResPos &bmm2ResBuf, RunInfo &runInfo,
-        ConstInfo &constInfo);
+    /* VEC2_RES_T 表示bmm2ResUb当前的类型，VEC2_RES_T = Q_T那么不需要做Cast。另外，无效行场景当前默认需要做Cast */
+    using VEC2_RES_T = T;
+    template <typename VEC2_RES_T>
+    __aicore__ inline void Bmm2DataCopyOut(RunInfo &runInfo, ConstInfo &constInfo,
+        LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize = 0);
+    template <typename VEC2_RES_T>
+    __aicore__ inline void CopyOutAttentionOut(
+    RunInfo &runInfo, ConstInfo &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize);
+    __aicore__ inline void SoftmaxInitBuffer();
+    __aicore__ inline void InitCubeVecSharedParams(CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx);
+    __aicore__ inline void GetExtremeValue(T &negativeScalar);
+    __aicore__ inline void InitSinksBuffer(ConstInfo &constInfo);
 
     TPipe *tPipe;
-    // V0
-    // BLOCK和REPEAT的字节数
-    static constexpr uint64_t BYTE_BLOCK = 32UL;
-    static constexpr uint32_t REPEAT_BLOCK_BYTE = 256U;
-    // BLOCK和REPEAT的FP32元素数
-    static constexpr uint32_t FP32_BLOCK_ELEMENT_NUM = BYTE_BLOCK / sizeof(float);
-    static constexpr uint32_t FP32_REPEAT_ELEMENT_NUM = REPEAT_BLOCK_BYTE / sizeof(float);
-    // V0
     const KvQuantSparseAttnSharedkvTilingData *__restrict tilingData;
-    
-    // 在CleanOutput中初始化
+
     GlobalTensor<OUTPUT_T> attentionOutGm;
-    GlobalTensor<half> attentionOutInitGm;
     GlobalTensor<KV_T> oriKVGm;
     GlobalTensor<KV_T> cmpKVGm;
     GlobalTensor<KV_T> keyGm_;
@@ -125,55 +125,24 @@ public:
     GlobalTensor<int32_t> cmpBlockTableGm;
     GlobalTensor<int32_t> blockTableGm_;
     GlobalTensor<T> sinksGm;
+    GlobalTensor<int32_t> cuSeqlensQGm;
+    GlobalTensor<int32_t> actualSeqLengthsKVGm;
 
-    /* =====================V侧UB变量==================== */
     TBuf<> commonTBuf; // common的复用空间
     TBuf<> sinksBuf;
-    TQue<QuePosition::VECOUT, 1> stage1OutQue[2];
-    TQue<QuePosition::VECIN, 2> stage0InQue; // for v0 input
-    TQue<QuePosition::VECOUT, 2> stage0OutQue; // for v0 output
+    TQue<QuePosition::VECOUT, 1> stage1OutQue[2]; // 2份表示可能存在pingpong
+    TQue<QuePosition::VECIN, 2> stage0InQue; // for v0 input, 2份表示可能存在pingpong
+    TQue<QuePosition::VECOUT, 2> stage0OutQue; // for v0 output, 2份表示可能存在pingpong
     TBuf<> stage2OutBuf;
     TEventID mte3ToVId[2]; // 存放MTE3_V的eventId, 2份表示可能存在pingpong
     TEventID vToMte3Id[2]; // 存放V_MTE3的eventId, 2份表示可能存在pingpong
     TBuf<> softmaxMaxBuf[2];
     TBuf<> softmaxSumBuf[2];
     TBuf<> softmaxExpBuf[2]; 
-    /* =================初始化后不变的信息================= */
+    TBuf<> dequantScaleBuff_;
+
     T negativeFloatScalar;
-protected:
-/* VEC2_RES_T 表示bmm2ResUb当前的类型，VEC2_RES_T = Q_T那么不需要做Cast。另外，无效行场景当前默认需要做Cast */
-    using VEC2_RES_T = T;
-    template <typename VEC2_RES_T>
-    __aicore__ inline void Bmm2DataCopyOut(RunInfo &runInfo, ConstInfo &constInfo,
-        LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize = 0);
-    template <typename VEC2_RES_T>
-    __aicore__ inline void CopyOutAttentionOut(
-    RunInfo &runInfo, ConstInfo &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize);
-
-private:
-    __aicore__ inline void SoftmaxInitBuffer();
-    __aicore__ inline void InitCubeVecSharedParams(CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx);
-    __aicore__ inline void GetExtremeValue(T &negativeScalar);
-    __aicore__ inline void InitSinksBuffer(ConstInfo &constInfo);
-
-    // for V0
-    static constexpr uint64_t MERGE_CACHE_GM_BUF_NUM = 4;
-    static constexpr uint64_t SYNC_OUTPUT_BUF1_FLAG = 4;
-    static constexpr uint64_t SYNC_OUTPUT_BUF2_FLAG = 5;
-    static constexpr uint32_t LIMIT_DEAL_ROW = 16U;
-
-    GlobalTensor<int32_t> cuSeqlensQGm;
-    GlobalTensor<int32_t> actualSeqLengthsKVGm;
-
-    GlobalTensor<Q_T> kvMergeGm_;
-    GlobalTensor<int32_t> kvValidSizeGm_;
-
-    // ================================Local Buffer区====================================
-    // v0
-    TBuf<> v0ValidSizeBuff;  // 8K
-    TBuf<> dequantScaleBuff_;         // 32K
-
-    LocalTensor<int32_t> v0ValidSizeUb_;
+    bool isSinks = false;
     uint32_t maxBlockNumPerBatch;
     uint32_t blockSize;
 };
@@ -439,8 +408,8 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyOutKvUb2L1(Buffer<Buffer
     DataCopyParams dataCopyParams;
     dataCopyParams.blockCount = (constInfo.dSizeNope + constInfo.dSizeRope) / blockElementNum;
     dataCopyParams.blockLen = dealRow;
-    dataCopyParams.srcGap = 17 - dealRow; // 16 + 1
-    dataCopyParams.dstGap = ((runInfo.s2RealSize + 15) >> 4 << 4) - dealRow;
+    dataCopyParams.srcGap = blockElementNum + 1 - dealRow;
+    dataCopyParams.dstGap = Align16Func(runInfo.s2RealSize) - dealRow;
 
     LocalTensor<Q_T> dst = outputL1.GetTensor<Q_T>();
     DataCopy(dst[s2StartIdx * blockElementNum], antiKvTensorAsB16, dataCopyParams);
@@ -580,7 +549,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessSparseKv(Buffer<Buffe
         LocalTensor<KV_T> kvInUb = stage0InQue.AllocTensor<KV_T>();
         while (dealRow < 16) { // 拷贝满16行或者遇到-1
             GetRealCmpS2Idx(token0Idx, token1Idx, s2, runInfo, constInfo);
-            s2 += 2;
+            s2 += 2; // 每次搬运2行
             if (token0Idx== -1 && token1Idx == -1) {
                 meetEnd = true;
                 break;
@@ -632,15 +601,15 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
 
     // loopCount = 0 但传入sinks时走update分支，maxUb通过sinks初始化，sumUb初始化为1.0
     if (runInfo.s2LoopCount == 0 && !isSinks) {
-        if (likely(runInfo.s2RealSize == 128)) {
+        if (likely(runInfo.s2RealSize == 128)) { // s2RealSize等于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-        } else if(runInfo.s2RealSize <= 64) {
+        } else if(runInfo.s2RealSize <= 64) { // s2RealSize小于等于64分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-        } else if(runInfo.s2RealSize < 128) {
+        } else if(runInfo.s2RealSize < 128) { // s2RealSize小于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
@@ -653,15 +622,15 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec1(
             DataCopy(maxUb, sinksUb[sinksOffset], runInfo.halfMRealSize);
             DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfMRealSize);
         }
-        if (likely(runInfo.s2RealSize == 128)) {
+        if (likely(runInfo.s2RealSize == 128)) { // s2RealSize等于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::EQ_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-        } else if (runInfo.s2RealSize <= 64) {
+        } else if (runInfo.s2RealSize <= 64) { // s2RealSize小于等于64分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_0_AND_LTE_64_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
-        } else if(runInfo.s2RealSize < 128) {
+        } else if(runInfo.s2RealSize < 128) { // s2RealSize小于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::GT_64_AND_LTE_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
@@ -826,12 +795,13 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::SoftmaxInitBuffer()
 {
-    tPipe->InitBuffer(softmaxSumBuf[0], 256); // 64/ 2*sizeof(float) = 128, VF至少操作256B
-    tPipe->InitBuffer(softmaxSumBuf[1], 256);
-    tPipe->InitBuffer(softmaxMaxBuf[0], 256);
-    tPipe->InitBuffer(softmaxMaxBuf[1], 256);
-    tPipe->InitBuffer(softmaxExpBuf[0], 256);
-    tPipe->InitBuffer(softmaxExpBuf[1], 256);
+    constexpr uint32_t softmaxBufSize = 256; // VF单次操作256Byte
+    tPipe->InitBuffer(softmaxSumBuf[0], softmaxBufSize);
+    tPipe->InitBuffer(softmaxSumBuf[1], softmaxBufSize);
+    tPipe->InitBuffer(softmaxMaxBuf[0], softmaxBufSize);
+    tPipe->InitBuffer(softmaxMaxBuf[1], softmaxBufSize);
+    tPipe->InitBuffer(softmaxExpBuf[0], softmaxBufSize);
+    tPipe->InitBuffer(softmaxExpBuf[1], softmaxBufSize);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -854,23 +824,19 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe, ConstInfo &constInfo)
 {
     // ub buffer
-    // v0
     pipe->InitBuffer(dequantScaleBuff_, 128 * 16 * 2 * sizeof(float));
-
-    uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * sizeof(T);
-    uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
 
     SoftmaxInitBuffer();
 
-    tPipe->InitBuffer(commonTBuf, 512);
-    tPipe->InitBuffer(sinksBuf, 512);
+    tPipe->InitBuffer(commonTBuf, 512); // commonTBuf内存申请512B
+    tPipe->InitBuffer(sinksBuf, 512); // sinksBuf内存申请512B
 
-    tPipe->InitBuffer(stage0InQue, 2, 640 * 16 * sizeof(KV_T));
-    tPipe->InitBuffer(stage0OutQue, 2, 512 * (16 + 1) * sizeof(Q_T));
+    tPipe->InitBuffer(stage0InQue, 2, dVTemplateTypeInput * 16 * sizeof(KV_T)); // V0阶段每次处理16个seq, 开2 buffer
+    tPipe->InitBuffer(stage0OutQue, 2, dVTemplateType * (16 + 1) * sizeof(Q_T)); // kv输入D轴640, V0阶段每次处理16个seq, 开2 buffer
 
-    tPipe->InitBuffer(stage1OutQue[0], 1, 8448); // （32 + 1） * 128 * 2(bf16)
-    tPipe->InitBuffer(stage1OutQue[1], 1, 8448);
-    tPipe->InitBuffer(stage2OutBuf, 32 * dTemplateAlign64 * sizeof(T)); //s1Base/cv_ratio * 512 * 4(float)
+    tPipe->InitBuffer(stage1OutQue[0], 1, vec1Srcstride * s2BaseSize * sizeof(Q_T));
+    tPipe->InitBuffer(stage1OutQue[1], 1, vec1Srcstride * s2BaseSize * sizeof(Q_T));
+    tPipe->InitBuffer(stage2OutBuf, (s1BaseSize / CV_RATIO) * dTemplateAlign64 * sizeof(T));
 
     mte3ToVId[0] = GetTPipePtr()->AllocEventID<HardEvent::MTE3_V>();
     mte3ToVId[1] = GetTPipePtr()->AllocEventID<HardEvent::MTE3_V>();
@@ -945,7 +911,6 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
             CrossCoreSetFlag<SYNC_MODE, PIPE_S>(15);
         }
     }
-
 }
 
 TEMPLATES_DEF_NO_DEFAULT

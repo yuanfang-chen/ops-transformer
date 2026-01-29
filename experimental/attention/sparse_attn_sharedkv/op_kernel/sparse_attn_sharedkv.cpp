@@ -22,6 +22,7 @@
 
 using namespace AscendC;
 using namespace optiling::detail;
+using namespace SASKernel;
 
 #define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
     do {                                                                                          \

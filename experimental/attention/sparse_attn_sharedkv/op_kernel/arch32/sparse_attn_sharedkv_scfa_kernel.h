@@ -26,6 +26,7 @@
 #include "sparse_attn_sharedkv_scfa_block_vector.h"
 #include "../sparse_attn_sharedkv_metadata.h"
 
+namespace SASKernel{
 using namespace matmul;
 using namespace optiling::detail;
 using namespace optiling;
@@ -120,7 +121,6 @@ private:
     uint64_t topKBaseOffset = 0ULL;
     uint64_t tensorACoreOffset = 0ULL;
     uint64_t tensorBCoreOffset = 0ULL;
-    uint64_t attenOutOffset = 0ULL;
 
     uint32_t tmpBlockIdx = 0U;
     uint32_t aiCoreIdx = 0U;
@@ -326,7 +326,8 @@ template <typename SAST>
 __aicore__ inline void SparseAttnSharedkvScfa<SAST>::GetSparseActualSeqLen()
 {
     // 行无效通过ori部分判断, ori部分如果有行无效那么ori和cmp都有
-    if (tempLoopInfo.oriMaskRight < 0 && tempLoopInfo.s1EndIdx < -tempLoopInfo.oriMaskRight) {
+    if (static_cast<int32_t>(tempLoopInfo.s1EndIdx) < -(tempLoopInfo.actOriS2Size - tempLoopInfo.actS1Size)) {
+        tempLoopInfo.actOriS2Size = 0;
         tempLoopInfo.actCmpS2Size = 0;
         return;
     }
@@ -656,6 +657,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
                 if ASCEND_IS_AIV {
                     InitAllZeroOutput(tempLoopInfo.bIdx, tempLoopInfo.s1StartIdx, tempLoopInfo.n2Idx);
                 }
+                tempLoopInfo.actOriS2Size = GetActualSeqLenKV(tempLoopInfo.bIdx);
+                continue;
             }
             uint32_t oriSplitNum = CeilDiv(tempLoopInfo.oriMaskRight - tempLoopInfo.oriMaskLeft + 1,
                                    constInfo.s2BaseSize);
@@ -752,5 +755,6 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::GetAxisStartIdx(uint32_t bN
     } else {
         constInfo.gS1Start++;
     }
+}
 }
 #endif // SPARSE_ATTN_SHAREDKV_SCFA_KERNEL_H

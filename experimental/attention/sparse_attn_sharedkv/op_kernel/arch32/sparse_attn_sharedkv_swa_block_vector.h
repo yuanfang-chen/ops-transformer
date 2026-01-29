@@ -22,6 +22,7 @@
 #include "lib/matrix/matmul/tiling.h"
 #include "../sparse_attn_sharedkv_common.h"
 
+namespace SASKernel{
 using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
 
@@ -808,5 +809,5 @@ SWAVectorBlock<SAST>::RowMuls(LocalTensor<T> dstUb, LocalTensor<T> src0Ub, Local
         }
     }
 }
-
+}
 #endif

@@ -66,6 +66,11 @@ enum class ROTARY_MODE : std::uint8_t {
     INTERLEAVE = static_cast<std::uint8_t>(2)
 };
 
+enum class EMPTY_TENSOR_MODE:uint8_t {
+    NON_EMPTY = 0,
+    EMPTY_X = 1
+};
+
 template <X_LAYOUT X_L, X_DTYPE X_T, COFF C, ROTARY_MODE Rotary_Mode, typename... Args>
 struct COMPType {
     static constexpr X_LAYOUT xLayout = X_L;
