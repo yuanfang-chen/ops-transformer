@@ -17,14 +17,14 @@
 #include "lib/matmul_intf.h"
 #if (__CCE_AICORE__ == 310)
     #include "arch35/quant_lightning_indexer_kernel.h"
-    
+
 #else
     #include "arch32/quant_lightning_indexer_kernel.h"
 #endif
 #include "quant_lightning_indexer_template_tiling_key.h"
 using namespace QLIKernel;
 using namespace optiling::detail;
- 	 
+
 #define INVOKE_LI_NO_KFC_OP_IMPL(templateClass, ...)                                                         \
     do {                                                                                                     \
         templateClass<QLIType<__VA_ARGS__>> op;                                                              \

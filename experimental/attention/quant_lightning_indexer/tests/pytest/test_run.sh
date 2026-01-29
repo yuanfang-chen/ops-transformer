@@ -16,13 +16,13 @@ TEST_QLI_SINGLE_SCRIPT="test_quant_lightning_indexer_single.py"
 # 单用例算子调测
 run_single() {
     echo "===== 执行单用例算子调测 ====="
-    python3 -m pytest -rA -s $TEST_QLI_SINGLE_SCRIPT -v -m ci
+    python3 -m pytest -rA -s $TEST_QLI_SINGLE_SCRIPT -v -m ci -W ignore::UserWarning -W ignore::DeprecationWarning
 }
 
 # 用例批量生成调试
 run_batch() {
     echo "===== 执行用例批量生成测试 ====="
-    
+
     echo -e "\n===== 第一步：执行quant_lightning_indexer_pt_save.py ====="
     python3 $QLI_PT_SAVE_SCRIPT $PATH1 $PATH2
     if [ $? -ne 0 ]; then
@@ -43,7 +43,7 @@ run_batch() {
         echo "pytest执行失败"
         exit 1
     fi
-    
+
     cp test_quant_lightning_indexer_batch.py.bak test_quant_lightning_indexer_batch.py
 
     echo -e "\n=====执行完成！====="

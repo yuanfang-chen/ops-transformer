@@ -66,6 +66,7 @@ __aicore__ inline uint32_t GetAttrAbsIndex(uint32_t coreIdx, uint32_t metaIdx, b
     }
 }
 #endif
+
 namespace detail {
     struct QliMetaData {
         uint32_t LIMetadata[AIC_CORE_NUM][LI_METADATA_SIZE];

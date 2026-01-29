@@ -5,7 +5,7 @@
 # This file is a part of the CANN Open Software.
 # Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
@@ -13,7 +13,7 @@
 import os
 from functools import partial
 from quant_lightning_indexer_golden import GeneralizedQLI
-import pandas as pd 
+import pandas as pd
 import numpy as np
 import torch
 import torch_npu
@@ -109,7 +109,7 @@ def load_excel_test_cases(excel_file_path: str, sheetname: str):
 def qli_output_single(data_case):
     casename = data_case[0]
     params = data_case[1:]
- 
+
     batch_size, q_seq, k_seq, q_t_size, k_t_size, q_head_num, k_head_num, head_dim, block_size, block_num, \
     qk_dtype, dequant_dtype, actual_seq_dtype, act_seq_q, act_seq_k, query_quant_mode,key_quant_mode, layout_query, \
     layout_key, sparse_count, sparse_mode, query_datarange, key_datarange, weights_datarange,q_scale_datarange, \
@@ -118,7 +118,7 @@ def qli_output_single(data_case):
         qk_dtype = torch.int8
     elif qk_dtype == 'FLOAT8_E4M3FN':
         qk_dtype = torch.float8_e4m3fn
-    
+
     if dequant_dtype == 'FP16':
         dequant_dtype = torch.float16
     elif dequant_dtype == 'FP32':
@@ -216,7 +216,7 @@ def qli_output_single(data_case):
                 block_table[batch_idx][i_block_id] = block_id_list[cur_block_id]
                 cur_block_id += 1
             batch_idx += 1
-        
+
         # 构建PA场景的key
         # [batch_size, s2, k_head_num, head_dim] expand to [batch_size, k_max_block_num_per_batch * block_size, k_head_num, head_dim]
         key_expand = torch.zeros((batch_size, k_head_num, k_max_block_num_per_batch * block_size, head_dim), dtype = qk_dtype)
@@ -251,31 +251,31 @@ def qli_output_single(data_case):
 
     #关于metadata的设置
     metadata = torch_npu.npu_quant_lightning_indexer_metadata(
-                                    query = query,
                                     num_heads_q=q_head_num,
                                     num_heads_k=k_head_num,
                                     head_dim = head_dim,
-                                    query_quant_mode=query_quant_mode, 
+                                    query_quant_mode=query_quant_mode,
                                     key_quant_mode=key_quant_mode,
-                                    actual_seq_lengths_query=actual_seq_lengths_query, 
+                                    actual_seq_lengths_query=actual_seq_lengths_query,
                                     actual_seq_lengths_key=actual_seq_lengths_key,
-                                    batch_size=batch_size, 
+                                    batch_size=batch_size,
                                     max_seqlen_q=q_seq,
-                                    max_seqlen_k=k_seq,  
-                                    layout_query=layout_query, 
+                                    max_seqlen_k=k_seq,
+                                    layout_query=layout_query,
                                     layout_key=layout_key,
-                                    sparse_count=sparse_count, 
-                                    sparse_mode=sparse_mode, 
-                                    pre_tokens=(1<<63)-1, 
-                                    next_tokens=(1<<63)-1, 
-                                    cmp_ratio=cmp_ratio)
+                                    sparse_count=sparse_count,
+                                    sparse_mode=sparse_mode,
+                                    pre_tokens=(1<<63)-1,
+                                    next_tokens=(1<<63)-1,
+                                    cmp_ratio=cmp_ratio,
+                                    device='npu:0')
 
     metadata = metadata.npu()
-    
+
     if qk_dtype == torch.float8_e4m3fn:
         query = query.to(dtype=torch.float16)
         key = key.to(dtype=torch.float16)
-        
+
     output_tensors = {
         "params":params,
         "cpu_result": cpu_result,
@@ -313,8 +313,8 @@ def save_test_case(test_cases, file_path):
 
             # 保存数据
             torch.save(output_tensors, input_filepath)
-            print(f"测试用例已保存到: {input_filepath}")  
-                    
+            print(f"测试用例已保存到: {input_filepath}")
+
         except Exception as e:
             print(f"[失败] 生成 pt 文件失败: {case[0]} (索引: {idx})")
             print(f"错误详情: {e}")

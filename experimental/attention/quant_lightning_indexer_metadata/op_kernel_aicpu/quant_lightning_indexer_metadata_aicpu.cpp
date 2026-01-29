@@ -34,7 +34,7 @@ bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
   metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
 
 
-  bool requiredAttrs = GetAttrValue(ctx, "aic_core_num", aicCoreNum_) && 
+  bool requiredAttrs = GetAttrValue(ctx, "aic_core_num", aicCoreNum_) &&
                        GetAttrValue(ctx, "aiv_core_num", aivCoreNum_) &&
                        GetAttrValue(ctx, "soc_version", socVersion_) &&
                        GetAttrValue(ctx, "num_heads_q", numHeadsQ_) &&
@@ -63,7 +63,7 @@ bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
 
 bool QuantLightningIndexerMetadataCpuKernel::ParamsCheck() {
 
-    return true; 
+    return true;
 }
 
 ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion() {
@@ -99,7 +99,7 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
         }
     }
     mBaseSize_ = 256;
-    
+
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910B){
         s2BaseSize_ = 2048U; // 仅用于A3
@@ -121,7 +121,7 @@ uint32_t QuantLightningIndexerMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
     const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
     if (layoutQuery_ == "TND") {
         if (s1Ptr[0] == 0) {
-             return static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);       
+             return static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);
         } else {
             return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx]) :
                 static_cast<uint32_t>(s1Ptr[bIdx] - s1Ptr[bIdx - 1U]);
@@ -241,7 +241,7 @@ Range<uint32_t> QuantLightningIndexerMetadataCpuKernel::CalcS2Range(
     int64_t s1GFirstToken = static_cast<int64_t>(s1GIdx) * static_cast<int64_t>(mBaseSize_);
     int64_t s1GLastToken = std::min(s1GFirstToken + static_cast<int64_t>(mBaseSize_),
         static_cast<int64_t>(batchCache.s1Size) * static_cast<int64_t>(groupSize_)) - 1;
-    
+
     int64_t s1FirstToken = 0;
     int64_t s1LastToken = 0;
     if (isS1G_) {
@@ -277,9 +277,9 @@ Range<uint32_t> QuantLightningIndexerMetadataCpuKernel::CalcS2Range(
     if (s2CmpLength == 0) {
         s2Start = 0U;
         s2End = 0U;
-        return std::make_pair(s2Start, s2End);       
+        return std::make_pair(s2Start, s2End);
     } else {
-        s2Start = 0U; //TODO:sparse mode =4 
+        s2Start = 0U; //TODO:sparse mode =4
         s2End = (s2CmpLength + s2BaseSize_ - 1) / s2BaseSize_ + 1U; // end of block index, Right-open interval
         return std::make_pair(s2Start, s2End);
     }
@@ -515,7 +515,7 @@ void QuantLightningIndexerMetadataCpuKernel::AssignByBlock(const SplitContext &s
         curCost = assignContext.s1GCache.s1GLastBlockCost;
     }
 
-    while (IsWithinTolerance(assignContext.coreCache.costLimit, curCost / FA_TOLERANCE_RATIO, 
+    while (IsWithinTolerance(assignContext.coreCache.costLimit, curCost / FA_TOLERANCE_RATIO,
             assignContext.coreCache.cost + curCost)) { // (costLimit - curCostOnCore) * FA_TOLERANCE_RATIO > curCost；至少分配1块
         assignContext.coreCache.cost += curCost;
         assignContext.coreCache.block++;
@@ -549,7 +549,7 @@ void QuantLightningIndexerMetadataCpuKernel::ForceAssign(const SplitContext &spl
     // 当前行被分配一块出去，更新剩余负载
     assignContext.s1GCache.s1GCost = assignContext.s1GCache.s1GCost - curCost;
     assignContext.s1GCache.s1GBlock--;
-    UpdateCursor(splitContext, assignContext); 
+    UpdateCursor(splitContext, assignContext);
 }
 
 bool QuantLightningIndexerMetadataCpuKernel::IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes)
@@ -629,7 +629,7 @@ void QuantLightningIndexerMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
         assignContext.coreCache.costLimit = assignContext.unassignedCost / (coreNum - assignContext.curCoreIdx);
         if (!supportFd_){
             assignContext.coreCache.costLimit = costInfo.maxS1GCost > assignContext.coreCache.costLimit ? costInfo.maxS1GCost :assignContext.coreCache.costLimit;
-        }      
+        }
 
         // 1、按整batch分配
         AssignByBatch(splitContext, assignContext);
@@ -639,7 +639,7 @@ void QuantLightningIndexerMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
 
         // 3、按块分配
         if (supportFd_){
-        AssignByBlock(splitContext, assignContext);            
+        AssignByBlock(splitContext, assignContext);
         // 4、强制分配
             if (assignContext.coreCache.block == 0) {
                 ForceAssign(splitContext, assignContext);
@@ -687,7 +687,7 @@ void QuantLightningIndexerMetadataCpuKernel::SplitFD(SplitResult &splitRes)
         for (uint32_t vid = 0; vid < curFDVectorNum; vid++) {
             splitRes.fdRes.fdIdx[curCoreIndex] = i;
             splitRes.fdRes.fdMStart[curCoreIndex] = vid * curAveMSize;
-            splitRes.fdRes.fdMNum[curCoreIndex] = 
+            splitRes.fdRes.fdMNum[curCoreIndex] =
                 (vid < curFDVectorNum - 1) ? curAveMSize : (splitRes.fdRes.fdMSize[i] - vid * curAveMSize);
             curCoreIndex++;
         }
@@ -696,9 +696,8 @@ void QuantLightningIndexerMetadataCpuKernel::SplitFD(SplitResult &splitRes)
 }
 
 bool QuantLightningIndexerMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes) {
-    
     SplitContext splitContext(batchSize_);
-    
+
     // 1、划分基本块，统计信息
     CalcSplitInfo(splitContext);
     // 全空case
@@ -725,7 +724,6 @@ bool QuantLightningIndexerMetadataCpuKernel::BalanceSchedule(SplitResult &splitR
 
 bool QuantLightningIndexerMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
     optiling::detail::QliMetaData* metaDataPtr = (optiling::detail::QliMetaData*)metaData_->GetData();
-    
     // LI Metadata Generate
     for (size_t i = 0; i < aicCoreNum_; ++i) {
         if (i >= splitRes.usedCoreNum) {
@@ -741,7 +739,7 @@ bool QuantLightningIndexerMetadataCpuKernel::GenMetaData(SplitResult &splitRes) 
         metaDataPtr->LIMetadata[i][LI_BN2_END_INDEX] = splitRes.bN2End[i];
         metaDataPtr->LIMetadata[i][LI_M_END_INDEX] = splitRes.gS1End[i];
         metaDataPtr->LIMetadata[i][LI_S2_END_INDEX] = splitRes.s2End[i];
-        // 
+        //
         metaDataPtr->LIMetadata[i][LI_FIRST_LD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
     }
 
