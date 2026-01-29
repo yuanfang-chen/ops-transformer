@@ -387,19 +387,6 @@ protected:
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightScale, weightScaleExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(output, outputExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(outputScale, outputScaleExpectShape, return false);
-
-        // 进行swiglu操作需满足n为偶数
-        if (n % SWIGLU_N_CONSTRAINT != 0) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Swiglu operation requires n to be even , but n actual value is %lu.", n);
-            return false;
-        }
-        // groupList的长度应等于weight的专家数
-        int64_t groupListLen = gmmDsqParams_.groupList->GetViewShape().GetDim(0);
-        if (groupListLen != e) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "Length of 'groupList' should be equal to the number of experts in weight.");
-            return false;
-        }
         return true;
     }
 
@@ -559,16 +546,6 @@ and greater or equal to 4, but actual value is %lu.",
                     xScaleDimNumber);
             return false;
         }
-        if (outputDimNumber != MX_OUTPUT_DIM) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of output should be equal 2, current dim is %lu.",
-                    outputDimNumber);
-            return false;
-        }
-        if (outputScaleDimNumber != MX_OUTPUT_SCALE_DIM) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of outputScale should be equal 3, current dim is %lu.",
-                    outputScaleDimNumber);
-            return false;
-        }
         if (gmmDsqParams_.weight->Size() != SINGLE_TENSOR_SIZE) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The size of weight should be 1, current size is %lu.",
                     gmmDsqParams_.weight->Size());
@@ -577,6 +554,16 @@ and greater or equal to 4, but actual value is %lu.",
         if (gmmDsqParams_.weightScale->Size() != SINGLE_TENSOR_SIZE) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The size of weightScale should be 1, current size is %lu.",
                     gmmDsqParams_.weightScale->Size());
+            return false;
+        }
+        if (outputDimNumber != MX_OUTPUT_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of output should be equal 2, current dim is %lu.",
+                    outputDimNumber);
+            return false;
+        }
+        if (outputScaleDimNumber != MX_OUTPUT_SCALE_DIM) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of outputScale should be equal 3, current dim is %lu.",
+                    outputScaleDimNumber);
             return false;
         }
         auto weightDimNumber = ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDimNum();
