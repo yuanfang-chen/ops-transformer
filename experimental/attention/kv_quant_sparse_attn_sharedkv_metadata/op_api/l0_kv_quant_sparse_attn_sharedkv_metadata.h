@@ -15,8 +15,7 @@
 #include "opdev/op_executor.h"
 
 namespace l0op {
-const aclTensor* KVQuantSparseAttnSharedkvMetadata(
-    const aclTensor* q,
+const aclTensor* KvQuantSparseAttnSharedkvMetadata(
     const aclTensor* cuSeqLensQOptional,
     const aclTensor* cuSeqLensOriKvOptional,
     const aclTensor* cuSeqLensCmpKvOptional,

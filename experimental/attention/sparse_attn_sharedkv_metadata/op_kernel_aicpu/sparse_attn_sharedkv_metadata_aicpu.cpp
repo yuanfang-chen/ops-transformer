@@ -35,7 +35,6 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
     CpuKernelContext &ctx) {
 
   // input
-  q_ = ctx.Input(static_cast<uint32_t>(ParamId::q));
   actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
   actSeqLenOriKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKV));
   actSeqLenCmpKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKV));
