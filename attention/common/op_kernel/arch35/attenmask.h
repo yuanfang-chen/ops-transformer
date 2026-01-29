@@ -348,6 +348,11 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
             int64_t deltaPre = 0;
             int64_t deltaN = runInfo.actualS1Size - runInfo.actualS2Size;
             int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize;
+            if constexpr (isInfer) {
+                if (constInfo.isGqa) {
+                    s1Offset = s1Offset % constInfo.s1Size;
+                }
+            }
             int64_t s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * constInfo.s2BaseSize;
             if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::LEFT_UP_CAUSAL_MODE)) {
                 delta = s1Offset - s2Offset;
@@ -419,6 +424,11 @@ __aicore__ inline int64_t ComputeAttenMaskInnerOffset(const RunInfo<isInfer> &ru
             deltaN -= constInfo.actualKVPrefixSize;
         }
         int64_t s1Offset = runInfo.s1oIdx * constInfo.s1BaseSize;
+        if constexpr (isInfer) {
+            if (constInfo.isGqa) {
+                s1Offset = s1Offset % constInfo.s1Size;
+            }
+        }
         if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) && isInfer) {
             if (constInfo.layoutType == (uint32_t)LayOutTypeEnum::LAYOUT_BNSD) {
                 s1Offset = 0;
