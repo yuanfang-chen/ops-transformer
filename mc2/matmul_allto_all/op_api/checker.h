@@ -29,6 +29,11 @@ bool CheckGroupLength(const char *group);
 // 校验输入属性shape
 bool CheckShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional, bool transposeX2, const aclTensor* output);
 
+// 处理支持转置的tensor物理排布不连续问题
+aclTensor *TransX2Tensor(const aclTensor *x2);
+
+// 检查tensor是否连续
+bool IsTransposeLastTwoDims(const aclTensor *tensor);
 } // namespace matmul_allto_all_check
 
 #endif //CHECKER_H
