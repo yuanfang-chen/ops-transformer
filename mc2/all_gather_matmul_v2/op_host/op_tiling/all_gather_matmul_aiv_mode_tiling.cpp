@@ -21,7 +21,7 @@
 #include "mc2_log.h"
 #include "tiling_func.h"
 #include "all_gather_matmul_tiling_v2.h"
-#include "../../../op_kernel/all_gather_matmul_aiv_mode_tiling.h"
+#include "../../op_kernel/all_gather_matmul_aiv_mode_tiling.h"
 
 using namespace AscendC;
 using namespace ge;
