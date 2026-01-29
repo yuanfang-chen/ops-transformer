@@ -12,29 +12,31 @@
 #define MC2_HCCL_IMPL_H
 
 #include "lib/hccl/hccl.h"
+#include "../common/a2av_common_tiling.h"
 
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
-template <typename TilingDataType, typename hcclDataType> class HcclA2avOp {
+template <typename hcclDataType, bool commBeforeComputeFlag> class HcclA2avOp {
 public:
-    __aicore__ inline void Init(const TilingDataType *tilingData, GM_ADDR sendBuffer, GM_ADDR recvBuffer,
-        __gm__ void *hcclInitTiling, __gm__ void *alltoAllvCcTiling)
+    __aicore__ inline void Init(__gm__ void *hcclInitTiling, __gm__ void *a2avCcTiling,
+        const TaskTilingInfo *taskTilingInfo, GM_ADDR sendBuffer, GM_ADDR recvBuffer)
     {
         sendBuffer_ = sendBuffer;
         recvBuffer_ = recvBuffer;
-        tilingData_ = tilingData;
+        taskTilingInfo_ = taskTilingInfo;
         GM_ADDR hcclContextGm = GetHcclContext<HCCL_GROUP_ID_0>();
         hccl_.Init(hcclContextGm, hcclInitTiling);
-        hccl_.SetCcTiling(alltoAllvCcTiling);
+        hccl_.SetCcTiling(a2avCcTiling);
         rankId_ = hccl_.GetRankId();
         rankDim_ = hccl_.GetRankDim();
-        expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
-        axisH1_ = tilingData_->commonTilingInfo.H1;
-        axisN1_ = tilingData_->commonTilingInfo.N1;
+        e_ = taskTilingInfo_->e;
+        H1_ = taskTilingInfo_->H1;
+        N1_ = taskTilingInfo_->N1;
     }
 
-    __aicore__ inline void Prepare()
+    // TODO 临时调试方法，为保证通路正常，后续改用Launch
+    __aicore__ inline void TempLaunch()
     {
         if ASCEND_IS_AIC {
             return;
@@ -53,27 +55,26 @@ public:
             hcclDataType_ = HCCL_DATA_TYPE_FP16;
         }
 
-        const auto *sendCnt = &tilingData_->aicpuTiling.sendCnt[0];
-        const auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
+        const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
+        const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
 
-        for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
+        for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             for (uint32_t i = 0U; i < rankDim_; i++) {
-                alltoAllvSendCnt[i] = static_cast<uint64_t>(sendCnt[i * expertNumInOneRank_ + e]) * axisH1_;
-                alltoAllvRecvCnt[i] = static_cast<uint64_t>(recvCnt[i * expertNumInOneRank_ + e]) * axisH1_;
+                alltoAllvSendCnt[i] = static_cast<uint64_t>(sendCnt[i * e_ + expertIdx]) * H1_;
+                alltoAllvRecvCnt[i] = static_cast<uint64_t>(recvCnt[i * e_ + expertIdx]) * H1_;
             }
             alltoAllvSendOffset[0] = 0UL;
-            for (uint32_t j = 0U; j < e; j++) { // 0sendOffset
-                alltoAllvSendOffset[0U] += static_cast<uint64_t>(sendCnt[j]) * axisH1_;
+            for (uint32_t j = 0U; j < expertIdx; j++) { // 0sendOffset
+                alltoAllvSendOffset[0U] += static_cast<uint64_t>(sendCnt[j]) * H1_;
             }
             for (uint32_t i = 1U; i < rankDim_; i++) {
                 alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1U];
-                for (uint32_t j = 0U; j < expertNumInOneRank_; j++) {
-                    alltoAllvSendOffset[i] +=
-                        static_cast<uint64_t>(sendCnt[e + (i - 1U) * expertNumInOneRank_ + j]) * axisH1_;
+                for (uint32_t j = 0U; j < e_; j++) {
+                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[expertIdx + (i - 1U) * e_ + j]) * H1_;
                 }
             }
             for (uint32_t i = 0U; i < rankDim_; i++) {
-                if ((e == 0U) && (i == 0U)) {
+                if ((expertIdx == 0U) && (i == 0U)) {
                     alltoAllvRecvOffset[i] = 0UL;
                     alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[0];
                 } else {
@@ -81,10 +82,95 @@ public:
                     alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
                 }
             }
-            alltoAllvHandleId_[e] =
+            alltoAllvHandleId_[expertIdx] =
                 hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendBuffer_, alltoAllvSendCnt, alltoAllvSendOffset,
                 hcclDataType_, (__gm__ uint8_t *)recvBuffer_, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
         }
+    }
+
+    // 注意：未调试，可能出现通信问题
+    __aicore__ inline void Launch(uint32_t startExpertIdx, uint32_t expertNum)
+    {
+        if ASCEND_IS_AIC {
+            return;
+        }
+        if ASCEND_IS_AIV {
+            if (GetBlockIdx() != 0) {
+                return;
+            }
+        }
+
+        if constexpr (std::is_same_v<hcclDataType, bfloat16_t>) {
+            hcclDataType_ = HCCL_DATA_TYPE_BFP16;
+        } else if constexpr (std::is_same_v<hcclDataType, hifloat8_t>) {
+            hcclDataType_ = HCCL_DATA_TYPE_HIF8;
+        } else {
+            hcclDataType_ = HCCL_DATA_TYPE_FP16;
+        }
+
+        const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
+        const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
+
+        uint64_t axis = commBeforeComputeFlag ? H1_ : N1_;
+        for (uint64_t i = 0UL; i < rankDim_; i++) {
+            alltoAllvSendCnt[i] = 0UL;
+            alltoAllvRecvCnt[i] = 0UL;
+            for (uint64_t expertIdx = startExpertIdx; expertIdx < startExpertIdx + expertNum; expertIdx++) {
+                alltoAllvSendCnt[i] += static_cast<uint64_t>(sendCnt[expertIdx + i * e_]) * axis;
+                alltoAllvRecvCnt[i] += static_cast<uint64_t>(recvCnt[expertIdx + i * e_]) * axis;
+            }
+        }
+        if constexpr (commBeforeComputeFlag) {
+            alltoAllvSendOffset[0] = 0UL;
+            for (uint32_t j = 0U; j < startExpertIdx; j++) {
+                alltoAllvSendOffset[0] += static_cast<uint64_t>(sendCnt[j]) * H1_;
+            }
+            for (uint32_t i = 1U; i < rankDim_; i++) {
+                alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1U];
+                for (uint32_t j = 0U; j < e_; j++) {
+                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[(i - 1U) * e_ + j]) * H1_;
+                }
+            }
+            uint64_t alltoAllvRecvOffsetLastSum = 0UL;
+            for (uint32_t i = 0U; i < rankDim_; i++) {
+                if (i == 0U) {
+                    alltoAllvRecvOffset[i] = 0UL;
+                    for (uint32_t j = 0U; j < startExpertIdx; j++) {
+                        alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[j]) * H1_;
+                    }
+                    alltoAllvRecvOffsetLastSum = alltoAllvRecvOffset[i] + alltoAllvRecvCnt[0];
+                } else {
+                    alltoAllvRecvOffset[i] = alltoAllvRecvOffsetLastSum;
+                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
+                }
+            }
+        } else {
+            uint64_t expertOffset = 0UL;
+            for (uint64_t i = 0UL; i < startExpertIdx; i++) {
+                for (uint64_t j = 0UL; j < rankDim_; j++) {
+                    expertOffset += static_cast<uint64_t>(sendCnt[i + j * e_]);
+                }
+            }
+            alltoAllvSendOffset[0] = expertOffset * N1_;
+            for (uint64_t i = 1UL; i < rankDim_; i++) {
+                alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1];
+                for (uint64_t expertIdx = startExpertIdx; expertIdx < startExpertIdx + expertNum; expertIdx++) {
+                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[expertIdx + (i - 1) * e_]) * N1_;
+                }
+            }
+            alltoAllvRecvOffset[0] = 0UL;
+            for (uint64_t i = 0UL; i < startExpertIdx; i++) {
+                alltoAllvRecvOffset[0] += static_cast<uint64_t>(recvCnt[i]) * N1_;
+            }
+            for (uint64_t i = 1UL; i < rankDim_; i++) {
+                alltoAllvRecvOffset[i] = alltoAllvRecvOffset[i - 1];
+                for (uint64_t j = 0UL; j < e_; j++) {
+                    alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[(i - 1) * e_ + j]) * N1_;
+                }
+            }
+        }
+        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendBuffer_, alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
+            (__gm__ uint8_t *)recvBuffer_, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
     }
 
     __aicore__ inline void Wait(uint32_t expertIdx)
@@ -114,26 +200,21 @@ private:
 #endif
 
     static constexpr uint64_t MAX_HANDLE_ID_NUM = 64U;
-    static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
 
-    const TilingDataType *tilingData_;
+    const TaskTilingInfo *taskTilingInfo_;
 
-    // 通信相关参数
     uint32_t rankId_ = 0U;
     uint32_t rankDim_ = 0U;
-    uint32_t expertNumInOneRank_ = 0U;
-    uint64_t axisH1_ = 0UL;
-    uint64_t axisN1_ = 0UL;
+    uint32_t e_ = 0U;
+    uint64_t H1_ = 0UL;
+    uint64_t N1_ = 0UL;
 
-    // 张量地址
-    __gm__ uint8_t *sendBuffer_ = nullptr;
-    __gm__ uint8_t *recvBuffer_ = nullptr;
+    GM_ADDR sendBuffer_;
+    GM_ADDR recvBuffer_;
 
-    // 通信数据结构
     HcclHandle alltoAllvHandleId_[MAX_HANDLE_ID_NUM] = {INVALID_HANDLE_ID};
     HcclDataType hcclDataType_ = HCCL_DATA_TYPE_FP16;
 
-    // 计数和偏移缓存
     uint64_t alltoAllvRecvOffsetLastSum = 0UL;
     uint64_t alltoAllvSendCnt[MAX_EP_RANK_SIZE] = {0UL};
     uint64_t alltoAllvSendOffset[MAX_EP_RANK_SIZE] = {0UL};

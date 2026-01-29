@@ -32,11 +32,11 @@ public:
         yGlobalBuffer_.SetGlobalBuffer((__gm__ yType *)this->yGM_);
         groupListGlobalBuffer_.SetGlobalBuffer((__gm__ int64_t *)groupListGm_);
 
-        expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
-        epWorldSize_ = tilingData_->commonTilingInfo.epWorldSize;
-        H1_ = tilingData_->commonTilingInfo.H1;
-        N1_ = tilingData_->commonTilingInfo.N1;
-        const auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
+        expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
+        epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
+        H1_ = tilingData_->taskTilingInfo.H1;
+        N1_ = tilingData_->taskTilingInfo.N1;
+        const auto *recvCnt = &tilingData_->taskTilingInfo.recvCnt[0];
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
             for (uint32_t i = 0U; i < epWorldSize_; i++) {
                 expertTokenNum_[e] += static_cast<uint64_t>(recvCnt[e + i * expertNumInOneRank_]);
