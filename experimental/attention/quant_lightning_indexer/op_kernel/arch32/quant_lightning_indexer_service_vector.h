@@ -415,7 +415,6 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             inQueue_.FreeTensor(mmInUb);
             LocalTensor<int32_t> sortIndiceUbInt = sortIndiceUb.template ReinterpretCast<int32_t>();
             // 无效数据索引填充为-1
-            // if (cuS2Len != 2048) {
             if (cuS2LenVecAlign != cuS2Len) {
                 Duplicate(sortIndiceUbInt, -1, cuS2LenVecAlign);
                 PipeBarrier<PIPE_V>();
@@ -423,8 +422,6 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             Adds(sortIndiceUbInt, globalTopkIndice_, static_cast<int32_t>(cuBaseS2Idx), cuS2Len);
             PipeBarrier<PIPE_V>();
             LocalTensor<float> tmpSortBuf = sortBuff[2 * cuS2LenVecAlign];
-            printf("[hl] core_id=%u, cuS2Len=%u, cuRealAcSeq=%u， cuS2LenVecAlign=%u\n",
-                   GetBlockIdx(), cuS2Len, cuRealAcSeq, cuS2LenVecAlign);
             QLIServiceVec::SortAll(sortBuff, tmpSortBuf, cuS2LenVecAlign);
             PipeBarrier<PIPE_V>();
             QLIServiceVec::MergeSort(globalTopkUb_[innerS1Idx * BASE_TOPK_VALUE_IDX_SIZE], BASE_TOPK, sortBuff,
