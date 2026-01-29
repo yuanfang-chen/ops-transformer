@@ -5,7 +5,7 @@
 # This file is a part of the CANN Open Software.
 # Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
@@ -57,12 +57,12 @@ class GeneralizedQLI:
             self.q_shape = [q_t_size, q_head_num, head_dim]
             self.w_shape = [q_t_size, q_head_num]
             self.q_tnd_flag = 1
-        
+
         if layout_key == "BSND":
             self.k_shape = [batch_size, k_seq, k_head_num, head_dim]
         elif layout_key == "TND":
             self.k_shape = [k_t_size, k_head_num, head_dim]
-        
+
         if layout_query == "BSND":
             self.out_shape = [batch_size, q_seq, k_head_num, sparse_count]
         elif layout_query == "TND":
@@ -225,19 +225,19 @@ class GeneralizedQLI:
         sparse_mode = self.sparse_mode
         cmp_ratio = self.cmp_ratio
         qk_bmm_res = np.matmul(cur_q.astype(np.int32), cur_k.astype(np.int32).transpose(0, 1, 3, 2))
-        cur_w = cur_wt * cur_q_scale  
+        cur_w = cur_wt * cur_q_scale
         qk_relu_out = np.maximum(qk_bmm_res.astype(np.float32) / 1024.0, 0).astype(np.float16)  # 1, g, s1, s2
 
         brc_vmul = np.matmul(cur_w[:, :, :, :].transpose(0, 2, 3, 1).astype(np.float32),
                             qk_relu_out[:, :, :, :].transpose(0, 2, 1, 3).astype(
-                                np.float32)) 
+                                np.float32))
         temp_b, temp_s1, temp_n1, temp_s2 = brc_vmul.shape
         temp_g = self.group_size
         temp_n2 = self.k_head_num
         temp_b_idx = self.cur_b_idx
 
         actual_selected_count = min(temp_s2, sparse_count)
-        reduce_sum = brc_vmul.reshape(temp_b, temp_n2, temp_s1, temp_s2)  
+        reduce_sum = brc_vmul.reshape(temp_b, temp_n2, temp_s1, temp_s2)
         reduce_sum[0, :, :, :] = reduce_sum[0, :, :, :] * cur_k_scale
 
         if sparse_mode == 3:
@@ -299,7 +299,7 @@ class GeneralizedQLI:
             return output
         else:
             return tensor
-    
+
     def broadcast_n_axis(self,n1, n2, temp_tensor, input_dtype):
         g = n1 // n2
         temp_shape = temp_tensor.shape
@@ -346,7 +346,7 @@ class GeneralizedQLI:
             # print("mask:", atten_masks)
         cpu_mask = np.array(re_mask_batch).astype(bool)
         return cpu_mask, next_tokens_list
-    
+
 
     def forward(self, query, key, weights, query_dequant_scale, key_dequant_scale, actual_seq_lengths_query, actual_seq_lengths_key, block_table):
         print("cpu执行中...")
@@ -365,7 +365,7 @@ class GeneralizedQLI:
         q_head_num = self.q_head_num
         k_head_num = self.k_head_num
         q_t_size = self.q_t_size
-        k_t_size = self.k_t_size 
+        k_t_size = self.k_t_size
         block_size = self.block_size
         block_num = self.block_num
         q_dtype = self.qk_dtype
@@ -437,7 +437,7 @@ class GeneralizedQLI:
 
         # BSN1 -> BNS1
         q_scale_bnsd_tensor, q_scale_bnsd_shape = self.trans_shape_to_bnsd(query_dequant_scale, q_scale_shape,
-                                                                    layout_query, 
+                                                                    layout_query,
                                                                     q_head_num, actualSeqLengths_q, is_weights)
 
 
@@ -561,7 +561,7 @@ def qli_output_single(params):
                 block_table[batch_idx][i_block_id] = block_id_list[cur_block_id]
                 cur_block_id += 1
             batch_idx += 1
-        
+
         # 构建PA场景的key
         # [batch_size, s2, k_head_num, head_dim] expand to [batch_size, k_max_block_num_per_batch * block_size, k_head_num, head_dim]
         key_expand = torch.zeros((batch_size, k_head_num, k_max_block_num_per_batch * block_size, head_dim), dtype = qk_dtype)
@@ -600,24 +600,24 @@ def qli_output_single(params):
                                     num_heads_q=q_head_num,
                                     num_heads_k=k_head_num,
                                     head_dim = head_dim,
-                                    query_quant_mode=query_quant_mode, 
+                                    query_quant_mode=query_quant_mode,
                                     key_quant_mode=key_quant_mode,
-                                    actual_seq_lengths_query=actual_seq_lengths_query, 
+                                    actual_seq_lengths_query=actual_seq_lengths_query,
                                     actual_seq_lengths_key=actual_seq_lengths_key,
-                                    batch_size=batch_size, 
+                                    batch_size=batch_size,
                                     max_seqlen_q=q_seq,
-                                    max_seqlen_k=k_seq,  
-                                    layout_query=layout_query, 
+                                    max_seqlen_k=k_seq,
+                                    layout_query=layout_query,
                                     layout_key=layout_key,
-                                    sparse_count=sparse_count, 
-                                    sparse_mode=sparse_mode, 
-                                    pre_tokens=(1<<63)-1, 
-                                    next_tokens=(1<<63)-1, 
+                                    sparse_count=sparse_count,
+                                    sparse_mode=sparse_mode,
+                                    pre_tokens=(1<<63)-1,
+                                    next_tokens=(1<<63)-1,
                                     cmp_ratio=cmp_ratio)
     metadata = metadata.npu()
-    
 
-    npu_result,_ = torch.ops.custom.npu_quant_lightning_indexer(query, key, weights, 
+
+    npu_result,_ = torch.ops.custom.npu_quant_lightning_indexer(query, key, weights,
                                                     query_dequant_scale,
                                                     key_dequant_scale,
                                                     actual_seq_lengths_query=actual_seq_lengths_query,
@@ -627,12 +627,12 @@ def qli_output_single(params):
                                                     query_quant_mode=query_quant_mode,
                                                     key_quant_mode=key_quant_mode,
                                                     layout_query=layout_query,
-                                                    layout_key=layout_key, 
+                                                    layout_key=layout_key,
                                                     sparse_count=sparse_count,
                                                     sparse_mode=sparse_mode,
                                                     pre_tokens = (1<<63)-1,
                                                     next_tokens = (1<<63)-1,
                                                     cmp_ratio = cmp_ratio,
                                                     return_value = False)
-
+    torch.npu.synchronize()
     return cpu_result, npu_result
