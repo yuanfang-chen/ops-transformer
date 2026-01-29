@@ -140,7 +140,7 @@
             {"Ascend310P", "2002"},                                                                                    \
             {"Ascend910B", "2201"},                                                                                    \
             {"Ascend910_93", "2201"},                                                                                  \
-            {"Ascend910_95", "3510"}                                                                                   \
+            {"Ascend950", "3510"}                                                                                   \
         };                                                                                                             \
         versions = {                                                                                                   \
             {"NpuArch", socToArch[tilingContextPara.socVersion_]},                                                     \
@@ -328,6 +328,7 @@ void ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
     if (expectTilingData != "") {
         auto rawTilingData = tilingContext->GetRawTilingData();
         auto tilingDataReservedSize = tilingDataReservedLen * sizeof(uint64_t);
+        ASSERT_LE(tilingDataReservedSize, rawTilingData->GetDataSize());
         auto tilingDataResult = useHashTilingData ?
             to_string_fnv_hash(rawTilingData->GetData() + tilingDataReservedSize,
                            rawTilingData->GetDataSize() - tilingDataReservedSize) :
