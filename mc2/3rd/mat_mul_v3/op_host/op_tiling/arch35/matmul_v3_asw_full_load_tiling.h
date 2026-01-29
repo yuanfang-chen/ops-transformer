@@ -28,8 +28,8 @@ public:
 
     ~Mc2MatMulV3AswFullLoadTiling() override {};
     bool CheckBL1FullLoadDefault(bool &isKFullLoad, uint64_t kAlignedValue, uint64_t nAlignedValue) const;
-    bool CheckBL1FullLoad91095(bool &isKFullLoad, uint64_t kAlignedValue, uint64_t nAlignedValue);
-    void AdjustTiling91095Basic(uint64_t biasBatchDimAll);
+    bool CheckBL1FullLoadNpuArch3510(bool &isKFullLoad, uint64_t kAlignedValue, uint64_t nAlignedValue);
+    void AdjustTilingNpuArch3510Basic(uint64_t biasBatchDimAll);
 
 protected:
     ge::graphStatus DoOpTiling() override;
