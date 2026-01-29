@@ -32,8 +32,8 @@ private:
 
     uint32_t expertNumInOneRank_ = 0U;
     uint32_t rankDim_ = 8U;
-    uint64_t axisH1_;
-    uint64_t axisN1_;
+    uint64_t axisH1_ = 0;
+    uint64_t axisN1_ = 0;
 
     TPipe* tPipe_;
 
