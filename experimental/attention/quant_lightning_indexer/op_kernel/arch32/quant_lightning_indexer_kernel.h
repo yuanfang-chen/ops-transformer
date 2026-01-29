@@ -125,7 +125,6 @@ protected:
 
     QLICommon::ConstInfo constInfo{};
     TempLoopInfo tempLoopInfo{};
-    QLICommon::SplitCoreInfo splitCoreInfo{};
 
     // ================================Init functions==================================
     __aicore__ inline void InitTilingData(const QLITilingData *__restrict tilingData);
@@ -430,7 +429,6 @@ __aicore__ inline void QLIPreload<QLIT>::CalcS2LoopParams(uint32_t bN2LoopIdx, u
     }
 
     bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == tempLoopInfo.gS1LoopEnd);
-    // bool isEnd = (bN2LoopIdx == splitCoreInfo.bN2End) && (gS1LoopIdx == splitCoreInfo.gS1End);
     uint32_t s2BlockNum;
     uint32_t validS2Len = 0;
     if (constInfo.attenMaskFlag) {
@@ -689,7 +687,7 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessDecode()
         vectorService.InitLDBuffers(pipe);
         ICachePreLoad(LD_PREFETCH_LEN);
         SyncAll();
-        if (splitCoreInfo.isLD) {
+        if (true) {  // isLD
             vectorService.ProcessLD();
         }
     }

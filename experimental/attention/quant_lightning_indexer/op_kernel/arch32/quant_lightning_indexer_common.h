@@ -118,16 +118,6 @@ struct ConstInfo {
     uint32_t coreEnable = 0U;
 };
 
-struct SplitCoreInfo {
-    uint32_t s2Start = 0U;  // S2的起始位置
-    uint32_t s2End = 0U;    // S2循环index上限
-    uint32_t bN2Start = 0U;
-    uint32_t bN2End = 0U;
-    uint32_t gS1Start = 0U;
-    uint32_t gS1End = 0U;
-    bool isLD = false;  // 当前核是否需要进行Decode归约任务
-};
-
 template <typename T1, typename T2>
 __aicore__ inline T1 Align(T1 num, T2 rnd)
 {
