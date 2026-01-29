@@ -10,6 +10,9 @@
 
 cmake_minimum_required(VERSION 3.16)
 
+# Generate compile_commands.json for IDE code completion and navigation
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Generate compile_commands.json" FORCE)
+
 project(cann_ops-transformer)
 
 set(CMAKE_C_FLAGS_RELEASE "")
