@@ -33,3 +33,10 @@ if(${SUBDIR} IN_LIST MC2_EXCLUDE_DIRS
   add_subdirectory(${SUBDIR})
 endif()
 endforeach()
+
+# 增加自定义异常回调处理的依赖
+if(ENABLE_BUILT_IN)
+    target_link_libraries(${OPHOST_NAME}_tiling_obj PRIVATE acl_rt)
+else()
+    target_link_libraries(cust_opmaster PRIVATE acl_rt)
+endif()
