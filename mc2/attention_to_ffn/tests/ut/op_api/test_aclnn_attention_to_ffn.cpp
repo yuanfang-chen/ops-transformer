@@ -1,12 +1,12 @@
 /**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 #include <cfloat>
 
@@ -25,15 +25,23 @@ using namespace op;
 using namespace std;
 
 namespace AttentionToFFNUT {
+class AclnnAttentionToFfnTest : public testing::Test {
+protected:
+    static void SetUpTestCase()
+    {
+      op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
+      cout << "AclnnAttentionToFfnTest SetUp" << endl;
+    }
 
-class aclnn_attention_to_ffn_test : public testing::Test {
- protected:
-  static void SetUpTestCase() { cout << "aclnn_attention_to_ffn_test SetUp" << endl; }
-
-  static void TearDownTestCase() { cout << "aclnn_attention_to_ffn_test TearDown" << endl; }
+    static void TearDownTestCase()
+    {
+      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+      cout << "AclnnAttentionToFfnTest TearDown" << endl;
+    }
 };
 
-TEST_F(aclnn_attention_to_ffn_test, test_attention_to_ffn_no_quant) {
+TEST_F(AclnnAttentionToFfnTest, TestAttentionToFfnNoQuant)
+{
   TensorDesc x = TensorDesc({1, 16, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
   TensorDesc sessionId = TensorDesc({1}, ACL_INT32, ACL_FORMAT_ND);
   TensorDesc microBatchId = TensorDesc({1}, ACL_INT32, ACL_FORMAT_ND);
@@ -58,13 +66,14 @@ TEST_F(aclnn_attention_to_ffn_test, test_attention_to_ffn_no_quant) {
   auto ut = OP_API_UT(aclnnAttentionToFFN, INPUT(x, sessionId, microBatchId, layerId, expertIds,
   expertRankTable, nullptr, activeMask, group, worldSize, ffnTokenInfoTableShape, ffnTokenDataShape,
   attnTokenInfoTableShape, moeExpertNum, quantMode, syncFlag, ffnStartRankId), OUTPUT());
-  uint64_t workspace_size = 0;
+  uint64_t workspaceSize = 0;
   aclOpExecutor* executor = nullptr;
-  aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+  aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
   EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
-TEST_F(aclnn_attention_to_ffn_test, test_attention_to_ffn_quant) {
+TEST_F(AclnnAttentionToFfnTest, TestAttentionToFfnQuant)
+{
   TensorDesc x = TensorDesc({1, 16, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
   TensorDesc sessionId = TensorDesc({1}, ACL_INT32, ACL_FORMAT_ND);
   TensorDesc microBatchId = TensorDesc({1}, ACL_INT32, ACL_FORMAT_ND);
@@ -89,9 +98,9 @@ TEST_F(aclnn_attention_to_ffn_test, test_attention_to_ffn_quant) {
   auto ut = OP_API_UT(aclnnAttentionToFFN, INPUT(x, sessionId, microBatchId, layerId, expertIds,
   expertRankTable, scales, activeMask, group, worldSize, ffnTokenInfoTableShape, ffnTokenDataShape, 
   attnTokenInfoTableShape, moeExpertNum,quantMode, syncFlag, ffnStartRankId), OUTPUT());
-  uint64_t workspace_size = 0;
+  uint64_t workspaceSize = 0;
   aclOpExecutor* executor = nullptr;
-  aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+  aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
   EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
