@@ -261,7 +261,6 @@ private:
 private:
     CpuKernelContext* context_ = nullptr;
     // input
-    Tensor *query_ = nullptr;
     Tensor *actSeqLenQ_ = nullptr;
     Tensor *actSeqLenKV_ = nullptr;
     //Tensor *sparseSeqLenKV_ = nullptr;
@@ -305,9 +304,8 @@ private:
 private:
     enum class ParamId : uint32_t {
         // input
-        query = 0,
-        actSeqLenQ = 1,
-        actSeqLenKV = 2,
+        actSeqLenQ = 0,
+        actSeqLenKV = 1,
         // output
         metaData = 0,
     };

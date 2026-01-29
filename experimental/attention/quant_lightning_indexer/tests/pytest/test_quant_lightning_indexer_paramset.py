@@ -15,7 +15,7 @@ import torch
 # 定义测试参数组合
 TEST_PARAMS = {
     # 基础场景
-    "quant_li_default":{
+    "quant_li_default_a5":{
         "batch_size": [8],
         "q_seq": [15],
         "k_seq": [111],
@@ -43,9 +43,39 @@ TEST_PARAMS = {
         "q_scale_datarange":[[0,255]],
         "k_scale_datarange":[[0,65504]],
         "cmp_ratio":[1] #1/2/4/8/16/32/64/128
+    },
+
+    "quant_li_default_a3":{
+        "batch_size": [1],
+        "q_seq": [1],
+        "k_seq": [8192],
+        "q_t_size":[1],
+        "k_t_size":[8192],#压缩后的值
+        "q_head_num": [64],
+        "k_head_num": [1],
+        "head_dim": [128],
+        "block_size": [128], # 取16的整数倍，最多支持到1024
+        "block_num":[17],
+        "qk_dtype": [torch.int8],
+        "dequant_dtype": [torch.float16],
+        "actual_seq_dtype": [torch.int32],
+        "act_seq_q": [[1]],
+        "act_seq_k": [[8196]], #PA场景非前缀和，表示每个batch_size的实际token数
+        "query_quant_mode": [0],
+        "key_quant_mode": [0],
+        "layout_query": ["TND"],
+        "layout_key":["PA_BSND"],
+        "sparse_count": [512],
+        "sparse_mode": [3],
+        "query_datarange":[[-100,100]],
+        "key_datarange":[[-100,100]],
+        "weights_datarange":[[-25,25]],
+        "q_scale_datarange":[[0,255]],
+        "k_scale_datarange":[[0,65504]],
+        "cmp_ratio":[4] #1/2/4/8/16/32/64/128
     }
 
 }
 
 # 按需选择要启用的测试参数（例如默认启用所有）
-ENABLED_PARAMS = [TEST_PARAMS["quant_li_default"]] 
+ENABLED_PARAMS = [TEST_PARAMS["quant_li_default_a5"]] 

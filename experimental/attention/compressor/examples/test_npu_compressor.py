@@ -1,10 +1,12 @@
-# This program is free software, you can redistribute it and/or modify it.
+# -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
-# This file is a part of the CANN Open Software.
-# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
+# -----------------------------------------------------------------------------------------------------------
 import random
 import torch
 import torch_npu
@@ -24,8 +26,6 @@ np.set_printoptions(suppress=True)
 DEVICE_ID = 0
 torch_npu.npu.set_device(int(DEVICE_ID))
 torch.npu.config.allow_internal_format = True
-
-print_flag = False
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
@@ -158,11 +158,9 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
         return result, 0.0, max_error
     overflows_count = data_compe[np.isinf(data_compe)].size + data_compe[np.isnan(data_compe)].size
 
-
     if overflows_count > 0:
         print_log('Overflow,size:%s,benchmark_output:%s, %s' % (
             overflows_count, data_compe[np.isinf(data_compe)][0:10], data_compe[np.isnan(data_compe)][0:10]))
-
 
     split_count = int(end - start + 1) if end != start else 1
     print_log('split_count:%s; max_diff_hd:%s;' %
@@ -307,12 +305,11 @@ def rotary_emb(x, rope_sin, rope_cos, rotary_mode):
                 y[s][idx + 1] = a * rope_sin[s][idx + 1] + b * rope_cos[s][idx + 1] # y_b
     return y
 
-
 # state.shape is (block_num, block_size, coff * head_dim), is numpy type
 # new_state.shape is (s, coff * head_dim), data writed to state
 # block_table.shape is (B, (s_max + block_size - 1) // block_size)
 def write_state_page_cache(state, sc_new_state, b_idx, start_seq_idx, end_seq_idx, block_table):
-    block_size = state.shape[1] ## 应该从state，不是从block_table
+    block_size = state.shape[1] # 应该从state，不是从block_table
     seq_cnt = end_seq_idx - start_seq_idx
     finish_cnt = 0
     while finish_cnt < seq_cnt:
@@ -326,8 +323,6 @@ def write_state_page_cache(state, sc_new_state, b_idx, start_seq_idx, end_seq_id
         if block_id != 0:
             state[block_id:(block_id+1), block_start_seq_id:(block_start_seq_id + can_write_seq_cnt), :] = sc_new_state[finish_cnt:(finish_cnt + can_write_seq_cnt), :]
         finish_cnt = finish_cnt + can_write_seq_cnt
-        # print(f"[write] offset:{block_id*block_size*state.shape[-1]+block_start_seq_id*state.shape[-1]}, id: {block_id}, block_start_seq_id: {block_start_seq_id}, can_write_seq_cnt: {can_write_seq_cnt}")
-        # print(f"{list(state[block_id:(block_id+1), block_start_seq_id:(block_start_seq_id + can_write_seq_cnt), :])}")
 
 # state.shape is (block_num, block_size, coff * head_dim)
 # block_table.shape is (B, (s_max + block_size - 1) // block_size)
@@ -335,7 +330,7 @@ def write_state_page_cache(state, sc_new_state, b_idx, start_seq_idx, end_seq_id
 # out.shape is (end_seq_idx - start_seq_idx, head_dim)
 def read_state_page_cache(state, b_idx, start_seq_idx, end_seq_idx, block_table, d_start, d_end):
     result = np.zeros(shape=(end_seq_idx - start_seq_idx, d_end - d_start), dtype=np.float32)
-    block_size = state.shape[1] ## 应该从state，不是从block_table
+    block_size = state.shape[1] # 应该从state，不是从block_table
     seq_cnt = end_seq_idx - start_seq_idx
     finish_cnt = 0
     while finish_cnt < seq_cnt:
@@ -371,26 +366,9 @@ def cpu_compressor(
     for i in range(wkv.shape[1] // 128):
         leftH = i * 128
         rightH = (i + 1) * 128
-        if print_flag:
-            print(f"====================mmad{i} kv")
-            tmp_mmad_kv = np.array(np.matmul(x[:, leftH:rightH], wkv[:, leftH:rightH].T, dtype=matmul_dtype))
-            for j in range(tmp_mmad_kv.shape[1] // 128):
-                print(tmp_mmad_kv[:, j*128:(j+1)*128])
-            print(tmp_mmad_kv)
-            print(f"====================mmad{i} score")
-            tmp_mamd_score = np.array(np.matmul(x[:, leftH:rightH], wgate[:, leftH:rightH].T, dtype=matmul_dtype))
-            for j in range(tmp_mamd_score.shape[1] // 128):
-                print(tmp_mamd_score[:, j*128:(j+1)*128])
-            print(tmp_mamd_score)
+
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
-    if print_flag:
-        print(f"====================new_kv_state: {new_kv_state.shape}")
-        for k in range(new_kv_state.reshape(x.shape[0], -1).shape[1] // 128):
-            print(list(new_kv_state[:, k*128:(k+1)*128]))
-        print(f"====================new_score_state: {new_score_state.shape}")
-        for k in range(new_score_state.reshape(x.shape[0], -1).shape[1] // 128):
-            print(list(new_score_state[:, k*128:(k+1)*128]))
 
     B = len(start_pos)
     head_dim = wkv.shape[0] // coff
@@ -442,14 +420,10 @@ def cpu_compressor(
             start_seq_id_in_sc = start_seq_idx % cmp_ratio
             end_seq_idx_in_sc = start_seq_id_in_sc + (end_seq_idx - start_seq_idx)
             new_score_state[start_offset:end_offset, :] = np.add(new_score_state[start_offset:end_offset, :], ape[start_seq_id_in_sc : end_seq_idx_in_sc, :])
-            # print("===========================================================")
-            # print(list(new_score_state[start_offset:end_offset, :]))
-            # print(list(ape[start_seq_id_in_sc : end_seq_idx_in_sc, :]))
             # 1.判断块是否需要存储到state
             # 2.判断块是否需要压缩
             save_flag = True if start_seq_idx >= (compress_seq_id - (coff - 1) * cmp_ratio) else False
             compress_flag = True if start_seq_idx < compress_seq_id else False
-            # print(f"b_idx={b_idx}, batch_seq_idx={batch_seq_idx}, start_seq_idx={start_seq_idx}, end_seq_idx={end_seq_idx}, start_offset={start_offset}, end_offset={end_offset}, save_flag={save_flag}, compress_flag={compress_flag}")
 
             if save_flag:
                 tmp_kv_state = new_kv_state[start_offset:end_offset, :]
@@ -517,22 +491,11 @@ def cpu_compressor(
                 sc_data = sc_kv_state * sc_score_state
                 # reduce sum
                 sc_cmp_kv = np.sum(sc_data, axis=0, keepdims=True)
-                if print_flag:
-                    print(f"=========reduce sum {sc_cmp_kv.shape}")
-                    print(list(sc_cmp_kv))
+
                 # RmsNorm
                 sc_cmp_kv = rms_norm(sc_cmp_kv, norm_weight, norm_eps)
-                if print_flag:
-                    print(f"=========RmsNorm {sc_cmp_kv.shape}")
-                    print(list(sc_cmp_kv))
+
                 # inplace rotary_emb
-                if print_flag:
-                    print(f"=========rope_cos {rope_cos.shape}")
-                    print(list(rope_cos))
-                    print(f"=========rope_sin {rope_sin.shape}")
-                    print(list(rope_sin))
-                    print(f"=========rope {sc_cmp_kv.shape}")
-                    print(list(sc_cmp_kv))
                 if bs_combine_flag == False:
                     sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[b_idx, batch_out_sc_id, :], rope_cos[b_idx, batch_out_sc_id, :], rotary_mode)
                     cmp_kv[b_idx, batch_out_sc_id, :] = sc_cmp_kv
@@ -543,7 +506,6 @@ def cpu_compressor(
                     cmp_kv_mask[out_sum_sc_cnt, :] = 1
                 batch_out_sc_id = batch_out_sc_id + 1
                 out_sum_sc_cnt = out_sum_sc_cnt + 1
-
 
             # update loop idx
             batch_seq_idx = end_seq_idx - batch_start_pos
@@ -561,7 +523,7 @@ class TestCustomCompressor(TestCase):
         print(f'======================== test_compressor_eager BEGIN ========================')
         torch_npu.npu.set_device(int(DEVICE_ID))
 
-        ### ======================== set input params start ========================
+        # ======================== set input params start ========================
         data_type = torch.bfloat16
         hidden_size = 4096
         rope_head_dim = 64
@@ -571,7 +533,6 @@ class TestCustomCompressor(TestCase):
         rotary_mode = 2
         head_dim = 512
         cu_seqlens = [0, 1]
-
 
         B = 1
         S_max = 16384
@@ -670,7 +631,6 @@ class TestCustomCompressor(TestCase):
         ### ======================== gen input data finish =============================
 
         ### ======================== execute cpu start =================================
-
         cpu_kv_state = kv_state.clone()
         cpu_score_state = score_state.clone()
         cpu_out, cmp_kv_mask = cpu_compressor(
@@ -679,7 +639,7 @@ class TestCustomCompressor(TestCase):
             rope_head_dim=rope_head_dim, cmp_ratio=cmp_ratio, coff=coff, norm_eps=norm_eps, rotary_mode=rotary_mode)
         update_kv = cpu_kv_state != kv_state
         update_score = cpu_score_state != score_state
-        # print(f"cpu_out:{cpu_out}")
+
         ### ======================== execute cpu finish ================================
 
         ### ======================== execute npu start =================================
@@ -723,7 +683,6 @@ class TestCustomCompressor(TestCase):
                 rotary_mode = rotary_mode
             )
         )
-
         print(f"x: shape {x.shape}, dtype: {x.dtype}")
         print(f"wkv: shape {wkv.shape}, dtype: {wkv.dtype}")
         print(f"wgate: shape {wgate.shape}, dtype: {wgate.dtype}")
@@ -735,7 +694,6 @@ class TestCustomCompressor(TestCase):
         print(f"rope_cos: shape {rope_cos.shape}, dtype: {rope_cos.dtype}")
         print(f"block_table: shape {block_table.shape}, dtype: {block_table.dtype}")
         print(f"cmp_kv: shape {npu_out.shape}, dtype: {npu_out.dtype}")
-        # print(f"npu_out:{npu_out}")
 
         # 结果精度对比
         print("\n==========================================================check result=========================================================")
@@ -748,7 +706,6 @@ class TestCustomCompressor(TestCase):
         check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state[~update_kv].to(torch.float32), data_type, 0.0)
         print("\n==========================================================check score state origin=========================================================")
         check_result(cpu_score_state[~update_score].to(torch.float32), score_state[~update_score].to(torch.float32), data_type, 0.0)
-
 
 if __name__ == "__main__":
     run_tests()

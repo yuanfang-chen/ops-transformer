@@ -521,7 +521,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessTopK(const QLICommon::RunInfo &in
 template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::ProcessLD()
 {
-
+    
 }
 }  // namespace QLIKernel
 #endif

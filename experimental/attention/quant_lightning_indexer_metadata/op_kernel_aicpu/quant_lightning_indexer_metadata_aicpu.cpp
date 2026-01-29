@@ -28,7 +28,6 @@ QuantLightningIndexerMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
 
 bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
   // input
-  query_ = ctx.Input(static_cast<uint32_t>(ParamId::query));
   actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
   actSeqLenKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenKV));
   // output
@@ -79,7 +78,7 @@ ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion() {
 }
 
 bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
-    
+
     auto mode = static_cast<SparseMode>(sparseMode_);
     if (mode == SparseMode::RIGHT_DOWN_CAUSAL) {
         attentionMode_ = 1;
@@ -90,7 +89,7 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
         attentionMode_ = 1;
     }
     groupSize_ = numHeadsQ_ / numHeadsK_;
-    if (actSeqLenQ_ != nullptr) {
+    if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
         auto shape = actSeqLenQ_->GetTensorShape();
         const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
         if (s1Ptr[0] == 0 && layoutQuery_ == "TND") {
@@ -116,7 +115,7 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
 
 uint32_t QuantLightningIndexerMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 {
-    if (actSeqLenQ_ == nullptr) {
+    if (actSeqLenQ_ == nullptr || actSeqLenQ_->GetData() == nullptr) {
         return maxSeqlenQ_;
     }
     const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
@@ -135,7 +134,7 @@ uint32_t QuantLightningIndexerMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 uint32_t QuantLightningIndexerMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
 {
     uint32_t s2Size = 0;
-    if (actSeqLenKV_ == nullptr) {
+    if (actSeqLenKV_ == nullptr || actSeqLenKV_->GetData() == nullptr) {
         s2Size = maxSeqlenK_ * cmpRatio_;
     } else {
         const int32_t *s2Ptr = (int32_t*)actSeqLenKV_->GetData();
@@ -697,7 +696,6 @@ void QuantLightningIndexerMetadataCpuKernel::SplitFD(SplitResult &splitRes)
 }
 
 bool QuantLightningIndexerMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes) {
-
     SplitContext splitContext(batchSize_);
 
     // 1、划分基本块，统计信息
@@ -726,7 +724,6 @@ bool QuantLightningIndexerMetadataCpuKernel::BalanceSchedule(SplitResult &splitR
 
 bool QuantLightningIndexerMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
     optiling::detail::QliMetaData* metaDataPtr = (optiling::detail::QliMetaData*)metaData_->GetData();
-
     // LI Metadata Generate
     for (size_t i = 0; i < aicCoreNum_; ++i) {
         if (i >= splitRes.usedCoreNum) {

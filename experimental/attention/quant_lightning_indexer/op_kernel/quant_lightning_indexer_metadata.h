@@ -49,7 +49,7 @@ static constexpr uint32_t LD_WORKSPACE_NUM_INDEX = 4;
 static constexpr uint32_t LD_M_START_INDEX = 5;
 static constexpr uint32_t LD_M_NUM_INDEX = 6;
 
-/**
+ /**
  * @brief 获取属性的绝对索引
  * @param coreIdx 核索引
  * @param metaIdx 元数据索引

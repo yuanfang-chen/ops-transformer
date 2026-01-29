@@ -21,16 +21,19 @@
 
 namespace aicpu {
 uint32_t
-KVQuantSparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
+KvQuantSparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
   bool success = Prepare(ctx) && BalanceSchedule() && GenMetaData();
   return success ? KERNEL_STATUS_OK : KERNEL_STATUS_PARAM_INVALID;
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     CpuKernelContext &ctx) {
   // input
   actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
-  actSeqLenKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenKV));
+  actSeqLenOriKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKV));
+  actSeqLenCmpKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKV));
+  SeqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedQ));
+  SeqUsedKV_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedKV));
   // output
   metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
 
@@ -48,7 +51,8 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
   GetAttrValueOpt(ctx, "batch_size", batchSize_);
   GetAttrValueOpt(ctx, "max_seqlen_q", querySeqSize_);
   GetAttrValueOpt(ctx, "max_seqlen_kv", kvSeqSize_);
-  GetAttrValueOpt(ctx, "topk", topK_);
+  GetAttrValueOpt(ctx, "ori_topk", oriTopK_);
+  GetAttrValueOpt(ctx, "cmp_topk", cmpTopK_);
   GetAttrValueOpt(ctx, "cmp_ratio", cmpRatio_);
   GetAttrValueOpt(ctx, "ori_mask_mode", winMaskMode_);
   GetAttrValueOpt(ctx, "cmp_mask_mode", cmpMaskMode_);
@@ -66,14 +70,14 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
   attentionMode_ = 1;
   isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
 
-  return (ParamsCheck() && ParamsInit(cmpRatio_, topK_));
+  return (ParamsCheck() && ParamsInit(cmpRatio_, cmpTopK_));
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
   return true;
 }
 
-ValidSocVersion KVQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
+ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
     const std::string ascend910D = "Ascend910_95";
     if (socVersion_.find(ascend910D) != std::string::npos) {
         return ValidSocVersion::ASCEND910D;
@@ -83,10 +87,10 @@ ValidSocVersion KVQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() 
     return ValidSocVersion::RESERVED_VERSION;
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_t topK_) {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, uint32_t cmpTopK_) {
     groupSize_ = queryHeadNum_ / kvHeadNum_;
     if (cmpRatio_ > 1) {
-        if (topK_ > 0) {
+        if (cmpTopK_ > 0) {
             isSCFA = true;
         } else {
             isCFA = true;
@@ -110,39 +114,45 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit(uint32_t cmpRatio_, 
     return true;
 }
 
-uint32_t KVQuantSparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
+uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 {
-    if (actSeqLenQ_ == nullptr) {
-        return querySeqSize_;
+    // 1. 如果 SeqUsedQ_ 传了，直接使用
+    if (SeqUsedQ_ != nullptr && SeqUsedQ_->GetData() != nullptr) {
+        const int32_t *seqUsedPtr = static_cast<const int32_t*>(SeqUsedQ_->GetData());
+        return static_cast<uint32_t>(seqUsedPtr[bIdx]);
     }
-    const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
+    // 2. SeqUsedQ_ 没传，判断 Layout
     if (layoutQuery_ == "TND") {
-        return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx + 1U]) :
-           static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);
-    } else {
-        return static_cast<uint32_t>(s1Ptr[bIdx + 1]);
-    }
-}
-
-uint32_t KVQuantSparseAttnSharedkvMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
-{
-    uint32_t s2Size = 0;
-    if (actSeqLenKV_ == nullptr) {
-        s2Size = kvSeqSize_;
-    } else {
-        const int32_t *s2Ptr = (int32_t*)actSeqLenKV_->GetData();
-        if (layoutKV_ == "TND") {
-            s2Size = (bIdx == 0) ? static_cast<uint32_t>(s2Ptr[bIdx]) :
-            static_cast<uint32_t>(s2Ptr[bIdx] - s2Ptr[bIdx - 1U]);
-        } else {
-            s2Size = static_cast<uint32_t>(s2Ptr[bIdx]);
+        // 如果是 TND，尝试使用 actSeqLenQ_
+        if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+            const int32_t *s1Ptr =static_cast<const int32_t*>(actSeqLenQ_->GetData());
+            return static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);
         }
     }
-
-    return s2Size;
+    // 3. 如果不是 TND，或者 actSeqLenQ_ 为空，使用 querySeqSize_
+    return querySeqSize_;
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitInfo(SplitContext &splitContext)
+uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
+{
+    // 1. 如果 SeqUsedKV_ 传了，直接使用
+    if (SeqUsedKV_ != nullptr && SeqUsedKV_->GetData() != nullptr) {
+        const int32_t *seqUsedPtr = static_cast<const int32_t*>(SeqUsedKV_->GetData());
+        return static_cast<uint32_t>(seqUsedPtr[bIdx]);
+    }
+    // 2. SeqUsedKV_ 没传，判断 Layout
+    if (layoutKV_ == "TND") {
+        // 如果是 TND，尝试使用 actSeqLenOriKV_
+        if (actSeqLenOriKV_ != nullptr && actSeqLenOriKV_->GetData() != nullptr) {
+            const int32_t *s2Ptr = static_cast<const int32_t*>(actSeqLenOriKV_->GetData());
+            return static_cast<uint32_t>(s2Ptr[bIdx + 1U] - s2Ptr[bIdx]);
+        }
+    }
+    // 3. 如果不是 TND，或者 actSeqLenOriKV_ 为空，使用 kvSeqSize_
+    return kvSeqSize_;
+}
+
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitInfo(SplitContext &splitContext)
 {
     // 计算每个batch的切分，统计是否为空batch，记录最后有效batch（每个batch的每个N2切分是一样的）
     SplitInfo &splitInfo = splitContext.splitInfo;
@@ -160,7 +170,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitInfo(SplitContext &spl
     return;
 }
 
-int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(
+int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(
     uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(sparseMode_);
@@ -170,7 +180,7 @@ int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(
     return preToken_;
 }
 
-int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcNextTokenLeftUp(
+int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcNextTokenLeftUp(
     uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(sparseMode_);
@@ -188,7 +198,7 @@ int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcNextTokenLeftUp(
     }
 }
 
-int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::WinCalcCost(
+int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::WinCalcCost(
     uint32_t basicM, uint32_t basicS2)
 {
     uint32_t winAlignCoefM = 16U;
@@ -198,7 +208,7 @@ int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::WinCalcCost(
     return static_cast<int64_t>(6U * winAlignBasicM + 10U * winAlignBasicS2);                 // 6：M轴系数，10：S2轴系数
 }
 
-int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CmpCalcCost(
+int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CmpCalcCost(
     uint32_t basicM, uint32_t basicS2)
 {
     uint32_t cmpAlignCoefM = 16U;
@@ -208,7 +218,7 @@ int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CmpCalcCost(
     return static_cast<int64_t>(6U * cmpAlignBasicM + 10U * cmpAlignBasicS2);                 // 6：M轴系数，10：S2轴系数
 }
 
-BlockCost<int64_t> KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostTable(uint32_t s1NormalSize, 
+BlockCost<int64_t> KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostTable(uint32_t s1NormalSize, 
     uint32_t s2NormalSize, uint32_t s1GTailSize, uint32_t winS2TailSize, uint32_t cmpS2TailSize)
 {
     BlockCost<int64_t> typeCost {};
@@ -227,7 +237,7 @@ BlockCost<int64_t> KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostTable(uin
     return typeCost;
 }
 
-Range<int64_t> KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache)
+Range<int64_t> KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache)
 {
     // actual seq == 0
     if (batchCache.s1Size == 0U || batchCache.s2Size == 0U) {
@@ -266,7 +276,7 @@ Range<int64_t> KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcS2TokenRange(uint
     return std::make_pair(s2FirstToken, s2LastToken);
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCache(
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCache(
     uint32_t bIdx, const SplitContext &splitContext, BatchCache &batchCache)
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
@@ -278,7 +288,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCache(
     batchCache.nextTokenLeftUp = CalcNextTokenLeftUp(batchCache.s1Size, batchCache.s2Size);
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, 
                                                             const SplitInfo &splitInfo)
 {
     // 处理win部分block信息
@@ -312,7 +322,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(const BlockCost
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, 
                                                             const SplitInfo &splitInfo)
 {
     // 处理cmp部分block信息
@@ -345,7 +355,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(const BlockCost
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
     const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache)
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
@@ -392,7 +402,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
         actCmpS2LastTokenSize = cmpS2LastTokenSize;
     } else if (isSCFA) {
         // CmpS2LastToken与topk取最小
-        actCmpS2LastTokenSize = std::min(cmpS2LastTokenSize, topK_);
+        actCmpS2LastTokenSize = std::min(cmpS2LastTokenSize, cmpTopK_);
     }
     // 将token长度转化为token索引，然后由token索引计算s2索引
     s1GCache.cmpS2End = (actCmpS2LastTokenSize == 0) ? s1GCache.cmpS2Start : s1GCache.cmpS2Start + (actCmpS2LastTokenSize - 1) / s2BaseSize_ + 1U;
@@ -420,7 +430,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcS1GCache(uint32_t s1GIdx,
     s1GCache.s1GCost = s1GCache.winS1GCost + s1GCache.cmpS1GCost;
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCost(
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCost(
     uint32_t bIdx, const SplitContext &splitContext, CostInfo &costInfo)
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
@@ -450,7 +460,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcBatchCost(
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostInfo(SplitContext &splitContext)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostInfo(SplitContext &splitContext)
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
     CostInfo &costInfo = splitContext.costInfo;
@@ -469,7 +479,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCostInfo(SplitContext &spli
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext) {
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &splitContext, AssignContext &assignContext) {
     const SplitInfo &splitInfo = splitContext.splitInfo;
     const CostInfo &costInfo = splitContext.costInfo;
 
@@ -516,7 +526,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &splitContext, AssignContext &assignContext)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &splitContext, AssignContext &assignContext)
 {
     if (assignContext.isFinished) {
         return;
@@ -551,7 +561,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContex
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByRow(const SplitContext &splitContext, AssignContext &assignContext)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignByRow(const SplitContext &splitContext, AssignContext &assignContext)
 {
     if (assignContext.isFinished) {
         return;
@@ -577,7 +587,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByRow(const SplitContext 
     }
 }
 
-int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCurBlockCost(AssignContext &assignContext)
+int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcCurBlockCost(AssignContext &assignContext)
 {
     int64_t curCost = 0;
     if (assignContext.curS2Idx < assignContext.s1GCache.cmpS2Start) {
@@ -594,7 +604,7 @@ int64_t KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcCurBlockCost(AssignConte
     return curCost;
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext)
 {
     if (assignContext.isFinished || !supportFd) {
         return;
@@ -617,7 +627,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBlock(const SplitContex
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext) {
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext) {
     if (assignContext.isFinished) {
         return;
     }
@@ -636,7 +646,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext 
     UpdateCursor(splitContext, assignContext);
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes)
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes)
 {
     // 切分点大概率不会刚好在行尾，因此滞后处理归约信息的统计，到下一个切分点再判断是否需要归约
     // 核0无需处理
@@ -655,7 +665,7 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::IsNeedRecordFDInfo(const Assign
     return true;
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext &splitContext, const AssignContext &assignContext, SplitResult &result)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext &splitContext, const AssignContext &assignContext, SplitResult &result)
 {
     const SplitInfo &splitInfo = splitContext.splitInfo;
     // 需要规约的行是上一个核的切分点所在位置
@@ -679,7 +689,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext
     result.numOfFdHead++;
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
     int64_t costLimit, const SplitContext &splitContext, SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
@@ -756,7 +766,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(uint32_t coreNum,
     result.usedCoreNum = assignContext.curCoreIdx + 1;
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes)
 {
     uint64_t len = tmpRes.bN2End.size();
     splitRes.usedCoreNum = tmpRes.usedCoreNum;
@@ -778,7 +788,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::CopyTmpResult(SplitResult &tmpR
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmpResult)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmpResult)
 {
     uint64_t len = tmpResult.bN2End.size();
     tmpResult.usedCoreNum = 0U;
@@ -800,7 +810,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmp
     }
 }
 
-void KVQuantSparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &result)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &result)
 {
     uint32_t totalFDLoad = 0;
     uint32_t totalFDHeadSplit = 0;
@@ -841,7 +851,7 @@ void KVQuantSparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &result)
     result.usedVecNumOfFd = curCoreIndex + 1;
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
     SplitContext splitContext(batchSize_);
 
     // 1、划分基本块，统计信息
@@ -869,7 +879,7 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
     return true;
 }
 
-bool KVQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
     optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
 
     for (size_t i = 0; i < coreNum_; ++i) {
@@ -900,8 +910,8 @@ bool KVQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
 }
 
 namespace {
-    static const char *kernelType = "KVQuantSparseAttnSharedkvMetadata";
-    REGISTER_CPU_KERNEL(kernelType, KVQuantSparseAttnSharedkvMetadataCpuKernel);
+    static const char *kernelType = "KvQuantSparseAttnSharedkvMetadata";
+    REGISTER_CPU_KERNEL(kernelType, KvQuantSparseAttnSharedkvMetadataCpuKernel);
 }
 
 }; // namespace aicpu
