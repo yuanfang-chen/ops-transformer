@@ -22,7 +22,7 @@ namespace ge {
 /**
  * @brief Binary finds the position of the last row processed by each expert in the sorted_experts array.
  * @par Inputs:
- * @li sorted_experts: An 1D Tensor, sorted expert array. Type is:Int32, shape should less than 2^24.
+ * @li sorted_experts: An 1D Tensor, sorted expert array. Type is:Int32. Shape should be less than 2^24.
  * @par Outputs:
  * @li total_rows_before_expert: A Tensor. Type is:Int32.
  * @par Attributes:
