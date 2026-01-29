@@ -185,8 +185,10 @@ private:
     __aicore__ inline void MlaBoolCopyInRegbase(LocalTensor<uint8_t> &dstTensor, GlobalTensor<uint8_t> &srcTensor,
         int64_t srcOffset, uint32_t s1Size, uint32_t s2Size, int64_t totalS2Size, int64_t s2BaseSize,
         ConstInfo<isInfer, hasRope> &constInfo, RunInfo<isInfer> &runInfo);
-     __aicore__ inline void MlaTransposeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+    __aicore__ inline void MlaTransposeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
  	    LocalTensor<OUTPUT_T> &attenOut);
+    __aicore__ inline void MlaTranspose2DataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+        LocalTensor<OUTPUT_T> &attenOut);
 };
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
@@ -1274,6 +1276,53 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
 }
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
+__aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopyOut(
+    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut)
+{
+    int64_t s1DealSize = runInfo.vec2S1RealSize;
+    int64_t curGIdx = runInfo.sOuterOffset / constInfo.s1Size;
+    int64_t curS1Idx = runInfo.sOuterOffset % (uint32_t)s1TemplateType;
+    if (constInfo.subBlockIdx == 1) {
+        curGIdx = (curGIdx + s1DealSize / constInfo.s1Size) % constInfo.gSize;
+        curS1Idx = (curGIdx + s1DealSize) % constInfo.s1Size;
+    }
+    bool hasHeadBlock = curS1Idx != 0;
+    int headBlock = hasHeadBlock ? constInfo.s1Size - curS1Idx : 0;
+    int gCount = hasHeadBlock ? (runInfo.vec2S1BaseSize - headBlock) / constInfo.s1Size : runInfo.vec2S1BaseSize / constInfo.s1Size;
+    bool hasTailBlock = (runInfo.vec2S1BaseSize - headBlock) % constInfo.s1Size;
+    int tailBlock = hasTailBlock ? runInfo.vec2S1BaseSize - gCount * constInfo.s1Size - headBlock : 0;
+    uint32_t attenOutUbOffset = 0;
+
+    if (curS1Idx != 0) { // 首块
+        DataCopyExtParams dataCopyParams;
+        dataCopyParams.srcStride = 0;
+        dataCopyParams.dstStride = 0;
+        dataCopyParams.blockLen = (constInfo.s1Size - curS1Idx) * constInfo.dSizeV * sizeof(OUTPUT_T);
+        dataCopyParams.blockCount = 1;
+        DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut, dataCopyParams);
+        attenOutUbOffset += (constInfo.s1Size - curS1Idx) * constInfo.dSizeV;
+    }
+    DataCopyExtParams dataCopyParams;
+    dataCopyParams.blockCount = gCount; // 处理多少个G
+    dataCopyParams.blockLen = constInfo.s1Size * constInfo.dSizeV * sizeof(OUTPUT_T); // 一个S1*D的大小
+    dataCopyParams.srcStride = 0;                                                                    // 连读
+    dataCopyParams.dstStride = (constInfo.bSize - 1) * constInfo.s1Size * constInfo.dSizeV * sizeof(OUTPUT_T); // 跳写
+    runInfo.attentionOutOffset += int(hasHeadBlock) * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV - curS1Idx * constInfo.dSizeV;
+    DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut[attenOutUbOffset], dataCopyParams);
+    attenOutUbOffset += dataCopyParams.blockCount * (constInfo.s1Size * constInfo.dSizeV);
+
+    if (hasTailBlock) { // 尾块单独一条DataCopy指令
+        DataCopyExtParams dataCopyParamsTail;
+        dataCopyParamsTail.blockCount = 1;
+        dataCopyParamsTail.blockLen = tailBlock * constInfo.s1Size * sizeof(OUTPUT_T);
+        dataCopyParamsTail.srcStride = 0;
+        dataCopyParamsTail.dstStride = 0;
+        runInfo.attentionOutOffset += (gCount - int(hasHeadBlock) - 1) * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV;
+        DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut[attenOutUbOffset], dataCopyParamsTail);
+    }
+}
+
+TEMPLATES_DEF_BASE_NO_DEFAULT
 template <typename VEC2_RES_T>
 __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
@@ -1350,7 +1399,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
             attenOutOffset = constInfo.bN2GDv;
         }
         if constexpr (isInfer) {
-            if (constInfo.isBSNDOut == 1 || constInfo.isTNDOut == 1) {
+            if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND) ||
+ 	            constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::NTD_TND)) {
                 attenOutOffset = constInfo.n2GDv;
             }
         }
@@ -1370,9 +1420,13 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
             DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
                 attenOut, dataCopyParams);
         }
-    } else if constexpr (isInfer) {
-        if (isMlaNoQuant && constInfo.isNTDOut == 1) {
+    } else if constexpr (isInfer && isMlaNoQuant) {
+        if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
+            constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_NBSD) ||
+            constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::TND_NTD)) {
             MlaTransposeDataCopyOut(runInfo, constInfo, attenOut);
+        else if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_NBSD)) {
+            MlaTranspose2DataCopyOut(runInfo, constInfo, attenOut);
         } else {
             DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
                 attenOut, dataCopyParams);

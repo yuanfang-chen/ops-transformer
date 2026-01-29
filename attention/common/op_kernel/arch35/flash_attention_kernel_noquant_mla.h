@@ -246,6 +246,11 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
         constInfo.dSizeRope = 0;
     }
     constInfo.gSize = inputParamsRegbase.gSize;
+    if (inputParamsRegbase.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_NBSD) ||
+        inputParamsRegbase.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
+        inputParamsRegbase.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_NBSD)) {
+        constInfo.t1Size = constInfo.bSize * constInfo.s1Size;
+    }
     constInfo.s1OuterSize = this->tilingData->multiCoreParamsRegbase.s1OuterSize;
 
     constInfo.s1D = constInfo.s1Size * constInfo.dSize;
@@ -391,13 +396,11 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
     constInfo.paBlockNumSum = inputParamsRegbase.paBlockNumSum;
 
     // service vector2
-    constInfo.isBSNDOut = inputParamsRegbase.isBSNDOut;
-    constInfo.isNTDOut = inputParamsRegbase.isNTDOut;
-    constInfo.isTNDOut = inputParamsRegbase.isTNDOut;
-    if (constInfo.isBSNDOut == 1) {
+    constInfo.transposeLayout = inputParamsRegbase.transposeLayout;
+    if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND)) {
         constInfo.attentionOutStride = 
             (constInfo.n2Size * constInfo.gSize - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
-    } else if (constInfo.isNTDOut == 1) {
+    } else if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::TND_NTD)) {
         constInfo.attentionOutStride = 0;
     } 
 

@@ -334,10 +334,7 @@ struct RunInfo<false> {
     uint32_t blockSize; \
     uint32_t paLayoutType; \
     uint32_t paBlockNumSum; \
-    /* LAYOUT是否为BNSD_BSND */ \
-    uint32_t isBSNDOut; \
-    uint32_t isTNDOut; \
-    uint32_t isNTDOut; \
+    uint32_t transposeLayout; \
     /* GS1合轴场景，外层循环是B、N2，内层循环G、S1，headNumRatio = 1 */ \
     /* GS1不合轴场景，外层循环是B、N2、G，内层循环S1，headNumRatio = gSize */ \
     uint32_t headNumRatio; \
@@ -455,14 +452,12 @@ struct CVSharedParams<true, false> {
     uint32_t isActualSeqLengthsKVNull : 1;
     uint32_t isQHasLeftPadding : 1;
     uint32_t isKVHasLeftPadding : 1;
-    uint32_t isBSNDOut : 1;
-    uint32_t isTNDOut : 1;
-    uint32_t isNTDOut : 1;
     uint32_t needInit : 1;
     uint32_t isPostQuantPerChnl : 1;
     uint32_t isPostQuantBF16 : 1;
     uint32_t headNumRatio : 20;
 
+    uint32_t transposeLayout;
     uint32_t actualSeqLengthsSize;
     uint32_t actualSeqLengthsKVSize;
     uint32_t splitKVNum;
@@ -490,14 +485,12 @@ struct CVSharedParams<true, true> {
     uint32_t isActualSeqLengthsKVNull : 1;
     uint32_t isQHasLeftPadding : 1;
     uint32_t isKVHasLeftPadding : 1;
-    uint32_t isBSNDOut : 1;
-    uint32_t isTNDOut : 1;
-    uint32_t isNTDOut : 1;
     uint32_t needInit : 1;
     uint32_t isPostQuantPerChnl : 1;
     uint32_t isPostQuantBF16 : 1;
     uint32_t headNumRatio : 20;
 
+    uint32_t transposeLayout;
     uint32_t actualSeqLengthsSize;
     uint32_t actualSeqLengthsKVSize;
     uint32_t splitKVNum;

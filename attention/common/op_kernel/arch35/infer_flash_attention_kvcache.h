@@ -426,10 +426,23 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
                 runParam.sOuterOffset * constInfo.dSizeV;
             runParam.tensorQOffset = runParam.qBOffset + runParam.n2oIdx * constInfo.gD * actualSeqLen +
                 runParam.cubeSOuterOffset * constInfo.dSize;
-            if (constInfo.isNTDOut == 1) { // IFA MLA, TND_NTD
+            if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_NBSD)) {
                 attentionOutSeqOffset = seqOffset * constInfo.dSizeV;
-                int64_t curGIdx = runParam.goIdx, curS1Idx = runParam.cubeSOuterOffset / (uint32_t)s1TemplateType; // 64
-                
+                int64_t curGIdx = runParam.cubeSOuterOffset / constInfo.s1Size;
+                int64_t curS1Idx = runParam.cubeSOuterOffset % (uint32_t)s1TemplateType;
+                if (constInfo.subBlockIdx == 1) {
+                    curGIdx = (curGIdx + runParam.halfS1RealSize / constInfo.s1Size) % constInfo.gSize;
+                    curS1Idx = (curGIdx + runParam.halfS1RealSize) % constInfo.s1Size;
+                }
+                runParam.attentionOutOffset = attentionOutSeqOffset + // b
+                    curGIdx * constInfo.t1Size * constInfo.dSizeV + // g
+                    curS1Idx * constInfo.dSizeV; // s1
+            } else if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
+                constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_NBSD) ||
+                constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::TND_NTD)) {
+                attentionOutSeqOffset = seqOffset * constInfo.dSizeV;
+                int64_t curGIdx = runParam.goIdx;
+                int64_t curS1Idx = runParam.cubeSOuterOffset / (uint32_t)s1TemplateType; // 64
                 if (constInfo.gSize == 128) { // G为128时，基本块位于同一S1行
                     curGIdx = (curS1Idx % 2 == 0) ? curGIdx : (uint32_t)s1TemplateType;
                     curS1Idx /= 2;
@@ -460,7 +473,10 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
                     runParam.attentionOutOffset = attentionOutSeqOffset + runParam.n2oIdx * constInfo.gDv * actualSeqLen +	
                         runParam.sOuterOffset * constInfo.dSizeV;
             } else {
-                if (constInfo.isBSNDOut == 1 || constInfo.isTNDOut == 1 || layout == LayOutTypeEnum::LAYOUT_BSH || layout == LayOutTypeEnum::LAYOUT_TND) {
+                if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND) ||
+                    constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::NTD_TND) || layout == LayOutTypeEnum::LAYOUT_TND ||
+                    (constInfo.transposeLayout != static_cast<uint32_t>(TransposeLayoutEnum::BSND_BNSD) &&
+                    constInfo.transposeLayout != static_cast<uint32_t>(TransposeLayoutEnum::BSH_BNSD) && layout == LayOutTypeEnum::LAYOUT_BSH)) {
                     runParam.attentionOutOffset = attentionOutSeqOffset + runParam.queryLeftPaddingSize * constInfo.n2GDv +
                         runParam.sOuterOffset * constInfo.n2GDv + runParam.n2oIdx * constInfo.gDv +
                         runParam.goIdx * constInfo.dSizeV;

@@ -345,21 +345,39 @@ bool PromptFlashAttentionTilingV2::SetInputLayout(const char* layout) {
     }
 
     std::string layoutStr(layout);
-    if (layoutStr == "" || layoutStr == "BSH") {
+    if (layoutStr == "" || layoutStr == "BSH" || layoutStr == "BSH_NBSD" || layoutStr == "BSH_BNSD") {
         inputLayout = InputLayout::BSH;
     } else if (layoutStr == "TND" || layoutStr == "TND_NTD") {
         inputLayout = InputLayout::TND;
     } else if (layoutStr == "NTD" || layoutStr == "NTD_TND") {
         inputLayout = InputLayout::NTD;
-    } else if (layoutStr == "BSND") {
+    } else if (layoutStr == "BSND" || layoutStr == "BSND_NBSD" || layoutStr == "BSND_BNSD") {
         inputLayout = InputLayout::BSND;
-    } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND") { // Reuse BNSD process for BNSD_BSND
+    } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND" || layoutStr == "BNSD_NBSD") {
         inputLayout = InputLayout::BNSD;
     } else {
         return false;
     }
 
     return true;
+}
+
+// 0 不转置; 1 BNSD_BSND; 2 BSND_BNSD; 3 BSH_BNSD; 4 BNSD_NBSD; 5 BSND_NBSD; 6 BSH_NBSD; 7 NTD_TND; 8 TND_NTD
+uint32_t GetTransposeLayout(const std::string &layout) {
+    const std::map<std::string, uint32_t> transposeLayoutMp = {
+        {"BNSD_BSND", 1},
+        {"BSND_BNSD", 2},
+        {"BSH_BNSD", 3},
+        {"BNSD_NBSD", 4},
+        {"BSND_NBSD", 5},
+        {"BSH_NBSD", 6},
+        {"NTD_TND", 7},
+        {"TND_NTD", 8}
+    };
+    if (transposeLayoutMp.find(layout) != transposeLayoutMp.end()) {
+        return transposeLayoutMp.at(layout);
+    }
+    return 0;
 }
 
 int64_t GetMaxSeq(const gert::Tensor* actualSeqLength) {
@@ -578,6 +596,56 @@ bool PromptFlashAttentionTilingV2::GetAndCheckRopeShape(ContextParamsForPFATilin
     return true;
 }
 
+void PromptFlashAttentionTilingV2::GetQueryDimAndOutDim(const gert::StorageShape* queryShape, const gert::StorageShape* outShape,
+    const std::string &layoutStr, int64_t &tmpqueryDim, int64_t &outDim, uint32_t i) const {
+    if (layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD") {
+        if (i == 1) { // BNSD_BSND：query:N, output:S; BSND_BNSD：query:S, output:N
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1);
+        } else if (i == 2) { // BNSD_BSND：query:S, output:N; BSND_BNSD：query:N, output:S
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 1);
+        }
+    } else if (layoutStr == "BSH_BNSD") {
+        if (i == 2) { // BSH_BNSD：query:H, output:ND
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1) * outShape->GetStorageShape().GetDim(i - 1);
+        }
+    } else if (layoutStr == "BSND_NBSD") {
+        if (i == 1) { // BSND_NBSD：query:S, output:B
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1);
+        } else if (i == 2) { // BSND_NBSD：query:N, output:S
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 2);
+        }
+    } else if (layoutStr == "BNSD_NBSD") {
+        if (i == 1) { // BNSD_NBSD：query:N, output:B
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 1);
+        } else if (i == 2) { // BNSD_NBSD：query:S, output:S
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i);
+        }
+    } else if (layoutStr == "BSH_NBSD") {
+        if (i == 2) { // BSH_NBSD：query:H, output:ND
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1) * outShape->GetStorageShape().GetDim(i - 2);
+        }
+    } else if (layoutStr == "NTD_TND" || layoutStr == "TND_NTD") {
+        if (i == 0) { // query:N/T, output:T/N
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1);
+        } else if (i == 1) { // 2 for current queryDimNum; Q:T/N, Output:N/T
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 1);
+        }
+    } else {
+        tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+        outDim = outShape->GetStorageShape().GetDim(i);
+    }
+}
+
 bool PromptFlashAttentionTilingV2::CheckQueryOutParamsConsistency(const ContextParamsForPFATiling& contextKeyParams,
     const gert::StorageShape* queryShape, const gert::StorageShape* outShape) const {
     const size_t queryDimNum = queryShape->GetStorageShape().GetDimNum();
@@ -585,8 +653,8 @@ bool PromptFlashAttentionTilingV2::CheckQueryOutParamsConsistency(const ContextP
     int64_t tmpqueryDim = 0;
     int64_t outDim = 0;
     std::string layoutStr(contextKeyParams.layout);
-
-    OP_CHECK_IF(queryDimNum != outDimNum,
+    bool isLayoutShapeSupport = layoutStr == "BSH_BNSD" || layoutStr == "BSH_NBSD";
+ 	OP_CHECK_IF(queryDimNum != outDimNum && !isLayoutShapeSupport,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "tensor query shape dimNum(%zu) must be consistent with tensor output shape dimNum(%zu)!",
             queryDimNum, outDimNum),
@@ -601,27 +669,7 @@ bool PromptFlashAttentionTilingV2::CheckQueryOutParamsConsistency(const ContextP
         if ((i == queryDimNum - 1) && enablePFAMLA) {
             continue;
         }
-        if (layoutStr == "BNSD_BSND") {
-            if (i == 1) { // query:N, output:S
-                tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-                outDim = outShape->GetStorageShape().GetDim(i + 1);
-            } else if (i == 2) { // 2 for current queryDimNum; Q:N, Output:S
-                tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-                outDim = outShape->GetStorageShape().GetDim(i - 1);
-            }
-        } else if (layoutStr == "NTD_TND" || layoutStr == "TND_NTD") {
- 	        if (i == 0) { // query:N/T, output:T/N
- 	  	        tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
- 	  	        outDim = outShape->GetStorageShape().GetDim(i + 1);
- 	  	    } else if (i == 1) { // 2 for current queryDimNum; Q:T/N, Output:N/T
- 	  	        tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
- 	  	        outDim = outShape->GetStorageShape().GetDim(i - 1);
- 	  	    }
-        } else {
-            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-            outDim = outShape->GetStorageShape().GetDim(i);
-        }
-
+        GetQueryDimAndOutDim(queryShape, outShape, layoutStr, tmpqueryDim, outDim, i);
         OP_CHECK_IF(!isQKVDDifferent && (tmpqueryDim != outDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "tensor query shape (%ld) do not equal to tensor output shape(%ld) in dim %u for %s.",
             tmpqueryDim, outDim, i, layoutStr.c_str()),
@@ -1573,7 +1621,8 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
 
     // 隔离高阶特性
     std::string layoutStr(contextKeyParams.layout);
-    bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "NTD" || layoutStr == "NTD_TND" || layoutStr == "TND_NTD";
+    bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
+        layoutStr == "NTD" || layoutStr == "NTD_TND" || layoutStr == "TND_NTD";
     bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope ||
         enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList ||
         enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || isTransposeLayout;
@@ -1594,7 +1643,7 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
     // check layout
     OP_CHECK_IF((!SetInputLayout(contextKeyParams.layout)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
-            "Invalid input layout:%s. Currently only TND/NTD/BSH/BNSD/BSND/BSND_BNSD layout are supported.", 
+            "Invalid input layout:%s. Currently only TND/NTD/BSH/BNSD/BSND/BSND_BNSD/BNSD_BSND/BSH_BNSD/BSND_NBSD/BNSD_NBSD/BSH_NBSD layout are supported.",
             contextKeyParams.layout),
         return false);
 
@@ -1606,7 +1655,10 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
         if (inputLayout != InputLayout::NTD) {
  	  	    enableIFAMask = true;
  	  	}
-        if (!enableAlibiPse && !enablePerblockQuant && inputLayout != InputLayout::NTD) {
+        std::string layoutStr(contextKeyParams.layout);
+        bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
+            layoutStr == "NTD" || layoutStr == "NTD_TND";
+        if (!enableAlibiPse && !enablePerblockQuant && !isTransposeLayout) {
             enableIFA = true;
         }
     }
@@ -1767,6 +1819,27 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
     }
     OP_LOGI(contextKeyParams.opName, "enableIFAMLA is %d, enablePA is %d, enableMask is %d, faRunFlag_ is %d", 
                 enableIFAMLA, enablePA, enableMask, faRunFlag_);
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckLayout(ContextParamsForPFATiling& contextKeyParams) {
+    if (contextKeyParams.layout == nullptr) {
+        return false;
+    }
+    std::string layoutStr(contextKeyParams.layout);
+    const std::vector<std::string> unsupportedLayoutList = {"NTD", "BSND_BNSD", "BSH_BNSD", "BNSD_BSND", "NTD_TND"};
+    const std::vector<std::string> unsupportedLayoutList2 = {"BNSD_NBSD", "BSH_NBSD", "BSND_NBSD", "TND_NTD"};
+    if (enableIFAMLA) {
+        OP_CHECK_IF(std::find(unsupportedLayoutList.begin(), unsupportedLayoutList.end(), layoutStr) != unsupportedLayoutList.end(),
+            OP_LOGE(contextKeyParams.opName, "When decode mla scenario is applied, layout does not support NTD, BSND_BNSD, BSH_BNSD, "
+            "BNSD_BSND, NTD_TND, but got %s", layoutStr.c_str()),
+            return false);
+    } else if (!enablePertensorQuant && !enablePerblockQuant) {
+        OP_CHECK_IF(std::find(unsupportedLayoutList2.begin(), unsupportedLayoutList2.end(), layoutStr) != unsupportedLayoutList2.end(),
+            OP_LOGE(contextKeyParams.opName, "When prefill mla or gqa scenario is applied, layout does not support BNSD_NBSD, BSH_NBSD, "
+            "BSND_NBSD, TND_NTD, but got %s", layoutStr.c_str()),
+            return false);
+    }
     return true;
 }
 
@@ -1952,6 +2025,11 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         actualSharedPrefixLen = 0;
         return true;
     }
+    std::string layoutStr(contextKeyParams.layout);
+    OP_CHECK_IF(
+        (layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when %s is used, system prefix is not supported!",
+        layoutStr.c_str()), return false);
     // The prefix does not support TND, tensorlist, pfa mla, ifa mla, left padding and alibi
     OP_CHECK_IF(
         (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
@@ -2594,6 +2672,45 @@ bool PromptFlashAttentionTilingV2::CheckNTDLayoutCrossover(ContextParamsForPFATi
     return true;
 }
 
+bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsForPFATiling& contextKeyParams,
+    PFAShapeInfo& queryShapeInfo) {
+    std::string layoutStr(contextKeyParams.layout);
+    if (layoutStr == "BSH_BNSD" || layoutStr == "BSND_BNSD") {
+        if (enablePFAMLA || enablePFARope) { // Prefill MLA
+        OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
+                layoutStr.c_str()), return false);
+    }
+        if (!enableIFAMLA) { // GQA and Prefill Mla
+            OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
+                layoutStr.c_str(), queryShapeInfo.d), return false);
+        }
+        OP_CHECK_IF(enableLeftPadding,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, left padding is not supported!",
+            layoutStr.c_str()), return false);
+        
+        OP_CHECK_IF(enableTensorList,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, tensorlist is not supported!",
+            layoutStr.c_str()), return false);
+
+        OP_CHECK_IF(enablePseShift,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, pse is not supported!",
+            layoutStr.c_str()), return false);
+    } else if (layoutStr == "BNSD_BSND") {
+        if (enablePFAMLA || enablePFARope) { // Prefill MLA
+        OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
+                layoutStr.c_str()), return false);
+    }
+        if (!enableIFAMLA) { // GQA and Prefill Mla
+            OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
+                layoutStr.c_str(), queryShapeInfo.d), return false);
+        }
+    }
+}
+
 bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV) {
     uint32_t lenDims = queryShapeInfo.b; // The current length of the actSeqLen array is equal to batch size b.
@@ -2816,8 +2933,7 @@ void PromptFlashAttentionTilingV2::SetTilingDataAttribute(ContextParamsForPFATil
 
     tilingData.promptAttentionBaseParams.set_fromFused((contextKeyParams.fromFused == FROM_FUSED_FLAG) ? 1 : 0);
     tilingData.promptAttentionBaseParams.set_isBSNDOut(contextKeyParams.isBSNDOut);
-    tilingData.promptAttentionBaseParams.set_isTNDOut(contextKeyParams.isTNDOut);
-    tilingData.promptAttentionBaseParams.set_isNTDOut(contextKeyParams.isNTDOut);
+    tilingData.promptAttentionBaseParams.set_transposeLayout(contextKeyParams.transposeLayout);
     tilingData.promptAttentionBaseParams.set_isSoftMaxLseEnable(contextKeyParams.isSoftMaxLseEnable);
 
     uint32_t originHeadSize = enableIFAMLA ? tilingData.promptAttentionBaseParams.get_headSize() :
@@ -4050,6 +4166,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
         OP_LOGE(contextKeyParams.opName, "Check queryRope/keyRope failed!");
         return ge::GRAPH_FAILED;
     }
+    if (!CheckLayout(contextKeyParams)) {
+        OP_LOGE(contextKeyParams.opName, "Check layout failed!");
+        return ge::GRAPH_FAILED;
+    }
     if (!CheckQueryAndKey(contextKeyParams, queryShapeInfo, keyShapeInfo, tilingData)) {
         OP_LOGE(contextKeyParams.opName, "Check query and key consistency failed!");
         return ge::GRAPH_FAILED;
@@ -4179,6 +4299,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckCrossoverAttribute(ContextPar
     }
 
     if (!CheckNTDLayoutCrossover(contextKeyParams, queryShapeInfo)) {
+        return ge::GRAPH_FAILED;
+    }
+
+    if (!CheckTransposeLayoutCrossover(contextKeyParams, queryShapeInfo)) {
         return ge::GRAPH_FAILED;
     }
 
@@ -4434,8 +4558,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::ConvertContextToPFAParams(ContextP
     contextKeyParams.workspaceSize = context_->GetWorkspaceSizes(1);
     contextKeyParams.compileInfoPtr = reinterpret_cast<const PromptFlashAttentionCompileInfo *>(context_->GetCompileInfo());
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1U : 0U;
-    contextKeyParams.isTNDOut = (string(contextKeyParams.layout) == "NTD_TND") ? 1U : 0U;
- 	contextKeyParams.isNTDOut = (string(contextKeyParams.layout) == "TND_NTD") ? 1U : 0U;
+    contextKeyParams.transposeLayout = GetTransposeLayout(string(contextKeyParams.layout));
     contextKeyParams.fromFused = NUM_0;
 
     contextKeyParams.deqScaleType = (context_->GetOptionalInputDesc(DEQ_SCALE1_INDEX) != nullptr) ?
@@ -4531,8 +4654,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
     inputParams.set_isKvContinuous(tilingData.promptAttentionBaseParams.get_isKvContinuous());
     inputParams.set_fromFused(tilingData.promptAttentionBaseParams.get_fromFused());
     inputParams.set_isBSNDOut(tilingData.promptAttentionBaseParams.get_isBSNDOut());
-    inputParams.set_isTNDOut(tilingData.promptAttentionBaseParams.get_isTNDOut());
-    inputParams.set_isNTDOut(tilingData.promptAttentionBaseParams.get_isNTDOut());
+    inputParams.set_transposeLayout(tilingData.promptAttentionBaseParams.get_transposeLayout());
     inputParams.set_isGqa(tilingData.promptAttentionBaseParams.get_isIFA() || enablePFAMerge);
     inputParams.set_isSoftMaxLseEnable(tilingData.promptAttentionBaseParams.get_isSoftMaxLseEnable());
     inputParams.set_isActualSharedPrefixLenNull(tilingData.promptAttentionBaseParams.get_isActualSharedPrefixLenNull());
