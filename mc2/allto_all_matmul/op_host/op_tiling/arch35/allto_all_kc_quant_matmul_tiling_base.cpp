@@ -493,7 +493,7 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::GetWorkspaceSize()
     workspaces[0] = workspaceSize;
     OP_LOGD(
         opName_,
-        "Workspaces[0] size=%ld, commlen=%d, permuteLen=%d, biasLen=%d, x1ScaleOptionalLen=%d, quantOutLen=%d",
+        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu, biasLen=%zu, x1ScaleOptionalLen=%zu, quantOutLen=%zu",
         workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen, inferredInfo.biasLen,
         inferredInfo.x1ScaleOptionalLen, inferredInfo.quantOutLen);
     return ge::GRAPH_SUCCESS;

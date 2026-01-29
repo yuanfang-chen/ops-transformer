@@ -347,7 +347,7 @@ ge::graphStatus AllToAllMatmulTilingBase::CheckKcQuantTensorDataType(const gert:
     auto yDesc = context->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName, "output tensor y is nullptr."), return ge::GRAPH_FAILED);
     ge::DataType yDtype = yDesc->GetDataType();
-    OP_TILING_CHECK(!IsContain(KC_QUANT_Y_DTYPE_LIST, yDtype),
+    OP_TILING_CHECK(!IsContain(MC2Tiling::KC_QUANT_Y_DTYPE_LIST, yDtype),
                     OP_LOGE(opName, "output y Dtype should be float16, bfloat16 or float, but y is %s.",
                             Ops::Base::ToString(yDtype).c_str()),
                     return ge::GRAPH_FAILED);
