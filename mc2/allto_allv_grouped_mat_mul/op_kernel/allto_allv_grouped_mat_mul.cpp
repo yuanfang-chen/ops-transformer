@@ -37,19 +37,21 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
     GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM,
     GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
+    SetSysWorkspace(workspaceGM);
+    GM_ADDR userWorkspace = AscendC::GetUserWorkspace(workspaceGM);
+    if (userWorkspace == nullptr) {
+        return ;
+    }
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
-
-    REGISTER_TILING_DEFAULT(AlltoAllvGmmTilingData);
-    auto tiling = (__gm__ AlltoAllvGmmTilingData*)tilingGM;
-    __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
-    __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->alltoAllvCcTiling));
-    GET_TILING_DATA(tilingData, tilingGM);
-
     TPipe pipe;
-    GM_ADDR contextGM = GetHcclContext<HCCL_GROUP_ID_0>();
 #ifdef ALLTO_ALLV_GMM_NO_QUANT
     REGISTER_TILING_DEFAULT(AlltoAllvGmmTilingData);
     auto tiling = (__gm__ AlltoAllvGmmTilingData *)tilingGM;
+    GM_ADDR contextGM = GetHcclContext<HCCL_GROUP_ID_0>();
+    REGISTER_TILING_DEFAULT(AlltoAllvGmmTilingData);
+    __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
+    __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->alltoAllvCcTiling));
+    GET_TILING_DATA(tilingData, tilingGM);
 #if (ORIG_DTYPE_GMM_X == DT_BFLOAT16)
     INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMP(AlltoAllvGmmCoarseGrained, DTYPE_GMM_X, TILINGKEY_MM,
         TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE);
@@ -58,15 +60,12 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
         TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE);
 #endif
 #elif defined(ALLTO_ALLV_GMM_QUANT)
-    // TODO move to apt.cpp
     REGISTER_TILING_DEFAULT(QuantAlltoAllvGroupedMatmulTilingData);
     auto tiling = (__gm__ QuantAlltoAllvGroupedMatmulTilingData *)tilingGM;
     MC2KernelTemplate::A2avGmmScheduler<HcclA2avOp, QuantGroupedMatmul, SchedulerContext, QuantAlltoAllvGroupedMatmulTilingData> a2avGmmScheduler;
     a2avGmmScheduler.Init(gmmxGM, gmmweightGM, mmxOptionalGM, mmweightOptionalGM,
             gmmxScaleGM, gmmWeightScaleGM,mmxScaleGM, mmWeightScaleGM,
-            gmmyGM, mmyOptionalGM, permuteOutOptionalGM, workspaceGM, tiling, &pipe);
+            gmmyGM, mmyOptionalGM, permuteOutOptionalGM, userWorkspace, tiling, &pipe);
     a2avGmmScheduler.Process();
 #endif
-
-
 }
