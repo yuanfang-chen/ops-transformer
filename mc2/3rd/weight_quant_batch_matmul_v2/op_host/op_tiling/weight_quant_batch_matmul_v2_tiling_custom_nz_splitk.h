@@ -39,7 +39,6 @@ protected:
     uint64_t cubeSingleN_;
     bool al1FullLoad_;
     std::unique_ptr<Mc2WeightQuantBatchMatmulV2CustomNzSplitKTilingData> tilingData_;
-    // std::unique_ptr<Mc2WeightQuantBatchMatmulV2CompileInfo> compileInfoPtr_;
 
     void Reset();
     ge::graphStatus PostTiling() override;
