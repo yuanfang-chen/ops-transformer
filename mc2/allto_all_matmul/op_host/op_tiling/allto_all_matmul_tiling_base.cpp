@@ -44,6 +44,7 @@ ge::graphStatus AllToAllMatmulTilingBase::GetPlatformInfo()
     platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     contextInfo.args_.aicCoreNum = ascendcPlatform.GetCoreNumAic();
     socVersion_ = ascendcPlatform.GetSocVersion();
+    npuArch_ = ascendcPlatform.GetCurNpuArch();
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     return ge::GRAPH_SUCCESS;
 };
@@ -112,7 +113,7 @@ ge::graphStatus AllToAllMatmulTilingBase::TileCommAndCompute()
     OP_LOGD(opName_, "Start to find proper tile by formulaic tiling.");
     // 最后一个参数true代表AlltoAllMatmul
     AlltoAllMM alltoallMatmulTileFormulate(contextInfo.args_, contextInfo.args_.rankDim, KernelType::ALL_TO_ALL,
-                                           SocVersion::SOC910_95, true);
+                                           SocVersion::SOC950, true);
     alltoallMatmulTileFormulate.GetTiling();
     CutResult mCutMMAlltoAll = alltoallMatmulTileFormulate.tilingM_.cutRes;
     inferredInfo.tileM = mCutMMAlltoAll.longTileLen;

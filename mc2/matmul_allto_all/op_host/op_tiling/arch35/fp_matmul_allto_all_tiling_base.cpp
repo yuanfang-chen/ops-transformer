@@ -110,7 +110,7 @@ ge::graphStatus FpMatmulAllToAllTilingBase::DoMMTiling()
     auto ascendcPlatForm = platform_ascendc::PlatformAscendC(platformInfo);
 
     std::vector<int32_t> priorities;
-    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion_, priorities, opName_));
+    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch_, priorities, opName_));
 
     Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", socVersion_, priorities};
 
@@ -332,6 +332,6 @@ FpMatmulAllToAllTilingBase::FpMatmulAllToAllTilingBase(gert::TilingContext *cont
 }
 
 // 注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAlltoAll, FpMatmulAllToAllTilingBase,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 0);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(MatmulAlltoAll, FpMatmulAllToAllTilingBase,
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 0);
 } // namespace MC2Tiling

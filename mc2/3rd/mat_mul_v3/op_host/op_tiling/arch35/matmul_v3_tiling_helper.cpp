@@ -163,8 +163,8 @@ Mc2MatMulV3L0C2Out GetL0C2Out91095(const Mc2MatmulV3CompileInfo &compileInfo, co
 
 using GetL0C2OutFunc = Mc2MatMulV3L0C2Out (*)(const Mc2MatmulV3CompileInfo &, const Mc2MatMulV3Args &, const Mc2MatMulV3RunInfo &);
 
-const static std::map<platform_ascendc::SocVersion, GetL0C2OutFunc> GetL0C2OutFuncMap = {
-    {platform_ascendc::SocVersion::ASCEND910_95, GetL0C2Out91095},
+const static std::map<NpuArch, GetL0C2OutFunc> GetL0C2OutFuncMap = {
+    {NpuArch::DAV_3510, GetL0C2Out91095},
 };
 
 // ------------------------------ CheckIfDoubleAswt -------------------------------------------//
@@ -173,7 +173,7 @@ bool CheckIfDoubleAswtDefault(const Mc2MatMulV3Args & /* args */, const uint64_t
     return false;
 }
 
-bool CheckIfDoubleAswt91095(const Mc2MatMulV3Args &args, const uint64_t batchC)
+bool CheckIfDoubleAswtNpuArch3510(const Mc2MatMulV3Args &args, const uint64_t batchC)
 {
     constexpr uint64_t halfL2Size = 64UL * 1024UL * 1024UL;  // 64mb
     constexpr uint64_t cubeBoundRatio = 512UL;
@@ -192,8 +192,8 @@ bool CheckIfDoubleAswt91095(const Mc2MatMulV3Args &args, const uint64_t batchC)
 
 using CheckIfDoubleAswtFunc = bool (*)(const Mc2MatMulV3Args &, const uint64_t);
 
-const static std::map<platform_ascendc::SocVersion, CheckIfDoubleAswtFunc> CheckIfDoubleAswtFuncMap = {
-    {platform_ascendc::SocVersion::ASCEND910_95, CheckIfDoubleAswt91095},
+const static std::map<NpuArch, CheckIfDoubleAswtFunc> CheckIfDoubleAswtFuncMap = {
+    {NpuArch::DAV_3510, CheckIfDoubleAswtNpuArch3510},
 };
 }  // namespace
 
@@ -220,18 +220,18 @@ void Mc2MatMulV3TilingHelper::CalL1Tiling(const Mc2MatmulV3CompileInfo &compileI
 Mc2MatMulV3L0C2Out Mc2MatMulV3TilingHelper::GetL0C2Out(const Mc2MatmulV3CompileInfo &compileInfo, const Mc2MatMulV3Args &args,
                                                  const Mc2MatMulV3RunInfo &runInfo)
 {
-    auto iter = (GetL0C2OutFuncMap.find(compileInfo.socVersion) == GetL0C2OutFuncMap.end())
+    auto iter = (GetL0C2OutFuncMap.find(compileInfo.npuArch) == GetL0C2OutFuncMap.end())
                     ? GetL0C2OutDefault
-                    : GetL0C2OutFuncMap.at(compileInfo.socVersion);
+                    : GetL0C2OutFuncMap.at(compileInfo.npuArch);
     return iter(compileInfo, args, runInfo);
 }
 
 bool Mc2MatMulV3TilingHelper::CheckIfDoubleAswt(const Mc2MatmulV3CompileInfo &compileInfo, const Mc2MatMulV3Args &args,
                                              const uint64_t batchC)
 {
-    auto iter = (CheckIfDoubleAswtFuncMap.find(compileInfo.socVersion) == CheckIfDoubleAswtFuncMap.end())
+    auto iter = (CheckIfDoubleAswtFuncMap.find(compileInfo.npuArch) == CheckIfDoubleAswtFuncMap.end())
                     ? CheckIfDoubleAswtDefault
-                    : CheckIfDoubleAswtFuncMap.at(compileInfo.socVersion);
+                    : CheckIfDoubleAswtFuncMap.at(compileInfo.npuArch);
     return iter(args, batchC);
 }
 }  // namespace mc2_matmul_v3_advanced
