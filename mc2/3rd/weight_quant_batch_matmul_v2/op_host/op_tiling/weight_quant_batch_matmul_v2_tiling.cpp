@@ -225,7 +225,7 @@ ge::graphStatus Mc2WeightQuantBatchMatmulV2Tiling::GetPlatformInfo()
         compileInfoPtr_->workspaceNum = compileInfoPtr->workspaceNum;
         compileInfoPtr_->aivNum = compileInfoPtr->aivNum;
         compileInfoPtr_->aicNum = compileInfoPtr->aicNum;
-        compileInfoPtr_->socVersion = compileInfoPtr->socVersion;
+        compileInfoPtr_->npuArch = compileInfoPtr->npuArch;
         compileInfoPtr_->supportMmadS8S4 = compileInfoPtr->supportMmadS8S4;
     }
 
@@ -491,10 +491,10 @@ bool CheckBiasShape(Mc2WeightQuantBatchMatmulInfo* inputParams, const gert::Stor
     return true;
 }
 
-bool CheckShapeDims(Mc2WeightQuantBatchMatmulInfo* inputParams, platform_ascendc::SocVersion socVersion)
+bool CheckShapeDims(Mc2WeightQuantBatchMatmulInfo* inputParams, NpuArch npuArch)
 {
     OP_TILING_CHECK(
-        socVersion != platform_ascendc::SocVersion::ASCEND950 &&
+        npuArch != NpuArch::DAV_3510 &&
             (inputParams->kSize > MAX_SHAPE_DIM || inputParams->nSize > MAX_SHAPE_DIM),
         OP_LOGE(
             inputParams->opName, "Dim of k or n should not more than 65535, but they are [%lu] and [%lu]",
@@ -502,7 +502,7 @@ bool CheckShapeDims(Mc2WeightQuantBatchMatmulInfo* inputParams, platform_ascendc
         return false);
     uint64_t batchMax = inputParams->transA ? MAX_SHAPE_DIM : MAX_INT32;
     OP_TILING_CHECK(
-        socVersion != platform_ascendc::SocVersion::ASCEND950 && (inputParams->mSize > batchMax),
+        npuArch != NpuArch::DAV_3510 && (inputParams->mSize > batchMax),
         OP_LOGE(
             inputParams->opName, "Dim of m should not more than [%lu], but is [%lu]", batchMax, inputParams->mSize),
         return false);
@@ -827,7 +827,7 @@ bool CheckTempLimit(Mc2WeightQuantBatchMatmulInfo* inputParams)
         OP_TILING_CHECK(
             std::find(GROUP_SIZE_LIST.begin(), GROUP_SIZE_LIST.end(), inputParams->groupSize) == GROUP_SIZE_LIST.end(),
             OP_LOGE(inputParams->opName,
-                                            "In the A16Fp4 pergroup scenario of the ASCEND950 , groupsize only "
+                                            "In the A16Fp4 pergroup scenario of the npuArch3510 , groupsize only "
                                             "supports 32, 64, 128, 256, but is [%lu]",
                                             inputParams->groupSize),
             return false);
@@ -836,9 +836,9 @@ bool CheckTempLimit(Mc2WeightQuantBatchMatmulInfo* inputParams)
     return true;
 }
 
-bool CheckNzSupportedScenarios(Mc2WeightQuantBatchMatmulInfo* inputParams, platform_ascendc::SocVersion socVersion)
+bool CheckNzSupportedScenarios(Mc2WeightQuantBatchMatmulInfo* inputParams, NpuArch npuArch)
 {
-    if (socVersion == platform_ascendc::SocVersion::ASCEND950) {
+    if (npuArch == NpuArch::DAV_3510) {
         // WeightNZ only support the following scenarios:
         // (1) Weight in int4 dtye with per-channel or per-group quantization without transA, transB or C8.
         // (2) Weight in fp4 dtye with per-group or MX quantization without transA, transB or C8.
@@ -868,7 +868,7 @@ bool CheckNzSupportedScenarios(Mc2WeightQuantBatchMatmulInfo* inputParams, platf
     return true;
 }
 
-ge::graphStatus Mc2CheckPara(gert::TilingContext* context, platform_ascendc::SocVersion socVersion)
+ge::graphStatus Mc2CheckPara(gert::TilingContext* context, NpuArch npuArch)
 {
     // check Raw TilingData
     OPS_CHECK_NULL_WITH_CONTEXT(context, context->GetRawTilingData());
@@ -885,17 +885,17 @@ ge::graphStatus Mc2CheckPara(gert::TilingContext* context, platform_ascendc::Soc
     OPS_LOG_I(inputParams.opName, "TilingContext: %s", Ops::Transformer::DebugTilingContext(context).c_str());
     // check the input and output dtype
     OP_TILING_CHECK(
-        !CheckDtype(context, &inputParams, socVersion),
+        !CheckDtype(context, &inputParams, npuArch),
         OP_LOGE(inputParams.opName, "Check input dtype failed"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         !CheckAttr(context, &inputParams), OP_LOGE(inputParams.opName, "Check attr failed"),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
-        !CheckShape(context, &inputParams, socVersion), OP_LOGE(inputParams.opName, "Check shape failed"),
+        !CheckShape(context, &inputParams, npuArch), OP_LOGE(inputParams.opName, "Check shape failed"),
         return ge::GRAPH_FAILED);
     if (inputParams.bFormat == ge::FORMAT_FRACTAL_NZ) {
         OP_TILING_CHECK(
-            !CheckNzSupportedScenarios(&inputParams, socVersion),
+            !CheckNzSupportedScenarios(&inputParams, npuArch),
             OP_LOGE(inputParams.opName, "WeightNZ cannot be supported in this scenario"),
             return ge::GRAPH_FAILED);
     }
@@ -908,7 +908,7 @@ ge::graphStatus Mc2CheckPara(gert::TilingContext* context, platform_ascendc::Soc
                 "Weight FP8_E5M2/FP8_E4M3/HIFLOAT8 input cannot support transA, int8 output or weightNz"),
             return ge::GRAPH_FAILED);
     }
-    if (socVersion == platform_ascendc::SocVersion::ASCEND950) {
+    if (npuArch == NpuArch::DAV_3510) {
         OP_TILING_CHECK(
             !CheckTempLimit(&inputParams),
             OP_LOGE(inputParams.opName, "Input cannot meet the condition of this version"),
