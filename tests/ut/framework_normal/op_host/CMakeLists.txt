@@ -72,6 +72,7 @@ if(UT_TEST_ALL OR OP_HOST_UT)
       graph
       platform
       gtest
+      libascendalog.so
   )
 
   ## exec ophost ut exe

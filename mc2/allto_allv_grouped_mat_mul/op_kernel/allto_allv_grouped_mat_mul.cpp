@@ -61,7 +61,7 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
     // TODO move to apt.cpp
     REGISTER_TILING_DEFAULT(QuantAlltoAllvGroupedMatmulTilingData);
     auto tiling = (__gm__ QuantAlltoAllvGroupedMatmulTilingData *)tilingGM;
-    A2avGmmScheduler<HcclA2avOp, QuantGroupedMatmul, SchedulerContext, QuantAlltoAllvGroupedMatmulTilingData> a2avGmmScheduler;
+    MC2KernelTemplate::A2avGmmScheduler<HcclA2avOp, QuantGroupedMatmul, SchedulerContext, QuantAlltoAllvGroupedMatmulTilingData> a2avGmmScheduler;
     a2avGmmScheduler.Init(gmmxGM, gmmweightGM, mmxOptionalGM, mmweightOptionalGM,
             gmmxScaleGM, gmmWeightScaleGM,mmxScaleGM, mmWeightScaleGM,
             gmmyGM, mmyOptionalGM, permuteOutOptionalGM, workspaceGM, tiling, &pipe);

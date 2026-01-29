@@ -204,7 +204,7 @@ private:
     bool CheckDtypeForWeightNz(bool isPertokenScaleNull) const;
     bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
 
-    GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
+    Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     bool isWeightNz_ = false;
 
     int32_t mList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};

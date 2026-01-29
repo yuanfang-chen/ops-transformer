@@ -19,6 +19,7 @@
 
 #define ADD_TPL_FP16 0 // 输入数据类型
 #define ADD_TPL_BP16 1
+#define ADD_TPL_HIF8 2
 
 
 ASCENDC_TPL_ARGS_DECL( 
