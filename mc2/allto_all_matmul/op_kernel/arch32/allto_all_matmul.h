@@ -161,7 +161,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
 
         constexpr bool ENABLE_UNIT_FLAG = false;
         constexpr bool ENABLE_SHUFFLE_K = false;
-        constexpr bool aicCalBias = !std::is_same_v<BType, int8_t> && hasBias;  // 计算量化后的矩阵乘不由CatlassMatmul负责
+        constexpr bool aicCalBias = !std::is_same_v<BType, int8_t> && hasBias;  // 计算量化后的矩阵乘，bias不由CatlassMatmul计算
 
         using ElementA = std::conditional_t<std::is_same_v<BType, int8_t>, int8_t, AType>;  // 若是int8，需要该算子量化，取int8，否则和入参保持一致
         using ElementB = BType;
