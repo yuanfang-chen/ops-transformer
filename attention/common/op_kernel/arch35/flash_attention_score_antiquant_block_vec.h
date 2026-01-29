@@ -1099,7 +1099,7 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::Bmm2DataCop
             attenOutOffset = constInfo.bN2GDv;
         }
         if constexpr (isInfer) {
-            if (constInfo.isBSNDOut == 1) {
+            if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND)) {
                 attenOutOffset = constInfo.n2GDv;
             }
         }
