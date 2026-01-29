@@ -41,6 +41,7 @@ else()
     )
 endif()
 
+# heihei ceshi
 if(NOT BUILD_OPS_RTY_KERNEL)
     add_modules_sources_with_soc(OPTYPE fused_infer_attention_score ACLNNTYPE aclnn_inner)
 endif()
