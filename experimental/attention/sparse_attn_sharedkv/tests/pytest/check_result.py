@@ -203,3 +203,4 @@ def check_result(expect, npu_result):
         display_error_output(real_data, data_compe,
                                 err_idx, err_diff[0:max_error_idx])
         # assert 1==0
+    return result, fulfill_percent
