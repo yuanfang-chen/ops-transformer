@@ -890,7 +890,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
         int64_t s2Size = actualSeqLengthsKVGm.GetValue(bIdx);
         int64_t s1Size;
         if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
-            s1Size = cuSeqlensQGm.GetValue(bIdx + 1);
+            s1Size = cuSeqlensQGm.GetValue(bIdx + 1) - cuSeqlensQGm.GetValue(bIdx);
         } else {
             s1Size = sharedParams.s1Size;
         }
