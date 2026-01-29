@@ -37,9 +37,9 @@ set(ASCEND_COMPUTE_UNIT           "ascend910b"           CACHE   STRING   "soc t
 set(ASCEND_OP_NAME                "ALL"                           CACHE   STRING   "operators that need to be compiled")
 set(ARCH_DIRECTORY                ""                           CACHE   STRING   "arch directory that need to be compiled")
 set(VENDOR_NAME                   "custom"                     CACHE   STRING   "vendor name")
-set(ASCEND_ALL_COMPUTE_UNIT       "ascend910b;ascend910_93;ascend910_95;mc62cm12a;kirinx90" CACHE STRING "all soc list")
+set(ASCEND_ALL_COMPUTE_UNIT       "ascend910b;ascend910_93;ascend950;mc62cm12a;kirinx90" CACHE STRING "all soc list")
 
-set(SOC_VERSION_LIST ascend310p ascend910b ascend910_93 ascend910_95 mc62cm12a kirinx90)
+set(SOC_VERSION_LIST ascend310p ascend910b ascend910_93 ascend950 mc62cm12a kirinx90)
 set(ARCH_DIRECTORY_LIST arch20 arch32 arch32 arch35 arch38 arch32)
 
 foreach(SOC_VERSION ${ASCEND_COMPUTE_UNIT})
@@ -116,6 +116,7 @@ if (BUILD_OPEN_PROJECT)
         include(cmake/dependencies.cmake)
         include(cmake/variables.cmake)
         include(cmake/obj_func.cmake)
+        include(cmake/third_party/eigen.cmake)
         include(cmake/third_party/abseil-cpp.cmake)
         include(cmake/third_party/ascend_protobuf.cmake)
 
@@ -140,6 +141,9 @@ if (BUILD_OPEN_PROJECT)
             include(cmake/package.cmake)
             pack_built_in()
         else()
+            message(STATUS "Start building custom package.")
+            include(cmake/symbol.cmake)
+            gen_cust_aicpu_symbol()
             include(cmake/package.cmake)
             pack_tiling_sink()
         endif()
@@ -310,12 +314,8 @@ foreach (OP_DEPEND_DIR ${OP_DEPEND_DIR_LIST})
     endif()
 endforeach ()
 
-install(DIRECTORY ${OPS_ADV_ACT}/
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/act
-)
-
-install(DIRECTORY ${OPS_GROUPEDMATMUL_ACT}/
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/groupedmatmul_act
+install(DIRECTORY ${OPS_CGMCT}/
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/cgmct
 )
 
 

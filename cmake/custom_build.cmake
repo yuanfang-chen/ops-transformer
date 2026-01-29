@@ -265,6 +265,9 @@ foreach (OP_DIR ${OP_DIR_LIST})
         if(EXISTS "${OP_DIR}/op_graph/CMakeLists.txt")
             add_subdirectory(${OP_DIR}/op_graph)
         endif()
+        if(EXISTS "${OP_DIR}/op_kernel_aicpu/CMakeLists.txt")
+            add_subdirectory(${OP_DIR}/op_kernel_aicpu)
+        endif()
     else()
         add_subdirectory(${OP_DIR})
     endif()
@@ -286,6 +289,11 @@ endif()
 
 if("${ASCEND_OP_NAME}" STREQUAL "add_example")
     add_subdirectory(examples)
+    list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
+endif()
+
+if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")
+    add_subdirectory(examples/add_example)
     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
 endif()
 
@@ -692,6 +700,9 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
+install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
+)
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
 )

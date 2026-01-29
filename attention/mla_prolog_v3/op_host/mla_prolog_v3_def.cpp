@@ -302,8 +302,8 @@ public:
             .DataType({ge::DT_BF16, ge::DT_INT8, ge::DT_INT8, ge::DT_INT8, ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN})
             .FormatList({ge::FORMAT_ND});
         aicore_config_95.Output("dequant_scale_q_norm")
-            .ParamType(REQUIRED)
-            .DataTypeList({ge::DT_FLOAT})
+ 	        .ParamType(REQUIRED)
+ 	        .DataType({ge::DT_FLOAT, ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT,ge::DT_FLOAT, ge::DT_FLOAT8_E8M0, ge::DT_FLOAT8_E8M0})
             .FormatList({ge::FORMAT_ND});
         aicore_config_95.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
@@ -312,7 +312,7 @@ public:
             .NeedCheckSupportFlag(false)
             .PrecisionReduceFlag(true)
             .ExtendCfgInfo("aclnnSupport.value", "support_aclnn");
-        this->AICore().AddConfig("ascend910_95", aicore_config_95);
+        this->AICore().AddConfig("ascend950", aicore_config_95);
     }
 };
 OP_ADD(MlaPrologV3, optiling::MlaPrologCompileInfo);

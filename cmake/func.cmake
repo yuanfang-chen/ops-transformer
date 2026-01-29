@@ -371,7 +371,9 @@ function(add_ops_src_copy)
             set(OPS_UTILS_INC_KERNEL_DIR ${_ROOT_OPS_SRC_DIR}/ascendc/common)
             add_custom_command(OUTPUT ${OPS_UTILS_INC_KERNEL_DIR}
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/regbase
+                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
                     COMMAND cp -rf ${OPS_ADV_UTILS_KERNEL_INC}/*.* ${OPS_UTILS_INC_KERNEL_DIR}
+                    COMMAND cp -rf ${OPS_CGMCT}/* ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
             )
 
             add_custom_target(${OPS_UTILS_INC_KERNEL_TARGET}
@@ -381,6 +383,7 @@ function(add_ops_src_copy)
     endif ()
 
     set(MC2_OPS_LIST "matmul_reduce_scatter;"
+        "matmul_reduce_scatter_v2;"
         "grouped_mat_mul_allto_allv;"
         "grouped_mat_mul_all_reduce;"
         "batch_mat_mul_reduce_scatter_allto_all;"
@@ -394,9 +397,14 @@ function(add_ops_src_copy)
         "moe_distribute_combine_v2;"
         "moe_update_expert;"
         "all_gather_matmul;"
+        "all_gather_matmul_v2;"
         "matmul_all_reduce;"
+        "matmul_all_reduce_apt;"
         "matmul_all_reduce_add_rms_norm;"
         "inplace_matmul_all_reduce_add_rms_norm;"
+        "quant_all_reduce;"
+        "quant_reduce_scatter;"
+        "allto_all_matmul;"
         "matmul_allto_all;"
         "attention_to_ffn;"
         "ffn_to_attention;"

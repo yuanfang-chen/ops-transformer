@@ -553,7 +553,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
         <td>blockSize</td>
         <td>输入</td>
         <td>PageAttention中KV存储每个block中最大的token个数。</td>
-        <td>不传时按照0处理。</td>
+        <td>综合约束请见<a href="#约束说明">约束说明</a>。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -778,10 +778,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - 支持TND、NTD_TND；
       - TND场景，数据类型仅支持FLOAT16、BFLOAT16；NTD_TND场景，数据类型仅支持BFLOAT16；
       - TND场景，当head配比为GQA/MQA时（即必须完整传入numHeads和numKeyValueHeads参数，且numHeads是numKeyValueHeads的整数倍，且二者不相等），有如下约束：
-        - 当数据类型为FLOAT16时，支持sparse=0且不传mask，或sparse=3且传入优化后的attentionMask；
-        - 当数据类型为BFLOAT16时，有如下约束：
-          - Q_D、K_D、V_D相等且小于等于256场景下，支持sparse=0且不传mask，或sparse=3，4且传入优化后的attentionMask，仅支持GQA和innerPrecise=0场景，要求  preTokens >= -actualSeqLengths、nextTokens >= -actualSeqLengthsKv、preTokens + nextTokens >= 0;
-          - Q_D、K_D等于192，V_D等于128/192场景下，支持sparse=0且不传mask，或sparse=3，4且传入优化后的attentionMask;
+        - 当数据类型为FLOAT16、BFLOAT16时，支持sparse=0且不传mask，或sparse=3且传入优化后的attentionMask：
+ 	           - Q_D、K_D、V_D相等且小于等于256或Q_D、K_D等于192，V_D等于128/192场景下，支持sparse=4且传入优化后的attentionMask，要求preTokens>=-actualSeqLengths、nextTokens>=-actualSeqLengthsKv、preTokens+nextTokens>=0;
         - 仅支持innerPrecise=0，即不带行无效的高精度模式；
         - 支持page attention，kv cache排布格式支持BnBsH（blocknum, blocksize, H），H不大于65535，blockSize仅支持128；
       - TND场景，当head配比为MHA时，有如下约束：
@@ -1189,9 +1187,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - keyAntiquantScale 和valueAntiquantScale都不为空时，除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致；keyAntiquantOffset 和 valueAntiquantOffset都不为空时，除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致
       - 支持per-channel、per-tensor、per-token、per-tensor叠加per-head、per-token叠加per-head、per-token使用page attention模式管理scale/offset、per-token叠加per-head并使用page attention模式管理scale/offset、key支持per-channel叠加value支持per-token和per-token-group九种模式，以下N均为numKeyValueHeads。
       - per-channel模式：两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)，(N, 1, D)，(N, D)，(H)。参数数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)、HIFLOAT8、FLOAT8_E4M3FN时支持。当key、value数据类型为HIFLOAT8、FLOAT8_E4M3FN时不支持带antiquantOffset。
-      - per-tensor模式：两个参数的shape均为(1)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。
+      - per-tensor模式：两个参数的shape均为(1)，数据类型和query数据类型相同，当key、value数据类型为INT8时支持。
       - per-token模式：两个参数的shape可支持(1, B, S)，( B, S)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
-      - per-tensor叠加per-head模式：两个参数的shape均为(N)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。
+      - per-tensor叠加per-head模式：两个参数的shape均为(N)，数据类型和query数据类型相同，当key、value数据类型为INT8时支持。
       - key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)，(N, 1, D)，(N, D)，(H)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为(1, B, S)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
       - per-token-group模式：antiquantScale的shape为(1, B, N, S, D/32), 数据类型固定为FLOAT8_E8M0，不支持带antiquantOffset。当key、value数据类型为FLOAT4_E2M1时支持。
       - per-token叠加per-head模式：两个参数的shape均为(B, N, S)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
@@ -1199,10 +1197,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - per-token叠加per-head模式并使用page attention管理scale/offset模式：两个参数的shape均为(blocknum, N, blocksize)，数据类型固定为FLOAT32，当key、value数据类型为INT8时支持。
       - 当伪量化参数 和 KV分离量化参数同时传入时，以KV分离量化参数为准。
       - INT4（INT32）伪量化场景仅支持KV伪量化参数分离，具体包括：
-        - per-tensor模式；
         - per-channel模式；
         - per-token模式；
-        - per-tensor叠加per-head模式；
         - per-token叠加per-head模式；
         - key支持per-channel叠加value支持per-token模式。
       - 部分伪量化场景不支持后量化

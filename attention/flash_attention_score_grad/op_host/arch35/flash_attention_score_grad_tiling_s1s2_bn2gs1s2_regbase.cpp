@@ -88,9 +88,11 @@ constexpr size_t WORKSPACE_BUFFER = static_cast<size_t>(20 * 1024 * 1024);
 constexpr uint32_t BIT_NUMS = 8;
 constexpr int64_t ALIGN128 = 128;
 constexpr int64_t BN2_MAX_S = 128;
+constexpr int64_t BN2S2_MAX_S = 1024;
 constexpr int64_t BN2_MULTIBLK_SEQ = 640;
 constexpr int64_t BN2_MULTIBLK_BN = 256;
 constexpr int64_t BN2_MAX_D = 512;
+constexpr int64_t BN2S2_WRITE_UB_D = 128;
 constexpr int64_t ROPE_D_192 = 192;
 constexpr int64_t ROPE_D_64 = 64;
 constexpr int64_t NEGATIVE_128 = -128;
@@ -440,10 +442,22 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SetSplitAxis()
         }
     }
 
-    if (!fBaseParams.isBn2 && !fBaseParams.hasRope && fBaseParams.d <= BN2_MAX_D &&
-        (fBaseParams.layoutType == INPUT_FROAMT_TND || (fBaseParams.isAllSame && !fBaseParams.isDeterministic)) && fBaseParams.n1 == fBaseParams.n2 &&
-        (fBaseParams.queryType != ge::DT_FLOAT) && !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8)) {
-        fBaseParams.layoutType = INPUT_FROAMT_TND;
+    bool bn2S2NotTndLimit = (fBaseParams.s1 < fBaseParams.s2) &&
+        (fBaseParams.s2 <= BN2S2_MAX_S) &&
+        (fBaseParams.s2 - fBaseParams.s1 >= BN2_MAX_S) &&
+        (fBaseParams.d <= BN2S2_WRITE_UB_D) &&
+        (!fBaseParams.isSparse) &&
+        (!fBaseParams.isDeterministic);
+    bool bn2S2RouteLimit = !fBaseParams.hasRope && fBaseParams.d <= BN2_MAX_D &&
+        (fBaseParams.layoutType == INPUT_FROAMT_TND || (fBaseParams.isAllSame && !fBaseParams.isDeterministic) ||
+        bn2S2NotTndLimit) &&
+        (fBaseParams.n1 == fBaseParams.n2) &&
+        (fBaseParams.queryType != ge::DT_FLOAT) &&
+        !(fBaseParams.queryType == ge::DT_FLOAT8_E5M2 ||
+        fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8);
+
+    if (!fBaseParams.isBn2 && bn2S2RouteLimit) {
+        fBaseParams.layoutType = fBaseParams.isAllSame ? INPUT_FROAMT_TND : fBaseParams.layoutType;
         fBaseParams.splitAxis = SplitAxisEnum::BN2S2;
     } else if (fBaseParams.isBn2) {
         fBaseParams.splitAxis = SplitAxisEnum::BN2;
@@ -1488,9 +1502,11 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CalcleCausalDeterParam()
         if ((t % MULT_BASE) == 1) {
             int64_t m1 = m - t1 * MULT_BASE * k;
             if (ell == 0) {
-                rUpper += m1;
+                int64_t rm3 = (fBaseParams.g != 1) ? (m + m1 + 1) * t1 : 0;
+                rUpper += m1 + rm3;
             } else {
-                rUpper += std::max(m1, MULT_BASE * m1 - MULT_BASE * k + 1);
+                int64_t rm3 = (fBaseParams.g != 1) ? (m + m1 + 1) * t1 : 0;
+                rUpper += std::max(m1, MULT_BASE * m1 - MULT_BASE * k + 1) + rm3;
             }
             bTail = bTail - 1;
         } else {
@@ -3096,7 +3112,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetParseS1S2OuterInfo(int64_t
             fBaseParams.isInvalidCol = true;
         }
         // check invalid row or col block for BN2
-        for (size_t j = 0; j < invalidS1Array.size(); j++) {
+        for (int64_t j = 0; j < static_cast<int64_t>(invalidS1Array.size()); j++) {
             if (j >= parseInfo[i][BEGIN_IDX] && j < parseInfo[i][END_IDX]) {
                 invalidS1Array[j] = true;
             }

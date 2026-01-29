@@ -60,7 +60,7 @@ enum class SocVersion {
     ASCEND910 = 0,
     ASCEND910B,
     ASCEND910_93,
-    ASCEND910_95,
+    ASCEND950,
     ASCEND910E,
     ASCEND310,
     ASCEND310P,
@@ -147,6 +147,8 @@ const PlatformInfo& GetCurrentPlatformInfo();
 ge::AscendString ToString(SocVersion socVersion);
 
 void SetPlatformSocVersion(SocVersion socVersion);
+
+void SetPlatformNpuArch(NpuArch npuArch);
 
 } // namespace op
 

@@ -40,6 +40,7 @@ const int64_t tokenDefault = 2147483647;  // for token default value
 const int32_t sparseDefault = 0;
 constexpr int32_t POS_SHIFT_MAX = 1048576; // 2^20
 constexpr int32_t POS_SHIFT_MIN = -1048576; // -2^20
+constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
 
 ge::graphStatus PFAConvertContext(ContextParamsForPFATiling &contextKeyParams, gert::TilingContext *context)
 {
@@ -2535,8 +2536,8 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
               inputKvType_ == ge::DT_FLOAT4_E2M1)),
               OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp8/hifp8/fp4_e2m1, antiquantOffset is not supported."),
               return ge::GRAPH_FAILED);
-  OP_CHECK_IF(((antiquantMode == PER_TOKEN_PA_MODE || antiquantMode == PER_TOKEN_HEAD_PA_MODE) && inputKvType_ != ge::DT_INT8),
-            OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 4 or 5, input key/value type should be int8, "
+  OP_CHECK_IF(((antiquantMode == PER_TENSOR_HEAD_MODE || antiquantMode == PER_TOKEN_PA_MODE || antiquantMode == PER_TOKEN_HEAD_PA_MODE) && inputKvType_ != ge::DT_INT8),
+            OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 2, 4 or 5, input key/value type should be int8, "
                       "but now is %s.", DataTypeToString(inputKvType_).c_str()),
             return ge::GRAPH_FAILED);
   OP_CHECK_IF((antiquantMode == PER_TOKEN_GROUP_MODE && !(inputKvType_ == ge::DT_FLOAT4_E2M1)),
@@ -2586,6 +2587,16 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
       OP_LOGE(ifaContext_->opName, "Datatype of antiquant scale and antiquant offset should be the same.");
       return ge::GRAPH_FAILED;
     }
+  }
+
+  gert::Shape keyAntiquantScaleTensorShape = antiquantScaleTensor->GetStorageShape();
+  gert::Shape expectedShape1 = gert::Shape({1});
+  if (antiquantMode == PER_CHANNEL_MODE) {
+    // per-tensor
+    OP_CHECK_IF((ShapeEqual(expectedShape1, keyAntiquantScaleTensorShape) && inputKvType_ != ge::DT_INT8),
+                OP_LOGE(ifaContext_->opName,
+                        "In per-tensor mode, the input key/value type should be int8, but now is %s.", DataTypeToString(inputKvType_).c_str()),
+                return ge::GRAPH_FAILED);
   }
   return ge::GRAPH_SUCCESS;
 }
@@ -2683,6 +2694,11 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
       return ge::GRAPH_FAILED;
     }
     if (kPerChnVPerTokFlag_) {
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (inputQType_ == ge::DT_BF16 || outputType_ == ge::DT_BF16)),
+        OP_LOGE(ifaContext_->opName, "When key in per-channel scenario and value in pre-token scenario,"
+        "if inputKvType is Int8, inputQType and outputType only must be FP16, now inputQType is %s, outputType is %s.",
+                optiling::v2::GetPfaDataTypeStr(inputQType_).c_str(), optiling::v2::GetPfaDataTypeStr(outputType_).c_str()),
+          return ge::GRAPH_FAILED);
       if (CheckAntiQuantParam(valueAntiquantMode, valueAntiquantScaleTensor, valueAntiquantOffsetTensor,
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
@@ -4277,6 +4293,8 @@ ge::graphStatus IFATilingV2::DoOpTiling()
             static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
             static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), enableKVPrefix);
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     return ret;
 }
 
