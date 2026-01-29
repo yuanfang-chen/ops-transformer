@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include "all_gather_matmul_tiling_v2.h"
 #include "mc2_log.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "graph/utils/type_utils.h"
@@ -36,15 +35,7 @@ ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
 
     std::string socVersion;
     (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersion);
-    if (socVersion == "Ascend910B" || socVersion == "Ascend910_93") {
-        auto attrs = context->GetAttrs();
-        auto commModePtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMMMODE));
-        OP_TILING_CHECK((commModePtr == nullptr || !(std::strcmp(commModePtr, "aiv") == 0)),
-            OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is invalid. commMode is %s", commModePtr), return ge::GRAPH_FAILED);
-        if (std::strcmp(commModePtr, "aiv") == 0) {
-            return AllGatherMatmulTilingAIVModeFunc(context);
-        }
-    }
+
     return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
 }
 
