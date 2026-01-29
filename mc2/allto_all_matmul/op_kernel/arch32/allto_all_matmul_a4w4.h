@@ -198,8 +198,8 @@ __aicore__ inline void AlltoAllMatmulA4W4<TemplateA2AMMFunc>::CatlassMatmul()
 
         GM_ADDR matmulResultGM = reinterpret_cast<GM_ADDR>(dequantCGM_);  // 量化矩阵乘法时，需要修改c矩阵存放地址
         if (m0 == 128) {
-            using L1TileShape = GemmShape<128, 256, 256>;
-            using L0TileShape = GemmShape<128, 256, 64>;
+            using L1TileShape = GemmShape<128, 256, 1024>;
+            using L0TileShape = GemmShape<128, 256, 256>;
             using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType_, BType_, CType_, BiasType_, TileCopy>;
             using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
             MatmulKernel matmul_op;
@@ -211,8 +211,8 @@ __aicore__ inline void AlltoAllMatmulA4W4<TemplateA2AMMFunc>::CatlassMatmul()
                                     pValue, 3, 0, static_cast<int32_t>(rankSize), MAX_BLOCK_COUNT};
             matmul_op(params);
         } else {
-            using L1TileShape = GemmShape<256, 128, 256>;
-            using L0TileShape = GemmShape<256, 128, 64>;
+            using L1TileShape = GemmShape<256, 128, 1024>;
+            using L0TileShape = GemmShape<256, 128, 256>;
             using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType_, BType_, CType_, BiasType_, TileCopy>;
             using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
             MatmulKernel matmul_op;
