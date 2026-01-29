@@ -81,11 +81,10 @@ __aicore__ inline void InitSortOutBuf(const LocalTensor<float> &src, int64_t ele
   tmp: 计算使用到的临时空间，大小与src一致
   logitsNum: 排序的元素个数, 暂只支持[128,256,384,512,1024,2048]
  */
-// 改为支持任意32ele对齐的长度
 __aicore__ inline void SortAll(LocalTensor<float> &src, LocalTensor<float> &tmp, int64_t logitsNum)
 {
     int64_t sort32Repeats = logitsNum / BLOCK_BYTES;
-    AscendC::Sort32(tmp, src, src[logitsNum].ReinterpretCast<uint32_t>(), sort32Repeats);  // TODO: 改为实际偏移
+    AscendC::Sort32(tmp, src, src[logitsNum].ReinterpretCast<uint32_t>(), sort32Repeats);
     AscendC::PipeBarrier<PIPE_V>();
 
     int64_t mrgGroups = sort32Repeats;

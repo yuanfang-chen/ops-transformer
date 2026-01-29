@@ -29,6 +29,9 @@ using namespace QLIServiceVec;
 constexpr uint32_t BASE_TOPK = 2048;
 constexpr uint32_t BASE_TOPK_VALUE_IDX_SIZE = 4096;
 constexpr uint32_t LD_PARAM_NUM = 16;
+constexpr uint32_t ELE_NUM_32 = 32;
+constexpr uint32_t ELE_NUM_128 = 128;
+constexpr uint32_t ELE_NUM_512 = 512;
 
 template <typename QLIT>
 class QLIVector {
@@ -326,12 +329,12 @@ __aicore__ inline int32_t QLIVector<QLIT>::AlignS2(int32_t cuS2Len)
 {
     // 限制：当前cuS2Len最大为2048，暂不考虑更长
     // 该函数目的是将cuS2Len对齐到形如 32*(4^n)*m 的形式 (m ∈ [1, 3])，方便后续sort/merge
-    if (cuS2Len <= 128) {
-        return Align(cuS2Len, 32);
-    } else if (cuS2Len <= 512) {
-        return Align(cuS2Len, 128);
+    if (cuS2Len <= ELE_NUM_128) {
+        return Align(cuS2Len, ELE_NUM_32);
+    } else if (cuS2Len <= ELE_NUM_512) {
+        return Align(cuS2Len, ELE_NUM_128);
     } else {
-        return Align(cuS2Len, 512);
+        return Align(cuS2Len, ELE_NUM_512);
     }
 }
 
@@ -381,7 +384,6 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
         int32_t cuS2Len = cuBaseS2Idx + s2BaseSize_ >= cuRealAcSeq ? cuRealAcSeq - cuBaseS2Idx : s2BaseSize_;
         int32_t cuS1Idx = cuS1BeginIdxPerAiv + innerS1Idx;
         if (cuRealAcSeq > 0 && cuS2Len > 0) {
-            // int32_t cuS2LenVecAlign = CeilDiv(cuS2Len, s2BaseSize_) * s2BaseSize_;
             int32_t cuS2LenVecAlign = AlignS2(cuS2Len);
             LocalTensor<float> mmInUb = inQueue_.AllocTensor<float>();
             LocalTensor<float> kScaleUb = mmInUb[cuS2LenVecAlign];
@@ -406,7 +408,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             LocalTensor<float> sortScoreUb = sortBuff;
             LocalTensor<float> sortIndiceUb = sortBuff[cuS2LenVecAlign];
             PipeBarrier<PIPE_V>();
-            Duplicate(sortScoreUb.template ReinterpretCast<int32_t>(), QLIServiceVec::NEG_INF, cuS2LenVecAlign); // TODO: 改为2048
+            Duplicate(sortScoreUb.template ReinterpretCast<int32_t>(), QLIServiceVec::NEG_INF, cuS2LenVecAlign);
             PipeBarrier<PIPE_V>();
             Adds(sortScoreUb, mmInUb, 0.0f, cuS2Len);
             PipeBarrier<PIPE_V>();
@@ -415,7 +417,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             // 无效数据索引填充为-1
             // if (cuS2Len != 2048) {
             if (cuS2LenVecAlign != cuS2Len) {
-                Duplicate(sortIndiceUbInt, -1, cuS2LenVecAlign);  // TODO: 改为2048
+                Duplicate(sortIndiceUbInt, -1, cuS2LenVecAlign);
                 PipeBarrier<PIPE_V>();
             }
             Adds(sortIndiceUbInt, globalTopkIndice_, static_cast<int32_t>(cuBaseS2Idx), cuS2Len);
@@ -423,7 +425,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             LocalTensor<float> tmpSortBuf = sortBuff[2 * cuS2LenVecAlign];
             printf("[hl] core_id=%u, cuS2Len=%u, cuRealAcSeq=%u， cuS2LenVecAlign=%u\n",
                    GetBlockIdx(), cuS2Len, cuRealAcSeq, cuS2LenVecAlign);
-            QLIServiceVec::SortAll(sortBuff, tmpSortBuf, cuS2LenVecAlign);  // TODO: 改为align 32
+            QLIServiceVec::SortAll(sortBuff, tmpSortBuf, cuS2LenVecAlign);
             PipeBarrier<PIPE_V>();
             QLIServiceVec::MergeSort(globalTopkUb_[innerS1Idx * BASE_TOPK_VALUE_IDX_SIZE], BASE_TOPK, sortBuff,
                                      cuS2LenVecAlign, tmpSortBuf);
@@ -431,8 +433,8 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             bool isS2End = cuBaseS2Idx + s2BaseSize_ >= cuRealAcSeq;
             bool needCopyOutGm = blockS2StartIdx_ == 0 && isS2End;
             // 中间结果保存
-            // bool needCopyWsGm = info.isAllLoopEnd || isS2End; // TODO: needCopyWsGm目前永远为false
-            bool needCopyWsGm = false;
+            bool needCopyWsGm = info.isAllLoopEnd || isS2End;
+            needCopyWsGm = false;  // 暂时关闭LD
             if (needCopyOutGm) {
                 LocalTensor<uint32_t> idxULocal = outQueue_.AllocTensor<uint32_t>();
                 ExtractIndex(idxULocal,
