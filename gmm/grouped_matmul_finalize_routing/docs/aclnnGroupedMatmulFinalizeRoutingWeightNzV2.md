@@ -85,122 +85,122 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
     <tr>
       <td>x1</td>
       <td>输入</td>
-      <td>输入x(左矩阵)。</td>
-      <td>无</td>
+      <td>输入x（左矩阵）。</td>
+      <td>-</td>
       <td>INT8</td>
       <td>ND</td>
       <td>(m, k)，维度m的取值范围为[1,16\*1024\*8]，k支持2048</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>x2</td>
       <td>输入</td>
-      <td>输入weight(右矩阵)</td>
-      <td>无</td>
+      <td>输入weight（右矩阵）。</td>
+      <td>-</td>
       <td>INT4、INT8</td>
       <td>NZ</td>
       <td>shape支持三维，当输入为INT32时维度为(e, k, n / 8)，输入转为INT4时维度为(e, k, n)，e取值范围[1,256]，k支持2048，n支持7168</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>scale</td>
       <td>输入</td>
-      <td>量化参数中的缩放因子，perchannel量化参数</td>
-      <td>无</td>
+      <td>量化参数中的缩放因子，perchannel量化参数。</td>
+      <td>-</td>
       <td>INT64、FLOAT32、BF16</td>
       <td>ND</td>
       <td>shape支持三维，维度为(e, 1, n)，e、n和w的e、n一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>bias</td>
       <td>输入</td>
-      <td>矩阵的偏移</td>
-      <td>无</td>
+      <td>矩阵的偏移。</td>
+      <td>-</td>
       <td>BF16、FLOAT32</td>
       <td>ND</td>
       <td>shape支持二维，维度为(e, n)，e、n和w的e、n一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>offsetOptional</td>
       <td>输入</td>
-      <td>非对称量化的偏移量</td>
-      <td>无</td>
+      <td>非对称量化的偏移量。</td>
+      <td>-</td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td>shape支持三维，维度为(e, 1, n)，e、n和w的e、n一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>antiquantScaleOptional</td>
       <td>输入</td>
-      <td>伪量化的缩放因子</td>
+      <td>伪量化的缩放因子。</td>
       <td>目前暂未启用</td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>antiquantOffsetOptional</td>
       <td>输入</td>
-      <td>伪量化的偏移量</td>
+      <td>伪量化的偏移量。</td>
       <td>目前暂未启用</td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>pertokenScaleOptional</td>
       <td>输入</td>
-      <td>矩阵计算的反量化参数</td>
+      <td>矩阵计算的反量化参数。</td>
       <td></td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td>shape支持一维，维度为(m)，m和x的m一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>groupList</td>
       <td>输入</td>
-      <td>输入和输出分组轴方向的matmul大小分布</td>
+      <td>输入和输出分组轴方向的matmul大小分布。</td>
       <td></td>
       <td>INT64</td>
       <td>ND</td>
       <td>shape支持一维，维度为(e)，e和w的e一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>sharedInput</td>
       <td>输入</td>
-      <td>moe计算中共享专家的输出，需要与moe专家的输出进行combine操作</td>
+      <td>moe计算中共享专家的输出，需要与moe专家的输出进行combine操作。</td>
       <td></td>
       <td>BF16</td>
       <td>ND</td>
       <td>shape支持一维，维度为(e)，e和w的e一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>logit</td>
       <td>输入</td>
-      <td>moe专家对各个token的logit大小</td>
+      <td>moe专家对各个token的logit大小。</td>
       <td></td>
       <td>FLOAT32</td>
       <td>ND</td>
       <td>shape支持一维，维度为(m)，m和x的m一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>rowIndex</td>
       <td>输入</td>
-      <td>moe专家输出按照该rowIndex进行combine，其中的值即为combine做scatter add的索引</td>
+      <td>moe专家输出按照该rowIndex进行combine，其中的值即为combine做scatter add的索引。</td>
       <td></td>
       <td>INT64、INT32</td>
       <td>ND</td>
       <td>shape支持一维，维度为(m)，m和x的m一致</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>dtype</td>
@@ -210,7 +210,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>INT64</td>
       <td></td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>sharedInputWeight</td>
@@ -220,7 +220,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>FLOAT32</td>
       <td></td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>sharedInputOffset</td>
@@ -230,7 +230,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>INT64</td>
       <td></td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>transposeX</td>
@@ -240,7 +240,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>BOOL</td>
       <td></td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>transposeX2</td>
@@ -250,7 +250,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>BOOL</td>
       <td></td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>groupListType</td>
@@ -260,7 +260,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>INT64</td>
       <td></td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>tuningConfigOptional</td>
@@ -270,7 +270,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>INT64</td>
       <td></td>
       <td></td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>out</td>
@@ -280,7 +280,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>FLOAT32</td>
       <td>ND</td>
       <td>(batch, n)</td>
-      <td>×</td>
+      <td>-</td>
     </tr>
     <tr>
       <td>workspaceSize</td>
@@ -391,14 +391,14 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 - 确定性计算：
   - aclnnGroupedMatmulFinalizeRoutingWeightNzV2默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 
-输入和输出支持以下数据类型组合：
-
-| x1    | x2    | scale   | bias    | offsetOptional  | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional| groupList | sharedInput | logit   | rowIndex | out   | tuningConfigOptional |
-|------|------|---------|---------|---------|----------------|-----------------|---------------|-----------|-------------|---------|----------|-------|----------------------|
-| INT8 | INT8 | FLOAT32 | null    | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT | IntArray             |
-| INT8 | INT8 | FLOAT32 | null    | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT | IntArray             |
-| INT8 | INT4 | INT64   | FLOAT32 | FLOAT32 | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT | IntArray             |
-| INT8 | INT4 | INT64   | FLOAT32 | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT | IntArray             |
+- 输入和输出支持以下数据类型组合：
+  
+  | x1    | x2    | scale   | bias    | offsetOptional  | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional| groupList | sharedInput | logit   |   rowIndex | out   | tuningConfigOptional |
+  |------|------|---------|---------|---------|----------------|-----------------|---------------|-----------|-------------|---------|----------|-------| ----------------------|
+  | INT8 | INT8 | FLOAT32 | null    | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT |   IntArray             |
+  | INT8 | INT8 | FLOAT32 | null    | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT |   IntArray             |
+  | INT8 | INT4 | INT64   | FLOAT32 | FLOAT32 | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT |   IntArray             |
+  | INT8 | INT4 | INT64   | FLOAT32 | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT |   IntArray             |
 
 ## 调用示例
 
