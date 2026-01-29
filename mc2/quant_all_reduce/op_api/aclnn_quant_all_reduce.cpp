@@ -219,7 +219,7 @@ extern "C" aclnnStatus aclnnQuantAllReduceGetWorkspaceSize(const aclTensor* x, c
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
     aclnnStatus ret = aclnnInnerQuantAllReduceGetWorkspaceSize(x, scales, group, reduceOp, yDtype,
                                                                output, workspaceSize, executor);
-    OP_LOGD("QuantAllReduce, aclnnGetWorkspaceSize ret %d.", ret);
+    OP_LOGD("QuantAllReduce, aclnnnGetWorkspaceSize ret %d.", ret);
     return ret;
 }
 
