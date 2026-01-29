@@ -57,7 +57,15 @@ public:
 
     __aicore__ inline void End() {}
 
+
+    __aicore__ inline void End() {}
+
 protected:
+    __aicore__ inline void UpdateAddr(uint32_t expertIdx)
+    {
+        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenNum_[expertIdx] * H1_);
+        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_);
+        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenNum_[expertIdx] * N1_);
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
     {
         xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenNum_[expertIdx] * H1_);
