@@ -98,6 +98,7 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
     import numpy as np
     import random
     import math
+    import custom_ops
 
     data_type = torch.bfloat16
     softmax_scale = 0.041666666666666664
@@ -136,7 +137,7 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
     cmp_block_table = torch.tensor(np.random.permutation(range(block_num2))).to(torch.int32).reshape(b, -1).npu()
     cmp_kv = torch.tensor(np.random.uniform(-5, 10, (block_num2, cmp_block_size, n2, dn))).to(data_type).npu()
     sinks = torch.rand(n1).to(torch.float32).npu()
-    metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+    metadata = torch.ops.custom.npu_sparse_attn_sharedkv_metadata(
         num_heads_q=n1,
         num_heads_kv=n2,
         head_dim=dn,
@@ -145,7 +146,7 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
         batch_size=b,
         max_seqlen_q=s1,
         max_seqlen_kv=s2,
-        topk=k,
+        cmp_topk=k,
         cmp_ratio=cmp_ratio,
         ori_mask_mode=ori_mask_mode,
         cmp_mask_mode=cmp_mask_mode,
@@ -156,7 +157,7 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
         has_ori_kv=True,
         has_cmp_kv=True
     )
-    attn_out, softmax_lse = torch_npu.npu_sparse_attn_sharedkv(
+    attn_out, softmax_lse = torch.ops.custom.npu_sparse_attn_sharedkv(
         q,
         ori_kv=ori_kv,
         cmp_kv=cmp_kv,
@@ -191,6 +192,7 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
     import random
     import math
     import torchair
+    import custom_ops
 
     data_type = torch.bfloat16
     softmax_scale = 0.041666666666666664
@@ -243,7 +245,7 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
             topk, has_ori_kv, has_cmp_kv, q, ori_kv, cmp_kv, cmp_sparse_indices, ori_block_table, 
             cmp_block_table, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, sinks,
             ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv):
-            metadata = torch_npu.npu_sparse_attn_sharedkv_metadata(
+            metadata = torch.ops.custom.npu_sparse_attn_sharedkv_metadata(
                 num_heads_q=num_heads_q,
                 num_heads_kv=num_heads_kv,
                 head_dim=head_dim,
@@ -252,7 +254,7 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
                 batch_size=batch_size,
                 max_seqlen_q=max_seqlen_q,
                 max_seqlen_kv=max_seqlen_kv,
-                topk=topk,
+                cmp_topk=topk,
                 cmp_ratio=cmp_ratio,
                 ori_mask_mode=ori_mask_mode,
                 cmp_mask_mode=cmp_mask_mode,
@@ -261,9 +263,10 @@ torch_npu.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_in
                 layout_q=layout_q,
                 layout_kv=layout_kv,
                 has_ori_kv=has_ori_kv,
-                has_cmp_kv=has_cmp_kv
+                has_cmp_kv=has_cmp_kv,
+                device="npu:0"
             )
-            npu_out = torch_npu.npu_sparse_attn_sharedkv(
+            npu_out = torch.ops.custom.npu_sparse_attn_sharedkv(
                 q,
                 ori_kv=ori_kv,
                 cmp_kv=cmp_kv,
