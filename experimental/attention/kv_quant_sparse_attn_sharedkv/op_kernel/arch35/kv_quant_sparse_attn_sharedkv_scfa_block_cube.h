@@ -208,11 +208,7 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1SCFA(
     }
 
     // 加载当前轮的右矩阵到L1
-    // mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
     inputRightBuf.WaitCrossCore();    // 核间同步，这里需要根据V0操作处理同步，确保取tensor时，数据已经准备好
-
-    // mm1B.Set<HardEvent::MTE2_MTE1>();  // 通知
-    // mm1B.Wait<HardEvent::MTE2_MTE1>(); // 等待L1B
 
     inputLeftBuf.Wait<HardEvent::MTE2_MTE1>(); // 等待L1A
     Buffer<BufferType::L0C> mm1ResL0C = mmL0CBuffers.Get();
@@ -231,9 +227,6 @@ __aicore__ inline void SCFABlockCube<TEMPLATE_ARGS>::IterateBmm1SCFA(
     if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
         inputLeftBuf.Set<HardEvent::MTE1_MTE2>(); // 释放L1A
     }
-
-    // bmm2再释放
-    // mm1B.Set<HardEvent::MTE1_MTE2>();  // 释放L1B
 
     mm1ResL0C.Set<HardEvent::M_FIX>();    // 通知
     mm1ResL0C.Wait<HardEvent::M_FIX>();   // 等待L0C
@@ -328,7 +321,7 @@ struct CubeBlockTraits;  // 声明
     struct CubeBlockTraits<CUBE_BLOCK_CLASS<TEMPLATE_ARGS>> { \
         CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_TRAIT_TYPE) \
         CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_TRAIT_CONST) \
-    };
+    }
 
 DEFINE_CUBE_BLOCK_TRAITS(SCFABlockCube);
 DEFINE_CUBE_BLOCK_TRAITS(SCFABlockCubeDummy);
@@ -337,7 +330,7 @@ DEFINE_CUBE_BLOCK_TRAITS(SCFABlockCubeDummy);
 #define GEN_ARGS_TYPE(name, ...) using name = typename CubeBlockTraits<CubeBlockType>::name##_TRAITS;
 #define GEN_ARGS_CONST(name, type, ...) static constexpr type name = CubeBlockTraits<CubeBlockType>::name##Traits;
 #define ARGS_TRAITS \
-    CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_ARGS_TYPE)\
+    CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_ARGS_TYPE) \
     CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_ARGS_CONST)
 }
 #endif // FLASH_ATTENTION_SCORE_BLOCK_CUBE_H_
