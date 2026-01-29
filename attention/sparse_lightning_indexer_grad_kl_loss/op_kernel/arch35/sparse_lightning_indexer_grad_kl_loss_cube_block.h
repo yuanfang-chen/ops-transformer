@@ -242,7 +242,7 @@ __aicore__ inline void SligKlLossBlockCube<TEMPLATE_ARGS>::ComputeMmP(Buffer<Buf
     mm1L0CBuffer.Set<HardEvent::M_FIX>();
     mm1L0CBuffer.Wait<HardEvent::M_FIX>();      
     // fix2ub
-    CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[pRunInfo.kTaskId % 3]);
+    CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[pRunInfo.kTaskIdMod2]);
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipe2UbParams;
     fixpipe2UbParams.nSize = (kSize + 7) >> 3 << 3;
     fixpipe2UbParams.mSize = (constInfo.gSizeQuery + 1 ) >> 1 << 1;
@@ -256,7 +256,7 @@ __aicore__ inline void SligKlLossBlockCube<TEMPLATE_ARGS>::ComputeMmP(Buffer<Buf
     fixpipe2UbParams.params.dstNdStride = 0;
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outTensor, mm1L0CTensor, fixpipe2UbParams);
     mm1L0CBuffer.Set<HardEvent::FIX_M>();
-    CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[pRunInfo.kTaskId % 3]);
+    CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[pRunInfo.kTaskIdMod2]);
 };
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -305,7 +305,7 @@ __aicore__ inline void SligKlLossBlockCube<TEMPLATE_ARGS>::ComputeMmSy(Buffer<Bu
     mm2L0CBuffer.Set<HardEvent::M_FIX>();
     mm2L0CBuffer.Wait<HardEvent::M_FIX>();      
     // fix2ub
-    CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[syRunInfo.kTaskId % 3]);
+    CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[syRunInfo.kTaskIdMod2]);
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipe2UbParams;
     fixpipe2UbParams.nSize = (kSize + 7) >> 3 << 3;
     fixpipe2UbParams.mSize = (constInfo.gSizeQueryIndex + 1) >> 1 << 1;
@@ -318,7 +318,7 @@ __aicore__ inline void SligKlLossBlockCube<TEMPLATE_ARGS>::ComputeMmSy(Buffer<Bu
     fixpipe2UbParams.params.srcNdStride = 0;
     fixpipe2UbParams.params.dstNdStride = 0;
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outTensor, mm2L0CTensor, fixpipe2UbParams);
-    CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[syRunInfo.kTaskId % 3]);
+    CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_MM2_TO_V1_FLAG[syRunInfo.kTaskIdMod2]);
     //fix2gm
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipe2GmParams;
     fixpipe2GmParams.nSize = kSize;
@@ -371,7 +371,7 @@ __aicore__ inline void SligKlLossBlockCube<TEMPLATE_ARGS>::ComputeMm3(Buffer<Buf
         mm3L0CBuffer.Set<HardEvent::M_FIX>();
         mm3L0CBuffer.Wait<HardEvent::M_FIX>();
         // fix2ub
-        CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_C3_TO_V7_FLAG);
+        CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_C3_TO_V7_FLAG[pRunInfo.kTaskIdMod2]);
         FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipe2UbParams;
         fixpipe2UbParams.nSize = (mmParam.singleN + 7) >> 3 << 3;
         fixpipe2UbParams.mSize = (mmParam.singleM + 1) >> 1 << 1;
@@ -385,7 +385,7 @@ __aicore__ inline void SligKlLossBlockCube<TEMPLATE_ARGS>::ComputeMm3(Buffer<Buf
         fixpipe2UbParams.params.dstNdStride = 0;
         Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outTensor, mm3L0CBuffer.GetTensor<T>(), fixpipe2UbParams);
         mm3L0CBuffer.Set<HardEvent::FIX_M>();
-        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_C3_TO_V7_FLAG);
+        CrossCoreSetFlag<SYNC_MODE, PIPE_FIX>(SYNC_C3_TO_V7_FLAG[pRunInfo.kTaskIdMod2]);
     }
     if (pRunInfo.kTaskId == runInfo.s2LoopTimes - 1) {
         sYQL1Buffer.Set<HardEvent::MTE1_MTE2>();
