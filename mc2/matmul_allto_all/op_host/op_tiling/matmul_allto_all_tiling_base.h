@@ -49,7 +49,7 @@ protected:
     ge::graphStatus Check2DMatrixMulShapes(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckKcQuantMatrixMulShapes(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckKcQuantScaleShapes(const gert::TilingContext *context, const char *opName);
-    platform_ascendc::SocVersion socVersion_;
+    NpuArch npuArch_;
     uint32_t libApiWorkSpaceSize_{0};
     const char *opName_{nullptr};
     TilingContextInfo contextInfo;
