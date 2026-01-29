@@ -34,7 +34,7 @@ public:
 private:
     GmmExpertOpType* gmmComputeOp_; // 矩阵乘的计算节点
     GmmExpertOpType mmComputeOp_; // 共享专家
-    HcclOpType* commStage_; // 通信节点
+    HcclOpType* commOp; // 通信节点
     TilingDataType tilingData_;
 };
 
@@ -66,7 +66,7 @@ __aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, TilingDataT
         //后续流水需要使用计算节点的结果
         if ASCEND_IS_AIV {
             commOp.Wait();
-            commStage_->Process();
+            commOp->Process();
         }
         AscendC::SyncAll<false>();
     }
@@ -79,7 +79,7 @@ __aicore__ inline void GmmA2avScheduler<GmmExpertOpType, HcclOpType, TilingDataT
 {
     gmmComputeOp_->End();
     mmComputeOp_->End();
-    commStage_->End();
+    commOp->End();
 }
 };
 
