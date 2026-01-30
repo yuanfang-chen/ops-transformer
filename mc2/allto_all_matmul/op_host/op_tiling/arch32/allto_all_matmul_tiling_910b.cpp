@@ -51,6 +51,7 @@ constexpr int32_t DEFAULT_SWIZZLE_COUNT = 7;
 constexpr int32_t SWIZZLE_COUNT_THREE = 3;
 constexpr int32_t CORE_NUM_FOUR = 4;
 constexpr int32_t CORE_NUM_EIGHT = 8;
+constexpr int32_t CORE_NUM_SIXTEEN = 16;
 
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT = 16;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_PVALUE_DEFAULT = 14;
@@ -740,6 +741,8 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
     if (quantType == TILINGKEY_TPL_A4W4) {
+        cocTilingData.allToAllSendCoreNum = CORE_NUM_SIXTEEN;
+        cocTilingData.allToAllSendCoreNum = CORE_NUM_FOUR;
         cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
     }
 }
