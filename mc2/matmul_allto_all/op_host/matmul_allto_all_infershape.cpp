@@ -13,7 +13,6 @@
  * \brief 图模式（动态图/静态图）走infershape
  */
 
-#include "op_mc2.h"
 #include <register/op_impl_registry.h>
 #include "util/math_util.h"
 #include "mc2_log.h"
@@ -67,12 +66,12 @@ static ge::graphStatus CheckShapeForMatmulAlltoAll(const gert::InferShapeContext
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const char* groupStr = attrs->GetAttrPointer<char>(INDEX_ATTR_GROUP);
     OP_LOGE_IF(groupStr == nullptr, ge::GRAPH_FAILED, context->GetNodeName(), "Get matmul allto all group failed.");
-    const bool* is_trans_x1 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X1);
+    const bool* isTransX1 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X1);
     OPS_CHECK(
-        is_trans_x1 == nullptr || *is_trans_x1, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+        isTransX1 == nullptr || *isTransX1, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
         "x1 does not support transpose in matmul allto all."), return ge::GRAPH_FAILED);
-    const bool* is_trans_x2 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X2);
-    const bool trans_x2 = ((is_trans_x2 != nullptr) && (*is_trans_x2));
+    const bool* isTransX2 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X2);
+    const bool trans_x2 = ((isTransX2 != nullptr) && (*isTransX2));
     shape.m = x1_shape->GetDim(0U);
     shape.k = x1_shape->GetDim(1U);
     shape.n = trans_x2 ? x2_shape->GetDim(0U) : x2_shape->GetDim(1U);
@@ -91,7 +90,7 @@ static ge::graphStatus CheckRankDim(gert::InferShapeContext* context, MatmulAllt
 {
     const auto attrs = context->GetAttrs();
     const int* rankDim = attrs->GetAttrPointer<int>(INDEX_ATTR_WORLD_SIZE);
-    OPS_CHECK(*rankDim == 0,
+    OPS_CHECK(rankDim == nullptr,
         CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in matmul allto all.", *rankDim),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(SUPPORT_RANK_NUM.find(*rankDim) == SUPPORT_RANK_NUM.end(),
@@ -154,13 +153,13 @@ static ge::graphStatus InferDataTypeMatmulAlltoAll(gert::InferDataTypeContext* c
         if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
             y_type = static_cast<ge::DataType>(*y_dtype_ptr);
         } else {
-            y_type = x1_type;
+            return ge::GRAPH_FAILED;
         }
     } else if (*x1_quant_mode == X1_QUANT_MODE_NUM && *x2_quant_mode == X2_QUANT_MODE_NUM) {
         if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
             y_type = static_cast<ge::DataType>(*y_dtype_ptr);
         } else {
-            y_type = ge::DataType::DT_FLOAT;
+            return ge::GRAPH_FAILED;
         }
     }
     context->SetOutputDataType(0, y_type);

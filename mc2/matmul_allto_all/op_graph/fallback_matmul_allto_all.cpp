@@ -51,6 +51,26 @@ struct CommonMatmulParas {
     const gert::Tensor* bias;
 };
 
+// Attr参数结构体
+struct AttrParas {
+    aclTensor* commScaleOptional = nullptr;
+    aclTensor* x1OffsetOptional = nullptr;
+    aclTensor* x2OffsetOptional = nullptr;
+    const char* group;
+    const gert::TypedContinuousVector<int64_t>* alltoAllAxesOptional;
+    int64_t commQuantMode;
+    int64_t commQuantDtype;
+    bool transposeX1;
+    bool transposeX2;
+    int64_t groupSize = 0;
+};
+
+// 量化输入参数结构体
+struct QuantMatmulParas {
+    aclTensor* x1_scale_acl = nullptr;
+    aclTensor* x2_scale_acl = nullptr;
+};
+
 /**
  * @brief 获取公共Matmul输入参数
  * @param host_api_ctx
@@ -72,27 +92,13 @@ inline ge::graphStatus GetCommonMatmulInputPara(const gert::OpExecuteContext* ho
     para.x1_acl = ConvertMmType(x1, false);
     OPS_CHECK(para.x1_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1_acl is null"), return ge::GRAPH_FAILED);
 
-    const bool* trans_x2_ptr = attrs->GetBool(static_cast<size_t>(INDEX_ATTR_TRANS_X2));
-    const bool x2_trans = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
-    para.x2_acl = ConvertMmType(x2, x2_trans);
+    const bool* transX2Ptr = attrs->GetBool(static_cast<size_t>(INDEX_ATTR_TRANS_X2));
+    const bool x2Trans = (transX2Ptr != nullptr ? *transX2Ptr : false);
+    para.x2_acl = ConvertMmType(x2, x2Trans);
     OPS_CHECK(para.x2_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2_acl is null"), return ge::GRAPH_FAILED);
 
     return ge::SUCCESS;
 }
-
-// Attr参数结构体
-struct AttrParas {
-    aclTensor* commScaleOptional = nullptr;
-    aclTensor* x1OffsetOptional = nullptr;
-    aclTensor* x2OffsetOptional = nullptr;
-    const char* group;
-    const gert::TypedContinuousVector<int64_t>* alltoAllAxesOptional;
-    int64_t commQuantMode;
-    int64_t commQuantDtype;
-    bool transposeX1;
-    bool transposeX2;
-    int64_t groupSize = 0;
-};
 
 static ge::graphStatus ParseRecvCounts(
     const gert::TypedContinuousVector<int64_t>* sendCounts,
@@ -118,11 +124,11 @@ inline ge::graphStatus GetAttrPara(const gert::OpExecuteContext* host_api_ctx, A
     para.group = attrs->GetStr(INDEX_ATTR_GROUP);
     OPS_CHECK(para.group == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "group is null"), return ge::GRAPH_FAILED);
 
-    const bool* trans_x2_ptr = attrs->GetBool(INDEX_ATTR_TRANS_X2);
-    const bool trans_x2 = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
+    const bool* transX2Ptr = attrs->GetBool(INDEX_ATTR_TRANS_X2);
+    const bool transX2 = (transX2Ptr != nullptr ? *transX2Ptr : false);
     const auto commScaleOptional = host_api_ctx->GetOptionalInputTensor(INDEX_IN_COMM_SCALE);
     if (commScaleOptional != nullptr) {
-        para.commScaleOptional = ConvertMmType(commScaleOptional, trans_x2);
+        para.commScaleOptional = ConvertMmType(commScaleOptional, transX2);
         OPS_CHECK(
             para.commScaleOptional == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "commScaleOptional is null"),
             return ge::GRAPH_FAILED);
@@ -145,20 +151,14 @@ inline ge::graphStatus GetAttrPara(const gert::OpExecuteContext* host_api_ctx, A
     para.commQuantMode = (comm_quant_mode_ptr != nullptr ? *comm_quant_mode_ptr : 0);
     const int64_t* comm_quant_dtype_ptr = attrs->GetInt(INDEX_ATTR_COMMON_QUANT_DTYPE);
     para.commQuantDtype = (comm_quant_dtype_ptr != nullptr ? *comm_quant_dtype_ptr : static_cast<uint64_t>(ge::DataType::DT_UNDEFINED));
-    const bool* trans_x1_ptr = attrs->GetBool(INDEX_ATTR_TRANS_X1);
-    para.transposeX1 = (trans_x1_ptr != nullptr ? *trans_x1_ptr : false);
-    para.transposeX2 = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
+    const bool* transX1Ptr = attrs->GetBool(INDEX_ATTR_TRANS_X1);
+    para.transposeX1 = (transX1Ptr != nullptr ? *transX1Ptr : false);
+    para.transposeX2 = (transX2Ptr != nullptr ? *transX2Ptr : false);
     const int64_t* groupSize_ptr = attrs->GetInt(INDEX_ATTR_GROUP_SIZE);
     para.groupSize = (groupSize_ptr != nullptr ? *groupSize_ptr : 0);
     
     return ge::SUCCESS;
 }
-
-// 量化输入参数结构体
-struct QuantMatmulParas {
-    aclTensor* x1_scale_acl = nullptr;
-    aclTensor* x2_scale_acl = nullptr;
-};
 
 /**
  * @brief 获取量化Matmul输入参数
@@ -175,9 +175,9 @@ inline ge::graphStatus GetQuantMatmulPara(const gert::OpExecuteContext* host_api
     const auto x2_scale = host_api_ctx->GetOptionalInputTensor(INDEX_IN_X2_SCALE);
     OPS_CHECK(x2_scale == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2scale is null"), return ge::GRAPH_FAILED);
     const auto attrs = host_api_ctx->GetAttrs();
-    const bool* trans_x2_ptr = attrs->GetBool(INDEX_ATTR_TRANS_X2);
-    const bool x2_trans = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
-    para.x2_scale_acl = ConvertMmType(x2_scale, x2_trans);
+    const bool* transX2Ptr = attrs->GetBool(INDEX_ATTR_TRANS_X2);
+    const bool x2Trans = (transX2Ptr != nullptr ? *transX2Ptr : false);
+    para.x2_scale_acl = ConvertMmType(x2_scale, x2Trans);
     OPS_CHECK(para.x2_scale_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2_scale_acl is null"), return ge::GRAPH_FAILED);
 
     return ge::SUCCESS;
