@@ -13,7 +13,7 @@
 * \brief
 */
 #include "basic_api/kernel_basic_intf.h"
-#include "grouped_mat_mul_allto_allv.h"
+#include "arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "grouped_mat_mul_allto_allv_tiling_key.h"
 #if __has_include("../../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h")
 #include "../../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h"
@@ -106,19 +106,33 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 #endif
 
 #elif defined(ALLTO_ALLV_GMM_QUANT)
-    REGISTER_TILING_DEFAULT(QuantGroupedMatMulAlltoAllvTilingData);
-    GmmA2avScheduler<HcclA2avOp<QuantGroupedMatMulAlltoAllvTilingData, DTYPE_GMM_WEIGHT>,
-        QuantGroupedMatmul<QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
-        float, DTYPE_GMM_Y, CubeFormat::ND, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>,
-        QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, TILING_TYPE>
+    REGISTER_TILING_DEFAULT(QuantGmmA2avTilingData);
+    __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.hcclInitTiling));
+    __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.alltoAllvCcTiling));
+    GET_TILING_DATA(tilingData, tilingGM);
+
+    // hccl
+    HcclA2avOp<DTYPE_GMM_WEIGHT, false> hcclOp;
+    hcclOp_.Init(tilingData, userWorkspace, gmmyGM, hcclInitTiling, alltoAllvCcTiling);
+
+    // gmm
+    QuantGroupedMatmul<DTYPE_GMM_X, DTYPE_GMM_WEIGHT,float, DTYPE_GMM_Y, float, CubeFormat::ND, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS, true, false> computeOp;
+    computeOp.Init<false>(&tilingData->taskTilingInfo, &tilingData->gmmTiling, tPipe);
+    computeOp.InitAddr(gmmxGM, gmmweightGM, nullptr, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, userWorkspace);
+    // sharemm
+    QuantGroupedMatmul<DTYPE_GMM_X, DTYPE_GMM_WEIGHT,float, DTYPE_GMM_Y, float, CubeFormat::ND, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS, true, false> shareComputeOp;
+    shareComputeOp.Init<true>(&tilingData->taskTilingInfo, &tilingData->sharedGmmTiling, tPipe);
+    shareComputeOp.InitAddr(mmxOptionalGM, mmweightOptionalGM, nullptr, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM, userWorkspace);
+
+    GmmA2avScheduler<HcclA2avOp<DTYPE_GMM_WEIGHT, false>,
+        QuantGroupedMatmul<DTYPE_GMM_X, DTYPE_GMM_WEIGHT,float, DTYPE_GMM_Y, float, CubeFormat::ND, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS, true, false>,
+        QuantGmmA2avTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, TILING_TYPE>
         gmmA2avScheduler;
-    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
         gmmArray, gmmArrayAddr_, tilingGM);
-    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
         gmmArray, mmArrayAddr_, tilingGM);
-    gmmA2avScheduler.Init(gmmxGM, gmmweightGM, mmxOptionalGM, mmweightOptionalGM, gmmxScaleGM, gmmWeightScaleGM,
-        mmxScaleGM, mmWeightScaleGM, gmmyGM, mmyOptionalGM, userWorkspace, tilingGM,
-        gmmArrayAddr_, mmArrayAddr_, &pipe);
+    gmmA2avScheduler.Init(hcclOp, computeOp, shareComputeOp, tilingGM);
     gmmA2avScheduler.Process();
 #endif
 }
