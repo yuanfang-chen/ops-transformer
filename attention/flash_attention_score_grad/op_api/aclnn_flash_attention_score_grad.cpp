@@ -234,7 +234,7 @@ static aclnnStatus InvalidTensorDimCheck(const aclTensor *query, const aclTensor
         return ACLNN_ERR_PARAM_INVALID;
     }
 
-    if (sinkIn != nullptr && dsinkOut != nullptr) {
+    if (sinkIn != nullptr && dsinkOut != nullptr && !sinkIn->IsEmpty() && !dsinkOut->IsEmpty()) {
         auto sinkInDim = sinkIn->GetViewShape().GetDimNum();
         auto dsinkDim = dsinkOut->GetViewShape().GetDimNum();
         if (sinkInDim != DIM_NUM_1 || dsinkDim != DIM_NUM_1) {
