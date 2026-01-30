@@ -47,6 +47,7 @@ static const std::string COFF_NAME = "coff";
 static const std::string NORM_EPS_NAME = "nrom_eps";
 static const std::string ROTARY_MODE_NAME = "rotary_mode";
 static const std::string CMP_KV_NAME = "cmp_kv";
+static std::string DataTypeToSerialString(ge::DataType type);
 const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {X_NAME,                {ge::DT_BF16, ge::DT_FLOAT16}},
     {WKV_NAME,              {ge::DT_BF16, ge::DT_FLOAT16}},
