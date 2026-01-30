@@ -243,11 +243,23 @@ struct MC2TilingHeader {
     (((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && (ORIG_DTYPE_X1 == DT_HIFLOAT8)) ||          \
      (((ORIG_DTYPE_X1 == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_X1 == DT_FLOAT8_E5M2)) &&   \
       ((ORIG_DTYPE_X2 == DT_FLOAT8_E4M3FN) || (ORIG_DTYPE_X2 == DT_FLOAT8_E5M2)))) || \
-    ((ORIG_DTYPE_X1 == DT_FLOAT4_E2M1) && (ORIG_DTYPE_X2 == DT_FLOAT4_E2M1))
+    (((ORIG_DTYPE_X1 == DT_FLOAT4_E1M2) || (ORIG_DTYPE_X1 == DT_FLOAT4_E2M1)) &&      \
+     ((ORIG_DTYPE_X2 == DT_FLOAT4_E1M2) || (ORIG_DTYPE_X2 == DT_FLOAT4_E2M1)))
     Mc2Tiling::MC2HcommCfg hcommInt8Cfg;
 #endif
-#endif
     Mc2Tiling::Mc2Msg msg;
+#endif
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+#if defined(MC2_QUANT)
+    Mc2InitTiling mc2InitTiling;
+    Mc2CcTiling mc2CcTilingV1;
+    Mc2CcTiling mc2CcTilingV2;
+    Mc2Tiling::Mc2Msg msg;
+#else
+    Mc2InitTiling mc2InitTiling;
+    Mc2CcTiling mc2CcTilingV1;
+#endif
+#endif
     Mc2Tiling::RCSTiling param;
 };
 

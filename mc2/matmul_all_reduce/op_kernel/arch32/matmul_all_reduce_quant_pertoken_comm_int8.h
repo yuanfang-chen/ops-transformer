@@ -174,7 +174,9 @@ MatmulAllReduceQuantPertokenInt8<xType, wType, fFormat, wFormat, scaleType, yTyp
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingData, mc2CcTilingV1));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingData, mc2CcTilingV2));
     cGM_ = cGM;
     tilingData_ = tilingData;
     tPipe_ = tPipe;
@@ -192,11 +194,12 @@ MatmulAllReduceQuantPertokenInt8<xType, wType, fFormat, wFormat, scaleType, yTyp
     tempBuffDequantGM_ = workspaceGM_ + tilingData_->param.commWorkSpaceSize;
 
     // tiling 侧控制不走winTowin, 赋值tempBuffWinOrGM_
-    if (tilingData->msg.useBufferType == MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_WINDOW_IN) {
-        tempBuffWinOrGM_ = hccl_.GetWindowsInAddr(hccl_.GetRankId());
-    } else {
-        tempBuffWinOrGM_ = tempBuffGM_;
-    }
+    // if (tilingData->useBufferType == MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_WINDOW_IN) {
+    //     tempBuffWinOrGM_ = hccl_.GetWindowsInAddr(hccl_.GetRankId());
+    // } else {
+    //     tempBuffWinOrGM_ = tempBuffGM_;
+    // }
+    tempBuffWinOrGM_ = tempBuffGM_;
 }
 
 template <

@@ -31,28 +31,30 @@ class MatmulAllReduceBase
 public:
     __aicore__ inline MatmulAllReduceBase(
         MC2GmAddrs* addrs, QuantGmAddrs* quantAddrs, ArnGmAddrs* arnAddrs, MC2TilingHeader* tilingData, TPipe* tPipe)
-        : addrs_(addrs), quantAddrs_(quantAddrs), arnAddrs_(arnAddrs), tPipe_(tPipe)
+        : addrs_(addrs), quantAddrs_(quantAddrs), arnAddrs_(arnAddrs), tilingData_(tilingData), tPipe_(tPipe)
     {
         if constexpr (coreType == Mc2CoreType::ON_CUBE) {
             notifyFlag_ = (GetBlockIdx() == 0);
         } else {
             notifyFlag_ = (g_coreType == AscendC::AIV && GetBlockIdx() == 0);
         }
-        msgInTiling_ = &tilingData->msg;
         paramInTiling_ = &tilingData->param;
     }
 
     __aicore__ inline void Init()
     {
-        hccl_.Init(GetHcclContext<0>());
-
+#if defined(MC2_WEIGHT_QUANT)
+        hccl_.InitV2(GetHcclContext<0>(), (Mc2Tiling::WeightQuantMatmulAllReduceTilingData*)tilingData_);
+        hccl_.SetCcTilingV2(offsetof(Mc2Tiling::WeightQuantMatmulAllReduceTilingData, mc2CcTilingV1));
+#elif defined(MC2_QUANT)
+        hccl_.InitV2(GetHcclContext<0>(), (Mc2Tiling::QuantMatmulAllReduceTilingData*)tilingData_);
+        hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingData, mc2CcTilingV1));
+#else
+        hccl_.InitV2(GetHcclContext<0>(), (Mc2Tiling::MatmulAllReduce910TilingData*)tilingData_);
+        hccl_.SetCcTilingV2(offsetof(Mc2Tiling::MatmulAllReduce910TilingData, mc2CcTilingV1));
+#endif
         __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
         OOMInit(context);
-
-        if (msgInTiling_->useBufferType == MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_WINDOW_IN &&
-            context->config.determinism != 1) {
-            addrs_->cGM = hccl_.GetWindowsInAddr(hccl_.GetRankId());
-        }
 
         addFlag_ = (paramInTiling_->isAdd != 0U);
         tailFlag_ = (paramInTiling_->tailCnt != 0U);
@@ -134,9 +136,9 @@ protected:
     MC2GmAddrs* addrs_;
     QuantGmAddrs* quantAddrs_;
     ArnGmAddrs* arnAddrs_;
-    Mc2Tiling::Mc2Msg* msgInTiling_;
     Mc2Tiling::RCSTiling* paramInTiling_;
     MC2TileInfo tileInfo_, tailInfo_;
+    MC2TilingHeader* tilingData_;
     TPipe* tPipe_;
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
     bool notifyFlag_;

@@ -27,6 +27,7 @@
 #include "op_mc2.h"
 #include "all_reduce_formulaic_tiling.h"
 #include "util/math_util.h"
+#include "platform/platform_infos_def.h"
 
 #include "tiling_base/tiling_type.h"
 
@@ -443,10 +444,18 @@ ge::graphStatus MatmulAllReduceTilingBase::GetPlatformInfo()
     supportL0c2Out_ = !val.empty();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     socVersion_ = ascendcPlatform.GetSocVersion();
-    OP_TILING_CHECK(
-        CheckRanksizePlatformSupported() != ge::GRAPH_SUCCESS,
-        VECTOR_INNER_ERR_REPORT_TILING(opName_, "Check Ranksize Platform Supported failed."),
-            return ge::GRAPH_FAILED);
+    (void)platformInfo->GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr_);
+    OP_LOGD(opName_, "Current socVersionStr is %s", socVersionStr_.c_str());
+    // SocVersion目前没有提供A2、A3的区分，这里用socVersionStr做区分
+    if (socVersionStr_ == "Ascend910_93") {
+        OP_TILING_CHECK(
+            CheckRanksizeA3PlatformSupported() != ge::GRAPH_SUCCESS,
+            VECTOR_INNER_ERR_REPORT_TILING(opName_, "Check Ranksize A3Platform Supported failed"), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK(
+            CheckRanksizePlatformSupported() != ge::GRAPH_SUCCESS,
+            VECTOR_INNER_ERR_REPORT_TILING(opName_, "Check Ranksize Platform Supported failed"), return ge::GRAPH_FAILED);
+    }
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     auto coreNum = ascendcPlatform.GetCoreNumAic();
     args_.aicCoreNum = coreNum;
@@ -536,6 +545,33 @@ ge::graphStatus MatmulAllReduceTilingBase::CheckRanksizePlatformSupported() cons
             "A5 supports rank size 1,2,4,8,16,32,64, "
             "Ascend 310P supports rank size 1,2,4.",
             rankSize_, static_cast<int32_t>(socVersion_)),
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus MatmulAllReduceTilingBase::CheckRanksizeA3PlatformSupported() const
+{
+    const std::map<std::string, std::set<uint32_t>> A3SupportedRankSizeSet = {
+        {"Ascend910_93", {2, 4, 8, 16}},
+    };
+    bool A3RankSizeSupported = false;
+    OP_TILING_CHECK(
+        (socVersionStr_ == ""),
+        OP_LOGE(context_->GetNodeName(), "socVersionStr is NULL"),
+        return ge::GRAPH_FAILED);
+    OP_LOGD(opName_, "Get socVersionStr is %s", socVersionStr_.c_str());
+    auto it = A3SupportedRankSizeSet.find(socVersionStr_);
+    if (it != A3SupportedRankSizeSet.end()) {
+        OP_LOGD(opName_, "Get rankSize is %u", rankSize_);
+        A3RankSizeSupported = (it->second.count(rankSize_) != 0);
+    }
+    OP_TILING_CHECK(
+        !A3RankSizeSupported,
+        VECTOR_INNER_ERR_REPORT_TILING(
+            context_->GetNodeName(),
+            "rank size %u is not supported by socversion id:%s yet; "
+            "A3 supports rank size 2,4,8,16.",
+            rankSize_, socVersionStr_.c_str()),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -1561,7 +1597,9 @@ void MatmulAllReduceTilingBase::PrintTilingData()
     PrintRCSTilingData(context_->GetNodeName(), MutableRCSTilingData());
     PrintExtendMatmulTiling(false);
     PrintTCubeTilingData(context_->GetNodeName(), MutableTCubeTileTilingData());
-    PrintMc2MsgData(context_->GetNodeName(), MutableMc2MsgData());
+    if (socVersionStr_ != "Ascend910_93") {
+        PrintMc2MsgData(context_->GetNodeName(), MutableMc2MsgData());
+    }
     if (MutableRCSTilingData().tailM <= 0) {
         return;
     }

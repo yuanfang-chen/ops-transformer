@@ -15,6 +15,10 @@
 #ifndef _QUANT_MATMUL_ALL_REDUCE_TILING_CC_
 #define _QUANT_MATMUL_ALL_REDUCE_TILING_CC_
 #include "quant_matmul_all_reduce_tiling.h"
+#include <string>
+#include <vector>
+#include "platform/platform_infos_def.h"
+#include "hccl/hccl_types.h"
 #include "op_mc2.h"
 
 using namespace Mc2Tiling;
@@ -22,6 +26,11 @@ namespace optiling {
 namespace {
 const gert::Shape defaultShape = gert::Shape();
 const gert::StorageShape defaultStorageShape = gert::StorageShape();
+constexpr uint32_t ATTR_GROUP_INDEX = 0;
+static const std::vector<int32_t> soc_version = {
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)
+};
 } // namespace
 bool QuantMatmulAllReduceTiling::IsCapable()
 {
@@ -42,7 +51,7 @@ ge::graphStatus QuantMatmulAllReduceTiling::DoOpTiling()
     if (MutableRCSTilingData().isInputCommQuantScale == 1) {
         isCommInt8Enable_ = true;
     }
-    DoAllReduceTiling(true);
+    SetHcclTiling();
     return ge::GRAPH_SUCCESS;
 }
 uint64_t QuantMatmulAllReduceTiling::GetTilingKey() const
@@ -111,10 +120,76 @@ ge::graphStatus QuantMatmulAllReduceTiling::PostTiling()
     context_->SetBlockDim(args_.aicCoreNum);
     return ge::GRAPH_SUCCESS;
 }
-Mc2Tiling::Mc2Msg& QuantMatmulAllReduceTiling::MutableMc2MsgData()
+
+ge::graphStatus QuantMatmulAllReduceTiling::SetHcclTiling()
 {
-    return quantMatmulAllReduceTilingData_.msg;
+    // A2和A3芯片设置hccltiling
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr,                         \
+        OP_LOGE(context_->GetNodeName(), "fail to get platfoem info"),  \
+        return ge::GRAPH_FAILED);
+    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+    std::string socVersionStr;
+    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+    auto group = context_->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_INDEX);
+    OP_TILING_CHECK(group == nullptr,                         \
+        OP_LOGE(context_->GetNodeName(), "GetAttrPointer for ATTR_GROUP_INDEX failed"),  \
+        return ge::GRAPH_FAILED);
+    // A2和A3的低比特通信AllReduce操作用AllGather+AllToAll实现
+    if (MutableRCSTilingData().isInputCommQuantScale == 1) {
+        uint32_t optype1 = HcclCMDType::HCCL_CMD_ALLGATHER;
+        uint32_t optype2 = HcclCMDType::HCCL_CMD_ALLTOALL;
+        std::string algConfig1 = (socVersionStr == "Ascend910_93") ? \
+                            "AllGather=level0:doublering" : "AllGather=level0:fullmesh";
+        std::string algConfig2 = (socVersionStr == "Ascend910_93") ? \
+                            "AlltoAll=level0:fullmesh;level1:pairwise" : "AlltoAll=level0:fullmesh";
+        OP_LOGD(context_->GetNodeName(), "QuantMatmulAllReduceTiling, SetHcclTiling algConfig1 is: %s", \
+                algConfig1.c_str());
+        OP_LOGD(context_->GetNodeName(), "QuantMatmulAllReduceTiling, SetHcclTiling algConfig2 is: %s", \
+                algConfig2.c_str());
+        // AllGather通信
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, optype1, algConfig1);
+        OP_TILING_CHECK(mc2CcTilingConfig.SetSkipBufferWindowCopy(                                           \
+                            static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT)) != 0, \
+            OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig setSkipBufferWindowCopy failed"),            \
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling) != 0,     \
+            OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"),  \
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingV1) != 0,     \
+            OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTilingV1 failed"),  \
+            return ge::GRAPH_FAILED);
+        // AllToAll通信
+        mc2CcTilingConfig.SetGroupName(group);
+        mc2CcTilingConfig.SetOpType(optype2);
+        mc2CcTilingConfig.SetAlgConfig(algConfig2);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingV2) != 0,      \
+            OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTilingV2 failed"),   \
+            return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    } else {
+        uint32_t optype = HcclCMDType::HCCL_CMD_ALLREDUCE;
+        std::string algConfig = (socVersionStr == "Ascend910_93") ? \
+                            "AllReduce=level0:doublering" : "AllReduce=level0:fullmesh";
+        OP_LOGD(context_->GetNodeName(), "QuantMatmulAllReduceTiling, SetHcclTiling algConfig is: %s", \
+                algConfig.c_str());
+        uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, optype, algConfig, reduceType);
+
+        OP_TILING_CHECK(mc2CcTilingConfig.SetSkipBufferWindowCopy(                                            \
+                            static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT)) != 0,  \
+            OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig setSkipBufferWindowCopy failed"),             \
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling) != 0,      \
+            OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"),   \
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingV1) != 0,      \
+            OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTilingV1 failed"),   \
+            return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    } // A2和A3非低比特通信直接用AllReduce做规约操作
 }
+
 Mc2Tiling::RCSTiling& QuantMatmulAllReduceTiling::MutableRCSTilingData()
 {
     return quantMatmulAllReduceTilingData_.param;
@@ -390,6 +465,6 @@ QuantTilingTransferHelper::QuantTilingTransferHelper(
 {}
 
 //注册带SOC版本Tiling的类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,QuantMatmulAllReduceTiling,static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),0);
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,QuantMatmulAllReduceTiling,soc_version,0);
 } // namespace optiling
 #endif //_QUANT_MATMUL_ALL_REDUCE_TILING_CC_
