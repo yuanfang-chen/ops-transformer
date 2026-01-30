@@ -248,27 +248,28 @@ def qli_output_single(data_case):
         key_dequant_scale = key_dequant_scale.npu()
         cpu_result, topk_value = test_qli.forward(query, key_bnsd, weights, query_dequant_scale, key_dequant_scale_bns, actual_seq_lengths_query, actual_seq_lengths_key, block_table)
         block_table = torch.from_numpy(block_table).to(dtype=torch.int32).npu()
-
+    max_seqlen_q = actual_seq_lengths_query.max().item()
+    max_seqlen_k = actual_seq_lengths_key.max().item()
     #关于metadata的设置
-    metadata = torch_npu.npu_quant_lightning_indexer_metadata(
-                                    num_heads_q=q_head_num,
-                                    num_heads_k=k_head_num,
+    metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata (
+                                    num_heads_q = q_head_num,
+                                    num_heads_k = k_head_num,
                                     head_dim = head_dim,
-                                    query_quant_mode=query_quant_mode,
-                                    key_quant_mode=key_quant_mode,
-                                    actual_seq_lengths_query=actual_seq_lengths_query,
-                                    actual_seq_lengths_key=actual_seq_lengths_key,
-                                    batch_size=batch_size,
-                                    max_seqlen_q=q_seq,
-                                    max_seqlen_k=k_seq,
-                                    layout_query=layout_query,
-                                    layout_key=layout_key,
-                                    sparse_count=sparse_count,
-                                    sparse_mode=sparse_mode,
-                                    pre_tokens=(1<<63)-1,
-                                    next_tokens=(1<<63)-1,
-                                    cmp_ratio=cmp_ratio,
-                                    device='npu:0')
+                                    query_quant_mode = query_quant_mode,
+                                    key_quant_mode = key_quant_mode,
+                                    actual_seq_lengths_query = actual_seq_lengths_query,
+                                    actual_seq_lengths_key = actual_seq_lengths_key,
+                                    batch_size = batch_size,
+                                    max_seqlen_q = max_seqlen_q,
+                                    max_seqlen_k = max_seqlen_k,
+                                    layout_query = layout_query,
+                                    layout_key = layout_key,
+                                    sparse_count = sparse_count,
+                                    sparse_mode = sparse_mode,
+                                    pre_tokens = (1<<63)-1,
+                                    next_tokens = (1<<63)-1,
+                                    cmp_ratio = cmp_ratio,
+                                    device = 'npu:0')
 
     metadata = metadata.npu()
 

@@ -1,9 +1,9 @@
 #!/bin/bash
 # ====================== 配置区======================
-# 需要读取的用例excel表格路径
-PATH1="./excel/***"
-# 用例pt的文件存放路径
-PATH2="./pt_path/***"
+# 需要读取的用例excel表格路径，如下：
+PATH1="./excel/*"
+# 用例pt的文件存放路径，如下：
+PATH2="./pt_path/"
 
 # 脚本路径
 QLI_PT_SAVE_SCRIPT="./batch/quant_lightning_indexer_pt_save.py"
