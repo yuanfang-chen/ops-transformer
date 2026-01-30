@@ -170,7 +170,7 @@ struct CompressorContext {
     uint32_t blockDim;
 };
 
-static std::string DataTypeToSerialString(ge::DataType type);
+std::string DataTypeToSerialString(ge::DataType type);
 
 class CompressorTiling {
 public:

@@ -28,16 +28,12 @@ for _, params in enumerate(ENABLED_PARAMS):
     for key, value in params.items():
         locals()[f"param_{key}"] = value
 
-    # ******Todo 2 算子入参组合的生成，如下注释为示例
-
     # 生成所有参数组合
-    # param_names = [ .......]
     param_names = [
         "batch_size", "hidden_size", "Seq_len", "head_dim", "block_size", "rope_head_dim", "cmp_ratio",
         "coff", "norm_eps", "start_p", "rotary_mode", "layout_x", "data_type", "cu_seqlens", "seqused", "start_pos"
     ]
 
-    # param_values = [ ......]
     param_values = [
         locals()["param_batch_size"],
         locals()["param_hidden_size"],
@@ -61,8 +57,6 @@ for _, params in enumerate(ENABLED_PARAMS):
     for combo in itertools.product(*param_values):
         param_dict = dict(zip(param_names, combo))
         locals()["param_combinations"].append(param_dict)
-
-    # ******Todo 3 单算子直调入参的初始化，如下注释为示例,test_data为算子传递入参
 
     @pytest.mark.ci
     @pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
@@ -90,17 +84,11 @@ for _, params in enumerate(ENABLED_PARAMS):
 
         torch_npu.npu.set_device(0)
 
-
-    # ******Todo 4 算子入参的合法性校验
-
         # 输入参数的合法性校验
         try:
             check_valid_param.check_valid_param(test_data)
         except ValueError as e:
             pytest.skip(f"输入参数校验失败:{e}")
-
-
-    # ******Todo 5  获取cpu 真值结果和npu结果
 
         # 获得cpu结果(真值)和算子结果（测试值）
         cpu_result, kv_mask_result, npu_result ,cpu_kv_state, npu_kv_state, mask_cpu_kv_state, cpu_score_state, npu_score_state, mask_cpu_score_state = operator_single.output_operator(test_data)

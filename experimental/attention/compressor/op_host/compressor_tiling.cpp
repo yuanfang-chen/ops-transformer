@@ -416,7 +416,6 @@ ge::graphStatus CompressorTiling::GenTilingKey() const
 
 ge::graphStatus CompressorTiling::CheckSinglePara() const
 {
-
     if (ge::GRAPH_SUCCESS != CheckSingleParaX() ||
         ge::GRAPH_SUCCESS != CheckSingleParaWkv() ||
         ge::GRAPH_SUCCESS != CheckSingleParaWgate() ||
@@ -973,7 +972,6 @@ CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context)
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "TilingData is nullptr."),
             return ge::GRAPH_FAILED);
     if (compressorTiling.RunBigKernelTiling(tilingData) == ge::SUCCESS) {
-        // TODO genTilingKey
         context->SetTilingKey(compressorContext.tilingKey);
         context->SetBlockDim(compressorContext.blockDim);
         return ge::GRAPH_SUCCESS;
