@@ -88,7 +88,7 @@ static ge::graphStatus CheckRankDim(gert::InferShapeContext* context, AlltoAllMa
 {
     const auto attrs = context->GetAttrs();
     const int* rankDim = attrs->GetAttrPointer<int>(INDEX_ATTR_WORLD_SIZE);
-    OPS_CHECK(*rankDim == 0,
+    OPS_CHECK(rankDim == nullptr,
         CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in matmul allto all.", *rankDim),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(SUPPORT_RANK_NUM.find(*rankDim) == SUPPORT_RANK_NUM.end(),
