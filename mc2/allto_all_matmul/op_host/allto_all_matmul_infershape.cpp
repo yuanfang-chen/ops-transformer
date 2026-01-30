@@ -26,13 +26,16 @@ constexpr size_t INDEX_IN_X2 = 1;
 constexpr size_t INDEX_ATTR_GROUP = 0;
 constexpr size_t INDEX_ATTR_WORLD_SIZE = 1;
 constexpr size_t INDEX_ATTR_Y_DTYPE = 3;
-
+constexpr size_t INDEX_ATTR_X1_QUANT_MODE = 4;
+constexpr size_t INDEX_ATTR_X2_QUANT_MODE = 5;
 constexpr size_t INDEX_ATTR_TRANS_X1 = 9;
 constexpr size_t INDEX_ATTR_TRANS_X2 = 10;
 constexpr size_t INDEX_ATTR_ALLTOALL_OUT_FLAG = 12;
 constexpr size_t INDEX_OUT = 0;
 constexpr size_t INDEX_ALLTO_ALL_OUT = 1;
 constexpr uint64_t DIM_TWO = 2;
+constexpr uint64_t X1_QUANT_NUM = 7;
+constexpr uint64_t X2_QUANT_NUM = 2;
 constexpr uint64_t NUM_MINUS_ONE = -1;
 static const char* INNER_DEBUG = "MC2: AlltoAllMatmul InferShape Debug";
 const std::set<int> SUPPORT_RANK_NUM{2, 4, 8, 16};
@@ -150,16 +153,29 @@ static ge::graphStatus InferShapeAlltoAllMatmul(gert::InferShapeContext* context
 static ge::graphStatus InferDataTypeAlltoAllMatmul(gert::InferDataTypeContext* context)
 {
     OPS_CHECK(context == nullptr, OP_LOGE(INNER_DEBUG, "Context is null."), return ge::GRAPH_FAILED);
-    OP_LOGD(INNER_DEBUG, "Start to infer datatype of allto all matmul.");
-    ge::DataType y_type = context->GetOutputDataType(0U);
-    const auto attrs = context->GetAttrs();
-    OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const int64_t* y_dtype_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
-    const uint64_t y_dtype = (y_dtype_ptr != nullptr ? *y_dtype_ptr : ge::DataType::DT_UNDEFINED);
-    if (y_dtype != ge::DataType::DT_UNDEFINED) {
-        y_type = static_cast<ge::DataType>(y_dtype);
-    }
-    return context->SetOutputDataType(0U, y_type);
+     OP_LOGD(INNER_DEBUG, "Start to infer datatype of matmul allto all.");
+     const auto attrs = context->GetAttrs();
+     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
+     const int* x1_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X1_QUANT_MODE);
+     const int* x2_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X2_QUANT_MODE);
+     const int64_t* y_dtype_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
+     auto y_type = ge::DataType::DT_UNDEFINED;
+     ge::DataType x1_type = context->GetInputDataType(INDEX_IN_X1);
+     if (*x1_quant_mode == 0 && *x2_quant_mode == 0) {
+         if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
+             y_type = static_cast<ge::DataType>(*y_dtype_ptr);
+         } else {
+             y_type = x1_type;
+         }
+     } else if (*x1_quant_mode == X1_QUANT_NUM && *x2_quant_mode == X2_QUANT_NUM) {
+         if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
+             y_type = static_cast<ge::DataType>(*y_dtype_ptr);
+         } else {
+             y_type = ge::DataType::DT_FLOAT;
+         }
+     }
+     context->SetOutputDataType(0, y_type);
+     return ge::GRAPH_SUCCESS;
 }
 
 IMPL_OP_INFERSHAPE(AlltoAllMatmul).InferShape(InferShapeAlltoAllMatmul).InferDataType(InferDataTypeAlltoAllMatmul);
