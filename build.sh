@@ -690,6 +690,20 @@ function process_soc_input(){
     input_string=$(echo "$input_string" | sed 's/ascend950/ascend950/g')
     local value_part="${input_string#*=}"
     ASCEND_SOC_UNITS="${value_part//,/;}"
+
+    declare -A SOC_HARDWARE_MAP=(
+        [ascend910b]="Atlas A2"
+        [ascend910_93]="Atlas A3"
+        [ascend310p]="Atlas 300I"
+        [kirinx90]="Kirin 990"
+        [mc62cm12a]="MC62CM12A"
+    )
+
+    if [[ ${SOC_HARDWARE_MAP[$ASCEND_SOC_UNITS]} ]]; then
+        echo "Warning: The current environment is configured for $ASCEND_SOC_UNITS, Please use ${SOC_HARDWARE_MAP[$ASCEND_SOC_UNITS]} series hardware for optimal performance."
+    else
+        echo "Warning: Hardware type '$ASCEND_SOC_UNITS' detected. Please ensure you are using compatible hardware."
+    fi
 }
 
   process_genop() {
