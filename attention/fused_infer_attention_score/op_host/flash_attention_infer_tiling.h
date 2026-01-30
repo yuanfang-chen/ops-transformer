@@ -35,8 +35,8 @@ namespace optiling{
     TILING_DATA_FIELD_DEF(uint64_t, UpdateSize)
     TILING_DATA_FIELD_DEF(uint64_t, workSpaceSize)
     TILING_DATA_FIELD_DEF(float, scaleValue)
-    TILING_DATA_FIELD_DEF(uint64_t, padding1)
-    TILING_DATA_FIELD_DEF(uint64_t, padding2)
+    TILING_DATA_FIELD_DEF(bool, alibiLeftAlign)  // alibi 1 左对齐、0 右对齐
+    TILING_DATA_FIELD_DEF(bool, isAlibiMaskSqrt) // alibi右对齐场景是，1位置编码开根号，0不开根号
     TILING_DATA_FIELD_DEF(uint32_t, padding3)
     TILING_DATA_FIELD_DEF(int64_t, preToken)
     TILING_DATA_FIELD_DEF(int64_t, nextToken)
