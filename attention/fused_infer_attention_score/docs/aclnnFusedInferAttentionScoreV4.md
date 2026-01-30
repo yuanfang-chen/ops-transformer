@@ -1298,7 +1298,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
                 </tr>
                 <tr>
                     <th>antiquantMode</th>
-                    <th>antiquantSacle</th>
+                    <th>antiquantScale</th>
                     <th>antiquantOffset</th>
                     <th>keyAntiquantMode 和 valueAntiquantMode</th>
                     <th colspan="2">keyAntiquantScaleOptional 和 valueAntiquantScaleOptional</th>
