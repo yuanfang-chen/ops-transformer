@@ -1934,9 +1934,9 @@ static ge::graphStatus MoeDistributeCombineV2TilingFuncNew(gert::TilingContext* 
     std::string socVersion = mc2tiling::GetSocVersion(context);
     ge::graphStatus ret;
     if (socVersion == "Ascend910B") {
-        ret = MoeDistributeCombineA2TilingFuncImpl(context);
+        ret = MoeDistributeCombineA2TilingFuncImpl(context, config);
     } else if (socVersion == "Ascend950") {
-        ret = MoeDistributeCombineA5TilingFuncImpl(context);
+        ret = MoeDistributeCombineA5TilingFuncImpl(context, config);
     } else {
         ret = MoeDistributeCombineA3TilingFuncImpl(context, config);
     }
