@@ -2107,6 +2107,8 @@ static aclnnStatus CheckEmptyTensor(const aclTensorList *x, const aclTensorList 
   bool zeroK = false;
   // current view_shape transpose is always false false
   for (size_t i = 0; i < x->Size(); ++i) {
+    CHECK_COND((*x)[i] != nullptr, ACLNN_ERR_PARAM_INVALID,
+               "GroupedMatmul x tensor should not be null");
     auto xShape = (*x)[i]->GetViewShape();
     CHECK_COND(xShape.GetDimNum() >= gmm::MIN_FM_DIM, ACLNN_ERR_PARAM_INVALID,
                "GroupedMatmul x dim num should larger than 2, but actual %d.", xShape.GetDimNum());
@@ -2114,6 +2116,8 @@ static aclnnStatus CheckEmptyTensor(const aclTensorList *x, const aclTensorList 
     zeroK = zeroK || (xShape.GetDim(xShape.GetDimNum() - 1) == 0);
   }
   for (size_t i = 0; i < weight->Size(); ++i) {
+    CHECK_COND((*weight)[i] != nullptr, ACLNN_ERR_PARAM_INVALID,
+               "GroupedMatmul weight tensor should not be null");
     auto wShape = (*weight)[i]->GetViewShape();
     CHECK_COND(wShape.GetDimNum() >= gmm::MIN_FM_DIM, ACLNN_ERR_PARAM_INVALID,
                "GroupedMatmul weight dim num should larger than 2, but actual %d.", wShape.GetDimNum());

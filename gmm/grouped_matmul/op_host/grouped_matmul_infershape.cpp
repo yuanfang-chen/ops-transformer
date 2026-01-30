@@ -1406,12 +1406,59 @@ static ge::graphStatus GMMSetOutputShape(gert::InferShapeContext* context, GMMAt
     return GRAPH_SUCCESS;
 }
 
+static ge::graphStatus CheckEmptyTensor(const gert::InferShapeContext *context, const GMMAttrs &gmmAttrs)
+{
+    // all M or N be zero, get true
+    bool zeroM = true;
+    bool zeroN = true;
+    // exist one K be zero, get true
+    bool zeroK = false;
+    const bool &transposeX = gmmAttrs.transposeX;
+    const bool &transposeWeight = gmmAttrs.transposeWeight;
+    size_t numX = 0;
+    size_t numWeight = 0;
+    while(true) {
+        const gert::Shape *xShape = context->GetDynamicInputShape(GMM_INDEX_IN_X, numX++);
+        if (xShape == nullptr) {
+            break;
+        }
+        OP_CHECK_IF(xShape->GetDimNum() < GMM_MIN_FM_DIM,
+                    OP_LOGE(context->GetNodeName(), "GroupedMatmul x dim num should larger than 2, but actual %d.",
+                            xShape->GetDimNum()),
+                    return GRAPH_FAILED);
+        zeroM = zeroM && (transposeX ? xShape->GetDim(xShape->GetDimNum() - 1) == 0 :
+                                       xShape->GetDim(xShape->GetDimNum() - PENULTIMATE_DIM) == 0);
+        zeroK = zeroK || (transposeX ? xShape->GetDim(xShape->GetDimNum() - PENULTIMATE_DIM) == 0 :
+                                       xShape->GetDim(xShape->GetDimNum() - 1) == 0);
+    }
+    while(true) {
+        const gert::Shape *wShape = context->GetDynamicInputShape(GMM_INDEX_IN_WEIGHT, numWeight++);
+        if (wShape == nullptr) {
+            break;
+        }
+        OP_CHECK_IF(wShape->GetDimNum() < GMM_MIN_FM_DIM,
+                    OP_LOGE(context->GetNodeName(), "GroupedMatmul weight dim num should larger than 2, but actual %d.",
+                            wShape->GetDimNum()),
+                    return GRAPH_FAILED);
+        zeroN = zeroN && (transposeWeight ? wShape->GetDim(wShape->GetDimNum() - PENULTIMATE_DIM) == 0 :
+                                            wShape->GetDim(wShape->GetDimNum() - 1) == 0);
+    }
+    // if all M or N is zero, do not need to check K
+    OP_CHECK_IF(
+        !zeroM && !zeroN && zeroK,
+        OP_LOGE(context->GetNodeName(), "GroupedMatmul does not support input dim K being 0 unless all M/N is 0"),
+        return GRAPH_FAILED);
+    return GRAPH_SUCCESS;
+}
+
 static graphStatus InferShape4DavidWeightQuantGMM(gert::InferShapeContext *context)
 {
     GroupedMatmulWeightQuantChecker davidWeightQuantGMMChecker;
     GroupedMatmulCommonUtil utilForDavidWeightQuantGMM;
     OP_CHECK_IF(GetAttrsValue(context, utilForDavidWeightQuantGMM.attrsInfo) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "GetAttrsValue failed"), return GRAPH_FAILED);
+    OP_CHECK_IF(CheckEmptyTensor(context, utilForDavidWeightQuantGMM.attrsInfo) != GRAPH_SUCCESS,
+              OP_LOGE(context->GetNodeName(), "check empty tensor failed"), return GRAPH_FAILED);
     OP_CHECK_IF(davidWeightQuantGMMChecker.GetXAndWeightDimValue(context, utilForDavidWeightQuantGMM.attrsInfo) !=
                   GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "GetXAndWeightDimValue failed"), return GRAPH_FAILED);
@@ -1427,6 +1474,8 @@ static graphStatus InferShape4DavidQuantGMM(gert::InferShapeContext* context) {
     GroupedMatmulCommonUtil utilForDavidQuantGMM;
     OP_CHECK_IF(GetAttrsValue(context, utilForDavidQuantGMM.attrsInfo) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "GetAttrsValue failed"), return GRAPH_FAILED);
+    OP_CHECK_IF(CheckEmptyTensor(context, utilForDavidQuantGMM.attrsInfo) != GRAPH_SUCCESS,
+              OP_LOGE(context->GetNodeName(), "check empty tensor failed"), return GRAPH_FAILED);
     OP_CHECK_IF(davidQuantGMMChecker.GetXAndWeightDimValue(context, utilForDavidQuantGMM.attrsInfo) != GRAPH_SUCCESS,
               OP_LOGE(context->GetNodeName(), "GetXAndWeightDimValue failed"), return GRAPH_FAILED);
     OP_CHECK_IF(davidQuantGMMChecker.GetGroupNumValue(context) != GRAPH_SUCCESS,
@@ -1492,6 +1541,8 @@ static ge::graphStatus InferShape4GroupedMatmul(gert::InferShapeContext* context
     size_t numY = context->GetComputeNodeOutputNum();
     if (GetNumOfInputs(context, numX, numWeight, lenGroupList) == GRAPH_SUCCESS) {  // check input shape value inside
         GMMParamsInfo paramsInfo{numX, numWeight, numY, lenGroupList, 0, 0, 0, 0, 0, PlatformID::UNKNOWN};
+        OP_CHECK_IF(CheckEmptyTensor(context, gmmAttrs) != GRAPH_SUCCESS,
+                  OP_LOGE(context->GetNodeName(), "check empty tensor failed"), return GRAPH_FAILED);
         OP_CHECK_IF(GetGroupSize(context, paramsInfo) != GRAPH_SUCCESS,
                   OP_LOGE(context->GetNodeName(), "check groupNum failed"), return GRAPH_FAILED);
         OP_CHECK_IF(CheckFunctionParamsForShape(context, gmmAttrs, paramsInfo) != GRAPH_SUCCESS,
