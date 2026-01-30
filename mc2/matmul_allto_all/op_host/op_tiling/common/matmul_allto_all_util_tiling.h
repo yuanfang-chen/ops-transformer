@@ -142,7 +142,7 @@ public:
                                           const OpAttrIndexSchema &indexSchema);
     static ge::graphStatus CheckKcQuantShapeInfo(const gert::TilingContext *context, const char *opName,
                                           const OpAttrIndexSchema &indexSchema);
-    static ge::graphStatus CheckTensorFormat(const gert::TilingContext *context, const char *opName);                                      
+    static ge::graphStatus CheckTensorFormat(const gert::TilingContext *context, const char *opName);
     static ge::graphStatus CheckNonQuantTensorDataType(const gert::TilingContext *context, const char *opName);
     static ge::graphStatus CheckKcQuantTensorDataType(const gert::TilingContext *context, const char *opName);
     static ge::graphStatus SetAttrsInfo(const gert::TilingContext *context, const char *opName,
