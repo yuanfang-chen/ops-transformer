@@ -32,8 +32,7 @@ protected:
 TEST_P(Arch20TilingTest, param)
 {
     auto param = GetParam();
-    struct MatmulAllReduceCompileInfo {};
-    MatmulAllReduceCompileInfo compileInfo;
+    struct MatmulAllReduceCompileInfo {} compileInfo;
     gert::TilingContextPara tilingContextPara(
         "MatmulAllReduce",
         {
