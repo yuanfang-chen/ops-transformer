@@ -19,12 +19,12 @@ class AllGatherMatmulTiling : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AllGatherMatmulTiling SetUp" << std::endl;
+        std::cout << "AllGatherMatmul TilingUT910 SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "AllGatherMatmulTiling TearDown" << std::endl;
+        std::cout << "AllGatherMatmul TilingUT910 TearDown" << std::endl;
     }
 };
 
@@ -145,7 +145,7 @@ TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingBfloat16)
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
-TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingFloat16Testl2cache)
+TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingFloat16TestL2cache)
 {
     // tilingFunc simulate
     struct AllGatherMatmulCompileInfo {} compileInfo;

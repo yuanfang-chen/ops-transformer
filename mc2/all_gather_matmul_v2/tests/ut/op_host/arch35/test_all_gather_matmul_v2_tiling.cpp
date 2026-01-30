@@ -20,11 +20,11 @@ class AllGatherMatmulV2TilingTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AllGatherMatmulV2TilingTest SetUp" << std::endl;
+        std::cout << "AllGatherMatmulV2 TilingUT950 SetUp" << std::endl;
     }
     static void TearDownTestCase()
     {
-        std::cout << "AllGatherMatmulV2TilingTest TearDown" << std::endl;
+        std::cout << "AllGatherMatmulV2 TilingUT950 TearDown" << std::endl;
     }
 };
 
