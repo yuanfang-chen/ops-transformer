@@ -694,8 +694,8 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>INT8</td>
       <td>INT8</td>
-      <td>NULLPTR</td>
-      <td>NULLPTR</td>
+      <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
@@ -707,8 +707,8 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
-      <td>NULLPTR</td>
-      <td>NULLPTR</td>
+      <td>FLOAT8_E8M0</td>
+      <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
     </tr>
   </table>
