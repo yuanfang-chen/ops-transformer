@@ -773,14 +773,14 @@ __simd_vf__ inline void SoftmaxDndBase32(__ubuf__ T *x_softmax, __ubuf__ float *
             LoadAlign(vreg_x_f32_3_0, src_ub3_0 + iter_m * RowSize * 2 + ReduceSize * RowSize * iter_sc * 4);
             LoadAlign(vreg_x_f32_3_1, (src_ub3_0 + RowSize) + iter_m * RowSize * 2 + ReduceSize * RowSize * iter_sc * 4);
             
-            FusedExpSub(vreg_x_exp_0_0, vreg_x_f32_0_0, max0_0, preg_all);
-            FusedExpSub(vreg_x_exp_0_1, vreg_x_f32_0_1, max0_0, preg_all);
-            FusedExpSub(vreg_x_exp_1_0, vreg_x_f32_1_0, max1_0, preg_all);
-            FusedExpSub(vreg_x_exp_1_1, vreg_x_f32_1_1, max1_0, preg_all);
-            FusedExpSub(vreg_x_exp_2_0, vreg_x_f32_2_0, max2_0, preg_all);
-            FusedExpSub(vreg_x_exp_2_1, vreg_x_f32_2_1, max2_0, preg_all);
-            FusedExpSub(vreg_x_exp_3_0, vreg_x_f32_3_0, max3_0, preg_all);
-            FusedExpSub(vreg_x_exp_3_1, vreg_x_f32_3_1, max3_0, preg_all);
+            FusedExpSub(vreg_x_exp_0_0, vreg_x_f32_0_0, max0, preg_all);
+            FusedExpSub(vreg_x_exp_0_1, vreg_x_f32_0_1, max0, preg_all);
+            FusedExpSub(vreg_x_exp_1_0, vreg_x_f32_1_0, max1, preg_all);
+            FusedExpSub(vreg_x_exp_1_1, vreg_x_f32_1_1, max1, preg_all);
+            FusedExpSub(vreg_x_exp_2_0, vreg_x_f32_2_0, max2, preg_all);
+            FusedExpSub(vreg_x_exp_2_1, vreg_x_f32_2_1, max2, preg_all);
+            FusedExpSub(vreg_x_exp_3_0, vreg_x_f32_3_0, max3, preg_all);
+            FusedExpSub(vreg_x_exp_3_1, vreg_x_f32_3_1, max3, preg_all);
             
             Add(vreg_x_sum_0_0, vreg_x_exp_0_0, vreg_x_sum_0_0, preg_all);
             Add(vreg_x_sum_0_1, vreg_x_exp_0_1, vreg_x_sum_0_1, preg_all);
@@ -860,8 +860,8 @@ __simd_vf__ inline void SoftmaxDndBase32(__ubuf__ T *x_softmax, __ubuf__ float *
             LoadAlign(vreg_x_f32_0_0, src_ub0_0 + iter_m * RowSize * 2 + ReduceSize * RowSize * (iter_sc + vScRealSize / 4 * 4));
             LoadAlign(vreg_x_f32_0_1, (src_ub0_0 + RowSize) + iter_m * RowSize * 2 + ReduceSize * RowSize * (iter_sc + vScRealSize / 4 * 4));
             
-            FusedExpSub(vreg_x_exp_0_0, vreg_x_f32_0_0, max0_0, preg_all);
-            FusedExpSub(vreg_x_exp_0_1, vreg_x_f32_0_1, max0_0, preg_all);
+            FusedExpSub(vreg_x_exp_0_0, vreg_x_f32_0_0, max0, preg_all);
+            FusedExpSub(vreg_x_exp_0_1, vreg_x_f32_0_1, max0, preg_all);
             
             Add(vreg_x_sum_0_0, vreg_x_exp_0_0, vreg_x_sum_0_0, preg_all);
             Add(vreg_x_sum_0_1, vreg_x_exp_0_1, vreg_x_sum_0_1, preg_all);
