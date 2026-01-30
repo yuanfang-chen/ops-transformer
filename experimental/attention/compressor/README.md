@@ -4,13 +4,14 @@
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | :------: |
 |<term>Atlas A3 推理系列产品</term>   | √  |
-|<term>Atlas A5 推理系列产品</term>   | √  |
+|<term>Ascend 950PR/Ascend 950DT 推理系列产品</term>   | √  |
 
 ## 功能说明
 
--   API功能：Compressor将每4或128个token的 KV cache 压缩成一个，然后每个token与这些压缩的 KV cache进行 DSA 计算。在长序列的情况下，Compressor可以有效地减少计算开销。
+-   API功能：Compressor是推理场景下SAS和QLi的前处理算子，用于将每4或128个token的KV cache压缩成一个，然后每个token与这些压缩的KV cache进行DSA计算。在长序列的情况下，Compressor可以有效地减少计算开销。
 
 -   计算公式：
+  
     压缩阶段：
     1. 计算矩阵乘法：
         - C4A: $\left[kv\_state^a, score\_state^a\right] = X @ \left[W^{aKV}, W^{aGate}\right], \left[kv\_state^b, score\_state^b\right] = X @ \left[W^{bKV}, W^{bGate}\right];$ 
@@ -29,84 +30,90 @@
         - C128A: $kv\_state_{i}^{\text{Comp}} = \left[1\right]_{1\times128} @ (S_H)_i, ~i=1,2,\cdots, \frac{s}{128};$
 
     后处理阶段：
+
     6. 计算RMSNorm：
-    7. 计算Rope：
+        - $\text{RMS}(kv\_state) = \sqrt{\frac{1}{N} \sum_{i=j* N}^{(j+1)* N} kv\_state_{i}^{\text{2}} + norm\_eps} ,N=head\_dim, ~j=1,2,\cdots, \frac{s}{cmp\_ratio}$
+        - $\text{RmsNorm}(kv\_state) = norm\_weight \cdot \frac{kv\_state_{i}}{\text{RMS}(kv\_state)}$
+    7. 计算Rope；
    
 -   主要计算过程为：
     1. 将输入$X$与$W^{KV}$做Matmul运算得到$kv\_state$，将输入$X$与$W^{Gate}$做Matmul运算后再与$Ape$做Add运算得到$score\_state$，$kv\_state$与$score\_state$根据输入的start_pos及cu_seqlens完成更新。
-    2. 对$kv\_state$和$score\_state$进行数据重排，再对$score\_state$进行softmax运算将softmax结果与$kv\_state$做Mul计算，后进行Reducesum运算。
-    3. 根据输入数据norm_weight、rope_sin、rope_cos，进行RMSNorm和Rope运算，得到$cmp\_kv$结果输出。
+    2. 在coff为2的情况下对$kv\_state$和$score\_state$进行数据重排。
+    3. 对$score\_state$进行softmax运算将softmax结果与$kv\_state$做Mul计算，后进行Reducesum运算。
+    4. 根据输入数据norm_weight、rope_sin、rope_cos，进行RMSNorm和Rope运算，得到$cmp\_kv$结果输出。
 
 ## 函数原型
 
 ```
-torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rope_sin, rope_cos, rope_head_dim, cmp_ratio, *,kv_block_table = None, score_block_table = None, cu_seqlens = None, seqused = None, start_pos = None, coff = 1, norm_eps = 1e-6, rotary_mode = 1, enabled_grad = false) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
+custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rope_sin, rope_cos, rope_head_dim, cmp_ratio, *,kv_block_table = None, score_block_table = None, cu_seqlens = None, seqused = None, start_pos = None, coff = 1, norm_eps = 1e-6, rotary_mode = 1, enabled_grad = false) -> (Tensor, Tensor, Tensor, Tensor, Tensor)
 ```
 
 ## 参数说明
 >**说明：**<br> 
 >
->- x参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、D（Head Dim）表示hidden层最小的单元、T表示所有Batch输入样本序列长度的累加和。
+>- x参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、D（Head Dim）表示hidden层的最小单元大小、T表示所有Batch输入样本序列长度的累加和。
 
 -   **x**（`Tensor`）：必选参数，表示原始不经压缩的数据，对应公式中的$X$。不支持非连续，数据格式支持ND，数据类型支持`bfolat16`、`folat16`。支持输入shape[B,S,H]、[T,H]。
     
--   **wkv**（`Tensor`）：必选参数，表示KV和压缩权重的权重参数，对应公式中的$W^{KV}$。不支持非连续，数据格式支持ND，数据类型支持`bfolat16`、`folat16`。支持输入shape[coff* D,H]。
+-   **wkv**（`Tensor`）：必选参数，表示kv压缩权重，对应公式中的$W^{KV}$。不支持非连续，数据格式支持ND，数据类型支持`bfolat16`、`folat16`。支持输入shape[coff* D,H]。
     
--   **wgate**（`Tensor`）：必选参数，表示KV和压缩权重的权重参数，对应公式中的$W^{Gate}$。不支持非连续，数据格式支持ND，数据类型支持`bfolat16`、`folat16`。支持输入shape[coff* D,H]。
+-   **wgate**（`Tensor`）：必选参数，表示gate压缩权重，对应公式中的$W^{Gate}$。不支持非连续，数据格式支持ND，数据类型支持`bfolat16`、`folat16`。支持输入shape[coff* D,H]。
 
--   **kv\_state**（`Tensor`）：必选参数，表示kv\_state的历史数据，对应公式中的$kv\_state$。不支持非连续，数据格式支持ND，数据类型支持`folat32`。支持输入shape[block_num,block_size,coff*D]。
+-   **kv\_state**（`Tensor`）：必选参数，表示kv\_state的历史数据，对应公式中的$kv\_state$。不支持非连续，数据格式支持ND，数据类型支持`folat32`。支持输入shape[block_num,block_size,coff* D]。
 
--   **score\_state**（`Tensor`）：必选参数，表示score\_state中的历史数据, 对应公式中的$score\_state$。不支持非连续，数据格式支持ND，数据类型支持`folat32`。支持输入shape[block_num,block_size,coff*D]。
+-   **score\_state**（`Tensor`）：必选参数，表示score\_state中的历史数据, 对应公式中的$score\_state$。不支持非连续，数据格式支持ND，数据类型支持`folat32`。支持输入shape[block_num,block_size,coff* D]。
 
--   **ape**（`Tensor`）：必选参数，表示输入的positional biases，对应公式中的$Ape$。不支持非连续，数据格式支持ND，数据类型支持`folat32`。支持输入shape[cmp_ratio,coff* D]。
+-   **ape**（`Tensor`）：必选参数，表示positional biases，对应公式中的$Ape$。不支持非连续，数据格式支持ND，数据类型支持`folat32`。支持输入shape[cmp_ratio,coff* D]。
 
 -   **norm\_weight**（`Tensor`）：必选参数，表示计算RmsNorm时的权重系数。数据类型支持`bfolat16`、`folat16`。支持输入shape[D,]。
 
--   **rope\_sin**（`Tensor`）：必选参数，表示Rope计算的权重系数。数据类型支持`bfolat16`、`folat16`。支持输入shape[B,ceil(S/cmp_ratio),rope_head_dim]、[min(T,T//cmp_ratio+B),rope_head_dim]。
+-   **rope\_sin**（`Tensor`）：必选参数，表示Rope计算时sin的权重系数。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，要求输入shape为[B,ceil(S/cmp_ratio),rope_head_dim]；当x的shape为[T,H]时，要求输入shape为[min(T,T//cmp_ratio+B),rope_head_dim]。
 
--   **rope\_cos**（`Tensor`）：必选参数，表示Rope计算的权重系数。数据类型支持`bfolat16`、`folat16`。支持输入shape[B,ceil(S/cmp_ratio),rope_head_dim]、[min(T,T//cmp_ratio+B),rope_head_dim]。
+-   **rope\_cos**（`Tensor`）：必选参数，表示Rope计算时cos的权重系数。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，要求输入shape为[B,ceil(S/cmp_ratio),rope_head_dim]；当x的shape为[T,H]时，要求输入shape为[min(T,T//cmp_ratio+B),rope_head_dim]。
 
--   **rope\_head\_dim**（`int`）：必选参数，表示rope_cos和rope_sin的hidden层最小单元。目前仅支持64。
+-   **rope\_head\_dim**（`int`）：必选参数，表示rope_cos和rope_sin的hidden层最小单元大小。目前仅支持64。
 
 -   **cmp\_ratio**（`int`）：必选参数，表示数据压缩率。支持2/4/8/16/32/64/128。
 
 - <strong>*</strong>：代表其之前的参数是位置相关的，必须按照顺序输入；之后的参数是可选参数，位置无关，不赋值会使用默认值。
 
--   **kv\_blcok\_table**（`Tensor`）：可选参数，表示kv\_state存储使用的block映射表。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,Smax/block_size]。当输入为0时，表示无需进行更新kv_state操作。
+-   **kv\_blcok\_table**（`Tensor`）：可选参数，表示kv\_state存储使用的block映射表。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,Smax/block_size]，Smax为每个Batch中最大的Sequence Length。当其中元素的值为0时，表示当前位置无需进行更新kv_state操作。
 
--   **score\_blcok\_table**（`Tensor`）：可选参数，表示score\_state存储使用的block映射表。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,Smax/block_size]。当输入为0时，表示无需进行更新score_state操作。
+-   **score\_blcok\_table**（`Tensor`）：可选参数，表示score\_state存储使用的block映射表。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,Smax/block_size], Smax为每个Batch中最大的Sequence Length。当其中元素的值为0时，表示当前位置无需进行更新score_state操作。
 
--   **cu\_seqlens**（`Tensor`）：可选参数，表示不同Batch上的有效token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B+1,]。该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。
+-   **cu\_seqlens**（`Tensor`）：可选参数，表示不同Batch上的有效token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B+1,]。当x的shape为[B,S,H]时，参数无效。当x的shape为[T,H]时，该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值
 
--   **seqused**（`Tensor`）：可选参数，表示不同Batch中实际参与运算的token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,]。如果不指定为None时，表示和每个Batch上的Sequence Length长度相同。该入参中每个Batch的有效token数要求小于等于对应cu\_seqlens的值，即seqused[n] <= cu\_seqlens[n+1] - cu\_seqlens[n]，且不小于0。支持长度为B的一维tensor。
+-   **seqused**（`Tensor`）：可选参数，表示不同Batch中实际参与压缩的token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,]。如果不指定为None时，表示和每个Batch上的Sequence Length长度相同。该入参中每个Batch的有效token数要求小于等于对应Sequence Length长度。当x的shape为[B,S,H]时，要求seqused[n] <= S，且不小于0；当x的shape为[T,H]时，要求seqused[n] <= cu\_seqlens[n+1] - cu\_seqlens[n]，且不小于0。支持长度为B的一维tensor。
 
 -   **start\_pos**（`Tensor`）：可选参数，表示计算起始位置。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,]。当输入为None时，表示从0开始进行计算。
 
--   **coff**（`int`）：可选参数，表示headDim的数据份数。默认值1，支持1/2。当coff=1时，表示仅1份headDim数据，无需进行overlap数据重排。当coff=2时，表示2份相互关联的headDim数据，后续需要进行overlap数据重排。
+-   **coff**（`int`）：可选参数，默认值1，支持1/2。当coff=1时，无需进行overlap数据重排。当coff=2时，需要进行overlap数据重排。
 
--   **norm\_eps**（`float`）：可选参数，表示RmsNorm计算的权重系数。仅支持默认值1e-6。
+-   **norm\_eps**（`float`）：可选参数，表示RmsNorm计算的权重系数。默认值1e-6。
 
 -   **ratary\_mode**（`int`）：可选参数，表示Rop计算的模式。默认值1，支持1/2。ratary\_mode为1时，代表half模式。ratary\_mode为2时，代表interleave模式。
 
 -   **enabled\_grad**（`bool`）：可选参数，训练场景使用，表示是否参与反向更新。默认值false，支持false/true。
 
 ## 返回值说明
--   **cmp\_kv**（`Tensor`）：必选输出，表示压缩后的数据。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。支持输出shape[B,ceil(S/cmp_ratio),D]、[min(T,T//cmp_ratio+B),D]。
+-   **cmp\_kv**（`Tensor`）：必选输出，表示压缩后的数据。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),D]：(<batch0>compessed_tokens+pad0) +  (<batch1>compessed_tokens+pad1) + ... +  (<batchN>compessed_tokens+padN)；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),D]：<batch0>compressed_tokens + <batch1>compressed_tokens + ... + <batchN>compressed_tokens + pad。
 
--   **wkv\_proj**（`Tensor`）：可选输出，训练反向使用，表示wkv权重Matmul的计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。支持输出shape[B,S,coff* D]、[T,coff* D]。
+-   **wkv\_proj**（`Tensor`）：可选输出，训练反向使用，表示wkv权重Matmul的计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,S,coff* D]；当x的shape为[T,H]时，输出shape为[T,coff* D]。
 
--   **softmax\_res**（`Tensor`）：可选输出，训练反向使用，表示Softmax计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。支持输出shape[B,ceil(S/cmp_ratio),coff* cmp_ratio,D]、[min(T,T//cmp_ratio+B),coff* cmp_ratio,D]。
+-   **softmax\_res**（`Tensor`）：可选输出，训练反向使用，表示Softmax计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),coff* cmp_ratio,D]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),coff* cmp_ratio,D]。
 
--   **norm\_x**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的输入。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。支持输出shape[B,ceil(S/cmp_ratio),D]、[min(T,T//cmp_ratio+B),D]。
+-   **norm\_x**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的输入。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),D]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),D]。
 
--   **norm\_rstd**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的中间结果，rms(x)。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。支持输出shape[B,ceil(S/cmp_ratio)]、[min(T,T//cmp_ratio+B)]。
+-   **norm\_rstd**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的中间结果，rms(x)。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio)]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B)]。
 
 ## 约束说明
 
 -   该接口支持B、S泛化, 当layout为(B,S,H)时B,S过大可能出现异常，当layout为(T,H)时T过大可能出现异常。//（注意事项）
--   D支持128/512。
--   H支持1K~10K，512对齐。
--   block_size, 128/256/512/1024；泛化支持小于等于1024，16对齐。
+-   支持D为128/512。
+-   支持H为1K~10K，512对齐。
+-   泛化支持block_size小于等于1024，16对齐。
+-   支持cmp_ratio为4/128。
+-   支持rotary_mode为2，Rope计算模式为interleave。
 
 ## 调用示例
 
@@ -156,7 +163,8 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
     shuffled_indices = torch.randperm(block_num)
     index = torch.arange(1, block_num + 1, 1, dtype=torch.int32)
     index = index[shuffled_indices].reshape(B, max_block_num_per_batch)
-    block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
+    kv_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
+    score_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
     for i in range(B):
         cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
         cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
@@ -165,7 +173,8 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
         cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
         cur_end_block_id = (cur_end - 1) // block_size
         for j in range(cur_start_block_id, cur_end_block_id + 1):
-            block_table[i][j] = index[i][j]
+            kv_block_table[i][j] = index[i][j]
+            score_block_table[i][j] = index[i][j]
         end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
         next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
         next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
@@ -174,9 +183,10 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
         for j in range(next_start_block_id, next_end_block_id + 1):
-            block_table[i][j] = index[i][j]
-    kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
-    score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+            kv_block_table[i][j] = index[i][j]
+            score_block_table[i][j] = index[i][j]
+    kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(kv_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+    score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(score_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
 
     # other input
     if bs_combine_flag:
@@ -207,8 +217,8 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
             norm_weight, 
             rope_sin,
             rope_cos,
-            kv_block_table = block_table,
-            score_block_table = block_table,
+            kv_block_table = kv_block_table,
+            score_block_table = score_block_table,
             cu_seqlens = cu_seqlens,
             seqused = seqused,
             start_pos = start_pos,
@@ -225,7 +235,7 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
 -   图模式调用
 
     ```python
-    import torch
+       import torch
     import torch_npu
     import numpy as np
     import torch.nn as nn
@@ -269,7 +279,8 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
     shuffled_indices = torch.randperm(block_num)
     index = torch.arange(1, block_num + 1, 1, dtype=torch.int32)
     index = index[shuffled_indices].reshape(B, max_block_num_per_batch)
-    block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
+    kv_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
+    score_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
     for i in range(B):
         cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
         cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
@@ -278,7 +289,8 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
         cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
         cur_end_block_id = (cur_end - 1) // block_size
         for j in range(cur_start_block_id, cur_end_block_id + 1):
-            block_table[i][j] = index[i][j]
+            kv_block_table[i][j] = index[i][j]
+            score_block_table[i][j] = index[i][j]
         end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
         next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
         next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
@@ -287,9 +299,10 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
         for j in range(next_start_block_id, next_end_block_id + 1):
-            block_table[i][j] = index[i][j]
-    kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
-    score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+            kv_block_table[i][j] = index[i][j]
+            score_block_table[i][j] = index[i][j]
+    kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(kv_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+    score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(score_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
 
     # other input
     if bs_combine_flag:
@@ -327,8 +340,8 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
                         norm_weight, 
                         rope_sin,
                         rope_cos,
-                        kv_block_table = block_table,
-                        score_block_table = block_table,
+                        kv_block_table = kv_block_table,
+                        score_block_table = score_block_table,
                         cu_seqlens = cu_seqlens,
                         seqused = seqused,
                         start_pos = start_pos,
@@ -355,8 +368,8 @@ torch_npu.compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, rop
                     norm_weight, 
                     rope_sin,
                     rope_cos,
-                    kv_block_table = block_table,
-                    score_block_table = block_table,
+                    kv_block_table = kv_block_table,
+                    score_block_table = score_block_table,
                     cu_seqlens = cu_seqlens,
                     seqused = seqused,
                     start_pos = start_pos,
