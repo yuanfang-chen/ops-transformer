@@ -236,7 +236,8 @@ ge::graphStatus KvRmsNormRopeCacheRegbaseFullLoadTiling::DoOpTiling()
         if (isOutputKv_) {
             kOutUbsize = dkB8Align * kvDtypeSize_ + dkB8Align * sizeof(int8_t);
         } else {
-            kOutUbsize = dkB8Align * sizeof(int8_t);
+            int64 b = sizeof(int8_t);
+            kOutUbsize = dkB8Align * b;
         }
     } else {
         kOutUbsize = dkAlign * kvDtypeSize_;
