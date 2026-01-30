@@ -138,6 +138,22 @@ class Parser:
     _ExamplesExcludes: List[str] = []
 
     @classmethod
+    def file_filter(file_path: Path) -> bool:
+        """过滤不需要处理的文件"""
+        path_str = str(file_path)
+        # 排除文档文件
+        exclude_extensions = ['.md', '.json', '.ini']
+        for ext in exclude_extensions:
+            if path_str.endswith(ext):
+                return False
+        # 排除文档目录
+        exclude_keywords = ['docs/']
+        for keyword in exclude_keywords:
+            if keyword in path_str:
+                return False
+        return True
+
+    @classmethod
     def print_details(cls):
         for m in cls._Modules:
             m.print_details()
@@ -184,6 +200,10 @@ class Parser:
             if f.is_absolute():
                 logging.error("%s is absolute path.", f)
                 return False
+            # 添加文件过滤
+            if not cls.file_filter(f):
+                logging.info(f"Filter out non-source file: {f}")
+                continue
             cls._ChangedPaths.append(f)
         return True
 
