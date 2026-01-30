@@ -1,4 +1,4 @@
-/**
+=/**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
@@ -12,6 +12,7 @@
  * \file kv_rms_norm_rope_cache_regbase_full_load_tiling.cpp
  * \brief
  */
+
 #include "kv_rms_norm_rope_cache_tiling.h"
 #include "log/log.h"
 #include "tiling/platform/platform_ascendc.h"
@@ -65,6 +66,18 @@ bool KvRmsNormRopeCacheRegbaseFullLoadTiling::CheckScaleOffsetShape(
     return false;
 }
 
+bool KvRmsNormRopeCacheRegbaseFullLoadTiling::CheckCacheIsQuant(ge::DataType& cacheDtype)
+{
+    std::vector<ge::DataType> cacheQuantDtypesList = {ge::DataType::DT_INT8, ge::DataType::DT_HIFLOAT8,
+                                                  ge::DataType::DT_FLOAT8_E4M3FN, ge::DataType::DT_FLOAT8_E5M2};
+    for (const auto& cacheQuantDtype : cacheQuantDtypesList) {
+        if (cacheQuantDtype == cacheDtype) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool KvRmsNormRopeCacheRegbaseFullLoadTiling::CheckInputDtype()
 {
     // kv dtype
@@ -103,10 +116,9 @@ bool KvRmsNormRopeCacheRegbaseFullLoadTiling::CheckInputDtype()
     auto kcacheDesc = context_->GetInputDesc(K_CACHE_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, kcacheDesc);
     ge::DataType kcacheDtype = kcacheDesc->GetDataType();
-    OP_CHECK_IF(
-        ((kcacheDtype != kvDtype) && (kcacheDtype != ge::DT_INT8)),
+    OP_CHECK_IF(((kcacheDtype != kvDtype) && (!CheckCacheIsQuant(kcacheDtype))),
         OP_LOGE(context_->GetNodeName(), "the dtype of k_cache is invalid."), return false);
-    if (kcacheDtype == ge::DT_INT8) {
+    if (CheckCacheIsQuant(kcacheDtype)) {
         // k_rope_scale
         auto kRopeScaleDesc = context_->GetOptionalInputDesc(K_ROPE_SCALE_IDX);
         OP_CHECK_NULL_WITH_CONTEXT(context_, kRopeScaleDesc);
@@ -128,10 +140,9 @@ bool KvRmsNormRopeCacheRegbaseFullLoadTiling::CheckInputDtype()
     auto vcacheDesc = context_->GetInputDesc(V_CACHE_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, vcacheDesc);
     ge::DataType vcacheDtype = vcacheDesc->GetDataType();
-    OP_CHECK_IF(
-        ((vcacheDtype != kvDtype) && (vcacheDtype != ge::DT_INT8)),
+    OP_CHECK_IF(((vcacheDtype != kvDtype) && (!CheckCacheIsQuant(vcacheDtype))),
         OP_LOGE(context_->GetNodeName(), "the dtype of ckv_cache is invalid."), return false);
-    if (vcacheDtype == ge::DT_INT8) {
+    if (CheckCacheIsQuant(vcacheDtype)) {
         // c_kv_scale
         auto ckvScaleDesc = context_->GetOptionalInputDesc(C_KV_SCALE_IDX);
         OP_CHECK_NULL_WITH_CONTEXT(context_, ckvScaleDesc);
@@ -231,6 +242,7 @@ ge::graphStatus KvRmsNormRopeCacheRegbaseFullLoadTiling::DoOpTiling()
     int64_t inUbSize = std::max(dkAlign, dvAlign) * kvDtypeSize_;
     int64_t kOutUbsize = 0;
     int64_t vOutUbsize = 0;
+    
     // k量化场景
     if (kScaleType_ > 0) {
         if (isOutputKv_) {
@@ -255,7 +267,7 @@ ge::graphStatus KvRmsNormRopeCacheRegbaseFullLoadTiling::DoOpTiling()
     int64_t ropeWspSize = 2 * vlFp32_ * sizeof(float);
     int64_t rmsNormWspSize = dvAlign * sizeof(float);
     int64_t ubFactor =
-        (ubSize_ - UB_RESERVED_BYTE - kScaleOffsetUbSize - vScaleOffsetUbSize - gammaUbSize - ropeWspSize) /
+        (static_cast<int64_t>(ubSize_) - UB_RESERVED_BYTE - kScaleOffsetUbSize - vScaleOffsetUbSize - gammaUbSize - ropeWspSize) /
         (DOUBLE_BUFFER * inUbSize + DOUBLE_BUFFER * inCosSinUbSize + DOUBLE_BUFFER * outUbSize + rmsNormWspSize);
     OP_CHECK_IF(
         (ubFactor <= 0),
