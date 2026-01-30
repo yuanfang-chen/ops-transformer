@@ -145,7 +145,7 @@ TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingBfloat16)
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
-TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingFloat16Testl2cache)
+TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingFloat16TestL2cache)
 {
     // tilingFunc simulate
     struct AllGatherMatmulCompileInfo {} compileInfo;
