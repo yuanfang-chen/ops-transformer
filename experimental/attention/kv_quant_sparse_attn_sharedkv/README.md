@@ -3,7 +3,7 @@
 ## 产品支持情况
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | :------: |
-|<term>Atlas A5 推理系列产品</term>   | √  |
+|<term>Ascend 950PR/Ascend 950DT</term>   | √  |
 
 ## 功能说明
 - API功能：KvQuantSparseAttentionSharedKv 算子旨在完成以下公式描述的Attention计算，支持Sliding Window Attention、Compressed Attention以及Sparse Compressed Attention：
@@ -19,9 +19,7 @@
 ## 函数原型
 
 ```
-torch_npu.npu_kv_quant_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indices=None, cmp_sparse_indices=None, ori_block_table=None, cmp_block_table=None, 
-cu_seqlens_q=None, cu_seqlens_ori_kv=None, cu_seqlens_cmp_kv=None, seqused_q=None, seqused_kv=None, sinks=None, metadata=None, kv_quant_mode=0, tile_size=0, rope_head_dim=0, 
-softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128, ori_win_right=0, layout_q='BSND', layout_kv='PA_ND', return_softmax_lse=False) -> (Tensor, Tensor)
+torch_npu.npu_kv_quant_sparse_attn_sharedkv(q, kv_quant_mode, *, ori_kv=None, cmp_kv=None, ori_sparse_indices=None, cmp_sparse_indices=None, ori_block_table=None, cmp_block_table=None, cu_seqlens_q=None, cu_seqlens_ori_kv=None, cu_seqlens_cmp_kv=None, seqused_q=None, seqused_kv=None, sinks=None, metadata=None, tile_size=0, rope_head_dim=0, softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='PA_ND', return_softmax_lse=False) -> (Tensor, Tensor)
 ```
 
 ## 参数说明
@@ -30,6 +28,8 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
 >- q、ori_kv、cmp_kv参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Hidden Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
 >- Q_S和S1表示q shape中的S，S2表示ori_kv shape中的S，S3表示cmp_kv shape中的S；Q\_N和N1表示num\_q\_heads，KV\_N和N2表示num\_ori_kv\_heads和num\_cmp_kv\_heads；T1表示q shape中的T，T2表示ori\_kv shape中的T，T3表示cmp\_kv shape中的输入样本序列长度的累加和。
 -   **q**（`Tensor`）：必选参数，对应公式中的$Q$，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`。`layout_query`为BSND时shape为[B,S1,N1,D]，当`layout_query`为TND时shape为[T1,N1,D]，其中N1仅支持64。
+
+-   **kv\_quant\_mode**（`int`）：必选参数，kv nope的量化模式，仅支持1，表示K、V nope为per-tile量化，量化后的KV数据类型为float8_e4m3。
 
 - <strong>*</strong>：必选参数，代表其之前的变量是位置相关的，必须按照顺序输入；之后的变量是可选参数，位置无关，需要使用键值对赋值，不赋值会使用默认值。
 
@@ -57,13 +57,11 @@ softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=128
 
 -   **sinks**（`Tensor`）：可选参数，注意力下沉tensor，数据格式支持ND，数据类型支持`float32`，shape为[N1]。
 
--   **metadata**（`Tensor`）：可选参数，为aicpu算子（kv_quant_npu_sparse_attn_sharedkv_metadata）的分核结果，数据格式支持ND，数据类型支持`int32`，shape固定为[1024]。
+-   **metadata**（`Tensor`）：可选参数，为aicpu算子（kv_quant_npu_sparse_attn_sharedkv_metadata）的分核结果，数据格式支持ND，数据类型支持`int32`，shape固定为[2048]。
 
--   **kv\_quant\_mode**（`Tensor`）：可选参数，kv nope的量化模式，仅支持1，表示K、V nope为per-tile量化，量化后的KV数据类型为float8_e4m3。
+-   **tile\_size**（`int`）：可选参数，表示量化粒度，必须能被rope_head_dim整除，默认值为None，当前仅支持64。
 
--   **tile\_size**（`Tensor`）：可选参数，表示量化粒度，必须能被rope_head_dim整除，默认值为None，当前仅支持64。
-
--   **rope\_head\_dim**（`Tensor`）：可选参数，为aicpu算子（npu_kv_quant_sparse_attn_sharedkv_metadata）的分核结果，数据格式支持ND，数据类型支持`int32`，默认值为0，当前仅支持64。
+-   **rope\_head\_dim**（`int`）：可选参数，数据类型支持`int32`，默认值为0，当前仅支持64。
 
 -   **softmax\_scale**（`float`）：可选参数，代表缩放系数，作为q与ori_kv和cmp_kv矩阵乘后Muls的scalar值，数据类型支持`float`，默认值为None，None表示softmax_scale值为1/sqrt(D)。
     
