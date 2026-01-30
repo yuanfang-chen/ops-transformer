@@ -1,0 +1,26 @@
+case_name,expectResult,x1_shape,x1_dtype,x1_format,x2_shape,x2_dtype,x2_format,bias_shape,bias_dtype,bias_format,antiquant_scale_shape,antiquant_scale_dtype,antiquant_scale_format,antiquant_offset_shape,antiquant_offset_dtype,antiquant_offset_format,dequant_scale_shape,dequant_scale_dtype,dequant_scale_format,pertoken_scale_shape,pertoken_scale_dtype,pertoken_scale_format,comm_quant_scale_1_shape,comm_quant_scale_1_dtype,comm_quant_scale_1_format,comm_quant_scale_2_shape,comm_quant_scale_2_dtype,comm_quant_scale_2_format,output_y_shape,output_y_dtype,output_y_format,group,reduce_op,is_trans_a,is_trans_b,comm_turn,antiquant_group_size,group_size,y_dtype,comm_quant_mode,ranksize,expectTilingKey,expectTilingDataHash
+float16_basic_nd,1,1024 2048,FLOAT16,ND,2048 4096,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,1024 4096,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,33554497,952926732179b875
+float16_weight_nz,1,2048 3072,FLOAT16,ND,3072 8192,FLOAT16,FRACTAL_NZ,,,,,,,,,,,,,,,,,,,,,,2048 8192,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,134217985,521182932539e487
+float16_small_shape,1,16 32,FLOAT16,ND,32 64,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,16 64,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,33554433,df6fc78cddb7612d
+float16_large_shape,1,8192 15360,FLOAT16,ND,15360 8192,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,8192 8192,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,33554433,934328e85e28c037
+float16_k_zero,1,512 0,FLOAT16,ND,0 1024,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,512 1024,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,17,05765b922f012a8b
+float16_transB,1,1024 2048,FLOAT16,ND,4096 2048,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,1024 4096,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,33554497,6f0ab654e34c5333
+float16_with_bias,1,512 1024,FLOAT16,ND,1024 2048,FLOAT16,ND,2048,FLOAT16,ND,,,,,,,,,,,,,,,,,,,512 2048,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,33554433,433a83581d371f75
+float16_with_x3,1,256 512,FLOAT16,ND,512 1024,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,256 1024,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,33554433,2e81248b4c4f7df0
+a8w8_quant_basic,1,256 1536,INT8,ND,1536 8192,INT8,FRACTAL_NZ,,,,,,,,8192,UINT64,ND,,,,,,,,,,,,256 8192,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,9,ad0cdfa00cae6a27
+a8w8_with_bias,1,128 768,INT8,ND,768 4096,INT8,FRACTAL_NZ,4096,FLOAT16,ND,,,,,4096,UINT64,ND,,,,,,,,,,,,128 4096,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,9,854e0e7d73b0d2c5
+a16w8_weight_quant_basic,1,1024 2048,FLOAT16,ND,2048 4096,INT8,FRACTAL_NZ,,,,4096,FLOAT16,ND,4096,FLOAT16,ND,,,,,,,,,,,,,1024 4096,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,139460621,986ada0c8c8a11a1
+a16w4_weight_quant_basic,1,1024 2048,FLOAT16,ND,2048 4096,INT4,FRACTAL_NZ,,,,4096,FLOAT16,ND,4096,FLOAT16,ND,,,,,,,,,,,,,1024 4096,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,139460621,986ada0c8c8a11a1
+fp8_as_a16w8_scene,1,512 1024,FLOAT16,ND,1024 2048,FLOAT8_E4M3FN,FRACTAL_NZ,,,,2048,FLOAT16,ND,2048,FLOAT16,ND,,,,,,,,,,,,,512 2048,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,33554433,a9ad7bf4d2537f0a
+ranksize_1,1,512 1024,FLOAT16,ND,1024 2048,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,512 2048,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,1,33554433,9dd10c51322046a7
+ranksize_4,1,512 1024,FLOAT16,ND,1024 2048,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,512 2048,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,4,33554433,aaaefab5bd549022
+float16_split_k,1,1024 2048,FLOAT16,ND,2048 4096,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,1024 4096,FLOAT16,ND,group,sum,0,0,0,0,1,0,0,2,33554497,5cd39af47afb84f7
+weight_quant_n_unaligned,1,512 1024,FLOAT16,ND,1024 4097,INT8,ND,,,,4097,FLOAT16,ND,4097,FLOAT16,ND,,,,,,,,,,,,,512 4097,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,105906189,65ac5c9264b45588
+int8_weight_with_scale,1,512 1024,FLOAT16,ND,1024 2048,INT8,ND,,,,2048,FLOAT16,ND,2048,FLOAT16,ND,,,,,,,,,,,,,512 2048,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,105906189,d046155562d465ea
+invalid_ranksize_8,0,512 1024,FLOAT16,ND,1024 2048,FLOAT16,ND,,,,,,,,,,,,,,,,,,,,,,512 2048,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,8,,,
+a8w8_invalid_n_aligned,0,256 1536,INT8,ND,1536 4097,INT8,FRACTAL_NZ,,,,,,,,4097,UINT64,ND,,,,,,,,,,,,256 4097,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,,,
+a8w8_invalid_k_aligned,0,256 1535,INT8,ND,1535 4096,INT8,FRACTAL_NZ,,,,,,,,4096,UINT64,ND,,,,,,,,,,,,256 4096,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,,,
+a8w8_invalid_transpose,0,256 1536,INT8,ND,1536 4096,INT8,FRACTAL_NZ,,,,,,,,4096,UINT64,ND,,,,,,,,,,,,256 4096,FLOAT16,ND,group,sum,1,0,0,0,0,0,0,2,,,
+a8w8_invalid_weight_format,0,256 1536,INT8,ND,1536 4096,INT8,ND,,,,,,,,4096,UINT64,ND,,,,,,,,,,,,256 4096,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,,,
+weight_quant_missing_scale,0,1024 2048,FLOAT16,ND,2048 4096,INT8,FRACTAL_NZ,,,,,,,,,,,,,,,,,,,,,,1024 4096,FLOAT16,ND,group,sum,0,1,0,0,0,0,0,2,,,
+empty_tensor_test,0,0 0,FLOAT16,ND,0 1024,FLOAT16,ND,0,FLOAT16,ND,0 1024,FLOAT16,ND,,,,,,,,,,,,,,,,0 1024,FLOAT16,ND,group,sum,0,0,0,0,0,0,0,2,,,
