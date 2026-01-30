@@ -46,8 +46,6 @@ protected:
 
     ge::graphStatus PostTiling() override;
 
-    Mc2Tiling::Mc2Msg& MutableMc2MsgData() override;
-
     Mc2Tiling::RCSTiling& MutableRCSTilingData() override;
 
     AscendC::tiling::TCubeTiling& MutableTCubeTileTilingData() override;
@@ -59,6 +57,8 @@ protected:
     ge::graphStatus CheckInput() override;
 
     ge::graphStatus CheckDequantScaleType();
+
+    ge::graphStatus SetHcclTiling();
 
 private:
     ge::graphStatus CheckAxisSize();

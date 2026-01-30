@@ -30,7 +30,8 @@ namespace Mc2Tiling {
 #pragma pack(push, 8)
 // 8 means 8 bytes aligned
 struct alignas(8) WeightQuantMatmulAllReduceTilingData{
-    Mc2Tiling::Mc2Msg msg;
+    Mc2InitTiling mc2InitTiling;
+    Mc2CcTiling mc2CcTilingV1;
     Mc2Tiling::RCSTiling param;
     Mc2WeightQuantBatchMatmulV2TilingData tilematmulTiling;
     Mc2WeightQuantBatchMatmulV2TilingData tailmatmulTiling;

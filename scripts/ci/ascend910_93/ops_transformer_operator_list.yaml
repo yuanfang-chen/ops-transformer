@@ -105,6 +105,7 @@ operator_group_10:
   - ffn_to_attention
   - grouped_mat_mul_allto_allv
   - grouped_mat_mul_all_reduce
+  - matmul_all_reduce
   - matmul_reduce_scatter
   - matmul_reduce_scatter_v2
   - moe_distribute_combine

@@ -13,9 +13,21 @@
  * \brief
  */
 #include "matmul_all_reduce_tiling_910.h"
+#include <string>
+#include <vector>
+#include "tiling/matmul_formulaic_tiling.h"
+#include "platform/platform_infos_def.h"
+#include "hccl/hccl_types.h"
 #include "op_mc2.h"
 
 namespace optiling {
+namespace {
+constexpr uint32_t ATTR_GROUP_INDEX = 0;
+static const std::vector<int32_t> soc_version = {
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)};
+} // namespace
+
 using namespace Mc2Tiling;
 bool MatmulAllReduceTiling910::IsCapable()
 {
@@ -42,7 +54,7 @@ ge::graphStatus MatmulAllReduceTiling910::DoOpTiling()
     } else {
         DoEmptyTensorTiling();
     }
-    DoAllReduceTiling(true);
+    SetHcclTiling();
     return ge::GRAPH_SUCCESS;
 }
 
@@ -121,6 +133,41 @@ ge::graphStatus MatmulAllReduceTiling910::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus MatmulAllReduceTiling910::SetHcclTiling()
+{
+    // A2和A3芯片设置hccltiling
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr,                         \
+        OP_LOGE(context_->GetNodeName(), "fail to get platfoem info"),  \
+        return ge::GRAPH_FAILED);
+    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+    std::string socVersionStr;
+    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+    auto group = context_->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_INDEX);
+    OP_TILING_CHECK(group == nullptr,                         \
+        OP_LOGE(context_->GetNodeName(), "GetAttrPointer for ATTR_GROUP_INDEX failed"),  \
+        return ge::GRAPH_FAILED);
+    uint32_t optype = HcclCMDType::HCCL_CMD_ALLREDUCE;
+    std::string algConfig = (socVersionStr == "Ascend910_93") ? \
+                        "AllReduce=level0:doublering" : "AllReduce=level0:fullmesh";
+    OP_LOGD(context_->GetNodeName(), "MatmulAllReduceTiling910, SetHcclTiling algConfig is: %s", \
+            algConfig.c_str());
+    uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, optype, algConfig, reduceType);
+
+    OP_TILING_CHECK(mc2CcTilingConfig.SetSkipBufferWindowCopy(                                              \
+                        static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT)) != 0,  \
+        OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig setSkipBufferWindowCopy failed"),               \
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2InitTiling) != 0,      \
+        OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), \
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2CcTilingV1) != 0,        \
+        OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTilingV1 failed"),   \
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus MatmulAllReduceTiling910::Do910Tiling()
 {
     args_.mValue = tileMValue_;
@@ -142,11 +189,6 @@ ge::graphStatus MatmulAllReduceTiling910::Do910Tiling()
         matmulTPLParam_ = mmTail.GetMatmulTPLParam();
         return res;
     }
-}
-
-Mc2Tiling::Mc2Msg& MatmulAllReduceTiling910::MutableMc2MsgData()
-{
-    return matmulAllReduce910TilingData_.msg;
 }
 
 Mc2Tiling::RCSTiling& MatmulAllReduceTiling910::MutableRCSTilingData()
@@ -336,5 +378,5 @@ TilingTransferHelper::TilingTransferHelper(MatmulAllReduceTiling910& matmulAllRe
 {}
 
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,MatmulAllReduceTiling910,static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),2);
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,MatmulAllReduceTiling910,soc_version,2);
 } // namespace optiling

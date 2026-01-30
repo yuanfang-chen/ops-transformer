@@ -30,7 +30,7 @@ class MatmulAllReduceEmptyTensorKGeneral
 {
 public:
     __aicore__ inline MatmulAllReduceEmptyTensorKGeneral(MC2GmAddrs* addrs, MC2TilingHeader* tilingData, TPipe* tPipe)
-        : addrs_(addrs), tPipe_(tPipe)
+        : addrs_(addrs), tilingData_(tilingData), tPipe_(tPipe)
     {
         param_ = &(tilingData->param);
         cOffset_ = (uint64_t)param_->rankN * (uint64_t)param_->rankM;
@@ -43,7 +43,13 @@ public:
 
     __aicore__ inline void Init()
     {
-        hccl_.Init(GetHcclContext<0>());
+#ifdef MC2_WEIGHT_QUANT
+        hccl_.InitV2(GetHcclContext<0>(), (Mc2Tiling::WeightQuantMatmulAllReduceTilingData*)tilingData_);
+        hccl_.SetCcTilingV2(offsetof(Mc2Tiling::WeightQuantMatmulAllReduceTilingData, mc2CcTilingV1));
+#else
+        hccl_.InitV2(GetHcclContext<0>(), (Mc2Tiling::MatmulAllReduce910TilingData*)tilingData_);
+        hccl_.SetCcTilingV2(offsetof(Mc2Tiling::MatmulAllReduce910TilingData, mc2CcTilingV1));
+#endif
         notifyFlag_ = (GetBlockIdx() == 0);
         if (notifyFlag_) {
             hcclHandleId_ =
@@ -144,6 +150,7 @@ private:
     Mc2Tiling::RCSTiling* param_;
     bool biasFlag_{false};
     uint64_t cOffset_;
+    MC2TilingHeader* tilingData_;
     TPipe* tPipe_;
     bool notifyFlag_{false};
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;

@@ -13,12 +13,23 @@
  * \brief
  */
 #include "weight_quant_matmul_all_reduce_tiling.h"
+#include <string>
+#include <vector>
+#include "platform/platform_infos_def.h"
+#include "hccl/hccl_types.h"
 #include "op_mc2.h"
 #include "mc2_log.h"
 
 using namespace Mc2Log;
 using namespace Mc2Tiling;
 namespace optiling {
+namespace {
+constexpr uint32_t ATTR_GROUP_INDEX = 0;
+static const std::vector<int32_t> soc_version = {
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)
+};
+} // namespace
 
 ge::graphStatus WeightQuantTilingTransferHelper::GetShapeAttrsInfo()
 {
@@ -120,13 +131,49 @@ ge::graphStatus WeightQuantMatmulAllReduceTiling::DoOpTiling()
     DoSplitMTiling();
     if (isKZero_) {
         DoEmptyTensorTiling();
-        DoAllReduceTiling(true);
         return ge::GRAPH_SUCCESS;
     }
     GE_ASSERT_GRAPH_SUCCESS(DoWeightQuantTiling());
-    DoAllReduceTiling(true);
+    SetHcclTiling();
     return ge::GRAPH_SUCCESS;
 }
+
+ge::graphStatus WeightQuantMatmulAllReduceTiling::SetHcclTiling()
+{
+    // A2和A3芯片设置hccltiling
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr,                         \
+        OP_LOGE(context_->GetNodeName(), "fail to get platfoem info"),  \
+        return ge::GRAPH_FAILED);
+    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+    std::string socVersionStr;
+    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+    auto group = context_->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_INDEX);
+    OP_TILING_CHECK(group == nullptr,                         \
+        OP_LOGE(context_->GetNodeName(), "GetAttrPointer for ATTR_GROUP_INDEX failed"),  \
+        return ge::GRAPH_FAILED);
+    uint32_t optype = HcclCMDType::HCCL_CMD_ALLREDUCE;
+    std::string algConfig = (socVersionStr == "Ascend910_93") ? \
+                        "AllReduce=level0:doublering" : "AllReduce=level0:fullmesh";
+    OP_LOGD(context_->GetNodeName(), "WeightQuantMatmulAllReduceTiling, SetHcclTiling algConfig is: %s", \
+            algConfig.c_str());
+    uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, optype, algConfig, reduceType);
+
+    // 通信输入不放在windows中
+    OP_TILING_CHECK(mc2CcTilingConfig.SetSkipBufferWindowCopy(                                              \
+                        static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT)) != 0,  \
+        OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig setSkipBufferWindowCopy failed"),               \
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceTilingData_.mc2InitTiling) != 0,  \
+        OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"),     \
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceTilingData_.mc2CcTilingV1) != 0,    \
+        OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTilingV1 failed"),       \
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 uint64_t WeightQuantMatmulAllReduceTiling::GetTilingKey() const
 {
     uint64_t tilingKey = 0;
@@ -342,5 +389,5 @@ WeightQuantMatmulAllReduceTiling::WeightQuantMatmulAllReduceTiling(
 {}
 
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,WeightQuantMatmulAllReduceTiling,static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),1);
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,WeightQuantMatmulAllReduceTiling,soc_version,1);
 } // namespace optiling
