@@ -477,6 +477,7 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     uint64_t maxUbHiddenSizeV =
         std::min(static_cast<uint64_t>(factor) * tileBase, cacheBlockV); // 最大不超过1个cacheBlock
     uint64_t maxUbHiddenSize = std::max(maxUbHiddenSizeK, maxUbHiddenSizeV);
+    maxUbHiddenSize = Ops::Base::CeilAlign(maxUbHiddenSize, static_cast<uint64_t>(tileBase)); // 保证maxUbHiddenSize和32B对齐
 
     // 动态调整: 如果有多余空间，就用于累加和的计算
     if (maxUbHiddenSizeK == cacheBlockK || maxUbHiddenSizeV == cacheBlockV) {
@@ -552,7 +553,7 @@ ge::graphStatus TilingForGatherPaKvCache(gert::TilingContext *context)
     OP_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     auto socVersion = ascendcPlatform.GetSocVersion();
-    if (socVersion != platform_ascendc::SocVersion::ASCEND910_95) {
+    if (socVersion != platform_ascendc::SocVersion::ASCEND950) {
         OP_LOGD(context, "Tiling4GatherPaKvCache enter.");
         return Tiling4GatherPaKvCache(context);
     }
@@ -573,7 +574,7 @@ ge::graphStatus TilingPrepareForGatherPaKvCache(gert::TilingParseContext *contex
     OP_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     auto socVersion = ascendcPlatform.GetSocVersion();
-    if (socVersion != platform_ascendc::SocVersion::ASCEND910_95) {
+    if (socVersion != platform_ascendc::SocVersion::ASCEND950) {
         return TilingPrepare4GatherPaKvCache(context);
     }
 

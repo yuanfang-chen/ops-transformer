@@ -105,7 +105,7 @@ ge::graphStatus InnerMoeInitRoutingV2TilingBase::GetPlatformInfo()
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
     aicoreParams_.ubSize = ubSizePlatForm;
     regBase = false;
-    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910_95) {
+    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND950) {
         aicoreParams_.ubSize = ubSizePlatForm - SIMT_UB_SIZE_BYTE;
         mrgSortListMaxElement = 2048; // 单次排序大小，在david上设置成2048
         regBase = true;
@@ -425,7 +425,7 @@ void InnerMoeInitRoutingV2TilingBase::Tiling4VBSOneCoreCompute(InnerMoeV2VBSComp
 void InnerMoeInitRoutingV2TilingBase::Tiling4VBSMultiCoreCompute(InnerMoeV2VBSComputeTilingData* tilingData)
 {
     int64_t needCoreNum = Ops::Base::CeilDiv(totalLength, sortLoopMaxElement); // 向上取整
-    needCoreNum = static_cast<int64_t>(std::pow(4, CeilLog4(needCoreNum)));               // 用到多核时，核数最多是4^x
+    needCoreNum = static_cast<int64_t>(std::pow(4, CeilLog4(needCoreNum)));  // 用到多核时，核数最多是4^x
     needCoreNum = std::min(needCoreNum, aivNum);                    // 不能超过物理核数
     if (needCoreNum == 0) {
         return;

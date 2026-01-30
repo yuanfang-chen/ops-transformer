@@ -303,13 +303,12 @@ ge::graphStatus ScatterPaKvCacheTiling::TemplateRope()
     kLoopNum_--;
 
     if (inOutMode_ == DUAL_IN_OUT) {
-        return ge::GRAPH_SUCCESS;
+        vHandleNumPerLoop_ = MAX_HANLDE_BYTE_SIZE_PER_LOOP / dtypeByteSize_;
+        vLoopNum_ = Ops::Base::CeilDiv<int64_t>(vHeadSize_, vHandleNumPerLoop_);
+        vTailHandleNum_ = vHeadSize_ - (vLoopNum_ - 1) * vHandleNumPerLoop_;
+        vLoopNum_--;
     }
 
-    vHandleNumPerLoop_ = MAX_HANLDE_BYTE_SIZE_PER_LOOP / dtypeByteSize_;
-    vLoopNum_ = Ops::Base::CeilDiv<int64_t>(vHeadSize_, vHandleNumPerLoop_);
-    vTailHandleNum_ = vHeadSize_ - (vLoopNum_ - 1) * vHandleNumPerLoop_;
-    vLoopNum_--;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -648,7 +647,7 @@ ge::graphStatus Tiling4ScatterPaKvCache(gert::TilingContext *context_)
     OP_CHECK_IF(platformInfo == nullptr, OP_LOGE(context_, "platformInfo is nullptr."), return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     auto socVersion = ascendcPlatform.GetSocVersion();
-    if (socVersion != platform_ascendc::SocVersion::ASCEND910_95) {
+    if (socVersion != platform_ascendc::SocVersion::ASCEND950) {
         ScatterPaKvCacheMembaseTiling tiling(context_);
         return tiling.DoTiling();
     }
