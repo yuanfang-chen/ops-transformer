@@ -78,7 +78,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetContextAttr(const gert::TilingContex
         OP_LOGE(A_INNER_DEBUG, "mmX, mmWeight and mmY should all be nullptr or all be not nullptr!");
         return ge::GRAPH_FAILED;
     }
-    tilingData->taskTilingInfo.isNeedMM = (mmXStorageShape != nullptr);
+    isNeedMM = (mmXStorageShape != nullptr);
 
     epGroup_ = groupEpPtr;
     epWorldSize_ = *epWorldSizePtr;
@@ -111,7 +111,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetShapeAndFormat(const gert::TilingCon
     maxM_ = tilingData->taskTilingInfo.A;
     maxK_ = tilingData->taskTilingInfo.H1;
     maxN_ = tilingData->taskTilingInfo.N1;
-    if (tilingData->taskTilingInfo.isNeedMM) {
+    if (isNeedMM) {
         tilingData->taskTilingInfo.BS = context->GetOptionalInputShape(MM_X_INDEX)->GetStorageShape().GetDim(0);
         tilingData->taskTilingInfo.H2 = context->GetOptionalInputShape(MM_X_INDEX)->GetStorageShape().GetDim(1);
         tilingData->taskTilingInfo.N2 = isMmWeightTrans ?
@@ -213,7 +213,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::Init(gert::TilingContext *context)
     OP_TILING_CHECK(GetContextAttr(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Get context attr failed!"),
         return ge::GRAPH_FAILED);
 
-    if (tilingData->taskTilingInfo.isNeedMM) {
+    if (isNeedMM) {
         OP_TILING_CHECK(context->GetOptionalInputShape(MM_X_INDEX) == nullptr,
             OP_LOGE(A_INNER_DEBUG, "GetOptionalInputShape of mm_x returns null."), return ge::GRAPH_FAILED);
         OP_TILING_CHECK(context->GetOutputShape(OUTPUT_MM_Y_INDEX) == nullptr,
@@ -266,7 +266,7 @@ uint64_t AlltoAllvGmmQuantTiling::GetTilingKey(const gert::TilingContext *contex
     } else {
         templateMmDType = ADD_TPL_HIF8;
     }
-    if (tilingData->taskTilingInfo.isNeedMM) {
+    if (isNeedMM) {
         tilingkeyMm = true;
     } else {
         tilingkeyMm = false;

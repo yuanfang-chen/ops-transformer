@@ -36,7 +36,6 @@ struct TaskTilingInfo {
     uint64_t N2;
     uint64_t epWorldSize;
     uint64_t e;
-    bool isNeedMM;
 
     uint32_t mainLoopExpertNum;
     uint32_t tailLoopExpertNum;

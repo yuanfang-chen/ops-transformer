@@ -81,7 +81,7 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
     A2avGmmScheduler<HcclA2avOp<DTYPE_GMM_WEIGHT, true>,
         QuantGroupedMatmul<QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
         float, DTYPE_GMM_Y, CubeFormat::ND, TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE>,
-        QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, TILING_TYPE>
+        QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, TILING_TYPE, TILINGKEY_MM>
         a2avGmmScheduler;
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, mmQuantTilingData,
         gmmArray, gmmArrayAddr_, tilingGM);
