@@ -2635,7 +2635,7 @@ bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATili
 
         if (!enableActSeqLen) {
             actualSeqLengths[i] = queryShapeInfo.s;
-        } else if (enableIFAMLA) {
+        } else if (enableIFAMLA || enableIFA) {
             actualSeqLengths[i] = (actSeqLenDims > 1) ? static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[i]) :
                 static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[0]);
             if (actualSeqLengths[i] != queryShapeInfo.s / gSize) {
