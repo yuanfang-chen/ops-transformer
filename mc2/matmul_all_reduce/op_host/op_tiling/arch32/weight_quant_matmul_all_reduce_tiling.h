@@ -53,11 +53,6 @@ protected:
 
     ge::graphStatus PostTiling() override;
 
-    Mc2Tiling::Mc2Msg& MutableMc2MsgData() override
-    {
-        return weightQuantMatmulAllReduceTilingData_.msg;
-    }
-
     Mc2Tiling::RCSTiling& MutableRCSTilingData() override
     {
         return weightQuantMatmulAllReduceTilingData_.param;
@@ -78,6 +73,8 @@ protected:
     void DoEmptyTensorTiling() override;
 
     ge::graphStatus CheckInput() override;
+
+    ge::graphStatus SetHcclTiling();
 
 private:
     ge::graphStatus CheckAxisSize();

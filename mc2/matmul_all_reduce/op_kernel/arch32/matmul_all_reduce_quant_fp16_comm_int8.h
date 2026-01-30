@@ -104,7 +104,9 @@ __aicore__ inline void MatmulAllReduceQuantFP16CommInt8<aType, bType, biasType, 
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingData, mc2CcTilingV1));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingData, mc2CcTilingV2));
     tilingData_ = tilingData;
     outGM_ = cGM;
     tPipe_ = tPipe;
@@ -117,11 +119,12 @@ __aicore__ inline void MatmulAllReduceQuantFP16CommInt8<aType, bType, biasType, 
     workspaceGM_ = workspaceGM;
     tempBuffGM_ = workspaceGM_ + tilingData_->param.commWorkSpaceSize;
     tempBuffDequantGM_ = workspaceGM_ + tilingData_->param.commWorkSpaceSize;
-    if ((tilingData->msg).useBufferType == MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_WINDOW_IN) {
-        tempBuffWinOrGM_ = hccl_.GetWindowsInAddr(hccl_.GetRankId());
-    } else {
-        tempBuffWinOrGM_ = tempBuffGM_;
-    }
+    // if (tilingData->useBufferType == MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_WINDOW_IN) {
+    //     tempBuffWinOrGM_ = hccl_.GetWindowsInAddr(hccl_.GetRankId());
+    // } else {
+    //     tempBuffWinOrGM_ = tempBuffGM_;
+    // }
+    tempBuffWinOrGM_ = tempBuffGM_;
 
     if ((block_idx == 0) && (g_coreType == AscendC::AIV)) {
         notifyFlag_ = true;

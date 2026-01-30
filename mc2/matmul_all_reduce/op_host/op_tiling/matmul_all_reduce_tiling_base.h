@@ -239,6 +239,7 @@ protected:
     bool HasAntiQuantOffset() const;
     void CalcUbTiling();
     ge::graphStatus CheckRanksizePlatformSupported() const;
+    ge::graphStatus CheckRanksizeA3PlatformSupported() const;
     uint64_t tileMValue_{0U};
     uint64_t tailMValue_{0U};
     bool isQuantKey_{false};
@@ -255,6 +256,7 @@ protected:
     uint32_t rankSize_{0U};
     uint32_t libApiWorkSpaceSize_{0U};
     platform_ascendc::SocVersion socVersion_;
+    std::string socVersionStr_;
     bool supportL0c2Out_{false};
     mc2tiling::TilingArgs args_;
     bool isWeightNz_{false};
