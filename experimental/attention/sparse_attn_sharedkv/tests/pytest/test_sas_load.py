@@ -50,7 +50,6 @@ def call_sas_npu(testcase_files):   # 初始化参数和tensor
     torch_npu.npu.set_device(7)
     test_data = torch.load(testcase_files, map_location="cpu")
     npu_result = None
-    npu_result, softmax_lse = sparse_attn_sharedkv_process.call_npu(test_data)
     try:
         npu_result, softmax_lse = sparse_attn_sharedkv_process.call_npu(test_data)
     except Exception as e:
