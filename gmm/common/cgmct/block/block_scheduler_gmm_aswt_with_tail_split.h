@@ -47,6 +47,8 @@ private:
     int64_t k_;
     int64_t mTailCnt_{1};
     int64_t nTailCnt_{1};
+    int64_t mTailAlign_{1};
+    int64_t nTailAlign_{1};
     int64_t tailCnt_{1}; // only update when last group
     int64_t mainMWindow_;
     int64_t tailWindow_;
@@ -95,6 +97,15 @@ public:
         } else if (startBlockIdx_ <= endBlockIdx_ && (blockIdx_ > endBlockIdx_ || blockIdx_ < startBlockIdx_)) {
             round_ -= 1;
         }
+    }
+
+    __aicore__ inline void UpdateBaseM(uint32_t baseM) {
+        baseM_ = baseM;
+    }
+
+    __aicore__ inline void SetTailAlign(uint32_t mTailAlign, uint32_t nTailAlign) {
+        mTailAlign_ = mTailAlign;
+        nTailAlign_ = nTailAlign;
     }
 
     __aicore__ inline void UpdateTailTile(uint32_t mTailCnt, uint32_t nTailCnt)
@@ -158,6 +169,7 @@ public:
         if constexpr (TransA_) { // (k, m)
             singleCoreMSplit = Align(singleCoreMSplit, INNER_AXIS_MIN_SPLIT_VAL);
         }
+        singleCoreNSplit = Align(singleCoreNSplit, nTailAlign_);
         if constexpr (!TransB_) { // (k, n)
             singleCoreNSplit = Align(singleCoreNSplit, INNER_AXIS_MIN_SPLIT_VAL);
         }
