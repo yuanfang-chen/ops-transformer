@@ -9,13 +9,13 @@
  */
 
 /*!
- * \file quant_grouped_mat_mul_allto_allv_adapter.cpp
+ * \file quant_grouped_mat_mul_allto_allv_tiling_adapter.cpp
  * \brief
  */
 
 #include "op_mc2.h"
 #include "mc2_log.h"
-#include "quant_grouped_mat_mul_allto_allv_adapter.h"
+#include "quant_grouped_mat_mul_allto_allv_tiling_adapter.h"
 
 using namespace Mc2Log;
 using namespace AscendC;

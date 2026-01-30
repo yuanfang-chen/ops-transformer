@@ -21,9 +21,6 @@
 #include "mc2_matmul_tiling_cfg.h"
 #include "../grouped_mat_mul_allto_allv_tiling_base.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "grouped_matmul_finalize_routing/op_kernel/arch35/grouped_matmul_finalize_routing_tiling_data.h"
-#include "grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_tiling_key.h"
-#include "grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
 #include "mc2/allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
 #include "register/tilingdata_base.h"
 
@@ -62,7 +59,7 @@ protected:
 private:
     QuantGmmA2avTilingData localTilingData_;
     void PrintCommonTilingInfo(TaskTilingInfo &tilingInfo);
-    void PrintSharedGmmTilingInfo(GroupedMatmulTilingData::GMMQuantTilingData &tiling);
+    void PrintSharedGmmTilingInfo(Mc2GroupedMatmulTilingData::GMMQuantTilingData &tiling);
     void PrintGmmQTilingDataInfo(GmmTilingArray &tilingInfo);
     const char *opName_{nullptr};
     uint32_t libApiWorkSpaceSize_{0};

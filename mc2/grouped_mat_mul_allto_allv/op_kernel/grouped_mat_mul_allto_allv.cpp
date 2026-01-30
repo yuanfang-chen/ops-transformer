@@ -104,13 +104,13 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 #elif defined(ALLTO_ALLV_GMM_QUANT)
     REGISTER_TILING_DEFAULT(QuantGroupedMatMulAlltoAllvTilingData);
     GmmA2avScheduler<HcclA2avOp<QuantGroupedMatMulAlltoAllvTilingData, DTYPE_GMM_WEIGHT>,
-        QuantGroupedMatmul<QuantGroupedMatMulAlltoAllvTilingData, GroupedMatmulTilingData::GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
+        QuantGroupedMatmul<QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
         float, DTYPE_GMM_Y, CubeFormat::ND, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>,
-        QuantGroupedMatMulAlltoAllvTilingData, GroupedMatmulTilingData::GMMQuantTilingData, TILING_TYPE>
+        QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, TILING_TYPE>
         gmmA2avScheduler;
-    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGroupedMatMulAlltoAllvTilingData, GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
         gmmArray, gmmArrayAddr_, tilingGM);
-    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGroupedMatMulAlltoAllvTilingData, GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGroupedMatMulAlltoAllvTilingData, Mc2GroupedMatmulTilingData::GMMQuantTilingData, mmQuantTilingData,
         gmmArray, mmArrayAddr_, tilingGM);
     gmmA2avScheduler.Init(gmmxGM, gmmweightGM, mmxOptionalGM, mmweightOptionalGM, gmmxScaleGM, gmmWeightScaleGM,
         mmxScaleGM, mmWeightScaleGM, gmmyGM, mmyOptionalGM, userWorkspace, tilingGM,

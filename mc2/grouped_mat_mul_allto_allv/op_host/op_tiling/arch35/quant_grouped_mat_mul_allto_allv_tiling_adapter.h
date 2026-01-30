@@ -49,7 +49,7 @@ protected:
     ge::graphStatus Process();
 
     QuantGroupedMatmulAllToAllvTiling& tilingProcesser_;
-    GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
+    Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     // bool isWeightNz_ = false;
 
     int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};

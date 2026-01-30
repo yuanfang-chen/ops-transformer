@@ -65,8 +65,8 @@ struct QuantGroupedMatMulAlltoAllvTilingData {
     TCubeTiling matmulTiling;
     TCubeTiling sharedExpMatmulTiling;
     GmmAlltoAllvAicpuTiling aicpuTiling;
-    GroupedMatmulTilingData::GMMQuantTilingData gmmQuantTilingData;
-    GroupedMatmulTilingData::GMMQuantTilingData mmQuantTilingData;
+    Mc2GroupedMatmulTilingData::GMMQuantTilingData gmmQuantTilingData;
+    Mc2GroupedMatmulTilingData::GMMQuantTilingData mmQuantTilingData;
 };
 #pragma pack(pop)
 
