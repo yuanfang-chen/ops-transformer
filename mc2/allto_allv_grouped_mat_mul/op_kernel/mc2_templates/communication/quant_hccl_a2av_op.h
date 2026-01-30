@@ -1,19 +1,19 @@
 #ifndef MC2_QUANT_GROUPED_MATMUL_H
 #define MC2_QUANT_GROUPED_MATMUL_H
 
-#include "kernel_operator.h"
 #include "../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "kernel_operator.h"
 
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
 template <typename TilingDataType, typename GmmTilingDataType, class xType, class wType, class scaleType, class yType,
-    CubeFormat wFormat, bool aTrans, bool bTrans>
+          CubeFormat wFormat, bool aTrans, bool bTrans>
 class QuantGroupedMatmul {
 public:
     __aicore__ inline void Init(GM_ADDR xGM, GM_ADDR weightGM, GM_ADDR xScaleGM, GM_ADDR weightScaleGM, GM_ADDR yGM,
-        GM_ADDR workspaceGM, const TilingDataType *tilingData, const GmmTilingDataType *gmmTilingData,
-        TILING_TYPE *gmmArrayAddrIn, TPipe *tPipe)
+                                GM_ADDR workspaceGM, const TilingDataType *tilingData,
+                                const GmmTilingDataType *gmmTilingData, TILING_TYPE *gmmArrayAddrIn, TPipe *tPipe)
     {
         xGM_ = xGM;
         wGM_ = weightGM;
@@ -49,13 +49,15 @@ public:
         UpdateAddr(expertIdx);
         groupListGlobalBuffer_.SetValue(0, expertTokenNum_[expertIdx]);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
-            AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
+                                          AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
         gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
-            &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
+                          &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
         gmmASWKernel.Process();
     }
 
-    __aicore__ inline void End() {}
+    __aicore__ inline void End()
+    {
+    }
 
 protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
