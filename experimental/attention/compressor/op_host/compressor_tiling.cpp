@@ -274,7 +274,6 @@ ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 
 ge::graphStatus CompressorTiling::SetScenarioInfo()
 {
-
     return ge::GRAPH_SUCCESS;
 }
 

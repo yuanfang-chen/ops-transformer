@@ -1,14 +1,12 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-# This program is free software, you can redistribute it and/or modify.
+# -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
-# This file is a part of the CANN Open Software.
-# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# ======================================================================================================================
+# -----------------------------------------------------------------------------------------------------------
 
 import itertools
 import torch
@@ -124,23 +122,23 @@ for _, params in enumerate(ENABLED_PARAMS):
         # 结果精度对比
         check_succeed = True
         print("--------------------------------------------------------------check result-------------------------------------------------------------")
-        if check_result.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result[kv_mask_result].to(torch.float32)) == False:
+        if check_result.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32)) == False:
             print(f"test_data = {test_data} check result failed")
             check_succeed = False
         print("--------------------------------------------------------------check kv state update-------------------------------------------------------------")
-        if check_result.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.to(torch.float32)) == False:
+        if check_result.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32)) == False:
             print(f"test_data = {test_data} check kv state update failed")
             check_succeed = False
         print("--------------------------------------------------------------check score state update-------------------------------------------------------------")
-        if check_result.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.to(torch.float32)) == False:
+        if check_result.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32)) == False:
             print(f"test_data = {test_data} check score state update failed")
             check_succeed = False
         print("--------------------------------------------------------------check kv state origin-------------------------------------------------------------")
-        if check_result.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.to(torch.float32), 0.0) == False:
+        if check_result.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), 0.0) == False:
             print(f"test_data = {test_data} check kv state origin failed")
             check_succeed = False
         print("--------------------------------------------------------------check score state origin-------------------------------------------------------------")
-        if check_result.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.to(torch.float32), 0.0) == False:
+        if check_result.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), 0.0) == False:
             print(f"test_data = {test_data} check score state origin failed")
             check_succeed = False
 

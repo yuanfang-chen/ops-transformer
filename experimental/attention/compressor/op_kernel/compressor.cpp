@@ -17,6 +17,7 @@
  
 using namespace Compressor;
 
+namespace {
 template<uint8_t XLayout, uint8_t XDType, uint8_t Coff, uint8_t RotaryMode, uint8_t EmptyTensorMode>
 __global__ __aicore__ void compressor(
     __gm__ uint8_t *x,
@@ -69,4 +70,5 @@ __global__ __aicore__ void compressor(
             cmpKvOut,
             workspace);
     op.Process();
+}
 }

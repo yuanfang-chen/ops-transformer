@@ -1,10 +1,12 @@
-# This program is free software, you can redistribute it and/or modify it.
+# -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
-# This file is a part of the CANN Open Software.
-# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
+# -----------------------------------------------------------------------------------------------------------
 import random
 import torch
 import torch_npu
@@ -12,7 +14,6 @@ import torchair
 import custom_ops
 import numpy as np
 import torch.nn as nn
-from torch_npu.testing.testcase import TestCase, run_tests
 
 np.random.seed(21)  # 固定随机种子
 np.set_printoptions(suppress=True)
@@ -82,7 +83,6 @@ def rotary_emb(x, rope_sin, rope_cos, rotary_mode):
                 y[s][idx] = a * rope_cos[s][idx] - b * rope_sin[s][idx] # y_a
                 y[s][idx + 1] = a * rope_sin[s][idx + 1] + b * rope_cos[s][idx + 1] # y_b
     return y
-
 
 # state.shape is (block_num, block_size, coff * head_dim), is numpy type
 # new_state.shape is (s, coff * head_dim), data writed to state
@@ -283,173 +283,13 @@ def cpu_compressor(
                 batch_out_sc_id = batch_out_sc_id + 1
                 out_sum_sc_cnt = out_sum_sc_cnt + 1
 
-
             # update loop idx
             batch_seq_idx = end_seq_idx - batch_start_pos
         out_cu_seqlen[b_idx + 1] = out_sum_sc_cnt
         out_seqused[b_idx] = batch_out_sc_id
 
+    print(f"out_cu_seqlen: {out_cu_seqlen}")
+    print(f"out_seqused: {out_seqused}")
+    print(f"cmp_kv.shape: {cmp_kv.shape}")
     cmp_kv_torch = torch.tensor(cmp_kv).to(x_dtype)
     return cmp_kv_torch, cmp_kv_mask
-
-
-
-class TestCustomCompressor(TestCase):
-    def test_compressor_eager(self):
-        print(f'======================== test_compressor_eager BEGIN ========================')
-        torch_npu.npu.set_device(int(DEVICE_ID))
-
-        ### ======================== set input params start ========================
-        date_type = torch.bfloat16
-        hidden_size = 4096
-        head_dim = 512
-        rope_head_dim = 64
-        norm_eps = 1e-6
-        coff = 2 # 1:no overlap 2:overlap
-        cmp_ratio = 4
-        rotary_mode = 2
-        update_flag = 1
-
-        B = 5
-        S_max = 8192
-        block_size = 128
-        start_pos = [10, 12, 0, 2, 5] # (B,)
-        seqused = [7, 8, 2, 4, 5] # (B,), None时cu_seqlens的数据全部参与计算，否则按传参实际值计算
-        # seqused = None
-
-        # BS是否合轴
-        bs_combine_flag = True
-        if bs_combine_flag:
-            cu_seqlens = [0, 7, 15, 17, 30, 35] # (B+1,), None时表示非BSh，否则为Th
-            if seqused is not None:
-                S = max(seqused)
-            else:
-                S = 0
-                for i in range(B):
-                    if (cu_seqlens[i + 1] - cu_seqlens[i]) > S:
-                        S = cu_seqlens[i + 1] - cu_seqlens[i]
-        else:
-            cu_seqlens = None
-            S = 20 # 作为x的shape[1]
-        ### ======================== set input params finish ========================
-
-        ### ======================== check input params start ========================
-        if bs_combine_flag:
-            for i in range(B):
-                if start_pos[i] + (cu_seqlens[i + 1] - cu_seqlens[i]) > S_max:
-                    print(f"Error: for batch {i} when shape of x is (T, hidden_size), start_pos[{i}] + (cu_seqlens[{i + 1}] - cu_seqlens[{i}]) > S_max, "
-                        f"start_pos[{i}]={start_pos[i]}, cu_seqlens[{i + 1}]={cu_seqlens[i + 1]}, cu_seqlens[{i}]={cu_seqlens[i]}, S_max={S_max}")
-                    return
-                if seqused is not None:
-                    if seqused[i] > (cu_seqlens[i + 1] - cu_seqlens[i]):
-                        print(f"Error: for batch {i} when shape of x is (T, hidden_size), seqused[{i}] > (cu_seqlens[{i + 1}] - cu_seqlens[{i}]), "
-                            f"seqused[{i}]={seqused[i]}, cu_seqlens[{i + 1}]={cu_seqlens[i + 1]}, cu_seqlens[{i}]={cu_seqlens[i]}")
-                        return
-        else:
-            for i in range(B):
-                if start_pos[i] + S > S_max:
-                    print(f"Error: for batch {i} when shape of x is (B, S, hidden_size), start_pos[{i}] + S > S_max, start_pos[{i}]={start_pos[i]}, S={S}, S_max={S_max}")
-                    return
-                if seqused is not None:
-                    if seqused[i] > S:
-                        print(f"Error: for batch {i} when shape of x is (B, S, hidden_size), seqused[{i}] > S, seqused[{i}]={seqused[i]}, S={S}")
-                        return
-        ### ======================== check input params finish ========================
-
-        ### ======================== gen input data start =============================
-        # page state
-        max_block_num_per_batch = (S_max + block_size - 1) // block_size
-        block_num = B * max_block_num_per_batch
-        shuffled_indices = torch.randperm(block_num)
-        index = torch.arange(1, block_num + 1, 1, dtype=torch.int32)
-        index = index[shuffled_indices].reshape(B, max_block_num_per_batch)
-        # print(index)
-        # block_table = index
-        block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
-        for i in range(B):
-            cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
-            cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
-            cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
-            cur_end_block_id = (cur_end - 1) // block_size
-            for j in range(cur_start_block_id, cur_end_block_id + 1):
-                block_table[i][j] = index[i][j]
-            end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
-            next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
-            next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
-            next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
-            next_end_block_id = (next_end - 1) // block_size
-            for j in range(next_start_block_id, next_end_block_id + 1):
-                block_table[i][j] = index[i][j]
-        # print(block_table)
-        kv_state = torch.tensor(np.random.uniform(-10, 10, (block_num, block_size, coff * head_dim))).to(torch.float32)
-        score_state = torch.tensor(np.random.uniform(-10, 10, (block_num, block_size, coff * head_dim))).to(torch.float32)
-
-        # other input
-        if bs_combine_flag:
-            x_shape = (cu_seqlens[-1], hidden_size)
-            rope_sin_shape = (min(x_shape[0], x_shape[0] // cmp_ratio + B), rope_head_dim)
-            rope_cos_shape = rope_sin_shape
-        else:
-            x_shape = (B, S, hidden_size)
-            rope_sin_shape = (B, (S + cmp_ratio - 1) // cmp_ratio, rope_head_dim)
-            rope_cos_shape = rope_sin_shape
-
-        x = torch.tensor(np.random.uniform(-10, 10, x_shape)).to(date_type)
-        wkv = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(date_type)
-        wgate = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(date_type)
-        ape = torch.tensor(np.random.uniform(-10, 10, (cmp_ratio, coff * head_dim))).to(torch.float32)
-        norm_weight = torch.tensor(np.random.uniform(-10, 10, (head_dim))).to(date_type)
-        rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(date_type)
-        rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(date_type)
-        ### ======================== gen input data finish =============================
-
-        ### ======================== execute cpu start =================================
-        cpu_kv_state = kv_state.clone()
-        cpu_score_state = score_state.clone()
-        cpu_out = cpu_compressor(
-            x, wkv, wgate, cpu_kv_state, cpu_score_state, ape, norm_weight, rope_sin, rope_cos,
-            block_table=block_table, cu_seqlens=cu_seqlens, seqused=seqused, start_pos=start_pos,
-            rope_head_dim=rope_head_dim, cmp_ratio=cmp_ratio, coff=coff, norm_eps=norm_eps, rotary_mode=rotary_mode)
-        print(f"cpu_out:{cpu_out}")
-        ### ======================== execute cpu finish ================================
-
-        ### ======================== execute npu start =================================
-        # to npu device
-        # x = x.to("npu:%s" % DEVICE_ID)
-        # wkv = wkv.to("npu:%s" % DEVICE_ID)
-        # wgate = wgate.to("npu:%s" % DEVICE_ID)
-        # kv_state = kv_state.to("npu:%s" % DEVICE_ID)
-        # score_state = score_state.to("npu:%s" % DEVICE_ID)
-        # ape = ape.to("npu:%s" % DEVICE_ID)
-        # norm_weight = norm_weight.to("npu:%s" % DEVICE_ID)
-        # rope_sin = rope_sin.to("npu:%s" % DEVICE_ID)
-        # rope_cos = rope_cos.to("npu:%s" % DEVICE_ID)
-        # block_table = block_table.to("npu:%s" % DEVICE_ID)
-        # start_pos = torch.tensor(start_pos).to(torch.int32).to("npu:%s" % DEVICE_ID)
-        # if cu_seqlens is not None:
-        #     cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32).to("npu:%s" % DEVICE_ID)
-        # if seqused is not None:
-        #     seqused = torch.tensor(seqused).to(torch.int32).to("npu:%s" % DEVICE_ID)
-        # npu_out = torch_npu.npu_compressor(
-        #     x, wkv, wgate, kv_state, score_state, ape, norm_weight, rope_sin, rope_cos,
-        #     block_table=block_table, cu_seqlens=cu_seqlens, seqused=seqused, start_pos=start_pos,
-        #     rope_head_dim=rope_head_dim, cmp_ratio=cmp_ratio, coff=coff, norm_eps=norm_eps, rotary_mode=rotary_mode)
-        ### ======================== execute cpu finish ================================
-
-        ### ======================== npu vs cpu start ==================================
-        # compare result
-        # npu_out = npu_out.cpu().to(torch.float32).numpy()
-        # res = np.isclose(npu_out, cpu_out, rtol=0.005, atol=0.0001, equal_nan=False)
-        # true_ratio = np.mean(res)
-        # if true_ratio < 0.99:
-        #     print("npu output:\n", npu_out, npu_out.shape)
-        #     print("cpu output:\n", cpu_out, cpu_out.shape)
-        #     print("correct ratio of cpu vs npu is:", true_ratio * 100, "%")
-        # self.assertTrue(true_ratio > 0.99, "precision compare fail")
-        ### ======================== npu vs cpu finish =================================
-        print(f'======================== test_compressor_eager FINISH ========================')
-
-
-if __name__ == "__main__":
-    run_tests()
-
