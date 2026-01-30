@@ -21,12 +21,12 @@
 #include "mc2_matmul_tiling_cfg.h"
 #include "../grouped_mat_mul_allto_allv_tiling_base.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "mc2/allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
+#include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling.h"
 #include "register/tilingdata_base.h"
 
-using MC2KernelTemplate::GmmTilingArray;
-using MC2KernelTemplate::GMMQuantTilingData;
-using MC2KernelTemplate::GMMArray;
+// using MC2KernelTemplate::GmmTilingArray;
+// using MC2KernelTemplate::GMMQuantTilingData;
+// using MC2KernelTemplate::GMMArray;
 using namespace optiling;
 namespace MC2Tiling {
 

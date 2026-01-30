@@ -49,3 +49,5 @@ struct QuantGmmA2avTilingData {
     // ============ 普通专家 GMM Tiling 数组 ============
     GmmTilingArray gmmTiling; // 普通专家 GMM Tiling 数组
 };
+
+#endif
