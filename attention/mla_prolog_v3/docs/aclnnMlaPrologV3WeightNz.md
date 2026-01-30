@@ -343,6 +343,13 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
           出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参范围非量化数据
       </td>
     </tr>
+    <tr>
+      <td> kvCache per-tile量化 </td>
+      <td>
+          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr、quant_scale_ckv字段必须传入，smooth_scale_cq字段可选传入 <br>
+          出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参范围非量化数据
+      </td>
+    </tr>
   </table>
 
 - 在不同量化场景下，参数的dtype组合需要满足如下条件：
@@ -365,8 +372,10 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <th colspan="1">kvCache per-tile量化</th>
       <th colspan="1">kvCache非量化</th>
       <th colspan="1">kvCache per-tensor量化</th>
+      <th colspan="1">kvCache per-tile量化</th>
     </tr>
     <tr>
+      <th>dtype</th>
       <th>dtype</th>
       <th>dtype</th>
       <th>dtype</th>
@@ -388,6 +397,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td>weightDq</td>
@@ -398,6 +408,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>INT8</td>
       <td>INT8</td>
+      <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
     </tr>
@@ -412,9 +423,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td>weightUk</td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -436,9 +449,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td> rmsnormGammaCq </td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -460,9 +475,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> ropeSin </td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -484,6 +501,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> kvCacheRef </td>
@@ -495,6 +513,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>INT8</td>
       <td>BFLOAT16</td>
+      <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
@@ -508,9 +527,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> cacheIndexOptional </td>
+      <td>INT64</td>
       <td>INT64</td>
       <td>INT64</td>
       <td>INT64</td>
@@ -532,6 +553,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
+      <td>FLOAT8_E8M0</td>
     </tr>
     <tr>
       <td> dequantScaleWDqOptional </td>
@@ -542,6 +564,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
+      <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
     </tr>
@@ -556,6 +579,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
+      <td>FLOAT8_E8M0</td>
     </tr>
     <tr>
       <td> dequantScaleWDkvKrOptional </td>
@@ -566,6 +590,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
+      <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
     </tr>
@@ -580,12 +605,14 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> quantScaleCkrOptional </td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
+      <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
@@ -604,15 +631,17 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
-      <td> actualSeqLenOptional </td>
+      <td> kNopeClipAlphaOptional </td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
+      <td>FLOAT</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
-      <td>NULLPTR</td>
+      <td>FLOAT</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
@@ -628,9 +657,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> queryRopeOut </td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -652,6 +683,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> queryNormOutOptional </td>
@@ -664,6 +696,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td> dequantScaleQNormOutOptional </td>
@@ -676,6 +709,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
+      <td>FLOAT8_E8M0</td>
     </tr>
   </table>
   </div>
