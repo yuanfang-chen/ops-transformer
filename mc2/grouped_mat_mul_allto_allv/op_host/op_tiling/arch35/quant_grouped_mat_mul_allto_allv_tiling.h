@@ -49,6 +49,7 @@ protected:
     bool IsCapable() override;
     ge::graphStatus DoOpTiling() override;
     ge::graphStatus PostTiling() override;
+    ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckOpInputInfo();
     ge::graphStatus InitTilingContextParameters(); // set默认值，当前不支持功能参数
