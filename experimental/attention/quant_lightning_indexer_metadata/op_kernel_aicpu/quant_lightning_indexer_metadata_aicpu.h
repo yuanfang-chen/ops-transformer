@@ -17,15 +17,14 @@
 #ifndef QUANT_LIGHTNING_INDEXER_METADATA_AICPU_H
 #define QUANT_LIGHTNING_INDEXER_METADATA_AICPU_H
 
-#include "cpu_context.h"
-#include "cpu_kernel.h"
-#include "cpu_tensor.h"
 #include <string>
 #include <vector>
 #include <array>
+#include "cpu_context.h"
+#include "cpu_kernel.h"
+#include "cpu_tensor.h"
 
 namespace aicpu {
-
 constexpr int64_t FA_TOLERANCE_RATIO = 2;
 
 enum BlockType : uint32_t {
@@ -234,8 +233,6 @@ private:
     // cache calculation
     void CalcBatchCache(uint32_t bIdx, const SplitContext &splitContext, BatchCache &batchCache);
     void CalcS1GCache(uint32_t s1GIdx, const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache);
-    void CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes);
-    void ClearTmpResult(SplitResult &tmpRes);
 
     // preprocess
     void CalcSplitInfo(SplitContext &splitContext);
@@ -248,13 +245,14 @@ private:
     void AssignByRow(const SplitContext &splitContext, AssignContext &assignContext);
     void AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext);
     void ForceAssign(const SplitContext &splitContext, AssignContext &assignContext);
-
+    void AssignBlockToCore(uint32_t coreNum, const SplitContext &splitContext, AssignContext &assignContext, SplitResult &result);
+                                                               
     // FD
     bool IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes);
     void RecordFDInfo(const SplitContext &splitContext, const AssignContext &assignContext, SplitResult &result);
 
     // main
-    void SplitFD(SplitResult &result);
+    void SplitFD(SplitResult &splitRes);
     void CalcSplitPlan(uint32_t coreNum, int64_t costLimit, const SplitContext &splitContext, SplitResult &result);
     void SplitCore();
 
@@ -263,7 +261,6 @@ private:
     // input
     Tensor *actSeqLenQ_ = nullptr;
     Tensor *actSeqLenKV_ = nullptr;
-    //Tensor *sparseSeqLenKV_ = nullptr;
     // output
     Tensor *metaData_ = nullptr;
     // attributes
@@ -293,10 +290,10 @@ private:
 
     // SplitParams
     uint32_t coreNum_ = 24U; // new
-    int64_t  preToken_ = 9223372036854775807;
-    int64_t  nextToken_ = 9223372036854775807;
+    int64_t  preToken_ = INT64_MAX;
+    int64_t  nextToken_ = INT64_MAX;
     uint32_t groupSize_ = 0;
-    uint32_t mBaseSize_ = 0;
+    uint32_t mBaseSize_ = 256;
     uint32_t s2BaseSize_ = 0;
     uint32_t gS1BaseSizeOfFd_ = 0;
     bool isS1G_ = true;
