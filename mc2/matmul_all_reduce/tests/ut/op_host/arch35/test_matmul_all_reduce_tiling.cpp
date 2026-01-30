@@ -8,13 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include <string>
-#include <vector>
 #include <gtest/gtest.h>
 #include "../matmul_all_reduce_host_ut_param.h"
 #include "mc2_tiling_case_executor.h"
 
-namespace matmul_all_reduce_ut {
+namespace MatmulAllReduceUT {
 
 class Arch35TilingTest : public testing::TestWithParam<MatmulAllReduceTilingUtParam> {
 protected:
@@ -32,8 +30,7 @@ protected:
 TEST_P(Arch35TilingTest, param)
 {
     auto param = GetParam();
-    struct MatmulAllReduceCompileInfo {};
-    MatmulAllReduceCompileInfo compileInfo;
+    struct MatmulAllReduceCompileInfo {} compileInfo;
     gert::TilingContextPara tilingContextPara(
         "MatmulAllReduce",
         {
@@ -80,4 +77,4 @@ INSTANTIATE_TEST_SUITE_P(
     GetCaseInfoString<MatmulAllReduceTilingUtParam>
 );
 
-} // namespace matmul_all_reduce_ut
+} // namespace MatmulAllReduceUT
