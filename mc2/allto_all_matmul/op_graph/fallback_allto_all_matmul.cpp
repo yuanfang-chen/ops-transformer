@@ -54,6 +54,28 @@ struct CommonMatmulParas {
     aclTensor* x2_acl;
     const gert::Tensor* bias;
 };
+
+// 量化输入参数结构体
+struct QuantMatmulParas {
+    aclTensor* x1_scale_acl = nullptr;
+    aclTensor* x2_scale_acl = nullptr;
+};
+
+// Attr参数结构体
+struct AttrParas {
+    aclTensor* commScaleOptional = nullptr;
+    aclTensor* x1OffsetOptional = nullptr;
+    aclTensor* x2OffsetOptional = nullptr;
+    const char* group;
+    gert::TypedContinuousVector<int64_t>* alltoAllAxesOptional;
+    int64_t commQuantMode;
+    int64_t x1QuantDtype;
+    int64_t commQuantDtype;
+    bool transposeX1;
+    bool transposeX2;
+    int64_t groupSize = 0;
+    bool alltoAllOutFlag;
+};
  	 
 /**
 * @brief 获取公共Matmul输入参数
@@ -83,28 +105,6 @@ inline ge::graphStatus GetCommonMatmulInputPara(const gert::OpExecuteContext* ho
 
     return ge::SUCCESS;
 }
- 	 
-// 量化输入参数结构体
-struct QuantMatmulParas {
-    aclTensor* x1_scale_acl = nullptr;
-    aclTensor* x2_scale_acl = nullptr;
-};
-    
-// Attr参数结构体
-struct AttrParas {
-    aclTensor* commScaleOptional = nullptr;
-    aclTensor* x1OffsetOptional = nullptr;
-    aclTensor* x2OffsetOptional = nullptr;
-    const char* group;
-    gert::TypedContinuousVector<int64_t>* alltoAllAxesOptional;
-    int64_t commQuantMode;
-    int64_t x1QuantDtype;
-    int64_t commQuantDtype;
-    bool transposeX1;
-    bool transposeX2;
-    int64_t groupSize = 0;
-    bool alltoAllOutFlag;
-};
  	 
 static ge::graphStatus ParseRecvCounts(
     const gert::TypedContinuousVector<int64_t>* sendCounts,
@@ -258,6 +258,6 @@ static ge::graphStatus AlltoAllMatmulExecuteFunc(gert::OpExecuteContext* host_ap
     }
     return ge::GRAPH_SUCCESS;
 }
- 	 
+
 IMPL_OP(AlltoAllMatmul).OpExecuteFunc(AlltoAllMatmulExecuteFunc);
 }
