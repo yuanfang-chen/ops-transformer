@@ -15,7 +15,6 @@
 #include <tuple>
 #include <vector>
 #include "acl/acl.h"
-//#include "aclnnop/aclnn_sparse_attn_sharedkv_metadata.h"
 #include "../../sparse_attn_sharedkv/op_kernel/sparse_attn_sharedkv_metadata.h"
 #include "../op_api/aclnn_sparse_attn_sharedkv_metadata.h"
 
@@ -131,7 +130,6 @@ int main() {
       return -1;
     }
   }
-
 
   std::tie(metadataTensor, metadataDevPtr) =
       CreateTensor(sizeof(int32_t) * optiling::SCFA_META_SIZE, metadataShape,
