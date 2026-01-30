@@ -23,12 +23,12 @@ class BatchMatMulReduceScatterAlltoAllTiling : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "BatchMatMulReduceScatterAlltoAllTiling SetUp" << std::endl;
+        std::cout << "BatchMatMulReduceScatterAlltoAll TilingUT910 SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "BatchMatMulReduceScatterAlltoAllTiling TearDown" << std::endl;
+        std::cout << "BatchMatMulReduceScatterAlltoAll TilingUT910 TearDown" << std::endl;
     }
 };
 
