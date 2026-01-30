@@ -519,6 +519,11 @@ public:
             .DataTypeList({ge::DT_INT64})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
+        this->Input("alibi_coeff")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
         this->Output("attention_out")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16,
@@ -557,6 +562,8 @@ public:
         this->Attr("query_quant_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("pse_type").AttrType(OPTIONAL).Int(0);
         this->Attr("out_dtype").AttrType(OPTIONAL).Int(0);
+        this->Attr("alibi_left_align").AttrType(OPTIONAL).Bool(false);
+        this->Attr("is_alibi_mask_sqrt").AttrType(OPTIONAL).Bool(false);
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
@@ -2047,7 +2054,7 @@ public:
             .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
             .ExtendCfgInfo("opFile.value", "fused_infer_attention_score_apt")
             .ExtendCfgInfo("jitCompile.flag", "static_false,dynamic_false");
-        this->AICore().AddConfig("ascend950", aicore_config_95);
+        this->AICore().AddConfig("ascend910_95", aicore_config_95);
     }
 };
 OP_ADD(FusedInferAttentionScore, optiling::FusedInferAttentionScoreCompileInfo);

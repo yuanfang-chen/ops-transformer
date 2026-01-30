@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "aclnn_fused_infer_attention_score_v2.h"
+#include "aclnn_fused_infer_attention_score_v5.h"
 
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
@@ -23,12 +23,15 @@ extern "C" {
 #endif
 
 namespace {
-extern "C" aclnnStatus __attribute__((weak)) NnopbaseDisableOptionalInput(void *executor, const size_t irIndex);
-
-__attribute__((visibility("default"))) aclnnStatus aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize(
+/**
+ * @brief for acl graph calculates the max workspace size based on the specific calculation process.
+ * declaration here for testcase to use by extern the interface
+ * @domain aclnn_ops_infer
+ */
+__attribute__((visibility("default"))) aclnnStatus aclnnFusedInferAttentionScoreV5GetMaxWorkspaceSize(
     const aclTensor *query, const aclTensorList *tensorListKey, const aclTensorList *tensorListValue, const aclTensor *pseShiftOptional,
     const aclTensor *attenMaskOptional, const aclIntArray *actualSeqLengthsOptional,
-    const aclIntArray *actualSeqLengthsKvOptional,const aclTensor *deqScale1Optional,
+    const aclIntArray *actualSeqLengthsKvOptional, const aclTensor *deqScale1Optional,
     const aclTensor *quantScale1Optional, const aclTensor *deqScale2Optional, const aclTensor *quantScale2Optional,
     const aclTensor *quantOffset2Optional, const aclTensor *antiquantScaleOptional,
     const aclTensor *antiquantOffsetOptional, const aclTensor *blockTableOptional,
@@ -36,14 +39,20 @@ __attribute__((visibility("default"))) aclnnStatus aclnnFusedInferAttentionScore
     const aclTensor *keyAntiquantScaleOptional, const aclTensor *keyAntiquantOffsetOptional,
     const aclTensor *valueAntiquantScaleOptional, const aclTensor *valueAntiquantOffsetOptional,
     const aclTensor *tensorKeySharedPrefixOptional, const aclTensor *tensorValueSharedPrefixOptional,
-    const aclIntArray *actualSharedPrefixLenOptional,
+    const aclIntArray *actualSharedPrefixLenOptional, const aclTensor *queryRopeOptional,
+    const aclTensor *keyRopeOptional, const aclTensor *keyRopeAntiquantScaleOptional,
+    const aclTensor *dequantScaleQueryOptional, const aclTensor *learnableSinkOptional, const aclIntArray *qStartIdxOptional,
+    const aclIntArray *kvStartIdxOptional, const aclTensor *alibiCoeffOptional,
     int64_t numHeads, double scaleValue, int64_t preTokens,
-    int64_t nextTokens, char *inputLayout, int64_t numKeyValueHeads,
-    int64_t sparseMode, int64_t innerPrecise, int64_t blockSize,
-    int64_t antiquantMode, bool softmaxLseFlag, int64_t keyAntiquantMode, int64_t valueAntiquantMode,
+    int64_t nextTokens, char *inputLayout, int64_t numKeyValueHeads, int64_t sparseMode, int64_t innerPrecise,
+    int64_t blockSize, int64_t antiquantMode, bool softmaxLseFlag,
+    int64_t keyAntiquantMode, int64_t valueAntiquantMode, int64_t queryQuantMode, int64_t pseType,
+    bool alibiLeftAlign, bool isAlibiMaskSqrt,
     const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor);
 
-aclnnStatus aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize(
+extern "C" aclnnStatus __attribute__((weak)) NnopbaseDisableOptionalInput(void *executor, const size_t irIndex);
+
+aclnnStatus aclnnFusedInferAttentionScoreV5GetMaxWorkspaceSize(
     const aclTensor *query, const aclTensorList *tensorListKey, const aclTensorList *tensorListValue,
     const aclTensor *pseShiftOptional,
     const aclTensor *attenMaskOptional,
@@ -66,13 +75,23 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize(
     const aclTensor *tensorKeySharedPrefixOptional,
     const aclTensor *tensorValueSharedPrefixOptional,
     const aclIntArray *actualSharedPrefixLenOptional,
+    const aclTensor *queryRopeOptional,
+    const aclTensor *keyRopeOptional,
+    const aclTensor *keyRopeAntiquantScaleOptional,
+    const aclTensor *dequantScaleQueryOptional,
+    const aclTensor *learnableSinkOptional,
+    const aclIntArray *qStartIdxOptional,
+    const aclIntArray *kvStartIdxOptional,
+    const aclTensor *alibiCoeffOptional,
     int64_t numHeads, double scaleValue, int64_t preTokens,
     int64_t nextTokens, char *inputLayout, int64_t numKeyValueHeads,
     int64_t sparseMode, int64_t innerPrecise, int64_t blockSize,
-    int64_t antiquantMode, bool softmaxLseFlag, int64_t keyAntiquantMode, int64_t valueAntiquantMode,
+    int64_t antiquantMode, bool softmaxLseFlag,
+    int64_t keyAntiquantMode, int64_t valueAntiquantMode, int64_t queryQuantMode, int64_t pseType,
+    bool alibiLeftAlign, bool isAlibiMaskSqrt,
     const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    OP_LOGD("start aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize");
+    OP_LOGD("start aclnnFusedInferAttentionScoreV5GetMaxWorkspaceSize");
     TensorPreProcess(tensorListKey, tensorListValue);
     PrefixTensorPreProcess(tensorKeySharedPrefixOptional, tensorValueSharedPrefixOptional);
 
@@ -109,10 +128,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize(
         quantOffset2Optional, antiquantScaleOptional, antiquantOffsetOptional, blockTableOptional,
         queryPaddingSizeOptional, kvPaddingSizeOptional, keyAntiquantScaleOptional, keyAntiquantOffsetOptional,
         valueAntiquantScaleOptional, valueAntiquantOffsetOptional, tensorKeySharedPrefixOptional,
-        tensorValueSharedPrefixOptional, fakeActualSharedPrefixLenOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        nullptr, numHeads, scaleValue, preTokens, nextTokens,
+        tensorValueSharedPrefixOptional, fakeActualSharedPrefixLenOptional, queryRopeOptional,
+        keyRopeOptional, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, learnableSinkOptional, nullptr, nullptr,
+        alibiCoeffOptional, numHeads, scaleValue, preTokens, nextTokens,
         inputLayout, numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag,
-        keyAntiquantMode, valueAntiquantMode, 0, 0, 0, false, false,attentionOut, placeHolder, workspaceSize, executor);
+        keyAntiquantMode, valueAntiquantMode, queryQuantMode, pseType, 0, alibiLeftAlign, isAlibiMaskSqrt, attentionOut, placeHolder, workspaceSize, executor);
     if (softmaxLseFlag == false) {
         aclDestroyTensor(tempTensor);
     }
@@ -122,7 +142,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize(
     return ret;
 }
 
-aclnnStatus aclnnFusedInferAttentionScoreV2GetWorkspaceSize(
+aclnnStatus aclnnFusedInferAttentionScoreV5GetWorkspaceSize(
     const aclTensor *query, const aclTensorList *key, const aclTensorList *value,
     const aclTensor *pseShiftOptional,
     const aclTensor *attenMaskOptional,
@@ -145,10 +165,20 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetWorkspaceSize(
     const aclTensor *keySharedPrefixOptional,
     const aclTensor *valueSharedPrefixOptional,
     const aclIntArray *actualSharedPrefixLenOptional,
+    const aclTensor *queryRopeOptional,
+    const aclTensor *keyRopeOptional,
+    const aclTensor *keyRopeAntiquantScaleOptional,
+    const aclTensor *dequantScaleQueryOptional,
+    const aclTensor *learnableSinkOptional,
+    const aclIntArray *qStartIdxOptional,
+    const aclIntArray *kvStartIdxOptional,
+    const aclTensor *alibiCoeffOptional,
     int64_t numHeads, double scaleValue, int64_t preTokens,
     int64_t nextTokens, char *inputLayout, int64_t numKeyValueHeads,
     int64_t sparseMode, int64_t innerPrecise, int64_t blockSize,
-    int64_t antiquantMode, bool softmaxLseFlag, int64_t keyAntiquantMode, int64_t valueAntiquantMode,
+    int64_t antiquantMode, bool softmaxLseFlag,
+    int64_t keyAntiquantMode, int64_t valueAntiquantMode, int64_t queryQuantMode, int64_t pseType,
+    bool alibiLeftAlign, bool isAlibiMaskSqrt,
     const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     const aclTensorList *tensorListKey = key;
@@ -169,29 +199,24 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetWorkspaceSize(
         quantOffset2Optional, antiquantScaleOptional, antiquantOffsetOptional, blockTableOptional,
         queryPaddingSizeOptional, kvPaddingSizeOptional, keyAntiquantScaleOptional, keyAntiquantOffsetOptional,
         valueAntiquantScaleOptional, valueAntiquantOffsetOptional, tensorKeySharedPrefixOptional,
-        tensorValueSharedPrefixOptional, actualSharedPrefixLenOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        nullptr, numHeads, scaleValue, preTokens, nextTokens,
+        tensorValueSharedPrefixOptional, actualSharedPrefixLenOptional, queryRopeOptional,
+        keyRopeOptional, keyRopeAntiquantScaleOptional, dequantScaleQueryOptional, learnableSinkOptional, nullptr, nullptr,
+        alibiCoeffOptional, numHeads, scaleValue, preTokens, nextTokens,
         inputLayout, numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag,
-        keyAntiquantMode, valueAntiquantMode, 0, 0, 0, false, false, attentionOut, placeHolder, workspaceSize, executor);
-    if (ret == 0) {
-        if (NnopbaseDisableOptionalInput != nullptr) {
-            NnopbaseDisableOptionalInput(*executor, 24U); // 24 is input irIndex
-            NnopbaseDisableOptionalInput(*executor, 25U); // 25 is input irIndex
-            NnopbaseDisableOptionalInput(*executor, 26U); // 26 is input irIndex
-            NnopbaseDisableOptionalInput(*executor, 27U); // 27 is input irIndex
-            NnopbaseDisableOptionalInput(*executor, 28U); // 28 is input irIndex
-            NnopbaseDisableOptionalInput(*executor, 29U); // 29 is input irIndex，占位符
-            NnopbaseDisableOptionalInput(*executor, 30U); // 30 is input irIndex，占位符
-            NnopbaseDisableOptionalInput(*executor, 31U); // 31 is input irIndex，占位符
-        }
-    }
+        keyAntiquantMode, valueAntiquantMode, queryQuantMode, pseType, 0, alibiLeftAlign, isAlibiMaskSqrt, attentionOut, placeHolder, workspaceSize, executor);
     if (softmaxLseFlag == false) {
         aclDestroyTensor(tempTensor);
+    }
+    if (ret == 0) {
+        if (NnopbaseDisableOptionalInput != nullptr) {
+            NnopbaseDisableOptionalInput(*executor, 29U); // 29 is input irIndex，占位符
+            NnopbaseDisableOptionalInput(*executor, 30U); // 30 is input irIndex
+        }
     }
     return ret;
 }
 
-aclnnStatus aclnnFusedInferAttentionScoreV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+aclnnStatus aclnnFusedInferAttentionScoreV5(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                             const aclrtStream stream)
 {
     return aclnnInnerFusedInferAttentionScore(workspace, workspaceSize, executor, stream);

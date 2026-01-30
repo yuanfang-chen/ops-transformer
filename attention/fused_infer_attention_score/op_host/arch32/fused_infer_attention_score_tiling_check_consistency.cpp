@@ -491,7 +491,11 @@ ge::graphStatus FiaTilingCheck::CheckSystemPrefixShape()
     }
     auto prefixKShape = opParamInfo_.keySharedPrefix.tensor->GetStorageShape();
     auto prefixVShape = opParamInfo_.valueSharedPrefix.tensor->GetStorageShape();
-    prefixKeyShapeCmp_ = std::make_shared<FiaTilingShapeCompare>(prefixKShape, kvLayout_, KEY_SHARED_PREFIX_NAME, opName_);
+    prefixKeyShapeCmp_ = std::make_shared<FiaTilingShapeCompare>(prefixKShape, kvLayout_, KEY_NAME, opName_);
+    if (fiaInfo_.systemPrefixLen > fiaInfo_.systemPrefixMaxLen) {
+        OP_LOGE(opName_, "actual prefix len should be less than or equal to prefixlen");
+        return ge::GRAPH_FAILED;
+    }
 
     if (prefixKShape != prefixVShape) {
         OP_LOGE(opName_, "Prefix shapes mismatch: prefix key shape and prefix value shape");
@@ -510,15 +514,7 @@ ge::graphStatus FiaTilingCheck::CheckSystemPrefixShape()
     // 前缀的B和S2和正常的没关系
     shapeParams.compareTypeMap = {{FiaAxis::S, FiaCompareType::IGNORE_INPUT},
                                   {FiaAxis::B, FiaCompareType::IGNORE_INPUT}};
-    
-    if (ge::GRAPH_SUCCESS != prefixKeyShapeCmp_->CompareShape(shapeParams, __func__)) {
-        return ge::GRAPH_FAILED;
-    }
-    if (fiaInfo_.systemPrefixLen > fiaInfo_.systemPrefixMaxLen) {
-        OP_LOGE(opName_, "actual prefix len should be less than or equal to prefixlen");
-        return ge::GRAPH_FAILED;
-    }
-    return ge::GRAPH_SUCCESS;
+    return prefixKeyShapeCmp_->CompareShape(shapeParams, __func__);
 }
 
 ge::graphStatus FiaTilingCheck::CheckMask()
