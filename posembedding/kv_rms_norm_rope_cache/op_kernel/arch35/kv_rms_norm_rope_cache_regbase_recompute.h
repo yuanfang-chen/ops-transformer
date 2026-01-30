@@ -68,6 +68,12 @@ public:
         xDataCopyParams.srcStride = 0;
         xDataCopyParams.dstStride = 0;
 
+
+
+
+
+
+
         // 二分累加循环次数
         basicBlockLoop = tilingData_->basicBlockLoop;
         mainFoldCount = tilingData_->mainFoldCount;

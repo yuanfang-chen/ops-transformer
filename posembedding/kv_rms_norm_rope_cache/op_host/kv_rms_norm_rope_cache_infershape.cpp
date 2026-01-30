@@ -48,6 +48,9 @@ graphStatus InferShape4KvRmsNormRopeCache(gert::InferShapeContext* context)
 {
     OP_LOGI(context, "Begin to do InferShape4KvRmsNormRopeCache.");
 
+
+
+
     const gert::Shape* kCacheInputShape = context->GetInputShape(INPUT_IDX_K_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context, kCacheInputShape);
     const gert::Shape* vCacheInputShape = context->GetInputShape(INPUT_IDX_V_CACHE);
