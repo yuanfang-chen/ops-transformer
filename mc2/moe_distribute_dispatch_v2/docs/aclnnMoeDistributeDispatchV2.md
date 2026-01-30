@@ -429,19 +429,19 @@ aclnnStatus aclnnMoeDistributeDispatchV2(
         - quantMode 支持0（非量化）、2（动态量化）。
 
     - <term>Ascend 950PR/Ascend 950DT</term>：
-        - commAlg 当前支持"mte"（UB-MEM通信方式）和"ccu"(CCU通信方式)，传空默认走UB-MEM通信方式。
-        - xActiveMaskOptional UB-MEM通信方式下要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信；CCU通信方式下要求为1D Tensor，shape为(Bs, )；true需排在false前。
+        - commAlg 当前版本不支持，传空指针即可。
+        - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信。
         - expertScalesOptional 当前版本不支持，传空指针即可。
         - epWorldSize 取值范围[2, 768]。
         - moeExpertNum 取值范围(0, 1024]。
-        - groupTp UB-MEM通信方式下字符串长度范围为[1, 128)，不能和groupEp相同；当前版本CCU通信方式不支持TP域通信，传空字符即可。
-        - tpWorldSize UB-MEM通信方式下取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2；当前版本CCU通信方式不支持TP域通信，传1即可。
-        - tpRankId UB-MEM通信方式下取值范围[0, 1]，同一个TP通信域中各卡的tpRankId不重复；无TP域通信时传0即可；当前版本CCU通信方式不支持TP域通信，传0即可。
+        - groupTp 当前版本不支持，传空字符即可。
+        - tpWorldSize 当前版本不支持，传0即可。
+        - tpRankId 当前版本不支持，传0即可。
         - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
         - sharedExpertNum 当前取值范围[0, 4]。
         - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
         - epRecvCountsOut 的shape为(epWorldSize * max(tpWorldSize, 1) * localExpertNum,)。
-        - tpRecvCountsOut UB-MEM通信方式下有TP域通信时为1D shape Tensor，shape为(tpWorldSize,)；当前版本CCU通信方式不支持TP域通信。
+        - tpRecvCountsOut 当前版本不支持该输出。
         - expandScalesOut 当前版本不支持该输出。
         - quantMode 支持0（非量化）、1（静态量化）、2（pertoken动态量化）、3（pergroup动态量化）、4（mxfp8动态量化）。
 
