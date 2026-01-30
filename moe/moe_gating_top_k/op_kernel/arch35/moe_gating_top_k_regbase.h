@@ -550,12 +550,18 @@ __aicore__ inline void MoeGatingTopKRegbase<T>::FinalSortByKGroup()
 {
     mrgSortTensor = finalSortBuffer_.Get<float>();
     LocalTensor<uint32_t> tmpLocal = sortedGroupTensor.template ReinterpretCast<uint32_t>();
-    uint32_t offset[MRG_SORT_ELEMENT_LEN] = {0, 0, 0, 0};
-
+    
     event_t eventIdVToS = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_S));
     SetFlag<HardEvent::V_S>(eventIdVToS);
     WaitFlag<HardEvent::V_S>(eventIdVToS);
+    
+    ProcessMergeSortLoop(tmpLocal);
+}
 
+template <typename T>
+__aicore__ inline void MoeGatingTopKRegbase<T>::ProcessMergeSortLoop(LocalTensor<uint32_t>& tmpLocal)
+{
+    uint32_t offset[MRG_SORT_ELEMENT_LEN] = {0, 0, 0, 0};
     uint16_t lenArr[CONSTANT_FOUR] = {
         static_cast<uint16_t>(perGroupExpertCount_), static_cast<uint16_t>(perGroupExpertCount_),
         static_cast<uint16_t>(perGroupExpertCount_), static_cast<uint16_t>(perGroupExpertCount_)};
@@ -568,38 +574,55 @@ __aicore__ inline void MoeGatingTopKRegbase<T>::FinalSortByKGroup()
 #else
         int32_t mrgLen = min(i + 1, CONSTANT_FOUR);
 #endif
+        
         if (mrgLen > 1) {
-            if (mrgLen == CONSTANT_FOUR) {
-                offset[0] = tmpLocal.GetValue(i * 2) * perGroupExpertCountAlign_ * 2;
-                offset[1] = tmpLocal.GetValue((i - 1) * 2) * perGroupExpertCountAlign_ * 2;
-                offset[CONSTANT_TWO] = tmpLocal.GetValue((i - 2) * 2) * perGroupExpertCountAlign_ * 2;
-                offset[CONSTANT_THREE] = tmpLocal.GetValue((i - 3) * 2) * perGroupExpertCountAlign_ * 2;
-            } else if (mrgLen == CONSTANT_THREE) {
-                offset[0] = tmpLocal.GetValue(i * 2) * perGroupExpertCountAlign_ * 2;
-                offset[1] = tmpLocal.GetValue((i - 1) * 2) * perGroupExpertCountAlign_ * 2;
-                offset[CONSTANT_TWO] = tmpLocal.GetValue((i - 2) * 2) * perGroupExpertCountAlign_ * 2;
-                offset[CONSTANT_THREE] = 0;
-                params.elementLengths[CONSTANT_THREE] = 0;
-                params.validBit = 0b111;
-            } else {
-                offset[0] = tmpLocal.GetValue(i * 2) * perGroupExpertCountAlign_ * 2;
-                offset[1] = tmpLocal.GetValue((i - 1) * 2) * perGroupExpertCountAlign_ * 2;
-                offset[CONSTANT_TWO] = 0;
-                offset[CONSTANT_THREE] = 0;
-                params.elementLengths[CONSTANT_TWO] = 0;
-                params.elementLengths[CONSTANT_THREE] = 0;
-                params.validBit = 0b11;
-            }
+            SetupMergeOffsets(tmpLocal, i, mrgLen, offset, params);
+            
             srcList.src1 = sortedInGroupTensor[offset[0]];
             srcList.src2 = sortedInGroupTensor[offset[1]];
             srcList.src3 = sortedInGroupTensor[offset[CONSTANT_TWO]];
             srcList.src4 = sortedInGroupTensor[offset[CONSTANT_THREE]];
             MrgSort(mrgSortTensor[(kGroup_ - 1 - i) * perGroupExpertCountAlign_ * 2], srcList, params);
+            
+            // 重置参数，避免影响下一次迭代
+            if (mrgLen < CONSTANT_FOUR) {
+                params.elementLengths[CONSTANT_THREE] = static_cast<uint16_t>(perGroupExpertCount_);
+                params.elementLengths[CONSTANT_TWO] = static_cast<uint16_t>(perGroupExpertCount_);
+                params.validBit = 0b1111;
+            }
         } else {
             offset[0] = tmpLocal.GetValue(i * 2) * perGroupExpertCountAlign_ * 2;
-            DataCopy(mrgSortTensor[(kGroup_ - 1 - i) * perGroupExpertCountAlign_ * 2], sortedInGroupTensor[offset[0]],
-                     perGroupExpertCountAlign_ * 2);
+            DataCopy(mrgSortTensor[(kGroup_ - 1 - i) * perGroupExpertCountAlign_ * 2], 
+                     sortedInGroupTensor[offset[0]], perGroupExpertCountAlign_ * 2);
         }
+    }
+}
+
+template <typename T>
+__aicore__ inline void MoeGatingTopKRegbase<T>::SetupMergeOffsets(
+    LocalTensor<uint32_t>& tmpLocal, int32_t i, int32_t mrgLen, 
+    uint32_t offset[MRG_SORT_ELEMENT_LEN], MrgSort4Info& params)
+{
+    if (mrgLen == CONSTANT_FOUR) {
+        offset[0] = tmpLocal.GetValue(i * 2) * perGroupExpertCountAlign_ * 2;
+        offset[1] = tmpLocal.GetValue((i - 1) * 2) * perGroupExpertCountAlign_ * 2;
+        offset[CONSTANT_TWO] = tmpLocal.GetValue((i - 2) * 2) * perGroupExpertCountAlign_ * 2;
+        offset[CONSTANT_THREE] = tmpLocal.GetValue((i - 3) * 2) * perGroupExpertCountAlign_ * 2;
+    } else if (mrgLen == CONSTANT_THREE) {
+        offset[0] = tmpLocal.GetValue(i * 2) * perGroupExpertCountAlign_ * 2;
+        offset[1] = tmpLocal.GetValue((i - 1) * 2) * perGroupExpertCountAlign_ * 2;
+        offset[CONSTANT_TWO] = tmpLocal.GetValue((i - 2) * 2) * perGroupExpertCountAlign_ * 2;
+        offset[CONSTANT_THREE] = 0;
+        params.elementLengths[CONSTANT_THREE] = 0;
+        params.validBit = 0b111;
+    } else {
+        offset[0] = tmpLocal.GetValue(i * 2) * perGroupExpertCountAlign_ * 2;
+        offset[1] = tmpLocal.GetValue((i - 1) * 2) * perGroupExpertCountAlign_ * 2;
+        offset[CONSTANT_TWO] = 0;
+        offset[CONSTANT_THREE] = 0;
+        params.elementLengths[CONSTANT_TWO] = 0;
+        params.elementLengths[CONSTANT_THREE] = 0;
+        params.validBit = 0b11;
     }
 }
 
