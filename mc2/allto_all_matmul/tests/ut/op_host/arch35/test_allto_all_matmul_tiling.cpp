@@ -809,12 +809,12 @@ class TestAlltoAllMatmulTiling : public testing::TestWithParam<AlltoAllMatmulTes
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "TestAlltoAllMatmulTiling SetUp." << std::endl;
+        std::cout << "TestAlltoAllMatmul Arch35TilingTest SetUp." << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "TestAlltoAllMatmulTiling TearDown." << std::endl;
+        std::cout << "TestAlltoAllMatmul Arch35TilingTest TearDown." << std::endl;
     }
 };
 

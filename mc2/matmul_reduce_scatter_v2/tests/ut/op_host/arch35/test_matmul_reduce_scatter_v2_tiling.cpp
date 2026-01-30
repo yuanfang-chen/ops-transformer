@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_kernel/arch35/matmul_reduce_scatter_v2_c_tiling.h"
+#include "../../../../op_kernel/arch35/matmul_reduce_scatter_v2_c_tiling.h"
 #include "mc2_tiling_case_executor.h"
 
 namespace {
@@ -19,11 +19,11 @@ class MatmulReduceScatterV2TilingTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "MatmulReduceScatterV2TilingTest SetUp" << std::endl;
+        std::cout << "MatmulReduceScatterV2 Arch35TilingTest SetUp" << std::endl;
     }
     static void TearDownTestCase()
     {
-        std::cout << "MatmulReduceScatterV2TilingTest TearDown" << std::endl;
+        std::cout << "MatmulReduceScatterV2 Arch35TilingTest TearDown" << std::endl;
     }
 };
 

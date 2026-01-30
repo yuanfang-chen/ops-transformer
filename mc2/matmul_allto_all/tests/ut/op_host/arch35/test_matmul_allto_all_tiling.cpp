@@ -1168,12 +1168,12 @@ class TestMatmulAlltoAllTiling : public testing::TestWithParam<MatmulAlltoAllTes
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "TestMatmulAlltoAllTiling SetUp." << std::endl;
+        std::cout << "TestMatmulAlltoAll Arch35TilingTest SetUp." << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "TestMatmulAlltoAllTiling TearDown." << std::endl;
+        std::cout << "TestMatmulAlltoAllTiling Arch35TilingTest TearDown." << std::endl;
     }
 };
 

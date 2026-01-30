@@ -9,7 +9,7 @@
  */
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_host/op_tiling/grouped_mat_mul_allto_allv_tiling.h"
+#include "../../../../op_host/op_tiling/grouped_mat_mul_allto_allv_tiling.h"
 #include "mc2_tiling_case_executor.h"
 
 namespace GroupedMatMulAlltoAllvUT {
@@ -89,12 +89,12 @@ class GroupedMatMulAlltoAllvTiling : public testing::TestWithParam<TestParam>
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "GroupedMatMulAlltoAllvTiling Test SetUp" << std::endl;
+        std::cout << "GroupedMatMulAlltoAllv Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "GroupedMatMulAlltoAllvTiling Test TearDown" << std::endl;
+        std::cout << "GroupedMatMulAlltoAllv Arch32TilingTest TearDown" << std::endl;
     }
 };
 

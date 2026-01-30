@@ -19,11 +19,11 @@ namespace MoeDistributeDispatchUT {
 class MoeDistributeCombineTiling : public testing::Test {
 protected:
     static void SetUpTestCase() {
-        std::cout << "MoeDistributeCombineTiling SetUp" << std::endl;
+        std::cout << "MoeDistributeCombine Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase() {
-        std::cout << "MoeDistributeCombineTiling TearDown" << std::endl;
+        std::cout << "MoeDistributeCombine Arch32TilingTest TearDown" << std::endl;
     }
 };
 

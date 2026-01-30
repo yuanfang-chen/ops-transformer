@@ -49,12 +49,12 @@ class MoeDistributeCombineAddRmsNormTilingTest : public testing::TestWithParam<T
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "MoeDistributeCombineAddRmsNormTilingTest SetUp" << std::endl;
+        std::cout << "MoeDistributeCombineAddRmsNorm Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "MoeDistributeCombineAddRmsNormTilingTest TearDown" << std::endl;
+        std::cout << "MoeDistributeCombineAddRmsNorm Arch32TilingTest TearDown" << std::endl;
     }
 };
 

@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_kernel/attention_to_ffn_tiling.h"
+#include "../../../../op_kernel/attention_to_ffn_tiling.h"
 #include "mc2_tiling_case_executor.h"
 
 namespace AttentionToFFNUT {
@@ -18,11 +18,11 @@ namespace AttentionToFFNUT {
 class AttentionToFFNTiling : public testing::Test {
 protected:
     static void SetUpTestCase() {
-        std::cout << "AttentionToFFNTiling SetUp" << std::endl;
+        std::cout << "AttentionToFFN Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase() {
-        std::cout << "AttentionToFFNTiling TearDown" << std::endl;
+        std::cout << "AttentionToFFN Arch32TilingTest TearDown" << std::endl;
     }
 };
 

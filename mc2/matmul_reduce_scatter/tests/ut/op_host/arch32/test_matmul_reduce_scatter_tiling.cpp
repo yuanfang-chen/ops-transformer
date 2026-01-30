@@ -19,12 +19,12 @@ class MatmulReduceScatterTiling : public testing::Test
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "MatmulReduceScatterTiling SetUp" << std::endl;
+        std::cout << "MatmulReduceScatter Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "MatmulReduceScatterTiling TearDown" << std::endl;
+        std::cout << "MatmulReduceScatter Arch32TilingTest TearDown" << std::endl;
     }
 };
 

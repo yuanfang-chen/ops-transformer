@@ -22,12 +22,12 @@ class AlltoAllAllGatherBmmTiling : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AlltoAllAllGatherBmmTiling SetUp" << std::endl;
+        std::cout << "AlltoAllAllGatherBmm Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "AlltoAllAllGatherBmmTiling TearDown" << std::endl;
+        std::cout << "AlltoAllAllGatherBmm Arch32TilingTest TearDown" << std::endl;
     }
 };
 
