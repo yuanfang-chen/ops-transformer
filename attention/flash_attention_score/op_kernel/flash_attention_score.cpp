@@ -20,6 +20,7 @@
 #define KFC_L1_RESERVER_SIZE 0
 #endif
 
+
 #include "kernel_operator.h"
 #include "arch32/flash_attention_score_empty_tensor.h"
 #include "arch32/flash_attention_score_drop_mask_adapter.h"
