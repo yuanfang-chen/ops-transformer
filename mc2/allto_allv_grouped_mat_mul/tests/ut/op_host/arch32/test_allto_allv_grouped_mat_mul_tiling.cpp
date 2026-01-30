@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "../../../op_host/op_tiling/allto_allv_grouped_mat_mul_tiling.h"
+#include "../../../../op_host/op_tiling/allto_allv_grouped_mat_mul_tiling.h"
 
 #include <iostream>
 #include <gtest/gtest.h>
@@ -186,12 +186,12 @@ class AlltoAllvGroupedMatMulTiling : public testing::TestWithParam<TestParam> {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AlltoAllvGroupedMatMulTiling Test SetUp" << std::endl;
+        std::cout << "AlltoAllvGroupedMatMul TilingUT910 SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "AlltoAllvGroupedMatMulTiling Test TearDown" << std::endl;
+        std::cout << "AlltoAllvGroupedMatMul TilingUT910 TearDown" << std::endl;
     }
 
 public:
