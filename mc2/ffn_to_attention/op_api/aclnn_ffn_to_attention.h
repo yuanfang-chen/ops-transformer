@@ -12,6 +12,7 @@
 #define OP_API_INC_FFN_TO_ATTENTION_H_
  
 #include <string>
+
  
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"

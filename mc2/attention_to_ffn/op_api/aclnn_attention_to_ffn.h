@@ -16,6 +16,7 @@
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"
  
+
 #ifdef __cplusplus
 extern "C" {
 #endif
