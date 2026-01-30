@@ -2,11 +2,33 @@
 
 ## 前提条件
 
-- 环境部署：调用算子之前，请先参考[环境部署](../../docs/zh/context/quick_install.md)完成基础环境搭建，其中**安装依赖**章节的版本约束以如下内容为准：
+1. 环境部署：调用算子之前，请先参考[环境部署](../../docs/zh/context/quick_install.md)完成基础环境搭建，其中**安装依赖**章节的版本约束以如下内容为准：
     - python >= 3.10.0
     - torch >= 2.7.0
     - gcc >= 9.0.0
-    - torch_npu >=2.7.0
+    - torch\_npu >=2.7.0
+
+2. 安装torch与torch_npu包
+   
+   根据实际环境，下载对应torch包并安装: `torch-${torch_version}+cpu-${python_version}-linux_${arch}.whl` 下载链接为:[官网地址](http://download.pytorch.org/whl/torch)
+
+   安装命令如下：
+
+    ```sh
+    pip install torch-${torch_version}+cpu-${python_version}-linux_${arch}.whl
+    ```
+
+   根据实际环境，安装对应torch-npu包: `torch_npu-${torch_version}-${python_version}-linux_${arch}.whl` 下载链接为:[官网地址](https://gitcode.com/Ascend/pytorch/releases)
+
+   安装命令如下：
+
+    ```sh
+    pip install torch_npu-${torch_version}-${python_version}-linux_${arch}.whl
+    ```
+    
+    - \$\{torch\_version\}：表示torch包版本号。
+    - \$\{python\_version\}：表示python版本号。
+    - \$\{arch\}：表示CPU架构，如aarch64、x86_64。
 
 ## 算子列表
 
