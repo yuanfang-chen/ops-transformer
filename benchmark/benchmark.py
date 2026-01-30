@@ -21,7 +21,6 @@ import torch_npu
 from torch_pfa import npu_prompt_flash_attention  # pre-requisite: go to attention/prompt_flash_attention/torch_interface and running "bash build.sh"
 
 device = "npu:0"
-torch.npu.set_device(device)
 
 DTYPE = torch.bfloat16
 INPUT_LAYOUT = "BNSD"  # [B, num_heads, seq_len, head_dim]
@@ -510,7 +509,7 @@ def block_allclose_map(
 #  reference implementation
 # --------------------------------------------------------------------------- #
 
-def ref_prompt_flash_attention_bf16(
+def ref_prompt_flash_attention_fp32(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -518,49 +517,41 @@ def ref_prompt_flash_attention_bf16(
     atten_mask: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """
-    Scaled dot-product attention in bfloat16, with softmax computed in float32.
+    Scaled dot-product attention in float32 throughout.
 
     Assumes:
     - input_layout == "BNSD"
-    - full attention (no sliding-window / pre/next tokens logic)
-    - actual_seq_lengths and actual_seq_lengths_kv == full sequence lengths
-    - atten_mask (if provided) is a bool tensor with shape broadcastable
+    - atten_mask (if provided) is bool broadcastable
       to [B, H, S_q, S_kv], where True means "masked out".
     """
 
-    # Work in bf16 for matmuls
-    q_bf = q
-    k_bf = k
-    v_bf = v
+    # Convert to fp32 for computation
+    q_f = q.to(torch.float32)
+    k_f = k.to(torch.float32)
+    v_f = v.to(torch.float32)
 
-    # [B, H, S_q, D] x [B, H, D, S_kv] -> [B, H, S_q, S_kv] in bf16
-    attn_scores = torch.matmul(q_bf, k_bf.transpose(-1, -2))
-    attn_scores = attn_scores * torch.tensor(
-        scale_value, dtype=torch.bfloat16, device=attn_scores.device
-    )
+    # [B, H, S_q, D] x [B, H, D, S_kv] -> [B, H, S_q, S_kv]
+    attn_scores = torch.matmul(q_f, k_f.transpose(-1, -2))
+    attn_scores = attn_scores * scale_value
 
-    # Apply mask in bf16: True means "disallow"
+    # Apply mask: True = disallow
     if atten_mask is not None:
         if atten_mask.dtype == torch.bool:
             attn_scores = attn_scores.masked_fill(
-                atten_mask, torch.finfo(torch.bfloat16).min
+                atten_mask, torch.finfo(attn_scores.dtype).min
             )
-        elif atten_mask.dtype == torch.int8 or atten_mask.dtype == torch.uint8:
+        elif atten_mask.dtype in (torch.int8, torch.uint8):
             attn_scores = attn_scores.masked_fill(
-                atten_mask==1, torch.finfo(torch.bfloat16).min
+                atten_mask == 1, torch.finfo(attn_scores.dtype).min
             )
 
-    # Softmax in float32 for numerical stability, then cast back to bf16
-    attn_probs = torch.softmax(attn_scores.to(torch.float32), dim=-1)
-    attn_probs = attn_probs.to(torch.bfloat16)
+    # Softmax in fp32
+    attn_probs = torch.softmax(attn_scores, dim=-1)
 
-    # [B, H, S_q, S_kv] x [B, H, S_kv, D] -> [B, H, S_q, D] in bf16
-    out = torch.matmul(attn_probs, v_bf)
+    # [B, H, S_q, S_kv] x [B, H, S_kv, D] -> [B, H, S_q, D]
+    out = torch.matmul(attn_probs, v_f)
 
-    # Option 1: keep output in bf16 (strict "bf16 attention")
-    # return out
-
-    # Option 2: match original behavior and cast back to input dtype
+    # Cast back to original dtype for comparison
     return out.to(dtype=q.dtype)
 
 
@@ -864,7 +855,7 @@ def benchmark_prompt_flash_attention():
 
             # Reference implementation (matmul+softmax+matmul) with same mask
             if TORCH_REFERENCE:
-                out_ref = ref_prompt_flash_attention_bf16(q, k, v, scale, atten_mask=atten_mask)
+                out_ref = ref_prompt_flash_attention_fp32(q, k, v, scale, atten_mask=atten_mask)
             else:
                 os.environ.pop("PFA_BLOCKS", None)
                 os.environ.pop("PFA_BLOCKS_FILE", None)
@@ -974,7 +965,7 @@ def benchmark_prompt_flash_attention():
             # Warm-up
             for i in range(n_warmup):
                 q, k, v, _, _ = input_sets[i]
-                ref_prompt_flash_attention_bf16(q, k, v, scale, atten_mask=atten_mask)
+                ref_prompt_flash_attention_fp32(q, k, v, scale, atten_mask=atten_mask)
             torch.npu.synchronize()
 
             # Measurements
@@ -984,7 +975,7 @@ def benchmark_prompt_flash_attention():
             start.record()
             for i in range(n_warmup, n_warmup + n_repeat):
                 q, k, v, _, _ = input_sets[i]
-                ref_prompt_flash_attention_bf16(q, k, v, scale, atten_mask=atten_mask)
+                ref_prompt_flash_attention_fp32(q, k, v, scale, atten_mask=atten_mask)
             end.record()
             torch.npu.synchronize()
 
@@ -1027,4 +1018,5 @@ def benchmark_prompt_flash_attention():
 
 
 if __name__ == "__main__":
+    torch.npu.set_device(device)
     benchmark_prompt_flash_attention()

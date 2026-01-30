@@ -1,12 +1,17 @@
 import os
 import sys
+import math
 sys.path.append("..")
 import torch
 import torch_npu
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 # import sabi_attention
-from benchmark.benchmark import * 
+from benchmark.benchmark import (
+    npu_prompt_flash_attention,
+    ref_prompt_flash_attention_fp32,
+    block_allclose_map
+)
 
 PRINT_BLOCK_EQUALITY = True
 PRINT_HEIGHT = 128
@@ -56,6 +61,7 @@ if __name__ == "__main__":
     sink_frame_len = 600
     scale = 1.0 / math.sqrt(float(D))
     device = torch.device("npu:5")
+    torch.npu.set_device(device)
     dtype = torch.bfloat16
     block_size_q = 128
     block_size_kv = 512
@@ -64,11 +70,9 @@ if __name__ == "__main__":
     block_mask = get_block_mask(q, sabi_tensor, block_size_q, block_size_kv)
     token_mask = get_token_mask(block_mask, q, k, block_size_q, block_size_kv)
 
-    npu_atten_mask = None
-    sm=0
-    pre_tok = 2147483647     # default pre-token value
-    post_tok = 0     # default post-token value
-    out_vnl = prompt_flash_attention_npu(q, 
+    sabi_tensor = sabi_tensor.to(torch.uint16)
+
+    out_vnl = npu_prompt_flash_attention(q, 
                 k, 
                 v,
                 sabi_blocks=sabi_tensor,
@@ -77,25 +81,34 @@ if __name__ == "__main__":
                 num_heads=H,
                 num_key_value_heads=H,
                 input_layout="BNSD",
-                scale_value = scale,
-                atten_mask=npu_atten_mask,
-                sparse_mode=sm,
-                pre_tokens=pre_tok,
-                next_tokens=post_tok,
+                scale_value=scale,
+                atten_mask=None,
+                sparse_mode=0,
                 )
-    out_ref = ref_prompt_flash_attention_bf16(q, k, v, scale, atten_mask=token_mask)
+    out_ref = ref_prompt_flash_attention_fp32(q, k, v, scale, atten_mask=token_mask)
+    ## Alternative
+    # out_ref = torch_npu.npu_fusion_attention(
+    #                 q,k,v,
+    #                 head_num=H,
+    #                 input_layout="BNSD",
+    #                 scale=scale,
+    #                 pre_tockens=0, next_tockens=0,
+    #                 sparse_mode=1,
+    #                 atten_mask=token_mask
+    #                 # ,
+    #                 # num_key_value_heads=k.shape[1]
+    #             )[0]
     # Compare on CPU for convenience
     out_our_cpu = out_vnl.cpu()
     out_ref_cpu = out_ref.cpu()
     print(out_vnl.shape)
     print(out_ref.shape)
 
-
-    equal_ref = torch.allclose(out_our_cpu, out_ref_cpu, rtol=0.02, atol=0.02)
+    equal_ref = torch.allclose(out_our_cpu, out_ref_cpu, rtol=0.01, atol=0.01)
 
     if not equal_ref and PRINT_BLOCK_EQUALITY:
         block_allclose_map(out_our_cpu, out_ref_cpu,
-                        block_h=PRINT_HEIGHT, block_w=PRINT_WIDTH, rtol=0.02, atol=0.02,
+                        block_h=PRINT_HEIGHT, block_w=PRINT_WIDTH, rtol=0.01, atol=0.01,
                         print_map=True)
     print(f"Is equal: {equal_ref}")
 
