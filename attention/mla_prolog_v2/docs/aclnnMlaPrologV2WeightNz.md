@@ -214,14 +214,14 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
         - dequantScaleXOptional的shape为(T, 1)
         - queryOut的shape为(T, N, Hckv)
         - queryRopeOut的shape为(T, N, Dr)
-        - 全量化场景下，dequantScaleQNopeOutOptional的shape为(T, N, 1)，其他场景下为(1)
+        - int8全量化场景下，dequantScaleQNopeOutOptional的shape为(T, N, 1)，其他场景下为(1)
     - 若tokenX的维度不采用BS合轴，即(B, S, He)
         - ropeSin和ropeCos的shape为(B, S, Dr)
         - cacheIndex的shape为(B, S)
         - dequantScaleXOptional的shape为(B*S, 1)
         - queryOut的shape为(B, S, N, Hckv)
         - queryRopeOut的shape为(B, S, N, Dr)
-        - 全量化场景下，dequantScaleQNopeOutOptional的shape为(B*S, N, 1)，其他场景下为(1)
+        - int8全量化场景下，dequantScaleQNopeOutOptional的shape为(B*S, N, 1)，其他场景下为(1)
     -   B、S、T、Skv值允许一个或多个取0，即Shape与B、S、T、Skv值相关的入参允许传入空Tensor，其余入参不支持传入空Tensor。
         - 如果B、S、T取值为0，则queryOut、queryRopeOut输出空Tensor，kvCacheRef、krCacheRef不做更新。
         - 如果Skv取值为0，则queryOut、queryRopeOut、dequantScaleQNopeOutOptional正常计算，kvCacheRef、krCacheRef不做更新，即输出空Tensor。
@@ -254,7 +254,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
       </td>
     </tr>
     <tr>
-      <td rowspan="2">全量化</td>
+      <td rowspan="2">int8全量化</td>
       <td> kv_cache非量化</td>
       <td> 
           入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据 <br> 
@@ -278,7 +278,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
       <th rowspan="3">参数名</th>
       <th rowspan="2" colspan="2">非量化场景</th>
       <th colspan="4">部分量化场景</th>
-      <th colspan="4">全量化场景</th>
+      <th colspan="4">int8全量化场景</th>
     </tr>
     <tr>
       <th colspan="2">kv_cache非量化</th>
