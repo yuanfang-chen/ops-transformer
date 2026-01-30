@@ -49,8 +49,6 @@ protected:
 
     ge::graphStatus Do910Tiling();
 
-    Mc2Tiling::Mc2Msg& MutableMc2MsgData() override;
-
     Mc2Tiling::RCSTiling& MutableRCSTilingData() override;
 
     AscendC::tiling::TCubeTiling& MutableTCubeTileTilingData() override;
@@ -60,6 +58,8 @@ protected:
     void DoEmptyTensorTiling() override;
 
     ge::graphStatus CheckInput() override;
+
+    ge::graphStatus SetHcclTiling();
 
 private:
     ge::graphStatus CheckAxisSize();

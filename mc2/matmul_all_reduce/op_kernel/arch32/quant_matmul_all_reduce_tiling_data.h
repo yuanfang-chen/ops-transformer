@@ -30,6 +30,9 @@ namespace Mc2Tiling {
 #pragma pack(push, 8)
 // 8 means 8 bytes aligned
 struct alignas(8) QuantMatmulAllReduceTilingData{
+    Mc2InitTiling mc2InitTiling;
+    Mc2CcTiling mc2CcTilingV1; // 低比特通信启用AllGather、其他场景启用AllReduce
+    Mc2CcTiling mc2CcTilingV2; // 低比特通信启用AllToAll
     Mc2Tiling::Mc2Msg msg;
     Mc2Tiling::RCSTiling param;
     Mc2QuantBatchMatmulV3TilingData tilematmulTiling;
