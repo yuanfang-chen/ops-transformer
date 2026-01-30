@@ -227,13 +227,15 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
     // 计算轴的乘积
     auto &inputParamsRegbase = this->tilingData->inputParamsRegbase;
 
+    constInfo.bSize = inputParamsRegbase.bSize;
+    constInfo.t1Size = inputParamsRegbase.t1Size;
     constInfo.n2Size = inputParamsRegbase.n2Size;
     constInfo.s1Size = inputParamsRegbase.s1Size;
     constInfo.s2Size = inputParamsRegbase.s2Size;
     if constexpr (isFd) {
         constInfo.splitKVNum = this->sharedParams.splitKVNum;
-        constInfo.sInnerLoopSize = CeilDivision(inputParamsRegbase.s2Size, constInfo.splitKVNum);
-        constInfo.actualCombineLoopSize = CeilDivision(constInfo.s2Size, constInfo.sInnerLoopSize);
+        constInfo.sInnerLoopSize = CeilDiv(inputParamsRegbase.s2Size, constInfo.splitKVNum);
+        constInfo.actualCombineLoopSize = CeilDiv(constInfo.s2Size, constInfo.sInnerLoopSize);
     }
     constInfo.dSize = inputParamsRegbase.dSize;
     constInfo.dSizeV = inputParamsRegbase.dSizeV;
@@ -413,11 +415,14 @@ __aicore__ inline void FAKernelNoquantMla<CubeBlockType, VecBlockType>::ComputeC
 
     // service vector2
     constInfo.isBSNDOut = inputParamsRegbase.isBSNDOut;
+    constInfo.isNTDOut = inputParamsRegbase.isNTDOut;
     constInfo.isTNDOut = inputParamsRegbase.isTNDOut;
     if (constInfo.isBSNDOut == 1) {
         constInfo.attentionOutStride = 
             (constInfo.n2Size * constInfo.gSize - 1) * constInfo.dSizeV * sizeof(OUTPUT_T);
-    }
+    } else if (constInfo.isNTDOut == 1) {
+        constInfo.attentionOutStride = 0;
+    } 
 
     // lse output
     constInfo.isSoftmaxLseEnable = inputParamsRegbase.isSoftMaxLseEnable;

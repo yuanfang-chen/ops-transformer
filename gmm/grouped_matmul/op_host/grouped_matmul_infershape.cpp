@@ -25,13 +25,13 @@
 using namespace ge;
 namespace ops {
 
-static std::set<std::string> GmmDavidSupportSoc = {"Ascend910_95"};
+static std::set<std::string> GmmDavidSupportSoc = {"Ascend950"};
 
 enum class PlatformID : std::uint8_t {
     UNKNOWN,
     ASCEND310P,
     ASCEND910B,
-    ASCEND910_95
+    ASCEND950
 };
 
 struct GMMParamsInfo {
@@ -400,7 +400,8 @@ static ge::graphStatus CheckNonQuant(gert::InferShapeContext* context) {
 
 static ge::graphStatus GetGroupSize(const gert::InferShapeContext* context, GMMParamsInfo& paramsInfo) {
     size_t groupNum = 1;
-    size_t maxGroupNum = GMM_MAX_GROUP_LIST_SIZE_ARRAY;  // init max value
+    // all case allows 1024 in infershape, specific check in tiling
+    size_t maxGroupNum = GMM_MAX_GROUP_LIST_SIZE_TENSOR;
     if (paramsInfo.numX > 1UL) {
         groupNum = paramsInfo.numX;
     } else if (paramsInfo.numWeight > 1UL) {
@@ -409,7 +410,6 @@ static ge::graphStatus GetGroupSize(const gert::InferShapeContext* context, GMMP
         groupNum = paramsInfo.numY;
     } else if (paramsInfo.lenGroupList > 0) {
         groupNum = static_cast<size_t>(paramsInfo.lenGroupList);
-        maxGroupNum = static_cast<size_t>(GMM_MAX_GROUP_LIST_SIZE_TENSOR);  // only this case allows GMM_MAX_GROUP_LIST_SIZE_TENSOR size
     }
     OP_CHECK_IF(groupNum > maxGroupNum,
               OP_LOGE(context->GetNodeName(), "groupNum[%zu] is larger than %zu.",
@@ -763,8 +763,8 @@ static ge::graphStatus CheckFunctionParamsForShape(gert::InferShapeContext* cont
         return GRAPH_SUCCESS;
     } else {
         paramsInfo.platform = (optionalInfo.soc_version.find("310P") != std::string::npos) ?
-                                PlatformID::ASCEND310P : (optionalInfo.soc_version.find("910_95") != std::string::npos) ?
-                                PlatformID::ASCEND910_95 : PlatformID::ASCEND910B;
+                                PlatformID::ASCEND310P : (optionalInfo.soc_version.find("950") != std::string::npos) ?
+                                PlatformID::ASCEND950 : PlatformID::ASCEND910B;
     }
     OP_CHECK_IF(CheckQuantParams(context, gmmAttrs, paramsInfo) != GRAPH_SUCCESS,
                   OP_LOGE(context->GetNodeName(), "CheckQuantParams failed!"),
@@ -1246,7 +1246,7 @@ static ge::graphStatus CheckCaseSplitK(gert::InferShapeContext* context, bool tr
     const size_t& weightSize = paramsInfo.numWeight;
     const size_t& ySize = paramsInfo.numY;
     if (xSize == 1UL) {
-        if (paramsInfo.platform == PlatformID::ASCEND910_95) {
+        if (paramsInfo.platform == PlatformID::ASCEND950) {
             return GRAPH_SUCCESS;
         }
         OP_CHECK_IF(!transposeX,
@@ -1633,8 +1633,8 @@ static graphStatus CheckFunctionParamsForDtype(gert::InferDataTypeContext* conte
         return GRAPH_SUCCESS;
     } else {
         platform = (optionalInfo.soc_version.find("310P") != std::string::npos) ?
-                    PlatformID::ASCEND310P : (optionalInfo.soc_version.find("910_95") != std::string::npos) ?
-                    PlatformID::ASCEND910_95 : PlatformID::ASCEND910B;
+                    PlatformID::ASCEND310P : (optionalInfo.soc_version.find("950") != std::string::npos) ?
+                    PlatformID::ASCEND950 : PlatformID::ASCEND910B;
     }
     DataType xDtype = context->GetDynamicInputDataType(GMM_INDEX_IN_X, 0);
     DataType weightDtype = context->GetDynamicInputDataType(GMM_INDEX_IN_WEIGHT, 0);

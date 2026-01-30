@@ -14,6 +14,10 @@
 #include <nlohmann/json.hpp>
 #include "platform/platform_infos_def.h"
 #include "base/registry/op_impl_space_registry_v2.h"
+#include <string>
+#include <sstream>
+#include <iomanip>
+#include <cstdint>
 
 #define DO_TILING(tilingPara)                                                                                          \
     auto contextFaker = gert::TilingContextFaker();                                                                    \
@@ -136,7 +140,7 @@
             {"Ascend310P", "2002"},                                                                                    \
             {"Ascend910B", "2201"},                                                                                    \
             {"Ascend910_93", "2201"},                                                                                  \
-            {"Ascend910_95", "3510"}                                                                                   \
+            {"Ascend950", "3510"}                                                                                   \
         };                                                                                                             \
         versions = {                                                                                                   \
             {"NpuArch", socToArch[tilingContextPara.socVersion_]},                                                     \
@@ -168,6 +172,25 @@ static bool isNpuArchString(string version)
         }
     }
     return true;
+}
+
+static std::string to_string_fnv_hash(const void* buf, size_t size)
+{
+    const uint8_t* data = static_cast<const uint8_t*>(buf);
+    constexpr uint64_t FNV_OFFSET = 0xcbf29ce484222325ULL; // FNV偏移基础值
+    constexpr uint64_t FNV_PRIME = 0x100000001b3ULL; // FNV质数
+    constexpr uint64_t FNV_OUTPUT_LEN = 16; // FNV输出数据长度
+
+    // FNV-1a算法
+    uint64_t hash = FNV_OFFSET;
+    for (size_t i = 0; i < size; ++i) {
+        hash ^= static_cast<uint64_t>(data[i]);
+        hash *= FNV_PRIME;
+    }
+
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0') << std::setw(FNV_OUTPUT_LEN) << hash;
+    return ss.str();
 }
 
 template <typename T>
@@ -275,7 +298,8 @@ void ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
                      uint64_t                       expectTilingKey,
                      const string&                  expectTilingData,
                      const std::vector<size_t>&     expectWorkspaces,
-                     uint64_t                       tilingDataReservedLen)
+                     uint64_t                       tilingDataReservedLen,
+                     bool                           useHashTilingData)
 {
     DO_TILING(tilingContextPara);
 
@@ -304,9 +328,13 @@ void ExecuteTestCase(const gert::TilingContextPara& tilingContextPara,
     if (expectTilingData != "") {
         auto rawTilingData = tilingContext->GetRawTilingData();
         auto tilingDataReservedSize = tilingDataReservedLen * sizeof(uint64_t);
-        auto tilingDataResult = to_string<int64_t>(rawTilingData->GetData() + tilingDataReservedSize,
-                                                   rawTilingData->GetDataSize() - tilingDataReservedSize,
-                                                   GetMask(expectTilingData));
+        ASSERT_LE(tilingDataReservedSize, rawTilingData->GetDataSize());
+        auto tilingDataResult = useHashTilingData ?
+            to_string_fnv_hash(rawTilingData->GetData() + tilingDataReservedSize,
+                           rawTilingData->GetDataSize() - tilingDataReservedSize) :
+            to_string<int64_t>(rawTilingData->GetData() + tilingDataReservedSize,
+                            rawTilingData->GetDataSize() - tilingDataReservedSize,
+                            GetMask(expectTilingData));
         EXPECT_EQ(tilingDataResult, expectTilingData);
     }
 }

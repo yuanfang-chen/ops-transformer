@@ -89,14 +89,14 @@ detect_os() {
 }
 
 install_gawk() {
-    echo -e "\n==== Checking Gawk ===="
+    echo -e "\n==== Checking gawk ===="
 
     if command -v gawk &> /dev/null; then
-        echo "Gawk has been installed"
+        echo "gawk has been installed"
         return
     fi
 
-    echo "Installing Gawk..."
+    echo "Installing gawk..."
     case "$OS" in
         debian)
             run_command sudo $PKG_MANAGER update
@@ -111,9 +111,9 @@ install_gawk() {
     esac
 
     if command -v gawk &> /dev/null; then
-        echo "Gawk installed successfully"
+        echo "gawk installed successfully"
     else
-        echo "Gawk installation failed"
+        echo "gawk installation failed"
         exit 1
     fi
 }
@@ -142,7 +142,13 @@ install_python_deps() {
         tornado \
         absl-py \
         "decorator>=5.1.0" \
-        --quiet --timeout=60
+        attrs \
+        jinja2 \
+        mpmath \
+        -i https://pypi.tuna.tsinghua.edu.cn/simple \
+        --trusted-host pypi.tuna.tsinghua.edu.cn \
+        --no-deps \
+        --timeout=60
     echo "CANN Python dependencies installed."
 }
 
