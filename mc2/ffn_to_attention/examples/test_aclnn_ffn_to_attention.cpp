@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_aclnn_ffn_to_attention.cpp
+ * \file test_aclnn_ffn_t0_attention.cpp
  * \brief
  */
 
