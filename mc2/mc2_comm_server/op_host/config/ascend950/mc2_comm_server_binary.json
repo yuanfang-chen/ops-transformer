@@ -1,0 +1,25 @@
+{
+    "op_type": "Mc2CommServer",
+    "op_list": [
+        {
+            "bin_filename": "Mc2_commm_server_UINT64",
+            "inputs": [
+                {
+                    "name": "context",
+                    "index": 0,
+                    "dtype": "uint64",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "outputs": [
+            ],
+            "attrs": [
+            ]
+        }
+    ]
+}
