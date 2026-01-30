@@ -91,7 +91,9 @@ cd ${git_clone_path}
 # 编译样例算子run包
 bash build.sh --pkg  --experimental --soc=ascend910b --ops=fused_infer_attention_score  
 #安装自定义算子run包
-./build_out/cann-ops-transformer-${vendor_name}-${arch}_linux.run
+./build_out/cann-ops-transformer-${vendor_name}-${arch}_linux.run --instal-path=${install_path} # install_path为CANN包安装路径
+# source custom包
+source ${install_path}/vendors/custom_transformer/bin/set_env.bash
 ```
 2、pytest测试精度
 ```bash
