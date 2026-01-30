@@ -138,6 +138,13 @@ public:
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
                                  ge::FORMAT_ND, ge::FORMAT_ND});
 
+        this->Attr("gmm_x_quant_mode").AttrType(REQUIRED).Int();
+        this->Attr("gmm_weight_quant_mode").AttrType(REQUIRED).Int();
+        this->Attr("mm_x_quant_mode").AttrType(REQUIRED).Int();
+        this->Attr("mm_weight_quant_mode").AttrType(REQUIRED).Int();
+        this->Attr("comm_quant_mode").AttrType(REQUIRED).Int();
+        this->Attr("comm_quant_Dtype").AttrType(OPTIONAL).Int();
+
         this->Attr("group").AttrType(REQUIRED).String();
         this->Attr("ep_world_size").AttrType(REQUIRED).Int();
         this->Attr("send_counts").AttrType(REQUIRED).ListInt();
