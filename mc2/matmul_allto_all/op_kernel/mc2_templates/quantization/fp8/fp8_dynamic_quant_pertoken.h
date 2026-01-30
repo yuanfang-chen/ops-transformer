@@ -236,7 +236,6 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
             {1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0, 0}, {false, 0, 0, 0});
         SyncFunc<AscendC::HardEvent::MTE2_V>();
         __local_mem__ quantInputDataType *xAddr = (__local_mem__ quantInputDataType *)rawInputTensor.GetPhyAddr();
-        __local_mem__ quantInputDataType *smoothAddr; // 类型需要调试
         __local_mem__ quantOutputDataType *yAddr = (__local_mem__ quantOutputDataType *)quantOut.GetPhyAddr();
         __local_mem__ float *scaleAddr = (__local_mem__ float *)scaleWorkData.GetPhyAddr();
         __local_mem__ float *maxValueAddr = (__local_mem__ float *)maxValueData.GetPhyAddr();
@@ -281,9 +280,7 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
     __VEC_SCOPE__
     {
         AscendC::MicroAPI::RegTensor<quantInputDataType> vregX;
-        AscendC::MicroAPI::RegTensor<quantInputDataType> vregSmooth;
         AscendC::MicroAPI::RegTensor<float> vregFloatX;
-        AscendC::MicroAPI::RegTensor<float> vregSmoothFp32;
         AscendC::MicroAPI::RegTensor<float> vregAbsX;
         AscendC::MicroAPI::RegTensor<float> vregMaxAbsX;
         AscendC::MicroAPI::RegTensor<float> vregReduceMax;
@@ -352,9 +349,7 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
     __VEC_SCOPE__
     {
         AscendC::MicroAPI::RegTensor<quantInputDataType> vregX;
-        AscendC::MicroAPI::RegTensor<quantInputDataType> vregSmooth;
         AscendC::MicroAPI::RegTensor<float> vregFloatX;
-        AscendC::MicroAPI::RegTensor<float> vregSmoothFp32;
         AscendC::MicroAPI::RegTensor<float> vregScale;
         AscendC::MicroAPI::RegTensor<float> vregScaledX;
         AscendC::MicroAPI::RegTensor<int16_t> vregYInt16;
