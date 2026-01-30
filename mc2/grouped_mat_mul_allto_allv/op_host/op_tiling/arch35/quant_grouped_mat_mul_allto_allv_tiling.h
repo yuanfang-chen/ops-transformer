@@ -18,10 +18,15 @@
 
 #pragma once
 #include "securec.h"
+#include "tiling/tiling_api.h"
+#include "tiling/mc2_tiling_utils.h"
+#include "tiling_base/tiling_base.h"
+#include "tiling_base/tiling_templates_registry.h"
 #include "mc2_matmul_tiling_cfg.h"
-#include "../grouped_mat_mul_allto_allv_tiling_base.h"
 #include "tiling/new_mc2_tiling_utils.h"
+#include "../grouped_mat_mul_allto_allv_tiling_base.h"
 #include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling.h"
+#include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
 
 // using MC2KernelTemplate::GmmTilingArray;
@@ -41,8 +46,14 @@ struct TilingInferredInfo {
 class QuantGroupedMatmulAllToAllvTiling : public GmmAlltoAllvTilingBase {
 public:
     explicit QuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context);
+    void Reset(gert::TilingContext *context) override
+    {
+        TilingBaseClass::Reset(context);
+    }
     ~QuantGroupedMatmulAllToAllvTiling() override = default;
 protected:
+    ge::graphStatus GetShapeAttrsInfo() override;
+    ge::graphStatus GetPlatformInfo() override;
     bool IsCapable() override;
     ge::graphStatus DoOpTiling() override;
     ge::graphStatus PostTiling() override;
@@ -50,21 +61,25 @@ protected:
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckOpInputInfo();
     ge::graphStatus InitTilingContextParameters(); // set默认值，当前不支持功能参数
+    ge::graphStatus SetTilingCommonInfo();
+    ge::graphStatus SetGmmA2avWorkspaceInfo();
     ge::graphStatus DoQuantGMMTiling(); // 按专家为粒度执行
     ge::graphStatus SetHcclTiling();
-    
-    void SetTilingCommonInfo();
+
     void PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData);
-    
-private:
+
     QuantGmmA2avTilingData localTilingData_;
     void PrintCommonTilingInfo(TaskTilingInfo &tilingInfo);
     void PrintSharedGmmTilingInfo(Mc2GroupedMatmulTilingData::GMMQuantTilingData &tiling);
     void PrintGmmQTilingDataInfo(GmmTilingArray &tilingInfo);
     const char *opName_{nullptr};
     uint32_t libApiWorkSpaceSize_{0};
-    uint32_t epNum_{2};
+    uint32_t workSpaceSize_{0};
+    uint32_t epNum_{0};
+    uint32_t aicNum_{0};
     TilingInferredInfo inferredInfo;
+private:
+    ge::graphStatus CalTilingInferredInfo();
 };
 
 } // namespace MC2Tiling

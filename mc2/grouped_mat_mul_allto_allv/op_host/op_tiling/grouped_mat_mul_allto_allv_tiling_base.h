@@ -47,6 +47,7 @@ constexpr uint32_t COMM_QUANT_SCALE_OPTIONAL_INDEX = 10;
 constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0;
 constexpr uint32_t OUTPUT_MM_Y_OPTIONAL_INDEX = 1;
 
+constexpr uint32_t DIM_ZERO = 0;
 constexpr uint32_t DIM_ONE = 1;
 constexpr uint32_t DIM_TWO = 2;
 constexpr uint32_t DIM_THREE = 3;
@@ -94,14 +95,6 @@ constexpr int64_t RECV_SEND_MIN = static_cast<int64_t>((2 * 1024 * 1024) / 2);  
 
 inline const char* C_INNER_DEBUG = "GroupedMatMulAlltoAllv Tiling Debug";
 inline const char* C_INNER_PRINT = "GroupedMatMulAlltoAllv Tiling Print";
-
-static int32_t maxM = 0;
-static int32_t maxN = 0;
-static int32_t maxK = 0;
-static int32_t baseM_ = 0;
-static int32_t baseN_ = 0;
-static int32_t baseK_ = 0;
-static int32_t mSize_ = 0;
 
 class GmmAlltoAllvTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass
 {

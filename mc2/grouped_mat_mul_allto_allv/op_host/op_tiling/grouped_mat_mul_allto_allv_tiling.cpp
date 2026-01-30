@@ -33,6 +33,13 @@ using namespace ge;
 using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
+static int32_t maxM = 0;
+static int32_t maxN = 0;
+static int32_t maxK = 0;
+static int32_t baseM_ = 0;
+static int32_t baseN_ = 0;
+static int32_t baseK_ = 0;
+
 static uint64_t GMMGetSizePlatForm(
     const platform_ascendc::CoreMemType memType, platform_ascendc::PlatformAscendC ascendcPlatform)
 {

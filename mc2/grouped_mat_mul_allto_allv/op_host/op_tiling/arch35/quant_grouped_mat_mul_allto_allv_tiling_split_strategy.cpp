@@ -30,7 +30,7 @@ using namespace Mc2Tiling;
 //     uint64_t kernelType = 0UL;
 //     QuantMode aQuantMode = QuantMode::DEFAULT;
 //     QuantMode bQuantMode = QuantMode::DEFAULT;
-//     int8_t groupType = GroupedMatmul::NO_SPLIT;
+//     int8_t groupType = Mc2GroupedMatmul::NO_SPLIT;
 //     int8_t groupListType = 0;
 //     int8_t splitItem = 0;
 //     int8_t actType = 0;
@@ -57,15 +57,5 @@ using namespace Mc2Tiling;
 
 using namespace optiling;
 namespace MC2Tiling {
-
-QuantMode QuantGroupedMatmulAllToAllvTilingStrategyTT::GetQuantMode(const gert::TilingContext *context, const char *opName)
-{
-
-}
-
-ge::graphStatus QuantGroupedMatmulAllToAllvTilingStrategyTT::Process()
-{
-
-}
 
 }

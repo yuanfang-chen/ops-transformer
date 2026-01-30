@@ -22,17 +22,15 @@ namespace ops
 {
 static const size_t INDEX_IN_GMM_X = 0;
 static const size_t INDEX_IN_GMM_WEIGHT = 1;
-static const size_t INDEX_IN_GMM_BIAS = 2;
-static const size_t INDEX_IN_MM_X = 5;
-static const size_t INDEX_IN_MM_WEIGHT = 6;
-static const size_t INDEX_IN_MM_BIAS = 7;
+static const size_t INDEX_IN_MM_X = 4;
+static const size_t INDEX_IN_MM_WEIGHT = 5;
 static const size_t INDEX_OUT_GMM_Y = 0;
 static const size_t INDEX_OUT_MM_Y = 1;
 static const size_t INDEX_ATTR_EP_WORLD_SIZE = 1;
 static const size_t INDEX_ATTR_SEND_COUNTS = 2;
 static const size_t INDEX_ATTR_RECV_COUNTS = 3;
-static const size_t INDEX_ATTR_TRANS_GMM_WEIGHT_INDEX = 8;
-static const size_t INDEX_ATTR_TRANS_MM_WEIGHT_INDEX = 9;
+static const size_t INDEX_ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
+static const size_t INDEX_ATTR_TRANS_MM_WEIGHT_INDEX = 5;
 
 static constexpr size_t DIM_NUM_0 = 0;
 static constexpr size_t DIM_NUM_1 = 1;
@@ -45,7 +43,7 @@ static constexpr size_t DIM_2 = 2;
 static constexpr int64_t FIRST_ELE_SIZE = -1;
 
 static graphStatus CheckDims(const gert::InferShapeContext* context, const gert::Shape* gmmXShape,
-                             const gert::Shape* gmmWeightShape, const gert::Shape* gmmBiasShape, bool transGmmWeight)
+                             const gert::Shape* gmmWeightShape, bool transGmmWeight)
 {
     auto result = ge::GRAPH_SUCCESS;
 
@@ -70,19 +68,11 @@ static graphStatus CheckDims(const gert::InferShapeContext* context, const gert:
                                             "Dim of gmmX and dim of gmmWeight do not match for MatMul");
         result = ge::GRAPH_FAILED;
     }
-    // if (gmmBiasShape != nullptr) {
-    //     auto gmmBiasDimNum = gmmBiasShape->GetDimNum();
-    //     if (gmmBiasDimNum != DIM_NUM_2) {
-    //         VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only gmmBias with dim 2 is supported.");
-    //         result = ge::GRAPH_FAILED;
-    //     }
-    //     auto biasDim0 = gmmBiasShape->GetDim(DIM_0);
-    // }
     return result;
 }
 
 static graphStatus CheckDimsOptional(const gert::InferShapeContext* context, const gert::Shape* mmXShape,
-                                     const gert::Shape* mmWeightShape, const gert::Shape* mmBiasShape, bool transMmWeight)
+                                     const gert::Shape* mmWeightShape, bool transMmWeight)
 {
     auto result = ge::GRAPH_SUCCESS;
 
@@ -107,14 +97,6 @@ static graphStatus CheckDimsOptional(const gert::InferShapeContext* context, con
                                             "Dim of x and dim of mmWeight do not match for MatMul");
         result = ge::GRAPH_FAILED;
     }
-    // if (mmBiasShape != nullptr) {
-    //     auto mmBiasDimNum = mmBiasShape->GetDimNum();
-    //     if (mmBiasDimNum != DIM_NUM_2) {
-    //         VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "Only mmBias with dim 2 is supported.");
-    //         result = ge::GRAPH_FAILED;
-    //     }
-    //     auto biasDim0 = mmBiasShape->GetDim(DIM_0);
-    // }
     return result;
 }
 
@@ -152,7 +134,6 @@ static ge::graphStatus InferMMOutputShape(
     const gert::InferShapeContext* context,
     const gert::Shape* mmXShape,
     const gert::Shape* mmWeightShape,
-    const gert::Shape* mmBiasShape,
     const bool* transMmWeightPtr, gert::Shape* mmYShape)
 {
     OPS_ERR_IF(mmYShape == nullptr,
@@ -160,7 +141,7 @@ static ge::graphStatus InferMMOutputShape(
                return ge::GRAPH_FAILED);
     mmYShape->SetDimNum(DIM_NUM_0);
     if ((mmWeightShape != nullptr) && (mmXShape != nullptr) && (mmYShape != nullptr) && (transMmWeightPtr != nullptr)) {
-        OPS_ERR_IF(CheckDimsOptional(context, mmXShape, mmWeightShape, mmBiasShape, *transMmWeightPtr) != ge::GRAPH_SUCCESS,
+        OPS_ERR_IF(CheckDimsOptional(context, mmXShape, mmWeightShape, *transMmWeightPtr) != ge::GRAPH_SUCCESS,
                    VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "CheckDimsOptional failed."),
                    return ge::GRAPH_FAILED);
         int64_t bs = mmXShape->GetDim(DIM_0);
@@ -180,10 +161,8 @@ static ge::graphStatus InferShapeGroupedMatMulAlltoAllv(gert::InferShapeContext*
 {
     auto* gmmXShape = context->GetInputShape(INDEX_IN_GMM_X);
     auto* gmmWeightShape = context->GetInputShape(INDEX_IN_GMM_WEIGHT);
-    auto* gmmBiasShape = context->GetInputShape(INDEX_IN_GMM_BIAS);
     auto* mmXShape = context->GetOptionalInputShape(INDEX_IN_MM_X);
     auto* mmWeightShape = context->GetOptionalInputShape(INDEX_IN_MM_WEIGHT);
-    auto* mmBiasShape = context->GetOptionalInputShape(INDEX_IN_MM_BIAS);
     auto* gmmYShape = context->GetOutputShape(INDEX_OUT_GMM_Y);
     auto* mmYShape = context->GetOutputShape(INDEX_OUT_MM_Y);
 
@@ -201,7 +180,7 @@ static ge::graphStatus InferShapeGroupedMatMulAlltoAllv(gert::InferShapeContext*
     OPS_CHECK_NULL_WITH_CONTEXT(context, recvCountsPtr);
     OPS_CHECK_NULL_WITH_CONTEXT(context, sendCountsPtr);
     OPS_CHECK_NULL_WITH_CONTEXT(context, transGmmWeightPtr);
-    OPS_ERR_IF(CheckDims(context, gmmXShape, gmmWeightShape, gmmBiasShape, *transGmmWeightPtr) != ge::GRAPH_SUCCESS,
+    OPS_ERR_IF(CheckDims(context, gmmXShape, gmmWeightShape, *transGmmWeightPtr) != ge::GRAPH_SUCCESS,
                VECTOR_INFER_SHAPE_INNER_ERR_REPORT(context->GetNodeName(), "CheckDims failed."),
                return ge::GRAPH_FAILED);
 
@@ -215,7 +194,7 @@ static ge::graphStatus InferShapeGroupedMatMulAlltoAllv(gert::InferShapeContext*
         return ret;
     }
 
-    ret = InferMMOutputShape(context, mmXShape, mmWeightShape, mmBiasShape, transMmWeightPtr, mmYShape);
+    ret = InferMMOutputShape(context, mmXShape, mmWeightShape, transMmWeightPtr, mmYShape);
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }

@@ -28,33 +28,34 @@
 using namespace optiling;
 namespace MC2Tiling {
 
-class QuantGroupedMatmulAllToAllvAdapter : public GroupedQbmmTiling {
+class QuantGroupedMatmulAllToAllvAdapter : public Mc2GroupedMatmul::GroupedQbmmTiling {
 public:
-    explicit QuantGroupedMatmulAllToAllvAdapter(QuantGroupedMatmulAllToAllvTiling& QuantGroupedMatmulAllToAllvTiling,
-        gert::TilingContext *context) : tilingProcesser_(QuantGroupedMatmulAllToAllvTiling), GroupedQbmmTiling(context);
+    explicit QuantGroupedMatmulAllToAllvAdapter(QuantGroupedMatmulAllToAllvTiling& tilingImpl,
+        gert::TilingContext *context) : tilingProcesser_(tilingImpl), GroupedQbmmTiling(context) {}
+    
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 
     // ge::graphStatus GetShapeAttrsInfo() override;
-    uint64_t GetTilingKey() override;
-    ge::graphStatus PostTiling() override;
     ge::graphStatus SetSharedExpertInputParameters();
-    ge::graphStatus SetExpertInputParameters();
+    ge::graphStatus SetExpertInputParameters(const int64_t* sendCounts, uint64_t worldSize, uint64_t index,
+                                             uint32_t epNums);
+    const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingAdapterData() const { return tilingData_; }
 
-protected:
-    bool AnalyzeAttrs() override;
-    bool AnalyzeDtype() override;
-    bool AnalyzeInputs() override;
+    // bool AnalyzeAttrs() override;
+    // bool AnalyzeDtype() override;
+    // bool AnalyzeInputs() override;
     void PrintMatmulParams();
     ge::graphStatus SetCommonContextParameters();
     ge::graphStatus Process();
+    ge::graphStatus SetCommonInputParams();
 
     QuantGroupedMatmulAllToAllvTiling& tilingProcesser_;
     Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     // bool isWeightNz_ = false;
 
-    int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t kList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t nList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t mList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t kList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t nList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
 };
 
 } // namespace MC2Tiling

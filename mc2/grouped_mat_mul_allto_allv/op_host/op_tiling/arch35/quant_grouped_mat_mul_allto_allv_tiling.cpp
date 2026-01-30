@@ -18,17 +18,50 @@
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling_adapter.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling_split_strategy.h"
+#include <tiling/tiling_api.h>
 
 using namespace Mc2Log;
 using namespace AscendC;
 using namespace Mc2Tiling;
+using namespace optiling;
 
 namespace MC2Tiling {
-ge::graphStatus GmmAlltoAllvTilingBase::GetShapeAttrsInfo()
+ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
 {
     opName_ = context_->GetNodeName();
     return ge::GRAPH_SUCCESS;
 }
+
+// ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetPlatformInfo()
+// {
+//     auto platformInfoPtr = context_->GetPlatformInfo();
+//     if (platformInfoPtr == nullptr) {
+//         auto compileInfoPtr = context_->GetCompileInfo<GMMCompileInfo>();
+//         OP_CHECK_IF(compileInfoPtr == nullptr,
+//                    OP_LOGE(context_->GetNodeName(), "CompileInfoPtr is null."),
+//                    return ge::GRAPH_FAILED);
+
+//         aicoreParams_.aicNum = compileInfoPtr->aicNum;
+//         aicoreParams_.ubSize = compileInfoPtr->ubSize;
+//         aicoreParams_.l1Size = compileInfoPtr->l1Size;
+//         aicoreParams_.l0aSize = compileInfoPtr->l0ASize;
+//         aicoreParams_.l0bSize = compileInfoPtr->l0BSize;
+//         aicoreParams_.l0cSize = compileInfoPtr->l0CSize;
+//     } else {
+//         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
+//         aicoreParams_.aicNum = ascendcPlatform.GetCoreNumAic();
+//         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, aicoreParams_.ubSize);
+//         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, aicoreParams_.l1Size);
+//         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, aicoreParams_.l0aSize);
+//         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, aicoreParams_.l0bSize);
+//         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, aicoreParams_.l0cSize);
+//     }
+
+//     OP_LOGI(context_, "Platform info: aicNum(%lu) ubSize(%lu) l1Size(%lu) l0aSize(%lu) l0bSize(%lu) l0cSize(%lu).",
+//               aicoreParams_.aicNum, aicoreParams_.ubSize, aicoreParams_.l1Size, aicoreParams_.l0aSize,
+//               aicoreParams_.l0bSize, aicoreParams_.l0cSize);
+//     return ge::GRAPH_SUCCESS;
+// }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetPlatformInfo()
 {
@@ -37,7 +70,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetPlatformInfo()
     platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     socVersion_ = ascendcPlatform.GetSocVersion();
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
-    contextInfo.args_.aicCoreNum = ascendcPlatform.GetCoreNumAic();
+    aicNum_ = ascendcPlatform.GetCoreNumAic();
     return ge::GRAPH_SUCCESS;
 };
 
@@ -52,9 +85,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputInfo()
     // check
     return ge::GRAPH_SUCCESS;
 }
-
+// cpp
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CalTilingInferredInfo()
 {
+    auto gmmQTilingCommonInfoPtr = &localTilingData_.taskTilingInfo;
     constexpr uint64_t alignAddrLen = 512;
     auto yDesc = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX);
     auto yDType = yDesc->GetDataType();
@@ -62,16 +96,16 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CalTilingInferredInfo()
     inferredInfo.gmmResultLen = mc2tiling::AlignUp(
         gmmQTilingCommonInfoPtr->BSK * gmmQTilingCommonInfoPtr->N1 * yDtypeSize, alignAddrLen);
     
-    inferredInfo.permuteLen = inferredInfo.gmmResultLen;
+    // inferredInfo.permuteLen = inferredInfo.gmmResultLen;
     auto mmyDesc = context_->GetOutputDesc(OUTPUT_MM_Y_OPTIONAL_INDEX);
     if (mmyDesc != nullptr) {
         auto mmyDType = mmyDesc->GetDataType();
         auto mmyDtypeSize = mc2tiling::GetDataTypeSize(opName_, mmyDType);
         inferredInfo.mmResultLen = mc2tiling::AlignUp(
-            gmmQTilingCommonInfoPtr->BSK * gmmQTilingCommonInfoPtr->N1 * mmyDtypeSize, alignAddrLen); 
+            gmmQTilingCommonInfoPtr->BS * gmmQTilingCommonInfoPtr->N2 * mmyDtypeSize, alignAddrLen); 
     }
     // commLen
-    inferredInfo.commLen = inferredInfo.gmmResultLen;
+    // inferredInfo.commLen = inferredInfo.gmmResultLen;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -79,16 +113,17 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 {
     auto gmmQTilingCommonInfoPtr = &localTilingData_.taskTilingInfo;
      
-    auto xShape = context_->GetInputDesc(GMM_X_INDEX)->GetOriginShape();
-    auto weightShape = context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetOriginShape();
-    epNum_ = weightShape.GetDim(DIM_0);
+    auto xShape = context_->GetInputShape(GMM_X_INDEX)->GetStorageShape();
+    auto weightShape = context_->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape();
+    epNum_ = weightShape.GetDim(DIM_ZERO);
     gmmQTilingCommonInfoPtr->e = epNum_;
 
-    auto gmmYShape = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX)->GetOriginShape();
+    auto gmmYShape = context_->GetOutputShape(OUTPUT_GMM_Y_INDEX)->GetStorageShape();
     
-    gmmQTilingCommonInfoPtr->BSK = xShape.GetDim(DIM_0);
-    gmmQTilingCommonInfoPtr->H1 = xShape.GetDim(DIM_1);
-    gmmQTilingCommonInfoPtr->N1 = gmmYShape.GetDim(DIM_1);
+    gmmQTilingCommonInfoPtr->BSK = xShape.GetDim(DIM_ZERO);
+    gmmQTilingCommonInfoPtr->H1 = xShape.GetDim(DIM_ONE);
+    gmmQTilingCommonInfoPtr->A = gmmYShape.GetDim(DIM_ZERO);
+    gmmQTilingCommonInfoPtr->N1 = gmmYShape.GetDim(DIM_ONE);
 
     auto attrs = context_->GetAttrs();
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
@@ -108,10 +143,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
         gmmQTilingCommonInfoPtr->recvCnt[i] = recvCounts[i];
     }
 
-    auto mmYDesc = context_->GetInputDesc(OUTPUT_MM_Y_INDEX);
-    // if (mmYDesc != nullptr) {
-
-    // }
+    auto mmYDesc = context_->GetInputDesc(OUTPUT_MM_Y_OPTIONAL_INDEX);
+    if (mmYDesc != nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
 
     return ge::GRAPH_SUCCESS;
 }
@@ -119,9 +154,9 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 {
     CalTilingInferredInfo();
-    workspaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.mmResultLen +
+    workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.mmResultLen +
         inferredInfo.commLen + inferredInfo.permuteLen;
-    localTilingData_.workspaceInfo.wsGmmSize = workspaceSize_;
+    localTilingData_.workspaceInfo.wsGmmSize = workSpaceSize_;
 }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
@@ -131,39 +166,41 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonContextParameters());
     auto gmmTilingPtr = &localTilingData_.gmmTiling;
     // 当前为 epNums，每轮一专家
-    gmmTilingPtr->count = taskTilingInfoPtr->totalLoopCount;
     auto taskTilingInfoPtr = &localTilingData_.taskTilingInfo;
-
+    gmmTilingPtr->count = taskTilingInfoPtr->totalLoopCount;
     auto expertNumPerLoop = taskTilingInfoPtr->mainLoopExpertNum;
     // 每轮
     uint32_t loop;
-    auto worldSize = gmmQTilingCommonInfoPtr->epWorldSize;
+    auto worldSize = taskTilingInfoPtr->epWorldSize;
+    auto sendCounts = taskTilingInfoPtr->sendCnt;
     for (loop = 0; loop < taskTilingInfoPtr->totalLoopCount - 1; loop++) {
-        GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(loop * expertNumPerLoop * worldSize, expertNumPerLoop));
+        GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
+            loop * expertNumPerLoop * worldSize, expertNumPerLoop));
         GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-        gmmTilingPtr->array[loop] = gmmTile.GetGmmQuantTilingData();
+        gmmTilingPtr->array[loop] = gmmTile.GetGmmQuantTilingAdapterData();
     }
 
     // 尾轮
     expertNumPerLoop = taskTilingInfoPtr->tailLoopExpertNum;
-    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(loop * expertNumPerLoop * worldSize, expertNumPerLoop));
+    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
+        loop * expertNumPerLoop * worldSize, expertNumPerLoop));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-    gmmTilingPtr->array[loop] = gmmTile.GetGmmQuantTilingData();
+    gmmTilingPtr->array[loop] = gmmTile.GetGmmQuantTilingAdapterData();
 
     // SharedMM切分
     auto status = gmmTile.SetSharedExpertInputParameters();
     if (status != ge::GRAPH_SUCCESS) {
         memset_s(&localTilingData_.sharedGmmTiling, sizeof(localTilingData_.sharedGmmTiling),
-            0, sizeof(localTilingData_.sharedGmmTiling))
+            0, sizeof(localTilingData_.sharedGmmTiling));
         return ge::GRAPH_SUCCESS;
     }
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-    localTilingData_.sharedGmmTiling = gmmTile.GetGmmQuantTilingData();
+    localTilingData_.sharedGmmTiling = gmmTile.GetGmmQuantTilingAdapterData();
 
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
+ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
 {
     uint32_t alltoAllvCmd = 8U;
     std::string alltoAllvConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
@@ -173,7 +210,7 @@ static ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
 
     const uint32_t alltoAllvReduceType = 0u;
     auto outputDataType = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX)->GetDataType();
-    auto inputDataType = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
+    // auto inputDataType = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
     OP_TILING_CHECK(
         mc2tiling::HCCL_DATA_TYPE.find(outputDataType) == mc2tiling::HCCL_DATA_TYPE.end(),
         OP_LOGE(C_INNER_DEBUG, "%s is Unsupported outputdata type!", Ops::Base::ToString(outputDataType).c_str()),
@@ -189,9 +226,9 @@ static ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
 
     Mc2CcTilingConfig hcclCcTilingConfig(groupEpPtr, alltoAllvCmd, alltoAllvConfig, 
                                          alltoAllvReduceType, alltoAllvDstDataType, alltoAllvSrcDataType);
-    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(localTilingData_->hcclA2avTiling.hcclInitTiling) != 0,
+    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(localTilingData_.hcclA2avTiling.hcclInitTiling) != 0,
         OP_LOGE(C_INNER_DEBUG, "mc2CcTilingConfig mc2tiling GetTiling hcclInitTiling failed"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(localTilingData_->hcclA2avTiling.a2avCcTiling) != 0,
+    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(localTilingData_.hcclA2avTiling.a2avCcTiling) != 0,
         OP_LOGE(C_INNER_DEBUG, "mc2CcTilingConfig mc2tiling GetTiling alltoAllvCcTiling failed"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -221,26 +258,18 @@ void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2av
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
 {
-    QuantGmmA2avTilingData *outTilingData =
-        context_->GetTilingData<QuantGmmA2avTilingData>();
-    size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
-    OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "failed to get tiling data from context"),
-                    return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((tilingBufCap < sizeof(localTilingData_)),
-                    OP_LOGE(opName_, "TilingBuffer capacity too small, capacity = %zu, need = %zu.", tilingBufCap,
-                            sizeof(localTilingData_)),
-                    return ge::GRAPH_FAILED);
-    errno_t ret = memcpy_s(outTilingData, tilingBufCap, &localTilingData_, sizeof(localTilingData_));
+    context_->SetBlockDim(aicNum_);
+    OP_CHECK_IF(sizeof(localTilingData_) % sizeof(uint64_t) != 0,
+               OP_LOGE(opName_, "Tiling data size[%zu] is not aligned to 8", sizeof(localTilingData_)),
+               return ge::GRAPH_FAILED);
+
+    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
+        reinterpret_cast<void *>(&localTilingData_), sizeof(localTilingData_));
     if (ret != EOK) {
-        OP_LOGE(opName_, "MatmulAlltoAll postTiling: memcpy_s tiling data failed, ret=%d.", ret);
+        OP_LOGE(opName_, "memcpy_s failed, ret = %d", ret);
         return ge::GRAPH_FAILED;
     }
-    OP_LOGD(opName_, "Final tiling data size=%zu and context capacity size=%zu.", sizeof(QuantGmmA2avTilingData),
-            context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(sizeof(QuantGmmA2avTilingData));
-    context_->SetBlockDim(contextInfo.args_.aicCoreNum);
-    PrintQuantGmmA2avTilingData(*outTilingData);
-
+    context_->GetRawTilingData()->SetDataSize(sizeof(localTilingData_));
     return ge::GRAPH_SUCCESS;
 }
 
@@ -275,4 +304,5 @@ QuantGroupedMatmulAllToAllvTiling::QuantGroupedMatmulAllToAllvTiling(gert::Tilin
 // 注册tiling类
 REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling,
                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 1);
+
 }

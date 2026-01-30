@@ -15,7 +15,7 @@
 #ifndef QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
 #define QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
 
-#include "kernel_operator.h"
+// #include "kernel_operator.h"
 #include "mc2/allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
 
 #pragma once
@@ -24,6 +24,7 @@
 using MC2KernelTemplate::GmmTilingArray;
 using MC2KernelTemplate::GMMQuantTilingData;
 using MC2KernelTemplate::GMMArray;
+using MC2KernelTemplate::TaskTilingInfo;
 
 /**
  * GMM A2AV Workspace 信息

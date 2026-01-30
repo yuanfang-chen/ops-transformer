@@ -31,8 +31,8 @@ enum class QuantMode : uint8_t {
 
 class QuantGroupedMatmulAllToAllvTilingStrategyTT {
 public:
-    static QuantMode GetQuantMode(const gert::TilingContext *context);
-    static ge::graphStatus GetSplitNums(const gert::TilingContext *context);
+    // static QuantMode GetQuantMode(const gert::TilingContext *context);
+    // static ge::graphStatus GetSplitNums(const gert::TilingContext *context);
     uint32_t mSizePerLoop = 0;
 };
 
