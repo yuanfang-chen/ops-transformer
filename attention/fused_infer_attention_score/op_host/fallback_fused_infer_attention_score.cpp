@@ -49,6 +49,9 @@ static const size_t KEY_ROPE_INDEX = 25;
 static const size_t KEY_ROPE_ANTIQUANT_SCALE_INDEX = 26;
 static const size_t DEQUANT_SCALE_QUERY_INDEX = 27;
 static const size_t LEARNABLE_SINK_INDEX = 28;
+static const size_t Q_START_IDX_INDEX = 29;
+static const size_t KV_START_IDX_INDEX = 30;
+static const size_t ALIBI_COEFF_INDEX = 31;
 
 static const size_t ATTR_N_INDEX = 0;
 static const size_t ATTR_SCALE_INDEX = 1;
@@ -64,6 +67,9 @@ static const size_t ATTR_SOFTMAX_LSE_FLAG_INDEX = 10;
 static const size_t ATTR_KEY_ANTIQUANT_MODE_INDEX = 11;
 static const size_t ATTR_VALUE_ANTIQUANT_MODE_INDEX = 12;
 static const size_t ATTR_QUERY_QUANT_MODE_INDEX = 13;
+static const size_t PSE_TYPE_INDEX = 14;
+static const size_t ALIBI_LEFT_ALIGN_INDEX = 16;
+static const size_t IS_ALIBI_MASK_SQRT_INDEX = 17;
 
 static const size_t ATTENTION_OUT_INDEX = 0;
 static const size_t SOFTMAX_LSE_INDEX = 1;
@@ -102,6 +108,9 @@ struct FusedInferHostTensorParams {
     const gert::Tensor *keyRopeAntiquantScaleGe = nullptr;
     const gert::Tensor *dequantScaleQueryGe = nullptr;
     const gert::Tensor *learnableSinkGe = nullptr;
+    const gert::Tensor *qStartIdxGe = nullptr;
+    const gert::Tensor *kvStartIdxGe = nullptr;
+    const gert::Tensor *alibiCoeffGe = nullptr;
 };
 
 static graphStatus FiaFillTensorParams(const OpExecuteContext *host_api_ctx, FusedInferHostTensorParams &fiaTensors)
@@ -149,7 +158,10 @@ static graphStatus FiaFillTensorParams(const OpExecuteContext *host_api_ctx, Fus
     fiaTensors.keyRopeAntiquantScaleGe = host_api_ctx->GetOptionalInputTensor(KEY_ROPE_ANTIQUANT_SCALE_INDEX);
     fiaTensors.dequantScaleQueryGe = host_api_ctx->GetOptionalInputTensor(DEQUANT_SCALE_QUERY_INDEX);
     fiaTensors.learnableSinkGe = host_api_ctx->GetOptionalInputTensor(LEARNABLE_SINK_INDEX);
-    
+    fiaTensors.qStartIdxGe = host_api_ctx->GetOptionalInputTensor(Q_START_IDX_INDEX);
+    fiaTensors.kvStartIdxGe = host_api_ctx->GetOptionalInputTensor(KV_START_IDX_INDEX);
+    fiaTensors.alibiCoeffGe = host_api_ctx->GetOptionalInputTensor(ALIBI_COEFF_INDEX);
+
     return GRAPH_SUCCESS;
 }
 
@@ -157,6 +169,8 @@ struct ActualSeqInfo {
     std::vector<int64_t> actSeqArray;
     std::vector<int64_t> actSeqArrayKv;
     std::vector<int64_t> actSeqSharedPrefix;
+    std::vector<int64_t> qStartIdx;
+    std::vector<int64_t> kvStartIdx;
 };
 
 static void FillActualSeqInfo(const FusedInferHostTensorParams &fiaTensors, ActualSeqInfo &actualSeqInfo)
@@ -185,6 +199,22 @@ static void FillActualSeqInfo(const FusedInferHostTensorParams &fiaTensors, Actu
             actualSeqInfo.actSeqSharedPrefix.push_back(actSeqData[i]);
         }
     }
+
+    if (fiaTensors.qStartIdxGe != nullptr) {
+        const int64_t *actSeqData = fiaTensors.qStartIdxGe->GetData<int64_t>();
+        const size_t len = static_cast<size_t>(fiaTensors.qStartIdxGe->GetShapeSize());
+        for (size_t i = 0; i < len; i++) {
+            actualSeqInfo.qStartIdx.push_back(actSeqData[i]);
+        }
+    }
+
+    if (fiaTensors.kvStartIdxGe != nullptr) {
+        const int64_t *actSeqData = fiaTensors.kvStartIdxGe->GetData<int64_t>();
+        const size_t len = static_cast<size_t>(fiaTensors.kvStartIdxGe->GetShapeSize());
+        for (size_t i = 0; i < len; i++) {
+            actualSeqInfo.kvStartIdx.push_back(actSeqData[i]);
+        }
+    }
 }
 
 struct FusedInferHostAttrPtrs {
@@ -202,6 +232,9 @@ struct FusedInferHostAttrPtrs {
     const uint32_t *getKeyAntiquantMode = nullptr;
     const uint32_t *getValueAntiquantMode = nullptr;
     const uint32_t *getQueryQuantMode = nullptr;
+    const uint32_t *getPseType = nullptr;
+    const bool *getAlibiLeftAlign = nullptr;
+    const bool *getIsAlibiMaskSqrt = nullptr;
 };
 
 static void FillAttrPointers(const gert::RuntimeAttrs *attrs, FusedInferHostAttrPtrs &attrPtrs)
@@ -220,6 +253,9 @@ static void FillAttrPointers(const gert::RuntimeAttrs *attrs, FusedInferHostAttr
     attrPtrs.getKeyAntiquantMode = attrs->GetAttrPointer<uint32_t>(ATTR_KEY_ANTIQUANT_MODE_INDEX);
     attrPtrs.getValueAntiquantMode = attrs->GetAttrPointer<uint32_t>(ATTR_VALUE_ANTIQUANT_MODE_INDEX);
     attrPtrs.getQueryQuantMode = attrs->GetAttrPointer<uint32_t>(ATTR_QUERY_QUANT_MODE_INDEX);
+    attrPtrs.getPseType = attrs->GetAttrPointer<uint32_t>(PSE_TYPE_INDEX);
+    attrPtrs.getAlibiLeftAlign = attrs->GetAttrPointer<bool>(ALIBI_LEFT_ALIGN_INDEX);
+    attrPtrs.getIsAlibiMaskSqrt = attrs->GetAttrPointer<bool>(IS_ALIBI_MASK_SQRT_INDEX);
 }
 
 struct FusedInferHostScalarParams {
@@ -236,6 +272,9 @@ struct FusedInferHostScalarParams {
     int64_t keyAntiquantMode = 0;
     int64_t valueAntiquantMode = 0;
     int64_t queryQuantMode = 0;
+    int64_t pseType = 0;
+    bool alibiLeftAlign = false;
+    bool isAlibiMaskSqrt = false;
 };
 
 static void GetFusedInferHostScalarParams(const FusedInferHostAttrPtrs &attrPointers, FusedInferHostScalarParams &params)
@@ -253,6 +292,9 @@ static void GetFusedInferHostScalarParams(const FusedInferHostAttrPtrs &attrPoin
     params.keyAntiquantMode = *(attrPointers.getKeyAntiquantMode);
     params.valueAntiquantMode = *(attrPointers.getValueAntiquantMode);
     params.queryQuantMode = *(attrPointers.getQueryQuantMode);
+    params.pseType = *(attrPointers.getPseType);
+    params.alibiLeftAlign = *(attrPointers.getAlibiLeftAlign);
+    params.isAlibiMaskSqrt = *(attrPointers.getIsAlibiMaskSqrt);
 }
 
 static graphStatus FusedInferHostExecuteFunc(OpExecuteContext *host_api_ctx)
@@ -298,18 +340,20 @@ static graphStatus FusedInferHostExecuteFunc(OpExecuteContext *host_api_ctx)
     }
 
     apiRet = EXEC_OPAPI_CMD(
-        aclnnFusedInferAttentionScoreV4, fiaTensors.query, ge_tenserListKey, ge_tenserListValue, fiaTensors.pseShiftGe,
+        aclnnFusedInferAttentionScoreV5, fiaTensors.query, ge_tenserListKey, ge_tenserListValue, fiaTensors.pseShiftGe,
         fiaTensors.attenMaskGe, actualSeqInfo.actSeqArray, actualSeqInfo.actSeqArrayKv, fiaTensors.deqScale1,
         fiaTensors.quantScale1, fiaTensors.deqScale2, fiaTensors.quantScale2, fiaTensors.quantOffset2,
         fiaTensors.antiquantScaleGe, fiaTensors.antiquantOffsetGe, fiaTensors.blocktableGe, fiaTensors.queryPaddingGe,
         fiaTensors.kvPaddingGe, fiaTensors.keyAntiquantScaleGe, fiaTensors.keyAntiquantOffsetGe,
         fiaTensors.valueAntiquantScaleGe, fiaTensors.valueAntiquantOffsetGe, fiaTensors.keySharedPrefixGe,
         fiaTensors.valueSharedPrefixGe, actualSeqInfo.actSeqSharedPrefix, fiaTensors.queryRopeGe, fiaTensors.keyRopeGe,
-        fiaTensors.keyRopeAntiquantScaleGe, fiaTensors.dequantScaleQueryGe, fiaTensors.learnableSinkGe, sclarParams.numHeads,
+        fiaTensors.keyRopeAntiquantScaleGe, fiaTensors.dequantScaleQueryGe, fiaTensors.learnableSinkGe,
+        actualSeqInfo.qStartIdx, actualSeqInfo.kvStartIdx, fiaTensors.alibiCoeffGe, sclarParams.numHeads,
         sclarParams.dScaleValue, sclarParams.preTokens, sclarParams.nextTokens, attrPointers.layout, sclarParams.kvHeadNum,
         sclarParams.sparseMode, sclarParams.innerPrecise, sclarParams.blockSize, sclarParams.antiquantMode,
         sclarParams.softmaxLseFlag, sclarParams.keyAntiquantMode, sclarParams.valueAntiquantMode,
-        sclarParams.queryQuantMode, fiaTensors.output, fiaTensors.softmaxLse);
+        sclarParams.queryQuantMode, sclarParams.pseType, sclarParams.alibiLeftAlign, sclarParams.isAlibiMaskSqrt,
+        fiaTensors.output, fiaTensors.softmaxLse);
 
     OP_CHECK_IF(apiRet != GRAPH_SUCCESS, OP_LOGE(host_api_ctx->GetNodeName(), "apiRet faild:%u", apiRet), return GRAPH_FAILED);
 
