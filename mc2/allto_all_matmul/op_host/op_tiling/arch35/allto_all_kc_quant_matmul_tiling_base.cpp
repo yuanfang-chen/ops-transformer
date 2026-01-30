@@ -486,7 +486,7 @@ uint64_t AllToAllKcQuantMatmulTilingBase::GetTilingKey() const
     uint32_t biasDType = DTYPE_BIAS_FP32;
     uint32_t x1QuantDtype = static_cast<int>(contextInfo.args_.geAType);
     // 35代表float8_e5m2,36代表float8e4m3
-    uint32_t QUANT_MODE = (x1QuantDtype == 35) ? KC_QUANT_FP8E5M2_MODE : KC_QUANT_FP8E4M3_MODE;
+    uint32_t QUANT_MODE = (x1QuantDtype == FP8_E5M2_VALUES) ? KC_QUANT_FP8E5M2_MODE : KC_QUANT_FP8E4M3_MODE;
     const uint64_t tilingKey = GET_TPL_TILING_KEY(QUANT_MODE, x2TransposeFlag, biasDType);
     OP_LOGD(opName_, "QUANTMODE,X2TRANSPOSE,DTYPEBIAS: [%d,%d,%d], TilingKey is [%lu].", QUANT_MODE, x2TransposeFlag,
             biasDType, tilingKey);
