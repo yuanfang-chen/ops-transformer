@@ -425,13 +425,14 @@ static ge::graphStatus CheckShapeDimRange(const gert::TilingContext *context, co
         x2TransFlag = *isTransX2;
     }
     uint64_t nAxis = (x2TransFlag) ? x2Dim0 : x2Dim1;
+    uint64_t kAxis = (x2TransFlag) ? x2Dim1 : x2Dim0;
     // 校验M,当前M为0的话，走公式化tiling切分实际是不支持的,后面可去除
     OP_TILING_CHECK(x1Dim0 == 0, OP_LOGE(opName, "Invalid x1 shape: dim 0(m) cannot be 0."), return ge::GRAPH_FAILED);
     // 校验M不能大于int32的最大值
     OP_TILING_CHECK(x1Dim0 > MAX_INT32_VALUE, OP_LOGE(opName, "X1 dim 0(m) exceeds INT32_MAX, got %lu.", x1Dim0),
                     return ge::GRAPH_FAILED);
     // 校验K,K的范围应该在[1, 65535]
-    OP_TILING_CHECK(x1Dim1 > K_MAX_VALUE, OP_LOGE(opName, "X1 dim 1(k) exceeds max value 65535, got %lu.", x1Dim1),
+    OP_TILING_CHECK(kAxis > K_MAX_VALUE, OP_LOGE(opName, "The k dim exceeds max value 65535, got %lu.", kAxis),
                     return ge::GRAPH_FAILED);
     // 校验N, N不为空
     OP_TILING_CHECK(nAxis == 0, OP_LOGE(opName, "Invalid x2 shape: N cannot be 0."), return ge::GRAPH_FAILED);
