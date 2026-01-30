@@ -890,7 +890,7 @@ static ge::graphStatus TilingProcess4PFA(gert::TilingContext *context, const uin
     pfa_tiling.fromPFA_ = false;
     ret = pfa_tiling.RunBigKernelTilingWithParams(contextParamsForPFATiling, tilingKey, blockDimToBeSet, pfaTilingData);
     tilingKey += BENCHMARK_TILING_KEY;
-    OP_LOGD(contextParamsForPFATiling.opName, "The final tiling key is: %lu", tilingKey);
+    OP_LOGD(contextParamsForPFATiling.opName, "hch The final tiling key is: %lu", tilingKey);
     context->SetTilingKey(tilingKey);
     context->SetBlockDim(blockDimToBeSet);
     pfa_tiling.PromptFlashAttentionSetTilingData(context, pfaTilingData);
@@ -1934,15 +1934,15 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
     bool usingFAI = IsUsingFAI(*context, inputLayoutStr, queryD);
     if (usingFAI) {
         OP_CHECK_IF(TilingProcess4SplitFuse(context) != ge::GRAPH_SUCCESS,
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "tiling process for split fuse failed"),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "hchong tiling process for split fuse failed"),
             return ge::GRAPH_FAILED);
     } else if (usingIFA) { // IFA tiling process
         OP_CHECK_IF(TilingProcess4IFA(context) != ge::GRAPH_SUCCESS,
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "tiling process for ifa failed"),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "hchong tiling process for ifa failed"),
             return ge::GRAPH_FAILED);
     } else { // PFA tiling process
         OP_CHECK_IF(TilingProcess4PFA(context, static_cast<uint32_t>(queryD), b, queryS, queryN) != ge::GRAPH_SUCCESS,
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "tiling process for pfa failed"),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "hchong tiling process for pfa failed"),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
