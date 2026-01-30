@@ -32,16 +32,18 @@ public:
         yGlobalBuffer_.SetGlobalBuffer((__gm__ yType *)this->yGM_);
         groupListGlobalBuffer_.SetGlobalBuffer((__gm__ int64_t *)groupListGm_);
 
-        expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
-        epWorldSize_ = tilingData_->commonTilingInfo.epWorldSize;
-        H1_ = tilingData_->commonTilingInfo.H1;
-        N1_ = tilingData_->commonTilingInfo.N1;
-        const auto *recvCnt = &tilingData_->aicpuTiling.recvCnt[0];
+        expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
+        epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
+        H1_ = tilingData_->taskTilingInfo.H1;
+        N1_ = tilingData_->taskTilingInfo.N1;
+        const auto *recvCnt = &tilingData_->taskTilingInfo.recvCnt[0];
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
             for (uint32_t i = 0U; i < epWorldSize_; i++) {
                 expertTokenNum_[e] += static_cast<uint64_t>(recvCnt[e + i * expertNumInOneRank_]);
             }
         }
+        gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
+            &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
     }
 
     __aicore__ inline void Process(uint32_t expertIdx)
@@ -50,8 +52,6 @@ public:
         groupListGlobalBuffer_.SetValue(0, expertTokenNum_[expertIdx]);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
-        gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
-            &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
         gmmASWKernel.Process();
     }
 
@@ -61,7 +61,7 @@ protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
     {
         xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenNum_[expertIdx] * H1_);
-        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_);
+        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_);
         yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenNum_[expertIdx] * N1_);
     }
 
