@@ -10,8 +10,8 @@
 | ------- |-----------|-----------|-----------|
 | attention   | [flash_attention_score](../attention/flash_attention_score/README.md) | AI Core | 使用FlashAttention算法实现self-attention（自注意力）的计算 |
 | attention   | [flash_attention_score_grad](../attention/flash_attention_score_grad/README.md) | AI Core | 训练场景下计算注意力的反向输出，即FlashAttentionScore的反向计算 |
-| attention   | [fused_infer_attention_score](../attention/fused_infer_attention_score/README.md) | AI Core | Decode&prefill immersive FlashAttention Arithmetic |
-| attention   | [incre_flash_attention](../attention/incre_flash_attention/README.md) | AI Core | FlashAttention Operator for Incremental Inference Scenarios  |
+| attention   | [fused_infer_attention_score](../attention/fused_infer_attention_score/README.md) | AI Core | decode & prefill场景的FlashAttention算子 |
+| attention   | [incre_flash_attention](../attention/incre_flash_attention/README.md) | AI Core | 增量推理场景的FlashAttention算子  |
 | attention   | [mla_prolog](../attention/mla_prolog/README.md) | AI Core | 推理MlaProlog算子  |
 | attention   | [mla_prolog_v2](../attention/mla_prolog_v2/README.md) | AI Core | 推理MlaPrologV2WeightNz算子 |
 | attention   | [nsa_compress](../attention/nsa_compress/README.md) | AI Core | 训练场景下，使用NSA Compress算法减轻long-context的注意力计算，实现在KV序列维度进行压缩 |
