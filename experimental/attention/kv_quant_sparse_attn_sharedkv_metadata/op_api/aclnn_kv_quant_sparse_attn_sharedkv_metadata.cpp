@@ -111,7 +111,7 @@ aclnnStatus aclnnKvQuantSparseAttnSharedkvMetadataGetWorkspaceSize(
   const op::PlatformInfo &npuInfo = op::GetCurrentPlatformInfo();
   uint32_t aicCoreNum = npuInfo.GetCubeCoreNum();
   uint32_t aivCoreNum = npuInfo.GetVectorCoreNum();
-  const char* socVersion = npuInfo.GetSocLongVersion().c_str();
+  const char *socVersion = npuInfo.GetSocLongVersion().c_str();
   auto output = l0op::KvQuantSparseAttnSharedkvMetadata(
       cuSeqLensQOptional, cuSeqLensOriKvOptional, cuSeqLensCmpKvOptional, sequsedQOptional, sequsedKvOptional, numHeadsQ, numHeadsKv, headDim, batchSizeOptional, 
       maxSeqlenQOptional, maxSeqlenKvOptional, oriTopKOptional, cmpTopKOptional, kvQuantMode, tileSizeOptional, ropeHeadDimOptional, cmpRatioOptional, oriMaskModeOptional, 
