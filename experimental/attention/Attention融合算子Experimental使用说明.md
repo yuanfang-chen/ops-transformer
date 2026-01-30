@@ -2,7 +2,11 @@
 
 ## 前提条件
 
-- 环境部署：调用算子之前，请先参考[环境部署](../../docs/zh/context/quick_install.md)完成基础环境搭建。
+- 环境部署：调用算子之前，请先参考[环境部署](../../docs/zh/context/quick_install.md)完成基础环境搭建，其中**安装依赖**章节的版本约束以如下内容为准：
+    - python >= 3.10.0
+    - torch >= 2.7.0
+    - gcc >= 9.0.0
+    - torch_npu >=2.7.0
 
 ## 算子列表
 
@@ -19,8 +23,8 @@
     <th rowspan="2">说明</th>
   </tr>
   <tr>
-    <th>op_kernel</th>
-    <th>op_host</th>
+    <th>kernel</th>
+    <th>host</th>
     <th>Ascend IR</th>
     <th>aclgraph</th>
   </tr></thead>
@@ -34,7 +38,7 @@
     <td>×</td>
     <td>√</td>
     <td>AI Core</td>
-    <td>将每4或128个token的 KV cache 压缩成一个，然后每个token与这些压缩的 KV cache进行 DSA 计算。</td>
+    <td>将每4或128个token的 KV cache 压缩成一个，然后每个token与这些压缩的 KV cache进行 DSA 计算。<br/>算子torch接口调用依赖torch_ops_extension，具体安装方法见<a href="https://gitcode.com/cann/cann-recipes-infer/tree/master/ops/ascendc#torch_ops_extension%E7%AE%97%E5%AD%90%E5%8C%85%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85">安装指导</a>。</td>
   </tr>
   <tr>
     <td>kv_quant_sparse_attn_sharedkv</td>
@@ -45,7 +49,7 @@
     <td>×</td>
     <td>√</td>
     <td>AI Core</td>
-    <td>支持量化模式的Sliding Window Attention、Compressed Attention以及Sparse Compressed Attention计算。</td>
+    <td>支持量化模式的Sliding Window Attention、Compressed Attention以及Sparse Compressed Attention计算。<br/>算子torch接口调用依赖torch_ops_extension，具体安装方法见<a href="https://gitcode.com/cann/cann-recipes-infer/tree/master/ops/ascendc#torch_ops_extension%E7%AE%97%E5%AD%90%E5%8C%85%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85">安装指导</a>。</td>
   </tr>
   <tr>
     <td>kv_quant_sparse_attn_sharedkv_metadata</td>
@@ -67,7 +71,7 @@
     <td>×</td>
     <td>√</td>
     <td>AI Core</td>
-    <td>该算子是推理场景下，稀疏Attention前处理的计算，选出关键的稀疏token，并对输入query和key进行量化实现存8算8，获取最大收益。</td>
+    <td>该算子是推理场景下，稀疏Attention前处理的计算，选出关键的稀疏token，并对输入query和key进行量化实现存8算8，获取最大收益。<br/>算子torch接口调用依赖torch_ops_extension，具体安装方法见<a href="https://gitcode.com/cann/cann-recipes-infer/tree/master/ops/ascendc#torch_ops_extension%E7%AE%97%E5%AD%90%E5%8C%85%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85">安装指导</a>。</td>
   </tr>
   <tr>
     <td>quant_lightning_indexer_metadata</td>
@@ -89,7 +93,7 @@
     <td>×</td>
     <td>√</td>
     <td>AI Core</td>
-    <td>该算子支持非量化的Sliding Window Attention、Compressed Attention以及Sparse Compressed Attention计算。</td>
+    <td>该算子支持非量化的Sliding Window Attention、Compressed Attention以及Sparse Compressed Attention计算。<br/>算子torch接口调用依赖torch_ops_extension，具体安装方法见<a href="https://gitcode.com/cann/cann-recipes-infer/tree/master/ops/ascendc#torch_ops_extension%E7%AE%97%E5%AD%90%E5%8C%85%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85">安装指导</a>。</td>
   </tr>
   <tr>
     <td>sparse_attn_sharedkv_metadata</td>
@@ -100,7 +104,29 @@
     <td>×</td>
     <td>√</td>
     <td>AI Cpu</td>
-    <td>该算子为sparse_attn_sharedkv算子提供分核结果。</td>
+    <td>该算子为sparse_attn_sharedkv算子提供分核结果。<br/>算子torch接口调用依赖torch_ops_extension，具体安装方法见<a href="https://gitcode.com/cann/cann-recipes-infer/tree/master/ops/ascendc#torch_ops_extension%E7%AE%97%E5%AD%90%E5%8C%85%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85">安装指导</a>。</td>
+  </tr>
+  <tr>
+    <td>fused_infer_attention_score</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>算子具体使用方法见<a href="./fused_infer_attention_score/README.md">README文档</a>。</td>
+  </tr>
+  <tr>
+    <td>typhoon_mla</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>/</td>
+    <td>算子具体使用方法见<a href="./fused_infer_attention_score/README.md">README文档</a>。</td>
   </tr>
 </tbody>
 </table>
@@ -144,8 +170,22 @@
     # export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/opp/vendors/custom_transformer/op_api/lib/:$LD_LIBRARY_PATH
     ```
 
-## torch_ops_extension包编译安装
-torch_ops_extension包为自定义算子提供了torch.ops的拓展接口，具体安装方法请见[torch_ops_extension安装方法](https://gitcode.com/cann/cann-recipes-infer/tree/master/ops/ascendc#torch_ops_extension%E7%AE%97%E5%AD%90%E5%8C%85%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85)。
+## torch_ops_extension包编译安装（可选）
+
+根据[算子列表](#算子列表)章节介绍，如需使用`torch`接口进行算子调用，则需前置安装torch_ops_extension包，具体操作步骤如下：
+
+1. 编译torch_ops_extension包
+
+   torch_ops_extension包为自定义算子提供了torch.ops的拓展接口，具体编译安装方法请见[torch_ops_extension安装方法](https://gitcode.com/cann/cann-recipes-infer/tree/master/ops/ascendc#torch_ops_extension%E7%AE%97%E5%AD%90%E5%8C%85%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85)。
+
+2. 安装torch_ops_extension包
+   根据步骤1，已完成whl包编译，然后需要安装whl包到自己的python环境中，命令如下： 
+   ```bash
+    python -m pip install ${custom_whl}
+    # 安装示例
+    # python -m pip install custom_ops-1.0-cp311-cp311-linux_x86_64.whl
+    ```
+    - ${custom_whl}为编译完成后的torch_ops_extension对应的whl包路径及文件名。
 
 ## 自定义算子执行
 项目中各算子通过pytest验证各算子的功能是否正常，各算子的pytest调用方法如下表。
