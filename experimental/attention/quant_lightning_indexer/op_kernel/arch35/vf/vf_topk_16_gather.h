@@ -364,10 +364,10 @@ __aicore__ inline void LiTopKVF(const LocalTensor<uint16_t>& tmpIdxLocal, // Tem
     const uint16_t repeatSize16 = 128;
     const uint16_t repeatSize32 = 64;
 
-    uint16_t histogramsLoopNum = DIV(validLen, repeatSize8); 
-    uint16_t inputLoopNum = DIV(validLen, repeatSize16);
-    uint16_t topkLoopNum = DIV(topK, repeatSize32);
-    uint16_t topkLoopNum16 = DIV(topK, repeatSize16);
+    uint16_t histogramsLoopNum = (validLen + repeatSize8 - 1) / repeatSize8;
+    uint16_t inputLoopNum = (validLen + repeatSize16 - 1) / repeatSize16;
+    uint16_t topkLoopNum = (topK + repeatSize32 - 1) / repeatSize32;
+    uint16_t topkLoopNum16 = (topK + repeatSize16 - 1) / repeatSize16;
 
     // find kth-value
     HistogramsHighVFImpl<uint16_t>(histogramsBuf, inputValueBuf, histogramsLoopNum, flag);
@@ -408,8 +408,8 @@ __aicore__ inline void LiTopKGatherVF(const LocalTensor<uint32_t>& outputIdxLoca
 
     const uint16_t repeatSize32 = 64;
     const uint16_t repeatSize16 = 128;
-    uint16_t topkLoopNum16 = DIV(topK, repeatSize16);
-    uint16_t topkLoopNum32 = DIV(topK, repeatSize32);
+    uint16_t topkLoopNum16 = (topK + repeatSize16 - 1) / repeatSize16;
+    uint16_t topkLoopNum32 = (topK + repeatSize32 - 1) / repeatSize32;
 
     FindRealIndexVFImpl(outputIdxBuf, tmpIdxBuf, hisIdxBuf, topK, loopBasicIdx, topkLoopNum32);
 }

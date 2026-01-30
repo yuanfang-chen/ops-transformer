@@ -26,9 +26,7 @@
 
 namespace QLIKernel {
 using namespace QLICommon;
-constexpr uint32_t BASE_TOPK = 2048;
-constexpr uint32_t BASE_TOPK_VALUE_IDX_SIZE = 4096;
-constexpr uint32_t LD_PARAM_NUM = 16;
+constexpr uint32_t TRUNK_LEN_16K = 16384;
 template <typename QLIT>
 class QLIVector {
 public:
@@ -160,18 +158,16 @@ __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
     vec1OutUB_ = outBuf_.Get<SCORE_T>();//out
 
     // Topk
-
-    pipe->InitBuffer(mrgValueBuf_, (topkCount_ + trunkLen_) * sizeof(SCORE_T));     // 大小：(Topk + 每次排序长度) * 4
+    pipe->InitBuffer(mrgValueBuf_, (topkCount_ + trunkLen_) * sizeof(SCORE_T));     // 大小：(Topk + 每次排序长度) * sizeof(SCORE_T)
     mrgValueLocal_ = mrgValueBuf_.Get<SCORE_T>();
     
     pipe->InitBuffer(indicesOutBuf_, topkCount_ * sizeof(uint32_t));                    // 大小：topkCount_ * 4
     indicesOutLocal_ = indicesOutBuf_.Get<uint32_t>();
 
-    pipe->InitBuffer(scoreOutBuf_, topkCount_ * sizeof(SCORE_T));                    // 大小：topkCount_ * 2
+    pipe->InitBuffer(scoreOutBuf_, topkCount_ * sizeof(SCORE_T));                    // 大小：topkCount_ * sizeof(SCORE_T)
     scoreOutLocal_ = scoreOutBuf_.Get<SCORE_T>();
 
-
-    uint64_t topkSharedTmpSize = topkOp_.GetSharedTmpBufferSize();    // 4KB + 5KB + 0.25KB
+    uint64_t topkSharedTmpSize = topkOp_.GetSharedTmpBufferSize();
     pipe->InitBuffer(topkSharedTmpBuf_, topkSharedTmpSize);
     topkSharedTmpLocal_ = topkSharedTmpBuf_.Get<uint32_t>();
     topkOp_.InitBuffers(topkSharedTmpLocal_);
@@ -204,7 +200,7 @@ __aicore__ inline void QLIVector<QLIT>::InitParams(const struct QLICommon::Const
     kCacheBlockSize_ = constInfo.kCacheBlockSize;
     maxBlockNumPerBatch_ = constInfo.maxBlockNumPerBatch;
     blockId_ = GetBlockIdx();
-    trunkLen_ = 16384;  //
+    trunkLen_ = TRUNK_LEN_16K;
     topkCount_ =constInfo.sparseCount;
     topkOp_.Init(topkCount_, trunkLen_);
 }
