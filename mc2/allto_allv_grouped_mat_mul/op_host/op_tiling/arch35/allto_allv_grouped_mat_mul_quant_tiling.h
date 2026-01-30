@@ -70,6 +70,7 @@ private:
     bool isGmmWeightTrans;
     bool isMmWeightTrans;
     bool isPermuteOut;
+    bool isNeedMM;
 };
 }  // namespace optiling
 #endif  // ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H
