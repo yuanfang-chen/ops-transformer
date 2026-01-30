@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_kernel/all_gather_matmul_tiling.h"
+#include "../../../../op_kernel/all_gather_matmul_tiling.h"
 #include "mc2_tiling_case_executor.h"
 
 namespace AllGatherMatmulUT {
@@ -19,12 +19,12 @@ class AllGatherMatmulTiling : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AllGatherMatmulTiling SetUp" << std::endl;
+        std::cout << "AllGatherMatmul Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "AllGatherMatmulTiling TearDown" << std::endl;
+        std::cout << "AllGatherMatmul Arch32TilingTest TearDown" << std::endl;
     }
 };
 
@@ -145,7 +145,7 @@ TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingBfloat16)
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 
-TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingFloat16Testl2cache)
+TEST_F(AllGatherMatmulTiling, AllGatherMatmulTestTilingFloat16TestL2cache)
 {
     // tilingFunc simulate
     struct AllGatherMatmulCompileInfo {} compileInfo;

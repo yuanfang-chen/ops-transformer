@@ -16,17 +16,17 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../op_host/op_tiling/grouped_mat_mul_all_reduce_tiling.h"
+#include "../../../../op_host/op_tiling/grouped_mat_mul_all_reduce_tiling.h"
 #include "mc2_tiling_case_executor.h"
 namespace {
 class GroupedMatMulAllReduceTiling : public testing::Test {
 protected:
     static void SetUpTestCase() {
-        std::cout << "GroupedMatMulAllReduceTiling SetUp" << std::endl;
+        std::cout << "GroupedMatMulAllReduce Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase() {
-        std::cout << "GroupedMatMulAllReduceTiling TearDown" << std::endl;
+        std::cout << "GroupedMatMulAllReduce Arch32TilingTest TearDown" << std::endl;
     }
 };
 struct GroupedMatMulAllReduceCompileInfo {

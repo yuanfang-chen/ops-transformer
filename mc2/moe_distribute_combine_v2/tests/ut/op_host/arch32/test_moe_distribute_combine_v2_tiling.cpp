@@ -18,11 +18,11 @@ namespace MoeDistributeCombineV2 {
 class MoeDistributeCombineV2Tiling : public testing::Test {
 protected:
     static void SetUpTestCase() {
-        std::cout << "MoeDistributeCombineV2Tiling SetUp" << std::endl;
+        std::cout << "MoeDistributeCombineV2 Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase() {
-        std::cout << "MoeDistributeCombineV2Tiling TearDown" << std::endl;
+        std::cout << "MoeDistributeCombineV2 Arch32TilingTest TearDown" << std::endl;
     }
 };
 

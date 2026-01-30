@@ -10,8 +10,8 @@
 
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../../../common/inc/kernel/mc2_tiling_struct.h"
-#include "../../../op_kernel/all_gather_matmul_aiv_mode_tiling.h"
+#include "../../../../../common/inc/kernel/mc2_tiling_struct.h"
+#include "../../../../op_kernel/all_gather_matmul_aiv_mode_tiling.h"
 #include "mc2_tiling_case_executor.h"
 
 namespace {
@@ -20,11 +20,11 @@ class AllGatherMatmulV2TilingTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AllGatherMatmulV2TilingTest SetUp" << std::endl;
+        std::cout << "AllGatherMatmulV2 Arch35TilingTest SetUp" << std::endl;
     }
     static void TearDownTestCase()
     {
-        std::cout << "AllGatherMatmulV2TilingTest TearDown" << std::endl;
+        std::cout << "AllGatherMatmulV2 Arch35TilingTest TearDown" << std::endl;
     }
 };
 

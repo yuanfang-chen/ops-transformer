@@ -10,9 +10,9 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include "mc2_tiling_case_executor.h"
-#include "../../../op_host/op_tiling/quant_matmul_all_reduce_add_rms_norm_tiling.h"
-#include "../../../op_host/op_tiling/matmul_all_reduce_add_rms_norm_tiling.h"
-#include "../../../op_host/op_tiling/weight_quant_matmul_all_reduce_add_rms_norm_tiling.h"
+#include "../../../../op_host/op_tiling/quant_matmul_all_reduce_add_rms_norm_tiling.h"
+#include "../../../../op_host/op_tiling/matmul_all_reduce_add_rms_norm_tiling.h"
+#include "../../../../op_host/op_tiling/weight_quant_matmul_all_reduce_add_rms_norm_tiling.h"
 
 using namespace std;
 namespace MatmulAllReduceAddRmsNormUT {
@@ -42,12 +42,12 @@ class MatmulAllReduceAddRmsNormTiling : public testing::TestWithParam<TestParam>
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "MatmulAllReduceAddRmsNormTiling Test SetUp" << std::endl;
+        std::cout << "MatmulAllReduceAddRmsNorm Arch32TilingTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "MatmulAllReduceAddRmsNormTiling Test TearDown" << std::endl;
+        std::cout << "MatmulAllReduceAddRmsNorm Arch32TilingTest TearDown" << std::endl;
     }
 };
 
