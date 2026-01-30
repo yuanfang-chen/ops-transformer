@@ -23,22 +23,22 @@ extern "C" {
 * 算子功能：实现quant grouped matmul + alltoallv 融合计算
 * @brief aclnnGroupedMatMulAlltoAllv的第一段接口，根据具体的计算流程，计算workspace大小。
 * @domain aclnn_ops_infer
-* @param [in] gmmX: 计算输入，Tensor，数据类型支持float16，bfloat16。该输入进行AllToAll通信，仅支持二维,
-* 数据格式支持ND，通信后结果作为GroupedMatMul计算的左矩阵
-* @param [in] gmmWeight: 计算输入，Tensor，数据类型支持float16, bfloat16，类型需与x保持一致，仅支持三维,
+* @param [in] gmmX: 计算输入，Tensor。该输入进行AllToAll通信，仅支持二维,
+* 数据格式支持ND，通信后结果作为GroupedMatMul计算的左矩阵    // GroupedMatMul计算的左矩阵输入
+* @param [in] gmmWeight: 计算输入，Tensor，类型需与gmmX保持一致，仅支持三维,
 * 数据格式支持ND，GroupedMatMul计算的右矩阵
 * @param [in] gmmXScale: 左矩阵的量化参数，数据类型为FLOAT32。
-* @param [in] gmmWeightScale: 有矩阵的量化参数，数据类型为FLOAT32。
+* @param [in] gmmWeightScale: 右矩阵的量化参数，数据类型为FLOAT32。
 * @param [in] gmmXOffsetOptional: 可选输入，左矩阵的量化偏置，暂不支持。
 * @param [in] gmmWeightOffsetOptional: 可选输入，右矩阵的的量化偏置，暂不支持。
 * @param [in] sendCountsTensorOptional: 可选入参，计算输入，Tensor，数据类型支持int32,
-* int64，类型需与x保持一致，数据格式支持ND
+* int64，shape为(e*epWorldSize)，数据格式支持ND，当前版本不支持，传入nullptr。
 * @param [in] recvCountsTensorOptional: 可选入参，计算输入，Tensor，数据类型支持int32,
-* int64，类型需与x保持一致，数据格式支持ND
-* @param [in] mmXOptional: 可选入参，计算输入，并行进行的共享专家matmul计算中的左矩阵。
-* @param [in] mmWeightOptional: 可选入参，计算输入，并行进行的共享专家matmul计算中的右矩阵。
-* @param [in] mmXScaleOptional: 共享专家matmul计算中左矩阵的量化参数，数据类型为FLOAT32。
-* @param [in] mmWeightScaleOptional: 共享专家matmul计算中的右矩阵中的量化参数，数据类型为FLOAT32。
+* int64，shape为(e*epWorldSize)，数据格式支持ND，当前版本不支持，传入nullptr。
+* @param [in] mmXOptional: 可选入参，计算输入，并行进行的共享专家matmul计算中的左矩阵，需与mmWeightOptional同时传入或同为nullptr，数据类型与gmmX保持一致，支持2维，shape为(BS,H2)。
+* @param [in] mmWeightOptional: 可选入参，计算输入，并行进行的共享专家matmul计算中的右矩阵，需与mmXOptional同时传入或同为nullptr，数据类型与gmmX保持一致，支持2维，shape为(H2,N2)。
+* @param [in] mmXScaleOptional: 可选入参，共享专家matmul计算中左矩阵的量化参数，数据类型为FLOAT32。
+* @param [in] mmWeightScaleOptional: 可选入参，共享专家matmul计算中的右矩阵中的量化参数，数据类型为FLOAT32。
 * @param [in] mmXOffsetOptional: 可选输入，共享专家matmul计算中左矩阵的量化偏置，暂不支持。
 * @param [in] mmWeightOffsetOptional: 可选输入，共享专家matmul计算中的右矩阵的量化偏置，暂不支持。
 * @param [in] commQuantScaleOptional: 可选输入，低比特通信的量化参数，暂不支持。
@@ -57,30 +57,29 @@ extern "C" {
 * @param [in] mmWeightQuantMode: 共享专家matmul计算中的右矩阵的量化模式，同上，当前仅支持配置为1。
 * @param [in] commQuantMode: 预留，低比特通信的量化模式，当前仅支持0，表示不支持低比特通信。
 * @param [in] commQuantDtypeOptional: 可选输入，低比特通信量化后的数据类型，当前不支持。
-* @param [in] group: 计算输入，str。ep通信域名称，专家并行的通信域
-* @param [in] epWorldSize: 计算输入，int。ep通信域size
-* @param [in] sendCounts: 计算输入，list int。通信发送的数据量
-* @param [in] recvCounts: 计算输入，list int。通信接受的数据量
-* @param [in] transGmmWeight: 可选入参，计算输入。表明gmm的右矩阵是否需要转置，默认为false
-* @param [in] transMmWeight: 可选入参，计算输入。表明共享专家mm的右矩阵是否需要转置。
-* @param [out] y: 计算输出，Tensor，数据类型支持float16, bfloat16。最终计算结果，数据类型与输入gmmX保持一致
-* @param [out] mmYOptional: 可选输出，计算输出，Tensor，数据类型支持float16,
-* bfloat16，共享专家matmul的输出，仅当传入mmX与mmWeight才输出，数据类型与mmX保持一致。
+* @param [in] group: 计算输入，str。ep通信域名称，专家并行的通信域，字符串长度要求(0,128)。
+* @param [in] epWorldSize: 计算输入，int。ep通信域size，支持4、8、16、32、64。
+* @param [in] sendCounts: 计算输入，表示发送给其他卡的token数，数据类型支持INT64，取值大小为e*epWorldSize，最大为256。输入类型需为list。
+* @param [in] recvCounts: 计算输入，表示接收其他卡的token数，数据类型支持INT64，取值大小为e*epWorldSize，最大为256。输入类型需为list。
+* @param [in] transGmmWeight: 可选入参，计算输入。表明gmm的右矩阵是否需要转置，默认为false表示不转置。
+* @param [in] transMmWeight: 可选入参，计算输入。表明共享专家mm的右矩阵是否需要转置，默认为false表示不转置。
+* @param [out] y: 计算输出，最终计算结果，支持2维，shape为(BSH,N1)。
+* @param [out] mmYOptional: 可选输出，共享专家计算输出，数据类型与mmXOptional保持一致，支持2维，shape为(BS,N2)，仅当传入mmXOptional与mmWeightOptional才输出。
 * @param [out] workspaceSize: 出参，返回需要在npu device侧申请的workspace大小。
 * @param [out] executor: 出参，返回op执行器，包含了算子计算流程。
 * @return aclnnStatus: 返回值，返回状态码。
 *
 * 因为集合通信及BatchMatMul计算所需，输入输出shape需满足以下数学关系：（其中ep=epWorldSize，tp=tpWorldSize）
-* gmmX: (BSK, H);
-* gmmWeight: (e, H, N1);
+* gmmX: (BSK, H1);
+* gmmWeight: (e, H1, N1);
 * gmmXScaleOptional: pertensor场景(1,);
 * gmmWeightScaleOptional: pertensor场景(1,)
 * groupList: (e);
-* mmXOptional: (BS, H);
-* mmWeightOptional: (H, N2);
+* mmXOptional: (BS, H2);
+* mmWeightOptional: (H2, N2);
 * mmXScaleOptional: pertensor场景(1,);
 * mmWeightScaleOptional: pertensor场景(1,);
-* gmmY: (A, N1);
+* y: (A, N1);
 * mmYOptional: (BS, N2);
 *
 * 数据关系说明：

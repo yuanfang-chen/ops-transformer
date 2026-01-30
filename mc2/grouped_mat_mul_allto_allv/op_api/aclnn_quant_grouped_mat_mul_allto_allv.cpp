@@ -52,7 +52,6 @@ static constexpr int64_t ZERO = 0;
 
 extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize( // Innner的参数要保持与def一致
     const aclTensor* gmmX, const aclTensor* gmmWeight,
-    const aclTensor* biasOptional,
     const aclTensor* sendCountsTensorOptional, 
     const aclTensor* recvCountsTensorOptional,
     const aclTensor* mmXOptional, 
@@ -502,7 +501,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
 
     aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
-            gmmX, gmmWeight, nullptr,
+            gmmX, gmmWeight,
             sendCountsTensorOptional,
             recvCountsTensorOptional,
             mmXOptional, mmWeightOptional,

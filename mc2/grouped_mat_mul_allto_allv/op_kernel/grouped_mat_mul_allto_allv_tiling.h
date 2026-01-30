@@ -43,6 +43,7 @@ struct GmmAlltoAllvCommonTilingInfo {
     bool isMmWeightTrans;
     bool isOptionalMatmul;
     bool isOptionalSendRecvCountTensors;
+    bool isNeedMM = false;
 };
 
 class GroupedMatMulAlltoAllvTilingData
@@ -63,8 +64,9 @@ struct QuantGroupedMatMulAlltoAllvTilingData {
     GmmAlltoAllvCommonTilingInfo commonTilingInfo;
     TCubeTiling matmulTiling;
     TCubeTiling sharedExpMatmulTiling;
-    GmmAlltoAllvAicpuTiling aicpuTilingInfo;
-    GroupedMatmulTilingData::GMMQuantTilingData* gmmQuantTilingDataList;
+    GmmAlltoAllvAicpuTiling aicpuTiling;
+    GroupedMatmulTilingData::GMMQuantTilingData gmmQuantTilingData;
+    GroupedMatmulTilingData::GMMQuantTilingData mmQuantTilingData;
 };
 #pragma pack(pop)
 

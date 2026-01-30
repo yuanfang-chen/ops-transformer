@@ -24,12 +24,12 @@ using namespace AscendC;
 namespace MC2KernelTemplate {
 template <typename CommOpType, typename ComputationOpType, typename TilingDataType, typename GmmTilingDataType,
     typename GmmArrayAddrType>
-class A2avGmmScheduler {
+class GmmA2avScheduler {
 public:
     __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM,
         GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM,
-        GM_ADDR mmyOptionalGM, GM_ADDR workspaceGM, GM_ADDR tilingGM,
-        GmmArrayAddrType *gmmArrayAddrIn, GmmArrayAddrType *mmArrayAddrIn, TPipe *tPipe)
+        GM_ADDR mmyOptionalGM, GM_ADDR workspaceGM, GM_ADDR tilingGM, GmmArrayAddrType *gmmArrayAddrIn, 
+        GmmArrayAddrType *mmArrayAddrIn, TPipe *tPipe)
     {
         auto tiling = (__gm__ TilingDataType *)tilingGM;
         GET_TILING_DATA(tilingData, tilingGM);
@@ -37,7 +37,7 @@ public:
         __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclInitTiling));
         __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->alltoAllvCcTiling));
         expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
-        commOp.Init(tilingData_, gmmxGM, hcclInitTiling, alltoAllvCcTiling);
+        commOp.Init(tilingData_, workspaceGM, gmmyGM, hcclInitTiling, alltoAllvCcTiling);
         if (tilingData_->commonTilingInfo.isNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
