@@ -16,9 +16,9 @@
 #ifndef MC2_QUANT_GROUPED_MATMUL_H
 #define MC2_QUANT_GROUPED_MATMUL_H
 
-#include "kernel_operator.h"
+#include "../../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
 #include "../common/a2av_common_tiling.h"
-#include "../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "kernel_operator.h"
 
 namespace MC2KernelTemplate {
 
@@ -37,22 +37,13 @@ namespace MC2KernelTemplate {
  * @tparam USE_SEND_COUNTS    true=使用 sendCnt（GMM A2AV），false=使用 recvCnt（A2AV GMM）
  * @tparam IS_SHARED_EXPERT   true=共享专家（单 tiling），false=路由专家（多 tiling）
  */
-template <typename xType,
-          typename wType,
-          typename biasType,
-          typename yType,
-          typename scaleType,
-          AscendC::CubeFormat wFormat = AscendC::CubeFormat::ND,
-          bool aTrans = false,
-          bool bTrans = false,
-          bool USE_SEND_COUNTS = true,
-          bool IS_SHARED_EXPERT = false>
+template <typename xType, typename wType, typename biasType, typename yType, typename scaleType,
+          AscendC::CubeFormat wFormat = AscendC::CubeFormat::ND, bool aTrans = false, bool bTrans = false,
+          bool USE_SEND_COUNTS = true, bool IS_SHARED_EXPERT = false>
 class GmmExpertOp {
 public:
     // 内部使用的 GMM Kernel 类型
-    using GmmKernelType = AscendC::GmmASWKernel<xType, wType, biasType,
-                                                scaleType, yType,
-                                                wFormat, aTrans, bTrans>;
+    using GmmKernelType = AscendC::GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans>;
     using GMMQuantParams = Mc2GroupedMatmulTilingData::GMMQuantParams;
 
     __aicore__ inline GmmExpertOp() = default;
@@ -67,9 +58,7 @@ public:
      */
     template <bool Shared = IS_SHARED_EXPERT>
     __aicore__ inline typename AscendC::EnableIf<!Shared, void>::type
-    Init(const TaskTilingInfo* taskTilingInfo,
-         const GmmTilingArray* gmmTilingArray,
-         AscendC::TPipe* tPipe)
+    Init(const TaskTilingInfo *taskTilingInfo, const GmmTilingArray *gmmTilingArray, AscendC::TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
         gmmTilingArray_ = gmmTilingArray;
@@ -88,15 +77,13 @@ public:
      */
     template <bool Shared = IS_SHARED_EXPERT>
     __aicore__ inline typename AscendC::EnableIf<Shared, void>::type
-    Init(const TaskTilingInfo* taskTilingInfo,
-         const GMMQuantTilingData* sharedGmmTiling,
-         AscendC::TPipe* tPipe)
+    Init(const TaskTilingInfo *taskTilingInfo, const GMMQuantTilingData *sharedGmmTiling, AscendC::TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
         gmmTilingArray_ = nullptr;
         sharedGmmTiling_ = sharedGmmTiling;
         tPipe_ = tPipe;
-        expertNum_ = 1;  // 共享专家只有一个
+        expertNum_ = 1; // 共享专家只有一个
     }
 
     /**
@@ -111,14 +98,8 @@ public:
      * @param y         输出 Y 基地址
      * @param workspace 工作空间基地址
      */
-    __aicore__ inline void InitAddr(
-        GM_ADDR x,
-        GM_ADDR weight,
-        GM_ADDR bias,
-        GM_ADDR scaleA,
-        GM_ADDR scaleB,
-        GM_ADDR y,
-        GM_ADDR workspace)
+    __aicore__ inline void InitAddr(GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scaleA, GM_ADDR scaleB, GM_ADDR y,
+                                    GM_ADDR workspace)
     {
         xBase_ = x;
         weightBase_ = weight;
@@ -127,7 +108,7 @@ public:
         scaleBBase_ = scaleB;
         yBase_ = y;
         workspaceBase_ = workspace;
-        
+
         // groupList 缓存在 workspace 中，预留空间给 groupList
         // groupList 是累积和数组，用于确定每个 group 的边界
         groupListCache_ = workspace;
@@ -145,10 +126,10 @@ public:
 private:
     GmmKernelType gmmKernel_;
 
-    const TaskTilingInfo* taskTilingInfo_ = nullptr;
-    const GmmTilingArray* gmmTilingArray_ = nullptr;      // 路由专家使用
-    const GMMQuantTilingData* sharedGmmTiling_ = nullptr; // 共享专家使用
-    AscendC::TPipe* tPipe_ = nullptr;
+    const TaskTilingInfo *taskTilingInfo_ = nullptr;
+    const GmmTilingArray *gmmTilingArray_ = nullptr;      // 路由专家使用
+    const GMMQuantTilingData *sharedGmmTiling_ = nullptr; // 共享专家使用
+    AscendC::TPipe *tPipe_ = nullptr;
     uint32_t expertNum_ = 0;
 
     // 输入输出基地址
@@ -165,7 +146,7 @@ private:
      * 内部：获取 groupList 来源数组
      * 根据 USE_SEND_COUNTS 模板参数选择 sendCnt 或 recvCnt
      */
-    __aicore__ inline const int64_t* GetGroupCounts() const
+    __aicore__ inline const int64_t *GetGroupCounts() const
     {
         if constexpr (USE_SEND_COUNTS) {
             return taskTilingInfo_->sendCnt;
@@ -178,7 +159,7 @@ private:
      * 内部：获取专家索引对应的 tiling 数据
      * 根据 IS_SHARED_EXPERT 模板参数选择返回 sharedGmmTiling_ 或 gmmTilingArray_->array[expertIdx]
      */
-    __aicore__ inline const GMMQuantTilingData* GetTilingData(uint32_t expertIdx) const
+    __aicore__ inline const GMMQuantTilingData *GetTilingData(uint32_t expertIdx) const
     {
         if constexpr (IS_SHARED_EXPERT) {
             // 共享专家始终返回同一个 tiling
@@ -198,7 +179,7 @@ private:
      */
     __aicore__ inline int64_t CalcXOffset(uint32_t expertIdx) const
     {
-        const int64_t* counts = GetGroupCounts();
+        const int64_t *counts = GetGroupCounts();
         int64_t offset = 0;
         for (uint32_t i = 0; i < expertIdx; ++i) {
             offset += counts[i];
@@ -245,17 +226,14 @@ private:
 // ========== 方法实现 ==========
 
 template <typename xType, typename wType, typename biasType, typename yType, typename scaleType,
-          AscendC::CubeFormat wFormat, bool aTrans, bool bTrans,
-          bool USE_SEND_COUNTS, bool IS_SHARED_EXPERT>
-__aicore__ inline void GmmExpertOp<xType, wType, biasType, yType, scaleType,
-                                    wFormat, aTrans, bTrans,
-                                    USE_SEND_COUNTS, IS_SHARED_EXPERT>::PrepareGroupList(
-    uint32_t startExpertIdx, uint32_t expertNum)
+          AscendC::CubeFormat wFormat, bool aTrans, bool bTrans, bool USE_SEND_COUNTS, bool IS_SHARED_EXPERT>
+__aicore__ inline void GmmExpertOp<xType, wType, biasType, yType, scaleType, wFormat, aTrans, bTrans, USE_SEND_COUNTS,
+                                   IS_SHARED_EXPERT>::PrepareGroupList(uint32_t startExpertIdx, uint32_t expertNum)
 {
     // 将 counts 转换为累积和形式的 groupList 写入 groupListCache_
-    const int64_t* counts = GetGroupCounts();
-    __gm__ int64_t* groupList = reinterpret_cast<__gm__ int64_t*>(groupListCache_);
-    
+    const int64_t *counts = GetGroupCounts();
+    __gm__ int64_t *groupList = reinterpret_cast<__gm__ int64_t *>(groupListCache_);
+
     int64_t cumSum = 0;
     for (uint32_t i = 0; i < expertNum; ++i) {
         uint32_t expertIdx = startExpertIdx + i;
@@ -265,79 +243,87 @@ __aicore__ inline void GmmExpertOp<xType, wType, biasType, yType, scaleType,
 }
 
 template <typename xType, typename wType, typename biasType, typename yType, typename scaleType,
-          AscendC::CubeFormat wFormat, bool aTrans, bool bTrans,
-          bool USE_SEND_COUNTS, bool IS_SHARED_EXPERT>
-__aicore__ inline void GmmExpertOp<xType, wType, biasType, yType, scaleType,
-                                    wFormat, aTrans, bTrans,
-                                    USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(
-    uint32_t startExpertIdx, uint32_t expertNum)
+          AscendC::CubeFormat wFormat, bool aTrans, bool bTrans, bool USE_SEND_COUNTS, bool IS_SHARED_EXPERT>
+__aicore__ inline void GmmExpertOp<xType, wType, biasType, yType, scaleType, wFormat, aTrans, bTrans, USE_SEND_COUNTS,
+                                   IS_SHARED_EXPERT>::ProcessExpert(uint32_t startExpertIdx, uint32_t expertNum)
 {
     // 1. 准备 groupList（累积和形式，包含 expertNum 个专家的 counts）
     //    GmmASWKernel 一次调用会处理 groupNum 个 group
     PrepareGroupList(startExpertIdx, expertNum);
-    
+
     // 2. 计算 X 和 Y 的基地址偏移（基于 startExpertIdx）
     int64_t xMOffset = CalcXOffset(startExpertIdx);
     int64_t yMOffset = CalcYOffset(startExpertIdx);
     int64_t weightOffset = CalcWeightOffset(startExpertIdx);
-    
+
     // 3. 计算偏移后的地址
     int64_t K = static_cast<int64_t>(taskTilingInfo_->H1);
     int64_t N = static_cast<int64_t>(taskTilingInfo_->N1);
-    
+
     GM_ADDR xCur = xBase_ + xMOffset * K * sizeof(xType);
     GM_ADDR yCur = yBase_ + yMOffset * N * sizeof(yType);
     GM_ADDR weightCur = weightBase_ + weightOffset * sizeof(wType);
-    
+
     // bias 和 scale 按 expert 索引偏移
     GM_ADDR biasCur = biasBase_;
     if (biasBase_ != nullptr) {
         biasCur = biasBase_ + startExpertIdx * N * sizeof(biasType);
     }
-    
+
     GM_ADDR scaleACur = scaleABase_;
     if (scaleABase_ != nullptr) {
         scaleACur = scaleABase_ + startExpertIdx * sizeof(scaleType);
     }
-    
+
     GM_ADDR scaleBCur = scaleBBase_;
     if (scaleBBase_ != nullptr) {
         scaleBCur = scaleBBase_ + startExpertIdx * sizeof(scaleType);
     }
-    
+
     // 4. 获取本次循环对应的 tiling 数据
     //    路由专家：从 gmmTilingArray_->array[startExpertIdx] 获取
     //    共享专家：使用 sharedGmmTiling_
-    const GMMQuantTilingData* tilingData = GetTilingData(startExpertIdx);
-    
+    const GMMQuantTilingData *tilingData = GetTilingData(startExpertIdx);
+
     // 获取 tiling 参数
-    const GMMQuantParams* gmmQuantParams = &tilingData->gmmQuantParams;
-    const TCubeTiling* mmTilingData = &tilingData->mmTilingData;
-    
+    const GMMQuantParams *gmmQuantParams = &tilingData->gmmQuantParams;
+    const TCubeTiling *mmTilingData = &tilingData->mmTilingData;
+
     // gmmArray 包含 mList, kList, nList
-    TILING_TYPE* gmmArrayAddr = const_cast<TILING_TYPE*>(
-        reinterpret_cast<const TILING_TYPE*>(&tilingData->gmmArray.mList[0]));
-    
+    TILING_TYPE *gmmArrayAddr =
+        const_cast<TILING_TYPE *>(reinterpret_cast<const TILING_TYPE *>(&tilingData->gmmArray.mList[0]));
+
     // 5. 一次调用 GmmASWKernel 处理所有 expertNum 个专家
     //    GmmASWKernel.Process() 内部会遍历 groupNum 个 group
-    gmmKernel_.Init(
-        xCur,                    // x
-        weightCur,               // weight
-        biasCur,                 // bias
-        scaleBCur,               // scale (weight scale)
-        groupListCache_,         // groupList (累积和形式)
-        scaleACur,               // perTokenScale (activation scale)
-        yCur,                    // y
-        workspaceBase_,          // workspace
-        gmmQuantParams,          // gmmQuantParams (包含 groupNum)
-        mmTilingData,            // mmTilingData
-        gmmArrayAddr,            // gmmArrayAddr (mList, kList, nList)
-        tPipe_                   // TPipe
+    gmmKernel_.Init(xCur,            // x
+                    weightCur,       // weight
+                    biasCur,         // bias
+                    scaleBCur,       // scale (weight scale)
+                    groupListCache_, // groupList (累积和形式)
+                    scaleACur,       // perTokenScale (activation scale)
+                    yCur,            // y
+                    workspaceBase_,  // workspace
+                    gmmQuantParams,  // gmmQuantParams (包含 groupNum)
+                    mmTilingData,    // mmTilingData
+                    gmmArrayAddr,    // gmmArrayAddr (mList, kList, nList)
+                    tPipe_           // TPipe
     );
-    
+
     gmmKernel_.Process();
 }
 
 } // namespace MC2KernelTemplate
+
+/**
+ * 简单的加法函数
+ *
+ * @param a 第一个加数
+ * @param b 第二个加数
+ * @return 两个数的和
+ */
+inline int add(int a, int b)
+{
+    return a + b;
+}
 
 #endif // MC2_QUANT_GROUPED_MATMUL_H
