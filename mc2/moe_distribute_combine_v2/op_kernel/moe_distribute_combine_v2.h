@@ -88,7 +88,7 @@ private:
                                                 const DataCopyExtParams& copyExtParams,
                                                 const DataCopyPadExtParams<XType>& copyPadExtParams);
     __aicore__ inline void AddRmsNormRmsNormCompute(uint32_t tokenIndex, uint32_t tokenOffset, uint32_t numCol,
-                                                    LocalTensor<float>& x_fp32, LocalTensor<float>& sqx,
+                                                    LocalTensor<float>& xFp32, LocalTensor<float>& sqx,
                                                     LocalTensor<ExpandXType>& gammaLocal,
                                                     const DataCopyExtParams& copyExtParams);
     __aicore__ GM_ADDR GetWinAddrByRankId(const int32_t rankId, const uint8_t domain)
@@ -1056,12 +1056,12 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormAdd
 
 template <CombineMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormRmsNormCompute(
-    uint32_t tokenIndex, uint32_t tokenOffset, uint32_t numCol, LocalTensor<float>& x_fp32, LocalTensor<float>& sqx,
+    uint32_t tokenIndex, uint32_t tokenOffset, uint32_t numCol, LocalTensor<float>& xFp32, LocalTensor<float>& sqx,
     LocalTensor<ExpandXType>& gammaLocal, const DataCopyExtParams& copyExtParams)
 {
     // 计算rstd
     LocalTensor<float> reduceBufLocal = reduceFp32Buf_.Get<float>();
-    Mul(sqx, x_fp32, x_fp32, numCol);
+    Mul(sqx, xFp32, xFp32, numCol);
     PipeBarrier<PIPE_V>();
     Muls(sqx, sqx, armAvgFactor_, numCol);
     PipeBarrier<PIPE_V>();
@@ -1085,18 +1085,18 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormRms
     SyncFunc<AscendC::HardEvent::V_S>();
     float rstdValue = reduceBufLocal.GetValue(0);
     SyncFunc<AscendC::HardEvent::S_V>();
-    Muls(x_fp32, x_fp32, rstdValue, numCol);
+    Muls(xFp32, xFp32, rstdValue, numCol);
     PipeBarrier<PIPE_V>();
     LocalTensor<XType> yLocal = rowTmpFloatBuf_.Get<XType>();
-    Cast(yLocal, x_fp32, RoundMode::CAST_RINT, numCol);
+    Cast(yLocal, xFp32, RoundMode::CAST_RINT, numCol);
     PipeBarrier<PIPE_V>();
-    Cast(x_fp32, yLocal, RoundMode::CAST_NONE, numCol);
+    Cast(xFp32, yLocal, RoundMode::CAST_NONE, numCol);
     PipeBarrier<PIPE_V>();
     Cast(sqx, gammaLocal, RoundMode::CAST_NONE, numCol);  // gamma_fp32 reuse sqx
     PipeBarrier<PIPE_V>();
-    Mul(x_fp32, x_fp32, sqx, numCol);
+    Mul(xFp32, xFp32, sqx, numCol);
     PipeBarrier<PIPE_V>();
-    Cast(yLocal, x_fp32, RoundMode::CAST_RINT, numCol);
+    Cast(yLocal, xFp32, RoundMode::CAST_RINT, numCol);
 
     // y结果搬出
     SyncFunc<AscendC::HardEvent::V_MTE3>();
