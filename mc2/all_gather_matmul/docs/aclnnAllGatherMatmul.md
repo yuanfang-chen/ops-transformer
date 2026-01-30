@@ -14,7 +14,7 @@
 -   **计算公式**：
 
     $$
-    output=allgather(x1)@x2+bias
+    output=allgather(x1)@x2+bias testttestestestestttestestestestttestestes
     $$
 
 
