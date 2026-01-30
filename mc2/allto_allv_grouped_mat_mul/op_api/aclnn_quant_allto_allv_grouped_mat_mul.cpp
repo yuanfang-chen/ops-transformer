@@ -48,11 +48,11 @@ enum class QuantModeType : int64_t {
 static constexpr int64_t ZERO = 0;
 
 extern "C" aclnnStatus aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(
-    const aclTensor *gmmX, const aclTensor *gmmWeight,
-    const aclTensor *sendCountsTensorOptional, const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional,
-    const aclTensor *mmWeightOptional, const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional,
-    const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional, int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
-    int64_t mmWeightQuantMode, int64_t gmmXQuantType, int64_t mmXQuantType, const char *group, int64_t epWorldSize,
+    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional,
+    const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
+    const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional, const aclTensor *mmXScaleOptional,
+    const aclTensor *mmWeightScaleOptional, int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
+    int64_t mmWeightQuantMode, int64_t gmmXQuantDType, int64_t mmXQuantDType, const char *group, int64_t epWorldSize,
     const aclIntArray *sendCounts, const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight,
     bool permuteOutFlag, const aclTensor *gmmYOut, const aclTensor *mmYOptional, const aclTensor *permuteOutOptional,
     uint64_t *workspaceSize, aclOpExecutor **executor);
@@ -272,10 +272,10 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
                                const aclTensor *mmWeightScaleOptional, const aclTensor *mmXOffsetOptional,
                                const aclTensor *mmWeightOffsetOptional, int64_t gmmXQuantMode,
                                int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
-                               int64_t gmmXQuantType, int64_t mmXQuantType,
-                               const aclIntArray *sendCounts, const aclIntArray *recvCounts, bool transGmmWeight,
-                               bool transMmWeight, const char *group, int64_t epWorldSize, bool permuteOutFlag,
-                               const aclTensor *gmmY, const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
+                               int64_t gmmXQuantDType, int64_t mmXQuantDType, const aclIntArray *sendCounts,
+                               const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight,
+                               const char *group, int64_t epWorldSize, bool permuteOutFlag, const aclTensor *gmmY,
+                               const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
 {
     (void)epWorldSize; // Unused
     CHECK_RET(CheckNullStatus(sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, group,
@@ -310,31 +310,31 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
 }
 
 extern "C" aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
-    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *bias, const aclTensor *gmmXScaleOptional,
+    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
     const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
     const aclTensor *gmmWeightOffsetOptional, const aclTensor *sendCountsTensorOptional,
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
     const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional, const aclTensor *mmXOffsetOptional,
     const aclTensor *mmWeightOffsetOptional, int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
-    int64_t mmWeightQuantMode, int64_t gmmXQuantType, int64_t mmXQuantType, const char *group, int64_t epWorldSize, const aclIntArray *sendCounts,
-    const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight, bool permuteOutFlag, const aclTensor *gmmY,
-    const aclTensor *mmYOptional, const aclTensor *permuteOutOptional, uint64_t *workspaceSize,
-    aclOpExecutor **executor)
+    int64_t mmWeightQuantMode, int64_t gmmXQuantDType, int64_t mmXQuantDType, const char *group, int64_t epWorldSize,
+    const aclIntArray *sendCounts, const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight,
+    bool permuteOutFlag, const aclTensor *gmmY, const aclTensor *mmYOptional, const aclTensor *permuteOutOptional,
+    uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     aclnnStatus ret_param = CheckParams(
         gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, gmmXOffsetOptional, gmmWeightOffsetOptional,
         sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, mmXScaleOptional,
         mmWeightScaleOptional, mmXOffsetOptional, mmWeightOffsetOptional, gmmXQuantMode, gmmWeightQuantMode,
-        mmXQuantMode, mmWeightQuantMode, gmmXQuantType, mmXQuantType, sendCounts, recvCounts, transGmmWeight, transMmWeight, group, epWorldSize,
-        permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
+        mmXQuantMode, mmWeightQuantMode, gmmXQuantDType, mmXQuantDType, sendCounts, recvCounts, transGmmWeight,
+        transMmWeight, group, epWorldSize, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
     auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
 
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(
         gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
-        gmmXScaleOptional, gmmWeightScaleOptional, mmXScaleOptional, mmWeightScaleOptional, gmmXQuantMode, gmmWeightQuantMode,
-        mmXQuantMode, mmWeightQuantMode, gmmXQuantType, mmXQuantType, group, epWorldSize,
+        gmmXScaleOptional, gmmWeightScaleOptional, mmXScaleOptional, mmWeightScaleOptional, gmmXQuantMode,
+        gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, gmmXQuantDType, mmXQuantDType, group, epWorldSize,
         sendCounts, recvCounts, transGmmWeight, transMmWeight, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional,
         workspaceSize, executor);
     return ret;
