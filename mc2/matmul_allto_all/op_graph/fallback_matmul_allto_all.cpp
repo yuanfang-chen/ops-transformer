@@ -51,6 +51,26 @@ struct CommonMatmulParas {
     const gert::Tensor* bias;
 };
 
+// Attr参数结构体
+struct AttrParas {
+    aclTensor* commScaleOptional = nullptr;
+    aclTensor* x1OffsetOptional = nullptr;
+    aclTensor* x2OffsetOptional = nullptr;
+    const char* group;
+    const gert::TypedContinuousVector<int64_t>* alltoAllAxesOptional;
+    int64_t commQuantMode;
+    int64_t commQuantDtype;
+    bool transposeX1;
+    bool transposeX2;
+    int64_t groupSize = 0;
+};
+
+// 量化输入参数结构体
+struct QuantMatmulParas {
+    aclTensor* x1_scale_acl = nullptr;
+    aclTensor* x2_scale_acl = nullptr;
+};
+
 /**
  * @brief 获取公共Matmul输入参数
  * @param host_api_ctx
@@ -79,20 +99,6 @@ inline ge::graphStatus GetCommonMatmulInputPara(const gert::OpExecuteContext* ho
 
     return ge::SUCCESS;
 }
-
-// Attr参数结构体
-struct AttrParas {
-    aclTensor* commScaleOptional = nullptr;
-    aclTensor* x1OffsetOptional = nullptr;
-    aclTensor* x2OffsetOptional = nullptr;
-    const char* group;
-    const gert::TypedContinuousVector<int64_t>* alltoAllAxesOptional;
-    int64_t commQuantMode;
-    int64_t commQuantDtype;
-    bool transposeX1;
-    bool transposeX2;
-    int64_t groupSize = 0;
-};
 
 static ge::graphStatus ParseRecvCounts(
     const gert::TypedContinuousVector<int64_t>* sendCounts,
@@ -153,12 +159,6 @@ inline ge::graphStatus GetAttrPara(const gert::OpExecuteContext* host_api_ctx, A
     
     return ge::SUCCESS;
 }
-
-// 量化输入参数结构体
-struct QuantMatmulParas {
-    aclTensor* x1_scale_acl = nullptr;
-    aclTensor* x2_scale_acl = nullptr;
-};
 
 /**
  * @brief 获取量化Matmul输入参数
