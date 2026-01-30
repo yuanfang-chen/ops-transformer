@@ -37,9 +37,6 @@ struct TaskTilingInfo {
     uint64_t epWorldSize;
     uint64_t e;
     bool isNeedMM;
-    bool isGmmWeightTrans;
-    bool isMmWeightTrans;
-    bool isPermuteOut;
 
     uint32_t mainLoopExpertNum;
     uint32_t tailLoopExpertNum;
