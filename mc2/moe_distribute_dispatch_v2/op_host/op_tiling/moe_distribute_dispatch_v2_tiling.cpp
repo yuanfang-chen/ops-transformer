@@ -1793,16 +1793,14 @@ static ge::graphStatus MoeDistributeDispatchA5TilingFuncImpl(gert::TilingContext
     OP_LOGD(nodeName, "Set 'commAlg' as '%s'", commAlgPtr);
     // 检查 commAlg 参数合法性校验
     bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
-    bool isFullmeshV1 = (std::strcmp(commAlgPtr, "mte") == 0)
-                        || (std::strcmp(commAlgPtr, "fullmesh_v1") == 0);
-    bool isFullmeshV2 = std::strcmp(commAlgPtr, "fullmesh_v2") == 0;
+    bool isFullmeshV1 = (std::strcmp(commAlgPtr, "fullmesh_v1") == 0);
+    bool isFullmeshV2 = (std::strcmp(commAlgPtr, "fullmesh_v2") == 0);
     bool isMte = isFullmeshV1 || isFullmeshV2;
     bool isCcu = std::strcmp(commAlgPtr, "ccu") == 0;
     OP_TILING_CHECK(!(isNullOrEmpty || isMte || isCcu),
         OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. "
-            "Only 'ccu', 'mte', 'fullmesh_v1' and 'fullmesh_v2' are supported. "
-            "Note: 'mte' is equivalent to 'fullmesh_v1', while 'fullmesh_v2' uses a high-performance template. "
-            "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
+            "Only 'fullmesh_v1' and 'fullmesh_v2' are supported. "
+            "Nullptr and empty char* are also allowed but will be interpreted as 'fullmesh_v1'.", commAlgPtr),
         return ge::GRAPH_FAILED);
     if (isCcu) {
         // CCU 调用 A5 tiling 实现
@@ -1810,7 +1808,7 @@ static ge::graphStatus MoeDistributeDispatchA5TilingFuncImpl(gert::TilingContext
     }
     // 默认空指针和空字符走 MTE 方式
     if (isNullOrEmpty) {
-        OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
+        OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'fullmesh_v1'.");
     }
     // MTE 调用 A3 tiling 实现
     return MoeDistributeDispatchA3TilingFuncImpl(context);
