@@ -14,6 +14,7 @@
  */
 #include "register/op_def_registry.h"
 
+
 namespace ops {
 class AllGatherMatmul : public OpDef {
  public:

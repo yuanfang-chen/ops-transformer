@@ -11,6 +11,7 @@
 #ifndef OP_API_INC_ALL_GATHER_MATMUL_
 #define OP_API_INC_ALL_GATHER_MATMUL_
 
+
 #include <string>
 
 #include "aclnn/aclnn_base.h"
