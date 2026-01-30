@@ -20,8 +20,8 @@
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 
 
-namespace MC2Tiling {
 using namespace optiling;
+namespace MC2Tiling {
 
 enum class QuantMode : uint8_t {
     NON_QUANT = 0, // 非量化模式
@@ -29,11 +29,11 @@ enum class QuantMode : uint8_t {
     ERROR = 255    // 特殊设置，表示不支持的类型组合
 };
 
-class QuantGroupedMatmulAllToAllvTilingSplitStrategy {
+class QuantGroupedMatmulAllToAllvTilingStrategyTT {
 public:
-    static QuantMode GetQuantMode(const gert::TilingContext *context, const char *opName);
-    static ge::graphStatus GetSplitNums(const gert::TilingContext *context, const char *opName);
-    uint_32 mSizePerLoop = 0;
+    static QuantMode GetQuantMode(const gert::TilingContext *context);
+    static ge::graphStatus GetSplitNums(const gert::TilingContext *context);
+    uint32_t mSizePerLoop = 0;
 };
 
 } // namespace MC2Tiling

@@ -24,56 +24,14 @@
 #include "grouped_matmul_finalize_routing/op_kernel/arch35/grouped_matmul_finalize_routing_tiling_data.h"
 #include "grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_tiling_key.h"
 #include "grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#include "mc2/allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
 #include "register/tilingdata_base.h"
 
-
+using MC2KernelTemplate::GmmTilingArray;
+using MC2KernelTemplate::GMMQuantTilingData;
+using MC2KernelTemplate::GMMArray;
 using namespace optiling;
 namespace MC2Tiling {
-
-/**
- * HCCL AlltoAllV Tiling 封装
- */
-struct HcclA2avTilingInfo {
-    Mc2InitTiling initTiling;          // HCCL 初始化配置
-    Mc2CcTiling a2avCcTiling;          // AlltoAllV CC 配置
-};
-
-// gmm/grouped_matmul/op_host/op_tiling/grouped_matmul_tiling.h
-
-struct QuantGmmA2avTilingInfo {
-    // --- Task Info (任务维度与专家信息) ---
-    uint64_t taskM;                                 // 总 M 维度
-    uint64_t taskK;                                 // K 维度
-    uint64_t taskN;                                 // N 维度
-    uint32_t taskLocalExpertNum;                    // 本 EP 专家数
-    uint32_t taskEpWorldSize;                       // EP 通信域大小
-    
-    // --- Loop Info (通算融合流水线切分信息) ---
-    uint32_t loopMainExpertNum;                     // 主块：每次 loop 处理几个专家
-    uint32_t loopTailExpertNum;                     // 尾块：最后一次 loop 处理几个专家
-    uint32_t loopTotalCount;                        // 总 loop 次数
-
-    // --- Workspace Info (Workspace 大小) ---
-    uint64_t wsGmmSize;                             // GMM workspace 大小
-
-    // --- Comm Info (通信计数数组) ---
-    // 每专家发送到各 rank 的 token 数
-    uint16_t commSendCnt[MAX_EXPERT_NUM];
-    // 从各 rank 接收每专家的 token 数
-    uint16_t commRecvCnt[MAX_EXPERT_NUM];
-};
-
-struct QuantGMMTilingDataArray {
-    uint32_t counts;
-    GroupedMatmulTilingData::GMMQuantTilingData gmmQuantTilingDataList[MAX_EXPERT_NUM_PER_RANK];
-}
-
-struct QuantGroupedMatMulAlltoAllvTilingData {
-    HcclA2avTilingInfo hcclA2avTiling;
-    QuantGmmA2avTilingInfo commonTilingInfo;
-    GMMQuantTilingData sharedGmmTiling;
-    QuantGMMTilingDataArray gmmQTilingDataInfo;
-};
 
 struct TilingInferredInfo {
     uint64_t gmmResultLen = 0UL; // 存储计算GMM的地址大小
@@ -98,13 +56,13 @@ protected:
     ge::graphStatus SetHcclTiling();
     
     void SetTilingCommonInfo();
-    void PrintQuantGroupedMatMulAlltoAllvTilingData(QuantGroupedMatMulAlltoAllvTilingData &outTilingData);
+    void PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData);
     
 private:
-    QuantGroupedMatMulAlltoAllvTilingData localTilingData_;
-    void PrintQuantGMMAlltoAllTilingInfo(const std::string &opName, QuantGmmA2avTilingInfo &tilingInfo);
-    void PrintQuantGMMTilingData(const std::string &opName, GroupedMatmulTilingData::GMMQuantTilingData &tiling);
-    void PrintSharedMMTilingData(const std::string &opName, GroupedMatmulTilingData::GMMQuantTilingData &tiling);
+    QuantGmmA2avTilingData localTilingData_;
+    void PrintCommonTilingInfo(TaskTilingInfo &tilingInfo);
+    void PrintSharedGmmTilingInfo(GroupedMatmulTilingData::GMMQuantTilingData &tiling);
+    void PrintGmmQTilingDataInfo(GmmTilingArray &tilingInfo);
     const char *opName_{nullptr};
     uint32_t libApiWorkSpaceSize_{0};
     uint32_t epNum_{2};

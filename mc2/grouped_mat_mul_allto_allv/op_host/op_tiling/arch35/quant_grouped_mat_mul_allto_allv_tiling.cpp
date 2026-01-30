@@ -56,11 +56,11 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputInfo()
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CalTilingInferredInfo()
 {
     constexpr uint64_t alignAddrLen = 512;
-    auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
+    auto yDesc = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX);
     auto yDType = yDesc->GetDataType();
     auto yDtypeSize = mc2tiling::GetDataTypeSize(opName_, yDType);
     inferredInfo.gmmResultLen = mc2tiling::AlignUp(
-        gmmQTilingCommonInfoPtr->taskM * gmmQTilingCommonInfoPtr->taskN * yDtypeSize, alignAddrLen);
+        gmmQTilingCommonInfoPtr->BSK * gmmQTilingCommonInfoPtr->N1 * yDtypeSize, alignAddrLen);
     
     inferredInfo.permuteLen = inferredInfo.mmResultLen;
     auto mmyDesc = context_->GetOutputDesc(OUTPUT_MM_Y_OPTIONAL_INDEX);
@@ -68,40 +68,49 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CalTilingInferredInfo()
         auto mmyDType = mmyDesc->GetDataType();
         auto mmyDtypeSize = mc2tiling::GetDataTypeSize(opName_, mmyDType);
         inferredInfo.mmResultLen = mc2tiling::AlignUp(
-            gmmQTilingCommonInfoPtr->taskM * gmmQTilingCommonInfoPtr->taskN * mmyDtypeSize, alignAddrLen); 
+            gmmQTilingCommonInfoPtr->BSK * gmmQTilingCommonInfoPtr->N1 * mmyDtypeSize, alignAddrLen); 
     }
-
+    // commLen
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 {
-    auto gmmQTilingCommonInfoPtr = &localTilingData_.commonTilingInfo;
+    auto gmmQTilingCommonInfoPtr = &localTilingData_.taskTilingInfo;
      
     auto xShape = context_->GetInputDesc(GMM_X_INDEX)->GetOriginShape();
-    gmmQTilingCommonInfoPtr->taskM = xShape.GetDim(DIM_0);
-    gmmQTilingCommonInfoPtr->taskK = xShape.GetDim(DIM_1);
     auto weightShape = context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetOriginShape();
-    gmmQTilingCommonInfoPtr->taskN = weightShape.GetDim(DIM_2);
     epNum_ = weightShape.GetDim(DIM_0);
-    gmmQTilingCommonInfoPtr->taskLocalExpertNum = epNum_;
+    gmmQTilingCommonInfoPtr->e = epNum_;
+
+    auto gmmYShape = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX)->GetOriginShape();
+    
+    gmmQTilingCommonInfoPtr->BSK = xShape.GetDim(DIM_0);
+    gmmQTilingCommonInfoPtr->H1 = xShape.GetDim(DIM_1);
+    gmmQTilingCommonInfoPtr->N1 = gmmYShape.GetDim(DIM_1);
 
     auto attrs = context_->GetAttrs();
-    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
-    gmmQTilingCommonInfoPtr->taskEpWorldSize = *epWorldSizePtr;
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
+    gmmQTilingCommonInfoPtr->epWorldSize = *epWorldSizePtr;
 
-    gmmQTilingCommonInfoPtr->loopMainExpertNum = 1;
-    gmmQTilingCommonInfoPtr->loopTailExpertNum = 1;
-    gmmQTilingCommonInfoPtr->loopTotalCount = epNum_;
+    gmmQTilingCommonInfoPtr->mainLoopExpertNum = 1;
+    gmmQTilingCommonInfoPtr->tailLoopExpertNum = 1;
+    gmmQTilingCommonInfoPtr->totalLoopCount = epNum_;
 
     auto sendCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_SEND_COUNTS_INDEX);
     auto recvCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_RECV_COUNTS_INDEX);
-    const uint64_t* sendCounts = static_cast<const uint64_t*>(sendCountsPtr->GetData());
-    const uint64_t* recvCounts = static_cast<const uint64_t*>(recvCountsPtr->GetData());
+    const int64_t* sendCounts = static_cast<const int64_t*>(sendCountsPtr->GetData());
+    const int64_t* recvCounts = static_cast<const int64_t*>(recvCountsPtr->GetData());
     for (int i = 0; i < MAX_EXPERT_NUM; i++) {
-        gmmQTilingCommonInfoPtr->commSendCnt[i] = static_cast<uint16_t>(sendCounts[i]);
-        gmmQTilingCommonInfoPtr->commRecvCnt[i] = static_cast<uint16_t>(recvCounts[i]);
+        // memcpy_s
+        gmmQTilingCommonInfoPtr->sendCnt[i] = sendCounts[i];
+        gmmQTilingCommonInfoPtr->recvCnt[i] = recvCounts[i];
     }
+
+    auto mmYDesc = context_->GetInputDesc(OUTPUT_MM_Y_INDEX);
+    // if (mmYDesc != nullptr) {
+
+    // }
 
     return ge::GRAPH_SUCCESS;
 }
@@ -111,13 +120,26 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     // 设置GMM切前信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(*this, context_);
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonContextParameters());
-    auto gmmQTilingDataInfoPtr = &localTilingData_.gmmQTilingDataInfo;
-    gmmQTilingDataInfoPtr->counts = epNum_;
-    for (uint32_t loop = 0; loop < gmmQTilingDataInfoPtr->counts; loop++) {
-        GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetPipeLoopGMMInfo());
+    auto gmmTilingPtr = &localTilingData_.gmmTiling;
+    // 当前为 epNums，每轮一专家
+    gmmTilingPtr->count = taskTilingInfoPtr->totalLoopCount;
+    auto taskTilingInfoPtr = &localTilingData_.taskTilingInfo;
+
+    auto expertNumPerLoop = taskTilingInfoPtr->mainLoopExpertNum;
+    // 每轮
+    uint32_t loop;
+    auto worldSize = gmmQTilingCommonInfoPtr->epWorldSize;
+    for (loop = 0; loop < taskTilingInfoPtr->totalLoopCount - 1; loop++) {
+        GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(loop * expertNumPerLoop * worldSize, expertNumPerLoop));
         GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-        gmmQTilingDataInfoPtr->gmmQuantTilingDataList[loop] = gmmTile.tilingData_;
+        gmmTilingPtr->array[loop] = gmmTile.tilingData_;
     }
+
+    // 尾轮
+    expertNumPerLoop = taskTilingInfoPtr->tailLoopExpertNum;
+    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(loop * expertNumPerLoop * worldSize, expertNumPerLoop));
+    GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
+    gmmTilingPtr->array[loop] = gmmTile.tilingData_;
 
     // SharedMM切分
     auto status = gmmTile.SetSharedExpertInputParameters();
@@ -141,7 +163,7 @@ static ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
     auto groupEpPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
 
     const uint32_t alltoAllvReduceType = 0u;
-    auto outputDataType = context_->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
+    auto outputDataType = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX)->GetDataType();
     auto inputDataType = context_->GetInputDesc(GMM_X_INDEX)->GetDataType();
     OP_TILING_CHECK(
         mc2tiling::HCCL_DATA_TYPE.find(outputDataType) == mc2tiling::HCCL_DATA_TYPE.end(),
@@ -158,7 +180,7 @@ static ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetHcclTiling()
 
     Mc2CcTilingConfig hcclCcTilingConfig(groupEpPtr, alltoAllvCmd, alltoAllvConfig, 
                                          alltoAllvReduceType, alltoAllvDstDataType, alltoAllvSrcDataType);
-    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(localTilingData_->hcclA2avTiling.initTiling) != 0,
+    OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(localTilingData_->hcclA2avTiling.hcclInitTiling) != 0,
         OP_LOGE(C_INNER_DEBUG, "mc2CcTilingConfig mc2tiling GetTiling hcclInitTiling failed"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(hcclCcTilingConfig.GetTiling(localTilingData_->hcclA2avTiling.a2avCcTiling) != 0,
         OP_LOGE(C_INNER_DEBUG, "mc2CcTilingConfig mc2tiling GetTiling alltoAllvCcTiling failed"), return ge::GRAPH_FAILED);
@@ -179,10 +201,18 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
+void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData)
+{
+    return ;
+    // PrintCommonTilingInfo(outTilingData.taskTilingInfo);
+    // PrintSharedGmmTilingInfo(outTilingData.sharedGmmTiling);
+    // PrintGmmQTilingDataInfo(outTilingData.gmmTiling);
+}
+
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
 {
-    QuantGroupedMatMulAlltoAllvTilingData *outTilingData =
-        context_->GetTilingData<QuantGroupedMatMulAlltoAllvTilingData>();
+    QuantGmmA2avTilingData *outTilingData =
+        context_->GetTilingData<QuantGmmA2avTilingData>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
     OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "failed to get tiling data from context"),
                     return ge::GRAPH_FAILED);
@@ -195,12 +225,22 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
         OP_LOGE(opName_, "MatmulAlltoAll postTiling: memcpy_s tiling data failed, ret=%d.", ret);
         return ge::GRAPH_FAILED;
     }
-    OP_LOGD(opName_, "Final tiling data size=%zu and context capacity size=%zu.", sizeof(KcQuantMatmulAlltoAllTilingData),
+    OP_LOGD(opName_, "Final tiling data size=%zu and context capacity size=%zu.", sizeof(QuantGmmA2avTilingData),
             context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(sizeof(KcQuantMatmulAlltoAllTilingData));
+    context_->GetRawTilingData()->SetDataSize(sizeof(QuantGmmA2avTilingData));
     context_->SetBlockDim(contextInfo.args_.aicCoreNum);
-    PrintKcQuantMatmulAlltoAllTilingData(*outTilingData);
+    PrintQuantGmmA2avTilingData(*outTilingData);
+
     return ge::GRAPH_SUCCESS;
+}
+
+uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
+{
+    // 先写死
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(0, 0, 1, 0);
+    // OP_LOGD(opName_, "KCQUANTMODE,X2TRANSPOSE,DTYPEBIAS: [%d,%d,%d], TilingKey is [%lu].", KC_QUANT_MODE,
+    //         x2TransposeFlag, biasDType, tilingKey);
+    return tilingKey;
 }
 
 /**

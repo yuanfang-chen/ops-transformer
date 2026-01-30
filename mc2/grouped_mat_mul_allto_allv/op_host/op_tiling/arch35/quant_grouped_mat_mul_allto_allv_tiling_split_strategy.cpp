@@ -58,12 +58,12 @@ using namespace Mc2Tiling;
 using namespace optiling;
 namespace MC2Tiling {
 
-QuantMode QuantGroupedMatmulAllToAllvTilingSpitStrategy::GetQuantMode(const gert::TilingContext *context, const char *opName)
+QuantMode QuantGroupedMatmulAllToAllvTilingStrategyTT::GetQuantMode(const gert::TilingContext *context, const char *opName)
 {
 
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTilingSpitStrategy::Process()
+ge::graphStatus QuantGroupedMatmulAllToAllvTilingStrategyTT::Process()
 {
 
 }

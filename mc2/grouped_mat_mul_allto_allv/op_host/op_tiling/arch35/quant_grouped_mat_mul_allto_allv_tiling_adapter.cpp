@@ -58,14 +58,7 @@ using namespace Mc2Tiling;
 using namespace optiling;
 namespace MC2Tiling {
 
-void QuantGroupedMatmulAllToAllvAdapter::Reset()
-{
-    tilingData_ = &tilingProcesser_->localTilingData_;
-    OP_CHECK_IF(memset_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(), 0,
-                         context_->GetRawTilingData()->GetCapacity()) != EOK,
-                OP_LOGE(inputParams_.opName, "Fail to clear tiling data"), return);
-    return;
-}
+
 
 bool QuantGroupedMatmulAllToAllvAdapter::AnalyzeAttrs()
 {
@@ -231,17 +224,39 @@ bool QuantGroupedMatmulAllToAllvAdapter::AnalyzeInputs()
 //     return ge::GRAPH_SUCCESS;
 // }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(uint32_t index)
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(uint32_t index, uint32_t epNums)
 {
-    auto xShape = context_->GetInputDesc(MM_X_OPTIONAL_INDEX)->GetOriginShape();
-    auto mSize = xShape.GetDim(DIM_0);
-    sendCounts = 
-    inputParams_.mSize = xShape.GetDim(DIM_0);
+    uint32_t worldSize = tilingProcesser_->localTilingData_.taskTilingInfo.epWorldSize;
+    auto sendCountsPtr = &tilingProcesser_->localTilingData_.taskTilingInfo.sendCnt[0];
+    uint64_t mSizePerLoop = 0;
+    // index sendcounts起始   epNums 当前loop专家数 -- 每轮专家 与 尾轮专家
+    if (epNums == 1) {
+        for (uint32_t i = 0; i < worldSize; i++) {
+            mSizePerLoop += sendCountsPtr[index + i];
+        }
 
+        inputParams_.mSize = mSizePerLoop;
+        inputParams_.isSingleX = true;
+        inputParams_.isSingleW = true;
+        inputParams_.isSingleY = true;
 
-    // 是否做切分
-    inputParams_.groupType = GroupedMatmul::NO_SPLIT;
-    inputParams_.groupListType = 0;
+        return ge::GRAPH_SUCCESS; 
+    }
+
+    // 每轮多专家
+    for (uint32_t i = 0; i < epNums; i++) {
+        mSizePerLoop = 0;
+        for (uint32_t j = 0; j < worldSize; j++) {
+            mSizePerLoop += sendCountsPtr[index + i * worldSize + j];
+        }
+        mList_[i] = static_cast<int32_t>(mSizePerLoop);
+        kList_[i] = static_cast<int32_t>(inputParams_.kSize);
+        nList_[i] = static_cast<int32_t>(inputParams_.nSize);
+    }
+
+    inputParams_.isSingleX = false;
+    inputParams_.isSingleW = false;
+    inputParams_.isSingleY = false;
 
     return ge::GRAPH_SUCCESS;
 }

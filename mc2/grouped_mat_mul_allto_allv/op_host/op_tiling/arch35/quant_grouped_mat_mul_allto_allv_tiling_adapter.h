@@ -31,24 +31,16 @@ namespace MC2Tiling {
 class QuantGroupedMatmulAllToAllvAdapter : public GroupedQbmmTiling {
 public:
     explicit QuantGroupedMatmulAllToAllvAdapter(QuantGroupedMatmulAllToAllvTiling& QuantGroupedMatmulAllToAllvTiling,
-        gert::TilingContext *context) : tilingProcesser_(QuantGroupedMatmulAllToAllvTiling), GroupedQbmmTiling(context)
-    {
-        Reset();
-    }
+        gert::TilingContext *context) : tilingProcesser_(QuantGroupedMatmulAllToAllvTiling), GroupedQbmmTiling(context);
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 
-    void Reset(gert::TilingContext *context) override
-    {
-        GroupedQbmmTiling::Reset(context);
-        Reset();
-    }
     // ge::graphStatus GetShapeAttrsInfo() override;
-    uint64_t GetTilingKey() const override;
+    uint64_t GetTilingKey() override;
     ge::graphStatus PostTiling() override;
     ge::graphStatus SetSharedExpertInputParameters();
-    void Reset() override;
+    ge::graphStatus SetExpertInputParameters();
 
-private:
+protected:
     bool AnalyzeAttrs() override;
     bool AnalyzeDtype() override;
     bool AnalyzeInputs() override;
