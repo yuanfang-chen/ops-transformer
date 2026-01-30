@@ -25,13 +25,11 @@ import math
 import os
 import read_excel
 import argparse
+import concurrent.futures
 
 # 读取表格
-ENABLED_PARAMS = read_excel.load_excel_test_cases("sas_redline_L0_copy.xlsx", "L0_decode")
-template_run_mode = "SWA"
-actlen_mode = "full"
-S1EQS2 = False
-save_path = "testcase_0124"
+save_path = "sas_testcase"
+ENABLED_PARAMS = read_excel.load_excel_test_cases("excel.xlsx", "sheet_name")
 
 locals()["param_combinations"] = []
 for _, params in enumerate(ENABLED_PARAMS):
@@ -41,10 +39,12 @@ for _, params in enumerate(ENABLED_PARAMS):
             value = torch.bfloat16
         elif value == 'torch.float8_e4m3fn':
             value = torch.float8_e4m3fn
+        elif value == "FALSE":
+            value = False
+        elif value == "TRUE":
+            value = True
         locals()[f"param_{key}"] = [value]
-    locals()[f"param_template_run_mode"] = [template_run_mode]
-    locals()[f"param_actlen_mode"] = [actlen_mode]
-    locals()[f"param_S1EQS2"] = [S1EQS2]
+    locals()[f"param_template_run_mode"] = locals()["param_template_run_mode"][0].split(',')
 
     param_names = [
     "Testcase_Name", "layout_q", "layout_kv", "q_type", "ori_kv_type", "cmp_kv_type", "B", "S1", "S2", "N1", "N2", "D", "K",
@@ -89,9 +89,7 @@ for _, params in enumerate(ENABLED_PARAMS):
     print(locals()["param_combinations"])
 
 case_id = 0
-@pytest.mark.ci
-@pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
-def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
+def sas(param_combinations):   # 初始化参数和tensor
     global case_id
     Testcase_Name = param_combinations['Testcase_Name']
     layout_q = param_combinations['layout_q']
@@ -195,3 +193,15 @@ def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
     input_data = sparse_attn_sharedkv_process_quant.generate_and_save_testdata(params, savePt=True, save_path=save_path)
     case_id += 1
 
+@pytest.mark.ci
+@pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
+def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
+    # 线程池
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        future1 = executor.submit(sas, param_combinations)
+        # 等待并获取结果
+        for future in concurrent.futures.as_completed([future1]):
+            try:
+                result = future.result()
+            except Exception as e:
+                pytest.fail(f"当前用例线程执行失败")
