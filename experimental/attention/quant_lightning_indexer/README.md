@@ -20,7 +20,7 @@
 ## 函数原型
 
 ```
-torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key_dequant_scale, *, actual_seq_lengths_query=None, actual_seq_lengths_key=None, block_table=None, metadata=None, query_quant_mode=0, key_quant_mode=0, layout_query='BSND', layout_key='BSND', sparse_count=2048, sparse_mode=3, pre_tokens=2^63-1, next_tokens=2^63-1, cmp_ratio=1, return_value=False) -> (Tensor, Tensor)
+custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key_dequant_scale, *, actual_seq_lengths_query=None, actual_seq_lengths_key=None, block_table=None, metadata=None, query_quant_mode=0, key_quant_mode=0, layout_query='BSND', layout_key='BSND', sparse_count=2048, sparse_mode=3, pre_tokens=2^63-1, next_tokens=2^63-1, cmp_ratio=1, return_value=False) -> (Tensor, Tensor)
 ```
 
 ## 参数说明
@@ -123,7 +123,7 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
                                 if act_seq_k is None else torch.tensor(act_seq_k).to(torch.int32)
     max_seqlen_q = actual_seq_lengths_query.max().item()
     max_seqlen_k = actual_seq_lengths_key.max().item()
-    metadata = torch_npu.npu_quant_lightning_indexer_metadata (
+    metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata (
                                     actual_seq_lengths_query = actual_seq_lengths_query.npu() if actual_seq_lengths_query is not None else torch.tensor([]).npu(),
                                     actual_seq_lengths_key = actual_seq_lengths_key.npu() if actual_seq_lengths_key is not None else torch.tensor([]).npu(),
                                     num_heads_q = n1,
@@ -141,9 +141,9 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
                                     pre_tokens = (1<<63)-1, 
                                     next_tokens = (1<<63)-1, 
                                     cmp_ratio = cmp_ratio,
-                                    device = "npu:0")
+                                    device = 'npu:0')
     
-    npu_out,_ = torch_npu.npu_quant_lightning_indexer(query.npu(), key.npu(), weights.npu(), query_dequant_scale.npu(),
+    npu_out,_ = torch.ops.custom.npu_quant_lightning_indexer(query.npu(), key.npu(), weights.npu(), query_dequant_scale.npu(),
                                                     key_dequant_scale.npu(),
                                                     actual_seq_lengths_query=actual_seq_lengths_query.npu(),
                                                     actual_seq_lengths_key=actual_seq_lengths_key.npu(),
@@ -232,7 +232,7 @@ torch_npu.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, 
                                     pre_tokens = (1<<63)-1, 
                                     next_tokens = (1<<63)-1, 
                                     cmp_ratio = cmp_ratio,
-                                    device = "npu:0")
+                                    device = 'npu:0')
 
             out, _ = torch.ops.custom.npu_quant_lightning_indexer(query, key, weights,
                                                         q_scale, k_scale,
