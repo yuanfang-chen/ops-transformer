@@ -8,11 +8,18 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#pragma once
+
 #ifndef OPS_TRANSFORMER_DEV_TESTS_UT_OP_API_STUB_OPDEV_PLATFORM_H
 #define OPS_TRANSFORMER_DEV_TESTS_UT_OP_API_STUB_OPDEV_PLATFORM_H
 
 #include "graph/ascend_string.h"
 #include "platform/platform_info.h"
+#include <cstdint>
+#include <map>
+#include <any>
+#include <string>
+#include <dlfcn.h>
 
 #ifndef __SOC_SPEC_H__
 #define __SOC_SPEC_H__
@@ -151,5 +158,57 @@ void SetPlatformSocVersion(SocVersion socVersion);
 void SetPlatformNpuArch(NpuArch npuArch);
 
 } // namespace op
+
+namespace ops::adv::tests::utils {
+
+class Platform {
+public:
+    enum class SocVersion {
+        Ascend910B1,
+        Ascend910B2,
+        Ascend910B3,
+        Ascend310P3,
+        Ascend910_9591,
+		SocVersionBottom,
+    };
+    class SocSpec {
+    public:
+        std::map<std::string, std::map<std::string, std::any>> spec;
+
+        bool Get(const char *label, const char *key, std::any &value) const;
+        bool Get(const char *label, const char *key, std::string &value) const;
+        bool Get(const char *label, const char *key, uint32_t &value) const;
+        bool Get(const char *label, const char *key, uint64_t &value) const;
+    };
+    SocSpec socSpec;
+
+    static void SetGlobalPlatform(Platform *platform);
+    static Platform *GetGlobalPlatform();
+
+    bool InitArgsInfo(int argc, char **argv);
+    const char *GetExeAbsPath();
+
+    Platform &SetSocVersion(const SocVersion &socVersion);
+    [[maybe_unused]] [[nodiscard]] uint32_t GetCoreNum() const;
+    [[maybe_unused]] [[nodiscard]] int64_t GetBlockDim() const;
+
+    [[maybe_unused]] static void *LoadSo(const char *absPath, int mode = RTLD_NOW | RTLD_GLOBAL);
+    [[maybe_unused]] static bool UnLoadSo(void *hdl);
+    [[maybe_unused]] [[nodiscard]] static void *LoadSoSym(void *hdl, const char *name);
+
+    [[maybe_unused]] bool LoadOpTilingSo();
+    [[maybe_unused]] bool UnLoadOpTilingSo();
+    [[maybe_unused]] [[nodiscard]] void *LoadOpTilingSoSym(const char *name);
+
+    [[maybe_unused]] bool LoadOpProtoSo();
+    [[maybe_unused]] bool UnLoadOpProtoSo();
+
+private:
+    void *tilingSoHdl_ = nullptr;
+    void *protoSoHdl_ = nullptr;
+    std::string exeAbsPath_;
+};
+
+} // namespace ops::adv::tests::utils
 
 #endif // OPS_TRANSFORMER_DEV_TESTS_UT_OP_API_STUB_OPDEV_PLATFORM_H
