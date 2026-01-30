@@ -68,6 +68,12 @@ public:
         xDataCopyParams.srcStride = 0;
         xDataCopyParams.dstStride = 0;
 
+
+
+
+
+
+
         // 二分累加循环次数
         basicBlockLoop = tilingData_->basicBlockLoop;
         mainFoldCount = tilingData_->mainFoldCount;
@@ -197,6 +203,8 @@ public:
         uint16_t innerLoopTimes = cacheId;
         uint32_t outerLoopStride = VL_FP32;
         uint32_t innerLoopStride = stride;
+        uint32_t a = stride;
+        innerLoopStride = a;
 
         __local_mem__ float* dst = (__local_mem__ float*)dstTensor.GetPhyAddr();
         __local_mem__ float* cache = (__local_mem__ float*)dstTensor.GetPhyAddr() + cacheId * stride;
