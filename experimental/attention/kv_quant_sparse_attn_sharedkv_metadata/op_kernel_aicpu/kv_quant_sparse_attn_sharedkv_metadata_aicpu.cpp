@@ -773,50 +773,6 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit
     result.usedCoreNum = assignContext.curCoreIdx + 1;
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes)
-{
-    uint64_t len = tmpRes.bN2End.size();
-    splitRes.usedCoreNum = tmpRes.usedCoreNum;
-    splitRes.maxCost = tmpRes.maxCost;
-    splitRes.numOfFdHead = tmpRes.numOfFdHead;
-    splitRes.maxS2SplitNum = tmpRes.maxS2SplitNum;
-
-    for (size_t i = 0; i < len; ++i) {
-        splitRes.bN2End[i] = tmpRes.bN2End[i];
-        splitRes.gS1End[i] = tmpRes.gS1End[i];
-        splitRes.s2End[i] = tmpRes.s2End[i];
-
-        splitRes.fdRes.bN2IdxOfFdHead[i] = tmpRes.fdRes.bN2IdxOfFdHead[i];
-        splitRes.fdRes.gS1IdxOfFdHead[i] = tmpRes.fdRes.gS1IdxOfFdHead[i];
-        splitRes.fdRes.s2SplitNumOfFdHead[i] = tmpRes.fdRes.s2SplitNumOfFdHead[i];
-        splitRes.fdRes.s2SplitStartIdxOfCore[i] = tmpRes.fdRes.s2SplitStartIdxOfCore[i];
-        splitRes.fdRes.gS1SplitNumOfFdHead[i] = tmpRes.fdRes.gS1SplitNumOfFdHead[i];
-        splitRes.fdRes.gS1LastPartSizeOfFdHead[i] = tmpRes.fdRes.gS1LastPartSizeOfFdHead[i];
-    }
-}
-
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::ClearTmpResult(SplitResult &tmpRes)
-{
-    uint64_t len = tmpRes.bN2End.size();
-    tmpRes.usedCoreNum = 0U;
-    tmpRes.maxCost = 0;
-    tmpRes.numOfFdHead = 0U;
-    tmpRes.maxS2SplitNum = 0U;
-    tmpRes.usedVecNumOfFd = 0U;
-
-    for (size_t i = 0; i < len; ++i) {
-        tmpRes.bN2End[i] = 0U;
-        tmpRes.gS1End[i] = 0U;
-        tmpRes.s2End[i] = 0U;
-        tmpRes.fdRes.bN2IdxOfFdHead[i] = 0U;
-        tmpRes.fdRes.gS1IdxOfFdHead[i] = 0U;
-        tmpRes.fdRes.s2SplitNumOfFdHead[i] = 0U;
-        tmpRes.fdRes.s2SplitStartIdxOfCore[i] = 0U;
-        tmpRes.fdRes.gS1SplitNumOfFdHead[i] = 0U;
-        tmpRes.fdRes.gS1LastPartSizeOfFdHead[i] = 0U;
-    }
-}
-
 void KvQuantSparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &result)
 {
     uint32_t totalFDLoad = 0;

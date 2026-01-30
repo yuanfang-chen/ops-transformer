@@ -255,8 +255,6 @@ private:
   void CalcCmpS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo);
   void GatherWinAndCmpCache(S1GCache &s1GCache);
   void CalcS1GCache(uint32_t s1GIdx, const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache);
-  void CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes);
-  void ClearTmpResult(SplitResult &tmpRes);
 
   // preprocess
   void CalcSplitInfo(SplitContext &splitContext);
@@ -282,9 +280,6 @@ private:
   void SplitCore();
 
 private:
-  // context for log use
-  CpuKernelContext *context_ = nullptr;
-
   // input
   Tensor *actSeqLenQ_ = nullptr;
   Tensor *actSeqLenOriKV_ = nullptr;
