@@ -63,9 +63,9 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetContextAttr(const gert::TilingContex
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(A_INNER_DEBUG, "tilingData is null!"), return ge::GRAPH_FAILED);
 
     tilingData->taskTilingInfo.epWorldSize = *epWorldSizePtr;
-    tilingData->taskTilingInfo.isGmmWeightTrans = *transGmmWeightPtr;
-    tilingData->taskTilingInfo.isMmWeightTrans = *transMmWeightPtr;
-    tilingData->taskTilingInfo.isPermuteOut = *permuteOutFlagPtr;
+    isGmmWeightTrans = *transGmmWeightPtr;
+    isMmWeightTrans = *transMmWeightPtr;
+    isPermuteOut = *permuteOutFlagPtr;
 
     const gert::StorageShape *mmXStorageShape = context->GetOptionalInputShape(MM_X_INDEX);
     const gert::StorageShape *mmWeightStorageShape = context->GetOptionalInputShape(MM_WEIGHT_INDEX);
@@ -78,7 +78,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetContextAttr(const gert::TilingContex
         OP_LOGE(A_INNER_DEBUG, "mmX, mmWeight and mmY should all be nullptr or all be not nullptr!");
         return ge::GRAPH_FAILED;
     }
-    tilingData->taskTilingInfo.isNeedMM = (mmXStorageShape != nullptr);
+    isNeedMM = (mmXStorageShape != nullptr);
 
     epGroup_ = groupEpPtr;
     epWorldSize_ = *epWorldSizePtr;
@@ -100,7 +100,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetShapeAndFormat(const gert::TilingCon
     tilingData->taskTilingInfo.BSK = context->GetInputShape(GMM_X_INDEX)->GetStorageShape().GetDim(0);
     tilingData->taskTilingInfo.H1 = context->GetInputShape(GMM_X_INDEX)->GetStorageShape().GetDim(1);
     tilingData->taskTilingInfo.e = context->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape().GetDim(0);
-    tilingData->taskTilingInfo.N1 = tilingData->taskTilingInfo.isGmmWeightTrans ?
+    tilingData->taskTilingInfo.N1 = isGmmWeightTrans ?
         context->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape().GetDim(1) :
         context->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape().GetDim(NUM_TWO);
 
@@ -111,10 +111,10 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetShapeAndFormat(const gert::TilingCon
     maxM_ = tilingData->taskTilingInfo.A;
     maxK_ = tilingData->taskTilingInfo.H1;
     maxN_ = tilingData->taskTilingInfo.N1;
-    if (tilingData->taskTilingInfo.isNeedMM) {
+    if (isNeedMM) {
         tilingData->taskTilingInfo.BS = context->GetOptionalInputShape(MM_X_INDEX)->GetStorageShape().GetDim(0);
         tilingData->taskTilingInfo.H2 = context->GetOptionalInputShape(MM_X_INDEX)->GetStorageShape().GetDim(1);
-        tilingData->taskTilingInfo.N2 = tilingData->taskTilingInfo.isMmWeightTrans ?
+        tilingData->taskTilingInfo.N2 = isMmWeightTrans ?
             context->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(0) :
             context->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(1);
         maxMForMM_ = tilingData->taskTilingInfo.BS;
@@ -213,7 +213,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::Init(gert::TilingContext *context)
     OP_TILING_CHECK(GetContextAttr(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Get context attr failed!"),
         return ge::GRAPH_FAILED);
 
-    if (tilingData->taskTilingInfo.isNeedMM) {
+    if (isNeedMM) {
         OP_TILING_CHECK(context->GetOptionalInputShape(MM_X_INDEX) == nullptr,
             OP_LOGE(A_INNER_DEBUG, "GetOptionalInputShape of mm_x returns null."), return ge::GRAPH_FAILED);
         OP_TILING_CHECK(context->GetOutputShape(OUTPUT_MM_Y_INDEX) == nullptr,
@@ -266,17 +266,17 @@ uint64_t AlltoAllvGmmQuantTiling::GetTilingKey(const gert::TilingContext *contex
     } else {
         templateMmDType = ADD_TPL_HIF8;
     }
-    if (tilingData->taskTilingInfo.isNeedMM) {
+    if (isNeedMM) {
         tilingkeyMm = true;
     } else {
         tilingkeyMm = false;
     }
-    if (tilingData->taskTilingInfo.isGmmWeightTrans) {
+    if (isGmmWeightTrans) {
         tilingekyGmmTrans = true;
     } else {
         tilingekyGmmTrans = false;
     }
-    if (tilingData->taskTilingInfo.isMmWeightTrans) {
+    if (isMmWeightTrans) {
         tilingekyMmTrans = true;
     } else {
         tilingekyMmTrans = false;
@@ -328,7 +328,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::RunFusionKernelTiling(gert::TilingConte
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(A_INNER_DEBUG, "get workspace failed"), return ge::GRAPH_FAILED);
 
     uint64_t commOut = tilingData->taskTilingInfo.A * tilingData->taskTilingInfo.H1 * mmDataTypeSize;
-    uint64_t permuteOut = tilingData->taskTilingInfo.isPermuteOut ?
+    uint64_t permuteOut = isPermuteOut ?
         0 :
         (tilingData->taskTilingInfo.A * tilingData->taskTilingInfo.H1 * mmDataTypeSize);
 

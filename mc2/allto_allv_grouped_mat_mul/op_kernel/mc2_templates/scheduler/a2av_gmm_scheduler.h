@@ -23,7 +23,7 @@ using namespace AscendC;
 
 namespace MC2KernelTemplate {
 template <typename CommOpType, typename ComputationOpType, typename TilingDataType, typename GmmTilingDataType,
-    typename GmmArrayAddrType>
+    typename GmmArrayAddrType, bool isNeedMM>
 class A2avGmmScheduler {
 public:
     __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM,
@@ -38,7 +38,7 @@ public:
         __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.hcclInitTiling));
         __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.a2avCcTiling));
         commOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
-        // if (tilingData_->taskTilingInfo.isNeedMM) {
+        // if (isNeedMM) {
         //     localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
         //         workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
         // }
@@ -48,7 +48,7 @@ public:
 
     __aicore__ inline void Process()
     {
-        // if (tilingData_->taskTilingInfo.isNeedMM) {
+        // if (isNeedMM) {
         //     localComputeOp.Process(0);
         // }
         // TODO commOp.Launch(0, e_);
