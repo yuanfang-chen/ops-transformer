@@ -80,6 +80,7 @@ constexpr uint32_t CMP_SPARSE_INDICES_INDEX = 4;
 constexpr uint32_t ORI_BLOCK_TABLE_INDEX = 5;
 constexpr uint32_t CMP_BLOCK_TABLE_INDEX = 6;
 constexpr uint32_t CU_SEQLENS_Q_INDEX = 7;
+constexpr uint32_t SEQUSED_Q_INDEX = 10;
 constexpr uint32_t SEQUSED_KV_INDEX = 11;
 constexpr uint32_t SINKS_INDEX = 12;
 constexpr uint32_t METADATA_INDEX = 13;
@@ -175,6 +176,7 @@ struct SASParaInfo {
     SASTilingOptionalParaInfo oriBlockTable = {nullptr, nullptr};
     SASTilingOptionalParaInfo cmpBlockTable = {nullptr, nullptr};
     SASTilingOptionalParaInfo cuSeqLensQ = {nullptr, nullptr};
+    SASTilingOptionalParaInfo sequsedQ = {nullptr, nullptr};
     SASTilingOptionalParaInfo sequsedKv = {nullptr, nullptr};
     SASTilingOptionalParaInfo sinks = {nullptr, nullptr};
     SASTilingOptionalParaInfo metadata = {nullptr, nullptr};

@@ -124,6 +124,8 @@ void SASInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.sinks.desc = context_->GetOptionalInputDesc(SINKS_INDEX);
     opParamInfo_.cuSeqLensQ.tensor = context_->GetOptionalInputTensor(CU_SEQLENS_Q_INDEX);
     opParamInfo_.cuSeqLensQ.desc = context_->GetOptionalInputDesc(CU_SEQLENS_Q_INDEX);
+    opParamInfo_.sequsedQ.tensor = context_->GetOptionalInputTensor(SEQUSED_Q_INDEX);
+    opParamInfo_.sequsedQ.desc = context_->GetOptionalInputDesc(SEQUSED_Q_INDEX);
     opParamInfo_.sequsedKv.tensor = context_->GetOptionalInputTensor(SEQUSED_KV_INDEX);
     opParamInfo_.sequsedKv.desc = context_->GetOptionalInputDesc(SEQUSED_KV_INDEX);
     opParamInfo_.metadata.desc = context_->GetOptionalInputDesc(METADATA_INDEX);
@@ -480,7 +482,9 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
     if (opParamInfo_.sequsedKv.tensor != nullptr) {
         actualLenDimsKV_ = opParamInfo_.sequsedKv.tensor->GetShapeSize();
     }
-    if (opParamInfo_.cuSeqLensQ.tensor != nullptr) {
+    if (opParamInfo_.sequsedQ.tensor != nullptr) {
+        actualLenDimsQ_ = opParamInfo_.sequsedQ.tensor->GetShapeSize();
+    } else if (opParamInfo_.cuSeqLensQ.tensor != nullptr) {
         actualLenDimsQ_ = opParamInfo_.cuSeqLensQ.tensor->GetShapeSize() - 1; // cuSeqLensQ shape is B+1
     }
     return ge::GRAPH_SUCCESS;
