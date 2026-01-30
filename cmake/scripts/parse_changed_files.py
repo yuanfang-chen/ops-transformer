@@ -188,6 +188,7 @@ class Parser:
 
     @classmethod
     def parse_changed_file(cls, file: Path) -> bool:
+        print(f"[ERROR] LBH 222")
         file = Path(file).resolve()
         if not file.exists():
             logging.error("Change files desc file(%s) not exist.", file)
@@ -201,7 +202,10 @@ class Parser:
                 logging.error("%s is absolute path.", f)
                 return False
             # 添加文件过滤
+            print(f"[ERROR] LBH 333")
             if not cls._file_filter(f):
+                print(f"[ERROR] LBH 444")
+                print(f"[ERROR] LBH Filter out non-source file: {f}")
                 logging.info(f"Filter out non-source file: {f}")
                 continue
             cls._ChangedPaths.append(f)
@@ -282,6 +286,7 @@ class Parser:
     @staticmethod
     def main() -> str:
         # 参数注册
+        print(f"[ERROR] LBH 111")
         ps = argparse.ArgumentParser(description="Parse changed files", epilog="Best Regards!")
         ps.add_argument("-c", "--classify", required=True, nargs=1, type=Path, help="tests/test_config.yaml")
         ps.add_argument("-f", "--file", required=True, nargs=1, type=Path, help="changed files desc file.")
