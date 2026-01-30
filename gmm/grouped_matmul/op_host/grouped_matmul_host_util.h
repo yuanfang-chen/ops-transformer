@@ -154,6 +154,12 @@ const std::map<std::array<int64_t, 2>, int64_t> A16W4_MSD_WHITE_LIST = {   // us
     {{7168, 4096}, 1}
 };
 
+const std::map<std::array<int64_t, 2>, int64_t> MxA8W8_WEIGHT_NZ_WHITE_LIST = {   // used for MxA8W8, by experiment
+    // K, N
+    {{2048, 4096}, 1},
+    {{4096, 4096}, 1}
+};
+
 template <typename T1, typename T2>
 auto CeilDiv(T1 a, T2 b) -> T1
 {
