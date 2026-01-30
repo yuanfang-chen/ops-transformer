@@ -154,13 +154,13 @@ static ge::graphStatus InferDataTypeMatmulAlltoAll(gert::InferDataTypeContext* c
         if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
             y_type = static_cast<ge::DataType>(*y_dtype_ptr);
         } else {
-            y_type = x1_type;
+            return ge::GRAPH_FAILED;
         }
     } else if (*x1_quant_mode == X1_QUANT_MODE_NUM && *x2_quant_mode == X2_QUANT_MODE_NUM) {
         if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
             y_type = static_cast<ge::DataType>(*y_dtype_ptr);
         } else {
-            y_type = ge::DataType::DT_FLOAT;
+            return ge::GRAPH_FAILED;
         }
     }
     context->SetOutputDataType(0, y_type);

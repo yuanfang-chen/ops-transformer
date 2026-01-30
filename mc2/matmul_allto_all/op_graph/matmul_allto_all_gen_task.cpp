@@ -21,11 +21,6 @@
 #include "mc2_gen_task_ops_utils_arch35.h"
 #include "register/op_impl_registry.h"
 #include "mc2_log.h"
-#else
-#include "mc2_gen_task_utils.h"
-#include "ops_error.h"
-#include "mc2_a5_gen_task_utils.h"
-#include "register/op_ct_impl_registry.h"
 #endif
 
 namespace ops {
@@ -54,29 +49,6 @@ static ge::Status MatmulAlltoAllGenTaskFunc(const gert::ExeResGenerationContext 
 }
 
 IMPL_OP(QuantAllReduce).CalcOpParam(MatmulAlltoAllCalcOpParamFunc).GenerateTask(MatmulAlltoAllGenTaskFunc);
-    
-#else
-
-static ge::Status MatmulAlltoAllCalcOpParamFunc(gert::ExeResGenerationContext *context)
-{
-    if (Mc2A5GenTaskUtils::IsTargetPlatform(context->GetNodeName(), NPUARCH_A5)) {
-        OPS_LOG_D(context->GetNodeName(), "Do A5 CCU CalcParam");
-        return Mc2GenTaskUtils::CommonKFCMc2CalcParamFunc(context, "ccu server", "ccu_stream");
-    }
-    return Mc2GenTaskOpsUtils::CommonKFCMc2CalcParamFunc(context, "aicpu kfc server", "kfc_stream");
-}
-
-static ge::Status MatmulAlltoAllGenTaskFunc(const gert::ExeResGenerationContext *context,
- 	                                    std::vector<std::vector<uint8_t>> &tasks)
-{
-    if (Mc2A5GenTaskUtils::IsTargetPlatform(context->GetNodeName(), NPUARCH_A5)) {
-        OPS_LOG_D(context->GetNodeName(), "Do A5 CCU GenTask");
-        return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, Mc2A5GenTaskUtils::Mc2GenTaskCallBack910A5);
-    }
-    return Mc2GenTaskUtils::CommonKFCMc2GenTask(context, tasks, MatmulAlltoAllGenTaskCallback);
-}
-
-IMPL_OP_CT(MatmulAlltoAll).CalcOpParam(MatmulAlltoAllCalcOpParamFunc).GenerateTask(MatmulAlltoAllGenTaskFunc);
  	 
 #endif
 }
