@@ -16,6 +16,7 @@
 #include <vector>
 #include <optional>
 #include <sstream>
+#include "mc2_csv_case_loader.h"
 #include "tiling_context_faker.h"
 #include "infer_shape_context_faker.h"
 
@@ -37,11 +38,25 @@ struct MatmulAllReduceHostUtParamBase {
     ge::graphStatus expectResult;
 
     MatmulAllReduceHostUtParamBase(const std::string& case_name, const std::string& group, const std::string& reduce_op,
-        bool is_trans_a, bool is_trans_b, int64_t comm_turn, int64_t antiquant_group_size, int64_t group_size, 
-        int64_t y_dtype, int64_t comm_quant_mode, ge::graphStatus expectResult) : case_name(case_name), group(group), 
+        bool is_trans_a, bool is_trans_b, int64_t comm_turn, int64_t antiquant_group_size, int64_t group_size,
+        int64_t y_dtype, int64_t comm_quant_mode, ge::graphStatus expectResult) : case_name(case_name), group(group),
         reduce_op(reduce_op), is_trans_a(is_trans_a), is_trans_b(is_trans_b), comm_turn(comm_turn),
-        antiquant_group_size(antiquant_group_size), group_size(group_size), y_dtype(y_dtype), 
+        antiquant_group_size(antiquant_group_size), group_size(group_size), y_dtype(y_dtype),
         comm_quant_mode(comm_quant_mode), expectResult(expectResult) {}
+    MatmulAllReduceHostUtParamBase(const csv_map& csvMap)
+    {
+        this->case_name = ReadCsvMap(csvMap, "case_name", "");
+        this->group = ReadCsvMap(csvMap, "group", "");
+        this->reduce_op = ReadCsvMap(csvMap, "reduce_op", "");
+        this->is_trans_a = stoi(ReadCsvMap(csvMap, "is_trans_a", "0"));
+        this->is_trans_b = stoi(ReadCsvMap(csvMap, "is_trans_b", "0"));
+        this->comm_turn = stoi(ReadCsvMap(csvMap, "comm_turn", "0"));
+        this->antiquant_group_size = stoi(ReadCsvMap(csvMap, "antiquant_group_size", "0"));
+        this->group_size = stoi(ReadCsvMap(csvMap, "group_size", "0"));
+        this->y_dtype = stoi(ReadCsvMap(csvMap, "y_dtype", "0"));
+        this->comm_quant_mode = stoi(ReadCsvMap(csvMap, "comm_quant_mode", "0"));
+        this->expectResult = stoi(ReadCsvMap(csvMap, "expectResult", "1")) ? ge::GRAPH_SUCCESS : ge::GRAPH_FAILED;
+    }
 };
 
 inline std::ostream& operator<<(std::ostream& os, const MatmulAllReduceHostUtParamBase& param)
@@ -112,6 +127,11 @@ struct MatmulAllReduceTilingUtParam: public MatmulAllReduceHostUtParamBase {
         ProcessOptional(comm_quant_scale_2, this->comm_quant_scale_2, this->inputInstanceNum);
         ProcessOptional(y, this->y, this->outputInstanceNum);
     }
+    MatmulAllReduceTilingUtParam(const csv_map& csvMap):
+        MatmulAllReduceHostUtParamBase(csvMap), x1(DEFAULT_TD), x2(DEFAULT_TD),
+        bias(DEFAULT_TD), x3(DEFAULT_TD), antiquant_scale(DEFAULT_TD), antiquant_offset(DEFAULT_TD),
+        dequant_scale(DEFAULT_TD), pertoken_scale(DEFAULT_TD), comm_quant_scale_1(DEFAULT_TD),
+        comm_quant_scale_2(DEFAULT_TD), y(DEFAULT_TD) {}
 };
 
 // inferShape 参数结构体 ================================================================================================
