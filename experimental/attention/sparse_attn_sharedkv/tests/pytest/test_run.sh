@@ -155,21 +155,21 @@ run_script_save() {
     
     if [ -n "$E_VALUE" ]; then
         echo "  输入excel文件路径 $E_VALUE"
-        export E_VALUE="$E_VALUE"
+        export SAS_EXCEL_PATH="$E_VALUE"
     else
         echo "  默认输入excel文件路径 ./cases/sas_redline_L0.xlsx"
     fi
     
     if [ -n "$S_VALUE" ]; then
         echo "  使用sheet名 $S_VALUE"
-        export PARAM_S="$S_VALUE"
+        export SAS_EXCEL_SHEET="$S_VALUE"
     else
         echo "  默认使用 Sheet1"
     fi
     
     if [ -n "$P_VALUE" ]; then
         echo "  PT文件保存地址 $P_VALUE"
-        export PARAM_P="$P_VALUE"
+        export SAS_PT_SAVE_PATH="$P_VALUE"
     else
         echo "  默认PT文件保存地址 ./data"
     fi
