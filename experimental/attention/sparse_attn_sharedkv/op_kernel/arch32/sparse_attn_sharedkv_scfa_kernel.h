@@ -592,7 +592,6 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
     } else {
         cubeBlock.FreeEventID();
     }
-
 }
 
 template <typename SAST>
