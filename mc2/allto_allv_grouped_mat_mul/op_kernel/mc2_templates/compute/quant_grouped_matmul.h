@@ -34,7 +34,7 @@ public:
 
         expertNumInOneRank_ = tilingData_->commonTilingInfo.E_ep;
         epWorldSize_ = tilingData_->commonTilingInfo.epWorldSize;
-        H1_ = tilingData_->commonTilingInfo.H1;
+        H1_ = tilingData_->commonTilingInfo.H;
         N1_ = tilingData_->commonTilingInfo.N1;
         const auto *sendCnt = &tilingData_->aicpuTiling.sendCnt[0];
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {

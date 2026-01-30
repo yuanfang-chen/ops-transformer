@@ -50,6 +50,7 @@ extern "C" {
 *         - 4：PerGroup量化
 *         - 5：PerBlock量化
 *         - 6：Mx Quant量化
+*         - 7: Dyn PerToken量化
 *         当前仅支持配置为1，先完成pertensor-pertensor量化功能打通。
 * @param [in] gmmWeightQuantMode: 右矩阵的量化模式，同上，当前配置为1。
 * @param [in] mmXQuantMode: 共享专家matmul计算中的左矩阵的量化模式，同上，当前仅支持配置为1。
