@@ -48,7 +48,7 @@ using namespace Mc2GroupedMatmulTilingData;
     } while (0)
 
 template <int D_T_MM, bool TILINGKEY_MM, bool TILINGKEY_GMM_WEIGHT_TRANSPOSE, bool TILINGKEY_MM_WEIGHT_TRANSPOSE>
-__global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR biasGM,
+__global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gmmweightGM,
     GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM, GM_ADDR mmxOptionalGM,
     GM_ADDR mmweightOptionalGM, GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM, GM_ADDR mmxScaleGM,
     GM_ADDR mmWeightScaleGM, GM_ADDR gmmyGM, GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM,
@@ -78,7 +78,7 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
 #endif
 #elif defined(ALLTO_ALLV_GMM_QUANT)
     REGISTER_TILING_DEFAULT(QuantAlltoAllvGroupedMatmulTilingData);
-    A2avGmmScheduler<HcclA2avOp<QuantAlltoAllvGroupedMatmulTilingData, DTYPE_GMM_WEIGHT>,
+    A2avGmmScheduler<HcclA2avOp<DTYPE_GMM_WEIGHT, true>,
         QuantGroupedMatmul<QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
         float, DTYPE_GMM_Y, CubeFormat::ND, TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE>,
         QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, TILING_TYPE>

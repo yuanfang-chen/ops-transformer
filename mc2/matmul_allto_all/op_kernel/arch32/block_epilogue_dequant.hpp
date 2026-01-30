@@ -162,7 +162,6 @@ public:
         ubOffset += TileShape::COUNT * sizeof(float);
         ubPerTokenScaleBrcb = resource.ubBuf.template GetBufferByByte<float>(ubOffset);
         ubOffset += TileShape::ROW * BYTE_PER_BLK;
-        // AscendC::printf("ubOffset: %d\n", ubOffset);
         ubPerTokenMul = ubMul;
         ubBiasAdd = ubMul;
     }
@@ -219,7 +218,6 @@ public:
         uint32_t subblockNum = AscendC::GetSubBlockNum();
 
         for (uint32_t loopIdx = subblockIdx; loopIdx < tileLoops; loopIdx += subblockNum) {
-            // AscendC::printf("start dequant! tileLoops: %d\n", tileLoops);
             auto tileCoord = epilogueTileSwizzle.GetTileCoord(loopIdx);
             auto actualTileShape = epilogueTileSwizzle.GetActualTileShape(tileCoord);
             auto tileOffsetInBlock = tileCoord * tileShape;

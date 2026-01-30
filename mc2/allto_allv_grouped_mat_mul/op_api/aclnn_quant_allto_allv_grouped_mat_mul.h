@@ -88,7 +88,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnQuantAlltoAllvGroupedMat
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
     const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional, const aclTensor *mmXOffsetOptional,
     const aclTensor *mmWeightOffsetOptional, int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
-    int64_t mmWeightQuantMode, const char *group, int64_t epWorldSize, const aclIntArray *sendCounts,
+    int64_t mmWeightQuantMode, int64_t gmmXQuantDType, int64_t mmXQuantDType, const char *group, int64_t epWorldSize, const aclIntArray *sendCounts,
     const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight, bool permuteOutFlag, const aclTensor *gmmY,
     const aclTensor *mmYOptional, const aclTensor *permuteOutOptional, uint64_t *workspaceSize, aclOpExecutor **executor);
 
