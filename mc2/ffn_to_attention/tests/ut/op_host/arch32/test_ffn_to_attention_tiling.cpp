@@ -18,11 +18,11 @@ namespace FFNToAttentionUT {
 class FFNToAttentionTiling : public testing::Test {
 protected:
     static void SetUpTestCase() {
-        std::cout << "FFNToAttentionTiling SetUp" << std::endl;
+        std::cout << "FFNToAttention TilingUT910 SetUp" << std::endl;
     }
 
     static void TearDownTestCase() {
-        std::cout << "FFNToAttentionTiling TearDown" << std::endl;
+        std::cout << "FFNToAttention TilingUT910 TearDown" << std::endl;
     }
 };
 
