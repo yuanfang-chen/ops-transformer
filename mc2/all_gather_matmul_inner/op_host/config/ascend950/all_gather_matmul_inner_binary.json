@@ -1,0 +1,62 @@
+{
+    "op_type": "AllGatherMatmulInner",
+    "op_list": [
+      {
+        "bin_filename": "AllGatherMatmulInner_ND_ND_FP16_FP16",
+        "inputs": [
+          {
+            "name": "x1",
+            "index": 0,
+            "dtype": "float16",
+            "format": "ND",
+            "paramType": "required",
+            "shape": [
+              -2
+            ],
+            "format_match_mode": "FormatAgnostic"
+          },
+          {
+            "name": "context",
+            "index": 2,
+            "dtype": "uint64",
+            "format": "ND",
+            "paramType": "required",
+            "shape": [
+              -2
+            ],
+            "format_match_mode": "FormatAgnostic"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "y",
+            "index": 0,
+            "dtype": "float16",
+            "format": "ND",
+            "paramType": "required",
+            "shape": [
+              -2
+            ],
+            "format_match_mode": "FormatAgnostic"
+          }
+        ],
+        "attrs": [
+          {
+            "name": "group",
+            "dtype": "string",
+            "value": ""
+          },
+          {
+            "name": "comm_turn",
+            "dtype": "int",
+            "value": 0
+          },
+          {
+            "name": "rank_size",
+            "dtype": "int",
+            "value": 0
+          }
+        ]
+      }   
+    ]
+  }
