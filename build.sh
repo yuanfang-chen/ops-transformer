@@ -690,6 +690,33 @@ function process_soc_input(){
     input_string=$(echo "$input_string" | sed 's/ascend950/ascend950/g')
     local value_part="${input_string#*=}"
     ASCEND_SOC_UNITS="${value_part//,/;}"
+    
+    case "$ASCEND_SOC_UNITS" in
+        "ascend910b")
+            echo "Note: The current environment is configured for Ascend 910B."
+            echo "Please use Atlas A2 series hardware for optimal performance."
+            ;;
+        "ascend910_93")
+            echo "Note: The current environment is configured for Ascend 910."
+            echo "Please use Atlas A3 series hardware for optimal performance."
+            ;;
+        "ascend310p")
+            echo "Note: The current environment is configured for Ascend 310P."
+            echo "Please use Atlas 300I series hardware for optimal performance."
+            ;;
+        "kirinx90")
+            echo "Note: The current environment is configured for Kirin X90."
+            echo "Please use Kirin 990 series hardware for optimal performance."
+            ;;
+        "mc62cm12a")
+            echo "Note: The current environment is configured for MC62CM12A."
+            echo "Please use MC62CM12A series hardware for optimal performance."
+            ;;
+        *)
+            echo "Note: Hardware type '$ascend_soc_units' detected."
+            echo "Please ensure you are using compatible hardware."
+            ;;
+    esac
 }
 
   process_genop() {
