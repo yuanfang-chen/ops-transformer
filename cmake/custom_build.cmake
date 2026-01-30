@@ -292,6 +292,11 @@ if("${ASCEND_OP_NAME}" STREQUAL "add_example")
     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
 endif()
 
+if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")
+    add_subdirectory(examples/add_example)
+    list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
+endif()
+
 if("${ASCEND_OP_NAME}" STREQUAL "all_gather_add")
     add_subdirectory(examples/mc2)
     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${ASCEND_OP_NAME})
@@ -695,6 +700,9 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
+install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
+)
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
 )

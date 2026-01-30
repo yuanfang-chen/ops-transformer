@@ -183,10 +183,6 @@ tensor of tensor list weight is not empty."),
                 OP_LOGE(context->GetNodeName(), "Invalid groupType, which can only be one of 0/2, but it is [%ld].",
                         gmmAttrs.groupType),
                 return ge::GRAPH_FAILED);
-    // check activation is null
-    OP_CHECK_IF(gmmAttrs.activeType != static_cast<int64_t>(GMMActType::GMM_ACT_TYPE_NONE),
-                OP_LOGE(context->GetNodeName(), "Activation function is not supported in quant mode now."),
-                return ge::GRAPH_FAILED);
     // non split axis cannot be empty tensor
     OP_CHECK_IF(CheckNotZeroValueForNoneSplitAxis(context, gmmAttrs) != ge::GRAPH_SUCCESS,
                 OP_LOGE(context->GetNodeName(), "CheckNotZeroValueForNoneSplitAxis Failed."), return ge::GRAPH_FAILED);
@@ -429,7 +425,7 @@ perTokenScale is (g,), which is (%ld,), but the actual shape is (%ld,).",
                 OP_LOGE(
                     context->GetNodeName(),
                     "When perTokenScale dim num is 2 in split k scenario, the expected shape of perTokenScale is (g,m) \
- or (g,1), which is (%ld,%ld) or (%ld,1), but the actual shape is (%ld,%ld).",
+or (g,1), which is (%ld,%ld) or (%ld,1), but the actual shape is (%ld,%ld).",
                     groupNum_, xMDim_, groupNum_, perTokenScaleShape->GetDim(0), perTokenScaleShape->GetDim(1)),
                 return ge::GRAPH_FAILED);
         }

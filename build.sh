@@ -41,7 +41,7 @@ ENABLE_BUILT_CUSTOM=FALSE
 ENABLE_STATIC=FALSE
 ENABLE_EXPERIMENTAL=FALSE
 ASCEND_SOC_UNITS="ascend910b"
-SUPPORT_COMPUTE_UNIT_SHORT=("ascend910b" "ascend910_93" "ascend910_95" "ascend310p" "kirinx90" "mc62cm12a")
+SUPPORT_COMPUTE_UNIT_SHORT=("ascend910b" "ascend910_93" "ascend950" "ascend310p" "kirinx90" "mc62cm12a")
 CMAKE_BUILD_MODE=""
 BUILD_TYPE=""
 VERSION=""
@@ -253,7 +253,7 @@ function help_info() {
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --run_example abs eager"
-                echo "    bash build.sh --run_example abs eager --soc=ascend910_95"
+                echo "    bash build.sh --run_example abs eager --soc=ascend950"
                 echo "    bash build.sh --run_example abs graph"
                 echo "    bash build.sh --run_example abs eager cust"
                 echo "    bash build.sh --run_example abs eager cust --vendor_name=custom"
@@ -426,24 +426,46 @@ function build_example()
     elif [[ "${EXAMPLE_MODE}" == "graph" ]]; then
         pattern="test_geir_"
     fi
-
-    files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/${pattern}*.cpp"))
-    if [[ "$ASCEND_SOC_UNITS" == "ascend910_95" ]]; then
-        files+=($(find ../ -path "*/${EXAMPLE_NAME}/examples/arch35/${pattern}*.cpp"))
+    # No soc provided.
+    if [[ -z "$ASCEND_SOC_UNITS" ]]; then
+        ASCEND_SOC_UNITS="ascend910b"
     fi
+    is_soc_support=""
+    for support_unit in "${SUPPORT_COMPUTE_UNIT_SHORT[@]}"; do
+        if [[ "$support_unit" == "$ASCEND_SOC_UNITS" ]]; then
+            is_soc_support="true"
+            break
+        fi
+    done
+    if [[ -z "$is_soc_support" ]]; then
+        echo "Currently $ASCEND_SOC_UNITS is not supported, please input a valid soc."
+        return 1
+    fi
+    # Obtain the example file corresponding to the input soc unit.
+    if [[ "$ASCEND_SOC_UNITS" == "ascend950" ]]; then
+        # 1. ascend950/ascend950 example is independent of other soc units.
+        files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/arch35/${pattern}*.cpp"))
+        if [[ -z "$files" ]]; then
+            # 2. Example is shared with other soc units, or the current operator only supports ascend950/ascend950.
+            files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/${pattern}*.cpp"))
+        fi
+    else
+        # Except for ascend950/ascend950, the examples of other soc units are temporarily shared. 
+        # If you need to add independent examples, you can refer to the method of adding a directory for isolation.
+        files=($(find ../ -path "*/${EXAMPLE_NAME}/examples/${pattern}*.cpp"))
+    fi
+    # Compile and Execute
     if [[ "${EXAMPLE_MODE}" == "eager" ]]; then
         if [ -z "$files" ]; then
             echo "${EXAMPLE_NAME} do not have eager example"
             return 2
         fi
         ABSOLUTE_MC2_PATH=$(realpath ${BUILD_PATH}/../mc2) # mc2目录绝对路径
-        ABSOLUTE_EXAMPLES_MC2_PATH=$(realpath ${BUILD_PATH}/../examples/mc2)
-        ABSOLUTE_EXPERIMENTAL_MC2_PATH=$(realpath ${BUILD_PATH}/../experimental/mc2)
         for file in "${files[@]}"; do
             echo "Start compile and run example file: $file"
             REAL_FILE_PATH=$(realpath "$file")
             MC2_APPEND_INCLUDE_AND_LIBRARY=""
-            if [[ "$REAL_FILE_PATH" == "${ABSOLUTE_MC2_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXAMPLES_MC2_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXPERIMENTAL_MC2_PATH}"* ]]; then
+            if [[ "$REAL_FILE_PATH" == "${ABSOLUTE_MC2_PATH}"* ]]; then
                 MC2_APPEND_INCLUDE_AND_LIBRARY="-lpthread -Wl,--no-as-needed -lhccl -lhccl_fwk"
             fi
             if [[ "${PKG_MODE}" == "" ]]; then
@@ -460,7 +482,7 @@ function build_example()
                     CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/lib"
                     CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/include"
                 fi
-                g++ ${file} -I ${CUST_INCLUDE_PATH} -I ${INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
+                g++ ${file} -I ${INCLUDE_PATH} -I ${CUST_INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
             else
                 echo "Error: pkg_mode(${PKG_MODE}) must be cust."
                 help_info "run_example"
@@ -665,7 +687,7 @@ package_static() {
 
 function process_soc_input(){
     local input_string="$1"
-    input_string=$(echo "$input_string" | sed 's/ascend950/ascend910_95/g')
+    input_string=$(echo "$input_string" | sed 's/ascend950/ascend950/g')
     local value_part="${input_string#*=}"
     ASCEND_SOC_UNITS="${value_part//,/;}"
 }
@@ -953,7 +975,8 @@ while [[ $# -gt 0 ]]; do
         ;;
     --PR_UT)
         PR_CHANGED_FILES="$2"
-        ENABLE_TEST=TRUE 
+        ENABLE_TEST=TRUE
+        process_soc_input "ascend910b,ascend950"
         shift 2
         ;;
     --PR_PKG)
@@ -1466,16 +1489,19 @@ fi
 function build_example_for_ci()
 {
     EXAMPLE_NAME="$1"
-    EXAMPLE_MODE="eager"
     PKG_MODE="cust"
-    build_example || local eager_result=$?       # 避免函数随build_example一起退出
+    
+    EXAMPLE_MODE="eager"
+    local eager_result=0
+    build_example || eager_result=$? # 避免函数随build_example一起退出
     if [ $eager_result -ne 0 ] && [ $eager_result -ne 2 ]; then
         echo "Error: Eager Example failed with exit code: $eager_result"
         exit $eager_result
     fi
 
     EXAMPLE_MODE="graph"
-    build_example || local geir_result=$?
+    local geir_result=0
+    build_example || geir_result=$? # 避免函数随build_example一起退出
     if [ $geir_result -ne 0 ] && [ $geir_result -ne 2 ]; then
         echo "Error: Graph Example failed with exit code: $geir_result"
         exit $geir_result
@@ -1485,7 +1511,7 @@ function build_example_for_ci()
         echo "Error: Neither eager nor graph examples provided for $EXAMPLE_NAME"
         exit $geir_result
     fi
-    exit 0
+    return 0
 }
 
 # 冒烟任务只跑examples
