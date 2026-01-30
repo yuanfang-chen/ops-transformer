@@ -82,20 +82,24 @@ classDiagram
     %% TilingData 结构
     class QuantGmmA2avTilingData {
         +HcclA2avTilingInfo hcclA2avTiling
+        +GmmA2avWorkspaceInfo workspaceInfo
         +QuantGmmA2avTilingInfo tilingInfo
         +GMMQuantTilingData sharedGmmTiling
         +GmmTilingArray gmmTiling
     }
-    
+
+    class GmmA2avWorkspaceInfo {
+        +uint64_t wsGmmSize
+    }
+
     class QuantGmmA2avTilingInfo {
         +uint64_t taskM, taskK, taskN
         +uint32_t taskLocalExpertNum, taskEpWorldSize
         +uint32_t loopMainExpertNum, loopTailExpertNum, loopTotalCount
-        +uint64_t wsGmmSize
         +uint16_t commSendCnt[]
         +uint16_t commRecvCnt[]
     }
-    
+
     class GmmTilingArray {
         +uint32_t count
         +GMMQuantTilingData array[]
@@ -221,8 +225,9 @@ constexpr uint32_t MAX_EP_RANK_SIZE = 256U;
 ```cpp
 /**
  * QuantGmmA2avTilingInfo 核心配置信息
- * 合并了任务维度、流水线切分、Workspace 大小以及通信计数
- * 通过命名前缀区分逻辑分组：task, loop, ws, comm
+ * 合并了任务维度、流水线切分以及通信计数
+ * NOTE: Workspace 信息已移至 GmmA2avWorkspaceInfo
+ * 通过命名前缀区分逻辑分组：task, loop, comm
  */
 struct QuantGmmA2avTilingInfo {
     // --- Task Info (任务维度与专家信息) ---
@@ -231,20 +236,29 @@ struct QuantGmmA2avTilingInfo {
     uint64_t taskN;                                 // N 维度
     uint32_t taskLocalExpertNum;                    // 本 EP 专家数
     uint32_t taskEpWorldSize;                       // EP 通信域大小
-    
+
     // --- Loop Info (通算融合流水线切分信息) ---
     uint32_t loopMainExpertNum;                     // 主块：每次 loop 处理几个专家
     uint32_t loopTailExpertNum;                     // 尾块：最后一次 loop 处理几个专家
     uint32_t loopTotalCount;                        // 总 loop 次数
-
-    // --- Workspace Info (Workspace 大小) ---
-    uint64_t wsGmmSize;                             // GMM workspace 大小
 
     // --- Comm Info (通信计数数组) ---
     // 每专家发送到各 rank 的 token 数
     uint16_t commSendCnt[MAX_EXPERT_PER_EP * MAX_EP_RANK_SIZE];
     // 从各 rank 接收每专家的 token 数
     uint16_t commRecvCnt[MAX_EXPERT_PER_EP * MAX_EP_RANK_SIZE];
+};
+```
+
+### 4.2.1 GmmA2avWorkspaceInfo 结构体
+
+```cpp
+/**
+ * GmmA2avWorkspaceInfo
+ * 专门管理 workspace 相关配置
+ */
+struct GmmA2avWorkspaceInfo {
+    uint64_t wsGmmSize;                             // GMM workspace 大小
 };
 ```
 
@@ -281,18 +295,22 @@ struct GmmTilingArray {
  * 设计要点：
  *   1. 共享专家放在普通专家之前
  *   2. GMM Tiling 数组和 count 封装在一起
- *   3. QuantGmmA2avTilingInfo 包含扁平化的核心配置（Task/Loop/Workspace/Comm）
+ *   3. QuantGmmA2avTilingInfo 包含扁平化的核心配置（Task/Loop/Comm）
+ *   4. Workspace 信息已移至 GmmA2avWorkspaceInfo
  */
 struct QuantGmmA2avTilingData {
     // ============ HCCL AlltoAllV Tiling ============
     HcclA2avTilingInfo hcclA2avTiling;
-    
-    // ============ 核心配置信息 (Task/Loop/Workspace/Comm) ============
+
+    // ============ Workspace 配置信息 ============
+    GmmA2avWorkspaceInfo workspaceInfo;
+
+    // ============ 核心配置信息 (Task/Loop/Comm) ============
     QuantGmmA2avTilingInfo tilingInfo;
-    
+
     // ============ 共享专家 GMM Tiling（放在前面）============
     GMMQuantTilingData sharedGmmTiling;
-    
+
     // ============ 普通专家 GMM Tiling 数组 ============
     GmmTilingArray gmmTiling;
 };
