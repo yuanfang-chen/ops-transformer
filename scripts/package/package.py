@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -8,11 +8,10 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 import os
 import sys
-import re
 import argparse
 import traceback
 import csv
@@ -565,16 +564,6 @@ def generate_config_inc(package_attr: Dict):
     os.chmod(config_inc, 0o500)
 
 
-def update_version_info(new_version: str):
-    version_path = os.path.join(pkg_utils.TOP_DIR, "version.info")
-    with open(version_path, 'r') as file:
-        content = file.read()
-        content = re.sub(r'Version=.*', f'Version={new_version}', content)
-        content = re.sub(r'vension_dir=.*', f'version_dir={new_version}', content)
-    with open(version_path, 'w') as file:
-        file.write(content)
-
-
 def main(pkg_name='', xml_file='', main_args=None):
     """
     功能描述: 执行打包流程(解析配置--->生成文件列表--->执行拷贝/打包动作)
@@ -588,8 +577,6 @@ def main(pkg_name='', xml_file='', main_args=None):
     config_relative_path = get_pkg_xml_relative_path(main_args)
     pkg_xml_file = os.path.join(pkg_utils.TOP_SOURCE_DIR, config_relative_path)
     parse_option = make_parse_option(main_args)
-    if main_args.version_dir:
-        update_version_info(main_args.version_dir)
 
     try:
         xml_config = parse_xml_config(
@@ -623,7 +610,7 @@ def main(pkg_name='', xml_file='', main_args=None):
         return FAIL
 
     generate_config_inc(xml_config.package_attr)
-
+    
     if main_args.independent_pkg:
         src_file_path = os.path.join(TOP_DIR, "build", "filelist.csv")
         dst_file_path = os.path.join(main_args.pkg_output_dir, "share", "info", main_args.pkg_name, "script")

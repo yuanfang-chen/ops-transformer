@@ -1,6 +1,6 @@
 #!/bin/bash
 # ----------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@ SOC=""
 
 parse_args() {
     local arg
-
+    
     # 循环遍历所有命令行参数
     for arg in "$@"; do
-
+        
         # 使用 case 语句匹配参数格式
         case "$arg" in
             # 匹配 --soc=... 格式
@@ -90,7 +90,7 @@ log "Starting ops packaging process..."
 parse_args "$@"
 
 WORKDIR=${TOP_DIR}/${PKG_PATH}         # 当前工作目录
-TEMP_RUN_DIR="./run_files"              # 临时存放拷贝的 .run 文件
+TEMP_RUN_DIR="./run_files_tmp"              # 临时存放拷贝的 .run 文件
 HOST_RUN_NAME="host.run"
 HOST_EXTRACT_DIR="host"
 MAKESELF_TARGET_DIR="build/makeself"
@@ -100,7 +100,6 @@ MERGE_SCRIPT="${WORKDIR}/scripts/package/common/py/merge_binary_info_config.py"
 PKG_OUTPUT_DIR="build/_CPack_Packages/makeself_staging"
 RUN_PACKAGE_SAVE_AB_PATH=${TOP_DIR}/${RUN_PKG_SAVE_PATH}
 ARCHIVE_RUN_DIR="${TOP_DIR}/vendor/hisi/build/delivery/${SOC}/"
-MERGE_OPS_SCRIPT="${WORKDIR}/scripts/package/common/py/json_merger.py"
 
 
 cd ${WORKDIR}/ || exit
@@ -112,7 +111,7 @@ log "Working in temporary directory: $(pwd)"
 
 # 2. 拷贝 xx/kernel 下所有 .run 文件（重命名防重名）
 counter=1
-find "$RUN_PACKAGE_SAVE_AB_PATH" -name "cann-ops-transformer-custom_operator_group*.run" -type f | while read -r runfile; do
+find "$RUN_PACKAGE_SAVE_AB_PATH" -name "cann-*-custom_operator_group*.run" -type f | while read -r runfile; do
      # 获取父级目录名（basename of dirname）
     parent_dir=$(basename "$(dirname "$runfile")")
 
@@ -133,7 +132,7 @@ cp -rf "$TOP_DIR"/open_source/makeself/* "../$MAKESELF_TARGET_DIR" || die "Faile
 
 # 3. 拷贝 host/cann.run 为 host.run, 通常生成的原始host包名中没有custom
 cd $RUN_PACKAGE_SAVE_AB_PATH
-host_file_name=$(find . -type f -name "*.run" | grep -v "custom")
+host_file_name=$(find . -type f -name "*.run" | grep -v "custom" | grep "ops-nn")
 host_file_name="${host_file_name#./}"
 cd "${WORKDIR}"
 cd "${TEMP_RUN_DIR}"
@@ -180,7 +179,7 @@ for runfile in kernel_*.run; do
         die "Failed to extract $runfile"
 
     PARENT_DIR="${extract_dir}/packages/vendors"
-    full_path=$(find "$PARENT_DIR" -maxdepth 1 -type d -name "custom_*_transformer" | head -n 1)
+    full_path=$(find "$PARENT_DIR" -maxdepth 1 -type d -name "custom_*_nn" | head -n 1)
     if [ -n "$full_path" ]; then
     # 4. 提取目录名 (这就是你要的 custom_operator_group_3_transformer)
         kernel_dir_name=$(basename "$full_path")
@@ -207,12 +206,12 @@ for runfile in kernel_*.run; do
 
     if $first_run; then
         # 第一个文件：拷贝整个 kernel 目录
-        target_kernel_dir="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/$SOC/$PKG_NAME/"
+        target_kernel_dir="$HOST_EXTRACT_DIR/opp/built-in/op_impl/ai_core/tbe/kernel/$SOC/$PKG_NAME/"
         ensure_dir $target_kernel_dir
         cp -rf "$kernel_src_dir"/* "./$target_kernel_dir" || \
             die "Failed to copy first kernel files"
         log "First run: copied full kernel to $target_kernel_dir"
-        dest_conf_ascend_first="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/config/$SOC/ops_transformer"
+        dest_conf_ascend_first="$HOST_EXTRACT_DIR/opp/built-in/op_impl/ai_core/tbe/kernel/config/$ascend_dir/ops_nn"
         ensure_dir $dest_conf_ascend_first
         # config文件拷贝
         cp -v $config_src_dir/* $dest_conf_ascend_first/
@@ -221,14 +220,14 @@ for runfile in kernel_*.run; do
         # 非第一个文件：增量合并
 
         # a. 拷贝 kernel/$ascend/* 到 host/.../kernel/$ascend/
-        dest_kern_ascend="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/$SOC/$PKG_NAME"
+        dest_kern_ascend="$HOST_EXTRACT_DIR/opp/built-in/op_impl/ai_core/tbe/kernel/$ascend_dir/$PKG_NAME"
         ensure_dir "$dest_kern_ascend"
         cp -rf "$kernel_src_dir"/* "$dest_kern_ascend"/ || \
             die "Failed to copy kernel ascend files"
 
         # b. 处理 config/$ascend/ 下的 JSON 文件
         src_conf_ascend=$config_src_dir
-        dest_conf_ascend="$HOST_EXTRACT_DIR/${PKG_NAME}/built-in/op_impl/ai_core/tbe/kernel/config/$SOC/ops_transformer"
+        dest_conf_ascend="$HOST_EXTRACT_DIR/opp/built-in/op_impl/ai_core/tbe/kernel/config/$ascend_dir/ops_nn"
 
         # 遍历所有 JSON 文件
         for json_file in "$src_conf_ascend"/*.json; do
@@ -242,38 +241,25 @@ for runfile in kernel_*.run; do
                 python3 "$MERGE_SCRIPT" \
                     --base-file=$json_file \
                     --update-file=$target_json \
-                    --output-file=binary_info_config.json
+                    --output-file=binary_info_config.json 
                 # 覆盖HOST中的config文件
                 mv -f binary_info_config.json $target_json
-            elif [[ "$json_basename" == "relocatable_kernel_info_config.json" && -f "$dest_conf_ascend/relocatable_kernel_info_config.json" ]]; then
-                target_json="$dest_conf_ascend/relocatable_kernel_info_config.json"
-                #jq -s 'add' $json_file $target_json > temp.json && mv -f temp.json $target_json
-                log "Executing to merge relocatable_kernel_info_config.json"
-                python3 "$MERGE_SCRIPT" \
-                    --base-file=$json_file \
-                    --update-file=$target_json \
-                    --output-file=relocatable_kernel_info_config.json
-                mv -f relocatable_kernel_info_config.json $target_json
             else
-                target_json="$dest_conf_ascend/$json_basename"
-                if [[ -f "$target_json" ]]; then
-                    python3 "$MERGE_OPS_SCRIPT" \
-                        --base-file=$target_json \
-                        --update-file=$json_file \
-                        --output-file=$target_json
-                else
-                    cp -v "$json_file" "$dest_conf_ascend"/ || \
-                        die "Warning: failed to copy $json_file"
-                fi
+                cp -v "$json_file" "$dest_conf_ascend"/ || \
+                    die "Warning: failed to copy $json_file"
             fi
         done
     fi
-
+    
     # 可选：清理解压目录（节省空间）
     # rm -rf "$extract_dir"
 done
 
-filelist_src_path="$HOST_EXTRACT_DIR/share/info/ops_transformer/script/filelist.csv"
+# dest_conf_ascend="$HOST_EXTRACT_DIR/opp/built-in/op_impl/ai_core/tbe/kernel/config/$ascend_dir/ops_nn"
+# target_json="$dest_conf_ascend/binary_info_config.json"
+# mv $target_json $dest_conf_ascend/../
+
+filelist_src_path="$HOST_EXTRACT_DIR/share/info/ops_nn/script/filelist.csv"
 rm $filelist_src_path
 
 # 6. 拷贝 host/ 到 makeself 目录
@@ -286,7 +272,7 @@ log "Host content copied to $RUNFILE_TARGET_DIR"
 # 7. 执行打包脚本
 cd "../" || echo "Failed to go back to workdir"
 
-# 执行 package.py
+# 执行 package.py 
 log "Executing package.py to generate final package..."
 python3 "$PACKAGE_SCRIPT" \
     --pkg_name "$PKG_NAME" \
@@ -296,7 +282,7 @@ python3 "$PACKAGE_SCRIPT" \
     --chip_name "$SOC" \
     --os_arch linux-"$OS_ARCH"
 
-log "Packaging completed successfully!"
+log "Packaging completed successfully!" 
 
 
 # 8. 归档全量构建算子编译包至hdfs目录

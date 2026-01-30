@@ -1,5 +1,5 @@
 #!/bin/sh
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -7,7 +7,7 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 # 版本状态配置文件处理
 # 版本状态配置文件格式为
@@ -192,53 +192,6 @@ add_cfg_version_comment() {
     sed -i "1i # version: ${_CFG_VERSION}" "${filepath}"
 }
 
-# 处理移除子包版本配置行
-__process_unset_package_line() {
-    local line="$1" 
-    local package="$2" 
-    local target_type="$3" 
-    local filepath_new="$4"
-    local cfg_items package_name attr_type
-
-    parse_cfg_line "cfg_items" "${line}"
-    [ "${cfg_items}" = "" ] && return
-
-    __index_list_by_cut "${cfg_items}" 0 "package_name" 1 "attr_type"
-
-    if [ "${attr_type}" = "${target_type}" ]; then
-        [ "${package_name}" != "${package}" ] && echo "${line}" >> "${filepath_new}"
-    else
-        echo "${line}" >> "${filepath_new}"
-    fi
-}
-
-# 处理文件更新和清理
-__finalize_version_file() {
-    local filepath="$1"
-    local filepath_new="$2"
-    local cleanup="$3"
-
-    if [ -f "${filepath_new}" ]; then
-        add_cfg_version_comment "${filepath_new}"
-        mv -f "${filepath_new}" "${filepath}"
-        if [ $? -ne 0 ]; then
-            log "ERROR" "replace ${filepath} failed!"
-            eval "${cleanup}"
-            return 1
-        fi
-    else
-        rm -f "${filepath}"
-        if [ $? -ne 0 ]; then
-            log "ERROR" "delete ${filepath} failed!"
-            eval "${cleanup}"
-            return 1
-        fi
-    fi
-
-    eval "${cleanup}"
-    local ret="$?" && [ $ret -ne 0 ] && return $ret
-}
-
 # 移除子包版本
 unset_package_version() {
     local dirpath="$1"
@@ -251,9 +204,14 @@ unset_package_version() {
     get_version_cfg_new_path "filepath_new" "${dirpath}"
 
     # 版本状态配置文件不存在则正常退出
-    [ ! -f "${filepath}" ] && return 0
+    if [ ! -f "${filepath}" ]; then
+        return 0
+    fi
 
-    check_cfg_version_with_log "${filepath}" || return 1
+    check_cfg_version_with_log "${filepath}"
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
 
     # 保存当前目录的权限
     get_file_mod "mod" "${dirpath}"
@@ -273,11 +231,40 @@ unset_package_version() {
     fi
 
     while read line; do
-        __process_unset_package_line "${line}" "${package}" "${target_type}" "${filepath_new}"
+        parse_cfg_line "cfg_items" "${line}"
+        [ "${cfg_items}" = "" ] && continue
+
+        __index_list_by_cut "${cfg_items}" 0 "package_name" 1 "attr_type"
+
+        if [ "${attr_type}" = "${target_type}" ]; then
+            if [ "${package_name}" != "${package}" ]; then
+                echo "${line}" >> "${filepath_new}"
+            fi
+        else
+            echo "${line}" >> "${filepath_new}"
+        fi
     done < "${filepath}"
 
-    __finalize_version_file  "${filepath}" "${filepath_new}" "${cleanup}"
+    if [ -f "${filepath_new}" ]; then
+        add_cfg_version_comment "${filepath_new}"
+        mv -f "${filepath_new}" "${filepath}"
+        if [ $? -ne 0 ]; then
+            log "ERROR" "replace ${filepath} failed!"
+            eval "${cleanup}"
+            return 1
+        fi
+    else
+        rm -f "${filepath}"
+        if [ $? -ne 0 ]; then
+            log "ERROR" "delete ${filepath} failed!"
+            eval "${cleanup}"
+            return 1
+        fi
+    fi
+
+    eval "${cleanup}"
     ret="$?" && [ $ret -ne 0 ] && return $ret
+
     return 0
 }
 
@@ -309,54 +296,6 @@ get_package_version_version_cfg() {
 
     eval "${_outvar}=\"${_version_gpv}\""
     return 0
-}
-
-# 处理单个配置文件
-__process_cfg_file() {
-    local filepath="$1" 
-    local package="$2" 
-    local running_version="$3" 
-    local filepath_new="$4"
-    local cfg_items package_name attr_type line
-    local setted="false"
-
-    touch "${filepath}"
-    while read line; do
-        parse_cfg_line "cfg_items" "${line}"
-        [ "${cfg_items}" = "" ] && continue
-
-        __index_list_by_cut "${cfg_items}" 0 "package_name" 1 "attr_type"
-
-        if [ "${attr_type}" = "running" ]; then
-            if [ "${package_name}" = "${package}" ]; then
-                if [ "${setted}" = "false" ]; then
-                    echo "${running_version}" >> "${filepath_new}"
-                    setted="true"
-                fi
-            else
-                echo "${line}" >> "${filepath_new}"
-            fi
-        elif [ "${attr_type}" = "upgrade" ]; then
-            if [ "${setted}" = "false" ]; then
-                echo "${running_version}" >> "${filepath_new}"
-                setted="true"
-            fi
-            echo "${line}" >> "${filepath_new}"
-        elif [ "${attr_type}" = "installed" ]; then
-            if [ "${setted}" = "false" ]; then
-                echo "${running_version}" >> "${filepath_new}"
-                setted="true"
-            fi
-            echo "${line}" >> "${filepath_new}"
-        else
-            echo "${line}" >> "${filepath_new}"
-        fi
-    done < "${filepath}"
-
-    if [ "${setted}" = "false" ]; then
-        echo "${running_version}" >> "${filepath_new}"
-        setted="true"
-    fi
 }
 
 # 设置运行子包版本
@@ -395,8 +334,44 @@ set_running_package_version() {
         return 1
     fi
 
-    __process_cfg_file "${filepath}" "${package}" "${running_version}" "${filepath_new}"
-    
+    touch "${filepath}"
+    while read line; do
+        parse_cfg_line "cfg_items" "${line}"
+        [ "${cfg_items}" = "" ] && continue
+
+        __index_list_by_cut "${cfg_items}" 0 "package_name" 1 "attr_type"
+
+        if [ "${attr_type}" = "running" ]; then
+            if [ "${package_name}" = "${package}" ]; then
+                if [ "${setted}" = "false" ]; then
+                    echo "${running_version}" >> "${filepath_new}"
+                    setted="true"
+                fi
+            else
+                echo "${line}" >> "${filepath_new}"
+            fi
+        elif [ "${attr_type}" = "upgrade" ]; then
+            if [ "${setted}" = "false" ]; then
+                echo "${running_version}" >> "${filepath_new}"
+                setted="true"
+            fi
+            echo "${line}" >> "${filepath_new}"
+        elif [ "${attr_type}" = "installed" ]; then
+            if [ "${setted}" = "false" ]; then
+                echo "${running_version}" >> "${filepath_new}"
+                setted="true"
+            fi
+            echo "${line}" >> "${filepath_new}"
+        else
+            echo "${line}" >> "${filepath_new}"
+        fi
+    done < "${filepath}"
+
+    if [ "${setted}" = "false" ]; then
+        echo "${running_version}" >> "${filepath_new}"
+        setted="true"
+    fi
+
     add_cfg_version_comment "${filepath_new}"
     mv -f "${filepath_new}" "${filepath}"
     if [ $? -ne 0 ]; then
@@ -428,62 +403,6 @@ get_running_package_version() {
     get_package_version_version_cfg "${_outvar}" "${_dirpath}" "${_package}" "running"
 }
 
-# 处理升级版本文件操作和清理
-__finalize_upgrade_file() {
-    local filepath="$1" filepath_new="$2" setted="$3" upgrade_version="$4" cleanup="$5"
-
-    if [ "${setted}" = "false" ]; then
-        echo "${upgrade_version}" >> "${filepath_new}"
-        setted="true"
-    fi
-
-    add_cfg_version_comment "${filepath_new}"
-    mv -f "${filepath_new}" "${filepath}"
-    if [ $? -ne 0 ]; then
-        log "ERROR" "replace ${filepath} failed!"
-        eval "${cleanup}"
-        return 1
-    fi
-
-    eval "${cleanup}"
-    local ret="$?" && [ $ret -ne 0 ] && return $ret
-    return 0
-}
-
-# 处理设置升级版本配置行
-__process_set_upgrade_line() {
-    local line="$1"
-    local package="$2"
-    local upgrade_version="$3"
-    local filepath_new="$4"
-    local -n setted_ref="$5"
-    local cfg_items package_name attr_type
-
-    parse_cfg_line "cfg_items" "${line}"
-    [ "${cfg_items}" = "" ] && return
-
-    __index_list_by_cut "${cfg_items}" 0 "package_name" 1 "attr_type"
-
-    if [ "${attr_type}" = "upgrade" ]; then
-        if [ "${package_name}" = "${package}" ]; then
-            if [ "${setted_ref}" = "false" ]; then
-                echo "${upgrade_version}" >> "${filepath_new}"
-                setted_ref="true"
-            fi
-        else
-            echo "${line}" >> "${filepath_new}"
-        fi
-    elif [ "${attr_type}" = "installed" ]; then
-        if [ "${setted_ref}" = "false" ]; then
-            echo "${upgrade_version}" >> "${filepath_new}"
-            setted_ref="true"
-        fi
-        echo "${line}" >> "${filepath_new}"
-    else
-        echo "${line}" >> "${filepath_new}"
-    fi
-}
-
 # 设置子包升级版本
 set_upgrade_package_version() {
     local dirpath="$1"
@@ -496,7 +415,10 @@ set_upgrade_package_version() {
     get_version_cfg_path "filepath" "${dirpath}"
     get_version_cfg_new_path "filepath_new" "${dirpath}"
 
-    check_cfg_version_with_log "${filepath}" || return 1
+    check_cfg_version_with_log "${filepath}"
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
 
     pack_upgrade_version "upgrade_version" "${package}" "${version}" "${version_dir}"
 
@@ -519,10 +441,45 @@ set_upgrade_package_version() {
 
     touch "${filepath}"
     while read line; do
-        __process_set_upgrade_line "${line}" "${package}" "${upgrade_version}" "${filepath_new}" "setted"
+        parse_cfg_line "cfg_items" "${line}"
+        [ "${cfg_items}" = "" ] && continue
+
+        __index_list_by_cut "${cfg_items}" 0 "package_name" 1 "attr_type"
+
+        if [ "${attr_type}" = "upgrade" ]; then
+            if [ "${package_name}" = "${package}" ]; then
+                if [ "${setted}" = "false" ]; then
+                    echo "${upgrade_version}" >> "${filepath_new}"
+                    setted="true"
+                fi
+            else
+                echo "${line}" >> "${filepath_new}"
+            fi
+        elif [ "${attr_type}" = "installed" ]; then
+            if [ "${setted}" = "false" ]; then
+                echo "${upgrade_version}" >> "${filepath_new}"
+                setted="true"
+            fi
+            echo "${line}" >> "${filepath_new}"
+        else
+            echo "${line}" >> "${filepath_new}"
+        fi
     done < "${filepath}"
 
-    __finalize_upgrade_file "${filepath}" "${filepath_new}" "${setted}" "${upgrade_version}" "${cleanup}"
+    if [ "${setted}" = "false" ]; then
+        echo "${upgrade_version}" >> "${filepath_new}"
+        setted="true"
+    fi
+
+    add_cfg_version_comment "${filepath_new}"
+    mv -f "${filepath_new}" "${filepath}"
+    if [ $? -ne 0 ]; then
+        log "ERROR" "replace ${filepath} failed!"
+        eval "${cleanup}"
+        return 1
+    fi
+
+    eval "${cleanup}"
     ret="$?" && [ $ret -ne 0 ] && return $ret
 
     return 0
@@ -650,12 +607,32 @@ add_installed_package_version() {
     fi
 }
 
-__process_install_cfg_line() {
-    local package="$1"
-    local version="$2"
-    local version_dir="$3"
-    local filepath_new="$4"
-    local line cfg_items package_name attr_type value versions len_versions
+# 删除安装子包版本
+del_installed_package_version() {
+    local dirpath="$1"
+    local package="$2"
+    local version="$3"
+    local version_dir="$4"
+    local filepath filepath_new line cfg_items package_name attr_type value versions len_versions
+
+    get_version_cfg_path "filepath" "${dirpath}"
+    get_version_cfg_new_path "filepath_new" "${dirpath}"
+
+    # 版本状态配置文件不存在则正常退出
+    if [ ! -f "${filepath}" ]; then
+        return 0
+    fi
+
+    check_cfg_version_with_log "${filepath}"
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    rm -f "${filepath_new}"
+    if [ $? -ne 0 ]; then
+        log "ERROR" "delete ${filepath_new} failed!"
+        return 1
+    fi
 
     while read line; do
         parse_cfg_line "cfg_items" "${line}"
@@ -675,31 +652,6 @@ __process_install_cfg_line() {
             echo "${line}" >> "${filepath_new}"
         fi
     done < "${filepath}"
-}
-
-# 删除安装子包版本
-del_installed_package_version() {
-    local dirpath="$1"
-    local package="$2"
-    local version="$3"
-    local version_dir="$4"
-    local filepath filepath_new line cfg_items package_name attr_type value versions len_versions
-
-    get_version_cfg_path "filepath" "${dirpath}"
-    get_version_cfg_new_path "filepath_new" "${dirpath}"
-
-    # 版本状态配置文件不存在则正常退出
-    [ ! -f "${filepath}" ] && return 0
-
-    check_cfg_version_with_log "${filepath}" || return 1
-
-    rm -f "${filepath_new}"
-    if [ $? -ne 0 ]; then
-        log "ERROR" "delete ${filepath_new} failed!"
-        return 1
-    fi
-
-    __process_del_installed_line "${package}" "${version}" "${version_dir}" "${filepath_new}"
 
     if [ -f "${filepath_new}" ]; then
         add_cfg_version_comment "${filepath_new}"

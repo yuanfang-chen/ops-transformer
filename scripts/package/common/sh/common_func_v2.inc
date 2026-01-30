@@ -1,5 +1,5 @@
 #!/bin/sh
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -7,7 +7,7 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 # 公共函数库
 # 总setenv文件权限
@@ -306,7 +306,7 @@ get_package_dir() {
     local _package="$2"
     local _is_under_tools _result
 
-    if [ "${USE_SHARE_INFO}" == "y" ]; then
+    if [ "$USE_SHARE_INFO" = "y" ]; then
         _result="share/info"
     else
         is_package_under_tools "_is_under_tools" "${_package}"
@@ -325,7 +325,7 @@ get_package_dirpath() {
     local _package="$2"
     local _is_under_tools _result
 
-     if [ "${USE_SHARE_INFO}" == "y" ]; then
+    if [ "$USE_SHARE_INFO" = "y" ]; then
         _result="share/info/${_package}"
     else
         is_package_under_tools "_is_under_tools" "${_package}"

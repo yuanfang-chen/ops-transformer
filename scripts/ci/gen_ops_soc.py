@@ -1,13 +1,14 @@
-# -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ----------------------------------------------------------------------------
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------
 import os
 import sys
 import re
@@ -19,29 +20,9 @@ def should_skip_directory(dir_name):
     """
     skip_dirs = {
         'build', 'cmake', 'common', 'docs', 'examples',
-        'experimental', 'scripts', 'tests', 'third_party', '3rd'
+        'experimental', 'scripts', 'tests', 'third_party'
     }
     return dir_name in skip_dirs
-
-
-def should_skip_op(op_name):
-    """
-    判断是否应该跳过该算子
-    """
-    skip_ops = [
-        "mla_prolog", "mla_prolog_v2", "mla_prolog_v3",
-        "all_gather_matmul", "all_gather_matmul_v2", "allto_all_all_gather_batch_mat_mul", "allto_allv_grouped_mat_mul",
-        "batch_mat_mul_reduce_scatter_allto_all", "distribute_barrier", "elastic_receivable_info_collect",
-        "elastic_receivable_test", "grouped_mat_mul_all_reduce", "grouped_mat_mul_allto_allv",
-        "inplace_matmul_all_reduce_add_rms_norm", "matmul_all_reduce", "matmul_all_reduce_add_rms_norm",
-        "matmul_reduce_scatter", "matmul_reduce_scatter_v2", "moe_distribute_buffer_reset", "moe_distribute_combine",
-        "moe_distribute_combine_add_rms_norm", "moe_distribute_combine_v2", "moe_distribute_dispatch",
-        "moe_distribute_dispatch_v2", "moe_update_expert", "quant_all_reduce", "quant_reduce_scatter",
-        "moe_finalize_routing_v2", "moe_finalize_routing_v2_grad", "moe_gating_top_k", "moe_gating_top_k_softmax",
-        "moe_gating_top_k_softmax_v2", "moe_init_routing", "moe_init_routing_quant_v2", "moe_init_routing_v2",
-        "moe_init_routing_v2_grad", "moe_init_routing_v3", "moe_re_routing", "moe_token_permute_with_routing_map"
-    ]
-    return op_name in skip_ops
 
 
 def parse_foreach_config(config_str):
@@ -206,14 +187,54 @@ def extract_ai_core_configs(file_path):
         return []
 
 
-def update_ai_core_configs(op_name, ai_core_configs):
-    if should_skip_op(op_name) and "ascend950" in ai_core_configs:
-        ai_core_configs.remove("ascend950")
-    return ai_core_configs
+def ceil_div(a, b):
+    return (a + b - 1) // b
 
 
-def main(repository_path):
-    result = []
+def split_list_by_num_groups(lst, num_groups):
+    avg = ceil_div(len(lst), num_groups)
+    out = []
+    last = 0.0
+    for _ in range(num_groups):
+        val = int(round(last + avg))
+        out.append(lst[int(last):val])
+        last = val
+    return out
+
+GROUPING_CONFIGS = {
+    "default": {
+        0: ["mat_mul_v3"],
+        1: ["gemm_v3"],
+        2: ["quant_batch_matmul_v3", "conv3d_v2"],
+        3: ["weight_quant_batch_matmul_v2", "batch_mat_mul_v3", "apply_adam_w_v2"],
+        4: [
+            "scatter_elements_v2", "add_layer_norm", "layer_norm_grad_v3", 
+            "masked_softmax_with_rel_pos_bias", "group_norm_grad",
+            "group_norm_swish", "scatter_list", "group_norm_swish_grad"
+        ],
+    },
+    "ascend950": {
+        0: ["add_rms_norm_quant"],
+        1: ["scatter_elements_v2"],
+        2: ["quant_batch_matmul_v3"],
+        3: ["extend_conv2d", "conv3d_v2"],
+        4: ["conv2d_v2", "conv3d_transpose_v2"],
+        5: ["quant_conv3d", "conv3d_backprop_input_v2", "apply_adam_w_v2"],
+        6: ["batch_norm_grad_v3", "cross_entropy_loss_grad", "ascend_quant_v2", "dequant_swiglu_quant"],
+        7: ["mat_mul_v3", "cross_entropy_loss", "weight_quant_batch_matmul_v2", "group_norm_grad"]
+    }
+}
+
+
+def grouped(repository_path, soc, group_size):
+    if soc in ("950", "ascend950"):
+        config = GROUPING_CONFIGS.get("ascend950")
+    else:
+        config = GROUPING_CONFIGS.get("default")
+    result = [[] for _ in range(len(config))]
+    remain = []
+    zero_tensor_num = 0
+
     for root, dirs, files in os.walk(repository_path):
         # 过滤掉不需要的目录
         dirs[:] = [d for d in dirs if not should_skip_directory(d)]
@@ -225,12 +246,35 @@ def main(repository_path):
 
                 # 提取 AICore 配置
                 ai_core_configs = extract_ai_core_configs(full_path)
-                ai_core_configs = update_ai_core_configs(op_name, ai_core_configs)
+                current_path = full_path
+                for _ in range(3):
+                    current_path = os.path.dirname(current_path)
 
-                # 创建字典
-                op_dict = {
-                    op_name: ai_core_configs
-                }
-                result.append(op_dict)
-    result.sort(key=lambda x: next(iter(x)))
+                # 获取三层父目录的文件名
+                parent_dir_name = os.path.basename(current_path)
+                if soc in ai_core_configs:
+                    matched = False
+                    for idx, op_list in config.items():
+                        if op_name in op_list:
+                            result[idx].append(op_name)
+                            matched = True
+                            break
+                    if not matched:
+                        remain.append(op_name)
+    
+    filtered_result = []
+    len_size = len(result)
+    for i in range(len_size):
+        if len(result[i]) == 0:
+            zero_tensor_num += 1
+        else:
+            filtered_result.append(result[i])
+
+    remain = sorted(remain)
+    remain = split_list_by_num_groups(remain, group_size - len_size + zero_tensor_num if group_size > 8 else group_size)
+    result.extend(remain)
     return result
+
+
+def main(repository_path, soc, group_size):
+    return grouped(repository_path, soc, group_size)

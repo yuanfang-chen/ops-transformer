@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -8,7 +8,7 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 import copy
 import glob
@@ -380,14 +380,11 @@ def render_semver(package_name: str, version: str) -> Iterator[Tuple[str, str]]:
 def get_cann_version_info(name: str, version: str) -> Iterator[Tuple[str, str]]:
     """获取CANN版本号信息。"""
     version_info = []
-
     # 删除字符串中的_VERSION
     package_name = name[:-8]
-
     if not version:
         yield f'{package_name}_VERSION_STR', '"0"'
         return
-
     yield from render_semver(package_name, version)
 
 
@@ -401,6 +398,7 @@ def get_env_items_by_version(version: Optional[str]) -> Iterator[Tuple[str, str]
     """根据version获取环境字典条目。"""
     if version:
         yield 'ASCEND_VER', version
+        yield 'VERSION', version
 
         version_parts = version.split('.')
         for idx in range(1, len(version_parts) + 1):
@@ -627,6 +625,7 @@ def evaluate_info(info: Dict[str, str],
 
     def replace_pkg_inner_softlink(key: str, value: str) -> Tuple[str, str]:
         if key == 'pkg_inner_softlink':
+            # 禁用pkg_inner_softlink
             return key, 'NA'
         return key, value
 
@@ -1068,7 +1067,7 @@ def read_version_info() -> Tuple[str, str]:
     m = re.match(r'[.a-zA-Z0-9]+$', version) or re.match(r'[-a-zA-Z.0-9]+$', version)
     if not m:
         raise VersionFormatNotMatch()
-    
+
     return version, version_dir
 
 
@@ -1087,11 +1086,7 @@ def parse_xml_config(filepath: str,
     default_config = xml_root.attrib.copy()
 
     package_attr = parse_package_attr(xml_root, args)
-    if args.version_dir:
-        version = args.version_dir
-        version_dir = args.version_dir
-    else:
-        version, version_dir = read_version_info()
+    version, version_dir = read_version_info()
     if args.disable_multi_version:
         version_dir = None
     timestamp = get_timestamp(args)

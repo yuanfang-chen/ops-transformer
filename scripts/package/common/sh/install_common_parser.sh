@@ -1,5 +1,5 @@
 #!/bin/sh
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -7,7 +7,7 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# -----------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 # run包安装解析公共脚本
 # 解析filelist.csv文件，完成目录创建，文件复制，权限设置，文件删除等操作。
@@ -945,6 +945,10 @@ do_del_cann_uninstall() {
 
 # 删除ascend_install.info文件
 del_ascend_install_info() {
+    local install_path="$1"
+    local package="$2"
+    local package_dirpath
+
     rm -f "$curpath/../ascend_install.info"
 }
 
@@ -1208,7 +1212,7 @@ do_remove() {
         ret="$?" && [ $ret -ne 0 ] && return $ret
 
         if [ "$REMOVE_INSTALL_INFO" = "y" ]; then
-            del_ascend_install_info
+            del_ascend_install_info "$install_path"
         fi
     fi
 
@@ -1416,6 +1420,10 @@ version_install() {
         add_setenv "${install_path_full}" "${package_real}" "${setenv}" "${username}" "${usergroup}" "false" "${docker_root}"
         ret="$?" && [ $ret -ne 0 ] && return $ret
 
+        # set prereq_check
+        add_prereq_check "${install_path_full}" "${package_real}" "${username}" "${usergroup}" "${docker_root}"
+        ret="$?" && [ $ret -ne 0 ] && return $ret
+
         # 调用组件自定义安装流程
         package_custom_install "${package_real}" "${install_path}" "${version_dir}" "${custom_options}"
         ret="$?" && [ $ret -ne 0 ] && return $ret
@@ -1470,6 +1478,10 @@ version_uninstall() {
         del_setenv "${install_path_full}" "${package_real}" "${username}" "${docker_root}"
         ret="$?" && [ $ret -ne 0 ] && return $ret
 
+        # unset prereq_check
+        del_prereq_check "${install_path_full}" "${package_real}" "${docker_root}"
+        ret="$?" && [ $ret -ne 0 ] && return $ret
+
         # 调用组件自定义卸载流程，失败流程不中断
         package_custom_uninstall "${package_real}" "${install_path}" "${version_dir}" "${custom_options}"
         ret="$?" && [ $ret -ne 0 ] && total_ret="$ret"
@@ -1494,7 +1506,7 @@ do_install() {
     local feature_param="$5"
     local docker_root="$6"
     local is_simple="$7"
-    local install_path_real ret 
+    local install_path_real ret
 
     check_param_not_empty "package" "need set package parameter in install!"
     ret="$?" && [ ${ret} -ne 0 ] && return ${ret}
@@ -1933,7 +1945,7 @@ IS_RECREATE_SOFTLINK=""
 WITH_DOCKER_ROOT_PREFIX=""
 FEATURE_EXCLUDE_ALL="n"
 REMOVE_INSTALL_INFO="n"  # 卸载时移除ascend_install.info文件
-USE_SHARE_INFO="n"
+USE_SHARE_INFO="n"  # 包信息安装到share/info目录下
 CHIP="all"
 FEATURE="all"
 INCREMENT="n"  # 增量安装
