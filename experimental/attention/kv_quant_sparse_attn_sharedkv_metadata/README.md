@@ -84,7 +84,7 @@ cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='
 
 ## 返回值说明
 
--   **Metadata**（`Tensor`）：公式中的输出。数据格式支持ND，数据类型支持`int32`。包括每个cube核上FlashAttention计算任务的Batch、Head、以及 Q 和 K 的分块的索引,以及每个vector核上FlashDecode的规约任务索引。
+-   **Metadata**（`Tensor`）：每个cube核上FlashAttention计算任务的Batch、Head、以及 Q 和 K 的分块的索引,以及每个vector核上FlashDecode的规约任务索引。
 
 ## 约束说明
 
