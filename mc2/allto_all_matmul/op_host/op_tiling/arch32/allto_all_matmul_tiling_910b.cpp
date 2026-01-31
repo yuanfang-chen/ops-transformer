@@ -740,8 +740,10 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
     if (quantType == TILINGKEY_TPL_A4W4) {
-        cocTilingData.allToAllSendCoreNum = CORE_NUM_SIXTEEN;
-        cocTilingData.allToAllSendCoreNum = CORE_NUM_FOUR;
+        if (cocTilingData.m0 == 256) {
+            cocTilingData.allToAllSendCoreNum = CORE_NUM_SIXTEEN;
+            cocTilingData.allToAllRecvCoreNum = CORE_NUM_FOUR;
+        }
         cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
     }
 }
