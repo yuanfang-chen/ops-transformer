@@ -75,11 +75,12 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::SetKcDataTypeInfo(const gert::T
 {
     const gert::StorageShape *matrixBias = context->GetOptionalInputShape(INPUT_BIAS_INDEX);
     int aDTypeNum = *context_->GetAttrs()->GetAttrPointer<uint64_t>(ALLTOALLMATMUL_ATTR_X1_QUANTDTYPE_INDEX);
+    ge::DataType biasType;
     // 这是针对matmul的数据类型
     ge::DataType aType = static_cast<ge::DataType>(aDTypeNum);
     ge::DataType bType = context->GetInputDesc(INPUT_X2_INDEX)->GetDataType();
     ge::DataType cType = context->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
-    ge::DataType biasType;
+    contextInfo.hcclGeType = context->GetInputDesc(INPUT_X1_INDEX)->GetDataType();
     bool isBias = true;
     if (matrixBias == nullptr) {
         isBias = false;
@@ -87,7 +88,6 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::SetKcDataTypeInfo(const gert::T
     } else {
         biasType = context->GetOptionalInputDesc(INPUT_BIAS_INDEX)->GetDataType();
     }
-    contextInfo.hcclGeType = context->GetInputDesc(INPUT_X1_INDEX)->GetDataType();
 
     OP_TILING_CHECK(aDTypeNum != FP8_E5M2_VALUES && aDTypeNum != FP8_E4M3_VALUES,
     OP_LOGE(opName, "aDTypeNum %d is invalid, only 35(fp8e5m2) or 36(fp8e4m3) is supported.", aDTypeNum),
@@ -103,8 +103,8 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::SetKcDataTypeInfo(const gert::T
     contextInfo.args_.geAType = aType;
     contextInfo.args_.geBType = bType;
     contextInfo.args_.cType = mc2tiling::ConvertGeTypeToMmType(opName, cType);
-    contextInfo.args_.aType = mc2tiling::ConvertGeTypeToMmType(opName, aType);
     contextInfo.args_.bType = mc2tiling::ConvertGeTypeToMmType(opName, bType);
+    contextInfo.args_.aType = mc2tiling::ConvertGeTypeToMmType(opName, aType);
     contextInfo.args_.biasType = mc2tiling::ConvertGeTypeToMmType(opName, biasType);
     return ge::GRAPH_SUCCESS;
 }

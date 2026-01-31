@@ -96,7 +96,7 @@ protected:
     TBuf<TPosition::VECCALC> maxValueBuf_;
 
 
-    uint64_t rowNum_ = 0; // 二维Tensor的第二维
+    uint64_t rowNum_ = 0; // 二维Tensor的第一维
     uint64_t colNum_ = 0; // 二维Tensor的第二维
 
     uint64_t usedCoreAivNum_ = 0; // 使用的aiv核数
