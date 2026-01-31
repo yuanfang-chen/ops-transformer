@@ -47,6 +47,7 @@ static const std::string COFF_NAME = "coff";
 static const std::string NORM_EPS_NAME = "nrom_eps";
 static const std::string ROTARY_MODE_NAME = "rotary_mode";
 static const std::string CMP_KV_NAME = "cmp_kv";
+static std::string DataTypeToSerialString(ge::DataType type);
 const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {X_NAME,                {ge::DT_BF16, ge::DT_FLOAT16}},
     {WKV_NAME,              {ge::DT_BF16, ge::DT_FLOAT16}},
@@ -274,7 +275,6 @@ ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
 
 ge::graphStatus CompressorTiling::SetScenarioInfo()
 {
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -422,7 +422,6 @@ ge::graphStatus CompressorTiling::GenTilingKey() const
 
 ge::graphStatus CompressorTiling::CheckSinglePara() const
 {
-
     if (ge::GRAPH_SUCCESS != CheckSingleParaX() ||
         ge::GRAPH_SUCCESS != CheckSingleParaWkv() ||
         ge::GRAPH_SUCCESS != CheckSingleParaWgate() ||
@@ -979,7 +978,6 @@ CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context)
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "TilingData is nullptr."),
             return ge::GRAPH_FAILED);
     if (compressorTiling.RunBigKernelTiling(tilingData) == ge::SUCCESS) {
-        // TODO genTilingKey
         context->SetTilingKey(compressorContext.tilingKey);
         context->SetBlockDim(compressorContext.blockDim);
         return ge::GRAPH_SUCCESS;
