@@ -10,12 +10,13 @@
 
 # useage: add_modules_sources(DIR OPTYPE ACLNNTYPE)
 # ACLNNTYPE 支持类型aclnn/aclnn_inner/aclnn_exclude
+# ACLNNEXTRAVERSION 算子版本(ex., v2, v3, 5, etc.)
 # OPTYPE 和 ACLNNTYPE 需一一对应
 
 # 用于custom自定算子包host侧obj生成
 macro(add_modules_sources)
   set(oneValueArgs OP_API_INDEPENDENT OP_API_DIR OP_MC2_ENABLE)
-  set(multiValueArgs OPTYPE ACLNNTYPE)
+  set(multiValueArgs OPTYPE ACLNNTYPE ACLNN_EXTRA_VERSION)
 
   cmake_parse_arguments(MODULE "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -43,8 +44,52 @@ macro(add_modules_sources)
     set(COMPILED_OPS ${COMPILED_OPS} ${OP_NAME} CACHE STRING "Compiled Ops" FORCE)
     set(COMPILED_OP_DIRS ${COMPILED_OP_DIRS} ${PARENT_DIR} CACHE STRING "Compiled Ops Dirs" FORCE)
   endif()
+
+  list(LENGTH MODULE_OPTYPE OpTypeLen)
+  list(LENGTH MODULE_ACLNN_EXTRA_VERSION AclnnExtraVersionLen)
+  if((AclnnExtraVersionLen GREATER 1) AND (OpTypeLen GREATER 1))
+    message(FATAL_ERROR "There should be only 1 optype if there are more than 1 aclnn extra versions!")
+  endif()
+  
   # opapi 默认全部编译
-  file(GLOB OPAPI_SRCS ${OP_API_SRC_DIR}/*.cpp)
+  if (MODULE_OPTYPE)
+    math(EXPR index "${OpTypeLen} - 1")
+    foreach(i RANGE ${index})
+      list(GET MODULE_OPTYPE ${i} OpType)
+      list(GET MODULE_ACLNNTYPE ${i} AclnnType)
+      if(AclnnExtraVersionLen GREATER 0)
+        message("========== liuwenda AclnnExtraVersionLen is : ${AclnnExtraVersionLen}==========")
+        concat_op_names(OPTYPE ${OpType} ACLNNTYPE ${AclnnType} ACLNN_EXTRA_VERSION ${MODULE_ACLNN_EXTRA_VERSION})
+      endif()
+    endforeach()
+  endif()
+  function(add_parent_path input_list output_list)
+      set(path_list "")
+      foreach(item ${input_list})
+        list(APPEND path_list "${ASCEND_AUTOGEN_PATH}/${item}")
+      endforeach()
+      set(${output_list} "${path_list}" PARENT_SCOPE)
+  endfunction()
+ 	  	 
+  add_parent_path("${ACLNN_EXTRA_SRCS}" PARENT_ACLNN_EXTRA_SRCS)
+  add_parent_path("${ACLNN_EXTRA_HEADERS}" PARENT_ACLNN_EXTRA_HEADERS)
+  add_parent_path("${ACLNNINNER_EXTRA_SRCS}" PARENT_ACLNNINNER_EXTRA_SRCS)
+  add_parent_path("${ACLNNINNER_EXTRA_HEADERS}" PARENT_ACLNNINNER_EXTRA_HEADERS)
+  message("========== liuwenda PARENT_ACLNN_EXTRA_SRCS is : ${PARENT_ACLNN_EXTRA_SRCS}==========")
+  message("========== liuwenda OP_API_SRC_DIR/*.cpp is : ${OP_API_SRC_DIR}/*.cpp==========")
+  if (EXISTS ${ASCEND_AUTOGEN_DIR}/aclnn_kv_rms_norm_rope_cache_v2.cpp)
+    message(buile content)
+    install(FILES ${ASCEND_AUTOGEN_DIR}/aclnn_kv_rms_norm_rope_cache_v2.cpp DESTINATION install_path OPTIONAL)
+  elif(EXISTS ${ASCEND_CURRENT_BINARY_DIR}/prepare_build/autogen/aclnn_kv_rms_norm_rope_cache_v2.cpp)
+    message(prepare_build content)
+    install(FILES ${ASCEND_CURRENT_BINARY_DIR}/prepare_build/autogen/aclnn_kv_rms_norm_rope_cache_v2.cpp DESTINATION install_path OPTIONAL)
+  endif()
+  if (PARENT_ACLNN_EXTRA_SRCS)
+    file(GLOB OPAPI_SRCS ${OP_API_SRC_DIR}/*.cpp ${PARENT_ACLNN_EXTRA_SRCS})
+  else()
+    file(GLOB OPAPI_SRCS ${OP_API_SRC_DIR}/*.cpp)
+  endif()
+
   if (OPAPI_SRCS)
     # aclnn
     add_opapi_modules()
