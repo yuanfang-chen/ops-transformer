@@ -60,6 +60,7 @@ static constexpr uint32_t FIA_QUERY_ROPE_INDEX = 24;
 static constexpr uint32_t FIA_OUT_DTYPE_INDEX = 15;
 
 static const std::map<int64_t, ge::DataType> TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP = {
+    {1,  ge::DT_INT8},
     {5,  ge::DT_FLOAT16}, 
     {15, ge::DT_BF16},
     {24, ge::DT_FLOAT8_E4M3FN},
@@ -373,8 +374,6 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
     ge::DataType outputType = context->GetInputDataType(FIA_QUERY_INDEX);
     // 10 is quant_scale2's index, if not instantiated or illegal return ge::DT_UNDEFINED
     if (context->GetOptionalInputDataType(FIA_QUANT_SCALE2_INDEX) != ge::DT_UNDEFINED) {
-        outputType = ge::DT_INT8;
-
         auto attrs = context->GetAttrs();
         OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
         const int64_t *outTypePtr = attrs->GetInt(FIA_OUT_DTYPE_INDEX);
@@ -382,6 +381,9 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
             auto iter = TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP.find(*outTypePtr);
             if (iter != TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP.end()) {
                 outputType = iter->second;
+            }else{
+                OP_LOGE("FusedInferAttentionScore", "fia graph mode do not support quant scale2 type: (ge)%d!", *outTypePtr);
+                return ge::GRAPH_FAILED;
             }
         }
     } else if (context->GetInputDataType(FIA_QUERY_INDEX) == ge::DT_INT8 ||
