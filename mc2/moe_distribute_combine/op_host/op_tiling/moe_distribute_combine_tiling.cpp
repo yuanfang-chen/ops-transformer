@@ -699,10 +699,13 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
     const char *nodeName, uint32_t localMoeExpertNum)
 {
     auto attrs = context->GetAttrs();
+    auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
     uint64_t hcclBufferSizeEp = 0;
     uint64_t maxWindowSizeEp = 0;
+    bool isA5 = (mc2tiling::GetSocVersion(context) == "Ascend950");
     OP_TILING_CHECK(
-        mc2tiling::GetEpWinSize(context, nodeName, hcclBufferSizeEp, maxWindowSizeEp, ATTR_GROUP_EP_INDEX) != ge::GRAPH_SUCCESS,
+        Mc2Hcom::MC2HcomTopology::Mc2MoeGetEpWinSize(
+            groupEpHccl, &hcclBufferSizeEp, &maxWindowSizeEp, isA5) != HCCL_SUCCESS,
         OP_LOGE(nodeName, "Get EP WinSize failed"), return ge::GRAPH_FAILED);
     uint64_t h = static_cast<uint64_t>(tilingData->moeDistributeCombineInfo.h);
     uint64_t epWorldSize = static_cast<uint64_t>(tilingData->moeDistributeCombineInfo.epWorldSize);
@@ -722,7 +725,7 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
     if (tpWorldSize == TP_WORLD_SIZE_TWO) {
         uint64_t maxWindowSizeTp = 0;
         auto groupTpHccl = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_TP_INDEX));
-        OP_TILING_CHECK(mc2tiling::GetCclBufferSize(groupTpHccl, &maxWindowSizeTp, nodeName) != ge::GRAPH_SUCCESS,
+        OP_TILING_CHECK(Mc2Hcom::MC2HcomTopology::Mc2MoeGetCclBufferSize(groupTpHccl, &maxWindowSizeTp) != HCCL_SUCCESS,
             OP_LOGE(nodeName, "Get Ep HcclBufferSizeTP failed, HcclBufferSizeTP is %lu", maxWindowSizeTp),
             return ge::GRAPH_FAILED);
         actualSize = static_cast<uint64_t>(tilingData->moeDistributeCombineInfo.a) * (h * 2UL + 128UL) * 2UL;
