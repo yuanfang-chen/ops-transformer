@@ -215,13 +215,13 @@ ge::graphStatus QLIInfoParser::CheckAttrParaInfo()
         (socVersion_ == platform_ascendc::SocVersion::ASCEND910_93)) {
         OP_CHECK_IF(
             ((std::string(opParamInfo_.layOutKey) == "BNSD") || (std::string(opParamInfo_.layOutKey) == "PA_BBND")),
-            OP_LOGE(opName_, "input attr layout_key only supported PA_BSND, PA_BBND, BSND or TND"
+            OP_LOGE(opName_, "input attr layout_key only supported PA_BSND, PA_BBND, BSND or TND,"
                     "but now layout_key is %s.", layout_key.c_str()),
                     return ge::GRAPH_FAILED);
     } else if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
         OP_CHECK_IF(
             ((std::string(opParamInfo_.layOutKey) != "PA_BSND")),
-            OP_LOGE(opName_, "input attr layout_key only supported PA_BSND"
+            OP_LOGE(opName_, "input attr layout_key only supported PA_BSND,"
                         "but now layout_key is %s.", layout_key.c_str()),
                         return ge::GRAPH_FAILED);
     }
