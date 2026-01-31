@@ -350,28 +350,24 @@ void WeightQuantMatmulAllReduceTilingA5::SetMc2Hcomm()
     OP_TILING_CHECK(
         mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType) == mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
         VECTOR_INNER_ERR_REPORT_TILING(
-            opName_, "Cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
-        return );
+            opName_, "cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
+        return);
+    OP_TILING_CHECK(context_->GetAttrs() == nullptr, OP_LOGE(opName_, "failed to get attrs."), return);
+    const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
+    const std::string algConfig = "AllReduce=level0:fullmesh";
+    const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
     if (antiQuantType_ != AntiQuantType::PER_GROUP) {
-        weightQuantMatmulAllReduceA5Fp8TilingData_.hcommCfg.opType = (
-            static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLREDUCE));
-        // 支持低比特通信之后，src&dst类型需要修改
-        weightQuantMatmulAllReduceA5Fp8TilingData_.hcommCfg.srcDataType = (
-            static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-        weightQuantMatmulAllReduceA5Fp8TilingData_.hcommCfg.dstDataType = (
-            static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-        weightQuantMatmulAllReduceA5Fp8TilingData_.version = mc2tiling::COMM_VERSION3; // 新版本
-        weightQuantMatmulAllReduceA5Fp8TilingData_.hcommCnt = 1;                       // 非低比特allreduce为1
+        const uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
+        const uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType, algConfig, reduceType, dataType, dataType);
+        mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceA5Fp8TilingData_.mc2InitTiling);
+        mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceA5Fp8TilingData_.mc2CcTiling);
     } else {
-        weightQuantMatmulAllReduceA5TilingData_.hcommCfg.opType = (
-            static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLREDUCE));
-        // 支持低比特通信之后，src&dst类型需要修改
-        weightQuantMatmulAllReduceA5TilingData_.hcommCfg.srcDataType = (
-            static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-        weightQuantMatmulAllReduceA5TilingData_.hcommCfg.dstDataType = (
-            static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType)));
-        weightQuantMatmulAllReduceA5TilingData_.version = mc2tiling::COMM_VERSION3; // 新版本
-        weightQuantMatmulAllReduceA5TilingData_.hcommCnt = 1;                       // 非低比特allreduce为1
+        const uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
+        const uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType, algConfig, reduceType, dataType, dataType);
+        mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceA5TilingData_.mc2InitTiling);
+        mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceA5TilingData_.mc2CcTiling);
     }
 }
 
