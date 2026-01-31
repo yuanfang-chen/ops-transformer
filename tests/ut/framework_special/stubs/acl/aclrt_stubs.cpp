@@ -16,6 +16,9 @@
 #include <cstdlib>
 #include "securec.h"
 #include "acl/acl.h"
+#include "acl/acl_base.h"
+#include "acl/acl_rt.h"
+#include "acl/acl_dump.h"
 #include "tests/utils/log.h"
 
 extern "C" {
@@ -52,4 +55,33 @@ aclError aclrtMemcpy(void *dst, size_t destMax, const void *src, size_t count, a
     return ACL_SUCCESS;
 }
 
+const char* aclrtGetSocName()
+{
+    return "Ascend910B2";
+}
+
+aclError aclrtGetArgsFromExceptionInfo(aclrtExceptionInfo *args, void *devArgsPtr, uint32_t devArgsLen)
+{
+    return ACL_SUCCESS;
+}
+
+uint32_t aclrtGetDeviceIdFromExceptionInfo(aclrtExceptionInfo *args)
+{
+    return 0;
+}
+
+const char* acldumpGetPath(acldumpType dumpType)
+{
+    return "";
+}
+
+uint32_t aclrtGetStreamIdFromExceptionInfo(aclrtExceptionInfo *args)
+{
+    return 0;
+}
+
+uint32_t aclrtGetTaskIdFromExceptionInfo(aclrtExceptionInfo *args)
+{
+    return 0;
+}
 } // extern "C"
