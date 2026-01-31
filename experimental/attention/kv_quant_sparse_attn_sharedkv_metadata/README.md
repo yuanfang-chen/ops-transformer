@@ -168,7 +168,7 @@ cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='
                     seqused_q, seqused_kv, batch_size, max_seqlen_q, max_seqlen_kv, ori_topk, cmp_topk, tile_size, rope_head_dim, 
                     cmp_ratio, ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv, has_ori_kv, has_cmp_kv, device):
 
-            meta_data = torch_npu.npu_kv_quant_sparse_attn_sharedkv_metadata(
+            metadata = torch_npu.npu_kv_quant_sparse_attn_sharedkv_metadata(
                 num_heads_q = num_heads_q,
                 num_heads_kv = num_heads_kv,
                 head_dim = head_dim,
@@ -196,7 +196,7 @@ cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='
                 has_cmp_kv = has_cmp_kv,
                 device=device
                 )
-            return meta_data
+            return metadata
 
     npu_mode = Network().npu()
     config = CompilerConfig()
@@ -226,7 +226,7 @@ cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='
     cu_seqlens_q = torch.arange(0, (B + 1) * S1, step=S1).to(torch.int32).npu()
     seqused_kv = torch.tensor([S2]*B).to(torch.int32).npu()
 
-    meta_data = npu_mode(
+    metadata = npu_mode(
         num_heads_q=N1,
         num_heads_kv=N2,
         head_dim=D,
