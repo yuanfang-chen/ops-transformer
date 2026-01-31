@@ -354,4 +354,44 @@ ge::graphStatus AllToAllMatmulTilingBase::CheckKcQuantTensorDataType(const gert:
     return ge::GRAPH_SUCCESS;
 }
 
+/** 
+  * @brief 校验量化tiling输入的shape信息 
+  * 
+  * @param context 框架根据input，output，attrs等信息生成tiling需要的context 
+  * @param opName 算子名称 
+  * @param indexSchema 存放输入参数索引差别的结构体 
+  * @return ge::graphStatus 
+  */ 
+ge::graphStatus AllToAllMatmulTilingBase::CheckKcQuantShapeInfo(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema) 
+{ 
+    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckShapeInfo(context, opName, ALLTOALL_MATMUL_INDEX_SCHEMA) != ge::GRAPH_SUCCESS, 
+                    OP_LOGE(opName, "Tiling common info check shape failed."), return ge::GRAPH_FAILED); 
+    ge::graphStatus status; 
+    const gert::StorageShape *x1Shape = context->GetInputShape(INPUT_X1_INDEX); 
+    const gert::StorageShape *x2Shape = context->GetInputShape(INPUT_X2_INDEX); 
+    const gert::StorageShape *x2ScaleShape = context->GetOptionalInputShape(INPUT_X2_SCALE_INDEX); 
+    OP_TILING_CHECK((x1Shape == nullptr), 
+                    OP_LOGE(opName, "the input x1 shape is invalid"), return ge::GRAPH_FAILED); 
+    OP_TILING_CHECK((x2Shape == nullptr), 
+                    OP_LOGE(opName, "the input x2 shape is invalid"), return ge::GRAPH_FAILED); 
+    OP_TILING_CHECK((x2ScaleShape == nullptr), 
+                    OP_LOGE(opName, "the input x2Scale shape is invalid"), return ge::GRAPH_FAILED); 
+    uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(0); 
+    uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1); 
+    uint64_t x2ScaleDimNum = x2ScaleShape->GetStorageShape().GetDimNum(); 
+    OP_TILING_CHECK((x2ScaleDimNum != 1), OP_LOGE(opName, "the kc quant input x2scale dimNum should be one."), return ge::GRAPH_FAILED); 
+    uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(0); 
+    bool x2IsTransFlag = false; 
+    const gert::RuntimeAttrs *attrs = context->GetAttrs(); 
+    const bool *isTransX2 = attrs->GetAttrPointer<bool>(indexSchema.x2Transpose); 
+    if (isTransX2) { 
+        x2IsTransFlag = *isTransX2; 
+    } 
+    uint64_t nAxis = (x2IsTransFlag) ? x2Dim0 : x2Dim1; 
+    OP_TILING_CHECK((x2ScaleDim0 != nAxis), 
+                    OP_LOGE(opName, "The x2scale dimNum0 should be %lu, but actual value is %lu.", nAxis, x2ScaleDim0), 
+                    return ge::GRAPH_FAILED); 
+    return ge::GRAPH_SUCCESS; 
+}
+
 } // namespace MC2Tiling
