@@ -158,7 +158,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_DYNAMICQUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_DYNAMICQUANT_SCATTER)) {
         // 动态量化
-        if constexpr (!IsSameType<DTYPE_X, int8_t>::value) {
+        if constexpr (!IsSameType<DTYPE_X, int8_t>::value && !IsSameType<DTYPE_EXPANDED_X, hifloat8_t>::value) {
             TPipe gatherPipe;
             MoeGatherOutDynamicQuant<DTYPE_X> gatherDynamicQuantOp;
             gatherDynamicQuantOp.Init(x, scale, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
