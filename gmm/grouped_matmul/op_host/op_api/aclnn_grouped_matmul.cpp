@@ -1927,7 +1927,7 @@ static bool IsPerTileQuantMode(gmm::GroupedMatmulParams &params)
 {
     if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND950 &&
         IsQuant(params.xDtype, (*params.weight)[0]->GetDataType())) {
-        gmm::AclnnGroupedMatmul91095Checker<aclTensorList> checker(params);
+        gmm::AclnnGroupedMatmulDAV3510Checker<aclTensorList> checker(params);
         return checker.IsPerTileQuantMode();
     }
     return false;
