@@ -57,12 +57,12 @@
 ## 环境变量配置 
 
 根据当前环境，安装对应的CANN开发开发套件包（toolkit包+ops包）。
-1. torch_npu安装包下载路径（需及时更换为最新版本）：[torch_npu安装教程](https://gitcode.com/Ascend/pytorch)
+1. torch_npu安装包下载路径：[torch_npu安装教程](https://gitcode.com/Ascend/pytorch)
 2. CANN包环境配置可参考：[环境部署](../../../docs/zh/context/quick_install.md)
 3. 安装msprof工具
 下载Ascend-mindstudio-toolkit包并安装，安装命令
 ```bash
-./Ascend-mindstudio-toolkit*.run -full --install-path=$ASCEND_INSTALL_PATH # ASCEND_INSTALL_PATH为cann包安装路径，以cann-9.0.0结尾
+./Ascend-mindstudio-toolkit*.run -full --install-path=$ASCEND_INSTALL_PATH # ASCEND_INSTALL_PATH为cann包安装路径，以cann-{版本号}结尾
 ```
 按需选择合适的命令使环境变量生效。
 ```bash
@@ -87,7 +87,7 @@ cd ${git_clone_path}/experimental/attention/fused_infer_attention_score/output
 
 1、编译与安装自定义算子包
 ```bash
-# 切换到工程根目录
+# 切换到工程根目录(ops-transformer目录)
 cd ${git_clone_path}  
 # 编译样例算子run包
 bash build.sh --pkg  --experimental --soc=ascend910b --ops=fused_infer_attention_score  
