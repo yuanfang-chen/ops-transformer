@@ -22,6 +22,11 @@
   yRef_i=x_i\times weight_i + y_i
   $$
 
+- 版本演进：
+
+  |版本变化      | Atlas A2 训练系列产品/Atlas A2 推理系列产品<br>Atlas A3 训练系列产品/Atlas A3 推理系列产品 |Ascend 950PR/Ascend 950DT|Atlas 推理系列产品 |
+  |---------|---------|----------------|----------------|
+  |V1 -> V2|  /   |  支持groupListOptional中数值为分组轴上每组大小。新增groupListType参数用以表示groupListOptional中数值为累加和形式或者计数形式  | / |
 
 ## 函数原型
 
@@ -29,22 +34,22 @@
 
 ```cpp
 aclnnStatus aclnnGroupedMatmulAddV2GetWorkspaceSize(
-    const aclTensor *x, 
-    const aclTensor *weight, 
-    const aclTensor *groupList, 
-    aclTensor       *yRef, 
-    bool             transposeX, 
-    bool             transposeWeight, 
-    int64_t          groupType, 
-    int64_t          group_list_type, 
-    uint64_t        *workspaceSize, 
+    const aclTensor *x,
+    const aclTensor *weight,
+    const aclTensor *groupList,
+    aclTensor       *yRef,
+    bool             transposeX,
+    bool             transposeWeight,
+    int64_t          groupType,
+    int64_t          group_list_type,
+    uint64_t        *workspaceSize,
     aclOpExecutor   **executor)
 ```
 ```cpp
 aclnnStatus aclnnGroupedMatmulAddV2(
-    void          *workspace, 
-    uint64_t       workspaceSize, 
-    aclOpExecutor *executor, 
+    void          *workspace,
+    uint64_t       workspaceSize,
+    aclOpExecutor *executor,
     aclrtStream    stream)
 ```
 
@@ -126,16 +131,6 @@ aclnnStatus aclnnGroupedMatmulAddV2(
       <td>-</td>
     </tr>
     <tr>
-      <td>yRef</td>
-      <td>输出</td>
-      <td>表示原地累加的输入矩阵y的引用（与y完全相同），Device侧的aclTensor类型，公式中的yRef</td>
-      <td>-</td>
-      <td>FLOAT32</td>
-      <td>ND</td>
-      <td>3</td>
-      <td>-</td>
-    </tr>
-    <tr>
       <td>transposeX</td>
       <td>输入</td>
       <td>表示x矩阵是否转置，Host侧的布尔值。</td>
@@ -144,7 +139,7 @@ aclnnStatus aclnnGroupedMatmulAddV2(
           <li>当前仅支持True。</li>
         </ul>
       </td>
-      <td>-</td>
+      <td>BOOL</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -158,7 +153,7 @@ aclnnStatus aclnnGroupedMatmulAddV2(
           <li>当前仅支持False。</li>
         </ul>
       </td>
-      <td>-</td>
+      <td>BOOL</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -172,14 +167,14 @@ aclnnStatus aclnnGroupedMatmulAddV2(
           <li>当前仅支持2（K轴分组）。</li>
         </ul>
       </td>
-      <td>-</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
     </tr>
     <tr>
       <td>groupListType</td>
-      <td>输出</td>
+      <td>输入</td>
       <td>整数型参数，目前仅支持两个取值。</td>
       <td>
         <ul>
@@ -187,9 +182,19 @@ aclnnStatus aclnnGroupedMatmulAddV2(
           <li>1：groupList中的数值为分组轴上每组大小。</li>
         </ul>
       </td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
+    </tr>
+    <tr>
+      <td>yRef</td>
+      <td>输出</td>
+      <td>表示原地累加的输入矩阵y的引用（与y完全相同），Device侧的aclTensor类型，公式中的yRef</td>
+      <td>-</td>
+      <td>FLOAT32</td>
+      <td>ND</td>
+      <td>3</td>
       <td>-</td>
     </tr>
     <tr>
