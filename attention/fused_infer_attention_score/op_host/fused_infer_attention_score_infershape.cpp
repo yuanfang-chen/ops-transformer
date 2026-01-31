@@ -14,6 +14,7 @@
  */
 #include <graph/utils/type_utils.h>
 #include <register/op_impl_registry.h>
+#include <string>
 #include "log/log.h"
 #include "log/error_code.h"
 
@@ -67,7 +68,7 @@ static const std::map<int64_t, ge::DataType> TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_
     {290, ge::DT_HIFLOAT8}
 };
 
-static const std::map<int64_t, string> TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP = {
+static const std::map<int64_t, std::string> TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP = {
     {23,  "DT_FLOAT8_E5M2"},
 };
 
