@@ -16,7 +16,7 @@
     主要计算过程为：
     1. 将某个token对应的输入参数`query`（$Q_{index}^{Quant}\in\R^{g\times d}$）乘以给定上下文`key`（$K_{index}^{Quant}\in\R^{S_{k}\times d}$），得到相关性。
     2. 相关性结果与`query`和`key`对应的反量化系数`query_dequant_scale`（$Scale_Q$）和`key_dequant_scale`（$Scale_K^T$）相乘，通过激活函数$ReLU$过滤无效负相关信号后，得到当前Token与所有前序Token的相关性分数向量。
-    3. 将其与权重系数`weights`（$W$）相乘后，沿g的方向，选取前$Top-k$个索引值得到输出$out$，作为后续Attention计算的输入。
+    3. 将其与权重系数`weights`（$W$）相乘后，沿g的方向，选取前$Top-k$个索引值得到输出$out$，作为Attention的输入。
 
 ## 函数原型
 
@@ -67,7 +67,7 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 
 -   **cmp\_ratio**（`int`）：可选参数，用于稀疏计算，表示key的压缩倍数。数据类型支持`int32`，默认值1，支持1/2/4/8/16/32/64/128。
 
--   **return\_value**（`bool`）：可选参数，表示是否输出`sparse_values`。True表示输出，False表示不输出；默认值为False。**目前暂不支持返回return_value。**
+-   **return\_value**（`bool`）：可选参数，表示是否输出`sparse_values`。True表示输出，False表示不输出；仅支持默认值False。
 
 ## 返回值说明
 `Tensor`
@@ -125,8 +125,8 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
     max_seqlen_q = actual_seq_lengths_query.max().item()
     max_seqlen_k = actual_seq_lengths_key.max().item()
     metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata (
-                                    actual_seq_lengths_query = actual_seq_lengths_query.npu() if actual_seq_lengths_query is not None else torch.tensor([]).npu(),
-                                    actual_seq_lengths_key = actual_seq_lengths_key.npu() if actual_seq_lengths_key is not None else torch.tensor([]).npu(),
+                                    actual_seq_lengths_query = actual_seq_lengths_query.npu(),
+                                    actual_seq_lengths_key = actual_seq_lengths_key.npu(),
                                     num_heads_q = n1,
                                     num_heads_k = n2,
                                     head_dim = d,
@@ -157,7 +157,7 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
                                                     sparse_mode=sparse_mode, pre_tokens=(1<<63)-1,
                                                     next_tokens=(1<<63)-1, cmp_ratio=cmp_ratio)
     ```
--   图模式调用
+-   aclgarph调用
 
     ```python
     import torch
