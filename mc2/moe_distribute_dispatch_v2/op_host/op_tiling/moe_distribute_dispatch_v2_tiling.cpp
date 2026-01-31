@@ -1266,7 +1266,7 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
     auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
     uint64_t hcclBufferSizeEp = 0;
     uint64_t maxWindowSizeEp = 0;
-    bool isA5 = (mc2tiling::GetSocVersion(context) == "Ascend910_95");
+    bool isA5 = (mc2tiling::GetSocVersion(context) == "Ascend950");
     OP_TILING_CHECK(
         Mc2Hcom::MC2HcomTopology::Mc2MoeGetEpWinSize(
             groupEpHccl, &hcclBufferSizeEp, &maxWindowSizeEp, isA5) != HCCL_SUCCESS,
