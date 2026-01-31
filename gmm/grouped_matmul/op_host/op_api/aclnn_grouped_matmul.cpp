@@ -2388,7 +2388,7 @@ aclnnStatus aclnnGroupedMatmulV4GetWorkspaceSize(const aclTensorList *x, const a
                  DFX_OUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
   if ((*weight)[0]->GetDataType() == DataType::DT_INT32) {
     // convert weight from int32 to int4
-    UnpackB32ToB4(weight, "Weight");
+    UnpackB32ToB4(weight, "weight");
   }
   if ((*x)[0]->GetDataType() == DataType::DT_INT32) {
     // convert x from int32 to int4
