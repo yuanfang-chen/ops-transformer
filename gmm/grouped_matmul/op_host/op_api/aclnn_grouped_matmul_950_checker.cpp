@@ -663,9 +663,11 @@ that of %s[%ld].",
 template <typename T>
 aclnnStatus AclnnGroupedMatmul91095Checker<T>::CheckInt8QuantDtype() const
 {
+    static const std::vector<ge::DataType> legalOutputDtypes = {ge::DT_INT8, ge::INT32, ge::DT_BF16, ge::DT_FLOAT16};
     DataType yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
-    CHECK_COND(yDtype == DataType::DT_BF16 || yDtype == DataType::DT_FLOAT16, ACLNN_ERR_PARAM_INVALID,
-               "Expect y dtype to be float16 or bfloat16 in int8 quant case, but actual dtype is %s",
+    CHECK_COND(std::find(legalOutputDtypes.begin(), legalOutputDtypes.end(), yDtype) != legalOutputDtypes.end(),
+               ACLNN_ERR_PARAM_INVALID,
+               "Expect y dtype to be int8, int32, float16 or bfloat16 in int8 quant case, but actual dtype is %s",
                op::ToString(yDtype).GetString());
     if (gmmParams_.biasOptional != nullptr) {
         DataType biasDtype = (*gmmParams_.biasOptional)[0]->GetDataType();
@@ -693,6 +695,10 @@ dtype is %s", op::ToString(scaleDtype).GetString());
         CHECK_COND(scaleDtype == DataType::DT_UINT64 || scaleDtype == DataType::DT_INT64 ||
                        scaleDtype == DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
                    "When y dtype is float16, the scale dtype should be uint64, int64 or float32, but actual dtype is %s",
+                   op::ToString(scaleDtype).GetString());
+    } else if (yDtype == DataType::DT_INT8 || yDtype == DataType::DT_INT32) {
+        CHECK_COND(scaleDtype == DataType::DT_UINT64 || scaleDtype == DataType::DT_INT64, ACLNN_ERR_PARAM_INVALID,
+                   "When y dtype is int8 or int32, the scale dtype should be uint64 or int64, but actual dtype is %s",
                    op::ToString(scaleDtype).GetString());
     }
     if (gmmParams_.perTokenScaleOptional != nullptr) {
