@@ -67,6 +67,10 @@ static const std::map<int64_t, ge::DataType> TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_
     {290, ge::DT_HIFLOAT8}
 };
 
+static const std::map<int64_t, string> TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP = {
+    {23,  "DT_FLOAT8_E5M2"},
+};
+
 static ge::graphStatus GetQueryAndOutLayout(std::string& queryLayout,
                                             std::string& attentionOutLayout,
                                             const gert::Shape *queryShape,
@@ -382,7 +386,7 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
             if (iter != TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP.end()) {
                 outputType = iter->second;
             }else{
-                OP_LOGE("FusedInferAttentionScore", "fia graph mode do not support quant scale2 type: (ge)%d!", *outTypePtr);
+                OP_LOGE("FusedInferAttentionScore", "fia graph mode do not support post quant output data type: %s.", TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP[*outTypePtr]);
                 return ge::GRAPH_FAILED;
             }
         }
