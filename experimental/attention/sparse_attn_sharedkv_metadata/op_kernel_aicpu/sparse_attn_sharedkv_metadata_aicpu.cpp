@@ -15,9 +15,9 @@
 
 #include <cstdio>
 #include <cmath>
+#include "sparse_attn_sharedkv_metadata_aicpu.h"
 #include "../../sparse_attn_sharedkv/op_kernel/sparse_attn_sharedkv_metadata.h"
 #include "../../common/aicpu/cpu_context_util.h"
-#include "sparse_attn_sharedkv_metadata_aicpu.h"
 
 using namespace optiling;
 
