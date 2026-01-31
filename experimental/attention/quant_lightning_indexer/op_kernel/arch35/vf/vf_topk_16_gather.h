@@ -16,8 +16,6 @@
 #ifndef VF_TOP_K_16_GATHER_H
 #define VF_TOP_K_16_GATHER_H
 
-#define DIV(x, y) (((x + y - 1) / y))
-
 namespace topkb16gather {
     
 template<typename T>

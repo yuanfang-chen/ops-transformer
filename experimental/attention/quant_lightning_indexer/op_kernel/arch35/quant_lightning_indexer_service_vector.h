@@ -27,6 +27,7 @@
 namespace QLIKernel {
 using namespace QLICommon;
 constexpr uint32_t TRUNK_LEN_16K = 16384;
+constexpr uint32_t LD_PARAM_NUM = 16;
 template <typename QLIT>
 class QLIVector {
 public:
