@@ -15,6 +15,7 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_V2_HOST_KFC_H
 #define MOE_DISTRIBUTE_DISPATCH_V2_HOST_KFC_H
 
+#include "kernel_operator.h"
 #include "basic_api/kernel_basic_intf.h"
 #include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
