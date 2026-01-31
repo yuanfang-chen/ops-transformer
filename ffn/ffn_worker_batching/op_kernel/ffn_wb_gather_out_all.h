@@ -47,7 +47,7 @@ public:
         tokenDtypeSize_ = (contextInfo_->tokenDtype == NUM_TWO) ? sizeof(int8_t) : sizeof(half); // attr 2: int8
 
         sessionNumBlockAlign_ = Align(contextInfo_->A, sizeof(int32_t));
-        int64_t validGatherIdxLenth = contextInfo_->validGatherIdxLenth;
+        int64_t validGatherIdxLength = contextInfo_->validGatherIdxLength;
 
         int64_t ubAvailable = contextInfo->ubSize - 
                             (BUFFER_NUM * PER_LOOP_ROWS * sizeof(int32_t) * VAR_NUM +
@@ -62,9 +62,9 @@ public:
         lastHBlockSize_ = contextInfo_->H - (hBlocks_ - 1) * maxBlockSize_;
 
         int64_t blockIdx = GetBlockIdx();
-        int64_t perCoreRows = CeilDiv(validGatherIdxLenth, useCore);
-        needCoreNum_ = perCoreRows == 0 ? 0 : CeilDiv(validGatherIdxLenth, perCoreRows);
-        int64_t lastCoreRows = validGatherIdxLenth - perCoreRows * (needCoreNum_ - 1);
+        int64_t perCoreRows = CeilDiv(validGatherIdxLength, useCore);
+        needCoreNum_ = perCoreRows == 0 ? 0 : CeilDiv(validGatherIdxLength, perCoreRows);
+        int64_t lastCoreRows = validGatherIdxLength - perCoreRows * (needCoreNum_ - 1);
 
         if (blockIdx == needCoreNum_ - 1) {
             lastLoopRows_ = lastCoreRows - (CeilDiv(lastCoreRows, PER_LOOP_ROWS) - 1) * PER_LOOP_ROWS;
@@ -91,7 +91,7 @@ public:
         yOutGm_.SetGlobalBuffer((__gm__ int8_t*)y + blockIdx * SplitY);
 
         sessionIdsOutGm_.SetGlobalBuffer((__gm__ int32_t*)session_ids + blockIdx * perCoreRows);
-        mircoBatchIdsOutGm_.SetGlobalBuffer((__gm__ int32_t*)micro_batch_ids + blockIdx * perCoreRows);
+        microBatchIdsOutGm_.SetGlobalBuffer((__gm__ int32_t*)micro_batch_ids + blockIdx * perCoreRows);
         tokenIdsOutGm_.SetGlobalBuffer((__gm__ int32_t*)token_ids + blockIdx * perCoreRows);
         expertOffsetsOutGm_.SetGlobalBuffer((__gm__ int32_t*)expert_offsets + blockIdx * perCoreRows);
         if (contextInfo_->tokenDtype == TOKEN_KIND_TWO) {
@@ -212,7 +212,7 @@ private:
 
         DataCopyExtParams copyParams2{1, static_cast<uint32_t>(copyLength * sizeof(int32_t)), 0, 0, 0};
         DataCopyPad(sessionIdsOutGm_[allLocalOffset], outAllLocal, copyParams2);
-        DataCopyPad(mircoBatchIdsOutGm_[allLocalOffset], outAllLocal[PER_LOOP_ROWS * VAR_MICRO_BATCH_IDX], copyParams2);
+        DataCopyPad(microBatchIdsOutGm_[allLocalOffset], outAllLocal[PER_LOOP_ROWS * VAR_MICRO_BATCH_IDX], copyParams2);
         DataCopyPad(tokenIdsOutGm_[allLocalOffset], outAllLocal[PER_LOOP_ROWS * VAR_TOKEN_IDX], copyParams2);
         DataCopyPad(expertOffsetsOutGm_[allLocalOffset], outAllLocal[PER_LOOP_ROWS * VAR_EXPERT_OFFSETS_IDX], copyParams2);
 
@@ -282,7 +282,7 @@ private:
 
     GlobalTensor<int8_t> yOutGm_;
     GlobalTensor<int32_t> sessionIdsOutGm_;
-    GlobalTensor<int32_t> mircoBatchIdsOutGm_;
+    GlobalTensor<int32_t> microBatchIdsOutGm_;
     GlobalTensor<int32_t> tokenIdsOutGm_;
     GlobalTensor<int32_t> expertOffsetsOutGm_;
     GlobalTensor<float> dynamicScaleOutGm_;

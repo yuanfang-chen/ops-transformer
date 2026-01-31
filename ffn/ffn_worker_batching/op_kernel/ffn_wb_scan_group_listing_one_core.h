@@ -35,13 +35,13 @@ public:
         int64_t outQueSize = 1024 * NUM_TWO * sizeof(int64_t) * NUM_TWO; // 1024个数, key & value, doblebuffer
         int64_t ubMaxRows = Align((scheduleContext->ubSize - outQueSize) / sizeof(int32_t) / NUM_TWO,
                                 sizeof(int32_t));
-        int64_t validGatherIdxLenth = scheduleContext->validGatherIdxLenth;
+        int64_t validGatherIdxLength = scheduleContext->validGatherIdxLength;
 
         perLoopRows = Min(8192L, ubMaxRows); // max 8192
         perLoopRows = Max(1L, perLoopRows);
 
-        loops = validGatherIdxLenth / perLoopRows;
-        lastLoopRows = validGatherIdxLenth - loops * perLoopRows;
+        loops = validGatherIdxLength / perLoopRows;
+        lastLoopRows = validGatherIdxLength - loops * perLoopRows;
 
         pipe = tPipe;
         expertNum = scheduleContext->expertNum;

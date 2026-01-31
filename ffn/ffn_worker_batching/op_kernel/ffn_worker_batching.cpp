@@ -66,13 +66,13 @@ extern "C" __aicore__ inline void FfnWorkerBatchingProcess(GM_ADDR schedule_cont
     }
 
     // 这里获取有效长度，赋值给 contextInfo
-    ValidGatherIdxLenthCompute(userWS, contextInfo, actual_token_num);
+    ValidGatherIdxLengthCompute(userWS, contextInfo, actual_token_num);
 
     KernelFfnWBGroupListing expertTokenOutMultiOp;
 
     int64_t groupListingDealFlag = 0;
     uint32_t usedCoreNum = GROUP_LISTING_AIV_NUM;
-    if (contextInfo.validGatherIdxLenth > GROUP_LISTING_MULTI_CORE_LENTH) {
+    if (contextInfo.validGatherIdxLength > GROUP_LISTING_MULTI_CORE_LENGTH) {
         groupListingDealFlag = 1;
         usedCoreNum = GROUP_LISTING_MULTI_AIV_NUM;
     }
@@ -144,7 +144,7 @@ extern "C" __aicore__ inline void FfnWorkerBatchingRecvProcess(GM_ADDR schedule_
     }
 
     // 这里确定 有效长度，赋值给 contextInfo
-    ValidGatherIdxLenthCompute(userWS, contextInfo, actual_token_num);
+    ValidGatherIdxLengthCompute(userWS, contextInfo, actual_token_num);
 
     int64_t blockIdx = GetBlockIdx();
     if (blockIdx < tilingData->coreNum - GROUP_LISTING_SCAN_AIV_NUM) {
@@ -197,7 +197,7 @@ extern "C" __aicore__ inline void FfnWorkerBatchingRecvSpecProcess(GM_ADDR sched
     op.Process();
     ffnPipe.Reset();
 
-    ValidGatherIdxLenthCompute(userWS, contextInfo, actual_token_num);
+    ValidGatherIdxLengthCompute(userWS, contextInfo, actual_token_num);
 
     int64_t totalLengthWithPad = contextInfo.A * (contextInfo.BS * contextInfo.K + contextInfo.BsKPaddingCount);
     KernelFfnWBGatherOutAll<true> opGather;

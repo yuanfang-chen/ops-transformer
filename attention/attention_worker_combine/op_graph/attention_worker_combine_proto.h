@@ -38,7 +38,7 @@ namespace ge {
 	 * @li need_schedule: Int, Value 1 represents op waits until tokens are filled.
 	 */
 	REG_OP(AttentionWorkerCombine)
-		.INPUT(schedule_context, TensorType({DT_INT8, DT_INT8}))
+		.INPUT(schedule_context, TensorType({DT_INT8}))
 		.INPUT(expert_scales, TensorType({DT_FLOAT}))
 		.INPUT(layer_id, TensorType({DT_INT32}))
 		.OUTPUT(y, TensorType({DT_FLOAT16, DT_BF16}))

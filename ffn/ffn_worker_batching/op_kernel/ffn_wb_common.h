@@ -54,7 +54,7 @@ constexpr int64_t BLOCK_BYTES = 32;
 constexpr int64_t MAX_EXPERT_NUM = 5120;
 constexpr int64_t EXPERT_ID_VALUE_NUM = 2;
 
-constexpr int64_t GROUP_LISTING_MULTI_CORE_LENTH = 512;
+constexpr int64_t GROUP_LISTING_MULTI_CORE_LENGTH = 512;
 constexpr uint32_t GROUP_LISTING_MULTI_AIV_NUM = 4;
 constexpr uint32_t GROUP_LISTING_AIV_NUM = 1;
 constexpr uint32_t GROUP_LISTING_SCAN_AIV_NUM = 1;
@@ -87,7 +87,7 @@ struct ScheduleContextInfo {
     int64_t ubSize = 0;             // tiling中取到的可用ub大小
     int64_t sortLoopMaxElement = 0; // 每次ub最多可以排序多少个int32。取自tilingdata
     int64_t sortNumWorkSpace = 0; // 用于记录每次排序后的个数。所有核一起需要占用的总空间。单位：个数。取自tilingdata
-    int64_t validGatherIdxLenth = 0; // 文件排序后，去掉 100w(无效值的长度） 其值 ≤ A * BS * K 即gather_idx 有效长度;
+    int64_t validGatherIdxLength = 0; // 文件排序后，去掉 100w(无效值的长度） 其值 ≤ A * BS * K 即gather_idx 有效长度;
     int64_t BsKPaddingCount = 0; // BS*K 按block对齐需要补的pad个数, recv功能使用
 
     // 放的是 切切实实的 gm 地址, 目前通过bin文件放的是偏移 ,所以需要加GM_ADDR schedule_context
@@ -316,7 +316,7 @@ __aicore__ inline void TilingScanSort(
     }
 }
 
-__aicore__ inline void ValidGatherIdxLenthCompute(
+__aicore__ inline void ValidGatherIdxLengthCompute(
     GM_ADDR work_space, ScheduleContextInfo& contextInfo, GM_ADDR actual_token_num)
 {
     GlobalTensor<int32_t> workSpace;
@@ -327,10 +327,10 @@ __aicore__ inline void ValidGatherIdxLenthCompute(
 
     DataCacheCleanAndInvalid<int32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_ALL>(
         workSpace);
-    contextInfo.validGatherIdxLenth = workSpace.GetValue(0);
+    contextInfo.validGatherIdxLength = workSpace.GetValue(0);
 
     if (GetBlockIdx() == 0) {
-        actualTokenNumGm.SetValue(0, contextInfo.validGatherIdxLenth);
+        actualTokenNumGm.SetValue(0, contextInfo.validGatherIdxLength);
         DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_ALL>(
             actualTokenNumGm);
     }
@@ -340,20 +340,20 @@ __aicore__ inline void Tiling4SrcToDstCompute(
     const ScheduleContextInfo* tilingData, FfnWBGroupListingTileInfo& tilingInfo)
 {
     int64_t ubSizePlatForm = tilingData->ubSize;
-    int64_t validGatherIdxLenth = tilingData->validGatherIdxLenth;
+    int64_t validGatherIdxLength = tilingData->validGatherIdxLength;
 
     int64_t perLoopMaxRows =
         (ubSizePlatForm - ASSIST_NUM * sizeof(float) - GROUP_LISTING_AIV_NUM * SORT32_ALIGN_ELEMENT) /
         (SORT32_ALIGN_ELEMENT * NUM_TWO) / NUM_TWO;
 
-    int64_t perCoreRows = CeilDiv(validGatherIdxLenth, GROUP_LISTING_AIV_NUM);
+    int64_t perCoreRows = CeilDiv(validGatherIdxLength, GROUP_LISTING_AIV_NUM);
     if (perCoreRows <= 0) {
         tilingInfo.needCoreNum = 0;
         return;
     }
-    int64_t needCoreNum = CeilDiv(validGatherIdxLenth, perCoreRows);
+    int64_t needCoreNum = CeilDiv(validGatherIdxLength, perCoreRows);
     tilingInfo.needCoreNum = needCoreNum;
-    int64_t lastCoreNum = validGatherIdxLenth - perCoreRows * (needCoreNum - 1);
+    int64_t lastCoreNum = validGatherIdxLength - perCoreRows * (needCoreNum - 1);
 
     tilingInfo.perCoreRows = perCoreRows;
 
