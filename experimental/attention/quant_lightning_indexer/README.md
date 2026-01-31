@@ -444,6 +444,6 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
                         block_table=block_table,
                         layout_query=layout_query, layout_key=layout_key,
                         sparse_count=sparse_count, sparse_mode=sparse_mode,
-                        pre_tokens=pre_tokens, next_tokens=next_tokens,
+                        pre_tokens=(1<<63)-1, next_tokens=(1<<63)-1,
                         cmp_ratio=cmp_ratio, return_value=False)
     ```
