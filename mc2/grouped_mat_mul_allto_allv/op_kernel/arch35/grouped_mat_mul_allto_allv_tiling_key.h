@@ -41,7 +41,7 @@
  * - TILINGKEY_GMM_QUANT_MODE: GMM 量化模式 (0-6, 当前仅支持1)
  * - TILINGKEY_SHARED_MM_QUANT_MODE: 共享专家 MM 量化模式 (0-6, 当前仅支持1)
  */
-ASCENDC_TPL_ARGS_DECL(QuantGroupedMatMulAlltoAllv,
+ASCENDC_TPL_ARGS_DECL(GroupedMatMulAlltoAllv,
 
                       // GMM 计算转置场景
                       ASCENDC_TPL_BOOL_DECL(TILINGKEY_GMM_WEIGHT_TRANS, 0, 1),
