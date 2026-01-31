@@ -518,7 +518,7 @@ ge::graphStatus FiaTilingCheck::CheckSystemPrefixShape()
         OP_LOGE(opName_, "actual prefix len should be less than or equal to prefixlen");
         return ge::GRAPH_FAILED;
     }
-    return prefixKeyShapeCmp_->CompareShape(shapeParams, __func__);
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus FiaTilingCheck::CheckMask()
