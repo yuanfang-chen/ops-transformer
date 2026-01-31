@@ -497,8 +497,8 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
 
     const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
 
-    constexpr uint32_t EP_WORLD_SIZE = (!rank_table_file) ? 2 : 8;
-    constexpr uint32_t TP_WORLD_SIZE = (!rank_table_file) ? 1 : 2;
+    constexpr uint32_t EP_WORLD_SIZE = (!rank_table_file) ? 8 : 2;
+    constexpr uint32_t TP_WORLD_SIZE = (!rank_table_file) ? 2 : 1;
     constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
 
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
@@ -538,12 +538,14 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
         ret = HcclGetCommName(args.hcclEpComm, hcomEpName);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetEpCommName failed, ret %d\n", ret); return -1);
         char hcomTpName[128] = {0};
-        ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
-        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
-        LOG_PRINT(
-            "[INFO] rank = %d, hcomEpName = %s, hcomTpName = %s, dispatchStream = %p, combineStream = %p, context = %p\n",
-            args.rankId, hcomEpName, hcomTpName, args.dispatchStream, args.combineStream, args.context
-        );
+        if (!rank_table_file) {
+            ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
+            CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
+            LOG_PRINT(
+                "[INFO] rank = %d, hcomEpName = %s, hcomTpName = %s, dispatchStream = %p, combineStream = %p, context = %p\n",
+                args.rankId, hcomEpName, hcomTpName, args.dispatchStream, args.combineStream, args.context
+            );
+        }
 
         int64_t BS = 8;
         int64_t H = 7168;
