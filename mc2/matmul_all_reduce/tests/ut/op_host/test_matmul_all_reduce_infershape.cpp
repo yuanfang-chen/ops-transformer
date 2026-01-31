@@ -31,31 +31,20 @@ protected:
     }
 };
 
-std::vector<MatmulAllReduceInferShapeUtParam> casesInferShape {
-    // 正确用例
-    {"2dim", ID({{32, 64}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), ID({{64, 128}, {}}, ge::DT_INT32, ge::FORMAT_ND), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, ID({{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), "group", "sum", false, false, 0, 0, 0, ge::DT_UNDEFINED, 0, 8, ge::GRAPH_SUCCESS, {{32, 128}}},
-    {"3dim", ID({{4, 8, 64}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), ID({{64, 128}, {}}, ge::DT_INT32, ge::FORMAT_ND), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, ID({{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), "group", "sum", false, false, 0, 0, 0, ge::DT_UNDEFINED, 0, 8, ge::GRAPH_SUCCESS, {{4, 8, 128}}},
-    {"invalid_zero_k", ID({{32, 0}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), ID({{0, 128}, {}}, ge::DT_INT32, ge::FORMAT_ND), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, ID({{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), "group", "sum", false, false, 0, 0, 0, ge::DT_UNDEFINED, 0, 8, ge::GRAPH_SUCCESS, {{32, 128}}},
-    {"3dim_quant_v4", ID({{4, 8, 64}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), ID({{64, 128}, {}}, ge::DT_INT32, ge::FORMAT_ND), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, ID({{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), "group", "sum", false, false, 0, 0, 0, ge::DT_UNDEFINED, 0, 8, ge::GRAPH_SUCCESS, {{4, 8, 128}}},
-    {"add_rms_norm", ID({{4, 8, 64}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), ID({{64, 128}, {}}, ge::DT_INT32, ge::FORMAT_ND), ID({{128}, {}}, ge::DT_INT32, ge::FORMAT_ND), ID({{4, 8, 128}, {}}, ge::DT_INT32, ge::FORMAT_ND), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, ID({{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), "group", "sum", false, false, 0, 0, 0, ge::DT_UNDEFINED, 0, 8, ge::GRAPH_SUCCESS, {{4, 8, 128}}},
-    // 失败用例
-    {"invalid_k", ID({{32, 8}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), ID({{64, 128}, {}}, ge::DT_INT32, ge::FORMAT_ND), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, ID({{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND), "group", "sum", false, false, 0, 0, 0, ge::DT_UNDEFINED, 0, 8, ge::GRAPH_FAILED}
-};
-
 TEST_P(InferShapeTest, param)
 {
     auto param = GetParam();
-    std::vector<ID> inputTensorDesc;
-    if (param.inputInstanceNum[0] == 1) inputTensorDesc.emplace_back(param.x1);
-    if (param.inputInstanceNum[1] == 1) inputTensorDesc.emplace_back(param.x2);
-    if (param.inputInstanceNum[2] == 1) inputTensorDesc.emplace_back(param.bias);
-    if (param.inputInstanceNum[3] == 1) inputTensorDesc.emplace_back(param.x3);
-    if (param.inputInstanceNum[4] == 1) inputTensorDesc.emplace_back(param.antiquant_scale);
-    if (param.inputInstanceNum[5] == 1) inputTensorDesc.emplace_back(param.antiquant_offset);
-    if (param.inputInstanceNum[6] == 1) inputTensorDesc.emplace_back(param.dequant_scale);
-    if (param.inputInstanceNum[7] == 1) inputTensorDesc.emplace_back(param.pertoken_scale);
-    if (param.inputInstanceNum[8] == 1) inputTensorDesc.emplace_back(param.comm_quant_scale_1);
-    if (param.inputInstanceNum[9] == 1) inputTensorDesc.emplace_back(param.comm_quant_scale_2);
+    std::vector<gert::InfershapeContextPara::TensorDescription> inputTensorDesc;
+    if (param.inputInstance[0] == 1) inputTensorDesc.emplace_back(param.x1);
+    if (param.inputInstance[1] == 1) inputTensorDesc.emplace_back(param.x2);
+    if (param.inputInstance[2] == 1) inputTensorDesc.emplace_back(param.bias);
+    if (param.inputInstance[3] == 1) inputTensorDesc.emplace_back(param.x3);
+    if (param.inputInstance[4] == 1) inputTensorDesc.emplace_back(param.antiquant_scale);
+    if (param.inputInstance[5] == 1) inputTensorDesc.emplace_back(param.antiquant_offset);
+    if (param.inputInstance[6] == 1) inputTensorDesc.emplace_back(param.dequant_scale);
+    if (param.inputInstance[7] == 1) inputTensorDesc.emplace_back(param.pertoken_scale);
+    if (param.inputInstance[8] == 1) inputTensorDesc.emplace_back(param.comm_quant_scale_1);
+    if (param.inputInstance[9] == 1) inputTensorDesc.emplace_back(param.comm_quant_scale_2);
     gert::InfershapeContextPara inferShapeContextPara(
         "MatmulAllReduce",
         inputTensorDesc,
@@ -73,7 +62,7 @@ TEST_P(InferShapeTest, param)
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.y_dtype)},
             {"comm_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.comm_quant_mode)}
         },
-        param.inputInstanceNum, param.outputInstanceNum
+        param.inputInstance, param.outputInstance
     );
     Mc2Hcom::MockValues hcomTopologyMockValues {
         {"rankNum", param.ranksize}
@@ -84,76 +73,8 @@ TEST_P(InferShapeTest, param)
 INSTANTIATE_TEST_SUITE_P(
     MatmulAllReduce,
     InferShapeTest,
-    testing::ValuesIn(casesInferShape),
+    testing::ValuesIn(GetCasesFromCsv<MatmulAllReduceInferShapeUtParam>(ReplaceFileExtension2Csv(__FILE__))),
     GetCaseInfoString<MatmulAllReduceInferShapeUtParam>
-);
-
-// inferDataType 用例 ==================================================================================================
-class InferDataTypeTest : public testing::TestWithParam<MatmulAllReduceInferDataTypeUtParam> {
-protected:
-    static void SetUpTestCase()
-    {
-        std::cout << "MatmulAllReduce InferDataTypeTest SetUp" << std::endl;
-    }
-
-    static void TearDownTestCase()
-    {
-        std::cout << "MatmulAllReduce InferDataTypeTest TearDown" << std::endl;
-    }
-};
-
-std::vector<MatmulAllReduceInferDataTypeUtParam> casesInferDataType {
-    {"basic", ge::DT_FLOAT16, ge::DT_FLOAT16, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, "group", "sum", false, false, 0, 0, 0, ge::DT_FLOAT16, 0, ge::GRAPH_SUCCESS, ge::DT_FLOAT16}
-};
-
-TEST_P(InferDataTypeTest, param)
-{
-    auto param = GetParam();
-    ge::DataType x1 = ge::DT_FLOAT16;
-    ge::DataType x2 = ge::DT_FLOAT16;
-    std::vector<void*> inputDataTypes;
-    if (param.inputInstanceNum[0] == 1) inputDataTypes.emplace_back(&param.x1);
-    if (param.inputInstanceNum[1] == 1) inputDataTypes.emplace_back(&param.x2);
-    if (param.inputInstanceNum[2] == 1) inputDataTypes.emplace_back(&param.bias);
-    if (param.inputInstanceNum[3] == 1) inputDataTypes.emplace_back(&param.x3);
-    if (param.inputInstanceNum[4] == 1) inputDataTypes.emplace_back(&param.antiquant_scale);
-    if (param.inputInstanceNum[5] == 1) inputDataTypes.emplace_back(&param.antiquant_offset);
-    if (param.inputInstanceNum[6] == 1) inputDataTypes.emplace_back(&param.dequant_scale);
-    if (param.inputInstanceNum[7] == 1) inputDataTypes.emplace_back(&param.pertoken_scale);
-    if (param.inputInstanceNum[8] == 1) inputDataTypes.emplace_back(&param.comm_quant_scale_1);
-    if (param.inputInstanceNum[9] == 1) inputDataTypes.emplace_back(&param.comm_quant_scale_2);
-
-    auto contextHolder = gert::InferDataTypeContextFaker()
-        .SetOpType("MatmulAllReduce")
-        .IrInstanceNum(param.inputInstanceNum, param.outputInstanceNum)
-        .InputDataTypes(inputDataTypes)
-        .NodeOutputTd(0, ge::FORMAT_ND, ge::FORMAT_ND)
-        .NodeAttrs({
-            {"group", Ops::Transformer::AnyValue::CreateFrom<std::string>(param.group)},
-            {"reduce_op", Ops::Transformer::AnyValue::CreateFrom<std::string>(param.reduce_op)},
-            {"is_trans_a", Ops::Transformer::AnyValue::CreateFrom<bool>(param.is_trans_a)},
-            {"is_trans_b", Ops::Transformer::AnyValue::CreateFrom<bool>(param.is_trans_b)},
-            {"comm_turn", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.comm_turn)},
-            {"antiquant_group_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.antiquant_group_size)},
-            {"group_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.group_size)},
-            {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.y_dtype)},
-            {"comm_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.comm_quant_mode)}
-        })
-        .Build();
-
-    auto spaceRegistry = gert::DefaultOpImplSpaceRegistryV2::GetInstance().GetSpaceRegistry();
-    auto inferDtypeFunc = spaceRegistry->GetOpImpl("MatmulAllReduce")->infer_datatype;
-    ASSERT_EQ(inferDtypeFunc(contextHolder.GetContext<gert::InferDataTypeContext>()), param.expectResult);
-    if (param.expectResult == ge::GRAPH_SUCCESS) {
-        EXPECT_EQ(contextHolder.GetContext<gert::InferDataTypeContext>()->GetOutputDataType(0), param.y);
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    MatmulAllReduce,
-    InferDataTypeTest,
-    testing::ValuesIn(casesInferDataType),
-    GetCaseInfoString<MatmulAllReduceInferDataTypeUtParam>
 );
 
 } // namespace matmul_all_reduce_ut
