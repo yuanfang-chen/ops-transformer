@@ -2649,7 +2649,7 @@ bool PromptFlashAttentionTilingV2::CheckNTDLayoutCrossover(ContextParamsForPFATi
  	}
 
     std::string layoutStr(contextKeyParams.layout);
-    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && layoutStr == "NTD_TND") { // GQA
+    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && layoutStr != "NTD_TND") { // GQA
         OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is NTD, d size of query must be 64 or 128, but got d = %d.",
             queryShapeInfo.d), return false);
