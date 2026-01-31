@@ -579,8 +579,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                 uint32_t copyFinishRowCnt = 0;
 
                 if (info.isOri) {
-                    uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint +
-                        k1 * K_L1_SPLIT_SIZE + (kL1 - kOffset) * K_L0_SPLIT_SIZE;
+                    uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint + kL1 * K_L0_SPLIT_SIZE;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
@@ -608,8 +607,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         curS2Offset += copyRowCnt;
                     }
                 } else {
-                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize +
-                        k1 * K_L1_SPLIT_SIZE + (kL1 - kOffset) * K_L0_SPLIT_SIZE;
+                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + K_L0_SPLIT_SIZE * kL1;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
