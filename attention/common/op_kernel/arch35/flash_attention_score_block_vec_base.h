@@ -88,8 +88,8 @@ public:
     }
     __aicore__ inline void InitCommonGlobalBuffer(
         __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK,
-        __gm__ uint8_t *deqScaleV, __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask,
-        __gm__ uint8_t *&workspace, ConstInfo<isInfer, hasRope> &constInfo);
+        __gm__ uint8_t *deqScaleV, __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask, 
+        __gm__ uint8_t * learnableSink, __gm__ uint8_t *&workspace, ConstInfo<isInfer, hasRope> &constInfo);
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo<isInfer, hasRope> &constInfo);
 
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
@@ -118,6 +118,7 @@ public:
     quantGmType deScaleVGm;
     using vec2ResGmType = typename std::conditional<splitD, GlobalTensor<float>, int8_t>::type;
     vec2ResGmType vec2ResGm[3];
+    GlobalTensor<bfloat16_t> sinkGm;
 
     /* =====================V侧UB变量==================== */
     TBuf<> commonTBuf; // common的复用空间
@@ -185,15 +186,17 @@ private:
     __aicore__ inline void MlaBoolCopyInRegbase(LocalTensor<uint8_t> &dstTensor, GlobalTensor<uint8_t> &srcTensor,
         int64_t srcOffset, uint32_t s1Size, uint32_t s2Size, int64_t totalS2Size, int64_t s2BaseSize,
         ConstInfo<isInfer, hasRope> &constInfo, RunInfo<isInfer> &runInfo);
-     __aicore__ inline void MlaTransposeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+    __aicore__ inline void MlaTransposeDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
  	    LocalTensor<OUTPUT_T> &attenOut);
+    __aicore__ inline void MlaTranspose2DataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+        LocalTensor<OUTPUT_T> &attenOut);
 };
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::InitCommonGlobalBuffer(
     __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK,
     __gm__ uint8_t *deqScaleV, __gm__ uint8_t *prefix, __gm__ uint8_t *attenMask, 
-    __gm__ uint8_t *&workspace, ConstInfo<isInfer, hasRope> &constInfo) 
+    __gm__ uint8_t *learnableSink, __gm__ uint8_t *&workspace, ConstInfo<isInfer, hasRope> &constInfo) 
 {
     if ASCEND_IS_AIV {
         if constexpr (hasPse) {
@@ -227,6 +230,10 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::InitCommonGlobalBuffe
                 workspace += vec2Offset;
             }
             bmm2SubBlockOffset = constInfo.subBlockIdx * mm2ResultSize >> 1; // s1BaseSize一定可以被2整除
+        }
+        if (learnableSink != nullptr) {
+            sinkGm.SetGlobalBuffer((__gm__ bfloat16_t *)learnableSink);
+            constInfo.learnableSinkFlag = true;
         }
     }
 }
@@ -278,8 +285,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
             runInfo.deScaleKvOffset = runInfo.n2oIdx * s2BlockCnt +
                                     (runInfo.s2SizeAcc >> 8) + runInfo.s2LoopCount; // 8 ：按照256分块计算deScaleKv偏移
         } else {
-            int64_t s1BlockCnt = CeilDivision(constInfo.s1Size, FP8_QUANT_BLOCK_SIZE); // Q的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, G, Ceil(S1, 128), 1]
-            int64_t s2BlockCnt = CeilDivision(constInfo.s2Size, FP8_QUANT_KV_BLOCK_SIZE); // KV的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, G, Ceil(S2, 256), 1]
+            int64_t s1BlockCnt = CeilDiv(constInfo.s1Size, FP8_QUANT_BLOCK_SIZE); // Q的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, G, Ceil(S1, 128), 1]
+            int64_t s2BlockCnt = CeilDiv(constInfo.s2Size, FP8_QUANT_KV_BLOCK_SIZE); // KV的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, G, Ceil(S2, 256), 1]
             deScaleQOffset = runInfo.boIdx * constInfo.n2G * s1BlockCnt +
                                     runInfo.n2oIdx * constInfo.gSize * s1BlockCnt +
                                     runInfo.goIdx * s1BlockCnt + runInfo.s1oIdx;
@@ -440,6 +447,17 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaAttenMaskCopyIn(
         this->MlaBoolCopyInRegbase(attenMaskUb, srcTensor, maskOffset, runInfo.halfS1RealSize, runInfo.s2RealSize,
             attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo, runInfo);
         attenMaskInQue.template EnQue(attenMaskUb);
+        if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
+            LocalTensor<uint8_t> attenMaskUbPre = attenMaskInQuePre.template AllocTensor<uint8_t>();
+            this->MlaBoolCopyInRegbase(attenMaskUbPre, srcTensor, attenMaskInfo.attenMaskOffsetPre, runInfo.halfS1RealSize, runInfo.s2RealSize,
+                attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo, runInfo);
+            attenMaskInQuePre.template EnQue(attenMaskUbPre);
+            attenMaskInQuePre.template DeQue<uint8_t>();
+            attenMaskInQue.template DeQue<uint8_t>();
+            MergeBandModeMask<hasAtten>(attenMaskUbPre, attenMaskUb, runInfo.halfS1RealSize, constInfo.s2BaseSize);
+            attenMaskInQuePre.template FreeTensor(attenMaskUbPre);
+            attenMaskInQue.template EnQue(attenMaskUb);
+        }
     }
 }
 
@@ -476,7 +494,17 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBoolCopyInRegbase(
     if ((hasRope && (dTemplateType == DTemplateType::Aligned576)) &&
         (constInfo.layoutType != static_cast<uint32_t>(LayOutTypeEnum::LAYOUT_BNSD))) {
         intriParams.blockCount = 1;
-        DataCopyPad(dstTensor, srcTensor[srcOffset], intriParams, padParams);
+        if (isMlaNoQuant) {
+            for (int i = 0; i < s1Size; i++) {
+                DataCopyPad(dstTensor[i * s2BaseSize], srcTensor[srcOffset], intriParams, padParams);
+                // 下一行出现跨 G 时
+                if ((runInfo.sOuterOffset + i + 1) % constInfo.gSize == 0) {
+                    srcOffset += totalS2Size;
+                }
+            }
+        } else {
+            DataCopyPad(dstTensor, srcTensor[srcOffset], intriParams, padParams);
+        }
         SetFlag<HardEvent::MTE2_V>(mte2ToV);
         WaitFlag<HardEvent::MTE2_V>(mte2ToV);
         return;
@@ -580,8 +608,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
             pScaleUb = this->pScaleBuf[runInfo.taskIdMod3].template Get<T>();
         } else {
             // 训练模板：128*128 推理模板：128*256
-            int64_t s1BlockCnt = CeilDivision(constInfo.s1Size, FP8_QUANT_BLOCK_SIZE);
-            int64_t s2BlockCnt = CeilDivision(constInfo.s2Size, FP8_QUANT_KV_BLOCK_SIZE);
+            int64_t s1BlockCnt = CeilDiv(constInfo.s1Size, FP8_QUANT_BLOCK_SIZE);
+            int64_t s2BlockCnt = CeilDiv(constInfo.s2Size, FP8_QUANT_KV_BLOCK_SIZE);
             /* Q的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, G, Ceil(S1, 128), 1] */
             deScaleQOffset = runInfo.boIdx * constInfo.n2G * s1BlockCnt +
                                     runInfo.n2oIdx * constInfo.gSize * s1BlockCnt +
@@ -604,7 +632,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
 
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
     auto stage1CastTensor = this->stage1OutQue[stage1Offset].template AllocTensor<INPUT_T>();
-    constexpr bool useMlaSgdFlag = ((isMlaFullQuant || isMlaNoQuant) && layout != LayOutTypeEnum::LAYOUT_BNSD);
+    constexpr bool useMlaSgdFlag = ((isMlaFullQuant) && layout != LayOutTypeEnum::LAYOUT_BNSD);
     if (runInfo.s2LoopCount == 0) {
         if (likely(runInfo.s2RealSize == 128)) {
             ProcessVec1Vf<T, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, EQ_128, hasAtten, pseMode, hasDrop, useMlaSgdFlag, isMlaFullQuant>(
@@ -1167,7 +1195,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::RowInvalid(LocalTenso
             attenMaskInfoPtr->compressMode != static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE))) {
             return;
         }
-        if ((isMlaFullQuant || isMlaNoQuant) && attenMaskInfoPtr->compressMode == static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
+        if (isMlaFullQuant && attenMaskInfoPtr->compressMode == static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE)) {
             return;
         }
         int64_t vec2MaxBufOffset = ComputeOffsetForSoftmax(runInfo, vec2S1Idx);
@@ -1188,8 +1216,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::RowInvalid(LocalTenso
             if constexpr (!POST_QUANT) {
                 RowInvalidUpdateVF<float>(vec2ResUb, maxTensor,  runInfo.vec2S1RealSize, constInfo.dSizeV, static_cast<uint32_t>(dSizeAligned64));
             } else {
-                uint32_t dStride = CeilDivision(static_cast<uint32_t>(static_cast<uint32_t>(dSizeAligned64)), sizeof(float));
-                uint16_t dSize = CeilDivision(constInfo.dSizeV, sizeof(float)); // w8后量化后的处理长度
+                uint32_t dStride = CeilDiv(static_cast<uint32_t>(static_cast<uint32_t>(dSizeAligned64)), sizeof(float));
+                uint16_t dSize = CeilDiv(constInfo.dSizeV, sizeof(float)); // w8后量化后的处理长度
                 RowInvalidUpdateVF<float>(*((LocalTensor<float>*)&vec2ResUb), maxTensor, runInfo.vec2S1RealSize, dSize, dStride);
             }
         }
@@ -1223,8 +1251,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
     if (curGIdx != 0 && constInfo.gSize != 1) { // 首块
         headSize = curGIdx + s1DealSize < constInfo.gSize ? s1DealSize : constInfo.gSize - curGIdx;
         headUbOffset = headSize * constInfo.dSizeV;
-        headGmOffset = runInfo.s1SizeAcc * constInfo.dSizeV + (curS1Idx + 1) * constInfo.dSizeV;
-        
+        headGmOffset = constInfo.dSizeV - curGIdx * constInfo.t1Size * constInfo.dSizeV;
         dataCopyParams.srcStride = 0;
         dataCopyParams.dstStride = (constInfo.t1Size * constInfo.dSizeV - constInfo.dSizeV) * sizeof(OUTPUT_T);
         dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
@@ -1249,6 +1276,53 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
 
         DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + headGmOffset + attenOutOffset],
             attenOut[headUbOffset + i * constInfo.gSize * constInfo.dSizeV], dataCopyParams);
+    }
+}
+
+TEMPLATES_DEF_BASE_NO_DEFAULT
+__aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopyOut(
+    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut)
+{
+    int64_t s1DealSize = runInfo.vec2S1RealSize;
+    int64_t curGIdx = runInfo.sOuterOffset / constInfo.s1Size;
+    int64_t curS1Idx = runInfo.sOuterOffset % (uint32_t)s1TemplateType;
+    if (constInfo.subBlockIdx == 1) {
+        curGIdx = (curGIdx + s1DealSize / constInfo.s1Size) % constInfo.gSize;
+        curS1Idx = (curGIdx + s1DealSize) % constInfo.s1Size;
+    }
+    bool hasHeadBlock = curS1Idx != 0;
+    int headBlock = hasHeadBlock ? constInfo.s1Size - curS1Idx : 0;
+    int gCount = hasHeadBlock ? (runInfo.vec2S1BaseSize - headBlock) / constInfo.s1Size : runInfo.vec2S1BaseSize / constInfo.s1Size;
+    bool hasTailBlock = (runInfo.vec2S1BaseSize - headBlock) % constInfo.s1Size;
+    int tailBlock = hasTailBlock ? runInfo.vec2S1BaseSize - gCount * constInfo.s1Size - headBlock : 0;
+    uint32_t attenOutUbOffset = 0;
+
+    if (curS1Idx != 0) { // 首块
+        DataCopyExtParams dataCopyParams;
+        dataCopyParams.srcStride = 0;
+        dataCopyParams.dstStride = 0;
+        dataCopyParams.blockLen = (constInfo.s1Size - curS1Idx) * constInfo.dSizeV * sizeof(OUTPUT_T);
+        dataCopyParams.blockCount = 1;
+        DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut, dataCopyParams);
+        attenOutUbOffset += (constInfo.s1Size - curS1Idx) * constInfo.dSizeV;
+    }
+    DataCopyExtParams dataCopyParams;
+    dataCopyParams.blockCount = gCount; // 处理多少个G
+    dataCopyParams.blockLen = constInfo.s1Size * constInfo.dSizeV * sizeof(OUTPUT_T); // 一个S1*D的大小
+    dataCopyParams.srcStride = 0;                                                                    // 连读
+    dataCopyParams.dstStride = (constInfo.bSize - 1) * constInfo.s1Size * constInfo.dSizeV * sizeof(OUTPUT_T); // 跳写
+    runInfo.attentionOutOffset += int(hasHeadBlock) * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV - curS1Idx * constInfo.dSizeV;
+    DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut[attenOutUbOffset], dataCopyParams);
+    attenOutUbOffset += dataCopyParams.blockCount * (constInfo.s1Size * constInfo.dSizeV);
+
+    if (hasTailBlock) { // 尾块单独一条DataCopy指令
+        DataCopyExtParams dataCopyParamsTail;
+        dataCopyParamsTail.blockCount = 1;
+        dataCopyParamsTail.blockLen = tailBlock * constInfo.s1Size * sizeof(OUTPUT_T);
+        dataCopyParamsTail.srcStride = 0;
+        dataCopyParamsTail.dstStride = 0;
+        runInfo.attentionOutOffset += (gCount - int(hasHeadBlock) - 1) * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV;
+        DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut[attenOutUbOffset], dataCopyParamsTail);
     }
 }
 
@@ -1329,7 +1403,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
             attenOutOffset = constInfo.bN2GDv;
         }
         if constexpr (isInfer) {
-            if (constInfo.isBSNDOut == 1 || constInfo.isTNDOut == 1) {
+            if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND) ||
+ 	            constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::NTD_TND)) {
                 attenOutOffset = constInfo.n2GDv;
             }
         }
@@ -1349,9 +1424,13 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
             DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
                 attenOut, dataCopyParams);
         }
-    } else if constexpr (isInfer) {
-        if (isMlaNoQuant && constInfo.isNTDOut == 1) {
+    } else if constexpr (isInfer && isMlaNoQuant) {
+        if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
+            constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_NBSD) ||
+            constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::TND_NTD)) {
             MlaTransposeDataCopyOut(runInfo, constInfo, attenOut);
+        } else if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_NBSD)) {
+            MlaTranspose2DataCopyOut(runInfo, constInfo, attenOut);
         } else {
             DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
                 attenOut, dataCopyParams);
@@ -1576,7 +1655,7 @@ public:
     __aicore__ inline void InitGlobalBuffer(
         __gm__ uint8_t *pse, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
         __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,__gm__ uint8_t *prefix,
-        __gm__ uint8_t *attenMask, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize,
+        __gm__ uint8_t *attenMask, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, 
         __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *&workspace, uint64_t singleCoreOffset,
         uint32_t aicIdx, ConstInfo<isInfer, hasRope> &constInfo) {}
 

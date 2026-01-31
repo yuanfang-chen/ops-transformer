@@ -52,8 +52,8 @@ public:
                             __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, 
                             __gm__ uint8_t *deqScaleV, __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset,
                             __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen, 
-                            __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum,
-                            __gm__ uint8_t *softmaxOut, __gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut,
+                            __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope, __gm__ uint8_t *learnableSink, __gm__ uint8_t *softmaxMax, 
+                            __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut, __gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut,
                             __gm__ uint8_t *workspace, const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void Process();
     __aicore__ inline void GetExtremeValue(T &negativeScalar, T &positiveScalar);
@@ -64,7 +64,7 @@ public:
                             __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *queryRope,
                             __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen,
                             __gm__ uint8_t *keyRope, __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize,
-                            __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum,
+                            __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum,
                             __gm__ uint8_t *softmaxOut, __gm__ uint8_t *workspace,
                             const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void InitLocalBuffer();
@@ -143,7 +143,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     __gm__ uint8_t *actualSeqLengthsKv, __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize,
     __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
     __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, 
-    __gm__ uint8_t *actualSharedPrefixLen, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
+    __gm__ uint8_t *actualSharedPrefixLen, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope, __gm__ uint8_t *learnableSink,
     __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut, __gm__ uint8_t *softmaxLse,
     __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
     const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe)
@@ -180,7 +180,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     this->InitGlobalBuffer(query, key, value, pse, dropMask, paddingMask, attenMask, prefix,
         actualSeqLengths, actualSeqLengthsKv, deqScaleQ, deqScaleK, deqScaleV, postQuantScale, postQuantOffset,
         keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, blockTable, queryPaddingSize, 
-        kvPaddingSize, softmaxMax, softmaxSum, softmaxOut, workspace, tiling, tPipe); // gm设置
+        kvPaddingSize, learnableSink, softmaxMax, softmaxSum, softmaxOut, workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
 }
 
@@ -207,7 +207,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     __gm__ uint8_t *actualSeqLengthsKv, __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV,
     __gm__ uint8_t *postQuantScale, __gm__ uint8_t *postQuantOffset, __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, 
     __gm__ uint8_t*actualSharedPrefixLen, __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-    __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize,
+    __gm__ uint8_t *blockTable, __gm__ uint8_t *queryPaddingSize, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *learnableSink,
     __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut, __gm__ uint8_t *workspace,
     const FlashAttentionScoreSimplifiedTilingData *__restrict tiling, TPipe *tPipe)
 {
@@ -266,7 +266,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         workspace += (totalOffset + mm2Offset * 3);
     }
     vecBlock.InitGlobalBuffer(pse, deqScaleQ, deqScaleK, deqScaleV, postQuantScale, postQuantOffset,
-        prefix, attenMask, queryPaddingSize, kvPaddingSize, softmaxMax, softmaxSum, workspace, singleCoreOffset,
+        prefix, attenMask, queryPaddingSize, kvPaddingSize, learnableSink, softmaxMax, softmaxSum, workspace, singleCoreOffset,
         this->aicIdx, constInfo);
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND && !isInfer) {
         if ASCEND_IS_AIV {
@@ -366,13 +366,9 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     constInfo.gSize = sharedParams.gSize;
     constInfo.s1OuterSize = sharedParams.s1OuterSize;
     constInfo.s1S2 = constInfo.s1Size * constInfo.s2Size;
-    constInfo.s1D = constInfo.s1Size * constInfo.dSize;
     constInfo.gS1 = constInfo.gSize * constInfo.s1Size;
-    constInfo.gD = constInfo.gSize * constInfo.dSize;
     constInfo.n2G = constInfo.n2Size * constInfo.gSize;
 
-    constInfo.n2GD = constInfo.n2Size * constInfo.gD;
-    constInfo.gS1D = constInfo.gS1 * constInfo.dSize;
     constInfo.s1Dv = constInfo.s1Size * constInfo.dSizeV;
     constInfo.s2Dv = constInfo.s2Size * constInfo.dSizeV;
     constInfo.n2Dv = constInfo.n2Size * constInfo.dSizeV;
@@ -383,6 +379,13 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     constInfo.s2BaseN2Dv = s2BaseSize * constInfo.n2Dv;
     constInfo.n2GS1Dv = constInfo.n2Size * constInfo.gS1Dv;
     constInfo.layoutType = sharedParams.layoutType;
+
+    if constexpr (isInfer) {
+        constInfo.s1D = constInfo.s1Size * constInfo.dSize;
+        constInfo.gD = constInfo.gSize * constInfo.dSize;
+        constInfo.n2GD = constInfo.n2Size * constInfo.gD; 
+        constInfo.gS1D = constInfo.gS1 * constInfo.dSize;
+    }
 
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         // (BS)ND

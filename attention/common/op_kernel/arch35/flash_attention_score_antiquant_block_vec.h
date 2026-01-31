@@ -23,6 +23,7 @@
 #include "vf/vf_post_quant.h"
 #include "flash_attention_score_antiquant_processor.h"
 #include "flash_attention_score_tiling_regbase.h"
+#include "util_regbase.h"
 using namespace optiling;
 using namespace FaVectorApi;
 namespace BaseApi {
@@ -1099,7 +1100,7 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::Bmm2DataCop
             attenOutOffset = constInfo.bN2GDv;
         }
         if constexpr (isInfer) {
-            if (constInfo.isBSNDOut == 1) {
+            if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND)) {
                 attenOutOffset = constInfo.n2GDv;
             }
         }
@@ -1161,8 +1162,8 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::RowInvalid(
             if constexpr (!POST_QUANT) {
                 RowInvalidUpdateVF<float>(vec2ResUb, maxTensor, runInfo.vec2S1RealSize, constInfo.dSizeV, dSizeAligned64);
             } else {
-                uint32_t dStride = CeilDivision(static_cast<uint32_t>(dSizeAligned64), sizeof(float));
-                uint16_t dSize = CeilDivision(constInfo.dSizeV, sizeof(float)); // w8后量化的处理长度
+                uint32_t dStride = CeilDiv(static_cast<uint32_t>(dSizeAligned64), sizeof(float));
+                uint16_t dSize = CeilDiv(constInfo.dSizeV, sizeof(float)); // w8后量化的处理长度
                 RowInvalidUpdateVF<float>(*((LocalTensor<float>*)&vec2ResUb), maxTensor, runInfo.vec2S1RealSize, dSize, dStride);
             }
         }
@@ -1409,7 +1410,7 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::CombineSpli
     } else {
         gSplitSize = (gSplitSize > constInfo.gSize) ? constInfo.gSize : gSplitSize;
     }
-    uint32_t loopCount = CeilDivision(constInfo.gSize, gSplitSize);
+    uint32_t loopCount = CeilDiv(constInfo.gSize, gSplitSize);
     uint32_t tailSplitSize = constInfo.gSize - (loopCount - 1) * gSplitSize;
     uint64_t lseOffset = 0;
 
@@ -1489,8 +1490,9 @@ __aicore__ inline void FABlockVecAntiquant<ANTIQUANT_TEMPLATE_ARGS>::ComputeScal
     if (constInfo.isSoftmaxLseEnable) {
         lseOutputUb = softmaxLseQueue.template AllocTensor<T>();
     }
-    ComputeScaleValue_VF(lseMaxUb, lseSumUb, lseOutputUb, splitSize, constInfo.actualCombineLoopSize,
-                         constInfo.isSoftmaxLseEnable);
+    LocalTensor<bfloat16_t> tmpSinkUb;
+    ComputeScaleValue_VF(tmpSinkUb, lseMaxUb, lseSumUb, lseOutputUb, splitSize, constInfo.actualCombineLoopSize,
+                         constInfo.isSoftmaxLseEnable, constInfo.learnableSinkFlag);
     if (constInfo.isSoftmaxLseEnable) {
         softmaxLseQueue.template EnQue<T>(lseOutputUb);
         softmaxLseQueue.DeQue<T>();
