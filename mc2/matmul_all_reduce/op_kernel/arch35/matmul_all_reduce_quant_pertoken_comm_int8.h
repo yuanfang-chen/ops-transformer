@@ -327,6 +327,7 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
         for (uint32_t i = 0U; i < (mc2Tiling.tileCnt + mc2Tiling.tailCnt); ++i) { // 尾块偏移
             hccl_.Wait(allGatherHandleId_[i]);
             SyncAll();
+            AscendC::printf("*********** CHUGUOWEI remove MatmulAllReduceDequantPerchannelCommInt8 \n");
             if (i < mc2Tiling.tileCnt) {
                 MatmulAllReduceDequantPerchannelCommInt8<YType>(
                     allGatherOutGM_, commQuantScale2GM_, outGM_, tPipe_, tilingData_->tilematmulTiling.matmulTiling.N,
