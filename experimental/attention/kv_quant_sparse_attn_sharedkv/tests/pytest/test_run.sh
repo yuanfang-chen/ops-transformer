@@ -2,7 +2,7 @@
 
 # 脚本路径
 QSAS_PT_SAVE_SCRIPT="./batch/test_qsas_pt_save_from_excelcase.py"
-TEST_QSAS_PT_BATCH_SCRIPT="./batch/test_qsas_pt_batch_from_pt.py"
+TEST_QSAS_PT_BATCH_SCRIPT="./batch/test_qsas_pt_batch.py"
 REPLACE_PATH_SCRIPT="./batch/replace_path.py"
 TEST_QSAS_SINGLE_SCRIPT="test_qsas_pytestcase.py"
 
