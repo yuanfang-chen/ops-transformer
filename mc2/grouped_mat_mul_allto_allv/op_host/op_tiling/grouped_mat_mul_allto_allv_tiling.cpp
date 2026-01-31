@@ -33,57 +33,6 @@ using namespace ge;
 using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
-constexpr uint32_t GMM_X_INDEX = 0;
-constexpr uint32_t GMM_WEIGHT_INDEX = 1;
-constexpr uint32_t SEND_COUNTS_TENSOR_OPTIONAL_INDEX = 2;
-constexpr uint32_t RECV_COUNTS_TENSOR_OPTIONAL_INDEX = 3;
-constexpr uint32_t MM_X_OPTIONAL_INDEX = 4;
-constexpr uint32_t MM_WEIGHT_OPTIONAL_INDEX = 5;
-constexpr uint32_t OUTPUT_Y_INDEX = 0;
-constexpr uint32_t OUTPUT_MM_Y_OPTIONAL_INDEX = 1;
-
-constexpr uint32_t DIM_TWO = 2;
-constexpr uint32_t DIM_ONE = 1;
-constexpr uint32_t DIM_THREE = 3;
-
-constexpr uint32_t ATTR_GROUP_INDEX = 0;
-constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
-constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
-constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
-constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
-constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
-
-constexpr uint32_t HCCL_CMD_ALLGATHER = 6U;
-constexpr uint32_t HCCL_CMD_ALLTOALLV = 8;
-
-constexpr uint32_t INDEX_TWO = 2U;
-
-constexpr int64_t NUM_ZERO = 0;
-constexpr int64_t NUM_TWO = 2;
-constexpr int64_t NUM_FOUR = 4;
-constexpr int64_t NUM_EIGHT = 8;
-
-constexpr int64_t BEST_L1_PARTA = 256 * 1024;
-constexpr int64_t BEST_L1_PARTB = 128 * 1024;
-constexpr int64_t BEST_BASEN = 256;
-constexpr uint32_t UB_DIVIDE_NUM = 2;
-constexpr uint32_t UB_CALSIZE_PER_BLOCK = 16 * 1024;
-constexpr uint64_t DOUBLE_BUFFER_L0A_L0B = 2;
-constexpr uint64_t DOUBLE_BUFFER_STEPKA_STEPKB = 2;
-constexpr uint32_t SYS_WORKSPACE_SIZE = 16U * 1024U * 1024U;
-constexpr uint32_t MAX_TURN_NUM = 24;
-constexpr int32_t MAX_BASE_K = 128;
-constexpr uint64_t COMM_TILE = 8; // 每卡数据分配几次计算
-constexpr uint64_t MAX_EXPERT_NUM = 256;
-constexpr int64_t MAX_EXPERT_NUM_PER_RANK = 32;
-constexpr int64_t MAX_DIM_VALUE = 65536;
-constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
-constexpr int64_t MAX_BSK_VALUE = 52428800;
-constexpr int64_t RECV_SEND_MIN = static_cast<int64_t>((2 * 1024 * 1024) / 2);         // 2M / sizeof(gmmX)
-
-const char* C_INNER_DEBUG = "GroupedMatMulAlltoAllv Tiling Debug";
-const char* C_INNER_PRINT = "GroupedMatMulAlltoAllv Tiling Print";
-
 static int32_t maxM = 0;
 static int32_t maxN = 0;
 static int32_t maxK = 0;
@@ -396,7 +345,7 @@ static bool CheckDtype(const gert::TilingContext* context, const GroupedMatMulAl
         (context->GetInputDesc(GMM_X_INDEX) == nullptr) || (context->GetInputDesc(GMM_WEIGHT_INDEX) == nullptr),
         OP_LOGE(C_INNER_DEBUG, "GetInputDesc gmmX or gmmWeight returned null."), return false);
     OP_TILING_CHECK(
-        context->GetOutputDesc(OUTPUT_Y_INDEX) == nullptr, OP_LOGE(C_INNER_DEBUG, "GetOutputDesc y returned null."),
+        context->GetOutputDesc(OUTPUT_GMM_Y_INDEX) == nullptr, OP_LOGE(C_INNER_DEBUG, "GetOutputDesc y returned null."),
         return false);
     OP_TILING_CHECK(
         (context->GetInputDesc(GMM_X_INDEX)->GetDataType() != ge::DT_FLOAT16) &&
@@ -405,7 +354,7 @@ static bool CheckDtype(const gert::TilingContext* context, const GroupedMatMulAl
     OP_TILING_CHECK(
         (context->GetInputDesc(GMM_X_INDEX)->GetDataType() != context->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType()) ||
             (context->GetInputDesc(GMM_X_INDEX)->GetDataType() !=
-             context->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType()),
+             context->GetOutputDesc(OUTPUT_GMM_Y_INDEX)->GetDataType()),
         OP_LOGE(C_INNER_DEBUG, "The dataType of gmmWeight and gmmY should be the same with gmmX."), return false);
     if (tilingData->commonTilingInfo.isOptionalMatmul) {
         auto mmXDex = context->GetOptionalInputDesc(MM_X_OPTIONAL_INDEX);
@@ -488,7 +437,7 @@ static bool CheckInputAndOutput(gert::TilingContext* context, GroupedMatMulAllto
         context->GetOptionalInputShape(RECV_COUNTS_TENSOR_OPTIONAL_INDEX);
     const gert::StorageShape* mmXStorageShape = context->GetOptionalInputShape(MM_X_OPTIONAL_INDEX);
     const gert::StorageShape* mmWeightStorageShape = context->GetOptionalInputShape(MM_WEIGHT_OPTIONAL_INDEX);
-    const gert::StorageShape* outputYStorageShape = context->GetOutputShape(OUTPUT_Y_INDEX);
+    const gert::StorageShape* outputYStorageShape = context->GetOutputShape(OUTPUT_GMM_Y_INDEX);
     const gert::StorageShape* outputMmYStorageShape = context->GetOutputShape(OUTPUT_MM_Y_OPTIONAL_INDEX);
 
     // 在aclnn侧有拦截
@@ -550,7 +499,7 @@ static ge::graphStatus SetHcclTiling(const gert::TilingContext* context, Grouped
     auto groupEpPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
 
     const uint32_t alltoAllvReduceType = 0u;
-    auto outputDataType = context->GetOutputDesc(OUTPUT_Y_INDEX)->GetDataType();
+    auto outputDataType = context->GetOutputDesc(OUTPUT_GMM_Y_INDEX)->GetDataType();
     auto inputDataType = context->GetInputDesc(GMM_X_INDEX)->GetDataType();
     OP_TILING_CHECK(
         mc2tiling::HCCL_DATA_TYPE.find(outputDataType) == mc2tiling::HCCL_DATA_TYPE.end(),
@@ -824,6 +773,14 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
 
 bool GmmAlltoAllvTilingStruct::IsCapable()
 {
+    auto attrs = context_->GetAttrs();
+    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(C_INNER_DEBUG, "GetAttrs returned nullptr!"), return false);
+
+    auto gmmXQuantMode = attrs->GetAttrPointer<char>(ATTR_GMM_X_QUANT_MODE_INDEX);
+    if (*gmmXQuantMode < 1) {
+        return false;
+    }
+
     return true;
 }
 
