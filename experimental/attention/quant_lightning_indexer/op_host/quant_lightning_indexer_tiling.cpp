@@ -194,7 +194,7 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
         OP_LOGI(context_->GetNodeName(), "cmpRatio is:%d", *opParamInfo_.cmpRatio);
     }
     if (opParamInfo_.returnValues != nullptr) {
-        OP_LOGI(context_->GetNodeName(), "returnValues is:%d", *opParamInfo_.returnValues);
+        OP_LOGI(context_->GetNodeName(), "returnValues is:%s", *opParamInfo_.returnValues ? "true" : "false");
     }
     if (opParamInfo_.queryQuantMode != nullptr) {
         OP_LOGI(context_->GetNodeName(), "query_quant_mode mode is:%d", *opParamInfo_.queryQuantMode);
