@@ -686,16 +686,14 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext
     // 计算归约数据的FD均衡划分信息
     uint32_t curFdS1gSize = (splitS1GIdx == splitInfo.s1GBaseNum[splitBIdx] - 1U) ?
                             (s1Size * groupSize_ - splitS1GIdx * mBaseSize_) : mBaseSize_;
-    uint32_t curFdS1gSplitPart = (curFdS1gSize + gS1BaseSizeOfFd_ - 1U) / gS1BaseSizeOfFd_;
-    uint32_t curFdS1gLastPartSize = curFdS1gSize - (gS1BaseSizeOfFd_ * (curFdS1gSplitPart - 1U));
     // 记录
     result.maxS2SplitNum = std::max(result.maxS2SplitNum, assignContext.curKvSplitPart);
     // 若存在头归约，则切分点一定为上一个核结束的位置
-    result.fdRes.bN2IdxOfFdHead[result.numOfFdHead] = result.bN2End[assignContext.curCoreIdx - 1U];
-    result.fdRes.gS1IdxOfFdHead[result.numOfFdHead] = result.gS1End[assignContext.curCoreIdx - 1U];
-    result.fdRes.s2SplitNumOfFdHead[result.numOfFdHead] = assignContext.curKvSplitPart;
-    result.fdRes.gS1SplitNumOfFdHead[result.numOfFdHead] = curFdS1gSplitPart;
-    result.fdRes.gS1LastPartSizeOfFdHead[result.numOfFdHead] = curFdS1gLastPartSize;
+    result.fdRes.fdBN2Idx[result.numOfFdHead] = result.bN2End[assignContext.curCoreIdx - 1U];
+    result.fdRes.fdMIdx[result.numOfFdHead] = result.gS1End[assignContext.curCoreIdx - 1U];
+    result.fdRes.fdWorkspaceIdx[result.numOfFdHead] = assignContext.curFdDataNum - assignContext.curKvSplitPart;
+    result.fdRes.fdS2SplitNum[result.numOfFdHead] = assignContext.curKvSplitPart;
+    result.fdRes.fdMSize[result.numOfFdHead] = curFdS1gSize;
     result.numOfFdHead++;
 }
 
@@ -703,8 +701,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitC
                                                                     AssignContext &assignContext, SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
-    result.fdRes.s2SplitStartIdxOfCore[assignContext.curCoreIdx] = assignContext.curKvSplitPart - 1U;
-    
+
     int64_t avgCost = assignContext.unassignedCost / (coreNum_ - assignContext.curCoreIdx);
     assignContext.coreCache = {};
     if (!supportFd) {
@@ -775,43 +772,26 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit
 
 void KvQuantSparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &result)
 {
-    uint32_t totalFDLoad = 0;
-    uint32_t totalFDHeadSplit = 0;
     // 计算FD的总数据量
-    for (uint32_t i = 0; i < result.numOfFdHead; i++) {
-        totalFDLoad += result.fdRes.s2SplitNumOfFdHead[i] * result.fdRes.gS1SplitNumOfFdHead[i];
-        totalFDHeadSplit += result.fdRes.gS1SplitNumOfFdHead[i];
+    uint64_t totalFDLoad = 0;
+    for (uint32_t i = 0; i < splitRes_.numOfFdHead; i++) {
+        totalFDLoad += splitRes_.fdRes.fdS2SplitNum[i] * splitRes_.fdRes.fdMSize[i];
     }
-    // 基于FA开核数量，计算每个Vector需要计算的FD数据量
-    // FD均衡的最小单位为一个归约任务的一个split，所以最多占用totalFDHeadSplit个vector
-    uint32_t maxVectorNum = std::min(totalFDHeadSplit, result.usedCoreNum * result.vecCubeRatio);
-    double loadThrOfVector = static_cast<double>(totalFDLoad) / static_cast<double>(maxVectorNum);  // 初始化vector的负载上限
-    int64_t loadOfCurVector = 0;
+    // 计算每个核处理的load
+    uint64_t averageLoad = totalFDLoad / aivCoreNum_;
     uint32_t curCoreIndex = 0;
-    uint32_t preTmpFDIndexEndOfFdHead = 0;
-    uint32_t preTmpFDIndexEndOfFdHeadSplit = 0;
-    for (uint32_t i = 0; i < result.numOfFdHead; i++) {
-        uint32_t fDKVSplitNum = result.fdRes.s2SplitNumOfFdHead[i];
-        for (uint32_t gS1SplitIdx = 0; gS1SplitIdx < result.fdRes.gS1SplitNumOfFdHead[i]; gS1SplitIdx++) {
-            double remainSpace = loadThrOfVector - static_cast<double>(loadOfCurVector);  // 计算当前vector剩余负载空间
-            // 判断是否放在当前vector的标准是剩余空间是否能容纳一半当前归约块
-            if (fDKVSplitNum > remainSpace * FD_TOLERANCE_RATIO) {
-                result.fdRes.gS1IdxEndOfFdHead[curCoreIndex] = preTmpFDIndexEndOfFdHead;
-                result.fdRes.gS1IdxEndOfFdHeadSplit[curCoreIndex] = preTmpFDIndexEndOfFdHeadSplit;
-                curCoreIndex += 1U;
-                totalFDLoad -= static_cast<uint32_t>(loadOfCurVector);  // 当前未分配的总负载
-                // 根据剩余负载和剩余可用vector更新负载上限，保证最后一个vector能分配所有负载
-                loadThrOfVector = static_cast<double>(totalFDLoad) / static_cast<double>(maxVectorNum - curCoreIndex);
-                loadOfCurVector = 0;
-            }
-            loadOfCurVector += fDKVSplitNum;
-            preTmpFDIndexEndOfFdHead = i;
-            preTmpFDIndexEndOfFdHeadSplit = gS1SplitIdx;
+    for (uint32_t i = 0; i < splitRes_.numOfFdHead; i++) {
+        uint32_t curFDVectorNum = splitRes_.fdRes.fdS2SplitNum[i] * splitRes_.fdRes.fdMSize[i] / averageLoad;
+        uint32_t curAveMSize = splitRes_.fdRes.fdMSize[i] / curFDVectorNum;
+        for (uint32_t vid = 0; vid < curFDVectorNum; vid++) {
+            splitRes_.fdRes.fdIdx[curCoreIndex] = i;
+            splitRes_.fdRes.fdMStart[curCoreIndex] = vid * curAveMSize;
+            splitRes_.fdRes.fdMNum[curCoreIndex] = 
+                (vid < curFDVectorNum - 1) ? curAveMSize : (splitRes_.fdRes.fdMSize[i] - vid * curAveMSize);
+            curCoreIndex++;
         }
     }
-    result.fdRes.gS1IdxEndOfFdHead[curCoreIndex] = preTmpFDIndexEndOfFdHead;
-    result.fdRes.gS1IdxEndOfFdHeadSplit[curCoreIndex] = preTmpFDIndexEndOfFdHeadSplit;
-    result.usedVecNumOfFd = curCoreIndex + 1;
+    splitRes_.fdRes.fdUsedVecNum = curCoreIndex;
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
@@ -845,29 +825,39 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule() {
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData() {
     optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
 
-    for (size_t i = 0; i < coreNum_; ++i) {
-        if (i < splitRes_.usedCoreNum) {
-            metaDataPtr->coreMetadata[i].faMetadata[FA_CORE_ENABLE_INDEX] = 1;
-        } else {
-            metaDataPtr->coreMetadata[i].faMetadata[FA_CORE_ENABLE_INDEX] = 0;
+    // FA Metadata Generate
+    for (size_t i = 0; i < aicCoreNum_; ++i) {
+        if (i >= splitRes_.usedCoreNum) {
+            metaDataPtr->FAMetadata[i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
             continue;
         }
-        if (i == 0) {
-            metaDataPtr->coreMetadata[i].faMetadata[FA_BN2_START_INDEX] = 0;
-            metaDataPtr->coreMetadata[i].faMetadata[FA_M_START_INDEX] = 0;
-            metaDataPtr->coreMetadata[i].faMetadata[FA_S2_START_INDEX] = 0;
-        } else {
-            metaDataPtr->coreMetadata[i].faMetadata[FA_BN2_START_INDEX] = splitRes_.bN2End[i-1];
-            metaDataPtr->coreMetadata[i].faMetadata[FA_M_START_INDEX] = splitRes_.gS1End[i-1];
-            metaDataPtr->coreMetadata[i].faMetadata[FA_S2_START_INDEX] = splitRes_.s2End[i-1];
+        metaDataPtr->FAMetadata[i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
+        // FA START
+        metaDataPtr->FAMetadata[i][FA_BN2_START_INDEX] = i == 0 ? 0 : splitRes_.bN2End[i-1];
+        metaDataPtr->FAMetadata[i][FA_M_START_INDEX] = i == 0 ? 0 : splitRes_.gS1End[i-1];
+        metaDataPtr->FAMetadata[i][FA_S2_START_INDEX] = i == 0 ? 0 : splitRes_.s2End[i-1];
+        // FA END
+        metaDataPtr->FAMetadata[i][FA_BN2_END_INDEX] = splitRes_.bN2End[i];
+        metaDataPtr->FAMetadata[i][FA_M_END_INDEX] = splitRes_.gS1End[i];
+        metaDataPtr->FAMetadata[i][FA_S2_END_INDEX] = splitRes_.s2End[i];
+        // 
+        metaDataPtr->FAMetadata[i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes_.firstFdDataWorkspaceIdx[i];
+    }
+
+    // FD Metadata Generate
+    for (size_t i = 0; i < aivCoreNum_; ++i) {
+        if (i >= splitRes_.fdRes.fdUsedVecNum) {
+            metaDataPtr->FDMetadata[i][FD_CORE_ENABLE_INDEX] = 0; // AIV disenable
+            continue;
         }
-
-        metaDataPtr->coreMetadata[i].faMetadata[FA_BN2_END_INDEX] = splitRes_.bN2End[i];
-        metaDataPtr->coreMetadata[i].faMetadata[FA_M_END_INDEX] = splitRes_.gS1End[i];
-        metaDataPtr->coreMetadata[i].faMetadata[FA_S2_END_INDEX] = splitRes_.s2End[i];
-
-        metaDataPtr->coreMetadata[i].faMetadata[FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = 0;
-        metaDataPtr->coreMetadata[i].faMetadata[FA_FD_VECTOR_NUM_INDEX] = 0;
+        metaDataPtr->FDMetadata[i][FD_CORE_ENABLE_INDEX] = 1; // AIV enable
+        uint32_t curFdIdx = splitRes_.fdRes.fdIdx[i];
+        metaDataPtr->FDMetadata[i][FD_BN2_IDX_INDEX] = splitRes_.fdRes.fdBN2Idx[curFdIdx];
+        metaDataPtr->FDMetadata[i][FD_M_IDX_INDEX] = splitRes_.fdRes.fdMIdx[curFdIdx];
+        metaDataPtr->FDMetadata[i][FD_WORKSPACE_IDX_INDEX] = splitRes_.fdRes.fdWorkspaceIdx[curFdIdx];
+        metaDataPtr->FDMetadata[i][FD_WORKSPACE_NUM_INDEX] = splitRes_.fdRes.fdS2SplitNum[curFdIdx];
+        metaDataPtr->FDMetadata[i][FD_M_START_INDEX] = splitRes_.fdRes.fdMStart[i];
+        metaDataPtr->FDMetadata[i][FD_M_NUM_INDEX] = splitRes_.fdRes.fdMNum[i];
     }
     return true;
 }
