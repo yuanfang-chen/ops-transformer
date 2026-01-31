@@ -49,9 +49,9 @@ using namespace AlltoAllMatmulImpl;
 #ifndef ALLTO_ALL_KC_DYN_QUANT_MATMUL_IMPL
 #define ALLTO_ALL_KC_DYN_QUANT_MATMUL_IMPL(tilingData, pipe)                                                           \
     do {                                                                                                               \
-        if (tilingData.alltoAllMatmulTilingInfo.x1QuantDtype == KC_DYN_QUANT_FP8E5M2) {                                \
+        if (tilingData.alltoAllKcQuantMatmulTilingInfo.x1QuantDtype == KC_DYN_QUANT_FP8E5M2) {                                \
             ALLTO_ALL_KC_DYN_QUANT_MATMUL_SUB_IMPL(tilingData, pipe, float8_e5m2_t);                                   \
-        } else if (tilingData.alltoAllMatmulTilingInfo.x1QuantDtype == KC_DYN_QUANT_FP8E4M3) {                         \
+        } else if (tilingData.alltoAllKcQuantMatmulTilingInfo.x1QuantDtype == KC_DYN_QUANT_FP8E4M3) {                         \
             ALLTO_ALL_KC_DYN_QUANT_MATMUL_SUB_IMPL(tilingData, pipe, float8_e4m3_t);                                   \
         }                                                                                                              \
     } while (0)
