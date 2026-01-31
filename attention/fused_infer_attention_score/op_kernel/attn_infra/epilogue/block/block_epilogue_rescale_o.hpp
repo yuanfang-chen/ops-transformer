@@ -130,7 +130,7 @@ public:
     __aicore__ inline
     void InvalidLineLSEProcess(
         uint32_t qNThisSubBlock, int32_t delStartRow, uint32_t qSBlockIdx, uint32_t inRowOffsetThisSubBlock,
-        uint32_t totalRowNum, int32_t delEndRow, uint32_t qSeqlen, uint32_t qSThisSubBlock)
+        uint32_t totalRowNum, int32_t delEndRow, uint32_t qSeqlen, uint32_t qSBlockSize)
  {
     uint32_t qNSubBlockStartOffset = (qNThisSubBlock == 0U) ? qSBlockIdx * VECTOR_SIZE + inRowOffsetThisSubBlock  : qSBlockIdx * VECTOR_SIZE;
     uint32_t qNSubBlockEnbdOffset = totalRowNum + qNSubBlockStartOffset;
@@ -144,7 +144,7 @@ public:
             (end - start) * FLOAT_BLOCK_SIZE
         );
     }
-    if (qNThisSubBlock == 0U && delEndRow != qSeqlen && (qNSubBlockStartOffset < delEndRow)) {
+    if (qNThisSubBlock == 0U && delEndRow != qSeqlen && qNSubBlockStartOffset < delEndRow) {
         uint32_t rowStart = qNSubBlockStartOffset;
         uint32_t start = 0;
         uint32_t end = rowStart + totalRowNum >= delEndRow ?  (delEndRow - rowStart) : totalRowNum;
@@ -156,12 +156,12 @@ public:
         );
     }
     if (qNThisSubBlock != 0U && delStartRow != 0 && qNSubBlockEnbdOffset >= delStartRow) {
-        uint32_t start = delStartRow - (qNSubBlockStartOffset);
-        uint32_t end = qSThisSubBlock;
+        uint32_t start = delStartRow - qNSubBlockStartOffset;
+        uint32_t end = qSBlockSize;
         for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
             AscendC::PipeBarrier<PIPE_V>();
             AscendC::Duplicate(
-                tvUbTensor[(qNIdx * qSThisSubBlock + start) * FLOAT_BLOCK_SIZE],
+                tvUbTensor[(qNIdx * qSBlockSize + start) * FLOAT_BLOCK_SIZE],
                 LSE_OUT_INI,
                 (end - start) * FLOAT_BLOCK_SIZE
             );
@@ -173,7 +173,7 @@ public:
         for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
             AscendC::PipeBarrier<PIPE_V>();
             AscendC::Duplicate(
-                tvUbTensor[(qNIdx * qSThisSubBlock + start) * FLOAT_BLOCK_SIZE],
+                tvUbTensor[(qNIdx * qSBlockSize + start) * FLOAT_BLOCK_SIZE],
                 LSE_OUT_INI,
                 (end - start) * FLOAT_BLOCK_SIZE
             );
@@ -519,7 +519,7 @@ public:
                         NpuArch::Detail::Alignment::CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE),
                         AscendC::BrcbRepeatParams(1, 8));
                     InvalidLineLSEProcess(qNThisSubBlock, delStartRow, qSBlockIdx,
-                            inRowOffsetThisSubBlock, totalRowNum, delEndRow, qSeqlen, qSThisSubBlock);
+                            inRowOffsetThisSubBlock, totalRowNum, delEndRow, qSeqlen, qSBlockSize);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
