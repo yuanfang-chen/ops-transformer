@@ -192,6 +192,7 @@ class GenCoverage:
 
 if __name__ == "__main__":
     # 将环境变量中的 ASCEND_GLOBAL_LOG_LEVEL 换算成 python 的 log 等级
-    log_level = (int(os.getenv("ASCEND_GLOBAL_LOG_LEVEL", "3")) + 1) * 10
+    #log_level = (int(os.getenv("ASCEND_GLOBAL_LOG_LEVEL", "3")) + 1) * 10
+    log_level = (int(0)) + 1) * 10
     logging.basicConfig(format='[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=log_level)
     GenCoverage.main()
