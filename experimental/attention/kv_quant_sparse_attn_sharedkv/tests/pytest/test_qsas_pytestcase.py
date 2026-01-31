@@ -12,10 +12,11 @@
 
 import itertools
 import torch
-from testcases_sas import ENABLED_PARAMS
+from kv_quant_sparse_attn_sharedkv_paramset import ENABLED_PARAMS
 import check_result
 import check_valid_param
-import sparse_attn_sharedkv_process_quant
+import kv_quant_sparse_attn_sharedkv_golden
+import kv_quant_sparse_attn_sharedkv_process_ci_graph
 import pytest
 import random
 import pandas as pd
@@ -26,9 +27,9 @@ import os
 import multiprocessing as mp
 import concurrent.futures
 
-save_path = "testcase_0124"
+pt_save_path = "qsas_testcase"
 device_id = 0
-savePt = False
+save_pt = False
 
 locals()["param_combinations"] = []
 for _, params in enumerate(ENABLED_PARAMS):
@@ -81,8 +82,8 @@ for _, params in enumerate(ENABLED_PARAMS):
         param_dict = dict(zip(param_names, combo))
         locals()["param_combinations"].append(param_dict)
     print(locals()["param_combinations"])
-case_id = 0
 
+case_id = 0
 def sas(param_combinations):   # 初始化参数和tensor
     global case_id
     Testcase_Name = param_combinations['Testcase_Name']
@@ -124,11 +125,10 @@ def sas(param_combinations):   # 初始化参数和tensor
     if Testcase_Name ==None :
         Testcase_Name = f"kvquantSparseAttenShardkv_{template_run_mode}_{ops_mode}_{layout_q}_{q_type_str}_{B}_{N1}_{N2}_{S1}_{S2}_{D}_{K}_{rope_head_dim}_{case_id:06d}"
 
+    # 生成actLen 
     QS = [0]
     KVS = []
-    # print("actlen_mode", actlen_mode)
-    # 生成actLen 
-    if cu_seqlens_q == None or cu_seqlens_q == None:
+    if cu_seqlens_q == None or seqused_kv == None:
         if layout_q == "TND":
             for i in range(B):
                 if actlen_mode == "random":
@@ -154,7 +154,6 @@ def sas(param_combinations):   # 初始化参数和tensor
 
         cu_seqlens_q = QS
         seqused_kv = KVS
-
     T1 = cu_seqlens_q[-1] if layout_q == "TND" else None
 
     # maxSeqLen / block_size向上取整
@@ -177,32 +176,30 @@ def sas(param_combinations):   # 初始化参数和tensor
     params = Testcase_Name, layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, \
                 block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, ori_mask_mode, \
                 cmp_mask_mode, ori_win_left, ori_win_right, kv_quant_mode, tile_size, rope_head_dim, template_run_mode
-    print("test_data:", params)
     
-
     # 输入参数的合法性校验
-    # try:
-    #     check_valid_param.check_valid_param(test_data)
-    # except ValueError as e:
-    #    pytest.skip(f"输入参数校验失败:{e}")
+    try:
+        check_valid_param.check_valid_param(params)
+    except ValueError as e:
+       pytest.skip(f"输入参数校验失败:{e}")
 
     # 生成测试数据及golden
-    input_data = sparse_attn_sharedkv_process_quant.generate_and_save_testdata(params, savePt=savePt, save_path=save_path)
+    input_data = kv_quant_sparse_attn_sharedkv_golden.generate_and_save_testdata(params, save_pt=save_pt, save_path=pt_save_path)
 
     # 获得cpu结果(真值)和算子结果（测试值）
-    npu_result, cpu_quant_result = sparse_attn_sharedkv_process_quant.test_sas_quant_process(input_data, device_id=device_id)
+    npu_result, cpu_quant_result = kv_quant_sparse_attn_sharedkv_process_ci_graph.test_sas_quant_process_ci(input_data, device_id=device_id)
     result, fulfill_percent = check_result.check_result(cpu_quant_result, npu_result)
     
     case_id += 1
     
 @pytest.mark.ci
 @pytest.mark.parametrize("param_combinations", locals()["param_combinations"])
-def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensaor
+def test_sparse_attn_sharedkv(param_combinations):
     # 线程池
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future1 = executor.submit(sas, param_combinations)
+        futures = executor.submit(sas, param_combinations)
         # 等待并获取结果
-        for future in concurrent.futures.as_completed([future1]):
+        for future in concurrent.futures.as_completed([futures]):
             try:
                 result = future.result()
             except Exception as e:

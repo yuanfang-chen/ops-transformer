@@ -12,10 +12,9 @@
 
 import itertools
 import torch
-# from testcases_sas import ENABLED_PARAMS
 import check_result
 import check_valid_param
-import sparse_attn_sharedkv_process_quant
+import kv_quant_sparse_attn_sharedkv_golden
 import pytest
 import random
 import pandas as pd
@@ -23,13 +22,13 @@ from pathlib import Path
 import numpy as np
 import math
 import os
-import read_excel
+import utils
 import argparse
 import concurrent.futures
 
 # 读取表格
-save_path = "sas_testcase"
-ENABLED_PARAMS = read_excel.load_excel_test_cases("excel.xlsx", "sheet_name")
+save_path = "qsas_testcase"
+ENABLED_PARAMS = utils.load_excel_test_cases("./excel/example.xlsx", "decode")
 
 locals()["param_combinations"] = []
 for _, params in enumerate(ENABLED_PARAMS):
@@ -119,7 +118,6 @@ def sas(param_combinations):   # 初始化参数和tensor
     actlen_mode = param_combinations['actlen_mode']
     S1EQS2 = param_combinations['S1EQS2']
 
-    # print("S1", S1)
     ops_mode = 'prefill' if S1 > 4 else "decode"
     q_type_str = "BF16"
     if q_type == torch.float16:
@@ -127,13 +125,9 @@ def sas(param_combinations):   # 初始化参数和tensor
     if Testcase_Name ==None :
         Testcase_Name = f"kvquantSparseAttenShardkv_{template_run_mode}_{ops_mode}_{layout_q}_{q_type_str}_{B}_{N1}_{N2}_{S1}_{S2}_{D}_{K}_{rope_head_dim}_{case_id:06d}"
 
+    # 生成actLen 
     QS = [0]
     KVS = []
-    cmp_kVS = []
-    # print("S1EQS2:", "true" if S1EQS2 else "false")
-
-    # 生成actLen 
-    print("actlen_mode", actlen_mode)
     if layout_q == "TND":
         for i in range(B):
             if actlen_mode == "random":
@@ -181,16 +175,16 @@ def sas(param_combinations):   # 初始化参数和tensor
     params = Testcase_Name, layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, \
                 block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, ori_mask_mode, \
                 cmp_mask_mode, ori_win_left, ori_win_right, kv_quant_mode, tile_size, rope_head_dim, template_run_mode
-    # print("test_data:", test_data)
+    print("input_params:", params)
     
     # 输入参数的合法性校验
-    # try:
-    #     check_valid_param.check_valid_param(test_data)
-    # except ValueError as e:
-    #    pytest.skip(f"输入参数校验失败:{e}")
+    try:
+        check_valid_param.check_valid_param(params)
+    except ValueError as e:
+        pytest.skip(f"输入参数校验失败:{e}")
 
     # 生成测试数据
-    input_data = sparse_attn_sharedkv_process_quant.generate_and_save_testdata(params, savePt=True, save_path=save_path)
+    input_data = kv_quant_sparse_attn_sharedkv_golden.generate_and_save_testdata(params, save_pt=True, save_path=save_path)
     case_id += 1
 
 @pytest.mark.ci
@@ -198,9 +192,9 @@ def sas(param_combinations):   # 初始化参数和tensor
 def test_sparse_attn_sharedkv(param_combinations):   # 初始化参数和tensor
     # 线程池
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        future1 = executor.submit(sas, param_combinations)
+        futures = executor.submit(sas, param_combinations)
         # 等待并获取结果
-        for future in concurrent.futures.as_completed([future1]):
+        for future in concurrent.futures.as_completed([futures]):
             try:
                 result = future.result()
             except Exception as e:
