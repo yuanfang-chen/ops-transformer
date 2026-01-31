@@ -153,6 +153,13 @@ dtype of output is BF16, actual is %s.",
 the dtype of output is FLOAT16, actual is %s.",
                                 ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
                         return false);
+        } else if (inputParams_.cDtype == ge::DT_INT8 || inputParams_.cDtype == ge::DT_INT32) {
+            OP_CHECK_IF(inputParams_.biasDtype != ge::DT_INT32,
+                        OP_LOGE(inputParams_.opName,
+                                "The dtype of bias should be INT32 when the dtype of x is INT8 and the dtype of output \
+is INT8 or INT32, actual is %s.",
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
+                        return false);
         } else {
             OP_LOGE(inputParams_.opName, "Invalid dtype of output %s with the dtype of x being INT8",
                     ge::TypeUtils::DataTypeToSerialString(inputParams_.cDtype).c_str());
