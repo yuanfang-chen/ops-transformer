@@ -99,8 +99,8 @@ struct TileCopy<ArchTag, CopyWithLayout> {
  * @param [in] CopyEnUnitFlagWithLayout: copy enUnitFlag policy with layouts
  */
 template <>
-struct TileCopy<Arch::Ascend910B, CopyEnUnitFlagWithLayout> {
-    using ArchTag = Arch::Ascend910B;
+struct TileCopy<Arch::DAV_2201, CopyEnUnitFlagWithLayout> {
+    using ArchTag = Arch::DAV_2201;
     using CopyPolicy = CopyWithLayout;
 
     template <class InputType, class DstTrait, class SrcTrait>
@@ -126,8 +126,8 @@ struct TileCopy<Arch::Ascend910B, CopyEnUnitFlagWithLayout> {
  * @param [in] CopySparseWithLayout: copy sparse policy with layouts
  */
 template <>
-struct TileCopy<Arch::Ascend910B, CopySparseWithLayout> {
-    using ArchTag = Arch::Ascend910B;
+struct TileCopy<Arch::DAV_2201, CopySparseWithLayout> {
+    using ArchTag = Arch::DAV_2201;
     using CopyPolicy = CopyWithLayout;
 
     template <class InputType, class DstTrait, class SrcTrait>

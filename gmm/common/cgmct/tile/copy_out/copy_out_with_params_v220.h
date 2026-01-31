@@ -33,7 +33,7 @@ namespace Tile {
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend910B, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV_2201, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsGM<OutputType::pos>() && IsNDOrAlign<OutputType>() &&       // GM ND/ND_ALIGN
         !IsQuantSenario<typename OutputType::T, typename InputType::T>() // no quant
@@ -100,7 +100,7 @@ public:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend910B, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV_2201, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsGM<OutputType::pos>()  && IsNz<OutputType>() &&             // GM NZ
         !IsQuantSenario<typename OutputType::T, typename InputType::T>() // no quant
@@ -168,7 +168,7 @@ public:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend910B, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV_2201, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsGM<OutputType::pos>() && IsNDOrAlign<OutputType>() &&      // GM ND/ND_ALIGN
         IsQuantSenario<typename OutputType::T, typename InputType::T>() // quant
@@ -329,7 +329,7 @@ private:
  */
 template <class OutputType, class InputType>
 struct Copy<
-    Arch::Ascend910B, CopyWithParams, void, OutputType, InputType,
+    Arch::DAV_2201, CopyWithParams, void, OutputType, InputType,
     AscendC::Std::enable_if_t<
         PosIsGM<OutputType::pos>() && IsNz<OutputType>() &&             // GM NZ
         IsQuantSenario<typename OutputType::T, typename InputType::T>() // quant

@@ -38,7 +38,7 @@ constexpr static uint8_t FIX_PIPE_UNIT_FLAG = 3;
  */
 template <class OutputType, class DstTrait, class SrcTrait>
 struct Copy<
-    Arch::Ascend910B, CopyEnUnitFlagWithLayout, OutputType, DstTrait, SrcTrait,
+    Arch::DAV_2201, CopyEnUnitFlagWithLayout, OutputType, DstTrait, SrcTrait,
     AscendC::Std::enable_if_t<PosIsCO1<SrcTrait::tPos>() && PosIsGM<DstTrait::tPos>() && IsNDOrAlign<OutputType>()>
 > {
     /**
@@ -100,7 +100,7 @@ struct Copy<
  */
 template <class OutputType, class DstTrait, class SrcTrait>
 struct Copy<
-    Arch::Ascend910B, CopyEnUnitFlagWithLayout, OutputType, DstTrait, SrcTrait,
+    Arch::DAV_2201, CopyEnUnitFlagWithLayout, OutputType, DstTrait, SrcTrait,
     AscendC::Std::enable_if_t<PosIsCO1<SrcTrait::tPos>() && PosIsGM<DstTrait::tPos>() && IsNz<OutputType>()>
 > {
     /**

@@ -31,7 +31,7 @@ namespace Tile {
  */
 template <class BType, class DstTrait, class SrcTrait>
 struct Copy<
-    Arch::Ascend910B, CopySparseWithLayout, BType, DstTrait, SrcTrait,
+    Arch::DAV_2201, CopySparseWithLayout, BType, DstTrait, SrcTrait,
     AscendC::Std::enable_if_t<SrcTrait::tPos == AscendC::TPosition::B1 && DstTrait::tPos == AscendC::TPosition::B2>> {
 public:
     using DstTensor = AscendC::LocalTensor<DstTrait>;
