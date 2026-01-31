@@ -183,7 +183,7 @@ ge::graphStatus AlltoAllvGmmChecker::CheckAttrsShapeSize(const gert::TilingConte
     // platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
     // std::vector<int64_t> epWorldSizeOptional;
     // std::string epWorldSizeNum;
-    // if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910_95) {
+    // if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND950) {
     //     epWorldSizeOptional = {2, 4, 8, 16, 32, 64};  // A5 limits the epWorldSize to {248163264}
     // } else {
     //     epWorldSizeOptional = {8, 16, 32, 64, 128};  // A3 limits the epWorldSize to{8163264, 128}

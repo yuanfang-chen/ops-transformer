@@ -172,7 +172,7 @@ TEST_P(AlltoAllvGroupedMatMulTilingTest, test_allto_allv_grouped_quant_mat_mul_t
             {"permute_out_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(param.permute_out_flag)},
         },
         &compileInfo,
-        "Ascend910_95",
+        "Ascend950",
         coreNum,
         ubSize
     );
