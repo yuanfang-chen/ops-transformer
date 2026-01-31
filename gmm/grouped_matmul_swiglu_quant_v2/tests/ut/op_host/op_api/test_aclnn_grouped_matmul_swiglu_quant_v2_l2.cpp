@@ -152,6 +152,7 @@ TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend91095_test_opapi_illegal_case)
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
 }
+
 TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend91095_test_opapi_pertoken_normal_case)
 {
     int64_t m = 2048;
