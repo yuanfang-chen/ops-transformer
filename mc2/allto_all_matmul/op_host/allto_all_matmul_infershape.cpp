@@ -62,16 +62,16 @@ static ge::graphStatus CheckShapeForAlltoAllMatmul(const gert::InferShapeContext
     OPS_CHECK_NULL_WITH_CONTEXT(context, x2_shape);
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const bool* is_trans_x1 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X1);
+    const bool* isTransX1 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X1);
     OPS_CHECK(
-        is_trans_x1 == nullptr || *is_trans_x1, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
+        isTransX1 == nullptr || *isTransX1, CUBE_INNER_ERR_REPORT(context->GetNodeName(),
         "x1 does not support transpose in allto all matmul."), return ge::GRAPH_FAILED);
-    const bool* is_trans_x2 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X2);
-    const bool trans_x2 = ((is_trans_x2 != nullptr) && (*is_trans_x2));
+    const bool* isTransX2 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X2);
+    const bool transX2 = ((isTransX2 != nullptr) && (*isTransX2));
     shape.m = x1_shape->GetDim(0U);
     shape.k1 = x1_shape->GetDim(1U);
-    shape.n = trans_x2 ? x2_shape->GetDim(0U) : x2_shape->GetDim(1U);
-    shape.k2 = trans_x2 ? x2_shape->GetDim(1U) : x2_shape->GetDim(0U);
+    shape.n = transX2 ? x2_shape->GetDim(0U) : x2_shape->GetDim(1U);
+    shape.k2 = transX2 ? x2_shape->GetDim(1U) : x2_shape->GetDim(0U);
     shape.output_dim = x1_shape->GetDimNum();
     OP_LOGD(INNER_DEBUG, "Matmul m %ld n %ld k1 %ld k2 %ld.", shape.m, shape.n, shape.k1, shape.k2);
     return ge::GRAPH_SUCCESS;
