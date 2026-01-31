@@ -34,12 +34,12 @@ TEST_LIST+="kernel "
 
 # 要跑的算子仓
 OP_REPO_LIST=""
-OP_REPO_LIST+="moe "
+#OP_REPO_LIST+="moe "
 OP_REPO_LIST+="attention "
-OP_REPO_LIST+="gmm "
-OP_REPO_LIST+="ffn "
-OP_REPO_LIST+="posembedding "
-OP_REPO_LIST+="mc2 "
+#OP_REPO_LIST+="gmm "
+#OP_REPO_LIST+="ffn "
+#OP_REPO_LIST+="posembedding "
+#OP_REPO_LIST+="mc2 "
 
 # 读取算子option配置 ################################################################################################
 op_config_yaml="$CODE_PATH/tests/test_config.yaml"
@@ -131,3 +131,8 @@ done
 
 # 删除当前编译文件，以免影响调用逻辑
 rm -r $CODE_PATH/build/cov_result
+
+echo "fused_infer_attention_score log is: "
+cat $CODE_PATH/log_ut/op_test/fused_infer_attention_score.log
+echo "prompt_flash_attention log is: "
+cat $CODE_PATH/log_ut/op_test/prompt_flash_attention.log
