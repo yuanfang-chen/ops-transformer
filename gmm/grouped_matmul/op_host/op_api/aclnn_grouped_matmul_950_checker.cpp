@@ -196,11 +196,17 @@ template <typename T>
 aclnnStatus AclnnGroupedMatmul91095Checker<T>::CheckWeightNzSpecialParams() const
 {
     auto wDtype = GetInputTensor(gmmParams_.weight)->GetDataType();
+    DataType scaleDtype = GetInputTensor(gmmParams_.scaleOptional)->GetDataType();
+    bool isMxFp8 = (scaleDtype == DataType::DT_FLOAT8_E8M0 && gmmParams_.xDtype == DataType::DT_FLOAT8_E4M3FN &&
+                    wDtype == DataType::DT_FLOAT8_E4M3FN);
+    bool isInt8 = gmmParams_.xDtype == DataType::DT_INT8 && wDtype == DataType::DT_INT8;
     CHECK_COND(
-        gmmParams_.xDtype == DataType::DT_INT8 && wDtype == DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
-        "When format of weight is FRACTAL_NZ, the x dtype and weight dtype should be int8, but x dtype is %s, weight \
-dtype is %s",
-        op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
+        isInt8 || isMxFp8, ACLNN_ERR_PARAM_INVALID,
+        "Weight FRACTAL_NZ is only supported in the following scenarios, scenario 1: the x dtype and weight dtype \
+should be int8, scenarios2: is mx quant mode with x dype and weight dtype is float8_e4m3fn, but x dtype is %s, \
+weight dtype is %s and scale dtype is %s.",
+        op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString(),
+        op::ToString(scaleDtype).GetString());
 
     auto weightViewShapeDim = GetInputTensor(gmmParams_.weight)->GetViewShape().GetDimNum();
     auto kDimValue =
