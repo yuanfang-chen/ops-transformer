@@ -89,7 +89,11 @@ aclnnStatus aclnnQuantGroupedMatmulInplaceAdd(
       <td>x1</td>
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的输入x1。</td>
-      <td>-</td>
+      <td>
+        <ul>
+          <li>不支持空Tensor。特殊情况：<term>Ascend 950PR/Ascend 950DT AI处理器</term>：仅对m=0的空Tensor输入，返回空Tensor作为输出；其它情况的空Tensor不支持。</li>
+        </ul>
+      </td>
       <td>FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
       <td>ND</td>
       <td>2(K，M)</td>
@@ -99,7 +103,11 @@ aclnnStatus aclnnQuantGroupedMatmulInplaceAdd(
       <td>x2</td>
       <td>输入</td>
       <td>Device侧的aclTensor，公式中的输入x2。</td>
-      <td>-</td>
+      <td>
+      <ul>
+          <li>不支持空Tensor。特殊情况：<term>Ascend 950PR/Ascend 950DT AI处理器</term>：仅对n=0的空Tensor输入，返回空Tensor作为输出；其它情况的空Tensor不支持。</li>
+        </ul>
+      </td>
       <td>FLOAT8_E4M3FN、FLOAT8_E5M2、HIFLOAT8</td>
       <td>ND</td>
       <td>2(K，N)</td>
