@@ -21,12 +21,11 @@
 npu_kv_quant_sparse_attn_sharedkv_metadata(num_heads_q, num_heads_kv, head_dim, kv_quant_mode, *, cu_seqlens_q=None, cu_seqlens_ori_kv=None, cu_seqlens_cmp_kv=None, 
 seqused_q=None, seqused_kv=None, batch_size=0, max_seqlen_q=0, max_seqlen_kv=0, ori_topk=0, cmp_topk=0, tile_size=0, rope_head_dim=0, cmp_ratio=-1, ori_mask_mode=4, 
 cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='PA_ND', has_ori_kv=True, has_cmp_kv=True, device='npu:0') -> Tensor
-
 ```
 
 ## 参数说明
 
-> [!NOTE]  
+> [!NOTE]
 >- q、ori_kv、cmp_kv参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Hidden Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
 >- Q_S和S1表示q shape中的S，S2表示ori_kv shape中的S，S3表示cmp_kv shape中的S；Q\_N和N1表示num\_q\_heads，KV\_N和N2表示num\_ori_kv\_heads和num\_cmp_kv\_heads；T1表示q shape中的T，T2表示ori\_kv shape中的T，T3表示cmp\_kv shape中的输入样本序列长度的累加和。
 -   **num_heads_q**（`int`）：必选参数，表示`q`的多头数，目前仅支持64。
@@ -91,7 +90,7 @@ cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='
 
 -   该接口支持推理场景下使用。
 -   该接口支持aclgraph模式。
--   参数q中的D和ori_kv、cmp_kv的D值仅支持512。
+-   参数q中的D值仅支持512。
 
 ## 调用示例
 - 单算子模式调用
