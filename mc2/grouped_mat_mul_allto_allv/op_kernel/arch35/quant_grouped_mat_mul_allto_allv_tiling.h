@@ -15,7 +15,6 @@
 #ifndef QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
 #define QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
 
-#include "kernel_operator.h"
 #if __has_include("../../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h")
 #include "../../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h"
 #else
