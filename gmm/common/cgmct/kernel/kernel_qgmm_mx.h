@@ -272,11 +272,11 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateOf
     } else {
         if constexpr (transB) {
             int64_t nAlign = (n + MATMUL_MNK_ALIGN - 1) & (~(MATMUL_MNK_ALIGN - 1));
-            int64_t kAlign = (n + MATMUL_MNK_ALIGN_INT8 - 1) & (~(MATMUL_MNK_ALIGN_INT8 - 1));
+            int64_t kAlign = (k + MATMUL_MNK_ALIGN_INT8 - 1) & (~(MATMUL_MNK_ALIGN_INT8 - 1));
             Get<IDX_B_OFFSET>(baseOffset_) += nAlign * kAlign;
         } else {
             int64_t nAlign = (n + MATMUL_MNK_ALIGN_INT8 - 1) & (~(MATMUL_MNK_ALIGN_INT8 - 1));
-            int64_t kAlign = (n + MATMUL_MNK_ALIGN - 1) & (~(MATMUL_MNK_ALIGN - 1));
+            int64_t kAlign = (k + MATMUL_MNK_ALIGN - 1) & (~(MATMUL_MNK_ALIGN - 1));
             Get<IDX_B_OFFSET>(baseOffset_) += nAlign * kAlign;
         }
     }
