@@ -131,3 +131,8 @@ done
 
 # 删除当前编译文件，以免影响调用逻辑
 rm -r $CODE_PATH/build/cov_result
+
+echo "fused_infer_attention_score log is: "
+cat $CODE_PATH/log_ut/op_test/fused_infer_attention_score.log
+echo "prompt_flash_attention log is: "
+cat $CODE_PATH/log_ut/op_test/prompt_flash_attention.log
