@@ -122,14 +122,17 @@ static ge::graphStatus InferShapeAlltoAllMatmul(gert::InferShapeContext* context
     OPS_CHECK_NULL_WITH_CONTEXT(context, all2all_out_flag);
     auto all2all_out = context->GetOutputShape(INDEX_ALLTO_ALL_OUT);
     OPS_CHECK_NULL_WITH_CONTEXT(context, all2all_out);
+    all2all_out->SetDimNum(shape.output_dim);
     if (all2all_out_flag) {
-        all2all_out->SetDimNum(shape.output_dim);
-        uint64_t all2all_out_first_dim = CeilDiv(shape.m, shape.rankNum);
-        uint64_t all2all_out_second_dim = shape.k1 * shape.rankNum;
-        all2all_out->SetDim(0U, all2all_out_first_dim);
-        all2all_out->SetDim(1U, all2all_out_second_dim);
-        OP_LOGI(
-        INNER_DEBUG, "Allto all matmul alltoallout shape after infer shape, m: %ld n: %ld.", all2all_out_first_dim, all2all_out_second_dim);
+        if (shape.m != NUM_MINUS_ONE) {
+            uint64_t all2all_out_first_dim = CeilDiv(shape.m, shape.rankNum);
+            uint64_t all2all_out_second_dim = shape.k1 * shape.rankNum;
+            all2all_out->SetDim(0U, all2all_out_first_dim);
+            all2all_out->SetDim(1U, all2all_out_second_dim);
+            OP_LOGI(
+            INNER_DEBUG, "Allto all matmul alltoallout shape after infer shape, output_dim: %ld, m: %ld n: %ld.",
+            shape.output_dim, all2all_out_first_dim, all2all_out_second_dim);
+        }
     }
     shape_out->SetDimNum(shape.output_dim);
     if (shape.m == NUM_MINUS_ONE) {
@@ -175,6 +178,7 @@ static ge::graphStatus InferDataTypeAlltoAllMatmul(gert::InferDataTypeContext* c
         }
     }
     context->SetOutputDataType(0, y_type);
+    context->SetOutputDataType(1, x1_type);
     return ge::GRAPH_SUCCESS;
 }
 
