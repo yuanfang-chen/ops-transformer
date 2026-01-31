@@ -1085,9 +1085,7 @@ mc2:
         - mc2/matmul_allto_all/docs
         - mc2/matmul_allto_all/README.md
       ut_cov_exclude:
-        - mc2/matmul_allto_all
-      test:
-        examples: False  
+        - mc2/matmul_allto_all 
       options:
         - matmul_allto_all
 

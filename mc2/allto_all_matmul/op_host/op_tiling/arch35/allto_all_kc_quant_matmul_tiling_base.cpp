@@ -468,7 +468,8 @@ void AllToAllKcQuantMatmulTilingBase::SetTilingInfo(AlltoAllMatmulTilingInfo &ti
     tilingInfo.rankDim = contextInfo.args_.rankDim;
     tilingInfo.hcclDataType =
         (static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.hcclGeType))); // hccl数据类型
-    tilingInfo.x1QuantDtype = contextInfo.x1KcDynQuantDTypeVal;    
+    tilingInfo.x1QuantDtype = contextInfo.x1KcDynQuantDTypeVal;
+    tilingInfo.dynamicExtraSpace = 0UL;  
 }
 
 /**
