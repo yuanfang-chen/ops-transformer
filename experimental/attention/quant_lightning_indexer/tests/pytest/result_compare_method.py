@@ -240,7 +240,6 @@ def check_result(expect, result, topk_value, params):
     layout_key, sparse_count, sparse_mode, query_datarange, key_datarange, weights_datarange, q_scale_datarange,\
     k_scale_datarange, cmp_ratio = params
     # 处理B+1
-    # print(f"===== {act_seq_q} =====")
     if isinstance(act_seq_q, int):
         act_seq_q = [act_seq_q]
     elif isinstance(act_seq_q, list):
@@ -250,7 +249,6 @@ def check_result(expect, result, topk_value, params):
         if layout_query == 'TND':
             if len(act_seq_q) == batch_size + 1:
                 act_seq_q = act_seq_q[1:]
-    # print(f"===== {act_seq_q} =====")
     if isinstance(act_seq_k, int):
         act_seq_k = [act_seq_k]
     elif isinstance(act_seq_k, list):

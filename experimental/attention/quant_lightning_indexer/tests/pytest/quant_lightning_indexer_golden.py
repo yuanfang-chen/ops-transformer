@@ -574,7 +574,7 @@ def qli_output_single(params):
         block_table = torch.from_numpy(block_table).to(dtype=torch.int32).npu()
     max_seqlen_q = actual_seq_lengths_query.max().item()
     max_seqlen_k = actual_seq_lengths_key.max().item()
-    metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata (
+    metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata(
                                     num_heads_q = q_head_num,
                                     num_heads_k = k_head_num,
                                     head_dim = head_dim,
