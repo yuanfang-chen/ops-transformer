@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ constexpr int64_t GATHER = 0;
 constexpr int64_t SCATTER = 1;
 
 constexpr uint16_t FLOAT_REG_TENSOR_LENGTH = VECTOR_REG_WIDTH / sizeof(float);
+constexpr float HIFLOAT8_MAX_VALUE = 32768.0f;
 
 __aicore__ inline int64_t Ceil(int64_t a, int64_t b)
 {
