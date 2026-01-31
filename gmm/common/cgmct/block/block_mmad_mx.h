@@ -470,7 +470,7 @@ public:
             loadDataParams.ifTranspose = true;
         }
         loadData2DMxParams.xStartPosition = 0;
-        loadData2DMxParams.yStartPosition = Cgmct::Gemm::CeilDiv(kL0L1Off, MXFP_DIVISOR_SIZE);
+        loadData2DMxParams.yStartPosition = 0;
         loadData2DMxParams.xStep = m1;
         loadData2DMxParams.yStep = Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, MXFP_DIVISOR_SIZE);
         loadData2DMxParams.srcStride = Cgmct::Gemm::CeilDiv(curScaleKL1, MXFP_DIVISOR_SIZE);
@@ -522,7 +522,7 @@ public:
             loadDataParams.ifTranspose = true;
         }
         loadData2DMxParams.xStartPosition = 0;
-        loadData2DMxParams.yStartPosition = Cgmct::Gemm::CeilDiv(kL0L1Off, MXFP_DIVISOR_SIZE);
+        loadData2DMxParams.yStartPosition = 0;
         loadData2DMxParams.xStep = n1;
         loadData2DMxParams.yStep = Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, MXFP_DIVISOR_SIZE);
         loadData2DMxParams.srcStride = Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE);
@@ -683,7 +683,7 @@ public:
             // Load data to L0 and open DB
             uint64_t l0Offset = HALF_L0_SIZE * (l0PingPong_ & 0x1);
             AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0PingPong_ & 0x1);
-            uint64_t offsetScaleL1 = AscendC::BLOCK_CUBE * ((kL1Offset % scaleKL1_) / MXFP_GROUP_SIZE);
+            uint64_t offsetScaleL1 = AscendC::BLOCK_CUBE * ((kL0Offset % scaleKL1_) / MXFP_GROUP_SIZE);
             CopyInL0A(l0aLocal_[l0Offset], aL1Local_[l1BufferAOffset_[al1BufId]],
                       scaleAL1Local_[l1BufferScaleAOffset_[scaleL1BufId] + offsetScaleL1], kL0L1Off + kaL1Offset,
                       tileL1L0Param, scaleKL1_);
