@@ -79,7 +79,7 @@ extern "C" {
 * mmWeightOptional: (H2, N2);
 * mmXScaleOptional: pertensor场景(1,);
 * mmWeightScaleOptional: pertensor场景(1,);
-* y: (A, N1);
+* y: (BSH, N1);
 * mmYOptional: (BS, N2);
 *
 * 数据关系说明：

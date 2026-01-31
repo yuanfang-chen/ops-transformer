@@ -16,34 +16,23 @@
 #ifndef MC2_PIPELINE_TEMPLATE_COMM_COMPUTE_H
 #define MC2_PIPELINE_TEMPLATE_COMM_COMPUTE_H
 
+#include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "basic_api/kernel_basic_intf.h"
 
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
-template <typename CommOpType, typename ComputationOpType, typename TilingDataType, typename GmmTilingDataType,
-    typename GmmArrayAddrType>
+template <typename CommOpType, typename ComputationOpType, typename SharedComputationOpType>
 class GmmA2avScheduler {
 public:
-    __aicore__ inline void Init(CommOpType hcclOp, ComputationOpType computeOp, ComputationOpType shareComputeOp, GM_ADDR tilingGM)
-    {
-        hcclOp_ = hcclOp;
-        computeOp_ = computeOp;
-        shareComputeOp_ = shareComputeOp;
-        auto tiling = (__gm__ TilingDataType *)tilingGM;
-        GET_TILING_DATA(tilingData_, tilingGM);
-        __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclA2avTiling.hcclInitTiling));
-        __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->hcclA2avTiling.alltoAllvCcTiling));
-        expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
-    }
+    __aicore__ inline GmmA2avScheduler(const CommOpType& hcclOp, const ComputationOpType& computeOp, const SharedComputationOpType& shareComputeOp, TaskTilingInfo* taskTilingInfo):hcclOp_(hcclOp),computeOp_(computeOp),shareComputeOp_(shareComputeOp),taskTilingInfo_(taskTilingInfo){};
+    __aicore__ inline void Init();
 
     __aicore__ inline void Process()
     {
-        if ( shareComputeOp_ != nullptr){
-            shareComputeOp_.ProcessExpert(0, 1);
-        }
-        for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
+        uint32_t expertNumInOneRank = taskTilingInfo_->e;
+        for (uint32_t e = 0U; e < expertNumInOneRank; e++) {
             computeOp_.ProcessExpert(e, 1); // 每次专家数量设置为1进行调试
             hcclOp_.Launch(e, 1);   // 每次专家数量设置为1进行调试
         }
@@ -53,16 +42,13 @@ public:
     __aicore__ inline void End()
     {
         hcclOp_.End();
-        computeOp_.End();
-        shareComputeOp_.End();
     }
 
 private:
     CommOpType hcclOp_;
     ComputationOpType computeOp_;
-    ComputationOpType shareComputeOp_;
-    const TilingDataType *tilingData_;
-    uint32_t expertNumInOneRank_ = 0U;
+    SharedComputationOpType shareComputeOp_;
+    const TaskTilingInfo *taskTilingInfo_;
 };
 };
 #endif
