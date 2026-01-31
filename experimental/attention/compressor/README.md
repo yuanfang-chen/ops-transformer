@@ -26,14 +26,14 @@
         - C4A: $(S_H)_i = S_i^\prime \odot \left[kv\_state^a_{\left[4(i-1)+1:4i,:\right]} ; kv\_state^b_{\left[4i+1:4(i+1),:\right]}\right],~i=1,2,\cdots, \frac{s}{4};$
         - C128A: $S_H = S_i^\prime \odot kv\_state;$
     5. 沿着压缩轴分组求和：
-        - C4A: $kv\_state_{i}^{\text{Comp}} = \left[1\right]_{1\times8} @ (S_H)_i, ~i=1,2,\cdots, \frac{s}{4};$
-        - C128A: $kv\_state_{i}^{\text{Comp}} = \left[1\right]_{1\times128} @ (S_H)_i, ~i=1,2,\cdots, \frac{s}{128};$
+        - C4A: $C_{i}^{\text{Comp}} = \left[1\right]_{1\times8} @ (S_H)_i, ~i=1,2,\cdots, \frac{s}{4};$
+        - C128A: $C_{i}^{\text{Comp}} = \left[1\right]_{1\times128} @ (S_H)_i, ~i=1,2,\cdots, \frac{s}{128};$
 
     后处理阶段：
 
     6. 计算RMSNorm：
-        - $\text{RMS}(kv\_state) = \sqrt{\frac{1}{N} \sum_{i=j* N}^{(j+1)* N} kv\_state_{i}^{\text{2}} + norm\_eps} ,N=head\_dim, ~j=1,2,\cdots, \frac{s}{cmp\_ratio}$
-        - $\text{RmsNorm}(kv\_state) = norm\_weight \cdot \frac{kv\_state_{i}}{\text{RMS}(kv\_state)}$
+        - $\text{RMS}(C^{\text{Comp}}) = \sqrt{\frac{1}{N} \sum_{i=j* N}^{(j+1)* N} {(C_{i}^{\text{Comp}})}^{\text{2}} + norm\_eps} ,N=head\_dim, ~j=1,2,\cdots, \frac{s}{cmp\_ratio}$
+        - $\text{RmsNorm}(C^{\text{Comp}}) = norm\_weight \cdot \frac{C_{i}^{\text{Comp}}}{\text{RMS}(C^{\text{Comp}})}$
     7. 计算Rope；
    
 -   主要计算过程为：
@@ -73,7 +73,7 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
 
 -   **rope\_head\_dim**（`int`）：必选参数，表示rope_cos和rope_sin的hidden层最小单元大小。目前仅支持64。
 
--   **cmp\_ratio**（`int`）：必选参数，表示数据压缩率。支持2/4/8/16/32/64/128。
+-   **cmp\_ratio**（`int`）：必选参数，表示数据压缩率。
 
 - <strong>*</strong>：代表其之前的参数是位置相关的，必须按照顺序输入；之后的参数是可选参数，位置无关，不赋值会使用默认值。
 
@@ -81,9 +81,9 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
 
 -   **score\_blcok\_table**（`Tensor`）：可选参数，表示score\_state存储使用的block映射表。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,Smax/block_size], Smax为每个Batch中最大的Sequence Length。当其中元素的值为0时，表示当前位置无需进行更新score_state操作。
 
--   **cu\_seqlens**（`Tensor`）：可选参数，表示不同Batch上的有效token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B+1,]。当x的shape为[B,S,H]时，参数无效。当x的shape为[T,H]时，该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值
+-   **cu\_seqlens**（`Tensor`）：可选参数，表示不同Batch上的有效token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B+1,]。当x的shape为[B,S,H]时，参数无效。当x的shape为[T,H]时，该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。
 
--   **seqused**（`Tensor`）：可选参数，表示不同Batch中实际参与压缩的token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,]。如果不指定为None时，表示和每个Batch上的Sequence Length长度相同。该入参中每个Batch的有效token数要求小于等于对应Sequence Length长度。当x的shape为[B,S,H]时，要求seqused[n] <= S，且不小于0；当x的shape为[T,H]时，要求seqused[n] <= cu\_seqlens[n+1] - cu\_seqlens[n]，且不小于0。支持长度为B的一维tensor。
+-   **seqused**（`Tensor`）：可选参数，表示不同Batch中实际参与压缩的token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,]。如果不指定为None时，表示和每个Batch上的Sequence Length长度相同。该入参中每个Batch的有效token数要求小于等于对应Sequence Length长度。当x的shape为[B,S,H]时，要求seqused[n] <= S，且不小于0；当x的shape为[T,H]时，要求seqused[n] <= cu\_seqlens[n+1] - cu\_seqlens[n]，且不小于0。
 
 -   **start\_pos**（`Tensor`）：可选参数，表示计算起始位置。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,]。当输入为None时，表示从0开始进行计算。
 
@@ -93,26 +93,64 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
 
 -   **ratary\_mode**（`int`）：可选参数，表示Rop计算的模式。默认值1，支持1/2。ratary\_mode为1时，代表half模式。ratary\_mode为2时，代表interleave模式。
 
--   **enabled\_grad**（`bool`）：可选参数，训练场景使用，表示是否参与反向更新。默认值false，支持false/true。
+-   **enabled\_grad**（`bool`）：可选参数，训练场景使用，表示是否参与反向更新。默认值false，支持false/true。**目前暂不支持输入true。**
 
 ## 返回值说明
 -   **cmp\_kv**（`Tensor`）：必选输出，表示压缩后的数据。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),D]：(<batch0>compessed_tokens+pad0) +  (<batch1>compessed_tokens+pad1) + ... +  (<batchN>compessed_tokens+padN)；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),D]：<batch0>compressed_tokens + <batch1>compressed_tokens + ... + <batchN>compressed_tokens + pad。
 
--   **wkv\_proj**（`Tensor`）：可选输出，训练反向使用，表示wkv权重Matmul的计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,S,coff* D]；当x的shape为[T,H]时，输出shape为[T,coff* D]。
+-   **wkv\_proj**（`Tensor`）：可选输出，训练反向使用，表示wkv权重Matmul的计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,S,coff* D]；当x的shape为[T,H]时，输出shape为[T,coff* D]。**目前暂不支持返回wkv\_proj。**
 
--   **softmax\_res**（`Tensor`）：可选输出，训练反向使用，表示Softmax计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),coff* cmp_ratio,D]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),coff* cmp_ratio,D]。
+-   **softmax\_res**（`Tensor`）：可选输出，训练反向使用，表示Softmax计算结果。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),coff* cmp_ratio,D]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),coff* cmp_ratio,D]。**目前暂不支持返回softmax\_res。**
 
--   **norm\_x**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的输入。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),D]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),D]。
+-   **norm\_x**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的输入。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio),D]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B),D]。**目前暂不支持返回norm\_x。**
 
--   **norm\_rstd**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的中间结果，rms(x)。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio)]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B)]。
+-   **norm\_rstd**（`Tensor`）：可选输出，训练反向使用，表示Rms计算的中间结果，rms(x)。不支持非连续，数据格式支持ND。数据类型支持`bfolat16`、`folat16`。当x的shape为[B,S,H]时，输出shape为[B,ceil(S/cmp_ratio)]；当x的shape为[T,H]时，输出shape为[min(T,T//cmp_ratio+B)]。**目前暂不支持返回norm\_rstd。**
 
 ## 约束说明
 
--   该接口支持B、S泛化, 当layout为(B,S,H)时B,S过大可能出现异常，当layout为(T,H)时T过大可能出现异常。//（注意事项）
+-   该接口支持B、S泛化，且存在如下场景限制：
+    -   部分长序列场景下，如果计算量过大可能会导致出现超过NPU内存的报错，注：这里计算量会受x输入shape的影响，值越大计算量越大。典型的长序列（即B、S的乘积或T较大）场景包括但不限于：
+    <div style="overflow-x: auto;">
+    <table style="undefined;table-layout: fixed; width: 400px"><colgroup>
+    <col style="width: 100px">
+    <col style="width: 100px">
+    </colgroup><thead>
+    <tr>
+    <th>B</th>
+    <th>S</th>
+    <th>H</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+    <td>100</td>
+    <td>65525</td>
+    <td>4096</td>
+    </tr>
+    <tr>
+    <td>25</td>
+    <td>261120</td>
+    <td>4096</td>
+    </tr>
+    <tr>
+    <td>100</td>
+    <td>131072</td>
+    <td>4096</td>
+    </tr>
+    <tr>
+    <td>100</td>
+    <td>261120</td>
+    <td>4096</td>
+    </tr>
+    </tbody>
+    </table>
+    </div>
 -   支持D为128/512。
 -   支持H为1K~10K，512对齐。
 -   泛化支持block_size小于等于1024，16对齐。
--   支持cmp_ratio为4/128。
+-   支持cmp_ratio为4/128。支持如下三种情况：
+    -   C4A: D=512, coff=2, cmp_ratio=4;
+    -   C4Li: D=128, coff=2, cmp_ratio=4;
+    -   C128A: D=512, coff=1, cmp_ratio=128。
 -   支持rotary_mode为2，Rope计算模式为interleave。
 
 ## 调用示例
@@ -124,6 +162,15 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
     import numpy as np
     import torch.nn as nn
     import math
+
+    def get_seq_used_by_batch(batch_idx, S, seqused, cu_seqlens):
+        if seqused is not None:
+            return seqused[batch_idx]
+        else:
+            if cu_seqlens is not None:
+                return cu_seqlens[batch_idx + 1] - cu_seqlens[batch_idx]
+            else:
+                return S
 
     data_type = torch.bfloat16
     hidden_size = 4096
@@ -198,15 +245,24 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
         rope_sin_shape = (B, (S + cmp_ratio - 1) // cmp_ratio, rope_head_dim)
         rope_cos_shape = rope_sin_shape
 
-    x = torch.tensor(np.random.uniform(-10.0, 10.0, x_shape)).to(data_type)
-    wkv = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type)
-    wgate = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type)
-    ape = torch.tensor(np.random.uniform(-10, 10, (cmp_ratio, coff * head_dim))).to(torch.float32)
-    norm_weight = torch.tensor(np.random.uniform(-10, 10, (head_dim))).to(data_type)
-    rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(data_type)
-    rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type)
+    x = torch.tensor(np.random.uniform(-10.0, 10.0, x_shape)).to(data_type).npu()
+    wkv = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type).npu()
+    wgate = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type).npu()
+    ape = torch.tensor(np.random.uniform(-10, 10, (cmp_ratio, coff * head_dim))).to(torch.float32).npu()
+    norm_weight = torch.tensor(np.random.uniform(-10, 10, (head_dim))).to(data_type).npu()
+    rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(data_type).npu()
+    rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type).npu()
+    kv_state = kv_state.npu()
+    score_state = score_state.npu()
+    kv_block_table = kv_block_table.npu()
+    score_block_table = score_block_table.npu()
+    start_pos = torch.tensor(start_pos).to(torch.int32).npu()
+    if cu_seqlens is not None:
+        cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32).npu()
+    if seqused is not None:
+        seqused = torch.tensor(seqused).to(torch.int32).npu()
 
-    npu_out = (
+    cmp_kv,_ ,_ ,_ ,_ = (
         torch.ops.custom.compressor(
             x,
             wkv,
@@ -229,17 +285,26 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
             rotary_mode = rotary_mode
         )
     )
+
     ### ===================
 
     ```
 -   图模式调用
-
     ```python
-       import torch
+    import torch
     import torch_npu
     import numpy as np
     import torch.nn as nn
     import math
+
+    def get_seq_used_by_batch(batch_idx, S, seqused, cu_seqlens):
+        if seqused is not None:
+            return seqused[batch_idx]
+        else:
+            if cu_seqlens is not None:
+                return cu_seqlens[batch_idx + 1] - cu_seqlens[batch_idx]
+            else:
+                return S
 
     data_type = torch.bfloat16
     hidden_size = 4096
@@ -314,51 +379,32 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
         rope_sin_shape = (B, (S + cmp_ratio - 1) // cmp_ratio, rope_head_dim)
         rope_cos_shape = rope_sin_shape
 
-    x = torch.tensor(np.random.uniform(-10.0, 10.0, x_shape)).to(data_type)
-    wkv = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type)
-    wgate = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type)
-    ape = torch.tensor(np.random.uniform(-10, 10, (cmp_ratio, coff * head_dim))).to(torch.float32)
-    norm_weight = torch.tensor(np.random.uniform(-10, 10, (head_dim))).to(data_type)
-    rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(data_type)
-    rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type)
+    x = torch.tensor(np.random.uniform(-10.0, 10.0, x_shape)).to(data_type).npu()
+    wkv = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type).npu()
+    wgate = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type).npu()
+    ape = torch.tensor(np.random.uniform(-10, 10, (cmp_ratio, coff * head_dim))).to(torch.float32).npu()
+    norm_weight = torch.tensor(np.random.uniform(-10, 10, (head_dim))).to(data_type).npu()
+    rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(data_type).npu()
+    rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type).npu()
+    kv_state = kv_state.npu()
+    score_state = score_state.npu()
+    kv_block_table = kv_block_table.npu()
+    score_block_table = score_block_table.npu()
+    start_pos = torch.tensor(start_pos).to(torch.int32).npu()
+    if cu_seqlens is not None:
+        cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32).npu()
+    if seqused is not None:
+        seqused = torch.tensor(seqused).to(torch.int32).npu()
 
     class CompressorNetwork(nn.Module):
-            def __init__(self):
-                super(CompressorNetwork, self).__init__()
+        def __init__(self):
+            super(CompressorNetwork, self).__init__()
 
-            def forward(self, x, wkv, wgate, kv_state, score_state, ape, norm_weight, rope_sin,         
-                        rope_cos, rope_head_dim, cmp_ratio, *,kv_block_table = None, score_block_table = None, cu_seqlens = None, 
-                        seqused = None, start_pos = None, coff = 1, norm_eps = 1e-6, rotary_mode = 1, enabled_grad = false):
-                npu_out = (
-                    torch.ops.custom.compressor(
-                        x,
-                        wkv,
-                        wgate,
-                        kv_state,
-                        score_state,
-                        ape,
-                        norm_weight, 
-                        rope_sin,
-                        rope_cos,
-                        kv_block_table = kv_block_table,
-                        score_block_table = score_block_table,
-                        cu_seqlens = cu_seqlens,
-                        seqused = seqused,
-                        start_pos = start_pos,
-                        rope_head_dim = rope_head_dim,
-                        cmp_ratio = cmp_ratio,
-                        coff = coff,
-                        norm_eps = norm_eps,
-                        rotary_mode = rotary_mode
-                    )
-                )
-                return npu_out
-
-    config = CompilerConfig()
-    npu_backend = torchair.get_npu_backend(compiler_config=config)
-    torch._dynamo.reset()
-    npu_mode = torch.compile(CompressorNetwork(), fullgraph=True, backend=npu_backend, dynamic=False)
-    npu_out = npu_mode(                    
+        def forward(self, x, wkv, wgate, kv_state, score_state, ape, norm_weight, rope_sin,         
+                    rope_cos, rope_head_dim, cmp_ratio, kv_block_table = None, score_block_table = None, cu_seqlens = None, 
+                    seqused = None, start_pos = None, coff = 1, norm_eps = 1e-6, rotary_mode = 1):
+            cmp_kv,_ ,_ ,_ ,_ = (
+                torch.ops.custom.compressor(
                     x,
                     wkv,
                     wgate,
@@ -377,5 +423,37 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
                     cmp_ratio = cmp_ratio,
                     coff = coff,
                     norm_eps = norm_eps,
+                    rotary_mode = rotary_mode
+                )
+            )
+            return cmp_kv
+
+    from torchair.configs.compiler_config import CompilerConfig
+    config = CompilerConfig()
+    npu_backend = torchair.get_npu_backend(compiler_config=config)
+    torch._dynamo.reset()
+    npu_mode = torch.compile(CompressorNetwork(), fullgraph=True, backend=npu_backend, dynamic=False)
+    cmp_kv = npu_mode(                    
+                    x,
+                    wkv,
+                    wgate,
+                    kv_state,
+                    score_state,
+                    ape,
+                    norm_weight, 
+                    rope_sin,
+                    rope_cos,
+                    kv_block_table = block_table,
+                    score_block_table = block_table,
+                    cu_seqlens = cu_seqlens,
+                    seqused = seqused,
+                    start_pos = start_pos,
+                    rope_head_dim = rope_head_dim,
+                    cmp_ratio = cmp_ratio,
+                    coff = coff,
+                    norm_eps = norm_eps,
                     rotary_mode = rotary_mode)
+
+    ### ===================
+
     ```
