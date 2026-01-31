@@ -109,6 +109,12 @@ inline static int64_t AlignBytes(int64_t elementNum, int64_t bytes)
     return (elementNum * bytes + UB_BLOCK_SIZE - 1) / UB_BLOCK_SIZE * UB_BLOCK_SIZE;
 }
 
+struct MultipleParams
+{
+    int64_t colMultiple = 0;
+    int64_t rowMultiple = 0;
+};
+
 class MoeInitRoutingV3Arch35TilingClass : public TilingBaseClass {
 public:
     explicit MoeInitRoutingV3Arch35TilingClass(gert::TilingContext *context) : TilingBaseClass(context)
@@ -186,6 +192,7 @@ private:
     ge::graphStatus CheckOutputExpandedScale();
 
     // 各阶段TilingData计算函数
+    MultipleParams GetMultipleParams();
     void Tiling4GatherOutCompute();
     void Tiling4GatherOutMxQuant();
     void Tiling4SortOutCompute();
@@ -652,12 +659,6 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputExpertIdx()
 ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::CheckInputScale()");
-    
-    if (quantMode_ == QUANT_MODE_HIF8_CAST && isInputScale_ != 0) {
-        OP_LOGE(context_, "The rank of input scale should be empty under quant_mode %ld, current is %ld",
-                quantMode_, static_cast<int64_t>(scaleShape_.GetDimNum()));
-        return ge::GRAPH_FAILED;
-    }
 
     if (isInputScale_ == 0) {
         return ge::GRAPH_SUCCESS;
@@ -1111,6 +1112,20 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4ExpertTokensCountCompute()
     LogExpertTokensCountTilingData();
 }
 
+MultipleParams MoeInitRoutingV3Arch35TilingClass::GetMultipleParams()
+{
+    MultipleParams params;
+    params.colMultiple = NUM_TWO * inputXDtypeSize_;
+    params.rowMultiple = NUM_TWO;
+    if (quantMode_ == QUANT_MODE_DYNAMIC) {
+        params.colMultiple = DYNAMIC_QUANT_COLS_BUFFER;
+        params.rowMultiple = NUM_FOUR;
+    } else if (quantMode_ == QUANT_MODE_HIF8_CAST && xDtype_ == ge::DataType::DT_BF16) {
+        params.colMultiple = NUM_TWO * (inputXDtypeSize_ + inputXDtypeSize_ * 2); // BF16->FP32->HIF8
+    }
+    return params;
+}
+
 void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()");
@@ -1125,22 +1140,15 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     int64_t lastCoreIndicesElements = totalLength_ - (needCoreNum - 1) * perCoreIndicesElements;
 
     int64_t perLoopCols = tilingDataPtr_->cols;
-    int64_t colMultiple = NUM_TWO * inputXDtypeSize_;
-    int64_t rowMultiple = NUM_TWO;
-    if (quantMode_ == QUANT_MODE_DYNAMIC) {
-        colMultiple = DYNAMIC_QUANT_COLS_BUFFER;
-        rowMultiple = NUM_FOUR;
-    } else if (quantMode_ == QUANT_MODE_HIF8_CAST && xDtype_ == ge::DataType::DT_BF16) {
-        colMultiple = NUM_TWO * (inputXDtypeSize_ + inputXDtypeSize_ * 2); // BF16->FP32->HIF8
-    }
+    MultipleParams multipleParams = GetMultipleParams();
     int64_t perLoopMaxIndicesElements =
-        (availUbSize_ - Align(perLoopCols, inputXDtypeSize_) * colMultiple - UB_BLOCK_SIZE * NUM_TWO) / rowMultiple /
-        static_cast<int64_t>(sizeof(int32_t));
+        (availUbSize_ - Align(perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple - UB_BLOCK_SIZE * NUM_TWO) /
+        multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
     while (perLoopMaxIndicesElements <= 0) {
         perLoopCols = Ops::Base::CeilDiv(perLoopCols, NUM_TWO);
         perLoopMaxIndicesElements =
-            (availUbSize_ - Align(perLoopCols, inputXDtypeSize_) * colMultiple - UB_BLOCK_SIZE * NUM_TWO) /
-            rowMultiple / static_cast<int64_t>(sizeof(int32_t));
+            (availUbSize_ - Align(perLoopCols, inputXDtypeSize_) * multipleParams.colMultiple -
+            UB_BLOCK_SIZE * NUM_TWO) / multipleParams.rowMultiple / static_cast<int64_t>(sizeof(int32_t));
     }
     int64_t colsLoops = Ops::Base::CeilDiv(tilingDataPtr_->cols, perLoopCols);
     int64_t lastLoopCols = tilingDataPtr_->cols - (colsLoops - 1) * perLoopCols;
