@@ -15,9 +15,9 @@
 #ifndef MC2_TEMPLATES_H
 #define MC2_TEMPLATES_H
 
-#include "scheduler/gmm_a2av_scheduler.h"
-#include "scheduler/a2av_gmm_scheduler.h"
+// #include "scheduler/gmm_a2av_scheduler.h"
+// #include "scheduler/a2av_gmm_scheduler.h"
 #include "communication/hccl_a2av_op.h"
-#include "compute/gmm_expert_op.h"
+// #include "compute/gmm_expert_op.h"
 
 #endif // MC2_TEMPLATES_H

@@ -18,7 +18,12 @@
 
 #include "kernel_operator.h"
 #include "../common/a2av_common_tiling.h"
+#if __has_include(                                                                                                     \
+    "../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h")
 #include "../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#else
+#include "../../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#endif
 
 namespace MC2KernelTemplate {
 

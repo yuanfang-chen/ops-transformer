@@ -178,6 +178,7 @@ protected:
     virtual void PrintQuantParams();
     bool IsMicroScaling() const;
     bool CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
+    const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingData() const { return tilingData_; }
     GQmmBasicTiling basicTiling_;
     GQmmInputInfo inputParams_;
 
