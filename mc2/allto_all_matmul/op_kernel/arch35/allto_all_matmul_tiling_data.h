@@ -36,6 +36,7 @@ struct AlltoAllMatmulTilingInfo {
     uint64_t permuteLen;         // 重排空间大小
     uint64_t hcclDataType;       // hccl通信枚举值
     uint64_t x1ScaleOptionalLen; // x1Scale所需空间大小
+    uint64_t dynamicExtraSpace;  // 动态量化所需的额外空间
     uint64_t x1QuantDtype;       // x1动态量化后的结果
 };
 
