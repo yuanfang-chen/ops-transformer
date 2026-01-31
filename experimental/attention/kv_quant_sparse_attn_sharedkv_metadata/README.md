@@ -60,7 +60,7 @@ cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='
 
 -   **tile\_size**（`int`）：可选参数，表示量化粒度，必须能被`rope_head_dim`整除，默认值为None，目前仅支持64。
 
--   **rope\_head\_dim**（`int`）：可选参数，表示rope的多头数，默认值为0，目前仅支持64。
+-   **rope\_head\_dim**（`int`）：可选参数，表示`rope`的多头数，默认值为0，目前仅支持64。
     
 -   **cmp\_ratio**（`int`）：可选参数，表示对`ori_kv`的压缩率，数据范围支持4/128，默认值为None。
 
@@ -80,11 +80,11 @@ cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='
 
 -   **has\_cmp\_kv**（`bool`）：可选参数，表示是否传入`cmp_kv`，默认值为true。
 
--   **device**（`str`）：可选参数，用于获取设备信息，当输入tensor均没有传入时，此字段必填。
+-   **device**（`str`）：可选参数，用于获取设备信息，当输入`Tensor`均没有传入时，此字段必填。
 
 ## 返回值说明
 
--   **Metadata**（`Tensor`）：每个cube核上FlashAttention计算任务的Batch、Head、以及 Q 和 K 的分块的索引,以及每个vector核上FlashDecode的规约任务索引。
+-   **Metadata**（`Tensor`）：每个cube核上FlashAttention计算任务的Batch、Head、以及 Q 和 K 的分块的索引，以及每个vector核上FlashDecode的规约任务索引。
 
 ## 约束说明
 
