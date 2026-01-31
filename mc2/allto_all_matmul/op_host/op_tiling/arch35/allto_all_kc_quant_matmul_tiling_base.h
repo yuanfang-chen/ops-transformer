@@ -32,6 +32,8 @@ using namespace optiling;
 using namespace mc2_matmul_v3_advanced;
 constexpr size_t X1_QUANTMODE_VALUES = 7;
 constexpr size_t X2_QUANTMODE_VALUES = 2;
+constexpr size_t FP8_E5M2_VALUES = 35;
+constexpr size_t FP8_E4M3_VALUES = 36;
 class AllToAllKcQuantMatmulTilingBase : public AllToAllMatmulTilingBase {
     friend class AlltoAllKcQuantMatmulHelper;
 public:

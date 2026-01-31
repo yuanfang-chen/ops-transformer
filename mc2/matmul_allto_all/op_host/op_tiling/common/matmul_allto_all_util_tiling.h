@@ -114,6 +114,7 @@ struct TilingContextInfo {
     bool allToAllOutFlag =
         false; // AlltoAllMatmul用于存放alltoAllFlag的标识,AlltoAll在前，为true表示当前存在alltoall的对应地址
     ge::DataType hcclGeType;
+    uint64_t x1KcDynQuantDTypeVal = 0;
 };
 
 // 封装Tiling过程中推导得到的参数

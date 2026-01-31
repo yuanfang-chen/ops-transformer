@@ -89,6 +89,11 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::SetKcDataTypeInfo(const gert::T
     }
     contextInfo.hcclGeType = context->GetInputDesc(INPUT_X1_INDEX)->GetDataType();
 
+    OP_TILING_CHECK(aDTypeNum != FP8_E5M2_VALUES && aDTypeNum != FP8_E4M3_VALUES,
+    OP_LOGE(opName, "aDTypeNum %d is invalid, only 35(fp8e5m2) or 36(fp8e4m3) is supported.", aDTypeNum),
+    return ge::GRAPH_FAILED);
+    contextInfo.x1KcDynQuantDTypeVal = aDTypeNum;
+
     contextInfo.args_.outputDtypeSize = mc2tiling::GetDataTypeSize(opName, cType);
     // 设置为x1的数据类型
     contextInfo.args_.inputDtypeSize = mc2tiling::GetDataTypeSize(opName, contextInfo.hcclGeType);
@@ -463,6 +468,7 @@ void AllToAllKcQuantMatmulTilingBase::SetTilingInfo(AlltoAllMatmulTilingInfo &ti
     tilingInfo.rankDim = contextInfo.args_.rankDim;
     tilingInfo.hcclDataType =
         (static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.hcclGeType))); // hccl数据类型
+    tilingInfo.x1QuantDtype = contextInfo.x1KcDynQuantDTypeVal;    
 }
 
 /**
