@@ -491,11 +491,7 @@ ge::graphStatus FiaTilingCheck::CheckSystemPrefixShape()
     }
     auto prefixKShape = opParamInfo_.keySharedPrefix.tensor->GetStorageShape();
     auto prefixVShape = opParamInfo_.valueSharedPrefix.tensor->GetStorageShape();
-    prefixKeyShapeCmp_ = std::make_shared<FiaTilingShapeCompare>(prefixKShape, kvLayout_, KEY_NAME, opName_);
-    if (fiaInfo_.systemPrefixLen > fiaInfo_.systemPrefixMaxLen) {
-        OP_LOGE(opName_, "actual prefix len should be less than or equal to prefixlen");
-        return ge::GRAPH_FAILED;
-    }
+    prefixKeyShapeCmp_ = std::make_shared<FiaTilingShapeCompare>(prefixKShape, kvLayout_, KEY_SHARED_PREFIX_NAME, opName_);
 
     if (prefixKShape != prefixVShape) {
         OP_LOGE(opName_, "Prefix shapes mismatch: prefix key shape and prefix value shape");

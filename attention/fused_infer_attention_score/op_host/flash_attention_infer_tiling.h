@@ -56,7 +56,6 @@ namespace optiling{
     enum class MaskType : uint32_t {
         NO_MASK = 0,
         MASK_SPEC = 1,
-        ALIBI_MASK =2
         SWA_MASK = 3
     };
 
@@ -92,8 +91,6 @@ namespace optiling{
         bool learnableSinkFlag = false;
         bool isTilingSink = false;
         string layout;
-        bool alibiLeftAlign = false;
-        bool isAlibiMaskSqrt = false;
     };
 
     class FAInferTiling {
