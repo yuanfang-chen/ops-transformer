@@ -12,7 +12,7 @@
  * \file flash_attention_interface.cpp
  * \brief
  */
-#include "flash_attention_regular.h"
+#include "flash_attention_regular2.h"
 using namespace NpuArch;
 
 namespace SplitFuse {
