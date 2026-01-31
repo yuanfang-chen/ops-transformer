@@ -690,7 +690,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext
     // 若存在头归约，则切分点一定为上一个核结束的位置
     result.fdRes.fdBN2Idx[result.numOfFdHead] = result.bN2End[assignContext.curCoreIdx - 1U];
     result.fdRes.fdMIdx[result.numOfFdHead] = result.gS1End[assignContext.curCoreIdx - 1U];
-    result.fdRes.fdWorkspaceIdx[result.numOfFdHead] = assignContext.curFdDataNum - assignContext.curKvSplitPart;
+    result.fdRes.fdWorkspaceIdx[result.numOfFdHead] = assignContext.preFdDataNum;
     result.fdRes.fdS2SplitNum[result.numOfFdHead] = assignContext.curKvSplitPart;
     result.fdRes.fdMSize[result.numOfFdHead] = curFdS1gSize;
     result.numOfFdHead++;
@@ -725,8 +725,8 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitC
     assignContext.unassignedCost -= assignContext.coreCache.cost;
     // 对之前的归约信息进行记录并清理
     if (IsNeedRecordFDInfo(assignContext, result)) {
-        assignContext.preFdDataNum += assignContext.curKvSplitPart;
         RecordFDInfo(splitContext, assignContext, result);
+        assignContext.preFdDataNum += assignContext.curKvSplitPart;
         assignContext.curKvSplitPart = 1U;
     }
     // 更新S2切分信息
