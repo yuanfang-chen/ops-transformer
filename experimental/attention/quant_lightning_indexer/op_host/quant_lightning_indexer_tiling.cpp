@@ -194,7 +194,7 @@ ge::graphStatus QLIInfoParser::GetAttrParaInfo()
         OP_LOGI(context_->GetNodeName(), "cmpRatio is:%d", *opParamInfo_.cmpRatio);
     }
     if (opParamInfo_.returnValues != nullptr) {
-        OP_LOGI(context_->GetNodeName(), "returnValues is:%d", *opParamInfo_.returnValues);
+        OP_LOGI(context_->GetNodeName(), "returnValues is:%s", *opParamInfo_.returnValues ? "true" : "false");
     }
     if (opParamInfo_.queryQuantMode != nullptr) {
         OP_LOGI(context_->GetNodeName(), "query_quant_mode mode is:%d", *opParamInfo_.queryQuantMode);
@@ -211,11 +211,20 @@ ge::graphStatus QLIInfoParser::CheckAttrParaInfo()
 {
     std::string layout_key(opParamInfo_.layOutKey);
     std::string layout_query(opParamInfo_.layOutQuery);
-    OP_CHECK_IF(
-        ((std::string(opParamInfo_.layOutKey) == "BNSD") || (std::string(opParamInfo_.layOutKey) == "PA_BBND")),
-        OP_LOGE(opName_, "input attr layout_key only supported PA_BSND, PA_BBND, BSND or TND"
-                  "but now layout_key is %s.", layout_key.c_str()),
-                  return ge::GRAPH_FAILED);
+    if ((socVersion_ == platform_ascendc::SocVersion::ASCEND910B) ||
+        (socVersion_ == platform_ascendc::SocVersion::ASCEND910_93)) {
+        OP_CHECK_IF(
+            ((std::string(opParamInfo_.layOutKey) == "BNSD") || (std::string(opParamInfo_.layOutKey) == "PA_BBND")),
+            OP_LOGE(opName_, "input attr layout_key only supported PA_BSND, PA_BBND, BSND or TND,"
+                    "but now layout_key is %s.", layout_key.c_str()),
+                    return ge::GRAPH_FAILED);
+    } else if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
+        OP_CHECK_IF(
+            ((std::string(opParamInfo_.layOutKey) != "PA_BSND")),
+            OP_LOGE(opName_, "input attr layout_key only supported PA_BSND,"
+                        "but now layout_key is %s.", layout_key.c_str()),
+                        return ge::GRAPH_FAILED);
+    }
     OP_CHECK_IF(((std::string(opParamInfo_.layOutQuery) != "BSND") && (std::string(opParamInfo_.layOutQuery) != "TND")),
                OP_LOGE(opName_, "input attr layout_query only supported BSND or TND."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(
