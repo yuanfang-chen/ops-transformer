@@ -233,6 +233,7 @@ attention:
     test:
       examples: False
     options:
+      - incre_flash_attention
       - prompt_flash_attention
       - fused_infer_attention_score
 
