@@ -54,6 +54,11 @@ private:
     __aicore__ inline void CopyInX(int64_t loop, int64_t rowCount);
     __aicore__ inline void ComputeSoftmax(int64_t rowCount);
     __aicore__ inline void ComputeTopK(int64_t row);
+    __aicore__ inline void HandleOneRepeatSortNum(
+    int64_t rowCount, 
+    const LocalTensor<float>& softmaxTensor,
+    const LocalTensor<float>& sortedTensor,
+    LocalTensor<float>& sortTmpTensor);
     __aicore__ inline void ComputeRowIdx(int64_t loop, int64_t rowCount);
     __aicore__ inline void CopyOutRowIdx(int64_t loop, int64_t rowCount);
     __aicore__ inline void CopyYExpertIdxOut(int64_t loop, int64_t rowCount);
@@ -312,6 +317,35 @@ __aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, ne
 }
 
 template <typename T, bool hasFinished, bool needPadNegInf>
+__aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, needPadNegInf>::HandleOneRepeatSortNum(
+    int64_t rowCount, 
+    const LocalTensor<float>& softmaxTensor,
+    const LocalTensor<float>& sortedTensor,
+    LocalTensor<float>& sortTmpTensor)
+{
+    // 如果只选top1，无需排序，用max求最大值作为top1
+    if (k_ == 1 && expertCount_ <= B32_BLOCK_COUNT) {
+        __VEC_SCOPE__ {
+            __local_mem__ float *softmaxTensorAddr = (__local_mem__ float *)softmaxTensor.GetPhyAddr();
+            __local_mem__ float *sortedTensorAddr = (__local_mem__ float *)sortedTensor.GetPhyAddr();
+            AscendC::MicroAPI::RegTensor<float> valueAndIndexReg;
+            AscendC::MicroAPI::MaskReg maskForValueAndIndex = AscendC::MicroAPI::CreateMask<uint32_t, AscendC::MicroAPI::MaskPattern::VL2>();
+            AscendC::MicroAPI::MaskReg maskForExpertCount;
+            uint32_t expertCountForMask = static_cast<uint32_t>(expertCount_);
+
+            for (uint16_t i = 0; i < static_cast<uint16_t>(rowCount); i++) {
+                AscendC::MicroAPI::DataCopy(valueAndIndexReg, softmaxTensorAddr + i * expertCountAlign_);
+                maskForExpertCount = AscendC::MicroAPI::UpdateMask<uint32_t>(expertCountForMask);
+                AscendC::MicroAPI::ReduceMax(valueAndIndexReg, valueAndIndexReg, maskForExpertCount);
+                DataCopy(sortedTensorAddr + expertCountAlign_ * 2 * i, valueAndIndexReg, maskForValueAndIndex);
+            }
+        }
+    } else {
+        Sort32(sortedTensor, softmaxTensor, expertIdxTensor, rowCount);
+    }
+}
+
+template <typename T, bool hasFinished, bool needPadNegInf>
 __aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, needPadNegInf>::ComputeTopK(
     int64_t rowCount)
 {
@@ -323,8 +357,8 @@ __aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, ne
     LocalTensor<T> yOutTensor = yOutQueue_.AllocTensor<T>();
     LocalTensor<int32_t> expertIdxOutTensor = expertIdxOutQueue_.AllocTensor<int32_t>();
 
-    if (expertCountAlign_ == ONE_REPEAT_SORT_NUM) {
-        Sort32(sortedTensor, softmaxTensor, expertIdxTensor, rowCount);
+     if (expertCountAlign_ == ONE_REPEAT_SORT_NUM) {
+        HandleOneRepeatSortNum(rowCount, softmaxTensor, sortedTensor, sortTmpTensor);
     } else {
         for (int i = 0; i < rowCount; i++) {
             Sort<float, true>(sortedTensor[expertCountAlign_ * i * KEY_VALUE_FACTOR],
