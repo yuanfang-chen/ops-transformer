@@ -16,8 +16,6 @@
 #define MOE_DISTRIBUTE_DISPATCH_V2_HOST_KFC_H
 
 #include "kernel_operator.h"
-#include "basic_api/kernel_basic_intf.h"
-#include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_v2_tiling.h"
 #include "moe_distribute_v2_constant.h"
@@ -129,7 +127,6 @@ private:
     __aicore__ inline void SetStatus();
     __aicore__ inline void InitStatusTensor();
     __aicore__ inline void BufferInit();
-    __aicore__ inline void InitElasticInfo(bool isWaitDispatch = false);
     __aicore__ inline void InitComputeInfo();
     __aicore__ inline void InitCommBetweenServerInfo();
     __aicore__ inline void InitDispatchBetweenServerInfo();
@@ -480,24 +477,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
 }
 
 template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitElasticInfo(bool isWaitDispatch)
-{
-    uint32_t elasticInfoSize = (ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSizeOriginal_) * sizeof(int32_t); //TODO
-    uint32_t elasticInfoSizeAlign = Ceil(elasticInfoSize, UB_ALIGN) * UB_ALIGN;
-    tpipe_->InitBuffer(elasticInfoBuf_, elasticInfoSizeAlign);
-    if (!isWaitDispatch) {
-        totalUsedUB_ += elasticInfoSizeAlign;
-    }
-    elasticInfoTensor_ = elasticInfoBuf_.Get<int32_t>();
-    DataCopyExtParams elasticInfoParams = {
-        1U, static_cast<uint32_t>((ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSizeOriginal_) * sizeof(int32_t)), 0U,
-        0U, 0U};
-    DataCopyPadExtParams<int32_t> elasticInfoCopyPadParams{false, 0U, 0U, 0U};
-    DataCopyPad(elasticInfoTensor_, elasticInfoGMTensor_, elasticInfoParams, elasticInfoCopyPadParams);
-    SyncFunc<AscendC::HardEvent::MTE2_S>();
-}
-
-template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitComputeInfo()
 {
     axisMaxBS_ = globalBS_ / epWorldSizeOriginal_;
@@ -834,9 +813,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     LogInfo(__LINE__,"dataState_",dataState_);
     elasticInfoGMTensor_.SetGlobalBuffer((__gm__ int32_t *)(elasticInfo));
     LogInfo(__LINE__, "elasticInfoGMTensor_ ");
-    if (hasElasticInfoFlag_) {
-        InitElasticInfo(false);
-    }
     if (epRankId_ < sharedExpertRankNum_) {
         isShareExpertRankFlag_ = true;
     }
