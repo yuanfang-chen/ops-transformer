@@ -218,6 +218,7 @@ template<typename INPUT_T>
 __aicore__ inline void CopyToL1Nd2Nz(const LocalTensor<INPUT_T> &l1Tensor, const GlobalTensor<INPUT_T> &gmTensor,
     uint32_t nValue, uint32_t dValue, uint32_t srcDValue)
 {
+    printf("【fzj】 start c1 nd2nz\n");
     Nd2NzParams gm2L1Nd2NzParams;
     gm2L1Nd2NzParams.ndNum = 1; // ND矩阵的个数
     gm2L1Nd2NzParams.nValue = nValue; // 单个ND矩阵的实际行数，单位为元素个数
@@ -227,16 +228,20 @@ __aicore__ inline void CopyToL1Nd2Nz(const LocalTensor<INPUT_T> &l1Tensor, const
 #if (__CCE_AICORE__ == 310) || (defined __DAV_310R6__)
     if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value ||
         IsSameType<INPUT_T, hifloat8_t>::value) {
+        printf("【fzj】 c1 nd2nz 1\n");
         gm2L1Nd2NzParams.dstNzC0Stride = (nValue + 31) >> 5 << 5;
     } else {
         gm2L1Nd2NzParams.dstNzC0Stride = (nValue + 15) >> 4 << 4;
     }
 #else
+    printf("【fzj】 c1 nd2nz 2\n");
     gm2L1Nd2NzParams.dstNzC0Stride = (nValue + 15) >> 4 << 4; // NZ矩阵相邻Block起始地址之间的偏移， 单位为Block个数
 #endif
+    printf("【fzj】 c1 nd2nz 3\n");
     gm2L1Nd2NzParams.dstNzNStride = 1; // 转换为NZ矩阵后，ND之间相邻两行在NZ矩阵中起始地址之间的偏移， 单位为Block个数
     gm2L1Nd2NzParams.dstNzMatrixStride = 0; // 两个NZ矩阵，起始地址之间的偏移， 单位为元素数量
     DataCopy(l1Tensor, gmTensor, gm2L1Nd2NzParams);
+    printf("【fzj】 c1 nd2nz 4\n");
 }
 
 template<typename INPUT_T>

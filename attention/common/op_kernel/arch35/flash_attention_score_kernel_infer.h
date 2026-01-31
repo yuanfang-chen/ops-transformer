@@ -261,6 +261,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockType>::Process()
 {
+    printf("【fzj】 kernel start\n");
     // SyncAll Cube和Vector都需要调用
     if (this->sharedParams.needInit) {
         SyncAll<false>();
@@ -273,6 +274,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
             this->vecBlock.FlashDecodeCompute(this->constInfo, this->keyGm, this->actualSeqKvlenAddr);
         }
     }
+    printf("【fzj】 kernel end\n");
 }
 
 // =========================================== private functions ===========================================

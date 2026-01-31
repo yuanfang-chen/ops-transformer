@@ -491,6 +491,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
+    printf("【fzj】 start c1\n");
     CalcS1Coord(runInfo, constInfo);
     CalcS2Coord(runInfo, constInfo);
     if constexpr (isMlaFullQuant) {
@@ -501,6 +502,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1(
                 IterateBmm1NdL0Split(outputBuf, runInfo, constInfo);
             } else {
                 if constexpr (useDn) {
+                    printf("【fzj】 c1 1\n");
                     IterateBmm1Dn(outputBuf, runInfo, constInfo);
                 } else {
                     IterateBmm1Nd(outputBuf, runInfo, constInfo);
@@ -527,6 +529,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1(
             }
         }
     }
+    printf("【fzj】 end c1\n");
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -660,30 +663,38 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
+    printf("【fzj】 start c2\n");
     if constexpr (isMlaFullQuant) {
         IterateBmm2MLAFullQuant(outputBuf, inputBuf, runInfo, constInfo);
     } else {
+        printf("【fzj】 c2 1\n");
         if constexpr (isInfer && layout == LayOutTypeEnum::LAYOUT_BNSD) {
             if (constInfo.isKvContinuous == 0) {
+                printf("【fzj】 c2 2\n");
                 this->valueGm.offsetCalculator.Init(0, constInfo.n2Size, runInfo.s2InCurrentBatch, constInfo.dSizeV);
             }
         }
+        printf("【fzj】 c2 3\n");
         if constexpr (IsSameType<INPUT_T, float>::value || (uint32_t)dVTemplateType > 256 || (uint32_t)dTemplateType > 256) {
             IterateBmm2L1SplitN(outputBuf, inputBuf, runInfo, constInfo);
         } else {
+            printf("【fzj】 c2 4\n");
             Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> mm2A = inputBuf.Get();
             Buffer<BufferType::L1> mm2B = l1VBuffers.Get();
             mm2A.WaitCrossCore();
             mm2B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
             LocalTensor<INPUT_T> mm2BTensor = mm2B.GetTensor<INPUT_T>();
             if constexpr (isPa) {
+                printf("【fzj】 c2 5\n");
                 Position startPos;
                 startPos.bIdx = runInfo.boIdx;
                 startPos.n2Idx = runInfo.n2oIdx;
                 if constexpr (isFd) {
+                    printf("【fzj】 c2 6\n");
                     startPos.s2Offset = runInfo.flashDecodeS2Idx * constInfo.sInnerLoopSize +  // FD分片起始
                             runInfo.s2LoopCount * s2BaseSize;  // 核心内循环偏移
                 } else {
+                    printf("【fzj】 c2 7\n");
                     startPos.s2Offset = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;  // 非FD场景
                 }
                 startPos.dIdx = 0;
@@ -694,25 +705,32 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                 shape.actHeadDim = constInfo.dSizeV;
                 shape.maxblockNumPerBatch = maxBlockNumPerBatch;
                 shape.copyRowNum = runInfo.s2RealSize;
+                printf("【fzj】 c2 8\n");
                 if constexpr (isFp8) {
+                    printf("【fzj】 c2 9\n");
                     shape.copyRowNumAlign = (runInfo.s2RealSize + 31) >> 5 << 5;
                 } else {
+                    printf("【fzj】 c2 10\n");
                     shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
                 }
                 GlobalTensor<INPUT_T> mm2BGmTensor = GetValueGm(runInfo, constInfo);
                 GmCopyInToL1PA<INPUT_T>(mm2BTensor, mm2BGmTensor, blockTableGm, kvLayout, shape, startPos);
             } else {
+                printf("【fzj】 c2 11\n");
                 if constexpr (enableKVPrefix) {
                     if ((runInfo.s2LoopCount + runInfo.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
+                        printf("【fzj】 c2 12\n");
                         uint64_t gmOffset = runInfo.prefixOffset;
                         CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, this->valueSharedPrefixGm.gmTensor[gmOffset],
                                                runInfo.s2RealSize, constInfo.dSizeV, constInfo.mm2Kb);
                     } else {
+                        printf("【fzj】 c2 13\n");
                         uint64_t gmOffset = runInfo.keyOffset;
                         CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], runInfo.s2RealSize,
                                                constInfo.dSizeV, constInfo.mm2Kb);
                     }
                 } else {
+                    printf("【fzj】 c2 14\n");
                     uint64_t gmOffset = runInfo.keyOffset;
                     if (constInfo.dSize != constInfo.dSizeV) {
                         gmOffset = this->valueGm.offsetCalculator.GetOffset(coordInfo[runInfo.taskIdMod3].curBIdx,
@@ -736,8 +754,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
             if constexpr (!useDn) {
                 param.realM = (uint32_t)runInfo.s1RealSize;
             }
+            printf("【fzj】 c2 15\n");
             mm2B.Wait<HardEvent::MTE2_MTE1>(); // 等待
             if constexpr (isFp8) {
+                printf("【fzj】 c2 16\n");
                 MatmulFull<INPUT_T, INPUT_T, T, 128, (uint32_t)dVTemplateType, 128, ABLayout::MK, ABLayout::KN>(
                     mm2A.GetTensor<INPUT_T>(),
                     mm2BTensor,
@@ -746,6 +766,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                     mm2ResL0C.GetTensor<T>(),
                     param);
             } else {
+                printf("【fzj】 c2 17\n");
                 if constexpr ((uint32_t)dVTemplateType > 128) {
                     MatmulN<INPUT_T, INPUT_T, T, (uint32_t)s1TemplateType, 128, s2BaseSize, ABLayout::MK, ABLayout::KN>(
                         mm2A.GetTensor<INPUT_T>(),
@@ -774,7 +795,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                     }
                 }
             }
-            
+            printf("【fzj】 c2 18\n");
             mm2B.Set<HardEvent::MTE1_MTE2>(); // 释放L1B
 
             mm2ResL0C.Set<HardEvent::M_FIX>(); // 通知
@@ -790,7 +811,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
             } else {
                 fixpipeParams.nSize = constInfo.dSizeV; // L0C上的bmm1结果矩阵N方向的size大小
             }
-
+            printf("【fzj】 c2 19\n");
             fixpipeParams.mSize = s1BaseSize; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小; 同mmadParams.m
             fixpipeParams.srcStride = ((s1BaseSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
             if constexpr (!useDn) {
@@ -803,6 +824,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
                     }
                 }
             }
+            printf("【fzj】 c2 20\n");
             if constexpr (bmm2Write2Ub) {
                 fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
             } else {
@@ -817,6 +839,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
             outputBuf.SetCrossCore();
         }
     }
+    printf("【fzj】 end c2\n");
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -1454,6 +1477,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
+    printf("【fzj】 start c1dn\n");
     Buffer<BufferType::L1> mm1A;
     Buffer<BufferType::L1> mm1B;
     // 右矩阵复用，S2的第一次循环加载右矩阵
@@ -1464,11 +1488,13 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
         uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, 
                     coordInfo[runInfo.taskIdMod3].s1Coord, 0);	
+        printf("【fzj】 c1dn 1\n");
         if constexpr(isInfer) {
             if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	  
                 CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,	 
                     constInfo.mm1Ka);	 
             } else { 
+                printf("【fzj】 c1dn 2\n");
                 CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.s1RealSize, constInfo.dSize, 
                  constInfo.mm1Ka); 
             }
@@ -1560,6 +1586,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<T>(), fixpipeParams); // 将matmul结果从L0C搬运到UB
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放L0C
     outputBuf.SetCrossCore();
+    printf("【fzj】 end c1\n");
 }
 
 /* 针对MLA的bmm1*/
