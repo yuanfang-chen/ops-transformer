@@ -23,7 +23,6 @@ using Ops::Base::CeilDiv;
 
 constexpr size_t INDEX_IN_X1 = 0;
 constexpr size_t INDEX_IN_X2 = 1;
-constexpr size_t INDEX_ATTR_GROUP = 0;
 constexpr size_t INDEX_ATTR_WORLD_SIZE = 1;
 constexpr size_t INDEX_ATTR_Y_DTYPE = 3;
 constexpr size_t INDEX_ATTR_X1_QUANT_MODE = 4;
