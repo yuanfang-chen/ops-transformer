@@ -952,10 +952,25 @@ ge::graphStatus CompressorTiling::CheckDimNumConsistency() const
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus CompressorTiling::CheckScenarioConsistency() const
+{
+    auto curCmpratio = baseParams_->cmpRatio;
+    auto curHeaddim = baseParams_->headDim;
+    auto curCoff = static_cast<uint8_t>(*context_->coff);
+    std::vector<uint32_t> curScenario{curCmpratio, curCoff, curHeaddim};
+    const std::vector<std::vector<uint32_t>> allowdScenarios = {{4, 2, 512}, {4, 2, 128}, {128, 1, 512}};
+
+    OP_CHECK_IF( std::find(allowdScenarios.begin(), allowdScenarios.end(), curScenario) == allowdScenarios.end(),
+                OP_LOGE("Compressor", "Cmpratio Coff Headdim should be equal to {4, 2, 512}, {4, 2, 128}, {128, 1, 512},\
+                        but now cmpratio=%u, coff=%u, headdim=%u", curCmpratio, curCoff, curHeaddim),
+                        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus CompressorTiling::CheckMultiParaConsistency() const
 {
     if (CheckShapeConsistency() != ge::GRAPH_SUCCESS || CheckDtypeConsistency() != ge::GRAPH_SUCCESS ||
-        CheckDimNumConsistency() != ge::GRAPH_SUCCESS) {
+        CheckDimNumConsistency() != ge::GRAPH_SUCCESS || CheckScenarioConsistency() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -978,10 +993,13 @@ CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context)
     OP_CHECK_IF(tilingData == nullptr,
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "TilingData is nullptr."),
             return ge::GRAPH_FAILED);
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context->SetScheduleMode(BATCH_MODE_SCHEDULE);
     if (compressorTiling.RunBigKernelTiling(tilingData) == ge::SUCCESS) {
         // TODO genTilingKey
         context->SetTilingKey(compressorContext.tilingKey);
         context->SetBlockDim(compressorContext.blockDim);
+        OP_LOGI(context->GetNodeName(), "Compressor block dim: %u.", compressorContext.blockDim);
         return ge::GRAPH_SUCCESS;
     }
 

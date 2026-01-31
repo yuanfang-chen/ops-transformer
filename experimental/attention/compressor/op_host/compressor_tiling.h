@@ -82,6 +82,8 @@ namespace optiling {
     constexpr uint32_t MAX_BLOCK_SIZE = 1024;
     constexpr uint32_t MIN_BLOCK_SIZE = 16;
     constexpr uint32_t ALIGN_FACTOR_BLOCK_SIZE = 16;
+
+    constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
     
 struct CompressorCompileInfo {
     int64_t core_num;
@@ -125,8 +127,8 @@ struct CompressorBaseShapeInfo {
 
 const std::vector<int> ROPE_HEAD_DIM {64};
 const std::vector<int> COFF {1, 2};
-const std::vector<int> CMP_RATIO {2, 4, 8, 16, 32, 64, 128};
-const std::vector<int> ROTARY_MODE {1, 2};
+const std::vector<int> CMP_RATIO {4, 128};
+const std::vector<int> ROTARY_MODE {2};
 const std::vector<uint32_t> HEAD_DIM {128, 512};
 
 enum class ROTARY_MODE:uint8_t {
@@ -242,6 +244,7 @@ private:
     ge::graphStatus CheckMultiParaConsistency() const;
     ge::graphStatus CheckDimNumConsistency() const;
     ge::graphStatus CheckEmptyTensor() const;
+    ge::graphStatus CheckScenarioConsistency() const;
 
     size_t ubSize_ = 0;
     size_t l1Size_ = 0;

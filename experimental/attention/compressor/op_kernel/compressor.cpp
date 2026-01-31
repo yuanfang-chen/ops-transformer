@@ -36,6 +36,10 @@ __global__ __aicore__ void compressor(
     __gm__ uint8_t *cmpKvOut,
     __gm__ uint8_t *kvStateOut,
     __gm__ uint8_t *scoreStateOut,
+    __gm__ uint8_t *wkvProjOut,
+    __gm__ uint8_t *softmaxResOut,
+    __gm__ uint8_t *normXOut,
+    __gm__ uint8_t *normRstdOut,
     __gm__ uint8_t *workspace,
     __gm__ uint8_t *tiling) {
     REGISTER_TILING_DEFAULT(optiling::CompressorTilingData);
