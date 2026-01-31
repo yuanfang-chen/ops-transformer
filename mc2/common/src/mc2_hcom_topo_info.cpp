@@ -279,4 +279,48 @@ HcclResult MC2HcomTopology::TryGetGroupTopoType(const char *group, uint32_t *top
     return HCCL_SUCCESS;
 }
 #endif
+
+HcclResult MC2HcomTopology::Mc2MoeGetCclBufferSize(const char *group, uint64_t* cclBufferSize)
+{
+    HcclComm hcclComm;
+    HcclResult ret = CommGetCclBufferSizeByGroup(group, cclBufferSize, &hcclComm);
+    if (ret != HCCL_SUCCESS) {
+        OP_LOGE("", "CommGetCclBufferSizeByGroup failed");
+        return ret;
+    }
+    if (hcclComm == nullptr) {
+        ret = CommGetGroupLocalWindowSize(group, cclBufferSize);
+        if (ret != HCCL_SUCCESS) {
+            OP_LOGE("", "GetGroupLocalWindowSize from topoInfo failed");
+            return ret;
+        }
+        OP_LOGD("", "Get cclBufferSize by topoInfo");
+    } else {
+        OP_LOGD("", "Get cclBufferSize from HCCL");
+    }
+    if (*cclBufferSize == 0) {
+        OP_LOGE("", "Get cclBufferSize failed, cclBufferSize is 0");
+        return HCCL_E_NOT_FOUND;
+    }
+    return HCCL_SUCCESS;
+}
+
+HcclResult MC2HcomTopology::Mc2MoeGetEpWinSize(const char *group, uint64_t* hcclBufferSizeEp,
+    uint64_t* maxWindowSizeEp, bool isA5)
+{
+    if (isA5) {
+        // A5 暂不支持 Hccl CommGetBufSizeCfg 接口，此处暂作规避
+        *hcclBufferSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+        // A5 上前 1MB 作为状态区，剩余空间用作数据区
+        *maxWindowSizeEp = *hcclBufferSizeEp - mc2tiling::MTE_STATE_ZONE_SIZE;
+    } else {
+        HcclResult ret = Mc2MoeGetCclBufferSize(group, hcclBufferSizeEp);
+        if (ret != HCCL_SUCCESS) {
+            OP_LOGE("", "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", *maxWindowSizeEp);
+            return ret;
+        }
+        *maxWindowSizeEp = *hcclBufferSizeEp;
+    }
+    return HCCL_SUCCESS;
+}
 }  // namespace Mc2Hcom

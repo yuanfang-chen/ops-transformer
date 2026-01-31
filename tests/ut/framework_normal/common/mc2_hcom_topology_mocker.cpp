@@ -78,6 +78,20 @@ HcclResult MC2HcomTopology::CommGetGroupLocalWindowSize([[maybe_unused]] const c
     return HCCL_SUCCESS;
 }
 
+HcclResult MC2HcomTopology::Mc2MoeGetCclBufferSize([[maybe_unused]] const char *group, uint64_t* cclBufferSize)
+{
+    *cclBufferSize = MC2HcomTopologyMocker::GetInstance().GetValue("cclBufferSize", DEFAULT_CCL_BUFFER_SIZE);
+    return HCCL_SUCCESS;
+}
+
+HcclResult MC2HcomTopology::Mc2MoeGetEpWinSize([[maybe_unused]] const char *group, uint64_t* hcclBufferSizeEp,
+                                               uint64_t* maxWindowSizeEp, [[maybe_unused]] bool isA5)
+{
+    *hcclBufferSizeEp = MC2HcomTopologyMocker::GetInstance().GetValue("cclBufferSize", DEFAULT_CCL_BUFFER_SIZE);
+    *maxWindowSizeEp = MC2HcomTopologyMocker::GetInstance().GetValue("cclBufferSize", DEFAULT_CCL_BUFFER_SIZE);
+    return HCCL_SUCCESS;
+}
+
 // private:
 MC2HcomTopology &MC2HcomTopology::GetInstance()
 {
