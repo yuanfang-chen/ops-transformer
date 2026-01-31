@@ -233,8 +233,8 @@ private:
   bool Prepare(CpuKernelContext &ctx);
   bool ParamsCheck();
   bool ParamsInit();
-  bool BalanceSchedule();
-  bool GenMetaData();
+  bool BalanceSchedule(SplitResult &splitRes);
+  bool GenMetaData(SplitResult &splitRes);
   ValidSocVersion ProcessSocVersion();
   // util
   uint32_t GetS1SeqSize(uint32_t bIdx);
@@ -274,7 +274,7 @@ private:
   void RecordFDInfo(const SplitContext &splitContext, const AssignContext &assignContext, SplitResult &result);
 
   // main
-  void SplitFD(SplitResult &result);
+  void SplitFD(SplitResult &splitRes);
   void CalcSplitPlan(int64_t costLimit, const SplitContext &splitContext, SplitResult &result);
   void SplitCore();
 
@@ -319,7 +319,6 @@ private:
   uint32_t s2BaseSize_ = 0;
   uint32_t gS1BaseSizeOfFd_ = 0;
   bool isS1G_ = true;
-  SplitResult splitRes_ {36, 2};
   bool isCFA = false;
   bool isSCFA = false;
   bool supportFd = false;
