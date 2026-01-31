@@ -72,56 +72,44 @@ namespace SplitFuse {
         void operator()(FAIKernelParams const &params)
         {
             __gm__ FAInferTilingData *fATilingData = reinterpret_cast<__gm__ FAInferTilingData *>(params.tiling);
-            uint64_t mm1OutSize = fATilingData->mm1OutSize;
-            uint64_t smOnlineOutSize = fATilingData->smOnlineOutSize;
-            uint64_t mm2OutSize = fATilingData->mm2OutSize;
-            uint32_t batch = fATilingData->batch;
-            uint32_t qHeads = fATilingData->numHeads;
-            uint32_t kvHeads = fATilingData->kvHeads;
-            uint32_t embed = fATilingData->embeddingSize;
-            uint32_t embedV = fATilingData->embeddingSizeV;
-            uint32_t pagedBlockSize = fATilingData->blockSize;
-            uint32_t maxNumBlocksPerBatch = fATilingData->maxNumBlocksPerBatch;
-            uint32_t firstBatchTaskNum = fATilingData->firstBatchTaskNum;
-            uint32_t totalTaskNum = fATilingData->totalTaskNum;
-            uint32_t blockSize = fATilingData->blockSize;
-            uint32_t maskType = fATilingData->maskType;
-            float scaleValue = fATilingData->scaleValue;
-            uint32_t sparseMode = fATilingData->sparseMode;
-            int64_t preToken = fATilingData->preToken;
-            int64_t nextToken = fATilingData->nextToken;
-            AscendC::GlobalTensor<ElementQ> gQ;
+            mm1OutSize = fATilingData->mm1OutSize;
+            smOnlineOutSize = fATilingData->smOnlineOutSize;
+            mm2OutSize = fATilingData->mm2OutSize;
+            batch = fATilingData->batch;
+            qHeads = fATilingData->numHeads;
+            kvHeads = fATilingData->kvHeads;
+            embed = fATilingData->embeddingSize;
+            embedV = fATilingData->embeddingSizeV;
+            pagedBlockSize = fATilingData->blockSize;
+            maxNumBlocksPerBatch = fATilingData->maxNumBlocksPerBatch;
+            firstBatchTaskNum = fATilingData->firstBatchTaskNum;
+            totalTaskNum = fATilingData->totalTaskNum;
+            blockSize = fATilingData->blockSize;
+            maskType = fATilingData->maskType;
+            scaleValue = fATilingData->scaleValue;
+            sparseMode = fATilingData->sparseMode;
+            preToken = fATilingData->preToken;
+            nextToken = fATilingData->nextToken;
+
             gQ.SetGlobalBuffer((__gm__ ElementQ *)params.q);
             AscendC::ListTensorDesc keyListTensorDescInit((__gm__ void*)params.k);
             AscendC::ListTensorDesc valueListTensorDescInit((__gm__ void*)params.v);
             __gm__ uint8_t* currentKey = (__gm__ uint8_t*)keyListTensorDescInit.GetDataPtr<__gm__ uint8_t>(0);
             __gm__ uint8_t* currentValue = (__gm__ uint8_t*)valueListTensorDescInit.GetDataPtr<__gm__ uint8_t>(0);
-            AscendC::GlobalTensor<ElementK> gK;
             gK.SetGlobalBuffer((__gm__ ElementK *)currentKey);
-            AscendC::GlobalTensor<ElementK> gV;
             gV.SetGlobalBuffer((__gm__ ElementK *)currentValue);
-            AscendC::GlobalTensor<ElementMask> gMask;
             gMask.SetGlobalBuffer((__gm__ ElementMask *)params.mask);
-            AscendC::GlobalTensor<int32_t> gBlockTable;
             gBlockTable.SetGlobalBuffer((__gm__ int32_t *)(params.blockTables));
-            AscendC::GlobalTensor<int64_t> gActualQseqlen;
             gActualQseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualQseqlen);
-            AscendC::GlobalTensor<int64_t> gActualKvseqlen;
             gActualKvseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualKvseqlen);
-            AscendC::GlobalTensor<ElementO> gO;
             gO.SetGlobalBuffer((__gm__ ElementO *)params.o);
-            AscendC::GlobalTensor<ElementLse> gLse;
             gLse.SetGlobalBuffer((__gm__ ElementLse *)params.lse);
-            AscendC::GlobalTensor<ElementS> gS;
+
             gS.SetGlobalBuffer((__gm__ ElementS *)(params.workSpace));
-            AscendC::GlobalTensor<ElementP> gP;
             gP.SetGlobalBuffer((__gm__ ElementP *)(params.workSpace + mm1OutSize));
-            AscendC::GlobalTensor<ElementOTmp> gOTmp;
             gOTmp.SetGlobalBuffer((__gm__ ElementOTmp *)(params.workSpace + mm1OutSize + smOnlineOutSize));
-            AscendC::GlobalTensor<ElementOTmp> gOUpdate;
             gOUpdate.SetGlobalBuffer((__gm__ ElementOTmp *)(params.workSpace +
                 mm1OutSize + smOnlineOutSize + mm2OutSize));
-            AscendC::GlobalTensor<bfloat16_t> gSink;
             gSink.SetGlobalBuffer((__gm__ bfloat16_t *)(params.sink));
 
             uint32_t coreIdx = AscendC::GetBlockIdx();
@@ -158,9 +146,9 @@ namespace SplitFuse {
                 NpuArch::Detail::Alignment::RoundDown((nDynNum - 1), NUM_32) : nDynNum;
 
             uint32_t L1_QK_SIZE = BlockMmadQK::L1TileShape::M * kDynNum * sizeof(ElementQ);
-            BlockMmadQK blockMmadQK(resource, nDynNum, kDynNum, MAX_KV_STACK_LEN);
+            blockMmadQK.init(resource, nDynNum, kDynNum, MAX_KV_STACK_LEN);
             uint32_t kPVDynNum = nDynNum * kDynNum / BlockMmadPV::L1TileShape::M;
-            BlockMmadPV blockMmadPV(resource, nDynNum, kPVDynNum, MAX_KV_STACK_LEN, L1_QK_SIZE);
+            blockMmadPV.init(resource, nDynNum, kPVDynNum, MAX_KV_STACK_LEN, L1_QK_SIZE);
 #endif
 #ifdef __DAV_C220_VEC__
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
@@ -181,19 +169,19 @@ namespace SplitFuse {
             AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID2);
             AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID3);
 
-            EpilogueOnlineSoftmax epilogueOnlineSoftmax(resource, scaleValue);
-            EpilogueRescaleO epilogueRescaleO(resource);
-            EpilogueInitOut epilogueInitOut(resource);
+            epilogueOnlineSoftmax.init(resource, scaleValue);
+            epilogueRescaleO.init(resource);
+            epilogueInitOut.init(resource);
 
             coreIdx = AscendC::GetBlockIdx() / AscendC::GetSubBlockNum();
 #endif
-            uint64_t strideQ = static_cast<uint64_t>(qHeads * embed);
-            uint64_t strideO = static_cast<uint64_t>(qHeads * embedV);
-            uint64_t strideK = static_cast<uint64_t>(kvHeads * embed);
-            uint64_t strideV = static_cast<uint64_t>(kvHeads * embedV);
-            uint32_t embedRound = NpuArch::Detail::Alignment::RoundUp(embed, FaiKernel::BLOCK_SIZE);
-            uint32_t embedRoundV = NpuArch::Detail::Alignment::RoundUp(embedV, FaiKernel::BLOCK_SIZE);
-            uint32_t groupSize = qHeads / kvHeads;
+            strideQ = static_cast<uint64_t>(qHeads * embed);
+            strideO = static_cast<uint64_t>(qHeads * embedV);
+            strideK = static_cast<uint64_t>(kvHeads * embed);
+            strideV = static_cast<uint64_t>(kvHeads * embedV);
+            embedRound = NpuArch::Detail::Alignment::RoundUp(embed, FaiKernel::BLOCK_SIZE);
+            embedRoundV = NpuArch::Detail::Alignment::RoundUp(embedV, FaiKernel::BLOCK_SIZE);
+            groupSize = qHeads / kvHeads;
 
             uint64_t qBOffset = 0;
             uint64_t kBOffset = 0;
@@ -660,10 +648,61 @@ namespace SplitFuse {
         }
 
     private:
+        AscendC::GlobalTensor<ElementQ> gQ;
+        AscendC::GlobalTensor<ElementK> gK;
+        AscendC::GlobalTensor<ElementK> gV;
+        AscendC::GlobalTensor<ElementMask> gMask;
+        AscendC::GlobalTensor<int32_t> gBlockTable;
+        AscendC::GlobalTensor<int64_t> gActualQseqlen;
+        AscendC::GlobalTensor<int64_t> gActualKvseqlen;
+        AscendC::GlobalTensor<ElementO> gO;
+        AscendC::GlobalTensor<ElementLse> gLse;
+        
+        AscendC::GlobalTensor<ElementS> gS;
+        AscendC::GlobalTensor<ElementP> gP;
+        AscendC::GlobalTensor<ElementOTmp> gOTmp;
+        AscendC::GlobalTensor<ElementOTmp> gOUpdate;
+        AscendC::GlobalTensor<bfloat16_t> gSink;
+
+        uint64_t mm1OutSize;
+        uint64_t smOnlineOutSize;
+        uint64_t mm2OutSize;
+        uint32_t batch;
+        uint32_t qHeads;
+        uint32_t kvHeads;
+        uint32_t embed;
+        uint32_t embedV;
+        uint32_t pagedBlockSize;
+        uint32_t maxNumBlocksPerBatch;
+        uint32_t firstBatchTaskNum;
+        uint32_t totalTaskNum;
+        uint32_t blockSize;
+        uint32_t maskType;
+        float scaleValue;
+        uint32_t sparseMode;
+        int64_t preToken;
+        int64_t nextToken;
+        uint32_t totalQTokens;
+
+
+        uint64_t strideQ;
+        uint64_t strideO;
+        uint64_t strideK;
+        uint64_t strideV;
+        uint32_t embedRound;
+        uint32_t embedRoundV;
+        uint32_t groupSize;
+
         Arch::Resource<ArchTag> resource;
         Arch::CrossCoreFlag qkReady{QK_READY_ID};
         Arch::CrossCoreFlag softmaxReady{SOFTMAX_READY_ID};
         Arch::CrossCoreFlag pvReady{PV_READY_ID};
+
+        BlockMmadQK blockMmadQK;
+        BlockMmadPV blockMmadPV;
+        EpilogueOnlineSoftmax epilogueOnlineSoftmax;
+        EpilogueRescaleO epilogueRescaleO;
+        EpilogueInitOut epilogueInitOut;
     };
 }
 #endif
