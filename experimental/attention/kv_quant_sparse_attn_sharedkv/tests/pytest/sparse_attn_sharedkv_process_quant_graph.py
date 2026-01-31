@@ -59,15 +59,29 @@ def test_sas_quant_process(test_data, device_id=0):
     input = test_data['input']
     cpu_output = test_data['cpu_output']
 
+    torch._dynamo.reset()
     npu_mode = Network().npu()
     config = CompilerConfig()
-    npu_backend = torchair.get_npu_backend(compiler_config=config)
-    torch._dynamo.reset()
     config.mode = "reduce-overhead"
-    npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=True)
+    config.experimental_config.aclgraph._aclnn_static_shape_kernel = True
+    config.experimental_config.aclgraph._aclnn_static_shape_kernel_build_dir = "./"
+    config.experimental_config.frozen_parameter = True
+    config.experimental_config.tiling_schedule_optimize = True
+    config.experimental_config.topology_sorting_strategy = "StableRDFS"
+    npu_backend = torchair.get_npu_backend(compiler_config=config)
+    npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=False)
 
-    # print("执行用例：", test_data['Testcase_Name'])
-    print("test_data:", params)
+    experimental_config = torch_npu.profiler._ExperimentalConfig(
+        export_type = torch_npu.profiler.ExportType.Text,
+        profiler_level = torch_npu.profiler.ProfilerLevel.Level1,
+        mstx = False,
+        aic_metrics = torch_npu.profiler.AiCMetrics.AiCoreNone,
+        l2_cache = False,
+        op_attr = False,
+        data_simplification = False,
+        record_op_args = False,
+        gc_detect_threshold = None
+    )
 
     torch_npu.npu.set_device(device_id)
 
@@ -100,7 +114,6 @@ def test_sas_quant_process(test_data, device_id=0):
     torch.npu.synchronize()
     metadata.npu()
     print("npu_kv_quant_sparse_attn_sharedkv...")
-
     npu_result = npu_mode(
                             q=input['q'].npu() if input['q'] is not None else None,
                             ori_kv=input['ori_kv'].npu() if input['ori_kv'] is not None else None,
@@ -126,4 +139,27 @@ def test_sas_quant_process(test_data, device_id=0):
 
     torch.npu.synchronize()
 
+    print("npu_kv_quant_sparse_attn_sharedkv...")
+    npu_result = npu_mode(
+                            q=input['q'].npu() if input['q'] is not None else None,
+                            ori_kv=input['ori_kv'].npu() if input['ori_kv'] is not None else None,
+                            cmp_kv=input['cmp_kv'].npu() if input['cmp_kv'] is not None else None,
+                            cmp_sparse_indices=input['cmp_sparse_indices'].npu() if input['cmp_sparse_indices'] is not None else None,
+                            ori_block_table=input['ori_block_table'].npu() if input['ori_block_table'] is not None else None,
+                            cmp_block_table=input['cmp_block_table'].npu() if input['cmp_block_table'] is not None else None,
+                            cu_seqlens_q=input['cu_seqlens_q'].npu() if input['cu_seqlens_q'] is not None else None,
+                            seqused_kv=input['seqused_kv'].npu() if input['seqused_kv'] is not None else None,
+                            sinks=input['sinks'].npu() if input['sinks'] is not None else None,
+                            metadata=metadata,
+                            kv_quant_mode=input['kv_quant_mode'],
+                            tile_size=input['tile_size'],
+                            rope_head_dim=input['rope_head_dim'],
+                            softmax_scale=input['softmax_scale'],
+                            cmp_ratio=input['cmp_ratio'],
+                            ori_mask_mode=input['ori_mask_mode'],
+                            cmp_mask_mode=input['cmp_mask_mode'],
+                            ori_win_left=input['ori_win_left'],
+                            ori_win_right=input['ori_win_right'],
+                            layout_q=input['layout_q'],
+                            layout_kv=input['layout_kv'])  
     return npu_result, cpu_output

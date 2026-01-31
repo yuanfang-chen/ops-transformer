@@ -18,12 +18,12 @@
 #ifndef KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 #define KV_QUANT_SPARSE_ATTN_SHAREDKV_METADATA_AICPU_H
 
-#include "cpu_context.h"
-#include "cpu_kernel.h"
-#include "cpu_tensor.h"
 #include <array>
 #include <string>
 #include <vector>
+#include "cpu_context.h"
+#include "cpu_kernel.h"
+#include "cpu_tensor.h"
 
 namespace aicpu {
 constexpr int64_t FA_TOLERANCE_RATIO = 2;
@@ -233,7 +233,7 @@ public:
 private:
   bool Prepare(CpuKernelContext &ctx);
   bool ParamsCheck();
-  bool ParamsInit(uint32_t cmpRatio_, uint32_t topK_);
+  bool ParamsInit();
   bool BalanceSchedule();
   bool GenMetaData();
   ValidSocVersion ProcessSocVersion();
@@ -243,19 +243,18 @@ private:
   int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
   int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
   Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
-  //Range<uint32_t> CalcS2Range(uint32_t s1GIdx,const BatchCache &batchCache);
   int64_t WinCalcCost(uint32_t basicM, uint32_t basicS2);
   int64_t CmpCalcCost(uint32_t basicM, uint32_t basicS2);
-  BlockCost<int64_t> CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,
+  void CalcCostTable(uint32_t s1NormalSize, uint32_t s2NormalSize, uint32_t s1GTailSize,
   uint32_t winS2TailSize, uint32_t cmpS2TailSize);
 
   // cache calculation
   void CalcBatchCache(uint32_t bIdx, const SplitContext &splitContext, BatchCache &batchCache);
-  void CalcWinS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
-  void CalcCmpS1GCache(const BlockCost<int64_t> &typeCost, S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void CalcBlockRangeAndTailSize(Range<int64_t> &oriS2TokenRange, const BatchCache &batchCache, S1GCache &s1GCache);
+  void CalcWinS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void CalcCmpS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo);
+  void GatherWinAndCmpCache(S1GCache &s1GCache);
   void CalcS1GCache(uint32_t s1GIdx, const SplitContext &splitContext, const BatchCache &batchCache, S1GCache &s1GCache);
-  void CopyTmpResult(SplitResult &tmpRes, SplitResult &splitRes);
-  void ClearTmpResult(SplitResult &tmpRes);
 
   // preprocess
   void CalcSplitInfo(SplitContext &splitContext);
@@ -269,6 +268,7 @@ private:
   int64_t CalcCurBlockCost(AssignContext &assignContext);
   void AssignByBlock(const SplitContext &splitContext, AssignContext &assignContext);
   void ForceAssign(const SplitContext &splitContext, AssignContext &assignContext);
+  void AssignBlocksToCore(const SplitContext &splitContext, AssignContext &assignContext, SplitResult &result);
 
   // FD
   bool IsNeedRecordFDInfo(const AssignContext &assignContext, const SplitResult &splitRes);
@@ -276,13 +276,10 @@ private:
 
   // main
   void SplitFD(SplitResult &result);
-  void CalcSplitPlan(uint32_t coreNum, int64_t costLimit, const SplitContext &splitContext, SplitResult &result);
+  void CalcSplitPlan(int64_t costLimit, const SplitContext &splitContext, SplitResult &result);
   void SplitCore();
 
 private:
-  // context for log use
-  CpuKernelContext *context_ = nullptr;
-
   // input
   Tensor *actSeqLenQ_ = nullptr;
   Tensor *actSeqLenOriKV_ = nullptr;
@@ -330,7 +327,7 @@ private:
   bool supportFd = false;
   uint32_t sparseMode_ = 0;
   uint32_t attentionMode_ = 1;
-
+  BlockCost<int64_t> typeCost_;
 private:
   enum class ParamId : uint32_t {
     // input

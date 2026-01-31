@@ -282,6 +282,11 @@ ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
     innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
     innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
+#if __CCE_AICORE__ == 310
+    if ((baseParams_->batchSize == 1) && (baseParams_->tokenSize == 4)) {
+        innerSplitParams_->dBaseSize = 64 / coff;
+    }
+#endif
 
     return ge::GRAPH_SUCCESS;
 }

@@ -1122,7 +1122,9 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
             InterleaveModeVF(sinUb, cosUb, tmpRopeInUb, tmpRopeOutUb, constInfo_.ropeHeadDim, curDealScSize, 1);
             PipeBarrier<PIPE_V>();
         } else {
-
+            PipeBarrier<PIPE_V>();
+            HalfAlignVF(sinUb, cosUb, tmpRopeInUb, tmpRopeOutUb, constInfo_.ropeHeadDim, curDealScSize, 1);
+            PipeBarrier<PIPE_V>();
         }
         inputQue1.FreeTensor(sinUb);
         // normal部分和rope拼接，并搬到outputub
