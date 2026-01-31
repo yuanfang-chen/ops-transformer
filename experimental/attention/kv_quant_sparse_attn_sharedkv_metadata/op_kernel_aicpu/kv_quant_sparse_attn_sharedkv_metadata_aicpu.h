@@ -213,7 +213,7 @@ struct AssignContext {
     int64_t unassignedCost { 0 };
     uint32_t usedCoreNum { 0U };
     uint32_t curKvSplitPart { 1U };
-    uint32_t curFdDataNum { 1U };
+    uint32_t preFdDataNum { 0U };
 
     int64_t bN2Cost { 0 };
     uint32_t bN2Block { 0U };
@@ -311,7 +311,6 @@ private:
   uint32_t aivCoreNum_ = 48U;
 
   // attr
-  uint32_t coreNum_ = 24U; // new
   std::string socVersion_ = "ascend910B";
   int64_t preToken_ = 0; // new
   int64_t nextToken_ = 0; // new

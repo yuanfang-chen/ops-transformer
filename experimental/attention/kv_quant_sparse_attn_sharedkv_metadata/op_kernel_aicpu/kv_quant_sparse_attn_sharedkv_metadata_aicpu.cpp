@@ -65,7 +65,6 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
   GetAttrValueOpt(ctx, "has_ori_kv", hasOriKV_);
   GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKV_);
 
-  coreNum_ = aicCoreNum_;
   sparseMode_ = static_cast<uint32_t>(SparseMode::BAND);
   preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
   nextToken_ = 0;
@@ -701,8 +700,8 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitC
                                                                     AssignContext &assignContext, SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
-
-    int64_t avgCost = assignContext.unassignedCost / (coreNum_ - assignContext.curCoreIdx);
+    result.firstFdDataWorkspaceIdx[assignContext.curCoreIdx] = assignContext.preFdDataNum + assignContext.curKvSplitPart - 1U;
+    int64_t avgCost = assignContext.unassignedCost / (aicCoreNum_ - assignContext.curCoreIdx);
     assignContext.coreCache = {};
     if (!supportFd) {
         assignContext.coreCache.costLimit = std::max(avgCost, costInfo.maxS1GCost);
@@ -726,6 +725,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitC
     assignContext.unassignedCost -= assignContext.coreCache.cost;
     // 对之前的归约信息进行记录并清理
     if (IsNeedRecordFDInfo(assignContext, result)) {
+        assignContext.preFdDataNum += assignContext.curKvSplitPart;
         RecordFDInfo(splitContext, assignContext, result);
         assignContext.curKvSplitPart = 1U;
     }
@@ -741,7 +741,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit
 {
     const CostInfo &costInfo = splitContext.costInfo;
 
-    if (coreNum_ == 0U) {
+    if (aicCoreNum_ == 0U) {
         return;
     }
     result.maxCost = 0U;
@@ -757,7 +757,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit
     CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
     assignContext.curS2Idx = assignContext.s1GCache.s2Start;
     // 负载分配
-    for (uint32_t i = 0; i < coreNum_; ++i) {
+    for (uint32_t i = 0; i < aicCoreNum_; ++i) {
         if (result.maxCost > costLimit) {
             return;
         }
@@ -778,11 +778,12 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &result)
         totalFDLoad += splitRes_.fdRes.fdS2SplitNum[i] * splitRes_.fdRes.fdMSize[i];
     }
     // 计算每个核处理的load
-    uint64_t averageLoad = totalFDLoad / aivCoreNum_;
+    uint64_t averageLoad = (totalFDLoad + aivCoreNum_ - 1U) / aivCoreNum_; //向上取整，避免核负载为0
     uint32_t curCoreIndex = 0;
     for (uint32_t i = 0; i < splitRes_.numOfFdHead; i++) {
-        uint32_t curFDVectorNum = splitRes_.fdRes.fdS2SplitNum[i] * splitRes_.fdRes.fdMSize[i] / averageLoad;
-        uint32_t curAveMSize = splitRes_.fdRes.fdMSize[i] / curFDVectorNum;
+        uint32_t curFDVectorNum = splitRes_.fdRes.fdS2SplitNum[i] * splitRes_.fdRes.fdMSize[i] / averageLoad; // 计算当前归约任务所用核数，向下取整，避免使用核数超出总核数
+        uint32_t curAveMSize = (splitRes_.fdRes.fdMSize[i] + curFDVectorNum - 1U) / curFDVectorNum; // 计算当前归约任务每个核的行数，向上取整，避免行数为0
+        curFDVectorNum = (splitRes_.fdRes.fdMSize[i] + curAveMSize -1U)/ curAveMSize;
         for (uint32_t vid = 0; vid < curFDVectorNum; vid++) {
             splitRes_.fdRes.fdIdx[curCoreIndex] = i;
             splitRes_.fdRes.fdMStart[curCoreIndex] = vid * curAveMSize;
