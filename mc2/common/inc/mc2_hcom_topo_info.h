@@ -36,6 +36,9 @@ public:
     static HcclResult TryGetGroupTopoType(const char *group, uint32_t *topoType);
     static HcclResult CommGetCclBufferSizeByGroup(const char *group, uint64_t *cclBufferSize, HcclComm *hcclComm);
     static HcclResult CommGetGroupLocalWindowSize(const char *group, uint64_t* cclBufferSize);
+    static HcclResult Mc2MoeGetCclBufferSize(const char *group, uint64_t* cclBufferSize);
+    static HcclResult Mc2MoeGetEpWinSize(const char *group, uint64_t* hcclBufferSizeEp,
+                                         uint64_t* maxWindowSizeEp, bool isA5);
 
 private:
     static MC2HcomTopology &GetInstance();
