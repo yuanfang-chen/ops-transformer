@@ -137,7 +137,7 @@
     <td>/</td>
     <td>/</td>
     <td>/</td>
-    <td>算子具体使用方法见<a href="./fused_infer_attention_score/README.md">README文档</a>。</td>
+    <td>算子具体使用方法见<a href="https://gitcode.com/cann/ops-transformer/blob/master/experimental/attention/fused_infer_attention_score/README.md">README文档</a>。</td>
   </tr>
   <tr>
     <td>typhoon_mla</td>
@@ -148,7 +148,7 @@
     <td>/</td>
     <td>/</td>
     <td>/</td>
-    <td>算子具体使用方法见<a href="./fused_infer_attention_score/README.md">README文档</a>。</td>
+    <td>算子具体使用方法见<a href="https://gitcode.com/cann/ops-transformer/blob/master/experimental/attention/typhoon_mla/README.md">README文档</a>。</td>
   </tr>
 </tbody>
 </table>
