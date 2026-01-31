@@ -703,6 +703,7 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     uint32_t tilingKey =
         GET_TPL_TILING_KEY(0U, qLayout, inputKvLayout, static_cast<uint32_t>(tilingInfo->perfMode));
     context_->SetTilingKey(tilingKey);
+    context_->SetScheduleMode(1);
 
     return ge::GRAPH_SUCCESS;
 }
