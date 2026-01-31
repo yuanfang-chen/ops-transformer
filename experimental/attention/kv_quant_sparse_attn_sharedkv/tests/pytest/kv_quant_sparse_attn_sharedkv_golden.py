@@ -84,7 +84,10 @@ class GeneralizedSFAQuant:
                     if self.ori_mask_mode == 4:
                         ori_threshold = cur_ori_act_kv - cur_act_q + i_S1 + 1
                         ori_win_end = ori_threshold + self.ori_win_right
-                        ori_win_start = max(ori_threshold - self.ori_win_left - 1, 0)
+                        if self.ori_win_left == -1:
+                            ori_win_start = 0
+                        else:
+                            ori_win_start = max(ori_threshold - self.ori_win_left - 1, 0)
 
                     cur_ori_k_bnsd = ori_k_bnsd[i_B, i_N2, ori_win_start:ori_win_end, :]
                     k_concat = cur_ori_k_bnsd
