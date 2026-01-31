@@ -1052,7 +1052,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "innerPrecise [%d] is currently not supported.(Value 2 or 3 is not supported).", innerPrecise), return false);
         if (enablePseShift) {
-            OP_CHECK_IF(*contextKeyParams.pseType != 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            OP_CHECK_IF(*contextKeyParams.pseType == 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "Pse is not supported in per-block quant scenario!"), return false);
         }
     } else {
