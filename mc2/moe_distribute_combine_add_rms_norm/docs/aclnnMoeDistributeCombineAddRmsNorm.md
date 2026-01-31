@@ -497,8 +497,8 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
 
     const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
 
-    constexpr uint32_t EP_WORLD_SIZE = (!rank_table_file) ? 2 : 8;
-    constexpr uint32_t TP_WORLD_SIZE = (!rank_table_file) ? 1 : 2;
+    constexpr uint32_t EP_WORLD_SIZE = (rank_table_file) ? 2 : 8;
+    constexpr uint32_t TP_WORLD_SIZE = (rank_table_file) ? 1 : 2;
     constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
 
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
