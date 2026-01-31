@@ -338,8 +338,6 @@ def save_test_case(input_data, output_dir):
     """
     # 创建输出目录
     os.makedirs(output_dir, exist_ok=True)
-
-    # TODO: 确认文件名
     case_name = input_data['Testcase_Name']
     
     # 生成文件名
@@ -578,7 +576,7 @@ def generate_and_save_testdata(params, save_pt=False, save_path=""):
             'max_seqlen_q': max_seqlen_q,
             'max_seqlen_kv': max_seqlen_kv,
             'topk': K if template_run_mode == "SCFA" else 0, # 仅SCFA需要
-            'cmp_ratio': cmp_ratio if template_run_mode != "SWA" else 0,  # 仅SWA 不需要
+            'cmp_ratio': cmp_ratio if template_run_mode != "SWA" else 1,  # 仅SWA 不需要
             'ori_mask_mode': ori_mask_mode,
             'cmp_mask_mode': cmp_mask_mode,
             'ori_win_left': ori_win_left,
@@ -603,7 +601,7 @@ def generate_and_save_testdata(params, save_pt=False, save_path=""):
             'tile_size': 64,
             'rope_head_dim': 64,
             'softmax_scale': softmax_scale,
-            'cmp_ratio': cmp_ratio,
+            'cmp_ratio': cmp_ratio if template_run_mode != "SWA" else 1,
             'ori_mask_mode': ori_mask_mode,
             'cmp_mask_mode': cmp_mask_mode,
             'ori_win_left': ori_win_left,
