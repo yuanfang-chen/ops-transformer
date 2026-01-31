@@ -54,6 +54,12 @@ private:
     __aicore__ inline void CopyInX(int64_t loop, int64_t rowCount);
     __aicore__ inline void ComputeSoftmax(int64_t rowCount);
     __aicore__ inline void ComputeTopK(int64_t row);
+    __aicore__ inline void HandleOneRepeatSortNum(
+    int64_t rowCount, 
+    const LocalTensor<float>& softmaxTensor,
+    const LocalTensor<float>& sortedTensor,
+    LocalTensor<uint32_t>& expertIdxTensor
+    );
     __aicore__ inline void ComputeRowIdx(int64_t loop, int64_t rowCount);
     __aicore__ inline void CopyOutRowIdx(int64_t loop, int64_t rowCount);
     __aicore__ inline void CopyYExpertIdxOut(int64_t loop, int64_t rowCount);
@@ -300,15 +306,51 @@ __aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, ne
             mask = AscendC::MicroAPI::UpdateMask<int32_t>(precessExpert);
             AscendC::MicroAPI::DataCopy(sumVreg, sumTensorAddr + i * B32_BLOCK_COUNT);
             AscendC::MicroAPI::Duplicate(sumVreg, sumVreg, mask);
+
+            uint16_t rowLoopsOffset = i * expertCountAlign_;
             for (uint16_t j = 0; j < expertCountLoops; j++) {
-                AscendC::MicroAPI::DataCopy(vreg0, softmaxTensorAddr + i * expertCountAlign_ + j * repeatCount);
+                uint16_t expertCountLoopsOffset = j * repeatCount;
+                AscendC::MicroAPI::DataCopy(vreg0, softmaxTensorAddr + rowLoopsOffset + expertCountLoopsOffset);
                 AscendC::MicroAPI::Div(vreg0, vreg0, sumVreg, mask);
-                AscendC::MicroAPI::DataCopy(softmaxTensorAddr + i * expertCountAlign_ + j * repeatCount, vreg0, mask);
+                AscendC::MicroAPI::DataCopy(softmaxTensorAddr + rowLoopsOffset + expertCountLoopsOffset, vreg0, mask);
                 mask = AscendC::MicroAPI::UpdateMask<int32_t>(precessExpert);
             }
         }
     }
     xInQueue_.FreeTensor<T>(xTensor);
+}
+
+template <typename T, bool hasFinished, bool needPadNegInf>
+__aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, needPadNegInf>::HandleOneRepeatSortNum(
+    int64_t rowCount, 
+    const LocalTensor<float>& softmaxTensor,
+    const LocalTensor<float>& sortedTensor,
+    LocalTensor<uint32_t>& expertIdxTensor
+    )
+{
+    // 如果只选top1，无需排序，用max求最大值作为top1
+    if (k_ == 1 && expertCount_ <= B32_BLOCK_COUNT) {
+        __VEC_SCOPE__ {
+            __local_mem__ float *softmaxTensorAddr = (__local_mem__ float *)softmaxTensor.GetPhyAddr();
+            __local_mem__ float *sortedTensorAddr = (__local_mem__ float *)sortedTensor.GetPhyAddr();
+            AscendC::MicroAPI::RegTensor<float> valueAndIndexReg;
+            AscendC::MicroAPI::MaskReg maskForValueAndIndex = AscendC::MicroAPI::CreateMask<uint32_t, AscendC::MicroAPI::MaskPattern::VL2>();
+            AscendC::MicroAPI::MaskReg maskForExpertCount;
+            uint32_t uint32ExpertCount_ = static_cast<uint32_t>(expertCount_);
+            int64_t kvExpertCountAlign_ = expertCountAlign_ * KEY_VALUE_FACTOR;
+
+
+            for (uint16_t i = 0; i < static_cast<uint16_t>(rowCount); i++) {
+                AscendC::MicroAPI::DataCopy(valueAndIndexReg, softmaxTensorAddr + i * expertCountAlign_);
+                uint32_t expertCountForMask = uint32ExpertCount_;
+                maskForExpertCount = AscendC::MicroAPI::UpdateMask<uint32_t>(expertCountForMask);
+                AscendC::MicroAPI::ReduceMax(valueAndIndexReg, valueAndIndexReg, maskForExpertCount);
+                DataCopy(sortedTensorAddr + kvExpertCountAlign_ * i, valueAndIndexReg, maskForValueAndIndex);
+            }
+        }
+    } else {
+        Sort32(sortedTensor, softmaxTensor, expertIdxTensor, rowCount);
+    }
 }
 
 template <typename T, bool hasFinished, bool needPadNegInf>
@@ -324,7 +366,7 @@ __aicore__ inline void MoeGatingTopKSoftmaxFullloadGenerlized<T, hasFinished, ne
     LocalTensor<int32_t> expertIdxOutTensor = expertIdxOutQueue_.AllocTensor<int32_t>();
 
     if (expertCountAlign_ == ONE_REPEAT_SORT_NUM) {
-        Sort32(sortedTensor, softmaxTensor, expertIdxTensor, rowCount);
+        HandleOneRepeatSortNum(rowCount, softmaxTensor, sortedTensor, expertIdxTensor);
     } else {
         for (int i = 0; i < rowCount; i++) {
             Sort<float, true>(sortedTensor[expertCountAlign_ * i * KEY_VALUE_FACTOR],
