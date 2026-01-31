@@ -52,12 +52,12 @@ class Network(torch.nn.Module):
                                             layout_kv=layout_kv)
         return npu_result
 
-
-def test_sas_quant_process(test_data, device_id=0):
+def test_sas_quant_process_graph(test_data, device_id=0):
     params = test_data['params']
     metadata_input = test_data['metadata_input']
     input = test_data['input']
     cpu_output = test_data['cpu_output']
+    torch_npu.npu.set_device(device_id)
 
     torch._dynamo.reset()
     npu_mode = Network().npu()
@@ -71,20 +71,7 @@ def test_sas_quant_process(test_data, device_id=0):
     npu_backend = torchair.get_npu_backend(compiler_config=config)
     npu_mode = torch.compile(npu_mode, fullgraph=True, backend=npu_backend, dynamic=False)
 
-    experimental_config = torch_npu.profiler._ExperimentalConfig(
-        export_type = torch_npu.profiler.ExportType.Text,
-        profiler_level = torch_npu.profiler.ProfilerLevel.Level1,
-        mstx = False,
-        aic_metrics = torch_npu.profiler.AiCMetrics.AiCoreNone,
-        l2_cache = False,
-        op_attr = False,
-        data_simplification = False,
-        record_op_args = False,
-        gc_detect_threshold = None
-    )
-
-    torch_npu.npu.set_device(device_id)
-
+    print("test_data:", params)
     print("npu_kv_quant_sparse_attn_sharedkv_metadata...")
     metadata = torch.ops.custom.npu_kv_quant_sparse_attn_sharedkv_metadata(
                                                         num_heads_q = metadata_input['num_heads_q'],
@@ -113,6 +100,7 @@ def test_sas_quant_process(test_data, device_id=0):
 
     torch.npu.synchronize()
     metadata.npu()
+
     print("npu_kv_quant_sparse_attn_sharedkv...")
     npu_result = npu_mode(
                             q=input['q'].npu() if input['q'] is not None else None,
@@ -138,7 +126,6 @@ def test_sas_quant_process(test_data, device_id=0):
                             layout_kv=input['layout_kv'])
 
     torch.npu.synchronize()
-
     print("npu_kv_quant_sparse_attn_sharedkv...")
     npu_result = npu_mode(
                             q=input['q'].npu() if input['q'] is not None else None,
@@ -162,4 +149,68 @@ def test_sas_quant_process(test_data, device_id=0):
                             ori_win_right=input['ori_win_right'],
                             layout_q=input['layout_q'],
                             layout_kv=input['layout_kv'])  
+    return npu_result, cpu_output
+
+def test_sas_quant_process_ci(test_data, device_id=0):
+    params = test_data['params']
+    metadata_input = test_data['metadata_input']
+    input = test_data['input']
+    cpu_output = test_data['cpu_output']
+    torch_npu.npu.set_device(device_id)
+    
+    print("test_data:", params)
+    print("npu_kv_quant_sparse_attn_sharedkv_metadata...")
+    metadata = torch.ops.custom.npu_kv_quant_sparse_attn_sharedkv_metadata(
+                                                        num_heads_q = metadata_input['num_heads_q'],
+                                                        num_heads_kv = metadata_input['num_heads_kv'],
+                                                        head_dim = metadata_input['head_dim'],
+                                                        kv_quant_mode = 1,
+                                                        cu_seqlens_q=metadata_input['cu_seqlens_q'].npu() if input['cu_seqlens_q'] is not None else torch.tensor([]).npu(),
+                                                        cu_seqlens_ori_kv = torch.tensor([]).npu(),
+                                                        cu_seqlens_cmp_kv = torch.tensor([]).npu(),
+                                                        seqused_q = torch.tensor([]).npu(),
+                                                        seqused_kv = metadata_input['seqused_kv'].npu() if input['seqused_kv'] is not None else torch.tensor([]).npu(),
+                                                        batch_size = metadata_input['batch_size'],
+                                                        max_seqlen_q = metadata_input['max_seqlen_q'],
+                                                        max_seqlen_kv = metadata_input['max_seqlen_kv'],
+                                                        cmp_topk = metadata_input['topk'],
+                                                        cmp_ratio = metadata_input['cmp_ratio'],
+                                                        ori_mask_mode = metadata_input['ori_mask_mode'],
+                                                        cmp_mask_mode = metadata_input['cmp_mask_mode'],
+                                                        ori_win_left = metadata_input['ori_win_left'],
+                                                        ori_win_right = metadata_input['ori_win_right'],
+                                                        layout_q = metadata_input['layout_q'],
+                                                        layout_kv = metadata_input['layout_kv'],
+                                                        has_ori_kv = metadata_input['has_ori_kv'],
+                                                        has_cmp_kv = metadata_input['has_cmp_kv'],
+                                                        device = "npu:0")
+    torch.npu.synchronize()
+    metadata.npu()
+
+    print("npu_kv_quant_sparse_attn_sharedkv...")
+    npu_result, _ = torch.ops.custom.npu_kv_quant_sparse_attn_sharedkv(
+                                                        q=input['q'].npu() if input['q'] is not None else None,
+                                                        ori_kv=input['ori_kv'].npu() if input['ori_kv'] is not None else None,
+                                                        cmp_kv=input['cmp_kv'].npu() if input['cmp_kv'] is not None else None,
+                                                        cmp_sparse_indices=input['cmp_sparse_indices'].npu() if input['cmp_sparse_indices'] is not None else None,
+                                                        ori_block_table=input['ori_block_table'].npu() if input['ori_block_table'] is not None else None,
+                                                        cmp_block_table=input['cmp_block_table'].npu() if input['cmp_block_table'] is not None else None,
+                                                        cu_seqlens_q=input['cu_seqlens_q'].npu() if input['cu_seqlens_q'] is not None else None,
+                                                        seqused_kv=input['seqused_kv'].npu() if input['seqused_kv'] is not None else None,
+                                                        sinks=input['sinks'].npu() if input['sinks'] is not None else None,
+                                                        metadata=metadata,
+                                                        kv_quant_mode=input['kv_quant_mode'],
+                                                        tile_size=input['tile_size'],
+                                                        rope_head_dim=input['rope_head_dim'],
+                                                        softmax_scale=input['softmax_scale'],
+                                                        cmp_ratio=input['cmp_ratio'],
+                                                        ori_mask_mode=input['ori_mask_mode'],
+                                                        cmp_mask_mode=input['cmp_mask_mode'],
+                                                        ori_win_left=input['ori_win_left'],
+                                                        ori_win_right=input['ori_win_right'],
+                                                        layout_q=input['layout_q'],
+                                                        layout_kv=input['layout_kv'])
+
+    torch.npu.synchronize()
+
     return npu_result, cpu_output
