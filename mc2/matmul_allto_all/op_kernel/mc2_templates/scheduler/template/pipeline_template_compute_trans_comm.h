@@ -77,7 +77,7 @@ __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType,
             AscendC::SyncAll<true>();
             commStage_->Process();
         }
-        AscendC::SyncAll<false>();
+        // AscendC::SyncAll<false>();
     }
 }
 
