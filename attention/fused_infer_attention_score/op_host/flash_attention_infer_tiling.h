@@ -56,7 +56,7 @@ namespace optiling{
     enum class MaskType : uint32_t {
         NO_MASK = 0,
         MASK_SPEC = 1,
-        ALIBI_MASK =2
+        ALIBI_MASK =2,
         SWA_MASK = 3
     };
 
@@ -159,6 +159,8 @@ namespace optiling{
         faTilingData.set_sparseMode(faInfo_.sparseMode);
         faTilingData.set_preToken(static_cast<int64_t>(faInfo_.preToken));
         faTilingData.set_nextToken(static_cast<int64_t>(faInfo_.nextToken));
+        faTilingData.set_alibiLeftAlign(faInfo_.alibiLeftAlign);
+        faTilingData.set_isAlibiMaskSqrt(faInfo_.isAlibiMaskSqrt);
     }
 
     uint64_t FAInferTiling::GetTilingKey() 
@@ -166,6 +168,7 @@ namespace optiling{
         constexpr uint64_t SPLIT_FUSE_BASE_KEY = 5000000000000000000;
         constexpr uint64_t PAGED_CACHE_KEY = 10000000;
         constexpr uint64_t COMP_CAUSAL_MASK_KEY = 3;
+        constexpr uint64_t COMP_ALIBI_MASK_KEY = 4;
         constexpr uint64_t COMP_SWA_MASK_KEY = 5;
         constexpr uint64_t LAYOUTQ_TND_KEY = 200000;
         constexpr uint64_t DTYPE_FP16_KEY = 100;
@@ -181,6 +184,8 @@ namespace optiling{
             tilingKey += static_cast<uint64_t>(COMP_CAUSAL_MASK_KEY);
         } else if (faInfo_.maskType == MaskType::SWA_MASK) {
             tilingKey += static_cast<uint64_t>(COMP_SWA_MASK_KEY);
+        } else if (faInfo_.maskType == MaskType::ALIBI_MASK) {
+            tilingKey += static_cast<uint64_t>(COMP_ALIBI_MASK_KEY);
         }
         if (faInfo_.layout == "TND") {
             tilingKey += static_cast<uint64_t>(LAYOUTQ_TND_KEY);
