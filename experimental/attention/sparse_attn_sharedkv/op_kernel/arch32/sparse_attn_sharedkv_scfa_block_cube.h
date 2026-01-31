@@ -57,6 +57,8 @@ private:
 
     static constexpr uint32_t M_SPLIT_SIZE = 128;     // m方向切分
     static constexpr uint32_t N_SPLIT_SIZE = 128;     // n方向切分
+    static constexpr uint32_t K_L0_SPLIT_SIZE = 128;     // k方向L0切分
+    static constexpr uint32_t K_L1_SPLIT_SIZE = 256;     // k方向L1切分
     static constexpr uint32_t N_WORKSPACE_SIZE = 512; // n方向切分
 
     static constexpr uint32_t L1_BLOCK_SIZE = (64 * 512 * sizeof(Q_T));
@@ -362,7 +364,7 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
             uint32_t copyFinishRowCnt = 0;
 
             if (info.isOri) {
-                uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint;
+                uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint + nL1 * N_SPLIT_SIZE;
                 while (copyFinishRowCnt < nL1Size) {
                     // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
                     copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
@@ -582,7 +584,8 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                 uint32_t copyFinishRowCnt = 0;
 
                 if (info.isOri) {
-                    uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint;
+                    uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint +
+                        k1 * K_L1_SPLIT_SIZE + (kL1 - kOffset) * K_L0_SPLIT_SIZE;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {

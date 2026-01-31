@@ -364,7 +364,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
             uint32_t copyFinishRowCnt = 0;
 
             if (info.isOri) {
-                uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint;
+                uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint + nL1 * N_SPLIT_SIZE;
                 while (copyFinishRowCnt < nL1Size) {
                     // 由于ori_left的存在， 即使第一块搬运也可能并非是pa_block的零点位
                     copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
@@ -579,7 +579,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                 uint32_t copyFinishRowCnt = 0;
 
                 if (info.isOri) {
-                    uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint;
+                    uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint +
+                        k1 * K_L1_SPLIT_SIZE + (kL1 - kOffset) * K_L0_SPLIT_SIZE;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
@@ -607,7 +608,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         curS2Offset += copyRowCnt;
                     }
                 } else {
-                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize + K_L0_SPLIT_SIZE * kL1;
+                    uint32_t curS2Offset = info.relativeS2Idx * constInfo.s2BaseSize +
+                        k1 * K_L1_SPLIT_SIZE + (kL1 - kOffset) * K_L0_SPLIT_SIZE;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paCmpBlockSize - curS2Offset % constInfo.paCmpBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
