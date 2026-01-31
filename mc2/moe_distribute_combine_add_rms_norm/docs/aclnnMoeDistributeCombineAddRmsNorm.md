@@ -4,6 +4,7 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
+| <term>Ascend 950PR/Ascend 950DT</term>     |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    ×     |
 
@@ -460,7 +461,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
 
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
     ```Cpp
     #include <thread>
     #include <iostream>
@@ -494,8 +495,10 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
         aclrtContext context;
     };
 
-    constexpr uint32_t EP_WORLD_SIZE = 8;
-    constexpr uint32_t TP_WORLD_SIZE = 2;
+    const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
+
+    constexpr uint32_t EP_WORLD_SIZE = (!rank_table_file) ? 2 : 8;
+    constexpr uint32_t TP_WORLD_SIZE = (!rank_table_file) ? 1 : 2;
     constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
 
     int64_t GetShapeSize(const std::vector<int64_t> &shape)
@@ -882,7 +885,6 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
 
     int main(int argc, char *argv[])
     {
-        // 本样例基于Atlas A3实现，必须在Atlas A3上运行
         int ret = aclInit(nullptr);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed, ret = %d\n", ret); return ret);
 
