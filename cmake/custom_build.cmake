@@ -381,8 +381,20 @@ if (base_aclnn_srcs)
             get_filename_component(name_without_ext ${_src} NAME_WE)
 
             string(REGEX REPLACE "_def$" "" _op_name ${name_without_ext})
+
+            add_parent_path("${ACLNN_EXTRA_SRCS}" PARENT_ACLNN_EXTRA_SRCS)
+            add_parent_path("${ACLNN_EXTRA_HEADERS}" PARENT_ACLNN_EXTRA_HEADERS)
+            add_parent_path("${ACLNNINNER_EXTRA_SRCS}" PARENT_ACLNNINNER_EXTRA_SRCS)
+            add_parent_path("${ACLNNINNER_EXTRA_HEADERS}" PARENT_ACLNNINNER_EXTRA_HEADERS)
+
             list(APPEND generate_aclnn_srcs ${base_aclnn_binary_dir}/aclnn_${_op_name}.cpp)
             list(APPEND generate_aclnn_headers ${base_aclnn_binary_dir}/aclnn_${_op_name}.h)
+            
+            if (ACLNN_EXTRA_SRCS)
+                list(APPEND generate_aclnn_srcs ${PARENT_ACLNN_EXTRA_SRCS})
+                list(APPEND generate_aclnn_headers ${PARENT_ACLNN_EXTRA_HEADERS})
+            endif()
+
             list(APPEND generate_proto_srcs    ${generate_proto_dir}/${_op_name}_proto.cpp)
             list(APPEND generate_proto_headers ${generate_proto_dir}/${_op_name}_proto.h)
         endif ()
