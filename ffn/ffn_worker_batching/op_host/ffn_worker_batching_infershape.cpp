@@ -94,6 +94,6 @@ static graphStatus InferShape4FfnWorkerBatching(gert::InferShapeContext *context
     return GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(FfnWorkerBatching).InferShape(InferShape4FfnWorkerBatching)
+IMPL_OP_INFERSHAPE(FfnWorkerBatching).InferShape(InferShape4FfnWorkerBatching);
 
 } // namespace ops

@@ -81,7 +81,7 @@ private:
     int64_t perCoreLastLoopElements = 0;
     int64_t lastCorePerLoopElements = 0;
     int64_t lastCoreLastLoopElements = 0;
-    int64_t validGatherIdxLenth = 0;
+    int64_t validGatherIdxLength = 0;
     int64_t actualExpertTotalNum = 0;
 };
 
@@ -90,14 +90,14 @@ __aicore__ inline void KernelFfnWBGroupListing::Init(GM_ADDR x, GM_ADDR groupLis
 {
     pipe_ = tPipe;
     blockIdx = GetBlockIdx();
-    validGatherIdxLenth = scheduleContext->validGatherIdxLenth;
+    validGatherIdxLength = scheduleContext->validGatherIdxLength;
 
     coreNum = scheduleContext->coreNum;
     perLoopRows = 8192L;
 
     // 计算每个核处理数据
-    perCoreElements = validGatherIdxLenth / GROUP_LISTING_MULTI_AIV_NUM;
-    lastCoreElements = perCoreElements + (validGatherIdxLenth % GROUP_LISTING_MULTI_AIV_NUM);
+    perCoreElements = validGatherIdxLength / GROUP_LISTING_MULTI_AIV_NUM;
+    lastCoreElements = perCoreElements + (validGatherIdxLength % GROUP_LISTING_MULTI_AIV_NUM);
 
     // 计算每个核循环次数
     perCoreLoopsNum = (perCoreElements + perLoopRows - 1) / perLoopRows;
@@ -127,7 +127,7 @@ __aicore__ inline void KernelFfnWBGroupListing::Init(GM_ADDR x, GM_ADDR groupLis
         expandedExpertIdsGm.SetGlobalBuffer((__gm__ int32_t *)x + (blockIdx - firstCoreIdx) * perCoreElements,
             curCoreElements);
     } else {
-        expandedExpertIdsGm.SetGlobalBuffer((__gm__ int32_t *)x, validGatherIdxLenth);
+        expandedExpertIdsGm.SetGlobalBuffer((__gm__ int32_t *)x, validGatherIdxLength);
     }
     // 输出global group_list数据[id * count] int_64
     groupListGm.SetGlobalBuffer((__gm__ int64_t *)groupList, expertNum * NUM_TWO);
@@ -152,8 +152,8 @@ __aicore__ inline void KernelFfnWBGroupListing::Process(int64_t groupListingDeal
     if ((blockIdx == coreNum - 1) && (groupListingDealFlag == 0)) {
         groupListOutLocal = expertIdxCountOutQueue.AllocTensor<int64_t>();
         curExpertIdOffset = 0;
-        CopyInOneCore(validGatherIdxLenth);
-        ComputeOneCore(validGatherIdxLenth);
+        CopyInOneCore(validGatherIdxLength);
+        ComputeOneCore(validGatherIdxLength);
 
         // 更新最后一个expertId和tokenCnt，并且需要在groupList后面添加一个[0， 0]
         if (curExpertIdOffset < expertNum) {
@@ -315,5 +315,5 @@ __aicore__ inline void KernelFfnWBGroupListing::ComputeOneCore(int64_t inputNum)
     sortedExpertIdxInQueue.FreeTensor(inLocal);
 }
 
-}  // namespace FfnWbBatchings
+}  // namespace FfnWbBatching
 #endif  // OP_KERNEL_FFN_WB_GROUP_LISTING_H

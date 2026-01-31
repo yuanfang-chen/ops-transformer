@@ -45,9 +45,9 @@ TEST_F(AttentionWorkerCombineInfershapeTest, AttentionWorkerCombine_infershape_t
             {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND}
         },
         {
-            {"hidden_size", Ops::Transformer::AnyValue::CreateFrom<int>(7168)},
-            {"token_dtype", Ops::Transformer::AnyValue::CreateFrom<int>(0)},
-            {"need_schedule", Ops::Transformer::AnyValue::CreateFrom<int>(15)}
+            {"hidden_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(7168)},
+            {"token_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"need_schedule", Ops::Transformer::AnyValue::CreateFrom<int64_t>(15)}
         });
     std::vector<std::vector<int64_t>> expectOutputShape = {{32, 7168}, {1}};
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);

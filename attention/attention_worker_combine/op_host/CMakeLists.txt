@@ -8,11 +8,22 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
+add_op_to_compiled_list()
+ 	 
 if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnn PRIVATE
         attention_worker_combine_def.cpp
     )
-    add_modules_sources(OPTYPE add_example ACLNNTYPE aclnn)
-else()
-    add_modules_sources(OPTYPE add_example ACLNNTYPE aclnn)
+    if (BUILD_OPS_RTY_KERNEL) # 回黄kernel
+        add_ops_compile_options(
+                OP_NAME AttentionWorkerCombine
+                OPTIONS --cce-auto-sync=on
+                        -Wno-deprecated-declarations
+                        -Werror
+        )
+    else() # custom
+        add_modules_sources(OPTYPE attention_worker_combine ACLNNTYPE aclnn)
+    endif()
+else() # 回黄host
+    add_modules_sources(OPTYPE attention_worker_combine ACLNNTYPE aclnn)  
 endif()

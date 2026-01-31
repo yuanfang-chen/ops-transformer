@@ -62,6 +62,6 @@ graphStatus InferShape4AttentionWorkerCombine(gert::InferShapeContext *context)
     return GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(AttentionWorkerCombine).InferShape(InferShape4AttentionWorkerCombine)
+IMPL_OP_INFERSHAPE(AttentionWorkerCombine).InferShape(InferShape4AttentionWorkerCombine);
 
 } // namespace ops

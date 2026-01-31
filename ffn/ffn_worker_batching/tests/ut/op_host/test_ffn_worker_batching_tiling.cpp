@@ -65,7 +65,7 @@ TEST_F(FfnWorkerBatchingTilingTest, ffn_worker_batching_tiling_test01)
             {"layer_num", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
         },
         &compileInfo);
-    int64_t expectTilingKey = 101s;
+    int64_t expectTilingKey = 101;
     std::string expectTilingData = "1152 4096 0 8 32 261888 8160 1152 ";
     std::vector<size_t> expectWorkspaces = {16819232};
 
