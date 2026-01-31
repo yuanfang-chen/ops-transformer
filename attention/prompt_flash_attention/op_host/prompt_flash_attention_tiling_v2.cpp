@@ -1004,7 +1004,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             "innerPrecise [%d] is currently not supported.(Value 2 or 3 is not supported).", innerPrecise), return false);
         if (contextKeyParams.pseType != nullptr) {
             OP_CHECK_IF(*contextKeyParams.pseType == 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "Pse is not supported in per-block quant scenario!", layoutStr.c_str(), pseType), return false);
+                "Pse is not supported in per-block quant scenario!"), return false);
         }
     } else {
         OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
