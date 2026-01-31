@@ -1213,6 +1213,7 @@ static uint64_t CalTilingKey(const gert::TilingContext *context, const bool isSc
             scaleMode = true;
     }
     if (mc2tiling::GetSocVersion(context) == "Ascend950") {
+        commMode = TILINGKEY_TPL_HOST_KFC;
         tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode,
                                                 fullMesh, commMode, TILINGKEY_TPL_A5);
     } else {
@@ -1319,7 +1320,8 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context, const char *no
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
-    workSpaces[0] = SYSTEM_NEED_WORKSPACE + static_cast<size_t>(WORKSPACE_ELEMENT_OFFSET * aivNum * aivNum);
+    //workSpaces[0] = SYSTEM_NEED_WORKSPACE + static_cast<size_t>(WORKSPACE_ELEMENT_OFFSET * aivNum * aivNum);
+    workSpaces[0] = SYSTEM_NEED_WORKSPACE + 4UL * 1024 * 1024 * 1024;  // static_cast<size_t>(WORKSPACE_ELEMENT_OFFSET * aivNum * aivNum);
     return ge::GRAPH_SUCCESS;
 }
 
