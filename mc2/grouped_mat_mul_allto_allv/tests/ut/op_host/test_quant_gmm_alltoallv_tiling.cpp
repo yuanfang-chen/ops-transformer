@@ -42,10 +42,25 @@ struct QuantGmmAlltoAllvTestParam {
     ge::DataType gmmWeightDtype;
     ge::Format gmmWeightFormat;
 
-    // gmmBias
-    std::initializer_list<int64_t> gmmBiasShape;
-    ge::DataType gmmBiasDtype;
-    ge::Format gmmBiasFormat;
+    // sendCountsTensor
+    std::initializer_list<int64_t> sendCountsTensorShape;
+    ge::DataType sendCountsTensorDtype;
+    ge::Format sendCountsTensorFormat;
+
+    // recvCountsTensor
+    std::initializer_list<int64_t> recvCountsTensorShape;
+    ge::DataType recvCountsTensorDtype;
+    ge::Format recvCountsTensorFormat;
+
+    // mmX
+    std::initializer_list<int64_t> mmXShape;
+    ge::DataType mmXDtype;
+    ge::Format mmXFormat;
+
+    // mmWeight
+    std::initializer_list<int64_t> mmWeightShape;
+    ge::DataType mmWeightDtype;
+    ge::Format mmWeightFormat;
 
     // gmmXScale
     std::initializer_list<int64_t> gmmXScaleShape;
@@ -57,42 +72,6 @@ struct QuantGmmAlltoAllvTestParam {
     ge::DataType gmmWeightScaleDtype;
     ge::Format gmmWeightScaleFormat;
 
-    // gmmXOffset
-    std::initializer_list<int64_t> gmmXOffsetShape;
-    ge::DataType gmmXOffsetDtype;
-    ge::Format gmmXOffsetFormat;
-
-    // gmmWeightOffset
-    std::initializer_list<int64_t> gmmWeightOffsetShape;
-    ge::DataType gmmWeightOffsetDtype;
-    ge::Format gmmWeightOffsetFormat;
-
-    // sendCountsTensor
-    std::initializer_list<int64_t> sendCountsTensorShape;
-    ge::DataType sendCountsTensorDtype;
-    ge::Format sendCountsTensorFormat;
-
-    // recvCountsTensor
-    std::initializer_list<int64_t> recvCountsTensorShape;
-    ge::DataType recvCountsTensorDtype;
-    ge::Format recvCountsTensorFormat;
-    
-    // mm
-    // mmX
-    std::initializer_list<int64_t> mmXShape;
-    ge::DataType mmXDtype;
-    ge::Format mmXFormat;
-
-    // mmWeight
-    std::initializer_list<int64_t> mmWeightShape;
-    ge::DataType mmWeightDtype;
-    ge::Format mmWeightFormat;
-
-    // mmBias
-    std::initializer_list<int64_t> mmBiasShape;
-    ge::DataType mmBiasDtype;
-    ge::Format mmBiasFormat;
-
     // mmXScale
     std::initializer_list<int64_t> mmXScaleShape;
     ge::DataType mmXScaleDtype;
@@ -103,20 +82,10 @@ struct QuantGmmAlltoAllvTestParam {
     ge::DataType mmWeightScaleDtype;
     ge::Format mmWeightScaleFormat;
 
-    // mmXOffset
-    std::initializer_list<int64_t> mmXOffsetShape;
-    ge::DataType mmXOffsetDtype;
-    ge::Format mmXOffsetFormat;
-
-    // mmWeightOffset
-    std::initializer_list<int64_t> mmWeightOffsetShape;
-    ge::DataType mmWeightOffsetDtype;
-    ge::Format mmWeightOffsetFormat;
-
-    // // commScale
-    // std::initializer_list<int64_t> commScaleShape;
-    // ge::DataType commScaleDtype;
-    // ge::Format commScaleFormat;
+    // commScale
+    std::initializer_list<int64_t> commScaleShape;
+    ge::DataType commScaleDtype;
+    ge::Format commScaleFormat;
 
     // output
     // gmmY
@@ -130,20 +99,19 @@ struct QuantGmmAlltoAllvTestParam {
     ge::Format mmYFormat;
 
     // attrs
-    std::string groupAttr;
-    int64_t epWorldSizeAttr;
-    std::vector<int64_t> sendCountsAttr;
-    std::vector<int64_t> recvCountsAttr;
-    // int64_t yDtypeAttr;
     int64_t gmmXQuantModeAttr;
     int64_t gmmWeightQuantModeAttr;
     int64_t mmXQuantModeAttr;
     int64_t mmWeightQuantModeAttr;
-    // int64_t commQuantModeAttr;
-    // int64_t commQuantDtypeAttr;
+    int64_t commQuantModeAttr;
+    int64_t commQuantDtypeAttr;
+
+    std::string groupAttr;
+    int64_t epWorldSizeAttr;
+    std::vector<int64_t> sendCountsAttr;
+    std::vector<int64_t> recvCountsAttr;
     bool transposeGmmWeightAttr;
     bool transposeMmWeightAttr;
-    int64_t groupSizeAttr;
     // soc version
     std::string socVersion;
     // expert result
@@ -166,30 +134,31 @@ static QuantGmmAlltoAllvTestParam test_cases[] =
         {80, 128}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
         {4, 128, 256}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
         {}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, // scale
         {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
         {}, ge::DT_FLOAT, ge::FORMAT_ND,
         {}, ge::DT_FLOAT, ge::FORMAT_ND,
         {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        // mm
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
-        {}, ge::DT_FLOAT, ge::FORMAT_ND,
+
         // output
-        {40, 256},ge::DT_FLOAT16, ge::FORMAT_ND,
-        {},ge::DT_FLOAT16, ge::FORMAT_ND,
-        "group", 2,
+        {40, 256}, ge::DT_FLOAT16, ge::FORMAT_ND,
+        {}, ge::DT_FLOAT16, ge::FORMAT_ND,
+        // attr
+        1, 1, 0, 0, 0, 0, // quantMode
+        "group",
+        2,                // ep_worldsize
         {8, 16, 24, 32},
         {32, 24, 16, 8},
-        1, 1, 1, 1, false, false, 0,
+        false, false,     // trans
         "Ascend910_95",
         ge::GRAPH_SUCCESS,
-        33UL, "", {16822272}, 0
+        33UL,             // tilingKey
+        "",               // tilingData
+        {16822272},       // workspace
+        0
     },
 };
 
@@ -218,22 +187,15 @@ static void TestOneParamCase(const QuantGmmAlltoAllvTestParam &param)
     //  Shape  tensor  shape  gert::StorageShape
     gert::StorageShape gmmXShape = {param.gmmXShape, param.gmmXShape};
     gert::StorageShape gmmWeightShape = {param.gmmWeightShape, param.gmmWeightShape};
-    gert::StorageShape gmmBiasShape = {param.gmmBiasShape, param.gmmBiasShape};
-    gert::StorageShape gmmXScaleShape = {param.gmmXScaleShape, param.gmmXScaleShape};
-    gert::StorageShape gmmWeightScaleShape = {param.gmmWeightScaleShape, param.gmmWeightScaleShape};
-    gert::StorageShape gmmXOffsetShape = {param.gmmXOffsetShape, param.gmmXOffsetShape};
-    gert::StorageShape gmmWeightOffsetShape = {param.gmmWeightOffsetShape, param.gmmWeightOffsetShape};
     gert::StorageShape sendCountsTensorShape = {param.sendCountsTensorShape, param.sendCountsTensorShape};
-
     gert::StorageShape recvCountsTensorShape = {param.recvCountsTensorShape, param.recvCountsTensorShape};
     gert::StorageShape mmXShape = {param.mmXShape, param.mmXShape};
     gert::StorageShape mmWeightShape = {param.mmWeightShape, param.mmWeightShape};
-    gert::StorageShape mmBiasShape = {param.mmBiasShape, param.mmBiasShape};
+    gert::StorageShape gmmXScaleShape = {param.gmmXScaleShape, param.gmmXScaleShape};
+    gert::StorageShape gmmWeightScaleShape = {param.gmmWeightScaleShape, param.gmmWeightScaleShape};
     gert::StorageShape mmXScaleShape = {param.mmXScaleShape, param.mmXScaleShape};
     gert::StorageShape mmWeightScaleShape = {param.mmWeightScaleShape, param.mmWeightScaleShape};
-    gert::StorageShape mmXOffsetShape = {param.mmXOffsetShape, param.mmXOffsetShape};
-    gert::StorageShape mmWeightOffsetShape = {param.mmWeightOffsetShape, param.mmWeightOffsetShape};
-    // gert::StorageShape commScaleShape = {param.commScaleShape, param.commScaleShape};
+    gert::StorageShape commScaleShape = {param.commScaleShape, param.commScaleShape};
     gert::StorageShape gmmYShape = {param.gmmYShape, param.gmmYShape};
     gert::StorageShape mmYShape = {param.mmYShape, param.mmYShape};
 
@@ -242,21 +204,15 @@ static void TestOneParamCase(const QuantGmmAlltoAllvTestParam &param)
         {
             {gmmXShape, param.gmmXDtype, param.gmmXFormat},
             {gmmWeightShape, param.gmmWeightDtype, param.gmmWeightFormat},
-            {gmmBiasShape, param.gmmBiasDtype, param.gmmBiasFormat},
-            {gmmXScaleShape, param.gmmXScaleDtype, param.gmmXScaleFormat},
-            {gmmWeightScaleShape, param.gmmWeightScaleDtype, param.gmmWeightScaleFormat},
-            {gmmXOffsetShape, param.gmmXOffsetDtype, param.gmmXOffsetFormat},
-            {gmmWeightOffsetShape, param.gmmWeightOffsetDtype, param.gmmWeightOffsetFormat},
             {sendCountsTensorShape, param.sendCountsTensorDtype, param.sendCountsTensorFormat},
             {recvCountsTensorShape, param.recvCountsTensorDtype, param.recvCountsTensorFormat},
             {mmXShape, param.mmXDtype, param.mmXFormat},
             {mmWeightShape, param.mmWeightDtype, param.mmWeightFormat},
-            {mmBiasShape, param.mmBiasDtype, param.mmBiasFormat},
+            {gmmXScaleShape, param.gmmXScaleDtype, param.gmmXScaleFormat},
+            {gmmWeightScaleShape, param.gmmWeightScaleDtype, param.gmmWeightScaleFormat},
             {mmXScaleShape, param.mmXScaleDtype, param.mmXScaleFormat},
             {mmWeightScaleShape, param.mmWeightDtype, param.mmWeightFormat},
-            {mmXOffsetShape, param.mmXOffsetDtype, param.mmXOffsetFormat},
-            {mmWeightOffsetShape, param.mmWeightOffsetDtype, param.mmWeightOffsetFormat},
-            //  {commScaleShape, param.commScaleDtype, param.commScaleFormat}
+            {commScaleShape, param.commScaleDtype, param.commScaleFormat}
         }
     );
 
@@ -271,20 +227,18 @@ static void TestOneParamCase(const QuantGmmAlltoAllvTestParam &param)
     //  attributes
     std::vector<gert::TilingContextPara::OpAttr> attrs_(
         {
-            {"group", Ops::Transformer::AnyValue::CreateFrom<std::string>(param.groupAttr)},
-            {"ep_world_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.epWorldSizeAttr)},
-            {"send_counts", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(param.sendCountsAttr)},
-            {"recv_counts", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(param.recvCountsAttr)},
-            //  {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int64_t>(param.yDtypeAttr))},
             {"gmmX_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.gmmXQuantModeAttr)},
             {"gmmWeight_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.gmmWeightQuantModeAttr)},
             {"mmX_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.mmXQuantModeAttr)},
             {"mmWeight_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.mmWeightQuantModeAttr)},
-            //  {"comm_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.commQuantModeAttr)},
-            //  {"comm_quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.commQuantDtypeAttr)},
+            {"comm_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.commQuantModeAttr)},
+            {"comm_quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.commQuantDtypeAttr)},
+            {"group", Ops::Transformer::AnyValue::CreateFrom<std::string>(param.groupAttr)},
+            {"ep_world_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.epWorldSizeAttr)},
+            {"send_counts", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(param.sendCountsAttr)},
+            {"recv_counts", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(param.recvCountsAttr)},
             {"transpose_gmmWeight", Ops::Transformer::AnyValue::CreateFrom<bool>(param.transposeGmmWeightAttr)},
-            {"transpose_mmWeight", Ops::Transformer::AnyValue::CreateFrom<bool>(param.transposeMmWeightAttr)},
-            {"group_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.groupSizeAttr)}
+            {"transpose_mmWeight", Ops::Transformer::AnyValue::CreateFrom<bool>(param.transposeMmWeightAttr)}
         }
     );
     //
