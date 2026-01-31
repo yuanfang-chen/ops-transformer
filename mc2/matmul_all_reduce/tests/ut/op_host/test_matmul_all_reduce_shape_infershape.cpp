@@ -8,49 +8,44 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include <string>
-#include <vector>
 #include <gtest/gtest.h>
-#include "../matmul_all_reduce_host_ut_param.h"
-#include "mc2_tiling_case_executor.h"
+#include <iostream>
+#include "matmul_all_reduce_host_ut_param.h"
+#include "mc2_infer_shape_case_executor.h"
+#include "base/registry/op_impl_space_registry_v2.h"
 
 namespace matmul_all_reduce_ut {
 
-class Arch20TilingTest : public testing::TestWithParam<MatmulAllReduceTilingUtParam> {
+class InferShapeTest : public testing::TestWithParam<MatmulAllReduceInferShapeUtParam> {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "MatmulAllReduce Arch20TilingTest SetUp" << std::endl;
+        std::cout << "MatmulAllReduce InferShapeTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "MatmulAllReduce Arch20TilingTest TearDown" << std::endl;
+        std::cout << "MatmulAllReduce InferShapeTest TearDown" << std::endl;
     }
 };
 
-TEST_P(Arch20TilingTest, param)
+TEST_P(InferShapeTest, param)
 {
     auto param = GetParam();
-    struct MatmulAllReduceCompileInfo {};
-    MatmulAllReduceCompileInfo compileInfo;
-    std::string soc = "Ascend310P";
-    uint64_t coreNum = 8;
-    uint64_t ubSize = 196608;
-    gert::TilingContextPara tilingContextPara(
+    std::vector<gert::InfershapeContextPara::TensorDescription> inputTensorDesc;
+    if (param.inputInstance[0] == 1) inputTensorDesc.emplace_back(param.x1);
+    if (param.inputInstance[1] == 1) inputTensorDesc.emplace_back(param.x2);
+    if (param.inputInstance[2] == 1) inputTensorDesc.emplace_back(param.bias);
+    if (param.inputInstance[3] == 1) inputTensorDesc.emplace_back(param.x3);
+    if (param.inputInstance[4] == 1) inputTensorDesc.emplace_back(param.antiquant_scale);
+    if (param.inputInstance[5] == 1) inputTensorDesc.emplace_back(param.antiquant_offset);
+    if (param.inputInstance[6] == 1) inputTensorDesc.emplace_back(param.dequant_scale);
+    if (param.inputInstance[7] == 1) inputTensorDesc.emplace_back(param.pertoken_scale);
+    if (param.inputInstance[8] == 1) inputTensorDesc.emplace_back(param.comm_quant_scale_1);
+    if (param.inputInstance[9] == 1) inputTensorDesc.emplace_back(param.comm_quant_scale_2);
+    gert::InfershapeContextPara inferShapeContextPara(
         "MatmulAllReduce",
-        {
-            param.x1,
-            param.x2,
-            param.bias,
-            param.x3,
-            param.antiquant_scale,
-            param.antiquant_offset,
-            param.dequant_scale,
-            param.pertoken_scale,
-            param.comm_quant_scale_1,
-            param.comm_quant_scale_2
-        },
+        inputTensorDesc,
         {
             param.y
         },
@@ -65,22 +60,19 @@ TEST_P(Arch20TilingTest, param)
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.y_dtype)},
             {"comm_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.comm_quant_mode)}
         },
-        param.inputInstance, param.outputInstance,
-        &compileInfo,
-        soc, coreNum, ubSize
+        param.inputInstance, param.outputInstance
     );
     Mc2Hcom::MockValues hcomTopologyMockValues {
         {"rankNum", param.ranksize}
     };
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, param.expectResult, param.expectTilingKey,
-        param.expectTilingDataHash, {}, MC2_TILING_DATA_RESERVED_LEN, true);
+    Mc2ExecuteTestCase(inferShapeContextPara, hcomTopologyMockValues, param.expectResult, param.expectOutputShape);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     MatmulAllReduce,
-    Arch20TilingTest,
-    testing::ValuesIn(GetCasesFromCsv<MatmulAllReduceTilingUtParam>(ReplaceFileExtension2Csv(__FILE__))),
-    GetCaseInfoString<MatmulAllReduceTilingUtParam>
+    InferShapeTest,
+    testing::ValuesIn(GetCasesFromCsv<MatmulAllReduceInferShapeUtParam>(ReplaceFileExtension2Csv(__FILE__))),
+    GetCaseInfoString<MatmulAllReduceInferShapeUtParam>
 );
 
 } // namespace matmul_all_reduce_ut
