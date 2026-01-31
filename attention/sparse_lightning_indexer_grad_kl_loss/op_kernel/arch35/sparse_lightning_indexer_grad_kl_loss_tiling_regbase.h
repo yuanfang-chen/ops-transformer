@@ -115,6 +115,34 @@ public:
     void set_totalOutputSize(int64_t totalOutputSizeParam) {this->totalOutputSize = totalOutputSizeParam;}    
 };
 
+class SLIGradKLLossWorkSpaceOffsetParamsRegbase {
+public:
+    int64_t reduceSumOffset;
+    int64_t reluOffset;
+    int64_t gatherSYOffset;
+    int64_t scatterAddOutSize;
+    int64_t singlecoreTotalSize;
+    int64_t multicoreTotalsize;
+
+    int64_t get_reduceSumOffset() const {return reduceSumOffset;}
+    void set_reduceSumOffset(int64_t reduceSumOffsetParam) {this->reduceSumOffset = reduceSumOffsetParam;}
+
+    int64_t get_reluOffset() const {return reluOffset;}
+    void set_reluOffset(int64_t reluOffsetParam) {this->reluOffset = reluOffsetParam;}
+
+    int64_t get_gatherSYOffset() const {return gatherSYOffset;}
+    void set_gatherSYOffset(int64_t gatherSYOffsetParam) {this->gatherSYOffset = gatherSYOffsetParam;}
+
+    int64_t get_scatterAddOutSize() const {return scatterAddOutSize;}
+    void set_scatterAddOutSize(int64_t scatterAddOutSizeParam) {this->scatterAddOutSize = scatterAddOutSizeParam;}
+
+    int64_t get_singlecoreTotalSize() const {return singlecoreTotalSize;}
+    void set_singlecoreTotalSize(int64_t singlecoreTotalSizeParam) {this->singlecoreTotalSize = singlecoreTotalSizeParam;}
+
+    int64_t get_multicoreTotalsize() const {return multicoreTotalsize;}
+    void set_multicoreTotalsize(int64_t multicoreTotalsizeParam) {this->multicoreTotalsize = multicoreTotalsizeParam;}
+};
+
 class SLIGradKLLossVecApiParamsRegbase {
 public:
     SoftMaxTiling softmaxYTilingData;
@@ -126,6 +154,7 @@ public:
     SLIGradKLLossBaseParamsRegbase baseParams;
     SLIGradKLLossMultiCoreParamsRegbase multiCoreParams;
     SLIGradKLLossInitOutputParamsRegbase initOutputParams;
+    SLIGradKLLossWorkSpaceOffsetParamsRegbase workSpaceOffsetParams;
     SLIGradKLLossVecApiParamsRegbase vectorParams;
 };
 

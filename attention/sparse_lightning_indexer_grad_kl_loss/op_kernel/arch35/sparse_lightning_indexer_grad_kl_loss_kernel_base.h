@@ -546,12 +546,12 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
 SparseLightningIndexerGradKLLossKernelBase<CubeBlockType, VecBlockType>::InitWorkspace(__gm__ uint8_t *workspace)
 {
-    int64_t reduceSumOffset = 2 * constInfo.kSize * sizeof(float); // * 2
-    int64_t reluOffset = constInfo.gSizeQueryIndex * constInfo.kSize * sizeof(float);
-    int64_t gatherSYOffset = constInfo.kSize * constInfo.dSizeQueryIndex * sizeof(INPUT_T);
+    int64_t reduceSumOffset = tilingData->workSpaceOffsetParams.reduceSumOffset; // * 2
+    int64_t reluOffset = tilingData->workSpaceOffsetParams.reluOffset;
+    int64_t gatherSYOffset = tilingData->workSpaceOffsetParams.gatherSYOffset;
 
-    int64_t coreTotalOffset = constInfo.aicIdx * (reduceSumOffset + reluOffset + gatherSYOffset);
-    int64_t totalOffset = GetBlockNum() * (reduceSumOffset + reluOffset + gatherSYOffset);
+    int64_t coreTotalOffset = constInfo.aicIdx * (tilingData->workSpaceOffsetParams.singlecoreTotalSize);
+    int64_t totalOffset = tilingData->workSpaceOffsetParams.multicoreTotalsize;
 
     uint64_t offset = 0;
     reduceSumRes.SetGlobalBuffer((__gm__ T *)(workspace + offset + coreTotalOffset));

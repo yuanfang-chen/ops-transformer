@@ -75,6 +75,12 @@ enum class SparseMode : uint32_t {
     RIGHT_DOWN_CAUSAL = 3  // 右下角点划分的下三角部分
 };
 
+enum class LayoutType : uint8_t {
+    LAYOUT_BSND = 0,
+    LAYOUT_TND = 1,
+    LAYOUT_NONE
+};
+
 struct AiCoreParams {
     uint64_t ubSize = 0;
     uint64_t blockDim = 0;
@@ -95,6 +101,7 @@ struct SparseLightningIndexerGradKLLossCompileInfo {
     uint64_t l0cSize;
     uint64_t l2CacheSize;
     platform_ascendc::SocVersion socVersion;
+    NpuArch npuArch;
 };
 
 template <typename T> inline T Align(T num, T rnd)
