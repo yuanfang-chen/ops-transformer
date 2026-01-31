@@ -449,6 +449,8 @@ ge::graphStatus MatmulAllReduceTilingBase::GetPlatformInfo()
             return ge::GRAPH_FAILED);
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     auto coreNum = ascendcPlatform.GetCoreNumAic();
+    printf("****************** CHUGUOWEI GetCoreNumAic %d \n", ascendcPlatform.GetCoreNumAic());
+    printf("****************** CHUGUOWEI GetCoreNumAiv %d \n", ascendcPlatform.GetCoreNumAiv());
     args_.aicCoreNum = coreNum;
     uint64_t ubSizePlatForm;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
