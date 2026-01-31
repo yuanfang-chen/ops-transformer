@@ -195,27 +195,27 @@ bool GroupedQbmmTiling::CheckDtypeForWeightNz(bool isPertokenScaleNull) const
         if (isA8W8Int) {
             OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(context_->GetNodeName(), "When the weight is Nz format and x/weight's dtype are INT8, \
-                                the dtype of pertokenScale should be FLOAT, actual is %s.",
+the dtype of pertokenScale should be FLOAT, actual is %s.",
                                 ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
                         return false);
             OP_CHECK_IF(
                 inputParams_.scaleDtype != ge::DT_BF16 && inputParams_.scaleDtype != ge::DT_FLOAT,
                 OP_LOGE(context_->GetNodeName(),
                         "When the weight is Nz format, x/weight's dtype are INT8 and the pertokenScale is FLOAT, \
-                    the dtype of scale should be in {BF16, FLOAT}, actual is %s.",
+the dtype of scale should be in {BF16, FLOAT}, actual is %s.",
                         ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
                 return false);
         } else if (isA8W8Fp) {
             OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
                         OP_LOGE(context_->GetNodeName(),
                                 "When the weight is Nz format and x/weight's dtype are FLOAT8_E4M3, \
-                                the dtype of pertokenScale should be FLOAT8_E8M0, actual is %s.",
+the dtype of pertokenScale should be FLOAT8_E8M0, actual is %s.",
                                 ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
                         return false);
             OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0,
                         OP_LOGE(context_->GetNodeName(),
                                 "When the weight is Nz format, x/weight's dtype are FLOAT8_E4M3, the dtype of scale \
-                        should be FLOAT8_E8M0, actual is %s.",
+should be FLOAT8_E8M0, actual is %s.",
                                 ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
                         return false);
         }
