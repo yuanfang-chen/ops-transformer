@@ -113,7 +113,7 @@ def display_error_output(real_data, expect_data, err_idx, relative_diff):
     print_log(
         '---------------------------------------------------------------------------------------')
 # fuzz 中precision_method == 1的精度对比方式
-def check_result(expect, result, pct_thd = 0.005):
+def check_result(expect, result, data_type, pct_thd = 0.005):
     real_data = result.cpu().numpy()
     data_compe = expect.cpu().numpy()
     real_data = real_data.flatten()
@@ -140,7 +140,7 @@ def check_result(expect, result, pct_thd = 0.005):
         print_log('Overflow,size:%s,benchmark_output:%s, %s' % (
             overflows_count, data_compe[np.isinf(data_compe)][0:10], data_compe[np.isnan(data_compe)][0:10]))
     
-    if str(real_data.dtype) == 'bfloat16':
+    if data_type == 'bfloat16':
         diff_thd=0.005
         max_diff_hd=10.0
         rtol=0.005

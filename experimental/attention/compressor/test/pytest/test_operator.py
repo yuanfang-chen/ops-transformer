@@ -109,24 +109,25 @@ for _, params in enumerate(ENABLED_PARAMS):
 
         # 结果精度对比
         check_succeed = True
+        data_type = str(npu_result.dtype)
         print("--------------------------------------------------------------check result-------------------------------------------------------------")
-        if check_result.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32)) == False:
+        if check_result.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32), data_type) == False:
             print(f"test_data = {test_data} check result failed")
             check_succeed = False
         print("--------------------------------------------------------------check kv state update-------------------------------------------------------------")
-        if check_result.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32)) == False:
+        if check_result.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32), data_type) == False:
             print(f"test_data = {test_data} check kv state update failed")
             check_succeed = False
         print("--------------------------------------------------------------check score state update-------------------------------------------------------------")
-        if check_result.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32)) == False:
+        if check_result.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32), data_type) == False:
             print(f"test_data = {test_data} check score state update failed")
             check_succeed = False
         print("--------------------------------------------------------------check kv state origin-------------------------------------------------------------")
-        if check_result.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), 0.0) == False:
+        if check_result.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), data_type, 0.0) == False:
             print(f"test_data = {test_data} check kv state origin failed")
             check_succeed = False
         print("--------------------------------------------------------------check score state origin-------------------------------------------------------------")
-        if check_result.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), 0.0) == False:
+        if check_result.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), data_type, 0.0) == False:
             print(f"test_data = {test_data} check score state origin failed")
             check_succeed = False
 

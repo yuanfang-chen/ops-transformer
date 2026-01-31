@@ -56,22 +56,38 @@ def output_operator(params):
     batch_size, hidden_size, Seq_len, head_dim, block_size, rope_head_dim, cmp_ratio, coff, norm_eps, \
     start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos = params
 
-    if cu_seqlens is not None:
-        cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
-    
-    if seqused is not None:
-        seqused = torch.tensor(seqused).to(torch.int32)
-    
-    if start_pos is not None:
-        start_pos = torch.tensor(start_pos).to(torch.int32)
-
-    ### ======================== check input params start ========================
     if layout_x == "TH":
-        if cu_seqlens == None:
+        if cu_seqlens is not None:
+            cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
+        else:
             T = batch_size * Seq_len
             cu_seqlens = torch.arange(0, T + 1, Seq_len, dtype=torch.int32)
-    if start_pos == None:
-        start_pos = torch.full((batch_size,), start_p, dtype=torch.int32)
+        
+        if seqused is not None:
+            seqused = torch.tensor(seqused).to(torch.int32)
+            S_max = max(seqused)
+        else:
+            S_max = 0
+            for i in range(1, batch_size + 1):
+                if S_max < cu_seqlens[i] - cu_seqlens[i - 1]:
+                    S_max = cu_seqlens[i] - cu_seqlens[i - 1] 
+
+        if start_pos is not None:
+            start_pos = torch.tensor(start_pos).to(torch.int32)
+        else:
+            start_pos = [0] * batch_size
+    else:
+        cu_seqlens = None
+        if start_pos == None:
+            start_pos = [0] * batch_size
+        else:
+            start_pos = torch.tensor(start_pos).to(torch.int32)
+        S_max = max(start_pos) + Seq_len
+
+        if seqused is not None:
+            seqused = torch.tensor(seqused).to(torch.int32)
+
+    ### ======================== check input params start ========================
     print(f"params = {params}")
 
     actseqs = []
@@ -85,15 +101,7 @@ def output_operator(params):
         else:
             actseqs = [Seq_len] * batch_size
 
-    if layout_x == "TH":
-        S_max = 0
-        for i in range(1, batch_size + 1):
-            if S_max < start_pos[i - 1] + cu_seqlens[i] - cu_seqlens[i - 1]:
-                S_max = start_pos[i - 1] + cu_seqlens[i] - cu_seqlens[i - 1] 
-    else:
-        S_max = start_pos.max() + Seq_len
-
-    max_block_num_per_batch = (S_max + block_size - 1) // block_size
+    max_block_num_per_batch = (S_max + cmp_ratio + block_size - 1) // block_size
     block_num = 0
     for i in range(batch_size):
         block_num += math.ceil((int(actseqs[i]) + int(start_pos[i])) / block_size)
@@ -179,11 +187,12 @@ def output_operator(params):
     if seqused is not None: 
         seqused = seqused.npu()
     if start_pos is not None: 
-        start_pos = start_pos.npu()
+        start_pos = torch.tensor(start_pos).to(torch.int32).npu()
     if block_table is not None: 
         kv_block_table = block_table.npu()
         score_block_table = block_table.npu()
-    npu_result = torch.ops.custom.npu_compressor(
+
+    npu_result, _, _, _, _ = torch.ops.custom.compressor(
                 x.npu(),
                 wkv.npu(),
                 wgate.npu(),
