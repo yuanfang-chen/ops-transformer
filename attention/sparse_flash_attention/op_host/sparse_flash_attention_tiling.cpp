@@ -193,6 +193,7 @@ ge::graphStatus SFAMlaTiling::SetBlockDim(uint32_t blockDim) const
 ge::graphStatus SFAMlaTiling::SetTilingKey(uint64_t tilingKey) const
 {
     context_->SetTilingKey(tilingKey);
+    context_->SetScheduleMode(1);
     return ge::GRAPH_SUCCESS;
 }
 
