@@ -212,42 +212,6 @@ const std::map<ge::DataType, mc2tiling::HcclDataType> HCCL_DATA_TYPE = {
 const std::set<ge::Format> SUPPORTED_FORMAT = {
     ge::FORMAT_NCL,  ge::FORMAT_NCDHW, ge::FORMAT_DHWCN,
     ge::FORMAT_NHWC, ge::FORMAT_NCHW,  ge::FORMAT_ND};
-
-inline ge::graphStatus GetCclBufferSize(const char* groupStr, uint64_t* cclBufferSize, const char* nodeName)
-{
-    HcclComm hcclComm;
-    OP_TILING_CHECK(Mc2Hcom::MC2HcomTopology::CommGetCclBufferSizeByGroup(groupStr, cclBufferSize, &hcclComm)
-        != HCCL_SUCCESS, OP_LOGE(nodeName, "CommGetCclBufferSizeByGroup failed"), return ge::GRAPH_FAILED);
-    if (hcclComm == nullptr) {
-        OP_TILING_CHECK(Mc2Hcom::MC2HcomTopology::CommGetGroupLocalWindowSize(groupStr, cclBufferSize) != HCCL_SUCCESS,
-            OP_LOGE(nodeName, "GetGroupLocalWindowSize from topoInfo failed"), return ge::GRAPH_FAILED);
-        OP_LOGD(nodeName, "Get cclBufferSize by topoInfo");
-    } else {
-        OP_LOGD(nodeName, "Get cclBufferSize from HCCL");
-    }
-    OP_TILING_CHECK(*cclBufferSize == 0,
-            OP_LOGE(nodeName, "Get cclBufferSize failed, cclBufferSize is 0"), return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
-}
-
-inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const char *nodeName,
-    uint64_t &hcclBufferSizeEp, uint64_t &maxWindowSizeEp, uint32_t attrGroupEpIndex)
-{
-    auto attrs = context->GetAttrs();
-    if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
-        // A5 暂不支持 Hccl CommGetBufSizeCfg 接口，此处暂作规避
-        hcclBufferSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
-        // A5 上前 1MB 作为状态区，剩余空间用作数据区
-        maxWindowSizeEp = hcclBufferSizeEp - MTE_STATE_ZONE_SIZE;
-    } else {
-        auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(attrGroupEpIndex));
-        OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &hcclBufferSizeEp, nodeName) != ge::GRAPH_SUCCESS,
-            OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
-            return ge::GRAPH_FAILED);
-        maxWindowSizeEp = hcclBufferSizeEp;
-    }
-    return ge::GRAPH_SUCCESS;
-}
 }  // namespace mc2tiling
 
 #endif
