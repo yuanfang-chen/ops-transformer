@@ -108,7 +108,7 @@ for OP_REPO in $OP_REPO_LIST; do
         fi
 
         cd $CODE_PATH
-        timeout $TIMEOUT bash build.sh -u --ops=$op_option_list --cov &> $LOG_PATH/op_test/$OP.log
+        timeout $TIMEOUT bash build.sh -u --ops=$op_option_list --cov --soc=ascend310p,ascend910b,ascend910_93,ascend950 &> $LOG_PATH/op_test/$OP.log
         if [ $? -ne 0 ]; then
             echo -ne "\033[31mFAIL\033[0m            "
             echo -n "FAIL," &>> $LOG_PATH/results.csv
@@ -118,6 +118,7 @@ for OP_REPO in $OP_REPO_LIST; do
         fi
 
         if [ -f build/cov_result/coverage.info ]; then
+            echo "$OP ut coverage file info is:" >> $LOG_PATH/ut.log
             ls -sh build/cov_result/coverage.info &>> $LOG_PATH/ut.log
             cat build/cov_result/coverage.info >> ./coverage.info
         else
@@ -131,3 +132,12 @@ done
 
 # 删除当前编译文件，以免影响调用逻辑
 rm -r $CODE_PATH/build/cov_result
+
+echo "start print ut log, flash_attention_score log is: "
+cat $CODE_PATH/log_ut/op_test/flash_attention_score.log
+echo "start print ut log, fused_infer_attention_score log is: "
+cat $CODE_PATH/log_ut/op_test/fused_infer_attention_score.log
+echo "start print ut log, prompt_flash_attention log is: "
+cat $CODE_PATH/log_ut/op_test/prompt_flash_attention.log
+echo "start print ut log, mla_prolog log is: "
+cat $CODE_PATH/log_ut/op_test/mla_prolog.log
