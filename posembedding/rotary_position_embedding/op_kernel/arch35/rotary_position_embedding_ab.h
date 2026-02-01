@@ -26,7 +26,7 @@
 
 namespace RotaryPositionEmbedding {
 using namespace AscendC;
-
+ 
 template <typename T>
 class RotaryPositionEmbeddingAB
 {
