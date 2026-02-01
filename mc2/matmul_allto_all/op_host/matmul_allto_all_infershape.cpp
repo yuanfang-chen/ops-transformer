@@ -13,7 +13,6 @@
  * \brief 图模式（动态图/静态图）走infershape
  */
 
-#include "op_mc2.h"
 #include <register/op_impl_registry.h>
 #include "util/math_util.h"
 #include "mc2_log.h"
