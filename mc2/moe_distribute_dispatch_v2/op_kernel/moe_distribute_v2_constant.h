@@ -20,6 +20,12 @@
 namespace Mc2Kernel {
 constexpr uint32_t STATE_SIZE = 1024 * 1024; // 1M
 constexpr uint64_t TIMEOUT_OFFSET = 1000UL * 1024UL;
+constexpr uint32_t FIRST_CORE = 0U; // 第一个核的核id
+#ifdef __DAV_310__
+constexpr uint32_t UB_SIZE_TO_USE = 240U;
+#else
+constexpr uint32_t UB_SIZE_TO_USE = 180U;
+#endif
 
 // distributev2base所需常量段
 constexpr uint64_t OP_CNT_POSUL = 3UL;

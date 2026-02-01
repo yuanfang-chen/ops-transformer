@@ -58,7 +58,7 @@ public:
         scalesPadParams_ = {true, 0, 0, 0};
     }
 
-    __aicore__ inline void QuantInit(uint32_t &hAlignSize_, uint32_t &hOutSize_, uint32_t scaleInBytes_, 
+    __aicore__ inline void QuantInit(uint32_t &hAlignSize_, uint32_t hOutSize_, uint32_t scaleInBytes_, 
                                      int32_t &tokenQuantAlign_, uint32_t &hScaleIdxSize_, uint32_t axisH)
     {
         axisH_ = axisH;
@@ -76,13 +76,13 @@ public:
         else if constexpr (QuantMode == MX_QUANT) {
             hOutSizeAlign_ = Align256(axisH_) * sizeof(ExpandXOutType);
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // MX量化计算scale时每次搬入128个数据
-            hOutSizeAlign_ += Align2(Ceil32(axisH_)); 
             scaleOutBytes_ = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
+            hOutSizeAlign_ += scaleOutBytes_; 
         } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
             hOutSizeAlign_ = Align128(axisH_) * sizeof(ExpandXOutType);
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // PERGROUP量化计算scale时每次搬入128个数据
-            hOutSizeAlign_ += Ceil128(axisH_) * sizeof(float); 
             scaleOutBytes_ = Ceil128(axisH_) * sizeof(float); // MX量化每128个值生成一个scale
+            hOutSizeAlign_ += scaleOutBytes_; 
         }
         #endif
         uint32_t hScaleSizeAlign = Ceil(hOutSizeAlign_, UB_ALIGN) * UB_ALIGN; //保证后面填充三元组的起始地址对齐32
@@ -144,10 +144,10 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantDynamicPerToken(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerToken(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal,
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
-        float dynamicScale = 0.0;
+        float dynamicScaleInv = 0.0;
         float maxVal = INT8_MAX_VALUE; // 获取输出类型的最大值（AscendC未提供相关接口）
         #if defined(__DAV_C310__)
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
@@ -170,20 +170,20 @@ public:
         PipeBarrier<PIPE_V>();
         ReduceMaxInplace(floatLocalAbsTemp, axisH_); // 获取最大值
         SyncFunc<AscendC::HardEvent::V_S>();
-        dynamicScale = maxVal / floatLocalAbsTemp.GetValue(0);
-        Muls(floatLocalTemp_, floatLocalTemp_, dynamicScale, axisH_);
+        dynamicScaleInv = maxVal / floatLocalAbsTemp.GetValue(0);
+        Muls(floatLocalTemp_, floatLocalTemp_, dynamicScaleInv, axisH_);
         PipeBarrier<PIPE_V>();
         if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
+            LocalTensor<int16_t> int16LocalTemp = floatLocalTemp_.ReinterpretCast<int16_t>();
+            Cast(int16LocalTemp, floatLocalTemp_, RoundMode::CAST_RINT, axisH_);
+            PipeBarrier<PIPE_V>();
+
             LocalTensor<half> halfLocalTemp = floatLocalTemp_.ReinterpretCast<half>();
-            LocalTensor<int32_t> int32LocalTemp = floatLocalTemp_.ReinterpretCast<int32_t>();
-            Cast(int32LocalTemp, floatLocalTemp_, RoundMode::CAST_RINT, axisH_);
+            Cast(halfLocalTemp, int16LocalTemp, RoundMode::CAST_NONE, axisH_);
             PipeBarrier<PIPE_V>();
-            SetDeqScale((half)1.000000e+00f);
-            PipeBarrier<PIPE_V>();
-            Cast(halfLocalTemp, int32LocalTemp, RoundMode::CAST_ROUND, axisH_);
-            PipeBarrier<PIPE_V>();
-            Cast(outLocal, halfLocalTemp, RoundMode::CAST_TRUNC, axisH_);
-        } 
+
+            Cast(outLocal, halfLocalTemp, RoundMode::CAST_NONE, axisH_);
+        }
         #if defined(__DAV_C310__)
         else if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value || 
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value){
@@ -191,7 +191,7 @@ public:
         }
         #endif
         LocalTensor<float> tokenF32Tmp = outLocal.template ReinterpretCast<float>();
-        tokenF32Tmp.SetValue((Ceil(axisH_, UB_ALIGN) * UB_ALIGN) / sizeof(float), float(1.0) / dynamicScale); // int8->float32
+        tokenF32Tmp.SetValue((Ceil(axisH_, UB_ALIGN) * UB_ALIGN) / sizeof(float), float(1.0) / dynamicScaleInv);
         SyncFunc<AscendC::HardEvent::S_MTE3>();
     }
 
@@ -234,19 +234,25 @@ public:
     }
     #endif
 
-    __aicore__ inline void CopyScalesToOut(uint32_t currentTokenIndex, LocalTensor<ExpandXOutType> &quantTok){
-        scaleOutParams_ = {1U, static_cast<uint16_t>(scaleOutBytes_), 0U, 0U};
+    __aicore__ inline void CopyScalesToOut(
+        uint32_t copiedTokenNum, uint16_t copyCount, LocalTensor<ExpandXOutType> &hScaleSrcInfoLT)
+    {        
         if constexpr (((QuantMode > UNQUANT) && (QuantMode != STATIC_QUANT)) ||
                     ((QuantMode == UNQUANT) && IsSmoothScaleExist)) {
-            auto scaleLT = quantTok[(Ceil(axisH_, UB_ALIGN) * UB_ALIGN)].template ReinterpretCast<uint8_t>();
+            uint32_t axisHAlign = Align32<uint32_t>(axisH_);
             #if defined(__DAV_C310__)
             if constexpr (QuantMode == MX_QUANT) {
-                scaleLT = quantTok[Align256<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
+                axisHAlign = Align256<uint32_t>(axisH_);
             } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
-                scaleLT = quantTok[Align128<uint32_t>(axisH_)].template ReinterpretCast<uint8_t>();
+                axisHAlign = Align128<uint32_t>(axisH_);
             }
             #endif
-            DataCopyPad(dynamicScalesOutGMTensor_[currentTokenIndex * scaleOutBytes_], scaleLT, scaleOutParams_);
+
+            auto scaleLT = hScaleSrcInfoLT[axisHAlign].template ReinterpretCast<uint8_t>();
+            uint32_t hScaleSrcInfoAlign = Align32<uint32_t>(hOutSizeAlign_) + UB_ALIGN; // UB_ALIGN为三元组UB对齐后的大小
+            uint16_t srcStrideDynamicScales = static_cast<uint16_t>((hScaleSrcInfoAlign - scaleOutBytes_) / UB_ALIGN);
+            scaleOutParams_{copyCount, static_cast<uint16_t>(scaleOutBytes_), srcStrideDynamicScales, 0U};
+            DataCopyPad(dynamicScalesOutGMTensor_[copiedTokenNum * scaleOutBytes_], scaleLT, scaleOutParams_);
         }
     }
 
