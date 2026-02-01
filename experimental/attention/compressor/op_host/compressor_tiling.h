@@ -29,12 +29,14 @@
 #include "register/op_def_registry.h"
 #include "../op_kernel/compressor_template_tiling_key.h"
 #include "../op_kernel/compressor_tiling_data.h"
+#include "platform/platform_info.h"
 
 #ifdef ASCENDC_OP_TEST
 #define CMP_EXTERN_C extern "C"
 #else
 #define CMP_EXTERN_C
 #endif
+// #define DAY0_SCOPE
 
 namespace optiling {
 
@@ -127,8 +129,13 @@ struct CompressorBaseShapeInfo {
 
 const std::vector<int> ROPE_HEAD_DIM {64};
 const std::vector<int> COFF {1, 2};
+#ifdef DAY0_SCOPE
 const std::vector<int> CMP_RATIO {4, 128};
 const std::vector<int> ROTARY_MODE {2};
+#else
+const std::vector<int> CMP_RATIO {2, 4, 8, 16, 32, 64, 128};
+const std::vector<int> ROTARY_MODE {1, 2};
+#endif
 const std::vector<uint32_t> HEAD_DIM {128, 512};
 
 enum class ROTARY_MODE:uint8_t {
@@ -251,6 +258,7 @@ private:
     uint32_t coreNum_ = 0;
     uint32_t aicNum_ = 0;
     uint32_t aivNum_ = 0;
+    platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
     size_t libapiSize_ = 0;
     size_t workspaceSize_ = 0;
     uint8_t coff = 1;

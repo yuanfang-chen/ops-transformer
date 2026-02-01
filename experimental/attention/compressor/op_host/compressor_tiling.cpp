@@ -206,6 +206,8 @@ ge::graphStatus CompressorTiling::GetNpuInfo()
         OPS_REPORT_VECTOR_INNER_ERR(context_->opName, "GetPlatformInfo is nullptr."), return ge::GRAPH_FAILED);
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->platformInfo);
+    socVersion_ = ascendcPlatform.GetSocVersion();
+
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
 
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
@@ -282,12 +284,6 @@ ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
     innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
     innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
-#if __CCE_AICORE__ == 310
-    if ((baseParams_->batchSize == 1) && (baseParams_->tokenSize == 4)) {
-        innerSplitParams_->dBaseSize = 64 / coff;
-    }
-#endif
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -959,19 +955,23 @@ ge::graphStatus CompressorTiling::CheckScenarioConsistency() const
     std::vector<uint32_t> curScenario{curCmpratio, curCoff, curHeaddim};
     const std::vector<std::vector<uint32_t>> allowdScenarios = {{4, 2, 512}, {4, 2, 128}, {128, 1, 512}};
 
-    OP_CHECK_IF( std::find(allowdScenarios.begin(), allowdScenarios.end(), curScenario) == allowdScenarios.end(),
+    OP_CHECK_IF(std::find(allowdScenarios.begin(), allowdScenarios.end(), curScenario) == allowdScenarios.end(),
                 OP_LOGE("Compressor", "Cmpratio Coff Headdim should be equal to {4, 2, 512}, {4, 2, 128}, {128, 1, 512},\
-                        but now cmpratio=%u, coff=%u, headdim=%u", curCmpratio, curCoff, curHeaddim),
-                        return ge::GRAPH_FAILED);
+ but now cmpratio=%u, coff=%u, headdim=%u", curCmpratio, curCoff, curHeaddim), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus CompressorTiling::CheckMultiParaConsistency() const
 {
     if (CheckShapeConsistency() != ge::GRAPH_SUCCESS || CheckDtypeConsistency() != ge::GRAPH_SUCCESS ||
-        CheckDimNumConsistency() != ge::GRAPH_SUCCESS || CheckScenarioConsistency() != ge::GRAPH_SUCCESS) {
+        CheckDimNumConsistency() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+#ifdef DAY0_SCOPE
+    if (CheckScenarioConsistency() != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+#endif
     return ge::GRAPH_SUCCESS;
 }
 
