@@ -37,24 +37,25 @@ const std::string OP_NAME = "Mc2Exception";
 const uint32_t WIN_SIZE = 1024U * 1024U;
 const uint32_t MS_WIDTH = 3U;
 const uint32_t MS_PER_S = 1000U;
+const uint32_t INVALID_ID = 0xFFFFFFFFU;
 const mode_t FILE_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
 using HcclOpParam = HcclCombinOpParam;
 inline std::string GetTimestampWithMilliseconds()
 {
     auto now = std::chrono::system_clock::now();
-    time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+    time_t nowTime = std::chrono::system_clock::to_time_t(now);
 
-    std::tm tm_utc;
-    gmtime_r(&now_time_t, &tm_utc);
+    std::tm tmUTC;
+    gmtime_r(&nowTime, &tmUTC);
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % MS_PER_S;
 
     std::stringstream ss;
-    ss << std::put_time(&tm_utc, "%Y%m%d%H%M%S") << std::setfill('0') << std::setw(MS_WIDTH) << ms.count();
+    ss << std::put_time(&tmUTC, "%Y%m%d%H%M%S") << std::setfill('0') << std::setw(MS_WIDTH) << ms.count();
     return ss.str();
 }
 
-inline std::string GenDumpFileName(aclrtExceptionInfo *args, const char *op)
+inline std::string GenDumpFileName(aclrtExceptionInfo* args, const char* op)
 {
     std::stringstream ss;
 
@@ -73,16 +74,17 @@ inline bool IsStrEmpty(std::string str)
     return (str.empty() || std::all_of(str.begin(), str.end(), [](unsigned char c) { return std::isspace(c); }));
 }
 
-inline int DumpToFile(std::string dir, std::string name, uint32_t id, void *buf)
+inline bool DumpToFile(std::string dir, aclrtExceptionInfo* args, const char* op, uint32_t id, void* buf)
 {
+    std::string fileName = GenDumpFileName(args, op);
     // check if dir and buf valid
-    if (IsStrEmpty(dir) || IsStrEmpty(name)) {
+    if (IsStrEmpty(dir) || IsStrEmpty(fileName)) {
         OP_LOGE(OP_NAME, "Dump path or buf is null.");
-        return -1;
+        return false;
     }
 
     std::string rankPath = dir + "/" + std::to_string(id) + "/";
-    std::string path = rankPath + name;
+    std::string path = rankPath + fileName;
     OP_LOGE(OP_NAME, "Start to dump file. The dump path is %s", path);
 
     // Open file
@@ -90,7 +92,7 @@ inline int DumpToFile(std::string dir, std::string name, uint32_t id, void *buf)
     if (fd < 0) {
         int openErrno = errno;
         OP_LOGE(OP_NAME, "Failed to open a dump file. errno=%d(%s)", openErrno, strerror(openErrno));
-        return -1;
+        return false;
     }
 
     // Write to file
@@ -99,48 +101,49 @@ inline int DumpToFile(std::string dir, std::string name, uint32_t id, void *buf)
         int writeErrno = errno;
         OP_LOGE(OP_NAME, "Failed to write a dump file. errno=%d(%s)", writeErrno, strerror(writeErrno));
         close(fd);
-        return -1;
+        return false;
     }
 
     // Close file
     close(fd);
-    OP_LOGE(OP_NAME, "Dump to file %s done.", path.c_str());
-    return 0;
+    // The ERROR log is used to indecate where the exception occurred and the file will be dumped.
+    OP_LOGE(OP_NAME, "An exception occurred in Op %s. The wininfo is dumped to %s.", op, path.c_str());
+    return true;
 }
 
-inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
+inline bool ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
 {
     // Get hccl context from its addr
     std::vector<uint8_t> hcclArgs(sizeof(HcclOpParam), 0);
-    auto ret = aclrtMemcpy(hcclArgs.data(), sizeof(HcclOpParam), (void *)argsAddr, sizeof(HcclOpParam),
+    auto ret = aclrtMemcpy(hcclArgs.data(), sizeof(HcclOpParam), (void*)argsAddr, sizeof(HcclOpParam),
                            ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy HcclOpParam from device to host failed. ret = %d", ret);
-        return -1;
+        return false;
     }
-    HcclOpParam* winContext = reinterpret_cast<HcclOpParam *>(hcclArgs.data());
-    if (!(winContext != nullptr)) {
+    HcclOpParam* winContext = reinterpret_cast<HcclOpParam*>(hcclArgs.data());
+    if (winContext == nullptr) {
         OP_LOGE(OP_NAME, "Cast to winContext failed. HcclOpParam is null.");
-        return -1;
+        return false;
     }
     OP_LOGD(OP_NAME, "Get winContext from args. rankId=%u, rankDim=%u", winContext->rankId, winContext->rankDim);
 
-    void* winAddr = reinterpret_cast<void *>(winContext->windowsIn[winContext->rankId]);
-    if (!(winAddr != nullptr)) {
+    void* winAddr = reinterpret_cast<void*>(winContext->windowsIn[winContext->rankId]);
+    if (winAddr == nullptr) {
         OP_LOGE(OP_NAME, "Get win addr failed.");
-        return -1;
+        return false;
     }
 
     // Get windowsIn of each rank from hccl context
     ret = aclrtMemcpy(winBuf.data(), WIN_SIZE, winAddr, WIN_SIZE, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy win from device to host failed. ret = %d", ret);
-        return -1;
+        return false;
     }
-    return 0;
+    return true;
 }
 
-inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const char *op)
+inline void Mc2ExceptionImpl(aclrtExceptionInfo* args, void* userdata, const char* op)
 {
     const char* socName = aclrtGetSocName();
     if(std::strstr(socName, "Ascend950") == nullptr) {
@@ -153,36 +156,35 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
     void* devArgsPtr = nullptr;
     uint32_t devArgsLen = 0;
     auto ret = aclrtGetArgsFromExceptionInfo(args, &devArgsPtr, &devArgsLen);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtGetArgsFromExceptionInfo failed. ret=%d", ret);
         return;
     }
     uint32_t deviceId = aclrtGetDeviceIdFromExceptionInfo(args);
-    if (!(ret == ACL_SUCCESS)) {
-        OP_LOGE(OP_NAME, "aclrtGetDeviceIdFromExceptionInfo failed. ret=%d", ret);
+    if (deviceId == INVALID_ID) {
+        OP_LOGE(OP_NAME, "aclrtGetDeviceIdFromExceptionInfo failed. The device id is invalid.");
         return;
     }
-    OP_LOGD(OP_NAME, "Get context from args. deviceId=%u, devArgsAddr=%p, devArgsLen=%u", deviceId, devArgsPtr,
-            devArgsLen);
+    OP_LOGD(OP_NAME, "Get context from args. deviceId=%u, devArgsLen=%u", deviceId, devArgsLen);
 
     uint64_t argsAddr = 0;
     ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
+    if (ret != ACL_SUCCESS) {
         OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
         return;
     }
 
     // Get win content
     std::vector<uint8_t> winContent(WIN_SIZE, 0);
-    if (ProcessArgs(argsAddr, winContent) != 0) {
+    if (!(ProcessArgs(argsAddr, winContent))) {
         OP_LOGE(OP_NAME, "Failed to get win content.");
         return;
     }
 
     // Write to bin file
-    if (DumpToFile(std::string(acldumpGetPath(acldumpType::AIC_ERR_BRIEF_DUMP)), GenDumpFileName(args, op), deviceId,
-                   winContent.data()) != 0) {
-        OP_LOGE(OP_NAME, "Failed to get win content.");
+    if (!(DumpToFile(std::string(acldumpGetPath(acldumpType::AIC_ERR_BRIEF_DUMP)), 
+        args, op, deviceId, winContent.data()))) {
+        OP_LOGE(OP_NAME, "Failed to dump win content to a file.");
     }
 }
 } // namespace Mc2Exception
