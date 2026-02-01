@@ -213,7 +213,7 @@ static ge::graphStatus AlltoAllMatmulExecuteFunc(gert::OpExecuteContext* host_ap
     const auto output = host_api_ctx->GetOutputTensor(INDEX_OUT);
     OPS_CHECK(output == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "output is null"), return ge::GRAPH_FAILED);
 
-    const auto alltoAllOut = host_api_ctx->GetOutputTensor(INDEX_OUT_ALL2ALL_OUT)
+    const auto alltoAllOut = host_api_ctx->GetOutputTensor(INDEX_OUT_ALL2ALL_OUT);
     if (attr_para.alltoAllOutFlag) {
         OPS_CHECK(alltoAllOut == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "alltoAllOut is null"), return ge::GRAPH_FAILED);
     }
