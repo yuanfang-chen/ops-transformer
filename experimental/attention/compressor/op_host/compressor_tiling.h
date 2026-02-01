@@ -104,12 +104,13 @@ struct OptionalParaInfo {
 
 enum class LayoutType {
     LAYOUT_BSH,
-    LAYOUT_TH    
+    LAYOUT_TH
 };
 
-enum class EMPTY_TENSOR_MODE:uint8_t {
-    NON_EMPTY = 0,
-    EMPTY_X = 1
+enum class TemplateId:uint8_t {
+    NORMAL = 0,
+    EMPTY_X = 1,
+    PERF = 2
 };
 
 CMP_EXTERN_C ge::graphStatus TilingCompressor(gert::TilingContext *context);
@@ -169,7 +170,7 @@ struct CompressorContext {
     const int *cmpRatio;
     const float *normEps;
     const int *rotaryMode;
-    EMPTY_TENSOR_MODE emptyTensorMode;
+    TemplateId templateId;
 
     ge::DataType dtype = ge::DT_BF16; 
     LayoutType layout = LayoutType::LAYOUT_BSH; 
@@ -196,6 +197,7 @@ private:
     ge::graphStatus SetPageAttentionInfo();
     ge::graphStatus SetWorkSpaceInfo();
     ge::graphStatus SetScenarioInfo();
+    ge::graphStatus SetTemplateId();
     ge::graphStatus SetInnerSplitInfo();
     ge::graphStatus CalcWorkSpace();
     ge::graphStatus CheckSinglePara() const;
@@ -260,6 +262,7 @@ private:
     uint32_t aivNum_ = 0;
     platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
     size_t libapiSize_ = 0;
+    platform_ascendc::SocVersion socVersion_;
     size_t workspaceSize_ = 0;
     uint8_t coff = 1;
 

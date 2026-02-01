@@ -209,6 +209,7 @@ ge::graphStatus CompressorTiling::GetNpuInfo()
     socVersion_ = ascendcPlatform.GetSocVersion();
 
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
+    socVersion_ = ascendcPlatform.GetSocVersion();
 
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size_);
@@ -270,7 +271,11 @@ ge::graphStatus CompressorTiling::SetWorkSpaceInfo()
         workspaceParams_->preMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;      // 2 wkv和score合一起
     }
     workspaceParams_->curMm1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * 2;          // 2 wkv和score合一起
-    workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize / baseParams_->cmpRatio * innerSplitParams_->dBaseSize * baseParams_->nSize;
+    if (context_->templateId == TemplateId::PERF) {
+        workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize * innerSplitParams_->dBaseSize * baseParams_->nSize;
+    } else {
+        workspaceParams_->vec1ResSize = innerSplitParams_->mBaseSize / baseParams_->cmpRatio * innerSplitParams_->dBaseSize * baseParams_->nSize;
+    }
 
     return ge::GRAPH_SUCCESS;
 }
@@ -280,10 +285,37 @@ ge::graphStatus CompressorTiling::SetScenarioInfo()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus CompressorTiling::SetTemplateId()
+{
+    if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (context_->seqUsed.desc != nullptr || context_->seqUsed.shape != nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
+    if (context_->layout == LayoutType::LAYOUT_BSH) {
+        return ge::GRAPH_SUCCESS;
+    }
+    // 设置高性能模板
+    context_->templateId = TemplateId::PERF;
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus CompressorTiling::SetInnerSplitInfo()
 {
     innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
     innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
+    if (context_->templateId == TemplateId::PERF) {
+        if (coff == 2) {
+            innerSplitParams_->mBaseSize = 128;
+        } else {
+            innerSplitParams_->mBaseSize = 256;
+        }
+        innerSplitParams_->dBaseSize = 64;
+    } else {
+        innerSplitParams_->mBaseSize = 256; // 256:核间切分，M轴基本块大小
+        innerSplitParams_->dBaseSize = 128 / coff; // 128：核间切分，D轴基本块大小
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -309,7 +341,7 @@ ge::graphStatus CompressorTiling::CheckEmptyTensor() const
 {
     if (context_->layout == LayoutType::LAYOUT_BSH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) == 0 ||
         context_->layout == LayoutType::LAYOUT_TH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0) {
-        context_->emptyTensorMode = EMPTY_TENSOR_MODE::EMPTY_X;
+        context_->templateId = TemplateId::EMPTY_X;
     } else {
         if (context_->x.shape->GetStorageShape().GetShapeSize() == 0 ||
             context_->wkv.shape->GetStorageShape().GetShapeSize() == 0 ||
@@ -324,7 +356,7 @@ ge::graphStatus CompressorTiling::CheckEmptyTensor() const
             context_->scoreBlockTable.shape->GetStorageShape().GetShapeSize() == 0) {
             return ge::GRAPH_FAILED;
         }
-        context_->emptyTensorMode = EMPTY_TENSOR_MODE::NON_EMPTY;
+        context_->templateId = TemplateId::NORMAL;
         OP_LOGI(context_->opName, "Only input tensor x supports empty state");
     }
     return ge::GRAPH_SUCCESS;
@@ -346,6 +378,7 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
         std::bind(&CompressorTiling::SetPageAttentionInfo, this),
         std::bind(&CompressorTiling::CheckFeature, this),
         std::bind(&CompressorTiling::CheckMultiParaConsistency, this),
+        std::bind(&CompressorTiling::SetTemplateId, this),
         std::bind(&CompressorTiling::SetInnerSplitInfo, this),
         std::bind(&CompressorTiling::SetWorkSpaceInfo, this),
         std::bind(&CompressorTiling::SetScenarioInfo, this)
@@ -354,7 +387,7 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
         if (func() != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        if (context_->emptyTensorMode == EMPTY_TENSOR_MODE::EMPTY_X) {
+        if (context_->templateId == TemplateId::EMPTY_X) {
             GenTilingKey();
             context_->blockDim = 1U;
             return ge::GRAPH_SUCCESS;
@@ -387,7 +420,7 @@ ge::graphStatus CompressorTiling::GenTilingKey() const
     // 0: BSH 1:TH
     uint8_t layout = 0;
     uint8_t rotaryMode = static_cast<uint8_t>(*context_->rotaryMode);
-    uint8_t emptyTensorMode = static_cast<uint8_t>(context_->emptyTensorMode);
+    uint8_t templateId = static_cast<uint8_t>(context_->templateId);
     
     auto xDtype = context_->x.desc->GetDataType();
     if (xDtype == ge::DT_BF16) {
@@ -407,10 +440,10 @@ ge::graphStatus CompressorTiling::GenTilingKey() const
         dtype,
         coff,
         rotaryMode,
-        emptyTensorMode
+        templateId
     );
 
-    OP_LOGI(context_->opName, "Compressor dtype:%hhu layout:%hhu  coff:%hhu rotary_mode:%hhu, empty_tensor_mode:%hhu", dtype, layout, coff, rotaryMode, emptyTensorMode);
+    OP_LOGI(context_->opName, "Compressor dtype:%hhu layout:%hhu  coff:%hhu rotary_mode:%hhu, template_id:%hhu", dtype, layout, coff, rotaryMode, templateId);
     OP_LOGI(context_->opName, "Compressor tilingKey:%lu", context_->tilingKey);
 
     return ge::GRAPH_SUCCESS;
