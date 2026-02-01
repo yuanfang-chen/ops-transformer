@@ -20,6 +20,7 @@
 namespace Mc2Kernel {
 constexpr uint32_t STATE_SIZE = 1024 * 1024; // 1M
 constexpr uint64_t TIMEOUT_OFFSET = 1000UL * 1024UL;
+constexpr uint32_t FIRST_CORE = 0U;
 
 // distributev2base所需常量段
 constexpr uint64_t OP_CNT_POSUL = 3UL;

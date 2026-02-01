@@ -144,10 +144,10 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantDynamicPerToken(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerToken(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal,
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
-        float dynamicScale = 0.0;
+        float dynamicScaleInv = 0.0;
         float maxVal = INT8_MAX_VALUE; // 获取输出类型的最大值（AscendC未提供相关接口）
         #if defined(__DAV_C310__)
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
@@ -170,20 +170,20 @@ public:
         PipeBarrier<PIPE_V>();
         ReduceMaxInplace(floatLocalAbsTemp, axisH_); // 获取最大值
         SyncFunc<AscendC::HardEvent::V_S>();
-        dynamicScale = maxVal / floatLocalAbsTemp.GetValue(0);
-        Muls(floatLocalTemp_, floatLocalTemp_, dynamicScale, axisH_);
+        dynamicScaleInv = maxVal / floatLocalAbsTemp.GetValue(0);
+        Muls(floatLocalTemp_, floatLocalTemp_, dynamicScaleInv, axisH_);
         PipeBarrier<PIPE_V>();
         if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
+            LocalTensor<int16_t> int16LocalTemp = floatLocalTemp_.ReinterpretCast<int16_t>();
+            Cast(int16LocalTemp, floatLocalTemp_, RoundMode::CAST_RINT, axisH_);
+            PipeBarrier<PIPE_V>();
+
             LocalTensor<half> halfLocalTemp = floatLocalTemp_.ReinterpretCast<half>();
-            LocalTensor<int32_t> int32LocalTemp = floatLocalTemp_.ReinterpretCast<int32_t>();
-            Cast(int32LocalTemp, floatLocalTemp_, RoundMode::CAST_RINT, axisH_);
+            Cast(halfLocalTemp, int16LocalTemp, RoundMode::CAST_NONE, axisH_);
             PipeBarrier<PIPE_V>();
-            SetDeqScale((half)1.000000e+00f);
-            PipeBarrier<PIPE_V>();
-            Cast(halfLocalTemp, int32LocalTemp, RoundMode::CAST_ROUND, axisH_);
-            PipeBarrier<PIPE_V>();
-            Cast(outLocal, halfLocalTemp, RoundMode::CAST_TRUNC, axisH_);
-        } 
+
+            Cast(outLocal, halfLocalTemp, RoundMode::CAST_NONE, axisH_);
+        }
         #if defined(__DAV_C310__)
         else if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value || 
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value){
@@ -191,7 +191,7 @@ public:
         }
         #endif
         LocalTensor<float> tokenF32Tmp = outLocal.template ReinterpretCast<float>();
-        tokenF32Tmp.SetValue((Ceil(axisH_, UB_ALIGN) * UB_ALIGN) / sizeof(float), float(1.0) / dynamicScale); // int8->float32
+        tokenF32Tmp.SetValue((Ceil(axisH_, UB_ALIGN) * UB_ALIGN) / sizeof(float), float(1.0) / dynamicScaleInv);
         SyncFunc<AscendC::HardEvent::S_MTE3>();
     }
 

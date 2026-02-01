@@ -52,12 +52,12 @@ constexpr uint32_t PERGROUP_DYNAMIC_QUANT = 3;
 constexpr uint32_t MX_QUANT = 4;
 
 
-#define TemplateMC2TypeClass \
+#define DISPATCH_A5_TEMPLATE_PARAMS \
     typename XType, typename ExpandXOutType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather
-#define TemplateMC2TypeFunc XType, ExpandXOutType, QuantMode, IsSmoothScaleExist, IsNeedAllgather
+#define DISPATCH_A5_TEMPLATE_ARGS XType, ExpandXOutType, QuantMode, IsSmoothScaleExist, IsNeedAllgather
 
 using namespace AscendC;
-template <TemplateMC2TypeClass>
+template <DISPATCH_A5_TEMPLATE_PARAMS>
 class MoeDistributeDispatchA5 {
 public:
     __aicore__ inline MoeDistributeDispatchA5(){};
@@ -203,9 +203,9 @@ private:
     uint32_t rankNumPerSharedExpert_{0};
 };
 
-template <TemplateMC2TypeClass>
+template <DISPATCH_A5_TEMPLATE_PARAMS>
 __aicore__ inline void
-MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitGlobalAttrs(const MoeDistributeDispatchV2TilingData *tilingData)
+MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::InitGlobalAttrs(const MoeDistributeDispatchV2TilingData *tilingData)
 {
     axisBS_ = tilingData->moeDistributeDispatchV2Info.bs;
     axisH_ = tilingData->moeDistributeDispatchV2Info.h;
@@ -248,8 +248,8 @@ MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitGlobalAttrs(const MoeDistribut
     activeBsKNum_ = bskNum_;
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitBuf()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::InitBuf()
 {
     TBuf<> workspaceBuf;
     uint32_t idsB32Size = bskNum_ * sizeof(int32_t);
@@ -287,8 +287,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitBuf()
     pipe_->InitBuffer(sumOutBuf_, idsB16Size);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitCommAndStatus(GM_ADDR workspaceGM,
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::InitCommAndStatus(GM_ADDR workspaceGM,
                                                                                        const MoeDistributeDispatchV2TilingData *tilingData)
 {
     __gm__ HcclCombineOpParam* context = (__gm__ HcclCombineOpParam*)(GetHcclContext<0>());
@@ -319,8 +319,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::InitCommAnd
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(statusGT);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantInit()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::QuantInit()
 {
     if constexpr ((QuantMode == UNQUANT) && IsSmoothScaleExist) {
         perTokenMergeSize_ += scaleInBytes_;
@@ -363,8 +363,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantInit()
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::Init(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::Init(
     GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut,
     GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut,
     GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
@@ -402,8 +402,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::Init(
     InitCommAndStatus(workspaceGM, tilingData);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantStatic(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::QuantStatic(
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
     Cast(tokenF32LT_, inLocal, RoundMode::CAST_NONE, axisH_);
@@ -440,8 +440,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantStatic
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynamicPerToken(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::QuantDynamicPerToken(
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
     float dynamicScale = 0.0;
@@ -486,8 +486,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynami
     SyncFunc<AscendC::HardEvent::S_MTE3>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynamicPerTile(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::QuantDynamicPerTile(
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
     if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
@@ -509,8 +509,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynami
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynamicMxFp8(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::QuantDynamicMxFp8(
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal)
 {
     if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
@@ -529,8 +529,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantDynami
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantProcess(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::QuantProcess(
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
     if constexpr (QuantMode == STATIC_QUANT) {
@@ -544,8 +544,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::QuantProces
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::CalcTokenActiveMask()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::CalcTokenActiveMask()
 {
     LocalTensor<half> maskHalfTensor;
     LocalTensor<half> sumOutTensor;
@@ -573,8 +573,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::CalcTokenAc
     sortRepeat_ = Ceil<uint32_t, uint32_t>(activeBsKNum_, ONE_REPEAT_SORT_NUM);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline uint32_t MoeDistributeDispatchA5<TemplateMC2TypeFunc>::CalcToSharedRankId(uint32_t sendCnt)
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline uint32_t MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::CalcToSharedRankId(uint32_t sendCnt)
 {
     uint32_t toSharedExpertIdx = sendCnt / activeBs_;
     uint32_t sharedExpertRankIdInGroup = epRankId_ % rankNumPerSharedExpert_;
@@ -582,8 +582,8 @@ __aicore__ inline uint32_t MoeDistributeDispatchA5<TemplateMC2TypeFunc>::CalcToS
     return toSharedRankId;
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ShareScatterCopyTokens()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::ShareScatterCopyTokens()
 {
     uint32_t startTokenId = 0;
     uint32_t endTokenId = 0;
@@ -608,8 +608,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ShareScatte
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::SetShareExpertSendSize()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::SetShareExpertSendSize()
 {
     uint32_t startRank = 0;
     uint32_t endRank = 0;
@@ -663,8 +663,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::SetShareExp
     DataCopyPad(sendCntGT, cntLT, cntParams);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ShareScatter()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::ShareScatter()
 {
     if ((sharedExpertRankNum_ == 0) || (aivId_ >= aivNum_)) {
         return;
@@ -674,8 +674,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ShareScatte
     SetShareExpertSendSize();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ProcessToken(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::ProcessToken(
             GlobalTensor<ExpandXOutType>& outTokenGT, uint32_t tokenIndex, DataCopyParams& tokenInParams,
             DataCopyPadParams& padParams, DataCopyParams& tokenOutParams, DataCopyParams& scaleInParams,
             uint32_t expertIndex)
@@ -713,8 +713,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::ProcessToke
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::MoeScatterCopyTokens()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::MoeScatterCopyTokens()
 {
     uint32_t startTokenId, endTokenId, sendTokenNum;
     SplitToCore(activeBsKNum_, moeUsedAivNum_, startTokenId, endTokenId, sendTokenNum);
@@ -749,8 +749,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::MoeScatterC
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::MoeScatter()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::MoeScatter()
 {
     MoeScatterCopyTokens();
     uint32_t startRank, endRank, rankPerAiv;
@@ -808,8 +808,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::MoeScatter(
     DataCopyPad(sendCntGT, cntLT, cntParams);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenScatter()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::TokenScatter()
 {
     if (activeBs_ != 0) {
         DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(activeBsKNum_ * sizeof(int32_t)), 0U, 0U, 0U};
@@ -842,8 +842,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenScatte
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::SaveExpandIdx()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::SaveExpandIdx()
 {
     TBuf<> workspaceBuf;
     pipe_->InitBuffer(workspaceBuf, sortNum_ * sizeof(uint32_t));
@@ -890,8 +890,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::SaveExpandI
     DataCopyPad(expandIdxGT_[startCnt], idxLT, params);
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenGatherInit(uint32_t localExpertNum)
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::TokenGatherInit(uint32_t localExpertNum)
 {
     TBuf<> recvCntBuf;
     uint32_t alignSize = Align32<uint32_t>(epWorldSize_ * sizeof(int32_t));
@@ -903,8 +903,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenGather
     moeExpertTokenNumsLT_ = tempBuf_.Get<int32_t>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::Communication()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::Communication()
 {
     SyncAll<true>();
     if (aivId_ == 0) {
@@ -937,8 +937,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::Communicati
     SyncAll<true>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::UpdateShareRankOutput()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::UpdateShareRankOutput()
 {
     uint32_t startRank = 0;
     uint32_t rankCnt = 0;
@@ -969,8 +969,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::UpdateShare
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::CopyScalesToOut(uint32_t currentTokenIndex,
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::CopyScalesToOut(uint32_t currentTokenIndex,
     LocalTensor<ExpandXOutType> &quantTok, int32_t expertIndex)
 {
     DataCopyParams scaleOutParams = {1U, static_cast<uint16_t>(scaleOutBytes_), 0U, 0U};
@@ -986,8 +986,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::CopyScalesT
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::MoeGatherPrepare(uint32_t localExpertNum,
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::MoeGatherPrepare(uint32_t localExpertNum,
                                                                                       uint32_t endRankIdx)
 {
     uint32_t alignSize = Align32<uint32_t>(epWorldSize_ * sizeof(int32_t));
@@ -1016,8 +1016,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::MoeGatherPr
     SyncFunc<HardEvent::V_S>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::SplitToCore(uint32_t curSendCnt,
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::SplitToCore(uint32_t curSendCnt,
                                                                                  uint32_t curUseAivNum,
                                                                                  uint32_t& startTokenId,
                                                                                  uint32_t& endTokenId,
@@ -1041,8 +1041,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::SplitToCore
     endTokenId = startTokenId + sendTokenNum;
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::UpdateMoeRankOutput(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::UpdateMoeRankOutput(
     int32_t expertIndex, uint32_t startRank, uint32_t rankPerAiv, uint32_t expertOffset, uint32_t expertTokenNum)
 {
     SyncFunc<HardEvent::S_MTE3>();
@@ -1059,8 +1059,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::UpdateMoeRa
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenGatherProcess(
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::TokenGatherProcess(
     int32_t sharedExpertRankNum, int32_t localExpertNum)
 {
     // Same as Moe gather
@@ -1118,8 +1118,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenGather
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenGather()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::TokenGather()
 {
     pipe_->InitBuffer(tokenGatherQue_, BUFFER_NUM, perTokenCommSize_);
     if (isShareExpertRank_) {
@@ -1131,8 +1131,8 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::TokenGather
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchA5<TemplateMC2TypeFunc>::Process()
+template <DISPATCH_A5_TEMPLATE_PARAMS>
+__aicore__ inline void MoeDistributeDispatchA5<DISPATCH_A5_TEMPLATE_ARGS>::Process()
 {
     if ASCEND_IS_AIV {
         if (isTokenMaskFlag_) {
