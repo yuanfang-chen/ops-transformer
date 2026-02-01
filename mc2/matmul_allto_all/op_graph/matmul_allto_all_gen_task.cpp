@@ -48,7 +48,7 @@ static ge::Status MatmulAlltoAllGenTaskFunc(const gert::ExeResGenerationContext 
     return MatmulAlltoAllGenTaskCallback(context, tasks);
 }
 
-IMPL_OP(QuantAllReduce).CalcOpParam(MatmulAlltoAllCalcOpParamFunc).GenerateTask(MatmulAlltoAllGenTaskFunc);
+IMPL_OP(MatmulAlltoAll).CalcOpParam(MatmulAlltoAllCalcOpParamFunc).GenerateTask(MatmulAlltoAllGenTaskFunc);
  	 
 #endif
 }
