@@ -714,7 +714,7 @@ QuantMode MatmulAlltoAllTilingUtil::GetQuantMode(const gert::TilingContext *cont
     if (x1QuantMode == X1_QUANTMODE_VALUE && x2QuantMode == X2_QUANTMODE_VALUE) {
         return QuantMode::KC_QUANT;
     } else {
-        OP_LOGE(opName,
+        OP_LOGD(opName,
                 "Quantization mode error, KC quantization X1 should be three, X2 should be two."
                 "currently X1=%d, X2=%d.",
                 x1QuantMode, x2QuantMode);
