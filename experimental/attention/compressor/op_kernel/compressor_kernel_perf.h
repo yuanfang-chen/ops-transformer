@@ -354,7 +354,7 @@ __aicore__ inline BasicBlockInfo CompressorKernelPerf<COMP>::SkipOneBasicBlock(
     CmpBlockInfo &rightCmpBlockInfo, CmpBlockInfo &leftCmpBlockInfo)
 {
     BasicBlockInfo basicBlockInfo{};
-    if (COMP::coff == COFF::OVERLAP) {
+    if constexpr (COMP::coff == COFF::OVERLAP) {
         uint32_t leftFinishSeqCnt = 0;
         uint32_t rightFinishSeqCnt = 0;
         for (;;) {

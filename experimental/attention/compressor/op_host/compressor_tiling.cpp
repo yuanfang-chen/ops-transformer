@@ -207,6 +207,7 @@ ge::graphStatus CompressorTiling::GetNpuInfo()
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->platformInfo);
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
+    socVersion_ = ascendcPlatform.GetSocVersion();
 
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size_);
@@ -284,6 +285,9 @@ ge::graphStatus CompressorTiling::SetScenarioInfo()
 
 ge::graphStatus CompressorTiling::SetTemplateId()
 {
+    if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
+        return ge::GRAPH_SUCCESS;
+    }
     if (context_->seqUsed.desc != nullptr || context_->seqUsed.shape != nullptr) {
         return ge::GRAPH_SUCCESS;
     }

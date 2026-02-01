@@ -727,7 +727,7 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::SaveState(const LocalTensor<T> kvLocal, const LocalTensor<T> scoreLocal,
     const Vec1SliceInfo &sliceInfo, uint32_t dStartIdx, uint32_t dDealSize)
 {
-    if (COMP::coff == COFF::OVERLAP) {
+    if constexpr (COMP::coff == COFF::OVERLAP) {
         uint32_t coff = static_cast<uint32_t>(COMP::coff);
         // 存右边
         if (sliceInfo.sIdx + sliceInfo.validSeqCnt == sliceInfo.bSeqUsed) {
@@ -825,7 +825,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::ReadState(const LocalTen
         return;
     }
 
-    if (COMP::coff == Compressor::COFF::OVERLAP) {
+    if constexpr (COMP::coff == Compressor::COFF::OVERLAP) {
         float SOFTMAX_MIN_NUM = (float)(-1.0/0.0);
         // 填充右边
         if (sliceInfo.headHolderSeqCnt > 0) {
