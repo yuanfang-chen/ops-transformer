@@ -89,9 +89,10 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::SetKcDataTypeInfo(const gert::T
         biasType = context->GetOptionalInputDesc(INPUT_BIAS_INDEX)->GetDataType();
     }
 
-    OP_TILING_CHECK(aDTypeNum != FP8_E5M2_VALUES && aDTypeNum != FP8_E4M3_VALUES,
-    OP_LOGE(opName, "aDTypeNum %d is invalid, only 35(fp8e5m2) or 36(fp8e4m3) is supported.", aDTypeNum),
-    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        aDTypeNum != FP8_E5M2_VALUES && aDTypeNum != FP8_E4M3_VALUES,
+        OP_LOGE(opName, "aDTypeNum %d is invalid, only 35(fp8e5m2) or 36(fp8e4m3) is supported.", aDTypeNum),
+        return ge::GRAPH_FAILED);
     contextInfo.x1KcDynQuantDTypeVal = aDTypeNum;
 
     contextInfo.args_.outputDtypeSize = mc2tiling::GetDataTypeSize(opName, cType);
@@ -469,7 +470,7 @@ void AllToAllKcQuantMatmulTilingBase::SetTilingInfo(AlltoAllMatmulTilingInfo &ti
     tilingInfo.hcclDataType =
         (static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.hcclGeType))); // hccl数据类型
     tilingInfo.x1QuantDtype = contextInfo.x1KcDynQuantDTypeVal;
-    tilingInfo.dynamicExtraSpace = 0UL;  
+    tilingInfo.dynamicExtraSpace = 0UL;
 }
 
 /**
@@ -484,9 +485,12 @@ uint64_t AllToAllKcQuantMatmulTilingBase::GetTilingKey() const
     // 按照量化组合模式，是否转置，bias数据类型进行展开
     bool x2TransposeFlag = contextInfo.args_.isBTrans ? true : false;
     uint32_t biasDType = DTYPE_BIAS_FP32;
-    const uint64_t tilingKey = GET_TPL_TILING_KEY(KC_QUANT_MODE, x2TransposeFlag, biasDType);
-    OP_LOGD(opName_, "KCQUANTMODE,X2TRANSPOSE,DTYPEBIAS: [%d,%d,%d], TilingKey is [%lu].", KC_QUANT_MODE,
-            x2TransposeFlag, biasDType, tilingKey);
+    uint32_t x1QuantDtype = static_cast<int>(contextInfo.args_.geAType);
+    // 35代表float8_e5m2,36代表float8e4m3
+    uint32_t QUANT_MODE = (x1QuantDtype == 35) ? KC_QUANT_FP8E5M2_MODE : KC_QUANT_FP8E4M3_MODE;
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(QUANT_MODE, x2TransposeFlag, biasDType);
+    OP_LOGD(opName_, "QUANTMODE,X2TRANSPOSE,DTYPEBIAS: [%d,%d,%d], TilingKey is [%lu].", QUANT_MODE, x2TransposeFlag,
+            biasDType, tilingKey);
     return tilingKey;
 }
 
@@ -498,11 +502,10 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::GetWorkspaceSize()
     uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen +
                              inferredInfo.biasLen + +inferredInfo.x1ScaleOptionalLen + inferredInfo.quantOutLen;
     workspaces[0] = workspaceSize;
-    OP_LOGD(
-        opName_,
-        "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu, biasLen=%zu, x1ScaleOptionalLen=%zu, quantOutLen=%zu",
-        workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen, inferredInfo.biasLen,
-        inferredInfo.x1ScaleOptionalLen, inferredInfo.quantOutLen);
+    OP_LOGD(opName_,
+            "Workspaces[0] size=%zu, commlen=%zu, permuteLen=%zu, biasLen=%zu, x1ScaleOptionalLen=%zu, quantOutLen=%zu",
+            workspaces[0], inferredInfo.commLen, inferredInfo.permuteLen, inferredInfo.biasLen,
+            inferredInfo.x1ScaleOptionalLen, inferredInfo.quantOutLen);
     return ge::GRAPH_SUCCESS;
 }
 
