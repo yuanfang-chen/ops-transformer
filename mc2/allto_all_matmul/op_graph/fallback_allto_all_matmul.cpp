@@ -179,9 +179,12 @@ inline ge::graphStatus GetAttrPara(const gert::OpExecuteContext* host_api_ctx, A
 inline ge::graphStatus GetQuantMatmulPara(const gert::OpExecuteContext* host_api_ctx, QuantMatmulParas& para)
 {
     const auto x1_scale = host_api_ctx->GetOptionalInputTensor(INDEX_IN_X1_SCALE);
-    OPS_CHECK(x1_scale == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1scale is null"), return ge::GRAPH_FAILED);
-    para.x1_scale_acl = ConvertMmType(x1_scale, false);
-    OPS_CHECK(para.x1_scale_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1_scale_acl is null"), return ge::GRAPH_FAILED);
+    if (x1_scale != nullptr) {
+        para.x1_scale_acl = ConvertMmType(x1_scale, false);
+        OPS_CHECK(
+            para.x1_scale_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1_scale_acl is null"),
+            return ge::GRAPH_FAILED);
+    }
 
     const auto x2_scale = host_api_ctx->GetOptionalInputTensor(INDEX_IN_X2_SCALE);
     OPS_CHECK(x2_scale == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2scale is null"), return ge::GRAPH_FAILED);
