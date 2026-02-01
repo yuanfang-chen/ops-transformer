@@ -88,7 +88,7 @@ static ge::graphStatus CheckRankDim(gert::InferShapeContext* context, AlltoAllMa
     const auto attrs = context->GetAttrs();
     const int* rankDim = attrs->GetAttrPointer<int>(INDEX_ATTR_WORLD_SIZE);
     OPS_CHECK(rankDim == nullptr,
-        CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in matmul allto all.", *rankDim),
+        CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in allto all matmul.", *rankDim),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(SUPPORT_RANK_NUM.find(*rankDim) == SUPPORT_RANK_NUM.end(),
                     OP_LOGE(INNER_DEBUG, "Rank number should be 2 or 4 or 8 or 16, but the actual value is %ld.", *rankDim),
@@ -142,7 +142,7 @@ static ge::graphStatus InferShapeAlltoAllMatmul(gert::InferShapeContext* context
         uint64_t out_second_dim = shape.n;
         shape_out->SetDim(0U, out_first_dim);
         shape_out->SetDim(1U, out_second_dim);
-        OP_LOGI(INNER_DEBUG, "Matmul allto all output shape after infer shape, m: %ld n: %ld.", out_first_dim, out_second_dim);
+        OP_LOGI(INNER_DEBUG, "allto all matmul output shape after infer shape, m: %ld n: %ld.", out_first_dim, out_second_dim);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -155,23 +155,23 @@ static ge::graphStatus InferShapeAlltoAllMatmul(gert::InferShapeContext* context
 static ge::graphStatus InferDataTypeAlltoAllMatmul(gert::InferDataTypeContext* context)
 {
     OPS_CHECK(context == nullptr, OP_LOGE(INNER_DEBUG, "Context is null."), return ge::GRAPH_FAILED);
-    OP_LOGD(INNER_DEBUG, "Start to infer datatype of matmul allto all.");
+    OP_LOGD(INNER_DEBUG, "Start to infer datatype of allto all matmul.");
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const int* x1_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X1_QUANT_MODE);
     const int* x2_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X2_QUANT_MODE);
-    const int64_t* y_dtype_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
+    const int64_t* y_dtypes_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
     auto y_type = ge::DataType::DT_UNDEFINED;
     ge::DataType x1_type = context->GetInputDataType(INDEX_IN_X1);
     if (*x1_quant_mode == 0 && *x2_quant_mode == 0) {
-        if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
-            y_type = static_cast<ge::DataType>(*y_dtype_ptr);
+        if ((y_dtypes_ptr != nullptr && *y_dtypes_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
+            y_type = static_cast<ge::DataType>(*y_dtypes_ptr);
         } else {
             return ge::GRAPH_FAILED;
         }
     } else if (*x1_quant_mode == X1_QUANT_NUM && *x2_quant_mode == X2_QUANT_NUM) {
-        if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
-            y_type = static_cast<ge::DataType>(*y_dtype_ptr);
+        if ((y_dtypes_ptr != nullptr && *y_dtypes_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
+            y_type = static_cast<ge::DataType>(*y_dtypes_ptr);
         } else {
             return ge::GRAPH_FAILED;
         }

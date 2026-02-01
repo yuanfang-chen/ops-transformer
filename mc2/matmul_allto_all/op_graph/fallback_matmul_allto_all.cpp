@@ -20,22 +20,22 @@ namespace fallback {
 
 constexpr size_t INDEX_IN_X1 = 0;
 constexpr size_t INDEX_IN_X2 = 1;
-constexpr size_t INDEX_IN_BIAS = 2;
 constexpr size_t INDEX_IN_X1_SCALE = 3;
 constexpr size_t INDEX_IN_X2_SCALE = 4;
+constexpr size_t INDEX_IN_BIAS = 2;
 constexpr size_t INDEX_IN_COMM_SCALE = 5;
 constexpr size_t INDEX_IN_X1_OFFSET = 6;
 constexpr size_t INDEX_IN_X2_OFFSET = 7;
 constexpr size_t INDEX_ATTR_GROUP = 0;
+constexpr size_t INDEX_ATTR_COMMON_QUANT_MODE = 6;
+constexpr size_t INDEX_ATTR_COMMON_QUANT_DTYPE = 7;
 constexpr size_t INDEX_ATTR_WORLD_SIZE = 1;
 constexpr size_t INDEX_ATTR_ALL2ALL_AXES = 2;
 constexpr size_t INDEX_ATTR_Y_DTYPE = 3;
 constexpr size_t INDEX_ATTR_X1_QUANT_MODE = 4;
 constexpr size_t INDEX_ATTR_X2_QUANT_MODE = 5;
-constexpr size_t INDEX_ATTR_COMMON_QUANT_MODE = 6;
-constexpr size_t INDEX_ATTR_COMMON_QUANT_DTYPE = 7;
-constexpr size_t INDEX_ATTR_TRANS_X1 = 8;
 constexpr size_t INDEX_ATTR_TRANS_X2 = 9;
+constexpr size_t INDEX_ATTR_TRANS_X1 = 8;
 constexpr size_t INDEX_ATTR_GROUP_SIZE = 10;
 constexpr size_t INDEX_OUT = 0;
 constexpr uint64_t X1_QUANT_MODE_NUM = 3;
@@ -72,17 +72,17 @@ struct QuantMatmulParas {
 };
 
 /**
- * @brief 获取公共Matmul输入参数
+ * @brief 获取公共Matmul中输入参数
  * @param host_api_ctx
  * @param para
  */
 inline ge::graphStatus GetCommonMatmulInputPara(const gert::OpExecuteContext* host_api_ctx, CommonMatmulParas& para)
 {
-    const auto x1 = host_api_ctx->GetInputTensor(INDEX_IN_X1);
-    OPS_CHECK(x1 == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1 is null"), return ge::GRAPH_FAILED);
-
     const auto x2 = host_api_ctx->GetInputTensor(INDEX_IN_X2);
     OPS_CHECK(x2 == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2 is null"), return ge::GRAPH_FAILED);
+
+    const auto x1 = host_api_ctx->GetInputTensor(INDEX_IN_X1);
+    OPS_CHECK(x1 == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1 is null"), return ge::GRAPH_FAILED);
 
     para.bias = host_api_ctx->GetOptionalInputTensor(INDEX_IN_BIAS);
 
@@ -104,9 +104,9 @@ static ge::graphStatus ParseRecvCounts(
     const gert::TypedContinuousVector<int64_t>* sendCounts,
     std::vector<int64_t>& actSendCountsSeqArray)
 {
-    const size_t sendLen = static_cast<size_t>(sendCounts->GetSize());
+    const size_t sendLens = static_cast<size_t>(sendCounts->GetSize());
     const int64_t* actSendSeqData = sendCounts->GetData();
-    for (size_t i = 0UL; i < sendLen; i++) {
+    for (size_t i = 0UL; i < sendLens; i++) {
         actSendCountsSeqArray.push_back(actSendSeqData[i]);
     }
     return ge::GRAPH_SUCCESS;
@@ -133,18 +133,18 @@ inline ge::graphStatus GetAttrPara(const gert::OpExecuteContext* host_api_ctx, A
             para.commScaleOptional == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "commScaleOptional is null"),
             return ge::GRAPH_FAILED);
     }
-    const auto x1OffsetOptional = host_api_ctx->GetOptionalInputTensor(INDEX_IN_X1_OFFSET);
-    if (x1OffsetOptional != nullptr) {
-        para.x1OffsetOptional = ConvertMmType(x1OffsetOptional, false);
-        OPS_CHECK(
-            para.x1OffsetOptional == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1OffsetOptional is null"),
-            return ge::GRAPH_FAILED);
-    }
     const auto x2OffsetOptional = host_api_ctx->GetOptionalInputTensor(INDEX_IN_X2_OFFSET);
     if (x2OffsetOptional != nullptr) {
         para.x2OffsetOptional = ConvertMmType(x2OffsetOptional, false);
         OPS_CHECK(
             para.x2OffsetOptional == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2OffsetOptional is null"),
+            return ge::GRAPH_FAILED);
+    }
+    const auto x1OffsetOptional = host_api_ctx->GetOptionalInputTensor(INDEX_IN_X1_OFFSET);
+    if (x1OffsetOptional != nullptr) {
+        para.x1OffsetOptional = ConvertMmType(x1OffsetOptional, false);
+        OPS_CHECK(
+            para.x1OffsetOptional == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1OffsetOptional is null"),
             return ge::GRAPH_FAILED);
     }
     const int64_t* comm_quant_mode_ptr = attrs->GetInt(INDEX_ATTR_COMMON_QUANT_MODE);
