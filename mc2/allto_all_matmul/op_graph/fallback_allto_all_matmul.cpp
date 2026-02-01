@@ -212,15 +212,12 @@ static ge::graphStatus AlltoAllMatmulExecuteFunc(gert::OpExecuteContext* host_ap
               OP_LOGE(host_api_ctx->GetNodeName(), "Failed to get attr paras."), return ge::GRAPH_FAILED);
     const auto output = host_api_ctx->GetOutputTensor(INDEX_OUT);
     OPS_CHECK(output == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "output is null"), return ge::GRAPH_FAILED);
-    
-    gert::Tensor* alltoAllOut = nullptr;
+
+    const auto alltoAllOut = host_api_ctx->GetOutputTensor(INDEX_OUT_ALL2ALL_OUT)
     if (attr_para.alltoAllOutFlag) {
-        alltoAllOut = const_cast<gert::Tensor*>(host_api_ctx->GetOutputTensor(INDEX_OUT_ALL2ALL_OUT));
         OPS_CHECK(alltoAllOut == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "alltoAllOut is null"), return ge::GRAPH_FAILED);
-    } else {
-        alltoAllOut = nullptr;
     }
-    
+
     const auto attrs = host_api_ctx->GetAttrs();
     OPS_CHECK(attrs == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "attrs is null"), return ge::GRAPH_FAILED);
     const int64_t* x1QuantMode_ptr = attrs->GetInt(INDEX_ATTR_X1_QUANT_MODE);
