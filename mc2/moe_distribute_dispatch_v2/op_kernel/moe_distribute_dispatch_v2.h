@@ -1184,11 +1184,13 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::GetCumSum(L
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::LocalWindowCopy()
 {
+    TBuf<> runPos;
+    tpipe_->InitBuffer(runPos, UB_ALIGN);
     DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
-    dataStateLocalTensor_ = gatherMaskOutBuf_.Get<uint32_t>();
+    dataStateLocalTensor_ = runPos.Get<uint32_t>();
     dataStateLocalTensor_.SetValue(0, FLAG_AFTER_WAIT);
     SyncFunc<AscendC::HardEvent::S_MTE3>();
-    DataCopyPad(selfDataStatusGMTensor_[1], dataStateLocalTensor_, dataStateParams);
+    DataCopyPad(selfDataStatusGMTensor_[1], dataStateLocalTensor_, dataStateParams);    // 维测打点
     LocalTensor<int32_t> outCountLocal;
     if (startExpertId_ >= rscvStatusNum_) { // 分核已与前面的waitDispatch里保持一致
         return;
