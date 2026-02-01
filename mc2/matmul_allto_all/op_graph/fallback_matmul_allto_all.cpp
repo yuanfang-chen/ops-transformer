@@ -113,16 +113,16 @@ static ge::graphStatus ParseRecvCounts(
 }
 
 /**
- * @brief 获取attr参数
+ * @brief 获取attr参数值
  * @param host_api_ctx
  * @param para
  */
 inline ge::graphStatus GetAttrPara(const gert::OpExecuteContext* host_api_ctx, AttrParas& para)
 {
     const auto attrs = host_api_ctx->GetAttrs();
-    OPS_CHECK(attrs == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "attrs is null"), return ge::GRAPH_FAILED);
+    OPS_CHECK(attrs == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "attrs is null."), return ge::GRAPH_FAILED);
     para.group = attrs->GetStr(INDEX_ATTR_GROUP);
-    OPS_CHECK(para.group == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "group is null"), return ge::GRAPH_FAILED);
+    OPS_CHECK(para.group == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "group is null."), return ge::GRAPH_FAILED);
 
     const bool* transX2Ptr = attrs->GetBool(INDEX_ATTR_TRANS_X2);
     const bool transX2 = (transX2Ptr != nullptr ? *transX2Ptr : false);

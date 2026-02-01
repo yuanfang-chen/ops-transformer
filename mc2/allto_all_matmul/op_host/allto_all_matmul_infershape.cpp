@@ -12,11 +12,13 @@
  * \file allto_all_matmul_infershape.cpp
  * \brief 图模式（动态图/静态图）走infershape
  */
-#include "mc2_log.h"
-#include "op_mc2.h"
+
 #include <register/op_impl_registry.h>
 #include "util/math_util.h"
+#include "mc2_log.h"
+#include "op_mc2.h"
 #include "mc2_common_infershape.h"
+
 namespace ops {
 
 using Ops::Base::CeilDiv;
