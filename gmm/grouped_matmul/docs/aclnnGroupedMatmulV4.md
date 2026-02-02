@@ -1,12 +1,17 @@
 # aclnnGroupedMatmulV4
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/gmm/grouped_matmul)
+
 ## 产品支持情况
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      √     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
@@ -21,7 +26,7 @@
     - 支持静态量化（pertensor+perchannel）（量化方式请参见[量化介绍](../../../docs/zh/context/量化介绍.md)，下同）BFLOAT16和FLOAT16输出，带激活及不带激活场景
     - 支持动态量化（pertoken+perchannel）BFLOAT16和FLOAT16输出，带激活及不带激活场景。
     - 支持伪量化weight是INT4的输入，不带激活场景，支持perchannel和pergroup两种模式。
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - 支持静态量化（1.pertensor-perchannel(T-C)；2.pertensor-pertensor(T-T)）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。
     - 支持动态量化（1.pertoken-perchannel(K-C)；2.pertoken-pertensor(K-T)；3.pertensor-pertensor(T-T)；4.pertensor-perchannel(T-C)；5.mx量化；6.pergroup-perblock(G-B)）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。
     - 支持伪量化weight是INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8的输入，不带激活场景，仅支持perchannel模式。
@@ -356,7 +361,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - out支持FLOAT16、BFLOAT16、INT8、FLOAT32、INT32
     - groupType不支持n轴分组
     - 输入参数x、weight，输出参数out支持最多128个tensor。
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - x支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT32、FLOAT4_E1M2、FLOAT4_E2M1
     - weight支持FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4、HIFLOAT8、FLOAT16、BFLOAT16、FLOAT32、FLOAT4_E1M2、FLOAT4_E2M1，当x与weight都为int8时支持ND和FRACTAL_NZ格式，其余场景只支持ND格式。使用weightNz特性时可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。
     - biasOptional支持INT32、BFLOAT16、FLOAT16、FLOAT32，在输入x为INT8、FLOAT16、BFLOAT16、FLOAT32时支持INT32、BFLOAT16、FLOAT16、FLOAT32，在输入x为FLOAT4_E1M2、FLOAT4_E2M1时仅支持FLOAT32，其它类型输入需传空指针
@@ -529,7 +534,7 @@ aclnnStatus aclnnGroupedMatmulV4(
   - x和weight中每一组tensor的最后一维大小都应小于65536。$x_i$的最后一维指当x不转置时$x_i$的K轴或当x转置时$x_i$的M轴。$weight_i$的最后一维指当weight不转置时$weight_i$的N轴或当weight转置时$weight_i$的K轴。
   - 仅量化场景 (per-token)、反量化场景支持激活函数计算。
 
-- <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
 
   <details>
     <summary><term>公共约束</term></summary>

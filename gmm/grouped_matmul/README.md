@@ -4,9 +4,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      √     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
@@ -210,7 +213,7 @@
 </table>
 
 
-- <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
 
   - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
   - 输入参数x、weight均不支持INT16类型，且x不支持int4类型。
@@ -296,7 +299,7 @@
       | 2 | 单单单 | 2/3 | 1）必须传groupListOptional<br>2）当groupListType为0时，最后一个值应小于等于x中tensor的第二维；当groupListType为1时，数值的总和与x应小于等于tensor的第二维；当groupListType为2时，第二列数值的总和应小于等于x中tensor的第二维<br>3）groupListOptional第1维最大支持1024， 即最多支持1024个group | 1）x必须转置<br>2）weight不能转置 |1）x，weight中tensor需为2维，y中tensor需为3维<br>2）bias必须传空|
       | 2 | 单多多 | 0/1 | groupListOptional必须传空 | 1）x必须转置<br>2）weight不能转置<br>| 1）x，weight，y中tensor需为2维<br>2）weight长度最大支持128，即最多支持128个group<br>3）原始shape中weight每个tensor的第一维之和不应超过x第一维<br>4）bias必须传空 |
 
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
     - 非量化场景支持的数据类型为：
       - 以下入参为空：scaleOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、perTokenScaleOptional、activationInputOptional、activationQuantScaleOptional、activationQuantOffsetOptional、actType、activationFeatureOutOptional
       - 不为空的参数支持的数据类型组合要满足下表

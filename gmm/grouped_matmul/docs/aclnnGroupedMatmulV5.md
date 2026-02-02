@@ -1,12 +1,17 @@
 # aclnnGroupedMatmulV5
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/gmm/grouped_matmul)
+
 ## 产品支持情况
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      √     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
@@ -325,7 +330,7 @@ aclnnStatus aclnnGroupedMatmulV5(
   </table>
 
 
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
 
     - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
     - 输入参数x、weight均不支持INT16类型，且x不支持int4类型；
@@ -430,7 +435,7 @@ aclnnStatus aclnnGroupedMatmulV5(
     |伪量化-A16W8|BFLOAT16/FLOAT16|INT8|BFLOAT16/FLOAT16|[A16W8场景约束](#a16w4场景约束)|[计算公式](#伪量化场景)|
     |伪量化-A16W4|BFLOAT16/FLOAT16|INT4|BFLOAT16/FLOAT16|[A16W4场景约束](#a16w4场景约束)|[计算公式](#伪量化场景)|
 
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
 
     详见[Ascend 950PR/Ascend 950DT AI处理器](#ascend_950pr_ascend950dt_ai处理器)
 <a id="计算公式"></a>
@@ -759,7 +764,7 @@ aclnnStatus aclnnGroupedMatmulV5(
 <a id="ascend_950pr_ascend950dt_ai处理器"></a>
 
 <details>
-<summary><term>Ascend 950PR/Ascend 950DT AI处理器</term></summary>
+<summary><term>Ascend 950PR/Ascend 950DT</term></summary>
 
   - 公共约束：
 

@@ -1,11 +1,17 @@
 # aclnnGroupedMatmulWeightNz
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/gmm/grouped_matmul)
+
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT AI处理器</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      √     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
@@ -18,7 +24,7 @@
 
       - 输入的weight的数据格式支持AI处理器亲和数据排布格式（FRACTAL_NZ）。
       - 新增参数quantGroupSize，整数型参数，代表分组量化（per-group）的分组大小，不涉及分组量化时，填0。
-      - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：暂不支持quantGroupSize参数。
+      - <term>Ascend 950PR/Ascend 950DT</term>：暂不支持quantGroupSize参数。
 
   - **计算公式**：
 
@@ -352,7 +358,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
     <td>quantGroupSize</td>
     <td>输入</td>
     <td>代表分组量化（per-group）的分组大小。</td>
-    <td>不涉及分组量化时，填0。<term>Ascend 950PR/Ascend 950DT AI处理器</term>暂不支持。</td>
+    <td>不涉及分组量化时，填0。<term>Ascend 950PR/Ascend 950DT</term>暂不支持。</td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -415,7 +421,11 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
         - 上表数据类型列中的角标“1”代表该系列支持的数据类型，角标“2”代表该系列不支持的数据类型。
         - `weight`可使用`aclnnCalculateMatmulWeightSizeV2`及`aclnnTransMatmulWeight`完成ND到NZ转换。当传入INT32时，接口内部将每个INT32识别成8个INT4。
         - 输入参数`x`、`weight`，输出参数`out`支持最多128个tensor。
-    - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+    - <term>Atlas 推理系列产品</term>：
+      - 仅支持FLOAT16。`weight`仅支持FRACTAL_NZ格式，且需通过辅助接口转换。
+      - `scaleOptional`、`offsetOptional`等量化/非对称量化参数功能暂不支持，需传空指针。
+      - `groupType`只支持m轴分组(0)。`actType`只支持0。`tuningConfigOptional`不支持。
+    - <term>Ascend 950PR/Ascend 950DT</term>：
         - 上表数据类型列中的角标“2”代表该系列支持的数据类型。
         - `x`支持FLOAT16、BFLOAT16、FLOAT8_E4M3FN、INT8。
         - `weight`支持FLOAT16、BFLOAT16、FLOAT4_E2M1、INT8、INT4。支持FRACTAL_NZ格式。可使用aclnnNpuFormatCast接口完成输入Format从ND到AI处理器亲和数据排布格式（NZ）的转换。如原始weight为转置状态且想使用性能更高的非转置通路计算，可使用aclnnPermute接口转为非转置后再调用aclnnNpuFormatCast接口。当数据类型为FLOAT4_E2M1时，还需要在aclnnNpuFormatCast调用后，调用aclnnCast接口将FLOAT32表示的FLOAT4_E2M1转换为正确的类型。但当为INT4类型时，需要使用aclnnConvertWeightToInt4Pack接口完成数据格式从ND到NZ和数据类型从INT32到INT4的转换。当传入FLOAT32或者INT32时，接口内部每个FLOAT32/INT32识别成8个FLOAT4_E2M1/INT4。
@@ -571,7 +581,19 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 </details>
 
 <details>
-<summary><term>Ascend 950PR/Ascend 950DT AI处理器</term></summary>
+<summary><term>Atlas 推理系列产品</term></summary>
+
+  - 输入输出只支持float16的数据类型，输出y的n轴大小需要是16的倍数。
+    - actType只支持传0
+
+    支持场景中单表示单tensor，多表示多tensor，表示顺序为x、weight、y。例如单多单表示支持x为单tensor、weight多tensor、y单tensor的场景。
+    | groupType | 支持场景 | 场景限制 |
+    |:---------:|:-------:| :------ |
+    | 0 | 单单单 |1）仅支持splitItem为2/3<br>2）weight中tensor需为3维，x，y中tensor需为2维<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值与x中tensor的第一维相等，当groupListType为1时，数值的总和与x中tensor的第一维相等<br>4）groupListOptional第1维最大支持1024，即最多支持1024个group<br>5）支持weight转置，不支持x转置 |
+</details>
+
+<details>
+<summary><term>Ascend 950PR/Ascend 950DT</term></summary>
 
   - 当前支持非量化场景、伪量化场景与全量化场景
   - 非量化场景支持的数据类型为：
