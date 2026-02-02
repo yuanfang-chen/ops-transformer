@@ -127,14 +127,18 @@ public:
 
     bool CheckInputOutShape()
     {
+        if(CheckInputOutShapeConsistency() == false){
+            return false;
+        }
         int64_t m = gmmParams_.x1->GetViewShape().GetDim(ZERO_DIM); // 从x的第0维获取m
-        int64_t k = gmmParams_.x1->GetViewShape().GetDim(ONE_DIM);  // 从x的第1维获取k
+        int64_t k = gmmParams_.x1->GetViewShape().GetDim(ONE_DIM);  // 从x的第1维获取k 
         // 转置情况下从weight的第1维获取n，非转置情况下从weight的第2维获取n
         int64_t n = gmmParams_.transposeX2 ? (gmmParams_.x2)->GetViewShape().GetDim(ONE_DIM) :
                                              (gmmParams_.x2)->GetViewShape().GetDim(TWO_DIM);
         int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0);          // 从weight的第0维获取e
         int64_t bsdp = gmmParams_.shareInput->GetViewShape().GetDim(0); // 从share_input 第一维获取bsdp
         int64_t outputBS = gmmParams_.out->GetViewShape().GetDim(0);
+        
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape xScaleExpectShape = {m, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR};
@@ -169,6 +173,21 @@ public:
             // shareInput的shape期望为[bsdp, N]
             op::Shape shareInputExpectShape = {bsdp, n};
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.shareInput, shareInputExpectShape, return false);
+        }
+        return true;
+    }
+
+    bool CheckInputOutShapeConsistency()
+    {   
+        int64_t k = gmmParams_.x1->GetViewShape().GetDim(ONE_DIM);  // 从x的第1维获取k
+        int64_t kInWeight = gmmParams_.transposeX2 ? (gmmParams_.x2)->GetViewShape().GetDim(TWO_DIM) :
+                                             (gmmParams_.x2)->GetViewShape().GetDim(ONE_DIM);
+        int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0);      // 从weight的第0维获取e
+        if (kInWeight != k) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "The dimension (k) of 'x' (%ld) must be equal to the dimension (k) of 'weight' (%ld)", k,
+                    kInWeight);
+            return false;
         }
         // groupList的长度应等于weight的专家数
         int64_t groupListLen = gmmParams_.groupList->GetViewShape().GetDim(ZERO_DIM);
