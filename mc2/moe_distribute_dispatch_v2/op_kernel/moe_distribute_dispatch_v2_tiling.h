@@ -59,4 +59,18 @@ struct MoeDistributeDispatchV2TilingData {
     MoeDistributeDispatchV2Info moeDistributeDispatchV2Info;
 };
 
+struct CommInfo {
+    uint32_t localUsrRankId;
+    uint32_t rankSize;
+    uint64_t getWinSize;
+    uint64_t getStatusDataSpaceGm;
+    uint64_t *windowInAddr;
+    uint64_t *windowExpAddr;
+};
+
+struct WinContext {
+    CommInfo commEp;
+    CommInfo commTp;
+};
+
 #endif
