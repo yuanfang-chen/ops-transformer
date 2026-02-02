@@ -231,10 +231,10 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
 #if defined(V310_MXFP8_LOW_API)
         if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
             GMM_QUANT_MXFP8_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Nz,
-                                    Cgmct::Gemm::layout::RowMajorAlign);
+                                    Cgmct::Gemm::layout::RowMajor);
         } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
             GMM_QUANT_MXFP8_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Zn,
-                                    Cgmct::Gemm::layout::RowMajorAlign);
+                                    Cgmct::Gemm::layout::RowMajor);
         }
 #endif
     } else {

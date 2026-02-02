@@ -30,19 +30,6 @@ namespace optiling {
 
 bool GroupedQbmmTiling::IsCapable()
 {
-    if (inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN && inputParams_.bDtype == ge::DT_FLOAT8_E4M3FN &&
-        inputParams_.perTokenScaleDtype == ge::DT_FLOAT8_E8M0 && inputParams_.scaleDtype == ge::DT_FLOAT8_E8M0 &&
-        isWeightNz_) {
-        std::array<int64_t, 2> kNList = {static_cast<int64_t>(inputParams_.kSize),
-                                         static_cast<int64_t>(inputParams_.nSize)};
-        int isInMxA8W8NzWhiteList = MxA8W8_WEIGHT_NZ_WHITE_LIST.count(kNList);
-        if (!isInMxA8W8NzWhiteList) {
-            OP_LOGE(context_->GetNodeName(),
-                    "Only support n is 4096 and k is 2048/4096 in MxA8W8-weight nz. current n is %d, k is %d.",
-                    inputParams_.kSize, inputParams_.nSize);
-            return false;
-        }
-    }
     return true;
 }
 
