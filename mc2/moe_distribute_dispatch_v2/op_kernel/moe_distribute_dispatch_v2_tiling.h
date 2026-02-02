@@ -52,11 +52,17 @@ struct MoeDistributeDispatchV2Info {
     uint64_t scalesCount;
 };
 
+struct winContext {
+    __gm__ Mc2Kernel::HcclOpParam *COMM_EP;
+    __gm__ Mc2Kernel::HcclOpParam *COMM_TP;
+};
+
 struct MoeDistributeDispatchV2TilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling1;
     Mc2CcTiling mc2CcTiling2;
     MoeDistributeDispatchV2Info moeDistributeDispatchV2Info;
+    winContext winContext;
 };
 
 #endif

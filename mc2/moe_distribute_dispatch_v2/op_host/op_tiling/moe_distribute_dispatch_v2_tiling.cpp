@@ -816,6 +816,8 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     }
 
     groupEp = std::string(groupEpPtr);
+    tilingData.winContext.COMM_EP = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
+    tilingData.winContext.COMM_TP = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<1>();
     tilingData.moeDistributeDispatchV2Info.epWorldSize = static_cast<uint32_t>(epWorldSize);
     tilingData.moeDistributeDispatchV2Info.tpWorldSize = static_cast<uint32_t>(*tpWorldSizePtr);
     tilingData.moeDistributeDispatchV2Info.epRankId = static_cast<uint32_t>(*epRankIdPtr);
