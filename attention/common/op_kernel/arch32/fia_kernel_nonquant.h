@@ -89,20 +89,9 @@ protected:
     FdBlockType fdService;
 
     // =================================常量区=================================
-    static constexpr uint32_t PRELOAD_NUM = 2;
-    static constexpr uint32_t N_BUFFER_M_BASIC_SIZE = 256;
-    static constexpr uint32_t FIA_PRELOAD_TASK_CACHE_SIZE = 3;
-
-    static constexpr uint32_t SYNC_V0_C1_FLAG = 6;
-    static constexpr uint32_t SYNC_C1_V1_FLAG = 7;
-    static constexpr uint32_t SYNC_V1_C2_FLAG = 8;
-    static constexpr uint32_t SYNC_C2_V2_FLAG = 9;
-    static constexpr uint32_t SYNC_C2_V1_FLAG = 4;
-    static constexpr uint32_t SYNC_V1_NUPDATE_C2_FLAG = 5;
-    static constexpr int64_t fdPrefetchLen = 2;
-
     static constexpr bool POST_QUANT = IsSameType<OUT_T, int8_t>::value;
     static constexpr float FLOAT_MIN = -3.4e+38F;
+
     // ==============================TilingData&TPipe==============================
     const FusedInferAttentionScoreTilingData *__restrict tilingData = nullptr;
     TPipe *pipe = nullptr;
@@ -265,14 +254,6 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     constInfo.bmm2ResUbSize = tilingData->workspaceParams.mm2ResSize;
     constInfo.vec1ResUbSize = constInfo.mmResUbSize;
 
-    constInfo.preLoadNum = PRELOAD_NUM;
-    constInfo.nBufferMBaseSize = N_BUFFER_M_BASIC_SIZE;
-    constInfo.syncV0C1 = SYNC_V0_C1_FLAG;
-    constInfo.syncC1V1 = SYNC_C1_V1_FLAG;
-    constInfo.syncV1C2 = SYNC_V1_C2_FLAG;
-    constInfo.syncC2V2 = SYNC_C2_V2_FLAG;
-    constInfo.syncC2V1 = SYNC_C2_V1_FLAG;
-    constInfo.syncV1NupdateC2 = SYNC_V1_NUPDATE_C2_FLAG;
     constInfo.isQHasLeftPadding = (tilingData->leftPaddingParams.qPaddingFlag != 0) ? true : false;
     constInfo.isKVHasLeftPadding = (tilingData->leftPaddingParams.kvPaddingFlag != 0) ? true : false;
     constInfo.systemPrefixMaxLen = tilingData->prefixParams.prefixMaxLen;
@@ -1059,7 +1040,7 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     while (shouldDispatchTask || shouldExecuteTask) {
         // 分发任务
         shouldDispatchTask = ShouldDispatchTask(bN2Cur, gS1Cur, s2Cur);
-        if (shouldDispatchTask) {
+        if likely(shouldDispatchTask) {
             TASK_DEAL_MODE taskDealMode = GetTaskDealMode(bN2Cur, gS1Cur, s2Cur);
             if (taskDealMode == TASK_DEAL_MODE::CREATE_TASK) {
                 // 创建任务

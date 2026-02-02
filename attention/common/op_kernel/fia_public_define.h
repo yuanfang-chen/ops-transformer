@@ -38,6 +38,18 @@ constexpr SoftmaxConfig FIA_SOFTMAX_FLASHV2_CFG = {false};
 // 将isCheckTiling设置为false, 输入输出的max&sum&exp的shape为(m, 1)
 constexpr SoftmaxConfig FIA_SOFTMAX_FLASHV2_CFG_WITHOUT_BRC = {false, 0, 0, SoftmaxMode::SOFTMAX_OUTPUT_WITHOUT_BRC};
 
+static constexpr uint32_t PRELOAD_NUM = 2;
+static constexpr uint32_t N_BUFFER_M_BASIC_SIZE = 256;
+static constexpr uint32_t FIA_PRELOAD_TASK_CACHE_SIZE = 3;
+
+static constexpr uint32_t SYNC_V0_C1_FLAG = 6;
+static constexpr uint32_t SYNC_C1_V1_FLAG = 7;
+static constexpr uint32_t SYNC_V1_C2_FLAG = 8;
+static constexpr uint32_t SYNC_C2_V2_FLAG = 9;
+static constexpr uint32_t SYNC_C2_V1_FLAG = 4;
+static constexpr uint32_t SYNC_V1_NUPDATE_C2_FLAG = 5;
+static constexpr int64_t fdPrefetchLen = 2;
+
 enum class FIA_LAYOUT : uint32_t
 {
     BSH = 0,
@@ -136,6 +148,18 @@ struct ConstInfo {
     static constexpr float FLOAT_ZERO = 0;
     static constexpr float FLOAT_MAX = 3.402823466e+38F;
     static constexpr float FLOAT_INF = 3e+99;
+
+    // preLoad的总次数
+    uint32_t preLoadNum = PRELOAD_NUM;
+    uint32_t nBufferMBaseSize = N_BUFFER_M_BASIC_SIZE;
+    // CUBE和VEC的核间同步EventID
+    uint32_t syncV1NupdateC2 = SYNC_V1_NUPDATE_C2_FLAG;
+    uint32_t syncV0C1 = SYNC_V0_C1_FLAG;
+    uint32_t syncC1V1 = SYNC_C1_V1_FLAG;
+    uint32_t syncV1C2 = SYNC_V1_C2_FLAG;
+    uint32_t syncC2V2 = SYNC_C2_V2_FLAG;
+    uint32_t syncC2V1 = SYNC_C2_V1_FLAG;
+
     // 整个AICORE的任务信息, 左闭右开区间[ (bN2Start, gS1Start, s2Start), (bN2End, gS1End, s2End) )
     uint32_t bN2Start = 0U;
     uint32_t gS1Start = 0U;
@@ -143,20 +167,7 @@ struct ConstInfo {
     uint32_t bN2End = 0U;
     uint32_t gS1End = 0U;
     uint32_t s2End = 0U;
-    bool headS2Split = false;
-    bool tailS2Split = false;
-
-    // preLoad的总次数
-    uint32_t preLoadNum = 0U;
-    uint32_t nBufferMBaseSize = 0U;
-    // CUBE和VEC的核间同步EventID
-    uint32_t syncV1NupdateC2 = 0U;
-    uint32_t syncV0C1 = 0U;
-    uint32_t syncC1V1 = 0U;
-    uint32_t syncV1C2 = 0U;
-    uint32_t syncC2V2 = 0U;
-    uint32_t syncC2V1 = 0U;
-
+    
     float scaleValue = 0;
     uint32_t mmResUbSize = 0U;   // Matmul1输出结果GM上的大小
     uint32_t vec1ResUbSize = 0U; // Vector1输出结果GM上的大小
@@ -175,49 +186,55 @@ struct ConstInfo {
     uint32_t splitKVNum = 0U;         // S2核间切分的切分份数
     FIA_LAYOUT outputLayout;          // 输出的Transpose格式
 
+    uint32_t systemPrefixLen = 0;
+    uint64_t systemPrefixMaxLen = 0;
+    uint32_t subBlockNum = 2; // AI Core上 AIC与AIV的数量默认为1:2
+
     // pse
-    bool pseShiftFlag = false;
-    bool pseShiftByBatch = false;
     uint32_t pseShiftS1 = 0U;
     uint32_t pseShiftS2 = 0U;
     // mask
-    bool attenMaskFlag = false;
     uint64_t attenMaskBatchStride = 0ULL;
-    uint32_t attenMaskStride = 0ULL;
-    bool needInit = false;
-    bool isRowInvalid = false;  // 是否使能行无效
-    bool isExistRowInvalid = false;  // 实际是否存在行无效
     int64_t preToken = 0;
     int64_t nextToken = 0;
+    uint32_t attenMaskStride = 0ULL;
     uint32_t sparseMode = 0;
 
     uint32_t actualLenQDims = 0U; // query的actualSeqLength 的维度
     uint32_t actualLenDims = 0U;  // KV 的actualSeqLength 的维度
-    bool accumQSeqFlag = false;
-    bool accumKVSeqFlag = false;
 
     uint32_t tndFDCoreArrLen = 0U;     // TNDFlashDecoding相关分核信息array的长度
     uint32_t coreStartKVSplitPos = 0U; // TNDFlashDecoding kv起始位置
 
     uint32_t mBaseSize = 1ULL;
     uint32_t s2BaseSize = 1ULL;
+
+    uint32_t l2CacheOffFlag = 0;
+    uint64_t qLeftPaddingSize = 0;
+    uint64_t kvLeftPaddingSize = 0;
+
+    bool headS2Split = false;
+    bool accumQSeqFlag = false;
+    bool accumKVSeqFlag = false;
+    bool needInit = false;
+    bool isRowInvalid = false;  // 是否使能行无效
+    bool isExistRowInvalid = false;  // 实际是否存在行无效
+    
+    bool attenMaskFlag = false;
+    bool pseShiftFlag = false;
+    bool pseShiftByBatch = false;
+    bool tailS2Split = false;
     bool batchContinuous = true;
     bool ropeSplitMode = false;
-
+    
     bool softmaxLseFlag = false;
     bool isLegacyIfa = false;
-    uint32_t l2CacheOffFlag = 0;
     
     //left padding
     bool isQHasLeftPadding = false;
     bool isKVHasLeftPadding = false;
-    uint64_t qLeftPaddingSize = 0;
-    uint64_t kvLeftPaddingSize = 0;
 
     bool systemPrefixFlag = false;
-    uint32_t systemPrefixLen = 0;
-    uint64_t systemPrefixMaxLen = 0;
-    uint32_t subBlockNum = 2; // AI Core上 AIC与AIV的数量默认为1:2
 
     bool isPostQuantPerChn = false;
     bool isPostQuantTypeBf16 = false;

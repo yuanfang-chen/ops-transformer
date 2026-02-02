@@ -84,20 +84,8 @@ public:
     FdBlockType fdService;
 
     // =================================常量区=================================
-    static constexpr uint32_t PRELOAD_NUM = 2;
-    static constexpr uint32_t N_BUFFER_M_BASIC_SIZE = 256;
-    static constexpr uint32_t FIA_PRELOAD_TASK_CACHE_SIZE = 3;
-
-    static constexpr uint32_t SYNC_V0_C1_FLAG = 6;
-    static constexpr uint32_t SYNC_C1_V1_FLAG = 7;
-    static constexpr uint32_t SYNC_V1_C2_FLAG = 8;
-    static constexpr uint32_t SYNC_C2_V2_FLAG = 9;
-    static constexpr uint32_t SYNC_C2_V1_FLAG = 4;
-    static constexpr uint32_t SYNC_V1_NUPDATE_C2_FLAG = 5;
-
-    static constexpr int64_t fdPrefetchLen = 2;
-
     static constexpr bool POST_QUANT = IsSameType<OUT_T, int8_t>::value;
+
     // ==============================TilingData&TPipe==============================
     const FusedInferAttentionScoreTilingData *__restrict tilingData = nullptr;
     TPipe *pipe = nullptr;
@@ -231,15 +219,6 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
     constInfo.isRowInvalid = (tilingData->maskParams.isRowInvalid != 0);
 
     constInfo.needInit = tilingData->baseParams.needInit;
-
-    constInfo.preLoadNum = PRELOAD_NUM;
-    constInfo.nBufferMBaseSize = N_BUFFER_M_BASIC_SIZE;
-    constInfo.syncV0C1 = SYNC_V0_C1_FLAG;
-    constInfo.syncC1V1 = SYNC_C1_V1_FLAG;
-    constInfo.syncV1C2 = SYNC_V1_C2_FLAG;
-    constInfo.syncC2V2 = SYNC_C2_V2_FLAG;
-    constInfo.syncC2V1 = SYNC_C2_V1_FLAG;
-    constInfo.syncV1NupdateC2 = SYNC_V1_NUPDATE_C2_FLAG;
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType> 
@@ -354,9 +333,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
 
     // init tiling data
     tilingData = tiling;
-    skipInitOutputFlag = !IsInitAttentionOutGm() && !tilingData->baseParams.softmaxLseFlag;
     if (aiCoreIdx >= tilingData->baseParams.usedCoreNum) {
         if ASCEND_IS_AIV {
+            skipInitOutputFlag = !IsInitAttentionOutGm() && !tilingData->baseParams.softmaxLseFlag;
             if (!skipInitOutputFlag){
                 // superkernel 场景，启动核数大于实际运行核数时，未启动的核仅需要保留 SyncAll
                 SyncAll();
@@ -408,16 +387,15 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
         (__gm__ T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T);
 
-    if constexpr (FLASH_DECODE) {
-        accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
-        lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
-        offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
-    }
-
+    
     if ASCEND_IS_AIV {
         if constexpr (FLASH_DECODE) {
+            accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
+            lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
+            offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
+
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm,
                                        actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
@@ -658,10 +636,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
                 gS1IdxEndOfFdHead, gS1IdxEndOfFdHeadSplit, tilingData->fdParams.usedVecNumOfFd,
                 tilingData->fdParams.gS1BaseSizeOfFd};
 
-        SyncAll();
-
         fdService.AllocEventID();
         fdService.InitDecodeParams();
+        SyncAll();
         fdService.FlashDecode(fdParams);
         fdService.FreeEventID();
     } else {
@@ -999,7 +976,7 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
     while (shouldDispatchTask || shouldExecuteTask) {
         // 分发任务
         shouldDispatchTask = ShouldDispatchTask(bN2Cur, gS1Cur, s2Cur);
-        if (shouldDispatchTask) {
+        if likely(shouldDispatchTask) {
             TASK_DEAL_MODE taskDealMode = GetTaskDealMode(bN2Cur, gS1Cur, s2Cur);
             if (taskDealMode == TASK_DEAL_MODE::CREATE_TASK) {
                 // 创建任务
