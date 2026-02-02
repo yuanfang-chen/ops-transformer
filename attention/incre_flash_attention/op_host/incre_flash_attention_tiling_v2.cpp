@@ -1177,7 +1177,7 @@ bool IFATilingV2::CheckPFAMerge() { // PFA场景合轴条件检验
     enableAlibiPse_ || enablePostQuant_ || softmaxLseFlag_ || layout == "BNSD_BSND";
   return !hasCrossoverAttr;
 }
-
+ 
 void IFATilingV2::SetfaRunFlag() {
   if (antiQuantFlag_) {
     if(sOfQuery_ == NUM1 && !enableAlibiPse_) {
