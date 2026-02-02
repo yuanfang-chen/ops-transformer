@@ -988,8 +988,6 @@ bool CheckGqaFeatureSupport(const gert::TilingContext *context)
 
 bool CheckSpecConditions(const gert::TilingContext *context)
 {
-    constexpr int64_t BLOCKSIZE_ALIGN_16 = 16;
-    constexpr int64_t MAX_BLOCKSIZE = 512;
     auto tempQ = context->GetInputShape(QUERY_INDEX);
     auto tempK = context->GetInputShape(KEY_INDEX);
     auto tempV = context->GetInputShape(VALUE_INDEX);
@@ -1034,9 +1032,7 @@ bool CheckSpecConditions(const gert::TilingContext *context)
             int64_t blockSize = tempK->GetStorageShape().GetDim(DIM_1);
             bool isFAIDSize = (tempQD <= 256 && tempKD <= 256 && tempVD <= 256) &&
                     (tempQD == tempKD && tempQD == tempVD);
-            bool blockSizeSupported = (blockSize % BLOCKSIZE_ALIGN_16 == 0) && 
-                    (blockSize <= MAX_BLOCKSIZE);
-            if (isFAIDSize && blockSizeSupported) {
+            if (isFAIDSize) {
                 specConditionFlag = true;
             }
         }

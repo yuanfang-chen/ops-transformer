@@ -86,6 +86,8 @@ namespace optiling{
     const uint32_t BASE_KV_SIZE = 128;
     const uint32_t PRELANCH_NUM = 3;
     const int64_t SPARSE_MODE_INT_MAX = 2147483647;
+    const uint32_t MAX_BLOCKSIZE = 128;
+    CONST uint32_t BLOCK_SIZE_ALIGN = 16;
 
     enum class MaskType : uint32_t {
         NO_MASK = 0,
