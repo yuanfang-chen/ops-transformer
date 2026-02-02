@@ -1192,7 +1192,7 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
   if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND950) {
     if (IsQuant(gmmParams.xDtype, weightDtype)) {
       bool allowActOnDavid = CheckIsEnabledActive(gmmParams);
-      CHECK_COND(allowActOnDavid || isNoActivation, ACLNN_ERR_PARAM_INVALID, "On this platform, activation is supported only when the input is INT8"
+      CHECK_COND(isNoActivation || allowActOnDavid, ACLNN_ERR_PARAM_INVALID, "On this platform, activation is supported only when the input is INT8"
                  " and the quant mode is either pertoken-perchannel or pertensor-perchannel; "
                  " activation is not supported in other scenarios;"
                  " activeType[%ld] is not supported.", gmmParams.activeType);
