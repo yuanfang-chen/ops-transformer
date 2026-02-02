@@ -46,6 +46,8 @@ struct Args {
     aclrtContext context;
 };
 
+const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
+
 constexpr uint32_t EP_WORLD_SIZE = 2;
 constexpr uint32_t TP_WORLD_SIZE = 1;
 constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
@@ -87,8 +89,10 @@ int LaunchOneProcessDispatchAndCombine(Args &args)
     ret = HcclGetCommName(args.hcclEpComm, hcomEpName);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetEpCommName failed, ret %d\n", ret); return -1);
     char hcomTpName[128] = {0};
-    ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
+    if (!rank_table_file) {
+        ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
+        CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
+    }
     LOG_PRINT(
         "[INFO] rank = %d, hcomEpName = %s, hcomTpName = %s, dispatchStream = %p, combineStream = %p, context = %p\n",
         args.rankId, hcomEpName, hcomTpName, args.dispatchStream, args.combineStream, args.context
