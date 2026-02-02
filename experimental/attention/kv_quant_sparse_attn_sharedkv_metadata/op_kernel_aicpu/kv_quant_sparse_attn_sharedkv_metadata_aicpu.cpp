@@ -61,7 +61,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     GetAttrValueOpt(ctx, "ori_topk", oriTopK_);
     GetAttrValueOpt(ctx, "cmp_topk", cmpTopK_);
     GetAttrValueOpt(ctx, "cmp_ratio", cmpRatio_);
-    GetAttrValueOpt(ctx, "ori_mask_mode", winMaskMode_);
+    GetAttrValueOpt(ctx, "ori_mask_mode", oriMaskMode_);
     GetAttrValueOpt(ctx, "cmp_mask_mode", cmpMaskMode_);
     GetAttrValueOpt(ctx, "ori_win_left", winLeft_);
     GetAttrValueOpt(ctx, "ori_win_right", winRight_);
@@ -70,7 +70,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
     GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
 
-    sparseMode_ = static_cast<uint32_t>(SparseMode::BAND);
+    sparseMode_ = oriMaskMode_;
     preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
     nextToken_ = 0;
     attentionMode_ = 1;

@@ -299,7 +299,7 @@ private:
     uint32_t oriTopK_ = 0;
     uint32_t cmpTopK_ = 0;
     uint32_t cmpRatio_ = -1;
-    uint32_t winMaskMode_ = 4;
+    uint32_t oriMaskMode_ = 4;
     uint32_t cmpMaskMode_ = 3;
     int64_t winLeft_ = 127;
     int64_t winRight_ = 0;
