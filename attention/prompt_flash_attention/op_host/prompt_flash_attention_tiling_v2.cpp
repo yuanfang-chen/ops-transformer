@@ -2673,9 +2673,14 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
     std::string layoutStr(contextKeyParams.layout);
     if (layoutStr == "BSH_BNSD" || layoutStr == "BSND_BNSD") {
         if (enablePFAMLA || enablePFARope) { // Prefill MLA
-        OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
+            OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
                 layoutStr.c_str()), return false);
+        }
+        if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
+            OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d !=128),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
+                layoutStr.c_str(), queryShapeInfo.d), return false);
         }
         OP_CHECK_IF(enableLeftPadding,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, left padding is not supported!",
@@ -2690,9 +2695,14 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             layoutStr.c_str()), return false);
     } else if (layoutStr == "BNSD_BSND") {
         if (enablePFAMLA || enablePFARope) { // Prefill MLA
-        OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
+            OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
                 layoutStr.c_str()), return false);
+        }
+        if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
+            OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d !=128),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
+                layoutStr.c_str(), queryShapeInfo.d), return false);
         }
     }
     return true;
