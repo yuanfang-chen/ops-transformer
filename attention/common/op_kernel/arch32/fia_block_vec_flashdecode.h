@@ -171,6 +171,28 @@ private:
     TBuf<> fdLseUbBuf; // 64B: 16*4
 };
 
+template <typename FIAT> 
+class FiaBlockVecFlashDecodeDummy {
+public:
+    // =================================类型定义区=================================
+    // 中间计算数据类型为float，高精度模式
+    using T = float;
+    using OUT_T = typename FIAT::outputType;  
+    using SINK_T = bfloat16_t;
+
+    __aicore__ inline void InitGlobalTensor(GlobalTensor<T> lseMaxFdGm, GlobalTensor<T> lseSumFdGm, GlobalTensor<T> accumOutGm, 
+         GlobalTensor<OUT_T> attentionOutGm, GlobalTensor<uint64_t> actualSeqLengthsGmQ, GlobalTensor<uint64_t> actualSeqLengthsGm,
+         __gm__ uint8_t *key, __gm__ uint8_t *quantScale2, __gm__ uint8_t *quantOffset2);
+    __aicore__ inline void InitSoftmaxLseGm(GlobalTensor<float> softmaxLseGm);
+    __aicore__ inline void InitLearnableSinkGm(GlobalTensor<SINK_T> learnableSink);
+    __aicore__ inline void InitParams(const AttentionCommon::ConstInfo &constInfo);
+    __aicore__ inline void InitDecodeParams();
+    __aicore__ inline void InitBuffers(TPipe *pipe);
+    __aicore__ inline void AllocEventID();
+    __aicore__ inline void FreeEventID();   
+    __aicore__ inline void FlashDecode(FDparams &fd);
+};
+
 template <typename FIAT> __aicore__ inline 
 void FiaBlockVecFlashDecode<FIAT>::InitGlobalTensor(GlobalTensor<T> lseMaxFdGm, 
                                                         GlobalTensor<T> lseSumFdGm, 
