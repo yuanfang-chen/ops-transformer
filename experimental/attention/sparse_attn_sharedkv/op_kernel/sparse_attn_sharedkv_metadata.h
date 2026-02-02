@@ -68,8 +68,8 @@ __aicore__ inline uint32_t GetAttrAbsIndex(uint32_t coreIdx, uint32_t metaIdx, b
 
 namespace detail {
     struct SasMetaData {
-        uint32_t FAMetadata[AIC_CORE_NUM][FA_METADATA_SIZE];
-        uint32_t FDMetadata[AIV_CORE_NUM][FD_METADATA_SIZE];
+        uint32_t faMetadata[AIC_CORE_NUM][FA_METADATA_SIZE];
+        uint32_t fdMetadata[AIV_CORE_NUM][FD_METADATA_SIZE];
     };
 };
 
