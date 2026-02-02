@@ -775,14 +775,16 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     auto ret = WeightNZCaseProcess(x2, transposeX2, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    if (scale != nullptr && CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
+    if (scale != nullptr && CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST) && transposeX2 == false) {
         bool transposescale = false;
         ret = WeightNZCaseProcessForMXScale(scale, transposescale, executor);
         CHECK_RET(transposeX2 == transposescale, ret);
     }
 
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
-    CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
+    if(op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510){
+        CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
+    }
     return ACLNN_SUCCESS;
 }
 
