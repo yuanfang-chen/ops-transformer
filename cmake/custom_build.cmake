@@ -290,7 +290,7 @@ endif()
 # 编译examples目录下算子
 foreach(EXAMPLES_OP_NAME ${ASCEND_OP_NAME})
     set(EXAMPLES_DIR "${OPS_TRANSFORMER_DIR}/examples/${EXAMPLES_OP_NAME}")
-    set(EXAMPLES_MC2_DIR "${OPS_TRANSFORMER_DIR}/examples/${EXAMPLES_OP_NAME}")
+    set(EXAMPLES_MC2_DIR "${OPS_TRANSFORMER_DIR}/examples/mc2/${EXAMPLES_OP_NAME}")
     if(IS_DIRECTORY ${EXAMPLES_DIR})
         add_subdirectory(examples/${EXAMPLES_OP_NAME})
     elseif(IS_DIRECTORY ${EXAMPLES_MC2_DIR})
