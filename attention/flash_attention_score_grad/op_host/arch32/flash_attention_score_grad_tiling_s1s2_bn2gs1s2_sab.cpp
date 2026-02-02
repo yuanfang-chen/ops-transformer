@@ -2011,6 +2011,7 @@ ge::graphStatus FlashAttentionScoreGradTilingS1s2Bn2gs1s2SameAb::DoPostTiling()
 
     // dsink workspace
     if (fBaseParams.sink == 1) {
+        int64_t sinkBeginOffset = workspaceOffsets;
         tilingData->postTilingData.set_dsinksumWorkSpaceOffset(workspaceOffsets);
 
         size_t s1Pad = (fBaseParams.s1 + 255) / 256 * 256;
@@ -2021,6 +2022,7 @@ ge::graphStatus FlashAttentionScoreGradTilingS1s2Bn2gs1s2SameAb::DoPostTiling()
             GM_ALIGN * GM_ALIGN;
         tilingData->postTilingData.set_dsinksumDataSizeOffset(workspaceOffsets);
         workspaceOffsets = (workspaceOffsets + sizeof(int32_t) + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
+        tilingData->postTilingData.set_sinkDataSize(workspaceOffsets-sinkBeginOffset);
     }
 
     // mask bool workspace size
