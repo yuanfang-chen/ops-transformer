@@ -178,11 +178,10 @@ protected:
     virtual void PrintQuantParams();
     bool IsMicroScaling() const;
     bool CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
-    const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingData() const { return tilingData_; }
+    // const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingData() const { return tilingData_; }
     GQmmBasicTiling basicTiling_;
     GQmmInputInfo inputParams_;
 
-private:
     uint64_t GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit);
     void CalStepKs();
     void CalScaleFactors();

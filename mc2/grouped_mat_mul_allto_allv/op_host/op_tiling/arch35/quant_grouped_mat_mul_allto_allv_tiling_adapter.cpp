@@ -21,7 +21,7 @@ using namespace Mc2Log;
 using namespace AscendC;
 using namespace Mc2Tiling;
 using namespace optiling;
-namespace MC2Tiling {
+// namespace MC2Tiling {
 
 // bool QuantGroupedMatmulAllToAllvAdapter::AnalyzeAttrs()
 // {
@@ -321,8 +321,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::Process()
 {
     GE_ASSERT_GRAPH_SUCCESS(DoOpTiling());
     GE_ASSERT_GRAPH_SUCCESS(DoLibApiTiling());
-    tilingData_ = GetGmmQuantTilingData();
     return ge::GRAPH_SUCCESS;
 }
 
-}
+// }
