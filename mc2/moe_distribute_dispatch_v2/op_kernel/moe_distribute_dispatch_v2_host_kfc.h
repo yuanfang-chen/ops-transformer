@@ -1005,6 +1005,7 @@ MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::FillQuadruple(LocalTensor<X
     }
     DataCopyPadExtParams<float> expertScalePadParams{false, 0U, 0U, 0U};
     DataCopyPad(xoutTfloat32[moeExpertScalesAlign_], expertScalesGMTensor_[tokenIndex * axisK_], copyParams, expertScalePadParams);
+    PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateMC2TypeClass>
