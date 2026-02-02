@@ -1,0 +1,60 @@
+/**
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/*!
+ * \file moe_distribute_dispatch_teardown_tiling_arch35.cpp
+ * \brief
+ */
+
+#include "mc2_log.h"
+#include "moe_distribute_dispatch_teardown_tiling_arch35.h"
+
+namespace optiling {
+
+ge::graphStatus MoeDistributeDispatchTeardownTilingA5::MoeDistributeDispatchTeardownTilingFuncImpl()
+{
+    OP_LOGD(nodeName_, "Start MoeDistributeDispatchTeardownA5 tiling");
+    tilingData_ = context_->GetTilingData<MoeDistributeDispatchTeardownTilingData>();
+
+    // 实现 A5 Tiling 拦截
+    if (!((GetRequiredAttrAndSetTilingData() == ge::GRAPH_SUCCESS) &&
+          (GetOptionalAttrAndSetTilingData() == ge::GRAPH_SUCCESS) && (CheckTensorShape() == ge::GRAPH_SUCCESS) &&
+          (CheckTensorDataType() == ge::GRAPH_SUCCESS))) {
+        return ge::GRAPH_FAILED;
+    }
+    if (CheckHcclBuffSize() != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+
+    SetHcommCfg();
+    if (SetWorkSpace() != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    SetTilingKey();
+    SetPlatformInfo();
+    PrintTilingDataInfo();
+    OP_LOGD(nodeName_, "Finish MoeDistributeDispatchTeardownA5 tiling");
+    return ge::GRAPH_SUCCESS;
+}
+
+bool MoeDistributeDispatchTeardownTilingA5::IsCapable()
+{
+    if (npuArch_ == NpuArch::DAV_3510) {
+        OP_LOGD(nodeName_, "Do MoeDistributeDispatchTeardownTilingA5 tiling.");
+        return true;
+    }
+    return false;
+}
+
+ge::graphStatus MoeDistributeDispatchTeardownTilingA5::DoOpTiling()
+{
+    return MoeDistributeDispatchTeardownTilingFuncImpl();
+}
+} // namespace optiling
