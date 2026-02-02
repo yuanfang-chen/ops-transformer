@@ -2895,7 +2895,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockCrossover(ContextParamsForPFATil
         return false);
     OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "AlibiPse is not supported in per-block quant scenario!"),
-        return false);    
+        return false);      
     return true;
 }
 
