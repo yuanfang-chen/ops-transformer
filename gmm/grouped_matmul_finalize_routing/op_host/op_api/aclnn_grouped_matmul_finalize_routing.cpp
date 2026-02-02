@@ -1315,7 +1315,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
     } else if (!CheckType(tmpWeightV3->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "aclnnGroupedMatmulFinalizeRoutingV3 weightNd weight type should be INT_32, FLOAT8_E4M3FN, "
-                "FLOAT8_E5M2, FLOAT4_E1M2 or FLOAT4_E2M1, but now "
+                "FLOAT8_E5M2, FLOAT4_E2M1, but now "
                 "is %s",
                 op::ToString(tmpWeightV3->GetDataType()).GetString());
         return ACLNN_ERR_PARAM_INVALID;
@@ -1327,7 +1327,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "aclnnGroupedMatmulFinalizeRoutingV3 weightNd: Invalid dtype combination."
                 "Expected: x1 and x2 both in [FLOAT8_E5M2, FLOAT8_E4M3FN, "
-                "FLOAT4_E1M2 or FLOAT4_E2M1] for mx."
+                "FLOAT4_E2M1] for mx."
                 "But got x1=%s, x2=%s",
                 op::ToString(x1->GetDataType()).GetString(), op::ToString(tmpWeightV3->GetDataType()).GetString());
         return ACLNN_ERR_PARAM_INVALID;
