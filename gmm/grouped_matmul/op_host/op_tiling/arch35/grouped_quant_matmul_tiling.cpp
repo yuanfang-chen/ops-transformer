@@ -253,7 +253,7 @@ FLOAT4_E1M2}, actual is %s.",
     inputParams_.cDtype = yDesc->GetDataType();
     if (inputParams_.cDtype == ge::DT_INT32 && scaleDesc != nullptr) {
         inputParams_.scaleDtype = ge::DT_UINT64;
-        scaleDesc->SetDataType(ge::DT_UINT64);
+        (void)const_cast<gert::CompileTimeTensorDesc*>(scaleDesc)->SetDataType(ge::DT_UINT64);
     }
     isWeightNz_ = inputParams_.bFormat == ge::FORMAT_FRACTAL_NZ;
     if (isWeightNz_) {
