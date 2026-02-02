@@ -46,8 +46,6 @@ struct Args {
     aclrtContext context;
 };
 
-const char* rank_table_file = std::getenv("RANK_TABLE_FILE");
-
 constexpr uint32_t EP_WORLD_SIZE = 2;
 constexpr uint32_t TP_WORLD_SIZE = 1;
 constexpr uint32_t DEV_NUM = EP_WORLD_SIZE * TP_WORLD_SIZE;
@@ -82,6 +80,7 @@ int CreateAclTensor(const std::vector<T> &hostData, const std::vector<int64_t> &
 
 int LaunchOneProcessDispatchAndCombine(Args &args)
 {
+    const char* rankTableFile = std::getenv("RANK_TABLE_FILE");
     int ret = aclrtSetCurrentContext(args.context);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclrtSetCurrentContext failed, ret %d\n", ret); return ret);
 
@@ -89,7 +88,7 @@ int LaunchOneProcessDispatchAndCombine(Args &args)
     ret = HcclGetCommName(args.hcclEpComm, hcomEpName);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetEpCommName failed, ret %d\n", ret); return -1);
     char hcomTpName[128] = {0};
-    if (!rank_table_file) {
+    if (!rankTableFile) {
         ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
     }
