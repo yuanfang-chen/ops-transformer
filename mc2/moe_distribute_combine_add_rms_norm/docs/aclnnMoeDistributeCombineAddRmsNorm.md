@@ -550,17 +550,17 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
 
         int64_t BS = 8;
         int64_t H = 7168;
-        int64_t K = 3;
+        int64_t K = 2;
         int64_t expertShardType = 0;
         int64_t sharedExpertNum = 0;
         int64_t sharedExpertRankNum = 0;
-        int64_t moeExpertNum = 8;
+        int64_t moeExpertNum = 2;
         int64_t quantMode = 0;
         int64_t globalBS = BS * EP_WORLD_SIZE;
-        int64_t expertTokenNumsType = 1;
+        int64_t expertTokenNumsType = 0;
         int64_t outDtype = 0;
         int64_t commQuantMode = 0;
-        int64_t groupList_type = 1;
+        int64_t groupList_type = 0;
         int64_t localExpertNum;
         int64_t A;
         if (args.epRankId < sharedExpertRankNum) {
@@ -888,6 +888,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
 
     int main(int argc, char *argv[])
     {
+        // 本样例基于Atlas A3实现，必须在Atlas A3上运行
         int ret = aclInit(nullptr);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed, ret = %d\n", ret); return ret);
 
