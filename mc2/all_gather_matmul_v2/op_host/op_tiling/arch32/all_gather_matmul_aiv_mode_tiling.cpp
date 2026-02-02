@@ -434,7 +434,7 @@ static bool CheckDtypeX2(gert::TilingContext *context, AllGatherMatmulAIVModeInf
 
 void SetTilingData(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info, int64_t rankSize)
 {
-    coctilingData.rankSize = rankSize;
+    cocTilingData.rankSize = rankSize;
     if (info.is910C) {
         if (rankSize == RANKSIZE_FOUR && info.quantFlag) {
             AllGatherV2MatmulNPU91093FourRankINT8Tiling(cocTilingData);
