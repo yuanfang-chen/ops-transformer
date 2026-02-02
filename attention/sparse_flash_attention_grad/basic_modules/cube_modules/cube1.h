@@ -130,8 +130,11 @@ CubeOp<T1>::cube1ProcessDense(const int32_t blkCntOffset, const int32_t mmPingPo
         mmParam.singleK = tailLoopDSize;
         current_l1_query_tensor = l1_query_tensor[(dLoopTimes - 1) * dimGAlign * perLoopDSize];
         l1_key_tensor = l1_common_tensors[ping_pong_flag_l1_common_];
-        
-        currentKeyOffset = HAS_ROPE ? runInfo.keyRopeGmOffset + blkCntOffset * dimN2 * selectedBlockSizeDrope + (nIdx - blkCntOffset) * selectedBlockSize * 64 : runInfo.keyGmOffset + (nIdx - blkCntOffset) * selectedBlockSizeDqk + (dLoopTimes - 1) * K_SPLIT_SIZE;
+
+        currentKeyOffset = HAS_ROPE ? runInfo.keyRopeGmOffset + blkCntOffset * dimN2 * selectedBlockSizeDrope +
+                                          (nIdx - blkCntOffset) * selectedBlockSize * dimRope :
+                                      runInfo.keyGmOffset + (blkCntOffset * dimN2 + nIdx - blkCntOffset) * selectedBlockSizeDqk +
+                                          (dLoopTimes - 1) * K_SPLIT_SIZE;
 
         GlobalTensor<T1> kSrcGm = HAS_ROPE ? keyRopeGm[currentKeyOffset] : keyGm[currentKeyOffset];
         WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
