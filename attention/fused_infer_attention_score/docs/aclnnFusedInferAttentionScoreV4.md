@@ -1477,7 +1477,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <tr>
             <td>PagedAttention</td>
             <td>blockSize</td>
-            <td>仅支持16对齐且小于等于1024</td>
+            <td>仅支持16对齐且小于等于1024<br>TND，GQA/MQA，innerPrecise=0场景下,仅支持16对齐且小于等于128</td>
         </tr>
         <tr>
             <td>MLA（当queryRope和keyRope不为空时）</td>
