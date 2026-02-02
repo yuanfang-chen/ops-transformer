@@ -649,34 +649,18 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::MoveResultFromP
             }
             SetFlag<HardEvent::MTE2_MTE3>(event_id);
             WaitFlag<HardEvent::MTE2_MTE3>(event_id);
-            if (k % 16 == 0) {
-                if constexpr (std::is_same_v<X1Type, AscendC::int4b_t>) {
-                    CopyUbufToGm(
-                        gm_dst + (move_idx * max_move_m * k + k_move_idx * max_move_k) / 2, ub_buff_st, actual_move_m,
-                        actual_k_move_num_in_out * Catlass::SizeOfBits<X1Type>::value / (8 * 32),
-                        (actual_k_move_num_in_peer_mem - actual_k_move_num_in_out) * Catlass::SizeOfBits<X1Type>::value / (8 * 32),
-                        (k - actual_k_move_num_in_out) * Catlass::SizeOfBits<X1Type>::value / (8 * 32));
-                } else {
-                    CopyUbufToGm(
-                        gm_dst + move_idx * max_move_m * k + k_move_idx * max_move_k, ub_buff_st, actual_move_m,
-                        actual_k_move_num_in_out * sizeof(X1Type) / 32,
-                        (actual_k_move_num_in_peer_mem - actual_k_move_num_in_out) * sizeof(X1Type) / 32,
-                        (k - actual_k_move_num_in_out) * sizeof(X1Type) / 32);
-                }   
+            if constexpr (std::is_same_v<X1Type, AscendC::int4b_t>) {
+                CopyUbufToGmAlignB16(
+                    gm_dst + (move_idx * max_move_m * k + k_move_idx * max_move_k) / 2, ub_buff_st, actual_move_m,
+                    actual_k_move_num_in_out * Catlass::SizeOfBits<X1Type>::value / 8,
+                    (actual_k_move_num_in_peer_mem - actual_k_move_num_in_out) * Catlass::SizeOfBits<X1Type>::value / (8 * 32),
+                    (k - actual_k_move_num_in_out) * Catlass::SizeOfBits<X1Type>::value / (8 * 32));
             } else {
-                if constexpr (std::is_same_v<X1Type, AscendC::int4b_t>) {
-                    CopyUbufToGmAlignB16(
-                        gm_dst + (move_idx * max_move_m * k + k_move_idx * max_move_k) / 2, ub_buff_st, actual_move_m,
-                        actual_k_move_num_in_out * Catlass::SizeOfBits<X1Type>::value / 8,
-                        (actual_k_move_num_in_peer_mem - actual_k_move_num_in_out) * Catlass::SizeOfBits<X1Type>::value / (8 * 32),
-                        (k - actual_k_move_num_in_out) * Catlass::SizeOfBits<X1Type>::value / (8 * 32));
-                } else {
-                    CopyUbufToGmAlignB16(
-                        gm_dst + move_idx * max_move_m * k + k_move_idx * max_move_k, ub_buff_st, actual_move_m,
-                        actual_k_move_num_in_out * sizeof(X1Type),
-                        (actual_k_move_num_in_peer_mem - actual_k_move_num_in_out) * sizeof(X1Type) / 32,
-                        (k - actual_k_move_num_in_out) * sizeof(X1Type) / 32);
-                }
+                CopyUbufToGmAlignB16(
+                    gm_dst + move_idx * max_move_m * k + k_move_idx * max_move_k, ub_buff_st, actual_move_m,
+                    actual_k_move_num_in_out * sizeof(X1Type),
+                    (actual_k_move_num_in_peer_mem - actual_k_move_num_in_out) * sizeof(X1Type) / 32,
+                    (k - actual_k_move_num_in_out) * sizeof(X1Type) / 32);
             }
             SetFlag<HardEvent::MTE3_MTE2>(event_id);
         }
