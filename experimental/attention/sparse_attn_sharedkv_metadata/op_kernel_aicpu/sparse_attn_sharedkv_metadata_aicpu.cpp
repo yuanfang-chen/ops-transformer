@@ -830,36 +830,36 @@ bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
     // FA Metadata Generate
     for (size_t i = 0; i < aicCoreNum_; ++i) {
         if (i >= splitRes.usedCoreNum) {
-            metaDataPtr->FAMetadata[i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
+            metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
             continue;
         }
-        metaDataPtr->FAMetadata[i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
+        metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
         // FA START
-        metaDataPtr->FAMetadata[i][FA_BN2_START_INDEX] = i == 0 ? 0 : splitRes.bN2End[i-1];
-        metaDataPtr->FAMetadata[i][FA_M_START_INDEX] = i == 0 ? 0 : splitRes.gS1End[i-1];
-        metaDataPtr->FAMetadata[i][FA_S2_START_INDEX] = i == 0 ? 0 : splitRes.s2End[i-1];
+        metaDataPtr->faMetadata[i][FA_BN2_START_INDEX] = i == 0 ? 0 : splitRes.bN2End[i-1];
+        metaDataPtr->faMetadata[i][FA_M_START_INDEX] = i == 0 ? 0 : splitRes.gS1End[i-1];
+        metaDataPtr->faMetadata[i][FA_S2_START_INDEX] = i == 0 ? 0 : splitRes.s2End[i-1];
         // FA END
-        metaDataPtr->FAMetadata[i][FA_BN2_END_INDEX] = splitRes.bN2End[i];
-        metaDataPtr->FAMetadata[i][FA_M_END_INDEX] = splitRes.gS1End[i];
-        metaDataPtr->FAMetadata[i][FA_S2_END_INDEX] = splitRes.s2End[i];
+        metaDataPtr->faMetadata[i][FA_BN2_END_INDEX] = splitRes.bN2End[i];
+        metaDataPtr->faMetadata[i][FA_M_END_INDEX] = splitRes.gS1End[i];
+        metaDataPtr->faMetadata[i][FA_S2_END_INDEX] = splitRes.s2End[i];
         // 
-        metaDataPtr->FAMetadata[i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
+        metaDataPtr->faMetadata[i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
     }
 
     // FD Metadata Generate
     for (size_t i = 0; i < aivCoreNum_; ++i) {
         if (i >= splitRes.fdRes.fdUsedVecNum) {
-            metaDataPtr->FDMetadata[i][FD_CORE_ENABLE_INDEX] = 0; // AIV disenable
+            metaDataPtr->fdMetadata[i][FD_CORE_ENABLE_INDEX] = 0; // AIV disenable
             continue;
         }
-        metaDataPtr->FDMetadata[i][FD_CORE_ENABLE_INDEX] = 1; // AIV enable
+        metaDataPtr->fdMetadata[i][FD_CORE_ENABLE_INDEX] = 1; // AIV enable
         uint32_t curFdIdx = splitRes.fdRes.fdIdx[i];
-        metaDataPtr->FDMetadata[i][FD_BN2_IDX_INDEX] = splitRes.fdRes.fdBN2Idx[curFdIdx];
-        metaDataPtr->FDMetadata[i][FD_M_IDX_INDEX] = splitRes.fdRes.fdMIdx[curFdIdx];
-        metaDataPtr->FDMetadata[i][FD_WORKSPACE_IDX_INDEX] = splitRes.fdRes.fdWorkspaceIdx[curFdIdx];
-        metaDataPtr->FDMetadata[i][FD_WORKSPACE_NUM_INDEX] = splitRes.fdRes.fdS2SplitNum[curFdIdx];
-        metaDataPtr->FDMetadata[i][FD_M_START_INDEX] = splitRes.fdRes.fdMStart[i];
-        metaDataPtr->FDMetadata[i][FD_M_NUM_INDEX] = splitRes.fdRes.fdMNum[i];
+        metaDataPtr->fdMetadata[i][FD_BN2_IDX_INDEX] = splitRes.fdRes.fdBN2Idx[curFdIdx];
+        metaDataPtr->fdMetadata[i][FD_M_IDX_INDEX] = splitRes.fdRes.fdMIdx[curFdIdx];
+        metaDataPtr->fdMetadata[i][FD_WORKSPACE_IDX_INDEX] = splitRes.fdRes.fdWorkspaceIdx[curFdIdx];
+        metaDataPtr->fdMetadata[i][FD_WORKSPACE_NUM_INDEX] = splitRes.fdRes.fdS2SplitNum[curFdIdx];
+        metaDataPtr->fdMetadata[i][FD_M_START_INDEX] = splitRes.fdRes.fdMStart[i];
+        metaDataPtr->fdMetadata[i][FD_M_NUM_INDEX] = splitRes.fdRes.fdMNum[i];
     }
     return true;
 }
