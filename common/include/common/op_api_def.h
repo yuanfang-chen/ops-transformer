@@ -14,7 +14,7 @@
  */
 
 #ifndef Transformer_COMMON_OP_API_DEF_H
-#define Transformer_COMMON_OP_API_DEF_H
+#define Transformer_COMMON_OP_API_DEF_H 
 
 namespace op {
     constexpr size_t MAX_SUPPORT_DIMS_NUMS = 8;
