@@ -68,6 +68,21 @@ using supportTypeForDataCopy = typename std::conditional<
     T
 >::type;
 
+template <typename ReturnType = size_t, typename T>
+struct TILE_SHAPE_K_512B {
+    static constexpr ReturnType value = Catlass::BytesToBits(512) / Catlass::BytesToBits(T);
+};
+
+template <typename ReturnType = size_t, typename T>
+struct TILE_SHAPE_K_256B {
+    static constexpr ReturnType value = Catlass::BytesToBits(256) / Catlass::BytesToBits(T);
+};
+
+template <typename ReturnType = size_t, typename T>
+struct TILE_SHAPE_K_128B {
+    static constexpr ReturnType value = Catlass::BytesToBits(128) / Catlass::BytesToBits(T);
+};
+
 // AGMM : AllGatherMatmulAIVMode
 #define TemplateAGMMClass typename X1Type, typename X2Type, typename BiasType, typename x2ScaleType, typename YType, bool weightNZ, bool TA, bool TB
 #define TemplateAGMMFunc X1Type, X2Type, BiasType, x2ScaleType, YType, weightNZ, TA, TB
@@ -355,8 +370,8 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::CatlassMatmul()
         LayoutScale layoutScale{static_cast<uint32_t>(n)};
         GemmCoord processSize{static_cast<uint32_t>(m), static_cast<uint32_t>(n), static_cast<uint32_t>(k)};
 
-        constexpr int32_t L1TileShapeK = quantFlag ? TILE_SHAPE_512 : TILE_SHAPE_256;
-        constexpr int32_t L0TileShapeK = quantFlag ? TILE_SHAPE_128 : TILE_SHAPE_64;
+        constexpr int32_t L1TileShapeK = TILE_SHAPE_K_512B<int32_t, X1Type>;
+        constexpr int32_t L0TileShapeK = TILE_SHAPE_K_128B<int32_t, X1Type>;
         using DispatchPolicy = Gemm::MmadAtlasA2Preload<ENABLE_UNIT_FLAG, ENABLE_SHUFFLE_K>;
         using AType = Gemm::GemmType<ElementA, LayoutA>;
         using CType = Gemm::GemmType<ElementC, LayoutC>;
