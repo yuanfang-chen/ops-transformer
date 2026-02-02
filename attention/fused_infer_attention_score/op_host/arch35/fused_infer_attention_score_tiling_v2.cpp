@@ -667,7 +667,7 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
 
   // IFA（伪量化）模板当前不支持 learnable sink 输入特性
   OP_CHECK_IF(context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr,
-                  OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "Learnablesink only supports no-quantized GQA mode."),
+                  OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "Learnable sink only supports no-quantized GQA mode."),
                   return ge::GRAPH_FAILED);
 
   return ge::GRAPH_SUCCESS;
