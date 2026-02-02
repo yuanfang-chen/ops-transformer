@@ -657,7 +657,6 @@ static inline bool TransposeTensorContiguousProcessForMXScale(const aclTensor *&
         OP_LOGD("GroupedMatmulFinalizeRouting  scale no need to do contiguous process.");
         return true;
     }
-
     auto transposeFlag = IsTransposeForMxScale(contiguousTensor);
     // swap tensor if its viewshape not satisfy request shape without adding a transpose node
     if (transposeFlag) {
@@ -717,7 +716,16 @@ static aclnnStatus WeightNZCaseProcess(const aclTensor *&x2, bool &transposeX2, 
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
     } else {
-        CHECK_RET(TransposeTensorContiguousProcess(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+        if ( op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 )
+        {
+            if(transposeX2 == false) {
+                CHECK_RET(TransposeTensorContiguousProcess(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+                transposeX2 = true;
+            }
+        }
+        else{
+            CHECK_RET(TransposeTensorContiguousProcess(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+        }
     }
     x2->SetOriginalShape(x2->GetViewShape());
     return ACLNN_SUCCESS;
@@ -775,14 +783,16 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     auto ret = WeightNZCaseProcess(x2, transposeX2, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    if (scale != nullptr && CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
+    if (scale != nullptr && CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST) && transposeX2 == false) {
         bool transposescale = false;
         ret = WeightNZCaseProcessForMXScale(scale, transposescale, executor);
         CHECK_RET(transposeX2 == transposescale, ret);
     }
 
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
-    CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
+    if(op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510){
+        CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
+    }
     return ACLNN_SUCCESS;
 }
 
@@ -1306,21 +1316,21 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
     }
     // unpack int32 to int4
     auto tmpWeightV3 = x2;
-    if (tmpWeightV3->GetDataType() == DataType::DT_INT32) {
-        op::Shape weightShapeV3 = tmpWeightV3->GetViewShape();
-        auto viewShapeDimV2 = weightShapeV3.GetDimNum();
-        weightShapeV3[viewShapeDimV2 - 1] = weightShapeV3[viewShapeDimV2 - 1] * PER_INT4_IN_U32;
-        tmpWeightV3->SetViewShape(weightShapeV3);
-        tmpWeightV3->SetDataType(DataType::DT_INT4);
-    } else if (!CheckType(tmpWeightV3->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnGroupedMatmulFinalizeRoutingV3 weightNd weight type should be INT_32, FLOAT8_E4M3FN, "
-                "FLOAT8_E5M2, FLOAT4_E1M2 or FLOAT4_E2M1, but now "
-                "is %s",
-                op::ToString(tmpWeightV3->GetDataType()).GetString());
-        return ACLNN_ERR_PARAM_INVALID;
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
+        if (tmpWeightV3->GetDataType() == DataType::DT_INT32) {
+            op::Shape weightShapeV3 = tmpWeightV3->GetViewShape();
+            auto viewShapeDimV2 = weightShapeV3.GetDimNum();
+            weightShapeV3[viewShapeDimV2 - 1] = weightShapeV3[viewShapeDimV2 - 1] * PER_INT4_IN_U32;
+            tmpWeightV3->SetViewShape(weightShapeV3);
+            tmpWeightV3->SetDataType(DataType::DT_INT4);
+        } else {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "aclnnGroupedMatmulFinalizeRoutingV3 weightNd weight type should be INT_32, but now "
+                    "is %s",
+                    op::ToString(tmpWeightV3->GetDataType()).GetString());
+            return ACLNN_ERR_PARAM_INVALID;
+        }
     }
-
     bool isMXValid = CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST) &&
                      CheckType(tmpWeightV3->GetDataType(), MX_IN_TYPE_SUPPORT_LIST);
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 && !isMXValid) {

@@ -355,7 +355,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   - scaleOptional支持FLOAT8_E8M0。shape支持四维，维度为(e,n,Ceil(k/64),2) 并且数据类型只支持FLOAT8_E8M0，转置属性必须和x2保持一致。
   - biasOptional支持BF16。
   - perTokenScaleOptional支持FLOAT8_E8M0。shape支持三维，维度为(m,Ceil(k/64),2)。
-  - x1、x2、scaleOptional、pertokenScaleOptional、groupListOptional、logitOptional、rowIndexOptional是必选参数，biasOptional，sharedInputOptional是可选参数。目前暂不支持offsetOptional参数。
+  - x1、x2、scaleOptional、pertokenScaleOptional、groupListOptional、logitOptional、rowIndexOptional是必选参数，biasOptional，sharedInputOptional是可选参数。目前暂不支持offsetOptional参数。所有参数均不支持空tensor。
   - out的第一维bacth、sharedInputOffset必须大于等于0。
 - **返回值**
 
@@ -388,9 +388,6 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
     </tr>
     <tr>
       <td>x1、x2、scaleOptional、biasOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、pertokenScaleOptional、groupListOptional、sharedInputOptional、logitOptional、rowIndexOptional或out的shape不满足校验条件。</td>
-    </tr>
-    <tr>
-      <td>x1、x2、scaleOptional、biasOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、pertokenScaleOptional、groupListOptional、sharedInputOptional、logitOptional、rowIndexOptional或out的shape是空tensor。</td>
     </tr>
     <tr>
       <td>x1、x2、scaleOptional、biasOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、pertokenScaleOptional、groupListOptional、sharedInputOptional、logitOptional、rowIndexOptional或out的shape是空tensor。</td>
@@ -443,7 +440,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
 
 - 确定性计算：
 
-  - aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+  - aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品支持通过aclrtCtxSetSysParamOpt开启确定性，Ascend 950PR/Ascend 950DT暂不支持。
 - **伪量化场景支持类型**输入和输出支持以下数据类型组合：
 
   | x1   | x2   | scaleOptional | biasOptional | offsetOptional | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional | groupListOptional | sharedInputOptional | logitOptional | rowIndexOptional | out     |
@@ -460,8 +457,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   
   | MX量化场景 | x1                        | x2                         | scaleOptional | biasOptional  | pertokenScaleOptional | groupListOptional | sharedInputOptional | logitOptional | rowIndexOptional | out     |
   | ---------- | ------------------------- | -------------------------- | ------------- | ------------- | --------------------- | ----------------- | ------------------- | ------------- | ---------------- | ------- |
-  | MXFP8      | FLOAT8_E4M3FN FLOAT8_E5M2 | FLOAT8_E4M3FN  FLOAT8_E5M2 | FLOAT8_E8M0   | BFLOAT16 null | FLOAT8_E8M0           | INT64             | BFLOAT16  / null    | FLOAT32       | INT64            | FLOAT32 |
-  | MXFP4      | FLOAT4_E2M1 FLOAT4_E1M2   | FLOAT4_E2M1 FLOAT4_E1M2    | FLOAT8_E8M0   | BFLOAT16 null | FLOAT8_E8M0           | INT64             | BFLOAT16 / null     | FLOAT32       | INT64            | FLOAT32 |
+  | MXFP8      | FLOAT8_E4M3FN / FLOAT8_E5M2 | FLOAT8_E4M3FN / FLOAT8_E5M2 | FLOAT8_E8M0   | BFLOAT16 / null | FLOAT8_E8M0           | INT64             | BFLOAT16  / null    | FLOAT32       | INT64            | FLOAT32 |
+  | MXFP4      | FLOAT4_E2M1 / FLOAT4_E1M2   | FLOAT4_E2M1 / FLOAT4_E1M2    | FLOAT8_E8M0   | BFLOAT16 / null | FLOAT8_E8M0           | INT64             | BFLOAT16 / null     | FLOAT32       | INT64            | FLOAT32 |
 
 
   - 在MXFP4/MXFP8场景中，offsetOptional、antiquantScaleOptional、antiquantOffsetOptional必须设置为空。
