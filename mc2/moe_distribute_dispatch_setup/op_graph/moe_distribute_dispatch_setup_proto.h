@@ -1,0 +1,69 @@
+/**
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/*!
+ * \file moe_distribute_dispatch_setup_proto.h
+ * \brief
+ */
+#ifndef MOE_DISTRIBUTE_DISPATCH_SETUP_PROTO_H
+#define MOE_DISTRIBUTE_DISPATCH_SETUP_PROTO_H
+
+#include <graph/operator_reg.h>
+
+namespace ge {
+/**
+* @brief MoeDistributeDispatchSetup operator interface implementation.
+* @par Inputs
+* Four inputs, including:
+* @li x: A tensor. Support dtype: float16,bfloat16, dimension must be 2. Shape supports (BS, H), support format: ND.
+* @li expert_ids: A tensor. Support dtype: int32, indicates top k experts of each token, dimension must be 2. Shape supports (BS, K), support format: ND.
+* @li scales: An optional tensor. Support dtype: float32, dimension must be 2, support format: ND.
+* @li x_active_mask: An optional tensor. Support dtype: bool, support format: ND.
+* @par Attributes
+* @li group_ep: Required. Input ep comm group name, ep means experts parallelism, dtype: String.
+* @li ep_world_size: Required. Input ep comm world size, dtype: int64.
+* @li ep_rank_id: Required. Input ep comm rank Id, dtype: int64.
+* @li moe_expert_num: Required. Input moe expert num, dtype: int64.
+* @li expert_shard_type: Input moe shard type, dtype: int64.
+* @li shared_expert_num: Input shared expert num, dtype: int64.
+* @li shared_expert_rank_num: Input shared expert rank num, dtype: int64.
+* @li quant_mode: Input quant mode. The options are 0 (non-quantization), 1 (static quantization), and 2 (dynamic quantization). dtype: int64.
+* @li global_bs: Input global batch size, dtype: int64.
+* @li comm_type: Input global batch size, dtype: int64.
+* @li comm_alg: Input global batch size, dtype: int64.
+* @par Outputs
+* Three outputs, including:
+* @li y: A tensor. Support dtype: int32. Shape supports (BS*K, ), support format: ND.
+* @li expand_idx: A tensor. Support dtype: int32. Shape supports (BS*K, ), support format: ND.
+* @li comm_cmd_info: A tensor. Support dtype: int32. Shape supports (BS*K, ), support format: ND.
+*/
+REG_OP(MoeDistributeDispatchSetup)
+    .INPUT(x, TensorType({DT_BF16, DT_FLOAT16}))
+    .INPUT(expert_ids, TensorType({DT_INT32}))
+    .OPTIONAL_INPUT(scales, TensorType({DT_FLOAT}))
+    .OPTIONAL_INPUT(x_active_mask, TensorType({DT_BOOL}))
+    .OUTPUT(y, TensorType({DT_BF16, DT_INT8, DT_FLOAT16}))
+    .OUTPUT(expand_idx, TensorType({DT_INT32}))
+    .OUTPUT(comm_cmd_info, TensorType({DT_INT32}))
+    .REQUIRED_ATTR(group_ep, String)
+    .REQUIRED_ATTR(ep_world_size, Int)
+    .REQUIRED_ATTR(ep_rank_id, Int)
+    .REQUIRED_ATTR(moe_expert_num, Int)
+    .ATTR(expert_shard_type, Int, 0)
+    .ATTR(shared_expert_num, Int, 1)
+    .ATTR(shared_expert_rank_num, Int, 0)
+    .ATTR(quant_mode, Int, 0)
+    .ATTR(global_bs, Int, 0)
+    .ATTR(comm_type, Int, 0)
+    .ATTR(comm_alg, String, "")
+    .OP_END_FACTORY_REG(MoeDistributeDispatchSetup)
+}  // namespace ge
+
+#endif  // OPS_BUILT_IN_OP_PROTO_INC_EXPERIMENT_OPS_H_
