@@ -311,7 +311,7 @@ static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const 
     OP_CHECK_DTYPE_NOT_SUPPORT(x2Scale, SCALE_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(output, OUTPUT_DTYPE_SUPPORT_LIST, return false);
     if (x1ScaleOptional != nullptr) {
-        OP_CHECK_DTYPE_NOT_SAME(x1ScaleOptional, SCALE_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(x1ScaleOptional, SCALE_DTYPE_SUPPORT_LIST, return false);
     }
     if (alltoAllOutOptional != nullptr) {
         OP_CHECK_DTYPE_NOT_SAME(x1, alltoAllOutOptional, return false);
@@ -507,7 +507,7 @@ extern "C" aclnnStatus InnerAlltoAllQuantMatmulGetWorkspaceSize(const aclTensor*
     char* str_group = const_cast<char*>(group);
     int64_t worldSize = -1; // worldSize的默认值，实际值在建立通信域时获取
     int64_t yDtype = output->GetDataType();  // yDtype根据实际output的类型赋值，图模式需要该参数
-    all2AllOutFlag = IsAll2AllOut(all2AllOutOptional);
+    bool all2AllOutFlag = IsAll2AllOut(all2AllOutOptional);
     // 部分参数根据芯片型号不同，需要设置不同的默认值
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         // ACL和GE的datatype枚举值对undefined定义不同，inner接口进入到算子内部，需要使用GE枚举值

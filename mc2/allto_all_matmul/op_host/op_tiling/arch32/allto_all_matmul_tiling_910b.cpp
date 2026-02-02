@@ -435,7 +435,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
 
     if (info.isAlltoallOut) {  // 校验alltoallout类型
         ge::DataType alltoallOutDtype = alltoallOutDesc->GetDataType();
-        OP_TILING_CHECK((alltoallOutDtype == x1Dtype),
+        OP_TILING_CHECK((alltoallOutDtype != x1Dtype),
                         OP_LOGE(opName_, "x1Dtype should be same with alltoallOutDtype, but x1Dtype is %s and alltoallOutDtype is %s.", 
                             Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(alltoallOutDtype).c_str()),
                         return ge::GRAPH_FAILED);
