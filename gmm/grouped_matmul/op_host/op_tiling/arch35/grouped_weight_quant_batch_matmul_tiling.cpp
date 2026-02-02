@@ -788,8 +788,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckUnsupportDataFlow(const gert::Til
                                                     "weight only supports transposed and ND-format."),
                     return false);
     } else if (ge::GetSizeByDataType(xDType_) == B16_DATA_SIZE &&
-               (weightDtype_ == ge::DT_FLOAT4_E2M1 || weightDtype_ == ge::DT_FLOAT4_E1M2 ||
-                weightDtype_ == ge::DT_FLOAT) &&
+               (weightDtype_ == ge::DT_FLOAT4_E2M1 || weightDtype_ == ge::DT_FLOAT) &&
                antiquantScaleDtype_ == ge::DT_FLOAT8_E8M0) {
         OP_CHECK_IF(!(weightNzFlag_ && !transB_),
                     OP_LOGE(context->GetNodeName(), "In weight quant case, when x-weight is bf16/fp16-fp4/fp16, weight "
