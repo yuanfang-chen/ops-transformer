@@ -1281,7 +1281,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     fixpipeParams.params.dstNdStride = 0;
 
     if constexpr (isInfer) {
-        bool isS1Odd = (constInfo.s1Size % 2) != 0; // BSNGD GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
+        bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
         if (IsGS1Merge(constInfo) && isS1Odd) { 
             fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
         }
