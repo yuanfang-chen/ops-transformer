@@ -664,6 +664,12 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
                   OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "workSpaceSize got from ge is nullptr"),
                   return ge::GRAPH_FAILED);
   ifaContext.workSpaces = context.GetWorkspaceSizes(1);
+
+  //伪量化模版当前不支持sink特性
+  OP_CHECK_IF(context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr,
+                  OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "IFA do not suuport sink."),
+                  return ge::GRAPH_FAILED);
+
   return ge::GRAPH_SUCCESS;
 }
 

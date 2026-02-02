@@ -2698,6 +2698,47 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
     return true;
 }
 
+bool PromptFlashAttentionTilingV2::CheckLearnSink(ContextParamsForPFATiling &contextKeyParams,
+                                                  PFAShapeInfo &queryShapeInfo, PFAShapeInfo &valueShapeInfo,
+                                                  PromptFlashAttentionTilingData &tilingData)
+{
+    if (!enableLearnSink) {
+        return true;
+    }
+
+    OP_CHECK_IF(contextKeyParams.learnableSinkDataType != ge::DT_BF16, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When sink is used, dataType of sink(%s) must be bf16.", GetPfaDataTypeStr(contextKeyParams.learnableSinkDataType).c_str()),
+        return false);
+    OP_CHECK_IF(queryShapeInfo.d != 192 && queryShapeInfo.d != 128 && queryShapeInfo.d != 64, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When sink is used, query headdim must be one of {192, 128, 64}."),
+        return false);
+    OP_CHECK_IF(enablePseShift, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When sink is used, pse is not supported!"),
+        return false);
+    OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When sink is used, AlibiPse is not supported!"),
+        return false);
+    OP_CHECK_IF(enableLeftPadding, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when sink is used, leftpadding is not supported!"),
+        return false);
+    OP_CHECK_IF(isKVHasPrefix, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when sink is used, system prefix is not supported!"),
+        return false);
+    OP_CHECK_IF(enablePostQuant, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when sink is used, post quant is not supported!", GetPfaDataTypeStr(outputType).c_str()),
+        return false);
+    OP_CHECK_IF(innerPrecise != HIGH_PRECISION, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "innerPrecise must be high-precision in sink, now is %ld", innerPrecise),
+        return false);
+    return true;
+    OP_CHECK_IF(enableIFAMLA || enablePFAMLA,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "mla do not suuport sink."),
+        return false);
+    OP_CHECK_IF(enableIFAMLAFullQuant,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "ifa mla fullquant do not suuport sink."),
+        return false);
+}
+
 bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV) {
     uint32_t lenDims = queryShapeInfo.b; // The current length of the actSeqLen array is equal to batch size b.
@@ -4255,6 +4296,12 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
 
     // sparseMode check
     if (!CheckSparseMode(contextKeyParams, queryShapeInfo.s, tilingData)) {
+        return ge::GRAPH_FAILED;
+    }
+
+    // attention sink check
+    if (!CheckLearnSink(contextKeyParams, queryShapeInfo, valueShapeInfo, tilingData)) {
+        OP_LOGE(contextKeyParams.opName, "Check sink failed!");
         return ge::GRAPH_FAILED;
     }
     
