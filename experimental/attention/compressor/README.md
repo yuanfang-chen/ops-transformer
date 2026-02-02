@@ -160,6 +160,7 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
     import torch
     import torch_npu
     import numpy as np
+    import custom_ops
     import torch.nn as nn
     import math
 
@@ -295,6 +296,8 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
     import torch_npu
     import numpy as np
     import torch.nn as nn
+    import torchair
+    import custom_ops
     import math
 
     def get_seq_used_by_batch(batch_idx, S, seqused, cu_seqlens):
@@ -443,8 +446,8 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
                     norm_weight, 
                     rope_sin,
                     rope_cos,
-                    kv_block_table = block_table,
-                    score_block_table = block_table,
+                    kv_block_table = kv_block_table,
+                    score_block_table = score_block_table,
                     cu_seqlens = cu_seqlens,
                     seqused = seqused,
                     start_pos = start_pos,
