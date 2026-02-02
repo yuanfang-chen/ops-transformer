@@ -35,14 +35,14 @@ SparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
 
 bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
     CpuKernelContext &ctx) {
-  // input
-  actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
-  actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
-  actSeqLenCmpKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKv));
-  seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::seqUsedQ));
-  seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::seqUsedKv));
-  // output
-  metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
+    // input
+    actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
+    actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
+    actSeqLenCmpKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKv));
+    seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::seqUsedQ));
+    seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::seqUsedKv));
+    // output
+    metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
 
     bool requiredAttrs = GetAttrValue(ctx, "num_heads_q", queryHeadNum_) &&
                         GetAttrValue(ctx, "num_heads_kv", kvHeadNum_) &&
@@ -54,34 +54,152 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
         return false;
     }
 
-  // attributes optional
-  GetAttrValueOpt(ctx, "batch_size", batchSize_);
-  GetAttrValueOpt(ctx, "max_seqlen_q", querySeqSize_);
-  GetAttrValueOpt(ctx, "max_seqlen_kv", kvSeqSize_);
-  GetAttrValueOpt(ctx, "ori_topk", oriTopK_);
-  GetAttrValueOpt(ctx, "cmp_topk", cmpTopK_);
-  GetAttrValueOpt(ctx, "cmp_ratio", cmpRatio_);
-  GetAttrValueOpt(ctx, "ori_mask_mode", winMaskMode_);
-  GetAttrValueOpt(ctx, "cmp_mask_mode", cmpMaskMode_);
-  GetAttrValueOpt(ctx, "ori_win_left", winLeft_);
-  GetAttrValueOpt(ctx, "ori_win_right", winRight_);
-  GetAttrValueOpt(ctx, "layout_q", layoutQuery_);
-  GetAttrValueOpt(ctx, "layout_kv", layoutKv_);
-  GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
-  GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
+    // attributes optional
+    GetAttrValueOpt(ctx, "batch_size", batchSize_);
+    GetAttrValueOpt(ctx, "max_seqlen_q", querySeqSize_);
+    GetAttrValueOpt(ctx, "max_seqlen_kv", kvSeqSize_);
+    GetAttrValueOpt(ctx, "ori_topk", oriTopK_);
+    GetAttrValueOpt(ctx, "cmp_topk", cmpTopK_);
+    GetAttrValueOpt(ctx, "cmp_ratio", cmpRatio_);
+    GetAttrValueOpt(ctx, "ori_mask_mode", oriMaskMode_);
+    GetAttrValueOpt(ctx, "cmp_mask_mode", cmpMaskMode_);
+    GetAttrValueOpt(ctx, "ori_win_left", winLeft_);
+    GetAttrValueOpt(ctx, "ori_win_right", winRight_);
+    GetAttrValueOpt(ctx, "layout_q", layoutQuery_);
+    GetAttrValueOpt(ctx, "layout_kv", layoutKv_);
+    GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
+    GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
 
-  coreNum_ = aicCoreNum_;
-  sparseMode_ = static_cast<uint32_t>(SparseMode::BAND);
-  preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
-  nextToken_ = 0;
-  attentionMode_ = 1;
-  isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
+    coreNum_ = aicCoreNum_;
+    sparseMode_ = oriMaskMode_;
+    preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
+    nextToken_ = 0;
+    attentionMode_ = 1;
+    isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
 
   return (ParamsCheck() && ParamsInit());
 }
 
 bool SparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
-  return true;
+    // 1. 基础输出校验
+    KERNEL_CHECK_NULLPTR(metaData_, false, "metadata is null");
+    auto metaShape = metaData_->GetTensorShape();
+    KERNEL_CHECK_NULLPTR(metaShape, false, "shape of metadata is null");
+    KERNEL_CHECK_NULLPTR(metaData_->GetData(), false, "data of metadata is null");
+
+    // 2. Query Layout 逻辑校验
+    if (layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
+        KERNEL_LOG_ERROR("For query, layout must be TND or BSND!");
+        return false;
+    }
+    if (layoutQuery_ == "TND") {
+        if ((actSeqLenQ_ == nullptr || actSeqLenQ_->GetData() == nullptr) && 
+            (seqUsedQ_ == nullptr || seqUsedQ_->GetData() == nullptr)) {
+            KERNEL_LOG_ERROR("For query, when layout is TND, actSeqLenQ or SeqUsedQ cannot be nullptr!");
+            return false;
+        }
+    } else if (layoutQuery_ == "BSND") {
+        if ((actSeqLenQ_ == nullptr || actSeqLenQ_->GetData() == nullptr) &&
+            (seqUsedQ_ == nullptr || seqUsedQ_->GetData() == nullptr)) {
+            if (querySeqSize_ == 0 || batchSize_ < 1) {
+                KERNEL_LOG_ERROR("For query, when layout is BSND and no sequence tensor provided, querySeqSize and batchSize must be valid!");
+                return false;
+            }
+        }
+    }
+
+    // 3. KV Layout 逻辑校验
+    if (layoutKv_ != "TND" && layoutKv_ != "BSND" && layoutKv_ != "PA_ND") {
+        KERNEL_LOG_ERROR("For key and value, layout must be TND, BSND or PA_ND!");
+        return false;
+    }
+    if (layoutKv_ == "TND") {
+        if ((actSeqLenOriKv_ == nullptr || actSeqLenOriKv_->GetData() == nullptr) && 
+            (seqUsedKv_ == nullptr || seqUsedKv_->GetData() == nullptr)) {
+            KERNEL_LOG_ERROR("For key and value, when layout is TND, actSeqLenOriKV or SeqUsedKV cannot be nullptr!");
+            return false;
+        }
+    } else if (layoutKv_ == "PA_ND") {
+        if (seqUsedKv_ == nullptr || seqUsedKv_->GetData() == nullptr) {
+            KERNEL_LOG_ERROR("For key and value, when layout is PA_ND, SeqUsedKV must be provided!");
+            return false;
+        }
+    } else if (layoutKv_ == "BSND") {
+        if ((actSeqLenOriKv_ == nullptr || actSeqLenOriKv_->GetData() == nullptr) && 
+            (seqUsedKv_ == nullptr || seqUsedKv_->GetData() == nullptr)) {
+            if (kvSeqSize_ == 0 || batchSize_ < 1) {
+                KERNEL_LOG_ERROR("For key and value, when layout is BSND and no sequence tensor provided, KVSeqSize and batchSize must be valid!");
+                return false;
+            }
+        }
+    }
+
+    // 4. batchSize_ 校验
+    if (batchSize_ == 0) {
+        KERNEL_LOG_ERROR("batchSize_ should not be 0!");
+        return false;
+    }
+
+    // 5. 输入Tensor形状校验
+    auto checkShape = [&](Tensor* tensor, int64_t expectedSize, const char* name) {
+        if (tensor != nullptr && tensor->GetData() != nullptr) {
+            auto shape = tensor->GetTensorShape();
+            if (shape == nullptr || shape->GetDims() != 1 || shape->GetDimSize(0) != expectedSize) {
+                KERNEL_LOG_ERROR("Shape of %s is invalid, expected {%ld}", name, expectedSize);
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!checkShape(actSeqLenQ_, static_cast<int64_t>(batchSize_) + 1, "actSeqLenQ")) return false;
+    if (!checkShape(actSeqLenOriKv_, static_cast<int64_t>(batchSize_) + 1, "actSeqLenOriKv")) return false;
+    if (!checkShape(actSeqLenCmpKv_, static_cast<int64_t>(batchSize_) + 1, "actSeqLenCmpKv")) return false;
+    if (!checkShape(seqUsedQ_, static_cast<int64_t>(batchSize_), "seqUsedQ")) return false;
+    if (!checkShape(seqUsedKv_, static_cast<int64_t>(batchSize_), "seqUsedKv")) return false;
+
+    // 6. cmp_ratio校验
+    if (!hasCmpKv_ && cmpRatio_ != -1) {
+        KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpRatio_ should not be set!");
+        return false;
+    }
+    if (hasCmpKv_ && cmpRatio_ == -1) {
+        KERNEL_LOG_ERROR("When cmp_kv is enabled, cmpRatio_ must be assigned a value!");
+        return false;
+    }
+    bool cmpRatioIsNotPowTwo = (cmpRatio_ & (cmpRatio_ - 1)) != 0;
+    if (cmpRatio_ < 1 || cmpRatio_ > 128 || cmpRatioIsNotPowTwo) {
+        KERNEL_LOG_ERROR("Compression ratio %u invalid, must be 1/2/4/8/16/32/64/128!", cmpRatio_);
+        return false;
+    }
+
+    // 7. topk校验
+    if (!hasOriKv_ && oriTopK_ != 0) {
+        KERNEL_LOG_ERROR("When ori_kv is not enabled, oriTopK_ should not be set!");
+        return false;
+    }
+    if (!hasCmpKv_ && cmpTopK_ != 0) {
+        KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpTopK_ should not be set!");
+        return false;
+    }
+
+    // 8. ori_mask_mode校验
+    if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::BAND)) {
+        KERNEL_LOG_ERROR("oriMaskMode_ should be 4, but got %u", oriMaskMode_);
+        return false;
+    }
+
+    // 9. cmp_mask_mode 校验
+    if (cmpMaskMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
+        KERNEL_LOG_ERROR("cmpMaskMode_ should be 3, but got %u", cmpMaskMode_);
+        return false;
+    }
+    // 10. 核心数校验
+    if (aicCoreNum_ == 0 || aivCoreNum_ == 0 || (aivCoreNum_ % aicCoreNum_ != 0)) {
+        KERNEL_LOG_ERROR("Core num invalid: aic:%u, aiv:%u", aicCoreNum_, aivCoreNum_);
+        return false;
+    }
+    return true;
 }
 
 ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
