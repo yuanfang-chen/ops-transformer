@@ -234,7 +234,7 @@ static aclnnStatus CheckParams(const aclTensor *x1, const aclTensor *x2, const a
 }
 
 static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclTensor *x2, const aclTensor *bias, const aclTensor *output,
-                                                const aclTensor *gatherOut, bool isTransA, bool isTransB, int64_t streamMode)
+                                                const aclTensor *gatherOut, bool isTransA, bool isViewTransB, int64_t streamMode)
 {
   CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
 
@@ -242,20 +242,20 @@ static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclT
 
   CHECK_RET(CheckAttr(streamMode), ACLNN_ERR_PARAM_INVALID);
 
-  OP_CHECK_WRONG_DIMENSION(x1, TWO_DIMS, return false);
-  OP_CHECK_WRONG_DIMENSION(x2, TWO_DIMS, return false);
+  OP_CHECK_WRONG_DIMENSION(x1, TWO_DIMS, return ACLNN_ERR_PARAM_INVALID);
+  OP_CHECK_WRONG_DIMENSION(x2, TWO_DIMS, return ACLNN_ERR_PARAM_INVALID);
   // A矩阵不能转置
   OP_API_CHECK(isTransA, {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The x1 should not be transposed, but it is transposed.");
-    return false;
+    return ACLNN_ERR_PARAM_INVALID;
   });
 
-  const auto kValX1 = x1->GetStorageShape().GetDim(1);
-  const auto kValX2 = x2->GetStorageShape().GetDim(isTransB ? 1 : 0);
+  const auto kValX1 = x1->GetViewShape().GetDim(1);
+  const auto kValX2 = x2->GetViewShape().GetDim(isViewTransB ? 1 : 0);
   OP_API_CHECK((kValX1 != kValX2), {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
     "The k-axis of x1 and x2 should be same, but x1's k-axis is: %ld and x2's k-axis is: %ld.", kValX1, kValX2);
-    return false;
+    return ACLNN_ERR_PARAM_INVALID;
   });
 
   if (IsGatherOut(gatherOut)) {
@@ -264,18 +264,18 @@ static aclnnStatus CheckParamsAndShapeForAIVMode(const aclTensor *x1, const aclT
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
       "The k-axis of x1 and gatherOut should be same, but x1's k-axis is: %ld and gatherOut's k-axis is: %ld.",
       kValX1, kVal);
-      return false;
+      return ACLNN_ERR_PARAM_INVALID;
     });
   }
 
-  const auto nVal1 = x2->GetStorageShape().GetDim(isTransB ? 0 : 1);
-  const auto nVal2 = output->GetStorageShape().GetDim(1);
+  const auto nVal1 = x2->GetViewShape().GetDim(isViewTransB ? 0 : 1);
+  const auto nVal2 = output->GetViewShape().GetDim(1);
   OP_API_CHECK((nVal1 != nVal2), {
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
     "The n-axis of x2 and output should be same, but x2's n-axis is: %ld and output's n-axis is: %ld.", nVal1, nVal2);
-    return false;
+    return ACLNN_ERR_PARAM_INVALID;
   });
-  return true;
+  return ACLNN_SUCCESS;
 }
 
 static inline bool CheckParamDtypeFP8Vaild(const aclTensor* tensor)
@@ -481,11 +481,11 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeCCUMode(const aclTensor* x1, const 
   return ret;
 }
 
-bool IsTransposeX2(const aclTensor* x1, const aclTensor* x2, bool isTransX1) 
+bool IsViewTransposeX2(const aclTensor* x1, const aclTensor* x2, bool isTransX1) 
 {
-  const auto kValX1 = x1->GetStorageShape().GetDim(isTransX1 ? 0 : 1);
-  const auto x2Dim0 = x2->GetStorageShape().GetDim(0);
-  const auto x2Dim1 = x2->GetStorageShape().GetDim(1);
+  const auto kValX1 = x1->GetViewShape().GetDim(isTransX1 ? 0 : 1);
+  const auto x2Dim0 = x2->GetViewShape().GetDim(0);
+  const auto x2Dim1 = x2->GetViewShape().GetDim(1);
   return (kValX1 != x2Dim0) && (kValX1 == x2Dim1);
 }
 
@@ -499,12 +499,13 @@ aclnnStatus allGatherMatmulV2GetWorkspaceSizeAIVMode(const aclTensor* x1, const 
 {
     OP_LOGD("allGatherMatmulV2GetWorkspaceSizeAIVMode start");
     bool transposeX1 = IsTransposeLastTwoDims(x1);
-    bool transposeX2 = IsTransposeX2(x1, x2, transposeX1);
+    bool viewTransposeX2 = IsViewTransposeX2(x1, x2, transposeX1);
+    bool transposeX2 = viewTransposeX2 || IsTransposeLastTwoDims(x2);
     uint32_t rankSize = 0;
     bool isAmaxOut = false;
     bool isGatherOut = IsGatherOut(gatherOut);
     uint64_t yDtype = static_cast<uint64_t>(output->GetDataType());
-    CHECK_RET(CheckParamsAndShapeForAIVMode(x1, x2, bias, output, gatherOut, transposeX1, transposeX2, streamMode), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckParamsAndShapeForAIVMode(x1, x2, bias, output, gatherOut, transposeX1, viewTransposeX2, streamMode), ACLNN_ERR_PARAM_INVALID);
     aclnnStatus ret = aclnnInnerAllGatherMatmulV2GetWorkspaceSize(x1, x2, bias, x1Scale, x2Scale, quantScale, group,
                                                                 transposeX1, transposeX2, gatherIndex, commTurn,
                                                                 rankSize, blockSize, groupSize, isGatherOut, isAmaxOut,
