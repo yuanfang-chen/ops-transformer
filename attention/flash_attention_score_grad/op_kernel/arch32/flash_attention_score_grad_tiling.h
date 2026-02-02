@@ -1503,7 +1503,7 @@ public:
         this->value_d = value_d_val;
     }
 
-    uint64_t get_dsinksumWorkSpaceOffset()
+    uint64_t get_dsinksumWorkSpaceOffset() const
     {
         return this->dsinksumWorkSpaceOffset;
     }
@@ -1511,7 +1511,7 @@ public:
     {
         this->dsinksumWorkSpaceOffset = dsinksumWorkSpaceOffset_val;
     }
-    uint64_t get_dsinksumDataSizeOffset()
+    uint64_t get_dsinksumDataSizeOffset() const
     {
         return this->dsinksumDataSizeOffset;
     }
@@ -1519,7 +1519,7 @@ public:
     {
         this->dsinksumDataSizeOffset = dsinksumDataSizeOffset_val;
     }
-    uint32_t get_baseMN()
+    uint32_t get_baseMN() const
     {
         return this->baseMN;
     }
@@ -1528,7 +1528,7 @@ public:
         this->baseMN = baseMN_val;
     }
 
-    uint32_t get_sinkDataSize()
+    uint32_t get_sinkDataSize() const
     {
         return this->sinkDataSize;
     }
@@ -1585,7 +1585,7 @@ public:
         dsinksumWorkSpaceOffset = 0;
         dsinksumDataSizeOffset = 0;
         baseMN = 0;
-        sinkDataSize=0;
+        sinkDataSize = 0;
     }
 };
 
