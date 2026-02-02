@@ -1114,7 +1114,8 @@ public:
     uint64_t dsinksumWorkSpaceOffset = 0;
     uint64_t dsinksumDataSizeOffset = 0;
     uint32_t baseMN = 0;
-    uint8_t PostParamsPH[4] = {};
+    uint32_t sinkDataSize = 0;
+
     uint32_t get_coreNum() const
     {
         return coreNum;
@@ -1527,6 +1528,15 @@ public:
         this->baseMN = baseMN_val;
     }
 
+    uint32_t get_sinkDataSize()
+    {
+        return this->sinkDataSize;
+    }
+    void set_sinkDataSize(uint32_t sinkDataSize_val)
+    {
+        this->sinkDataSize = sinkDataSize_val;
+    }
+
     void reset()
     {
         coreNum = 0;
@@ -1575,6 +1585,7 @@ public:
         dsinksumWorkSpaceOffset = 0;
         dsinksumDataSizeOffset = 0;
         baseMN = 0;
+        sinkDataSize=0;
     }
 };
 
