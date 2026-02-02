@@ -14,6 +14,8 @@
  */
 #include "register/op_def_registry.h"
 
+constexpr uint32_t ASCEND_STEP_VERSION_TWO = 2;
+
 namespace ops {
 class RotaryPositionEmbedding : public OpDef {
 public:
@@ -38,7 +40,7 @@ public:
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("rotate")
-            .ParamType(OPTIONAL)
+            .ParamType(OPTIONAL).Version(ASCEND_STEP_VERSION_TWO)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT, ge::DT_BF16})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
