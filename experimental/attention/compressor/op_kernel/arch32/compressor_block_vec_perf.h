@@ -560,7 +560,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::OverLap(const LocalTenso
 
 template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::FromWokrSpaceToUb(const LocalTensor<T> dstLocal,
-    const Vec1SliceInfo &sliceInfo, const SeqCntInfo &seqCntInfo, uint32_t dStartIdx, uint32_t dDealSize)
+    const Vec1SliceInfo &sliceInfo, const StatisticInfo &statisticInfo, uint32_t dStartIdx, uint32_t dDealSize)
 {
     // Ub data layout after overlap when r = 4 and coff = 2:
     //  Tc0_seq01: |--- --D_L--- -|------D_R-----|
@@ -582,11 +582,11 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::FromWokrSpaceToUb(const 
     if constexpr (COMP::coff == COFF::OVERLAP) {
         uint32_t preSrcGmOffset = sliceInfo.preDealedSeqCnt * srcSingleRowElemNum + dStartIdx;
         DataCopyAlignGmToUb(dstLocal[dstUbOffset], preMm1ResGm_[preSrcGmOffset],
-            seqCntInfo.preDealedSeqCnt, copyColCount, srcSingleRowCount, dstSingleRowCount);
+            statisticInfo.preDealSeqCnt, copyColCount, srcSingleRowCount, dstSingleRowCount);
         dstUbOffset += BUFFER_SIZE_BYTE_16K / sizeof(T);
     }
     DataCopyAlignGmToUb(dstLocal[dstUbOffset], curMm1ResGm_[srcGmOffset],
-        seqCntInfo.dealedSeqCnt, copyColCount, srcSingleRowCount, dstSingleRowCount);
+        statisticInfo.dealSeqCnt, copyColCount, srcSingleRowCount, dstSingleRowCount);
 }
 
 // template <typename COMP>
@@ -973,18 +973,21 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
                                                                       uint32_t dStartIdx, uint32_t dDealSize)
 {
     // PRINTF("DealVec1BaseBlock Start. blockInfo.dealSeqSize:%d\n", blockInfo.dealSeqSize);
-    Vec1SliceInfo sliceInfo = sliceIterstor.GetSlice();
-    CompressorVec1SliceIterator tempSliceIterstor(tools_);
+    Vec1SliceInfo originSliceInfo = sliceIterstor.GetSlice();
+    uint32_t needDealTcSize = sliceIterstor.GetNeedDealTcSize();
     Vec1SliceInfo tempSliceInfo{};
-    tempSliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
+    // tempSliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
 
     
-    tempSliceIterstor.template Reset<true>(sliceInfo.bIdx, sliceInfo.sIdx, sliceInfo.dealedSeqCnt, 0U);
-    tempSliceIterstor.SetNeedDealTcSize(sliceIterstor.GetNeedDealTcSize());
-    SeqCntInfo seqCntInfo = tempSliceIterstor.FullIteratorSlice();
+    // tempSliceIterstor.template Reset<true>(sliceInfo.bIdx, sliceInfo.sIdx, sliceInfo.dealedSeqCnt, 0U);
+    // tempSliceIterstor.SetNeedDealTcSize(sliceIterstor.GetNeedDealTcSize());
+    StatisticInfo statisticInfo = sliceIterstor.FullIteratorSlice<true>();
+    if (statisticInfo.actualTcNum == 0) {
+        return ;
+    }
 
     LocalTensor<T> scoreUb = inputQue1.AllocTensor<T>();
-    FromWokrSpaceToUb(scoreUb, sliceInfo, seqCntInfo, dStartIdx + constInfo_.dBaseSize, dDealSize);
+    FromWokrSpaceToUb(scoreUb, originSliceInfo, statisticInfo, dStartIdx + constInfo_.dBaseSize, dDealSize);
     // FromWokrSpaceToUb(scoreUb, curMm1ScoreResGm_, sliceInfo.dealedSeqCnt, seqCntInfo.curSeqCnt, dDealSize, 1, xx);
     // if constexpr (COMP::coff == COFF::OVERLAP) {
         // FromWokrSpaceToUb(scoreUb[BUFFER_SIZE_BYTE_16K / sizeof(T)], preMm1ScoreResGm_, sliceInfo.preDealedSeqCnt, seqCntInfo.preSeqCnt, dDealSize, 1, xx);
@@ -992,19 +995,19 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     inputQue1.EnQue(scoreUb);
     inputQue1.DeQue<T>();
     LocalTensor<T> scoreLocal = tmpBuff1.Get<T>();
-    tempSliceIterstor.template Reset<true>(sliceInfo.bIdx, sliceInfo.sIdx, 0U, 0U);
-    tempSliceIterstor.SetNeedDealTcSize(sliceIterstor.GetNeedDealTcSize());
-    while (!tempSliceIterstor.IsEnd()) {
-        tempSliceInfo = tempSliceIterstor.GetSlice();
+    sliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
+    sliceIterstor.SetNeedDealTcSize(needDealTcSize);
+    while (!sliceIterstor.IsEnd()) {
+        tempSliceInfo = sliceIterstor.GetSlice();
         OverLap(scoreLocal, scoreUb, tempSliceInfo, dStartIdx, dDealSize);
-        tempSliceIterstor.IteratorSlice();
+        sliceIterstor.IteratorSlice();
     }
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(scoreUb);
 
 
     LocalTensor<T> kvUb = inputQue1.AllocTensor<T>();
-    FromWokrSpaceToUb(kvUb, sliceInfo, seqCntInfo, dStartIdx, dDealSize);
+    FromWokrSpaceToUb(kvUb, originSliceInfo, statisticInfo, dStartIdx, dDealSize);
     // FromWokrSpaceToUb(kvUb, curMm1KvResGm_, sliceInfo.dealedSeqCnt, seqCntInfo.curSeqCnt, dDealSize, 1, xx);
     // if constexpr (COMP::coff == COFF::OVERLAP) {
     //     FromWokrSpaceToUb(kvUb[BUFFER_SIZE_BYTE_16K / sizeof(T)], preMm1KvResGm_, sliceInfo.preDealedSeqCnt, seqCntInfo.preSeqCnt, dDealSize, 1, xx);
@@ -1012,18 +1015,22 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     inputQue1.EnQue(kvUb);
     inputQue1.DeQue<T>();
     LocalTensor<T> kvLocal = tmpBuff2.Get<T>();
-    tempSliceIterstor.template Reset<true>(sliceInfo.bIdx, sliceInfo.sIdx, 0U, 0U);
-    tempSliceIterstor.SetNeedDealTcSize(sliceIterstor.GetNeedDealTcSize());
-    while (!tempSliceIterstor.IsEnd()) {
-        tempSliceInfo = tempSliceIterstor.GetSlice();
+    sliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
+    sliceIterstor.SetNeedDealTcSize(needDealTcSize);
+    while (!sliceIterstor.IsEnd()) {
+        tempSliceInfo = sliceIterstor.GetSlice();
         OverLap(kvLocal, kvUb, tempSliceInfo, dStartIdx, dDealSize);
-        tempSliceIterstor.IteratorSlice();
+        sliceIterstor.IteratorSlice();
     }
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(kvUb);
 
-    while (!sliceIterstor.IsEnd()) {
-        sliceInfo = sliceIterstor.GetSlice();
+    CompressorVec1SliceIterator tempSliceIterstor(tools_, true);
+    tempSliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
+    tempSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, originSliceInfo.dealedSeqCnt, 0U);
+    tempSliceIterstor.SetNeedDealTcSize(needDealTcSize);
+    while (!tempSliceIterstor.IsEnd()) {
+        sliceInfo = tempSliceIterstor.GetSlice();
         uint32_t ubOffset = sliceInfo.dealedTcCnt * constInfo_.cmpRatio * ((uint32_t)COMP::coff) * dDealSize;
         // PRINTF("DealVec1BaseBlock bIdx:%d sIdx:%d headHolderSeqCnt:%d validSeqCnt:%d tailHolderSeqCnt:%d dealSeqSize:%d compressTcSize:%d\n",
         //     blockInfo.bIdx, blockInfo.sIdx, blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, blockInfo.tailHolderSeqCnt, blockInfo.dealSeqSize, blockInfo.compressTcSize);
@@ -1076,7 +1083,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
             CopyOutVec1Res(info, comporessedUb, sliceInfo.compressTcSize, dStartIdx, dDealSize);
             outputQue1.FreeTensor(comporessedUb);
         }
-        sliceIterstor.IteratorSlice();
+        tempSliceIterstor.IteratorSlice();
         compressedCnt_ += sliceInfo.compressTcSize;
     }
 }
