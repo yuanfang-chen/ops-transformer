@@ -126,11 +126,11 @@ int main() {
     aclTensor* output = nullptr;
     aclTensor* outputScale = nullptr;
 
-    std::vector<int32_t> xHostData(M * K / 8, 1);
-    std::vector<int32_t> weightHostData(E * N * K / 8, 1);
-    std::vector<uint64_t> weightScaleHostData(E * N, 1);
-    std::vector<float> weightAssistMatrixHostData(E * N, 1);
-    std::vector<float> xScaleHostData(M, 1);
+    std::vector<int32_t> xHostData(M * K / 8, 286331253);
+    std::vector<int32_t> weightHostData(E * N * K / 8, 286331253);
+    std::vector<uint64_t> weightScaleHostData(E * N, 286331253);
+    std::vector<float> weightAssistMatrixHostData(E * N, 0.0f);
+    std::vector<float> xScaleHostData(M, 0.0314);
     std::vector<int64_t> groupListHostData = {1, 2, 2, 3};
     std::vector<int8_t> outputHostData(M * N / 2, 0);
     std::vector<float> outputScaleHostData(M, 0);
@@ -178,7 +178,7 @@ int main() {
     // 3. 调用CANN算子库API
     // 调用aclnnGroupedMatmulSwigluQuantWeightNzV2第一段接口
     ret = aclnnGroupedMatmulSwigluQuantWeightNzV2GetWorkspaceSize(
-        x, weight, weightScale, weightAssistMatrix, bias, xScale, smoothScale, groupList, dequantMode, dequantDtype,
+        x, weight, weightScale, nullptr, bias, xScale, smoothScale, groupList, dequantMode, dequantDtype,
         quantMode, groupListType, tuningConfig, output, outputScale, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS, 
     LOG_PRINT("aclnnGroupedMatmulSwigluQuantWeightNzV2GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
