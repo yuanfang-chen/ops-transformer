@@ -21,17 +21,17 @@
 #include "mc2_matmul_tiling_cfg.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h"
+#include "3rd/grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h"
 #include "register/tilingdata_base.h"
 
 
 using namespace optiling;
-namespace MC2Tiling {
+// namespace MC2Tiling {
 
 class QuantGroupedMatmulAllToAllvAdapter : public Mc2GroupedMatmul::GroupedQbmmTiling {
 public:
     explicit QuantGroupedMatmulAllToAllvAdapter(QuantGroupedMatmulAllToAllvTiling& tilingImpl,
-        gert::TilingContext *context) : tilingProcesser_(tilingImpl), GroupedQbmmTiling(context) {}
+        gert::TilingContext *context) : GroupedQbmmTiling(context), tilingProcesser_(tilingImpl) {}
     
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 
@@ -44,19 +44,22 @@ public:
     // bool AnalyzeAttrs() override;
     // bool AnalyzeDtype() override;
     // bool AnalyzeInputs() override;
+    // bool AnalyzeInputs() override;
+    // void PrintQuantParams() override;
+
     void PrintMatmulParams();
     ge::graphStatus SetCommonContextParameters();
     ge::graphStatus Process();
     ge::graphStatus SetCommonInputParams();
 
     QuantGroupedMatmulAllToAllvTiling& tilingProcesser_;
-    Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
-    // bool isWeightNz_ = false;
+    // Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
+    // // bool isWeightNz_ = false;
 
-    int32_t mList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t kList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t nList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    // int32_t mList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    // int32_t kList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    // int32_t nList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
 };
 
-} // namespace MC2Tiling
+// } // namespace MC2Tiling
 #endif

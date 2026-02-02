@@ -48,6 +48,9 @@ file(GLOB MC2_3RD_SRCS
     # wqbmm
     ${CMAKE_CURRENT_SOURCE_DIR}/weight_quant_batch_matmul_v2/op_host/op_tiling/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/weight_quant_batch_matmul_v2/op_host/op_tiling/arch35/*.cpp
+    # gqbmm
+    ${CMAKE_CURRENT_SOURCE_DIR}/grouped_matmul/op_host/op_tiling/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/grouped_matmul/op_host/op_tiling/arch35/*.cpp
     # mm common
     ${CMAKE_CURRENT_SOURCE_DIR}/common/op_host/op_tiling/*.cpp
 )

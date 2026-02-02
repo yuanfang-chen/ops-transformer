@@ -25,7 +25,7 @@ using namespace AscendC;
 using namespace Mc2Tiling;
 using namespace optiling;
 
-namespace MC2Tiling {
+// namespace MC2Tiling {
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
 {
     opName_ = context_->GetNodeName();
@@ -292,17 +292,8 @@ uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
     return tilingKey;
 }
 
-/**
- * @brief 构造函数，创建一个QuantGroupedMatmulAllToAllvTiling对象
- *
- * @param context
- */
-QuantGroupedMatmulAllToAllvTiling::QuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : GmmAlltoAllvTilingBase(context)
-{
-}
-
 // 注册tiling类
 REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling,
                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 1);
 
-}
+// }

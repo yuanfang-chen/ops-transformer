@@ -33,7 +33,7 @@
 // using MC2KernelTemplate::GMMQuantTilingData;
 // using MC2KernelTemplate::GMMArray;
 using namespace optiling;
-namespace MC2Tiling {
+// namespace MC2Tiling {
 
 struct TilingInferredInfo {
     uint64_t gmmResultLen = 0UL; // 存储计算GMM的地址大小
@@ -45,13 +45,14 @@ struct TilingInferredInfo {
 
 class QuantGroupedMatmulAllToAllvTiling : public GmmAlltoAllvTilingBase {
 public:
-    explicit QuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context);
+    explicit QuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : GmmAlltoAllvTilingBase(context) {};
     void Reset(gert::TilingContext *context) override
     {
         TilingBaseClass::Reset(context);
     }
     ~QuantGroupedMatmulAllToAllvTiling() override = default;
 protected:
+    void Reset();
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus GetPlatformInfo() override;
     bool IsCapable() override;
@@ -82,5 +83,5 @@ private:
     ge::graphStatus CalTilingInferredInfo();
 };
 
-} // namespace MC2Tiling
+// } // namespace MC2Tiling
 #endif
