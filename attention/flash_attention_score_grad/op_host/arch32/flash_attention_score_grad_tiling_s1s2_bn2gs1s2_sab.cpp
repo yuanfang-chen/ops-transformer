@@ -2023,7 +2023,6 @@ ge::graphStatus FlashAttentionScoreGradTilingS1s2Bn2gs1s2SameAb::DoPostTiling()
         tilingData->postTilingData.set_dsinksumDataSizeOffset(workspaceOffsets);
         workspaceOffsets = (workspaceOffsets + sizeof(int32_t) + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
         tilingData->postTilingData.set_sinkDataSize(workspaceOffsets-sinkBeginOffset);
-        std::cout<<"zad::sink offset 总占用 :"<<workspaceOffsets-sinkBeginOffset<<std::endl;
     }
 
     // mask bool workspace size
