@@ -59,4 +59,17 @@ struct MoeDistributeDispatchV2TilingData {
     MoeDistributeDispatchV2Info moeDistributeDispatchV2Info;
 };
 
+struct CommInfo {
+    __gm__ Mc2Kernel::HcclOpParam *commInfo;
+    uint64_t getWinSize;
+    GM_ADDR getStatusDataSpaceGm;
+    GM_ADDR *windowInAddr;
+    GM_ADDR *windowExpAddr;
+};
+
+struct WinContext {
+    CommInfo commEp;
+    CommInfo commTp;
+};
+
 #endif
