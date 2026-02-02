@@ -124,6 +124,8 @@ void SASInfoParser::GetOptionalInputParaInfo()
     opParamInfo_.sinks.desc = context_->GetOptionalInputDesc(SINKS_INDEX);
     opParamInfo_.cuSeqLensQ.tensor = context_->GetOptionalInputTensor(CU_SEQLENS_Q_INDEX);
     opParamInfo_.cuSeqLensQ.desc = context_->GetOptionalInputDesc(CU_SEQLENS_Q_INDEX);
+    opParamInfo_.sequsedQ.tensor = context_->GetOptionalInputTensor(SEQUSED_Q_INDEX);
+    opParamInfo_.sequsedQ.desc = context_->GetOptionalInputDesc(SEQUSED_Q_INDEX);
     opParamInfo_.sequsedKv.tensor = context_->GetOptionalInputTensor(SEQUSED_KV_INDEX);
     opParamInfo_.sequsedKv.desc = context_->GetOptionalInputDesc(SEQUSED_KV_INDEX);
     opParamInfo_.metadata.desc = context_->GetOptionalInputDesc(METADATA_INDEX);
@@ -188,11 +190,13 @@ ge::graphStatus SASInfoParser::GetInOutDataType()
 
 ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
 {
+    std::string layout(opParamInfo_.layoutKv);
+    bool usePaCmpPaButNotPassed = (layout == "PA_ND") && opParamInfo_.cmpBlockTable.desc == nullptr;
     if (opParamInfo_.oriKv.desc != nullptr) {
         if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr &&
-            opParamInfo_.cmpBlockTable.desc != nullptr) {
+            !usePaCmpPaButNotPassed) {
             sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
-        } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpBlockTable.desc != nullptr) {
+        } else if (opParamInfo_.cmpKv.desc != nullptr && !usePaCmpPaButNotPassed) {
             sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
         } else {
             sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
@@ -480,7 +484,9 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
     if (opParamInfo_.sequsedKv.tensor != nullptr) {
         actualLenDimsKV_ = opParamInfo_.sequsedKv.tensor->GetShapeSize();
     }
-    if (opParamInfo_.cuSeqLensQ.tensor != nullptr) {
+    if (opParamInfo_.sequsedQ.tensor != nullptr) {
+        actualLenDimsQ_ = opParamInfo_.sequsedQ.tensor->GetShapeSize();
+    } else if (opParamInfo_.cuSeqLensQ.tensor != nullptr) {
         actualLenDimsQ_ = opParamInfo_.cuSeqLensQ.tensor->GetShapeSize() - 1; // cuSeqLensQ shape is B+1
     }
     return ge::GRAPH_SUCCESS;
@@ -701,6 +707,7 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     uint32_t tilingKey =
         GET_TPL_TILING_KEY(0U, qLayout, inputKvLayout, static_cast<uint32_t>(tilingInfo->perfMode));
     context_->SetTilingKey(tilingKey);
+    context_->SetScheduleMode(1);
 
     return ge::GRAPH_SUCCESS;
 }

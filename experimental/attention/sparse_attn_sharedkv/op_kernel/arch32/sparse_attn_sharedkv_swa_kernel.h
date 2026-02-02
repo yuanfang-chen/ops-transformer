@@ -421,7 +421,11 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Init(
     tilingData = tiling;
 
     InitTilingData();
-    InitActualSeqLen(cuSeqlensQ, seqUsedKV);
+    if (LAYOUT_T == SAS_LAYOUT::TND) {
+        InitActualSeqLen(cuSeqlensQ, seqUsedKV);
+    } else {
+        InitActualSeqLen(seqUsedQ, seqUsedKV);
+    }
     metadataGm.SetGlobalBuffer((__gm__ uint32_t *)metadata);
     InitCalcParamsEach();
 
@@ -631,7 +635,6 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Pro
     } else {
         cubeBlock.FreeEventID();
     }
-
 }
 
 template <typename SAST>

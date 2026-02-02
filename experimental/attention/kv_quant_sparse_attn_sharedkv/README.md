@@ -19,31 +19,31 @@
 ## 函数原型
 
 ```
-torch_npu.npu_kv_quant_sparse_attn_sharedkv(q, kv_quant_mode, *, ori_kv=None, cmp_kv=None, ori_sparse_indices=None, cmp_sparse_indices=None, ori_block_table=None, cmp_block_table=None, cu_seqlens_q=None, cu_seqlens_ori_kv=None, cu_seqlens_cmp_kv=None, seqused_q=None, seqused_kv=None, sinks=None, metadata=None, tile_size=0, rope_head_dim=0, softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='PA_ND', return_softmax_lse=False) -> (Tensor, Tensor)
+custom.npu_kv_quant_sparse_attn_sharedkv(q, kv_quant_mode, *, ori_kv=None, cmp_kv=None, ori_sparse_indices=None, cmp_sparse_indices=None, ori_block_table=None, cmp_block_table=None, cu_seqlens_q=None, cu_seqlens_ori_kv=None, cu_seqlens_cmp_kv=None, seqused_q=None, seqused_kv=None, sinks=None, metadata=None, tile_size=0, rope_head_dim=0, softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='PA_ND', return_softmax_lse=False) -> (Tensor, Tensor)
 ```
 
 ## 参数说明
 
 > [!NOTE]  
->- q、ori_kv、cmp_kv参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Hidden Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
->- Q_S和S1表示q shape中的S，S2表示ori_kv shape中的S，S3表示cmp_kv shape中的S；Q\_N和N1表示num\_q\_heads，KV\_N和N2表示num\_ori_kv\_heads和num\_cmp_kv\_heads；T1表示q shape中的T，T2表示ori\_kv shape中的T，T3表示cmp\_kv shape中的输入样本序列长度的累加和。
--   **q**（`Tensor`）：必选参数，对应公式中的$Q$，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`。`layout_query`为BSND时shape为[B,S1,N1,D]，当`layout_query`为TND时shape为[T1,N1,D]，其中N1仅支持64。
+>- q、ori\_kv、cmp\_kv参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Hidden Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
+>- Q\_S和S1表示q shape中的S，S2表示ori\_kv shape中的S，S3表示cmp\_kv shape中的S；Q\_N和N1表示num\_q\_heads，KV\_N和N2表示num\_ori\_kv\_heads和num\_cmp\_kv\_heads；T1表示q shape中的T，T2表示ori\_kv shape中的T，T3表示cmp\_kv shape中的输入样本序列长度的累加和。
+-   **q**（`Tensor`）：必选参数，对应公式中的$Q$，不支持非连续，数据格式支持ND，数据类型支持`bfloat16`。`layout_query`为BSND时shape为[B, S1, N1, D]，当`layout_query`为TND时shape为[T1, N1, D]，其中N1仅支持64，D仅支持512。
 
 -   **kv\_quant\_mode**（`int`）：必选参数，kv nope的量化模式，仅支持1，表示K、V nope为per-tile量化，量化后的KV数据类型为float8_e4m3。
 
 - <strong>*</strong>：必选参数，代表其之前的变量是位置相关的，必须按照顺序输入；之后的变量是可选参数，位置无关，需要使用键值对赋值，不赋值会使用默认值。
 
--   **ori\_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}$和$\tilde{V}$的一部分，为原始不经压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`float8_e4m3fn`，`layout_kv`为PA_ND时shape为[block_num1, block_size1, KV_N, D]，其中block_num1为PageAttention时block总数，bloc_size1为一个block的token数，block_size1取值为16的倍数，最大支持1024，KV_N仅支持1。
+-   **ori\_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}$和$\tilde{V}$的一部分，为原始不经压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`float8_e4m3fn`，`layout_kv`为PA\_ND时shape为[block\_num1, block\_size1, KV\_N, D]，其中block\_num1为PageAttention时block总数，bloc\_size1为一个block的token数，block\_size1取值为16的倍数，最大支持1024，KV\_N仅支持1。D仅支持640，由ori\_kv\_nope、ori\_kv\_rope及量化参数在D方向拼接组成，并向上对齐128B。
 
--   **cmp\_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}$和$\tilde{V}$的一部分，为经过压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`float8_e4m3fn`，`layout_kv`为PA_ND时shape为[block_num2, block_size, KV_N, D]，其中block_num2为PageAttention时block总数，block_size2为一个block的token数，block_size2取值为16的倍数，最大支持1024，KV_N仅支持1。
+-   **cmp\_kv**（`Tensor`）：可选参数，对应公式中的$\tilde{K}$和$\tilde{V}$的一部分，为经过压缩的KV，不支持非连续，数据格式支持ND，数据类型支持`float8_e4m3fn`，`layout_kv`为PA\_ND时shape为[block\_num2, block\_size, KV\_N, D]，其中block\_num2为PageAttention时block总数，block\_size2为一个block的token数，block\_size2取值为16的倍数，最大支持1024，KV\_N仅支持1。D仅支持640，由cmp\_kv\_nope、cmp\_kv\_rope及量化参数在D方向拼接组成，并向上对齐128B。
 
--   **ori\_sparse\_indices**（`Tensor`）：可选参数，代表离散取oriKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q_S, KV_N, K1]，其中K1为对`ori_kv`一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，K1仅支持512。**目前暂不支持对ori_kv进行稀疏计算，故设置此参数无效。**
+-   **ori\_sparse\_indices**（`Tensor`）：可选参数，代表离散取oriKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, K1]，其中K1为对`ori_kv`一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，K1仅支持512。**目前暂不支持对ori_kv进行稀疏计算，故设置此参数无效。**
 
--   **cmp\_sparse\_indices**（`Tensor`）：可选参数，代表离散取cmpKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q_S, KV_N, K2]，其中K2为对`cmp_kv`一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，K2仅支持512。
+-   **cmp\_sparse\_indices**（`Tensor`）：可选参数，代表离散取cmpKvCache的索引，不支持非连续，数据格式支持ND,数据类型支持`int32`。当`layout_query`为BSND时，shape需要传入[B, Q\_S, KV\_N, K2]，其中K2为对`cmp_kv`一次离散选取的block数，需要保证每行有效值均在前半部分，无效值均在后半部分，K2仅支持512。
 
--   **ori\_block\_table**（`Tensor`）：可选参数，表示PageAttention中oriKvCache存储使用的block映射表。数据格式支持ND，数据类型支持`int32`，shape为2维，其中第一维长度为B，第二维长度不小于所有batch中最大的S2对应的block数量，即S2_max / block_size向上取整。
+-   **ori\_block\_table**（`Tensor`）：可选参数，表示PageAttention中oriKvCache存储使用的block映射表。数据格式支持ND，数据类型支持`int32`，shape为2维，其中第一维长度为B，第二维长度不小于所有batch中最大的S2对应的block数量，即S2\_max / block\_size向上取整。
 
--   **cmp\_block\_table**（`Tensor`）：可选参数，表示PageAttention中cmpKvCache存储使用的block映射表。数据格式支持ND，数据类型支持`int32`，shape为2维，其中第一维长度为B，第二维长度不小于所有batch中最大的S3对应的block数量，即S3_max / block_size向上取整。
+-   **cmp\_block\_table**（`Tensor`）：可选参数，表示PageAttention中cmpKvCache存储使用的block映射表。数据格式支持ND，数据类型支持`int32`，shape为2维，其中第一维长度为B，第二维长度不小于所有batch中最大的S3对应的block数量，即S3\_max / block\_size向上取整。
 
 -   **cu\_seqlens\_q**（`Tensor`）：可选参数，当`layout_query`为TND时，表示不同Batch中`q`的有效token数，维度为B+1，大小为参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须>=前一个元素的值，数据类型支持`int32`。
 
@@ -63,7 +63,7 @@ torch_npu.npu_kv_quant_sparse_attn_sharedkv(q, kv_quant_mode, *, ori_kv=None, cm
 
 -   **rope\_head\_dim**（`int`）：可选参数，数据类型支持`int32`，默认值为0，当前仅支持64。
 
--   **softmax\_scale**（`float`）：可选参数，代表缩放系数，作为q与ori_kv和cmp_kv矩阵乘后Muls的scalar值，数据类型支持`float`，默认值为None，None表示softmax_scale值为1/sqrt(D)。
+-   **softmax\_scale**（`float`）：可选参数，代表缩放系数，作为q与ori_kv和cmp_kv矩阵乘后Muls的scalar值，数据类型支持`float`，默认值为None，None表示softmax_scale值为1/sqrt(512)。
     
 -   **cmp\_ratio**（`int`）：可选参数，表示对ori_kv的压缩率，数据类型支持`int`，数据范围支持4/128，默认值为None。
 
@@ -79,19 +79,19 @@ torch_npu.npu_kv_quant_sparse_attn_sharedkv(q, kv_quant_mode, *, ori_kv=None, cm
 
 -   **layout\_kv**（`str`）：可选参数，用于标识输入`ori_kv`和`cmp_kv`的数据排布格式，仅支持传入默认值PA_ND（PageAttention）。
 
--   **return\_softmax\_lse**（`bool`）：可选参数，表示是否输出softmax_lse。True表示返回，False表示不返回；默认值为False。**目前暂不支持返回softmax_lse。**
+-   **return\_softmax\_lse**（`bool`）：可选参数，表示是否输出softmax\_lse。True表示返回，False表示不返回；默认值为False。**目前暂不支持返回softmax_lse。**
 
 ## 返回值说明
 
--   **attention\_out**（`Tensor`）：公式中的输出。数据格式支持ND，数据类型支持`bfloat16`和。当layout_q为BSND时shape为[B,S1,N1,D]，当layout_q为TND时shape为[T1,N1,D]。
--   **softmax\_lse**（`Tensor`）：可选输出，输出q乘ori_kv的结果先取max得到softmax_max，query乘key的结果减去softmax_max，再取exp，最后取sum，得到softmax_sum，最后对softmax_sum取log，再加上softmax_max得到的结果。数据类型支持`float`。当layout_q为BSND时shape为[B,N2,S1,N1/N2]，当layout_q为TND时shape为[N2,T1,N1/N2]。**目前softmax_lse输出为无效值。**
+-   **attention\_out**（`Tensor`）：公式中的输出。数据格式支持ND，数据类型支持`bfloat16`和。当layout\_q为BSND时shape为[B, S1, N1, D]，当layout\_q为TND时shape为[T1, N1, D]。
+-   **softmax\_lse**（`Tensor`）：可选输出，输出q乘ori\_kv的结果先取max得到softmax\_max，query乘key的结果减去softmax\_max，再取exp，最后取sum，得到softmax\_sum，最后对softmax\_sum取log，再加上softmax\_max得到的结果。数据类型支持`float`。当layout\_q为BSND时shape为[B, N2, S1, N1/N2]，当layout\_q为TND时shape为[N2, T1, N1/N2]。**目前softmax_lse输出为无效值。**
 
 ## 约束说明
 
 -   该接口支持推理场景下使用。
 -   该接口支持aclgraph模式。
--   参数q中的D和ori_kv、cmp_kv的D值仅支持512。
--   参数ori_kv、cmp_kv的数据类型必须保持一致。
+-   参数q中的D仅支持512，ori\_kv、cmp\_kv的D值仅支持640，由kv\_nope、kv\_rope及量化参数在D方向拼接组成，并向上对齐128B。
+-   参数ori\_kv、cmp\_kv的数据类型必须保持一致。
 
 ## 调用示例
 - 单算子模式调用
