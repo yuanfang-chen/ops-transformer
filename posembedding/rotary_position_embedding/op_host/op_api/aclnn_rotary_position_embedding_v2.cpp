@@ -14,25 +14,25 @@
 extern "C" {
 #endif
 
-extern aclnnStatus aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(const aclTensor* x, const aclTensor* cos,
+extern aclnnStatus aclnnInnerRotaryPositionEmbeddingV2GetWorkspaceSize(const aclTensor* x, const aclTensor* cos,
                                                                      const aclTensor* sin, const aclTensor* rotate, int64_t mode,
                                                                      aclTensor* out, uint64_t* workspaceSize,
                                                                      aclOpExecutor** executor);
 
-extern aclnnStatus aclnnInnerRotaryPositionEmbedding(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
+extern aclnnStatus aclnnInnerRotaryPositionEmbeddingV2(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
                                                      aclrtStream stream);
 
 aclnnStatus aclnnRotaryPositionEmbeddingV2GetWorkspaceSize(const aclTensor* x, const aclTensor* cos, const aclTensor* sin,
                                                            int64_t mode, const aclTensor* rotate, aclTensor* out,
                                                            uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    return aclnnInnerRotaryPositionEmbeddingGetWorkspaceSize(x, cos, sin, rotate, mode, out, workspaceSize, executor);
+    return aclnnInnerRotaryPositionEmbeddingV2GetWorkspaceSize(x, cos, sin, rotate, mode, out, workspaceSize, executor);
 }
 
 aclnnStatus aclnnRotaryPositionEmbeddingV2(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
                                            aclrtStream stream)
 {
-    return aclnnInnerRotaryPositionEmbedding(workspace, workspaceSize, executor, stream);
+    return aclnnInnerRotaryPositionEmbeddingV2(workspace, workspaceSize, executor, stream);
 }
 
 #ifdef __cplusplus
