@@ -2725,17 +2725,17 @@ bool PromptFlashAttentionTilingV2::CheckLearnSink(ContextParamsForPFATiling &con
             "when sink is used, system prefix is not supported!"),
         return false);
     OP_CHECK_IF(enablePostQuant, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
-            "when sink is used, post quant is not supported!", GetPfaDataTypeStr(outputType).c_str()),
+            "when sink is used, post quant is not supported!"),
         return false);
     OP_CHECK_IF(innerPrecise != HIGH_PRECISION, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "innerPrecise must be high-precision in sink, now is %ld", innerPrecise),
         return false);
     return true;
     OP_CHECK_IF(enableIFAMLA || enablePFAMLA,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "mla do not suuport sink."),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "mla do not support sink."),
         return false);
     OP_CHECK_IF(enableIFAMLAFullQuant,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "ifa mla fullquant do not suuport sink."),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "ifa mla fullquant do not support sink."),
         return false);
 }
 

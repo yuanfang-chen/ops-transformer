@@ -665,9 +665,9 @@ static ge::graphStatus ConvertContextToParamsIFA(gert::TilingContext& context,
                   return ge::GRAPH_FAILED);
   ifaContext.workSpaces = context.GetWorkspaceSizes(1);
 
-  //伪量化模版当前不支持sink特性
+  // IFA（伪量化）模板当前不支持 learnable sink 输入特性
   OP_CHECK_IF(context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr,
-                  OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "IFA do not suuport sink."),
+                  OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "IFA do not support sink."),
                   return ge::GRAPH_FAILED);
 
   return ge::GRAPH_SUCCESS;
