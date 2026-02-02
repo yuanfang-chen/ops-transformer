@@ -574,10 +574,6 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Dequant(int32_t
     if (!needPerChannel && !needPerToken) {
         return;
     }
-    // 聚合perToken scale
-    if (needPerToken) {
-        AllGatherPerTokenScale();
-    }
 
     uint32_t rowNum = cal_idx == cal_count - 1 ? m - cal_idx * m0 * pValue : m0 * pValue;
     uint32_t colNum = n;
