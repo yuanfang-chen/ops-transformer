@@ -16,10 +16,29 @@
 #ifndef A2AV_COMMON_H
 #define A2AV_COMMON_H
 
+#if __has_include("../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h")
+#include "../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#else
+#include "../../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#endif
+
 namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
-static constexpr uint32_t MAX_EXPERT_PER_EP = 32U;
-constexpr uint32_t MAX_EXPERT_SIZE = 256U;
+static constexpr uint32_t MAX_EXPERT_PER_EP = 1U;
+static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
+
+// 类型复用声明
+using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
+using GMMArray = Mc2GroupedMatmulTilingData::GMMArray;
+
+/**
+ * GMM Tiling 数组封装
+ * 供 GMM All2AllV 和 All2AllV GMM 两个算子共用
+ */
+struct GmmTilingArray {
+    uint32_t count;                              // 实际使用的 tiling 数量
+    GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
+};
 
 struct HcclA2avTilingInfo {
     Mc2InitTiling hcclInitTiling;
@@ -27,22 +46,28 @@ struct HcclA2avTilingInfo {
 };
 
 struct TaskTilingInfo {
-    uint64_t BSK;
-    uint64_t BS;
-    uint64_t H1;
-    uint64_t H2;
-    uint64_t A;
-    uint64_t N1;
-    uint64_t N2;
-    uint64_t epWorldSize;
-    uint64_t e;
-
-    uint32_t mainLoopExpertNum;
-    uint32_t tailLoopExpertNum;
-    uint32_t totalLoopCount;
-
-    int64_t sendCnt[MAX_EXPERT_SIZE];
-    int64_t recvCnt[MAX_EXPERT_SIZE];
+    // Tensor维度参数（对应aclnn接口的输入输出shape）
+    uint64_t BSK;           // 参考各个算子aclnn接口
+    uint64_t BS;            // mmXOptional的第一维: (BS, H)，batch*seq
+    uint64_t H1;            // gmmX和gmmWeight的隐藏层维度H
+    uint64_t H2;            // mmWeightOptional的隐藏层维度H
+    uint64_t A;             // 参考各个算子aclnn接口
+    uint64_t N1;            // gmmWeight/gmmY的输出维度N1
+    uint64_t N2;            // mmWeightOptional/mmYOptional的输出维度N2
+    
+    // Expert并行参数
+    uint64_t epWorldSize;   // expert parallel world size (EP并行域大小)
+    uint64_t e;             // 单卡上的专家数量
+    
+    // 循环调度参数
+    uint32_t mainLoopExpertNum;  // 主循环每次处理的expert数量
+    uint32_t tailLoopExpertNum;  // 尾循环处理的expert数量
+    uint32_t totalLoopCount;     // 总循环次数
+    
+    // 通信参数（对应sendCounts和recvCounts）
+    int16_t sendCnt[MAX_EXPERT_SIZE];  // 每个expert的发送计数
+    int16_t recvCnt[MAX_EXPERT_SIZE];  // 每个expert的接收计数
 };
+
 }
 #endif // A2AV_COMMON_H
