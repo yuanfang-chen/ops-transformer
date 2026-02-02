@@ -42,7 +42,7 @@ N_WARMUP = 2
 ATTENTION_MATRIX = "blocks_optimized_batched"   # "sparse_block", "sparse_block_all_same", "lower_triangular", "band", "custom", "vertical_band" "dense" "blocks_optimized" "blocks_optimized_batched"
 
 # For block mask and vertical band mask
-SPARSITY_VALS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+SPARSITY_VALS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 # For the block mask
 BLOCK_SIZE_Q = 128
