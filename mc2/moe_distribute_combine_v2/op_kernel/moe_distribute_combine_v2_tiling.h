@@ -18,6 +18,8 @@
 #include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
 
+constexpr uint32_t MAX_WORLD_SIZE = 384U;
+
 // a3
 struct MoeDistributeCombineV2Info {
     uint32_t epWorldSize;
@@ -58,6 +60,20 @@ struct MoeDistributeCombineV2TilingData {
     Mc2CcTiling mc2CcTiling1;
     Mc2CcTiling mc2CcTiling2;
     MoeDistributeCombineV2Info moeDistributeCombineV2Info;
+};
+
+struct CommInfo {
+    uint32_t localUsrRankId;
+    uint32_t rankSize;
+    uint64_t getWinSize;
+    uint64_t getStatusDataSpaceGm;
+    uint64_t windowInAddr[MAX_WORLD_SIZE];
+    uint64_t windowExpAddr[MAX_WORLD_SIZE];
+};
+
+struct WinContext {
+    CommInfo commEp;
+    CommInfo commTp;
 };
 
 #endif //__MOE_DISTRIBUTE_COMBINE_V2_TILING_H__

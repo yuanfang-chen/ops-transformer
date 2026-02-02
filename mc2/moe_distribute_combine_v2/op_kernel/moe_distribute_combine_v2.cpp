@@ -35,8 +35,48 @@ using namespace Mc2Tiling;
 using namespace AscendC;
 
 namespace {
+__aicore__ inline WinContext GetWinContext(const MoeDistributeCombineV2TilingData *tilingData)
+{
+    WinContext winContext;
+
+    __gm__ Mc2Kernel::HcclOpParam *epWinContext{nullptr};
+    epWinContext = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
+    winContext.commEp.localUsrRankId = epWinContext->localUsrRankId;
+    winContext.commEp.rankSize = epWinContext->rankSize;
+    winContext.commEp.getWinSize = epWinContext->winSize;
+    winContext.commEp.getStatusDataSpaceGm = epWinContext->localWindowsExp;
+    uint32_t epWorldSize = tilingData->moeDistributeCombineV2Info.epWorldSize;
+
+    for (uint32_t rankId = 0; rankId < epWorldSize; ++rankId) {
+        if (rankId == tilingData->moeDistributeCombineV2Info.epRankId) {
+            winContext.commEp.windowInAddr[rankId] = epWinContext->localWindowsIn;
+            winContext.commEp.windowExpAddr[rankId] = epWinContext->localWindowsExp;
+        } else {
+            winContext.commEp.windowInAddr[rankId] = ((HcclRankRelationResV2 *)(epWinContext->remoteRes[rankId].nextDevicePtr))->windowsIn;
+            winContext.commEp.windowExpAddr[rankId] = ((HcclRankRelationResV2 *)(epWinContext->remoteRes[rankId].nextDevicePtr))->windowsExp;
+        }
+    }
+
+    __gm__ Mc2Kernel::HcclOpParam *tpWinContext{nullptr};
+    tpWinContext = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<1>();
+    winContext.commTp.getWinSize = tpWinContext->winSize;
+    uint32_t tpWorldSize = tilingData->moeDistributeCombineV2Info.tpWorldSize;
+
+    for (uint32_t rankId = 0; rankId < tpWorldSize; ++rankId) {
+        if (rankId == tilingData->moeDistributeCombineV2Info.tpRankId) {
+            winContext.commTp.windowInAddr[rankId] = tpWinContext->localWindowsIn;
+            winContext.commTp.windowExpAddr[rankId] = tpWinContext->localWindowsExp;
+        } else {
+            winContext.commTp.windowInAddr[rankId] = ((HcclRankRelationResV2 *)(tpWinContext->remoteRes[rankId].nextDevicePtr))->windowsIn;
+            winContext.commTp.windowExpAddr[rankId] = ((HcclRankRelationResV2 *)(tpWinContext->remoteRes[rankId].nextDevicePtr))->windowsExp;
+        }
+    }
+
+    return winContext;
+}
+
 template <CombineMC2TypeClass>
-__aicore__ inline void ExecMoeDistributeCombineV2(GM_ADDR expandX, GM_ADDR expertIds,
+__aicore__ inline void ExecMoeDistributeCombineV2(WinContext winContext, GM_ADDR expandX, GM_ADDR expertIds,
                                                 GM_ADDR assistInfoForCombine, GM_ADDR epSendCount, 
                                                 GM_ADDR tpSendCount, GM_ADDR scales, GM_ADDR xActiveMask, 
                                                 GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX, 
@@ -46,7 +86,7 @@ __aicore__ inline void ExecMoeDistributeCombineV2(GM_ADDR expandX, GM_ADDR exper
 {
     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
     MoeDistributeCombineV2<CombineMC2TypeFunc> op;
-    op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, nullptr, nullptr,
+    op.Init(winContext, expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, nullptr, nullptr,
             scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, 
             constExpertAlpha2, constExpertV, performanceInfo, nullptr, nullptr, XOut, workspaceGM, pipePtr, &tilingData);
     op.Process();
@@ -118,8 +158,9 @@ __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR ex
 #endif
     if constexpr (ArchTag == TILINGKEY_TPL_A3) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
+        WinContext winContext = GetWinContext(&tilingData);
         ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, HasTp, QuantMode == TILINGKEY_INT8_QUANT, false>(
-        expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, 
+        winContext, expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, 
         elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, tilingGM, &pipe);
     }
 #endif

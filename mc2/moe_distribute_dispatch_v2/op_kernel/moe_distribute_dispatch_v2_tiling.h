@@ -16,6 +16,8 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_V2_TILING_H
 #define MOE_DISTRIBUTE_DISPATCH_V2_TILING_H
 
+constexpr uint32_t MAX_WORLD_SIZE = 384U;
+
 struct MoeDistributeDispatchV2Info {
     uint32_t epWorldSize;                // epWorldSize
     uint32_t tpWorldSize;                // tpWorldSize
@@ -57,6 +59,20 @@ struct MoeDistributeDispatchV2TilingData {
     Mc2CcTiling mc2CcTiling1;
     Mc2CcTiling mc2CcTiling2;
     MoeDistributeDispatchV2Info moeDistributeDispatchV2Info;
+};
+
+struct CommInfo {
+    uint32_t localUsrRankId;
+    uint32_t rankSize;
+    uint64_t getWinSize;
+    uint64_t getStatusDataSpaceGm;
+    uint64_t windowInAddr[MAX_WORLD_SIZE];
+    uint64_t windowExpAddr[MAX_WORLD_SIZE];
+};
+
+struct WinContext {
+    CommInfo commEp;
+    CommInfo commTp;
 };
 
 #endif
