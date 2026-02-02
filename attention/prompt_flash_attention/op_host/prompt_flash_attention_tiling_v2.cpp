@@ -2730,10 +2730,10 @@ bool PromptFlashAttentionTilingV2::CheckLearnSink(ContextParamsForPFATiling &con
     OP_CHECK_IF(innerPrecise != HIGH_PRECISION, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "innerPrecise must be high-precision in learnablesink, now is %ld", innerPrecise),
         return false);
-    return true;
     OP_CHECK_IF(enableIFAMLAFullQuant || enableIFAMLA || enablePerblockQuant || enablePertensorQuant,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Learnablesink only supports no-quantized GQA mode"),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Learnablesink only supports no-quantized GQA mode"),
         return false);
+    return true;
 }
 
 bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATiling& contextKeyParams,
