@@ -202,6 +202,9 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckWeightNzSpecialParams() co
         "When format of weight is FRACTAL_NZ, the x dtype and weight dtype should be int8, but x dtype is %s, weight \
 dtype is %s",
         op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
+    auto yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
+    CHECK_COND(yDtype != DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
+               "When format of weight is FRACTAL_NZ, the y dtype should not be int8.");
 
     auto weightViewShapeDim = GetInputTensor(gmmParams_.weight)->GetViewShape().GetDimNum();
     auto kDimValue =
@@ -651,6 +654,12 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckNonPerGroupQuantShape() co
                        "In non-pergroup quantification mode, the N dim of %s[%ld] should be 1 or equal to \
 that of %s[%ld].",
                        scaleName_.c_str(), scaleNDim, weightName_.c_str(), weightNDim);
+            DataType yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
+            CHECK_COND((yDtype != DataType::DT_INT8 && yDtype != DataType::DT_INT32) || scaleNDim == weightNDim,
+                       ACLNN_ERR_PARAM_INVALID,
+                       "When the output dtype is %s, the N dim of %s[%ld] should be equal to that of %s[%ld].",
+                       op::ToString(yDtype).GetString(), scaleName_.c_str(), scaleNDim, weightName_.c_str(),
+                       weightNDim);
         }
 
         if (gmmParams_.perTokenScaleOptional != nullptr) {
@@ -663,9 +672,12 @@ that of %s[%ld].",
 template <typename T>
 aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckInt8QuantDtype() const
 {
+    static const std::vector<DataType> legalOutputDtypes = {DataType::DT_INT8, DataType::DT_INT32, DataType::DT_BF16,
+                                                            DataType::DT_FLOAT16};
     DataType yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
-    CHECK_COND(yDtype == DataType::DT_BF16 || yDtype == DataType::DT_FLOAT16, ACLNN_ERR_PARAM_INVALID,
-               "Expect y dtype to be float16 or bfloat16 in int8 quant case, but actual dtype is %s",
+    CHECK_COND(std::find(legalOutputDtypes.begin(), legalOutputDtypes.end(), yDtype) != legalOutputDtypes.end(),
+               ACLNN_ERR_PARAM_INVALID,
+               "Expect y dtype to be int8, int32, float16 or bfloat16 in int8 quant case, but actual dtype is %s",
                op::ToString(yDtype).GetString());
     if (gmmParams_.biasOptional != nullptr) {
         DataType biasDtype = (*gmmParams_.biasOptional)[0]->GetDataType();
@@ -681,6 +693,10 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckInt8QuantDtype() const
                 ACLNN_ERR_PARAM_INVALID,
                 "When y dtype is float16, the bias dtype should be int32, float16 or float32, but actual dtype is %s",
                 op::ToString(biasDtype).GetString());
+        } else if (yDtype == DataType::DT_INT8 || yDtype == DataType::DT_INT32) {
+            CHECK_COND(biasDtype == DataType::DT_INT32, ACLNN_ERR_PARAM_INVALID,
+                       "When y dtype is int8 or int32, the bias dtype should be int32, but actual dtype is %s",
+                       op::ToString(biasDtype).GetString());
         }
     }
     DataType scaleDtype = GetInputTensor(gmmParams_.scaleOptional)->GetDataType();
@@ -694,8 +710,16 @@ dtype is %s", op::ToString(scaleDtype).GetString());
                        scaleDtype == DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
                    "When y dtype is float16, the scale dtype should be uint64, int64 or float32, but actual dtype is %s",
                    op::ToString(scaleDtype).GetString());
+    } else if (yDtype == DataType::DT_INT8) {
+        CHECK_COND(scaleDtype == DataType::DT_UINT64 || scaleDtype == DataType::DT_INT64, ACLNN_ERR_PARAM_INVALID,
+                   "When y dtype is int8, the scale dtype should be uint64 or int64, but actual dtype is %s",
+                   op::ToString(scaleDtype).GetString());
     }
     if (gmmParams_.perTokenScaleOptional != nullptr) {
+        CHECK_COND(
+            yDtype != DataType::DT_INT8 && yDtype != DataType::DT_INT32, ACLNN_ERR_PARAM_INVALID,
+            "When perTokenScaleOptional is not nullptr, y dtype should not be int8 or int32, but actual dtype is %s",
+            op::ToString(yDtype).GetString());
         DataType perTokenScaleDtype = GetInputTensor(gmmParams_.perTokenScaleOptional)->GetDataType();
         CHECK_COND(perTokenScaleDtype == DataType::DT_FLOAT, ACLNN_ERR_PARAM_INVALID,
                    "The perTokenScaleOptional dtype should be float32 in int8 quant case, but actual dtype is %s",
@@ -1010,9 +1034,10 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckGroupedMatmulDAV3510() con
 {   
     DataType xDtype = gmmParams_.xDtype;
     DataType weightDtype = GetInputTensor(gmmParams_.weight)->GetDataType();
+    DataType yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
     if (IsQuant(xDtype, weightDtype)) {
-        CHECK_COND(gmmParams_.scaleOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
-                   "In quant case, scaleOptional should not be nullptr.");
+        CHECK_COND(yDtype == DataType::DT_INT32 || gmmParams_.scaleOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
+                   "In quant case, scaleOptional should not be nullptr when the output dtype is not int32.");
         CHECK_COND(gmmParams_.groupTensorOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
                    "In quant case, groupListOptional should not be nullptr.");
         CHECK_COND(gmmParams_.offsetOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
