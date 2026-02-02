@@ -55,7 +55,7 @@ struct AttentionWorkerCombineCompileInfo {
 
 class AttentionWorkerCombineTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit AttentionWorkerCombineTiling(gert::TilingContext *context_) : TilingBaseClass(context_){}
+    explicit AttentionWorkerCombineTiling(gert::TilingContext *context) : TilingBaseClass(context){}
     ~AttentionWorkerCombineTiling() override{}
 
     uint64_t coreNum_ = 0;
