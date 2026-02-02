@@ -48,7 +48,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v2(
     GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-printf("kernel.cpp start");
+//printf("kernel.cpp start");
 LogInfo(__LINE__, "kernel.cpp start");
 REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 #if defined(__DAV_C310__)
