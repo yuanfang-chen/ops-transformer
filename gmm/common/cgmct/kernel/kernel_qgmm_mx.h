@@ -160,9 +160,9 @@ private:
     GM_ADDR biasTensorPtr_;
     GM_ADDR yTensorPtr_;
 
-    uint32_t blockIdx_;
     int32_t preOffset_ = 0;
     uint32_t groupNum_;
+    uint32_t curBaseM_;
     int8_t groupType_;
     uint8_t groupListType_;
     bool isBias_{false};
@@ -193,12 +193,11 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(cons
 
         AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t> bsProblemShape{
             Get<MNK_M>(problemShape_), Get<MNK_N>(problemShape_), Get<MNK_K>(problemShape_), 0L};
-        bs.UpdateNextProblem(bsProblemShape);
         BaseMBalance(bs, Get<MNK_M>(problemShape_), params.gmmParams.baseM);
+        bs.UpdateNextProblem(bsProblemShape);
         UpdateMMGlobalAddr();
         ProcessSingleGroup(params, bs, groupIdx);
     }
-    // End();
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
@@ -216,8 +215,8 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(con
     groupType_ = params.gmmParams.groupType;
     groupListType_ = params.gmmParams.groupListType;
     isBias_ = params.gmmParams.isBias == 1;
+    curBaseM_ = params.gmmParams.baseM;
 
-    blockIdx_ = AscendC::GetBlockIdx();
     if (groupListPtr_ != nullptr) {
         groupListGlobal_.SetGlobalBuffer((__gm__ int64_t *)groupListPtr_);
     }
@@ -246,11 +245,12 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::BaseMBal
 {
     if constexpr (transA) {
         bs.UpdateBaseM(baseM);
+        curBaseM_ = baseM;
         return;
     } else {
         int64_t mCnt = CeilDiv(m, baseM);
-        int64_t balanceBaseM = CeilAlign(CeilDiv(m, mCnt), MATMUL_MNK_ALIGN);
-        bs.UpdateBaseM(balanceBaseM);
+        curBaseM_ = CeilAlign(CeilDiv(m, mCnt), MATMUL_MNK_ALIGN);
+        bs.UpdateBaseM(curBaseM_);
     }
 }
 
@@ -301,7 +301,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::ProcessS
                                                                                            uint32_t groupIdx)
 {
     CoordClass coord(Get<MNK_M>(problemShape_), Get<MNK_N>(problemShape_), Get<MNK_K>(problemShape_),
-                     params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
+                     static_cast<int64_t>(curBaseM_), params.gmmParams.baseN, params.gmmParams.baseK);
     BlockCoord tileIdx;
     while (bs.GetTileIdx(tileIdx)) {
         BlockShape singleShape = bs.GetBlockShape(tileIdx);
