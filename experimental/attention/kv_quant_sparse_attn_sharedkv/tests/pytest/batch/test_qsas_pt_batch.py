@@ -55,6 +55,9 @@ def sas(testcase_files):
     
     utils.save_result(test_data['params'], result, fulfill_percent, result_path)
     
+    if(result == "NPU ERROR"):
+        pytest.fail(f"用例执行失败:{test_data['params']['Testcase_Name']}")
+
 @pytest.mark.ci
 @pytest.mark.parametrize("testcase_files", locals()["testcase_files"])
 def test_sparse_attn_sharedkv(testcase_files):

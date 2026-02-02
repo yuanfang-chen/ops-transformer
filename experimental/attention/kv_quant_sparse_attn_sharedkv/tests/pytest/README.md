@@ -33,8 +33,8 @@
 - pytest.ini                                        # 创建CI单算子、graph图模式的测试标记
 - test_run.sh                                       # 用例执行脚本
 - ./batch
-    - test_qsas_pt_batch_from_pt.py                 # 直调模式，读取pt文件批量测试，获取npu输出、npu输出与cpu golden精度对比结果，并保存为excel表格
-    - test_qsas_pt_batch_from_pt_graph.py           # 图模式，读取pt文件批量测试，获取npu输出、npu输出与cpu golden精度对比结果，并保存为excel表格
+    - test_qsas_pt_batch.py                 # 直调模式，读取pt文件批量测试，获取npu输出、npu输出与cpu golden精度对比结果，并保存为excel表格
+    - test_qsas_pt_batch_graph.py           # 图模式，读取pt文件批量测试，获取npu输出、npu输出与cpu golden精度对比结果，并保存为excel表格
     - test_qsas_pt_save_from_excelcase.py           # 读取表格批量生成用例pt文件
 - ./excel
     - example.xlsx                                  # 批量用例pt生成示例表格
