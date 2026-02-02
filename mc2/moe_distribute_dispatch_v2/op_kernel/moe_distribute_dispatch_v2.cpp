@@ -37,6 +37,46 @@ using namespace MoeDistributeDispatchV2FullMeshImpl;
 using namespace Mc2Tiling;
 using namespace AscendC;
 
+__aicore__ inline WinContext GetWinContext(const MoeDistributeDispatchV2TilingData *tilingData)
+{
+    WinContext winContext;
+
+    __gm__ Mc2Kernel::HcclOpParam *epWinContext_{nullptr};
+    epWinContext_ = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
+    winContext.commEp.localUsrRankId = epWinContext_->localUsrRankId;
+    winContext.commEp.rankSize = epWinContext_->rankSize;
+    winContext.commEp.getWinSize = epWinContext_->winSize;
+    winContext.commEp.getStatusDataSpaceGm = epWinContext_->localWindowsExp;
+    uint32_t epWorldSize = tilingData->moeDistributeDispatchV2Info.epWorldSize;
+
+    for (uint32_t rankId = 0; rankId < epWorldSize; ++rankId) {
+        if (rankId == tilingData->moeDistributeDispatchV2Info.epRankId) {
+            winContext.commEp.windowInAddr[rankId] = epWinContext_->localWindowsIn;
+            winContext.commEp.windowExpAddr[rankId] = epWinContext_->localWindowsExp;
+        } else {
+            winContext.commEp.windowInAddr[rankId] = ((HcclRankRelationResV2 *)(epWinContext_->remoteRes[rankId].nextDevicePtr))->windowsIn;
+            winContext.commEp.windowExpAddr[rankId] = ((HcclRankRelationResV2 *)(epWinContext_->remoteRes[rankId].nextDevicePtr))->windowsExp;
+        }
+    }
+
+    __gm__ Mc2Kernel::HcclOpParam *tpWinContext_{nullptr};
+    tpWinContext_ = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<1>();
+    winContext.commTp.getWinSize = tpWinContext_->winSize;
+    uint32_t tpWorldSize = tilingData->moeDistributeDispatchV2Info.tpWorldSize;
+
+    for (uint32_t rankId = 0; rankId < tpWorldSize; ++rankId) {
+        if (rankId == tilingData->moeDistributeDispatchV2Info.tpRankId) {
+            winContext.commTp.windowInAddr[rankId] = tpWinContext_->localWindowsIn;
+            winContext.commTp.windowExpAddr[rankId] = tpWinContext_->localWindowsExp;
+        } else {
+            winContext.commTp.windowInAddr[rankId] = ((HcclRankRelationResV2 *)(tpWinContext_->remoteRes[rankId].nextDevicePtr))->windowsIn;
+            winContext.commTp.windowExpAddr[rankId] = ((HcclRankRelationResV2 *)(tpWinContext_->remoteRes[rankId].nextDevicePtr))->windowsExp;
+        }
+    }
+
+    return winContext;
+}
+
 template<bool HasTp, uint8_t QuantMode, bool ScaleMode, uint8_t FullMesh, uint8_t CommMode, uint8_t ArchTag>
 __global__ __aicore__ void moe_distribute_dispatch_v2(
     GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, 
@@ -67,8 +107,9 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
             } else {
+                WinContext winContext = GetWinContext(&tilingData);
                 MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
-                op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+                op.Init(winContext, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
             }
@@ -84,8 +125,9 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
             op.Process();
         } else if constexpr (CommMode == TILINGKEY_TPL_MTE) {
+            WinContext winContext = GetWinContext(&tilingData);
             MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, true, false> op;
-            op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+            op.Init(winContext, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
             op.Process();
         }
@@ -106,8 +148,9 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                             expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                     op.Process();
                 } else {
+                    WinContext winContext = GetWinContext(&tilingData);
                     MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, false> op;
-                    op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+                    op.Init(winContext, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                             expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                     op.Process();
                 }
@@ -200,8 +243,9 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
             return;
         } else if constexpr (FullMesh == TILINGKEY_NO_FULLMESH) {
             GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
+            WinContext winContext = GetWinContext(&tilingData);
             MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, HasTp> op;
-            op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+            op.Init(winContext, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
             op.Process();
             return;
@@ -228,15 +272,17 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
         } else if constexpr (FullMesh == TILINGKEY_NO_FULLMESH) {
             if constexpr (QuantMode == TILINGKEY_STATIC_QUANT) {
                 GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
+                WinContext winContext = GetWinContext(&tilingData);
                 MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::STATIC_QUANT, false, HasTp> op;
-                op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+                op.Init(winContext, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
                 return;
             } else if constexpr (QuantMode == TILINGKEY_PERTOKEN_QUANT) {
                 GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
+                WinContext winContext = GetWinContext(&tilingData);
                 MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, ScaleMode, HasTp> op;
-                op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+                op.Init(winContext, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
                 return;
