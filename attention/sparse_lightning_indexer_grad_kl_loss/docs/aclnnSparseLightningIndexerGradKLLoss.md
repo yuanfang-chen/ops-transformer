@@ -16,6 +16,7 @@
 - 接口功能：SparselightningIndexerGradKlLoss算子是LightningIndexer的反向算子，再额外融合了Loss计算功能。LightningIndexer算子将QueryToken和KeyToken之间的最高内在联系的TopK个筛选出来，存放在SparseIndices中，从而减少长序列场景下Attention的计算量，加速长序列的网络的推理和训练的性能。
 
 
+
 - 计算公式：
    用于取Top-k的value的计算公式可以表示为：
 
