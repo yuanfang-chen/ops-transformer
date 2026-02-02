@@ -60,4 +60,18 @@ struct MoeDistributeCombineV2TilingData {
     MoeDistributeCombineV2Info moeDistributeCombineV2Info;
 };
 
+struct CommInfo {
+    uint32_t localUsrRankId;
+    uint32_t rankSize;
+    uint64_t getWinSize;
+    uint64_t getStatusDataSpaceGm;
+    std::vector<uint64_t> windowInAddr;
+    std::vector<uint64_t> windowExpAddr;
+};
+
+struct WinContext {
+    CommInfo commEp;
+    CommInfo commTp;
+};
+
 #endif //__MOE_DISTRIBUTE_COMBINE_V2_TILING_H__
