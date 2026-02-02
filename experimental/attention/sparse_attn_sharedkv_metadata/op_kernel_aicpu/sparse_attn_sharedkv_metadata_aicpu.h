@@ -285,10 +285,10 @@ private:
 
   // input
   Tensor *actSeqLenQ_ = nullptr;
-  Tensor *actSeqLenOriKV_ = nullptr;
-  Tensor *actSeqLenCmpKV_ = nullptr;
-  Tensor *SeqUsedQ_ = nullptr;
-  Tensor *SeqUsedKV_ = nullptr;
+  Tensor *actSeqLenOriKv_ = nullptr;
+  Tensor *actSeqLenCmpKv_ = nullptr;
+  Tensor *seqUsedQ_ = nullptr;
+  Tensor *seqUsedKv_ = nullptr;
 
   // output
   Tensor *metaData_ = nullptr;
@@ -297,7 +297,7 @@ private:
   uint32_t batchSize_ = 0;
   uint32_t querySeqSize_ = 0;
   uint32_t queryHeadNum_ = 0;
-  uint32_t KVSeqSize_ = 0;
+  uint32_t kvSeqSize_ = 0;
   uint32_t kvHeadNum_ = 0;
   uint32_t headDim_ = 0;
   uint32_t oriTopK_ = 0;
@@ -308,9 +308,9 @@ private:
   int64_t winLeft_ = 127;
   int64_t winRight_ = 0;
   std::string layoutQuery_ = "BSND";
-  std::string layoutKV_ = "PA_ND";
-  bool hasOriKV_ = true;
-  bool hasCmpKV_ = true;
+  std::string layoutKv_ = "PA_ND";
+  bool hasOriKv_ = true;
+  bool hasCmpKv_ = true;
   uint32_t aicCoreNum_ = 24U;
   uint32_t aivCoreNum_ = 48U;
 
@@ -335,10 +335,10 @@ private:
   enum class ParamId : uint32_t {
     // input
     actSeqLenQ = 0,
-    actSeqLenOriKV = 1,
-    actSeqLenCmpKV = 2,
-    SeqUsedQ = 3,
-    SeqUsedKV = 4,
+    actSeqLenOriKv = 1,
+    actSeqLenCmpKv = 2,
+    seqUsedQ = 3,
+    seqUsedKv = 4,
     // output
     metaData = 0,
   };
