@@ -345,6 +345,7 @@ __aicore__ inline void QLIMatmul<QLIT>::Fixp(uint64_t s1gGmOffset, uint64_t s2Gm
     WaitFlag<HardEvent::M_FIX>(M_FIX_EVENT + l0BufIdx_ % L0_BUF_NUM);
     
     if constexpr (std::is_same_v<QK_T, float>) {
+#if !defined(QLI_ENABLE_UB_BANK_OPT) || (QLI_ENABLE_UB_BANK_OPT == 0)
         FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams; // L0C->UB
         fixpipeParams.nSize = (s2L0RealSize + 7) >> 3 << 3; // L0C上的bmm1结果矩阵N方向的size大小；同mmadParams.n；8个元素（32B)对齐
         fixpipeParams.mSize = (s1gL0RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
@@ -357,6 +358,41 @@ __aicore__ inline void QLIMatmul<QLIT>::Fixp(uint64_t s1gGmOffset, uint64_t s2Gm
         Fixpipe<float, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * CeilDiv(constInfo_.mBaseSize, 2) * constInfo_.s2BaseSize + 
                                                     CeilDiv(s1gGmOffset, 2) * fixpipeParams.dstStride + s2GmOffset],
                                                     cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams); // 将matmul结果从L0C搬运到UB
+#else
+        // 解决bank冲突版本
+        // david 256KB bank layout
+        // shape  (             bank_depth  (            banks  bank_groups  block))  (512  (  2   8  32))
+        // stride (banks*bank_groups*block  (bank_groups*block        block      1))  (512  (256  32   1))
+
+        // s1gL0RealSize：2*gSize(128)对齐, 最大256
+        // s2L0RealSize <= S2_BASIC_BLOCK_L0, 未约束
+        uint32_t nSize = (s2L0RealSize + 7) >> 3 << 3;  // L0C上的bmm1结果矩阵N方向的size大小；同mmadParams.n(否则不能开unitflag), 8个元素（32B)对齐
+        uint32_t mSize = (s1gL0RealSize + 1) >> 1 << 1;
+        FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams; // L0C->UB
+        // 固定参数
+        fixpipeParams.mSize = mSize;
+        fixpipeParams.srcStride = mSize; // 已16对齐
+        fixpipeParams.dstStride = constInfo_.s2BaseSize; // mmResUb上两行之间的间隔，单位：element, 假设s2BaseSize为128(算上512B)，为一个
+        fixpipeParams.dualDstCtl = 1; // 双目标模式，按M维度拆分， M / 2 * N写入每个UB，M必须为2的倍数
+
+        // nSize已保证N方向32B对齐
+        if (nSize <= (256 / sizeof(float))) {
+            // N方向小于一个bank(256B), 只需搬一个ND块, 且不用补齐
+            fixpipeParams.nSize = nSize;
+            fixpipeParams.params.ndNum = 1;
+            fixpipeParams.params.srcNdStride = 0;
+            fixpipeParams.params.dstNdStride = 0;
+        } else {
+            // N方向在(256B, 512B]范围， 直接按512B搬, 注意此时不能开unitflag
+            fixpipeParams.nSize = S2_BASIC_BLOCK_L0 / 2; // 分2个ND搬, S2_BASIC_BLOCK_L0不为128会有问题
+            fixpipeParams.params.ndNum = 2;
+            fixpipeParams.params.srcNdStride = ((fixpipeParams.mSize + 15) / 16) * fixpipeParams.nSize;
+            fixpipeParams.params.dstNdStride = constInfo_.s2BaseSize  / 2 * constInfo_.mBaseSize; // S2_BASE_SIZE / 2 * M_BASE_SIZE
+        }
+
+        Fixpipe<QK_T, float, QLI_CFG_ROW_MAJOR_UB>(mm1ResUB_[(runInfo.loop % 2) * constInfo_.s2BaseSize / 2],
+                                                    cL0_[(l0BufIdx_ % L0_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams); // 将matmul结果从L0C搬运到UB
+#endif
     } else {
         uint32_t nSize = (s2L0RealSize + 7) >> 3 << 3; // L0C上的bmm1结果矩阵N方向的size大小；同mmadParams.n；8个元素（32B)对齐
         uint32_t mSize = (s1gL0RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数

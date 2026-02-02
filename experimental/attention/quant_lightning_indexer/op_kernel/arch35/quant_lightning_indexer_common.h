@@ -160,4 +160,6 @@ __aicore__ inline T CeilDiv(T num, T rnd)
 }
 }  // namespace QLICommon
 
+#define QLI_ENABLE_UB_BANK_OPT 1
+
 #endif  // quant_lightning_indexer_COMMON_H

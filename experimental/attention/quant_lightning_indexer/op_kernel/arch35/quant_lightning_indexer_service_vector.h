@@ -310,6 +310,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     //CV同步
     CrossCoreWaitFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_CV_EVENT + info.loop % 2);   //V核等C核计算完mm1，mm1Res已搬运到UB
     
+    auto s1BaseSizePerAIV = CeilDiv(s1BaseSize_, 2);
     int64_t curS1Idx = info.gS1Idx * s1BaseSize_;	 
     int64_t curS2Idx = info.s2Idx * s2BaseSize_;	 
     int64_t curS1ProcNum = curS1Idx + s1BaseSize_ > info.actS1Size ? info.actS1Size % s1BaseSize_ : s1BaseSize_;	 
@@ -329,12 +330,12 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     qwDataCopyExtParams.blockLen = curAivS1ProcNum * gSize_* sizeof(float);
     qwDataCopyExtParams.srcStride = 0;
     qwDataCopyExtParams.dstStride = 0;
-    DataCopyPad(weightUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_], 
+    DataCopyPad(weightUB_[(info.loop % 2) * s1BaseSizePerAIV * gSize_], 
                 weightsGm[weightGmOffset], qwDataCopyExtParams, padWeightsParams);
 
     //qScaleGm  -->  qScaleUB_
     DataCopyPadExtParams<float> padQScaleParams{false, 0, 0, 0};
-    DataCopyPad(qScaleUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_], 
+    DataCopyPad(qScaleUB_[(info.loop % 2) * s1BaseSizePerAIV * gSize_], 
                 qScaleGm[weightGmOffset], qwDataCopyExtParams, padQScaleParams);
 
     //kScaleGm  -->  kScaleUB_
@@ -342,20 +343,40 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     SetFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + (info.loop % 2));
     WaitFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + (info.loop % 2));
     WaitFlag<HardEvent::MTE3_V>(VEC1_MTE3_V_EVENT + (info.loop % 2));
+
+    auto pingpong = (info.loop % 2);
+    auto outBase = vec1OutUB_[pingpong * s1BaseSizePerAIV * s2BaseSize_];
+    auto weightBase = weightUB_[pingpong * s1BaseSizePerAIV * gSize_];
+    auto kScaleBase = kScaleUB_[pingpong * s2BaseSize_];
+    auto qScaleBase = qScaleUB_[pingpong * s1BaseSizePerAIV * gSize_];
+
+#if defined(QLI_ENABLE_UB_BANK_OPT) && (QLI_ENABLE_UB_BANK_OPT == 1)
+    static_assert(std::is_same_v<QK_T, float> && std::is_same_v<SCORE_T, uint16_t>);
+    auto qkBase = resMm1UB_[pingpong * s2BaseSize_ / 2];
+    auto qkVLstride = constInfo_.s2BaseSize  / 2 * constInfo_.mBaseSize; // S2_BASE_SIZE / 2 * M_BASE_SIZE
+    vector1::BatchMulWeightAndReduceSum(outBase, (uint32_t)s2BaseSize_,
+                                        qkBase, qkVLstride, (uint32_t)(gSize_ * s2BaseSize_), 
+                                        weightBase, (uint32_t)gSize_,
+                                        kScaleBase, (uint32_t)0,
+                                        qScaleBase, (uint32_t)gSize_,
+                                        gSize_, curAivS1ProcNum);
+#else
+    auto qkBase = resMm1UB_[pingpong * CeilDiv(constInfo_.mBaseSize, 2) * s2BaseSize_];
     for (int64_t s1IdxTmp = 0; s1IdxTmp < curAivS1ProcNum; s1IdxTmp++) {
-        vector1::MulWeightAndReduceSum(vec1OutUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * s2BaseSize_ + s1IdxTmp * s2BaseSize_], 
-                                   resMm1UB_[(info.loop % 2) * CeilDiv(constInfo_.mBaseSize, 2) * s2BaseSize_ + s1IdxTmp * gSize_ * s2BaseSize_], 
-                                   weightUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_ + s1IdxTmp * gSize_], 
-                                   kScaleUB_[(info.loop % 2) * s2BaseSize_], 
-                                   qScaleUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * gSize_ + s1IdxTmp * gSize_],
-                                   gSize_);
+        vector1::MulWeightAndReduceSum(outBase[s1IdxTmp * s2BaseSize_], 
+                                       qkBase[s1IdxTmp * gSize_ * s2BaseSize_], 
+                                       weightBase[s1IdxTmp * gSize_], 
+                                       kScaleBase,
+                                       qScaleBase[s1IdxTmp * gSize_],
+                                       gSize_);
     }
+#endif
     SetFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + (info.loop % 2));
     SetFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + (info.loop % 2));
     WaitFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + (info.loop % 2));
     //outUB_ --->  scoreGm
     int64_t vec1OutGmOffset = blockId_ % 2 == 0 ? curS2Idx : 
-                            CeilDiv(s1BaseSize_, 2) * QLICommon::Align((uint64_t)constInfo_.kSeqSize, (uint64_t)s2BaseSize_) + curS2Idx;
+                            s1BaseSizePerAIV * QLICommon::Align((uint64_t)constInfo_.kSeqSize, (uint64_t)s2BaseSize_) + curS2Idx;
     DataCopyExtParams copyOutParams;
     copyOutParams.blockCount = curAivS1ProcNum;
     copyOutParams.blockLen = s2BaseSize_ * sizeof(SCORE_T);
