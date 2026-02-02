@@ -130,6 +130,23 @@ public:
         return *this;
     }
 
+    GroupedMatmulSwigluQuantParamsBuilder &SetScenario()
+    {
+        p_.isA8W4 = ((b.p_.x->GetDataType() == DataType::DT_INT8 &&
+                    ((*b.p_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+                    (b.p_.x->GetDataType() == DataType::DT_INT8 &&
+                    ((*b.p_.weight)[0])->GetDataType() == DataType::DT_INT32));
+        p_.isA4W4 = ((gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+                    ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+                    (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+                    ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
+                    (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
+                    ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+                    (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
+                    ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32));
+        return *this;
+    }
+
     GroupedMatmulSwigluQuantParamsBase Build() const
     {
         return p_;
@@ -298,11 +315,11 @@ protected:
                     "Contiguous weightScale failed.");
 
         gmmDsqParams_.x = l0op::Contiguous(gmmDsqParams_.x, l0Executor_);
-        CHECK_COND(gmmDsqParams_.x  != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous groupList failed.");
+        CHECK_COND(gmmDsqParams_.x != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous groupList failed.");
         gmmDsqParams_.xScale = l0op::Contiguous(gmmDsqParams_.xScale, l0Executor_);
-        CHECK_COND(gmmDsqParams_.xScale  != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous xScale failed.");
+        CHECK_COND(gmmDsqParams_.xScale != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous xScale failed.");
         gmmDsqParams_.groupList = l0op::Contiguous(gmmDsqParams_.groupList, l0Executor_);
-        CHECK_COND(gmmDsqParams_.groupList  != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous groupList failed.");
+        CHECK_COND(gmmDsqParams_.groupList != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous groupList failed.");
 
         return ACLNN_SUCCESS;
     }
