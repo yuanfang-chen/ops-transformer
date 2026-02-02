@@ -412,10 +412,14 @@ public:
 
         InitArgs(params);
 
-        if (params.needFixpipe) {
-            FixpipeMatmul(params);
-        } else {
+        if constexpr (std::is_same_v<ElementA, AscendC::int4b_t>) {
             Matmul(params);
+        } else {
+            if (params.needFixpipe) {
+                FixpipeMatmul(params);
+            } else {
+                Matmul(params);
+            }
         }
     }
 

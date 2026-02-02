@@ -68,19 +68,19 @@ using supportTypeForDataCopy = typename std::conditional<
     T
 >::type;
 
-template <typename ReturnType = size_t, typename T>
+template <typename T, typename ReturnType = size_t>
 struct TILE_SHAPE_K_512B {
-    static constexpr ReturnType value = Catlass::BytesToBits(512) / Catlass::BytesToBits(T);
+    static constexpr ReturnType value = Catlass::BytesToBits(512) / Catlass::SizeOfBits<T>::value;
 };
 
-template <typename ReturnType = size_t, typename T>
+template <typename T, typename ReturnType = size_t>
 struct TILE_SHAPE_K_256B {
-    static constexpr ReturnType value = Catlass::BytesToBits(256) / Catlass::BytesToBits(T);
+    static constexpr ReturnType value = Catlass::BytesToBits(256) / Catlass::SizeOfBits<T>::value;
 };
 
-template <typename ReturnType = size_t, typename T>
+template <typename T, typename ReturnType = size_t>
 struct TILE_SHAPE_K_128B {
-    static constexpr ReturnType value = Catlass::BytesToBits(128) / Catlass::BytesToBits(T);
+    static constexpr ReturnType value = Catlass::BytesToBits(128) / Catlass::SizeOfBits<T>::value;
 };
 
 // AGMM : AllGatherMatmulAIVMode
@@ -370,8 +370,8 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::CatlassMatmul()
         LayoutScale layoutScale{static_cast<uint32_t>(n)};
         GemmCoord processSize{static_cast<uint32_t>(m), static_cast<uint32_t>(n), static_cast<uint32_t>(k)};
 
-        constexpr int32_t L1TileShapeK = TILE_SHAPE_K_512B<int32_t, X1Type>;
-        constexpr int32_t L0TileShapeK = TILE_SHAPE_K_128B<int32_t, X1Type>;
+        constexpr int32_t L1TileShapeK = TILE_SHAPE_K_512B<X1Type, int32_t>::value;
+        constexpr int32_t L0TileShapeK = TILE_SHAPE_K_128B<X1Type, int32_t>::value;
         using DispatchPolicy = Gemm::MmadAtlasA2Preload<ENABLE_UNIT_FLAG, ENABLE_SHUFFLE_K>;
         using AType = Gemm::GemmType<ElementA, LayoutA>;
         using CType = Gemm::GemmType<ElementC, LayoutC>;
