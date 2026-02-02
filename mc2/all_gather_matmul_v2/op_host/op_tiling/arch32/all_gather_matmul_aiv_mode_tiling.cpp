@@ -126,6 +126,22 @@ void DealTilingParamByBuffSize(CoCTiling &cocTilingData) {
 }
 
 // Tiling Code Function
+void AllGatherV2MatmulNPU910BTwoRankINT8Tiling(CoCTiling &cocTilingData)
+{
+    int32_t code = ALLGATHERV2_MATMUL_NPU910B_TWO_RANK_INT8_CODE_DEFAULT;
+    std::map<int*, TilingValue> TilingParamMap = {
+        {&code,
+         {ALLGATHERV2_MATMUL_NPU910B_TWO_RANK_INT8_CODE_DEFAULT,
+          g_allGatherV2MatmulNPU910BTwoRankINT8CodeMap}}
+    };
+    SetTilingParam(cocTilingData, TilingParamMap);
+
+    AllGatherV2DecodeTilingData(code, cocTilingData);
+
+    cocTilingData.lenPerLoop = cocTilingData.ubMoveNum * cocTilingData.commDataSplit;
+    DealTilingParamByBuffSize(cocTilingData);
+}
+
 void AllGatherV2MatmulNPU910BFourRankINT8Tiling(CoCTiling &cocTilingData)
 {
     int32_t code = ALLGATHERV2_MATMUL_NPU910B_FOUR_RANK_INT8_CODE_DEFAULT;
@@ -380,6 +396,9 @@ void GetUsrWorkSpaceSize(uint32_t nElemAlign, uint32_t elementSize, uint64_t &us
     if (info.quantFlag) {
         userWorkSpaceSize += static_cast<uint64_t>(info.M * info.N * rankSize * sizeof(int32_t));
     }
+    if (info.dequantType == DequantType::PER_TOKEN) {
+        userWorkSpaceSize += static_cast<uint64_t>(info.M * rankSize * sizeof(float32_t));
+    }
 }
 
 static bool CheckDtypeX1(gert::TilingContext *context)
@@ -415,6 +434,7 @@ static bool CheckDtypeX2(gert::TilingContext *context, AllGatherMatmulAIVModeInf
 
 void SetTilingData(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info, int64_t rankSize)
 {
+    coctilingData.rankSize = rankSize;
     if (info.is910C) {
         if (rankSize == RANKSIZE_FOUR && info.quantFlag) {
             AllGatherV2MatmulNPU91093FourRankINT8Tiling(cocTilingData);
@@ -430,7 +450,10 @@ void SetTilingData(CoCTiling &cocTilingData, AllGatherMatmulAIVModeInfo &info, i
             return;
         }
     } else {
-        if (rankSize == RANKSIZE_FOUR && info.quantFlag) {
+        if (rankSize == RANKSIZE_TWO && info.quantFlag) {
+            AllGatherV2MatmulNPU910BTwoRankINT8Tiling(cocTilingData);
+ 	        return;
+        } else if (rankSize == RANKSIZE_FOUR && info.quantFlag) {
             AllGatherV2MatmulNPU910BFourRankINT8Tiling(cocTilingData);
             return;
         } else if (rankSize == RANKSIZE_FOUR && !info.quantFlag) {

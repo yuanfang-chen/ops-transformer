@@ -108,8 +108,8 @@ private:
     __aicore__ inline void AIVInit();
     __aicore__ inline void AICInit();
     __aicore__ inline void Padding();
-    __aicore__ inline void Dequant();
-    __aicore__ inline void AllGatherPerTokenScale();
+    __aicore__ inline void Dequant(int32_t cal_idx);
+    __aicore__ inline void AllGatherPerTokenScale(int32_t buff_st);
     __aicore__ inline void CatlassMatmul();
     __aicore__ inline void MoveWithSplit(__gm__ supportX1Type* gm_src, int32_t rank_offset, int32_t len);
     __aicore__ inline void MoveToOtherRankWithSkip(
@@ -188,6 +188,8 @@ private:
     bool needAivDequant{false};
     bool isX2ScaleTypeInt64{false};
     DequantType dequantType;
+    bool needPerChannel;
+    bool needPerToken;
 
     __gm__ supportX1Type* gm_peer_mem;
 
@@ -196,6 +198,7 @@ private:
     __gm__ supportX1Type* gm_a_src;
     __gm__ supportX2Type* gm_b_src;
     __gm__ int32_t* gm_accum;
+    GM_ADDR gm_scale_workspace;
 
     DequantRunner<YType> dequantRunner;
     Arch::Resource<Arch::AtlasA2> resource;
@@ -263,6 +266,9 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Init(
     isX2ScaleTypeInt64 = tilingData.allGatherMatmulInfo.isX2ScaleTypeInt64;
     dequantType = tilingData.allGatherMatmulInfo.dequantType;
     needAivDequant = quantFlag && (dequantType == PER_TOKEN || std::is_same<YType, bfloat16_t>::value);
+    bool needPerChannelA8W8 = quantFlag && !(isX2ScaleTypeInt64 && std::is_same<YType, float16_t>::value);
+    needPerChannel = std::is_same_v<X1Type, AscendC::int4b_t> || needPerChannelA8W8;
+ 	needPerToken = quantFlag && dequantType == PER_TOKEN;
 
     bool is910C = tilingData.allGatherMatmulInfo.is910C;
     if(is910C){
@@ -283,6 +289,9 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Init(
             stateAddrPerRank[i] = (GM_ADDR)winContext_->windowsIn[i];
         }
     }
+
+    uint64_t gm_scale_workspace_st = aAlignSize + bAlignSize + m * n * worldSize * sizeof(int32_t);
+ 	gm_scale_workspace = needPerToken ? workspaceGM + gm_scale_workspace_st : 0;
 
     AllGatherMatmulAIVMode<TemplateAGMMFunc>::AICInit();
 
@@ -527,25 +536,31 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::MoveResultFromS
 }
 
 template <TemplateAGMMClass>
-__aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::AllGatherPerTokenScale()
+__aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::AllGatherPerTokenScale(int32_t buff_st)
 {
+    if (!needPerToken) {
+ 	    return;
+ 	}
+
     int32_t multi = sizeof(float32_t) / sizeof(supportX1Type);
     int32_t scale_size = m * multi;
     int32_t scale_st = rankId * scale_size;
     __gm__ supportX1Type* scale = reinterpret_cast<__gm__ supportX1Type*>(x1ScaleGM_);
-    __gm__ supportX1Type* scaleOut = reinterpret_cast<__gm__ supportX1Type*>(stateAddrPerRank[rankId]);
+    __gm__ supportX1Type* scaleOut = reinterpret_cast<__gm__ supportX1Type*>(gm_scale_workspace);
     SetAndWaitAivSync(FLAG_VALUE);
     // 将本卡的scale拷贝到buff中
     if (aivIdx == 0 && rankId == blockIdx) {
-        MoveResultFromSrcToDst(scale, scaleOut + scale_st, scale_size);
+        MoveResultFromSrcToDst(
+            scale, reinterpret_cast<__gm__ supportX1Type*>(stateAddrPerRank[rankId]) + buff_st + scale_st, scale_size);
     }
     CrossRankSyncV1(FLAG_TWO_IDX, FLAG_VALUE);
     SetAndWaitAivSync(FLAG_VALUE);
     // 将其他卡的scale拷贝到buff中
     scale_st = blockIdx * scale_size;
-    if (aivIdx == 0 && rankId != blockIdx && blockIdx < worldSize) {
+    if (aivIdx == 0 && blockIdx < worldSize) {
         MoveResultFromSrcToDst(
-            reinterpret_cast<__gm__ supportX1Type*>(stateAddrPerRank[blockIdx]) + scale_st, scaleOut + scale_st, scale_size);
+            reinterpret_cast<__gm__ supportX1Type*>(stateAddrPerRank[blockIdx]) + buff_st + scale_st,
+            scaleOut + scale_st, scale_size);
     }
     SetAndWaitAivSync(FLAG_VALUE);
     CrossRankSyncV2(FLAG_THREE_IDX, FLAG_VALUE);
@@ -553,12 +568,9 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::AllGatherPerTok
 }
 
 template <TemplateAGMMClass>
-__aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Dequant()
+__aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Dequant(int32_t cal_idx)
 {
     // per token 反量化实现
-    bool needPerChannelA8W8 = quantFlag && !(isX2ScaleTypeInt64 && std::is_same<YType, float16_t>::value);
-    bool needPerChannel = std::is_same_v<X1Type, AscendC::int4b_t> || needPerChannelA8W8;
-    bool needPerToken = quantFlag && dequantType == PER_TOKEN;
     if (!needPerChannel && !needPerToken) {
         return;
     }
@@ -567,13 +579,15 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Dequant()
         AllGatherPerTokenScale();
     }
 
-    uint32_t rowNum = m * worldSize;
+    uint32_t rowNum = cal_idx == cal_count - 1 ? m - cal_idx * m0 * pValue : m0 * pValue;
     uint32_t colNum = n;
     uint32_t tileM0 = m0;
     uint32_t tileN0 = n0;
+    uint64_t blockSt = cal_idx * m0 * pValue * n;
+ 	uint64_t blockSize = m * n;
 
     __gm__ float32_t* perChannelScale = needPerChannel ? reinterpret_cast<__gm__ float32_t*>(x2ScaleGM_) : nullptr;
-    __gm__ float32_t* perTokenScale = needPerToken ? reinterpret_cast<__gm__ float32_t*>(stateAddrPerRank[rankId]) : nullptr;
+    __gm__ float32_t* perTokenScale = needPerToken ? reinterpret_cast<__gm__ float32_t*>(gm_scale_workspace) : nullptr;
     __gm__ int32_t* workspace = needPerChannel ? reinterpret_cast<__gm__ int32_t*>(gm_accum) : nullptr;
     __gm__ YType* output = reinterpret_cast<__gm__ YType*>(cGM_);
     dequantRunner.Run(DEQUANT_ARGS_CALL());
@@ -784,6 +798,11 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Process()
                 num_per_rank_move = data_len - src_offset;
             }
 
+            if (cal_idx == 1) {
+ 	            // 聚合perToken scale
+ 	            AllGatherPerTokenScale(gm_a_pingpong_size);
+ 	        }
+
             // wait aic
             if (cal_idx >= MAX_BLOCK_COUNT) {
                 WaitEvent(flag_idx);
@@ -856,9 +875,12 @@ __aicore__ inline void AllGatherMatmulAIVMode<TemplateAGMMFunc>::Process()
                 // 发送aic同步
                 SetAicSync(flag_idx);
             }
-        }
 
-        Dequant();
+            // dequant
+ 	        if (cal_idx >= MAX_BLOCK_COUNT) {
+ 	            Dequant(cal_idx - MAX_BLOCK_COUNT);
+ 	        }
+        }
 
         for (int32_t idx = 0; idx < num_flags; ++idx) {
             if (blockIdx == 0 && aivIdx == 0) {
