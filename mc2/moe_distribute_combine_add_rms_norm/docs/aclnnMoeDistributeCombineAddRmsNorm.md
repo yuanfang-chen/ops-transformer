@@ -108,7 +108,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>expandX</td>
     <td>输入</td>
     <td>根据expertIds进行扩展过的token特征。</td>
-    <td>要求为2D Tensor。</td>
+    <td>要求为2D Tensor，shape为 (max(tpWorldSize, 1) * A , H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>2</td>
@@ -118,7 +118,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>expertIds</td>
     <td>输入</td>
     <td>每个token的topK个专家索引。</td>
-    <td>要求为2D Tensor。</td>
+    <td>要求为2D Tensor，shape为 (Bs, K)。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>2</td>
@@ -128,7 +128,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>assistInfoForCombine</td>
     <td>输入</td>
     <td>对应aclnnMoeDistributeDispatchV2中的assistInfoForCombineOut输出。</td>
-    <td>要求为1D Tensor。</td>
+    <td>要求为1D Tensor，shape为 (A * 128, )。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>1</td>
@@ -138,7 +138,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>epSendCounts</td>
     <td>输入</td>
     <td>对应aclnnMoeDistributeDispatchV2中的epRecvCounts输出。</td>
-    <td>要求为1D Tensor。</td>
+    <td>要求为1D Tensor，shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>1</td>
@@ -148,7 +148,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>expertScales</td>
     <td>输入</td>
     <td>每个token的topK个专家的权重。</td>
-    <td>要求为2D Tensor。</td>
+    <td>要求为2D Tensor，shape为 (Bs, K)。</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>2</td>
@@ -158,7 +158,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>residualX</td>
     <td>输入</td>
     <td>AddRmsNorm中Add的右矩阵。</td>
-    <td>要求为3D Tensor。</td>
+    <td>要求为3D Tensor，shape为 (Bs，1，H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>3</td>
@@ -168,7 +168,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>gamma</td>
     <td>输入</td>
     <td>RmsNorm中的gamma输入。</td>
-    <td>要求为1D Tensor。</td>
+    <td>要求为1D Tensor，shape为 (H, )。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>1</td>
@@ -178,7 +178,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>tpSendCountsOptional</td>
     <td>输入</td>
     <td>对应aclnnMoeDistributeDispatchV2中的tpRecvCounts输出。</td>
-    <td>有TP域通信需传参，无TP域通信传空指针；有TP域通信时为1D Tensor。</td>
+    <td>有TP域通信需传参，无TP域通信传空指针；有TP域通信时为1D Tensor，shape为 (tpWorldSize, )。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>1</td>
@@ -188,10 +188,10 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>xActiveMaskOptional</td>
     <td>输入</td>
     <td>表示token是否参与通信。</td>
-    <td><ul><li>可传有效数据或空指针，默认所有token参与通信。</li><li>各卡BS不一致时所有token需有效。</li></ul></td>
+    <td><ul><li>可传有效数据或空指针，默认所有token参与通信，1D时shape为(BS, )，2D时shape为(BS, K)。</li><li>各卡BS不一致时所有token需有效。</li></ul></td>
     <td>BOOL</td>
     <td>ND</td>
-    <td>-</td>
+    <td>1-2</td>
     <td>√</td>
     </tr>
     <tr>
@@ -238,10 +238,10 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>sharedExpertXOptional</td>
     <td>输入</td>
     <td>表示共享专家计算后的Token。</td>
-    <td>数据类型需与expandX保持一致。</td>
+    <td>可传或不传，2D时shape为(Bs, H)，3D时shape为(Bs, 1, H)）</td>
     <td>BFLOAT16</td>
     <td>ND</td>
-    <td>-</td>
+    <td>2-3</td>
     <td>√</td>
     </tr>
     <tr>
@@ -298,7 +298,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>tpWorldSize</td>
     <td>输入</td>
     <td>TP通信域大小。</td>
-    <td>-</td>
+    <td>取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2</td>
     <td>INT64</td>
     <td>ND</td>
     <td>-</td>
@@ -307,8 +307,8 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <tr>
     <td>tpRankId</td>
     <td>输入</td>
-    <td>TP域本卡Id，取值范围[0, 1]。</td>
-    <td>同一个TP通信域中各卡的tpRankId不重复；无TP域通信时传0即可。</td>
+    <td>TP域本卡Id。</td>
+    <td>取值范围[0, 1]，同一个TP通信域中各卡的tpRankId不重复；无TP域通信时传0即可。</td>
     <td>INT64</td>
     <td>ND</td>
     <td>-</td>
@@ -398,7 +398,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>normEps</td>
     <td>输入</td>
     <td>用于防止AddRmsNorm除0错误。</td>
-    <td>取值为1e-6。</td>
+    <td>可取值为1e-6。</td>
     <td>FLOAT</td>
     <td>ND</td>
     <td>-</td>
@@ -428,7 +428,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNorm(
     <td>xOut</td>
     <td>输出</td>
     <td>Add后的输出结果。</td>
-    <td>要求为3D Tensor。</td>
+    <td>要求为3D Tensor，shape为 (Bs, 1，H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>3</td>
