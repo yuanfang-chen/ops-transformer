@@ -49,6 +49,8 @@ extern "C" {
  * @param [in] gmmWeightQuantMode: 右矩阵的量化模式，同上，当前仅支持配置为1。
  * @param [in] mmXQuantMode: 共享专家matmul计算中的左矩阵的量化模式，同上，当前仅支持配置为1。
  * @param [in] mmWeightQuantMode: 共享专家matmul计算中的右矩阵的量化模式，同上，当前仅支持配置为1。
+ * @param [in] gmmXQuantDType：左矩阵量化后的数据类型，同上，当前仅支持配置为1。
+ * @param [in] mmXQuantDType：共享专家matmul计算中的左矩阵量化后的数据类型，同上，当前仅支持配置为1。
  * @param [in] group: 计算输入，str。ep通信域名称，专家并行的通信域。
  * @param [in] epWorldSize: 计算输入，int。ep通信域size。
  * @param [in] sendCounts: 计算输入，list int。通信发送的数据量
