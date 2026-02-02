@@ -8,30 +8,34 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-if (BUILD_OPEN_PROJECT)
-    target_sources(op_host_aclnnInner PRIVATE
-        moe_finalize_routing_v2_grad_def.cpp
+set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT}) 
+if (BUILD_OPEN_PROJECT)	 
+    target_sources(op_host_aclnnInner PRIVATE	 
+        moe_finalize_routing_v2_grad_def.cpp	 
     )
-    if(CONDITION_UNIT STREQUAL "ascend950")
-        add_ops_compile_options(
-            OP_NAME MoeFinalizeRoutingV2Grad
-            OPTIONS --cce-auto-sync=on
-                    -Wno-deprecated-declarations
-                    -Werror
-                    -mllvm 
-                    -cce-aicore-dcci-before-kernel-end=false
+    message(WARNING "CONDITION_UNIT = " ${CONDITION_UNIT})	 
+    if(NOT CONDITION_UNIT STREQUAL "ascend950")	 
+        add_ops_compile_options(	 
+            OP_NAME MoeFinalizeRoutingV2Grad	 
+            OPTIONS --cce-auto-sync=on	 
+                    -Wno-deprecated-declarations	 
+                    -Werror	 
+                    -mllvm 	 
+                    -cce-aicore-dcci-before-kernel-end=false	 
         )
-    else()
-        add_ops_compile_options(
-            OP_NAME MoeFinalizeRoutingV2Grad
-            OPTIONS --cce-auto-sync=on
-                    -Wno-deprecated-declarations
-                    -Werror
-        )
-    endif()
-endif()
+        message(WARNING "add_ops_compile_options 950") 
+    else() 
+        add_ops_compile_options( 
+            OP_NAME MoeFinalizeRoutingV2Grad 
+            OPTIONS --cce-auto-sync=on 
+                    -Wno-deprecated-declarations 
+                    -Werror 
+        ) 
+        message(WARNING "add_ops_compile_options not 950") 
+    endif() 
+endif()	 
 
-if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE moe_finalize_routing_v2_grad ACLNNTYPE aclnn_inner)  
+
+if(NOT BUILD_OPS_RTY_KERNEL)	 
+    add_modules_sources(OPTYPE moe_finalize_routing_v2_grad ACLNNTYPE aclnn_inner)  	 
 endif()
