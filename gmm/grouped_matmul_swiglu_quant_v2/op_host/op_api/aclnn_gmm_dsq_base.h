@@ -84,7 +84,7 @@ protected:
         return true;
     }
 
-    bool CheckInputOutDimsA8W4orA4W4()
+    bool CheckInputOutDimsA8W4()
     {
         OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.x, X_DIM_LIMIT, return false);
         size_t wLength = gmmDsqParams_.weight->Size();
@@ -120,6 +120,48 @@ protected:
             }
         }
 
+        OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.xScale, TOKEN_SCALE_DIM_LIMIT, return false);
+        OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.groupList, GROUP_LIST_DIM_LIMIT, return false);
+        OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.output, QUANTOUT_DIM_LIMIT, return false);
+        OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.outputScale, QUANTSCALEOUT_DIM_LIMIT, return false);
+        return true;
+    }
+
+    bool CheckInputOutDimsA4W4()
+    {
+        OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.x, X_DIM_LIMIT, return false);
+        size_t wLength = gmmDsqParams_.weight->Size();
+        if (gmmDsqParams_.weightAssistMatrix != nullptr) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In the A4W4 scenario, the weightAssistMatrix input must be nullptr.");
+        }
+        for (size_t i = 0; i < wLength; i++) {
+            const aclTensor* w = (*gmmDsqParams_.weight)[i];
+            const aclTensor* wScale = (*gmmDsqParams_.weightScale)[i];
+            op::Format weightViewFormat = w->GetViewFormat();
+            if (wLength == static_cast<size_t>(1)) { // 单Tenor场景
+                if (IsPrivateFormat(weightViewFormat)) {
+                    OP_CHECK_WRONG_DIMENSION(w, WEIGHT_NZ_DIM_LIMIT, return false);
+                } else {
+                    OP_CHECK_WRONG_DIMENSION(w, WEIGHT_ND_DIM_LIMIT, return false);
+                }
+                if (gmmDsqParams_.dequantMode == 0) { // perchannel量化weightScale为2维
+                    OP_CHECK_WRONG_DIMENSION(wScale, SINGLE_WEIGHT_SCALE_PERCHANNEL_DIM_LIMIT, return false);
+                } else { // pergroup量化weightScale为3维
+                    OP_CHECK_WRONG_DIMENSION(wScale, SINGLE_WEIGHT_SCALE_PERGROUP_DIM_LIMIT, return false);
+                }
+            } else { // 多Tenor场景
+                if (IsPrivateFormat(weightViewFormat)) {
+                    OP_CHECK_WRONG_DIMENSION(w, MULTI_WEIGHT_NZ_DIM_LIMIT, return false);
+                } else {
+                    OP_CHECK_WRONG_DIMENSION(w, MULTI_WEIGHT_ND_DIM_LIMIT, return false);
+                }
+                if (gmmDsqParams_.dequantMode == 0) { // perchannel量化weightScale为1维
+                    OP_CHECK_WRONG_DIMENSION(wScale, MULTI_WEIGHT_SCALE_PERCHANNEL_DIM_LIMIT, return false);
+                } else { // pergroup量化weightScale为2维
+                    OP_CHECK_WRONG_DIMENSION(wScale, MULTI_WEIGHT_SCALE_PERGROUP_DIM_LIMIT, return false);
+                }
+            }
+        }
         OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.xScale, TOKEN_SCALE_DIM_LIMIT, return false);
         OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.groupList, GROUP_LIST_DIM_LIMIT, return false);
         OP_CHECK_WRONG_DIMENSION(gmmDsqParams_.output, QUANTOUT_DIM_LIMIT, return false);
@@ -295,16 +337,17 @@ protected:
         op::Shape weightAssistMatrixExpectShape = {e, n};
 
         const aclTensor* w = (*gmmDsqParams_.weight)[0]; 
-        const aclTensor* weightAssistMatrix = (*gmmDsqParams_.weightAssistMatrix)[0];
-
+        const aclTensor* weightAssistMatrix = nullptr;
+        if (gmmDsqParams_.weightAssistMatrix != nullptr && (*gmmDsqParams_.weightAssistMatrix)[0] != nullptr) {
+            weightAssistMatrix = (*gmmDsqParams_.weightAssistMatrix)[0];
+            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightAssistMatrix, weightAssistMatrixExpectShape, return false);
+        }
         op::Format weightViewFormat = w->GetViewFormat();
         if (IsPrivateFormat(weightViewFormat)) {
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNZExpectShape, return false);
         } else {
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNDExpectShape, return false);
         }
-        OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightAssistMatrix, weightAssistMatrixExpectShape, return false);
-
         return true;
     }
 
@@ -321,14 +364,17 @@ protected:
 
         for (size_t i = 0; i < wLength; i++) {
             const aclTensor* w = (*gmmDsqParams_.weight)[i]; 
-            const aclTensor* weightAssistMatrix = (*gmmDsqParams_.weightAssistMatrix)[i];
+            const aclTensor* weightAssistMatrix = nullptr;
+            if (gmmDsqParams_.weightAssistMatrix != nullptr && (*gmmDsqParams_.weightAssistMatrix)[i] != nullptr) {
+                weightAssistMatrix = (*gmmDsqParams_.weightAssistMatrix)[0];
+                OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightAssistMatrix, weightAssistMatrixExpectShape, return false);
+            }
             op::Format weightViewFormat = w->GetViewFormat();
             if (IsPrivateFormat(weightViewFormat)) {
                 OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNZExpectShape, return false);
             } else {
                 OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNDExpectShape, return false);
             }
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(weightAssistMatrix, weightAssistMatrixExpectShape, return false);
         }
 
         return true;
@@ -379,7 +425,6 @@ protected:
             KGroupSize = KGroupCount > 0 ? k / KGroupCount : k;
             weightScaleExpectShape = {KGroupCount, n}; // 多
         }
-
         if (KGroupCount == 0 || k % KGroupCount != 0) {
             OP_LOGE(
                 ACLNN_ERR_PARAM_INVALID,
@@ -402,7 +447,6 @@ protected:
         op::Shape outputExpectShape = {m, nAfterHalve};
         // outputScale的shape期望为[M]
         op::Shape outputScaleExpectShape = {m};
-
         auto ret = CheckTensorListShapeA8W4orA4W4(e, k, n);
         if (!ret) {
             return false;
@@ -412,7 +456,6 @@ protected:
             const aclTensor* wScale = (*gmmDsqParams_.weightScale)[i];
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(wScale, weightScaleExpectShape, return false);
         }
-
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmDsqParams_.x, xExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmDsqParams_.xScale, xScaleExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmDsqParams_.output, outputExpectShape, return false);
@@ -462,19 +505,20 @@ protected:
                 && ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT8) {
             return CheckInputOutDimsA8W8();
         }
+        bool isA8W4 = ((gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
+                        ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+                       (gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
+                        ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32));
+        bool isA4W4 = ((gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+                       ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+                      (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
+                       ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
+                      (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
+                       ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
+                      (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
+                       ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32));
         // A8W4或者A4W4场景 INT32为兼容torch_npu考虑，实际计算时，1个INT32数据会被视为8个INT4数据
-        if ((gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
-             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
-            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT8 &&
-             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
-            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
-             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
-            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT4 &&
-             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32) ||
-            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
-             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT4) ||
-            (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32 &&
-             ((*gmmDsqParams_.weight)[0])->GetDataType() == DataType::DT_INT32)) {
+        if (isA8W4 || isA4W4) {
             // 将INT32视为8个Int4数据，调整viewShape和dtype便于后续统一校验
             if (gmmDsqParams_.x->GetDataType() == DataType::DT_INT32) {
                 UnpackInt32ToInt4(gmmDsqParams_.x, "x");
@@ -493,9 +537,12 @@ protected:
                     weightScale_fix->SetDataType(DataType::DT_UINT64);
                 }
             }
-            return CheckInputOutDimsA8W4orA4W4();
         }
-
+        if (isA8W4) {
+            return CheckInputOutDimsA8W4();
+        } else if (isA4W4) {
+            return CheckInputOutDimsA4W4();
+        }
         return false;
     }
 
@@ -535,8 +582,10 @@ protected:
 
             if (w->GetDataType() == DataType::DT_INT4) {
                 OP_CHECK_DTYPE_NOT_SUPPORT(wScale, WEIGHT_SCALE_A8W4_DTYPE_SUPPORT_LIST, return false);
-                const aclTensor* weightAssistMatrix = (*gmmDsqParams_.weightAssistMatrix)[i];
-                OP_CHECK_DTYPE_NOT_SUPPORT(weightAssistMatrix, WEIGHT_ASSIST_DTYPE_SUPPORT_LIST, return false);
+                if (gmmDsqParams_.weightAssistMatrix != nullptr && (*gmmDsqParams_.weightAssistMatrix)[i] != nullptr) {
+                    const aclTensor* weightAssistMatrix = (*gmmDsqParams_.weightAssistMatrix)[i];
+                    OP_CHECK_DTYPE_NOT_SUPPORT(weightAssistMatrix, WEIGHT_ASSIST_DTYPE_SUPPORT_LIST, return false);
+                }
             } else if (w->GetDataType() == DataType::DT_INT8) {
                 OP_CHECK_DTYPE_NOT_SUPPORT(wScale, WEIGHT_SCALE_DTYPE_SUPPORT_LIST, return false);
             }
