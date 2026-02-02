@@ -496,7 +496,7 @@ __aicore__ inline void QLIPreload<QLIT>::CalcRunInfo(uint32_t loop, uint32_t s2L
     runInfo.isFirstS2InnerLoop = s2LoopIdx == constInfo.s2Start;
     runInfo.isLastS2InnerLoop = (s2LoopIdx + 1 == tempLoopInfo.s2LoopEnd);
     runInfo.isAllLoopEnd = (runInfo.bN2Idx + 1 == constInfo.bN2End) && (runInfo.gS1Idx + 1 == constInfo.gS1End) &&
-                           (runInfo.s2Idx + 1 == constInfo.s2End); // TODO:LD场景专用，后续通过metadata传入，此变量可删除
+                           (runInfo.s2Idx + 1 == constInfo.s2End);
 
     if (runInfo.isFirstS2InnerLoop) {
         uint64_t actualSeqQPrefixSum;
@@ -609,7 +609,7 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessMain()
             continue;
         }
         for (uint32_t gS1LoopIdx = constInfo.gS1Start; gS1LoopIdx < tempLoopInfo.gS1LoopEnd; gS1LoopIdx++) {
-            CalcS2LoopParams(bN2LoopIdx, gS1LoopIdx); // TODO: isEnd重复
+            CalcS2LoopParams(bN2LoopIdx, gS1LoopIdx);
             bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == tempLoopInfo.gS1LoopEnd);
             uint32_t extraLoop = isEnd ? LI_QUANT_PRELOAD_TASK_CACHE_SIZE - 1 : 0;  // 只preload一轮
 
@@ -679,7 +679,6 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessBaseBlock(uint32_t loop, uint64_
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::ProcessDecode()
 {
-    // TODO: 当前LD暂时关闭
     return;
 
     if ASCEND_IS_AIV {
