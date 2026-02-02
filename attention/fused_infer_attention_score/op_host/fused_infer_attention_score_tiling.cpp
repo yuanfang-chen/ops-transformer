@@ -1085,6 +1085,31 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
     return ge::GRAPH_SUCCESS;
 }
 
+ ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context) {
+ 	         auto qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
+ 	         auto sinkDataType = context->GetInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+ 	         auto attrs = context->GetAttrs();
+ 	         int32_t tempInnerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
+ 	         int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
+ 	 
+ 	         OP_CHECK_IF((sinkDataType != qDataType),
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of Q and learnable sink must be consistent"),
+ 	                 return ge::GRAPH_FAILED);
+ 	         OP_CHECK_IF(((sinkDataType != ge::DT_FLOAT16) && (sinkDataType != ge::DT_BF16)),
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of learnable sink must be FP16 or BF16"),
+ 	                 return ge::GRAPH_FAILED);
+ 	         OP_CHECK_IF((tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3), 
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+ 	             "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
+ 	                 return ge::GRAPH_FAILED);
+ 	         OP_CHECK_IF((sparseMode == 4), 
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+ 	             "When learnable sink is enabled, sparseMode shall not be 4"),
+ 	                 return ge::GRAPH_FAILED);
+ 	 
+ 	         return ge::GRAPH_SUCCESS;
+ 	 }
+
 ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPageAttention)
 {
     auto attrs = context->GetAttrs();
@@ -1095,8 +1120,7 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
     int64_t tempKD = 0;
     int64_t tempVD = 0;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    bool tempLearnableSinkFlag = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
-    int32_t tempInnerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
+    bool isLearnableSinkFlag = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
     
     if (!isPageAttention) {
         tempKD = tempK->GetStorageShape().GetDim(DIM_2);
@@ -1127,10 +1151,11 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
             "When input layout is TND, headDim shall not exceed 256"),
             return ge::GRAPH_FAILED);
-    OP_CHECK_IF(tempLearnableSinkFlag && (tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3), 
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-            "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
-            return ge::GRAPH_FAILED);
+    
+    if (isLearnableSinkFlag) {
+ 	         return CheckFAILearnableSink(context);
+ 	}
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1347,7 +1372,7 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
 
     bool usingFAI = false;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    if (inputLayoutStr == "TND" && !isLearnableSink && !isRopeSplitMla &&
+    if (inputLayoutStr == "TND" && !isRopeSplitMla &&
         sparseModeSupported && (nonMhaConditions || mhaConditions)) {
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);
