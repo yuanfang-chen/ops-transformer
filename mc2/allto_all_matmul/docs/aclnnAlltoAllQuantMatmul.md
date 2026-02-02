@@ -16,19 +16,8 @@
 - 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)、Quant、Matmul和Dequant计算的融合，**先通信后计算**。
 - 计算公式：假设x1输入shape为(BS, H)
 
-  - **全量化场景：**
-
-    $$
-    commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-    permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-    output_{quant} = x1 @ x2 \\
-    output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-    output = output + bias
-    $$
-
-  - **动态量化场景：**
-  
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - **动态量化场景：**
         $$
         commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
         permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -37,8 +26,17 @@
         output = output_{quant} \times x1_{scale} \times x2_{scale} \\
         output = output + bias
         $$
+    - **全量化场景：**
+        $$
+        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+        output_{quant} = x1 @ x2 \\
+        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+        output = output + bias
+        $$
 
-    - <term>Ascend 950PR/Ascend 950DT</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
+    - **动态量化场景：**
         $$
         commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
         permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -134,7 +132,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>biasOptional</td>
     <td>输入</td>
     <td>可选输入，矩阵乘运算后累加的偏置，对应公式中的bias。</td>
-    <td>支持传入空指针场景。根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
+    <td>根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
     <td>ND</td>
     <td>1维，shape为(N)</td>
