@@ -25,7 +25,7 @@ class test_aclnn_quant_grouped_mat_mul_allto_all : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND950);
         cout << "test_aclnn_quant_grouped_mat_mul_allto_all SetUp" << endl;
     }
 

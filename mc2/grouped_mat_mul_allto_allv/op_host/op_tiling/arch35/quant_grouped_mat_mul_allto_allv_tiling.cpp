@@ -135,8 +135,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 
     auto sendCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_SEND_COUNTS_INDEX);
     auto recvCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_RECV_COUNTS_INDEX);
-    const int64_t* sendCounts = static_cast<const int64_t*>(sendCountsPtr->GetData());
-    const int64_t* recvCounts = static_cast<const int64_t*>(recvCountsPtr->GetData());
+    const int16_t* sendCounts = static_cast<const int16_t*>(sendCountsPtr->GetData());
+    const int16_t* recvCounts = static_cast<const int16_t*>(recvCountsPtr->GetData());
     for (int i = 0; i < MAX_EXPERT_NUM; i++) {
         // memcpy_s
         gmmQTilingCommonInfoPtr->sendCnt[i] = sendCounts[i];
@@ -294,6 +294,6 @@ uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 
 // 注册tiling类
 REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 1);
+                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 1);
 
 // }

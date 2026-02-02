@@ -187,7 +187,7 @@ using namespace optiling;
 //     return ge::GRAPH_SUCCESS;
 // }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(const int64_t* sendCounts,
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(const int16_t* sendCounts,
     uint64_t worldSize, uint64_t index, uint32_t epNums)
 {
     // uint32_t worldSize = tilingProcesser_.localTilingData_.taskTilingInfo.epWorldSize;

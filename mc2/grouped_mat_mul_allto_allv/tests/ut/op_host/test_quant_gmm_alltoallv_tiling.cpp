@@ -153,7 +153,7 @@ static QuantGmmAlltoAllvTestParam test_cases[] =
         {8, 16, 24, 32},
         {32, 24, 16, 8},
         false, false,     // trans
-        "Ascend910_95",
+        "Ascend950",
         ge::GRAPH_SUCCESS,
         33UL,             // tilingKey
         "",               // tilingData
