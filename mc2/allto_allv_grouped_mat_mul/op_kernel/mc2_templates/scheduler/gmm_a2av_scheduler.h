@@ -13,8 +13,8 @@
 * \brief
 */
 
-#ifndef MC2_PIPELINE_TEMPLATE_COMM_COMPUTE_H
-#define MC2_PIPELINE_TEMPLATE_COMM_COMPUTE_H
+#ifndef MC2_GMMA2AV_PIPELINE_TEMPLATE_COMM_COMPUTE_H
+#define MC2_GMMA2AV_PIPELINE_TEMPLATE_COMM_COMPUTE_H
 
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
