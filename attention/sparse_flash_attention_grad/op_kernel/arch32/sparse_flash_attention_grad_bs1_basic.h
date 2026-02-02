@@ -299,8 +299,15 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::Process(
                     task++;
                 }
                 if (unlikely(actualSelectedBlockCount == 0 && deterministic)) {
+
+                    CrossCoreWaitFlag<2, PIPE_MTE2>(SCATTER_SYNC_FLAG);
+                    // 先传递状态
+                    if (tmpScatterRunInfo.changeS1) {
+                        scatterRunInfo = tmpScatterRunInfo;
+                        tmpScatterRunInfo.changeS1 = false;
+                    }
+                    // 再执行 ScatterAddByS1
                     if (scatterRunInfo.changeS1) {
-                        CrossCoreWaitFlag<2, PIPE_MTE2>(SCATTER_SYNC_FLAG);
                         ScatterAddByS1(vecOp, actual_seq_qlen, actual_seq_kvlen);
                         scatterRunInfo.changeS1 = false;
                     }
@@ -312,10 +319,6 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::Process(
                         }
                         runInfo[1 - mmPingPongIdx].valid = false;
                         CrossCoreSetFlag<2, PIPE_MTE3>(taskMod1 == 0 ? CUBE_WAIT_VEC_PING : CUBE_WAIT_VEC_PONG);
-                    }
-                    if (tmpScatterRunInfo.changeS1) {
-                        scatterRunInfo = tmpScatterRunInfo;
-                        tmpScatterRunInfo.changeS1 = false;
                     }
                     UpdateGmOffset(task, false);
                     tmpScatterRunInfo = runInfo[mmPingPongIdx];
@@ -433,8 +436,14 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::VecCompute(VecOp<SFAGT
     }
     CrossCoreSetFlag<2, PIPE_MTE3>(taskMod == 0 ? CUBE_WAIT_VEC_GATHER_PING : CUBE_WAIT_VEC_GATHER_PONG);
 
-    if (scatterRunInfo.changeS1) {
+    // 同时检查 scatterRunInfo.changeS1 和 tmpScatterRunInfo.changeS1
+    // 解决多 batch 场景下状态传递时机问题
+    if (scatterRunInfo.changeS1 || tmpScatterRunInfo.changeS1) {
         CrossCoreWaitFlag<2, PIPE_MTE2>(SCATTER_SYNC_FLAG);
+        if (tmpScatterRunInfo.changeS1) {
+            scatterRunInfo = tmpScatterRunInfo;
+            tmpScatterRunInfo.changeS1 = false;
+        }
         ScatterAddByS1(vecOp, actual_seq_qlen, actual_seq_kvlen);
         scatterRunInfo.changeS1 = false;
     }
