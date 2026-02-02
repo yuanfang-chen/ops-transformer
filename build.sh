@@ -694,9 +694,8 @@ function process_soc_input(){
     declare -A SOC_HARDWARE_MAP=(
         [ascend910b]="Atlas A2"
         [ascend910_93]="Atlas A3"
-        [ascend310p]="Atlas 300I"
-        [kirinx90]="Kirin 990"
-        [mc62cm12a]="MC62CM12A"
+        [ascend310p]="Atlas Inference"
+        [ascend950]="Ascend 950PR/Ascend 950DT"
     )
 
     if [[ ${SOC_HARDWARE_MAP[$ASCEND_SOC_UNITS]} ]]; then
