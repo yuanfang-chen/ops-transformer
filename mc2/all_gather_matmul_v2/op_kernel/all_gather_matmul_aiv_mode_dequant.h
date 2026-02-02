@@ -35,7 +35,7 @@
 
 #define DEQUANT_ARGS_CALL() \
     rowNum, colNum, perChannelScale, perTokenScale, workspace, reinterpret_cast<GM_ADDR>(output), \
-    tileM0, tileN0, pValue, swizzlDirect, swizzlCount, blockSt, blockSize \
+    tileM0, tileN0, pValue, swizzlDirect, swizzlCount, blockSt, blockSize, \
     blockIdx, coreNum, worldSize, resource, needPerChannel, needPerToken
 
 #define DEQUANT_ARGS_FUN() \
