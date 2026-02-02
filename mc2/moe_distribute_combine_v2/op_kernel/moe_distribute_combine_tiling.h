@@ -73,4 +73,17 @@ struct MoeDistributeCombineTilingData {
     MoeDistributeCombineInfo moeDistributeCombineInfo;
 };
 
+struct CommInfo {
+    __gm__ Mc2Kernel::HcclOpParam *commInfo;
+    uint64_t getWinSize;
+    GM_ADDR getStatusDataSpaceGm;
+    GM_ADDR *windowInAddr;
+    GM_ADDR *windowExpAddr;
+};
+
+struct WinContext {
+    CommInfo commEp;
+    CommInfo commTp;
+};
+
 #endif //__MOE_DISTRIBUTE_COMBINE_A2_TILING_H__
