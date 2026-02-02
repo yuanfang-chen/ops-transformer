@@ -17,14 +17,14 @@
 #define A2AV_COMMON_H
 
 #if __has_include("../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h")
-#include "../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#include "../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
 #else
 #include "../../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
 #endif
 
 namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
-static constexpr uint32_t MAX_EXPERT_PER_EP = 32U;
+static constexpr uint32_t MAX_EXPERT_PER_EP = 1U;
 static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
 
 // 类型复用声明
@@ -65,8 +65,8 @@ struct TaskTilingInfo {
     uint32_t totalLoopCount;     // 总循环次数
     
     // 通信参数（对应sendCounts和recvCounts）
-    int64_t sendCnt[MAX_EXPERT_SIZE];  // 每个expert的发送计数
-    int64_t recvCnt[MAX_EXPERT_SIZE];  // 每个expert的接收计数
+    int16_t sendCnt[MAX_EXPERT_SIZE];  // 每个expert的发送计数
+    int16_t recvCnt[MAX_EXPERT_SIZE];  // 每个expert的接收计数
 };
 
 }

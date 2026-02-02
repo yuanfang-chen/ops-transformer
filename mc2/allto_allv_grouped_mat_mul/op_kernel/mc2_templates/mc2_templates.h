@@ -15,9 +15,11 @@
 #ifndef MC2_TEMPLATES_H
 #define MC2_TEMPLATES_H
 
-// #include "scheduler/gmm_a2av_scheduler.h"
-// #include "scheduler/a2av_gmm_scheduler.h"
+#include "scheduler/gmm_a2av_scheduler.h"
+#include "scheduler/a2av_gmm_scheduler.h"
 #include "communication/hccl_a2av_op.h"
 #include "compute/gmm_expert_op.h"
+#include "common/a2av_common_tiling.h"
+#include "../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
 
 #endif // MC2_TEMPLATES_H

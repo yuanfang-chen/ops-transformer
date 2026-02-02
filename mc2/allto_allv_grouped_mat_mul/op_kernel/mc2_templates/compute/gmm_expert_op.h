@@ -18,6 +18,20 @@
 
 #include "../common/a2av_common_tiling.h"
 #include "kernel_operator.h"
+#include "../../../grouped_mat_mul_allto_allv/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
+#include "../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+
+#if defined(CONST_TILING)
+#define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
+    const outerType *outerPtr##var = (const outerType *)(tiling);                                       \
+    const innerType *innerPtr##var = &(outerPtr##var->outerPtr##var);                                   \
+    const int32_t *(var) = (const int32_t)((const uint8_t *)&(innerPtr##var->innerMember));
+#else
+#define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
+    size_t outerOffset##var = (size_t)(&((outerType *)0)->outerMember);                                 \
+    size_t innerOffset##var = (size_t)(&((innerType *)0)->innerMember);                                 \
+    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var);
+#endif
 
 using namespace AscendC;
 
@@ -47,13 +61,14 @@ public:
      * @param tPipe           Pipe 指针
      */
     template <bool Shared = IS_SHARED_EXPERT, typename std::enable_if<!Shared, int>::type = 0>
-    __aicore__ inline void Init(const TaskTilingInfo *taskTilingInfo, const GmmTilingArray *gmmTilingArray,
+    __aicore__ inline void Init(const TaskTilingInfo *taskTilingInfo, const GmmTilingArray *gmmTilingArray, GM_ADDR tilingGM,
                                 TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
         gmmTilingArray_ = gmmTilingArray;
         sharedGmmTiling_ = nullptr;
         tPipe_ = tPipe;
+        GM_ADDR tilingGM_ = tilingGM;
         expertNum_ = static_cast<uint32_t>(taskTilingInfo_->e);
     }
 
@@ -66,13 +81,14 @@ public:
      * @param tPipe           Pipe 指针
      */
     template <bool Shared = IS_SHARED_EXPERT, typename std::enable_if<Shared, int>::type = 0>
-    __aicore__ inline void Init(const TaskTilingInfo *taskTilingInfo, const GMMQuantTilingData *sharedGmmTiling,
+    __aicore__ inline void Init(const TaskTilingInfo *taskTilingInfo, const GMMQuantTilingData *sharedGmmTiling, GM_ADDR tilingGM,
                                 TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
         gmmTilingArray_ = nullptr;
         sharedGmmTiling_ = sharedGmmTiling;
         tPipe_ = tPipe;
+        GM_ADDR tilingGM_ = tilingGM;
         expertNum_ = 1; // 共享专家只有一个
     }
 
@@ -129,6 +145,7 @@ private:
     GM_ADDR scaleABase_ = nullptr;
     GM_ADDR scaleBBase_ = nullptr;
     GM_ADDR yBase_ = nullptr;
+    GM_ADDR tilingGM_ = nullptr;
     GM_ADDR workspaceBase_ = nullptr;
     GM_ADDR groupListCache_ = nullptr;
 
@@ -136,7 +153,7 @@ private:
      * 内部：获取 groupList 来源数组
      * 根据 USE_SEND_COUNTS 模板参数选择 sendCnt 或 recvCnt
      */
-    __aicore__ inline const int64_t *GetGroupCounts() const
+    __aicore__ inline const int16_t *GetGroupCounts() const
     {
         if constexpr (USE_SEND_COUNTS) {
             return taskTilingInfo_->sendCnt;
@@ -169,10 +186,10 @@ private:
      */
     __aicore__ inline int64_t CalcXOffset(uint32_t expertIdx) const
     {
-        const int64_t *counts = GetGroupCounts();
+        const int16_t *counts = GetGroupCounts();
         int64_t offset = 0;
         for (uint32_t i = 0; i < expertIdx; ++i) {
-            offset += counts[i];
+            offset += (int64_t)counts[i];
         }
         return offset;
     }
@@ -220,13 +237,13 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::PrepareGroupList(
                                                                                 uint32_t expertNum)
 {
     // 将 counts 转换为累积和形式的 groupList 写入 groupListCache_
-    const int64_t *counts = this->GetGroupCounts();
+    const int16_t *counts = this->GetGroupCounts();
     __gm__ int64_t *groupList = reinterpret_cast<__gm__ int64_t *>(this->groupListCache_);
 
     int64_t cumSum = 0;
     for (uint32_t i = 0; i < expertNum; ++i) {
         uint32_t expertIdx = startExpertIdx + i;
-        cumSum += counts[expertIdx];
+        cumSum += (int64_t)counts[expertIdx];
         groupList[i] = cumSum;
     }
 }
@@ -261,7 +278,13 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(uin
     const TCubeTiling *mmTilingData = &tilingData->mmTilingData;
 
     // gmmArray 包含 mList, kList, nList
-    const int32_t *gmmArrayAddr = tilingData->gmmArray.mList;
+    // const int32_t *gmmArrayAddr = tilingData->gmmArray.mList;
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData,
+                GmmTilingArray,
+                gmmTiling,
+                array,
+                gmmArrayAddr_,
+                tilingGM_);
 
     // 4. 计算偏移后的地址（使用基于字节的偏移）
     // 由于我们不知道具体的数据类型大小，使用 H1 和 N1 作为元素数来计算
@@ -280,7 +303,7 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(uin
                           this->workspaceBase_,  // workspace
                           gmmQuantParams,        // gmmQuantParams (包含 groupNum)
                           mmTilingData,          // mmTilingData
-                          gmmArrayAddr,          // gmmArrayAddr (mList, kList, nList)
+                          gmmArrayAddr_,          // gmmArrayAddr (mList, kList, nList)
                           this->tPipe_           // TPipe
     );
 
