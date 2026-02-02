@@ -186,19 +186,13 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
         OP_LOGE(context_.opName, "B should not be greater than %u, got %u.",
             MAX_B_SIZE, baseShapeInfo_.bSize),
         return ge::GRAPH_FAILED);
-    if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        const std::set<uint32_t> supportedHeSize {7168U};
-        OP_CHECK_IF(supportedHeSize.find(baseShapeInfo_.heSize) == supportedHeSize.end(),
-            OP_LOGE(context_.opName, "He allows only %s, got %u.",
-                ConvertContainerToString(supportedHeSize).c_str(), baseShapeInfo_.heSize),
-            return ge::GRAPH_FAILED);
-    } else {
-        const std::set<uint32_t> supportedHeSize {1024U, 2048U, 3072U, 4096U, 5120U, 6144U, 7168U, 7680U, 8192U};
-        OP_CHECK_IF(supportedHeSize.find(baseShapeInfo_.heSize) == supportedHeSize.end(),
-            OP_LOGE(context_.opName, "He allows only %s, got %u.",
-                ConvertContainerToString(supportedHeSize).c_str(), baseShapeInfo_.heSize),
-            return ge::GRAPH_FAILED);
-    }
+    
+    const std::set<uint32_t> supportedHeSize {1024U, 2048U, 3072U, 4096U, 5120U, 6144U, 7168U, 7680U, 8192U};
+    OP_CHECK_IF(supportedHeSize.find(baseShapeInfo_.heSize) == supportedHeSize.end(),
+        OP_LOGE(context_.opName, "He allows only %s, got %u.",
+            ConvertContainerToString(supportedHeSize).c_str(), baseShapeInfo_.heSize),
+        return ge::GRAPH_FAILED);
+    
     OP_CHECK_IF(baseShapeInfo_.hcqSize != HCQ_SIZE,
         OP_LOGE(context_.opName, "Hcq allows only %u, got %u.",
             HCQ_SIZE, baseShapeInfo_.hcqSize),
@@ -229,13 +223,6 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
             OP_LOGE(context_.opName, "BlockSize must be within [%u, %u] and a multiple of %u, got %u.",
                 MIN_BLOCK_SIZE, MAX_BLOCK_SIZE, ALIGN_BLOCK_SIZE, baseShapeInfo_.blockSize),
             return ge::GRAPH_FAILED);
-    }
-    if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        const std::set<uint32_t> supportedBlockSize {16, 128};
-        OP_CHECK_IF((supportedBlockSize.find(baseShapeInfo_.blockSize) == supportedBlockSize.end()),
-            OP_LOGE(context_.opName, "BlockSize allows only %s, but got %u.",
-                ConvertContainerToString(supportedBlockSize).c_str(), baseShapeInfo_.blockSize),
-        return ge::GRAPH_FAILED);
     }
     if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0) {
         uint32_t supportedDtileSize = baseShapeInfo_.hckvSize;
@@ -921,24 +908,15 @@ bool MlaPrologTilingCheck::CheckCacheIndex() const
 
 bool MlaPrologTilingCheck::CheckKvCache() const
 {
-    if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_FLOAT8_E4M3FN}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {4});
-    } else {
-        return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {3, 4});
-    }
+    return IsSingleParamValid(context_.kvCache, KV_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {3, 4});
 }
 
 bool MlaPrologTilingCheck::CheckKrCache() const
 {
-    if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        return IsSingleParamValid(
-            context_.krCache, KR_CACHE_NAME, {ge::DT_BF16}, {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1, 4}); // 910_95不支持TND
-    } else {
-        return (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0 &&
-                   *(context_.ckvkrRepoMode) == static_cast<int>(CKVKR_REPO_MODE::COMBINE)) ||
-               IsSingleParamValid(context_.krCache, KR_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8},
-                   {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1, 3, 4});
-    }
+    return (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) == 0 &&
+                *(context_.ckvkrRepoMode) == static_cast<int>(CKVKR_REPO_MODE::COMBINE)) ||
+            IsSingleParamValid(context_.krCache, KR_CACHE_NAME, {ge::DT_BF16, ge::DT_INT8},
+                {ge::FORMAT_ND, ge::FORMAT_NCHW}, {1, 3, 4});
 }
 
 bool MlaPrologTilingCheck::CheckActSeqLen() const
@@ -991,35 +969,20 @@ bool MlaPrologTilingCheck::CheckCacheModeParamShape() const
 
 ge::graphStatus MlaPrologTilingCheck::CheckCacheMode() const
 {
-    if (GetCurNpuArch() == NpuArch::DAV_3510) {
-        if ((std::strncmp(context_.cacheMode, CACHE_MODE_PA_BSND, CACHE_MODE_LEN) != 0) &&
+    // v1和v2的拦截
+    if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0) {
+        if (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BSND, CACHE_MODE_LEN) != 0 &&
             std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) != 0) {
-            OP_LOGE(context_.opName, "Only support cacheMode {PA_BSND, PA_NZ}, actually is %s.", context_.cacheMode);
-            return ge::GRAPH_FAILED;
-        }
-            
-        if (*(context_.kvQuantMode) != static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
-            return ge::GRAPH_SUCCESS;
-        }
-        
-        if (std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) == 0) {
-            OP_LOGE(context_.opName, "Not support both cacheMode PA_NZ and pertile effective.");
+            OP_LOGE(context_.opName,
+                "%s only support cacheMode {BSND, TND}, actually is %s.",
+                context_.opType,
+                context_.cacheMode);
             return ge::GRAPH_FAILED;
         }
         return ge::GRAPH_SUCCESS;
-    } else {
-        if (std::strncmp(context_.opType, V3_OP_NAME, OP_NAME_LEN) != 0) {
-            if (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BSND, CACHE_MODE_LEN) != 0 &&
-                std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) != 0) {
-                OP_LOGE(context_.opName,
-                    "%s only support cacheMode {BSND, TND}, actually is %s.",
-                    context_.opType,
-                    context_.cacheMode);
-                return ge::GRAPH_FAILED;
-            }
-            return ge::GRAPH_SUCCESS;
-        }
-        if ((std::strncmp(context_.cacheMode, CACHE_MODE_BSND, CACHE_MODE_LEN) != 0) &&
+    }
+    //  BSND, TND, PA_BSND, PA_NZ, PA_BLK_BSND, PA_BLK_NZ       
+    if ((std::strncmp(context_.cacheMode, CACHE_MODE_BSND, CACHE_MODE_LEN) != 0) &&
             (std::strncmp(context_.cacheMode, CACHE_MODE_TND, CACHE_MODE_LEN) != 0) &&
             (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BSND, CACHE_MODE_LEN) != 0) &&
             (std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) != 0) &&
@@ -1030,22 +993,22 @@ ge::graphStatus MlaPrologTilingCheck::CheckCacheMode() const
                 context_.cacheMode);
             return ge::GRAPH_FAILED;
         }
-
-        if (!CheckCacheModeParamShape()) {
-            return ge::GRAPH_FAILED;
-        }
-        if (*(context_.kvQuantMode) != static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
-            return ge::GRAPH_SUCCESS;
-        }
-        if ((std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) == 0) ||
-            (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_BSND, CACHE_MODE_LEN) == 0) ||
-            (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_NZ, CACHE_MODE_LEN) == 0)) {
-            OP_LOGE(
-                context_.opName, "Not support both cacheMode {PA_NZ, PA_BLK_BSND, PA_BLK_NZ} and pertile effective.");
-            return ge::GRAPH_FAILED;
-        }
+    // 校验参数
+    if (!CheckCacheModeParamShape()) {
+        return ge::GRAPH_FAILED;
+    }
+    // 校验PER_TILE场景
+    if (*(context_.kvQuantMode) != static_cast<int>(KV_QUANT_MODE::PER_TILE)) {
         return ge::GRAPH_SUCCESS;
     }
+    if ((std::strncmp(context_.cacheMode, CACHE_MODE_PA_NZ, CACHE_MODE_LEN) == 0) ||
+        (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_BSND, CACHE_MODE_LEN) == 0) ||
+        (std::strncmp(context_.cacheMode, CACHE_MODE_PA_BLK_NZ, CACHE_MODE_LEN) == 0)) {
+        OP_LOGE(
+            context_.opName, "Not support both cacheMode {PA_NZ, PA_BLK_BSND, PA_BLK_NZ} and pertile effective.");
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
 }
 
 // ==================================单参数校验==================================
