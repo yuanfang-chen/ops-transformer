@@ -24,63 +24,63 @@ using namespace optiling;
 namespace aicpu {
 uint32_t
 KvQuantSparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
-  bool success = Prepare(ctx);
+    bool success = Prepare(ctx);
     if (!success) {
         return KERNEL_STATUS_PARAM_INVALID;
     }
     SplitResult splitRes {aicCoreNum_, aivCoreNum_};
     success = BalanceSchedule(splitRes) && GenMetaData(splitRes);
-  return success ? KERNEL_STATUS_OK : KERNEL_STATUS_PARAM_INVALID;
+    return success ? KERNEL_STATUS_OK : KERNEL_STATUS_PARAM_INVALID;
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     CpuKernelContext &ctx) {
-  // input
-  actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
-  actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
-  actSeqLenCmpKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKv));
-  seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedQ));
-  seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedKv));
-  // output
-  metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
+    // input
+    actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
+    actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
+    actSeqLenCmpKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKv));
+    seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedQ));
+    seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedKv));
+    // output
+    metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
 
-  bool requiredAttrs = GetAttrValue(ctx, "num_heads_q", queryHeadNum_) &&
-                       GetAttrValue(ctx, "num_heads_kv", kvHeadNum_) &&
-                       GetAttrValue(ctx, "head_dim", headDim_);
-                       GetAttrValueOpt(ctx, "soc_version", socVersion_);
-                       GetAttrValueOpt(ctx, "aic_core_num", aicCoreNum_);
-                       GetAttrValueOpt(ctx, "aiv_core_num", aivCoreNum_);
-  if (!requiredAttrs) {
-    return false;
-  }
+    bool requiredAttrs = GetAttrValue(ctx, "num_heads_q", queryHeadNum_) &&
+                        GetAttrValue(ctx, "num_heads_kv", kvHeadNum_) &&
+                        GetAttrValue(ctx, "head_dim", headDim_);
+                        GetAttrValueOpt(ctx, "soc_version", socVersion_);
+                        GetAttrValueOpt(ctx, "aic_core_num", aicCoreNum_);
+                        GetAttrValueOpt(ctx, "aiv_core_num", aivCoreNum_);
+    if (!requiredAttrs) {
+        return false;
+    }
 
-  // attributes optional
-  GetAttrValueOpt(ctx, "batch_size", batchSize_);
-  GetAttrValueOpt(ctx, "max_seqlen_q", querySeqSize_);
-  GetAttrValueOpt(ctx, "max_seqlen_kv", kvSeqSize_);
-  GetAttrValueOpt(ctx, "ori_topk", oriTopK_);
-  GetAttrValueOpt(ctx, "cmp_topk", cmpTopK_);
-  GetAttrValueOpt(ctx, "cmp_ratio", cmpRatio_);
-  GetAttrValueOpt(ctx, "ori_mask_mode", winMaskMode_);
-  GetAttrValueOpt(ctx, "cmp_mask_mode", cmpMaskMode_);
-  GetAttrValueOpt(ctx, "ori_win_left", winLeft_);
-  GetAttrValueOpt(ctx, "ori_win_right", winRight_);
-  GetAttrValueOpt(ctx, "layout_q", layoutQuery_);
-  GetAttrValueOpt(ctx, "layout_kv", layoutKv_);
-  GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
-  GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
+    // attributes optional
+    GetAttrValueOpt(ctx, "batch_size", batchSize_);
+    GetAttrValueOpt(ctx, "max_seqlen_q", querySeqSize_);
+    GetAttrValueOpt(ctx, "max_seqlen_kv", kvSeqSize_);
+    GetAttrValueOpt(ctx, "ori_topk", oriTopK_);
+    GetAttrValueOpt(ctx, "cmp_topk", cmpTopK_);
+    GetAttrValueOpt(ctx, "cmp_ratio", cmpRatio_);
+    GetAttrValueOpt(ctx, "ori_mask_mode", winMaskMode_);
+    GetAttrValueOpt(ctx, "cmp_mask_mode", cmpMaskMode_);
+    GetAttrValueOpt(ctx, "ori_win_left", winLeft_);
+    GetAttrValueOpt(ctx, "ori_win_right", winRight_);
+    GetAttrValueOpt(ctx, "layout_q", layoutQuery_);
+    GetAttrValueOpt(ctx, "layout_kv", layoutKv_);
+    GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
+    GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
 
-  sparseMode_ = static_cast<uint32_t>(SparseMode::BAND);
-  preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
-  nextToken_ = 0;
-  attentionMode_ = 1;
-  isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
+    sparseMode_ = static_cast<uint32_t>(SparseMode::BAND);
+    preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
+    nextToken_ = 0;
+    attentionMode_ = 1;
+    isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
 
-  return (ParamsCheck() && ParamsInit());
+    return (ParamsCheck() && ParamsInit());
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
-  return true;
+    return true;
 }
 
 ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
