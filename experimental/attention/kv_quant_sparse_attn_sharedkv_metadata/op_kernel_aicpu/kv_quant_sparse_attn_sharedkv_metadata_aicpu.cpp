@@ -37,10 +37,10 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     CpuKernelContext &ctx) {
   // input
   actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
-  actSeqLenOriKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKV));
-  actSeqLenCmpKV_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKV));
-  SeqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedQ));
-  SeqUsedKV_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedKV));
+  actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
+  actSeqLenCmpKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKv));
+  seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedQ));
+  seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedKv));
   // output
   metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
 
@@ -66,9 +66,9 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
   GetAttrValueOpt(ctx, "ori_win_left", winLeft_);
   GetAttrValueOpt(ctx, "ori_win_right", winRight_);
   GetAttrValueOpt(ctx, "layout_q", layoutQuery_);
-  GetAttrValueOpt(ctx, "layout_kv", layoutKV_);
-  GetAttrValueOpt(ctx, "has_ori_kv", hasOriKV_);
-  GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKV_);
+  GetAttrValueOpt(ctx, "layout_kv", layoutKv_);
+  GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
+  GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
 
   sparseMode_ = static_cast<uint32_t>(SparseMode::BAND);
   preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
@@ -122,12 +122,12 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit() {
 
 uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 {
-    // 1. 如果 SeqUsedQ_ 传了，直接使用
-    if (SeqUsedQ_ != nullptr && SeqUsedQ_->GetData() != nullptr) {
-        const int32_t *seqUsedPtr = static_cast<const int32_t*>(SeqUsedQ_->GetData());
+    // 1. 如果 seqUsedQ_ 传了，直接使用
+    if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
+        const int32_t *seqUsedPtr = static_cast<const int32_t*>(seqUsedQ_->GetData());
         return static_cast<uint32_t>(seqUsedPtr[bIdx]);
     }
-    // 2. SeqUsedQ_ 没传，判断 Layout
+    // 2. seqUsedQ_ 没传，判断 Layout
     if (layoutQuery_ == "TND") {
         // 如果是 TND，尝试使用 actSeqLenQ_
         if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
@@ -141,20 +141,20 @@ uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 
 uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
 {
-    // 1. 如果 SeqUsedKV_ 传了，直接使用
-    if (SeqUsedKV_ != nullptr && SeqUsedKV_->GetData() != nullptr) {
-        const int32_t *seqUsedPtr = static_cast<const int32_t*>(SeqUsedKV_->GetData());
+    // 1. 如果 seqUsedKv_ 传了，直接使用
+    if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
+        const int32_t *seqUsedPtr = static_cast<const int32_t*>(seqUsedKv_->GetData());
         return static_cast<uint32_t>(seqUsedPtr[bIdx]);
     }
-    // 2. SeqUsedKV_ 没传，判断 Layout
-    if (layoutKV_ == "TND") {
-        // 如果是 TND，尝试使用 actSeqLenOriKV_
-        if (actSeqLenOriKV_ != nullptr && actSeqLenOriKV_->GetData() != nullptr) {
-            const int32_t *s2Ptr = static_cast<const int32_t*>(actSeqLenOriKV_->GetData());
+    // 2. seqUsedKv_ 没传，判断 Layout
+    if (layoutKv_ == "TND") {
+        // 如果是 TND，尝试使用 actSeqLenOriKv_
+        if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
+            const int32_t *s2Ptr = static_cast<const int32_t*>(actSeqLenOriKv_->GetData());
             return static_cast<uint32_t>(s2Ptr[bIdx + 1U] - s2Ptr[bIdx]);
         }
     }
-    // 3. 如果不是 TND，或者 actSeqLenOriKV_ 为空，使用 kvSeqSize_
+    // 3. 如果不是 TND，或者 actSeqLenOriKv_ 为空，使用 kvSeqSize_
     return kvSeqSize_;
 }
 
