@@ -12,7 +12,7 @@
  * \file grouped_matmul_apt.cpp
  * \brief
  */
- 
+
 #include "grouped_matmul_utils.h"
 #include "arch35/grouped_matmul_tiling_data_apt.h"
 using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingData;
@@ -226,10 +226,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
 #if defined(V310_GMM_QUANT_CUBE) || defined(V310_GMM_QUANT_PERTENSOR_CUBE) // scale64/perTensor/double perTensor
     if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
         do {
-            AscendC::PRINTF("[GMM_QUANT] GmmASWKernel instantiation: DTYPE_X=%d, DTYPE_WEIGHT=%d, DTYPE_BIAS=%d, "
-                            "DTYPE_SCALE=%d, DTYPE_Y=%d, wFormat=%d, transX1=false, transX2=false\n",
-                            static_cast<int>(DTYPE_X), static_cast<int>(DTYPE_WEIGHT), static_cast<int>(DTYPE_BIAS),
-                            static_cast<int>(DTYPE_SCALE), static_cast<int>(DTYPE_Y), static_cast<int>(wFormat));
+            AscendC::PRINTF("[GMM_QUANT]  transX1=false, transX2=false\n");
             GmmASWKernel<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, DTYPE_SCALE, DTYPE_Y, wFormat, false, false> op;
             GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);
             GET_TILING_DATA_MEMBER(GMMQuantTilingData, mmTilingData, mmTilingData_, tiling);
@@ -253,9 +250,9 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             // Print gmmArray in C++ assignment format (all groups)
             AscendC::PRINTF("// GMMArray (all %u groups)\n", gmmQuantParams_.groupNum);
             for (int32_t i = 0; i < static_cast<int32_t>(gmmQuantParams_.groupNum); i++) {
-                AscendC::PRINTF("gmmArray.mList[%d] = %d;   // M维度\n", i, gmmArrayAddr_->mList[i]);
-                AscendC::PRINTF("gmmArray.kList[%d] = %d;   // K维度\n", i, gmmArrayAddr_->kList[i]);
-                AscendC::PRINTF("gmmArray.nList[%d] = %d;   // N维度\n", i, gmmArrayAddr_->nList[i]);
+                AscendC::PRINTF("gmmArray.mList[%d] = %d;   // M维度\n", i, *(gmmArrayAddr_ + i));
+                AscendC::PRINTF("gmmArray.kList[%d] = %d;   // K维度\n", i, *(gmmArrayAddr_ + 128 + i));
+                AscendC::PRINTF("gmmArray.nList[%d] = %d;   // N维度\n", i, *(gmmArrayAddr_ + 256 + i));
             }
             // Print mmTilingData all fields
             AscendC::PRINTF("// TCubeTiling\n");
@@ -316,10 +313,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
     } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS &&
                          KERNEL_TYPE == GMM_DEQUANT_FIXP) {
         do {
-            AscendC::PRINTF("[GMM_QUANT] GmmASWKernel instantiation: DTYPE_X=%d, DTYPE_WEIGHT=%d, DTYPE_BIAS=%d, "
-                            "DTYPE_SCALE=%d, DTYPE_Y=%d, wFormat=%d, transX1=false, transX2=true\n",
-                            static_cast<int>(DTYPE_X), static_cast<int>(DTYPE_WEIGHT), static_cast<int>(DTYPE_BIAS),
-                            static_cast<int>(DTYPE_SCALE), static_cast<int>(DTYPE_Y), static_cast<int>(wFormat));
+            AscendC::PRINTF("[GMM_QUANT]  transX1=false, transX2=true\n");
             GmmASWKernel<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, DTYPE_SCALE, DTYPE_Y, wFormat, false, true> op;
             GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);
             GET_TILING_DATA_MEMBER(GMMQuantTilingData, mmTilingData, mmTilingData_, tiling);
@@ -343,9 +337,9 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             // Print gmmArray in C++ assignment format (all groups)
             AscendC::PRINTF("// GMMArray (all %u groups)\n", gmmQuantParams_.groupNum);
             for (int32_t i = 0; i < static_cast<int32_t>(gmmQuantParams_.groupNum); i++) {
-                AscendC::PRINTF("gmmArray.mList[%d] = %d;   // M维度\n", i, gmmArrayAddr_->mList[i]);
-                AscendC::PRINTF("gmmArray.kList[%d] = %d;   // K维度\n", i, gmmArrayAddr_->kList[i]);
-                AscendC::PRINTF("gmmArray.nList[%d] = %d;   // N维度\n", i, gmmArrayAddr_->nList[i]);
+                AscendC::PRINTF("gmmArray.mList[%d] = %d;   // M维度\n", i, *(gmmArrayAddr_ + i));
+                AscendC::PRINTF("gmmArray.kList[%d] = %d;   // K维度\n", i, *(gmmArrayAddr_ + 128 + i));
+                AscendC::PRINTF("gmmArray.nList[%d] = %d;   // N维度\n", i, *(gmmArrayAddr_ + 256 + i));
             }
             // Print mmTilingData all fields
             AscendC::PRINTF("// TCubeTiling\n");
