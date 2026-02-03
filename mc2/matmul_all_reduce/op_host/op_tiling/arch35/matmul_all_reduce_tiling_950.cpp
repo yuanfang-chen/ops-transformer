@@ -168,7 +168,9 @@ ge::graphStatus MatmulAllReduceTilingA5::Do910Tiling()
     OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion_, priorities, opName_) != ge::GRAPH_SUCCESS,
                     VECTOR_INNER_ERR_REPORT_TILING(opName_, "Get mmv3 priority policy failed."),
                     return ge::GRAPH_FAILED);
-    Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", socVersion_, priorities};
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
+    Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", npuArch, priorities};
     mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
     // 获取tileTiling
