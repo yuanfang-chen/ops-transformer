@@ -838,7 +838,7 @@ __aicore__ inline void FiaBlockCubeNonQuant<FIAT>::DealMm2SingleMKN(const RunInf
                     loadData2DParams.srcStride = mActSizeAlign / BLOCK_SIZE_ALIGN_16;
                     loadData2DParams.dstGap = 0;
                     loadData2DParams.ifTranspose = false;
-                    LoadData(aL0Tensor[BLOCK_SIZE_ALIGN_1616 * i * kActSizeAlign], qpL1Tensor[qL1Offset], loadData2DParams);
+                    LoadData(aL0Tensor[BLOCK_SIZE_ALIGN_16 * i * kActSizeAlign], qpL1Tensor[qL1Offset], loadData2DParams);
                 }
             }
             // LoadBToL0
