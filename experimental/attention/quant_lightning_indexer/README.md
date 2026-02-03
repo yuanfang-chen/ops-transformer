@@ -29,9 +29,9 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 >
 >- query、key、weights、query_dequant_scale、key_dequant_scale参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
 >- 使用S1和S2分别表示query和key的输入样本序列长度，N1和N2分别表示query和key对应的多头数，k表示最后选取的索引个数。参数query中的D和参数key中的D值相等为128。T1和T2分别表示query和key的输入样本序列长度的累加和。
--   **query**（`Tensor`）：必选参数，表示输入Index Query，对应公式中的$Q_{index}^{INT8}\in\R^{g\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3`。`layout_query`为BSND时shape为[B,S1,N1,D]，当`layout_query`为TND时shape为[T1,N1,D]，N1仅支持64。
+-   **query**（`Tensor`）：必选参数，表示输入Index Query，对应公式中的$Q_{index}^{INT8}\in\R^{g\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3fn`。`layout_query`为BSND时shape为[B,S1,N1,D]，当`layout_query`为TND时shape为[T1,N1,D]，N1仅支持64。
     
--   **key**（`Tensor`）：必选参数，表示压缩后的输入Index Key，对应公式中的$K_{index}^{INT8}\in\R^{S_{k}\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2, D]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_kv`为BSND时shape为[B, S2, N2, D]，`layout_kv`为TND时shape为[T2, N2, D]，N2仅支持1。
+-   **key**（`Tensor`）：必选参数，表示压缩后的输入Index Key，对应公式中的$K_{index}^{INT8}\in\R^{S_{k}\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3fn`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2, D]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_kv`为BSND时shape为[B, S2, N2, D]，`layout_kv`为TND时shape为[T2, N2, D]，N2仅支持1。
     
 -   **weights**（`Tensor`）：必选参数，表示权重系数，对应公式中的$W$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`float32`，支持输入shape[B,S1,N1]、[T,N1]。
 
@@ -65,7 +65,7 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 
 -   **next\_tokens**（`int`）：可选参数，用于稀疏计算，表示attention需要和前几个Token计算关联。数据类型支持`int64`，仅支持默认值2^63-1。
 
--   **cmp\_ratio**（`int`）：可选参数，用于稀疏计算，表示key的压缩倍数。数据类型支持`int32`，默认值1，支持1/2/4/8/16/32/64/128。
+-   **cmp\_ratio**（`int`）：可选参数，用于稀疏计算，表示key的压缩倍数。Atlas A3 推理系列产品支持1/2/4/8/16/32/64/128，Ascend 950PR/Ascend 950DT支持1/4/128。数据类型支持`int32`，默认值1。
 
 -   **return\_value**（`bool`）：可选参数，表示是否输出`sparse_values`。True表示输出，False表示不输出；仅支持默认值False。
 

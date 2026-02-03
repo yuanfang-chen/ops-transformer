@@ -152,7 +152,7 @@ __aicore__ inline void QLIVector<QLIT>::InitBuffers(TPipe *pipe)
     pipe->InitBuffer(mrgValueBuf_, (topkCount_ + trunkLen_) * sizeof(SCORE_T));     // 大小：(Topk + 每次排序长度) * sizeof(SCORE_T)
     mrgValueLocal_ = mrgValueBuf_.Get<SCORE_T>();
     
-    pipe->InitBuffer(indicesOutBuf_, topkCount_ * sizeof(uint32_t));                    // 大小：topkCount_ * 4
+    pipe->InitBuffer(indicesOutBuf_, (topkCount_ + 64) * sizeof(uint32_t));                    // 大小：topkCount_ * 4
     indicesOutLocal_ = indicesOutBuf_.Get<uint32_t>();
 
     pipe->InitBuffer(scoreOutBuf_, topkCount_ * sizeof(SCORE_T));                    // 大小：topkCount_ * sizeof(SCORE_T)
