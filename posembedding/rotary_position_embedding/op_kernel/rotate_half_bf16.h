@@ -278,18 +278,23 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyInX(uint64_t xStartOffset
         if (this->layout == LAYOUT_BNSD || this->layout == LAYOUT_NO_BROADCAST || this->layout == LAYOUT_BND ||
             this->layout == LAYOUT_R_B1SD) {
             DataCopy(xLocal, xGm[xStartOffset], copyLength);
-        } else if (this->layout == LAYOUT_BSND) {
+        } else {
             copyParams.blockCount = storeSLines;
             copyParams.blockLen = this->dBytes;
-            copyParams.srcStride = (this->bcSecondDim - 1) * this->dBytes;
             copyParams.dstStride = 0;
+            if (this->layout == LAYOUT_BSND) {
+                copyParams.srcStride = (this->bcSecondDim - 1) * this->dBytes;
+            }
+            else if (this->layout == LAYOUT_SBND) {
+                copyParams.srcStride = (this->bnSize - 1) * this->dBytes;
+            }
+            #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+            copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
+            copyParams.srcStride = copyParams.srcStride / BYTE_OF_BLOCK;
+            DataCopy(xLocal, xGm[xStartOffset], copyParams);
+            #else
             DataCopyPad(xLocal, xGm[xStartOffset], copyParams, this->noPadParams);
-        } else if (this->layout == LAYOUT_SBND) {
-            copyParams.blockCount = storeSLines;
-            copyParams.blockLen = this->dBytes;
-            copyParams.srcStride = (this->bnSize - 1) * this->dBytes;
-            copyParams.dstStride = 0;
-            DataCopyPad(xLocal, xGm[xStartOffset], copyParams, this->noPadParams);
+            #endif
         }
     } 
 #if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
@@ -336,12 +341,20 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyOut(uint64_t yOffset, uin
         if (this->layout == LAYOUT_BNSD || this->layout == LAYOUT_NO_BROADCAST || this->layout == LAYOUT_BND ||
             this->layout == LAYOUT_R_B1SD) {
             DataCopy(yGm[yOffset], yLocal, copyLength);
-        } else if (this->layout == LAYOUT_BSND) {
-            copyParams.dstStride = (this->bcSecondDim - 1) * this->dBytes;
-            DataCopyPad(yGm[yOffset], yLocal, copyParams);
-        } else if (this->layout == LAYOUT_SBND) {
-            copyParams.dstStride = (this->bnSize - 1) * this->dBytes;
-            DataCopyPad(yGm[yOffset], yLocal, copyParams);
+        } else {
+            if (this->layout == LAYOUT_BSND) {
+                copyParams.dstStride = (this->bcSecondDim - 1) * this->dBytes;
+            }
+            else if (this->layout == LAYOUT_SBND) {
+                copyParams.dstStride = (this->bnSize - 1) * this->dBytes;
+            }
+            #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+            copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
+            copyParams.dstStride = copyParams.srcStride / BYTE_OF_BLOCK;
+            DataCopy(yGm[yStartOffset], yLocal, copyParams);
+            #else
+            DataCopyPad(yGm[yStartOffset], yLocal, copyParams);
+            #endif
         }
     } 
 #if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
