@@ -827,7 +827,6 @@ def call_npu(input_data):
             has_ori_kv=ori_k_in_pa_shape != None,
             has_cmp_kv=cmp_k_in_pa_shape != None,
             device = "npu:0")
-        #swa
         npu_result, softmax_lse = torch.ops.custom.npu_sparse_attn_sharedkv(q,
                                                                ori_kv=ori_k_in_pa_shape,
                                                                ori_block_table=ori_block_table,
@@ -866,7 +865,6 @@ def call_npu(input_data):
             has_ori_kv=ori_k_in_pa_shape != None,
             has_cmp_kv=cmp_k_in_pa_shape != None,
             device = "npu:0")
-        # cfa
         npu_result, softmax_lse = torch.ops.custom.npu_sparse_attn_sharedkv(q,
                                                                ori_kv=ori_k_in_pa_shape,
                                                                cmp_kv=cmp_k_in_pa_shape,
@@ -909,7 +907,6 @@ def call_npu(input_data):
             has_ori_kv=ori_k_in_pa_shape != None,
             has_cmp_kv=cmp_k_in_pa_shape != None,
             device = "npu:0")
-        # scfa
         npu_result, softmax_lse = torch.ops.custom.npu_sparse_attn_sharedkv(q,
                                                                 ori_kv=ori_k_in_pa_shape,
                                                                 cmp_kv=cmp_k_in_pa_shape,
