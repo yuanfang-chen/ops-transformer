@@ -58,7 +58,7 @@ constexpr uint8_t EP_WORLD_SIZE_IDX = 1;
 constexpr uint8_t SHARE_RANK_NUM_IDX = 2;
 constexpr uint8_t MOE_NUM_IDX = 3;
 constexpr int32_t BITS_PER_BYTE = 8;
-constexpr uint32_t MAX_UB_SIZE = 170U * 1024U;
+constexpr uint32_t MAX_UB_SIZE = 240U * 1024U;
 constexpr uint32_t BW_ITEM_SIZE = 32; // batchWriteItemSize
 constexpr uint32_t B64_PER_BLOCK = 4;
 constexpr uint64_t SERVER_STATE_ALIGN = 512UL;
@@ -425,7 +425,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     GM_ADDR expandXOut, GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
 {
     gmTemp = workspaceGM + 1UL * 1024 * 1024 * 1024;
-    GM_ADDR bufferChoseAddr = workspaceGM + 2UL  * 1024 * 1024 * 1024 + 1000UL * 1024 * 1024;
+    GM_ADDR bufferChoseAddr = workspaceGM + 2UL  * 1024 * 1024 * 1024 + 1000UL * 1024 * 1024; //todo
 
     tpipe_ = pipe;
     aivId_ = GetBlockIdx();
@@ -659,16 +659,16 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
 {
     //LogInfo(__LINE__, "start InitMaskInfo: ");
     expertIdsCnt_ = axisBS_ * axisK_;
-    uint32_t hFp32Size = axisH_ * sizeof(float);
-    uint32_t expertIdsSize = expertIdsCnt_ * sizeof(int32_t);
-    uint32_t xActivateMaskSize = axisBS_ * (Ceil(axisK_ * sizeof(bool), UB_ALIGN) * UB_ALIGN) * sizeof(half);
-    uint32_t bsAlign256 = Ceil(axisBS_ * sizeof(half), ALIGNED_LEN_256) * ALIGNED_LEN_256 / sizeof(half);
-    uint32_t bsKAlign256 = Ceil(expertIdsCnt_ * sizeof(half), ALIGNED_LEN_256) * ALIGNED_LEN_256 / sizeof(half);
-    uint32_t expertIdsBufSize = expertIdsSize > bsAlign256 ? expertIdsSize : bsAlign256;
-    expertIdsSize = Ceil(expertIdsSize, UB_ALIGN) * UB_ALIGN;
+    uint32_t hFp32Size = axisH_ * sizeof(float); // 32KB
+    uint32_t expertIdsSize = expertIdsCnt_ * sizeof(int32_t); //32JB
+    uint32_t xActivateMaskSize = axisBS_ * (Ceil(axisK_ * sizeof(bool), UB_ALIGN) * UB_ALIGN) * sizeof(half); // 32KB
+    uint32_t bsAlign256 = Ceil(axisBS_ * sizeof(half), ALIGNED_LEN_256) * ALIGNED_LEN_256 / sizeof(half); //512B
+    uint32_t bsKAlign256 = Ceil(expertIdsCnt_ * sizeof(half), ALIGNED_LEN_256) * ALIGNED_LEN_256 / sizeof(half); //8kb
+    uint32_t expertIdsBufSize = expertIdsSize > bsAlign256 ? expertIdsSize : bsAlign256; // 32KB
+    expertIdsSize = Ceil(expertIdsSize, UB_ALIGN) * UB_ALIGN; //32b
     maxSize_ = hFp32Size > expertIdsSize ? hFp32Size : expertIdsSize;
     maxSize_ = maxSize_ > xActivateMaskSize ? maxSize_ : xActivateMaskSize;
-    maxSize_ = maxSize_ > bsKAlign256 ? maxSize_ : bsKAlign256;
+    maxSize_ = maxSize_ > bsKAlign256 ? maxSize_ : bsKAlign256; //32kb
     tpipe_->InitBuffer(expertIdsBuf_, expertIdsSize); // BS * K * 4 = 32K
     totalUsedUB_ += expertIdsSize;
     expertIdsTensor_ = expertIdsBuf_.Get<int32_t>();
@@ -677,11 +677,11 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     gatherMaskTensor_ = gatherMaskTBuf_.Get<uint32_t>();
     workLocalTensor_ = gatherMaskTBuf_.Get<float>();
     if (isExpertMaskFlag_ || (zeroComputeExpertNum_ != 0)) {
-        uint32_t axisBSAlign = Ceil(axisBS_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
+        uint32_t axisBSAlign = Ceil(axisBS_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN; //2KB
         tpipe_->InitBuffer(validBsIndexTBuf_, axisBSAlign);
         totalUsedUB_ += axisBSAlign;
         uint32_t validBufferSize = expertIdsSize > xActivateMaskSize ? expertIdsSize : xActivateMaskSize;
-        tpipe_->InitBuffer(validExpertIndexBuf_, validBufferSize);
+        tpipe_->InitBuffer(validExpertIndexBuf_, validBufferSize); //32kb
         totalUsedUB_ += expertIdsSize;
         validExpertIndexTensor_ = validExpertIndexBuf_.Get<int32_t>();
         validBsIndexTensor_ = validBsIndexTBuf_.Get<int32_t>();
@@ -716,7 +716,7 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitDispatchBetweenServerInfo()
 {
     //LogInfo(__LINE__, "InitDispatchBetweenServerInfo start");
-    tpipe_->InitBuffer(expertMaskInputBuf_, expertIdsCnt_ * sizeof(bool));
+    tpipe_->InitBuffer(expertMaskInputBuf_, expertIdsCnt_ * sizeof(bool)); //16KB
     totalUsedUB_ += expertIdsCnt_ * sizeof(bool);
     expertMaskInputTensor_ = expertMaskInputBuf_.Get<bool>();
     //LogInfo(__LINE__, "1");
@@ -779,10 +779,10 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     Duplicate<uint32_t>(serverCountTensor_, uint32_t(0), serverBuferLength);
     Duplicate<uint32_t>(tokenSendMap_, uint32_t(0), serverMapLength);
 
-    tpipe_->InitBuffer(expertOffsetCntBuf_, expertIdsCnt_ * sizeof(uint32_t));
+    tpipe_->InitBuffer(expertOffsetCntBuf_, expertIdsCnt_ * sizeof(uint32_t)); //32kb
     expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<uint32_t>();
-    tpipe_->InitBuffer(xSendBuf_,sendTokenLength_);
-    tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN);
+    tpipe_->InitBuffer(xSendBuf_,sendTokenLength_); //16KB
+    tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN); //2KB
 
     //LogInfo(__LINE__, "axisHCommu",axisHCommu);
     //LogInfo(__LINE__, "serverBuferLength",serverBuferLength);
@@ -807,7 +807,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     //LogInfo(__LINE__, "selfDataStatusGMTensor_ over");
     TBuf<> dataStateBuf;
     //LogInfo(__LINE__, "dataStateBuf over");
-    tpipe_->InitBuffer(dataStateBuf, UB_ALIGN);
+    tpipe_->InitBuffer(dataStateBuf, UB_ALIGN); //32
     //LogInfo(__LINE__, "InitBuffer over");
     //dataState_ = 0;
     dataState_ = InitWinState(selfDataStatusGMTensor_, winContext_[COMM_EP_IDX], epRankIdOriginal_, moeExpertNum_,
@@ -1126,7 +1126,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Send
     if (endTokenId == totalSendCnt) {
         GlobalTensor<uint32_t> dstStateGMTensor;
         TBuf<> tempbuf;
-        tpipe_->InitBuffer(tempbuf, SERVER_STATE_ALIGN);
+        tpipe_->InitBuffer(tempbuf, SERVER_STATE_ALIGN); //512b
         LocalTensor<uint32_t> outTensor = tempbuf.Get<uint32_t>();
         uint32_t flagOffset = SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t); // 前面的状态区的最后32B的第一个元素是flag位为1
         outTensor(flagOffset) = 1;
@@ -1359,7 +1359,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Wait
     GlobalTensor<uint32_t> statusCntGlobal;
     GM_ADDR wAddr = GetReceiveAddrBetweenServer(COMM_EP_IDX, serverIdx); // 对应server接收区地址
     statusCntGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ uint32_t *>(wAddr));
-    uint32_t tBufRealSize_ = MAX_UB_SIZE - (BUFFER_NUM * UB_ALIGN * 3);
+    // uint32_t tBufRealSize_ = MAX_UB_SIZE - (BUFFER_NUM * UB_ALIGN * 3);
     tpipe_->InitBuffer(tBuf, 512*2); // todo: 只需要512*2
     statusFlagLocal = tBuf.Get<uint32_t>();
     statusCntLocal = tBuf.Get<uint32_t>();
