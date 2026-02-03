@@ -61,6 +61,7 @@ operator_group_7:
   - moe_token_unpermute_with_ep_grad
   - moe_token_unpermute_with_routing_map
   - moe_token_unpermute_with_routing_map_grad
+  - ffn_worker_batching
 operator_group_8:
   - moe_token_permute
   - moe_init_routing_v2
@@ -113,3 +114,4 @@ operator_group_9:
   - mla_preprocess
 operator_group_10:
   - fused_infer_attention_score,3-2
+  - attention_worker_combine
