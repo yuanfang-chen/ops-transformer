@@ -19,6 +19,7 @@
 #include "../../../attn_infra/epilogue/tile_common/tile_copy.hpp"
 #include "../../../attn_infra/gemm_coord.hpp"
 #include "../../../attn_infra/matrix_coord.hpp"
+#include "utils/std/algorithm.h"
 
 namespace NpuArch::Epilogue::Block {
 
@@ -127,7 +128,7 @@ public:
         llUbTensor = resource.ubBuf.template GetBufferByByte<float>(LL_UB_TENSOR_OFFSET);
         tvUbTensor = resource.ubBuf.template GetBufferByByte<float>(TV_UB_TENSOR_OFFSET);
         glUbTensor = resource.ubBuf.template GetBufferByByte<float>(GL_UB_TENSOR_OFFSET);
-        tempMaskTensor = resource.ubBuf.template GetBufferByByte<half>(MASK_UB_PREMASK_TENSOR_OFFSET); 
+        tempMaskTensor = resource.ubBuf.template GetBufferByByte<half>(MASK_UB_PREMASK_TENSOR_OFFSET);
     }
 
     __aicore__ inline
@@ -453,18 +454,18 @@ public:
     __aicore__ inline void OperatePreMaskUb(uint32_t rowNumCurLoop, uint32_t columnNumRound)
     {
         UpCastMask<half, ElementMask>(
-            maskUbTensor16, 
+            maskUbTensor16,
             maskUbTensor,
             rowNumCurLoop,
             columnNumRound
         );
         AscendC::CompareScalar(
             maskUbTensor,
-            maskUbTensor16, 
+            maskUbTensor16,
             static_cast<half>(1.0),
             AscendC::CMPMODE::NE,
             REPEAT_SIZE_IN_BYTE / sizeof(half),
-            (rowNumCurLoop * columnNumRound + HALF_VECTOR_SIZE - 1) / HALF_VECTOR_SIZE, 
+            (rowNumCurLoop * columnNumRound + HALF_VECTOR_SIZE - 1) / HALF_VECTOR_SIZE,
             AscendC::UnaryRepeatParams(1, 1, 8, 8)
         );
         AscendC::PipeBarrier<PIPE_V>();
@@ -544,7 +545,7 @@ public:
     }
 
     template<typename ElementMaskDst, typename ElementMaskSrc>
-    __aicore__ inline 
+    __aicore__ inline
     void UpCastMask(
         const AscendC::LocalTensor<ElementMaskDst> &maskUbTensorDst,
         const AscendC::LocalTensor<ElementMaskSrc> &maskUbTensorSrc,
@@ -909,7 +910,7 @@ public:
             gSink, sUbOffset, rowNumCurLoop, rowNumCurLoopRound, dmUbOffsetCurCycle, rowOffset, isFirstStackTile, sinkLoopParam);
     }
 
-    __aicore__ inline 
+    __aicore__ inline
     float ConvertElementSinkToFloat(const ElementSink& rawSinkVal) {
         if constexpr (std::is_same_v<ElementSink, bfloat16_t>) {
             return AscendC::ToFloat(rawSinkVal);
@@ -918,7 +919,7 @@ public:
         }
     }
 
-    __aicore__ inline 
+    __aicore__ inline
     void SetSinkVecMask(uint32_t elemStart, uint32_t elemEnd) {
         uint64_t mask = 0;
         uint64_t one = 1;
@@ -928,27 +929,27 @@ public:
         }
 
         for (uint32_t elemIdx = elemStart; elemIdx <= elemEnd; elemIdx++) {
-            mask |= (one << elemIdx); 
+            mask |= (one << elemIdx);
         }
         AscendC::SetVectorMask<int8_t>(0x0, mask);
     }
 
      __aicore__ inline
-    void UpdateRowMaxWithSink(AscendC::GlobalTensor<ElementSink> gSink, uint32_t rowOffset, SinkLoopParam &curLoop) 
+    void UpdateRowMaxWithSink(AscendC::GlobalTensor<ElementSink> gSink, uint32_t rowOffset, SinkLoopParam &curLoop)
     {
         const uint32_t loopStart = curLoop.rowOffsetIoGm;
         const uint32_t loopEnd = curLoop.rowOffsetIoGm + curLoop.rowNumCurLoop - 1;
         const uint32_t qSBlockSize = curLoop.qSBlockSize;
 
         const uint32_t firstHeadId = loopStart / qSBlockSize;
-        const uint32_t lastHeadId = loopEnd / qSBlockSize; 
+        const uint32_t lastHeadId = loopEnd / qSBlockSize;
 
         SetVecMask(curLoop.rowNumCurLoop);
         float zeroNum = 0.0f;
         AscendC::Muls<float, false>(
-            lmUbTensor[rowOffset],  
-            lmUbTensor[rowOffset], 
-            zeroNum,  (uint64_t)0,                 
+            lmUbTensor[rowOffset],
+            lmUbTensor[rowOffset],
+            zeroNum,  (uint64_t)0,
             1,
             AscendC::UnaryRepeatParams(1, 1, 8, 8));
         AscendC::PipeBarrier<PIPE_V>();
@@ -970,19 +971,19 @@ public:
 
             // hm = Maxs(hm, sink)
             AscendC::Maxs<float, false>(
-                hmUbTensor[rowOffset],  
-                hmUbTensor[rowOffset], 
-                sinkValue,              
-                (uint64_t)0, 1,                
+                hmUbTensor[rowOffset],
+                hmUbTensor[rowOffset],
+                sinkValue,
+                (uint64_t)0, 1,
                 maxsRepeatParams
             );
 
             // sink
             AscendC::Adds<float, false>(
-                lmUbTensor[rowOffset],  
-                lmUbTensor[rowOffset], 
-                sinkValue,              
-                (uint64_t)0,  1,                 
+                lmUbTensor[rowOffset],
+                lmUbTensor[rowOffset],
+                sinkValue,
+                (uint64_t)0,  1,
                 maxsRepeatParams
             );
         }
@@ -992,8 +993,8 @@ public:
     }
 
     __aicore__ inline
-    void UpdateRowSumWithSink(uint32_t rowOffset, uint32_t rowNumCurLoop) 
-    {       
+    void UpdateRowSumWithSink(uint32_t rowOffset, uint32_t rowNumCurLoop)
+    {
         SetVecMask(rowNumCurLoop);
         // sink = sink - hm
         AscendC::Sub<float, false>(
@@ -1026,7 +1027,7 @@ public:
     __aicore__ inline
     void operator()(AscendC::GlobalTensor<ElementOutput> gOutput, AscendC::GlobalTensor<ElementInput> gInput, AscendC::GlobalTensor<ElementSink> gSink,
         const LayoutOutput &layoutOutput, const LayoutInput &layoutInput, GemmCoord actualBlockShape,
-        uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile, uint32_t qSBlockSize, uint32_t qNBlockSize, 
+        uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile, uint32_t qSBlockSize, uint32_t qNBlockSize,
         uint32_t curStackTileMod, bool isSplitKV = false)
     {
         uint32_t rowNum = actualBlockShape.m();
@@ -1208,7 +1209,7 @@ public:
                 AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID2);
                 UpCastMask<half, ElementMask>(maskUbTensor16, maskUbTensor, rowNumCurLoop, columnNumRound);
                 UpCastMask<float, half>(maskUbTensor32, maskUbTensor16, rowNumCurLoop, columnNumRound);
-                
+
                 AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(pingpongFlag);
                 ScaleS((pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound);
                 ApplyMask(
@@ -1242,7 +1243,7 @@ public:
                 // add sink
                 uint32_t rowOffsetIoGm = rowOffsetCurLoop + rowOffsetThisSubBlock;
                 SinkLoopParam curSinkLoop(rowOffsetIoGm, rowNumCurLoop, qSBlockSize, rowOffsetThisSubBlock);
-                
+
                 int64_t offsetOutput = layoutOutput.GetOffset(MatrixCoord(rowOffsetIoGm, 0));
                 auto gOutputCurLoop = gOutput[offsetOutput];
                 auto layoutOutputCurLoop = layoutOutput.GetTileLayout(MatrixCoord(rowNumCurLoop, columnNum));
@@ -1326,12 +1327,12 @@ public:
         }
         uint32_t columnNumRoundPre = NpuArch::Detail::Alignment::RoundUp(maskColumnPre, BLOCK_SIZE_IN_BYTE);
         int64_t offsetMaskPre =
-                    layoutMask.GetOffset(MatrixCoord(gmOffsetMaskRowPre + maskOffsetThisSubBlock, gmOffsetMaskColumnPre)); 
+                    layoutMask.GetOffset(MatrixCoord(gmOffsetMaskRowPre + maskOffsetThisSubBlock, gmOffsetMaskColumnPre));
         auto gMaskThisSubBlockPre = gMask[offsetMaskPre];
 
         uint32_t columnNumRoundNext = NpuArch::Detail::Alignment::RoundUp(maskColumnNext, BLOCK_SIZE_IN_BYTE);
         int64_t offsetMaskNext =
-                    layoutMask.GetOffset(MatrixCoord(gmOffsetMaskRowNext + maskOffsetThisSubBlock, gmOffsetMaskColumnNext)); 
+                    layoutMask.GetOffset(MatrixCoord(gmOffsetMaskRowNext + maskOffsetThisSubBlock, gmOffsetMaskColumnNext));
         auto gMaskThisSubBlockNext = gMask[offsetMaskNext];
         uint32_t maxRowNumPerLoop = MAX_UB_S_ELEM_NUM / columnNumRound;
         uint32_t rowNumTile = NpuArch::Detail::Alignment::RoundDown(maxRowNumPerLoop, FLOAT_BLOCK_SIZE);
