@@ -27,7 +27,7 @@ $$
 
 ## 参数说明
 
-<table style="undefined;table-layout: fixed; width: 1550px"> <colgroup>
+table style="undefined;table-layout: fixed; width: 1550px"> <colgroup>
 <col style="width: 180px">
 <col style="width: 120px">
 <col style="width: 280px">
@@ -127,14 +127,14 @@ $$
 <td>有TP域通信需传参，无TP域通信传空指针；有TP域通信时为1D Tensor，shape为 (tpWorldSize, )。</td>
 <td>INT32</td>
 <td>ND</td>
-<td>1</td>
+<td>-</td>
 <td>√</td>
 </tr>
 <tr>
 <td>xActiveMaskOptional</td>
 <td>输入</td>
 <td>表示token是否参与通信。</td>
-<td><ul><li>可传有效数据或空指针，默认所有token参与通信，1D时shape为(BS, )，2D时shape为(BS, K)。</li><li>各卡BS不一致时所有token需有效。</li></ul></td>
+<td><li>可传有效数据或空指针，默认所有token参与通信，1D时shape为(BS, )，2D时shape为(BS, K)。</li><li>各卡BS不一致时所有token需有效。</li></td>
 <td>BOOL</td>
 <td>ND</td>
 <td>-</td>
@@ -178,7 +178,7 @@ $$
 <td>-</td>
 <td>ND</td>
 <td>-</td>
-<td>√</td>
+<td>-</td>
 </tr>
 <tr>
 <td>sharedExpertXOptional</td>
@@ -244,7 +244,7 @@ $$
 <td>tpWorldSize</td>
 <td>输入</td>
 <td>TP通信域大小。</td>
-<td>取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2</td>
+<td>取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2。</td>
 <td>INT64</td>
 <td>ND</td>
 <td>-</td>
@@ -284,7 +284,7 @@ $$
 <td>sharedExpertRankNum</td>
 <td>输入</td>
 <td>表示共享专家卡数量。</td>
-<td>当前版本不支持，仅支持传入0。</td>
+<td>当前版本不支持，传0即可。</td>
 <td>INT64</td>
 <td>ND</td>
 <td>-</td>
@@ -294,7 +294,7 @@ $$
 <td>globalBS</td>
 <td>输入</td>
 <td>EP域全局的batch size大小。</td>
-<td><ul><li>各rank Bs一致时，globalBS = Bs * epWorldSize 或 0。</li><li>各rank Bs不一致时，globalBS = maxBs * epWorldSize（maxBs为单卡Bs最大值）。</li></ul></td>
+<td><li>各rank Bs一致时，globalBS = Bs * epWorldSize 或 0。</li><li>各rank Bs不一致时，globalBS = maxBs * epWorldSize（maxBs为单卡Bs最大值）。</li></td>
 <td>INT64</td>
 <td>ND</td>
 <td>-</td>
@@ -363,8 +363,8 @@ $$
 <tr>
 <td>rstdOut</td>
 <td>输出</td>
-<td>RmsNorm后的输出结果，要求为3D Tensor，shape为（Bs，1，1）；支持非连续的Tensor。</td>
-<td>要求为3D Tensor，shape为（Bs，1，1）；支持非连续的Tensor。</td>
+<td>RmsNorm后的输出结果。</td>
+<td>要求为3D Tensor，shape为（Bs，1，1）。</td>
 <td>FLOAT32</td>
 <td>ND</td>
 <td>3</td>
@@ -385,8 +385,8 @@ $$
 <td>输出</td>
 <td>返回需要在Device侧申请的workspace大小。</td>
 <td>-</td>
-<td>UINT64</td>
-<td>ND</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 <td>-</td>
 </tr>
@@ -395,8 +395,8 @@ $$
 <td>输出</td>
 <td>返回op执行器，包含了算子的计算流程。</td>
 <td>-</td>
-<td>aclOpExecutor*</td>
-<td>ND</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 <td>-</td>
 </tr>
