@@ -1360,10 +1360,6 @@ static ge::graphStatus CheckCombineOrARN(gert::TilingContext* context, MoeDistri
         OP_TILING_CHECK(!CheckOutputTensorDimARN(context, nodeName, config),
             OP_LOGE(nodeName, "param shape of output tensor is invalid"), return ge::GRAPH_FAILED);  
     } else {
-        const gert::StorageShape *performanceInfoStorageShape = context->GetOptionalInputShape(config.performanceInfoIndex);
-        OP_TILING_CHECK(performanceInfoStorageShape != nullptr,
-            OP_LOGE(K_INNER_DEBUG, "This input is not support, performanceInfo should be nullptr."), return ge::GRAPH_FAILED);
-        
         // 校验combine输出的维数与shape
         OP_TILING_CHECK(!CheckOutputTensorDim(context, nodeName, config, expertIdsDim0, expandXDim1),
             OP_LOGE(nodeName, "param shape of output tensor is invalid"), return ge::GRAPH_FAILED);
@@ -1904,21 +1900,16 @@ static ge::graphStatus MoeDistributeCombineA5TilingFuncImpl(gert::TilingContext*
     auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMM_ALG_INDEX));
     // 检查 commAlg 参数合法性校验
     bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
-    bool isMte = std::strcmp(commAlgPtr, "mte") == 0;
     bool isCcu = std::strcmp(commAlgPtr, "ccu") == 0;
-    OP_TILING_CHECK(!(isNullOrEmpty || isMte || isCcu),
-        OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. Only 'mte' and 'ccu' are supported."
-            "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
+    OP_TILING_CHECK(!(isNullOrEmpty || isCcu),
+        OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'."
+            "'commAlg' is not supported on this SoC version. Nullptr (or empty char*) is acceptable.", commAlgPtr),
         return ge::GRAPH_FAILED);
     if (isCcu) {
         // CCU 调用 A5 tiling 实现
         return MoeDistributeCombineTilingImpl(context, OP_VERSION_2);
     }
-    // 默认空指针和空字符走 MTE 方式
-    if (isNullOrEmpty) {
-        OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
-    }
-    // MTE 调用 A3 tiling 实现
+    // 默认空指针和空字符走 MTE 方式，MTE 调用 A3 tiling 实现
     return MoeDistributeCombineA3TilingFuncImpl(context, config);
 }
 
