@@ -942,7 +942,8 @@ void Mc2BatchMatmulV3BaseTiling::DoL1FullLoadTiling()
 
     enum class L1FullLoad { NONE, AL1, BL1 };
     const uint64_t totalL1Size = compileInfo_.l1Size + 256;  // 256B为预留给rpc使用，单算子不涉及
-    auto getL1FullLoad = [totalL1Size](uint64_t aBatchDim, uint64_t bBatchDim, const Mc2MatmulV3CompileInfo &compileInfo,
+    auto getL1FullLoad = [totalL1Size](uint64_t aBatchDim, uint64_t bBatchDim, 
+                                       const Mc2MatmulV3CompileInfo &compileInfo,
                                        const mc2_matmul_v3::Mc2MatmulV3Args &args) -> enum L1FullLoad
     {
         const bool aNoBatch = aBatchDim <= 1UL;
