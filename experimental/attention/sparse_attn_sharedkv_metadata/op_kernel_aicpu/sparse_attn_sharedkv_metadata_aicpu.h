@@ -232,10 +232,7 @@ public:
 
 private:
     bool Prepare(CpuKernelContext &ctx);
-    bool CheckSingleParam();
-    bool CheckExistence();
-    bool CheckConsistency();
-    bool CheckFeature();
+    bool ParamsCheck();
     bool ParamsInit();
     bool BalanceSchedule(SplitResult &splitRes);
     bool GenMetaData(SplitResult &splitRes);
