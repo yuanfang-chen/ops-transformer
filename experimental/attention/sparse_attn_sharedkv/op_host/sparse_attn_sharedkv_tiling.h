@@ -233,7 +233,7 @@ public:
     uint32_t actualLenDimsKV = 0;
 
     float softmaxScale = 0;
-    int64_t cmpRatio = 0;
+    int64_t cmpRatio = 1;
     uint64_t oriMaskMode = 0;
     uint64_t cmpMaskMode = 0;
     int64_t oriWinLeft = 0;
@@ -365,7 +365,7 @@ private:
 
     uint32_t qTSize_ = 0; // 仅TND时生效
     uint32_t kvTSize_ = 0; // 仅TND时生效
-    int64_t cmpRatio_ = 0;
+    int64_t cmpRatio_ = 1;
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;
     uint32_t sparseBlockCount_ = 0;
     int64_t oriWinLeft_ = 0;

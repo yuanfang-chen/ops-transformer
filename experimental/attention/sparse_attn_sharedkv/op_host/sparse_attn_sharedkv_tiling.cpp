@@ -298,15 +298,14 @@ ge::graphStatus SASInfoParser::GetInOutDataType()
 ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
 {
     if (opParamInfo_.oriKv.desc != nullptr) {
-        if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr &&
-            opParamInfo_.cmpBlockTable.desc != nullptr) {
+        if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr) {
             sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
-        } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpBlockTable.desc != nullptr) {
+        } else if (opParamInfo_.cmpKv.desc != nullptr) {
             sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
         } else if (opParamInfo_.cmpKv.desc == nullptr) {
             sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
         } else {
-            if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpBlockTable.desc == nullptr) {
+            if (opParamInfo_.cmpKv.desc != nullptr) {
                 OP_LOGE(opName_, "cmpKv is not nullptr.");
             }
             return ge::GRAPH_FAILED;
@@ -413,6 +412,7 @@ void SASInfoParser::SetSASShape()
     {
         if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
             cmpSparseIndicesShape_ = opParamInfo_.cmpSparseIndices.tensor->GetStorageShape();
+            uint32_t cmpSparseIndicesT = GetAxisNum(cmpSparseIndicesShape_, SASAxis::T, cmpSparseIndicesLayout_);
         } else {
             OP_LOGE(opName_, "cmpSparseIndices tensor is nullptr, please check input parameters.");
         }
@@ -506,17 +506,17 @@ ge::graphStatus SASInfoParser::GetS1Size()
     // 2、TND时, actual_seq_lens_q必须传入, 以actual_seq_lens_q数组中的最大值为基准
     if (qLayout_ == SASLayout::TND) {
         s1Size_ = GetAxisNum(qShape_, SASAxis::T, qLayout_);
-        if (opParamInfo_.cmpSparseIndices.tensor != nullptr){
-            uint32_t cmpSparseIndicesT = GetAxisNum(cmpSparseIndicesShape_, SASAxis::T, cmpSparseIndicesLayout_);
-            OP_CHECK_IF(cmpSparseIndicesT != s1Size_,
-                        OP_LOGE(opName_, "T size check failed !"),
-                        return ge::GRAPH_FAILED);
-        }
-        return ge::GRAPH_SUCCESS;
     } else { // BSND
         s1Size_ = GetAxisNum(qShape_, SASAxis::S, qLayout_);
-        if (opParamInfo_.cmpSparseIndices.tensor != nullptr){
-            uint32_t cmpSparseIndicesS1 = GetAxisNum(cmpSparseIndicesShape_, SASAxis::T, cmpSparseIndicesLayout_);
+    }
+    if (perfMode_ == SASTemplateMode::SCFA_TEMPLATE_MODE){
+        if (cmpSparseIndicesLayout_ == SASLayout::TND) {
+            uint32_t cmpSparseIndicesT = GetAxisNum(cmpSparseIndicesShape_, SASAxis::T, cmpSparseIndicesLayout_);
+            OP_CHECK_IF(cmpSparseIndicesT != s1Size_,
+            OP_LOGE(opName_, "T size check failed !"),
+            return ge::GRAPH_FAILED);
+        } else{
+            uint32_t cmpSparseIndicesS1 = GetAxisNum(cmpSparseIndicesShape_, SASAxis::S, cmpSparseIndicesLayout_);
             OP_CHECK_IF(cmpSparseIndicesS1 != s1Size_,
                         OP_LOGE(opName_, "s1 size check failed !"),
                         return ge::GRAPH_FAILED);
@@ -631,6 +631,13 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
             OP_LOGE(opName_, "When qLayout is TND,  input cu_seqlens_q must be provided");
             return ge::GRAPH_FAILED;
         }
+    } else {
+        if (opParamInfo_.seqUsedQ.tensor != nullptr) {
+            actualLenDimsQ_ = opParamInfo_.seqUsedQ.tensor->GetShapeSize();
+        } else {
+            OP_LOGE(opName_, "When qLayout is BSND,  input seqUsedQ must be provided");
+            return ge::GRAPH_FAILED;
+        }
     }
     if (kvLayout_ == SASLayout::PA_ND) {
         if (opParamInfo_.sequsedKv.tensor != nullptr) {
@@ -655,11 +662,6 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
     } else {
         OP_LOGE(opName_, "oriKV and cmpKv only support PA_ND layout.");
         return ge::GRAPH_FAILED;
-    }
-    if (opParamInfo_.seqUsedQ.tensor != nullptr) {
-        actualLenDimsQ_ = opParamInfo_.seqUsedQ.tensor->GetShapeSize();
-    } else if (opParamInfo_.cuSeqLensQ.tensor != nullptr) {
-        actualLenDimsQ_ = opParamInfo_.cuSeqLensQ.tensor->GetShapeSize() - 1; // cuSeqLensQ shape is B+1
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -1061,11 +1063,6 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpRatio() const
     if (sasInfo_.perfMode == optiling::SASTemplateMode::SCFA_TEMPLATE_MODE){
         OP_CHECK_IF(cmpRatio_ != 4,
                     OP_LOGE(opName_, "cmpRatio should be 4, but got %u", cmpRatio_),
-                    return ge::GRAPH_FAILED);
-    }
-    if (sasInfo_.perfMode == optiling::SASTemplateMode::SWA_TEMPLATE_MODE){
-        OP_CHECK_IF(cmpRatio_ != 1,
-                    OP_LOGE(opName_, "cmpRatio should be 1, but got %u", cmpRatio_),
                     return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;

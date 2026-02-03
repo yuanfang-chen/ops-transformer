@@ -86,7 +86,6 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
 
 -   该接口支持推理场景下使用。
 -   该接口支持aclgraph模式。
--   参数B必须和cu_seqlens_q维度保持一致：TND情况下，参数B为(cu_seqlens_q - 1)；BSND情况下，参数B为cu_seqlens_q。
 -   参数q中的D和ori_kv、cmp_kv的D值相等为512。
 -   参数q、ori_kv、cmp_kv的数据类型必须保持一致。
 
