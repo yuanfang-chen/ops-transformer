@@ -827,14 +827,17 @@ ge::graphStatus GmmAlltoAllvTilingBase::PostTiling()
 {
     return ge::GRAPH_SUCCESS;
 }
-
+uint64_t GmmAlltoAllvTilingBase::GetTilingKey() const
+{
+    return 0;
+}
 // REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct, 0);
 REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct,
                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
 
 static ge::graphStatus GroupedMatMulAlltoAllvTilingFunc(gert::TilingContext* context)
 {
-    return TilingRegistry::GetInstance().DoTilingImpl(context);
+    return TilingRegistryNew::GetInstance().DoTilingImpl(context);
 }
 
 struct GroupedMatMulAlltoAllvCompileInfo {

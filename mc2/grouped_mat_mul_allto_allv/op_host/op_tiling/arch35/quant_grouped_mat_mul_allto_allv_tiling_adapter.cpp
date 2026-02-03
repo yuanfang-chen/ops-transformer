@@ -19,8 +19,9 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace Mc2Tiling;
 using namespace optiling;
+using namespace Mc2GroupedMatmul;
+using namespace GmmConstant;
 // namespace MC2Tiling {
 
 // bool QuantGroupedMatmulAllToAllvAdapter::AnalyzeAttrs()
@@ -314,6 +315,364 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonContextParameters()
 {
     GE_ASSERT_GRAPH_SUCCESS(SetCommonInputParams());
     GE_ASSERT_GRAPH_SUCCESS(GetPlatformInfo());
+    return ge::GRAPH_SUCCESS;
+}
+
+void QuantGroupedMatmulAllToAllvAdapter::SetKernelType()
+{
+    // 以选择主模板设置kernelType, 0: dequant fixp随路（包含K轴分组）；1：dequant vector计算；2：perGroup-perBlock
+    inputParams_.kernelType = 0UL;
+    // mx K轴分组当前是独立的模板，后续归一
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
+        return;
+    }
+    // perGroup-perBlock(GB)有独立pertile模板
+    if (inputParams_.bQuantMode == QuantMode::PERBLOCK_MODE) {
+        inputParams_.kernelType = 2UL;
+        return;
+    }
+    // pertensor-pertensor且没有后处理的bias，都可以走dequant fixp随路
+    bool isPertensorCube = inputParams_.aQuantMode <= QuantMode::PERTENSOR_MODE &&
+                           inputParams_.bQuantMode == QuantMode::PERTENSOR_MODE;
+    bool isBiasEpilogue =
+        inputParams_.aDtype == ge::DT_INT8 && inputParams_.hasBias && inputParams_.biasDtype != ge::DT_INT32;
+    // 如果bias bf16/fp16/fp32，需mix模板进行后处理
+    if (isPertensorCube && !isBiasEpilogue) {
+        return;
+    }
+    bool isScaleEpilogue = (inputParams_.scaleDtype != ge::DT_UINT64 && inputParams_.scaleDtype != ge::DT_INT64);
+    // 后处理的bias和（scale非64bits && ！isPertensorCube）需要走dequant vec模板
+    if (isBiasEpilogue || isScaleEpilogue) {
+        inputParams_.kernelType = 1UL;
+    }
+}
+
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::DoOpTiling()
+{
+    tilingData_.gmmQuantParams.groupNum = inputParams_.groupNum;
+    tilingData_.gmmQuantParams.activeType = inputParams_.actType;
+    tilingData_.gmmQuantParams.aQuantMode = static_cast<uint32_t>(inputParams_.aQuantMode);
+    tilingData_.gmmQuantParams.bQuantMode = static_cast<uint32_t>(inputParams_.bQuantMode);
+    tilingData_.gmmQuantParams.singleX = static_cast<uint8_t>(inputParams_.isSingleX);
+    tilingData_.gmmQuantParams.singleW = static_cast<uint8_t>(inputParams_.isSingleW);
+    tilingData_.gmmQuantParams.singleY = static_cast<uint8_t>(inputParams_.isSingleY);
+    tilingData_.gmmQuantParams.groupType = static_cast<int8_t>(inputParams_.groupType);
+    tilingData_.gmmQuantParams.groupListType = static_cast<uint8_t>(inputParams_.groupListType);
+    tilingData_.gmmQuantParams.hasBias = static_cast<uint8_t>(inputParams_.hasBias);
+    errno_t retM = memcpy_s(tilingData_.gmmArray.mList, sizeof(tilingData_.gmmArray.mList), mList_, sizeof(mList_));
+    if (retM != EOK) {
+        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", retM);
+        return ge::GRAPH_FAILED;
+    }
+    errno_t retK = memcpy_s(tilingData_.gmmArray.kList, sizeof(tilingData_.gmmArray.kList), kList_, sizeof(kList_));
+    if (retK!= EOK) {
+        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", retK);
+        return ge::GRAPH_FAILED;
+    }
+    errno_t retN = memcpy_s(tilingData_.gmmArray.nList, sizeof(tilingData_.gmmArray.nList), nList_, sizeof(nList_));
+    if (retN != EOK) {
+        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", retN);
+        return ge::GRAPH_FAILED;
+    }
+    // PrintQuantParams();
+    return ge::GRAPH_SUCCESS;
+}
+
+uint64_t QuantGroupedMatmulAllToAllvAdapter::GetShapeWithDataType(uint64_t shapeSize, ge::DataType dtype) const
+{
+    bool is4BitInput = (dtype == ge::DT_FLOAT4_E2M1 || dtype == ge::DT_FLOAT4_E1M2 || dtype == ge::DT_INT4);
+    if (is4BitInput) {
+        return shapeSize + shapeSize;
+    } else {
+        return shapeSize / static_cast<uint64_t>(ge::GetSizeByDataType(dtype));
+    }
+}
+
+void QuantGroupedMatmulAllToAllvAdapter::CalBasicBlock()
+{
+    bool isGBQuantMode = inputParams_.aQuantMode == QuantMode::PERGROUP_MODE &&
+                         inputParams_.bQuantMode == QuantMode::PERBLOCK_MODE;
+    basicTiling_.baseM = std::min(inputParams_.mSize, static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256));
+    basicTiling_.baseM = !inputParams_.transA ?
+                             CeilAlign(basicTiling_.baseM, CUBE_BLOCK) :
+                             CeilAlign(basicTiling_.baseM, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.aDtype));
+    if (isGBQuantMode) {
+        // 不管M/K轴分组，单单单场景下，N不变，可以确定baseN
+        if (inputParams_.nSize <= PER_BLOCK_GROUP_SIZE || basicTiling_.baseM > PER_BLOCK_GROUP_SIZE) {
+            basicTiling_.baseN = PER_BLOCK_GROUP_SIZE;
+        } else {
+            basicTiling_.baseN = GmmConstant::BASIC_BLOCK_SIZE_256;
+        }
+        basicTiling_.baseK = PER_BLOCK_GROUP_SIZE;
+        return;
+    }
+    basicTiling_.baseN = std::min(inputParams_.nSize, static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256));
+    basicTiling_.baseN = inputParams_.transB ?
+                             CeilAlign(basicTiling_.baseN, CUBE_BLOCK) :
+                             CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
+    basicTiling_.baseK = CeilAlign(
+        std::min(GetShapeWithDataType(GmmConstant::BASIC_BLOCK_SIZE_128, inputParams_.aDtype), inputParams_.kSize),
+        GetShapeWithDataType(CUBE_REDUCE_BLOCK, inputParams_.aDtype));
+
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
+        basicTiling_.baseK = CeilAlign(basicTiling_.baseK, MXFP_BASEK_FACTOR); // mx_mmad requires basek align to 64
+        bool isFp4Input = inputParams_.aDtype == ge::DT_FLOAT4_E2M1 || inputParams_.aDtype == ge::DT_FLOAT4_E1M2;
+        if (isFp4Input && !inputParams_.transB) {
+            // 64: mx_mmad requires the inner axis to align to 64
+            basicTiling_.baseN = CeilAlign(basicTiling_.baseN, static_cast<uint64_t>(64));
+        }
+    }
+}
+
+bool QuantGroupedMatmulAllToAllvAdapter::IsBiasInL1() const
+{
+    // 目前仅int8进bias int32需要进L1
+    return inputParams_.hasBias && inputParams_.biasDtype == ge::DT_INT32;
+}
+uint64_t QuantGroupedMatmulAllToAllvAdapter::GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const
+{
+    // shapeSize应该是偶数
+    bool is4BitInput = (dtype == ge::DT_FLOAT4_E2M1 || dtype == ge::DT_FLOAT4_E1M2 || dtype == ge::DT_INT4);
+    if (is4BitInput) {
+        // 2: 判断是否是偶数
+        OP_CHECK_IF(shapeSize % 2 != 0,
+                   OP_LOGE(
+                       context_->GetNodeName(),
+                       "To get size of matrix/array, the number of elements must be even when dtype is FLOAT4/INT4"),
+                   return 0);
+        // 1/2: 这几种数据类型的dsize=1/2
+        return shapeSize / 2UL;
+    } else {
+        return shapeSize * static_cast<uint64_t>(ge::GetSizeByDataType(dtype));
+    }
+}
+
+uint64_t QuantGroupedMatmulAllToAllvAdapter::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit)
+{
+    if (depthInit > 1UL && perDepthSize > DB_SIZE * MTE2_MIN_LOAD_SIZE_V120) {
+        return depthInit;
+    }
+    uint64_t depthScale = leftSize / perDepthSize;
+    if (depthInit > 1UL) {
+        uint64_t baseKSize = GetSizeWithDataType(basicTiling_.baseK, inputParams_.aDtype);
+        while ((depthScale * baseKSize) % GmmConstant::BASIC_BLOCK_SIZE_512 != 0 &&
+               (depthScale * baseKSize) > GmmConstant::BASIC_BLOCK_SIZE_512) {
+            depthScale -= 1UL;
+        }
+        if ((depthScale * baseKSize) % GmmConstant::BASIC_BLOCK_SIZE_512 != 0 &&
+            (depthScale * baseKSize) >= GmmConstant::BASIC_BLOCK_SIZE_256) {
+            depthScale = GmmConstant::BASIC_BLOCK_SIZE_256 / baseKSize;
+        }
+        depthScale = std::max(depthScale, static_cast<uint64_t>(1));
+    } else {
+        constexpr uint64_t index = 2; // 2: depth的值是2的幂
+        depthScale = 1UL;
+        while (depthScale * (perDepthSize) < leftSize) {
+            depthScale *= index;
+        }
+        depthScale = depthScale == 1UL ? depthScale : depthScale / index;
+    }
+    return depthInit * depthScale;
+}
+
+void QuantGroupedMatmulAllToAllvAdapter::CalStepKs()
+{
+    // depthA,depthB 为1时，stepka, stepkb 只能是1.
+    basicTiling_.stepKa = basicTiling_.depthA1 == 1UL ? 1UL : basicTiling_.depthA1 / DB_SIZE;
+    basicTiling_.stepKb = basicTiling_.depthB1 == 1UL ? 1UL : basicTiling_.depthB1 / DB_SIZE;
+
+    if (basicTiling_.stepKa * basicTiling_.baseK > inputParams_.kSize) {
+        basicTiling_.stepKa = CeilDiv(inputParams_.kSize, basicTiling_.baseK);
+    }
+
+    if (basicTiling_.stepKb * basicTiling_.baseK >= inputParams_.kSize) {
+        basicTiling_.stepKb = CeilDiv(inputParams_.kSize, basicTiling_.baseK);
+    }
+    // G-B量化场景下，限制stepK最大为4, 防止issue queue阻塞
+    if (inputParams_.aQuantMode == QuantMode::PERGROUP_MODE &&
+        inputParams_.bQuantMode == QuantMode::PERBLOCK_MODE) {
+        basicTiling_.stepKa = std::min(basicTiling_.stepKa, static_cast<uint64_t>(4)); // 4: G-B最大stepk值
+        basicTiling_.stepKb = std::min(basicTiling_.stepKb, static_cast<uint64_t>(4)); // 4: G-B最大stepk值
+    }
+    if (basicTiling_.stepKa >= basicTiling_.stepKb && basicTiling_.stepKa * basicTiling_.baseK < inputParams_.kSize) {
+        basicTiling_.stepKa = basicTiling_.stepKa / basicTiling_.stepKb * basicTiling_.stepKb;
+    }
+    if (basicTiling_.stepKb > basicTiling_.stepKa && basicTiling_.stepKb * basicTiling_.baseK < inputParams_.kSize) {
+        basicTiling_.stepKb = basicTiling_.stepKb / basicTiling_.stepKa * basicTiling_.stepKa;
+    }
+
+    basicTiling_.depthA1 = basicTiling_.stepKa * DB_SIZE;
+    basicTiling_.depthB1 = basicTiling_.stepKb * DB_SIZE;
+}
+
+void QuantGroupedMatmulAllToAllvAdapter::CalScaleFactors()
+{
+    uint64_t baseASize = GetSizeWithDataType(basicTiling_.baseM * basicTiling_.baseK, inputParams_.aDtype);
+    uint64_t baseBSize = GetSizeWithDataType(basicTiling_.baseN * basicTiling_.baseK, inputParams_.bDtype);
+    uint64_t baseScaleASize = GetSizeWithDataType(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE) * basicTiling_.baseM,
+                                                  inputParams_.perTokenScaleDtype);
+    uint64_t baseScaleBSize =
+        GetSizeWithDataType(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE) * basicTiling_.baseN, inputParams_.scaleDtype);
+    uint64_t biasDtypeSize = ge::GetSizeByDataType(inputParams_.biasDtype);
+    uint64_t baseBiasSize = inputParams_.hasBias ? basicTiling_.baseN * biasDtypeSize : 0;
+    uint64_t leftL1Size =
+        aicoreParams_.l1Size - (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize + baseBiasSize);
+    uint32_t scaleInit = static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize +
+                                                            basicTiling_.depthB1 * baseScaleBSize));
+
+    // 计算scaleFactorA, scaleFactorB
+    // 来自K轴的约束
+    uint32_t scaleFactorAMax =
+        std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleASize), SCALER_FACTOR_MAX);
+    uint32_t scaleFactorBMax =
+        std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleBSize), SCALER_FACTOR_MAX);
+    uint32_t scaleFactorA = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKa * basicTiling_.baseK));
+    uint32_t scaleFactorB = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKb * basicTiling_.baseK));
+    basicTiling_.scaleFactorA = std::max(SCALER_FACTOR_MIN, scaleFactorA);
+    basicTiling_.scaleFactorB = std::max(SCALER_FACTOR_MIN, scaleFactorB);
+    basicTiling_.scaleFactorA = std::min(scaleFactorAMax, basicTiling_.scaleFactorA);
+    basicTiling_.scaleFactorB = std::min(scaleFactorBMax, basicTiling_.scaleFactorB);
+
+    // 来自L1 size 的约束
+    if (basicTiling_.scaleFactorA <= scaleInit && basicTiling_.scaleFactorB > scaleInit) {
+        leftL1Size -= (basicTiling_.scaleFactorA * basicTiling_.depthA1 * baseScaleASize);
+        basicTiling_.scaleFactorB = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthB1 * baseScaleBSize)),
+                                             basicTiling_.scaleFactorB);
+    } else if (basicTiling_.scaleFactorB <= scaleInit && basicTiling_.scaleFactorA > scaleInit) {
+        leftL1Size -= (basicTiling_.scaleFactorB * basicTiling_.depthB1 * baseScaleBSize);
+        basicTiling_.scaleFactorA = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize)),
+                                             basicTiling_.scaleFactorA);
+    } else if (basicTiling_.scaleFactorA > scaleInit && basicTiling_.scaleFactorB > scaleInit) {
+        leftL1Size -=
+            (scaleInit * basicTiling_.depthB1 * baseScaleBSize + scaleInit * basicTiling_.depthA1 * baseScaleASize);
+        uint32_t scaleASec = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize)),
+                                      basicTiling_.scaleFactorA - scaleInit);
+        uint32_t scaleBSec = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthB1 * baseScaleBSize)),
+                                      basicTiling_.scaleFactorB - scaleInit);
+        basicTiling_.scaleFactorA = scaleASec >= scaleBSec ? (scaleASec + scaleInit) : scaleInit;
+        basicTiling_.scaleFactorB = scaleASec < scaleBSec ? (scaleBSec + scaleInit) : scaleInit;
+    }
+}
+
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::CalL1Depth(uint64_t leftL1Size)
+{
+    uint64_t baseASize = GetSizeWithDataType(basicTiling_.baseM * basicTiling_.baseK, inputParams_.aDtype);
+    uint64_t baseBSize = GetSizeWithDataType(basicTiling_.baseN * basicTiling_.baseK, inputParams_.bDtype);
+
+    uint64_t baseScaleASize = 0;
+    uint64_t baseScaleBSize = 0;
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
+        if (inputParams_.groupType == SPLIT_M) {
+            baseScaleASize =
+                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
+                                    inputParams_.perTokenScaleDtype);
+            baseScaleBSize =
+                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseN,
+                                    inputParams_.scaleDtype);
+        } else {
+            baseScaleASize = GetSizeWithDataType(
+                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
+                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseM, // 2 is dim value of last scale dim
+                inputParams_.perTokenScaleDtype);
+            baseScaleBSize = GetSizeWithDataType(
+                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
+                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseN, // 2 is dim value of last pertokenScale dim
+                inputParams_.scaleDtype);
+        }
+    }
+    uint64_t baseL1Size = baseASize + baseBSize + baseScaleASize + baseScaleBSize;
+    OP_CHECK_IF(leftL1Size < baseL1Size,
+               OP_LOGE(context_->GetNodeName(),
+                                         "L1 space overflow. Free L1Size : %lu, used space: %lu", leftL1Size,
+                                         baseL1Size),
+               return ge::GRAPH_FAILED);
+    uint64_t depthInit = GetDepthA1B1(leftL1Size, baseL1Size, 1UL);
+    uint64_t leftL1SizeByDepthInit = leftL1Size - depthInit * (baseL1Size);
+    uint64_t depthASec = GetDepthA1B1(leftL1SizeByDepthInit, (baseASize + baseScaleASize) * depthInit, depthInit);
+    uint64_t depthBSec = GetDepthA1B1(leftL1SizeByDepthInit, (baseBSize + baseScaleBSize) * depthInit, depthInit);
+    basicTiling_.depthA1 = std::max(depthASec, depthBSec);
+    basicTiling_.depthB1 = basicTiling_.depthA1;
+    if (basicTiling_.depthA1 * baseL1Size > leftL1Size) {
+        basicTiling_.depthA1 = depthASec >= depthBSec ? depthASec : depthInit;
+        basicTiling_.depthB1 = depthASec < depthBSec ? depthBSec : depthInit;
+    }
+    CalStepKs();
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
+        CalScaleFactors();
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::CalL1Tiling()
+{
+    basicTiling_.stepM = 1UL;
+    basicTiling_.stepN = 1UL;
+    basicTiling_.singleCoreM = std::min(inputParams_.mSize, basicTiling_.baseM);
+    basicTiling_.singleCoreN = std::min(inputParams_.nSize, basicTiling_.baseN);
+    basicTiling_.singleCoreK = inputParams_.kSize;
+
+    uint64_t biasDtypeSize = ge::GetSizeByDataType(inputParams_.biasDtype);
+    uint64_t scaleDtypeSize = ge::GetSizeByDataType(inputParams_.scaleDtype);
+    uint64_t totalL1Size = aicoreParams_.l1Size;
+
+    basicTiling_.iterateOrder = 0U;
+    basicTiling_.dbL0c =
+        (basicTiling_.baseM * basicTiling_.baseN * DATA_SIZE_L0C * DB_SIZE <= aicoreParams_.l0cSize) ? DB_SIZE : 1;
+    uint64_t singleCoreBiasSize = IsBiasInL1() ? basicTiling_.baseN * biasDtypeSize : 0;
+    uint64_t singleCoreScaleSize =
+        inputParams_.bQuantMode == QuantMode::PERCHANNEL_MODE && inputParams_.kernelType == 0 ?
+            basicTiling_.baseN * scaleDtypeSize :
+            0;
+    uint64_t usedSize = singleCoreBiasSize + singleCoreScaleSize;
+    OP_CHECK_IF(totalL1Size <= usedSize,
+               OP_LOGE(context_->GetNodeName(), "L1 space overflow. L1Size: %lu, used space: %lu",
+                                         totalL1Size, usedSize),
+               return ge::GRAPH_FAILED);
+    uint64_t leftL1Size = totalL1Size - usedSize;
+    return CalL1Depth(leftL1Size);
+}
+bool QuantGroupedMatmulAllToAllvAdapter::IsCapable()
+{
+    return true;
+}
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::DoLibApiTiling()
+{
+    CalBasicBlock();
+    OP_CHECK_IF(CalL1Tiling() != ge::GRAPH_SUCCESS,
+               OP_LOGE(context_->GetNodeName(), "CalL1Tiling failed"), return ge::GRAPH_FAILED);
+    tilingData_.mmTilingData.M = inputParams_.mSize;
+    tilingData_.mmTilingData.N = inputParams_.nSize;
+    tilingData_.mmTilingData.Ka = inputParams_.kSize;
+    tilingData_.mmTilingData.Kb = inputParams_.kSize;
+    tilingData_.mmTilingData.usedCoreNum = aicoreParams_.aicNum;
+    tilingData_.mmTilingData.baseM = basicTiling_.baseM;
+    tilingData_.mmTilingData.baseN = basicTiling_.baseN;
+    tilingData_.mmTilingData.baseK = basicTiling_.baseK;
+    tilingData_.mmTilingData.singleCoreM = basicTiling_.singleCoreM;
+    tilingData_.mmTilingData.singleCoreN = basicTiling_.singleCoreN;
+    tilingData_.mmTilingData.singleCoreK = basicTiling_.singleCoreK;
+    tilingData_.mmTilingData.depthA1 = basicTiling_.depthA1;
+    tilingData_.mmTilingData.depthB1 = basicTiling_.depthB1;
+    tilingData_.mmTilingData.stepM = basicTiling_.stepM;
+    tilingData_.mmTilingData.stepN = basicTiling_.stepN;
+    tilingData_.mmTilingData.stepKa = basicTiling_.stepKa;
+    tilingData_.mmTilingData.stepKb = basicTiling_.stepKb;
+    tilingData_.mmTilingData.isBias = inputParams_.hasBias ? 1 : 0;
+    tilingData_.mmTilingData.iterateOrder = basicTiling_.iterateOrder;
+    tilingData_.mmTilingData.dbL0A = 2; // db switch, 1: off, 2: on
+    tilingData_.mmTilingData.dbL0B = 2; // db switch, 1: off, 2: on
+    tilingData_.mmTilingData.dbL0C = basicTiling_.dbL0c;
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
+        if (basicTiling_.scaleFactorA >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorA <= SCALER_FACTOR_MAX &&
+            basicTiling_.scaleFactorB >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorB <= SCALER_FACTOR_MAX) {
+            tilingData_.mmTilingData.mxTypePara = (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_N_BIT) + (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_M_BIT) +
+                (basicTiling_.scaleFactorB << SCALER_FACTOR_B_BIT) + basicTiling_.scaleFactorA;
+        } else {
+            tilingData_.mmTilingData.mxTypePara = (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_N_BIT) + (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_M_BIT) +
+                (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_B_BIT) + SCALER_FACTOR_DEFAULT;
+        }
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 
