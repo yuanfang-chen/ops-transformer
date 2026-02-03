@@ -93,11 +93,11 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_infershapeA)
                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(true)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)}})
                       .Build();
 
     ASSERT_EQ(inferShapeFunc(holder.GetContext<gert::InferShapeContext>()), ge::GRAPH_SUCCESS);
@@ -168,11 +168,11 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_infershapeB)
                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(true)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)}})
                       .Build();
 
     ASSERT_EQ(inferShapeFunc(holder.GetContext<gert::InferShapeContext>()), ge::GRAPH_SUCCESS);
@@ -243,11 +243,11 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_infershapeC)
                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(true)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)}})
                       .Build();
 
     ASSERT_EQ(inferShapeFunc(holder.GetContext<gert::InferShapeContext>()), ge::GRAPH_SUCCESS);
@@ -316,11 +316,11 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_inferdtype_test1)
                               .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeAttrs(
-                                  {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                                   {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                                   {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                                   {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                                   {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                                  {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                                   {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                                   {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                                   {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                                   {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                               .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeOutputTd(1, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeOutputTd(2, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
@@ -387,11 +387,11 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_inferdtype_test2)
                               .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeAttrs(
-                                  {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                                   {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                                   {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                                   {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                                   {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                                  {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                                   {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                                   {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                                   {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                                   {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                               .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeOutputTd(1, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeOutputTd(2, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
@@ -458,11 +458,11 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_inferdtype_test3)
                               .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeAttrs(
-                                  {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                                   {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                                   {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                                   {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                                   {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                                  {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                                   {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                                   {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                                   {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                                   {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                               .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeOutputTd(1, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
                               .NodeOutputTd(2, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)

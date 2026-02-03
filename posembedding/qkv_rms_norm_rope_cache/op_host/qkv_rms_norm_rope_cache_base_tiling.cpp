@@ -21,7 +21,7 @@
 #include "op_common/op_host/util/platform_util.h"
 
 namespace optiling {
-using namespace Ops::NN::OpTiling;
+using namespace Ops::Transformer::OpTiling;
 
 std::tuple<int64_t, int64_t, int64_t, int64_t> QkvRmsNormRopeCacheTilingBase::GetShapeTuple(
     const gert::TilingContext* context, const int64_t index)
@@ -79,7 +79,7 @@ uint64_t QkvRmsNormRopeCacheTilingBase::GetTilingKey() const
 ge::graphStatus Tiling4QkvRmsNormRopeCache(gert::TilingContext* context)
 {
     OP_LOGD(context, "Tiling4QkvRmsNormRopeCache running.");
-    return Ops::NN::Optiling::TilingRegistry::GetInstance().DoTilingImpl(context);
+    return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
     OP_LOGD(context, "Tiling4QkvRmsNormRopeCache exit.");
     return ge::GRAPH_SUCCESS;
 }
