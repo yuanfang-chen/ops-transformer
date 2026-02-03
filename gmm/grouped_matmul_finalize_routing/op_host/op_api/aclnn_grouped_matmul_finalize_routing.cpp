@@ -519,7 +519,6 @@ static aclnnStatus CheckParams(GroupedMatmulParams &params)
         GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRouting91095Checker checker;
         aclnnStatus status = checker.CheckParams(params);
         CHECK_RET(status == ACLNN_SUCCESS, status);
-        CHECK_RET(CheckFormat(params), ACLNN_ERR_PARAM_INVALID);
     } else {
         // 1. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
         CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
