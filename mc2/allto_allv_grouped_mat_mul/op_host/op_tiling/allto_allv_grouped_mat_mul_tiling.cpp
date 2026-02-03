@@ -460,18 +460,6 @@ ge::graphStatus AlltoAllvGmmTiling::CheckSendRecvDataVolumn(const gert::TilingCo
                 recvSum += recvCounts[j] * H1 * 2U;
                 sendSum += sendCounts[j] * H1 * 2U; // /sizeof(gmmX) = 2U
             }
-            OP_TILING_CHECK(recvSum < recvSendMin,
-                OP_LOGE(A_INNER_DEBUG,
-                    "rank %lu:sum(recvCounts[%lu, %lu]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %lu Byte!",
-                    i - 1U, (i - 1U) * eExpert, i * eExpert - 1U, recvSum),
-                return ge::GRAPH_FAILED);
-            OP_TILING_CHECK(sendSum < recvSendMin,
-                OP_LOGE(A_INNER_DEBUG,
-                    "rank %lu:sum(sendCounts[%lu, %lu]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %lu Byte!",
-                    i - 1U, (i - 1U) * eExpert, i * eExpert - 1U, sendSum),
-                return ge::GRAPH_FAILED);
         }
     }
 
@@ -1067,7 +1055,7 @@ ge::graphStatus AlltoAllvGmmTiling::CalMMTiling(const gert::TilingContext* conte
     uint32_t maxBaseM = PLATFORM_SIZE.l0CSize / (*params.curBaseN * sizeof(float));
     *params.curBaseM = std::min<uint32_t>(
         (PLATFORM_SIZE.l0ASize / DOUBLE_BUFFER_L0A_L0B) / (*params.curBaseK * mmDataTypeSize), maxBaseM);
-    *params.curBaseM = static_cast<int32_t>(SixteenAlign(static_cast<uint32_t>(*params.curBaseM)));
+    *params.curBaseM = static_cast<int32_t>(SixteenAlign(static_cast<uint32_t>(*params.curBaseM), true));
     if (*params.curBaseM > params.curMaxM) {
         *params.curBaseM = static_cast<int32_t>(SixteenAlign(static_cast<uint32_t>(params.curMaxM), true));
     }
