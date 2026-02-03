@@ -141,7 +141,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>expandX</td>
     <td>输入</td>
     <td>根据expertIds扩展的token特征。</td>
-    <td>Device侧2D Tensor，shape为 <code>max(tpWorldSize, 1) * A, H</code>。</td>
+    <td>Device侧2D Tensor，shape为 (max(tpWorldSize, 1) * A, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>2</td>
@@ -151,7 +151,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>expertIds</td>
     <td>输入</td>
     <td>每个token的topK个专家索引。</td>
-    <td>Device侧2D Tensor，shape为 <code>Bs, K</code>。</td>
+    <td>Device侧2D Tensor，shape为 (Bs, K)。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>2</td>
@@ -161,7 +161,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>assistInfoForCombine</td>
     <td>输入</td>
     <td>对应<code>aclnnMoeDistributeDispatchV3</code>的<code>assistInfoForCombineOut</code>输出。</td>
-    <td>Device侧1D Tensor，shape为 <code>A * 128,</code>。</td>
+    <td>Device侧1D Tensor，shape为 (A * 128, )。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>1</td>
@@ -171,7 +171,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>epSendCounts</td>
     <td>输入</td>
     <td>对应<code>aclnnMoeDistributeDispatchV3</code>的<code>epRecvCounts</code>输出。</td>
-    <td>Device侧1D Tensor，shape为 <code>epWorldSize * max(tpWorldSize, 1) * localExpertNum,</code>。</td>
+    <td>Device侧1D Tensor，shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>1</td>
@@ -181,7 +181,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>expertScales</td>
     <td>输入</td>
     <td>每个token的topK个专家权重。</td>
-    <td>Device侧2D Tensor，shape为 <code>Bs, K</code>。</td>
+    <td>Device侧2D Tensor，shape为 (Bs, K)。</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>2</td>
@@ -191,9 +191,9 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>residualX</td>
     <td>输入</td>
     <td>AddRmsNorm中Add的右矩阵。</td>
-    <td>Device侧3D Tensor，shape为 <code>Bs, 1, H</code>。</td>
+    <td>Device侧3D Tensor，shape为 (Bs, 1, H)。</td>
     <td>BFLOAT16</td>
-    <td>ND（支持非连续Tensor）</td>
+    <td>ND</td>
     <td>3</td>
     <td>√</td>
     </tr>
@@ -201,7 +201,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>gamma</td>
     <td>输入</td>
     <td>RmsNorm中的gamma参数。</td>
-    <td>Device侧1D Tensor，shape为 <code>H,</code>。</td>
+    <td>Device侧1D Tensor，shape为 (H, )。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>1</td>
@@ -211,7 +211,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>tpSendCountsOptional</td>
     <td>输入</td>
     <td>对应<code>aclnnMoeDistributeDispatchV3</code>的<code>tpRecvCounts</code>输出。</td>
-    <td>有TP域通信时传1D Tensor（shape <code>tpWorldSize,</code>），否则传空指针。</td>
+    <td>有TP域通信时传1D Tensor, shape为 (tpWorldSize, )，否则传空指针。</td>
     <td>INT32</td>
     <td>ND</td>
     <td>-</td>
@@ -221,9 +221,9 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>xActiveMaskOptional</td>
     <td>输入</td>
     <td>标识token是否参与通信。</td>
-    <td><li>可传有效数据或空指针，默认所有token参与通信，1D时shape为( <code>BS,</code> )，2D时shape为(<code>BS, K</code>)。</li><li>各卡BS不一致时所有token需有效。</li></td>
+    <td><li>可传有效数据或空指针，默认所有token参与通信，1D时shape为 (BS, )，2D时shape为 (BS, K)。</li><li>各卡BS不一致时所有token需有效。</li></td>
     <td>BOOL</td>
-    <td>ND（支持非连续Tensor）</td>
+    <td>ND</td>
     <td>-</td>
     <td>√</td>
     </tr>
@@ -271,7 +271,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>sharedExpertXOptional</td>
     <td>输入</td>
     <td>共享专家计算后的token。</td>
-    <td>可传有效数据或空指针，Device侧2D（shape <code>Bs, H</code>）或3D（shape <code>Bs, 1, H</code>）Tensor。</td>
+    <td>可传有效数据或空指针，Device侧2D时shape为 (Bs, H)或3D时shape为 (Bs, 1, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>-</td>
@@ -281,7 +281,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>elasticInfoOptional</td>
     <td>输入</td>
     <td>EP通信域动态缩容信息。</td>
-    <td><li>可传有效数据或空指针（空指针表示不使能缩容）。<li><li>传入有效数据时为1D Tensor（shape <code>4 + 2 * epWorldSize,</code>），前4位为缩容配置，后2*epWorldSize为rank映射表。<li></td>
+    <td><li>可传有效数据或空指针（空指针表示不使能缩容）。</li><li>传入有效数据时为1D Tensor, shape为 (4 + 2 * epWorldSize, )，前4位为缩容配置，后2*epWorldSize为rank映射表。</li></td>
     <td>INT32</td>
     <td>ND</td>
     <td>-</td>
@@ -291,7 +291,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>oriXOptional</td>
     <td>输入</td>
     <td>未经过FFN的token数据（公式中的oriXOptional）。</td>
-    <td>copyExpertNum/constExpertNum>0时必传；传入时为2D Tensor（shape <code>Bs, H</code>）。</td>
+    <td>copyExpertNum/constExpertNum>0时必传；传入时为2D Tensor, shape为 (Bs, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>-</td>
@@ -301,7 +301,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>constExpertAlpha1Optional</td>
     <td>输入</td>
     <td>constExpert场景的计算系数（公式中的constExpertAlpha1Optional）。</td>
-    <td>constExpertNum>0时必传；传入时为2D Tensor（shape <code>constExpertNum, H</code>）。</td>
+    <td>constExpertNum>0时必传；传入时为2D Tensor, shape为 (constExpertNum, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>-</td>
@@ -311,7 +311,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>constExpertAlpha2Optional</td>
     <td>输入</td>
     <td>constExpert场景的计算系数（公式中的constExpertAlpha2Optional）。</td>
-    <td>constExpertNum>0时必传；传入时为2D Tensor（shape <code>constExpertNum, H</code>）。</td>
+    <td>constExpertNum>0时必传；传入时为2D Tensor, shape为 (constExpertNum, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>-</td>
@@ -321,9 +321,9 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>constExpertVOptional</td>
     <td>输入</td>
     <td>constExpert场景的计算系数（公式中的constExpertVOptional）。</td>
-    <td>constExpertNum>0时必传；传入时为2D Tensor（shape <code>constExpertNum, H</code>）。</td>
+    <td>constExpertNum>0时必传；传入时为2D Tensor, shape为 (constExpertNum, H)。</td>
     <td>BFLOAT16</td>
-    <td>ND（支持非连续Tensor）</td>
+    <td>ND</td>
     <td>-</td>
     <td>√</td>
     </tr>
@@ -431,7 +431,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>globalBs</td>
     <td>输入</td>
     <td>EP域全局batch size。</td>
-    <td><li>各卡Bs一致时：<code>globalBs = Bs*epWorldSize</code> 或 0。<li><li>各卡Bs不一致时：<code>globalBs = maxBs*epWorldSize</code>（maxBs为单卡Bs最大值）。<li></td>
+    <td><li>各卡Bs一致时：<code>globalBs = Bs*epWorldSize</code> 或 0。</li><li>各卡Bs不一致时：<code>globalBs = maxBs*epWorldSize</code>（maxBs为单卡Bs最大值）。</li></td>
     <td>INT64</td>
     <td>-</td>
     <td>-</td>
@@ -520,8 +520,8 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <tr>
     <td>yOut</td>
     <td>输出</td>
-    <td>RmsNorm后的结果，Device侧3D Tensor，shape为 <code>Bs, 1, H</code>。</td>
-    <td>RmsNorm后的结果，Device侧3D Tensor，shape为 <code>Bs, 1, H</code>。</td>
+    <td>RmsNorm后的结果，Device侧3D Tensor，shape为 (Bs, 1, H)。</td>
+    <td>RmsNorm后的结果，Device侧3D Tensor，shape为 (Bs, 1, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>3</td>
@@ -531,7 +531,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>rstdOut</td>
     <td>输出</td>
     <td>RmsNorm计算的标准化系数，Device侧3D Tensor。</td>
-    <td>shape为 <code>Bs, 1, 1</code>。</td>
+    <td>shape为 (Bs, 1, 1)。</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>3</td>
@@ -541,7 +541,7 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <td>xOut</td>
     <td>输出</td>
     <td>Add后的结果。</td>
-    <td>Device侧3D Tensor，shape为 <code>Bs, 1, H</code>。</td>
+    <td>Device侧3D Tensor，shape为 (Bs, 1, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>3</td>
