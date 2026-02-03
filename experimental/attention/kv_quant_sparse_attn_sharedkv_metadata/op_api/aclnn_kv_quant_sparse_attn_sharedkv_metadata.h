@@ -51,9 +51,9 @@ aclnnKvQuantSparseAttnSharedkvMetadataGetWorkspaceSize(
 
 __attribute__((visibility("default"))) aclnnStatus
 aclnnKvQuantSparseAttnSharedkvMetadata(void* workspace,
-                                uint64_t workspaceSize,
-                                aclOpExecutor* executor,
-                                aclrtStream stream);
+                                        uint64_t workspaceSize,
+                                        aclOpExecutor* executor,
+                                        aclrtStream stream);
 
 #ifdef __cplusplus
 }

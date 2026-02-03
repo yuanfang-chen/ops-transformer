@@ -23,7 +23,8 @@ using namespace optiling;
 
 namespace aicpu {
 uint32_t
-KvQuantSparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
+KvQuantSparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx)
+{
     bool success = Prepare(ctx);
     if (!success) {
         return KERNEL_STATUS_PARAM_INVALID;
@@ -34,7 +35,8 @@ KvQuantSparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
-    CpuKernelContext &ctx) {
+    CpuKernelContext &ctx)
+{
     // input
     actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
     actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
@@ -90,7 +92,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
     return true;
 }
 
-ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() {
+ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
+{
     const std::string ascend910D = "Ascend910_95";
     if (socVersion_.find(ascend910D) != std::string::npos) {
         return ValidSocVersion::ASCEND910D;
@@ -100,7 +103,8 @@ ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion() 
     return ValidSocVersion::RESERVED_VERSION;
 }
 
-bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit() {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit()
+{
     groupSize_ = queryHeadNum_ / kvHeadNum_;
     if (cmpRatio_ > 1) {
         if (cmpTopK_ > 0) {
@@ -807,7 +811,8 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &splitRes)
     splitRes.fdRes.fdUsedVecNum = curCoreIndex;
 }
 
-bool KvQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes) {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes)
+{
     SplitContext splitContext(batchSize_);
 
     // 1、划分基本块，统计信息
@@ -835,7 +840,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &sp
     return true;
 }
 
-bool KvQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
+bool KvQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes)
+{
     optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
 
     // FA Metadata Generate
