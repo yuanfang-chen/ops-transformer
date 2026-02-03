@@ -234,7 +234,7 @@ private:
     bool Prepare(CpuKernelContext &ctx);
     bool CheckSingleParam();
     bool CheckExistence();
-    bool CheckCoincidence();
+    bool CheckConsistency();
     bool CheckFeature();
     bool ParamsInit();
     bool BalanceSchedule(SplitResult &splitRes);

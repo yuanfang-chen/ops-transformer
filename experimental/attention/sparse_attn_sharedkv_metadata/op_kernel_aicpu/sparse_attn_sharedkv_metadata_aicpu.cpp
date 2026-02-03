@@ -75,7 +75,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
  	    if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
  	             batchSize_ = static_cast<uint32_t>(seqUsedQ_->GetTensorShape()->GetDimSize(0));
  	    } else {
- 	             batchSize_ = static_cast<uint32_t>(actSeqLenQ_->GetTensorShape()->GetDimSize(0));
+ 	             batchSize_ = static_cast<uint32_t>(actSeqLenQ_->GetTensorShape()->GetDimSize(0) - 1U);
  	    }
  	}
     sparseMode_ = oriMaskMode_;
@@ -84,7 +84,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
     attentionMode_ = 1;
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
 
-  return (CheckSingleParam() && CheckExistence() && CheckCoincidence() && CheckFeature() && ParamsInit());
+  return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature() && ParamsInit());
 }
 
 bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
@@ -93,13 +93,11 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
     auto metaShape = metaData_->GetTensorShape();
     KERNEL_CHECK_NULLPTR(metaShape, false, "shape of metadata is null");
     KERNEL_CHECK_NULLPTR(metaData_->GetData(), false, "data of metadata is null");
-
     // 2. 核心数校验
     if (aicCoreNum_ == 0 || aivCoreNum_ == 0 || (aivCoreNum_ % aicCoreNum_ != 0)) {
         KERNEL_LOG_ERROR("Core num invalid: aic:%u, aiv:%u", aicCoreNum_, aivCoreNum_);
         return false;
     }
-
     // 3. Layout 字符串校验
     if (layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
         KERNEL_LOG_ERROR("For query, layout must be TND or BSND!");
@@ -109,7 +107,6 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         KERNEL_LOG_ERROR("For key and value, layout must be TND, BSND or PA_ND!");
         return false;
     }
-
     // 4. 数值与模式校验
     if (batchSize_ < 1) {
         KERNEL_LOG_ERROR("batchSize_ should not be 0!");
@@ -123,20 +120,17 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         KERNEL_LOG_ERROR("cmpMaskMode_ should be 3, but got %u", cmpMaskMode_);
         return false;
     }
-
     return true;
 }
 
 bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
     auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
-
     // 1. 五个可选 Tensor 不能全部为空
     if (isInvalid(actSeqLenQ_) && isInvalid(actSeqLenOriKv_) && 
         isInvalid(actSeqLenCmpKv_) && isInvalid(seqUsedQ_) && isInvalid(seqUsedKv_)) {
         KERNEL_LOG_ERROR("actSeqLenQ, actSeqLenOriKv, actSeqLenCmpKv, seqUsedQ, and seqUsedKv cannot all be null!");
         return false;
     }
-
     // 2. Query 存在性逻辑
     if (layoutQuery_ == "TND") {
         if (isInvalid(actSeqLenQ_) && isInvalid(seqUsedQ_)) {
@@ -149,7 +143,6 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
             return false;
         }
     }
-
     // 3. KV 存在性逻辑
     if (layoutKv_ == "TND") {
         if (isInvalid(actSeqLenOriKv_) && isInvalid(seqUsedKv_)) {
@@ -170,25 +163,23 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
     return true;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::CheckCoincidence() {
+bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
     // 校验 actSeqLenOriKV_ 大小
     if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
         auto shape = actSeqLenOriKv_->GetTensorShape();
         if (shape == nullptr || shape->GetDimSize(0) != static_cast<int64_t>(batchSize_) + 1) {
-            KERNEL_LOG_ERROR("actSeqLenOriKV_ size invalid, expected %u", batchSize_ + 1);
+            KERNEL_LOG_ERROR("actSeqLenOriKV is not consist with actSeqLenQ");
             return false;
         }
     }
-
     // 校验 SeqUsedKV_ 大小
     if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
         auto shape = seqUsedKv_->GetTensorShape();
         if (shape == nullptr || shape->GetDimSize(0) != static_cast<int64_t>(batchSize_)) {
-            KERNEL_LOG_ERROR("SeqUsedKV_ size invalid, expected %u", batchSize_);
+            KERNEL_LOG_ERROR("SeqUsedKV is not consist with SeqUsedQ");
             return false;
         }
     }
-
     return true;
 }
 
@@ -209,7 +200,6 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
         KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpRatio_ should be -1!");
         return false;
     }
-
     // TopK 关联校验
     if (!hasOriKv_ && oriTopK_ != 0) {
         KERNEL_LOG_ERROR("When ori_kv is disabled, oriTopK_ should be 0!");
@@ -219,7 +209,6 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
         KERNEL_LOG_ERROR("When cmp_kv is disabled, cmpTopK_ should be 0!");
         return false;
     }
-
     return true;
 }
 
