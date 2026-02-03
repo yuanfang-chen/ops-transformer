@@ -302,10 +302,10 @@ ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
             sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
         } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor == nullptr) {
             sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
-        } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr) {
+        } else if (opParamInfo_.cmpKv.desc == nullptr && opParamInfo_.cmpSparseIndices.tensor == nullptr) {
             sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
         } else {
-            OP_LOGE(opName_, "cmpKv is not nullptr.");
+            OP_LOGE(opName_, "when cmpSparseIndices is not nullptr, cmpKv is not nullptr.");
             return ge::GRAPH_FAILED;
         }
         return ge::GRAPH_SUCCESS;
