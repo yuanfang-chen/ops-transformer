@@ -228,7 +228,6 @@ aclnnStatus aclnnGroupedMatmul(
         <td>-</td>
         <td>-</td>
       </tr>
-    </tr>
       <tr>
         <td>y</td>
         <td>输出</td>
@@ -365,7 +364,6 @@ aclnnStatus aclnnGroupedMatmul(
   - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值  2147483647。
 
 - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
-
   </details>
     <details>
     <summary>非量化场景约束</summary>
