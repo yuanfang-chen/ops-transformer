@@ -13,7 +13,7 @@
 #include <float.h>
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
-#include "../../../op_host/op_api/aclnn_qkv_rms_norm_rope_cache.h"
+#include "../../../../op_host/op_api/aclnn_qkv_rms_norm_rope_cache.h"
 
 #include "op_api_ut_common/array_desc.h"
 #include "op_api_ut_common/inner/types.h"
