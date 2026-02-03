@@ -308,11 +308,11 @@ ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
             OP_LOGE(opName_, "when cmpSparseIndices is not nullptr, cmpKv is should not be nullptr.");
             return ge::GRAPH_FAILED;
         }
-        return ge::GRAPH_SUCCESS;
     } else {
         OP_LOGE(opName_, "oriKv is nullptr");
         return ge::GRAPH_FAILED;
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus SASInfoParser::GetQueryAndOutLayout()
