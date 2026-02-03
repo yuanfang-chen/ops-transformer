@@ -38,15 +38,14 @@ constexpr uint64_t DB_SIZE = 2UL;
 
 constexpr uint32_t GMM_X_INDEX = 0U;
 constexpr uint32_t GMM_WEIGHT_INDEX = 1U;
-constexpr uint32_t BIAS_INDEX = 2U;
-constexpr uint32_t SEND_COUNTS_TENSOR_INDEX = 3U;
-constexpr uint32_t RECV_COUNTS_TENSOR_INDEX = 4U;
-constexpr uint32_t MM_X_INDEX = 5U;
-constexpr uint32_t MM_WEIGHT_INDEX = 6U;
-constexpr uint32_t GMMX_SCALE_INDEX = 7U;
-constexpr uint32_t GMMW_SCALE_INDEX = 8U;
-constexpr uint32_t MMX_SCALE_INDEX = 9U;
-constexpr uint32_t MMW_SCALE_INDEX = 10U;
+constexpr uint32_t SEND_COUNTS_TENSOR_INDEX = 2U;
+constexpr uint32_t RECV_COUNTS_TENSOR_INDEX = 3U;
+constexpr uint32_t MM_X_INDEX = 4U;
+constexpr uint32_t MM_WEIGHT_INDEX = 5U;
+constexpr uint32_t GMMX_SCALE_INDEX = 6U;
+constexpr uint32_t GMMW_SCALE_INDEX = 7U;
+constexpr uint32_t MMX_SCALE_INDEX = 8U;
+constexpr uint32_t MMW_SCALE_INDEX = 9U;
 constexpr uint32_t OUTPUT_Y_INDEX = 0U;
 constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0U;
 constexpr uint32_t OUTPUT_MM_Y_INDEX = 1U;
@@ -69,13 +68,13 @@ constexpr uint32_t MAX_BSK = 52428800;
 constexpr uint32_t MAX_SHAPE_SIZE = 65536;
 constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
 
-constexpr uint32_t ATTR_GROUP_INDEX = 0;
-constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
-constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
-constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
-constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
-constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
-constexpr uint32_t ATTR_PERMUTE_OUT_FLAG_INDEX = 6;
+constexpr uint32_t ATTR_GROUP_INDEX = 6;
+constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 7;
+constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 8;
+constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 9;
+constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 10;
+constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 11;
+constexpr uint32_t ATTR_PERMUTE_OUT_FLAG_INDEX = 12;
 
 constexpr int64_t BEST_L1_PARTA = 256 * 1024;
 constexpr int64_t BEST_L1_PARTB = 128 * 1024;
@@ -89,7 +88,7 @@ constexpr uint32_t MAX_TURN_NUM = 24;
 constexpr int32_t MAX_BASE_K = 128;
 constexpr uint64_t COMM_TILE = 8;  // Calculation of the number of data allocation times per card
 
-inline const char *A_INNER_DEBUG = "AlltoAllvGroupedMatMul Tiling";
+inline const char *A_INNER_DEBUG = "[ERROR] AlltoAllvGroupedMatMul Tiling";
 
 static inline uint32_t SixteenAlign(uint32_t a, bool up = false)
 {

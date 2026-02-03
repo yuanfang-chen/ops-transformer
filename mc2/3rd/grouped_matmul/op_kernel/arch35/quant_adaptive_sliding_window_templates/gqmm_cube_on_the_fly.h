@@ -126,7 +126,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::InitAddrAndPara
     groupNum_ = gmmQuantParams_->groupNum;
     groupType_ = gmmQuantParams_->groupType;
     groupListType_ = gmmQuantParams_->groupListType;
-    block_.template Init<true>(mmTilingData_, blockIdx_);
+    block_.template Init<false>(mmTilingData_, blockIdx_);
     xTensorPtr_ = x;
     weightTensorPtr_ = weight;
     biasTensorPtr_ = bias;
@@ -316,6 +316,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
             SetMMParaAndCompute();
         }
     }
+    mm_.End();
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS

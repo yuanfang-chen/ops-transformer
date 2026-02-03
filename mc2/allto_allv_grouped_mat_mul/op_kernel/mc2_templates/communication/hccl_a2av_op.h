@@ -60,6 +60,8 @@ public:
 
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             for (uint32_t i = 0U; i < rankDim_; i++) {
+                AscendC::printf("[ERROR] LBH: sendCnt[i * e_ + expertIdx] = %ld\n", sendCnt[i * e_ + expertIdx]);
+                AscendC::printf("[ERROR] LBH: recvCnt[i * e_ + expertIdx] = %ld\n", recvCnt[i * e_ + expertIdx]);
                 alltoAllvSendCnt[i] = static_cast<uint64_t>(sendCnt[i * e_ + expertIdx]) * H1_;
                 alltoAllvRecvCnt[i] = static_cast<uint64_t>(recvCnt[i * e_ + expertIdx]) * H1_;
             }
@@ -82,6 +84,8 @@ public:
                     alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
                 }
             }
+            AscendC::printf("[ERROR] LBH: sendBuffer_ = %p\n", sendBuffer_);
+            AscendC::printf("[ERROR] LBH: recvBuffer_ = %p\n", recvBuffer_);
             alltoAllvHandleId_[expertIdx] =
                 hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendBuffer_, alltoAllvSendCnt, alltoAllvSendOffset,
                 hcclDataType_, (__gm__ uint8_t *)recvBuffer_, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);

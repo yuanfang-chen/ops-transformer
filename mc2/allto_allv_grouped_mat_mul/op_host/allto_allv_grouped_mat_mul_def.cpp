@@ -150,7 +150,7 @@ public:
         this->Attr("trans_gmm_weight").AttrType(OPTIONAL).Bool(false);
         this->Attr("trans_mm_weight").AttrType(OPTIONAL).Bool(false);
         this->Attr("permute_out_flag").AttrType(OPTIONAL).Bool(false);
-
+        
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)

@@ -166,6 +166,7 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
 template <bool isGmm>
 __aicore__ inline void QuantASWBlockSch::UpdateGroupParams()
 {
+    startBlockIdx_ = 0;
     params_.mCnt = Mc2QuantUtils::CeilDiv(params_.m, tilingData_->baseM);
     params_.nCnt = Mc2QuantUtils::CeilDiv(params_.n, tilingData_->baseN);
     params_.totalCnt = params_.mCnt * params_.nCnt;

@@ -15,6 +15,9 @@ public:
         GM_ADDR workspaceGM, const TilingDataType *tilingData, const GmmTilingDataType *gmmTilingData,
         TILING_TYPE *gmmArrayAddrIn, TPipe *tPipe)
     {
+        if ASCEND_IS_AIV {
+            return ;
+        }
         xGM_ = xGM;
         wGM_ = weightGM;
         xScaleGM_ = xScaleGM;
@@ -42,20 +45,30 @@ public:
                 expertTokenNum_[e] += static_cast<uint64_t>(recvCnt[e + i * expertNumInOneRank_]);
             }
         }
-        gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
-            &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
     }
 
     __aicore__ inline void Process(uint32_t expertIdx)
     {
-        UpdateAddr(expertIdx);
+        if ASCEND_IS_AIV {
+            return ;
+        }
+        AscendC::printf("[ERROR] LBH computeOp.Process expertIdx = %d\n", expertIdx);
+        AscendC::printf("[ERROR] LBH computeOp.Process expertTokenNum_[expertIdx] = %d\n", expertTokenNum_[expertIdx]);
+        this->UpdateAddr(expertIdx);
+        GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
+        gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
+            &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
         groupListGlobalBuffer_.SetValue(0, expertTokenNum_[expertIdx]);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
         gmmASWKernel.Process();
     }
 
-    __aicore__ inline void End() {}
+    __aicore__ inline void End() {
+        if ASCEND_IS_AIV {
+            return ;
+        }
+    }
 
 protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
@@ -68,7 +81,6 @@ protected:
 private:
     using biasType = float;
 
-    GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
     GM_ADDR xGM_;
     GM_ADDR wGM_;
     GM_ADDR xScaleGM_;
