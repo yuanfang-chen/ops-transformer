@@ -435,12 +435,6 @@ static void SetReduceScatterTilingArgs(const gert::TilingContext* context, mc2ti
     args.orgNValue = nValue;
     args.orgKValue = kValue;
     args.mValue = mValue;
-
-    if (args.commAlg == COMM_ALG_DOUBLE_RING) {
-        args.mValue /= DOUBLE_RING_FACTOR;
-        OP_LOGD(context->GetNodeName(), " args.mValue is %lu under double ring communication algorithm.", args.mValue);
-    }
-
     args.nValue = nValue;
     args.kValue = kValue;
     args.baseMLimit = -1;
@@ -478,32 +472,7 @@ struct KFCMsgBody {
 
 static void GetTilingKey(uint64_t& tilingKey, const MatmulReduceScatterTilingData& tilingData)
 { 
-    bool mmReduceScatterFullMesh = true;
-    bool mmReduceScatterNd2nzOpt = false;
-    bool mmReduceScatterBiasCast = false;
-    
-    if(tilingData.param.biasLen == 0) {
-        mmReduceScatterBiasCast = false;
-    }
-    else {
-        mmReduceScatterBiasCast = true;
-    }
-
-    if(tilingData.socParam.isND2NZ == 1) {
-        mmReduceScatterNd2nzOpt = true;
-    }
-    else {
-        mmReduceScatterNd2nzOpt = false;
-    }
-
-    if (tilingData.socParam.commAlg == COMM_ALG_FULL_MESH){
-        mmReduceScatterFullMesh = true;
-    }
-    else {
-        mmReduceScatterFullMesh = false;
-    } 
-    
-    tilingKey = GET_TPL_TILING_KEY(mmReduceScatterFullMesh, mmReduceScatterNd2nzOpt, mmReduceScatterBiasCast);
+    tilingKey = GET_TPL_TILING_KEY((tilingData.socParam.isND2NZ == 1), (tilingData.param.biasLen != 0));
 }
 
 static ge::graphStatus SetMatmulTilingMatmulReduceScatter(gert::TilingContext* context, MatmulReduceScatterTilingData& tilingData,

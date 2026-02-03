@@ -244,32 +244,7 @@ static ge::graphStatus MCSpliteM(gert::TilingContext* ctx, AllGatherMatmulTiling
 
 static void UpdateTilingKey(uint64_t& tilingKey, AllGatherMatmulTilingData& tilingData, bool isBias)
 {
-    bool allGatherMatmulFullMesh = true;
-    bool allGatherMatmulNd2nzOpt = false;
-    bool allGatherMatmulBiasCast = false;
-
-    if(isBias) {
-        allGatherMatmulBiasCast = true;
-    }
-    else {
-        allGatherMatmulBiasCast = false;
-    }
-
-    if(tilingData.socParam.isND2NZ == 1) {
-        allGatherMatmulNd2nzOpt = true;
-    }
-    else {
-        allGatherMatmulNd2nzOpt = false;
-    }
-
-    if (tilingData.socParam.commAlg == COMM_ALG_FULL_MESH){
-        allGatherMatmulFullMesh = true;
-    }
-    else {
-        allGatherMatmulFullMesh = false;
-    }
-
-    tilingKey = GET_TPL_TILING_KEY(allGatherMatmulFullMesh, allGatherMatmulNd2nzOpt, allGatherMatmulBiasCast);
+    tilingKey = GET_TPL_TILING_KEY((tilingData.socParam.isND2NZ == 1), isBias);
 }
 
 static ge::graphStatus SetMatmulTilingAllGatherMatmul(gert::TilingContext* context,
@@ -347,13 +322,6 @@ static ge::graphStatus SetMatmulTilingAllGatherMatmul(gert::TilingContext* conte
     } else {
       OP_LOGE(context->GetNodeName(), "args.cmdType error %d", static_cast<int>(args.cmdType));
       return ge::GRAPH_FAILED;
-    }
-
-    // 本卡一次计算完,其他卡数据按照DR搬运
-    if ((tilingData.socParam.commAlg == COMM_ALG_DOUBLE_RING) && (tilingData.socParam.isStep == 1)) {
-        args.mValue /= DOUBLE_RING_FACTOR;
-        OP_LOGI(context->GetNodeName(), " args.mValue is set to be %lu under double ring + step communication algorithm.",
-            args.mValue);
     }
 
     args.isLocal = false;

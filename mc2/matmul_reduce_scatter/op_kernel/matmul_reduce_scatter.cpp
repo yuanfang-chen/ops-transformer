@@ -40,7 +40,7 @@ template <> struct BiasType<half> {
     using type = half;
 };
 
-template<bool IsFullMesh, bool IsNd2Nz, bool IsBias>
+template<bool IsNd2Nz, bool IsBias>
 __global__ __aicore__ void matmul_reduce_scatter(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(MatmulReduceScatterTilingData);
@@ -55,22 +55,22 @@ __global__ __aicore__ void matmul_reduce_scatter(GM_ADDR aGM, GM_ADDR bGM, GM_AD
         TPipe pipe;
         GM_ADDR contextGM = GetHcclContext<HCCL_GROUP_ID_0>();
 
-        if constexpr (IsFullMesh && IsNd2Nz && !IsBias) {
+        if constexpr (IsNd2Nz && !IsBias) {
             // full mesh + nd2nz + no bias cast
             using bType = MatmulType<AscendC::TPosition::GM, CubeFormat::NZ, B_DTYPE, true>;
             using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, typename BiasType<BIAS_DTYPE>::type>;
             INVOKE_MATMUL_REDUCE_SCATTER_OP_IMPL(MatmulReduceScatterFullMesh, IsNd2Nz, IsBias);
-        } else if constexpr (IsFullMesh && !IsNd2Nz && !IsBias) {
+        } else if constexpr (!IsNd2Nz && !IsBias) {
             // full mesh + no nd2nz + no bias cast
             using bType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, true>;
             using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, typename BiasType<BIAS_DTYPE>::type>;
             INVOKE_MATMUL_REDUCE_SCATTER_OP_IMPL(MatmulReduceScatterFullMesh, IsNd2Nz, IsBias);
-        } else if constexpr (IsFullMesh && IsNd2Nz && IsBias) {
+        } else if constexpr (IsNd2Nz && IsBias) {
             // full mesh + nd2nz + bias cast
             using bType = MatmulType<AscendC::TPosition::GM, CubeFormat::NZ, B_DTYPE, true>;
             using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, float>;
             INVOKE_MATMUL_REDUCE_SCATTER_OP_IMPL(MatmulReduceScatterFullMesh, IsNd2Nz, IsBias);
-        } else if constexpr (IsFullMesh && !IsNd2Nz && IsBias) {
+        } else if constexpr (!IsNd2Nz && IsBias) {
             // full mesh + no nd2nz + bias cast
             using bType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, B_DTYPE, true>;
             using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, float>;
