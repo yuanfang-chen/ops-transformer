@@ -76,7 +76,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
         if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
             batchSize_ = static_cast<uint32_t>(seqUsedQ_->GetTensorShape()->GetDimSize(0));
         } else {
-            batchSize_ = static_cast<uint32_t>(actSeqLenQ_->GetTensorShape()->GetDimSize(0));
+            batchSize_ = static_cast<uint32_t>(actSeqLenQ_->GetTensorShape()->GetDimSize(0) - 1U);
         }
     }
     sparseMode_ = oriMaskMode_;
