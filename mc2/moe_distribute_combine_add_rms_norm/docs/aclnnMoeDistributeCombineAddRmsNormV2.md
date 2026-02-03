@@ -520,8 +520,8 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <tr>
     <td>yOut</td>
     <td>输出</td>
-    <td>RmsNorm后的结果，Device侧3D Tensor，shape为 (Bs, 1, H)。</td>
-    <td>RmsNorm后的结果，Device侧3D Tensor，shape为 (Bs, 1, H)。</td>
+    <td>RmsNorm后的结果。</td>
+    <td>Device侧3D Tensor，shape为 (Bs, 1, H)。</td>
     <td>BFLOAT16</td>
     <td>ND</td>
     <td>3</td>
@@ -530,8 +530,8 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     <tr>
     <td>rstdOut</td>
     <td>输出</td>
-    <td>RmsNorm计算的标准化系数，Device侧3D Tensor。</td>
-    <td>shape为 (Bs, 1, 1)。</td>
+    <td>RmsNorm计算的标准化系数。</td>
+    <td>Device侧3D Tensor, shape为 (Bs, 1, 1)。</td>
     <td>FLOAT32</td>
     <td>ND</td>
     <td>3</td>
