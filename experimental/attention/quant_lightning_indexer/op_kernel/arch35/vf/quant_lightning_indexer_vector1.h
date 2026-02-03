@@ -14,11 +14,8 @@
  */
 #ifndef quant_lightning_indexer_VECTOR1_H
 #define quant_lightning_indexer_VECTOR1_H
-
 #include "kernel_operator.h"
-
 namespace vector1 {
-
 template <typename T>
 struct FloatSortTraits;
 
@@ -42,7 +39,6 @@ struct FloatSortTraits<bfloat16_t> {
     static constexpr UInt ALL_ONE   = 0xFFFF;
 };
 
-
 template <typename FloatT>
 struct FloatSortConstCtx {
     using Traits = FloatSortTraits<FloatT>;
@@ -53,7 +49,6 @@ struct FloatSortConstCtx {
     AscendC::MicroAPI::RegTensor<UInt> nan;
 };
 
-
 template <typename FloatT>
 __simd_callee__ inline void InitFloatSortConstCtx(FloatSortConstCtx<FloatT>& ctx, AscendC::MicroAPI::MaskReg& maskAll)
 {
@@ -63,7 +58,6 @@ __simd_callee__ inline void InitFloatSortConstCtx(FloatSortConstCtx<FloatT>& ctx
     AscendC::MicroAPI::Duplicate(ctx.signMask, Traits::SIGN_MASK, maskAll);
     AscendC::MicroAPI::Duplicate(ctx.nan,      Traits::NAN_MASK,  maskAll);
 }
-
 
 template <typename FloatT>
 __simd_callee__ inline void FloatToSortableKey(AscendC::MicroAPI::RegTensor<typename FloatSortTraits<FloatT>::UInt>& outKey,
@@ -138,7 +132,6 @@ __simd_callee__ inline void FloatX2ToSortableKey(AscendC::MicroAPI::RegTensor<ty
     AscendC::MicroAPI::Xor(outKey1, outKey1, regMask[1], maskAll);
 }
 
-
 // W * Relu(ScaleQ * Q * (ScaleK * K)^T)
 // W * ScaleQ * Relu(Q * K^T) * ScaleK
 // float in uint32 out
@@ -202,7 +195,6 @@ __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint32_t> &out,  
         AscendC::MicroAPI::Mul(regSum[0], regSum[0], regKScale[0], maskAll);
         AscendC::MicroAPI::Mul(regSum[1], regSum[1], regKScale[1], maskAll);
 
-
         AscendC::MicroAPI::RegTensor<uint32_t> regOut[2];
         FloatX2ToSortableKey<float>(regOut[0], regOut[1], regSum[0], regSum[1], fp32Ctx, maskAll);
 
@@ -210,9 +202,6 @@ __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint32_t> &out,  
         AscendC::MicroAPI::StoreAlign<uint32_t, AscendC::MicroAPI::StoreDist::DIST_NORM>(out1, regOut[1], maskAll);
     }
 }
-
-
-
 
 // float in uint16 out
 __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint16_t> &out_,   // out    [S2Base]     [128   ] 2
@@ -298,7 +287,6 @@ __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint16_t> &out_, 
     }
 }
 
-
 // W * Relu(ScaleQ * Q * (ScaleK * K)^T)
 // W * ScaleQ * Relu(Q * K^T) * ScaleK
 // float in uint16 out
@@ -334,7 +322,6 @@ __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint16_t> &out_, 
 
         FloatSortConstCtx<bfloat16_t> bf16Ctx;
         InitFloatSortConstCtx(bf16Ctx, maskAllB16);
-
 
         using CastTrait = AscendC::MicroAPI::CastTrait;
         static constexpr CastTrait castTraitB162B32_EVEN = {AscendC::MicroAPI::RegLayout::ZERO,
@@ -393,7 +380,5 @@ __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint16_t> &out_, 
         AscendC::MicroAPI::StoreAlign<uint16_t, AscendC::MicroAPI::StoreDist::DIST_NORM>(out, regOut, maskAllB16);
     }
 }
-
 }
-
 #endif
