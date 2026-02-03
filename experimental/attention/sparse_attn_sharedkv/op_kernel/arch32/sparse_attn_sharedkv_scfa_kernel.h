@@ -56,6 +56,8 @@ struct TempLoopInfo {
     uint64_t mBasicSizeTail = 0U;  // gS1方向循环的尾基本块大小
     uint32_t cmpLoopTimes = 0;
     uint32_t oriLoopTimes = 0;
+    uint32_t v0OriSize = 0;
+    uint32_t v0CmpSize = 0;
 
     // sparsemode = 4
     int32_t oriMaskRight = 0;
@@ -426,8 +428,8 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Init(
                               aiCoreIdx * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T);
 
-    kvMergeGm_.SetGlobalBuffer((__gm__ KV_T *)(workspace + offset + aiCoreIdx * 512 * 512 * 4 * sizeof(KV_T)));
-    offset += GetBlockNum() * 512 * 512 * 4 * sizeof(KV_T);
+    kvMergeGm_.SetGlobalBuffer((__gm__ KV_T *)(workspace + offset + aiCoreIdx * constInfo.sparseBlockCount * 512 * 4 * sizeof(KV_T)));
+    offset += GetBlockNum() * constInfo.sparseBlockCount * 512 * 4 * sizeof(KV_T);
 
     kvValidSizeGm_.SetGlobalBuffer(
         (__gm__ int32_t *)(workspace + offset + (aiCoreIdx * 2) * 128 * 4 * sizeof(int32_t)));
@@ -531,7 +533,7 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::CalcParams(uint32_t loop, u
             info.actualSingleProcessSInnerSize = constInfo.s2BaseSize;
         }
         info.s2StartPoint = tempLoopInfo.oriMaskLeft;
-        info.cmpS2IdLimit = 0;
+        info.cmpS2IdLimit = (tempLoopInfo.cmpMaskRight + tempLoopInfo.s1EndIdx + 1) / constInfo.cmpRatio;
     } else {
         info.isOri = false;
         info.relativeS2Idx = info.s2Idx - tempLoopInfo.oriLoopTimes;
@@ -546,6 +548,19 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::CalcParams(uint32_t loop, u
     }
 
     info.actualSingleProcessSInnerSizeAlign = SASAlign(info.actualSingleProcessSInnerSize, SASVectorBlock<SAST>::BYTE_BLOCK);
+    if (info.isOri) {
+        info.v0S2DealSize = CeilDiv(tempLoopInfo.v0OriSize, tempLoopInfo.oriLoopTimes);
+        info.v0S2Start = s2LoopIdx * info.v0S2DealSize;
+        if (s2LoopIdx + 1 == tempLoopInfo.oriLoopTimes) { // tail
+         info.v0S2DealSize = tempLoopInfo.v0OriSize - info.v0S2Start;
+        }
+    } else {
+        info.v0S2DealSize = CeilDiv(tempLoopInfo.v0CmpSize, tempLoopInfo.cmpLoopTimes);
+        info.v0S2Start = tempLoopInfo.v0OriSize + (s2LoopIdx - tempLoopInfo.oriLoopTimes) * info.v0S2DealSize;
+        if (s2LoopIdx + 1 == tempLoopInfo.s2LoopTimes) { // tail
+            info.v0S2DealSize = tempLoopInfo.v0OriSize + tempLoopInfo.v0CmpSize - info.v0S2Start;
+        }
+    }
 }
 
 template <typename SAST>
@@ -663,15 +678,24 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
                 tempLoopInfo.actOriS2Size = GetActualSeqLenKV(tempLoopInfo.bIdx);
                 continue;
             }
-            uint32_t oriSplitNum = CeilDiv(tempLoopInfo.oriMaskRight - tempLoopInfo.oriMaskLeft + 1,
-                                   constInfo.s2BaseSize);
-            uint32_t cmpSplitNum = CeilDiv(tempLoopInfo.actCmpS2Size, constInfo.s2BaseSize);
+            uint32_t oriS2Size = tempLoopInfo.oriMaskRight - tempLoopInfo.oriMaskLeft + 1;
+            uint32_t cmpS2Size = tempLoopInfo.actCmpS2Size;
+            uint32_t oriSplitNum = CeilDiv(oriS2Size, constInfo.s2BaseSize);
+            uint32_t cmpSplitNum = CeilDiv(cmpS2Size, constInfo.s2BaseSize);
             uint32_t s2SplitNum = oriSplitNum + cmpSplitNum;
+            constexpr uint32_t V0_SPLIT = 32; // align to 32
+            uint32_t v0OriSize = CeilDiv(oriS2Size * cmpS2Size, oriS2Size + cmpS2Size);
+            if (cmpS2Size > V0_SPLIT * oriSplitNum) {
+                v0OriSize = SASAlign(v0OriSize, V0_SPLIT * oriSplitNum);
+            }
+            uint32_t v0CmpSize = cmpS2Size - v0OriSize;
             bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == gS1LoopEnd);
 
             tempLoopInfo.oriLoopTimes = oriSplitNum;
             tempLoopInfo.cmpLoopTimes = cmpSplitNum;
             tempLoopInfo.s2LoopTimes = s2SplitNum;
+            tempLoopInfo.v0OriSize = v0OriSize;
+            tempLoopInfo.v0CmpSize = v0CmpSize;
 
             uint32_t s2LoopEnd = (isEnd && constInfo.s2End != 0) ? constInfo.s2End : tempLoopInfo.s2LoopTimes;
             tempLoopInfo.s2LoopTimes = s2LoopEnd;
@@ -684,7 +708,7 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
             for (uint32_t s2LoopIdx = constInfo.s2Start; s2LoopIdx < (s2LoopEnd + extraLoop); s2LoopIdx++) {
                 PreloadPipeline(gloop, cmpLoop, constInfo.s2Start, s2LoopIdx, extraInfo);
                 ++gloop;
-                if (s2LoopIdx >= tempLoopInfo.oriLoopTimes && s2LoopIdx < s2LoopEnd) { // 用于判断v0使用的循环GM的id
+                if (s2LoopIdx >= (s2LoopEnd + extraLoop) - 1) { // 用于判断v0使用的循环GM的id
                     ++cmpLoop;
                 }
             }
@@ -713,14 +737,18 @@ SparseAttnSharedkvScfa<SAST>::PreloadPipeline(uint32_t loop, uint32_t cmpLoop, u
     CalcParams(loop, cmpLoop, s2Start, s2LoopIdx, extraInfo0);
     if (extraInfo0.isValid) {
         if ASCEND_IS_AIC {
-            CrossCoreWaitFlag(constInfo.syncV0C1);
+            if (!extraInfo0.isOri) {
+                CrossCoreWaitFlag(constInfo.syncV0C1);
+            }
             ComputeMm1(extraInfo0);
         } else {
-            CrossCoreWaitFlag(3);
-            if (!extraInfo0.isOri) {
-                vectorBlock.ProcessVec0L(extraInfo0);
+            if (extraInfo0.isFirstSInnerLoop) {
+                CrossCoreWaitFlag(3);
             }
-            CrossCoreSetFlag<ConstInfo::SAS_SYNC_MODE2, PIPE_MTE3>(constInfo.syncV0C1);
+            vectorBlock.ProcessVec0L(extraInfo0);
+            if (!extraInfo0.isOri) {
+                CrossCoreSetFlag<ConstInfo::SAS_SYNC_MODE2, PIPE_MTE3>(constInfo.syncV0C1);
+            }
         }
     }
     if (extraInfo2.isValid) {
@@ -729,7 +757,9 @@ SparseAttnSharedkvScfa<SAST>::PreloadPipeline(uint32_t loop, uint32_t cmpLoop, u
         }
         if ASCEND_IS_AIC {
             ComputeMm2(extraInfo2);
-            CrossCoreSetFlag<ConstInfo::SAS_SYNC_MODE2, PIPE_MTE2>(3);
+            if (extraInfo2.isLastS2Loop) {
+                CrossCoreSetFlag<ConstInfo::SAS_SYNC_MODE2, PIPE_MTE2>(3);
+            }
         }
     }
     if (extraInfo1.isValid) {

@@ -218,6 +218,8 @@ struct RunInfo {
     bool isOri = true;  // 判断当前块是在Ori部分还是Cmp部分
     uint64_t s2StartPoint = 0;
     int64_t cmpS2IdLimit = 0;
+    int32_t v0S2DealSize = 0;
+    int32_t v0S2Start = 0;
 };
 
 struct ConstInfo {

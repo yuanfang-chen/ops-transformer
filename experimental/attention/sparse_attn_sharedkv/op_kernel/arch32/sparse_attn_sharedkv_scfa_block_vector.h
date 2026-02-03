@@ -513,7 +513,7 @@ template <typename SAST>
 __aicore__ inline void SASVectorBlock<SAST>::GetRealS2Idx(int64_t s2GmOffset, int64_t &realS2Idx,
                                                           int64_t topkGmBaseOffset, const RunInfo &runInfo)
 {
-    int64_t cmpS2Offset = s2GmOffset + runInfo.relativeS2Idx * constInfo.s2BaseSize;
+    int64_t cmpS2Offset = s2GmOffset;
     int64_t topkGmIdx = cmpS2Offset / constInfo.sparseBlockSize;
     if (unlikely(topkGmIdx >= constInfo.sparseBlockCount)) {
         realS2Idx = -1;
@@ -630,7 +630,7 @@ __aicore__ inline void SASVectorBlock<SAST>::CopyOutMrgeResult(int64_t mte2Size,
     dataCopyParams.srcStride = 0;
     dataCopyParams.dstStride = 0;
 
-    DataCopyPad(kvMergeGm_[runInfo.cmpLoop % 4 * 512 * 512 + (s2GmStartOffset + mte3Size) * constInfo.headDim],
+    DataCopyPad(kvMergeGm_[runInfo.cmpLoop % 4 * constInfo.sparseBlockCount * 512 + (s2GmStartOffset + runInfo.v0S2Start + mte3Size) * constInfo.headDim],
                 kvMergUb_[mergeMte3Idx % 2 * INPUT2_BUFFER_OFFSET / sizeof(KV_T)], dataCopyParams);
 }
 
@@ -638,9 +638,9 @@ __aicore__ inline void SASVectorBlock<SAST>::CopyOutMrgeResult(int64_t mte2Size,
 template <typename SAST>
 __aicore__ inline void SASVectorBlock<SAST>::ProcessVec0L(const RunInfo &runInfo)
 {
-    int64_t s2ProcessSize = runInfo.actualSingleProcessSInnerSize;
+    int64_t s2ProcessSize = runInfo.v0S2DealSize;
     int64_t s2Pair = CeilDiv(s2ProcessSize, 2 * constInfo.sparseBlockSize);
-    int64_t topkGmBaseOffset = runInfo.topKBaseOffset;
+    int64_t topkGmBaseOffset = runInfo.topKBaseOffset + runInfo.v0S2Start;
     int64_t mte2Size = 0;
     int64_t mte3Size = 0;
     int64_t s2IdxArray0 = -1;
