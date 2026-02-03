@@ -535,6 +535,7 @@ namespace SplitFuse {
             uint32_t blockStackNum = (MAX_KV_STACK_LEN - 1 + pagedBlockSize) / pagedBlockSize;
             uint32_t stackSeqTile = MAX_KV_STACK_LEN;
             uint32_t stackSeqTilePad = MAX_KV_STACK_LEN;
+            bool isLastStackTile = false;
 
 
 #ifdef __DAV_C220_VEC__
@@ -559,7 +560,7 @@ namespace SplitFuse {
                         } else {
                             stackSeqTile = MAX_KV_STACK_LEN;
                         }
-
+                        isLastStackTile = (kvSIdx + 1) >= kvSLoopNumTotal;
                         uint32_t curStackTileMod = stackSeqCount % (PRE_LAUNCH + 1U);
                         uint64_t gmOffsetS =
                             static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
@@ -628,6 +629,7 @@ namespace SplitFuse {
                                         triDown, 
                                         kvSStartIdx, 
                                         kvSEndIdx,
+                                        isLastStackTile,
                                         isSplitKV);
                                 } else {
                                     epilogueOnlineSoftmax(
@@ -647,7 +649,8 @@ namespace SplitFuse {
                                         triUp, 
                                         triDown, 
                                         kvSStartIdx, 
-                                        kvSEndIdx, 
+                                        kvSEndIdx,
+                                        isLastStackTile,
                                         false);
                                 }
                             } else {
@@ -667,6 +670,7 @@ namespace SplitFuse {
                                         qSBlockSize, 
                                         qNBlockSize, 
                                         curStackTileMod,
+                                        isLastStackTile,
                                         isSplitKV);
                                 } else {
                                     epilogueOnlineSoftmax(
@@ -680,7 +684,8 @@ namespace SplitFuse {
                                         (stackSeqCount == noMaskStackSeqNum - 1),
                                         qSBlockSize, 
                                         qNBlockSize, 
-                                        curStackTileMod,  
+                                        curStackTileMod,
+                                        isLastStackTile, 
                                         false);
                                 }
                             }
@@ -716,6 +721,7 @@ namespace SplitFuse {
                                         preTokenStartLen,
                                         preTokenEndLen,
                                         nextTokenStartLen,
+                                        isLastStackTile,
                                         nextTokenEndLen);
                                 } else {
                                     bool isLastNoMaskStackTile = (nextTokenStartLen > kvSeqlen) || (nextTokenStartLen < 0);
@@ -735,6 +741,7 @@ namespace SplitFuse {
                                         qSBlockSize,
                                         qNBlockSize,
                                         curStackTileMod,
+                                        isLastStackTile,
                                         false);
                                 }
                             }
@@ -752,7 +759,8 @@ namespace SplitFuse {
                                     0, 
                                     qSBlockSize, 
                                     qNBlockSize, 
-                                    curStackTileMod, 
+                                    curStackTileMod,
+                                    isLastStackTile,
                                     isSplitKV);
                             } else {
                                 epilogueOnlineSoftmax(
@@ -766,7 +774,8 @@ namespace SplitFuse {
                                     0, 
                                     qSBlockSize, 
                                     qNBlockSize, 
-                                    curStackTileMod, 
+                                    curStackTileMod,
+                                    isLastStackTile,
                                     false);
                             }
                         }
