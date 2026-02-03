@@ -228,20 +228,6 @@ aclnnStatus aclnnGroupedMatmul(
         <td>-</td>
         <td>-</td>
       </tr>
-    <tr>
-      <td>groupType</td>
-      <td>输入</td>
-      <td>整数型参数，代表需要分组的轴</td>
-        <td>
-          <ul>
-            <li>
-            枚举值-1、0、1、2。如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组，2：k轴分组。</li>
-          </ul>
-        </td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
     </tr>
       <tr>
         <td>y</td>
@@ -379,11 +365,6 @@ aclnnStatus aclnnGroupedMatmul(
   - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值  2147483647。
 
 - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
-  <details>
-    <summary><term>公共约束</term></summary>
-      <a id="公共约束："></a>
-
-  - groupType：支持取值-1、0。
 
   </details>
     <details>
