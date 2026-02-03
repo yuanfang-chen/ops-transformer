@@ -17,6 +17,7 @@
 #include "../../../attn_infra/epilogue/tile_common/tile_copy.hpp"
 #include "../../../attn_infra/gemm_coord.hpp"
 #include "../../../attn_infra/matrix_coord.hpp"
+#include "utils/std/algorithm.h"
 
 namespace NpuArch::Epilogue::Block {
 
@@ -320,7 +321,7 @@ public:
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
-                    
+
                     if (qNThisSubBlock == 0U) {
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor32,
