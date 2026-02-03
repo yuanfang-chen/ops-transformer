@@ -56,7 +56,7 @@ def sas_aclgraph(testcase_files):
     utils.save_result(test_data['params'], result, fulfill_percent, result_path)
     
     if(result == "NPU ERROR"):
-        pytest.fail(f"用例执行失败:{test_data['params']['Testcase_Name']}")
+        pytest.fail(f"用例执行失败:{test_data['Testcase_Name']}")
 
 
 @pytest.mark.graph
