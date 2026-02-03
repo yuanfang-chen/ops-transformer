@@ -18,6 +18,8 @@
 #include "op_mc2.h"
 #include "mc2_hcom_topo_info.h"
 #include "tiling/mc2_tiling_utils.h"
+#include "platform/platform_infos_def.h"
+#include "hccl/hccl_types.h"
 #include <map>
 #include "allto_all_matmul_tiling_910b.h"
 
@@ -97,6 +99,9 @@ const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
     {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16},
     {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16}
 };
+static const std::vector<int32_t> soc_version = {
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),
+    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)};
 }
 
 namespace MC2Tiling {
@@ -884,14 +889,41 @@ uint64_t AlltoAllMatmulTiling910b::GetTilingKey() const
  */
 ge::graphStatus AlltoAllMatmulTiling910b::SetHcclTiling(AlltoAllMatmulTilingData *tilingData)
 {
-    auto attrs = context_->GetAttrs();
-    auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
-    uint32_t opType = 18; // batch write=18,
-    std::string algConfig = "MultiPut=level0:fullmesh";
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
-    mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
-    mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
-    return ge::GRAPH_SUCCESS;
+    // A2和A3芯片设置hccltiling
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr,         \
+        OP_LOGE(opName_, "fail to get platfoem info"),  \
+        return ge::GRAPH_FAILED);
+    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+    std::string socVersionStr;
+    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+    if (socVersionStr == "Ascend910_93") {
+        auto group = context_->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_INDEX);
+        OP_TILING_CHECK(group == nullptr,                                   \
+            OP_LOGE(opName_, "GetAttrPointer for ATTR_GROUP_INDEX failed"), \
+            return ge::GRAPH_FAILED);
+        uint32_t optype = HcclCMDType::HCCL_CMD_ALLTOALL;
+        std::string algConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
+        OP_LOGD(opName_, "AlltoAllMatmulTiling910b, SetHcclTiling algConfig is: %s", \
+                algConfig.c_str());
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, optype, algConfig);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling) != 0,         \
+            OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), \
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,           \
+            OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"),   \
+            return ge::GRAPH_FAILED);
+        return ge::GRAPH_SUCCESS;
+    } else {
+        auto attrs = context_->GetAttrs();
+        auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
+        uint32_t opType = 18; // batch write=18,
+        std::string algConfig = "MultiPut=level0:fullmesh";
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
+        mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
+        mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
+        return ge::GRAPH_SUCCESS;
+    }
 }
 
 void AlltoAllMatmulTiling910b::CalcQuantTokenNumPerUb(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
