@@ -280,19 +280,12 @@ static bool CheckRecvCnt(
                     return false);
                 recvSum += recvArray[j] * H;
             }
-            OP_TILING_CHECK(recvSum < RECV_SEND_MIN,
-                OP_LOGE(
-                    C_INNER_DEBUG,
-                    "rank %ld:sum(recvCounts[%ld, %ld]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %ld Byte!",
-                    i - 1, (i - 1) * eExpert, i * eExpert - 1, 2 * recvSum),
-                return false);
         }
     }
     return true;
 }
 
-static bool CheckSendCnt(
+static bool CheckSendCnt(GroupedMatMulAlltoAllvTilingData* tilingData,
     const gert::RuntimeAttrs* attrs, 
     int64_t A,  int64_t H, int64_t eExpert, int64_t epWorldSize,
     gert::TilingContext* context)
@@ -328,26 +321,22 @@ static bool CheckSendCnt(
                     return false);
                 sendSum += sendArray[j] * H;
             }
-            OP_TILING_CHECK(sendSum < RECV_SEND_MIN,
-                OP_LOGE(
-                    C_INNER_DEBUG,
-                    "rank %ld:sum(sendCounts[%ld, %ld]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %ld Byte!",
-                    i - 1, (i - 1) * eExpert, i * eExpert - 1, 2 * sendSum),
-                return false);
+            if (sendSum == NUM_ZERO) {
+                tilingData->commonTilingInfo.isNeedGmm = false;
+            }
         }
     }
     return true;
 }
 
-static bool CheckSendCntAndRecvCnt(
+static bool CheckSendCntAndRecvCnt(GroupedMatMulAlltoAllvTilingData* tilingData,
     const gert::RuntimeAttrs* attrs, int64_t BsK, int64_t A, int64_t H, int64_t eExpert, int64_t epWorldSize,
     gert::TilingContext* context)
 {
     if (!CheckRecvCnt(attrs, BsK, H, eExpert, epWorldSize, context)) {
         return false;
     }
-    if (!CheckSendCnt(attrs, A, H, eExpert, epWorldSize, context)) {
+    if (!CheckSendCnt(tilingData, attrs, A, H, eExpert, epWorldSize, context)) {
         return false;
     }
     return true;
@@ -398,7 +387,7 @@ static bool CheckCoreDimensionsAndCommunication(
         OP_LOGE(C_INNER_DEBUG, "E_ep[%ld] should be in (0, 32]!", eEp), return false);
 
     OP_TILING_CHECK(
-        !CheckSendCntAndRecvCnt(attrs, bsk, a, h, eEp, epWorldSize, context),
+        !CheckSendCntAndRecvCnt(tilingData, attrs, bsk, a, h, eEp, epWorldSize, context),
         OP_LOGE(C_INNER_DEBUG, "CheckSendCntAndRecvCnt failed!"), return false);
     return true;
 }
@@ -575,7 +564,7 @@ static bool CheckAndSetAttrs(const gert::TilingContext* context, GroupedMatMulAl
         OP_LOGE(C_INNER_DEBUG, "transMmWeightPtr should not be true when mmX is null!");
         return ge::GRAPH_FAILED;
     }
-
+    tilingData->commonTilingInfo.isNeedGmm = true;
     tilingData->commonTilingInfo.epWorldSize = *epWorldSizePtr;
     tilingData->commonTilingInfo.isGmmWeightTrans = *transGmmWeightPtr;
     tilingData->commonTilingInfo.isMmWeightTrans = *transMmWeightPtr;
@@ -761,8 +750,6 @@ static ge::graphStatus ComputeBaseMNK(GroupedMatMulAlltoAllvTilingData* tilingDa
     if (baseM_ > maxM) {
         baseM_ = SixteenAlign(maxM, true);
     }
-    OP_TILING_CHECK(baseM_ == 0, OP_LOGE(C_INNER_DEBUG, "baseM_ should not be 0."), return ge::GRAPH_FAILED);
-
     return ge::GRAPH_SUCCESS;
 }
 

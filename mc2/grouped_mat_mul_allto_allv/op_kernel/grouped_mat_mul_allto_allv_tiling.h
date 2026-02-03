@@ -42,6 +42,7 @@ struct GmmAlltoAllvCommonTilingInfo {
     bool isMmWeightTrans;
     bool isOptionalMatmul;
     bool isOptionalSendRecvCountTensors;
+    bool isNeedGmm;
 };
 
 class GroupedMatMulAlltoAllvTilingData
