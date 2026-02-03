@@ -12,7 +12,7 @@
 add_op_to_compiled_list()
 
 if (BUILD_OPEN_PROJECT)
-    target_sources(op_host_aclnnExc PRIVATE
+    target_sources(op_host_aclnn PRIVATE
         causal_conv1d_def.cpp
     )
 endif()
@@ -25,5 +25,5 @@ if (BUILD_OPS_RTY_KERNEL) # 回黄kernel
                     -Werror
     )
 else()
-    add_modules_sources(OPTYPE causal_conv1d ACLNNTYPE aclnn_exclude)
+    add_modules_sources(OPTYPE causal_conv1d ACLNNTYPE aclnn)
 endif()
