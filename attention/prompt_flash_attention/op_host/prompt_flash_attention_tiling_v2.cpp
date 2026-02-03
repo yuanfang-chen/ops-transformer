@@ -2038,8 +2038,8 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when TND/NTD is used, system prefix is not supported!"),
         return false);
-    OP_CHECK_IF(enableTensorList && (queryShapeInfo.s > 1), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "when tensorlist is used and q_s is greater than 1, system prefix is not supported!"),
+    OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "when tensorlist is used, system prefix is not supported!"),
         return false);
     OP_CHECK_IF(enableIFAMLA || enablePFARope, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when system prefix is used, rope is not supported!"),
