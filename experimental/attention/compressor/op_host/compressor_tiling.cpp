@@ -211,7 +211,6 @@ ge::graphStatus CompressorTiling::GetNpuInfo()
     socVersion_ = ascendcPlatform.GetSocVersion();
 
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
-    socVersion_ = ascendcPlatform.GetSocVersion();
 
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size_);
@@ -842,14 +841,14 @@ ge::graphStatus CompressorTiling::CheckRequiredInOutExistence() const
     OP_CHECK_IF(context_->cmpKv.desc == nullptr, OP_LOGE(context_->opName, "tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
     if (context_->layout == LayoutType::LAYOUT_TH){
         OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
-        OP_LOGE(context_->opName, "In TH situation, tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->opName, "In TH layout, tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->cuSeqlens.shape == nullptr, 
-        OP_LOGE(context_->opName, "In TH situation, tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->opName, "In TH layout, tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(context_->cuSeqlens.desc != nullptr, 
-        OP_LOGE(context_->opName, "In BSH situation, tensor cuSeqlens must be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->opName, "In BSH layout, tensor cuSeqlens must be nullptr"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->cuSeqlens.shape != nullptr, 
-        OP_LOGE(context_->opName, "In TH situation, tensor cuSeqlens must be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->opName, "In TH layout, tensor cuSeqlens must be nullptr"), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }

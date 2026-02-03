@@ -81,7 +81,7 @@ custom.npu_compressor(x, wkv, wgate, kv_state, score_state, ape, norm_weight, ro
 
 -   **score\_blcok\_table**（`Tensor`）：可选参数，表示score\_state存储使用的block映射表。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,Smax/block_size], Smax为每个Batch中最大的Sequence Length。当其中元素的值为0时，表示当前位置无需进行更新score_state操作。
 
--   **cu\_seqlens**（`Tensor`）：可选参数，表示不同Batch上的有效token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B+1,]。当x的shape为[B,S,H]时，参数无效。当x的shape为[T,H]时，该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。
+-   **cu\_seqlens**（`Tensor`）：可选参数，不支持非连续，数据格式支持ND，数据类型支持`int32`。当x的shape为[B,S,H]时，该参数必须为空。当x的shape为[T,H]时，该参数必须传入，shape为[B+1,]，该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值，且第一位必须为0。
 
 -   **seqused**（`Tensor`）：可选参数，表示不同Batch中实际参与压缩的token数。不支持非连续，数据格式支持ND，数据类型支持`int32`。支持输入shape[B,]。如果不指定为None时，表示和每个Batch上的Sequence Length长度相同。该入参中每个Batch的有效token数要求小于等于对应Sequence Length长度。当x的shape为[B,S,H]时，要求seqused[n] <= S，且不小于0；当x的shape为[T,H]时，要求seqused[n] <= cu\_seqlens[n+1] - cu\_seqlens[n]，且不小于0。
 
