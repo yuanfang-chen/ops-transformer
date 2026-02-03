@@ -55,6 +55,7 @@ public:
         commOp.TempLaunch();
         // for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
         //     commOp.Wait(expertIdx);
+            // SyncAll<false>();
         //     computeOp.Process(expertIdx);
         // }
         this->End();

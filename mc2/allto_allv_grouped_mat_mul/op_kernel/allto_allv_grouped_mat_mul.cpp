@@ -15,7 +15,7 @@
 #include "basic_api/kernel_basic_intf.h"
 #include "allto_allv_grouped_mat_mul_coarse_grained.h"
 #include "allto_allv_grouped_mat_mul_tiling_key.h"
-#include "mc2_templates/mc2_templates.h"
+#include "mc2_templates/mc2_templates_temp.h"
 
 using namespace AscendC;
 using namespace MC2KernelTemplate;

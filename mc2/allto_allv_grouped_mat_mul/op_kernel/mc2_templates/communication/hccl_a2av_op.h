@@ -33,6 +33,8 @@ public:
         e_ = taskTilingInfo_->e;
         H1_ = taskTilingInfo_->H1;
         N1_ = taskTilingInfo_->N1;
+        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hifloat8_t *)sendBuffer_);
+        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hifloat8_t *)recvBuffer_);
     }
 
     // TODO 临时调试方法，为保证通路正常，后续改用Launch
@@ -86,8 +88,10 @@ public:
             }
             AscendC::printf("[ERROR] LBH: sendBuffer_ = %p\n", sendBuffer_);
             AscendC::printf("[ERROR] LBH: recvBuffer_ = %p\n", recvBuffer_);
+            AscendC::printf("[ERROR] LBH: sendGlobalBuffer_.GetPhyAddr() = %ld\n", sendGlobalBuffer_.GetPhyAddr());
+            AscendC::printf("[ERROR] LBH: recvGlobalBuffer_.GetPhyAddr() = %ld\n", recvGlobalBuffer_.GetPhyAddr());
             alltoAllvHandleId_[expertIdx] =
-                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendBuffer_, alltoAllvSendCnt, alltoAllvSendOffset,
+                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset,
                 hcclDataType_, (__gm__ uint8_t *)recvBuffer_, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
         }
     }
@@ -188,7 +192,6 @@ public:
             }
         }
         hccl_.Wait(alltoAllvHandleId_[expertIdx]);
-        SyncAll<false>();
     }
 
     __aicore__ inline void End()
@@ -213,6 +216,8 @@ private:
     uint64_t H1_ = 0UL;
     uint64_t N1_ = 0UL;
 
+    GlobalTensor<hifloat8_t> sendGlobalBuffer_;
+    GlobalTensor<hifloat8_t> recvGlobalBuffer_;
     GM_ADDR sendBuffer_;
     GM_ADDR recvBuffer_;
 
