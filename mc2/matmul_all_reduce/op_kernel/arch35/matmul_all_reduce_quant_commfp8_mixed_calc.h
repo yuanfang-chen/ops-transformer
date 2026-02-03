@@ -120,7 +120,9 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTiling));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTilingCommQuant));
     tilingData_ = tilingData;
     rankNum_ = tilingData_->param.rankDim;
     tPipe_ = tPipe;
@@ -309,10 +311,13 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
     uint32_t quantNandSLen = tileN * sizeof(XType) + oneLineSCnt * sizeof(float);
     uint64_t all2allOutOffset = padM * quantNandSLen;
     uint64_t allGatherInOffset = tileMPerRank * quantNandSLen;
+    AscendC::PRINTF("Before Wait\n");
     if (notifyFlag_) {
         hccl_.Wait(all2allHandleId_[all2allWaitIdx_]);
     }
+    AscendC::PRINTF("After Wait\n");
     SyncAll();
+    AscendC::PRINTF("Before mixOp\n");
     mixedOp.Init(all2allOutGM_, allGatherInGM_, tileMPerRank, tileN, oneLineSCnt, coreNum_, maxProcRowsMixed_, tPipe_);
     mixedOp.Process(tileN, tileMPerRank, rankNum_, quantNandSLen);
     SyncAll();
