@@ -607,7 +607,8 @@ static aclnnStatus CheckOptionalTensorList(const gmm::GroupedMatmulParams &gmmPa
                "with groupList length[%lu].", tensorType.c_str(), batchSize, numTotal);
     // Check tensor’s Ndim must match weight’s Ndim.
     int64_t weightNDimValue = w0Shape.GetDim(weightNDimIdx);
-    int64_t tensorNDimValue = tensor0Shape.GetDim(tensorDimNum - 1);
+    int64_t tensorNDimIdx = tensorDimNum == 4 ? tensorDimNum - 2 : tensorDimNum - 1;
+    int64_t tensorNDimValue = tensor0Shape.GetDim(tensorNDimIdx);
     CHECK_COND(tensorNDimValue == weightNDimValue, ACLNN_ERR_PARAM_INVALID,
                "NDim[%ld] of %s should be equal with NDim[%ld] of weight.",
                tensorNDimValue, tensorType.c_str(), weightNDimValue);
@@ -624,7 +625,8 @@ static aclnnStatus CheckOptionalTensorList(const gmm::GroupedMatmulParams &gmmPa
                  wShape.GetDim(0)) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckDimNumAndPerGroupNum failed.");
       // Check the NDIm of each group’s tensor must match the NDim of the same group’s weight.
       int64_t weightNDimValue = wShape.GetDim(weightNDimIdx);
-      int64_t tensorNDimValue = tensorShape.GetDim(tensorDimNum - 1);
+      int64_t tensorNDimIdx = tensorDimNum == 4 ? tensorDimNum - 2 : tensorDimNum - 1;
+      int64_t tensorNDimValue = tensorShape.GetDim(tensorNDimIdx);
       CHECK_COND(tensorNDimValue == weightNDimValue, ACLNN_ERR_PARAM_INVALID,
                  "NDim[%ld] of %s[%lu] should be equal with NDim[%ld] of weight[%lu].",
                  tensorNDimValue, tensorType.c_str(), i, weightNDimValue, i);
@@ -1973,12 +1975,18 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
         params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());}
     }
     // 伪量化场景antiquantscale为3维时，需要手动转置为正确shape
-    if ((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 &&
+    if (((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 ||
+         (*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 4) &&
         op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
         params.apiVersion == gmm::GMMApiVersion::WeightNz) {
-      std::vector<aclTensor *> antiSTensorList;
-      gmm::CreateContiguousTensorList(params.antiquantScaleOptional, antiSTensorList, executorPtr);
-      params.antiquantScaleOptional = executorPtr->AllocTensorList(antiSTensorList.data(), antiSTensorList.size());}
+        std::vector<aclTensor *> antiSTensorList;
+        if ((*params.antiquantScaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) { // Mx场景处理
+            gmm::CreateContiguousTensorListForMXTypeMScale(params.antiquantScaleOptional, antiSTensorList, executorPtr);
+        } else {
+            gmm::CreateContiguousTensorList(params.antiquantScaleOptional, antiSTensorList, executorPtr);
+        }
+        params.antiquantScaleOptional = executorPtr->AllocTensorList(antiSTensorList.data(), antiSTensorList.size());
+    }
   }
 }
 
