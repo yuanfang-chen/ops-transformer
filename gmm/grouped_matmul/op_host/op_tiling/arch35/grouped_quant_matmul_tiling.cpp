@@ -578,6 +578,7 @@ bool GroupedQbmmTiling::AnalyzeInputs()
                                          "The dimension of scale should be positive integer, actual is %zu",
                                          scaleDimNum),
                return false);
+    printf(" !!!!!debug now !!!!!!!!!!!!!!!!!");
     auto xScaleStorageShape = context_->GetOptionalInputShape(PER_TOKEN_SCALE_INDEX);
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
                return false);
