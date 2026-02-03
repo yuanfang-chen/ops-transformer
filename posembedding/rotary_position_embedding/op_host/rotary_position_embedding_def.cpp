@@ -98,6 +98,12 @@ private:
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
+        config_kirin.Input("rotate")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT})
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
         config_kirin.Output("y")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT})
