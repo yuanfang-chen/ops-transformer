@@ -384,7 +384,7 @@ __aicore__ inline void Log::LogInfo(const uint32_t line, const __gm__ char *msg,
         return;
     }
     GlobalTensor<T> tempTensor;
-    tempTensor.SetGlobalBuffer(const_cast<__gm__ PrimType*>(tensor.GetPhyAddr()),elemNum);
+    tempTensor.SetGlobalBuffer(const_cast<__gm__ T*>(tensor.GetPhyAddr()),elemNum);
     PrintValue(tempTensor, shape);
 }
 //用法，在类中定义logger，然后在需要打印的地方调用LOG_INFO(...)
