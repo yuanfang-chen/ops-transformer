@@ -1388,6 +1388,8 @@ static ge::graphStatus TilingProcess4SplitFuse(gert::TilingContext *context)
     OP_CHECK_IF(platformInfoPtr == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "PlatformInfoPtr is null"),
         return ge::GRAPH_FAILED);
+    constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
     fai_tiling.SetCoreNum(ascendcPlatform.GetCoreNumAic());
     auto ret = fai_tiling.DoTiling(faiTilingData);
