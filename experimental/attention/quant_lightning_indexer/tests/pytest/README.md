@@ -18,7 +18,7 @@
 1. 确认torch_npu为最新版本
 2. source CANN包
 
-#### Custom包调用
+#### custom包调用
 支持custom包调用
 
 ## 文件结构
