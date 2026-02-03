@@ -90,9 +90,9 @@ public:
             AscendC::printf("[ERROR] LBH: recvBuffer_ = %p\n", recvBuffer_);
             AscendC::printf("[ERROR] LBH: sendGlobalBuffer_.GetPhyAddr() = %ld\n", sendGlobalBuffer_.GetPhyAddr());
             AscendC::printf("[ERROR] LBH: recvGlobalBuffer_.GetPhyAddr() = %ld\n", recvGlobalBuffer_.GetPhyAddr());
-            alltoAllvHandleId_[expertIdx] =
-                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset,
-                hcclDataType_, (__gm__ uint8_t *)recvBuffer_, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
+            // alltoAllvHandleId_[expertIdx] =
+            //     hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset,
+            //     hcclDataType_, (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
         }
     }
 

@@ -185,11 +185,11 @@ ge::graphStatus AlltoAllvGmmChecker::CheckShapeSize(const gert::TilingContext *c
 ge::graphStatus AlltoAllvGmmChecker::CheckAttrsShapeSize(const gert::TilingContext *context) const
 {
     uint64_t E_ep = tilingData->taskTilingInfo.e;
+    uint64_t epWorldSize = tilingData->taskTilingInfo.epWorldSize;
     if (E_ep <= NUM_ZERO || E_ep > NUM_THIRTYTWO) {
         OP_LOGE(A_INNER_DEBUG, "E_ep should be in (0, 32], but got %lu!", E_ep);
         return ge::GRAPH_FAILED;
     }
-    uint64_t epWorldSize = tilingData->taskTilingInfo.epWorldSize;
     auto platformInfo = context->GetPlatformInfo();
     platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
     std::vector<int64_t> epWorldSizeOptional;
@@ -254,23 +254,6 @@ ge::graphStatus AlltoAllvGmmChecker::CheckAttrsShapeRelation(const gert::TilingC
     uint64_t sendCountsSize = sendCountsPtr->GetSize();
     uint64_t recvCountsSize = recvCountsPtr->GetSize();
 
-    errno_t ret = memcpy_s(&(tilingData->taskTilingInfo.sendCnt),
-        MAX_EXPERT_NUM * sizeof(int64_t),
-        sendCountsPtr->GetData(),
-        sendCountsPtr->GetSize() * sizeof(int64_t));
-    if (ret != EOK) {
-        OP_LOGE(A_INNER_DEBUG, "memcpy_s failed, ret = %d.", ret);
-        return ge::GRAPH_FAILED;
-    }
-    ret = memcpy_s(&(tilingData->taskTilingInfo.recvCnt),
-        MAX_EXPERT_NUM * sizeof(int64_t),
-        recvCountsPtr->GetData(),
-        recvCountsPtr->GetSize() * sizeof(int64_t));
-    if (ret != EOK) {
-        OP_LOGE(A_INNER_DEBUG, "memcpy_s failed, ret = %d.", ret);
-        return ge::GRAPH_FAILED;
-    }
-
     const uint64_t *sendCounts = static_cast<const uint64_t *>(sendCountsPtr->GetData());
     uint64_t sendCountsSum = std::accumulate(sendCounts, sendCounts + sendCountsSize, 0ULL);
     OP_TILING_CHECK(sendCountsSum != tilingData->taskTilingInfo.BSK,
@@ -289,6 +272,30 @@ ge::graphStatus AlltoAllvGmmChecker::CheckAttrsShapeRelation(const gert::TilingC
             tilingData->taskTilingInfo.A),
         return ge::GRAPH_FAILED);
     OP_LOGE(A_INNER_DEBUG, "CheckAttrsShapeRelation end.");
+
+    uint64_t E_ep = tilingData->taskTilingInfo.e;
+    uint64_t epWorldSize = tilingData->taskTilingInfo.epWorldSize;
+    for (uint32_t i = 0; i < E_ep * epWorldSize; i++) {
+        tilingData->taskTilingInfo.sendCnt[i] = static_cast<int16_t>(sendCounts[i]);
+        tilingData->taskTilingInfo.recvCnt[i] = static_cast<int16_t>(recvCounts[i]);
+    }
+    // errno_t ret = memcpy_s(&(tilingData->taskTilingInfo.sendCnt),
+    //     MAX_EXPERT_NUM * sizeof(int16_t),
+    //     sendCountsPtr->GetData(),
+    //     sendCountsPtr->GetSize() * sizeof(int16_t));
+    // if (ret != EOK) {
+    //     OP_LOGE(A_INNER_DEBUG, "memcpy_s failed, ret = %d.", ret);
+    //     return ge::GRAPH_FAILED;
+    // }
+    // ret = memcpy_s(&(tilingData->taskTilingInfo.recvCnt),
+    //     MAX_EXPERT_NUM * sizeof(int16_t),
+    //     recvCountsPtr->GetData(),
+    //     recvCountsPtr->GetSize() * sizeof(int16_t));
+    // if (ret != EOK) {
+    //     OP_LOGE(A_INNER_DEBUG, "memcpy_s failed, ret = %d.", ret);
+    //     return ge::GRAPH_FAILED;
+    // }
+
     return ge::GRAPH_SUCCESS;
 }
 
