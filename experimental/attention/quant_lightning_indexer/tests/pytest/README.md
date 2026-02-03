@@ -1,4 +1,4 @@
-# QLI算子测试框架
+# quant_lightning_indexer算子测试框架
 ## 功能说明
 基于pytest测试框架，实现QLI算子的功能验证：
 - **CPU侧**：复现算子功能用以生成golden数据
@@ -23,6 +23,8 @@
 
 ## 文件结构
 #### pytest文件结构说明
+单用例测试：
+
 - test_quant_lightning_indexer_single.py       # pytest测试单个用例运行主程序
 - test_quant_lightning_indexer_batch.py        # 用例批量测试主程序并生成excel文件保存结果 
 - test_quant_lightning_indexer_paramset.py     # 单用例入参配置
@@ -31,8 +33,7 @@
 - pytest.ini                                   # 创建CI单算子的测试标记
 - test_run_sh                                  # 用例批量测试执行脚本
 
-#### 批量用例测试
-./batch --根据excel表格批量生成用例pt文件并批量精度对比
+批量测试：
 - quant_lightning_indexer_pt_loadprocess.py    # 读取pt文件并调用算子获取npu输出
 - quant_lightning_indexer_pt_save.py           # 读取excel表格批量生成用例pt文件
 - replace_path.py                              # test_quant_lightning_indexer_batch.py占位符替换
