@@ -214,6 +214,9 @@ void SparseLightningIndexerGradKLLossTilingBaseRegbase::GetActualSeqLenData(int6
 bool SparseLightningIndexerGradKLLossTilingBaseRegbase::AnalyzeDimLayout(const gert::Shape &queryShape, const gert::Shape &keyShape, const gert::Shape &queryIndexShape, const gert::Shape &topKShape,
                                                                     size_t layoutLen, const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShape)
 {
+    if (strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSND") != 0) {
+        return false;
+    }
     // dRopeSize的确定，有queryRopeShape 和 keyRopeShape
     if (layoutLen == 3UL) {
         if (inputLayout[0] == 'T' && inputLayout[1] == 'N' && inputLayout[2] == 'D') {
@@ -575,7 +578,7 @@ bool SparseLightningIndexerGradKLLossTilingBaseRegbase::AnalyzeLayout()
         queryIndexShape.GetDimNum() != layoutLen || keyIndexShape.GetDimNum() != layoutLen, OP_LOGE(opName, "Invalid layout[%s].", inputLayout), return false);
     OP_CHECK_IF(!CrossShapeVerify(queryRopeShape, keyRopeShape), OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed"), return false);    
     OP_CHECK_IF(!AnalyzeDimLayout(queryShape, keyShape, queryIndexShape, topKShape, layoutLen, queryRopeShape, keyRopeShape),
-               OP_LOGE(opName, "Layout: %s, Run Failed", inputLayout), return false);
+               OP_LOGE(context_, "Layout only support TND or BSND, now layout is %s.", inputLayout), return false);
     OP_CHECK_IF(gSizeQuery == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "gSizeQuery is zero"), return false);
     OP_CHECK_IF(n2Size == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "n2Size is zero"), return false);
     OP_CHECK_IF(dSizeQuery <= 0,
