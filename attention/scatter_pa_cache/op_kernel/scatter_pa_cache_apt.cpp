@@ -49,6 +49,7 @@ extern "C" __global__ __aicore__ void scatter_pa_cache(GM_ADDR key,
                                                        GM_ADDR key_cache_out,
                                                        GM_ADDR workspace, GM_ADDR tiling)
 {
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&ENTER&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     AscendC::TPipe pipe;
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     GET_TILING_DATA(tilingData, tiling);

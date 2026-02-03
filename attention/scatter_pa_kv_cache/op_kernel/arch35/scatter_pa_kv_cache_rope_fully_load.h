@@ -21,6 +21,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_operator.h"
 #include "platform/platform_info_def.h"
+#include <stdio.h>
 
 namespace ScatterPaKvCache {
 using namespace AscendC;
@@ -109,6 +110,10 @@ __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::
     GM_ADDR compress_lens, GM_ADDR compress_seq_offset, GM_ADDR seq_lens, GM_ADDR key_cache_out,
     GM_ADDR value_cache_out)
 {
+    FILE* fp = fopen("/home/l00614395/aclnn_fuzz_Ihs/Ihs/aclnn_fuzz/wjf_log", "a");
+    if(fp == NULL) {return}
+    fprintf(fp, "&&&&&&&&&&&&&&&&&&&&&&&&&&&FULLY_LOAD_INIT&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&FULLY_LOAD_INIT&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     blockIdx_ = GetBlockIdx();
     seqLen_ = tilingData_->keyStride0 / tilingData_->keyStride1;
     numHead_ = tilingData_->keyStride1 / tilingData_->keyStride2;
@@ -131,6 +136,12 @@ __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::
     pipe_->InitBuffer(castBuf_, RoundUp(headSize_) * sizeof(float));
     pipe_->InitBuffer(inputKeyQueue_, 1, (seqLen_ * RoundUp(tilingData_->kHeadSize)) * sizeof(T));
 
+    fprintf(fp, "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
+    fprintf(fp, "blockFactor: %ld \n", tilingData_->blockFactor);
+    fprintf(fp, "IndexDtype: %ld \n", sizeof(IndexDtype));
+    fprintf(fp, "headSize_: %ld \n", headSize_);
+    fprintf(fp, "seqLen_: %ld, kHeadSize: %ld, T: %ld", seqLen_, tilingData_->kHeadSize, sizeof(T));
+    fprintf(fp, "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     if constexpr (InOutMode == DUAL_IN_OUT) {
         inputValueGm_.SetGlobalBuffer((__gm__ T *)(value));
         outputValueCacheGm_.SetGlobalBuffer((__gm__ T *)(value_cache_out));
@@ -460,6 +471,7 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyOutValue(int64_t it
 template <typename T, typename IndexDtype, int64_t InOutMode>
 __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::Process()
 {
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&FULLY_LOAD_PROCESS&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     if (blockIdx_ >= tilingData_->usedCoreNum) {
         return;
     }
