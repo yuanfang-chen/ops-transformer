@@ -98,6 +98,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
     GM_ADDR compress_lens, GM_ADDR compress_seq_offset, GM_ADDR seq_lens, GM_ADDR key_cache_out,
     GM_ADDR value_cache_out)
 {
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&NOT_FULLY_LOAD&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     blockIdx_ = GetBlockIdx();
     seqLen_ = tilingData_->keyStride0 / tilingData_->keyStride1;
     numHead_ = tilingData_->keyStride1 / tilingData_->keyStride2;

@@ -109,6 +109,7 @@ __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::
     GM_ADDR compress_lens, GM_ADDR compress_seq_offset, GM_ADDR seq_lens, GM_ADDR key_cache_out,
     GM_ADDR value_cache_out)
 {
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&FULLY_LOAD_INIT&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     blockIdx_ = GetBlockIdx();
     seqLen_ = tilingData_->keyStride0 / tilingData_->keyStride1;
     numHead_ = tilingData_->keyStride1 / tilingData_->keyStride2;
@@ -131,6 +132,12 @@ __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::
     pipe_->InitBuffer(castBuf_, RoundUp(headSize_) * sizeof(float));
     pipe_->InitBuffer(inputKeyQueue_, 1, (seqLen_ * RoundUp(tilingData_->kHeadSize)) * sizeof(T));
 
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
+    printf("blockFactor: %ld \n", tilingData_->blockFactor);
+    printf("IndexDtype: %ld \n", sizeof(IndexDtype));
+    printf("headSize_: %ld \n", headSize_);
+    printf("seqLen_: %ld, kHeadSize: %ld, T: %ld", seqLen_, tilingData_->kHeadSize, sizeof(T));
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     if constexpr (InOutMode == DUAL_IN_OUT) {
         inputValueGm_.SetGlobalBuffer((__gm__ T *)(value));
         outputValueCacheGm_.SetGlobalBuffer((__gm__ T *)(value_cache_out));
@@ -460,6 +467,7 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyOutValue(int64_t it
 template <typename T, typename IndexDtype, int64_t InOutMode>
 __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::Process()
 {
+    printf("&&&&&&&&&&&&&&&&&&&&&&&&&&&FULLY_LOAD_PROCESS&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
     if (blockIdx_ >= tilingData_->usedCoreNum) {
         return;
     }
