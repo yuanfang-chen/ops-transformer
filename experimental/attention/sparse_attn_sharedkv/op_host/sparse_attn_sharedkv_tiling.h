@@ -81,6 +81,8 @@ constexpr uint32_t CMP_SPARSE_INDICES_INDEX = 4;
 constexpr uint32_t ORI_BLOCK_TABLE_INDEX = 5;
 constexpr uint32_t CMP_BLOCK_TABLE_INDEX = 6;
 constexpr uint32_t CU_SEQLENS_Q_INDEX = 7;
+constexpr uint32_t CU_SEQLENS_ORI_KV_INDEX = 8;
+constexpr uint32_t CU_SEQLENS_CMP_KV_INDEX = 9;
 constexpr uint32_t SEQUSED_Q_INDEX = 10;
 constexpr uint32_t SEQUSED_KV_INDEX = 11;
 constexpr uint32_t SINKS_INDEX = 12;
@@ -182,6 +184,8 @@ struct SASParaInfo {
     SASTilingOptionalParaInfo oriBlockTable = {nullptr, nullptr};
     SASTilingOptionalParaInfo cmpBlockTable = {nullptr, nullptr};
     SASTilingOptionalParaInfo cuSeqLensQ = {nullptr, nullptr};
+    SASTilingOptionalParaInfo cuSeqLensOriKv = {nullptr, nullptr};
+    SASTilingOptionalParaInfo cuSeqLensCmpKv = {nullptr, nullptr};
     SASTilingOptionalParaInfo seqUsedQ = {nullptr, nullptr};
     SASTilingOptionalParaInfo sequsedKv = {nullptr, nullptr};
     SASTilingOptionalParaInfo sinks = {nullptr, nullptr};
@@ -336,14 +340,12 @@ private:
     ge::graphStatus CheckActualSeqLens() const;
     ge::graphStatus CheckBlockTable() const;
 
-    
     gert::Shape queryShapeCmp_{};
     gert::Shape oriKvShapeCmp_{};
     gert::Shape cmpKvShapeCmp_{};
     gert::Shape oriKvSparseIndicesCmp_{};
     gert::Shape cmpKvSparseIndicesCmp_{};
     gert::Shape attenOutShapeCmp_{};
-
 
 private:
     const char *opName_;
@@ -408,6 +410,7 @@ public:
     ge::graphStatus CheckRequiredInOutExistence() const;
     ge::graphStatus CheckRequiredAttrExistence() const;
     ge::graphStatus CheckRequiredParaExistence() const;
+    ge::graphStatus CheckUnrequiredParaExistence() const;
 
     ge::graphStatus GetActualSeqLenSize(uint32_t &size, const gert::Tensor *tensor,
         SASLayout &layout, const std::string &name) const;
