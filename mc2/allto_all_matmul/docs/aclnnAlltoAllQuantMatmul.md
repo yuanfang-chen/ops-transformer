@@ -18,31 +18,31 @@
 
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - **动态量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        x1_{quant}, x1_{scale} = Quant(permutedOut) \\
-        output_{quant} = x1_{quant} @ x2 \\
-        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-        output = output + bias
-        $$
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      x1_{quant}, x1_{scale} = Quant(permutedOut) \\
+      output_{quant} = x1_{quant} @ x2 \\
+      output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+      output = output + bias
+      $$
     - **全量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        output_{quant} = x1 @ x2 \\
-        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-        output = output + bias
-        $$
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      output_{quant} = x1 @ x2 \\
+      output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+      output = output + bias
+      $$
 
   - <term>Ascend 950PR/Ascend 950DT</term>：
     - **动态量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
-        output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
-        $$
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
+      output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
+      $$
 
 ## 函数原型
 
@@ -126,7 +126,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4</td>
     <td>ND</td>
     <td>2维，shape为(H*rankSize, N)</td>
-    <td>x</td>
+    <td>√</td>
     </tr>
     <tr>
     <td>biasOptional</td>
@@ -420,9 +420,15 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡。
   - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡。
 * 参数说明中shape使用的变量BS必须整除rankSize。
+* BS和N的值不得超过2147483647（INT32_MAX）。
+* 不支持空tensor。
+* <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>不支持x2为非连续tensor。
+* 传入的x1、x2、x2Scale和output不为空指针。
 * 该算子的biasOptional对于<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>当前不支持传入nullptr。
-* 该算子输入输出的数据类型和数据维度根据不同设备型号有不同的限制：
+* 该算子输入输出的数据类型、数据维度和量化模式根据不同设备型号有不同的限制：
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    * 量化模式：
+      * 目前支持左矩阵perToken量化和perToken动态量化，x1QuantMode=3或7；右矩阵perChannel量化，x2QuantMode=2。
     * 类型约束：
       * x1、alltoAllOutOptional的数据类型必须一致。
       * x1QuantDtype仅支持配置2（表示aclDataType.ACL_INT8）。
@@ -444,6 +450,8 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
       * A16W8时，rankSize * H必须整除32；rankSize * H取值范围：[1, 6144]。
       * A4W4时，H与N必须为偶数；rankSize * H取值范围：[1, 35000]。
   - <term>Ascend 950PR/Ascend 950DT</term>：
+    * 量化模式：
+      * 目前仅支持左矩阵perToken动态量化，x1QuantMode=7；右矩阵perChannel量化，x2QuantMode=2。
     * 类型约束：
       * x1、alltoAllOutOptional的数据类型必须一致。
       * x1QuantDtype支持配置35（表示aclDataType.ACL_FLOAT8_E5M2）和36（表示aclDataType.ACL_FLOAT8_E4M3FN）。
@@ -464,9 +472,6 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
         | BFLOAT16 | FLOAT8_E5M2 | FLOAT32 | FLOAT32 |
     * 维度约束：
       * rankSize * H范围仅支持[1, 65535]。
-* BS和N的值不得超过2147483647（INT32_MAX）。
-* 不支持空tensor。
-* 传入的x1、x2、x2Scale和output不为空指针。
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 
