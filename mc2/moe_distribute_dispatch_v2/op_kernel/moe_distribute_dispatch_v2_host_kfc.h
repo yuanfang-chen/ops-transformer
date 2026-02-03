@@ -1122,7 +1122,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Send
     DispatchAndCountTokens(0, startTokenId, false);
     DispatchAndCountTokens(startTokenId, endTokenId, true);
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
-
+    LOG_INFO("end dispatch");
     if (endTokenId == totalSendCnt) {
         GlobalTensor<uint32_t> dstStateGMTensor;
         TBuf<> tempbuf;
