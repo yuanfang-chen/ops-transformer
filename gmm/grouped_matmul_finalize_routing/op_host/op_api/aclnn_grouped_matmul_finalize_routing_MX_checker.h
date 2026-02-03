@@ -64,6 +64,8 @@ public:
         if (CheckType(gmmParams_.x1->GetDataType(), MXFP4_IN_TYPE_SUPPORT_LIST)) {
             CHECK_RET(CheckInputOutShapeForMXFP4(), ACLNN_ERR_PARAM_INVALID);
         }
+        // 6. 检查数据形状是否支持
+        CHECK_RET(CheckFormat(), ACLNN_ERR_PARAM_INVALID);
         return ACLNN_SUCCESS;
     }
 
@@ -131,14 +133,13 @@ public:
             return false;
         }
         int64_t m = gmmParams_.x1->GetViewShape().GetDim(ZERO_DIM); // 从x的第0维获取m
-        int64_t k = gmmParams_.x1->GetViewShape().GetDim(ONE_DIM);  // 从x的第1维获取k 
+        int64_t k = gmmParams_.x1->GetViewShape().GetDim(ONE_DIM);  // 从x的第1维获取k
         // 转置情况下从weight的第1维获取n，非转置情况下从weight的第2维获取n
         int64_t n = gmmParams_.transposeX2 ? (gmmParams_.x2)->GetViewShape().GetDim(ONE_DIM) :
                                              (gmmParams_.x2)->GetViewShape().GetDim(TWO_DIM);
         int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0);          // 从weight的第0维获取e
         int64_t bsdp = gmmParams_.shareInput->GetViewShape().GetDim(0); // 从share_input 第一维获取bsdp
         int64_t outputBS = gmmParams_.out->GetViewShape().GetDim(0);
-        
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape xScaleExpectShape = {m, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR};
@@ -263,6 +264,62 @@ public:
         } else {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant case with x dtype %s and weight dtype %s is not supported.",
                     op::ToString(xDtype).GetString(), op::ToString(weightDtype).GetString());
+            return false;
+        }
+        return true;
+    }
+
+    bool CheckFormat()
+    {
+        if (op::IsPrivateFormat(gmmParams_.x1->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of x should be ND, current format is %s.",
+                    op::ToString(gmmParams_.x1->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.x2->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of weight should be ND, current format is %s.",
+                    op::ToString(gmmParams_.x2->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.scale->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of scale should be ND, current format is %s.",
+                    op::ToString(gmmParams_.scale->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.pertokenScaleOptional->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "Format of pertokenScaleOptional should be ND, current format is %s.",
+                    op::ToString(gmmParams_.pertokenScaleOptional->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.groupList->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of groupList should be ND, current format is %s.",
+                    op::ToString(gmmParams_.groupList->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.logit->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of logit should be ND, current format is %s.",
+                    op::ToString(gmmParams_.logit->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.rowIndex->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of rowIndex should be ND, current format is %s.",
+                    op::ToString(gmmParams_.rowIndex->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.out->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of out should be ND, current format is %s.",
+                    op::ToString(gmmParams_.out->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (gmmParams_.bias != nullptr && op::IsPrivateFormat(gmmParams_.bias->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of bias should be ND, current format is %s.",
+                    op::ToString(gmmParams_.bias->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (gmmParams_.shareInput != nullptr && op::IsPrivateFormat(gmmParams_.shareInput->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of shareInput should be ND, current format is %s.",
+                    op::ToString(gmmParams_.shareInput->GetStorageFormat()).GetString());
             return false;
         }
         return true;
