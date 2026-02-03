@@ -236,7 +236,9 @@ __aicore__ inline void GroupedMatmulAlltoAllv<GMMATAV>::GmmProcessAlltoallv()
         mmWeightOffset[0] = i * axisH_ * axisN1_;
         tokenNum[0] = gmmTokennum[i];
         if ASCEND_IS_AIC {
-            gmmOp.Process(this->rankId_, axisH_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, i);
+            if (tilingData->GmmAlltoAllvCommonTilingInfo.isNeedGmm) {
+                gmmOp.Process(this->rankId_, axisH_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, i);
+            }
         }
         SyncAll<false>();
         if ASCEND_IS_AIV {
