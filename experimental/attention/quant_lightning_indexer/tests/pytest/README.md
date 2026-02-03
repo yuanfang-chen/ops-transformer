@@ -23,17 +23,18 @@
 
 ## 文件结构
 #### pytest文件结构说明
-单用例测试：
+- test_run_sh                                  # 执行脚本
 
-- test_quant_lightning_indexer_single.py       # pytest测试单个用例运行主程序
-- test_quant_lightning_indexer_batch.py        # 用例批量测试主程序并生成excel文件保存结果 
+单用例测试：
+- test_quant_lightning_indexer_single.py       # pytest测试单用例运行主程序 
 - test_quant_lightning_indexer_paramset.py     # 单用例入参配置
 - quant_lightning_indexer_golden.py            # cpu侧算子golden实现
 - result_compare_method.py                     # cpu golden与npu输出精度对比
-- pytest.ini                                   # 创建CI单算子的测试标记
-- test_run_sh                                  # 用例批量测试执行脚本
+- pytest.ini                                   # 创建测试标记
+
 
 批量测试：
+- test_quant_lightning_indexer_batch.py        # 用例批量测试主程序并生成excel文件保存结果
 - quant_lightning_indexer_pt_loadprocess.py    # 读取pt文件并调用算子获取npu输出
 - quant_lightning_indexer_pt_save.py           # 读取excel表格批量生成用例pt文件
 - replace_path.py                              # test_quant_lightning_indexer_batch.py占位符替换
