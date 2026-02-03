@@ -201,24 +201,6 @@ static aclnnStatus MakeContiguous(const aclTensor *&dout,
     return ACLNN_SUCCESS;
 }
 
-static aclnnStatus ValidateAdditionalParams(int64_t innerPrecise,
-                                            const aclTensor *attentionOut,
-                                            uint64_t *workspaceSize,
-                                            aclOpExecutor **executor)
-{
-    if (innerPrecise != 0 && innerPrecise != 1) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "innerPrecise must be 0 (float32 softmax) or 1 (fp16 softmax), got %ld.",
-                innerPrecise);
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-    
-    CHECK_RET(attentionOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    
-    return ACLNN_SUCCESS;
-}
-
 static string ConvertLayoutString(char *layoutStr)
 {
     return op::ToString(layoutStr).GetString();
@@ -285,8 +267,12 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
         return ACLNN_ERR_INNER_NULLPTR;
     }
 
-    auto viewCopyResult = l0op::ViewCopy(outputs[0], attentionOut, executorImpl);
-    CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    auto viewCopyResult0 = l0op::ViewCopy(outputs[0], dq, executorImpl);
+    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    auto viewCopyResult1 = l0op::ViewCopy(outputs[1], dk, executorImpl);
+    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    auto viewCopyResult2 = l0op::ViewCopy(outputs[2], dv, executorImpl);
+    CHECK_RET(viewCopyResult2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = executorImpl->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);

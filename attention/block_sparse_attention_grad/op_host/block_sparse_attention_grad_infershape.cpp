@@ -21,8 +21,8 @@ static constexpr uint32_t QUERY_INDEX = 1;
 static constexpr uint32_t KEY_INDEX = 2;
 static constexpr uint32_t VALUE_INDEX = 3;
 static constexpr uint32_t DQ_OUT_INDEX = 0;
-static constexpr uint32_t DK_LSE_INDEX = 1;
-static constexpr uint32_t DV_LSE_INDEX = 2;
+static constexpr uint32_t DK_OUT_INDEX = 1;
+static constexpr uint32_t DV_OUT_INDEX = 2;
 
 static constexpr uint32_t ATTR_Q_INPUT_LAYOUT_INDEX = 0;
 static constexpr uint32_t ATTR_KV_INPUT_LAYOUT_INDEX = 1;
