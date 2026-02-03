@@ -71,13 +71,6 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
     GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
 
     coreNum_ = aicCoreNum_;
-    if (layoutKv_ == "TND") {
- 	    if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
- 	             batchSize_ = static_cast<uint32_t>(seqUsedQ_->GetTensorShape()->GetDimSize(0));
- 	    } else {
- 	             batchSize_ = static_cast<uint32_t>(actSeqLenQ_->GetTensorShape()->GetDimSize(0) - 1U);
- 	    }
- 	}
     sparseMode_ = oriMaskMode_;
     preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
     nextToken_ = 0;
