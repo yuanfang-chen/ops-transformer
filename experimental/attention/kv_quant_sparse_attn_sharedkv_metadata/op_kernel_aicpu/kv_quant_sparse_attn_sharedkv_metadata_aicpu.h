@@ -69,30 +69,6 @@ T Clip(T value, T minValue, T maxValue)
     return value;
 }
 
-template <Tensor *seqUsedLen, Tensor *actSeqLen>
-void GetBatchSize(uint32_t &bSize)
-{
-    // 1. 如果 seqUsedLen 传了，使用seqUsedLen获取BatchSize
-    if (seqUsedLen != nullptr && seqUsedLen->GetData() != nullptr) {
-        if (seqUsedLen->GetTensorShape() == nullptr) {
-            bSize = seqUsedLen->GetTensorShape()->GetDimSize(0);
-            return;
-        }
-    }
-    // 2. seqUsedLen 没传，判断 Layout
-    if (layoutQuery_ == "TND") {
-        // 如果是 TND，尝试使用 actSeqLenQ_获取BatchSize
-        if (actSeqLen != nullptr && actSeqLen->GetData() != nullptr) {
-            if (actSeqLen->GetTensorShape() == nullptr) {
-                bSize = actSeqLen->GetTensorShape()->GetDimSize(0);
-                return;
-            }
-        }
-    }
-    // 3. 如果不是 TND，或者 actSeqLen 为空，使用batchSize_
-    bSize = batchSize_
-}
-
 template<typename T>
 inline bool IsWithinTolerance(T limit, T tolerance, T value)
 {
@@ -255,6 +231,8 @@ public:
 
 private:
     bool Prepare(CpuKernelContext &ctx);
+    void GetQueryBatchSize(uint32_t &bSize);
+    void GetKvBatchSize(uint32_t &bSize);
     bool CheckSingleParam();
     bool CheckExistence();
     bool CheckConsistency();

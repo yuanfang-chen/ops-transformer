@@ -145,11 +145,57 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
     return true;
 }
 
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(uint32_t &bSize)
+{
+    // 1. 如果seqUsedQ_ 传了，使用seqUsedQ_获取BatchSize
+    if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
+        if (seqUsedQ_->GetTensorShape() == nullptr) {
+            bSize = seqUsedQ_->GetTensorShape()->GetDimSize(0);
+            return;
+        }
+    }
+    // 2. seqUsedQ_ 没传，判断 Layout
+    if (layoutQuery_ == "TND") {
+        // 如果是 TND，尝试使用 actSeqLenQ_获取BatchSize
+        if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+            if (actSeqLenQ_->GetTensorShape() == nullptr) {
+                bSize = actSeqLenQ_->GetTensorShape()->GetDimSize(0);
+                return;
+            }
+        }
+    }
+    // 3. 如果不是 TND，或者 actSeqLenQ_ 为空，使用batchSize_
+    bSize = batchSize_
+}
+
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(uint32_t &bSize)
+{
+    // 1. 如果 seqUsedKv_ 传了，直接使用
+    if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
+        if (seqUsedKv_->GetTensorShape() == nullptr) {
+            bSize = seqUsedKv_->GetTensorShape()->GetDimSize(0);
+            return;
+        }
+    }
+    // 2. seqUsedKv_ 没传，判断 Layout
+    if (layoutKv_ == "TND") {
+        // 如果是 TND，尝试使用 actSeqLenOriKv_
+        if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
+            if (actSeqLenOriKv_->GetTensorShape() == nullptr) {
+                bSize = actSeqLenOriKv_->GetTensorShape()->GetDimSize(0);
+                return;
+            }
+        }
+    }
+    // 3. 如果不是 TND，或者 actSeqLenOriKv_ 为空，使用 kvSeqSize_
+    bSize = batchSize_;
+}
+
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
     uint32_t queryBatchSize = 0;
     uint32_t kvBatchSize = 0;
-    GetQueryBatchSize<seqUsedQ_, actSeqLenQ_>(queryBatchSize);
-    GetKvBatchSize<seqUsedKv_, actSeqLenOriKv_>(kvBatchSize);
+    GetQueryBatchSize(queryBatchSize);
+    GetKvBatchSize(kvBatchSize);
     if (queryBatchSize != kvBatchSize) {
         KERNEL_LOG_ERROR("query batch size is not consist with kv batch size");
         return false;
