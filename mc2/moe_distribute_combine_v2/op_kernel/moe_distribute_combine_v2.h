@@ -1402,11 +1402,11 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
         }
     }
     if (isPerformanceFlag_) {
-            SyncFunc<AscendC::HardEvent::V_MTE3>();
-            SetAtomicMax<int32_t>();
-            DataCopyExtParams performanceInfoCopyParams{1U, static_cast<uint32_t>(JUMP_WRITE * epWorldSizeOriginal_ * sizeof(int32_t)), 0U, 0U, 0U};
-            DataCopyPad(performanceInfoGM_, performanceInfoTensor_, performanceInfoCopyParams);
-            SetAtomicNone();
+        SyncFunc<AscendC::HardEvent::V_MTE3>();
+        SetAtomicMax<int32_t>();
+        DataCopyExtParams performanceInfoCopyParams{1U, static_cast<uint32_t>(JUMP_WRITE * epWorldSizeOriginal_ * sizeof(int32_t)), 0U, 0U, 0U};
+        DataCopyPad(performanceInfoGM_, performanceInfoTensor_, performanceInfoCopyParams);
+        SetAtomicNone();
     }
 }
 
