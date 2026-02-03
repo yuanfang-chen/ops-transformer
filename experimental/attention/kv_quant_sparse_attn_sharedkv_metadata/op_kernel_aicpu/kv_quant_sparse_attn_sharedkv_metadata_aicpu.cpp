@@ -146,21 +146,13 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
-    // 校验 actSeqLenOriKv_ 大小
-    if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
-        auto shape = actSeqLenOriKv_->GetTensorShape();
-        if (shape == nullptr || shape->GetDimSize(0) != static_cast<int64_t>(batchSize_) + 1) {
-            KERNEL_LOG_ERROR("actSeqLenOriKv is not consist with actSeqLenQ");
-            return false;
-        }
-    }
-    // 校验 seqUsedKv_ 大小
-    if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
-        auto shape = seqUsedKv_->GetTensorShape();
-        if (shape == nullptr || shape->GetDimSize(0) != static_cast<int64_t>(batchSize_)) {
-            KERNEL_LOG_ERROR("seqUsedKv is not consist with seqUsedQ");
-            return false;
-        }
+    uint32_t queryBatchSize = 0;
+    uint32_t kvBatchSize = 0;
+    GetQueryBatchSize<seqUsedQ_, actSeqLenQ_>(queryBatchSize);
+    GetKvBatchSize<seqUsedKv_, actSeqLenOriKv_>(kvBatchSize);
+    if (queryBatchSize != kvBatchSize) {
+        KERNEL_LOG_ERROR("query batch size is not consist with kv batch size");
+        return false;
     }
     return true;
 }
