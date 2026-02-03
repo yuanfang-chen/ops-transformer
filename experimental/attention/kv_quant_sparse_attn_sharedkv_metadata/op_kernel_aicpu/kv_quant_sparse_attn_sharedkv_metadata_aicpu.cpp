@@ -201,7 +201,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
-    return return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature());
+    return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature());
 }
 
 ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
