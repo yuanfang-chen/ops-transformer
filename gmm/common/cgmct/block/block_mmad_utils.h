@@ -130,7 +130,8 @@ template <class MatmulType>
 __aicore__ inline constexpr bool IsF4()
 {
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
-    return AscendC::IsSameTypeV<typename MatmulType::T, fp4x2_e2m1_t>;
+    return AscendC::IsSameTypeV<typename MatmulType::T, fp4x2_e2m1_t> ||
+           AscendC::IsSameTypeV<typename MatmulType::T, fp4x2_e1m2_t>;
 #else
     return false;
 #endif

@@ -231,7 +231,7 @@ public:
         uint64_t m = Get<MNK_M>(problemShape_);
         uint64_t n = Get<MNK_N>(problemShape_);
         uint64_t k = Get<MNK_K>(problemShape_);
-        if (AscendC::IsSameTypeV<AType, fp4x2_e2m1_t>) {
+        if (AscendC::IsSameTypeV<AType, fp4x2_e2m1_t> || AscendC::IsSameTypeV<AType, fp4x2_e1m2_t>) {
             Get<IDX_A_OFFSET>(baseOffset_) += (m * k) >> 1;
             Get<IDX_B_OFFSET>(baseOffset_) += (n * k) >> 1;
         } else {

@@ -221,7 +221,7 @@ public:
         uint64_t m = Get<M_VALUE>(problemShape_);
         uint64_t n = Get<N_VALUE>(problemShape_);
         uint64_t k = Get<K_VALUE>(problemShape_);
-        if (AscendC::IsSameTypeV<AType, fp4x2_e2m1_t>) {
+        if (AscendC::IsSameTypeV<AType, fp4x2_e2m1_t> || AscendC::IsSameTypeV<AType, fp4x2_e1m2_t>) {
             Get<IDX_A_OFFSET>(baseOffset_) += (m * k) >> 1;
             Get<IDX_B_OFFSET>(baseOffset_) += (n * k) >> 1;
         } else {
@@ -234,7 +234,7 @@ public:
         Get<IDX_X1SCALE_OFFSET>(baseOffset_) += m * scaleK;
         // scaleBAxisBaseOffset (g, n, ceil(k,64), 2) or (g, ceil(k,64), n, 2)
         Get<IDX_X2SCALE_OFFSET>(baseOffset_) += n * scaleK;
-        if (AscendC::IsSameTypeV<DataTypeOut, fp4x2_e2m1_t>) {
+        if (AscendC::IsSameTypeV<DataTypeOut, fp4x2_e2m1_t> || AscendC::IsSameTypeV<DataTypeOut, fp4x2_e1m2_t>) {
             Get<IDX_C_OFFSET>(baseOffset_) += (m * n / SWIGLU_N_HALF) >> 1;
         } else {
             Get<IDX_C_OFFSET>(baseOffset_) += m * n / SWIGLU_N_HALF;
