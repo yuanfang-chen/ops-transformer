@@ -1071,8 +1071,10 @@ ge::graphStatus AlltoAllvGmmTiling::CalMMTiling(const gert::TilingContext* conte
     if (*params.curBaseM > params.curMaxM) {
         *params.curBaseM = static_cast<int32_t>(SixteenAlign(static_cast<uint32_t>(params.curMaxM), true));
     }
-    OP_TILING_CHECK(
-        *params.curBaseM == 0, OP_LOGE(A_INNER_DEBUG, "curBaseM should not be 0."), return ge::GRAPH_FAILED);
+    tilingData->commonTilingInfo.isNeedGmm = true;
+    if (*params.curBaseM == 0) {
+        tilingData->commonTilingInfo.isNeedGmm = false;
+    }
     OP_LOGD(A_INNER_DEBUG, "end CalMMTlingData");
 
     return ge::GRAPH_SUCCESS;

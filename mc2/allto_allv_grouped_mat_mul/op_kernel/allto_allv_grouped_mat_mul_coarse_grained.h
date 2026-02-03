@@ -252,7 +252,9 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
         tokenNum[0] = gmmTokennum[e];
 
         if ASCEND_IS_AIC {
-            gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, e);
+            if (commonTilingInfo.isNeedGmm) {
+                gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, e);
+            }
         }
     }
 }
