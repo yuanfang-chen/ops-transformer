@@ -106,7 +106,6 @@ int main() {
   int64_t kv_size = B * H * N * K * D;
   int64_t k1v1_size = B * H * K * M * D;
   int64_t atten_mask_size = B * H * N * M * K;
-  int64_t softmax_size = B * N1 * S1 * 8;
 
   std::vector<int64_t> qShape = {B, H, N, M, D};
   std::vector<int64_t> kShape = {B, H, N, K, D};
@@ -158,7 +157,7 @@ int main() {
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(v1HostData, v1Shape, &v1DeviceAddr, aclDataType::ACL_FLOAT16, &v1);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(attenmaskHostData, attenmaskShape, &attenmaskDeviceAddr, aclDataType::ACL_UINT8, &attenmask);
+  ret = CreateAclTensor(attenmaskHostData, attenmaskShape, &attenmaskDeviceAddr, aclDataType::ACL_UINT8, &attenMask);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(attentionOutHostData, attentionOutShape , &attentionOutDeviceAddr, aclDataType::ACL_FLOAT, &attentionOut);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
@@ -204,7 +203,7 @@ int main() {
   aclDestroyTensor(v);
   aclDestroyTensor(k1);
   aclDestroyTensor(v1);
-  aclDestroyTensor(attenmask);
+  aclDestroyTensor(attenMask);
   aclDestroyTensor(attentionOut);
   aclDestroyTensor(softmaxMax);
   aclDestroyTensor(softmaxSum);
