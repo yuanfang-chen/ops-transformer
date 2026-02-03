@@ -273,7 +273,7 @@ __aicore__ inline void QLIPreload<QLIT>::SplitCoreByAICPU(uint32_t curCoreIdx,  
 
     uint32_t liZeroCoreEnableIndex = GetAttrAbsIndex(0, LI_CORE_ENABLE_INDEX);
     if (metadataGm.GetValue(liZeroCoreEnableIndex) == 0) {
-        isUsedCoreEqZero = true;
+        isUsedCoreEqZero = true; 
     }
     if (metadataGm.GetValue(liCoreEnableIndex) == 0) {
         splitCoreInfo.isCoreEnable = false;
