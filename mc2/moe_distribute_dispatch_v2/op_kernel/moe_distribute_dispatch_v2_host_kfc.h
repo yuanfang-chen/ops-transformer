@@ -1138,7 +1138,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Send
         SyncFunc<AscendC::HardEvent::MTE3_V>();
         //LogInfo(__LINE__,serverCountTensor_ ,tpipe_,2);
         for (uint32_t index = 0; index < serverNum_; index++) {
-            dstStateGMTensor.SetGlobalBuffer((__gm__ uint32_t *)GetSendAddrBetweenServer(COMM_EP_IDX, index));
+            dstStateGMTensor.SetGlobalBuffer((__gm__ uint32_t *)GetSendAddrBetweenServer(COMM_EP_IDX, index),128);
             LOG_INFO("server cnt",dstStateGMTensor(0));
             LOG_INFO("server flag",dstStateGMTensor(flagOffset));
         }
