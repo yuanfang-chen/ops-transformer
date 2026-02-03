@@ -137,7 +137,7 @@ $$
 <td><ul><li>可传有效数据或空指针，默认所有token参与通信，1D时shape为(BS, )，2D时shape为(BS, K)。</li><li>各卡BS不一致时所有token需有效。</li></ul></td>
 <td>BOOL</td>
 <td>ND</td>
-<td>1-2</td>
+<td>-</td>
 <td>√</td>
 </tr>
 <tr>
@@ -184,10 +184,10 @@ $$
 <td>sharedExpertXOptional</td>
 <td>输入</td>
 <td>表示共享专家计算后的Token。</td>
-<td>可传或不传，2D时shape为(Bs, H)，3D时shape为(Bs, 1, H)）</td>
+<td>可传有效数据或空指针，2D时shape为(Bs, H)，3D时shape为(Bs, 1, H)）</td>
 <td>BFLOAT16</td>
 <td>ND</td>
-<td>2-3</td>
+<td>-</td>
 <td>√</td>
 </tr>
 <tr>
