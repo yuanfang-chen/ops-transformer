@@ -14,12 +14,17 @@
  */
 #include "rotate_half.h"
 #include "rotate_half_bf16.h"
+
+#if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
 #include "rotate_interleaved_split_s.h"
 #include "rotate_interleaved_split_bs.h"
 #include "rotate_interleaved_split_bsn.h"
 #include "rotate_interleaved_split_s_pad.h"
 #include "rotate_interleaved_split_bs_pad.h"
 #include "rotate_interleaved_split_bsn_pad.h"
+using namespace RotateInterleavedN;
+#endif
+
 using namespace AscendC;
 using namespace RotateHalfN;
 
@@ -109,7 +114,6 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
 
     // mode: rotate_interleaved
 #if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
-    using namespace RotateInterleavedN;
     if (TILING_KEY_IS(2000)) {
         TPipe pipe;
         InterleavedSplitS<half> interleavedSplitS;
