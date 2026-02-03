@@ -1,7 +1,5 @@
 
 # aclnnFusedInferAttentionScoreV4
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
-
 
 ## 产品支持情况
 
@@ -10,16 +8,13 @@
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
-|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
-|<term>Atlas 推理系列产品</term>|      ×     |
-|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
 - 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV3，本接口新增dequantScaleQueryOptional、queryQuantMode参数。
 
     **说明：** 
-    decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个常用技术。采样时，Transformer模型会以给定的prompt/context作为初始输入进行推理（可以并行处理），随后逐一生成额外的token来继续完善生成的序列（体现了模型的自回归性质）。在采样过程中，Transformer会执行自注意力操作，为此需要给当前序列中的每个项目（无论是prompt/context还是生成的token）提取键值（KV）向量。这些向量存储在一个矩阵中，通常被称为kv缓存（KV Cache）。
+decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个常用技术。采样时，Transformer模型会以给定的prompt/context作为初始输入进行推理（可以并行处理），随后逐一生成额外的token来继续完善生成的序列（体现了模型的自回归性质）。在采样过程中，Transformer会执行自注意力操作，为此需要给当前序列中的每个项目（无论是prompt/context还是生成的token）提取键值（KV）向量。这些向量存储在一个矩阵中，通常被称为kv缓存（KV Cache）。
 - 计算公式：
 
     self-attention（自注意力）利用输入样本自身的关系构建了一种注意力模型。其原理是假设有一个长度为$n$的输入样本序列$x$，$x$的每个元素都是一个$d$维向量，可以将每个$d$维向量看作一个token embedding，将这样一条序列经过3个权重矩阵变换得到3个维度为$n*d$的矩阵。
@@ -39,7 +34,7 @@
     其中$Q$和$K^T$的乘积代表输入$x$的注意力，为避免该值变得过大，通常除以$d$的开根号进行缩放，并对每行进行softmax归一化，与$V$相乘后得到一个$n*d$的矩阵。
 
     **说明**：
-    <blockquote>query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
+    <blockquote>query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Head-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
     <br>Q_S表示query shape中的S，KV_S表示key和value shape中的S，Q_N表示num_query_heads，KV_N表示num_key_value_heads。P表示Softmax(<span>(QK<sup class="superscript">T</sup>) / <span class="sqrt">d</span></span>)的计算结果。</blockquote>
 
 
@@ -202,13 +197,13 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>ND</td>
             <td>
             <ul>
-                <li>sparseMode = 0、1时
+                <li>spareseMode = 0、1时
                     <ul>
-                        <li>支持shape传入(B,Q_S,KV_S)、(1,Q_S,KV_S)、(B,1,Q_S,KV_S)、(1,1,Q_S,KV_S)。</li>
+                        <li>支持shape传入(1,Q_S,KV_S)、(B,1,Q_S,KV_S)、(1,1,Q_S,KV_S)。</li>
                         <li>另外输入Layout为BSH、BSND、BNSD、BNSD_BSND时，且query与key的D等于value的D，并且不传query_rope和key_rope时，Q_S=1可支持传入(B,KV_S)，Q_S>1时可支持传入(Q_S,KV_S)。</li>
                     </ul>
                 </li>
-                <li>sparseMode = 2、3、4时，attenMaskOptional的shape输入支持(2048, 2048)或(1,2048,2048)或(1,1,2048,2048)</li>
+                <li>spareseMode = 2、3、4时，attenMaskOptional的shape输入支持(2048, 2048)或(1,2048,2048)或(1,1,2048,2048)</li>
             </ul>
             </td>
             <td>×</td>
@@ -561,6 +556,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>
             <ul>
                 <li>仅支持非量化场景。</li>
+                <li>仅支持TND、NTD_TND。</li>
                 <li>仅支持V_D=128/64。</li>
             </ul>
             </td>
@@ -613,12 +609,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>inputLayout</td>
             <td>可选输入</td>
             <td>用于标识输入query、key、value的数据排布格式，当该字段包含“_”时，表示“输入layout_输出layput”</td>
-            <td>
-            <ul>
-                <li>支持配置的inputLayout包括BSH、BSND、TND、BNSD、NTD、BSH_BNSD、BSND_BNSD、BNSD_BSND、NTD_TND、BSH_NBSD、BSND_NBSD、BNSD_NBSD</li>
-                <li>inputLayout=BSH_BNSD、BSND_BNSD仅支持Q_D=K_D=V_D都等于64或128，或Q_D=K_D等于192，V_D等于128<br></li>
-            </ul>
-            </td>
+            <td>支持配置的inputLayout包括BSH、BSND、TND、BNSD、NTD、BSH_BNSD、BSND_BNSD、BNSD_BSND、NTD_TND、BSH_NBSD、BSND_NBSD、BNSD_NBSD</td>
             <td>CHAR</td>
             <td>-</td>
             <td>-</td>
@@ -836,10 +827,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
 - **参数说明：**
 
-    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
-    <col style="width: 168px">
-    <col style="width: 128px">
-    <col style="width: 854px">
+    <table style="undefined;table-layout: fixed; width: 900px"><colgroup>
+    <col style="width: 150px">
+    <col style="width: 100px">
+    <col style="width: 650px">
     </colgroup>
     <thead>
         <tr>
@@ -952,7 +943,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
     - PagedAttention的使能必要条件是blocktable存在且有效，同时key、value是按照blocktable中的索引在一片连续内存中排布，在该场景下key、value的inputLayout参数无效。
 
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理产品：</term>
 
         <table style="undefined;table-layout: fixed; width: 1354px"><colgroup>
             <col style="width: 155px">
@@ -1043,7 +1034,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
                 <li>D=512且rope分离场景支持做行无效。</li>
                 <li>query，key的d=128，rope的d=0，value的d=128时支持做行无效。</li>
                 <li>query，key的d=64，rope的d=0，value的d=64时支持做行无效。</li>
-                <li>query，key的d=192，rope的d=0，value的d=128时支持做行无效。</li>
+                <li>query，key的d=192，rope的d=64，value的d=128时支持做行无效。</li>
                 <li>query，key的d=128，rope的d=64，value的d=128时支持做行无效。</li>
                 </ul></td>
             </tr>
@@ -1137,7 +1128,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
 - <a id="INT8"></a>int8量化场景：
 
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理产品：</term>
         <table style="undefined;table-layout: fixed;  width: 1190px">
             <colgroup>
                 <col style="width: 320px">
@@ -1274,7 +1265,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 - <a id="AntiQuant"></a>伪量化参数约束：
     - 当伪量化参数 和 KV分离量化参数同时传入时，以KV分离量化参数为准。
 
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理产品</term>：
         <table style="undefined;table-layout: fixed;  width: 1840px">
             <colgroup>
                 <col style="width: 90px">
@@ -1417,7 +1408,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 - <a id="TND"></a>TND、TND_NTD、NTD_TND场景下query，key，value输入的综合限制：
     - actualSeqLengths和actualSeqLengthsKv必须传入
 
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理产品</term>：
         <div style="overflow-x: auto;">
         <table style="undefined;table-layout: fixed; width: 1390px"><colgroup>
             <col style="width: 210px">
@@ -1470,9 +1461,18 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         </tr>
         <tr>
             <td rowspan="7">当query的d不等于512时</td>
-            <td rowspan="1">通用场景</td>
+            <td rowspan="3">通用场景</td>
             <td>inputLayout</td>
             <td>支持TND、NTD、NTD_TND</td>
+        </tr>
+        <tr>
+            <td>query，key，value</td>
+            <td>数据类型仅支持BFLOAT16</td>
+        </tr>
+        <tr>
+            <td>Mask</td>
+            <td>actualSeqLengths，actualSeqLengthsKv</td>
+            <td>当sparseMode=3时，要求每个batch单独的actualSeqLengths &lt; actualSeqLengthsKv；</td>
         </tr>
         <tr>
             <td>PagedAttention</td>
@@ -1487,8 +1487,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <tr>
             <td>GQA/MHA/MQA场景（当queryRope和keyRope为空时）</td>
             <td>Q_D、K_D、V_D</td>
-            <td>Q_D、K_D、V_D都等于64<br>或Q_D、K_D、V_D都等于128<br>或Q_D和K_D等于192时，V_D等于128<br>或TND，GQA/MQA，innerPrecise=0场景下，支持Q_D=K_D=V_D且小于等于256</td>
- 	             <td>TND，GQA/MQA，innerPrecise=0场景下，支持sparse=4且传入优化后的attentionMask，要求preTokens>=-actualSeqLengths、nextTokens>=-actualSeqLengthsKv、preTokens+nextTokens>=0</td>
+            <td>TND场景，要求Q_D、K_D、V_D等于128，或者Q_D、K_D等于192，V_D等于128/192；<br>NTD场景，不支持V_D等于192；<br>NTD_TND场景，要求Q_D、K_D等于128/192，V_D等于128。<br>GQA和PA场景不支持V_D等于192。</td>
         </tr>
         <tr>
             <td colspan="3">不支持左padding、tensorlist、pse、prefix、伪量化、全量化、后量化。</td>
@@ -1525,7 +1524,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>-</td>
         </tr>
         <tr>
-            <td rowspan="22">query d=512</td>
+            <td rowspan="18">query d=512</td>
             <td rowspan="6">通用场景</td>
             <td>query</td>
             <td>FLOAT16、BFLOAT16；Q_N=[1,2,4,8,16,32,64,128]</td>
@@ -1563,9 +1562,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>-</td>
         </tr>
         <tr>
-            <td rowspan="11">全量化</td>
+            <td rowspan="8">全量化</td>
             <td>query</td>
-            <td>INT8，且qs范围为1~16</td>
+            <td>INT8</td>
             <td>-</td>
         </tr>
         <tr>
@@ -1602,21 +1601,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>valueAntiquantScaleOptional</td>
             <td>FLOAT32; 需与dequantScaleQueryOptional, keyAntiquantScaleOptional同时存在，不支持传入keyAntiquantOffsetOptional和valueAntiquantOffsetOptional; 仅支持pertensor模式</td>
             <td>shape为(1)</td>
-        </tr>
-        <tr>
-            <td>sparseMode</td>
-            <td>全量化场景sparseMode仅支持0,3</td>
-            <td>qs=1时，仅支持sparseMode=0，且不传mask;qs>1时，仅支持sparseMode=3，且mask shape为[2048,2048]</td>
-        </tr>
-        <tr>
-            <td>blockSize</td>
-            <td>仅支持128</td>
-            <td>-</td>
-        </tr>
-        <tr>
-            <td>inputLayout</td>
-            <td>BSH、BSH_NBSD、BSND、BSND_NBSD、TND、TND_NTD</td>
-            <td>-</td>
         </tr>
         <tr>
             <td rowspan="2">PagedAttention</td>
@@ -1722,7 +1706,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         </tr>
         <tr>
             <td rowspan="9">伪量化</td>
-            <td colspan="4">仅支持KV分离；仅支持高性能模式；仅支持q为BF16，kv为INT8的伪量化；不支持配置queryRope和keyRope；不支持非对称量化(antiquantOffset、keyAntiquantOffset、valueAntiquantOffset)</td>
+            <td colspan="4">仅支持KV分离；仅支持高性能模式；不支持配置queryRope和keyRope；不支持非对称量化(antiquantOffset、keyAntiquantOffset、valueAntiquantOffset)</td>
         </tr>
         <tr>
             <td rowspan="4">per-channel</td>
@@ -1784,7 +1768,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
 - **当Q_S大于1时**：
 
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理产品</term>：
 
         <table style="undefined;table-layout: fixed; width: 1080px"><colgroup>
         <col style="width: 180px">
@@ -1957,7 +1941,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 
 - **当Q_S等于1时（IFA非MTP场景）**：
 
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理产品</term>：
         <div style="overflow-x: auto;">
         <table style="undefined;table-layout: fixed; width: 1080px"><colgroup>
         <col style="width: 180px">
@@ -2027,6 +2011,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
                         <li>使能pseShift，传入pseShift的最后一维需要大于等于blockTable的第二维 * blockSize。</li>
                         <li>使能伪量化per-token模式：输入参数antiquantScale和antiquantOffset的最后一维需要大于等于blockTable的第二维 * blockSize。</li>
                         <li>使能per-token叠加per-head模式：输入参数antiquantScale和antiquantOffset的最后一维需要大于等于blockTable的第二维 * blockSize，数据类型固定为FLOAT32。（当key、value数据类型为INT8、INT4(INT32)时支持。）</li>
+                        <li>使能per-token-group模式：antiquantScale的倒数第二维需要大于等于blockTable的第二维 * blockSize, 数据类型固定为FLOAT8_E8M0，不支持带antiquantOffset。（当key、value数据类型为FLOAT4_E1M2、FLOAT4_E2M1时支持。）</li>
                     </ul>
                     </td>
                 </tr>

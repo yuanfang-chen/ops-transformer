@@ -41,7 +41,7 @@ public:
 
     static constexpr LseMode LSE_MODE = DispatchPolicy::LSE_MODE;
     static constexpr float ATTN_OUT_INI = 0;
-    static constexpr float LSE_OUT_INI = std::numeric_limits<float>::infinity();
+    static constexpr float LSE_OUT_INI = 3e+99;
     static constexpr uint32_t HALF_ELEM_NUM_PER_BLK = 16;
     static constexpr uint32_t FLOAT_ELEM_NUM_PER_BLK = 8;
     static constexpr uint32_t HALF_ELEM_NUM_PER_RPT = 128;
@@ -49,10 +49,7 @@ public:
     static constexpr uint32_t UB_UINT8_BLOCK_SIZE = 16384;
 
     __aicore__ inline
-    BlockEpilogue() {}
-
-    __aicore__ inline
-    void init(Arch::Resource<ArchTag> &resource)
+    BlockEpilogue(Arch::Resource<ArchTag> &resource)
     {
         // Allocate UB space
         constexpr uint32_t ATTN_OUT_INIT_UB_TENSOR_OFFSET = 0;

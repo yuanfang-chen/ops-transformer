@@ -9,9 +9,9 @@
  */
 
 /*!
-* \file kernel_common.hpp
-* \brief
-*/
+ * \file kernel_common.hpp
+ * \brief
+ */
 
 #ifndef KERNEL_COMMON
 #define KERNEL_COMMON
@@ -28,8 +28,7 @@
 #include "attn_infra/arch/resource.hpp"
 #include "attn_infra/epilogue/block/block_epilogue.hpp"
 #include "attn_infra/epilogue/dispatch_policy.hpp"
-#include "kernel_vec_intf.h"
-#include "kernel_cube_intf.h"
+#include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 
@@ -50,7 +49,6 @@ namespace KernelCommon {
     constexpr uint32_t NUM_128 = 128;
     constexpr uint32_t NUM_256 = 256;
     constexpr uint32_t FLOAT_SIZE = 4;
-    constexpr int64_t SPARSE_MODE_INT_MAX = 2147483647;
 
     template <typename T>
     __aicore__ inline
@@ -78,7 +76,7 @@ namespace KernelCommon {
             NO_MASK = 0,
             MASK_CAUSAL = 1,
             MASK_SPEC = 2,
-            MASK_SWA = 4
+            FULL_MASK = 3
         };
 
         enum class inputLayout : uint32_t {
@@ -124,11 +122,6 @@ namespace KernelCommon {
     {
         uint32_t qSBlockTile = Q_TILE_CEIL;
         return qSBlockTile;
-    }
-    __aicore__ inline uint32_t GetKSBlockTile(uint32_t kvSeqlen)
-    {
-        uint32_t kSBlockTile = MAX_KV_STACK_LEN;
-        return kSBlockTile;
     }
 }
 #endif
