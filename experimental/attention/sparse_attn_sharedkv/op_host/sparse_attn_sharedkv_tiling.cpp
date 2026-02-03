@@ -300,14 +300,12 @@ ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
     if (opParamInfo_.oriKv.desc != nullptr) {
         if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr) {
             sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
-        } else if (opParamInfo_.cmpKv.desc != nullptr) {
+        } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor == nullptr) {
             sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
-        } else if (opParamInfo_.cmpKv.desc == nullptr) {
+        } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr) {
             sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
         } else {
-            if (opParamInfo_.cmpKv.desc != nullptr) {
-                OP_LOGE(opName_, "cmpKv is not nullptr.");
-            }
+            OP_LOGE(opName_, "cmpKv is not nullptr.");
             return ge::GRAPH_FAILED;
         }
         return ge::GRAPH_SUCCESS;
@@ -1016,7 +1014,7 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpBlockTable() const
                 ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.cmpBlockTable.tensor->GetShape(),
                 cmpBlockTableDimNumList, CMP_BLOCK_TABLE_NAME)) {
                 return ge::GRAPH_FAILED;
-            }
+                }
             OP_CHECK_IF((cmpBlockSize_ <= 0 || cmpBlockSize_ > BLOCK_SIZE_LIMIT ||
                         (static_cast<uint64_t>(cmpBlockSize_) % 16 != 0UL)),
                         OP_LOGE(opName_, "cmpBlockSize should be in [1, 1024], and be aligned to 16, but got: %d.",
