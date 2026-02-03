@@ -322,7 +322,9 @@ __aicore__ inline void SelectedAttentionGradBasic<SFAGT>::Process(
                     }
                     UpdateGmOffset(task, false);
                     tmpScatterRunInfo = runInfo[mmPingPongIdx];
+                    tmpScatterRunInfo.changeS1 = false;  // 重置，避免未初始化值导致同步问题
                     isCruS1Empty = true;
+                    mmPingPongIdx = 1 - mmPingPongIdx;  // 切换索引，确保循环结束后 runInfo[1-mmPingPongIdx] 是最后一个任务的信息
                 }
             }
             if (likely(actualSelectedBlockCount != 0 || deterministic)) {
