@@ -46,37 +46,9 @@ struct MatmulAllReduceHostUtParamBase {
         this->comm_turn = stoi(ReadMap(csvMap, "comm_turn"));
         this->antiquant_group_size = stoi(ReadMap(csvMap, "antiquant_group_size"));
         this->group_size = stoi(ReadMap(csvMap, "group_size"));
-        GetDataType(csvMap, "y_dtype", y_dtype);
+        CsvGetDataType(csvMap, "y_dtype", y_dtype);
         this->comm_quant_mode = stoi(ReadMap(csvMap, "comm_quant_mode"));
         this->expectResult = ReadMap(csvMap, "expectResult") == "SUCCESS" ? ge::GRAPH_SUCCESS : ge::GRAPH_FAILED;
-    }
-
-protected:
-    int GetDataType(const csv_map& csvMap, const std::string& dtypeKey, ge::DataType& out)
-    {
-        std::string dtypeStr = ReadMap(csvMap, dtypeKey);
-        if (dtypeStr.empty()) return 0;
-
-        out = ReadMap(GE_DTYPE, dtypeStr, ge::DT_UNDEFINED);
-        return 1;
-    }
-
-    template<typename T>
-    int GetTensor(const csv_map& csvMap, const std::string& shapeKey, const std::string& dtypeKey,
-        const std::string& formatKey, T& out)
-    {
-        std::string shapeStr = ReadMap(csvMap, shapeKey);
-        if (shapeStr.empty()) return 0;
-        std::string dtypeStr = ReadMap(csvMap, dtypeKey);
-        if (dtypeStr.empty()) return 0;
-        std::string formatStr = ReadMap(csvMap, formatKey);
-        if (formatStr.empty()) return 0;
-
-        gert::StorageShape shape = GetStorageShape(shapeStr);
-        ge::DataType dtype = ReadMap(GE_DTYPE, dtypeStr, ge::DT_UNDEFINED);
-        ge::Format format = ReadMap(GE_FORMAT, formatStr, ge::FORMAT_NULL);
-        out = T(shape, dtype, format);
-        return 1;
     }
 };
 
@@ -112,37 +84,37 @@ struct MatmulAllReduceTilingUtParam: public MatmulAllReduceHostUtParamBase {
         MatmulAllReduceHostUtParamBase(csvMap)
     {
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x1_shape", "x1_dtype", "x1_format",
+            CsvGetTensor(csvMap, "x1_shape", "x1_dtype", "x1_format",
                 x1));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x2_shape", "x2_dtype", "x2_format",
+            CsvGetTensor(csvMap, "x2_shape", "x2_dtype", "x2_format",
                 x2));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "bias_shape", "bias_dtype", "bias_format",
+            CsvGetTensor(csvMap, "bias_shape", "bias_dtype", "bias_format",
                 bias));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x3_shape", "x3_dtype", "x3_format",
+            CsvGetTensor(csvMap, "x3_shape", "x3_dtype", "x3_format",
                 x3));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "antiquant_scale_shape", "antiquant_scale_dtype", "antiquant_scale_format",
+            CsvGetTensor(csvMap, "antiquant_scale_shape", "antiquant_scale_dtype", "antiquant_scale_format",
                 antiquant_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "antiquant_offset_shape", "antiquant_offset_dtype", "antiquant_offset_format",
+            CsvGetTensor(csvMap, "antiquant_offset_shape", "antiquant_offset_dtype", "antiquant_offset_format",
                 antiquant_offset));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "dequant_scale_shape", "dequant_scale_dtype", "dequant_scale_format",
+            CsvGetTensor(csvMap, "dequant_scale_shape", "dequant_scale_dtype", "dequant_scale_format",
                 dequant_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "pertoken_scale_shape", "pertoken_scale_dtype", "pertoken_scale_format",
+            CsvGetTensor(csvMap, "pertoken_scale_shape", "pertoken_scale_dtype", "pertoken_scale_format",
                 pertoken_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "comm_quant_scale_1_shape", "comm_quant_scale_1_dtype", "comm_quant_scale_1_format",
+            CsvGetTensor(csvMap, "comm_quant_scale_1_shape", "comm_quant_scale_1_dtype", "comm_quant_scale_1_format",
                 comm_quant_scale_1));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "comm_quant_scale_2_shape", "comm_quant_scale_2_dtype", "comm_quant_scale_2_format",
+            CsvGetTensor(csvMap, "comm_quant_scale_2_shape", "comm_quant_scale_2_dtype", "comm_quant_scale_2_format",
                 comm_quant_scale_2));
         this->outputInstance.emplace_back(
-            GetTensor(csvMap, "output_y_shape", "output_y_dtype", "output_y_format",
+            CsvGetTensor(csvMap, "output_y_shape", "output_y_dtype", "output_y_format",
                 y));
         this->ranksize = stoi(ReadMap(csvMap, "ranksize"));
         if(this->expectResult == ge::GRAPH_SUCCESS) {
@@ -172,34 +144,34 @@ struct MatmulAllReduceInferShapeUtParam: public MatmulAllReduceHostUtParamBase {
         MatmulAllReduceHostUtParamBase(csvMap)
     {
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x1_shape", "x1_dtype", "x1_format",
+            CsvGetTensor(csvMap, "x1_shape", "x1_dtype", "x1_format",
                 x1));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x2_shape", "x2_dtype", "x2_format",
+            CsvGetTensor(csvMap, "x2_shape", "x2_dtype", "x2_format",
                 x2));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "bias_shape", "bias_dtype", "bias_format",
+            CsvGetTensor(csvMap, "bias_shape", "bias_dtype", "bias_format",
                 bias));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "x3_shape", "x3_dtype", "x3_format",
+            CsvGetTensor(csvMap, "x3_shape", "x3_dtype", "x3_format",
                 x3));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "antiquant_scale_shape", "antiquant_scale_dtype", "antiquant_scale_format",
+            CsvGetTensor(csvMap, "antiquant_scale_shape", "antiquant_scale_dtype", "antiquant_scale_format",
                 antiquant_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "antiquant_offset_shape", "antiquant_offset_dtype", "antiquant_offset_format",
+            CsvGetTensor(csvMap, "antiquant_offset_shape", "antiquant_offset_dtype", "antiquant_offset_format",
                 antiquant_offset));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "dequant_scale_shape", "dequant_scale_dtype", "dequant_scale_format",
+            CsvGetTensor(csvMap, "dequant_scale_shape", "dequant_scale_dtype", "dequant_scale_format",
                 dequant_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "pertoken_scale_shape", "pertoken_scale_dtype", "pertoken_scale_format",
+            CsvGetTensor(csvMap, "pertoken_scale_shape", "pertoken_scale_dtype", "pertoken_scale_format",
                 pertoken_scale));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "comm_quant_scale_1_shape", "comm_quant_scale_1_dtype", "comm_quant_scale_1_format",
+            CsvGetTensor(csvMap, "comm_quant_scale_1_shape", "comm_quant_scale_1_dtype", "comm_quant_scale_1_format",
                 comm_quant_scale_1));
         this->inputInstance.emplace_back(
-            GetTensor(csvMap, "comm_quant_scale_2_shape", "comm_quant_scale_2_dtype", "comm_quant_scale_2_format",
+            CsvGetTensor(csvMap, "comm_quant_scale_2_shape", "comm_quant_scale_2_dtype", "comm_quant_scale_2_format",
                 comm_quant_scale_2));
         this->outputInstance.emplace_back(1);
         this->ranksize = stoi(ReadMap(csvMap, "ranksize"));
@@ -225,19 +197,19 @@ struct MatmulAllReduceInferDataTypeUtParam: public MatmulAllReduceHostUtParamBas
     MatmulAllReduceInferDataTypeUtParam(const csv_map& csvMap):
         MatmulAllReduceHostUtParamBase(csvMap)
     {
-        this->inputInstance.emplace_back(GetDataType(csvMap, "x1_dtype", x1));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "x2_dtype", x2));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "bias_dtype", bias));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "x3_dtype", x3));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "antiquant_scale_dtype", antiquant_scale));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "antiquant_offset_dtype", antiquant_offset));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "dequant_scale_dtype", dequant_scale));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "pertoken_scale_dtype", pertoken_scale));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "comm_quant_scale_1_dtype", comm_quant_scale_1));
-        this->inputInstance.emplace_back(GetDataType(csvMap, "comm_quant_scale_2_dtype", comm_quant_scale_2));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "x1_dtype", x1));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "x2_dtype", x2));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "bias_dtype", bias));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "x3_dtype", x3));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "antiquant_scale_dtype", antiquant_scale));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "antiquant_offset_dtype", antiquant_offset));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "dequant_scale_dtype", dequant_scale));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "pertoken_scale_dtype", pertoken_scale));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "comm_quant_scale_1_dtype", comm_quant_scale_1));
+        this->inputInstance.emplace_back(CsvGetDataType(csvMap, "comm_quant_scale_2_dtype", comm_quant_scale_2));
         this->outputInstance.emplace_back(1);
         if(this->expectResult == ge::GRAPH_SUCCESS) {
-            GetDataType(csvMap, "expect_y_dtype", y);
+            CsvGetDataType(csvMap, "expect_y_dtype", y);
         }
     }
 };

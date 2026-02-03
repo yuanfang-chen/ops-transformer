@@ -162,6 +162,33 @@ inline gert::StorageShape GetStorageShape(const std::string& shapeArrStr)
     return shape;
 }
 
+inline int CsvGetDataType(const csv_map& csvMap, const std::string& dtypeKey, ge::DataType& out)
+{
+    std::string dtypeStr = ReadMap(csvMap, dtypeKey);
+    if (dtypeStr.empty()) return 0;
+
+    out = ReadMap(GE_DTYPE, dtypeStr, ge::DT_UNDEFINED);
+    return 1;
+}
+
+template<typename T>
+inline int CsvGetTensor(const csv_map& csvMap, const std::string& shapeKey, const std::string& dtypeKey,
+    const std::string& formatKey, T& out)
+{
+    std::string shapeStr = ReadMap(csvMap, shapeKey);
+    if (shapeStr.empty()) return 0;
+    std::string dtypeStr = ReadMap(csvMap, dtypeKey);
+    if (dtypeStr.empty()) return 0;
+    std::string formatStr = ReadMap(csvMap, formatKey);
+    if (formatStr.empty()) return 0;
+
+    gert::StorageShape shape = GetStorageShape(shapeStr);
+    ge::DataType dtype = ReadMap(GE_DTYPE, dtypeStr, ge::DT_UNDEFINED);
+    ge::Format format = ReadMap(GE_FORMAT, formatStr, ge::FORMAT_NULL);
+    out = T(shape, dtype, format);
+    return 1;
+}
+
 inline std::string ReplaceFileExtension2Csv(const char* file)
 {
     return std::filesystem::path(file).replace_extension("csv").string();
