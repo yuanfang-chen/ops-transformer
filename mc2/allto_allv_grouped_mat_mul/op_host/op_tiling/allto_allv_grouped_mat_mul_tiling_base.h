@@ -68,13 +68,13 @@ constexpr uint32_t MAX_BSK = 52428800;
 constexpr uint32_t MAX_SHAPE_SIZE = 65536;
 constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
 
-constexpr uint32_t ATTR_GROUP_INDEX = 6;
-constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 7;
-constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 8;
-constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 9;
-constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 10;
-constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 11;
-constexpr uint32_t ATTR_PERMUTE_OUT_FLAG_INDEX = 12;
+constexpr uint32_t ATTR_GROUP_INDEX = 0;
+constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
+constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
+constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
+constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
+constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
+constexpr uint32_t ATTR_PERMUTE_OUT_FLAG_INDEX = 6;
 
 constexpr int64_t BEST_L1_PARTA = 256 * 1024;
 constexpr int64_t BEST_L1_PARTB = 128 * 1024;
