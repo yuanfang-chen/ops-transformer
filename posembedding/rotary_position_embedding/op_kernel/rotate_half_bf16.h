@@ -283,18 +283,21 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyInX(uint64_t xStartOffset
             copyParams.blockLen = this->dBytes;
             copyParams.dstStride = 0;
             if (this->layout == LAYOUT_BSND) {
-                copyParams.srcStride = (this->bcSecondDim - 1) * this->dBytes;
+                copyParams.srcStride = (this->bcSecondDim - 1) * this->dBytes;   //layout = BSND
             }
-            else if (this->layout == LAYOUT_SBND) {
-                copyParams.srcStride = (this->bnSize - 1) * this->dBytes;
+            else {
+                copyParams.srcStride = (this->bnSize - 1) * this->dBytes;   //layout = SBND
             }
-            #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
-            copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
-            copyParams.srcStride = copyParams.srcStride / BYTE_OF_BLOCK;
-            DataCopy(xLocal, xGm[xStartOffset], copyParams);
-            #else
+#if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+            DataCopyParams dataCopyParams;
+            dataCopyParams.blockCount = copyParams.blockCount;
+            dataCopyParams.blockLen = copyParams.blockLen / BYTE_OF_BLOCK;
+            dataCopyParams.srcGap= copyParams.srcStride / BYTE_OF_BLOCK;
+            dataCopyParams.dstGap= copyParams.dstStride / BYTE_OF_BLOCK;
+            DataCopy(xLocal, xGm[xStartOffset], dataCopyParams);
+#else
             DataCopyPad(xLocal, xGm[xStartOffset], copyParams, this->noPadParams);
-            #endif
+#endif
         }
     } 
 #if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
@@ -343,17 +346,20 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyOut(uint64_t yOffset, uin
             DataCopy(yGm[yOffset], yLocal, copyLength);
         } else {
             if (this->layout == LAYOUT_BSND) {
-                copyParams.dstStride = (this->bcSecondDim - 1) * this->dBytes;
+                copyParams.dstStride = (this->bcSecondDim - 1) * this->dBytes;   //layout = BSND
             }
-            else if (this->layout == LAYOUT_SBND) {
-                copyParams.dstStride = (this->bnSize - 1) * this->dBytes;
+            else {
+                copyParams.dstStride = (this->bnSize - 1) * this->dBytes;   //layout = SBND
             }
             #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
-            copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
-            copyParams.dstStride = copyParams.srcStride / BYTE_OF_BLOCK;
-            DataCopy(yGm[yStartOffset], yLocal, copyParams);
+            DataCopyParams dataCopyParams;
+            dataCopyParams.blockCount = copyParams.blockCount;
+            dataCopyParams.blockLen = copyParams.blockLen / BYTE_OF_BLOCK;
+            dataCopyParams.srcGap= copyParams.srcStride / BYTE_OF_BLOCK;
+            dataCopyParams.dstGap= copyParams.dstStride / BYTE_OF_BLOCK;
+            DataCopy(yGm[yOffset], yLocal, dataCopyParams);
             #else
-            DataCopyPad(yGm[yStartOffset], yLocal, copyParams);
+            DataCopyPad(yGm[yOffset], yLocal, copyParams);
             #endif
         }
     } 
