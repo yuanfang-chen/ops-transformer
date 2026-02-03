@@ -55,7 +55,7 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 
 -   **layout\_query**（`str`）：可选参数，用于标识输入`query`的数据排布格式，当前支持BSND、TND，默认值"BSND"。
 
--   **layout\_key**（`str`）：可选参数，用于标识输入`key`的数据排布格式，当前Atlas A3 推理系列产品支持PA_BSND、BSND、TND，默认值"BSND"，Ascend 950PR/Ascend 950DT支持PA_BSND。在非PageAttention场景下，layout\_key应与layout\_query保持一致。
+-   **layout\_key**（`str`）：可选参数，用于标识输入`key`的数据排布格式，当前仅支持PA_BSND。
 
 -   **sparse\_count**（`int`）：可选参数，代表topK阶段需要保留的block数量，Atlas A3 推理系列产品支持[1, 2048]，Ascend 950PR/Ascend 950DT支持512，数据类型支持`int32`。
 
