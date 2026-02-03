@@ -146,7 +146,7 @@ __aicore__ inline constexpr auto GetTile(AscendC::GlobalTensor<AscendC::TensorTr
     auto offset = layout(coord);
     typename AscendC::Std::remove_cvref_t<decltype(tensor)> newTensor;
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101 || __NPU_ARCH__ == 3102)
-    if constexpr (AscendC::IsSameTypeV<T, fp4x2_e2m1_t>) {
+    if constexpr (AscendC::IsSameTypeV<T, fp4x2_e2m1_t> || AscendC::IsSameTypeV<T, fp4x2_e1m2_t>) {
         newTensor.address_ = (__gm__ T *)((__gm__ uint8_t *)tensor.address_ + (offset >> 1));
     } else {
         newTensor.address_ = (__gm__ T *)((__gm__ uint8_t *)tensor.address_ + offset * sizeof(T));

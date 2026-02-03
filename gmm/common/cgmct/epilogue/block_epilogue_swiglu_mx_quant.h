@@ -60,6 +60,7 @@ constexpr uint16_t SPECIAL_EXP_THRESHOLD = 0x0040;
 constexpr uint16_t FP8_E4M3_MAX_EXP = 0x0400; // elem_emax右移7位(BF16E8M7)
 constexpr uint16_t FP8_E5M2_MAX_EXP = 0x0780;
 constexpr uint16_t FP4_E2M1_MAX_EXP = 0x0100;
+constexpr uint16_t FP4_E1M2_MAX_EXP = 0x0000;
 } // namespace
 
 constexpr AscendC::MicroAPI::CastTrait ctInt322Fp32 = {
@@ -210,6 +211,8 @@ BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_LOCAL_PARAMS>::Init(Par
         fpEmax_ = FP8_E5M2_MAX_EXP;
     } else if constexpr (AscendC::IsSameType<DataTypeOut, fp4x2_e2m1_t>::value) {
         fpEmax_ = FP4_E2M1_MAX_EXP;
+    } else {
+        fpEmax_ = FP4_E1M2_MAX_EXP;
     }
 
     // out
@@ -261,7 +264,8 @@ __aicore__ inline void BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_
     ub2GmParams.blockCount = blockCount;
     ub2GmParams.blockLen = singleN_ * sizeof(int8_t);
     ub2GmParams.dstStride = (n_ - singleN_) * sizeof(int8_t);
-    if constexpr (AscendC::IsSameType<DataTypeOut, fp4x2_e2m1_t>::value) {
+    if constexpr (AscendC::IsSameType<DataTypeOut, fp4x2_e2m1_t>::value ||
+                  AscendC::IsSameType<DataTypeOut, fp4x2_e1m2_t>::value) {
         ub2GmParams.blockLen = ub2GmParams.blockLen >> 1;
         ub2GmParams.dstStride = ub2GmParams.dstStride >> 1;
         offset = offset >> 1;
@@ -569,7 +573,8 @@ __aicore__ inline void BlockEpilogueSwigluQuant<QMM_BLOCK_EPILOGUE_DEQUANT_FUNC_
                   AscendC::IsSameType<DataTypeOut, fp8_e5m2_t>::value) {
         ComputeDataForQuantTargetFp8(gluResAddr, halfScaleLocalAddr, outputDst, totalDataInUb, loopDataNum);
     }
-    if constexpr (AscendC::IsSameType<DataTypeOut, fp4x2_e2m1_t>::value) {
+    if constexpr (AscendC::IsSameType<DataTypeOut, fp4x2_e2m1_t>::value ||
+                  AscendC::IsSameType<DataTypeOut, fp4x2_e1m2_t>::value) {
         ComputeDataForQuantTargetFp4(gluResAddr, halfScaleLocalAddr, outputDst, totalDataInUb, loopDataNum);
     }
     return;
