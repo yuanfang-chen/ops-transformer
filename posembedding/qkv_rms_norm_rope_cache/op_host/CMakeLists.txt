@@ -7,4 +7,22 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ============================================================================
 
-add_modules_sources(HOSTNAME ${OPHOST_NAME} MODE PRIVATE DIR ${CMAKE_CURRENT_SOURCE_DIR} OPTYPE qkv_rms_norm_rope_cache ACLNNTYPE aclnn_exclude)
+message(STATUS "=== Debug: start ops.posembedding.qkv_rms_norm_rope_cache.op_host.CMakeLists.txt ")
+
+if (BUILD_OPEN_PROJECT)
+    message(STATUS "=== Debug: BUILD is BUILD_OPEN_PROJECT")
+    target_sources(op_host_aclnnInner PRIVATE
+        qkv_rms_norm_rope_cache_def.cpp
+    )
+    add_ops_compile_options(
+            OP_NAME QkvRmsNormRopeCache
+            OPTIONS --cce-auto-sync=on
+                    -Wno-deprecated-declarations
+                    -Werror
+    )
+endif()
+
+if(NOT BUILD_OPS_RTY_KERNEL)
+    message(STATUS "=== Debug: BUILD is NOT BUILD_OPS_RTY_KERNEL")
+    add_modules_sources(OPTYPE qkv_rms_norm_rope_cache ACLNNTYPE aclnn_exclude)
+endif()

@@ -7,5 +7,4 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ============================================================================
 
-message(STATUS "=== Debug: start ops.norm.qkv_rms_norm_rope_cache.graph_plugin.CMakeLists.txt ")
-add_graph_plugin_sources()
+message(STATUS "=== Debug: start ops.posembedding.qkv_rms_norm_rope_cache.graph_plugin.CMakeLists.txt ")

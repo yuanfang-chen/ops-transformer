@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ============================================================================
 
+message(STATUS "=== Debug: start ops.posembedding.qkv_rms_norm_rope_cache.CMakeLists.txt ")
 file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
 if(NOT ENABLE_TEST AND NOT BENCHMARK)
     list(REMOVE_ITEM CURRENT_DIRS tests)
