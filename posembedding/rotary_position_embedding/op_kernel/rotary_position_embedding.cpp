@@ -22,7 +22,6 @@
 #include "rotate_interleaved_split_bsn_pad.h"
 using namespace AscendC;
 using namespace RotateHalfN;
-using namespace RotateInterleavedN;
 
 extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_ADDR cos, GM_ADDR sin, GM_ADDR y,
                                                                 GM_ADDR workspace, GM_ADDR tiling)
@@ -110,6 +109,7 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
 
     // mode: rotate_interleaved
 #if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+    using namespace RotateInterleavedN;
     if (TILING_KEY_IS(2000)) {
         TPipe pipe;
         InterleavedSplitS<half> interleavedSplitS;

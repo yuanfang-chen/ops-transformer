@@ -261,7 +261,7 @@ __aicore__ inline void RotateHalf<T>::CopyInX(uint64_t xStartOffset, uint16_t sL
             #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
             copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
             copyParams.srcStride = copyParams.srcStride / BYTE_OF_BLOCK;
-            DataCopy(xLocal, xGm[xStartOffset], copyParams);
+            DataCopy(xLocal, xGm[xStartOffset], copyParams, sLines * copyParams.blockLen);
             #else
             DataCopyPad(xLocal, xGm[xStartOffset], copyParams, this->noPadParams);
             #endif
@@ -319,8 +319,8 @@ __aicore__ inline void RotateHalf<T>::CopyOut(uint64_t yStartOffset, uint16_t sL
             }
             #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
             copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
-            copyParams.dstStride = copyParams.srcStride / BYTE_OF_BLOCK;
-            DataCopy(yGm[yStartOffset], yLocal, copyParams);
+            copyParams.dstStride = copyParams.dstStride / BYTE_OF_BLOCK;
+            DataCopy(yGm[yStartOffset], yLocal, copyParams, sLines * copyParams.blockLen);
             #else
             DataCopyPad(yGm[yStartOffset], yLocal, copyParams);
             #endif
