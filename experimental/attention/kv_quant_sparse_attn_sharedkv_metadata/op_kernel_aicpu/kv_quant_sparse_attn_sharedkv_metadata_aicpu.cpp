@@ -41,7 +41,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
     actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
     actSeqLenCmpKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKv));
-    seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedQ));
+    seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::seqUsedQ));
     seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedKv));
     // output
     metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
@@ -96,8 +96,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         return false;
     }
     // 4. 数值与模式校验
-    if (batchSize_ < 1) {
-        KERNEL_LOG_ERROR("batchSize_ should not be 0!");
+    if (layoutQuery_ == "BSND" && batchSize_ < 1) {
+        KERNEL_LOG_ERROR("For query, when layout is BSND, batchSize_ should not be 0!");
         return false;
     }
     if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::BAND)) {
@@ -113,38 +113,32 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
     auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
-    // 1. 五个可选 Tensor 不能全部为空
-    if (isInvalid(actSeqLenQ_) && isInvalid(actSeqLenOriKv_) && 
-        isInvalid(actSeqLenCmpKv_) && isInvalid(seqUsedQ_) && isInvalid(seqUsedKv_)) {
-        KERNEL_LOG_ERROR("actSeqLenQ, actSeqLenOriKv, actSeqLenCmpKv, seqUsedQ, and seqUsedKv cannot all be null!");
-        return false;
-    }
-    // 2. Query 存在性逻辑
+    // 1. Query 存在性逻辑
     if (layoutQuery_ == "TND") {
         if (isInvalid(actSeqLenQ_) && isInvalid(seqUsedQ_)) {
-            KERNEL_LOG_ERROR("For query TND, actSeqLenQ or SeqUsedQ must be provided!");
+            KERNEL_LOG_ERROR("For query TND, actSeqLenQ or seqUsedQ must be provided!");
             return false;
         }
     } else if (layoutQuery_ == "BSND") {
         if (querySeqSize_ == 0 && isInvalid(seqUsedQ_)) {
-            KERNEL_LOG_ERROR("For query BSND, querySeqSize or SeqUsedQ must be provided!");
+            KERNEL_LOG_ERROR("For query BSND, querySeqSize or seqUsedQ must be provided!");
             return false;
         }
     }
-    // 3. KV 存在性逻辑
+    // 2. KV 存在性逻辑
     if (layoutKv_ == "TND") {
         if (isInvalid(actSeqLenOriKv_) && isInvalid(seqUsedKv_)) {
-            KERNEL_LOG_ERROR("For KV TND, actSeqLenOriKV or SeqUsedKV must be provided!");
+            KERNEL_LOG_ERROR("For KV TND, actSeqLenOriKv or seqUsedKv must be provided!");
             return false;
         }
     } else if (layoutKv_ == "PA_ND") {
         if (isInvalid(seqUsedKv_)) {
-            KERNEL_LOG_ERROR("For KV PA_ND, SeqUsedKV must be provided!");
+            KERNEL_LOG_ERROR("For KV PA_ND, seqUsedKv must be provided!");
             return false;
         }
     } else if (layoutKv_ == "BSND") {
         if (kvSeqSize_ == 0 && isInvalid(seqUsedKv_)) {
-            KERNEL_LOG_ERROR("For KV BSND, KVSeqSize or SeqUsedKV must be provided!");
+            KERNEL_LOG_ERROR("For KV BSND, KvSeqSize or seqUsedKv must be provided!");
             return false;
         }
     }
@@ -152,19 +146,19 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
-    // 校验 actSeqLenOriKV_ 大小
+    // 校验 actSeqLenOriKv_ 大小
     if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
         auto shape = actSeqLenOriKv_->GetTensorShape();
         if (shape == nullptr || shape->GetDimSize(0) != static_cast<int64_t>(batchSize_) + 1) {
-            KERNEL_LOG_ERROR("actSeqLenOriKV is not consist with actSeqLenQ");
+            KERNEL_LOG_ERROR("actSeqLenOriKv is not consist with actSeqLenQ");
             return false;
         }
     }
-    // 校验 SeqUsedKV_ 大小
+    // 校验 seqUsedKv_ 大小
     if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
         auto shape = seqUsedKv_->GetTensorShape();
         if (shape == nullptr || shape->GetDimSize(0) != static_cast<int64_t>(batchSize_)) {
-            KERNEL_LOG_ERROR("SeqUsedKV is not consist with SeqUsedQ");
+            KERNEL_LOG_ERROR("seqUsedKv is not consist with seqUsedQ");
             return false;
         }
     }
