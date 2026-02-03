@@ -161,7 +161,7 @@ class GeneralizedSFA:
                                     k_tile = cur_ori_k_bnsd_fp32[i_S2 * s2_base_size:, :]
                             else: # cmp_kv
                                 if i_S2 < total_s2_loop_time - 1:
-                                    k_tile = cur_cmp_k_fp32[(i_S2 - ori_s2_loop_time) * s2_base_size:(i_S2 + 1) * s2_base_size, :]
+                                    k_tile = cur_cmp_k_fp32[(i_S2 - ori_s2_loop_time) * s2_base_size:(i_S2 - ori_s2_loop_time + 1) * s2_base_size, :]
                                 else:
                                     k_tile = cur_cmp_k_fp32[(i_S2 - ori_s2_loop_time) * s2_base_size:, :]
                             v_tile = k_tile.clone()
@@ -669,9 +669,9 @@ def gen_data(params):
             'N1': N1,
             'N2': N2,
             'D': D,
-            'cu_seqlens_q': cu_seqlens_q, 
+            'cu_seqlens_q': cu_seqlens_q,
             'seqused_q': seqused_q,
-            'seqused_kv': seqused_kv,    
+            'seqused_kv': seqused_kv,
             'B': B,
             'max_seqlen_q': max_seqlen_q,
             'max_seqlen_kv': max(seqused_kv),
@@ -717,11 +717,11 @@ def save_test_case(input_data, output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
     case_name = f"{input_data['template_run_mode']}_layoutQ_{input_data['layout_q']}_layoutKV_{input_data['layout_kv']}_B_{input_data['B']}_S1_{input_data['S1']}_S2_{input_data['S2']}_T1_{input_data['T1']}_N1_{input_data['N1']}_N2_{input_data['N2']}_{input_data['case_name']}"
-    
+
     # 生成文件名
     input_filename = f"sas_case_{case_name}.pt"
     input_filepath = os.path.join(output_dir, input_filename)
-    
+
     # 保存数据
     torch.save(input_data, input_filepath)
     print(f"测试用例已保存到: {input_filepath}")
