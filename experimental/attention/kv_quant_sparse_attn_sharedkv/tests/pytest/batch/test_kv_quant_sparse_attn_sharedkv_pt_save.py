@@ -12,7 +12,6 @@
 
 import itertools
 import torch
-import check_result
 import check_valid_param
 import kv_quant_sparse_attn_sharedkv_golden
 import pytest
