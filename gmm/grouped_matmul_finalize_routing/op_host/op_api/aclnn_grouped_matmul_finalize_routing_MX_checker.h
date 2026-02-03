@@ -138,7 +138,6 @@ public:
         int64_t n = gmmParams_.transposeX2 ? (gmmParams_.x2)->GetViewShape().GetDim(ONE_DIM) :
                                              (gmmParams_.x2)->GetViewShape().GetDim(TWO_DIM);
         int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0);          // 从weight的第0维获取e
-        int64_t bsdp = gmmParams_.shareInput->GetViewShape().GetDim(0); // 从share_input 第一维获取bsdp
         int64_t outputBS = gmmParams_.out->GetViewShape().GetDim(0);
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
@@ -172,6 +171,7 @@ public:
         }
         if (gmmParams_.shareInput != nullptr) {
             // shareInput的shape期望为[bsdp, N]
+            int64_t bsdp = gmmParams_.shareInput->GetViewShape().GetDim(0); // 从share_input 第一维获取bsdp
             op::Shape shareInputExpectShape = {bsdp, n};
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.shareInput, shareInputExpectShape, return false);
         }
