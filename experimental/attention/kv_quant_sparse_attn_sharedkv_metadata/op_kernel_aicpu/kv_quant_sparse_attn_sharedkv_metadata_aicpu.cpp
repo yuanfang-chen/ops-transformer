@@ -165,7 +165,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(uint32_t &bSi
         }
     }
     // 3. 如果不是 TND，或者 actSeqLenQ_ 为空，使用batchSize_
-    bSize = batchSize_
+    bSize = batchSize_;
 }
 
 void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(uint32_t &bSize)
