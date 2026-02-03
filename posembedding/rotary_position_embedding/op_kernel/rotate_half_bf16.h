@@ -251,7 +251,9 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyInR(uint64_t rStartOffset
     if (this->isAligned == true) {
         DataCopy(sinLocal, sinGm[rStartOffset], copyLength);
         DataCopy(cosLocal, cosGm[rStartOffset], copyLength);
-    } else {
+    } 
+#if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+    else {
         DataCopyExtParams copyParams{(uint16_t)(2 * sLines), // blockCount
                                      this->halfDBytes,       // blockLen
                                      0,                      // srcStride(bytes)
@@ -260,6 +262,7 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyInR(uint64_t rStartOffset
         DataCopyPad(sinLocal, sinGm[rStartOffset], copyParams, this->noPadParams);
         DataCopyPad(cosLocal, cosGm[rStartOffset], copyParams, this->noPadParams);
     }
+#endif
     inQueueSin.EnQue(sinLocal);
     inQueueCos.EnQue(cosLocal);
 }
@@ -288,7 +291,9 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyInX(uint64_t xStartOffset
             copyParams.dstStride = 0;
             DataCopyPad(xLocal, xGm[xStartOffset], copyParams, this->noPadParams);
         }
-    } else {
+    } 
+#if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+    else {
         if (this->layout == LAYOUT_BNSD || this->layout == LAYOUT_NO_BROADCAST || this->layout == LAYOUT_BND ||
             this->layout == LAYOUT_R_B1SD) {
             copyParams.blockCount = (uint16_t)(2 * storeSLines);
@@ -314,6 +319,7 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyInX(uint64_t xStartOffset
                         this->noPadParams);
         }
     }
+#endif
     inQueueX.EnQue(xLocal);
 }
 
@@ -337,7 +343,9 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyOut(uint64_t yOffset, uin
             copyParams.dstStride = (this->bnSize - 1) * this->dBytes;
             DataCopyPad(yGm[yOffset], yLocal, copyParams);
         }
-    } else {
+    } 
+#if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+    else {
         if (this->layout == LAYOUT_BNSD || this->layout == LAYOUT_NO_BROADCAST || this->layout == LAYOUT_BND ||
             this->layout == LAYOUT_R_B1SD) {
             copyParams.blockCount = (uint16_t)(2 * storeSLines);
@@ -361,6 +369,7 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyOut(uint64_t yOffset, uin
             DataCopyPad(yGm[yOffset + this->halfDLength], yLocal[this->halfDPadLength], copyParams);
         }
     }
+#endif
     outQueueY.FreeTensor(yLocal);
 }
 

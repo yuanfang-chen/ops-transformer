@@ -80,7 +80,7 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
         RotateHalfBf16<half, float> rotateHalfOp;
         rotateHalfOp.Init(x, cos, sin, y, tilingData);
         rotateHalfOp.Process();
-#if !(defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3003 || __NPU_ARCH__ == 3113))
+#if !((defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3003 || __NPU_ARCH__ == 3113)) || defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
     } else if (TILING_KEY_IS(1013)) {
         RotateHalfBf16<bfloat16_t, float> rotateHalfOp;
         rotateHalfOp.Init(x, cos, sin, y, tilingData);
@@ -109,6 +109,7 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
     }
 
     // mode: rotate_interleaved
+#if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
     if (TILING_KEY_IS(2000)) {
         TPipe pipe;
         InterleavedSplitS<half> interleavedSplitS;
@@ -212,4 +213,5 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
         interleavedSplitBSNPad.Init(x, cos, sin, y, tilingData, &pipe);
         interleavedSplitBSNPad.Process();
     }
+#endif
 }
