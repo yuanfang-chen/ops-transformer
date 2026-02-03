@@ -42,7 +42,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
     actSeqLenCmpKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenCmpKv));
     seqUsedQ_ = ctx.Input(static_cast<uint32_t>(ParamId::seqUsedQ));
-    seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::SeqUsedKv));
+    seqUsedKv_ = ctx.Input(static_cast<uint32_t>(ParamId::seqUsedKv));
     // output
     metaData_ = ctx.Output(static_cast<uint32_t>(ParamId::metaData));
 

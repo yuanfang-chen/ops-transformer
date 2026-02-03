@@ -335,8 +335,8 @@ private:
     actSeqLenQ = 0,
     actSeqLenOriKv = 1,
     actSeqLenCmpKv = 2,
-    SeqUsedQ = 3,
-    SeqUsedKv = 4,
+    seqUsedQ = 3,
+    seqUsedKv = 4,
     // output
     metaData = 0,
     };
