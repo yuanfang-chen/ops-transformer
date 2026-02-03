@@ -287,8 +287,7 @@ public:
             return false;
         }
         if (op::IsPrivateFormat(gmmParams_.pertokenScaleOptional->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "Format of pertokenScaleOptional should be ND, current format is %s.",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,"Format of pertokenScaleOptional should be ND, current format is %s.",
                     op::ToString(gmmParams_.pertokenScaleOptional->GetStorageFormat()).GetString());
             return false;
         }

@@ -210,7 +210,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
       <td></td>
       <td>BF16</td>
       <td>ND</td>
-      <td>支持一维，维度为(e)</td>
+      <td>-</td>
       <td>-</td>
     </tr>
     <tr>
@@ -344,7 +344,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   - offsetOptional支持FLOAT32。shape支持三维，维度为(e, 1, n)，e、n和w的e、n一致。
   - perTokenScaleOptional支持FLOAT32。支持一维，维度为(m)，m和x的m一致。
   - groupListOptional支持e和w的e一致。
-  - sharedInputOptional支持e和w的e一致。
+  - sharedInputOptional支持一维，维度为(e),e和w的e一致。
   - logitOptional支持m和x的m一致。
   - rowIndexOptional支持m和x的m一致。
   - x1、x2、groupListOptional是必选参数，scaleOptional、pertokenScaleOptional、logitOptional、rowIndexOptional、biasOptional，sharedInputOptional是可选参数。
@@ -354,6 +354,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   - x2不支持INT4。维度为(e,k,n)，转置情况下维度为(e,n,k)，e取值范围[1,1024]。
   - scaleOptional支持FLOAT8_E8M0。shape支持四维，维度为(e,n,Ceil(k/64),2) 并且数据类型只支持FLOAT8_E8M0，转置属性必须和x2保持一致。
   - biasOptional支持BF16。
+  - sharedInputOptional支持二维，维度为(bsdp,n)，bsdp代表batchSize / dataParallelSize。
   - perTokenScaleOptional支持FLOAT8_E8M0。shape支持三维，维度为(m,Ceil(k/64),2)。
   - x1、x2、scaleOptional、pertokenScaleOptional、groupListOptional、logitOptional、rowIndexOptional是必选参数，biasOptional，sharedInputOptional是可选参数。目前暂不支持offsetOptional参数。所有参数均不支持空tensor。
   - out的第一维bacth、sharedInputOffset必须大于等于0。
