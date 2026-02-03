@@ -108,6 +108,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Init(GM_ADDR x,
     if ASCEND_IS_AIV {
         return;
     }
+    PRINT("GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Init\n");
     mmTilingData_ = mmTilingDataIn;
     gmmQuantParams_ = gmmBaseParamsIn;
     blockIdx_ = GetBlockIdx();
@@ -126,7 +127,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::InitAddrAndPara
     groupNum_ = gmmQuantParams_->groupNum;
     groupType_ = gmmQuantParams_->groupType;
     groupListType_ = gmmQuantParams_->groupListType;
-    block_.template Init<false>(mmTilingData_, blockIdx_);
+    block_.template Init<true>(mmTilingData_, blockIdx_);
     xTensorPtr_ = x;
     weightTensorPtr_ = weight;
     biasTensorPtr_ = bias;
@@ -158,9 +159,13 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::UpdateMMGlobalA
             gmmQuantParams_->bQuantMode == static_cast<uint32_t>(Mc2QuantUtils::QuantMode::PERTENSOR_MODE)) {  // doubleScale, M_SPLIT
             float scaleBValue = *((__gm__ float *)scaleB);
             float scaleAValue = *((__gm__ float *)perTokenScalePtr_ + groupIdx);
+            PRINT("scaleBValue = %f\n", scaleBValue);
+            PRINT("scaleAValue = %f\n", scaleAValue);
             float deqScale = scaleBValue * scaleAValue;
+            PRINT("deqScale = %f\n", deqScale);
             uint32_t uint32Scale = *(reinterpret_cast<uint32_t *>(&deqScale));
             scaleScalar_ = uint32Scale & DEQ_SCALE_MUL;             // fixpipe只能取高19位
+            PRINT("scaleScalar_ = %ld\n", scaleScalar_);
         } else if (gmmQuantParams_->aQuantMode == static_cast<uint32_t>(Mc2QuantUtils::QuantMode::DEFAULT) &&
                    gmmQuantParams_->bQuantMode == static_cast<uint32_t>(Mc2QuantUtils::QuantMode::PERTENSOR_MODE)) {  // pertensor, M_SPLIT
             if constexpr (!IsSameType<scaleType, uint64_t>::value && !IsSameType<scaleType, int64_t>::value) {
@@ -197,6 +202,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMNK(uint32_t
 {
     int32_t splitValue =
         Mc2QuantUtils::GetSplitValueFromGroupList(groupIdx, preOffset_, groupType_, groupListType_, groupListGlobal_);
+    PRINT("splitValue = %d\n", splitValue);
     switch (groupType_) {
         case (Mc2QuantUtils::SPLIT_M): {
             mSize = splitValue;
@@ -283,6 +289,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
         }
         preOffset_ = 0;
     }
+    PRINT("groupNum_ = %d\n", groupNum_);
 
     for (uint32_t groupIdx = 0; groupIdx < groupNum_; ++groupIdx) {
         int32_t mSize;
@@ -302,6 +309,7 @@ __aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
         }
 
         UpdateMMGlobalAddr(groupIdx);
+        PRINT("block_.params_.round = %d\n", block_.params_.round);
         for (uint64_t roundIdx = 0; roundIdx < block_.params_.round; ++roundIdx) {
             bool isLastGroupRound = IsLastGroupAndRound(groupIdx, roundIdx);
             block_.template UpdateBasicIndex<true>(roundIdx, isLastGroupRound);

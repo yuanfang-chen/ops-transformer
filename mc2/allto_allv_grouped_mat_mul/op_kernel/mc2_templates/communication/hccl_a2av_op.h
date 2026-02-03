@@ -49,9 +49,9 @@ public:
             }
         }
 
-        if constexpr (std::is_same_v<hcclDataType, bfloat16_t>) {
+        if constexpr (AscendC::IsSameType<hcclDataType, bfloat16_t>::value) {
             hcclDataType_ = HCCL_DATA_TYPE_BFP16;
-        } else if constexpr (std::is_same_v<hcclDataType, hifloat8_t>) {
+        } else if constexpr (AscendC::IsSameType<hcclDataType, hifloat8_t>::value) {
             hcclDataType_ = HCCL_DATA_TYPE_HIF8;
         } else {
             hcclDataType_ = HCCL_DATA_TYPE_FP16;
@@ -62,10 +62,9 @@ public:
 
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             for (uint32_t i = 0U; i < rankDim_; i++) {
-                AscendC::printf("[ERROR] LBH: sendCnt[i * e_ + expertIdx] = %ld\n", sendCnt[i * e_ + expertIdx]);
-                AscendC::printf("[ERROR] LBH: recvCnt[i * e_ + expertIdx] = %ld\n", recvCnt[i * e_ + expertIdx]);
                 alltoAllvSendCnt[i] = static_cast<uint64_t>(sendCnt[i * e_ + expertIdx]) * H1_;
                 alltoAllvRecvCnt[i] = static_cast<uint64_t>(recvCnt[i * e_ + expertIdx]) * H1_;
+
             }
             alltoAllvSendOffset[0] = 0UL;
             for (uint32_t j = 0U; j < expertIdx; j++) { // 0sendOffset
@@ -86,13 +85,9 @@ public:
                     alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
                 }
             }
-            AscendC::printf("[ERROR] LBH: sendBuffer_ = %p\n", sendBuffer_);
-            AscendC::printf("[ERROR] LBH: recvBuffer_ = %p\n", recvBuffer_);
-            AscendC::printf("[ERROR] LBH: sendGlobalBuffer_.GetPhyAddr() = %ld\n", sendGlobalBuffer_.GetPhyAddr());
-            AscendC::printf("[ERROR] LBH: recvGlobalBuffer_.GetPhyAddr() = %ld\n", recvGlobalBuffer_.GetPhyAddr());
-            // alltoAllvHandleId_[expertIdx] =
-            //     hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset,
-            //     hcclDataType_, (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
+            alltoAllvHandleId_[expertIdx] =
+                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset,
+                hcclDataType_, (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
         }
     }
 
@@ -108,9 +103,9 @@ public:
             }
         }
 
-        if constexpr (std::is_same_v<hcclDataType, bfloat16_t>) {
+        if constexpr (AscendC::IsSameType<hcclDataType, bfloat16_t>::value) {
             hcclDataType_ = HCCL_DATA_TYPE_BFP16;
-        } else if constexpr (std::is_same_v<hcclDataType, hifloat8_t>) {
+        } else if constexpr (AscendC::IsSameType<hcclDataType, hifloat8_t>::value) {
             hcclDataType_ = HCCL_DATA_TYPE_HIF8;
         } else {
             hcclDataType_ = HCCL_DATA_TYPE_FP16;
@@ -196,6 +191,9 @@ public:
 
     __aicore__ inline void End()
     {
+        if ASCEND_IS_AIC {
+            return;
+        }
         hccl_.Finalize();
     }
 

@@ -34,6 +34,8 @@ public:
         wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
         yGlobalBuffer_.SetGlobalBuffer((__gm__ yType *)this->yGM_);
         groupListGlobalBuffer_.SetGlobalBuffer((__gm__ int64_t *)groupListGm_);
+        xScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)xScaleGM);
+        wScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)weightScaleGM);
 
         expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
         epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
@@ -52,15 +54,14 @@ public:
         if ASCEND_IS_AIV {
             return ;
         }
-        AscendC::printf("[ERROR] LBH computeOp.Process expertIdx = %d\n", expertIdx);
-        AscendC::printf("[ERROR] LBH computeOp.Process expertTokenNum_[expertIdx] = %d\n", expertTokenNum_[expertIdx]);
+        groupListGlobalBuffer_.SetValue(0, expertTokenNum_[expertIdx]);
+        AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
+            AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
+
         this->UpdateAddr(expertIdx);
         GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
         gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
             &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
-        groupListGlobalBuffer_.SetValue(0, expertTokenNum_[expertIdx]);
-        AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
-            AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
         gmmASWKernel.Process();
     }
 
@@ -73,9 +74,10 @@ public:
 protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
     {
-        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenNum_[expertIdx] * H1_);
+        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_);
         wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_);
-        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenNum_[expertIdx] * N1_);
+        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_);
+        expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
 
 private:
@@ -90,11 +92,14 @@ private:
     GM_ADDR workspaceGM_;
     GlobalTensor<xType> xGlobalBuffer_;
     GlobalTensor<wType> wGlobalBuffer_;
+    GlobalTensor<scaleType> xScaleGlobalBuffer_;
+    GlobalTensor<scaleType> wScaleGlobalBuffer_;
     GlobalTensor<yType> yGlobalBuffer_;
     GlobalTensor<int64_t> groupListGlobalBuffer_;
     const TilingDataType *tilingData_;
     TPipe *tPipe_;
     uint64_t expertTokenNum_[32] = {0};
+    uint64_t expertTokenOffset_ = 0;
     uint64_t expertNumInOneRank_ = 0;
     uint64_t epWorldSize_ = 0;
     uint64_t H1_;

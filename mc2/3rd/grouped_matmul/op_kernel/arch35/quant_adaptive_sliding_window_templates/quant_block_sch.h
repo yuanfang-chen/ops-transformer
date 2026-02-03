@@ -17,6 +17,15 @@
 
 #include "quant_utils.h"
 
+// TODO 临时调试使用
+#define PRINT(fmt, ...) do { \
+    AscendC::printf("[INFO][A%s%d_%d] " fmt, \
+        (g_coreType == AscendC::AIV) ? "IV" : "IC", \
+        (int)AscendC::GetBlockIdx(), \
+        (int)AscendC::GetSubBlockIdx(), \
+        ##__VA_ARGS__); \
+} while(0)
+
 namespace Mc2GroupedMatmul {
 struct ASWTilingParam {
     uint64_t m;

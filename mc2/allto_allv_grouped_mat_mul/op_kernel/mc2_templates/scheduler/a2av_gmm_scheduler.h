@@ -42,8 +42,8 @@ public:
         //     localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
         //         workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
         // }
-        // computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
-        //     &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe);
+        computeOp.Init(permuteOutOptionalGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
+            &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe);
     }
 
     __aicore__ inline void Process()
@@ -53,11 +53,11 @@ public:
         // }
         // TODO commOp.Launch(0, e_);
         commOp.TempLaunch();
-        // for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
-        //     commOp.Wait(expertIdx);
-            // SyncAll<false>();
-        //     computeOp.Process(expertIdx);
-        // }
+        for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
+            commOp.Wait(expertIdx);
+            SyncAll<false>();
+            computeOp.Process(expertIdx);
+        }
         this->End();
     }
 
@@ -65,7 +65,7 @@ protected:
     __aicore__ inline void End()
     {
         commOp.End();
-        // computeOp.End();
+        computeOp.End();
         // localComputeOp.End();
     }
 
