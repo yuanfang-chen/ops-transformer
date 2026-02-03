@@ -280,13 +280,6 @@ static bool CheckRecvCnt(
                     return false);
                 recvSum += recvArray[j] * H;
             }
-            OP_TILING_CHECK(recvSum < RECV_SEND_MIN,
-                OP_LOGE(
-                    C_INNER_DEBUG,
-                    "rank %ld:sum(recvCounts[%ld, %ld]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %ld Byte!",
-                    i - 1, (i - 1) * eExpert, i * eExpert - 1, 2 * recvSum),
-                return false);
         }
     }
     return true;
@@ -328,13 +321,9 @@ static bool CheckSendCnt(
                     return false);
                 sendSum += sendArray[j] * H;
             }
-            OP_TILING_CHECK(sendSum < RECV_SEND_MIN,
-                OP_LOGE(
-                    C_INNER_DEBUG,
-                    "rank %ld:sum(sendCounts[%ld, %ld]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %ld Byte!",
-                    i - 1, (i - 1) * eExpert, i * eExpert - 1, 2 * sendSum),
-                return false);
+            if (sendSum == NUM_ZERO) {
+                tilingData->GmmAlltoAllvCommonTilingInfo.isNeedGmm = false;
+            }
         }
     }
     return true;
@@ -761,8 +750,6 @@ static ge::graphStatus ComputeBaseMNK(GroupedMatMulAlltoAllvTilingData* tilingDa
     if (baseM_ > maxM) {
         baseM_ = SixteenAlign(maxM, true);
     }
-    OP_TILING_CHECK(baseM_ == 0, OP_LOGE(C_INNER_DEBUG, "baseM_ should not be 0."), return ge::GRAPH_FAILED);
-
     return ge::GRAPH_SUCCESS;
 }
 

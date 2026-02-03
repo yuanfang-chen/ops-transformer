@@ -44,6 +44,7 @@ struct AlltoAllvGmmCommonTilingInfo {
     bool isPermuteOut;
     bool isNeedMM;
     bool isFp16;
+    bool isNeedGmm;
 };
 
 struct AlltoAllvGmmAicpuTiling {
