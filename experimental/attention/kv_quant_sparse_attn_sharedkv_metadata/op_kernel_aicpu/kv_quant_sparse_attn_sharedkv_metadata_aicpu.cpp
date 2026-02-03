@@ -70,8 +70,12 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
     GetAttrValueOpt(ctx, "has_ori_kv", hasOriKv_);
     GetAttrValueOpt(ctx, "has_cmp_kv", hasCmpKv_);
 
-    if (layout_kv == "TND") {
-        batchSize_ = static_cast<uint32_t>(seqUsedKv_->GetShapeSize());
+    if (layoutKv_ == "TND") {
+        if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
+            batchSize_ = static_cast<uint32_t>(seqUsedQ_->GetTensorShape()->GetDimSize(0));
+        } else {
+            batchSize_ = static_cast<uint32_t>(actSeqLenQ_->GetTensorShape()->GetDimSize(0));
+        }
     }
     sparseMode_ = oriMaskMode_;
     preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
