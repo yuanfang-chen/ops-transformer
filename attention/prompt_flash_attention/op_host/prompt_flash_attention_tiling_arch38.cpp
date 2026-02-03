@@ -4080,6 +4080,8 @@ ge::graphStatus PromptFlashAttentionTilingArch38::DoSubOpTiling(PromptFlashAtten
     context_->SetTilingKey(tilingKey);
     context_->SetBlockDim(blockDimToBeSet);
     PromptFlashAttentionSetTilingData(context_, tilingData);
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     return ret;
 }
 
