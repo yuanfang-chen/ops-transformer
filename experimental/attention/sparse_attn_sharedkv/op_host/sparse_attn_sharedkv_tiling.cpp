@@ -305,7 +305,7 @@ ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
         } else if (opParamInfo_.cmpKv.desc == nullptr && opParamInfo_.cmpSparseIndices.tensor == nullptr) {
             sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
         } else {
-            OP_LOGE(opName_, "when cmpSparseIndices is not nullptr, cmpKv is not nullptr.");
+            OP_LOGE(opName_, "when cmpSparseIndices is not nullptr, cmpKv is should not be nullptr.");
             return ge::GRAPH_FAILED;
         }
         return ge::GRAPH_SUCCESS;
