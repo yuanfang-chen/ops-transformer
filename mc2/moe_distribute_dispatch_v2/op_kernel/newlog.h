@@ -375,9 +375,9 @@ __aicore__ inline void Log::LogInfo(const uint32_t line, const __gm__ char *msg,
         printf("[ERROR][printf only support float, int, uint, bool.. plese read document and cast data type]\n");
         return ; 
     }
-    uint64_t elemNum = 0;
+    uint64_t elemNum = 1;
     for (uint32_t i = 0; i < N; i++) {
-        elemNum += shape[i];
+        elemNum = elemNum * shape[i];
     }
     if(elemNum == 0) {
         printf("tensor is empty\n");
