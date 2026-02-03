@@ -8,25 +8,4 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-message(STATUS "=== Debug: start ops.moe.moe_init_routing_v3.op_host.CMakeLists.txt ")
-
-set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-if (BUILD_OPEN_PROJECT)
-    message(STATUS "=== Debug: BUILD is BUILD_OPEN_PROJECT")
-    target_sources(op_host_aclnnExc PRIVATE
-        moe_init_routing_v3_def.cpp
-    )
-    add_ops_compile_options(
-        OP_NAME MoeInitRoutingV3
-        OPTIONS --cce-auto-sync=on
-                -Wno-deprecated-declarations
-                -Werror
-                -mllvm 
-                -cce-aicore-dcci-before-kernel-end=false
-    )
-endif()
-
-if(NOT BUILD_OPS_RTY_KERNEL)
-    message(STATUS "=== Debug: BUILD is NOT BUILD_OPS_RTY_KERNEL")
-    add_modules_sources(OPTYPE moe_init_routing_v3 ACLNNTYPE aclnn_exclude)
-endif()
+message(STATUS "=== Debug: start ops.moe.moe_init_routing_v2.op_graph.CMakeLists.txt ")
