@@ -460,18 +460,10 @@ ge::graphStatus AlltoAllvGmmTiling::CheckSendRecvDataVolumn(const gert::TilingCo
                 recvSum += recvCounts[j] * H1 * 2U;
                 sendSum += sendCounts[j] * H1 * 2U; // /sizeof(gmmX) = 2U
             }
-            OP_TILING_CHECK(recvSum < recvSendMin,
-                OP_LOGE(A_INNER_DEBUG,
-                    "rank %lu:sum(recvCounts[%lu, %lu]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %lu Byte!",
-                    i - 1U, (i - 1U) * eExpert, i * eExpert - 1U, recvSum),
-                return ge::GRAPH_FAILED);
-            OP_TILING_CHECK(sendSum < recvSendMin,
-                OP_LOGE(A_INNER_DEBUG,
-                    "rank %lu:sum(sendCounts[%lu, %lu]) * H1 * sizeof dtype(gmmx) should be greater than or equal to 2MB,"
-                    "but got %lu Byte!",
-                    i - 1U, (i - 1U) * eExpert, i * eExpert - 1U, sendSum),
-                return ge::GRAPH_FAILED);
+            if (recvSum == NUM_ZERO) {
+                tilingData->commonTilingInfo.isNeedGmm = false;
+            }
+
         }
     }
 
@@ -853,6 +845,7 @@ ge::graphStatus AlltoAllvGmmTiling::Init(gert::TilingContext* context)
     OP_TILING_CHECK(
         GetContextAttr(context) != ge::GRAPH_SUCCESS, OP_LOGE(A_INNER_DEBUG, "Get context attr failed!"),
         return ge::GRAPH_FAILED);
+    tilingData->commonTilingInfo.isNeedGmm = true;
 
     if (tilingData->commonTilingInfo.isNeedMM) {
         OP_TILING_CHECK(context->GetOptionalInputShape(MM_X_INDEX) == nullptr,
@@ -1071,8 +1064,6 @@ ge::graphStatus AlltoAllvGmmTiling::CalMMTiling(const gert::TilingContext* conte
     if (*params.curBaseM > params.curMaxM) {
         *params.curBaseM = static_cast<int32_t>(SixteenAlign(static_cast<uint32_t>(params.curMaxM), true));
     }
-    OP_TILING_CHECK(
-        *params.curBaseM == 0, OP_LOGE(A_INNER_DEBUG, "curBaseM should not be 0."), return ge::GRAPH_FAILED);
     OP_LOGD(A_INNER_DEBUG, "end CalMMTlingData");
 
     return ge::GRAPH_SUCCESS;
