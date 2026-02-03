@@ -20,14 +20,14 @@
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 
 
-using namespace optiling;
-namespace MC2Tiling {
+namespace optiling {
+namespace Mc2GroupedMatmul {
 
-enum class QuantMode : uint8_t {
-    NON_QUANT = 0, // 非量化模式
-    TT_QUANT = 1,  // TT量化模式
-    ERROR = 255    // 特殊设置，表示不支持的类型组合
-};
+// enum class QuantMode : uint8_t {
+//     NON_QUANT = 0, // 非量化模式
+//     TT_QUANT = 1,  // TT量化模式
+//     ERROR = 255    // 特殊设置，表示不支持的类型组合
+// };
 
 class QuantGroupedMatmulAllToAllvTilingStrategyTT {
 public:
@@ -37,4 +37,5 @@ public:
 };
 
 } // namespace MC2Tiling
+}
 #endif

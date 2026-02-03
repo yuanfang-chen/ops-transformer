@@ -106,6 +106,7 @@ protected:
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus DoLibApiTiling() override;
     ge::graphStatus GetWorkspaceSize() override;
+    uint64_t GetTilingKey() const override;
     ge::graphStatus PostTiling() override;
 
     platform_ascendc::SocVersion socVersion_;

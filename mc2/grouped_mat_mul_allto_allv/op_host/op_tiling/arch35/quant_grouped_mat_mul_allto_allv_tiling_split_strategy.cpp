@@ -19,7 +19,8 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace Mc2Tiling;
+using namespace optiling;
+using namespace Mc2GroupedMatmul;
 
 // struct GQmmInputInfo {
 //     uint64_t mSize = 0UL;
@@ -55,7 +56,6 @@ using namespace Mc2Tiling;
 //     bool isSingleY = false;
 // } inputParams_
 
-using namespace optiling;
 namespace MC2Tiling {
 
 }
