@@ -12,6 +12,7 @@
 #define EPILOGUE_BLOCK_BLOCK_EPILOGUE_ONLINE_SOFTMAX_HPP
 
 #include <type_traits>
+#include <limits>
 #include "../../../attn_infra/base_defs.hpp"
 #include "../../../attn_infra/arch/cross_core_sync.hpp"
 #include "../../../attn_infra/arch/resource.hpp"
@@ -90,6 +91,8 @@ public:
     static constexpr uint32_t ROW_OPS_SPEC_MASK_4 = 4;
     static constexpr uint32_t MAX_ROW_NUM_SUB_CORE = 256;
     static constexpr int64_t UB_FLOAT_LINE_SIZE = 64;
+    
+    static constexpr float NEG_INF = -std::numeric_limits<float>::infinity();
 
     __aicore__ inline
     BlockEpilogue() {}
@@ -1546,6 +1549,7 @@ private:
     AscendC::LocalTensor<float> tvUbTensor;
     AscendC::LocalTensor<float> glUbTensor;
     AscendC::LocalTensor<half> tempMaskTensor;
+    AscendC::LocalTensor<uint8_t> selMaskUbTensor;
 };
 }
 
