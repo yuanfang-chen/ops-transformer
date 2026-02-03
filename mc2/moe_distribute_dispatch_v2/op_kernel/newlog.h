@@ -370,17 +370,22 @@ template <typename T,size_t N>
 __aicore__ inline void Log::LogInfo(const uint32_t line, const __gm__ char *msg, GlobalTensor<T>& tensor,const uint32_t (&shape)[N]) {//按指定shap打
     printf("[rankId: %d][aivId: %d][line: %d]", rankId_, aivId_, line);
     printf("%s\n", msg);
-    // if(tensor.GetSize() == 0){
-    //     printf("tensor is empty\n");
-    //     return;
-    // }
-
     bool cast = !is_decimal_integer_v<T> && !is_unsigned_integer_v<T> && !is_fp_point_v<T>;
     if (cast) {
         printf("[ERROR][printf only support float, int, uint, bool.. plese read document and cast data type]\n");
         return ; 
     }
-    PrintValue(tensor, shape);
+    uint32_t elemNum = 0;
+    for (uint32_t i = 0; i < N; i++) {
+        elemNum += shape[i];
+    }
+    if(elemNum == 0) {
+        printf("tensor is empty\n");
+        return;
+    }
+    GlobalTensor<T> tempTensor;
+    tempTensor.SetGlobalBuffer(tensor.GetPhyAddr(),elemNum);
+    PrintValue(tempTensor, shape);
 }
 //用法，在类中定义logger，然后在需要打印的地方调用LOG_INFO(...)
 //在最开始定义LOG_INIT(...)，
