@@ -37,6 +37,7 @@ TILING_DATA_FIELD_DEF(uint32_t, actualLenDims)
 TILING_DATA_FIELD_DEF(uint32_t, antiquantMode)
 TILING_DATA_FIELD_DEF(uint32_t, attenMaskFlag)
 TILING_DATA_FIELD_DEF(uint32_t, attenMaskSize)
+TILING_DATA_FIELD_DEF(uint32_t, softmaxLseFlag)
 TILING_DATA_FIELD_DEF(uint32_t, outputLayout) // 输出Layout
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(IncreFlashAttentionBaseParamsMlaOp, IncreFlashAttentionBaseParamsMla)

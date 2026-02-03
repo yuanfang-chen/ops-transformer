@@ -161,6 +161,7 @@ protected:
     GlobalTensor<K_ROPE_T> kRopeGm;
 
     GlobalTensor<OUT_T> attentionOutGm;
+    GlobalTensor<float> softmaxLseGm;
     GlobalTensor<int32_t> blockTableGm;
 
     // atten mask
@@ -266,9 +267,11 @@ protected:
     static constexpr T antiqCoeff2 = 1 / antiqCoeff1;
     static constexpr T SOFTMAX_MIN_NUM = -2e38;
     static constexpr T BOOL_ATTEN_MASK_SCALAR_VALUE = -1000000000000.0; // 用于mask为bool类型
+    uint32_t negativeIntScalar = *((uint32_t *)&BOOL_ATTEN_MASK_SCALAR_VALUE);
     static constexpr T LN2 = 0.6931471805599453094172;
     static constexpr T RECIP_OF_LN2 = 1 / LN2;
     static constexpr T FLOAT_E_SCALAR = 8388608; // pow(2, 23)
+    static constexpr T FLOAT_INF = 3e+99;
     static constexpr uint64_t kvHeadNum = 1ULL;
     static constexpr uint64_t headDim = 512ULL;
     static constexpr uint64_t headDimAlign = 512ULL;
@@ -333,6 +336,9 @@ protected:
     uint32_t kvCacheBlockSize = 0;
     uint32_t maxBlockNumPerBatch = 0;
     uint64_t s2BatchBaseOffset = 0;
+
+    // 是否返回softmaxLse
+ 	bool softmaxLseFlag = false;
 
     // attention mask
     bool attenMaskFlag = false;
@@ -545,6 +551,7 @@ protected:
     __aicore__ inline void CopyFinalResOut(LocalTensor<T> &accumOutLocal, uint32_t startRow, uint32_t dealRowCount);
 
     __aicore__ inline void InitAllZeroOutput(uint32_t bIdx, uint32_t n2Idx);
+    __aicore__ inline void InitSoftmaxLseAllInfOutput(uint32_t bIdx, uint32_t n2Idx);
     __aicore__ inline uint64_t SeqLenFromTensorList(uint32_t bIdx);
 
     __aicore__ inline void CopyFixedUbToGm(const GlobalTensor<T> &dst, const LocalTensor<T> &src, size_t size);
@@ -580,6 +587,8 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadM
 
     attenMaskFlag = (tilingData->baseParams.attenMaskFlag != 0) ? true : false;
     attenMaskSize = tilingData->baseParams.attenMaskSize;
+
+    softmaxLseFlag = (tilingData->baseParams.softmaxLseFlag != 0) ? true : false;
 
     maxBlockNumPerBatch = tilingData->baseParams.maxBlockNumPerBatch;
     kvCacheBlockSize = tilingData->baseParams.blockSize;
@@ -697,6 +706,29 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::InitAllZeroOutp
             matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], qSeqSize * headDim, 0);
         }
     }
+
+    if (softmaxLseFlag) {
+        InitSoftmaxLseAllInfOutput(bIdx, n2Idx);
+    }
+}
+
+template <typename IFAT>
+__aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::InitSoftmaxLseAllInfOutput(uint32_t bIdx,
+                                                                                            uint32_t n2Idx)
+{
+    if constexpr (LAYOUT_T == LAYOUT::TND) {
+        uint32_t tSize = actualSeqLengthsGmQ.GetValue(batchSize - 1);
+        uint32_t tBase = bIdx == 0 ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
+        uint32_t s1Count = actS1Size;
+
+        for (int s1Idx = 0; s1Idx < s1Count; s1Idx++) {
+            uint64_t softmaxLseOffset = (tBase + s1Idx) * kvHeadNum * gSize + n2Idx * gSize;
+            matmul::InitOutput<float>(softmaxLseGm[softmaxLseOffset], gSize, FLOAT_INF);
+        }
+    } else if constexpr (LAYOUT_T == LAYOUT::BSND || LAYOUT_T == LAYOUT::BSH) {
+        uint64_t softmaxLseOffset = bIdx * kvHeadNum * gSize * qSeqSize + n2Idx * gSize * qSeqSize;
+        matmul::InitOutput<float>(softmaxLseGm[softmaxLseOffset], gSize * qSeqSize, FLOAT_INF);
+    }
 }
 
 template <typename IFAT>
@@ -727,7 +759,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::GetActualSeqLen
 template <typename IFAT>
 __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::GetBN2Gid(const uint32_t bn2gIdx)
 {
-    if constexpr(FLASH_DECODE) {
+    if constexpr (FLASH_DECODE) {
         bIdx = aiCoreIdx / (kvHeadNum * splitKVNum);
         // n2Idx = (aiCoreIdx / splitKVNum) % kvHeadNum;
         s2IdxFD = aiCoreIdx % splitKVNum;
@@ -737,10 +769,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::GetBN2Gid(const
         bIdx = bs1n2 / (kvHeadNum * s1Outer);
         s1Idx = s1n2 / kvHeadNum;
     } else {
-       uint32_t bn2g = beforeBlockSplitBn2Nums + bn2gIdx;
-       uint32_t n2g = bn2g % (kvHeadNum * gOuter);
-       bIdx = bn2g / (kvHeadNum * gOuter);
-       gIdx = n2g % gOuter;
+        uint32_t bn2g = beforeBlockSplitBn2Nums + bn2gIdx;
+        uint32_t n2g = bn2g % (kvHeadNum * gOuter);
+        bIdx = bn2g / (kvHeadNum * gOuter);
+        gIdx = n2g % gOuter;
     }
 }
 
@@ -944,6 +976,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::Init(
         lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
         lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->splitKVParams.logSumExpSize / 2);
         offset = offset + tilingData->splitKVParams.logSumExpSize * sizeof(float);
+    }
+
+    if (softmaxLseFlag) {
+        softmaxLseGm.SetGlobalBuffer((__gm__ float *)softmaxLse);
     }
 
     if ASCEND_IS_AIV {
@@ -1495,6 +1531,20 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
         Div(lseSum[i * dealRowCountAlign], lseSum[i * dealRowCountAlign], lseSumUb, dealRowCountAlign);
     }
     PipeBarrier<PIPE_V>();
+
+    if (softmaxLseFlag) {
+        AscendC::printf("tkd fd softmaxlse\n");
+        // LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
+        // DataCopy(softmaxlseUb, lseUb, dealRowCountAlign);
+        // outputQue2.EnQue(softmaxlseUb);
+        // outputQue2.DeQue<T>();
+        // Log(softmaxlseUb, lseSumUb, dealRowCountAlign);
+        // PipeBarrier<PIPE_V>();
+        // Add(softmaxlseUb, lseUb, lseMaxUb, dealRowCountAlign);
+        // PipeBarrier<PIPE_V>();
+
+
+    }
 }
 
 template <typename IFAT>
@@ -2246,7 +2296,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::Bmm2DataCopyOutNBSDMTiling(LocalTensor
 {
     uint32_t tSize = batchSize * qSeqSize;
     uint32_t tBase = transInfo.bIdx * qSeqSize;
-    if (LAYOUT_T == LAYOUT::TND) {
+    if constexpr (LAYOUT_T == LAYOUT::TND) {
         tSize = actualSeqLengthsGmQ.GetValue(batchSize - 1);
         tBase = transInfo.bIdx == 0 ? 0 : actualSeqLengthsGmQ.GetValue(transInfo.bIdx - 1);
     }
@@ -2647,6 +2697,78 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
     }
 
     if (info.s2Idx == info.curSInnerLoopTimes - 1) {
+        AscendC::printf("tkd info.s2Idx == info.curSInnerLoopTimes - 1\n");
+        uint32_t outIdx = info.loop % (PRE_LOAD_NUM_MLA);
+        uint32_t softmaxOutOffset = outIdx * BUFFER_SIZE_BYTE_2K / sizeof(T);
+        LocalTensor<T> sumTensor = softmaxSumUb[softmaxOutOffset];
+        LocalTensor<T> maxTensor = softmaxMaxUb[softmaxOutOffset];
+
+        // LocalTensor<T> lseSumUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_8K, BUFFER_SIZE_BYTE_8K);
+        // LocalTensor<T> lseMaxUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_8K, 2 * BUFFER_SIZE_BYTE_8K);
+        // Brcb(lseSumUb, sumTensor, (mSizeVector + BLOCK_ELEMENT_NUM - 1) / BLOCK_ELEMENT_NUM, {1, BLOCK_ELEMENT_NUM});
+        // PipeBarrier<PIPE_V>();
+        // Brcb(lseMaxUb, maxTensor, (mSizeVector + BLOCK_ELEMENT_NUM - 1) / BLOCK_ELEMENT_NUM, {1, BLOCK_ELEMENT_NUM});
+        // PipeBarrier<PIPE_V>();
+
+        // if (!FLASH_DECODE && softmaxLseFlag) {
+        //     uint64_t softmaxLseOffset = info.attenOutOffset / headDim;
+        //     uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
+        //     LocalTensor<T> lseUb = tmpBuff1.Get<T>(BUFFER_SIZE_BYTE_8K);
+        //     Log(lseUb, sumTensor, dealRowCountAlign);
+        //     PipeBarrier<PIPE_V>();
+        //     Add(lseUb, lseUb, maxTensor, dealRowCountAlign);
+        //     PipeBarrier<PIPE_V>();
+
+        //     bool isExistInvalidRows = IsExistSoftmaxLseInvalidRows(info, startRow, dealRowCount);
+
+        //     SoftMaxShapeInfo softmaxShapeInfo{
+        //         static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM),
+        //         static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM)};
+        //     AdjustSoftMaxRes<T, T>(lseUb, maxTensor, negativeIntScalar, FLOAT_INF, softmaxShapeInfo);
+
+        //     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
+        //     DataCopy(softmaxlseUb, lseUb, dealRowCountAlign);
+        //     outputQue2.EnQue(softmaxlseUb);
+        //     outputQue2.DeQue<T>();
+
+        //     if constexpr (LAYOUT_T == LAYOUT::TND) {
+        //         DataCopyExtParams dataCopyParams;
+        //         dataCopyParams.blockLen = sizeof(T);
+        //         dataCopyParams.blockCount = dealRowCount;
+        //         dataCopyParams.srcStride = 0;
+        //         dataCopyParams.dstStride = 0;
+        //         softmaxLseOffset += mSizeVStart;
+        //         DataCopyPad(softmaxLseGm[softmaxLseOffset], softmaxlseUb, dataCopyParams);
+        //         outputQue2.FreeTensor(softmaxlseUb);
+        //     } else {
+        //         uint32_t startS1Idx = info.s1Idx * s1SizeSub + (mSizeVStart) / gSize;
+        //         uint32_t startGIdx = (mSizeVStart) % gSize;
+        //         uint32_t endS1Idx = info.s1Idx * s1SizeSub + (mSizeVStart + dealRowCount - 1) / gSize;
+        //         uint32_t endGIdx = (mSizeVStart + dealRowCount - 1) % gSize;
+        //         uint64_t outOffset = 0;
+        //         uint64_t ubOffset = 0;
+        //         uint32_t curDealRowCount = 0;
+        //         uint64_t bN2Offset = info.bIdx * qHeadNum * qSeqSize + info.n2Idx * gSize * qSeqSize;
+        //         for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
+        //             outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
+        //             if (s1Idx != endS1Idx) {
+        //                 curDealRowCount = gSize - startGIdx;
+        //             } else {
+        //                 curDealRowCount = endGIdx + 1 - startGIdx;
+        //             }
+        //             DataCopyExtParams dataCopyParams;
+        //             dataCopyParams.blockCount = curDealRowCount;
+        //             dataCopyParams.blockLen = sizeof(float);
+        //             dataCopyParams.srcStride = 0;
+        //             dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(float);
+        //             DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
+        //             startGIdx = 0;
+        //             ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
+        //         }
+        //     }
+        //     outputQue2.FreeTensor(softmaxlseUb);
+        // }
+
         if constexpr (BALANCE) {
             if (!info.tndIsS2SplitCore) {
                 return;
