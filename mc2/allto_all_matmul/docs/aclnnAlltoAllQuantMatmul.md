@@ -18,31 +18,31 @@
 
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - **动态量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        x1_{quant}, x1_{scale} = Quant(permutedOut) \\
-        output_{quant} = x1_{quant} @ x2 \\
-        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-        output = output + bias
-        $$
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      x1_{quant}, x1_{scale} = Quant(permutedOut) \\
+      output_{quant} = x1_{quant} @ x2 \\
+      output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+      output = output + bias
+      $$
     - **全量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        output_{quant} = x1 @ x2 \\
-        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-        output = output + bias
-        $$
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      output_{quant} = x1 @ x2 \\
+      output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+      output = output + bias
+      $$
 
   - <term>Ascend 950PR/Ascend 950DT</term>：
     - **动态量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
-        output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
-        $$
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
+      output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
+      $$
 
 ## 函数原型
 
@@ -126,7 +126,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4</td>
     <td>ND</td>
     <td>2维，shape为(H*rankSize, N)</td>
-    <td>x</td>
+    <td>√</td>
     </tr>
     <tr>
     <td>biasOptional</td>
@@ -280,7 +280,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>transposeX2</td>
     <td>输入</td>
     <td>标识右矩阵是否转置过。</td>
-    <td>配置为True时右矩阵Shape为(N, rankSize * H)。</td>
+    <td>配置为True时右矩阵Shape为(N, rankSize * H)，不支持和PyTorch中的.t()方法同时使用。</td>
     <td>bool</td>
     <td>-</td>
     <td>-</td>
