@@ -137,6 +137,9 @@ struct MatmulAllReduceInferShapeUtParam: public MatmulAllReduceHostUtParamBase {
     gert::InfershapeContextPara::TensorDescription comm_quant_scale_1 = ID_DEFAULT;
     gert::InfershapeContextPara::TensorDescription comm_quant_scale_2 = ID_DEFAULT;
     gert::InfershapeContextPara::TensorDescription y = ID_DEFAULT;
+    std::string soc;
+    uint64_t coreNum;
+    uint64_t ubsize;
     uint64_t ranksize;
     std::vector<std::vector<int64_t>> expectOutputShape;
 
@@ -174,6 +177,9 @@ struct MatmulAllReduceInferShapeUtParam: public MatmulAllReduceHostUtParamBase {
             GetTensor(csvMap, "comm_quant_scale_2_shape", "comm_quant_scale_2_dtype", "comm_quant_scale_2_format",
                 comm_quant_scale_2));
         this->outputInstance.emplace_back(1);
+        this->soc = ReadMap(csvMap, "soc");
+        this->coreNum = stoi(ReadMap(csvMap, "core_num"));
+        this->ubsize = stoi(ReadMap(csvMap, "ubsize"));
         this->ranksize = stoi(ReadMap(csvMap, "ranksize"));
         if(this->expectResult == ge::GRAPH_SUCCESS) {
             this->expectOutputShape = {GetShapeArr(ReadMap(csvMap, "expectOutputShape"))};
