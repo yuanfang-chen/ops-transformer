@@ -198,11 +198,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -338,11 +338,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -476,11 +476,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -614,11 +614,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -752,11 +752,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -890,11 +890,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1028,11 +1028,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1166,11 +1166,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1304,11 +1304,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant_sm
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1442,11 +1442,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant_sm
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1580,11 +1580,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant_s
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1719,11 +1719,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1852,11 +1852,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dimSize_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -1985,11 +1985,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dtype_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -2118,11 +2118,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkvDim_32_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -2251,11 +2251,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dtype_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -2384,11 +2384,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -2517,11 +2517,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dimOne_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -2650,11 +2650,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -2783,11 +2783,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -2916,11 +2916,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dtype_diff_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3049,11 +3049,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3182,11 +3182,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3315,11 +3315,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dtype_diff_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3448,11 +3448,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3581,11 +3581,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3714,11 +3714,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dtype_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3847,11 +3847,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -3980,11 +3980,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dtype_diff_wrong
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -4113,11 +4113,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -4246,11 +4246,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -4379,11 +4379,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_dtype_diff_wro
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -4512,11 +4512,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -4645,11 +4645,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_blocksize_32_w
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -4778,11 +4778,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -4911,11 +4911,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dtype_diff_wro
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5044,11 +5044,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5177,11 +5177,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dims_blocksize
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5310,11 +5310,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_is_None_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5442,11 +5442,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_dtype_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5574,11 +5574,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5707,11 +5707,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_is_None_int8_w
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5840,11 +5840,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_is_notNone_fp1
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -5973,11 +5973,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_dtype_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -6105,11 +6105,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -6238,11 +6238,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_is_None_wron
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -6370,11 +6370,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -6502,11 +6502,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_dims_relatio
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -6634,11 +6634,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_is_None_wron
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -6766,11 +6766,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_dims_wrong)
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -6899,11 +6899,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_shape_wrong1
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();
@@ -7032,11 +7032,11 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_shape_wrong2
                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
 
                       .NodeAttrs(
-                          {{"qkv_size", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-                           {"head_nums", Ops::NN::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-                           {"epsilon", Ops::NN::AnyValue::CreateFrom<float>(1e-06)},
-                           {"cache_mode", Ops::NN::AnyValue::CreateFrom<std::string>(cache_mode)},
-                           {"is_output_qkv", Ops::NN::AnyValue::CreateFrom<bool>(false)}})
+                          {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
+                           {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
+                           {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+                           {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+                           {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
                       .TilingData(param.get())
                       .Workspace(ws_size)
                       .Build();

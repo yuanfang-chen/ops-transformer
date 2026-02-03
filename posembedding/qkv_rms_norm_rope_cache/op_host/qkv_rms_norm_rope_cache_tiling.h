@@ -132,7 +132,7 @@ constexpr int64_t NUM_CACHE_MODE_UNIT = 10;
 constexpr int64_t BYTES_PER_KILO_BYTE = 1024;
 static constexpr int64_t UB_RESERVED_BYTES = 1 * BYTES_PER_KILO_BYTE; // 多留1K
 
-class QkvRmsNormRopeCacheTilingBase : public Ops::NN::Optiling::TilingBaseClass {
+class QkvRmsNormRopeCacheTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
     explicit QkvRmsNormRopeCacheTilingBase(gert::TilingContext* tillingContext) : TilingBaseClass(tillingContext)
     {}
