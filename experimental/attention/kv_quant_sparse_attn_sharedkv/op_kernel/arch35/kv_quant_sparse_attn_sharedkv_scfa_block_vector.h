@@ -454,6 +454,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessNotSparseKv(Buffer<Bu
             s2ProcessSize = s2Tail;
         }
         int64_t dealRow = GetSubBlockIdx() == 0 ? CeilDiv(s2ProcessSize, 2L) : s2ProcessSize - CeilDiv(s2ProcessSize, 2L);
+        if (dealRow == 0) {
+            continue;
+        }
         int64_t s2StartIdx = GetSubBlockIdx() == 0 ? 0 : CeilDiv(s2ProcessSize, 2L);
         s2StartIdx += i * s2ProcessBaseSize;
         // 1、copy kv in, gm ->ub
