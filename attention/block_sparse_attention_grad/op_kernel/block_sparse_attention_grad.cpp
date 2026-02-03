@@ -38,7 +38,7 @@ extern "C" __global__ __aicore__ void block_sparse_attention_grad(__gm__ uint8_t
                                                                   __gm__ uint8_t* dv,
                                                                   __gm__ uint8_t* workspace, __gm__ uint8_t* tiling)
 {
-    __gm__ uint8_t *user = GetUserWorkspace(workspace);
+    __gm__ uint8_t *user = AscendC::GetUserWorkspace(workspace);
 
     // __gm__ RainFusionAttentionTilingData *tilingDataPtr = 
     //     reinterpret_cast<__gm__ RainFusionAttentionTilingData *>(tiling);
