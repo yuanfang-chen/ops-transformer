@@ -830,29 +830,26 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
         return false;
     }
 
-    if (enableKVAntiquant || enablePerblockQuant || enablePertensorQuant || enableIFAMLAFullQuant || enableIFAMLA) {
+    if (enableKVAntiquant || enablePerblockQuant || enablePertensorQuant) {	 
         if (nQ > 256) {
-            OP_LOGE(contextKeyParams.opName, "the nQ connot be larger than 256, but nQ = %d", nQ);	 
+            OP_LOGE(contextKeyParams.opName, "the numheads of input query cannot be larger than 256, but numheads = %d", nQ);	 
              return false;
         }
-    }
-    
-    if (enableKVAntiquant || enablePerblockQuant || enablePertensorQuant) {	 
-         if (nQ / nKV > 64) { // G cannot be greater than 64.	 
-             OP_LOGE(contextKeyParams.opName, "In antiquant and fullquant scenario, the G(numHeads / numKeyValueHeads) connot be larger than 64, but G = %d", nQ / nKV);	 
-             return false; 
-         } 
+        if (nQ / nKV > 64) { // G cannot be greater than 64.	 
+            OP_LOGE(contextKeyParams.opName, "In antiquant and fullquant scenario, the G(numHeads / numKeyValueHeads) connot be larger than 64, but G = %d", nQ / nKV);	 
+            return false; 
+        } 
           
      } else if (enableIFAMLA || enablePFAMLA || enableIFAMLAFullQuant) { 
-         if ((enableIFAMLA || enableIFAMLAFullQuant) && (nQ / nKV > 128)) { // G cannot be greater than 128. 
-             OP_LOGE(contextKeyParams.opName, "In mla decode (non quant and fullquant) scenario, the G(numHeads / numKeyValueHeads) connot be larger than 128, but G = %d", nQ / nKV); 
-             return false; 
-         } 
+        if ((enableIFAMLA || enableIFAMLAFullQuant) && (nQ / nKV > 128)) { // G cannot be greater than 128. 
+            OP_LOGE(contextKeyParams.opName, "In mla decode (non quant and fullquant) scenario, the G(numHeads / numKeyValueHeads) connot be larger than 128, but G = %d", nQ / nKV); 
+            return false; 
+        } 
      } else { 
-         if ((nQ / nKV > 64) && (queryShapeInfo.d != 64 && queryShapeInfo.d != 128)) { 
-             OP_LOGE(contextKeyParams.opName, "In gqa non quant scenario, when dSize is not 64 or 128, the G(numHeads / numKeyValueHeads) connot be larger than 64, but dSize = %d", queryShapeInfo.d); 
-             return false; 
-         } 
+        if ((nQ / nKV > 64) && (queryShapeInfo.d != 64 && queryShapeInfo.d != 128)) { 
+            OP_LOGE(contextKeyParams.opName, "In gqa non quant scenario, when dSize is not 64 or 128, the G(numHeads / numKeyValueHeads) connot be larger than 64, but dSize = %d", queryShapeInfo.d); 
+            return false; 
+        } 
     }
 
     if (enableIFAMLA || enableIFA) {
