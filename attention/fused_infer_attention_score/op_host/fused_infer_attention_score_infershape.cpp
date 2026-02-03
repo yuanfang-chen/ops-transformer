@@ -379,6 +379,7 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
     ge::DataType outputType = context->GetInputDataType(FIA_QUERY_INDEX);
     // 10 is quant_scale2's index, if not instantiated or illegal return ge::DT_UNDEFINED
     if (context->GetOptionalInputDataType(FIA_QUANT_SCALE2_INDEX) != ge::DT_UNDEFINED) {
+        outputType = ge::DT_INT8;
         auto attrs = context->GetAttrs();
         OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
         const int64_t *outTypePtr = attrs->GetInt(FIA_OUT_DTYPE_INDEX);
@@ -387,7 +388,9 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
             if (iter != TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP.end()) {
                 outputType = iter->second;
             }else{
-                OP_LOGE("FusedInferAttentionScore", "fia graph mode do not support post quant output data type: %s.", TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.at(*outTypePtr).c_str());
+                auto it = TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.find(*outTypePtr); //not support data type list
+                if(it != TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.end())
+                    OP_LOGE("FusedInferAttentionScore", "fia graph mode do not support post quant output data type: %s.", TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.at(*outTypePtr).c_str());
                 return ge::GRAPH_FAILED;
             }
         }
