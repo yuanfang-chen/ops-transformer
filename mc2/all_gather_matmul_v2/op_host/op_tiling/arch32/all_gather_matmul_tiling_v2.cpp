@@ -155,7 +155,8 @@ ge::graphStatus AllGatherMatmulTilingV2::DoVersion2Tiling()
     std::vector<int32_t> priorities;
     GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion, priorities, opName_));
 
-    Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", socVersion, priorities};
+    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
+    Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", npuArch, priorities};
 
     mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
 

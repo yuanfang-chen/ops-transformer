@@ -105,16 +105,17 @@ ge::graphStatus FpMatmulAllToAllTilingBase::DoMMTiling()
     // 非空校验已在GetPlatformInfo校验过
     fe::PlatFormInfos *platformInfo = context_->GetPlatformInfo();
     if (mc2_matmul_v3_advanced::InitCompileInfo(platformInfo, &compileInfo_) != ge::GRAPH_SUCCESS) {
-        OP_LOGE(opName_, "Fail to Init CompileInfo!");
+        OP_LOGE(opName_, "Fail to Init CompileInfo!!!");
         return ge::GRAPH_FAILED;
     }
 
     auto ascendcPlatForm = platform_ascendc::PlatformAscendC(platformInfo);
-
+    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
     std::vector<int32_t> priorities;
     GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion_, priorities, opName_));
 
-    Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", socVersion_, priorities};
+    
+    Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", npuArch, priorities};
 
     mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, contextInfo.args_, opName_);
 
