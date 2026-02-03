@@ -100,8 +100,7 @@ protected:
     uint64_t keyScaleCoreOffset = 0ULL;
     uint64_t weightsCoreOffset = 0ULL;
     uint64_t indiceOutCoreOffset = 0ULL;
-    bool usedCoreNumFlag = false;
-    bool zeroCoreFlag = false;
+    bool isUsedCoreEqZero = false;
     // ================================Global Buffer区=================================
     GlobalTensor<Q_T> queryGm;
     GlobalTensor<K_T> keyGm;
@@ -274,11 +273,13 @@ __aicore__ inline void QLIPreload<QLIT>::SplitCoreByAICPU(uint32_t curCoreIdx,  
 
     uint32_t liZeroCoreEnableIndex = GetAttrAbsIndex(0, LI_CORE_ENABLE_INDEX);
     if (metadataGm.GetValue(liZeroCoreEnableIndex) == 0) {
-        zeroCoreFlag = true;
+        isUsedCoreEqZero = true;
     }
     if (metadataGm.GetValue(liCoreEnableIndex) == 0) {
-        usedCoreNumFlag = true;
-        return ;
+        splitCoreInfo.isCoreEnable = false;
+        return;
+    } else {
+        splitCoreInfo.isCoreEnable = true;
     }
 
     splitCoreInfo.bN2Start = metadataGm.GetValue(bN2StartIndex);
@@ -537,7 +538,7 @@ __aicore__ inline void QLIPreload<QLIT>::CalcRunInfo(uint32_t loop, uint32_t s2L
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::Process()
 {
-    if (zeroCoreFlag) {
+    if (isUsedCoreEqZero) {
         // 没有计算任务，直接清理输出
         ProcessInvalid();
         return;
@@ -568,9 +569,7 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessInvalid()
 template <typename QLIT>
 __aicore__ inline void QLIPreload<QLIT>::ProcessMain()
 {
-    if(usedCoreNumFlag){
-    //if (aiCoreIdx >= usedCoreNum) {
-        // 无任务核直接返回
+    if(!splitCoreInfo.isCoreEnable){
         return;
     }
 
