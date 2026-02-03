@@ -32,8 +32,8 @@
 // using MC2KernelTemplate::GmmTilingArray;
 // using MC2KernelTemplate::GMMQuantTilingData;
 // using MC2KernelTemplate::GMMArray;
-using namespace optiling;
-// namespace MC2Tiling {
+namespace optiling {
+namespace Mc2GroupedMatmul {
 
 struct TilingInferredInfo {
     uint64_t gmmResultLen = 0UL; // 存储计算GMM的地址大小
@@ -83,5 +83,6 @@ private:
     ge::graphStatus CalTilingInferredInfo();
 };
 
-// } // namespace MC2Tiling
+} // namespace MC2Tiling
+}
 #endif

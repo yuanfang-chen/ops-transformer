@@ -22,10 +22,10 @@
 
 using namespace Mc2Log;
 using namespace AscendC;
-using namespace Mc2Tiling;
 using namespace optiling;
+using namespace Mc2GroupedMatmul;
 
-// namespace MC2Tiling {
+// namespace Mc2GroupedMatmul {
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
 {
     opName_ = context_->GetNodeName();
