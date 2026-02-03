@@ -836,7 +836,6 @@ def call_npu(input_data):
                                                                sinks=sinks,
                                                                metadata=metadata,
                                                                softmax_scale=softmax_scale,
-                                                               cmp_ratio=3,
                                                                ori_mask_mode=ori_mask_mode,
                                                                ori_win_left=ori_win_left,
                                                                ori_win_right=ori_win_right,
