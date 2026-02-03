@@ -515,7 +515,7 @@ static inline bool CheckTuningConfig(const GroupedMatmulParams &params)
 
 static aclnnStatus CheckParams(GroupedMatmulParams &params)
 {
-    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+    if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND950) {
         GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRoutingDAV3510Checker checker;
         aclnnStatus status = checker.CheckParams(params);
         CHECK_RET(status == ACLNN_SUCCESS, status);
@@ -1298,7 +1298,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
         return ACLNN_ERR_PARAM_INVALID;
     } else if (!((transposeX1 == false && transposeX2 == false) ||
                  (transposeX1 == false && transposeX2 == true &&
-                  op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510))) {
+                  op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND950))) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "aclnnGroupedMatmulFinalizeRoutingV3: valid transpose config: transposeX1=%s,transposeX2=%s",
                 transposeX1 ? "true" : "false", transposeX2 ? "true" : "false");
@@ -1323,7 +1323,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
 
     bool isMXValid = CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST) &&
                      CheckType(tmpWeightV3->GetDataType(), MX_IN_TYPE_SUPPORT_LIST);
-    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 && !isMXValid) {
+    if (op::GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND950 && !isMXValid) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "aclnnGroupedMatmulFinalizeRoutingV3 weightNd: Invalid dtype combination."
                 "Expected: x1 and x2 both in [FLOAT8_E5M2, FLOAT8_E4M3FN, "
