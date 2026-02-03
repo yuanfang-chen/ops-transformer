@@ -389,9 +389,10 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
                 outputType = iter->second;
             }else{
                 auto it = TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.find(*outTypePtr); //not support data type list
-                if(it != TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.end())
+                if(it != TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.end()){
                     OP_LOGE("FusedInferAttentionScore", "fia graph mode do not support post quant output data type: %s.", TORCH_DTYPE_ENUM_VALUE_TO_STRING_MAP.at(*outTypePtr).c_str());
-                return ge::GRAPH_FAILED;
+                    return ge::GRAPH_FAILED;
+                }
             }
         }
     } else if (context->GetInputDataType(FIA_QUERY_INDEX) == ge::DT_INT8 ||
