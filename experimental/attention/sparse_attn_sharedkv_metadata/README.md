@@ -64,146 +64,146 @@
       <td>cu_seqlens_q</td>
       <td>可选输入</td>
       <td>当layout_query为TND时，表示不同Batch中q的有效token数，维度为B+1，大小为参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和</td>
-      <td>Tensor</td>
+      <td>INT32</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>cu_seqlens_ori_kv</td>
       <td>可选输入</td>
       <td>当layout_kv为TND时，表示不同Batch中ori_kv的有效token数，维度为B+1，大小为参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和</td>
-      <td>Tensor</td>
+      <td>INT32</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>cu_seqlens_cmp_kv</td>
       <td>可选输入</td>
       <td>当layout_kv为TND时，表示不同Batch中cmp_kv的有效token数，维度为B+1，大小为参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和</td>
-      <td>Tensor</td>
+      <td>INT32</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>seqused_q</td>
       <td>可选输入</td>
       <td>表示不同Batch中q实际参与运算的token数，维度为B</td>
-      <td>Tensor</td>
+      <td>INT32</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>seqused_kv</td>
       <td>可选输入</td>
       <td>表示不同Batch中ori_kv实际参与运算的token数，维度为B</td>
-      <td>Tensor</td>
+      <td>INT32</td>
       <td>ND</td>
     </tr>
     <tr>
       <td>batch_size</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>输入样本批量大小</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>max_seqlen_q</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>当layout_query为BSND时，表示每个Batch中的q的有效token数</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>max_seqlen_kv</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>当layout_kv为BSND时，表示每个Batch中的ori_kv的有效token数</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>ori_topk</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>表示选取ori_topk的K个token</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>cmp_topk</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>表示选取cmp_topk的K个token</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>cmp_ratio</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>表示对ori_kv的压缩率
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>ori_mask_mode</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>表示q和ori_kv计算的mask模式，仅支持输入默认值4，代表band模式的mask</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>cmp_mask_mode</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>表示q和cmp_kv计算的mask模式，仅支持输入默认值3，代表rightDownCausal模式的mask</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>ori_win_left</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>表示q和ori_kv计算中q对过去token计算的数量</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>ori_win_right</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>表示q和ori_kv计算中q对未来token计算的数量</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>layout_q</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>用于标识输入q的数据排布格式</td>
-      <td>String</td>
+      <td>STRING</td>
     </tr>
     <tr>
       <td>layout_kv</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>用于标识输入ori_kv和cmp_kv的数据排布格式</td>
-      <td>String</td>
+      <td>STRING</td>
       <td>-</td>
     </tr>
     <tr>
       <td>has_ori_kv</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>是否含有ori_kv</td>
       <td>BOOL</td>
       <td>-</td>
     </tr>
     <tr>
       <td>has_cmp_kv</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>是否含有cmp_kv</td>
       <td>BOOL</td>
       <td>-</td>
     </tr>
     <tr>
       <td>device</td>
-      <td>可选输入</td>
+      <td>可选属性</td>
       <td>npu的ID</td>
-      <td>String</td>
+      <td>STRING</td>
       <td>-</td>
     </tr>
     <tr>
       <td>metadata</td>
       <td>输出</td>
       <td>包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引的列表</td>
-      <td>Tensor</td>
+      <td>INT32</td>
       <td>-</td>
     </tr>
   </tbody>
