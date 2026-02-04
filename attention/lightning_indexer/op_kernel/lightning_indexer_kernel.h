@@ -50,6 +50,30 @@ struct TempLoopInfo {
     uint32_t s2BasicSizeTail = 0U; // S2方向循环的尾基本块大小
 };
 
+template<typename W_T, typename Q_T>
+struct LightningIndexerTypeTraits
+{
+    using weightsType = Q_T;
+};
+
+template<>
+struct LightningIndexerTypeTraits<float>
+{
+    using weightsType = float;
+};
+
+template<>
+struct LightningIndexerTypeTraits<half, typename Q_T>
+{
+    using weightsType = Q_T;
+};
+
+template<>
+struct LightningIndexerTypeTraits<bfloat16_t, typename Q_T>
+{
+    using weightsType = Q_T;
+};
+
 template <typename LIT>
 class LIPreload {
 public:
@@ -61,6 +85,7 @@ public:
     __aicore__ inline void Process();
 
     // =================================类型定义区=================================
+    static constexpr bool DT_W_FLAG = LIT::weightsTypeFlag;
     using Q_T = typename LIT::queryType;
     using K_T = typename LIT::keyType;
     using OUT_T = typename LIT::outputType;
