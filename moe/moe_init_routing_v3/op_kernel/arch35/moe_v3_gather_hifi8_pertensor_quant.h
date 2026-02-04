@@ -111,12 +111,8 @@ __aicore__ inline void MoeGatherOutHif8PertensorQuant<T>::Compute()
     uint32_t sreg;
     __VEC_SCOPE__
     {
-        MicroAPI::RegTensor<float> inReg, scaleValueReg;
-        MicroAPI::Duplicate(scaleValueReg, 0.0f);
         MicroAPI::RegTensor<hifloat8_t> outRegH8;
-
         MicroAPI::MaskReg maskRegInLoop;
-        MicroAPI::MaskReg maskRegAll = MicroAPI::CreateMask<float, MicroAPI::MaskPattern::ALL>();
 
         sreg = static_cast<uint32_t>(cols_);
         for (uint16_t i = 0; i < repeatTimes; i++) {
@@ -145,7 +141,6 @@ __aicore__ inline void MoeGatherOutHif8PertensorQuant<T>::CopyOutXQuant(int64_t 
         LocalTensor<T> inLocal = inputXInQueue_.AllocTensor<T>();
         int64_t rowOffset = perCoreRow_ * blockIdx_ + perLoopRows_ * progress;
         int32_t srcIdx = indicesLocal.GetValue(i);
-        int32_t expertIdx = indicesLocal.GetValue(currentLoopRowsAlign_ + i) - expertStart_;
 
         DataCopyPad(inLocal[perLoopColsAlign_], inputXGm_[srcIdx / k_ * cols_], copyInParams, {false, 0, 0, 0}); // T为fp16/bf16，数据拷贝到inLocal的偏移位置（按float 4字节对齐）
 
@@ -215,7 +210,6 @@ __aicore__ inline void MoeGatherOutHif8PertensorQuant<T>::CopyOutPartialXQuant(i
     for (int64_t i = 0; i < currentLoopRows_; i++) {
         int64_t rowOffset = perCoreRow_ * blockIdx_ + perLoopRows_ * progress;
         int32_t srcIdx = indicesLocal.GetValue(i);
-        int32_t expertIdx = indicesLocal.GetValue(currentLoopRowsAlign_ + i) - expertStart_;// 专家id与tokenid的间隔相差currentLoopRowsAlign_这么长
         LocalTensor<float> inLocal = inputXInQueue_.AllocTensor<float>();
       
         for (int64_t j = 0; j < colLoops_; j++) {
@@ -300,7 +294,7 @@ __aicore__ inline void MoeGatherOutHif8PertensorQuant<T>::Init(GM_ADDR inputX, G
 
     int64_t perLoopColsAlignBytes = AlignBytes(perLoopCols_, sizeof(T));
     perLoopColsAlignBytes = Max(static_cast<int64_t>(perLoopColsAlignBytes * sizeof(float) / sizeof(T)),
-                                static_cast<int64_t>(BLOCK_BYTES + BLOCK_BYTES));
+                                static_cast<int64_t>(BLOCK_BYTES * 2));
     pipe_->InitBuffer(inputXInQueue_, GATHER_OUT_HIF8_PERTENSOR_QUANT_BUFFER_NUM,
                       perLoopColsAlignBytes); // percols * 2  * 4
     pipe_->InitBuffer(expandRowIdxInQueue_, GATHER_OUT_HIF8_PERTENSOR_QUANT_BUFFER_NUM,
