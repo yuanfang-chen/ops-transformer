@@ -136,6 +136,93 @@
  	|       ├── ...                                 # aclnn接口头文件
  	```
 
+### 离线编译执行
+
+    离线编译是指在没有连接互联网的环境下，将软件源代码编译成可执行程序，并安装或配置到目标服务器上的过程。
+    本项目编译过程中会依赖一些开源第三方软件，这些软件联网时会自动下载，离线状态下无法直接下载。
+    
+   1. **检查基础环境是否完备**
+
+    在此之前请确保已按[环境部署](quick_install.md)完成基础环境搭建。
+    若您的编译环境无法访问网络，由于无法通过`git`指令下载代码，须在联网环境中下载源码后，手动上传至目标环境。
+    - 在联网环境中，进入[本项目主页](https://gitcode.com/cann/ops-transformer), 通过`下载ZIP`或`clone`按钮，根据指导，完成源码下载。
+    - 连接至离线环境中，上传源码至您指定的目录下。若下载的为源码压缩包，还需进行解压。
+
+   2. **开源第三方软件依赖**
+
+    本项目在编译时，依赖的第三方开源软件列表如下：
+
+| 开源软件 | 版本 | 下载地址 |
+|---|---|---|
+| googletest | 1.14.0 | [googletest-1.14.0.tar.gz](https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz) |
+| json | 3.11.3 | [include.zip](https://gitcode.com/cann-src-third-party/json/releases/download/v3.11.3/include.zip) |
+| makeself | 2.5.0 | [makeself-release-2.5.0-patch1.tar.gz](https://gitcode.com/cann-src-third-party/makeself/releases/download/release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz) |
+| pybind11 | 2.13.6 | [pybind11-2.13.6.tar.gz](https://gitcode.com/cann-src-third-party/pybind11/releases/download/v2.13.6/pybind11-2.13.6.tar.gz) |
+| eigen | 3.4.0 | [eigen-3.4.0.tar.gz](https://gitcode.com/cann-src-third-party/eigen/releases/download/3.4.0/eigen.3.4.0.tar.gz) |
+
+> [!NOTE]注意
+> 如果您从其他地址下载，请确保版本号一致。
+
+   3. **存放第三方开源软件**
+    您需要在编译环境中新建一个`{your_3rd_party_path}`目录来存放这些第三方开源软件。
+
+    ```bash
+    mkdir -p {your_3rd_party_path}
+    ```
+
+   4. **编译算子包**
+    创建好目录后，将下载好的第三方开源软件压缩包上传至目录`{your_3rd_party_path}`后，可以使用如下命令进行编译：
+
+        **自定义算子包**
+            自定义算子包编译时，需增加--cann_3rd_lib_path配置选项并指定路径，编译命令如下：
+        
+            ```bash
+            bash build.sh --pkg --soc=${soc_version} [--vendor_name=${vendor_name}] [--ops=${op_list}] --cann_3rd_lib_path=${cann_3rd_lib_path}
+            # 以FlashAttentionScore算子编译为例，假设第三方软件存放的目录为/path/cann_3rd_lib_path
+            # bash build.sh --pkg --soc=ascend910b --ops=flash_attention_score --cann_3rd_lib_path=/path/cann_3rd_lib_path
+            ```
+
+        **ops-transformer整包**
+            ops-transformer整包编译时，需增加--cann_3rd_lib_path配置选项并指定路径，产物与自定义算子包一致，编译命令如下：
+
+            ```bash
+            bash build.sh --pkg [--jit] --soc=${soc_version} --cann_3rd_lib_path=${cann_3rd_lib_path}
+            # 假设第三方软件存放的目录为/path/cann_3rd_lib_path
+            # bash build.sh --pkg --soc=ascend910b --cann_3rd_lib_path=/path/cann_3rd_lib_path
+            ```
+
+        **ops-transformer静态库**
+            ops-transformer静态库编译时，需增加--cann_3rd_lib_path配置选项并指定路径，产物与自定义算子包一致，编译命令如下：
+
+            ```bash
+            bash build.sh --pkg --static --soc=${soc_version} --cann_3rd_lib_path=${cann_3rd_lib_path}
+            # 假设第三方软件存放的目录为/path/cann_3rd_lib_path
+            # bash build.sh --pkg --static --soc=ascend910b --cann_3rd_lib_path=/path/cann_3rd_lib_path
+            ```
+
+   5. **编译算子包产物**
+       成功编译后会在build_out目录下生成`cann-hixl_${cann_version}_linux-${arch}.run`。
+       - ${cann_version}表示cann版本号。
+       - ${arch}表示表示CPU架构，如aarch64、x86_64。
+       - 更多执行选项可以用-h查看，或查询下表。
+
+        ```
+        bash build.sh -h
+        ```
+
+        | 参数 | 说明 | 默认值 |
+        |---|---|---|
+        | `-h, --help` | 打印帮助信息 | - |
+        | `-v, --verbose` | 显示详细的编译命令 | - |
+        | `-j<N>` | 设置编译时使用的线程数 | 8 |
+        | `--build_type=<Release\|Debug>`<br>`--build-type=<Release\|Debug>` | 设置编译类型 | Release |
+        | `--cann_3rd_lib_path=<PATH>`<br>`--cann-3rd-lib-path=<PATH>` | 设置第三方依赖包安装路径 | `./third_party` |
+        | `--output_path=<PATH>`<br>`--output-path=<PATH>` | 设置编译输出路径 | `./build_out` |
+        | `--pkg` | 构建run包（保留参数） | - |
+        | `--examples` | 编译样例和基准测试 | OFF |
+        | `--asan` | 启用地址消毒，用于内存泄漏检测 | OFF |
+        | `--cov` | 启用代码覆盖率 | OFF |
+
 ## 本地验证 
 
 通过项目根目录build.sh执行算子和UT用例，验证项目功能是否正常，build参数参见[build参数说明](../context/build.md)。目前算子支持API方式（aclnn接口）和图模式调用，**推荐aclnn调用**。
