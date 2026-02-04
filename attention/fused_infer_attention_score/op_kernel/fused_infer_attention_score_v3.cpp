@@ -46,7 +46,8 @@ using namespace AscendC;
     do {                                                                                                               \
         using CubeBlockTypeT = CubeBlockType<FIAType<__VA_ARGS__>>;                                                    \
         using VecBlockTypeT = VecBlockType<FIAType<__VA_ARGS__>>;                                                      \
-        using FdBlockTypeT = FdBlockType<FIAType<__VA_ARGS__>>;                                                        \
+        using FdBlockTypeT = typename std::conditional<g_coreType == AscendC::AIC,                                        \
+                             FdBlockType##Dummy<FIAType<__VA_ARGS__>>, FdBlockType<FIAType<__VA_ARGS__>>>::type;          \
                                                                                                                        \
         templateClass<FIAType<__VA_ARGS__>, CubeBlockTypeT, VecBlockTypeT, FdBlockTypeT> op;                           \
         FIA_COPY_TILING_DATA(FusedInferAttentionScoreTilingData, tiling);                                              \
