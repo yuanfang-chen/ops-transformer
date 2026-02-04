@@ -182,6 +182,13 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
 }
 
 template <typename quantInputDataType, typename quantOutputDataType>
+inline __aicore__ MC2PertokenDQuantContext*
+Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::GetQuantContextPtr()
+{
+    return &context_;
+}
+
+template <typename quantInputDataType, typename quantOutputDataType>
 __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::Process()
 {
     if (GetBlockIdx() >= this->usedCoreAivNum_) {

@@ -68,6 +68,8 @@ inline __aicore__ void MC2KCQuantMMWrapper<MMTilingType, MMType>::Process(uint32
         cGM, nullptr, MMcontext_.tilingDataPtr, tPipePtr_);
     MMImpl_.Process();
 }
+template <typename MMType>
+inline __aicore__ void MC2KCQuantMMWrapper<MMType>::End() {}
 
 template <typename MMTilingType, typename MMType>
 inline __aicore__ void MC2KCQuantMMWrapper<MMTilingType, MMType>::End() {}
