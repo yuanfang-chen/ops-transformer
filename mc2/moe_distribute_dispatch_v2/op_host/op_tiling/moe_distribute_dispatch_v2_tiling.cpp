@@ -565,6 +565,7 @@ static bool CheckCommomOutputTensorDataType(const gert::TilingContext *context, 
     return true;
 }
 
+template<typename ConstChosen>
 static bool CheckQuantModeAndExpandXType(const gert::TilingContext *context, const char *nodeName)
 {
     auto attrs = context->GetAttrs();
@@ -587,7 +588,7 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
     const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo, const bool isPerformance)
 {
     if (mc2tiling::GetSocVersion(context) == "Ascend950") {
-        OP_TILING_CHECK(!CheckQuantModeAndExpandXType(context, nodeName), 
+        OP_TILING_CHECK(!CheckQuantModeAndExpandXType<ConstChosen>(context, nodeName),
             OP_LOGE(nodeName, "CheckQuantModeAndExpandXType failed."), return false);
         OP_TILING_CHECK(!CheckDistinctTensorDataType<ConstChosen>(context, nodeName, isScales, quantMode), 
             OP_LOGE(nodeName, "CheckDistinctTensorDataType failed."), return false);
