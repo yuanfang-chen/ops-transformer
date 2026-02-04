@@ -90,14 +90,6 @@ static void InitShapeAndStrideForGMMFinalizeRouting(const gert::Shape &originSha
     }
 }
 
-static bool IsFP8OrFP4BitsDataTypeForGMMFinalizeRouting(ge::DataType dataType)
-{
-    return dataType == ge::DataType::DT_FLOAT8_E4M3FN || dataType == ge::DataType::DT_FLOAT8_E5M2 ||
-           dataType == ge::DataType::DT_FLOAT8_E8M0 || dataType == ge::DataType::DT_FLOAT4_E1M2 ||
-           dataType == ge::DataType::DT_FLOAT4_E2M1 || dataType == ge::DataType::DT_INT8 || dataType == ge::DataType::DT_HIFLOAT8;
-}
-
-
 static inline aclDataType ToAclDataTypeForGMMFinalizeRouting(ge::DataType dtype)
 {
     static const std::vector<DataType> GMMWsiglu_CONVERT_TO_ACL_DataType_LIST = {
@@ -133,11 +125,7 @@ static inline aclTensor *GeTensor2AclTensor(const gert::Tensor *geTensor, bool e
     // convert data type
     auto dataTypeGE = geTensor->GetDataType();
     aclDataType dataType = ACL_DT_UNDEFINED;
-    if (IsFP8OrFP4BitsDataTypeForGMMFinalizeRouting(dataTypeGE)) {
-        dataType = ToAclDataTypeForGMMFinalizeRouting(dataTypeGE);
-    } else {
-        dataType = ToAclDataType(dataTypeGE);
-    }
+    dataType = ToAclDataType(dataTypeGE);
     // convert view shape
     const gert::Shape &origin_shape = geTensor->GetOriginShape();
     std::vector<int64_t> viewShape;
@@ -216,7 +204,7 @@ static graphStatus GroupedMatmulFinalizeRoutingExecuteFunc(OpExecuteContext *hos
                 OP_LOGE("GroupedMatmulFinalizeRouting aclnnfallback", "The weightTensor nullptr"), return GRAPH_FAILED);
     bool isWeightNz = (GetPrimaryFormat(weightTensor->GetStorageFormat()) == ge::Format::FORMAT_FRACTAL_NZ);
     const aclTensor *aclTensorWeight = nullptr;
-    PrepareAclTensor(host_api_ctx, aclTensorWeight, INDEX_INPUT_WEIGHT, false, false);
+    PrepareAclTensor(host_api_ctx, aclTensorWeight, INDEX_INPUT_WEIGHT, false, true);
 
     const aclTensor *aclTensorWeightScale = nullptr;
     PrepareAclTensor(host_api_ctx, aclTensorWeightScale, INDEX_INPUT_WEIGHT_SCALE, false, false);
