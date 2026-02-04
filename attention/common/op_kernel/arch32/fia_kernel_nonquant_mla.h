@@ -84,20 +84,8 @@ public:
     FdBlockType fdService;
 
     // =================================常量区=================================
-    static constexpr uint32_t PRELOAD_NUM = 2;
-    static constexpr uint32_t N_BUFFER_M_BASIC_SIZE = 256;
-    static constexpr uint32_t FIA_PRELOAD_TASK_CACHE_SIZE = 3;
-
-    static constexpr uint32_t SYNC_V0_C1_FLAG = 6;
-    static constexpr uint32_t SYNC_C1_V1_FLAG = 7;
-    static constexpr uint32_t SYNC_V1_C2_FLAG = 8;
-    static constexpr uint32_t SYNC_C2_V2_FLAG = 9;
-    static constexpr uint32_t SYNC_C2_V1_FLAG = 4;
-    static constexpr uint32_t SYNC_V1_NUPDATE_C2_FLAG = 5;
-
-    static constexpr int64_t fdPrefetchLen = 2;
-
     static constexpr bool POST_QUANT = IsSameType<OUT_T, int8_t>::value;
+
     // ==============================TilingData&TPipe==============================
     const FusedInferAttentionScoreTilingData *__restrict tilingData = nullptr;
     TPipe *pipe = nullptr;
@@ -231,15 +219,6 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
     constInfo.isRowInvalid = (tilingData->maskParams.isRowInvalid != 0);
 
     constInfo.needInit = tilingData->baseParams.needInit;
-
-    constInfo.preLoadNum = PRELOAD_NUM;
-    constInfo.nBufferMBaseSize = N_BUFFER_M_BASIC_SIZE;
-    constInfo.syncV0C1 = SYNC_V0_C1_FLAG;
-    constInfo.syncC1V1 = SYNC_C1_V1_FLAG;
-    constInfo.syncV1C2 = SYNC_V1_C2_FLAG;
-    constInfo.syncC2V2 = SYNC_C2_V2_FLAG;
-    constInfo.syncC2V1 = SYNC_C2_V1_FLAG;
-    constInfo.syncV1NupdateC2 = SYNC_V1_NUPDATE_C2_FLAG;
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType> 

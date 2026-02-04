@@ -38,6 +38,18 @@ constexpr SoftmaxConfig FIA_SOFTMAX_FLASHV2_CFG = {false};
 // 将isCheckTiling设置为false, 输入输出的max&sum&exp的shape为(m, 1)
 constexpr SoftmaxConfig FIA_SOFTMAX_FLASHV2_CFG_WITHOUT_BRC = {false, 0, 0, SoftmaxMode::SOFTMAX_OUTPUT_WITHOUT_BRC};
 
+static constexpr uint32_t PRELOAD_NUM = 2;
+static constexpr uint32_t N_BUFFER_M_BASIC_SIZE = 256;
+static constexpr uint32_t FIA_PRELOAD_TASK_CACHE_SIZE = 3;
+
+static constexpr uint32_t SYNC_V0_C1_FLAG = 6;
+static constexpr uint32_t SYNC_C1_V1_FLAG = 7;
+static constexpr uint32_t SYNC_V1_C2_FLAG = 8;
+static constexpr uint32_t SYNC_C2_V2_FLAG = 9;
+static constexpr uint32_t SYNC_C2_V1_FLAG = 4;
+static constexpr uint32_t SYNC_V1_NUPDATE_C2_FLAG = 5;
+static constexpr int64_t fdPrefetchLen = 2;
+
 enum class FIA_LAYOUT : uint32_t
 {
     BSH = 0,
@@ -132,6 +144,17 @@ struct ConstInfo {
     static constexpr uint32_t BUFFER_SIZE_BYTE_8K = 8192;
     static constexpr uint32_t BUFFER_SIZE_BYTE_16K = 16384;
     static constexpr uint32_t BUFFER_SIZE_BYTE_32K = 32768;
+    // preLoad的总次数
+    static constexpr uint32_t preLoadNum = PRELOAD_NUM;
+    static constexpr uint32_t nBufferMBaseSize = N_BUFFER_M_BASIC_SIZE;
+    // CUBE和VEC的核间同步EventID
+    static constexpr uint32_t syncV1NupdateC2 = SYNC_V1_NUPDATE_C2_FLAG;
+    static constexpr uint32_t syncV0C1 = SYNC_V0_C1_FLAG;
+    static constexpr uint32_t syncC1V1 = SYNC_C1_V1_FLAG;
+    static constexpr uint32_t syncV1C2 = SYNC_V1_C2_FLAG;
+    static constexpr uint32_t syncC2V2 = SYNC_C2_V2_FLAG;
+    static constexpr uint32_t syncC2V1 = SYNC_C2_V1_FLAG;
+
     // FP32的0值和极大值
     static constexpr float FLOAT_ZERO = 0;
     static constexpr float FLOAT_MAX = 3.402823466e+38F;
@@ -145,17 +168,6 @@ struct ConstInfo {
     uint32_t s2End = 0U;
     bool headS2Split = false;
     bool tailS2Split = false;
-
-    // preLoad的总次数
-    uint32_t preLoadNum = 0U;
-    uint32_t nBufferMBaseSize = 0U;
-    // CUBE和VEC的核间同步EventID
-    uint32_t syncV1NupdateC2 = 0U;
-    uint32_t syncV0C1 = 0U;
-    uint32_t syncC1V1 = 0U;
-    uint32_t syncV1C2 = 0U;
-    uint32_t syncC2V2 = 0U;
-    uint32_t syncC2V1 = 0U;
 
     float scaleValue = 0;
     uint32_t mmResUbSize = 0U;   // Matmul1输出结果GM上的大小
