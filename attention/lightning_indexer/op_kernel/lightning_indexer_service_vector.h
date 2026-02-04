@@ -53,6 +53,7 @@ public:
     // =================================类型定义区=================================
     // 中间计算数据类型为float，高精度模式
     static constexpr bool DT_W_FLAG = LIT::weightsTypeFlag;
+    using Q_T = typename LIT::queryType;
     using K_T = typename LIT::keyType;
     static constexpr LI_LAYOUT LAYOUT_T = LIT::layout;
     using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>>::weightsType;
