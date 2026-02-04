@@ -186,7 +186,7 @@ ge::graphStatus MatmulReduceScatterV2Tiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 0);
 
 }

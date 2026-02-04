@@ -325,7 +325,7 @@ AllToAllFpMatmulTilingBase::AllToAllFpMatmulTilingBase(gert::TilingContext *cont
 }
 
 // 注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(AlltoAllMatmul, AllToAllFpMatmulTilingBase,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(AlltoAllMatmul, AllToAllFpMatmulTilingBase, \
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 0);
 } // namespace MC2Tiling
 
