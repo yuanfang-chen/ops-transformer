@@ -22,14 +22,6 @@
 #include "kv_quant_sparse_attn_sharedkv_metadata.h"
 
 using namespace AscendC;
-// 将isCheckTiling设置为false, 输入输出的max&sum&exp的shape为(m, 1)
-constexpr SoftmaxConfig SAS_SOFTMAX_FLASHV2_CFG_WITHOUT_BRC = {false, 0, 0, SoftmaxMode::SOFTMAX_OUTPUT_WITHOUT_BRC};
-
-enum class SAS_RUN_MODE {
-    SWA_MODE = 0,
-    SCFA_MODE = 1,
-    CFA_MODE = 2,
-};
 
 enum class SAS_LAYOUT {
     BSND = 0,
@@ -46,18 +38,4 @@ enum class SASTemplateMode {
     CFA_TEMPLATE_MODE = 1,
     SCFA_TEMPLATE_MODE = 2
 };
-
-template <typename Q_T, typename KV_T, typename OUT_T, const bool FLASH_DECODE = false,
-	  SAS_LAYOUT LAYOUT_T = SAS_LAYOUT::BSND, SAS_KV_LAYOUT KV_LAYOUT_T = SAS_KV_LAYOUT::PA_ND, 
-      typename... Args>
-struct SASType {
-    using queryType = Q_T;
-    using kvType = KV_T;
-    using outputType = OUT_T;
-    static constexpr bool flashDecode = FLASH_DECODE;
-    static constexpr SAS_LAYOUT layout = LAYOUT_T;
-    static constexpr SAS_KV_LAYOUT kvLayout = KV_LAYOUT_T;
-    static constexpr bool pageAttention = (KV_LAYOUT_T == SAS_KV_LAYOUT::PA_ND);
-};
-
-#endif // KVQUANT_SPARSE_FLASH_ATTENTION_COMMON_H
+#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_COMMON_H
