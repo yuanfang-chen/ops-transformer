@@ -271,7 +271,7 @@ protected:
     static constexpr T LN2 = 0.6931471805599453094172;
     static constexpr T RECIP_OF_LN2 = 1 / LN2;
     static constexpr T FLOAT_E_SCALAR = 8388608; // pow(2, 23)
-    static constexpr T FLOAT_INF = 3e+99;
+    static constexpr T FLOAT_INF = std::numeric_limits<T>::infinity();
     static constexpr uint64_t kvHeadNum = 1ULL;
     static constexpr uint64_t headDim = 512ULL;
     static constexpr uint64_t headDimAlign = 512ULL;
@@ -719,11 +719,11 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::InitSoftmaxLseA
 
         for (int s1Idx = 0; s1Idx < s1Count; s1Idx++) {
             uint64_t softmaxLseOffset = (tBase + s1Idx) * kvHeadNum * gSize + n2Idx * gSize;
-            matmul::InitOutput<float>(softmaxLseGm[softmaxLseOffset], gSize, FLOAT_INF);
+            matmul::InitOutput<T>(softmaxLseGm[softmaxLseOffset], gSize, FLOAT_INF);
         }
     } else if constexpr (LAYOUT_T == LAYOUT::BSND || LAYOUT_T == LAYOUT::BSH) {
         uint64_t softmaxLseOffset = bIdx * kvHeadNum * gSize * qSeqSize + n2Idx * gSize * qSeqSize;
-        matmul::InitOutput<float>(softmaxLseGm[softmaxLseOffset], gSize * qSeqSize, FLOAT_INF);
+        matmul::InitOutput<T>(softmaxLseGm[softmaxLseOffset], gSize * qSeqSize, FLOAT_INF);
     }
 }
 
@@ -1562,8 +1562,6 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
         if constexpr (LAYOUT_T == LAYOUT::TND) {
             uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
             uint64_t bN2Offset = tokenPrefixSum * qHeadNum + (s1Idx * s1SizeSub * qHeadNum);
-
-            AscendC::printf("tkd bN2Offset: %llu\n", bN2Offset);
 
             for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
                 outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
