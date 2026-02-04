@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef MATMUL_REDUCE_SCATTERV2_HOST_UT_PARAM_H
-#define MATMUL_REDUCE_SCATTERV2_HOST_UT_PARAM_H
+#ifndef ALL_GATHER_MATMULV2_HOST_UT_PARAM_H
+#define ALL_GATHER_MATMULV2_HOST_UT_PARAM_H
 
 #include <cstdint>
 #include <string>
@@ -19,16 +19,16 @@
 #include "infer_shape_context_faker.h"
 #include "mc2_csv_case_loader.h"
 
-namespace matmul_reduce_scatter_v2_ut {
+namespace all_gather_matmul_v2_ut {
 
-struct MatmulReduceScatterV2HostUtParamBase {
+struct AllGatherMatmulV2HostUtParamBase {
     std::string case_name;
     std::vector<uint32_t> inputInstance;
     std::vector<uint32_t> outputInstance;
     std::string group;
-    std::string reduce_op;
     bool is_trans_a;
     bool is_trans_b;
+    uint64_t gather_index;
     uint64_t comm_turn;
     uint64_t rank_size;
     uint64_t block_size;
@@ -38,13 +38,13 @@ struct MatmulReduceScatterV2HostUtParamBase {
     std::string comm_mode;
     ge::graphStatus expectResult;
 
-    MatmulReduceScatterV2HostUtParamBase(const csv_map& csvMap)
+    AllGatherMatmulV2HostUtParamBase(const csv_map& csvMap)
     {
         this->case_name = ReadMap(csvMap, "case_name");
         this->group = ReadMap(csvMap, "group");
-        this->reduce_op = ReadMap(csvMap, "reduce_op");
         this->is_trans_a = stoi(ReadMap(csvMap, "is_trans_a"));
         this->is_trans_b = stoi(ReadMap(csvMap, "is_trans_b"));
+        this->gather_index = stoull(ReadMap(csvMap, "gather_index"));
         this->comm_turn = stoull(ReadMap(csvMap, "comm_turn"));
         this->rank_size = stoull(ReadMap(csvMap, "rank_size"));
         this->block_size = stoull(ReadMap(csvMap, "block_size"));
@@ -56,7 +56,7 @@ struct MatmulReduceScatterV2HostUtParamBase {
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const MatmulReduceScatterV2HostUtParamBase& param)
+inline std::ostream& operator<<(std::ostream& os, const AllGatherMatmulV2HostUtParamBase& param)
 {
     return os << param.case_name;
 }
@@ -68,7 +68,7 @@ inline std::string GetCaseInfoString(const testing::TestParamInfo<T>& info)
 }
 
 const gert::TilingContextPara::TensorDescription TD_DEFAULT = {{}, ge::DT_UNDEFINED, ge::FORMAT_NULL};
-struct MatmulReduceScatterV2TilingUtParam: public MatmulReduceScatterV2HostUtParamBase {
+struct AllGatherMatmulV2TilingUtParam: public AllGatherMatmulV2HostUtParamBase {
     gert::TilingContextPara::TensorDescription x1 = TD_DEFAULT;
     gert::TilingContextPara::TensorDescription x2 = TD_DEFAULT;
     gert::TilingContextPara::TensorDescription bias = TD_DEFAULT;
@@ -76,6 +76,7 @@ struct MatmulReduceScatterV2TilingUtParam: public MatmulReduceScatterV2HostUtPar
     gert::TilingContextPara::TensorDescription x2_scale = TD_DEFAULT;
     gert::TilingContextPara::TensorDescription quant_scale = TD_DEFAULT;
     gert::TilingContextPara::TensorDescription y = TD_DEFAULT;
+    gert::TilingContextPara::TensorDescription gather_out = TD_DEFAULT;
     gert::TilingContextPara::TensorDescription amax_out = TD_DEFAULT;
     std::string soc;
     uint64_t coreNum;
@@ -83,8 +84,8 @@ struct MatmulReduceScatterV2TilingUtParam: public MatmulReduceScatterV2HostUtPar
     uint64_t expectTilingKey;
     std::string expectTilingDataHash;
 
-    MatmulReduceScatterV2TilingUtParam(const csv_map& csvMap):
-        MatmulReduceScatterV2HostUtParamBase(csvMap)
+    AllGatherMatmulV2TilingUtParam(const csv_map& csvMap):
+        AllGatherMatmulV2HostUtParamBase(csvMap)
     {
         this->inputInstance.emplace_back(
             GetTensor(csvMap, "x1_shape", "x1_dtype", "x1_format",
@@ -108,6 +109,9 @@ struct MatmulReduceScatterV2TilingUtParam: public MatmulReduceScatterV2HostUtPar
             GetTensor(csvMap, "output_y_shape", "output_y_dtype", "output_y_format",
                 y));
         this->outputInstance.emplace_back(
+            GetTensor(csvMap, "gather_out_shape", "gather_out_dtype", "gather_out_format",
+                gather_out));
+        this->outputInstance.emplace_back(
             GetTensor(csvMap, "amax_out_shape", "amax_out_dtype", "amax_out_format",
                 amax_out));
         this->soc = ReadMap(csvMap, "soc");
@@ -119,6 +123,6 @@ struct MatmulReduceScatterV2TilingUtParam: public MatmulReduceScatterV2HostUtPar
         }
     }
 };
-} // namespace matmul_reducescatter_v2_ut
+} // namespace all_gather_matmul_v2_ut
 
-#endif // MATMUL_REDUCESCATTER_V2_HOST_UT_PARAM_H
+#endif // ALL_GATHER_MATMULV2_HOST_UT_PARAM_H

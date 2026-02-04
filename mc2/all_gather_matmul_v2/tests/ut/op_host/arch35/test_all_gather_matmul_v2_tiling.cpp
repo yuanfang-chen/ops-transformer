@@ -11,12 +11,12 @@
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
-#include "../matmul_reduce_scatter_v2_host_ut_param.h"
+#include "../all_gather_matmul_v2_host_ut_param.h"
 #include "mc2_tiling_case_executor.h"
 
-namespace matmul_reduce_scatter_v2_ut {
+namespace all_gather_matmul_v2_ut {
 
-class Arch35TilingTest : public testing::TestWithParam<MatmulReduceScatterV2TilingUtParam> {
+class Arch35TilingTest : public testing::TestWithParam<AllGatherMatmulV2TilingUtParam> {
 protected:
     static void SetUpTestCase()
     {
@@ -43,17 +43,17 @@ TEST_P(Arch35TilingTest, param)
             param.x1_scale,
             param.x2_scale,
             param.quant_scale,
-            // 还差一个
         },
         {
             param.y,
+            param.gather_out,
             param.amax_out,
         },
         {
             {"group", Ops::Transformer::AnyValue::CreateFrom<std::string>(param.group)},
-            {"reduce_op", Ops::Transformer::AnyValue::CreateFrom<std::string>(param.reduce_op)},
             {"is_trans_a", Ops::Transformer::AnyValue::CreateFrom<bool>(param.is_trans_a)},
             {"is_trans_b", Ops::Transformer::AnyValue::CreateFrom<bool>(param.is_trans_b)},
+            {"gather_index", Ops::Transformer::AnyValue::CreateFrom<uint64_t>(param.gather_index)},
             {"comm_turn", Ops::Transformer::AnyValue::CreateFrom<uint64_t>(param.comm_turn)},
             {"rank_size", Ops::Transformer::AnyValue::CreateFrom<uint64_t>(param.rank_size)},
             {"block_size", Ops::Transformer::AnyValue::CreateFrom<uint64_t>(param.block_size)},
@@ -80,4 +80,4 @@ INSTANTIATE_TEST_SUITE_P(
     GetCaseInfoString<MatmulReduceScatterV2TilingUtParam>
 );
 
-} // namespace matmul_reduce_scatter_v2_ut
+} // namespace all_gather_matmul_v2_ut
