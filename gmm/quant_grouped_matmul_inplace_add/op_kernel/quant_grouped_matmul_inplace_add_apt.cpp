@@ -32,6 +32,9 @@ __global__ __aicore__ void quant_grouped_matmul_inplace_add(GM_ADDR x1, GM_ADDR 
                                                                        GM_ADDR groupList, GM_ADDR yIn, GM_ADDR scale1,
                                                                        GM_ADDR y, GM_ADDR workspace, GM_ADDR tiling)
 {
+    for (int i = 0; i < g_oomAddrArange.count; i++) {
+        AscendC::printf("Start gm addr: %p, gm len: %d\n", g_oomAddrArange.addr[i], g_oomAddrArange.len[i]);
+    }
     REGISTER_TILING_DEFAULT(QuantGroupedMatmulInplaceAdd::QGmmInplaceAddTilingDataParams);
     TPipe tPipe;
     AscendCUtils::SetOverflow(1);
@@ -54,4 +57,7 @@ __global__ __aicore__ void quant_grouped_matmul_inplace_add(GM_ADDR x1, GM_ADDR 
     }
 #endif
 #endif
+for (int i = 0; i < g_oomAddrArange.count; i++) {
+    AscendC::printf("End gm addr: %p, gm len: %d\n", g_oomAddrArange.addr[i], g_oomAddrArange.len[i]);
+}
 }
