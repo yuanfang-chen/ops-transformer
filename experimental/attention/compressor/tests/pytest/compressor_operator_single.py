@@ -24,7 +24,7 @@ import custom_ops
 import numpy as np
 import torch.nn as nn
 
-from cpu_compressor import cpu_compressor, get_seq_used_by_batch
+from compressor_golden import cpu_compressor, get_seq_used_by_batch
 
 class Generalized_operator():
     def forward(self,
@@ -54,28 +54,33 @@ class Generalized_operator():
 def output_operator(params):
     #构造输入
     batch_size, hidden_size, Seq_len, head_dim, block_size, rope_head_dim, cmp_ratio, coff, norm_eps, \
-    start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos = params
+    start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos,\
+    x_datarange, wkv_datarange,  wgate_datarange, ape_datarange, norm_weight_datarange, kv_state_datarange, score_state_datarange = params
 
+    S_max = 0
     if layout_x == "TH":
         if cu_seqlens is not None:
             cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
         else:
             T = batch_size * Seq_len
-            cu_seqlens = torch.arange(0, T + 1, Seq_len, dtype=torch.int32)
+            if T !=0:
+                cu_seqlens = torch.arange(0, T + 1, Seq_len, dtype=torch.int32)
+            else:
+                cu_seqlens = torch.zeros((batch_size+1), dtype=torch.int32)
         
         if seqused is not None:
-            seqused = torch.tensor(seqused).to(torch.int32)
             S_max = max(seqused)
+            seqused = torch.tensor(seqused).to(torch.int32)
         else:
-            S_max = 0
             for i in range(1, batch_size + 1):
-                if S_max < cu_seqlens[i] - cu_seqlens[i - 1]:
-                    S_max = cu_seqlens[i] - cu_seqlens[i - 1] 
+                if S_max < (cu_seqlens[i] - cu_seqlens[i - 1]):
+                    S_max = (cu_seqlens[i] - cu_seqlens[i - 1]) 
 
         if start_pos is not None:
             start_pos = torch.tensor(start_pos).to(torch.int32)
         else:
             start_pos = [0] * batch_size
+        S_max += max(start_pos)
     else:
         cu_seqlens = None
         if start_pos == None:
@@ -133,8 +138,8 @@ def output_operator(params):
             if block_table[i][j] == 0 and index_id < block_num:
                 block_table[i][j] = index[index_id]
                 index_id += 1
-    kv_state = torch.tensor(np.random.uniform(-10, 10, (block_num + 1, block_size, coff * head_dim))).to(torch.float32)
-    score_state = torch.tensor(np.random.uniform(-10, 10, (block_num + 1, block_size, coff * head_dim))).to(torch.float32)
+    kv_state = torch.tensor(np.random.uniform(kv_state_datarange[0], kv_state_datarange[1], (block_num + 1, block_size, coff * head_dim))).to(torch.float32)
+    score_state = torch.tensor(np.random.uniform(score_state_datarange[0], score_state_datarange[1], (block_num + 1, block_size, coff * head_dim))).to(torch.float32)
 
     # other input
     if layout_x == "TH":
@@ -146,11 +151,11 @@ def output_operator(params):
         rope_sin_shape = (batch_size, (Seq_len + cmp_ratio - 1) // cmp_ratio, rope_head_dim)
         rope_cos_shape = rope_sin_shape
 
-    x = torch.tensor(np.random.uniform(-10, 10, x_shape)).to(data_type)
-    wkv = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type)
-    wgate = torch.tensor(np.random.uniform(-10, 10, (coff * head_dim, hidden_size))).to(data_type)
-    ape = torch.tensor(np.random.uniform(-10, 10, (cmp_ratio, coff * head_dim))).to(torch.float32)
-    norm_weight = torch.tensor(np.random.uniform(-10, 10, (head_dim))).to(data_type)
+    x = torch.tensor(np.random.uniform(x_datarange[0], x_datarange[1], x_shape)).to(data_type)
+    wkv = torch.tensor(np.random.uniform(wkv_datarange[0], wkv_datarange[1], (coff * head_dim, hidden_size))).to(data_type)
+    wgate = torch.tensor(np.random.uniform(wgate_datarange[0], wgate_datarange[1], (coff * head_dim, hidden_size))).to(data_type)
+    ape = torch.tensor(np.random.uniform(ape_datarange[0], ape_datarange[1], (cmp_ratio, coff * head_dim))).to(torch.float32)
+    norm_weight = torch.tensor(np.random.uniform(norm_weight_datarange[0], norm_weight_datarange[1], (head_dim))).to(data_type)
     rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(data_type)
     rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type)
     ### ======================== gen input data finish =============================

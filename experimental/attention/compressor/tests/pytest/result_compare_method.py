@@ -121,7 +121,7 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if real_data.size == 0 and real_data.size == data_compe.size:
         print_log(
             'The npu_output is [],and it is same as bm_output, the result of data_compare is \"Pass\"')
-        return "Pass", 100.0, 0
+        return  100.0,"Pass"
     start = 0
     end = real_data.size - 1
     if end < start:
@@ -233,3 +233,5 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if result == "Failed":
         display_error_output(real_data, data_compe,
                                 err_idx, err_diff[0:max_error_idx])
+    print(result)
+    return fulfill_percent, result

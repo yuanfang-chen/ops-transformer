@@ -162,7 +162,15 @@ def cpu_compressor(
         cmp_kv = np.zeros(shape=(B, (S + cmp_ratio - 1) // cmp_ratio, head_dim), dtype=matmul_dtype)
     else:
         cmp_kv = np.zeros(shape=(min(x.shape[0], x.shape[0] // cmp_ratio + B), head_dim), dtype=matmul_dtype)
+
     cmp_kv_mask = np.zeros_like(cmp_kv, dtype=bool)
+    if bs_combine_flag == False:
+        if x.shape[1] == 0 :
+            return cmp_kv, cmp_kv_mask
+    else:
+        if x.shape[0] == 0 :
+            return cmp_kv, cmp_kv_mask
+
     out_cu_seqlen = [0] * (B + 1)
     out_seqused = [0] * B
 

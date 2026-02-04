@@ -13,11 +13,11 @@ import torch
 import torch_npu
 
 # ******入参调用
-from testcases_operator import ENABLED_PARAMS
+from test_compressor_paramset import ENABLED_PARAMS
 
 # ******CPU侧算子逻辑实现获取golden与npu算子直调结果
-import operator_single
-import check_result
+import compressor_operator_single
+import result_compare_method
 import check_valid_param
 import pytest
 
@@ -31,7 +31,8 @@ for _, params in enumerate(ENABLED_PARAMS):
     # 生成所有参数组合
     param_names = [
         "batch_size", "hidden_size", "Seq_len", "head_dim", "block_size", "rope_head_dim", "cmp_ratio",
-        "coff", "norm_eps", "start_p", "rotary_mode", "layout_x", "data_type", "cu_seqlens", "seqused", "start_pos"
+        "coff", "norm_eps", "start_p", "rotary_mode", "layout_x", "data_type", "cu_seqlens", "seqused", "start_pos",
+        "x_datarange","wkv_datarange","wgate_datarange","ape_datarange","norm_weight_datarange","kv_state_datarange","score_state_datarange"
     ]
 
     param_values = [
@@ -51,6 +52,13 @@ for _, params in enumerate(ENABLED_PARAMS):
         locals()["param_cu_seqlens"],
         locals()["param_seqused"],
         locals()["param_start_pos"],
+        locals()["param_x_datarange"],
+        locals()["param_wkv_datarange"],
+        locals()["param_wgate_datarange"],
+        locals()["param_ape_datarange"],
+        locals()["param_norm_weight_datarange"],
+        locals()["param_kv_state_datarange"],
+        locals()["param_score_state_datarange"],
     ]
 
     # 生成所有的组合，并转换为字典列表
@@ -77,10 +85,19 @@ for _, params in enumerate(ENABLED_PARAMS):
         cu_seqlens = param_combinations['cu_seqlens']
         seqused = param_combinations['seqused']
         start_pos = param_combinations['start_pos']
+        x_datarange = param_combinations['x_datarange']
+        wkv_datarange = param_combinations['wkv_datarange']
+        wgate_datarange = param_combinations['wgate_datarange']
+        ape_datarange = param_combinations['ape_datarange']
+        norm_weight_datarange = param_combinations['norm_weight_datarange']
+        kv_state_datarange = param_combinations['kv_state_datarange']
+        score_state_datarange = param_combinations['score_state_datarange']
+
 
         
         test_data = batch_size, hidden_size, Seq_len, head_dim, block_size, rope_head_dim, cmp_ratio, coff, norm_eps, \
-                    start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos
+                    start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos, \
+                    x_datarange, wkv_datarange,  wgate_datarange, ape_datarange, norm_weight_datarange, kv_state_datarange, score_state_datarange
 
         torch_npu.npu.set_device(0)
 
@@ -91,7 +108,7 @@ for _, params in enumerate(ENABLED_PARAMS):
             pytest.skip(f"输入参数校验失败:{e}")
 
         # 获得cpu结果(真值)和算子结果（测试值）
-        cpu_result, kv_mask_result, npu_result ,cpu_kv_state, npu_kv_state, mask_cpu_kv_state, cpu_score_state, npu_score_state, mask_cpu_score_state = operator_single.output_operator(test_data)
+        cpu_result, kv_mask_result, npu_result ,cpu_kv_state, npu_kv_state, mask_cpu_kv_state, cpu_score_state, npu_score_state, mask_cpu_score_state = compressor_operator_single.output_operator(test_data)
         # 生成布尔掩码：A 中与 B 不相等的位置为 True
         # mask_cpu_kv_state = cpu_kv_state != kv_state
         # mask_cpu_score_state = cpu_score_state != score_state
@@ -111,23 +128,28 @@ for _, params in enumerate(ENABLED_PARAMS):
         check_succeed = True
         data_type = str(npu_result.dtype)
         print("--------------------------------------------------------------check result-------------------------------------------------------------")
-        if check_result.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32), data_type) == False:
+        fulfill_percent, result = result_compare_method.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32), data_type)
+        if result == False:
             print(f"test_data = {test_data} check result failed")
             check_succeed = False
         print("--------------------------------------------------------------check kv state update-------------------------------------------------------------")
-        if check_result.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32), data_type) == False:
-            print(f"test_data = {test_data} check kv state update failed")
+        fulfill_percent, result = result_compare_method.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32), data_type)
+        if result == False:
+            print(f"test_data = {test_data} check result failed")
             check_succeed = False
-        print("--------------------------------------------------------------check score state update-------------------------------------------------------------")
-        if check_result.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32), data_type) == False:
-            print(f"test_data = {test_data} check score state update failed")
+        print("--------------------------------------------------------------check score state update-------------------------------------------------------------")    
+        fulfill_percent, result = result_compare_method.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32), data_type)
+        if result == False:
+            print(f"test_data = {test_data} check result failed")
             check_succeed = False
         print("--------------------------------------------------------------check kv state origin-------------------------------------------------------------")
-        if check_result.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), data_type, 0.0) == False:
-            print(f"test_data = {test_data} check kv state origin failed")
+        fulfill_percent, result = result_compare_method.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), data_type, 0.0)
+        if result == False:
+            print(f"test_data = {test_data} check result failed")
             check_succeed = False
         print("--------------------------------------------------------------check score state origin-------------------------------------------------------------")
-        if check_result.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), data_type, 0.0) == False:
-            print(f"test_data = {test_data} check score state origin failed")
+        fulfill_percent, result = result_compare_method.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), data_type, 0.0)
+        if result == False:
+            print(f"test_data = {test_data} check result failed")
             check_succeed = False
 
