@@ -22,7 +22,6 @@
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
 constexpr int64_t GATHER_OUT_HIF8_PERTOKEN_QUANT_BUFFER_NUM = 1;
-constexpr float FLOAT_MAX = std::numeric_limits<float>::Max()
 
 template <typename T>
 class MoeGatherOutHif8PertokenQuant {
@@ -291,7 +290,8 @@ __aicore__ inline void MoeGatherOutHif8PertokenQuant<T>::CopyOutPartialXQuant(in
         LocalTensor<float> inLocal = inputXInQueue_.AllocTensor<float>();
         LocalTensor<float> scaleLocal = scaleOutQueue_.AllocTensor<float>();
 
-        float reduceMax = FLOAT_MAX; // 初始化reduceMax为float最大值
+        uint32_t tmp = 0xFF7FFFFF;	 
+        float reduceMax = *((float *)&tmp); // 初始化reduceMax为float最大值
         for (int64_t j = 0; j < colLoops_; j++) {
             colsTileLength_ = perLoopCols_;
             if (j == colLoops_ - 1) {
