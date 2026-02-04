@@ -11,7 +11,7 @@ message(STATUS "=== Debug: start ops.posembedding.qkv_rms_norm_rope_cache.op_hos
 
 if (BUILD_OPEN_PROJECT)
     message(STATUS "=== Debug: BUILD is BUILD_OPEN_PROJECT")
-    target_sources(op_host_aclnnInner PRIVATE
+    target_sources(op_host_aclnnExc PRIVATE
         qkv_rms_norm_rope_cache_def.cpp
     )
     add_ops_compile_options(
