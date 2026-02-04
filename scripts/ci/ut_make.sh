@@ -108,7 +108,7 @@ for OP_REPO in $OP_REPO_LIST; do
         fi
 
         cd $CODE_PATH
-        timeout $TIMEOUT bash build.sh -u --ops=$op_option_list --cov --soc=ascend310p,ascend910b,ascend910_93,ascend950 &> $LOG_PATH/op_test/$OP.log
+        timeout $TIMEOUT bash build.sh -u --ops=$op_option_list --cov &> $LOG_PATH/op_test/$OP.log
         if [ $? -ne 0 ]; then
             echo -ne "\033[31mFAIL\033[0m            "
             echo -n "FAIL," &>> $LOG_PATH/results.csv

@@ -233,7 +233,6 @@ attention:
     test:
       examples: False
     options:
-      - incre_flash_attention
       - prompt_flash_attention
       - fused_infer_attention_score
 
@@ -375,6 +374,7 @@ gmm:
       - grouped_matmul_swiglu_quant_v2
     test: 
       examples: False
+      ut: False
 
   grouped_matmul_add:
     module: True
@@ -1147,7 +1147,9 @@ mc2:
         - mc2/distribute_barrier/docs
         - mc2/distribute_barrier/README.md
       ut_cov_exclude:
-        - mc2/distribute_barrier
+        - mc2/distribute_barrier/op_api
+        - mc2/distribute_barrier/op_graph
+        - mc2/distribute_barrier/op_kernel
       test:
         examples: False
       options:
