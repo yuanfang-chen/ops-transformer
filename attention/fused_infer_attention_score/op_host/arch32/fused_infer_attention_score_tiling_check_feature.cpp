@@ -194,12 +194,28 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMask() const
 
     if (ropeMode_ == RopeMode::ROPE_SPLIT && vHeadDim_ == 512U) {
         int32_t sparseMode = fiaInfo_.sparseMode;
-        if (sparseMode != SPARSE_MODE_NO_MASK && sparseMode != SPARSE_MODE_RIGHT_DOWN && sparseMode != SPARSE_MODE_BAND) {
+        if (sparseMode != SPARSE_MODE_NO_MASK && sparseMode != SPARSE_MODE_RIGHT_DOWN && 
+            sparseMode != SPARSE_MODE_BAND && sparseMode != SPARSE_MODE_TREE) {
             OP_LOGE(opName_,
                     "In %s situation, when query_rope and key_rope exsists and the head dim of value is %u, %s only "
-                    "support 0/3/4, but got %d.",
+                    "support 0/3/4/9, but got %d.",
                     QuantModeToSerialString(quantMode_).c_str(), vHeadDim_, SPARSE_MODE_NAME.c_str(), sparseMode);
             return ge::GRAPH_FAILED;
+        }
+
+        if (sparseMode == SPARSE_MODE_TREE) {
+            if (fiaInfo_.qPaddingSizeFlag || fiaInfo_.kvPaddingSizeFlag) {
+                OP_LOGE(opName_, "In Tree Attention situation, not support leftPadding.");
+                return ge::GRAPH_FAILED;
+            }
+            if (fiaInfo_.pseShiftFlag) {
+                OP_LOGE(opName_, "In Tree Attention situation, not support PSE.");
+                return ge::GRAPH_FAILED;
+            }
+            if (fiaInfo_.sysPrefixFlag) {
+                OP_LOGE(opName_, "In Tree Attention situation, not support Prefix.");
+                return ge::GRAPH_FAILED;
+            }
         }
     }
     return ge::GRAPH_SUCCESS;

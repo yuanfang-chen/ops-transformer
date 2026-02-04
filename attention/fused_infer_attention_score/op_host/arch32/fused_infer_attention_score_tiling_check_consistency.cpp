@@ -557,6 +557,16 @@ ge::graphStatus FiaTilingCheck::SetAttenMaskCompare()
                 ATTEN_MASK_NAME.c_str(), DIM_NUM_TWO, DIM_NUM_THREE, DIM_NUM_FOUR, maskDimNum);
             return ge::GRAPH_FAILED;
         }
+    } else if (sparseMode == SPARSE_MODE_TREE) {
+        if (maskDimNum == DIM_NUM_ONE) {
+            maskLayout = FiaLayout::S1S1;
+        } else if (maskDimNum == DIM_NUM_THREE) {
+            maskLayout = FiaLayout::BS1S1;
+        } else {
+            OP_LOGE(opName_, "%s dim num only support %zu, %zu, but got %zu",
+                ATTEN_MASK_NAME.c_str(), DIM_NUM_TWO, DIM_NUM_THREE, maskDimNum);
+            return ge::GRAPH_FAILED;
+        }
     } else {
         if (maskDimNum == DIM_NUM_TWO) {
             maskLayout = FiaLayout::S1S2;
@@ -609,8 +619,10 @@ ge::graphStatus FiaTilingCheck::CheckAttentionMask()
     } else if (sparseMode == SPARSE_MODE_LEFT_UP || sparseMode == SPARSE_MODE_RIGHT_DOWN || sparseMode == SPARSE_MODE_BAND){
         shapeParams.S1 = OPT_ATTEN_MASK_LEN;
         shapeParams.S2 = OPT_ATTEN_MASK_LEN;
+    } else if (sparseMode == SPARSE_MODE_TREE) { //TODO待补充
+        shapeParams.S1 = static_cast<int64_t>(s1Size_);
+        shapeParams.S2 = shapeParams.S1;
     }
-
     return attenMaskShapeCmp_->CompareShape(shapeParams, __func__);
 }
 
