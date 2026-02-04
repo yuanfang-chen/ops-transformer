@@ -1648,6 +1648,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <tr>
             <td colspan="4">不支持左padding、tensorlist、pse、prefix、伪量化、后量化</td>
         </tr>
+        <tr> 
+            <td colspan="4">BNSD_NBSD、BSND_NBSD、BSH_NBSD、TND_NTD场景，不支持开启SoftMaxLse</td> 
+        </tr>
         <tr>
             <td rowspan="5">query d=128</td>
             <td>非量化</td>
@@ -1897,6 +1900,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
                     <td>
                     <ul>
                         <li>PagedAttention 伪量化场景：支持query为FLOAT16/BFLOAT16，支持key、value为INT8。</li>
+                        <li>PagedAttention 全量化场景：不支持query dtype为INT8。</li>
                     <li>传入Mask时，并且sparseMode不为2，3，4时，Mask的最后一维需要大于等于maxBlockNumPerSeq * blockSize</li>
                     <li>传入pseShift时，pseShift的最后一维需要大于等于maxBlockNumPerSeq * blockSize</li>
                     </ul>
