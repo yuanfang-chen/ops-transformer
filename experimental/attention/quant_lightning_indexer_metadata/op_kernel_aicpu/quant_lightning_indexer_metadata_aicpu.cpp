@@ -149,14 +149,6 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency() {
         KERNEL_LOG_ERROR("actual_seq_lengths_query size: %u must equal to actual_seq_lengths_key size: %u !", actSeqLenQSize, actSeqLenKeySize);
         return false;
     }
-    if (layoutQuery_ == "TND" && batchSize_ != 0) {
-        KERNEL_LOG_ERROR("when actual_seq_lengths_query is TND, batch_size must be 0 !");
-        return false;
-    }
-    if (layoutKey_ == "TND" && batchSize_ != 0) {
-        KERNEL_LOG_ERROR("when actual_seq_lengths_key is TND, batch_size must be 0 !");
-        return false;
-    }
 
     return true;
 }
