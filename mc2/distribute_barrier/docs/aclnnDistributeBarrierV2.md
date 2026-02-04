@@ -15,6 +15,7 @@
 - 支持动态缩容场景：支持在创建通信域后，剔除故障卡，算子可正常执行（无需重新编译），通过传入`elasticInfoOptional`参数使能该特性。
 - 支持超时检测场景：
     -   `timeOutOptional`≠0：通过传入大于0的`timeOutOptional`参数（单位为us）使能本特性，最大支持传入INT32_MAX。当算子内部同步等待时间超过给定timeOut时，则认为所在卡存在超时异常。
+    
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 “aclnnDistributeBarrierV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnDistributeBarrierV2”接口执行计算。

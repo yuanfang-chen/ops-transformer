@@ -183,7 +183,9 @@ aclnnStatus aclnnMatmulAllReduceV2(
 
 - **返回值**
 
-    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。第一阶段接口完成入参校验，出现以下场景报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+
+    第一阶段接口完成入参校验，出现以下场景报错：
 
     <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
     <col style="width: 250px">
@@ -215,6 +217,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
     </tr>
     </tbody>
     </table>
+
 ## aclnnMatmulAllReduceV2
 
 - **参数说明**
@@ -250,6 +253,7 @@ aclnnStatus aclnnMatmulAllReduceV2(
         <td>指定执行任务的Stream。</td>
     </tr>
     </tbody></table>
+    
 -   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
