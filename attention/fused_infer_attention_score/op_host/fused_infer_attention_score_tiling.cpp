@@ -1102,10 +1102,6 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
  	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
  	             "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
  	                 return ge::GRAPH_FAILED);
- 	         OP_CHECK_IF((sparseMode == 4), 
- 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
- 	             "When learnable sink is enabled, sparseMode shall not be 4"),
- 	                 return ge::GRAPH_FAILED);
  	 
  	         return ge::GRAPH_SUCCESS;
  	 }
