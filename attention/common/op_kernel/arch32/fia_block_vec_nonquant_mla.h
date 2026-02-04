@@ -417,6 +417,26 @@ __aicore__ inline void FiaBlockVecNonQuantMla<FIAT>::ElewiseCompute(
         }
 
         maskInfo.attenMaskType = fa_base_vector::MASK_BOOL; // compatible with int8/uint8
+
+        // TODO 添加Sparse9的处理，由于sparse9的mask拷贝只占最小块的一部分，所以需要对UB空间赋初值0，表示不被掩码覆盖
+        // TND场景下mask传入∑s1²，其余场景传入[B,S1,S1]
+        LocalTensor<bool> maskUb;
+        if (maskInfo.sparseMode == fa_base_vector::TREE) {
+            LocalTensor<int16_t> mask16 = inputBuff2.Get<int16_t>();
+            Duplicate(mask16, 0, INPUT2_BUFFER_OFFSET * 2 / sizeof(int16_t));
+            maskUb = mask16.template ReinterpretCast<bool>();
+
+            // 修改attenMaskStride、attenMaskBatchStride值
+            if (LAYOUT_T == FIA_LAYOUT::TND) {
+                maskInfo.attenMaskStride = info.actS1Size;
+                maskInfo.attenMaskBatchStride = 0;
+                for (int i = 0; i < maskInfo.batchIdx) {
+                    maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
+                }
+            }
+        } else {
+            maskUb = inputBuff2.Get<bool>();
+        }
         LocalTensor<bool> maskUb = inputBuff2.Get<bool>();
         maskUb = maskUb[pingpongFlag * INPUT2_BUFFER_OFFSET / sizeof(bool)];
         LocalTensor<bool> attenMaskTmpUb = attenMaskTmpBuff.Get<bool>();
