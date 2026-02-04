@@ -16,7 +16,7 @@
 
 ## 功能说明
 
-- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV3，本接口新增dequantScaleQueryOptional、queryQuantMode参数。
+- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV3，本接口新增dequantScaleQueryOptional、learnableSinkOptionalquery、QuantMode参数。
 
     **说明：** 
     decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个常用技术。采样时，Transformer模型会以给定的prompt/context作为初始输入进行推理（可以并行处理），随后逐一生成额外的token来继续完善生成的序列（体现了模型的自回归性质）。在采样过程中，Transformer会执行自注意力操作，为此需要给当前序列中的每个项目（无论是prompt/context还是生成的token）提取键值（KV）向量。这些向量存储在一个矩阵中，通常被称为kv缓存（KV Cache）。
@@ -1594,6 +1594,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>shape为五维时，各维度约束为[blockNum, N, D/16, blockSize, 16]</td>
         </tr>
         <tr>
+            <td>dequantScaleQueryOptional</td>
+            <td>FLOAT32; 需与dequantScaleQueryOptional, valueAntiquantScaleOptional同时存在</td>
+            <td>无D维度，其余维度需要与入参query的shape保持一致</td>
+        </tr>
+        <tr>
             <td>keyAntiquantScaleOptional</td>
             <td>FLOAT32; 需与dequantScaleQueryOptional, valueAntiquantScaleOptional同时存在，不支持传入keyAntiquantOffsetOptional和valueAntiquantOffsetOptional; 仅支持pertensor模式</td>
             <td>shape为(1)</td>
@@ -1642,9 +1647,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         </tr>
         <tr>
             <td colspan="4">不支持左padding、tensorlist、pse、prefix、伪量化、后量化</td>
-        </tr>
-        <tr>
-            <td colspan="4">BNSD_NBSD、BSND_NBSD、BSH_NBSD、TND_NTD场景，不支持开启SoftMaxLse</td>
         </tr>
         <tr>
             <td rowspan="5">query d=128</td>
@@ -1895,7 +1897,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
                     <td>
                     <ul>
                         <li>PagedAttention 伪量化场景：支持query为FLOAT16/BFLOAT16，支持key、value为INT8。</li>
-                        <li>PagedAttention 全量化场景：不支持query dtype为INT8。</li>
                     <li>传入Mask时，并且sparseMode不为2，3，4时，Mask的最后一维需要大于等于maxBlockNumPerSeq * blockSize</li>
                     <li>传入pseShift时，pseShift的最后一维需要大于等于maxBlockNumPerSeq * blockSize</li>
                     </ul>
