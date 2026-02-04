@@ -1263,8 +1263,8 @@ static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context,
     // LocalWindowCopy的ub使用总量
     uint32_t totalBufferSize = 0;
     if (config.hasAddRmsNorm) {
-        totalBufferSize = maxSizeTokenBuf + maxSizeRowTmpFloatBuf + mulBufSize + hFloatAlign32Size + hExpandXAlign32Size
-        + NUM_PER_REP_FP32 * sizeof(float) + hExpandXAlign32Size * BUFFER_NUM + flagRcvCount * STATE_OFFSET * BUFFER_NUM + UB_ALIGN;
+        totalBufferSize = maxSizeTokenBuf + maxSizeRowTmpFloatBuf + mulBufSize + hFloatAlign32Size + hExpandXAlign32Size * BUFFER_NUM
+        + NUM_PER_REP_FP32 * sizeof(float) * BUFFER_NUM + hExpandXAlign32Size * BUFFER_NUM + flagRcvCount * STATE_OFFSET * BUFFER_NUM + UB_ALIGN;
     } else {
         totalBufferSize = maxSizeTokenBuf + maxSizeRowTmpFloatBuf + mulBufSize + hFloatAlign32Size + hExpandXAlign32Size * BUFFER_NUM
         + flagRcvCount * STATE_OFFSET * BUFFER_NUM + UB_ALIGN;
