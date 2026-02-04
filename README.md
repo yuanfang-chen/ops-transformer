@@ -41,7 +41,7 @@ ops-transformer是[CANN](https://hiascend.com/software/cann) （Compute Architec
 这些文档提供了多样化的场景介绍和更全面的操作指导，方便您应用于各种AI业务场景。
 
 1. [环境部署](docs/zh/context/quick_install.md)：搭建基础环境的指南，提供了多种场景下第三方依赖和软件包安装方法等。
-2. [算子调用](docs/zh/invocation/quick_op_invocation.md)：编译部署并调用算子的指南，提供了多种编译算子包以及运行算子的方法（包括执行算子样例和UT）等。
+2. [算子调用](docs/zh/invocation/quick_op_invocation.md)：算子源码编译和执行指南，提供了不同场景下算子包编译（包括联网/未联网等）和算子运行的方法（包括执行算子样例和UT）等。
 3. [算子开发](docs/zh/develop/aicore_develop_guide.md)：基于本项目工程开发新算子的指南，提供了创建算子工程、实现Tiling和Kernel核心交付件等指导。
 4. [算子调试调优](docs/zh/debug/op_debug_prof.md)：提供了常见的算子调试和调优方法，如DumpTensor、msProf、Simulator等。
 
