@@ -1945,7 +1945,7 @@ def _trans_antiparam_to_1n1d(shape, tensor, layout, numKeyValueHeads, d, mode):
             h = shape[0]
             d_num = int(h / numKeyValueHeads)
             print(f"[INFO]_trans_h_to_1n1d: layout={layout}, h={h}, n={numKeyValueHeads} ,d(h/n)={d_num}")
-            new_tensor = tensor.reshape(1, 1, numKeyValueHeads, d_num).transpose(0, 2, 1, 3)
+            new_tensor = tensor.reshape(1, 1, numKeyValueHeads, d_num).transpose(1, 2)
         elif len(shape) == 2:
             if shape[0] == 1:
                 h = shape[1]
@@ -1954,18 +1954,17 @@ def _trans_antiparam_to_1n1d(shape, tensor, layout, numKeyValueHeads, d, mode):
                 new_tensor = tensor.reshape(1, 1, numKeyValueHeads, d_num).transpose(1, 2)
             else:
                 print(f"[INFO]_trans_nd_to_1n1d : layout={layout}, n={shape[0]} ,d={shape[1]}")
-                new_tensor = tensor.reshape(1, 1, shape[0], shape[1]).transpose(0, 2, 1, 3)
+                new_tensor = tensor.reshape(1, 1, shape[0], shape[1]).transpose(1, 2)
         elif len(shape) == 3:
             if shape[0] == 1:
-                print(f"[INFO]_trans_1nd_to_1n1d : layout={layout}, n={shape[1]} ,d={shape[2]}")
-                new_tensor = tensor.reshape(1, 1, shape[1], shape[2]).transpose(0, 2, 1, 3)
+                new_tensor = tensor.reshape(1, 1, shape[1], shape[2]).transpose(1, 2)
             else:
                 print(f"[INFO]_trans_n1d_to_1n1d : layout={layout}, n={shape[0]} ,d={shape[2]}")
-                new_tensor = tensor.reshape(1, 1, shape[0], shape[2]).transpose(0, 2, 1, 3)
+                new_tensor = tensor.reshape(1, 1, shape[0], shape[2]).transpose(1, 2)
         elif len(shape) == 4:
             if shape[1] == 1:
                 print(f"[INFO]_trans_11nd_to_1n1d : layout={layout}, n={shape[2]} ,d={shape[3]}")
-                new_tensor = tensor.transpose(0, 2, 1, 3)
+                new_tensor = tensor.transpose(1, 2)
             else:
                 new_tensor = tensor
         else:
@@ -9119,6 +9118,7 @@ dtype_map = {
     torch.int32: "int32",
     torch.int64: "int32",
     torch.uint8: "uin8",
+    torch.int4: "int4",
     torch.float64: "fp64"
 }
 
