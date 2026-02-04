@@ -255,7 +255,7 @@ __aicore__ inline void AntiquantVFW8PerTokenNz(LocalTensor<KV_T>& antiqInUb, Loc
 
 template <typename Q_T, typename KV_T, uint32_t baseSize>
 __aicore__ inline void AntiquantVFFp8Nz(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
-                                          LocalTensor<Q_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
+                                          LocalTensor<ANTIQ_PARAMS_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
   static_assert(baseSize % 16 == 0);
   static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
                 "antiquant w8, KV_T must be fp8_e4m3fn_t or fp8_e5m2_t");
@@ -900,7 +900,7 @@ __simd_vf__ void AntiquantVFImplFp8D64(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_T
 
 template <typename Q_T, typename KV_T, uint32_t baseSize>
 __aicore__ inline void AntiquantVFFp8D64(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
-                                          LocalTensor<Q_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
+                                          LocalTensor<ANTIQ_PARAMS_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
   static_assert(baseSize == 64);
   static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
                 "antiquant w8, KV_T must be fp8_e4m3fn_t or fp8_e5m2_t");
@@ -967,7 +967,7 @@ __simd_vf__ void AntiquantVFImplFp8Norm(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_
 
 template <typename Q_T, typename KV_T, uint32_t baseSize>
 __aicore__ inline void AntiquantVFFp8Norm(LocalTensor<KV_T>& antiqInUb, LocalTensor<Q_T>& antiqResUb,
-                                          LocalTensor<Q_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
+                                          LocalTensor<ANTIQ_PARAMS_T>& antiqScaleFp16Ub, uint32_t dealRowCount) {
   static_assert(baseSize % 128 == 0);
   static_assert(IsSameType<KV_T, fp8_e4m3fn_t>::value || IsSameType<KV_T, fp8_e5m2_t>::value,
                 "antiquant w8, KV_T must be fp8_e4m3fn_t or fp8_e5m2_t");
