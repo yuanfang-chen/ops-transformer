@@ -15,7 +15,40 @@
 
 ## 功能说明
 
-对Token数据进行量化（可选），当存在TP域通信时，先进行EP（Expert Parallelism）域的AllToAllV通信，再进行TP（Tensor Parallelism）域的AllGatherV通信；当不存在TP域通信时，进行EP（Expert Parallelism）域的AllToAllV通信。
+- 接口功能：对Token数据进行量化（可选），当存在TP域通信时，先进行EP（Expert Parallelism）域的AllToAllV通信，再进行TP（Tensor Parallelism）域的AllGatherV通信；当不存在TP域通信时，进行EP（Expert Parallelism）域的AllToAllV通信。
+
+- 计算公式：
+
+    - 情形1：如果quaneMode=0（非量化场景）：
+
+    $$
+    allToAllXOut = AllToAllV(X)\\
+    expandXOut =
+    \begin{cases}
+    AllToAllV(X), & 无TP通信域 \\
+    AllGatherV(allToAllXOut), & 有TP通信域 \\
+    \end{cases}
+    $$
+
+    - 情形2：如果quaneMode=2（pertoken动态量化场景）：
+
+    $$
+    xFp32 = CastToFp32(X) \times sacles \\
+    dynamicScales = dstTypeMax/Max(Abs(xFp32)) \\
+    quantOut = CastToInt8(xFp32 \times dynamicScalesValue) \\
+    allToAllXOut = AllToAllV(quantOut) \\
+    allToAllDynamicScalesOut = AllToAllV(1.0/dynamicScales) \\
+    expandXOut =
+    \begin{cases}
+    AllToAllV(X), & 无TP通信域 \\
+    AllGatherV(allToAllXOut), & 有TP通信域 \\
+    \end{cases} \\
+    dynamicScalesOut =
+    \begin{cases}
+    AllGatherV(allToAllDynamicScalesOut), & 无TP通信域 \\
+    allToAllDynamicScalesOut, & 有TP通信域 \\
+    \end{cases}
+    $$
 
 >注意该接口必须与aclnnMoeDistributeCombine配套使用。
 
@@ -163,7 +196,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
     <td>epRankId</td>
     <td>输入</td>
     <td>EP域本卡Id。</td>
-    <td>取值范围[0, epWorldSize)，同一个EP通信域中各卡的epRankId不重复。</td>
+    <td><ul><li>取值范围[0, epWorldSize)</li><li>同一个EP通信域中各卡的epRankId不重复。</li></ul></td>
     <td>INT64</td>
     <td>ND</td>
     <td>-</td>
@@ -223,7 +256,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
     <td>sharedExpertNum</td>
     <td>输入</td>
     <td>表示共享专家数量（一个共享专家可复制部署到多个卡上）。</td>
-    <td>当前取值范围[0, 1]，0表示无共享专家，1表示一个共享专家，当前版本仅支持传1。</td>
+    <td>-</td>
     <td>INT64</td>
     <td>ND</td>
     <td>-</td>
@@ -233,7 +266,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
     <td>sharedExpertRankNum</td>
     <td>输入</td>
     <td>表示共享专家卡数量。</td>
-    <td>当前取值范围[0, epWorldSize)，不为0时需满足epWorldSize % sharedExpertRankNum = 0。</td>
+    <td>-</td>
     <td>INT64</td>
     <td>ND</td>
     <td>-</td>
@@ -253,7 +286,7 @@ aclnnStatus aclnnMoeDistributeDispatch(
     <td>globalBs</td>
     <td>输入</td>
     <td>EP域全局的batch size大小。</td>
-    <td>各rank Bs一致时，globalBs = Bs * epWorldSize 或 0；各rank Bs不一致时，globalBs = maxBs * epWorldSize（maxBs为单卡/单rank BS最大值）。</td>
+    <td><ul><li>各rank Bs一致时，globalBs = Bs * epWorldSize 或 0</li><li>各rank Bs不一致时，globalBs = maxBs * epWorldSize（maxBs为单卡/单rank BS最大值）。</li></ul></td>
     <td>INT64</td>
     <td>ND</td>
     <td>-</td>
@@ -361,17 +394,23 @@ aclnnStatus aclnnMoeDistributeDispatch(
     </tbody>
     </table>
 
-    * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-        * 不支持共享专家场景，不支持`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum`属性。
-        * 仅支持EP域，无TP域，不支持`groupTp`、`tpWorldSize`、`tpRankId`属性，`tpRecvCounts`为无效内容。
-        * 仅设置环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0时，`expandScales`内容有效。
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+        - 不支持共享专家场景，不支持`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum`属性。
+        - 仅支持EP域，无TP域，不支持`groupTp`、`tpWorldSize`、`tpRankId`属性，`tpRecvCounts`为无效内容。
+        - 仅设置环境变量`HCCL_INTRA_PCIE_ENABLE` = 1和`HCCL_INTRA_ROCE_ENABLE` = 0时，`expandScales`内容有效。
 
-    * <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
-        * 不支持`expandScales`。
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+        - 不支持`expandScales`。
+        - 不支持`xActiveMask`输入。
+        - `sharedExpertNum`当前取值范围[0, 1]，0表示无共享专家，1表示一个共享专家，当前版本仅支持传1。
+        - `sharedExpertRankNum`当前取值范围[0, epWorldSize)，不为0时需满足epWorldSize % sharedExpertRankNum = 0。
 
-    * <term>Ascend 950PR/Ascend 950DT</term>：
-        * 不支持`expandScales`。
-        * 当前不支持TP域通信，不支持`groupTp`、`tpWorldSize`、`tpRankId`属性，且`tpSendCounts`为无效内容。
+    - <term>Ascend 950PR/Ascend 950DT</term>：
+        - 不支持`expandScales`。
+        - 不支持`xActiveMask`输入。
+        - `sharedExpertNum`当前取值范围[0, 1]，0表示无共享专家，1表示一个共享专家，当前版本仅支持传1。
+        - `sharedExpertRankNum`当前取值范围[0, epWorldSize)，不为0时需满足epWorldSize % sharedExpertRankNum = 0。
+        - 当前不支持TP域通信，不支持`groupTp`、`tpWorldSize`、`tpRankId`属性，且`tpSendCounts`为无效内容。
 
 - **返回值**
 
