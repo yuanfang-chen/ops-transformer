@@ -49,33 +49,33 @@
 
 ## 参数说明
 
-| 参数名                     | 输入/输出/属性 | 描述  | 数据类型       | 数据格式   |
+| 参数名                      | 输入/输出/属性 | 描述  | 数据类型       | 数据格式   |
 |----------------------------|-----------|----------------------------------------------------------------------|----------------|------------|
-| x                     | 输入      | 公式中的$X$，表示原始不经压缩的数据 | FLOAT16、BFLOAT16 | ND         |
-| wkv                   | 输入      | 公式中的$W^{KV}$，表示kv压缩权重  | FLOAT16、BFLOAT16 | ND |
-| wgate                 | 输入      | 公式中的$W^{Gate}$，表示gate压缩权重 | FLOAT16、BFLOAT16 | ND |
-| kv_state             | 输入      | 公式中的$kv\_state$，表示kv\_state的历史数据 | FLOAT32     | ND         |
-| score_state            | 输入      | 公式中的$score\_state$，表示score\_state中的历史数据 | FLOAT32       | ND         |
-| ape                    | 输入      | 公式中的$Ape$，表示positional biases | FLOAT32       | ND         |
-| norm\_weight                    | 输入      | 表示计算RmsNorm时的权重系数 | FLOAT16、BFLOAT16       | ND         |
-| rope\_sin                    | 输入      | 表示Rope计算时sin的权重系数 | FLOAT16、BFLOAT16       | ND         |
-| rope\_cos                    | 输入      | 表示Rope计算时cos的权重系数 | FLOAT16、BFLOAT16       | ND         |
-| rope\_head\_dim                   | 属性      | 表示rope_cos和rope_sin的hidden层最小单元大小，目前仅支持64 | INT32       | -         |
-| cmp\_ratio                 | 属性      | 用于稀疏计算，表示数据压缩率 | INT32          | -         |
-| kv\_block\_table                 | 可选输入 | 表示kv\_state存储使用的block映射表 | INT32 | ND         |
-| score\_block\_table                 | 可选输入 | 表示score\_state存储使用的block映射表 | INT32 | ND         |
-| cu\_seqlens      | 可选输入      | 表示不同Batch中的有效token数  | INT32          | ND         |
-| seqused  | 可选输入      | 表示不同Batch中实际参与压缩的token数，如果指定为None时，表示和每个Batch上的Sequence Length长度相同 | INT32          | ND         |
-| start\_pos | 可选输入      | 表示计算起始位置 | INT32          | ND         |
-| coff    | 可选属性      | 默认值1，支持1/2。当coff=1时，无需进行overlap数据重排。当coff=2时，需要进行overlap数据重排  | INT32          | -         |
-| norm\_eps    | 可选属性      | 表示RmsNorm计算的权重系数。默认值1e-6 | FLOAT32          | -         |
-| rotary\_mode      |  可选属性     | 表示Rop计算的模式。默认值1，支持1/2。rotary\_mode为1时，代表half模式。rotary\_mode为2时，代表interleave模式 | INT32          | -         |
-| enabled\_grad     | 可选属性      | 训练场景使用，表示是否参与反向更新。默认值false，支持false/true。**目前暂不支持输入true** | BOOL          | -         |
-| cmp\_kv          | 输出      | 表示压缩后的数据 | FLOAT16、BFLOAT16         | ND          |
-| wkv\_proj          | 可选输出      | 训练反向使用，表示wkv权重Matmul的计算结果，**目前暂不支持返回wkv\_proj** | FLOAT16、BFLOAT16         | ND          |
-| softmax\_res          | 可选输出      | 训练反向使用，表示Softmax计算结果，**目前暂不支持返回softmax\_res** | FLOAT16、BFLOAT16         | ND          |
-| norm\_x          | 可选输出      | 训练反向使用，表示Rms计算的输入，**目前暂不支持返回norm\_x** | FLOAT16、BFLOAT16         | ND          |
-| norm\_rstd          | 可选输出      | 训练反向使用，表示Rms计算的中间结果，**目前暂不支持返回norm\_rstd** | FLOAT16、BFLOAT16         | ND          |
+| x                         | 输入      | 公式中的$X$，表示原始不经压缩的数据 | FLOAT16、BFLOAT16 | ND         |
+| wkv                       | 输入      | 公式中的$W^{KV}$，表示kv压缩权重  | FLOAT16、BFLOAT16 | ND |
+| wgate                     | 输入      | 公式中的$W^{Gate}$，表示gate压缩权重 | FLOAT16、BFLOAT16 | ND |
+| kv_state                  | 输入      | 公式中的$kv\_state$，表示kv\_state的历史数据 | FLOAT32     | ND         |
+| score_state               | 输入      | 公式中的$score\_state$，表示score\_state中的历史数据 | FLOAT32       | ND         |
+| ape                       | 输入      | 公式中的$Ape$，表示positional biases | FLOAT32       | ND         |
+| norm\_weight              | 输入      | 表示计算RmsNorm时的权重系数 | FLOAT16、BFLOAT16       | ND         |
+| rope\_sin                 | 输入      | 表示Rope计算时sin的权重系数 | FLOAT16、BFLOAT16       | ND         |
+| rope\_cos                 | 输入      | 表示Rope计算时cos的权重系数 | FLOAT16、BFLOAT16       | ND         |
+| rope\_head\_dim           | 属性      | 表示rope_cos和rope_sin的hidden层最小单元大小，目前仅支持64 | INT32       | -         |
+| cmp\_ratio                | 属性      | 用于稀疏计算，表示数据压缩率 | INT32          | -         |
+| kv\_block\_table          | 可选输入  | 表示kv\_state存储使用的block映射表 | INT32 | ND         |
+| score\_block\_table       | 可选输入  | 表示score\_state存储使用的block映射表 | INT32 | ND         |
+| cu\_seqlens               | 可选输入  | 表示不同Batch中的有效token数  | INT32          | ND         |
+| seqused                   | 可选输入  | 表示不同Batch中实际参与压缩的token数，如果指定为None时，表示和每个Batch上的Sequence Length长度相同 | INT32          | ND         |
+| start\_pos                | 可选输入  | 表示计算起始位置 | INT32          | ND         |
+| coff                      | 可选属性  | 默认值1，支持1/2。当coff=1时，无需进行overlap数据重排。当coff=2时，需要进行overlap数据重排  | INT32          | -         |
+| norm\_eps                 | 可选属性  | 表示RmsNorm计算的权重系数。默认值1e-6 | FLOAT32          | -         |
+| rotary\_mode              | 可选属性  | 表示Rop计算的模式。默认值1，支持1/2。rotary\_mode为1时，代表half模式。rotary\_mode为2时，代表interleave模式 | INT32          | -         |
+| enabled\_grad             | 可选属性  | 训练场景使用，表示是否参与反向更新。默认值false，支持false/true。**目前暂不支持输入true** | BOOL          | -         |
+| cmp\_kv                   | 输出      | 表示压缩后的数据 | FLOAT16、BFLOAT16         | ND          |
+| wkv\_proj                 | 可选输出  | 训练反向使用，表示wkv权重Matmul的计算结果，**目前暂不支持返回wkv\_proj** | FLOAT16、BFLOAT16         | ND          |
+| softmax\_res              | 可选输出  | 训练反向使用，表示Softmax计算结果，**目前暂不支持返回softmax\_res** | FLOAT16、BFLOAT16         | ND          |
+| norm\_x                   | 可选输出  | 训练反向使用，表示Rms计算的输入，**目前暂不支持返回norm\_x** | FLOAT16、BFLOAT16         | ND          |
+| norm\_rstd                | 可选输出  | 训练反向使用，表示Rms计算的中间结果，**目前暂不支持返回norm\_rstd** | FLOAT16、BFLOAT16         | ND          |
 
 ## 约束说明
 
