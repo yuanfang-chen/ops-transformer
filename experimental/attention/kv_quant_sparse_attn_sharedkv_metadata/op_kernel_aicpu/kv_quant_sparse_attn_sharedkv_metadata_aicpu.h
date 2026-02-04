@@ -46,8 +46,8 @@ enum class SparseMode : uint8_t {
 };
 
 enum class ValidSocVersion {
-    ASCEND910B = 0,
-    ASCEND910D,
+    ASCEND910 = 0,
+    ASCEND950,
     RESERVED_VERSION = 99999
 };
 
@@ -231,6 +231,12 @@ public:
 
 private:
     bool Prepare(CpuKernelContext &ctx);
+    void GetQueryBatchSize(int32_t &bSize);
+    void GetKvBatchSize(int32_t &bSize);
+    bool CheckSingleParam();
+    bool CheckExistence();
+    bool CheckConsistency();
+    bool CheckFeature();
     bool ParamsCheck();
     bool ParamsInit();
     bool BalanceSchedule(SplitResult &splitRes);
@@ -298,7 +304,7 @@ private:
     uint32_t headDim_ = 0;
     uint32_t oriTopK_ = 0;
     uint32_t cmpTopK_ = 0;
-    uint32_t cmpRatio_ = -1;
+    int32_t cmpRatio_ = -1;
     uint32_t oriMaskMode_ = 4;
     uint32_t cmpMaskMode_ = 3;
     int64_t winLeft_ = 127;
@@ -331,8 +337,8 @@ private:
     actSeqLenQ = 0,
     actSeqLenOriKv = 1,
     actSeqLenCmpKv = 2,
-    SeqUsedQ = 3,
-    SeqUsedKv = 4,
+    seqUsedQ = 3,
+    seqUsedKv = 4,
     // output
     metaData = 0,
     };
