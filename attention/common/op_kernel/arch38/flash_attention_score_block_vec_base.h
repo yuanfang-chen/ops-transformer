@@ -439,7 +439,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo<isInfer> &runInfo, 
     ConstInfo<isInfer, hasRope> &constInfo)
 {
-    bmm1ResBuf.WaitCrossCore();
     LocalTensor<pseShiftType> pseUb;
     if constexpr (hasPseOuter == true) {
         PseCopyIn<T, pseShiftType, hasPseOuter>(this->pseInQue, this->pseGm, runInfo, constInfo, *pseInfoPtr);
@@ -564,7 +563,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
             }
         }
     }
-    bmm1ResBuf.SetCrossCore();
     if constexpr (hasAtten) {
         this->attenMaskInQue[runInfo.taskIdMod2].template FreeTensor(attenMaskUb);
     }
@@ -593,7 +591,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
         }
     }
     this->stage1OutQue[stage1Offset].template FreeTensor(stage1CastTensor);
-    outputBuf.SetCrossCore();
     // ======================================================
     if (runInfo.s2LoopCount != 0) {
         UpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfS1RealSize);
