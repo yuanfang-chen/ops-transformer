@@ -145,7 +145,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
     return true;
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(uint32_t &bSize)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(int32_t &bSize)
 {
     // 1. 如果seqUsedQ_ 传了，使用seqUsedQ_获取BatchSize
     if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
@@ -159,7 +159,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(uint32_t &bSi
         // 如果是 TND，尝试使用 actSeqLenQ_获取BatchSize
         if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
             if (actSeqLenQ_->GetTensorShape() != nullptr) {
-                bSize = actSeqLenQ_->GetTensorShape()->GetDimSize(0);
+                bSize = actSeqLenQ_->GetTensorShape()->GetDimSize(0) - 1;
                 return;
             }
         }
@@ -168,7 +168,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(uint32_t &bSi
     bSize = batchSize_;
 }
 
-void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(uint32_t &bSize)
+void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(int32_t &bSize)
 {
     // 1. 如果 seqUsedKv_ 传了，直接使用
     if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
@@ -182,7 +182,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(uint32_t &bSize)
         // 如果是 TND，尝试使用 actSeqLenOriKv_
         if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
             if (actSeqLenOriKv_->GetTensorShape() != nullptr) {
-                bSize = actSeqLenOriKv_->GetTensorShape()->GetDimSize(0);
+                bSize = actSeqLenOriKv_->GetTensorShape()->GetDimSize(0) - 1;
                 return;
             }
         }
@@ -192,8 +192,8 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(uint32_t &bSize)
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
-    uint32_t queryBatchSize = 0;
-    uint32_t kvBatchSize = 0;
+    int32_t queryBatchSize = 0;
+    int32_t kvBatchSize = 0;
     GetQueryBatchSize(queryBatchSize);
     GetKvBatchSize(kvBatchSize);
     if (layoutQuery_ == "TND") {
