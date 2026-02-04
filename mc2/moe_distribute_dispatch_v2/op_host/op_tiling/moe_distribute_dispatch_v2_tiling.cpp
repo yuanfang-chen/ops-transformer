@@ -516,6 +516,7 @@ static bool CheckTensorDataTypeMxfp8(
     return true;
 }
 
+template<typename ConstChosen>
 static bool CheckDistinctTensorDataType(const gert::TilingContext *context, const char *nodeName,
     const bool isScales, const uint32_t quantMode)
 {  
@@ -588,7 +589,7 @@ static bool CheckTensorDataType(const gert::TilingContext *context, const char *
     if (mc2tiling::GetSocVersion(context) == "Ascend950") {
         OP_TILING_CHECK(!CheckQuantModeAndExpandXType(context, nodeName), 
             OP_LOGE(nodeName, "CheckQuantModeAndExpandXType failed."), return false);
-        OP_TILING_CHECK(!CheckDistinctTensorDataType(context, nodeName, isScales, quantMode), 
+        OP_TILING_CHECK(!CheckDistinctTensorDataType<ConstChosen>(context, nodeName, isScales, quantMode), 
             OP_LOGE(nodeName, "CheckDistinctTensorDataType failed."), return false);
     } else {
         auto xDesc = context->GetInputDesc(ConstChosen::X_INDEX);
