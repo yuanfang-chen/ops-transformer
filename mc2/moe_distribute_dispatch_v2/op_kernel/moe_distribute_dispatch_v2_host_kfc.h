@@ -1114,10 +1114,10 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Send
     if (startTokenId >= totalSendCnt || sendTokenNum == 0) {
         return;
     }
-    //LogInfo(__LINE__,"totalSendCnt ",totalSendCnt);
-    //LogInfo(__LINE__,"startTokenId ",startTokenId);
-    //LogInfo(__LINE__,"endTokenId ",endTokenId);
-    //LogInfo(__LINE__,"sendTokenNum ",sendTokenNum);
+    LogInfo(__LINE__,"totalSendCnt ",totalSendCnt);
+    LogInfo(__LINE__,"startTokenId ",startTokenId);
+    LogInfo(__LINE__,"endTokenId ",endTokenId);
+    LogInfo(__LINE__,"sendTokenNum ",sendTokenNum);
 
     DispatchAndCountTokens(0, startTokenId, false);
     DispatchAndCountTokens(startTokenId, endTokenId, true);
@@ -1302,7 +1302,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Wait
         uint32_t tokenCnt;
         ////LogInfo(__LINE__, "[BATCHWRITE][WaitWindow] curServerId:", dstServerInd);
         WaitStatusFlag(dstServerInd, tokenCnt);
-        //LogInfo(__LINE__, "[BATCHWRITE][WaitWindow] tokenCnt:", tokenCnt);
+        LogInfo(__LINE__, "[BATCHWRITE][WaitWindow] tokenCnt:", tokenCnt);
         // buf分配
         //tpipe_->Reset(); //TODO 
 
@@ -1442,7 +1442,7 @@ MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::WaitToken(uint32_t tokenCnt
             CopyInAndOut(xOutFp32Tensor, xOutInt32Tensor, wAddr, index, dstPosition, arriveCount);
 
             SyncFunc<AscendC::HardEvent::MTE2_V>();
-            SendToExpert(index);
+            // SendToExpert(index);
 
             // // finish更新并clean
             finishNumTensor_(index) = 1;
