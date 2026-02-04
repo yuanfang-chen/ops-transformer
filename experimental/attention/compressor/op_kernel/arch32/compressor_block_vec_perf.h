@@ -734,8 +734,8 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::SaveState(const LocalTen
         uint64_t srcBaseOffset = sliceInfo.headHolderSeqCnt * coff * dDealSize;
         // printf("headHolderSeqCnt=%d, validSeqCnt=%d, copySeqCnt=%d, tailHolderSeqCnt=%d\n", sliceInfo.headHolderSeqCnt, sliceInfo.validSeqCnt, copySeqCnt, sliceInfo.tailHolderSeqCnt);
         // printf("--srcStride=%d--\n", (srcBaseOffset + dDealSize));
-        WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
-        WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+        WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + (coff - 1) * dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + (coff - 1) * constInfo_.headDim, dDealSize);
+        WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + (coff - 1) * dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + (coff - 1) * constInfo_.headDim, dDealSize);
     }
     if constexpr (COMP::coff == COFF::OVERLAP) {
         uint32_t startSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx;
@@ -751,8 +751,8 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::SaveState(const LocalTen
             uint32_t startSeqIdx = sliceInfo.preBStartPos + sliceInfo.preSIdx;
             uint32_t endSeqIdx = min(sliceInfo.preBStartPos + sliceInfo.preBSeqUsed, startSeqIdx + sliceInfo.preValidSeqCnt);
             uint64_t srcBaseOffset = sliceInfo.preHeadHolderSeqCnt * coff * dDealSize;
-            WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
-            WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+            WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.preBIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+            WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.preBIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
         }
     }
     //     uint32_t coff = static_cast<uint32_t>(COMP::coff);
