@@ -1561,7 +1561,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
 
         if constexpr (LAYOUT_T == LAYOUT::TND) {
             uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
-            uint64_t bN2Offset = tokenPrefixSum * qHeadNum + (s1Idx * s1SizeSub * qHeadNum);
+            uint64_t bN2Offset = tokenPrefixSum * qHeadNum + n2Idx * gSize;
 
             for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
                 outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
@@ -2803,7 +2803,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
 
             if constexpr (LAYOUT_T == LAYOUT::TND) {
                 uint64_t tokenPrefixSum = (info.bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(info.bIdx - 1);
-                uint64_t bN2Offset = tokenPrefixSum * qHeadNum + (info.s1Idx * s1SizeSub * qHeadNum);
+                uint64_t bN2Offset = tokenPrefixSum * qHeadNum + info.n2Idx * gSize;
 
                 for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
                     outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
