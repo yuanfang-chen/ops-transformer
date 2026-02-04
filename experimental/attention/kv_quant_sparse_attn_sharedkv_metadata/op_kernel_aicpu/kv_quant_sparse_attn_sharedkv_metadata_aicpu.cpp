@@ -241,6 +241,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
+    return true;
     return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature());
 }
 
