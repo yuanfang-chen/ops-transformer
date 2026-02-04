@@ -43,7 +43,7 @@
 ### 运行测试用例
 #### 单用例调测
 ```bash
-bash run_sas.sh single
+bash test_run.sh single
 ```
 #### 用例的批量生成与测试
 1、excel路径下存放用例excel表格
