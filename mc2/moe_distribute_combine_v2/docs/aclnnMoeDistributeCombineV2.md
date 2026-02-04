@@ -396,15 +396,11 @@ aclnnStatus aclnnMoeDistributeCombineV2(
     <td>-</td>
     <td>-</td>
     <td>-</td>
-    <td>-</td>
-    <td>-</td>
     </tr>
     <tr>
     <td>executor</td>
     <td>输出</td>
     <td>返回op执行器，包含了算子的计算流程。</td>
-    <td>-</td>
-    <td>-</td>
     <td>-</td>
     <td>-</td>
     <td>-</td>
@@ -451,7 +447,6 @@ aclnnStatus aclnnMoeDistributeCombineV2(
 
     - <term>Ascend 950PR/Ascend 950DT</term>：
         - commAlg 当前版本不支持，传空指针即可。
-        - commAlg 当前版本不支持，传空指针即可。
         - epSendCounts 的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
         - tpSendCountsOptional 当前版本不支持，传空指针即可。
         - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前（例：{true, false, true}非法），2D时token对应K个值全为false则不参与通信。
@@ -462,13 +457,9 @@ aclnnStatus aclnnMoeDistributeCombineV2(
         - groupTp 当前版本不支持，传空字符即可。
         - tpWorldSize 当前版本不支持，传0即可。
         - tpRankId 当前版本不支持，传0即可。
-        - groupTp 当前版本不支持，传空字符即可。
-        - tpWorldSize 当前版本不支持，传0即可。
-        - tpRankId 当前版本不支持，传0即可。
         - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
         - sharedExpertNum 当前取值范围[0, 4]。
         - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
-        - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化）。
         - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化）。
 
 - **返回值**
