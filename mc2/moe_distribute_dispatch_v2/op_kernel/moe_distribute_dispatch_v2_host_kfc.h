@@ -824,7 +824,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     xGMTensor_.SetGlobalBuffer((__gm__ XType *)x);
     xActiveMaskGMTensor_.SetGlobalBuffer((__gm__ bool *)xActiveMask);
     expertScalesGMTensor_.SetGlobalBuffer((__gm__ float *)expertScales);
-    LOG_INFO("[expertScalesGMTensor_]",expertScalesGMTensor_,{axisBS_,axisK_});
+    // LOG_INFO("[expertScalesGMTensor_]",expertScalesGMTensor_,{axisBS_,axisK_});
     expandScalesOutGMTensor_.SetGlobalBuffer((__gm__ float *)expandScalesOut);
     expertIdsGMTensor_.SetGlobalBuffer((__gm__ int32_t *)expertIds);
     dynamicScalesOutGMTensor_.SetGlobalBuffer((__gm__ uint8_t *)dynamicScalesOut);
@@ -1119,8 +1119,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Send
     LogInfo(__LINE__,"endTokenId ",endTokenId);
     LogInfo(__LINE__,"sendTokenNum ",sendTokenNum);
 
-    DispatchAndCountTokens(0, startTokenId, false);
-    DispatchAndCountTokens(startTokenId, endTokenId, true);
+    // DispatchAndCountTokens(0, startTokenId, false);
+    // DispatchAndCountTokens(startTokenId, endTokenId, true);
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 
     if (endTokenId == totalSendCnt) {
