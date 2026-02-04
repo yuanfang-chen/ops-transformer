@@ -15,7 +15,8 @@ UT_TARGETS=()
 ########################################################################################################################
 # 预定义变量
 ########################################################################################################################
-
+export ASCEND_GLOBAL_LOG_LEVEL=0
+export ASCEND_SLOG_PRINT_TO_STDOUT=1
 CURRENT_DIR=$(dirname $(readlink -f ${BASH_SOURCE[0]}))
 BUILD_DIR=${CURRENT_DIR}/build
 OUTPUT_DIR=${CURRENT_DIR}/output
