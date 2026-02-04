@@ -1242,35 +1242,6 @@ static ge::graphStatus TilingCheckMoeDistributeDispatch(gert::TilingContext *con
     return ge::GRAPH_SUCCESS;
 }
 
-static uint64_t CalTilingKey(const gert::TilingContext *context, const bool isScales, const uint32_t quantMode,
-    const uint32_t tpWorldSize, const bool isSetCommAlg)
-{
-    uint32_t fullMesh = TILINGKEY_NO_FULLMESH;
-    bool tp = false;
-    uint32_t tilingKeyQuantMode = quantMode;
-    bool scaleMode = false;
-    uint64_t tilingKey;
-    uint32_t commMode = TILINGKEY_TPL_MTE;
-    if (isScales) {
-            scaleMode = true;
-    }
-    if (mc2tiling::GetSocVersion(context) == "Ascend950") {
-        commMode = TILINGKEY_TPL_HOST_KFC;
-        tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode,
-                                                fullMesh, commMode, TILINGKEY_TPL_A5);
-    } else {
-        if (tpWorldSize == MAX_TP_WORLD_SIZE) {
-            tp = true;
-        }
-        if (isSetCommAlg) {
-            fullMesh = TILINGKEY_ENABLE_FULLMESH;
-        }
-        tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode, 
-                                                fullMesh, commMode, TILINGKEY_TPL_A3);
-    }
-    return tilingKey;
-}
-
 static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData *tiling,
     const std::string groupEp, const std::string groupTp, const uint32_t tpWorldSize)
 {
