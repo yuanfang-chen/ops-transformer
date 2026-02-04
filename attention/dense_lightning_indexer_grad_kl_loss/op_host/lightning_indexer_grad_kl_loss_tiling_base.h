@@ -74,6 +74,12 @@ static auto CeilDivision(T num1, T num2) -> T
     return (num1 + num2 - 1) / num2;
 }
 
+template <typename T1, typename T2>
+inline auto Max(T1 a, T2 b) -> decltype(a < b ? b : a)
+{
+    return (a < b) ? (b) : (a);
+}
+
 class TilingBaseClass {
 public:
     explicit TilingBaseClass(gert::TilingContext* context) : context_(context)
