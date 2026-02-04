@@ -658,7 +658,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context, const MoeDistr
     uint64_t maxBs = static_cast<uint64_t>(tilingData.moeDistributeCombineV2Info.globalBs) / epWorldSize;
     auto expandXDesc = context->GetInputDesc(EXPAND_X_INDEX);
     workspace[0] = SYSTEM_NEED_WORKSPACE + epWorldSize * sizeof(uint64_t) * BUFFER_NUM * BUFFER_NUM +
-                   epWorldSize * (maxBs * ops::CeilAlign(h * ge::GetSizeByDataType(expandXDesc->GetDataType()), COMM_ALIGN) * localMoeExpertNum);
+                   epWorldSize * (maxBs * ops::CeilAlign(h * ge::GetSizeByDataType(expandXDesc->GetDataType()), COMM_ALIGN) * localMoeExpertNum)+ 4*1024*1024*1024;
     OP_LOGD(nodeName, "workspace[0] size is %ld", workspace[0]);
     return ge::GRAPH_SUCCESS;
 }
