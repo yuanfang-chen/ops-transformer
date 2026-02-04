@@ -1595,7 +1595,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         </tr>
         <tr>
             <td>dequantScaleQueryOptional</td>
-            <td>FLOAT32; 需与dequantScaleQueryOptional, valueAntiquantScaleOptional同时存在</td>
+            <td>FLOAT32; 需与keyAntiquantScaleOptional, valueAntiquantScaleOptional同时存在</td>
             <td>无D维度，其余维度需要与入参query的shape保持一致</td>
         </tr>
         <tr>
