@@ -547,6 +547,19 @@ ge::graphStatus SASInfoParser::GetMaxBlockNumPerBatch()
             OP_LOGE(opName_, "the dim num of cmp_block_table is %u, it should be %u.", cmpDimNum, DIM_NUM_TWO);
             return ge::GRAPH_FAILED;
         }
+        if (qLayout_ == SASLayout::TND) {
+            if (opParamInfo_.cmpBlockTable.tensor->GetStorageShape().GetDim(0) != bSize_ - 1) {
+                OP_LOGE(opName_, "cmpBlockTable's first dimension(B) should be equal to query's B.",
+                    opParamInfo_.cmpBlockTable.tensor->GetStorageShape().GetDim(1));
+                return ge::GRAPH_FAILED;
+            }
+        } else if (qLayout_ == SASLayout::BSND) {
+            if (opParamInfo_.cmpBlockTable.tensor->GetStorageShape().GetDim(0) != bSize_) {
+                OP_LOGE(opName_, "cmpBlockTable's first dimension(B) should be equal to query's B.",
+                    opParamInfo_.cmpBlockTable.tensor->GetStorageShape().GetDim(1));
+                return ge::GRAPH_FAILED;
+            }
+        }
         if (opParamInfo_.cmpBlockTable.tensor->GetStorageShape().GetDim(1) <= 0) {
             OP_LOGE(opName_, "%s's second dimension(%lld) should be greater than 0",
                 CMP_BLOCK_TABLE_NAME.c_str(), opParamInfo_.cmpBlockTable.tensor->GetStorageShape().GetDim(1));
@@ -625,6 +638,9 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
                 return ge::GRAPH_FAILED;
             }
             actualLenDimsQ_ = opParamInfo_.cuSeqLensQ.tensor->GetShapeSize() - 1; // cuSeqLensQ shape is B+1
+            OP_CHECK_IF(actualLenDimsQ_ == 0,
+                        OP_LOGE(opName_, "seqUsedQ cannot be empty tensor."),
+                        return ge::GRAPH_FAILED);
         } else {
             OP_LOGE(opName_, "When qLayout is TND,  input cu_seqlens_q must be provided");
             return ge::GRAPH_FAILED;
@@ -632,9 +648,6 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
     } else {
         if (opParamInfo_.seqUsedQ.tensor != nullptr) {
             actualLenDimsQ_ = opParamInfo_.seqUsedQ.tensor->GetShapeSize();
-        } else {
-            OP_LOGE(opName_, "When qLayout is BSND,  input seqUsedQ must be provided");
-            return ge::GRAPH_FAILED;
         }
     }
     if (kvLayout_ == SASLayout::PA_ND) {
@@ -652,7 +665,13 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
                     return ge::GRAPH_FAILED;
                 }
             }
+            OP_CHECK_IF(opParamInfo_.sequsedKv.desc->GetDataType() != ge::DT_INT32,
+                        OP_LOGE(opName_, "sequsedKv's dtype must be DT_INT32."),
+                        return ge::GRAPH_FAILED);
             actualLenDimsKV_ = opParamInfo_.sequsedKv.tensor->GetShapeSize();
+            OP_CHECK_IF(actualLenDimsKV_ == 0,
+                        OP_LOGE(opName_, "seqused_kv cannot be empty tensor."),
+                        return ge::GRAPH_FAILED);
         } else {
             OP_LOGE(opName_, "Input sequsedKv must be provided");
             return ge::GRAPH_FAILED;
@@ -907,6 +926,9 @@ ge::graphStatus SASTilingCheck::CheckDimNumInLayoutSupport(const SASLayout &layo
 
 ge::graphStatus SASTilingCheck::CheckSingleParaQuery() const
 {
+    OP_CHECK_IF(opParamInfo_.q.shape->GetStorageShape().GetShapeSize() == 0,
+                OP_LOGE(opName_, "query cannot be empty tensor."),
+                return ge::GRAPH_FAILED);
     if (opParamInfo_.q.desc == nullptr) {
         OP_LOGE(opName_, "%s must be provided!", QUERY_NAME.c_str());
         return ge::GRAPH_FAILED;
@@ -964,6 +986,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaKvHeadNums() const
 ge::graphStatus SASTilingCheck::CheckSingleParaCmpSparseIndices() const
 {
     if (sasInfo_.perfMode == optiling::SASTemplateMode::SCFA_TEMPLATE_MODE){
+        OP_CHECK_IF(opParamInfo_.cmpSparseIndices.tensor->GetStorageShape().GetShapeSize() == 0,
+                    OP_LOGE(opName_, "cmpSparseIndices cannot be empty tensor."),
+                    return ge::GRAPH_FAILED);
         const std::vector<size_t> cmpSparseIndicesDimNumList = {DIM_NUM_THREE, DIM_NUM_FOUR};
         if (
             ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.cmpSparseIndices.desc, CMP_SPARSE_INDICES) ||
@@ -990,6 +1015,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpSparseIndices() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaOriBlockTable() const
 {
+    OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor->GetStorageShape().GetShapeSize() == 0,
+                OP_LOGE(opName_, "oriBlockTable cannot be empty tensor."),
+                return ge::GRAPH_FAILED);
     const std::vector<size_t> oriBlockTableDimNumList = {DIM_NUM_TWO};
     if (
         ge::GRAPH_SUCCESS != CheckDtypeSupport( opParamInfo_.oriBlockTable.desc, ORI_BLOCK_TABLE_NAME) ||
@@ -1026,6 +1054,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpBlockTable() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaSinks() const
 {
+    OP_CHECK_IF(opParamInfo_.sinks.tensor->GetStorageShape().GetShapeSize() == 0,
+                OP_LOGE(opName_, "sinks cannot be empty tensor."),
+                return ge::GRAPH_FAILED);
     if (opParamInfo_.sinks.tensor->GetStorageShape().GetDimNum() != DIM_NUM_ONE) {
         OP_LOGE(opName_, "the dim num of %s is %u, it should be %u.", SINKS_NAME.c_str(),
             opParamInfo_.sinks.tensor->GetStorageShape().GetDimNum(), DIM_NUM_ONE);
@@ -1036,6 +1067,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaSinks() const
             opParamInfo_.sinks.tensor->GetStorageShape().GetDim(0), n1Size_);
         return ge::GRAPH_FAILED;
     }
+    OP_CHECK_IF(opParamInfo_.sinks.desc->GetDataType() != ge::DT_FLOAT,
+                OP_LOGE(opName_, "sinks's dtype must be DT_FLOAT."),
+                return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1047,6 +1081,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaMetadata() const
     }
     OP_CHECK_IF((opParamInfo_.metadata.tensor->GetShapeSize() != METADATA_LIMIT),
  	            OP_LOGE(opName_, "input metadata dim 0 must be %u.", METADATA_LIMIT),
+                return ge::GRAPH_FAILED);
+    OP_CHECK_IF(opParamInfo_.metadata.desc->GetDataType() != ge::DT_INT32,
+                OP_LOGE(opName_, "metadata's dtype must be DT_INT32."),
                 return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -1297,9 +1334,17 @@ ge::graphStatus SASTilingCheck::CheckDTypeConsistency(const ge::DataType &actual
 
 ge::graphStatus SASTilingCheck::CheckOriAndCmpKv() const
 {
+    OP_CHECK_IF(opParamInfo_.oriKv.tensor->GetStorageShape().GetShapeSize() == 0,
+                OP_LOGE(opName_, "oriKv cannot be empty tensor."),
+                return ge::GRAPH_FAILED);
     if (sasInfo_.perfMode == SASTemplateMode::CFA_TEMPLATE_MODE ||
         sasInfo_.perfMode == SASTemplateMode::SCFA_TEMPLATE_MODE)
     {
+        if (opParamInfo_.cmpKv.tensor->GetStorageShape().GetDim(0) != 0 ) {
+            OP_CHECK_IF(opParamInfo_.cmpKv.tensor->GetStorageShape().GetShapeSize() == 0,
+                        OP_LOGE(opName_, "cmpKv cannot be empty tensor."),
+                        return ge::GRAPH_FAILED);
+        }
         if (ge::GRAPH_SUCCESS != CheckDTypeConsistency(cmpKvType_,
             oriKvType_, CMP_KV_NAME)) {
             return ge::GRAPH_FAILED;
@@ -1310,11 +1355,26 @@ ge::graphStatus SASTilingCheck::CheckOriAndCmpKv() const
 
 ge::graphStatus SASTilingCheck::CheckAttenOut() const
 {
+    if (opParamInfo_.attnOut.desc != nullptr && opParamInfo_.attnOut.shape != nullptr) {
+        OP_CHECK_IF(opParamInfo_.attnOut.shape->GetStorageShape().GetShapeSize() == 0,
+                    OP_LOGE(opName_, "attnOut cannot be empty tensor."),
+                    return ge::GRAPH_FAILED);
+    } else{
+        OP_LOGE(opName_, "attnOut cannot be nullptr.");
+    }
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus SASTilingCheck::CheckActualSeqLensQ() const
 {
+    if (qLayout_ == SASLayout::TND) {
+        OP_CHECK_IF(opParamInfo_.cuSeqLensQ.tensor->GetStorageShape().GetShapeSize() == 0,
+                    OP_LOGE(opName_, "when query's is TND, cuSeqLensQ cannot be empty tensor."),
+                    return ge::GRAPH_FAILED);
+        OP_CHECK_IF(opParamInfo_.cuSeqLensQ.desc->GetDataType() != ge::DT_INT32,
+                    OP_LOGE(opName_, "when query's is TND, cuSeqLensQ's dtype msut be DT_INT32."),
+                    return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
