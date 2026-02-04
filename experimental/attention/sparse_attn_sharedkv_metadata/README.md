@@ -41,21 +41,21 @@
   <tbody>
     <tr>
       <td>num_heads_q</td>
-      <td>输入</td>
+      <td>属性</td>
       <td>公式中的Q的多头数。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>num_heads_kv</td>
-      <td>输入</td>
+      <td>属性</td>
       <td>公式中的K和V的多头数。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>head_dim</td>
-      <td>输入</td>
+      <td>属性</td>
       <td>注意力头的维度。</td>
       <td>INT32</td>
       <td>-</td>
