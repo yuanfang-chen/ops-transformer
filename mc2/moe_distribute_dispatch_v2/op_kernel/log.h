@@ -22,67 +22,67 @@ using namespace AscendC;
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg, const GM_ADDR addr) {
     uint32_t aivid = GetBlockIdx();
     const __gm__ void * addrtemp = static_cast<const __gm__ void*>(addr);
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s: %p\n", msg ,addrtemp);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s: %p\n", msg ,addrtemp);
 }
 
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg) {
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s\n", msg);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s\n", msg);
 }
 
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg,uint64_t num) {
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s:%ld \n", msg, num);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s:%ld \n", msg, num);
 }
 
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg,uint32_t num) {
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s:%d \n", msg, num);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s:%d \n", msg, num);
 }
 
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg,int32_t num) {
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s:%d \n", msg, num);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s:%d \n", msg, num);
 }
 
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg,int64_t num) {
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s:%ld \n", msg, num);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s:%ld \n", msg, num);
 }
 
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg,float num) {
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s:%f \n", msg, num);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s:%f \n", msg, num);
 }
 
 __aicore__ inline void LogInfo(uint32_t line, const __gm__ char *msg,uint32_t num,int32_t rankid) {
     uint32_t aivid = GetBlockIdx();
-    //printf("[rankid: %d]",rankid);
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]", line);
-    //printf("%s:%d \n", msg, num);
+    printf("[rankid: %d]",rankid);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]", line);
+    printf("%s:%d \n", msg, num);
 }
 
 
@@ -95,9 +95,9 @@ __aicore__ inline void LogInfo(uint32_t line, LocalTensor<T>& tensor,TPipe *tpip
     //PipeBarrier<PIPE_ALL>();
     // uint32_t len = tensor.GetSize();
     // uint32_t aivid = GetBlockIdx();
-    // //printf("[aivid: %d]",aivid);
-    // //printf("[PRINT]");
-    // //printf("[line:%d] [start print tensor:%d]\n", line,len);
+    // printf("[aivid: %d]",aivid);
+    // printf("[PRINT]");
+    // printf("[line:%d] [start print tensor:%d]\n", line,len);
     // TBuf<> buf;
     // tpipe_->InitBuffer(buf, len * sizeof(float));
     // LocalTensor<float> float_tensor = buf.Get<float>();
@@ -106,16 +106,16 @@ __aicore__ inline void LogInfo(uint32_t line, LocalTensor<T>& tensor,TPipe *tpip
     // }
     // for(uint32_t i = 0; i < len; i++) {
     //     if constexpr (!std::is_same_v<T,float>) {
-    //        //printf("%f ", float_tensor(i)); 
+    //        printf("%f ", float_tensor(i)); 
     //     }
     //     else{
-    //         //printf("%f ",tensor(i));
+    //         printf("%f ",tensor(i));
     //     }
     //     if((i+1) % print_len ==0){
-    //         //printf("\n");
+    //         printf("\n");
     //     }
     // }
-    // //printf("\ncomplete print half\n");  
+    // printf("\ncomplete print half\n");  
 }
 
 template <>
@@ -126,73 +126,73 @@ __aicore__ inline void LogInfo<float>(uint32_t line, LocalTensor<float>& tensor,
     }
     uint32_t len = tensor.GetSize();
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d] [start print tensor:%d]\n", line,len);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d] [start print tensor:%d]\n", line,len);
     for(uint32_t i = 0; i < len; i++) {
-       //printf("%f ", tensor(i));
+       printf("%f ", tensor(i));
         if((i+1) % print_len ==0){
-            //printf("\n");
+            printf("\n");
         }
     }
-    //printf("\ncomplete print float\n");  
+    printf("\ncomplete print float\n");  
 }
 
 template <>
 __aicore__ inline void LogInfo<uint32_t>(uint32_t line, LocalTensor<uint32_t>& tensor,TPipe *tpipe_,uint32_t print_len) {
     PipeBarrier<PIPE_ALL>();
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]\n", line);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]\n", line);
     uint32_t len = tensor.GetSize();
-    //printf("[PRINT]");
-    //printf("[line:%d] [start print tensor:%d]\n", line,len);
+    printf("[PRINT]");
+    printf("[line:%d] [start print tensor:%d]\n", line,len);
     for(uint32_t i = 0; i < len; i++) {
-       //printf("%d ", tensor(i));
+       printf("%d ", tensor(i));
         if((i+1) % print_len ==0){
-            //printf("\n");
+            printf("\n");
         }
     }
-    //printf("\ncomplete print uint32_t\n");  
+    printf("\ncomplete print uint32_t\n");  
 }
 
 template <>
 __aicore__ inline void LogInfo<int32_t>(uint32_t line, LocalTensor<int32_t>& tensor,TPipe *tpipe_,uint32_t print_len) {
     PipeBarrier<PIPE_ALL>();
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]\n", line);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]\n", line);
     uint32_t len = tensor.GetSize();
-    //printf("[PRINT]");
-    //printf("[line:%d] [start print tensor:%d]\n", line,len);
+    printf("[PRINT]");
+    printf("[line:%d] [start print tensor:%d]\n", line,len);
     for(uint32_t i = 0; i < len; i++) {
-       //printf("%d ", tensor(i));
+       printf("%d ", tensor(i));
         if((i+1) % print_len ==0){
-            //printf("\n");
+            printf("\n");
         }
     }
-    //printf("\ncomplete print int32_t\n");  
+    printf("\ncomplete print int32_t\n");  
 }
 
 template <>
 __aicore__ inline void LogInfo<uint64_t>(uint32_t line, LocalTensor<uint64_t>& tensor,TPipe *tpipe_,uint32_t print_len) {
     PipeBarrier<PIPE_ALL>();
     uint32_t aivid = GetBlockIdx();
-    //printf("[aivid: %d]",aivid);
-    //printf("[PRINT]");
-    //printf("[line:%d]\n", line);
+    printf("[aivid: %d]",aivid);
+    printf("[PRINT]");
+    printf("[line:%d]\n", line);
     uint32_t len = tensor.GetSize();
-    //printf("[PRINT]");
-    //printf("[line:%d] [start print tensor:%d]\n", line,len);
+    printf("[PRINT]");
+    printf("[line:%d] [start print tensor:%d]\n", line,len);
     for(uint32_t i = 0; i < len; i++) {
-       //printf("%d ", tensor(i));
+       printf("%d ", tensor(i));
         if((i+1) % print_len ==0){
-            //printf("\n");
+            printf("\n");
         }
     }
-    //printf("\ncomplete print uint64_t\n");  
+    printf("\ncomplete print uint64_t\n");  
 }
 
 }
