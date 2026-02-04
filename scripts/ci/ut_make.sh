@@ -34,12 +34,12 @@ TEST_LIST+="kernel "
 
 # 要跑的算子仓
 OP_REPO_LIST=""
-#OP_REPO_LIST+="moe "
+OP_REPO_LIST+="moe "
 OP_REPO_LIST+="attention "
-#OP_REPO_LIST+="gmm "
-#OP_REPO_LIST+="ffn "
-#OP_REPO_LIST+="posembedding "
-#OP_REPO_LIST+="mc2 "
+OP_REPO_LIST+="gmm "
+OP_REPO_LIST+="ffn "
+OP_REPO_LIST+="posembedding "
+OP_REPO_LIST+="mc2 "
 
 # 读取算子option配置 ################################################################################################
 op_config_yaml="$CODE_PATH/tests/test_config.yaml"
@@ -132,14 +132,3 @@ done
 
 # 删除当前编译文件，以免影响调用逻辑
 rm -r $CODE_PATH/build/cov_result
-
-echo "start print ut log, flash_attention_score log is: "
-cat $CODE_PATH/log_ut/op_test/flash_attention_score.log
-echo "start print ut log, incre_flash_attention log is: "
-cat $CODE_PATH/log_ut/op_test/incre_flash_attention.log
-echo "start print ut log, fused_infer_attention_score log is: "
-cat $CODE_PATH/log_ut/op_test/fused_infer_attention_score.log
-echo "start print ut log, prompt_flash_attention log is: "
-cat $CODE_PATH/log_ut/op_test/prompt_flash_attention.log
-echo "start print ut log, mla_prolog log is: "
-cat $CODE_PATH/log_ut/op_test/mla_prolog.log

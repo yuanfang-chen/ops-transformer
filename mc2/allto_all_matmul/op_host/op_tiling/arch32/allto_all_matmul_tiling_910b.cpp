@@ -51,6 +51,7 @@ constexpr int32_t DEFAULT_SWIZZLE_COUNT = 7;
 constexpr int32_t SWIZZLE_COUNT_THREE = 3;
 constexpr int32_t CORE_NUM_FOUR = 4;
 constexpr int32_t CORE_NUM_EIGHT = 8;
+constexpr int32_t CORE_NUM_SIXTEEN = 16;
 
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT = 16;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_PVALUE_DEFAULT = 14;
@@ -398,7 +399,11 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckAndSetAttrsInfo(AlltoAllMatmulInf
     
     const bool *isTransX2 = attrs->GetAttrPointer<bool>(ALLTOALLMATMUL_ATTR_X2_TRANSPOSE_INDEX);
     bool x2TransposeFlag = (isTransX2 != nullptr) ? *isTransX2 : false;
-    needTransX2 = x2TransposeFlag;
+    x2Transpose = x2TransposeFlag;
+
+    const bool *isAlltoallOut = attrs->GetAttrPointer<bool>(ALLTOALLMATMUL_ATTR_ALLTO_ALL_OUT_FLAG_INDEX);
+    bool alltoallOutFlag = (isAlltoallOut != nullptr) ? *isAlltoallOut : false;
+    info.isAlltoallOut = alltoallOutFlag;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -418,11 +423,23 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
                     return ge::GRAPH_FAILED);
     auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName_, "Output tensor y is nullptr."), return ge::GRAPH_FAILED);
+    auto alltoallOutDesc = context_->GetOutputDesc(ALLTO_ALL_OUT_INDEX);;
+    if (info.isAlltoallOut) {  // 可选参数
+        OP_TILING_CHECK((alltoallOutDesc == nullptr), OP_LOGE(opName_, "Output tensor alltoallout is nullptr."), return ge::GRAPH_FAILED);
+    }
 
     // 获取数据类型并校验一致性与范围
     ge::DataType x1Dtype = x1TensorDesc->GetDataType();
     ge::DataType x2Dtype = x2TensorDesc->GetDataType();
     ge::DataType yDtype = yDesc->GetDataType();
+
+    if (info.isAlltoallOut) {  // 校验alltoallout类型
+        ge::DataType alltoallOutDtype = alltoallOutDesc->GetDataType();
+        OP_TILING_CHECK((alltoallOutDtype != x1Dtype),
+                        OP_LOGE(opName_, "x1Dtype should be same with alltoallOutDtype, but x1Dtype is %s and alltoallOutDtype is %s.", 
+                            Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(alltoallOutDtype).c_str()),
+                        return ge::GRAPH_FAILED);
+    }
     auto biasTensorDesc = context_->GetOptionalInputDesc(INPUT_BIAS_INDEX);
 
     auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
@@ -454,7 +471,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
         quantType = TILINGKEY_TPL_A4W4;
     }
 
-    // 校验 bias 数据类型（如果存在）
+    // 校验类型组合
     if (biasTensorDesc != nullptr) {
         hasBias = true;
         ge::DataType biasDtype = biasTensorDesc->GetDataType();
@@ -525,8 +542,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     info.K = x1Shape->GetStorageShape().GetDim(1);
     uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(0);
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(1);
-    bool isTrans = info.K * info.rankSize == x2Dim1;
-    info.N = isTrans ? x2Dim0 : x2Dim1;
+    info.N = x2Transpose ? x2Dim0 : x2Dim1;
 
     // 校验输出
     const gert::StorageShape *yShape = context_->GetOutputShape(OUTPUT_Y_INDEX);
@@ -565,7 +581,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
                         return ge::GRAPH_FAILED);
         OP_TILING_CHECK((info.N % 2 == 1), 
                         OP_LOGE(opName_, "The x2 %s dim should be an even number, but it is %lu.",
-                        isTrans ? "first" : "second",
+                        x2Transpose ? "first" : "second",
                         info.N),
                         return ge::GRAPH_FAILED);
     }
@@ -740,6 +756,10 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
     if (quantType == TILINGKEY_TPL_A4W4) {
+        if (cocTilingData.m0 == 256) {
+            cocTilingData.allToAllSendCoreNum = CORE_NUM_SIXTEEN;
+            cocTilingData.allToAllRecvCoreNum = CORE_NUM_FOUR;
+        }
         cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
     }
 }
@@ -788,7 +808,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
  */
 uint64_t AlltoAllMatmulTiling910b::GetTilingKey() const
 {
-    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, needTransX2, quantType, biasDtype_);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, x2Transpose, quantType, biasDtype_);
     OP_LOGD(opName_, "TilingKey is [%lu] in AllToAllMatmul.", tilingKey);
     return tilingKey;
 }
