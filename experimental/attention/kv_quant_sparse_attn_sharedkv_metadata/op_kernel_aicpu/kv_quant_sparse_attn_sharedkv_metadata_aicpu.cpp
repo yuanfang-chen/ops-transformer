@@ -214,7 +214,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
     // 压缩率校验
     if (hasCmpKv_) {
-        if (cmpRatio_ <= 0) {
+        if (cmpRatio_ <= 1) {
             KERNEL_LOG_ERROR("When cmp_kv is enabled, cmpRatio_ must be assigned!");
             return false;
         }
@@ -224,7 +224,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
             KERNEL_LOG_ERROR("Compression ratio %u invalid! Must be power of 2 in [1, 128].", cmpRatio_);
             return false;
         }
-    } else if (cmpRatio_ > 0) {
+    } else if (cmpRatio_ > 1) {
         KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpRatio_ should be 0!");
         return false;
     }
