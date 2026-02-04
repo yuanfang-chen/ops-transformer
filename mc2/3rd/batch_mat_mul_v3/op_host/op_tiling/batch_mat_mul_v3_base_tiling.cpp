@@ -935,8 +935,8 @@ static void UpdateUsedCoreNum(uint64_t batchC, uint64_t aicNum, Mc2BatchMatmulTi
 
 void Mc2BatchMatmulV3BaseTiling::DoL1FullLoadTiling()
 {
-    if (compileInfo_.socVersion == platform_ascendc::SocVersion::ASCEND310P ||
-        std::string(context_->GetNodeType()) == "TransposeBatchMatMul") {
+    if ((compileInfo_.npuArch == NpuArch::DAV_3510) ||
+        (std::string(context_->GetNodeType()) == "TransposeBatchMatMul")) {
         return;  // currently not support weight NZ
     }
 
