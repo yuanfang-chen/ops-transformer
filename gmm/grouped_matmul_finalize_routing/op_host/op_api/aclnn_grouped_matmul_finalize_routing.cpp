@@ -519,7 +519,6 @@ static aclnnStatus CheckParams(GroupedMatmulParams &params)
         GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRouting91095Checker checker;
         aclnnStatus status = checker.CheckParams(params);
         CHECK_RET(status == ACLNN_SUCCESS, status);
-        CHECK_RET(CheckFormat(params), ACLNN_ERR_PARAM_INVALID);
     } else {
         // 1. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
         CHECK_RET(CheckDtypeValid(params), ACLNN_ERR_PARAM_INVALID);
@@ -650,6 +649,26 @@ static inline bool TransposeTensorContiguousProcess(const aclTensor *&contiguous
     return true;
 }
 
+static inline bool TransposeTensorContiguousProcessForMx(const aclTensor *&contiguousTensor, bool &transpose, aclOpExecutor *executor)
+{
+    if (contiguousTensor == nullptr || contiguousTensor->GetViewShape().GetDimNum() == 1) {
+        OP_LOGD("GroupedMatmulFinalizeRouting no need to do contiguous process.");
+        return true;
+    }
+
+    auto transposeFlag = IsLastTwoDimsTranspose(contiguousTensor);
+    // swap tensor if its viewshape not satisfy request shape without adding a transpose node
+    if (transposeFlag) {
+        contiguousTensor = executor->CreateView(contiguousTensor, SwapLastTwoDimValue(contiguousTensor->GetViewShape()),
+            contiguousTensor->GetViewOffset());
+        transpose = true;
+    } else {
+        contiguousTensor = l0op::Contiguous(contiguousTensor, executor);
+    }
+    CHECK_RET(contiguousTensor != nullptr, false);
+    return true;
+}
+
 static inline bool TransposeTensorContiguousProcessForMXScale(const aclTensor *&contiguousTensor, bool &transpose, aclOpExecutor *executor)
 {   
     // 检查MX scale是不是四维
@@ -657,7 +676,6 @@ static inline bool TransposeTensorContiguousProcessForMXScale(const aclTensor *&
         OP_LOGD("GroupedMatmulFinalizeRouting  scale no need to do contiguous process.");
         return true;
     }
-
     auto transposeFlag = IsTransposeForMxScale(contiguousTensor);
     // swap tensor if its viewshape not satisfy request shape without adding a transpose node
     if (transposeFlag) {
@@ -717,7 +735,13 @@ static aclnnStatus WeightNZCaseProcess(const aclTensor *&x2, bool &transposeX2, 
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
     } else {
-        CHECK_RET(TransposeTensorContiguousProcess(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            if (transposeX2 == false) {
+                CHECK_RET(TransposeTensorContiguousProcessForMx(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+            }
+        } else {
+            CHECK_RET(TransposeTensorContiguousProcess(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+        }
     }
     x2->SetOriginalShape(x2->GetViewShape());
     return ACLNN_SUCCESS;
@@ -782,7 +806,9 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     }
 
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
-    CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
+        CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
+    }
     return ACLNN_SUCCESS;
 }
 
@@ -1320,7 +1346,6 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
                 op::ToString(tmpWeightV3->GetDataType()).GetString());
         return ACLNN_ERR_PARAM_INVALID;
     }
-
     bool isMXValid = CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST) &&
                      CheckType(tmpWeightV3->GetDataType(), MX_IN_TYPE_SUPPORT_LIST);
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 && !isMXValid) {
