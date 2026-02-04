@@ -288,13 +288,16 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyInX(uint64_t xStartOffset
             else {
                 copyParams.srcStride = (this->bnSize - 1) * this->dBytes;   //layout = SBND
             }
-            #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
-            copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
-            copyParams.srcStride = copyParams.srcStride / BYTE_OF_BLOCK;
+#if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+            DataCopyParams dataCopyParams;
+            dataCopyParams.blockCount = copyParams.blockCount;
+            dataCopyParams.blockLen = copyParams.blockLen / BYTE_OF_BLOCK;
+            dataCopyParams.srcGap= copyParams.srcStride / BYTE_OF_BLOCK;
+            dataCopyParams.dstGap= copyParams.dstStride / BYTE_OF_BLOCK;
             DataCopy(xLocal, xGm[xStartOffset], copyParams);
-            #else
+#else
             DataCopyPad(xLocal, xGm[xStartOffset], copyParams, this->noPadParams);
-            #endif
+#endif
         }
     } 
 #if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
@@ -349,8 +352,11 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyOut(uint64_t yOffset, uin
                 copyParams.dstStride = (this->bnSize - 1) * this->dBytes;   //layout = SBND
             }
             #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
-            copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
-            copyParams.dstStride = copyParams.dstStride / BYTE_OF_BLOCK;
+            DataCopyParams dataCopyParams;
+            dataCopyParams.blockCount = copyParams.blockCount;
+            dataCopyParams.blockLen = copyParams.blockLen / BYTE_OF_BLOCK;
+            dataCopyParams.srcGap= copyParams.srcStride / BYTE_OF_BLOCK;
+            dataCopyParams.dstGap= copyParams.dstStride / BYTE_OF_BLOCK;
             DataCopy(yGm[yOffset], yLocal, copyParams);
             #else
             DataCopyPad(yGm[yOffset], yLocal, copyParams);
