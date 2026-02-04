@@ -1563,7 +1563,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <td>-</td>
         </tr>
         <tr>
-            <td rowspan="11">全量化</td>
+            <td rowspan="12">全量化</td>
             <td>query</td>
             <td>INT8，且qs范围为1~16</td>
             <td>-</td>
@@ -1647,9 +1647,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         </tr>
         <tr>
             <td colspan="4">不支持左padding、tensorlist、pse、prefix、伪量化、后量化</td>
-        </tr>
-        <tr>
-            <td colspan="4">BNSD_NBSD、BSND_NBSD、BSH_NBSD、TND_NTD场景，不支持开启SoftMaxLse</td>
         </tr>
         <tr>
             <td rowspan="5">query d=128</td>
