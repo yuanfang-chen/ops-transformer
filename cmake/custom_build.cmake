@@ -129,6 +129,7 @@ if (BUILD_OPEN_PROJECT)
             error_manager
             platform
             -Wl,--as-needed
+            acl_rt
             c_sec
     )
     set_target_properties(cust_proto PROPERTIES OUTPUT_NAME
