@@ -502,12 +502,9 @@ def gen_cmp_kv(layout_q, cmp_kv_type, B, S1, T1, N2, D, K, block_num2, block_siz
     if cmp_ratio is None:
         raise ValueError(f"cmp_ratio can't be None")
 
-    if template_idx == 1:
-        if cmp_ratio != 128:
-            raise ValueError(f"unsupported cmp_ratio {cmp_ratio} in template_idx {template_idx}")
-    elif template_idx == 2:
-        if cmp_ratio != 4:
-            raise ValueError(f"unsupported cmp_ratio {cmp_ratio} in template_idx {template_idx}")
+    if template_idx == 1 or template_idx == 2:
+        if cmp_ratio != 128 and cmp_ratio != 4:
+            raise ValueError(f"unsupported cmp_ratio: {cmp_ratio}")
     else:
         raise ValueError(f"unsupported template_idx: {template_idx}")
 

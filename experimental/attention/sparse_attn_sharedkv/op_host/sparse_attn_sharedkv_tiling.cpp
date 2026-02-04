@@ -1053,14 +1053,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaMetadata() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaCmpRatio() const
 {
-    if (sasInfo_.perfMode == optiling::SASTemplateMode::CFA_TEMPLATE_MODE){
-        OP_CHECK_IF(cmpRatio_ != 128,
-                    OP_LOGE(opName_, "cmpRatio should be 128, but got %u", cmpRatio_),
-                    return ge::GRAPH_FAILED);
-    }
-    if (sasInfo_.perfMode == optiling::SASTemplateMode::SCFA_TEMPLATE_MODE){
-        OP_CHECK_IF(cmpRatio_ != 4,
-                    OP_LOGE(opName_, "cmpRatio should be 4, but got %u", cmpRatio_),
+    if (sasInfo_.perfMode == optiling::SASTemplateMode::CFA_TEMPLATE_MODE || sasInfo_.perfMode == optiling::SASTemplateMode::SCFA_TEMPLATE_MODE){
+        OP_CHECK_IF(cmpRatio_ != 128 && cmpRatio_ != 4,
+                    OP_LOGE(opName_, "cmpRatio should be 128 or 4, but got %u", cmpRatio_),
                     return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
