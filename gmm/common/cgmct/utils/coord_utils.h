@@ -22,6 +22,7 @@ namespace Cgmct {
 namespace Gemm {
 
 constexpr uint32_t OUTER_SIZE = 16;
+constexpr uint32_t WEIGHTNZ_K0_32 = 32;
 
 template <class BlockCoord_, class ProblemShape_, class ATensorType_, class BTensorType_, class CTensorType_>
 __aicore__ inline AscendC::Coord<int64_t, int64_t, int64_t>
@@ -220,10 +221,16 @@ public:
         } else {
             Get<0>(offset) = mOffset * k;
         }
-        if constexpr (isTransB) {
-            Get<1>(offset) = nOffset * k;
+        if constexpr (layoutB == CubeFormat::NZ) {
+            Get<1>(offset) = nOffset * CeilDiv(k, OUTER_SIZE) * OUTER_SIZE;
+        } else if constexpr (layoutB == CubeFormat::Zn) {
+            Get<1>(offset) = nOffset * WEIGHTNZ_K0_32;
         } else {
-            Get<1>(offset) = nOffset;
+            if constexpr (isTransB) {
+                Get<1>(offset) = nOffset * k;
+            } else {
+                Get<1>(offset) = nOffset;
+            }
         }
         Get<5>(offset) = mOffset * n + nOffset; // 5: idx of y
         if constexpr (aQuantMode == GroupedMatmul::QuantMode::PERGROUP_MODE ||
