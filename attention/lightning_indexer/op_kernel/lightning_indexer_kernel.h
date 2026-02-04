@@ -70,7 +70,7 @@ public:
     static constexpr LI_LAYOUT K_LAYOUT_T = LIT::keyLayout;
     // 编译期条件选择模板第二个参数的类型，直接声明W_T 
     // 第一个模板参数：固定为Q_T；第二个模板参数：编译期选float/void
-    using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>>::weightsType;
+    using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>::type>::weightsType;
 
     using MM1_OUT_T = float;
 
@@ -428,7 +428,7 @@ __aicore__ inline void LIPreload<LIT>::Init(__gm__ uint8_t *query, __gm__ uint8_
         vectorService.InitParams(constInfo, tiling);
         indiceOutGm.SetGlobalBuffer((__gm__ int32_t *)sparseIndices);
         valueOutGm.SetGlobalBuffer((__gm__ K_T *)sparseValues);
-        weightsGm.SetGlobalBuffer((__gm__ K_T *)weights);
+        weightsGm.SetGlobalBuffer((__gm__ W_T *)weights);
         vectorService.InitVec1GlobalTensor(mm1ResGm, vec1ResGm, vec1ParamGm, weightsGm, indiceOutGm, valueOutGm);
     } else {
         matmulService.InitParams(constInfo);

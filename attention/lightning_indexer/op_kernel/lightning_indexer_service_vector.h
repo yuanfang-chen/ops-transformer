@@ -56,7 +56,7 @@ public:
     using Q_T = typename LIT::queryType;
     using K_T = typename LIT::keyType;
     static constexpr LI_LAYOUT LAYOUT_T = LIT::layout;
-    using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>>::weightsType;
+    using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>::type>::weightsType;
 
     // MM输出数据类型, 当前只支持float
     using MM1_OUT_T = float;
@@ -328,8 +328,8 @@ __aicore__ inline void LIVector<LIT>::ProcessVec(const LICommon::RunInfo &info)
                 LocalTensor<float> dbTmpUb = tmpUb_[pingpong * (groupInner_ * s2BaseSize_ + s2BaseSize_)];
                 LocalTensor<float> weightsInUb = dbTmpUb[procGnum * s2BaseSize_];
                 WaitFlag<HardEvent::V_MTE2>(pingpong);
-                LocalTensor<K_T> weightsInTUb = weightsInUb.template ReinterpretCast<K_T>();
-                if constexpr (!IsSameType<K_T, float>::value) {
+                LocalTensor<W_T> weightsInTUb = weightsInUb.template ReinterpretCast<W_T>();
+                if constexpr (!IsSameType<W_T, float>::value) {
                     weightsInTUb = weightsInTUb[groupInner_];
                 }
                 LIServiceVec::CopyIn(dbTmpUb, weightsInTUb, mm1ResGm, weightsGm,

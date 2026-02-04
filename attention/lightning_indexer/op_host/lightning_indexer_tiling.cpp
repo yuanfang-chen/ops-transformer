@@ -626,6 +626,7 @@ void LIInfoParser::GenerateInfo(LITilingInfo &liInfo)
 
     liInfo.inputQType = inputQType_;
     liInfo.inputKType = inputKType_;
+    liInfo.weightsType = weightsType_;
     liInfo.outputType = outputType_;
 
     liInfo.blockSize = blockSize_;
@@ -730,15 +731,17 @@ ge::graphStatus LightningIndexerTiling::DoTiling(LITilingInfo *tilingInfo)
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
 
     // -------------set tilingkey-----------------
-    // DT_Q, DT_KV, DT_OUT, PAGE_ATTENTION, FLASH_DECODE, LAYOUT_T, KV_LAYOUT_T
+    // int DT_W_FLAG, DT_Q, DT_KV, DT_OUT, PAGE_ATTENTION, FLASH_DECODE, LAYOUT_T, KV_LAYOUT_T
     uint32_t inputQType = static_cast<uint32_t>(tilingInfo->inputQType);
     uint32_t inputKType = static_cast<uint32_t>(tilingInfo->inputKType);
+    uint32_t weightsType = static_cast<uint32_t>(tilingInfo->weightsType);
     uint32_t outputType = static_cast<uint32_t>(tilingInfo->outputType);
     uint32_t pageAttentionFlag = static_cast<uint32_t>(tilingInfo->pageAttentionFlag);
     uint32_t inputQLayout = static_cast<uint32_t>(tilingInfo->inputQLayout);
     uint32_t inputKLayout = static_cast<uint32_t>(tilingInfo->inputKLayout);
+    uint32_t weightTypeFlag = (weightsType == ge::DT_FLOAT) ? 1 : 0;
     uint32_t tilingKey =
-        GET_TPL_TILING_KEY(inputQType, inputKType, outputType, pageAttentionFlag, inputQLayout, inputKLayout);
+        GET_TPL_TILING_KEY(weightTypeFlag, inputQType, inputKType, outputType, pageAttentionFlag, inputQLayout, inputKLayout);
     context_->SetTilingKey(tilingKey);
     context_->SetScheduleMode(1);     // 1: batchmode模式
 
