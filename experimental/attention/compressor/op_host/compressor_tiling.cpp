@@ -211,7 +211,6 @@ ge::graphStatus CompressorTiling::GetNpuInfo()
     socVersion_ = ascendcPlatform.GetSocVersion();
 
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
-    socVersion_ = ascendcPlatform.GetSocVersion();
 
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size_);
@@ -341,8 +340,8 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
 
 ge::graphStatus CompressorTiling::CheckEmptyTensor() const
 {
-    if (context_->layout == LayoutType::LAYOUT_BSH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) == 0 ||
-        context_->layout == LayoutType::LAYOUT_TH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0) {
+    if ((context_->layout == LayoutType::LAYOUT_BSH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) == 0) ||
+        (context_->layout == LayoutType::LAYOUT_TH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0)) {
         context_->templateId = TemplateId::EMPTY_X;
     } else {
         if (context_->x.shape->GetStorageShape().GetShapeSize() == 0 ||
@@ -356,10 +355,10 @@ ge::graphStatus CompressorTiling::CheckEmptyTensor() const
             context_->ropeCos.shape->GetStorageShape().GetShapeSize() == 0 ||
             context_->kvBlockTable.shape->GetStorageShape().GetShapeSize() == 0 ||
             context_->scoreBlockTable.shape->GetStorageShape().GetShapeSize() == 0) {
+            OP_LOGI(context_->opName, "Only input tensor x dim S or T supports to be 0");
             return ge::GRAPH_FAILED;
         }
         context_->templateId = TemplateId::NORMAL;
-        OP_LOGI(context_->opName, "Only input tensor x supports empty state");
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -816,35 +815,40 @@ ge::graphStatus CompressorTiling::CheckRequiredParaExistence() const
 
 ge::graphStatus CompressorTiling::CheckRequiredInOutExistence() const
 {
-    OP_CHECK_IF(context_->x.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor x is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->x.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor x is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->wkv.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor wkv is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->wkv.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor wkv is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->wgate.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor wgate is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->wgate.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor wgate is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->kvState.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor kvState is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->kvState.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor kvState is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->scoreState.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor scoreState is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->scoreState.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor scoreState is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->ape.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor ape is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->ape.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor ape is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->normWeight.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor normWeight is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->normWeight.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor normWeight is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->ropeSin.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor ropeSin is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->ropeSin.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor ropeSin is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->ropeCos.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor ropeCos is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->ropeCos.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor ropeCos is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->kvBlockTable.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor kvBlockTable is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->kvBlockTable.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor kvBlockTable is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->scoreBlockTable.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor scoreBlockTable is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->scoreBlockTable.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor scoreBlockTable is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->cmpKv.shape == nullptr, OP_LOGE(context_->opName, "Shape of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(context_->cmpKv.desc == nullptr, OP_LOGE(context_->opName, "Desc of tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->x.shape == nullptr, OP_LOGE(context_->opName, "tensor x is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->x.desc == nullptr, OP_LOGE(context_->opName, "tensor x is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wkv.shape == nullptr, OP_LOGE(context_->opName, "tensor wkv is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wkv.desc == nullptr, OP_LOGE(context_->opName, "tensor wkv is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wgate.shape == nullptr, OP_LOGE(context_->opName, "tensor wgate is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->wgate.desc == nullptr, OP_LOGE(context_->opName, "tensor wgate is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->kvState.shape == nullptr, OP_LOGE(context_->opName, "tensor kvState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->kvState.desc == nullptr, OP_LOGE(context_->opName, "tensor kvState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreState.shape == nullptr, OP_LOGE(context_->opName, "tensor scoreState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreState.desc == nullptr, OP_LOGE(context_->opName, "tensor scoreState is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ape.shape == nullptr, OP_LOGE(context_->opName, "tensor ape is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ape.desc == nullptr, OP_LOGE(context_->opName, "tensor ape is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->normWeight.shape == nullptr, OP_LOGE(context_->opName, "tensor normWeight is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->normWeight.desc == nullptr, OP_LOGE(context_->opName, "tensor normWeight is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeSin.shape == nullptr, OP_LOGE(context_->opName, "tensor ropeSin is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeSin.desc == nullptr, OP_LOGE(context_->opName, "tensor ropeSin is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeCos.shape == nullptr, OP_LOGE(context_->opName, "tensor ropeCos is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->ropeCos.desc == nullptr, OP_LOGE(context_->opName, "tensor ropeCos is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->kvBlockTable.shape == nullptr, OP_LOGE(context_->opName, "tensor kvBlockTable is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->kvBlockTable.desc == nullptr, OP_LOGE(context_->opName, "tensor kvBlockTable is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreBlockTable.shape == nullptr, OP_LOGE(context_->opName, "tensor scoreBlockTable is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->scoreBlockTable.desc == nullptr, OP_LOGE(context_->opName, "tensor scoreBlockTable is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->cmpKv.shape == nullptr, OP_LOGE(context_->opName, "tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(context_->cmpKv.desc == nullptr, OP_LOGE(context_->opName, "tensor cmpKv is nullptr"), return ge::GRAPH_FAILED);
     if (context_->layout == LayoutType::LAYOUT_TH){
         OP_CHECK_IF(context_->cuSeqlens.desc == nullptr, 
-        OP_LOGE(context_->opName, "In TH situation, desc of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->opName, "In TH layout, tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
         OP_CHECK_IF(context_->cuSeqlens.shape == nullptr, 
-        OP_LOGE(context_->opName, "In TH situation, shape of tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->opName, "In TH layout, tensor cuSeqlens should not be nullptr"), return ge::GRAPH_FAILED);
+    } else {
+        OP_CHECK_IF(context_->cuSeqlens.desc != nullptr, 
+        OP_LOGE(context_->opName, "In BSH layout, tensor cuSeqlens must be nullptr"), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(context_->cuSeqlens.shape != nullptr, 
+        OP_LOGE(context_->opName, "In TH layout, tensor cuSeqlens must be nullptr"), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -887,8 +891,8 @@ ge::graphStatus CompressorTiling::LogErrorShapeConsistency(const std::string &na
     const uint32_t actualNum = shape->GetStorageShape().GetDim(dimNum);
     OP_CHECK_IF(actualNum != expectNum,
                 OP_LOGE(context_->opName, 
-                        "%s shape dim [%s] should be equal to %u, but got %u",
-                        name.c_str(), subName.c_str(), expectNum, actualNum),
+                        "%s shape dim %u, should be equal to %s: %u, but got %u",
+                        name.c_str(), dimNum, subName.c_str(), expectNum, actualNum),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -912,17 +916,11 @@ ge::graphStatus CompressorTiling::CheckShapeConsistency() const
         ge::GRAPH_SUCCESS != LogErrorShapeConsistency("kvState", context_->kvState.shape, COMPRESSOR_DIM_INDEX_2, "coff*headDim", static_cast<uint32_t>(coffD)) ||
         ge::GRAPH_SUCCESS != LogErrorShapeConsistency("scoreState", context_->scoreState.shape, COMPRESSOR_DIM_INDEX_2, "coff*headDim", static_cast<uint32_t>(coffD)) ||
         ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ape", context_->ape.shape, COMPRESSOR_DIM_INDEX_1, "coff*headDim", static_cast<uint32_t>(coffD)) ||
-        ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ape", context_->ape.shape, COMPRESSOR_DIM_INDEX_0, "cmpRatio", baseParams_->cmpRatio)) { 
+        ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ape", context_->ape.shape, COMPRESSOR_DIM_INDEX_0, "cmpRatio", baseParams_->cmpRatio) ||
+        ge::GRAPH_SUCCESS != LogErrorShapeConsistency("scoreState", context_->scoreState.shape, COMPRESSOR_DIM_INDEX_0, "blockNum", pageAttentionParams_->blockNum) ||
+        ge::GRAPH_SUCCESS != LogErrorShapeConsistency("scoreState", context_->scoreState.shape, COMPRESSOR_DIM_INDEX_1, "blockSize", pageAttentionParams_->blockSize)) { 
         return ge::GRAPH_FAILED;
     }
-    const auto& scoreStateShape = context_->scoreState.shape->GetStorageShape();
-    uint32_t actualDim0 = scoreStateShape.GetDim(COMPRESSOR_DIM_INDEX_0);
-    uint32_t actualDim1 = scoreStateShape.GetDim(COMPRESSOR_DIM_INDEX_1);
-    const uint32_t expectDim0 = pageAttentionParams_->blockNum;
-    const uint32_t expectDim1 = pageAttentionParams_->blockSize;
-    OP_CHECK_IF(actualDim0 != expectDim0 || actualDim1 != expectDim1,
-        OP_LOGE(context_->opName, "scoreState shape dim0 should be blockNum(%u), dim1 should be blockSize(%u), but got dim0=%u, dim1=%u",
-                expectDim0, expectDim1, actualDim0, actualDim1), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -930,19 +928,19 @@ ge::graphStatus CompressorTiling::CheckShapeConsistencyRope() const
 {
     auto cmpT = std::min(baseParams_->tokenSize, baseParams_->tokenSize / baseParams_->cmpRatio + baseParams_->batchSize);
     if (context_->layout == LayoutType::LAYOUT_BSH) {
-        if (ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_0, "0:batchSize", baseParams_->batchSize) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_0, "0:batchSize", baseParams_->batchSize) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_1, "1:ceil(seqSize/cmpRatio)", baseParams_->cgSize) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_1, "1:ceil(seqSize/cmpRatio)", baseParams_->cgSize) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_2, "2:ropeHeadDim", baseParams_->ropeHeadDim) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_2, "2:ropeHeadDim", baseParams_->ropeHeadDim)) {
+        if (ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_0, "batchSize", baseParams_->batchSize) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_0, "batchSize", baseParams_->batchSize) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_1, "ceil(seqSize/cmpRatio)", baseParams_->cgSize) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_1, "ceil(seqSize/cmpRatio)", baseParams_->cgSize) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_2, "ropeHeadDim", baseParams_->ropeHeadDim) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_2, "ropeHeadDim", baseParams_->ropeHeadDim)) {
             return ge::GRAPH_FAILED;
         }
     } else {
-        if (ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_0, "0:min(tokenSize, tokenSize/cmpRatio+batchSize)", static_cast<uint32_t>(cmpT)) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_0, "0:min(tokenSize, tokenSize/cmpRatio+batchSize)", static_cast<uint32_t>(cmpT)) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_1, "1:ropeHeadDim", baseParams_->ropeHeadDim) ||
-            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_1, "1:ropeHeadDim", baseParams_->ropeHeadDim)) {
+        if (ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_0, "min(tokenSize, tokenSize/cmpRatio+batchSize)", static_cast<uint32_t>(cmpT)) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_0, "min(tokenSize, tokenSize/cmpRatio+batchSize)", static_cast<uint32_t>(cmpT)) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeSin", context_->ropeSin.shape, COMPRESSOR_DIM_INDEX_1, "ropeHeadDim", baseParams_->ropeHeadDim) ||
+            ge::GRAPH_SUCCESS != LogErrorShapeConsistency("ropeCos", context_->ropeCos.shape, COMPRESSOR_DIM_INDEX_1, "ropeHeadDim", baseParams_->ropeHeadDim)) {
             return ge::GRAPH_FAILED;
         }
     }
