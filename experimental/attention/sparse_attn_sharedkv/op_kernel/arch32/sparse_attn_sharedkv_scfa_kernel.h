@@ -168,7 +168,6 @@ private:
     __aicore__ inline void PreloadPipeline(uint32_t loop, uint32_t cmpLoop, uint64_t s2Start, uint64_t s2LoopIdx,
                                            RunInfo extraInfo[SAS_PRELOAD_TASK_CACHE_SIZE]);
     // ================================Offset Calc=====================================
-    __aicore__ inline void GetActualSeqLen(uint32_t bIdx);
     __aicore__ inline void GetSparseActualSeqLen();
     __aicore__ inline void UpdateInnerLoopCond();
     __aicore__ inline void CalcParams(uint32_t loop, uint32_t cmpLoop, uint64_t s2Start, uint32_t s2LoopIdx, RunInfo &info);
@@ -254,6 +253,9 @@ template <typename SAST>
 __aicore__ inline void SparseAttnSharedkvScfa<SAST>::InitAllZeroOutput(uint32_t bIdx, uint32_t s1Idx, uint32_t n2Idx)
 {
     if (constInfo.outputLayout == SAS_LAYOUT::TND) {
+        if (tempLoopInfo.actS1Size == 0) {
+            return;
+        }
         uint32_t tBase = actualSeqLengthsQGm.GetValue(bIdx);
         uint32_t s1Count = tempLoopInfo.actS1Size;
 
@@ -314,13 +316,6 @@ __aicore__ inline int32_t SparseAttnSharedkvScfa<SAST>::GetActualSeqLenKV(uint32
             return actualSeqLengthsKVGm.GetValue(bIdx);
         }
     }
-}
-
-template <typename SAST>
-__aicore__ inline void SparseAttnSharedkvScfa<SAST>::GetActualSeqLen(uint32_t bIdx)
-{
-    tempLoopInfo.actS1Size = GetActualSeqLenQ(bIdx);
-    tempLoopInfo.actOriS2Size = GetActualSeqLenKV(bIdx);
 }
 
 template <typename SAST>
@@ -645,16 +640,17 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
 
     for (uint32_t bN2LoopIdx = constInfo.bN2Start; bN2LoopIdx < constInfo.bN2End; bN2LoopIdx++) {
         GetBN2Idx(bN2LoopIdx, tempLoopInfo.bIdx, tempLoopInfo.n2Idx);
-        GetActualSeqLen(tempLoopInfo.bIdx); // 获取actualSeqLength及ActualSeqLengthKV
-
-        if (tempLoopInfo.actS1Size == 0) {
-            continue;
-        }
+        tempLoopInfo.actS1Size = GetActualSeqLenQ(tempLoopInfo.bIdx); // 获取actualSeqLength
+        bool isS1ZeroAndLastBatch = (tempLoopInfo.actS1Size == 0) &&
+            ((constInfo.outputLayout == SAS_LAYOUT::BSND) || (bN2LoopIdx + 1 == constInfo.bN2End));
         uint32_t gS1SplitNum = CeilDiv(tempLoopInfo.actS1Size * constInfo.gSize, constInfo.mBaseSize);
 
         // 当处于最后一个BN2时, 且gS1End为0时, 说明当前BN2里的所有数据都在当前核处理
         gS1LoopEnd = (bN2LoopIdx + 1 == constInfo.bN2End && constInfo.gS1End != 0) ? constInfo.gS1End : gS1SplitNum;
+        // 当处于最后一个BN2且当前S1为0时，需要进入循环计算preload导致的未完成的部分
+        gS1LoopEnd = isS1ZeroAndLastBatch ? gS1LoopEnd + 1 : gS1LoopEnd;
         for (uint32_t gS1LoopIdx = constInfo.gS1Start; gS1LoopIdx < gS1LoopEnd; gS1LoopIdx++) {
+            tempLoopInfo.actOriS2Size = GetActualSeqLenKV(tempLoopInfo.bIdx);
             // 计算需要的数据, 避免重复计算
             tempLoopInfo.gS1Idx = gS1LoopIdx * constInfo.mBaseSize;
             tempLoopInfo.s1StartIdx = tempLoopInfo.gS1Idx / constInfo.gSize;
@@ -670,16 +666,21 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
             GetSparseActualSeqLen();
             UpdateInnerLoopCond();
 
+            uint32_t oriS2Size = tempLoopInfo.oriMaskRight - tempLoopInfo.oriMaskLeft + 1;
+            uint32_t oriSplitNum = 0;
+            bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == gS1LoopEnd);
             if (tempLoopInfo.curActSeqLenIsZero) {
                 if ASCEND_IS_AIV {
                     InitAllZeroOutput(tempLoopInfo.bIdx, tempLoopInfo.s1StartIdx, tempLoopInfo.n2Idx);
                 }
-                tempLoopInfo.actOriS2Size = GetActualSeqLenKV(tempLoopInfo.bIdx);
-                continue;
+                if (!isEnd) {
+                    continue;
+                }
+            } else {
+                oriSplitNum = CeilDiv(oriS2Size, constInfo.s2BaseSize);
             }
-            uint32_t oriS2Size = tempLoopInfo.oriMaskRight - tempLoopInfo.oriMaskLeft + 1;
+            
             uint32_t cmpS2Size = tempLoopInfo.actCmpS2Size;
-            uint32_t oriSplitNum = CeilDiv(oriS2Size, constInfo.s2BaseSize);
             uint32_t cmpSplitNum = CeilDiv(cmpS2Size, constInfo.s2BaseSize);
             uint32_t s2SplitNum = oriSplitNum + cmpSplitNum;
             constexpr uint32_t V0_SPLIT = 32; // align to 32
@@ -688,7 +689,6 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Pr
                 v0OriSize = SASAlign(v0OriSize, V0_SPLIT * oriSplitNum);
             }
             uint32_t v0CmpSize = cmpS2Size - v0OriSize;
-            bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == gS1LoopEnd);
 
             tempLoopInfo.oriLoopTimes = oriSplitNum;
             tempLoopInfo.cmpLoopTimes = cmpSplitNum;
