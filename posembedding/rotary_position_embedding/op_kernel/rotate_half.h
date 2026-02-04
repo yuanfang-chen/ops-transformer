@@ -254,9 +254,9 @@ __aicore__ inline void RotateHalf<T>::CopyInX(uint64_t xStartOffset, uint16_t sL
             copyParams.blockLen = this->dBytes;
             copyParams.dstStride = 0;
             if (this->layout == LAYOUT_BSND) {
-                copyParams.srcStride = (this->bcSecondDim - 1) * this->dBytes;
-            } else if (this->layout == LAYOUT_SBND) {
-                copyParams.srcStride = (this->bnSize - 1) * this->dBytes;
+                copyParams.srcStride = (this->bcSecondDim - 1) * this->dBytes;   //layout = BSND
+            } else {
+                copyParams.srcStride = (this->bnSize - 1) * this->dBytes;   //layout = SBND
             }
             #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
             copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
@@ -313,9 +313,9 @@ __aicore__ inline void RotateHalf<T>::CopyOut(uint64_t yStartOffset, uint16_t sL
             DataCopy(yGm[yStartOffset], yLocal, copyLength);
         } else {
             if (this->layout == LAYOUT_BSND) {
-                copyParams.dstStride = (this->bcSecondDim - 1) * this->dBytes;
-            } else if (this->layout == LAYOUT_SBND) {
-                copyParams.dstStride = (this->bnSize - 1) * this->dBytes;
+                copyParams.dstStride = (this->bcSecondDim - 1) * this->dBytes;   //layout = BSND
+            } else {
+                copyParams.dstStride = (this->bnSize - 1) * this->dBytes;   //layout = SBND
             }
             #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
             copyParams.blockLen = this->dBytes / BYTE_OF_BLOCK;
