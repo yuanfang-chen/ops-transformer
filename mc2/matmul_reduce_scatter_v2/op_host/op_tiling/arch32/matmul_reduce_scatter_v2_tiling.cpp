@@ -130,9 +130,11 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoAllMatmulTiling()
 
     // 根据芯片型号获取策略模板
     std::vector<int32_t> priorities;
-    OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion_, priorities, opName_) != ge::GRAPH_SUCCESS,
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
+    OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch, priorities, opName_) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(opName_, "get mmv3 priority policy failed"), return ge::GRAPH_FAILED);
-    Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", socVersion_, priorities};
+    Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", npuArch, priorities};
     mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
     // 获取tileTiling
@@ -186,7 +188,7 @@ ge::graphStatus MatmulReduceScatterV2Tiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
-                                    static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(MatmulReduceScatterV2, MatmulReduceScatterV2Tiling, \
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 0);
 
 }
