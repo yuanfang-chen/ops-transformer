@@ -374,6 +374,17 @@ bool AlltoAllMatmulTiling910b::IsCapable()
     return true;
 }
 
+enum class QuantModeType : int64_t {
+    NO_QUANT = 0,
+    PERTENSOR_QUANT = 1,
+    PERCHANNEL_QUANT = 2,
+    PERTOKEN_QUANT = 3,
+    PERGROUP_QUANT = 4,
+    PERBLOCK_QUANT = 5,
+    MX_QUANT = 6,
+    DYN_PERTOKEN_QUANT = 7
+};
+
 /**
  * @brief 校验attrs信息
  * @return ge::graphStatus
@@ -401,11 +412,12 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckAndSetAttrsInfo(AlltoAllMatmulInf
     OP_TILING_CHECK(
         x1QuantMode == nullptr,
         OP_LOGE(opName_, "x1QuantMode is nullPtr."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        (*x1QuantMode != COMM_QUANT_MODE_SYMMETRIC && *x1QuantMode != COMM_QUANT_MODE_SMOOTH),
-        OP_LOGE(opName_, "x1QuantMode only support 0(symmetric_quant_type) or 1(smooth_quant_type), current input is %d.", *x1QuantMode),
-        return ge::GRAPH_FAILED);
-    info.isSmoothQuant = (*x1QuantMode == COMM_QUANT_MODE_SMOOTH) ? true : false;
+    
+    auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
+    info.isSmoothQuant = false;
+    if (*x1QuantMode == QuantModeType::DYN_PERTOKEN_QUANT && x1ScaleTensorDesc != nullptr) {
+        info.isSmoothQuant = true;
+    }
 
     const bool *isTransX1 = attrs->GetAttrPointer<bool>(ALLTOALLMATMUL_ATTR_X1_TRANSPOSE_INDEX);
     bool x1TransposeFlag = (isTransX1 != nullptr) ? *isTransX1 : false;

@@ -47,12 +47,6 @@ enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_END
 };
 
-enum class x1QuantMode : int64_t {
-    A2A_QUANT_MM_QUANT_TYPE_SYMMETRIC = 0,
-    A2A_QUANT_MM_QUANT_TYPE_SMOOTH = 1,
-    A2A_QUANT_MM_QUANT_TYPE_END
-};
-
 // 需要使用的常量定义
 static constexpr int64_t NEG_ONE = -1;
 static constexpr int64_t NEG_TWO = -2;
@@ -61,8 +55,7 @@ static constexpr size_t MAX_GROUP_LEN = 128U;
 static constexpr size_t TWO_DIMS = 2U;
 
 // 检查必要输入是否为空，必须非空
-static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional,
-    const aclTensor* x1ScaleOptional, const aclTensor* x2Scale, int64_t x1QuantMode, const aclTensor* output) {
+static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional, const aclTensor* x2Scale, const aclTensor* output) {
     if (x1 == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input x1 should not be null.");
         return false;
@@ -74,10 +67,6 @@ static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTens
     if(op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND910B) {
         if (biasOptional == nullptr) {
             OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input bias should not be null.");
-            return false;
-        }
-        if (x1QuantMode == static_cast<int64_t>(x1QuantMode::A2A_QUANT_MM_QUANT_TYPE_SMOOTH) && x1ScaleOptional == nullptr) {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Smooth quant scene(x1QuantMode = 1), input x1ScaleOptional should not be null.");
             return false;
         }
     }
@@ -320,7 +309,7 @@ static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const 
     OP_CHECK_DTYPE_NOT_SUPPORT(x1, X1_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(x2, X2_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(x2Scale, SCALE_DTYPE_SUPPORT_LIST, return false);
-    if (x1QuantMode == static_cast<int64_t>(x1QuantMode::A2A_QUANT_MM_QUANT_TYPE_SMOOTH) && x1ScaleOptional != nullptr) {
+    if (x1QuantMode == static_cast<int64_t>(QuantModeType::DYN_PERTOKEN_QUANT) && x1ScaleOptional != nullptr) {
         OP_CHECK_DTYPE_NOT_SAME(x1ScaleOptional, x1, return false);
     }
     OP_CHECK_DTYPE_NOT_SUPPORT(output, OUTPUT_DTYPE_SUPPORT_LIST, return false);
@@ -402,7 +391,7 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
                                         bool transposeX1, bool transposeX2, const aclTensor *output, const aclTensor *alltoAllOutOptional)
 {
     // 1. 检查参数是否为空指针
-    CHECK_RET(CheckNotNull(x1, x2, biasOptional, x1ScaleOptional, x2Scale, x1QuantMode, output), ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(CheckNotNull(x1, x2, biasOptional, x2Scale, output), ACLNN_ERR_PARAM_NULLPTR);
     // 2. 检查空tensor
     CHECK_RET(CheckNotEmptyTensor(x1, x2, transposeX2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据芯片型号和api定义校验
