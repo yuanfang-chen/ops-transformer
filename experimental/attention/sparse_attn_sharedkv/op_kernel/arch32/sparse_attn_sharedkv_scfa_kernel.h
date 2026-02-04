@@ -187,9 +187,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::In
 {
     // singleCoreParams
     // singleCoreTensorSize
-    constInfo.mmResUbSize = 64 * 512;
-    constInfo.bmm2ResUbSize = 64 * 512;
-    constInfo.vec1ResUbSize = 64 * 512;
+    constInfo.mmResUbSize = tilingData->baseParams.mmResUbSize;
+    constInfo.bmm2ResUbSize = tilingData->baseParams.bmm2ResUbSize;
 
     // baseParams
     constInfo.batchSize = tilingData->baseParams.batchSize;
@@ -211,8 +210,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvScfa<SAST>::In
     constInfo.actualLenDimsQ = tilingData->baseParams.actualLenDimsQ;
     constInfo.actualLenDimsKV = tilingData->baseParams.actualLenDimsKV;
     // innerSplitParams
-    constInfo.mBaseSize = 64;
-    constInfo.s2BaseSize = 512;
+    constInfo.mBaseSize = tilingData->baseParams.mBaseSize;
+    constInfo.s2BaseSize = tilingData->baseParams.s2BaseSize;
 
     constInfo.preLoadNum = PRELOAD_NUM;
     constInfo.nBufferMBaseSize = N_BUFFER_M_BASIC_SIZE;

@@ -67,10 +67,6 @@ enum class KvStorageMode : uint32_t {
     PAGE_ATTENTION = 2
 };
 
-struct InnerSplitParams {
-    uint32_t s1GBaseSize = 1;
-    uint32_t s2BaseSize = 1;
-};
 // ------------------算子原型索引常量定义----------------
 // Inputs Index
 constexpr uint32_t Q_INDEX = 0;
@@ -534,25 +530,15 @@ private:
 
     SASTilingInfo *sasInfo_ = nullptr;
 
-    size_t libapiSize_ = 0;
-
-    uint32_t kvSplitPart_ = 1;
     size_t mmResUbSize_ = 0;
     size_t bmm2ResUbSize_ = 0;
-    size_t qPreSizeMla_= 0;
     uint32_t sInnerLoopTimes_ = 0;
-    uint32_t sInnerSize_ = 0;
-    uint32_t sInnerSizeTail_ = 0;
+    uint32_t sInnerSize_ = 512; // s2固定切分512
     uint32_t sInnerSizeAlign_ = 0;
-    uint32_t kvSplit_ = 0;
     uint32_t usedCoreNum_ = 0;
-    uint32_t formerCoreNum_ = 0;
-    uint32_t blockSplitBn2Range_ = 0;
-    uint32_t tailSplitedBatchRange_ = 0;
     
     uint32_t headDimAlign_ = 0;
-    uint32_t mBaseSize_ = 128;
-    uint32_t mFdBaseSize_ = 8;
+    uint32_t mBaseSize_ = 64;
 };
 
 }
