@@ -28,7 +28,7 @@ public:
 
     __aicore__ inline void Init();
 
-    __aicore__ inline void ChangeSpecification(void* updateContext);
+    __aicore__ inline void GetContext(ContextType* context);
 
     __aicore__ inline void Process(uint32_t taskCnt);
 
@@ -38,41 +38,39 @@ private:
     ComputationType* computeStage_; // 矩阵乘的计算节点
     TransposeType* transStage_; // 转置计算的计算节点
     CommunicationType* commStage_; // 通信节点
-    ContextType* context_; //相关上下文
 };
 
 // 初始化各节点
 template <typename ComputationType, typename TransposeType, typename CommunicationType, typename ContextType>
 __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, ContextType>::Init()
 {
+    computeStage_->Init();
     commStage_->Init();
 }
 
 // 变更各节点在流水线中的运行规格，主要是输入输出和每轮流水的偏移
 template <typename ComputationType, typename TransposeType, typename CommunicationType, typename ContextType>
-__aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, ContextType>::ChangeSpecification(void* updateContext)
+__aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, ContextType>::GetContext(ContextType* context)
 {
-    context_ = (ContextType*) updateContext;
-    computeStage_->Update(context_->aGM, context_->bGM, context_->cGM, context_->biasGM, &(context_->extraData), context_->tilingData);
-    commStage_->Update(context_->taskCnt, context_->sendBuffer, context_->recvBuffer, 
-        context_->sendOffset, context_->recvOffset, context_->sendCount, context_->strideCount, context_->hcclDataType);
+    context->computationContext = computeStage_->GetMMContextPtr();
+    context->transposeContext = transStage_->GetTransContextPtr();
+    context->communicationContext = commStage_->GetCommContextPtr();
 }
 
 //执行流水线
 template <typename ComputationType, typename TransposeType, typename CommunicationType, typename ContextType>
 __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, ContextType>::Process(uint32_t taskCnt)
-{ 
+{
+    commStage_->Prepare(taskCnt);
     uint32_t index;
     for (index = 0 ; index < taskCnt; index++) {
         computeStage_->Process(index == 0);
         //后续流水需要使用计算节点的结果
         AscendC::SyncAll<false>();
         if ASCEND_IS_AIV {
-            transStage_->Init(context_->transposeSrcAddr, context_->transposeDstAddr, context_->rankCnt, context_->innerAxis, context_->transM, context_->nextSrcBlockOffset, context_->nextDstBlockOffset, context_->innerAxis * context_->rankCnt, context_->innerAxis);
+            transStage_->Init();
             transStage_->Process();
             transStage_->Destroy();
-            context_->transposeSrcAddr = (GM_ADDR)((uint64_t)context_->transposeSrcAddr + context_->transposeSrcOffset);
-            context_->transposeDstAddr = (GM_ADDR)((uint64_t)context_->transposeDstAddr + context_->transposeDstOffset);
             //后续通信需要使用转置后的结果
             AscendC::SyncAll<true>();
             commStage_->Process();
