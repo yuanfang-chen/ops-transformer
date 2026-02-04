@@ -1246,6 +1246,7 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     return ge::GRAPH_SUCCESS;
 }
 
+template<typename ConstChosen>
 static ge::graphStatus TilingCheckMoeDistributeDispatch(gert::TilingContext *context, const char *nodeName,
     const bool isActiveMask, const bool isScales, const bool hasElasticInfo, const bool isPerformance, const uint32_t quantMode)
 {
@@ -1445,7 +1446,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
 
     // 检查输入输出的dim、format、dataType
     OP_TILING_CHECK(
-        TilingCheckMoeDistributeDispatch(context, nodeName, isActiveMask, isScales, hasElasticInfo, isPerformance, quantMode) != ge::GRAPH_SUCCESS,
+        TilingCheckMoeDistributeDispatch<ConstChosen>(context, nodeName, isActiveMask, isScales, hasElasticInfo, isPerformance, quantMode) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Tiling check param failed."), return ge::GRAPH_FAILED);
 
     // 检查属性的取值是否合法
