@@ -77,15 +77,15 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::Prepare(
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
     // 1. 基础输出校验
-    //KERNEL_CHECK_NULLPTR(metaData_, false, "metadata is null");
-    //auto metaShape = metaData_->GetTensorShape();
-    //KERNEL_CHECK_NULLPTR(metaShape, false, "shape of metadata is null");
-    //KERNEL_CHECK_NULLPTR(metaData_->GetData(), false, "data of metadata is null");
+    KERNEL_CHECK_NULLPTR(metaData_, false, "metadata is null");
+    auto metaShape = metaData_->GetTensorShape();
+    KERNEL_CHECK_NULLPTR(metaShape, false, "shape of metadata is null");
+    KERNEL_CHECK_NULLPTR(metaData_->GetData(), false, "data of metadata is null");
     // 2. 核心数校验
-    //if (aicCoreNum_ == 0 || aivCoreNum_ == 0 || (aivCoreNum_ % aicCoreNum_ != 0)) {
-    //    KERNEL_LOG_ERROR("Core num invalid: aic:%u, aiv:%u", aicCoreNum_, aivCoreNum_);
-    //    return false;
-    //}
+    if (aicCoreNum_ == 0 || aivCoreNum_ == 0 || (aivCoreNum_ % aicCoreNum_ != 0)) {
+        KERNEL_LOG_ERROR("Core num invalid: aic:%u, aiv:%u", aicCoreNum_, aivCoreNum_);
+        return false;
+    }
     // 3. Layout 字符串校验
     if (layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
         KERNEL_LOG_ERROR("For query, layout must be TND or BSND!");
@@ -241,7 +241,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
-    return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature());
+    return (CheckConsistency() && CheckFeature());
 }
 
 ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
