@@ -3,7 +3,7 @@
 ## 产品支持情况
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | :------: |
-|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
@@ -30,9 +30,9 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 ## 参数说明
 | 参数名                     | 输入/输出/属性 | 描述  | 数据类型       | 数据格式   |
 |----------------------------|-----------|----------------------------------------------------------------------|----------------|------------|
-| token_x                     | 输入      | 公式中的$Q_{index}^{INT8}\in\R^{g\times d}，表示输入Index Query$ | INT8、FLOAT8_e4m3fn | ND         |
-| key                   | 输入      | 公式的$K_{index}^{INT8}\in\R^{S_{k}\times d}，表示压缩后的输入Index Key$ | INT8、FLOAT8_e4m3fn | ND |
-| weights                 | 输入      | 公式中的$W$，表示权重系数，不支持非连续。| INT8, BF16 | ND |
+| query                     | 输入      | 公式中的$Q_{index}\in\R^{g\times d}，表示输入Index Query$ | INT8、FLOAT8_e4m3fn | ND         |
+| key                   | 输入      | 公式的$K_{index}\in\R^{S_{k}\times d}，表示压缩后的输入Index Key$ | INT8、FLOAT8_e4m3fn | ND |
+| weights                 | 输入      | 公式中的$W$，表示权重系数，不支持非连续。| INT8、BF16、FLOAT32 | ND |
 | query_dequant_scale             | 输入      | 公式中的$Scale_Q$，表示Index Query的反量化系数，不支持非连续 | FLOAT16、FLOAT32     | ND         |
 | key_dequant_scale            | 输入      | 公式中的$Scale_Q$，表示Index Key的反量化系数，不支持非连续 | FLOAT16、FLOAT32       | ND         |
 | actual_seq_lengths_query                    | 可选输入      | 表示不同Batch中`query`的有效token数 | INT32       | ND         |
@@ -52,13 +52,13 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 | sparse_indices     | 输出      | 公式中的输出Out，参与稀疏attention计算的token索引值 | INT32          | ND         |
 | sparse_values           | 输出      | 公式中的Indices输出对应的value值，**目前暂不支持返回sparse_values。** | FLOAT32         | ND          |
 
-- <term>Ascend 950PR/Ascend 950DT</term>：不支持INT8、FLOAT16。
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：不支持FLOAT8_e4m3fn、FLOAT32。
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：不支持FLOAT8_e4m3fn、FLOAT32。
+- <term>Ascend 950PR/Ascend 950DT</term>：query、key不支持INT8；weights不支持INT8、BF16，query_dequant_scale和key_dequant_scale不支持FLOAT16。
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：query、key不支持FLOAT8_e4m3fn、weights不支持FLOAT32，query_dequant_scale和key_dequant_scale不支持FLOAT32。
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：query、key不支持FLOAT8_e4m3fn、weights不支持FLOAT32，query_dequant_scale和key_dequant_scale不支持FLOAT32。
 
 ## 约束说明
 -   该接口支持图模式。
--   该接口要求$W \odot Scale_Q$的结果在`float16`的表示范围内。
+-   该接口要求$W \odot Scale_Q$的结果在`float16`(Atlas A3)/`float32`(Ascend 950PR/Ascend 950DT)的表示范围内。
 -   该接口的TopK过程对NAN排序是未定义行为。
 -   参数query中的D轴和参数key中的D轴值相等为128。
 -   参数query和key中的N轴分别仅支持64和1。
