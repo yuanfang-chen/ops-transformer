@@ -50,7 +50,6 @@ private:
     GlobalTensor<float> xGscaleGm_;
     GlobalTensor<int32_t> sortedExpertIdxGm_;
     GlobalTensor<T> expandedXGm_;
-    GlobalTensor<hifloat8_t> expandedXHif8Gm_;
     GlobalTensor<int32_t> expandedRowIdxGm_;
     GlobalTensor<float> expandedScaleGm_;
     GlobalTensor<int32_t> expertTotalCountGm_;
@@ -133,13 +132,8 @@ __aicore__ inline void MoeGatherOut<T>::Init(GM_ADDR x, GM_ADDR scale, GM_ADDR w
     } else {
         xGm_.SetGlobalBuffer((__gm__ T *)x, n_ * cols_);
     }
-    if (quantMode_ == QUANT_MODE_HIF8_CAST) {
-        expandedXHif8Gm_.SetGlobalBuffer((__gm__ hifloat8_t *)expandedX + blockIdx_ * perCoreIndicesElements_ * cols_,
-                                    curCoreIndicesElements_ * cols_);
-    } else {
-        expandedXGm_.SetGlobalBuffer((__gm__ T *)expandedX + blockIdx_ * perCoreIndicesElements_ * cols_,
+    expandedXGm_.SetGlobalBuffer((__gm__ T *)expandedX + blockIdx_ * perCoreIndicesElements_ * cols_,
                                  curCoreIndicesElements_ * cols_);
-    }
     expandedScaleGm_.SetGlobalBuffer((__gm__ float *)expandedScale + blockIdx_ * perCoreIndicesElements_,
                                      curCoreIndicesElements_);
 
@@ -190,39 +184,12 @@ __aicore__ inline void MoeGatherOut<T>::CopyXIn(int64_t xSrcOffset, int64_t scal
 }
 
 template <typename T>
-__aicore__ inline void MoeGatherOut<T>::XTransformToHif8(int64_t curLoopCols)
-{
-    LocalTensor<T> xLocal = xCopyInQueue_.DeQue<T>();
-    LocalTensor<hifloat8_t> xRowLocalHif8;
-    if constexpr (IsSameType<T, bfloat16_t>::value) {
-        LocalTensor<bfloat16_t> xRowLocal = xLocal[0];
-        xRowLocalHif8 = xRowLocal.ReinterpretCast<hifloat8_t>();
-        LocalTensor<float> xLocalFloatTemp = xLocalFloatTempQueue_.AllocTensor<float>();
-        Cast(xLocalFloatTemp, xLocal, RoundMode::CAST_NONE, curLoopCols);
-        Cast(xRowLocalHif8, xLocalFloatTemp, RoundMode::CAST_ROUND, curLoopCols);
-        xLocalFloatTempQueue_.FreeTensor(xLocalFloatTemp);
-    } else if constexpr (IsSameType<T, half>::value) {
-        LocalTensor<half> xRowLocal = xLocal[0];
-        xRowLocalHif8 = xRowLocal.ReinterpretCast<hifloat8_t>();
-        Cast(xRowLocalHif8, xRowLocal, RoundMode::CAST_ROUND, curLoopCols);
-    }
-    xCopyInQueue_.EnQue(xRowLocalHif8);
-}
-
-template <typename T>
 __aicore__ inline void MoeGatherOut<T>::CopyXOut(int64_t xDstOffset, int64_t scaleDstOffset, int64_t curLoopCols)
 {
-    if (quantMode_ == QUANT_MODE_HIF8_CAST) {
-        LocalTensor<hifloat8_t> xLocal = xCopyInQueue_.DeQue<hifloat8_t>();
-        DataCopyExtParams copyParams2{1, static_cast<uint32_t>(curLoopCols * sizeof(hifloat8_t)), 0, 0, 0};
-        DataCopyPad(expandedXHif8Gm_[xDstOffset], xLocal, copyParams2);
-        xCopyInQueue_.FreeTensor(xLocal);
-    } else {
-        LocalTensor<T> xLocal = xCopyInQueue_.DeQue<T>();
-        DataCopyExtParams copyParams2{1, static_cast<uint32_t>(curLoopCols * sizeof(T)), 0, 0, 0};
-        DataCopyPad(expandedXGm_[xDstOffset], xLocal, copyParams2);
-        xCopyInQueue_.FreeTensor(xLocal);
-    }
+    LocalTensor<T> xLocal = xCopyInQueue_.DeQue<T>();
+    DataCopyExtParams copyParams2{1, static_cast<uint32_t>(curLoopCols * sizeof(T)), 0, 0, 0};
+    DataCopyPad(expandedXGm_[xDstOffset], xLocal, copyParams2);
+    xCopyInQueue_.FreeTensor(xLocal);
 }
 
 template <typename T>
@@ -276,9 +243,6 @@ __aicore__ inline void MoeGatherOut<T>::Process()
                     }
                     int64_t colsLoopOffset = colsLoop * perLoopCols_;
                     CopyXIn(xSrcOffset + colsLoopOffset, scaleSrcOffset, curLoopCols);
-                    if (quantMode_ == QUANT_MODE_HIF8_CAST) {
-                        XTransformToHif8(curLoopCols);
-                    }
                     CopyXOut(xDstOffset + colsLoopOffset, indicesIndex, curLoopCols);
                 }
             }
