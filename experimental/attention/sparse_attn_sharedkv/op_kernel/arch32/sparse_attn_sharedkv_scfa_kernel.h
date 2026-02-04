@@ -672,6 +672,8 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::ProcessBalance()
 
             uint32_t oriS2Size = tempLoopInfo.oriMaskRight - tempLoopInfo.oriMaskLeft + 1;
             uint32_t oriSplitNum = 0;
+            uint32_t cmpSplitNum = 0;
+            uint32_t cmpS2Size = 0;
             bool isEnd = (bN2LoopIdx + 1 == constInfo.bN2End) && (gS1LoopIdx + 1 == gS1LoopEnd);
             if (tempLoopInfo.curActSeqLenIsZero) {
                 if ASCEND_IS_AIV {
@@ -682,10 +684,10 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::ProcessBalance()
                 }
             } else {
                 oriSplitNum = CeilDiv(oriS2Size, constInfo.s2BaseSize);
+                cmpS2Size = tempLoopInfo.actCmpS2Size;
+                cmpSplitNum = CeilDiv(cmpS2Size, constInfo.s2BaseSize);
             }
             
-            uint32_t cmpS2Size = tempLoopInfo.actCmpS2Size;
-            uint32_t cmpSplitNum = CeilDiv(cmpS2Size, constInfo.s2BaseSize);
             uint32_t s2SplitNum = oriSplitNum + cmpSplitNum;
             constexpr uint32_t V0_SPLIT = 32; // align to 32
             uint32_t v0OriSize = CeilDiv(oriS2Size * cmpS2Size, oriS2Size + cmpS2Size);
