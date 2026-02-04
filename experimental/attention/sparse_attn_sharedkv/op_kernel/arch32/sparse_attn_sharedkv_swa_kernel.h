@@ -190,9 +190,8 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Ini
 {
     // singleCoreParams
     // singleCoreTensorSize
-    constInfo.mmResUbSize = 64 * 512;   // tilingData->baseParams.mmResUbSize
-    constInfo.bmm2ResUbSize = 64 * 512; // tilingData->baseParams.mmResUbSize
-    constInfo.vec1ResUbSize = 64 * 512; // constInfo.mmResUbSize * msdIterNum
+    constInfo.mmResUbSize = tilingData->baseParams.mmResUbSize;
+    constInfo.bmm2ResUbSize = tilingData->baseParams.bmm2ResUbSize;
     // baseParams
     constInfo.batchSize = tilingData->baseParams.batchSize;
     constInfo.qHeadNum = constInfo.gSize = tilingData->baseParams.nNumOfQInOneGroup;
@@ -214,8 +213,9 @@ template <typename SAST> __aicore__ inline void SparseAttnSharedkvSwa<SAST>::Ini
     constInfo.actualLenDimsKV = tilingData->baseParams.actualLenDimsKV;
 
     // innerSplitParams
-    constInfo.mBaseSize = 64;   // tilingData->baseParams.mBaseSize
-    constInfo.s2BaseSize = 512; // tilingData->baseParams.s2BaseSize
+    constInfo.mBaseSize = tilingData->baseParams.mBaseSize;
+    constInfo.s2BaseSize = tilingData->baseParams.s2BaseSize;
+    // tilingData->baseParams.s2BaseSize
 
     constInfo.preLoadNum = PRELOAD_NUM;
     constInfo.nBufferMBaseSize = N_BUFFER_M_BASIC_SIZE;

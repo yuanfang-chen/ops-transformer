@@ -1372,28 +1372,17 @@ void SparseAttnSharedkvTiling::CalcUbBmm(SASTilingInfo *tilingInfo)
     }
     mmResUbSize_ = sInnerSizeAlign_ * Align(cubeMSize, 16U);// kernel按照16对齐写出，tiling按照这个原则分配内存
     bmm2ResUbSize_ = headDimAlign_ * Align(cubeMSize, 16U);// kernel按照16对齐写出，tiling按照这个原则分配内存
-
-    qPreSizeMla_ = tilingInfo->gSize * headDimAlign_ * tilingInfo->s1Size;
 }
 
 void SparseAttnSharedkvTiling::SplitBalanced(SASTilingInfo *tilingInfo)
 {
     uint32_t s2Size = tilingInfo->s2Size;
-    sInnerSize_ = 512; // 512:s2默认切分大小
-    sInnerLoopTimes_ = (s2Size + sInnerSize_ - 1) / sInnerSize_;
-    sInnerSizeTail_ = s2Size - (sInnerLoopTimes_ - 1) * sInnerSize_;
-    if (sInnerSize_ > s2Size) {
-        sInnerSize_ = s2Size;
-    }
     sInnerSizeAlign_ = Align(sInnerSize_, BYTE_BLOCK); // 元素个数按照基本块大小对齐
-
+    headDimAlign_ = Align(tilingInfo->qHeadDim, BYTE_BLOCK);
     CalcUbBmm(tilingInfo);
 
-    InnerSplitParams innerSplitParams;
-    innerSplitParams.s1GBaseSize = tilingInfo->gSize;
-    innerSplitParams.s2BaseSize = sInnerSize_;
-    tilingData_.baseParams.set_mBaseSize(innerSplitParams.s1GBaseSize);
-    tilingData_.baseParams.set_s2BaseSize(innerSplitParams.s2BaseSize);
+    tilingData_.baseParams.set_mBaseSize(mBaseSize_);
+    tilingData_.baseParams.set_s2BaseSize(sInnerSize_);
     tilingData_.baseParams.set_mmResUbSize(mmResUbSize_);
     tilingData_.baseParams.set_bmm2ResUbSize(bmm2ResUbSize_);
 }
@@ -1412,27 +1401,21 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     SplitBalanced(tilingInfo);
     // -------------set workspacesize-----------------
     constexpr uint32_t MM1_RES_ELEM_SIZE = 4;         // 4: fp32
-    constexpr uint32_t DOUBLE_BUFFER = 2;             // 双Buffer
-    constexpr uint32_t M_BASE_SIZE = 512;             // m轴基本块大小
-    constexpr uint32_t S2_BASE_SIZE = 512;            // S2轴基本块大小
-    constexpr uint32_t V1_RES_ELEM_SIZE = 4;          // 4: int32
-    constexpr uint32_t V1_RES_ELEM_TYPE = 2;          // 保留Index和Value 2种数据
-    constexpr uint32_t V1_DECODE_PARAM_ELEM_SIZE = 8; // 8: int64
-    constexpr uint32_t V1_DECODE_PARAM_NUM = 16;      // Decode参数个数
-    constexpr uint32_t V1_DECODE_DATA_NUM = 2;        // Decode每个核需要存储头和尾部两块数据
-    constexpr uint32_t S1_BASE_SIZE = 8;              // S1轴基本块的大小
-    constexpr uint32_t TOPK_MAX_SIZE = 2048;          // TopK选取个数
+    constexpr uint32_t VEC1_RES_ELEM_SIZE = 2;        // 2: fp16/bf16
+    constexpr uint32_t MM2_RES_ELEM_SIZE = 4;         // 4: fp32
+    constexpr uint32_t VEC2_RES_ELEM_SIZE = 4;        // 4: fp32
+    constexpr uint32_t PRELOAD_NUM = 2;               // preload数量
+
     uint32_t workspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
     // 主流程需Workspace大小
-    uint32_t mm1ResSize = M_BASE_SIZE * S2_BASE_SIZE;
-    workspaceSize += mm1ResSize * MM1_RES_ELEM_SIZE * DOUBLE_BUFFER * aicNum;
-    // Decode流程(LD)需要Workspace大小
-    // 临时存储Decode中间结果大小: 2(头/尾)*8(s1Base)*2(idx/value)*2048(K)*sizeof(int32)*24=6M
-    workspaceSize += V1_DECODE_DATA_NUM * S1_BASE_SIZE * V1_RES_ELEM_TYPE * TOPK_MAX_SIZE * V1_RES_ELEM_SIZE * aicNum;
-    // 临时存储Decode中间参数信息大小: 2(头/尾)*8(s1Base)*16(paramNum)*sizeof(int64_t)*24=48k
-    workspaceSize += V1_DECODE_DATA_NUM * S1_BASE_SIZE * V1_DECODE_PARAM_NUM * V1_DECODE_PARAM_ELEM_SIZE * aicNum;
-
-    workspaceSize = 120 * 1024 * 1024;
+    workspaceSize += PRELOAD_NUM * mmResUbSize_ * MM1_RES_ELEM_SIZE * aicNum;
+    workspaceSize += PRELOAD_NUM * mmResUbSize_ * VEC1_RES_ELEM_SIZE * aicNum;
+    workspaceSize += PRELOAD_NUM * bmm2ResUbSize_ * MM2_RES_ELEM_SIZE * aicNum;
+    workspaceSize += PRELOAD_NUM * bmm2ResUbSize_ * VEC2_RES_ELEM_SIZE * aicNum;
+    if (tilingInfo->perfMode == SASTemplateMode::SCFA_TEMPLATE_MODE) {
+        workspaceSize += 4 * 512 * 512 * 2 * aicNum; // 4:bufNum 512:s2Size  512:D 2:sizeof(half)
+        workspaceSize += 4 * 128 * 4 * (2 * aicNum); // 4:缓存有效mte2 size长度 128:份数 4:512B对齐长度 2:aiv数量
+    }
     size_t *workSpaces = context_->GetWorkspaceSizes(1);
     workSpaces[0] = workspaceSize;
 
@@ -1499,5 +1482,4 @@ ge::graphStatus TilingSparseAttnSharedkv(gert::TilingContext *context)
 IMPL_OP_OPTILING(SparseAttnSharedkv)
     .Tiling(TilingSparseAttnSharedkv)
     .TilingParse<SASCompileInfo>(TilingPrepareForSparseAttnSharedkv);
-
 } // namespace optiling
