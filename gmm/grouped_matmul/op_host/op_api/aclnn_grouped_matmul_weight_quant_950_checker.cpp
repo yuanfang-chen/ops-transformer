@@ -203,7 +203,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckDimNumAndFormat(size
     } else {
         CHECK_COND(op::IsPrivateFormat((*gmmParams_.weight)[idx]->GetStorageFormat()), ACLNN_ERR_PARAM_INVALID,
                    "The format of weight is invalid. It should only be NZ for GMM when xDtype-weightDtype is "
-                   "bf16/fp16-float4_e2m1, float8-float4_e2m1 or int8-int4. ");
+                   "bf16/fp16-float4_e2m1/float4_e1m2, float8-float4_e2m1 or int8-int4. ");
     }
 
     // check dimNum
