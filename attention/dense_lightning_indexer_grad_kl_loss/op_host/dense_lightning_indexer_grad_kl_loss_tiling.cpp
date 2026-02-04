@@ -89,10 +89,10 @@ bool DenseLightningIndexerGradKLLossTilingBase::AnalyzeDtype()
     auto keyIndexDtype = context_->GetInputDesc(KEY_INDEX_INPUT_INDEX)->GetDataType();
     auto weightsDtype = context_->GetInputDesc(WEIGHT_INPUT_INDEX)->GetDataType();
     if (queryDtype == ge::DT_FLOAT16 && keyDtype == ge::DT_FLOAT16 && queryIndexDtype == ge::DT_FLOAT16 && 
-                            keyIndexDtype == ge::DT_FLOAT16 && weightsDtype == ge::DT_FLOAT16) {
+        keyIndexDtype == ge::DT_FLOAT16 && (weightsDtype == ge::DT_FLOAT16 || weightsDtype == ge::DT_FLOAT)) {
         same16 = true;
     } else if (queryDtype == ge::DT_BF16 && keyDtype == ge::DT_BF16 && queryIndexDtype == ge::DT_BF16 && 
-                            keyIndexDtype == ge::DT_BF16 && weightsDtype == ge::DT_BF16) {
+               keyIndexDtype == ge::DT_BF16 && (weightsDtype == ge::DT_BF16 || weightsDtype == ge::DT_FLOAT)) {
         same16 = true;
     } else {
         OP_LOGE(opName, "q/k/weight inputDtype is not same.");
@@ -787,6 +787,7 @@ ge::graphStatus DenseLightningIndexerGradKLLossTilingBase::DoOpTiling()
     int64_t totalSize = CalcTotalSize();
     SetMultiCoreParamsRegbase(totalSize, static_cast<int64_t>(aicNum));
     context_->SetBlockDim(dliGradkllossMultiCoreParams_->get_coreNum()); // 使用的核数确定
+    context_->SetScheduleMode(SCHEDULE_MODE_ALL_CORE);
 
     std::vector<int64_t> shapeVec = {1,2048};
     ge::Shape srcShape(shapeVec);
@@ -799,7 +800,6 @@ ge::graphStatus DenseLightningIndexerGradKLLossTilingBase::DoOpTiling()
 
 ge::graphStatus DenseLightningIndexerGradKLLossTilingBase::GetWorkspaceSize()
 {
-    // TODO: Dense场景可能要调整下
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     int64_t pSize = 2048 * 576 * 2; // 2代表half大小
     int64_t sySize = 2048 * 128 * 2; // 使用DB
@@ -808,10 +808,13 @@ ge::graphStatus DenseLightningIndexerGradKLLossTilingBase::GetWorkspaceSize()
     int64_t reluGradSize = gSizeQueryIndex * S1_BASE_STEP * S2_BASE_STEP * sizeof(float);
     int64_t psySyncSize = AIC_AIV_RATIO * S1_VEC_SIZE_8 * S2_BASE_STEP * 2 * sizeof(float);
 
-    // TODO: n1IndexSIze = n2IndexSize * gSizeQueryIndex
     int64_t dWeightFloatSzie = S1_BASE_STEP * n2IndexSize * gSizeQueryIndex * sizeof(float);
-    int64_t dQueryIndexFloatSzie = S1_BASE_STEP * gSizeQueryIndex * dSizeQueryIndex * sizeof(float);
+    auto weightsDtype = context_->GetInputDesc(WEIGHT_INPUT_INDEX)->GetDataType();
+    if (weightsDtype == ge::DT_FLOAT) {
+        dWeightFloatSzie = 0;
+    }
 
+    int64_t dQueryIndexFloatSzie = S1_BASE_STEP * gSizeQueryIndex * dSizeQueryIndex * sizeof(float);
     int64_t dKeyIndexGmSize = 0;
     if (tilingKeyLayout == LayoutType::LAYOUT_TND) {
         dKeyIndexGmSize = accumS2 * n2IndexSize * dSizeQueryIndex * sizeof(float); //batch
