@@ -593,8 +593,10 @@ def gen_data(params):
         q = (torch.rand((B, S1, N1, D)) * (q_datarange[1] - q_datarange[0]) + q_datarange[0]).to(q_type)
         if seqused_q is None:
             act_q = B * [S1]
+            seqused_q = torch.tensor(B * [S1]).to(torch.int32)
         else:
             act_q = seqused_q
+            seqused_q = torch.tensor(seqused_q).to(torch.int32)
     elif layout_q == "TND":
         T1, B = int(T1), int(B)
         q = (torch.rand((T1, N1, D)) * (q_datarange[1] - q_datarange[0]) + q_datarange[0]).to(q_type)
