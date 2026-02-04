@@ -218,6 +218,32 @@ public:
         matmul_.Iterate();
         matmul_.GetTensorC(ubCmatrix, 0, true);
     }
+
+    /**
+    * @brief Perform matrix multiplication
+    * @param [in] aGlobal: global memory tensor of matrix A
+    * @param [in] bGlobal: global memory tensor of matrix B
+    * @param [in] biasGlobal: global memory tensor of matrix Bias
+    * @param [in] ubCmatrix: local tensor
+    * @param [in] singleShape: shape of the single matrix (rows, columns, depth)
+    * @param [in] isTransposeA: whether to transpose matrix A
+    * @param [in] isTransposeB: whether to transpose matrix B
+    */
+    __aicore__ inline void operator()(const AscendC::GlobalTensor<typename AType::T>& aGlobal,
+                                      const AscendC::GlobalTensor<typename BType::T>& bGlobal,
+                                      const AscendC::GlobalTensor<typename BiasType::T>& biasGlobal,
+                                      const AscendC::LocalTensor<typename CType::T>& ubCmatrix,
+                                      const AscendC::Std::tuple<int32_t, int32_t, int32_t>& singleShape,
+                                      bool isTransposeA = false, bool isTransposeB = false)
+    {
+        matmul_.SetSingleShape(Get<0>(singleShape), Get<1>(singleShape), Get<2>(singleShape)); // 2: idx of k
+        matmul_.SetTensorA(aGlobal, isTransposeA);
+        matmul_.SetTensorB(bGlobal, isTransposeB);
+        matmul_.SetBias(biasGlobal);
+        matmul_.Iterate();
+        matmul_.GetTensorC(ubCmatrix, 0, true);
+    }
+
     /**
     * @brief End the matrix multiplication operation
     */
