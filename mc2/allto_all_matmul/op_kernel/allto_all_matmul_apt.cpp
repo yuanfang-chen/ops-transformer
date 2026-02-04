@@ -36,7 +36,7 @@ using namespace AlltoAllMatmulImpl;
         TransposeType transposeImplName(&pipe);                                                                        \
         DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(Mc2MatMulV3TilingData, ComputationType);                           \
         ComputationType matmulImplName(&pipe);                                                                         \
-        using SchedulerContextType = PipelineContext<FpQuantExtraData, Mc2MatMulV3TilingData>;                         \
+        using SchedulerContextType = PipelineContext<MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData>>;         \
         using SchedulerType = MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType,              \
                                                                         ComputationType, SchedulerContextType>;        \
         SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &matmulImplName);                               \
@@ -60,7 +60,7 @@ using namespace AlltoAllMatmulImpl;
             DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams, ComputationType, MMDataTypeX1, DTYPE_X2);               \
         ComputationType matmulImplName(&pipe);                                                                         \
         using SchedulerContextType =                                                                                   \
-            PipelineContext<QuantExtraData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>;                        \
+            PipelineContext<MC2MMContext<KCQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>>; \
         using SchedulerType =                                                                                          \
             MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, DynamicQuantType,         \
                                                            ComputationType, SchedulerContextType>;                     \
