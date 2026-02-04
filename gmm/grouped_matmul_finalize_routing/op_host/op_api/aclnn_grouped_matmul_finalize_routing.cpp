@@ -735,13 +735,11 @@ static aclnnStatus WeightNZCaseProcess(const aclTensor *&x2, bool &transposeX2, 
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
     } else {
-        if ( op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 )
-        {
-            if(transposeX2 == false) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            if (transposeX2 == false) {
                 CHECK_RET(TransposeTensorContiguousProcessForMx(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
             }
-        }
-        else{
+        } else {
             CHECK_RET(TransposeTensorContiguousProcess(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
         }
     }
@@ -808,7 +806,7 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     }
 
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
-    if(op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510){
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
         CHECK_RET(CheckDimRange(params), ACLNN_ERR_PARAM_INVALID);
     }
     return ACLNN_SUCCESS;

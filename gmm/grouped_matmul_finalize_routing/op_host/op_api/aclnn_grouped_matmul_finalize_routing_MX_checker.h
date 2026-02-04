@@ -129,7 +129,7 @@ public:
 
     bool CheckInputOutShape()
     {
-        if(CheckInputOutShapeConsistency() == false){
+        if (CheckInputOutShapeConsistency() == false) {
             return false;
         }
         int64_t m = gmmParams_.x1->GetViewShape().GetDim(ZERO_DIM); // 从x的第0维获取m
@@ -179,11 +179,11 @@ public:
     }
 
     bool CheckInputOutShapeConsistency()
-    {   
-        int64_t k = gmmParams_.x1->GetViewShape().GetDim(ONE_DIM);  // 从x的第1维获取k
+    {
+        int64_t k = gmmParams_.x1->GetViewShape().GetDim(ONE_DIM); // 从x的第1维获取k
         int64_t kInWeight = gmmParams_.transposeX2 ? (gmmParams_.x2)->GetViewShape().GetDim(TWO_DIM) :
-                                             (gmmParams_.x2)->GetViewShape().GetDim(ONE_DIM);
-        int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0);      // 从weight的第0维获取e
+                                                     (gmmParams_.x2)->GetViewShape().GetDim(ONE_DIM);
+        int64_t e = (gmmParams_.x2)->GetViewShape().GetDim(0); // 从weight的第0维获取e
         if (kInWeight != k) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                     "The dimension (k) of 'x' (%ld) must be equal to the dimension (k) of 'weight' (%ld)", k,
@@ -193,7 +193,8 @@ public:
         // groupList的长度应等于weight的专家数
         int64_t groupListLen = gmmParams_.groupList->GetViewShape().GetDim(ZERO_DIM);
         if (groupListLen != e) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,"Length of 'groupList' should be equal to the number of experts in weight. But got %ld.", e);
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "Length of 'groupList' should be equal to the number of experts in weight. But got %ld.", e);
             return false;
         }
         if (e > MAX_NUM_EXPERTS) {
