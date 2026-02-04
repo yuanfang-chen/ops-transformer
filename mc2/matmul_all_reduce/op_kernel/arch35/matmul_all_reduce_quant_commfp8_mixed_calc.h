@@ -171,6 +171,7 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
         tilePadM_ += rankNum_ - (tileM_ % rankNum_);
     }
     uint32_t tailM = tilingData_->tailmatmulTiling.matmulTiling.M;
+    AscendC::PRINTF("tileM=%u, tailM=%u\n", tileM_, tailM);
     tailPadM_ = tailM;
     if ((tailM % rankNum_) != 0) {
         tailPadM_ += rankNum_ - (tailM % rankNum_);
@@ -264,20 +265,24 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
     const uint64_t pertokenOffset = mmTiling->matmulTiling.M * sizeof(float);
     for (uint32_t i = 0U; i < tileCnt; i++) {
         tPipe_->Reset();
+        AscendC::PRINTF("Matmul Start\n");
         mmOp.Init(aGM_, bGM_, dequantScaleGM_, nullptr, biasGM_, pertokenGM_, cGM_, workspaceGM_, mmTiling, tPipe_);
         mmOp.Process();
         SyncAll<false>();
         if (isAdd) {
+            AscendC::PRINTF("Add Start\n");
             MatmulAllReduceElementWiseAddKernel<float, YType>(cGM_, addGM_, cOffset / sizeof(float),
                                                               tilingData_->param.addX3UbCnt, tPipe_);
             addGM_ += addOffset;
             SyncAll<false>();
         }
+        AscendC::PRINTF("Quant Start\n");
         quantOp.Init(cGM_, all2allInGM_, mmTiling->matmulTiling.M, mmTiling->matmulTiling.N, oneLineSCnt, coreNum_,
                      maxProcRowsQuant_, true, tPipe_);
         quantOp.Process(mmTiling->matmulTiling.N, coreNum_, quantNandSLen, true);
         SyncAll<false>();
         if (notifyFlag_) {
+            AscendC::PRINTF("All2All Commit all2allCommitIdx_=%d\n", all2allCommitIdx_);
             hccl_.Commit(all2allHandleId_[all2allCommitIdx_]);
             all2allCommitIdx_++;
         }
@@ -310,15 +315,19 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
     uint64_t all2allOutOffset = padM * quantNandSLen;
     uint64_t allGatherInOffset = tileMPerRank * quantNandSLen;
     if (notifyFlag_) {
+        AscendC::PRINTF("All2All Wait all2allWaitIdx_=%d\n", all2allWaitIdx_);
         hccl_.Wait(all2allHandleId_[all2allWaitIdx_]);
     }
     SyncAll();
-    mixedOp.Init(all2allOutGM_, allGatherInGM_, tileMPerRank, tileN, oneLineSCnt, coreNum_, maxProcRowsMixed_, tPipe_);
+    AscendC::PRINTF("Mixed Start\n");
+    mixedOp.Init(all2allOutGM_, allGatherInGM_, tileMPerRank, tileN, oneLineSCnt, coreNum_, maxProcRowsMixed_,
+                tPipe_);
     mixedOp.Process(tileN, tileMPerRank, rankNum_, quantNandSLen);
     SyncAll();
     all2allOutGM_ += all2allOutOffset;
     allGatherInGM_ += allGatherInOffset;
     if (notifyFlag_) {
+        AscendC::PRINTF("AllGather Commit all2allWaitIdx_=%d\n", all2allWaitIdx_);
         hccl_.Commit(allGatherHandleId_[all2allWaitIdx_]);
         all2allWaitIdx_++;
     }
@@ -359,6 +368,7 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
     if ASCEND_IS_AIV {
         for (uint32_t i = 0U; i < (mc2Tiling.tileCnt + mc2Tiling.tailCnt); i++) {
             if (notifyFlag_) {
+                AscendC::PRINTF("AllGather Wait\n");
                 hccl_.Wait(allGatherHandleId_[i]);
             }
             SyncAll();
@@ -368,6 +378,7 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
                 uint64_t allGatherOutOffset = tilingData_->tilematmulTiling.matmulTiling.M * quantNandSLen;
                 uint64_t outOffset = tilingData_->tilematmulTiling.matmulTiling.M *
                                      tilingData_->tilematmulTiling.matmulTiling.N * sizeof(YType);
+                AscendC::PRINTF("Dequant Start\n");
                 quantOp.Init(allGatherOutGM_, outGM_, tilingData_->tilematmulTiling.matmulTiling.M,
                              tilingData_->tilematmulTiling.matmulTiling.N, tileOneLineSCnt_, coreNum_,
                              maxProcRowsDequantLast_, false, tPipe_);
@@ -380,6 +391,7 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
                 uint64_t allGatherOutOffset = tilingData_->tailmatmulTiling.matmulTiling.M * quantNandSLen;
                 uint64_t outOffset = tilingData_->tailmatmulTiling.matmulTiling.M *
                                      tilingData_->tailmatmulTiling.matmulTiling.N * sizeof(YType);
+                AscendC::PRINTF("Dequant Start\n");
                 quantOp.Init(allGatherOutGM_, outGM_, tilingData_->tailmatmulTiling.matmulTiling.M,
                              tilingData_->tailmatmulTiling.matmulTiling.N, tailOneLineSCnt_, coreNum_,
                              maxProcRowsDequantLast_, false, tPipe_);
