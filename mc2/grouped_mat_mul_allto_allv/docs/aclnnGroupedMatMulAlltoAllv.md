@@ -282,7 +282,7 @@ aclnnStatus aclnnGroupedMatMulAlltoAllv(
   - A：本卡发送的token数，是sendCounts参数累加之和。
   - ep通信域内所有卡的 A 参数的累加和等于所有卡上的 BSK 参数的累加和。
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>: 单卡通信量取值范围需大于等于2MB。
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>: 单卡通信量在2MB以下可能存在性能劣化。
 
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
