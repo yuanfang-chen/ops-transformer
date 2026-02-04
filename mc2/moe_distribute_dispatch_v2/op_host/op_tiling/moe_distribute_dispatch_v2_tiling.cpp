@@ -77,7 +77,7 @@ namespace {
         static constexpr uint32_t ATTR_ZERO_EXPERT_NUM_INDEX = 14;
         static constexpr uint32_t ATTR_COPY_EXPERT_NUM_INDEX = 15;
         static constexpr uint32_t ATTR_CONST_EXPERT_NUM_INDEX = 16;
-    }
+    };
 
     struct TilingExternConst {
         static constexpr uint32_t X_INDEX = 0U;
@@ -115,7 +115,7 @@ namespace {
         static constexpr uint32_t ATTR_ZERO_EXPERT_NUM_INDEX = 14;
         static constexpr uint32_t ATTR_COPY_EXPERT_NUM_INDEX = 15;
         static constexpr uint32_t ATTR_CONST_EXPERT_NUM_INDEX = 16;
-    }
+    };
 
     constexpr uint32_t TWO_DIMS = 2;
     constexpr uint32_t ONE_DIM = 1;
