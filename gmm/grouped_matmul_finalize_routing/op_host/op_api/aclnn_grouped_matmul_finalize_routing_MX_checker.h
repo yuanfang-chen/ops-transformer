@@ -271,24 +271,18 @@ public:
 
     bool CheckFormat()
     {
-        if (op::IsPrivateFormat(gmmParams_.x1->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of x should be ND, current format is %s.",
-                    op::ToString(gmmParams_.x1->GetStorageFormat()).GetString());
-            return false;
-        }
-        if (op::IsPrivateFormat(gmmParams_.x2->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of weight should be ND, current format is %s.",
-                    op::ToString(gmmParams_.x2->GetStorageFormat()).GetString());
-            return false;
-        }
-        if (op::IsPrivateFormat(gmmParams_.scale->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of scale should be ND, current format is %s.",
-                    op::ToString(gmmParams_.scale->GetStorageFormat()).GetString());
-            return false;
-        }
-        if (op::IsPrivateFormat(gmmParams_.pertokenScaleOptional->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,"Format of pertokenScaleOptional should be ND, current format is %s.",
+        if (op::IsPrivateFormat(gmmParams_.x1->GetStorageFormat()) ||
+            op::IsPrivateFormat(gmmParams_.pertokenScaleOptional->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x and pertokenScaleOptional must be ND format, but got: %s, %s.",
+                    op::ToString(gmmParams_.x1->GetStorageFormat()).GetString(),
                     op::ToString(gmmParams_.pertokenScaleOptional->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (op::IsPrivateFormat(gmmParams_.x2->GetStorageFormat()) ||
+            op::IsPrivateFormat(gmmParams_.scale->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "weight and scale must be ND format, but got: %s, %s.",
+                    op::ToString(gmmParams_.x2->GetStorageFormat()).GetString(),
+                    op::ToString(gmmParams_.scale->GetStorageFormat()).GetString());
             return false;
         }
         if (op::IsPrivateFormat(gmmParams_.groupList->GetStorageFormat())) {
