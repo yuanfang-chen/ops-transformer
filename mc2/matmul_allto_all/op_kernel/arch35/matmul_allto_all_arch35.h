@@ -55,8 +55,6 @@ private:
 private:
     __aicore__ inline void ProcessTile(uint32_t taskCnt);
     __aicore__ inline void ProcessTail(uint32_t taskCnt);
-    // 执行流水线
-    __aicore__ inline void ProcessPipeLine(uint32_t taskCnt);
 };
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
@@ -77,6 +75,7 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
     transOutGM_ = (GM_ADDR)(tempComputeOutGM_ + mc2Tiling_.mmResultLen);
     // 初始化流水线
     pipeLine_->Init();
+    pipeLine_->GetContext(&pipeLineContext_);
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
@@ -102,75 +101,69 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
 {
     auto&& mc2Tiling_ = tilingData_->matmulAlltoAllTilingInfo;
     //matmul矩阵乘计算的输入输出地址，到下一轮计算的数据地址的偏移
-    pipeLineContext_.aGM = x1_;
-    pipeLineContext_.bGM = x2_;
-    pipeLineContext_.cGM = tempComputeOutGM_;
-    pipeLineContext_.biasGM = bias_;
-    pipeLineContext_.extraData.a_offset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
-    pipeLineContext_.extraData.b_offset = (uint64_t)0UL;
-    pipeLineContext_.extraData.c_offset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.tilingData = &(tilingData_->mc2MmV3TileTilingData);
+    pipeLineContext_.computationContext->baseData.aGM = x1_;
+    pipeLineContext_.computationContext->baseData.bGM = x2_;
+    pipeLineContext_.computationContext->baseData.cGM = tempComputeOutGM_;
+    pipeLineContext_.computationContext->baseData.biasGM = bias_;
+    pipeLineContext_.computationContext->baseData.a_offset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.b_offset = (uint64_t)0UL;
+    pipeLineContext_.computationContext->baseData.c_offset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2MmV3TileTilingData);
 
     //转置操作的输入输出地址，单轮转置内部数据块的偏移，到下一轮转置数据地址的偏移
-    pipeLineContext_.transposeSrcAddr = tempComputeOutGM_;
-    pipeLineContext_.transposeDstAddr = transOutGM_;
-    pipeLineContext_.transposeSrcOffset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.nextSrcBlockOffset = (uint64_t)mc2Tiling_.rankN / mc2Tiling_.rankDim;
-    pipeLineContext_.nextDstBlockOffset = (uint64_t)mc2Tiling_.rankM * mc2Tiling_.rankN / mc2Tiling_.rankDim;
-    pipeLineContext_.transposeDstOffset = pipeLineContext_.transposeSrcOffset / mc2Tiling_.rankDim;
-    pipeLineContext_.rankCnt = mc2Tiling_.rankDim;
-    pipeLineContext_.innerAxis = (uint64_t)mc2Tiling_.rankN / mc2Tiling_.rankDim;
-    pipeLineContext_.transM = (uint64_t)mc2Tiling_.tileM;
+    pipeLineContext_.transposeContext->transposeSrcAddr = tempComputeOutGM_;
+    pipeLineContext_.transposeContext->transposeDstAddr = transOutGM_;
+    pipeLineContext_.transposeContext->transposeSrcOffset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.transposeContext->nextSrcBlockOffset = (uint64_t)mc2Tiling_.rankN / mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->nextDstBlockOffset = (uint64_t)mc2Tiling_.rankM * mc2Tiling_.rankN / mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->transposeDstOffset = pipeLineContext_.transposeContext->transposeSrcOffset / mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->rankCnt = mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->innerAxis = (uint64_t)mc2Tiling_.rankN / mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->transM = (uint64_t)mc2Tiling_.tileM;
+    pipeLineContext_.transposeContext->innerOffsetIn = (uint64_t)mc2Tiling_.rankN;
+    pipeLineContext_.transposeContext->innerOffsetOut = (uint64_t)mc2Tiling_.rankN / mc2Tiling_.rankDim;
 
     //通信操作的输入输出地址，到下一轮的地址偏移
-    pipeLineContext_.taskCnt = mc2Tiling_.tileCnt;
-    pipeLineContext_.sendBuffer = pipeLineContext_.transposeDstAddr;
-    pipeLineContext_.recvBuffer = y_;
-    pipeLineContext_.sendOffset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y) / mc2Tiling_.rankDim;
-    pipeLineContext_.recvOffset = pipeLineContext_.sendOffset;
-    pipeLineContext_.sendCount = (uint64_t)mc2Tiling_.tileM * pipeLineContext_.innerAxis;
-    pipeLineContext_.strideCount = pipeLineContext_.nextDstBlockOffset;
-    pipeLineContext_.hcclDataType = mc2Tiling_.hcclDataType;
+    pipeLineContext_.communicationContext->taskCnt = mc2Tiling_.tileCnt;
+    pipeLineContext_.communicationContext->sendBuffer = pipeLineContext_.transposeContext->transposeDstAddr;
+    pipeLineContext_.communicationContext->recvBuffer = y_;
+    pipeLineContext_.communicationContext->sendOffset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y) / mc2Tiling_.rankDim;
+    pipeLineContext_.communicationContext->recvOffset = pipeLineContext_.communicationContext->sendOffset;
+    pipeLineContext_.communicationContext->sendCount = (uint64_t)mc2Tiling_.tileM * pipeLineContext_.transposeContext->innerAxis;
+    pipeLineContext_.communicationContext->strideCount = pipeLineContext_.transposeContext->nextDstBlockOffset;
+    pipeLineContext_.communicationContext->hcclDataType = mc2Tiling_.hcclDataType;
 
-    ProcessPipeLine(taskCnt);
+    pipeLine_->Process(taskCnt);
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
 __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTail(uint32_t taskCnt)
 {
     auto&& mc2Tiling_ = tilingData_->matmulAlltoAllTilingInfo;
-    pipeLineContext_.aGM = x1_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
-    pipeLineContext_.bGM = x2_;
-    pipeLineContext_.cGM = tempComputeOutGM_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.extraData.a_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
-    pipeLineContext_.extraData.b_offset = (uint64_t)0UL;
-    pipeLineContext_.extraData.c_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.tilingData = &(tilingData_->mc2MmV3TailTilingData);
+    pipeLineContext_.computationContext->baseData.aGM = x1_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.bGM = x2_;
+    pipeLineContext_.computationContext->baseData.cGM = tempComputeOutGM_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->baseData.a_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.b_offset = (uint64_t)0UL;
+    pipeLineContext_.computationContext->baseData.c_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2MmV3TailTilingData);
 
     uint64_t commonOffset = (uint64_t)mc2Tiling_.rankM * (uint64_t)mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.transposeSrcAddr = tempComputeOutGM_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.transposeDstAddr = transOutGM_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y) / (uint64_t)mc2Tiling_.rankDim;
-    pipeLineContext_.transposeSrcOffset = (uint64_t)mc2Tiling_.tailM * (uint64_t)mc2Tiling_.rankN * (uint64_t)sizeof(DTYPE_Y);
-    pipeLineContext_.transposeDstOffset = pipeLineContext_.transposeSrcOffset / (uint64_t)mc2Tiling_.rankDim;
-    pipeLineContext_.transM = (uint64_t)mc2Tiling_.tailM;
+    pipeLineContext_.transposeContext->transposeSrcAddr = tempComputeOutGM_ + (uint64_t)mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.transposeContext->transposeDstAddr = transOutGM_ + (uint64_t)mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y) / mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->transposeSrcOffset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.transposeContext->transposeDstOffset = pipeLineContext_.transposeContext->transposeSrcOffset / mc2Tiling_.rankDim;
+    pipeLineContext_.transposeContext->transM = (uint64_t)mc2Tiling_.tailM;
 
-    pipeLineContext_.taskCnt = mc2Tiling_.tailCnt;
-    pipeLineContext_.sendBuffer = pipeLineContext_.transposeDstAddr;
-    pipeLineContext_.recvBuffer = y_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y) / (uint64_t)mc2Tiling_.rankDim;
-    pipeLineContext_.sendOffset = (uint64_t)mc2Tiling_.tailM * (uint64_t)mc2Tiling_.rankN * sizeof(DTYPE_Y) / (uint64_t)mc2Tiling_.rankDim;
-    pipeLineContext_.recvOffset = pipeLineContext_.sendOffset;
-    pipeLineContext_.sendCount = (uint64_t)mc2Tiling_.tailM * (uint64_t)pipeLineContext_.innerAxis;
+    pipeLineContext_.communicationContext->taskCnt = mc2Tiling_.tailCnt;
+    pipeLineContext_.communicationContext->sendBuffer = pipeLineContext_.transposeContext->transposeDstAddr;
+    pipeLineContext_.communicationContext->recvBuffer = y_ + (uint64_t)mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y) / mc2Tiling_.rankDim;
+    pipeLineContext_.communicationContext->sendOffset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y) / mc2Tiling_.rankDim;
+    pipeLineContext_.communicationContext->recvOffset = pipeLineContext_.communicationContext->sendOffset;
+    pipeLineContext_.communicationContext->sendCount = (uint64_t)mc2Tiling_.tailM * pipeLineContext_.transposeContext->innerAxis;
 
-    ProcessPipeLine(taskCnt);
-}
-
-template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-__aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessPipeLine(uint32_t taskCnt)
-{
-    pipeLine_->ChangeSpecification(&pipeLineContext_);
     pipeLine_->Process(taskCnt);
 }
-
 }; // namespace MatmulAlltoAllImpl
 
 #endif
