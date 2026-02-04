@@ -1,0 +1,255 @@
+# -----------------------------------------------------------------------------------------------------------
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+# -----------------------------------------------------------------------------------------------------------
+import os
+import csv
+import logging
+import hashlib
+from typing import Tuple, Callable, Dict, Type
+from datetime import datetime, timezone, timedelta
+
+import numpy as np
+from ml_dtypes import float8_e5m2, float8_e8m0fnu, bfloat16
+
+# 3. 日志配置（全局初始化）
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+class QuantAllReduceAccuracyChecker:
+    """
+    quant_all_reduce accuracy checker
+    对比CPU Golden值与NPU计算值的精度指标, 输出结果并写入CSV
+    """
+    # 类常量：数据类型精度配置（所有实例共享）
+    TYPE_CONFIG: Dict[str, Dict] = {
+        "int32_t": {"dtype": np.int32, "mae": 1e-3, "cos": 0.9999},
+        "float16_t": {"dtype": np.float16, "mae": 1e-3, "cos": 0.9999},
+        "float32_t": {"dtype": np.float32, "mae": 1e-3, "cos": 0.9999},
+        "int8_t": {"dtype": np.int8, "mae": 1e-3, "cos": 0.9999},
+        "bfloat16_t": {"dtype": bfloat16, "mae": 5e-3, "cos": 0.999},
+        "fp8_e5m2_t": {"dtype": float8_e5m2, "mae": 1e-2, "cos": 0.99},
+        "fp8_e8m0_t": {"dtype": float8_e8m0fnu, "mae": 8e-3, "cos": 0.995},
+    }
+
+    def __init__(self, args):
+        """
+        初始化精度校验器
+        :param args: 命令行参数Namespace对象
+        """
+        # 保存命令行参数为实例属性
+        self.case_name = args.case_name
+        self.bs = args.bs
+        self.hidden_size = args.hidden_size
+        self.output_type = args.output_type
+        self.ranksize = args.ranksize
+
+        # 初始化Golden目录
+        self.golden_dir = f"./golden/quantallreduce_{self.case_name}_{self.bs}_{self.hidden_size}"
+
+        # 校验输出类型是否支持
+        if self.output_type not in self.TYPE_CONFIG:
+            raise ValueError(f"不支持的输出类型：{self.output_type}，支持类型：{list(self.TYPE_CONFIG.keys())}")
+        
+        # 获取当前类型的精度配置
+        self.type_info = self.TYPE_CONFIG[self.output_type]
+        self.target_dtype = self.type_info["dtype"]
+
+    def _get_utc8_timestamp(self) -> datetime:
+        """私有方法: 获取UTC+8时间戳"""
+        utc_time = datetime.now(tz=timezone.utc)
+        return utc_time + timedelta(hours=8)
+
+    def write_to_result_csv(self, mae: float, max_ae: float, mse: float, rmse: float, cos_sim: float, is_pass: bool, csv_path: str = "./result.csv") -> bool:
+        """
+        将精度对比结果写入CSV文件
+        :param mae: 平均绝对误差
+        :param max_ae: 最大绝对误差
+        :param mse: 均方误差
+        :param rmse: 均方根误差
+        :param cos_sim: 余弦相似度
+        :param is_pass: 是否通过校验
+        :param csv_path: CSV文件路径
+        :return: 是否写入成功
+        """
+        # 构造数据行
+        header = ["case_name", "mae", "max_ae", "mse", "rmse", "cos_sim", "is_pass", "timestamp"]
+        data_row = [
+            self.case_name,
+            round(mae, 6),
+            round(max_ae, 6),
+            round(mse, 6),
+            round(rmse, 6),
+            round(cos_sim, 6),
+            is_pass,
+            self._get_utc8_timestamp()
+        ]
+
+        # 写入CSV文件
+        try:
+            file_exists = os.path.exists(csv_path)
+            with open(csv_path, mode='a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    writer.writerow(header)
+                writer.writerow(data_row)
+            logging.info(f"结果已成功写入CSV文件：{csv_path}")
+            return True
+        except Exception as e:
+            logging.error(f"写入CSV文件失败：{str(e)}")
+            return False
+
+    def calculate_metrics(self, cpu_data: np.ndarray, npu_data: np.ndarray) -> Tuple[float, float, float, float, float]:
+        """
+        计算CPU与NPU数据的精度指标
+        :param cpu_data: CPU Golden数据
+        :param npu_data: NPU计算数据
+        :return: (mae, max_ae, mse, rmse, cos_sim)
+        """
+        # 提升精度到float32计算指标（避免低精度误差）
+        cpu_data_32 = cpu_data.astype(np.float32)
+        npu_data_32 = npu_data.astype(np.float32)
+
+        # 计算绝对误差
+        abs_error = np.abs(cpu_data_32 - npu_data_32)
+        mae = float(np.mean(abs_error))
+        max_ae = float(np.max(abs_error))
+
+        # 计算均方误差
+        squared_error = np.square(cpu_data_32 - npu_data_32)
+        mse = float(np.mean(squared_error))
+        rmse = float(np.sqrt(mse)) if mse > 0 else 0.0
+
+        # 计算余弦相似度（处理零范数边界情况）
+        cpu_norm = float(np.linalg.norm(cpu_data_32))
+        npu_norm = float(np.linalg.norm(npu_data_32))
+        
+        if cpu_norm < 1e-10 or npu_norm < 1e-10:
+            cos_sim = 1.0 if np.allclose(cpu_data_32, npu_data_32, atol=1e-3) else 0.0
+        else:
+            dot_product = float(np.dot(cpu_data_32.flatten(), npu_data_32.flatten()))
+            cos_sim = dot_product / (cpu_norm * npu_norm)
+            cos_sim = np.clip(cos_sim, -1.0, 1.0)  # 防止数值溢出
+
+        return mae, max_ae, mse, rmse, cos_sim
+
+    def compare(self) -> bool:
+        """
+        执行所有Rank的精度对比
+        :return: 是否所有Rank都通过校验
+        """
+        logging.info("=" * 50)
+        logging.info("开始进行精度对比")
+        logging.info(f"校验用例：{self.case_name} | 输出类型：{self.output_type} | Rank数：{self.ranksize}")
+        logging.info("=" * 50)
+
+        # 加载CPU Golden数据
+        cpu_file = os.path.join(self.golden_dir, "output_cpu.bin")
+        if not os.path.exists(cpu_file):
+            logging.error(f"CPU Golden数据文件不存在：{cpu_file}")
+            return False
+        
+        try:
+            cpu_data = np.fromfile(cpu_file, dtype=self.target_dtype)
+            logging.info(f"成功加载CPU Golden数据 | 长度：{len(cpu_data)} | 类型：{self.output_type}")
+        except Exception as e:
+            logging.error(f"加载CPU Golden数据失败: {e}")
+            return False
+
+        # 逐Rank对比NPU数据
+        all_pass = True
+        final_mae, final_max_ae, final_mse, final_rmse, final_cos = 0.0, 0.0, 0.0, 0.0, 0.0
+
+        for rank in range(self.ranksize):
+            logging.info(f"\n---------- 对比 Rank-{rank} NPU 数据 ----------")
+            npu_file = os.path.join(self.golden_dir, f"output_npu_{rank}.bin")
+
+            # 检查NPU文件是否存在
+            if not os.path.exists(npu_file):
+                logging.error(f"Rank-{rank} NPU数据文件不存在：{npu_file}")
+                all_pass = False
+                continue
+
+            # 加载NPU数据
+            try:
+                npu_data = np.fromfile(npu_file, dtype=self.target_dtype)
+                logging.info(f"Rank-{rank} NPU数据加载成功 | 长度：{len(npu_data)}")
+            except Exception as e:
+                logging.error(f"加载Rank-{rank} NPU数据失败: {e}")
+                all_pass = False
+                continue
+
+            # 校验数据长度
+            if len(cpu_data) != len(npu_data):
+                logging.error(f"Rank-{rank} 数据长度不匹配 | CPU: {len(cpu_data)} | NPU: {len(npu_data)}")
+                all_pass = False
+                continue
+
+            # 计算精度指标
+            mae, max_ae, mse, rmse, cos_sim = self.calculate_metrics(cpu_data, npu_data)
+            # 记录最后一个有效Rank的指标（用于写入CSV）
+            final_mae, final_max_ae, final_mse, final_rmse, final_cos = mae, max_ae, mse, rmse, cos_sim
+
+            # 打印精度指标
+            logging.info(f"Rank-{rank} 精度指标：")
+            logging.info(f"  MAE: {mae:.6f} (阈值：{self.type_info['mae']})")
+            logging.info(f"  MaxAE: {max_ae:.6f}")
+            logging.info(f"  MSE: {mse:.6f}")
+            logging.info(f"  RMSE: {rmse:.6f}")
+            logging.info(f"  余弦相似度：{cos_sim:.6f} (阈值：{self.type_info['cos']})")
+
+            # 判断当前Rank是否通过
+            rank_pass = (mae < self.type_info["mae"]) and (cos_sim > self.type_info["cos"])
+            if rank_pass:
+                logging.info(f"[PASS] Rank-{rank} 精度对比通过！")
+            else:
+                logging.error(f"[FAIL] Rank-{rank} 精度对比失败！")
+                all_pass = False
+
+        # 输出最终结果
+        logging.info("\n" + "=" * 50)
+        if all_pass:
+            logging.info(f"[PASS] 所有Rank (类型：{self.output_type}) 精度对比通过！")
+        else:
+            logging.error(f"[FAIL] 部分Rank (类型：{self.output_type}) 精度对比失败！")
+        logging.info("=" * 50)
+
+        # 写入CSV文件
+        self.write_to_result_csv(final_mae, final_max_ae, final_mse, final_rmse, final_cos, all_pass)
+
+        return all_pass
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    解析命令行参数（独立函数，便于测试和扩展）
+    :return: 解析后的参数对象
+    """
+    parser = argparse.ArgumentParser(description="量化AllReduce算子精度对比工具")
+    # 必选参数（按顺序）
+    parser.add_argument('case_name', type=str, help="测试用例名称")
+    parser.add_argument("bs", type=int, help="Batch Size")
+    parser.add_argument("hidden_size", type=int, help="Hidden Size")
+    parser.add_argument("output_type", type=str, help="输出数据类型")
+    parser.add_argument("ranksize", type=int, help="Rank数量")
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    """主函数：解析参数 → 初始化校验器 → 执行精度对比"""
+    try:
+        # 解析命令行参数
+        args = parse_args()
+        # 创建精度校验器实例
+        checker = QuantAllReduceAccuracyChecker(args)
+        # 执行精度对比
+        result = checker.compare()
+        # 退出码：0=通过，1=失败
+        exit(0 if result else 1)
+    except Exception as e:
+        logging.error(f"程序执行失败：{e}")
+        exit(1)
