@@ -50,22 +50,6 @@ struct TempLoopInfo {
     uint32_t s2BasicSizeTail = 0U; // S2方向循环的尾基本块大小
 };
 
-
-// 主模板：Q_T必选，W_T可选（默认void），无论W_T传什么，默认weightsType=Q_T
-template<typename Q_T, typename W_T = void>
-struct LightningIndexerTypeTraits
-{
-    using weightsType = Q_T;   // 默认：weightsType绑定Q_T
-};
-
-// 偏特化1：固定第二个参数W_T=float，Q_T保留泛型
-template<typename Q_T>
-struct LightningIndexerTypeTraits<Q_T, float>
-{
-    using weightsType = float;  // W_T=float时，强制weightsType为float
-};
-
-
 template <typename LIT>
 class LIPreload {
 public:
