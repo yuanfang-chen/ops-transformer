@@ -853,7 +853,7 @@ void Mc2WeightQuantBatchMatmulV2WeightNz::InitCompileInfo()
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, compileInfoPtr_->l0aSize);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfoPtr_->l0bSize);
     compileInfoPtr_->workspaceNum = ascendcPlatform.GetLibApiWorkSpaceSize();
-    compileInfoPtr_->socVersion = ascendcPlatform.GetSocVersion();
+    compileInfoPtr_->npuArch = ascendcPlatform.GetCurNpuArch();
     std::string mmad;
     bool res = platformInfoPtr->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_mmad", mmad);
     compileInfoPtr_->supportMmadS8S4 = res && mmad.find("s8s4") != std::string::npos;
