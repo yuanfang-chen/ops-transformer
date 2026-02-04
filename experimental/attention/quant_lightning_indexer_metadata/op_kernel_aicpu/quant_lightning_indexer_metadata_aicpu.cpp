@@ -141,14 +141,20 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency() {
         }
     }
 
-    if (layoutQuery_ == "TND" && layoutKey_ == "TND" && actSeqLenQSize != actSeqLenKeySize) {
+    if (actSeqLenKeySize == 0 && actSeqLenQSize == 0 && batchSize_ == 0) {
+        KERNEL_LOG_ERROR("No valid batch size: actual_seq_lengths_query is None, actual_seq_lengths_key is None, batch_size is 0 !");
+        return false;
+    }
+    if (actSeqLenKeySize != 0 && actSeqLenQSize != 0 && actSeqLenQSize != actSeqLenKeySize) {
         KERNEL_LOG_ERROR("actual_seq_lengths_query size: %u must equal to actual_seq_lengths_key size: %u !", actSeqLenQSize, actSeqLenKeySize);
         return false;
-    } else if (layoutQuery_ == "TND" && actSeqLenQSize != batchSize_) {
-        KERNEL_LOG_ERROR("actual_seq_lengths_query size: %u must equal to batch_size: %u !", actSeqLenQSize, batchSize_);
+    }
+    if (layoutQuery_ == "TND" && batchSize_ != 0) {
+        KERNEL_LOG_ERROR("when actual_seq_lengths_query is TND, batch_size must be 0 !");
         return false;
-    } else if (layoutKey_ == "TND" && actSeqLenKeySize != batchSize_) {
-        KERNEL_LOG_ERROR("actual_seq_lengths_key size: %u must equal to batch_size: %u !", actSeqLenKeySize, batchSize_);
+    }
+    if (layoutKey_ == "TND" && batchSize_ != 0) {
+        KERNEL_LOG_ERROR("when actual_seq_lengths_key is TND, batch_size must be 0 !");
         return false;
     }
 
@@ -205,6 +211,14 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
         auto shape = actSeqLenQ_->GetTensorShape();
         const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
         if (s1Ptr[0] == 0 && layoutQuery_ == "TND") {
+            batchSize_ = shape->GetDimSize(0) - 1;
+        } else {
+            batchSize_ = shape->GetDimSize(0);
+        }
+    } else if(actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
+        auto shape = actSeqLenKey_->GetTensorShape();
+        const int32_t *s1Ptr = (int32_t*)actSeqLenKey_->GetData();
+        if (s1Ptr[0] == 0 && layoutKey_ == "TND") {
             batchSize_ = shape->GetDimSize(0) - 1;
         } else {
             batchSize_ = shape->GetDimSize(0);
