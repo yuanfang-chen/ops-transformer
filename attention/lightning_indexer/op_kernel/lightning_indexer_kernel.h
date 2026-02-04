@@ -50,6 +50,46 @@ struct TempLoopInfo {
     uint32_t s2BasicSizeTail = 0U; // S2方向循环的尾基本块大小
 };
 
+// template<typename W_T, typename Q_T>
+// struct LightningIndexerTypeTraits
+// {
+//     using weightsType = W_T;
+// };
+
+// template<typename Q_T>
+// struct LightningIndexerTypeTraits<float, Q_T>
+// {
+//     using weightsType = float;
+// };
+
+// template<>
+// struct LightningIndexerTypeTraits<half, Q_T>
+// {
+//     using weightsType = Q_T;
+// };
+
+// template<>
+// struct LightningIndexerTypeTraits<bfloat16_t, Q_T>
+// {
+//     using weightsType = Q_T;
+// };
+
+
+// 主模板：Q_T必选，W_T可选（默认void），无论W_T传什么，默认weightsType=Q_T
+template<typename Q_T, typename W_T = void>
+struct LightningIndexerTypeTraits
+{
+    using weightsType = Q_T;   // 默认：weightsType绑定Q_T
+};
+
+// 偏特化1：固定第二个参数W_T=float，Q_T保留泛型
+template<typename Q_T>
+struct LightningIndexerTypeTraits<Q_T, float>
+{
+    using weightsType = float;  // W_T=float时，强制weightsType为float
+};
+
+
 template <typename LIT>
 class LIPreload {
 public:
@@ -61,12 +101,17 @@ public:
     __aicore__ inline void Process();
 
     // =================================类型定义区=================================
+    static constexpr bool DT_W_FLAG = LIT::weightsTypeFlag;
     using Q_T = typename LIT::queryType;
     using K_T = typename LIT::keyType;
     using OUT_T = typename LIT::outputType;
     static constexpr bool PAGE_ATTENTION = LIT::pageAttention;
     static constexpr LI_LAYOUT LAYOUT_T = LIT::layout;
     static constexpr LI_LAYOUT K_LAYOUT_T = LIT::keyLayout;
+    string weights = (DT_W_FLAG) ? float : void;
+    // 编译期条件选择模板第二个参数的类型，直接声明W_T 
+    // 第一个模板参数：固定为Q_T；第二个模板参数：编译期选float/void
+    using W_T = typename LightningIndexerTypeTraits<Q_T, typename std::conditional<DT_W_FLAG, float, void>>::weightsType;
 
     using MM1_OUT_T = float;
 
