@@ -147,7 +147,7 @@ void SparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(uint32_t &bSize)
 {
     // 1. 如果seqUsedQ_ 传了，使用seqUsedQ_获取BatchSize
     if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
-        if (seqUsedQ_->GetTensorShape() == nullptr) {
+        if (seqUsedQ_->GetTensorShape() != nullptr) {
             bSize = seqUsedQ_->GetTensorShape()->GetDimSize(0);
             return;
         }
@@ -156,8 +156,8 @@ void SparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize(uint32_t &bSize)
     if (layoutQuery_ == "TND") {
         // 如果是 TND，尝试使用 actSeqLenQ_获取BatchSize
         if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
-            if (actSeqLenQ_->GetTensorShape() == nullptr) {
-                bSize = actSeqLenQ_->GetTensorShape()->GetDimSize(0);
+            if (actSeqLenQ_->GetTensorShape() != nullptr) {
+                bSize = actSeqLenQ_->GetTensorShape()->GetDimSize(0) - 1U;
                 return;
             }
         }
@@ -170,7 +170,7 @@ void SparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(uint32_t &bSize)
 {
     // 1. 如果 seqUsedKv_ 传了，直接使用
     if (seqUsedKv_ != nullptr && seqUsedKv_->GetData() != nullptr) {
-        if (seqUsedKv_->GetTensorShape() == nullptr) {
+        if (seqUsedKv_->GetTensorShape() != nullptr) {
             bSize = seqUsedKv_->GetTensorShape()->GetDimSize(0);
             return;
         }
@@ -179,8 +179,8 @@ void SparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize(uint32_t &bSize)
     if (layoutKv_ == "TND") {
         // 如果是 TND，尝试使用 actSeqLenOriKv_
         if (actSeqLenOriKv_ != nullptr && actSeqLenOriKv_->GetData() != nullptr) {
-            if (actSeqLenOriKv_->GetTensorShape() == nullptr) {
-                bSize = actSeqLenOriKv_->GetTensorShape()->GetDimSize(0);
+            if (actSeqLenOriKv_->GetTensorShape() != nullptr) {
+                bSize = actSeqLenOriKv_->GetTensorShape()->GetDimSize(0) - 1U;
                 return;
             }
         }
@@ -194,9 +194,17 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
     uint32_t kvBatchSize = 0;
     GetQueryBatchSize(queryBatchSize);
     GetKvBatchSize(kvBatchSize);
-    if (queryBatchSize != kvBatchSize) {
-        KERNEL_LOG_ERROR("query batch size is not consist with kv batch size");
-        return false;
+    if (layoutQuery_ == "TND") {
+        if (queryBatchSize != kvBatchSize) {
+            KERNEL_LOG_ERROR("For TND, the dim of q tensor should consist with kv tensor");
+            return false;
+        }
+    }
+    if (layoutQuery_ == "BSND") {
+        if (batchSize_ != queryBatchSize || queryBatchSize != kvBatchSize || batchSize_ != kvBatchSize) {
+            KERNEL_LOG_ERROR("For BSND, batch_size should consist with the dim of q tensor or kv tensor");
+            return false;
+        }
     }
     return true;
 }

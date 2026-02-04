@@ -168,13 +168,13 @@
     <tr>
       <td>layout_q</td>
       <td>可选属性</td>
-      <td>用于标识输入q的数据排布格式，输入仅支持传入"TND"。</td>
+      <td>用于标识输入q的数据排布格式。</td>
       <td>STRING</td>
     </tr>
     <tr>
       <td>layout_kv</td>
       <td>可选属性</td>
-      <td>用于标识输入ori_kv和cmp_kv的数据排布格式，输入仅支持传入"PA_ND"。</td>
+      <td>用于标识输入ori_kv和cmp_kv的数据排布格式。</td>
       <td>STRING</td>
       <td>-</td>
     </tr>
