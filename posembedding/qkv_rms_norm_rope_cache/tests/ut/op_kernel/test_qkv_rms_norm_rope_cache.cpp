@@ -20,10 +20,9 @@
 #include <cstdint>
 #include "gtest/gtest.h"
 #include "tikicpulib.h"
-#include "qkv_rms_norm_rope_cache_tiling_def.h"
 #include "data_utils.h"
-
 #include <cstdint>
+#include "test_qkv_rms_norm_rope_cache_tiling.h"
 
 #ifndef DTYPE_QKV_fp16
 #define DTYPE_QKV_fp16 half

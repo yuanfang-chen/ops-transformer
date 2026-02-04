@@ -24,40 +24,10 @@
 
 #pragma pack(1)
 
-struct QkvRmsNormRopeCacheTilingData {
-    int64_t batchSize = 72;
-    int64_t seqLength = 2;
-    int64_t numHead = 18;
-    int64_t qkvDim = 128;
-    int64_t ropeRange = 128;
-    int64_t numHeadQ = 16;
-    int64_t numHeadK = 1;
-    int64_t numHeadV = 1;
-    int64_t blockNum = 72;
-    int64_t blockSize = 128;
-    float epsilon = 1e-6;
-    int64_t blockFactor = 1;
-    int64_t blockFactorQ = 1;
-    int64_t blockFactorK = 1;
-    int64_t blockFactorV = 1;
-    int64_t blockDim = 1;
-    int64_t blockDimQ = 1;
-    int64_t blockDimK = 1;
-    int64_t blockDimV = 1;
-    int64_t ubFactor = 1;
-    int64_t ubFactorQ = 1;
-    int64_t ubFactorK = 1;
-    int64_t ubFactorV = 1;
-    float reciprocal = 1.0f / 512.0f;
-    int64_t isOutputQkv = false;
-    int64_t isQQuant = 1;
-    int64_t isKQuant = 1;
-    int64_t isVQuant = 1;
-};
-
 #define DTYPE_QKV half
 #define DTYPE_K_CACHE int8_t
 #define DTYPE_V_CACHE int8_t
+
 #pragma pack()
 
 #ifdef __NPU_TILING__
