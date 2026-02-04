@@ -129,7 +129,6 @@ if (BUILD_OPEN_PROJECT)
             error_manager
             platform
             -Wl,--as-needed
-            acl_rt
             c_sec
     )
     set_target_properties(cust_proto PROPERTIES OUTPUT_NAME
@@ -176,6 +175,7 @@ if (BUILD_OPEN_PROJECT)
             -Wl,--whole-archive
             tiling_api
             -Wl,--no-whole-archive
+            acl_rt
             c_sec
     )
     set_target_properties(cust_opmaster PROPERTIES OUTPUT_NAME
