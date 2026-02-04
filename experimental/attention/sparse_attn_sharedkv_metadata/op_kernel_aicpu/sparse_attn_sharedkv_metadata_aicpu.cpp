@@ -212,17 +212,17 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
 bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
     // 压缩率校验
     if (hasCmpKv_) {
-        if (cmpRatio_ <= 0) {
+        if (cmpRatio_ <= 1) {
             KERNEL_LOG_ERROR("When cmp_kv is enabled, cmpRatio_ must be assigned!");
             return false;
         }
         // 校验 2 的幂次方: 1, 2, 4, ..., 128
         bool isPowTwo = (cmpRatio_ > 0) && ((cmpRatio_ & (cmpRatio_ - 1)) == 0);
         if (cmpRatio_ < 1 || cmpRatio_ > 128 || !isPowTwo) {
-            KERNEL_LOG_ERROR("Compression ratio %u invalid! Must be power of 2 in [1, 128].", cmpRatio_);
+            KERNEL_LOG_ERROR("Compression ratio %u invalid! Must be 4 or 128!", cmpRatio_);
             return false;
         }
-    } else if (cmpRatio_ > 0) {
+    } else if (cmpRatio_ > 1) {
         KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpRatio_ should be -1!");
         return false;
     }
