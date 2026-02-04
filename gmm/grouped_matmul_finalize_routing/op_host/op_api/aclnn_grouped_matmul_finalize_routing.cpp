@@ -240,7 +240,7 @@ static inline bool CheckDimRange(const GroupedMatmulParams &params)
     OP_CHECK_MIN_DIM(params.x1, MIN_DIM_NUM_ND, return false);
     OP_CHECK_MIN_DIM(params.out, MIN_DIM_NUM_ND, return false);
 
-    if (CheckType(params.x2->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
+    if (CheckType(params.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX)) {
         OP_CHECK_WRONG_DIMENSION(params.scale, MX_SCALE_DIM, return false);
         if (params.bias != nullptr) {
             OP_CHECK_WRONG_DIMENSION(params.bias, TWO_DIM_NUM, return false);
@@ -257,7 +257,7 @@ static inline bool CheckDimRange(const GroupedMatmulParams &params)
         OP_CHECK_WRONG_DIMENSION(params.scale, SCALE_DIM, return false);
     }
 
-    if (CheckType(params.x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
+    if (CheckType(params.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX)) {
         OP_CHECK_WRONG_DIMENSION(params.pertokenScaleOptional, MX_PERTOKEN_SCALE_DIM, return false);
     } else if (params.pertokenScaleOptional != nullptr) {
         OP_CHECK_WRONG_DIMENSION(params.pertokenScaleOptional, 1, return false);
@@ -799,7 +799,7 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     auto ret = WeightNZCaseProcess(x2, transposeX2, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    if (scale != nullptr && CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
+    if (scale != nullptr && CheckType(x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX)) {
         bool transposescale = false;
         ret = WeightNZCaseProcessForMXScale(scale, transposescale, executor);
         CHECK_RET(transposeX2 == transposescale, ret);
@@ -1349,8 +1349,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
             return ACLNN_ERR_PARAM_INVALID;
         }
     }
-    bool isMXValid = CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST) &&
-                     CheckType(tmpWeightV3->GetDataType(), MX_IN_TYPE_SUPPORT_LIST);
+    bool isMXValid = CheckType(x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX) &&
+                     CheckType(tmpWeightV3->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX);
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 && !isMXValid) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "aclnnGroupedMatmulFinalizeRoutingV3 weightNd: Invalid dtype combination."
