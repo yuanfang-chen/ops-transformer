@@ -1,0 +1,122 @@
+`[
+    {
+        "op": "MatmulPRelu",
+        "input_desc": [
+            {
+                "name": "x",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            },
+            {
+                "name": "y",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            }
+        ],
+        "output_desc": [
+            {
+                "name": "z",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float32",
+                    "float32"
+                ]
+            }
+        ],
+        "attr": [                                                                   
+            {
+                "name": "alpha",
+                "param_type": "required",
+                "type": "float"
+            }
+        ]
+    }
+]
+
+`
+
+`// 为NPU设备注册前向实现
+at::Tensor matmul_prelu_impl_npu(
+        const at::Tensor& a, const at::Tensor& b, double alpha) {
+    // 创建输出内存
+    //c10::SmallVector<int64_t, 2> output_size{a.size(0), b.size(1)};
+    //auto out = at_npu::native::OpPreparation::apply_tensor_without_format(output_size, a.options());
+    auto out = at::empty({a.size(0), b.size(1)}, a.options().dtype(c10::kFloat));
+    // 调用aclnn接口计算
+    EXEC_NPU_CMD(aclnnMatmulPRelu, a, b, out, alpha);
+    return out;
+}
+
+
+// 为NPU设备注册前反向实现
+// NPU设备在pytorch 2.1及以上版本使用的设备名称是PrivateUse1，在2.1以下版本用的是XLA，如果是2.1以下版本PrivateUse1需要改成XLA
+TORCH_LIBRARY_IMPL(myops, PrivateUse1, m) {
+    m.impl("matmul_prelu", &matmul_prelu_impl_npu);
+}`
+
+`// 在myops命名空间里注册add_custom schema，新增自定义aten ir需要在此注册
+TORCH_LIBRARY(myops, m) {
+    m.def("matmul_prelu(Tensor a, Tensor b, float alpha) -> Tensor");
+}
+
+// 通过pybind将c++接口和python接口绑定
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    m.def("matmul_prelu",  &matmul_prelu_impl_npu,  "MatmulPRelu");
+}`
+
+`def matmul_prelu(a, b, alpha):
+    return custom_ops_lib.matmul_prelu(a, b, alpha)`
+    
+`class TestMatmulPRelu(TestCase):
+
+    @staticmethod
+    def torch_matmul_prelu(a, b, alpha):
+        c = torch.matmul(a.to(torch.float32), b.to(torch.float32))
+        print("c:\n", c)
+        return torch.where(c >= 0, c, c * alpha)
+
+
+    def execute_matmul_prelu_case(self, m, k, n, alpha, dtype):
+        a = torch.randn(m, k).to(dtype)
+        b = torch.randn(k, n).to(dtype)
+
+        npu_out = custom_ops.matmul_prelu(a.npu(), b.npu(), alpha)
+        
+        # calculate on cpu
+        cpu_out = self.torch_matmul_prelu(a, b, alpha)
+        print("a:\n", a)
+        print("b:\n", b)
+        print("cpu_out:\n", cpu_out)
+        print("npu_out:\n", npu_out)
+        print("cpu_out dtype:\n", cpu_out.dtype)
+        print("npu_out dtype:\n", npu_out.dtype)
+        # compare result
+        self.assertRtolEqual(npu_out, cpu_out)
+
+    def test_0(self):
+        self.execute_matmul_prelu_case(1024, 256, 640, 0.5, torch.float16)
+
+    def test_1(self):
+        self.execute_matmul_prelu_case(2048, 512, 128, 0.2, torch.float32)
+
+if __name__ == "__main__":
+    run_tests()
+`
