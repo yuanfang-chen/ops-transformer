@@ -1814,7 +1814,7 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
     OP_TILING_CHECK(MoeDistributeDispatchA2CheckAttrAndSetTiling<ConstChosen>(context, info, isLayered) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 CheckAttrAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(MoeDistributeDispatchA2GetPlatformInfoAndSetTiling<ConstChosen>(context, info) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(MoeDistributeDispatchA2GetPlatformInfoAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 GetPlatformInfoAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
 
