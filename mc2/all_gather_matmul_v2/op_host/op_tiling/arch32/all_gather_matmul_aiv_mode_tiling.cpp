@@ -18,7 +18,6 @@
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "register/op_def_registry.h"
-#include "tiling/mc2_tiling_utils.h"
 #include "mc2_log.h"
 #include "tiling_func.h"
 #include "all_gather_matmul_tiling_v2.h"
@@ -27,6 +26,7 @@
 
 using namespace AscendC;
 using namespace ge;
+using namespace Mc2Tiling;
 
 namespace {
 const char *K_INNER_DEBUG = "AllGatherMatmulAIVMode Tiling Debug";
