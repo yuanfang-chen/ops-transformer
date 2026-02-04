@@ -1093,7 +1093,8 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
  	         int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
  	 
  	         OP_CHECK_IF((sinkDataType != qDataType),
- 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of Q and learnable sink must be consistent"),
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of Q(%s) and learnable sink(%s) must be consistent", 
+                 FusedDataTypeToSerialString(qDataType).c_str(), FusedDataTypeToSerialString(sinkDataType).c_str(),),
  	                 return ge::GRAPH_FAILED);
  	         OP_CHECK_IF(((sinkDataType != ge::DT_FLOAT16) && (sinkDataType != ge::DT_BF16)),
  	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of learnable sink must be FP16 or BF16"),
@@ -1101,10 +1102,6 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
  	         OP_CHECK_IF((tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3), 
  	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
  	             "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
- 	                 return ge::GRAPH_FAILED);
- 	         OP_CHECK_IF((sparseMode == 4), 
- 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
- 	             "When learnable sink is enabled, sparseMode shall not be 4"),
  	                 return ge::GRAPH_FAILED);
  	 
  	         return ge::GRAPH_SUCCESS;
