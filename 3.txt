@@ -1,0 +1,269 @@
+
+`[
+    {
+        "op": "RecurrentGatedDeltaRule",
+        "input_desc": [
+            {
+                "name": "query",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            },
+            {
+                "name": "key",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            },
+            {
+                "name": "value",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            },
+            {
+                "name": "g",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            },
+            {
+                "name": "beta",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            },
+            {
+                "name": "initial_state",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float",
+                    "float"
+                ]
+            }
+        ],
+        "output_desc": [
+            {
+                "name": "o",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float16",
+                    "bfloat16"
+                ]
+            },
+            {
+                "name": "final_state",
+                "param_type": "required",
+                "format": [
+                    "ND",
+                    "ND"
+                ],
+                "type": [
+                    "float",
+                    "float"
+                ]
+            }
+        ],
+      "attr": [
+        {
+          "name": "scale",
+          "param_type": "required",
+          "type": "float"
+        }
+      ]
+    }
+]
+`
+
+`// 为NPU设备注册前向实现
+std::tuple<at::Tensor, at::Tensor> recurrent_gated_delta_rule_impl_npu(
+        const at::Tensor& query, const at::Tensor& key, const at::Tensor& value, const at::Tensor& g,
+        const at::Tensor& beta, const at::Tensor& initialState, double scale) {
+    // 创建输出内存
+    at::Tensor attentionOut = at::empty_like(value);
+    at::Tensor finalState = at::empty_like(initialState);
+
+    // 调用aclnn接口计算
+    EXEC_NPU_CMD(aclnnRecurrentGatedDeltaRule, query, key, value, g, beta, initialState,
+                 attentionOut, finalState, scale);
+    return { attentionOut, finalState };
+}
+
+
+// 为NPU设备注册前反向实现
+// NPU设备在pytorch 2.1及以上版本使用的设备名称是PrivateUse1，在2.1以下版本用的是XLA，如果是2.1以下版本PrivateUse1需要改成XLA
+TORCH_LIBRARY_IMPL(myops, PrivateUse1, m) {
+    m.impl("recurrent_gated_delta_rule", &recurrent_gated_delta_rule_impl_npu);
+}`
+
+`std::tuple<at::Tensor, at::Tensor> recurrent_gated_delta_rule_impl_npu(
+        const at::Tensor& query, const at::Tensor& key, const at::Tensor& value, const at::Tensor& g,
+        const at::Tensor& beta, const at::Tensor &initialState, double scale);`
+        
+        
+        `// 在myops命名空间里注册recurrent_gated_delta_rule schema，新增自定义aten ir需要在此注册
+TORCH_LIBRARY(myops, m) {
+    m.def("recurrent_gated_delta_rule(Tensor query, Tensor key, Tensor value, Tensor g, Tensor beta,"
+          "Tensor initialState, float scale) -> (Tensor, Tensor)");
+}
+
+// 通过pybind将c++接口和python接口绑定
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    m.def("recurrent_gated_delta_rule",  &recurrent_gated_delta_rule_impl_npu,  "RecurrentGatedDeltaRule");
+}
+`
+`def recurrent_gated_delta_rule(query, key, value, g, beta, initial_state):
+    """
+    Perform linear attention decoding.
+
+    Args:
+        query: Query tensor of shape [batch, heads, 1, dim]
+        key: Key tensor of shape [batch, heads, 1, dim]
+        value: Value tensor of shape [batch, heads, 1, dim]
+
+    Returns:
+        output:
+    """
+    scale = 1 / (query.shape[-1] ** 0.5)
+    return custom_ops_lib.recurrent_gated_delta_rule(query, key, value, g, beta, initial_state, scale)`
+    
+    
+    `class TestRecurrentGatedDeltaRule(TestCase):
+
+    @staticmethod
+    def torch_recurrent_gated_delta_rule(query, key, value, g, beta, initial_state):
+        initial_dtype = query.dtype
+        query, key, value, beta, g = [
+            x.transpose(1, 2).contiguous().to(torch.float32).cpu() for x in (query, key, value, beta, g)
+        ]
+
+        batch_size, num_k_head, sequence_length, k_head_dim = key.shape
+        v_head_dim = value.shape[-1]
+        scale = 1 / (query.shape[-1] ** 0.5)
+        query = query * scale
+
+        num_v_head = value.shape[1]
+        core_attn_out = torch.zeros(batch_size, num_v_head, sequence_length, v_head_dim).to(value)
+        last_recurrent_state = (
+            torch.zeros(batch_size, num_v_head, k_head_dim, v_head_dim).to(value)
+            if initial_state is None
+            else initial_state.to(value)
+        )
+
+        for i in range(sequence_length):
+            q_t = query[:, :, i]
+            k_t = key[:, :, i]
+            v_t = value[:, :, i]
+            g_t = g[:, :, i].exp().unsqueeze(-1).unsqueeze(-1)
+            beta_t = beta[:, :, i].unsqueeze(-1)
+
+            last_recurrent_state = last_recurrent_state * g_t
+            if num_k_head != 1 and num_k_head != num_v_head:
+                vk_factor = num_v_head // num_k_head   # v head should always be a multiple of k head
+                k_t = k_t.repeat(1, 1, vk_factor).reshape(batch_size, num_v_head, -1)
+                q_t = q_t.repeat(1, 1, vk_factor).reshape(batch_size, num_v_head, -1)
+            kv_mem = (last_recurrent_state * k_t.unsqueeze(-1)).sum(dim=-2)
+            delta = (v_t - kv_mem) * beta_t
+
+            #
+            print(kv_mem)
+            
+            
+            
+            #
+            
+            
+            last_recurrent_state = last_recurrent_state + k_t.unsqueeze(-1) * delta.unsqueeze(-2)
+            core_attn_out[:, :, i] = (last_recurrent_state * q_t.unsqueeze(-1)).sum(dim=-2)
+
+        core_attn_out = core_attn_out.transpose(1, 2).contiguous().to(initial_dtype)
+        return core_attn_out, last_recurrent_state
+
+
+    def execute_recurrent_gated_delta_rule_case(self, batch_size, head_num_qk, head_num_vo, head_dim_qk, head_dim_vo,
+                                                dtype):
+        query = torch.randn(batch_size, 1, head_num_qk, head_dim_qk).to(dtype)
+        key = torch.randn(batch_size, 1, head_num_qk, head_dim_qk).to(dtype)
+        value = torch.randn(batch_size, 1, head_num_vo, head_dim_vo).to(dtype)
+        g = F.logsigmoid(torch.rand(batch_size, 1, head_num_vo)).to(dtype)
+        beta = torch.rand(batch_size, 1, head_num_vo).sigmoid().to(dtype)
+        h0 = torch.randn(batch_size, head_num_vo, head_dim_qk, head_dim_vo).to(torch.float32)
+        # calculate on npu
+        attention_npu_out, final_state_npu_out = custom_ops.recurrent_gated_delta_rule(
+            query.npu(), key.npu(), value.npu(), g.npu(), beta.npu(), h0.npu())
+        attention_npu_out = attention_npu_out.cpu()
+        final_state_npu_out = final_state_npu_out.cpu()
+        '''
+        ssm_state_indices = torch.arange(0, batch_size)
+        attention_triton_out, final_state_triton_out = fused_recurrent_gated_delta_rule(
+            query.npu(), key.npu(), value.npu(), g.npu(), beta.npu(),
+            initial_state=h0.npu(), ssm_state_indices=ssm_state_indices.npu()
+        )
+        attention_triton_out = attention_triton_out.cpu()
+        final_state_triton_out = final_state_triton_out.cpu()
+        '''
+
+        # calculate on cpu
+        attention_cpu_out, final_state_cpu_out = self.torch_recurrent_gated_delta_rule(
+            query.cpu(), key.cpu(), value.cpu(), g.cpu(), beta.cpu(), h0.cpu())
+
+
+        # compare result
+        print("compare attention result...")
+        self.assertRtolEqual(attention_npu_out, attention_cpu_out)
+        #self.assertRtolEqual(attention_npu_out, attention_triton_out)
+        print("compare kv cache result...")
+        self.assertRtolEqual(final_state_npu_out, final_state_cpu_out)
+        #self.assertRtolEqual(final_state_npu_out, final_state_triton_out)
+
+    def test_single_batch_bf16(self):
+        self.execute_recurrent_gated_delta_rule_case(1, 1, 1, 128, 128, torch.bfloat16)
+
+    def test_single_batch_fp16(self):
+        self.execute_recurrent_gated_delta_rule_case(1, 1, 1, 128, 128, torch.float16)
+
+    #def test_multi_batch(self):
+    #    self.execute_recurrent_gated_delta_rule_case(32, 16, 16, 128, 128, torch.float16)
+
+    #def test_head_num_differ(self):
+        #match qwen3-next
+    #    self.execute_recurrent_gated_delta_rule_case(32, 16, 32, 128, 128, torch.float16)`
+

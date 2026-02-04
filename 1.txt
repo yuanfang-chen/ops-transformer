@@ -1,0 +1,68 @@
+`// 为NPU设备注册前向实现
+at::Tensor add_custom_impl_npu(
+        const at::Tensor& a, const at::Tensor& b) {
+    // 创建输出内存
+    at::Tensor out = at::empty_like(a);
+
+    // 调用aclnn接口计算
+    EXEC_NPU_CMD(aclnnAddCustom, a, b, out);
+    return out;
+}
+
+
+// 为NPU设备注册前反向实现
+// NPU设备在pytorch 2.1及以上版本使用的设备名称是PrivateUse1，在2.1以下版本用的是XLA，如果是2.1以下版本PrivateUse1需要改成XLA
+TORCH_LIBRARY_IMPL(myops, PrivateUse1, m) {
+    m.impl("add_custom", &add_custom_impl_npu);
+}`
+
+`// 在myops命名空间里注册add_custom schema，新增自定义aten ir需要在此注册
+TORCH_LIBRARY(myops, m) {
+    m.def("add_custom(Tensor a, Tensor b) -> Tensor");
+}
+
+// 通过pybind将c++接口和python接口绑定
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    m.def("add_custom",  &add_custom_impl_npu,  "AddCustom");
+}
+`
+
+`class TestAddCustom(TestCase):
+
+    @staticmethod
+    def torch_add_custom(a, b):
+        dtype = a.dtype
+        c = a.cpu().float() + b.cpu().float()
+        return c.to(dtype)
+
+
+    def execute_add_custom_case(self, sz, dtype):
+        a = torch.randn(sz).to(dtype)
+        b = torch.randn(sz).to(dtype)
+
+
+        npu_out = custom_ops.add_custom(a.npu(), b.npu())
+        
+        # calculate on cpu
+        cpu_out = self.torch_add_custom(a, b)
+        print("a:\n", a)
+        print("b:\n", b)
+        print("cpu_out:\n", cpu_out)
+        print("npu_out:\n", npu_out)
+        # compare result
+        self.assertRtolEqual(npu_out, cpu_out)
+
+    def test_0(self):
+        self.execute_add_custom_case(65530, torch.float32)
+
+    def test_1(self):
+        self.execute_add_custom_case(10000, torch.float32)
+
+    def test_2(self):
+        self.execute_add_custom_case(4096*6, torch.float32)
+
+    def test_3(self):
+        self.execute_add_custom_case(17 * 4888, torch.float32)
+        `
+        
+        
