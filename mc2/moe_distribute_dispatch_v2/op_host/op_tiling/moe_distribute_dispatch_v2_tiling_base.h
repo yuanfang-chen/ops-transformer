@@ -42,6 +42,7 @@
 using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
+using namespace DataBase;
 
 namespace DataBase{
     struct TilingConst{
