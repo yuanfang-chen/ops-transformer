@@ -148,7 +148,11 @@ def cpu_compressor(
     new_kv_state = np.matmul(x, wkv.T, dtype=matmul_dtype)
     new_score_state = np.matmul(x, wgate.T, dtype=matmul_dtype)
 
-    B = len(start_pos)
+    if start_pos == None:
+        B = 0
+    else:
+        B = len(start_pos)
+
     head_dim = wkv.shape[0] // coff
     bs_combine_flag = False
     if cu_seqlens is not None:
@@ -164,12 +168,15 @@ def cpu_compressor(
         cmp_kv = np.zeros(shape=(min(x.shape[0], x.shape[0] // cmp_ratio + B), head_dim), dtype=matmul_dtype)
 
     cmp_kv_mask = np.zeros_like(cmp_kv, dtype=bool)
+
     if bs_combine_flag == False:
         if x.shape[1] == 0 :
-            return cmp_kv, cmp_kv_mask
+            cmp_kv_torch = torch.tensor(cmp_kv).to(x_dtype)
+            return cmp_kv_torch, cmp_kv_mask
     else:
         if x.shape[0] == 0 :
-            return cmp_kv, cmp_kv_mask
+            cmp_kv_torch = torch.tensor(cmp_kv).to(x_dtype)
+            return cmp_kv_torch, cmp_kv_mask
 
     out_cu_seqlen = [0] * (B + 1)
     out_seqused = [0] * B
@@ -283,7 +290,7 @@ def cpu_compressor(
                 # inplace rotary_emb
                 
                 if bs_combine_flag == False:
-                    sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[b_idx, batch_out_sc_id, :], rope_cos[b_idx, batch_out_sc_id, :, :], rotary_mode)
+                    sc_cmp_kv[:, -rope_head_dim:] = rotary_emb(sc_cmp_kv[:, -rope_head_dim:], rope_sin[b_idx, batch_out_sc_id, :], rope_cos[b_idx, batch_out_sc_id, :], rotary_mode)
                     cmp_kv[b_idx, batch_out_sc_id, :] = sc_cmp_kv
                     cmp_kv_mask[b_idx, batch_out_sc_id, :] = 1
                 else:

@@ -171,6 +171,131 @@ def compressor_output_single(data_case):
     norm_weight_datarange = [float(x.strip()) for x in norm_weight_datarange.split(',')]
     kv_state_datarange = [float(x.strip()) for x in kv_state_datarange.split(',')]
     score_state_datarange = [float(x.strip()) for x in score_state_datarange.split(',')]
+
+    if Seq_len == 0 or  batch_size == 0:
+        if Seq_len == 0:
+            if layout_x == "TH":
+                T = batch_size * Seq_len
+                cu_seqlens = torch.zeros((batch_size+1), dtype=torch.int32)
+            else:
+                cu_seqlens = None
+
+            seqused = torch.zeros((batch_size), dtype=torch.int32)
+            if start_pos is not None:
+                start_pos = torch.tensor(start_pos).to(torch.int32)
+            else:
+                start_pos = [0] * batch_size
+            S_max = max(start_pos) + Seq_len
+            block_table = torch.zeros(size=(batch_size, 0), dtype=torch.int32)
+            block_num = 0
+            for i in range(batch_size):
+                block_num += math.ceil((int(start_pos[i])) / block_size)
+            shuffled_indices = torch.randperm(block_num)
+            index = torch.arange(0, block_num, 1, dtype=torch.int32)
+            index = index[shuffled_indices]
+            for i in range(batch_size):
+                block_table[i] = index[i]
+
+        if batch_size == 0:
+            if layout_x == "TH":
+                if cu_seqlens is not None:
+                    cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
+                else:
+                    T = batch_size * Seq_len
+                    cu_seqlens = torch.zeros((batch_size+1), dtype=torch.int32)
+            else:
+                cu_seqlens = None
+            start_pos = None
+            seqused = None
+            S_max = Seq_len
+            max_block_num_per_batch = (S_max + cmp_ratio + block_size - 1) // block_size
+            block_table = torch.zeros(size=(batch_size, max_block_num_per_batch), dtype=torch.int32)
+            block_num = 0
+            shuffled_indices = torch.randperm(max_block_num_per_batch)
+            index = torch.arange(0, max_block_num_per_batch, 1, dtype=torch.int32)
+            index = index[shuffled_indices]
+            for i in range(batch_size):
+                block_table[i] = index[i]
+
+        kv_state = torch.tensor(np.random.uniform(kv_state_datarange[0], kv_state_datarange[1], (block_num, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(score_state_datarange[0], score_state_datarange[1], (block_num, block_size, coff * head_dim))).to(torch.float32)
+        
+        # other input
+        if layout_x == "TH":
+            x_shape = (0, hidden_size)
+            rope_sin_shape = (min(x_shape[0], x_shape[0] // cmp_ratio + batch_size), rope_head_dim)
+            rope_cos_shape = rope_sin_shape
+        else:
+            x_shape = (batch_size, Seq_len, hidden_size)
+            rope_sin_shape = (batch_size, (Seq_len + cmp_ratio - 1) // cmp_ratio, rope_head_dim)
+            rope_cos_shape = rope_sin_shape
+
+        x = torch.tensor(np.random.uniform(x_datarange[0], x_datarange[1], x_shape)).to(data_type)
+        wkv = torch.tensor(np.random.uniform(wkv_datarange[0], wkv_datarange[1], (coff * head_dim, hidden_size))).to(data_type)
+        wgate = torch.tensor(np.random.uniform(wgate_datarange[0], wgate_datarange[1], (coff * head_dim, hidden_size))).to(data_type)
+        ape = torch.tensor(np.random.uniform(ape_datarange[0], ape_datarange[1], (cmp_ratio, coff * head_dim))).to(torch.float32)
+        norm_weight = torch.tensor(np.random.uniform(norm_weight_datarange[0], norm_weight_datarange[1], (head_dim))).to(data_type)
+        rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(data_type)
+        rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type)
+        ### ======================== gen input data finish =============================
+        ### ======================== execute cpu start =================================
+        cpu_kv_state = kv_state.clone()
+        cpu_score_state = score_state.clone()
+
+        test_operator = Generalized_operator()
+        cpu_kv_state = kv_state.clone()
+        cpu_score_state = score_state.clone()
+
+        test_operator = Generalized_operator()
+        cpu_result, kv_mask_result = test_operator.forward( x,
+                                            wkv,
+                                            wgate,
+                                            cpu_kv_state,
+                                            cpu_score_state,
+                                            ape,
+                                            norm_weight, 
+                                            rope_sin,
+                                            rope_cos,
+                                            block_table = block_table,
+                                            cu_seqlens = cu_seqlens,
+                                            seqused = seqused,
+                                            start_pos = start_pos,
+                                            rope_head_dim = rope_head_dim,
+                                            cmp_ratio = cmp_ratio,
+                                            coff = coff,
+                                            norm_eps = norm_eps,
+                                            rotary_mode = rotary_mode)
+        update_kv = cpu_kv_state != kv_state
+        update_score = cpu_score_state != score_state
+        output_tensors = {
+            "params":params,
+            "cpu_result": cpu_result,
+            "kv_mask_result": kv_mask_result,
+            "update_kv":update_kv,
+            "update_score":update_score,
+            "cpu_kv_state":cpu_kv_state,
+            "cpu_score_state":cpu_score_state,
+            "x":x,
+            "wkv":wkv,
+            "wgate":wgate,
+            "kv_state":kv_state,
+            "score_state":score_state,
+            "ape":ape,
+            "norm_weight":norm_weight, 
+            "rope_sin":rope_sin,
+            "rope_cos":rope_cos,
+            "block_table":block_table,
+            "cu_seqlens":cu_seqlens,
+            "seqused":seqused,
+            "start_pos":start_pos,
+            "rope_head_dim":rope_head_dim,
+            "cmp_ratio":cmp_ratio,
+            "coff":coff,
+            "norm_eps":norm_eps,
+            "rotary_mode":rotary_mode
+        }
+        return  casename, output_tensors
+
     S_max = 0
     if layout_x == "TH":
         if cu_seqlens is not None:
@@ -202,7 +327,6 @@ def compressor_output_single(data_case):
 
         if seqused is not None:
             seqused = torch.tensor(seqused).to(torch.int32)
-
 
     ### ======================== check input params start ========================
     print(f"params = {params}")

@@ -132,7 +132,7 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if real_data.size != data_compe.size:
         print_log(
             'Error,the size of npu output[%s] and benchmark[%s] is not equal.' % (real_data.size, data_compe.size))
-        return result, 0.0, max_error
+        return 0.0, result
     overflows_count = data_compe[np.isinf(data_compe)].size + data_compe[np.isnan(data_compe)].size
 
 
