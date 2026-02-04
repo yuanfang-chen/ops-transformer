@@ -1972,7 +1972,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxFlashV2C
             softmaxMaxUb[softmaxOutOffset], mmResUb, softmaxExpUb[softmaxOutOffset],
             inSumTensor, inMaxTensor, softmaxTmpUb, newTiling, srcShape);
     #endif
- 
+
     if constexpr (QUANT) {
         PipeBarrier<PIPE_V>();
     #ifdef IFA_SOFTMAX_WITHOUT_BRC
@@ -2774,7 +2774,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::DealAntiqBmm2ResBaseBlock(const ExtraI
 
 template <typename IFAT>
 __aicore__ inline void
-IncreFlashAttentionAttenPreloadMla<IFAT>::DealQuantBmm2ResBaseBlock(const ExtraInfoMla &info, uint32_t startRow, 
+IncreFlashAttentionAttenPreloadMla<IFAT>::DealQuantBmm2ResBaseBlock(const ExtraInfoMla &info, uint32_t startRow,
                                                                     uint32_t dealRowCount, uint32_t columnCount,
                                                                     uint32_t actualColumnCount)
 {
@@ -2950,7 +2950,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::DealBmm2ResBaseBlock(const ExtraInfoMl
         DataCopy(tmpBmm2ResUb, mm2ResGm[srcGmOffset + batchBase], vec2ComputeSize);
         inputQue1.EnQue(tmpBmm2ResUb);
         inputQue1.DeQue<MM2_OUT_T>();
-        
+
         DataCopy(bmm2ResUb, tmpBmm2ResUb, vec2ComputeSize);
         inputQue1.FreeTensor(tmpBmm2ResUb);
 
