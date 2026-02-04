@@ -18,6 +18,19 @@
 
 namespace MC2KernelTemplate {
 using namespace AscendC;
+
+struct MC2PertokenDQuantContext {
+    GM_ADDR quantInputAddr;
+    GM_ADDR quantOutputAddr;
+    GM_ADDR quantOutputScaleAddr;
+    uint64_t rowNum;
+    uint64_t colNum;
+    uint64_t calBuffSize;
+    uint64_t quantInputAddrOffset;
+    uint64_t quantOutputAddrOffset;
+    uint64_t quantOutputScaleAddrOffset;
+};
+
 template <typename quantInputDataType, typename quantOutputDataType>
 class Fp8DynamicQuantPertoken {
 protected:

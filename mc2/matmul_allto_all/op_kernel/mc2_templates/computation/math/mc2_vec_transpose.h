@@ -18,6 +18,19 @@
 
 namespace MC2KernelTemplate{
 using namespace AscendC;
+
+struct MC2TransposeContext {
+    GM_ADDR transposeSrcAddr;
+    GM_ADDR transposeDstAddr;
+    uint64_t transposeSrcOffset;
+    uint64_t nextSrcBlockOffset;
+    uint64_t nextDstBlockOffset;
+    uint64_t transposeDstOffset;
+    uint32_t rankCnt;
+    uint64_t innerAxis;
+    uint64_t transM;
+};
+
 template <typename tranposeDataType>
 class MC2VecTranspose {
 public:

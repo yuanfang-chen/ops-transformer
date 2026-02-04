@@ -20,6 +20,17 @@
 
 namespace MC2KernelTemplate {
 using namespace AscendC;
+
+struct MC2AlltoAllContext {
+    uint32_t taskCnt;
+    GM_ADDR sendBuffer;
+    GM_ADDR recvBuffer;
+    uint64_t sendOffset;
+    uint64_t recvOffset;
+    uint64_t sendCount;
+    uint64_t strideCount;
+    uint64_t hcclDataType;
+}
 /**
  * ServerType:通信控制方式，ccu/mte/aicpu等
  * SendCnt:每轮发送的次数
