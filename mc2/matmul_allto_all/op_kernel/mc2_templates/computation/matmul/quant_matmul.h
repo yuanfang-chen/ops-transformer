@@ -15,80 +15,70 @@
 
 #ifndef MC2_QUANT_MATMUL_H
 #define MC2_QUANT_MATMUL_H
+#include "matmul_factory.h"
 
 namespace MC2KernelTemplate {
-struct QuantExtraData {
-    uint64_t a_offset;
-    uint64_t b_offset;
-    uint64_t c_offset;
-    uint64_t x1_scale_offset;
+struct KCQuantMMAdditionalData {
     GM_ADDR x1_scale;
     GM_ADDR x2_scale;
     GM_ADDR x2_offset;
+    uint64_t x1_scale_offset;
 };
 
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-class QuantMatmul {
+//非量化场景的相关逻辑实现
+template <typename MMType>
+class KCQuantMMControl {
 protected:
-    __aicore__ inline void Init();
+    MC2MMBaseGmAddrs* baseDataPtr_;
+    KCQuantMMAdditionalData* additionalDataPtr_;
+    MMType* MMImplPtr_;
+    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tilingDataPtr_;
+    AscendC::TPipe* tPipePtr_;
+
 public:
-    __aicore__ inline QuantMatmul(AscendC::TPipe* tPipe): tPipe_(tPipe) {};
-    __aicore__ inline void Process(bool hasNext);
-    __aicore__ inline void Update(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR biasGM, ExtraDataType* extraData, TilingDataType* tilingData);
-    __aicore__ inline void End();
-private:
-    MMKernel mmOp_;
-    BaseGmAddrs baseAddrs_;
-    ExtraDataType extraData_;
-    AscendC::TPipe* tPipe_;
-    TilingDataType* tilingData_;
+    __aicore__ inline void  Init(MC2MMBaseGmAddrs* baseDataPtr, KCQuantMMAdditionalData* additionalDataPtr, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tilingDataPtr, MMType* MMImplPtr, AscendC::TPipe *tPipe);
+    __aicore__ inline void  UpdateAdditionalData();
+    __aicore__ inline void  InitMM();
+    __aicore__ inline void  EndMM();
 };
 
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void QuantMatmul<MMKernel, ExtraDataType, TilingDataType>::Init() 
+template <typename MMType>
+__aicore__ inline void KCQuantMMControl<MMType>::Init(MC2MMBaseGmAddrs *baseDataPtr, KCQuantMMAdditionalData *additionalDataPtr,
+                                                 DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams *tilingDataPtr, MMType *MMImplPtr,
+                                                 AscendC::TPipe *tPipe)
 {
-    tPipe_->Reset();
-    mmOp_.Init(baseAddrs_.aGM, baseAddrs_.bGM, extraData_.x2_scale, extraData_.x2_offset, baseAddrs_.biasGM, extraData_.x1_scale, baseAddrs_.cGM, nullptr, tilingData_, tPipe_);
+    baseDataPtr_ = baseDataPtr;
+    additionalDataPtr_ = additionalDataPtr;
+    tilingDataPtr_ = tilingDataPtr;
+    MMImplPtr_ = MMImplPtr;
+    tPipePtr_ = tPipe;
 }
 
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void QuantMatmul<MMKernel, ExtraDataType, TilingDataType>::Process(bool isFirst){
-    
-    if (!isFirst) {
-        baseAddrs_.aGM = (GM_ADDR)((uint64_t)baseAddrs_.aGM + extraData_.a_offset);
-        baseAddrs_.bGM = (GM_ADDR)((uint64_t)baseAddrs_.bGM + extraData_.b_offset);
-        baseAddrs_.cGM = (GM_ADDR)((uint64_t)baseAddrs_.cGM + extraData_.c_offset);
-        extraData_.x1_scale = (GM_ADDR)((uint64_t)extraData_.x1_scale + extraData_.x1_scale_offset);
-    }
-    Init();
-    mmOp_.Process();
-}
-
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void QuantMatmul<MMKernel, ExtraDataType, TilingDataType>::Update(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR biasGM, ExtraDataType* extraData, TilingDataType* tilingData) 
-{    
-    baseAddrs_.aGM = aGM;
-    baseAddrs_.bGM = bGM;
-    baseAddrs_.cGM = cGM;
-    baseAddrs_.biasGM = biasGM;
-    if (extraData != nullptr) {
-        extraData_.a_offset = extraData->a_offset;
-        extraData_.b_offset = extraData->b_offset;
-        extraData_.c_offset = extraData->c_offset;
-        extraData_.x1_scale_offset = extraData->x1_scale_offset;
-        extraData_.x1_scale = extraData->x1_scale;
-        extraData_.x2_scale = extraData->x2_scale;
-        extraData_.x2_offset = extraData->x2_offset;
-    }
-    if (tilingData != nullptr) {
-        tilingData_ = tilingData;
-    }
-}
-
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void QuantMatmul<MMKernel, ExtraDataType, TilingDataType>::End()
+template <typename MMType>
+__aicore__ inline void KCQuantMMControl<MMType>::UpdateAdditionalData()
 {
+    additionalDataPtr_->x1_scale = additionalDataPtr_->x1_scale + additionalDataPtr_->x1_scale_offset;
 }
+
+template <typename MMType>
+__aicore__ inline void KCQuantMMControl<MMType>::InitMM()
+{
+    tPipePtr_->Reset();
+    MMImplPtr_->Init(baseDataPtr_->aGM, baseDataPtr_->bGM, additionalDataPtr_->x2_scale, additionalDataPtr_->x2_offset, baseDataPtr_->biasGM, additionalDataPtr_->x1_scale, baseDataPtr_->cGM, nullptr, tilingDataPtr_, tPipePtr_);
+}
+
+template <typename MMType>
+__aicore__ inline void KCQuantMMControl<MMType>::EndMM(){}
+
+#ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT
+#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(ComputationType, MMDtypeX1, MMDtypeX2) \
+    using ComputationType = MC2MMFactory<\
+        MC2MMContext<KCQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>,\
+        KCQuantMMControl,\
+        Mc2QuantBatchMatmulV3::Mc2QuantBmmPertokenRegbaseKernel<MMDtypeX1, MMDtypeX2, float, float, float,\
+            DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE, float, Mc2QuantBatchMatmulV3::Mc2QuantBmmAswBlock>\
+        >
+#endif
 };
 #endif
 

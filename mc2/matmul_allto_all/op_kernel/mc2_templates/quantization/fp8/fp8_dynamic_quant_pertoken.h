@@ -18,6 +18,18 @@
 
 namespace MC2KernelTemplate {
 using namespace AscendC;
+
+struct MC2PertokenDQuantContext {
+    GM_ADDR quantInputAddr;
+    GM_ADDR quantOutputAddr;
+    GM_ADDR quantOutputScaleAddr;
+    uint64_t rowNum;
+    uint64_t colNum;
+    uint64_t quantInputAddrOffset;
+    uint64_t quantOutputAddrOffset;
+    uint64_t quantOutputScaleAddrOffset;
+};
+
 template <typename quantInputDataType, typename quantOutputDataType>
 class Fp8DynamicQuantPertoken {
 protected:
@@ -77,11 +89,7 @@ protected:
     }
 
     TPipe *tPipe_;
-
-    GM_ADDR quantInputAddr_;
-    GM_ADDR smoothScaleAddr_;
-    GM_ADDR quantOutputAddr_;
-    GM_ADDR quantOutputScaleAddr_;
+    MC2PertokenDQuantContext context_;
 
     GlobalTensor<quantInputDataType> quantInputGM_;
     GlobalTensor<quantOutputDataType> quantOutputGM_;
@@ -95,13 +103,7 @@ protected:
     TBuf<TPosition::VECCALC> workBuf_;
     TBuf<TPosition::VECCALC> maxValueBuf_;
 
-
-    uint64_t rowNum_ = 0; // 二维Tensor的第一维
-    uint64_t colNum_ = 0; // 二维Tensor的第二维
-
     uint64_t usedCoreAivNum_ = 0; // 使用的aiv核数
-
-    uint64_t calBuffSize_ = 0;      // tiling侧预先计算出的占用的UB空间
     uint64_t rowsThisCore_ = 0;     // 当前核负责的总行数
     uint64_t startRowThisCore_ = 0; // 当前核负责的起始行索引
 
@@ -121,12 +123,11 @@ protected:
 
 
 public:
-    __aicore__ inline Fp8DynamicQuantPertoken(TPipe *tPipe) : tPipe_(tPipe)
-    {
-    }
+    __aicore__ inline Fp8DynamicQuantPertoken(TPipe *tPipe) : tPipe_(tPipe){};
 
-    __aicore__ inline void Init(GM_ADDR quantInputAddr, GM_ADDR smoothScaleAddr, GM_ADDR quantOutputAddr,
-                                GM_ADDR quantOutputScaleAddr, uint64_t rowNum, uint64_t colNum, uint64_t calBuffSize);
+    __aicore__ inline void Init();
+
+    __aicore__ inline MC2PertokenDQuantContext* GetQuantContextPtr();
 
     __aicore__ inline void Process();
 
@@ -134,9 +135,7 @@ public:
 };
 
 template <typename quantInputDataType, typename quantOutputDataType>
-__aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::Init(
-    GM_ADDR quantInputAddr, GM_ADDR smoothScaleAddr, GM_ADDR quantOutputAddr, GM_ADDR quantOutputScaleAddr,
-    uint64_t rowNum, uint64_t colNum, uint64_t calBuffSize)
+__aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::Init()
 {
     if ASCEND_IS_AIC {
         return;
@@ -144,24 +143,12 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
 
     tPipe_->Reset();
 
-    // 变量初始化
-    this->rowNum_ = rowNum;
-    this->colNum_ = colNum;
-    // 暂时没有使用，考虑删除
-    this->calBuffSize_ = calBuffSize;
-    this->quantInputAddr_ = quantInputAddr;
-    // 预留参数，实际外部调用传入为空
-    this->smoothScaleAddr_ = smoothScaleAddr;
-    this->quantOutputAddr_ = quantOutputAddr;
-    this->quantOutputScaleAddr_ = quantOutputScaleAddr;
-
     uint64_t totalCores = static_cast<uint64_t>(GetBlockNum() * TWO_FACTOR);
-    this->usedCoreAivNum_ = (rowNum < totalCores) ? rowNum : totalCores;
-
+    this->usedCoreAivNum_ = (context_.rowNum < totalCores) ? context_.rowNum : totalCores;
     // 2. 均匀分配任务到各个核
     uint32_t coreIdx = GetBlockIdx();
-    uint64_t avgRows = rowNum / this->usedCoreAivNum_;
-    uint32_t tailRows = rowNum % this->usedCoreAivNum_;
+    uint64_t avgRows = context_.rowNum / this->usedCoreAivNum_;
+    uint32_t tailRows = context_.rowNum % this->usedCoreAivNum_;
 
     // 每个核计算自己的任务范围，如10行数据，使用4个核（0,1,2,3），第1个aiv核处理3,4,5行，startRowThisCore_的起始索引为3
     this->rowsThisCore_ = avgRows + (coreIdx < tailRows ? 1 : 0);
@@ -171,12 +158,22 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
 }
 
 template <typename quantInputDataType, typename quantOutputDataType>
+inline __aicore__ MC2PertokenDQuantContext*
+Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::GetQuantContextPtr()
+{
+    return &context_;
+}
+
+template <typename quantInputDataType, typename quantOutputDataType>
 __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::Process()
 {
     if (GetBlockIdx() >= this->usedCoreAivNum_) {
         return;
     }
     ProcessOneTokenRegBase();
+    context_.quantInputAddr = context_.quantInputAddr + context_.quantInputAddrOffset;
+    context_.quantOutputAddr =context_.quantOutputAddr + context_.quantOutputAddrOffset;
+    context_.quantOutputScaleAddr =context_.quantOutputScaleAddr + context_.quantOutputScaleAddrOffset;
 }
 
 template <typename quantInputDataType, typename quantOutputDataType>
@@ -203,13 +200,13 @@ template <typename quantInputDataType, typename quantOutputDataType>
 __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::ProcessOneTokenRegBase()
 {
     uint32_t inputSize =
-        Ceil(static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
+        Ceil(static_cast<uint32_t>(context_.colNum * sizeof(quantInputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
     uint32_t outputSize =
-        Ceil(static_cast<uint32_t>(this->colNum_ * sizeof(quantOutputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
+        Ceil(static_cast<uint32_t>(context_.colNum * sizeof(quantOutputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
 
-    quantInputGM_.SetGlobalBuffer((__gm__ quantInputDataType *)this->quantInputAddr_);
-    quantOutputGM_.SetGlobalBuffer((__gm__ quantOutputDataType *)this->quantOutputAddr_);
-    quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)this->quantOutputScaleAddr_);
+    quantInputGM_.SetGlobalBuffer((__gm__ quantInputDataType *)context_.quantInputAddr);
+    quantOutputGM_.SetGlobalBuffer((__gm__ quantOutputDataType *)context_.quantOutputAddr);
+    quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)context_.quantOutputScaleAddr);
 
     tPipe_->InitBuffer(scaleWorkBuf_, UB_DATABLOCK);
     tPipe_->InitBuffer(maxValueBuf_, UB_DATABLOCK);
@@ -231,8 +228,8 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
     for (uint64_t r = 0; r < this->rowsThisCore_; ++r) {
         uint64_t globalRowIdx = this->startRowThisCore_ + r;
         DataCopyPad<quantInputDataType, PaddingMode::Normal>(
-            rawInputTensor, quantInputGM_[globalRowIdx * this->colNum_],
-            {1, static_cast<uint32_t>(this->colNum_ * sizeof(quantInputDataType)), 0, 0, 0}, {false, 0, 0, 0});
+            rawInputTensor, quantInputGM_[globalRowIdx * context_.colNum],
+            {1, static_cast<uint32_t>(context_.colNum * sizeof(quantInputDataType)), 0, 0, 0}, {false, 0, 0, 0});
         SyncFunc<AscendC::HardEvent::MTE2_V>();
         __local_mem__ quantInputDataType *xAddr = (__local_mem__ quantInputDataType *)rawInputTensor.GetPhyAddr();
         __local_mem__ quantOutputDataType *yAddr = (__local_mem__ quantOutputDataType *)quantOut.GetPhyAddr();
@@ -258,8 +255,8 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
         SyncFunc<AscendC::HardEvent::V_S>();
 
         DataCopyPad<quantOutputDataType, PaddingMode::Normal>(
-            quantOutputGM_[globalRowIdx * this->colNum_], quantOut,
-            {1, static_cast<uint32_t>(this->colNum_ * sizeof(quantOutputDataType)), 0, 0, 0});
+            quantOutputGM_[globalRowIdx * context_.colNum], quantOut,
+            {1, static_cast<uint32_t>(context_.colNum * sizeof(quantOutputDataType)), 0, 0, 0});
     }
 
     DataCopyExtParams outScaleParams = {1, static_cast<uint32_t>(this->rowsThisCore_ * sizeof(float)), 0, 0, 0};
@@ -292,7 +289,7 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
         uint32_t dtypeSize = sizeof(float);
         uint16_t VL = AscendC::VECTOR_REG_WIDTH / dtypeSize; // 每个向量寄存器能存的元素数
         // colNum对齐到16
-        uint32_t colNum = (this->colNum_ + 15) / 16 * 16;
+        uint32_t colNum = (context_.colNum + 15) / 16 * 16;
         uint16_t vfLoop = (colNum + VL - 1) / VL;
         uint32_t sreg0 = colNum;
 
@@ -364,7 +361,7 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
         uint32_t dtypeSize = sizeof(float);
         uint16_t VL = AscendC::VECTOR_REG_WIDTH / dtypeSize; // 每个向量寄存器能存的元素数
         // colNum对齐到16
-        uint32_t colNum = (this->colNum_ + 15) / 16 * 16;
+        uint32_t colNum = (context_.colNum + 15) / 16 * 16;
         uint16_t vfLoop = (colNum + VL - 1) / VL;
         uint32_t sreg1 = colNum;
         for (uint16_t j = 0; j < vfLoop; j++) {
