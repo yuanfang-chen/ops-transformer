@@ -15,97 +15,86 @@
 
 #ifndef MC2_FP_MATMUL_H
 #define MC2_FP_MATMUL_H
-#include "matmul_factory.h"
+#include "matmul_base.h"
 
 namespace MC2KernelTemplate
 {
-//额外的数据，输入和输出每一轮计算前后的地址偏移
-struct FpQuantExtraData {
-    uint64_t a_offset;
-    uint64_t b_offset;
-    uint64_t c_offset;
+//非量化场景没有额外的数据
+struct FpMMAdditionalData {
 };
 
-/**
- * MMKernel：使用的matmul的数据类型
- * ExtraDataType：额外数据结构体的数据类型
- * TilingDataType：matmul算子使用的tiling的数据类型
- */
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-class FPMatmul {
+//非量化场景的相关逻辑实现
+template <typename MMType>
+class MC2FpMMWrapper {
 protected:
-    __aicore__ inline void Init();
+    MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData> MMcontext_;
+    MMType MMImpl_;
+    AscendC::TPipe* tPipePtr_;
+
 public:
-    __aicore__ inline FPMatmul(AscendC::TPipe* tPipe): tPipe_(tPipe) {};
-    __aicore__ inline void Process(bool hasNext);
-    __aicore__ inline void Update(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR biasGM, ExtraDataType* extraData, TilingDataType* tilingData);
+    __aicore__ inline MC2FpMMWrapper(AscendC::TPipe* tPipe) : tPipePtr_(tPipe) {};
+    // 初始化方法
+    __aicore__ inline void Init();
+    // 获取数据上下文引用
+    __aicore__ inline MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData>* GetMMContextPtr();
+    // 执行一次计算的方法
+    __aicore__ inline void Process(bool isFirst);
+    // 结束方法
     __aicore__ inline void End();
-private:
-    MMKernel mmOp_;
-    BaseGmAddrs baseAddrs_;
-    ExtraDataType extraData_;
-    AscendC::TPipe* tPipe_;
-    TilingDataType* tilingData_;
 };
 
-//初始化一个matmul的算子
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void FPMatmul<MMKernel, ExtraDataType, TilingDataType>::Init() 
+template <typename MMType>
+inline __aicore__ void MC2FpMMWrapper<MMType>::Init() {}
+
+template <typename MMType>
+inline __aicore__ MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData> *MC2FpMMWrapper<MMType>::GetMMContextPtr()
 {
-    if ASCEND_IS_AIV {
-        return;
-    }
-    tPipe_->Reset();
-    mmOp_.Init(baseAddrs_.aGM, baseAddrs_.bGM, baseAddrs_.cGM, baseAddrs_.biasGM, nullptr, nullptr, tilingData_, tPipe_);
+    return &MMcontext_;
 }
 
-//执行一轮matmul计算节点的计算，如果还有下一轮，为下一轮计算准备参数
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void FPMatmul<MMKernel, ExtraDataType, TilingDataType>::Process(bool isFirst) 
+template <typename MMType>
+inline __aicore__ void MC2FpMMWrapper<MMType>::Process(bool isFirst)
 {
     if ASCEND_IS_AIV {
         return;
     }
-
     if (!isFirst) {
-        baseAddrs_.aGM = (GM_ADDR)((uint64_t)baseAddrs_.aGM + extraData_.a_offset);
-        baseAddrs_.bGM = (GM_ADDR)((uint64_t)baseAddrs_.bGM + extraData_.b_offset);
-        baseAddrs_.cGM = (GM_ADDR)((uint64_t)baseAddrs_.cGM + extraData_.c_offset);
-        Init();
+        MMcontext_.baseData.aGM = MMcontext_.baseData.aGM + MMcontext_.baseData.aOffset;
+        MMcontext_.baseData.bGM = MMcontext_.baseData.bGM + MMcontext_.baseData.bOffset;
+        MMcontext_.baseData.cGM = MMcontext_.baseData.cGM + MMcontext_.baseData.cOffset;
     }
-    mmOp_.Process();
+    tPipePtr_->Reset();
+    MMImpl_.Init(MMcontext_.baseData.aGM, MMcontext_.baseData.bGM, MMcontext_.baseData.cGM,
+        MMcontext_.baseData.biasGM, nullptr, nullptr, MMcontext_.tilingDataPtr, tPipePtr_);
+    MMImpl_.Process();
 }
 
-//更换流水线上matmul计算节点的规格，包括输入输出地址和tiling信息，然后重新初始化matmul算子
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void FPMatmul<MMKernel, ExtraDataType, TilingDataType>::Update(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR biasGM, ExtraDataType* extraData, TilingDataType* tilingData) 
-{
-    if ASCEND_IS_AIV {
-        return;
-    }   
-    baseAddrs_.aGM = aGM;
-    baseAddrs_.bGM = bGM;
-    baseAddrs_.cGM = cGM;
-    baseAddrs_.biasGM = biasGM;
-    if (extraData != nullptr) {
-        extraData_.a_offset = extraData->a_offset;
-        extraData_.b_offset = extraData->b_offset;
-        extraData_.c_offset = extraData->c_offset;
-    }
-    if (tilingData != nullptr) {
-        tilingData_ = tilingData;
-        Init();
-    }
-}
-
-//流水线释放时，释放matmul计算节点
-template <typename MMKernel, typename ExtraDataType, typename TilingDataType>
-__aicore__ inline void FPMatmul<MMKernel, ExtraDataType, TilingDataType>::End()
+template <typename MMType>
+inline __aicore__ void MC2FpMMWrapper<MMType>::End()
 {
     if ASCEND_IS_AIV {
         return;
     }
-    mmOp_.End();
+    MMImpl_->End();
 }
-};
+
+// 计算节点的上下文数据类型声明
+#ifndef DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP
+#define DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP(ContextType) \
+    using ContextType = MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData>
+#endif
+
+// 使用matmulv3算子作为计算节点的计算实现，是否转置的参数通过算子的模板参数获取
+#ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP
+#define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(ComputationType) \
+    using ComputationType = MC2FpMMWrapper<\
+        Mc2MatmulV3Advanced::Mc2MatmulAswKernel<\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X1, false>,\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X2, X2TRANSPOSE>,\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_Y>,\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DtypeBias>,\
+            Mc2MatmulV3Advanced::Mc2MatmulAswBlock, MM_CFG_NO_PRELOAD>\
+        >
+#endif
+}; // namespace MC2KernelTemplate
 #endif
