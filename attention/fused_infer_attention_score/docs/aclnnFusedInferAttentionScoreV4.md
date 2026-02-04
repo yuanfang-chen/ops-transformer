@@ -1648,8 +1648,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <tr>
             <td colspan="4">不支持左padding、tensorlist、pse、prefix、伪量化、后量化</td>
         </tr>
-        <tr> 
-            <td colspan="4">BNSD_NBSD、BSND_NBSD、BSH_NBSD、TND_NTD场景，不支持开启SoftMaxLse</td> 
+        <tr>
+            <td colspan="4">BNSD_NBSD、BSND_NBSD、BSH_NBSD、TND_NTD场景，不支持开启SoftMaxLse</td>
         </tr>
         <tr>
             <td rowspan="5">query d=128</td>
