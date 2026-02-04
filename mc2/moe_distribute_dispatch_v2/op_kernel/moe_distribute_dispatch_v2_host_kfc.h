@@ -1107,6 +1107,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Disp
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::SendToServer()
 {
+    LOG_INFO("start SendToServer");
     uint32_t totalSendCnt = activeMaskBsCnt_;
     uint32_t startTokenId, endTokenId, sendTokenNum;
     SplitToCore(totalSendCnt, aivNum_, startTokenId, endTokenId, sendTokenNum, true);
