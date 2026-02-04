@@ -42,7 +42,6 @@
 using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
-using namespace DataBase;
 
 namespace DataBase{
     struct TilingConst{
@@ -171,6 +170,8 @@ namespace DataBase{
     constexpr uint64_t MX_BLOCK_SIZE = 32U;
     constexpr uint64_t PERGROUP_BLOCK_SIZE = 128U;
 }
+
+using namespace DataBase;
 
 // Supported x datatype in nonquant mode, the same as expandX
 const std::set<ge::DataType> NON_QUANT_DTYPE = {
