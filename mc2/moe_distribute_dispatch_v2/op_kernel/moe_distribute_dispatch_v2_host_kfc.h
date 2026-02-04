@@ -290,6 +290,7 @@ private:
     TBuf<> batchWriteInfoBuf_;
     TBuf<> expertOffsetCntBuf_;
     TBuf<> xSendBuf_;
+    TBuf<> flagBuf_;
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> xQueue_; // 非量化使用，量化场景接收也可使用
     TQue<QuePosition::VECIN, 1> xInQueue_;                        // 量化使用，量化前的输入
     TQue<QuePosition::VECOUT, 1> xOutQueue_;                      // 量化使用，量化后的输出
@@ -781,7 +782,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     tpipe_->InitBuffer(expertOffsetCntBuf_, expertIdsCnt_ * sizeof(uint32_t));
     expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<uint32_t>();
     tpipe_->InitBuffer(xSendBuf_,sendTokenLength_);
-    
+    tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN);
     //LogInfo(__LINE__, "axisHCommu",axisHCommu);
     //LogInfo(__LINE__, "serverBuferLength",serverBuferLength);
     //LogInfo(__LINE__, "serverMapLength",serverMapLength);
@@ -1013,8 +1014,6 @@ __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::CopyTokenToWinOut(LocalTensor<XType> &xOutTensor,
                                                                        uint32_t dstServerId, uint32_t cnt)
 {
-    TBuf<> outBuf;
-    tpipe_->InitBuffer(outBuf, blockCntPerToken_ * UB_ALIGN);
     GlobalTensor<XType> dataDstWinGMTensor;
     GlobalTensor<uint32_t> flagDstWinGMTensor;
     dataDstWinGMTensor.SetGlobalBuffer((__gm__ XType *)(GetSendAddrBetweenServer(COMM_EP_IDX, dstServerId) +
@@ -1025,7 +1024,7 @@ MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::CopyTokenToWinOut(LocalTens
     uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
     //LogInfo(__LINE__,"repeatTime",repeatTime);
 
-    LocalTensor<uint32_t> flagTensor = outBuf.Get<uint32_t>();
+    LocalTensor<uint32_t> flagTensor = flagBuf_.Get<uint32_t>();
     Duplicate<uint32_t>(flagTensor, uint32_t(1), mask, repeatTime,uint16_t(1), uint8_t(8));
     //PipeBarrier<PIPE_ALL>();
     ////LogInfo(__LINE__,flagTensor ,tpipe_,8);
