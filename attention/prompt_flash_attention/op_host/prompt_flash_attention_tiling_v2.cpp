@@ -829,23 +829,27 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
         OP_LOGE(contextKeyParams.opName, "numHeads(%d) must be divisible by numKeyValueHeads(%d)!", nQ, nKV);
         return false;
     }
-    
+
     if (enableKVAntiquant || enablePerblockQuant || enablePertensorQuant) {	 
-         if (nQ / nKV > 64) { // G cannot be greater than 64.	 
-             OP_LOGE(contextKeyParams.opName, "In antiquant and fullquant scenario, the G(numHeads / numKeyValueHeads) connot be larger than 64, but G = %d", nQ / nKV);	 
-             return false; 
-         } 
+        if (nQ > 256) {
+            OP_LOGE(contextKeyParams.opName, "the numheads of input query cannot be larger than 256, but numheads = %d", nQ);	 
+             return false;
+        }
+        if (nQ / nKV > 64) { // G cannot be greater than 64.	 
+            OP_LOGE(contextKeyParams.opName, "In antiquant and fullquant scenario, the G(numHeads / numKeyValueHeads) connot be larger than 64, but G = %d", nQ / nKV);	 
+            return false; 
+        } 
           
      } else if (enableIFAMLA || enablePFAMLA || enableIFAMLAFullQuant) { 
-         if ((enableIFAMLA || enableIFAMLAFullQuant) && (nQ / nKV > 128)) { // G cannot be greater than 128. 
-             OP_LOGE(contextKeyParams.opName, "In mla decode (non quant and fullquant) scenario, the G(numHeads / numKeyValueHeads) connot be larger than 128, but G = %d", nQ / nKV); 
-             return false; 
-         } 
+        if ((enableIFAMLA || enableIFAMLAFullQuant) && (nQ / nKV > 128)) { // G cannot be greater than 128. 
+            OP_LOGE(contextKeyParams.opName, "In mla decode (non quant and fullquant) scenario, the G(numHeads / numKeyValueHeads) connot be larger than 128, but G = %d", nQ / nKV); 
+            return false; 
+        } 
      } else { 
-         if ((nQ / nKV > 64) && (queryShapeInfo.d != 64 && queryShapeInfo.d != 128)) { 
-             OP_LOGE(contextKeyParams.opName, "In gqa non quant scenario, when dSize is not 64 or 128, the G(numHeads / numKeyValueHeads) connot be larger than 64, but dSize = %d", queryShapeInfo.d); 
-             return false; 
-         } 
+        if ((nQ / nKV > 64) && (queryShapeInfo.d != 64 && queryShapeInfo.d != 128)) { 
+            OP_LOGE(contextKeyParams.opName, "In gqa non quant scenario, when dSize is not 64 or 128, the G(numHeads / numKeyValueHeads) connot be larger than 64, but dSize = %d", queryShapeInfo.d); 
+            return false; 
+        } 
     }
 
     if (enableIFAMLA || enableIFA) {
@@ -1020,6 +1024,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
                 "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
                 layoutStr.c_str(), dequeryDim, dekeyDim, devalueDim),
             return false);
+        if (isMaxWorkspace) return true;
         OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.n) ||
                     (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.t / fp8QBlockSize + queryShapeInfo.b) ||
                     (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, fp8KVBlockSize)),
@@ -1327,7 +1332,7 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
     if (keyDim == 3) {    // dim num: 3
         paLayoutType = 1; // If it is three-dimensional, paLayoutType = 1
         OP_CHECK_IF(
-            ((dim1 < blockNumValid) || (tempBlockSize != *blockSize) || (tempH * headNumRatio != shapeInfo.h)), 
+            ((tempBlockSize != *blockSize) || (tempH * headNumRatio != shapeInfo.h)), 
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "the shape of %s [%ld, %ld, %ld] is wrong, which should be [>=%ld, %d, %u] when PA BnBsH enable", sName.c_str(),
                 dim1, dim2, dim3, blockNumValid, *blockSize, shapeInfo.h / headNumRatio),
             return false);
@@ -1342,7 +1347,7 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
         tempBlockSize = dim3;
         tempD = dim4;
         paLayoutType = 0; // If it is four-dimensional, paLayoutType = 0
-        OP_CHECK_IF(((dim1 < blockNumValid) || (tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) ||
+        OP_CHECK_IF(((tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) ||
             (tempD != (shapeInfo.h / shapeInfo.n))), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "the shape of %s [%ld, %ld, %ld, %ld] is wrong, which should be [>=%ld, %u, %d, %u] when PA BnNBsD enable!",
                 sName.c_str(), dim1, dim2, dim3, dim4, blockNumValid, shapeInfo.n / headNumRatio, *blockSize,
                 (shapeInfo.h / shapeInfo.n)),
@@ -1370,7 +1375,7 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
             dataTypeSizeValue = BFLOAT16SIZE;
         }
 
-        OP_CHECK_IF(((dim1 < blockNumValid) || (tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) || (tempD1 * tempD0 != shapeInfo.d) || tempD0 != (BYTE_BLOCK / dataTypeSizeValue)), 
+        OP_CHECK_IF(((tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) || (tempD1 * tempD0 != shapeInfo.d) || tempD0 != (BYTE_BLOCK / dataTypeSizeValue)), 
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "the shape of %s [%ld, %ld, %ld, %ld, %ld] is wrong, which should be [>=%ld, %u, %u, %d, %d] when PA NZ enable!",
                 sName.c_str(), dim1, dim2, dim3, dim4, dim5, blockNumValid, shapeInfo.n / headNumRatio, shapeInfo.d * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue),
             return false);
@@ -2332,9 +2337,9 @@ bool PromptFlashAttentionTilingV2::CheckPseShiftTypeAndShape(ContextParamsForPFA
     const gert::StorageShape* pseShiftShape = contextKeyParams.pseShiftShape;
     OP_CHECK_IF(isQKVDDifferent,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support pse shift when query and key headdim is not equal to value headdim."),
-        return false);    
+        return false);   
     OP_CHECK_IF(enableIFAMLA || enablePFAMLA,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "mla do not suuport pseShift."),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "MLA do not support pseShift."),
         return false);
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShiftShape, "pseShift")) {
         return false;
@@ -2647,22 +2652,23 @@ bool PromptFlashAttentionTilingV2::CheckNTDLayoutCrossover(ContextParamsForPFATi
  	        return false);
  	}
 
-    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA) { // GQA
+    std::string layoutStr(contextKeyParams.layout);
+    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !(enablePerblockQuant && layoutStr == "NTD_TND")) { // GQA
         OP_CHECK_IF((queryShapeInfo.d != 64 && queryShapeInfo.d != 128),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is NTD, d size of query must be 64 or 128, but got d = %d.",
             queryShapeInfo.d), return false);
     }
 
     OP_CHECK_IF(enableLeftPadding,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, left padding is not supported!"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, left padding is not supported!", layoutStr.c_str()),
         return false);
     
     OP_CHECK_IF(enableTensorList,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, tensorlist is not supported!"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, tensorlist is not supported!", layoutStr.c_str()),
         return false);
 
     OP_CHECK_IF(enablePseShift,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is NTD, pse is not supported!"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, pse is not supported!", layoutStr.c_str()),
         return false);
 
     return true;
@@ -2695,6 +2701,44 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
                 layoutStr.c_str()), return false);
         }
     }
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckLearnSink(ContextParamsForPFATiling &contextKeyParams,
+                                                  PFAShapeInfo &queryShapeInfo, PFAShapeInfo &valueShapeInfo,
+                                                  PromptFlashAttentionTilingData &tilingData)
+{
+    if (!enableLearnSink) {
+        return true;
+    }
+
+    OP_CHECK_IF(contextKeyParams.learnableSinkDataType != ge::DT_BF16, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When learnable sink is used, dataType of learnable sink(%s) must be bf16.", GetPfaDataTypeStr(contextKeyParams.learnableSinkDataType).c_str()),
+        return false);
+    OP_CHECK_IF(queryShapeInfo.d != 192 && queryShapeInfo.d != 128 && queryShapeInfo.d != 64, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When learnable sink is used, query headdim must be one of {192, 128, 64}."),
+        return false);
+    OP_CHECK_IF(enablePseShift, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When learnable sink is used, pse is not supported!"),
+        return false);
+    OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When learnable sink is used, AlibiPse is not supported!"),
+        return false);
+    OP_CHECK_IF(enableLeftPadding, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when learnable sink is used, leftpadding is not supported!"),
+        return false);
+    OP_CHECK_IF(isKVHasPrefix, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when learnable sink is used, system prefix is not supported!"),
+        return false);
+    OP_CHECK_IF(enablePostQuant, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when learnable sink is used, post quant is not supported!"),
+        return false);
+    OP_CHECK_IF(innerPrecise != HIGH_PRECISION, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "innerPrecise must be high-precision in learnable sink, now is %ld", innerPrecise),
+        return false);
+    OP_CHECK_IF(enableIFAMLAFullQuant || enableIFAMLA || enablePerblockQuant || enablePertensorQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Learnable sink only supports no-quantized GQA mode"),
+        return false);
     return true;
 }
 
@@ -3877,15 +3921,15 @@ size_t PromptFlashAttentionTilingV2::GetPFAWorkSpaceSize(PromptFlashAttentionTil
         size_t accumOutSize = 0;
         size_t logSumExpSize = 0;
         if (isMaxWorkspace) { // 计算maxWorkSpaceSize时默认开启FD且使用最大核数进行归约
-            auto vHeadSize = tilingData.promptAttentionBaseParams.get_vHeadSize();
-            accumOutSize = aicNum * vHeadSize * sizeof(float);
+            uint64_t headDimAlign = AlignUp(tilingData.promptAttentionBaseParams.get_vHeadSize(), BYTE_BLOCK);
+            accumOutSize = aicNum * headDimAlign * sizeof(float);
             logSumExpSize = aicNum * BYTE_BLOCK * 2;
         } else if (enableFlashDecode) {
             auto batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
             auto headNumSize = tilingData.promptAttentionBaseParams.get_headNumSize();
-            auto vHeadSize = tilingData.promptAttentionBaseParams.get_vHeadSize();
+            uint64_t headDimAlign = AlignUp(tilingData.promptAttentionBaseParams.get_vHeadSize(), BYTE_BLOCK);
             uint32_t kvSplitPart = faTilingAdapter.inputParamsRegbase.get_kvSplitPart();
-            accumOutSize = batchSize * gSize * headNumSize * kvSplitPart * vHeadSize * sizeof(float);
+            accumOutSize = batchSize * gSize * headNumSize * kvSplitPart * headDimAlign * sizeof(float);
             logSumExpSize = batchSize * gSize * headNumSize * kvSplitPart * BYTE_BLOCK * 2;
         }
 
@@ -4107,7 +4151,7 @@ bool PromptFlashAttentionTilingV2::CheckAlibiPseShiftTypeAndShape(ContextParamsF
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support alibi pse when query and key headdim is not equal to value headdim."),
         return false);
     OP_CHECK_IF(enableIFAMLA || enablePFAMLA,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "mla do not suuport pseShift."),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "MLA do not support pseShift."),
         return false);
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShape, "pseShift")) {
         return false;
@@ -4255,6 +4299,12 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
 
     // sparseMode check
     if (!CheckSparseMode(contextKeyParams, queryShapeInfo.s, tilingData)) {
+        return ge::GRAPH_FAILED;
+    }
+
+    // attention sink check
+    if (!CheckLearnSink(contextKeyParams, queryShapeInfo, valueShapeInfo, tilingData)) {
+        OP_LOGE(contextKeyParams.opName, "Check sink failed!");
         return ge::GRAPH_FAILED;
     }
     
