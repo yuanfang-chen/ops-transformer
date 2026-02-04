@@ -1119,8 +1119,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Send
     LogInfo(__LINE__,"endTokenId ",endTokenId);
     LogInfo(__LINE__,"sendTokenNum ",sendTokenNum);
 
-    // DispatchAndCountTokens(0, startTokenId, false);
-    // DispatchAndCountTokens(startTokenId, endTokenId, true);
+    DispatchAndCountTokens(0, startTokenId, false);
+    DispatchAndCountTokens(startTokenId, endTokenId, true);
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 
     if (endTokenId == totalSendCnt) {
