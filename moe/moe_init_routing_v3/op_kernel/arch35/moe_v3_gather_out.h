@@ -22,7 +22,6 @@ namespace MoeInitRoutingV3 {
 using namespace AscendC;
 
 constexpr int64_t GATHER_OUT_BUFFER_NUM = 2;
-constexpr int64_t QUANT_MODE_HIF8_CAST = 6LL;
 
 template <typename T>
 class MoeGatherOut {
@@ -33,7 +32,6 @@ public:
     __aicore__ inline void Process();
     __aicore__ inline void CopyExpertIn(int64_t curExpertLoopOffset, int64_t curLoopElements);
     __aicore__ inline void CopyXIn(int64_t xSrcOffset, int64_t scaleSrcOffset, int64_t curLoopCols);
-    __aicore__ inline void XTransformToHif8(int64_t curLoopCols);
     __aicore__ inline void CopyXOut(int64_t xDstOffset, int64_t scaleDstOffset, int64_t curLoopCols);
     __aicore__ inline void CopyScaleIn(int64_t scaleSrcOffset);
     __aicore__ inline void CopyScaleOut(int64_t scaleDstOffset);
@@ -43,7 +41,6 @@ private:
     TQueBind<TPosition::VECIN, TPosition::VECOUT, GATHER_OUT_BUFFER_NUM> xCopyInQueue_;
     TQueBind<TPosition::VECIN, TPosition::VECOUT, GATHER_OUT_BUFFER_NUM> scaleCopyInQueue_;
     TQue<QuePosition::VECIN, GATHER_OUT_BUFFER_NUM> expandedRowIdxCopyInQueue_;
-    TQue<QuePosition::VECCALC, GATHER_OUT_BUFFER_NUM> xLocalFloatTempQueue_;
 
     GlobalTensor<T> xGm_;
     GlobalTensor<uint8_t> xUint8tGm_;
@@ -58,7 +55,6 @@ private:
     int64_t cols_;
     int64_t n_;
     int64_t k_;
-    int64_t quantMode_;
 
     int64_t colsLoops_;
     int64_t perLoopCols_;
@@ -94,7 +90,6 @@ __aicore__ inline void MoeGatherOut<T>::Init(GM_ADDR x, GM_ADDR scale, GM_ADDR w
     n_ = tilingData->n;
     k_ = tilingData->k;
 
-    quantMode_ = tilingData->quantMode;
     isInputScale_ = tilingData->isInputScale;
     rowIdxType_ = tilingData->rowIdxType;
 
@@ -141,7 +136,7 @@ __aicore__ inline void MoeGatherOut<T>::Init(GM_ADDR x, GM_ADDR scale, GM_ADDR w
                       AlignBytes(curCorePerLoopIndicesElements_, sizeof(int32_t)));
     pipe_->InitBuffer(xCopyInQueue_, GATHER_OUT_BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(T)));
     pipe_->InitBuffer(scaleCopyInQueue_, GATHER_OUT_BUFFER_NUM, AlignBytes(1, sizeof(float)));
-    pipe_->InitBuffer(xLocalFloatTempQueue_, GATHER_OUT_BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(float)));
+
     sortedExpertIdxGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + blockIdx_ * perCoreIndicesElements_,
                                        Align(curCoreIndicesElements_, sizeof(int32_t)));
 

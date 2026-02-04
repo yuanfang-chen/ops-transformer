@@ -44,7 +44,7 @@ private:
 
     TQueBind<TPosition::GM, TPosition::VECIN, GATHER_HIF8_QUANT_BUFFER_NUM> xCopyInQueue_;
     TQueBind<TPosition::VECOUT, TPosition::GM, GATHER_HIF8_QUANT_BUFFER_NUM> xCopyOutQueue_;
-    TQue<QuePosition::VECCALC, GATHER_HIF8_QUANT_BUFFER_NUM> xLocalFloatTempQueue_;
+    TBuf<QuePosition::VECCALC> xLocalFloatTempBuf_;
 
     GlobalTensor<T> xGm_;
     GlobalTensor<float> xGscaleGm_;
@@ -141,7 +141,7 @@ __aicore__ inline void MoeGatherOutHif8Quant<T>::Init(GM_ADDR x, GM_ADDR scale, 
     pipe_->InitBuffer(xCopyInQueue_, GATHER_HIF8_QUANT_BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(T)));
     pipe_->InitBuffer(xCopyOutQueue_, GATHER_HIF8_QUANT_BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(hifloat8_t)));
     pipe_->InitBuffer(scaleCopyInQueue_, GATHER_HIF8_QUANT_BUFFER_NUM, AlignBytes(1, sizeof(float)));
-    pipe_->InitBuffer(xLocalFloatTempQueue_, GATHER_HIF8_QUANT_BUFFER_NUM, AlignBytes(perLoopCols_, sizeof(float)));
+    pipe_->InitBuffer(xLocalFloatTempBuf_, AlignBytes(perLoopCols_, sizeof(float)));
     sortedExpertIdxGm_.SetGlobalBuffer((__gm__ int32_t *)workspace + blockIdx_ * perCoreIndicesElements_,
                                        Align(curCoreIndicesElements_, sizeof(int32_t)));
 
@@ -183,16 +183,16 @@ __aicore__ inline void MoeGatherOutHif8Quant<T>::XTransformToHif8(int64_t curLoo
     if constexpr (IsSameType<T, bfloat16_t>::value) {
         LocalTensor<bfloat16_t> xRowLocal = xLocal[0];
         xRowLocalHif8 = xRowLocal.ReinterpretCast<hifloat8_t>();
-        LocalTensor<float> xLocalFloatTemp = xLocalFloatTempQueue_.AllocTensor<float>();
+        LocalTensor<float> xLocalFloatTemp = xLocalFloatTempBuf_.Get<float>();
         Cast(xLocalFloatTemp, xLocal, RoundMode::CAST_NONE, curLoopCols);
         Cast(xRowLocalHif8, xLocalFloatTemp, RoundMode::CAST_ROUND, curLoopCols);
-        xLocalFloatTempQueue_.FreeTensor(xLocalFloatTemp);
     } else if constexpr (IsSameType<T, half>::value) {
         LocalTensor<half> xRowLocal = xLocal[0];
         xRowLocalHif8 = xRowLocal.ReinterpretCast<hifloat8_t>();
         Cast(xRowLocalHif8, xRowLocal, RoundMode::CAST_ROUND, curLoopCols);
     }
     xCopyOutQueue_.EnQue(xRowLocalHif8);
+    xCopyInQueue_.FreeTensor(xLocal);
 }
 
 template <typename T>
