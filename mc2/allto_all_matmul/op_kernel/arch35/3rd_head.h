@@ -9,26 +9,16 @@
  */
 
 /*!
- * \file compute_stage.h
- * \brief
+ * \file 3rd_head.h
+ * \brief 3rd引用
  */
-
-#ifndef MC2_COMPUTE_STAGE_H
-#define MC2_COMPUTE_STAGE_H
+#ifndef THREERD_HEAD_H
+#define THREERD_HEAD_H
 
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
-#include "./matmul/fp_matmul.h"
+#include "../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_kernel.h"
 #else
-#include "./matmul/quant_matmul.h"
+#include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_online_dynamic.h"
 #endif
-#include "./math/mc2_vec_transpose.h"
 
-namespace MC2KernelTemplate {
-// 使用math算子作为计算节点的计算实现
-#ifndef DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION
-#define DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(TransposeDataType, TransposeType) \
-    using TransposeType = MC2VecTranspose<TransposeDataType>
 #endif
-};
-
-#endif // MC2_COMPUTE_STAGE_H
