@@ -111,6 +111,7 @@ __aicore__ inline void MoeGatherOutHif8PertensorQuant<T>::Compute()
     uint32_t sreg;
     __VEC_SCOPE__
     {
+        MicroAPI::RegTensor<float> inReg;
         MicroAPI::RegTensor<hifloat8_t> outRegH8;
         MicroAPI::MaskReg maskRegInLoop;
 
