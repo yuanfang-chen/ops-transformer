@@ -20,6 +20,7 @@
 
 using namespace ge;
 using Ops::Transformer::OpTiling::TilingRegistryNew;
+using Ops::Transformer::OpTiling::TilingRegistryArch;
 
 namespace optiling {
 
@@ -28,6 +29,12 @@ ge::graphStatus TilingParseForMatmulAllReduce(gert::TilingParseContext* context)
 
 ge::graphStatus MatmulAllReduceTilingFunc(gert::TilingContext* context)
 {
+    auto platformInfo = context->GetPlatformInfo();
+    platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
+    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
+    if (npuArch == NpuArch::DAV_3510) {
+        return TilingRegistryArch::GetInstance().DoTilingImpl(context);
+    }
     return TilingRegistryNew::GetInstance().DoTilingImpl(context);
 }
 
