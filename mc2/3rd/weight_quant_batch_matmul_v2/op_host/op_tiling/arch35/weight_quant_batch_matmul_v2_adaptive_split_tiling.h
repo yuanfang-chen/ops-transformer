@@ -70,7 +70,6 @@ private:
     bool CheckWeightMicroscalingFp4Scene() const;
     void ComputeCubeTiling(bool highPerfFlag);
     void ComputeCubeSplit(bool highPerfFlag);
-    void SetAttrs();
     void ComputeHighPerfSceneCubeSplit();
     void ComputeBasicTiling();
     void ComputeTailResplitTiling();
