@@ -11,6 +11,19 @@ set(_protobuf_url "")
 if(CANN_PKG_SERVER)
   set(_protobuf_url "${CANN_PKG_SERVER}/libs/protobuf/v25.1.tar.gz")
 endif()
+
+# 检查本地是否存在protobuf包
+set(PROTOBUF_VERSION_PKG protobuf-25.1.tar.gz)
+if(EXISTS "${CANN_3RD_LIB_PATH}/pkg/${PROTOBUF_VERSION_PKG}")
+    message(STATUS "Found protobuf archive in ${CANN_3RD_LIB_PATH}/pkg")
+    set(_protobuf_url "file://${CANN_3RD_LIB_PATH}/pkg/${PROTOBUF_VERSION_PKG}")
+elseif(EXISTS "${CANN_3RD_LIB_PATH}/${PROTOBUF_VERSION_PKG}")
+    message(STATUS "Found protobuf archive in ${CANN_3RD_LIB_PATH}, moving to pkg")
+    file(MAKE_DIRECTORY ${CANN_3RD_LIB_PATH}/pkg)
+    file(RENAME "${CANN_3RD_LIB_PATH}/${PROTOBUF_VERSION_PKG}" "${CANN_3RD_LIB_PATH}/pkg/${PROTOBUF_VERSION_PKG}")
+    set(_protobuf_url "file://${CANN_3RD_LIB_PATH}/pkg/${PROTOBUF_VERSION_PKG}")
+endif()
+
 include(ExternalProject)
 ExternalProject_Add(external_protobuf
   URL               ${_protobuf_url}
