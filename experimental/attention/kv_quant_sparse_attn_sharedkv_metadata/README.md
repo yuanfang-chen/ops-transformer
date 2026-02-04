@@ -3,7 +3,12 @@
 ## 产品支持情况
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | :------: |
-|<term>Atlas A5 推理系列产品</term>   | √  |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      ×     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列加速卡产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 - API功能：`KvQuantSparseAttentionSharedKVMetadata`算子旨在生成一个任务列表，包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引，供后续`KvQuantSparseAttentionSharedKV`算子使用。
@@ -17,9 +22,6 @@
 
 
 ## 参数说明
-
->- 参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Hidden Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）注意力头的维度，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
-
 <table style="undefined;table-layout: fixed; width: 1000px">
   <colgroup>
   <col style="width: 100px">
@@ -234,7 +236,7 @@
 -   该接口支持推理场景下使用。
 -   该接口支持aclgraph模式。
 
-## 调用说明
+## Ascend 950PR/Ascend 950DT 调用说明
 - 单算子模式调用
 
     ```python
