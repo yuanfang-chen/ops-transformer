@@ -478,5 +478,5 @@ void QkvRmsNormRopeCacheTilingDs::DumpTilingInfo()
     OP_LOGD(context_->GetNodeName(), "isKQuant_:  %ld",    isKQuant_);
     OP_LOGD(context_->GetNodeName(), "isVQuant_:  %ld",    isVQuant_);
 }
-REGISTER_TILING_TEMPLATE("QkvRmsNormRopeCache", QkvRmsNormRopeCacheTilingDs, TEMPLATE_DS_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(QkvRmsNormRopeCache, QkvRmsNormRopeCacheTilingDs, TEMPLATE_DS_PRIORITY);
 } // namespace optiling
