@@ -3,13 +3,16 @@
 ## 产品支持情况
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | :------: |
-|<term>Ascend 950PR/Ascend 950DT</term>   | √  |
-|<term>Atlas A3 推理系列产品</term>   | √  |
-|<term>Atlas A2 推理系列产品</term>   | √  |
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列加速卡产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
--   API功能：QuantLightningIndexer是推理场景下，SparseFlashAttention（SFA）前处理的计算，选出关键的稀疏token，并对输入query和key进行量化实现存8算8，获取最大收益。
+-   API功能：QuantLightningIndexer是推理场景下，稀疏attention前处理的计算，选出关键的稀疏token，并对输入query和key进行量化实现存8算8，获取最大收益。
 
 -   计算公式：
     $$out = \text{Top-}k\left\{[1]_{1\times g}@\left[(W@[1]_{1\times S_{k}})\odot\text{ReLU}\left(\left(Scale_Q@Scale_K^T\right)\odot\left(Q_{index}^{Quant}@{\left(K_{index}^{Quant}\right)}^T\right)\right)\right]\right\}$$
@@ -25,61 +28,46 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 ```
 
 ## 参数说明
->**说明：**<br> 
->
->- query、key、weights、query_dequant_scale、key_dequant_scale参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
->- 使用S1和S2分别表示query和key的输入样本序列长度，N1和N2分别表示query和key对应的多头数，k表示最后选取的索引个数。参数query中的D和参数key中的D值相等为128。T1和T2分别表示query和key的输入样本序列长度的累加和。
--   **query**（`Tensor`）：必选参数，表示输入Index Query，对应公式中的$Q_{index}^{INT8}\in\R^{g\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3fn`。`layout_query`为BSND时shape为[B,S1,N1,D]，当`layout_query`为TND时shape为[T1,N1,D]，N1仅支持64。
-    
--   **key**（`Tensor`）：必选参数，表示压缩后的输入Index Key，对应公式中的$K_{index}^{INT8}\in\R^{S_{k}\times d}$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`int8`，Ascend 950PR/Ascend 950DT数据类型支持`float8_e4m3fn`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2, D]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_kv`为BSND时shape为[B, S2, N2, D]，`layout_kv`为TND时shape为[T2, N2, D]，N2仅支持1。
-    
--   **weights**（`Tensor`）：必选参数，表示权重系数，对应公式中的$W$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`float32`，支持输入shape[B,S1,N1]、[T,N1]。
+| 参数名                     | 输入/输出/属性 | 描述  | 数据类型       | 数据格式   |
+|----------------------------|-----------|----------------------------------------------------------------------|----------------|------------|
+| query                     | 输入      | 公式中的$Q_{index}\in\R^{g\times d}，表示输入Index Query$ | INT8、FLOAT8_e4m3fn | ND         |
+| key                   | 输入      | 公式的$K_{index}\in\R^{S_{k}\times d}，表示压缩后的输入Index Key$ | INT8、FLOAT8_e4m3fn | ND |
+| weights                 | 输入      | 公式中的$W$，表示权重系数，不支持非连续。| INT8、BF16、FLOAT32 | ND |
+| query_dequant_scale             | 输入      | 公式中的$Scale_Q$，表示Index Query的反量化系数，不支持非连续 | FLOAT16、FLOAT32     | ND         |
+| key_dequant_scale            | 输入      | 公式中的$Scale_Q$，表示Index Key的反量化系数，不支持非连续 | FLOAT16、FLOAT32       | ND         |
+| actual_seq_lengths_query                    | 可选输入      | 表示不同Batch中`query`的有效token数 | INT32       | ND         |
+| actual_seq_lengths_key                    | 可选输入      | 表示不同Batch中`key`的有效token数 | INT32       | ND         |
+| block_table                    | 可选输入      | 表示PageAttention中KV存储使用的block映射表 | INT32       | ND         |
+| metadata                    | 可选输入      | QuantLightningIndexerMetadata算子传入的分核信息，包含使用核数、分块大小以及每个核处理数据的起始点等内容，shape大小为[1024]，当前不支持传空 | INT32       | ND         |
+| query_quant_mode                 | 可选属性      | 用于标识输入`query`的量化模式，当前支持Per-Token-Head量化模式，当前仅支持传入0 | INT32          | -         |
+| key_quant_mode                 | 可选属性| 用于标识输入`key`的量化模式，当前支持Per-Token-Head量化模式，当前仅支持传入0 | INT32 | -         |
+| layout_query                 | 可选属性| 用于标识输入`query`的数据排布格式，当前支持BSND、TND，默认值"BSND" | String | -         |
+| layout_key      | 可选属性      | 用于标识输入`key`的数据排布格式，当前仅支持传入PA_BSND  | String          | -         |
+| sparse_count  | 可选属性      | 代表topK阶段需要保留的block数量，Atlas A3 推理系列产品支持[1, 2048]，Ascend 950PR/Ascend 950DT支持512 | INT32          | -         |
+| sparse_mode | 可选属性      | 表示sparse的模式，支持0/3，数据类型支持`int32`。 sparse_mode为0时，代表defaultMask模式。sparse_mode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景。 | INT32          | -         |
+| pre_tokens    | 可选属性      | 预留参数，表示attention需要和前几个Token计算关联，仅支持默认值2^63-1 | INT64          | -         |
+| next_tokens    | 可选属性      | 预留参数，表示attention需要和前几个Token计算关联，仅支持默认值2^63-1 | INT64          | -         |
+| cmp_ratio      | 可选属性      | 用于稀疏计算，表示key的压缩倍数。数据类型支持`int32`。Atlas A3 推理系列产品支持1/2/4/8/16/32/64/128，Ascend 950PR/Ascend 950DT支持1/4/128。 | INT32          | -         |
+| return_value      |  可选属性     | 表示是否输出`sparse_values`。True表示输出，False表示不输出；仅支持默认值False | BOOL          | -         |
+| sparse_indices     | 输出      | 公式中的输出Out，参与稀疏attention计算的token索引值 | INT32          | ND         |
+| sparse_values           | 输出      | 公式中的Indices输出对应的value值，**目前暂不支持返回sparse_values。** | FLOAT32         | ND          |
 
--   **query_dequant_scale**（`Tensor`）：必选参数，表示Index Query的反量化系数$Scale_Q$ 。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`float32`，支持输入shape[B,S1,N1]、[T,N1]。
-
--   **key_dequant_scale**（`Tensor`）：必选参数，表示Index Key的反量化系数，对应公式中的$Scale_K^T$。不支持非连续，数据格式支持$ND$，Atlas A3 推理系列产品数据类型支持`float16`，Ascend 950PR/Ascend 950DT数据类型支持`float32`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数。
-
-- <strong>*</strong>：代表其之前的参数是位置相关的，必须按照顺序输入；之后的参数是可选参数，位置无关，不赋值会使用默认值。
-
--   **actual\_seq\_lengths\_query**（`Tensor`）：可选参数，表示不同Batch中`query`的有效token数，数据类型支持`int32`。如果不指定seqlen可传入None，表示和`query`的shape的S长度相同。该入参中每个Batch的有效token数不超过`query`中的维度S大小且不小于0。支持长度为B的一维tensor。<br>当`layout_query`为TND时，该入参必须传入，且以该入参元素的数量作为B值，该入参中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。不能出现负值。
-
--   **actual\_seq\_lengths\_key**（`Tensor`）：可选参数，表示不同Batch中压缩前原始`key`的有效token数，数据类型支持`int32`。如果不指定seqlen可传入None，表示和key的shape的S长度相同。该参数中每个Batch的原始有效token数除以压缩率后不超过`key`中的维度S大小且不小于0，支持长度为B的一维tensor。<br>当`layout_kv`为TND或PA_BSND时，该入参必须传入，`layout_kv`为TND，该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。
-
--   **block\_table**（`Tensor`）：可选参数，表示PageAttention中KV存储使用的block映射表，数据格式支持$ND$，数据类型支持`int32`。PageAttention场景下，block\_table必须为二维，第一维长度需要等于B，第二维长度不能小于maxBlockNumPerSeq(maxBlockNumPerSeq为每个batch中最大actual\_seq\_lengths\_key对应的block数量)，支持block_size取值为16的整数倍，最大支持到1024。
-
--   **metadata**（`Tensor`）：可选参数，QuantLightningIndexerMetadata算子传入的分核信息，包含使用核数、分块大小以及每个核处理数据的起始点等内容，数据格式支持$ND$，数据类型支持`int32`，shape大小为[1024]。
-
--   **query\_quant\_mode**（`int`）：可选参数，用于标识输入`query`的量化模式，当前支持Per-Token-Head量化模式，当前仅支持传入0。
-
--   **key\_quant\_mode**（`int`）：可选参数，用于标识输入`key`的量化模式，当前支持Per-Token-Head量化模式，当前仅支持传入0。
-
--   **layout\_query**（`str`）：可选参数，用于标识输入`query`的数据排布格式，当前支持BSND、TND，默认值"BSND"。
-
--   **layout\_key**（`str`）：可选参数，用于标识输入`key`的数据排布格式，当前仅支持PA_BSND。
-
--   **sparse\_count**（`int`）：可选参数，代表topK阶段需要保留的block数量，Atlas A3 推理系列产品支持[1, 2048]，Ascend 950PR/Ascend 950DT支持512，数据类型支持`int32`。
-
--   **sparse\_mode**（`int`）：可选参数，表示sparse的模式，支持0/3，数据类型支持`int32`。 sparse\_mode为0时，代表defaultMask模式。sparse\_mode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景。
-
--   **pre\_tokens**（`int`）：可选参数，用于稀疏计算，表示attention需要和前几个Token计算关联。数据类型支持`int64`，仅支持默认值2^63-1。
-
--   **next\_tokens**（`int`）：可选参数，用于稀疏计算，表示attention需要和前几个Token计算关联。数据类型支持`int64`，仅支持默认值2^63-1。
-
--   **cmp\_ratio**（`int`）：可选参数，用于稀疏计算，表示key的压缩倍数。Atlas A3 推理系列产品支持1/2/4/8/16/32/64/128，Ascend 950PR/Ascend 950DT支持1/4/128。数据类型支持`int32`，默认值1。
-
--   **return\_value**（`bool`）：可选参数，表示是否输出`sparse_values`。True表示输出，False表示不输出；仅支持默认值False。
-
-## 返回值说明
--   **sparse\_indices**（`Tensor`）：公式中的输出Out，数据类型支持`int32`,数据格式支持$ND$，当`layout_query`为"BSND"时输出shape为[B, S1, N2, sparse\_count]，当layout\_query为"TND"时输出shape为[T1, N2, sparse\_count]。
-
--   **sparse\_values**（`Tensor`）：公式中的Indices输出对应的value值，数据类型支持`int32`,数据格式支持$ND$，输出shape与`sparse_indices`保持一致。**目前暂不支持返回sparse_values。**
+- <term>Ascend 950PR/Ascend 950DT</term>：query、key不支持INT8；weights不支持INT8、BF16，query_dequant_scale和key_dequant_scale不支持FLOAT16。
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：query、key不支持FLOAT8_e4m3fn、weights不支持FLOAT32，query_dequant_scale和key_dequant_scale不支持FLOAT32。
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：query、key不支持FLOAT8_e4m3fn、weights不支持FLOAT32，query_dequant_scale和key_dequant_scale不支持FLOAT32。
 
 ## 约束说明
 -   该接口支持图模式。
--   该接口要求$W \odot Scale_Q$的结果在`float16`的表示范围内。
+-   该接口要求$W \odot Scale_Q$的结果在`float16`(Atlas A3)/`float32`(Ascend 950PR/Ascend 950DT)的表示范围内。
 -   该接口的TopK过程对NAN排序是未定义行为。
+-   参数query中的D轴和参数key中的D轴值相等为128。
+-   参数query和key中的N轴分别仅支持64和1。
+-   当`layout_query`为TND时，`actual_seq_lengths_query`必须传入，且以该入参元素的数量作为B值，该入参中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。不能出现负值。
+-   当`layout_key`为PA_BSND时，`actual_seq_lengths_key`该入参必须传入。
+-   PageAttention场景下，`block_table`必须为二维，第一维长度需要等于B，第二维长度不能小于maxBlockNumPerSeq(maxBlockNumPerSeq为每个batch中最大`actual_seq_lengths_key`对应的block数量)，支持block_size取值为16的整数倍，最大支持到1024。
+-   query、key、weights、query_dequant_scale、key_dequant_scale数据排布格式支持从多种维度解读，其中B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。	 
 
-## Atlas A3 推理系列产品 调用示例
+## Atlas A3 推理系列产品 调用说明
 
 -   单算子模式调用
     ```python
@@ -264,7 +252,7 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
                         cmp_ratio=cmp_ratio, return_value=False)
     ```
    
-    ## Ascend 950PR/Ascend 950DT 调用示例
+    ## Ascend 950PR/Ascend 950DT 调用说明
 
 -   单算子模式调用
     ```python
@@ -446,3 +434,4 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
                         pre_tokens=(1<<63)-1, next_tokens=(1<<63)-1,
                         cmp_ratio=cmp_ratio, return_value=False)
     ```
+更多使用示例见[pytest示例](./tests/pytest/README.md)。
