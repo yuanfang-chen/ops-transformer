@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file infer_flash_attention_comm.h
+ * \file kv_quant_sparse_attn_sharedkv_common_arch35.h
  * \brief
  */
 #ifndef KV_QUANT_SPARSE_ATTN_AHSREDKV_COMMON_ARCH35_H
@@ -20,7 +20,6 @@
 
 constexpr uint64_t BLOCK_BYTE = 32;
 constexpr uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
-constexpr uint32_t POSITIVE_MAX_VALUE_FP32 = 0x7F7FFFFF;
 
 constexpr uint32_t L0AB_SHARED_SIZE_64K = 65536; // 65536表示64*1024
 constexpr uint32_t L0C_SHARED_SIZE_256K = 262144; // 262144表示256 * 1024
@@ -33,12 +32,6 @@ constexpr uint32_t CV_RATIO = 2;
 constexpr uint64_t SYNC_MODE = 4;
 
 namespace BaseApi {
-struct CubeCoordInfo {
-    uint32_t curBIdx;
-    uint32_t s1Coord;
-    uint32_t s2Coord;
-};
-
 __aicore__ constexpr uint64_t Align2Func(uint64_t data) {
     return (data + 1UL) >> 1UL << 1UL; // 向上2对齐, +1移位2
 }

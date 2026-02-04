@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef FLASH_ATTENTION_UTIL_REGBASE_H
-#define FLASH_ATTENTION_UTIL_REGBASE_H
+#ifndef KV_QUANT_SAS_UTIL_REGBASE_H
+#define KV_QUANT_SAS_UTIL_REGBASE_H
 
 #include "util.h"
 
@@ -249,4 +249,4 @@ struct CVSharedParams {
 };
 }
 
-#endif // FLASH_ATTENTION_UTIL_REGBASE_H
+#endif // KV_QUANT_SAS_UTIL_REGBASE_H
