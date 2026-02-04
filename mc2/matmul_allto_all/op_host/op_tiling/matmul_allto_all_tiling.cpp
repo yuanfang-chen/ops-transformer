@@ -18,6 +18,7 @@
 
 using namespace ge;
 using Ops::Transformer::OpTiling::TilingRegistryNew;
+using Ops::Transformer::OpTiling::TilingRegistryArch;
 
 namespace MC2Tiling {
 
