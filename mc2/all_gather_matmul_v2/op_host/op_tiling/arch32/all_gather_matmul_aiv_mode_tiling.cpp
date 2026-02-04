@@ -91,7 +91,7 @@ static void GetTilingKey(uint64_t &tilingKey, const AllGatherMatmulAIVModeInfo &
 {
     const gert::StorageShape *matrix_bias = context->GetOptionalInputShape(BIAS_INDEX);
     bool isBias = (matrix_bias == nullptr) ? false : true;
-    tilingKey = GET_TPL_TILING_KEY(isBias, info.isTransposeX1, info.isTransposex2);
+    tilingKey = GET_TPL_TILING_KEY(isBias, info.isTransposeX1, info.isTransposeX2);
     return;
 }
 
