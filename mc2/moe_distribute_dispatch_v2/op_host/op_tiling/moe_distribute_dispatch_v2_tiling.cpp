@@ -141,7 +141,7 @@ namespace {
     constexpr int32_t MAX_EP_WORLD_SIZE_A2 = 384;
     constexpr int32_t MAX_EP_WORLD_SIZE_A2_LAYERED = 64;
     constexpr int32_t MAX_MOE_EXPERT_NUMS_A2 = 512;
-    constexpr int32_t UNLAYERED_EXP_NUM_PER_RANK_A2 = 256;
+    constexpr int32_t UNLAYERED_EXP_NUM_PER_RANK_A2 = 128;
     constexpr uint32_t MAX_BATCH_SIZE_A2 = 256;
     constexpr size_t USER_WORKSPACE_A2 = 1UL * 1024UL * 1024UL; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
     constexpr uint64_t TILING_KEY_BASE_A2 = 2000000000;
