@@ -779,7 +779,8 @@ __aicore__ inline void GMM_WQ_VEC_ANTIQUANT_COMPUTE_BASIC_BLOCK_CLASS::AntiQuant
             CeilDivide(kWeightLowBitUbOffset, MX_GROUPSIZE) * vecConfig.ubMte2InnerSize + nWeightLowBitUbOffset;
     }
 
-    if constexpr (IsSameType<wType, int4b_t>::value || IsSameType<wType, fp4x2_e2m1_t>::value) {
+    if constexpr (IsSameType<wType, int4b_t>::value || IsSameType<wType, fp4x2_e2m1_t>::value ||
+                  IsSameType<wType, fp4x2_e1m2_t>::value) {
         weightLowBitOffset = weightLowBitOffset >> 1;
     }
 
