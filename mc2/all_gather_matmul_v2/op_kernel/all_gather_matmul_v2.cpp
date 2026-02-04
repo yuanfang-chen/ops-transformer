@@ -23,7 +23,7 @@ using namespace AllGatherMatmulAIVModeImpl;
 using namespace AscendC;
 
 template<bool TPL_ISBIAS, bool TPL_IS_TRANSPOSE_A, bool TPL_IS_TRANSPOSE_B>
-extern "C" __global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR scaleInv1,
+__global__ __aicore__ void all_gather_matmul_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR scaleInv1,
                                                            GM_ADDR scaleInv2, GM_ADDR scale, GM_ADDR cGM,
                                                            GM_ADDR gatherOut, GM_ADDR amax, GM_ADDR workspaceGM,
                                                            GM_ADDR tilingGM)

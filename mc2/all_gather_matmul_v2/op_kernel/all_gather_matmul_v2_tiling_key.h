@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file matmul_reduce_scatter_v2_tiling_key.h
+ * \file all_gather_matmul_v2_tiling_key.h
  * \brief
  */
 
