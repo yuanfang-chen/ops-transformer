@@ -915,32 +915,31 @@ __aicore__ inline void DLIKLLossVectorService<DLIT>::CastOutWeightGrad(DLIGradKL
     if (runInfo.curS1SizeVec == 0) {
         return;
     }
-    if constexpr (IsSameType<W_T, float>::value) {
-        return;
-    }
     
-    // cast dw
-    int64_t dwGMOutOffset = runInfo.accumS1Idx * constInfo.n1IndexSize +
-                            constInfo.subBlockIdx * runInfo.curS1Size / AIC_AIV_RATIO * constInfo.n1IndexSize;
-    int64_t dwGMInOffset = constInfo.subBlockIdx * runInfo.curS1Size / AIC_AIV_RATIO * constInfo.n1IndexSize;
-    int64_t dWeightCount = runInfo.curS1SizeVec * constInfo.n1IndexSize;
-    DataCopy(ubInPing_, dWeightGmFloat[dwGMInOffset], dWeightCount);
-    SetFlag<HardEvent::MTE2_V>(EVENT_ID0);
-    WaitFlag<HardEvent::MTE2_V>(EVENT_ID0);
+    if constexpr (!IsSameType<W_T, float>::value) {
+        // cast dw
+        int64_t dwGMOutOffset = runInfo.accumS1Idx * constInfo.n1IndexSize +
+                                constInfo.subBlockIdx * runInfo.curS1Size / AIC_AIV_RATIO * constInfo.n1IndexSize;
+        int64_t dwGMInOffset = constInfo.subBlockIdx * runInfo.curS1Size / AIC_AIV_RATIO * constInfo.n1IndexSize;
+        int64_t dWeightCount = runInfo.curS1SizeVec * constInfo.n1IndexSize;
+        DataCopy(ubInPing_, dWeightGmFloat[dwGMInOffset], dWeightCount);
+        SetFlag<HardEvent::MTE2_V>(EVENT_ID0);
+        WaitFlag<HardEvent::MTE2_V>(EVENT_ID0);
 
-    Cast(ubOutPing_, ubInPing_, RoundMode::CAST_ROUND, dWeightCount);
-    SetFlag<HardEvent::V_MTE3>(EVENT_ID0);
-    WaitFlag<HardEvent::V_MTE3>(EVENT_ID0);
+        Cast(ubOutPing_, ubInPing_, RoundMode::CAST_ROUND, dWeightCount);
+        SetFlag<HardEvent::V_MTE3>(EVENT_ID0);
+        WaitFlag<HardEvent::V_MTE3>(EVENT_ID0);
 
-    if ((dWeightCount * sizeof(W_T)) % VEC_ALIGN_SIZE != 0) {
-        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dWeightCount * sizeof(W_T)), 0, 0, 0};
-        AscendC::DataCopyPad(dWeightGmOut[dwGMOutOffset], ubOutPing_, copyParams);
-    } else {
-        DataCopy(dWeightGmOut[dwGMOutOffset], ubOutPing_, dWeightCount);
+        if ((dWeightCount * sizeof(W_T)) % VEC_ALIGN_SIZE != 0) {
+            DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dWeightCount * sizeof(W_T)), 0, 0, 0};
+            AscendC::DataCopyPad(dWeightGmOut[dwGMOutOffset], ubOutPing_, copyParams);
+        } else {
+            DataCopy(dWeightGmOut[dwGMOutOffset], ubOutPing_, dWeightCount);
+        }
+        
+        SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
+        WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
     }
-    
-    SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-    WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
 }
 
 template <typename DLIT> 
