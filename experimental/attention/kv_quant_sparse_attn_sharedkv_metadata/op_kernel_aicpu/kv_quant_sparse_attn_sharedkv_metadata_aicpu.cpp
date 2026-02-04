@@ -196,9 +196,17 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
     uint32_t kvBatchSize = 0;
     GetQueryBatchSize(queryBatchSize);
     GetKvBatchSize(kvBatchSize);
-    if (queryBatchSize != kvBatchSize) {
-        KERNEL_LOG_ERROR("query batch size is not consist with kv batch size");
-        return false;
+    if (layoutQuery_ == "TND") {
+        if (queryBatchSize != kvBatchSize) {
+            KERNEL_LOG_ERROR("For TND, the dim of q tensor should consist with kv tensor");
+            return false;
+        }
+    }
+    if (layoutQuery_ == "BSND") {
+        if (batchSize_ != queryBatchSize || queryBatchSize != kvBatchSize || batchSize_ != kvBatchSize) {
+            KERNEL_LOG_ERROR("For BSND, batch_size should consist with the dim of q tensor or kv tensor");
+            return false;
+        }
     }
     return true;
 }
