@@ -81,10 +81,10 @@ private:
                                         int32_t dataLen, int32_t commIdx);
     __aicore__ inline void CalcTokenMaxValue(LocalTensor<float> copyTensor0, LocalTensor<float> copyTensor1, LocalTensor<float> absTensor0,
         LocalTensor<float> absTensor1, LocalTensor<float> smoothScaleTensor0, LocalTensor<float> smoothScaleTensor1, int32_t castOffset,
-        __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale);
+        __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, LocalTensor<float> reduceMaxTensor);
     __aicore__ inline void QuantPerSegment(LocalTensor<float> copyTensor0, LocalTensor<float> copyTensor1, LocalTensor<float> absTensor0,
         LocalTensor<float> absTensor1, LocalTensor<float> smoothScaleTensor0, LocalTensor<float> smoothScaleTensor1, int32_t castOffset,
-        __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, int32_t quantScaleReciproal);
+        __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, float quantScaleReciproal);
 
 private:
     GM_ADDR aGM_;
@@ -380,7 +380,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantToken(__gm__ ATyp
 template <TemplateA2AMMClass>
 __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CalcTokenMaxValue(LocalTensor<float> copyTensor0, LocalTensor<float> copyTensor1,
     LocalTensor<float> absTensor0, LocalTensor<float> absTensor1, LocalTensor<float> smoothScaleTensor0, LocalTensor<float> smoothScaleTensor1,
-    int32_t castOffset, __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale)
+    int32_t castOffset, __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, LocalTensor<float> reduceMaxTensor)
 {
     int32_t actualMoveSize = copyTensorSize;
     int32_t dataSegmentOffset = 0;
@@ -431,7 +431,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CalcTokenMaxValue(Loca
 template <TemplateA2AMMClass>
 __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantPerSegment(LocalTensor<float> copyTensor0, LocalTensor<float> copyTensor1,
     LocalTensor<float> absTensor0, LocalTensor<float> absTensor1, LocalTensor<float> smoothScaleTensor0, LocalTensor<float> smoothScaleTensor1,
-    int32_t castOffset, __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, int32_t quantScaleReciproal)
+    int32_t castOffset, __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, float quantScaleReciproal)
 {
     int32_t actualMoveSize = copyTensorSize;
     int32_t actualMoveBytes = std::is_same_v<BType, int8_t> ? actualMoveSize : actualMoveSize / 2;
@@ -526,7 +526,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantTokenSegment(__gm
         PipeBarrier<PIPE_V>();
         /* 获取当前token的max_abs_value */
         CalcTokenMaxValue(copyTensor0, copyTensor1, absTensor0, absTensor1, smoothScaleTensor0, smoothScaleTensor1, castOffset, dataSrc,
-            dataTokenOffset, smoothScaleCastOffset, sizeScale);
+            dataTokenOffset, smoothScaleCastOffset, sizeScale, reduceMaxTensor);
         float tokenMaxValue = reduceMaxTensor.GetValue(0);
         float quantMaxValue = std::is_same_v<BType, int8_t> ? MAX_INT8 : MAX_INT4;
         float quantScale = tokenMaxValue / quantMaxValue;
