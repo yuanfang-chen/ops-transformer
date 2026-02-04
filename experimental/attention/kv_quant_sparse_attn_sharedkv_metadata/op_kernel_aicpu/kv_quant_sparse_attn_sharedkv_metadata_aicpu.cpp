@@ -225,7 +225,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
             return false;
         }
     } else if (cmpRatio_ > 0) {
-        KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpRatio_ should be -1!");
+        KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpRatio_ should be 0!");
         return false;
     }
     // TopK 关联校验
