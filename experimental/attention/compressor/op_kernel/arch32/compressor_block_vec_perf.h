@@ -88,7 +88,7 @@ private:
     __aicore__ inline uint32_t GetBsLength(uint32_t index);
     __aicore__ inline void CalcGlobalScStart(uint32_t bStart, uint32_t scStart, uint32_t bEnd, uint32_t scEnd, uint64_t &globalScStart);
     __aicore__ inline void UpdateOutputIdx(uint32_t &outputBStart, uint32_t &outputSStart, uint32_t &dealScSize, uint32_t &curDealScSize);
-    __aicore__ inline void DealVec1BaseBlock(const RunInfo &info, CompressorVec1SliceIterator<COMP> &sliceIterstor, uint32_t dStartIdx, uint32_t dDealSize);
+    __aicore__ inline void DealVec1BaseBlock(const RunInfo &info, CompressorVec1SliceIterator<COMP, false> &sliceIterstor, uint32_t dStartIdx, uint32_t dDealSize);
     // __aicore__ inline void UpdateBlockInfo(VecBlockInfo &blockInfo);
     __aicore__ inline void CopyInApe(const LocalTensor<T> &apeUb,uint32_t dStartIdx, uint32_t dDealSize);
     __aicore__ inline void AddApeToScore(const LocalTensor<T> &scoreLocal, const LocalTensor<T> &apeUb, uint32_t tcDealSize, uint32_t dDealSize);
@@ -727,93 +727,120 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::SaveState(const LocalTensor<T> kvLocal, const LocalTensor<T> scoreLocal,
     const Vec1SliceInfo &sliceInfo, uint32_t dStartIdx, uint32_t dDealSize)
 {
+    uint32_t coff = static_cast<uint32_t>(COMP::coff);
+    {
+        uint32_t startSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx;
+        uint32_t endSeqIdx = startSeqIdx + sliceInfo.validSeqCnt;
+        uint64_t srcBaseOffset = sliceInfo.headHolderSeqCnt * coff * dDealSize;
+        // printf("headHolderSeqCnt=%d, validSeqCnt=%d, copySeqCnt=%d, tailHolderSeqCnt=%d\n", sliceInfo.headHolderSeqCnt, sliceInfo.validSeqCnt, copySeqCnt, sliceInfo.tailHolderSeqCnt);
+        // printf("--srcStride=%d--\n", (srcBaseOffset + dDealSize));
+        WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+        WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+    }
     if constexpr (COMP::coff == COFF::OVERLAP) {
-        uint32_t coff = static_cast<uint32_t>(COMP::coff);
-        // 存右边
-        if (sliceInfo.sIdx + sliceInfo.validSeqCnt == sliceInfo.bSeqUsed) {
-            uint32_t copySeqCnt = constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt;
-            if (sliceInfo.validSeqCnt < copySeqCnt) {
-                    copySeqCnt = sliceInfo.validSeqCnt;
-            } else {
-                if (sliceInfo.tailHolderSeqCnt > 0) {
-                    if (sliceInfo.validSeqCnt - copySeqCnt > constInfo_.cmpRatio) {
-                        copySeqCnt += constInfo_.cmpRatio;
-                    } else {
-                        copySeqCnt += sliceInfo.validSeqCnt - copySeqCnt;
-                    }
-                }
-            }
-            uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt;
-            uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
-            uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt - copySeqCnt) * coff * dDealSize;
-            // printf("headHolderSeqCnt=%d, validSeqCnt=%d, copySeqCnt=%d, tailHolderSeqCnt=%d\n", sliceInfo.headHolderSeqCnt, sliceInfo.validSeqCnt, copySeqCnt, sliceInfo.tailHolderSeqCnt);
-            // printf("--srcStride=%d--\n", (srcBaseOffset + dDealSize));
-            WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
-            WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
-        } else if (sliceInfo.sIdx + sliceInfo.validSeqCnt + constInfo_.cmpRatio > sliceInfo.bSeqUsed) {
-            uint32_t copySeqCnt = constInfo_.cmpRatio;
-            if (copySeqCnt > sliceInfo.validSeqCnt) {
-                copySeqCnt = sliceInfo.validSeqCnt;
-            }
-            uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt;
-            uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
-            uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt - copySeqCnt) * coff * dDealSize;
-            WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
-            WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+        uint32_t startSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx;
+        uint32_t endSeqIdx = startSeqIdx + sliceInfo.validSeqCnt;
+        if (sliceInfo.isLast) {
+            endSeqIdx -= sliceInfo.lastTcSeqCnt;
         }
+        uint64_t srcBaseOffset = (constInfo_.cmpRatio + sliceInfo.headHolderSeqCnt) * coff * dDealSize;
+        WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+        WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
 
-        // 存左边
-        if (sliceInfo.dealTcSize == 1) {
-            // 左边尾块和首块是同一块
-            if (sliceInfo.sIdx == 0) {
-                SaveLeftFirst(kvLocal, scoreLocal, sliceInfo, dStartIdx, dDealSize);
-            } else {
-                if (sliceInfo.tailHolderSeqCnt > 0) {
-                    // 左边为本batch数据
-                    uint32_t copySeqCnt = constInfo_.cmpRatio;
-                    if (sliceInfo.sIdx < copySeqCnt) {
-                        copySeqCnt = sliceInfo.sIdx;
-                    }
-                    uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt);
-                    uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
-                    uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt + sliceInfo.tailHolderSeqCnt - copySeqCnt) * coff * dDealSize;
-                    WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
-                    WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
-                }
-            }
-        } else {
-            // 存左边第一块
-            if (sliceInfo.sIdx == 0) {
-                SaveLeftFirst(kvLocal, scoreLocal, sliceInfo, dStartIdx, dDealSize);
-            }
-
-            // 存左边最后一块
-            if (sliceInfo.tailHolderSeqCnt > 0) {
-                // 左边为本batch数据
-                uint32_t copySeqCnt = constInfo_.cmpRatio;
-                if (sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt) < copySeqCnt) {
-                    copySeqCnt = sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt);
-                }
-                uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt);
-                uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
-                uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt + sliceInfo.tailHolderSeqCnt - copySeqCnt) * coff * dDealSize;
-                WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
-                WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
-            }
-        }
-    } else {
-        if (sliceInfo.tailHolderSeqCnt > 0) { // 仅尾块不满时需要存到state上
-            uint32_t copySeqCnt = constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt;
-            if (copySeqCnt > sliceInfo.validSeqCnt) {
-                copySeqCnt = sliceInfo.validSeqCnt;
-            }
-            uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt - copySeqCnt) * dDealSize;
-            uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt;
-            uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+        if (sliceInfo.isFirst && sliceInfo.preSIdx < sliceInfo.preBSeqUsed) {
+            uint32_t startSeqIdx = sliceInfo.preBStartPos + sliceInfo.preSIdx;
+            uint32_t endSeqIdx = min(sliceInfo.preBStartPos + sliceInfo.preBSeqUsed, startSeqIdx + sliceInfo.preValidSeqCnt);
+            uint64_t srcBaseOffset = sliceInfo.preHeadHolderSeqCnt * coff * dDealSize;
             WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
             WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
         }
     }
+    //     uint32_t coff = static_cast<uint32_t>(COMP::coff);
+    //     // 存右边
+    //     if (sliceInfo.sIdx + sliceInfo.validSeqCnt == sliceInfo.bSeqUsed) {
+    //         uint32_t copySeqCnt = constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt;
+    //         if (sliceInfo.validSeqCnt < copySeqCnt) {
+    //                 copySeqCnt = sliceInfo.validSeqCnt;
+    //         } else {
+    //             if (sliceInfo.tailHolderSeqCnt > 0) {
+    //                 if (sliceInfo.validSeqCnt - copySeqCnt > constInfo_.cmpRatio) {
+    //                     copySeqCnt += constInfo_.cmpRatio;
+    //                 } else {
+    //                     copySeqCnt += sliceInfo.validSeqCnt - copySeqCnt;
+    //                 }
+    //             }
+    //         }
+    //         uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt;
+    //         uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+    //         uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt - copySeqCnt) * coff * dDealSize;
+    //         // printf("headHolderSeqCnt=%d, validSeqCnt=%d, copySeqCnt=%d, tailHolderSeqCnt=%d\n", sliceInfo.headHolderSeqCnt, sliceInfo.validSeqCnt, copySeqCnt, sliceInfo.tailHolderSeqCnt);
+    //         // printf("--srcStride=%d--\n", (srcBaseOffset + dDealSize));
+    //         WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+    //         WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+    //     } else if (sliceInfo.sIdx + sliceInfo.validSeqCnt + constInfo_.cmpRatio > sliceInfo.bSeqUsed) {
+    //         uint32_t copySeqCnt = constInfo_.cmpRatio;
+    //         if (copySeqCnt > sliceInfo.validSeqCnt) {
+    //             copySeqCnt = sliceInfo.validSeqCnt;
+    //         }
+    //         uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt;
+    //         uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+    //         uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt - copySeqCnt) * coff * dDealSize;
+    //         WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+    //         WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset + dDealSize], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx + constInfo_.headDim, dDealSize);
+    //     }
+
+    //     // 存左边
+    //     if (sliceInfo.dealTcSize == 1) {
+    //         // 左边尾块和首块是同一块
+    //         if (sliceInfo.sIdx == 0) {
+    //             SaveLeftFirst(kvLocal, scoreLocal, sliceInfo, dStartIdx, dDealSize);
+    //         } else {
+    //             if (sliceInfo.tailHolderSeqCnt > 0) {
+    //                 // 左边为本batch数据
+    //                 uint32_t copySeqCnt = constInfo_.cmpRatio;
+    //                 if (sliceInfo.sIdx < copySeqCnt) {
+    //                     copySeqCnt = sliceInfo.sIdx;
+    //                 }
+    //                 uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt);
+    //                 uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+    //                 uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt + sliceInfo.tailHolderSeqCnt - copySeqCnt) * coff * dDealSize;
+    //                 WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+    //                 WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+    //             }
+    //         }
+    //     } else {
+    //         // 存左边第一块
+    //         if (sliceInfo.sIdx == 0) {
+    //             SaveLeftFirst(kvLocal, scoreLocal, sliceInfo, dStartIdx, dDealSize);
+    //         }
+
+    //         // 存左边最后一块
+    //         if (sliceInfo.tailHolderSeqCnt > 0) {
+    //             // 左边为本batch数据
+    //             uint32_t copySeqCnt = constInfo_.cmpRatio;
+    //             if (sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt) < copySeqCnt) {
+    //                 copySeqCnt = sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt);
+    //             }
+    //             uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt - (constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt);
+    //             uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+    //             uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt + sliceInfo.tailHolderSeqCnt - copySeqCnt) * coff * dDealSize;
+    //             WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+    //             WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+    //         }
+    //     }
+    // } else {
+    //     if (sliceInfo.tailHolderSeqCnt > 0) { // 仅尾块不满时需要存到state上
+    //         uint32_t copySeqCnt = constInfo_.cmpRatio - sliceInfo.tailHolderSeqCnt;
+    //         if (copySeqCnt > sliceInfo.validSeqCnt) {
+    //             copySeqCnt = sliceInfo.validSeqCnt;
+    //         }
+    //         uint64_t srcBaseOffset = (sliceInfo.headHolderSeqCnt + sliceInfo.validSeqCnt - copySeqCnt) * dDealSize;
+    //         uint64_t endSeqIdx = sliceInfo.bStartPos + sliceInfo.sIdx + sliceInfo.validSeqCnt;
+    //         uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+    //         WriteToCacheState(kvStateGm_, kvBlockTableGm_, kvLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+    //         WriteToCacheState(scoreStateGm_, scoreBlockTableGm_, scoreLocal[srcBaseOffset], sliceInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+    //     }
+    // }
 }
 
 template <typename COMP>
@@ -969,7 +996,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::CopyOutVec1Res(const Run
 
 template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const RunInfo &info,
-                                                                      CompressorVec1SliceIterator<COMP> &sliceIterstor,
+                                                                      CompressorVec1SliceIterator<COMP, false> &sliceIterstor,
                                                                       uint32_t dStartIdx, uint32_t dDealSize)
 {
     // PRINTF("DealVec1BaseBlock Start. blockInfo.dealSeqSize:%d\n", blockInfo.dealSeqSize);
@@ -979,14 +1006,14 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
 
     // tempSliceIterstor.template Reset<true>(sliceInfo.bIdx, sliceInfo.sIdx, sliceInfo.dealedSeqCnt, 0U);
     // tempSliceIterstor.SetNeedDealTcSize(sliceIterstor.GetNeedDealTcSize());
-    StatisticInfo statisticInfo = sliceIterstor.template FullIteratorSlice<true>();
-    if (statisticInfo.actualTcNum == 0) {
+    StatisticInfo& statisticInfo = sliceIterstor.template FullIteratorSlice<true>();
+    if (statisticInfo.actualTcCnt == 0) {
         return ;
     }
 
     CompressorVec1SliceIterator overLapSliceIterstor(tools_);
     overLapSliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
-    Vec1SliceInfo overLapSliceInfo{};
+    Vec1SliceInfo& overLapSliceInfo = overLapSliceIterstor.GetSlice();
 
     LocalTensor<T> scoreUb = inputQue1.AllocTensor<T>();
     FromWokrSpaceToUb(scoreUb, originSliceInfo, statisticInfo, dStartIdx + constInfo_.dBaseSize, dDealSize);
@@ -1000,13 +1027,14 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     overLapSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
     overLapSliceIterstor.SetNeedDealTcSize(needDealTcSize);
     while (!overLapSliceIterstor.IsEnd()) {
-        overLapSliceInfo = overLapSliceIterstor.GetSlice();
+        overLapSliceIterstor.GetSlice();
         OverLap(scoreLocal, scoreUb, overLapSliceInfo, dStartIdx, dDealSize);
         overLapSliceIterstor.IteratorSlice();
     }
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(scoreUb);
 
+    AddApeToScore(scoreLocal, apeUb, needDealTcSize, dDealSize); // VEC,pengchen
 
     LocalTensor<T> kvUb = inputQue1.AllocTensor<T>();
     FromWokrSpaceToUb(kvUb, originSliceInfo, statisticInfo, dStartIdx, dDealSize);
@@ -1020,19 +1048,20 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     overLapSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
     overLapSliceIterstor.SetNeedDealTcSize(needDealTcSize);
     while (!overLapSliceIterstor.IsEnd()) {
-        overLapSliceInfo = overLapSliceIterstor.GetSlice();
+        overLapSliceIterstor.GetSlice();
         OverLap(kvLocal, kvUb, overLapSliceInfo, dStartIdx, dDealSize);
         overLapSliceIterstor.IteratorSlice();
     }
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(kvUb);
 
-    CompressorVec1SliceIterator computeSliceIterstor(tools_, std::true_type{});
+    CompressorVec1SliceIterator<COMP, true> computeSliceIterstor(tools_);
     computeSliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
     computeSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, originSliceInfo.dealedSeqCnt, originSliceInfo.dealedTcCnt);
-    computeSliceIterstor.SetNeedDealTcSize(statisticInfo.actualTcNum);
+    computeSliceIterstor.SetNeedDealTcSize(statisticInfo.actualTcCnt, needDealTcSize);
+    Vec1SliceInfo& sliceInfo = computeSliceIterstor.GetSlice();
     while (!computeSliceIterstor.IsEnd()) {
-        Vec1SliceInfo sliceInfo = computeSliceIterstor.GetSlice();
+        computeSliceIterstor.GetSlice();
         uint32_t ubOffset = sliceInfo.dealedTcCnt * constInfo_.cmpRatio * ((uint32_t)COMP::coff) * dDealSize;
         // PRINTF("DealVec1BaseBlock bIdx:%d sIdx:%d headHolderSeqCnt:%d validSeqCnt:%d tailHolderSeqCnt:%d dealSeqSize:%d compressTcSize:%d\n",
         //     blockInfo.bIdx, blockInfo.sIdx, blockInfo.headHolderSeqCnt, blockInfo.validSeqCnt, blockInfo.tailHolderSeqCnt, blockInfo.dealSeqSize, blockInfo.compressTcSize);
@@ -1048,8 +1077,6 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
 
         // DumpTensorForDim2(scoreLocal, 3, 128 * 64);
         // PipeBarrier<PIPE_V>();
-        AddApeToScore(scoreLocal[ubOffset], apeUb, sliceInfo.dealTcSize, dDealSize); // VEC,pengchen
-        PipeBarrier<PIPE_V>();
         // DumpTensorForDim2(scoreLocal, 5, 128 * 64);
 
         // DumpTensorForDim2(kvLocal, 6, 128 * 64);
@@ -1126,8 +1153,8 @@ template <typename COMP>
         }
         while (!sliceIterstor.IsEnd()) {
             sliceInfo = sliceIterstor.GetSlice();
-            sliceIterstor.IteratorSlice();
             curCompressedCnt += sliceInfo.compressTcSize;
+            sliceIterstor.IteratorSlice();
         }
         sliceInfo = sliceIterstor.GetSlice();
         dealSeqStartIdx = sliceInfo.dealedSeqCnt;
