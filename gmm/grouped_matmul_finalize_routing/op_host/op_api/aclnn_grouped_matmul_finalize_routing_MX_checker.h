@@ -31,24 +31,36 @@ constexpr int64_t GMMFR_SPLIT_FACTOR = 2L;
 constexpr int64_t MOD2 = 2L;
 constexpr int64_t MAX_NUM_EXPERTS = 1024L;
 
-const std::initializer_list<DataType> MX_IN_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
+const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
                                                                  op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
-const std::initializer_list<DataType> MXFP4_IN_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
-const std::initializer_list<DataType> MXFP8_IN_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
-static const std::initializer_list<op::DataType> MX_SCALE_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
-static const std::initializer_list<op::DataType> MX_ROW_INDEX_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
-static const std::initializer_list<op::DataType> MX_BIAS_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
-static const std::initializer_list<op::DataType> MX_PERTOKEN_SCALE_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT8_E8M0};
+const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_MXFP4 = {op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
+const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_MXFP8 = {op::DataType::DT_FLOAT4_E1M2, op::DataType::DT_FLOAT4_E2M1};
+static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E8M0};
+static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
+static const std::initializer_list<op::DataType> BIAS_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E8M0};
 static const std::initializer_list<op::DataType> GROUP_LIST_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
 static const std::initializer_list<op::DataType> SHARED_INPUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> LOGIT_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> OUT_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
 
+const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN = {DataType::DT_INT8, DataType::DT_FLOAT8_E4M3FN, DataType::DT_FLOAT8_E5M2, DataType::DT_HIFLOAT8};
+static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> BIAS_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_BF16, op::DataType::DT_FLOAT};
+static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_INT64, op::DataType::DT_FLOAT, op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN_XINT8 = {op::DataType::DT_INT64, op::DataType::DT_FLOAT, op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN_XFP8HIFLOAT8 = {op::DataType::DT_FLOAT, op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> SHARED_INPUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
 
-class AclnnGroupedMatmulFinalizeRouting91095Checker {
+enum class QuantMode {
+    PERTOEKN = 0, // pertoken 量化
+    MX = 2        // MX量化
+}
+
+class AclnnGroupedMatmulFinalizeRouting950Checker {
 public:
-    explicit AclnnGroupedMatmulFinalizeRouting91095Checker() {};
-    ~AclnnGroupedMatmulFinalizeRouting91095Checker() {};
+    explicit AclnnGroupedMatmulFinalizeRouting950Checker() {};
+    ~AclnnGroupedMatmulFinalizeRouting950Checker() {};
     aclnnStatus CheckParams(GroupedMatmulParams &gmmParams)
     {
         gmmParams_ = gmmParams;
@@ -61,7 +73,7 @@ public:
         // 4. 校验输入、输出shape参数
         CHECK_RET(CheckInputOutShape(), ACLNN_ERR_PARAM_INVALID);
         // 5. 校验输入、输出shape参数针对MXFP4
-        if (CheckType(gmmParams_.x1->GetDataType(), MXFP4_IN_TYPE_SUPPORT_LIST)) {
+        if (CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP4)) {
             CHECK_RET(CheckInputOutShapeForMXFP4(), ACLNN_ERR_PARAM_INVALID);
         }
         // 6. 检查数据形状是否支持
@@ -71,8 +83,8 @@ public:
 
     aclnnStatus CheckNotNull()
     {
-        CHECK_COND(gmmParams_.x1 != nullptr, ACLNN_ERR_PARAM_NULLPTR, "In MX quant , x should not be nullptr.");
-        CHECK_COND(gmmParams_.x2 != nullptr, ACLNN_ERR_PARAM_NULLPTR, "In MX quant , weight should not be nullptr.");
+        CHECK_COND(gmmParams_.x1 != nullptr, ACLNN_ERR_PARAM_NULLPTR, "In MX quant, x should not be nullptr.");
+        CHECK_COND(gmmParams_.x2 != nullptr, ACLNN_ERR_PARAM_NULLPTR, "In MX quant, weight should not be nullptr.");
         CHECK_COND(gmmParams_.scale != nullptr, ACLNN_ERR_PARAM_NULLPTR,
                    "In MX quant, scaleOptional should not be nullptr.");
         CHECK_COND(gmmParams_.pertokenScaleOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR,
@@ -233,38 +245,79 @@ public:
 
     bool CheckDtypeValid()
     {
-        DataType xDtype = gmmParams_.x1->GetDataType();
-        DataType weightDtype = gmmParams_.x2->GetDataType();
-        if (CheckType(xDtype, MX_IN_TYPE_SUPPORT_LIST) && CheckType(weightDtype, MX_IN_TYPE_SUPPORT_LIST)) {
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x1, MX_IN_TYPE_SUPPORT_LIST, return false);
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x2, MX_IN_TYPE_SUPPORT_LIST, return false);
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.scale, MX_SCALE_TYPE_SUPPORT_LIST, return false);
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, MX_ROW_INDEX_TYPE_SUPPORT_LIST, return false);
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.pertokenScaleOptional, MX_PERTOKEN_SCALE_TYPE_SUPPORT_LIST,
-                                       return false);
-            if (gmmParams_.bias != nullptr) {
-                OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.bias, MX_BIAS_TYPE_SUPPORT_LIST, return false);
-            }
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.groupList, GROUP_LIST_TYPE_SUPPORT_LIST, return false);
-            if (gmmParams_.shareInput != nullptr) {
-                OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.shareInput, SHARED_INPUT_TYPE_SUPPORT_LIST, return false);
-            }
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.logit, LOGIT_TYPE_SUPPORT_LIST, return false);
-            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.out, OUT_TYPE_SUPPORT_LIST, return false);
-
-            if ((CheckType(gmmParams_.x1->GetDataType(), MXFP4_IN_TYPE_SUPPORT_LIST) !=
-                 CheckType(gmmParams_.x2->GetDataType(), MXFP4_IN_TYPE_SUPPORT_LIST)) ||
-                (CheckType(gmmParams_.x1->GetDataType(), MXFP8_IN_TYPE_SUPPORT_LIST) !=
-                 CheckType(gmmParams_.x2->GetDataType(), MXFP8_IN_TYPE_SUPPORT_LIST))) {
-                OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                        "X1 and x2 dtype should be same, actual x1 dtype is %s and x2 dtype is %s.",
-                        op::ToString(gmmParams_.x1->GetDataType()).GetString(),
-                        op::ToString(gmmParams_.x2->GetDataType()).GetString());
+        DataType scaleDtype = gmmParams_.scale->GetDataType();
+        if (CheckType(scaleDtype, SCALE_TYPE_SUPPORT_LIST_MX)) {
+            quantMode_ = QuantMode::MX;
+            if(CheckDtypeValidForMX() == false){
                 return false;
             }
-        } else {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant case with x dtype %s and weight dtype %s is not supported.",
-                    op::ToString(xDtype).GetString(), op::ToString(weightDtype).GetString());
+        } 
+        else if(CheckType(scaleDtype, SCALE_TYPE_SUPPORT_LIST_PERTOKEN)){
+            quantMode_ = QuantMode::PERTOEKN;
+            if(CheckDtypeValidForPertoken() == false){
+                return false;
+            }
+        }else {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "scale dtype %s is not supported.",
+                    op::ToString(scaleDtype).GetString());
+            return false;
+        }
+        return true;
+    }
+    
+    bool CheckDtypeValidForMX()
+    {
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x1, X_WEIGHT_TYPE_SUPPORT_LIST_MX, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x2, X_WEIGHT_TYPE_SUPPORT_LIST_MX, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.scale, SCALE_TYPE_SUPPORT_LIST_MX, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.pertokenScaleOptional, PERTOKEN_SCALE_TYPE_SUPPORT_LIST_MX, return false);
+        if (gmmParams_.bias != nullptr) {
+            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.bias, BIAS_TYPE_SUPPORT_LIST_MX, return false);
+        }
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.groupList, GROUP_LIST_TYPE_SUPPORT_LIST, return false);
+        if (gmmParams_.shareInput != nullptr) {
+            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.shareInput, SHARED_INPUT_TYPE_SUPPORT_LIST, return false);
+        }
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.logit, LOGIT_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.out, OUT_TYPE_SUPPORT_LIST, return false);
+        if ((CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP4) !=
+             CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP4)) ||
+            (CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP8) !=
+             CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP8))) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "X1 and x2 dtype should be same, actual x1 dtype is %s and x2 dtype is %s.",
+                    op::ToString(gmmParams_.x1->GetDataType()).GetString(),
+                    op::ToString(gmmParams_.x2->GetDataType()).GetString());
+            return false;
+        }
+        return true;
+    }
+
+    bool CheckDtypeValidForPertoken()
+    {
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x1, X_WEIGHT_TYPE_SUPPORT_LIST_PERTOEKN, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x2, X_WEIGHT_TYPE_SUPPORT_LIST_PERTOEKN, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.scale, SCALE_TYPE_SUPPORT_LIST_MX, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.pertokenScaleOptional, PERTOKEN_SCALE_TYPE_SUPPORT_LIST_MX, return false);
+        if (gmmParams_.bias != nullptr) {
+            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.bias, BIAS_TYPE_SUPPORT_LIST_MX, return false);
+        }
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.groupList, GROUP_LIST_TYPE_SUPPORT_LIST, return false);
+        if (gmmParams_.shareInput != nullptr) {
+            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.shareInput, SHARED_INPUT_TYPE_SUPPORT_LIST, return false);
+        }
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.logit, LOGIT_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.out, OUT_TYPE_SUPPORT_LIST, return false);
+        if ((CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP4) !=
+             CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP4)) ||
+            (CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP8) !=
+             CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MXFP8))) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "X1 and x2 dtype should be same, actual x1 dtype is %s and x2 dtype is %s.",
+                    op::ToString(gmmParams_.x1->GetDataType()).GetString(),
+                    op::ToString(gmmParams_.x2->GetDataType()).GetString());
             return false;
         }
         return true;
@@ -321,6 +374,7 @@ public:
 
 private:
     GroupedMatmulParams gmmParams_;
+    QuantMode quantMode_;
 };
 } // namespace GmmFinalizeRouting
 #endif
