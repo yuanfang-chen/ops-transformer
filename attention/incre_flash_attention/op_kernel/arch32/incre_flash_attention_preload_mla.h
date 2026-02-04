@@ -2781,7 +2781,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
             Add(softmaxlseUb, softmaxlseUb, lseMaxUb, dealRowCountAlign);
             PipeBarrier<PIPE_V>();
 
-            uint64_t curS1Size = LAYOUT_T == LAYOUT::TND ? info.actS1Size : info.s2Size;
+            uint64_t curS1Size = LAYOUT_T == LAYOUT::TND ? info.actS1Size : qSeqSize;
 
             bool IsExistInvalidRows = IsExistSoftmaxLseInvalidRows(curS1Size, info.s2Size, info.s1Idx * s1SizeSub);
 
