@@ -359,10 +359,6 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaMetadata() const
     if (opParamInfo_.metadata.tensor == nullptr) {
         return ge::GRAPH_FAILED;
     }
-
-    if (opParamInfo_.metadata.tensor->GetShapeSize() != 2048) {
-        return ge::GRAPH_FAILED;
-    }
     return ge::GRAPH_SUCCESS;
 }
 
