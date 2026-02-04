@@ -503,7 +503,8 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
                 .s1LeftPaddingSize = info.qPaddingBeginOffset,
                 .s2LeftPaddingSize = info.kvPaddingBeginOffset
             };
-            copyPSEGmToUb(pseShiftUbTensor, pseShiftGmTensor, pseCoord);
+            bool qsEqualOne = (constInfo.qSeqSize == 1);
+            copyPSEGmToUb(pseShiftUbTensor, pseShiftGmTensor, pseCoord, qsEqualOne);
             inputQue2.EnQue(pseShiftB16);
             inputQue2.DeQue<PSE_T>();
             LocalTensor<T> pseShiftUbFP32 = tmpBuf.Get<T>();
@@ -768,6 +769,9 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Bmm2CastAndCopyOut(const RunIn
     LocalTensor<MM2_OUT_T> &bmm2ResUb, uint32_t wsMStart, uint32_t startRow,
     uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
 {
+    DealInvalidRows(info, bmm2ResUb, wsMStart, dealRowCount, columnCount, actualColumnCount);
+    DealInvalidMaskRows(info, bmm2ResUb, wsMStart, startRow, dealRowCount, columnCount, actualColumnCount);
+    AscendC::PipeBarrier<PIPE_V>();
     if constexpr (POST_QUANT) {
         if (isQuant2PerChn) {
             DealPostQuantOutPerChn(info, bmm2ResUb, startRow, dealRowCount, columnCount);
@@ -775,11 +779,6 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Bmm2CastAndCopyOut(const RunIn
             DealPostQuantOutPerTensor(bmm2ResUb, startRow, dealRowCount, columnCount);
         }
     }
-
-    DealInvalidRows(info, bmm2ResUb, wsMStart, dealRowCount, columnCount, actualColumnCount);
-    DealInvalidMaskRows(info, bmm2ResUb, wsMStart, startRow, dealRowCount, columnCount, actualColumnCount);
-    AscendC::PipeBarrier<PIPE_V>();
-
     LocalTensor<OUT_T> tmpBmm2ResCastTensor = outputQue1.AllocTensor<OUT_T>();
     if constexpr (POST_QUANT) {
         LocalTensor<half> quant2ResHalf = tmpBuff1.Get<half>();
