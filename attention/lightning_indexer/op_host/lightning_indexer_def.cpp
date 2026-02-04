@@ -32,7 +32,7 @@ public:
             .AutoContiguous();
         this->Input("weights")
             .ParamType(REQUIRED)
-            .DataType({ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT32, ge::DT_FLOAT32})
+            .DataType({ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT, ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("actual_seq_lengths_query")
