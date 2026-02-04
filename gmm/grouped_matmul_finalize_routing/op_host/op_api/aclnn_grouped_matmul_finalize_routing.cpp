@@ -801,7 +801,7 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     auto ret = WeightNZCaseProcess(x2, transposeX2, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    if (scale != nullptr && CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST) && transposeX2 == false) {
+    if (scale != nullptr && CheckType(x1->GetDataType(), MX_IN_TYPE_SUPPORT_LIST)) {
         bool transposescale = false;
         ret = WeightNZCaseProcessForMXScale(scale, transposescale, executor);
         CHECK_RET(transposeX2 == transposescale, ret);
