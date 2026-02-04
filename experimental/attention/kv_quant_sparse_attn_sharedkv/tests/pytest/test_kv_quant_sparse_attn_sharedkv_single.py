@@ -13,10 +13,10 @@
 import itertools
 import torch
 from kv_quant_sparse_attn_sharedkv_paramset import ENABLED_PARAMS
-import check_result
+import result_compare_method
 import check_valid_param
 import kv_quant_sparse_attn_sharedkv_golden
-import kv_quant_sparse_attn_sharedkv_process_ci_graph
+from batch import kv_quant_sparse_attn_sharedkv_process
 import pytest
 import random
 import pandas as pd
@@ -26,10 +26,12 @@ import math
 import os
 import multiprocessing as mp
 import concurrent.futures
+import utils
 
 pt_save_path = "qsas_testcase"
 device_id = 0
 save_pt = False
+result_path = Path('result.xlsx')
 
 locals()["param_combinations"] = []
 for _, params in enumerate(ENABLED_PARAMS):
@@ -184,13 +186,23 @@ def sas(param_combinations):   # 初始化参数和tensor
        pytest.skip(f"输入参数校验失败:{e}")
 
     # 生成测试数据及golden
-    input_data = kv_quant_sparse_attn_sharedkv_golden.generate_and_save_testdata(params, save_pt=save_pt, save_path=pt_save_path)
+    test_data = kv_quant_sparse_attn_sharedkv_golden.generate_and_save_testdata(params, save_pt=save_pt, save_path=pt_save_path)
 
     # 获得cpu结果(真值)和算子结果（测试值）
-    npu_result, cpu_quant_result = kv_quant_sparse_attn_sharedkv_process_ci_graph.test_sas_quant_process_ci(input_data, device_id=device_id)
-    result, fulfill_percent = check_result.check_result(cpu_quant_result, npu_result)
-    
+    try:
+        npu_result, cpu_quant_result = kv_quant_sparse_attn_sharedkv_process.test_sas_quant_process_ci(test_data, device_id=device_id)
+        result, fulfill_percent = result_compare_method.check_result(cpu_quant_result, npu_result)
+    except Exception as e:
+        print("NPU ERROR：", e)
+        result = "NPU ERROR"
+        fulfill_percent = 0
+
     case_id += 1
+
+    utils.save_result(test_data['params'], result, fulfill_percent, result_path)
+    
+    if(result == "NPU ERROR"):
+        pytest.fail(f"用例执行失败:{test_data['Testcase_Name']}")
     
 @pytest.mark.ci
 @pytest.mark.parametrize("param_combinations", locals()["param_combinations"])

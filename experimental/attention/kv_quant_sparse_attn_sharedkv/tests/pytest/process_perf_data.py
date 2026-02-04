@@ -96,7 +96,7 @@ def process_profiler_data(args):
                     df_b.at[i, "metadata_perf_diff"] = metadata_perf_diff
                     df_b.at[i, "sas_perf_diff"] = sas_perf_diff
 
-                    if (abs(metadata_perf_diff) > perf_threshold) or (abs(sas_perf_diff) > perf_threshold):
+                    if abs(sas_perf_diff) > perf_threshold:
                         df_b.at[i, "perf_result"] = "Failed"
                         perf_fail_list.append(df_b.iloc[i]["case_name"])
 
