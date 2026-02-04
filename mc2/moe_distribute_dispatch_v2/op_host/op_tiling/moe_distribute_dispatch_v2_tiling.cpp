@@ -1879,11 +1879,11 @@ static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* co
     std::string socVersion = mc2tiling::GetSocVersion(context);
     ge::graphStatus ret;
     if (socVersion == "Ascend910B") {
-        ret = MoeDistributeDispatchA2TilingFuncImpl<ConstChosen>(context);
+        ret = MoeDistributeDispatchA2TilingFuncImpl<TilingConst>(context);
     } else if (socVersion == "Ascend950") {
-        ret = MoeDistributeDispatchA5TilingFuncImpl<ConstChosen>(context);
+        ret = MoeDistributeDispatchA5TilingFuncImpl<TilingConst>(context);
     } else {
-        ret = MoeDistributeDispatchA3TilingFuncImpl<ConstChosen>(context);
+        ret = MoeDistributeDispatchA3TilingFuncImpl<TilingConst>(context);
     }
     return ret;
 }
