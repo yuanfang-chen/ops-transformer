@@ -21,9 +21,9 @@ using namespace ge;
 
 namespace optiling {
 inline bool MoeDistributeDispatchTilingHelper::CheckInputTensorDim(const gert::TilingContext *context,
-    const char *nodeName, const bool isScales, const uint32_t quantMode)
+    const char *nodeName, const bool isScales, const uint32_t quantMode, DispatchV2Config &config)
 {
-    const gert::StorageShape *xStorageShape = context->GetInputShape(X_INDEX);
+    const gert::StorageShape *xStorageShape = context->GetInputShape(config.xIndex);
     OP_TILING_CHECK(xStorageShape == nullptr, OP_LOGE(nodeName, "xShape is null."), return false);
     OP_TILING_CHECK(xStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
         OP_LOGE(nodeName, "xShape dims must be 2, but current dim num is %lu.",
@@ -31,7 +31,7 @@ inline bool MoeDistributeDispatchTilingHelper::CheckInputTensorDim(const gert::T
     OP_LOGD(nodeName, "x dim0 = %ld", xStorageShape->GetStorageShape().GetDim(0));
     OP_LOGD(nodeName, "x dim1 = %ld", xStorageShape->GetStorageShape().GetDim(1));
 
-    const gert::StorageShape *expertIdStorageShape = context->GetInputShape(EXPERT_IDS_INDEX);
+    const gert::StorageShape *expertIdStorageShape = context->GetInputShape(config.expertIdsIndex);
     OP_TILING_CHECK(expertIdStorageShape == nullptr, OP_LOGE(nodeName, "expertIdShape is null."), return false);
     OP_TILING_CHECK(expertIdStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
         OP_LOGE(nodeName, "expertIdShape dims must be 2, but current dim num is %lu.",
@@ -40,7 +40,7 @@ inline bool MoeDistributeDispatchTilingHelper::CheckInputTensorDim(const gert::T
     OP_LOGD(nodeName, "expertId dim1 = %ld", expertIdStorageShape->GetStorageShape().GetDim(1));
     // 如果scales不为空进行shape维度检查
     if (isScales) {
-        const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
+        const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(config.scalesIndex);
         OP_TILING_CHECK(scalesStorageShape == nullptr, OP_LOGE(nodeName, "scalesShape is null."), return false);
         if (quantMode != static_cast<uint32_t>(QuantModeA5::STATIC_QUANT)) {
             // the cond is compatible with A2/A3 because static quant is only supported on A5
@@ -149,14 +149,14 @@ inline bool MoeDistributeDispatchTilingHelper::CheckEpTpRecvTensorDim(
 }
 
 bool MoeDistributeDispatchTilingHelper::CheckTensorDim(gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode, const uint32_t opVersion)
+    const bool isScales, const uint32_t quantMode, const uint32_t opVersion, DispatchV2Config &config)
 {
-    OP_TILING_CHECK(!CheckInputTensorDim(context, nodeName, isScales, quantMode), 
+    OP_TILING_CHECK(!CheckInputTensorDim(context, nodeName, isScales, quantMode, config), 
         OP_LOGE(nodeName, "Input param shape is invalid."), return false);
 
     // A3/A5 v1接口的x_active_mask不支持传入
     if (opVersion == OP_VERSION_1) {
-        const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(X_ACTIVE_MASK_INDEX);
+        const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(config.xActiveMaskIndex);
         OP_TILING_CHECK(xActiveMaskStorageShape != nullptr, OP_LOGE(nodeName, "x_active_mask only support input None."),
             return false);
     }
@@ -199,22 +199,22 @@ inline bool MoeDistributeDispatchTilingHelper::CheckCommonOutputTensorDataType(
 }
 
 inline bool MoeDistributeDispatchTilingHelper::CheckInputTensorDataType(const gert::TilingContext *context,
-    const char *nodeName, const bool isScales)
+    const char *nodeName, const bool isScales, DispatchV2Config &config)
 {
-    auto xDesc = context->GetInputDesc(X_INDEX);
+    auto xDesc = context->GetInputDesc(config.xIndex);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     OP_TILING_CHECK((xDesc->GetDataType() != ge::DT_BF16) && (xDesc->GetDataType() != ge::DT_FLOAT16),
         OP_LOGE(nodeName, "x datatype is invalid, datatype should be bf16 or float16, but is %s.",
         Ops::Base::ToString(xDesc->GetDataType()).c_str()), return false);
 
-    auto expertIdDesc = context->GetInputDesc(EXPERT_IDS_INDEX);
+    auto expertIdDesc = context->GetInputDesc(config.expertIdsIndex);
     OP_TILING_CHECK(expertIdDesc == nullptr, OP_LOGE(nodeName, "expertIdDesc is null."), return false);
     OP_TILING_CHECK(expertIdDesc->GetDataType() != ge::DT_INT32,
         OP_LOGE(nodeName, "expertId datatype is invalid, datatype should be int32, but is %s.",
         Ops::Base::ToString(expertIdDesc->GetDataType()).c_str()), return false);
 
     if (isScales) {
-        auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
+        auto scalesDesc = context->GetOptionalInputDesc(config.scales_index);
         OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
         OP_TILING_CHECK(scalesDesc->GetDataType() != ge::DT_FLOAT,
             OP_LOGE(nodeName, "scales datatype is invalid, datatype should be float, but is %s.",
@@ -224,9 +224,9 @@ inline bool MoeDistributeDispatchTilingHelper::CheckInputTensorDataType(const ge
 }
 
 bool MoeDistributeDispatchTilingHelper::CheckTensorDataType(gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode)
+    const bool isScales, const uint32_t quantMode, DispatchV2Config &config)
 {
-    auto xDesc = context->GetInputDesc(X_INDEX);
+    auto xDesc = context->GetInputDesc(config.xIndex);
     OP_TILING_CHECK(!CheckInputTensorDataType(context, nodeName, isScales), 
         OP_LOGE(nodeName, "Input param data type is invalid."), return false);
     auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
@@ -257,9 +257,9 @@ bool MoeDistributeDispatchTilingHelper::CheckTensorDataType(gert::TilingContext 
 }
 
 inline bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeNoScales(const gert::TilingContext *context,
-    const char *nodeName, const bool isScales)
+    const char *nodeName, const bool isScales, DispatchV2Config &config)
 {
-    auto xDesc = context->GetInputDesc(X_INDEX);
+    auto xDesc = context->GetInputDesc(config.xIndex);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     auto expandXDesc = context->GetOutputDesc(OUTPUT_EXPAND_X_INDEX);
     OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandXDesc is null."), return false);
@@ -277,7 +277,7 @@ inline bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeNoScales(const
     // If X is bf16/fp16, the scales must be nullptr, which is validated in CheckQuantModeAndScales
     // Hence the datatype of X must be e5m2/e4m3fn/hif8 when isScales is true
     if (isScales) {
-        auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
+        auto scalesDesc = context->GetOptionalInputDesc(config.scales_index);
         OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
         auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
         OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
@@ -300,9 +300,9 @@ inline bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeNoScales(const
 }
 
 inline bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeStaticOrDynamic(
-    const gert::TilingContext *context, const char *nodeName, bool isScales)
+    const gert::TilingContext *context, const char *nodeName, bool isScales, DispatchV2Config &config)
 {
-    auto xDesc = context->GetInputDesc(X_INDEX);
+    auto xDesc = context->GetInputDesc(config.xIndex);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
     OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
@@ -313,7 +313,7 @@ inline bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeStaticOrDynami
     // Scales: fp32, optional for dynamic/pertoken/pertile, required for static/hif8
     // isScales has been checked in CheckQuantModeAndScales
     if (isScales) {
-        auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
+        auto scalesDesc = context->GetOptionalInputDesc(config.scales_index);
         OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
         OP_TILING_CHECK((scalesDesc->GetDataType() != ge::DT_FLOAT),
             OP_LOGE(nodeName, "scales datatype is invalid, datatype should be float, but is %s.",
@@ -328,7 +328,7 @@ inline bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeStaticOrDynami
 inline bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeMxfp8(
     const gert::TilingContext *context, const char *nodeName)
 {
-    auto xDesc = context->GetInputDesc(X_INDEX);
+    auto xDesc = context->GetInputDesc(config.xIndex);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     auto dynamicScalesDesc = context->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX);
     OP_TILING_CHECK(dynamicScalesDesc == nullptr, OP_LOGE(nodeName, "dynamicScalesDesc is null."),
@@ -378,20 +378,20 @@ bool MoeDistributeDispatchTilingHelper::CheckTensorDataTypeA5(gert::TilingContex
 }
 
 bool MoeDistributeDispatchTilingHelper::CheckTensorFormat(const gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode)
+    const bool isScales, const uint32_t quantMode, DispatchV2Config &config)
 {
-    auto xDesc = context->GetInputDesc(X_INDEX);
+    auto xDesc = context->GetInputDesc(config.xIndex);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(xDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "x format is invalid."), return false);
 
-    auto expertIdDesc = context->GetInputDesc(EXPERT_IDS_INDEX);
+    auto expertIdDesc = context->GetInputDesc((config.expertIdsIndex));
     OP_TILING_CHECK(expertIdDesc == nullptr, OP_LOGE(nodeName, "expertIdDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expertIdDesc->GetStorageFormat())) ==
         ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "expertId format is invalid."), return false);
 
     if (isScales) {
-        auto scalesDesc = context->GetOptionalInputDesc(SCALES_INDEX);
+        auto scalesDesc = context->GetOptionalInputDesc(config.scales_index);
         OP_TILING_CHECK(scalesDesc == nullptr, OP_LOGE(nodeName, "scalesDesc is null."), return false);
         OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(scalesDesc->GetStorageFormat())) ==
             ge::FORMAT_FRACTAL_NZ, OP_LOGE(nodeName, "scales format is invalid."), return false);
@@ -436,13 +436,13 @@ bool MoeDistributeDispatchTilingHelper::CheckTensorFormat(const gert::TilingCont
 }
 
 ge::graphStatus MoeDistributeDispatchTilingHelper::TilingCheckMoeDistributeDispatch(gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode)
+    const bool isScales, const uint32_t quantMode, DispatchV2Config &config)
 {
-    OP_TILING_CHECK(!CheckTensorDim(context, nodeName, isScales, quantMode, OP_VERSION_1),
+    OP_TILING_CHECK(!CheckTensorDim(context, nodeName, isScales, quantMode, OP_VERSION_1, config),
         OP_LOGE(nodeName, "params shape is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!CheckTensorDataType(context, nodeName, isScales, quantMode),
+    OP_TILING_CHECK(!CheckTensorDataType(context, nodeName, isScales, quantMode, config, config),
         OP_LOGE(nodeName, "params dataType is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!CheckTensorFormat(context, nodeName, isScales, quantMode),
+    OP_TILING_CHECK(!CheckTensorFormat(context, nodeName, isScales, quantMode, config),
         OP_LOGE(nodeName, "params format is invalid."), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
