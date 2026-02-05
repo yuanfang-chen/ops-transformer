@@ -55,7 +55,7 @@ operator_group_6:
   - moe_token_permute_with_routing_map
   - moe_token_permute_with_routing_map_grad
   - grouped_matmul_add
-  - attention_worker_combine
+
 operator_group_7:
   - incre_flash_attention
   - moe_token_unpermute_with_ep
