@@ -88,11 +88,9 @@ __aicore__ inline void ExpertTokensCount::Init(GM_ADDR expertTokensCount, GM_ADD
     sortedExpertIdGm_.SetGlobalBuffer((__gm__ int32_t*)sortedExpertId + blockIdx_ * perCoreElements_, curCoreElements_);
     pipe_->InitBuffer(sortedExpertIdInQueue_, 1, AlignBytes(curCoreElements_, sizeof(int32_t)));
     // 学员补充： 剩余 GM/UB 初始化
-    sortedExpertIdGm_.SetGlobalBuffer((__gm__ int32_t*)sortedExpertId + blockIdx_ * perCoreElements_, curCoreElements_);
     expertTokensCountGm_.SetGlobalBuffer((__gm__ int32_t*)expertTokensCount, actualExpertNum_);
     expertTotalCountGm_.SetGlobalBuffer((__gm__ int32_t*)expertTotalCount, actualExpertNum_);
 
-    pipe_->InitBuffer(sortedExpertIdInQueue_, 1, AlignBytes(curCoreElements_, sizeof(int32_t)));
     pipe_->InitBuffer(expertIdCountOutQueue_, 1, AlignBytes(actualExpertNum_, sizeof(int32_t)));
     pipe_->InitBuffer(expertIdCountInQueue_, 1, AlignBytes(actualExpertNum_, sizeof(int32_t)));
     pipe_->InitBuffer(expertTotalCountQueue_, 1, AlignBytes(1, sizeof(int32_t)));

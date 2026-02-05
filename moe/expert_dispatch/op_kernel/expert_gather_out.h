@@ -91,6 +91,15 @@ __aicore__ inline void ExpertGatherOut<T>::Init(GM_ADDR x, GM_ADDR scale, GM_ADD
     }
 
     // 学员补充： GM/UB初始化
+    perCoreIndicesElements_ = Ceil(expertTotalCount_, tilingData->coreNum);
+    needCoreNum_ = Ceil(expertTotalCount_, perCoreIndicesElements_);
+    lastCoreIndicesElements_ = expertTotalCount_ - (needCoreNum_ - 1) * perCoreIndicesElements_;
+    if (blockIdx_ == needCoreNum_ - 1) {
+        curCoreIndicesElements_ = lastCoreIndicesElements_;
+    } else {
+        curCoreIndicesElements_ = perCoreIndicesElements_;
+    }
+    
     xGm_.SetGlobalBuffer((__gm__ T*)x, n_ * cols_);
     scaleGm_.SetGlobalBuffer((__gm__ float*)scale, n_);
 
