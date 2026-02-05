@@ -495,15 +495,6 @@ __aicore__ inline void CompressorKernelPerf<COMP>::CalcCurCoreStartIdx(
 template <typename COMP>
 __aicore__ inline void CompressorKernelPerf<COMP>::CalcSplitCoreInfo()
 {
-    // // 计算D的切分大小
-    // constInfo.dBaseSize = 64; // 默认按照64切分
-    // uint32_t maxEnableCoreNum = constInfo.tcBasicBlockNum * (constInfo.headDim / constInfo.dBaseSize);
-    // uint32_t minEnableCoreNum = 16;
-    // if (maxEnableCoreNum < minEnableCoreNum) {
-    //     // headDim=128时, dBaseSize=8; headDim=512时, dBaseSize=32
-    //     constInfo.dBaseSize = constInfo.headDim / minEnableCoreNum;
-    // }
-
     // D方向的基本块数量
     constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;
     // 核的组数

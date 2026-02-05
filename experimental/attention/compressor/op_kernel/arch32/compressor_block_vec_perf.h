@@ -504,15 +504,6 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::FromWokrSpaceToUb(const LocalTensor<T> dstLocal,
     const Vec1SliceInfo &sliceInfo, const SeqCntInfo &seqCntInfo, uint32_t dStartIdx, uint32_t dDealSize)
 {
-    // Ub data layout after overlap when r = 4 and coff = 2:
-    //  Tc0_seq01: |--- --D_L--- -|------D_R-----|
-    //  Tc0_seq02: |--- --D_L--- -|------D_R-----|
-    //  Tc0_seq03: |--- --D_L--- -|------D_R-----|
-    //  Tc0_seq04: |--- --D_L--- -|------D_R-----|
-    //  Tc1_seq01: |--- --D_L--- -|------D_R-----|
-    //  Tc1_seq02: |--- --D_L--- -|------D_R-----|
-    //  Tc1_seq03: |--- --D_L--- -|------D_R-----|
-    //  Tc1_seq04: |--- --D_L--- -|------D_R-----|
     uint32_t srcSingleRowElemNum = constInfo_.dBaseSize * 2; // 2: kv和score各一份
     uint32_t copyRowCount = sliceInfo.dealTcSize * constInfo_.cmpRatio - sliceInfo.headHolderSeqCnt - sliceInfo.tailHolderSeqCnt;
     uint32_t copyColCount = dDealSize;
@@ -548,9 +539,6 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::ReadFromCacheState(const
         uint32_t copyRowCnt = constInfo_.blockSize - remainRowCnt;
         if (copyFinishRowCnt + copyRowCnt > seqCnt) {
             copyRowCnt = seqCnt - copyFinishRowCnt;
-        }
-        if (idInBlockTable == 0) {
-            // print error log
         }
         uint64_t stateOffset = idInBlockTable * constInfo_.blockSize * coff * constInfo_.headDim +
             remainRowCnt * coff * constInfo_.headDim +
@@ -841,8 +829,7 @@ template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::KvMulReduceScore(
     const LocalTensor<T> &kvLocal, const LocalTensor<T>& scoreLocal, const LocalTensor<T> &dstLocal, const LocalTensor<T> &tmpUb, uint32_t tcDealSize, uint32_t dDealSize)
 {
-    uint32_t ReduceSize = COMP::coff == COFF:: OVERLAP ? 2 * constInfo_.cmpRatio :
-        constInfo_.cmpRatio;
+    uint32_t ReduceSize = COMP::coff == COFF:: OVERLAP ? 2 * constInfo_.cmpRatio : constInfo_.cmpRatio;
     uint32_t rCnt = ReduceSize * dDealSize;
     Mul(kvLocal, kvLocal, scoreLocal, tcDealSize * rCnt);
     PipeBarrier<PIPE_V>();
@@ -995,7 +982,6 @@ template <typename COMP>
         CopyInApe(apeUb, dLoopIdx * dSplitSize, dSplitSize);
 
         sliceIterstor.Reset(curBStart, curSStart, dealSeqStartIdx, 0U);
-        // sliceIterstor.SetNeedDealTcSize(dealTcSize);
         uint32_t actDealTcSize = tcSplitSize;
         compressedCnt_ = curCompressedCnt;
         for (uint32_t tcIdx = 0; tcIdx < dealTcSize; tcIdx += tcSplitSize) {
@@ -1014,7 +1000,6 @@ template <typename COMP>
 template <typename COMP> 
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::ComputeVec2(const Compressor::Vec2RunInfo &info)
 {
-    // DumpTensorForDim2(vec2InputGm_, 401, 32 * constInfo_.headDim);
     SplitCoreV2(info);
     uint32_t vec2DealM = v2TcEndIdx - v2TcStartIdx;
     uint32_t loopCount = (vec2DealM + v2MBaseSize - 1) / v2MBaseSize;
@@ -1275,4 +1260,4 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::CopyFinalResultOut(const
     }
 } 
 } // namespace Compressor
-#endif // COMPRESSOR_BLOCK_VECTOR_H
+#endif // COMPRESSOR_BLOCK_VECTOR_PREF_H
