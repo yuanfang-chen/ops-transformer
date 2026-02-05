@@ -158,24 +158,15 @@ ge::graphStatus InferMatmulReduceScatterCommon(gert::InferShapeContext* context)
 
 bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
 {
-    char versionValVersion[VERSION_SIZE];
-    // rtGetSocSpec获取成功返回值是0，获取失败返回非0
-    if (rtGetSocSpec("version", "Short_SoC_version", versionValVersion, VERSION_SIZE) != RT_ERROR_NONE) {
-        OPS_LOG_E(nodeName, "Cannot get Short_SoC_version info in infershape!");
-        return false;
+    fe::PlatformInfo platform_info; 
+    fe::OptionalInfo optional_info; 
+    GE_ASSERT_SUCCESS(fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platform_info, optional_info)); 
+    if (fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platform_info, optional_info) 
+        != ge::GRAPH_SUCCESS) { 
+        OP_LOGE(context->GetNodeName(), "Cannot get platform info!"); 
+        return false; 
     }
-    OPS_LOG_D(nodeName, "(IsTargetSocVersionInfershape)Get Short_SoC_version %s", versionValVersion);
-    return (targetPlatform.count(versionValVersion) > 0);
-}
-
-bool IsTargetNpuArchInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
-{
-    char versionValNpuArch[VERSION_SIZE];
-    if (rtGetSocSpec("version", "NpuArch", versionValNpuArch, VERSION_SIZE) != RT_ERROR_NONE) {
-        OPS_LOG_E(nodeName, "Cannot get npuArch info in infershape!");
-        return false;
-    }
-    OPS_LOG_D(nodeName, "(IsTargetNpuArchInfershape)Get NpuArch %s", versionValNpuArch);
-    return (targetPlatform.count(versionValNpuArch) > 0);
+    OP_LOGD(context->GetNodeName(), "Get soc version: %s", optional_info.soc_version.c_str()); 
+    return targetPlatform.count(platform_info.str_info.short_soc_version) > 0;
 }
 } // namespace ops
