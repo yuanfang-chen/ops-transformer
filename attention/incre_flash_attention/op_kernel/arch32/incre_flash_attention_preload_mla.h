@@ -2847,8 +2847,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
 }
 
 template <typename IFAT>
-__aicore__ inline void DealSoftmaxLseInvalidRows(LocalTensor<T> &softmaxlseUb, LocalTensor<T> &lseMaxUb,
-                                                 uint32_t dealRowCount, uint32_t curS1Idx)
+__aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealSoftmaxLseInvalidRows(LocalTensor<T> &softmaxlseUb,
+                                                                                           LocalTensor<T> &lseMaxUb,
+                                                                                           uint32_t dealRowCount,
+                                                                                           uint32_t curS1Idx)
 {
     if (!attenMaskFlag) {
         return;
