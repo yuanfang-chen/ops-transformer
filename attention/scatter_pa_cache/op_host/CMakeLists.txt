@@ -10,6 +10,7 @@
 message(STATUS "=== Debug: start ops.attention.scatter_pa_cache.op_host.CMakeLists.txt")
 
 if (BUILD_OPEN_PROJECT)
+    set(scatter_pa_cache_depends attention/scatter_pa_kv_cache PARENT_SCOPE)
     target_sources(op_host_aclnn PRIVATE
         scatter_pa_cache_def.cpp
     )
