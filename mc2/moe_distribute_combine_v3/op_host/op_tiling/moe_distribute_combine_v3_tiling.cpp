@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_distribute_combine_v3_tiling.cpp
+ * \file moe_distribute_combine_add_rms_norm_tiling.cpp
  * \brief
  */
 
@@ -26,24 +26,24 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+
 #include "tiling/mc2_tiling_utils.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "mc2_log.h"
 #include "graph/utils/type_utils.h"
-#include "mc2_exception_dump.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
-#include "../../../moe_distribute_combine_v2/op_host/op_tiling/moe_distribute_combine_tiling_v2.h"
+#include "../../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_tiling.h"
 #include "mc2_hcom_topo_info.h"
+#include "../../../moe_distribute_combine_v2/op_host/op_tiling/moe_distribute_combine_tiling_helper.h"
 
-using namespace Mc2Tiling;
-using namespace Mc2Exception;
 using namespace AscendC;
 using namespace ge;
+using namespace Mc2Tiling;
 
-namespace optiling{
-ge::graphStatus MoeDistributeCombineV3TilingFunc(gert::TilingContext* context)
+namespace optiling {
+static ge::graphStatus MoeDistributeCombineV3TilingFunc(gert::TilingContext* context)
 {
     CombineV2Config config;
     config.contextIndex = 0;
@@ -65,17 +65,33 @@ ge::graphStatus MoeDistributeCombineV3TilingFunc(gert::TilingContext* context)
     config.constExpertVIndex = 17; // 根据combineV2算子原型标志位设置constExpertV索引
     config.performanceInfoIndex = 18; // 根据combineV2算子原型标志位设置performanceInfo索引
     config.outputXIndex = 0; // 根据combineV2算子原型标志位设置outputX索引
-    config.attrZeroExpertNumIndex = 15; // 根据combineV2算子原型标志位设置attrZeroExpertNum索引
-    config.attrCopyExpertNumIndex = 16; // 根据combineV2算子原型标志位设置attrCopyExpertNum索引
-    config.attrConstExpertNumIndex = 17; // 根据combineV2算子原型标志位设置attrConstExpertNum索引
+    config.attrEpWorldSizeIndex = 0;
+    config.attrEpRankIdIndex = 1;
+    config.attrMoeExpertNumIndex = 2;
+    config.attrCclBufferSizeIndex = 3;
+    config.attrTpWorldSizeIndex = 4;
+    config.attrTpRankIdIndex = 5;
+    config.attrExpertSharedTypeIndex = 6;
+    config.attrSharedExpertNumIndex = 7;
+    config.attrSharedExpertRankNumIndex = 8;
+    config.attrGlobalBsIndex  = 9;
+    config.attrOutDTypeIndex = 10;
+    config.attrCommQuantModeIndex = 11;
+    config.attrGroupListTypeIndex = 12;
+    config.attrCommAlgIndex = 13;
+    config.attrZeroExpertNumIndex = 14; // 根据combineV2算子原型标志位设置attrZeroExpertNum索引
+    config.attrCopyExpertNumIndex = 15; // 根据combineV2算子原型标志位设置attrCopyExpertNum索引
+    config.attrConstExpertNumIndex = 16; // 根据combineV2算子原型标志位设置attrConstExpertNum索引
     config.hasAddRmsNorm = false;
     config.isMc2Context = true;
 
-    ret = MoeDistributeCombineV3TilingFuncNew(context, config, isContext);
+    const char *nodeName = context->GetNodeName();
+    OP_LOGD(nodeName, "Enter MoeDistributeDispatchV3 tiling");
+    ge::graphStatus ret = optiling::MoeDistributeCombineV2TilingFuncNew(context, config);
     return ret;
 }
 
-struct MoeDistributeCombineCompileInfo {};
+struct MoeDistributeCombineV3CompileInfo {};
 ge::graphStatus TilingParseForMoeDistributeCombineV3(gert::TilingParseContext *context)
 {
     (void)context;
@@ -84,14 +100,5 @@ ge::graphStatus TilingParseForMoeDistributeCombineV3(gert::TilingParseContext *c
 
 IMPL_OP_OPTILING(MoeDistributeCombineV3)
     .Tiling(MoeDistributeCombineV3TilingFunc)
-    .TilingParse<MoeDistributeCombineCompileInfo>(TilingParseForMoeDistributeCombineV3);
-
-// Register exception func
-inline void MoeDistributeCombineV3ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
-{
-    Mc2ExceptionImpl(args, userdata, "MoeDistributeCombineV3");
-}
-
-IMPL_OP(MoeDistributeCombineV3)
-    .ExceptionDumpParseFunc(MoeDistributeCombineV3ExceptionImplWrapper);
+    .TilingParse<MoeDistributeCombineV3CompileInfo>(TilingParseForMoeDistributeCombineV3);
 } // namespace optiling
