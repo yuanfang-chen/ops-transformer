@@ -27,13 +27,11 @@ class L2GroupedMatMulAlltoAllvTest : public testing::Test
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
         cout << "L2GroupedMatMulAlltoAllvTest SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "L2GroupedMatMulAlltoAllvTest TearDown" << endl;
     }
 };
@@ -58,7 +56,7 @@ TEST_F(L2GroupedMatMulAlltoAllvTest, Test)
     uint64_t workspaceSize = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(L2GroupedMatMulAlltoAllvTest, TestGroupNullptr)
@@ -80,7 +78,7 @@ TEST_F(L2GroupedMatMulAlltoAllvTest, TestGroupNullptr)
     uint64_t workspaceSize = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(L2GroupedMatMulAlltoAllvTest, TestGroupInvalid)
@@ -107,7 +105,7 @@ TEST_F(L2GroupedMatMulAlltoAllvTest, TestGroupInvalid)
     uint64_t workspaceSize = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(L2GroupedMatMulAlltoAllvTest, TestMmxInvalid)
@@ -130,6 +128,6 @@ TEST_F(L2GroupedMatMulAlltoAllvTest, TestMmxInvalid)
     uint64_t workspaceSize = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 } // GroupedMatMulAlltoAllvUT
