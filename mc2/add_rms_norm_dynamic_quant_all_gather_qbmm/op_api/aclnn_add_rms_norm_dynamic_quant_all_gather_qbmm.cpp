@@ -146,25 +146,29 @@ static aclnnStatus CheckParams(const aclTensor* x1, const aclTensor* x2, const a
 }
 
 extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-    const aclTensor* x1, const aclTensor* x2, const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* smoothScale, const char* group, int64_t rankSize,
+    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual,const aclTensor* y, const aclTensor* gamma,
+    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
     bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z,
     uint64_t* workspaceSize, aclOpExecutor** executor);
 extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmm(
     void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, const aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
+// ranksize 和dtype不需要作为输入，transposeX2是否输入看SE设计方案
 extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-    const aclTensor* x1, const aclTensor* x2, const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* smoothScale, const char* group, int64_t rankSize,
-    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z,
-    uint64_t* workspaceSize, aclOpExecutor** executor)
+    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual,
+    const aclTensor* y, const aclTensor* gamma,
+    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias,
+    const char* group, bool transposeX2, int64_t residualNormMode,
+    aclTensor* output, aclTensor* z, uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     // TODO: Complete the code for checking params
     aclnnStatus retParam = CheckParams(x1, x2, y, gamma, scale, smoothScale, output, z);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
+    uint64_t rankSize = 0;
+    uint64_t dtype = static_cast<uint64_t>(output->GetDataType());
     aclnnStatus ret = aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-        x1, x2, y, gamma, scale, smoothScale, group, rankSize, transposeX2, dtype,
+        x1, x2, residual, y, gamma, scale, smoothScale, bias, group, rankSize, transposeX2, dtype,
         residualNormMode, output, z, workspaceSize, executor);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm, aclnnnGetWorkspaceSize ret %d.", ret);
     return ret;

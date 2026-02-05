@@ -28,6 +28,11 @@ class AddRmsNormDynamicQuantAllGatherQbmm : public OpDef {
         .DataType({ge::DT_INT8, ge::DT_INT8})
         .Format({ge::FORMAT_ND, ge::FORMAT_FRACTAL_NZ})
         .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_FRACTAL_NZ});
+    this->Input("residual")
+        .ParamType(REQUIRED)
+        .DataType({ge::DT_BF16, ge::DT_BF16})
+        .Format({ge::FORMAT_ND, ge::FORMAT_FRACTAL_NZ})
+        .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_FRACTAL_NZ});
     this->Input("y")
         .ParamType(REQUIRED)
         .DataType({ge::DT_BF16, ge::DT_BF16})
@@ -44,8 +49,13 @@ class AddRmsNormDynamicQuantAllGatherQbmm : public OpDef {
         .Format({ge::FORMAT_ND, ge::FORMAT_ND})
         .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND});
     this->Input("smooth_scale")
-        .ParamType(REQUIRED)
+        .ParamType(OPTIONAL)
         .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
+        .Format({ge::FORMAT_ND, ge::FORMAT_ND})
+        .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND});
+    this->Input("bais")
+        .ParamType(OPTIONAL)
+        .DataType({ge::DT_BF16, ge::DT_BF16})
         .Format({ge::FORMAT_ND, ge::FORMAT_ND})
         .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND});
     this->Output("output")
