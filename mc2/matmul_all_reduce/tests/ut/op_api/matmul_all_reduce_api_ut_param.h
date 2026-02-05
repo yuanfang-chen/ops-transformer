@@ -13,9 +13,10 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include <sstream>
-#include "op_api_ut_common/tensor_desc.h"
-#include "op_api_ut_common/op_api_ut.h"
+#include "../op_api/op_api_ut_common/tensor_desc.h"
+#include "mc2_csv_case_loader.h"
 
 namespace matmul_all_reduce_ut {
 
@@ -41,6 +42,11 @@ struct MatmulAllReduceApiUtParam {
     int64_t commQuantMode;
     TensorDesc output;
     aclnnStatus expectAclnnStatus;
+
+    // MatmulAllReduceApiUtParam(const csv_map& csvMap)
+    // {
+
+    // }
 
     // aclnn_matmul_all_reduce
     MatmulAllReduceApiUtParam(std::string case_name, TensorDesc x1, TensorDesc x2, TensorDesc bias, const char* group,
