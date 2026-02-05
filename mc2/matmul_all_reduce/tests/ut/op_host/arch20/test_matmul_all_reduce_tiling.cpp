@@ -8,8 +8,6 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include <string>
-#include <vector>
 #include <gtest/gtest.h>
 #include "../matmul_all_reduce_host_ut_param.h"
 #include "mc2_tiling_case_executor.h"
@@ -77,7 +75,7 @@ INSTANTIATE_TEST_SUITE_P(
     MatmulAllReduce,
     Arch20TilingTest,
     testing::ValuesIn(GetCasesFromCsv<MatmulAllReduceTilingUtParam>(ReplaceFileExtension2Csv(__FILE__))),
-    GetCaseInfoString<MatmulAllReduceTilingUtParam>
+    PrintCaseInfoString<MatmulAllReduceTilingUtParam>
 );
 
 } // namespace matmul_all_reduce_ut
