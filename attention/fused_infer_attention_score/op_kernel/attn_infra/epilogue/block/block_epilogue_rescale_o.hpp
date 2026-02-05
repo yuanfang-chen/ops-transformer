@@ -757,7 +757,8 @@ public:
                     qSBlockIdx,
                     rowNum,
                     inRowOffsetThisSubBlock,
-                    blockParams);
+                    blockParams,
+                    qNBlockSize);
             }
         }
     }
