@@ -2,7 +2,7 @@
     "op_type": "AlltoAllMatmul",
     "op_list": [
         {
-            "bin_filename": "AlltoAllMatmul_ND_ND_FP16_FP16",
+            "bin_filename": "AlltoAllMatmul_FP16_ND_FP16_ND_FP16_ND_FP16_ND_0_0",
             "inputs": [
                 {
                     "name": "x1",
@@ -110,7 +110,7 @@
                     "index": 1,
                     "dtype": "float16",
                     "format": "ND",
-                    "paramType": "required",
+                    "paramType": "optional",
                     "shape": [
                         -2
                     ],
@@ -126,7 +126,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",
@@ -189,7 +189,7 @@
             ]
         },
         {
-            "bin_filename": "AlltoAllMatmul_ND_ND_BF16_BF16",
+            "bin_filename": "AlltoAllMatmul_BP16_ND_BP16_ND_FP32_ND_BF16_ND_0_0",
             "inputs": [
                 {
                     "name": "x1",
@@ -297,7 +297,7 @@
                     "index": 1,
                     "dtype": "bfloat16",
                     "format": "ND",
-                    "paramType": "required",
+                    "paramType": "optional",
                     "shape": [
                         -2
                     ],
@@ -313,7 +313,7 @@
                 {
                     "name": "world_size",
                     "dtype": "int",
-                    "value": 0
+                    "value": -1
                 },
                 {
                     "name": "all2all_axes",

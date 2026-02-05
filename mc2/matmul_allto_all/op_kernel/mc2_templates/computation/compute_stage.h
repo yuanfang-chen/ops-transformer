@@ -36,6 +36,20 @@ namespace MC2KernelTemplate {
         FpQuantExtraData, TilingType>
 #endif
 
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
+#ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_A3_FP
+#define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_A3_FP(TilingType, ComputationType) \
+    using ComputationType = FPMatmul<\
+        Mc2MatmulBaseKernel<\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X1, false>,\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X2, X2TRANSPOSE>,\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_Y>,\
+            MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DtypeBias>,\
+            Mc2MatmulBaseBlock, MM_CFG_NO_PRELOAD>,\
+        FpQuantExtraData, TilingType>
+#endif
+#endif
+
 #ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT
 #define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(TilingType, ComputationType, MMDtypeX1, MMDtypeX2) \
     using ComputationType = QuantMatmul<\
