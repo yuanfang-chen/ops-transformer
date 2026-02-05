@@ -546,7 +546,7 @@ bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const ge
                 "actual is (%d, %d).", inputParams_.groupNum, inputParams_.nSize,
                 static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
                 return false);
-    if (wScaleDims == 2 && wScaleShape[wScaleDims - 1] == 1 && inputParams_.nSize == 1) {
+    if (inputParams_.nSize == 1) {
         inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
     }
     return true;
