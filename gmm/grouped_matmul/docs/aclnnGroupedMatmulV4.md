@@ -984,7 +984,15 @@ aclnnStatus aclnnGroupedMatmulV4(
           | 2 | 单单单 |1）仅支持splitItem为2/3<br>2）x，weight中tensor需为2维，shape分别为（K, M）和（K, N）；out中tensor需为3维, shape为（g, M, N）<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值不大于x中tensor的第一维，当groupListType为1时，数值的总和不大于x中tensor的第一维<br>4）groupListOptional第1维最大支持1024，即最多支持1024个group<br>5）x必须转置，weight不能转置<br>6）仅支持非量化和量化<br>7）仅支持ND进ND出|
 
     </details>
-</details>
+
+    <details>
+      <summary><term>不同actType约束</term></summary>
+          <a id="不同actType约束"></a>
+
+      - 在伪量化和非量化场景下，actType仅支持0。
+      - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数，actType参数支持传入0、1、2、4、5。其余全量化场景不支持激活函数。
+      
+    </details>
 
 ## 调用示例
 
