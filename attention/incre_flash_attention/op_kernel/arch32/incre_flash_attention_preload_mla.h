@@ -2808,7 +2808,6 @@ __aicore__ inline void SoftmaxLseCopyOut(const ExtraInfoMla &info, LocalTensor<T
     if constexpr (LAYOUT_T == LAYOUT::TND) {
         uint64_t tokenPrefixSum = (info.bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(info.bIdx - 1);
         uint64_t bN2Offset = tokenPrefixSum * qHeadNum + info.n2Idx * gSize;
-
         for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
             outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
             if (s1Idx != endS1Idx) {
@@ -2827,7 +2826,6 @@ __aicore__ inline void SoftmaxLseCopyOut(const ExtraInfoMla &info, LocalTensor<T
         }
     } else {
         uint64_t bN2Offset = info.bIdx * qHeadNum * qSeqSize + info.n2Idx * gSize * qSeqSize;
-
         for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
             outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
             if (s1Idx != endS1Idx) {
