@@ -563,13 +563,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - groupListOptional：当输出中TensorList的长度为1时，groupListOptional约束了输出数据的有效部分，groupListOptional中未指定的部分将不会参与更新。
     - groupListType为0时要求groupListOptional中数值为非负单调非递减数列，表示分组轴大小的cumsum结果（累积和），groupListType为1时要求groupListOptional中数值为非负数列，表示分组轴上每组大小，groupListType为2时要求 groupListOptional中数值为非负数列，shape为[E, 2]，E表示Group大小，数据排布为[[groupIdx0, groupSize0], [groupIdx1, groupSize1]...]，其中groupSize为分组轴上每组大小，详见[groupListOptional配置示例](#grouplistoptional配置示例)。
     - groupType代表需要分组的轴，如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组，2：k轴分组。当前不支持n轴分组，详细参考<a href="#groupType-constraints">groupType支持场景</a>约束。
-    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型，取值范围为0-5。支持的枚举值如下：
-      * 0：GMMActType::GMM_ACT_TYPE_NONE；
-      * 1：GMMActType::GMM_ACT_TYPE_RELU；
-      * 2：GMMActType::GMM_ACT_TYPE_GELU_TANH；
-      * 3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC（不支持）；
-      * 4：GMMActType::GMM_ACT_TYPE_FAST_GELU；
-      * 5：GMMActType::GMM_ACT_TYPE_SILU；
+    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型，取值范围为0-5。
 
     <a id="a8w8场景约束"></a>
 
@@ -798,8 +792,6 @@ aclnnStatus aclnnGroupedMatmulV4(
     - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5。
       - 在伪量化和非量化场景下，actType仅支持0。
       - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数，actType参数支持传入0、1、2、4、5。其余全量化场景不支持激活函数。
-
-  
 
     <a id="静态量化场景约束"></a>
     <details>
