@@ -9,6 +9,7 @@
 # -----------------------------------------------------------------------------------------------------------
 message(STATUS "=== Debug: start ops.attention.scatter_pa_cache.CMakeLists.txt ")
 file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../scatter_pa_kv_cache/op_kernel/arch35)
 if(NOT ENABLE_TEST)
     list(REMOVE_ITEM CURRENT_DIRS tests)
 endif()
