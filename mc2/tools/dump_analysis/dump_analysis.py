@@ -306,7 +306,7 @@ for filename in tqdm(os.listdir(os.path.join(floder_path))):
         with open(file_path, "rb") as f:
             arr = np.frombuffer(f.read(), dtype=np.int8)
         last_1M = arr[-1024 * 1024:]
-        dis_0_status = last_1M[0:65 * 1024]
+        dis_0_status = last_1M[0:64 * 1024]
         com_0_status = last_1M[64 * 1024:384 * 1024]
         dis_1_status = last_1M[384 * 1024:448 * 1024]
         com_1_status = last_1M[448 * 1024:768 * 1024]
