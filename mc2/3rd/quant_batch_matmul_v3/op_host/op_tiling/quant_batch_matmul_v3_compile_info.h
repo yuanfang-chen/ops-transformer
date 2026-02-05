@@ -31,6 +31,7 @@ struct Mc2QuantBatchMatmulV3CompileInfo {
     bool supportL0c2Out;
     bool supportL12BtBf16;
     platform_ascendc::SocVersion socVersion;
+    NpuArch npuArch;
     std::string socVersionStr = "";
 };
 
