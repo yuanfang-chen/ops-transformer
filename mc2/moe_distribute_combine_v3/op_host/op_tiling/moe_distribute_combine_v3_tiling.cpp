@@ -71,7 +71,7 @@ ge::graphStatus MoeDistributeCombineV3TilingFunc(gert::TilingContext* context)
     config.hasAddRmsNorm = false;
     config.isMc2Context = true;
 
-    ret = MoeDistributeCombineV3TilingFuncNew(context, config, isContext);
+    auto ret = MoeDistributeCombineV2TilingFuncNew(context, config);
     return ret;
 }
 
