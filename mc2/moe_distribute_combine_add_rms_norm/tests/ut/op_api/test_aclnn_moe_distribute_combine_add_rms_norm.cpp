@@ -26,13 +26,11 @@ class L2MoeDistributeCombineAddRmsNormTest : public testing::Test
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
         cout << "L2MoeDistributeCombineAddRmsNormTest SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "L2MoeDistributeCombineAddRmsNormTest TearDown" << endl;
     }
 };
