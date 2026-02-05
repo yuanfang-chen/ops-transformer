@@ -16,61 +16,45 @@
 #define ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H
 
 #include "../allto_allv_grouped_mat_mul_tiling_base.h"
-#include "../allto_allv_grouped_mat_mul_checker.h"
 
 namespace optiling {
+constexpr uint32_t DATA_SIZE_L0C = 4;
+constexpr uint64_t CUBE_REDUCE_BLOCK = 32;
+constexpr uint32_t BASIC_BLOCK_SIZE_512 = 512;
+constexpr uint32_t BASIC_BLOCK_SIZE_256 = 256;
+constexpr uint32_t BASIC_BLOCK_SIZE_128 = 128;
+constexpr uint32_t PERTENSOR_MODE = 1;
+constexpr uint32_t SINGLE_GROUP_NUM = 1;
+constexpr uint32_t GMM_ACT_TYPE_NONE = 0;
+constexpr uint64_t DB_SIZE = 2UL;
+
 class AlltoAllvGmmQuantTiling : public AlltoAllvGmmTilingBase {
 public:
-    explicit AlltoAllvGmmQuantTiling(gert::TilingContext *context) : AlltoAllvGmmTilingBase(context),checker(context){};
+    explicit AlltoAllvGmmQuantTiling(gert::TilingContext *context) : AlltoAllvGmmTilingBase(context){
+        tilingData = context->GetTilingData<QuantAlltoAllvGroupedMatmulTilingData>();
+    };
     QuantAlltoAllvGroupedMatmulTilingData *tilingData;
-    ge::graphStatus Init(gert::TilingContext *context);
-    ge::graphStatus RunFusionKernelTiling(gert::TilingContext *context);
-    virtual ~AlltoAllvGmmQuantTiling() = default;
 
 protected:
-    ge::graphStatus GetWorkspaceSize();
-    ge::graphStatus PostTiling();
-    ge::graphStatus DoOpTiling();
-    bool IsCapable();
-    ge::graphStatus GetContextAttr(const gert::TilingContext *context);
-    ge::graphStatus GetShapeAndFormat(const gert::TilingContext *context);
-    ge::graphStatus SetHcclTiling(const gert::TilingContext *context) const;
-    void SetGMMQuantParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData);
-    void SetGMMArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData);
-    void SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData);
-    ge::graphStatus DoAiCoreTiling(const gert::TilingContext *context);
-    uint64_t GetTilingKey(const gert::TilingContext *context) const;
-    uint64_t GetTilingKey() const;
-    void PrintQuantTilingData(const Mc2GroupedMatmulTilingData::GMMQuantTilingData &data) const;
+    bool IsCapable() override;
+    ge::graphStatus GetPlatformInfo() override;
+    ge::graphStatus GetShapeAttrsInfo() override;
+    ge::graphStatus DoOpTiling() override;
+    ge::graphStatus DoLibApiTiling() override;
+    uint64_t GetTilingKey() const override;
+    ge::graphStatus GetWorkspaceSize() override;
+    ge::graphStatus PostTiling() override;
 
 private:
-    int32_t maxM_;
-    int32_t maxN_;
-    int32_t maxK_;
-    int32_t baseM_;
-    int32_t baseN_;
-    int32_t baseK_;
-    uint32_t mmDataTypeSize;
+    ge::graphStatus CheckDType() const;
+    ge::graphStatus SetHcclTiling() const;
+    void SetGMMQuantParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const;
+    void SetGMMArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const;
+    void SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const;
+    void PrintGMMQuantTilingData(const Mc2GroupedMatmulTilingData::GMMQuantTilingData &data) const;
+    void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo& taskTilingInfo) const;
 
-    int32_t maxMForMM_;
-    int32_t maxNForMM_;
-    int32_t maxKForMM_;
-    int32_t baseMForMM_;
-    int32_t baseNForMM_;
-    int32_t baseKForMM_;
-
-    const char *epGroup_;
-    uint32_t rankSize_;
-    uint32_t libApiWorkSpaceSize_;
-    uint64_t epWorldSize_;
-    int32_t mSize_;
-    AlltoAllvGmmChecker checker;  // 
-    ge::DataType mmDType_ = ge::DT_UNDEFINED;
-
-    bool isGmmWeightTrans;
-    bool isMmWeightTrans;
-    bool isPermuteOut;
-    bool isNeedMM;
+    uint64_t mSize_ = 0;
 };
 }  // namespace optiling
 #endif  // ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H

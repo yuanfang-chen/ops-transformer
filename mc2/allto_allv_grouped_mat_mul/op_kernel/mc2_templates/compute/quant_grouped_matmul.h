@@ -54,6 +54,9 @@ public:
         if ASCEND_IS_AIV {
             return ;
         }
+        if (expertTokenNum_[expertIdx] == 0) {
+            return ;
+        }
         groupListGlobalBuffer_.SetValue(0, expertTokenNum_[expertIdx]);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);

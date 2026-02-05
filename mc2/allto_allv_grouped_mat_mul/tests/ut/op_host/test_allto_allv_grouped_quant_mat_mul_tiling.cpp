@@ -17,7 +17,7 @@ using namespace std;
 struct AlltoAllvGroupedMatMulTilingTestParam {
     string caseName;
 
-    // gmm: input tensor
+    // input
     std::vector<int64_t> gmmXShape;
     ge::DataType gmmXDataType;
     ge::Format gmmXFormat;
@@ -34,7 +34,6 @@ struct AlltoAllvGroupedMatMulTilingTestParam {
     ge::DataType gmmWeightScaleDataType;
     ge::Format gmmWeightScaleFormat;
 
-    // mm: input tensor.
     std::vector<int64_t> mmXShape;
     ge::DataType mmXDataType;
     ge::Format mmXFormat;
@@ -123,7 +122,6 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
 
 };
 
-
 INSTANTIATE_TEST_SUITE_P(
     AlltoAllvGroupedMatMulTilingTestSuite,
     AlltoAllvGroupedMatMulTilingTest,
@@ -147,7 +145,6 @@ TEST_P(AlltoAllvGroupedMatMulTilingTest, test_allto_allv_grouped_quant_mat_mul_t
             {{{param.gmmXShape[0], param.gmmXShape[1]},{param.gmmXShape[0], param.gmmXShape[1]}}, param.gmmXDataType, param.gmmXFormat},
             {{{param.gmmWeightShape[0], param.gmmWeightShape[1],param.gmmWeightShape[2]},{param.gmmWeightShape[0], param.gmmWeightShape[1],param.gmmWeightShape[2]}},
                  param.gmmWeightDataType, param.gmmWeightFormat},
-            {{}, ge::DT_FLOAT, ge::FORMAT_ND}, // bias
             {{}, ge::DT_INT64, ge::FORMAT_ND}, // send_counts_tensor
             {{}, ge::DT_INT64, ge::FORMAT_ND}, // recv_counts_tensor
             {{{param.mmXShape[0], param.mmXShape[1]},{param.mmXShape[0], param.mmXShape[1]}}, param.mmXDataType, param.mmXFormat},
