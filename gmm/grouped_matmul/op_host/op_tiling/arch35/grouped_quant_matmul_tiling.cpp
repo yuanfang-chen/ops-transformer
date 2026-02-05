@@ -548,7 +548,6 @@ bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const ge
                     static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
                     return false);
     } else { // scale为2维且shape为(g,1)时，作为右矩阵PERCHANNEL处理
-        printf(" !!!!!perchannel now  !!!!!!!!!!!!!!!!!");
         inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
     }
     return true;
@@ -576,7 +575,6 @@ bool GroupedQbmmTiling::AnalyzeInputs()
                                          "The dimension of scale should be positive integer, actual is %zu",
                                          scaleDimNum),
                return false);
-    printf(" !!!!!debug now !!!!!!!!!!!!!!!!!");
     auto xScaleStorageShape = context_->GetOptionalInputShape(PER_TOKEN_SCALE_INDEX);
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
                return false);
