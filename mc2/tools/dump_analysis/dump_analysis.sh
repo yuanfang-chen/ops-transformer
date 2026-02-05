@@ -34,6 +34,9 @@ function help {
     echo "SHARE_EXPERT_NUM(选填):所需要分析的数据输入的共享专家数(SHARE_EXPERT_NUM>0),不填默认为0"
     exit 0
 }
+#获取sh脚本的文件路径
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
 #入参
 for arg in "$@"; do
     if [[ "$arg" = "-h" || "$arg" = "-help" ]]; then
@@ -158,7 +161,7 @@ if [ "$SOC_VERSION" = "910_93" ]; then
                     exit 1
                 fi
                 python3 $TOOL_PATH/tools/msaicerr/msaicerr.py -d "$file_dump"
-                python3 dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR $SOC_VERSION
+                python3 $SCRIPT_DIR/dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR $SOC_VERSION
                 echo "单卡数据解析完成"
                 echo "--------------------------------------------"
             else
@@ -179,7 +182,7 @@ if [ "$SOC_VERSION" = "910_93" ]; then
                     fi
                     echo "开始解析 $i 卡数据"
                     python3 $TOOL_PATH/tools/msaicerr/msaicerr.py -d "$file_dump"
-                    python3 dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM $file_num $i $TARGET_DIR$i/ $SOC_VERSION
+                    python3 $SCRIPT_DIR/dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM $file_num $i $TARGET_DIR$i/ $SOC_VERSION
                     echo "$i 卡数据解析完成"
                     echo "--------------------------------------------"
                 else
@@ -198,7 +201,7 @@ if [ "$SOC_VERSION" = "910_93" ]; then
                     exit 1
                 fi
                 python3 $TOOL_PATH/tools/msaicerr/msaicerr.py -d "$file_dump"
-                python3 dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR/0/ $SOC_VERSION
+                python3 $SCRIPT_DIR/dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR/0/ $SOC_VERSION
                 echo "单卡数据解析完成"
                 echo "--------------------------------------------"
             else
@@ -220,7 +223,7 @@ elif [ "$SOC_VERSION" = "910_95" ]; then
                     echo "error:SHARE_EXPERT_CARD_COUNT($SHARE_EXPERT_CARD_COUNT) should <= all_care_num(1)"
                     exit 1
                 fi
-                python3 dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR $SOC_VERSION
+                python3 $SCRIPT_DIR/dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR $SOC_VERSION
                 echo "单卡数据解析完成"
                 echo "--------------------------------------------"
             else
@@ -240,7 +243,7 @@ elif [ "$SOC_VERSION" = "910_95" ]; then
                         exit 1
                     fi
                     echo "开始解析 $i 卡数据"
-                    python3 dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM $file_num $i $TARGET_DIR$i/ $SOC_VERSION
+                    python3 $SCRIPT_DIR/dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM $file_num $i $TARGET_DIR$i/ $SOC_VERSION
                     echo "$i 卡数据解析完成"
                     echo "--------------------------------------------"
                 else
@@ -258,7 +261,7 @@ elif [ "$SOC_VERSION" = "910_95" ]; then
                     echo "error:SHARE_EXPERT_CARD_COUNT($SHARE_EXPERT_CARD_COUNT) should <= all_care_num(1)"
                     exit 1
                 fi
-                python3 dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR/0/ $SOC_VERSION
+                python3 $SCRIPT_DIR/dump_analysis.py $BS $K $SHARE_EXPERT_CARD_COUNT $SHARE_EXPERT_NUM 1 0 $TARGET_DIR/0/ $SOC_VERSION
                 echo "单卡数据解析完成"
                 echo "--------------------------------------------"
             else
