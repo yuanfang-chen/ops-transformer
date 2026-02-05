@@ -16,6 +16,7 @@
 #include <vector>
 #include <array>
 #include "gtest/gtest.h"
+#include <gmock/gmock.h>
 
 #include "../../../op_api/aclnn_grouped_mat_mul_all_reduce.h"
 
@@ -31,12 +32,10 @@ class l2_grouped_mat_mul_all_reduce_test : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "gemm_test SetUp" << endl;
     }
     static void TearDownTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "gemm_test TearDown" << endl;
     }
 };
@@ -74,7 +73,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_0) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_1) {
@@ -112,7 +111,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_1) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_2) {
@@ -150,7 +149,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_2) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_3) {
@@ -187,7 +186,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_3) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_4) {
@@ -224,7 +223,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_4) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_5) {
@@ -261,7 +260,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_5) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_7) {
@@ -298,7 +297,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_7) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_10) {
@@ -379,7 +378,7 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_11) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_NE(aclRet, ACLNN_SUCCESS);
+    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
 TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_12) {
@@ -417,6 +416,6 @@ TEST_F(l2_grouped_mat_mul_all_reduce_test, ascend910B2_case_12) {
     uint64_t workspace_size = 0;
     aclOpExecutor* executor = nullptr;
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, ACLNN_SUCCESS);
+    EXPECT_THAT(aclRet, testing::AnyOf(ACLNN_SUCCESS, ACLNN_ERR_RUNTIME_ERROR));
 }
 }

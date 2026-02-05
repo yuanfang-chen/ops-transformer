@@ -31,12 +31,10 @@ class TestAclnnQuantAllReduce : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformNpuArch(NpuArch::DAV_3510);
         cout << "TestAclnnQuantAllReduce SetUp" << endl;
     }
     static void TearDownTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "TestAclnnQuantAllReduce TearDown" << endl;
     }
 };
