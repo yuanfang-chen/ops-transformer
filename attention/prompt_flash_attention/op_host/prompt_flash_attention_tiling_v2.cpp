@@ -3408,11 +3408,31 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
             nextTokensLeftUp = actualSeqLengthKV - actualSeqLength;
         }
     } else if (baseParams->get_sparseMode() == SPARSE_MODE_BAND) {
-        preTokensLeftUp = baseParams->get_preTokens() - actualSeqLengthKV + actualSeqLength;
-        nextTokensLeftUp = baseParams->get_nextTokens() + actualSeqLengthKV - actualSeqLength;
+        if (enableIFAMLA) {
+            if (inputLayout == InputLayout::BSND || inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND) {
+                preTokensLeftUp = baseParams->get_preTokens() * gSize - actualSeqLengthKV * gSize + actualSeqLength;
+                nextTokensLeftUp = baseParams->get_nextTokens() * gSize + actualSeqLengthKV * gSize - actualSeqLength;
+            } else { // BNSD场景下分核不做优化
+                preTokensLeftUp = SPARSE_MODE_INT_MAX;
+                nextTokensLeftUp = SPARSE_MODE_INT_MAX;
+            }
+        } else {
+            preTokensLeftUp = baseParams->get_preTokens() - actualSeqLengthKV + actualSeqLength;
+            nextTokensLeftUp = baseParams->get_nextTokens() + actualSeqLengthKV - actualSeqLength;
+        }
     } else {
-        preTokensLeftUp = baseParams->get_preTokens();
-        nextTokensLeftUp = baseParams->get_nextTokens();
+        if (enableIFAMLA) {
+            if (inputLayout == InputLayout::BSND || inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND) {
+                preTokensLeftUp = baseParams->get_preTokens() * gSize;
+                nextTokensLeftUp = baseParams->get_nextTokens() * gSize;
+            } else { // BNSD场景下分核不做优化
+                preTokensLeftUp = SPARSE_MODE_INT_MAX;
+                nextTokensLeftUp = SPARSE_MODE_INT_MAX;
+            }
+        } else {
+            preTokensLeftUp = baseParams->get_preTokens();
+            nextTokensLeftUp = baseParams->get_nextTokens();
+        }
     }
 }
 
