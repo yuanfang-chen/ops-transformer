@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file kv_quant_sparse_flash_attention_kernel_mla_regbase.h
+ * \file kv_quant_sparse_flash_attention_kernel_mla.h
  * \brief
  */
 
-#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_REGBASE_H
-#define KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_REGBASE_H
+#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_H
+#define KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -22,8 +22,8 @@
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
 #include "../kv_quant_sparse_flash_attention_common.h"
-#include "kv_quant_sparse_flash_attention_service_cube_mla_regbase.h"
-#include "kv_quant_sparse_flash_attention_service_vector_mla_regbase.h"
+#include "kv_quant_sparse_flash_attention_service_cube_mla.h"
+#include "kv_quant_sparse_flash_attention_service_vector_mla.h"
 
 using namespace matmul;
 using AscendC::CacheMode;
@@ -31,7 +31,7 @@ using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
 
 // 由于S2循环前，RunInfo还没有赋值，使用Bngs1Param临时存放B、N、S1轴相关的信息；同时减少重复计算
-struct TempLoopInfoRegbase {
+struct TempLoopInfo {
     uint32_t bn2IdxInCurCore = 0;
     uint32_t bIdx = 0U;
     uint32_t n2Idx = 0U;
@@ -128,10 +128,10 @@ private:
     __gm__ uint8_t *valuePtr = nullptr;
 
     ConstInfo constInfo{};
-    TempLoopInfoRegbase tempLoopInfo{};
+    TempLoopInfo tempLoopInfo{};
 
-    QSFAMatmulServiceRegbase<QSFAT> matmulService;
-    QSFAVectorServiceRegbase<QSFAT> vectorService;
+    QSFAMatmulService<QSFAT> matmulService;
+    QSFAVectorService<QSFAT> vectorService;
 
     GlobalTensor<Q_T> queryGm;
     GlobalTensor<KV_T> keyGm;
@@ -942,4 +942,4 @@ __aicore__ inline void KvQuantSparseFlashAttentionMlaRegbase<QSFAT>::GetAxisStar
         constInfo.gS1Start++;
     }
 }
-#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_REGBASE_H
+#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_H

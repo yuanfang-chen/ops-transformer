@@ -15,8 +15,11 @@
 
 #include "kernel_operator.h"
 #include "kv_quant_sparse_flash_attention_template_tiling_key.h"
+#if (__CCE_AICORE__ == 310)
+#include "arch35/kv_quant_sparse_flash_attention_kernel_mla.h"
+#else
 #include "kv_quant_sparse_flash_attention_kernel_mla.h"
-#include "arch35/kv_quant_sparse_flash_attention_kernel_mla_regbase.h"
+#endif
 
 using namespace AscendC;
 
@@ -43,7 +46,7 @@ kv_quant_sparse_flash_attention(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm
 
     TPipe tPipe;
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
-#if (__CCE_AICORE__ == 310) || (defined __DAV_310R6__) || (__CCE_AICORE__ == 200)
+#if (__CCE_AICORE__ == 310)
     if constexpr (ORIG_DTYPE_QUERY == DT_BF16 && ORIG_DTYPE_KEY == DT_FLOAT8_E4M3FN &&
                   ORIG_DTYPE_ATTENTION_OUT == DT_BF16) {
         QSFA_OP_IMPL(KvQuantSparseFlashAttentionMlaRegbase, KvQuantSparseFlashAttentionTilingDataMla, bfloat16_t, fp8_e4m3fn_t,
