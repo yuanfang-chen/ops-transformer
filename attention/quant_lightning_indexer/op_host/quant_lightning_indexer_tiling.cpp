@@ -104,7 +104,8 @@ ge::graphStatus QLIInfoParser::GetNpuInfo()
 
     socVersion_ = ascendcPlatform.GetSocVersion();
     if ((socVersion_ != platform_ascendc::SocVersion::ASCEND910B) &&
-        (socVersion_ != platform_ascendc::SocVersion::ASCEND910_93)) {
+        (socVersion_ != platform_ascendc::SocVersion::ASCEND910_93) && 
+        (socVersion_ != platform_ascendc::SocVersion::ASCEND910_95)) {
         OP_LOGE(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
         return GRAPH_FAILED;
     }
@@ -265,17 +266,30 @@ ge::graphStatus QLIInfoParser::GetAndCheckInOutDataType()
         !(inputQueryScaleType_ == inputKeyScaleType_),
         OP_LOGE(opName_, "The data types of the input query_dequant_scale and key_dequant_scale must be the same."),
         return ge::GRAPH_FAILED);
+    if ((socVersion_ == platform_ascendc::SocVersion::ASCEND910B) ||
+        (socVersion_ == platform_ascendc::SocVersion::ASCEND910_93)) {
+        OP_CHECK_IF(inputQType_ != ge::DT_INT8,
+                OP_LOGE(opName_, "The data types of the input query and key must be int8."), return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(inputQType_ != ge::DT_INT8,
-               OP_LOGE(opName_, "The data types of the input query and key must be int8."), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(weightsType_ != ge::DT_FLOAT16,
+                OP_LOGE(opName_, "The data types of the input weights must be float16."), return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(weightsType_ != ge::DT_FLOAT16,
-               OP_LOGE(opName_, "The data types of the input weights must be float16."), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            inputQueryScaleType_ != ge::DT_FLOAT16,
+            OP_LOGE(opName_, "The data types of the input query_dequant_scale and key_dequant_scale must be float16."),
+            return ge::GRAPH_FAILED);
+    } else if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
+        OP_CHECK_IF(inputQType_ != ge::DT_FLOAT8_E4M3FN && inputQType_ != ge::DT_HIFLOAT8,
+               OP_LOGE(opName_, "The data types of the input query and key must be float8_e4m3 or hifloat8."), return ge::GRAPH_FAILED);
+        
+        OP_CHECK_IF(weightsType_ != ge::DT_BF16,
+                OP_LOGE(opName_, "The data types of the input weights must be bfloat."), return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(
-        inputQueryScaleType_ != ge::DT_FLOAT16,
-        OP_LOGE(opName_, "The data types of the input query_dequant_scale and key_dequant_scale must be float16."),
-        return ge::GRAPH_FAILED);
+        OP_CHECK_IF(
+            inputQueryScaleType_ != ge::DT_FLOAT,
+            OP_LOGE(opName_, "The data types of the input query_dequant_scale and key_dequant_scale must be float."),
+            return ge::GRAPH_FAILED);
+    }
 
     OP_CHECK_IF(outputType_ != ge::DT_INT32,
                OP_LOGE(opName_, "The data types of the output sparse_indices must be int32."),

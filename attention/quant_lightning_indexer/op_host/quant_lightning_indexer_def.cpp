@@ -119,11 +119,6 @@ public:
             .DataType({ge::DT_INT32, ge::DT_INT32})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
-        aicore_config_95.Input("metadata")
-            .ParamType(OPTIONAL)
-            .DataType({ge::DT_INT32, ge::DT_INT32})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
         aicore_config_95.Output("sparse_indices")
         .ParamType(REQUIRED)
         .DataType({ge::DT_INT32, ge::DT_INT32})
