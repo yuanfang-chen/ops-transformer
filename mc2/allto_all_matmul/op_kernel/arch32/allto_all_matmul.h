@@ -47,15 +47,15 @@ using namespace Catlass;
 namespace AlltoAllMatmulImpl {
 
 // A2AMM : AlltoAllMatmul
-#define TemplateA2AMMClass typename AType, typename BType, typename BiasType, typename PerTokenScaleType, typename ScaleType, typename CType, typename AllToAllResultType, bool hasBias, bool transB
-#define TemplateA2AMMFunc AType, BType, BiasType, PerTokenScaleType, ScaleType, CType, AllToAllResultType, hasBias, transB
+#define TemplateA2AMMClass typename AType, typename BType, typename BiasType, typename PerTokenScaleType, typename ScaleType, typename CType, typename AllToAllResultType, bool hasBias, bool transB, bool needDynamicQuant
+#define TemplateA2AMMFunc AType, BType, BiasType, PerTokenScaleType, ScaleType, CType, AllToAllResultType, hasBias, transB, needDynamicQuant
 
 using namespace AscendC;
 template <TemplateA2AMMClass>
 class AlltoAllMatmul : public CommBase{
     // A16W8和A16W4场景需要进行动态量化
-    static constexpr bool needDynamicQuant = (std::is_same<AType, float16_t>::value || std::is_same<AType, bfloat16_t>::value) && 
-        (std::is_same<BType, int8_t>::value || std::is_same<BType, int4b_t>::value);
+    // static constexpr bool needDynamicQuant = (std::is_same<AType, float16_t>::value || std::is_same<AType, bfloat16_t>::value) && 
+    //     (std::is_same<BType, int8_t>::value || std::is_same<BType, int4b_t>::value);
 public:
     __aicore__ inline AlltoAllMatmul() {};
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM,
