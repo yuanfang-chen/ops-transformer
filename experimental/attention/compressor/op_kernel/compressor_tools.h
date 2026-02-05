@@ -660,9 +660,7 @@ __aicore__ inline void CompressorVec1SliceIterator<COMP>::GetPreTc()
 template <typename COMP>
 __aicore__ inline void CompressorVec1SliceIterator<COMP>::IteratorSlice()
 {
-    // printf("needDealTcSize_: %d -> ", needDealTcSize_);
     needDealTcSize_ -= (sliceInfo_.headHolderSeqCnt + sliceInfo_.validSeqCnt + sliceInfo_.tailHolderSeqCnt) / tools_.toolParams_.cmpRatio;
-    // printf("%d\n", needDealTcSize_);
     sliceInfo_.dealedSeqCnt += sliceInfo_.validSeqCnt;
     sliceInfo_.dealedTcCnt += sliceInfo_.dealTcSize;
     sliceInfo_.sIdx += sliceInfo_.validSeqCnt;
