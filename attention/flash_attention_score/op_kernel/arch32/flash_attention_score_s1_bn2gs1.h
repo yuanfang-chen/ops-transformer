@@ -272,7 +272,7 @@ protected:
     int64_t n2GS2;
 
     int64_t softmaxBufSize = 256;
-    uint32_t negativeIntScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = NEGATIVE_MIN_VALUE_FP32;
     T negativeFloatScalar;
     T positiveFloatScalar;
 
@@ -418,7 +418,7 @@ __aicore__ inline void FlashAttentionScoreS1Bn2gs1<FA_S1BN2GS1_FUNCTION_PARAMS_T
     this->pseAlibiGm.SetGlobalBuffer((__gm__ half*)(workspace + pseAlibiAddr));
 
     if constexpr (IsSameType<T, half>::value) {
-        this->negativeIntScalar = NEGATIVE_MIN_VAULE_FP16;
+        this->negativeIntScalar = NEGATIVE_MIN_VALUE_FP16;
     }
     GetExtremeValue(this->negativeFloatScalar, this->positiveFloatScalar);
     this->hasSink = this->tilingData->inputParams.needSinkOp;

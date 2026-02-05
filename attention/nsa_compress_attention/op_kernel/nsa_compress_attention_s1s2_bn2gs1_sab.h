@@ -168,7 +168,7 @@ protected:
     GlobalTensor<INPUT_T> stage1Res;
     GlobalTensor<T> impScoreRes[2];
 
-    uint32_t negativeIntScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = NEGATIVE_MIN_VALUE_FP32;
     T negativeFloatScalar;
     T positiveFloatScalar;
 

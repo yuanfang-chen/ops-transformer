@@ -26,8 +26,8 @@ using namespace matmul;
 constexpr uint32_t BATCH_NUM_MAX_NZ = 128;
 constexpr int32_t MAX_REPEATS_PER_BATCH = 255; // max repeatTime in InitConstValue
 constexpr int32_t REPEAT_DATASIZE_EACH_TIME = 512; // processing a fixed amount of data per iteration
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP16 = 0xC61C4000;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP32 = 0xFF7FFFFF;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP16 = 0xC61C4000;
 
 enum ModeNZ {
     HighPrecisionNZ = 0,
@@ -217,7 +217,7 @@ protected:
     uint32_t splitS2;
     uint32_t layoutType;
     uint32_t maskInnerTailAlign;
-    uint32_t negativeScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeScalar = NEGATIVE_MIN_VALUE_FP32;
     bool isSoftmaxResNeedUpdate;
 
     SoftMaxTiling softmaxTilingData;
@@ -354,7 +354,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFAT>::Init(__gm__ u
     uint32_t actualSeqLengthsIdx = 0;
 
     if constexpr (IsSameType<T, half>::value) {
-        this->negativeScalar = NEGATIVE_MIN_VAULE_FP16;
+        this->negativeScalar = NEGATIVE_MIN_VALUE_FP16;
     }
 
     for (int i = 0; i < tilingData->promptAttentionBaseParams.batchSize; i++) {

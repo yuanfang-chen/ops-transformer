@@ -358,7 +358,7 @@ protected:
     int64_t mm2Kb;
     // 当splitN大于16时，需要修改softMaxCheckRes数据类型
     uint16_t softMaxCheckRes = SOFTMAX_CHECK_RES_DEFAULT_VALUE;
-    uint32_t negativeIntScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = NEGATIVE_MIN_VALUE_FP32;
     T negativeFloatScalar;
     T positiveFloatScalar;
 
@@ -549,7 +549,7 @@ FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType, hasPse, hasAtten, hasD
 
     this->pseAlibiGm.SetGlobalBuffer((__gm__ half*)(workspace + pseAlibiAddr));
     if constexpr (IsSameType<T, half>::value) {
-        this->negativeIntScalar = NEGATIVE_MIN_VAULE_FP16;
+        this->negativeIntScalar = NEGATIVE_MIN_VALUE_FP16;
     }
     GetExtremeValue(this->negativeFloatScalar, this->positiveFloatScalar);
 }
