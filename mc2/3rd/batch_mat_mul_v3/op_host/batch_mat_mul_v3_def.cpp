@@ -118,7 +118,6 @@ public:
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND});
         aicConfig.ExtendCfgInfo("opFile.value", "batch_mat_mul_v3_apt");
         this->AICore().AddConfig("ascend950", aicConfig);
-        this->AICore().AddConfig("ascend910_55", aicConfig);
     }
 };
 
