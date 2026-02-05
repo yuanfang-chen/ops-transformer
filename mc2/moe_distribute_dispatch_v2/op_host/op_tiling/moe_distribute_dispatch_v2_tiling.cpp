@@ -223,7 +223,7 @@ static bool CheckDynamicScalesDim(const gert::TilingContext *context,
 }
 
 static bool CheckScaleTensorDim(const gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode,)
+    const bool isScales, const uint32_t quantMode, DispatchV2Config &config)
 {
     if (isScales) {
         const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(config.scalesIndex);
@@ -289,7 +289,7 @@ static bool CheckInputTensorDim(const gert::TilingContext *context, const char *
     const int64_t expertIdDim1 = expertIdStorageShape->GetStorageShape().GetDim(1);
     OP_LOGD(nodeName, "expertId dim0 = %ld", expertIdDim0);
     OP_LOGD(nodeName, "expertId dim1 = %ld", expertIdDim1);
-    OP_TILING_CHECK(!CheckScaleTensorDim(context, nodeName, isScales, quantMode), 
+    OP_TILING_CHECK(!CheckScaleTensorDim(context, nodeName, isScales, quantMode, config), 
         OP_LOGE(nodeName, "isScale Input param shape is invalid."), return false);
     return true;
 }
@@ -1442,7 +1442,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context, const char *no
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext *context, DispatchV2Config &config)
+ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext *context, DispatchV2Config &config)
 {
     const char *nodeName = context->GetNodeName();
     MoeDistributeDispatchV2TilingData *tilingData = context->GetTilingData<MoeDistributeDispatchV2TilingData>();
@@ -1963,7 +1963,7 @@ static ge::graphStatus MoeDistributeDispatchA5TilingFuncImpl(gert::TilingContext
     config.elasticInfoIndex = 5U;
     config.performanceInfoIndex = 6U;
     // MTE 调用 A3 tiling 实现
-    return MoeDistributeDispatchA3TilingFuncImpl(context, config);
+    return MoeDistributeDispatchA3TilingFuncImplPublic(context, config);
 }
 
 static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* context)
@@ -1984,7 +1984,7 @@ static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* co
         config.expertScalesIndex = 4U;
         config.elasticInfoIndex = 5U;
         config.performanceInfoIndex = 6U;
-        ret = MoeDistributeDispatchA3TilingFuncImpl(context, config);
+        ret = MoeDistributeDispatchA3TilingFuncImplPublic(context, config);
     }
     return ret;
 }

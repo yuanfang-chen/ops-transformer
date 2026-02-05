@@ -35,6 +35,7 @@
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
 #include "../../../moe_distribute_dispatch_v2/op_host/op_tiling/moe_distribute_dispatch_tiling_v2.h"
+#include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_tiling.h"
 #include "mc2_hcom_topo_info.h"
 
 using namespace Mc2Tiling;
@@ -47,7 +48,7 @@ namespace optiling {
 static ge::graphStatus MoeDistributeDispatchV3TilingFunc(gert::TilingContext* context)
 {
     DispatchV2Config config;
-    config.contextIndex = 0U
+    config.contextIndex = 0U;
     config.xIndex = 1U;
     config.expertIdsIndex = 2U;
     config.scalesIndex = 3U;
@@ -56,7 +57,7 @@ static ge::graphStatus MoeDistributeDispatchV3TilingFunc(gert::TilingContext* co
     config.elasticInfoIndex = 6U;
     config.performanceInfoIndex = 7U;
     config.isMc2Context = true;
-    ge::graphStatus ret = MoeDistributeDispatchA3TilingFuncImpl(context, config);
+    ge::graphStatus ret = MoeDistributeDispatchA3TilingFuncImplPublic(context, config);
     return ret;
 }
 
