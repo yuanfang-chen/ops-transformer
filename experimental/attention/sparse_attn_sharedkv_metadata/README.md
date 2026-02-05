@@ -161,13 +161,13 @@
       <td>layout_q</td>
       <td>可选属性</td>
       <td>用于标识输入q的数据排布格式,默认值为BSND，目前支持传入BSND和TND。</td>
-      <td>String</td>
+      <td>STRING</td>
     </tr>
     <tr>
       <td>layout_kv</td>
       <td>可选属性</td>
       <td>用于标识输入ori_kv和cmp_kv的数据排布格式，目前仅支持传入默认值PA_ND。</td>
-      <td>String</td>
+      <td>STRING</td>
       <td>-</td>
     </tr>
     <tr>
@@ -188,7 +188,7 @@
       <td>device</td>
       <td>可选属性</td>
       <td>npu的ID，当输入`Tensor`均没有传入时，此字段必填，用于获取设备信息。</td>
-      <td>String</td>
+      <td>STRING</td>
       <td>-</td>
     </tr>
     <tr>
@@ -205,6 +205,3 @@
 
 -   该接口支持推理场景下使用。
 -   该接口支持aclgraph模式。
-
-## 调用示例
-- 支持单算子模式调用和aclgraph模式调用，作为SparseAttnSharedkv算子的前序算子，调用示例见[SparseAttnSharedkv调用示例](../sparse_attn_sharedkv/README.md)。
