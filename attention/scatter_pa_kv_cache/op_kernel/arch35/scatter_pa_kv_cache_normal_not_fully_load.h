@@ -172,6 +172,9 @@ __aicore__ inline void ScatterPaKvCacheNormalNotFullyLoad<T, IndexDtype, InOutMo
     for (int64_t idx = 0; idx < curBlockFactor; idx++) {
         int64_t kblockOffset = idx * tilingData_->kHandleNumPerCore;
         int64_t startIdx = slotMappingGm_.GetValue(idx);
+        if (startIdx < 0) {
+            continue;
+        }
         int64_t kStartIdx = startIdx * tilingData_->kHandleNumPerCore;
         // key main loop
         for (int64_t i = 0; i < tilingData_->kLoopNum; i++) {

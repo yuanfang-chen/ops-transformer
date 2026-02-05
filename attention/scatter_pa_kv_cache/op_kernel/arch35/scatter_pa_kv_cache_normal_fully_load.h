@@ -163,6 +163,9 @@ __aicore__ inline void ScatterPaKvCacheNormalFullyLoad<T, IndexDtype, InOutMode>
             static_cast<uint32_t>(0), static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
         for (int64_t i = 0; i < curBlockFactor; i++) {
             int64_t vStartIdx = vSlotMappingLocal.GetValue(i);
+            if (vStartIdx < 0) {
+                continue;
+            }
             DataCopyPad(outputValueCacheGm_[vStartIdx], inputValueLocal[i * RoundUp(tilingData_->vHandleNumPerCore)],
                         outValueCacheParams);
         }
