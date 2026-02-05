@@ -47,7 +47,7 @@ namespace optiling {
 static ge::graphStatus MoeDistributeDispatchV3TilingFunc(gert::TilingContext* context)
 {
     DispatchV2Config config;
-    config.contextIndex = 0U
+    config.contextIndex = 0U;
     config.xIndex = 1U;
     config.expertIdsIndex = 2U;
     config.scalesIndex = 3U;
