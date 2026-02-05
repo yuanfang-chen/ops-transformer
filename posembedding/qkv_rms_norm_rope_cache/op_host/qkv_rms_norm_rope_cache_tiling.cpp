@@ -434,8 +434,9 @@ ge::graphStatus QkvRmsNormRopeCacheTilingDs::PostTiling()
 {
     context_->SetTilingKey(GetTilingKey());
     context_->SetBlockDim(tilingData_.get_blockDim());
-    size_t* workspaces = context_->GetWorkspaceSizes(1);
-    workspaces[0] = DEFAULT_WORKSPACE_SIZE;
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
+    uint32_t sysWorkSpaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
+    size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
     return ge::GRAPH_SUCCESS;

@@ -530,7 +530,7 @@ public:
         const LocalTensor<int8_t>& dstTensor, const LocalTensor<float>& srcTensor, int32_t size)
     {
         Cast(srcTensor.ReinterpretCast<int32_t>(), srcTensor, RoundMode::CAST_RINT, size);
-        PipeBarrier<PIPE_V>();
+        // PipeBarrier<PIPE_V>();
         SetDeqScale((half)1.000000e+00f);
         PipeBarrier<PIPE_V>();
         Cast(srcTensor.ReinterpretCast<half>(), srcTensor.ReinterpretCast<int32_t>(), RoundMode::CAST_NONE, size);

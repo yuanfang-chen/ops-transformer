@@ -126,7 +126,6 @@ constexpr int64_t NUM_TWO = 2;
 constexpr int64_t NUM_THREE = 3;
 constexpr int64_t NUM_FOUR = 4;
 constexpr int64_t NUM_HUNDRED = 100;
-constexpr int64_t DEFAULT_WORKSPACE_SIZE = 32;
 constexpr int64_t NUM_CACHE_MODE_UNIT = 10;
 
 constexpr int64_t BYTES_PER_KILO_BYTE = 1024;
