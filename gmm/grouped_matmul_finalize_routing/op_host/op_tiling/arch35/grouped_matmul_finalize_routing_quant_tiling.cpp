@@ -124,10 +124,10 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
                 OP_LOGE(context_->GetNodeName(), "Bias from tensor is not nullptr, but bias from desc is nullptr."),
                 return false);
     inputParams_.biasDtype = inputParams_.hasBias ? biasDesc->GetDataType() : ge::DT_BF16;
-    OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16 || inputParams_.biasDtype != ge::DT_FLOAT,
-                OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
-                        ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
-                return false);
+    // OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
+    //             OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
+    //                     ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
+    //             return false);
 
     OP_CHECK_IF(!CheckDtype(), OP_LOGE(context_->GetNodeName(), "Required input check failed."), return false);
 
