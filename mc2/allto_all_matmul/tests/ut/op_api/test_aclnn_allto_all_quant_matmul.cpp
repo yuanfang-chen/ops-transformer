@@ -29,7 +29,10 @@ protected:
         cout << "test_aclnn_allto_all_quant_matmul SetUp" << endl;
     }
 
-    static void TearDownTestCase() { cout << "test_aclnn_allto_all_quant_matmul TearDown" << endl; }
+    static void TearDownTestCase()
+    {
+        cout << "test_aclnn_allto_all_quant_matmul TearDown" << endl;
+    }
 };
 
 // ut用例结构体
