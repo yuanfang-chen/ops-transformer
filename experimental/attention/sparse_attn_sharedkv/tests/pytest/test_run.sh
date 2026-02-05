@@ -122,7 +122,7 @@ run_script_save() {
                 ;;
             -P)
                 if [ -z "$2" ] || [[ "$2" == -* ]]; then
-                    echo "错误: -Q 参数需要值"
+                    echo "错误: -P 参数需要值"
                     exit 1
                 fi
                 P_VALUE="$2"
@@ -182,7 +182,7 @@ run_script_load() {
         case $1 in
             -P)
                 if [ -z "$2" ] || [[ "$2" == -* ]]; then
-                    echo "错误: -Q 参数需要值"
+                    echo "错误: -P 参数需要值"
                     exit 1
                 fi
                 P_VALUE="$2"
