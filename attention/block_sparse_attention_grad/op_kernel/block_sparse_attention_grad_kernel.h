@@ -16,7 +16,17 @@
 #ifndef BLOCK_SPARSE_ATTENTION_GRAD_KERNEL_H
 #define BLOCK_SPARSE_ATTENTION_GRAD_KERNEL_H
 
-using namespace NpuArch;
+#include "attn_infra/base_defs.hpp"
+#include "attn_infra/arch/arch.hpp"
+#include "attn_infra/arch/cross_core_sync.hpp"
+#include "attn_infra/arch/resource.hpp"
+#include "attn_infra/layout/layout.hpp"
+
+#include "attn_infra/gemm/block/block_mmad.hpp"
+#include "attn_infra/gemm/dispatch_policy.hpp"
+#include "attn_infra/gemm/gemm_type.hpp"
+#include "attn_infra/epilogue/block/block_epilogue.hpp"
+#include "attn_infra/epilogue/dispatch_policy.hpp"
 
 namespace BSA {
     template <
@@ -26,7 +36,7 @@ namespace BSA {
         class EpilogueFAGPre_,
         class EpilogueFAGSfmg_,
         class EpilogueFAGOp_,
-        class EpilogueFAGPost_
+        class EpilogueFAGPost_,
         uint32_t INPUT_LAYOUT>
     class BlockSparseAttentionGradKernel {
     public:
@@ -60,10 +70,10 @@ namespace BSA {
             GM_ADDR tiling_data;
 
             // Methods
-            CATLASS_DEVICE
+            __aicore__ inline
             Params() {}
 
-            CATLASS_DEVICE
+            __aicore__ inline
             Params(
                 GM_ADDR dout_, GM_ADDR q_, GM_ADDR k_, GM_ADDR v_, GM_ADDR out_, GM_ADDR softmaxLse_, GM_ADDR blockSparseMask_,
                 GM_ADDR blockShape_, GM_ADDR attentionMask_, GM_ADDR actualQseqlen_, GM_ADDR actualKvseqlen_,
@@ -76,21 +86,21 @@ namespace BSA {
         };
 
         // Methods
-        CATLASS_DEVICE
+        __aicore__ inline
         BlockSparseAttentionGradKernel() {}
 
         template <int32_t CORE_TYPE = g_coreType>
-        CATLASS_DEVICE
+        __aicore__ inline
         void operator()(Params const &params);
 
         template <>
-        CATLASS_DEVICE
+        __aicore__ inline
         void operator()<AscendC::AIC>(Params const &params)
         {
         }
 
         template <>
-        CATLASS_DEVICE
+        __aicore__ inline
         void operator()<AscendC::AIV>(Params const &params)
         {
         }

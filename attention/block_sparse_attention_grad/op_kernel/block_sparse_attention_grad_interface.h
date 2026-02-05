@@ -18,8 +18,6 @@
 
 #include "kernel_operator.h"
 #include "block_sparse_attention_grad_kernel.h"
-
-using namespace NpuArch;
                                                        
 namespace BSA {
     template <
