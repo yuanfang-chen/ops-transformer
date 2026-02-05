@@ -8,14 +8,18 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef MOE_DISTRIBUTE_DISPATCH_V3_TILING_DEF_H
-#define MOE_DISTRIBUTE_DISPATCH_V3_TILING_DEF_H
+/*!
+ * \file mc2_moe_context.h
+ * \brief
+ */
 
-#include "kernel_tiling/kernel_tiling.h"
-#include "../../../op_kernel/moe_distribute_dispatch_v3_tiling.h"
+#ifndef MC2_MOE_CONTEXT_H
+#define MC2_MOE_CONTEXT_H
 
-#define GET_TILING_DATA_WITH_STRUCT(TilingDataStru, tiling_data, tiling_arg)       \
-    TilingDataStru tiling_data;                                                 \
-    memcpy(&tiling_data, tiling_arg, sizeof(TilingDataStru))
+struct Mc2MoeContext {
+    uint64_t epRankId;
+    uint64_t kfcContextAddr; // host kfc方案中，需要传递通信API所需的地址
+    uint64_t epHcclBuffer_[1024];
+};
 
-#endif // OPS_TRANSFORMER_DEV_DISTRIBUTE_DISPATCH_V2_TILING_DEF_H
+#endif //MC2_MOE_CONTEXT_H
