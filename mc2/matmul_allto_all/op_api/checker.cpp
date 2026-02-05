@@ -23,18 +23,7 @@
 #include "hccl_util.h"
 
 namespace matmul_allto_all_check {
-
 using namespace op;
-
-// 需要使用的常量定义
-static constexpr int64_t NEG_ONE = -1;
-static constexpr int64_t NEG_TWO = -2;
-static constexpr size_t ONE_DIM = 1;
-static constexpr size_t TWO_DIMS = 2U;
-static constexpr int64_t ZERO = 0;
-static constexpr size_t MAX_GROUP_LEN = 128U;
-static constexpr int64_t KVALUE_MIN = 1;
-static constexpr int64_t KVALUE_MAX = 65535;
 
 // 检查AlltoAll和Permute数据交换的方向参数, 可以为空和{-1,-2}, 不允许为其他值
 bool CheckAlltoAllAxes(const aclIntArray* alltoAllAxesOptional)
@@ -126,6 +115,84 @@ bool CheckShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasO
     return true;
 }
 
+// 校验Scale为1D时的shape（KC量化）
+bool Check1DScaleShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale,
+                       const aclTensor* x2Scale, bool transposeX2)
+{
+    OP_CHECK_WRONG_DIMENSION(x1Scale, ONE_DIM, return false);
+    OP_CHECK_WRONG_DIMENSION(x2Scale, ONE_DIM, return false);
+    auto mVal = x1->GetViewShape().GetDim(0);
+    auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
+    auto x1ScaleDim = x1Scale->GetViewShape().GetDim(0);
+    if (x1ScaleDim != mVal) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        "The m-axis of x1 and x1scale should be same, but x1's m-axis is: %ld and x1Scale's is: %ld.", mVal, x1ScaleDim);
+        return false;
+    }
+    auto x2ScaleDim = x2Scale->GetViewShape().GetDim(0);
+    if (x2ScaleDim != nVal) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        "The n-axis of x2 and x2ScaleDim should be same, but x2's m-axis is: %ld and x2ScaleDim is: %ld.", nVal, x2ScaleDim);
+        return false;
+    }
+    return true;
+}
+
+// 校验Scale为3D时的shape（MX量化）
+bool Check3DScaleShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale,
+                       const aclTensor* x2Scale, bool transposeX2)
+{
+    OP_CHECK_WRONG_DIMENSION(x1Scale, THREE_DIMS, return false);
+    OP_CHECK_WRONG_DIMENSION(x2Scale, THREE_DIMS, return false);
+    auto mVal = x1->GetViewShape().GetDim(0);
+    auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
+    auto x1ScaleMVal = x1Scale->GetViewShape().GetDim(0);
+    auto x2ScaleNVal = transposeX2 ? x2Scale->GetViewShape().GetDim(0) : x2Scale->GetViewShape().GetDim(1);
+    auto x1ScaleKVal = x1Scale->GetViewShape().GetDim(1);
+    auto x2ScaleKVal = transposeX2 ? x2Scale->GetViewShape().GetDim(1) : x2Scale->GetViewShape().GetDim(0);
+    auto x1ScaleLastDim = x1Scale->GetViewShape().GetDim(2);
+    auto x2ScaleLastDim = x2Scale->GetViewShape().GetDim(2);
+    if (x1ScaleMVal != mVal) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        	"The m-axis of x1 and x1scale should be same, but x1's m-axis is: %ld and x1Scale's is: %ld.", mVal, x1ScaleMVal);
+        return false;
+    }
+    if (x2ScaleNVal != nVal) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        	"The n-axis of x2 and x2ScaleDim should be same, but x2's n-axis is: %ld and x2ScaleDim is: %ld.", nVal, x2ScaleNVal);
+        return false;
+    }
+    if (x1ScaleKVal != x2ScaleKVal) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        	"The k-axis of x1scale and x2scale should be same, but x1scale's k-axis is: %ld and x2Scale's k-axis is: %ld.", x1ScaleKVal, x2ScaleKVal);
+        return false;
+    }
+    if (x1ScaleLastDim != TWO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        	"The last dim of x1scale should be 2, but now it is: %ld.", x1ScaleLastDim);
+        return false;
+    }
+    if (x2ScaleLastDim != TWO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+        	"The last dim of x2scale should be 2, but now it is: %ld.", x2ScaleLastDim);
+        return false;
+    }
+    return true;
+}
+
+// 校验输入Scaleshape
+bool CheckScaleShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale, const aclTensor* x2Scale,
+                     int64_t x1QuantMode, int64_t x2QuantMode, bool transposeX2)
+{
+    bool ScaleShapeValid = false;
+    if (x1QuantMode == MX_QUANT_MODE && x2QuantMode == MX_QUANT_MODE) {
+        ScaleShapeValid = Check3DScaleShape(x1, x2, x1Scale, x2Scale, transposeX2);
+    } else {
+        ScaleShapeValid = Check1DScaleShape(x1, x2, x1Scale, x2Scale, transposeX2);
+    }
+    return ScaleShapeValid;
+}
+
 // 处理支持转置的tensor物理排布不连续问题
 aclTensor *TransX2Tensor(const aclTensor *x2)
 {
@@ -185,7 +252,7 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor) {
 bool CheckX2Valid(const aclTensor* x2) {
     if (x2 == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input x2 should not be null.");
-        return false;
+        CHECK_RET(x2 == nullptr, ACLNN_ERR_PARAM_NULLPTR);
     }
   	if (x2->IsEmpty()) {
     	OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Input x2 do not support empty tensor.");
