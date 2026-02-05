@@ -220,8 +220,7 @@ void MMPlusQuantAllReduce::SelectTilingMethod()
     }
     // 生成切分
     tilingM_.GenerateInitialPartition(longTileAlignUpFlag);
-    OP_LOGD(
-        "MatmulQuantAllReduce", "Initial cut: longTileLen %lu, shortTileLen %lu", tilingM_.cutRes.longTileLen,
+    OP_LOGD("MatmulQuantAllReduce", "Initial cut: longTileLen %lu, shortTileLen %lu", tilingM_.cutRes.longTileLen,
         tilingM_.cutRes.shortTileLen);
 
     // 根据首尾块大小、轮次等约束调整切分

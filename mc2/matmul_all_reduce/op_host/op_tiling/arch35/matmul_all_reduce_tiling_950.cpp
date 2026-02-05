@@ -21,7 +21,7 @@ using namespace Mc2Tiling;
 namespace optiling {
 bool MatmulAllReduceTilingA5::IsCapable()
 {
-    OP_LOGI(opName_, "Start with MatmulAllReduceTilingA5 tiling.");
+    OP_LOGI(opName_, "Start with MatmulAllReduceTilingA5 tiling. ");
     return true;
 }
 
