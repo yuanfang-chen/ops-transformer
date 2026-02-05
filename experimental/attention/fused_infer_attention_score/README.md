@@ -58,11 +58,8 @@
 
 根据当前环境，安装对应的CANN开发开发套件包（toolkit包+ops包）。
 1. torch_npu安装包下载路径：[torch_npu安装教程](https://gitcode.com/Ascend/pytorch)
-2. CANN包环境配置可参考：[环境部署](../../../docs/zh/context/quick_install.md)
-3. 安装msprof工具(该工具社区包自带，无需单独安装，具体使用见社区文档)
-```bash
-./Ascend-mindstudio-toolkit*.run -full --install-path=$ASCEND_INSTALL_PATH # ASCEND_INSTALL_PATH为cann包安装路径，以cann-{版本号}结尾
-```
+2. CANN包可从[昇腾社区](https://www.hiascend.com/developer/download/community/result?module=cann)获取,具体下载安装见昇腾社区[文档](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=netconda&OS=Ubuntu)。
+
 按需选择合适的命令使环境变量生效。
 ```bash
 # 默认路径安装，以root用户为例（非root用户，将/usr/local替换为${HOME}）
@@ -74,7 +71,7 @@ source /usr/local/Ascend/cann/set_env.sh
 **注意：首先确认自己的机器是哪种npu型号, 工程默认使用910b(A2)机器，如果是910c(A3)的机器,则需要修改编译命令，将编译命令中的-soc=ascend910b改成-soc=ascend910_93**
 
 提供两种方式运行本Demo
-- 一键式安装运行
+- 一键式安装运行(run.sh脚本默认使用A2命令编译，若在A3上运行需要自行修改脚本内的编译命令)
 ```bash
 # 切换到fused_infer_attention_score目录
 cd ${git_clone_path}/experimental/attention/fused_infer_attention_score/
