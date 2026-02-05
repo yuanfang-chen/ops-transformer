@@ -337,6 +337,7 @@ protected:
     // attention mask
     bool attenMaskFlag = false;
     uint32_t attenMaskSizeAlign = 0U;
+    uint32_t sparseMode = 3U;
 
     // offset
     uint64_t tensorACoreOffset = 0ULL;
@@ -580,6 +581,7 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadM
 
     attenMaskFlag = (tilingData->baseParams.attenMaskFlag != 0) ? true : false;
     attenMaskSize = tilingData->baseParams.attenMaskSize;
+    sparseMode = tilingData->baseParams.sparseMode;
 
     maxBlockNumPerBatch = tilingData->baseParams.maxBlockNumPerBatch;
     kvCacheBlockSize = tilingData->baseParams.blockSize;
@@ -1833,13 +1835,22 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::IsSkipAttenMask(const ExtraInfoMla &in
         actualSeqQ = info.actS1Size;
     }
 
+    uint32_t s2EndPos = info.s2Idx * singleProcessSInnerSize + info.actualSingleProcessSInnerSize;
+    // 新增sparse9的处理，sparse9和sparse3类似，但是sparse9是用户自己传入的mask矩阵，算子无法感知具体数值，所以涉及到基本块都要参与计算
+    if (sparseMode == 9U) {
+        if (s2EndPos > (info.s2Size - actualSeqQ + 1)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    
     // s2<s1时，必然走mask
     if (info.s2Size < actualSeqQ) {
         return false;
     }
 
     // 当前的s2位置不超过需要打标记的位置时，不需要mask
-    uint32_t s2EndPos = info.s2Idx * singleProcessSInnerSize + info.actualSingleProcessSInnerSize;
     if (s2EndPos <= (info.s2Size - actualSeqQ + 1)) {
         return true;
     }

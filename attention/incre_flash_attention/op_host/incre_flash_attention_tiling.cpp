@@ -524,7 +524,8 @@ ge::graphStatus IFATiling::GetRopeAndGqaFlag(const uint32_t sOfQuery, const uint
         ropeFlag_ = true;
     }
 
-    if (sOfQuery > 1U && sOfQuery <= 16U && !ropeFlag_) {  // 投机推理场景，QS在1到16之间
+    // TODO 遗留问题：看路由条件放开的情况在做决定，现在先放开
+    if (sOfQuery > 1U && sOfQuery <= 32U && !ropeFlag_) {  // 投机推理场景，QS在1到32之间
         gqaMtpFlag_ = true;
     }
     if (kDimNum == 5U && !ropeFlag_) {
@@ -532,10 +533,10 @@ ge::graphStatus IFATiling::GetRopeAndGqaFlag(const uint32_t sOfQuery, const uint
     }
     if (!ropeFlag_ && !gqaMtpFlag_) {
         OP_CHECK_IF(sOfQuery != 1U,
-            OP_LOGE(ifaContext_->opName, "In case where MLA is not applied, S of Query:%u is invalid. It should be in range [1, 16]", sOfQuery),
+            OP_LOGE(ifaContext_->opName, "In case where MLA is not applied, S of Query:%u is invalid. It should be in range [1, 32]", sOfQuery),
                    return ge::GRAPH_FAILED);
     } else if (layout != "TND" && layout != "TND_NTD") {
-        OP_CHECK_IF(sOfQuery > 16, OP_LOGE(ifaContext_->opName, "QueryS(%u) should not be bigger than 16 in MLA.", sOfQuery),
+        OP_CHECK_IF(sOfQuery > 32, OP_LOGE(ifaContext_->opName, "QueryS(%u) should not be bigger than 32 in MLA.", sOfQuery),
                    return ge::GRAPH_FAILED);
     }
     OP_CHECK_IF(layout == "TND" && headDim_ == 512 && !ropeFlag_, OP_LOGE(ifaContext_->opName,
@@ -588,10 +589,11 @@ ge::graphStatus IFATiling::QKVPreProcess4TND(const std::string layout)
 
         for (int b = 0; b < static_cast<int>(actualLenQDims_); b++) {
             actualSeqQ[b] = (b <= 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
-            OP_CHECK_IF((actualSeqQ[b] < 0) || (actualSeqQ[b] > 16), // 16 MTP最大QS
-                       OP_LOGE(ifaContext_->opName, "%s QS(%ld) of batch(%d) computed by the query's actual sequence lengths should be in range [0, 16].", layout.c_str(), actualSeqQ[b], b),
+            OP_CHECK_IF((actualSeqQ[b] < 0) || (actualSeqQ[b] > 32), // 32 MTP最大QS
+                       OP_LOGE(ifaContext_->opName, "%s QS(%ld) of batch(%d) computed by the query's actual sequence lengths should be in range [0, 32].", layout.c_str(), actualSeqQ[b], b),
                        return ge::GRAPH_FAILED);
             tmpQSeqSize = std::max(tmpQSeqSize, actualSeqQ[b]);
+            qSeqSquareSum_ += actualSeqQ[b] * actualSeqQ[b];
         }
 
         OP_CHECK_IF((tSeqSize_ != actualSeqQTnd[actualLenQDims_ - 1]),
@@ -918,6 +920,11 @@ ge::graphStatus IFATiling::ProcessOptionalTensors()
 
     // for kv shared prefix
     if ((ProcessSharedPrefix() != ge::GRAPH_SUCCESS) || (ProcessSharedPrefixLen() != ge::GRAPH_SUCCESS)) {
+        return ge::GRAPH_FAILED;
+    }
+
+    // for Tree sparse(9)
+    if (ProcessSparseMode() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -1833,6 +1840,67 @@ ge::graphStatus IFATiling::ProcessSharedPrefix()
 
     sysPrefixFlag_ = true;
 
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus IFATiling::ProcessSparseMode()
+{
+    // 仅支持MLA全量化
+    // 不支持左padding、PSE、公共前缀、后量化等特性
+    // 补充s2 >= s1的拦截
+    // mask形状的校验已经在ProcessAttenMask()，函数完成
+
+    sparseMode_ = ifaContext_->sparseMode != nullptr ? *ifaContext_->sparseMode : 0;
+
+    if (sparseMode_ == 9) {
+        if (ropeFlag_ && quantFlag_) {
+            OP_CHECK_IF(kvPaddingSizeFlag_,
+                OP_LOGE(ifaContext_->opName,
+                        "In MLA full quant situation, when sparse is %d, kvPaddingSize should be not exist.", sparseMode);
+                return ge::GRAPH_FAILED);
+
+            OP_CHECK_IF(pseShiftFlag_,
+                OP_LOGE(ifaContext_->opName,
+                        "In MLA full quant situation, when sparse is %d, pse_shift should be not exist.", sparseMode);
+                return ge::GRAPH_FAILED);
+
+            OP_CHECK_IF(sysPrefixFlag_,
+                OP_LOGE(ifaContext_->opName,
+                        "In MLA full quant situation, when sparse is %d, key_shared_prefix and key_shared_prefix should be not exist.",
+                        sparseMode);
+                return ge::GRAPH_FAILED);
+
+            OP_CHECK_IF(outputType_ == ge::DT_INT8,
+                OP_LOGE(ifaContext_->opName,
+                        "In MLA full quant situation, when sparse is %d, output dtype int8_t is not supported.", sparseMode);
+                return ge::GRAPH_FAILED);
+            
+            // 补充s2 >= s1的拦截
+            if (inputLayout_ == IfaLayout::TND) {
+                const int64_t *actualSeqQTnd = ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>();
+                const int64_t *actualSeqKVTnd = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>();
+                uint64_t qActSize = 0;
+                uint64_t kvActSize = 0;
+
+                for (int b = 0; b < static_cast<int>(actualLenQDims_); b++) {
+                    qActSize = (b == 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
+                    kvActSize = (b == 0) ? actualSeqKVTnd[0] : (actualSeqKVTnd[b] - actualSeqKVTnd[b - 1]);
+                    OP_CHECK_IF(qActSize > kvActSize,
+                        OP_LOGE(ifaContext_->opName,
+                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode);
+                    return ge::GRAPH_FAILED);
+                }
+            } else {
+                OP_CHECK_IF(qSeqSize_ > seqSize_,
+                    OP_LOGE(ifaContext_->opName,
+                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode);
+                    return ge::GRAPH_FAILED);
+            }
+        } else {
+            OP_LOGE(opName_, "Tree Sparse(%d) is only supported in MLA full quant situation.", sparseMode_);
+            return ge::GRAPH_FAILED;
+        }
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -2963,6 +3031,7 @@ void IFATiling::FillTilingBaseParams()
     tilingData_->baseParams.set_antiquantParamsInPagedAttentionFlag(antiquantParamsInPagedAttentionFlag_);
     tilingData_->baseParams.set_attenMaskFlag(attenMaskFlag_ ? 1 : 0);
     tilingData_->baseParams.set_attenMaskSize(attenMaskSize_);
+    tilingData_->baseParams.set_sparseMode(sparseMode_);
     tilingData_->baseParams.set_l2CacheOffFlag(l2CacheOffFlag_);
     tilingData_->baseParams.set_softmaxLseFlag(softmaxLseFlag_); // whether return lse
     tilingData_->baseParams.set_totalBlockNum(totalBlockNum_);

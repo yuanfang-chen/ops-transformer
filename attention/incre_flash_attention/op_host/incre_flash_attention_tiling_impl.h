@@ -89,6 +89,7 @@ private:
     ge::graphStatus CheckMaskShapeWithQSeq() const;
     ge::graphStatus CheckAttenMaskShape();
     ge::graphStatus ProcessAttenMask();
+    ge::graphStatus ProcessSparseMode();
     ge::graphStatus CheckMlaQueryRopeDesc() const;
     ge::graphStatus CheckMlaQueryRopeBsndLayout(const gert::Shape &qRopeShape, const gert::Shape &qShape);
     ge::graphStatus CheckMlaQueryRopeBnsdLayout(const gert::Shape &qRopeShape, const gert::Shape &qShape);
@@ -360,6 +361,7 @@ private:
     uint32_t sMax_ = 0;
     uint32_t tSeqSize_ = 1; // TND格式T轴长度
     uint32_t qSeqSize_ = 1; // 默认S1 = 1
+    uint64_t qSeqSquareSum_ = 0; // 给Sparse9 TND下mask大小用
     uint32_t blockTypeSize_ = 0; // 计算中间量大小
     uint32_t kvSplitPart_ = 1;
 

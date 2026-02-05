@@ -329,7 +329,7 @@ ge::graphStatus IFATiling::CheckInputQKVTypeMatch() const
 
     OP_CHECK_IF(
         ((!ropeFlag_) && inputQType_ == ge::DT_INT8 && inputKvType_ == ge::DT_INT8),
-        OP_LOGE(ifaContext_->opName, "When QueryRope/KeyRope is null and Qs(%u) in [1, 16], not support qkv datatype all int8.", qSeqSize_), return ge::GRAPH_FAILED);
+        OP_LOGE(ifaContext_->opName, "When QueryRope/KeyRope is null and Qs(%u) in [1, 32], not support qkv datatype all int8.", qSeqSize_), return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(
         ((inputQType_ == ge::DT_FLOAT16) && (inputKvType_ != ge::DT_FLOAT16 && inputKvType_ != ge::DT_INT8 && inputKvType_ != ge::DT_INT4)), OP_LOGE(ifaContext_->opName, "when input Q type is fp16, KV type %d should be fp16 or int8 or int4", inputKvType_),
@@ -1345,6 +1345,33 @@ ge::graphStatus IFATiling::ProcessPseShift()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus IFATiling::CheckTreeSparseMaskShape()
+{
+    // sparse9时需要传入Mask，在TND场景，传入∑s1²，一维矩阵
+    // 非TND场景传入[B, S1, S1]
+    if (inputLayout_ == IfaLayout::TND) {
+        // sparse9时需要传入Mask，在TND场景，传入∑s1²，一维矩阵
+        OP_CHECK_IF(maskShape == nullptr,
+            OP_LOGE(ifaContext_->opName, "TND/TND_NTD need input attenMask when sparse = 9."), return ge::GRAPH_FAILED);
+
+        auto shape = ifaContext_->attenMask.tensor->GetStorageShape();
+        OP_CHECK_IF(shape.GetDimNum() != 1U || shape.GetDim(0) != qSeqSquareSum_,
+            OP_LOGE(ifaContext_->opName, "TND/TND_NTD when sparse = 9, atten_mask tensor shape must be ∑s1²."),
+            return ge::GRAPH_FAILED);
+        attenMaskFlag_ = true;
+    } else {
+        OP_CHECK_IF(maskShape == nullptr,
+            OP_LOGE(ifaContext_->opName, "when sparse = 9, atten_mask should not be null."), return ge::GRAPH_FAILED);
+
+        auto shape = ifaContext_->attenMask.tensor->GetStorageShape();
+        OP_CHECK_IF(shape.GetDimNum() != 3U || shape.GetDim(0) != batchSize_ || shape.GetDim(1) != qSeqSize_ || shape.GetDim(2) != qSeqSize_ ,
+            OP_LOGE(ifaContext_->opName, "BSH when sparse = 9, atten_mask tensor shape must be [B, S1, S1]."),
+            return ge::GRAPH_FAILED);
+        attenMaskFlag_ = true;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus IFATiling::CheckTndMaskShapeWithSparseMode()
 {
     auto maskShape = ifaContext_->attenMask.tensor; // input shape = 4
@@ -1362,7 +1389,7 @@ ge::graphStatus IFATiling::CheckTndMaskShapeWithSparseMode()
             return ge::GRAPH_FAILED);
         attenMaskFlag_ = true;
     } else {
-        OP_LOGE(ifaContext_->opName, "TND/TND_NTD only support sparse(%u) = 0 or 3.", sparseMode_);
+        OP_LOGE(ifaContext_->opName, "TND/TND_NTD only support sparse(%u) = 0/3/9.", sparseMode_);
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -1372,7 +1399,7 @@ ge::graphStatus IFATiling::CheckMaskShapeWithQSeq() const
 {
     if (antiQuantFlag_ || quantFlag_) {
         OP_CHECK_IF((ropeFlag_ && qSeqSize_ > 1U && static_cast<int32_t>(sparseMode_) != 3),
-               OP_LOGE(ifaContext_->opName, "when queryS > 1, sparseMode(%d) only support 3 "
+               OP_LOGE(ifaContext_->opName, "when queryS > 1, sparseMode(%d) only support 3 or 9"
                     "in MLA when antiquant or full quant situation.", static_cast<int32_t>(sparseMode_)),
                return ge::GRAPH_FAILED);
         OP_CHECK_IF((ropeFlag_ && qSeqSize_ == 1U && static_cast<int32_t>(sparseMode_) != 0),
@@ -1421,6 +1448,10 @@ ge::graphStatus IFATiling::ProcessAttenMask()
 {
     // 与pfa保持一致，先判断sparsemode
     sparseMode_ = ifaContext_->sparseMode != nullptr ? *ifaContext_->sparseMode : 0;
+
+    if (sparseMode_ == 9U) {
+        return CheckTreeSparseMaskShape();
+    }
 
     if (inputLayout_ == IfaLayout::TND) {
         return CheckTndMaskShapeWithSparseMode();
