@@ -9,7 +9,7 @@
     - torch\_npu >=2.7.0
 
 2. 安装torch与torch_npu包
-   
+
    根据实际环境，下载对应torch包并安装：`torch-${torch_version}+cpu-${python_version}-linux_${arch}.whl` 下载链接为：[官网地址](http://download.pytorch.org/whl/torch)
 
    安装命令如下：
@@ -25,7 +25,7 @@
     ```sh
     pip install torch_npu-${torch_version}-${python_version}-linux_${arch}.whl
     ```
-    
+
     - \$\{torch\_version\}：表示torch包版本号。
     - \$\{python\_version\}：表示python版本号。
     - \$\{arch\}：表示CPU架构，如aarch64、x86_64。
@@ -152,11 +152,11 @@
   </tr>
 </tbody>
 </table>
-    
+
 ## 自定义算子编译
 Ascend 950PR/Ascend 950DT暂不支持自定义算子编包和调用。
 1. 编译自定义算子包
-    
+
     进入项目根目录，执行如下编译命令：
 
     ```bash
@@ -174,7 +174,7 @@ Ascend 950PR/Ascend 950DT暂不支持自定义算子编包和调用。
     编译成功后，run包存放于项目根目录的build_out目录下。
 
 2. 安装自定义算子包
-   
+
     ```bash
     ./cann-ops-transformer-${vendor_name}_linux-${arch}.run --install-path=${install_path}
     ```

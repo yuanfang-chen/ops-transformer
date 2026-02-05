@@ -10,7 +10,6 @@
 |<term>Atlas 推理系列产品</term>                                | ×  |
 |<term>Atlas 训练系列产品</term>                                | ×  |
 
-
 ## 功能说明
 - API功能：`SparseAttnSharedKV`算子旨在完成以下公式描述的Attention计算，支持Sliding Window Attention、Compressed Attention以及Sparse Compressed Attention。
 
@@ -21,12 +20,6 @@
     $$
 
     其中$\tilde{K}=\tilde{V}$为基于ori_kv、cmp_kv以及cmp_ratio等入参控制的实际参与计算的 $KV$。
-
-## 函数原型
-
-```
-custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indices=None, cmp_sparse_indices=None, ori_block_table=None, cmp_block_table=None, cu_seqlens_q=None, cu_seqlens_ori_kv=None, cu_seqlens_cmp_kv=None, seqused_q=None, seqused_kv=None, sinks=None, metadata=None, softmax_scale=0, cmp_ratio=0, ori_mask_mode=4, cmp_mask_mode=3, ori_win_left=127, ori_win_right=0, layout_q='BSND', layout_kv='PA_ND', return_softmax_lse=False) -> (Tensor, Tensor)
-```
 
 ## 参数说明
 
@@ -52,8 +45,8 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
 | cmp\_mask\_mode       | 可选属性  | 表示`q`和`cmp_kv`计算的mask模式，仅支持输入默认值3。                     | INT32               | - |
 | ori\_win\_left        | 可选属性  | 表示`q`和`ori_kv`计算中q对过去token计算的数量，仅支持输入默认值127。      | INT32               | - |
 | ori\_win\_right       | 可选属性  | 表示`q`和`ori_kv`计算中q对未来token计算的数量，仅支持输入默认值0。        | INT32               | - |
-| layout\_q             | 可选属性  | 用于标识输入`q`的数据排布格式，支持输入"TND"和"BSND"，默认值为"BSND"。     | String               | - |
-| layout\_kv            | 可选属性  | 用于标识输入`ori_kv`和`cmp_kv`的数据排布格式，仅支持输入"PA_ND"。         | String               | - |
+| layout\_q             | 可选属性  | 用于标识输入`q`的数据排布格式，支持输入"TND"和"BSND"，默认值为"BSND"。     | STRING               | - |
+| layout\_kv            | 可选属性  | 用于标识输入`ori_kv`和`cmp_kv`的数据排布格式，仅支持输入"PA_ND"。         | STRING               | - |
 | return\_softmax_lse   | 可选属性  | 表示是否返回`softmax_lse`。True表示返回，False表示不返回，默认值为False。 | BOOL                | -  |
 | attention\_out        | 输出      | 公式中的输出。                                                          | BFLOAT16、FLOAT16   | ND |
 | softmax\_lse          | 输出      | 返回的`softmax_lse`。                                                 | FLOAT32             | ND |
@@ -87,7 +80,8 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
 - `q`、`ori_kv`、`cmp_kv`数据排布格式支持从多种维度解读，B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
 - Q\_S和S1表示q shape中的S，S2表示ori_kv shape中的S，S3表示cmp_kv shape中的S；Q\_N和N1表示num\_q\_heads，KV\_N和N2表示num\_ori_kv\_heads和num\_cmp_kv\_heads；Q\_T和T1表示q shape中的输入样本序列长度的累加和。
 
-## 调用示例
+## Atlas A3 推理系列产品 调用说明
+
 - 单算子模式调用
 
     ```python
@@ -127,7 +121,7 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
     idxs = random.sample(range(cmp_kv_len - s1 + 1),  k)
     cmp_sparse_indices = torch.tensor([idxs for _ in range(t * n2)]).reshape(t, n2, k). \
         to(torch.int32).npu()
-        
+
     ori_block_num =  math.ceil(s2_act/ori_block_size) * b
     ori_block_table = torch.tensor(np.random.permutation(range(ori_block_num))).to(torch.int32).reshape(b, -1).npu()
     ori_kv = torch.tensor(np.random.uniform(-5, 10, (ori_block_num, ori_block_size, n2, dn))).to(data_type).npu()
@@ -222,7 +216,7 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
     idxs = random.sample(range(cmp_kv_len - s1 + 1),  k)
     cmp_sparse_indices = torch.tensor([idxs for _ in range(t * n2)]).reshape(t, n2, k). \
         to(torch.int32).npu()
-        
+
     ori_block_num =  math.ceil(s2_act/ori_block_size) * b
     ori_block_table = torch.tensor(np.random.permutation(range(ori_block_num))).to(torch.int32).reshape(b, -1).npu()
     ori_kv = torch.tensor(np.random.uniform(-5, 10, (ori_block_num, ori_block_size, n2, dn))).to(data_type).npu()
@@ -242,7 +236,7 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
             super(Network, self).__init__()
 
         def forward(self, num_heads_q, num_heads_kv, head_dim, batch_size, max_seqlen_q, max_seqlen_kv,
-            topk, has_ori_kv, has_cmp_kv, q, ori_kv, cmp_kv, cmp_sparse_indices, ori_block_table, 
+            topk, has_ori_kv, has_cmp_kv, q, ori_kv, cmp_kv, cmp_sparse_indices, ori_block_table,
             cmp_block_table, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, sinks,
             ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv):
             metadata = torch.ops.custom.npu_sparse_attn_sharedkv_metadata(
