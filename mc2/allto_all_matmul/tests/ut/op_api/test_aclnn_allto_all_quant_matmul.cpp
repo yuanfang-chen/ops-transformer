@@ -25,11 +25,14 @@ class test_aclnn_allto_all_quant_matmul : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND950);
         cout << "test_aclnn_allto_all_quant_matmul SetUp" << endl;
     }
 
-    static void TearDownTestCase() { cout << "test_aclnn_allto_all_quant_matmul TearDown" << endl; }
+    static void TearDownTestCase()
+    {
+        cout << "test_aclnn_allto_all_quant_matmul TearDown" << endl;
+    }
 };
 
 // ut用例结构体
