@@ -24,7 +24,7 @@ BEGIN_TILING_DATA_DEF(BlockSparseAttentionGradTilingData)
 TILING_DATA_FIELD_DEF(uint32_t, batch);
 TILING_DATA_FIELD_DEF(uint32_t, numHeads);
 TILING_DATA_FIELD_DEF(uint32_t, kvHeads);
-TILING_DATA_FIELD_DEF(uint32_t, embeddingSize);
+TILING_DATA_FIELD_DEF(uint32_t, headDim);
 TILING_DATA_FIELD_DEF(uint32_t, blockSize);
 TILING_DATA_FIELD_DEF(uint32_t, maxNumBlocksPerBatch);
 TILING_DATA_FIELD_DEF(uint32_t, firstBatchTaskNum);
@@ -41,11 +41,8 @@ TILING_DATA_FIELD_DEF(uint64_t, blockShapeY);  // block的y维度(KV方向)
 // selectIdx相关参数
 TILING_DATA_FIELD_DEF(uint32_t, maxKvBlockNum);      // 最大KV块数量（selectIdx的最后一维）
 
-// query Layout: 0=TND, 1=BNSD
-TILING_DATA_FIELD_DEF(uint32_t, queryLayout);
-
-// KV Cache Layout: 0=TND, 1=BNSD
-TILING_DATA_FIELD_DEF(uint32_t, kvCacheLayout);
+// Layout: 0=TND, 1=BNSD
+TILING_DATA_FIELD_DEF(uint32_t, inputLayout);
 
 // BNSD格式的最大序列长度（用于计算stride）
 // 当actualSeqLengths为nullptr时，maxQSeqlen也用作统一的qseqlen值
@@ -84,8 +81,74 @@ struct BlockSparseAttentionGradCompileInfo {
 
 // Input Layout枚举
 enum InputLayout : uint32_t {
-    TND_Q = 0,  // [T, N, D] format
-    BNSD_Q = 1  // [B, N, S, D] format
+    TND = 0,  // [T, N, D] format
+    BNSD = 1  // [B, N, S, D] format
+};
+
+// Tiling类
+class BSAGradTiling {
+public:
+    BSAGradTiling() = default;
+    ~BSAGradTiling() = default;
+    
+    ge::graphStatus GetBSAGradTiling(gert::TilingContext *context,
+                                     BlockSparseAttentionGradTilingData &tilingData);
+    ge::graphStatus SetTilingData(gert::TilingContext *context,
+                                  BlockSparseAttentionGradTilingData &tilingData);
+private:
+    ge::graphStatus GetNpuInfo(gert::TilingContext *context);
+    ge::graphStatus ProcessInput(gert::TilingContext *context);
+    ge::graphStatus CalculateTaskSplit(gert::TilingContext *context);
+    ge::graphStatus CalculateWorkSpace(gert::TilingContext *context);
+    ge::graphStatus FillTilingData(gert::TilingContext *context);
+    
+    uint64_t GenerateTilingKey(gert::TilingContext *context);
+
+private:
+    uint32_t batch_ = 0;
+    // uint32_t qSeqlen_ = 0;
+    // uint32_t kvSeqlen_ = 0;
+    uint32_t numHeads_ = 0;
+    uint32_t kvHeads_ = 0;
+    uint32_t headDim_ = 0;
+    int64_t blockShapeX_ = 0;  // block的x维度
+    int64_t blockShapeY_ = 0;  // block的y维度
+    float scaleValue_ = 0.0f;
+    uint32_t maskType_ = 0;
+    
+    uint32_t totalQBlocks_ = 0;
+    uint32_t maxKvBlockNum_ = 0;
+    uint32_t firstQBlockNum_ = 0;
+    uint32_t firstBatchTaskNum_ = 0;
+    uint32_t totalTaskNum_ = 0;
+    uint32_t maxNumBlocksPerBatch_ = 0;
+    const int64_t *qSeqLenList = nullptr;
+    const int64_t *kvSeqLenList = nullptr;
+    const int64_t *blockShapeList = nullptr;
+    bool useUniformQSeqlen_ = false;  // 是否使用统一的qseqlen值（使用maxQSeqlen_）
+    bool useUniformKvSeqlen_ = false;  // 是否使用统一的kvseqlen值（使用maxKvSeqlen_）
+
+    uint64_t mm1OutSize_ = 0;
+    uint64_t smOnlineOutSize_ = 0;
+    uint64_t mm2OutSize_ = 0;
+    uint64_t updateSize_ = 0;
+    
+    InputLayout layout_ = RFAKvCacheLayout::TND;
+    
+    uint32_t blockDim_ = 20;
+    uint32_t aivNum_ = 0;
+    uint32_t aicNum_ = 0;
+    uint64_t ubSize_ = 0;
+    uint64_t workSpaceSize_ = 0;
+    uint64_t libapiSize_ = 0;
+    
+    uint32_t maxQSeqlen_ = 0;  // BNSD格式Q的第三维（S维度）
+    uint32_t maxKvSeqlen_ = 0;  // BNSD格式KV的第三维（S维度）
+    int64_t totalTokensT_ = 0;  // TND格式Q的第一维（T维度，总token数）
+    
+    ge::DataType dataType_ = ge::DT_FLOAT16;
+
+    BlockSparseAttentionGradTilingData *tilingData_ = nullptr;
 };
 
 }  // namespace optiling

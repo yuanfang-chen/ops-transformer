@@ -40,13 +40,9 @@ public:
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND});
-        this->Input("selectIdx")
+        this->Input("blockSparseMask")
             .ParamType(REQUIRED)
-            .DataType({ge::DT_INT64, ge::DT_INT64})
-            .FormatList({ge::FORMAT_ND});
-        this->Input("selectNumIdx")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_INT64, ge::DT_INT64})
+            .DataType({ge::DT_UINT8, ge::DT_UINT8})
             .FormatList({ge::FORMAT_ND});
         this->Input("blockShape")
             .ParamType(REQUIRED)
@@ -54,7 +50,7 @@ public:
             .FormatList({ge::FORMAT_ND}); 
         this->Input("attenMask")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
+            .DataType({ge::DT_UINT8, ge::DT_UINT8})
             .FormatList({ge::FORMAT_ND});
         this->Input("actualSeqLengths")
             .ParamType(OPTIONAL)

@@ -27,8 +27,7 @@ extern "C" {
  * @param [in] value: Value tensor输入
  * @param [in] out: attention out tensor输入
  * @param [in] softmaxLse: softmax tensor输入
- * @param [in] selectIdx: 稀疏块索引 [T, headNum, maxKvBlockNum]
- * @param [in] selectNumIdx: 每个Q块选择的KV块数量 [T, headNum]
+ * @param [in] blockSparseMask: 稀疏块索引 [T, headNum, maxKvBlockNum]
  * @param [in] blockShape: 稀疏块形状数组 [blockShapeX, blockShapeY]
  * @param [in] attenMaskOptional: Attention mask (可选)
  * @param [in] actualSeqLengthsOptional: 实际序列长度Q (可选)
@@ -54,8 +53,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     const aclTensor *value,
     const aclTensor *out,
     const aclTensor *softmaxLse,
-    const aclTensor *selectIdx,
-    const aclTensor *selectNumIdx,
+    const aclTensor *blockSparseMask,
     const aclIntArray *blockShape,
     const aclTensor *attenMaskOptional,
     const aclIntArray *actualSeqLengthsOptional,

@@ -47,8 +47,7 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
     const aclTensor *value,
     const aclTensor *out,
     const aclTensor *softmaxLse,
-    const aclTensor *selectIdx,
-    const aclTensor *selectNumIdx,
+    const aclTensor *blockSparseMask,
     const aclIntArray *blockShape,
     const aclTensor *attenMaskOptional,
     const aclIntArray *actualSeqLengthsOptional,
@@ -64,7 +63,7 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
 {
     const char *safeKvInputLayout = (kvInputLayout != nullptr) ? kvInputLayout : qInputLayout;
     
-    L0_DFX(BlockSparseAttentionGrad, dout, query, key, value, out, softmaxLse, selectIdx, selectNumIdx, blockShape,
+    L0_DFX(BlockSparseAttentionGrad, dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape,
            attenMaskOptional, actualSeqLengthsOptional, actualSeqLengthsKvOptional, qInputLayout, safeKvInputLayout,
            numKeyValueHeads, maskType, scaleValue, preTokens, nextTokens);
 
@@ -80,7 +79,7 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
 
     // scaleValue is already float type, no need for cast
     auto ret = INFER_SHAPE(BlockSparseAttentionGrad,
-                           OP_INPUT(dout, query, key, value, out, softmaxLse, selectIdx, selectNumIdx, blockShapeTensor,
+                           OP_INPUT(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShapeTensor,
                                     attenMaskTensor, actualSeqTensor, actualSeqKvTensor),
                            OP_OUTPUT(dqTensor, dkTensor, dvTensor),
                            OP_ATTR(qInputLayout, safeKvInputLayout,
@@ -93,7 +92,7 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
     }
     
     ADD_TO_LAUNCHER_LIST_AICORE(BlockSparseAttentionGrad,
-                                OP_INPUT(dout, query, key, value, out, softmaxLse, selectIdx, selectNumIdx, blockShapeTensor,
+                                OP_INPUT(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShapeTensor,
                                          attenMaskTensor, actualSeqTensor, actualSeqKvTensor),
                                 OP_OUTPUT(dqTensor, dkTensor, dvTensor),
                                 OP_ATTR(qInputLayout, safeKvInputLayout, static_cast<uint32_t>(numKeyValueHeads),

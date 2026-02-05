@@ -66,8 +66,7 @@ static aclnnStatus CheckMandatoryTensors(const aclTensor *dout,
                                          const aclTensor *value,
                                          const aclTensor *out,
                                          const aclTensor *softmaxLse,
-                                         const aclTensor *selectIdx,
-                                         const aclTensor *selectNumIdx)
+                                         const aclTensor *blockSparseMask)
 {
     CHECK_RET(dout != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
@@ -75,8 +74,7 @@ static aclnnStatus CheckMandatoryTensors(const aclTensor *dout,
     CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(out != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(softmaxLse != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(selectIdx != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(selectNumIdx != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(blockSparseMask != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     return ACLNN_SUCCESS;
 }
 
@@ -113,13 +111,12 @@ static aclnnStatus ValidateParams(const aclTensor *dout,
                                   const aclTensor *value,
                                   const aclTensor *out,
                                   const aclTensor *softmaxLse,
-                                  const aclTensor *selectIdx,
-                                  const aclTensor *selectNumIdx,
+                                  const aclTensor *blockSparseMask,
                                   char *qInputLayout,
                                   char *kvInputLayout,
                                   const aclIntArray *blockShape)
 {
-    CHECK_RET(CheckMandatoryTensors(dout, query, key, value, out, softmaxLse, selectIdx, selectNumIdx) == ACLNN_SUCCESS,
+    CHECK_RET(CheckMandatoryTensors(dout, query, key, value, out, softmaxLse, blockSparseMask) == ACLNN_SUCCESS,
               ACLNN_ERR_PARAM_NULLPTR);
 
     if (!CheckDataType(query, key, value)) {
@@ -165,8 +162,7 @@ static aclnnStatus MakeContiguous(const aclTensor *&dout,
                                   const aclTensor *&out,
                                   const aclTensor *&softmaxLse,
                                   const aclTensor *&attenMaskOptional,
-                                  const aclTensor *&selectIdx,
-                                  const aclTensor *&selectNumIdx,
+                                  const aclTensor *&blockSparseMask,
                                   aclOpExecutor *executor)
 {
     dout = l0op::Contiguous(dout, executor);
@@ -187,11 +183,8 @@ static aclnnStatus MakeContiguous(const aclTensor *&dout,
     softmaxLse = l0op::Contiguous(softmaxLse, executor);
     CHECK_RET(softmaxLse != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
-    selectIdx = l0op::Contiguous(selectIdx, executor);
-    CHECK_RET(selectIdx != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-
-    selectNumIdx = l0op::Contiguous(selectNumIdx, executor);
-    CHECK_RET(selectNumIdx != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    blockSparseMask = l0op::Contiguous(blockSparseMask, executor);
+    CHECK_RET(blockSparseMask != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
     if (attenMaskOptional != nullptr) {
         attenMaskOptional = l0op::Contiguous(attenMaskOptional, executor);
@@ -215,8 +208,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     const aclTensor *value,
     const aclTensor *out,
     const aclTensor *softmaxLse,
-    const aclTensor *selectIdx,
-    const aclTensor *selectNumIdx,
+    const aclTensor *blockSparseMask,
     const aclIntArray *blockShape,
     const aclTensor *attenMaskOptional,
     const aclIntArray *actualSeqLengthsOptional,
@@ -234,14 +226,14 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     uint64_t *workspaceSize,
     aclOpExecutor **executor)
 {
-    aclnnStatus ret = ValidateParams(dout, query, key, value, out, softmaxLse, selectIdx, selectNumIdx,
+    aclnnStatus ret = ValidateParams(dout, query, key, value, out, softmaxLse, blockSparseMask,
                                      qInputLayout, kvInputLayout, blockShape);
     if (ret != ACLNN_SUCCESS) {
         return ret;
     }
     
     L2_DFX_PHASE_1(aclnnBlockSparseAttentionGrad,
-                   DFX_IN(dout, query, key, value, out, softmaxLse, selectIdx, selectNumIdx, blockShape, attenMaskOptional,
+                   DFX_IN(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attenMaskOptional,
                           actualSeqLengthsOptional, actualSeqLengthsKvOptional, qInputLayout, qInputLayout, numKeyValueHeads,
                           maskType, scaleValue, preTokens, nextTokens),
                    DFX_OUT(dq, dk, dv));
@@ -250,7 +242,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto *executorImpl = uniqueExecutor.get();
 
-    ret = MakeContiguous(dout, query, key, value, out, softmaxLse, attenMaskOptional, selectIdx, selectNumIdx, executorImpl);
+    ret = MakeContiguous(dout, query, key, value, out, softmaxLse, attenMaskOptional, blockSparseMask, executorImpl);
     if (ret != ACLNN_SUCCESS) {
         return ret;
     }
@@ -258,7 +250,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     string qInputLayoutStr = ConvertLayoutString(qInputLayout);
     string kvInputLayoutStr = ConvertLayoutString(kvInputLayout);
     
-    auto outputs = l0op::BlockSparseAttentionGrad(dout, query, key, value, out, softmaxLse, selectIdx, selectNumIdx, blockShape,
+    auto outputs = l0op::BlockSparseAttentionGrad(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape,
                                                   attenMaskOptional, actualSeqLengthsOptional, actualSeqLengthsKvOptional,
                                                   qInputLayoutStr.c_str(), kvInputLayoutStr.c_str(), numKeyValueHeads,
                                                   maskType, scaleValue, preTokens, nextTokens, executorImpl);
