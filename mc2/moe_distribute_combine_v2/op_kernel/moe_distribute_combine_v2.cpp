@@ -52,7 +52,7 @@ __aicore__ inline void ExecMoeDistributeCombineV2(GM_ADDR expandX, GM_ADDR exper
     op.Process();
 }
 }
-template<bool HasTp, uint8_t QuantMode, uint8_t LayeredMode, uint8_t ArchTag>
+template<bool HasTp, uint8_t QuantMode, uint8_t LayeredMode, uint8_t Hierarchy, uint8_t ArchTag>
 __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR assistInfoForCombine,
                                                     GM_ADDR epSendCount, GM_ADDR scales, GM_ADDR tpSendCount,
                                                     GM_ADDR xActiveMask, GM_ADDR activationScale, GM_ADDR weightScale,
@@ -116,11 +116,27 @@ __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR ex
         }
     }
 #endif
-    if constexpr (ArchTag == TILINGKEY_TPL_A3) {
+    if constexpr ((ArchTag == TILINGKEY_TPL_A3) && (Hierarchy == TILINGKEY_NO_HIERARCHY)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
         ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, HasTp, QuantMode == TILINGKEY_INT8_QUANT, false>(
         expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, 
         elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, tilingGM, &pipe);
+    } else if constexpr ((ArchTag == TILINGKEY_TPL_A3) && (Hierarchy == TILINGKEY_ENABLE_HIERARCHY)) {
+        if constexpr (QuantMode == TILINGKEY_NO_QUANT) {
+            GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
+            auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
+            MoeDistributeCombineV2Layered<DTYPE_EXPAND_X, int32_t, DTYPE_EXPAND_X> op;
+            op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, expandScales, xActiveMask, XOut, workspaceGM, &pipe, &tilingData,
+                    contextGM0);
+            op.Process();
+        } else if constexpr (QuantMode == TILINGKEY_INT8_QUANT) {
+            GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
+            auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
+            MoeDistributeCombineV2Layered<DTYPE_EXPAND_X, int32_t, int8_t> op;
+            op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, expandScales, xActiveMask, XOut, workspaceGM, &pipe, &tilingData,
+                    contextGM0);
+            op.Process();
+        }
     }
 #endif
 }
