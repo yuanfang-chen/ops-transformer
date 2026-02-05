@@ -77,8 +77,8 @@ namespace SplitFuse {
             AscendC::GlobalTensor<int64_t>& gActualKvseqlen;
             AscendC::GlobalTensor<ElementO>& gO;
             AscendC::GlobalTensor<ElementLse>& gLse;
-            AscendC::GlobalTensor<ElementLse>& gmlse;
-            AscendC::GlobalTensor<ElementLse>& gmlo;
+            AscendC::GlobalTensor<ElementLse>& gLseFD;
+            AscendC::GlobalTensor<ElementLse>& gOFD;
             AscendC::GlobalTensor<ElementS>& gS;
             AscendC::GlobalTensor<ElementP>& gP;
             AscendC::GlobalTensor<ElementOTmp>& gOTmp;
@@ -141,11 +141,11 @@ namespace SplitFuse {
             gO.SetGlobalBuffer((__gm__ ElementO *)params.o);
             AscendC::GlobalTensor<ElementLse> gLse;
             gLse.SetGlobalBuffer((__gm__ ElementLse *)params.lse);
-            AscendC::GlobalTensor<ElementLse> gmlse;
-            AscendC::GlobalTensor<ElementLse> gmlo;
+            AscendC::GlobalTensor<ElementLse> gLseFD;
+            AscendC::GlobalTensor<ElementLse> gOFD;
             if constexpr (IS_FD) {
-                gmlse.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace));
-                gmlo.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace + Lsesize));
+                gLseFD.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace));
+                gOFD.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace + Lsesize));
             }
             AscendC::GlobalTensor<ElementS> gS;
             gS.SetGlobalBuffer((__gm__ ElementS *)(params.workSpace + Lsesize + Losize));
@@ -162,7 +162,7 @@ namespace SplitFuse {
             GlobalTensorBundle globalTensors{
                 gQ, gK, gV, gMask, gBlockTable,
                 gActualQseqlen, gActualKvseqlen,
-                gO, gLse, gmlse, gmlo,
+                gO, gLse, gLseFD, gOFD,
                 gS, gP, gOTmp, gOUpdate, gSink
             };
 
@@ -248,8 +248,8 @@ namespace SplitFuse {
                 uint32_t endN1Idx = fATilingData->coreInfo.endN1Idx[coreIdx];
                 uint32_t endS1Idx = fATilingData->coreInfo.endS1Idx[coreIdx];
                 uint32_t endS2Idx = fATilingData->coreInfo.endS2Idx[coreIdx];
-                uint64_t gmlse0ffset = fATilingData->coreInfo.firstSplitKVTaskLseOffset[coreIdx];
-                uint64_t gmlooffset = fATilingData->coreInfo.firstSplitKVTaskOOffset[coreIdx];
+                uint64_t gmOffsetLseFD = fATilingData->coreInfo.firstSplitKVTaskLseOffset[coreIdx];
+                uint64_t gmOffsetOFD = fATilingData->coreInfo.firstSplitKVTaskOOffset[coreIdx];
 
                 for (uint32_t BIdx = startBIdx; BIdx <= endBIdx; BIdx++) {
                     uint32_t qSeqlenCur = static_cast<uint32_t>(gActualQseqlen.GetValue(BIdx));
@@ -288,7 +288,7 @@ namespace SplitFuse {
                             runMainLoop(
                                 coreIdx, BIdx, n1Idx, s1Idx,
                                 isSplitKV, stS2IdxNow, enS2IdxNow,
-                                gmlse0ffset, gmlooffset,
+                                gmOffsetLseFD, gmOffsetOFD,
                                 globalTensors
                             );
 
@@ -298,8 +298,8 @@ namespace SplitFuse {
                                 uint32_t qNBlockIdxCurGroupTmp = n1Idx % qNBlockNumPerGroupTmp;
                                 uint32_t qNBlockSizeTmp = (qNBlockIdxCurGroupTmp == (qNBlockNumPerGroupTmp - 1U)) ?
                                     (groupSize - qNBlockIdxCurGroupTmp * curQNBlockTileTmp) : curQNBlockTileTmp;
-                                gmlse0ffset += qSBlockSizeTmp * qNBlockSizeTmp;
-                                gmlooffset += qSBlockSizeTmp * qNBlockSizeTmp * embedV;
+                                gmOffsetLseFD += qSBlockSizeTmp * qNBlockSizeTmp;
+                                gmOffsetOFD += qSBlockSizeTmp * qNBlockSizeTmp * embedV;
                             }
                         }
                     }
@@ -418,8 +418,8 @@ namespace SplitFuse {
                     fATilingData->totalSplitNodeNum,                                  
                     embedV,                                        
                     &fATilingData->splitInfo,                       
-                    gmlse,                                          
-                    gmlo,                                       
+                    gLseFD,                                          
+                    gOFD,                                       
                     gO,                                            
                     gActualQseqlen,                                 
                     true 
@@ -436,8 +436,8 @@ namespace SplitFuse {
             bool isSplitKV,
             int32_t stS2IdxNow,
             int32_t enS2IdxNow, 
-            uint64_t gmlse0ffset,
-            uint64_t gmlooffset,
+            uint64_t gmOffsetLseFD,
+            uint64_t gmOffsetOFD,
             GlobalTensorBundle& globalTensors
         ) {
             auto& gQ = globalTensors.gQ;
@@ -449,8 +449,8 @@ namespace SplitFuse {
             auto& gActualKvseqlen = globalTensors.gActualKvseqlen;
             auto& gO = globalTensors.gO;
             auto& gLse = globalTensors.gLse;
-            auto& gmlse = globalTensors.gmlse;
-            auto& gmlo = globalTensors.gmlo;
+            auto& gLseFD = globalTensors.gLseFD;
+            auto& gOFD = globalTensors.gOFD;
             auto& gS = globalTensors.gS;
             auto& gP = globalTensors.gP;
             auto& gOTmp = globalTensors.gOTmp;
@@ -895,8 +895,8 @@ namespace SplitFuse {
                             LayoutLse layoutgmLo(qSBlockSize, embed * qNBlockSize);
                             typename EpilogueRescaleO::SplitKVParams splitParams;
                             splitParams.isSplitkv = isSplitKV;
-                            splitParams.gCombineLse = gmlse[gmlse0ffset];
-                            splitParams.gCombineo = gmlo[gmlooffset];
+                            splitParams.gCombineLse = gLseFD[gmOffsetLseFD];
+                            splitParams.gCombineo = gOFD[gmOffsetOFD];
                             splitParams.layoutgmLse = &layoutgmLse;
                             splitParams.layoutgmLo = &layoutgmLo;
 
