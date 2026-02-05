@@ -63,14 +63,15 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::Init(
 {
     pipe_ = pipe;
     tilingData_ = tilingData;
-    dSplitSize_ = tilingData_->D / tilingData_->dSplitCoef * sizeof(T);
-    int64_t cosOffset = GetBlockIdx() * tilingData_->blockFactorBS * tilingData_->D;
+    dSplitSize_ = tilingData_->realDim / tilingData_->dSplitCoef * sizeof(T);
+    int64_t cosOffset = GetBlockIdx() * tilingData_->blockFactorBS * tilingData_->realDim;
+    int64_t qOffset = GetBlockIdx() * tilingData_->blockFactorBS * tilingData_->D;
     this->cosGm_.SetGlobalBuffer((__gm__ T*)cos + cosOffset);
     this->sinGm_.SetGlobalBuffer((__gm__ T*)sin + cosOffset);
-    this->qGm_.SetGlobalBuffer((__gm__ T*)q + cosOffset * tilingData_->QN);
-    this->kGm_.SetGlobalBuffer((__gm__ T*)k + cosOffset * tilingData_->KN);
-    this->qOutGm_.SetGlobalBuffer((__gm__ T*)q_out + cosOffset * tilingData_->QN);
-    this->kOutGm_.SetGlobalBuffer((__gm__ T*)k_out + cosOffset * tilingData_->KN);
+    this->qGm_.SetGlobalBuffer((__gm__ T*)q + qOffset * tilingData_->QN);
+    this->kGm_.SetGlobalBuffer((__gm__ T*)k + qOffset * tilingData_->KN);
+    this->qOutGm_.SetGlobalBuffer((__gm__ T*)q_out + qOffset * tilingData_->QN);
+    this->kOutGm_.SetGlobalBuffer((__gm__ T*)k_out + qOffset * tilingData_->KN);
 
     int64_t bufferSize = tilingData_->dAlign * sizeof(T);
     ubFactorBS_ = tilingData_->ubFactorBS;
@@ -94,7 +95,7 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::Process()
         int64_t kGmOffset = loopIdx * ubFactorBS_ * tilingData_->KN * tilingData_->D;
         LocalTensor<T> cosBuffer = cosInQueue_.AllocTensor<T>();
         LocalTensor<T> sinBuffer = sinInQueue_.AllocTensor<T>();
-        int64_t sinOffset = loopIdx * ubFactorBS_ * tilingData_->D;
+        int64_t sinOffset = loopIdx * ubFactorBS_ * tilingData_->realDim;
 
         DataCopyPad(cosBuffer, cosGm_[sinOffset], cosParams, padParams_);
         cosInQueue_.EnQue(cosBuffer);
@@ -122,10 +123,19 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessLoop(
     int64_t ubStart = ubIdx * tilingData_->ubFactorN;
     int64_t nCount = (ubIdx == tilingData_->ubLoopN - 1) ? tilingData_->ubTailN : tilingData_->ubFactorN;
     int64_t qCount = (tilingData_->QN - ubStart);
-    DataCopyExtParams qkParams = {static_cast<uint16_t>(nCount * tilingData_->dSplitCoef), dSplitSize_, 0, 0, 0};
-    DataCopyExtParams qParams = {static_cast<uint16_t>(qCount * tilingData_->dSplitCoef), dSplitSize_, 0, 0, 0};
-    DataCopyExtParams kParams = {
-        static_cast<uint16_t>((ubStart + nCount - tilingData_->QN) * tilingData_->dSplitCoef), dSplitSize_, 0, 0, 0};
+    DataCopyExtParams qkParams = {static_cast<uint16_t>(nCount * tilingData_->dSplitCoef), dSplitSize_,
+                                  tilingData_->D - tilingData_->realDim, 0, 0};
+    DataCopyExtParams qParams = {static_cast<uint16_t>(qCount * tilingData_->dSplitCoef), dSplitSize_,
+                                 tilingData_->D - tilingData_->realDim, 0, 0};
+    DataCopyExtParams kParams = {static_cast<uint16_t>((ubStart + nCount - tilingData_->QN) * tilingData_->dSplitCoef),
+                                 dSplitSize_, tilingData_->D - tilingData_->realDim, 0, 0};
+
+    DataCopyExtParams qkOutParams = {static_cast<uint16_t>(nCount * tilingData_->dSplitCoef), dSplitSize_,
+                                  0, tilingData_->D - tilingData_->realDim, 0};
+    DataCopyExtParams qOutParams = {static_cast<uint16_t>(qCount * tilingData_->dSplitCoef), dSplitSize_,
+                                 0, tilingData_->D - tilingData_->realDim, 0};
+    DataCopyExtParams kOutParams = {static_cast<uint16_t>((ubStart + nCount - tilingData_->QN) * tilingData_->dSplitCoef),
+                                 dSplitSize_, 0, tilingData_->D - tilingData_->realDim, 0};
 
     LocalTensor<T> qkBuffer = qkInQueue_.AllocTensor<T>();
     LocalTensor<T> outBuffer = outQueue_.AllocTensor<T>();
@@ -142,11 +152,11 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessLoop(
     qkBuffer = qkInQueue_.DeQue<T>();
 
     if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::HALF)) {
-        HalfAlignVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->D, tilingData_->dAlign, 1, nCount);
+        HalfAlignVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->realDim, tilingData_->dAlign, 1, nCount);
     } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::QUARTER)) {
-        QuarterAlignVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->D, tilingData_->dAlign, 1, nCount);
+        QuarterAlignVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->realDim, tilingData_->dAlign, 1, nCount);
     } else {
-        InterleaveModeVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->D, 1, nCount);
+        InterleaveModeVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->realDim, 1, nCount);
     }
 
     outQueue_.EnQue(outBuffer);
@@ -154,12 +164,12 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessLoop(
     qkInQueue_.FreeTensor(qkBuffer);
 
     if (ubStart >= tilingData_->QN) {
-        DataCopyPad(kOutGm_[kGmOffset + (ubStart - tilingData_->QN) * tilingData_->D], outBuffer, qkParams);
+        DataCopyPad(kOutGm_[kGmOffset + (ubStart - tilingData_->QN) * tilingData_->D], outBuffer, qkOutParams);
     } else if (ubStart + nCount <= tilingData_->QN) {
-        DataCopyPad(qOutGm_[qGmOffset + ubStart * tilingData_->D], outBuffer, qkParams);
+        DataCopyPad(qOutGm_[qGmOffset + ubStart * tilingData_->D], outBuffer, qkOutParams);
     } else {
-        DataCopyPad(qOutGm_[qGmOffset + ubStart * tilingData_->D], outBuffer, qParams);
-        DataCopyPad(kOutGm_[kGmOffset], outBuffer[qCount * tilingData_->dAlign], kParams);
+        DataCopyPad(qOutGm_[qGmOffset + ubStart * tilingData_->D], outBuffer, qOutParams);
+        DataCopyPad(kOutGm_[kGmOffset], outBuffer[qCount * tilingData_->dAlign], kOutParams);
     }
     outQueue_.FreeTensor(outBuffer);
 }
@@ -172,22 +182,24 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessQKLoop(
     LocalTensor<T> qkBuffer = qkInQueue_.AllocTensor<T>();
     LocalTensor<T> outBuffer = outQueue_.AllocTensor<T>();
     DataCopyExtParams qkParams = {
-        static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_, 0, 0, 0};
+        static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_, tilingData_->realDim, 0, 0};
+    DataCopyExtParams qkOutParams = {static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_,
+                                  0, tilingData_->realDim, 0};
     DataCopyPad(qkBuffer, inGm[qkGmOffset], qkParams, padParams_);
     qkInQueue_.EnQue(qkBuffer);
     qkBuffer = qkInQueue_.DeQue<T>();
     if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::HALF)) {
-        HalfAlignVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->D, tilingData_->dAlign, currBSNum, count);
+        HalfAlignVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->realDim, tilingData_->dAlign, currBSNum, count);
     } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::QUARTER)) {
         QuarterAlignVF(
-            sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->D, tilingData_->dAlign, currBSNum, count);
+            sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->realDim, tilingData_->dAlign, currBSNum, count);
     } else {
-        InterleaveModeVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->D, currBSNum, count);
+        InterleaveModeVF(sinBuffer, cosBuffer, qkBuffer, outBuffer, tilingData_->realDim, currBSNum, count);
     }
     qkInQueue_.FreeTensor(qkBuffer);
     outQueue_.EnQue(outBuffer);
     outBuffer = outQueue_.DeQue<T>();
-    DataCopyPad(outGm[qkGmOffset], outBuffer, qkParams);
+    DataCopyPad(outGm[qkGmOffset], outBuffer, qkOutParams);
     outQueue_.FreeTensor(outBuffer);
 }
 

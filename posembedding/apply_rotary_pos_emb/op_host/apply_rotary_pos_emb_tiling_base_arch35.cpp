@@ -136,9 +136,9 @@ ge::graphStatus ApplyRotaryPosEmbRegbaseTilingBaseClass::CheckShapeRelation(cons
     auto &kOutShape = context_->GetOutputShape(KOUT_INDEX)->GetStorageShape();
     OP_CHECK_IF(cosShape != sinShape, OP_LOGE(context_, "shape of cos and sin should be same."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(qShape != qOutShape, OP_LOGE(context_, "shape of query in and out should be same."),
+    OP_CHECK_IF(qShape < qOutShape, OP_LOGE(context_, "shape of query in should be bigger than out."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(kShape != kOutShape, OP_LOGE(context_, "shape of key in and out should be same."),
+    OP_CHECK_IF(kShape < kOutShape, OP_LOGE(context_, "shape of key in should be bigger than out."),
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF(cosShape.GetDim(nIdx) != 1,
                 OP_LOGE(context_, "N of cos, sin should be 1, actual %ld.", cosShape.GetDim(nIdx)),
@@ -147,8 +147,8 @@ ge::graphStatus ApplyRotaryPosEmbRegbaseTilingBaseClass::CheckShapeRelation(cons
                 OP_LOGE(context_, "S of query, key, cos, sin should be same, actual %ld %ld %ld %ld.",
                         qShape.GetDim(sIdx), kShape.GetDim(sIdx), cosShape.GetDim(sIdx), cosShape.GetDim(sIdx)),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(!(cosShape.GetDim(dIdx) == qShape.GetDim(dIdx) && kShape.GetDim(dIdx) == qShape.GetDim(dIdx)),
-                OP_LOGE(context_, "D of query, key, cos, sin should be same, actual %ld %ld %ld %ld.",
+    OP_CHECK_IF(!(cosShape.GetDim(dIdx) <= qShape.GetDim(dIdx) && kShape.GetDim(dIdx) <= qShape.GetDim(dIdx)),
+                OP_LOGE(context_, "D of query, key should be bigger than cos, sin , actual %ld %ld %ld %ld.",
                         qShape.GetDim(dIdx), kShape.GetDim(dIdx), cosShape.GetDim(dIdx), cosShape.GetDim(dIdx)),
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF(
@@ -294,6 +294,7 @@ ge::graphStatus ApplyRotaryPosEmbRegbaseTilingBaseClass::GetShapeAttrsInfo()
         kn_ = kShape.GetDim(DIM_2);
         d_ = qShape.GetDim(DIM_3);
     }
+    reald_ = cosShape.GetDim(DIM_3);
     return ge::GRAPH_SUCCESS;
 }
 } // namespace optiling
