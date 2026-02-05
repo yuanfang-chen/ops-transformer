@@ -30,16 +30,6 @@ namespace {
 using namespace op;
 using namespace matmul_allto_all_check;
 
-enum class NnopbaseHcclServerType : uint32_t {
-    NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
-    NNOPBASE_HCCL_SERVER_TYPE_MTE,
-    NNOPBASE_HCCL_SERVER_TYPE_CCU,
-    NNOPBASE_HCCL_SERVER_TYPE_END
-};
-
-// 需要使用的常量定义
-static constexpr int64_t ZERO = 0;
-
 // 检查必要输入是否为空，必须非空
 static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* output) {
     if (x1 == nullptr) {
