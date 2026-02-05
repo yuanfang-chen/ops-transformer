@@ -778,8 +778,8 @@ namespace SplitFuse {
                                         preTokenStartLen,
                                         preTokenEndLen,
                                         nextTokenStartLen,
-                                        isLastStackTile,
-                                        nextTokenEndLen);
+                                        nextTokenEndLen,
+                                        isLastStackTile);
                                 } else {
                                     bool isLastNoMaskStackTile = (nextTokenStartLen > kvSeqlen) || (nextTokenStartLen < 0);
                                     uint32_t alignedKvSeqlenLimit = isLastNoMaskStackTile ? kvSeqlen : nextTokenStartLen;
