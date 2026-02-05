@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include "tiling/tiling_api.h"
+#include "moe_distribute_combine_tiling_base.h"
 #include "graph/utils/type_utils.h"
 #include "register/tilingdata_base.h"
 #include "tiling_base/tiling_base.h"
@@ -25,21 +26,21 @@
 using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
-constexpr uint32_t EXPAND_X_INDEX = 0;
-constexpr uint32_t EXPERT_IDS_INDEX = 1;
-constexpr uint32_t EXPAND_IDX_INDEX = 2;
-constexpr uint32_t EP_SEND_COUNTS_INDEX = 3;
-constexpr uint32_t EXPERT_SCALES_INDEX = 4;
-constexpr uint32_t TP_SEND_COUNTS_INDEX = 5;
-constexpr uint32_t X_ACTIVE_MASK_INDEX = 6;
-constexpr uint32_t SHARED_EXPERT_X_INDEX = 11;
-constexpr uint32_t OUTPUT_X_INDEX = 0;
-constexpr uint32_t ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 9;
-constexpr uint32_t OP_VERSION_1 = 1U;
+// constexpr uint32_t EXPAND_X_INDEX = 0;
+// constexpr uint32_t EXPERT_IDS_INDEX = 1;
+// constexpr uint32_t EXPAND_IDX_INDEX = 2;
+// constexpr uint32_t EP_SEND_COUNTS_INDEX = 3;
+// constexpr uint32_t EXPERT_SCALES_INDEX = 4;
+// constexpr uint32_t TP_SEND_COUNTS_INDEX = 5;
+// constexpr uint32_t X_ACTIVE_MASK_INDEX = 6;
+// constexpr uint32_t SHARED_EXPERT_X_INDEX = 11;
+// constexpr uint32_t OUTPUT_X_INDEX = 0;
+// constexpr uint32_t ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 9;
+// constexpr uint32_t OP_VERSION_1 = 1U;
 
-constexpr uint32_t THREE_DIMS = 3U;
-constexpr uint32_t TWO_DIMS = 2U;
-constexpr uint32_t ONE_DIM = 1U;
+// constexpr uint32_t THREE_DIMS = 3U;
+// constexpr uint32_t TWO_DIMS = 2U;
+// constexpr uint32_t ONE_DIM = 1U;
 
 ge::graphStatus MoeDistributeCombineV2TilingFunc(gert::TilingContext* context);
 class MoeDistributeCombineTilingHelper {
