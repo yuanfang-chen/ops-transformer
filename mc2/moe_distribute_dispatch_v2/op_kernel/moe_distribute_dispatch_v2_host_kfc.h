@@ -81,9 +81,9 @@ template <TemplateMC2TypeClass>
 class MoeDistributeDispatchV2HostKfc {
 public:
     __aicore__ inline MoeDistributeDispatchV2HostKfc(){};
-    __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, 
-                                GM_ADDR expertScales, GM_ADDR elasticInfo,GM_ADDR expandXOut, GM_ADDR dynamicScalesOut,
-                                GM_ADDR expandIdxOut,GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut,
+    __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIds, GM_ADDR mc2Context, GM_ADDR scales, GM_ADDR xActiveMask,
+                                GM_ADDR expertScales, GM_ADDR elasticInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut,
+                                GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut,
                                 GM_ADDR tpSendCountsOut, GM_ADDR expandScalesOut, GM_ADDR workspaceGM, TPipe *pipe,
                                 const MoeDistributeDispatchV2TilingData *tilingData);
     __aicore__ inline void Process();

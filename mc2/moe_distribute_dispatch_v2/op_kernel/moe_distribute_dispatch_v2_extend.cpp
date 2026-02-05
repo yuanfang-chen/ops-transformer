@@ -31,8 +31,8 @@ using namespace MoeDistributeDispatchV2HostKfcImpl;
 using namespace MoeDispatchLog;
 
 template<bool HasTp, uint8_t QuantMode, bool ScaleMode, uint8_t FullMesh, uint8_t CommMode, uint8_t ArchTag>
-__global__ __aicore__ void moe_distribute_dispatch_v2(
-    GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, 
+__global__ __aicore__ void moe_distribute_dispatch_v2( //新增mc2Context
+    GM_ADDR x, GM_ADDR expertIds, GMM_ADDR mc2Context, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, 
     GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, 
     GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
@@ -51,7 +51,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
         if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
             LogInfo(__LINE__, "KFC start 16 UNQUANT");
             MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
-            op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
+            op.Init(x,expertIds, scales, mc2Context, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
             op.Process();
             LogInfo(__LINE__, "KFC end 16 UNQUANT");
@@ -64,7 +64,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
         if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
             LogInfo(__LINE__, "KFC start 8 UNQUANT");
             MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, true, false> op;
-            op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
+            op.Init(x,expertIds, scales, mc2Context, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
             op.Process();
             LogInfo(__LINE__, "KFC end 8 UNQUANT");
@@ -77,7 +77,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
             if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
                 LogInfo(__LINE__, "KFC start 8 STATIC_QUANT");
                 MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::STATIC_QUANT, true, false> op;
-                op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
+                op.Init(x,expertIds, scales, mc2Context, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
                 LogInfo(__LINE__, "KFC end 8 STATIC_QUANT");
@@ -86,7 +86,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
             if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
                 LogInfo(__LINE__, "KFC start 8 PERTOKEN_DYNAMIC_QUANT");
                 MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, ScaleMode, false> op;
-                op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
+                op.Init(x,expertIds, scales, mc2Context, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
                 LogInfo(__LINE__, "KFC end 8 PERTOKEN_DYNAMIC_QUANT");
@@ -95,7 +95,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
             if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
                 LogInfo(__LINE__, "KFC start 8 PERGROUP_DYNAMIC_QUANT");
                 MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::PERGROUP_DYNAMIC_QUANT, ScaleMode, false> op;
-                op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
+                op.Init(x,expertIds, scales, mc2Context, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
                 LogInfo(__LINE__, "KFC end 8 PERGROUP_DYNAMIC_QUANT");
@@ -104,7 +104,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
             if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
                 LogInfo(__LINE__, "KFC start 8 MX_QUANT");
                 MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::MX_QUANT, false, false> op;
-                op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
+                op.Init(x,expertIds, scales, mc2Context, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
                 LogInfo(__LINE__, "KFC end 8 MX_QUANT");
