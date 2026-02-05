@@ -109,6 +109,7 @@ protected:
 
         DataCopyPad<transposeDataType>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams,
                                                         padExtParams);
+#endif
         vecInQueue_.EnQue(vecInBuf);
     }
 
