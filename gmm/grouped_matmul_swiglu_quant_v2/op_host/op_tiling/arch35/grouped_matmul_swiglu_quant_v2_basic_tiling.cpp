@@ -319,6 +319,21 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeInputs()
         OP_CHECK_IF(!CheckQuantParamsForMXTypeM(xScaleShape, wScaleShape),
                     OP_LOGE(inputParams_.opName, "CheckShapeForMxQuant failed."), return false);
     }
+    OP_CHECK_IF(!CheckAiCoreNum(),
+                OP_LOGE(inputParams_.opName, "CheckAiCoreNum failed."), return false);
+    return true;
+}
+
+bool GroupedMatmulSwigluQuantDavidV2Tiling::CheckAiCoreNum() {
+    auto platformInfoPtr = context_->GetPlatformInfo();
+    auto aicNum = platformInfoPtr == nullptr ? context_->GetCompileInfo<GMMCompileInfo>()->aicNum : platform_ascendc::PlatformAscendC(platformInfoPtr).GetCoreNumAic();
+    auto aivNum = platformInfoPtr == nullptr ? context_->GetCompileInfo<GMMCompileInfo>()->aivNum : platform_ascendc::PlatformAscendC(platformInfoPtr).GetCoreNumAiv();
+    OP_CHECK_IF(aicNum > 0,
+               OP_LOGE(inputParams_.opName, "aicNum should be positive integer, actual is %u.", aicNum),
+               return false);
+    OP_CHECK_IF(aicNum != 2 * aivNum,
+               OP_LOGE(inputParams_.opName, "aicNum:aivNum should be 1:2, actual aicNum: %u, aivNum: %u.", aicNum, aivNum),
+               return false);
     return true;
 }
 
