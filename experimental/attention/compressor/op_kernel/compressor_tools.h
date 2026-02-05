@@ -535,11 +535,12 @@ struct Vec1SliceInfo : public SliceInfo {
 
 struct StatisticInfo {
     __aicore__ inline StatisticInfo() {};
-    __aicore__ inline StatisticInfo(uint32_t actualTcCnt, uint32_t dealSeqCnt, uint32_t preDealSeqCnt) : actualTcCnt(actualTcCnt), dealSeqCnt(dealSeqCnt), preDealSeqCnt(preDealSeqCnt) {};
+    __aicore__ inline StatisticInfo(uint32_t actualTcCnt, uint32_t dealSeqCnt, uint32_t preDealSeqCnt, bool hasPreLastTc) : actualTcCnt(actualTcCnt), dealSeqCnt(dealSeqCnt), preDealSeqCnt(preDealSeqCnt), hasPreLastTc(hasPreLastTc) {};
 
     uint32_t actualTcCnt = 0U;
     uint32_t dealSeqCnt = 0U;
     uint32_t preDealSeqCnt = 0U;
+    bool hasPreLastTc = false;
 };
 
 template <typename COMP, bool USE_SEQ_USED = false>
@@ -571,6 +572,7 @@ private:
 
     // iterator
     bool isFirst_ = true;
+    bool isStasticFirst_ = false;
     bool isSaved_ = false;
     Vec1SliceInfo sliceInfo_{};
     StatisticInfo statisticInfo_ {};
@@ -594,7 +596,7 @@ __aicore__ inline void CompressorVec1SliceIterator<COMP, USE_SEQ_USED>::Reset(ui
     }
     sliceInfo_.bSeqUsed = GetSeqLength(sliceInfo_.bIdx);
     sliceInfo_.bStartPos = tools_.GetStartPos(sliceInfo_.bIdx);
-    if constexpr(USE_SEQ_USED) {
+    if constexpr (USE_SEQ_USED) {
         sliceInfo_.bSeqLength = tools_.GetSeqLength(sliceInfo_.bIdx);
     } else {
         sliceInfo_.bSeqLength = sliceInfo_.bSeqUsed;
@@ -702,6 +704,10 @@ __aicore__ inline void CompressorVec1SliceIterator<COMP, USE_SEQ_USED>::Iterator
     uint32_t cmpRatio = tools_.toolParams_.cmpRatio;
     if constexpr (IS_STATISTIC) {
         statisticInfo_.actualTcCnt += sliceInfo_.actualTcNum;
+        if (isStasticFirst_) {
+            statisticInfo_.hasPreLastTc = sliceInfo_.preSIdx < tools_.GetSeqUsed(sliceInfo_.preBIdx);
+            isStasticFirst_ = false;
+        }
     }
     // printf("needDealTcSize_: %d -> ", needDealTcSize_);
     needDealTcSize_ -= sliceInfo_.dealTcSize;
@@ -794,7 +800,7 @@ __aicore__ inline Vec1SliceInfo& CompressorVec1SliceIterator<COMP, USE_SEQ_USED>
         sliceInfo_.compressTcSize = 0;
     }
     sliceInfo_.isFirst = isFirst_;
-    sliceInfo_.isLast = CeilDivT(sliceInfo_.headHolderSeqCnt + sliceInfo_.bSeqLength - sliceInfo_.sIdx, cmpRatio) >= canDEalTcSize_;
+    sliceInfo_.isLast = CeilDivT(sliceInfo_.headHolderSeqCnt + sliceInfo_.bSeqUsed - sliceInfo_.sIdx, cmpRatio) >= canDealTcSize_;
 
     return sliceInfo_;
 }
@@ -804,7 +810,8 @@ template <bool IS_STATISTIC>
 __aicore__ inline StatisticInfo& CompressorVec1SliceIterator<COMP, USE_SEQ_USED>::FullIteratorSlice()
 {
     if constexpr (IS_STATISTIC) {
-        statisticInfo_ = {0U, 0U, 0U};
+        statisticInfo_ = {0U, 0U, 0U, false};
+        isStasticFirst_ = true;
         Vec1SliceInfo tempSliceInfo = GetSlice();
         while (!IsEnd()) {
             GetSlice();

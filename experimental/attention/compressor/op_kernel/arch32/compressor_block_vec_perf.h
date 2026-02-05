@@ -1007,8 +1007,14 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     // tempSliceIterstor.template Reset<true>(sliceInfo.bIdx, sliceInfo.sIdx, sliceInfo.dealedSeqCnt, 0U);
     // tempSliceIterstor.SetNeedDealTcSize(sliceIterstor.GetNeedDealTcSize());
     StatisticInfo& statisticInfo = sliceIterstor.template FullIteratorSlice<true>();
+    bool onlyPreLastTc = false;
     if (statisticInfo.actualTcCnt == 0) {
-        return ;
+        if (statisticInfo.hasPreLastTc) {
+            needDealTcSize = 1;
+            onlyPreLastTc = true;
+        } else {
+            return ;
+        }
     }
 
     CompressorVec1SliceIterator overLapSliceIterstor(tools_);
@@ -1060,7 +1066,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     computeSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, originSliceInfo.dealedSeqCnt, originSliceInfo.dealedTcCnt);
     computeSliceIterstor.SetNeedDealTcSize(statisticInfo.actualTcCnt, needDealTcSize);
     Vec1SliceInfo& sliceInfo = computeSliceIterstor.GetSlice();
-    while (!computeSliceIterstor.IsEnd()) {
+    while (!computeSliceIterstor.IsEnd() || onlyPreLastTc) {
         computeSliceIterstor.GetSlice();
         uint32_t ubOffset = sliceInfo.dealedTcCnt * constInfo_.cmpRatio * ((uint32_t)COMP::coff) * dDealSize;
         // PRINTF("DealVec1BaseBlock bIdx:%d sIdx:%d headHolderSeqCnt:%d validSeqCnt:%d tailHolderSeqCnt:%d dealSeqSize:%d compressTcSize:%d\n",
@@ -1091,6 +1097,10 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
         // inputQue1.FreeTensor(kvUb);
 
         UpdateState(kvLocal[ubOffset], scoreLocal[ubOffset], sliceInfo, dStartIdx, dDealSize); // TODO:MTE2\MTE3, shasha
+        
+        if (onlyPreLastTc) {
+            break;
+        }
 
         // UpdateState(kvLocal, scoreLocal, startTcIdx, blockInfo, dStartIdx, dDealSize); // TODO:MTE2\MTE3, shasha
         // DumpTensorForDim2(kvLocal, 7, 128 * 64);
