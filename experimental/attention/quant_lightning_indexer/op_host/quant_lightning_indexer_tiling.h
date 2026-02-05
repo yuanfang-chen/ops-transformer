@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef quant_lightning_indexer_TILING_H_
-#define quant_lightning_indexer_TILING_H_
+#ifndef QUANT_LIGHTNING_INDEXER_TILING_H
+#define QUANT_LIGHTNING_INDEXER_TILING_H
 
 #include "err/ops_err.h"
 #include "exe_graph/runtime/tiling_context.h"
@@ -248,4 +248,4 @@ private:
 };
 
 }  // namespace optiling
-#endif  // quant_lightning_indexer_TILING_H_
+#endif  // QUANT_LIGHTNING_INDEXER_TILING_H

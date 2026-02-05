@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef quant_lightning_indexer_KERNEL_H
-#define quant_lightning_indexer_KERNEL_H
+#ifndef QUANT_LIGHTNING_INDEXER_KERNEL_H
+#define QUANT_LIGHTNING_INDEXER_KERNEL_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -655,4 +655,4 @@ __aicore__ inline void QLIPreload<QLIT>::ProcessBaseBlock(uint32_t loop, uint64_
     }
 }
 }  // namespace QLIKernel
-#endif  // quant_lightning_indexer_KERNEL_H
+#endif  // QUANT_LIGHTNING_INDEXER_KERNEL_H

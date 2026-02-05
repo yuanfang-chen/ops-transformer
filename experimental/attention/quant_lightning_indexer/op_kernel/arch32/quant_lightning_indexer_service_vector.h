@@ -12,8 +12,8 @@
  * \file quant_lightning_indexer_service_vector.h
  * \brief
  */
-#ifndef quant_lightning_indexer_SERVICE_VECTOR_H
-#define quant_lightning_indexer_SERVICE_VECTOR_H
+#ifndef QUANT_LIGHTNING_INDEXER_SERVICE_VECTOR_H
+#define QUANT_LIGHTNING_INDEXER_SERVICE_VECTOR_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -434,4 +434,4 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
 }
 
 }  // namespace QLIKernel
-#endif
+#endif // QUANT_LIGHTNING_INDEXER_SERVICE_VECTOR_H
