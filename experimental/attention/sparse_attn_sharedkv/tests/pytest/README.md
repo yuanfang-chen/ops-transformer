@@ -9,14 +9,14 @@
 ## 当前实现范围
 
 ### 参数限制
-**数据格式：**
-- **query_layout**：BSND TND
-- **key_layout**：PA_BSND
+- **数据格式：**
+    - **query_layout**：BSND、TND
+    - **key_layout**：PA_BSND
 
 ### 环境配置
 #### 前置要求
-1、 确认torch_npu为最新版本
-2、 参考《Attention融合算子Experimental使用说明.md》激活CANN包和自定义算子包
+1、 确认torch_npu为最新版本  
+2、 参考[Attention融合算子Experimental使用说明](../../../Attention融合算子Experimental使用说明.md)激活CANN包和自定义算子包
 #### custom包调用
 支持custom包调用
 
@@ -33,8 +33,8 @@
 
 批量测试：
 - test_sparse_attn_sharedkv_batch.py        # 读取pt文件并进行用例批量测试主程序，生成excel文件保存结果
-- batch/sparse_attn_sharedkv_process.py     # 调用算子获取npu输出
-- batch/sparse_attn_sharedkv_pt_save.py     # 读取excel表格批量生成用例pt文件
+- ./batch/sparse_attn_sharedkv_process.py     # 调用算子获取npu输出
+- ./batch/sparse_attn_sharedkv_pt_save.py     # 读取excel表格批量生成用例pt文件
 
 ## 使用方法
 
