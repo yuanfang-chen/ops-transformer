@@ -191,6 +191,18 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
 //                 ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str());
 //         return false;
 //     }
+
+    if (IsMicroScaling()) {
+
+    } else {
+        OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
+                    OP_LOGE(inputParams_.opName,
+                            "In K-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
+                            inputParams_.bFormat),
+                    return false);
+        // In K-C quant mode other数据类型校验
+    }
+
     return true;
 }
 
@@ -268,7 +280,10 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input wStorageShape is nullptr."),
                 return false);
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
-    
+    const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
+    OP_CHECK_IF(!IsMicroScaling() && !CheckShapeForWeightNz(weightStorageShape),
+                OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
+
     auto scaleStorageShape = context_->GetInputShape(SCALE_INDEX);
     OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input scaleStorageShape is nullptr."),
                 return false);
