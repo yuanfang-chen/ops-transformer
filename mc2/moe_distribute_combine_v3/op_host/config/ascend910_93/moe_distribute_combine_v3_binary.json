@@ -229,11 +229,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -249,9 +244,9 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
-                "value": ""
+                "name": "ccl_buffer_size",
+                "dtype": "int",
+                "value": 0
             },
             {
                 "name": "tp_world_size",
@@ -326,7 +321,7 @@
             {
                 "name": "context",
                 "index": 0,
-                "dtype": "bfloat16",
+                "dtype": "int32",
                 "format": "ND",
                 "paramType": "required",
                 "shape": [
@@ -548,11 +543,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -568,9 +558,9 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
-                "value": ""
+                "name": "ccl_buffer_size",
+                "dtype": "int",
+                "value": 0
             },
             {
                 "name": "tp_world_size",
@@ -645,7 +635,7 @@
             {
                 "name": "context",
                 "index": 0,
-                "dtype": "bfloat16",
+                "dtype": "int32",
                 "format": "ND",
                 "paramType": "required",
                 "shape": [
@@ -867,11 +857,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -887,9 +872,9 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
-                "value": ""
+                "name": "ccl_buffer_size",
+                "dtype": "int",
+                "value": 0
             },
             {
                 "name": "tp_world_size",
@@ -964,7 +949,7 @@
             {
                 "name": "context",
                 "index": 0,
-                "dtype": "bfloat16",
+                "dtype": "int32",
                 "format": "ND",
                 "paramType": "required",
                 "shape": [
@@ -1186,11 +1171,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -1206,9 +1186,9 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
-                "value": ""
+                "name": "ccl_buffer_size",
+                "dtype": "int",
+                "value": 0
             },
             {
                 "name": "tp_world_size",
