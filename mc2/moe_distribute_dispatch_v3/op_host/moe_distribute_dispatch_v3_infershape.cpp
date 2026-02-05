@@ -44,8 +44,8 @@ static constexpr size_t DISPATCH_INPUT_CONTEXT_INDEX = 0;
 static constexpr size_t DISPATCH_INPUT_X_INDEX = 1;
 static constexpr size_t DISPATCH_INPUT_EXPERT_IDS_INDEX = 2;
 static constexpr size_t DISPATCH_INPUT_SCALES_IDX_INDEX = 3;
-static constexpr size_t DISPATCH_INPUT_EXPERT_SCALES_IDX_INDEX = 4;
-static constexpr size_t DISPATCH_INPUT_ELASTIC_INFO_IDX_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_EXPERT_SCALES_IDX_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_ELASTIC_INFO_IDX_INDEX = 6;
 static constexpr size_t DISPATCH_OUTPUT_EXPAND_X_INDEX = 0;
 static constexpr size_t DISPATCH_OUTPUT_DYNAMIC_SCALES_INDEX = 1;
 static constexpr size_t DISPATCH_OUTPUT_ASSIST_INFO_IDX_INDEX = 2;
@@ -69,7 +69,7 @@ static constexpr uint32_t VERSION_SIZE = 32;
 const std::set<std::string> PLATFORM_A2 = {"Ascend910B"};
 const std::set<std::string> NPUARCH_A5 = {std::to_string(static_cast<uint32_t>(NpuArch::DAV_3510))};
 
-bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
+static bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
 {
     char versionValVersion[VERSION_SIZE];
     // rtGetSocSpec获取成功返回值是0，获取失败返回非0

@@ -222,7 +222,7 @@ static bool CheckDynamicScalesDim(const gert::TilingContext *context,
 }
 
 static bool CheckScaleTensorDim(const gert::TilingContext *context, const char *nodeName,
-    const bool isScales, const uint32_t quantMode,)
+    const bool isScales, const uint32_t quantMode, DispatchV2Config &config)
 {
     if (isScales) {
         const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(config.scalesIndex);
@@ -288,7 +288,7 @@ static bool CheckInputTensorDim(const gert::TilingContext *context, const char *
     const int64_t expertIdDim1 = expertIdStorageShape->GetStorageShape().GetDim(1);
     OP_LOGD(nodeName, "expertId dim0 = %ld", expertIdDim0);
     OP_LOGD(nodeName, "expertId dim1 = %ld", expertIdDim1);
-    OP_TILING_CHECK(!CheckScaleTensorDim(context, nodeName, isScales, quantMode), 
+    OP_TILING_CHECK(!CheckScaleTensorDim(context, nodeName, isScales, quantMode, config), 
         OP_LOGE(nodeName, "isScale Input param shape is invalid."), return false);
     return true;
 }
@@ -941,13 +941,8 @@ static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *no
 }
 
 static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char *nodeName,
-<<<<<<< HEAD
     MoeDistributeDispatchV2TilingData &tilingData, uint32_t &localMoeExpertNum, bool isActiveMask, bool isSetFullMeshV2,
-    bool isLayered)
-=======
-    MoeDistributeDispatchV2TilingData &tilingData, uint32_t &localMoeExpertNum, bool isActiveMask,
-    bool isSetFullMeshV2, DispatchV2Config &config)
->>>>>>> da25ad883 (Add context as an input to dispatch/combine)
+    bool isLayered, DispatchV2Config &config)
 {
     uint32_t epWorldSize = tilingData.moeDistributeDispatchV2Info.epWorldSize;
     uint32_t tpWorldSize = tilingData.moeDistributeDispatchV2Info.tpWorldSize;
@@ -1031,11 +1026,7 @@ static ge::graphStatus CheckTwoDimScalesShape(const gert::TilingContext *context
 static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, const char *nodeName,
     MoeDistributeDispatchV2TilingData &tilingData, const uint32_t quantMode, const bool isScales,
     const bool isSharedExpert,const bool hasElasticInfo, const bool isPerformance, const int64_t localMoeExpertNum,
-<<<<<<< HEAD
-    bool isLayered)
-=======
-    DispatchV2Config &config)
->>>>>>> da25ad883 (Add context as an input to dispatch/combine)
+    bool isLayered, DispatchV2Config &config)
 {
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName, "attrs is nullptr."), return ge::GRAPH_FAILED);
@@ -1256,18 +1247,10 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
 }
 
 static ge::graphStatus TilingCheckMoeDistributeDispatch(gert::TilingContext *context, const char *nodeName,
-<<<<<<< HEAD
     const bool isActiveMask, const bool isScales, const bool hasElasticInfo, const bool isPerformance, const uint32_t quantMode,
-    const bool isLayered)
+    const bool isLayered, DispatchV2Config &config))
 {
-    OP_TILING_CHECK(!CheckTensorDim(context, nodeName, isScales, quantMode, isActiveMask, hasElasticInfo, isPerformance, isLayered),
-=======
-    const bool isActiveMask, const bool isScales, const bool hasElasticInfo, const bool isPerformance,
-    const uint32_t quantMode, DispatchV2Config &config)
-{
-    OP_TILING_CHECK(!CheckTensorDim(context, nodeName, isScales, quantMode, isActiveMask, hasElasticInfo,
-                                    isPerformance, config),
->>>>>>> da25ad883 (Add context as an input to dispatch/combine)
+    OP_TILING_CHECK(!CheckTensorDim(context, nodeName, isScales, quantMode, isActiveMask, hasElasticInfo, isPerformance, isLayered, config),
         OP_LOGE(nodeName, "params shape is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!CheckTensorDataType(context, nodeName, isScales, quantMode, isActiveMask, hasElasticInfo,
                                          isPerformance, config),
@@ -1428,7 +1411,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context, const char *no
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext *context, DispatchV2Config &config)
+ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext *context, DispatchV2Config &config)
 {
     const char *nodeName = context->GetNodeName();
     MoeDistributeDispatchV2TilingData *tilingData = context->GetTilingData<MoeDistributeDispatchV2TilingData>();
@@ -1488,19 +1471,11 @@ ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext *conte
 
     // 检查输入输出的dim、format、dataType
     OP_TILING_CHECK(
-<<<<<<< HEAD
-        TilingCheckMoeDistributeDispatch(context, nodeName, isActiveMask, isScales, hasElasticInfo, isPerformance, quantMode, isLayered) != ge::GRAPH_SUCCESS,
+        TilingCheckMoeDistributeDispatch(context, nodeName, isActiveMask, isScales, hasElasticInfo, isPerformance, quantMode, isLayered, config) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Tiling check param failed."), return ge::GRAPH_FAILED);
 
     // 检查属性的取值是否合法
-    OP_TILING_CHECK(CheckAttrs(context, nodeName, *tilingData, localMoeExpertNum, isActiveMask, isSetFullMeshV2, isLayered) != ge::GRAPH_SUCCESS,
-=======
-        TilingCheckMoeDistributeDispatch(context, nodeName, isActiveMask, isScales, hasElasticInfo, isPerformance, quantMode, config) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Tiling check param failed."), return ge::GRAPH_FAILED);
-
-    // 检查属性的取值是否合法
-    OP_TILING_CHECK(CheckAttrs(context, nodeName, *tilingData, localMoeExpertNum, isActiveMask, isSetFullMeshV2, config) != ge::GRAPH_SUCCESS,
->>>>>>> da25ad883 (Add context as an input to dispatch/combine)
+    OP_TILING_CHECK(CheckAttrs(context, nodeName, *tilingData, localMoeExpertNum, isActiveMask, isSetFullMeshV2, isLayered, config) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Check attr failed."), return ge::GRAPH_FAILED);
 
     uint32_t epRankId = tilingData->moeDistributeDispatchV2Info.epRankId;
@@ -1509,31 +1484,23 @@ ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext *conte
 
     // 检查shape各维度并赋值h,k
     OP_TILING_CHECK(CheckTensorShape(context, nodeName, *tilingData, quantMode, isScales,
-<<<<<<< HEAD
-        isSharedExpert, hasElasticInfo, isPerformance, static_cast<int64_t>(localMoeExpertNum), isLayered) != ge::GRAPH_SUCCESS,
-=======
-        isSharedExpert, hasElasticInfo, isPerformance, static_cast<int64_t>(localMoeExpertNum), config) != ge::GRAPH_SUCCESS,
->>>>>>> da25ad883 (Add context as an input to dispatch/combine)
+        isSharedExpert, hasElasticInfo, isPerformance, static_cast<int64_t>(localMoeExpertNum), isLayered, config) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Check tensor shape failed."), return ge::GRAPH_FAILED);
 
     // 校验win区大小
-    OP_TILING_CHECK(CheckWinSize(context, *tilingData, nodeName, isSetFullMeshV2, localMoeExpertNum, isLayered) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Tiling check window size failed."), return ge::GRAPH_FAILED);
-
+    if (!config.isMc2Context) {
+        OP_TILING_CHECK(CheckWinSize(context, *tilingData, nodeName, isSetFullMeshV2, localMoeExpertNum, isLayered) != ge::GRAPH_SUCCESS,
+            OP_LOGE(nodeName, "Tiling check window size failed."), return ge::GRAPH_FAILED);
+    }
     OP_TILING_CHECK(SetWorkSpace(context, nodeName) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
     uint32_t tpWorldSize = tilingData->moeDistributeDispatchV2Info.tpWorldSize;
-<<<<<<< HEAD
-    OP_TILING_CHECK(SetHcommCfg(context, tilingData, groupEp, groupTp, tpWorldSize, isLayered) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "Tiling set hcomm cfg failed."), return ge::GRAPH_FAILED);
-    uint64_t tilingKey = CalTilingKey(context, isScales, quantMode, tpWorldSize, isSetFullMeshV2, isLayered);
-=======
     if (!config.isMc2Context) {
-        OP_TILING_CHECK(SetHcommCfg(context, tilingData, groupEp, groupTp, tpWorldSize) != ge::GRAPH_SUCCESS,
+        OP_TILING_CHECK(SetHcommCfg(context, tilingData, groupEp, groupTp, tpWorldSize, isLayered) != ge::GRAPH_SUCCESS,
             OP_LOGE(nodeName, "Tiling set hcomm cfg failed."), return ge::GRAPH_FAILED);
     }
-    uint64_t tilingKey = CalTilingKey(context, isScales, quantMode, tpWorldSize, isSetFullMeshV2);
->>>>>>> da25ad883 (Add context as an input to dispatch/combine)
+    uint64_t tilingKey = CalTilingKey(context, isScales, quantMode, tpWorldSize, isSetFullMeshV2, isLayered);
+    tilingData->moeDistributeDispatchV2Info.isMc2Context = config.isMc2Context;
 
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
@@ -1949,7 +1916,7 @@ static ge::graphStatus MoeDistributeDispatchA5TilingFuncImpl(gert::TilingContext
     config.elasticInfoIndex = 5U;
     config.performanceInfoIndex = 6U;
     // MTE 调用 A3 tiling 实现
-    return MoeDistributeDispatchA3TilingFuncImpl(context, config);
+    return MoeDistributeDispatchA3TilingFuncImplPublic(context, config);
 }
 
 static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* context)
@@ -1970,7 +1937,7 @@ static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* co
         config.expertScalesIndex = 4U;
         config.elasticInfoIndex = 5U;
         config.performanceInfoIndex = 6U;
-        ret = MoeDistributeDispatchA3TilingFuncImpl(context, config);
+        ret = MoeDistributeDispatchA3TilingFuncImplPublic(context, config);
     }
     return ret;
 }
