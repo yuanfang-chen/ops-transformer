@@ -170,10 +170,6 @@ ge::graphStatus ApplyRotaryPosEmbRegbaseTilingBaseClass::CheckShapeRelation()
     }
     OP_CHECK_IF(cosShape_ != sinShape_, OP_LOGE(context_, "shape of cos and sin should be same."),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(qShape_ < qOutShape_, OP_LOGE(context_, "shape of query in should be bigger than out."),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(kShape_ < kOutShape_, OP_LOGE(context_, "shape of key in should be bigger than out."),
-                return ge::GRAPH_FAILED);
     OP_CHECK_IF(cosShape_.GetDim(nIdx) != 1,
                 OP_LOGE(context_, "N of cos, sin should be 1, actual %ld.", cosShape_.GetDim(nIdx)),
                 return ge::GRAPH_FAILED);
