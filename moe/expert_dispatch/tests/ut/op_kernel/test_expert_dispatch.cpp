@@ -52,27 +52,40 @@ TEST_F(expert_dispatch_test, test_case_0)
     uint64_t tilingKey = 1000000;
     uint32_t blockDim = 24;
 
-    size_t x_Size = n * cols * sizeof(float);
-    size_t expertId_Size = n * k * sizeof(int32_t);
-    size_t scale_Size = n * sizeof(float);
-    size_t dispatchedX_Size = n * k * cols * sizeof(float);
-    size_t dispatchedRowIdx_Size = n * k * sizeof(int32_t);
-    size_t expertTokensCount_Size = expert_num * sizeof(int32_t);
-    size_t expertTotalCount_Size = 1 * sizeof(int32_t);
-    size_t dispatchedScale_Size = n * k * sizeof(float);
-    size_t workspace_Size = (n * k + expert_num + 1) * sizeof(float) * 7 + blockDim * 32 * 2 + 16781184;
-    size_t tiling_Size = sizeof(ExpertDispatchTilingData);
+    size_t x_FileSize = n * cols * sizeof(float);
+    size_t expertId_FileSize = n * k * sizeof(int32_t);
+    size_t scale_FileSize = n * sizeof(float);
+    size_t dispatchedX_FileSize = n * k * cols * sizeof(float);
+    size_t dispatchedRowIdx_FileSize = n * k * sizeof(int32_t);
+    size_t expertTokensCount_FileSize = expert_num * sizeof(int32_t);
+    size_t expertTotalCount_FileSize = 1 * sizeof(int32_t);
+    size_t dispatchedScale_FileSize = n * k * sizeof(float);
+    size_t workspace_FileSize = (n * k + expert_num + 1) * sizeof(float) * 7 + blockDim * 32 * 2 + 16781184;
+    size_t tiling_FileSize = sizeof(ExpertDispatchTilingData);
 
-    uint8_t* x = (uint8_t*)AscendC::GmAlloc(x_Size);
-    uint8_t* expertId = (uint8_t*)AscendC::GmAlloc(expertId_Size);
-    uint8_t* scale = (uint8_t*)AscendC::GmAlloc(scale_Size);
-    uint8_t* dispatchedX = (uint8_t*)AscendC::GmAlloc(dispatchedX_Size);
-    uint8_t* dispatchedRowIdx = (uint8_t*)AscendC::GmAlloc(dispatchedRowIdx_Size);
-    uint8_t* expertTokensCount = (uint8_t*)AscendC::GmAlloc(expertTokensCount_Size);
-    uint8_t* expertTotalCount = (uint8_t*)AscendC::GmAlloc(expertTotalCount_Size);
-    uint8_t* dispatchedScale = (uint8_t*)AscendC::GmAlloc(dispatchedScale_Size);
-    uint8_t* workspace = (uint8_t*)AscendC::GmAlloc(workspace_Size);
-    uint8_t* tiling = (uint8_t*)AscendC::GmAlloc(tiling_Size);
+    uint8_t* x = (uint8_t*)AscendC::GmAlloc(x_FileSize);
+    uint8_t* expertId = (uint8_t*)AscendC::GmAlloc(expertId_FileSize);
+    uint8_t* scale = (uint8_t*)AscendC::GmAlloc(scale_FileSize);
+    uint8_t* dispatchedX = (uint8_t*)AscendC::GmAlloc(dispatchedX_FileSize);
+    uint8_t* dispatchedRowIdx = (uint8_t*)AscendC::GmAlloc(dispatchedRowIdx_FileSize);
+    uint8_t* expertTokensCount = (uint8_t*)AscendC::GmAlloc(expertTokensCount_FileSize);
+    uint8_t* expertTotalCount = (uint8_t*)AscendC::GmAlloc(expertTotalCount_FileSize);
+    uint8_t* dispatchedScale = (uint8_t*)AscendC::GmAlloc(dispatchedScale_FileSize);
+    uint8_t* workspace = (uint8_t*)AscendC::GmAlloc(workspace_FileSize);
+    uint8_t* tiling = (uint8_t*)AscendC::GmAlloc(tiling_FileSize);
+
+    // system("cp -r ../../../../../../../ops/built-in/tests/ut/fast_op_test/expert_dispatch/expert_dispatch_data ./");
+    // system("chmod -R 755 ./expert_dispatch_data/");
+    // system("cd ./expert_dispatch_data/ && rm -rf ./*bin");
+    // system("cd ./expert_dispatch_data/ && python3 gen_data.py 4 3 5 float32");
+    // system("cd ./expert_dispatch_data/ && python3 gen_tiling.py case0");
+
+    // char* path_ = get_current_dir_name();
+    // string path(path_);
+    // ReadFile(path + "/expert_dispatch_data/input_x.bin", x_FileSize, x, x_FileSize);
+    // ReadFile(path + "/expert_dispatch_data/input_expertId.bin", expertId_FileSize, expertId, expertId_FileSize);
+    // ReadFile(path + "/expert_dispatch_data/scale.bin", scale_FileSize, scale, scale_FileSize);
+    // ReadFile(path + "/expert_dispatch_data/tiling.bin", tiling_FileSize, tiling, tiling_FileSize);
 
     ICPU_SET_TILING_KEY(tilingKey);
     ICPU_RUN_KF(expert_dispatch, blockDim, x, expertId, scale, dispatchedX, dispatchedRowIdx, expertTokensCount,
@@ -88,6 +101,7 @@ TEST_F(expert_dispatch_test, test_case_0)
     AscendC::GmFree((void*)dispatchedScale);
     AscendC::GmFree((void*)workspace);
     AscendC::GmFree((void*)tiling);
+    // free(path_);
 }
 
-// 学员补充：其他数据类型（全载）和非全载用例
+// 学员补充，其它tilingKey模板

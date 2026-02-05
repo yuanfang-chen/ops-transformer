@@ -9,13 +9,28 @@
  */
 
 #include <iostream>
+#include <fstream>
+#include <vector>
 #include <gtest/gtest.h>
-#include "../../../op_host/expert_dispatch_tiling.h"
-#include "tiling_context_faker.h"
-#include "tiling_case_executor.h"
+#include "op_log.h"
+#define private public
+#include "register/op_tiling_registry.h"
+#include "test_common.h"
+#include "pad_ops.h"
+#include "array_ops.h"
+#include "common/utils/ut_op_util.h"
+#include "op_tiling/op_tiling_util.h"
+#include "common_unittest.h"
+#include "runtime/expert_dispatch/expert_dispatch_tiling.h"
+#include "kernel_run_context_facker.h"
 #include "test_cube_util.h"
+#include "fusion_ops.h"
+#include "exe_graph/runtime/storage_format.h"
+#include "exe_graph/runtime/storage_shape.h"
 
+using namespace ut_util;
 using namespace std;
+using namespace ge;
 
 class ExpertDispatchTiling : public testing::Test
 {
@@ -43,7 +58,7 @@ static string TilingData2Str(const gert::TilingData* tiling_data)
     return result;
 }
 
-/*void RunTestCase(gert::StorageShape x_shape, gert::StorageShape expert_id_shape, gert::StorageShape scale_shape,
+void RunTestCase(gert::StorageShape x_shape, gert::StorageShape expert_id_shape, gert::StorageShape scale_shape,
                  gert::StorageShape dispatched_x_shape, gert::StorageShape dispatched_row_idx_shape,
                  gert::StorageShape expert_tokens_count_shape, gert::StorageShape expert_total_count_shape,
                  gert::StorageShape dispatched_scale_shape, ge::DataType xDataType, std::vector<int64_t> expertRange,
@@ -131,7 +146,7 @@ static string TilingData2Str(const gert::TilingData* tiling_data)
         auto tiling_data_result = TilingData2Str(tiling_context->GetRawTilingData());
         std::cout << tiling_data_result << std::endl;
     }
-}*/
+}
 
 void RunNormalCase(int64_t N, int64_t H, int64_t K, ge::DataType xDataType, std::vector<int64_t> expertRange,
                    ge::graphStatus result, int64_t tilingKey)
@@ -147,9 +162,9 @@ void RunNormalCase(int64_t N, int64_t H, int64_t K, ge::DataType xDataType, std:
     gert::StorageShape expert_tokens_count_shape = {{E}, {E}};
     gert::StorageShape expert_total_count_shape = {{1}, {1}};
     gert::StorageShape dispatched_scale_shape = {{N * K}, {N * K}};
-    /*RunTestCase(x_shape, expert_id_shape, scale_shape, dispatched_x_shape, dispatched_row_idx_shape,
+    RunTestCase(x_shape, expert_id_shape, scale_shape, dispatched_x_shape, dispatched_row_idx_shape,
                 expert_tokens_count_shape, expert_total_count_shape, dispatched_scale_shape, xDataType, expertRange,
-                result, tilingKey);*/
+                result, tilingKey);
 }
 
 // 单核+直方图全载+GatherOut全载   1000000
@@ -158,4 +173,4 @@ TEST_F(ExpertDispatchTiling, expert_dispatch_tiling_01)
     RunNormalCase(4, 3, 5, ge::DT_FLOAT, {1, 7}, ge::GRAPH_SUCCESS, 1000000);
 }
 
-// 学员补充：其他数据类型（全载）和非全载用例
+// 学员补充：其他Tilingkey模板
