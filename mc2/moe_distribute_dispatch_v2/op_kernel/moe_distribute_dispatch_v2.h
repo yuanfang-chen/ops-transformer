@@ -1049,7 +1049,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateMC2TypeFunc>::WaitDispatc
     DataCopyParams intriOutParams{static_cast<uint16_t>(recStatusNumPerCore_), 1, 0, 0};
     uint64_t duplicateMask[2] = { 0x101010101010101, 0 }; // 一次性操作256字节，也是64个int32_t，每8个数将首个设置为0
     LocalTensor<int32_t> cleanStateTensor = waitStatusBuf_.Get<int32_t>();
-    SyncFunc<AscendC::HardEvent::S_V>();
+
     Duplicate<int32_t>(cleanStateTensor, 0, duplicateMask, Ceil(recStatusNumPerCore_, 8), 1, 8);
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     DataCopy(windowInstatusFp32Tensor_[startStatusIndex_ * stateOffset_ / sizeof(float)],
