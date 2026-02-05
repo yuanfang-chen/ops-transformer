@@ -6,7 +6,8 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */
+ *
+ */
 
 /*!
  * \file add_example.cpp
@@ -25,6 +26,7 @@ template <uint32_t schMode>
 __global__ __aicore__ void add_example(GM_ADDR x, GM_ADDR y, GM_ADDR z, GM_ADDR workspace, GM_ADDR tiling)
 {
     REGISTER_TILING_DEFAULT(AddExampleTilingData);
+    
     GET_TILING_DATA_WITH_STRUCT(AddExampleTilingData, tilingData, tiling);
     if constexpr (schMode == static_cast<uint32_t>(AddExampleTilingKey::TILING_KEY_EXAMPLE_FLOAT)) {
         NsAddExample::AddExample<float> op; // 算子kernel实例获取
