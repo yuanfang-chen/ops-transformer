@@ -13,12 +13,12 @@
  * \brief scatter_pa_cache
  */
 
-#include "../scatter_pa_kv_cache/arch35/scatter_pa_kv_cache_normal_fully_load.h"
-#include "../scatter_pa_kv_cache/arch35/scatter_pa_kv_cache_normal_not_fully_load.h"
-#include "../scatter_pa_kv_cache/arch35/scatter_pa_kv_cache_rope_fully_load.h"
-#include "../scatter_pa_kv_cache/arch35/scatter_pa_kv_cache_rope_not_fully_load.h"
-#include "../scatter_pa_kv_cache/arch35/scatter_pa_kv_cache_alibi_fully_load.h"
-#include "../scatter_pa_kv_cache/arch35/scatter_pa_kv_cache_alibi_not_fully_load.h"
+#include "../scatter_pa_kv_cache/op_kernel/arch35/scatter_pa_kv_cache_normal_fully_load.h"
+#include "../scatter_pa_kv_cache/op_kernel/arch35/scatter_pa_kv_cache_normal_not_fully_load.h"
+#include "../scatter_pa_kv_cache/op_kernel/arch35/scatter_pa_kv_cache_rope_fully_load.h"
+#include "../scatter_pa_kv_cache/op_kernel/arch35/scatter_pa_kv_cache_rope_not_fully_load.h"
+#include "../scatter_pa_kv_cache/op_kernel/arch35/scatter_pa_kv_cache_alibi_fully_load.h"
+#include "../scatter_pa_kv_cache/op_kernel/arch35/scatter_pa_kv_cache_alibi_not_fully_load.h"
 
 #define NORMAL_INT32_FULLY_LOAD 141
 #define NORMAL_INT32_NOT_FULLY_LOAD 140
