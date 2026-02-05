@@ -47,10 +47,6 @@ namespace optiling {
 
 bool Mc2WeightQuantBatchMatmulV2RegBase::IsCapable()
 {
-    if (compileInfoPtr_->socVersion == SocVersion::ASCEND910_55) {
-        return false;
-    }
-
     if (matmulInfoPtr_->antiQuantType != Mc2QuantType::PER_GROUP) {
         OP_LOGI(opName_, "the reg base template only supports the per-group mode");
         return false;
