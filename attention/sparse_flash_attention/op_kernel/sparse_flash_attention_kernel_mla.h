@@ -374,7 +374,7 @@ template <typename SFAT> __aicore__ inline void SparseFlashAttentionMla<SFAT>::U
 template <typename SFAT>
 __aicore__ inline void SparseFlashAttentionMla<SFAT>::UpdateInner(uint32_t &s2End, uint32_t &curS2End,
                                                                                   uint32_t s1Idx, bool isEnd)
-{ 
+{
     uint32_t s1BaseSize = 1;
     int64_t s1Offset = s1BaseSize * s1Idx;
     int64_t s2LastToken = Min(s1Offset + tempLoopInfo.nextTokensPerBatch + s1BaseSize,tempLoopInfo.curActualSeqLenOri);
@@ -389,7 +389,7 @@ __aicore__ inline void SparseFlashAttentionMla<SFAT>::Init(__gm__ uint8_t *query
                        __gm__ uint8_t *sparseIndices, __gm__ uint8_t *actualSeqLengthsQ,
                        __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *blockTable,
                        __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,
-                       __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, 
+                       __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum,
                        __gm__ uint8_t *workspace, const SparseFlashAttentionTilingDataMla *__restrict tiling,
                        __gm__ uint8_t *gmTiling, TPipe *tPipe)
 {
@@ -527,7 +527,7 @@ template <typename SFAT> __aicore__ inline void SparseFlashAttentionMla<SFAT>::I
     bool setStart=false;
 	targetBaseNum = (currCoreIdx + 1) * avgBaseNum;  // 计算当前的目标权重
     uint32_t targetStartBaseNum = targetBaseNum-avgBaseNum;
-    for (uint32_t bN2Idx = 0; bN2Idx < constInfo.batchSize * constInfo.kvHeadNum; bN2Idx++) { 
+    for (uint32_t bN2Idx = 0; bN2Idx < constInfo.batchSize * constInfo.kvHeadNum; bN2Idx++) {
         uint32_t bIdx = bN2Idx / constInfo.kvHeadNum;
 		actBatchS1 = GetBalanceActualSeqLengths(actualSeqLengthsQGm, bIdx);
         for (uint32_t s1GIdx = 0; s1GIdx < actBatchS1; s1GIdx++) {
@@ -602,8 +602,8 @@ __aicore__ inline void SparseFlashAttentionMla<SFAT>::CalcParams(uint32_t loop, 
     info.isBmm2Output = false;
 
     info.actS1Size = tempLoopInfo.actS1Size;
-    
-    
+
+
     info.actMBaseSize = constInfo.mBaseSize;
     uint32_t remainedGS1Size = tempLoopInfo.actS1Size * constInfo.gSize - tempLoopInfo.gS1Idx;
     if (remainedGS1Size <= constInfo.mBaseSize && remainedGS1Size > 0) {
@@ -650,7 +650,7 @@ __aicore__ inline void SparseFlashAttentionMla<SFAT>::CalcParams(uint32_t loop, 
         uint64_t tndBIdxRopeOffsetForQ = actualSeqQPrefixSum * constInfo.qHeadNum * headDimRope;
         tensorACoreOffset = info.tndBIdxOffsetForQ + info.gS1Idx * headDim;
         tensorARopeCoreOffset = tndBIdxRopeOffsetForQ + info.gS1Idx * headDimRope;
-        
+
         uint64_t tndBIdxRopeOffsetForK = actualSeqKVPrefixSum * constInfo.kvHeadNum * headDimRope;
         tensorBCoreOffset = info.tndBIdxOffsetForKV + info.n2Idx * headDim;
         tensorBRopeCoreOffset = tndBIdxRopeOffsetForK + info.n2Idx * headDimRope;
@@ -682,7 +682,7 @@ __aicore__ inline void SparseFlashAttentionMla<SFAT>::CalcParams(uint32_t loop, 
     info.attenOutOffset = tensorACoreOffset;
 
     uint64_t sInnerOffsetDataSize = info.s2Idx * constInfo.s2BaseSize;
-    info.s2BatchOffset = s2BatchBaseOffset + sInnerOffsetDataSize;
+    info.s2BatchOffset = s2BatchBaseOffset + sInnerOffsetDataSize; // C模板问题，s2BatchBaseOffset没有初值
 
     info.curActualSeqLenOri = tempLoopInfo.curActualSeqLenOri;
     //计算实际基本块size
@@ -901,7 +901,7 @@ __aicore__ inline void SparseFlashAttentionMla<SFAT>::GetAxisStartIdx(uint32_t b
     uint32_t s1GPrevBaseNum = (actualSeqQPrev * constInfo.gSize + constInfo.mBaseSize - 1) / constInfo.mBaseSize;
     constInfo.bN2Start = bN2EndPrev;
     constInfo.gS1Start = s1GEndPrev;
-    
+
     constInfo.s2Start = 0;
     if (s1GEndPrev >= s1GPrevBaseNum - 1) { // 上个核把S1G处理完了
         constInfo.gS1Start = 0;
@@ -918,7 +918,7 @@ __aicore__ inline void SparseFlashAttentionMla<SFAT>::CalcSinnerTopKBegin(RunInf
     if constexpr (TEMPLATE_MODE == V_TEMPLATE) {
         return;
     }
-    
+
     uint64_t thresholdSparseCount = (info.threshold + constInfo.sparseBlockSize - 1) / constInfo.sparseBlockSize;
     uint64_t validCount = (constInfo.sparseBlockCount > thresholdSparseCount) ? thresholdSparseCount : constInfo.sparseBlockCount;
 
@@ -948,7 +948,7 @@ __aicore__ inline void SparseFlashAttentionMla<SFAT>::CalcSinnerTopKBegin(RunInf
         info.curOffsetInSparseBlock = 0;
         firstVaildFlag = true;
     }
-    
+
     for (uint64_t topkIdx = curTopKIdx + 1; topkIdx < validCount; topkIdx++) {
         int32_t sparseIndices = topKGm.GetValue(info.topKBaseOffset + topkIdx);
         if (sparseIndices == -1) {

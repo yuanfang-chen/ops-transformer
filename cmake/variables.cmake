@@ -311,3 +311,7 @@ else()
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 endif()
+
+set(OPS_CATEGORY_LIST
+  "attention"
+)
