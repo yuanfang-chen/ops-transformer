@@ -43,6 +43,7 @@
 using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
+using namespace common_const;
 using namespace common_const::index_extend;
 
 

@@ -13,7 +13,7 @@
  * \brief
  */
 
-namespace optiling {
+namespace common_const {
 namespace index {
 constexpr uint32_t OP_VERSION_2 = 2;
 namespace input {
@@ -196,12 +196,5 @@ constexpr uint32_t MAX_BATCH_SIZE_A2 = 256;
 constexpr uint32_t RANK_NUM_PER_NODE_A2 = 8;
 constexpr uint32_t BLOCK_SIZE_A2 = 32;
 constexpr uint32_t MAX_K_VALUE_A2 = 16;
-const char *K_INNER_DEBUG = "MoeDistributeCombineV2 Tiling Debug";
 
-enum class CommQuantMode : int32_t {
-    NON_QUANT = 0,
-    INT12_QUANT = 1,
-    INT8_QUANT = 2
-};
-using CommQuantModeType = std::underlying_type_t<CommQuantMode>;
 } // namespace optiling

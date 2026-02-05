@@ -17,6 +17,7 @@
 #include "mc2_log.h"
 
 using namespace ge;
+using namespace common_const;
 using namespace common_const::index_extend;
 
 namespace optiling {
