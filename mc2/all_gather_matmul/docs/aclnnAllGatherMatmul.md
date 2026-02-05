@@ -1,5 +1,7 @@
 # aclnnAllGatherMatmul
+
 ## 产品支持情况
+
 | 产品                                                                            | 是否支持 |
 | :------------------------------------------------------------------------------ | :------: |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>                        | √       |
@@ -10,7 +12,7 @@
 
 ## 功能说明
 
--   **算子功能**：完成AllGather通信与MatMul计算融合。
+-   **接口功能**：完成AllGather通信与MatMul计算融合。
 -   **计算公式**：
 
     $$
@@ -189,7 +191,7 @@ aclnnStatus aclnnAllGatherMatmul(
 
 -   **返回值：**
 
-    返回aclnnStatus状态码，第一段接口完成入参校验，出现以下场景时报错：
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     第一段接口会完成入参校验，出现以下场景时报错：
     
@@ -225,6 +227,7 @@ aclnnStatus aclnnAllGatherMatmul(
     </table>
 
 ## aclnnAllGatherMatmul
+
 -   **参数说明：**
     <table style="undefined;table-layout: fixed; width: 1180px"> <colgroup>
     <col style="width: 250px">
@@ -258,6 +261,7 @@ aclnnStatus aclnnAllGatherMatmul(
         <td>指定执行任务的stream。</td>
     </tr>
     </tbody></table>
+
 -   **返回值：**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -282,6 +286,7 @@ aclnnStatus aclnnAllGatherMatmul(
 示例代码如下，仅供参考，具体编译和执行过程请参考编译与运行样例。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+
     ```Cpp
     #include <thread>
     #include <iostream>

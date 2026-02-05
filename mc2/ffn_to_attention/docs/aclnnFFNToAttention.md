@@ -9,11 +9,10 @@
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
 | <term>Atlas 推理系列产品 </term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
-| <term>Atlas 200/300/500 推理产品</term>                      |    ×     |
 
 ## 功能说明
 
-接口功能：将FFN节点上的数据发往Attention节点。
+将FFN节点上的数据发往Attention节点。
 
 ## 函数原型
 

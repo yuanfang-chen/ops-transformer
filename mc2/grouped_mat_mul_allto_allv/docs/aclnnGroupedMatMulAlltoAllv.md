@@ -9,22 +9,22 @@
 
 ## 功能说明
 
-算子功能：完成路由专家GroupedMatMul、Unpermute、AlltoAllv融合并实现与共享专家MatMul并行融合，**先计算后通信**。
+- 接口功能：完成路由专家GroupedMatMul、Unpermute、AlltoAllv融合并实现与共享专家MatMul并行融合，**先计算后通信**。
 
-计算公式：
-- 路由专家：
+- 计算公式：
+    - 路由专家：
 
-  $$
-  gmmY = gmmX \times gmmWeight \\
-  unpermuteOut = Unpermute(gmmY) \\
-  y = AlltoAllv(unpermuteOut)
-  $$
+    $$
+    gmmY = gmmX \times gmmWeight \\
+    unpermuteOut = Unpermute(gmmY) \\
+    y = AlltoAllv(unpermuteOut)
+    $$
 
-- 共享专家：
+    - 共享专家：
 
-  $$
-  mmY = mmX \times mmWeight
-  $$
+    $$
+    mmY = mmX \times mmWeight
+    $$
 
 ## 函数原型
 
