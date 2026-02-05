@@ -718,13 +718,9 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::InitSoftmaxLseA
                                                                                             uint32_t n2Idx)
 {
     if constexpr (LAYOUT_T == LAYOUT::TND) {
-        uint32_t tBase = bIdx == 0 ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
-        uint32_t s1Count = actS1Size;
-
-        for (int s1Idx = 0; s1Idx < s1Count; s1Idx++) {
-            uint64_t softmaxLseOffset = (tBase + s1Idx) * kvHeadNum * gSize + n2Idx * gSize;
-            matmul::InitOutput<T>(softmaxLseGm[softmaxLseOffset], gSize, FLOAT_INF);
-        }
+        uint32_t tokenPrefixSum = bIdx == 0 ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
+        uint64_t softmaxLseOffset = tokenPrefixSum * kvHeadNum * gSize + n2Idx * gSize;
+        matmul::InitOutput<float>(softmaxLseGm[softmaxLseOffset], gSize * actS1Size, FLOAT_INF);
     } else if constexpr (LAYOUT_T == LAYOUT::BSND || LAYOUT_T == LAYOUT::BSH) {
         uint64_t softmaxLseOffset = bIdx * kvHeadNum * gSize * qSeqSize + n2Idx * gSize * qSeqSize;
         matmul::InitOutput<T>(softmaxLseGm[softmaxLseOffset], gSize * qSeqSize, FLOAT_INF);
@@ -1547,6 +1543,14 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
 
         outputQue2.EnQue(softmaxlseUb);
         outputQue2.DeQue<T>();
+
+        uint32_t startS1Idx = s1Idx * s1SizeSub + mSizeVStart / gSize;
+        uint32_t startGIdx = mSizeVStart % gSize;
+        uint32_t endS1Idx = s1Idx * s1SizeSub + (mSizeVStart + dealRowCount - 1) / gSize;
+        uint32_t endGIdx = (mSizeVStart + dealRowCount - 1) % gSize;
+        uint64_t outOffset = 0;
+        uint64_t ubOffset = 0;
+        uint32_t curDealRowCount = 0;
 
         if constexpr (LAYOUT_T == LAYOUT::TND) {
             uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
