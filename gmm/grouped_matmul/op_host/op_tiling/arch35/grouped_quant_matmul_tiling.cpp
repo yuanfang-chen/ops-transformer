@@ -536,18 +536,17 @@ bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const ge
                     "the shape of perTokenScale should be (%d,), "
                     "actual is (%d,).", inputParams_.mSize, static_cast<uint64_t>(xScaleShape[0])), return false);
     }
-    if (!(wScaleDims == 2 && wScaleShape[wScaleDims - 1] == 1 && inputParams_.nSize == 1)) { // scale为2维且shape为(g,1)时，不做拦截
-        OP_CHECK_IF(wScaleDims != 2, OP_LOGE(context_->GetNodeName(), // 在启用激活函数情景下，Scale应该为2维
-                    "When the activation function is enabled, the dim of Scale should be 2, "
-                    "actual is %d.", wScaleDims), return false);
-        OP_CHECK_IF(static_cast<uint64_t>(wScaleShape[0]) != inputParams_.groupNum ||
-                    static_cast<uint64_t>(wScaleShape[1]) != inputParams_.nSize,
-                    OP_LOGE(context_->GetNodeName(),
-                    "When the activation function is enabled, the shape of Scale should be (%d, %d), "
-                    "actual is (%d, %d).", inputParams_.groupNum, inputParams_.nSize,
-                    static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
-                    return false);
-    } else {
+    OP_CHECK_IF(wScaleDims != 2, OP_LOGE(context_->GetNodeName(), // 在启用激活函数情景下，Scale应该为2维
+                "When the activation function is enabled, the dim of Scale should be 2, "
+                "actual is %d.", wScaleDims), return false);
+    OP_CHECK_IF(static_cast<uint64_t>(wScaleShape[0]) != inputParams_.groupNum ||
+                static_cast<uint64_t>(wScaleShape[1]) != inputParams_.nSize,
+                OP_LOGE(context_->GetNodeName(),
+                "When the activation function is enabled, the shape of Scale should be (%d, %d), "
+                "actual is (%d, %d).", inputParams_.groupNum, inputParams_.nSize,
+                static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
+                return false);
+    if (wScaleDims == 2 && wScaleShape[wScaleDims - 1] == 1 && inputParams_.nSize == 1) {
         inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
     }
     return true;
