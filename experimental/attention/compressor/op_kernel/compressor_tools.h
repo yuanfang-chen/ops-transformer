@@ -588,7 +588,7 @@ __aicore__ inline void CompressorVec1SliceIterator<COMP, USE_SEQ_USED>::Reset(ui
 {
     sliceInfo_.bIdx = bIdx;
     sliceInfo_.sIdx = sIdx;
-    while (GetSeqLength(sliceInfo_.bIdx) == 0) {
+    while (tools_.GetSeqLength(sliceInfo_.bIdx) == 0) {
         sliceInfo_.bIdx++;
         if (sliceInfo_.bIdx == batch_size_) {
             sliceInfo_.bIdx = 0;
@@ -676,7 +676,7 @@ __aicore__ inline void CompressorVec1SliceIterator<COMP, USE_SEQ_USED>::GetPreTc
             } else {
                 sliceInfo_.preBIdx--;
             }
-        } while (GetSeqLength(sliceInfo_.preBIdx) == 0);
+        } while (tools_.GetSeqLength(sliceInfo_.preBIdx) == 0);
         sliceInfo_.preBSeqUsed = GetSeqLength(sliceInfo_.preBIdx);
         sliceInfo_.preBStartPos = tools_.GetStartPos(sliceInfo_.preBIdx);
         sliceInfo_.preSIdx = max(Trunc(sliceInfo_.preBStartPos + tools_.GetSeqLength(sliceInfo_.preBIdx) - 1, cmpRatio), sliceInfo_.preBStartPos) - sliceInfo_.preBStartPos;
@@ -727,9 +727,9 @@ __aicore__ inline void CompressorVec1SliceIterator<COMP, USE_SEQ_USED>::Iterator
             if (sliceInfo_.bIdx == batch_size_) {
                 sliceInfo_.bIdx = 0;
             }
+            sliceInfo_.sIdx = 0;
+            sliceInfo_.bSeqUsed = GetSeqLength(sliceInfo_.bIdx);
         } while (GetSeqLength(sliceInfo_.bIdx) == 0);
-        sliceInfo_.sIdx = 0;
-        sliceInfo_.bSeqUsed = GetSeqLength(sliceInfo_.bIdx);
         if constexpr (USE_SEQ_USED) {
             sliceInfo_.bSeqLength = tools_.GetSeqLength(sliceInfo_.bIdx);
         } else {
@@ -786,7 +786,11 @@ __aicore__ inline Vec1SliceInfo& CompressorVec1SliceIterator<COMP, USE_SEQ_USED>
     }
     uint32_t globalTotalSeqCnt = sliceInfo_.bStartPos + sliceInfo_.sIdx + sliceInfo_.validSeqCnt;
     sliceInfo_.tailHolderSeqCnt = Align(globalTotalSeqCnt, cmpRatio) - globalTotalSeqCnt;
-    sliceInfo_.lastTcSeqCnt = globalTotalSeqCnt - max(Trunc(globalTotalSeqCnt - 1, cmpRatio), sliceInfo_.bStartPos + sliceInfo_.sIdx);
+    if (globalTotalSeqCnt == 0) {
+        sliceInfo_.lastTcSeqCnt = 0;
+    } else { 
+        sliceInfo_.lastTcSeqCnt = globalTotalSeqCnt - max(Trunc(globalTotalSeqCnt - 1, cmpRatio), sliceInfo_.bStartPos + sliceInfo_.sIdx);
+    }
 
     // 计算本次可以处理的Tc个数
     sliceInfo_.dealTcSize = (sliceInfo_.headHolderSeqCnt + sliceInfo_.validSeqCnt + sliceInfo_.tailHolderSeqCnt) / cmpRatio;
