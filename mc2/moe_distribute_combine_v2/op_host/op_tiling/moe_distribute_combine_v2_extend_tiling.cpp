@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+#include "moe_distribute_combine_tiling_base.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
@@ -43,11 +44,34 @@ using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
 
+using namespace optiling::index_extend;
 
 
 namespace optiling {
 
-static ge::graphStatus MoeDistributeCombineV2TilingFuncExtend(gert::TilingContext* context)
+static ge::graphStatus MoeDistributeCombineA5ExtendTilingFuncImpl(gert::TilingContext* context)
+{
+    auto attrs = context->GetAttrs();
+    const char *nodeName = context->GetNodeName();
+    auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMM_ALG_INDEX));
+    // 检查 commAlg 参数合法性校验
+    bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
+    bool isMte = std::strcmp(commAlgPtr, "mte") == 0;
+    
+    OP_TILING_CHECK(!(isNullOrEmpty || isMte),
+        OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. Only 'mte' is supported."
+            "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
+        return ge::GRAPH_FAILED);
+
+    // 默认空指针和空字符走 MTE 方式
+    if (isNullOrEmpty) {
+        OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
+    }
+    // MTE 调用 A3 tiling 实现
+    return MoeDistributeCombineA3TilingFuncImpl(context);
+}
+
+static ge::graphStatus MoeDistributeCombineV2ExtendTilingFunc(gert::TilingContext* context)
 {
     // 不支持 expandX数据类型为int32 type
     auto expandXDesc = context->GetInputDesc(EXPAND_X_INDEX);
@@ -60,12 +84,10 @@ static ge::graphStatus MoeDistributeCombineV2TilingFuncExtend(gert::TilingContex
 
     std::string socVersion = mc2tiling::GetSocVersion(context);
     ge::graphStatus ret;
-    if (socVersion == "Ascend910B") {
-        ret = MoeDistributeCombineA2TilingFuncImpl(context);
-    } else if (socVersion == "Ascend950") {
-        ret = MoeDistributeCombineA5TilingFuncImpl(context);
+    if (socVersion == "Ascend950") {
+        ret = MoeDistributeCombineA5ExtendTilingFuncImpl(context);
     } else {
-        ret = MoeDistributeCombineA3TilingFuncImpl(context);
+        return ge::GRAPH_
     }
 
     return ret;
