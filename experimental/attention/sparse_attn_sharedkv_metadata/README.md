@@ -13,8 +13,6 @@
 
 ## 参数说明
 
->- 参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Hidden Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）注意力头的维度，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
-
 <table style="undefined;table-layout: fixed; width: 1000px">
   <colgroup>
   <col style="width: 100px">
@@ -163,13 +161,13 @@
       <td>layout_q</td>
       <td>可选属性</td>
       <td>用于标识输入q的数据排布格式,默认值为BSND，目前支持传入BSND和TND。</td>
-      <td>STRING</td>
+      <td>String</td>
     </tr>
     <tr>
       <td>layout_kv</td>
       <td>可选属性</td>
       <td>用于标识输入ori_kv和cmp_kv的数据排布格式，目前仅支持传入默认值PA_ND。</td>
-      <td>STRING</td>
+      <td>String</td>
       <td>-</td>
     </tr>
     <tr>
@@ -190,7 +188,7 @@
       <td>device</td>
       <td>可选属性</td>
       <td>npu的ID，当输入`Tensor`均没有传入时，此字段必填，用于获取设备信息。</td>
-      <td>STRING</td>
+      <td>String</td>
       <td>-</td>
     </tr>
     <tr>
