@@ -293,9 +293,15 @@ aclnnStatus aclnnGroupedMatmulV4(
     <tr>
       <td>actType</td>
       <td>输入</td>
-      <td>代表激活函数类型</td>
-      <td>枚举值0、1、2、3、4、5。综合约束请参见<a href="#约束说明">约束说明。</td>
-      <td>-</td>
+      <td>代表激活函数类型。</td>
+      <td>取值范围为0-5。<br>
+          0：GMM_ACT_TYPE_NONE；<br>
+          1：GMM_ACT_TYPE_RELU；<br>
+          2：GMM_ACT_TYPE_GELU_TANH；<br>
+          3：GMM_ACT_TYPE_GELU_ERR_FUNC；<br>
+          4：GMM_ACT_TYPE_FAST_GELU；<br>
+          5：GMM_ACT_TYPE_SILU；<br>综合约束请参见<a href="#约束说明">约束说明</a>。</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -368,7 +374,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - scaleOptional支持UINT64、INT64、BFLOAT16、FLOAT32、FLOAT8_E8M0
     - perTokenScaleOptional支持FLOAT32、FLOAT8_E8M0
     - groupListType不支持取2
-    - actType支持传入0、1、2、4、5
+    - actType支持0、1、2、4、5，综合约束请参见<a href="#约束说明">约束说明</a>
     - out支持BFLOAT16、FLOAT16、FLOAT32
     - 不支持offsetOptional
     - groupType支持m轴分组，仅非量化和量化支持k轴分组，仅非量化和伪量化支持不分组
@@ -789,7 +795,7 @@ aclnnStatus aclnnGroupedMatmulV4(
   - 公共约束：
 
     - groupListType：支持取值0、1。当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列。
-    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5，当前支持传入0、1、2、4、5。当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数。枚举值如下：
+    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5，枚举值如下：
       * 0：GMMActType::GMM_ACT_TYPE_NONE；
       * 1：GMMActType::GMM_ACT_TYPE_RELU；
       * 2：GMMActType::GMM_ACT_TYPE_GELU_TANH；
@@ -978,8 +984,17 @@ aclnnStatus aclnnGroupedMatmulV4(
           | 2 | 单单单 |1）仅支持splitItem为2/3<br>2）x，weight中tensor需为2维，shape分别为（K, M）和（K, N）；out中tensor需为3维, shape为（g, M, N）<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值不大于x中tensor的第一维，当groupListType为1时，数值的总和不大于x中tensor的第一维<br>4）groupListOptional第1维最大支持1024，即最多支持1024个group<br>5）x必须转置，weight不能转置<br>6）仅支持非量化和量化<br>7）仅支持ND进ND出|
 
     </details>
-</details>
 
+    <details>
+    <summary><term>不同actType约束</term></summary>
+    <a id="不同actType约束"></a>
+    
+    - 不同actType支持场景:
+      - 在伪量化和非量化场景下，actType仅支持0。
+      - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数，actType参数支持传入0、1、2、4、5。其余全量化场景不支持激活函数。
+      
+    </details>
+</details>
 ## 调用示例
 
 调用示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
