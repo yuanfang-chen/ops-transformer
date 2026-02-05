@@ -3501,8 +3501,14 @@ void PromptFlashAttentionTilingV2::FixParamWithRowInvalid(int64_t& actualSeqLeng
     // 若出现行无效，需要重新计算nexttokens，pretokens，actualseqlen，以便正确计算分核核数
     int64_t nextTokensError = (nextTokensLeftUp < 0) ? -nextTokensLeftUp : 0;
     nextTokensError = nextTokensError > actualSeqLength ? actualSeqLength : nextTokensError;
-    int64_t preTokensError = (actualSeqLength > actualSeqLengthKV + preTokensLeftUp) ?
-        (actualSeqLength - actualSeqLengthKV - preTokensLeftUp) : 0;
+    int64_t preTokensError = 0;
+    if (enableIFAMLA) {
+        preTokensError = (actualSeqLength > actualSeqLengthKV * gSize + preTokensLeftUp) ?
+            (actualSeqLength - actualSeqLengthKV * gSize - preTokensLeftUp) : 0;
+    } else {
+        preTokensError = (actualSeqLength > actualSeqLengthKV + preTokensLeftUp) ?
+            (actualSeqLength - actualSeqLengthKV - preTokensLeftUp) : 0;
+    }
     preTokensError = preTokensError > actualSeqLength ? actualSeqLength : preTokensError;
 
     // 若出现上方行无效，需要重新计算nexttokens，pretokens，actualseqlen
