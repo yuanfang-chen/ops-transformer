@@ -104,6 +104,7 @@ public:
             .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
             .ExtendCfgInfo("opFile.value", "allto_all_matmul_apt");
         this->AICore().AddConfig("ascend950", aicoreConfig_950);
+        this->AICore().AddConfig("ascend910_93", aicoreConfig_950);
 
         // 将group配置为该算子的通信域
         this->MC2().HcclGroup("group");
@@ -180,7 +181,6 @@ public:
             .ExtendCfgInfo("jitCompile.flag", "static_false")
             .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel");
         this->AICore().AddConfig("ascend910b", aicore_config_910b);
-        this->AICore().AddConfig("ascend910_93", aicore_config_910b);
         this->MC2().HcclGroup("group");
     }
 };
