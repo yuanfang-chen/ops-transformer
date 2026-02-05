@@ -35,6 +35,7 @@
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
 #include "../../../moe_distribute_combine_v2/op_host/op_tiling/moe_distribute_combine_tiling_v2.h"
+#include "../../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_tiling.h"
 #include "mc2_hcom_topo_info.h"
 
 using namespace Mc2Tiling;
@@ -71,7 +72,7 @@ ge::graphStatus MoeDistributeCombineV3TilingFunc(gert::TilingContext* context)
     config.hasAddRmsNorm = false;
     config.isMc2Context = true;
 
-    ret = MoeDistributeCombineV3TilingFuncNew(context, config, isContext);
+    auto ret = MoeDistributeCombineV2TilingFuncNew(context, config);
     return ret;
 }
 
