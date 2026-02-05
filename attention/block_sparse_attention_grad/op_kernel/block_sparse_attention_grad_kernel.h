@@ -16,8 +16,6 @@
 #ifndef BLOCK_SPARSE_ATTENTION_GRAD_KERNEL_H
 #define BLOCK_SPARSE_ATTENTION_GRAD_KERNEL_H
 
-#include "kernel_common.hpp"
-
 using namespace NpuArch;
 
 namespace BSA {
