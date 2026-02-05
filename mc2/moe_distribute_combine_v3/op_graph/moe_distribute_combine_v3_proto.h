@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fusion_ops.h
+ * \file moe_distribute_combine_v3_proto.h
  * \brief
  */
 #ifndef OPS_BUILT_IN_OP_PROTO_INC_FUSION_OPS_H_
@@ -24,41 +24,49 @@ namespace ge {
 * @brief MoeDistributeCombineV3 operator interface implementation.
 
 * @par Inputs
-* Ten inputs, including:
+* @li context: A tensor. Support dtype: int32, dimension must be 1, Support Shape (2052, ), support format: ND.
 * @li expand_x: A tensor. Support dtype: float16, bfloat16, int32, dimension must be 2, Support Shape: (A * world_size, H), support format: ND.
 * @li expert_ids: A tensor. Support dtype: int32, dimension must be 2, Support Shape: (BS, K), support format: ND.
 * @li assist_info_for_combine: A tensor. Support dtype: int32, dimension must be 1, Support Shape: (A * 128), support format: ND.
 * @li ep_send_counts: A tensor. Support dtype: int32, Support Shape: (expert_nums + 2 * globalBs * K * server_num, ), support format: ND.
 * @li expert_scales: A tensor. Support dtype: float32, Support Shape: (BS, K), support format: ND.
-* @li tp_send_counts: A tensor. Support dtype: int32, support format: ND.
-* @li x_active_mask: An optional tensor. Support dtype: bool, support format: ND.
+* @li tp_send_counts: A tensor. Support dtype: int32, Support Shape: (Bs, K), support format: ND.
+* @li x_active_mask: An optional tensor. Support dtype: bool, Support Shape: (Bs, ) or (Bs, K), support format: ND.
 * @li activation_scale: An optional tensor. Support dtype: float32, support format: ND.
-* @li weight_scale: An optional tensor. Support dtype: float32, support format: ND.
+* @li weight_scale: An optional tensor. Support dtype: float32, Support Shape: (A, ), support format: ND.
 * @li group_list: An optional tensor. Support dtype: int64, support format: ND.
 * @li expand_scales: A tensor. Support dtype: float32, Support Shape: (A, ), support format: ND.
-* @li shared_expert_x: A tensor. Support dtype: float16, bfloat16, int32, support format: ND.
-* @li performance_info: A tensor. Support dtype: int64, support format: ND.
+* @li shared_expert_x: A tensor. Support dtype: float16, bfloat16, int32, Support Shape: (Bs, H) or (dim0, dim1, H）where dim0 * dim1 equal to Bs, support format: ND.
+* @li elastic_info: An optional tensor. Support dtype: int32, Support Shape: (4 + 2 * ep_world_size, ) support format: ND.
+* @li ori_x: A tensor, reserved. Support dtype: float16, bfloat16, int32, support format: ND.
+* @li const_expert_alpha_1: A tensor, reserved. Support dtype: float16, bfloat16, int32, support format: ND.
+* @li const_expert_alpha_2: A tensor, reserved. Support dtype: float16, bfloat16, int32, support format: ND.
+* @li const_expert_v : A tensor, reserved. Support dtype: float16, bfloat16, int32, support format : ND.
+* @li performance_info: A tensor. Support dtype: int64, Support Shape: (ep_world_size) support format: ND.
 
 * @par Attributes
-* @li group_ep: Input ep comm group name, ep means experts parallelism, dtype: String.
 * @li ep_world_size: Input ep comm world size, dtype: Int64.
 * @li ep_rank_id: Input ep comm rank Id, dtype: Int64.
 * @li moe_expert_num: Input moe expert num, dtype: Int64.
-* @li group_tp: Input tp comm group name, tp means tensor parallelism, dtype: String.
-* @li tp_world_size: Input tp comm world size, dtype: Int64.
-* @li tp_rank_id: Input tp comm rank Id, dtype: Int64.
-* @li expert_shard_type: Input moe shard type, dtype: Int64.
-* @li shared_expert_num: Input shared expert num, dtype: Int64.
-* @li shared_expert_rank_num: Input shared expert rank num, dtype: Int64.
-* @li global_bs: Input global batch size, dtype: Int64.
+* @li ccl_buffer_size: Input ccl buffer size, dtype: Int64.
+* @li tp_world_size: Input tp comm world size, dtype: int64. Support Range: [0, 2], Default: 0.
+* @li tp_rank_id: Input tp comm rank Id, dtype: int64. Support Range: [0, 2], Default: 0.
+* @li expert_shard_type: Input moe shard type, dtype: int64. Support Range: [0], Default: 0.
+* @li shared_expert_num: Input shared expert num, dtype: int64. Support Range: [0, 4], Default: 0.
+* @li shared_expert_rank_num: Input shared expert rank num, dtype: int64. Support Range: [0, ep_world_size), Default: 0.
+* @li global_bs: Input global batch size, dtype: int64. The options are : 0 or (Bs * ep_world_size) when Bs is uniform across ranks; (maxBs * ep_world_size) when Bs is different across ranks, maxBs is the largest possible Bs. Default: 0.
 * @li out_dtype: Dtype of output, 0 for bfloat16, 1 for float16, dtype: Int64.
 * @li comm_quant_mode: communication quantization mode, 1 for enable, 0 for disable, dtype: Int64.
 * @li group_list_type: type of input group_list, dtype: Int64.
-* @li comm_alg: Input comm alg type, dtype: String.
+* @li comm_alg: Input comm alg type, dtype: String. Support: (nullptr, "fullmesh_v1", "fullmesh_v2"). Default: "".
+* @li zero_expert_num: Input zero expert num, dtype: int64. Support Range: [0, MAX_INT32)，MAX_INT32 = 2^31 - 1. Default: 0.
+* @li copy_expert_num: Input copy expert num, dtype: int64. Support Range: [0, MAX_INT32)，MAX_INT32 = 2^31 - 1, Default: 0.
+* @li const_expert_num: Input const expert num, dtype: int64. Support: 0, Default: 0.
+
 
 * @par Outputs
 * One outputs, including:
-* @li x: A tensor. Result of combine. Support dtype: float16,bfloat16,  Support Shape: (BS, H), support format: ND.
+* x: A tensor. Result of combine. Support dtype: float16,bfloat16,  Support Shape: (BS, H), support format: ND.
 */
 REG_OP(MoeDistributeCombineV3)
     .INPUT(context, TensorType({DT_INT32}))
@@ -81,11 +89,10 @@ REG_OP(MoeDistributeCombineV3)
     .OPTIONAL_INPUT(const_expert_v, TensorType({DT_BF16, DT_FLOAT16, DT_INT32}))
     .OPTIONAL_INPUT(performance_info, TensorType({DT_INT64}))
     .OUTPUT(x, TensorType({DT_BF16, DT_FLOAT16}))
-    .REQUIRED_ATTR(group_ep, String)
     .REQUIRED_ATTR(ep_world_size, Int)
     .REQUIRED_ATTR(ep_rank_id, Int)
     .REQUIRED_ATTR(moe_expert_num, Int)
-    .ATTR(group_tp, String, "")
+    .REQUIRED_ATTR(ccl_buffer_size, Int)
     .ATTR(tp_world_size, Int, 0)
     .ATTR(tp_rank_id, Int, 0)
     .ATTR(expert_shard_type, Int, 0)

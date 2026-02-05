@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fusion_ops.h
+ * \file moe_distribute_dispatch_v3_proto.h
  * \brief
  */
 #ifndef OPS_BUILT_IN_OP_PROTO_INC_FUSION_OPS_H_
@@ -22,29 +22,33 @@ namespace ge {
 * @brief MoeDistributeDispatchV3 operator interface implementation.
 
 * @par Inputs
-* Five inputs, including:
+* @li context: A tensor. Support dtype: int32, dimension must be 1. Shape supports (2052, ), support format: ND.
 * @li x: A tensor. Support dtype: float16,bfloat16, dimension must be 2. Shape supports (BS, H), support format: ND.
 * @li expertIds: A tensor. Support dtype: int32, indicates top k experts of each token, dimension must be 2. Shape supports (BS, K), support format: ND.
 * @li scales: An optional tensor. Support dtype: float32, dimension must be 2, support format: ND.
-* @li x_active_mask: An optional tensor. Support dtype: bool, support format: ND.
+* @li x_active_mask: An optional tensor. Support dtype: bool, Support Shape: (Bs, ) or (Bs, K), support format: ND.
 * @li expert_scales: An optional tensor. Support dtype: float32. Shape supports (BS, K), support format: ND.
-* @li performance_info: An optional tensor. Support dtype: int64, support format: ND.
+* @li elastic_info: An optional tensor. Support dtype: int32, Support Shape: (4 + 2 * ep_world_size, ) support format: ND.
+* @li performance_info: A tensor. Support dtype: int64, Support Shape: (ep_world_size) support format: ND.
 
 * @par Attributes
-* @li group_ep: Required. Input ep comm group name, ep means experts parallelism, dtype: String.
 * @li ep_world_size: Required. Input ep comm world size, dtype: int64.
 * @li ep_rank_id: Required. Input ep comm rank Id, dtype: int64.
 * @li moe_expert_num: Required. Input moe expert num, dtype: int64.
-* @li group_tp: Input tp comm group name, tp means tensor parallelism, dtype: String.
-* @li tp_world_size: Input tp comm world size, dtype: int64.
-* @li tp_rank_id: Input tp comm rank Id, dtype: int64.
-* @li expert_shard_type: Input moe shard type, dtype: int64.
-* @li shared_expert_num: Input shared expert num, dtype: int64.
-* @li shared_expert_rank_num: Input shared expert rank num, dtype: int64.
+* @li ccl_buffer_size: Required. Input ccl buffer size, dtype: int64.
+* @li tp_world_size: Input tp comm world size, dtype: int64. Support Range: [0, 2], Default: 0.
+* @li tp_rank_id: Input tp comm rank Id, dtype: int64. Support Range: [0, 2], Default: 0.
+* @li expert_shard_type: Input moe shard type, dtype: int64. Support Range: [0], Default: 0.
+* @li shared_expert_num: Input shared expert num, dtype: int64. Support Range: [0, 4], Default: 0.
+* @li shared_expert_rank_num: Input shared expert rank num, dtype: int64. Support Range: [0, ep_world_size), Default: 0.
 * @li quant_mode: Input quant mode. The options are 0 (non-quantization), 1 (static quantization), and 2 (dynamic quantization). dtype: int64.
-* @li global_bs: Input global batch size, dtype: int64.
-* @li expert_token_nums_type: Input expert token nums type, dtype: int64.
-* @li comm_alg: Input comm alg type, dtype: String.
+* @li global_bs: Input global batch size, dtype: int64. The options are : 0 or (Bs * ep_world_size) when Bs is uniform across ranks; (maxBs * ep_world_size) when Bs is different across ranks, maxBs is the largest possible Bs. Default: 0.
+* @li expert_token_nums_type: Input expert token nums type, dtype: int64. Support:0, Default: 0.
+* @li comm_alg: Input comm alg type, dtype: String. Support: ("", "fullmesh_v1", "fullmesh_v2"). Default: "".
+* @li zero_expert_num: Input zero expert num, dtype: int64. Support Range: [0, MAX_INT32)，MAX_INT32 = 2^31 - 1. Default: 0.
+* @li copy_expert_num: Input copy expert num, dtype: int64. Support Range: [0, MAX_INT32)，MAX_INT32 = 2^31 - 1, Default: 0.
+* @li const_expert_num: Input const expert num, dtype: int64. Support: 0, Default: 0.
+* @li y_dtype: Input y dtype, dtype: int64. Support: 28, Default: 28.
 
 * @par Outputs
 * Seven outputs, including:
@@ -72,11 +76,10 @@ REG_OP(MoeDistributeDispatchV3)
     .OUTPUT(ep_recv_count, TensorType({DT_INT32}))
     .OUTPUT(tp_recv_count, TensorType({DT_INT32}))
     .OUTPUT(expand_scales, TensorType({DT_FLOAT}))
-    .REQUIRED_ATTR(group_ep, String)
     .REQUIRED_ATTR(ep_world_size, Int)
     .REQUIRED_ATTR(ep_rank_id, Int)
     .REQUIRED_ATTR(moe_expert_num, Int)
-    .ATTR(group_tp, String, "")
+    .REQUIRED_ATTR(ccl_buffer_size, Int)
     .ATTR(tp_world_size, Int, 0)
     .ATTR(tp_rank_id, Int, 0)
     .ATTR(expert_shard_type, Int, 0)
