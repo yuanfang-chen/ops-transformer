@@ -11,15 +11,7 @@
 |<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
-- API功能：`KvQuantSparseAttentionSharedkvMetadata`算子旨在生成一个任务列表，包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引，供后续`KvQuantSparseAttentionSharedkv`算子使用。
-- KvQuantSparseAttentionSharedkv计算公式：
-
-    $$
-    O = \text{softmax}(Q@\tilde{K}^T \cdot \text{softmax\_scale})@\tilde{V}
-    $$
-
-    其中$\tilde{K}=\tilde{V}$为基于入参控制的实际参与计算的$KV$。
-
+- API功能：`KvQuantSparseAttnSharedkvMetadata`算子旨在生成一个任务列表，包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引，供后续`KvQuantSparseAttnSharedkv`算子使用。
 
 ## 参数说明
 | 参数名           |输入/输出/属性|    描述    | 数据类型    |数据格式|
