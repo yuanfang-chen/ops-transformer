@@ -23,6 +23,7 @@
 #include "arch32/allto_all_matmul_a4w4.h"
 #endif
 
+// FOR TEST
 using namespace AscendC;
 using namespace AlltoAllMatmulImpl;
 
