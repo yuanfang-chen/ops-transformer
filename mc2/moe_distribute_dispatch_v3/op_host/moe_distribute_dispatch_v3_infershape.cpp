@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_infer_v2.cpp
+ * \file moe_distribute_dispatch_v3_infershape.cpp
  * \brief
  */
 #include "register/op_impl_registry.h"
@@ -44,8 +44,8 @@ static constexpr size_t DISPATCH_INPUT_CONTEXT_INDEX = 0;
 static constexpr size_t DISPATCH_INPUT_X_INDEX = 1;
 static constexpr size_t DISPATCH_INPUT_EXPERT_IDS_INDEX = 2;
 static constexpr size_t DISPATCH_INPUT_SCALES_IDX_INDEX = 3;
-static constexpr size_t DISPATCH_INPUT_EXPERT_SCALES_IDX_INDEX = 4;
-static constexpr size_t DISPATCH_INPUT_ELASTIC_INFO_IDX_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_EXPERT_SCALES_IDX_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_ELASTIC_INFO_IDX_INDEX = 6;
 static constexpr size_t DISPATCH_OUTPUT_EXPAND_X_INDEX = 0;
 static constexpr size_t DISPATCH_OUTPUT_DYNAMIC_SCALES_INDEX = 1;
 static constexpr size_t DISPATCH_OUTPUT_ASSIST_INFO_IDX_INDEX = 2;
@@ -53,23 +53,23 @@ static constexpr size_t DISPATCH_OUTPUT_EXPERT_TOKEN_NUMS_INDEX = 3;
 static constexpr size_t DISPATCH_OUTPUT_EP_RECV_COUNTS_INDEX = 4;
 static constexpr size_t DISPATCH_OUTPUT_TP_RECV_COUNTS_INDEX = 5;
 static constexpr size_t DISPATCH_OUTPUT_EXPAND_SCALES = 6;
-static constexpr size_t DISPATCH_INPUT_ATTR_EP_WORLD_SIZE_INDEX = 1;
-static constexpr size_t DISPATCH_INPUT_ATTR_EP_RANK_ID_INDEX = 2;
-static constexpr size_t DISPATCH_INPUT_ATTR_MOE_EXPERT_NUM_INDEX = 3;
-static constexpr size_t DISPATCH_INPUT_ATTR_TP_WORLD_SIZE_INDEX = 5;
-static constexpr size_t DISPATCH_INPUT_ATTR_TP_RANK_ID_INDEX = 6;
-static constexpr size_t DISPATCH_INPUT_ATTR_EXPERT_SHARD_TYPE_INDEX = 7;
-static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_NUM_INDEX = 8;
-static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 9;
-static constexpr size_t DISPATCH_INPUT_ATTR_QUANT_MODE_INDEX = 10;
-static constexpr size_t DISPATCH_INPUT_ATTR_GLOBAL_BS_INDEX = 11;
-static constexpr size_t DISPATCH_INPUT_ATTR_Y_DTYPE_INDEX = 17;
+static constexpr size_t DISPATCH_INPUT_ATTR_EP_WORLD_SIZE_INDEX = 0;
+static constexpr size_t DISPATCH_INPUT_ATTR_EP_RANK_ID_INDEX = 1;
+static constexpr size_t DISPATCH_INPUT_ATTR_MOE_EXPERT_NUM_INDEX = 2;
+static constexpr size_t DISPATCH_INPUT_ATTR_TP_WORLD_SIZE_INDEX = 4;
+static constexpr size_t DISPATCH_INPUT_ATTR_TP_RANK_ID_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_ATTR_EXPERT_SHARD_TYPE_INDEX = 6;
+static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_NUM_INDEX = 7;
+static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 8;
+static constexpr size_t DISPATCH_INPUT_ATTR_QUANT_MODE_INDEX = 9;
+static constexpr size_t DISPATCH_INPUT_ATTR_GLOBAL_BS_INDEX = 10;
+static constexpr size_t DISPATCH_INPUT_ATTR_Y_DTYPE_INDEX = 16;
 
 static constexpr uint32_t VERSION_SIZE = 32;
 const std::set<std::string> PLATFORM_A2 = {"Ascend910B"};
 const std::set<std::string> NPUARCH_A5 = {std::to_string(static_cast<uint32_t>(NpuArch::DAV_3510))};
 
-bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
+static bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
 {
     char versionValVersion[VERSION_SIZE];
     // rtGetSocSpec获取成功返回值是0，获取失败返回非0

@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fusion_ops.h
+ * \file moe_distribute_dispatch_v3_proto.h
  * \brief
  */
 #ifndef OPS_BUILT_IN_OP_PROTO_INC_FUSION_OPS_H_
@@ -72,11 +72,10 @@ REG_OP(MoeDistributeDispatchV3)
     .OUTPUT(ep_recv_count, TensorType({DT_INT32}))
     .OUTPUT(tp_recv_count, TensorType({DT_INT32}))
     .OUTPUT(expand_scales, TensorType({DT_FLOAT}))
-    .REQUIRED_ATTR(group_ep, String)
     .REQUIRED_ATTR(ep_world_size, Int)
     .REQUIRED_ATTR(ep_rank_id, Int)
     .REQUIRED_ATTR(moe_expert_num, Int)
-    .ATTR(group_tp, String, "")
+    .REQUIRED_ATTR(ccl_buffer_size, Int)
     .ATTR(tp_world_size, Int, 0)
     .ATTR(tp_rank_id, Int, 0)
     .ATTR(expert_shard_type, Int, 0)

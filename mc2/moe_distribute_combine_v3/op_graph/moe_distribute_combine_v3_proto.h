@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fusion_ops.h
+ * \file moe_distribute_combine_v3_proto.h
  * \brief
  */
 #ifndef OPS_BUILT_IN_OP_PROTO_INC_FUSION_OPS_H_
@@ -81,11 +81,10 @@ REG_OP(MoeDistributeCombineV3)
     .OPTIONAL_INPUT(const_expert_v, TensorType({DT_BF16, DT_FLOAT16, DT_INT32}))
     .OPTIONAL_INPUT(performance_info, TensorType({DT_INT64}))
     .OUTPUT(x, TensorType({DT_BF16, DT_FLOAT16}))
-    .REQUIRED_ATTR(group_ep, String)
     .REQUIRED_ATTR(ep_world_size, Int)
     .REQUIRED_ATTR(ep_rank_id, Int)
     .REQUIRED_ATTR(moe_expert_num, Int)
-    .ATTR(group_tp, String, "")
+    .REQUIRED_ATTR(ccl_buffer_size, Int)
     .ATTR(tp_world_size, Int, 0)
     .ATTR(tp_rank_id, Int, 0)
     .ATTR(expert_shard_type, Int, 0)
