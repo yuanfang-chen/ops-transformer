@@ -288,15 +288,17 @@ soc_version = sys.argv[8]
 error_dict = {}
 max_dis_run_num = 0
 max_com_run_num = 0
+soc_version_950 = "950"
+soc_version_930 = "930"
 
-if (soc_version == "910_95"):
+if (soc_version == soc_version_950):
     perfix = "mc2_"
     endfix = ""
-elif (soc_version == "910_93"):
+elif (soc_version == soc_version_930):
     perfix = "exception_info"
     endfix = ".workspace.1.bin.npy"
 else:
-    logging.error("soc_version:%d 非法输入, soc_version should be: 910_93 or 910_95", soc_version)
+    logging.error("soc_version:%d 非法输入, soc_version should be: %s or %s", soc_version, soc_version_950, soc_version_930)
 
 for filename in tqdm(os.listdir(os.path.join(floder_path))):
     if filename.startswith(perfix) and filename.endswith(endfix):
@@ -306,7 +308,7 @@ for filename in tqdm(os.listdir(os.path.join(floder_path))):
         with open(file_path, "rb") as f:
             arr = np.frombuffer(f.read(), dtype=np.int8)
         last_1M = arr[-1024 * 1024:]
-        dis_0_status = last_1M[0:65 * 1024]
+        dis_0_status = last_1M[0:64 * 1024]
         com_0_status = last_1M[64 * 1024:384 * 1024]
         dis_1_status = last_1M[384 * 1024:448 * 1024]
         com_1_status = last_1M[448 * 1024:768 * 1024]
