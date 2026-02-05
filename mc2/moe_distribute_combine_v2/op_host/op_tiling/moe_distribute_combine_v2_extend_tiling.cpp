@@ -43,8 +43,7 @@
 using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
-
-using namespace optiling::index_extend;
+using namespace common_const::index_extend;
 
 
 namespace optiling {

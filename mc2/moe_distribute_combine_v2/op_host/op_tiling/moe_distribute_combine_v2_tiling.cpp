@@ -44,10 +44,7 @@ using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
 using namespace common_const;
-
-
 using Idx = common_const::Index;
-// CheckInputTensorDim_1<Idx>(cxt, nodeName);
 
 namespace {
 const char *K_INNER_DEBUG = "MoeDistributeCombineV2 Tiling Debug";
