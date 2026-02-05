@@ -18,7 +18,7 @@
 - 接口功能：
   GroupedMatmul和MoeFinalizeRouting的融合算子，GroupedMatmul计算后的输出按照索引做combine动作。
   本接口相较于[aclnnGroupedMatmulFinalizeRoutingV2](aclnnGroupedMatmulFinalizeRoutingV2.md)，新增入参tuningConfigOptional，调优参数。数组中的第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值合理进行tiling切分，性能更优。请根据实际情况选择合适的接口。
-  新增了MX量化场景（仅 Ascend 950PR/Ascend 950DT 支持），相关信息参考[量化介绍](../../../docs/zh/context/量化介绍.md)。
+  新增了MX量化场景（仅<term>Ascend 950PR/Ascend 950DT</term>支持），相关信息参考[量化介绍](../../../docs/zh/context/量化介绍.md)。
 - 计算公式：
 
   - 1.分组矩阵乘法GMM：
@@ -348,8 +348,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   - logitOptional支持m和x的m一致。
   - rowIndexOptional支持m和x的m一致。
   - x1、x2、groupListOptional是必选参数，scaleOptional、pertokenScaleOptional、logitOptional、rowIndexOptional、biasOptional，sharedInputOptional是可选参数。
-- <term>Ascend 950PR/Ascend 950DT</term>：
 
+- <term>Ascend 950PR/Ascend 950DT</term>：
   - x1不支持INT8。
   - x2不支持INT4。维度为(e,k,n)，转置情况下维度为(e,n,k)，e取值范围[1,1024]。
   - scaleOptional支持FLOAT8_E8M0。shape支持四维，维度为(e,n,Ceil(k/64),2) 并且数据类型只支持FLOAT8_E8M0，转置属性必须和x2保持一致。
@@ -440,9 +440,10 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
 ## 约束说明
 
 - 确定性计算：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+  - <term>Ascend 950PR/Ascend 950DT</term> ：aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，不支持通过aclrtCtxSetSysParamOpt开启确定性。
 
-  - aclnnGroupedMatmulFinalizeRoutingV3默认非确定性实现，Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品支持通过aclrtCtxSetSysParamOpt开启确定性，Ascend 950PR/Ascend 950DT暂不支持。
-- **伪量化场景支持类型**输入和输出支持以下数据类型组合：
+- **伪量化场景支持类型**（仅<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>支持）输入和输出支持以下数据类型组合：
 
   | x1   | x2   | scaleOptional | biasOptional | offsetOptional | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional | groupListOptional | sharedInputOptional | logitOptional | rowIndexOptional | out     |
   | ---- | ---- | ------------- | ------------ | -------------- | ---------------------- | ----------------------- | --------------------- | ----------------- | ------------------- | ------------- | ---------------- | ------- |
@@ -454,7 +455,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   - 在该场景中，biasOptional代表离线计算的辅助结果，值要求为$8 \times w \times scaleOptional$，并在第一维累加。
   - 该场景支持对称量化和非对称量化。在对称量化时，offsetOptional需要设置为空；在非对称量化时，offsetOptional代表离线计算的辅助结果，即为$antiquantOffsetOptional \times   scaleOptional$的结果。
   - 在该场景中，antiquantScaleOptional、antiquantOffsetOptional必须设置为空。
-- **MX场景支持类型**（仅<term>Ascend 950PR/Ascend 950DT</term>支持）输入和输出支持以下数据类型组合：
+- **MX全量化场景支持类型**（仅<term>Ascend 950PR/Ascend 950DT</term>支持）输入和输出支持以下数据类型组合：
   
   | MX量化场景 | x1                        | x2                         | scaleOptional | biasOptional  | pertokenScaleOptional | groupListOptional | sharedInputOptional | logitOptional | rowIndexOptional | out     |
   | ---------- | ------------------------- | -------------------------- | ------------- | ------------- | --------------------- | ----------------- | ------------------- | ------------- | ---------------- | ------- |
@@ -779,7 +780,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   }
 ```
 
-  在 Ascend 950PR/Ascend 950DT 上示例代码如下：
+在<term>Ascend 950PR/Ascend 950DT</term>上示例代码如下：
 
 ```cpp
 #include <iostream>
