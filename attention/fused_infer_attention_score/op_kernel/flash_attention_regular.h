@@ -558,7 +558,7 @@ namespace SplitFuse {
                     }
                     if (nextToken < 0 && nextToken * (-1) >= kvSeqlen) {
  	                    kvSLoopNumTotal = 0;
- 	  	            } else  if (nextToken != SPARSE_MODE_INT_MAX) {
+ 	  	            } else if (nextToken != SPARSE_MODE_INT_MAX) {
                         leftPointNextToken = kvSeqlen - qSeqlen + nextToken;
                         nextTokenStartLen = qSBlockIdx * curQSBlockTile + leftPointNextToken;
                         nextTokenEndLen = qSBlockIdx * curQSBlockTile + qSBlockSize + leftPointNextToken;
