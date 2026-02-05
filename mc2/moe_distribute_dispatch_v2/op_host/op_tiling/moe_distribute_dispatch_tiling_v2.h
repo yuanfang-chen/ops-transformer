@@ -16,9 +16,13 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_TILING_V2
 #define MOE_DISTRIBUTE_DISPATCH_TILING_V2
 
-#include "tiling/mc2_tiling_utils.h"
-#include "register/tilingdata_base.h"
+#include <cstdint>
 #include "tiling/tiling_api.h"
+#include "graph/utils/type_utils.h"
+#include "register/tilingdata_base.h"
+#include "tiling_base/tiling_base.h"
+#include "tiling/mc2_opversion_manager.h"
+using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
 
@@ -31,10 +35,28 @@ struct DispatchV2Config {
     uint32_t expertScalesIndex = 4U;
     uint32_t elasticInfoIndex = 5U;
     uint32_t performanceInfoIndex = 6U;
+    uint32_t attrGroupEpIndex = 0;
+    uint32_t attrEpWorldSizeIndex = 1;
+    uint32_t attrEpRankIdIndex = 2;
+    uint32_t attrMoeExpertNumIndex = 3;
+    uint32_t attrCclBufferSizeIndex = 3;
+    uint32_t attrGroupTpIndex = 4;
+    uint32_t attrTpWorldSizeIndex = 5;
+    uint32_t attrTpRankIdIndex = 6;
+    uint32_t attrExpertSharedTypeIndex = 7;
+    uint32_t attrSharedExpertNumIndex = 8;
+    uint32_t attrSharedExpertRankNumIndex = 9;
+    uint32_t attrQuantModeIndex = 10;
+    uint32_t attrGlobalBsIndex = 11;
+    uint32_t attrExpertTokenNumsTypeIndex = 12;
+    uint32_t attrCommAlgIndex = 13;
+    uint32_t attrZeroExpertNumIndex = 14;
+    uint32_t attrCopyExpertIndex = 15;
+    uint32_t attrConstExpertNumIndex = 16;
     bool isMc2Context = false;
 };
 
-ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext* context, const DispatchV2Config& config);
+ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext* context, DispatchV2Config& config);
 
 }
 
