@@ -563,7 +563,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - groupListOptional：当输出中TensorList的长度为1时，groupListOptional约束了输出数据的有效部分，groupListOptional中未指定的部分将不会参与更新。
     - groupListType为0时要求groupListOptional中数值为非负单调非递减数列，表示分组轴大小的cumsum结果（累积和），groupListType为1时要求groupListOptional中数值为非负数列，表示分组轴上每组大小，groupListType为2时要求 groupListOptional中数值为非负数列，shape为[E, 2]，E表示Group大小，数据排布为[[groupIdx0, groupSize0], [groupIdx1, groupSize1]...]，其中groupSize为分组轴上每组大小，详见[groupListOptional配置示例](#grouplistoptional配置示例)。
     - groupType代表需要分组的轴，如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组，2：k轴分组。当前不支持n轴分组，详细参考<a href="#groupType-constraints">groupType支持场景</a>约束。
-    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5，支持的枚举值如下：
+    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型，取值范围为0-5。支持的枚举值如下：
       * 0：GMMActType::GMM_ACT_TYPE_NONE；
       * 1：GMMActType::GMM_ACT_TYPE_RELU；
       * 2：GMMActType::GMM_ACT_TYPE_GELU_TANH；
@@ -795,13 +795,9 @@ aclnnStatus aclnnGroupedMatmulV4(
   - 公共约束：
 
     - groupListType：支持取值0、1。当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列。
-    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5，枚举值如下：
-      * 0：GMMActType::GMM_ACT_TYPE_NONE；
-      * 1：GMMActType::GMM_ACT_TYPE_RELU；
-      * 2：GMMActType::GMM_ACT_TYPE_GELU_TANH；
-      * 3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC（不支持）；
-      * 4：GMMActType::GMM_ACT_TYPE_FAST_GELU；
-      * 5：GMMActType::GMM_ACT_TYPE_SILU；
+    - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5。
+      - 在伪量化和非量化场景下，actType仅支持0。
+      - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数，actType参数支持传入0、1、2、4、5。其余全量化场景不支持激活函数。
 
   
 
@@ -983,16 +979,6 @@ aclnnStatus aclnnGroupedMatmulV4(
           | 0 | 多多单 |1）仅支持splitItem为2<br>2）x，out中tensor需为2维， shape分别为（M, K）和（M, N）；weight中tensor需为2维，shape为（N, K）或（K, N）；bias中tensor需为1维，shape为（N）<br>3）weight中每个tensor的N轴必须相等<br>4）若传入groupListOptional，当groupListType为0时，groupListOptional的差值需与x中tensor的第一维一一对应，当groupListType为1时，groupListOptional的数值需与x中tensor的第一维一一对应，且长度最大为1024<br>5）支持weight转置，但weight的tensorList中每个tensor是否转置需保持统一<br>6）x不支持转置<br>7）仅支持非量化<br>8）仅支持ND进ND出<br> |
           | 2 | 单单单 |1）仅支持splitItem为2/3<br>2）x，weight中tensor需为2维，shape分别为（K, M）和（K, N）；out中tensor需为3维, shape为（g, M, N）<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值不大于x中tensor的第一维，当groupListType为1时，数值的总和不大于x中tensor的第一维<br>4）groupListOptional第1维最大支持1024，即最多支持1024个group<br>5）x必须转置，weight不能转置<br>6）仅支持非量化和量化<br>7）仅支持ND进ND出|
 
-    </details>
-
-    <details>
-    <summary><term>不同actType约束</term></summary>
-    <a id="不同actType约束"></a>
-    
-    - 不同actType支持场景:
-      - 在伪量化和非量化场景下，actType仅支持0。
-      - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数，actType参数支持传入0、1、2、4、5。其余全量化场景不支持激活函数。
-      
     </details>
 </details>
 
