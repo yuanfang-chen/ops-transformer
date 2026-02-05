@@ -124,7 +124,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
                 OP_LOGE(context_->GetNodeName(), "Bias from tensor is not nullptr, but bias from desc is nullptr."),
                 return false);
     inputParams_.biasDtype = inputParams_.hasBias ? biasDesc->GetDataType() : ge::DT_BF16;
-    OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
+    OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16 || inputParams_.biasDtype != ge::DT_FLOAT,
                 OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
                         ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
                 return false);
@@ -171,25 +171,26 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype)
     return (dtype == ge::DT_FLOAT8_E4M3FN || dtype == ge::DT_FLOAT8_E5M2);
 }
 
+
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
 {
-    bool a8w8 = IsFp8Dtype(inputParams_.aDtype) && IsFp8Dtype(inputParams_.bDtype);
-    bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
-    if (a8w8 || a4w4) {
-        OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0 ||
-                        inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
-                    OP_LOGE(context_->GetNodeName(),
-                            "With DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E2M1 inputs, \
-the expected dtype of scale and pertokenScale should be DT_FLOAT8_E8M0, but actual dtype is %s, %s.",
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str(),
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
-                    return false);
-    } else {
-        OP_LOGE(context_->GetNodeName(), "Quant case with x dtype %s and weight dtype %s is not supported.",
-                ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
-                ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str());
-        return false;
-    }
+//     bool a8w8 = IsFp8Dtype(inputParams_.aDtype) && IsFp8Dtype(inputParams_.bDtype);
+//     bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
+//     if (a8w8 || a4w4) {
+//         OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0 ||
+//                         inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
+//                     OP_LOGE(context_->GetNodeName(),
+//                             "With DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1 inputs, \
+// the expected dtype of scale and pertokenScale should be DT_FLOAT8_E8M0, but actual dtype is %s, %s.",
+//                             ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str(),
+//                             ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
+//                     return false);
+//     } else {
+//         OP_LOGE(context_->GetNodeName(), "Quant case with x dtype %s and weight dtype %s is not supported.",
+//                 ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+//                 ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str());
+//         return false;
+//     }
     return true;
 }
 
@@ -283,7 +284,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
                 return false);
     const gert::Shape &yShape = yStorageShape->GetOriginShape();
 
-    OP_CHECK_IF(!CheckShapeForMxQuant(xShape, wShape, pertokenScaleShape, scaleShape, yShape),
+    OP_CHECK_IF(IsMicroScaling() && !CheckShapeForMxQuant(xShape, wShape, pertokenScaleShape, scaleShape, yShape),
                 OP_LOGE(context_->GetNodeName(), "CheckShapeForMxQuant failed."), return false);
 
     auto sharedInputDesc = context_->GetOptionalInputDesc(SHARE_INPUT_INDEX);
@@ -325,8 +326,9 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::SetQuantModeForGMMFinalizeRouting(
         inputParams_.aQuantMode = optiling::QuantMode::MX_PERGROUP_MODE;
         return true;
     } else {
-        OP_LOGE(inputParams_.opName, "The expected dtype of scale should be DT_FLOAT8_E8M0");
-        return false;
+        inputParams_.aQuantMode = optiling::QuantMode::PERTOKEN_MODE;
+        inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
+        return true;
     }
 }
 
@@ -339,7 +341,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
     tilingData_.gmmFinalizeRoutingDataParams.residualScale = static_cast<float>(sharedInputWeight_);
     tilingData_.gmmFinalizeRoutingDataParams.aQuantMode = static_cast<uint32_t>(inputParams_.aQuantMode);
     tilingData_.gmmFinalizeRoutingDataParams.bQuantMode = static_cast<uint32_t>(inputParams_.bQuantMode);
-    tilingData_.gmmFinalizeRoutingDataParams.biasDtype = static_cast<uint32_t>(ge::DataType::DT_INT32);
+    tilingData_.gmmFinalizeRoutingDataParams.biasDtype = static_cast<uint32_t>(inputParams_.biasDtype);
     tilingData_.gmmFinalizeRoutingDataParams.groupListType = static_cast<uint8_t>(inputParams_.groupListType);
     tilingData_.gmmFinalizeRoutingDataParams.hasBias = static_cast<uint8_t>(inputParams_.hasBias ? 1 : 0);
 
