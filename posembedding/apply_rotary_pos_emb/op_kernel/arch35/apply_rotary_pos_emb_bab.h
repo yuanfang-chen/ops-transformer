@@ -230,7 +230,7 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::Compute(
     } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::INTERLEAVE)) {
         InterleaveModeVF<T>(sinTensor, cosTensor, inTensor, outTensor, tilingData_->realDim, currSNum, currDNum);
     } else {
-        QuarterAlignVF<T>(sinTensor, cosTensor, inTensor, outTensor, tilingData_->DrealDim, dAlign_, currSNum, currDNum);
+        QuarterAlignVF<T>(sinTensor, cosTensor, inTensor, outTensor, tilingData_->realDim, dAlign_, currSNum, currDNum);
     }
 }
 
