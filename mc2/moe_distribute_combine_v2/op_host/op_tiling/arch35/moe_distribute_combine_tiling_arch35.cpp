@@ -29,6 +29,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include "register/op_def_registry.h"
+#include "mc2_exception_dump.h"
 #include "tiling/tiling_api.h"
 #include "mc2_log.h"
 #include "register/tilingdata_base.h"
@@ -802,4 +803,12 @@ bool MoeDistributeCombineTilingA5::IsCapable()
     return false;
 }
 
+IMPL_OP(MoeDistributeCombineV2)
+    .ExceptionDumpParseFunc(MoeDistributeCombineV2ExceptionImplWrapper);
+
+// Register exception func
+inline void MoeDistributeCombineV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
+{
+    Mc2ExceptionImpl(args, userdata, "MoeDistributeCombineV2");
+}
 } // namespace optiling
