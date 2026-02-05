@@ -29,14 +29,14 @@ class AclnnAttentionToFfnTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
-      cout << "AclnnAttentionToFfnTest SetUp" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
+        cout << "AclnnAttentionToFfnTest SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "AclnnAttentionToFfnTest TearDown" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "AclnnAttentionToFfnTest TearDown" << endl;
     }
 };
 

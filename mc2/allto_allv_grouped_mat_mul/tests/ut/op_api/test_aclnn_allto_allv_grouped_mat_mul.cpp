@@ -27,14 +27,14 @@ class L2AlltoAllvGroupedMatMulTest : public testing::Test {
 protected:
     static void SetUpTestCase()
 	{
-	op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
-	cout << "L2AlltoAllvGroupedMatMulTest SetUp" << endl;
+		op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
+		cout << "L2AlltoAllvGroupedMatMulTest SetUp" << endl;
 	}
 
 	static void TearDownTestCase()
 	{
-	op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-	cout << "L2AlltoAllvGroupedMatMulTest TearDown" << endl;
+		op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+		cout << "L2AlltoAllvGroupedMatMulTest TearDown" << endl;
 	}
 };
 

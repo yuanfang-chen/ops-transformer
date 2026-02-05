@@ -36,8 +36,8 @@ protected:
 
     static void TearDownTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "AclnnFfnToAttentionTest TearDown" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "AclnnFfnToAttentionTest TearDown" << endl;
     }
 };
 
