@@ -1,4 +1,3 @@
-# -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
@@ -17,8 +16,6 @@ from test_compressor_paramset import ENABLED_PARAMS
 
 # ******CPU侧算子逻辑实现获取golden与npu算子直调结果
 import compressor_operator_single
-import result_compare_method
-import check_valid_param
 import pytest
 
 locals()["param_combinations"] = []
@@ -93,63 +90,11 @@ for _, params in enumerate(ENABLED_PARAMS):
         kv_state_datarange = param_combinations['kv_state_datarange']
         score_state_datarange = param_combinations['score_state_datarange']
 
-
-        
         test_data = batch_size, hidden_size, Seq_len, head_dim, block_size, rope_head_dim, cmp_ratio, coff, norm_eps, \
                     start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos, \
                     x_datarange, wkv_datarange,  wgate_datarange, ape_datarange, norm_weight_datarange, kv_state_datarange, score_state_datarange
 
         torch_npu.npu.set_device(0)
 
-        # 输入参数的合法性校验
-        try:
-            check_valid_param.check_valid_param(test_data)
-        except ValueError as e:
-            pytest.skip(f"输入参数校验失败:{e}")
-
         # 获得cpu结果(真值)和算子结果（测试值）
-        cpu_result, kv_mask_result, npu_result ,cpu_kv_state, npu_kv_state, mask_cpu_kv_state, cpu_score_state, npu_score_state, mask_cpu_score_state = compressor_operator_single.output_operator(test_data)
-        # 生成布尔掩码：A 中与 B 不相等的位置为 True
-        # mask_cpu_kv_state = cpu_kv_state != kv_state
-        # mask_cpu_score_state = cpu_score_state != score_state
-        # 使用掩码筛选 A 中不相等的元素
-        npu_kv_state = npu_kv_state.cpu()
-        npu_score_state = npu_score_state.cpu()
-        cpu_kv_state_update = cpu_kv_state[mask_cpu_kv_state]
-        npu_kv_state_update = npu_kv_state[mask_cpu_kv_state]
-        cpu_kv_state_origin = npu_kv_state[~mask_cpu_kv_state]
-        npu_kv_state_origin = npu_kv_state[~mask_cpu_kv_state]
-        cpu_score_state_update = cpu_score_state[mask_cpu_score_state]
-        npu_score_state_update = npu_score_state[mask_cpu_score_state]
-        cpu_score_state_origin = cpu_score_state[~mask_cpu_score_state]
-        npu_score_state_origin = npu_score_state[~mask_cpu_score_state]
-
-        # 结果精度对比
-        check_succeed = True
-        data_type = str(npu_result.dtype)
-        print("--------------------------------------------------------------check result-------------------------------------------------------------")
-        fulfill_percent, result = result_compare_method.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32), data_type)
-        if result == False:
-            print(f"test_data = {test_data} check result failed")
-            check_succeed = False
-        print("--------------------------------------------------------------check kv state update-------------------------------------------------------------")
-        fulfill_percent, result = result_compare_method.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32), data_type)
-        if result == False:
-            print(f"test_data = {test_data} check result failed")
-            check_succeed = False
-        print("--------------------------------------------------------------check score state update-------------------------------------------------------------")    
-        fulfill_percent, result = result_compare_method.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32), data_type)
-        if result == False:
-            print(f"test_data = {test_data} check result failed")
-            check_succeed = False
-        print("--------------------------------------------------------------check kv state origin-------------------------------------------------------------")
-        fulfill_percent, result = result_compare_method.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), data_type, 0.0)
-        if result == False:
-            print(f"test_data = {test_data} check result failed")
-            check_succeed = False
-        print("--------------------------------------------------------------check score state origin-------------------------------------------------------------")
-        fulfill_percent, result = result_compare_method.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), data_type, 0.0)
-        if result == False:
-            print(f"test_data = {test_data} check result failed")
-            check_succeed = False
-
+        compressor_operator_single.output_operator(test_data)

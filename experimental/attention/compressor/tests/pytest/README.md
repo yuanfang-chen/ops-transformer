@@ -8,7 +8,6 @@
 ## 当前实现范围
 ### 参数限制
 
-- **数据格式**:
 -   支持D为128/512。
 -   支持H为1K~10K，512对齐。
 -   泛化支持block_size小于等于1024，16对齐。
@@ -22,27 +21,28 @@
 ### 环境配置
 
 #### 前置要求
-1. 确认torch_npu为最新版本
-2. source CANN包
+1、 确认torch_npu为最新版本  
+2、 参考[Attention融合算子Experimental使用说明](../../../Attention融合算子Experimental使用说明.md)激活CANN包和自定义算子包
 #### custom包调用
 支持custom包调用
 
 ## 文件结构
 #### pytest文件结构说明
-- test_run.sh                      # 执行脚本
-- compressor_golden.py             # cpu侧算子golden实现
-- result_compare_method.py         # cpu golden与npu输出精度对比
-- pytest.ini                       # 创建ci单算子和graph图模式的测试标记
-#### 单用例测试
-- test_compressor_single.py        # 测试单用例运行主程序
-- compressor_operator_single.py    # CPU侧算子逻辑实现获取golden与npu算子直调
-- test_compressor_paramset.py      # 单用例入参配置
-#### 批量用例测试
-- test_compressor_batch.py         # 用例批量测试主程序并生成excel文件保存结果
-- compressor_pt_loadprocess.py     # 读取pt文件并调用算子获取npu输出
-- compressor_pt_save.py            # 读取excel表格批量生成用例pt文件
-- replace_path.py                  # test_compressor_batch.py占位符替换
- 
+- test_run.sh                               # 执行脚本
+- compressor_golden.py                      # cpu侧算子golden实现
+- result_compare_method.py                  # cpu golden与npu输出精度对比
+- pytest.ini                                # 创建ci单算子和graph图模式的测试标记
+
+单用例测试:
+- test_compressor_single.py                 # 测试单用例运行主程序
+- compressor_operator_single.py             # CPU侧算子逻辑实现获取golden与npu算子直调
+- test_compressor_paramset.py               # 单用例入参配置
+
+批量用例测试:
+- test_compressor_batch.py                  # 用例批量测试主程序并生成excel文件保存结果
+- ./batch/compressor_pt_loadprocess.py      # 读取pt文件并调用算子获取npu输出
+- ./batch/compressor_pt_save.py             # 读取excel表格批量生成用例pt文件
+
 
 ## 使用方法
 在pytest文件夹路径下执行：

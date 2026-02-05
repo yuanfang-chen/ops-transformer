@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2026 Huawei Technologies Co., Ltd.
@@ -12,7 +11,6 @@
 
 import itertools
 import torch
-import result_compare_method
 from batch import compressor_pt_loadprocess
 import pytest
 import random
@@ -23,6 +21,7 @@ import math
 import os
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from compressor_golden import check_result
 
 TEST_INPUT_PATH = "./pt_path"
 pt_dir = TEST_INPUT_PATH
@@ -57,18 +56,27 @@ def compressor(testcase_files):   # 初始化参数和tensor
         npu_score_state_origin = npu_score_state[~mask_cpu_score_state]
         data_type = str(npu_result.dtype)
         print("--------------------------------------------------------------check result-------------------------------------------------------------")
-        result_percent, result= result_compare_method.check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32), data_type)
+        result_percent, result= check_result(cpu_result[kv_mask_result].to(torch.float32), npu_result.cpu()[kv_mask_result].to(torch.float32), data_type)
         print("--------------------------------------------------------------check kv state update-------------------------------------------------------------")
-        kv_state_result_percent, kv_state_result= result_compare_method.check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32), data_type)
+        kv_state_result_percent, kv_state_result= check_result(cpu_kv_state_update.to(torch.float32), npu_kv_state_update.cpu().to(torch.float32), data_type)
         print("--------------------------------------------------------------check score state update-------------------------------------------------------------")
-        score_state_result_percent, score_state_result = result_compare_method.check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32), data_type)
+        score_state_result_percent, score_state_result = check_result(cpu_score_state_update.to(torch.float32), npu_score_state_update.cpu().to(torch.float32), data_type)
         print("--------------------------------------------------------------check kv state origin-------------------------------------------------------------")
-        kv_state_origin_result_percent, kv_state_origin_result = result_compare_method.check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), data_type, 0.0)
+        kv_state_origin_result_percent, kv_state_origin_result = check_result(cpu_kv_state_origin.to(torch.float32), npu_kv_state_origin.cpu().to(torch.float32), data_type, 0.0)
         print("--------------------------------------------------------------check score state origin-------------------------------------------------------------")
-        score_state_origin_result_percent, score_state_origin_result = result_compare_method.check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), data_type, 0.0)
+        score_state_origin_result_percent, score_state_origin_result = check_result(cpu_score_state_origin.to(torch.float32), npu_score_state_origin.cpu().to(torch.float32), data_type, 0.0)
     else:
         result = "Failed"
-        fulfill_percent = 0
+        result_percent = 0
+        kv_state_result = "Failed"
+        kv_state_result_percent = 0
+        score_state_result = "Failed"
+        score_state_result_percent = 0
+        kv_state_origin_result = "Failed"
+        kv_state_origin_result_percent = 0
+        score_state_origin_result = "Failed"
+        score_state_origin_result_percent = 0
+
     
     row_data = {
         "Testcase_Name": Path(testcase_files).stem,
@@ -142,4 +150,3 @@ def test_compressor(testcase_files):   # 初始化参数和tensor
                 result = future.result()
             except Exception as e:
                 pytest.fail(f"❌ 当前用例子进程执行失败：{e}")
-
