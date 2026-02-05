@@ -204,6 +204,7 @@ private:
     ge::graphStatus CheckFeatureMlaAntiquant() const;
     ge::graphStatus CheckFeatureMlaFullquant() const;
     ge::graphStatus CheckFeatureTensorList() const;
+    ge::graphStatus CheckFeatureSparseMode() const;
     ge::graphStatus CheckFeatureMask() const;
     ge::graphStatus CheckFeatureLearnableSink() const;
     ge::graphStatus CheckFeatureLayout() const;
@@ -241,6 +242,7 @@ private:
     ge::graphStatus SetAttenMaskCompare();
     ge::graphStatus CheckAttentionMask();
     ge::graphStatus CheckTokens();
+    ge::graphStatus CheckSparseMode();
     ge::graphStatus CheckMask();
     ge::graphStatus CheckSoftmaxLseShape();
     ge::graphStatus CheckSoftmaxLseDType();

@@ -97,6 +97,8 @@ enum class FiaLayout : uint32_t {
     B1S1S2 = 19,
     IS1S2 = 20,
     I1S1S2 = 21,
+    S1S1 = 22,
+    BS1S1 = 23,
 };
 
 enum class FiaAxis : uint32_t {

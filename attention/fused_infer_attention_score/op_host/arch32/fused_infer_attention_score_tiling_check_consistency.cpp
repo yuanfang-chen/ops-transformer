@@ -521,6 +521,26 @@ ge::graphStatus FiaTilingCheck::CheckSystemPrefixShape()
     return ge::GRAPH_SUCCESS;
 }
 
+// 增加拦截判断，确保在sparse9场景，s1 <= s2
+ge::graphStatus FiaTilingCheck::CheckSparseMode()
+{
+    int32_t sparseMode = *opParamInfo_.sparseMode;
+    if (sparseMode == SPARSE_MODE_TREE) {
+        // qSize在feature文件中可以获得每个batch实际大小
+        // CheckActualSeqLensQ、CheckActualSeqLensKv保证了长度的一致性
+        uint32_t len = qSize.size();
+        for (uint32_t i = 0; i < len; i++) {
+            OP_CHECK_IF(qSize[i] > kvSize[i], 
+                OP_LOGE(opName_, 
+                        "In %s situation, when sparse is %d, qSize[%d] should less than or equal to kvSize[%d],"
+                        "but got qSize %d and kvSize %d.", 
+                        QuantModeToSerialString(quantMode_).c_str(), sparseMode, i, i, qSize[i], kvSize[i]);
+            return ge::GRAPH_FAILED);
+        }
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus FiaTilingCheck::CheckMask()
 {
     if (opParamInfo_.attenMask.tensor == nullptr || opParamInfo_.attenMask.desc == nullptr) {
@@ -620,8 +640,13 @@ ge::graphStatus FiaTilingCheck::CheckAttentionMask()
         shapeParams.S1 = OPT_ATTEN_MASK_LEN;
         shapeParams.S2 = OPT_ATTEN_MASK_LEN;
     } else if (sparseMode == SPARSE_MODE_TREE) { //TODO待补充
+        shapeParams.B = static_cast<int64_t>(bSize_);
         shapeParams.S1 = static_cast<int64_t>(s1Size_);
-        shapeParams.S2 = shapeParams.S1;
+        shapeParams.S2 = static_cast<int64_t>(s1Size_);
+        shapeParams.compareTypeMap = {
+            {FiaAxis::S1, FiaCompareType::GREATER_EQUAL},
+            {FiaAxis::S2, FiaCompareType::GREATER_EQUAL},
+        };
     }
     return attenMaskShapeCmp_->CompareShape(shapeParams, __func__);
 }
@@ -751,6 +776,7 @@ ge::graphStatus FiaTilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckKV() ||
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
         ge::GRAPH_SUCCESS != CheckPseShift() ||
+        ge::GRAPH_SUCCESS != CheckSparseMode() ||
         ge::GRAPH_SUCCESS != CheckMask() ||
         ge::GRAPH_SUCCESS != CheckSoftmaxLse()||
         ge::GRAPH_SUCCESS != CheckSystemPrefix() ||
