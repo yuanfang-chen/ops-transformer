@@ -185,6 +185,7 @@ __aicore__ inline void RotateMatrixAll<inType, outType, MT>::InitLocalBuffers()
     if ASCEND_IS_AIC {
         return;
     }
+    printf("================================   V2 in  ============================================\n");
     pipe_->InitBuffer(xRotatedInQueue_, BUFFER_NUM, vBaseM * mmConfig_.baseN_ * sizeof(float));
     pipe_->InitBuffer(cosSinInQueue_, BUFFER_NUM, vBaseM * mmConfig_.baseN_ * sizeof(inType));
     pipe_->InitBuffer(xInQueue_, BUFFER_NUM, vBaseM * mmConfig_.baseN_ * sizeof(inType));
