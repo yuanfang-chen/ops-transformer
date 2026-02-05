@@ -1,6 +1,6 @@
 # aclnnFusedInferAttentionScoreV2
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
+**该接口后续版本会废弃，请不要使用该接口。**
 
 ## 产品支持情况
 
