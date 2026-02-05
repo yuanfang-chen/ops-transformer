@@ -320,7 +320,6 @@ QGMM_MX_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Iterate(int64_t singleCoreM,
                                                                                 int64_t singleCoreN)
 {
-    // TODO block函数的的blockshape结构需要相应的修改
     AscendC::Std::tuple<int64_t, int64_t, int64_t> blockShape{singleCoreM, singleCoreN,
                                                               static_cast<int64_t>(Get<MNK_K>(problemShape_))};
     mmadOp_(aGlobal_[Get<IDX_A_OFFSET>(blockOffset_)], bGlobal_[Get<IDX_B_OFFSET>(blockOffset_)],
@@ -355,14 +354,6 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateMM
                                    Get<IDX_X2SCALE_OFFSET>(baseOffset_));
     yGlobal_.SetGlobalBuffer(GetTensorAddr<CType>(0, yTensorPtr_) + Get<IDX_C_OFFSET>(baseOffset_));
 }
-
-// QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-// __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::End()
-// {
-//     if ASCEND_IS_AIC {
-//         mmadOp_.End();
-//     }
-// }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline int32_t QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGroupList(uint32_t groupIdx)
