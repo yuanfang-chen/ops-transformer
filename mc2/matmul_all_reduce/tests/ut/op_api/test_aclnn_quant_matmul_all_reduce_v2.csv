@@ -1,0 +1,17 @@
+case_name,expect_result,
+
+x1_shape,x1_dtype,x1_format
+x2_shape,x2_dtype,x2_format
+bias_shape,bias_dtype,bias_format
+x3_shape,x3_dtype,x3_format
+dequant_scale_shape,dequant_scale_dtype,dequant_scale_format
+pertoken_scale_shape,pertoken_scale_dtype,pertoken_scale_format
+x1_scale_shape,x1_scale_dtype,x1_scale_format
+x2_scale_shape,x2_scale_dtype,x2_scale_format
+comm_quant_scale1_shape,comm_quant_scale1_dtype,comm_quant_scale1_format
+comm_quant_scale2_shape,comm_quant_scale2_dtype,comm_quant_scale2_format
+antiquant_scale_shape,antiquant_scale_dtype,antiquant_scale_format
+antiquant_offset_shape,antiquant_offset_dtype,antiquant_offset_format
+
+output_shape,output_dtype,output_format
+group,reduce_op,comm_turn,stream_mode,group_size,comm_quant_mode
