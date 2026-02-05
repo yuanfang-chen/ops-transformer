@@ -18,137 +18,102 @@
 
 template <typename T1>
 __aicore__ inline __attribute__((always_inline)) void
-CubeOp<T1>::cube1ProcessSparse(const int64_t queryGmOffset, const int64_t queryRopeGmOffset, const int64_t keyGmOffset, const int64_t indicesGmOffset,
-                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx)
+CubeOp<T1>::cube1CopyKey(LocalTensor<T1>& l1Key, const int64_t keyGmOffset, const int64_t keyRopeGmOffset,
+                         const int32_t blkCntOffset, const int32_t nIdx, const int32_t dIdx,
+                         const uint32_t mmParamN, const uint32_t mmParamK, const bool isDense)
+{
+    WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
+    l1Key = l1_common_tensors[ping_pong_flag_l1_common_];
+    
+    if (isDense) {
+        if (dIdx != -1) {
+            int64_t currentKeyOffset = keyGmOffset + (blkCntOffset * dimN2 + nIdx) * selectedBlockSizeDqk + dIdx * K_SPLIT_SIZE;
+            CopyGmToL1(l1Key, keyGm[currentKeyOffset], mmParamN, mmParamK, dimDqk);
+        } else {
+            int64_t currentKeyOffset = HAS_ROPE ? keyRopeGmOffset + blkCntOffset * dimN2 * selectedBlockSizeDrope + nIdx * selectedBlockSize * dimRope
+                                                 : keyGmOffset + (blkCntOffset * dimN2 + nIdx) * selectedBlockSizeDqk;
+            GlobalTensor<T1> kSrcGm = HAS_ROPE ? keyRopeGm[currentKeyOffset] : keyGm[currentKeyOffset];
+            int64_t kSrcDstride = HAS_ROPE ? mmParamK : dimDqk;
+            CopyGmToL1(l1Key, kSrcGm, mmParamN, mmParamK, kSrcDstride);
+        }
+    } else {
+        int64_t currentKeyOffset = keyGmOffset + nIdx * selectedBlockSizeDtotal + (dIdx == -1 ? 0 : dIdx * K_SPLIT_SIZE);
+        CopyGmToL1(l1Key, selectedKWorkspaceGm[currentKeyOffset], mmParamN, mmParamK, dimDTotal);
+    }
+}
+
+template <typename T1>
+__aicore__ inline __attribute__((always_inline)) void
+CubeOp<T1>::cube1ProcessDLoop(LocalTensor<float>& l0cTensor, const int64_t keyGmOffset, const int64_t keyRopeGmOffset,
+                               const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t nIdx,
+                               const bool isDense)
 {
     uint32_t dLoopTimes = (dimDTotal + 127) / K_SPLIT_SIZE;
     uint32_t perLoopDSize = K_SPLIT_SIZE;
     uint32_t tailLoopDSize = dimDTotal - (dLoopTimes - 1) * perLoopDSize;
-    uint32_t blockOffset = N_SPLIT_SIZE / selectedBlockSize; 
+    uint32_t blockOffset = N_SPLIT_SIZE / selectedBlockSize;
 
     MMParam mmParam;
     mmParam.singleM = dimG;
     mmParam.singleN = selectedBlockSize * blockOffset;
     mmParam.dstStride = PER_LOOP_BLOCK_SIZE;
 
-    for (int32_t nIdx = blkCntOffset; nIdx < blkCntOffset + selectedCntOffset; nIdx+=blockOffset) {
-        LocalTensor<float> l0cTensor = cL0TensorPingPong[ping_pong_flag_l0c_ & 1];
-        mmParam.isFixOut = false;
-        mmParam.singleK = perLoopDSize;
+    for (int32_t dIdx = 0; dIdx < dLoopTimes; dIdx++) {
+        bool isTail = (dIdx == dLoopTimes - 1);
+        int32_t actualDIdx = isTail ? -1 : dIdx;
+        mmParam.isFixOut = isTail;
+        mmParam.isOutKFisrt = (dIdx == 0);
+        mmParam.singleK = isTail ? tailLoopDSize : perLoopDSize;
 
-        int64_t mm1WorkspaceGmOffset =  outGmOffset + (nIdx - blkCntOffset) * selectedBlockSize;
-        LocalTensor<T1> current_l1_query_tensor, l1_key_tensor;
-        int64_t currentQueryOffset, currentKeyOffset;
-        // query node @ key node
-        for (int32_t dIdx = 0; dIdx < dLoopTimes - 1; dIdx++) {
-            mmParam.isOutKFisrt = dIdx == 0;
-            // read query from l1
-            WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-            current_l1_query_tensor = l1_query_tensor[dIdx * dimGAlign * perLoopDSize];
-            l1_key_tensor = l1_common_tensors[ping_pong_flag_l1_common_];
-
-            currentKeyOffset = keyGmOffset + (nIdx - blkCntOffset) * selectedBlockSizeDtotal + dIdx * K_SPLIT_SIZE;
-
-            CopyGmToL1(l1_key_tensor, selectedKWorkspaceGm[currentKeyOffset], mmParam.singleN, K_SPLIT_SIZE, dimDTotal);
-
-            MmadInnerWithSync<T1>(l0cTensor, current_l1_query_tensor, l1_key_tensor,
-                        aL0TensorPingPong, bL0TensorPingPong,
-                        mmParam, ping_pong_flag_l0a_, ping_pong_flag_l0b_, ping_pong_flag_l0c_, true, mm1WorkspaceGm[mm1WorkspaceGmOffset]);
-            
-            SetFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-            UpdatePingPongFlag(ping_pong_flag_l1_common_);
-        }
-
-        // query rope @ key rope
-        mmParam.isFixOut = true;
-        mmParam.isOutKFisrt = dLoopTimes == 1;
-        mmParam.singleK = tailLoopDSize;
-        WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-        current_l1_query_tensor = l1_query_tensor[(dLoopTimes - 1) * dimGAlign * perLoopDSize];
-        l1_key_tensor = l1_common_tensors[ping_pong_flag_l1_common_];
+        LocalTensor<T1> l1Query = l1_query_tensor[dIdx * dimGAlign * perLoopDSize];
+        LocalTensor<T1> l1Key;
         
-        currentKeyOffset = keyGmOffset + (nIdx - blkCntOffset) * selectedBlockSizeDtotal + (dLoopTimes - 1) * K_SPLIT_SIZE;
-        int64_t srcDstride = HAS_ROPE ? tailLoopDSize : dimDTotal;
-        CopyGmToL1(l1_key_tensor, selectedKWorkspaceGm[currentKeyOffset], mmParam.singleN, tailLoopDSize, dimDTotal);
+        cube1CopyKey(l1Key, keyGmOffset, keyRopeGmOffset, blkCntOffset, nIdx, actualDIdx, 
+                     mmParam.singleN, mmParam.singleK, isDense);
 
-        MmadInnerWithSync<T1>(l0cTensor, current_l1_query_tensor, l1_key_tensor,
-                aL0TensorPingPong, bL0TensorPingPong,
-                mmParam, ping_pong_flag_l0a_, ping_pong_flag_l0b_, ping_pong_flag_l0c_, true, mm1WorkspaceGm[mm1WorkspaceGmOffset]);
+        int64_t mm1WorkspaceGmOffset = outGmOffset + nIdx * selectedBlockSize;
+        MmadInnerWithSync<T1>(l0cTensor, l1Query, l1Key,
+                    aL0TensorPingPong, bL0TensorPingPong,
+                    mmParam, ping_pong_flag_l0a_, ping_pong_flag_l0b_, ping_pong_flag_l0c_, true, mm1WorkspaceGm[mm1WorkspaceGmOffset]);
         SetFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-        
         UpdatePingPongFlag(ping_pong_flag_l1_common_);
+    }
+}
+
+template <typename T1>
+__aicore__ inline __attribute__((always_inline)) void
+CubeOp<T1>::cube1ProcessNLoop(const int64_t keyGmOffset, const int64_t keyRopeGmOffset, const int64_t outGmOffset,
+                               const int32_t blkCntOffset, const bool isDense)
+{
+    uint32_t blockOffset = N_SPLIT_SIZE / selectedBlockSize;
+
+    for (int32_t nIdx = 0; nIdx < selectedCntOffset; nIdx += blockOffset) {
+        LocalTensor<float> l0cTensor = cL0TensorPingPong[ping_pong_flag_l0c_ & 1];
+        int64_t adjustedKeyGmOffset = isDense ? keyGmOffset : keyGmOffset + nIdx * selectedBlockSizeDtotal;
+        int64_t adjustedOutGmOffset = outGmOffset + nIdx * selectedBlockSize;
+        
+        cube1ProcessDLoop(l0cTensor, adjustedKeyGmOffset, keyRopeGmOffset, adjustedOutGmOffset, blkCntOffset, nIdx, isDense);
         UpdatePingPongFlag(ping_pong_flag_l0c_);
     }
 }
 
 template <typename T1>
 __aicore__ inline __attribute__((always_inline)) void
+CubeOp<T1>::cube1ProcessSparse(const int64_t queryGmOffset, const int64_t queryRopeGmOffset, const int64_t keyGmOffset, const int64_t indicesGmOffset,
+                         const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t mmPingPongIdx)
+{
+    cube1ProcessNLoop(keyGmOffset, 0, outGmOffset, blkCntOffset, false);
+}
+
+template <typename T1>
+__aicore__ inline __attribute__((always_inline)) void
 CubeOp<T1>::cube1ProcessDense(const int32_t blkCntOffset, const int32_t mmPingPongIdx, const RunInfo &runInfo)
 {
-    uint32_t dLoopTimes = (dimDTotal + 127) / K_SPLIT_SIZE;
-    uint32_t perLoopDSize = K_SPLIT_SIZE;
-    uint32_t tailLoopDSize = dimDTotal - (dLoopTimes - 1) * perLoopDSize;
-    uint32_t blockOffset = N_SPLIT_SIZE / selectedBlockSize; // 128 / 1 = 128
+    const int64_t keyGmOffset = runInfo.keyGmOffset;
+    const int64_t keyRopeGmOffset = runInfo.keyRopeGmOffset;
+    const int64_t outGmOffset = runInfo.mm12GmOffset;
 
-    MMParam mmParam;
-    mmParam.singleM = dimG;
-    mmParam.singleN = selectedBlockSize * blockOffset;
-    mmParam.dstStride = PER_LOOP_BLOCK_SIZE;
-
-    for (int32_t nIdx = blkCntOffset; nIdx < blkCntOffset + selectedCntOffset; nIdx += blockOffset) {
-        LocalTensor<float> l0cTensor = cL0TensorPingPong[ping_pong_flag_l0c_ & 1];
-        mmParam.isFixOut = false;
-        mmParam.singleK = perLoopDSize;
-
-        int64_t mm1WorkspaceGmOffset =  runInfo.mm12GmOffset + (nIdx - blkCntOffset) * selectedBlockSize;
-        LocalTensor<T1> current_l1_query_tensor, l1_key_tensor;
-        int64_t currentQueryOffset, currentKeyOffset;
-
-        for (int32_t dIdx = 0; dIdx < dLoopTimes - 1; dIdx++) {
-            mmParam.isOutKFisrt = dIdx == 0;
-            // read query from l1
-            current_l1_query_tensor = l1_query_tensor[dIdx * dimGAlign * perLoopDSize];
-            l1_key_tensor = l1_common_tensors[ping_pong_flag_l1_common_];
-
-            currentQueryOffset = runInfo.queryGmOffset + dIdx * K_SPLIT_SIZE;
-            currentKeyOffset = runInfo.keyGmOffset + (blkCntOffset * dimN2 + nIdx - blkCntOffset) * selectedBlockSizeDqk + dIdx * K_SPLIT_SIZE;
-
-            WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-            CopyGmToL1(l1_key_tensor, keyGm[currentKeyOffset], mmParam.singleN, K_SPLIT_SIZE, dimDqk);
-
-            MmadInnerWithSync<T1>(l0cTensor, current_l1_query_tensor, l1_key_tensor,
-                        aL0TensorPingPong, bL0TensorPingPong,
-                        mmParam, ping_pong_flag_l0a_, ping_pong_flag_l0b_, ping_pong_flag_l0c_, true, mm1WorkspaceGm[mm1WorkspaceGmOffset]);
-            
-            SetFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-            UpdatePingPongFlag(ping_pong_flag_l1_common_);
-        }
-
-        // query rope @ key rope
-        mmParam.isFixOut = true;
-        mmParam.isOutKFisrt = dLoopTimes == 1;
-        mmParam.singleK = tailLoopDSize;
-        current_l1_query_tensor = l1_query_tensor[(dLoopTimes - 1) * dimGAlign * perLoopDSize];
-        l1_key_tensor = l1_common_tensors[ping_pong_flag_l1_common_];
-
-        currentKeyOffset = HAS_ROPE ? runInfo.keyRopeGmOffset + blkCntOffset * dimN2 * selectedBlockSizeDrope +
-                                          (nIdx - blkCntOffset) * selectedBlockSize * dimRope :
-                                      runInfo.keyGmOffset + (blkCntOffset * dimN2 + nIdx - blkCntOffset) * selectedBlockSizeDqk +
-                                          (dLoopTimes - 1) * K_SPLIT_SIZE;
-
-        GlobalTensor<T1> kSrcGm = HAS_ROPE ? keyRopeGm[currentKeyOffset] : keyGm[currentKeyOffset];
-        WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-        int64_t kSrcDstride = HAS_ROPE ? tailLoopDSize : dimDTotal;
-        CopyGmToL1(l1_key_tensor, kSrcGm, mmParam.singleN, tailLoopDSize, kSrcDstride);
-
-        MmadInnerWithSync<T1>(l0cTensor, current_l1_query_tensor, l1_key_tensor,
-                aL0TensorPingPong, bL0TensorPingPong,
-                mmParam, ping_pong_flag_l0a_, ping_pong_flag_l0b_, ping_pong_flag_l0c_, true, mm1WorkspaceGm[mm1WorkspaceGmOffset]);
-        SetFlag<HardEvent::MTE1_MTE2>(MM_L1_COMMON_EVENTS[ping_pong_flag_l1_common_]);
-        
-        UpdatePingPongFlag(ping_pong_flag_l1_common_);
-        UpdatePingPongFlag(ping_pong_flag_l0c_);
-    }
+    cube1ProcessNLoop(keyGmOffset, keyRopeGmOffset, outGmOffset, blkCntOffset, true);
 }
 
 template <typename T1>
@@ -158,8 +123,7 @@ CubeOp<T1>::cube1Process(const int64_t queryGmOffset, const int64_t queryRopeGmO
 {
     if (!runInfo.isSmallS2) {
         cube1ProcessSparse(queryGmOffset, queryRopeGmOffset, selectedKGmOffset, indicesGmOffset, outGmOffset, blkCntOffset, mmPingPongIdx);
-    }
-    else {
+    } else {
         cube1ProcessDense(blkCntOffset, mmPingPongIdx, runInfo);
     }
 }

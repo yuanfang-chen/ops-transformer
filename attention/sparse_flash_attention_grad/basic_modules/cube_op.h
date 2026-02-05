@@ -45,6 +45,17 @@ public:
                                                                          const int32_t blkCntOffset, 
                                                                          const int32_t mmPingPongIdx);
 private:                                                              
+    __aicore__ inline __attribute__((always_inline)) void cube1CopyKey(LocalTensor<T1>& l1Key, const int64_t keyGmOffset, const int64_t keyRopeGmOffset,
+                                                                   const int32_t blkCntOffset, const int32_t nIdx, const int32_t dIdx,
+                                                                   const uint32_t mmParamN, const uint32_t mmParamK, const bool isDense);
+
+    __aicore__ inline __attribute__((always_inline)) void cube1ProcessDLoop(LocalTensor<float>& l0cTensor, const int64_t keyGmOffset, const int64_t keyRopeGmOffset,
+                                                                        const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t nIdx,
+                                                                        const bool isDense);
+
+    __aicore__ inline __attribute__((always_inline)) void cube1ProcessNLoop(const int64_t keyGmOffset, const int64_t keyRopeGmOffset, const int64_t outGmOffset,
+                                                                        const int32_t blkCntOffset, const bool isDense);
+
     __aicore__ inline __attribute__((always_inline)) void cube1Process(const int64_t queryGmOffset,
                                                                        const int64_t queryRopeGmOffset,
                                                                        const int64_t keyGmOffset,
@@ -66,6 +77,12 @@ private:
                                                                        const int32_t mmPingPongIdx,
                                                                        const RunInfo &runInfo);
 
+    __aicore__ inline __attribute__((always_inline)) void cube2CopyValue(LocalTensor<T1>& l1V, const int64_t valueGmOffset, const int32_t blkCntOffset,
+                                                                     const int32_t nIdx, const int32_t dIdx, const uint32_t mmParamN, const bool isDense);
+
+    __aicore__ inline __attribute__((always_inline)) void cube2ProcessDLoop(LocalTensor<float>& l0cTensor, const int64_t valueGmOffset, const int64_t outGmOffset,
+                                                                        const int32_t blkCntOffset, const bool isDense);
+
     __aicore__ inline __attribute__((always_inline)) void cube2ProcessSparse(const int64_t dyGmOffset,
                                                                        const int64_t valueGmOffset,
                                                                        const int64_t indicesGmOffset,
@@ -84,6 +101,19 @@ private:
     __aicore__ inline __attribute__((always_inline)) void cube2ProcessDense(const int32_t blkCntOffset,
                                                                        const int32_t mmPingPongIdx,
                                                                        const RunInfo &runInfo);
+
+    __aicore__ inline __attribute__((always_inline)) void cube3CopyKey(LocalTensor<T1>& l1Key, const int64_t keyGmOffset, const int64_t keyRopeGmOffset,
+                                                                   const int32_t blkCntOffset, const int32_t nIdx, const int32_t dIdx,
+                                                                   const uint32_t mmParamK, const uint32_t mmParamN, const bool isDense);
+
+    __aicore__ inline __attribute__((always_inline)) void cube3ProcessNLoop(LocalTensor<float>& l0cTensor, const int64_t keyGmOffset, const int64_t keyRopeGmOffset,
+                                                                        const int64_t outGmOffset, const int32_t blkCntOffset, const int32_t dIdx,
+                                                                        const uint32_t perLoopDSize, const uint32_t tailLoopDSize, const bool isDense,
+                                                                        const int64_t lastBlockSize, const bool isLastBasicBlock);
+
+    __aicore__ inline __attribute__((always_inline)) void cube3ProcessDLoop(const int64_t keyGmOffset, const int64_t keyRopeGmOffset, const int64_t outGmOffset,
+                                                                        const int32_t blkCntOffset, const bool isDense, const int64_t lastBlockSize,
+                                                                        const bool isLastBasicBlock);
 
     __aicore__ inline __attribute__((always_inline)) void cube3Process(const int64_t dsGmOffset,
                                                                        const int64_t keyGmOffset,
@@ -110,6 +140,18 @@ private:
                                                                        const bool isLastBasicBlock,
                                                                        const RunInfo &runInfo);
 
+    __aicore__ inline __attribute__((always_inline)) void cube4LoadQuery(LocalTensor<T1>& l1Query, const int64_t queryGmOffset, const int64_t queryRopeGmOffset, 
+                                                                    const uint32_t dIdx, const uint32_t perLoopDSize, const uint32_t tailLoopDSize, 
+                                                                    const bool isTail, const bool reloadQuery);
+
+    __aicore__ inline __attribute__((always_inline)) void cube4ProcessDLoop(LocalTensor<T1>& l1Ds, const int64_t queryGmOffset, const int64_t queryRopeGmOffset,
+                                                                        const uint32_t dLoopTimes, const uint32_t perLoopDSize, const uint32_t tailLoopDSize,
+                                                                        const uint32_t mmParamM, const int64_t mm4ResOutOffset, const bool reloadQuery);
+
+    __aicore__ inline __attribute__((always_inline)) void cube4ProcessMLoop(const int64_t dsGmOffset, const int64_t queryGmOffset, const int64_t queryRopeGmOffset,
+                                                                        const int64_t indicesGmOffset, const int32_t blkCntOffset, const int64_t mm4ResOutBaseOffset,
+                                                                        const bool reloadQuery);
+
     __aicore__ inline __attribute__((always_inline)) void cube4ProcessSparse(const int64_t dsGmOffset,
                                                                        const int64_t queryGmOffset,
                                                                        const int64_t queryRopeGmOffset,
@@ -131,6 +173,16 @@ private:
                                                                        const int32_t blkCntOffset,
                                                                        const int32_t mmPingPongIdx,
                                                                        const RunInfo &runInfo);
+
+    __aicore__ inline __attribute__((always_inline)) void cube5LoadDy(LocalTensor<T1>& l1Dy, const int64_t dyGmOffset, const int32_t dIdx, 
+                                                                  const uint32_t perLoopDSize, const bool reloadDy);
+
+    __aicore__ inline __attribute__((always_inline)) void cube5ProcessDLoop(LocalTensor<T1>& l1P, const int64_t dyGmOffset, const uint32_t dLoopTimes,
+                                                                        const uint32_t perLoopDSize, const uint32_t mmParamM, const int64_t mm5ResOutOffset,
+                                                                        const bool reloadDy);
+
+    __aicore__ inline __attribute__((always_inline)) void cube5ProcessMLoop(const int64_t pGmOffset, const int64_t dyGmOffset, const int32_t blkCntOffset,
+                                                                        const int64_t mm5ResOutBaseOffset, const bool reloadDy);
 
     __aicore__ inline __attribute__((always_inline)) void cube5ProcessSparse(const int64_t pGmOffset,
                                                                        const int64_t dyGmOffset,
