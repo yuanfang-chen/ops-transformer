@@ -932,11 +932,9 @@ ge::graphStatus CompressorTiling::CheckMultiParaConsistency() const
         CheckDimNumConsistency() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-#ifdef DAY0_SCOPE
     if (CheckScenarioConsistency() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-#endif
     return ge::GRAPH_SUCCESS;
 }
 
