@@ -91,39 +91,42 @@ namespace SplitFuse {
             preToken = fATilingData->preToken;
             nextToken = fATilingData->nextToken;
 
-            AscendC::GlobalTensor<ElementQ> gQ;
             gQ.SetGlobalBuffer((__gm__ ElementQ *)params.q);
             AscendC::ListTensorDesc keyListTensorDescInit((__gm__ void*)params.k);
             AscendC::ListTensorDesc valueListTensorDescInit((__gm__ void*)params.v);
             __gm__ uint8_t* currentKey = (__gm__ uint8_t*)keyListTensorDescInit.GetDataPtr<__gm__ uint8_t>(0);
             __gm__ uint8_t* currentValue = (__gm__ uint8_t*)valueListTensorDescInit.GetDataPtr<__gm__ uint8_t>(0);
-            AscendC::GlobalTensor<ElementK> gK;
             gK.SetGlobalBuffer((__gm__ ElementK *)currentKey);
-            AscendC::GlobalTensor<ElementK> gV;
             gV.SetGlobalBuffer((__gm__ ElementK *)currentValue);
-            AscendC::GlobalTensor<ElementMask> gMask;
             gMask.SetGlobalBuffer((__gm__ ElementMask *)params.mask);
-            AscendC::GlobalTensor<int32_t> gBlockTable;
             gBlockTable.SetGlobalBuffer((__gm__ int32_t *)(params.blockTables));
-            AscendC::GlobalTensor<int64_t> gActualQseqlen;
             gActualQseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualQseqlen);
-            AscendC::GlobalTensor<int64_t> gActualKvseqlen;
             gActualKvseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualKvseqlen);
-            AscendC::GlobalTensor<ElementO> gO;
             gO.SetGlobalBuffer((__gm__ ElementO *)params.o);
-            AscendC::GlobalTensor<ElementLse> gLse;
             gLse.SetGlobalBuffer((__gm__ ElementLse *)params.lse);
-            AscendC::GlobalTensor<ElementS> gS;
+
             gS.SetGlobalBuffer((__gm__ ElementS *)(params.workSpace));
-            AscendC::GlobalTensor<ElementP> gP;
             gP.SetGlobalBuffer((__gm__ ElementP *)(params.workSpace + mm1OutSize));
-            AscendC::GlobalTensor<ElementOTmp> gOTmp;
             gOTmp.SetGlobalBuffer((__gm__ ElementOTmp *)(params.workSpace + mm1OutSize + smOnlineOutSize));
-            AscendC::GlobalTensor<ElementOTmp> gOUpdate;
             gOUpdate.SetGlobalBuffer((__gm__ ElementOTmp *)(params.workSpace +
                 mm1OutSize + smOnlineOutSize + mm2OutSize));
-            AscendC::GlobalTensor<bfloat16_t> gSink;
             gSink.SetGlobalBuffer((__gm__ bfloat16_t *)(params.sink));
+
+            // 创建局部引用/缓存以优化性能，避免通过 this 指针间接访问
+            auto& gQ_local = gQ;
+            auto& gK_local = gK;
+            auto& gV_local = gV;
+            auto& gMask_local = gMask;
+            auto& gBlockTable_local = gBlockTable;
+            auto& gActualQseqlen_local = gActualQseqlen;
+            auto& gActualKvseqlen_local = gActualKvseqlen;
+            auto& gO_local = gO;
+            auto& gLse_local = gLse;
+            auto& gS_local = gS;
+            auto& gP_local = gP;
+            auto& gOTmp_local = gOTmp;
+            auto& gOUpdate_local = gOUpdate;
+            auto& gSink_local = gSink;
 
             uint32_t coreIdx = AscendC::GetBlockIdx();
             uint32_t coreNum = AscendC::GetBlockNum();
@@ -196,9 +199,6 @@ namespace SplitFuse {
             embedRoundV = NpuArch::Detail::Alignment::RoundUp(embedV, FaiKernel::BLOCK_SIZE);
             groupSize = qHeads / kvHeads;
 
-            totalQTokens = static_cast<uint32_t>(gActualQseqlen.GetValue(batch - 1));
-
-
             uint64_t qBOffset = 0;
             uint64_t kBOffset = 0;
             uint64_t vBOffset = 0;
@@ -208,15 +208,16 @@ namespace SplitFuse {
 
             uint32_t preTotalTaskNum = 0;
             uint32_t curBatch = 0;
-            uint32_t qSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch));
-            uint32_t kvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch));
+            uint32_t totalQTokens = static_cast<uint32_t>(gActualQseqlen_local.GetValue(batch - 1));
+            uint32_t qSeqlen = static_cast<uint32_t>(gActualQseqlen_local.GetValue(curBatch));
+            uint32_t kvSeqlen = static_cast<uint32_t>(gActualKvseqlen_local.GetValue(curBatch));
             if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
                 uint32_t prevQSeqlenSum = (curBatch == 0) ?
-                    0 : static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch - 1));
+                    0 : static_cast<uint32_t>(gActualQseqlen_local.GetValue(curBatch - 1));
                 qSeqlen = qSeqlen - prevQSeqlenSum;
                 if constexpr (!PAGED_CACHE_FLAG) {
                     uint32_t prevKvSeqlenSum = (curBatch == 0) ?
-                        0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch - 1));
+                        0 : static_cast<uint32_t>(gActualKvseqlen_local.GetValue(curBatch - 1));
                     kvSeqlen = kvSeqlen - prevKvSeqlenSum;
                 }
             }
@@ -246,15 +247,15 @@ namespace SplitFuse {
                     oBOffset += static_cast<uint64_t>(qSeqlen * strideO);
                     lseBOffset += static_cast<uint64_t>(qSeqlen * qHeads);
 
-                    qSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch));
-                    kvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch));
+                    qSeqlen = static_cast<uint32_t>(gActualQseqlen_local.GetValue(curBatch));
+                    kvSeqlen = static_cast<uint32_t>(gActualKvseqlen_local.GetValue(curBatch));
                     if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
                         uint32_t prevQSeqlenSum = (curBatch == 0) ?
-                            0 : static_cast<uint32_t>(gActualQseqlen.GetValue(curBatch - 1));
+                            0 : static_cast<uint32_t>(gActualQseqlen_local.GetValue(curBatch - 1));
                         qSeqlen = qSeqlen - prevQSeqlenSum;
                         if constexpr (!PAGED_CACHE_FLAG) {
                             uint32_t prevKvSeqlenSum = (curBatch == 0) ?
-                                0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatch - 1));
+                                0 : static_cast<uint32_t>(gActualKvseqlen_local.GetValue(curBatch - 1));
                             kvSeqlen = kvSeqlen - prevKvSeqlenSum;
                         }
                     }
@@ -352,7 +353,7 @@ namespace SplitFuse {
                 if (kvSLoopNumTotal <= 0 || startIdx >= kvSLoopNumTotal) {
                     LayoutO layoutO(qSeqlen, embed * qHeads);
                     LayoutLse layoutLse(totalQTokens, qHeads);
-                    epilogueInitOut(gO[gmOffsetO], gLse[gmOffsetLse], layoutO, layoutLse, qSBlockSize, qNBlockSize);
+                    epilogueInitOut(gO_local[gmOffsetO], gLse_local[gmOffsetLse], layoutO, layoutLse, qSBlockSize, qNBlockSize);
                 }
 #endif
 #ifdef __DAV_C220_CUBE__
@@ -361,7 +362,7 @@ namespace SplitFuse {
                 LayoutV layoutVTemp(stackSeqTile, strideV);
                 blockMmadQK.resetBlockStart();
                 blockMmadPV.resetBlockStart();
-                blockMmadQK.loadQGM(gQ[gmOffsetQ], layoutQTemp, rowNum, qNBlockSize, qHeads);
+                blockMmadQK.loadQGM(gQ_local[gmOffsetQ], layoutQTemp, rowNum, qNBlockSize, qHeads);
 #endif
                 for (uint32_t kvSIdx = startIdx; kvSIdx < kvSLoopNumTotal + preKVNum; kvSIdx ++) {
                     if (kvSIdx < kvSLoopNumTotal) {
@@ -380,10 +381,10 @@ namespace SplitFuse {
 #ifdef __DAV_C220_CUBE__
                         if constexpr (PAGED_CACHE_FLAG) {
                             blockMmadQK(
-                                gQ[gmOffsetQ],
-                                gK[gmOffsetK],
-                                gS[gmOffsetS],
-                                gBlockTable[blockBOffset],
+                                gQ_local[gmOffsetQ],
+                                gK_local[gmOffsetK],
+                                gS_local[gmOffsetS],
+                                gBlockTable_local[blockBOffset],
                                 layoutQTemp,
                                 layoutKTemp,
                                 layOutS,
@@ -394,10 +395,10 @@ namespace SplitFuse {
                                 strideK);
                         } else {
                             blockMmadQK(
-                                gQ[gmOffsetQ],
-                                gK[gmOffsetK],
-                                gS[gmOffsetS],
-                                gBlockTable,
+                                gQ_local[gmOffsetQ],
+                                gK_local[gmOffsetK],
+                                gS_local[gmOffsetS],
+                                gBlockTable_local,
                                 layoutQTemp,
                                 layoutKTemp,
                                 layOutS,
@@ -425,10 +426,10 @@ namespace SplitFuse {
                             bool doTriUMask = triUp < kvSEndIdx - 1;
                             if (doTriUMask) {
                                 epilogueOnlineSoftmax(
-                                    gP[gmOffsetP],
-                                    gS[gmOffsetS],
-                                    gSink[gmOffsetSink],
-                                    gMask,
+                                    gP_local[gmOffsetP],
+                                    gS_local[gmOffsetS],
+                                    gSink_local[gmOffsetSink],
+                                    gMask_local,
                                     layOutP,
                                     layOutS,
                                     layOutMask,
@@ -447,9 +448,9 @@ namespace SplitFuse {
                                 uint32_t noMaskStackSeqNum = (triUp + 1) / MAX_KV_STACK_LEN;
                                 Arch::CrossCoreWaitFlag(qkReady);
                                 epilogueOnlineSoftmax(
-                                    gP[gmOffsetP],
-                                    gS[gmOffsetS],
-                                    gSink[gmOffsetSink],
+                                    gP_local[gmOffsetP],
+                                    gS_local[gmOffsetS],
+                                    gSink_local[gmOffsetSink],
                                     layOutP,
                                     layOutS,
                                     actualBlockShapeQK,
@@ -472,10 +473,10 @@ namespace SplitFuse {
                             bool doTriUMask = (doTriUPreMask || doTriUNextMask);
                             if (doTriUMask) {
                                 epilogueOnlineSoftmax(
-                                    gP[gmOffsetP],
-                                    gS[gmOffsetS],
-                                    gSink[gmOffsetSink],
-                                    gMask,
+                                    gP_local[gmOffsetP],
+                                    gS_local[gmOffsetS],
+                                    gSink_local[gmOffsetSink],
+                                    gMask_local,
                                     layOutP,
                                     layOutS,
                                     layOutMask,
@@ -500,9 +501,9 @@ namespace SplitFuse {
                                 uint32_t noMaskStackSeqNum = (alignedKvSeqlenLimit - startIdx * MAX_KV_STACK_LEN) / MAX_KV_STACK_LEN;
                                 Arch::CrossCoreWaitFlag(qkReady);
                                 epilogueOnlineSoftmax(
-                                    gP[gmOffsetP],
-                                    gS[gmOffsetS],
-                                    gSink[gmOffsetSink],
+                                    gP_local[gmOffsetP],
+                                    gS_local[gmOffsetS],
+                                    gSink_local[gmOffsetSink],
                                     layOutP,
                                     layOutS,
                                     actualBlockShapeQK,
@@ -516,9 +517,9 @@ namespace SplitFuse {
                         } else {
                             Arch::CrossCoreWaitFlag(qkReady);
                             epilogueOnlineSoftmax(
-                                gP[gmOffsetP],
-                                gS[gmOffsetS],
-                                gSink[gmOffsetSink],
+                                gP_local[gmOffsetP],
+                                gS_local[gmOffsetS],
+                                gSink_local[gmOffsetSink],
                                 layOutP,
                                 layOutS,
                                 actualBlockShapeQK,
@@ -552,10 +553,10 @@ namespace SplitFuse {
                             curStackTileMod * WORKSPACE_BLOCK_SIZE_DB;;
                         if constexpr (PAGED_CACHE_FLAG) {
                             blockMmadPV(
-                                gP[gmOffsetP],
-                                gV[gmOffsetV],
-                                gOTmp[gmOffsetOTmp],
-                                gBlockTable[blockBOffset],
+                                gP_local[gmOffsetP],
+                                gV_local[gmOffsetV],
+                                gOTmp_local[gmOffsetOTmp],
+                                gBlockTable_local[blockBOffset],
                                 layoutPTemp,
                                 layoutVTemp,
                                 layoutOTmp,
@@ -569,10 +570,10 @@ namespace SplitFuse {
                                 softmaxReady);
                         } else {
                             blockMmadPV(
-                                gP[gmOffsetP],
-                                gV[gmOffsetV],
-                                gOTmp[gmOffsetOTmp],
-                                gBlockTable,
+                                gP_local[gmOffsetP],
+                                gV_local[gmOffsetV],
+                                gOTmp_local[gmOffsetOTmp],
+                                gBlockTable_local,
                                 layoutPTemp,
                                 layoutVTemp,
                                 layoutOTmp,
@@ -596,10 +597,10 @@ namespace SplitFuse {
                         Arch::CrossCoreWaitFlag(pvReady);
                         // rescale O
                         epilogueRescaleO(
-                            gO[gmOffsetO],
-                            gOTmp[gmOffsetOTmp],
-                            gOUpdate[gmOffsetUpdate],
-                            gLse[gmOffsetLse],
+                            gO_local[gmOffsetO],
+                            gOTmp_local[gmOffsetOTmp],
+                            gOUpdate_local[gmOffsetUpdate],
+                            gLse_local[gmOffsetLse],
                             layoutO,
                             layoutOTmp,
                             layoutUpdate,
@@ -663,10 +664,21 @@ namespace SplitFuse {
         }
 
     private:
-        Arch::Resource<ArchTag> resource;
-        Arch::CrossCoreFlag qkReady{QK_READY_ID};
-        Arch::CrossCoreFlag softmaxReady{SOFTMAX_READY_ID};
-        Arch::CrossCoreFlag pvReady{PV_READY_ID};
+        AscendC::GlobalTensor<ElementQ> gQ;
+        AscendC::GlobalTensor<ElementK> gK;
+        AscendC::GlobalTensor<ElementK> gV;
+        AscendC::GlobalTensor<ElementMask> gMask;
+        AscendC::GlobalTensor<int32_t> gBlockTable;
+        AscendC::GlobalTensor<int64_t> gActualQseqlen;
+        AscendC::GlobalTensor<int64_t> gActualKvseqlen;
+        AscendC::GlobalTensor<ElementO> gO;
+        AscendC::GlobalTensor<ElementLse> gLse;
+        
+        AscendC::GlobalTensor<ElementS> gS;
+        AscendC::GlobalTensor<ElementP> gP;
+        AscendC::GlobalTensor<ElementOTmp> gOTmp;
+        AscendC::GlobalTensor<ElementOTmp> gOUpdate;
+        AscendC::GlobalTensor<bfloat16_t> gSink;
 
         uint64_t mm1OutSize;
         uint64_t smOnlineOutSize;
@@ -686,13 +698,7 @@ namespace SplitFuse {
         uint32_t sparseMode;
         int64_t preToken;
         int64_t nextToken;
-
-
-        BlockMmadQK blockMmadQK;
-        BlockMmadPV blockMmadPV;
-        EpilogueOnlineSoftmax epilogueOnlineSoftmax;
-        EpilogueRescaleO epilogueRescaleO;
-        EpilogueInitOut epilogueInitOut;
+        uint32_t totalQTokens;
 
 
         uint64_t strideQ;
@@ -702,8 +708,17 @@ namespace SplitFuse {
         uint32_t embedRound;
         uint32_t embedRoundV;
         uint32_t groupSize;
-        uint32_t totalQTokens;
 
+        Arch::Resource<ArchTag> resource;
+        Arch::CrossCoreFlag qkReady{QK_READY_ID};
+        Arch::CrossCoreFlag softmaxReady{SOFTMAX_READY_ID};
+        Arch::CrossCoreFlag pvReady{PV_READY_ID};
+
+        BlockMmadQK blockMmadQK;
+        BlockMmadPV blockMmadPV;
+        EpilogueOnlineSoftmax epilogueOnlineSoftmax;
+        EpilogueRescaleO epilogueRescaleO;
+        EpilogueInitOut epilogueInitOut;
     };
 }
 #endif
