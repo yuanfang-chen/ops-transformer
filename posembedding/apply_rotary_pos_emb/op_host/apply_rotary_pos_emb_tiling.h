@@ -91,6 +91,7 @@ TILING_DATA_FIELD_DEF(int64_t, ubLoopNumKN);
 TILING_DATA_FIELD_DEF(int64_t, ubFactorKN);
 TILING_DATA_FIELD_DEF(int64_t, ubTailFactorKN);
 TILING_DATA_FIELD_DEF(int64_t, rotaryMode);
+TILING_DATA_FIELD_DEF(int64_t, realDim); // 旋转编码的实际Dim长度
 END_TILING_DATA_DEF;
 
 REGISTER_TILING_DATA_CLASS(ApplyRotaryPosEmb_20010, ApplyRotaryPosEmbRegbaseTilingData)
@@ -114,6 +115,7 @@ TILING_DATA_FIELD_DEF(int64_t, ubLoopN);       // UB切分的循环次数
 TILING_DATA_FIELD_DEF(int64_t, ubFactorN);     // UB切分的整块大小
 TILING_DATA_FIELD_DEF(int64_t, ubTailN);       // UB切分的尾块大小
 TILING_DATA_FIELD_DEF(int64_t, rotaryMode);
+TILING_DATA_FIELD_DEF(int64_t, realDim);
 END_TILING_DATA_DEF;
 
 REGISTER_TILING_DATA_CLASS(ApplyRotaryPosEmb_20030, ApplyRotaryPosEmbRegbaseABTilingData)
@@ -204,6 +206,7 @@ protected:
     int64_t dSplitCoef_ = 1;
     int64_t blockSize_;
     int64_t vLength_;
+    int64_t reald_;
 
 private:
     ge::graphStatus CheckNullptr();
