@@ -25,13 +25,11 @@ class TestAclnnAlltoAllMatmul : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformNpuArch(NpuArch::DAV_3510);
         cout << "TestAclnnAlltoAllMatmul SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "TestAclnnAlltoAllMatmul TearDown" << endl;
     }
 };

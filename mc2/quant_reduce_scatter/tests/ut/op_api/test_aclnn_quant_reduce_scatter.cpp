@@ -25,13 +25,11 @@ class TestAclnnQuantReduceScatter : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        op::SetPlatformNpuArch(NpuArch::DAV_3510);
         cout << "TestAclnnQuantReduceScatter SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
         cout << "TestAclnnQuantReduceScatter TearDown" << endl;
     }
 };
