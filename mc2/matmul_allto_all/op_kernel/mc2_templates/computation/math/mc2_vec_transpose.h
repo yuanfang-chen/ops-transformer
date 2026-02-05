@@ -95,8 +95,13 @@ protected:
 
         DataCopyPadExtParams<tranposeDataType> padExtParams{true, 0, 0, *reinterpret_cast<tranposeDataType *>(uint8_t(0))};
 
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
+        DataCopyPad<tranposeDataType>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams, padExtParams);
+#else
         DataCopyPad<tranposeDataType, PaddingMode::Normal>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams,
                                                         padExtParams);
+#endif
+#endif
         vecInQueue_.EnQue(vecInBuf);
     }
 
@@ -114,7 +119,11 @@ protected:
         loadUb2GmParams.srcStride = 0;
         loadUb2GmParams.dstStride = static_cast<int64_t>(innerOffsetOut_ * sizeof(tranposeDataType) - loadUb2GmParams.blockLen);
 
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
+        DataCopyPad<tranposeDataType>(ubOutGm_[dstGmOffset], vecOutBuf, loadUb2GmParams);
+#else
         DataCopyPad<tranposeDataType, PaddingMode::Normal>(ubOutGm_[dstGmOffset], vecOutBuf, loadUb2GmParams);
+#endif
         vecInQueue_.FreeTensor(vecOutBuf);
     }
 
