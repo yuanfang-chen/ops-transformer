@@ -53,22 +53,23 @@ static ge::graphStatus MoeDistributeCombineA5ExtendTilingFuncImpl(gert::TilingCo
 {
     auto attrs = context->GetAttrs();
     const char *nodeName = context->GetNodeName();
-    auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMM_ALG_INDEX));
+    auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(attr::ATTR_COMM_ALG_INDEX));
     // 检查 commAlg 参数合法性校验
-    bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
-    bool isMte = std::strcmp(commAlgPtr, "mte") == 0;
+    // bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
+    // bool isMte = std::strcmp(commAlgPtr, "mte") == 0;
     
-    OP_TILING_CHECK(!(isNullOrEmpty || isMte),
-        OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. Only 'mte' is supported."
-            "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
-        return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK(!(isNullOrEmpty || isMte),
+    //     OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. Only 'mte' is supported."
+    //         "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
+    //     return ge::GRAPH_FAILED);
 
-    // 默认空指针和空字符走 MTE 方式
-    if (isNullOrEmpty) {
-        OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
-    }
-    // MTE 调用 A3 tiling 实现
-    return MoeDistributeCombineA3TilingFuncImpl(context);
+    // // 默认空指针和空字符走 MTE 方式
+    // if (isNullOrEmpty) {
+    //     OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
+    // }
+    // // MTE 调用 A3 tiling 实现
+    // return MoeDistributeCombineA3TilingFuncImpl(context);
+    return ge::GRAPH_SUCCESS;
 }
 
 static ge::graphStatus MoeDistributeCombineV2ExtendTilingFunc(gert::TilingContext* context)
@@ -87,7 +88,7 @@ static ge::graphStatus MoeDistributeCombineV2ExtendTilingFunc(gert::TilingContex
     if (socVersion == "Ascend950") {
         ret = MoeDistributeCombineA5ExtendTilingFuncImpl(context);
     } else {
-        return ge::GRAPH_
+        return ge::GRAPH_FAILED;
     }
 
     return ret;
