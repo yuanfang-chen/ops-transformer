@@ -12,6 +12,7 @@
 #include <sstream>
 #include <vector>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include "opdev/platform.h"
 #include "matmul_all_reduce_api_ut_param.h"
 #include "../../../op_api/aclnn_matmul_all_reduce_v2.h"
