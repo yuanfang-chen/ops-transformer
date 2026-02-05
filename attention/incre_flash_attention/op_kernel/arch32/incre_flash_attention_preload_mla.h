@@ -1544,17 +1544,23 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
         outputQue2.EnQue(softmaxlseUb);
         outputQue2.DeQue<T>();
 
-        uint32_t startS1Idx = s1Idx * s1SizeSub + mSizeVStart / gSize;
-        uint32_t startGIdx = mSizeVStart % gSize;
-        uint32_t endS1Idx = s1Idx * s1SizeSub + (mSizeVStart + dealRowCount - 1) / gSize;
-        uint32_t endGIdx = (mSizeVStart + dealRowCount - 1) % gSize;
+        uint32_t startS1Idx = startRow / gSize;
+        uint32_t startGIdx = startRow % gSize;
+        uint32_t endS1Idx = (startRow + dealRowCount - 1) / gSize;
+        uint32_t endGIdx = (startRow + dealRowCount - 1) % gSize;
         uint64_t outOffset = 0;
         uint64_t ubOffset = 0;
         uint32_t curDealRowCount = 0;
 
+        AscendC::printf("tkd startS1Idx: %u\n", startS1Idx);
+        AscendC::printf("tkd endS1Idx: %u\n", endS1Idx);
+        AscendC::printf("tkd startGIdx: %u\n", startGIdx);
+        AscendC::printf("tkd endGIdx: %u\n", endGIdx);
+
         if constexpr (LAYOUT_T == LAYOUT::TND) {
             uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
             uint64_t bN2Offset = tokenPrefixSum * qHeadNum + n2Idx * gSize;
+            AscendC::printf("tkd bN2Offset: %llu\n", bN2Offset);
 
             for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
                 outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
@@ -1568,6 +1574,9 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
                 dataCopyParams.blockLen = sizeof(T);
                 dataCopyParams.srcStride = 0;
                 dataCopyParams.dstStride = 0;
+                AscendC::printf("tkd blockCount: %u\n", curDealRowCount);
+                AscendC::printf("tkd outOffset: %llu\n", outOffset);
+                AscendC::printf("tkd ubOffset: %llu\n", ubOffset);
                 DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
                 startGIdx = 0;
                 ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
@@ -1587,6 +1596,9 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
                 dataCopyParams.blockLen = sizeof(T);
                 dataCopyParams.srcStride = 0;
                 dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(T);
+                AscendC::printf("tkd blockCount: %u\n", curDealRowCount);
+                AscendC::printf("tkd outOffset: %llu\n", outOffset);
+                AscendC::printf("tkd ubOffset: %llu\n", ubOffset);
                 DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
                 startGIdx = 0;
                 ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
@@ -2751,7 +2763,34 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
         LocalTensor<T> sumTensor = softmaxSumUb[softmaxOutOffset];
         LocalTensor<T> maxTensor = softmaxMaxUb[softmaxOutOffset];
 
-        if (!FLASH_DECODE && softmaxLseFlag) {
+        if constexpr (BALANCE) {
+            if (!info.tndIsS2SplitCore) {
+                if (softmaxLseFlag) {
+#ifdef IFA_SOFTMAX_WITHOUT_BRC
+                    LocalTensor<T> lseSumUb = tmpBuff1.Get<T>(BUFFER_SIZE_BYTE_2K);
+                    LocalTensor<T> lseMaxUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_2K, BUFFER_SIZE_BYTE_2K);
+                    Brcb(lseSumUb, sumTensor, (mSizeVector + BLOCK_ELEMENT_NUM - 1) / BLOCK_ELEMENT_NUM,
+                         {1, BLOCK_ELEMENT_NUM});
+                    PipeBarrier<PIPE_V>();
+                    Brcb(lseMaxUb, maxTensor, (mSizeVector + BLOCK_ELEMENT_NUM - 1) / BLOCK_ELEMENT_NUM,
+                         {1, BLOCK_ELEMENT_NUM});
+                    PipeBarrier<PIPE_V>();
+#endif
+                    SoftmaxLseCopyOut(info, lseMaxUb, lseSumUb, mSizeVector);
+                }
+                return;
+            }
+        }
+
+        if constexpr (FLASH_DECODE) {
+            uint32_t outIdx = info.loop % (PRE_LOAD_NUM_MLA);
+            auto sumTensor = softmaxSumUb[outIdx * BUFFER_SIZE_BYTE_2K / sizeof(T)];
+            auto maxTensor = softmaxMaxUb[outIdx * BUFFER_SIZE_BYTE_2K / sizeof(T)];
+            ComputeLogSumExpAndCopyToGm(info, sumTensor, maxTensor);
+            return;
+        }
+
+        if (softmaxLseFlag) {
 #ifdef IFA_SOFTMAX_WITHOUT_BRC
             LocalTensor<T> lseSumUb = tmpBuff1.Get<T>(BUFFER_SIZE_BYTE_2K);
             LocalTensor<T> lseMaxUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_2K, BUFFER_SIZE_BYTE_2K);
@@ -2763,20 +2802,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
             PipeBarrier<PIPE_V>();
 #endif
             SoftmaxLseCopyOut(info, lseMaxUb, lseSumUb, mSizeVector);
-        }
-
-        if constexpr (BALANCE) {
-            if (!info.tndIsS2SplitCore) {
-                return;
-            }
-        }
-
-        if constexpr (FLASH_DECODE) {
-            uint32_t outIdx = info.loop % (PRE_LOAD_NUM_MLA);
-            auto sumTensor = softmaxSumUb[outIdx * BUFFER_SIZE_BYTE_2K / sizeof(T)];
-            auto maxTensor = softmaxMaxUb[outIdx * BUFFER_SIZE_BYTE_2K / sizeof(T)];
-            ComputeLogSumExpAndCopyToGm(info, sumTensor, maxTensor);
-            return;
         }
     }
 }
