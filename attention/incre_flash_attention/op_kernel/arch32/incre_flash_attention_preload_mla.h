@@ -2782,8 +2782,8 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
 }
 
 template <typename IFAT>
-__aicore__ inline void SoftmaxLseCopyOut(const ExtraInfoMla &info, LocalTensor<T> &lseMaxUb, LocalTensor<T> &lseSumUb,
-                                         uint32_t dealRowCount)
+__aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyOut(const ExtraInfoMla &info, LocalTensor<T> &lseMaxUb,
+                                                            LocalTensor<T> &lseSumUb, uint32_t dealRowCount)
 {
     uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
