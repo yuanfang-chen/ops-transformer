@@ -32,36 +32,36 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
 
 | 参数名            | 输入/输出/属性 | 描述  | 数据类型       | 数据格式   |
 |----------------------------|-----------|----------------------------------------------------------------------|----------------|------------|
-| q                     | 输入      | 对应公式中的$Q$。                                                 | BFLOAT16、FLOAT16 | ND |
-| ori\_kv               | 可选输入  | 对应公式中的$\tilde{K}和\tilde{V}$的一部分，为原始不经压缩的KV。    | BFLOAT16、FLOAT16 | ND |
-| cmp\_kv               | 可选输入  | 对应公式中的$\tilde{K}和\tilde{V}$的一部分，为经过压缩的KV。        | BFLOAT16、FLOAT16 | ND |
-| ori\_sparse\_indices  | 可选输入  | 代表离散取oriKvCache的索引。                                      | INT32             | ND |
-| cmp\_sparse\_indices  | 可选输入  | 代表离散取cmpKvCache的索引。                                      | INT32             | ND |
-| ori\_block\_table     | 可选输入  | 表示PageAttention中oriKvCache存储使用的block映射表。               | INT32            | ND |
-| cmp\_block\_table     | 可选输入  | 表示PageAttention中cmpKvCache存储使用的block映射表。               | INT32            | ND |
-| cu\_seqlens\_q        | 可选输入  | 表示不同Batch中`q`的有效token数。                                  | INT32            | ND |
-| cu\_seqlens\_ori\_kv  | 可选输入  | 表示不同Batch中`ori_kv`的有效token数。                             | INT32            | ND |
-| cu\_seqlens\_cmp\_kv  | 可选输入  | 表示不同Batch中`cmp_kv`的有效token数。                             | INT32            | ND |
-| seqused\_q            | 可选输入  | 表示不同Batch中`q`实际参与运算的token数。                           | INT32            | ND |
-| seqused\_kv           | 可选输入  | 表示不同Batch中`ori_kv`实际参与运算的token数。                      | INT32            | ND |
-| sinks                 | 可选输入  | 注意力下沉tensor。                                                 | FLOAT32         | ND |
-| metadata              | 可选输入  | aicpu算子（npu\_sparse\_attn\_sharedkv\_metadata）的分核结果。      | INT32           | ND |
-| softmax\_scale        | 可选属性  | 代表缩放系数，对应公式中的$\text{softmax\_scale}$，默认值为None。     | FLOAT32         | - |
-| cmp_ratio             | 可选属性  | 表示对ori\_kv的压缩率，仅支持输入4或128，默认值为None。               | INT32           | - |
-| ori\_mask\_mode       | 可选属性  | 表示q和ori\_kv计算的mask模式，仅支持输入默认值4。                     | INT32           | - |
-| cmp\_mask\_mode       | 可选属性  | 表示q和cmp\_kv计算的mask模式，仅支持输入默认值3。                     | INT32           | - |
-| ori\_win\_left        | 可选属性  | 表示q和ori\_kv计算中q对过去token计算的数量，仅支持输入默认值127。      | INT32           | - |
-| ori\_win\_right       | 可选属性  | 表示q和ori\_kv计算中q对未来token计算的数量，仅支持输入默认值0。        | INT32           | - |
-| layout\_q             | 可选属性  | 用于标识输入q的数据排布格式，支持输入TND和BSND，默认值为BSND。         | INT32           | - |
-| layout\_kv            | 可选属性  | 用于标识输入`ori_kv`和`cmp_kv`的数据排布格式，仅支持输入PA_ND。       | String           | - |
-| return\_softmax_lse   | 可选属性  | 表示是否返回softmax\_lse。True表示返回，False表示不返回，默认值为False。| Bool              | -  |
-| attention\_out        | 输出      | 公式中的输出。                                                      | BFLOAT16、FLOAT16 | ND |
-| softmax\_lse          | 输出      | 返回的softmax\_lse。                                               | FLOAT32           | ND |
+| q                     | 输入      | 对应公式中的$Q$。                                                     | BFLOAT16、FLOAT16  | ND |
+| ori\_kv               | 可选输入  | 对应公式中的$\tilde{K}和\tilde{V}$的一部分，为原始不经压缩的KV。          | BFLOAT16、FLOAT16 | ND |
+| cmp\_kv               | 可选输入  | 对应公式中的$\tilde{K}和\tilde{V}$的一部分，为经过压缩的KV。             | BFLOAT16、FLOAT16  | ND |
+| ori\_sparse\_indices  | 可选输入  | 代表离散取oriKvCache的索引。                                           | INT32              | ND |
+| cmp\_sparse\_indices  | 可选输入  | 代表离散取cmpKvCache的索引。                                           | INT32              | ND |
+| ori\_block\_table     | 可选输入  | 表示PageAttention中oriKvCache存储使用的block映射表。                   | INT32               | ND |
+| cmp\_block\_table     | 可选输入  | 表示PageAttention中cmpKvCache存储使用的block映射表。                   | INT32               | ND |
+| cu\_seqlens\_q        | 可选输入  | 表示不同Batch中`q`的有效token数。                                      | INT32               | ND |
+| cu\_seqlens\_ori\_kv  | 可选输入  | 表示不同Batch中`ori_kv`的有效token数。                                 | INT32               | ND |
+| cu\_seqlens\_cmp\_kv  | 可选输入  | 表示不同Batch中`cmp_kv`的有效token数。                                 | INT32               | ND |
+| seqused\_q            | 可选输入  | 表示不同Batch中`q`实际参与运算的token数。                               | INT32               | ND |
+| seqused\_kv           | 可选输入  | 表示不同Batch中`ori_kv`实际参与运算的token数。                          | INT32               | ND |
+| sinks                 | 可选输入  | 注意力下沉tensor。                                                     | FLOAT32             | ND |
+| metadata              | 可选输入  | aicpu算子（npu\_sparse\_attn\_sharedkv\_metadata）的分核结果。          | INT32               | ND |
+| softmax\_scale        | 可选属性  | 代表缩放系数，对应公式中的$\text{softmax\_scale}$，默认值为None。         | FLOAT32             | - |
+| cmp_ratio             | 可选属性  | 表示对`ori_kv`的压缩率，仅支持输入4或128，默认值为None。                 | INT32               | - |
+| ori\_mask\_mode       | 可选属性  | 表示`q`和`ori_kv`计算的mask模式，仅支持输入默认值4。                     | INT32               | - |
+| cmp\_mask\_mode       | 可选属性  | 表示`q`和`cmp_kv`计算的mask模式，仅支持输入默认值3。                     | INT32               | - |
+| ori\_win\_left        | 可选属性  | 表示`q`和`ori_kv`计算中q对过去token计算的数量，仅支持输入默认值127。      | INT32               | - |
+| ori\_win\_right       | 可选属性  | 表示`q`和`ori_kv`计算中q对未来token计算的数量，仅支持输入默认值0。        | INT32               | - |
+| layout\_q             | 可选属性  | 用于标识输入`q`的数据排布格式，支持输入"TND"和"BSND"，默认值为"BSND"。     | String               | - |
+| layout\_kv            | 可选属性  | 用于标识输入`ori_kv`和`cmp_kv`的数据排布格式，仅支持输入"PA_ND"。         | String               | - |
+| return\_softmax_lse   | 可选属性  | 表示是否返回`softmax_lse`。True表示返回，False表示不返回，默认值为False。 | BOOL                | -  |
+| attention\_out        | 输出      | 公式中的输出。                                                          | BFLOAT16、FLOAT16   | ND |
+| softmax\_lse          | 输出      | 返回的`softmax_lse`。                                                 | FLOAT32             | ND |
 
 ## 约束说明
-- 该接口支持图模式。
-- `q`、`ori_kv`、`cmp_kv`数据排布格式支持从多种维度解读，B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
-  - Q\_S和S1表示q shape中的S，S2表示ori_kv shape中的S，S3表示cmp_kv shape中的S；Q\_N和N1表示num\_q\_heads，KV\_N和N2表示num\_ori_kv\_heads和num\_cmp_kv\_heads；Q\_T和T1表示q shape中的T，T2表示ori_kv shape中的T，T3表示cmp_kv shape中的输入样本序列长度的累加和。
+- 该接口支持推理场景下使用。
+- 该接口支持aclgraph模式。
+- 该接口当前支持三种计算场景：场景一，仅传入`ori_kv`时为Sliding Window Attention计算；场景二，传入`ori_kv`及`cmp_kv`时为Sliding Window Attention + Compressed Attention计算；场景三，传入`ori_kv`、`cmp_kv`及`cmp_sparse_indices`时为Sliding Window Attention + Sparse Compressed Attention计算。
 
 - 当`layout_q`为TND时，功能使用限制如下：
   - `q`的shape需要为[T1,N1,D]，其中N1仅支持64。
@@ -79,10 +79,13 @@ custom.npu_sparse_attn_sharedkv(q, *, ori_kv=None, cmp_kv=None, ori_sparse_indic
   - `ori_block_table`和`cmp_block_table`的shape为2维，其中第一维长度为B，第二维长度不小于所有batch中最大的S2和S3对应的block数量，即S2\_max / block\_size和S3\_max / block\_size向上取整。
 - `metadata`为算子实际需要使用的分核结果，目前该参数必传，shape大小固定为[1024]。
 - `layout_kv`仅支持输入PA_ND，故设置`cu_seqlens_ori_kv`和`cu_seqlens_cmp_kv`无效。
-- 目前暂不支持返回softmax_lse，`return_softmax_lse`仅支持输入False，返回值`softmax_lse`为无效值。
+- 目前暂不支持返回`softmax_lse`，`return_softmax_lse`仅支持输入False，返回值`softmax_lse`为无效值。
+- ori_mask_mode及cmp_mask_mode所表示的mask模式的详细介绍见[sparse_mode参数说明](../../../docs/zh/context/sparse_mode参数说明.md)。
 - 目前暂不支持指定`q`中参与运算的token数，因此设置`seqused_q`无效。
-- 目前暂不支持对ori_kv进行稀疏计算，故设置`ori_sparse_indices`无效。
+- 目前暂不支持对`ori_kv`进行稀疏计算，因此设置`ori_sparse_indices`无效。
 - 目前所有输入不支持传入空tensor。
+- `q`、`ori_kv`、`cmp_kv`数据排布格式支持从多种维度解读，B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
+- Q\_S和S1表示q shape中的S，S2表示ori_kv shape中的S，S3表示cmp_kv shape中的S；Q\_N和N1表示num\_q\_heads，KV\_N和N2表示num\_ori_kv\_heads和num\_cmp_kv\_heads；Q\_T和T1表示q shape中的输入样本序列长度的累加和。
 
 ## 调用示例
 - 单算子模式调用
