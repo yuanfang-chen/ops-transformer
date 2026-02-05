@@ -286,7 +286,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithRoutingMapGrad(
     <td>输入probsOptional非空，且paddedMode为false时，topK_num大于experts_num。</td>
     </tr>
     <tr>
-    <td>输入probsOptional非空，且paddedMode为false时，196608 - (probTypeLen + 1) * numExpertAlign-(tokenTypeLen + 8) * 256 / (6 * tokenTypeLen + 12) < 1。</td>
+    <td>输入probsOptional非空，且paddedMode为false时，(196608 - (probTypeLen + 1) * numExpertAlign-(tokenTypeLen + 8) * 256) / (6 * tokenTypeLen + 12) < 1。</td>
     </tr>
     <tr>
     <td>输入probsOptional非空，且paddedMode为true时，capacity大于tokens_num。</td>
