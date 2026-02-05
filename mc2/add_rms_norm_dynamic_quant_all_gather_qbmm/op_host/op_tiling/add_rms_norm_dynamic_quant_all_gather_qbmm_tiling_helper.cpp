@@ -1,0 +1,399 @@
+/**
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/*!
+ * \file add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_helper.cpp
+ * \brief host侧tiling实现
+ */
+
+#include <register/op_def_registry.h>
+#include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_helper.h"
+#include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
+
+namespace MC2Tiling {
+
+constexpr uint64_t SCALE_INDEX = 5;
+constexpr uint64_t BIAS_INDEX = 7;
+constexpr uint64_t TWO_BATCH_DIM = 2;
+template<typename T>
+inline bool Is256BAlign(T base, uint64_t dTypeSize) {
+    if (base * dTypeSize % 256 == 0) { // 256: align byte size
+        return true;
+    }
+    return false;
+};
+
+ge::graphStatus MmTilingHelper::GetPlatformInfo() // 检查平台信息是否支持
+{
+    if (!compileInfoInit_) {
+        auto compileInfoPtr = reinterpret_cast<const MatmulV3CompileInfo *>(context_->GetCompileInfo());
+        OP_CHECK_NULL_WITH_CONTEXT(context_, compileInfoPtr);
+        compileInfo_ = *compileInfoPtr;
+    }
+    if (compileInfo_.aicNum == 0) {
+        OP_LOGE(context_->GetNodeName(), "compileInfo.aicNum is zero.");
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+void MmTilingHelper::InitCompileInfo() // 检查输入属性是否支持
+{
+    auto platformInfo = context_->GetPlatformInfo();
+    if (platformInfo == nullptr) {
+        OP_LOGW(context_->GetNodeName(), "platformInfo is null");
+        return;
+    }
+    Mc2MatmulV3CompileInfo compileInfo;
+
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    platformInfo->GetPlatformRes("version", "SoC_version", compileInfo.socVersionStr);
+    std::string val;
+    std::string dataMoveL12Bt;
+    platformInfo->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_fix_pipe_l0c2out", val);
+    platformInfo->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_data_move_l12bt", dataMoveL12Bt);
+    compileInfo.supportL0c2out = !val.empty();
+    compileInfo.supportL12BtBf16 = (dataMoveL12Bt.find("bf16") != string::npos);
+    compileInfo.aicNum = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAic());
+    compileInfo.aivNum = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAiv());
+    compileInfo.socVersion = ascendcPlatform.GetSocVersion();
+    compileInfo.btSize = compileInfo.supportL0c2out ? 1024UL : 0UL;                    // 1024 is btSize
+    compileInfo.btSize = compileInfo.supportL12BtBf16 ? 4096 : compileInfo.btSize; // 4096 is btSize
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfo.ubSize);
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, compileInfo.l1Size);
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, compileInfo.l0ASize);
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfo.l0BSize);
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfo.l0CSize);
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L2, compileInfo.l2Size);
+
+    TilingPrepareForOpCache(context_);
+    OP_LOGI(context_->GetNodeName(),
+        "parse compile info soc:%d, l1Size:%lu, l2Size:%lu, coreNum:%lu, supportL0c2out:%d, supportL12BtBf16:%d",
+        static_cast<int32_t>(compileInfo.socVersion), compileInfo.l1Size, compileInfo.l2Size, compileInfo.aicNum,
+        compileInfo.supportL0c2out, compileInfo.supportL12BtBf16);
+    compileInfoInit_ = true;
+    compileInfo_ = compileInfo;
+}
+
+ge::graphStatus InitTCubeTilingData(TCubeTiling &tCubeTiling) const
+{
+    matmul_tiling::MultiCoreMatmulTiling mm;
+    auto aFormat = args_.aFormat == ge::FORMAT_ND ? matmul_tiling::CubeFormat::ND : matmul_tiling::CubeFormat::NZ;
+    auto bFormat = args_.bFormat == ge::FORMAT_ND ? matmul_tiling::CubeFormat::ND : matmul_tiling::CubeFormat::NZ;
+    auto cFormat = args_.outFormat == ge::FORMAT_ND ? matmul_tiling::CubeFormat::ND : matmul_tiling::CubeFormat::NZ;
+    try {
+        mm.SetAType(matmul_tiling::TPosition::GM, aFormat, dtypeMap_.at(args_.aType), args_.isATrans);
+        mm.SetBType(matmul_tiling::TPosition::GM, bFormat, dtypeMap_.at(args_.bType), args_.isBTrans);
+        mm.SetCType(matmul_tiling::TPosition::GM, cFormat, dtypeMap_.at(args_.cType));
+        mm.SetDim(compileInfo_.aicNum);
+        mm.SetShape(args_.mValue, args_.nValue, args_.kValue);
+        mm.SetOrgShape(args_.mValue, args_.nValue, args_.kValue);
+        if (args_.hasBias) {
+            mm.SetBias(true);
+            mm.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+                            dtypeMap_.at(args_.biasType));
+        }
+    } catch (const std::out_of_range &e) {
+        OP_LOGE(args_.opName, "MatMulV3 Set Type Failed! %d, %d, %d, %d",
+                static_cast<int32_t>(args_.aType),
+                static_cast<int32_t>(args_.bType),
+                static_cast<int32_t>(args_.cType),
+                static_cast<int32_t>(args_.biasType));
+        return ge::GRAPH_FAILED;
+    }
+
+    mm.SetBufferSpace(compileInfo_.l1Size, compileInfo_.l0CSize, compileInfo_.ubSize);
+    if (mm.GetTiling(tCubeTiling) == -1) {
+        OP_LOGE(args_.opName, "MatMulV3 Get Tiling Failed!");
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+static ge::graphStatus GetInputDims(const gert::Shape &storageShape, ge::Format format, int64_t (&dims)[TWO_BATCH_DIM])
+{
+    const size_t dimNum = storageShape.GetDimNum();
+    if (format == ge::FORMAT_ND) {
+        if (dimNum < TWO_BATCH_DIM) {
+            return ge::GRAPH_FAILED;
+        }
+        dims[0] = storageShape[dimNum - TWO_BATCH_DIM];
+        dims[1] = storageShape[dimNum - ONE_BATCH_DIM];
+    } else {
+        if (dimNum < FOUR_BATCH_DIM) {
+            return ge::GRAPH_FAILED;
+        }
+        dims[0] = storageShape[dimNum - THREE_BATCH_DIM] * storageShape[dimNum - TWO_BATCH_DIM];
+        dims[1] = storageShape[dimNum - FOUR_BATCH_DIM] * storageShape[dimNum - ONE_BATCH_DIM];
+    }
+    return ge::GRAPH_SUCCESS;
+}
+static ge::graphStatus SetMatmulDimensions(
+    const gert::TilingContext& context, MatmulV3Args& args, int64_t m, int64_t k, int64_t n)
+{
+    auto isValidDimValue = [](int64_t dim) -> bool { return (dim > 0) && (dim <= INT32_MAX); };
+    if (!isValidDimValue(m) || !isValidDimValue(k) || !isValidDimValue(n)) {
+        OP_LOGE(args.opName, "illegal value: m[%ld], k[%ld], n[%ld]", m, k, n);
+        return ge::GRAPH_FAILED;
+    }
+    args.mValue = static_cast<uint64_t>(m);
+    args.kValue = static_cast<uint64_t>(k);
+    args.nValue = static_cast<uint64_t>(n);
+
+    // get origin (m, n)
+    const gert::Shape& cShape = context.GetOutputShape(0)->GetOriginShape();
+    const size_t cDimNum = cShape.GetDimNum();
+    if (cDimNum < TWO_BATCH_DIM) {
+        OP_LOGE(args.opName, "illegal value: output dim num (%zu)", cDimNum);
+        return ge::GRAPH_FAILED;
+    }
+    args.nOriValue = cShape[cDimNum - LAST_DIM];
+    args.mOriValue = cShape[cDimNum - LAST_SECOND_DIM];
+
+    if (args.aFormat == ge::FORMAT_FRACTAL_NZ) {
+        args.mValue = args.mOriValue;
+    }
+
+    if (args.bFormat == ge::FORMAT_FRACTAL_NZ) {
+        args.nValue = args.nOriValue;
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus GetShape(const gert::TilingContext &context, MatMulArgs &args)
+{
+    // get transpose
+    args.isBTrans = *context.GetAttrs()->GetAttrPointer<bool>(2);
+
+    // get (m, k, n)
+    int64_t mkDims[TWO_BATCH_DIM];
+    int64_t knDims[TWO_BATCH_DIM];
+    if ((GetInputDims(context.GetInputShape(0)->GetStorageShape(), args.aFormat, mkDims) != ge::GRAPH_SUCCESS) ||
+        (GetInputDims(context.GetInputShape(1)->GetStorageShape(), args.bFormat, knDims) != ge::GRAPH_SUCCESS)) {
+        OP_LOGE(args.opName, "invalid input dim num");
+        return ge::GRAPH_FAILED;
+    }
+    int64_t kDimsIndex = args.isATrans ? 0 : 1;
+    int64_t k = mkDims[kDimsIndex];
+    int64_t kRight = 0;
+    if (args.aFormat == ge::FORMAT_FRACTAL_NZ) {
+        auto aOriginShape = context.GetInputShape(0)->GetOriginShape();
+        int64_t aDimNum = aOriginShape.GetDimNum();
+        k = aOriginShape.GetDim(args.isATrans ? aDimNum - TWO_BATCH_DIM : aDimNum - ONE_BATCH_DIM);
+    }
+    if (args.bFormat == ge::FORMAT_FRACTAL_NZ) {
+        auto bOriginShape = context.GetInputShape(1)->GetOriginShape();
+        int64_t bDimNum = bOriginShape.GetDimNum();
+        kRight = bOriginShape.GetDim(args.isBTrans ? bDimNum - ONE_BATCH_DIM: bDimNum - TWO_BATCH_DIM);
+    } else {
+        int64_t dimIndex = args.isBTrans ? 1 : 0;
+        kRight = knDims[dimIndex];
+    }
+    if (k != kRight) {
+        OP_LOGE(args.opName, "unequal input kDim values: k_left[%ld], k_right[%ld]", k, kRight);
+        return ge::GRAPH_FAILED;
+    }
+    int64_t mDimsIndex = args.isATrans ? 1 : 0;
+    int64_t m = mkDims[mDimsIndex];
+    int64_t nDimsIndex = args.isBTrans ? 0 : 1;
+    int64_t n = knDims[nDimsIndex];
+
+    return SetMatmulDimensions(context, args, m, k, n);
+}
+
+static inline void GetFormat(const gert::TilingContext &context, Mc2MatMulArgs &args)
+{
+    ge::Format formatA = static_cast<ge::Format>(ge::GetPrimaryFormat(context.GetInputDesc(0)->GetStorageFormat()));
+    ge::Format formatB = static_cast<ge::Format>(ge::GetPrimaryFormat(context.GetInputDesc(1)->GetStorageFormat()));
+    ge::Format formatOut = static_cast<ge::Format>(ge::GetPrimaryFormat(context.GetOutputDesc(0)->GetStorageFormat()));
+    args.aFormat = (formatA != ge::FORMAT_FRACTAL_NZ) ? ge::FORMAT_ND : formatA;
+    args.bFormat = (formatB != ge::FORMAT_FRACTAL_NZ) ? ge::FORMAT_ND : formatB;
+    args.outFormat = (formatOut != ge::FORMAT_FRACTAL_NZ) ? ge::FORMAT_ND : formatOut;
+}
+
+static inline void GetDtype(const gert::TilingContext &context, Mc2MatMulArgs &args)
+{
+    OP_LOGD(args.opName, "Hf32 flag is: %d", args.isHf32);
+
+    args.aType = context.GetInputDesc(0)->GetDataType();
+    args.bType = context.GetInputDesc(1)->GetDataType();
+    args.cType = context.GetOutputDesc(0)->GetDataType();
+    args.hasBias = context.GetOptionalInputDesc(BIAS_INDEX) != nullptr;
+    OP_LOGD(args.opName, "hasBias is: %d", args.hasBias);
+    if (args.hasBias) {
+        args.biasType = context.GetOptionalInputDesc(BIAS_INDEX)->GetDataType();
+    }
+}
+
+ge::graphStatus MmTilingHelper::getMamtulArgs()
+{
+    GetFormat(*context_, args_);
+    GetDtype(*context_, args_);
+    if (GetShape(*context_, args_) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+inline bool GetNd2nzA(const MatMulArgs& args_, const MatmulV3CompileInfo& compileInfo_)
+{
+    constexpr uint64_t nMataThread = 16384;
+    constexpr uint64_t mMataThread = 4096;
+    constexpr uint64_t kMataThread = 6656;
+    constexpr uint64_t compileNum = 24;
+    return !args_.isBTrans && args_.nValue % nMataThread == 0 &&
+           (args_.mValue > mMataThread || (args_.mValue == mMataThread && compileInfo_.aicNum >= compileNum)) &&
+           args_.kValue >= kMataThread && args_.bFormat == ge::FORMAT_ND &&
+           (args_.aType == ge::DT_FLOAT16 || args_.aType == ge::DT_BF16);
+}
+
+inline bool GetNd2nzB(const MatMulArgs& args_, const MatmulV3CompileInfo& compileInfo_)
+{
+    constexpr uint64_t kMataCond = 16384;
+    constexpr uint64_t nMataCond = 7168;
+    constexpr uint64_t mMataCondMax = 4480;
+    constexpr uint64_t mMataCondMin = 4096;
+    constexpr uint64_t compileNum = 24;
+    return !args_.isATrans && args_.isBTrans && args_.kValue == kMataCond && args_.mValue >= mMataCondMin &&
+           args_.mValue <= mMataCondMax && args_.nValue >= nMataCond && args_.bFormat == ge::FORMAT_ND &&
+           (args_.aType == ge::DT_FLOAT16 || args_.aType == ge::DT_BF16) && compileInfo_.aicNum >= compileNum;
+}
+
+bool MmTilingHelper::NeedNd2NzVnchw(uint64_t outerSize, uint64_t innerSize, bool supportNd2NzOnTheWay,
+                                    uint64_t dtypeSize, ge::Format matFormat) const
+{
+    if (dtypeSize == 0UL) {
+        return false;
+    }
+    if (matFormat == ge::FORMAT_ND) {
+        bool innerAlign = Is256BAlign(innerSize, dtypeSize);
+        // 外轴<=8192 会导致数据量增大减慢搬运, 192B为最大奇数内轴长度, 384B为最大偶数内轴长度
+        bool willFitVnchwCond = outerSize > 8192UL && (innerSize > 1UL) && (innerSize * dtypeSize <= 192UL ||
+                                (innerSize * dtypeSize <= 384UL && innerSize % 2UL == 0) ||
+                                (innerSize * dtypeSize <= CACHELINE && innerSize % 4UL == 0UL));
+        bool willInnerSizeEqualC0 = (innerSize == (32UL / dtypeSize));
+        return (willFitVnchwCond && !innerAlign && !supportNd2NzOnTheWay && !willInnerSizeEqualC0);
+    }
+    return false;
+}
+inline int GetSizeByDataType(DataType data_type) {
+  static int data_type_size[DT_MAX] = {
+      4,                           // DT_FLOAT = 0,             float type
+      2,                           // DT_FLOAT16 = 1,           fp16 type
+      1,                           // DT_INT8 = 2,              int8 type
+      4,                           // DT_INT32 = 3,             int32 type
+      1,                           // DT_UINT8 = 4,             uint8 type
+      -1,                          // reserved
+      2,                           // DT_INT16 = 6,             int16 type
+      2,                           // DT_UINT16 = 7,            uint16 type
+      4,                           // DT_UINT32 = 8,            unsigned int32
+      8,                           // DT_INT64 = 9,             int64 type
+      8,                           // DT_UINT64 = 10,           unsigned int64
+      8,                           // DT_DOUBLE = 11,           double type
+      1,                           // DT_BOOL = 12,             bool type
+      -1,                          // DT_STRING = 13,           string type
+      1,                           // DT_DUAL_SUB_INT8 = 14,    dual output int8 type
+      1,                           // DT_DUAL_SUB_UINT8 = 15,   dual output uint8 type
+      8,                           // DT_COMPLEX64 = 16,        complex64 type
+      16,                          // DT_COMPLEX128 = 17,       complex128 type
+      1,                           // DT_QINT8 = 18,            qint8 type
+      2,                           // DT_QINT16 = 19,           qint16 type
+      4,                           // DT_QINT32 = 20,           qint32 type
+      1,                           // DT_QUINT8 = 21,           quint8 type
+      2,                           // DT_QUINT16 = 22,          quint16 type
+      8,                           // DT_RESOURCE = 23,         resource type
+      -1,                          // DT_STRING_REF = 24,       string ref type
+      5,                           // DT_DUAL = 25,             dual output type (float + int8)
+      8,                           // DT_VARIANT                variant type
+      2,                           // DT_BF16 = 27,             bf16 type
+      -1,                          // DT_UNDEFINED = 28         Used to indicate a DataType field has not been set.
+      kDataTypeSizeBitOffset + 4,  // DT_INT4 = 29,             int4 type
+      kDataTypeSizeBitOffset + 1,  // DT_UINT1 = 30,            uint1 type
+      kDataTypeSizeBitOffset + 2,  // DT_INT2 = 31,             int2 type
+      kDataTypeSizeBitOffset + 2,  // DT_UINT2 = 32,            uint2 type
+      4,                           // DT_COMPLEX32 = 33,        complex32 type
+                                   // DT_MAX
+  };
+  if ((data_type < 0) || (data_type >= DT_MAX)) {
+    return -1;
+  }
+  return data_type_size[data_type];
+}
+
+ge::graphStatus MmTilingHelper::GetMoreArgs()
+{
+    aDtypeSize_ = GetSizeByDataType(args_.aType);
+    bDtypeSize_ = GetSizeByDataType(args_.bType);
+    cDtypeSize_ = GetSizeByDataType(args_.cType);
+    m256Align_ = Is256BAlign(args_.mValue, aDtypeSize_); // A矩阵 m轴256B对齐
+    kA256Align_ = Is256BAlign(args_.kValue, aDtypeSize_); // A矩阵 k轴256B对齐
+    kB256Align_ = Is256BAlign(args_.kValue, bDtypeSize_); // B矩阵 k轴256B对齐
+    n256Align_ = Is256BAlign(args_.nValue, bDtypeSize_);  // B矩阵 n轴256B对齐
+    bool innerAlignA = kA256Align_;
+    bool innerAlignB = n256Align_;
+    uint64_t innerSizeA = args_.kValue;
+    uint64_t innerSizeB = args_.nValue;
+    uint64_t outerSizeA = args_.mValue;
+    uint64_t outerSizeB = args_.kValue;
+    trans_ = MatmulV3Trans::NO_TRANS;
+    if (args_.isATrans) {
+        trans_ = MatmulV3Trans::A_TRANS;
+        innerAlignA = m256Align_;
+        innerSizeA = args_.mValue;
+        outerSizeA = args_.kValue;
+    }
+    if (args_.isBTrans) {
+        trans_ = MatmulV3Trans::B_TRANS;
+        innerAlignB = kB256Align_;
+        innerSizeB = args_.kValue;
+        outerSizeB = args_.nValue;
+    }
+    if (args_.isATrans && args_.isBTrans) {
+        trans_ = MatmulV3Trans::AB_TRANS;
+    }
+    calcMBasic_ = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_M_BASIC;
+    calcMNBasic_ = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_MN_BASIC;
+    l2TileLength_ = L2_TILE_LENGTH;
+    OP_TILING_CHECK(!compileInfo_.supportL0c2out, tilingSelect_ = TilingCalcSelect::BASE, return ge::GRAPH_SUCCESS);
+
+    // check the size is equaled to {32, 64, 96, 128, 160, 192, 224, 256, 384}.
+    bool supportNd2NzOnTheWayA = false;
+    bool supportNd2NzOnTheWayB = false;
+    args_.nd2nzA = ((!innerAlignA || innerSizeA > ND2NZ_ON_THE_FLY_LIMIT) && (args_.aFormat == ge::FORMAT_ND) &&
+        (!supportNd2NzOnTheWayA) &&
+        !(args_.aType == ge::DT_FLOAT && !args_.isHf32 && innerSizeA < ND2NZ_ON_THE_FLY_LIMIT) &&
+        !(args_.aType == ge::DT_FLOAT && args_.isHf32 && innerSizeA * aDtypeSize_ < CACHELINE));
+    args_.nd2nzB = ((!innerAlignB || innerSizeB > ND2NZ_ON_THE_FLY_LIMIT) && (args_.bFormat == ge::FORMAT_ND) &&
+        (!supportNd2NzOnTheWayB) &&
+        !(args_.bType == ge::DT_FLOAT && !args_.isHf32 && innerSizeB < ND2NZ_ON_THE_FLY_LIMIT) &&
+        !(args_.bType == ge::DT_FLOAT && args_.isHf32 && innerSizeB * bDtypeSize_ < CACHELINE));
+
+    OP_LOGD(args_.opName, "After judging nd2nz tiling condition, matrix A need normal mode nd2nz = %u, matrix B = %u.",
+            static_cast<uint32_t>(args_.nd2nzA), static_cast<uint32_t>(args_.nd2nzB));
+    args_.nd2nzA = args_.nd2nzA || NeedNd2NzVnchw(outerSizeA, innerSizeA, supportNd2NzOnTheWayA,
+                                                  aDtypeSize_, args_.aFormat);
+    args_.nd2nzB = args_.nd2nzB || NeedNd2NzVnchw(outerSizeB, innerSizeB, supportNd2NzOnTheWayB,
+                                                  bDtypeSize_, args_.bFormat);
+    // (k, n) n为16384的倍数时，mata冲突严重，m越大，右矩阵重复载入越多，冲突影响越大，将右矩阵先做nd2nz
+    // 限制为fp16、bf16场景
+    bool mataConflictFlag = GetNd2nzA(args_, compileInfo_);
+    //  B 矩阵转置场景
+    bool mataConflictFlag2 = GetNd2nzB(args_, compileInfo_);
+    args_.nd2nzB = args_.nd2nzB || mataConflictFlag || mataConflictFlag2;
+    OP_LOGI(args_.opName, "After judging nd2nz tiling condition, matrix A need vnchw mode nd2nz = %u, matrix B = %u.",
+            static_cast<uint32_t>(args_.nd2nzA), static_cast<uint32_t>(args_.nd2nzB));
+    if (args_.nd2nzA && NeedNd2NzVnchw(outerSizeA, innerSizeA, supportNd2NzOnTheWayA, aDtypeSize_, args_.aFormat)) {
+        args_.unAlignProcessType = 1;
+    } else {
+        args_.unAlignProcessType = 0;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+} // namespace MC2Tiling

@@ -47,11 +47,11 @@ extern "C" {
  * @param [out] executor: 返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(const aclTensor* x1, const aclTensor* x2,
+ACLNN_API aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(const aclTensor* x1, const aclTensor* x2, const aclTensor* residual,
                                                                                const aclTensor* y, const aclTensor* gamma,
-                                                                               const aclTensor* scale, const aclTensor* smoothScale,
-                                                                               const char* group, int64_t rankSize, bool transposeX2,
-                                                                               int64_t dtype, int64_t residualNormMode,
+                                                                               const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias,
+                                                                               const char* group, bool transposeX2,
+                                                                               int64_t residualNormMode,
                                                                                aclTensor* output, aclTensor* z,
                                                                                uint64_t* workspaceSize, aclOpExecutor** executor);
 
